@@ -98,6 +98,7 @@ export default async function OwnerPaymentsPage({
         </div>
 
         <ManualPaymentForm
+          actorId={user.id}
           organizationId={options.organization.id}
           locationId={options.selectedLocationId}
           charges={options.charges}

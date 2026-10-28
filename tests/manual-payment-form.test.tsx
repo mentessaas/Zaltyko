@@ -2,6 +2,7 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { webcrypto } from "node:crypto";
 
 import type { OpenManualPaymentCharge } from "@/modules/billing/application/manual-payments";
 
@@ -20,6 +21,7 @@ import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentFor
 import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
 const organizationId = "10000000-0000-4000-8000-000000000001";
+const actorId = "10000000-0000-4000-8000-000000000099";
 const charge: OpenManualPaymentCharge = {
   chargeId: "10000000-0000-4000-8000-000000000301",
   familyId: "10000000-0000-4000-8000-000000000201",
@@ -78,6 +80,8 @@ function deferred<T>() {
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
+  window.sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
@@ -85,9 +89,17 @@ afterEach(() => {
 beforeEach(() => {
   mockRefresh.mockReset();
   mockFetch.mockReset();
+  window.localStorage.clear();
+  window.sessionStorage.clear();
   publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
   vi.stubGlobal("fetch", mockFetch);
+  const navigatorWithLocks = Object.create(window.navigator) as Navigator;
+  Object.defineProperty(navigatorWithLocks, "locks", {
+    value: { request: async (_name: string, _options: unknown, callback: () => Promise<unknown>) => callback() },
+  });
+  vi.stubGlobal("navigator", navigatorWithLocks);
   vi.stubGlobal("crypto", {
+    subtle: webcrypto.subtle,
     randomUUID: () => "10000000-0000-4000-8000-000000000009",
   });
 });
@@ -96,6 +108,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
   it("explica el estado vacío sin presentar controles que no se pueden usar", () => {
     render(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={organizationId}
         charges={[]}
         canManageFamilyCollectionPreferences={false}
@@ -124,6 +137,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
 
     render(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={organizationId}
         locationId={charge.locationId}
         charges={[charge]}
@@ -189,6 +203,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
 
     const { rerender } = render(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={organizationId}
         locationId={charge.locationId}
         charges={[charge]}
@@ -202,6 +217,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
 
     rerender(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={organizationB}
         locationId={locationB}
         charges={[chargeB]}
@@ -261,6 +277,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
     mockFetch.mockResolvedValueOnce({ ok: true, status: 201, json });
 
     const props = {
+      actorId,
       organizationId,
       charges: [charge],
       canManageFamilyCollectionPreferences: false,
@@ -314,6 +331,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
 
     render(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
         canManageFamilyCollectionPreferences={false}
@@ -363,6 +381,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
 
     render(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
         canManageFamilyCollectionPreferences={false}
@@ -411,6 +430,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
 
     render(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
         canManageFamilyCollectionPreferences={false}

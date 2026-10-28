@@ -17,6 +17,7 @@ import type { OpenManualPaymentCharge } from "@/modules/billing/application/manu
 import { getCalendarDateInTimezone } from "@/modules/billing/domain/manual-payment-date";
 
 const organizationId = "74000000-0000-4000-8000-000000000001";
+const actorId = "74000000-0000-4000-8000-000000000099";
 const otherOrganizationId = "74000000-0000-4000-8000-000000000005";
 const timezoneSwitchOrganizationId = "74000000-0000-4000-8000-000000000007";
 const charges: OpenManualPaymentCharge[] = [
@@ -57,17 +58,32 @@ beforeEach(() => {
   fetchMock.mockReset();
   mocks.refresh.mockReset();
   window.sessionStorage.clear();
+  window.localStorage.clear();
   vi.stubGlobal("crypto", webcrypto);
   vi.stubGlobal("fetch", fetchMock);
+  const navigatorWithLocks = Object.create(window.navigator) as Navigator;
+  Object.defineProperty(navigatorWithLocks, "locks", {
+    value: { request: async (_name: string, _options: unknown, callback: () => Promise<unknown>) => callback() },
+  });
+  vi.stubGlobal("navigator", navigatorWithLocks);
   publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
 });
 
 afterEach(() => {
   cleanup();
   window.sessionStorage.clear();
+  window.localStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
+
+async function waitForRegisterEnabled() {
+  await waitFor(() => {
+    expect(
+      screen.getByRole("button", { name: "Guardar pago recibido" })
+    ).toBeEnabled();
+  });
+}
 
 describe("registro manual de pagos con política de solo lectura", () => {
   it("ignora un segundo submit síncrono y libera el gate tras confirmar el pago", async () => {
@@ -104,6 +120,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
 
     render(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={organizationId}
         charges={[...charges, secondCharge]}
       />
@@ -111,6 +128,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
     });
+    await waitForRegisterEnabled();
     const form = screen
       .getByRole("button", { name: "Guardar pago recibido" })
       .closest("form");
@@ -186,6 +204,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
     ];
     render(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={timezoneSwitchOrganizationId}
         charges={locationCharges}
       />
@@ -209,7 +228,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
 
   it.each(policyCases)("deshabilita el envío y bloquea el handler si la política indica %s", async (_reason, setPolicy) => {
     act(() => setPolicy());
-    render(<ManualPaymentForm organizationId={organizationId} charges={charges} />);
+    render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
 
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
@@ -255,11 +274,12 @@ describe("registro manual de pagos con política de solo lectura", () => {
     });
 
     const { rerender } = render(
-      <ManualPaymentForm organizationId={organizationId} charges={charges} />
+      <ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />
     );
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
     });
+    await waitForRegisterEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     await screen.findByRole("alert");
@@ -276,6 +296,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
 
     rerender(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={otherOrganizationId}
         charges={otherOrganizationCharges}
       />
@@ -298,7 +319,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     rerender(
-      <ManualPaymentForm organizationId={organizationId} charges={[]} />
+      <ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={[]} />
     );
     const retryButton = screen.getByRole("button", {
       name: "Reintentar el mismo registro",
@@ -334,10 +355,11 @@ describe("registro manual de pagos con política de solo lectura", () => {
       };
     });
 
-    render(<ManualPaymentForm organizationId={organizationId} charges={charges} />);
+    render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
     });
+    await waitForRegisterEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     await screen.findByRole("alert");
@@ -358,7 +380,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
     await screen.findByText("Pago guardado y asignado al cargo.");
   });
 
-  it("recupera tras recargar el mismo comando sin guardar la referencia en claro", async () => {
+  it("recupera entre pestañas el mismo comando sin guardar la referencia en claro", async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: false,
@@ -371,11 +393,12 @@ describe("registro manual de pagos con política de solo lectura", () => {
       });
 
     const firstRender = render(
-      <ManualPaymentForm organizationId={organizationId} charges={charges} />
+      <ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />
     );
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
     });
+    await waitForRegisterEnabled();
     fireEvent.change(screen.getByLabelText(/Referencia/), {
       target: { value: "transferencia qa 741" },
     });
@@ -386,9 +409,11 @@ describe("registro manual de pagos con política de solo lectura", () => {
     const firstInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const firstBody = String(firstInit.body);
     const firstKey = (firstInit.headers as Record<string, string>)["idempotency-key"];
-    const storageKey = window.sessionStorage.key(0);
-    expect(storageKey).toBe("zaltyko:pending-manual-payment:v1");
-    const pendingSnapshot = window.sessionStorage.getItem(storageKey!)!;
+    const storageKey = window.localStorage.key(0);
+    expect(storageKey).toMatch(
+      /^zaltyko:pending-manual-payment:v2:[0-9a-f]{64}:/
+    );
+    const pendingSnapshot = window.localStorage.getItem(storageKey!)!;
     expect(pendingSnapshot).not.toContain("transferencia qa 741");
     expect(JSON.parse(pendingSnapshot)).toMatchObject({
       organizationId,
@@ -397,7 +422,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
     });
 
     firstRender.unmount();
-    render(<ManualPaymentForm organizationId={organizationId} charges={charges} />);
+    render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
     await screen.findByRole("button", { name: "Reintentar el mismo registro" });
     const referenceInput = screen.getByLabelText(/Referencia/);
     expect(referenceInput).toBeEnabled();
@@ -413,18 +438,98 @@ describe("registro manual de pagos con política de solo lectura", () => {
     expect(String(retryInit.body)).toBe(firstBody);
     expect((retryInit.headers as Record<string, string>)["idempotency-key"]).toBe(firstKey);
     await screen.findByText("Pago guardado y asignado al cargo.");
-    expect(window.sessionStorage.getItem(storageKey!)).toBeNull();
+    expect(window.localStorage.getItem(storageKey!)).toBeNull();
   });
 
-  it("no envía un pago si sessionStorage no se puede escribir", async () => {
+  it("conserva el reintento tras perder la conexión después de iniciar el POST", async () => {
+    fetchMock
+      .mockRejectedValueOnce(new Error("network interrupted"))
+      .mockImplementationOnce(async (_input, init) => {
+        const request = JSON.parse(String(init?.body));
+        return { ok: true, status: 201, json: async () => ({ ok: true, data: request }) };
+      });
+
+    render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
+    await waitFor(() => {
+      expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
+    });
+    await waitForRegisterEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
+    await screen.findByText(/no sabemos si se guardó/i);
+
+    const firstInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const retryButton = screen.getByRole("button", {
+      name: "Reintentar el mismo registro",
+    });
+    expect(retryButton).toBeEnabled();
+    fireEvent.click(retryButton);
+    await screen.findByText("Pago guardado y asignado al cargo.");
+
+    const retryInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(retryInit.body).toBe(firstInit.body);
+    expect(retryInit.headers).toEqual(firstInit.headers);
+  });
+
+  it("bloquea un segundo pago desde una pestaña con saldo antiguo", async () => {
+    fetchMock.mockImplementationOnce(async (_input, init) => {
+      const request = JSON.parse(String(init?.body));
+      return { ok: true, status: 201, json: async () => ({ ok: true, data: request }) };
+    });
+
+    render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
+    await waitFor(() => {
+      expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
+    });
+    await waitForRegisterEnabled();
+    fireEvent.change(screen.getByLabelText("Importe recibido"), {
+      target: { value: "10.00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
+    await screen.findByText("Pago guardado y asignado al cargo.");
+
+    fireEvent.change(screen.getByLabelText("Importe recibido"), {
+      target: { value: "5.00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
+    await screen.findByText(/saldo de este cargo cambió en otra pestaña/i);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("falla cerrado si acceder al getter de localStorage produce una excepción", async () => {
+    const storageGetter = vi
+      .spyOn(window, "localStorage", "get")
+      .mockImplementation(() => {
+        throw new DOMException("Storage denied", "SecurityError");
+      });
+    render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
+
+    await screen.findByText(/almacenamiento seguro o la coordinación entre pestañas no está disponible/i);
+    expect(screen.getByRole("button", { name: "Guardar pago recibido" })).toBeDisabled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    storageGetter.mockRestore();
+  });
+
+  it("falla cerrado si el navegador no ofrece coordinación entre pestañas", async () => {
+    const navigatorWithoutLocks = Object.create(window.navigator) as Navigator;
+    Object.defineProperty(navigatorWithoutLocks, "locks", { value: undefined });
+    vi.stubGlobal("navigator", navigatorWithoutLocks);
+    render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
+
+    await screen.findByText(/coordinación entre pestañas no está disponible/i);
+    expect(screen.getByRole("button", { name: "Guardar pago recibido" })).toBeDisabled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("no envía un pago si localStorage no se puede escribir", async () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new DOMException("Storage denied", "SecurityError");
     });
-    render(<ManualPaymentForm organizationId={organizationId} charges={charges} />);
+    render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
     });
 
+    await waitForRegisterEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
     await screen.findByText(/no se pudo guardar el reintento seguro/i);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -448,10 +553,11 @@ describe("registro manual de pagos con política de solo lectura", () => {
       };
     });
 
-    render(<ManualPaymentForm organizationId={organizationId} charges={charges} />);
+    render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
     });
+    await waitForRegisterEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     await screen.findByRole("alert");

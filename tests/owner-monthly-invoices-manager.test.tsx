@@ -12,6 +12,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OwnerMonthlyInvoicesManager } from "@/components/owner-dashboard/OwnerMonthlyInvoicesManager";
 import type { MonthlyInvoiceOptionsResponse } from "@/components/owner-dashboard/OwnerMonthlyInvoiceWorkspace";
+import {
+  PENDING_MONTHLY_INVOICE_ISSUE_STORAGE_KEY,
+  persistPendingMonthlyInvoiceIssue,
+  readPendingMonthlyInvoiceIssue,
+} from "@/components/owner-dashboard/monthly-invoice-retry-storage";
 import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
 const organizationId = "10000000-0000-4000-8000-000000000111";
@@ -26,6 +31,8 @@ const classTemplateId = "10000000-0000-4000-8000-000000000303";
 const pricePlanId = "10000000-0000-4000-8000-000000000304";
 const createdPricePlanId = "10000000-0000-4000-8000-000000000305";
 const invoiceId = "10000000-0000-4000-8000-000000000306";
+const issueIdempotencyKey =
+  "owner-monthly-invoice:10000000-0000-4000-8000-000000000911";
 
 function monthlyOptions(
   overrides: Partial<MonthlyInvoiceOptionsResponse> = {}
@@ -91,7 +98,7 @@ function monthlyOptions(
         currency: "EUR",
         blockingReasons: [],
         canIssue: true,
-        quoteHash: "quote-synthetic",
+        quoteHash: "a".repeat(64),
         existingInvoiceId: null,
         existingInvoiceVoided: false,
       },
@@ -191,6 +198,16 @@ describe("OwnerMonthlyInvoicesManager", () => {
   let failFamilyAssociationOnce: boolean;
   let deferFamilyAssociationResponse: (() => Promise<Response>) | null;
   let deferNextMonthlyOptions: (() => Promise<Response>) | null;
+  let failMonthlyInvoiceIssueOnce: boolean;
+  let nextMonthlyInvoiceIssueResponse: {
+    data: unknown;
+    status: number;
+  } | null;
+  let monthlyInvoiceIssueRequests: Array<{
+    key: string | undefined;
+    body: string;
+  }>;
+  let monthlyInvoiceIntentPresentAtPost: boolean[];
 
   beforeEach(() => {
     window.sessionStorage.clear();
@@ -215,6 +232,10 @@ describe("OwnerMonthlyInvoicesManager", () => {
     failFamilyAssociationOnce = false;
     deferFamilyAssociationResponse = null;
     deferNextMonthlyOptions = null;
+    failMonthlyInvoiceIssueOnce = false;
+    nextMonthlyInvoiceIssueResponse = null;
+    monthlyInvoiceIssueRequests = [];
+    monthlyInvoiceIntentPresentAtPost = [];
     vi.stubGlobal("crypto", { randomUUID: () => "10000000-0000-4000-8000-000000000911" });
     vi.stubGlobal(
       "fetch",
@@ -307,7 +328,29 @@ describe("OwnerMonthlyInvoicesManager", () => {
           }
           return response(familyAssociationResponse, 201);
         }
-        if (url.includes("monthly-invoices/issue"))
+        if (url.includes("monthly-invoices/issue")) {
+          const headers = init?.headers as Record<string, string> | undefined;
+          const body = String(init?.body ?? "");
+          monthlyInvoiceIssueRequests.push({
+            key: headers?.["Idempotency-Key"],
+            body,
+          });
+          const storedAtPost = readPendingMonthlyInvoiceIssue(
+            window.sessionStorage
+          );
+          monthlyInvoiceIntentPresentAtPost.push(
+            storedAtPost.status === "pending" &&
+              storedAtPost.request.key === headers?.["Idempotency-Key"]
+          );
+          if (failMonthlyInvoiceIssueOnce) {
+            failMonthlyInvoiceIssueOnce = false;
+            throw new TypeError("Respuesta perdida de prueba");
+          }
+          if (nextMonthlyInvoiceIssueResponse) {
+            const next = nextMonthlyInvoiceIssueResponse;
+            nextMonthlyInvoiceIssueResponse = null;
+            return response(next.data, next.status);
+          }
           return response(
             {
               invoiceId,
@@ -321,6 +364,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
             },
             201
           );
+        }
         throw new Error(`Unexpected request ${init?.method ?? "GET"} ${url}`);
       })
     );
@@ -330,10 +374,11 @@ describe("OwnerMonthlyInvoicesManager", () => {
     cleanup();
     window.sessionStorage.clear();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 
-  function renderManager() {
+  function renderManager(initialServicePeriod = "2026-10") {
     render(
       <OwnerMonthlyInvoicesManager
         organizationId={organizationId}
@@ -341,7 +386,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
         defaultCurrency="EUR"
         locations={[{ id: locationId, name: "Sede sintética" }]}
         initialLocationId={locationId}
-        initialServicePeriod="2026-10"
+        initialServicePeriod={initialServicePeriod}
       />
     );
   }
@@ -1155,7 +1200,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     });
     expect(issueCall?.[1]?.method).toBe("POST");
     expect(issueCall?.[1]?.headers).toMatchObject({
-      "Idempotency-Key": "owner-monthly-invoice:10000000-0000-4000-8000-000000000911",
+      "Idempotency-Key": issueIdempotencyKey,
     });
     const body = JSON.parse(String(issueCall?.[1]?.body));
     expect(body).toEqual({
@@ -1165,12 +1210,182 @@ describe("OwnerMonthlyInvoicesManager", () => {
       familyPayerId: payerId,
       servicePeriod: "2026-10",
       dueDate: "2026-10-31",
-      quoteHash: "quote-synthetic",
+      quoteHash: "a".repeat(64),
     });
     expect(body).not.toHaveProperty("amountCents");
     expect(body).not.toHaveProperty("enrollmentIds");
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Factura emitida; no se ha registrado ni iniciado un pago."
     );
+  });
+
+  it("guarda antes de enviar y recupera el mismo comando tras perder la respuesta, sin replay automático", async () => {
+    const user = userEvent.setup();
+    failMonthlyInvoiceIssueOnce = true;
+    renderManager();
+    await user.selectOptions(await findPrimaryFamilySelect(), familyId);
+    await user.selectOptions(screen.getByLabelText("Quién paga"), payerId);
+    fireEvent.change(screen.getByLabelText("Fecha de vencimiento"), {
+      target: { value: "2026-10-31" },
+    });
+    await user.click(
+      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+    );
+
+    await screen.findByText("Respuesta perdida de prueba");
+    const firstStored = readPendingMonthlyInvoiceIssue(window.sessionStorage);
+    expect(firstStored.status).toBe("pending");
+    if (firstStored.status !== "pending") {
+      throw new Error("La intención de emisión no quedó guardada.");
+    }
+    expect(firstStored.request.hasAmbiguousAttempt).toBe(true);
+    expect(monthlyInvoiceIssueRequests).toHaveLength(1);
+    expect(monthlyInvoiceIntentPresentAtPost).toEqual([true]);
+    expect(monthlyInvoiceIssueRequests[0]).toEqual({
+      key: issueIdempotencyKey,
+      body: JSON.stringify({
+        organizationId,
+        locationId,
+        familyId,
+        familyPayerId: payerId,
+        servicePeriod: "2026-10",
+        dueDate: "2026-10-31",
+        quoteHash: "a".repeat(64),
+      }),
+    });
+
+    cleanup();
+    publishOwnerPlanUsage(organizationId, { readOnly: true, planCode: "free" });
+    nextMonthlyInvoiceIssueResponse = {
+      data: {
+        type: "https://zaltyko.com/problems/idempotency-conflict",
+        detail: "Conflicto sintético de clave",
+      },
+      status: 409,
+    };
+    renderManager();
+
+    const retryButton = await screen.findByRole("button", {
+      name: "Reintentar la emisión pendiente",
+    });
+    expect(retryButton).toBeEnabled();
+    expect(monthlyInvoiceIssueRequests).toHaveLength(1);
+
+    await user.click(retryButton);
+    await screen.findByText("Conflicto sintético de clave");
+    expect(monthlyInvoiceIssueRequests).toHaveLength(2);
+    const afterConflict = readPendingMonthlyInvoiceIssue(window.sessionStorage);
+    expect(afterConflict.status).toBe("pending");
+    if (afterConflict.status !== "pending") {
+      throw new Error("El conflicto borró una emisión de resultado incierto.");
+    }
+    expect(afterConflict.request.hasAmbiguousAttempt).toBe(true);
+
+    await user.click(
+      screen.getByRole("button", { name: "Reintentar la emisión pendiente" })
+    );
+    await screen.findByText(
+      "Factura emitida; no se ha registrado ni iniciado un pago."
+    );
+    expect(monthlyInvoiceIssueRequests).toHaveLength(3);
+    expect(monthlyInvoiceIntentPresentAtPost).toEqual([true, true, true]);
+    expect(monthlyInvoiceIssueRequests[1]).toEqual(monthlyInvoiceIssueRequests[0]);
+    expect(monthlyInvoiceIssueRequests[2]).toEqual(monthlyInvoiceIssueRequests[0]);
+    expect(readPendingMonthlyInvoiceIssue(window.sessionStorage)).toEqual({
+      status: "none",
+    });
+  });
+
+  it("no emite para otra familia mientras se conserva una emisión pendiente", async () => {
+    const user = userEvent.setup();
+    const pendingBody = {
+      organizationId,
+      locationId,
+      familyId,
+      familyPayerId: payerId,
+      servicePeriod: "2026-10",
+      dueDate: "2026-10-31",
+      quoteHash: "a".repeat(64),
+    };
+    expect(
+      persistPendingMonthlyInvoiceIssue({
+        version: 1,
+        key: "owner-monthly-invoice:10000000-0000-4000-8000-000000000912",
+        body: pendingBody,
+        scopeKey: JSON.stringify([organizationId, locationId, "2026-10"]),
+        hasAmbiguousAttempt: true,
+      })
+    ).toBe(true);
+    const firstFamily = monthlyOptions().families[0];
+    if (!firstFamily) throw new Error("Falta la familia sintética.");
+    currentOptions = monthlyOptions({
+      families: [
+        firstFamily,
+        {
+          ...firstFamily,
+          familyId: createdFamilyId,
+          athleteNames: ["Otra gimnasta sintética"],
+          payers: [
+            {
+              familyPayerId: createdPayerId,
+              displayName: "Otro pagador sintético",
+              isPrimary: true,
+            },
+          ],
+        },
+      ],
+    });
+
+    renderManager();
+    await screen.findByRole("button", {
+      name: "Reintentar la emisión pendiente",
+    });
+    await user.selectOptions(
+      await findPrimaryFamilySelect(),
+      createdFamilyId
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Quién paga"),
+      createdPayerId
+    );
+    fireEvent.change(screen.getByLabelText("Fecha de vencimiento"), {
+      target: { value: "2026-10-31" },
+    });
+    await user.click(
+      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+    );
+
+    expect(
+      await screen.findByText(
+        "Hay una emisión pendiente de confirmar. Reintenta exactamente esa operación en su ámbito antes de preparar otra."
+      )
+    ).toBeInTheDocument();
+    expect(monthlyInvoiceIssueRequests).toHaveLength(0);
+  });
+
+  it("no envía una factura cuando el almacenamiento de sesión rechaza la intención", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window.sessionStorage, "setItem").mockImplementation(() => {
+      throw new Error("Storage denied");
+    });
+    renderManager();
+    await user.selectOptions(await findPrimaryFamilySelect(), familyId);
+    await user.selectOptions(screen.getByLabelText("Quién paga"), payerId);
+    fireEvent.change(screen.getByLabelText("Fecha de vencimiento"), {
+      target: { value: "2026-10-31" },
+    });
+    await user.click(
+      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+    );
+
+    expect(
+      await screen.findByText(
+        "No se pudo guardar la emisión pendiente de forma segura. No se ha enviado la factura; habilita el almacenamiento de sesión y vuelve a cargar la página."
+      )
+    ).toBeInTheDocument();
+    expect(monthlyInvoiceIssueRequests).toHaveLength(0);
+    expect(
+      window.sessionStorage.getItem(PENDING_MONTHLY_INVOICE_ISSUE_STORAGE_KEY)
+    ).toBeNull();
   });
 });

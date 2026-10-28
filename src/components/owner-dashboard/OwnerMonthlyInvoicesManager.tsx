@@ -13,23 +13,16 @@ import {
   OwnerMonthlyInvoiceResolutionPanel,
   type ResolutionAction,
 } from "./OwnerMonthlyInvoiceResolutionPanel";
+import {
+  clearPendingMonthlyInvoiceIssue,
+  persistPendingMonthlyInvoiceIssue,
+  readPendingMonthlyInvoiceIssue,
+  type MonthlyInvoiceIssueBody,
+  type PendingMonthlyInvoiceIssue,
+} from "./monthly-invoice-retry-storage";
 
 type WorkspaceState = "loading" | "error" | "empty" | "ready";
-type IssueBody = {
-  organizationId: string;
-  locationId: string;
-  familyId: string;
-  familyPayerId: string;
-  servicePeriod: string;
-  dueDate: string;
-  quoteHash: string;
-};
-type RetryIssue = {
-  key: string;
-  body: IssueBody;
-  scopeKey: string;
-  hasAmbiguousAttempt: boolean;
-};
+type RetryIssue = PendingMonthlyInvoiceIssue;
 type ScopedInvoiceOptions = {
   scopeKey: string;
   data: MonthlyInvoiceOptionsResponse;
@@ -44,6 +37,15 @@ function invoiceScopeKey(
   servicePeriod: string
 ) {
   return JSON.stringify([organizationId, locationId, servicePeriod]);
+}
+
+function isSameIssue(left: RetryIssue | null, right: RetryIssue): boolean {
+  return (
+    left !== null &&
+    left.key === right.key &&
+    left.scopeKey === right.scopeKey &&
+    JSON.stringify(left.body) === JSON.stringify(right.body)
+  );
 }
 
 function responseData<T>(payload: unknown): T | null {
@@ -134,6 +136,10 @@ export function OwnerMonthlyInvoicesManager({
   const [refreshKey, setRefreshKey] = useState(0);
   const requestSequence = useRef(0);
   const [issueRetry, setIssueRetry] = useState<RetryIssue | null>(null);
+  const [retryStorageState, setRetryStorageState] = useState<
+    "loading" | "ready" | "blocked"
+  >("loading");
+  const [retryStorageError, setRetryStorageError] = useState("");
   const [issueReceipt, setIssueReceipt] = useState<{
     organizationId: string;
     locationId: string;
@@ -245,6 +251,34 @@ export function OwnerMonthlyInvoicesManager({
     return () => controller.abort();
   }, [loadOptions, refreshKey]);
 
+  useEffect(() => {
+    const pending = readPendingMonthlyInvoiceIssue();
+    if (pending.status === "pending") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- restore the explicit retry affordance after a page reload.
+      setIssueRetry(pending.request);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- gate invoice writes until durable state is checked.
+      setRetryStorageState("ready");
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear only the transient storage warning after successful recovery.
+      setRetryStorageError("");
+      return;
+    }
+    if (pending.status === "none") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- gate invoice writes until durable state is checked.
+      setRetryStorageState("ready");
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear only the transient storage warning after successful recovery.
+      setRetryStorageError("");
+      return;
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fail closed if the prior command cannot be inspected.
+    setRetryStorageState("blocked");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- show why invoice writes are paused.
+    setRetryStorageError(
+      pending.status === "invalid"
+        ? "No se puede validar una emisión pendiente guardada. No se enviará otra factura hasta resolver ese registro."
+        : "El almacenamiento de sesión no está disponible. No se enviará ninguna factura hasta que se pueda guardar y recuperar el reintento seguro."
+    );
+  }, []);
+
   function refreshOptions() {
     setQuoteNeedsReview(false);
     setState("loading");
@@ -272,7 +306,72 @@ export function OwnerMonthlyInvoicesManager({
     await loadOptionsRef.current(undefined, preferredFamilyId);
   }
 
+  function persistRetryRequest(request: RetryIssue): boolean {
+    if (persistPendingMonthlyInvoiceIssue(request)) return true;
+
+    const stored = readPendingMonthlyInvoiceIssue();
+    if (stored.status === "pending") {
+      setIssueRetry(stored.request);
+      if (isSameIssue(stored.request, request)) {
+        setRetryStorageState("blocked");
+        setRetryStorageError(
+          "No se pudo actualizar el estado del reintento en el almacenamiento de sesión. No se ha enviado la factura; vuelve a habilitarlo y reintenta."
+        );
+      } else {
+        setRetryStorageState("ready");
+        setRetryStorageError(
+          "Ya existe una emisión pendiente guardada. Recupera su academia, sede y periodo antes de preparar otra."
+        );
+      }
+      return false;
+    }
+
+    setRetryStorageState("blocked");
+    setRetryStorageError(
+      stored.status === "invalid"
+        ? "No se puede validar una emisión pendiente guardada. No se enviará otra factura hasta resolver ese registro."
+        : "No se pudo guardar la emisión pendiente de forma segura. No se ha enviado la factura; habilita el almacenamiento de sesión y vuelve a cargar la página."
+    );
+    return false;
+  }
+
+  function retainUncertainRetry(request: RetryIssue) {
+    const uncertain = { ...request, hasAmbiguousAttempt: true };
+    persistRetryRequest(uncertain);
+    setIssueRetry((current) =>
+      isSameIssue(current, request) ? uncertain : current
+    );
+  }
+
+  function clearResolvedRetry(request: RetryIssue): boolean {
+    if (clearPendingMonthlyInvoiceIssue(request)) {
+      setIssueRetry((current) =>
+        isSameIssue(current, request) ? null : current
+      );
+      setRetryStorageState("ready");
+      setRetryStorageError("");
+      return true;
+    }
+
+    retainUncertainRetry(request);
+    setRetryStorageState("blocked");
+    setRetryStorageError(
+      "La respuesta llegó, pero no se pudo limpiar el reintento guardado. Conservamos la misma clave y el mismo contenido; vuelve a intentarlo antes de preparar otra factura."
+    );
+    return false;
+  }
+
   async function sendInvoiceIssue(request: RetryIssue) {
+    const uncertainRequest = { ...request, hasAmbiguousAttempt: true };
+    if (!persistRetryRequest(uncertainRequest)) {
+      setIssueError(
+        "No se ha enviado la factura porque no pudimos conservar de forma segura el mismo reintento."
+      );
+      return;
+    }
+    setIssueRetry((current) =>
+      isSameIssue(current, request) ? uncertainRequest : current
+    );
     setIssueError("");
     setSuccessMessage("");
     setBusy(true);
@@ -306,15 +405,9 @@ export function OwnerMonthlyInvoicesManager({
           ((response.status >= 400 && response.status < 500) ||
             knownPreCommitDomainRejection);
         if (definitiveFirstRejection) {
-          setIssueRetry((current) =>
-            current?.key === request.key ? null : current
-          );
+          clearResolvedRetry(request);
         } else {
-          setIssueRetry((current) =>
-            current?.key === request.key
-              ? { ...current, hasAmbiguousAttempt: true }
-              : current
-          );
+          retainUncertainRetry(request);
         }
         if (
           currentScopeKeyRef.current === request.scopeKey &&
@@ -352,18 +445,11 @@ export function OwnerMonthlyInvoicesManager({
         collectionMode?: string;
       }>(payload);
       if (!isUuid(data?.invoiceId)) {
-        setIssueRetry((current) =>
-          current?.key === request.key
-            ? { ...current, hasAmbiguousAttempt: true }
-            : current
-        );
         throw new Error(
           "La respuesta no confirma qué factura se emitió. Conservamos la operación para reintentarla con la misma clave."
         );
       }
-      setIssueRetry((current) =>
-        current?.key === request.key ? null : current
-      );
+      clearResolvedRetry(request);
       if (currentScopeKeyRef.current === request.scopeKey) {
         setSuccessMessage(
           data.chargeStatus === "due" && data.collectionMode === "manual"
@@ -381,11 +467,7 @@ export function OwnerMonthlyInvoicesManager({
         });
       }
     } catch (error) {
-      setIssueRetry((current) =>
-        current?.key === request.key
-          ? { ...current, hasAmbiguousAttempt: true }
-          : current
-      );
+      retainUncertainRetry(request);
       if (currentScopeKeyRef.current === request.scopeKey) {
         setIssueError(
           error instanceof Error
@@ -398,8 +480,15 @@ export function OwnerMonthlyInvoicesManager({
     }
   }
 
-  async function issueInvoice(command: IssueBody) {
+  async function issueInvoice(command: MonthlyInvoiceIssueBody) {
     if (writesBlocked || busy) return;
+    if (retryStorageState !== "ready") {
+      setIssueError(
+        retryStorageError ||
+          "Espera a que se compruebe el almacenamiento seguro antes de emitir."
+      );
+      return;
+    }
     const commandScopeKey = invoiceScopeKey(
       command.organizationId,
       command.locationId,
@@ -431,11 +520,13 @@ export function OwnerMonthlyInvoicesManager({
       return;
     }
     const request: RetryIssue = {
+      version: 1,
       key: `owner-monthly-invoice:${crypto.randomUUID()}`,
       body: command,
       scopeKey: commandScopeKey,
       hasAmbiguousAttempt: false,
     };
+    if (!persistRetryRequest(request)) return;
     setIssueRetry(request);
     await sendInvoiceIssue(request);
   }
@@ -520,6 +611,15 @@ export function OwnerMonthlyInvoicesManager({
           </span>
         </label>
       </div>
+      {retryStorageError && (
+        <p
+          role="alert"
+          aria-live="assertive"
+          className="mx-auto max-w-4xl border border-rose-400 bg-rose-50 p-4 text-sm text-rose-950"
+        >
+          {retryStorageError}
+        </p>
+      )}
       {issueRetry && (
         <div
           role="status"

@@ -8,9 +8,17 @@ import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice
 import {
   clearPendingManualPayment,
   createManualPaymentRetrySnapshot,
+  fingerprintManualPaymentActor,
+  LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY,
+  migrateLegacyPendingManualPayment,
+  persistManualPaymentBalanceMarker,
   persistPendingManualPayment,
-  readPendingManualPayment,
+  persistResolvedManualPaymentMarker,
+  readAllPendingManualPayments,
+  readResolvedManualPaymentMarker,
   restoreManualPaymentRetryBody,
+  withManualPaymentRetryLock,
+  type ManualPaymentRetryStorageLike,
   type ManualPaymentRetrySnapshot,
 } from "./manual-payment-retry-storage";
 import { formatPaymentDueDate } from "./owner-payment-date";
@@ -120,12 +128,41 @@ function parseAmountCents(value: string): number | null {
   return Number.isSafeInteger(cents) && cents > 0 ? cents : null;
 }
 
+function getBrowserStorage(
+  kind: "localStorage" | "sessionStorage"
+): ManualPaymentRetryStorageLike | null {
+  try {
+    return window[kind];
+  } catch {
+    return null;
+  }
+}
+
+function toPendingPaymentRequest(
+  snapshot: ManualPaymentRetrySnapshot
+): PendingPaymentRequest {
+  return {
+    key: snapshot.idempotencyKey,
+    body: {
+      organizationId: snapshot.organizationId,
+      chargeId: snapshot.chargeId,
+      amountCents: snapshot.amountCents,
+      method: snapshot.method,
+      receivedAt: snapshot.receivedAt,
+    },
+    snapshot,
+    referenceRequired: snapshot.referenceSha256 !== null,
+  };
+}
+
 export function ManualPaymentForm({
+  actorId,
   organizationId,
   locationId = null,
   charges,
   nextCursor = null,
 }: {
+  actorId: string;
   organizationId: string;
   locationId?: string | null;
   charges: OpenManualPaymentCharge[];
@@ -201,6 +238,9 @@ export function ManualPaymentForm({
     useState<PendingPaymentRequest | null>(null);
   const [retryStorageReady, setRetryStorageReady] = useState(false);
   const [retryStorageError, setRetryStorageError] = useState<string | null>(null);
+  const [actorScopeHash, setActorScopeHash] = useState<string | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [otherActorPending, setOtherActorPending] = useState(false);
   const paymentInFlight = useRef(false);
 
   useEffect(() => {
@@ -233,32 +273,127 @@ export function ManualPaymentForm({
   ]);
 
   useEffect(() => {
-    const stored = readPendingManualPayment(window.sessionStorage);
-    if (stored.status === "pending") {
-      const { snapshot } = stored;
-      setRetryRequest({
-        key: snapshot.idempotencyKey,
-        body: {
-          organizationId: snapshot.organizationId,
-          chargeId: snapshot.chargeId,
-          amountCents: snapshot.amountCents,
-          method: snapshot.method,
-          receivedAt: snapshot.receivedAt,
-        },
-        snapshot,
-        referenceRequired: snapshot.referenceSha256 !== null,
+    let active = true;
+    let currentScopeHash: string | null = null;
+    setRetryStorageReady(false);
+    setRetryRequest(null);
+    setPendingCount(0);
+    setOtherActorPending(false);
+    setActorScopeHash(null);
+    setRetryStorageError(null);
+
+    const applyPending = (snapshots: ManualPaymentRetrySnapshot[]) => {
+      const actorSnapshots = snapshots.filter(
+        (snapshot) => snapshot.actorScopeHash === currentScopeHash
+      );
+      setPendingCount(actorSnapshots.length);
+      setOtherActorPending(actorSnapshots.length !== snapshots.length);
+      setRetryRequest(
+        actorSnapshots[0] ? toPendingPaymentRequest(actorSnapshots[0]) : null
+      );
+    };
+
+    const showStorageError = (message: string) => {
+      if (!active) return;
+      setRetryStorageError(message);
+      setRetryStorageReady(true);
+    };
+
+    void fingerprintManualPaymentActor(actorId)
+      .then(async (scopeHash) => {
+        if (!active) return;
+        currentScopeHash = scopeHash;
+        const durableStorage = getBrowserStorage("localStorage");
+        const legacyStorage = getBrowserStorage("sessionStorage");
+        if (!durableStorage || !legacyStorage) {
+          throw new Error("storage-unavailable");
+        }
+        const pending = await withManualPaymentRetryLock(async () => {
+          const migration = migrateLegacyPendingManualPayment(
+            legacyStorage,
+            durableStorage,
+            scopeHash
+          );
+          if (migration === "invalid") throw new Error("storage-invalid");
+          if (migration === "unavailable") throw new Error("storage-unavailable");
+          return readAllPendingManualPayments(durableStorage);
+        });
+        if (!active) return;
+        setActorScopeHash(scopeHash);
+        if (pending.status === "pending") {
+          applyPending(pending.snapshots);
+        } else if (pending.status === "invalid") {
+          showStorageError(
+            "Hay un registro pendiente dañado. No se enviará otro pago para evitar duplicados."
+          );
+          return;
+        } else if (pending.status === "unavailable") {
+          throw new Error("storage-unavailable");
+        } else {
+          applyPending([]);
+        }
+        setRetryStorageReady(true);
+      })
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error && error.message === "storage-invalid"
+            ? "Hay un registro pendiente dañado. No se enviará otro pago para evitar duplicados."
+            : "El almacenamiento seguro o la coordinación entre pestañas no está disponible. No se enviará el pago.";
+        showStorageError(message);
       });
-    } else if (stored.status === "invalid") {
-      setRetryStorageError(
-        "Hay un registro pendiente dañado. No se enviará otro pago para evitar duplicados."
-      );
-    } else if (stored.status === "unavailable") {
-      setRetryStorageError(
-        "El almacenamiento seguro de este envío no está disponible. No se enviará el pago."
-      );
-    }
-    setRetryStorageReady(true);
-  }, []);
+
+    const refreshFromDurableStorage = () => {
+      if (!active) return;
+      const durableStorage = getBrowserStorage("localStorage");
+      if (!durableStorage) {
+        setRetryStorageError(
+          "El almacenamiento seguro ya no está disponible. No registres otro pago hasta recuperarlo."
+        );
+        return;
+      }
+      if (!currentScopeHash) return;
+      void withManualPaymentRetryLock(async () =>
+        readAllPendingManualPayments(durableStorage)
+      )
+        .then((pending) => {
+          if (!active) return;
+          if (pending.status === "pending") {
+            applyPending(pending.snapshots);
+            setRetryStorageError(null);
+          } else if (pending.status === "none") {
+            applyPending([]);
+            setRetryStorageError(null);
+          } else {
+            setRetryStorageError(
+              "No se pudo verificar el envío guardado entre pestañas. No registres otro pago hasta recuperar el almacenamiento."
+            );
+          }
+        })
+        .catch(() => {
+          if (!active) return;
+          setRetryStorageError(
+            "La coordinación entre pestañas ya no está disponible. No registres otro pago hasta recuperarla."
+          );
+        });
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (
+        event.key === null ||
+        event.key.startsWith("zaltyko:pending-manual-payment:v2:") ||
+        event.key.startsWith("zaltyko:resolved-manual-payment:v2:") ||
+        event.key === LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY
+      ) {
+        refreshFromDurableStorage();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("focus", refreshFromDurableStorage);
+    return () => {
+      active = false;
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("focus", refreshFromDurableStorage);
+    };
+  }, [actorId]);
 
   useEffect(() => {
     setToday("");
@@ -278,6 +413,46 @@ export function ManualPaymentForm({
     });
     return () => window.cancelAnimationFrame(frame);
   }, [organizationId, selectedTimezone]);
+
+  useEffect(() => {
+    if (!actorScopeHash) return;
+    const storage = getBrowserStorage("localStorage");
+    if (!storage) return;
+    void withManualPaymentRetryLock(async () => {
+      const pending = readAllPendingManualPayments(storage);
+      if (pending.status === "invalid" || pending.status === "unavailable") {
+        return;
+      }
+      const snapshots = pending.status === "pending" ? pending.snapshots : [];
+      for (const charge of loadedCharges) {
+        if (
+          snapshots.some(
+            (snapshot) =>
+              snapshot.organizationId === organizationId &&
+              snapshot.chargeId === charge.chargeId
+          )
+        ) {
+          continue;
+        }
+        const marker = readResolvedManualPaymentMarker(
+          storage,
+          organizationId,
+          charge.chargeId
+        );
+        if (
+          marker.status === "marker" &&
+          marker.marker.remainingCents !== charge.outstandingCents
+        ) {
+          persistManualPaymentBalanceMarker(
+            storage,
+            organizationId,
+            charge.chargeId,
+            charge.outstandingCents
+          );
+        }
+      }
+    }).catch(() => undefined);
+  }, [actorScopeHash, loadedCharges, organizationId]);
 
   function chooseCharge(nextChargeId: string) {
     const currentCharge = loadedCharges.find(
@@ -404,112 +579,255 @@ export function ManualPaymentForm({
     key: string,
     body: PaymentRequest,
     isRetry = false,
-    existingSnapshot?: ManualPaymentRetrySnapshot
+    existingSnapshot?: ManualPaymentRetrySnapshot,
+    expectedOutstandingCents?: number
   ) {
     if (paymentInFlight.current) return;
     paymentInFlight.current = true;
+    let requestMayHaveReachedServer = false;
     try {
       setBusy(true);
       setError(null);
       setSaved(false);
-      let snapshot = existingSnapshot;
-      if (!snapshot) {
-        try {
-          snapshot = await createManualPaymentRetrySnapshot({
-            body,
-            currency:
-              loadedCharges.find((charge) => charge.chargeId === body.chargeId)
-                ?.currency ?? "",
-            idempotencyKey: key,
-          }) ?? undefined;
-        } catch {
+      await withManualPaymentRetryLock(async () => {
+        const scopeHash = actorScopeHash;
+        const storage = getBrowserStorage("localStorage");
+        if (!scopeHash || !storage) {
+          throw new Error("retry-storage-unavailable");
+        }
+        const pending = readAllPendingManualPayments(storage);
+        if (pending.status === "invalid" || pending.status === "unavailable") {
+          throw new Error("retry-storage-unavailable");
+        }
+        const allPendingSnapshots =
+          pending.status === "pending" ? pending.snapshots : [];
+        const pendingSnapshots = allPendingSnapshots.filter(
+          (entry) => entry.actorScopeHash === scopeHash
+        );
+        setOtherActorPending(
+          allPendingSnapshots.length !== pendingSnapshots.length
+        );
+        let snapshot = existingSnapshot;
+
+        if (isRetry) {
+          const exactPending = pendingSnapshots.some(
+            (entry) => JSON.stringify(entry) === JSON.stringify(existingSnapshot)
+          );
+          if (
+            !snapshot ||
+            snapshot.actorScopeHash !== scopeHash ||
+            snapshot.organizationId !== body.organizationId ||
+            snapshot.chargeId !== body.chargeId ||
+            snapshot.idempotencyKey !== key ||
+            !exactPending ||
+            allPendingSnapshots.some(
+              (entry) =>
+                entry.actorScopeHash !== scopeHash &&
+                entry.organizationId === body.organizationId &&
+                entry.chargeId === body.chargeId
+            )
+          ) {
+            setError(
+              "El envío pendiente cambió en otra pestaña. Actualiza la página y revisa el estado antes de continuar."
+            );
+            return;
+          }
+        } else {
+          if (allPendingSnapshots.length > 0) {
+            if (pendingSnapshots[0]) {
+              setRetryRequest(toPendingPaymentRequest(pendingSnapshots[0]!));
+            }
+            setPendingCount(pendingSnapshots.length);
+            setOtherActorPending(
+              allPendingSnapshots.length !== pendingSnapshots.length
+            );
+            setError(
+              pendingSnapshots.length > 0
+                ? "Hay otro envío pendiente en una pestaña. Reintenta ese mismo registro antes de crear uno nuevo."
+                : "Hay un envío pendiente en otra sesión de Owner. Vuelve a la cuenta que lo inició para resolverlo antes de registrar otro pago."
+            );
+            return;
+          }
+          const marker = readResolvedManualPaymentMarker(
+            storage,
+            body.organizationId,
+            body.chargeId
+          );
+          if (marker.status === "invalid" || marker.status === "unavailable") {
+            throw new Error("retry-storage-unavailable");
+          }
+          if (
+            marker.status === "marker" &&
+            (marker.marker.remainingCents === null ||
+              marker.marker.remainingCents !== expectedOutstandingCents)
+          ) {
+            setError(
+              "El saldo de este cargo cambió en otra pestaña. Actualiza la página y vuelve a revisar el importe antes de registrar otro pago."
+            );
+            return;
+          }
+          try {
+            snapshot =
+              (await createManualPaymentRetrySnapshot({
+                body,
+                currency:
+                  loadedCharges.find((charge) => charge.chargeId === body.chargeId)
+                    ?.currency ?? "",
+                expectedOutstandingCents: expectedOutstandingCents ?? 0,
+                actorScopeHash: scopeHash,
+                idempotencyKey: key,
+              })) ?? undefined;
+          } catch {
+            throw new Error("retry-fingerprint-unavailable");
+          }
+          if (
+            !snapshot ||
+            snapshot.organizationId !== body.organizationId ||
+            snapshot.chargeId !== body.chargeId ||
+            snapshot.idempotencyKey !== key ||
+            !persistPendingManualPayment(storage, snapshot)
+          ) {
+            throw new Error("retry-persist-failed");
+          }
+        }
+
+        setRetryStorageError(null);
+        setRetryRequest({
+          key,
+          body,
+          snapshot,
+          referenceRequired: snapshot.referenceSha256 !== null,
+        });
+        setPendingCount(Math.max(pendingSnapshots.length, 1));
+
+        requestMayHaveReachedServer = true;
+        const response = await fetch("/api/v1/owner/billing/manual-payments", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": key,
+          },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+          const problem = (await response.json().catch(() => null)) as {
+            detail?: string;
+            message?: string;
+          } | null;
           setError(
-            "No se pudo preparar la verificación segura. El pago no se ha enviado."
+            response.status >= 500
+              ? "No sabemos si se guardó. Reintenta este mismo envío; la clave segura evita duplicarlo."
+              : (problem?.detail ??
+                  problem?.message ??
+                  "No se ha podido registrar el pago.")
+          );
+          const retryMayStillNeedReceipt =
+            response.status >= 500 ||
+            [408, 425, 429].includes(response.status) ||
+            (isRetry && [401, 403, 404, 409].includes(response.status));
+          if (!retryMayStillNeedReceipt) {
+            if (clearPendingManualPayment(storage, snapshot)) {
+              const current = readAllPendingManualPayments(storage);
+              if (current.status === "pending") {
+                const currentActor = current.snapshots.filter(
+                  (entry) => entry.actorScopeHash === scopeHash
+                );
+                setPendingCount(currentActor.length);
+                setOtherActorPending(
+                  currentActor.length !== current.snapshots.length
+                );
+                setRetryRequest(
+                  currentActor[0]
+                    ? toPendingPaymentRequest(currentActor[0])
+                    : null
+                );
+              } else if (current.status === "none") {
+                setPendingCount(0);
+                setOtherActorPending(false);
+                setRetryRequest(null);
+              } else {
+                setRetryStorageError(
+                  "No se pudo volver a verificar el almacenamiento de reintentos."
+                );
+              }
+            } else {
+              setError(
+                "El servidor rechazó el envío, pero no se pudo limpiar el reintento guardado. No registres otro pago hasta resolverlo."
+              );
+            }
+          }
+          return;
+        }
+
+        const result: unknown = await response.json();
+        if (
+          response.status !== 201 ||
+          !isMatchingManualPaymentResponse(result, body)
+        ) {
+          setError(
+            "No sabemos si se guardó. Reintenta este mismo envío; la clave segura evita duplicarlo."
           );
           return;
         }
-      }
-      if (
-        !snapshot ||
-        snapshot.organizationId !== body.organizationId ||
-        snapshot.chargeId !== body.chargeId ||
-        snapshot.idempotencyKey !== key ||
-        !persistPendingManualPayment(window.sessionStorage, snapshot)
-      ) {
-        setError(
-          "No se pudo guardar el reintento seguro. No se ha enviado el pago; inténtalo cuando el almacenamiento esté disponible."
-        );
-        return;
-      }
-      setRetryStorageError(null);
-      setRetryRequest({
-        key,
-        body,
-        snapshot,
-        referenceRequired: snapshot.referenceSha256 !== null,
-      });
-      const response = await fetch("/api/v1/owner/billing/manual-payments", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "idempotency-key": key,
-        },
-        body: JSON.stringify(body),
-      });
-      if (!response.ok) {
-        const problem = (await response.json().catch(() => null)) as {
-          detail?: string;
-          message?: string;
-        } | null;
-        setError(
-          response.status >= 500
-            ? "No sabemos si se guardó. Reintenta este mismo envío; la clave segura evita duplicarlo."
-            : (problem?.detail ??
-                problem?.message ??
-                "No se ha podido registrar el pago.")
-        );
-        const retryMayStillNeedReceipt =
-          response.status >= 500 ||
-          [408, 425, 429].includes(response.status) ||
-          (isRetry && [401, 403, 404, 409].includes(response.status));
-        if (!retryMayStillNeedReceipt) {
-          if (clearPendingManualPayment(window.sessionStorage, snapshot)) {
-            setRetryRequest(null);
-          } else {
-            setError(
-              "El servidor rechazó el envío, pero no se pudo limpiar el reintento guardado. No registres otro pago hasta resolverlo."
-            );
-          }
-        }
-        return;
-      }
 
-      const result: unknown = await response.json();
-      if (
-        response.status !== 201 ||
-        !isMatchingManualPaymentResponse(result, body)
-      ) {
+        if (!persistResolvedManualPaymentMarker(storage, snapshot)) {
+          setError(
+            "El pago está confirmado, pero no se pudo guardar la sincronización entre pestañas. Reintenta el mismo registro antes de crear otro."
+          );
+          return;
+        }
+        if (!clearPendingManualPayment(storage, snapshot)) {
+          setError(
+            "El pago está confirmado, pero no se pudo limpiar su reintento seguro. Puedes reintentar el mismo envío; no creará un segundo pago."
+          );
+          return;
+        }
+        const current = readAllPendingManualPayments(storage);
+        if (current.status === "pending") {
+          const currentActor = current.snapshots.filter(
+            (entry) => entry.actorScopeHash === scopeHash
+          );
+          setPendingCount(currentActor.length);
+          setOtherActorPending(currentActor.length !== current.snapshots.length);
+          setRetryRequest(
+            currentActor[0] ? toPendingPaymentRequest(currentActor[0]) : null
+          );
+        } else if (current.status === "none") {
+          setPendingCount(0);
+          setOtherActorPending(false);
+          setRetryRequest(null);
+        } else {
+          setRetryStorageError(
+            "No se pudo volver a verificar el almacenamiento de reintentos."
+          );
+          setError(
+            "El pago está confirmado, pero no se pudo verificar si quedan otros envíos pendientes. Actualiza la página antes de continuar."
+          );
+          return;
+        }
+        setSaved(true);
+        setAmount("");
+        setReference("");
+        router.refresh();
+      });
+    } catch (error: unknown) {
+      if (requestMayHaveReachedServer) {
         setError(
           "No sabemos si se guardó. Reintenta este mismo envío; la clave segura evita duplicarlo."
         );
-        return;
-      }
-
-      if (!clearPendingManualPayment(window.sessionStorage, snapshot)) {
-        setError(
-          "El pago está confirmado, pero no se pudo limpiar su reintento seguro. Puedes reintentar el mismo envío; no creará un segundo pago."
+      } else {
+        setRetryStorageError(
+          "El almacenamiento seguro o la coordinación entre pestañas no está disponible. No se enviará el pago."
         );
-        return;
+        setError(
+          error instanceof Error && error.message === "retry-persist-failed"
+            ? "No se pudo guardar el reintento seguro. No se ha enviado el pago; inténtalo cuando el almacenamiento esté disponible."
+            : error instanceof Error &&
+                error.message === "retry-fingerprint-unavailable"
+              ? "No se pudo preparar la verificación segura. El pago no se ha enviado."
+              : "No se pudo comprobar el envío entre pestañas. No se ha enviado otro pago."
+        );
       }
-      setRetryRequest(null);
-      setSaved(true);
-      setAmount("");
-      setReference("");
-      router.refresh();
-    } catch {
-      setError(
-        "No sabemos si se guardó. Reintenta este mismo envío; la clave segura evita duplicarlo."
-      );
     } finally {
       paymentInFlight.current = false;
       setBusy(false);
@@ -524,6 +842,7 @@ export function ManualPaymentForm({
       retryPendingPayment();
       return;
     }
+    if (pendingCount > 0 || otherActorPending) return;
     if (!retryStorageReady || retryStorageError || dateInterpretationError) return;
     if (writesBlocked) return;
     if (!selectedCharge || !effectiveReceivedOn) return;
@@ -544,20 +863,31 @@ export function ManualPaymentForm({
       setDateInterpretationError("received-date");
       return;
     }
-    void sendPayment(`owner-manual-payment:${crypto.randomUUID()}`, {
-      organizationId,
-      chargeId: selectedCharge.chargeId,
-      amountCents,
-      method,
-      ...(reference.trim() ? { reference: reference.trim() } : {}),
-      receivedAt,
-    });
+    void sendPayment(
+      `owner-manual-payment:${crypto.randomUUID()}`,
+      {
+        organizationId,
+        chargeId: selectedCharge.chargeId,
+        amountCents,
+        method,
+        ...(reference.trim() ? { reference: reference.trim() } : {}),
+        receivedAt,
+      },
+      false,
+      undefined,
+      selectedCharge.outstandingCents
+    );
   }
 
   const amountCents = parseAmountCents(amount);
   const effectiveReceivedOn = receivedOn || today;
   const formLocked =
-    busy || retryRequest !== null || !retryStorageReady || retryStorageError !== null;
+    busy ||
+    retryRequest !== null ||
+    pendingCount > 0 ||
+    otherActorPending ||
+    !retryStorageReady ||
+    retryStorageError !== null;
   const retryBelongsToCurrentOrganization =
     retryRequest?.body.organizationId === organizationId;
   const retryScopeNotice =
@@ -579,6 +909,15 @@ export function ManualPaymentForm({
         </Link>
       </div>
     ) : null;
+  const otherActorPendingNotice = otherActorPending ? (
+    <div
+      role="alert"
+      className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
+    >
+      Hay un envío pendiente en otra sesión de Owner. Vuelve a la cuenta que lo
+      inició para reintentar ese mismo registro antes de crear otro pago.
+    </div>
+  ) : null;
 
   if (loadedCharges.length === 0) {
     return (
@@ -591,6 +930,7 @@ export function ManualPaymentForm({
           dinero que ya hayas recibido y dejarlo conciliado en un solo paso.
         </p>
         {retryScopeNotice}
+        {otherActorPendingNotice}
         {retryStorageError && (
           <p role="alert" className="mt-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
             {retryStorageError}
@@ -617,7 +957,9 @@ export function ManualPaymentForm({
             )}
             <button
               type="button"
-              disabled={busy || !retryStorageReady}
+              disabled={
+                busy || !retryStorageReady || retryStorageError !== null
+              }
               onClick={retryPendingPayment}
               className="mt-2 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -655,6 +997,7 @@ export function ManualPaymentForm({
         cobro.
       </div>
       {retryScopeNotice}
+      {otherActorPendingNotice}
       {retryStorageError && (
         <p
           role="alert"
@@ -876,7 +1219,9 @@ export function ManualPaymentForm({
             retryStorageError !== null ||
             (retryRequest
               ? !retryBelongsToCurrentOrganization
-              : writesBlocked ||
+              : pendingCount > 0 ||
+                otherActorPending ||
+                writesBlocked ||
                 dateInterpretationError !== null ||
                 !selectedCharge ||
                 !effectiveReceivedOn)
