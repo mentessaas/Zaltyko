@@ -263,7 +263,7 @@ describe("ámbito de facturas mensuales", () => {
     );
     expect(JSON.parse(String(posts[1][1]?.body))).toMatchObject({
       dueDate: "2026-02-05",
-      quoteHash: "corrected-quote-after-stale-response",
+      quoteHash: correctedQuoteHash,
     });
   });
 
