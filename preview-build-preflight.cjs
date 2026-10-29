@@ -2,6 +2,9 @@
 const e = process.env;
 const deliveryMode = e.ZALTYKO_DELIVERY_PREVIEW === 'true';
 const deliveryBranch = 'codex/mvp-main-bridge-20261025';
+const databaseUser = deliveryMode
+  ? 'zaltyko_delivery_server_v1.aeeootdmuiqkfeernskw'
+  : 'zaltyko_preview_server_v2.aeeootdmuiqkfeernskw';
 const checks = {
   databaseCaOnly: e.DATABASE_CA_CERT_PATH === 'certs/supabase-root-ca.crt' && !e.NODE_EXTRA_CA_CERTS && require('node:fs').existsSync(e.DATABASE_CA_CERT_PATH),
   verifiedTls: e.NODE_TLS_REJECT_UNAUTHORIZED !== '0' && !e.NODE_NO_WARNINGS && !(e.NODE_OPTIONS || '').includes('--no-warnings'),
@@ -18,7 +21,7 @@ const checks = {
 for (const key of ['DATABASE_URL','DATABASE_URL_POOL','DATABASE_URL_DIRECT']) {
   try {
     const u = new URL(e[key]);
-    checks[key] = u.hostname === 'aws-0-eu-north-1.pooler.supabase.com' && u.username === 'zaltyko_preview_server_v2.aeeootdmuiqkfeernskw' && !!u.password;
+    checks[key] = u.hostname === 'aws-0-eu-north-1.pooler.supabase.com' && u.username === databaseUser && !!u.password;
   } catch { checks[key] = false; }
 }
 console.log('Sandbox preview isolation:', JSON.stringify(checks));

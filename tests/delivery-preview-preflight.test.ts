@@ -19,7 +19,7 @@ const fixture: NodeJS.ProcessEnv = {
   KV_REST_API_TOKEN: "synthetic",
 };
 for (const key of ["DATABASE_URL", "DATABASE_URL_POOL", "DATABASE_URL_DIRECT"]) {
-  fixture[key] = "postgresql://zaltyko_preview_server_v2.aeeootdmuiqkfeernskw:synthetic@aws-0-eu-north-1.pooler.supabase.com/postgres";
+  fixture[key] = "postgresql://zaltyko_delivery_server_v1.aeeootdmuiqkfeernskw:synthetic@aws-0-eu-north-1.pooler.supabase.com/postgres";
 }
 for (const interval of ["STARTER_MONTH", "STARTER_YEAR", "GROWTH_MONTH", "GROWTH_YEAR"]) {
   fixture[`STRIPE_SAAS_TEST_PRICE_${interval}`] = "price_synthetic";
@@ -30,6 +30,35 @@ describe("delivery preview isolation preflight", () => {
     expect(execFileSync(process.execPath, ["preview-build-preflight.cjs"], {
       env: fixture, encoding: "utf8",
     })).toContain('"deliveryIsolation":true');
+  });
+  it.each(["DATABASE_URL", "DATABASE_URL_POOL", "DATABASE_URL_DIRECT"])(
+    "rejects the experiment credential in delivery for %s",
+    (key) => {
+      const result = spawnSync(process.execPath, ["preview-build-preflight.cjs"], {
+        env: { ...fixture, [key]: fixture[key]!.replace("zaltyko_delivery_server_v1", "zaltyko_preview_server_v2") },
+        encoding: "utf8",
+      });
+      expect(result.status).toBe(1);
+      expect(result.stdout).not.toContain(":synthetic@");
+    },
+  );
+  it("preserves the experiment credential requirement outside delivery", () => {
+    const experiment: NodeJS.ProcessEnv = {
+      ...fixture,
+      ZALTYKO_DELIVERY_PREVIEW: "false",
+      SAAS_QA_SHORT_PAID_ENABLED: "true",
+      SAAS_QA_SHORT_PAID_RUN: "short-paid-expiry-20261021-v3",
+      SAAS_QA_SHORT_PAID_EXPIRES_AT: "2026-10-22T18:30:00Z",
+    };
+    for (const key of ["DATABASE_URL", "DATABASE_URL_POOL", "DATABASE_URL_DIRECT"]) {
+      experiment[key] = fixture[key]!.replace("zaltyko_delivery_server_v1", "zaltyko_preview_server_v2");
+    }
+    expect(execFileSync(process.execPath, ["preview-build-preflight.cjs"], {
+      env: experiment, encoding: "utf8",
+    })).toContain('"shortPaidQa":true');
+    expect(spawnSync(process.execPath, ["preview-build-preflight.cjs"], {
+      env: { ...experiment, DATABASE_URL: fixture.DATABASE_URL }, encoding: "utf8",
+    }).status).toBe(1);
   });
   it.each([
     { VERCEL_ENV: "production" },
