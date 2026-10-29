@@ -73,10 +73,10 @@ const saasConfig = {
   },
 };
 
-function request(signature = "t=1,v1=synthetic") {
+function request(signature: string | null = "t=1,v1=synthetic") {
   return new Request("https://example.invalid/api/stripe/webhook", {
     method: "POST",
-    headers: { "stripe-signature": signature },
+    headers: signature ? { "stripe-signature": signature } : {},
     body: "{\"synthetic\":true}",
   });
 }
@@ -96,7 +96,42 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("SaaS Stripe webhook dispatch", () => {
-  it("dispatches a SaaS-marked event only after SaaS signature verification", async () => {
+  it.each([null, "t=1,v1=invalid"])("rejects missing/invalid SaaS signature %s with 400 when legacy is absent", async (signature) => {
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "");
+    mocks.constructSaasEvent.mockImplementation(() => { throw new Error("Invalid signature"); });
+    const response = await handleStripeWebhook(request(signature));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "SIGNATURE_VERIFICATION_FAILED" });
+    expect(mocks.processSaas).not.toHaveBeenCalled();
+    expect(mocks.recordBillingEvent).not.toHaveBeenCalled();
+    expect(mocks.constructLegacyEvent).not.toHaveBeenCalled();
+  });
+
+  it("keeps a genuine missing-verifier configuration as a server error", async () => {
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "");
+    mocks.saasVerification.mockReturnValue(null);
+    const response = await handleStripeWebhook(request());
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "WEBHOOK_NOT_CONFIGURED" });
+    expect(mocks.processSaas).not.toHaveBeenCalled();
+    expect(mocks.recordBillingEvent).not.toHaveBeenCalled();
+  });
+
+  it("still verifies a legitimate legacy event independently after a SaaS mismatch", async () => {
+    mocks.constructSaasEvent.mockImplementation(() => { throw new Error("SaaS mismatch"); });
+    mocks.constructLegacyEvent.mockReturnValue({ id: "evt_legacy", type: "invoice.paid", data: { object: { id: "in_legacy" } } });
+    mocks.recordBillingEvent.mockResolvedValue({ shouldProcess: false });
+    const response = await handleStripeWebhook(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ received: true, duplicate: true });
+    expect(mocks.constructLegacyEvent).toHaveBeenCalledExactlyOnceWith(
+      expect.any(String), expect.any(String), "whsec_legacy_synthetic", 300
+    );
+    expect(mocks.processSaas).not.toHaveBeenCalled();
+  });
+
+  it.each(["whsec_legacy_synthetic", ""])("dispatches SaaS only after its own signature verification (legacy=%s)", async (legacySecret) => {
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", legacySecret);
     mocks.constructSaasEvent.mockReturnValue(event);
 
     const response = await handleStripeWebhook(request());
@@ -114,6 +149,17 @@ describe("SaaS Stripe webhook dispatch", () => {
       config: saasConfig,
     });
     expect(mocks.constructLegacyEvent).not.toHaveBeenCalled();
+  });
+
+  it("keeps missing SaaS business configuration unavailable after a valid signature", async () => {
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "");
+    mocks.constructSaasEvent.mockReturnValue(event);
+    mocks.saasConfig.mockReturnValue(null);
+    const response = await handleStripeWebhook(request());
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "WEBHOOK_NOT_CONFIGURED" });
+    expect(mocks.processSaas).not.toHaveBeenCalled();
+    expect(mocks.recordBillingEvent).not.toHaveBeenCalled();
   });
 
   it("does not let a legacy signature authorize a SaaS-marked event", async () => {

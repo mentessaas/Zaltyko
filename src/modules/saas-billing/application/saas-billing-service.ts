@@ -455,15 +455,16 @@ export async function createOwnerSaasCheckout(input: {
       input.planCode,
       input.billingInterval
     );
-    const requestHash = hashPayload({
+    const checkoutIdentityPayload = {
       organizationId: scope.organizationId,
       planCode: input.planCode,
       billingInterval: input.billingInterval,
       environment: config.environment,
       providerAccountReference: config.providerAccountReference,
       priceReference,
-      requestVersion: 2,
-    });
+    };
+    const requestHash = checkoutRequestHash(checkoutIdentityPayload, 3);
+    const legacyRequestHash = checkoutRequestHash(checkoutIdentityPayload, 2);
 
     const [existing] = await tx
       .select()
@@ -490,7 +491,10 @@ export async function createOwnerSaasCheckout(input: {
       const qaEnvelope = resolveShortPaidCheckoutEnvelope({
         identity: checkoutIdentity, operation: existing,
       });
-      if (existing.requestHash !== (qaEnvelope?.requestHash ?? requestHash)) {
+      const matchesRequest = qaEnvelope
+        ? existing.requestHash === qaEnvelope.requestHash
+        : existing.requestHash === requestHash || existing.requestHash === legacyRequestHash;
+      if (!matchesRequest) {
         throw new OperationalError(
           "IDEMPOTENCY_CONFLICT",
           "La clave ya se usó con otra operación",
@@ -703,6 +707,17 @@ export async function createOwnerSaasCheckout(input: {
     identity: checkoutIdentity, operation,
   });
   const qaEnvelope = getQaEnvelope();
+  // A Stripe idempotency key must always retain its original request body.
+  // Only v3 normal operations opt out of dashboard currency localization;
+  // persisted v2 recoveries and the frozen short-paid QA envelope stay exact.
+  const fixedCurrency = !qaEnvelope && operation.requestHash === checkoutRequestHash({
+    organizationId: operation.organizationId,
+    planCode: input.planCode,
+    billingInterval: input.billingInterval,
+    environment: config.environment,
+    providerAccountReference: config.providerAccountReference,
+    priceReference: reservation.priceReference,
+  }, 3);
   const assertQaCreationAllowed = () => assertShortPaidCheckoutCreationAllowed(getQaEnvelope());
   const customerKey = `zaltyko-saas-customer-${operation.organizationId}-${config.environment}-${createHash("sha256").update(config.providerAccountReference).digest("hex").slice(0, 8)}`;
   const customerHash = hashPayload({
@@ -965,6 +980,7 @@ export async function createOwnerSaasCheckout(input: {
     const createdSession = await stripe.checkout.sessions.create(
       {
         mode: "subscription",
+        ...(fixedCurrency ? { adaptive_pricing: { enabled: false } } : {}),
         customer: customerReference,
         line_items: [
           {
@@ -1175,6 +1191,17 @@ function addUtcCalendarMonthsClamped(date: Date, months: number): Date {
   ).getUTCDate();
   result.setUTCDate(Math.min(originalDay, lastDay));
   return result;
+}
+
+function checkoutRequestHash(input: {
+  organizationId: string;
+  planCode: SelfServePlanCode;
+  billingInterval: SaasBillingInterval;
+  environment: "test" | "live";
+  providerAccountReference: string;
+  priceReference: string;
+}, requestVersion: 2 | 3): string {
+  return hashPayload({ ...input, requestVersion });
 }
 
 function hashPayload(value: Record<string, string | number>): string {

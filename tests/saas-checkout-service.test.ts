@@ -94,8 +94,12 @@ describe("Checkout reservation guards with isolated dependencies", () => {
     expect(update).not.toHaveBeenCalled();
     expect(mocks.dbUpdate).not.toHaveBeenCalled();
   });
-  it("retries the same provider key after session creation succeeds but local saving fails", async () => {
-    const operation = { id: "operation", organizationId, planCode: "starter", billingInterval: "month", requestHash,
+  it.each([2, 3] as const)("retries v%s with the exact provider body and key after a local save failure", async (requestVersion) => {
+    const versionedHash = createHash("sha256").update(JSON.stringify({
+      organizationId, planCode: "starter", billingInterval: "month", environment: "test",
+      providerAccountReference: "acct_synthetic", priceReference: "price_synthetic", requestVersion,
+    })).digest("hex");
+    const operation = { id: "operation", organizationId, planCode: "starter", billingInterval: "month", requestHash: versionedHash,
       status: "recovery_required", checkoutSessionReference: null, createdAt: new Date(at.getTime() - 60000),
       stripeIdempotencyKey: "stable-checkout-key", leaseToken: "lease", fencingVersion: 2 };
     limit.mockResolvedValue([operation]);
@@ -127,6 +131,11 @@ describe("Checkout reservation guards with isolated dependencies", () => {
     expect(creations[0][0]).toMatchObject({
       integration_identifier: expect.stringMatching(/^zaltyko_saas_[a-z]{8}$/),
     });
+    if (requestVersion === 3) {
+      expect(creations[0][0]).toHaveProperty("adaptive_pricing", { enabled: false });
+    } else {
+      expect(creations[0][0]).not.toHaveProperty("adaptive_pricing");
+    }
     expect(creations[0][1]).toEqual({ idempotencyKey: "stable-checkout-key" });
     expect(insert).not.toHaveBeenCalled();
   });

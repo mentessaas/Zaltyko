@@ -236,6 +236,14 @@ export async function handleStripeWebhook(
   }
 
   if (!webhookSecret) {
+    // SaaS is configured, but this request was not authorized for its handler.
+    // A missing legacy verifier is not a server configuration failure here.
+    if (saasVerification) {
+      return NextResponse.json(
+        { error: "SIGNATURE_VERIFICATION_FAILED" },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
     logger.error("Stripe webhook secret not configured");
     return NextResponse.json(
       { error: "WEBHOOK_NOT_CONFIGURED" },
