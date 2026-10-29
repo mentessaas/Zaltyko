@@ -1,9 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
-import {
-  organizationEntitlementChanges,
-  organizationEntitlements,
-} from "@/db/zaltyko-schema";
+import { organizationEntitlements } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -58,8 +55,9 @@ type EntitlementGrant = Pick<
 >;
 
 /**
- * Applies one canonical entitlement grant and records the exact resulting
- * revision in the existing history table. A source reference is the stable
+ * Applies one canonical entitlement grant. The canonical database triggers
+ * own revision advancement and its atomic history snapshot; inserting that
+ * snapshot here would duplicate the same (organization, revision). A source reference is the stable
  * identity of the grant (trial id or paid invoice id), so an identical replay
  * is a no-op and a payload mismatch is an idempotency conflict. Callers must
  * hold the organization mutation lock and use this inside their transaction.
@@ -124,18 +122,6 @@ export async function grantOrganizationEntitlement(
       503
     );
   }
-
-  await tx.insert(organizationEntitlementChanges).values({
-    organizationId: updated.organizationId,
-    revision: updated.revision,
-    planCode: updated.planCode,
-    source: updated.source,
-    sourceReference: updated.sourceReference,
-    subscriptionId: updated.subscriptionId,
-    trialId: updated.trialId,
-    effectiveFrom: updated.effectiveFrom,
-    effectiveUntil: updated.effectiveUntil,
-  });
 
   return { revision: updated.revision, replayed: false };
 }

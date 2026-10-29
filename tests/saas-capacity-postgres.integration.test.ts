@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { getOrganizationUsage } from "@/modules/saas-billing/application/organization-usage";
+import { grantOrganizationEntitlement, lockOrganizationForSaasMutation } from "@/modules/saas-billing/application/entitlement-service";
 import { createOperationalGroup } from "@/modules/groups/application/group-management-service";
 import { createAthleteForGroup } from "@/modules/groups/application/group-membership-service";
 import { createScheduledClass } from "@/modules/scheduling/application/class-management-service";
@@ -586,6 +587,38 @@ async function seedFamilyAssociationFixture() {
 }
 
 describe("Free capacity guards on disposable PostgreSQL", () => {
+  it("grants with canonical history triggers and replays without a duplicate revision", async () => {
+    assertDisposableTarget();
+    const { organizationId } = await seedFreeAcademy();
+    await usage(organizationId);
+    const grant = {
+      organizationId,
+      planCode: "starter" as const,
+      source: "contract" as const,
+      sourceReference: "ci-trigger-grant:" + randomUUID(),
+      subscriptionId: null,
+      trialId: null,
+      effectiveFrom: new Date("2026-10-29T00:00:00Z"),
+      effectiveUntil: new Date("2026-11-29T00:00:00Z"),
+    };
+    const apply = () => db.transaction(async (tx) => {
+      await lockOrganizationForSaasMutation(tx, organizationId);
+      return grantOrganizationEntitlement(tx, grant);
+    });
+    const first = await apply();
+    expect(first.replayed).toBe(false);
+    expect(await apply()).toEqual({ revision: first.revision, replayed: true });
+    const rows = await db.execute(sql`
+      select revision, plan_code, source_reference
+      from zaltyko.organization_entitlement_changes
+      where organization_id = ${organizationId}::uuid
+        and source_reference = ${grant.sourceReference}
+    `);
+    expect(rows.rows).toEqual([{
+      revision: first.revision, plan_code: "starter", source_reference: grant.sourceReference,
+    }]);
+  });
+
   it("serializes last-slot writes, replays winners once, and leaves no partial rows on denials", async () => {
     assertDisposableTarget();
     const fixture = await seedFreeAcademy();

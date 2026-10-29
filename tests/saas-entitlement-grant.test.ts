@@ -25,6 +25,9 @@ function inMemoryEntitlementTransaction(initialRevision = 1) {
   };
   const updates: Array<Record<string, unknown>> = [];
   const history: Array<Record<string, unknown>> = [];
+  const applicationInsert = vi.fn(() => {
+    throw new Error("History is written by the canonical database trigger");
+  });
 
   const tx = {
     select: () => {
@@ -47,23 +50,23 @@ function inMemoryEntitlementTransaction(initialRevision = 1) {
                 ...values,
                 revision: current.revision + 1,
               } as typeof current;
+              // Model the canonical AFTER UPDATE trigger, including its unique
+              // (organization_id, revision) ownership. Application inserts fail.
+              history.push({ ...current });
               return [current];
             },
           }),
         };
       },
     }),
-    insert: () => ({
-      values: async (values: Record<string, unknown>) => {
-        history.push(values);
-      },
-    }),
+    insert: applicationInsert,
   } as unknown as TransactionClient;
 
   return {
     tx,
     updates,
     history,
+    applicationInsert,
     get current() {
       return current;
     },
@@ -88,6 +91,7 @@ describe("canonical SaaS entitlement grants", () => {
 
     expect(result).toEqual({ revision: 2, replayed: false });
     expect(memory.updates).toHaveLength(1);
+    expect(memory.applicationInsert).not.toHaveBeenCalled();
     expect(memory.updates[0]).toHaveProperty("revision");
     expect(memory.current).toMatchObject({
       revision: 2,
@@ -128,6 +132,7 @@ describe("canonical SaaS entitlement grants", () => {
     expect(replay).toEqual({ revision: 3, replayed: true });
     expect(memory.updates).toHaveLength(1);
     expect(memory.history).toHaveLength(1);
+    expect(memory.applicationInsert).not.toHaveBeenCalled();
     expect(memory.history[0]).toMatchObject({
       organizationId,
       revision: 3,
