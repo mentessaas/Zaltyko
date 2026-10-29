@@ -2,6 +2,9 @@
 const e = process.env;
 const deliveryMode = e.ZALTYKO_DELIVERY_PREVIEW === 'true';
 const deliveryBranch = 'codex/mvp-main-bridge-20261025';
+const stripeAccount = deliveryMode
+  ? 'acct_1UVtpNDdRiQuy2QT'
+  : 'acct_1STR6eDXXopppUpe';
 const databaseUser = deliveryMode
   ? 'zaltyko_delivery_server_v1.aeeootdmuiqkfeernskw'
   : 'zaltyko_preview_server_v2.aeeootdmuiqkfeernskw';
@@ -14,7 +17,7 @@ const checks = {
   supabase: e.NEXT_PUBLIC_SUPABASE_URL === 'https://aeeootdmuiqkfeernskw.supabase.co',
   stripeTest: e.STRIPE_SECRET_KEY?.startsWith('sk_test_') === true,
   saasTest: e.STRIPE_SAAS_ENVIRONMENT === 'test' && e.STRIPE_SAAS_TEST_SECRET_KEY?.startsWith('sk_test_') === true,
-  saasBilling: e.STRIPE_SAAS_TEST_ACCOUNT_REFERENCE === 'acct_1STR6eDXXopppUpe' && e.STRIPE_SAAS_TEST_WEBHOOK_SECRET?.startsWith('whsec_') === true && e.STRIPE_SAAS_TEST_PORTAL_ENABLED === 'true' && ['STARTER_MONTH','STARTER_YEAR','GROWTH_MONTH','GROWTH_YEAR'].every(k => e['STRIPE_SAAS_TEST_PRICE_'+k]?.startsWith('price_')),
+  saasBilling: e.STRIPE_SAAS_TEST_ACCOUNT_REFERENCE === stripeAccount && e.STRIPE_SAAS_TEST_WEBHOOK_SECRET?.startsWith('whsec_') === true && e.STRIPE_SAAS_TEST_PORTAL_ENABLED === 'true' && ['STARTER_MONTH','STARTER_YEAR','GROWTH_MONTH','GROWTH_YEAR'].every(k => e['STRIPE_SAAS_TEST_PRICE_'+k]?.startsWith('price_')),
   sandboxRateLimit: e.KV_REST_API_URL === 'https://wondrous-hog-178401.upstash.io' && !!e.KV_REST_API_TOKEN,
   noExternalProviders: ['BREVO_API_KEY','TWILIO_AUTH_TOKEN','MAILGUN_API_KEY','SENTRY_DSN','SENTRY_AUTH_TOKEN','STRIPE_WEBHOOK_SECRET','STRIPE_CONNECT_WEBHOOK_SECRET','STRIPE_SAAS_LIVE_SECRET_KEY','CRON_SECRET'].every(k => !e[k]),
 };

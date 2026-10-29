@@ -12,7 +12,7 @@ const fixture: NodeJS.ProcessEnv = {
   STRIPE_SECRET_KEY: "sk_test_synthetic",
   STRIPE_SAAS_ENVIRONMENT: "test",
   STRIPE_SAAS_TEST_SECRET_KEY: "sk_test_synthetic",
-  STRIPE_SAAS_TEST_ACCOUNT_REFERENCE: "acct_1STR6eDXXopppUpe",
+  STRIPE_SAAS_TEST_ACCOUNT_REFERENCE: "acct_1UVtpNDdRiQuy2QT",
   STRIPE_SAAS_TEST_WEBHOOK_SECRET: "whsec_synthetic",
   STRIPE_SAAS_TEST_PORTAL_ENABLED: "true",
   KV_REST_API_URL: "https://wondrous-hog-178401.upstash.io",
@@ -46,6 +46,7 @@ describe("delivery preview isolation preflight", () => {
     const experiment: NodeJS.ProcessEnv = {
       ...fixture,
       ZALTYKO_DELIVERY_PREVIEW: "false",
+      STRIPE_SAAS_TEST_ACCOUNT_REFERENCE: "acct_1STR6eDXXopppUpe",
       SAAS_QA_SHORT_PAID_ENABLED: "true",
       SAAS_QA_SHORT_PAID_RUN: "short-paid-expiry-20261021-v3",
       SAAS_QA_SHORT_PAID_EXPIRES_AT: "2026-10-22T18:30:00Z",
@@ -59,6 +60,9 @@ describe("delivery preview isolation preflight", () => {
     expect(spawnSync(process.execPath, ["preview-build-preflight.cjs"], {
       env: { ...experiment, DATABASE_URL: fixture.DATABASE_URL }, encoding: "utf8",
     }).status).toBe(1);
+    expect(spawnSync(process.execPath, ["preview-build-preflight.cjs"], {
+      env: { ...experiment, STRIPE_SAAS_TEST_ACCOUNT_REFERENCE: fixture.STRIPE_SAAS_TEST_ACCOUNT_REFERENCE }, encoding: "utf8",
+    }).status).toBe(1);
   });
   it.each([
     { VERCEL_ENV: "production" },
@@ -67,6 +71,9 @@ describe("delivery preview isolation preflight", () => {
     { SAAS_QA_SHORT_PAID_RUN: "short-paid-expiry-20261021-v3" },
     { SAAS_QA_SHORT_PAID_EXPIRES_AT: "2026-10-22T18:30:00Z" },
     { STRIPE_SAAS_ENVIRONMENT: "live" },
+    { STRIPE_SAAS_TEST_ACCOUNT_REFERENCE: "acct_1STR6eDXXopppUpe" },
+    { STRIPE_SAAS_TEST_ACCOUNT_REFERENCE: "acct_unknown" },
+    { STRIPE_SAAS_TEST_ACCOUNT_REFERENCE: "" },
     { NODE_TLS_REJECT_UNAUTHORIZED: "0" },
     { CRON_SECRET: "synthetic" },
   ])("rejects unsafe override %o without printing values", (override) => {
