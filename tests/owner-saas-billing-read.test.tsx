@@ -428,6 +428,107 @@ describe("mensajes de comandos simulados ligados a su academia", () => {
   });
 });
 
+describe("recuperación explícita de Checkout abierto después de recargar", () => {
+  function openSnapshot(organizationId = org): OwnerSaasBillingSnapshot {
+    const data = fixture();
+    data.organization = { id: organizationId, name: organizationId === org ? "Academia A abierta" : "Academia B abierta" };
+    data.entitlement = { ...data.entitlement, planCode: "free", source: "bootstrap", revision: 1, effectiveUntil: null };
+    data.subscription = null;
+    data.syncStatus = "open";
+    data.actions = { canStartTrial: false, canCheckoutStarter: false, canCheckoutGrowth: false, canOpenPortal: false };
+    return data;
+  }
+  const existingCheckout = {
+    operationId: "existing-synthetic-operation", checkoutUrl: "https://checkout.stripe.com/c/pay/existing-synthetic-session",
+    expiresAt: "2100-01-01T00:00:00.000Z", status: "pending",
+  };
+  const recoveryCalls = () => fetchMock.mock.calls.filter(([url]) => String(url).startsWith("/api/v1/owner/saas/checkout?"));
+  const postCalls = () => fetchMock.mock.calls.filter(([, options]) => options?.method === "POST");
+
+  it("solo recupera al pulsar y vuelve a ofrecer la misma sesión sin POST", async () => {
+    fetchMock.mockImplementation(async url => String(url).startsWith("/api/v1/owner/saas/checkout?")
+      ? response(existingCheckout) : response(openSnapshot()));
+    const view = render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia A" />);
+    const recover = await screen.findByRole("button", { name: "Recuperar pago pendiente" });
+    expect(recoveryCalls()).toHaveLength(0);
+    expect(postCalls()).toHaveLength(0);
+    fireEvent.click(recover);
+    const link = await screen.findByRole("link", { name: "Continuar al pago seguro" });
+    expect(link).toHaveAttribute("href", existingCheckout.checkoutUrl);
+    expect(recoveryCalls()).toEqual([[`/api/v1/owner/saas/checkout?organizationId=${org}`, { method: "GET", cache: "no-store" }]]);
+    expect(postCalls()).toHaveLength(0);
+    expect(screen.getAllByRole("button", { name: "Pago pendiente" })).toHaveLength(2);
+    view.unmount();
+    render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia A" />);
+    expect(await screen.findByRole("button", { name: "Recuperar pago pendiente" })).toBeEnabled();
+    expect(recoveryCalls()).toHaveLength(1);
+    expect(screen.queryByRole("link", { name: "Continuar al pago seguro" })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    null,
+    { ...existingCheckout, checkoutUrl: "https://example.test/session" },
+    { ...existingCheckout, checkoutUrl: "https://checkout.stripe.com:8443/session" },
+    { ...existingCheckout, checkoutUrl: "https://synthetic@checkout.stripe.com/session" },
+    { ...existingCheckout, expiresAt: "2000-01-01T00:00:00.000Z" },
+    { ...existingCheckout, expiresAt: "not-an-instant" },
+    { ...existingCheckout, status: "completed" },
+  ])("no ofrece enlace ante respuesta no recuperable %#", async result => {
+    fetchMock.mockImplementation(async url => String(url).startsWith("/api/v1/owner/saas/checkout?")
+      ? response(result) : response(openSnapshot()));
+    render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia A" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Recuperar pago pendiente" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("no se ha creado otra contratación");
+    expect(screen.queryByRole("link", { name: "Continuar al pago seguro" })).not.toBeInTheDocument();
+    expect(postCalls()).toHaveLength(0);
+  });
+
+  it("no publica una respuesta de recuperación tardía en otra academia", async () => {
+    let release!: (value: ReturnType<typeof response>) => void;
+    fetchMock.mockImplementation(async url => {
+      if (String(url).startsWith("/api/v1/owner/saas/checkout?")) return new Promise(resolve => { release = resolve; });
+      return response(openSnapshot(String(url).includes(otherOrg) ? otherOrg : org));
+    });
+    const view = render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia A" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Recuperar pago pendiente" }));
+    view.rerender(<OwnerSaasBillingManager organizationId={otherOrg} organizationName="Academia B" />);
+    expect(await screen.findByText("Academia B abierta")).toBeVisible();
+    await act(async () => { release(response(existingCheckout)); });
+    expect(screen.queryByRole("link", { name: "Continuar al pago seguro" })).not.toBeInTheDocument();
+    expect(postCalls()).toHaveLength(0);
+  });
+
+  it("excluye doble clic y no conserva un enlace si el servidor deniega la lectura", async () => {
+    let release!: (value: { ok: boolean; json: () => Promise<unknown> }) => void;
+    fetchMock.mockImplementation(async url => {
+      if (String(url).startsWith("/api/v1/owner/saas/checkout?")) return new Promise(resolve => { release = resolve; });
+      return response(openSnapshot());
+    });
+    render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia A" />);
+    const recover = await screen.findByRole("button", { name: "Recuperar pago pendiente" });
+    fireEvent.click(recover);
+    fireEvent.click(recover);
+    expect(recoveryCalls()).toHaveLength(1);
+    await act(async () => { release({ ok: false, json: async () => ({ ok: false, code: "FORBIDDEN", message: "Forbidden" }) }); });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Tu cuenta no tiene permiso");
+    expect(screen.queryByRole("link", { name: "Continuar al pago seguro" })).not.toBeInTheDocument();
+    expect(postCalls()).toHaveLength(0);
+  });
+
+  it("no sustituye un comando incierto guardado por una lectura de recuperación", async () => {
+    const command = { organizationId: org, action: "checkout", planCode: "starter", billingInterval: "month", key: "original-synthetic-key", serializedBody: JSON.stringify({ organizationId: org, planCode: "starter", billingInterval: "month" }) };
+    const storageKey = saasCommandStorageKey(org);
+    window.sessionStorage.setItem(storageKey, JSON.stringify(command));
+    fetchMock.mockResolvedValue(response(openSnapshot()));
+    render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia A" />);
+    expect(await screen.findByRole("button", { name: "Reintentar la operación pendiente" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Recuperar pago pendiente" })).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem(storageKey)).toBe(JSON.stringify(command));
+    expect(recoveryCalls()).toHaveLength(0);
+    expect(postCalls()).toHaveLength(0);
+  });
+});
+
 describe("exclusión síncrona de comandos simulados de facturación", () => {
   type Action = "portal" | "trial" | "checkout";
   const actionNames = { portal: "Gestionar suscripción", trial: "Activar prueba", checkout: "Contratar Growth" };

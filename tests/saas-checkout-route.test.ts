@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   user: vi.fn(),
   scope: vi.fn(),
   checkout: vi.fn(),
+  recover: vi.fn(),
   portal: vi.fn(),
   trial: vi.fn(),
   snapshot: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock("@/lib/rate-limit", () => ({
 }));
 vi.mock("@/modules/saas-billing/application/saas-billing-service", () => ({
   createOwnerSaasCheckout: mocks.checkout,
+  recoverOwnerSaasCheckout: mocks.recover,
   createOwnerSaasPortal: mocks.portal,
   startOwnerSaasTrial: mocks.trial,
   getOwnerSaasBillingSnapshot: mocks.snapshot,
@@ -30,7 +32,7 @@ vi.mock("@/modules/saas-billing/application/owner-access", () => ({
     request.headers.get("origin") === new URL(request.url).origin,
 }));
 
-import { POST } from "@/app/api/v1/owner/saas/checkout/route";
+import { POST, GET as recoverCheckout } from "@/app/api/v1/owner/saas/checkout/route";
 import { POST as portal } from "@/app/api/v1/owner/saas/portal/route";
 import { POST as trial } from "@/app/api/v1/owner/saas/trial/start/route";
 import { GET as billing } from "@/app/api/v1/owner/saas/billing/route";
@@ -326,5 +328,46 @@ describe("SaaS Checkout HTTP contract with isolated dependencies", () => {
     const response = await POST(request());
     expect(response.status).toBe(503);
     expect(await response.text()).not.toContain("internal-provider-details");
+  });
+});
+
+describe("lectura de Checkout abierto", () => {
+  const read = (query = `organizationId=${organizationId}`) =>
+    new Request(`https://example.invalid/api/v1/owner/saas/checkout?${query}`);
+  it("recupera el enlace existente sin iniciar contratación y sin cache", async () => {
+    mocks.recover.mockResolvedValue({ operationId: "existing", checkoutUrl: "https://checkout.stripe.com/c/pay/cs_test_synthetic",
+      expiresAt: new Date("2030-01-01T00:00:00Z"), status: "pending" });
+    const result = await recoverCheckout(read());
+    expect(result.status).toBe(200);
+    expect(result.headers.get("cache-control")).toBe("private, no-store");
+    expect((await result.json()).data.expiresAt).toBe("2030-01-01T00:00:00.000Z");
+    expect(mocks.recover).toHaveBeenCalledWith({ userId: "synthetic-user", organizationId });
+    expect(mocks.checkout).not.toHaveBeenCalled();
+  });
+  it("no autentificado no consulta scope ni proveedor", async () => {
+    mocks.user.mockResolvedValue(null);
+    expect((await recoverCheckout(read())).status).toBe(401);
+    expect(mocks.scope).not.toHaveBeenCalled(); expect(mocks.recover).not.toHaveBeenCalled();
+  });
+  it.each([`organizationId=${organizationId}&organizationId=${organizationId}`, `organizationId=${organizationId}&operationId=foreign`, "organizationId=bad"])
+    ("rechaza query ambigua o no admitida: %s", async (query) => {
+      expect((await recoverCheckout(read(query))).status).toBe(400);
+      expect(mocks.recover).not.toHaveBeenCalled();
+    });
+  it("rechaza otro Owner/manager antes de recuperar", async () => {
+    mocks.scope.mockRejectedValue(new OperationalError("FORBIDDEN", "Fuera de ámbito", 403));
+    expect((await recoverCheckout(read())).status).toBe(403);
+    expect(mocks.recover).not.toHaveBeenCalled();
+  });
+  it("respeta límite de solicitudes", async () => {
+    mocks.rate.mockResolvedValue({ success: false });
+    expect((await recoverCheckout(read())).status).toBe(429);
+    expect(mocks.recover).not.toHaveBeenCalled();
+  });
+  it("devuelve null si la sesión ya no puede reabrirse", async () => {
+    mocks.recover.mockResolvedValue(null);
+    const result = await recoverCheckout(read());
+    expect(result.status).toBe(200); expect((await result.json()).data).toBeNull();
+    expect(mocks.checkout).not.toHaveBeenCalled();
   });
 });

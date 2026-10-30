@@ -246,6 +246,74 @@ export async function getOwnerSaasBillingSnapshot(input: {
   });
 }
 
+/** Recover an existing open Checkout by reading only; never reserve or recreate it. */
+export async function recoverOwnerSaasCheckout(input: {
+  userId: string;
+  organizationId: string;
+}) {
+  const scope = await resolveSaasOwnerScope(input);
+  // The frozen natural-expiry experiment is outside delivery recovery.
+  if (isShortPaidQaOrganization(scope.organizationId)) return null;
+  const config = getSaasStripeConfig();
+  if (!config) throw providerUnavailable();
+  const readTarget = () => db.transaction(async (tx) => {
+    await resolveSaasOwnerScope({ ...input, tx });
+    const [quarantined] = await tx.select({ id: organizationSaasWebhookEvents.id })
+      .from(organizationSaasWebhookEvents).where(and(
+        eq(organizationSaasWebhookEvents.organizationId, scope.organizationId),
+        eq(organizationSaasWebhookEvents.environment, config.environment),
+        eq(organizationSaasWebhookEvents.providerAccountReference, config.providerAccountReference),
+        eq(organizationSaasWebhookEvents.status, "quarantined"),
+      )).limit(1);
+    if (quarantined) return null;
+    const operations = await tx.select().from(organizationSaasCheckoutOperations).where(and(
+      eq(organizationSaasCheckoutOperations.organizationId, scope.organizationId),
+      eq(organizationSaasCheckoutOperations.environment, config.environment),
+      eq(organizationSaasCheckoutOperations.providerAccountReference, config.providerAccountReference),
+      eq(organizationSaasCheckoutOperations.status, "open"),
+    )).limit(2);
+    if (operations.length !== 1) return null;
+    const operation = operations[0]!;
+    if (!operation.customerId || !operation.checkoutSessionReference ||
+      !operation.sessionExpiresAt || operation.sessionExpiresAt.getTime() <= Date.now() ||
+      (operation.planCode !== "starter" && operation.planCode !== "growth")) return null;
+    const [customer] = await tx.select({ customerReference: organizationSaasCustomers.customerReference })
+      .from(organizationSaasCustomers).where(and(
+        eq(organizationSaasCustomers.id, operation.customerId),
+        eq(organizationSaasCustomers.organizationId, scope.organizationId),
+        eq(organizationSaasCustomers.environment, config.environment),
+        eq(organizationSaasCustomers.providerAccountReference, config.providerAccountReference),
+        eq(organizationSaasCustomers.status, "ready"),
+      )).limit(1);
+    return customer?.customerReference ? { operation, customerReference: customer.customerReference } : null;
+  });
+  const target = await readTarget();
+  if (!target) return null;
+  const { operation, customerReference } = target;
+  let session: Stripe.Checkout.Session;
+  try {
+    session = await createSaasStripeClient(config).checkout.sessions.retrieve(
+      operation.checkoutSessionReference!, { expand: ["line_items.data.price"] }
+    );
+  } catch { throw providerUnavailable(); }
+  if (session.status !== "open" || session.expires_at * 1000 <= Date.now()) return null;
+  const expiresAt = validateCheckoutSession(session, {
+    config, operation, customerReference,
+    priceReference: priceForPlan(config, operation.planCode as SelfServePlanCode, operation.billingInterval),
+    requireOpen: true,
+  });
+  if (expiresAt.getTime() !== operation.sessionExpiresAt!.getTime()) return null;
+  // A webhook or permission change during the provider read must fail closed.
+  const current = await readTarget();
+  if (!current || current.operation.id !== operation.id ||
+    current.operation.checkoutSessionReference !== session.id ||
+    current.customerReference !== customerReference ||
+    current.operation.requestHash !== operation.requestHash ||
+    current.operation.sessionExpiresAt?.getTime() !== expiresAt.getTime()) return null;
+  return { operationId: operation.id, checkoutUrl: validateCheckoutUrl(session.url),
+    expiresAt, status: "pending" as const };
+}
+
 export async function startOwnerSaasTrial(input: {
   userId: string;
   organizationId: string;
@@ -1385,8 +1453,8 @@ function validateCheckoutUrl(url: string | null): string {
   try {
     const parsed = new URL(url);
     if (
-      parsed.protocol !== "https:" ||
-      parsed.hostname !== "checkout.stripe.com"
+      parsed.origin !== "https://checkout.stripe.com" ||
+      parsed.username !== "" || parsed.password !== ""
     ) {
       throw providerUnavailable();
     }

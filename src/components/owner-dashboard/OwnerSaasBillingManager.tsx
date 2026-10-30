@@ -542,6 +542,38 @@ export function OwnerSaasBillingManager({
     }
   }
 
+  async function recoverCheckout() {
+    if (actionInFlight.current || !stateIsCurrent || currentSnapshot?.syncStatus !== "open"
+      || pendingCheckout || pendingCommandRef.current
+      || pendingReadState.organizationId !== organizationId || pendingReadState.status !== "ready") return;
+    actionInFlight.current = true;
+    setBusyAction("recover-checkout");
+    setActionError("");
+    setNotice("");
+    try {
+      const params = new URLSearchParams({ organizationId });
+      const response = await fetch(`${CHECKOUT_ENDPOINT}?${params.toString()}`, {
+        method: "GET", cache: "no-store",
+      });
+      const payload = await response.json().catch(() => null);
+      if (activeOrganizationIdRef.current !== organizationId) return;
+      const result = responseData<unknown>(payload);
+      if (!response.ok || !isCheckoutResult(result) || !isCheckoutSessionUrl(result.checkoutUrl)
+        || Date.parse(result.expiresAt) <= Date.now()) {
+        throw new Error(apiErrorMessage(payload,
+          "No se ha podido recuperar un enlace de pago vigente. Actualiza el estado antes de continuar; no se ha creado otra contratación."));
+      }
+      setPendingCheckout({ ...result, organizationId });
+      setNotice("Se ha recuperado la sesión de pago existente. El plan actual no cambia hasta que el servidor confirme el pago.");
+    } catch (error) {
+      if (activeOrganizationIdRef.current !== organizationId) return;
+      setActionError(error instanceof Error ? error.message : "No se ha podido recuperar el enlace de pago. No se ha creado otra contratación.");
+    } finally {
+      actionInFlight.current = false;
+      setBusyAction(null);
+    }
+  }
+
   async function openPortal(retryIntent?: RequestIntent) {
     if (actionInFlight.current || (retryIntent ? !mayRetry("portal", retryIntent)
       : (!currentSnapshot || !canStartOperation || !currentSnapshot.actions.canOpenPortal || pendingCommandRef.current))) {
@@ -819,6 +851,17 @@ export function OwnerSaasBillingManager({
                 >
                   Actualizar estado
                 </button>
+                {currentSnapshot.syncStatus === "open" && !pendingCheckout && !pendingCommand
+                  && pendingReadState.organizationId === organizationId && pendingReadState.status === "ready" ? (
+                    <button
+                      type="button"
+                      className="touch-target ml-3 mt-3 rounded-full border border-teal-800 px-5 text-sm font-bold disabled:opacity-60"
+                      onClick={() => void recoverCheckout()}
+                      disabled={busyAction !== null || !stateIsCurrent}
+                    >
+                      {displayedBusyAction === "recover-checkout" ? "Recuperando enlace…" : "Recuperar pago pendiente"}
+                    </button>
+                  ) : null}
               </section>
             ) : null}
           </>

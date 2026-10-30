@@ -9,7 +9,7 @@ import {
   rateLimit,
   rateLimitExceededResponse,
 } from "@/lib/rate-limit";
-import { createOwnerSaasCheckout } from "@/modules/saas-billing/application/saas-billing-service";
+import { createOwnerSaasCheckout, recoverOwnerSaasCheckout } from "@/modules/saas-billing/application/saas-billing-service";
 import {
   hasSameOrigin,
   resolveSaasOwnerScope,
@@ -113,5 +113,28 @@ export async function POST(request: Request) {
         503
       )
     );
+  }
+}
+
+// @auth-flexible route-guard-reason: authenticated active Owner only; recovery reads the existing session without mutations.
+export async function GET(request: Request) {
+  const user = await getCurrentUser(request);
+  if (!user) return noStore(apiError("UNAUTHENTICATED", "Inicia sesión para continuar.", 401));
+  const params = new URL(request.url).searchParams;
+  const parsed = z.object({ organizationId: z.string().uuid() }).strict()
+    .safeParse(Object.fromEntries(params));
+  if (!parsed.success || params.getAll("organizationId").length !== 1)
+    return noStore(apiError("VALIDATION_ERROR", "Indica una organización válida.", 400));
+  try {
+    const scope = await resolveSaasOwnerScope({ userId: user.id, organizationId: parsed.data.organizationId });
+    const limit = await rateLimit({ identifier: getVerifiedTenantRateLimitIdentifier(request, scope.organizationId),
+      ...getLimitForRoute(new URL(request.url).pathname) });
+    if (!limit.success) return noStore(rateLimitExceededResponse(limit));
+    const result = await recoverOwnerSaasCheckout({ userId: user.id, organizationId: scope.organizationId });
+    return noStore(apiSuccess(result ? { ...result, expiresAt: result.expiresAt.toISOString() } : null));
+  } catch (error) {
+    if (error instanceof OperationalError)
+      return noStore(apiError(saasHttpErrorCode(error), error.message, error.status, error.details));
+    return noStore(apiError("BILLING_PROVIDER_UNAVAILABLE", "No se pudo recuperar la sesión de pago.", 503));
   }
 }
