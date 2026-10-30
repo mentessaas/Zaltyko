@@ -256,6 +256,8 @@ export async function recoverOwnerSaasCheckout(input: {
   if (isShortPaidQaOrganization(scope.organizationId)) return null;
   const config = getSaasStripeConfig();
   if (!config) throw providerUnavailable();
+  // A recovered payable URL must obey the same commercial gate as a new Checkout.
+  if (!isSaasCheckoutEnabled(config.environment)) throw providerConfigUnavailable();
   const readTarget = () => db.transaction(async (tx) => {
     await resolveSaasOwnerScope({ ...input, tx });
     const [quarantined] = await tx.select({ id: organizationSaasWebhookEvents.id })

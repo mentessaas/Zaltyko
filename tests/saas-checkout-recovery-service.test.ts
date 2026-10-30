@@ -123,6 +123,14 @@ describe("existing Checkout recovery is read-only and scope-bound", () => {
     await expect(recoverOwnerSaasCheckout(input)).rejects.toMatchObject({ status: 503 });
     expect(mocks.transaction).not.toHaveBeenCalled(); expect(mocks.retrieve).not.toHaveBeenCalled();
   });
+  it("does not recover a payable Live URL while commercial readiness is incomplete", async () => {
+    mocks.config.mockReturnValue({ environment: "live", providerAccountReference: "acct_synthetic_live" });
+    await expect(recoverOwnerSaasCheckout(input)).rejects.toMatchObject({
+      status: 503,
+    });
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.retrieve).not.toHaveBeenCalled();
+  });
   it("does not create a replacement session when retrieve fails", async () => {
     queueTarget(); mocks.retrieve.mockRejectedValue(new Error("synthetic provider unavailable"));
     await expect(recoverOwnerSaasCheckout(input)).rejects.toMatchObject({ status: 503 });
