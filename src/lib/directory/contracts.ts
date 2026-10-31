@@ -66,7 +66,7 @@ export const EntryDataSchema = z
     activity: z.enum(["operational", "closed", "unknown"]).default("unknown"),
     organizerName: optionalText(200),
     organizerUrl: httpsUrl.nullable().optional(),
-    organizationId: z.string().uuid().nullable().optional(),
+    organizationId: z.guid().nullable().optional(),
     edition: optionalText(80),
     eventType: z
       .enum([
@@ -179,7 +179,7 @@ export const EntryInputSchema = z.object({
 });
 export const ClaimSchema = z
   .object({
-    entryId: z.string().uuid(),
+    entryId: z.guid(),
     relationship: z.string().trim().min(5).max(500),
     evidence: z.string().trim().min(20).max(3000),
     evidencePath: z.string().max(500).optional(),

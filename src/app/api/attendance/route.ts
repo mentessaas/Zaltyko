@@ -11,15 +11,16 @@ import { getClassAthletes } from "@/lib/classes/get-class-athletes";
 import { verifyAttendanceWriteAccess } from "@/lib/attendance/service";
 import { markAcademyActivationIfReady } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const entrySchema = z.object({
-  athleteId: z.string().uuid(),
+  athleteId: z.guid(),
   status: z.enum(["present", "absent", "late", "excused"]).optional(),
   notes: z.string().optional(),
 });
 
 const upsertBodySchema = z.object({
-  sessionId: z.string().uuid(),
+  sessionId: z.guid(),
   entries: z.array(entrySchema).min(1).max(500).superRefine((entries, ctx) => {
     const seen = new Set<string>();
     entries.forEach((entry, index) => {
@@ -101,6 +102,9 @@ export const POST = withTenant(async (request, context) => {
 
     // Usar transacción para garantizar atomicidad
     await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, sessionRow.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, sessionRow.academyId, tx);
+
       for (const entry of body.entries) {
         const status = entry.status ?? "present";
         const notes = entry.notes ?? null;
@@ -144,8 +148,8 @@ export const POST = withTenant(async (request, context) => {
 });
 
 const querySchema = z.object({
-  sessionId: z.string().uuid().optional(),
-  academyId: z.string().uuid().optional(),
+  sessionId: z.guid().optional(),
+  academyId: z.guid().optional(),
 });
 
 export const GET = withTenant(async (request, context) => {

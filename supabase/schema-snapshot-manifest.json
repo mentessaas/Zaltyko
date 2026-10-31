@@ -1,0 +1,99 @@
+{
+  "artifact_kind": "current-state-schema-snapshot",
+  "historical_migration_history_recovered": false,
+  "captured_on": "2026-10-24",
+  "captured_after_assay_observation": {
+    "local_time": "2026-10-24 17:54 Europe/Madrid",
+    "exact_snapshot_capture_time": "NO VERIFICADO"
+  },
+  "source": {
+    "project_name": "Zaltyko E2E Sandbox",
+    "project_ref": "aeeootdmuiqkfeernskw",
+    "database_version": "PostgreSQL 17.6",
+    "region": "eu-north-1",
+    "extraction": "read-only pg_catalog and information_schema queries",
+    "application_rows_read": false,
+    "secrets_read_or_included": false,
+    "operational_roles_or_memberships_included": false
+  },
+  "baseline": {
+    "path": "supabase/schema-snapshots/20261024172153_sandbox_schema_snapshot_baseline.sql",
+    "sha256": "fd1bf2597b0dfd40dc6db824fa24773461f2776fa2ed7c994649be534c6a4b36",
+    "bytes": 660079,
+    "objects": {
+      "tables": 231,
+      "indexes_total": 968,
+      "standalone_indexes": 588,
+      "constraint_indexes": 380,
+      "regular_constraints": 1292,
+      "foreign_keys": 502,
+      "foreign_keys_to_auth": 18,
+      "policies": 326,
+      "routines": 38,
+      "non_internal_triggers": 24,
+      "constraint_triggers": 1,
+      "enum_types": 95
+    },
+    "rls": {
+      "enabled_tables": 230,
+      "forced_tables": 92,
+      "public_enabled": 138,
+      "zaltyko_enabled_and_forced": 92,
+      "domain_private_migration_table_rls": false
+    },
+    "extensions": {
+      "btree_gist": "1.7",
+      "pg_stat_statements": "1.11",
+      "pgcrypto": "1.3",
+      "plpgsql": "1.0",
+      "supabase_vault": "0.3.1",
+      "uuid-ossp": "1.1"
+    },
+    "non_owner_acl_pairs": {
+      "tables": 489,
+      "routines_including_two_implicit_public": 57,
+      "schemas": 12,
+      "columns": 5,
+      "schema_scoped_defaults": 23
+    },
+    "safety_guard": [
+      "requires session-local app.schema_snapshot_replay=ci-empty-replay on the isolated CI connection; it is never persisted at database scope",
+      "refuses any existing relation, routine, or user-defined type in the four application schemas before DDL"
+    ],
+    "replay_ordering_note": "Nine unchanged standalone unique-index definitions are ordered before dependent foreign-key DDL, and SQL security helpers are ordered before wrappers that invoke them; object definitions and constraints are unchanged."
+  },
+  "authored_reference_seed": {
+    "path": "supabase/migrations/20261024223700_seed_owner_bootstrap_sport_profiles.sql",
+    "sha256": "d8c2a0b81a0d7f75f1f94ebd0f131ab85775a6e7904e2606a980570cbc02c225",
+    "authored_on": "2026-10-24",
+    "purpose": "Provide the minimal ES identity-only gymnastics profiles required by Owner academy bootstrap after an empty schema replay.",
+    "provenance": "New application reference data derived from the bootstrap contract; not extracted from sandbox rows or recovered migration history.",
+    "rows": [
+      { "country_code": "ES", "discipline_key": "artistic", "federation_code": "unconfigured", "profile_version": "identity-v1", "status": "identity_only" },
+      { "country_code": "ES", "discipline_key": "rhythmic", "federation_code": "unconfigured", "profile_version": "identity-v1", "status": "identity_only" }
+    ]
+  },
+  "replay_validation": {
+    "runner": "GitHub Actions disposable ubuntu-latest runner",
+    "supabase_cli_version": "2.119.0",
+    "supabase_cli_archive_sha256": "bf1c3ae93be98533eb8a3105dbf4564bd0b2d9dc24690d8a920f980ef975c1b4",
+    "database": "fresh local Supabase Postgres only; no linked or remote database",
+    "platform_prerequisite": {
+      "function": "auth.jwt() RETURNS jsonb",
+      "source": "https://github.com/supabase/auth/blob/c3348e8f1cb31454e9783e4eb9eab1e71ad9652f/migrations/20220531120530_add_auth_jwt_function.up.sql",
+      "scope": "The pinned native Postgres-only CI stack excludes the Auth service. If this standard helper is absent, CI installs its upstream-compatible definition only in the disposable database; it is not part of the application snapshot and is never written to the source sandbox or production."
+    },
+    "tenant_fixture_path": "scripts/ci/sandbox-tenant-isolation.sql",
+    "tenant_fixture_sha256": "51480aba756d3c1b581da0c28e1ac3bcfee024e3ba2eef038982bbb09f23b06c",
+    "replay_principal": "Connect to the validated loopback endpoint as the pinned stack's built-in supabase_admin login and verify its superuser identity. Each temporary migration dynamically executes session-local SET ROLE NONE inside one DO block, then asserts the effective supabase_admin superuser before application DDL; this avoids the pinned CLI's top-level role-reset reassertion. Query-level connection overrides are discarded; CI does not grant, revoke, or create roles or change persistent role settings.",
+    "replay_script_path": "scripts/ci/verify-sandbox-schema-replay.sh",
+    "replay_script_sha256": "e2d391effb3b745ec214bd07523d4eb76e525579588d59a23d2869d853878e69",
+    "execution_evidence": "This manifest records the pinned replay procedure only; record the exact commit and CI result in the external audit report after a passing run."
+  },
+  "scope_exclusions": [
+    "No SQL was written to the sandbox source project or production.",
+    "No seed/application data, credentials, API keys, or custom operational roles were captured.",
+    "No production deployment or Vercel configuration change was made.",
+    "No build, test, database service, or instrumentation was run on the user's Mac."
+  ]
+}

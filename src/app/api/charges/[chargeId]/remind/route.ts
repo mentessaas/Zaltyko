@@ -11,6 +11,8 @@ import { db } from "@/db";
 import { charges } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const REMINDER_ERROR_MESSAGES: Record<string, { code: string; message: string; status: number }> = {
   CHARGE_NOT_FOUND: { code: "CHARGE_NOT_FOUND", message: "Cargo no encontrado", status: 404 },
@@ -57,6 +59,11 @@ const remindHandler = withTenant(async (request, context) => {
       permission: "billing:update",
     });
     if (!scope.allowed) return apiError("CHARGE_NOT_FOUND", "Cargo no encontrado", 404);
+
+    await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, charge.academyId);
+      await assertAcademyOperationalWritable(charge.tenantId, charge.academyId, tx);
+    });
 
     const result = await sendManualPaymentReminder({ chargeId, tenantId: context.tenantId });
 

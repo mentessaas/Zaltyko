@@ -4,18 +4,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // más que el timeout global de 5 s; no es un límite del endpoint.
 vi.setConfig({ testTimeout: 30000 });
 
-const ACADEMY_ID = "11111111-1111-1111-1111-111111111111";
-const TENANT_ID = "22222222-2222-2222-2222-222222222222";
-const PROFILE_ID = "33333333-3333-3333-3333-333333333333";
-const SPORT_CONFIG_ID = "44444444-4444-4444-4444-444444444444";
-const ATHLETE_ID = "55555555-5555-5555-5555-555555555555";
-const GROUP_ID = "66666666-6666-6666-6666-666666666666";
-const CLASS_ID = "77777777-7777-7777-7777-777777777777";
+const ACADEMY_ID = "11111111-1111-4111-8111-111111111111";
+const TENANT_ID = "22222222-2222-4222-8222-222222222222";
+const PROFILE_ID = "33333333-3333-4333-8333-333333333333";
+const SPORT_CONFIG_ID = "44444444-4444-4444-8444-444444444444";
+const ATHLETE_ID = "55555555-5555-4555-8555-555555555555";
+const GROUP_ID = "66666666-6666-4666-8666-666666666666";
+const CLASS_ID = "77777777-7777-4777-8777-777777777777";
 const COACH_ID = "88888888-8888-8888-8888-888888888888";
 
 let selectQueue: unknown[][] = [];
 let insertCalls: Array<{ table: unknown; payload: unknown }> = [];
 let updateCalls: Array<{ table: unknown; data: unknown }> = [];
+const limitMocks = {
+  lockAcademyOperationalWrites: vi.fn(async () => undefined),
+  assertAcademyOperationalWritable: vi.fn(async () => ({ readOnly: false })),
+};
 
 function createSelectChain(result: unknown[]) {
   const chain: Record<string, unknown> = {};
@@ -61,6 +65,7 @@ describe("API /api/academies/[academyId]/sport-migration", () => {
     selectQueue = [];
     insertCalls = [];
     updateCalls = [];
+    vi.clearAllMocks();
 
     vi.doMock("@/lib/authz", () => ({
       withTenant:
@@ -85,6 +90,8 @@ describe("API /api/academies/[academyId]/sport-migration", () => {
         tenantId: TENANT_ID,
       }),
     }));
+
+    vi.doMock("@/lib/limits", () => limitMocks);
 
     vi.doMock("@/db", () => ({
       db: {
@@ -155,6 +162,8 @@ describe("API /api/academies/[academyId]/sport-migration", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ data: { updated: 1 } });
+    expect(limitMocks.lockAcademyOperationalWrites).toHaveBeenCalledWith(expect.anything(), ACADEMY_ID);
+    expect(limitMocks.assertAcademyOperationalWritable).toHaveBeenCalledWith(TENANT_ID, ACADEMY_ID, expect.anything());
     expect(updateCalls[0]?.data).toMatchObject({ primarySportConfigId: SPORT_CONFIG_ID });
     expect(insertCalls[0]?.payload).toEqual([
       expect.objectContaining({

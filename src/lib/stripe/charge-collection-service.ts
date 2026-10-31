@@ -9,6 +9,7 @@ import { getConnectAccount, isConnectReady } from "@/lib/stripe/connect-service"
 import { resolvePayerCustomerForAthlete } from "@/lib/stripe/family-customers-service";
 import { withTransaction } from "@/lib/db-transactions";
 import { logger } from "@/lib/logger";
+import { throwFamilyAutomaticCollectionDisabled } from "@/lib/stripe/family-automatic-collection-disabled";
 
 export type CollectResult =
   | { ok: true; status: "paid"; paymentIntentId: string }
@@ -49,6 +50,8 @@ interface ChargeRow {
  * la fuente de verdad; el webhook (FASE 5) reconcilia el estado final.
  */
 export async function collectCharge(chargeId: string): Promise<CollectResult> {
+  throwFamilyAutomaticCollectionDisabled();
+
   return withTransaction(async (tx) => {
     // Lock por cargo: serializa intentos concurrentes sobre el mismo cargo.
     if ("execute" in tx && typeof tx.execute === "function") {
@@ -248,6 +251,8 @@ export async function collectDueChargesForAcademy(params: {
   onlyDue?: boolean;
   batchSize?: number;
 }): Promise<{ attempted: number; paid: number; failed: number; skipped: number }> {
+  throwFamilyAutomaticCollectionDisabled();
+
   const conditions = [
     eq(charges.academyId, params.academyId),
     inArray(charges.status, ["pending", "overdue", "failed"]),

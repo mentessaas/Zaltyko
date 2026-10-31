@@ -16,11 +16,12 @@ import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { hasScheduleConflictForAthlete } from "@/lib/classes/schedule-conflicts";
 import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
-  classId: z.string().uuid(),
-  athleteId: z.string().uuid(),
+  academyId: z.guid(),
+  classId: z.guid(),
+  athleteId: z.guid(),
 });
 
 /**
@@ -152,6 +153,8 @@ export const POST = withTenant(async (request, context) => {
     // altas concurrentes de la misma clase y evita vender más plazas que las
     // disponibles (la comprobación anterior tenía una ventana de carrera).
     const enrollmentResult = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, body.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, body.academyId, tx);
       await tx.execute(
         sql`select pg_advisory_xact_lock(hashtext(${body.classId}))`
       );

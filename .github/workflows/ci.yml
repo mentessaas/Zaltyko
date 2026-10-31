@@ -326,6 +326,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The Azure Ubuntu mirror exhausted this job's 30m budget while fetching
+      # WebKit OS packages. Keep the full dependency install and signed sources.
+      - name: Verify isolated runner APT source preparation
+        run: python3 scripts/ci/test_prepare_playwright_apt.py
+
+      - name: Use primary Ubuntu archive for browser dependencies
+        run: sudo env GITHUB_ACTIONS=true python3 scripts/ci/prepare_playwright_apt.py
+
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps "${{ matrix.project }}"
 
@@ -338,6 +346,17 @@ jobs:
         run: pnpm test:e2e:local
         env:
           E2E_LOCAL_PROJECT: ${{ matrix.project }}
+
+      # Keep only visual failure evidence from the disposable, synthetic run.
+      # Do not publish traces, videos, HTML, storage state, or network logs.
+      - name: Preserve synthetic Owner failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: synthetic-owner-failure-${{ matrix.project }}-${{ github.sha }}
+          path: test-results/**/test-failed-*.png
+          if-no-files-found: ignore
+          retention-days: 3
 
   validate-rls:
     name: Validate RLS Coverage

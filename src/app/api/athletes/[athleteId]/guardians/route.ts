@@ -8,6 +8,8 @@ import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { NextResponse } from "next/server";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const GuardianBodySchema = z.object({
   name: z.string().min(1),
@@ -175,83 +177,100 @@ const createGuardianHandler = withTenant(async (request, context) => {
   const body = GuardianBodySchema.parse(await request.json());
 
   const email = body.email?.toLowerCase();
+  const guardianRow = await withTransaction(async (tx) => {
+    await lockAcademyOperationalWrites(tx, athleteRow.academyId);
+    await assertAcademyOperationalWritable(athleteRow.tenantId, athleteRow.academyId, tx);
 
-  let guardianId: string | null = null;
-
-  if (email) {
-    const [existing] = await db
-      .select({ id: guardians.id })
-      .from(guardians)
-      .where(and(eq(guardians.tenantId, athleteRow.tenantId), eq(guardians.email, email)))
+    const [currentAthlete] = await tx
+      .select({ id: athletes.id })
+      .from(athletes)
+      .where(and(
+        eq(athletes.id, athleteId),
+        eq(athletes.tenantId, athleteRow.tenantId),
+        eq(athletes.academyId, athleteRow.academyId),
+        isNull(athletes.deletedAt),
+      ))
       .limit(1);
+    if (!currentAthlete) return null;
 
-    if (existing) {
-      guardianId = existing.id;
-      await db
-        .update(guardians)
-        .set({
-          name: body.name,
-          phone: body.phone ?? null,
-          relationship: body.relationship ?? null,
-          notifyEmail: body.notifyEmail ?? true,
-          notifySms: body.notifySms ?? false,
-        })
-        .where(eq(guardians.id, existing.id));
+    let guardianId: string | null = null;
+    if (email) {
+      const [existing] = await tx
+        .select({ id: guardians.id })
+        .from(guardians)
+        .where(and(eq(guardians.tenantId, athleteRow.tenantId), eq(guardians.email, email)))
+        .limit(1);
+
+      if (existing) {
+        guardianId = existing.id;
+        await tx
+          .update(guardians)
+          .set({
+            name: body.name,
+            phone: body.phone ?? null,
+            relationship: body.relationship ?? null,
+            notifyEmail: body.notifyEmail ?? true,
+            notifySms: body.notifySms ?? false,
+          })
+          .where(and(eq(guardians.id, existing.id), eq(guardians.tenantId, athleteRow.tenantId)));
+      }
     }
-  }
 
-  if (!guardianId) {
-    guardianId = crypto.randomUUID();
-    await db.insert(guardians).values({
-      id: guardianId,
-      tenantId: athleteRow.tenantId,
-      name: body.name,
-      email,
-      phone: body.phone ?? null,
-      relationship: body.relationship ?? null,
-      notifyEmail: body.notifyEmail ?? true,
-      notifySms: body.notifySms ?? false,
-    });
-  }
+    if (!guardianId) {
+      guardianId = crypto.randomUUID();
+      await tx.insert(guardians).values({
+        id: guardianId,
+        tenantId: athleteRow.tenantId,
+        name: body.name,
+        email,
+        phone: body.phone ?? null,
+        relationship: body.relationship ?? null,
+        notifyEmail: body.notifyEmail ?? true,
+        notifySms: body.notifySms ?? false,
+      });
+    }
 
-  const linkId = crypto.randomUUID();
+    const linkId = crypto.randomUUID();
+    await tx
+      .insert(guardianAthletes)
+      .values({
+        id: linkId,
+        tenantId: athleteRow.tenantId,
+        guardianId,
+        athleteId,
+        relationship: body.relationship ?? null,
+        isPrimary: body.isPrimary ?? false,
+      })
+      .onConflictDoNothing();
 
-  await db
-    .insert(guardianAthletes)
-    .values({
-      id: linkId,
-      tenantId: athleteRow.tenantId,
-      guardianId,
-      athleteId,
-      relationship: body.relationship ?? null,
-      isPrimary: body.isPrimary ?? false,
-    })
-    .onConflictDoNothing();
+    const [row] = await tx
+      .select({
+        linkId: guardianAthletes.id,
+        guardianId: guardians.id,
+        profileId: guardians.profileId,
+        name: guardians.name,
+        email: guardians.email,
+        phone: guardians.phone,
+        relationship: guardians.relationship,
+        notifyEmail: guardians.notifyEmail,
+        notifySms: guardians.notifySms,
+        isPrimary: guardianAthletes.isPrimary,
+        linkRelationship: guardianAthletes.relationship,
+        createdAt: guardians.createdAt,
+      })
+      .from(guardianAthletes)
+      .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
+      .where(and(
+        eq(guardianAthletes.athleteId, athleteId),
+        eq(guardianAthletes.guardianId, guardianId),
+        eq(guardianAthletes.tenantId, athleteRow.tenantId),
+        eq(guardians.tenantId, athleteRow.tenantId),
+      ))
+      .limit(1);
+    return row ?? null;
+  });
 
-  const [guardianRow] = await db
-    .select({
-      linkId: guardianAthletes.id,
-      guardianId: guardians.id,
-      profileId: guardians.profileId,
-      name: guardians.name,
-      email: guardians.email,
-      phone: guardians.phone,
-      relationship: guardians.relationship,
-      notifyEmail: guardians.notifyEmail,
-      notifySms: guardians.notifySms,
-      isPrimary: guardianAthletes.isPrimary,
-      linkRelationship: guardianAthletes.relationship,
-      createdAt: guardians.createdAt,
-    })
-    .from(guardianAthletes)
-    .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
-    .where(and(
-      eq(guardianAthletes.id, linkId),
-      eq(guardianAthletes.tenantId, athleteRow.tenantId),
-      eq(guardians.tenantId, athleteRow.tenantId),
-    ))
-    .limit(1);
-
+  if (!guardianRow) return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   return apiSuccess({ item: guardianRow });
 });
 

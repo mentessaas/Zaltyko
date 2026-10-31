@@ -170,6 +170,7 @@ export async function assignEnrollmentPriceInTransaction(
     organizationId: input.organizationId,
     locationId: enrollment.locationId,
     actor: input.actor,
+    intent: "write",
     allowedRoles: priceAssignmentRoles,
   });
 

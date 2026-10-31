@@ -15,7 +15,7 @@ import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { escapeHtml } from "@/lib/email/escape-html";
 
 const ActivateAthleteSchema = z.object({
-  profileId: z.string().uuid(),
+  profileId: z.guid(),
   email: z.string().email().optional(),
   sendInvitation: z.boolean().default(true),
 });

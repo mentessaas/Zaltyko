@@ -25,6 +25,7 @@ import {
 import type { TransactionClient } from "@/lib/db-transactions";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { FAMILY_AUTOMATIC_COLLECTION_DISABLED } from "@/lib/stripe/family-automatic-collection-disabled";
 import { getChargeCollectionModeSnapshot } from "@/modules/billing/application/family-collection-preferences";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import {
@@ -41,19 +42,19 @@ const financialRoles = ["owner", "admin"] as const;
 
 const invoiceLineCoverageSchema = z
   .object({
-    enrollmentId: z.string().uuid(),
-    classTemplateId: z.string().uuid(),
+    enrollmentId: z.guid(),
+    classTemplateId: z.guid(),
     className: z.string().trim().min(2).max(120),
-    assignmentId: z.string().uuid(),
+    assignmentId: z.guid(),
   })
   .strict();
 
 const invoiceLineSchema = z
   .object({
-    athleteId: z.string().uuid().optional(),
+    athleteId: z.guid().optional(),
     coveredEnrollments: z.array(invoiceLineCoverageSchema).min(1).optional(),
-    enrollmentId: z.string().uuid().optional(),
-    pricePlanId: z.string().uuid().optional(),
+    enrollmentId: z.guid().optional(),
+    pricePlanId: z.guid().optional(),
     lineType: z.string().trim().min(1).max(80),
     quantity: z.number().int().positive().safe(),
     unitAmountCents: z.number().int().nonnegative().safe(),
@@ -126,10 +127,10 @@ const invoiceLineSchema = z
 
 const issueInvoiceSchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
-    familyId: z.string().uuid(),
-    familyPayerId: z.string().uuid().optional(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
+    familyId: z.guid(),
+    familyPayerId: z.guid().optional(),
     reference: z.string().trim().min(1).max(80),
     currency: currencySchema,
     dueAt: z.string().datetime({ offset: true }),
@@ -161,9 +162,9 @@ const issueInvoiceSchema = z
   });
 
 const allocatePaymentSchema = z.object({
-  organizationId: z.string().uuid(),
-  paymentId: z.string().uuid(),
-  chargeId: z.string().uuid(),
+  organizationId: z.guid(),
+  paymentId: z.guid(),
+  chargeId: z.guid(),
   amountCents: z.number().int().positive(),
   allocatedAt: z.string().datetime({ offset: true }),
   idempotencyKey: commandKeySchema,
@@ -171,10 +172,10 @@ const allocatePaymentSchema = z.object({
 });
 
 const recordManualPaymentSchema = z.object({
-  organizationId: z.string().uuid(),
-  locationId: z.string().uuid(),
-  familyId: z.string().uuid(),
-  familyPayerId: z.string().uuid().optional(),
+  organizationId: z.guid(),
+  locationId: z.guid(),
+  familyId: z.guid(),
+  familyPayerId: z.guid().optional(),
   amountCents: z.number().int().positive(),
   currency: currencySchema,
   method: z.enum(["cash", "bank_transfer", "card_terminal", "other"]),
@@ -185,8 +186,8 @@ const recordManualPaymentSchema = z.object({
 });
 
 const recordManualPaymentForChargeSchema = z.object({
-  organizationId: z.string().uuid(),
-  chargeId: z.string().uuid(),
+  organizationId: z.guid(),
+  chargeId: z.guid(),
   amountCents: z.number().int().positive().safe(),
   method: z.enum(["cash", "bank_transfer", "card_terminal", "other"]),
   reference: z.string().trim().min(1).max(200).optional(),
@@ -196,8 +197,8 @@ const recordManualPaymentForChargeSchema = z.object({
 });
 
 const reconcileFinancialPeriodSchema = z.object({
-  organizationId: z.string().uuid(),
-  authorizationLocationId: z.string().uuid(),
+  organizationId: z.guid(),
+  authorizationLocationId: z.guid(),
   currency: currencySchema,
   periodStart: z.string().date(),
   periodEnd: z.string().date(),
@@ -207,10 +208,10 @@ const reconcileFinancialPeriodSchema = z.object({
 });
 
 const providerBasePayload = z.object({
-  organizationId: z.string().uuid(),
-  locationId: z.string().uuid(),
-  familyId: z.string().uuid(),
-  familyPayerId: z.string().uuid().optional(),
+  organizationId: z.guid(),
+  locationId: z.guid(),
+  familyId: z.guid(),
+  familyPayerId: z.guid().optional(),
   amountCents: z.number().int().positive(),
   currency: currencySchema,
 });
@@ -219,7 +220,7 @@ const providerPayloadSchema = z.discriminatedUnion("type", [
   providerBasePayload
     .extend({
       type: z.literal("payment.failed"),
-      invoiceId: z.string().uuid(),
+      invoiceId: z.guid(),
       providerAttemptId: z.string().trim().min(1).max(200),
       failureCode: z.string().trim().min(1).max(80),
       attemptedAt: z.string().datetime({ offset: true }),
@@ -228,7 +229,7 @@ const providerPayloadSchema = z.discriminatedUnion("type", [
   providerBasePayload
     .extend({
       type: z.literal("payment.succeeded"),
-      invoiceId: z.string().uuid(),
+      invoiceId: z.guid(),
       providerAttemptId: z.string().trim().min(1).max(200),
       providerPaymentId: z.string().trim().min(1).max(200),
       attemptedAt: z.string().datetime({ offset: true }),
@@ -237,9 +238,9 @@ const providerPayloadSchema = z.discriminatedUnion("type", [
   z
     .object({
       type: z.literal("refund.succeeded"),
-      organizationId: z.string().uuid(),
-      paymentId: z.string().uuid(),
-      paymentAllocationId: z.string().uuid(),
+      organizationId: z.guid(),
+      paymentId: z.guid(),
+      paymentAllocationId: z.guid(),
       amountCents: z.number().int().positive(),
       currency: currencySchema,
       providerRefundId: z.string().trim().min(1).max(200),
@@ -581,6 +582,7 @@ export async function issueInvoiceInTransaction(
     organizationId: input.organizationId,
     locationId: input.locationId,
     actor: input.actor,
+    intent: "write",
     allowedRoles: financialRoles,
   });
 
@@ -591,6 +593,14 @@ export async function issueInvoiceInTransaction(
       organizationId: input.organizationId,
       familyId: input.familyId,
     }));
+  if (collectionMode === "automatic") {
+    throw new OperationalError(
+      FAMILY_AUTOMATIC_COLLECTION_DISABLED,
+      "No se pueden emitir cargos con cobro automático familiar; usa el registro manual.",
+      409,
+      { code: FAMILY_AUTOMATIC_COLLECTION_DISABLED }
+    );
+  }
 
   const now = new Date();
   const [invoice] = await tx
@@ -790,6 +800,7 @@ export async function recordManualPayment(
       organizationId: input.organizationId,
       locationId: input.locationId,
       actor: input.actor,
+      intent: "write",
       allowedRoles: financialRoles,
     });
 
@@ -944,6 +955,7 @@ export async function recordManualPaymentForCharge(
       organizationId: input.organizationId,
       locationId: charge.locationId,
       actor: input.actor,
+      intent: "write",
       allowedRoles: financialRoles,
     });
     if (charge.status === "void") {
@@ -1050,13 +1062,6 @@ export async function allocatePayment(
       input.paymentId
     );
     const charge = await loadCharge(tx, input.organizationId, input.chargeId);
-    await assertOperationalAccess(tx, {
-      organizationId: input.organizationId,
-      locationId: charge.locationId ?? payment.locationId ?? "",
-      actor: input.actor,
-      allowedRoles: financialRoles,
-    });
-
     const [prior] = await tx
       .select()
       .from(paymentAllocations)
@@ -1073,8 +1078,21 @@ export async function allocatePayment(
         chargeId: input.chargeId,
         amountCents: input.amountCents,
       });
+      await assertOperationalAccess(tx, {
+        organizationId: input.organizationId,
+        locationId: charge.locationId ?? payment.locationId ?? "",
+        actor: input.actor,
+        allowedRoles: financialRoles,
+      });
       return prior;
     }
+    await assertOperationalAccess(tx, {
+      organizationId: input.organizationId,
+      locationId: charge.locationId ?? payment.locationId ?? "",
+      actor: input.actor,
+      intent: "write",
+      allowedRoles: financialRoles,
+    });
     if (payment.currency !== charge.currency) {
       throw new OperationalError(
         "INVALID_RELATION",
@@ -1433,12 +1451,6 @@ export async function reconcileFinancialPeriod(
   }
   return db.transaction(async (tx) => {
     await lockCommand(tx, input.organizationId, input.idempotencyKey);
-    await assertOperationalAccess(tx, {
-      organizationId: input.organizationId,
-      locationId: input.authorizationLocationId,
-      actor: input.actor,
-      allowedRoles: financialRoles,
-    });
     const [prior] = await tx
       .select()
       .from(financialReconciliationRuns)
@@ -1455,8 +1467,22 @@ export async function reconcileFinancialPeriod(
         periodStart: input.periodStart,
         periodEnd: input.periodEnd,
       });
+      await assertOperationalAccess(tx, {
+        organizationId: input.organizationId,
+        locationId: input.authorizationLocationId,
+        actor: input.actor,
+        allowedRoles: financialRoles,
+      });
       return prior;
     }
+
+    await assertOperationalAccess(tx, {
+      organizationId: input.organizationId,
+      locationId: input.authorizationLocationId,
+      actor: input.actor,
+      intent: "write",
+      allowedRoles: financialRoles,
+    });
 
     const totals = await tx.execute(sql`
       with period_charges as (

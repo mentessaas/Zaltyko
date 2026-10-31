@@ -7,6 +7,7 @@ describe("release stays locked during synthetic CI", () => {
   it("disables Git deployments for this candidate", () => {
     const config = JSON.parse(readFileSync("vercel.json", "utf8"));
     expect(config.git.deploymentEnabled).toBe(false);
+    expect(config.crons).toEqual([]);
   });
 
   it("keeps the deployment workflow credential-free and fail-closed", () => {

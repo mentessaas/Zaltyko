@@ -77,6 +77,7 @@ vi.mock("@/lib/authz/profile-service", () => ({
 
 vi.mock("@/lib/family/payment-access", () => ({
   resolveFamilyPaymentAccess: vi.fn(async () => accessState.paymentAccess),
+  resolveFamilyPaymentScope: vi.fn(async () => accessState.paymentAccess),
   resolveFamilyChargeAccess: vi.fn(async () => {
     if (accessState.chargeAccess === "__missing__") return null;
     return accessState.chargeAccess;
@@ -233,7 +234,10 @@ describe("API /api/family/payment-method", () => {
       const body = await response.json();
       expect(body).toEqual({
         hasCard: false,
-        connectReady: true,
+        connectReady: false,
+        collectionMode: "manual",
+        manualCollectionAvailable: true,
+        automaticCollectionEnabled: false,
         card: null,
       });
     });
@@ -325,7 +329,7 @@ describe("API /api/family/payment-method", () => {
       expect(body.error).toBe("PROFILE_NOT_FOUND");
     });
 
-    it("devuelve 409 si la academia no tiene Stripe Connect listo", async () => {
+    it("no guarda tarjetas familiares en el flujo manual-only", async () => {
       setAuthed();
       accessState.paymentAccess = {
         allowed: true,
@@ -340,12 +344,13 @@ describe("API /api/family/payment-method", () => {
       });
       const response = await POST(request);
 
-      expect(response.status).toBe(409);
+      expect(response.status).toBe(410);
       const body = await response.json();
-      expect(body.error).toBe("ACADEMY_PAYMENTS_NOT_READY");
+      expect(body.error).toBe("FAMILY_AUTOMATIC_COLLECTION_DISABLED");
+      expect(serviceMocks.saveDefaultPaymentMethod).not.toHaveBeenCalled();
     });
 
-    it("guarda el payment method y devuelve la tarjeta display", async () => {
+    it("no escribe la tarjeta aunque la academia tenga una cuenta Connect histórica", async () => {
       setAuthed();
       setPaidAccess();
       serviceMocks.saveDefaultPaymentMethod.mockResolvedValue({
@@ -366,21 +371,11 @@ describe("API /api/family/payment-method", () => {
       });
       const response = await POST(request);
 
-      expect(response.status).toBe(200);
-      expect(serviceMocks.saveDefaultPaymentMethod).toHaveBeenCalledWith({
-        academyId: ACADEMY_ID,
-        profileId: PROFILE_ID,
-        paymentMethodId: PAYMENT_METHOD_ID,
-        stripeAccountId: STRIPE_ACCOUNT_ID,
-      });
+      expect(response.status).toBe(410);
+      expect(serviceMocks.saveDefaultPaymentMethod).not.toHaveBeenCalled();
+      expect(serviceMocks.getOrCreateFamilyCustomer).not.toHaveBeenCalled();
       const body = await response.json();
-      expect(body.ok).toBe(true);
-      expect(body.card).toEqual({
-        brand: "mastercard",
-        last4: "5454",
-        expMonth: 4,
-        expYear: 2029,
-      });
+      expect(body.error).toBe("FAMILY_AUTOMATIC_COLLECTION_DISABLED");
     });
 
     it("propaga 500 si saveDefaultPaymentMethod revienta", async () => {
@@ -396,7 +391,8 @@ describe("API /api/family/payment-method", () => {
       });
       const response = await POST(request);
 
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(410);
+      expect(serviceMocks.saveDefaultPaymentMethod).not.toHaveBeenCalled();
     });
   });
 
@@ -560,7 +556,7 @@ describe("API /api/family/payment-method/setup-intent", () => {
     expect((await response.json()).error).toBe("NO_CHILD_IN_ACADEMY");
   });
 
-  it("devuelve 409 si la academia no esta Connect-ready", async () => {
+  it("no crea customer ni setup intent en el flujo manual-only", async () => {
     setAuthed();
     accessState.paymentAccess = {
       allowed: true,
@@ -576,11 +572,13 @@ describe("API /api/family/payment-method/setup-intent", () => {
     });
     const response = await POST(request);
 
-    expect(response.status).toBe(409);
-    expect((await response.json()).error).toBe("ACADEMY_PAYMENTS_NOT_READY");
+    expect(response.status).toBe(410);
+    expect((await response.json()).error).toBe("FAMILY_AUTOMATIC_COLLECTION_DISABLED");
+    expect(serviceMocks.getOrCreateFamilyCustomer).not.toHaveBeenCalled();
+    expect(serviceMocks.createFamilySetupIntent).not.toHaveBeenCalled();
   });
 
-  it("reusa customer existente y devuelve client_secret + publishableKey", async () => {
+  it("no crea SetupIntents aunque exista customer histórico", async () => {
     setAuthed();
     setPaidAccess();
     serviceMocks.getOrCreateFamilyCustomer.mockResolvedValue({
@@ -602,22 +600,9 @@ describe("API /api/family/payment-method/setup-intent", () => {
     });
     const response = await POST(request);
 
-    expect(response.status).toBe(200);
-    expect(serviceMocks.getOrCreateFamilyCustomer).toHaveBeenCalledWith({
-      academyId: ACADEMY_ID,
-      tenantId: TENANT_ID,
-      profileId: PROFILE_ID,
-      stripeAccountId: STRIPE_ACCOUNT_ID,
-      email: "parent@example.com",
-      name: "Madre Test",
-    });
-    expect(serviceMocks.createFamilySetupIntent).toHaveBeenCalledWith(CUSTOMER_ID, STRIPE_ACCOUNT_ID);
-    const body = await response.json();
-    expect(body).toEqual({
-      clientSecret: "seti_client_secret_xyz",
-      publishableKey: "pk_test_mock",
-      stripeAccountId: STRIPE_ACCOUNT_ID,
-    });
+    expect(response.status).toBe(410);
+    expect(serviceMocks.getOrCreateFamilyCustomer).not.toHaveBeenCalled();
+    expect(serviceMocks.createFamilySetupIntent).not.toHaveBeenCalled();
   });
 
   it("devuelve 500 cuando createFamilySetupIntent falla", async () => {
@@ -642,7 +627,9 @@ describe("API /api/family/payment-method/setup-intent", () => {
     });
     const response = await POST(request);
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(410);
+    expect(serviceMocks.getOrCreateFamilyCustomer).not.toHaveBeenCalled();
+    expect(serviceMocks.createFamilySetupIntent).not.toHaveBeenCalled();
   });
 });
 
@@ -674,7 +661,7 @@ describe("API /api/family/charges/[chargeId]/pay", () => {
     expect((await response.json()).error).toBe("FORBIDDEN");
   });
 
-  it("devuelve 200 con status=paid cuando collectCharge liquida el cargo", async () => {
+  it("rechaza el cobro con tarjeta aunque la familia tenga acceso al cargo", async () => {
     setAuthed();
     accessState.chargeAccess = { id: CHARGE_ID, athleteId: ATHLETE_ID };
     serviceMocks.collectCharge.mockResolvedValue({
@@ -689,12 +676,12 @@ describe("API /api/family/charges/[chargeId]/pay", () => {
     });
     const response = await POST(request);
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, data: { status: "paid" } });
-    expect(serviceMocks.collectCharge).toHaveBeenCalledWith(CHARGE_ID);
+    expect(response.status).toBe(410);
+    expect((await response.json()).error).toBe("FAMILY_AUTOMATIC_COLLECTION_DISABLED");
+    expect(serviceMocks.collectCharge).not.toHaveBeenCalled();
   });
 
-  it("devuelve 409 con REQUIRES_ACTION si el banco exige SCA", async () => {
+  it("no inicia SCA para cobros familiares desactivados", async () => {
     setAuthed();
     accessState.chargeAccess = { id: CHARGE_ID, athleteId: ATHLETE_ID };
     serviceMocks.collectCharge.mockResolvedValue({
@@ -709,12 +696,13 @@ describe("API /api/family/charges/[chargeId]/pay", () => {
     });
     const response = await POST(request);
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(410);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
-    expect((await response.json()).error).toBe("REQUIRES_ACTION");
+    expect((await response.json()).error).toBe("FAMILY_AUTOMATIC_COLLECTION_DISABLED");
+    expect(serviceMocks.collectCharge).not.toHaveBeenCalled();
   });
 
-  it("devuelve 409 con reason de skipped cuando no se cobra", async () => {
+  it("no consulta Stripe cuando un pago manual sigue pendiente", async () => {
     setAuthed();
     accessState.chargeAccess = { id: CHARGE_ID, athleteId: ATHLETE_ID };
     serviceMocks.collectCharge.mockResolvedValue({
@@ -729,11 +717,12 @@ describe("API /api/family/charges/[chargeId]/pay", () => {
     });
     const response = await POST(request);
 
-    expect(response.status).toBe(409);
-    expect((await response.json()).error).toBe("NO_SAVED_CARD");
+    expect(response.status).toBe(410);
+    expect((await response.json()).error).toBe("FAMILY_AUTOMATIC_COLLECTION_DISABLED");
+    expect(serviceMocks.collectCharge).not.toHaveBeenCalled();
   });
 
-  it("devuelve 402 cuando el cobro falla", async () => {
+  it("no procesa fallos de tarjeta para cobros familiares desactivados", async () => {
     setAuthed();
     accessState.chargeAccess = { id: CHARGE_ID, athleteId: ATHLETE_ID };
     serviceMocks.collectCharge.mockResolvedValue({
@@ -749,11 +738,12 @@ describe("API /api/family/charges/[chargeId]/pay", () => {
     });
     const response = await POST(request);
 
-    expect(response.status).toBe(402);
-    expect((await response.json()).error).toBe("card_declined");
+    expect(response.status).toBe(410);
+    expect((await response.json()).error).toBe("FAMILY_AUTOMATIC_COLLECTION_DISABLED");
+    expect(serviceMocks.collectCharge).not.toHaveBeenCalled();
   });
 
-  it("devuelve 500 si collectCharge lanza una excepcion no controlada", async () => {
+  it("no ejecuta collectCharge aunque el servicio de fondo falle", async () => {
     setAuthed();
     accessState.chargeAccess = { id: CHARGE_ID, athleteId: ATHLETE_ID };
     serviceMocks.collectCharge.mockRejectedValue(new Error("db outage"));
@@ -764,7 +754,8 @@ describe("API /api/family/charges/[chargeId]/pay", () => {
     });
     const response = await POST(request);
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(410);
+    expect(serviceMocks.collectCharge).not.toHaveBeenCalled();
   });
 });
 

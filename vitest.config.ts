@@ -2,6 +2,10 @@ import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
+const runSandboxReadonlyPostgresSuites =
+  process.env.ZALTYKO_SANDBOX_READONLY_TESTS === "1" &&
+  process.env.CI_ISOLATED !== "1";
+
 export default defineConfig({
   test: {
     // API-heavy suites import large route graphs. Keep one worker globally;
@@ -38,7 +42,32 @@ export default defineConfig({
           // Las suites Web no deben descubrir las pruebas del proyecto Mobile.
           // Todas las suites web forman parte del gate principal. Las pruebas
           // del proyecto Mobile se ejecutan en su propio proyecto Vitest.
-          exclude: ["node_modules", ".next", "coverage", "mobile/**"],
+          exclude: [
+            "node_modules",
+            ".next",
+            "coverage",
+            "mobile/**",
+            ...(process.env.ZALTYKO_PG_INTEGRATION === "1"
+              ? []
+              : [
+                  "tests/saas-capacity-postgres.integration.test.ts",
+                  "tests/billing-ledger-postgres.integration.test.ts",
+                  "tests/owner-family-onboarding-postgres.integration.test.ts",
+                  "tests/owner-guardian-contacts-postgres.integration.test.ts",
+                  "tests/owner-attendance-sessions-postgres.integration.test.ts",
+                  "tests/owner-guardian-profile-postgres.integration.test.ts",
+                  "tests/owner-athlete-profile-isolation-pg.test.ts",
+                  "tests/owner-athlete-archive-pg.test.ts",
+                  "tests/owner-athlete-intake-pg.test.ts",
+                  "tests/owner-regularization-dates-pg.test.ts",
+                ]),
+            ...(!runSandboxReadonlyPostgresSuites
+              ? [
+                  "tests/saas-preview-regularization-pg.test.ts",
+                  "tests/saas-preview-readonly-boundaries-pg.test.ts",
+                ]
+              : []),
+          ],
         },
       },
       {

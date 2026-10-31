@@ -12,8 +12,8 @@ import { getAcademyTrialStatus } from "@/lib/billing/trial-service";
 import { isSubscriptionManaged } from "@/lib/billing/subscription-status";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid({
-    message: "El ID de la academia debe ser un UUID válido",
+  academyId: z.guid({
+    error: "El ID de la academia debe ser un UUID válido",
   }),
 });
 

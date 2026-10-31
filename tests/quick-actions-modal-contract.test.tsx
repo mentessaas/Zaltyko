@@ -146,7 +146,7 @@ describe("QuickPaymentModal — contrato de respuesta (ZAL-804)", () => {
         );
         return render(
             <QuickPaymentModal
-                academyId="11111111-1111-1111-1111-111111111111"
+                academyId="11111111-1111-4111-8111-111111111111"
                 isOpen={true}
                 onClose={callbacks.onClose}
                 onSuccess={callbacks.onSuccess}
@@ -292,13 +292,13 @@ describe("QuickClassModal — contrato de respuesta (ZAL-804)", () => {
             jsonResponse(200, {
                 ok: true,
                 data: [
-                    { id: "11111111-1111-1111-1111-111111111111", name: "Clase A" },
+                    { id: "11111111-1111-4111-8111-111111111111", name: "Clase A" },
                 ],
             })
         );
         return render(
             <QuickClassModal
-                academyId="11111111-1111-1111-1111-111111111111"
+                academyId="11111111-1111-4111-8111-111111111111"
                 isOpen={true}
                 onClose={callbacks.onClose}
                 onSuccess={callbacks.onSuccess}

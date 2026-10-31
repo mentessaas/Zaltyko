@@ -71,17 +71,17 @@ describe("enlace de recuperación en el login activo", () => {
     expect(screen.getByLabelText("Contraseña")).toBeVisible();
   });
 
-  it("permite consultar academias públicas antes del alta aunque el catálogo externo siga apagado", () => {
+  it("no ofrece academias públicas cuando el directorio está apagado", () => {
     render(<RegisterForm />);
 
     expect(
-      screen.getByRole("link", {
+      screen.queryByRole("link", {
         name: "Buscar academias públicas",
       })
-    ).toHaveAttribute("href", "/academias");
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByText(/Solo aparecen fichas públicas/)
-    ).toBeVisible();
+      screen.queryByText(/Solo aparecen fichas públicas/)
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/solicitar su reclamación gratuita/)
     ).not.toBeInTheDocument();
@@ -124,9 +124,27 @@ describe("enlace de recuperación en el login activo", () => {
     });
   });
 
+  it("no permite editar ni enviar el alta antes de hidratar y habilita los campos después", () => {
+    const markup = renderToString(
+      <RegisterForm ownerEntry ownerConsentPolicyVersion="v1-2026-08-01" />
+    );
+    const ssrDocument = new DOMParser().parseFromString(markup, "text/html");
+    for (const name of ["fullName", "email", "password", "termsAccepted"]) {
+      expect(ssrDocument.querySelector(`[name="${name}"]`)?.hasAttribute("disabled")).toBe(true);
+    }
+    expect(ssrDocument.querySelector('button[type="submit"]')?.hasAttribute("disabled")).toBe(true);
+
+    render(<RegisterForm ownerEntry ownerConsentPolicyVersion="v1-2026-08-01" />);
+    expect(screen.getByLabelText("Nombre completo")).toBeEnabled();
+    expect(screen.getByLabelText("Correo electrónico")).toBeEnabled();
+    expect(screen.getByLabelText("Contraseña")).toBeEnabled();
+    expect(screen.getByRole("checkbox")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Crear cuenta", exact: true })).toBeEnabled();
+  });
+
   it("explica y habilita Google solo después de aceptar los términos", async () => {
     const user = userEvent.setup();
-    render(<RegisterForm />);
+    render(<RegisterForm ownerConsentPolicyVersion="v1-2026-08-01" />);
 
     const button = await screen.findByRole("button", {
       name: "Crear cuenta con Google",
@@ -182,7 +200,7 @@ describe("enlace de recuperación en el login activo", () => {
 
   it("solicita los scopes básicos de identidad al crear cuenta con Google", async () => {
     const user = userEvent.setup();
-    render(<RegisterForm />);
+    render(<RegisterForm ownerConsentPolicyVersion="v1-2026-08-01" />);
     await user.click(screen.getByRole("checkbox"));
     await user.click(await screen.findByRole("button", { name: "Crear cuenta con Google" }));
 

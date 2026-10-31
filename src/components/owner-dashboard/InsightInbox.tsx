@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import {
   ArrowRight,
   BellRing,
@@ -98,13 +100,23 @@ function Evidence({ evidence }: { evidence: Record<string, unknown> }) {
 function InsightCard({
   item,
   bundle,
+  writesBlocked,
 }: {
   item: InsightListItem;
   bundle: InsightListBundle;
+  writesBlocked: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryAvailable, setRetryAvailable] = useState(false);
+  const mutationInFlightRef = useRef(false);
+  const pendingMutationRef = useRef<{
+    intent: "action" | "snooze" | "dismiss";
+    path: string;
+    body: string;
+    idempotencyKey: string;
+  } | null>(null);
   const [dismissReason, setDismissReason] = useState("");
   const [simulationOpen, setSimulationOpen] = useState(false);
   const [proposedCapacity, setProposedCapacity] = useState("");
@@ -137,23 +149,34 @@ function InsightCard({
     expectedVersion: item.version,
   };
 
-  async function mutate(
-    intent: "action" | "snooze" | "dismiss",
-    path: string,
-    payload: Record<string, unknown>
+  async function sendMutation(
+    command: NonNullable<typeof pendingMutationRef.current>
   ) {
-    setPending(intent);
+    if (writesBlocked || mutationInFlightRef.current) return;
+    mutationInFlightRef.current = true;
+    setPending(command.intent);
+    setRetryAvailable(false);
     setError(null);
     try {
-      const response = await fetch(path, {
+      const response = await fetch(command.path, {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "idempotency-key": crypto.randomUUID(),
+          "idempotency-key": command.idempotencyKey,
         },
-        body: JSON.stringify(payload),
+        body: command.body,
       });
       if (!response.ok) {
+        const ambiguous =
+          response.status === 408 ||
+          response.status === 425 ||
+          response.status === 429 ||
+          response.status >= 500;
+        if (ambiguous) {
+          setRetryAvailable(true);
+        } else {
+          pendingMutationRef.current = null;
+        }
         const problem = (await response.json().catch(() => null)) as {
           detail?: string;
         } | null;
@@ -161,16 +184,60 @@ function InsightCard({
           problem?.detail ?? "No se ha podido guardar el cambio."
         );
       }
+      pendingMutationRef.current = null;
       router.refresh();
     } catch (cause) {
+      if (pendingMutationRef.current === command) {
+        setRetryAvailable(true);
+      }
       setError(
         cause instanceof Error
           ? cause.message
           : "No se ha podido guardar el cambio."
       );
     } finally {
+      mutationInFlightRef.current = false;
       setPending(null);
     }
+  }
+
+  async function mutate(
+    intent: "action" | "snooze" | "dismiss",
+    path: string,
+    payload: Record<string, unknown>
+  ) {
+    if (writesBlocked || mutationInFlightRef.current) return;
+    const body = JSON.stringify(payload);
+    const existing = pendingMutationRef.current;
+    if (existing) {
+      if (
+        existing.intent !== intent ||
+        existing.path !== path ||
+        existing.body !== body
+      ) {
+        setError(
+          "Hay un envío anterior sin confirmar. Repite ese mismo envío antes de iniciar otro."
+        );
+        return;
+      }
+      await sendMutation(existing);
+      return;
+    }
+
+    const command = {
+      intent,
+      path,
+      body,
+      idempotencyKey: crypto.randomUUID(),
+    };
+    pendingMutationRef.current = command;
+    await sendMutation(command);
+  }
+
+  function retryPendingMutation() {
+    const command = pendingMutationRef.current;
+    if (!command || writesBlocked || mutationInFlightRef.current) return;
+    void sendMutation(command);
   }
 
   return (
@@ -247,12 +314,22 @@ function InsightCard({
       </details>
 
       {error && (
-        <p
+        <div
           role="alert"
           className="mt-4 border border-red-300 bg-red-50 p-3 text-sm text-red-900"
         >
-          {error}
-        </p>
+          <p>{error}</p>
+          {retryAvailable && pendingMutationRef.current && (
+            <button
+              type="button"
+              disabled={pending !== null || writesBlocked}
+              onClick={retryPendingMutation}
+              className="touch-target mt-2 border border-red-800 px-3 py-2 font-bold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Reintentar el mismo envío
+            </button>
+          )}
+        </div>
       )}
 
       {isGroupSimulation && simulationOpen && (
@@ -278,6 +355,7 @@ function InsightCard({
                 step={1}
                 inputMode="numeric"
                 value={proposedCapacity}
+                disabled={retryAvailable}
                 onChange={(event) => setProposedCapacity(event.target.value)}
                 className="min-h-11 border border-slate-400 bg-white px-3 text-base"
               />
@@ -292,6 +370,7 @@ function InsightCard({
                 step="0.01"
                 inputMode="decimal"
                 value={monthlyPrice}
+                disabled={retryAvailable}
                 onChange={(event) => setMonthlyPrice(event.target.value)}
                 className="min-h-11 border border-slate-400 bg-white px-3 text-base"
               />
@@ -341,7 +420,12 @@ function InsightCard({
       <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
         <button
           type="button"
-          disabled={pending !== null || item.status === "actioned"}
+          disabled={
+            pending !== null ||
+            retryAvailable ||
+            item.status === "actioned" ||
+            (!isGroupSimulation && writesBlocked)
+          }
           onClick={() => {
             if (isGroupSimulation) {
               setSimulationOpen((open) => !open);
@@ -376,7 +460,13 @@ function InsightCard({
         {isGroupSimulation && simulationOpen && (
           <button
             type="button"
-            disabled={pending !== null || item.status === "actioned" || !validSimulation}
+            disabled={
+              pending !== null ||
+              retryAvailable ||
+              item.status === "actioned" ||
+              !validSimulation ||
+              writesBlocked
+            }
             onClick={() =>
               mutate("action", `/api/v1/insights/${item.id}/actions`, {
                 ...basePayload,
@@ -400,7 +490,12 @@ function InsightCard({
         )}
         <button
           type="button"
-          disabled={pending !== null || item.status === "actioned"}
+          disabled={
+            pending !== null ||
+            retryAvailable ||
+            item.status === "actioned" ||
+            writesBlocked
+          }
           onClick={() => {
             const tomorrow = new Date();
             tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
@@ -425,6 +520,7 @@ function InsightCard({
               Motivo del descarte
               <textarea
                 value={dismissReason}
+                disabled={retryAvailable}
                 onChange={(event) => setDismissReason(event.target.value)}
                 minLength={3}
                 maxLength={300}
@@ -434,7 +530,12 @@ function InsightCard({
             </label>
             <button
               type="button"
-              disabled={pending !== null || dismissReason.trim().length < 3}
+              disabled={
+                pending !== null ||
+                retryAvailable ||
+                dismissReason.trim().length < 3 ||
+                writesBlocked
+              }
               onClick={() =>
                 mutate("dismiss", `/api/v1/insights/${item.id}/dismiss`, {
                   ...basePayload,
@@ -453,6 +554,8 @@ function InsightCard({
 }
 
 export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
+  const planPolicy = useOwnerPlanPolicy(bundle.organization.id);
+  const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
   const filterBase = new URLSearchParams({
     organizationId: bundle.organization.id,
   });
@@ -555,6 +658,8 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
           </div>
         </section>
 
+        <OwnerOperationalReadOnlyNotice organizationId={bundle.organization.id} />
+
         {bundle.items.length === 0 ? (
           <section className="mt-8 border-l-4 border-teal-800 bg-white p-7 shadow-soft sm:p-10">
             <Lightbulb className="h-7 w-7 text-teal-800" aria-hidden="true" />
@@ -575,7 +680,7 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
         ) : (
           <section aria-label="Lista de insights" className="mt-8 grid gap-6">
             {bundle.items.map((item) => (
-              <InsightCard key={item.id} item={item} bundle={bundle} />
+              <InsightCard key={item.id} item={item} bundle={bundle} writesBlocked={writesBlocked} />
             ))}
           </section>
         )}

@@ -1,12 +1,12 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type Stripe from "stripe";
 
 // IDs consistentes para que las aserciones sobre argumentos del notification
 // service no dependan de magia literal en cada test.
-const TENANT_ID = "00000000-0000-0000-0000-0000000000a1";
-const ACADEMY_ID = "00000000-0000-0000-0000-0000000000a2";
-const ATHLETE_ID = "00000000-0000-0000-0000-0000000000a3";
-const CHARGE_ID = "00000000-0000-0000-0000-0000000000a4";
+const TENANT_ID = "00000000-0000-4000-8000-0000000000a1";
+const ACADEMY_ID = "00000000-0000-4000-8000-0000000000a2";
+const ATHLETE_ID = "00000000-0000-4000-8000-0000000000a3";
+const CHARGE_ID = "00000000-0000-4000-8000-0000000000a4";
 const STRIPE_ACCOUNT_ID = "acct_test_123";
 const PAYMENT_INTENT_ID = "pi_test_failed_123";
 const EVENT_ID = "evt_test_failed_456";
@@ -220,6 +220,7 @@ function buildPaymentIntentFailedEvent(opts: {
         object: "payment_intent",
         amount: 5000,
         currency: "eur",
+        livemode: false,
         status: "requires_payment_method",
         last_payment_error: {
           code: errorCode,
@@ -266,7 +267,13 @@ beforeEach(() => {
   mockSendChargePaymentFailedNotification.mockResolvedValue(true);
   mockConstructEvent.mockImplementation(() => buildPaymentIntentFailedEvent());
   process.env.STRIPE_CONNECT_WEBHOOK_SECRET = "whsec_test_connect";
+  process.env.STRIPE_SECRET_KEY = "sk_test_connect_webhook";
   mocks.resetChargeQueue();
+});
+
+afterEach(() => {
+  delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+  delete process.env.STRIPE_SECRET_KEY;
 });
 
 async function postWebhook(

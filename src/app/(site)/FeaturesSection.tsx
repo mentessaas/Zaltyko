@@ -1,158 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Users,
-  UserCog,
-  CreditCard,
-  ClipboardCheck,
-  CalendarClock,
-  Database,
-  Plug,
-  ShieldCheck,
-  Check,
-} from "lucide-react";
+import { Users, CalendarClock, ClipboardCheck, CreditCard, Database, Check } from "lucide-react";
+import { ESSENTIAL_FEATURES } from "@/lib/launch/essential-public-catalog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function FeaturesSection() {
-  const features = [
-    {
-      id: "gimnastas",
-      icon: Users,
-      label: "Gimnastas",
-      content: {
-        title: "Gestión integral de gimnastas",
-        features: [
-          "Fichas con nivel, aparato favorito y seguimiento de progreso",
-          "Historial de asistencia y pago en tiempo real",
-          "Importación masiva desde Excel o CSV",
-          "Portal para que las familias consulten el progreso de sus gimnastas",
-          "Registros centralizados por academia",
-          "Permisos diferenciados para staff y familias",
-        ],
-        impact: "Reduce tareas repetidas y búsquedas en archivos dispersos",
-      },
-    },
-    {
-      id: "coaches",
-      icon: UserCog,
-      label: "Entrenadores",
-      content: {
-        title: "Staff coordinado y productivo",
-        features: [
-          "Roles diferenciados: dirección, entrenador, staff y administración",
-          "Agenda compartida con toma de asistencia desde móvil",
-          "Notas privadas por gimnasta y evaluaciones pendientes",
-          "Alertas cuando una gimnasta necesita atención especial",
-          "Panel de horas dictadas y seguimiento de bonificaciones",
-          "Control de acceso por academia y rol",
-        ],
-        impact: "Evita malentendidos y mejora la comunicación interna",
-      },
-    },
-    {
-      id: "billing",
-      icon: CreditCard,
-      label: "Cobros",
-      content: {
-        title: "Cobros claros para academias",
-        features: [
-          "Consulta de cuotas pendientes",
-          "Registro manual de pagos recibidos",
-          "Historial de pagos por familia",
-          "Seguimiento de importes vencidos",
-          "Panel de ingresos registrados y pendientes",
-          "Trazabilidad de cada pago registrado",
-        ],
-        impact: "Revisar cuotas y pagos sin reunir hojas de cálculo",
-      },
-    },
-    {
-      id: "evaluaciones",
-      icon: ClipboardCheck,
-      label: "Evaluaciones",
-      content: {
-        title: "Evaluaciones técnicas y planes de progreso",
-        features: [
-          "Catálogo de habilidades por aparato y dificultad",
-          "Registro de notas y comentarios por gimnasta",
-          "Seguimiento visual de progreso por temporada",
-          "Exportables PDF para revisión y entrega acompañada",
-          "Notas y seguimiento de situaciones especiales",
-          "Informes comparables dentro del alcance configurado",
-        ],
-        impact: "Claridad total para directores técnicos y familias",
-      },
-    },
-    {
-      id: "eventos",
-      icon: CalendarClock,
-      label: "Eventos",
-      content: {
-        title: "Planificación de eventos y giras",
-        features: [
-          "Calendario unificado de competencias y clínicas",
-          "Asignación de entrenadores responsables por sede",
-          "Datos de ubicación y contacto del evento",
-          "Notificaciones automáticas para padres y staff",
-          "Adjuntos y requisitos informativos del evento",
-          "Inscripción online para padres sin WhatsApp",
-        ],
-        impact: "Evita mensajes dispersos y asegura que todos lleguen preparados",
-      },
-    },
-    {
-      id: "datos",
-      icon: Database,
-      label: "Datos",
-      content: {
-        title: "Datos centralizados y acceso controlado",
-        features: [
-          "Registros operativos en una sola plataforma",
-          "Importación de gimnastas desde Excel o CSV",
-          "Acceso diferenciado por rol",
-          "Aislamiento por academia y tenant",
-          "Logs de auditoría para acciones compatibles",
-          "Exportaciones disponibles según el módulo",
-        ],
-        impact: "Menos archivos dispersos y mayor trazabilidad operativa",
-      },
-    },
-    {
-      id: "integraciones",
-      icon: Plug,
-      label: "Integraciones",
-      content: {
-        title: "Conecta tus herramientas favoritas",
-        features: [
-          "Envío de comunicaciones automáticas a familias",
-          "Almacenamiento de rutinas y vídeos de entrenamiento",
-          "Compartición de archivos con entrenadores y padres",
-          "Notificaciones push para recordatorios de clases y eventos",
-          "Preparación para integrar calendarios externos según configuración",
-          "Datos centralizados con controles de acceso",
-        ],
-        impact: "Un solo origen de datos, sin duplicados ni confusiones",
-      },
-    },
-    {
-      id: "seguridad",
-      icon: ShieldCheck,
-      label: "Seguridad",
-      content: {
-        title: "Controles de acceso y privacidad",
-        features: [
-          "Login sin contraseña (Magic Link) o con Google",
-          "Registro de actividad por seguridad",
-          "Aislamiento de datos por academia",
-          "Permisos diferenciados por rol",
-          "Conexiones cifradas en tránsito",
-          "Gestión de sesiones y accesos",
-        ],
-        impact: "Tranquilidad para dueños, padres y directores financieros",
-      },
-    },
-  ];
+  const icons = [Users, CalendarClock, ClipboardCheck, CreditCard, Database];
+  const features = ESSENTIAL_FEATURES.map((feature, index) => ({
+    ...feature,
+    icon: icons[index],
+    content: feature,
+  }));
   const [activeFeature, setActiveFeature] = useState(features[0].id);
 
   return (

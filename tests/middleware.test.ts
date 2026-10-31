@@ -67,6 +67,43 @@ describe("middleware", () => {
     });
   });
 
+  it.each([
+    "/owner/insights", "/owner/health-score/setup", "/owner/health-score/setup/preview",
+    "/marketplace", "/marketplace/nuevo", "/dashboard/marketplace/mis-productos",
+    "/api/marketplace", "/api/marketplace/listings", "/app/academy-id/marketplace",
+    "/academias", "/coaches", "/events", "/empleo", "/%6darketplace", "/api/%6darketplace",
+  ])("returns a real 404 before rendering the retired route %s", async path => {
+    vi.stubEnv("ENABLE_ACADEMY_MARKETPLACE", "true");
+    try {
+      const response = await middleware(new NextRequest(`https://zaltyko.test${path}`));
+      expect(response.status).toBe(404);
+      expect(response.headers.get("x-middleware-next")).toBeNull();
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(response.headers.get("X-Robots-Tag")).toContain("noindex");
+      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(rateLimitMock).not.toHaveBeenCalled();
+    } finally { vi.unstubAllEnvs(); }
+  });
+
+  it("rejects a marketplace mutation before any rate limiter or handler can run", async () => {
+    const response = await middleware(new NextRequest("https://zaltyko.test/api/marketplace/mis-productos", { method: "POST" }));
+    expect(response.status).toBe(404);
+    expect(response.headers.get("x-middleware-next")).toBeNull();
+    expect(rateLimitMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["/comparativas/zaltyko-vs-excel", "/blog/migrar-excel", "/sobre-nosotros", "/modules/comunicacion", "/es/gimnasia-ritmica/espana", "/en/artistic-gymnastics"])("redirects retired marketing %s to current capabilities", async path => {
+    const response = await middleware(new NextRequest(`https://zaltyko.test${path}?next=https://other.invalid`));
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://zaltyko.test/features");
+    expect(response.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+  });
+
+  it.each(["/pricing", "/auth/callback", "/owner", "/owner/subscription", "/api/v1/owner/saas/usage", "/marketplaces", "/owner/insights-extra"])("keeps essential or distinct segment %s on its existing route", async path => {
+    const response = await middleware(new NextRequest(`https://zaltyko.test${path}`));
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
   it("allows an API mutation when the rate limit succeeds", async () => {
     const response = await middleware(
       new NextRequest("https://zaltyko.test/api/athletes", { method: "POST" })
@@ -191,18 +228,19 @@ describe("middleware", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 
-  it("keeps the canonical public route /sobre-nosotros unlocalized", async () => {
+  it("withdraws the historical company story without localizing or forwarding parameters", async () => {
     const response = await middleware(
       new NextRequest("https://zaltyko.test/sobre-nosotros", {
         headers: { "accept-language": "en-US" },
       })
     );
 
-    expect(response.headers.get("location")).toBeNull();
-    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://zaltyko.test/features");
+    expect(response.headers.get("x-middleware-next")).toBeNull();
   });
 
-  it("keeps SEO cluster routes localized", async () => {
+  it("sends historical SEO clusters to the essential Spanish capabilities", async () => {
     const response = await middleware(
       new NextRequest("https://zaltyko.test/gimnasia-artistica/espana", {
         headers: { "accept-language": "es-ES" },
@@ -211,7 +249,7 @@ describe("middleware", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "https://zaltyko.test/es/gimnasia-artistica/espana"
+      "https://zaltyko.test/features"
     );
   });
 });

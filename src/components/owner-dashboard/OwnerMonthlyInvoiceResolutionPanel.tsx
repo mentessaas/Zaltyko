@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
+import { usePendingCommandExitWarning } from "./use-pending-command-exit-warning";
+
+const useCommittedLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 export type ResolutionAction =
   | { kind: "tariff"; enrollmentId: string; athleteName: string | null }
@@ -45,7 +51,53 @@ type FamilyAssociationOption = {
   }>;
 };
 
-type RetryRequest = { key: string; body: unknown };
+type PendingResolutionCommand = {
+  scopeKey: string;
+  organizationId: string;
+  locationId: string;
+  servicePeriod: string;
+  actionKey: string;
+  operation: "create-price-plan" | "assign-tariff" | "associate-family";
+  endpoint: string;
+  method: "POST" | "PATCH";
+  key: string;
+  hasAmbiguousAttempt: boolean;
+  body: unknown;
+  serializedBody: string;
+};
+
+export const PENDING_OWNER_MONTHLY_RESOLUTION_STORAGE_KEY =
+  "zaltyko:pending-monthly-invoice-resolution:v1";
+const pendingResolutionStorageVersion = 1;
+const maxPendingResolutionStorageLength = 65_536;
+
+type PendingResolutionStorageRead =
+  | { kind: "none" }
+  | { kind: "pending"; command: PendingResolutionCommand }
+  | { kind: "invalid" }
+  | { kind: "unavailable" };
+
+type PendingResolutionStorageRecord = Omit<
+  PendingResolutionCommand,
+  "body"
+> & {
+  version: typeof pendingResolutionStorageVersion;
+  fingerprint: string;
+};
+
+function resolutionScopeKey(input: {
+  organizationId: string;
+  locationId: string;
+  servicePeriod: string;
+  actionKey: string;
+}) {
+  return JSON.stringify([
+    input.organizationId,
+    input.locationId,
+    input.servicePeriod,
+    input.actionKey,
+  ]);
+}
 
 function responseData<T>(payload: unknown): T | null {
   if (payload && typeof payload === "object" && "data" in payload) {
@@ -71,6 +123,15 @@ function responseMessage(payload: unknown, fallback: string): string {
     if (typeof message === "string") return message;
   }
   return fallback;
+}
+
+function problemCode(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  if ("code" in payload && typeof payload.code === "string") return payload.code;
+  if ("type" in payload && typeof payload.type === "string") {
+    return payload.type.split("/").at(-1)?.replaceAll("-", "_").toUpperCase();
+  }
+  return undefined;
 }
 
 function displayName(value: string | null | undefined, fallback: string) {
@@ -107,6 +168,341 @@ function isDateValue(value: unknown): value is string {
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasExactKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[]
+): boolean {
+  const actual = Object.keys(value).sort();
+  const keys = [...expected].sort();
+  return (
+    actual.length === keys.length &&
+    actual.every((key, index) => key === keys[index])
+  );
+}
+
+function isUniqueUuidArray(value: unknown, minimum = 1, maximum = 100): value is string[] {
+  if (!Array.isArray(value) || value.length < minimum || value.length > maximum) {
+    return false;
+  }
+  return value.every(isUuid) && new Set(value).size === value.length;
+}
+
+function pendingResolutionFingerprint(
+  command: Omit<PendingResolutionCommand, "body" | "hasAmbiguousAttempt">
+): string {
+  // This binds the persisted scope, route, idempotency key, and exact body bytes.
+  // It detects partial or mismatched sessionStorage records; server authorization
+  // and idempotency remain the security boundary.
+  return JSON.stringify([
+    command.scopeKey,
+    command.organizationId,
+    command.locationId,
+    command.servicePeriod,
+    command.actionKey,
+    command.operation,
+    command.endpoint,
+    command.method,
+    command.key,
+    command.serializedBody,
+  ]);
+}
+
+function validatePendingResolutionBody(
+  operation: PendingResolutionCommand["operation"],
+  actionKey: string,
+  organizationId: string,
+  locationId: string,
+  serializedBody: string
+): unknown | null {
+  let value: unknown;
+  try {
+    value = JSON.parse(serializedBody);
+  } catch {
+    return null;
+  }
+  if (!isRecord(value) || value.organizationId !== organizationId || value.locationId !== locationId) {
+    return null;
+  }
+
+  if (operation === "create-price-plan") {
+    if (
+      !actionKey.startsWith("tariff:") ||
+      !isUuid(actionKey.slice("tariff:".length)) ||
+      !hasExactKeys(value, ["organizationId", "locationId", "name", "amountCents", "coverage"]) ||
+      typeof value.name !== "string" || value.name.trim().length === 0 ||
+      value.name.trim() !== value.name || value.name.length > 100 ||
+      typeof value.amountCents !== "number" ||
+      !Number.isSafeInteger(value.amountCents) ||
+      (value.amountCents as number) <= 0 ||
+      !isRecord(value.coverage) ||
+      !hasExactKeys(value.coverage, ["classTemplateIds", "startsOn", "endsOn"]) ||
+      !isUniqueUuidArray(value.coverage.classTemplateIds, 1, 100) ||
+      !isDateValue(value.coverage.startsOn) ||
+      !(value.coverage.endsOn === null ||
+        (isDateValue(value.coverage.endsOn) && value.coverage.endsOn >= value.coverage.startsOn))
+    ) return null;
+    return value;
+  }
+
+  if (operation === "assign-tariff") {
+    const enrollmentId = actionKey.startsWith("tariff:")
+      ? actionKey.slice("tariff:".length)
+      : "";
+    if (
+      !isUuid(enrollmentId) ||
+      !hasExactKeys(value, ["organizationId", "locationId", "pricePlanId", "startsOn"]) ||
+      !isUuid(value.pricePlanId) ||
+      !isDateValue(value.startsOn)
+    ) return null;
+    return value;
+  }
+
+  const familyAction = actionKey.startsWith("family:");
+  const payerAction = actionKey.startsWith("payer:");
+  const actionTargetId = familyAction
+    ? actionKey.slice("family:".length)
+    : payerAction
+      ? actionKey.slice("payer:".length)
+      : "";
+  if (!isUuid(actionTargetId)) return null;
+
+  const hasFamilyId = Object.hasOwn(value, "familyId");
+  if (
+    !hasExactKeys(value, hasFamilyId
+      ? ["organizationId", "locationId", "familyId", "athleteIds", "payer", "effectiveFrom"]
+      : ["organizationId", "locationId", "athleteIds", "payer", "effectiveFrom"]) ||
+    (hasFamilyId && !isUuid(value.familyId)) ||
+    !isUniqueUuidArray(value.athleteIds, 1, 50) ||
+    (familyAction && value.athleteIds.length !== 1) ||
+    (payerAction && value.familyId !== actionTargetId) ||
+    !isDateValue(value.effectiveFrom) ||
+    !isRecord(value.payer)
+  ) return null;
+
+  const payer = value.payer;
+  const hasConfirmation = Object.hasOwn(payer, "confirmPrimaryPayerChange");
+  if (Object.hasOwn(payer, "familyPayerId")) {
+    if (
+      !hasFamilyId ||
+      !hasExactKeys(payer, hasConfirmation
+        ? ["familyPayerId", "confirmPrimaryPayerChange"]
+        : ["familyPayerId"]) ||
+      !isUuid(payer.familyPayerId) ||
+      (hasConfirmation && typeof payer.confirmPrimaryPayerChange !== "boolean")
+    ) return null;
+  } else if (
+    !hasExactKeys(payer, hasConfirmation
+      ? ["givenName", "familyName", "relationship", "confirmPrimaryPayerChange"]
+      : ["givenName", "familyName", "relationship"]) ||
+    typeof payer.givenName !== "string" || payer.givenName.trim().length === 0 ||
+    payer.givenName.trim() !== payer.givenName || payer.givenName.length > 100 ||
+    typeof payer.familyName !== "string" || payer.familyName.trim().length === 0 ||
+    payer.familyName.trim() !== payer.familyName || payer.familyName.length > 100 ||
+    !["parent", "legal_guardian", "foster_guardian", "other"].includes(String(payer.relationship)) ||
+    (hasConfirmation && typeof payer.confirmPrimaryPayerChange !== "boolean")
+  ) return null;
+
+  return value;
+}
+
+function decodePendingResolutionCommand(raw: string): PendingResolutionCommand | null {
+  if (raw.length > maxPendingResolutionStorageLength) return null;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (!isRecord(value) || !hasExactKeys(value, [
+      "version", "scopeKey", "organizationId", "locationId", "servicePeriod",
+      "actionKey", "operation", "endpoint", "method", "key",
+      "hasAmbiguousAttempt", "serializedBody", "fingerprint",
+    ])) return null;
+    if (
+      value.version !== pendingResolutionStorageVersion ||
+      !isUuid(value.organizationId) || !isUuid(value.locationId) ||
+      typeof value.servicePeriod !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(value.servicePeriod) ||
+      typeof value.actionKey !== "string" ||
+      !["create-price-plan", "assign-tariff", "associate-family"].includes(String(value.operation)) ||
+      (value.method !== "POST" && value.method !== "PATCH") ||
+      typeof value.key !== "string" || value.key.trim() !== value.key ||
+      value.key.length < 8 || value.key.length > 180 ||
+      typeof value.hasAmbiguousAttempt !== "boolean" ||
+      typeof value.serializedBody !== "string" || value.serializedBody.length > 24_000 ||
+      typeof value.fingerprint !== "string"
+    ) return null;
+
+    const operation = value.operation as PendingResolutionCommand["operation"];
+    const expectedScopeKey = resolutionScopeKey({
+      organizationId: value.organizationId,
+      locationId: value.locationId,
+      servicePeriod: value.servicePeriod,
+      actionKey: value.actionKey,
+    });
+    if (value.scopeKey !== expectedScopeKey) return null;
+
+    const expectedKeyPrefix = operation === "create-price-plan"
+      ? "owner-monthly-price-plan"
+      : operation === "assign-tariff"
+        ? "owner-price-assignment"
+        : "owner-family-association";
+    const keyNonce = value.key.startsWith(`${expectedKeyPrefix}:`)
+      ? value.key.slice(expectedKeyPrefix.length + 1)
+      : "";
+    if (!isUuid(keyNonce)) return null;
+
+    const expectedEndpoint = operation === "create-price-plan"
+      ? "/api/v1/owner/billing/price-plans"
+      : operation === "assign-tariff"
+        ? `/api/v1/owner/enrollments/${encodeURIComponent(value.actionKey.slice("tariff:".length))}/price-plan`
+        : "/api/v1/owner/families/associations";
+    const expectedMethod = operation === "assign-tariff" ? "PATCH" : "POST";
+    if (value.endpoint !== expectedEndpoint || value.method !== expectedMethod) return null;
+
+    const commandWithoutBody: Omit<
+      PendingResolutionCommand,
+      "body" | "hasAmbiguousAttempt"
+    > = {
+      scopeKey: value.scopeKey,
+      organizationId: value.organizationId,
+      locationId: value.locationId,
+      servicePeriod: value.servicePeriod,
+      actionKey: value.actionKey,
+      operation,
+      endpoint: value.endpoint,
+      method: value.method,
+      key: value.key,
+      serializedBody: value.serializedBody,
+    };
+    if (value.fingerprint !== pendingResolutionFingerprint(commandWithoutBody)) return null;
+    const body = validatePendingResolutionBody(
+      operation,
+      value.actionKey,
+      value.organizationId,
+      value.locationId,
+      value.serializedBody
+    );
+    if (!body) return null;
+
+    return {
+      scopeKey: value.scopeKey,
+      organizationId: value.organizationId,
+      locationId: value.locationId,
+      servicePeriod: value.servicePeriod,
+      actionKey: value.actionKey,
+      operation,
+      endpoint: value.endpoint,
+      method: value.method,
+      key: value.key,
+      hasAmbiguousAttempt: value.hasAmbiguousAttempt,
+      body,
+      serializedBody: value.serializedBody,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readPendingResolutionCommand(): PendingResolutionStorageRead {
+  try {
+    const raw = window.sessionStorage.getItem(PENDING_OWNER_MONTHLY_RESOLUTION_STORAGE_KEY);
+    if (raw === null) return { kind: "none" };
+    const command = decodePendingResolutionCommand(raw);
+    return command ? { kind: "pending", command } : { kind: "invalid" };
+  } catch {
+    return { kind: "unavailable" };
+  }
+}
+
+function pendingResolutionRecord(command: PendingResolutionCommand): PendingResolutionStorageRecord {
+  const { body: _body, ...persisted } = command;
+  return {
+    version: pendingResolutionStorageVersion,
+    ...persisted,
+    fingerprint: pendingResolutionFingerprint(command),
+  };
+}
+
+function samePendingResolutionCommand(
+  left: PendingResolutionCommand,
+  right: PendingResolutionCommand,
+  includeAmbiguous = true
+): boolean {
+  return (
+    left.scopeKey === right.scopeKey &&
+    left.organizationId === right.organizationId &&
+    left.locationId === right.locationId &&
+    left.servicePeriod === right.servicePeriod &&
+    left.actionKey === right.actionKey &&
+    left.operation === right.operation &&
+    left.endpoint === right.endpoint &&
+    left.method === right.method &&
+    left.key === right.key &&
+    left.serializedBody === right.serializedBody &&
+    (!includeAmbiguous || left.hasAmbiguousAttempt === right.hasAmbiguousAttempt)
+  );
+}
+
+function persistPendingResolutionCommand(
+  command: PendingResolutionCommand,
+  options: { allowCreate?: boolean; allowAmbiguousUpgrade?: boolean } = {}
+): boolean {
+  try {
+    const read = readPendingResolutionCommand();
+    if (read.kind === "unavailable" || read.kind === "invalid") return false;
+    if (read.kind === "none") {
+      if (!options.allowCreate) return false;
+    } else if (!samePendingResolutionCommand(read.command, command, false)) {
+      return false;
+    } else if (read.command.hasAmbiguousAttempt !== command.hasAmbiguousAttempt) {
+      if (
+        !options.allowAmbiguousUpgrade ||
+        !command.hasAmbiguousAttempt ||
+        read.command.hasAmbiguousAttempt
+      ) return false;
+    } else {
+      return true;
+    }
+
+    window.sessionStorage.setItem(
+      PENDING_OWNER_MONTHLY_RESOLUTION_STORAGE_KEY,
+      JSON.stringify(pendingResolutionRecord(command))
+    );
+    const verified = readPendingResolutionCommand();
+    return verified.kind === "pending" &&
+      samePendingResolutionCommand(verified.command, command);
+  } catch {
+    return false;
+  }
+}
+
+function pendingResolutionCommandMatchesStorage(
+  command: PendingResolutionCommand
+): boolean {
+  const read = readPendingResolutionCommand();
+  return read.kind === "pending" && samePendingResolutionCommand(read.command, command);
+}
+
+function clearPendingResolutionCommand(
+  command: PendingResolutionCommand
+): boolean {
+  try {
+    const stored = readPendingResolutionCommand();
+    // Another mounted instance may already have cleared this same key after a
+    // validated terminal receipt. The caller only clears after validating its
+    // own success or definitive first-attempt rejection.
+    if (stored.kind === "none") return true;
+    if (
+      stored.kind !== "pending" ||
+      !samePendingResolutionCommand(stored.command, command)
+    ) return false;
+    window.sessionStorage.removeItem(PENDING_OWNER_MONTHLY_RESOLUTION_STORAGE_KEY);
+    return window.sessionStorage.getItem(PENDING_OWNER_MONTHLY_RESOLUTION_STORAGE_KEY) === null;
+  } catch {
+    return false;
+  }
+}
+
 function isClassTemplateOption(value: unknown): value is ClassTemplateOption {
   if (!value || typeof value !== "object") return false;
   const option = value as Partial<ClassTemplateOption>;
@@ -130,6 +526,7 @@ const secondaryButtonClassName =
 export function OwnerMonthlyInvoiceResolutionPanel({
   action,
   organizationId,
+  writesBlocked,
   locationId,
   defaultCurrency,
   servicePeriodStart,
@@ -138,12 +535,41 @@ export function OwnerMonthlyInvoiceResolutionPanel({
 }: {
   action: ResolutionAction;
   organizationId: string;
+  writesBlocked: boolean;
   locationId: string;
   defaultCurrency: string;
   servicePeriodStart: string;
   onCancel: () => void;
   onSaved: (kind: "tariff" | "family", familyId?: string) => Promise<void>;
 }) {
+  const planPolicy = useOwnerPlanPolicy(organizationId);
+  const blocked = writesBlocked || planPolicy.status !== "ready" || planPolicy.readOnly;
+  const actionKey =
+    action.kind === "payer"
+      ? `payer:${action.familyId}`
+      : `${action.kind}:${action.enrollmentId}`;
+  const currentScope = {
+    organizationId,
+    locationId,
+    servicePeriod: servicePeriodStart.slice(0, 7),
+    actionKey,
+  };
+  const currentScopeKey = resolutionScopeKey(currentScope);
+  const currentScopeKeyRef = useRef(currentScopeKey);
+  const payerConfirmationScopeKeyRef = useRef(currentScopeKey);
+  const onSavedRef = useRef(onSaved);
+  const [primaryPayerConfirmationKey, setPrimaryPayerConfirmationKey] =
+    useState<string | null>(null);
+  useCommittedLayoutEffect(() => {
+    currentScopeKeyRef.current = currentScopeKey;
+    onSavedRef.current = onSaved;
+    if (payerConfirmationScopeKeyRef.current !== currentScopeKey) {
+      payerConfirmationScopeKeyRef.current = currentScopeKey;
+      // Scope changes invalidate consent captured for the prior operation.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPrimaryPayerConfirmationKey(null);
+    }
+  }, [currentScopeKey, onSaved]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -157,8 +583,14 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   const [pricePlanOptionsScope, setPricePlanOptionsScope] = useState<{
     organizationId: string;
     locationId: string;
+    servicePeriod: string;
   } | null>(null);
   const [families, setFamilies] = useState<FamilyAssociationOption[]>([]);
+  const [familyOptionsScope, setFamilyOptionsScope] = useState<{
+    organizationId: string;
+    locationId: string;
+    servicePeriod: string;
+  } | null>(null);
   const [selectedPricePlanId, setSelectedPricePlanId] = useState("");
   const [newPricePlanName, setNewPricePlanName] = useState("");
   const [newPricePlanAmount, setNewPricePlanAmount] = useState("");
@@ -171,6 +603,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   const [coverageHasNoEnd, setCoverageHasNoEnd] = useState(true);
   const [coverageEndsOn, setCoverageEndsOn] = useState("");
   const [pricePlanNotice, setPricePlanNotice] = useState("");
+  const [pricePlanNoticeScope, setPricePlanNoticeScope] = useState("");
   const [priceStartsOn, setPriceStartsOn] = useState(servicePeriodStart);
   const [effectiveFrom, setEffectiveFrom] = useState(servicePeriodStart);
   const [selectedFamilyId, setSelectedFamilyId] = useState(
@@ -189,23 +622,122 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   const [relationship, setRelationship] = useState<
     "parent" | "legal_guardian" | "foster_guardian" | "other"
   >("parent");
-  const retryRequest = useRef<RetryRequest | null>(null);
+  const pendingCommandRef = useRef<PendingResolutionCommand | null>(null);
+  const [pendingCommand, setPendingCommand] =
+    useState<PendingResolutionCommand | null>(null);
+  const [pendingStorageReady, setPendingStorageReady] = useState(false);
+  const [pendingStorageError, setPendingStorageError] = useState("");
+  const [commandReceipt, setCommandReceipt] = useState<{
+    organizationId: string;
+    locationId: string;
+    servicePeriod: string;
+    message: string;
+  } | null>(null);
+  usePendingCommandExitWarning(pendingCommand !== null, pendingCommandRef);
+
+  useEffect(() => {
+    const stored = readPendingResolutionCommand();
+    if (stored.kind === "none") {
+      setPendingStorageReady(true);
+      return;
+    }
+    if (stored.kind === "unavailable") {
+      setPendingStorageError(
+        "No podemos leer el marcador seguro de esta sesión. No se enviarán cambios desde este panel."
+      );
+      setPendingStorageReady(true);
+      return;
+    }
+    if (stored.kind === "invalid") {
+      setPendingStorageError(
+        "El marcador de una operación anterior no supera la validación. No se enviarán cambios desde este panel."
+      );
+      setPendingStorageReady(true);
+      return;
+    }
+
+    // After a remount, the request may or may not have reached the server.
+    // Upgrade only metadata; the exact serialized body and idempotency key stay fixed.
+    const restored = { ...stored.command, hasAmbiguousAttempt: true };
+    pendingCommandRef.current = restored;
+    setPendingCommand(restored);
+    if (!persistPendingResolutionCommand(restored, { allowAmbiguousUpgrade: true })) {
+      setPendingStorageError(
+        "No pudimos releer y verificar la operación pendiente. Conservamos el marcador y no la reenviaremos."
+      );
+    }
+    setPendingStorageReady(true);
+  }, []);
+
+  function recordLateReceipt(
+    command: PendingResolutionCommand,
+    message: string
+  ) {
+    setCommandReceipt({
+      organizationId: command.organizationId,
+      locationId: command.locationId,
+      servicePeriod: command.servicePeriod,
+      message,
+    });
+  }
   const selectedCoverageClassIds = [
     ...new Set(selectedClassTemplateIds),
   ].sort();
-  const classOptionsMatchCurrentScope =
+  const pricePlanOptionsMatchCurrentScope =
     pricePlanOptionsScope?.organizationId === organizationId &&
-    pricePlanOptionsScope.locationId === locationId;
+    pricePlanOptionsScope.locationId === locationId &&
+    pricePlanOptionsScope.servicePeriod === currentScope.servicePeriod;
+  const familyOptionsMatchCurrentScope =
+    familyOptionsScope?.organizationId === organizationId &&
+    familyOptionsScope.locationId === locationId &&
+    familyOptionsScope.servicePeriod === currentScope.servicePeriod;
+  const catalogMatchesCurrentScope =
+    action.kind === "tariff"
+      ? pricePlanOptionsMatchCurrentScope
+      : familyOptionsMatchCurrentScope;
+  const currentLoading = loading || !catalogMatchesCurrentScope;
+  const currentPricePlans = pricePlanOptionsMatchCurrentScope ? pricePlans : [];
+  const currentClassTemplates = pricePlanOptionsMatchCurrentScope
+    ? classTemplates
+    : [];
+  const currentFamilies = familyOptionsMatchCurrentScope ? families : [];
+  const associationFamilyId =
+    action.kind === "payer" ? action.familyId : selectedFamilyId;
+  const selectedFamily = currentFamilies.find(
+    (family) => family.familyId === associationFamilyId
+  );
+  const selectedFamilyPayer = selectedFamily?.payers.find(
+    (payer) => payer.familyPayerId === selectedPayerId
+  );
+  const primaryPayerWillChange = Boolean(
+    associationFamilyId &&
+      selectedFamily &&
+      (selectedFamilyPayer
+        ? !selectedFamilyPayer.isPrimary
+        : selectedFamily.payers.some((payer) => payer.isPrimary))
+  );
+  const currentPayerConfirmationKey = JSON.stringify([
+    currentScopeKey,
+    associationFamilyId || null,
+    selectedFamilyPayer?.familyPayerId ?? null,
+    effectiveFrom,
+    selectedFamilyPayer ? null : givenName.trim(),
+    selectedFamilyPayer ? null : familyName.trim(),
+    selectedFamilyPayer ? null : relationship,
+  ]);
+  const primaryPayerChangeConfirmed =
+    primaryPayerConfirmationKey === currentPayerConfirmationKey;
   const canCreatePricePlan =
-    !loading &&
+    !currentLoading &&
     !busy &&
+    !blocked &&
     !pricePlanOptionsError &&
-    classOptionsMatchCurrentScope &&
-    classTemplates.length > 0 &&
+    pricePlanOptionsMatchCurrentScope &&
+    currentClassTemplates.length > 0 &&
     selectedCoverageClassIds.length > 0 &&
     selectedCoverageClassIds.length <= 100 &&
     selectedCoverageClassIds.every((id) =>
-      classTemplates.some((classTemplate) => classTemplate.id === id)
+      currentClassTemplates.some((classTemplate) => classTemplate.id === id)
     );
 
   useEffect(() => {
@@ -254,6 +786,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             );
           }
           if (active) {
+            setPricePlanOptionsError(false);
             setPricePlans(data.items);
             setSelectedPricePlanId((current) =>
               data.items.some((item) => item.id === current)
@@ -262,7 +795,11 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             );
             setClassTemplates(data.classTemplates);
             setClassTemplatesHasMore(data.classTemplatesHasMore);
-            setPricePlanOptionsScope({ organizationId, locationId });
+            setPricePlanOptionsScope({
+              organizationId,
+              locationId,
+              servicePeriod: currentScope.servicePeriod,
+            });
             setSelectedClassTemplateIds((current) =>
               current.filter((id) =>
                 data.classTemplates.some((item) => item.id === id)
@@ -278,11 +815,34 @@ export function OwnerMonthlyInvoiceResolutionPanel({
               "La respuesta de familias no tiene el formato esperado."
             );
           }
-          if (active) setFamilies(data.families);
+          if (active) {
+            setFamilies(data.families);
+            setFamilyOptionsScope({
+              organizationId,
+              locationId,
+              servicePeriod: currentScope.servicePeriod,
+            });
+          }
         }
       } catch (cause) {
         if (active) {
-          if (action.kind === "tariff") setPricePlanOptionsError(true);
+          if (action.kind === "tariff") {
+            setPricePlanOptionsError(true);
+            setPricePlans([]);
+            setClassTemplates([]);
+            setPricePlanOptionsScope({
+              organizationId,
+              locationId,
+              servicePeriod: currentScope.servicePeriod,
+            });
+          } else {
+            setFamilies([]);
+            setFamilyOptionsScope({
+              organizationId,
+              locationId,
+              servicePeriod: currentScope.servicePeriod,
+            });
+          }
           setError(
             cause instanceof Error
               ? cause.message
@@ -296,19 +856,142 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     return () => {
       active = false;
     };
-  }, [action.kind, locationId, optionsRetry, organizationId]);
+  }, [action.kind, currentScope.servicePeriod, locationId, optionsRetry, organizationId]);
 
-  function requestKey(prefix: string, body: unknown): string {
-    const previous = retryRequest.current;
-    const key =
-      previous && JSON.stringify(previous.body) === JSON.stringify(body)
-        ? previous.key
-        : `${prefix}:${crypto.randomUUID()}`;
-    retryRequest.current = { key, body };
-    return key;
+  function createPendingCommand(
+    operation: PendingResolutionCommand["operation"],
+    prefix: string,
+    endpoint: string,
+    method: PendingResolutionCommand["method"],
+    body: unknown
+  ) {
+    if (
+      !pendingStorageReady ||
+      pendingStorageError ||
+      pendingCommandRef.current
+    ) return null;
+    const command: PendingResolutionCommand = {
+      ...currentScope,
+      scopeKey: currentScopeKey,
+      operation,
+      endpoint,
+      method,
+      key: `${prefix}:${crypto.randomUUID()}`,
+      hasAmbiguousAttempt: false,
+      body,
+      serializedBody: JSON.stringify(body),
+    };
+    if (!persistPendingResolutionCommand(command, { allowCreate: true })) {
+      setPendingStorageError(
+        "No pudimos guardar y releer la operación exacta en esta sesión. No se enviará."
+      );
+      return null;
+    }
+    pendingCommandRef.current = command;
+    setPendingCommand(command);
+    return command;
+  }
+
+  function clearPendingCommand(command: PendingResolutionCommand) {
+    if (
+      pendingCommandRef.current?.key !== command.key ||
+      !clearPendingResolutionCommand(command)
+    ) {
+      setPendingStorageError(
+        "No pudimos verificar ni limpiar el marcador pendiente. Se conserva la operación para evitar duplicados."
+      );
+      return false;
+    }
+    pendingCommandRef.current = null;
+    setPendingCommand(null);
+    return true;
+  }
+
+  function markPendingCommandAmbiguous(command: PendingResolutionCommand) {
+    const current = pendingCommandRef.current;
+    if (current?.key !== command.key) return;
+    const updated = current.hasAmbiguousAttempt
+      ? current
+      : { ...current, hasAmbiguousAttempt: true };
+    if (updated !== current) {
+      pendingCommandRef.current = updated;
+      setPendingCommand(updated);
+    }
+    if (!persistPendingResolutionCommand(updated, {
+      allowCreate: true,
+      allowAmbiguousUpgrade: true,
+    })) {
+      setPendingStorageError(
+        "No pudimos persistir la incertidumbre de la operación. No se permitirá reenviarla desde este panel."
+      );
+    }
+  }
+
+  async function sendPendingCommand(
+    command: PendingResolutionCommand,
+    fallback: string
+  ): Promise<{ response: Response; payload: unknown } | null> {
+    if (!pendingResolutionCommandMatchesStorage(command)) {
+      setPendingStorageError(
+        "El marcador guardado no coincide con la operación pendiente. No se enviará otra solicitud."
+      );
+      setError(
+        "No se pudo verificar la operación pendiente en esta sesión. No se ha enviado."
+      );
+      return null;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(command.endpoint, {
+        method: command.method,
+        headers: {
+          "content-type": "application/json",
+          "Idempotency-Key": command.key,
+        },
+        body: command.serializedBody,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const knownPreCommitDomainRejection =
+          command.operation === "create-price-plan" &&
+          problemCode(payload) === "MONTHLY_INVOICE_BLOCKED";
+        // On a first request, 4xx routes reject before service work or the transaction rolls back.
+        // Replays after an ambiguous attempt keep the exact command for any status.
+        const definitiveFirstRejection =
+          !command.hasAmbiguousAttempt &&
+          ((response.status >= 400 && response.status < 500) ||
+            knownPreCommitDomainRejection);
+        if (definitiveFirstRejection) {
+          if (!clearPendingCommand(command)) {
+            markPendingCommandAmbiguous(command);
+          }
+        } else {
+          markPendingCommandAmbiguous(command);
+        }
+        setError(responseMessage(payload, fallback));
+        return null;
+      }
+      return { response, payload };
+    } catch {
+      markPendingCommandAmbiguous(command);
+      setError(
+        "No sabemos si se guardó. Conservamos exactamente la operación para reintentarla con la misma clave."
+      );
+      return null;
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function createPricePlan() {
+    if (
+      blocked ||
+      currentLoading ||
+      !pendingStorageReady ||
+      pendingStorageError ||
+      pendingCommandRef.current
+    ) return;
     if (action.kind !== "tariff") return;
     const name = newPricePlanName.trim();
     const amountCents = parseMonthlyAmountCents(newPricePlanAmount);
@@ -318,18 +1001,19 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       );
       return;
     }
-    if (!classOptionsMatchCurrentScope || pricePlanOptionsError) {
+    if (!pricePlanOptionsMatchCurrentScope || pricePlanOptionsError) {
       setError(
         "Vuelve a cargar las opciones de clases de esta academia y sede antes de crear la tarifa."
       );
       return;
     }
     if (
-      classTemplates.length === 0 ||
+      currentClassTemplates.length === 0 ||
       selectedCoverageClassIds.length === 0 ||
       selectedCoverageClassIds.length > 100 ||
       selectedCoverageClassIds.some(
-        (id) => !classTemplates.some((classTemplate) => classTemplate.id === id)
+        (id) =>
+          !currentClassTemplates.some((classTemplate) => classTemplate.id === id)
       )
     ) {
       setError("Selecciona al menos una clase activa de esta sede.");
@@ -356,68 +1040,31 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         endsOn: coverageHasNoEnd ? null : coverageEndsOn,
       },
     };
-    const key = requestKey("owner-monthly-price-plan", body);
-    setBusy(true);
-    setError("");
+    const command = createPendingCommand(
+      "create-price-plan",
+      "owner-monthly-price-plan",
+      "/api/v1/owner/billing/price-plans",
+      "POST",
+      body
+    );
+    if (!command) return;
     setPricePlanNotice("");
-    try {
-      const response = await fetch("/api/v1/owner/billing/price-plans", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "Idempotency-Key": key,
-        },
-        body: JSON.stringify(body),
-      });
-      const payload = await response.json().catch(() => null);
-      const created = responseData<PricePlanOption>(payload);
-      if (!response.ok) {
-        if (response.status >= 400 && response.status < 500) {
-          retryRequest.current = null;
-        }
-        throw new Error(
-          responseMessage(payload, "No se pudo crear la tarifa mensual.")
-        );
-      }
-      if (
-        !created ||
-        typeof created.id !== "string" ||
-        typeof created.name !== "string" ||
-        typeof created.amountCents !== "number" ||
-        typeof created.currency !== "string" ||
-        created.cadence !== "monthly"
-      ) {
-        throw new Error(
-          "La respuesta de la tarifa no tiene el formato esperado."
-        );
-      }
-      retryRequest.current = null;
-      setPricePlans((current) => [
-        ...current.filter((plan) => plan.id !== created.id),
-        created,
-      ]);
-      setSelectedPricePlanId(created.id);
-      setNewPricePlanName("");
-      setNewPricePlanAmount("");
-      setPricePlanNotice(
-        `Tarifa creada con cobertura para ${selectedCoverageClassIds.length} ${selectedCoverageClassIds.length === 1 ? "clase" : "clases"}. Revisa el importe y confirma aparte su asignación a la inscripción.`
-      );
-      setPricePlanOptionsError(false);
-      setLoading(true);
-      setOptionsRetry((current) => current + 1);
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "No se pudo crear la tarifa mensual."
-      );
-    } finally {
-      setBusy(false);
-    }
+    await resolvePendingCommand(command);
   }
 
   async function saveTariff() {
-    if (action.kind !== "tariff" || !selectedPricePlanId || !priceStartsOn) {
+    if (
+      blocked ||
+      currentLoading ||
+      !pendingStorageReady ||
+      pendingStorageError ||
+      pendingCommandRef.current
+    ) return;
+    if (
+      action.kind !== "tariff" ||
+      !currentPricePlans.some((plan) => plan.id === selectedPricePlanId) ||
+      !priceStartsOn
+    ) {
       setError("Selecciona una tarifa y la fecha desde la que se aplica.");
       return;
     }
@@ -427,119 +1074,218 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       pricePlanId: selectedPricePlanId,
       startsOn: priceStartsOn,
     };
-    const key = requestKey("owner-price-assignment", body);
-    setBusy(true);
-    setError("");
-    try {
-      const response = await fetch(
-        `/api/v1/owner/enrollments/${encodeURIComponent(action.enrollmentId)}/price-plan`,
-        {
-          method: "PATCH",
-          headers: {
-            "content-type": "application/json",
-            "Idempotency-Key": key,
-          },
-          body: JSON.stringify(body),
-        }
-      );
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        if (response.status >= 400 && response.status < 500) {
-          retryRequest.current = null;
-        }
-        throw new Error(
-          responseMessage(payload, "No se pudo asignar la tarifa.")
-        );
-      }
-      retryRequest.current = null;
-      await onSaved("tariff");
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "No se pudo asignar la tarifa."
-      );
-    } finally {
-      setBusy(false);
-    }
+    const command = createPendingCommand(
+      "assign-tariff",
+      "owner-price-assignment",
+      `/api/v1/owner/enrollments/${encodeURIComponent(action.enrollmentId)}/price-plan`,
+      "PATCH",
+      body
+    );
+    if (!command) return;
+    await resolvePendingCommand(command);
   }
 
   async function saveAssociation() {
+    if (
+      blocked ||
+      currentLoading ||
+      !pendingStorageReady ||
+      pendingStorageError ||
+      pendingCommandRef.current
+    ) return;
     if (action.kind === "tariff") return;
-    const familyId =
-      action.kind === "payer" ? action.familyId : selectedFamilyId;
     const uniqueAthleteIds = [...new Set(athleteIds)];
-    const selectedFamily = families.find(
-      (family) => family.familyId === familyId
-    );
-    const existingPayerId = selectedFamily?.payers.some(
-      (payer) => payer.familyPayerId === selectedPayerId
-    )
-      ? selectedPayerId
-      : "";
     if (
       uniqueAthleteIds.length === 0 ||
       !effectiveFrom ||
-      (!existingPayerId && (!givenName.trim() || !familyName.trim()))
+      (associationFamilyId && !selectedFamily) ||
+      (!selectedFamilyPayer && (!givenName.trim() || !familyName.trim()))
     ) {
       setError(
         "Selecciona la familia y las gimnastas, y completa el nombre de la persona pagadora adulta."
       );
       return;
     }
+    if (primaryPayerWillChange && !primaryPayerChangeConfirmed) {
+      setError("Confirma el cambio de pagador principal antes de continuar.");
+      return;
+    }
     const body = {
       organizationId,
       locationId,
-      ...(familyId ? { familyId } : {}),
+      ...(associationFamilyId ? { familyId: associationFamilyId } : {}),
       athleteIds: uniqueAthleteIds,
-      payer: existingPayerId
-        ? { familyPayerId: existingPayerId }
+      payer: selectedFamilyPayer
+        ? {
+            familyPayerId: selectedFamilyPayer.familyPayerId,
+            ...(primaryPayerWillChange
+              ? { confirmPrimaryPayerChange: true }
+              : {}),
+          }
         : {
             givenName: givenName.trim(),
             familyName: familyName.trim(),
             relationship,
+            ...(primaryPayerWillChange
+              ? { confirmPrimaryPayerChange: true }
+              : {}),
           },
       effectiveFrom,
     };
-    const key = requestKey("owner-family-association", body);
-    setBusy(true);
-    setError("");
-    try {
-      const response = await fetch("/api/v1/owner/families/associations", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "Idempotency-Key": key,
-        },
-        body: JSON.stringify(body),
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        if (response.status >= 400 && response.status < 500) {
-          retryRequest.current = null;
-        }
-        throw new Error(
-          responseMessage(payload, "No se pudo guardar la relación familiar.")
-        );
-      }
-      retryRequest.current = null;
-      const data = responseData<{ familyId?: unknown }>(payload);
-      await onSaved(
-        "family",
-        isUuid(data?.familyId) ? data.familyId : undefined
-      );
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "No se pudo guardar la relación familiar."
-      );
-    } finally {
-      setBusy(false);
-    }
+    const command = createPendingCommand(
+      "associate-family",
+      "owner-family-association",
+      "/api/v1/owner/families/associations",
+      "POST",
+      body
+    );
+    if (!command) return;
+    await resolvePendingCommand(command);
   }
 
-  const selectedFamily = families.find(
-    (family) => family.familyId === selectedFamilyId
-  );
+  async function resolvePendingCommand(command: PendingResolutionCommand) {
+    const result = await sendPendingCommand(
+      command,
+      "No se pudo confirmar la operación de facturación."
+    );
+    if (!result) return;
+    const data = responseData<Record<string, unknown>>(result.payload);
+    if (!data) {
+      markPendingCommandAmbiguous(command);
+      setError(
+        "La respuesta no confirma la operación. Conservamos el body y la clave para reintentarla exactamente."
+      );
+      return;
+    }
+
+    if (command.operation === "create-price-plan") {
+      const body = command.body as {
+        name: string;
+        amountCents: number;
+        coverage: { classTemplateIds: string[] };
+      };
+      const created = data as unknown as PricePlanOption;
+      if (
+        !isUuid(created.id) ||
+        created.name !== body.name ||
+        created.amountCents !== body.amountCents ||
+        typeof created.currency !== "string" ||
+        created.cadence !== "monthly"
+      ) {
+        markPendingCommandAmbiguous(command);
+        setError(
+          "La respuesta no confirma la tarifa solicitada. Conservamos el body y la clave para reintentarla exactamente."
+        );
+        return;
+      }
+      if (!clearPendingCommand(command)) {
+        markPendingCommandAmbiguous(command);
+        setError(
+          "El servidor confirmó la tarifa, pero no pudimos limpiar el marcador. Conservamos la operación para comprobarla con la misma clave."
+        );
+        return;
+      }
+      if (command.scopeKey !== currentScopeKeyRef.current) {
+        recordLateReceipt(
+          command,
+          `La tarifa «${created.name}» se creó correctamente en la operación iniciada para su ámbito original.`
+        );
+        return;
+      }
+      setPricePlans((current) => [
+        ...current.filter((plan) => plan.id !== created.id),
+        created,
+      ]);
+      setSelectedPricePlanId(created.id);
+      setNewPricePlanName("");
+      setNewPricePlanAmount("");
+      setPricePlanNotice(
+        `Tarifa creada con cobertura para ${body.coverage.classTemplateIds.length} ${body.coverage.classTemplateIds.length === 1 ? "clase" : "clases"}. Revisa el importe y confirma aparte su asignación a la inscripción.`
+      );
+      setPricePlanNoticeScope(command.scopeKey);
+      setPricePlanOptionsError(false);
+      setLoading(true);
+      setOptionsRetry((current) => current + 1);
+      return;
+    }
+
+    if (command.operation === "assign-tariff") {
+      const body = command.body as {
+        pricePlanId: string;
+        startsOn: string;
+      };
+      if (
+        !isUuid(data.id) ||
+        action.kind !== "tariff" ||
+        data.enrollmentId !== action.enrollmentId ||
+        data.pricePlanId !== body.pricePlanId ||
+        data.startsOn !== body.startsOn
+      ) {
+        markPendingCommandAmbiguous(command);
+        setError(
+          "La respuesta no confirma la asignación solicitada. Conservamos el body y la clave para reintentarla exactamente."
+        );
+        return;
+      }
+      if (!clearPendingCommand(command)) {
+        markPendingCommandAmbiguous(command);
+        setError(
+          "El servidor confirmó la asignación, pero no pudimos limpiar el marcador. Conservamos la operación para comprobarla con la misma clave."
+        );
+        return;
+      }
+      if (command.scopeKey !== currentScopeKeyRef.current) {
+        recordLateReceipt(
+          command,
+          "La asignación de tarifa se confirmó para la inscripción del ámbito original."
+        );
+        return;
+      }
+      await onSavedRef.current("tariff");
+      return;
+    }
+
+    const familyId = data.familyId;
+    if (!isUuid(familyId) || !isUuid(data.familyPayerId)) {
+      markPendingCommandAmbiguous(command);
+      setError(
+        "La respuesta no confirma la relación familiar. Conservamos el body y la clave para reintentarla exactamente."
+      );
+      return;
+    }
+    if (!clearPendingCommand(command)) {
+      markPendingCommandAmbiguous(command);
+      setError(
+        "El servidor confirmó el vínculo, pero no pudimos limpiar el marcador. Conservamos la operación para comprobarla con la misma clave."
+      );
+      return;
+    }
+    if (command.scopeKey !== currentScopeKeyRef.current) {
+      recordLateReceipt(
+        command,
+        "La relación familiar se confirmó para la operación del ámbito original."
+      );
+      return;
+    }
+    await onSavedRef.current("family", familyId);
+  }
+
+  function replayPendingCommand() {
+    const command = pendingCommandRef.current;
+    if (
+      !command ||
+      command.scopeKey !== currentScopeKey ||
+      !pendingStorageReady ||
+      Boolean(pendingStorageError) ||
+      busy
+    ) {
+      return;
+    }
+    void resolvePendingCommand(command);
+  }
+
+  const pendingMatchesCurrentScope =
+    pendingCommand?.scopeKey === currentScopeKey;
 
   return (
     <section
@@ -561,11 +1307,67 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         </p>
       </div>
 
-      {loading && <p role="status">Cargando opciones…</p>}
+      {pendingCommand && (
+        <div
+          role="status"
+          className="grid gap-3 border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
+        >
+          <p>
+            Hay una operación de facturación cuyo resultado sigue sin
+            confirmar. Conservamos su academia, sede, periodo, endpoint, body y
+            clave originales. No iniciaremos otra operación desde este panel.
+          </p>
+          {pendingMatchesCurrentScope ? (
+            <button
+              type="button"
+              disabled={busy || !pendingStorageReady || Boolean(pendingStorageError)}
+              onClick={replayPendingCommand}
+              className={`${primaryButtonClassName} w-fit`}
+            >
+              Reintentar la misma operación
+            </button>
+          ) : (
+            <Link
+              className="min-h-11 w-fit content-center font-bold underline underline-offset-2"
+              href={`/owner/monthly-invoices?${new URLSearchParams({
+                organizationId: pendingCommand.organizationId,
+                locationId: pendingCommand.locationId,
+                servicePeriod: pendingCommand.servicePeriod,
+              }).toString()}`}
+            >
+              Volver a su academia, sede y periodo
+            </Link>
+          )}
+        </div>
+      )}
 
-      {action.kind === "tariff" && !loading && (
+      {commandReceipt && (
+        <div role="status" className="grid gap-2 border border-teal-300 bg-teal-50 p-4 text-sm text-teal-950">
+          <p>{commandReceipt.message} No hemos cambiado el catálogo de la vista actual.</p>
+          <Link
+            className="min-h-11 w-fit content-center font-bold underline underline-offset-2"
+            href={`/owner/monthly-invoices?${new URLSearchParams({
+              organizationId: commandReceipt.organizationId,
+              locationId: commandReceipt.locationId,
+              servicePeriod: commandReceipt.servicePeriod,
+            }).toString()}`}
+          >
+            Volver al ámbito de la operación
+          </Link>
+        </div>
+      )}
+
+      {pendingStorageError && (
+        <p role="alert" className="border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+          {pendingStorageError}
+        </p>
+      )}
+
+      {currentLoading && <p role="status">Cargando opciones…</p>}
+
+      {action.kind === "tariff" && !currentLoading && (
         <div className="grid gap-4 sm:grid-cols-2">
-          {pricePlans.length > 0 ? (
+          {currentPricePlans.length > 0 ? (
             <>
               <label className="grid gap-2">
                 <span className="text-sm font-bold">Tarifa mensual</span>
@@ -580,7 +1382,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   required
                 >
                   <option value="">Selecciona una tarifa</option>
-                  {pricePlans.map((plan) => (
+                  {currentPricePlans.map((plan) => (
                     <option key={plan.id} value={plan.id}>
                       {plan.name} ·{" "}
                       {formatMoney(plan.amountCents, plan.currency)}
@@ -614,7 +1416,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   setPricePlanOptionsError(false);
                   setOptionsRetry((current) => current + 1);
                 }}
-                disabled={busy || loading}
+                disabled={busy || currentLoading}
                 className={`${secondaryButtonClassName} w-fit`}
               >
                 Reintentar cargar tarifas
@@ -680,14 +1482,14 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   Marca cada clase activa a la que se aplicará esta tarifa. No
                   se incluirán otras clases automáticamente.
                 </p>
-                {classTemplates.length === 0 ? (
+                {currentClassTemplates.length === 0 ? (
                   <p role="status" className="text-sm text-slate-700">
                     No hay clases activas disponibles en esta sede. No se puede
                     crear una tarifa sin cobertura explícita.
                   </p>
                 ) : (
                   <ul className="grid gap-2 sm:grid-cols-2">
-                    {classTemplates.map((classTemplate) => {
+                    {currentClassTemplates.map((classTemplate) => {
                       const checkboxId = `monthly-price-plan-class-${classTemplate.id}`;
 
                       return (
@@ -725,7 +1527,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                     })}
                   </ul>
                 )}
-                {classTemplatesHasMore && (
+                {pricePlanOptionsMatchCurrentScope && classTemplatesHasMore && (
                   <p role="status" className="text-sm text-amber-900">
                     Hay más de 100 clases activas. La lista es parcial; solo se
                     cubrirán las clases que marques aquí.
@@ -802,13 +1604,13 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         </div>
       )}
 
-      {pricePlanNotice && (
+      {pricePlanNotice && pricePlanNoticeScope === currentScopeKey && (
         <p role="status" aria-live="polite" className="text-sm text-teal-900">
           {pricePlanNotice}
         </p>
       )}
 
-      {(action.kind === "family" || action.kind === "payer") && !loading && (
+      {(action.kind === "family" || action.kind === "payer") && !currentLoading && (
         <div className="grid gap-4">
           {action.kind === "family" ? (
             <label className="grid gap-2">
@@ -818,12 +1620,13 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                 onChange={(event) => {
                   setSelectedFamilyId(event.target.value);
                   setSelectedPayerId("");
+                  setPrimaryPayerConfirmationKey(null);
                 }}
                 disabled={busy}
                 className={fieldClassName}
               >
                 <option value="">Crear una familia nueva</option>
-                {families.map((family) => (
+                {currentFamilies.map((family) => (
                   <option key={family.familyId} value={family.familyId}>
                     {family.athletes.length
                       ? family.athletes
@@ -851,7 +1654,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
           )}
 
           {action.kind === "payer" &&
-            families
+            currentFamilies
               .find((family) => family.familyId === action.familyId)
               ?.athletes.map((athlete) => (
                 <label
@@ -861,13 +1664,14 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   <input
                     type="checkbox"
                     checked={athleteIds.includes(athlete.athleteId)}
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setAthleteIds((current) =>
                         event.target.checked
                           ? [...new Set([...current, athlete.athleteId])]
                           : current.filter((id) => id !== athlete.athleteId)
-                      )
-                    }
+                      );
+                      setPrimaryPayerConfirmationKey(null);
+                    }}
                     disabled={busy}
                     className="h-5 w-5 accent-teal-800"
                   />
@@ -880,7 +1684,10 @@ export function OwnerMonthlyInvoiceResolutionPanel({
               <span className="text-sm font-bold">Persona pagadora</span>
               <select
                 value={selectedPayerId}
-                onChange={(event) => setSelectedPayerId(event.target.value)}
+                onChange={(event) => {
+                  setSelectedPayerId(event.target.value);
+                  setPrimaryPayerConfirmationKey(null);
+                }}
                 disabled={busy}
                 className={fieldClassName}
               >
@@ -897,7 +1704,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             </label>
           ) : null}
 
-          {!selectedPayerId && (
+          {!selectedFamilyPayer && (
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="grid gap-2">
                 <span className="text-sm font-bold">
@@ -905,7 +1712,10 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                 </span>
                 <input
                   value={givenName}
-                  onChange={(event) => setGivenName(event.target.value)}
+                  onChange={(event) => {
+                    setGivenName(event.target.value);
+                    setPrimaryPayerConfirmationKey(null);
+                  }}
                   disabled={busy}
                   required
                   maxLength={100}
@@ -916,7 +1726,10 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                 <span className="text-sm font-bold">Apellidos</span>
                 <input
                   value={familyName}
-                  onChange={(event) => setFamilyName(event.target.value)}
+                  onChange={(event) => {
+                    setFamilyName(event.target.value);
+                    setPrimaryPayerConfirmationKey(null);
+                  }}
                   disabled={busy}
                   required
                   maxLength={100}
@@ -929,9 +1742,10 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                 </span>
                 <select
                   value={relationship}
-                  onChange={(event) =>
-                    setRelationship(event.target.value as typeof relationship)
-                  }
+                  onChange={(event) => {
+                    setRelationship(event.target.value as typeof relationship);
+                    setPrimaryPayerConfirmationKey(null);
+                  }}
                   disabled={busy}
                   className={fieldClassName}
                 >
@@ -944,12 +1758,32 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             </div>
           )}
 
+          {primaryPayerWillChange && (
+            <label className="flex min-h-11 items-start gap-3 border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950">
+              <input
+                type="checkbox"
+                checked={primaryPayerChangeConfirmed}
+                onChange={(event) =>
+                  setPrimaryPayerConfirmationKey(
+                    event.target.checked ? currentPayerConfirmationKey : null
+                  )
+                }
+                disabled={busy}
+                className="mt-1 h-5 w-5 accent-teal-800"
+              />
+              Confirmo que esta operación cambiará el pagador principal de toda la familia.
+            </label>
+          )}
+
           <label className="grid max-w-md gap-2">
             <span className="text-sm font-bold">Fecha efectiva</span>
             <input
               type="date"
               value={effectiveFrom}
-              onChange={(event) => setEffectiveFrom(event.target.value)}
+              onChange={(event) => {
+                setEffectiveFrom(event.target.value);
+                setPrimaryPayerConfirmationKey(null);
+              }}
               disabled={busy}
               required
               className={fieldClassName}
@@ -977,31 +1811,44 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       )}
 
       <div className="flex flex-wrap gap-3">
-        {action.kind === "tariff" ? (
+        {!pendingCommand && action.kind === "tariff" ? (
           <button
             type="button"
             onClick={() => void saveTariff()}
             disabled={
-              busy || loading || pricePlans.length === 0 || !selectedPricePlanId
+              blocked ||
+              busy ||
+              currentLoading ||
+              !pendingStorageReady ||
+              Boolean(pendingStorageError) ||
+              currentPricePlans.length === 0 ||
+              !selectedPricePlanId
             }
             className={primaryButtonClassName}
           >
             {busy ? "Guardando…" : "Guardar tarifa"}
           </button>
-        ) : (
+        ) : !pendingCommand ? (
           <button
             type="button"
             onClick={() => void saveAssociation()}
-            disabled={busy || loading}
+            disabled={
+              blocked ||
+              busy ||
+              currentLoading ||
+              !pendingStorageReady ||
+              Boolean(pendingStorageError) ||
+              (primaryPayerWillChange && !primaryPayerChangeConfirmed)
+            }
             className={primaryButtonClassName}
           >
             {busy ? "Guardando…" : "Guardar vínculo"}
           </button>
-        )}
+        ) : null}
         <button
           type="button"
           onClick={onCancel}
-          disabled={busy}
+          disabled={busy || pendingCommand !== null}
           className={secondaryButtonClassName}
         >
           Cancelar

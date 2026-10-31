@@ -1,7 +1,15 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { webcrypto } from "node:crypto";
 
 import type { OpenManualPaymentCharge } from "@/modules/billing/application/manual-payments";
 
@@ -17,13 +25,17 @@ vi.mock("@/components/owner-dashboard/FamilyCollectionModeCard", () => ({
 }));
 
 import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentForm";
+import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
+import { getCalendarDateInTimezone } from "@/modules/billing/domain/manual-payment-date";
 
-const organizationId = "10000000-0000-0000-0000-000000000001";
+const organizationId = "10000000-0000-4000-8000-000000000001";
+const actorId = "10000000-0000-4000-8000-000000000099";
 const charge: OpenManualPaymentCharge = {
-  chargeId: "10000000-0000-0000-0000-000000000301",
-  familyId: "10000000-0000-0000-0000-000000000201",
-  locationId: "10000000-0000-0000-0000-000000000101",
+  chargeId: "10000000-0000-4000-8000-000000000301",
+  familyId: "10000000-0000-4000-8000-000000000201",
+  locationId: "10000000-0000-4000-8000-000000000101",
   locationName: "Sede Centro",
+  locationTimezone: "Europe/Madrid",
   invoiceReference: "FAC-2026-014",
   payerName: "Familia de prueba",
   currency: "EUR",
@@ -55,8 +67,29 @@ function successfulResponseForBody(body: string) {
   };
 }
 
+function optionsPageResponse(
+  charges: OpenManualPaymentCharge[],
+  nextCursor: string | null
+) {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({ ok: true, data: { charges, nextCursor } }),
+  };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
+
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
+  window.sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
@@ -64,9 +97,18 @@ afterEach(() => {
 beforeEach(() => {
   mockRefresh.mockReset();
   mockFetch.mockReset();
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+  publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
   vi.stubGlobal("fetch", mockFetch);
+  const navigatorWithLocks = Object.create(window.navigator) as Navigator;
+  Object.defineProperty(navigatorWithLocks, "locks", {
+    value: { request: async (_name: string, _options: unknown, callback: () => Promise<unknown>) => callback() },
+  });
+  vi.stubGlobal("navigator", navigatorWithLocks);
   vi.stubGlobal("crypto", {
-    randomUUID: () => "synthetic-payment-id",
+    subtle: webcrypto.subtle,
+    randomUUID: () => "10000000-0000-4000-8000-000000000009",
   });
 });
 
@@ -74,6 +116,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
   it("explica el estado vacío sin presentar controles que no se pueden usar", () => {
     render(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={organizationId}
         charges={[]}
         canManageFamilyCollectionPreferences={false}
@@ -88,6 +131,149 @@ describe("registro manual de pagos en el dashboard owner", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
+  it("carga más cargos dentro del mismo ámbito sin perder la selección ni el importe editado", async () => {
+    const user = userEvent.setup();
+    const nextCharge: OpenManualPaymentCharge = {
+      ...charge,
+      chargeId: "10000000-0000-4000-8000-000000000302",
+      familyId: "10000000-0000-4000-8000-000000000202",
+      invoiceReference: "FAC-2026-015",
+      payerName: "Otra familia de prueba",
+      outstandingCents: 1800,
+    };
+    mockFetch.mockResolvedValueOnce(optionsPageResponse([nextCharge], null));
+
+    render(
+      <ManualPaymentForm
+        actorId={actorId}
+        organizationId={organizationId}
+        locationId={charge.locationId}
+        charges={[charge]}
+        nextCursor="cursor-de-la-misma-sede"
+        canManageFamilyCollectionPreferences={false}
+      />
+    );
+
+    const amount = screen.getByLabelText(/Importe recibido/);
+    await waitFor(() => expect(amount).toBeEnabled());
+    await user.clear(amount);
+    await user.type(amount, "12,50");
+    await user.click(screen.getByRole("button", { name: "Cargar más cargos" }));
+
+    expect(
+      await screen.findByRole("option", { name: /Otra familia de prueba/ })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Cargo pendiente")).toHaveValue(charge.chargeId);
+    expect(screen.getByLabelText(/Importe recibido/)).toHaveValue("12,50");
+    expect(mockFetch).toHaveBeenCalledOnce();
+
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit | undefined];
+    const query = new URL(url, "https://example.invalid").searchParams;
+    expect(query.get("organizationId")).toBe(organizationId);
+    expect(query.get("locationId")).toBe(charge.locationId);
+    expect(query.get("cursor")).toBe("cursor-de-la-misma-sede");
+    expect(init?.method).toBeUndefined();
+    expect(
+      screen.queryByRole("button", { name: "Cargar más cargos" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("ignora una página tardía del ámbito anterior y conserva el bloqueo de la nueva solicitud", async () => {
+    const user = userEvent.setup();
+    const organizationB = "10000000-0000-4000-8000-000000000002";
+    const locationB = "10000000-0000-4000-8000-000000000102";
+    const chargeB: OpenManualPaymentCharge = {
+      ...charge,
+      chargeId: "10000000-0000-4000-8000-000000000311",
+      familyId: "10000000-0000-4000-8000-000000000211",
+      locationId: locationB,
+      payerName: "Familia academia B",
+      invoiceReference: "FAC-B-001",
+    };
+    const chargeAExtra: OpenManualPaymentCharge = {
+      ...charge,
+      chargeId: "10000000-0000-4000-8000-000000000312",
+      familyId: "10000000-0000-4000-8000-000000000212",
+      payerName: "Cargo tardío academia A",
+      invoiceReference: "FAC-A-002",
+    };
+    const chargeBExtra: OpenManualPaymentCharge = {
+      ...chargeB,
+      chargeId: "10000000-0000-4000-8000-000000000313",
+      familyId: "10000000-0000-4000-8000-000000000213",
+      payerName: "Otra familia academia B",
+      invoiceReference: "FAC-B-002",
+    };
+    const responseA = deferred<ReturnType<typeof optionsPageResponse>>();
+    const responseB = deferred<ReturnType<typeof optionsPageResponse>>();
+    mockFetch
+      .mockReturnValueOnce(responseA.promise)
+      .mockReturnValueOnce(responseB.promise);
+
+    const { rerender } = render(
+      <ManualPaymentForm
+        actorId={actorId}
+        organizationId={organizationId}
+        locationId={charge.locationId}
+        charges={[charge]}
+        nextCursor="cursor-academia-a"
+        canManageFamilyCollectionPreferences={false}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Cargar más cargos" }));
+    expect(screen.getByRole("button", { name: "Cargando cargos…" })).toBeDisabled();
+
+    rerender(
+      <ManualPaymentForm
+        actorId={actorId}
+        organizationId={organizationB}
+        locationId={locationB}
+        charges={[chargeB]}
+        nextCursor="cursor-academia-b"
+        canManageFamilyCollectionPreferences={false}
+      />
+    );
+    expect(
+      await screen.findByRole("option", { name: /Familia academia B/ })
+    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Cargar más cargos" })
+      ).toBeEnabled();
+    });
+    await user.click(screen.getByRole("button", { name: "Cargar más cargos" }));
+    expect(screen.getByRole("button", { name: "Cargando cargos…" })).toBeDisabled();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    const [urlB] = mockFetch.mock.calls[1] as [string, RequestInit | undefined];
+    const queryB = new URL(urlB, "https://example.invalid").searchParams;
+    expect(queryB.get("organizationId")).toBe(organizationB);
+    expect(queryB.get("locationId")).toBe(locationB);
+    expect(queryB.get("cursor")).toBe("cursor-academia-b");
+
+    await act(async () => {
+      responseA.resolve(
+        optionsPageResponse([chargeAExtra], "cursor-academia-a-next")
+      );
+      await responseA.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(
+      screen.getByRole("button", { name: "Cargando cargos…" })
+    ).toBeDisabled();
+    expect(screen.queryByRole("option", { name: /Cargo tardío academia A/ })).not.toBeInTheDocument();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    responseB.resolve(optionsPageResponse([chargeBExtra], null));
+    expect(
+      await screen.findByRole("option", { name: /Otra familia academia B/ })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Cargo tardío academia A/ })).not.toBeInTheDocument();
+  });
+
   it("mantiene la confirmación si el pago deja la lista de cargos vacía", async () => {
     const user = userEvent.setup();
     let resolveResponseBody: ((value: unknown) => void) | undefined;
@@ -100,6 +286,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
     mockFetch.mockResolvedValueOnce({ ok: true, status: 201, json });
 
     const props = {
+      actorId,
       organizationId,
       charges: [charge],
       canManageFamilyCollectionPreferences: false,
@@ -153,6 +340,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
 
     render(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
         canManageFamilyCollectionPreferences={false}
@@ -182,7 +370,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
     const retryRequest = mockFetch.mock.calls[1]?.[1] as RequestInit;
     expect(firstRequest.headers).toEqual(retryRequest.headers);
     expect(firstRequest.headers).toMatchObject({
-      "idempotency-key": "owner-manual-payment:synthetic-payment-id",
+      "idempotency-key": "owner-manual-payment:10000000-0000-4000-8000-000000000009",
     });
     expect(firstRequest.body).toBe(retryRequest.body);
     expect(JSON.parse(String(firstRequest.body))).toMatchObject({
@@ -194,6 +382,114 @@ describe("registro manual de pagos en el dashboard owner", () => {
     expect(mockRefresh).toHaveBeenCalledOnce();
   });
 
+  it("tras recargar conserva a la vista el pago parcial original y distingue el saldo actual", async () => {
+    const user = userEvent.setup();
+    const receivedOn = getCalendarDateInTimezone(
+      new Date(Date.now() - 36 * 60 * 60 * 1000),
+      charge.locationTimezone
+    );
+    const originalCharge: OpenManualPaymentCharge = {
+      ...charge,
+      totalCents: 3500,
+      allocatedCents: 0,
+      outstandingCents: 3500,
+    };
+    const updatedCharge: OpenManualPaymentCharge = {
+      ...originalCharge,
+      allocatedCents: 1250,
+      outstandingCents: 2250,
+    };
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => {
+          throw new Error("respuesta perdida después de guardar");
+        },
+      })
+      .mockImplementationOnce(async (_url, init) =>
+        successfulResponseForBody(String(init?.body))
+      );
+
+    const firstPage = render(
+      <ManualPaymentForm
+        actorId={actorId}
+        organizationId={organizationId}
+        charges={[originalCharge]}
+        canManageFamilyCollectionPreferences={false}
+      />
+    );
+
+    const amountInput = screen.getByLabelText("Importe recibido");
+    await waitFor(() => expect(amountInput).toBeEnabled());
+    await user.clear(amountInput);
+    await user.type(amountInput, "12,50");
+    await user.selectOptions(screen.getByLabelText("Método de pago"), "cash");
+    fireEvent.change(screen.getByLabelText("Fecha de recepción"), {
+      target: { value: receivedOn },
+    });
+    await user.click(
+      screen.getByRole("button", { name: "Guardar pago recibido" })
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No sabemos si se guardó. Reintenta este mismo envío"
+    );
+    expect(mockFetch).toHaveBeenCalledOnce();
+    const originalRequest = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const originalBody = String(originalRequest.body);
+    const originalHeaders = originalRequest.headers;
+    expect(JSON.parse(originalBody)).toMatchObject({
+      organizationId,
+      chargeId: originalCharge.chargeId,
+      amountCents: 1250,
+      method: "cash",
+    });
+    firstPage.unmount();
+
+    render(
+      <ManualPaymentForm
+        actorId={actorId}
+        organizationId={organizationId}
+        charges={[updatedCharge]}
+        canManageFamilyCollectionPreferences={false}
+      />
+    );
+
+    const retryButton = await screen.findByRole("button", {
+      name: "Reintentar el mismo registro",
+    });
+    await waitFor(() => expect(retryButton).toBeEnabled());
+    expect(mockFetch).toHaveBeenCalledOnce();
+    expect(screen.getByLabelText("Importe del envío original")).toHaveValue(
+      "12.50"
+    );
+    expect(screen.getByLabelText("Método del envío original")).toHaveValue(
+      "cash"
+    );
+    expect(
+      screen.getByLabelText("Fecha original de recepción")
+    ).toHaveValue(receivedOn);
+    expect(screen.getByText(/Saldo actual del cargo: 22,50/u)).toBeVisible();
+    expect(screen.getByText(/Importe original: 12,50/u)).toBeVisible();
+
+    await user.click(retryButton);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Pago guardado y asignado al cargo."
+    );
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const retryRequest = mockFetch.mock.calls[1]?.[1] as RequestInit;
+    expect(retryRequest.headers).toEqual(originalHeaders);
+    expect(retryRequest.body).toBe(originalBody);
+    expect(JSON.parse(String(retryRequest.body))).toMatchObject({
+      organizationId,
+      chargeId: originalCharge.chargeId,
+      amountCents: 1250,
+      method: "cash",
+      receivedAt: JSON.parse(originalBody).receivedAt,
+    });
+  });
+
   it("admite coma decimal al registrar un pago parcial", async () => {
     const user = userEvent.setup();
     mockFetch.mockImplementationOnce(async (_url, init) =>
@@ -202,6 +498,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
 
     render(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
         canManageFamilyCollectionPreferences={false}
@@ -211,6 +508,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
     const amount = screen.getByLabelText(/Importe recibido/);
     expect(amount).toHaveAttribute("inputmode", "decimal");
     expect(screen.getByText(/Usa coma o punto decimal/)).toBeVisible();
+    await waitFor(() => expect(amount).toBeEnabled());
     await user.clear(amount);
     await user.type(amount, "12,50");
 
@@ -250,6 +548,7 @@ describe("registro manual de pagos en el dashboard owner", () => {
 
     render(
       <ManualPaymentForm
+        actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
         canManageFamilyCollectionPreferences={false}

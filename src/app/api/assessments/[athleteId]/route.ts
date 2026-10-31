@@ -9,6 +9,7 @@ import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
 import { verifyProgressAccess } from "@/lib/progress/service";
@@ -18,17 +19,17 @@ import {
 } from "@/lib/progress/session-context";
 
 const scoreSchema = z.object({
-  skillId: z.string().uuid(),
+  skillId: z.guid(),
   score: z.number().int().min(1).max(10),
   comments: z.string().nullable().optional(),
 });
 
 const createAssessmentSchema = z.object({
-  sessionId: z.string().uuid().nullable().optional(),
+  sessionId: z.guid().nullable().optional(),
   assessmentDate: z.string(), // YYYY-MM-DD
   assessmentType: z.enum(["technical", "artistic", "execution", "coach_feedback", "competition", "practice"]),
   apparatus: z.string().nullable().optional(),
-  sportConfigId: z.string().uuid().nullable().optional(),
+  sportConfigId: z.guid().nullable().optional(),
   scores: z.array(scoreSchema).optional(),
   overallComment: z.string().nullable().optional(),
   totalScore: z.number().nullable().optional(),
@@ -187,6 +188,8 @@ export const POST = withTenant(async (request, context) => {
     });
 
     await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, athleteRow.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, athleteRow.academyId, tx);
       await tx.insert(athleteAssessments).values({
         id: assessmentId,
         tenantId: context.tenantId,
@@ -369,7 +372,7 @@ export const PATCH = withTenant(async (request, context) => {
     if (!context.tenantId) return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
     const assessmentId = new URL(request.url).searchParams.get("assessmentId");
     if (!assessmentId) return apiError("ASSESSMENT_ID_REQUIRED", "Assessment ID is required", 400);
-    if (!z.string().uuid().safeParse(assessmentId).success) return apiError("ASSESSMENT_ID_INVALID", "Assessment ID is invalid", 400);
+    if (!z.guid().safeParse(assessmentId).success) return apiError("ASSESSMENT_ID_INVALID", "Assessment ID is invalid", 400);
 
     const [assessment] = await db
       .select({ id: athleteAssessments.id, academyId: athleteAssessments.academyId, tenantId: athleteAssessments.tenantId })
@@ -379,7 +382,14 @@ export const PATCH = withTenant(async (request, context) => {
     if (!assessment) return apiError("ASSESSMENT_NOT_FOUND", "Evaluación no encontrada", 404);
     const scope = await authorizeAcademyCapability({ context, resourceTenantId: assessment.tenantId, academyId: assessment.academyId, permission: "athletes:update" });
     if (!scope.allowed) return apiError("ASSESSMENT_NOT_FOUND", "Evaluación no encontrada", 404);
-    const [updated] = await db.update(athleteAssessments).set({ visibleToGuardians: body.data.visibleToGuardians }).where(eq(athleteAssessments.id, assessment.id)).returning({ id: athleteAssessments.id, visibleToGuardians: athleteAssessments.visibleToGuardians });
+    const [updated] = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, assessment.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, assessment.academyId, tx);
+      return tx.update(athleteAssessments)
+        .set({ visibleToGuardians: body.data.visibleToGuardians })
+        .where(and(eq(athleteAssessments.id, assessment.id), eq(athleteAssessments.tenantId, context.tenantId!)))
+        .returning({ id: athleteAssessments.id, visibleToGuardians: athleteAssessments.visibleToGuardians });
+    });
     return apiSuccess({ assessment: updated });
   } catch (error) { return handleApiError(error); }
 });

@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     if (!user || !user.email) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
-    if (!z.string().uuid().safeParse(chargeId).success) {
+    if (!z.guid().safeParse(chargeId).success) {
       return NextResponse.json({ error: "INVALID_CHARGE_ID" }, { status: 400 });
     }
 

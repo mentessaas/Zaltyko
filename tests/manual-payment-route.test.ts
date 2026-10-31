@@ -18,10 +18,10 @@ vi.mock("@/modules/owner-dashboard/application/owner-scope", () => ({
   resolveOwnerScope: vi.fn(),
 }));
 
-const actorUserId = "10000000-0000-0000-0000-000000000101";
-const organizationId = "10000000-0000-0000-0000-000000000001";
-const memberId = "10000000-0000-0000-0000-000000000201";
-const chargeId = "10000000-0000-0000-0000-000000000301";
+const actorUserId = "10000000-0000-4000-8000-000000000101";
+const organizationId = "10000000-0000-4000-8000-000000000001";
+const memberId = "10000000-0000-4000-8000-000000000201";
+const chargeId = "10000000-0000-4000-8000-000000000301";
 
 function postRequest(
   body: unknown,
@@ -63,14 +63,14 @@ describe("manual payment endpoint", () => {
     });
     vi.mocked(recordManualPaymentForCharge).mockResolvedValue({
       payment: {
-        id: "10000000-0000-0000-0000-000000000401",
+        id: "10000000-0000-4000-8000-000000000401",
         amountCents: 2500,
         currency: "EUR",
         receivedAt: new Date("2026-10-13T11:00:00.000Z"),
         manualMethod: "bank_transfer",
       } as never,
       allocation: {
-        id: "10000000-0000-0000-0000-000000000501",
+        id: "10000000-0000-4000-8000-000000000501",
         chargeId,
       } as never,
     });
@@ -152,7 +152,7 @@ describe("manual payment endpoint", () => {
         amountCents: 2500,
         method: "bank_transfer",
         receivedAt: "2026-10-13T11:00:00.000Z",
-        actor: { userId: "20000000-0000-0000-0000-000000000101", memberId },
+        actor: { userId: "20000000-0000-4000-8000-000000000101", memberId },
       })
     );
 

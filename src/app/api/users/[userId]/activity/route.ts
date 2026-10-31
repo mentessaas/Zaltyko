@@ -11,7 +11,7 @@ import {
 } from "@/lib/authz/audit-service";
 
 const QuerySchema = z.object({
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
   days: z.coerce.number().int().min(1).max(365).default(30),
 });
 

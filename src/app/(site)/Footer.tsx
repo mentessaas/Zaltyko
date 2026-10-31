@@ -5,32 +5,14 @@ const footerLinks = {
   producto: [
     { label: "Producto", href: "/features" },
     { label: "Precios", href: "/pricing" },
-    { label: "Comparativas", href: "/comparativas" },
-    { label: "Integraciones", href: "/integraciones" },
-    { label: "Documentación", href: "/docs" },
+    { label: "Crear academia", href: "/auth/register?role=owner" },
   ],
-  recursos: [
-    { label: "Blog", href: "/blog" },
-    { label: "Directorio de Academias", href: "/academias" },
-    { label: "Eventos", href: "/events" },
-    { label: "Centro de Ayuda", href: "/ayuda" },
-    { label: "Crear cuenta gratis", href: "/auth/register?role=owner" },
-  ],
-  // Clusteres principales para SEO local (es + en). Anchor text descriptivo
-  // refuerza autoridad topical en SERPs por país/modalidad.
-  descubre: [
-    { label: "Gimnasia artística en España", href: "/es/gimnasia-artistica/espana" },
-    { label: "Gimnasia rítmica en España", href: "/es/gimnasia-ritmica/espana" },
-    { label: "Gimnasia artística en México", href: "/es/gimnasia-artistica/mexico" },
-    { label: "Gimnasia artística en Argentina", href: "/es/gimnasia-artistica/argentina" },
-    { label: "Gimnasia rítmica en Colombia", href: "/es/gimnasia-ritmica/colombia" },
-  ],
-  empresa: [
-    { label: "Sobre nosotros", href: "/sobre-nosotros" },
+  ayuda: [
     { label: "Contacto", href: "/contact" },
-    { label: "Trabaja con nosotros", href: "/empleo" },
+    { label: "Iniciar sesión", href: "/auth/login" },
   ],
   legal: [
+    { label: "Identificación del titular", href: "/terminos#titular" },
     { label: "Términos del servicio", href: "/terminos" },
     { label: "Política de privacidad", href: "/politica-privacidad" },
     { label: "Cookies", href: "/politica-privacidad#cookies" },

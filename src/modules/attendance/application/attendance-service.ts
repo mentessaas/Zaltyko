@@ -12,6 +12,7 @@ import {
 } from "@/db/zaltyko-schema";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import {
   appendAuditEntry,
@@ -22,10 +23,10 @@ import {
 } from "@/modules/shared/infrastructure/transactional-records";
 
 const recordAttendanceSchema = z.object({
-  organizationId: z.string().uuid(),
-  expectedLocationId: z.string().uuid().optional(),
-  sessionId: z.string().uuid(),
-  enrollmentId: z.string().uuid(),
+  organizationId: z.guid(),
+  expectedLocationId: z.guid().optional(),
+  sessionId: z.guid(),
+  enrollmentId: z.guid(),
   status: z.enum(["present", "absent", "excused", "late"]),
   idempotencyKey: z.string().trim().min(8).max(180),
   actor: operationalActorSchema,
@@ -134,16 +135,41 @@ export async function recordAttendance(
         enrollmentId: input.enrollmentId,
         status: input.status,
       });
-    }
-    const priorAttendanceId = priorEvent?.payload.attendanceId;
-    if (typeof priorAttendanceId === "string") {
+      const parsedAttendanceId = z.string().uuid().safeParse(priorEvent.payload.attendanceId);
+      if (
+        !parsedAttendanceId.success ||
+        priorEvent.aggregateType !== "attendance" ||
+        priorEvent.aggregateId !== parsedAttendanceId.data
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "El registro previo no identifica una asistencia coherente",
+          409
+        );
+      }
       const prior = await loadAttendance(
         tx,
         input.organizationId,
-        priorAttendanceId
+        parsedAttendanceId.data
       );
-      if (prior) return prior;
+      if (
+        !prior ||
+        prior.sessionId !== input.sessionId ||
+        prior.enrollmentId !== input.enrollmentId ||
+        prior.status !== input.status
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "La asistencia del resultado anterior ya no coincide con la operación",
+          409
+        );
+      }
+      return prior;
     }
+
+    // A replay only recovers an already committed record; enforce the plan's
+    // write gate only when this command would create or correct attendance.
+    await assertOrganizationOperationalWritable(tx, input.organizationId);
 
     if (session.status === "cancelled") {
       throw new OperationalError(

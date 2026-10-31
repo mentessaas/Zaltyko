@@ -4,7 +4,7 @@ let GET: typeof import("@/app/api/classes/route").GET;
 let POST: typeof import("@/app/api/classes/route").POST;
 
 const originalEnv = { ...process.env };
-const ACADEMY_ID = "11111111-1111-1111-1111-111111111111";
+const ACADEMY_ID = "11111111-1111-4111-8111-111111111111";
 
 let selectQueue: any[] = [];
 let insertCalls: Array<{ table: unknown; payload: unknown }> = [];
@@ -47,6 +47,8 @@ describe("API /api/classes", () => {
 
     vi.doMock("@/lib/limits", () => ({
       assertWithinPlanLimits: vi.fn().mockResolvedValue(undefined),
+      assertAcademyOperationalWritable: vi.fn().mockResolvedValue({ readOnly: false }),
+      lockAcademyOperationalWrites: vi.fn().mockResolvedValue(undefined),
     }));
     const limitsModule = await import("@/lib/limits");
     assertWithinPlanLimits = limitsModule.assertWithinPlanLimits as unknown as ReturnType<

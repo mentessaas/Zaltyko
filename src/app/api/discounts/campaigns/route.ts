@@ -9,8 +9,8 @@ import { db } from "@/db";
 import { discountCampaigns, discounts } from "@/db/schema";
 
 const createCampaignSchema = z.object({
-  academyId: z.string().uuid(),
-  discountId: z.string().uuid(),
+  academyId: z.guid(),
+  discountId: z.guid(),
   name: z.string().min(1),
   description: z.string().optional(),
   startDate: z.string(),

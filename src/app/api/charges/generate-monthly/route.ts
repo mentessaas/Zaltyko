@@ -18,11 +18,13 @@ import { getMonthlyFeeForAthlete } from "@/lib/billing/athlete-fees";
 import { formatPeriodToMonthName } from "@/lib/billing/athlete-fees";
 import { logger } from "@/lib/logger";
 import { getCurrencyForCountry } from "@/lib/currency";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const GenerateMonthlyChargesSchema = z.object({
-  academyId: z.string().uuid(),
-  groupId: z.string().uuid().nullable().optional(),
-  sportConfigId: z.string().uuid().nullable().optional(),
+  academyId: z.guid(),
+  groupId: z.guid().nullable().optional(),
+  sportConfigId: z.guid().nullable().optional(),
   period: z
     .string()
     .regex(/^\d{4}-\d{2}$/, "El periodo debe tener formato YYYY-MM"),
@@ -302,16 +304,25 @@ export const POST = withTenant(async (request, context) => {
     }
 
     // Insert charges in batch
-    await db
-      .insert(charges)
-      .values(newCharges)
-      // Respaldo de BD anti-doble-cargo (índice único academy/athlete/period):
-      // una carrera concurrente no duplica los cargos.
-      .onConflictDoNothing();
+    const insertedCharges = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, body.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, body.academyId, tx);
+      return tx
+        .insert(charges)
+        .values(newCharges)
+        // Respaldo de BD anti-doble-cargo (índice único academy/athlete/period):
+        // una carrera concurrente no duplica los cargos.
+        .onConflictDoNothing()
+        .returning({ id: charges.id });
+    });
+
+    const created = insertedCharges.length;
+    // Incluye los conflictos aparecidos después de comprobar duplicados.
+    skipped += newCharges.length - created;
 
     return apiCreated({
-      message: `Se generaron ${newCharges.length} cargo${newCharges.length === 1 ? "" : "s"}.`,
-      created: newCharges.length,
+      message: `Se generaron ${created} cargo${created === 1 ? "" : "s"}.`,
+      created,
       skipped,
     });
   } catch (error) {

@@ -47,6 +47,7 @@ import {
 describe("Stripe Connect webhook hardening", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.STRIPE_SECRET_KEY = "sk_test_connect_webhook";
     process.env.STRIPE_CONNECT_WEBHOOK_SECRET = "whsec_connect_test";
     mocks.recordBillingEvent.mockResolvedValue({ id: "event-row", shouldProcess: true });
     mocks.updateBillingEventStatus.mockResolvedValue(undefined);
@@ -54,6 +55,7 @@ describe("Stripe Connect webhook hardening", () => {
 
   afterEach(() => {
     delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+    delete process.env.STRIPE_SECRET_KEY;
   });
 
   it("falla cerrado si falta el secreto", async () => {
@@ -89,7 +91,7 @@ describe("Stripe Connect webhook hardening", () => {
 
   it("descarta un evento duplicado sin reprocesarlo", async () => {
     mocks.recordBillingEvent.mockResolvedValue({ id: "event-row", shouldProcess: false });
-    const result = await processConnectEvent({ id: "evt_dup", type: "payment_intent.succeeded" } as never);
+    const result = await processConnectEvent({ id: "evt_dup", type: "payment_intent.succeeded", livemode: false } as never);
     expect(result).toEqual({ duplicate: true, rejected: false });
     expect(mocks.succeeded).not.toHaveBeenCalled();
   });
@@ -99,11 +101,12 @@ describe("Stripe Connect webhook hardening", () => {
     await processConnectEvent({
       id: "evt_ok",
       type: "payment_intent.succeeded",
+      livemode: false,
       account: "acct_academy",
       data: { object: paymentIntent },
     } as never);
 
-    expect(mocks.succeeded).toHaveBeenCalledWith(paymentIntent, "acct_academy");
+    expect(mocks.succeeded).toHaveBeenCalledWith(paymentIntent, "acct_academy", false);
     expect(mocks.updateBillingEventStatus).toHaveBeenCalledWith(
       "event-row",
       expect.objectContaining({ status: "processed" })
@@ -114,6 +117,7 @@ describe("Stripe Connect webhook hardening", () => {
     const result = await processConnectEvent({
       id: "evt_cross",
       type: "account.updated",
+      livemode: false,
       account: "acct_other",
       data: { object: { id: "acct_expected" } },
     } as never);
@@ -132,6 +136,7 @@ describe("Stripe Connect webhook hardening", () => {
       processConnectEvent({
         id: "evt_db",
         type: "account.updated",
+        livemode: false,
         account: "acct_1",
         data: { object: { id: "acct_1" } },
       } as never)
@@ -139,6 +144,23 @@ describe("Stripe Connect webhook hardening", () => {
     expect(mocks.updateBillingEventStatus).toHaveBeenCalledWith(
       "event-row",
       expect.objectContaining({ status: "error" })
+    );
+  });
+
+  it("acknowledges and records a mode mismatch without reconciling the event", async () => {
+    const result = await processConnectEvent({
+      id: "evt_live_on_test",
+      type: "account.updated",
+      livemode: true,
+      account: "acct_1",
+      data: { object: { id: "acct_1" } },
+    } as never);
+
+    expect(result).toEqual({ duplicate: false, rejected: true });
+    expect(mocks.syncConnectAccountFromStripe).not.toHaveBeenCalled();
+    expect(mocks.updateBillingEventStatus).toHaveBeenCalledWith(
+      "event-row",
+      expect.objectContaining({ status: "processed", errorMessage: "CONNECT_ENVIRONMENT_MISMATCH" })
     );
   });
 });

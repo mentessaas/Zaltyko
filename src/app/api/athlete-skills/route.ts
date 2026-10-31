@@ -10,14 +10,14 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { createNotification } from "@/lib/notifications/notification-service";
 
 const querySchema = z.object({
-  athleteId: z.string().uuid(),
-  skillId: z.string().uuid().optional(),
+  athleteId: z.guid(),
+  skillId: z.guid().optional(),
   limit: z.coerce.number().int().min(1).max(500).default(100),
 });
 
 const createSchema = z.object({
-  athleteId: z.string().uuid(),
-  skillId: z.string().uuid(),
+  athleteId: z.guid(),
+  skillId: z.guid(),
   status: z.enum(["learning", "competing", "mastered"]).default("learning"),
   score: z.number().int().min(0).max(100).nullable().optional(),
   observedAt: z.string().date(),

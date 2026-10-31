@@ -7,6 +7,9 @@ import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { handleApiError } from "@/lib/api-error-handler";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 import {
   conversations,
   conversationParticipants,
@@ -27,7 +30,7 @@ const SendMessageSchema = z.object({
   attachmentUrl: z.string().url().optional(),
   attachmentType: z.enum(["image", "file", "video"]).optional(),
   attachmentName: z.string().max(255).optional(),
-  replyToId: z.string().uuid().optional(),
+  replyToId: z.guid().optional(),
 });
 
 /**
@@ -195,62 +198,95 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
 
     const { content, attachmentUrl, attachmentType, attachmentName, replyToId } = body;
 
-    if (replyToId) {
-      const [replyTarget] = await db
-        .select({ id: conversationMessages.id })
-        .from(conversationMessages)
-        .where(
-          and(
-            eq(conversationMessages.id, replyToId),
-            eq(conversationMessages.conversationId, conversationId)
-          )
-        )
+    const sent = await withTransaction(async (tx) => {
+      const [currentConversation] = await tx
+        .select({ id: conversations.id, tenantId: conversations.tenantId, academyId: conversations.academyId })
+        .from(conversations)
+        .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)))
         .limit(1);
-      if (!replyTarget) {
-        return apiError("VALIDATION_ERROR", "El mensaje al que respondes no pertenece a esta conversación", 400);
+      if (!currentConversation) return { kind: "conversation-not-found" as const };
+
+      if (currentConversation.academyId) {
+        await lockAcademyOperationalWrites(tx, currentConversation.academyId);
+        await assertAcademyOperationalWritable(context.tenantId, currentConversation.academyId, tx);
       }
-    }
 
-    // Create message
-    const [message] = await db
-      .insert(conversationMessages)
-      .values({
-        conversationId,
-        senderId: profile.id,
-        content: content.trim(),
-        attachmentUrl: attachmentUrl || null,
-        attachmentType: attachmentType || null,
-        attachmentName: attachmentName || null,
-        replyToId: replyToId || null,
-      })
-      .returning();
+      const [currentParticipant] = await tx
+        .select({ mutedUntil: conversationParticipants.mutedUntil })
+        .from(conversationParticipants)
+        .where(and(
+          eq(conversationParticipants.conversationId, conversationId),
+          eq(conversationParticipants.userId, profile.id),
+        ))
+        .limit(1);
+      if (!currentParticipant) return { kind: "participant-not-found" as const };
+      if (currentParticipant.mutedUntil && new Date(currentParticipant.mutedUntil) > new Date()) {
+        return { kind: "muted" as const };
+      }
 
-    // Update conversation
-    await db
-      .update(conversations)
-      .set({
-        lastMessagePreview: content.substring(0, 100),
-        lastMessageAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)));
+      if (replyToId) {
+        const [replyTarget] = await tx
+          .select({ id: conversationMessages.id })
+          .from(conversationMessages)
+          .where(and(
+            eq(conversationMessages.id, replyToId),
+            eq(conversationMessages.conversationId, conversationId),
+          ))
+          .limit(1);
+        if (!replyTarget) return { kind: "invalid-reply" as const };
+      }
 
-    // Get conversation info for notifications
-    // Get all other participants
-    const otherParticipants = await db
-      .select({
-        userId: conversationParticipants.userId,
-        notificationsEnabled: conversationParticipants.notificationsEnabled,
-        mutedUntil: conversationParticipants.mutedUntil,
-      })
-      .from(conversationParticipants)
-      .where(
-        and(
+      const [message] = await tx
+        .insert(conversationMessages)
+        .values({
+          conversationId,
+          senderId: profile.id,
+          content: content.trim(),
+          attachmentUrl: attachmentUrl || null,
+          attachmentType: attachmentType || null,
+          attachmentName: attachmentName || null,
+          replyToId: replyToId || null,
+        })
+        .returning();
+
+      await tx
+        .update(conversations)
+        .set({
+          lastMessagePreview: content.substring(0, 100),
+          lastMessageAt: message.createdAt,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)));
+
+      const otherParticipants = await tx
+        .select({
+          userId: conversationParticipants.userId,
+          notificationsEnabled: conversationParticipants.notificationsEnabled,
+          mutedUntil: conversationParticipants.mutedUntil,
+        })
+        .from(conversationParticipants)
+        .where(and(
           eq(conversationParticipants.conversationId, conversationId),
           sql`${conversationParticipants.userId} != ${profile.id}`
-        )
-      )
-      .limit(100);
+        ))
+        .limit(100);
+
+      return { kind: "ok" as const, message, conversation: currentConversation, otherParticipants };
+    });
+
+    if (sent.kind === "conversation-not-found") {
+      return apiError("FORBIDDEN", "La conversación no pertenece al tenant activo", 403);
+    }
+    if (sent.kind === "participant-not-found") {
+      return apiError("FORBIDDEN", "No tienes acceso a esta conversación", 403);
+    }
+    if (sent.kind === "muted") {
+      return apiError("MUTED", "Tienes esta conversación silenciada", 403);
+    }
+    if (sent.kind === "invalid-reply") {
+      return apiError("VALIDATION_ERROR", "El mensaje al que respondes no pertenece a esta conversación", 400);
+    }
+    const { message, conversation: currentConversation, otherParticipants } = sent;
 
     // Send notifications to other participants
     const notificationsToSend: Array<{
@@ -269,24 +305,31 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
     for (const p of notificationsToSend) {
       if (!p.enabled || p.muted) continue;
 
-      const messageUrl = conversation?.academyId
-        ? `/app/${conversation.academyId}/messages`
+      const messageUrl = currentConversation.academyId
+        ? `/app/${currentConversation.academyId}/messages`
         : `/dashboard/messages/${conversationId}`;
 
-      // In-app notification
-      await createNotification({
-        userId: p.userId,
-        tenantId: conversation?.tenantId || "",
-        type: "new_message",
-        title: "Nuevo mensaje",
-        message: content.substring(0, 100),
-        data: {
+      try {
+        await createNotification({
+          userId: p.userId,
+          tenantId: currentConversation.tenantId,
+          type: "new_message",
+          title: "Nuevo mensaje",
+          message: content.substring(0, 100),
+          data: {
+            conversationId,
+            messageId: message.id,
+            senderId: profile.id,
+            url: messageUrl,
+          },
+        });
+      } catch (notificationError) {
+        logger.warn("Message notification could not be delivered", {
           conversationId,
-          messageId: message.id,
-          senderId: profile.id,
-          url: messageUrl,
-        },
-      });
+          recipientId: p.userId,
+          error: notificationError,
+        });
+      }
 
       // Push notification (fire and forget)
       sendPushToUser(p.userId, {
@@ -303,13 +346,17 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
     }
 
     // Track event
-    trackEvent("message_sent", {
-      metadata: {
-        conversationId,
-        messageId: message.id,
-        hasAttachment: !!attachmentUrl,
-      },
-    });
+    try {
+      trackEvent("message_sent", {
+        metadata: {
+          conversationId,
+          messageId: message.id,
+          hasAttachment: !!attachmentUrl,
+        },
+      });
+    } catch (trackingError) {
+      logger.warn("Message telemetry could not be recorded", { conversationId, error: trackingError });
+    }
 
     return apiSuccess({
       id: message.id,
@@ -317,6 +364,6 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
     });
   } catch (error) {
     logger.error("Error sending message:", error);
-    return apiError("INTERNAL_ERROR", "Error al enviar mensaje", 500);
+    return handleApiError(error, { endpoint: "/api/messages/conversations/[id]/messages", method: "POST" });
   }
 });

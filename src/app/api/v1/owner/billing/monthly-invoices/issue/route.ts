@@ -16,10 +16,10 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const bodySchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
-    familyId: z.string().uuid(),
-    familyPayerId: z.string().uuid(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
+    familyId: z.guid(),
+    familyPayerId: z.guid(),
     servicePeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
     dueDate: z.string().date(),
     quoteHash: z.string().regex(/^[a-f0-9]{64}$/),

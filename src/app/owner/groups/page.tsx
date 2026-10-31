@@ -17,9 +17,9 @@ export const metadata: Metadata = {
 };
 
 const querySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
-  groupId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
+  groupId: z.guid().optional(),
 });
 
 export default async function OwnerGroupsPage({
@@ -58,6 +58,7 @@ export default async function OwnerGroupsPage({
         redirect("/owner/setup");
       }
       if (
+        error.code === "NOT_FOUND" ||
         error.code === "FORBIDDEN" ||
         error.code === "LOCATION_SCOPE_DENIED" ||
         error.code === "INVALID_RELATION"

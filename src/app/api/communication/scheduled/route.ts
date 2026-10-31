@@ -13,9 +13,9 @@ import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 export const dynamic = 'force-dynamic';
 
 const createScheduledSchema = z.object({
-  academyId: z.string().uuid(),
-  groupId: z.string().uuid().optional(),
-  templateId: z.string().uuid().optional(),
+  academyId: z.guid(),
+  groupId: z.guid().optional(),
+  templateId: z.guid().optional(),
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).default("whatsapp"),
   scheduledFor: z.string().datetime(),
 }).superRefine((value, ctx) => {
@@ -40,7 +40,7 @@ export const GET = withTenant(async (request, context) => {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
   const academyId = new URL(request.url).searchParams.get("academyId");
-  if (!academyId || !z.string().uuid().safeParse(academyId).success) {
+  if (!academyId || !z.guid().safeParse(academyId).success) {
     return apiError("ACADEMY_REQUIRED", "Academy ID is required", 400);
   }
   const readScope = await authorizeAcademyCapability({ context, resourceTenantId: context.tenantId, academyId, permission: "communications:read" });

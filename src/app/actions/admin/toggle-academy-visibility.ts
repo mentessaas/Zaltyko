@@ -13,7 +13,7 @@ import { logger } from "@/lib/logger";
 import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
 
 const ToggleVisibilitySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   isPublic: z.boolean(),
 });
 

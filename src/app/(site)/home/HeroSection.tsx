@@ -53,14 +53,14 @@ export default function HeroSection() {
             </h1>
             <Reveal delay={550}>
               <p className="mb-3 font-display text-xl font-medium text-zaltyko-text-secondary sm:text-2xl">
-                Cuotas cobradas, grupos montados y lista pasada.
+                Grupos organizados, asistencia y cuotas al día.
               </p>
             </Reveal>
 
             {/* Subtitle */}
             <Reveal delay={650}>
               <p className="mb-8 max-w-xl text-lg leading-relaxed text-zaltyko-text-secondary">
-                Zaltyko es el software de gestión hecho solo para clubes de gimnasia artística y rítmica: gimnastas por nivel y aparato, cuotas recurrentes, asistencia por sesión y familias informadas.
+                Zaltyko es el software de gestión hecho solo para clubes de gimnasia artística y rítmica: gimnastas y familias, grupos y clases, asistencia por sesión y cuotas con registro manual de pagos.
               </p>
             </Reveal>
 
@@ -141,7 +141,7 @@ export default function HeroSection() {
               </ul>
             </div>
             <p className="mt-3 text-xs text-zaltyko-text-light">
-              Así se pasa lista desde el móvil, sesión por sesión.
+              Vista ilustrativa con datos ficticios del registro de asistencia.
             </p>
           </div>
           </Reveal>

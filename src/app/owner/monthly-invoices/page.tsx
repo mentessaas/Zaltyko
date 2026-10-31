@@ -17,8 +17,8 @@ export const metadata: Metadata = {
 };
 
 const querySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
   servicePeriod: z
     .string()
     .regex(/^\d{4}-(0[1-9]|1[0-2])$/)

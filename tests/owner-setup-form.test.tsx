@@ -23,6 +23,11 @@ const freshSignupConsent = {
   policyVersion: "v1-2026-10-14",
   requiresAcceptance: false,
 };
+const setupReceipt = {
+  organizationId: "a0000000-0000-4000-8000-000000000001",
+  locationId: "a0000000-0000-4000-8000-000000000002",
+  memberId: "a0000000-0000-4000-8000-000000000003",
+};
 
 function renderFreshSignupForm() {
   return render(<OwnerSetupForm contractualConsent={freshSignupConsent} />);
@@ -67,7 +72,7 @@ describe("alta owner greenfield", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ organizationId: "synthetic-organization" }),
+        json: async () => setupReceipt,
       });
 
     renderFreshSignupForm();
@@ -108,7 +113,7 @@ describe("alta owner greenfield", () => {
       "contractualAcceptance"
     );
     expect(mockReplace).toHaveBeenCalledWith(
-      "/owner?organizationId=synthetic-organization"
+      `/owner?organizationId=${setupReceipt.organizationId}`
     );
   });
 
@@ -119,7 +124,7 @@ describe("alta owner greenfield", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ organizationId: "synthetic-organization" }),
+        json: async () => setupReceipt,
       });
 
     renderFreshSignupForm();
@@ -147,7 +152,7 @@ describe("alta owner greenfield", () => {
       "idempotency-key": "synthetic-bootstrap-key",
     });
     expect(mockReplace).toHaveBeenCalledWith(
-      "/owner?organizationId=synthetic-organization"
+      `/owner?organizationId=${setupReceipt.organizationId}`
     );
   });
 
@@ -168,7 +173,7 @@ describe("alta owner greenfield", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ organizationId: "synthetic-organization" }),
+        json: async () => setupReceipt,
       });
 
     renderFreshSignupForm();
@@ -218,7 +223,7 @@ describe("alta owner greenfield", () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 201,
-      json: async () => ({ organizationId: "synthetic-organization" }),
+      json: async () => setupReceipt,
     });
     render(
       <OwnerSetupForm

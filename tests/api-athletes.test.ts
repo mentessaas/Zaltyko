@@ -83,6 +83,8 @@ describe("API /api/athletes", () => {
 
     vi.doMock("@/lib/limits", () => ({
       assertWithinPlanLimits: assertWithinPlanLimitsMock,
+      assertAcademyOperationalWritable: vi.fn().mockResolvedValue({ readOnly: false }),
+      lockAcademyOperationalWrites: vi.fn().mockResolvedValue(undefined),
     }));
 
     vi.doMock("@/lib/billing/sync-charges", () => ({
@@ -141,7 +143,7 @@ describe("API /api/athletes", () => {
       const { POST } = await import("@/app/api/athletes/route");
 
       const payload = {
-        academyId: "11111111-1111-1111-1111-111111111111",
+        academyId: "11111111-1111-4111-8111-111111111111",
         name: "Lucía Márquez",
         level: "FIG 5",
         status: "active",
@@ -168,13 +170,13 @@ describe("API /api/athletes", () => {
       expect(data.data.id).toEqual(expect.any(String));
       expect(assertWithinPlanLimitsMock).toHaveBeenCalledWith(
         "tenant-123",
-        "11111111-1111-1111-1111-111111111111",
+        "11111111-1111-4111-8111-111111111111",
         "athletes"
       );
 
       const athleteInsert = mockInsertCalls[0];
       expect(athleteInsert?.payload).toMatchObject({
-        academyId: "11111111-1111-1111-1111-111111111111",
+        academyId: "11111111-1111-4111-8111-111111111111",
         name: "Lucía Márquez",
         level: "FIG 5",
         status: "active",
@@ -201,7 +203,7 @@ describe("API /api/athletes", () => {
               level: "FIG 5",
               status: "active",
               dob: "2010-05-14",
-              academyId: "11111111-1111-1111-1111-111111111111",
+              academyId: "11111111-1111-4111-8111-111111111111",
               academyName: "Gymna Training Center",
               age: 14,
               guardianCount: 2,
@@ -211,7 +213,7 @@ describe("API /api/athletes", () => {
       ];
 
       const request = new Request(
-        "http://localhost/api/athletes?status=active&academyId=11111111-1111-1111-1111-111111111111",
+        "http://localhost/api/athletes?status=active&academyId=11111111-1111-4111-8111-111111111111",
         {
           method: "GET",
         }

@@ -96,7 +96,7 @@ describe("llms contract", () => {
     expect(content).not.toMatch(/Starter[^\n]*ilimitad[ao]/i);
     expect(content).not.toMatch(/Growth[^\n]*ilimitad[ao]/i);
     // Network sí es multi-sede; permitimos "ilimitado" allí.
-    expect(content).toMatch(/Network[^\n]*ilimitado/i);
+    expect(content).toMatch(/Network[^\n]*contratación acompañada/i);
   });
 
   it("llms-full.txt documenta explícitamente la lista de claims prohibidos", async () => {
@@ -110,8 +110,7 @@ describe("llms contract", () => {
     // prohibidos por Mensajes aprobados. Validamos que están documentados
     // como prohibidos, no que estén ausentes (porque la sección los
     // menciona literalmente como ejemplos de lo que no se usa).
-    expect(content).toContain("No se publica:");
-    expect(content).toContain('"100% seguro"');
-    expect(content).toContain('"RGPD Compliant"');
+    expect(content).toContain("no forman parte de esta versión");
+    expect(content).not.toMatch(/100% seguro|RGPD Compliant|Federaciones integradas/);
   });
 });

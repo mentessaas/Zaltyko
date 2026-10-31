@@ -17,7 +17,7 @@ export const GET = withTenant(async (request, context) => {
   const academyId = url.searchParams.get("academyId");
   const athleteId = url.searchParams.get("athleteId");
 
-  const parsedIds = z.object({ academyId: z.string().uuid(), athleteId: z.string().uuid().optional() }).safeParse({
+  const parsedIds = z.object({ academyId: z.guid(), athleteId: z.guid().optional() }).safeParse({
     academyId,
     athleteId: athleteId || undefined,
   });

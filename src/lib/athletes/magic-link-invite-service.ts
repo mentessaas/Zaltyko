@@ -14,6 +14,7 @@ import { getAppUrl } from "@/lib/env";
 import { trackEvent } from "@/lib/analytics";
 import { logger } from "@/lib/logger";
 import { isAcademyBlockedFromSending } from "@/lib/academy-status";
+import { assertWithinPlanLimits } from "@/lib/limits";
 
 export const ATHLETE_INVITE_BULK_MAX = 10;
 export const ATHLETE_INVITE_DEFAULT_EXPIRES_DAYS = 7;
@@ -200,6 +201,10 @@ export async function createAthleteInviteBatch(
   if (!academyRow) {
     throw new Error("ACADEMY_NOT_FOUND");
   }
+
+  // No emitir invitaciones nuevas si la academia ya está en su límite de
+  // atletas: el alta final vuelve a validar dentro de su transacción.
+  await assertWithinPlanLimits(input.tenantId, input.academyId, "athletes");
 
   // 2. Normalizar y dedupe input (función pura testeable).
   const { valid: normalized, errors } = validateAndNormalizeEmails(

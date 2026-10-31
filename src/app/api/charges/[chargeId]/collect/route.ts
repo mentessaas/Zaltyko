@@ -5,20 +5,22 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { charges } from "@/db/schema";
-import { apiError, apiSuccess } from "@/lib/api-response";
+import { apiError } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
-import { getOptionalEnvVar } from "@/lib/env";
 import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
-import { collectCharge } from "@/lib/stripe/charge-collection-service";
+import {
+  FAMILY_AUTOMATIC_COLLECTION_DISABLED,
+  FAMILY_AUTOMATIC_COLLECTION_DISABLED_MESSAGE,
+} from "@/lib/stripe/family-automatic-collection-disabled";
 import { z } from "zod";
 
 /**
  * POST /api/charges/[chargeId]/collect
  *
- * Cobra un cargo con la tarjeta guardada de la familia (Stripe off-session).
- * Solo staff con acceso a la academia del cargo. Rate-limited.
+ * Conserva el scope del staff, pero no cobra cuotas familiares con tarjeta en
+ * el lanzamiento manual-only. Rate-limited.
  */
 const collectHandler = withTenant(async (request, context) => {
   try {
@@ -27,7 +29,7 @@ const collectHandler = withTenant(async (request, context) => {
     if (!chargeId) {
       return apiError("CHARGE_ID_REQUIRED", "Charge ID is required", 400);
     }
-    if (!z.string().uuid().safeParse(chargeId).success) {
+    if (!z.guid().safeParse(chargeId).success) {
       return apiError("INVALID_CHARGE_ID", "Charge ID is invalid", 400);
     }
     if (!context.tenantId) {
@@ -53,36 +55,13 @@ const collectHandler = withTenant(async (request, context) => {
       return apiError(scope.reason ?? "FORBIDDEN", "Access denied", 403);
     }
 
-    const result = await collectCharge(chargeId);
-
-    if (result.status === "paid") {
-      return apiSuccess({ status: "paid", paymentIntentId: result.paymentIntentId });
-    }
-    if (result.status === "requires_action") {
-      const publishableKey = getOptionalEnvVar("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY");
-      return apiError(
-        "REQUIRES_ACTION",
-        "El pago necesita autenticación del titular de la tarjeta (SCA).",
-        409,
-        result.clientSecret && publishableKey
-          ? {
-              paymentIntentId: result.paymentIntentId,
-              clientSecret: result.clientSecret,
-              stripeAccountId: result.stripeAccountId,
-              publishableKey,
-              // `paymentMethodId` lo necesita el cliente para re-attach el PM en
-              // `stripe.confirmCardPayment`: Stripe limpia `payment_method` del
-              // PI cuando off-session lanza `authentication_required`.
-              paymentMethodId: result.paymentMethodId,
-            }
-          : undefined,
-        { headers: { "Cache-Control": "private, no-store" } }
-      );
-    }
-    if (result.status === "skipped") {
-      return apiError("COLLECTION_SKIPPED", result.reason, 409);
-    }
-    return apiError("COLLECTION_FAILED", result.reason, 402);
+    return apiError(
+      FAMILY_AUTOMATIC_COLLECTION_DISABLED,
+      FAMILY_AUTOMATIC_COLLECTION_DISABLED_MESSAGE,
+      410,
+      undefined,
+      { headers: { "Cache-Control": "private, no-store" } }
+    );
   } catch (error) {
     return handleApiError(error, {
       endpoint: "/api/charges/[chargeId]/collect",

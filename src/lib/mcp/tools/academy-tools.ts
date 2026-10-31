@@ -35,7 +35,7 @@ export function registerAcademyTools(server: McpServer) {
    * Obtiene información detallada de una academia
    */
   registerTool(server, 'get_academy_info', 'Obtiene información completa de una academia por ID', {
-    academyId: z.string().uuid(),
+    academyId: z.guid(),
   }, async ({ academyId }) => {
     try {
       const [academy] = await db
@@ -166,7 +166,7 @@ ${academy.trialEndsAt ? `- Trial termina: ${academy.trialEndsAt.toISOString()}` 
    * Obtiene atletas de una academia
    */
   registerTool(server, 'get_academy_athletes', 'Obtiene la lista de atletas de una academia', {
-    academyId: z.string().uuid(),
+    academyId: z.guid(),
     status: z.enum(['active', 'inactive', 'all']).default('active'),
     limit: z.number().int().min(1).max(200).default(50),
   }, async ({ academyId, status, limit }) => {
@@ -223,7 +223,7 @@ ${academy.trialEndsAt ? `- Trial termina: ${academy.trialEndsAt.toISOString()}` 
    * Obtiene clases de una academia
    */
   registerTool(server, 'get_academy_classes', 'Obtiene las clases programadas de una academia', {
-    academyId: z.string().uuid(),
+    academyId: z.guid(),
     limit: z.number().int().min(1).max(100).default(30),
   }, async ({ academyId, limit }) => {
     try {
@@ -276,7 +276,7 @@ ${academy.trialEndsAt ? `- Trial termina: ${academy.trialEndsAt.toISOString()}` 
    * Obtiene métricas financieras de una academia
    */
   registerTool(server, 'get_academy_financial_metrics', 'Obtiene métricas financieras de una academia (ingresos, pagos pendientes, etc.)', {
-    academyId: z.string().uuid(),
+    academyId: z.guid(),
     month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
   }, async ({ academyId, month }) => {
     try {
@@ -338,7 +338,7 @@ ${academy.trialEndsAt ? `- Trial termina: ${academy.trialEndsAt.toISOString()}` 
    * Obtiene eventos de una academia
    */
   registerTool(server, 'get_academy_events', 'Obtiene eventos de una academia', {
-    academyId: z.string().uuid(),
+    academyId: z.guid(),
     limit: z.number().int().min(1).max(100).default(20),
   }, async ({ academyId, limit }) => {
     try {

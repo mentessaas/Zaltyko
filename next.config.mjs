@@ -3,6 +3,11 @@ import { fileURLToPath } from "node:url";
 import { withSentryConfig } from "@sentry/nextjs/config";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const isSandboxPreviewBuild =
+  process.env.VERCEL_ENV === "preview" &&
+  process.env.ZALTYKO_SANDBOX_PREVIEW_BRANCH === "codex/fix-f84-build-hang-20261019" &&
+  process.env.NEXT_PUBLIC_SUPABASE_URL === "https://aeeootdmuiqkfeernskw.supabase.co" &&
+  process.env.ZALTYKO_SANDBOX_PREVIEW_BUILD_OPTIMIZATIONS === "true";
 
 // Security headers (HSTS, CSP con nonce, X-Frame-Options, X-Content-Type-Options,
 // Referrer-Policy, Permissions-Policy) y redirección www↔apex se aplican desde
@@ -30,7 +35,14 @@ const nextConfig = {
   },
   // swagger-jsdoc analiza archivos de rutas dinámicamente. Externalizarlo evita
   // que Webpack intente resolver esos requires durante el build de Next.
-  serverExternalPackages: ["next-swagger-doc", "swagger-jsdoc"],
+  // El entrypoint Node de Sentry reexporta integraciones y dependencias CJS.
+  // Cargar el SDK en Node evita recorrer ese grafo en cada bundle servidor;
+  // no desactiva el plugin, la captura ni los bundles browser/edge.
+  serverExternalPackages: [
+    "next-swagger-doc",
+    "swagger-jsdoc",
+    "@sentry/nextjs",
+  ],
 
   // Configuración de imágenes para optimización
   images: {
@@ -47,6 +59,29 @@ const nextConfig = {
   },
 
   webpack: (config, { isServer }) => {
+    if (isSandboxPreviewBuild) {
+      // Avoid carrying a large filesystem cache across sandbox candidates.
+      // Keep compilation caching in memory; production/local are unchanged.
+      config.cache = Object.freeze({ type: "memory" });
+      // Bounded remote diagnostics: phase/elapsed/memory only, no module paths.
+      config.plugins.push({
+        apply(compiler) {
+          const name = isServer ? "server" : "client";
+          const start = Date.now();
+          const report = (phase) => {
+            const memory = process.memoryUsage();
+            console.log("Sandbox compiler phase:", JSON.stringify({
+              compiler: name, phase, elapsedMs: Date.now() - start,
+              rssMiB: Math.round(memory.rss / 1024 / 1024),
+              heapMiB: Math.round(memory.heapUsed / 1024 / 1024),
+            }));
+          };
+          compiler.hooks.compile.tap("SandboxBuildPhases", () => report("compile"));
+          compiler.hooks.afterCompile.tap("SandboxBuildPhases", () => report("afterCompile"));
+          compiler.hooks.done.tap("SandboxBuildPhases", () => report("done"));
+        },
+      });
+    }
     if (!isServer) {
       // Excluir módulos de Node.js del bundle del cliente
       config.resolve.fallback = {
@@ -112,10 +147,23 @@ const nextConfig = {
 
   // Configuración de experimental features
   experimental: {
-    // Local synthetic experiment only; keep the production configuration unchanged.
-    ...(process.env.E2E_LOCAL_SUPABASE === "true" &&
-    process.env.ZALTYKO_E2E_WEBPACK_BUILD_WORKER === "true"
-      ? { webpackBuildWorker: true }
+    // Preserve the local gate. Remote opt-in is restricted to this sandbox
+    // preview branch; it cannot enable these options for production.
+    ...((process.env.E2E_LOCAL_SUPABASE === "true" &&
+    process.env.ZALTYKO_E2E_WEBPACK_BUILD_WORKER === "true") ||
+    (process.env.VERCEL_ENV === "preview" &&
+      process.env.ZALTYKO_SANDBOX_PREVIEW_BRANCH === "codex/fix-f84-build-hang-20261019" &&
+      process.env.NEXT_PUBLIC_SUPABASE_URL === "https://aeeootdmuiqkfeernskw.supabase.co" &&
+      process.env.ZALTYKO_SANDBOX_PREVIEW_BUILD_OPTIMIZATIONS === "true")
+      // Trace the completed server output while edge/client compilation runs.
+      // Next requires the build worker for this; keep both behind the same gate.
+      ? {
+          webpackBuildWorker: true,
+          parallelServerBuildTraces: true,
+          // Local build experiment: retain code and tracing, avoid server
+          // minification work. Browser/edge minification is unchanged.
+          serverMinification: false,
+        }
       : {}),
     // Next optimizes date-fns itself, but not its 95-locale barrel. Select only
     // the requested es/enUS exports instead of compiling every other locale.

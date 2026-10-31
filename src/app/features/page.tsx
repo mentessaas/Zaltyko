@@ -13,13 +13,13 @@ const baseUrl = getPublicSiteUrl();
 export const metadata: Metadata = {
   title: "Funcionalidades para academias de gimnasia",
   description:
-    "Gestión de gimnastas, grupos, cobros, eventos y familias para academias de gimnasia artística y rítmica.",
+    "Gestión de gimnastas, grupos, cuotas manuales, asistencia y familias para academias de gimnasia artística y rítmica.",
   alternates: {
     canonical: `${baseUrl}/features`,
   },
   openGraph: {
     title: "Funcionalidades de Zaltyko | Software para gimnasia",
-    description: "Gestión de gimnastas, grupos, cobros, eventos y familias para academias de gimnasia artística y rítmica.",
+    description: "Gestión de gimnastas, grupos, cuotas manuales, asistencia y familias para academias de gimnasia artística y rítmica.",
     url: `${baseUrl}/features`,
     siteName: "Zaltyko",
     type: "website",
@@ -40,7 +40,7 @@ const featureSchema = {
     "@type": "Offer",
     price: "0",
     priceCurrency: "EUR",
-    description: "Plan Free: 7 días de Starter sin tarjeta para probar todas las funcionalidades",
+    description: "Plan Free: hasta 30 gimnastas, 3 grupos y 10 clases activas",
   },
 };
 
@@ -60,7 +60,7 @@ export default function FeaturesPage() {
                 Funcionalidades para tu academia de gimnasia
               </h1>
               <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-                Gimnastas, entrenadores, cobros, evaluaciones y eventos en una sola plataforma pensada para gimnasia artística y rítmica.
+                Gimnastas, familias, grupos, clases, asistencia y cuotas manuales para gimnasia artística y rítmica.
               </p>
             </Reveal>
           </div>
@@ -75,7 +75,7 @@ export default function FeaturesPage() {
                 Prueba Zaltyko con tu academia
               </h2>
               <p className="mt-4 text-lg text-zaltyko-text-secondary">
-                Crea tu cuenta gratis, configura tu academia, importa a tus gimnastas y explora cada funcionalidad en un clic.
+                Crea tu cuenta gratis, configura tu academia y añade tus gimnastas, grupos y clases.
               </p>
               <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
                 <Link

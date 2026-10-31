@@ -1,11 +1,232 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-25
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../docs/architecture/zaltyko-domain-model.md
 ---
+
+
+## 2026-10-27 — APT mirror-file en runners de navegadores
+
+CI40417855338: Chromium/Firefox y5146 unitarias PASS(3skip); WebKit cancelado al límite30min durante instalación, sin ejecutar E2E. Logs muestran mirror+file:/etc/apt/apt-mirrors.txt y descargas Azure; el helper previo no contemplaba esa indirection y no imprimió cambio. Se añade reescritura acotada del archivo de mirrors y descubrimiento de fuentes .list/.sources, sin modificar firmas/suites/componentes/repositorios ajenos. Regresión de mirror-file con metadata, comentarios, lookalikes e idempotencia pendiente de CI remota; no pruebas/build locales. Sin despliegues, producción ni ensayo. Monitor9a0 cerrado por fallo terminal; nuevo candidato requerirá todos los gates y revisión externa.
+
+## 2026-10-26 — Segunda academia de entregas y aislamiento autenticado
+
+Seguimiento27oct: CI f1323f43 instala Firefox correctamente, pero el E2E agota300s esperando families/options tras recarga (línea1608); captura mantiene editor cerrado. El botón SSR podía aceptar clic antes de handlers/reset inicial. Se mantiene deshabilitado hasta completar el efecto inicial y se añade regresión SSR→hidratación→primer clic→GET único. Causa de la captura compatible con carrera de hidratación; confirmación del arreglo pendiente de CI remota, sin aumentar timeouts ni retirar la comprobación de persistencia. WebKit del mismo run sigue en curso; no declarar PASS. Sin ejecución local de pruebas/build, deployment, SQL o consulta al ensayo/producción.
+
+Corrección CI autorizada: WebKit de a390841d agotó30min descargando dependencias Ubuntu desde azure.archive.ubuntu.com; no llegó a ejecutar pruebas. Preparación del runner cambia únicamente URI de ese mirror a https://archive.ubuntu.com/ubuntu, conservando Signed-By, suites, componentes y security.ubuntu.com. Tres pruebas sintéticas se ejecutarán en CI, no en Mac. Instalación Playwright --with-deps, matriz de tres navegadores, límite30min y gates intactos. Sin deployment ni consultas al ensayo/producción. Pendiente resultado remoto del nuevo commit.
+
+Ampliación de evidencia alojada: cinco escrituras cruzadas rechazadas (grupos en ambos sentidos, sede/actividad ajenas y clase con sede ajena). Comparación79 tablas por academia antes/después de cada intento: sin cambios de negocio; tres adiciones audit_log de acceso denegado verificadas aparte, hashes previos intactos al excluir solo esas filas. Fuente durable externa: /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-10-26/delivery-cross-write-e09.md. Runtimee09, no nuevo deployment. CIa390841d pasa build/tipos/lint/seguridad/SQL/móvil/Chromium; unitarias y otros navegadores pendientes al corte. Nota de evidencia conservada localmente sin cambiar head ni cancelar esa CI.
+
+QA B creada desde alta humana y correo real; callback normal abre setup y academia independiente sin trial. Lecturas de uso propias200 y ajenas404 en ambos sentidos; grupos/clases ajenos403. Clases y opciones de cuotas propias200, mezcla de sede ajena403 en ambos sentidos. No acredita escrituras cruzadas ni permisos por sede dentro de una misma academia. Fuente: docs/qa/delivery-academy-isolation-2026-10-26.md. Ensayo y producción intactos, ninguna prueba/build local. CI d6:5144 unitarias PASS y una expectativa antigua del directorio falla; se corrige esa expectativa, dos regresiones nuevas PASS. Navegadores restantes pendientes al corte, no se declara CI verde ni despliegue nuevo.
+
+## 2026-10-26 — Entrada pública de registro limitada al MVP
+
+Revisión estática encontró que `/auth/register` sin role=owner seguía ofreciendo proveedores y marketplace, excluidos por el alcance humano de apertura. La página ahora fija ownerEntry y deshabilita las opciones del directorio; metadata y mensaje de bienvenida describen academia/gimnastas/cuotas manuales. Un next histórico de directorio no puede cambiar el flujo Owner ni omitir el handoff de consentimiento. No se cambian login, usuarios existentes, contratos/API de otros roles, esquema, Auth remoto ni fixtures del ensayo. Pruebas añadidas: página Owner con política disponible/no disponible y formulario con next de directorio conservando metadatos/consentimiento/callback Owner. Ejecución exclusivamente remota pendiente; no tests ni builds locales. Precios intactos. Mensajes aprobados revisados y actualizados.
+
+## 2026-10-25 — Callbacks de entregas y corrección de alta previa a hidratación
+
+- CI536 confirma ChromiumPASS31,1s, build/lint/tipos y controlesPASS. Regresión
+  unitaria falla por matcher jest-dom sobre elemento de documento DOMParser;
+  se cambia a hasAttribute manteniendo la comprobación SSR. Nueva CI pendiente.
+
+- Dos callbacks de entregas guardados con confirmación humana en sandbox y
+  releídos tras recarga; Site URL y dos redirects del ensayo conservados.
+- CI670 falla Chromium esperando signup: captura con nombre vacío pese a fill.
+  Se bloquea edición/submit hasta hidratación y se añade regresión; CI pendiente.
+- GitGuardian marca dos contraseñas sintéticas de contenedor loopback CI:
+  incidentes38997039/38997394 documentados, sin ignorarlos ni rotar credenciales.
+- PR234 sigue requiriendo revisión externa; registro dedicado requiere entrada
+  humana de contraseña y condiciones. No builds/pruebas locales ni deployment.
+- Fuente docs/qa/delivery-access-review-gates-2026-10-25.md.
+
+## 2026-10-25 — Instalación SQL productiva exacta autorizada y aplicada
+
+- Humano autoriza únicamente candidato00ead5a3/destino jegxfahsvugilbthbked.
+  Preflight coincide; apply_migration confirma éxito, registro20261025222531.
+- 92 tablas vacías con RLS forzada,64 políticas,16 rutinas y ACL comprobadas;
+  btree_gist1.7 en extensions. Tres digests public/legacy sin cambios.
+- Advisor conserva WARN de contraseñas filtradas y añade30 INFO RLS sin
+  políticas (deny por defecto). No cambios de Auth, aplicación o proveedores.
+- Evidencia docs/qa/canonical-production-application-2026-10-25.md y JSON anexo.
+  No builds/tests locales, fixtures productivas ni despliegue en esta ronda.
+
+## 2026-10-25 — Procedimiento MVP y guía productiva histórica
+
+- production-setup.md se marca histórica: proponía Storage por bucket_id sin
+  aislamiento de academia y activación cron/Realtime fuera del plan actual.
+  No se ejecutó ninguna receta ni se cambió infraestructura/configuración.
+- Nuevo procedimiento docs/deployment/mvp-release-procedure-2026-10-25.md:
+  Auth real, revisión externa, SQL separado, preflight sin sandbox/TEST en Live,
+  control de12crons locales antes de staging, build remoto sin dominio y
+  promoción del mismo artefacto production. No afirma cron real activado/apagado
+  por el JSON ni que skip-domain evite tareas. Fuente oficial Vercel consultada.
+- Matriz separa el estado vigente474 de cortes históricos; CI40232303782 aún
+  en curso al corte. No builds/tests/servicios locales ni publicación ejecutada.
+
+## 2026-10-25 — Candidato de migración con privilegios acotados, CI PASS
+
+- Nombre generado por CLI2.84.2:20261025202902_canonical_domain_installation_candidate.sql;
+  apartado fuera del historial aplicable. Su SQL se generó solo en CI y se copió
+  sin edición; SHA256 00ead5a3869bb335f2f17e58ebaaacac2bdc1ae4504493b473c68393359dab00.
+- Catálogo READ ONLY identifica postgres sinSUPERUSER ni membresía supabase_admin,
+  con BYPASSRLS/CREATEDB/CREATEROLE y privilegios necesarios de Auth/extensions.
+  El candidato normaliza defaults solo para postgres, sin elevar permisos.
+- CI separa bootstrap superuser del propietario de aplicación y reduce este
+  último antes de instalar el mismo archivo con COMMIT. Exige rechazo sin modo,
+  aislamiento/ACL tras instalación y rechazo de reinstalación sin efectos.
+  CI40232012970 SUCCESS acredita esos controles en PG17.6 desechable. Nada se
+  ejecutó en producción ni en el Mac. applyReady/approvedForProduction=false;
+  aplicación requiere revisión y autorización humana específica separada.
+  Evidencia: docs/qa/canonical-installation-candidate-proof-2026-10-25.md.
+
+## 2026-10-25 — Paquete exacto de revisión de instalación, CI PASS
+
+- Lectura catalog-only con READ ONLY/timeout/ROLLBACK confirma PK de Auth
+  exactamente id, btree_gist1.7 disponible/no instalado y cero defaults globales
+  postgres/supabase_admin relevantes. No filas personales, secretos ni DDL/DML.
+- Se prepara artefacto CI adicional con DDL/owners/ACL del rehearsal, extensión
+  btree_gist1.7 como prerrequisito explícito y guard incondicional que aborta antes
+  de DDL. applyReady=false, ROLLBACK; no es archivo de migración ni autorización.
+- Runner remoto comprueba el rechazo exacto y conservación de canaries antes de
+  ejecutar el rehearsal anterior. Sin builds/pruebas locales ni despliegues;
+  CI40230685030 SUCCESS en2512032f: hard-stop exacto comprobado y rehearsal
+  anterior íntegro PASS. Artefacto392960bytes/SHA31b61d2da95ed080bdfcb78d7baab9059f700375f39be15ee54749096c6a8643
+  descargado/hash comprobado; propuesta/rehearsal conservan hashes anteriores.
+  Evidencia durable auditoria-2026-10-25/canonical-installation-review-2512032f/RESULTADO.md.
+
+## 2026-10-25 — Rehearsal canónico en CI desechable, PASS
+
+- Se amplía el workflow separado con PostgreSQL17.6 efímero, sin secretos
+  externos: artefacto por SHA, destino loopback fijo y marcador externo antes
+  del DDL. El SQL canónico conserva ROLLBACK y no es una migración aplicable.
+- Revisión estática de rutinas/ACL y fixture sintético de dos academias/sedes;
+  se preservan owner, defaults acotados, canaries public/legacy y rechazo
+  previo a DDL si existe un esquema canónico. Los tests se ejecutarán solo
+  remotamente. CI40229946414 SUCCESS en edd3bf75:92 tablas RLS forzada,
+  64 policies,16 rutinas,61 enums,defaults/ACL, aislamiento sintético y rollback.
+  Hash rehearsal d0c888a0367ace20c555ff2ea09383b334153cf3016f1e837cd9a6e38b9f23f4
+  verificado tras descarga; propuesta anterior conserva su hash.
+- Dos rechazos previos del runner corregidos sin retirar controles: paréntesis
+  de subconsulta y códigos sintéticos de sede en mayúsculas. No equivalen a
+  fallos acreditados del producto. Auth sintético no acredita login Supabase;
+  no se aprueba upgrade ni aplicación productiva.
+- No hay cambios de datos, Auth, configuración, despliegue ni ensayo remoto.
+
+## 2026-10-25 — Propuesta canónica por AST, sin ejecución SQL
+
+- Preparación de un generador CI-only con parser PostgreSQL17 fijado y hashes
+  del snapshot/manifiesto autorizados. Selecciona únicamente objetos nuevos de
+  `zaltyko` y `zaltyko_domain_private`; excluye public, helpers legacy, ledger
+  E2E, ACL/owners y bloques dinámicos del baseline. No reconstruye historia.
+- El artefacto termina en ROLLBACK y declara `applyReady=false`: cuerpos de
+  rutinas, permisos explícitos, extensión, seeds y compatibilidad aún requieren
+  revisión y pruebas PostgreSQL remotas. Generación AST no equivale a replay.
+- Workflow separado, sin credenciales ni DB: instala parser fijado en runner,
+  ejecuta generador en namespace sin red y conserva artefactos tres días.
+  Generación remota40228139489 SUCCESS en e6968c3e:1394 sentencias,
+  92 tablas/851 restricciones/16 rutinas, cuatro SECURITY DEFINER identificadas.
+  Artefacto348043 bytes, SHA3d8ad235ed8f73989114a262c64acf6071ca6870e4082ebb04c2a461f544e8ea
+  verificado tras descarga; no se ejecutó localmente ni se aplicó SQL.
+  Se corrigieron YAML, reutilización del buffer RawStream y clasificación AST
+  de restricciones/seguridad; controles conservados, inventario exacto exigido.
+- Catálogo productivo READ ONLY confirma prerrequisitos Auth/UUID y nombres de
+  roles, sin leer usuarios ni cambiar SQL/configuración. Detalle y límites en
+  `docs/qa/production-platform-prerequisites-2026-10-25.md`.
+- Preview474 y ensayo conservados. No aplicación productiva, nuevo despliegue,
+  cambios de Auth ni efectos sobre fixtures; revisión externa sigue obligatoria.
+
+## 2026-10-25 — Entrega sandbox474 lista; producción pendiente
+
+- CI40221784665 y replayPG40221815751 SUCCESS para474369ea;5084 unitarias,
+  tres navegadores sintéticos y diez suites PostgreSQL. Aislamiento/archivo,
+  tutor y alta sin grupo/asignación posterior incluidos, sin relajar guards.
+- Preview diferenciada https://zaltyko-delivery-preview.vercel.app READY,
+  deployment dpl_BH3CCeYirKqdZsQg5YehLCkyzYhZ. Preflight14 controles aprobados,225 pruebas,
+  tipos,Next249391ms/360000,artefacto653 trazas/cero faltantes. Health DB ok 61.84ms.
+  Se restauraron42 alcances; alias/fixtures del ensayo intactos. Nada pesado local.
+- Alta real dedicada pendiente del humano (contraseña/condiciones) y de guardar
+  dos callbacks preparados del nuevo alias. No se envió correo ni creó cuenta.
+- QA A/B: renovación normal de las mismas sesiones con getUser/IDs verificados;
+  sin cuentas nuevas, contraseñas, roles ni datos cambiados. No prueba impago.
+- Catálogo productivo read-only:139 tablas en public, esquemascanónicosausentes,
+  helper privado legacy conservado. Nuevo diff SQL específico y autorización separada;
+  snapshot vacío no se aplica allí. Main mantiene revisión externa obligatoria.
+- Evidencia duradera externa: documentacion/Zaltyko/auditoria-2026-10-25/
+  current-mvp-candidate-readiness.md,production-domain-gap-proposal.md,
+  desired-canonical-domain-inventory.json y delivery-474369ea-scope-operation.json.
+  Inventario basado en snapshot aprobado, sin fingir historia ni datos de clientes.
+
+
+## 2026-10-25 — Intake y regularización pasan PostgreSQL; origen sintético pendiente
+
+- Corte posterior `7a42421a`: PostgreSQL `40220734876`, build y unitarias
+  5084 PASS/3 omitidas. Chromium supera perfil/archivo; NextURL localhost
+  resuelve el rechazo previo. El recorrido nuevo se detiene en la etiqueta
+  exacta del select familiar. Se separan label/select con htmlFor/id, también
+  en grupo/sede, manteniendo assertions y timeout. Validación remota pendiente.
+- `ab97a47c`: replay remoto `40219817117` SUCCESS, diez suites nativas,
+  reconstrucción vacía, ACL/RLS y aislamiento. Build y controles estáticos
+  de `40219808150` pasan; no se ejecutan pruebas ni builds en el Mac.
+- Chromium sigue rechazando el PATCH del tutor por origen. El código oficial
+  Next 15.5.12 normaliza IP loopback a localhost en NextURL.parseURL; fijar
+  hostname a 127.0.0.1 no corrige esa normalización. El harness usa ahora
+  localhost tanto en navegador como servidor. No se relaja CSRF ni la red.
+- Corrección pendiente de CI remota; sin preview READY nueva ni producción.
+- Unitarias del corte: 5082 PASS, 2 FAIL, 3 omitidas. Se separa la ayuda de
+  fecha del nombre accesible con aria-describedby y se conserva Asistencia
+  entre los cinco accesos diarios móviles, dejando Gimnastas en Más.
+  No se eliminan las aserciones que detectaron ambos problemas.
+
+## 2026-10-25 — Integración local de #236 en el MVP y procedencia acreditada
+
+- Resueltos los 13 conflictos conservando validación de entorno, guardas de
+  capacidad y bloqueo de red estricto del MVP. UUID-like conserva el contrato
+  anterior mediante `z.guid()`. Sentry ya resolvía `10.76.2` en ambos padres;
+  se mantienen además Vite `6.4.5`, Hono `4.13.13` y selector-parser parcheado.
+- Se elimina Zod `3.25.76` transitivo y se conserva body-parser en su línea API
+  para los tres campos de dependencias. Regresión nueva de hook/grafo pendiente
+  de CI; no se ejecuta en el Mac. No hay cambios SQL ni nuevas dependencias.
+- Procedencia: `f626351` es ancestro de `d5b8d961`, cuyo árbol de producto tiene
+  1.939 blobs idénticos en la importación `f0bc9383`; se conservan cinco archivos
+  adicionales de main y ambas historias. Fuente:
+  `docs/qa/mvp-integration-provenance-2026-10-25.md`.
+- La CI del padre no acredita el merge nuevo. Pendientes una CI remota del
+  candidato integrado, revisión independiente y validación autenticada sandbox.
+
+## 2026-10-25 — Bloqueo de integración entre PR #234 y #236
+
+- Consulta de solo lectura a GitHub: #234 tiene 418 archivos y #236 tiene 274;
+  comparten 94 rutas, incluidos `package.json`, `pnpm-lock.yaml`,
+  `pnpm-workspace.yaml` y `pnpmfile.cjs`.
+- Ambas ramas tienen CI verde por separado y siguen `REVIEW_REQUIRED`. El rango
+  de `@sentry/nextjs` difiere (`10.76.2` en #234, `10.75.2` en #236); CI de cada
+  rama no demuestra que la combinación sea compatible. No se hizo merge,
+  rebase, push ni despliegue.
+- Resolver la integración con revisión independiente y validar la rama
+  resultante en CI remota antes de promoción.
+
+## 2026-10-25 — PR #234 CI remota completa; publicación aún bloqueada
+
+- HEAD `1637221798bee56b8aee9db176a277429103db40`; CI `40193392534`
+  **SUCCESS**. Lint/tipos, unitarios, build remoto, móvil, Chromium, Firefox,
+  WebKit, SBOM/seguridad, integridad Drizzle, RLS y gate Owner sintético pasan.
+  Gates adicionales `40193392526` y `40193392553` pasan. No se ejecutó build ni
+  prueba en el Mac.
+- E2E autenticado, readiness de credenciales, smoke, público y Lighthouse
+  quedaron **SKIPPED**. El candidato aún no está validado con sesiones QA reales.
+- Replay PostgreSQL desechable `40190197121` **SUCCESS** en SHA `234599c9`;
+  el HEAD actual no modifica archivos bajo `supabase/`, así que no cambia el
+  SQL probado. El replay no aplicó SQL en sandbox/producción.
+- PR #234 sigue OPEN/BLOCKED/`REVIEW_REQUIRED`. El plan citó `f626351`, pero el
+  PR usa base `f84fd6dc` y `f626351` no es ancestro del HEAD. No se hizo
+  rebase/reset ni se desplegó.
+- La matriz QA y el backlog reflejan gates verdes, skips y bloqueos restantes.
+  Próximo paso: revisión independiente, resolver procedencia y E2E autenticado
+  usando únicamente sesiones existentes; después comprobar límites y ausencia
+  de efectos parciales en sandbox antes de cualquier preview de entrega.
 
 ## Cierre CI exacto — 2026-10-16, 08:10 UTC
 
@@ -12370,3 +12591,334 @@ Modelo separado, reclamación manual, administración, importación revisada, fi
 - 14:11UTC: Main integra Frontend57af90c3 trasQA203 GOestáticoexacto; cinco archivos, noChangelogformatterchurn. Sampler SOLOcallbackrunbuild;trazasafuera,scopeHOST/noCPUatribuida,5procpaths/1Hz/250,4KiBútiles(+1centinelarechazooverflowenotrasfuentes). Main528/528mock13filesPASS5.78s(test1.19s),ESLint0warnings/Prettier5files/audit:env73/diffcheckPASS. Índicecode/tests/manifiestosTS/JSON/YAMLidénticoaentregaFrontendcontscnoEmitincrementalfalse0, norepetidoMain. Rechazostimeout/abortsintéticosnoeventosreales;core/wiringconservados. Sininstalls/build/E2E/Docker/pulls/DB/deploy;únicocandidatoCIautorizadosujetoprotecciones. Fuente docs/qa/build-host-resource-sampler-2026-10-15.md. NO-GOseguridad/destino/recovery/approle/reviewPR/publicaciónindependientes.
 - 14:12–14:14UTC pushnormalbf0aad14b51e27ec149ddd74738ba31be97ae5b9confirmadoPR226OPENdraftREVIEW_REQUIRED, protecciones14:11reconfirmadas. ÚnicoCI38749323693/Static38749323931/Directory38749323676exactSHA. MainjobsChromium/Unit/Build/lintencurso;Firefox/WebKitcola,móvil/SecuritySBOM/RLS/migracionesPASS,readiness/authSKIPPED,sinfuncional/cleanup/gatenuevo. GHdeploymentrecordsSHA0noinventarioVerceluniversal. QA204monitorizasoloesosrunsconbackoff; no pushnotas duranteCI ni rerun/dispatch. Alertasmain7notificadaspush(2critical5high),nodismiss. Docs ci-bf0aad14-candidate/releasegates/Backlog/Decisiones/ObsidianactualizadosLOCAL,sinDB/merge/deploy. ÚnicaautorizacióndiagnósticoCIconsumida, no otrascorridasautomáticas.
 - 14:37UTC cierre MainAPI/logs+QA208: CI38749323693bf0aad14COMPLETEDFAILUREupdated14:35:30/gate116483093666FAIL14:35:29;Static/Directory/otroschecksPASS. Chromium240stimeoutcleanup14:19:46.952;Firefox1test26.9s(total36.2s)PASS/build238910.458ms/cleanup14:27:23.759;WebKit240stimeout/solo compiled224977ms/cleanup14:35:20.733. Sampler240/240/241muestras,cerolecturasno disponibles,CPUmax100%,MemAvailablemín49.87/51.68/49.63%;HOSTinclSupabase/PSIventanamóvil/maxaisladosNOcausaNext. No nuevosCI/push/implementación/pruebas/Docker/DB/deploy;FrontendSOLOcomparaciónreadonlynuevaevidencia, no repetir investigaciónidéntica. Actualizadosinformeexacto/releasegates/Backlog/Decisiones/Obsidian;NO-GOgatesindependientesyBackupsnopeticiónrepetida.
+## 2026-10-25 — Correcciones de fixtures para PR #234
+
+- CI remoto de PR #234, SHA `d8cbab27`: la suite unitaria terminó con 29 fallos en siete archivos; lint/tipos, build remoto, móvil, RLS e integridad de migraciones pasaron. Chromium, Firefox y WebKit sintéticos fallaron antes de completar el recorrido porque la base efímera no contiene `zaltyko.organization_saas_trials`; el runner también registró solicitudes de telemetría bloqueadas por la guarda de red. Esto no es evidencia de fallo del Sandbox.
+- Se corrigieron únicamente fixtures y expectativas unitarias: `livemode` del PaymentIntent sintético, condición de configuración de Webpack extraída hasta su comentario centinela, zona horaria de pago, UUIDs/respuestas de mocks, selectores accesibles, reintento explícito e interpretación correcta de policies SQL cualificadas. No se modificaron handlers, guardas, migraciones ni datos.
+- La siguiente comprobación será el CI remoto del nuevo SHA. El replay de esquema y los recorridos autenticados siguen pendientes de la extracción autorizada posterior a la ventana del ensayo; producción no fue consultada ni modificada y no se ejecutaron builds locales.
+
+## 2026-10-25 — Guardas de solo lectura por exceso de plan en Owner
+
+- Se extendió el guard transaccional de solo lectura a reparación/creación de conversaciones familiares, conversaciones académicas, mensajes de academia, avisos de grupo, cambios de título y carga de documentos. Las preferencias personales de notificación, lectura e historial siguen disponibles; los mensajes sin ámbito de academia conservan su ruta tenant-scoped.
+- Las operaciones de conversación que crean varias filas ahora agrupan conversación, participantes, mensaje inicial y resumen en una transacción. El envío directo y el envío desde una conversación verifican pertenencia y estado actual dentro del bloqueo de academia antes de escribir; los fallos de notificación no convierten un mensaje ya confirmado en una respuesta 500.
+- Se añadieron contratos estáticos para estas rutas. Solo se ejecutó `git diff --check`; no se ejecutaron pruebas, instalaciones ni builds locales. El CI remoto del nuevo SHA aún está pendiente.
+- Las sesiones QA A/B no están presentes en el runtime actual (`shortRun`, `shortHttp` y `shortRefreshAuth` ausentes); no se generaron credenciales ni se hizo una nueva prueba autenticada. La caducidad y el impago siguen `NO VERIFICADO` en esta ejecución. Sin cambios de datos, migraciones, deployment, Stripe Live ni producción.
+
+
+## 2026-10-25 — Remediación de advisories de dependencias en PR #236
+
+- Evidencia de partida: CI `40173405349` en SHA `07f81ef5e9777b4324cf6d4fcfd5817878adbe0a`. Unitarias, lint/tipos, RLS, integridad de migraciones, build remoto, móvil y GitGuardian pasaron; `Dependency Security & SBOM` falló con 14 rutas vulnerables (3 críticas, 4 altas, 4 moderadas, 3 bajas). E2E sintético de Firefox/WebKit aún estaba en curso; el autenticado se omitió por el gate de credenciales.
+- Cambio preparado en la rama aislada: parches de Next 15.5.28, Sentry 10.76.2, DOMPurify 3.4.17, `body-parser` 1.20.9/2.4.0, Zod 4.6.7 y `follow-redirects` 1.16.1. El salto Zod 3→4 requiere comprobar compatibilidad completa en CI antes de integrar.
+- `pnpm-lock.yaml` se resolvió con `pnpm install --lockfile-only --ignore-scripts`: 1.369 paquetes resueltos, cero descargados/agregados; no se instalaron dependencias ni se ejecutaron tests o builds localmente.
+- Estado de este corte: cambios pendientes de commit y nueva CI remota. PR #236 sigue abierto; sin merge, deployment ni cambios de sandbox/producción.
+- Actualización 2026-10-25: CI `40174265519` sobre `492ad418ecd8262fc2c470e9f21af64cd5e01918` confirmó que auditoría de dependencias, RLS, migraciones, móvil y GitGuardian pasan, pero fallan lint/tipos (55 errores), build y 80 pruebas unitarias por incompatibilidades de la migración Zod 3→4. Corrección local pendiente de enviar: `z.record` con claves y valores explícitos, errores Zod con `.issues`, detección de variables obligatorias compatible con Zod 4 y reemplazo de 678 validadores `.uuid()` por `z.guid()` para mantener la aceptación histórica de UUID-like de PostgreSQL; se añade regresión en `tests/lib/validators.test.ts`. No se ejecutaron builds ni pruebas locales; aún no hay resultado de la nueva CI. PR #236 sin merge ni despliegue.
+- Resultado parcial de CI `40175242597`, SHA `72c0588bb11ad6096e13f2b1b149c0708d7debad`: lint/tipos, build, unitarias, SBOM, RLS, migraciones, móvil y GitGuardian pasan. Chromium y Firefox fallaron la aserción del guard porque el fixture esperaba Replay CDN `10.73.0` mientras el lockfile actualizado solicita `10.76.2`; las peticiones continuaron bloqueadas. WebKit terminó igual: reportó más tráfico bloqueado al origen exacto de Sentry CDN durante el recorrido, sin dejarlo salir. E2E autenticado/public y smoke quedaron omitidos por configuración del workflow. Ajuste local pendiente de CI: clasificar ese origen como telemetría esperada y seguir abortando todas sus peticiones; no se ejecutó localmente ni se ha enviado. Sin merge/despliegue.
+- Ajuste local tras los tres resultados de navegador: la lista de telemetría esperada reconoce solo `https://browser.sentry-cdn.com` y el guard sigue abortando sus peticiones; el reporte excluye query strings. Se añadió prueba para script y envelope, incluida la aserción de que no se ejecuta `continue()` de red. `git diff --check` pasa. Sin ejecución local de tests/build; nueva CI aún pendiente.
+- CI `40176727314`, SHA `42007c840929ed3b1b961d667c9c28934d645bc4`: lint, tipos, unitarias, build separado, seguridad/SBOM, RLS, migraciones, móvil, GitGuardian y Chromium/Firefox pasan. WebKit vuelve a fallar dentro del E2E porque el build de preparación agotó su timeout interno de 240 s tras compilar y generar 294 páginas; no alcanzó a completar optimización/trazas. E2E autenticado/público y smoke omitidos por el gate de credenciales. Ajuste local pendiente: límite de 360 s solo para el build del runner en GitHub Actions; el límite local queda en 240 s. No se ejecutó localmente ni se ha enviado.
+- Motivo y límite de la próxima corrida: el log WebKit reporta 240.224 s de CPU/build y timeout de 240.000 ms, con páginas generadas y stack Supabase efímero limpiado. Se añadió rama remota explícita de 360 s (seis minutos) usando el límite aprobado; setup, builds locales y timeout local permanecen en 240 s. `git diff --check` y revisión del diff pasan; no se ejecutó nada localmente. Pendiente enviar una única CI remota.
+- CI `40178355617` sobre `230f8171b025dcb1958c27aa70d72f32fb758b5a`: la aserción de `tests/e2e-local-runner-safety.test.ts` conservaba el contrato anterior de 240 s y falló; no es una falla del nuevo límite. El build, unitarias y navegadores seguían en curso al cierre de esta nota. Se actualizó la aserción estática local; sin tests/build locales ni nuevo push.
+
+
+## 2026-10-25 — Compatibilidad de dependencia de navegador
+
+- Hallazgo: chromium-bidi 17.0.2 publicado conserva error.errors de Zod 3; el override Zod 4 necesita adaptar esa lectura.
+- Cambio: parche pnpm minimo errors a issues y regresion del parser real con entrada valida/invalida. No cambia rutas ni datos de negocio.
+- Fuente: docs/qa/mvp-integration-provenance-2026-10-25.md, manifiesto/tarball npm de chromium-bidi 17.0.2.
+- Importancia: una version parcheada en lockfile no acredita compatibilidad runtime.
+- Siguiente paso: validacion remota congelada antes de publicar; no probado localmente.
+
+
+## 2026-10-25 — Cobertura HTTP de permisos SaaS
+
+- Hallazgo: el replay SQL no acredita permisos comerciales de los roles greenfield por HTTP. El E2E desechable ya dispone de dos Owners y una membresia coach cruzada.
+- Cambio: reutiliza esas identidades en CI remota para exigir usage propio 200, academia ajena 404 y coach/manager/admin 403; restaura coach al final para las denegaciones operativas existentes.
+- Fuente: tests/e2e-owner-local-setup.spec.ts; resolveSaasOwnerScope.
+- Importancia: prueba sesion real y contrato de ruta, no mocks de autenticacion.
+- Siguiente paso: ejecucion remota pendiente. No modifica fixtures sandbox ni demuestra validacion del candidato en sandbox.
+
+
+## 2026-10-25 — Aislamiento de preview de entregas
+
+- Hallazgo: el preflight heredado requiere las banderas del ensayo short-paid.
+- Cambio: modo de entrega exige rama exacta y banderas del ensayo desactivadas/vacias, conserva TLS, sandbox, Stripe test y Redis exclusivos.
+- Fuente: preview-build-preflight.cjs y tests/delivery-preview-preflight.test.ts; docs/qa/delivery-preview-inherited-env-review-2026-10-25.md.
+- Importancia: no propagar configuracion del ensayo a entregas nuevas ni aceptar produccion por herencia.
+- Siguiente paso: gates remotos/revision y overrides runtime/build explicitos antes de crear preview; no desplegado.
+
+
+## 2026-10-25 — Cierre de evidencia y hueco de ficha Owner
+
+- Hallazgo: la gestion canonica permite alta minima/asociacion, pero no editar nombre y apellidos. La ruta legacy /api/athletes/[athleteId] opera sobre otro esquema; no acredita el recorrido Owner.
+- Fuente: OwnerGroupsManager, rutas Owner families/options y associations, memberships PATCH; matriz docs/qa/mvp-status-matrix-2026-10-25.md.
+- Importancia: la matriz deja de marcar todo el ciclo de familias/gimnastas como implementado. Se prepara servicio/ruta canonicos sin enlazar el modelo legacy.
+- Evidencia remota: CI40197832794 SUCCESS completo para b270d9f2. CI40199478736 para91eb0c21 acredita unitarias, tipos, build, Chromium y Firefox; WebKit pendiente al corte. No prueba sandbox ni produccion.
+- Siguiente paso: integrar edicion con permisos y reintentos, completar prueba PG emision manual, verificar remotamente y validar preview diferenciada; ensayo congelado intacto.
+
+
+## 2026-10-25 — Prueba PG de emision mensual manual
+
+- Hallazgo: la suite PG cubria registro de pagos, pero no emision mensual nueva sobre el ledger real desechable.
+- Cambio: tres casos adicionales crean familia/pagador/tarifa/inscripcion sinteticos y comprueban emision unica concurrente, replays, conflicto de parametros, cotizacion obsoleta y rollback inducido por unicidad de auditoria. Comparan ocho tablas del ledger antes/despues.
+- Fuente: tests/billing-ledger-postgres.integration.test.ts; el runner verify-sandbox-schema-replay.sh ya selecciona este archivo.
+- Importancia: codigo de pruebas preparado no equivale a ejecucion ni validacion en sandbox. No hay escrituras en fixtures protegidas.
+- Siguiente paso: ejecutar el replay y las suites solo en GitHub Linux desechable tras integrar el candidato; no se ejecutaron tests/builds/servicios en Mac.
+
+
+## 2026-10-25 — Ficha canonica y bloqueo de configuracion de entrega
+
+- Cambio: GET/PATCH Owner de nombre/apellidos, scope de todas las sedes afectadas por identidad compartida, expected fields, locks, replay con nombres actuales, auditoria/outbox sin nombres en claro. UI conserva mismo cuerpo/clave y bloquea operaciones mientras la respuesta es incierta; normaliza NFC/espacios como servidor.
+- Fuente: owner-athlete-profile.ts, ruta Owner athletes, OwnerAthleteProfileEditor, tests unitarios/ruta/UI y casos PG en saas-capacity-postgres.integration.test.ts. Revision estatica independiente sin P1/P2 antes del ajuste menor de normalizacion y su regresion; pruebas pendientes. Fingerprints derivados de nombres no son datos anonimos.
+- Evidencia: CI40199478736 SUCCESS completo para91eb0c21; no acredita estos cambios nuevos. Intento de delivery separado cancelado por comando ausente; segundo bloqueado por preflight por configuracion no heredada. Alias del ensayo conservado, produccion intacta.
+- Siguiente paso: CI y replay PG del nuevo SHA; resolver configuracion explicita sandbox de la entrega sin usar proveedores compartidos ni rotar credenciales existentes. No nuevos despliegues hasta resolverlo.
+
+## 2026-10-25 — Ajuste de asercion del rollback PG
+
+- Hallazgo: replay remoto 40202214967 del SHA 7f754902 completo ocho casos de capacidad/ficha y cuatro de facturacion; fallo la asercion del quinto caso porque Drizzle envuelve el error PostgreSQL en cause.
+- Cambio: comprobar cause.code 23505 y la restriccion audit_log_idempotency_uq. Se conservan snapshots de ocho tablas y comprobaciones de ausencia de registros parciales.
+- Fuente: tests/billing-ledger-postgres.integration.test.ts y log del run remoto. El build, lint y tipos de CI40202187222 pasaron; la suite completa seguia pendiente al observarla.
+- Siguiente paso: repetir replay remoto sobre el commit corregido; no considerar este ajuste probado hasta obtener ese resultado. Sin pruebas ni builds locales.
+
+## 2026-10-25 — Selector de ficha en prueba integrada Owner
+
+- Hallazgo: job remoto Unit Tests 121195499118 termino con 4913 PASS, 3 omitidas y un fallo; el selector global Nombre encontraba tambien el formulario de alta de gimnasta.
+- Cambio: delimitar el campo a la region accesible Editar ficha de gimnasta y comprobar el valor cargado Ana; conservar las aserciones de bloqueo y desbloqueo de pertenencias.
+- Fuente: tests/owner-athlete-profile-editor.test.tsx y CI40202187222. Sin cambio de producto ni relajacion del guard.
+- Siguiente paso: validar la correccion en nueva CI remota. Sin ejecucion local.
+
+## 2026-10-25 — Replay PG corregido aprobado
+
+- Hallazgo: run remoto 40203116706 del SHA78c6e38b termino SUCCESS. El runner acredita baseline desde vacio, hardening/seed desechables, ACL/RLS de 28 tablas, aislamiento de dos academias y rechazo de baseline sobre base poblada o sin marcador.
+- Evidencia: suites PG de capacidad/ficha y ledger manual exit0, incluidos rollback, concurrencia y replay; el log exitoso no imprime conteo individual. No confundir con sandbox autenticado.
+- Fuente: docs/qa/mvp-status-matrix-2026-10-25.md y https://github.com/mentessaas/Zaltyko/actions/runs/40203116706.
+- Siguiente paso: completar CI40203109015 y configuracion de preview separada. Alias del ensayo releido intacto; sin pruebas/builds locales ni cambios productivos.
+
+## 2026-10-25 — Prueba reversible de alcance de variable Vercel
+
+- Hallazgo: API oficial admite modificar gitBranch sin enviar value. Se probo solo DATABASE_CA_CERT_PATH, no secreta, de preview antigua a rama de entrega y se restauro inmediatamente; mismo ID/tipo y target preview confirmados.
+- Fuente: docs/qa/delivery-preview-inherited-env-review-2026-10-25.md. No se leyeron valores secretos, no se cambiaron credenciales ni se creo deployment.
+- Importancia: posible alternativa a recuperar/rotar secretos para construir entrega separada; aun no probada con el conjunto sensible ni en runtime.
+- Siguiente paso: completar controles remotos y preparar manifiesto/restitucion del alcance antes de cualquier operacion mayor. No afirmar preview lista.
+
+## 2026-10-25 — Unitarias e identidad de arbol del candidato
+
+- Evidencia: job121198362837 de CI40203109015 completo 4914 PASS/3 omitidas. Checkout de merge temporal614ae5cd y candidato78c6e38b tienen mismo arbol d606893bfc0a1d5f6a9f918d7763edd0cc64b053; API GitHub y Git local cotejados.
+- Fuente: docs/qa/mvp-status-matrix-2026-10-25.md. Build y Chromium aprobados; Firefox/WebKit todavia pendientes. No acredita E2E autenticado del candidato ni publicacion.
+- Cambio operativo preparado: manifiesto de42 IDs/tipos/alcances de variables preview, sin valores y applied=false. Ninguna variable sensible movida.
+- Siguiente paso: completar navegadores y revisar asociacion familiar vertical en implementacion separada Backend/Owner. No cambios productivos ni builds locales.
+
+
+## 2026-10-25 — Familias y configuración de entrega, corte sin publicación
+
+- Asociación de familia desde la ficha de grupo, sin exigir inscripción previa en clase; tutor adulto y pagador, alcance de sede y replay verificable. Confirmación explícita de cambio de pagador exigida también por servidor y conservando fingerprints legacy. Suite PostgreSQL nueva integrada al runner aislado. Implementación pendiente de CI y comprobación sandbox; no confundir revisión estática con ejecución.
+- Revisión detectó pérdida de comando ambiguo al desmontar el panel mensual; corrección de persistencia exacta en curso. No se publica con ese hallazgo abierto.
+- Vercel:42 alcances sandbox movidos/restaurados sin leer/reemplazar valores; los42 ID/tipos/scopes se confirmaron restaurados. El intento directo78c6 resolvió todas las claves, pero preflight bloqueó NODE_EXTRA_CA_CERTS no vacío. No hubo Next ni preview READY. Ensayo y producción intactos. Evidencia: docs/qa/delivery-preview-inherited-env-review-2026-10-25.md.
+
+
+## 2026-10-25 — Entrega familiar preparada para CI remota
+
+- Ficha de grupo permite crear/asociar familia y tutor adulto antes de la inscripción en clase. El servidor comprueba pertenencia activa de sede, alcance de recursos familiares compartidos y actor del replay. No crea cuentas Auth ni envía correos.
+- Cambiar el pagador principal requiere confirmación explícita en ambos clientes y API; el fingerprint ausente/false conserva compatibilidad de comandos antiguos. Se rechaza una segunda familia solapada porque el contrato mensual actual solo admite una relación inequívoca para emitir la cuota; sucesión no solapada y replay histórico siguen disponibles. No se implementa pago dividido.
+- Panel de resolución mensual persiste/relee cuerpo exacto y clave antes del envío; recuperación manual tras remount sin autoenvío, cercas de ámbito y rechazo de almacenamiento inválido. Revisión independiente estática de ese panel sin P1/P2; no equivale a test ejecutado.
+- Nueve casos PG de familia añadidos al runner desechable y excluidos del gate unitario ordinario salvo flagPG. Cubren concurrencia, rollback15tablas, ámbito/replay, confirmación y solapamientos. Pendientes CI remota, replayPG y sandbox; no hubo test/build/servicio local, SQL remoto nuevo ni cambio en el ensayo.
+
+
+## 2026-10-25 — Correcciones por evidencia de CI familiar
+
+- ReplayPG40207666295:13PASS previos y9FAIL de la nueva suite por fixture con4grupos enFree3. Fixture corregida a3grupos; ambas gimnastasB comparten el tercero y A mantiene dos para probar deduplicación. Se añade precondición explícita uso3/3/0/readOnlyfalse. No se modifica ningún límite del producto.
+- Typecheck remoto del18e4f0fe detectó import omitido memberLocationScopes y ampliación accidental del literal method en el objeto de validación de sessionStorage. Se añade el import y anotación Omit<PendingResolutionCommand,...>; no hay cast que eluda validación. Nueva ejecución pendiente.
+- Primer dispatch40207633011 fue rechazado antes de instalación/PG por SHA esperado incorrecto; ya había terminado cuando se intentó cancelar. No cuenta como prueba. Segundo dispatch usó SHAexacto18e4f0fea3e0f6eb44d01432e07d1a947e5fe721.
+
+
+## 2026-10-25 — Paginación de pagos manuales preparada para CI
+
+- Lista anterior truncaba silenciosamente en250cargos. GETopciones ahora pagina50+1 por due_at/ref/id, conserva microsegundos y vuelve a comprobar actor/academia/sedes en cada consulta. Cursor es posición no confiable, no autorización ni secreto nuevo.
+- Owner muestra Cargar más, retiene selección/importe y permite reintentar la lectura. Cambio de props/academia/sede/página aborta la solicitud e invalida respuesta/finally antiguos; evita mezclar cargos entre ámbitos. No cambia POST ni registro de dinero.
+- Revisión independiente estática sinP1/P2; root revisó el nuevo PGreal de251cargos,6páginas,desempates y señuelos de otra sede/academia. Incluye rechazo de cursor con alcance distinto. Unitarios/UI/ruta yPG añadidos pero no ejecutados localmente. Pendientes CI yPGremotos, sandbox y publicación. No datos del ensayo ni producción modificados.
+
+
+## 2026-10-25 — Segundo replay: corrección exclusiva de fixtures
+
+- PG40208221416:20PASS/3FAIL; fallos localizados en arrays SQL de la fixture251cargos (42846) y dos comandos de familia enviados desde sedeA para gimnastasB/C. Se corrigen ARRAYtipado y sedeB correspondiente, conservando snapshots/rechazos/concurrencia. No se modifica producción, datos del ensayo ni guardsdelproducto.
+- Build y lint/tipos del59da53f5 pasan; unitarios/navegadores pendientes al registrar. Las correcciones necesitan nueva ejecución remota, no se ejecutaron localmente.
+
+
+## 2026-10-25 — Diagnóstico unitario y contactos de tutores
+
+- CI40208193151 del59da53f5 falló en unitarios pese a build/lint/tipos y varios gates PASS. Corregidos mocks de consultas familiares, scopes de labels y limpieza de sessionStorage entre tests; se conserva el bloqueo de comandos inciertos del producto. Hash del runner se recalcula sin modificar el snapshot SQL. Cursor HTTP restringido a base64url. Nueva ejecución remota pendiente.
+- Contactos de tutores preparados como entrega vertical: GET/PATCH all-sites, optimistic version con microsegundos, replay por actor y clave, datos anteriores conservados y verificación invalidada al cambiar destino. No envíos ni Auth/proveedores nuevos. Cinco casos PG adicionales integrados en CI desechable y excluidos del gate unitario ordinario. Revisión estática detectó ajustes de replay y privacidad que se corrigen antes del commit; sin alegar PASS ni sandbox/publicación.
+- Producción y preview del ensayo conservadas; no build/test/servicio local. Impago terminal pendiente del próximo intento natural, sin forzarlo.
+
+
+## 2026-10-25 — Replay de contactos detecta protección de eventos
+
+- PG40209662912 del a004af54:24PASS/4FAIL. Capacidad, ledger251cargos y familia pasan; contactos bloqueados por payloadguardianId restringido. La corrección retira ese campo redundante del payload y lo valida por aggregateId antes del replay; actor/fingerprint siguen obligatorios. No se relaja assertAnalyticsSafePayload ni SQL/permisos. Nuevo replay pendiente.
+- El hash del runner actualizado no modifica el snapshot SQL. La edición de contacto mantiene seis microsegundos y limpia verificación al cambiar destino. Se retiraron hashes directos adicionales de email/teléfono; commandFingerprint conserva función de idempotencia y no se presenta como anonimización de datos.
+
+
+## 2026-10-25 — Asistencia sin truncamiento silencioso, pendiente de CI
+
+- Auditoría demostró selector de asistencia limitado a100sin cursor/aviso. Entrega prepara GETpaginado50+1, keyset microsegundos/id, scopeverificado y selectedSessiondirecto separado. Ventana±30d actual y status permanecen; no cambia POSTasistencia. UI conserva selección y protege contra respuestas viejas de otra academia/sede. PG105sesiones y pruebasHTTP/UI añadidos, no ejecutados localmente ni acreditados en sandbox.
+- Unitariosa004af54:4986PASS/12FAIL/3omitidas. Fallos identificados en nuevos testscontactos y selectorfecha mensual; email demasiado largo de la fixture medía253 y se corrige a255 sin cambiar límite254. El build/lint/tipos sí pasan, pero no se publica con fallos unitarios/PG.
+- Contactos añadePGaislamiento academia/sede y replay bajo sololectura, con snapshot15sinmutación rechazada. Sin cambios enSQL remoto, producción ni ensayo.
+
+
+## 2026-10-25 — Historial inmutable conservado también en fixture
+
+- PG40210746095:31PASS/2FAIL. Capacidad, ledger, familia y contactos pasan; sesiones fallaron en finally al borrar organización, cuyo cascade chocó con historial de entitlement append-only. Se retira cleanupSQL por fila y se deja limpieza a destrucción completa de la base desechable del runner. No se altera trigger/política ni se da por validado el cuerpo105sesiones aún.
+- Lint/tipos remotos y gatesestáticos/SQL del06f7cb48 PASS; CIunit/build/navegadores pendientes al corte. Sin pruebas/build locales, datos del ensayo ni producción.
+
+
+### Corrección de los tres unitarios restantes del06f7cb48
+
+Job121221283687 terminó5008PASS/3FAIL/3omitidas (647archivosPASS/1FAIL/1omitido). Dos expectativas del test de contactos no coincidían con la interfaz: mayúscula de «Se muestran...» y botón que correctamente no se renderiza ante GETinválido. El tercer caso intentaba simular sessionStoragebloqueado espiando la instancia Storage, que jsdom trata como almacenamiento con propiedades nombradas; no interceptó setItem y permitió el PATCH de la fixture. Se espía Storage.prototype.setItem para comprobar realmente que el producto no envía nada cuando falla persistencia. No se cambia producto ni se retiran los asserts de fetchúnico/marcadorvacío. Cambios pendientes de nuevaCI, sin pruebas locales.
+
+
+### 2026-10-25 — candidato be8 y triage de fixture sintético
+
+- Fuente: CI40211452403 parcial; PG40211462505 SUCCESS; gates40211452398 ySQL40211452390 SUCCESS. Cinco suitesPGexit0, build/lint/tipos/unitarios/Chromium PASS; Firefox/WebKit pendientes. MergeCI9a1e8fbb yHEADbe8 árbolidéntico01d27c50a369a7c87049fbfe7c3c88f344a49fd5.
+- Hallazgo GitGuardian38975292: URI de prueba con passwordliteral synthetic. Clasificado por dashboard como Not a secret (false positive), sin desactivar escáner ni cambiar reglas. CheckGitHub anterior sigueFAILURE al corte; rerequestAPI404 no repetido. No credencialreal detectada en esa ocurrencia.
+- Importancia: mantener evidencia por commit y no confundir PGdesechable con sandbox ni clasificarcheckPASS sin observarlo.
+- Siguiente paso: cerrarFirefox/WebKit ycheckseguridad antes de publicar entrega aislada. No se tocó producción, ensayo, proveedores ni se hicieron pruebas/builds locales.
+
+- Cierre be8: CI40211452403 FAILURE soloWebKit/gateagregado. POSTmembershipaceptado/UUIDválido, texto esperado ausente15s en spec489; no fuebuildtimeout(169772,824ms). Chromium/Firefox y5011unitariasPASS/3omitidas. Se investiga antes de publicar; no se degradaelgate.
+
+
+### 2026-10-25 — siguiente entrega y fallo estático de aislamiento
+
+- Hallazgo: GET del perfil de gimnasta autoriza sedes con la unión de familiares; un hermano enA puede abrir lectura de un target sin anclaA. Fuente: owner-athlete-profile.ts, revisión estática de0504. No se afirma exposición de datos reales. Se bloquea publicación y se prepara exigir anclaPROPIA paraGET, manteniendo unión para proteger PATCH de identidad compartida.
+- Huecos MVP: archivo normal de ficha imposible bajo límite (RESOURCE_NOT_OVER_LIMIT), y falta corrección del nombre del tutor. Agentes implementan módulos/rutas/componentes separados, sin escrituras concurrentes sobre los mismos archivos. No se han ejecutado todavía ni aplicado a sandbox.
+- Ficha sin grupo: modelo de sede ya se expresa mediante relaciones; requiere alta y primera asignación explícitas y auditar consumidores familiares, sin grupos ficticios ni relajación de permisos parciales. Permanece pendiente.
+- Corte0504: replayPG40213810321 y GitGuardian121230335867 SUCCESS. CI40213750248 pendiente deWebKit; candidato no publicable por el hallazgo aunque CI pase. Sin builds/pruebas locales, SQL remoto, cambios en ensayo o efectos productivos.
+
+
+### 2026-10-25 — integración de regresiones nativas pendiente de ejecución
+
+CI0504 completa y replay PostgreSQL confirmados SUCCESS mediante GitHub. No
+publicar ese corte: el parche posterior de aislamiento de ficha por sede propia
+está pendiente de sus propios gates. Integradas las suites de perfil tutor,
+aislamiento de ficha y archivo ordinario en el runner PostgreSQL remoto; hash del
+runner actualizado sin cambiar la base SQL. Archivo Owner conserva historial y
+saldos y no levanta el bloqueo de otras escrituras. No pruebas/builds locales,
+consultas al ensayo, migraciones remotas ni despliegues en esta ronda.
+
+
+### 2026-10-25 — lote de perfiles/archivo preparado para CI remota
+
+Revisiones estáticas independientes de archivo y coordinación del perfil tutor
+sin P1/P2 demostrables. Same-origin añadido al PATCH nuevo y pruebas de rechazo;
+locks mantienen recuperación manual y bloquean cierre/otras mutaciones. E2E
+sintético ampliado con tutor persistido/recarga y archivo final con preservación
+del ledger y asistencia. Fecha familiar usa hoy civil de la sede desechable,
+cuota conserva mes siguiente. No ejecutado todavía; sin builds ni tests en Mac.
+
+
+## 2026-10-25 — Validación remota del lote 576db57c
+
+Replay nativo remoto40217881995 SUCCESS para ocho suites, reconstrucción vacía y aislamiento. Build remoto40217622706 SUCCESS, pero unitarias8FAIL/5060PASS/3omitidas y Chromium falla por selector ambiguo. Se preparan correcciones de pruebas sin desactivar guards; no despliegue de esta entrega ni producción. Intake separado todavía en implementación, no validado. Ningún test/build/servicio local.
+
+
+## 2026-10-25 — Intake y fechas de regularización en preparación
+
+Alta sin grupo: servicio/rutas/bandeja Owner y pruebas nuevas preparadas. Revisión encontró carrera de doble submit durante preflight; corrección requerida antes de integrar. Se añaden suites PostgreSQL completamente sintéticas de intake y preservación de fechas del archivo por regularización; la suite antigua que depende de fixtures reales NO se ejecuta. El runner remoto pasa de ocho a diez suites; el manifiesto actualiza su hash y corrige el hash obsoleto del fixture de aislamiento sin cambiar su SQL. Sin SQL remoto/migraciones/despliegue/producción ni builds/tests locales. Pendiente evidencia por commit.
+
+
+## 2026-10-25 — Origen en harness sintético
+
+CI1e66: capturaPNG confirma rechazo de hasSameOrigin en PATCH de perfil. Runner usa navegador127.0.0.1 y Next sin hostname explícito; código upstreamNext15.5.12 construye Request URL a partir del hostname del servidor o fallback. Se fija --hostname al hostname loopback de BASE_URL únicamente en E2E_LOCAL_SUPABASE y se observa Origin real en test sin inyectarlo. Guard CSRF de producto intacto. Hipótesis/corrección pendiente de próximoCI; no afirmar resuelto en runtime ni producción. Unit restante corrige expectativa de whitespace preservando el orden de locks.
+
+
+La revisión del manifiesto detectó además que el hash registrado del fixture SQL de aislamiento no correspondía a los bytes versionados en HEAD (idénticos al archivo actual). Se corrige solo ese metadato a51480aba756d3c1b581da0c28e1ac3bcfee024e3ba2eef038982bbb09f23b06c; el SQL y sus aserciones no cambian. Se conserva la evidencia de replay anterior sin afirmar que el metadato antiguo fuera correcto.
+
+## 2026-10-25 — Callback de confirmación caducado y alta real de entregas
+
+Logs Auth del sandbox aeeootdmuiqkfeernskw a22:50:59UTC acreditan422 flow_state_expired en intercambio PKCE, tras confirmación auténtica del correo a22:50:57UTC. Se distingue esta caducidad del fallo genérico, conserva next sanitizado y muestra instrucción persistente de login/recuperación. No se amplían plazos ni se acepta sesión sin intercambio válido. Pruebas nuevas cubren caducidad, destino externo, error distinto y éxito; ejecución exclusivamente CI remota pendiente. La cuenta humana de entregas accede por contraseña y creó academia0242c134-872b-45ca-a2bf-c64ece52a15b mediante UI; no se usaron fixtures del ensayo. Preview aún474369ea; corrección no desplegada. Fuente docs/qa/delivery-email-callback-2026-10-25.md. Sin builds/tests locales ni cambios del ensayo.
+
+
+## 2026-10-26 — GitGuardian PR234 clasificado y reevaluado
+
+Se verificaron las ocurrencias exactas 38997039 (6b504e6, runner de rehearsal) y 38997394 (d64fe2d, workflow de rehearsal): contraseña sintética del PostgreSQL17.6 desechable de CI, destino exacto127.0.0.1:55432 y base zaltyko_canonical_rehearsal_ci. Guards rechazan destino distinto y credenciales externas. Ambas clasificadas individualmente en workspace835500 como Ignored / Test credential; no cambio de reglas ni desactivación de escaneo. No se rotó ninguna credencial real ni reescribió historia.
+
+Re-run exclusivamente GitGuardian mediante GitHub: check121324341418 SUCCESS,72 commits escaneados, sin hallazgos pendientes; HEADaac0c5e33bcb278f7f982cc59fa8f2c27f53495f intacto. CI40242556143,Static40242556127 y SQL sources40242556288 conservan SUCCESS. La PR sigue BLOCKED/REVIEW_REQUIRED porque main exige una aprobación externa con permiso write, dismiss_stale_reviews=true, sin codeowner obligatorio. Autor mentessaas; colaborador elvisvaldes tiene push/write. El revisor humano debe revisar Files changed y enviar Review changes / Approve / Submit review; no autoaprobación ni bypass. No se envió solicitud/mensaje a terceros.
+
+Sin builds/tests/servicios locales, deployments, consultas al ensayo ni cambios de producción. Corrección del callback aún no publicada en delivery. Captura /private/tmp/zaltyko-gitguardian-pass-20261026.png. Evidencia GitHub https://github.com/mentessaas/Zaltyko/runs/121324341418 . Esta nota local no se empuja para conservar el HEAD ya validado y evitar reejecutar toda la CI por documentación.
+
+
+### 2026-10-26 — Preview de entregas aprobada y publicada
+
+HEAD aac0c5e33 aprobado por elvisvaldes; PR234 abierta sin merge. Delivery alias apunta a dpl_8Noeoyp1AMAYu6XKowh8vYbw27uu READY.14 checks previos,225 pruebas,tipos,300 páginas,653 trazas/cero faltantes;health200 DB64,91ms. Dashboard QA autenticado releído:1 gimnasta,1 grupo,1 asistencia,1 pago manual sintético35EUR;capacidad1/10. Aviso visual callback no comprobado porque la sesión activa redirige al dashboard;sin nuevos correos. Health Score/retención pendientes.42 scopes temporales restaurados y verificados;readback env vacío no se presenta como evidencia. Producción y ensayo no tocados;sin builds locales. Evidencia externa: auditoria-2026-10-25/delivery-aac-deployment-20261026.json.
+
+
+### 2026-10-26 — Controles posteriores de entrega
+
+Navegación Owner solo lectura: dashboard/grupo2gimnastas y1grupo;inscripciones1activa;1asistencia/35EUR conservados. Cuotas sin familia/pagador/vencimiento no permite emitir. No se modificaron incorporaciones posteriores del usuario. Outbox sin filtro por organización y cierre global de insights impiden invocación segura con ensayo congelado: no se llamó ni activócron. Pendiente solución acotada yCIremota. Evidencia externa: delivery-post-release-checks-20261026.md. Sin código,despliegue,producción ni builds locales.
+
+
+## 2026-10-26 — Alcance de apertura pública esencial
+
+**Título:** primera versión para academias de gimnasia en España, español y EUR.
+
+**Hallazgos:** la portada, FAQs, ayuda y catálogo prometían capacidades avanzadas no acreditadas. El resumen Owner consultaba Health Score, retención y capacidad antes de mostrar actividad persistida. El manifiesto conservaba doce tareas programadas heredadas.
+
+**Fuente:** plan humano de apertura pública del 26 de octubre; código de esta rama a partir de aac0c5e33. Aprobación humana posterior: los importes de Starter/Growth son base sin IVA. La identidad fiscal del vendedor y el tratamiento aplicable siguen pendientes; no se deducen del hecho de cobrar una suscripción.
+
+**Cambios preparados:** publicar solo acceso, academia, gimnastas/familias, grupos/clases/inscripciones, asistencia, cuotas/pagos manuales y resumen. Health Score/Insights quedan sin navegación y sus páginas directas devuelven404. El resumen no consulta métricas avanzadas. Los embudos históricos /modules/* redirigen a /features y salen del sitemap. No se incluyen tareas programadas en el candidato. Se mantienen intactos contratos API, precios base, límites y esquema; no se activa un worker global.
+
+**Siguiente paso:** CI remota completa del nuevo commit, revisión externa vigente y comprobación en delivery con academias separadas; después controles productivos y comerciales. No equivale a un lanzamiento ni a validar producción. Se conserva el ensayo natural sin consultas ni escrituras en esta ronda.
+
+No se ejecutaron pruebas, instalaciones, servicios ni builds locales. Revisión estática y git diff --check sin errores. Nuevas pruebas cubren scope/denegaciones, resumen no disponible, navegación sin módulos avanzados, rutas retiradas y ausencia de crons; ejecución pendiente de CI remota. No hay migraciones ni cambios de credenciales.
+
+
+## 2026-10-26 — Preparación del futuro autónomo sin afirmar un alta inexistente
+
+Declaración humana: Elvis Valdes Inerarte, futuro autónomo en España, alta todavía pendiente; hola@zaltyko.com oficial. Perfil único con NIF/domicilio vacíos y verificaciones independientes pendientes. Términos y privacidad muestran futuro titular y contratación aún cerrada; se retiran plazos comerciales heredados no acreditados. Servicio y acciones Owner bloquean Checkout Live antes de efectos mientras falte cierre; test, Portal y eventos conservados. Pruebas nuevas de rechazo sin reservas/proveedor y condiciones independientes; solo ejecución remota pendiente. Sin migraciones, cambios de credenciales, consultas al ensayo, despliegues ni builds/tests locales. Guía docs/deployment/spain-seller-activation-2026-10-26.md y Pricing/Decisiones/Backlog actualizados.
+
+
+## 2026-10-26 — Preview esencial c0b705ef publicada
+
+Revisión externa y CI exactas aprobadas. Entregas ahora dpl_9C1oMxrJiGSRWpNDVQS1cs3yVyeX, READY;226 pruebas remotas/tipos/Next206663ms/artefacto PASS. Health DB108.33ms;404 módulos retirados;401 API privada sin sesión; Owner humano muestra resumen persistido y navegación esencial. Alias del ensayo intacto.42 ámbitos env restaurados/verificados; no valores retenidos. Producción no modificada, cero builds locales. Pendiente recorrido alojado completo y matriz dos academias/sedes del nuevo candidato, cierre fiscal/Live antes de publicar producción. Evidencia fuera del checkout: auditorias/2026-10-26/delivery-c0b705-published.md. Esta nota posterior al despliegue no forma parte del commit desplegado.
+
+### 2026-10-26 — Completar familia incompleta tras alta Owner
+- Hallazgo sandbox: el alta crea familia sin pagador; crear otra desde Grupos devuelve solapamiento. Fixture QA Cierre Entrega 20261026, sin modificar el ensayo.
+- Interfaz ofrece completar únicamente una familia sin pagador vinculada a esa gimnasta, con alcance completo. Reutiliza contrato existente familyId + adulto nuevo; conserva guardas del servidor y clave/cuerpo de reintento. Sin SQL ni ampliación de permisos.
+- Añadida cobertura de respuesta perdida/recarga y denegación por familia ajena, ambigüedad y sede limitada. Validación remota pendiente; no se ejecutaron pruebas ni builds locales.
+- Regresión PostgreSQL añadida para familia vacía: dos peticiones concurrentes deben crear un único responsable/pagador y mantener exactamente familia y vínculo originales; replay sin efectos. Se ejecutará exclusivamente en base efímera de CI.
+- CI f95da2ee: PostgreSQL y build PASS; unitarias5131PASS/9fallos/3omitidas. Los nueve fallos pertenecen al editor por cola de mock no consumida en el nuevo caso de sede limitada. Se reinicia fetch entre casos y no se encola una respuesta cuando no debe existir consulta; se conservan las aserciones. Pendiente nueva CI remota.
+- El E2E sintético remoto amplía el recorrido real: alta con familia vacía → grupo → completar responsable por UI. Comprueba HTTP201, body con familia original y SQL con un vínculo/pagador/responsable. Pendiente ejecución en los tres navegadores.
+
+
+## 2026-10-26 — Cuota existente con diagnóstico preciso
+
+Hallazgo en delivery1536f814: emisión QA35EUR correcta, pero PERIOD_ALREADY_INVOICED no tenía etiqueta y mostraba un supuesto dato de inscripción incorrecto. Se traducen los dos motivos de factura existente/anulada y el encabezado pasa a Revisa el estado de la cuota; no cambian canIssue, idempotencia, API, SQL ni emisión. Verificación alojada previa: pago parcial10EUR/saldo25 persistido tras recarga; exceso25,01 rechazado por formulario; segundo pago25 liquida; resumen3cobros70EUR con histórico35. No se presenta como snapshot SQL alojado ni prueba HTTP del rechazo. Corrección de textos pendiente CI remota/revisión; sin pruebas ni builds locales.
+
+
+## 2026-10-26 — Validación alojada e09 y enlace de directorio residual
+
+Delivery e09: asistencia guardada/releída, dashboard30gimnastas/3grupos/1asistencia/3pagos sintéticos70EUR, cuota35EUR ya emitida bloquea duplicado. Gimnasta31,grupo4,clase11 rechazados por UI:18 tablas comparadas antes/después de cada intento sin diferencias. Solo academia de entregas; no ensayo ni producción. Geometría375/768/1280 sin overflow, aceptación visual completa pendiente por diferencia de escala de capturas.
+
+El formulario público aún renderiza Buscar academias públicas aunque discovery está apagado. Se condiciona el bloque a la bandera explícita y se añaden regresiones de render real con bandera false/true; sin cambiar consentimiento, API, SQL ni auth. CI remota del parche pendiente; e09 publicado intacto. Segundo registro QA preparado, requiere contraseña y aceptación humanas. Evidencia docs/qa/delivery-authenticated-e09f8acc-2026-10-26.md; cero builds/tests locales.
+
+
+## 2026-10-27 — Preview aprobada 31e18a87 y QA B actual
+
+Revisión elvisvaldes APPROVED sobre31e18a87 a06:29:23UTC; CI40426105055 y controles fuente/operacional/GitGuardian SUCCESS, tres navegadores sintéticos PASS. Publicado solo alias de entregas a dpl_7XoNyXJW2vPQkFQPzk6Ph3HCABms READY. Instalación congelada/preflight/226pruebas/tipos/Next271672ms bajo360s/artefacto653trazados sin faltantes PASS; health DB104,24ms.42ámbitos de variables restaurados/releídos, sin actualizar valores. API de metadatos devuelve env vacío: aserción auxiliar de nombres no disponible; preflight remoto efectivo sí PASS, sin repetir deployment.
+
+QA B sesión existente: lectura propia y vacío correctos; academia/sede A denegadas403/404; API sin sesión401. Una clase sintética acotada a una sesión creada y releída por UI/API, contador0→1; inscripciones la ofrece, sin candidatos propios; cuotas vacías sin cargos. Sin cuentas, facturas, pagos, SQL manual, proveedores ni nuevas sesiones administrativas. Pendiente cambiar sesión a QA A para repetir dirección inversa y recorrido poblado en este mismo artefacto; pruebas e09 no sustituyen runtime31e. Ensayo/producción no consultados ni alterados, sin builds/tests/instalaciones locales. Evidencia fuera del checkout auditorias/2026-10-27/delivery-31e18a87-validation.md. Nota posterior al despliegue queda sin commit para conservar el SHA aprobado.
+
+
+## 2026-10-27 — Salida de sesión visible en Owner
+
+Defecto confirmado en31e por UI y código: navegación Owner carece de salida incluso en setup; para cambiar a QA A hubo que retirar únicamente las cookies Auth del origen de entregas, sin revocación global. El humano inició QA A y el resumen muestra30gimnastas/3grupos/1asistencia/3pagos70EUR.
+
+Se añade Cerrar sesión en la cabecera compartida Owner, visible en móvil/escritorio y setup, ausente de la vista sintética. Usa Supabase signOut con scope local, espera el resultado antes de reemplazar la ruta por /auth/login y refrescar, bloquea doble envío y permite reintentar errores sin fingir salida correcta. No modifica datos, roles, permisos, contraseñas ni otras sesiones del usuario. Cabecera móvil se mantiene hasta xl para acomodar la acción sin comprimir los enlaces. Pruebas nuevas de espera/doble clic, fallos devueltos/lanzados y reintento, presencia en setup y exclusión sintética. Solo diff-check local; pruebas/tipos/build pendientes exclusivamente CI remota. Preview31e y ensayo intactos; este parche requiere controles y revisión del nuevo commit antes de desplegar.
+
+## 2026-10-27 — Mock de navegación del dashboard compatible con logout
+
+CI40464607495 sobre51baa1e6: cuatro pruebas de owner-dashboard-navigation fallan porque su mock de next/navigation no exporta useRouter, ahora requerido por la cabecera compartida. Se añade únicamente el router simulado con replace/refresh, conservando las cuatro pruebas y todas sus aserciones. Las pruebas específicas de cierre de sesión permanecen intactas. No cambia código productivo, workflow ni controles. Validación pendiente de CI remota completa del nuevo commit; sin tests/builds locales, sin desplegar ni consultar producción o el ensayo.
+
+## 2026-10-27 — Logout publicado y probado en entregas ab067043
+
+Aprobación externa exacta y CI completa SUCCESS (tres navegadores sintéticos). Publicado solo delivery-preview: dpl_GnNq4NtSNoRPGQzttQwv96ERvcXD READY, preflight/226pruebas/tipos/artefacto PASS,297páginas,health DB104,69ms.42ámbitos env restaurados/verificados sin cambiar valores. Botón visible en QA A; clic real sale al login, acceso posterior Owner exige autenticación y usage devuelve UNAUTHENTICATED. Login humano preparado con correo QA A y contraseña vacía.31e anterior conservado; ensayo/producción no consultados ni alterados, cero builds/tests locales. Evidencia auditorias/2026-10-27/delivery-ab067043-logout-validation.md fuera de checkout. Nota sin commit para conservar SHA aprobado/publicado.
+
+## 2026-10-27 — QA A actual y corrección móvil demostrada
+
+QA A humana enab067043: resumen30/3/1/3pagos70EUR,usageFree30/3/10,2inscripciones activas,Presente persistido,cuota35EUR noviembre impide duplicado y cobros sin pendientes. Lecturas ajenas denegadasNOT_FOUND/403; no se atribuyen escrituras/snapshots actuales. A375px no hay scrollhorizontal pero capturaCDP demuestra solapamiento de Inscripciones/Asistencia. Se corrige grid móvil3columnas bajo640/6desde640, alineación de objetivos y etiquetas completas; nuevo E2E remoto mide texto contenido,44pxmínimo y nointersección. PendienteCI/revisión/publicación,ab067preview intacta. Sin producción/ensayo/builds locales. Matriz vigente del corte docs/qa/essential-release-current-2026-10-27.md separa gates técnicos, ensayo natural y bloqueos vendedor/fiscal/Live. Nota anterior de publicación se incorpora sin reescribir historia.

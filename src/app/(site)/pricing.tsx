@@ -79,6 +79,7 @@ export default function PricingSection() {
     <section id="planes" className="py-20">
       <PricingPageTracker />
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <p className="mb-4 text-center text-sm text-muted-foreground">Precios sin IVA.</p>
         {/* Trial banner */}
         <div className="mb-8 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-zaltyko-teal/25 bg-zaltyko-teal/10 px-5 py-2 text-sm font-medium text-zaltyko-navy">
@@ -96,8 +97,8 @@ export default function PricingSection() {
               Planes pensados por etapa de academia
             </h1>
             <p className="mt-3 font-sans text-base text-muted-foreground">
-              No vendemos módulos sueltos: vendemos dirección diaria, cobros
-              claros y seguimiento técnico para gimnasia artística y rítmica.
+              Organiza gimnastas, grupos, asistencia y cuotas con registro
+              manual de pagos para gimnasia artística y rítmica.
             </p>
             <p className="mt-2 font-sans text-sm text-muted-foreground">
               Empieza gratis y configura tu academia. Desde Facturación puedes
@@ -162,7 +163,7 @@ export default function PricingSection() {
                   </h3>
                   {plan.highlight && (
                     <span className="text-xs font-semibold uppercase tracking-[0.06em] text-zaltyko-teal">
-                      Más elegido
+                      Más capacidad
                     </span>
                   )}
                 </div>

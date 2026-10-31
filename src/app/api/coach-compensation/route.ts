@@ -11,12 +11,12 @@ import { requireLeakProfitabilityFeature } from "@/lib/product/leak-profitabilit
 export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 const createSchema = z.object({
-  academyId: z.string().uuid(),
-  coachId: z.string().uuid(),
+  academyId: z.guid(),
+  coachId: z.guid(),
   hourlyRateCents: z.number().int().min(0).default(0),
   monthlySalaryCents: z.number().int().min(0).default(0),
   estimatedWeeklyHours: z.number().int().min(0).max(168).default(0),

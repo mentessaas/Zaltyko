@@ -8,12 +8,12 @@ import { logger } from "@/lib/logger";
 import { reportDateSchema, validateReportPeriod } from "@/lib/reports/query-schemas";
 
 const reportSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   startDate: reportDateSchema,
   endDate: reportDateSchema,
-  classId: z.string().uuid().optional(),
-  groupId: z.string().uuid().optional(),
-  sportConfigId: z.string().uuid().optional(),
+  classId: z.guid().optional(),
+  groupId: z.guid().optional(),
+  sportConfigId: z.guid().optional(),
 }).superRefine(validateReportPeriod);
 
 export const GET = withTenant(async (request, context) => {

@@ -15,9 +15,10 @@ import { getBillingAcademyAccess } from "@/lib/billing/access";
 import { isSubscriptionManaged } from "@/lib/billing/subscription-status";
 import { toCommercialPlanSlug } from "@/lib/growth/contracts";
 import { recordGrowthEvent } from "@/lib/growth/events";
+import { isSaasCheckoutEnabled } from "@/lib/launch/commercial-launch-profile";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   // `pro` = Starter y `premium` = Growth. Network es venta acompañada.
   planCode: z.enum(["pro", "premium"]),
   billingInterval: z.enum(["month", "year"]).default("month"),
@@ -32,6 +33,17 @@ const handler = withTenant(async (request, context) => {
       return apiError(
         "STRIPE_NOT_CONFIGURED",
         "Stripe no está configurado. Contacta con soporte para habilitar los pagos.",
+        503
+      );
+    }
+
+    // Only explicit test credentials bypass the commercial Live launch gate.
+    // Unknown formats fail closed rather than being mistaken for sandbox keys.
+    const isTestCredential = /^(?:sk|rk)_test_/.test(stripeSecretKey);
+    if (!isSaasCheckoutEnabled(isTestCredential ? "test" : "live")) {
+      return apiError(
+        "BILLING_CONFIGURATION_UNAVAILABLE",
+        "La contratación todavía no está disponible.",
         503
       );
     }

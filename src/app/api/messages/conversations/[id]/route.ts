@@ -9,6 +9,9 @@ import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { handleApiError } from "@/lib/api-error-handler";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 import {
   conversations,
   conversationParticipants,
@@ -205,7 +208,7 @@ export const PATCH = withTenant(async (request: Request, context: RouteContext) 
     }
 
     const [conversation] = await db
-      .select({ id: conversations.id })
+      .select({ id: conversations.id, academyId: conversations.academyId })
       .from(conversations)
       .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)))
       .limit(1);
@@ -236,10 +239,24 @@ export const PATCH = withTenant(async (request: Request, context: RouteContext) 
     }
 
     if (body.title !== undefined) {
-      await db
-        .update(conversations)
-        .set({ title: body.title, updatedAt: new Date() })
-        .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)));
+      const updated = await withTransaction(async (tx) => {
+        if (conversation.academyId) {
+          await lockAcademyOperationalWrites(tx, conversation.academyId);
+          await assertAcademyOperationalWritable(context.tenantId, conversation.academyId, tx);
+        }
+        const [currentConversation] = await tx
+          .select({ id: conversations.id, academyId: conversations.academyId })
+          .from(conversations)
+          .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)))
+          .limit(1);
+        if (!currentConversation || currentConversation.academyId !== conversation.academyId) return false;
+        await tx
+          .update(conversations)
+          .set({ title: body.title, updatedAt: new Date() })
+          .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)));
+        return true;
+      });
+      if (!updated) return apiError("NOT_FOUND", "Conversación no encontrada", 404);
     }
 
     // Update participant settings
@@ -266,7 +283,7 @@ export const PATCH = withTenant(async (request: Request, context: RouteContext) 
     return apiSuccess({ success: true });
   } catch (error) {
     logger.error("Error updating conversation:", error);
-    return apiError("INTERNAL_ERROR", "Error al actualizar conversación", 500);
+    return handleApiError(error, { endpoint: "/api/messages/conversations/[id]", method: "PATCH" });
   }
 });
 

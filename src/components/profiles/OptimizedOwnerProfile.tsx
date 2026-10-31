@@ -76,7 +76,7 @@ const PLAN_COPY: Record<string, { label: string; description: string; cta: strin
   },
   pro: {
     label: "Plan Starter",
-    description: "Hasta 75 gimnastas, portal familiar limitado y gestión de cuotas.",
+    description: "Hasta 75 gimnastas, familias y responsables y gestión de cuotas.",
     cta: "Gestionar suscripción",
     color: "bg-blue-100 text-blue-800",
   },

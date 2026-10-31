@@ -32,7 +32,7 @@ interface RouteContext {
 async function contactHandler(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    if (!z.string().uuid().safeParse(id).success) {
+    if (!z.guid().safeParse(id).success) {
       return NextResponse.json({ error: "INVALID_EVENT_ID" }, { status: 400 });
     }
 

@@ -17,9 +17,9 @@ export const metadata: Metadata = {
 };
 
 const querySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
-  sessionId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
+  sessionId: z.guid().optional(),
 });
 
 export default async function OwnerAttendancePage({
@@ -48,6 +48,7 @@ export default async function OwnerAttendancePage({
       userId: user.id,
       organizationId: query.data.organizationId,
       locationId: query.data.locationId,
+      sessionId: query.data.sessionId,
     });
   } catch (error) {
     if (error instanceof OperationalError) {
@@ -71,6 +72,8 @@ export default async function OwnerAttendancePage({
       locationId={data.locationId}
       sessions={data.sessions}
       initialSessionId={query.data.sessionId}
+      initialNextCursor={data.nextCursor}
+      selectedSession={data.selectedSession}
     />
   );
 }

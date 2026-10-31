@@ -75,8 +75,20 @@ describe("API /api/class-sessions", () => {
       },
     }));
 
+    vi.doMock("@/lib/limits", () => ({
+      assertAcademyOperationalWritable: vi.fn().mockResolvedValue({ readOnly: false }),
+      lockAcademyOperationalWrites: vi.fn().mockResolvedValue(undefined),
+    }));
+
     vi.doMock("@/lib/authz/resource-scope", () => ({
-      authorizeClassResource: vi.fn().mockResolvedValue({ allowed: true }),
+      authorizeClassResource: vi.fn().mockResolvedValue({
+        allowed: true,
+        resource: {
+          id: "class-123",
+          tenantId: "tenant-123",
+          academyId: "11111111-1111-4111-8111-111111111111",
+        },
+      }),
     }));
 
     const mainModule = await import("@/app/api/class-sessions/route");
@@ -96,25 +108,35 @@ describe("API /api/class-sessions", () => {
     selectQueue.push(
       createSelectChain({
         resolveAt: "orderBy",
-        result: [{ id: "22222222-2222-2222-2222-222222222222" }],
+        result: [{ id: "22222222-2222-4222-8222-222222222222", academyId: "11111111-1111-4111-8111-111111111111" }],
       })
     );
     selectQueue.push(
       createSelectChain({
         resolveAt: "limit",
-        result: [{ id: "33333333-3333-3333-3333-333333333333" }],
+        result: [{
+          id: "22222222-2222-4222-8222-222222222222",
+          academyId: "11111111-1111-4111-8111-111111111111",
+          sportConfigId: null,
+        }],
+      })
+    );
+    selectQueue.push(
+      createSelectChain({
+        resolveAt: "limit",
+        result: [{ id: "33333333-3333-4333-8333-333333333333" }],
       })
     );
 
     const request = new Request("http://localhost/api/class-sessions", {
       method: "POST",
       body: JSON.stringify({
-        academyId: "11111111-1111-1111-1111-111111111111",
-        classId: "22222222-2222-2222-2222-222222222222",
+        academyId: "11111111-1111-4111-8111-111111111111",
+        classId: "22222222-2222-4222-8222-222222222222",
         sessionDate: "2025-05-12",
         startTime: "17:00",
         endTime: "19:00",
-        coachId: "33333333-3333-3333-3333-333333333333",
+        coachId: "33333333-3333-4333-8333-333333333333",
       }),
       headers: { "Content-Type": "application/json" },
     });
@@ -125,7 +147,7 @@ describe("API /api/class-sessions", () => {
     expect(body.data).toHaveProperty("id");
     const sessionInsert = insertCalls[0];
     expect(sessionInsert?.payload).toMatchObject({
-      classId: "22222222-2222-2222-2222-222222222222",
+      classId: "22222222-2222-4222-8222-222222222222",
       sessionDate: "2025-05-12",
       startTime: "17:00",
       endTime: "19:00",
@@ -143,11 +165,11 @@ describe("API /api/class-sessions", () => {
             startTime: "17:00",
             endTime: "19:00",
             status: "scheduled",
-            classId: "22222222-2222-2222-2222-222222222222",
+            classId: "22222222-2222-4222-8222-222222222222",
             className: "Equipo FIG Avanzado",
-            academyId: "11111111-1111-1111-1111-111111111111",
+            academyId: "11111111-1111-4111-8111-111111111111",
             academyName: "Gymna Training Center",
-            coachId: "33333333-3333-3333-3333-333333333333",
+            coachId: "33333333-3333-4333-8333-333333333333",
             coachName: "Luis Romero",
           },
         ],
@@ -171,6 +193,12 @@ describe("API /api/class-sessions", () => {
   });
 
   it("actualiza una sesión existente", async () => {
+    selectQueue.push(
+      createSelectChain({
+        resolveAt: "limit",
+        result: [{ id: "session-1", classId: "class-123" }],
+      })
+    );
     selectQueue.push(
       createSelectChain({
         resolveAt: "limit",

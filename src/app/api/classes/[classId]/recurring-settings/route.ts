@@ -6,6 +6,8 @@ import { db } from "@/db";
 import { classes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { authorizeClassResource } from "@/lib/authz/resource-scope";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const bodySchema = z.object({
   autoGenerateSessions: z.boolean(),
@@ -64,10 +66,14 @@ export const PUT = withTenant(async (request, context) => {
   }
 
   // Actualizar configuración
-  await db
-    .update(classes)
-    .set(updateData)
-    .where(eq(classes.id, classId));
+  await withTransaction(async (tx) => {
+    await lockAcademyOperationalWrites(tx, scope.resource!.academyId);
+    await assertAcademyOperationalWritable(scope.resource!.tenantId, scope.resource!.academyId, tx);
+    await tx
+      .update(classes)
+      .set(updateData)
+      .where(and(eq(classes.id, classId), eq(classes.tenantId, scope.resource!.tenantId)));
+  });
 
   return apiSuccess({ ok: true });
 });

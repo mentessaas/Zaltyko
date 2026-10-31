@@ -10,11 +10,11 @@ import { verifyProgressAccess } from "@/lib/progress/service";
 import { VIDEO_UPLOADS, validateUpload } from "@/lib/uploads/file-security";
 
 const UploadFieldsSchema = z.object({
-  academyId: z.string().uuid(),
-  assessmentId: z.string().uuid(),
+  academyId: z.guid(),
+  assessmentId: z.guid(),
 });
 
-const DeleteQuerySchema = z.object({ id: z.string().uuid() });
+const DeleteQuerySchema = z.object({ id: z.guid() });
 
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {

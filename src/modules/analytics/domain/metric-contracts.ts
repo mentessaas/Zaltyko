@@ -33,8 +33,8 @@ export const metricDefinitionSchema = z.object({
 
 export const metricResultSchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid().nullable(),
+    organizationId: z.guid(),
+    locationId: z.guid().nullable(),
     metricCode: metricCodeSchema,
     definitionVersion: z.number().int().positive(),
     periodStart: z.string().date(),
@@ -44,7 +44,7 @@ export const metricResultSchema = z
     denominator: z.number().finite().nullable(),
     coverage: z.number().min(0).max(1),
     qualityStatus: metricQualityStatusSchema,
-    dimensions: z.record(z.string()),
+    dimensions: z.record(z.string(), z.string()),
     calculatedAt: z.string().datetime({ offset: true }),
     sourceWatermark: z.string().datetime({ offset: true }),
   })

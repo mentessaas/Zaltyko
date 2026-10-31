@@ -1,9 +1,10 @@
 import Stripe from "stripe";
-import { eq, sql } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { subscriptions, billingEvents } from "@/db/schema";
+import { academies, billingEvents, profiles, subscriptions } from "@/db/schema";
 import { withTransaction } from "@/lib/db-transactions";
+import { lockAcademyOperationalWrites, lockUserSubscriptionStatus } from "@/lib/limits";
 import { extractMetadataValue } from "@/lib/stripe/metadata-utils";
 import { getAcademyContextFromSubscription } from "@/lib/stripe/context-resolver";
 import { getPlanIdByStripePrice } from "@/lib/stripe/plan-service";
@@ -18,6 +19,41 @@ import { recordGrowthEvent } from "@/lib/growth/events";
 type TransactionClient = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
+ * A plan/status webhook changes the effective capacity of every legacy
+ * academy owned by the subscriber. Use the same academy locks as operational
+ * writes so a downgrade cannot race a resource creation on another academy.
+ */
+async function lockSubscriptionAcademies(
+  tx: TransactionClient,
+  context: { academyId: string | null; userId: string | null }
+): Promise<void> {
+  const academyIds = new Set<string>();
+
+  if (context.userId) {
+    const [owner] = await tx
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(eq(profiles.userId, context.userId))
+      .limit(1);
+
+    if (owner) {
+      const ownedAcademies = await tx
+        .select({ id: academies.id })
+        .from(academies)
+        .where(eq(academies.ownerId, owner.id))
+        .orderBy(asc(academies.id));
+      for (const academy of ownedAcademies) academyIds.add(academy.id);
+    }
+  }
+
+  if (context.academyId) academyIds.add(context.academyId);
+
+  for (const academyId of [...academyIds].sort()) {
+    await lockAcademyOperationalWrites(tx, academyId);
+  }
+}
+
+/**
  * Actualiza el registro de suscripción en la base de datos
  */
 export async function updateSubscriptionRecord(
@@ -28,7 +64,7 @@ export async function updateSubscriptionRecord(
 ): Promise<"updated" | "stale_ignored"> {
 
   if ("execute" in client && typeof client.execute === "function") {
-    await client.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`);
+    await lockUserSubscriptionStatus(client, userId);
   }
 
   const eventCreatedAt = typeof event.created === "number" ? new Date(event.created * 1000) : new Date();
@@ -112,7 +148,11 @@ export async function handleSubscriptionEvent(
       : await getStripeClient().subscriptions.retrieve(subscription.id);
 
   const result = await withTransaction(async (tx) => {
-    const context = await getAcademyContextFromSubscription(canonicalSubscription);
+    const context = await getAcademyContextFromSubscription(canonicalSubscription, tx);
+
+    // Serialize effective plan/status changes against all capacity-guarded
+    // operations before persisting the subscription snapshot.
+    await lockSubscriptionAcademies(tx, context);
 
     if (context.userId) {
       await updateSubscriptionRecord(canonicalSubscription, context.userId, event, tx);

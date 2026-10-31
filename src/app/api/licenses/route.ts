@@ -12,9 +12,9 @@ import { verifyAcademySportConfig } from "@/lib/sport-config/service";
 // `annualFeeCents` y `notes` porque el form de creación de licencia puede
 // limpiar esos campos (clear field). Antes, `null` → 400.
 const createLicenseSchema = z.object({
-  personId: z.string().uuid(),
+  personId: z.guid(),
   personType: z.enum(["athlete", "coach", "judge"]),
-  sportConfigId: z.string().uuid().optional().nullable(),
+  sportConfigId: z.guid().optional().nullable(),
   licenseNumber: z.string().min(1),
   licenseType: z.string().min(1),
   federation: z.string().min(1),
@@ -28,9 +28,9 @@ const createLicenseSchema = z.object({
 });
 
 const querySchema = z.object({
-  personId: z.string().uuid().optional(),
+  personId: z.guid().optional(),
   personType: z.enum(["athlete", "coach", "judge"]).optional(),
-  sportConfigId: z.string().uuid().optional(),
+  sportConfigId: z.guid().optional(),
   status: z.enum(["active", "expired", "suspended", "pending"]).optional(),
   expiringInDays: z.string().transform(Number).optional(),
   limit: z.string().transform(Number).pipe(z.number().min(1).max(100)).optional(),

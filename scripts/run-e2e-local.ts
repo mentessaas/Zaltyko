@@ -1,15 +1,13 @@
 /* eslint-disable no-console */
 import {
-  cpSync,
   mkdtempSync,
-  mkdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createServer } from "node:net";
 
 import {
@@ -31,9 +29,13 @@ import {
 } from "./lib/local-e2e-preflight";
 import { resolveLocalDockerEndpoint } from "./lib/local-docker-endpoint";
 import {
-  E2E_DOMAIN_MIGRATIONS,
-  E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS,
-  E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS,
+  replayPinnedE2ESchema,
+  type PinnedSchemaSource,
+} from "./lib/e2e-schema-replay";
+import {
+  E2E_LOCAL_SCHEMA_POST_SNAPSHOT_MIGRATIONS,
+  E2E_LOCAL_SCHEMA_TEST_SEEDS,
+  E2E_LOCAL_SCHEMA_SNAPSHOT,
 } from "./lib/e2e-domain-migrations";
 import {
   createBuildTraceCatalog,
@@ -243,18 +245,52 @@ void (async () => {
       abortController.signal
     );
 
-    const migrationDirectory = join(projectDirectory, "supabase", "migrations");
-    mkdirSync(migrationDirectory, { recursive: true });
-    const localMigrations = [
-      ...E2E_DOMAIN_MIGRATIONS,
-      ...E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS,
-      ...E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS,
+    const localSchemaSources = [
+      {
+        ...E2E_LOCAL_SCHEMA_SNAPSHOT,
+        sourcePath: resolve(
+          root,
+          "supabase",
+          "schema-snapshots",
+          E2E_LOCAL_SCHEMA_SNAPSHOT.filename
+        ),
+        isGuardedSnapshot: true,
+      },
+      ...E2E_LOCAL_SCHEMA_POST_SNAPSHOT_MIGRATIONS.map((migration) => ({
+        ...migration,
+        sourcePath: resolve(root, "supabase", "migrations", migration.filename),
+        isGuardedSnapshot: false,
+      })),
+      ...E2E_LOCAL_SCHEMA_TEST_SEEDS.map((seed) => ({
+        ...seed,
+        sourcePath: resolve(root, "scripts", "e2e-local", seed.filename),
+        isGuardedSnapshot: false,
+      })),
     ];
-    for (const filename of localMigrations) {
-      cpSync(
-        resolve(root, "supabase", "migrations", filename),
-        join(migrationDirectory, filename)
-      );
+    const pinnedSchemaSources: PinnedSchemaSource[] = [];
+    for (const migration of localSchemaSources) {
+      const sql = readFileSync(migration.sourcePath);
+      const actualSha256 = createHash("sha256").update(sql).digest("hex");
+      if (actualSha256 !== migration.sha256) {
+        throw new Error(
+          `The reviewed disposable E2E schema source changed: ${migration.filename}.`
+        );
+      }
+
+      if (
+        migration.isGuardedSnapshot &&
+        !sql.toString("utf8").startsWith("-- CURRENT-STATE SCHEMA SNAPSHOT;")
+      ) {
+        throw new Error(
+          "The disposable E2E baseline is not labeled as a current-state schema snapshot."
+        );
+      }
+
+      pinnedSchemaSources.push({
+        filename: migration.filename,
+        sql,
+        isGuardedSnapshot: migration.isGuardedSnapshot,
+      });
     }
 
     // Keep this stack's identity unique even when multiple local runs overlap.
@@ -285,8 +321,12 @@ void (async () => {
     );
     const supabaseUrl = required(values, "API_URL");
     const databaseUrl = required(values, "DB_URL");
+    await replayPinnedE2ESchema(databaseUrl, pinnedSchemaSources);
     const appPort = await findAvailablePort();
-    const appUrl = `http://127.0.0.1:${appPort}`;
+    // NextURL normalizes loopback IPs to localhost. Use that canonical host
+    // for both the browser Origin and the route Request URL; retain strict
+    // same-origin checks rather than allowing equivalent loopback aliases.
+    const appUrl = `http://localhost:${appPort}`;
     const childEnv: NodeJS.ProcessEnv = {
       ...safeEnvironment,
       NODE_ENV: "test",
@@ -312,6 +352,10 @@ void (async () => {
     console.log(
       "Building the app against the disposable local Supabase stack."
     );
+    const buildTimeoutMs =
+      process.env.GITHUB_ACTIONS === "true"
+        ? LOCAL_E2E_TIMEOUTS.ciBuild
+        : LOCAL_E2E_TIMEOUTS.build;
     const progress = createBuildProgressObserver();
     const buildTraceCatalog = createBuildTraceCatalog(root);
     await withBuildDiagnostic(
@@ -326,7 +370,7 @@ void (async () => {
                 NODE_ENV: "production",
                 ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",
               },
-              LOCAL_E2E_TIMEOUTS.build,
+              buildTimeoutMs,
               abortController.signal,
               "pipe",
               progress.push

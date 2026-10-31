@@ -11,8 +11,8 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 export const dynamic = "force-dynamic";
 
 const pageQuerySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
 });
 
 export default async function OwnerPaymentsPage({
@@ -98,11 +98,11 @@ export default async function OwnerPaymentsPage({
         </div>
 
         <ManualPaymentForm
+          actorId={user.id}
           organizationId={options.organization.id}
+          locationId={options.selectedLocationId}
           charges={options.charges}
-          canManageFamilyCollectionPreferences={
-            options.canManageFamilyCollectionPreferences
-          }
+          nextCursor={options.nextCursor}
         />
       </div>
     </main>

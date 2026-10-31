@@ -1,20 +1,22 @@
 export const dynamic = 'force-dynamic';
 
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { and, asc, eq, gte, lte } from "drizzle-orm";
+import { and, asc, eq, gte, isNull, lte } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, classSessions, classes, coaches } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const bodySchema = z.object({
-  academyId: z.string().uuid(),
-  classId: z.string().uuid(),
+  academyId: z.guid(),
+  classId: z.guid(),
   sessionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha YYYY-MM-DD requerida"),
   startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/, "Hora HH:mm inválida").optional(),
   endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/, "Hora HH:mm inválida").optional(),
-  coachId: z.string().uuid().optional(),
+  coachId: z.guid().optional(),
   status: z.string().optional(),
   notes: z.string().max(2000).optional(),
 }).superRefine((value, ctx) => {
@@ -24,9 +26,9 @@ const bodySchema = z.object({
 });
 
 const querySchema = z.object({
-  classId: z.string().uuid().optional(),
-  academyId: z.string().uuid().optional(),
-  coachId: z.string().uuid().optional(),
+  classId: z.guid().optional(),
+  academyId: z.guid().optional(),
+  coachId: z.guid().optional(),
   from: z.string().optional(),
   to: z.string().optional(),
 });
@@ -108,51 +110,75 @@ export const POST = withTenant(async (request, context) => {
   }
 
   const [classRow] = await db
-    .select({ id: classes.id, academyId: classes.academyId, sportConfigId: classes.sportConfigId })
+    .select({ id: classes.id, academyId: classes.academyId })
     .from(classes)
-    .where(and(eq(classes.id, body.classId), eq(classes.tenantId, context.tenantId)))
+    .where(and(eq(classes.id, body.classId), eq(classes.tenantId, context.tenantId), isNull(classes.deletedAt)))
     .limit(1);
 
   if (!classRow) {
     return apiError("CLASS_NOT_FOUND", "Class not found", 404);
   }
 
-  if (body.coachId) {
-    const [coach] = await db
-      .select({ id: coaches.id })
-      .from(coaches)
+  const result = await withTransaction(async (tx) => {
+    await lockAcademyOperationalWrites(tx, classRow.academyId);
+    await assertAcademyOperationalWritable(context.tenantId!, classRow.academyId, tx);
+
+    const [currentClass] = await tx
+      .select({ id: classes.id, academyId: classes.academyId, sportConfigId: classes.sportConfigId })
+      .from(classes)
       .where(and(
-        eq(coaches.id, body.coachId),
-        eq(coaches.tenantId, context.tenantId),
-        eq(coaches.academyId, classRow.academyId),
+        eq(classes.id, body.classId),
+        eq(classes.tenantId, context.tenantId!),
+        isNull(classes.deletedAt),
       ))
       .limit(1);
-    if (!coach) return apiError("COACH_NOT_FOUND", "Coach not found", 404);
-  }
+    if (!currentClass) return { ok: false as const, reason: "CLASS_NOT_FOUND" as const };
 
-  const sessionId = crypto.randomUUID();
+    if (body.coachId) {
+      const [coach] = await tx
+        .select({ id: coaches.id })
+        .from(coaches)
+        .where(and(
+          eq(coaches.id, body.coachId),
+          eq(coaches.tenantId, context.tenantId!),
+          eq(coaches.academyId, currentClass.academyId),
+        ))
+        .limit(1);
+      if (!coach) return { ok: false as const, reason: "COACH_NOT_FOUND" as const };
+    }
 
-  const [createdSession] = await db.insert(classSessions).values({
-    id: sessionId,
-    tenantId: context.tenantId,
-    classId: body.classId,
-    sportConfigId: classRow.sportConfigId,
-    coachId: body.coachId ?? null,
-    sessionDate: body.sessionDate,
-    startTime: body.startTime ?? null,
-    endTime: body.endTime ?? null,
-    status: body.status ?? "scheduled",
-    notes: body.notes ?? null,
-  }).onConflictDoNothing({ target: [classSessions.classId, classSessions.sessionDate] }).returning({ id: classSessions.id });
+    const [createdSession] = await tx.insert(classSessions).values({
+      id: crypto.randomUUID(),
+      tenantId: context.tenantId!,
+      classId: body.classId,
+      sportConfigId: currentClass.sportConfigId,
+      coachId: body.coachId ?? null,
+      sessionDate: body.sessionDate,
+      startTime: body.startTime ?? null,
+      endTime: body.endTime ?? null,
+      status: body.status ?? "scheduled",
+      notes: body.notes ?? null,
+    }).onConflictDoNothing({ target: [classSessions.classId, classSessions.sessionDate] }).returning({ id: classSessions.id });
 
-  if (!createdSession) {
-    const [existingSession] = await db
+    if (createdSession) return { ok: true as const, id: createdSession.id, created: true };
+
+    const [existingSession] = await tx
       .select({ id: classSessions.id })
       .from(classSessions)
-      .where(and(eq(classSessions.classId, body.classId), eq(classSessions.sessionDate, body.sessionDate)))
+      .where(and(
+        eq(classSessions.classId, body.classId),
+        eq(classSessions.sessionDate, body.sessionDate),
+        eq(classSessions.tenantId, context.tenantId!),
+      ))
       .limit(1);
-    return apiSuccess({ ok: true, id: existingSession?.id ?? null, created: false });
+    return { ok: true as const, id: existingSession?.id ?? null, created: false };
+  });
+
+  if (!result.ok) {
+    return result.reason === "COACH_NOT_FOUND"
+      ? apiError("COACH_NOT_FOUND", "Coach not found", 404)
+      : apiError("CLASS_NOT_FOUND", "Class not found", 404);
   }
 
-  return apiSuccess({ ok: true, id: createdSession.id, created: true });
+  return apiSuccess({ ok: true, id: result.id, created: result.created });
 });

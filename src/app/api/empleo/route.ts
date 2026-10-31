@@ -11,7 +11,7 @@ import { demoEmploymentListing } from "@/lib/public/demo-listings";
 
 // Validation schemas
 const CreateEmpleoSchema = z.object({
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
   title: z.string().min(3).max(200),
   category: z.enum(["coach", "assistant_coach", "administrative", "physiotherapist", "psychologist", "other"]),
   description: z.string().max(5000).optional(),

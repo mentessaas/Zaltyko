@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-25
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -15,6 +15,18 @@ source:
   - ../07-Auditorias-y-Riesgos/Auditoria MVP gimnasia - 2026-06-23.md
   - ../07-Auditorias-y-Riesgos/Registro de riesgos.md (bloqueantes con Elvis)
 ---
+## P0 vigente — apertura esencial España, 2026-10-26
+
+- Aislamiento alojado e09: dos academias independientes, lecturas propias200/ajenas403-404 y mezcla de sedes ajenas403 comprobadas en uso, grupos, clases y opciones de cuotas según matriz. Pendientes escrituras cruzadas, candidatos de inscripción completos y roles restringidos entre sedes de una misma academia. Fuente docs/qa/delivery-academy-isolation-2026-10-26.md.
+- Validar por commit el resumen esencial y superficies comerciales reducidas en CI remota y delivery. Sin builds/tests pesados en Mac.
+- Cerrar matriz finita de aislamiento, dos sedes, concurrencia, reintentos, ausencia de efectos parciales, Free30/3/10 y navegación375/768/1280.
+- Completar configuración productiva y Stripe Live con evidencia nueva, sin asumir que test o una lectura antigua lo acreditan.
+- Confirmar titular vendedor/NIF/domicilio, tratamiento fiscal y soporte. Usuario confirma importes base sin IVA; no aportó todavía identidad del vendedor ni confirmación de soporte. No cobrar hasta resolverlo.
+- Revisar superficies públicas históricas y módulos fuera de alcance antes de exponer un dominio productivo. El cambio actual retira navegación y embudos /modules/*; no certifica todo el contenido SEO heredado ni todos los handlers legacy.
+- Preservar ensayo natural: primer rechazo no equivale a agotamiento terminal. No forzar ni consultar sus recursos desde esta entrega.
+- Nuevas migraciones productivas requieren diff y autorización aparte; ninguna incluida en esta entrega.
+
+
 ## P0 — Cerrar el recorrido MVP publicado — 2026-10-14
 
 ## Cierre CI exacto — 2026-10-16, 08:10 UTC
@@ -1161,3 +1173,63 @@ Catálogo remoto autorizadoMain15oct: prod no tiene namespaceszaltyko/domain_pri
 - Fuente vigente: [`release-gates-summary-2026-10-15.md`](../../docs/qa/release-gates-summary-2026-10-15.md). Prioridad comercial: recibir usuarios esta semana; no prometer fecha hasta cerrar los gates.
 
 - Actualización: diagnóstico CI endurecido a etiquetas fijas sin stderr arbitrario, revisión QA103 GO y 13/13 pruebas PASS; shell-quote móvil1.11.0 de Frontend bb8b94ba integrado selectivamente con evidencia local 337/337. Pendientes nueva CI y alcance de 23 avisos high npm móvil (no asumir que son 23 vulnerabilidades distintas). Producción public139/RLS139 sin tablas zaltyko; Sandbox public138/RLS138 y zaltyko80/RLS80, solo metadatos, sin prueba de políticas/procedencia. Usuario permite intervenir si necesario; por ahora sin DDL/datos/despliegues. Preparar compatibilidad y recuperación antes de aplicar.
+
+## P0 — PR #234: hacer cumplir solo lectura Free antes de publicar
+
+- Actualización de integración: resueltos localmente los 13 conflictos con #236, preservando guards, versiones más recientes del MVP y bloqueo de red estricto. Eliminada la copia transitiva Zod 3; nueva regresión para hooks y grafo bloqueado. Procedencia acreditada: `f626351` → `d5b8d961` y 1.939 blobs `src/` idénticos en la importación `f0bc9383`. Pendientes CI remota y revisión del nuevo candidato; los resultados del padre no lo validan. Fuente: `docs/qa/mvp-integration-provenance-2026-10-25.md`.
+
+- Candidato exacto: `1637221798bee56b8aee9db176a277429103db40` en PR #234, base real `f84fd6dc316e41aa7b6a599e67dc8cf2ea0dd74c`. El plan nombró `f626351`, que no es ancestro del HEAD; resolver esta procedencia antes de promoción y no reescribir historial a ciegas.
+- CI remota del SHA actual `40193392534`: tipos, unitarios, build, móviles, Chromium/Firefox/WebKit, SBOM, integridad Drizzle, RLS y gate Owner sintético **PASS**. `40193392526` gates operativos PASS; `40193392553` validación estática SQL PASS. Replay PostgreSQL vacío `40190197121` pasó para `234599c9`; no hay cambios SQL desde ese SHA.
+- E2E autenticado, smoke, Lighthouse y público quedaron **SKIPPED**. El candidato no está comprobado contra sesiones QA reales. No usar la CI sintética como sustituto del sandbox.
+- PR #234 sigue OPEN, `REVIEW_REQUIRED` y `BLOCKED`; no desplegar ni promover. En la matriz documentada, validación autenticada/capacidad Free, ciclo SaaS en esta versión y publicación siguen pendientes.
+- Integración pendiente con PR #236 de dependencias, también `REVIEW_REQUIRED`: 94 rutas compartidas con #234, incluidos los cuatro manifiestos/lockfiles de pnpm. Las ramas pasan CI por separado, pero sus versiones de Sentry difieren (`10.76.2` frente a `10.75.2`); una combinación necesita reconciliación y CI nueva antes de fusionar.
+- La política acordada conserva datos y deja a la academia excedida en solo lectura hasta archivar excedente o contratar plan suficiente; archivo y upgrade siguen como salidas. Probar sus límites y reversión en el sandbox antes de promoción, sin tocar las cuatro academias protegidas ni alterar el ensayo de caducidad/impago.
+
+## P0 — Cerrar advisories de dependencias web antes de integrar PR #236 — 2026-10-25
+
+- CI `40173405349` sobre el primer SHA de PR #236 informó 14 rutas vulnerables de producción, incluidas advisories críticas de Next.js y DOMPurify y una alta de `body-parser`/Zod. El parche de `follow-redirects` no elimina esos hallazgos.
+- En curso: actualizar solo a versiones parcheadas y revisar la transición mayor de Zod 3 a 4.
+- Criterio de cierre: auditoría/SBOM sin advisories aplicables, checks remotos obligatorios verdes para el SHA actual y revisión de compatibilidad; no merge ni despliegue antes.
+- Sin cambios en datos, proveedores, sandbox o producción durante esta remediación.
+- Actualización 2026-10-25: run `40174265519` para SHA `492ad418ecd8262fc2c470e9f21af64cd5e01918` pasó seguridad/SBOM, RLS, integridad de migraciones, móvil y GitGuardian; fallaron lint/tipos, build y 80 tests por cambios de Zod 4. El parche local adapta records, issues, variables requeridas y conserva UUID-like mediante `z.guid()` (678 usos) con regresión; falta enviar este candidato y obtener CI verde. No hubo build/test local, merge ni deployment.
+- Seguimiento `40175242597` (`72c0588bb11ad6096e13f2b1b149c0708d7debad`): lint, build, unitarias y gates de seguridad/database pasan. Chromium, Firefox y WebKit fallaron solo el conteo del guard de red: detectaron peticiones bloqueadas al origen exacto de Sentry CDN, ninguna continuó a la red. Parche local reconoce ese origen como telemetría esperada, mantiene los abortos y prueba script y envelope. `git diff --check` pasa; no se hicieron pruebas/builds locales. Enviar una sola nueva revisión remota cuando el diff y el registro estén verificados.
+- Seguimiento `40176727314` (`42007c840929ed3b1b961d667c9c28934d645bc4`): Chromium y Firefox pasan con el ajuste de clasificación, junto con build, unitarias, lint y controles de seguridad/database. WebKit llegó al límite interno de 240 s al preparar su E2E; generó las páginas, pero no acabó optimización/trazas. Aumentar solo su límite de build en Actions a 360 s conforme al límite remoto previamente autorizado; conservar 240 s fuera de GitHub Actions. Pendiente CI remota; sin builds/tests locales, merge ni deployment.
+- Seguimiento `40178355617` (`230f8171b025dcb1958c27aa70d72f32fb758b5a`): falló una aserción estática que aún exigía el timeout antiguo; el parche actualiza ese contrato. WebKit con el nuevo límite y build/unitarias todavía pendientes al corte. No lanzar otra corrida hasta que cierre esta CI; no se ejecutó nada localmente.
+
+
+## 2026-10-25 — Huecos demostrados antes de cerrar el MVP
+
+- **P1 aislamiento de ficha por sede propia:** parche preparado y regresión
+  PostgreSQL integrada; pendiente de CI remota del nuevo commit. La sede de un
+  hermano no puede autorizar la lectura de la ficha objetivo.
+- **Alta familia/gimnasta antes del grupo:** los contratos actuales exigen un
+  ancla previa y forman un ciclo. Implementar bandeja organizativa persistente
+  solo Owner/Admin de todas las sedes y primera asignación explícita a grupo real.
+  No grupos ocultos, anclas derivadas de familia/auditoría ni relajación de rutas
+  limitadas por sede. Contador SaaS incluye pendientes; resumen de entrenamiento
+  por sede no debe contarlos como participantes. No requiere migración según
+  revisión estática del esquema, pero sigue pendiente de implementación completa
+  y comprobación autenticada.
+- **Fechas de regularización histórica:** el archivo ordinario nuevo conserva
+  `ends_on` pasado y evita rangos invertidos. Revisar el mismo patrón en el servicio
+  de regularización existente sin cambiar el ensayo ni reescribir su historial.
+- **Publicación:** base SQL reconstruida en CI no demuestra esquema productivo.
+  Catálogo test no acredita Live; ver auditoría externa production-release-base-readonly.
+
+
+## 2026-10-25 — Guard de contacto en waitlist canónica (antes de exponerla)
+
+Auditoría estática: `assertGuardianCanContactAthlete` en waitlist-service valida vínculo familiar sin comprobar starts_on efectivo, actividad de familia/tutor ni ancla operativa en sede destino. No se localizó caller de joinWaitlist en rutas de app: explotación pública NO VERIFICADA; no se afirma envío de correo. Antes de conectar esa lista, pasar locationId al guard y exigir relación vigente por fecha civil de sede, familia/tutor activos y vínculo operativo exacto, con positivos y rechazos nativosPG/snapshots sin parciales. No se amplía la lista de espera dentro de esta entrega del MVP.
+
+
+## 2026-10-26 — Cierre fiscal del vendedor antes de Live
+
+Elvis Valdes Inerarte prevé alta como autónomo en España, aún pendiente. Completar NIF/domicilio/alta efectiva y confirmar territorio/tratamiento fiscal; comprobar recepción/respuesta de hola@zaltyko.com, cerrar términos/privacidad/encargo e implementar impuesto e importe final de Checkout antes de abrir. El perfil comercial bloquea Live en servidor y acciones, conserva test/Portal/eventos firmados. No marcar verificaciones solo por rellenar datos. Guía docs/deployment/spain-seller-activation-2026-10-26.md. CI remota del cambio pendiente; sin despliegue productivo.
+
+
+## 2026-10-26 — Gates alojados restantes sobre candidato definitivo
+
+- Completar segundo registro QA de entregas con contraseña/consentimiento humanos y confirmar correo; no reutilizar usuarios ni academias del ensayo. Mantener pendientes matriz alojada dos academias/dos sedes, denegaciones y recuperación sobre candidato definitivo.
+- Completar aceptación visual375/768/1280: geometría correcta no sustituye revisión visual cuando la captura tiene escala distinta.
+- Defecto menor reproducido: enlace residual del directorio retirado en registro con flagfalse; guard y regresiones preparados, pendientes CI/revisión/publicación.
+- Mantener cierre fiscal/Live y primera academia externa como gates independientes; los rechazos Free sin parciales de e09 no equivalen a producción.
