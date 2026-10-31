@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
@@ -104,10 +105,28 @@ export function OwnerMonthlyInvoicesManager({
   initialLocationId: string;
   initialServicePeriod: string;
 }) {
+  const router = useRouter();
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
   const [locationId, setLocationId] = useState(initialLocationId);
   const [servicePeriod, setServicePeriod] = useState(initialServicePeriod);
+  function replaceInvoiceContext(
+    nextLocationId: string,
+    nextServicePeriod: string
+  ) {
+    if (!isServicePeriod(nextServicePeriod)) return;
+
+    const params = new URLSearchParams(window.location.search);
+    params.set("organizationId", organizationId);
+    params.set("locationId", nextLocationId);
+    params.set("servicePeriod", nextServicePeriod);
+    const query = params.toString();
+    const hash = window.location.hash;
+    router.replace(
+      `${window.location.pathname}${query ? `?${query}` : ""}${hash}`,
+      { scroll: false }
+    );
+  }
   const [options, setOptions] = useState<ScopedInvoiceOptions>();
   const currentScopeKey = invoiceScopeKey(
     organizationId,
@@ -540,7 +559,10 @@ export function OwnerMonthlyInvoicesManager({
     <>
       <div className="mx-auto grid max-w-4xl gap-5 px-5 pt-6 sm:pt-10">
         <Link
-          href={`/owner?organizationId=${encodeURIComponent(organizationId)}`}
+          href={`/owner?${new URLSearchParams({
+            organizationId,
+            locationId,
+          }).toString()}`}
           className="min-h-11 w-fit content-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
         >
           Volver al panel
@@ -557,7 +579,9 @@ export function OwnerMonthlyInvoicesManager({
             <select
               value={locationId}
               onChange={(event) => {
-                setLocationId(event.target.value);
+                const nextLocationId = event.target.value;
+                setLocationId(nextLocationId);
+                replaceInvoiceContext(nextLocationId, servicePeriod);
                 setSelectedFamilyId("");
                 setState("loading");
                 setStateScopeKey(
@@ -588,6 +612,7 @@ export function OwnerMonthlyInvoicesManager({
             onChange={(event) => {
               const nextPeriod = event.target.value;
               setServicePeriod(nextPeriod);
+              replaceInvoiceContext(locationId, nextPeriod);
               setSelectedFamilyId("");
               setDueDate("");
               if (!isServicePeriod(nextPeriod)) setOptions(undefined);

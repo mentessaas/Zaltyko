@@ -19,6 +19,11 @@ import {
 } from "@/components/owner-dashboard/monthly-invoice-retry-storage";
 import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
+const navigation = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => navigation,
+}));
+
 const organizationId = "10000000-0000-4000-8000-000000000111";
 const locationId = "10000000-0000-4000-8000-000000000112";
 const familyId = "10000000-0000-4000-8000-000000000101";
@@ -209,7 +214,12 @@ describe("OwnerMonthlyInvoicesManager", () => {
   }>;
   let monthlyInvoiceIntentPresentAtPost: boolean[];
 
+  let originalPageUrl: string;
+  let originalHistoryState: unknown;
+
   beforeEach(() => {
+    originalPageUrl = window.location.href;
+    originalHistoryState = window.history.state;
     window.sessionStorage.clear();
     publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
     currentOptions = monthlyOptions();
@@ -372,6 +382,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
 
   afterEach(() => {
     cleanup();
+    window.history.replaceState(originalHistoryState, "", originalPageUrl);
     window.sessionStorage.clear();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -397,6 +408,94 @@ describe("OwnerMonthlyInvoicesManager", () => {
     if (!select) throw new Error("No se encontró el selector principal de familia.");
     return select;
   }
+
+  it("conserva academia y mes al cambiar de sede y volver al panel", async () => {
+    const nextLocationId = "10000000-0000-4000-8000-000000000113";
+    const period = "2027-02";
+    window.history.replaceState(null, "",
+      `/owner/monthly-invoices?organizationId=${organizationId}&locationId=${locationId}&servicePeriod=${period}&view=synthetic#cuotas`
+    );
+    currentOptions = monthlyOptions({
+      servicePeriod: period,
+      servicePeriodStart: "2027-02-01",
+      servicePeriodEnd: "2027-02-28",
+    });
+    const user = userEvent.setup();
+    const locations = [
+      { id: locationId, name: "Sede original" },
+      { id: nextLocationId, name: "Sede limitada" },
+    ];
+    const page = render(
+      <OwnerMonthlyInvoicesManager
+        organizationId={organizationId}
+        organizationName="Academia sintética"
+        defaultCurrency="EUR"
+        locations={locations}
+        initialLocationId={locationId}
+        initialServicePeriod={period}
+      />
+    );
+    await findPrimaryFamilySelect();
+    expect(screen.getByRole("link", { name: "Volver al panel" })).toHaveAttribute(
+      "href", `/owner?organizationId=${organizationId}&locationId=${locationId}`
+    );
+    currentOptions = monthlyOptions({
+      locationId: nextLocationId,
+      servicePeriod: period,
+      servicePeriodStart: "2027-02-01",
+      servicePeriodEnd: "2027-02-28",
+    });
+    await user.selectOptions(screen.getByLabelText("Sede"), nextLocationId);
+    await waitFor(() => expect(navigation.replace).toHaveBeenCalled());
+    const [destination] = navigation.replace.mock.calls.at(-1) ?? [];
+    const url = new URL(String(destination), "https://example.invalid");
+    expect(url.pathname).toBe("/owner/monthly-invoices");
+    expect(url.searchParams.get("organizationId")).toBe(organizationId);
+    expect(url.searchParams.get("locationId")).toBe(nextLocationId);
+    expect(url.searchParams.get("servicePeriod")).toBe(period);
+    expect(url.searchParams.get("view")).toBe("synthetic");
+    expect(url.hash).toBe("#cuotas");
+    expect(navigation.replace).toHaveBeenLastCalledWith(String(destination), { scroll: false });
+    window.history.replaceState(null, "", String(destination));
+
+    // App Router delivers the new server props after the contextual navigation.
+    page.rerender(
+      <OwnerMonthlyInvoicesManager
+        organizationId={organizationId}
+        organizationName="Academia sintética"
+        defaultCurrency="EUR"
+        locations={locations}
+        initialLocationId={nextLocationId}
+        initialServicePeriod={period}
+      />
+    );
+    await waitFor(() => expect(screen.getByLabelText("Sede")).toHaveValue(nextLocationId));
+    expect(screen.getByLabelText(/^Mes de la cuota/u)).toHaveValue(period);
+    await user.selectOptions(await findPrimaryFamilySelect(), familyId);
+    expect(screen.getByLabelText(/^Mes de la cuota/u)).toHaveValue(period);
+    expect(screen.getByRole("link", { name: "Volver al panel" })).toHaveAttribute(
+      "href", `/owner?organizationId=${organizationId}&locationId=${nextLocationId}`
+    );
+    currentOptions = monthlyOptions({
+      locationId: nextLocationId,
+      servicePeriod: "2027-03",
+      servicePeriodStart: "2027-03-01",
+      servicePeriodEnd: "2027-03-31",
+    });
+    fireEvent.change(screen.getByLabelText(/^Mes de la cuota/u), {
+      target: { value: "2027-03" },
+    });
+    await waitFor(() => expect(navigation.replace).toHaveBeenCalledTimes(2));
+    const [monthDestination] = navigation.replace.mock.calls.at(-1) ?? [];
+    const monthUrl = new URL(String(monthDestination), "https://example.invalid");
+    expect(monthUrl.pathname).toBe("/owner/monthly-invoices");
+    expect(monthUrl.searchParams.get("organizationId")).toBe(organizationId);
+    expect(monthUrl.searchParams.get("locationId")).toBe(nextLocationId);
+    expect(monthUrl.searchParams.get("servicePeriod")).toBe("2027-03");
+    expect(monthUrl.searchParams.get("view")).toBe("synthetic");
+    expect(monthUrl.hash).toBe("#cuotas");
+    expect(monthlyInvoiceIssueRequests).toHaveLength(0);
+  });
 
   it("asigna una tarifa desde el catálogo con PATCH y recarga el presupuesto", async () => {
     currentOptions = monthlyOptions({
