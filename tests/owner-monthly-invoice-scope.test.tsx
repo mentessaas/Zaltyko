@@ -5,6 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OwnerMonthlyInvoicesManager } from "@/components/owner-dashboard/OwnerMonthlyInvoicesManager";
 import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
+const navigation = vi.hoisted(() => ({
+  replace: vi.fn(),
+  push: vi.fn(),
+  refresh: vi.fn(),
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => navigation,
+}));
+
 vi.mock("@/components/owner-dashboard/OwnerMonthlyInvoiceResolutionPanel", () => ({
   OwnerMonthlyInvoiceResolutionPanel: () => null,
 }));
@@ -100,6 +109,9 @@ function optionsResponse(organizationId: string, locationId: string, servicePeri
 }
 
 beforeEach(() => {
+  navigation.replace.mockReset();
+  navigation.push.mockReset();
+  navigation.refresh.mockReset();
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockImplementation((input: string | URL | Request) => {
