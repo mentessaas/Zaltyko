@@ -460,6 +460,10 @@ test.describe("Isolated local Supabase Owner setup", () => {
         // Exercise a real document reload, not only a React remount. Commit
         // the first PATCH and lose its response; only an explicit replay may
         // send the original command again after hydration.
+        // Keep the paused row in scope after hydration. A post-replay goto
+        // would race router.refresh(), whose RSC stream can remain open.
+        await page.goto(`/owner/enrollments?${scope}&status=all`);
+        await expect(activeEnrollmentRow.getByText("Activa", { exact: true })).toBeVisible();
         const id = enrollmentPayload.data.id;
         const endpoint = `/api/v1/owner/enrollments/${id}`;
         const snapshot = async () => {
@@ -519,29 +523,14 @@ test.describe("Isolated local Supabase Owner setup", () => {
         const replay = page.waitForResponse(candidate =>
           new URL(candidate.url()).pathname === endpoint && candidate.request().method() === "PATCH"
         );
-        // Clearing the pending client state precedes router.refresh(). Wait
-        // for that server response before starting a different navigation.
-        const replayRefresh = page.waitForResponse(candidate => {
-          const url = new URL(candidate.url());
-          return candidate.request().method() === "GET" &&
-            url.pathname === "/owner/enrollments" &&
-            url.searchParams.get("organizationId") === result.organizationId &&
-            url.searchParams.get("locationId") === result.locationId &&
-            url.searchParams.get("status") === "active" &&
-            !candidate.request().headers()["next-router-prefetch"];
-        });
         await pending.getByRole("button", { name: "Reintentar la misma operación" }).click();
         expect((await replay).status()).toBe(200);
-        const refreshResult = await replayRefresh;
-        expect(refreshResult.ok()).toBe(true);
-        await refreshResult.finished();
-        await page.waitForLoadState("networkidle");
         await expect(pending).toHaveCount(0);
         expect(commands).toHaveLength(2);
         expect(commands[1]).toEqual(commands[0]);
         expect(await snapshot()).toEqual(afterLoss);
         await page.unroute(`**${endpoint}`);
-        await page.goto(`/owner/enrollments?${scope}&status=all`);
+        await expect(activeEnrollmentRow.getByRole("button", { name: /^Reanudar inscripción/ })).toBeEnabled();
         const resume = page.waitForResponse(candidate =>
           new URL(candidate.url()).pathname === endpoint && candidate.request().method() === "PATCH"
         );

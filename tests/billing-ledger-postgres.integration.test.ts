@@ -10,6 +10,7 @@ import {
   issueMonthlyInvoice,
 } from "@/modules/billing/application/monthly-invoice-service";
 import { getOwnerOperationalSummary } from "@/modules/owner-dashboard/application/operational-summary";
+import { getOrganizationUsage } from "@/modules/saas-billing/application/organization-usage";
 
 const trackedTables = [
   "audit_log",
@@ -986,6 +987,53 @@ describe("monthly manual invoice issuance on disposable PostgreSQL", () => {
         amount_cents: "3500",
       },
     ]);
+  }, 45_000);
+
+  it("rejects a new monthly invoice above Free capacity without changing the ledger", async () => {
+    assertDisposableTarget();
+    const fixture = await seedMonthlyInvoiceFixture();
+    const command = await monthlyInvoiceCommand(
+      fixture,
+      `ci-monthly-over-capacity-${randomUUID()}`
+    );
+    const initialUsage = await db.transaction(tx =>
+      getOrganizationUsage(tx, fixture.organizationId)
+    );
+    expect(initialUsage.planCode).toBe("free");
+    expect(initialUsage.readOnly).toBe(false);
+
+    const groupValues = sql.join(
+      Array.from({ length: 4 }, (_, index) => sql`(
+        ${randomUUID()}::uuid,
+        ${fixture.organizationId}::uuid,
+        ${fixture.locationId}::uuid,
+        ${`CI monthly capacity group ${index + 1}`},
+        30,
+        'active'
+      )`),
+      sql`, `
+    );
+    await db.execute(sql`
+      insert into zaltyko.groups (
+        id, organization_id, location_id, name, capacity, status
+      ) values ${groupValues}
+    `);
+    const overCapacityUsage = await db.transaction(tx =>
+      getOrganizationUsage(tx, fixture.organizationId)
+    );
+    expect(overCapacityUsage.planCode).toBe("free");
+    expect(overCapacityUsage.readOnly).toBe(true);
+    expect(overCapacityUsage.resources.map(resource => resource.current)).toEqual([1, 4, 1]);
+    expect(overCapacityUsage.resources.map(resource => resource.limit)).toEqual([30, 3, 10]);
+
+    const before = await snapshotMonthlyInvoiceLedger(fixture.organizationId);
+    expect(before.invoices.count).toBe(0);
+    expect(before.outbox_events.count).toBe(0);
+    await expect(issueMonthlyInvoice(command)).rejects.toMatchObject({
+      code: "PLAN_OVER_CAPACITY",
+      status: 409,
+    });
+    expect(await snapshotMonthlyInvoiceLedger(fixture.organizationId)).toEqual(before);
   }, 45_000);
 
   it("rejects a stale quote without creating any invoice ledger records", async () => {

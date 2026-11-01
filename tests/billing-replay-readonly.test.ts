@@ -122,6 +122,38 @@ beforeEach(() => {
 });
 
 describe("replay financiero con academia en solo lectura", () => {
+  it.each([false, true])("rechaza un pago manual nuevo por excedente sin mutaciones (cargo: %s)", async forCharge => {
+    const charge = { id: chargeId, organizationId, locationId, status: "due", currency: "EUR" };
+    const { tx, write } = transactionWith(new Map([[charges, [charge]]]));
+    mocks.assertWritable.mockRejectedValueOnce(Object.assign(new Error("Excedente de capacidad"), {
+      code: "PLAN_OVER_CAPACITY", status: 409,
+    }));
+
+    const result = forCharge
+      ? recordManualPaymentForCharge({
+        organizationId, chargeId, amountCents: 500, method: "bank_transfer",
+        receivedAt: "2026-10-22T10:00:00.000Z", idempotencyKey: commandKey, actor,
+      })
+      : recordManualPayment({
+        organizationId, locationId, familyId, amountCents: 500, currency: "EUR",
+        method: "cash", receivedAt: "2026-10-22T10:00:00.000Z", idempotencyKey: commandKey, actor,
+      });
+
+    await expect(result).rejects.toMatchObject({ code: "PLAN_OVER_CAPACITY", status: 409 });
+    expect(mocks.findEvent).toHaveBeenCalledOnce();
+    expect(mocks.assertAccess).toHaveBeenCalledWith(tx, expect.objectContaining({
+      organizationId, locationId, actor, intent: "write",
+    }));
+    expect(mocks.assertWritable).toHaveBeenCalledExactlyOnceWith(tx, organizationId);
+    expect(write).not.toHaveBeenCalled();
+    expect(mocks.appendAudit).not.toHaveBeenCalled();
+    expect(mocks.appendOutbox).not.toHaveBeenCalled();
+    const executeCalls = (tx.execute as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    for (const [statement] of executeCalls) {
+      expect(dialect.sqlToQuery(statement as Parameters<PgDialect["sqlToQuery"]>[0]).sql.trim()).toMatch(/^select\b/i);
+    }
+  });
+
   it("recupera la factura ya emitida sin abrir una escritura", async () => {
     const invoice = { id: invoiceId, organizationId, locationId };
     const { tx, write } = transactionWith(new Map([[invoices, [invoice]]]));
