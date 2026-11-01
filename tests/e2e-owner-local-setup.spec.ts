@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Dialog } from "@playwright/test";
 import { Pool } from "pg";
 
 import {
@@ -456,6 +456,89 @@ test.describe("Isolated local Supabase Owner setup", () => {
       await expect(
         activeEnrollmentRow.getByText("Activa", { exact: true })
       ).toBeVisible();
+      if (expectedActiveCount === 1) {
+        // Exercise a real document reload, not only a React remount. Commit
+        // the first PATCH and lose its response; only an explicit replay may
+        // send the original command again after hydration.
+        const id = enrollmentPayload.data.id;
+        const endpoint = `/api/v1/owner/enrollments/${id}`;
+        const snapshot = async () => {
+          const persisted = await pool.query(
+            `select to_jsonb(e) as enrollment,
+              (select coalesce(jsonb_agg(to_jsonb(p) order by p.id), '[]'::jsonb)
+                 from zaltyko.enrollment_pauses p
+                where p.organization_id = e.organization_id and p.enrollment_id = e.id) as pauses,
+              (select coalesce(jsonb_agg(to_jsonb(h) order by h.id), '[]'::jsonb)
+                 from zaltyko.enrollment_status_history h
+                where h.organization_id = e.organization_id and h.enrollment_id = e.id) as history,
+              (select coalesce(jsonb_agg(jsonb_build_object('id', o.id, 'event', o.event_name, 'payload', o.payload) order by o.id), '[]'::jsonb)
+                 from zaltyko.outbox_events o
+                where o.organization_id = e.organization_id and o.aggregate_id = e.id) as events
+             from zaltyko.enrollments e where e.organization_id = $1::uuid and e.id = $2::uuid`,
+            [result.organizationId, id]
+          );
+          expect(persisted.rows).toHaveLength(1);
+          return persisted.rows[0];
+        };
+        const beforeLoss = await snapshot();
+        const commands: Array<{ body: string | null; key: string | undefined }> = [];
+        await page.route(`**${endpoint}`, async route => {
+          const request = route.request();
+          if (request.method() !== "PATCH") return route.continue();
+          commands.push({ body: request.postData(), key: request.headers()["idempotency-key"] });
+          if (commands.length !== 1) return route.continue();
+          const committed = await route.fetch();
+          expect(committed.status()).toBe(200);
+          await route.abort("failed");
+        });
+        await activeEnrollmentRow.getByRole("button", { name: /^Pausar inscripción/ }).click();
+        const pending = page.getByRole("region", { name: "Operación de inscripción pendiente" });
+        await expect(pending.getByRole("button", { name: "Reintentar la misma operación" })).toBeEnabled();
+        expect(commands).toHaveLength(1);
+        expect(commands[0].key).toBeTruthy();
+        const afterLoss = await snapshot();
+        expect(afterLoss.enrollment.status).toBe("paused");
+        expect(afterLoss.enrollment.version).toBe(beforeLoss.enrollment.version + 1);
+        expect(afterLoss.pauses).toHaveLength(beforeLoss.pauses.length + 1);
+        expect(afterLoss.history).toHaveLength(beforeLoss.history.length + 1);
+        expect(afterLoss.events).toHaveLength(beforeLoss.events.length + 1);
+        const acceptUnload = async (dialog: Dialog) => {
+          expect(dialog.type()).toBe("beforeunload");
+          await dialog.accept();
+        };
+        page.once("dialog", acceptUnload);
+        try {
+          const reloadResponse = await page.reload({ waitUntil: "networkidle" });
+          expect(reloadResponse?.ok()).toBe(true);
+        } finally {
+          page.off("dialog", acceptUnload);
+        }
+        await expect(pending.getByRole("button", { name: "Reintentar la misma operación" })).toBeEnabled();
+        expect(commands).toHaveLength(1);
+        expect(await snapshot()).toEqual(afterLoss);
+        const replay = page.waitForResponse(candidate =>
+          new URL(candidate.url()).pathname === endpoint && candidate.request().method() === "PATCH"
+        );
+        await pending.getByRole("button", { name: "Reintentar la misma operación" }).click();
+        expect((await replay).status()).toBe(200);
+        await expect(pending).toHaveCount(0);
+        expect(commands).toHaveLength(2);
+        expect(commands[1]).toEqual(commands[0]);
+        expect(await snapshot()).toEqual(afterLoss);
+        await page.unroute(`**${endpoint}`);
+        await page.goto(`/owner/enrollments?${scope}&status=all`);
+        const resume = page.waitForResponse(candidate =>
+          new URL(candidate.url()).pathname === endpoint && candidate.request().method() === "PATCH"
+        );
+        await activeEnrollmentRow.getByRole("button", { name: /^Reanudar inscripción/ }).click();
+        expect((await resume).status()).toBe(200);
+        await expect(activeEnrollmentRow.getByText("Activa", { exact: true })).toBeVisible();
+        const restored = await snapshot();
+        expect(restored.enrollment.status).toBe("active");
+        expect(restored.enrollment.version).toBe(afterLoss.enrollment.version + 1);
+        expect(restored.pauses).toHaveLength(afterLoss.pauses.length);
+        expect(restored.pauses.every((pause: { ends_on: string | null }) => pause.ends_on !== null)).toBe(true);
+      }
       return enrollmentPayload.data.id;
     }
 
