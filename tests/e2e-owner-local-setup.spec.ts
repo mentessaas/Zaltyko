@@ -519,8 +519,23 @@ test.describe("Isolated local Supabase Owner setup", () => {
         const replay = page.waitForResponse(candidate =>
           new URL(candidate.url()).pathname === endpoint && candidate.request().method() === "PATCH"
         );
+        // Clearing the pending client state precedes router.refresh(). Wait
+        // for that server response before starting a different navigation.
+        const replayRefresh = page.waitForResponse(candidate => {
+          const url = new URL(candidate.url());
+          return candidate.request().method() === "GET" &&
+            url.pathname === "/owner/enrollments" &&
+            url.searchParams.get("organizationId") === result.organizationId &&
+            url.searchParams.get("locationId") === result.locationId &&
+            url.searchParams.get("status") === "active" &&
+            !candidate.request().headers()["next-router-prefetch"];
+        });
         await pending.getByRole("button", { name: "Reintentar la misma operación" }).click();
         expect((await replay).status()).toBe(200);
+        const refreshResult = await replayRefresh;
+        expect(refreshResult.ok()).toBe(true);
+        await refreshResult.finished();
+        await page.waitForLoadState("networkidle");
         await expect(pending).toHaveCount(0);
         expect(commands).toHaveLength(2);
         expect(commands[1]).toEqual(commands[0]);
