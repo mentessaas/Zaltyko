@@ -3,6 +3,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { expect, test, type Dialog } from "@playwright/test";
 import { Pool } from "pg";
 
+import type { MonthlyInvoiceOptionsResponse } from "../src/components/owner-dashboard/OwnerMonthlyInvoiceWorkspace";
+
 import {
   grantLocalNetworkAccess,
   installLocalE2ENetworkGuard,
@@ -713,20 +715,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
     expect(refreshedMonthlyOptionsResponse.ok()).toBe(true);
     const refreshedMonthlyOptions =
       (await refreshedMonthlyOptionsResponse.json()) as {
-        data: {
-          organizationId: string;
-          locationId: string;
-          servicePeriod: string;
-          families: Array<{
-            familyId: string;
-            enrollments: Array<{
-              enrollmentId: string;
-              athleteId: string;
-              blockingReasons: string[];
-            }>;
-          }>;
-          unassignedEnrollments: Array<{ enrollmentId: string }>;
-        };
+        data: MonthlyInvoiceOptionsResponse;
       };
     expect(refreshedMonthlyOptions.data.organizationId).toBe(
       result.organizationId
@@ -786,6 +775,152 @@ test.describe("Isolated local Supabase Owner setup", () => {
     const tariffAssignmentButtons = page.getByRole("button", {
       name: `Asignar tarifa mensual a ${athleteName}`,
     });
+    await expect(tariffAssignmentButtons).toHaveCount(2);
+
+    // Browser-layout fixture only: the real association above is already valid.
+    // Simulate concurrent resolution reasons in one HTTP read, without changing
+    // database data or claiming that the hosted API produced this combination.
+    const layoutOptions = structuredClone(refreshedMonthlyOptions);
+    const layoutEnrollment = layoutOptions.data.families[0]!.enrollments[0]!;
+    layoutEnrollment.blockingReasons = [
+      "PRICE_ASSIGNMENT_REQUIRED",
+      "FAMILY_MEMBERSHIP_PERIOD_INCOMPLETE",
+      "ENROLLMENT_PERIOD_INCOMPLETE",
+    ];
+    layoutEnrollment.assignedPrice = null;
+    const layoutReasons = [
+      "Falta asignar una tarifa mensual.",
+      "La relación con la familia no cubre este periodo completo.",
+      "La inscripción no cubre este periodo completo.",
+    ];
+    const layoutOptionsUrl = "**/api/v1/owner/billing/monthly-invoices/options?*";
+    let layoutReads = 0;
+    const layoutOptionsHandler = async (route: import("@playwright/test").Route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (
+        request.method() !== "GET" ||
+        url.searchParams.get("organizationId") !== result.organizationId ||
+        url.searchParams.get("locationId") !== result.locationId ||
+        url.searchParams.get("servicePeriod") !== servicePeriod
+      ) {
+        await route.continue();
+        return;
+      }
+      layoutReads += 1;
+      await route.fulfill({ status: 200, json: layoutOptions });
+    };
+    const originalViewport = page.viewportSize();
+    await page.route(layoutOptionsUrl, layoutOptionsHandler);
+    try {
+      await page.goto(`${billingUrl}&servicePeriod=${servicePeriod}`);
+      await familySelect.selectOption(associationData.data.familyId);
+      await expect(familySelect).toHaveValue(associationData.data.familyId);
+      const issues = page.getByRole("region", {
+        name: "Inscripciones que requieren atención",
+      });
+      const issue = issues.getByRole("listitem").filter({
+        has: page.getByRole("button", {
+          name: `Vincular a una familia a ${athleteName}`,
+          exact: true,
+        }),
+      });
+      await expect(issue).toHaveCount(1);
+      for (const reason of layoutReasons) {
+        await expect(issue.getByText(reason, { exact: true })).toBeVisible();
+      }
+      const actions = issue.getByRole("button");
+      await expect(actions).toHaveCount(2);
+      await expect(actions.nth(0)).toHaveAccessibleName(
+        `Asignar tarifa mensual a ${athleteName}`
+      );
+      await expect(actions.nth(1)).toHaveAccessibleName(
+        `Vincular a una familia a ${athleteName}`
+      );
+      await expect(actions.nth(0)).toBeEnabled();
+      await expect(actions.nth(1)).toBeEnabled();
+
+      for (const width of [375, 768, 1280]) {
+        await test.step(`Cuotas: múltiples motivos y ambas acciones a ${width}px (HTTP simulado)`, async () => {
+          await page.setViewportSize({ width, height: 900 });
+          await issue.scrollIntoViewIfNeeded();
+          const geometry = await issue.evaluate((element) => {
+            const rect = (box: DOMRect) => ({
+              left: box.left, right: box.right, top: box.top,
+              bottom: box.bottom, width: box.width, height: box.height,
+            });
+            const buttons = [...element.querySelectorAll("button")];
+            const text: Array<ReturnType<typeof rect> & { label: string; button: number }> = [];
+            const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+            while (walker.nextNode()) {
+              const node = walker.currentNode;
+              if (!node.textContent?.trim()) continue;
+              const range = document.createRange();
+              range.selectNodeContents(node);
+              const button = node.parentElement?.closest("button");
+              for (const box of range.getClientRects()) {
+                if (box.width > 0 && box.height > 0) {
+                  text.push({
+                    ...rect(box), label: node.textContent.trim(),
+                    button: button ? buttons.indexOf(button) : -1,
+                  });
+                }
+              }
+            }
+            return {
+              row: rect(element.getBoundingClientRect()),
+              buttons: buttons.map((button) => rect(button.getBoundingClientRect())),
+              text,
+              viewport: window.innerWidth,
+              scrollWidth: document.documentElement.scrollWidth,
+            };
+          });
+          const overlaps = (
+            a: { left: number; right: number; top: number; bottom: number },
+            b: { left: number; right: number; top: number; bottom: number }
+          ) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 &&
+            Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
+          expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.viewport);
+          expect(geometry.row.left).toBeGreaterThanOrEqual(0);
+          expect(geometry.row.right).toBeLessThanOrEqual(geometry.viewport);
+          expect(geometry.buttons).toHaveLength(2);
+          expect(geometry.text.length).toBeGreaterThanOrEqual(6);
+          for (const button of geometry.buttons) {
+            expect(button.width).toBeGreaterThanOrEqual(44);
+            expect(button.height).toBeGreaterThanOrEqual(44);
+            expect(button.left).toBeGreaterThanOrEqual(geometry.row.left - 1);
+            expect(button.right).toBeLessThanOrEqual(geometry.row.right + 1);
+            expect(button.top).toBeGreaterThanOrEqual(geometry.row.top - 1);
+            expect(button.bottom).toBeLessThanOrEqual(geometry.row.bottom + 1);
+          }
+          expect(overlaps(geometry.buttons[0]!, geometry.buttons[1]!)).toBe(false);
+          for (const [index, text] of geometry.text.entries()) {
+            const container = text.button < 0 ? geometry.row : geometry.buttons[text.button]!;
+            expect(text.left, text.label).toBeGreaterThanOrEqual(container.left - 1);
+            expect(text.right, text.label).toBeLessThanOrEqual(container.right + 1);
+            expect(text.top, text.label).toBeGreaterThanOrEqual(container.top - 1);
+            expect(text.bottom, text.label).toBeLessThanOrEqual(container.bottom + 1);
+            for (const [buttonIndex, button] of geometry.buttons.entries()) {
+              if (buttonIndex !== text.button) {
+                expect(overlaps(text, button), text.label).toBe(false);
+              }
+            }
+            for (const other of geometry.text.slice(index + 1)) {
+              expect(overlaps(text, other), `${text.label} / ${other.label}`).toBe(false);
+            }
+          }
+        });
+      }
+      expect(layoutReads).toBeGreaterThan(0);
+    } finally {
+      await page.unroute(layoutOptionsUrl, layoutOptionsHandler);
+      if (originalViewport) await page.setViewportSize(originalViewport);
+    }
+    // Resume the actual isolated HTTP/DB flow and its existing callback checks.
+    await page.goto(`${billingUrl}&servicePeriod=${servicePeriod}`);
+    await familySelect.selectOption(associationData.data.familyId);
+    await expect(familySelect).toHaveValue(associationData.data.familyId);
+    await expect(linkAthleteToFamily).toHaveCount(0);
     await expect(tariffAssignmentButtons).toHaveCount(2);
 
     const waitForPricePlanOptions = () =>

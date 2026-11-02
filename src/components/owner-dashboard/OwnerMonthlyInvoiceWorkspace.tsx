@@ -528,54 +528,62 @@ export function OwnerMonthlyInvoiceWorkspace({
                         .map((enrollment) => (
                           <li
                             key={enrollment.enrollmentId}
-                            className="grid gap-2 border-t border-amber-200 pt-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
+                            className="grid gap-3 border-t border-amber-200 pt-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
                           >
-                            <span className="text-sm font-semibold text-amber-950">
-                              {athleteLabel(enrollment.athleteName)}
-                            </span>
-                            {enrollment.blockingReasons.map((reason) => (
-                              <span
-                                key={reason}
-                                className="text-sm text-amber-950"
-                              >
-                                {reasonLabel(reason)}
+                            <div className="grid min-w-0 gap-1">
+                              <span className="break-words text-sm font-semibold text-amber-950">
+                                {athleteLabel(enrollment.athleteName)}
                               </span>
-                            ))}
-                            {(enrollment.blockingReasons.some((reason) =>
-                              reason.startsWith("PRICE_")
-                            ) ||
-                              !enrollment.assignedPrice) && (
-                              <button
-                                type="button"
-                                disabled={busy || writesBlocked}
-                                onClick={() =>
-                                  onAssignTariff(enrollment.enrollmentId)
-                                }
-                                className={secondaryButtonClassName}
-                                aria-label={`Asignar tarifa mensual a ${athleteLabel(enrollment.athleteName)}`}
-                              >
-                                Asignar tarifa
-                              </button>
-                            )}
-                            {enrollment.blockingReasons.some((reason) =>
-                              [
-                                "FAMILY_REQUIRED",
-                                "FAMILY_MEMBERSHIP_AMBIGUOUS",
-                                "FAMILY_MEMBERSHIP_PERIOD_INCOMPLETE",
-                              ].includes(reason)
-                            ) && (
-                              <button
-                                type="button"
-                                disabled={busy || writesBlocked}
-                                onClick={() =>
-                                  onLinkFamily(enrollment.enrollmentId)
-                                }
-                                className={secondaryButtonClassName}
-                                aria-label={`Vincular a una familia a ${athleteLabel(enrollment.athleteName)}`}
-                              >
-                                Vincular familia
-                              </button>
-                            )}
+                              {enrollment.blockingReasons.length > 0 && (
+                                <div className="grid min-w-0 gap-1">
+                                  {enrollment.blockingReasons.map((reason) => (
+                                    <span
+                                      key={reason}
+                                      className="break-words text-sm text-amber-950"
+                                    >
+                                      {reasonLabel(reason)}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-2 sm:justify-end">
+                              {(enrollment.blockingReasons.some((reason) =>
+                                reason.startsWith("PRICE_")
+                              ) ||
+                                !enrollment.assignedPrice) && (
+                                <button
+                                  type="button"
+                                  disabled={busy || writesBlocked}
+                                  onClick={() =>
+                                    onAssignTariff(enrollment.enrollmentId)
+                                  }
+                                  className={secondaryButtonClassName}
+                                  aria-label={`Asignar tarifa mensual a ${athleteLabel(enrollment.athleteName)}`}
+                                >
+                                  Asignar tarifa
+                                </button>
+                              )}
+                              {enrollment.blockingReasons.some((reason) =>
+                                [
+                                  "FAMILY_REQUIRED",
+                                  "FAMILY_MEMBERSHIP_AMBIGUOUS",
+                                  "FAMILY_MEMBERSHIP_PERIOD_INCOMPLETE",
+                                ].includes(reason)
+                              ) && (
+                                <button
+                                  type="button"
+                                  disabled={busy || writesBlocked}
+                                  onClick={() =>
+                                    onLinkFamily(enrollment.enrollmentId)
+                                  }
+                                  className={secondaryButtonClassName}
+                                  aria-label={`Vincular a una familia a ${athleteLabel(enrollment.athleteName)}`}
+                                >
+                                  Vincular familia
+                                </button>
+                              )}
+                            </div>
                           </li>
                         ))}
                     </ul>
