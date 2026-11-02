@@ -1,3 +1,4 @@
+import { sentryPrivacyOptions } from "./src/lib/monitoring/sentry-privacy";
 import * as Sentry from "@sentry/nextjs";
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
@@ -18,20 +19,12 @@ Sentry.init({
   dsn: SENTRY_DSN,
   tracesSampler,
   debug: false,
-  replaysOnErrorSampleRate: 1.0,
-  replaysSessionSampleRate: 0.05,
-  // El Session Replay de Sentry (rrweb) es lo que dominaba el chunk
-  // compartido por TODAS las páginas (134KB / ~442KB sin minificar,
-  // confirmado en el build) — se cargaba entero para el 100% de las
-  // visitas aunque solo graba al 5%. lazyLoadIntegration() lo separa en
-  // un chunk aparte que solo se descarga cuando realmente se activa.
+  ...sentryPrivacyOptions,
+  replaysOnErrorSampleRate: 0,
+  replaysSessionSampleRate: 0,
+  // No replay integration or replay envelopes in the launch candidate.
   integrations: [],
-  beforeSend(event) {
-    if (process.env.NODE_ENV === "development") {
-      return null;
-    }
-    return event;
-  },
+
   ignoreErrors: [
     "top.GLOBALS",
     "originalCreateNotification",
@@ -50,16 +43,7 @@ Sentry.init({
   ],
 });
 
-if (typeof window !== "undefined") {
-  Sentry.lazyLoadIntegration("replayIntegration").then((replayIntegration) => {
-    Sentry.addIntegration(
-      replayIntegration({
-        maskAllText: true,
-        blockAllMedia: true,
-      })
-    );
-  });
-}
+// Replay is not loaded until its collection and retention are separately reviewed.
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
 
