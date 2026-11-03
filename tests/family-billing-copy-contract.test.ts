@@ -50,10 +50,11 @@ describe("family billing copy contract", () => {
   });
 
   it("describes the balance update as the result of saving a manual payment", () => {
-    expect(ownerPaymentsCopy).toContain(
-      "Al guardar,\n              Zaltyko lo vincula al cargo y actualiza el saldo pendiente."
+    const normalizedOwnerPaymentsCopy = ownerPaymentsCopy.replace(/\s+/g, " ");
+    expect(normalizedOwnerPaymentsCopy).toContain(
+      "Al guardar, Zaltyko lo vincula al cargo y actualiza el saldo pendiente."
     );
-    expect(ownerPaymentsCopy).not.toContain(
+    expect(normalizedOwnerPaymentsCopy).not.toContain(
       "actualiza el saldo pendiente automáticamente"
     );
   });
