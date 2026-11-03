@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { OwnerMonthlyInvoicesManager } from "@/components/owner-dashboard/OwnerMonthlyInvoicesManager";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { createClient } from "@/lib/supabase/server";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -90,15 +91,21 @@ export default async function OwnerMonthlyInvoicesPage({
     "";
   if (!selectedLocationId) notFound();
   return (
-    <OwnerMonthlyInvoicesManager
+    <OwnerWorkspacePageShell
+      member={scope.member}
       organizationId={scope.organization.id}
-      organizationName={scope.organization.name}
-      defaultCurrency={scope.organization.defaultCurrency}
-      locations={scope.locations}
-      initialLocationId={selectedLocationId}
-      initialServicePeriod={
-        query.data.servicePeriod ?? currentSpainServicePeriod()
-      }
-    />
+      locationId={scope.selectedLocationId}
+    >
+      <OwnerMonthlyInvoicesManager
+        organizationId={scope.organization.id}
+        organizationName={scope.organization.name}
+        defaultCurrency={scope.organization.defaultCurrency}
+        locations={scope.locations}
+        initialLocationId={selectedLocationId}
+        initialServicePeriod={
+          query.data.servicePeriod ?? currentSpainServicePeriod()
+        }
+      />
+    </OwnerWorkspacePageShell>
   );
 }

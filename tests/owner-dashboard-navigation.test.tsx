@@ -5,6 +5,7 @@ import { vi } from "vitest";
 
 import { OwnerDashboardView } from "@/components/owner-dashboard/OwnerDashboardView";
 import { OwnerWorkspaceNavigation } from "@/components/owner-dashboard/OwnerWorkspaceNavigation";
+import { ownerWorkspaceCapabilitiesFor } from "@/components/owner-dashboard/owner-workspace-capabilities";
 import type { OwnerDashboardBundle } from "@/modules/owner-dashboard/application/get-owner-dashboard";
 
 const organizationId = "00000000-0000-4000-8000-000000000001";
@@ -49,7 +50,14 @@ const emptyBundle: OwnerDashboardBundle = {
 function renderOwnerWorkspace() {
   return render(
     <>
-      <OwnerWorkspaceNavigation />
+      <OwnerWorkspaceNavigation
+        capabilities={ownerWorkspaceCapabilitiesFor({
+          role: "owner",
+          locationScopeMode: "all",
+        })}
+        organizationId={organizationId}
+        locationId={locationId}
+      />
       <div id="owner-workspace-content">
         <OwnerDashboardView bundle={emptyBundle} />
       </div>

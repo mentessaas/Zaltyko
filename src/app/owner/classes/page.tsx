@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { OwnerClassesManager } from "@/components/owner-dashboard/OwnerClassesManager";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { createClient } from "@/lib/supabase/server";
 import { getOwnerClassesPageData } from "@/modules/scheduling/application/class-management-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -63,5 +64,13 @@ export default async function OwnerClassesPage({
     throw error;
   }
 
-  return <OwnerClassesManager bundle={bundle} />;
+  return (
+    <OwnerWorkspacePageShell
+      member={bundle.member}
+      organizationId={bundle.organization.id}
+      locationId={query.data.locationId ?? (bundle.member.locationScopeMode === "all" ? null : bundle.selectedLocationId)}
+    >
+      <OwnerClassesManager bundle={bundle} />
+    </OwnerWorkspacePageShell>
+  );
 }

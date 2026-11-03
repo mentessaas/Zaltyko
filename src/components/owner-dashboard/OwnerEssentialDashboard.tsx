@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { OwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import type { OwnerOperationalSummary } from "@/modules/owner-dashboard/application/operational-summary";
 import { OwnerOperationalSummaryPanel } from "./OwnerOperationalSummaryPanel";
+import { ownerWorkspaceCapabilitiesFor } from "./owner-workspace-capabilities";
 
 /** Launch surface: persisted operations only; no analytics worker dependency. */
 export function OwnerEssentialDashboard({
@@ -14,15 +15,23 @@ export function OwnerEssentialDashboard({
 }) {
   const params = new URLSearchParams({ organizationId: scope.organization.id });
   if (scope.selectedLocationId) params.set("locationId", scope.selectedLocationId);
-  const links = [
-    ["Gimnastas", `/owner/athletes?organizationId=${scope.organization.id}`],
+  const capabilities = ownerWorkspaceCapabilitiesFor(scope.member);
+  const links: Array<[string, string]> = [];
+  if (capabilities.canManageOrganizationAthletes) {
+    links.push(["Gimnastas", `/owner/athletes?organizationId=${scope.organization.id}`]);
+  }
+  links.push(
     ["Grupos", `/owner/groups?${params}`],
     ["Clases", `/owner/classes?${params}`],
     ["Inscripciones", `/owner/enrollments?${params}`],
     ["Asistencia", `/owner/attendance?${params}`],
-    ["Cuotas mensuales", `/owner/monthly-invoices?${params}`],
-    ["Cobros manuales", `/owner/payments?${params}`],
-  ];
+  );
+  if (capabilities.canManageFinancials) {
+    links.push(
+      ["Cuotas mensuales", `/owner/monthly-invoices?${params}`],
+      ["Cobros manuales", `/owner/payments?${params}`]
+    );
+  }
   return (
     <main className="min-h-screen bg-[#F1F3EF] px-5 py-8 text-slate-950 sm:py-12 lg:px-10">
       <div className="mx-auto max-w-6xl">

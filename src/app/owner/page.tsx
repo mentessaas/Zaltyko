@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { OwnerEssentialDashboard } from "@/components/owner-dashboard/OwnerEssentialDashboard";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { findLegacyAcademyMemberships } from "@/lib/auth/legacy-academy-access";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
 import { createClient } from "@/lib/supabase/server";
@@ -79,5 +80,16 @@ export default async function OwnerDashboardPage({
     if (error instanceof OperationalError && ["FORBIDDEN", "LOCATION_SCOPE_DENIED"].includes(error.code)) notFound();
     logger.error("Owner operational summary failed", error);
   }
-  return <OwnerEssentialDashboard scope={scope} operationalSummary={operationalSummary} />;
+  return (
+    <OwnerWorkspacePageShell
+      member={scope.member}
+      organizationId={scope.organization.id}
+      locationId={scope.selectedLocationId}
+    >
+      <OwnerEssentialDashboard
+        scope={scope}
+        operationalSummary={operationalSummary}
+      />
+    </OwnerWorkspacePageShell>
+  );
 }

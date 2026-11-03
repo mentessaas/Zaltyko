@@ -1,4 +1,4 @@
-import { isValidElement, type ReactElement } from "react";
+import { Children, isValidElement, type ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getUser = vi.hoisted(() => vi.fn());
@@ -60,11 +60,14 @@ import { OwnerSetupForm } from "@/components/owner-dashboard/OwnerSetupForm";
 import OwnerSetupPage from "@/app/owner/setup/page";
 
 function findSetupForm(page: ReactElement) {
-  const section = page.props.children as ReactElement;
-  const children = section.props.children as ReactElement[];
-  return children.find(
-    (child) => isValidElement(child) && child.type === OwnerSetupForm
-  ) as ReactElement | undefined;
+  if (page.type === OwnerSetupForm) return page;
+  const children = Children.toArray(page.props.children);
+  for (const child of children) {
+    if (!isValidElement(child)) continue;
+    const form = findSetupForm(child);
+    if (form) return form;
+  }
+  return undefined;
 }
 
 beforeEach(() => {

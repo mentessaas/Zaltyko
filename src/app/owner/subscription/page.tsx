@@ -5,6 +5,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { OwnerSaasBillingManager } from "@/components/owner-dashboard/OwnerSaasBillingManager";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { db } from "@/db";
 import { organizationMembers, organizations } from "@/db/zaltyko-schema";
 import { createClient } from "@/lib/supabase/server";
@@ -57,6 +58,8 @@ export default async function OwnerSaasBillingPage({
     .select({
       organizationId: organizationMembers.organizationId,
       organizationName: organizations.name,
+      role: organizationMembers.role,
+      locationScopeMode: organizationMembers.locationScopeMode,
     })
     .from(organizationMembers)
     .innerJoin(
@@ -71,9 +74,18 @@ export default async function OwnerSaasBillingPage({
   if (!organization) notFound();
 
   return (
-    <OwnerSaasBillingManager
+    <OwnerWorkspacePageShell
+      member={{
+        role: organization.role,
+        locationScopeMode: organization.locationScopeMode,
+      }}
       organizationId={organization.organizationId}
-      organizationName={organization.organizationName}
-    />
+      locationId={null}
+    >
+      <OwnerSaasBillingManager
+        organizationId={organization.organizationId}
+        organizationName={organization.organizationName}
+      />
+    </OwnerWorkspacePageShell>
   );
 }

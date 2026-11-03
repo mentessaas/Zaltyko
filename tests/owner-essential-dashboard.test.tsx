@@ -19,9 +19,56 @@ describe("essential Owner launch surface", () => {
     expect(screen.getByRole("heading", { name: "Resumen operativo no disponible" })).toBeTruthy();
     expect(screen.queryByText("Tu academia en marcha")).toBeNull();
     const navigation = screen.getByRole("navigation", { name: "Operaciones de la academia" });
-    expect(within(navigation).getByRole("link", { name: "Cuotas mensuales" }).getAttribute("href")).toBe(`/owner/monthly-invoices?organizationId=${scope.organization.id}&locationId=${scope.selectedLocationId}`);
-    expect(within(navigation).getByRole("link", { name: "Gimnastas" }).getAttribute("href")).toBe(`/owner/athletes?organizationId=${scope.organization.id}`);
+    for (const label of ["Grupos", "Clases", "Inscripciones", "Asistencia"]) {
+      expect(within(navigation).getByRole("link", { name: label })).toBeInTheDocument();
+    }
+    expect(within(navigation).queryByRole("link", { name: "Cuotas mensuales" })).toBeNull();
+    expect(within(navigation).queryByRole("link", { name: "Cobros manuales" })).toBeNull();
+    expect(within(navigation).queryByRole("link", { name: "Gimnastas" })).toBeNull();
     expect(screen.queryByRole("link", { name: /Insights|Health Score|Retención|Capacidad/i })).toBeNull();
+  });
+  it("muestra finanzas a Owner y Admin, pero reserva Gimnastas para scope de todas las sedes", () => {
+    const navigationFor = (role: "owner" | "admin") => {
+      const view = render(
+        <OwnerEssentialDashboard
+          scope={{
+            ...scope,
+            member: { ...scope.member, role },
+          }}
+          operationalSummary={null}
+        />
+      );
+      const navigation = screen.getByRole("navigation", { name: "Operaciones de la academia" });
+      expect(within(navigation).getByRole("link", { name: "Cuotas mensuales" })).toBeInTheDocument();
+      expect(within(navigation).getByRole("link", { name: "Cobros manuales" })).toBeInTheDocument();
+      return { navigation, unmount: view.unmount };
+    };
+
+    const ownerView = navigationFor("owner");
+    expect(within(ownerView.navigation).queryByRole("link", { name: "Gimnastas" })).toBeNull();
+
+    ownerView.unmount();
+    const adminView = navigationFor("admin");
+    expect(within(adminView.navigation).queryByRole("link", { name: "Gimnastas" })).toBeNull();
+    adminView.unmount();
+  });
+  it("muestra Gimnastas a Owner o Admin con scope de todas las sedes", () => {
+    for (const role of ["owner", "admin"] as const) {
+      const { unmount } = render(
+        <OwnerEssentialDashboard
+          scope={{
+            ...scope,
+            member: { ...scope.member, role, locationScopeMode: "all" },
+          }}
+          operationalSummary={null}
+        />
+      );
+      expect(screen.getByRole("link", { name: "Gimnastas" })).toHaveAttribute(
+        "href",
+        `/owner/athletes?organizationId=${scope.organization.id}`
+      );
+      unmount();
+    }
   });
   it("offers only authorized locations and no aggregate option for a restricted manager", () => {
     render(<OwnerEssentialDashboard scope={scope} operationalSummary={null} />);

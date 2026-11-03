@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { OwnerGroupsManager } from "@/components/owner-dashboard/OwnerGroupsManager";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { createClient } from "@/lib/supabase/server";
 import { getOwnerGroupsPageData } from "@/modules/groups/application/group-management-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -69,6 +70,15 @@ export default async function OwnerGroupsPage({
     throw error;
   }
   return (
-    <OwnerGroupsManager key={data.selectedGroupId ?? "none"} bundle={data} />
+    <OwnerWorkspacePageShell
+      member={data.member}
+      organizationId={data.organization.id}
+      locationId={data.selectedLocationId}
+    >
+      <OwnerGroupsManager
+        key={data.selectedGroupId ?? "none"}
+        bundle={data}
+      />
+    </OwnerWorkspacePageShell>
   );
 }

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { InsightInbox } from "@/components/owner-dashboard/InsightInbox";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import type { InsightListBundle } from "@/modules/insights/application/insight-query";
 
 export const dynamic = "force-dynamic";
@@ -101,5 +102,9 @@ const syntheticBundle: InsightListBundle = {
 
 export default function OwnerInsightsPreviewPage() {
   if (process.env.NODE_ENV === "production") notFound();
-  return <InsightInbox bundle={syntheticBundle} />;
+  return (
+    <OwnerWorkspacePageShell previewMode>
+      <InsightInbox bundle={syntheticBundle} />
+    </OwnerWorkspacePageShell>
+  );
 }

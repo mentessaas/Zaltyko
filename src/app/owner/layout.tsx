@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 
-import { OwnerWorkspaceNavigation } from "@/components/owner-dashboard/OwnerWorkspaceNavigation";
-
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -15,12 +13,5 @@ export default function OwnerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <>
-      <OwnerWorkspaceNavigation />
-      <div id="owner-workspace-content" tabIndex={-1}>
-        {children}
-      </div>
-    </>
-  );
+  return children;
 }

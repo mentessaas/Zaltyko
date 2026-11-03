@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { OwnerAthleteIntakeWorkspace } from "@/components/owner-dashboard/OwnerAthleteIntakeWorkspace";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { createClient } from "@/lib/supabase/server";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -54,5 +55,16 @@ export default async function OwnerAthletesPage({
 
   // The page validates only the signed-in Owner/Admin scope. Athlete, family,
   // and group records are fetched after mount from the tenant-checked API.
-  return <OwnerAthleteIntakeWorkspace organizationId={scope.organization.id} organizationName={scope.organization.name} />;
+  return (
+    <OwnerWorkspacePageShell
+      member={scope.member}
+      organizationId={scope.organization.id}
+      locationId={scope.selectedLocationId}
+    >
+      <OwnerAthleteIntakeWorkspace
+        organizationId={scope.organization.id}
+        organizationName={scope.organization.name}
+      />
+    </OwnerWorkspacePageShell>
+  );
 }

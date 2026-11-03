@@ -6,11 +6,13 @@ import { useRef } from "react";
 import { ChevronDown } from "lucide-react";
 import { OwnerOperationalPolicy } from "./OwnerOperationalPolicy";
 import { OwnerSignOutButton } from "./OwnerSignOutButton";
+import type { OwnerWorkspaceCapabilities } from "./owner-workspace-capabilities";
 
 type NavigationItem = {
   label: string;
   href: string;
   active: boolean;
+  capability?: keyof OwnerWorkspaceCapabilities;
 };
 
 function isRouteActive(pathname: string, route: string) {
@@ -19,13 +21,33 @@ function isRouteActive(pathname: string, route: string) {
     : pathname === route || pathname.startsWith(`${route}/`);
 }
 
-export function OwnerWorkspaceNavigation() {
+export function OwnerWorkspaceNavigation({
+  capabilities,
+  organizationId: validatedOrganizationId,
+  locationId: validatedLocationId,
+  previewMode = false,
+}: {
+  capabilities?: OwnerWorkspaceCapabilities;
+  organizationId?: string | null;
+  locationId?: string | null;
+  previewMode?: boolean;
+}) {
   const mobileMoreRef = useRef<HTMLDetailsElement>(null);
   const mobileMoreSummaryRef = useRef<HTMLElement>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const organizationId = searchParams.get("organizationId");
-  const locationId = searchParams.get("locationId");
+  const organizationId =
+    validatedOrganizationId !== undefined
+      ? validatedOrganizationId
+      : previewMode
+        ? searchParams.get("organizationId")
+        : null;
+  const locationId =
+    validatedLocationId !== undefined
+      ? validatedLocationId
+      : previewMode
+        ? searchParams.get("locationId")
+        : null;
   const context = new URLSearchParams();
   if (organizationId) context.set("organizationId", organizationId);
   if (locationId) context.set("locationId", locationId);
@@ -36,9 +58,9 @@ export function OwnerWorkspaceNavigation() {
     : "";
   const dashboardPath = pathname === "/owner/preview" ? pathname : "/owner";
   const dashboardHref = `${dashboardPath}${scopedQuery}`;
-  const isDashboardPreview = pathname === "/owner/preview";
+  const isDashboardPreview = previewMode && pathname === "/owner/preview";
   const showNavigation = !(pathname === "/owner/setup" && !organizationId);
-  const preview = pathname.includes("/preview");
+  const preview = previewMode;
 
   const navigationItems: NavigationItem[] = [
     {
@@ -55,6 +77,7 @@ export function OwnerWorkspaceNavigation() {
       label: "Gimnastas",
       href: `/owner/athletes${organizationQuery}`,
       active: isRouteActive(pathname, "/owner/athletes"),
+      capability: "canManageOrganizationAthletes",
     },
     {
       label: "Clases",
@@ -79,6 +102,7 @@ export function OwnerWorkspaceNavigation() {
         ? "#metric-collection_rate"
         : `/owner/payments${scopedQuery}`,
       active: isRouteActive(pathname, "/owner/payments"),
+      capability: "canManageFinancials",
     },
     ...(!isDashboardPreview
       ? [
@@ -86,16 +110,27 @@ export function OwnerWorkspaceNavigation() {
             label: "Plan",
             href: `/owner/subscription${organizationQuery}`,
             active: isRouteActive(pathname, "/owner/subscription"),
+            capability: "canManageSubscription" as const,
           },
         ]
       : []),
   ];
+  // Production pages pass capabilities from their validated server scope.
+  // Missing capabilities fail closed; route guards remain authoritative.
+  const visibleNavigationItems = navigationItems.filter(
+    (item) =>
+      previewMode ||
+      !item.capability ||
+      capabilities?.[item.capability] === true
+  );
   // Keep attendance among the five daily tasks. The organization-wide intake
   // stays available under More without displacing a location-scoped task.
-  const mobileItems = navigationItems
+  const mobileItems = visibleNavigationItems
     .filter((item) => !item.href.startsWith("/owner/athletes"))
     .slice(0, 5);
-  const secondaryMobileItems = navigationItems.filter((item) => !mobileItems.includes(item));
+  const secondaryMobileItems = visibleNavigationItems.filter(
+    (item) => !mobileItems.includes(item)
+  );
 
   return (
     <>
@@ -129,7 +164,7 @@ export function OwnerWorkspaceNavigation() {
                 aria-label="Principal"
                 className="hidden min-w-0 items-center gap-1 xl:flex"
               >
-                {navigationItems.map((item) => (
+                {visibleNavigationItems.map((item) => (
                   <Link
                     key={item.label}
                     href={item.href}
@@ -162,32 +197,37 @@ export function OwnerWorkspaceNavigation() {
                   {item.label}
                 </Link>
               ))}
-              <details ref={mobileMoreRef} className="relative min-w-0">
-                <summary ref={mobileMoreSummaryRef} className="touch-target flex cursor-pointer list-none items-center justify-center whitespace-nowrap px-1 text-center text-xs font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-800 [&::-webkit-details-marker]:hidden">
-                  <span>Más</span>
-                  <ChevronDown
-                    className="ml-1 h-3.5 w-3.5"
-                    aria-hidden="true"
-                  />
-                </summary>
-                <ul className="absolute right-0 top-full z-30 mt-1 min-w-44 border border-slate-300 bg-white p-1 shadow-lg">
-                  {secondaryMobileItems.map((item) => (
-                    <li key={item.label}>
-                      <Link
-                        href={item.href}
-                        onClick={() => {
-                          if (mobileMoreRef.current) mobileMoreRef.current.open = false;
-                          mobileMoreSummaryRef.current?.focus({ preventScroll: true });
-                        }}
-                        aria-current={item.active ? "page" : undefined}
-                        className="touch-target flex rounded px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
-                      >
-                        {item.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </details>
+              {secondaryMobileItems.length > 0 ? (
+                <details ref={mobileMoreRef} className="relative min-w-0">
+                  <summary
+                    ref={mobileMoreSummaryRef}
+                    className="touch-target flex cursor-pointer list-none items-center justify-center whitespace-nowrap px-1 text-center text-xs font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-800 [&::-webkit-details-marker]:hidden"
+                  >
+                    <span>Más</span>
+                    <ChevronDown
+                      className="ml-1 h-3.5 w-3.5"
+                      aria-hidden="true"
+                    />
+                  </summary>
+                  <ul className="absolute right-0 top-full z-30 mt-1 min-w-44 border border-slate-300 bg-white p-1 shadow-lg">
+                    {secondaryMobileItems.map((item) => (
+                      <li key={item.label}>
+                        <Link
+                          href={item.href}
+                          onClick={() => {
+                            if (mobileMoreRef.current) mobileMoreRef.current.open = false;
+                            mobileMoreSummaryRef.current?.focus({ preventScroll: true });
+                          }}
+                          aria-current={item.active ? "page" : undefined}
+                          className="touch-target flex rounded px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
+                        >
+                          {item.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
             </nav>
           ) : null}
         </div>

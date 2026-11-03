@@ -1,3 +1,4 @@
+import { isValidElement, type ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -68,6 +69,15 @@ vi.mock("@/modules/owner-dashboard/application/dashboard-layout", () => ({
 import OwnerDashboardPage from "@/app/owner/page";
 const organizationId = "00000000-0000-4000-8000-000000000001";
 const locationId = "00000000-0000-4000-8000-000000000002";
+
+function operationalSummaryFromPage(page: ReactElement) {
+  const dashboard = page.props.children;
+  if (!isValidElement<{ operationalSummary: unknown }>(dashboard)) {
+    throw new Error("Owner dashboard child is missing");
+  }
+  return dashboard.props.operationalSummary;
+}
+
 describe("Owner page operational summary boundary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -160,7 +170,7 @@ describe("Owner page operational summary boundary", () => {
       from: undefined,
       to: undefined,
     });
-    expect(page.props.operationalSummary).toEqual({ synthetic: "summary" });
+    expect(operationalSummaryFromPage(page)).toEqual({ synthetic: "summary" });
     expect(mocks.scope).toHaveBeenCalledWith({ userId: "synthetic-user", organizationId });
     expect(mocks.dashboard).not.toHaveBeenCalled();
   });
@@ -188,7 +198,7 @@ describe("Owner page operational summary boundary", () => {
     const page = await OwnerDashboardPage({
       searchParams: Promise.resolve({ organizationId }),
     });
-    expect(page.props.operationalSummary).toBeNull();
+    expect(operationalSummaryFromPage(page)).toBeNull();
     expect(mocks.error).toHaveBeenCalledOnce();
   });
   it("does not hide a forbidden site as an empty summary", async () => {

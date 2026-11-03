@@ -4,8 +4,10 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { OwnerAttendanceManager } from "@/components/owner-dashboard/OwnerAttendanceManager";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { createClient } from "@/lib/supabase/server";
 import { getOwnerAttendanceSessionOptions } from "@/modules/attendance/application/owner-attendance-sessions";
+import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export const dynamic = "force-dynamic";
@@ -66,14 +68,39 @@ export default async function OwnerAttendancePage({
     throw error;
   }
 
+  let scope: Awaited<ReturnType<typeof resolveOwnerScope>>;
+  try {
+    scope = await resolveOwnerScope({
+      userId: user.id,
+      organizationId: data.organization.id,
+      locationId: query.data.locationId,
+    });
+  } catch (error) {
+    if (
+      error instanceof OperationalError &&
+      (error.code === "FORBIDDEN" ||
+        error.code === "LOCATION_SCOPE_DENIED" ||
+        error.code === "INVALID_RELATION")
+    ) {
+      notFound();
+    }
+    throw error;
+  }
+
   return (
-    <OwnerAttendanceManager
-      organizationId={data.organization.id}
-      locationId={data.locationId}
-      sessions={data.sessions}
-      initialSessionId={query.data.sessionId}
-      initialNextCursor={data.nextCursor}
-      selectedSession={data.selectedSession}
-    />
+    <OwnerWorkspacePageShell
+      member={scope.member}
+      organizationId={scope.organization.id}
+      locationId={scope.selectedLocationId}
+    >
+      <OwnerAttendanceManager
+        organizationId={data.organization.id}
+        locationId={data.locationId}
+        sessions={data.sessions}
+        initialSessionId={query.data.sessionId}
+        initialNextCursor={data.nextCursor}
+        selectedSession={data.selectedSession}
+      />
+    </OwnerWorkspacePageShell>
   );
 }
