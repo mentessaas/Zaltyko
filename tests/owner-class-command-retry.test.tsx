@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: mocks.refresh }) }));
-import { OwnerClassesManager } from "@/components/owner-dashboard/OwnerClassesManager";
+import { OwnerClassesManager as OwnerClassesManagerView } from "@/components/owner-dashboard/OwnerClassesManager";
 import { markOwnerPlanUsageUnavailable, publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
 const organizationId = "40000000-0000-4000-8000-000000000001";
@@ -24,8 +24,24 @@ const baseBundle = {
   selectedLocationId: locationId,
   localTodayByLocation: { [locationId]: today },
 };
-type Bundle = Parameters<typeof OwnerClassesManager>[0]["bundle"];
+type Bundle = Parameters<typeof OwnerClassesManagerView>[0]["bundle"];
 const bundle = baseBundle as unknown as Bundle;
+
+function OwnerClassesManager({
+  bundle: managerBundle,
+  navigationLocationId = managerBundle.selectedLocationId,
+}: {
+  bundle: Bundle;
+  navigationLocationId?: string | null;
+}) {
+  return (
+    <OwnerClassesManagerView
+      bundle={managerBundle}
+      navigationLocationId={navigationLocationId}
+    />
+  );
+}
+
 const validReceipt = {
   ok: true,
   data: { id: classId, name: "Artística iniciación", sessionCount: 18, generatedThrough: "2027-02-19" },
@@ -57,21 +73,82 @@ function beforeUnloadIsPrevented() {
 }
 
 describe("reintento de creación de clases", () => {
-  it("conserva la sede al volver al resumen y omite locationId si el ámbito es agregado", () => {
-    const { rerender } = render(<OwnerClassesManager bundle={bundle} />);
-    expect(screen.getByRole("link", { name: "Volver al resumen" })).toHaveAttribute(
-      "href",
-      `/owner?organizationId=${organizationId}&locationId=${locationId}`
+  it("mantiene el ámbito agregado aunque el formulario elija la primera sede", () => {
+    const secondLocationId = "40000000-0000-4000-8000-000000000006";
+    const aggregateBundle = {
+      ...baseBundle,
+      locations: [
+        ...baseBundle.locations,
+        {
+          id: secondLocationId,
+          name: "Segunda sede sintética",
+          timezone: "Europe/Madrid",
+        },
+      ],
+      selectedLocationId: locationId,
+      localTodayByLocation: {
+        ...baseBundle.localTodayByLocation,
+        [secondLocationId]: today,
+      },
+    } as unknown as Bundle;
+    render(
+      <OwnerClassesManager
+        bundle={aggregateBundle}
+        navigationLocationId={null}
+      />
     );
 
-    rerender(
+    expect(screen.getByLabelText("Sede")).toHaveValue(locationId);
+    expect(screen.getByRole("link", { name: "Volver al resumen" })).toHaveAttribute(
+      "href",
+      `/owner?organizationId=${organizationId}`
+    );
+    expect(screen.getByRole("link", { name: "Grupos" })).toHaveAttribute(
+      "href",
+      `/owner/groups?organizationId=${organizationId}`
+    );
+  });
+
+  it("conserva el ámbito de una sede explícita en ambos enlaces", () => {
+    render(
       <OwnerClassesManager
-        bundle={{ ...baseBundle, selectedLocationId: null } as unknown as Bundle}
+        bundle={bundle}
+        navigationLocationId={locationId}
       />
     );
     expect(screen.getByRole("link", { name: "Volver al resumen" })).toHaveAttribute(
       "href",
-      `/owner?organizationId=${organizationId}`
+      `/owner?organizationId=${organizationId}&locationId=${locationId}`
+    );
+    expect(screen.getByRole("link", { name: "Grupos" })).toHaveAttribute(
+      "href",
+      `/owner/groups?organizationId=${organizationId}&locationId=${locationId}`
+    );
+  });
+
+  it("conserva solo la sede autorizada para un manager", () => {
+    const managerBundle = {
+      ...baseBundle,
+      member: {
+        ...baseBundle.member,
+        role: "manager",
+        locationScopeMode: "selected",
+      },
+    } as unknown as Bundle;
+    render(
+      <OwnerClassesManager
+        bundle={managerBundle}
+        navigationLocationId={locationId}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: "Volver al resumen" })).toHaveAttribute(
+      "href",
+      `/owner?organizationId=${organizationId}&locationId=${locationId}`
+    );
+    expect(screen.getByRole("link", { name: "Grupos" })).toHaveAttribute(
+      "href",
+      `/owner/groups?organizationId=${organizationId}&locationId=${locationId}`
     );
   });
 

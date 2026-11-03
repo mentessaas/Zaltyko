@@ -97,7 +97,13 @@ function hasOverlappingSchedule(schedule: ScheduleSlot[]): boolean {
   );
 }
 
-export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
+export function OwnerClassesManager({
+  bundle,
+  navigationLocationId,
+}: {
+  bundle: ClassesBundle;
+  navigationLocationId: string | null;
+}) {
   const fieldIdPrefix = useId();
   const programSelectId = `${fieldIdPrefix}-program`;
   const programHelpId = `${fieldIdPrefix}-program-help`;
@@ -363,7 +369,7 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
             href={ownerDashboardScopeHref(
               "/owner",
               bundle.organization.id,
-              bundle.selectedLocationId
+              navigationLocationId
             )}
             className="touch-target inline-flex items-center text-sm font-semibold text-teal-900 underline underline-offset-4"
           >
@@ -381,7 +387,7 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
           href={ownerDashboardScopeHref(
             "/owner/groups",
             bundle.organization.id,
-            bundle.selectedLocationId
+            navigationLocationId
           )}
           className="touch-target inline-flex min-h-11 items-center gap-2 border border-slate-400 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
         >

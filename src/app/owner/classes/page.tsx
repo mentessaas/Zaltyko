@@ -64,13 +64,22 @@ export default async function OwnerClassesPage({
     throw error;
   }
 
+  const navigationLocationId =
+    query.data.locationId ??
+    (bundle.member.locationScopeMode === "all"
+      ? null
+      : bundle.selectedLocationId);
+
   return (
     <OwnerWorkspacePageShell
       member={bundle.member}
       organizationId={bundle.organization.id}
-      locationId={query.data.locationId ?? (bundle.member.locationScopeMode === "all" ? null : bundle.selectedLocationId)}
+      locationId={navigationLocationId}
     >
-      <OwnerClassesManager bundle={bundle} />
+      <OwnerClassesManager
+        bundle={bundle}
+        navigationLocationId={navigationLocationId}
+      />
     </OwnerWorkspacePageShell>
   );
 }

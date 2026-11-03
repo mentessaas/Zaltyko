@@ -73,7 +73,12 @@ afterEach(() => {
 
 describe("contexto de sede al crear grupos", () => {
   it("conserva la sede B en el enlace de Clases aunque A aparezca primero", () => {
-    render(<OwnerClassesManager bundle={classesBundle()} />);
+    render(
+      <OwnerClassesManager
+        bundle={classesBundle()}
+        navigationLocationId={locationB}
+      />
+    );
 
     expect(screen.getByRole("link", { name: /Grupos/ })).toHaveAttribute(
       "href",

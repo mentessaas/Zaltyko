@@ -61,7 +61,7 @@ describe("OwnerClassesManager", () => {
   });
 
   it("presenta un único formulario con campos nombrados y una alternativa clara al ratón", () => {
-    render(<OwnerClassesManager bundle={bundle()} />);
+    render(<OwnerClassesManager bundle={bundle()} navigationLocationId={locationId} />);
 
     expect(
       screen.getByRole("heading", { name: "Clases recurrentes" })
@@ -77,7 +77,7 @@ describe("OwnerClassesManager", () => {
   });
 
   it("crea clase y sesiones en un envío idempotente", async () => {
-    render(<OwnerClassesManager bundle={bundle()} />);
+    render(<OwnerClassesManager bundle={bundle()} navigationLocationId={locationId} />);
     fireEvent.change(screen.getByLabelText("Nombre de la clase"), {
       target: { value: "Iniciación rítmica" },
     });
@@ -114,7 +114,7 @@ describe("OwnerClassesManager", () => {
   });
 
   it("explica el estado vacío sin inventar clases", () => {
-    render(<OwnerClassesManager bundle={bundle()} />);
+    render(<OwnerClassesManager bundle={bundle()} navigationLocationId={locationId} />);
     expect(screen.getByText(/Aún no hay clases recurrentes/)).toBeTruthy();
   });
 });

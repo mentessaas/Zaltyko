@@ -35,8 +35,10 @@ for (const [label, page, service] of [
   describe(`${label}: contexto autorizado de navegación`, () => {
     it.each([
       { name: "agregado Owner", role: "owner", mode: "all", requested: undefined, expected: null },
+      { name: "agregado Admin", role: "admin", mode: "all", requested: undefined, expected: null },
       { name: "sede explícita Owner", role: "owner", mode: "all", requested: locationB, expected: locationB },
       { name: "manager limitado sin query", role: "manager", mode: "selected", requested: undefined, expected: locationA },
+      { name: "sede autorizada Manager", role: "manager", mode: "selected", requested: locationB, expected: locationB },
       { name: "admin limitado sin query", role: "admin", mode: "selected", requested: undefined, expected: locationA },
     ])("conserva $name sin tomar el default de creación como filtro agregado", async ({ role, mode, requested, expected }) => {
       const bundle = {
@@ -59,6 +61,9 @@ for (const [label, page, service] of [
       }));
       // Navigation must not change the form's existing, authorized default.
       expect(result.props.children.props.bundle.selectedLocationId).toBe(bundle.selectedLocationId);
+      if (label === "Clases") {
+        expect(result.props.children.props.navigationLocationId).toBe(expected);
+      }
     });
   });
 }
