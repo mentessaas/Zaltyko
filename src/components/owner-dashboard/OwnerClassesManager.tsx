@@ -378,7 +378,11 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
           </p>
         </div>
         <Link
-          href={`/owner/groups?organizationId=${bundle.organization.id}`}
+          href={ownerDashboardScopeHref(
+            "/owner/groups",
+            bundle.organization.id,
+            bundle.selectedLocationId
+          )}
           className="touch-target inline-flex min-h-11 items-center gap-2 border border-slate-400 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
         >
           Grupos <ArrowRight className="h-4 w-4" aria-hidden="true" />

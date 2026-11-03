@@ -224,6 +224,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   const membershipScope = `${organizationId}:${bundle.selectedGroupId ?? "none"}`;
   const defaultProgramId = bundle.programs[0]?.id ?? "";
   const defaultLocationId =
+    bundle.selectedLocationId ??
     bundle.groups.find((group) => group.id === bundle.selectedGroupId)
       ?.locationId ??
     bundle.locations[0]?.id ??
