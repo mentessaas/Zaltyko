@@ -2470,7 +2470,14 @@ test.describe("Isolated local Supabase Owner setup", () => {
 
     // The export is a read of this disposable academy, independent of Stripe
     // readiness. It must remain usable with the same Owner session on mobile.
-    await page.goto(`/owner/subscription?organizationId=${result.organizationId}`);
+    // Follow the workspace's real client navigation. Firefox aborted the
+    // document goto at this transition after the family's router.refresh().
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const planLink = page.getByRole("navigation", { name: "Principal", exact: true })
+      .getByRole("link", { name: "Plan", exact: true });
+    await expect(planLink).toHaveAttribute("href", `/owner/subscription?organizationId=${result.organizationId}`);
+    await planLink.click();
+    await expect(page).toHaveURL(new RegExp(`/owner/subscription\\?organizationId=${result.organizationId}$`));
     const exportHeading = page.getByRole("heading", { name: "Datos de tu academia", exact: true });
     const exportButton = page.getByRole("button", { name: "Descargar datos operativos", exact: true });
     for (const viewport of [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1280, height: 900 }]) {
