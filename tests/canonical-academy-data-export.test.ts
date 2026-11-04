@@ -24,7 +24,7 @@ function catalogRows() {
   });
 }
 function prepareThroughMembership() {
-  for (let i = 0; i < 3; i++) mocks.execute.mockResolvedValueOnce({ rows: [] });
+  for (let i = 0; i < 4; i++) mocks.execute.mockResolvedValueOnce({ rows: [] });
   mocks.execute.mockResolvedValueOnce({ rows: [{
     organization_status: "active", member_status: "active", role: "owner", location_scope_mode: "all",
   }] });
@@ -44,7 +44,7 @@ describe("canonical export failure boundaries (database mocked)", () => {
     const observed = kind === "partial discovery module" ? rows.filter(row => row.table_name !== "product_discovery_signals") : [...rows, { table_name: "product_discovery_interests", column_name: "private_free_text" }];
     mocks.execute.mockResolvedValueOnce({ rows: observed });
     await expect(exportCanonicalAcademyData(actor)).rejects.toMatchObject({ status: 503, problemType: "canonical-export-schema-unavailable" });
-    expect(mocks.execute).toHaveBeenCalledTimes(5);
+    expect(mocks.execute).toHaveBeenCalledTimes(6);
   });
   it("classifies the complete optional module without exporting staff choices", async () => {
     prepareThroughMembership();
@@ -67,9 +67,11 @@ describe("canonical export failure boundaries (database mocked)", () => {
       if (kind === "missing table") rows = rows.filter(row => row.table_name !== "guardians");
       mocks.execute.mockResolvedValueOnce({ rows });
       await expect(exportCanonicalAcademyData(actor)).rejects.toMatchObject({ status: 503, problemType: "canonical-export-schema-unavailable" });
-      expect(mocks.execute).toHaveBeenCalledTimes(5);
+      expect(mocks.execute).toHaveBeenCalledTimes(6);
       const first = mocks.execute.mock.calls[0][0] as Parameters<PgDialect["sqlToQuery"]>[0];
       expect(dialect.sqlToQuery(first).sql).toContain("REPEATABLE READ, READ ONLY");
+      const dateStyle = mocks.execute.mock.calls[1][0] as Parameters<PgDialect["sqlToQuery"]>[0];
+      expect(dialect.sqlToQuery(dateStyle).sql).toContain("SET LOCAL DateStyle = 'ISO, YMD'");
     }
   );
 
@@ -82,7 +84,7 @@ describe("canonical export failure boundaries (database mocked)", () => {
       table_name: table.name, row_count: table.name === "people" ? 20_001 : 0, estimated_bytes: 0,
     })) });
     await expect(exportCanonicalAcademyData(actor)).rejects.toMatchObject({ status: 413 });
-    expect(mocks.execute).toHaveBeenCalledTimes(8);
+    expect(mocks.execute).toHaveBeenCalledTimes(9);
   });
 
   it("rejects malformed identifiers without entering a transaction", async () => {
