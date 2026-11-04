@@ -84,7 +84,15 @@ function matches(predicate: unknown, row: Row): boolean {
   if (node.op === "and") return node.args.every((item) => matches(item, row));
   const [column, value] = node.args as [{ columnName: string }, unknown];
   const actual = row[column.columnName];
-  if (node.op === "eq") return actual === value;
+  if (node.op === "eq") {
+    if (actual === value) return true;
+    return (
+      column.columnName === "configuration" &&
+      typeof value === "object" &&
+      value !== null &&
+      JSON.stringify(actual) === JSON.stringify(value)
+    );
+  }
   if (node.op === "inArray") return (value as unknown[]).includes(actual);
   return true;
 }
@@ -379,15 +387,27 @@ describe("organization bootstrap canonical sport profiles", () => {
     expect(fixture.inserts).toEqual([]);
   });
 
-  it("usa un único perfil general MX y conserva cada disciplina en sus programas", async () => {
+  it("usa un perfil de identidad MX por disciplina y conserva cobertura sin reglas", async () => {
     fixture.rows.sportProfiles = [
       {
-        id: "mx-general-identity-profile",
+        id: "mx-artistic-identity-profile",
         countryCode: "MX",
-        disciplineKey: "general",
+        disciplineKey: "artistic",
         federationCode: "unconfigured",
         profileVersion: "identity-v1",
         status: "identity_only",
+        configurationSchemaVersion: 1,
+        configuration: {},
+      },
+      {
+        id: "mx-rhythmic-identity-profile",
+        countryCode: "MX",
+        disciplineKey: "rhythmic",
+        federationCode: "unconfigured",
+        profileVersion: "identity-v1",
+        status: "identity_only",
+        configurationSchemaVersion: 1,
+        configuration: {},
       },
       {
         id: "es-artistic-profile",
@@ -424,8 +444,15 @@ describe("organization bootstrap canonical sport profiles", () => {
       {
         organizationId: "organization-created",
         countryCode: "MX",
-        sportProfileId: "mx-general-identity-profile",
+        sportProfileId: "mx-artistic-identity-profile",
         role: "primary",
+        status: "active",
+      },
+      {
+        organizationId: "organization-created",
+        countryCode: "MX",
+        sportProfileId: "mx-rhythmic-identity-profile",
+        role: "additional",
         status: "active",
       },
     ]);
@@ -445,15 +472,35 @@ describe("organization bootstrap canonical sport profiles", () => {
         organizationId: "organization-created",
         name: "Gimnasia rítmica",
         kind: "gymnastics_sport",
-        organizationSportId: "organization-sport-1",
+        organizationSportId: "organization-sport-2",
         activityKey: null,
         status: "active",
       },
     ]);
   });
 
-  it("falla sin escrituras si falta el perfil general MX y no usa perfiles ES", async () => {
+  it("falla sin escrituras si falta identidad MX para una disciplina y no usa perfiles ES ni verificados", async () => {
     fixture.rows.sportProfiles = [
+      {
+        id: "mx-verified-artistic-profile",
+        countryCode: "MX",
+        disciplineKey: "artistic",
+        federationCode: "unconfigured",
+        profileVersion: "identity-v1",
+        status: "verified",
+        configurationSchemaVersion: 1,
+        configuration: {},
+      },
+      {
+        id: "mx-rhythmic-identity-profile",
+        countryCode: "MX",
+        disciplineKey: "rhythmic",
+        federationCode: "unconfigured",
+        profileVersion: "identity-v1",
+        status: "identity_only",
+        configurationSchemaVersion: 1,
+        configuration: {},
+      },
       {
         id: "es-artistic-profile",
         countryCode: "ES",
@@ -467,7 +514,49 @@ describe("organization bootstrap canonical sport profiles", () => {
     await expect(bootstrapOrganization(mexicoCommand)).rejects.toMatchObject({
       code: "INVALID_RELATION",
       status: 422,
-      details: { reason: "mx-general-identity-profile-required" },
+      details: { reason: "mx-discipline-identity-profiles-required" },
+    });
+    expect(fixture.inserts).toEqual([]);
+  });
+
+  it.each([
+    {
+      label: "una versión de configuración distinta de 1",
+      configurationSchemaVersion: 2,
+      configuration: {},
+    },
+    {
+      label: "una configuración con reglas",
+      configurationSchemaVersion: 1,
+      configuration: { rules: ["unexpected"] },
+    },
+  ])("falla sin escrituras en MX si el perfil identity-only tiene $label", async (invalidShape) => {
+    fixture.rows.sportProfiles = [
+      {
+        id: "mx-artistic-identity-profile",
+        countryCode: "MX",
+        disciplineKey: "artistic",
+        federationCode: "unconfigured",
+        profileVersion: "identity-v1",
+        status: "identity_only",
+        ...invalidShape,
+      },
+      {
+        id: "mx-rhythmic-identity-profile",
+        countryCode: "MX",
+        disciplineKey: "rhythmic",
+        federationCode: "unconfigured",
+        profileVersion: "identity-v1",
+        status: "identity_only",
+        configurationSchemaVersion: 1,
+        configuration: {},
+      },
+    ];
+
+    await expect(bootstrapOrganization(mexicoCommand)).rejects.toMatchObject({
+      code: "INVALID_RELATION",
+      status: 422,
+      details: { reason: "mx-discipline-identity-profiles-required" },
     });
     expect(fixture.inserts).toEqual([]);
   });

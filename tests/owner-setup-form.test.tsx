@@ -296,7 +296,7 @@ describe("alta owner greenfield", () => {
       "America/Monterrey"
     );
     expect(
-      screen.getByText(/alta administrativa en México está en validación/i)
+      screen.getByText(/gestión administrativa en México está en validación/i)
     ).toBeInTheDocument();
     expect(
       screen.getByText(/No incluye funciones federativas mexicanas/)

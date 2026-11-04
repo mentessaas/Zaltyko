@@ -203,7 +203,7 @@ export function OwnerSetupForm({
   const [countryCode, setCountryCode] = useState<AdministrativeMarketCode>(
     "ES"
   );
-  const [timezone, setTimezone] = useState(
+  const [timezone, setTimezone] = useState<string>(
     ADMINISTRATIVE_MARKET_REGISTRY.ES.defaultTimezone ?? ""
   );
   const [primaryDiscipline, setPrimaryDiscipline] = useState<

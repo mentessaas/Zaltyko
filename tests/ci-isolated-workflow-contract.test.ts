@@ -68,6 +68,14 @@ describe("isolated CI workflow contract", () => {
   const vitestConfig = readFileSync(vitestConfigPath, "utf8");
   const sharedSetup = readFileSync(sharedSetupPath, "utf8");
 
+  it("installs the frozen mobile dependency tree before isolated checks", () => {
+    const install = workflow.indexOf("pnpm --dir mobile install --frozen-lockfile --ignore-workspace");
+    const isolation = workflow.indexOf("name: Verify loopback-only network namespace");
+    expect(install).toBeGreaterThan(-1);
+    expect(isolation).toBeGreaterThan(install);
+    expect(workflow).toContain("steps.dependencies.outcome == 'success'");
+  });
+
   it("uses existing fail-closed SQL source validators for directory changes", () => {
     expect(directoryWorkflow).toMatch(/on:\s*[\s\S]*?pull_request:/);
     expect(directoryWorkflow).toContain("workflow_dispatch:");

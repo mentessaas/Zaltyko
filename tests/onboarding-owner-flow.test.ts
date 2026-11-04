@@ -33,12 +33,19 @@ describe("bootstrap owner canónico", () => {
   it("autentica antes de validar y vincula el actor a la sesión", () => {
     const route = read("src/app/api/v1/organizations/bootstrap/route.ts");
     const auth = route.indexOf("await getCurrentUser(request)");
+    const verifySubject = route.indexOf("authUser.id !== user.id");
     const parse = route.indexOf("bodySchema.safeParse");
 
     expect(auth).toBeGreaterThanOrEqual(0);
+    expect(verifySubject).toBeGreaterThan(auth);
     expect(parse).toBeGreaterThan(auth);
+    expect(parse).toBeGreaterThan(verifySubject);
     expect(route).toContain("userId: user.id");
     expect(route).toContain('request.headers.get("idempotency-key")');
+    expect(route).toContain("bootstrapOrganizationRequestSchema");
+    expect(route).toContain("await recordOwnerSignupConsent(authUser");
+    expect(route).toContain("contractualAcceptanceSchema");
+    expect(route).toContain(".strict()");
   });
 
   it("crea organización, sede y owner dentro de una transacción idempotente", () => {
@@ -57,6 +64,17 @@ describe("bootstrap owner canónico", () => {
     expect(service).toContain("appendAuditEntry");
     expect(service).toContain("appendOutboxEvent");
     expect(service).toContain("defaultCurrency: input.defaultCurrency");
+    expect(service).toContain(
+      "getAdministrativeMarketCapability(input.countryCode)"
+    );
+    expect(service).toContain("if (!capability || !capability.selfServe)");
+    expect(service).toContain(
+      "if (!capability.currencies.includes(defaultCurrency))"
+    );
+    expect(service).toContain(
+      "if (!capability.timezones.includes(timezone))"
+    );
+    expect(service).toContain("assertValidTimezone(timezone)");
     expect(service).toContain("academyOfferingsSchema");
     expect(service).toContain("organizationSports");
     expect(service).toContain("complementary_activity");
@@ -75,8 +93,48 @@ describe("bootstrap owner canónico", () => {
     expect(form).toContain("Gimnasia rítmica");
     expect(form).toContain("Telas aéreas");
     expect(form).toContain("Aro aéreo");
+    const allowedKeysMatch = form.match(
+      /const allowedKeys = \[([\s\S]*?)\];/
+    );
+    expect(allowedKeysMatch).not.toBeNull();
+    const allowedKeys = Array.from(
+      (allowedKeysMatch?.[1] ?? "").matchAll(/"([^"]+)"/g),
+      ([, key]) => key
+    );
+    expect(allowedKeys).toEqual([
+      "organizationName",
+      "locationName",
+      "primaryDiscipline",
+      "additionalDisciplines",
+      "complementaryActivities",
+      "customActivityName",
+      "countryCode",
+      "defaultCurrency",
+      "timezone",
+      "contractualAcceptance",
+    ]);
+    expect(form).toContain(
+      "Object.keys(value).some((key) => !allowedKeys.includes(key))"
+    );
+    expect(form).toContain(
+      'hasExactKeys(value.contractualAcceptance, ["accepted", "policyVersion"])'
+    );
+    expect(form).toContain(
+      'hasExactKeys(parsed, ["version", "ownerUserId", "key", "serializedBody"])'
+    );
+    expect(form).toContain("parsed.ownerUserId !== ownerUserId");
+    expect(form).toContain(
+      "const market = getAdministrativeMarketCapability(value.countryCode)"
+    );
+    expect(form).toContain(
+      '(value.countryCode !== "ES" && value.countryCode !== "MX")'
+    );
+    expect(form).toContain("!market.currencies.includes(value.defaultCurrency)");
+    expect(form).toContain("!market.timezones.includes(value.timezone)");
+    expect(form).toContain("defaultCurrency: market.defaultCurrency");
+    expect(form).toContain('formData.get("organizationName")');
+    expect(form).toContain('formData.get("locationName")');
     expect(form).not.toContain("locationCode");
-    expect(form).not.toContain("defaultCurrency");
     expect(form).not.toContain("athlete");
     expect(form).not.toContain("dateOfBirth");
     expect(form).not.toContain("phone");

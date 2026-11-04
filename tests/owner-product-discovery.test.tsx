@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -80,6 +80,25 @@ afterEach(() => {
 });
 
 describe("OwnerProductDiscovery", () => {
+  it("una apertura tardía no sobrescribe el interés guardado después", async () => {
+    vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
+    const user = userEvent.setup();
+    let resolveOpen!: (value: ReturnType<typeof response>) => void;
+    mockFetch
+      .mockResolvedValueOnce(response(success([feature()])))
+      .mockImplementationOnce(() => new Promise(resolve => { resolveOpen = resolve; }))
+      .mockResolvedValueOnce(response(success([feature({ intent: "organize", pilot: false })])));
+    render(<OwnerProductDiscovery organizationId={organizationId} />);
+    await user.click(await screen.findByRole("button", { name: "Ver propuesta" }));
+    await user.click(screen.getByRole("radio", { name: "Organizar una competición" }));
+    await user.click(screen.getByRole("button", { name: "Me interesa" }));
+    expect(await screen.findByText(/Has indicado interés/)).toBeInTheDocument();
+    await act(async () => { resolveOpen(response(success([feature()]))); });
+    expect(screen.getByText(/Has indicado interés/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retirar interés" })).toBeEnabled();
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
   it("presenta el estado antes del clic y registra apertura, interés y retirada", async () => {
     vi.stubGlobal("IntersectionObserver", undefined);
     const user = userEvent.setup();

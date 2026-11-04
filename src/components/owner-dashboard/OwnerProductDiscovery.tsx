@@ -252,7 +252,8 @@ export function OwnerProductDiscovery({
     try {
       const data = await sendSignal(endpoint, feature.id, "open");
       if (data) {
-        setFeatures(data.features);
+        // An analytics response can arrive after a newer saved choice. Opening
+        // a proposal never changes preferences, so it must not overwrite them.
         setMeasurementAvailable(data.measurementAvailable);
       }
     } catch {

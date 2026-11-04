@@ -57,7 +57,7 @@ async function readState(tx: TransactionClient, scope: OwnerScope) {
     .from(productDiscoveryInterests).where(and(
       eq(productDiscoveryInterests.organizationId, scope.organization.id), eq(productDiscoveryInterests.memberId, scope.member.id),
       eq(productDiscoveryInterests.scopeKey, scopeKey(scope)),
-    )) : [];
+    )).limit(3) : [];
   return { measurementAvailable, features: features.map(({ roles: _roles, ...feature }) => {
     const state = rows.find(row => row.featureId === feature.id);
     const intent = typeof state?.intent === "string" && feature.intents.some(item => item.id === state.intent) ? state.intent : null;

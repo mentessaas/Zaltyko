@@ -60,7 +60,7 @@ export const ADMINISTRATIVE_MARKET_REGISTRY = {
     sportCoverage: {
       mode: "general_identity_only",
       message:
-        "Puedes gestionar administrativamente tu club. El perfil general identifica la gimnasia elegida, pero no aplica categorías ni requisitos federativos mexicanos.",
+        "Puedes gestionar administrativamente tu club y conservar las disciplinas elegidas. Esta cobertura general no aplica categorías ni requisitos federativos mexicanos.",
     },
   },
 } as const satisfies Record<

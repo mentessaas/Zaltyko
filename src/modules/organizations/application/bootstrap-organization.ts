@@ -282,72 +282,48 @@ export async function bootstrapOrganization(
     ];
     const hasGeneralIdentityOnly =
       input.sportCoverage.mode === "general_identity_only";
-    const availableProfiles = hasGeneralIdentityOnly
-      ? await tx
-          .select({
-            id: sportProfiles.id,
-            disciplineKey: sportProfiles.disciplineKey,
-          })
-          .from(sportProfiles)
-          .where(
-            and(
-              eq(sportProfiles.countryCode, input.countryCode),
-              eq(sportProfiles.disciplineKey, "general"),
-              eq(sportProfiles.profileVersion, "identity-v1"),
-              eq(sportProfiles.federationCode, "unconfigured"),
-              eq(sportProfiles.status, "identity_only")
-            )
-          )
-          .orderBy(asc(sportProfiles.disciplineKey))
-          .limit(1)
-      : await tx
-          .select({
-            id: sportProfiles.id,
-            disciplineKey: sportProfiles.disciplineKey,
-          })
-          .from(sportProfiles)
-          .where(
-            and(
-              eq(sportProfiles.countryCode, input.countryCode),
-              eq(sportProfiles.profileVersion, "identity-v1"),
-              eq(sportProfiles.federationCode, "unconfigured"),
-              inArray(sportProfiles.disciplineKey, requestedDisciplines),
-              inArray(sportProfiles.status, ["identity_only", "verified"])
-            )
-          )
-          .orderBy(asc(sportProfiles.disciplineKey))
-          .limit(requestedDisciplines.length);
+    const availableProfiles = await tx
+      .select({
+        id: sportProfiles.id,
+        disciplineKey: sportProfiles.disciplineKey,
+      })
+      .from(sportProfiles)
+      .where(
+        and(
+          eq(sportProfiles.countryCode, input.countryCode),
+          eq(sportProfiles.profileVersion, "identity-v1"),
+          eq(sportProfiles.federationCode, "unconfigured"),
+          inArray(sportProfiles.disciplineKey, requestedDisciplines),
+          hasGeneralIdentityOnly
+            ? and(
+                eq(sportProfiles.status, "identity_only"),
+                eq(sportProfiles.configurationSchemaVersion, 1),
+                eq(sportProfiles.configuration, {})
+              )
+            : inArray(sportProfiles.status, ["identity_only", "verified"])
+        )
+      )
+      .orderBy(asc(sportProfiles.disciplineKey))
+      .limit(requestedDisciplines.length);
     const availableDisciplineKeys = new Set(
       availableProfiles.map((profile) => profile.disciplineKey)
     );
-    const profilesAreAvailable = hasGeneralIdentityOnly
-      ? availableProfiles.length === 1
-      : availableProfiles.length === requestedDisciplines.length &&
-        availableDisciplineKeys.size === requestedDisciplines.length &&
-        requestedDisciplines.every((discipline) =>
-          availableDisciplineKeys.has(discipline)
-        );
+    const profilesAreAvailable =
+      availableProfiles.length === requestedDisciplines.length &&
+      availableDisciplineKeys.size === requestedDisciplines.length &&
+      requestedDisciplines.every((discipline) =>
+        availableDisciplineKeys.has(discipline)
+      );
     if (!profilesAreAvailable) {
       throw new OperationalError(
         "INVALID_RELATION",
         hasGeneralIdentityOnly
-          ? "El alta administrativa de México requiere que esté disponible el perfil general de identidad MX. No se aplicarán reglas federativas automáticamente."
+          ? "El alta administrativa de México requiere perfiles de identidad disponibles para cada disciplina seleccionada. No se aplicarán reglas federativas automáticamente."
           : "Aún no hay un perfil deportivo disponible para el país y las disciplinas seleccionadas.",
         422,
         hasGeneralIdentityOnly
-          ? { reason: "mx-general-identity-profile-required" }
+          ? { reason: "mx-discipline-identity-profiles-required" }
           : undefined
-      );
-    }
-    const generalIdentityProfile = hasGeneralIdentityOnly
-      ? availableProfiles[0]
-      : undefined;
-    if (hasGeneralIdentityOnly && !generalIdentityProfile) {
-      throw new OperationalError(
-        "INVALID_RELATION",
-        "El alta administrativa de México requiere que esté disponible el perfil general de identidad MX.",
-        422,
-        { reason: "mx-general-identity-profile-required" }
       );
     }
 
@@ -382,32 +358,19 @@ export async function bootstrapOrganization(
       })
       .returning({ id: organizationMembers.id });
 
-    const profileByDiscipline = new Map<string, string>(
-      hasGeneralIdentityOnly
-        ? requestedDisciplines.map((discipline) => [
-            discipline,
-            generalIdentityProfile!.id,
-          ])
-        : availableProfiles.map((profile) => [
-            profile.disciplineKey,
-            profile.id,
-          ])
-    );
-    const profilesForOrganization = hasGeneralIdentityOnly
-      ? [generalIdentityProfile!]
-      : requestedDisciplines.map((discipline) => {
-          const profile = availableProfiles.find(
-            (candidate) => candidate.disciplineKey === discipline
-          );
-          if (!profile) {
-            throw new OperationalError(
-              "INVALID_RELATION",
-              "No se ha encontrado el perfil deportivo seleccionado.",
-              422
-            );
-          }
-          return profile;
-        });
+    const profilesForOrganization = requestedDisciplines.map((discipline) => {
+      const profile = availableProfiles.find(
+        (candidate) => candidate.disciplineKey === discipline
+      );
+      if (!profile) {
+        throw new OperationalError(
+          "INVALID_RELATION",
+          "No se ha encontrado el perfil deportivo seleccionado.",
+          422
+        );
+      }
+      return profile;
+    });
     const organizationSportRows = await tx
       .insert(organizationSports)
       .values(
@@ -425,15 +388,20 @@ export async function bootstrapOrganization(
         id: organizationSports.id,
         sportProfileId: organizationSports.sportProfileId,
       });
+    const organizationSportIdByProfile = new Map(
+      organizationSportRows.map((row) => [row.sportProfileId, row.id])
+    );
 
     const programRows: (typeof programs.$inferInsert)[] =
       requestedDisciplines.map((discipline) => {
-        const sportProfileId = profileByDiscipline.get(discipline);
-        const organizationSport = organizationSportRows.find(
-          (row) => row.sportProfileId === sportProfileId
+        const profile = availableProfiles.find(
+          (candidate) => candidate.disciplineKey === discipline
         );
+        const organizationSportId = profile
+          ? organizationSportIdByProfile.get(profile.id)
+          : undefined;
         if (
-          !organizationSport ||
+          !organizationSportId ||
           !(discipline in GYMNASTICS_DISCIPLINE_LABELS)
         ) {
           throw new OperationalError(
@@ -448,7 +416,7 @@ export async function bootstrapOrganization(
             discipline as GymnasticsDiscipline
           ],
           kind: "gymnastics_sport" as const,
-          organizationSportId: organizationSport.id,
+          organizationSportId,
           activityKey: null,
           status: "active" as const,
         };

@@ -50,9 +50,13 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("international boots
     const data = await db.execute(sql`select o.country_code,o.default_currency,l.timezone,
       (select count(*)::int from zaltyko.organization_sports s where s.organization_id=o.id) as sports,
       (select count(*)::int from zaltyko.programs p where p.organization_id=o.id) as programs,
+      (select array_agg(p.discipline_key order by p.discipline_key) from zaltyko.organization_sports s join zaltyko.sport_profiles p on p.id=s.sport_profile_id where s.organization_id=o.id) as disciplines,
       (select count(*)::int from zaltyko.organization_sports s join zaltyko.sport_profiles p on p.id=s.sport_profile_id where s.organization_id=o.id and p.country_code='ES') as spanish_profiles
       from zaltyko.organizations o join zaltyko.locations l on l.organization_id=o.id where o.id=${first.organizationId}::uuid`);
-    expect(data.rows).toEqual([{ country_code: "MX", default_currency: "MXN", timezone: "America/Tijuana", sports: 1, programs: 2, spanish_profiles: 0 }]);
+    expect(data.rows).toEqual([{ country_code: "MX", default_currency: "MXN", timezone: "America/Tijuana", sports: 2, programs: 2, disciplines: ["artistic", "rhythmic"], spanish_profiles: 0 }]);
+    await db.execute(sql`update zaltyko.programs set name='Nombre elegido por el club' where organization_id=${first.organizationId}::uuid`);
+    const identities = await db.execute(sql`select distinct sp.discipline_key from zaltyko.programs p join zaltyko.organization_sports os on os.id=p.organization_sport_id and os.organization_id=p.organization_id join zaltyko.sport_profiles sp on sp.id=os.sport_profile_id where p.organization_id=${first.organizationId}::uuid order by sp.discipline_key`);
+    expect(identities.rows).toEqual([{ discipline_key: "artistic" }, { discipline_key: "rhythmic" }]);
     const before = await userSnapshot();
     await expect(bootstrapOrganization({ ...command, timezone: "America/Cancun" })).rejects.toMatchObject({ status: 409 });
     expect(await userSnapshot()).toEqual(before);
