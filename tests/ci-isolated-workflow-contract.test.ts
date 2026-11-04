@@ -387,6 +387,9 @@ describe("isolated CI workflow contract", () => {
     expect(replayScript).toContain("ZALTYKO_PG_INTEGRATION=1");
     expect(replayScript).toContain('pnpm exec vitest run --project web tests/saas-capacity-postgres.integration.test.ts');
     expect(replayScript).toContain("tests/billing-ledger-postgres.integration.test.ts");
+    expect(replayScript).toContain("tests/product-discovery-pg.test.ts");
+    expect(replayScript).toContain("tests/international-bootstrap-pg.test.ts");
+    expect(replayScript.indexOf("tests/product-discovery-pg.test.ts")).toBeGreaterThan(replayScript.indexOf("tests/canonical-academy-data-export-pg.test.ts"));
     expect(replayScript).toContain('>"$INTEGRATION_LOG" 2>&1');
     expect(replayScript).toContain("Free capacity, manual billing ledger concurrency");
     expect(replayScript).toContain("manual billing ledger concurrency");

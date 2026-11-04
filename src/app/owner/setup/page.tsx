@@ -104,7 +104,7 @@ export default async function OwnerSetupPage() {
             Indica el nombre, la sede y las actividades. Después podrás añadir
             gimnastas, clases y cuotas.
           </p>
-          <OwnerSetupForm contractualConsent={contractualConsent} />
+          <OwnerSetupForm contractualConsent={contractualConsent} ownerUserId={user.id} />
         </section>
       </main>
     </OwnerWorkspacePageShell>

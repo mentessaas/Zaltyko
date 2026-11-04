@@ -77,15 +77,6 @@ export const COMPLEMENTARY_ACTIVITY_LABELS: Record<
   physical_conditioning: "Preparación física",
 };
 
-/**
- * Solo se habilitan países con defaults y perfiles deportivos revisados.
- * Añadir un mercado requiere definir su moneda/zona horaria y sus perfiles,
- * no inferirlos silenciosamente a partir del código de país.
- */
-export const LAUNCH_MARKET_DEFAULTS = {
-  ES: { currency: "EUR", timezone: "Europe/Madrid" },
-} as const;
-
 export function defaultLocationCode(locationName: string): string {
   const slug = locationName
     .normalize("NFKD")

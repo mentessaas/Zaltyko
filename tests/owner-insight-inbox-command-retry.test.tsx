@@ -84,6 +84,14 @@ afterEach(() => {
 });
 
 describe("reintento de comandos de insights", () => {
+  it("no atribuye euros a una estimación cuya moneda falta", () => {
+    render(<InsightInbox bundle={{ ...bundle, items: [{ ...bundle.items[0], estimatedValueMinMinor: 1250, estimatedValueMaxMinor: 2250, estimateCurrency: null }] }} />);
+    expect(screen.getByText("Moneda no disponible")).toBeInTheDocument();
+  });
+  it("identifica la moneda de una estimación en pesos sin convertirla", () => {
+    render(<InsightInbox bundle={{ ...bundle, items: [{ ...bundle.items[0], estimatedValueMinMinor: 1250, estimatedValueMaxMinor: 2250, estimateCurrency: "MXN" }] }} />);
+    expect(screen.getByText(/MXN.*–.*MXN/)).toBeInTheDocument();
+  });
   it("evita el doble envío y conserva la misma clave tras una respuesta ambigua", async () => {
     let resolveFirst!: (value: ReturnType<typeof response>) => void;
     mocks.fetch.mockImplementationOnce(

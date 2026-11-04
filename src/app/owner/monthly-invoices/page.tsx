@@ -26,15 +26,22 @@ const querySchema = z.object({
     .optional(),
 });
 
-function currentSpainServicePeriod(): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Madrid",
-    year: "numeric",
-    month: "2-digit",
-  }).formatToParts(new Date());
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  return year && month ? `${year}-${month}` : "";
+function currentServicePeriod(timezone: string): string | null {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+    }).formatToParts(new Date());
+    const year = parts.find((part) => part.type === "year")?.value;
+    const month = parts.find((part) => part.type === "month")?.value;
+    if (!year || !month || !/^\d{4}$/.test(year) || !/^\d{2}$/.test(month)) {
+      return null;
+    }
+    return `${year}-${month}`;
+  } catch {
+    return null;
+  }
 }
 
 export default async function OwnerMonthlyInvoicesPage({
@@ -90,6 +97,32 @@ export default async function OwnerMonthlyInvoicesPage({
     scope.locations[0]?.id ??
     "";
   if (!selectedLocationId) notFound();
+  const selectedLocation = scope.locations.find(
+    (location) => location.id === selectedLocationId
+  );
+  const initialServicePeriod =
+    query.data.servicePeriod ??
+    (selectedLocation?.timezone
+      ? currentServicePeriod(selectedLocation.timezone)
+      : null);
+  if (!initialServicePeriod) {
+    return (
+      <OwnerWorkspacePageShell
+        member={scope.member}
+        organizationId={scope.organization.id}
+        locationId={scope.selectedLocationId}
+      >
+        <p
+          role="alert"
+          className="mt-6 border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950"
+        >
+          No se puede determinar el mes actual para la sede seleccionada. La
+          sede no tiene una zona horaria válida. Configura una zona horaria
+          antes de continuar.
+        </p>
+      </OwnerWorkspacePageShell>
+    );
+  }
   return (
     <OwnerWorkspacePageShell
       member={scope.member}
@@ -102,9 +135,7 @@ export default async function OwnerMonthlyInvoicesPage({
         defaultCurrency={scope.organization.defaultCurrency}
         locations={scope.locations}
         initialLocationId={selectedLocationId}
-        initialServicePeriod={
-          query.data.servicePeriod ?? currentSpainServicePeriod()
-        }
+        initialServicePeriod={initialServicePeriod}
       />
     </OwnerWorkspacePageShell>
   );

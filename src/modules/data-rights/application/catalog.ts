@@ -18,6 +18,15 @@ export interface CanonicalExportExcludedTable {
   reason: string;
 }
 
+/** Optional reviewed module: absent or fully installed, never partially known.
+ * Current staff choices are private to that member (GET product-discovery),
+ * not part of the Owner's operational return. Withdrawal deletes the choice.
+ */
+export const OPTIONAL_DISCOVERY_EXPORT_TABLES = [
+  { table: "product_discovery_interests", category: "private_member_preferences", reason: "Current voluntary staff interest is read and withdrawn by that member; it is not academy operating data.", columns: ["id", "organization_id", "member_id", "location_id", "scope_key", "feature_id", "intent", "pilot", "updated_at"] },
+  { table: "product_discovery_signals", category: "academy_product_discovery", reason: "Deduplicated product-discovery stages contain no actor or operational data; counts are reported separately.", columns: ["organization_id", "feature_id", "catalog_version", "signal", "first_seen_at"] },
+] as const;
+
 function columns(value: string): string[] {
   return value.split(/\s+/).filter(Boolean);
 }

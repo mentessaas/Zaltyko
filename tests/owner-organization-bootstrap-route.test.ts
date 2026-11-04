@@ -170,4 +170,29 @@ describe("Owner organization bootstrap HTTP boundary", () => {
       organizationId: "20000000-0000-4000-8000-000000000001",
     });
   });
+
+  it("normalizes and forwards the selected Mexico currency and site timezone", async () => {
+    const response = await POST(
+      request({
+        ...payload,
+        countryCode: "MX",
+        defaultCurrency: " mxn ",
+        timezone: " America/Ciudad_Juarez ",
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(mocks.bootstrap).toHaveBeenCalledWith({
+      organizationName: payload.organizationName,
+      locationName: payload.locationName,
+      countryCode: "MX",
+      defaultCurrency: "MXN",
+      timezone: "America/Ciudad_Juarez",
+      primaryDiscipline: payload.primaryDiscipline,
+      additionalDisciplines: payload.additionalDisciplines,
+      complementaryActivities: payload.complementaryActivities,
+      idempotencyKey,
+      userId,
+    });
+  });
 });

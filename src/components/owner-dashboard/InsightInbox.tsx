@@ -66,10 +66,12 @@ function formatEstimate(item: InsightListItem): string | null {
   ) {
     return null;
   }
-  const currency = item.estimateCurrency ?? "EUR";
+  if (!item.estimateCurrency) return "Moneda no disponible";
+  const currency = item.estimateCurrency;
   const format = new Intl.NumberFormat("es-ES", {
     style: "currency",
     currency,
+    currencyDisplay: "code",
     maximumFractionDigits: 0,
   });
   return `${format.format(item.estimatedValueMinMinor / 100)}–${format.format(item.estimatedValueMaxMinor / 100)}`;

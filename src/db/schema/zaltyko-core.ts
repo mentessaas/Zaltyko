@@ -2484,6 +2484,39 @@ export const ownerDashboardLayouts = zaltyko.table(
   ]
 );
 
+/** Mutable user choices; withdrawal deletes the choice, never an audit event. */
+export const productDiscoveryInterests = zaltyko.table("product_discovery_interests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  memberId: uuid("member_id").notNull(),
+  locationId: uuid("location_id"),
+  scopeKey: text("scope_key").notNull(),
+  featureId: text("feature_id").notNull(),
+  intent: text("intent").notNull(),
+  pilot: boolean("pilot").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+  uniqueIndex("product_discovery_interests_scope_uq").on(table.organizationId, table.memberId, table.scopeKey, table.featureId),
+  foreignKey({ name: "product_discovery_interests_member_fk", columns: [table.organizationId, table.memberId], foreignColumns: [organizationMembers.organizationId, organizationMembers.id] }).onDelete("cascade"),
+  foreignKey({ name: "product_discovery_interests_location_fk", columns: [table.organizationId, table.locationId], foreignColumns: [locations.organizationId, locations.id] }).onDelete("cascade"),
+  check("product_discovery_interests_scope_valid", sql`(${table.locationId} is null and ${table.scopeKey} = 'organization') or (${table.locationId} is not null and ${table.scopeKey} = ${table.locationId}::text)`),
+  check("product_discovery_interests_intent_valid", sql`(${table.featureId} = 'club-events' and ${table.intent} in ('organize','participate')) or (${table.featureId} = 'club-acquisition' and ${table.intent} in ('capture','convert')) or (${table.featureId} = 'sport-progression' and ${table.intent} in ('plan','track'))`),
+]);
+
+/** One academy per funnel stage/version. No account, child, IP or free text. */
+export const productDiscoverySignals = zaltyko.table("product_discovery_signals", {
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  featureId: text("feature_id").notNull(),
+  catalogVersion: text("catalog_version").notNull(),
+  signal: text("signal").notNull(),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+  primaryKey({ columns: [table.organizationId, table.featureId, table.catalogVersion, table.signal] }),
+  check("product_discovery_signals_feature_valid", sql`${table.featureId} in ('club-events','club-acquisition','sport-progression')`),
+  check("product_discovery_signals_signal_valid", sql`${table.signal} in ('exposure','open')`),
+  check("product_discovery_signals_version_valid", sql`${table.catalogVersion} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}-v[0-9]+$'`),
+]);
+
 export type Organization = typeof organizations.$inferSelect;
 export type OrganizationMember = typeof organizationMembers.$inferSelect;
 export type Athlete = typeof athletes.$inferSelect;

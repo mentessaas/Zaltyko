@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { fixture, testTables } = vi.hoisted(() => {
@@ -210,6 +212,13 @@ const command = {
   idempotencyKey: "bootstrap-canonical-profile-001",
 };
 
+const mexicoCommand = {
+  ...command,
+  countryCode: "MX",
+  idempotencyKey: "bootstrap-mexico-profile-001",
+  timezone: "America/Tijuana",
+};
+
 describe("organization bootstrap canonical sport profiles", () => {
   beforeEach(() => {
     fixture.rows = {
@@ -276,7 +285,38 @@ describe("organization bootstrap canonical sport profiles", () => {
       organizationId: "organization-created",
       locationId: "location-created",
       memberId: "owner-member-created",
+      administrativeMarket: {
+        countryCode: "ES",
+        defaultCurrency: "EUR",
+        timezone: "Europe/Madrid",
+      },
+      sportCoverage: {
+        mode: "discipline_identity",
+        message:
+          "La academia puede elegir artística y rítmica. El perfil de identidad no activa por sí solo requisitos federativos.",
+      },
     });
+    const bootstrapCommand = fixture.inserts.find(
+      (insert) => insert.table === "organizationBootstrapCommands"
+    )?.values as Row;
+    const historicalHash = createHash("sha256")
+      .update(
+        JSON.stringify({
+          organizationName: "Academia de prueba",
+          legalName: null,
+          countryCode: "ES",
+          defaultCurrency: "EUR",
+          timezone: "Europe/Madrid",
+          locationName: "Sede principal",
+          locationCode: "sede-principal",
+          primaryDiscipline: "artistic",
+          additionalDisciplines: ["rhythmic"],
+          complementaryActivities: [],
+          customActivityName: null,
+        })
+      )
+      .digest("hex");
+    expect(bootstrapCommand.requestHash).toBe(historicalHash);
     const profileQuery = fixture.selectCalls.find(
       (call) => call.table === "sportProfiles"
     );
@@ -326,6 +366,128 @@ describe("organization bootstrap canonical sport profiles", () => {
       code: "INVALID_RELATION",
       status: 422,
     });
+    expect(fixture.inserts).toEqual([]);
+  });
+
+  it("mantiene asistidos los países fuera del registry antes de abrir transacción", async () => {
+    await expect(
+      bootstrapOrganization({ ...command, countryCode: "FR" })
+    ).rejects.toMatchObject({ code: "INVALID_RELATION", status: 422 });
+
+    expect(fixture.executeCalls).toEqual([]);
+    expect(fixture.selectCalls).toEqual([]);
+    expect(fixture.inserts).toEqual([]);
+  });
+
+  it("usa un único perfil general MX y conserva cada disciplina en sus programas", async () => {
+    fixture.rows.sportProfiles = [
+      {
+        id: "mx-general-identity-profile",
+        countryCode: "MX",
+        disciplineKey: "general",
+        federationCode: "unconfigured",
+        profileVersion: "identity-v1",
+        status: "identity_only",
+      },
+      {
+        id: "es-artistic-profile",
+        countryCode: "ES",
+        disciplineKey: "artistic",
+        federationCode: "unconfigured",
+        profileVersion: "identity-v1",
+        status: "identity_only",
+      },
+    ];
+
+    const result = await bootstrapOrganization(mexicoCommand);
+
+    expect(result.administrativeMarket).toEqual({
+      countryCode: "MX",
+      defaultCurrency: "MXN",
+      timezone: "America/Tijuana",
+    });
+    expect(result.sportCoverage.mode).toBe("general_identity_only");
+    expect(result.sportCoverage.message).toContain(
+      "no aplica categorías ni requisitos federativos mexicanos"
+    );
+    expect(
+      fixture.inserts.find((insert) => insert.table === "organizations")?.values
+    ).toMatchObject({ countryCode: "MX", defaultCurrency: "MXN" });
+    expect(
+      fixture.inserts.find((insert) => insert.table === "locations")?.values
+    ).toMatchObject({ timezone: "America/Tijuana" });
+
+    const organizationSports = fixture.inserts.find(
+      (insert) => insert.table === "organizationSports"
+    )?.values as Row[];
+    expect(organizationSports).toEqual([
+      {
+        organizationId: "organization-created",
+        countryCode: "MX",
+        sportProfileId: "mx-general-identity-profile",
+        role: "primary",
+        status: "active",
+      },
+    ]);
+    const programs = fixture.inserts.find(
+      (insert) => insert.table === "programs"
+    )?.values as Row[];
+    expect(programs.slice(0, 2)).toEqual([
+      {
+        organizationId: "organization-created",
+        name: "Gimnasia artística",
+        kind: "gymnastics_sport",
+        organizationSportId: "organization-sport-1",
+        activityKey: null,
+        status: "active",
+      },
+      {
+        organizationId: "organization-created",
+        name: "Gimnasia rítmica",
+        kind: "gymnastics_sport",
+        organizationSportId: "organization-sport-1",
+        activityKey: null,
+        status: "active",
+      },
+    ]);
+  });
+
+  it("falla sin escrituras si falta el perfil general MX y no usa perfiles ES", async () => {
+    fixture.rows.sportProfiles = [
+      {
+        id: "es-artistic-profile",
+        countryCode: "ES",
+        disciplineKey: "artistic",
+        federationCode: "unconfigured",
+        profileVersion: "identity-v1",
+        status: "identity_only",
+      },
+    ];
+
+    await expect(bootstrapOrganization(mexicoCommand)).rejects.toMatchObject({
+      code: "INVALID_RELATION",
+      status: 422,
+      details: { reason: "mx-general-identity-profile-required" },
+    });
+    expect(fixture.inserts).toEqual([]);
+  });
+
+  it("exige una zona permitida para México y conserva moneda y zona resueltas en el hash", async () => {
+    await expect(
+      bootstrapOrganization({ ...mexicoCommand, timezone: undefined })
+    ).rejects.toMatchObject({ code: "INVALID_RELATION", status: 422 });
+    await expect(
+      bootstrapOrganization({
+        ...mexicoCommand,
+        timezone: "Europe/Madrid",
+      })
+    ).rejects.toMatchObject({ code: "INVALID_RELATION", status: 422 });
+    await expect(
+      bootstrapOrganization({
+        ...mexicoCommand,
+        defaultCurrency: "EUR",
+      })
+    ).rejects.toMatchObject({ code: "INVALID_RELATION", status: 422 });
     expect(fixture.inserts).toEqual([]);
   });
 

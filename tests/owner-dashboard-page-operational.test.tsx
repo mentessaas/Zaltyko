@@ -1,4 +1,4 @@
-import { isValidElement, type ReactElement } from "react";
+import { Children, isValidElement, type ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -67,11 +67,12 @@ vi.mock("@/modules/owner-dashboard/application/dashboard-layout", () => ({
 }));
 
 import OwnerDashboardPage from "@/app/owner/page";
+import { OwnerProductDiscovery } from "@/components/owner-dashboard/OwnerProductDiscovery";
 const organizationId = "00000000-0000-4000-8000-000000000001";
 const locationId = "00000000-0000-4000-8000-000000000002";
 
 function operationalSummaryFromPage(page: ReactElement) {
-  const dashboard = page.props.children;
+  const dashboard = Children.toArray(page.props.children)[0];
   if (!isValidElement<{ operationalSummary: unknown }>(dashboard)) {
     throw new Error("Owner dashboard child is missing");
   }
@@ -192,6 +193,18 @@ describe("Owner page operational summary boundary", () => {
       from: "2026-10-01",
       to: "2026-10-14",
     });
+  });
+  it("binds proposals to the server-authorized academy, role and selected site", async () => {
+    mocks.scope.mockResolvedValueOnce({
+      organization: { id: organizationId, name: "QA", defaultCurrency: "MXN" },
+      member: { id: "scoped-member", role: "manager", locationScopeMode: "selected" },
+      locations: [{ id: locationId, name: "Sede autorizada" }],
+      selectedLocationId: locationId,
+      canViewOrganizationAggregate: false,
+    });
+    const page = await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
+    const discovery = Children.toArray(page.props.children).find(child => isValidElement(child) && child.type === OwnerProductDiscovery);
+    expect(isValidElement(discovery) && discovery.props).toEqual({ organizationId, locationId, role: "manager" });
   });
   it("exposes a failed summary as unavailable rather than financial zero", async () => {
     mocks.summary.mockRejectedValue(new Error("Synthetic database failure"));

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { OwnerEssentialDashboard } from "@/components/owner-dashboard/OwnerEssentialDashboard";
+import { OwnerProductDiscovery } from "@/components/owner-dashboard/OwnerProductDiscovery";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { findLegacyAcademyMemberships } from "@/lib/auth/legacy-academy-access";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
@@ -89,6 +90,11 @@ export default async function OwnerDashboardPage({
       <OwnerEssentialDashboard
         scope={scope}
         operationalSummary={operationalSummary}
+      />
+      <OwnerProductDiscovery
+        organizationId={scope.organization.id}
+        locationId={scope.selectedLocationId}
+        role={scope.member.role}
       />
     </OwnerWorkspacePageShell>
   );

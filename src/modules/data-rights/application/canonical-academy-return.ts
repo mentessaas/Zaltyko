@@ -11,6 +11,7 @@ import {
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   EXCLUDED_CANONICAL_SOURCES,
   EXCLUDED_CANONICAL_TABLES,
+  OPTIONAL_DISCOVERY_EXPORT_TABLES,
   type CanonicalExportTableSpec,
 } from "./catalog";
 
@@ -133,7 +134,7 @@ function tableOrdering(table: CanonicalExportTableSpec) {
   return sql.raw(serializeIdentifierList(table.orderBy));
 }
 
-async function verifyCatalog(tx: TransactionClient): Promise<void> {
+async function verifyCatalog(tx: TransactionClient) {
   const result = await tx.execute(sql`
     select tables.table_name, columns.column_name
     from information_schema.tables as tables
@@ -153,9 +154,15 @@ async function verifyCatalog(tx: TransactionClient): Promise<void> {
     actualColumns.set(row.table_name, tableColumns);
   }
 
+  const optionalDiscovery = OPTIONAL_DISCOVERY_EXPORT_TABLES.filter(table => actualColumns.has(table.table));
+  if (optionalDiscovery.length !== 0 && optionalDiscovery.length !== OPTIONAL_DISCOVERY_EXPORT_TABLES.length) throw failClosed();
+  for (const table of optionalDiscovery) {
+    if (!exactSetMatches(actualColumns.get(table.table) ?? [], table.columns)) throw failClosed();
+  }
+  const requiredColumns = [...actualColumns.keys()].filter(name => !optionalDiscovery.some(table => table.table === name));
   if (
     !exactSetMatches(
-      [...actualColumns.keys()],
+      requiredColumns,
       ALL_KNOWN_CANONICAL_TABLE_NAMES
     )
   ) {
@@ -168,6 +175,7 @@ async function verifyCatalog(tx: TransactionClient): Promise<void> {
       throw failClosed();
     }
   }
+  return optionalDiscovery;
 }
 
 async function verifyOwnerMembership(
@@ -265,8 +273,8 @@ function buildSizePreflightQuery(organizationId: string) {
   return sql.join(tableQueries, sql.raw(" UNION ALL "));
 }
 
-function buildExcludedCountQuery(organizationId: string) {
-  const tableQueries = EXCLUDED_CANONICAL_SCOPED_TABLES.map((tableName) => {
+function buildExcludedCountQuery(organizationId: string, tableNames: readonly string[]) {
+  const tableQueries = tableNames.map((tableName) => {
     const relation = sql.raw(`zaltyko.${quoteIdentifier(tableName)}`);
     return sql`
       select ${tableName}::text as table_name,
@@ -360,17 +368,18 @@ export async function exportCanonicalAcademyData(input: {
 
     await verifyOwnerMembership(tx, input);
     assertWithinDuration(startedAt);
-    await verifyCatalog(tx);
+    const optionalDiscovery = await verifyCatalog(tx);
+    const excludedScopedTables = [...EXCLUDED_CANONICAL_SCOPED_TABLES, ...optionalDiscovery.map(table => table.table)];
     assertWithinDuration(startedAt);
     const snapshotAt = await loadSnapshotTime(tx);
 
     const excludedCountResult = await tx.execute(
-      buildExcludedCountQuery(input.organizationId)
+      buildExcludedCountQuery(input.organizationId, excludedScopedTables)
     );
     assertWithinDuration(startedAt);
     const excludedCountRows =
       excludedCountResult.rows as unknown as ExcludedTableCountRow[];
-    if (excludedCountRows.length !== EXCLUDED_CANONICAL_SCOPED_TABLES.length) {
+    if (excludedCountRows.length !== excludedScopedTables.length) {
       throw failClosed();
     }
     const excludedCountByTable = new Map(
@@ -379,7 +388,7 @@ export async function exportCanonicalAcademyData(input: {
         parseExcludedCount(row.row_count),
       ])
     );
-    if (excludedCountByTable.size !== EXCLUDED_CANONICAL_SCOPED_TABLES.length) {
+    if (excludedCountByTable.size !== excludedScopedTables.length) {
       throw failClosed();
     }
 
@@ -448,6 +457,7 @@ export async function exportCanonicalAcademyData(input: {
       data,
       tableManifest,
       excludedCountByTable,
+      optionalDiscovery,
     };
   });
 
@@ -474,7 +484,7 @@ export async function exportCanonicalAcademyData(input: {
       catalogPolicy:
         "Unknown or missing canonical tables and unclassified columns in included tables fail closed before row export.",
       includedTables: exportResult.tableManifest,
-      excludedTables: EXCLUDED_CANONICAL_TABLES.map((entry) => ({
+      excludedTables: [...EXCLUDED_CANONICAL_TABLES, ...exportResult.optionalDiscovery.map(({ table, category, reason }) => ({ table, category, reason }))].map((entry) => ({
         ...entry,
         rowCount: exportResult.excludedCountByTable.get(entry.table) ?? null,
         countScope: exportResult.excludedCountByTable.has(entry.table)

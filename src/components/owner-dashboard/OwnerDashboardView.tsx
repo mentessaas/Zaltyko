@@ -66,7 +66,7 @@ function formatTimestamp(value: string): string {
   }).format(new Date(value));
 }
 
-function formatMetric(
+export function formatMetric(
   metric: OwnerDashboardBundle["metrics"][number] | undefined
 ): string {
   if (!metric || metric.value === null) return "—";
@@ -77,9 +77,11 @@ function formatMetric(
     }).format(metric.value);
   }
   if (metric.unit === "currency_minor") {
+    if (!metric.currency) return "Moneda no disponible";
     return new Intl.NumberFormat("es-ES", {
       style: "currency",
-      currency: metric.currency ?? "EUR",
+      currency: metric.currency,
+      currencyDisplay: "code",
       maximumFractionDigits: 0,
     }).format(metric.value / 100);
   }

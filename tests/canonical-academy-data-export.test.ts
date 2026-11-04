@@ -9,6 +9,7 @@ import {
   ALL_KNOWN_CANONICAL_TABLE_NAMES,
   CANONICAL_EXPORT_TABLES,
   EXCLUDED_CANONICAL_SCOPED_TABLES,
+  OPTIONAL_DISCOVERY_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
 
 const actor = {
@@ -37,6 +38,26 @@ beforeEach(() => {
 });
 
 describe("canonical export failure boundaries (database mocked)", () => {
+  it.each(["partial discovery module", "unclassified discovery column"])("fails closed for %s", async kind => {
+    prepareThroughMembership();
+    const rows = [...catalogRows(), ...OPTIONAL_DISCOVERY_EXPORT_TABLES.flatMap(table => table.columns.map(column_name => ({ table_name: table.table, column_name })))];
+    const observed = kind === "partial discovery module" ? rows.filter(row => row.table_name !== "product_discovery_signals") : [...rows, { table_name: "product_discovery_interests", column_name: "private_free_text" }];
+    mocks.execute.mockResolvedValueOnce({ rows: observed });
+    await expect(exportCanonicalAcademyData(actor)).rejects.toMatchObject({ status: 503, problemType: "canonical-export-schema-unavailable" });
+    expect(mocks.execute).toHaveBeenCalledTimes(5);
+  });
+  it("classifies the complete optional module without exporting staff choices", async () => {
+    prepareThroughMembership();
+    mocks.execute.mockResolvedValueOnce({ rows: [...catalogRows(), ...OPTIONAL_DISCOVERY_EXPORT_TABLES.flatMap(table => table.columns.map(column_name => ({ table_name: table.table, column_name })))] });
+    mocks.execute.mockResolvedValueOnce({ rows: [{ snapshot_at: new Date("2026-11-04T00:00:00Z") }] });
+    mocks.execute.mockResolvedValueOnce({ rows: [...EXCLUDED_CANONICAL_SCOPED_TABLES, ...OPTIONAL_DISCOVERY_EXPORT_TABLES.map(table => table.table)].map(table_name => ({ table_name, row_count: table_name === "product_discovery_interests" ? 1 : 0 })) });
+    mocks.execute.mockResolvedValueOnce({ rows: CANONICAL_EXPORT_TABLES.map(table => ({ table_name: table.name, row_count: 0, estimated_bytes: 0 })) });
+    const result = await exportCanonicalAcademyData(actor);
+    const bundle = JSON.parse(result.body);
+    expect(bundle.coverage.complete).toBe(false);
+    expect(bundle.data).not.toHaveProperty("product_discovery_interests");
+    expect(bundle.coverage.excludedTables).toEqual(expect.arrayContaining([expect.objectContaining({ table: "product_discovery_interests", rowCount: 1, valuesExported: false })]));
+  });
   it.each(["unknown table", "unclassified column", "missing table"])(
     "fails closed for %s before selecting tenant data", async (kind) => {
       prepareThroughMembership();

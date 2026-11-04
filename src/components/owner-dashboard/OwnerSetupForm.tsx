@@ -1,9 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Building2, MapPin, ShieldCheck } from "lucide-react";
 import { parseOwnerSetupReceipt } from "@/components/owner-dashboard/owner-setup-response";
+import {
+  ADMINISTRATIVE_MARKET_REGISTRY,
+  getAdministrativeMarketCapability,
+  type AdministrativeMarketCode,
+} from "@/modules/organizations/domain/administrative-market-capabilities";
 
 type BootstrapRequest = {
   organizationName: string;
@@ -12,9 +17,170 @@ type BootstrapRequest = {
   additionalDisciplines: string[];
   complementaryActivities: string[];
   customActivityName?: string;
-  countryCode: "ES";
+  countryCode: AdministrativeMarketCode;
+  defaultCurrency?: "EUR" | "MXN";
+  timezone?: string;
   contractualAcceptance?: { accepted: true; policyVersion: string };
 };
+
+type RetryRequest = {
+  key: string;
+  body: BootstrapRequest;
+  serializedBody: string;
+  ownerUserId: string | null;
+};
+
+const RETRY_STORAGE_VERSION = 1;
+
+function retryStorageKey(ownerUserId: string) {
+  return "zaltyko-owner-bootstrap-retry:v1:" + ownerUserId;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasExactKeys(value: Record<string, unknown>, keys: string[]) {
+  const actual = Object.keys(value).sort();
+  const expected = [...keys].sort();
+  return (
+    actual.length === expected.length &&
+    actual.every((key, index) => key === expected[index])
+  );
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isBootstrapRequest(value: unknown): value is BootstrapRequest {
+  if (!isRecord(value)) return false;
+  const allowedKeys = [
+    "organizationName",
+    "locationName",
+    "primaryDiscipline",
+    "additionalDisciplines",
+    "complementaryActivities",
+    "customActivityName",
+    "countryCode",
+    "defaultCurrency",
+    "timezone",
+    "contractualAcceptance",
+  ];
+  if (Object.keys(value).some((key) => !allowedKeys.includes(key))) return false;
+  if (
+    typeof value.organizationName !== "string" ||
+    value.organizationName.length < 2 ||
+    value.organizationName.length > 120 ||
+    typeof value.locationName !== "string" ||
+    value.locationName.length < 2 ||
+    value.locationName.length > 120 ||
+    (value.primaryDiscipline !== "artistic" &&
+      value.primaryDiscipline !== "rhythmic") ||
+    !isStringArray(value.additionalDisciplines) ||
+    !isStringArray(value.complementaryActivities) ||
+    (value.customActivityName !== undefined &&
+      (typeof value.customActivityName !== "string" ||
+        value.customActivityName.length > 80)) ||
+    (value.countryCode !== "ES" && value.countryCode !== "MX")
+  ) {
+    return false;
+  }
+  if (
+    value.additionalDisciplines.some(
+      (discipline) => discipline !== "artistic" && discipline !== "rhythmic"
+    ) ||
+    value.complementaryActivities.some(
+      (activity) =>
+        ![
+          "aerial_silks",
+          "aerial_hoop",
+          "dance",
+          "physical_conditioning",
+        ].includes(activity)
+    )
+  ) {
+    return false;
+  }
+
+  const market = getAdministrativeMarketCapability(value.countryCode);
+  if (!market) return false;
+  if (value.defaultCurrency !== undefined) {
+    if (
+      (value.defaultCurrency !== "EUR" && value.defaultCurrency !== "MXN") ||
+      !market.currencies.includes(value.defaultCurrency)
+    ) {
+      return false;
+    }
+  }
+  if (
+    value.timezone !== undefined &&
+    (typeof value.timezone !== "string" ||
+      !market.timezones.includes(value.timezone))
+  ) {
+    return false;
+  }
+  if (
+    value.countryCode === "MX" &&
+    (!value.defaultCurrency || typeof value.timezone !== "string")
+  ) {
+    return false;
+  }
+  if (value.contractualAcceptance !== undefined) {
+    if (
+      !isRecord(value.contractualAcceptance) ||
+      !hasExactKeys(value.contractualAcceptance, ["accepted", "policyVersion"]) ||
+      value.contractualAcceptance.accepted !== true ||
+      typeof value.contractualAcceptance.policyVersion !== "string" ||
+      value.contractualAcceptance.policyVersion.length < 1 ||
+      value.contractualAcceptance.policyVersion.length > 64
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function parseStoredRetry(value: string, ownerUserId: string): RetryRequest | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  if (
+    !isRecord(parsed) ||
+    !hasExactKeys(parsed, ["version", "ownerUserId", "key", "serializedBody"]) ||
+    parsed.version !== RETRY_STORAGE_VERSION ||
+    parsed.ownerUserId !== ownerUserId ||
+    typeof parsed.key !== "string" ||
+    parsed.key.length < 8 ||
+    parsed.key.length > 150 ||
+    typeof parsed.serializedBody !== "string"
+  ) {
+    return null;
+  }
+
+  let body: unknown;
+  try {
+    body = JSON.parse(parsed.serializedBody);
+  } catch {
+    return null;
+  }
+  if (
+    !isBootstrapRequest(body) ||
+    JSON.stringify(body) !== parsed.serializedBody
+  ) {
+    return null;
+  }
+
+  return {
+    key: parsed.key,
+    body,
+    serializedBody: parsed.serializedBody,
+    ownerUserId,
+  };
+}
 
 export type OwnerSetupContractualConsent = {
   policyVersion: string;
@@ -24,27 +190,141 @@ export type OwnerSetupContractualConsent = {
 export function OwnerSetupForm({
   contractualConsent,
   previewOnly = false,
+  ownerUserId,
 }: {
   contractualConsent?: OwnerSetupContractualConsent | null;
   previewOnly?: boolean;
+  ownerUserId?: string;
 } = {}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [consentAccepted, setConsentAccepted] = useState(false);
+  const [countryCode, setCountryCode] = useState<AdministrativeMarketCode>(
+    "ES"
+  );
+  const [timezone, setTimezone] = useState(
+    ADMINISTRATIVE_MARKET_REGISTRY.ES.defaultTimezone ?? ""
+  );
   const [primaryDiscipline, setPrimaryDiscipline] = useState<
     "artistic" | "rhythmic" | null
   >(null);
   const idempotencyKey = useRef<string | null>(null);
-  const [retryRequest, setRetryRequest] = useState<{
-    key: string;
-    body: BootstrapRequest;
-  } | null>(null);
+  const [retryRequest, setRetryRequest] = useState<RetryRequest | null>(null);
+  const [restoredOwnerUserId, setRestoredOwnerUserId] = useState<string | null>(
+    null
+  );
+  const [persistenceNotice, setPersistenceNotice] = useState<string | null>(
+    null
+  );
+  const [formGeneration, setFormGeneration] = useState(0);
+  const restorePending = Boolean(
+    ownerUserId && restoredOwnerUserId !== ownerUserId
+  );
+  const activeRetryRequest =
+    retryRequest?.ownerUserId === (ownerUserId ?? null)
+      ? retryRequest
+      : null;
 
-  async function sendBootstrap(key: string, body: BootstrapRequest) {
+  useEffect(() => {
+    idempotencyKey.current = null;
+    setRetryRequest(null);
+    setError(null);
+    setConsentAccepted(false);
+    setCountryCode("ES");
+    setTimezone(ADMINISTRATIVE_MARKET_REGISTRY.ES.defaultTimezone ?? "");
+    setPrimaryDiscipline(null);
+    setPersistenceNotice(null);
+
+    if (!ownerUserId) {
+      setRestoredOwnerUserId(null);
+      setFormGeneration((generation) => generation + 1);
+      return;
+    }
+
+    let restored: RetryRequest | null = null;
+    let notice: string | null = null;
+    try {
+      const stored = sessionStorage.getItem(retryStorageKey(ownerUserId));
+      if (stored) {
+        restored = parseStoredRetry(stored, ownerUserId);
+        if (!restored) {
+          sessionStorage.removeItem(retryStorageKey(ownerUserId));
+          notice =
+            "No pudimos validar un intento guardado. No lo enviaremos automáticamente; comprueba si la academia ya se creó antes de iniciar otro.";
+        }
+      }
+    } catch {
+      notice =
+        "No pudimos comprobar los intentos guardados de esta pestaña. No reintentaremos nada automáticamente.";
+    }
+
+    if (restored) {
+      idempotencyKey.current = restored.key;
+      setRetryRequest(restored);
+      setCountryCode(restored.body.countryCode);
+      const restoredMarket = getAdministrativeMarketCapability(
+        restored.body.countryCode
+      );
+      setTimezone(
+        restored.body.timezone ?? restoredMarket?.defaultTimezone ?? ""
+      );
+      setPrimaryDiscipline(
+        restored.body.primaryDiscipline as "artistic" | "rhythmic"
+      );
+      setConsentAccepted(Boolean(restored.body.contractualAcceptance));
+    }
+    setPersistenceNotice(notice);
+    setRestoredOwnerUserId(ownerUserId);
+    setFormGeneration((generation) => generation + 1);
+  }, [ownerUserId]);
+
+  function clearStoredRetry() {
+    if (!ownerUserId) return true;
+    try {
+      sessionStorage.removeItem(retryStorageKey(ownerUserId));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function sendBootstrap(
+    key: string,
+    body: BootstrapRequest,
+    serializedBody = JSON.stringify(body)
+  ) {
     setPending(true);
     setError(null);
-    setRetryRequest({ key, body });
+    const request: RetryRequest = {
+      key,
+      body,
+      serializedBody,
+      ownerUserId: ownerUserId ?? null,
+    };
+    setRetryRequest(request);
+    if (ownerUserId) {
+      try {
+        sessionStorage.setItem(
+          retryStorageKey(ownerUserId),
+          JSON.stringify({
+            version: RETRY_STORAGE_VERSION,
+            ownerUserId,
+            key,
+            serializedBody,
+          })
+        );
+        setPersistenceNotice(null);
+      } catch {
+        setPersistenceNotice(
+          "El navegador bloqueó el guardado del intento; el reintento solo se conserva mientras esta página permanezca abierta."
+        );
+      }
+    } else {
+      setPersistenceNotice(
+        "Este intento solo se conserva mientras esta página permanezca abierta; no se guardará entre recargas."
+      );
+    }
     let responseFailureMessage: string | null = null;
     try {
       const response = await fetch("/api/v1/organizations/bootstrap", {
@@ -53,20 +333,32 @@ export function OwnerSetupForm({
           "content-type": "application/json",
           "idempotency-key": key,
         },
-        body: JSON.stringify(body),
+        body: serializedBody,
       });
       if (!response.ok) {
         const problem = (await response.json().catch(() => null)) as {
           detail?: string;
         } | null;
-        if (response.status < 500) {
+        const resultUncertain =
+          response.status >= 500 ||
+          response.status === 401 ||
+          response.status === 403;
+        if (!resultUncertain) {
           idempotencyKey.current = null;
           setRetryRequest(null);
+          const storedRetryCleared = clearStoredRetry();
+          setPersistenceNotice(
+            storedRetryCleared
+              ? null
+              : "No pudimos borrar el recibo local del intento definitivo. Si se restaura, se conservará su misma clave."
+          );
         }
         responseFailureMessage =
           response.status >= 500
             ? "No podemos confirmar si se creó el espacio. Reintenta este mismo envío; conservaremos los datos para evitar duplicados."
-            : (problem?.detail ?? "No se ha podido crear el espacio.");
+            : resultUncertain
+              ? "No podemos confirmar el resultado de este envío. Reintenta el mismo intento; conservaremos los datos y la clave para evitar duplicados."
+              : (problem?.detail ?? "No se ha podido crear el espacio.");
         throw new Error(responseFailureMessage);
       }
       const result = parseOwnerSetupReceipt(await response.json());
@@ -75,6 +367,12 @@ export function OwnerSetupForm({
       }
       idempotencyKey.current = null;
       setRetryRequest(null);
+      const storedRetryCleared = clearStoredRetry();
+      setPersistenceNotice(
+        storedRetryCleared
+          ? null
+          : "No pudimos borrar el recibo local. Si se restaura, repetirá la misma clave y el servidor devolverá el mismo resultado."
+      );
       router.replace(`/owner?organizationId=${result.organizationId}`);
       router.refresh();
     } catch {
@@ -89,6 +387,16 @@ export function OwnerSetupForm({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (previewOnly) return;
+    if (restorePending) return;
+
+    if (activeRetryRequest) {
+      await sendBootstrap(
+        activeRetryRequest.key,
+        activeRetryRequest.body,
+        activeRetryRequest.serializedBody
+      );
+      return;
+    }
 
     if (!contractualConsent) {
       setError(
@@ -102,8 +410,14 @@ export function OwnerSetupForm({
       );
       return;
     }
-    if (retryRequest) {
-      await sendBootstrap(retryRequest.key, retryRequest.body);
+    const market = getAdministrativeMarketCapability(countryCode);
+    if (!market) {
+      setError("Selecciona un país disponible para el alta.");
+      return;
+    }
+    const resolvedTimezone = timezone || market.defaultTimezone;
+    if (!resolvedTimezone || !market.timezones.includes(resolvedTimezone)) {
+      setError("Selecciona la zona horaria de la primera sede.");
       return;
     }
 
@@ -120,7 +434,15 @@ export function OwnerSetupForm({
         .map(String),
       customActivityName:
         String(formData.get("customActivityName") ?? "").trim() || undefined,
-      countryCode: "ES",
+      countryCode,
+      ...(countryCode === "MX"
+        ? {
+            defaultCurrency: market.defaultCurrency,
+            timezone: resolvedTimezone,
+          }
+        : timezone && timezone !== market.defaultTimezone
+          ? { timezone }
+          : {}),
       ...(contractualConsent.requiresAcceptance
         ? {
             contractualAcceptance: {
@@ -135,9 +457,11 @@ export function OwnerSetupForm({
     await sendBootstrap(key, body);
   }
 
-  const fieldsLocked = pending || retryRequest !== null;
+  const fieldsLocked =
+    restorePending || pending || activeRetryRequest !== null;
+  const selectedMarket = getAdministrativeMarketCapability(countryCode);
 
-  if (!contractualConsent) {
+  if (!contractualConsent && !activeRetryRequest && !restorePending) {
     return (
       <p
         role="alert"
@@ -150,7 +474,12 @@ export function OwnerSetupForm({
   }
 
   return (
-    <form onSubmit={submit} aria-busy={pending} className="mt-8 grid gap-6">
+    <form
+      key={(ownerUserId ?? "anonymous") + ":" + formGeneration}
+      onSubmit={submit}
+      aria-busy={pending || restorePending}
+      className="mt-8 grid gap-6"
+    >
       <fieldset disabled={fieldsLocked} className="grid gap-6 border-0 p-0">
         <label className="grid gap-2 text-sm font-bold text-slate-800">
           Nombre de la academia
@@ -161,6 +490,7 @@ export function OwnerSetupForm({
             />
             <input
               name="organizationName"
+              defaultValue={activeRetryRequest?.body.organizationName}
               required
               minLength={2}
               maxLength={120}
@@ -180,6 +510,9 @@ export function OwnerSetupForm({
                 name="primaryDiscipline"
                 value="artistic"
                 required
+                defaultChecked={
+                  activeRetryRequest?.body.primaryDiscipline === "artistic"
+                }
                 onChange={() => setPrimaryDiscipline("artistic")}
                 className="h-5 w-5 accent-teal-800"
               />
@@ -191,6 +524,9 @@ export function OwnerSetupForm({
                 name="primaryDiscipline"
                 value="rhythmic"
                 required
+                defaultChecked={
+                  activeRetryRequest?.body.primaryDiscipline === "rhythmic"
+                }
                 onChange={() => setPrimaryDiscipline("rhythmic")}
                 className="h-5 w-5 accent-teal-800"
               />
@@ -214,6 +550,9 @@ export function OwnerSetupForm({
                   value={
                     primaryDiscipline === "artistic" ? "rhythmic" : "artistic"
                   }
+                  defaultChecked={activeRetryRequest?.body.additionalDisciplines.includes(
+                    primaryDiscipline === "artistic" ? "rhythmic" : "artistic"
+                  )}
                   className="mt-0.5 h-5 w-5 accent-teal-800"
                 />
                 <span>
@@ -237,6 +576,9 @@ export function OwnerSetupForm({
                     type="checkbox"
                     name="complementaryActivities"
                     value={value}
+                    defaultChecked={activeRetryRequest?.body.complementaryActivities.includes(
+                      value
+                    )}
                     className="h-5 w-5 accent-teal-800"
                   />
                   {label}
@@ -247,6 +589,7 @@ export function OwnerSetupForm({
               Otra actividad (opcional)
               <input
                 name="customActivityName"
+                defaultValue={activeRetryRequest?.body.customActivityName}
                 maxLength={80}
                 placeholder="Por ejemplo, acrobacia"
                 className="touch-target w-full border border-slate-400 bg-white px-3 text-slate-950"
@@ -260,6 +603,30 @@ export function OwnerSetupForm({
         </details>
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="grid gap-2 text-sm font-bold text-slate-800">
+            País de la academia
+            <select
+              name="countryCode"
+              required
+              value={countryCode}
+              onChange={(event) => {
+                const nextCountry = event.target
+                  .value as AdministrativeMarketCode;
+                setCountryCode(nextCountry);
+                setTimezone(
+                  getAdministrativeMarketCapability(nextCountry)
+                    ?.defaultTimezone ?? ""
+                );
+              }}
+              className="touch-target w-full border border-slate-400 bg-white px-3 text-slate-950"
+            >
+              {Object.values(ADMINISTRATIVE_MARKET_REGISTRY).map((market) => (
+                <option key={market.countryCode} value={market.countryCode}>
+                  {market.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm font-bold text-slate-800">
             Nombre de la primera sede
             <span className="relative">
               <MapPin
@@ -268,6 +635,7 @@ export function OwnerSetupForm({
               />
               <input
                 name="locationName"
+                defaultValue={activeRetryRequest?.body.locationName}
                 required
                 minLength={2}
                 maxLength={120}
@@ -276,6 +644,25 @@ export function OwnerSetupForm({
               />
             </span>
           </label>
+          <label className="grid gap-2 text-sm font-bold text-slate-800">
+            Zona horaria de la primera sede
+            <select
+              name="timezone"
+              required={selectedMarket?.timezoneRequired ?? true}
+              value={timezone}
+              onChange={(event) => setTimezone(event.target.value)}
+              className="touch-target w-full border border-slate-400 bg-white px-3 text-slate-950"
+            >
+              {!timezone && (
+                <option value="">Selecciona una zona horaria</option>
+              )}
+              {selectedMarket?.timezones.map((zone) => (
+                <option key={zone} value={zone}>
+                  {zone}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <div className="flex gap-3 border-l-4 border-teal-800 bg-[#F1F3EF] p-4 text-sm leading-6 text-slate-700">
           <ShieldCheck
@@ -283,14 +670,27 @@ export function OwnerSetupForm({
             aria-hidden="true"
           />
           <p>
-            Crearemos tu academia y la primera sede de forma segura, y te
-            daremos acceso de administración. La moneda y la zona horaria se
-            ajustan automáticamente para España. No importaremos datos de otro
-            sistema.
+            {countryCode === "MX" && (
+              <>
+                La gestión administrativa en México está en validación. No
+                incluye funciones federativas mexicanas.
+              </>
+            )}
+            {countryCode === "ES" && (
+              <>
+                Crearemos tu academia y la primera sede de forma segura, y te
+                daremos acceso de administración. No importaremos datos de otro
+                sistema. {selectedMarket?.sportCoverage.message}
+              </>
+            )}
+            {" "}
+            Moneda operativa para cuotas: {selectedMarket?.defaultCurrency};
+            independiente de la suscripción a Zaltyko. Zona horaria de la sede:{" "}
+            {timezone || "selecciona una zona horaria"}.
           </p>
         </div>
       </fieldset>
-      {contractualConsent.requiresAcceptance && (
+      {!activeRetryRequest && contractualConsent?.requiresAcceptance && (
         <label className="flex items-start gap-3 rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm leading-relaxed text-slate-800">
           <input
             type="checkbox"
@@ -332,14 +732,26 @@ export function OwnerSetupForm({
           {error}
         </p>
       )}
+      {restorePending && (
+        <p role="status" className="text-sm text-slate-700">
+          Comprobando si hay un intento pendiente para esta cuenta…
+        </p>
+      )}
+      {persistenceNotice && (
+        <p role="status" className="text-sm text-amber-900">
+          {persistenceNotice}
+        </p>
+      )}
       <button
         type="submit"
-        disabled={previewOnly || pending}
+        disabled={previewOnly || pending || restorePending}
         className="touch-target inline-flex items-center justify-center gap-2 bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-teal-900 disabled:bg-slate-500"
       >
         {pending
           ? "Creando espacio…"
-          : retryRequest
+          : restorePending
+            ? "Comprobando intento…"
+            : activeRetryRequest
             ? "Reintentar el mismo envío"
             : "Crear espacio de dirección"}
         <ArrowRight className="h-4 w-4" aria-hidden="true" />

@@ -87,7 +87,7 @@
     "tenant_fixture_sha256": "51480aba756d3c1b581da0c28e1ac3bcfee024e3ba2eef038982bbb09f23b06c",
     "replay_principal": "Connect to the validated loopback endpoint as the pinned stack's built-in supabase_admin login and verify its superuser identity. Each temporary migration dynamically executes session-local SET ROLE NONE inside one DO block, then asserts the effective supabase_admin superuser before application DDL; this avoids the pinned CLI's top-level role-reset reassertion. Query-level connection overrides are discarded; CI does not grant, revoke, or create roles or change persistent role settings.",
     "replay_script_path": "scripts/ci/verify-sandbox-schema-replay.sh",
-    "replay_script_sha256": "4c048aa96fb1df3558a9ee96ac588e83fd68d63141d7b7aa64310fe58b2a3268",
+    "replay_script_sha256": "2b7c57bbabeff5779198cbe5e1b12108c8224d7234b76505675762c06e01e6d7",
     "execution_evidence": "This manifest records the pinned replay procedure only; record the exact commit and CI result in the external audit report after a passing run."
   },
   "scope_exclusions": [
