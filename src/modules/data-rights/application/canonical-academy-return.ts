@@ -40,6 +40,7 @@ export class CanonicalAcademyExportError extends Error {
 interface CatalogRow {
   table_name: string;
   column_name: string | null;
+  data_type: string | null;
 }
 
 interface TableSizeRow {
@@ -126,8 +127,18 @@ function serializeIdentifierList(values: readonly string[]): string {
   return values.map(quoteIdentifier).join(", ");
 }
 
-function tableProjection(table: CanonicalExportTableSpec) {
-  return sql.raw(serializeIdentifierList(table.exportColumns));
+function tableProjection(
+  table: CanonicalExportTableSpec,
+  dateColumnsByTable: ReadonlyMap<string, ReadonlySet<string>>
+) {
+  const dateColumns = dateColumnsByTable.get(table.name);
+  const projection = table.exportColumns.map((column) => {
+    const identifier = quoteIdentifier(column);
+    return dateColumns?.has(column)
+      ? `${identifier}::text as ${identifier}`
+      : identifier;
+  });
+  return sql.raw(projection.join(", "));
 }
 
 function tableOrdering(table: CanonicalExportTableSpec) {
@@ -136,7 +147,7 @@ function tableOrdering(table: CanonicalExportTableSpec) {
 
 async function verifyCatalog(tx: TransactionClient) {
   const result = await tx.execute(sql`
-    select tables.table_name, columns.column_name
+    select tables.table_name, columns.column_name, columns.data_type
     from information_schema.tables as tables
     left join information_schema.columns as columns
       on columns.table_schema = tables.table_schema
@@ -147,11 +158,17 @@ async function verifyCatalog(tx: TransactionClient) {
   `);
   const rows = result.rows as unknown as CatalogRow[];
   const actualColumns = new Map<string, string[]>();
+  const dateColumnsByTable = new Map<string, Set<string>>();
 
   for (const row of rows) {
     const tableColumns = actualColumns.get(row.table_name) ?? [];
     if (row.column_name) tableColumns.push(row.column_name);
     actualColumns.set(row.table_name, tableColumns);
+    if (row.column_name && row.data_type === "date") {
+      const dateColumns = dateColumnsByTable.get(row.table_name) ?? new Set<string>();
+      dateColumns.add(row.column_name);
+      dateColumnsByTable.set(row.table_name, dateColumns);
+    }
   }
 
   const optionalDiscovery = OPTIONAL_DISCOVERY_EXPORT_TABLES.filter(table => actualColumns.has(table.table));
@@ -175,7 +192,7 @@ async function verifyCatalog(tx: TransactionClient) {
       throw failClosed();
     }
   }
-  return optionalDiscovery;
+  return { optionalDiscovery, dateColumnsByTable };
 }
 
 async function verifyOwnerMembership(
@@ -243,7 +260,10 @@ async function loadSnapshotTime(tx: TransactionClient): Promise<string> {
   return parsed.toISOString();
 }
 
-function buildSizePreflightQuery(organizationId: string) {
+function buildSizePreflightQuery(
+  organizationId: string,
+  dateColumnsByTable: ReadonlyMap<string, ReadonlySet<string>>
+) {
   const tableQueries = CANONICAL_EXPORT_TABLES.map((table) => {
     const relation = sql.raw(`zaltyko.${quoteIdentifier(table.name)}`);
     const organizationColumn = sql.raw(
@@ -261,7 +281,7 @@ function buildSizePreflightQuery(organizationId: string) {
                0
              )::bigint as estimated_bytes
       from (
-        select ${tableProjection(table)}
+        select ${tableProjection(table, dateColumnsByTable)}
         from ${relation}
         where ${organizationColumn} = ${organizationId}::uuid
         order by ${tableOrdering(table)}
@@ -315,14 +335,15 @@ function parseExcludedCount(value: number | string): number | string {
 async function loadRows(
   tx: TransactionClient,
   table: CanonicalExportTableSpec,
-  organizationId: string
+  organizationId: string,
+  dateColumnsByTable: ReadonlyMap<string, ReadonlySet<string>>
 ): Promise<ExportRow[]> {
   const relation = sql.raw(`zaltyko.${quoteIdentifier(table.name)}`);
   const organizationColumn = sql.raw(
     quoteIdentifier(table.organizationColumn)
   );
   const result = await tx.execute(sql`
-    select ${tableProjection(table)}
+    select ${tableProjection(table, dateColumnsByTable)}
     from ${relation}
     where ${organizationColumn} = ${organizationId}::uuid
     order by ${tableOrdering(table)}
@@ -361,6 +382,9 @@ export async function exportCanonicalAcademyData(input: {
     await tx.execute(
       sql.raw("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
     );
+    // DATE::text must use a stable ISO representation regardless of the server
+    // session's DateStyle; row timestamps retain the same existing ISO output.
+    await tx.execute(sql.raw("SET LOCAL DateStyle = 'ISO, YMD'"));
     await tx.execute(
       sql.raw(`SET LOCAL statement_timeout = '${MAX_STATEMENT_TIMEOUT_MS}ms'`)
     );
@@ -368,7 +392,7 @@ export async function exportCanonicalAcademyData(input: {
 
     await verifyOwnerMembership(tx, input);
     assertWithinDuration(startedAt);
-    const optionalDiscovery = await verifyCatalog(tx);
+    const { optionalDiscovery, dateColumnsByTable } = await verifyCatalog(tx);
     const excludedScopedTables = [...EXCLUDED_CANONICAL_SCOPED_TABLES, ...optionalDiscovery.map(table => table.table)];
     assertWithinDuration(startedAt);
     const snapshotAt = await loadSnapshotTime(tx);
@@ -393,7 +417,7 @@ export async function exportCanonicalAcademyData(input: {
     }
 
     const preflightResult = await tx.execute(
-      buildSizePreflightQuery(input.organizationId)
+      buildSizePreflightQuery(input.organizationId, dateColumnsByTable)
     );
     assertWithinDuration(startedAt);
     const sizeRows = preflightResult.rows as unknown as TableSizeRow[];
@@ -437,7 +461,7 @@ export async function exportCanonicalAcademyData(input: {
       const rows =
         expected.rowCount === 0
           ? []
-          : await loadRows(tx, table, input.organizationId);
+          : await loadRows(tx, table, input.organizationId, dateColumnsByTable);
       assertWithinDuration(startedAt);
       if (rows.length !== expected.rowCount) throw failClosed();
 

@@ -8,6 +8,9 @@ import {
   CANONICAL_EXPORT_TABLES,
   EXCLUDED_CANONICAL_TABLES,
 } from "@/modules/data-rights/application/catalog";
+import {
+  validateCanonicalAcademyArchive,
+} from "@/modules/data-rights/application/verify-canonical-academy-archive";
 
 const { getCurrentUserMock } = vi.hoisted(() => ({
   getCurrentUserMock: vi.fn(),
@@ -302,12 +305,14 @@ async function seedFixture(): Promise<ExportFixture> {
   `);
 
   await db.execute(sql`
-    insert into zaltyko.people (id, organization_id, given_name, family_name)
+    insert into zaltyko.people (
+      id, organization_id, given_name, family_name, date_of_birth
+    )
     values
-      (${aGuardianPersonId}::uuid, ${organizationAId}::uuid, ${aGuardianMarker}, 'Synthetic'),
-      (${aAthletePersonId}::uuid, ${organizationAId}::uuid, ${aAthleteMarker}, 'Synthetic'),
-      (${bGuardianPersonId}::uuid, ${organizationBId}::uuid, ${bGuardianMarker}, 'Synthetic'),
-      (${bAthletePersonId}::uuid, ${organizationBId}::uuid, ${bAthleteMarker}, 'Synthetic')
+      (${aGuardianPersonId}::uuid, ${organizationAId}::uuid, ${aGuardianMarker}, 'Synthetic', null),
+      (${aAthletePersonId}::uuid, ${organizationAId}::uuid, ${aAthleteMarker}, 'Synthetic', '2014-04-12'::date),
+      (${bGuardianPersonId}::uuid, ${organizationBId}::uuid, ${bGuardianMarker}, 'Synthetic', null),
+      (${bAthletePersonId}::uuid, ${organizationBId}::uuid, ${bAthleteMarker}, 'Synthetic', null)
   `);
   await db.execute(sql`
     insert into zaltyko.athletes (id, organization_id, person_id)
@@ -560,7 +565,18 @@ describeDisposablePg("canonical Owner academy data export in disposable PostgreS
     expect(response.headers.get("content-type")).toMatch(/application\/json/i);
     const responseBytes = new Uint8Array(await response.arrayBuffer());
     expect(responseBytes.byteLength).toBeLessThanOrEqual(3_500_000);
-    const exported = JSON.parse(new TextDecoder().decode(responseBytes)) as {
+    const exportedBody = new TextDecoder().decode(responseBytes);
+    const verification = validateCanonicalAcademyArchive({
+      body: exportedBody,
+      organizationId: fixture.organizationAId,
+    });
+    expect(verification).toMatchObject({
+      valid: true,
+      checksumsVerified: true,
+      tenantScopeVerified: true,
+      restorable: false,
+    });
+    const exported = JSON.parse(exportedBody) as {
       coverage: {
         complete: boolean;
         organizationId: string;
@@ -576,6 +592,11 @@ describeDisposablePg("canonical Owner academy data export in disposable PostgreS
       .toBe(integrity.bundleChecksumSha256);
     expect(exported.coverage.complete).toBe(false);
     expect(exported.coverage.organizationId).toBe(fixture.organizationAId);
+    expect(
+      exported.data.people.find(
+        (row) => row.given_name === fixture.aAthleteMarker
+      )?.date_of_birth
+    ).toBe("2014-04-12");
     expect(Object.keys(exported.data).sort()).toEqual(CANONICAL_EXPORT_TABLES.map(table => table.name).sort());
     for (const table of exported.coverage.includedTables) {
       const rows = exported.data[table.table];
