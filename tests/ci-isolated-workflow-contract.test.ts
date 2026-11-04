@@ -265,6 +265,14 @@ describe("isolated CI workflow contract", () => {
     expect(manifest.replay_validation.replay_script_sha256).toBe(
       createHash("sha256").update(replayScript).digest("hex")
     );
+    const provenancePin = readFileSync(
+      resolve(process.cwd(), "scripts/ci/prepare-canonical-domain-proposal.py"),
+      "utf8"
+    );
+    const currentManifestHash = createHash("sha256").update(readFileSync(
+      resolve(process.cwd(), "supabase/schema-snapshot-manifest.json")
+    )).digest("hex");
+    expect(provenancePin).toContain(`EXPECTED_MANIFEST_SHA256 = "${currentManifestHash}"`);
     const tenantFixture = readFileSync(
       resolve(process.cwd(), "scripts/ci/sandbox-tenant-isolation.sql"),
       "utf8"

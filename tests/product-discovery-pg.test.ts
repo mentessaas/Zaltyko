@@ -11,7 +11,7 @@ function assertDisposableTarget() {
   if (process.env.ZALTYKO_PG_INTEGRATION !== "1" || process.env.GITHUB_ACTIONS !== "true" || process.env.RUNNER_OS !== "Linux" || process.env.NODE_ENV !== "test") throw new Error("Disposable GitHub Linux Postgres is required");
   const connection = process.env.ZALTYKO_PG_INTEGRATION_DATABASE_URL;
   const target = new URL(connection ?? "");
-  if (!["postgres:", "postgresql:"].includes(target.protocol) || !["127.0.0.1", "localhost", "::1"].includes(target.hostname) || target.username !== "supabase_admin" || !target.password || !target.port || target.pathname !== "/postgres" || target.search || [process.env.DATABASE_URL, process.env.DATABASE_URL_POOL, process.env.DATABASE_URL_DIRECT].some(value => value !== connection)) throw new Error("Unexpected PostgreSQL target refused");
+  if (!["postgres:", "postgresql:"].includes(target.protocol) || !["127.0.0.1", "localhost", "::1"].includes(target.hostname) || target.username !== "supabase_admin" || !target.password || !target.port || target.pathname !== "/postgres" || target.search !== "?sslmode=disable" || [process.env.DATABASE_URL, process.env.DATABASE_URL_POOL, process.env.DATABASE_URL_DIRECT].some(value => value !== connection)) throw new Error("Unexpected PostgreSQL target refused");
   for (const name of ["SUPABASE_ACCESS_TOKEN", "SUPABASE_DB_PASSWORD", "SUPABASE_DB_URL", "SUPABASE_PROJECT_REF", "SUPABASE_SERVICE_ROLE_KEY", "E2E_TARGET_SUPABASE_PROJECT_REF", "STRIPE_SAAS_TEST_SECRET_KEY", "STRIPE_SAAS_LIVE_SECRET_KEY", "VERCEL_TOKEN"]) {
     if (process.env[name]) throw new Error("External credentials are forbidden in the disposable runner");
   }
