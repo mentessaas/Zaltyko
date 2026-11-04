@@ -17,3 +17,9 @@ Revisión estática y `git diff --check`; no se ejecutó build, lint, tipo, test
 ## Siguiente paso
 
 Confirmar build remoto y todos los gates del mismo commit; inspeccionar fallos sin reducir controles. La aceptación alojada ES/MX, SQL específico y preparación comercial siguen pendientes. Verificador de archivos de devolución y sus tests nuevos permanecen fuera de este cambio; no afirmar restauración selectiva.
+
+## Segundo consumidor observado: contrato de rutas generado
+
+En dc14c61d, job126918066609 de CI41928195829, `pnpm build` terminó correctamente pero el paso posterior `Type check generated Next.js route contracts` agotó el heap V8 a unos2041MiB, salida134. Su entorno no heredaba el `NODE_OPTIONS` del paso Build. El log del job identifica el proceso `tsc --noEmit`; no demuestra un error de tipos ni falta total de RAM del runner.
+
+Se asigna el mismo old-space4096 únicamente a ese paso. Se conserva `pnpm typecheck` completo, el runner estándar, timeouts y todos los demás controles. La corrección todavía necesita ejecución remota; no se ejecutaron pruebas, tipos ni builds en Mac. Los navegadores del candidato anterior continúan sin cancelación.

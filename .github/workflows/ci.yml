@@ -209,6 +209,9 @@ jobs:
 
       - name: Type check generated Next.js route contracts
         run: pnpm typecheck
+        env:
+          # Generated route types also exceed Node's default old-space budget.
+          NODE_OPTIONS: --max-old-space-size=4096
 
   # Smoke tests require a running database and services
   smoke-test:
