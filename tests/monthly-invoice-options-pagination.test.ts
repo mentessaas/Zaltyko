@@ -284,6 +284,8 @@ function buildLargeFixture() {
       athleteId: `athlete-${suffix}`,
       classTemplateId: `template-${suffix}`,
       className: "Grupo",
+      classEffectiveFrom: "2026-01-01",
+      classEffectiveTo: null,
       athleteName: `Atleta ${suffix}`,
       familySortName: "Atleta",
       givenSortName: suffix,
@@ -354,6 +356,8 @@ function buildLargeFixture() {
       athleteId: "athlete-z-foreign-org",
       classTemplateId: "template-z",
       className: "Grupo",
+      classEffectiveFrom: "2026-01-01",
+      classEffectiveTo: null,
       athleteName: "Otro tenant",
       familySortName: "Otro",
       givenSortName: "Tenant",
@@ -369,6 +373,8 @@ function buildLargeFixture() {
       athleteId: "athlete-z-foreign-site",
       classTemplateId: "template-z",
       className: "Grupo",
+      classEffectiveFrom: "2026-01-01",
+      classEffectiveTo: null,
       athleteName: "Otra sede",
       familySortName: "Otra",
       givenSortName: "Sede",
@@ -516,6 +522,8 @@ describe("monthly invoice options keyset pagination", () => {
           athleteId: "athlete-valid",
           classTemplateId: "template-valid",
           className: "Grupo",
+          classEffectiveFrom: "2026-01-01",
+          classEffectiveTo: null,
           athleteName: "Atleta",
           familySortName: "Atleta",
           givenSortName: "Uno",
@@ -531,6 +539,8 @@ describe("monthly invoice options keyset pagination", () => {
           athleteId: "athlete-foreign-org",
           classTemplateId: "template-valid",
           className: "Ajeno",
+          classEffectiveFrom: "2026-01-01",
+          classEffectiveTo: null,
           athleteName: "No incluir",
           familySortName: "Ajeno",
           givenSortName: "Dos",
@@ -546,6 +556,8 @@ describe("monthly invoice options keyset pagination", () => {
           athleteId: "athlete-foreign-site",
           classTemplateId: "template-valid",
           className: "Ajeno",
+          classEffectiveFrom: "2026-01-01",
+          classEffectiveTo: null,
           athleteName: "No incluir",
           familySortName: "Ajeno",
           givenSortName: "Tres",
@@ -741,6 +753,8 @@ describe("monthly invoice options keyset pagination", () => {
           athleteId: "athlete-1",
           classTemplateId: "template-1",
           className: "Grupo",
+          classEffectiveFrom: "2026-01-01",
+          classEffectiveTo: null,
           athleteName: "Atleta Uno",
           familySortName: "Uno",
           givenSortName: "Atleta",
@@ -833,4 +847,163 @@ describe("monthly invoice options keyset pagination", () => {
       "PRICE_ASSIGNMENT_AMBIGUOUS"
     );
   });
+
+  it.each([
+    {
+      name: "class ending 4 November does not cover December",
+      servicePeriod: "2026-12",
+      classEffectiveFrom: "2026-11-01",
+      classEffectiveTo: "2026-11-04",
+      enrollmentStartsOn: "2026-11-01",
+      canIssue: false,
+    },
+    {
+      name: "class starting after the first day does not cover the month",
+      servicePeriod: "2026-10",
+      classEffectiveFrom: "2026-10-02",
+      classEffectiveTo: null,
+      canIssue: false,
+    },
+    {
+      name: "inclusive class bounds cover the full month",
+      servicePeriod: "2026-10",
+      classEffectiveFrom: "2026-10-01",
+      classEffectiveTo: "2026-10-31",
+      canIssue: true,
+    },
+    {
+      name: "an open-ended class covers the month",
+      servicePeriod: "2026-10",
+      classEffectiveFrom: "2026-10-01",
+      classEffectiveTo: null,
+      canIssue: true,
+    },
+  ])("$name", async (input) => {
+    const fixture = buildClassPeriodFixture(input);
+    setFixture(fixture.rows, makeTx());
+
+    const result = await getMonthlyInvoiceOptions({
+      organizationId: fixture.orgId,
+      locationId: fixture.locationId,
+      servicePeriod: input.servicePeriod,
+      actor: { userId: "user-1", memberId: "member-1", role: "owner" },
+    });
+    const family = result.families[0];
+
+    expect(family?.canIssue).toBe(input.canIssue);
+    if (input.canIssue) {
+      expect(family?.blockingReasons).not.toContain(
+        "CLASS_PERIOD_INCOMPLETE"
+      );
+      expect(family?.totalAmountCents).toBe(10000);
+    } else {
+      expect(family?.blockingReasons).toContain("CLASS_PERIOD_INCOMPLETE");
+      expect(family?.lines).toEqual([]);
+      expect(family?.enrollments[0]).toMatchObject({ billable: false });
+    }
+  });
 });
+
+function buildClassPeriodFixture(input: {
+  servicePeriod: string;
+  classEffectiveFrom: string;
+  classEffectiveTo: string | null;
+  enrollmentStartsOn?: string;
+}) {
+  const orgId = "org-period";
+  const locationId = "location-period";
+  const periodStart = `${input.servicePeriod}-01`;
+  return {
+    orgId,
+    locationId,
+    rows: {
+      locations: [
+        {
+          id: locationId,
+          organizationId: orgId,
+          isActive: true,
+          timezone: "Europe/Madrid",
+        },
+      ],
+      pricePlans: [
+        {
+          id: "plan-period",
+          organizationId: orgId,
+          isActive: true,
+          cadence: "monthly",
+          name: "Cuota mensual",
+          amountCents: 10000,
+          currency: "EUR",
+        },
+      ],
+      enrollments: [
+        {
+          id: "enrollment-period",
+          enrollmentId: "enrollment-period",
+          organizationId: orgId,
+          locationId,
+          status: "active",
+          startsOn: input.enrollmentStartsOn ?? periodStart,
+          endsOn: null,
+          athleteId: "athlete-period",
+          classTemplateId: "template-period",
+          className: "Grupo mensual",
+          classEffectiveFrom: input.classEffectiveFrom,
+          classEffectiveTo: input.classEffectiveTo,
+          athleteName: "Gimnasta",
+          familySortName: "Tutor",
+          givenSortName: "Gimnasta",
+        },
+      ],
+      familyMembers: [
+        {
+          id: "member-period",
+          memberId: "member-period",
+          organizationId: orgId,
+          athleteId: "athlete-period",
+          familyId: "family-period",
+          startsOn: "2026-01-01",
+          endsOn: null,
+          familyIsActive: true,
+        },
+      ],
+      enrollmentPriceAssignments: [
+        {
+          id: "assignment-period",
+          organizationId: orgId,
+          locationId,
+          enrollmentId: "enrollment-period",
+          pricePlanId: "plan-period",
+          currency: "EUR",
+          unitAmountCents: 10000,
+          startsOn: "2026-01-01",
+          endsOn: null,
+        },
+      ],
+      pricePlanClassTemplateCoverage: [
+        {
+          id: "coverage-period",
+          organizationId: orgId,
+          locationId,
+          pricePlanId: "plan-period",
+          classTemplateId: "template-period",
+          startsOn: "2026-01-01",
+          endsOn: null,
+        },
+      ],
+      familyPayers: [
+        {
+          id: "payer-period",
+          familyPayerId: "payer-period",
+          organizationId: orgId,
+          familyId: "family-period",
+          startsOn: "2026-01-01",
+          endsOn: null,
+          isPrimary: true,
+          displayName: "Tutor",
+        },
+      ],
+      invoices: [],
+    },
+  };
+}

@@ -33,6 +33,31 @@ type ClassTemplateOption = {
   effectiveTo: string | null;
 };
 
+type PricePlanDraft = {
+  scopeKey: string;
+  name: string;
+  amount: string;
+  classTemplateIds: string[];
+  coverageStartsOn: string;
+  coverageHasNoEnd: boolean;
+  coverageEndsOn: string;
+};
+
+function emptyPricePlanDraft(
+  scopeKey: string,
+  servicePeriodStart: string
+): PricePlanDraft {
+  return {
+    scopeKey,
+    name: "",
+    amount: "",
+    classTemplateIds: [],
+    coverageStartsOn: `${servicePeriodStart.slice(0, 7)}-01`,
+    coverageHasNoEnd: true,
+    coverageEndsOn: "",
+  };
+}
+
 type PricePlanOptionsResponse = {
   organizationId: string;
   locationId: string;
@@ -592,16 +617,11 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     servicePeriod: string;
   } | null>(null);
   const [selectedPricePlanId, setSelectedPricePlanId] = useState("");
-  const [newPricePlanName, setNewPricePlanName] = useState("");
-  const [newPricePlanAmount, setNewPricePlanAmount] = useState("");
-  const [selectedClassTemplateIds, setSelectedClassTemplateIds] = useState<
-    string[]
-  >([]);
-  const [coverageStartsOn, setCoverageStartsOn] = useState(
-    `${servicePeriodStart.slice(0, 7)}-01`
+  const [pricePlanCreationScopeKey, setPricePlanCreationScopeKey] =
+    useState<string | null>(null);
+  const [pricePlanDraft, setPricePlanDraft] = useState<PricePlanDraft>(() =>
+    emptyPricePlanDraft(currentScopeKey, servicePeriodStart)
   );
-  const [coverageHasNoEnd, setCoverageHasNoEnd] = useState(true);
-  const [coverageEndsOn, setCoverageEndsOn] = useState("");
   const [pricePlanNotice, setPricePlanNotice] = useState("");
   const [pricePlanNoticeScope, setPricePlanNoticeScope] = useState("");
   const [priceStartsOn, setPriceStartsOn] = useState(servicePeriodStart);
@@ -633,7 +653,20 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     servicePeriod: string;
     message: string;
   } | null>(null);
+  const pricePlanDraftScopeKeyRef = useRef(currentScopeKey);
   usePendingCommandExitWarning(pendingCommand !== null, pendingCommandRef);
+
+  useCommittedLayoutEffect(() => {
+    if (pricePlanDraftScopeKeyRef.current === currentScopeKey) return;
+    pricePlanDraftScopeKeyRef.current = currentScopeKey;
+    if (pendingCommandRef.current !== null) return;
+    // A new scope gets an empty draft; uncertain commands remain stored separately.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPricePlanDraft(emptyPricePlanDraft(currentScopeKey, servicePeriodStart));
+    setPricePlanCreationScopeKey(null);
+    setPricePlanNotice("");
+    setPricePlanNoticeScope("");
+  }, [currentScopeKey, servicePeriodStart]);
 
   useEffect(() => {
     const stored = readPendingResolutionCommand();
@@ -680,8 +713,23 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       message,
     });
   }
+  const currentPricePlanDraft =
+    pricePlanDraft.scopeKey === currentScopeKey
+      ? pricePlanDraft
+      : emptyPricePlanDraft(currentScopeKey, servicePeriodStart);
+  function updatePricePlanDraft(
+    updates: Partial<Omit<PricePlanDraft, "scopeKey">>
+  ) {
+    setPricePlanDraft((current) => ({
+      ...(current.scopeKey === currentScopeKey
+        ? current
+        : emptyPricePlanDraft(currentScopeKey, servicePeriodStart)),
+      ...updates,
+      scopeKey: currentScopeKey,
+    }));
+  }
   const selectedCoverageClassIds = [
-    ...new Set(selectedClassTemplateIds),
+    ...new Set(currentPricePlanDraft.classTemplateIds),
   ].sort();
   const pricePlanOptionsMatchCurrentScope =
     pricePlanOptionsScope?.organizationId === organizationId &&
@@ -701,6 +749,16 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     ? classTemplates
     : [];
   const currentFamilies = familyOptionsMatchCurrentScope ? families : [];
+  const pendingPricePlanCreation =
+    pendingCommand?.operation === "create-price-plan" &&
+    pendingCommand.scopeKey === currentScopeKey;
+  const isCreatingPricePlan =
+    pricePlanCreationScopeKey === currentScopeKey || pendingPricePlanCreation;
+  const pricePlanFormDisabled =
+    busy ||
+    !pendingStorageReady ||
+    Boolean(pendingStorageError) ||
+    pendingCommand !== null;
   const associationFamilyId =
     action.kind === "payer" ? action.familyId : selectedFamilyId;
   const selectedFamily = currentFamilies.find(
@@ -731,6 +789,9 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     !currentLoading &&
     !busy &&
     !blocked &&
+    pendingStorageReady &&
+    !pendingStorageError &&
+    !pendingCommand &&
     !pricePlanOptionsError &&
     pricePlanOptionsMatchCurrentScope &&
     currentClassTemplates.length > 0 &&
@@ -739,6 +800,21 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     selectedCoverageClassIds.every((id) =>
       currentClassTemplates.some((classTemplate) => classTemplate.id === id)
     );
+
+  function beginPricePlanCreation() {
+    if (pricePlanFormDisabled || currentLoading || blocked) return;
+    setError("");
+    setPricePlanNotice("");
+    setPricePlanDraft(emptyPricePlanDraft(currentScopeKey, servicePeriodStart));
+    setPricePlanCreationScopeKey(currentScopeKey);
+  }
+
+  function returnToPricePlanSelector() {
+    if (pricePlanFormDisabled) return;
+    setError("");
+    setPricePlanDraft(emptyPricePlanDraft(currentScopeKey, servicePeriodStart));
+    setPricePlanCreationScopeKey(null);
+  }
 
   useEffect(() => {
     let active = true;
@@ -800,11 +876,18 @@ export function OwnerMonthlyInvoiceResolutionPanel({
               locationId,
               servicePeriod: currentScope.servicePeriod,
             });
-            setSelectedClassTemplateIds((current) =>
-              current.filter((id) =>
-                data.classTemplates.some((item) => item.id === id)
-              )
-            );
+            setPricePlanDraft((current) => {
+              const draft =
+                current.scopeKey === currentScopeKey
+                  ? current
+                  : emptyPricePlanDraft(currentScopeKey, servicePeriodStart);
+              return {
+                ...draft,
+                classTemplateIds: draft.classTemplateIds.filter((id) =>
+                  data.classTemplates.some((item) => item.id === id)
+                ),
+              };
+            });
           }
         } else {
           const data = responseData<{ families: FamilyAssociationOption[] }>(
@@ -856,7 +939,15 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     return () => {
       active = false;
     };
-  }, [action.kind, currentScope.servicePeriod, locationId, optionsRetry, organizationId]);
+  }, [
+    action.kind,
+    currentScope.servicePeriod,
+    currentScopeKey,
+    locationId,
+    optionsRetry,
+    organizationId,
+    servicePeriodStart,
+  ]);
 
   function createPendingCommand(
     operation: PendingResolutionCommand["operation"],
@@ -993,8 +1084,8 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       pendingCommandRef.current
     ) return;
     if (action.kind !== "tariff") return;
-    const name = newPricePlanName.trim();
-    const amountCents = parseMonthlyAmountCents(newPricePlanAmount);
+    const name = currentPricePlanDraft.name.trim();
+    const amountCents = parseMonthlyAmountCents(currentPricePlanDraft.amount);
     if (!name || name.length > 100 || amountCents === null) {
       setError(
         "Introduce un nombre de hasta 100 caracteres y un importe mensual válido mayor que cero."
@@ -1020,9 +1111,11 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       return;
     }
     if (
-      !isDateValue(coverageStartsOn) ||
-      (!coverageHasNoEnd &&
-        (!isDateValue(coverageEndsOn) || coverageEndsOn < coverageStartsOn))
+      !isDateValue(currentPricePlanDraft.coverageStartsOn) ||
+      (!currentPricePlanDraft.coverageHasNoEnd &&
+        (!isDateValue(currentPricePlanDraft.coverageEndsOn) ||
+          currentPricePlanDraft.coverageEndsOn <
+            currentPricePlanDraft.coverageStartsOn))
     ) {
       setError(
         "Indica una vigencia válida: la fecha de inicio es obligatoria y el fin no puede ser anterior."
@@ -1036,8 +1129,10 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       amountCents,
       coverage: {
         classTemplateIds: selectedCoverageClassIds,
-        startsOn: coverageStartsOn,
-        endsOn: coverageHasNoEnd ? null : coverageEndsOn,
+        startsOn: currentPricePlanDraft.coverageStartsOn,
+        endsOn: currentPricePlanDraft.coverageHasNoEnd
+          ? null
+          : currentPricePlanDraft.coverageEndsOn,
       },
     };
     const command = createPendingCommand(
@@ -1058,6 +1153,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       currentLoading ||
       !pendingStorageReady ||
       pendingStorageError ||
+      isCreatingPricePlan ||
       pendingCommandRef.current
     ) return;
     if (
@@ -1197,8 +1293,8 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         created,
       ]);
       setSelectedPricePlanId(created.id);
-      setNewPricePlanName("");
-      setNewPricePlanAmount("");
+      setPricePlanDraft(emptyPricePlanDraft(currentScopeKey, servicePeriodStart));
+      setPricePlanCreationScopeKey(null);
       setPricePlanNotice(
         `Tarifa creada con cobertura para ${body.coverage.classTemplateIds.length} ${body.coverage.classTemplateIds.length === 1 ? "clase" : "clases"}. Revisa el importe y confirma aparte su asignación a la inscripción.`
       );
@@ -1367,7 +1463,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
 
       {action.kind === "tariff" && !currentLoading && (
         <div className="grid gap-4 sm:grid-cols-2">
-          {currentPricePlans.length > 0 ? (
+          {currentPricePlans.length > 0 && !isCreatingPricePlan ? (
             <>
               <label className="grid gap-2">
                 <span className="text-sm font-bold">Tarifa mensual</span>
@@ -1401,6 +1497,14 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   className={fieldClassName}
                 />
               </label>
+              <button
+                type="button"
+                onClick={beginPricePlanCreation}
+                disabled={pricePlanFormDisabled || blocked || currentLoading}
+                className={`${secondaryButtonClassName} w-fit sm:col-span-2`}
+              >
+                Crear otra tarifa mensual
+              </button>
             </>
           ) : pricePlanOptionsError ? (
             <div className="grid gap-3 sm:col-span-2">
@@ -1424,17 +1528,30 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             </div>
           ) : (
             <div className="grid gap-4 sm:col-span-2">
+              {currentPricePlans.length > 0 && (
+                <button
+                  type="button"
+                  onClick={returnToPricePlanSelector}
+                  disabled={pricePlanFormDisabled}
+                  className={`${secondaryButtonClassName} w-fit`}
+                >
+                  Volver al selector de tarifas
+                </button>
+              )}
               <p className="text-sm leading-6 text-slate-600">
-                No hay tarifas mensuales para esta sede. Crea una para poder
-                asignarla a la inscripción y selecciona las clases que cubrirá.
+                {currentPricePlans.length > 0
+                  ? "Crea una tarifa adicional para esta sede y selecciona explícitamente las clases que cubrirá. La tarifa actual no se modificará."
+                  : "No hay tarifas mensuales para esta sede. Crea una para poder asignarla a la inscripción y selecciona las clases que cubrirá."}
               </p>
               <label className="grid gap-2">
                 <span className="text-sm font-bold">Nombre de la tarifa</span>
                 <input
-                  value={newPricePlanName}
-                  onChange={(event) => setNewPricePlanName(event.target.value)}
+                  value={currentPricePlanDraft.name}
+                  onChange={(event) =>
+                    updatePricePlanDraft({ name: event.target.value })
+                  }
                   maxLength={100}
-                  disabled={busy}
+                  disabled={pricePlanFormDisabled}
                   required
                   className={fieldClassName}
                 />
@@ -1450,12 +1567,12 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   id="monthly-price-plan-amount"
                   type="text"
                   inputMode="decimal"
-                  value={newPricePlanAmount}
+                  value={currentPricePlanDraft.amount}
                   onChange={(event) =>
-                    setNewPricePlanAmount(event.target.value)
+                    updatePricePlanDraft({ amount: event.target.value })
                   }
                   placeholder="35,00"
-                  disabled={busy}
+                  disabled={pricePlanFormDisabled}
                   required
                   aria-describedby="monthly-price-plan-amount-help"
                   className={fieldClassName}
@@ -1501,21 +1618,22 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                             <input
                               id={checkboxId}
                               type="checkbox"
-                              checked={selectedClassTemplateIds.includes(
+                              checked={currentPricePlanDraft.classTemplateIds.includes(
                                 classTemplate.id
                               )}
                               onChange={(event) => {
-                                setSelectedClassTemplateIds((current) =>
-                                  event.target.checked
-                                    ? current.includes(classTemplate.id)
-                                      ? current
-                                      : [...current, classTemplate.id]
-                                    : current.filter(
+                                updatePricePlanDraft({
+                                  classTemplateIds: event.target.checked
+                                    ? [...new Set([
+                                        ...currentPricePlanDraft.classTemplateIds,
+                                        classTemplate.id,
+                                      ])]
+                                    : currentPricePlanDraft.classTemplateIds.filter(
                                         (id) => id !== classTemplate.id
-                                      )
-                                );
+                                      ),
+                                });
                               }}
-                              disabled={busy}
+                              disabled={pricePlanFormDisabled}
                               className="size-5 shrink-0 accent-teal-800"
                             />
                             <span className="min-w-0">
@@ -1543,11 +1661,13 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   <input
                     id="monthly-price-plan-coverage-starts"
                     type="date"
-                    value={coverageStartsOn}
+                    value={currentPricePlanDraft.coverageStartsOn}
                     onChange={(event) =>
-                      setCoverageStartsOn(event.target.value)
+                      updatePricePlanDraft({
+                        coverageStartsOn: event.target.value,
+                      })
                     }
-                    disabled={busy}
+                    disabled={pricePlanFormDisabled}
                     required
                     className={fieldClassName}
                   />
@@ -1555,16 +1675,18 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                 <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-slate-900">
                   <input
                     type="checkbox"
-                    checked={coverageHasNoEnd}
+                    checked={currentPricePlanDraft.coverageHasNoEnd}
                     onChange={(event) =>
-                      setCoverageHasNoEnd(event.target.checked)
+                      updatePricePlanDraft({
+                        coverageHasNoEnd: event.target.checked,
+                      })
                     }
-                    disabled={busy}
+                    disabled={pricePlanFormDisabled}
                     className="size-5 shrink-0 accent-teal-800"
                   />
                   <span>Sin fecha de fin</span>
                 </label>
-                {!coverageHasNoEnd && (
+                {!currentPricePlanDraft.coverageHasNoEnd && (
                   <label
                     htmlFor="monthly-price-plan-coverage-ends"
                     className="grid gap-2 sm:col-span-2"
@@ -1573,11 +1695,13 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                     <input
                       id="monthly-price-plan-coverage-ends"
                       type="date"
-                      value={coverageEndsOn}
+                      value={currentPricePlanDraft.coverageEndsOn}
                       onChange={(event) =>
-                        setCoverageEndsOn(event.target.value)
+                        updatePricePlanDraft({
+                          coverageEndsOn: event.target.value,
+                        })
                       }
-                      disabled={busy}
+                      disabled={pricePlanFormDisabled}
                       required
                       aria-describedby="monthly-price-plan-coverage-dates-help"
                       className={fieldClassName}
@@ -1594,7 +1718,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
               <button
                 type="button"
                 onClick={() => void createPricePlan()}
-                disabled={!canCreatePricePlan}
+                disabled={!canCreatePricePlan || pricePlanFormDisabled}
                 className={`${primaryButtonClassName} w-fit`}
               >
                 {busy ? "Guardando…" : "Crear tarifa mensual"}
@@ -1819,6 +1943,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
               blocked ||
               busy ||
               currentLoading ||
+              isCreatingPricePlan ||
               !pendingStorageReady ||
               Boolean(pendingStorageError) ||
               currentPricePlans.length === 0 ||
@@ -1848,7 +1973,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
         <button
           type="button"
           onClick={onCancel}
-          disabled={busy || pendingCommand !== null}
+          disabled={busy || !pendingStorageReady || pendingCommand !== null}
           className={secondaryButtonClassName}
         >
           Cancelar

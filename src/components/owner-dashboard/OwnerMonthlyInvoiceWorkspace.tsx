@@ -121,6 +121,8 @@ function reasonLabel(reason: string): string {
     ENROLLMENT_PENDING: "La inscripción todavía está pendiente.",
     ENROLLMENT_PERIOD_INCOMPLETE:
       "La inscripción no cubre este periodo completo.",
+    CLASS_PERIOD_INCOMPLETE:
+      "La clase no está vigente durante todo este periodo.",
     FAMILY_REQUIRED: "Falta vincular la inscripción a una familia.",
     FAMILY_MEMBERSHIP_AMBIGUOUS:
       "La inscripción aparece vinculada a más de una familia.",

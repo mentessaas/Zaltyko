@@ -325,6 +325,8 @@ async function buildMonthlyInvoiceOptions(
     athleteId: string;
     classTemplateId: string;
     className: string;
+    classEffectiveFrom: string;
+    classEffectiveTo: string | null;
     athleteName: string | null;
     familySortName: string;
     givenSortName: string;
@@ -349,6 +351,8 @@ async function buildMonthlyInvoiceOptions(
           athleteId: enrollments.athleteId,
           classTemplateId: enrollments.classTemplateId,
           className: classTemplates.name,
+          classEffectiveFrom: classTemplates.effectiveFrom,
+          classEffectiveTo: classTemplates.effectiveTo,
           athleteName: sql<string>`nullif(btrim(concat_ws(' ', ${people.givenName}, ${people.familyName})), '')`,
           familySortName: people.familyName,
           givenSortName: people.givenName,
@@ -654,11 +658,18 @@ async function buildMonthlyInvoiceOptions(
     const coversEnrollmentMonth =
       enrollment.startsOn <= bounds.start &&
       (enrollment.endsOn === null || enrollment.endsOn >= bounds.end);
+    const coversClassMonth =
+      enrollment.classEffectiveFrom <= bounds.start &&
+      (enrollment.classEffectiveTo === null ||
+        enrollment.classEffectiveTo >= bounds.end);
     const enrollmentReasons: string[] = [];
     if (enrollment.status === "pending") {
       enrollmentReasons.push("ENROLLMENT_PENDING");
     } else if (!coversEnrollmentMonth) {
       enrollmentReasons.push("ENROLLMENT_PERIOD_INCOMPLETE");
+    }
+    if (!coversClassMonth) {
+      enrollmentReasons.push("CLASS_PERIOD_INCOMPLETE");
     }
     if (memberships.length === 0) {
       enrollmentReasons.push("FAMILY_REQUIRED");

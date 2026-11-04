@@ -419,7 +419,10 @@ async function snapshotMonthlyInvoiceLedger(organizationId: string) {
   >;
 }
 
-async function seedMonthlyInvoiceFixture() {
+async function seedMonthlyInvoiceFixture(input?: {
+  servicePeriod?: string;
+  classEffectiveTo?: string | null;
+}) {
   const organizationId = randomUUID();
   const locationId = randomUUID();
   const ownerUserId = randomUUID();
@@ -437,12 +440,14 @@ async function seedMonthlyInvoiceFixture() {
   const enrollmentId = randomUUID();
   const priceAssignmentId = randomUUID();
   const coverageId = randomUUID();
-  const servicePeriod = new Date().toISOString().slice(0, 7);
+  const servicePeriod =
+    input?.servicePeriod ?? new Date().toISOString().slice(0, 7);
   const [year, month] = servicePeriod.split("-").map(Number);
   const periodStart = `${servicePeriod}-01`;
   const periodEnd = new Date(Date.UTC(year!, month!, 0))
     .toISOString()
     .slice(0, 10);
+  const classEffectiveTo = input?.classEffectiveTo ?? null;
   const actor = { userId: ownerUserId, memberId: ownerMemberId };
 
   await db.transaction(async (tx) => {
@@ -526,10 +531,12 @@ async function seedMonthlyInvoiceFixture() {
     `);
     await tx.execute(sql`
       insert into zaltyko.class_templates (
-        id, organization_id, location_id, name, capacity, status, effective_from
+        id, organization_id, location_id, name, capacity, status,
+        effective_from, effective_to
       ) values (
         ${classTemplateId}::uuid, ${organizationId}::uuid, ${locationId}::uuid,
-        'CI monthly class', 20, 'active', ${periodStart}::date
+        'CI monthly class', 20, 'active', ${periodStart}::date,
+        ${classEffectiveTo}::date
       )
     `);
     await tx.execute(sql`
@@ -1064,6 +1071,45 @@ describe("monthly manual invoice issuance on disposable PostgreSQL", () => {
       code: "QUOTE_STALE",
       status: 409,
     });
+
+    expect(await snapshotMonthlyInvoiceLedger(fixture.organizationId)).toEqual(
+      before
+    );
+  }, 45_000);
+
+  it("rejects issue when the class ends before month-end without ledger writes", async () => {
+    assertDisposableTarget();
+    const servicePeriod = new Date().toISOString().slice(0, 7);
+    const fixture = await seedMonthlyInvoiceFixture({
+      servicePeriod,
+      classEffectiveTo: `${servicePeriod}-04`,
+    });
+    const options = await getMonthlyInvoiceOptions({
+      organizationId: fixture.organizationId,
+      locationId: fixture.locationId,
+      servicePeriod: fixture.servicePeriod,
+      actor: fixture.actor,
+    });
+    const family = options.families.find(
+      (candidate) => candidate.familyId === fixture.familyId
+    );
+    expect(family?.blockingReasons).toContain("CLASS_PERIOD_INCOMPLETE");
+    expect(family?.canIssue).toBe(false);
+    const before = await snapshotMonthlyInvoiceLedger(fixture.organizationId);
+
+    await expect(
+      issueMonthlyInvoice({
+        organizationId: fixture.organizationId,
+        locationId: fixture.locationId,
+        familyId: fixture.familyId,
+        familyPayerId: fixture.familyPayerId,
+        servicePeriod: fixture.servicePeriod,
+        dueDate: fixture.dueDate,
+        quoteHash: family?.quoteHash ?? "a".repeat(64),
+        idempotencyKey: `ci-monthly-class-period-${randomUUID()}`,
+        actor: fixture.actor,
+      })
+    ).rejects.toMatchObject({ code: "MONTHLY_INVOICE_BLOCKED", status: 422 });
 
     expect(await snapshotMonthlyInvoiceLedger(fixture.organizationId)).toEqual(
       before

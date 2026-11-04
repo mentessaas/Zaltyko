@@ -17,6 +17,7 @@ const enrollmentId = "50000000-0000-4000-8000-000000000001";
 const pricePlanId = "60000000-0000-4000-8000-000000000001";
 const pricePlanIdB = "60000000-0000-4000-8000-000000000002";
 const classTemplateId = "70000000-0000-4000-8000-000000000001";
+const classTemplateIdB = "70000000-0000-4000-8000-000000000002";
 const familyId = "80000000-0000-4000-8000-000000000001";
 const familyIdB = "80000000-0000-4000-8000-000000000002";
 const athleteId = "90000000-0000-4000-8000-000000000001";
@@ -35,6 +36,9 @@ function planOptions(
   locationId: string,
   items = [
     { id: pricePlanId, name: "Tarifa academia A", amountCents: 5000, currency: "EUR", cadence: "monthly" },
+  ],
+  classTemplates = [
+    { id: classTemplateId, name: "Rítmica iniciación", effectiveFrom: "2025-01-01", effectiveTo: null },
   ]
 ) {
   return jsonResponse({
@@ -43,9 +47,7 @@ function planOptions(
       organizationId,
       locationId,
       items,
-      classTemplates: [
-        { id: classTemplateId, name: "Rítmica iniciación", effectiveFrom: "2025-01-01", effectiveTo: null },
-      ],
+      classTemplates,
       classTemplatesHasMore: false,
     },
   });
@@ -236,6 +238,281 @@ describe("ámbito del panel de resolución de facturas", () => {
       "href",
       expect.stringContaining("organizationId=" + organizationA)
     );
+  });
+
+  it("crea otra tarifa MXN con clase explícita y espera la asignación separada", async () => {
+    const existingPlan = {
+      id: pricePlanId,
+      name: "Tarifa solo rítmica",
+      amountCents: 30000,
+      currency: "MXN",
+      cadence: "monthly",
+    };
+    const createdPlan = {
+      id: pricePlanIdB,
+      name: "Tarifa artística",
+      amountCents: 35025,
+      currency: "MXN",
+      cadence: "monthly",
+    };
+    const classTemplates = [
+      { id: classTemplateId, name: "Rítmica iniciación", effectiveFrom: "2025-01-01", effectiveTo: null },
+      { id: classTemplateIdB, name: "Artística iniciación", effectiveFrom: "2025-01-01", effectiveTo: null },
+    ];
+    let created = false;
+    const onSaved = vi.fn().mockResolvedValue(undefined);
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        created = true;
+        return Promise.resolve(jsonResponse({ ok: true, data: createdPlan }, 201));
+      }
+      if (init?.method === "PATCH") {
+        return Promise.resolve(jsonResponse({
+          ok: true,
+          data: {
+            id: "b0000000-0000-4000-8000-000000000001",
+            enrollmentId,
+            pricePlanId: pricePlanIdB,
+            startsOn: "2026-01-01",
+          },
+        }));
+      }
+      const params = new URL(String(input), "http://localhost").searchParams;
+      return Promise.resolve(planOptions(
+        params.get("organizationId") ?? "",
+        params.get("locationId") ?? "",
+        created ? [existingPlan, createdPlan] : [existingPlan],
+        classTemplates
+      ));
+    });
+
+    render(
+      <OwnerMonthlyInvoiceResolutionPanel
+        {...panelProps({ defaultCurrency: "MXN", onSaved })}
+      />
+    );
+    expect(await screen.findByRole("option", { name: /Tarifa solo rítmica/ })).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Crear otra tarifa mensual" }));
+    expect(await screen.findByLabelText("Nombre de la tarifa")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Volver al selector de tarifas" }));
+    expect(screen.getByLabelText("Tarifa mensual")).toBeVisible();
+    expect(screen.queryByLabelText("Nombre de la tarifa")).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "Crear otra tarifa mensual" }));
+    fireEvent.change(await screen.findByLabelText("Nombre de la tarifa"), {
+      target: { value: "Tarifa artística" },
+    });
+    fireEvent.change(screen.getByLabelText("Importe mensual (MXN)"), {
+      target: { value: "350,25" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Artística iniciación" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear tarifa mensual" }));
+
+    expect(await screen.findByRole("option", { name: /Tarifa artística/ })).toBeVisible();
+    expect(screen.getByLabelText("Tarifa mensual")).toHaveValue(pricePlanIdB);
+    const createRequest = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(createRequest).toBeDefined();
+    const createBody = JSON.parse(String(createRequest?.[1]?.body));
+    expect(createBody).toMatchObject({
+      organizationId: organizationA,
+      locationId: locationA,
+      name: "Tarifa artística",
+      amountCents: 35025,
+      coverage: {
+        classTemplateIds: [classTemplateIdB],
+        startsOn: "2026-01-01",
+        endsOn: null,
+      },
+    });
+    expect(new Headers(createRequest?.[1]?.headers).get("Idempotency-Key"))
+      .toMatch(/^owner-monthly-price-plan:/);
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+    expect(onSaved).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar tarifa" }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith("tariff"));
+    const assignmentRequest = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(JSON.parse(String(assignmentRequest?.[1]?.body))).toEqual({
+      organizationId: organizationA,
+      locationId: locationA,
+      pricePlanId: pricePlanIdB,
+      startsOn: "2026-01-01",
+    });
+  });
+
+  it("restaura la creación pendiente tras recargar y bloquea edición, retorno y asignación", async () => {
+    const existingPlan = {
+      id: pricePlanId,
+      name: "Tarifa solo rítmica",
+      amountCents: 30000,
+      currency: "MXN",
+      cadence: "monthly",
+    };
+    const createdPlan = {
+      id: pricePlanIdB,
+      name: "Tarifa artística",
+      amountCents: 35025,
+      currency: "MXN",
+      cadence: "monthly",
+    };
+    const classTemplates = [
+      { id: classTemplateId, name: "Rítmica iniciación", effectiveFrom: "2025-01-01", effectiveTo: null },
+      { id: classTemplateIdB, name: "Artística iniciación", effectiveFrom: "2025-01-01", effectiveTo: null },
+    ];
+    let serverHasCreatedPlan = false;
+    let postAttempt = 0;
+    let returnedCreatedPlanInCatalog = false;
+    const postBodies: string[] = [];
+    const postKeys: string[] = [];
+    const onCancel = vi.fn();
+    const onSaved = vi.fn().mockResolvedValue(undefined);
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        postAttempt += 1;
+        postBodies.push(String(init.body));
+        postKeys.push(new Headers(init.headers).get("Idempotency-Key") ?? "");
+        if (postAttempt === 1) {
+          serverHasCreatedPlan = true;
+          return Promise.reject(new Error("Conexión interrumpida"));
+        }
+        return Promise.resolve(jsonResponse({ ok: true, data: createdPlan }, 201));
+      }
+      const params = new URL(String(input), "http://localhost").searchParams;
+      if (serverHasCreatedPlan && params.get("locationId") === locationA) {
+        returnedCreatedPlanInCatalog = true;
+      }
+      return Promise.resolve(planOptions(
+        params.get("organizationId") ?? "",
+        params.get("locationId") ?? "",
+        serverHasCreatedPlan ? [existingPlan, createdPlan] : [existingPlan],
+        classTemplates
+      ));
+    });
+
+    const props = panelProps({ defaultCurrency: "MXN", onCancel, onSaved });
+    const firstView = render(<OwnerMonthlyInvoiceResolutionPanel {...props} />);
+    await screen.findByRole("option", { name: /Tarifa solo rítmica/ });
+    fireEvent.click(screen.getByRole("button", { name: "Crear otra tarifa mensual" }));
+    fireEvent.change(await screen.findByLabelText("Nombre de la tarifa"), {
+      target: { value: "Tarifa artística" },
+    });
+    fireEvent.change(screen.getByLabelText("Importe mensual (MXN)"), {
+      target: { value: "350,25" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Artística iniciación" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear tarifa mensual" }));
+    await screen.findByRole("button", { name: "Reintentar la misma operación" });
+    expect(screen.getByLabelText("Nombre de la tarifa")).toBeDisabled();
+    expect(screen.getByLabelText("Importe mensual (MXN)")).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "Artística iniciación" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Volver al selector de tarifas" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Guardar tarifa" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+    expect(onCancel).not.toHaveBeenCalled();
+    firstView.unmount();
+
+    render(<OwnerMonthlyInvoiceResolutionPanel {...props} />);
+    await screen.findByLabelText("Nombre de la tarifa");
+    expect(returnedCreatedPlanInCatalog).toBe(true);
+    const retry = await screen.findByRole("button", { name: "Reintentar la misma operación" });
+    expect(screen.getByLabelText("Nombre de la tarifa")).toBeDisabled();
+    expect(screen.getByLabelText("Importe mensual (MXN)")).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "Artística iniciación" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Volver al selector de tarifas" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Guardar tarifa" })).toBeDisabled();
+
+    fireEvent.click(retry);
+    await waitFor(() => expect(postAttempt).toBe(2));
+    await waitFor(() =>
+      expect(screen.getByLabelText("Tarifa mensual")).toHaveValue(pricePlanIdB)
+    );
+    expect(postBodies[1]).toBe(postBodies[0]);
+    expect(postKeys[1]).toBe(postKeys[0]);
+    expect(screen.getByLabelText("Tarifa mensual")).toHaveValue(pricePlanIdB);
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it("descarta el borrador de tarifa al cambiar de sede y mes sin hacer POST automático", async () => {
+    const createdPlan = {
+      id: pricePlanIdB,
+      name: "Tarifa nueva sede B",
+      amountCents: 1000,
+      currency: "MXN",
+      cadence: "monthly",
+    };
+    let created = false;
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        created = true;
+        return Promise.resolve(jsonResponse({ ok: true, data: createdPlan }, 201));
+      }
+      const params = new URL(String(input), "http://localhost").searchParams;
+      const requestLocationId = params.get("locationId") ?? "";
+      const classTemplates = requestLocationId === locationB
+        ? [{ id: classTemplateIdB, name: "Artística sede B", effectiveFrom: "2025-01-01", effectiveTo: null }]
+        : [{ id: classTemplateId, name: "Rítmica sede A", effectiveFrom: "2025-01-01", effectiveTo: null }];
+      return Promise.resolve(planOptions(
+        params.get("organizationId") ?? "",
+        requestLocationId,
+        created && requestLocationId === locationB ? [createdPlan] : [],
+        classTemplates
+      ));
+    });
+
+    const props = panelProps({ defaultCurrency: "MXN" });
+    const view = render(<OwnerMonthlyInvoiceResolutionPanel {...props} />);
+    await screen.findByLabelText("Nombre de la tarifa");
+    fireEvent.change(screen.getByLabelText("Nombre de la tarifa"), {
+      target: { value: "Borrador sede A" },
+    });
+    fireEvent.change(screen.getByLabelText("Importe mensual (MXN)"), {
+      target: { value: "123,45" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Rítmica sede A" }));
+    fireEvent.change(screen.getByLabelText("Vigente desde"), {
+      target: { value: "2026-01-15" },
+    });
+
+    view.rerender(
+      <OwnerMonthlyInvoiceResolutionPanel
+        {...props}
+        locationId={locationB}
+        servicePeriodStart="2026-02-01"
+      />
+    );
+    await screen.findByLabelText("Nombre de la tarifa");
+    expect(screen.getByLabelText("Nombre de la tarifa")).toHaveValue("");
+    expect(screen.getByLabelText("Importe mensual (MXN)")).toHaveValue("");
+    expect(screen.getByRole("checkbox", { name: "Artística sede B" })).not.toBeChecked();
+    expect(screen.getByLabelText("Vigente desde")).toHaveValue("2026-02-01");
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+
+    fireEvent.change(screen.getByLabelText("Nombre de la tarifa"), {
+      target: { value: "Tarifa nueva sede B" },
+    });
+    fireEvent.change(screen.getByLabelText("Importe mensual (MXN)"), {
+      target: { value: "10,00" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Artística sede B" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear tarifa mensual" }));
+    await screen.findByRole("option", { name: /Tarifa nueva sede B/ });
+
+    const createRequest = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(JSON.parse(String(createRequest?.[1]?.body))).toMatchObject({
+      organizationId: organizationA,
+      locationId: locationB,
+      name: "Tarifa nueva sede B",
+      amountCents: 1000,
+      coverage: {
+        classTemplateIds: [classTemplateIdB],
+        startsOn: "2026-02-01",
+        endsOn: null,
+      },
+    });
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
   });
 
   it("exige acuse para promocionar un pagador secundario y lo incluye solo tras marcarlo", async () => {
