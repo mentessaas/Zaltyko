@@ -301,6 +301,9 @@ describe("alta owner greenfield", () => {
     expect(
       screen.getByText(/No incluye funciones federativas mexicanas/)
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(/no emite comprobantes fiscales mexicanos/)
+    ).toBeInTheDocument();
     await completeRequiredFields(user);
     await user.click(
       screen.getByRole("button", { name: "Crear espacio de dirección" })

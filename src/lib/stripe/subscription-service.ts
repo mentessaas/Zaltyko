@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, gt } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, billingEvents, profiles, subscriptions } from "@/db/schema";
@@ -17,6 +17,7 @@ import { toCommercialPlanSlug } from "@/lib/growth/contracts";
 import { recordGrowthEvent } from "@/lib/growth/events";
 
 type TransactionClient = Parameters<Parameters<typeof db.transaction>[0]>[0];
+const SUBSCRIPTION_ACADEMY_LOCK_PAGE_SIZE = 100;
 
 /**
  * A plan/status webhook changes the effective capacity of every legacy
@@ -37,12 +38,29 @@ async function lockSubscriptionAcademies(
       .limit(1);
 
     if (owner) {
-      const ownedAcademies = await tx
-        .select({ id: academies.id })
-        .from(academies)
-        .where(eq(academies.ownerId, owner.id))
-        .orderBy(asc(academies.id));
-      for (const academy of ownedAcademies) academyIds.add(academy.id);
+      let lastAcademyId: string | null = null;
+      while (true) {
+        const page: Array<{ id: string }> = await tx
+          .select({ id: academies.id })
+          .from(academies)
+          .where(
+            lastAcademyId
+              ? and(
+                  eq(academies.ownerId, owner.id),
+                  gt(academies.id, lastAcademyId)
+                )
+              : eq(academies.ownerId, owner.id)
+          )
+          .orderBy(asc(academies.id))
+          .limit(SUBSCRIPTION_ACADEMY_LOCK_PAGE_SIZE);
+
+        for (const academy of page) {
+          academyIds.add(academy.id);
+          lastAcademyId = academy.id;
+        }
+
+        if (page.length < SUBSCRIPTION_ACADEMY_LOCK_PAGE_SIZE) break;
+      }
     }
   }
 

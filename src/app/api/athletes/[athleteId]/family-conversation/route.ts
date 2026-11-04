@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -148,7 +148,11 @@ export const POST = withTenant(async (request, context) => {
     const currentParticipants = await db
       .select({ userId: conversationParticipants.userId })
       .from(conversationParticipants)
-      .where(eq(conversationParticipants.conversationId, existingConversation.id));
+      .where(and(
+        eq(conversationParticipants.conversationId, existingConversation.id),
+        inArray(conversationParticipants.userId, [context.profile.id, guardian.profileId]),
+      ))
+      .limit(2);
     const hasOwner = currentParticipants.some((participant) => participant.userId === context.profile.id);
     const hasGuardian = currentParticipants.some((participant) => participant.userId === guardian.profileId);
     if (hasOwner && hasGuardian) {
@@ -224,7 +228,11 @@ export const POST = withTenant(async (request, context) => {
     const participants = await tx
       .select({ userId: conversationParticipants.userId })
       .from(conversationParticipants)
-      .where(eq(conversationParticipants.conversationId, created.id));
+      .where(and(
+        eq(conversationParticipants.conversationId, created.id),
+        inArray(conversationParticipants.userId, [context.profile.id, currentGuardian.profileId]),
+      ))
+      .limit(2);
     const participantIds = new Set(participants.map((participant) => participant.userId));
     const wanted = [
       { userId: context.profile.id, role: "owner" as const },
