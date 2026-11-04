@@ -35,3 +35,7 @@ El candidato a6879f33 falló una prueba unitaria: combinaba configuración Live 
 Backend prepara la corrección, QA revisa independientemente y coordinación integra y ejecuta CI remota del nuevo SHA. Ningún resultado de a6879f33 o del padre verde se atribuye al nuevo commit. No se han ejecutado pruebas en el Mac ni aplicado SQL o cambios alojados. Owner concreta por separado el siguiente incremento de derechos de datos; la descarga actual sigue siendo parcial.
 
 El siguiente paso humano será revisar el commit exacto cuando pasen los controles. La revisión de los dos perfiles MX y la decisión de conservación del registro de interés son independientes: se puede mantener el catálogo sin medición mientras se termina esa decisión. No se habilita Live ni se solicita aplicar SQL a partir de esta nota.
+
+## 2026-11-04 — Bloqueo Firefox y diagnóstico acotado
+
+`dba6c7fb`: WebKit/Chromium y CI aislada PASS, Firefox FAILURE al reabrir asociación familiar tras PATCH del tutor y recarga. No está listo para aprobar. Seguimiento dba eliminado tras aviso; no se reinician/cancelan runs. Coordinación prepara metadatos DOM/request sanitizados en la prueba y artifact acotado, sin modificar producto ni aserciones/esperas/retries. Revisión Owner no atribuye causa a hidratación ni refresh. Fuente `docs/qa/firefox-family-reopen-diagnostic-2026-11-04.md`. Backend/QA preparan verificador puro de devolución parcial en archivos separados, fuera del candidato diagnóstico. Sin SQL alojado, Live, producción, ensayo ni builds/tests locales.

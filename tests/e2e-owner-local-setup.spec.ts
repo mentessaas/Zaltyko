@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { writeFile } from "node:fs/promises";
 
 import { expect, test, type Dialog } from "@playwright/test";
 import { Pool } from "pg";
@@ -45,6 +46,22 @@ type BrowserDiagnosticEvent = {
   status?: number;
   error?: string;
   message?: string;
+};
+
+type OwnerInteractionDiagnostic = {
+  at: string;
+  type: string;
+  pathname: string;
+  targetTag: string;
+  buttonKind: "family-association" | "other" | "none";
+  expanded: string | null;
+  disabled: boolean | null;
+  buttonId: number | null;
+  connected: boolean | null;
+  readyState: string;
+};
+type OwnerDiagnosticWindow = Window & {
+  __zaltykoOwnerInteractions?: OwnerInteractionDiagnostic[];
 };
 
 let browserDiagnostics: BrowserDiagnosticEvent[] = [];
@@ -100,10 +117,66 @@ test.describe("Isolated local Supabase Owner setup", () => {
     const diagnostics: BrowserDiagnosticEvent[] = [];
     browserDiagnostics = diagnostics;
     const record = (event: Omit<BrowserDiagnosticEvent, "at">) => {
-      if (diagnostics.length < 100) {
-        diagnostics.push({ at: new Date().toISOString(), ...event });
-      }
+      diagnostics.push({ at: new Date().toISOString(), ...event });
+      if (diagnostics.length > 100) diagnostics.shift();
     };
+
+    // Test-only metadata, never form values, names, query strings or payloads.
+    // Capture the actual hit target after a reload without delaying/retrying it.
+    await page.addInitScript(() => {
+      const targetWindow = window as OwnerDiagnosticWindow;
+      targetWindow.__zaltykoOwnerInteractions = [];
+      const buttonIds = new WeakMap<Element, number>();
+      let nextButtonId = 1;
+      const recordInteraction = (type: string, target: Element | null) => {
+        if (location.pathname !== "/owner/groups") return;
+        const button = target?.closest("button") ?? null;
+        if (button && !buttonIds.has(button)) buttonIds.set(button, nextButtonId++);
+        const events = targetWindow.__zaltykoOwnerInteractions!;
+        events.push({
+          at: new Date().toISOString(), type, pathname: location.pathname,
+          targetTag: target?.tagName.toLowerCase() ?? "none",
+          buttonKind: button
+            ? (button.textContent?.trim().startsWith("Vincular familia a ")
+                ? "family-association" : "other")
+            : "none",
+          expanded: button?.getAttribute("aria-expanded") ?? null,
+          disabled: button instanceof HTMLButtonElement ? button.disabled : null,
+          buttonId: button ? buttonIds.get(button)! : null,
+          connected: button?.isConnected ?? null,
+          readyState: document.readyState,
+        });
+        if (events.length > 50) events.shift();
+      };
+      new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          const target = mutation.target;
+          if (target instanceof HTMLButtonElement &&
+              target.textContent?.trim().startsWith("Vincular familia a ")) {
+            recordInteraction(`attribute-${mutation.attributeName}`, target);
+          }
+        }
+      }).observe(document, {
+        subtree: true, attributes: true, attributeFilter: ["aria-expanded", "disabled"],
+      });
+      for (const type of ["pointerdown", "pointerup", "click"]) {
+        document.addEventListener(type, (event) => {
+          if (location.pathname !== "/owner/groups") return;
+          const target = event.target instanceof Element ? event.target : null;
+          recordInteraction(event.type, target);
+          if (event.type === "click") {
+            queueMicrotask(() => recordInteraction("after-click-microtask", target));
+            requestAnimationFrame(() => recordInteraction("after-click-frame", target));
+          }
+        }, { capture: true });
+      }
+    });
+
+    page.on("request", (request) => {
+      const pathname = diagnosticPathname(request.url());
+      if (pathname !== "/api/v1/owner/families/options") return;
+      record({ type: "family-options-request", pathname, method: request.method() });
+    });
 
     page.on("requestfailed", (request) => {
       if (request.resourceType() !== "document") return;
@@ -115,6 +188,10 @@ test.describe("Isolated local Supabase Owner setup", () => {
       });
     });
     page.on("response", (response) => {
+      const pathname = diagnosticPathname(response.url());
+      if (pathname === "/api/v1/owner/families/options") {
+        record({ type: "family-options-response", pathname, status: response.status() });
+      }
       if (response.request().resourceType() !== "document") return;
       record({
         type: "document-response",
@@ -163,21 +240,27 @@ test.describe("Isolated local Supabase Owner setup", () => {
     locationName = `Sede E2E ${runId.slice(0, 8)} ${unique.slice(0, 8)}`;
   });
 
-  test.afterEach(async ({}, testInfo) => {
+  test.afterEach(async ({ page }, testInfo) => {
     const { unexpectedBlockedRequests, expectedBlockedTelemetryRequests } =
       networkGuardReport();
-    await testInfo.attach("browser-navigation-diagnostics.json", {
-      body: JSON.stringify(
+    const interactions = await page.evaluate(() =>
+      (window as OwnerDiagnosticWindow).__zaltykoOwnerInteractions ?? []
+    ).catch(() => null);
+    const diagnosticPath = testInfo.outputPath("browser-navigation-diagnostics.json");
+    await writeFile(diagnosticPath, JSON.stringify(
         {
           browser: testInfo.project.name,
           status: testInfo.status,
           events: browserDiagnostics,
+          interactions,
           blockedExternalRequests: unexpectedBlockedRequests,
           expectedBlockedTelemetryRequests,
         },
         null,
         2
-      ),
+      ), "utf8");
+    await testInfo.attach("browser-navigation-diagnostics.json", {
+      path: diagnosticPath,
       contentType: "application/json",
     });
     expect(unexpectedBlockedRequests).toEqual([]);
