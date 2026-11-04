@@ -243,26 +243,49 @@ test.describe("Isolated local Supabase Owner setup", () => {
   test.afterEach(async ({ page }, testInfo) => {
     const { unexpectedBlockedRequests, expectedBlockedTelemetryRequests } =
       networkGuardReport();
-    const interactions = await page.evaluate(() =>
-      (window as OwnerDiagnosticWindow).__zaltykoOwnerInteractions ?? []
-    ).catch(() => null);
-    const diagnosticPath = testInfo.outputPath("browser-navigation-diagnostics.json");
-    await writeFile(diagnosticPath, JSON.stringify(
+    if (testInfo.status !== testInfo.expectedStatus || unexpectedBlockedRequests.length > 0) {
+      const interactions = await page.evaluate(() =>
+        (window as OwnerDiagnosticWindow).__zaltykoOwnerInteractions ?? []
+      ).catch(() => null);
+      // Artifact allowlist: arbitrary console/error text and paths stay excluded,
+      // even if their upstream diagnostic sanitizer misses a sensitive value.
+      const events = browserDiagnostics.map((event) => ({
+        at: event.at,
+        type: event.type,
+        pathname: ["/owner/groups", "/api/v1/owner/families/options"].includes(event.pathname)
+          ? event.pathname : "<other-route>",
+        method: event.method && ["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD", "OPTIONS"].includes(event.method)
+          ? event.method : undefined,
+        status: typeof event.status === "number" && event.status >= 100 && event.status <= 599
+          ? event.status : undefined,
+        errorObserved: Boolean(event.error),
+        messageObserved: Boolean(event.message),
+        errorCategory: /hydrat|server.*client|client.*server/i.test(event.message ?? "")
+          ? "hydration"
+          : /NS_BINDING_ABORTED|navigat|redirect|router|refresh/i.test(event.message ?? event.error ?? "")
+            ? "navigation"
+            : /fetch|network|loading/i.test(event.message ?? event.error ?? "")
+              ? "network"
+              : (event.error || event.message) ? "other" : undefined,
+      }));
+      const diagnosticPath = testInfo.outputPath("browser-navigation-diagnostics.json");
+      await writeFile(diagnosticPath, JSON.stringify(
         {
           browser: testInfo.project.name,
-          status: testInfo.status,
-          events: browserDiagnostics,
+          status: unexpectedBlockedRequests.length > 0 ? "failed-network-guard" : testInfo.status,
+          events,
           interactions,
-          blockedExternalRequests: unexpectedBlockedRequests,
-          expectedBlockedTelemetryRequests,
+          blockedExternalRequestCount: unexpectedBlockedRequests.length,
+          expectedBlockedTelemetryRequestCount: expectedBlockedTelemetryRequests.length,
         },
         null,
         2
       ), "utf8");
-    await testInfo.attach("browser-navigation-diagnostics.json", {
-      path: diagnosticPath,
-      contentType: "application/json",
-    });
+      await testInfo.attach("browser-navigation-diagnostics.json", {
+        path: diagnosticPath,
+        contentType: "application/json",
+      });
+    }
     expect(unexpectedBlockedRequests).toEqual([]);
   });
 
