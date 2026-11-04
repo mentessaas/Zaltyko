@@ -174,7 +174,37 @@ describe("existing Checkout recovery is read-only and scope-bound", () => {
       .mockResolvedValueOnce({ organizationId, countryCode: "ES" })
       .mockResolvedValueOnce({ organizationId, countryCode: "ES" })
       .mockResolvedValueOnce({ organizationId, countryCode: "MX" });
-    unchangedTarget();
+    const liveOperation = {
+      ...operation(),
+      environment: "live",
+      providerAccountReference: "acct_synthetic_live",
+      checkoutSessionReference: "cs_live_saved",
+    };
+    const testSession = session();
+    const liveSession = {
+      ...testSession,
+      id: "cs_live_saved",
+      livemode: true,
+      metadata: {
+        ...testSession.metadata,
+        provider_account_reference: "acct_synthetic_live",
+        environment: "live",
+      },
+      line_items: {
+        data: [{
+          ...testSession.line_items.data[0]!,
+          price: {
+            ...testSession.line_items.data[0]!.price,
+            id: "price_synthetic_live",
+            livemode: true,
+          },
+        }],
+      },
+    };
+    mocks.priceForPlan.mockReturnValue("price_synthetic_live");
+    mocks.retrieve.mockResolvedValue(liveSession);
+    queueTarget(liveOperation);
+    queueTarget(liveOperation);
 
     await expect(recoverOwnerSaasCheckout(input)).rejects.toMatchObject({
       status: 403,

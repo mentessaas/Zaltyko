@@ -27,3 +27,11 @@ Integrar un primer candidato administrativo ES/MX y catálogo de propuestas; reg
 ## Pendiente de apertura
 
 Aceptación alojada del candidato final, correo automático real y procedimientos completos de datos. No se heredan PASS ni se cuentan jobs omitidos. Cualquier SQL o ajuste alojado exige alcance/autorización específicos. Live cerrado hasta alta/datos fiscales, asesor, contratos y configuración propia. Elvis atiende soporte con ayuda de IA; sigue pendiente un suplente humano.
+
+## Corrección de la validación comercial internacional
+
+El candidato a6879f33 falló una prueba unitaria: combinaba configuración Live con operación, sesión y precio sintéticos Test. La validación rechazaba esa mezcla antes de comprobar el cambio de mercado ES→MX. La corrección se limita a los datos de esa prueba: mantiene el 403 por mercado no habilitado, la recuperación única y la ausencia de escrituras. El validador y los controles comerciales del producto no se relajan.
+
+Backend prepara la corrección, QA revisa independientemente y coordinación integra y ejecuta CI remota del nuevo SHA. Ningún resultado de a6879f33 o del padre verde se atribuye al nuevo commit. No se han ejecutado pruebas en el Mac ni aplicado SQL o cambios alojados. Owner concreta por separado el siguiente incremento de derechos de datos; la descarga actual sigue siendo parcial.
+
+El siguiente paso humano será revisar el commit exacto cuando pasen los controles. La revisión de los dos perfiles MX y la decisión de conservación del registro de interés son independientes: se puede mantener el catálogo sin medición mientras se termina esa decisión. No se habilita Live ni se solicita aplicar SQL a partir de esta nota.
