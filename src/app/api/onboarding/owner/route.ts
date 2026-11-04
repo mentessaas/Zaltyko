@@ -48,6 +48,7 @@ import { enqueueOnboardingOwnerD0 } from "@/lib/onboarding-owner-integration";
 import { logger } from "@/lib/logger";
 import { recordOwnerSignupConsent } from "@/lib/consent/owner-consent-store";
 import { getUserSubscription } from "@/lib/limits";
+import { getAdministrativeMarketCapability } from "@/modules/organizations/domain/administrative-market-capabilities";
 
 const bodySchema = z.object({
   directoryEntryId:z.guid().optional(),
@@ -130,19 +131,30 @@ export async function POST(request: Request) {
     );
   }
 
+  const administrativeCountryCode = normalizeCountryCode(
+    parsed.data.countryCode
+  );
+  const administrativeMarket = administrativeCountryCode
+    ? getAdministrativeMarketCapability(administrativeCountryCode)
+    : null;
+  if (!administrativeCountryCode || !administrativeMarket?.selfServe) {
+    return apiError(
+      "INVALID_RELATION",
+      "Aún no está disponible el alta autoservicio para este país.",
+      422
+    );
+  }
 
   const duplicateIdentity = {
     name: parsed.data.academyName,
-    countryCode:
-      normalizeCountryCode(parsed.data.countryCode) ?? parsed.data.countryCode,
+    countryCode: administrativeCountryCode,
     region: parsed.data.region,
     city: parsed.data.city,
   };
   const directoryId=parsed.data.directoryEntryId;
   const requestedDirectoryIdentity: DirectoryAcademyIdentity = {
     name: parsed.data.academyName,
-    countryCode:
-      normalizeCountryCode(parsed.data.countryCode) ?? parsed.data.countryCode,
+    countryCode: administrativeCountryCode,
     region: parsed.data.region,
     city: parsed.data.city,
   };
