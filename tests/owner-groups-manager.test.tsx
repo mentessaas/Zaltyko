@@ -385,6 +385,47 @@ describe("gestión de grupos owner", () => {
     expect(mockPush).toHaveBeenCalledWith(
       `/owner/groups?organizationId=${organizationId}&locationId=${locationId}&groupId=${groupId}`
     );
+    expect(mockPush).toHaveBeenCalledOnce();
+    expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  it("refresca sin navegar cuando el recibo de replay confirma el grupo ya seleccionado", async () => {
+    const idempotencyKey = "selected-group-replay-key";
+    const body = JSON.stringify({
+      organizationId,
+      locationId,
+      programId,
+      name: "Iniciación",
+      capacity: 12,
+    });
+    window.sessionStorage.setItem(
+      `zaltyko:pending-group-create:v2:${organizationId}`,
+      JSON.stringify({ version: 1, organizationId, idempotencyKey, body })
+    );
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => groupReceipt,
+    });
+
+    const user = userEvent.setup();
+    render(<OwnerGroupsManager bundle={groupBundle} />);
+    expect(
+      await screen.findByRole("heading", {
+        name: "Creación de grupo pendiente de confirmar",
+      })
+    ).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Reintentar creación pendiente" })
+    );
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalledTimes(1));
+
+    const request = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    expect(request.headers).toMatchObject({ "idempotency-key": idempotencyKey });
+    expect(request.body).toBe(body);
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockRefresh).toHaveBeenCalledOnce();
   });
 
   it("restaura y reintenta el snapshot exacto tras volver a abrir la página", async () => {

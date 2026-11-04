@@ -862,8 +862,11 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
       confirmed = true;
       clearPendingGroupCreate();
       if (scopeVersionRef.current === scopeVersion) {
-        router.push(groupHref(outcome.id, outcome.locationId));
-        router.refresh();
+        if (outcome.id === bundle.selectedGroupId) {
+          router.refresh();
+        } else {
+          router.push(groupHref(outcome.id, outcome.locationId));
+        }
       }
     } catch {
       setError(confirmed
