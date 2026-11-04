@@ -408,20 +408,24 @@ describe("ámbito del panel de resolución de facturas", () => {
     expect(screen.getByLabelText("Importe mensual (MXN)")).toBeDisabled();
     expect(screen.getByRole("checkbox", { name: "Artística iniciación" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Volver al selector de tarifas" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Guardar tarifa" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Guardar tarifa" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
     expect(onCancel).not.toHaveBeenCalled();
+    expect(postAttempt).toBe(1);
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
     firstView.unmount();
 
     render(<OwnerMonthlyInvoiceResolutionPanel {...props} />);
     await screen.findByLabelText("Nombre de la tarifa");
     expect(returnedCreatedPlanInCatalog).toBe(true);
+    expect(postAttempt).toBe(1);
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
     const retry = await screen.findByRole("button", { name: "Reintentar la misma operación" });
     expect(screen.getByLabelText("Nombre de la tarifa")).toBeDisabled();
     expect(screen.getByLabelText("Importe mensual (MXN)")).toBeDisabled();
     expect(screen.getByRole("checkbox", { name: "Artística iniciación" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Volver al selector de tarifas" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Guardar tarifa" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Guardar tarifa" })).not.toBeInTheDocument();
 
     fireEvent.click(retry);
     await waitFor(() => expect(postAttempt).toBe(2));
@@ -430,6 +434,8 @@ describe("ámbito del panel de resolución de facturas", () => {
     );
     expect(postBodies[1]).toBe(postBodies[0]);
     expect(postKeys[1]).toBe(postKeys[0]);
+    expect(postBodies).toHaveLength(2);
+    expect(postKeys).toHaveLength(2);
     expect(screen.getByLabelText("Tarifa mensual")).toHaveValue(pricePlanIdB);
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
     expect(onSaved).not.toHaveBeenCalled();
