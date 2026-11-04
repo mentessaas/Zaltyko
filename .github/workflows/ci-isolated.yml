@@ -215,6 +215,9 @@ jobs:
 
       - name: Build candidate with placeholders only
         run: pnpm build
+        env:
+          # Match the required CI build budget without changing installs or checks.
+          NODE_OPTIONS: --max-old-space-size=4096
 
   lockfile-refresh:
     name: Propose targeted dependency lockfile refresh

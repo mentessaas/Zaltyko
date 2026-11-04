@@ -39,3 +39,7 @@ El siguiente paso humano será revisar el commit exacto cuando pasen los control
 ## 2026-11-04 — Bloqueo Firefox y diagnóstico acotado
 
 `dba6c7fb`: WebKit/Chromium y CI aislada PASS, Firefox FAILURE al reabrir asociación familiar tras PATCH del tutor y recarga. No está listo para aprobar. Seguimiento dba eliminado tras aviso; no se reinician/cancelan runs. Coordinación prepara metadatos DOM/request sanitizados en la prueba y artifact acotado, sin modificar producto ni aserciones/esperas/retries. Revisión Owner no atribuye causa a hidratación ni refresh. Fuente `docs/qa/firefox-family-reopen-diagnostic-2026-11-04.md`. Backend/QA preparan verificador puro de devolución parcial en archivos separados, fuera del candidato diagnóstico. Sin SQL alojado, Live, producción, ensayo ni builds/tests locales.
+
+## 2026-11-04 — Presupuesto de memoria del build CI
+
+Usuario autoriza corregir OOM y ejecutar CI remota completa. En ad0817c7, Build126571639549 falla compilandoNext al alcanzar old-spaceV8~1960MiB/exit134. Coordinación asigna4096MiB exclusivamente a dos pasos build de GitHub; no altera producto/proveedores/Vercel/runtime ni controles/timeout/runner. Owner revisión estática independiente y QA sigue Firefox/WebKit. Nada local pesado; fuente `docs/qa/ci-build-memory-budget-2026-11-04.md`. Validación del nuevo SHA pendiente antes de aprobación; preservar dirty originales y verificador no integrado.
