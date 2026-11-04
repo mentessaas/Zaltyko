@@ -2637,6 +2637,207 @@ test.describe("Isolated local Supabase Owner setup", () => {
     expect(exportText).not.toContain(password!);
     expect(await exportDownload.failure()).toBeNull();
   });
+
+  test("acepta una solicitud sintética de acceso asistido sin crear academia ni prometer apertura", async ({
+    page,
+  }) => {
+    const organizationCountBefore = await pool.query<{ count: number }>(
+      "select count(*)::int as count from zaltyko.organizations"
+    );
+    const contactPosts: Array<{ method: string; body: string }> = [];
+    await page.route("**/api/contact", async (route) => {
+      const request = route.request();
+      const body = request.postData() ?? "";
+      contactPosts.push({ method: request.method(), body });
+
+      if (contactPosts.length === 1) {
+        // Simula la pérdida de la respuesta; el reintento lo inicia la persona.
+        await route.abort();
+        return;
+      }
+
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, data: {} }),
+      });
+    });
+
+    await page.goto("/contact?type=market_access", {
+      waitUntil: "domcontentloaded",
+    });
+    const form = page.getByRole("form", { name: "Formulario de contacto" });
+    await expect(form).toBeVisible();
+    await expect(form.getByLabel("Nombre completo")).toBeVisible();
+    await expect(form.getByLabel("Email")).toBeVisible();
+    await expect(form.getByLabel("País del club")).toBeVisible();
+    await expect(form.getByLabel("Tu función en el club")).toBeVisible();
+
+    const marketAccessGroup = form.getByRole("group", {
+      name: "Acceso asistido para tu club",
+    });
+    await expect(marketAccessGroup).toBeVisible();
+    const disciplines = form.getByRole("group", {
+      name: "Disciplinas o actividades del club",
+    });
+    for (const label of [
+      "Artística femenina",
+      "Artística masculina",
+      "Rítmica",
+      "Otra actividad del club",
+    ]) {
+      await expect(disciplines.getByRole("checkbox", { name: label })).toBeVisible();
+    }
+    await expect(
+      form.getByText(/esta solicitud no crea una academia ni contrata un plan/i)
+    ).toBeVisible();
+    await expect(
+      form.getByText(/no hay una fecha de apertura comprometida/i)
+    ).toBeVisible();
+    await expect(form.getByText(/no te suscribes a campañas/i)).toBeVisible();
+    // El evento de analítica local no es una solicitud de contacto.
+    expect(contactPosts).toHaveLength(0);
+
+    for (const width of [375, 768, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      const geometry = await form.evaluate((element) => {
+        const formElement = element as HTMLElement;
+        const formBounds = formElement.getBoundingClientRect();
+        const controls = Array.from(
+          formElement.querySelectorAll<HTMLElement>(
+            'input:not([type="hidden"]), select, textarea, button'
+          )
+        )
+          .filter((control) => control.getClientRects().length > 0)
+          .map((control) => {
+            const bounds = control.getBoundingClientRect();
+            return {
+              name:
+                control.getAttribute("aria-label") ||
+                control.getAttribute("name") ||
+                control.id ||
+                control.tagName.toLowerCase(),
+              left: bounds.left,
+              right: bounds.right,
+              top: bounds.top,
+              bottom: bounds.bottom,
+            };
+          });
+        const overlaps: string[] = [];
+        for (let index = 0; index < controls.length; index += 1) {
+          for (const other of controls.slice(index + 1)) {
+            const control = controls[index]!;
+            if (
+              control.left < other.right &&
+              other.left < control.right &&
+              control.top < other.bottom &&
+              other.top < control.bottom
+            ) {
+              overlaps.push(`${control.name}/${other.name}`);
+            }
+          }
+        }
+        return {
+          viewport: window.innerWidth,
+          documentScrollWidth: document.documentElement.scrollWidth,
+          formLeft: formBounds.left,
+          formRight: formBounds.right,
+          formClientWidth: formElement.clientWidth,
+          formScrollWidth: formElement.scrollWidth,
+          controls,
+          overlaps,
+        };
+      });
+
+      expect(geometry.viewport).toBe(width);
+      expect(geometry.documentScrollWidth).toBeLessThanOrEqual(width);
+      expect(geometry.formLeft).toBeGreaterThanOrEqual(0);
+      expect(geometry.formRight).toBeLessThanOrEqual(width);
+      expect(geometry.formScrollWidth).toBeLessThanOrEqual(
+        geometry.formClientWidth
+      );
+      expect(geometry.overlaps).toEqual([]);
+      for (const control of geometry.controls) {
+        expect(control.left, control.name).toBeGreaterThanOrEqual(geometry.formLeft);
+        expect(control.right, control.name).toBeLessThanOrEqual(geometry.formRight);
+      }
+    }
+
+    await form.getByLabel("Nombre completo").fill("Responsable adulto E2E");
+    await form.getByLabel("Email").fill("responsable-market-access@example.test");
+    await form.getByLabel("País del club").fill("Argentina");
+    await form.getByLabel("Tu función en el club").selectOption("owner");
+    await disciplines.getByRole("checkbox", { name: "Rítmica" }).check();
+    await form
+      .getByLabel("Mensaje")
+      .fill("Solicitamos evaluar la gestión de clases y asistencia del club.");
+
+    const submitButton = form.getByRole("button", { name: "Enviar mensaje" });
+    await expect(submitButton).toBeEnabled();
+    await submitButton.click();
+    await expect(form.getByRole("alert")).toBeVisible();
+    await expect(submitButton).toBeEnabled();
+    expect(contactPosts).toHaveLength(1);
+    expect(contactPosts[0]!.method).toBe("POST");
+    const originalBody = contactPosts[0]!.body;
+    const originalPayload = JSON.parse(originalBody) as Record<string, unknown>;
+    expect(Object.keys(originalPayload).sort()).toEqual(
+      [
+        "academy",
+        "email",
+        "honeypot",
+        "marketAccess",
+        "message",
+        "name",
+        "plan",
+        "reason",
+        "source",
+        "submissionId",
+        "visitorId",
+      ].sort()
+    );
+    expect(originalPayload.name).toBe("Responsable adulto E2E");
+    expect(originalPayload.email).toBe("responsable-market-access@example.test");
+    expect(originalPayload.academy).toBeNull();
+    expect(originalPayload.reason).toBe("market_access");
+    expect(originalPayload.plan).toBeNull();
+    expect(originalPayload.source).toBe("public_contact");
+    expect(originalPayload.message).toBe(
+      "Solicitamos evaluar la gestión de clases y asistencia del club."
+    );
+    expect(originalPayload.honeypot).toBe("");
+    expect(originalPayload.visitorId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    );
+    expect(originalPayload.submissionId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    );
+    expect(originalPayload.marketAccess).toEqual({
+      countryName: "Argentina",
+      role: "owner",
+      disciplines: ["rhythmic"],
+    });
+
+    await submitButton.click();
+    await expect(form.getByRole("status")).toHaveText(
+      "Solicitud guardada. Revisaremos la disponibilidad para tu país y te responderemos por correo."
+    );
+    expect(contactPosts).toHaveLength(2);
+    expect(contactPosts[1]!.method).toBe("POST");
+    expect(contactPosts[1]!.body).toBe(originalBody);
+    expect(
+      (JSON.parse(contactPosts[1]!.body) as Record<string, unknown>).submissionId
+    ).toBe(originalPayload.submissionId);
+    await expect(form.getByRole("status")).not.toContainText(
+      /campañas|fecha de apertura|academia creada|plan contratado/i
+    );
+    const organizationCountAfter = await pool.query<{ count: number }>(
+      "select count(*)::int as count from zaltyko.organizations"
+    );
+    expect(organizationCountAfter.rows[0]?.count).toBe(
+      organizationCountBefore.rows[0]?.count
+    );
+  });
 });
 
 function nextMonth(): string {

@@ -26,3 +26,11 @@ El texto libre permite introducir datos a pesar de la advertencia. No hay filtro
 - PostgreSQL efímero: ocho comandos equivalentes concurrentes, UUID con mayúsculas, cuerpos en conflicto y rollback por fallo de segunda escritura. Tablas mínimas en un esquema exclusivo del contenedor GitHub, nunca sobre Supabase alojado. Los efectos de email y analítica permanecen simulados.
 
 No se ejecutaron suites, builds, tipos ni instalaciones en el Mac. Los resultados deben atribuirse al SHA de CI posterior; esta especificación por sí sola no acredita ejecución ni aceptación alojada. La preview publicada permanece en64dc9381 mientras se integra y revisa el candidato nuevo. Producción, Live y ensayo quedan intactos.
+
+## Primer corte ejecutado — c343a6e9
+
+CI principal41934222981: contrato10, ruta7, formulario4 y guardlegacy8 casos SUCCESS. Verificador de exportaciones67SUCCESS. La suite completa terminó5523PASS/3FAIL/3skip por mocksDATE/pinreplay pendientes de ajustar; no es un gate verde de entrega. Chromium, Firefox y WebKit completaronSUCCESS; no explican por sí solos el falloFirefoxhistórico.
+
+PostgreSQL efímero, aislada41934264180 job126938659145 SUCCESS: ejecutó los grupos de integración versionados, incluido contacto concurrente/replay/conflicto/rollback y GETexport→verificador. La salida de éxito mantiene los detalles de filas/datos sin publicar y no aporta una cifra de casos por grupo. La CI aislada global quedóFAILURE por los mismos fallos unitarios; su build fueOMITIDO. No se presenta como aceptación HTTP alojada.
+
+La nueva aceptación Playwright del formulario está preparada a375/768/1280, con mockHTTP de contacto, respuesta abortada y retrymanual de cuerpo/UUIDidénticos. Compara además el conteo real de academias del Postgres local antes/después. Es una simulación de UI más un control de efectos en ese contenedor, no recepción de correo ni validación de un navegador contra Supabase alojado. Owner congeló la prueba y QA cerró su revisión estática sin P1/P2, incluido el contrato completo de campos y ausencia de extras. La ejecución del nuevo SHA sigue pendiente. No se cambia el producto para acomodar la prueba.
