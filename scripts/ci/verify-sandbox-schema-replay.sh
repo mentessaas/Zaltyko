@@ -57,15 +57,19 @@ readonly GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-guard.log"
 readonly UNMARKED_GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-unmarked-guard.log"
 readonly INTEGRATION_LOG="$RUNNER_TEMP/$PROJECT_ID-postgres-integration.log"
 local_stack_started=false
+workdir_owned=false
+home_owned=false
 
 cleanup() {
   if [[ "$local_stack_started" == "true" ]]; then
     "$CLI" --workdir "$CI_WORKDIR" stack stop --stack "$PROJECT_ID" >/dev/null 2>&1 || true
   fi
-  rm -rf -- "$CI_WORKDIR" "$CLI_HOME" \
-    "$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION" \
-    "$RUNNER_TEMP/supabase_${SUPABASE_CLI_VERSION}_linux_amd64.tar.gz" \
-    "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" "$ROLE_GUARD_FILE" \
+  # The CLI/archive belong to the workflow installer, not to this script.
+  # In particular, refusing a pre-existing workdir must never remove it.
+  [[ "$workdir_owned" == "true" ]] || return 0
+  rm -rf -- "$CI_WORKDIR"
+  if [[ "$home_owned" == "true" ]]; then rm -rf -- "$CLI_HOME"; fi
+  rm -f -- "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" "$ROLE_GUARD_FILE" \
     "$RLS_HARDENING_MIGRATION_FILE" \
     "$BOOTSTRAP_SEED_MIGRATION_FILE" \
     "$AUTH_JWT_ERROR_LOG" "$AUTH_JWT_MIGRATION_FILE" \
@@ -191,7 +195,12 @@ PY
 }
 
 [[ -x "$CLI" ]] || fail "The checksum-verified pinned Supabase CLI was not installed in RUNNER_TEMP."
-[[ ! -e "$CI_WORKDIR" ]] || fail "Refusing to reuse an existing local Supabase workdir."
+[[ ! -e "$CI_WORKDIR" && ! -L "$CI_WORKDIR" ]] || fail "Refusing to reuse an existing local Supabase workdir."
+[[ ! -e "$CLI_HOME" && ! -L "$CLI_HOME" ]] || fail "Refusing to reuse an existing local Supabase home."
+mkdir "$CI_WORKDIR"
+workdir_owned=true
+mkdir "$CLI_HOME"
+home_owned=true
 mkdir -p "$CI_WORKDIR/supabase/migrations"
 
 python3 - "$ROOT/supabase/config.toml" "$CI_WORKDIR/supabase/config.toml" "$PROJECT_ID" <<'PY'
@@ -595,7 +604,10 @@ run_disposable_postgres_suites() {
     pnpm exec vitest run --project web tests/international-bootstrap-pg.test.ts \
     || return "$?"
   ZALTYKO_PG_INTEGRATION=1 ZALTYKO_PG_INTEGRATION_DATABASE_URL="$LOCAL_DB_URL" NODE_ENV=test \
-    pnpm exec vitest run --project web tests/product-discovery-pg.test.ts
+    pnpm exec vitest run --project web tests/product-discovery-pg.test.ts \
+    || return "$?"
+  ZALTYKO_PG_INTEGRATION=1 ZALTYKO_PG_INTEGRATION_DATABASE_URL="$LOCAL_DB_URL" NODE_ENV=test \
+    pnpm exec vitest run --project web tests/market-access-contact-postgres.integration.test.ts
 }
 if ! run_disposable_postgres_suites >"$INTEGRATION_LOG" 2>&1; then
   printf 'Sanitized PostgreSQL integration failure follows; connection strings and long credentials are redacted.\n' >&2

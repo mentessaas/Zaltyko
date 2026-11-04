@@ -74,6 +74,13 @@ async function completeRequiredFields(
 }
 
 describe("alta owner greenfield", () => {
+  it("ofrece acceso asistido a otro país sin enviar un alta ni elegir un país ficticio", () => {
+    renderFreshSignupForm();
+    expect(screen.getByRole("link", { name: /Tu país no aparece/ })).toHaveAttribute("href", "/contact?type=market_access");
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
   it("reintenta el mismo payload y mantiene bloqueados los campos tras resultado incierto", async () => {
     const user = userEvent.setup();
     mockFetch

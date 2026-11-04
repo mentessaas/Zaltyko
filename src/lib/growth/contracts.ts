@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MarketAccessRequestSchema } from "./market-access";
 
 export const PUBLIC_GROWTH_EVENT_NAMES = [
   "directory_viewed",
@@ -105,6 +106,7 @@ export const ContactRequestSchema = z
         "support",
         "billing",
         "partnership",
+        "market_access",
         "other",
       ])
       .default("demo"),
@@ -121,8 +123,17 @@ export const ContactRequestSchema = z
     honeypot: z.string().max(100).nullable().optional(),
     directoryEntryId: z.guid().optional(),
     submissionId: z.guid(),
+    marketAccess: MarketAccessRequestSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (value.reason === "market_access" && !value.marketAccess) {
+      context.addIssue({ code: "custom", path: ["marketAccess"], message: "Indica el país, tu función y las disciplinas del club" });
+    }
+    if (value.reason !== "market_access" && value.marketAccess) {
+      context.addIssue({ code: "custom", path: ["marketAccess"], message: "Los datos de acceso asistido requieren ese motivo de contacto" });
+    }
+  });
 
 const nullableShortText = z.string().trim().max(180).nullable().optional();
 const nullableLongText = z.string().trim().max(2_000).nullable().optional();

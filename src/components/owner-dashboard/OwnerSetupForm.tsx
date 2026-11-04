@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Building2, MapPin, ShieldCheck } from "lucide-react";
 import { parseOwnerSetupReceipt } from "@/components/owner-dashboard/owner-setup-response";
@@ -602,6 +603,7 @@ export function OwnerSetupForm({
           </fieldset>
         </details>
         <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid content-start gap-2">
           <label className="grid gap-2 text-sm font-bold text-slate-800">
             País de la academia
             <select
@@ -626,6 +628,10 @@ export function OwnerSetupForm({
               ))}
             </select>
           </label>
+            <Link href="/contact?type=market_access" className="inline-flex min-h-11 items-center text-sm font-medium text-teal-800 underline underline-offset-4">
+              ¿Tu país no aparece? Solicita acceso asistido
+            </Link>
+          </div>
           <label className="grid gap-2 text-sm font-bold text-slate-800">
             Nombre de la primera sede
             <span className="relative">
