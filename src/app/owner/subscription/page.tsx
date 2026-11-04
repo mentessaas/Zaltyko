@@ -5,6 +5,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { OwnerSaasBillingManager } from "@/components/owner-dashboard/OwnerSaasBillingManager";
+import { OwnerAcademyDataExport } from "@/components/owner-dashboard/OwnerAcademyDataExport";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { db } from "@/db";
 import { organizationMembers, organizations } from "@/db/zaltyko-schema";
@@ -86,6 +87,12 @@ export default async function OwnerSaasBillingPage({
         organizationId={organization.organizationId}
         organizationName={organization.organizationName}
       />
+      {organization.role === "owner" &&
+      organization.locationScopeMode === "all" ? (
+        <div className="mx-auto max-w-5xl px-5">
+          <OwnerAcademyDataExport organizationId={organization.organizationId} />
+        </div>
+      ) : null}
     </OwnerWorkspacePageShell>
   );
 }

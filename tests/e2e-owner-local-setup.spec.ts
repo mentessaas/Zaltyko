@@ -2467,6 +2467,62 @@ test.describe("Isolated local Supabase Owner setup", () => {
       [result.organizationId, intakeAthleteId]
     );
     expect(completedFamilyRows.rows).toEqual([{ family_id: intakeFamilyId, member_count: 1, payer_count: 1, guardian_count: 1 }]);
+
+    // The export is a read of this disposable academy, independent of Stripe
+    // readiness. It must remain usable with the same Owner session on mobile.
+    await page.goto(`/owner/subscription?organizationId=${result.organizationId}`);
+    const exportHeading = page.getByRole("heading", { name: "Datos de tu academia", exact: true });
+    const exportButton = page.getByRole("button", { name: "Descargar datos operativos", exact: true });
+    for (const viewport of [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1280, height: 900 }]) {
+      await page.setViewportSize(viewport);
+      await expect(exportHeading).toBeVisible();
+      await exportButton.scrollIntoViewIfNeeded();
+      await expect(exportButton).toBeVisible();
+      await expect(exportButton).toBeEnabled();
+      const bounds = await exportButton.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.height).toBeGreaterThanOrEqual(44);
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+    }
+    const exportResponsePromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/v1/owner/data-export" &&
+        url.searchParams.get("organizationId") === result.organizationId &&
+        response.request().method() === "GET";
+    });
+    const downloadPromise = page.waitForEvent("download");
+    await exportButton.click();
+    const exportResponse = await exportResponsePromise;
+    expect(exportResponse.status()).toBe(200);
+    expect(exportResponse.headers()["cache-control"]).toContain("no-store");
+    const exportDownload = await downloadPromise;
+    expect(exportDownload.suggestedFilename()).toMatch(/\.json$/);
+    const exportStream = await exportDownload.createReadStream();
+    expect(exportStream).not.toBeNull();
+    const exportChunks: Buffer[] = [];
+    for await (const chunk of exportStream!) exportChunks.push(Buffer.from(chunk));
+    const exportText = Buffer.concat(exportChunks).toString("utf8");
+    expect(() => JSON.parse(exportText)).not.toThrow();
+    const downloadedData: unknown = JSON.parse(exportText);
+    const credentialKeys = new Set(["accesstoken", "refreshtoken", "encryptedpassword", "password", "secretkey", "servicerolekey"]);
+    const assertNoCredentialFields = (value: unknown): void => {
+      if (!value || typeof value !== "object") return;
+      if (Array.isArray(value)) {
+        value.forEach(assertNoCredentialFields);
+        return;
+      }
+      for (const [key, child] of Object.entries(value)) {
+        expect(credentialKeys.has(key.replace(/[^a-z0-9]/gi, "").toLowerCase())).toBe(false);
+        assertNoCredentialFields(child);
+      }
+    };
+    assertNoCredentialFields(downloadedData);
+    expect(exportText).toContain(result.organizationId);
+    expect(exportText).toContain(intakeGivenName);
+    expect(exportText).not.toContain(password!);
+    expect(await exportDownload.failure()).toBeNull();
   });
 });
 

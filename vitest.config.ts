@@ -60,6 +60,7 @@ export default defineConfig({
                   "tests/owner-athlete-archive-pg.test.ts",
                   "tests/owner-athlete-intake-pg.test.ts",
                   "tests/owner-regularization-dates-pg.test.ts",
+                  "tests/canonical-academy-data-export-pg.test.ts",
                 ]),
             ...(!runSandboxReadonlyPostgresSuites
               ? [

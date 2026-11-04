@@ -119,8 +119,8 @@ export default function ParentOnboardingPage() {
                 </div>
                 <h1 className="text-2xl font-bold text-foreground">Bienvenido/a</h1>
                 <p className="text-muted-foreground">
-                  Con tu cuenta de padre/madre podrás seguir el progreso de tus hijos en tiempo real:
-                  evaluaciones, asistencia, eventos y mucho más.
+                  Para consultar información de una academia, tu cuenta debe estar asociada y
+                  contar con los permisos correspondientes.
                 </p>
               </div>
 
@@ -128,22 +128,22 @@ export default function ParentOnboardingPage() {
                 <div className="flex items-start gap-3 rounded-card bg-card p-3">
                   <Calendar className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
-                    <p className="font-medium text-sm">Horarios de entreno</p>
-                    <p className="text-xs text-muted-foreground">Consulta el calendario de clases</p>
+                    <p className="font-medium text-sm">Vínculo con la academia</p>
+                    <p className="text-xs text-muted-foreground">Necesitas una cuenta asociada a la academia.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 rounded-card bg-card p-3">
                   <Users className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
-                    <p className="font-medium text-sm">Evaluaciones técnicas</p>
-                    <p className="text-xs text-muted-foreground">Recibe actualizaciones del progreso</p>
+                    <p className="font-medium text-sm">Datos disponibles</p>
+                    <p className="text-xs text-muted-foreground">Solo podrás consultar información autorizada para tu cuenta.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 rounded-card bg-card p-3">
                   <Bell className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
-                    <p className="font-medium text-sm">Notificaciones</p>
-                    <p className="text-xs text-muted-foreground">Recibe alertas de ausencia o eventos</p>
+                    <p className="font-medium text-sm">Permisos de acceso</p>
+                    <p className="text-xs text-muted-foreground">La asociación no concede acceso a la gestión de la academia.</p>
                   </div>
                 </div>
               </div>
@@ -209,18 +209,18 @@ export default function ParentOnboardingPage() {
           <Card className="rounded-card border-zaltyko-mist shadow-soft">
             <CardContent className="p-8 space-y-4">
               <div className="text-center">
-                <h2 className="text-xl font-bold text-foreground">Notificaciones</h2>
+                <h2 className="text-xl font-bold text-foreground">Preferencias de tu cuenta</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  ¿Qué quieres recibir en tu email?
+                  Los datos disponibles dependen de los permisos asignados a tu cuenta.
                 </p>
               </div>
 
               <div className="space-y-3">
                 {[
-                  { key: "evaluations", label: "Evaluaciones técnicas", desc: "Nuevas evaluaciones de tus hijos" },
-                  { key: "attendance", label: "Asistencia", desc: "Ausencias y retrasos" },
-                  { key: "events", label: "Eventos", desc: "Competiciones y eventos próximos" },
-                  { key: "billing", label: "Cobros", desc: "Cuotas y pagos" },
+                  { key: "evaluations", label: "Evaluaciones", desc: "Esta preferencia no habilita el acceso a evaluaciones." },
+                  { key: "attendance", label: "Asistencia", desc: "Esta preferencia no habilita el acceso a la asistencia." },
+                  { key: "events", label: "Eventos", desc: "Esta preferencia no habilita el acceso a eventos." },
+                  { key: "billing", label: "Cuotas", desc: "Esta preferencia no habilita el acceso a cuotas." },
                 ].map((item) => (
                   <label key={item.key} className="flex items-center justify-between rounded-card border border-zaltyko-mist p-3 cursor-pointer hover:bg-muted">
                     <div>
