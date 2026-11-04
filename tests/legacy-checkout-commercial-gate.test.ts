@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   env: vi.fn(),
+  liveReady: vi.fn(),
   client: vi.fn(),
   select: vi.fn(),
   insert: vi.fn(),
@@ -9,6 +10,31 @@ const mocks = vi.hoisted(() => ({
   customer: vi.fn(),
   session: vi.fn(),
 }));
+vi.mock("@/lib/launch/commercial-launch-profile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/launch/commercial-launch-profile")>();
+  const readyProfile = {
+    ...actual.commercialLaunchProfile,
+    taxId: "synthetic-tax-id",
+    professionalAddress: "synthetic-address",
+    registrationStatus: "verified" as const,
+    supportMailboxVerified: true,
+    taxTreatmentReviewed: true,
+    checkoutTaxVerified: true,
+    legalTextsApproved: true,
+    liveReleaseApproved: true,
+  };
+  return {
+    ...actual,
+    isSaasCheckoutEnabled: (environment: "test" | "live") =>
+      mocks.liveReady() || actual.isSaasCheckoutEnabled(environment),
+    isSaasCheckoutEnabledForMarket: (environment: "test" | "live", countryCode: string) =>
+      actual.isSaasCheckoutEnabledForMarket(
+        environment,
+        countryCode,
+        mocks.liveReady() ? readyProfile : actual.commercialLaunchProfile
+      ),
+  };
+});
 vi.mock("@/lib/authz", () => ({
   withTenant: (handler: (request: Request, context: unknown) => unknown) =>
     (request: Request) => handler(request, {
@@ -36,16 +62,17 @@ import { POST } from "@/app/api/billing/checkout/route";
 
 beforeEach(() => {
   Object.values(mocks).forEach((mock) => mock.mockReset());
+  mocks.liveReady.mockReturnValue(false);
   mocks.client.mockReturnValue({
     customers: { create: mocks.customer },
     checkout: { sessions: { create: mocks.session } },
   });
 });
 
-function request() {
+function request(body: Record<string, unknown> = {}) {
   return new Request("https://example.invalid/api/billing/checkout", {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify(body),
   });
 }
 
@@ -82,4 +109,31 @@ describe("legacy Checkout respects the real commercial launch gate", () => {
       expectNoSideEffects();
     }
   );
+  it.each(["MX", "FR", null])(
+    "rejects market %s after ownership validation without financial effects when seller readiness opens",
+    async (countryCode) => {
+      mocks.liveReady.mockReturnValue(true);
+      mocks.env.mockReturnValue("sk_live_synthetic");
+      mocks.access.mockResolvedValue({
+        id: "10000000-0000-4000-8000-000000000001",
+        ownerUserId: "synthetic-owner",
+        countryCode,
+      });
+      const response = await POST(request({
+        academyId: "10000000-0000-4000-8000-000000000001",
+        planCode: "pro",
+      }));
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({
+        ok: false,
+        code: "SAAS_MARKET_NOT_ENABLED",
+      });
+      expect(mocks.access).toHaveBeenCalledOnce();
+      expect(mocks.select).not.toHaveBeenCalled();
+      expect(mocks.insert).not.toHaveBeenCalled();
+      expect(mocks.customer).not.toHaveBeenCalled();
+      expect(mocks.session).not.toHaveBeenCalled();
+    }
+  );
+
 });

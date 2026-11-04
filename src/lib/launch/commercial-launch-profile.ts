@@ -1,3 +1,5 @@
+import { isCommercialMarketLiveCheckoutEnabled } from "@/modules/organizations/domain/commercial-market-capabilities";
+
 /** Public seller information. Never put credentials or identity documents here. */
 export interface CommercialLaunchProfile {
   legalName: string;
@@ -49,4 +51,17 @@ export function getCommercialLaunchReadiness(
 /** Test mode remains available; this gate never disables Portal or signed webhooks. */
 export function isSaasCheckoutEnabled(environment: "test" | "live"): boolean {
   return environment === "test" || getCommercialLaunchReadiness().ready;
+}
+
+/** Test Checkout stays available; Live also requires an enabled buyer market. */
+export function isSaasCheckoutEnabledForMarket(
+  environment: "test" | "live",
+  countryCode: string,
+  profile: Readonly<CommercialLaunchProfile> = commercialLaunchProfile
+): boolean {
+  if (environment === "test") return true;
+  return (
+    isCommercialMarketLiveCheckoutEnabled(countryCode) &&
+    getCommercialLaunchReadiness(profile).ready
+  );
 }

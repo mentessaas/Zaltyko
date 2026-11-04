@@ -7,6 +7,7 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 export interface SaasOwnerScope {
   organizationId: string;
   organizationName: string;
+  countryCode: string;
   memberId: string;
   userId: string;
 }
@@ -20,6 +21,7 @@ export async function resolveSaasOwnerScope(input: {
   const client = input.tx ?? db;
   const result = await client.execute(sql`
     select o.id as organization_id, o.name as organization_name,
+           o.country_code as country_code,
            m.id as member_id, m.role
     from zaltyko.organization_members m
     inner join zaltyko.organizations o
@@ -33,6 +35,7 @@ export async function resolveSaasOwnerScope(input: {
     | {
         organization_id: string;
         organization_name: string;
+        country_code: string;
         member_id: string;
         role: string;
       }
@@ -58,6 +61,7 @@ export async function resolveSaasOwnerScope(input: {
   return {
     organizationId: membership.organization_id,
     organizationName: membership.organization_name,
+    countryCode: membership.country_code,
     memberId: membership.member_id,
     userId: input.userId,
   };

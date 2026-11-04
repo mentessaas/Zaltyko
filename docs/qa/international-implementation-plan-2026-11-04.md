@@ -35,6 +35,14 @@ Un responsable por archivo. Owner implementa interfaz; Backend contratos y persi
 
 Los cambios de esta primera entrega siguen pendientes de validación remota y aceptación alojada hasta que existan enlaces y evidencias del SHA exacto. Ningún PASS anterior se hereda como ejecución de código nuevo.
 
+## Matriz comercial independiente del país administrativo
+
+El registry administrativo no habilita cobros. El control comercial candidato permite considerar Live únicamente para ES y sigue exigiendo la preparación global del vendedor; MX y países desconocidos permanecen cerrados. Test sirve para validación y no acredita contratación comercial.
+
+El servicio canónico utiliza el país persistido en la academia para las acciones de Checkout, la creación y la recuperación de URL pagables. Revalida el país después del bloqueo de organización en nuevas reservas Live. Un mercado no habilitado responde 403 con código específico, antes de reservar o llamar al proveedor; la falta de preparación global conserva el 503 anterior. La ruta de Checkout legacy aplica también el registry tras validar propiedad, sin crear clientes o sesiones para mercados cerrados.
+
+Los trials administrativos, Portal, webhooks, precios, monedas de cuotas e idempotencia no se habilitan ni cambian por este control. El perfil global del vendedor continúa pendiente: no se han rellenado ni aprobado sus datos fiscales, términos o flags de Live. La configuración alojada y las carreras fuera del servicio canónico requieren su aceptación propia antes de apertura; ningún estado de test equivale a venta real.
+
 ## Contratos y comportamiento internacional
 
 - Administración: personas/familias/entrenadores, grupos/clases, inscripciones, asistencia, cuotas y pagos manuales.

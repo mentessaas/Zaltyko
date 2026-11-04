@@ -3,6 +3,7 @@ import {
   commercialLaunchProfile,
   getCommercialLaunchReadiness,
   isSaasCheckoutEnabled,
+  isSaasCheckoutEnabledForMarket,
   type CommercialLaunchProfile,
 } from "@/lib/launch/commercial-launch-profile";
 
@@ -47,5 +48,13 @@ describe("live contracting requires verified seller and tax readiness", () => {
     expect(result.ready).toBe(false);
     expect(result.missing).toEqual(expect.arrayContaining(["registration", "checkout_tax", "tax_treatment", "legal_texts", "live_release"]));
     expect(getCommercialLaunchReadiness(complete)).toEqual({ ready: true, missing: [] });
+  });
+
+  it("keeps Live checkout country-specific after global seller readiness opens", () => {
+    expect(isSaasCheckoutEnabledForMarket("live", "ES", complete)).toBe(true);
+    expect(isSaasCheckoutEnabledForMarket("live", "MX", complete)).toBe(false);
+    expect(isSaasCheckoutEnabledForMarket("live", "FR", complete)).toBe(false);
+    expect(isSaasCheckoutEnabledForMarket("live", "ZZ", complete)).toBe(false);
+    expect(isSaasCheckoutEnabledForMarket("test", "MX", commercialLaunchProfile)).toBe(true);
   });
 });

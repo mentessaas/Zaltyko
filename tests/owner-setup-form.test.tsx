@@ -299,6 +299,14 @@ describe("alta owner greenfield", () => {
       screen.getByText(/gestión administrativa en México está en validación/i)
     ).toBeInTheDocument();
     expect(
+      screen.getByText(/es independiente de la contratación SaaS/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /contratación comercial para México aún no está habilitada/i
+      )
+    ).toBeInTheDocument();
+    expect(
       screen.getByText(/No incluye funciones federativas mexicanas/)
     ).toBeInTheDocument();
     expect(

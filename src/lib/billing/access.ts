@@ -7,6 +7,7 @@ export interface BillingAcademyAccess {
   id: string;
   tenantId: string;
   name: string;
+  countryCode: string | null;
   ownerProfileId: string;
   ownerUserId: string;
   ownerName: string | null;
@@ -24,6 +25,7 @@ export async function getBillingAcademyAccess(params: {
       id: academies.id,
       tenantId: academies.tenantId,
       name: academies.name,
+      countryCode: academies.countryCode,
       ownerProfileId: academies.ownerId,
       ownerUserId: profiles.userId,
       ownerName: profiles.name,

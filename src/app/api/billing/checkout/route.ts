@@ -15,7 +15,7 @@ import { getBillingAcademyAccess } from "@/lib/billing/access";
 import { isSubscriptionManaged } from "@/lib/billing/subscription-status";
 import { toCommercialPlanSlug } from "@/lib/growth/contracts";
 import { recordGrowthEvent } from "@/lib/growth/events";
-import { isSaasCheckoutEnabled } from "@/lib/launch/commercial-launch-profile";
+import { isSaasCheckoutEnabled, isSaasCheckoutEnabledForMarket } from "@/lib/launch/commercial-launch-profile";
 
 const BodySchema = z.object({
   academyId: z.guid(),
@@ -95,6 +95,17 @@ const handler = withTenant(async (request, context) => {
       return apiError(
         "BILLING_FORBIDDEN",
         "Solo la persona propietaria puede gestionar la suscripción",
+        403
+      );
+    }
+
+    if (!isSaasCheckoutEnabledForMarket(
+      isTestCredential ? "test" : "live",
+      academy.countryCode ?? ""
+    )) {
+      return apiError(
+        "SAAS_MARKET_NOT_ENABLED",
+        "La contratación SaaS no está habilitada para el país de esta academia",
         403
       );
     }

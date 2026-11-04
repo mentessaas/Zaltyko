@@ -8,11 +8,20 @@ const mocks = vi.hoisted(() => ({
   transaction: vi.fn(), scope: vi.fn(), config: vi.fn(), retrieve: vi.fn(),
   createSession: vi.fn(), createCustomer: vi.fn(), insert: vi.fn(), update: vi.fn(),
   remove: vi.fn(), limit: vi.fn(), where: vi.fn(), priceForPlan: vi.fn(),
+  liveReady: false,
 }));
 vi.mock("@/db", () => ({ db: {
   transaction: mocks.transaction, insert: mocks.insert, update: mocks.update, delete: mocks.remove,
 } }));
 vi.mock("@/lib/env", () => ({ getAppUrl: () => "https://example.invalid", getDatabaseUrl: () => "" }));
+vi.mock("@/lib/launch/commercial-launch-profile", () => ({
+  isSaasCheckoutEnabled: (environment: "test" | "live") =>
+    environment === "test" || mocks.liveReady,
+  isSaasCheckoutEnabledForMarket: (
+    environment: "test" | "live",
+    countryCode: string
+  ) => environment === "test" || (mocks.liveReady && countryCode === "ES"),
+}));
 vi.mock("@/modules/saas-billing/application/owner-access", () => ({ resolveSaasOwnerScope: mocks.scope }));
 vi.mock("@/modules/saas-billing/application/entitlement-service", () => ({
   resolveEffectiveOrganizationEntitlement: vi.fn(), grantOrganizationEntitlement: vi.fn(),
@@ -75,11 +84,14 @@ function expectNoWrites() {
   expect(mocks.createCustomer).not.toHaveBeenCalled();
 }
 beforeEach(() => {
-  Object.values(mocks).forEach(mock => mock.mockReset());
+  Object.values(mocks).forEach(mock => {
+    if (typeof mock !== "boolean") mock.mockReset();
+  });
   vi.useFakeTimers(); vi.setSystemTime(now);
   mocks.transaction.mockImplementation(fn => fn(tx));
   mocks.where.mockImplementation(() => ({ limit: mocks.limit }));
-  mocks.scope.mockResolvedValue({ organizationId });
+  mocks.scope.mockResolvedValue({ organizationId, countryCode: "ES" });
+  mocks.liveReady = false;
   mocks.config.mockReturnValue({ environment: "test", providerAccountReference: "acct_synthetic" });
   mocks.priceForPlan.mockReturnValue("price_synthetic");
   mocks.retrieve.mockResolvedValue(session());
@@ -124,12 +136,54 @@ describe("existing Checkout recovery is read-only and scope-bound", () => {
     expect(mocks.transaction).not.toHaveBeenCalled(); expect(mocks.retrieve).not.toHaveBeenCalled();
   });
   it("does not recover a payable Live URL while commercial readiness is incomplete", async () => {
-    mocks.config.mockReturnValue({ environment: "live", providerAccountReference: "acct_synthetic_live" });
+    mocks.config.mockReturnValue({
+      environment: "live",
+      providerAccountReference: "acct_synthetic_live",
+    });
     await expect(recoverOwnerSaasCheckout(input)).rejects.toMatchObject({
       status: 503,
     });
     expect(mocks.transaction).not.toHaveBeenCalled();
     expect(mocks.retrieve).not.toHaveBeenCalled();
+  });
+  it("does not recover a payable Live URL for a market outside the Live registry", async () => {
+    mocks.liveReady = true;
+    mocks.config.mockReturnValue({
+      environment: "live",
+      providerAccountReference: "acct_synthetic_live",
+    });
+    mocks.scope.mockResolvedValue({ organizationId, countryCode: "MX" });
+
+    await expect(recoverOwnerSaasCheckout(input)).rejects.toMatchObject({
+      status: 403,
+      details: { code: "SAAS_MARKET_NOT_ENABLED" },
+    });
+
+    expect(mocks.scope).toHaveBeenCalledOnce();
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.retrieve).not.toHaveBeenCalled();
+    expectNoWrites();
+  });
+  it("rechecks the market after Stripe retrieval before returning a payable URL", async () => {
+    mocks.liveReady = true;
+    mocks.config.mockReturnValue({
+      environment: "live",
+      providerAccountReference: "acct_synthetic_live",
+    });
+    mocks.scope
+      .mockResolvedValueOnce({ organizationId, countryCode: "ES" })
+      .mockResolvedValueOnce({ organizationId, countryCode: "ES" })
+      .mockResolvedValueOnce({ organizationId, countryCode: "MX" });
+    unchangedTarget();
+
+    await expect(recoverOwnerSaasCheckout(input)).rejects.toMatchObject({
+      status: 403,
+      details: { code: "SAAS_MARKET_NOT_ENABLED" },
+    });
+
+    expect(mocks.scope).toHaveBeenCalledTimes(3);
+    expect(mocks.retrieve).toHaveBeenCalledOnce();
+    expectNoWrites();
   });
   it("does not create a replacement session when retrieve fails", async () => {
     queueTarget(); mocks.retrieve.mockRejectedValue(new Error("synthetic provider unavailable"));

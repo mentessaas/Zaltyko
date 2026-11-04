@@ -14,7 +14,10 @@ import {
 } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { getAppUrl, getDatabaseUrl } from "@/lib/env";
-import { isSaasCheckoutEnabled } from "@/lib/launch/commercial-launch-profile";
+import {
+  isSaasCheckoutEnabled,
+  isSaasCheckoutEnabledForMarket,
+} from "@/lib/launch/commercial-launch-profile";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import type { OwnerSaasBillingSnapshot } from "../domain/owner-saas-contract";
 import {
@@ -231,12 +234,18 @@ export async function getOwnerSaasBillingSnapshot(input: {
       actions: {
         canStartTrial: trialEligible && !quarantinedEvent,
         canCheckoutStarter:
-          Boolean(config && isSaasCheckoutEnabled(config.environment)) &&
+          Boolean(
+            config &&
+              isSaasCheckoutEnabledForMarket(config.environment, scope.countryCode)
+          ) &&
           !isPaid &&
           !hasOpenSubscription &&
           !pendingOperation && !quarantinedEvent,
         canCheckoutGrowth:
-          Boolean(config && isSaasCheckoutEnabled(config.environment)) &&
+          Boolean(
+            config &&
+              isSaasCheckoutEnabledForMarket(config.environment, scope.countryCode)
+          ) &&
           !isPaid &&
           !hasOpenSubscription &&
           !pendingOperation && !quarantinedEvent,
@@ -258,8 +267,18 @@ export async function recoverOwnerSaasCheckout(input: {
   if (!config) throw providerUnavailable();
   // A recovered payable URL must obey the same commercial gate as a new Checkout.
   if (!isSaasCheckoutEnabled(config.environment)) throw providerConfigUnavailable();
+  if (
+    !isSaasCheckoutEnabledForMarket(config.environment, scope.countryCode)
+  ) {
+    throw saasMarketNotEnabled();
+  }
   const readTarget = () => db.transaction(async (tx) => {
-    await resolveSaasOwnerScope({ ...input, tx });
+    const currentScope = await resolveSaasOwnerScope({ ...input, tx });
+    if (
+      !isSaasCheckoutEnabledForMarket(config.environment, currentScope.countryCode)
+    ) {
+      throw saasMarketNotEnabled();
+    }
     const [quarantined] = await tx.select({ id: organizationSaasWebhookEvents.id })
       .from(organizationSaasWebhookEvents).where(and(
         eq(organizationSaasWebhookEvents.organizationId, scope.organizationId),
@@ -513,12 +532,29 @@ export async function createOwnerSaasCheckout(input: {
   assertShortPaidQaEnvironment(checkoutIdentity);
 
   const reservation = await db.transaction(async (tx) => {
-    const scope = await resolveSaasOwnerScope({
+    let scope = await resolveSaasOwnerScope({
       userId: input.userId,
       organizationId: input.organizationId,
       tx,
     });
+    if (
+      !isSaasCheckoutEnabledForMarket(config.environment, scope.countryCode)
+    ) {
+      throw saasMarketNotEnabled();
+    }
     await lockOrganizationForSaasMutation(tx, scope.organizationId);
+    if (config.environment === "live") {
+      scope = await resolveSaasOwnerScope({
+        userId: input.userId,
+        organizationId: input.organizationId,
+        tx,
+      });
+      if (
+        !isSaasCheckoutEnabledForMarket(config.environment, scope.countryCode)
+      ) {
+        throw saasMarketNotEnabled();
+      }
+    }
     const now = input.at ?? new Date();
     const priceReference = priceForPlan(
       config,
@@ -1518,6 +1554,15 @@ function providerConfigUnavailable(): OperationalError {
     "La contratación SaaS no está configurada para este entorno",
     503,
     { code: "BILLING_CONFIGURATION_UNAVAILABLE" }
+  );
+}
+
+function saasMarketNotEnabled(): OperationalError {
+  return new OperationalError(
+    "FORBIDDEN",
+    "La contratación SaaS no está habilitada para el país de esta academia",
+    403,
+    { code: "SAAS_MARKET_NOT_ENABLED" }
   );
 }
 

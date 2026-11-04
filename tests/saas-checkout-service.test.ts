@@ -5,6 +5,7 @@ vi.unmock("drizzle-orm/pg-core");
 const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
   scope: vi.fn(),
+  liveReady: false,
   effective: vi.fn(),
   config: vi.fn(),
   lock: vi.fn(),
@@ -14,6 +15,14 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/db", () => ({ db: { transaction: mocks.transaction, select: mocks.select, update: mocks.dbUpdate } }));
 vi.mock("@/lib/env", () => ({ getAppUrl: () => "https://example.invalid" }));
+vi.mock("@/lib/launch/commercial-launch-profile", () => ({
+  isSaasCheckoutEnabled: (environment: "test" | "live") =>
+    environment === "test" || mocks.liveReady,
+  isSaasCheckoutEnabledForMarket: (
+    environment: "test" | "live",
+    countryCode: string
+  ) => environment === "test" || (mocks.liveReady && countryCode === "ES"),
+}));
 vi.mock("@/modules/saas-billing/application/owner-access", () => ({
   resolveSaasOwnerScope: mocks.scope,
 }));
@@ -75,7 +84,8 @@ beforeEach(() => {
       environment: "test",
       providerAccountReference: "acct_synthetic",
     });
-  mocks.scope.mockReset().mockResolvedValue({ organizationId });
+  mocks.scope.mockReset().mockResolvedValue({ organizationId, countryCode: "ES" });
+  mocks.liveReady = false;
   mocks.effective
     .mockReset()
     .mockResolvedValue({ planCode: "free", source: "free" });
@@ -92,6 +102,54 @@ describe("Checkout reservation guards with isolated dependencies", () => {
     expect(mocks.provider).not.toHaveBeenCalled();
     expect(insert).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
+    expect(mocks.dbUpdate).not.toHaveBeenCalled();
+  });
+  it.each(["MX", "FR", "ZZ"])(
+    "rejects Live checkout for %s before locking or writing even when seller setup is ready",
+    async (countryCode) => {
+      mocks.liveReady = true;
+      mocks.config.mockReturnValue({
+        environment: "live",
+        providerAccountReference: "acct_synthetic_live",
+      });
+      mocks.scope.mockResolvedValue({ organizationId, countryCode });
+
+      await expect(createOwnerSaasCheckout(input)).rejects.toMatchObject({
+        status: 403,
+        details: { code: "SAAS_MARKET_NOT_ENABLED" },
+      });
+
+      expect(mocks.transaction).toHaveBeenCalledOnce();
+      expect(mocks.scope).toHaveBeenCalledOnce();
+      expect(mocks.lock).not.toHaveBeenCalled();
+      expect(limit).not.toHaveBeenCalled();
+      expect(insert).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+      expect(mocks.provider).not.toHaveBeenCalled();
+      expect(mocks.dbUpdate).not.toHaveBeenCalled();
+    }
+  );
+  it("rechecks the Live country after locking before reserving a Checkout", async () => {
+    mocks.liveReady = true;
+    mocks.config.mockReturnValue({
+      environment: "live",
+      providerAccountReference: "acct_synthetic_live",
+    });
+    mocks.scope
+      .mockResolvedValueOnce({ organizationId, countryCode: "ES" })
+      .mockResolvedValueOnce({ organizationId, countryCode: "MX" });
+
+    await expect(createOwnerSaasCheckout(input)).rejects.toMatchObject({
+      status: 403,
+      details: { code: "SAAS_MARKET_NOT_ENABLED" },
+    });
+
+    expect(mocks.scope).toHaveBeenCalledTimes(2);
+    expect(mocks.lock).toHaveBeenCalledOnce();
+    expect(limit).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(mocks.provider).not.toHaveBeenCalled();
     expect(mocks.dbUpdate).not.toHaveBeenCalled();
   });
   it.each([2, 3] as const)("retries v%s with the exact provider body and key after a local save failure", async (requestVersion) => {

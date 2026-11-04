@@ -672,9 +672,11 @@ export function OwnerSetupForm({
           <p>
             {countryCode === "MX" && (
               <>
-                La gestión administrativa en México está en validación. No
-                incluye funciones federativas mexicanas. Registrar cuotas y
-                pagos manuales no emite comprobantes fiscales mexicanos.
+                La gestión administrativa en México está en validación y es
+                independiente de la contratación SaaS. La contratación
+                comercial para México aún no está habilitada. No incluye
+                funciones federativas mexicanas. Registrar cuotas y pagos
+                manuales no emite comprobantes fiscales mexicanos.
               </>
             )}
             {countryCode === "ES" && (
