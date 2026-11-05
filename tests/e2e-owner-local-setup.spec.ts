@@ -3021,7 +3021,15 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await form.getByLabel("Email").fill("responsable-market-access@example.test");
     await form.getByLabel("País del club").fill("Argentina");
     await form.getByLabel("Tu función en el club").selectOption("owner");
-    await disciplines.getByRole("checkbox", { name: "Rítmica" }).check();
+    const rhythmicDiscipline = disciplines.getByRole("checkbox", { name: "Rítmica" });
+    // The three viewport changes plus native field focus can leave smooth
+    // scrolling in flight in WebKit. Position the control without animating
+    // before the real pointer action; never set checked or dispatch a click.
+    await rhythmicDiscipline.evaluate((element) => element.scrollIntoView({
+      behavior: "instant", block: "center", inline: "nearest",
+    }));
+    await rhythmicDiscipline.check();
+    await expect(rhythmicDiscipline).toBeChecked();
     await form
       .getByLabel("Mensaje")
       .fill("Solicitamos evaluar la gestión de clases y asistencia del club.");
