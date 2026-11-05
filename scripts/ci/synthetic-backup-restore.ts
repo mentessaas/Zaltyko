@@ -62,6 +62,36 @@ const COMPARISON_CODES = [
   "OUTBOX", "AUDIT", "BALANCE", "SRC_HASH", "DST_HASH", "SRC_REPEAT", "DST_REPEAT",
 ] as const;
 type ComparisonCode = (typeof COMPARISON_CODES)[number];
+const FINGERPRINT_SECTIONS = [
+  "database", "databaseSettings", "schemas", "extensions", "relations", "columns",
+  "types", "constraints", "indexes", "policies", "routines", "triggers",
+  "sequences", "defaultAcls", "rows",
+] as const;
+type FingerprintSection = (typeof FINGERPRINT_SECTIONS)[number];
+// These are query aliases, never object names or values read from PostgreSQL.
+const FINGERPRINT_FIELDS = {
+  database: ["owner", "acl", "encoding", "collate", "ctype", "connection_limit"],
+  databaseSettings: ["database_name", "role_name", "settings"],
+  schemas: ["name", "owner", "acl"],
+  extensions: ["name", "version", "schema_name", "owner", "relocatable", "config_tables", "conditions"],
+  relations: ["schema_name", "name", "kind", "owner", "acl", "row_security", "force_row_security", "persistence", "options", "replica_identity"],
+  columns: ["schema_name", "relation_name", "ordinal", "name", "type", "not_null", "default_expression", "identity_kind", "generated_kind", "collation_schema", "collation_name", "column_privileges"],
+  types: ["schema_name", "name", "kind", "owner", "acl", "base_type", "not_null", "default_expression", "category", "delimiter", "enum_labels"],
+  constraints: ["schema_name", "relation_name", "name", "kind", "definition", "validated", "deferrable", "initially_deferred", "update_action", "delete_action", "match_type"],
+  indexes: ["schema_name", "table_name", "name", "definition", "is_unique", "is_primary", "is_valid", "is_live", "predicate", "expressions"],
+  policies: ["schema_name", "table_name", "name", "permissive", "command", "roles", "using_expression", "check_expression"],
+  routines: ["schema_name", "name", "arguments", "result", "language", "kind", "owner", "acl", "source", "volatility", "security_definer", "strict", "leakproof", "parallel", "configuration", "definition"],
+  triggers: ["schema_name", "table_name", "name", "definition", "enabled", "internal", "is_constraint_trigger"],
+  sequences: ["schema_name", "name", "data_type", "start_value", "min_value", "max_value", "increment_by", "cycle", "cache_size", "last_value"],
+  defaultAcls: ["role", "schema_name", "object_type", "acl"],
+  rows: ["schema_name", "table_name", "count", "hash"],
+} as const satisfies Record<FingerprintSection, readonly string[]>;
+type FingerprintData = Record<FingerprintSection, Array<Record<string, unknown>>>;
+type Fingerprint = {
+  hash: string;
+  sectionHashes: Record<FingerprintSection, string>;
+  sections: FingerprintData;
+};
 type LedgerPhase = "source-ledger-before-dump" | "restored-source-ledger" | "restored-target-ledger";
 
 type SafePhase =
@@ -161,6 +191,43 @@ function log(event: string, details: Record<string, string | number | boolean> =
 
 function digest(bytes: Buffer | string) {
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+function compareFingerprints(actual: Fingerprint, expected: Fingerprint, phase: SafePhase, code: ComparisonCode) {
+  if (actual.hash !== expected.hash) {
+    let sectionDifference = false;
+    for (const section of FINGERPRINT_SECTIONS) {
+      if (actual.sectionHashes[section] === expected.sectionHashes[section]) continue;
+      sectionDifference = true;
+      const actualRows = actual.sections[section];
+      const expectedRows = expected.sections[section];
+      if (actualRows.length !== expectedRows.length) {
+        log("fingerprint_difference", { phase, code, section, difference: "row_count" });
+      }
+      // Bound the diagnostic to the first differing common row per section.
+      // Neither values, object names, hashes nor row counts leave this function.
+      for (let rowIndex = 0; rowIndex < Math.min(actualRows.length, expectedRows.length); rowIndex++) {
+        const actualRow = actualRows[rowIndex]!;
+        const expectedRow = expectedRows[rowIndex]!;
+        if (JSON.stringify(actualRow) === JSON.stringify(expectedRow)) continue;
+        const field = FINGERPRINT_FIELDS[section].find((candidate) =>
+          JSON.stringify(actualRow[candidate]) !== JSON.stringify(expectedRow[candidate]));
+        if (field !== undefined) {
+          log("fingerprint_difference", { phase, code, section, difference: "field", row_index: rowIndex, field });
+        } else {
+          // Unexpected aliases or serialization order still fail closed without
+          // printing any dynamic key from the query result.
+          log("fingerprint_difference", { phase, code, section, difference: "row_encoding", row_index: rowIndex });
+        }
+        break;
+      }
+    }
+    if (!sectionDifference) {
+      log("fingerprint_difference", { phase, code, difference: "envelope_encoding" });
+    }
+  }
+  // Diagnostics do not substitute section equality for the original full hash.
+  demandComparison(actual.hash === expected.hash, phase, code);
 }
 
 function safeErrorCode(error: unknown): string | undefined {
@@ -1294,7 +1361,7 @@ async function verifyLedgerAmounts(client: Client, fixtures: LedgerFixture[], ph
   log("ledger_comparison_verified", { phase });
 }
 
-async function catalogAndDataFingerprint(client: Client): Promise<string> {
+async function catalogAndDataFingerprint(client: Client): Promise<Fingerprint> {
   await client.query("SET TIME ZONE 'UTC'");
   await client.query("SET extra_float_digits = 3");
   const database = await client.query(`
@@ -1492,7 +1559,7 @@ async function catalogAndDataFingerprint(client: Client): Promise<string> {
       hash: result.rows[0]!.hash,
     });
   }
-  const fingerprint = {
+  const fingerprint: FingerprintData = {
     database: database.rows,
     databaseSettings: databaseSettings.rows,
     schemas: schemas.rows,
@@ -1509,7 +1576,11 @@ async function catalogAndDataFingerprint(client: Client): Promise<string> {
     defaultAcls: defaultAcls.rows,
     rows,
   };
-  return digest(JSON.stringify(fingerprint));
+  const sectionHashes = {} as Record<FingerprintSection, string>;
+  for (const section of FINGERPRINT_SECTIONS) {
+    sectionHashes[section] = digest(JSON.stringify(fingerprint[section]));
+  }
+  return { hash: digest(JSON.stringify(fingerprint)), sectionHashes, sections: fingerprint };
 }
 
 function assertArtifactDirectory(path: string, workdir: string) {
@@ -1712,12 +1783,12 @@ async function runExperiment() {
 
     activePhase = "restore";
     const sourceBeforeRestore = await catalogAndDataFingerprint(source);
-    demandComparison(sourceBeforeRestore === sourceInitialFingerprint, "source-fingerprint", "SRC_HASH");
+    compareFingerprints(sourceBeforeRestore, sourceInitialFingerprint, "source-fingerprint", "SRC_HASH");
     await verifyOwnedDatabase(admin, sourceDatabase, "restore");
     await verifyOwnedDatabase(admin, targetDatabase, "restore");
     await verifyTargetEmpty(target, admin, targetDatabase);
     await verifyEmptyGuardRejectsBusyTarget(target, admin, targetDatabase);
-    demandComparison(await catalogAndDataFingerprint(source) === sourceInitialFingerprint, "source-fingerprint", "SRC_HASH");
+    compareFingerprints(await catalogAndDataFingerprint(source), sourceInitialFingerprint, "source-fingerprint", "SRC_HASH");
     await verifyOwnedDatabase(admin, targetDatabase, "restore");
     await verifyTargetEmpty(target, admin, targetDatabase);
     log("restore_target_guards_verified");
@@ -1743,8 +1814,8 @@ async function runExperiment() {
     await verifyOwnedDatabase(admin, targetDatabase, "comparison");
     const sourceAfterRestore = await catalogAndDataFingerprint(source);
     const targetAfterRestore = await catalogAndDataFingerprint(target);
-    demandComparison(sourceAfterRestore === sourceInitialFingerprint, "comparison", "SRC_HASH");
-    demandComparison(targetAfterRestore === sourceInitialFingerprint, "comparison", "DST_HASH");
+    compareFingerprints(sourceAfterRestore, sourceInitialFingerprint, "comparison", "SRC_HASH");
+    compareFingerprints(targetAfterRestore, sourceInitialFingerprint, "comparison", "DST_HASH");
     log("restored_catalog_and_data_verified");
     activePhase = "restored-source-ledger";
     await verifyLedgerAmounts(source, fixtures, activePhase);
@@ -1757,11 +1828,11 @@ async function runExperiment() {
     activePhase = "comparison";
     const sourceBeforeRepeatedGuard = await catalogAndDataFingerprint(source);
     const targetBeforeRepeatedGuard = await catalogAndDataFingerprint(target);
-    demandComparison(sourceBeforeRepeatedGuard === sourceInitialFingerprint, "comparison", "SRC_HASH");
-    demandComparison(targetBeforeRepeatedGuard === sourceInitialFingerprint, "comparison", "DST_HASH");
+    compareFingerprints(sourceBeforeRepeatedGuard, sourceInitialFingerprint, "comparison", "SRC_HASH");
+    compareFingerprints(targetBeforeRepeatedGuard, sourceInitialFingerprint, "comparison", "DST_HASH");
     await verifyEmptyGuardRejectsRestoredTarget(target, admin, targetDatabase);
-    demandComparison(await catalogAndDataFingerprint(source) === sourceBeforeRepeatedGuard, "comparison", "SRC_REPEAT");
-    demandComparison(await catalogAndDataFingerprint(target) === targetBeforeRepeatedGuard, "comparison", "DST_REPEAT");
+    compareFingerprints(await catalogAndDataFingerprint(source), sourceBeforeRepeatedGuard, "comparison", "SRC_REPEAT");
+    compareFingerprints(await catalogAndDataFingerprint(target), targetBeforeRepeatedGuard, "comparison", "DST_REPEAT");
     log("repeated_restore_guard_verified");
     log("verified");
   } catch (error) {

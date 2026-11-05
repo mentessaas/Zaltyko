@@ -3,7 +3,7 @@
 - Fecha: 5 de noviembre de 2026
 - Worktree: `/Users/elvisvaldesinerarte/Projects/Zaltyko/trabajos/Zaltyko-backup-probe-20261105`
 - Rama/HEAD de referencia: `codex/disposable-backup-probe-20261105` / `030a3a87c0c26c61e130e193a3074f268967eecf`
-- Estado: diagnóstico de comparación preparado sobre `c7fbcfea`; cuatro intentos remotos fallidos, sin restore exitoso acreditado. El ajuste actual solo tiene revisión estática.
+- Estado: diagnóstico de huellas por sección preparado sobre `547fbd4060b6e66012beca724d5f50b43650ac30`; cinco intentos remotos fallidos, sin recuperación completa acreditada. El quinto completó el comando restore, pero rechazó la huella del destino. El ajuste actual solo tiene revisión estática.
 
 ## Hallazgos
 
@@ -28,7 +28,7 @@
 
 ## Importancia y límites
 
-El flujo convierte la observación del inventario en una propuesta revisable de restauración lógica de PostgreSQL en dos bases del runner efímero. El control negativo del destino ocupado y la repetición del guard sobre el destino restaurado están implementados, pero su ejecución no queda acreditada por los logs actuales. Los tres primeros intentos remotos descritos al final no alcanzaron la creación de las bases propias; el cuarto confirma roles/extensiones y sesiones privadas, y llega a una comparación que requiere replay y servicio real previos por el flujo del código, sin acreditar restauración exitosa. No se afirma recuperación de Supabase Hosted, Auth HTTP, Storage, roles globales, WAL/backup físico, RPO/RTO ni producción. No se ejecutaron pruebas, typecheck, build, SQL local, CI dispatch ni llamadas a proveedores como parte de esta corrección.
+El flujo convierte la observación del inventario en una propuesta revisable de restauración lógica de PostgreSQL en dos bases del runner efímero. El quinto intento acredita el control negativo del destino ocupado y la finalización del comando restore, pero falla después al comparar la huella del destino. No alcanza las comprobaciones del ledger/aislamiento restaurados ni la repetición del guard sobre el destino restaurado. Los tres primeros intentos remotos descritos al final no alcanzaron la creación de las bases propias; el cuarto llegó a una comparación todavía ambigua en ese log. No se afirma recuperación completa, ni recuperación de Supabase Hosted, Auth HTTP, Storage, roles globales, WAL/backup físico, RPO/RTO o producción. No se ejecutaron pruebas, typecheck, build, SQL local, CI dispatch ni llamadas a proveedores como parte de esta corrección.
 
 ## Fuente y siguiente paso
 
@@ -78,3 +78,15 @@ Se exige siempre que el socket real del cliente sea TCP hacia el loopback y puer
 Se añaden checkpoints de éxito con nombres fijos para entorno, inventario, bases propias vacías, replay, fixtures, servicio/cierre del pool, ledger, aislamiento, huella, dump, validación del archivo, guardas del destino, comando restore, comparación y guard repetido. Solo se publican nombres de etapa y códigos; se retira del resumen final la salida de nombres de base, hashes, importes y cantidades. Los datos permanecen disponibles internamente para los mismos controles, sin registrarlos.
 
 **Importancia y siguiente paso.** La próxima ejecución debe distinguir un fallo anterior al dump de otro posterior al restore y señalar la comprobación concreta. No se modifica ninguna expectativa para obtener PASS. Revisión estática y `git diff --check`; sin tests, typecheck, build, SQL, servicios ni dispatch remotos ejecutados por esta corrección. La recuperación completa sigue sin acreditarse.
+
+## Quinto intento remoto — 547fbd40 y diagnóstico de huellas por sección
+
+**Hallazgo y fuente.** `/tmp/zaltyko-backup-547fbd40.log`, run `41955838407`, confirma replay del esquema, fixtures EUR/MXN, servicio real y cierre del pool, importes/monedas del ledger de origen y aislamiento de origen. Confirma también captura de la huella, dump, integridad del archivo/TOC, guardas del destino y finalización del comando restore. Termina con `phase: comparison`, `code: DST_HASH` y `cleanup: verified`. El flujo compara primero el origen contra su huella inicial y después el destino: ese código acredita que el origen conservó su huella y que la del destino difiere. No acredita aún catálogo/datos equivalentes, ledger restaurado, aislamiento restaurado ni guard repetido. El acuse de parada del stack sigue siendo distinto de la verificación de ausencia de bases propias.
+
+**Diagnóstico estático y límite causal.** La consulta conserva los ACL textuales completos y también el nombre y la definición de todos los triggers, incluidos los internos. El orden textual de ACLs y los identificadores generados de triggers internos son candidatos a una diferencia de representación entre bases recreadas. El log de este intento no identifica sección, campo ni fila; no permite atribuir el fallo a ninguno de esos candidatos ni descartar una diferencia sustantiva. No se normaliza, omite ni modifica ningún campo para obtener igualdad.
+
+**Cambio.** La misma captura conserva internamente las quince secciones originales, calcula una huella adicional por sección y mantiene la huella completa sobre exactamente el mismo objeto JSON, en el mismo orden y con las mismas consultas. Todas las comparaciones originales, incluida la repetición del guard, siguen exigiendo igualdad estricta de esa huella completa y conservan sus códigos de fallo.
+
+Solo cuando esa igualdad falla se emite `fingerprint_difference`, con etapa/código y sección de una lista fija. Si varía la longitud se indica únicamente `difference: row_count`, sin publicar cantidades. Para cada sección diferente se identifica como máximo la primera fila común distinta, con índice desde cero y el primer alias de campo distinto tomado de una lista fija por sección. Los casos inesperados se señalan con `row_encoding` o `envelope_encoding`, sin imprimir claves dinámicas. El índice es una posición en el resultado ordenado, no un identificador de entidad. No se registran valores, nombres de objetos/base, hashes, SQL, filas, importes ni PII. El diagnóstico está acotado a dos mensajes por sección más el posible mensaje de envoltorio; las capturas completas solo viven en memoria del helper.
+
+**Importancia y siguiente paso.** La próxima ejecución remota debe localizar la divergencia antes de decidir si exige corregir el restore o definir una comparación semántica justificada. Esta instrumentación mantiene todos los guards de identidad, transporte, extensiones, propiedad, destino vacío, archivo y cleanup. Revisión estática y `git diff --check`; no se ejecutaron tests, typecheck, build, SQL, servicios ni dispatch remotos durante este ajuste. La recuperación completa sigue pendiente.
