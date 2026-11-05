@@ -1,24 +1,20 @@
-name: Isolated CI (no credentials)
+name: Disposable PostgreSQL backup experiment (no credentials)
 
 on:
   workflow_dispatch:
     inputs:
       resolution_mode:
-        description: "Controles estáticos, replay SQL desechable, build remoto o propuesta de lockfile"
+        description: "Inventario de clientes o restauración sintética en bases desechables"
         type: choice
         required: true
-        default: checks
+        default: schema-replay
         options:
-          - checks
           - schema-replay
-          - remote-build
-          - checks-and-build
-          - lockfile-refresh
-          - vite-refresh
+          - synthetic-restore
       expected_sha:
-        description: "SHA completo del HEAD seleccionado para replay, build o resolución de lockfile"
+        description: "SHA completo de la rama experimental que se comprobará antes de ejecutar"
         type: string
-        required: false
+        required: true
         default: ""
 
 permissions:
@@ -26,11 +22,11 @@ permissions:
 
 concurrency:
   group: ci-isolated-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   probe-contract:
-    name: Require inventory-only dispatch contract
+    name: Require exact disposable experiment dispatch
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions:
@@ -41,20 +37,20 @@ jobs:
       DISPATCH_REF: ${{ github.ref }}
       RESOLUTION_MODE: ${{ inputs.resolution_mode }}
     steps:
-      - name: Reject other refs, modes, or inexact SHA before inventory
+      - name: Reject other refs, modes, or inexact SHA before the experiment
         shell: bash
         run: |
           set -euo pipefail
           [[ "$GITHUB_REF" == 'refs/heads/codex/disposable-backup-probe-20261105' ]]
           [[ "$DISPATCH_REF" == "$GITHUB_REF" ]]
-          [[ "$RESOLUTION_MODE" == 'schema-replay' ]]
+          [[ "$RESOLUTION_MODE" == 'schema-replay' || "$RESOLUTION_MODE" == 'synthetic-restore' ]]
           [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$EXPECTED_SHA" == "$DISPATCH_SHA" ]]
 
   static-and-unit:
     needs: probe-contract
     name: Isolated static and unit checks
-    if: ${{ inputs.resolution_mode != 'schema-replay' }}
+    if: ${{ inputs.resolution_mode != 'schema-replay' && inputs.resolution_mode != 'synthetic-restore' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -127,9 +123,9 @@ jobs:
         run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm gate:all
 
   schema-replay:
-    name: "Inventory only: native PostgreSQL clients"
+    name: Disposable PostgreSQL backup experiment
     needs: probe-contract
-    if: ${{ inputs.resolution_mode == 'schema-replay' && github.ref == 'refs/heads/codex/disposable-backup-probe-20261105' }}
+    if: ${{ (inputs.resolution_mode == 'schema-replay' || inputs.resolution_mode == 'synthetic-restore') && github.ref == 'refs/heads/codex/disposable-backup-probe-20261105' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -138,6 +134,7 @@ jobs:
       EXPECTED_SHA: ${{ inputs.expected_sha }}
       DISPATCH_SHA: ${{ github.sha }}
       DISPATCH_REF: ${{ github.ref }}
+      DISPOSABLE_BACKUP_MODE: ${{ inputs.resolution_mode == 'schema-replay' && 'inventory' || 'synthetic-restore' }}
     steps:
       - name: Checkout without persisted credentials
         uses: actions/checkout@v7
@@ -169,6 +166,12 @@ jobs:
       - name: Install frozen dependencies for service integration checks
         run: pnpm install --frozen-lockfile --prod=false
 
+      - name: Type check the synthetic restore helper and its real service imports
+        if: ${{ inputs.resolution_mode == 'synthetic-restore' }}
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: pnpm exec tsc --noEmit --incremental false
+
       - name: Download the pinned Supabase CLI release archive
         run: curl --fail --silent --show-error --location "https://github.com/supabase/cli/releases/download/v2.119.0/supabase_2.119.0_linux_amd64.tar.gz" --output "$RUNNER_TEMP/supabase_2.119.0_linux_amd64.tar.gz"
 
@@ -178,7 +181,7 @@ jobs:
       - name: Verify and install the isolated schema replay Supabase CLI
         run: python3 scripts/ci/install_schema_replay_supabase_cli.py "$RUNNER_TEMP/supabase_2.119.0_linux_amd64.tar.gz"
 
-      - name: Inventory pg_dump and pg_restore only (no SQL or restore)
+      - name: Run the explicitly selected disposable backup experiment
         run: bash scripts/ci/verify-sandbox-schema-replay.sh
 
   candidate-build:

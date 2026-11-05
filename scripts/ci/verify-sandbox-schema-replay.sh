@@ -32,6 +32,11 @@ fail() {
 [[ "${EXPECTED_SHA:-}" =~ ^[0-9a-f]{40}$ ]] || fail "A full expected commit SHA is required."
 [[ "${DISPATCH_SHA:-}" == "$(git -C "$ROOT" rev-parse HEAD)" ]] || fail "The checked out SHA differs from the dispatch SHA."
 [[ "${EXPECTED_SHA}" == "$(git -C "$ROOT" rev-parse HEAD)" ]] || fail "The checked out SHA differs from the approved SHA."
+readonly DISPOSABLE_BACKUP_MODE="${DISPOSABLE_BACKUP_MODE:-inventory}"
+case "$DISPOSABLE_BACKUP_MODE" in
+  inventory|synthetic-restore) ;;
+  *) fail "Unknown disposable backup mode." ;;
+esac
 
 for forbidden in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_DB_URL SUPABASE_PROJECT_REF SUPABASE_SERVICE_ROLE_KEY E2E_TARGET_SUPABASE_PROJECT_REF DATABASE_URL DATABASE_URL_POOL DATABASE_URL_DIRECT STRIPE_SECRET_KEY STRIPE_SAAS_TEST_SECRET_KEY STRIPE_SAAS_LIVE_SECRET_KEY VERCEL_TOKEN; do
   [[ -z "${!forbidden:-}" ]] || fail "Unexpected external database credential/configuration in runner environment."
@@ -39,6 +44,7 @@ done
 
 readonly PROJECT_ID="zaltyko-schema-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 readonly CI_WORKDIR="$RUNNER_TEMP/$PROJECT_ID"
+readonly SYNTHETIC_ARTIFACT_DIR="$CI_WORKDIR/.synthetic-restore"
 readonly CLI_HOME="$RUNNER_TEMP/$PROJECT_ID-home"
 readonly CLI="$RUNNER_TEMP/supabase-schema-replay-cli-$SUPABASE_CLI_VERSION/supabase"
 readonly START_LOG="$RUNNER_TEMP/$PROJECT_ID-start.log"
@@ -51,6 +57,11 @@ readonly BOOTSTRAP_SEED_MIGRATION_FILE="$RUNNER_TEMP/$PROJECT_ID-bootstrap-seed-
 readonly AUTH_JWT_ERROR_LOG="$RUNNER_TEMP/$PROJECT_ID-auth-jwt-state.stderr"
 readonly AUTH_JWT_MIGRATION_FILE="$RUNNER_TEMP/$PROJECT_ID-auth-jwt-migration.sql"
 readonly MARKED_BASELINE_FILE="$RUNNER_TEMP/$PROJECT_ID-marked-baseline.sql"
+readonly CLIENT_MANIFEST_FILE="$RUNNER_TEMP/$PROJECT_ID-postgres-client-manifest.json"
+readonly SOURCE_DB_URL_FILE="$RUNNER_TEMP/$PROJECT_ID-source-db-url"
+readonly TARGET_DB_URL_FILE="$RUNNER_TEMP/$PROJECT_ID-target-db-url"
+readonly PGPASSFILE="$RUNNER_TEMP/$PROJECT_ID.pgpass"
+readonly FIXTURE_FILE="$RUNNER_TEMP/$PROJECT_ID-restore-fixture.json"
 readonly REPLAY_LOG="$RUNNER_TEMP/$PROJECT_ID-replay.log"
 readonly TENANT_LOG="$RUNNER_TEMP/$PROJECT_ID-tenant.log"
 readonly GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-guard.log"
@@ -60,6 +71,7 @@ readonly -a OWNED_TEMP_FILES=(
   "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" "$ROLE_GUARD_FILE"
   "$RLS_HARDENING_MIGRATION_FILE" "$BOOTSTRAP_SEED_MIGRATION_FILE"
   "$AUTH_JWT_ERROR_LOG" "$AUTH_JWT_MIGRATION_FILE" "$MARKED_BASELINE_FILE"
+  "$CLIENT_MANIFEST_FILE" "$SOURCE_DB_URL_FILE" "$TARGET_DB_URL_FILE" "$PGPASSFILE" "$FIXTURE_FILE"
   "$REPLAY_LOG" "$TENANT_LOG" "$GUARD_LOG" "$UNMARKED_GUARD_LOG" "$INTEGRATION_LOG"
 )
 local_stack_started=false
@@ -83,6 +95,19 @@ cleanup() {
       cleanup_failed=true
       stack_stop_failed=true
       printf 'Cleanup failure: stack stop returned %s; CLI workdir and home are retained, and raw output is withheld.\n' "$stop_status" >&2
+    fi
+  fi
+
+  # Archives are always disposable, even when stack shutdown fails and the
+  # Supabase workdir must be retained for diagnosis.
+  if [[ "$workdir_owned" == "true" && ( -e "$SYNTHETIC_ARTIFACT_DIR" || -L "$SYNTHETIC_ARTIFACT_DIR" ) ]]; then
+    if ! rm -rf -- "$SYNTHETIC_ARTIFACT_DIR"; then
+      cleanup_failed=true
+      printf 'Cleanup failure: synthetic archive artifacts could not be removed; details withheld.\n' >&2
+    fi
+    if [[ -e "$SYNTHETIC_ARTIFACT_DIR" || -L "$SYNTHETIC_ARTIFACT_DIR" ]]; then
+      cleanup_failed=true
+      printf 'Cleanup failure: synthetic archive artifacts remain after removal.\n' >&2
     fi
   fi
 
@@ -110,6 +135,12 @@ cleanup() {
       fi
     fi
 
+  fi
+
+  # These files include connection URLs, the password file, raw stack status,
+  # and logs that may contain credential-bearing CLI output. Remove them even
+  # when stack stop fails; only the owned workdir and CLI home are retained.
+  if [[ "$workdir_owned" == "true" ]]; then
     for path in "${OWNED_TEMP_FILES[@]}"; do
       if ! rm -f -- "$path"; then
         cleanup_failed=true
@@ -436,7 +467,7 @@ PY
 # Inventory only trusted pg_dump/pg_restore executables from the fresh private
 # native-stack home. This probe intentionally exits before any database query,
 # migration, fixture write, dump, or restore.
-python3 - "$CLI_HOME" "$RUNNER_TEMP" "$EXPECTED_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" <<'PY'
+python3 - "$CLI_HOME" "$RUNNER_TEMP" "$EXPECTED_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$CLIENT_MANIFEST_FILE" <<'PY'
 from pathlib import Path
 import hashlib
 import json
@@ -451,6 +482,7 @@ runner_temp_input = Path(sys.argv[2])
 expected_sha = sys.argv[3]
 run_id = sys.argv[4]
 run_attempt = sys.argv[5]
+manifest_path = Path(sys.argv[6])
 names = ("pg_dump", "pg_restore")
 
 if not re.fullmatch(r"[0-9a-f]{40}", expected_sha):
@@ -575,7 +607,7 @@ for name in names:
     if not candidates[name]:
         clients.append({"name": name, "path_relative": None, "version": None, "sha256": None})
 
-print(json.dumps({
+manifest = {
     "probe": "native-postgresql-client-inventory-only",
     "marker": {
         "branch": "codex/disposable-backup-probe-20261105",
@@ -584,8 +616,47 @@ print(json.dumps({
         "run_attempt": run_attempt,
     },
     "clients": clients,
-}, sort_keys=True, separators=(",", ":")))
+}
+serialized = json.dumps(manifest, sort_keys=True, separators=(",", ":"))
+with manifest_path.open("x", encoding="utf-8") as target:
+    target.write(serialized)
+    target.write("\n")
+manifest_path.chmod(0o600)
+print(serialized)
 PY
+if [[ "$DISPOSABLE_BACKUP_MODE" == "inventory" ]]; then
+  exit 0
+fi
+
+if ! env -i \
+  PATH="$PATH" \
+  HOME="${HOME:-$RUNNER_TEMP}" \
+  CI=true \
+  NODE_ENV=test \
+  DOTENV_CONFIG_PATH=/dev/null \
+  GITHUB_ACTIONS=true \
+  RUNNER_OS=Linux \
+  RUNNER_TEMP="$RUNNER_TEMP" \
+  CI_WORKDIR="$CI_WORKDIR" \
+  CLI_HOME="$CLI_HOME" \
+  CLIENT_MANIFEST_FILE="$CLIENT_MANIFEST_FILE" \
+  LOCAL_DB_URL_FILE="$LOCAL_DB_URL_FILE" \
+  SOURCE_DB_URL_FILE="$SOURCE_DB_URL_FILE" \
+  TARGET_DB_URL_FILE="$TARGET_DB_URL_FILE" \
+  PGPASSFILE="$PGPASSFILE" \
+  FIXTURE_FILE="$FIXTURE_FILE" \
+  EXPECTED_SHA="$EXPECTED_SHA" \
+  GITHUB_RUN_ID="$GITHUB_RUN_ID" \
+  GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+  GITHUB_REF="$GITHUB_REF" \
+  DISPATCH_REF="$DISPATCH_REF" \
+  DISPATCH_SHA="$DISPATCH_SHA" \
+  DISPOSABLE_BACKUP_MODE="$DISPOSABLE_BACKUP_MODE" \
+  pnpm exec tsx "$ROOT/scripts/ci/synthetic-backup-restore.ts"; then
+  fail "The synthetic backup/restore helper failed; detailed output was withheld."
+fi
+
+printf 'PASS: synthetic backup restored and verified in two owned disposable databases.\n'
 exit 0
 
 # Use the loopback-only URL exported by the exact native stack above. The CLI's
