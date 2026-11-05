@@ -2,7 +2,7 @@
 set -euo pipefail
 umask 077
 
-readonly EXPECTED_BRANCH="codex/mvp-main-bridge-20261025"
+readonly EXPECTED_BRANCH="codex/disposable-backup-probe-20261105"
 readonly ROLE_PROBE_NAME="20261024172151_sandbox_replay_principal_probe.sql"
 readonly AUTH_JWT_MIGRATION_NAME="20261024172152_supabase_auth_jwt_platform_prerequisite.sql"
 readonly MIGRATION_NAME="20261024172153_sandbox_schema_snapshot_baseline.sql"
@@ -56,24 +56,79 @@ readonly TENANT_LOG="$RUNNER_TEMP/$PROJECT_ID-tenant.log"
 readonly GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-guard.log"
 readonly UNMARKED_GUARD_LOG="$RUNNER_TEMP/$PROJECT_ID-unmarked-guard.log"
 readonly INTEGRATION_LOG="$RUNNER_TEMP/$PROJECT_ID-postgres-integration.log"
+readonly -a OWNED_TEMP_FILES=(
+  "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" "$ROLE_GUARD_FILE"
+  "$RLS_HARDENING_MIGRATION_FILE" "$BOOTSTRAP_SEED_MIGRATION_FILE"
+  "$AUTH_JWT_ERROR_LOG" "$AUTH_JWT_MIGRATION_FILE" "$MARKED_BASELINE_FILE"
+  "$REPLAY_LOG" "$TENANT_LOG" "$GUARD_LOG" "$UNMARKED_GUARD_LOG" "$INTEGRATION_LOG"
+)
 local_stack_started=false
 workdir_owned=false
 home_owned=false
 
 cleanup() {
+  local original_status=$?
+  local cleanup_failed=false
+  local stack_stop_failed=false
+  local path
+
+  trap - EXIT
+  set +e
+
   if [[ "$local_stack_started" == "true" ]]; then
-    "$CLI" --workdir "$CI_WORKDIR" stack stop --stack "$PROJECT_ID" >/dev/null 2>&1 || true
+    if "$CLI" --workdir "$CI_WORKDIR" stack stop --stack "$PROJECT_ID" >/dev/null 2>&1; then
+      printf 'Cleanup acknowledgement: the Supabase CLI stack stop command returned 0; OS process shutdown was not checked.\n' >&2
+    else
+      local stop_status=$?
+      cleanup_failed=true
+      stack_stop_failed=true
+      printf 'Cleanup failure: stack stop returned %s; CLI workdir and home are retained, and raw output is withheld.\n' "$stop_status" >&2
+    fi
   fi
-  # The CLI/archive belong to the workflow installer, not to this script.
-  # In particular, refusing a pre-existing workdir must never remove it.
-  [[ "$workdir_owned" == "true" ]] || return 0
-  rm -rf -- "$CI_WORKDIR"
-  if [[ "$home_owned" == "true" ]]; then rm -rf -- "$CLI_HOME"; fi
-  rm -f -- "$START_LOG" "$STATUS_LOG" "$STATUS_ERROR_LOG" "$LOCAL_DB_URL_FILE" "$ROLE_GUARD_FILE" \
-    "$RLS_HARDENING_MIGRATION_FILE" \
-    "$BOOTSTRAP_SEED_MIGRATION_FILE" \
-    "$AUTH_JWT_ERROR_LOG" "$AUTH_JWT_MIGRATION_FILE" \
-    "$MARKED_BASELINE_FILE" "$REPLAY_LOG" "$TENANT_LOG" "$GUARD_LOG" "$UNMARKED_GUARD_LOG" "$INTEGRATION_LOG"
+
+  # Never delete stack state when the stop command fails. The CLI/archive belong
+  # to the workflow installer; only directories and files created by this run
+  # may be removed after a successful stop (or when no stack was started).
+  if [[ "$stack_stop_failed" != "true" && "$workdir_owned" == "true" ]]; then
+    if ! rm -rf -- "$CI_WORKDIR"; then
+      cleanup_failed=true
+      printf 'Cleanup failure: owned CLI workdir removal failed; details withheld.\n' >&2
+    fi
+    if [[ -e "$CI_WORKDIR" || -L "$CI_WORKDIR" ]]; then
+      cleanup_failed=true
+      printf 'Cleanup failure: owned CLI workdir remains after removal.\n' >&2
+    fi
+
+    if [[ "$home_owned" == "true" ]]; then
+      if ! rm -rf -- "$CLI_HOME"; then
+        cleanup_failed=true
+        printf 'Cleanup failure: owned CLI home removal failed; details withheld.\n' >&2
+      fi
+      if [[ -e "$CLI_HOME" || -L "$CLI_HOME" ]]; then
+        cleanup_failed=true
+        printf 'Cleanup failure: owned CLI home remains after removal.\n' >&2
+      fi
+    fi
+
+    for path in "${OWNED_TEMP_FILES[@]}"; do
+      if ! rm -f -- "$path"; then
+        cleanup_failed=true
+        printf 'Cleanup failure: an owned temporary file could not be removed; details withheld.\n' >&2
+      fi
+      if [[ -e "$path" || -L "$path" ]]; then
+        cleanup_failed=true
+        printf 'Cleanup failure: an owned temporary file remains after removal.\n' >&2
+      fi
+    done
+  fi
+
+  if [[ "$original_status" -ne 0 ]]; then
+    exit "$original_status"
+  fi
+  if [[ "$cleanup_failed" == "true" ]]; then
+    exit 1
+  fi
+  exit 0
 }
 trap cleanup EXIT
 
@@ -197,6 +252,9 @@ PY
 [[ -x "$CLI" ]] || fail "The checksum-verified pinned Supabase CLI was not installed in RUNNER_TEMP."
 [[ ! -e "$CI_WORKDIR" && ! -L "$CI_WORKDIR" ]] || fail "Refusing to reuse an existing local Supabase workdir."
 [[ ! -e "$CLI_HOME" && ! -L "$CLI_HOME" ]] || fail "Refusing to reuse an existing local Supabase home."
+for path in "${OWNED_TEMP_FILES[@]}"; do
+  [[ ! -e "$path" && ! -L "$path" ]] || fail "Refusing to reuse an existing temporary artifact path."
+done
 mkdir "$CI_WORKDIR"
 workdir_owned=true
 mkdir "$CLI_HOME"
@@ -374,6 +432,161 @@ if (
 db_url_path.write_text(local_db_url, encoding="utf-8")
 db_url_path.chmod(0o600)
 PY
+
+# Inventory only trusted pg_dump/pg_restore executables from the fresh private
+# native-stack home. This probe intentionally exits before any database query,
+# migration, fixture write, dump, or restore.
+python3 - "$CLI_HOME" "$RUNNER_TEMP" "$EXPECTED_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" <<'PY'
+from pathlib import Path
+import hashlib
+import json
+import os
+import re
+import stat
+import subprocess
+import sys
+
+home_input = Path(sys.argv[1])
+runner_temp_input = Path(sys.argv[2])
+expected_sha = sys.argv[3]
+run_id = sys.argv[4]
+run_attempt = sys.argv[5]
+names = ("pg_dump", "pg_restore")
+
+if not re.fullmatch(r"[0-9a-f]{40}", expected_sha):
+    raise SystemExit("Client inventory refused: invalid expected SHA marker.")
+if not re.fullmatch(r"[0-9]+", run_id) or not re.fullmatch(r"[0-9]+", run_attempt):
+    raise SystemExit("Client inventory refused: invalid GitHub run marker.")
+if home_input.is_symlink() or not home_input.is_dir():
+    raise SystemExit("Client inventory refused: CLI_HOME is not a fresh trusted directory.")
+
+try:
+    home = home_input.resolve(strict=True)
+    runner_temp = runner_temp_input.resolve(strict=True)
+    home_stat = home.stat()
+except (OSError, RuntimeError):
+    raise SystemExit("Client inventory refused: CLI_HOME could not be validated.")
+
+def is_beneath(candidate: Path, parent: Path) -> bool:
+    try:
+        candidate.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+if (
+    home == runner_temp
+    or not is_beneath(home, runner_temp)
+    or not stat.S_ISDIR(home_stat.st_mode)
+    or home_stat.st_uid != os.getuid()
+    or stat.S_IMODE(home_stat.st_mode) & 0o077
+):
+    raise SystemExit("Client inventory refused: CLI_HOME trust boundary failed.")
+
+candidates = {name: set() for name in names}
+visited_directories = set()
+for current, directories, filenames in os.walk(home, followlinks=True):
+    current_path = Path(current)
+    try:
+        current_real = current_path.resolve(strict=True)
+    except (OSError, RuntimeError):
+        raise SystemExit("Client inventory refused: CLI_HOME contains an unreadable path.")
+    if not is_beneath(current_real, home):
+        raise SystemExit("Client inventory refused: traversal escaped CLI_HOME.")
+    if current_real in visited_directories:
+        directories.clear()
+        continue
+    visited_directories.add(current_real)
+    for directory in list(directories):
+        entry = current_path / directory
+        if entry.is_symlink():
+            try:
+                target = entry.resolve(strict=True)
+            except (OSError, RuntimeError):
+                raise SystemExit("Client inventory refused: an unsafe CLI_HOME symlink was found.")
+            if not is_beneath(target, home):
+                raise SystemExit("Client inventory refused: a CLI_HOME symlink escapes its trust boundary.")
+
+    for name in names:
+        if name not in filenames:
+            continue
+        candidate = current_path / name
+        try:
+            target = candidate.resolve(strict=True)
+            target_stat = target.stat()
+        except (OSError, RuntimeError):
+            raise SystemExit("Client inventory refused: a named client could not be validated.")
+        if (
+            not is_beneath(target, home)
+            or not stat.S_ISREG(target_stat.st_mode)
+            or target_stat.st_uid != os.getuid()
+            or stat.S_IMODE(target_stat.st_mode) & 0o022
+            or not os.access(target, os.X_OK)
+        ):
+            raise SystemExit("Client inventory refused: a named client is not trusted; it was not executed.")
+        candidates[name].add(target)
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError:
+        raise SystemExit("Client inventory refused: a named client could not be hashed safely.")
+    return digest.hexdigest()
+
+clients = []
+for name in names:
+    for binary in sorted(candidates[name]):
+        before = sha256(binary)
+        try:
+            completed = subprocess.run(
+                [str(binary), "--version"],
+                cwd=home,
+                env={"HOME": str(home), "LC_ALL": "C", "PATH": "/usr/bin:/bin"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            raise SystemExit("Client inventory refused: a trusted client version probe failed.")
+        try:
+            output = completed.stdout.decode("ascii").strip()
+        except UnicodeDecodeError:
+            raise SystemExit("Client inventory refused: a client returned an invalid version line.")
+        match = re.fullmatch(
+            rf"{re.escape(name)} \(PostgreSQL\) ([0-9]+(?:\.[0-9]+)+(?: \([A-Za-z0-9 ._+-]{{1,80}}\))?)",
+            output,
+        )
+        after = sha256(binary)
+        if completed.returncode != 0 or match is None or before != after:
+            raise SystemExit("Client inventory refused: a client version or file-integrity check failed.")
+        clients.append({
+            "name": name,
+            "path_relative": binary.relative_to(home).as_posix(),
+            "version": match.group(1),
+            "sha256": before,
+        })
+
+for name in names:
+    if not candidates[name]:
+        clients.append({"name": name, "path_relative": None, "version": None, "sha256": None})
+
+print(json.dumps({
+    "probe": "native-postgresql-client-inventory-only",
+    "marker": {
+        "branch": "codex/disposable-backup-probe-20261105",
+        "expected_sha": expected_sha,
+        "run_id": run_id,
+        "run_attempt": run_attempt,
+    },
+    "clients": clients,
+}, sort_keys=True, separators=(",", ":")))
+PY
+exit 0
 
 # Use the loopback-only URL exported by the exact native stack above. The CLI's
 # project-local --local resolver does not reopen this managed native stack in

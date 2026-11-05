@@ -29,6 +29,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  probe-contract:
+    name: Require inventory-only dispatch contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      DISPATCH_SHA: ${{ github.sha }}
+      DISPATCH_REF: ${{ github.ref }}
+      RESOLUTION_MODE: ${{ inputs.resolution_mode }}
+    steps:
+      - name: Reject other refs, modes, or inexact SHA before inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == 'refs/heads/codex/disposable-backup-probe-20261105' ]]
+          [[ "$DISPATCH_REF" == "$GITHUB_REF" ]]
+          [[ "$RESOLUTION_MODE" == 'schema-replay' ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EXPECTED_SHA" == "$DISPATCH_SHA" ]]
+
   static-and-unit:
     name: Isolated static and unit checks
     if: ${{ inputs.resolution_mode != 'schema-replay' }}
@@ -104,8 +126,9 @@ jobs:
         run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm gate:all
 
   schema-replay:
-    name: Disposable local schema replay and tenant isolation
-    if: ${{ inputs.resolution_mode == 'schema-replay' || inputs.resolution_mode == 'checks-and-build' }}
+    name: "Inventory only: native PostgreSQL clients"
+    needs: probe-contract
+    if: ${{ inputs.resolution_mode == 'schema-replay' && github.ref == 'refs/heads/codex/disposable-backup-probe-20261105' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -120,11 +143,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Require the candidate branch and exact SHA
+      - name: Require the exact probe branch and SHA
         shell: bash
         run: |
           set -euo pipefail
-          branch='codex/mvp-main-bridge-20261025'
+          branch='codex/disposable-backup-probe-20261105'
           head_sha="$(git rev-parse HEAD)"
           [[ "$GITHUB_REF" == "refs/heads/$branch" ]]
           [[ "$DISPATCH_REF" == "refs/heads/$branch" ]]
@@ -154,7 +177,7 @@ jobs:
       - name: Verify and install the isolated schema replay Supabase CLI
         run: python3 scripts/ci/install_schema_replay_supabase_cli.py "$RUNNER_TEMP/supabase_2.119.0_linux_amd64.tar.gz"
 
-      - name: Replay schema on an empty disposable local database and verify isolation
+      - name: Inventory pg_dump and pg_restore only (no SQL or restore)
         run: bash scripts/ci/verify-sandbox-schema-replay.sh
 
   candidate-build:
