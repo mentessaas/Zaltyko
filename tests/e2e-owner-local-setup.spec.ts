@@ -3255,11 +3255,19 @@ test.describe("Isolated local Supabase Owner setup", () => {
       await page.unroute("**" + endpoint);
 
       const staffPath = endpoint + "/" + createdProfile.id;
-      const waitForStaffListRead = () =>
+      const waitForStaffListRead = (
+        expectedStatus: "active" | "archived" | "all"
+      ) =>
         page.waitForResponse(
-          (response) =>
-            new URL(response.url()).pathname === endpoint &&
-            response.request().method() === "GET"
+          (response) => {
+            const url = new URL(response.url());
+            return (
+              url.pathname === endpoint &&
+              response.request().method() === "GET" &&
+              url.searchParams.get("organizationId") === staffOrganizationId &&
+              url.searchParams.get("status") === expectedStatus
+            );
+          }
         );
       type StaffListPayload = {
         data?: {
@@ -3285,7 +3293,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
         return profile;
       };
 
-      const initialListRead = waitForStaffListRead();
+      const initialListRead = waitForStaffListRead("active");
       await page.getByRole("button", { name: "Actualizar lista" }).click();
       const initialListedProfile = await readListedProfile(await initialListRead);
       if (typeof replayVersion !== "string") {
@@ -3353,7 +3361,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       ]);
       await expectKeyedHistory(concurrentKey, 1);
 
-      const concurrentListRead = waitForStaffListRead();
+      const concurrentListRead = waitForStaffListRead("active");
       await page.getByRole("button", { name: "Actualizar lista" }).click();
       await readListedProfile(await concurrentListRead);
       const concurrentArticle = page.getByRole("article", {
@@ -3563,7 +3571,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       ]);
       await expectKeyedHistory(archiveKey, 1);
 
-      const archivedListRead = waitForStaffListRead();
+      const archivedListRead = waitForStaffListRead("archived");
       await page.getByLabel("Mostrar").selectOption("archived");
       const archivedListedProfile = await readListedProfile(
         await archivedListRead
@@ -3648,7 +3656,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       ).toBe(true);
       await expectKeyedHistory(reactivateKey, 1);
 
-      const activeListRead = waitForStaffListRead();
+      const activeListRead = waitForStaffListRead("active");
       await page.getByLabel("Mostrar").selectOption("active");
       const activeListedProfile = await readListedProfile(await activeListRead);
       expect(activeListedProfile.version).toBe(reactivatedVersion);
