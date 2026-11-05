@@ -559,8 +559,18 @@ test.describe("Isolated local Supabase Owner setup", () => {
           /\/api\/v1\/owner\/enrollments\/([^/]+)$/
         )?.[1]
       ).toBe(enrollmentPayload.data.id);
-      await page.waitForLoadState("networkidle");
-      await page.goto(`/owner/enrollments?${scope}&status=active`);
+      // The PATCH response precedes router.refresh(). Network idle does not
+      // prove that the refreshed pending list has committed; a document goto
+      // here can be interrupted by its older navigation in WebKit. Observe
+      // the activated row leaving this filter, then use the real filter UI.
+      await expect(pendingRow).toHaveCount(0);
+      await page.getByRole("combobox", { name: "Filtrar por estado" }).selectOption("active");
+      await expect(page).toHaveURL((url) =>
+        url.pathname === "/owner/enrollments" &&
+        url.searchParams.get("organizationId") === result.organizationId &&
+        url.searchParams.get("locationId") === result.locationId &&
+        url.searchParams.get("status") === "active"
+      );
       const activeRows = page.locator("li").filter({ hasText: athleteName });
       await expect(activeRows).toHaveCount(expectedActiveCount);
       const activeEnrollmentRow = activeRows.filter({

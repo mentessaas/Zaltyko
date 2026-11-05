@@ -34,3 +34,9 @@ Producción, Live y ensayo están excluidos. Devolución integral y preparación
 El primer candidato b59acaf0 ejecutó CI remota: build/seguridad/móvil/Chromium pasaron; unitarias 5804 PASS/1 FAIL/6 omitidas. El fallo unitario fue el pin del procedimiento de replay tras añadir la suite. Lint exigió Next Link en login y PostgreSQL detectó la columna de confirmación ausente del stub Auth desechable. No es un candidato apto para publicación.
 
 Los ajustes siguientes conservan esos controles: pins actualizados con historial anterior y snapshot SQL intacto, enlace Next sin token y stub confirmado solo dentro del guard GitHub/loopback. La revisión adicional endurece el catálogo runtime (tipos, claves, checks, índices, RLS/ACL y enforcement FK), con 14 casos de drift reversibles; navegar descarta tokens huérfanos sin romper el relevo inicial a la página. Backend/QA cerraron revisión estática sin P1/P2 abiertos; estas modificaciones requieren una nueva ejecución remota exacta.
+
+## WebKit: sincronización observable de la activación
+
+El candidato `2a9ebc24` pasó ambos builds, PostgreSQL desechable, 5814 unitarias (6 omitidas), Chromium y Firefox. WebKit falló en `createAndActivateEnrollment`: la navegación documental al filtro `active` fue interrumpida por otra navegación al filtro `pending` después del PATCH. El gate obligatorio quedó en fallo; no es una entrega aprobable.
+
+La prueba esperaba `networkidle`, que no acredita el commit de `router.refresh()`. Se sustituye por comprobar que la fila activada desaparece del filtro pendiente y seleccionar Activas desde el filtro real, verificando URL, academia y sede. Se conservan las comprobaciones de cantidad, estado, persistencia y recuperación posteriores. No se añaden sleeps, retries ni aumentos de timeout. No cambia código de producto ni permisos. Este ajuste requiere nueva CI completa y no explica el fallo intermitente anterior de Firefox en Vincular familia.
