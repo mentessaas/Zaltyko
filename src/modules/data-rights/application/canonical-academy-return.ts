@@ -11,7 +11,7 @@ import {
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   EXCLUDED_CANONICAL_SOURCES,
   EXCLUDED_CANONICAL_TABLES,
-  OPTIONAL_DISCOVERY_EXPORT_TABLES,
+  OPTIONAL_EXPORT_MODULE_GROUPS,
   type CanonicalExportTableSpec,
 } from "./catalog";
 
@@ -171,12 +171,15 @@ async function verifyCatalog(tx: TransactionClient) {
     }
   }
 
-  const optionalDiscovery = OPTIONAL_DISCOVERY_EXPORT_TABLES.filter(table => actualColumns.has(table.table));
-  if (optionalDiscovery.length !== 0 && optionalDiscovery.length !== OPTIONAL_DISCOVERY_EXPORT_TABLES.length) throw failClosed();
-  for (const table of optionalDiscovery) {
+  const optionalModules = OPTIONAL_EXPORT_MODULE_GROUPS.flatMap(group => {
+    const present = group.filter(table => actualColumns.has(table.table));
+    if (present.length !== 0 && present.length !== group.length) throw failClosed();
+    return present;
+  });
+  for (const table of optionalModules) {
     if (!exactSetMatches(actualColumns.get(table.table) ?? [], table.columns)) throw failClosed();
   }
-  const requiredColumns = [...actualColumns.keys()].filter(name => !optionalDiscovery.some(table => table.table === name));
+  const requiredColumns = [...actualColumns.keys()].filter(name => !optionalModules.some(table => table.table === name));
   if (
     !exactSetMatches(
       requiredColumns,
@@ -192,7 +195,7 @@ async function verifyCatalog(tx: TransactionClient) {
       throw failClosed();
     }
   }
-  return { optionalDiscovery, dateColumnsByTable };
+  return { optionalModules, dateColumnsByTable };
 }
 
 async function verifyOwnerMembership(
@@ -392,8 +395,8 @@ export async function exportCanonicalAcademyData(input: {
 
     await verifyOwnerMembership(tx, input);
     assertWithinDuration(startedAt);
-    const { optionalDiscovery, dateColumnsByTable } = await verifyCatalog(tx);
-    const excludedScopedTables = [...EXCLUDED_CANONICAL_SCOPED_TABLES, ...optionalDiscovery.map(table => table.table)];
+    const { optionalModules, dateColumnsByTable } = await verifyCatalog(tx);
+    const excludedScopedTables = [...EXCLUDED_CANONICAL_SCOPED_TABLES, ...optionalModules.map(table => table.table)];
     assertWithinDuration(startedAt);
     const snapshotAt = await loadSnapshotTime(tx);
 
@@ -481,7 +484,7 @@ export async function exportCanonicalAcademyData(input: {
       data,
       tableManifest,
       excludedCountByTable,
-      optionalDiscovery,
+      optionalModules,
     };
   });
 
@@ -508,7 +511,7 @@ export async function exportCanonicalAcademyData(input: {
       catalogPolicy:
         "Unknown or missing canonical tables and unclassified columns in included tables fail closed before row export.",
       includedTables: exportResult.tableManifest,
-      excludedTables: [...EXCLUDED_CANONICAL_TABLES, ...exportResult.optionalDiscovery.map(({ table, category, reason }) => ({ table, category, reason }))].map((entry) => ({
+      excludedTables: [...EXCLUDED_CANONICAL_TABLES, ...exportResult.optionalModules.map(({ table, category, reason }) => ({ table, category, reason }))].map((entry) => ({
         ...entry,
         rowCount: exportResult.excludedCountByTable.get(entry.table) ?? null,
         countScope: exportResult.excludedCountByTable.has(entry.table)

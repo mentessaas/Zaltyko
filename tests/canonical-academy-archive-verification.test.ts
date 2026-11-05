@@ -33,6 +33,7 @@ import {
   CANONICAL_EXPORT_TABLES,
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   OPTIONAL_DISCOVERY_EXPORT_TABLES,
+  OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
 
 const organizationId = "10000000-0000-4000-8000-000000000001";
@@ -854,6 +855,25 @@ describe("canonical academy archive verification", () => {
     );
 
     expectAccepted(sealArchive(archive));
+  });
+
+  it.each([false, true])("verifies explicit team-access exclusions with discovery=%s", async discovery => {
+    const archive = parseArchive(await generateBundleBody());
+    if (discovery) addOptionalDiscoveryEntries(archive, OPTIONAL_DISCOVERY_EXPORT_TABLES.length);
+    const exclusions = archive.coverage.excludedTables as Array<Record<string, unknown>>;
+    for (const table of OPTIONAL_TEAM_ACCESS_EXPORT_TABLES) {
+      exclusions.push({ table: table.table, category: table.category, reason: table.reason, rowCount: 1, countScope: "organization_id", valuesExported: false });
+    }
+    expectAccepted(sealArchive(archive));
+  });
+
+  it.each([1, 2])("rejects a partial team-access exclusion group of %s tables", async count => {
+    const archive = parseArchive(await generateBundleBody());
+    const exclusions = archive.coverage.excludedTables as Array<Record<string, unknown>>;
+    for (const table of OPTIONAL_TEAM_ACCESS_EXPORT_TABLES.slice(0, count)) {
+      exclusions.push({ table: table.table, category: table.category, reason: table.reason, rowCount: 0, countScope: "organization_id", valuesExported: false });
+    }
+    expectRejectedWithoutDisclosure(sealArchive(archive));
   });
 
   it("rejects a partial optional discovery installation with a refreshed bundle hash", async () => {

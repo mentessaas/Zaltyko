@@ -27,6 +27,35 @@ export const OPTIONAL_DISCOVERY_EXPORT_TABLES = [
   { table: "product_discovery_signals", category: "academy_product_discovery", reason: "Deduplicated product-discovery stages contain no actor or operational data; counts are reported separately.", columns: ["organization_id", "feature_id", "catalog_version", "signal", "first_seen_at"] },
 ] as const;
 
+/** Access credentials and internal command receipts are not operating records.
+ * Their scoped counts remain explicit in this partial return; values (including
+ * invited emails, credential hashes and shared Auth IDs) never enter the bundle.
+ */
+export const OPTIONAL_TEAM_ACCESS_EXPORT_TABLES = [
+  {
+    table: "organization_member_invitations",
+    category: "team_access_credentials",
+    reason: "Invitation identities, credential hashes and acceptance evidence require a separate protected access-data return; only this academy's count is included.",
+    columns: ["id", "organization_id", "normalized_email", "role", "status", "invited_by_member_id", "token_sha256", "expires_at", "revision", "accepted_by_user_id", "accepted_member_id", "accepted_at", "revoked_by_member_id", "revoked_at", "created_at", "updated_at"],
+  },
+  {
+    table: "organization_member_invitation_scopes",
+    category: "pending_team_access_scopes",
+    reason: "Pending invitation scopes are access-control evidence, not effective operating assignments; only this academy's count is included.",
+    columns: ["id", "organization_id", "invitation_id", "location_id", "created_at"],
+  },
+  {
+    table: "organization_team_command_receipts",
+    category: "internal_team_access_commands",
+    reason: "Team-access idempotency receipts contain shared Auth identifiers and internal hashes; only this academy's count is included.",
+    columns: ["id", "organization_id", "actor_user_id", "idempotency_key", "operation", "request_hash", "invitation_id", "invitation_status", "invitation_revision", "invitation_expires_at", "member_id", "created_at"],
+  },
+] as const;
+
+export const OPTIONAL_EXPORT_MODULE_GROUPS: readonly (readonly (CanonicalExportExcludedTable & {
+  columns: readonly string[];
+})[])[] = [OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES];
+
 function columns(value: string): string[] {
   return value.split(/\s+/).filter(Boolean);
 }

@@ -12,6 +12,15 @@ vi.mock("@/lib/rate-limit", () => ({
 import { middleware } from "../middleware";
 
 describe("middleware", () => {
+  it("serves the invitation landing without an Auth redirect and prevents referrers or caching", async () => {
+    const response = await middleware(new NextRequest("https://zaltyko.test/staff/accept"));
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow, noarchive");
+    expect(response.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+  });
   it("permite comprobar contraseñas filtradas y limita Supabase local a desarrollo", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
     try {

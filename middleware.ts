@@ -594,7 +594,13 @@ export async function middleware(req: NextRequest) {
     response.headers.set("X-Robots-Tag", getAcademyRobotsHeader(false) as string);
   }
 
-  return applySecurityHeaders(response, nonce);
+  const securedResponse = applySecurityHeaders(response, nonce);
+  if (pathname === "/staff/accept") {
+    securedResponse.headers.set("Referrer-Policy", "no-referrer");
+    securedResponse.headers.set("Cache-Control", "private, no-store");
+    securedResponse.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
+  return securedResponse;
 }
 
 export const config = {

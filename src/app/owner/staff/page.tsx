@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { OwnerStaffManager } from "@/components/owner-dashboard/OwnerStaffManager";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
+import { OwnerTeamAccessPanel } from "@/components/owner/OwnerTeamAccessPanel";
 import { createClient } from "@/lib/supabase/server";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -56,10 +57,14 @@ export default async function OwnerStaffPage({
       member={scope.member}
       organizationId={scope.organization.id}
     >
-      <OwnerStaffManager
-        organizationId={scope.organization.id}
-        organizationName={scope.organization.name}
-      />
+      {process.env.ZALTYKO_TEAM_ACCESS_ENABLED === "true" ? (
+        <>
+          <OwnerStaffManager organizationId={scope.organization.id} organizationName={scope.organization.name} />
+          <OwnerTeamAccessPanel key={scope.organization.id} organizationId={scope.organization.id} />
+        </>
+      ) : (
+        <OwnerStaffManager organizationId={scope.organization.id} organizationName={scope.organization.name} />
+      )}
     </OwnerWorkspacePageShell>
   );
 }

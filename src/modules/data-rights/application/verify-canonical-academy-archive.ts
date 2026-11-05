@@ -8,7 +8,7 @@ import {
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   EXCLUDED_CANONICAL_SOURCES,
   EXCLUDED_CANONICAL_TABLES,
-  OPTIONAL_DISCOVERY_EXPORT_TABLES,
+  OPTIONAL_EXPORT_MODULE_GROUPS,
   type CanonicalExportTableSpec,
 } from "./catalog";
 
@@ -561,7 +561,7 @@ function assertColumnMapMatchesCatalog(
 function assertCatalogIsUniqueAndSafe(): void {
   const includedNames = CANONICAL_EXPORT_TABLES.map((table) => table.name);
   const excludedNames = EXCLUDED_CANONICAL_TABLES.map((table) => table.table);
-  const optionalNames = OPTIONAL_DISCOVERY_EXPORT_TABLES.map(
+  const optionalNames = OPTIONAL_EXPORT_MODULE_GROUPS.flat().map(
     (table) => table.table
   );
   const allNames = [...includedNames, ...excludedNames, ...optionalNames];
@@ -611,19 +611,13 @@ function assertCatalogIsUniqueAndSafe(): void {
 
 function validateExcludedTables(value: unknown): number {
   if (!Array.isArray(value)) rejectArchive();
-  const optionalCount = value.length - EXCLUDED_CANONICAL_TABLES.length;
-  const hasOptionalDiscovery =
-    optionalCount === OPTIONAL_DISCOVERY_EXPORT_TABLES.length;
-  if (optionalCount !== 0 && !hasOptionalDiscovery) rejectArchive();
-
-  const expected = hasOptionalDiscovery
-    ? [...EXCLUDED_CANONICAL_TABLES, ...OPTIONAL_DISCOVERY_EXPORT_TABLES]
-    : [...EXCLUDED_CANONICAL_TABLES];
-  const optionalNames = new Set(
-    hasOptionalDiscovery
-      ? OPTIONAL_DISCOVERY_EXPORT_TABLES.map((table) => table.table)
-      : []
-  );
+  const optionalModules = OPTIONAL_EXPORT_MODULE_GROUPS.flatMap(group => {
+    const present = group.filter(table => value.some(entry => isRecord(entry) && entry.table === table.table));
+    if (present.length !== 0 && present.length !== group.length) rejectArchive();
+    return present;
+  });
+  const expected = [...EXCLUDED_CANONICAL_TABLES, ...optionalModules];
+  const optionalNames = new Set(optionalModules.map(table => table.table));
   const scopedNames = new Set<string>([
     ...EXCLUDED_CANONICAL_SCOPED_TABLES,
     ...optionalNames,

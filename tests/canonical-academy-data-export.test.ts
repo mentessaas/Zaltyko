@@ -10,6 +10,7 @@ import {
   CANONICAL_EXPORT_TABLES,
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   OPTIONAL_DISCOVERY_EXPORT_TABLES,
+  OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
 
 const actor = {
@@ -38,6 +39,36 @@ beforeEach(() => {
 });
 
 describe("canonical export failure boundaries (database mocked)", () => {
+  it.each(["missing team table", "unknown team column"])("fails closed before tenant reads for %s", async kind => {
+    prepareThroughMembership();
+    const moduleRows = OPTIONAL_TEAM_ACCESS_EXPORT_TABLES.flatMap(table => table.columns.map(column_name => ({ table_name: table.table, column_name })));
+    const rows = [...catalogRows(), ...moduleRows];
+    const observed = kind === "missing team table"
+      ? rows.filter(row => row.table_name !== "organization_member_invitation_scopes")
+      : [...rows, { table_name: "organization_member_invitations", column_name: "unclassified_private_payload" }];
+    mocks.execute.mockResolvedValueOnce({ rows: observed });
+    await expect(exportCanonicalAcademyData(actor)).rejects.toMatchObject({ status: 503, problemType: "canonical-export-schema-unavailable" });
+    expect(mocks.execute).toHaveBeenCalledTimes(6);
+  });
+
+  it.each([false, true])("keeps access credentials excluded with discovery installed=%s", async includeDiscovery => {
+    const optionalTables = [...(includeDiscovery ? OPTIONAL_DISCOVERY_EXPORT_TABLES : []), ...OPTIONAL_TEAM_ACCESS_EXPORT_TABLES];
+    prepareThroughMembership();
+    mocks.execute.mockResolvedValueOnce({ rows: [...catalogRows(), ...optionalTables.flatMap(table => table.columns.map(column_name => ({ table_name: table.table, column_name })))] });
+    mocks.execute.mockResolvedValueOnce({ rows: [{ snapshot_at: new Date("2026-11-05T00:00:00Z") }] });
+    mocks.execute.mockResolvedValueOnce({ rows: [...EXCLUDED_CANONICAL_SCOPED_TABLES, ...optionalTables.map(table => table.table)].map(table_name => ({ table_name, row_count: table_name === "organization_member_invitations" ? 2 : 0 })) });
+    mocks.execute.mockResolvedValueOnce({ rows: CANONICAL_EXPORT_TABLES.map(table => ({ table_name: table.name, row_count: 0, estimated_bytes: 0 })) });
+    const bundle = JSON.parse((await exportCanonicalAcademyData(actor)).body);
+    expect(bundle.coverage.complete).toBe(false);
+    for (const table of OPTIONAL_TEAM_ACCESS_EXPORT_TABLES) {
+      expect(bundle.data).not.toHaveProperty(table.table);
+      expect(bundle.coverage.excludedTables).toContainEqual(expect.objectContaining({ table: table.table, valuesExported: false, countScope: "organization_id" }));
+    }
+    expect(bundle.coverage.excludedTables).toContainEqual(expect.objectContaining({ table: "organization_member_invitations", rowCount: 2 }));
+    const sqlText = mocks.execute.mock.calls.map(call => dialect.sqlToQuery(call[0]).sql).join("\n");
+    expect(sqlText).not.toContain("token_sha256");
+    expect(sqlText).not.toContain("normalized_email");
+  });
   it.each(["partial discovery module", "unclassified discovery column"])("fails closed for %s", async kind => {
     prepareThroughMembership();
     const rows = [...catalogRows(), ...OPTIONAL_DISCOVERY_EXPORT_TABLES.flatMap(table => table.columns.map(column_name => ({ table_name: table.table, column_name })))];

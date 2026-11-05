@@ -1,5 +1,10 @@
 import { sentryPrivacyOptions } from "./src/lib/monitoring/sentry-privacy";
 import * as Sentry from "@sentry/nextjs";
+import { captureTeamInvitationFragment } from "./src/lib/auth/team-invitation-fragment";
+
+// The fragment is never sent in the HTTP request. Remove it before initializing
+// a browser SDK; this acceptance document does not initialize Sentry at all.
+const teamInvitationDocument = captureTeamInvitationFragment();
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
@@ -15,7 +20,7 @@ function tracesSampler(samplingContext: {
   return 0.1;
 }
 
-Sentry.init({
+if (!teamInvitationDocument) Sentry.init({
   dsn: SENTRY_DSN,
   tracesSampler,
   debug: false,
@@ -45,5 +50,15 @@ Sentry.init({
 
 // Replay is not loaded until its collection and retention are separately reviewed.
 
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+export const onRouterTransitionStart: typeof Sentry.captureRouterTransitionStart = (...args) => {
+  if (captureTeamInvitationFragment()) return;
+  // Next may announce the destination before updating window.location. Never
+  // forward an invitation destination (which may include its fragment) to SDKs.
+  try {
+    if (new URL(args[0], "https://zaltyko.invalid").pathname === "/staff/accept") return;
+  } catch {
+    return;
+  }
+  return Sentry.captureRouterTransitionStart(...args);
+};
 

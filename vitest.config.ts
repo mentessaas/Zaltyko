@@ -63,6 +63,7 @@ export default defineConfig({
                   "tests/canonical-academy-data-export-pg.test.ts",
                   "tests/product-discovery-pg.test.ts",
                   "tests/international-bootstrap-pg.test.ts",
+                  "tests/canonical-team-access-pg.test.ts",
                   "tests/market-access-contact-postgres.integration.test.ts",
                 ]),
             ...(!runSandboxReadonlyPostgresSuites
