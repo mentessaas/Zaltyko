@@ -1229,7 +1229,7 @@ export function ManualPaymentForm({
   return (
     <form
       onSubmit={submit}
-      className="grid gap-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"
+      className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"
     >
       <div className="rounded-2xl border border-teal-900/15 bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-950">
         Registra solo dinero que ya has recibido. Zaltyko no iniciará ningún
@@ -1258,7 +1258,7 @@ export function ManualPaymentForm({
         </p>
       )}
 
-      <div className="grid gap-2">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
         <label
           htmlFor={chargeSelectId}
           className="text-sm font-bold text-slate-900"
@@ -1271,7 +1271,7 @@ export function ManualPaymentForm({
           onChange={(event) => chooseCharge(event.target.value)}
           disabled={formLocked}
           aria-describedby={formCharge ? chargeHelpId : undefined}
-          className="min-h-12 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
+          className="min-h-12 w-full min-w-0 max-w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
         >
           {retryForCurrentOrganization && !retryCharge && (
             <option value={retryForCurrentOrganization.body.chargeId}>

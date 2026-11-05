@@ -5,6 +5,7 @@ import {
   expect,
   test,
   type Dialog,
+  type Request as PlaywrightRequest,
   type Response as PlaywrightResponse,
 } from "@playwright/test";
 import { Pool } from "pg";
@@ -1293,15 +1294,247 @@ test.describe("Isolated local Supabase Owner setup", () => {
         .filter({ hasText: "Factura emitida y pendiente" })
     ).toBeVisible();
 
+    let manualPaymentPostCount = 0;
+    const countManualPaymentPosts = (request: PlaywrightRequest): void => {
+      const requestUrl = new URL(request.url());
+      if (
+        requestUrl.pathname === "/api/v1/owner/billing/manual-payments" &&
+        request.method() === "POST"
+      ) {
+        manualPaymentPostCount += 1;
+      }
+    };
+    page.on("request", countManualPaymentPosts);
+
     await page.goto(`/owner/payments?${scope}`);
-    await expect(
-      page.getByRole("heading", { name: "Registrar un pago recibido" })
-    ).toBeVisible();
+    const paymentHeading = page.getByRole("heading", {
+      name: "Registrar un pago recibido",
+    });
+    await expect(paymentHeading).toBeVisible();
     const paymentMethod = page.getByRole("combobox", {
       name: "Método de pago",
     });
     await expect(paymentMethod).toHaveCount(1);
+    const paymentForm = page.locator("form").filter({ has: paymentMethod });
+    await expect(paymentForm).toHaveCount(1);
+    const pendingMonthlyChargeOption = paymentForm
+      .getByRole("option")
+      .filter({ hasText: adultName });
+    await expect(pendingMonthlyChargeOption).toHaveCount(1);
+    const pendingMonthlyChargeLabel =
+      (await pendingMonthlyChargeOption.textContent())?.replace(/\s+/g, " ").trim() ?? "";
+    expect(pendingMonthlyChargeLabel).toContain(adultName);
+    const invoiceReference = pendingMonthlyChargeLabel.split("·")[1]?.trim();
+    expect(invoiceReference).toMatch(/^MENSUAL/i);
+    expect(invoiceReference?.length ?? 0).toBeGreaterThan(32);
+
+    // Geometry-only measurement against this run's synthetic monthly charge.
+    // It runs before the existing full-payment POST and leaves ledger assertions intact.
+    for (const viewport of [
+      { width: 375, height: 812 },
+      { width: 768, height: 1024 },
+      { width: 1280, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await paymentHeading.scrollIntoViewIfNeeded();
+      const geometry = await paymentForm.evaluate((element) => {
+        type Box = {
+          left: number;
+          right: number;
+          top: number;
+          bottom: number;
+          width: number;
+          height: number;
+        };
+        const box = (target: Element): Box => {
+          const rect = target.getBoundingClientRect();
+          return {
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            bottom: rect.bottom,
+            width: rect.width,
+            height: rect.height,
+          };
+        };
+        const within = (inner: Box, outer: Box): boolean =>
+          inner.left >= outer.left - 1 && inner.right <= outer.right + 1;
+        const intersects = (left: Box, right: Box): boolean =>
+          left.left < right.right && right.left < left.right &&
+          left.top < right.bottom && right.top < left.bottom;
+
+        const form = element as HTMLFormElement;
+        const main = form.closest("main");
+        if (!(main instanceof HTMLElement)) {
+          throw new Error("Manual payment form has no main container.");
+        }
+        const heading = Array.from(
+          main.querySelectorAll<HTMLElement>("h1, h2, h3, h4")
+        ).find(
+          (candidate) =>
+            candidate.textContent?.replace(/\s+/g, " ").trim() ===
+            "Registrar un pago recibido"
+        );
+        if (!heading) {
+          throw new Error("Manual payment heading is not inside main.");
+        }
+
+        let container: HTMLElement = main;
+        for (
+          let ancestor = form.parentElement;
+          ancestor && ancestor !== main;
+          ancestor = ancestor.parentElement
+        ) {
+          const maxWidth = Number.parseFloat(
+            window.getComputedStyle(ancestor).maxWidth
+          );
+          if (
+            Number.isFinite(maxWidth) &&
+            maxWidth > 0 &&
+            ancestor.contains(heading)
+          ) {
+            container = ancestor;
+            break;
+          }
+        }
+
+        const controls = Array.from(
+          form.querySelectorAll<HTMLElement>(
+            'input:not([type="hidden"]), select, textarea, button'
+          )
+        )
+          .filter((control) => {
+            const style = window.getComputedStyle(control);
+            return (
+              control.getClientRects().length > 0 &&
+              style.display !== "none" &&
+              style.visibility !== "hidden"
+            );
+          })
+          .map((control) => ({
+            name:
+              control.getAttribute("aria-label") ||
+              control.getAttribute("name") ||
+              control.id ||
+              control.tagName.toLowerCase(),
+            ...box(control),
+          }));
+
+        const formBounds = box(form);
+        const headingBounds = box(heading);
+        const containerBounds = box(container);
+        const textFragments: Array<Box & { root: "heading" | "form" }> = [];
+        for (const [rootName, root] of [
+          ["heading", heading],
+          ["form", form],
+        ] as const) {
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            const textParent = node.parentElement;
+            if (
+              !(node.textContent ?? "").trim() ||
+              textParent?.closest(
+                '[aria-hidden="true"], button, select, input, textarea'
+              )
+            ) {
+              continue;
+            }
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            for (const rect of Array.from(range.getClientRects())) {
+              if (rect.width <= 0 || rect.height <= 0) continue;
+              textFragments.push({
+                root: rootName,
+                left: rect.left,
+                right: rect.right,
+                top: rect.top,
+                bottom: rect.bottom,
+                width: rect.width,
+                height: rect.height,
+              });
+            }
+          }
+        }
+
+        const viewportBounds: Box = {
+          left: 0,
+          right: window.innerWidth,
+          top: 0,
+          bottom: window.innerHeight,
+          width: window.innerWidth,
+          height: window.innerHeight,
+        };
+        const controlOverlaps: string[] = [];
+        for (let index = 0; index < controls.length; index += 1) {
+          const current = controls[index]!;
+          for (const other of controls.slice(index + 1)) {
+            if (intersects(current, other)) {
+              controlOverlaps.push(`${current.name}/${other.name}`);
+            }
+          }
+        }
+        const textControlOverlaps = textFragments.filter((fragment) =>
+          controls.some((control) => intersects(fragment, control))
+        ).length;
+
+        return {
+          viewport: window.innerWidth,
+          documentScrollWidth: document.documentElement.scrollWidth,
+          controlsCount: controls.length,
+          headingTextCount: textFragments.filter(
+            (fragment) => fragment.root === "heading"
+          ).length,
+          formTextCount: textFragments.filter(
+            (fragment) => fragment.root === "form"
+          ).length,
+          containerWithinViewport: within(containerBounds, viewportBounds),
+          formWithinContainer: within(formBounds, containerBounds),
+          headingWithinContainer: within(headingBounds, containerBounds),
+          headingFormOverlap: intersects(headingBounds, formBounds),
+          controlsOutside: controls
+            .filter(
+              (control) =>
+                !within(control, formBounds) ||
+                !within(control, containerBounds) ||
+                !within(control, viewportBounds)
+            )
+            .map((control) => control.name),
+          controlsTooSmall: controls
+            .filter((control) => control.width < 44 || control.height < 44)
+            .map((control) => control.name),
+          textOutside: textFragments.filter((fragment) => {
+            const rootBounds =
+              fragment.root === "form" ? formBounds : headingBounds;
+            return (
+              !within(fragment, rootBounds) ||
+              !within(fragment, containerBounds) ||
+              !within(fragment, viewportBounds)
+            );
+          }).length,
+          controlOverlaps,
+          textControlOverlaps,
+        };
+      });
+
+      expect(geometry.viewport).toBe(viewport.width);
+      expect(geometry.documentScrollWidth).toBeLessThanOrEqual(viewport.width);
+      expect(geometry.controlsCount).toBeGreaterThanOrEqual(6);
+      expect(geometry.headingTextCount).toBeGreaterThan(0);
+      expect(geometry.formTextCount).toBeGreaterThan(0);
+      expect(geometry.containerWithinViewport).toBe(true);
+      expect(geometry.formWithinContainer).toBe(true);
+      expect(geometry.headingWithinContainer).toBe(true);
+      expect(geometry.headingFormOverlap).toBe(false);
+      expect(geometry.controlsOutside).toEqual([]);
+      expect(geometry.controlsTooSmall).toEqual([]);
+      expect(geometry.textOutside).toBe(0);
+      expect(geometry.controlOverlaps).toEqual([]);
+      expect(geometry.textControlOverlaps).toBe(0);
+      expect(manualPaymentPostCount).toBe(0);
+    }
+
     await paymentMethod.selectOption({ label: "Transferencia" });
+    expect(manualPaymentPostCount).toBe(0);
     const paymentResponse = page.waitForResponse(
       (candidate) =>
         candidate.url().endsWith("/api/v1/owner/billing/manual-payments") &&
@@ -1309,6 +1542,8 @@ test.describe("Isolated local Supabase Owner setup", () => {
     );
     await page.getByRole("button", { name: "Guardar pago recibido" }).click();
     const paymentResult = await paymentResponse;
+    expect(manualPaymentPostCount).toBe(1);
+    page.off("request", countManualPaymentPosts);
     expect(paymentResult.ok()).toBe(true);
     const paymentPayload = (await paymentResult.json()) as {
       data: { receivedAt: string };
