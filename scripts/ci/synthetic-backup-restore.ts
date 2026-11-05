@@ -17,7 +17,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, spawnSync, type ChildProcessByStdio } from "node:child_process";
+import type { Readable } from "node:stream";
 import { isIP } from "node:net";
 
 import { Client } from "pg";
@@ -313,7 +314,7 @@ function resolveClient(name: "pg_dump" | "pg_restore", manifest: ClientManifest,
   } catch (error) {
     throw phaseFailure("clients", error);
   }
-  const version = runProcessSync(path, ["--version"], { HOME: cliHome, LC_ALL: "C", PATH: "/usr/bin:/bin" });
+  const version = runProcessSync(path, ["--version"], { HOME: cliHome, LC_ALL: "C", PATH: "/usr/bin:/bin", NODE_ENV: "test" });
   const versionText = version.stdout.toString("ascii").trim();
   const match = versionText.match(new RegExp(`^${name} \\(PostgreSQL\\) (17\\.11(?:\\.[0-9]+)?(?: \\([A-Za-z0-9 ._+-]{1,80}\\))?)$`));
   demand(match?.[1] === entry.version, "clients");
@@ -345,7 +346,7 @@ function runProcess(
   outputLimit = 4 * 1024 * 1024
 ): Promise<ProcessResult> {
   return new Promise((resolvePromise, rejectPromise) => {
-    let child: ChildProcessWithoutNullStreams;
+    let child: ChildProcessByStdio<null, Readable, Readable>;
     try {
       child = spawn(binary, args, {
         cwd: ROOT,
@@ -353,7 +354,7 @@ function runProcess(
         shell: false,
         windowsHide: true,
         stdio: ["ignore", "pipe", "pipe"],
-      }) as ChildProcessWithoutNullStreams;
+      });
     } catch (error) {
       rejectPromise(phaseFailure(phase, error));
       return;
@@ -449,6 +450,7 @@ function writePgpass(path: string, host: string, port: number, password: string)
 function buildClientEnvironment(host: string, port: number, pgpassfile: string, home: string): NodeJS.ProcessEnv {
   return {
     HOME: home,
+    NODE_ENV: "test",
     LC_ALL: "C",
     PATH: "/usr/bin:/bin",
     PGPASSFILE: pgpassfile,
@@ -994,7 +996,7 @@ async function runLedgerChild() {
       process.env[name] = sourceUrl;
     }
     process.env.DOTENV_CONFIG_PATH = "/dev/null";
-    process.env.NODE_ENV = "test";
+    demand(process.env.NODE_ENV === "test", "ledger-child");
 
     const { recordManualPaymentForCharge } = await import("../../src/modules/billing/application/ledger-service");
     for (const fixture of fixtures) {

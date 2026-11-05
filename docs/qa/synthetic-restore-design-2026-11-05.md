@@ -37,3 +37,8 @@ El flujo convierte la observación del inventario en una propuesta revisable de 
 - Documentación de PostgreSQL 17: [pg_dump](https://www.postgresql.org/docs/17/app-pgdump.html), [pg_restore](https://www.postgresql.org/docs/17/app-pgrestore.html), [pg_dumpall](https://www.postgresql.org/docs/17/app-pg-dumpall.html) y [CREATE DATABASE](https://www.postgresql.org/docs/17/sql-createdatabase.html).
 
 **Siguiente paso:** revisión del Tech Lead del diff estático y del contrato del workflow. El dispatch de `synthetic-restore` queda separado como ejecución remota autorizada; este cambio no la ha iniciado.
+
+
+## Primer intento remoto — f421c694
+
+Run41952068788 terminó FAILURE antes de iniciar PostgreSQL: el typecheck encontró cuatro errores del helper (dos entornos ProcessEnv sin NODE_ENV, stdin ignorado tipado como Writable, asignación al NODE_ENV readonly de Next). No hubo dump ni restore ni aplicación del baseline en ese intento. El ajuste mantiene el typecheck y los guards; añade NODE_ENV=test a entornos construidos explícitamente, comprueba el valor heredado en el hijo y representa stdin como null sin cast. Pendiente nueva ejecución remota del SHA corregido.
