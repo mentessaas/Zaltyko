@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { captureTeamInvitationFragment, takeTeamInvitationToken } from "@/lib/auth/team-invitation-fragment";
@@ -143,7 +144,7 @@ export function TeamInvitationAcceptance() {
       {phase === "login" ? <section className="mt-6 border border-slate-300 p-5" aria-labelledby="invitation-login-title">
         <h2 id="invitation-login-title" className="text-lg font-bold">Inicia sesión para revisarla</h2>
         <p className="mt-2 text-sm leading-6">Usa la cuenta con el correo al que te invitaron y confirma ese correo. Después de iniciar sesión, vuelve a abrir el enlace original. La invitación no se acepta automáticamente.</p>
-        <a href="/auth/login" className={`${BUTTON} mt-4`}>Iniciar sesión</a>
+        <Link href="/auth/login" prefetch={false} className={`${BUTTON} mt-4`}>Iniciar sesión</Link>
       </section> : null}
       {error ? <p role="alert" className="mt-6 border border-amber-700 bg-amber-50 p-4 text-sm leading-6">{error}</p> : null}
       {phase === "invalid" ? <button type="button" className={`${BUTTON} mt-4`} onClick={() => setInspectionAttempt(current => current + 1)}>Volver a comprobar invitación</button> : null}

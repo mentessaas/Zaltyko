@@ -4,6 +4,7 @@ let pendingToken: string | null = null;
 /** Called by browser instrumentation before SDK initialization and by the page. */
 export function captureTeamInvitationFragment(): boolean {
   if (typeof window === "undefined" || window.location.pathname !== "/staff/accept") {
+    pendingToken = null;
     return false;
   }
 
@@ -21,6 +22,11 @@ export function captureTeamInvitationFragment(): boolean {
     }
   }
   return true;
+}
+
+/** Navigation abandons an unconsumed bootstrap credential, including re-entry. */
+export function discardTeamInvitationToken(): void {
+  pendingToken = null;
 }
 
 /** The acceptance page takes ownership once; subsequent reads cannot reveal it. */

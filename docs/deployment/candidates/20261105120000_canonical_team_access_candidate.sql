@@ -15,7 +15,7 @@ $team_candidate_preflight$;
 create table zaltyko.organization_member_invitations (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references zaltyko.organizations(id) on delete cascade,
-  normalized_email text not null check (normalized_email = lower(btrim(normalized_email)) and length(normalized_email) between 3 and 254 and position('@' in normalized_email) > 1),
+  normalized_email text not null check (normalized_email = lower(btrim(normalized_email)) and length(normalized_email) >= 3 and length(normalized_email) <= 254 and strpos(normalized_email,'@') > 1),
   role zaltyko.member_role not null check (role in ('manager', 'coach')),
   status text not null default 'pending' check (status in ('pending', 'accepted', 'revoked')),
   invited_by_member_id uuid not null,

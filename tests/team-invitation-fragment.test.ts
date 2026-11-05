@@ -54,6 +54,28 @@ describe("team invitation credential bootstrap", () => {
     expect(helper.takeTeamInvitationToken()).toBeNull();
   });
 
+  it("discards an unconsumed credential after leaving and returning without a fresh fragment", async () => {
+    const page = browser(`/staff/accept#token=${"a".repeat(43)}`);
+    const helper = await import("@/lib/auth/team-invitation-fragment");
+    helper.captureTeamInvitationFragment();
+    page.location.href = "https://club.example.test/owner";
+    helper.captureTeamInvitationFragment();
+    page.location.href = "https://club.example.test/staff/accept";
+    helper.captureTeamInvitationFragment();
+    expect(helper.takeTeamInvitationToken()).toBeNull();
+  });
+
+  it("discards a bootstrap credential at navigation start even if the source never mounted", async () => {
+    const page = browser(`/staff/accept#token=${"a".repeat(43)}`);
+    const instrumentation = await import("../instrumentation-client");
+    instrumentation.onRouterTransitionStart("/owner", "push");
+    page.location.href = "https://club.example.test/staff/accept";
+    const helper = await import("@/lib/auth/team-invitation-fragment");
+    helper.captureTeamInvitationFragment();
+    expect(helper.takeTeamInvitationToken()).toBeNull();
+    expect(sentry.captureRouterTransitionStart).not.toHaveBeenCalled();
+  });
+
   it("does not initialize Sentry on acceptance, even with an invalid credential", async () => {
     const page = browser("/staff/accept#token=invalid");
     const instrumentation = await import("../instrumentation-client");

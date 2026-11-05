@@ -1,6 +1,6 @@
 import { sentryPrivacyOptions } from "./src/lib/monitoring/sentry-privacy";
 import * as Sentry from "@sentry/nextjs";
-import { captureTeamInvitationFragment } from "./src/lib/auth/team-invitation-fragment";
+import { captureTeamInvitationFragment, discardTeamInvitationToken } from "./src/lib/auth/team-invitation-fragment";
 
 // The fragment is never sent in the HTTP request. Remove it before initializing
 // a browser SDK; this acceptance document does not initialize Sentry at all.
@@ -51,14 +51,21 @@ if (!teamInvitationDocument) Sentry.init({
 // Replay is not loaded until its collection and retention are separately reviewed.
 
 export const onRouterTransitionStart: typeof Sentry.captureRouterTransitionStart = (...args) => {
-  if (captureTeamInvitationFragment()) return;
+  // A new navigation cannot reuse a credential left by an unmounted/failed page.
+  // The document bootstrap-to-page handoff still works without navigation.
+  discardTeamInvitationToken();
   // Next may announce the destination before updating window.location. Never
   // forward an invitation destination (which may include its fragment) to SDKs.
   try {
-    if (new URL(args[0], "https://zaltyko.invalid").pathname === "/staff/accept") return;
+    if (new URL(args[0], "https://zaltyko.invalid").pathname === "/staff/accept") {
+      captureTeamInvitationFragment();
+      return;
+    }
   } catch {
     return;
   }
+  // Never recapture an abandoned source fragment while leaving the page.
+  if (typeof window !== "undefined" && window.location.pathname === "/staff/accept") return;
   return Sentry.captureRouterTransitionStart(...args);
 };
 

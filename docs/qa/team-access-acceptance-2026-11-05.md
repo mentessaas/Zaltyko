@@ -5,7 +5,7 @@
 - Checkout candidato: `Zaltyko-main-bridge-20261025`.
 - Rama/HEAD revisados al iniciar: `codex/mvp-main-bridge-20261025` / `608a53bbe9939e93d759bca3d91d4279a10dd09c`.
 - Contrato: `auditorias/2026-11-05/canonical-team-access-contract-next.md`.
-- Estado: implementación canónica de fase 1 visible; revisión estática independiente cerrada apta para CI remota autorizada, sin P1/P2 de producto abiertos en los archivos revisados; **sin PASS de compilación, pruebas o runtime**. `.env.example` mantiene `ZALTYKO_TEAM_ACCESS_ENABLED=false`; esto no verifica la configuración de ningún entorno.
+- Estado: revisión adicional cerrada estáticamente sobre el parche posterior a `b59acaf0`. El nuevo guard comprueba integridad/tipos/RLS/ACL y enforcement de FK antes de locks de negocio; Root limpia el token huérfano al salir/anunciar transiciones. Apto para CI remota autorizada, sin P1/P2 pendientes de los cambios revisados. **Sin PASS de compilación, pruebas o runtime del parche**. Root comunicó fallo de la primera suite PG por columna ausente del stub Auth; el parche añade esa columna solo en la fixture desechable guardada. No se consultó CI desde esta revisión. `.env.example` mantiene `ZALTYKO_TEAM_ACCESS_ENABLED=false`; esto no verifica la configuración de ningún entorno.
 - No se ejecutaron tests, builds, servicios, navegador, SQL ni llamadas a proveedores. No se aplicó esquema ni se crearon identidades o invitaciones.
 
 ## Alcance
@@ -70,6 +70,7 @@ La verificación de carreras, locks, rollback SQL, RLS y snapshots PostgreSQL pe
 |---|---|---|
 | Guards HTTP, flag exacto y default-off, roles, strict body, If-Match, actor Auth, replay, errores privados | `tests/team-access-security-contract.test.ts` | FUENTE; NO EJECUTADA |
 | Preflight canónico antes de locks/escrituras si falta esquema | Caso HTTP con servicio real y DB mock; `tests/canonical-team-access.test.ts` | FUENTE; NO EJECUTADA |
+| Esquema presente pero no fiable: columnas/tipos/null/defaults, FK/checks validados, PK/UQ/índices, RLS/ACL por tabla/columna/PUBLIC, policies, FK triggers y replication origin | `canonical-team-access-schema.ts`, `tests/canonical-team-access-schema.test.ts`, 14 casos PG de drift reversible y caso HTTP de catálogo no fiable | FUENTE; NO EJECUTADA |
 | Fragmento, limpieza, consumo único y hook SPA previo a history | `tests/team-invitation-fragment.test.ts` | FUENTE; NO EJECUTADA |
 | UI sin autoaceptar, resultado incierto, no reenvío por recarga y enlace volátil | `tests/team-invitation-acceptance.test.tsx`, `tests/owner-team-access.test.tsx` | FUENTE; NO EJECUTADA |
 | Export con tres exclusiones completas y contajes propios; discovery independiente; rechazo parcial | `tests/canonical-academy-data-export.test.ts`, `tests/canonical-academy-archive-verification.test.ts` | FUENTE; NO EJECUTADA |

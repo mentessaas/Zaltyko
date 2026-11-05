@@ -28,3 +28,9 @@ Es una frontera de acceso. La función queda desactivada, el SQL no se aplica y 
 4. Habilitar y validar en entregas solo después de las autorizaciones correspondientes, con aceptación incremental y sesiones QA existentes.
 
 Producción, Live y ensayo están excluidos. Devolución integral y preparación fiscal/comercial y productiva permanecen abiertas.
+
+## Revisión adicional y primer run
+
+El primer candidato b59acaf0 ejecutó CI remota: build/seguridad/móvil/Chromium pasaron; unitarias 5804 PASS/1 FAIL/6 omitidas. El fallo unitario fue el pin del procedimiento de replay tras añadir la suite. Lint exigió Next Link en login y PostgreSQL detectó la columna de confirmación ausente del stub Auth desechable. No es un candidato apto para publicación.
+
+Los ajustes siguientes conservan esos controles: pins actualizados con historial anterior y snapshot SQL intacto, enlace Next sin token y stub confirmado solo dentro del guard GitHub/loopback. La revisión adicional endurece el catálogo runtime (tipos, claves, checks, índices, RLS/ACL y enforcement FK), con 14 casos de drift reversibles; navegar descarta tokens huérfanos sin romper el relevo inicial a la página. Backend/QA cerraron revisión estática sin P1/P2 abiertos; estas modificaciones requieren una nueva ejecución remota exacta.

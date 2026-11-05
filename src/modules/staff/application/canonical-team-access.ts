@@ -13,6 +13,7 @@ import {
   type TeamInvitationInspection, type TeamInvitationResult, type TeamInvitationRevokeResult,
   type TeamLocation, type TeamMemberRole, type TeamMemberStatus,
 } from "@/modules/staff/domain/team-access-contract";
+import { assertCanonicalTeamAccessSchema } from "@/modules/staff/application/canonical-team-access-schema";
 
 type Tx = TransactionClient;
 type InvitationRow = {
@@ -51,17 +52,7 @@ async function transaction<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
   assertTeamAccessEnabled();
   try {
     return await db.transaction(async tx => {
-      // Missing/partial candidate or unreliable Auth schema fails closed. No
-      // error object, SQL parameters, email, or token is logged or returned.
-      await tx.execute(sql`select id, organization_id, normalized_email, role, status,
-        invited_by_member_id, token_sha256, expires_at, revision, accepted_by_user_id,
-        accepted_member_id, accepted_at, revoked_by_member_id, revoked_at, created_at, updated_at
-        from zaltyko.organization_member_invitations where false`);
-      await tx.execute(sql`select id, organization_id, invitation_id, location_id, created_at
-        from zaltyko.organization_member_invitation_scopes where false`);
-      await tx.execute(sql`select id, organization_id, actor_user_id, idempotency_key, operation,
-        request_hash, invitation_id, invitation_status, invitation_revision, invitation_expires_at,
-        member_id, created_at from zaltyko.organization_team_command_receipts where false`);
+      await assertCanonicalTeamAccessSchema(tx);
       return work(tx);
     });
   } catch (error) {

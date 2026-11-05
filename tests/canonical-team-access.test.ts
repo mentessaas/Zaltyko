@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ transaction: vi.fn(), execute: vi.fn() }));
 vi.mock("@/db", () => ({ db: { transaction: mocks.transaction } }));
+// These unit cases isolate authorization/identity after a trusted schema. The
+// real catalog guard and reversible drift are covered in the PG suite.
+vi.mock("@/modules/staff/application/canonical-team-access-schema", () => ({ assertCanonicalTeamAccessSchema: vi.fn() }));
 
 import { createCanonicalTeamInvitation, inspectCanonicalTeamInvitation, listCanonicalTeamAccess } from "@/modules/staff/application/canonical-team-access";
 

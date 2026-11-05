@@ -11,6 +11,7 @@ import {
 } from "@/modules/staff/application/canonical-team-access";
 import { exportCanonicalAcademyData } from "@/modules/data-rights/application/canonical-academy-return";
 import { validateCanonicalAcademyArchive } from "@/modules/data-rights/application/verify-canonical-academy-archive";
+import { assertCanonicalTeamAccessSchema } from "@/modules/staff/application/canonical-team-access-schema";
 
 /** No hosted URL, fallback env, inherited credentials, or workstation runtime. */
 function assertDisposableTarget() {
@@ -73,6 +74,10 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
   const previousFlag = process.env.ZALTYKO_TEAM_ACCESS_ENABLED;
   beforeAll(async () => {
     assertDisposableTarget();
+    // Historical disposable replay uses a minimal Auth stub. Add only the real
+    // upstream column required by this suite, after every CI/loopback guard.
+    // This is never baseline/candidate SQL and never runs against hosted Auth.
+    await db.execute(sql`alter table auth.users add column if not exists email_confirmed_at timestamptz`);
     process.env.ZALTYKO_TEAM_ACCESS_ENABLED = "true";
     // The guard refuses an existing partial candidate before touching its ACLs.
     await expect(db.transaction(async tx => {
@@ -105,6 +110,41 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
       }), "42501");
     }
     await expect(db.execute(sql.raw(candidate()))).rejects.toThrow(/all three new relations absent/);
+  });
+
+  it.each([
+    { name: "missing same-organization site FK", mutation: "alter table zaltyko.organization_member_invitation_scopes drop constraint %CONSTRAINT%", table: "organization_member_invitation_scopes", constraint: "contype='f' and confrelid='zaltyko.locations'::regclass" },
+    { name: "unvalidated same-organization site FK", mutation: "alter table zaltyko.organization_member_invitation_scopes drop constraint %CONSTRAINT%; alter table zaltyko.organization_member_invitation_scopes add constraint ci_team_location_fk foreign key (organization_id,location_id) references zaltyko.locations(organization_id,id) not valid", table: "organization_member_invitation_scopes", constraint: "contype='f' and confrelid='zaltyko.locations'::regclass" },
+    { name: "missing pending-email uniqueness", mutation: "drop index zaltyko.organization_member_invitations_pending_email_uq" },
+    { name: "wrong pending-email predicate", mutation: "drop index zaltyko.organization_member_invitations_pending_email_uq; create unique index organization_member_invitations_pending_email_uq on zaltyko.organization_member_invitations(organization_id,normalized_email) where status='accepted'" },
+    { name: "weakened role check", mutation: "alter table zaltyko.organization_member_invitations drop constraint %CONSTRAINT%; alter table zaltyko.organization_member_invitations add constraint ci_team_role_check check (role in ('manager','coach','owner'))", table: "organization_member_invitations", constraint: "contype='c' and conkey=array[(select attnum from pg_attribute where attrelid='zaltyko.organization_member_invitations'::regclass and attname='role')]::int2[]" },
+    { name: "nullable required revision", mutation: "alter table zaltyko.organization_member_invitations alter column revision drop not null" },
+    { name: "divergent email type", mutation: "alter table zaltyko.organization_member_invitations alter column normalized_email type varchar(254)" },
+    { name: "RLS not forced", mutation: "alter table zaltyko.organization_member_invitations no force row level security" },
+    { name: "disabled FK enforcement triggers", mutation: "alter table zaltyko.organization_member_invitation_scopes disable trigger all" },
+    { name: "replica-mode constraint bypass", mutation: "set local session_replication_role=replica" },
+    { name: "anonymous table grant", mutation: "grant select on zaltyko.organization_member_invitations to anon" },
+    { name: "authenticated column grant", mutation: "grant select (id) on zaltyko.organization_member_invitations to authenticated" },
+    { name: "public column grant", mutation: "grant select (id) on zaltyko.organization_member_invitations to public" },
+    { name: "unexpected direct-client policy", mutation: "create policy ci_team_client_policy on zaltyko.organization_member_invitations for select to authenticated using (true)" },
+  ])("fails closed without writes for reversible catalog drift: $name", async drift => {
+    const f = await fixture(); const who = await identity(); await invite(f, who);
+    const before = await snapshot(f.organizationId);
+    await expect(db.transaction(async tx => {
+      let mutation = drift.mutation;
+      if ("table" in drift && "constraint" in drift) {
+        const constraint = await tx.execute(sql.raw(`select conname from pg_constraint where conrelid='zaltyko.${drift.table}'::regclass and ${drift.constraint}`));
+        const name = String(constraint.rows[0]?.conname ?? "");
+        if (!/^[a-zA-Z0-9_]+$/.test(name)) throw new Error("Expected candidate constraint not found");
+        mutation = mutation.replace("%CONSTRAINT%", `"${name}"`);
+      }
+      await tx.execute(sql.raw(mutation));
+      // Use this exact transaction so the uncommitted drift is visible to the
+      // production entry guard; its 503 aborts and reverts the DDL as well.
+      await assertCanonicalTeamAccessSchema(tx);
+    })).rejects.toMatchObject({ status: 503, code: "FEATURE_NOT_AVAILABLE" });
+    expect(await snapshot(f.organizationId)).toEqual(before);
+    expect((await listCanonicalTeamAccess(f)).invitations).toHaveLength(1);
   });
 
   it("creates explicit selected-scope invitations with only a hash in DB and safe receipts", async () => {

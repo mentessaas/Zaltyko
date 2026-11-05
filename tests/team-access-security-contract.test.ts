@@ -293,4 +293,18 @@ describe("Team access real HTTP guards with synthetic session and service bounda
     expect(execute).toHaveBeenCalledTimes(1);
     expect(await response.text()).not.toContain("undefined_table");
   });
+
+  it("present relations with untrusted catalog metadata fail before authorization locks or command writes", async () => {
+    const actual = await vi.importActual<typeof import("@/modules/staff/application/canonical-team-access")>("@/modules/staff/application/canonical-team-access");
+    mocks.invite.mockImplementation(actual.createCanonicalTeamInvitation);
+    // Three zero-row projections can succeed even when integrity/RLS metadata
+    // is absent or unreliable. The real catalog guard must still stop here.
+    const execute = vi.fn().mockResolvedValue({ rows: [] });
+    mocks.transaction.mockImplementation(async work => work({ execute }));
+    const response = await ownerCalls[1].call();
+    expect(response.status).toBe(503);
+    privateResponse(response);
+    expect(execute).toHaveBeenCalledTimes(4);
+    expect(await response.text()).not.toContain(token);
+  });
 });
