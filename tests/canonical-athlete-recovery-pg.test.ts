@@ -19,6 +19,8 @@ async function withRehearsal(
 ) {
   const fixture = await createCanonicalAthleteRecoveryRehearsal(options);
   try { await run(fixture); }
+  // Closes only this handle. The runner tears down the whole disposable cluster;
+  // immutable Free bootstrap history and every protected snapshot stay intact.
   finally { await fixture.cleanup(); }
 }
 
@@ -164,6 +166,11 @@ describeDisposablePg("closed bare-athlete recovery in disposable GitHub PostgreS
         expect(original.protected.some((r) => r.schema_name === "zaltyko" && r.table_name === table)).toBe(true);
       }
       expect(original.protected.some((r) => r.schema_name === "auth" && r.table_name === "users")).toBe(true);
+      for (const table of ["organization_entitlements", "organization_entitlement_changes"]) {
+        const protectedState = original.protected.find((row) => row.schema_name === "zaltyko" && row.table_name === table);
+        expect(protectedState?.row_count).toBeGreaterThanOrEqual(2);
+        expect(protectedState).toEqual(original.all.find((row) => row.schema_name === "zaltyko" && row.table_name === table));
+      }
       await fixture.loseFixtureRows();
       const lost = await fixture.snapshot();
       expect(count(lost, "people")).toBe(count(original, "people") - 1);
@@ -240,13 +247,18 @@ describeDisposablePg("closed bare-athlete recovery in disposable GitHub PostgreS
     }, { timestampPrecision: "microseconds" });
   });
 
-  it("closes its own fixture and refuses any later access through that handle", async () => {
-    const fixture = await createCanonicalAthleteRecoveryRehearsal();
-    try {
-      await fixture.cleanup();
-      await expect(fixture.snapshot()).rejects.toMatchObject({ code: "rehearsal_closed" });
-      await expect(fixture.loseFixtureRows()).rejects.toMatchObject({ code: "rehearsal_closed" });
-      await expect(fixture.recover()).rejects.toMatchObject({ code: "rehearsal_closed" });
-    } finally { await fixture.cleanup(); }
+  it("closes only its handle without mutating any database row and refuses later access", async () => {
+    await withRehearsal(async (observer) => {
+      const fixture = await createCanonicalAthleteRecoveryRehearsal();
+      try {
+        const before = await observer.snapshot();
+        await fixture.cleanup();
+        await fixture.cleanup();
+        expect(await observer.snapshot()).toEqual(before);
+        await expect(fixture.snapshot()).rejects.toMatchObject({ code: "rehearsal_closed" });
+        await expect(fixture.loseFixtureRows()).rejects.toMatchObject({ code: "rehearsal_closed" });
+        await expect(fixture.recover()).rejects.toMatchObject({ code: "rehearsal_closed" });
+      } finally { await fixture.cleanup(); }
+    });
   });
 });

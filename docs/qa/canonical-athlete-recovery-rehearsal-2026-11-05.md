@@ -8,7 +8,7 @@ Guarda GitHub/Linux/flag/loopback y configuración antes de importar la base de 
 
 ## Fuentes y pruebas preparadas
 
-- `tests/helpers/canonical-athlete-recovery-rehearsal.ts`: export real intacto, dependencia y proyección fija, captura de precisión contra originales SQL, pérdida de sus dos filas, recuperación transaccional y cleanup de sus propios IDs. Sin ruta, CLI ni consumidor de producto.
+- `tests/helpers/canonical-athlete-recovery-rehearsal.ts`: export real intacto, dependencia y proyección fija, captura de precisión contra originales SQL, pérdida de sus dos filas, recuperación transaccional y cierre idempotente de su handle. El runner destruye el cluster completo; las organizaciones, Auth y su historial inmutable se conservan durante las pruebas. Sin ruta, CLI ni consumidor de producto.
 - `tests/canonical-athlete-recovery-pg.test.ts`: guardas negativas, recuperación con valores poblados y nulos, IDs ocupados en ambas academias, replay sin duplicados, fallo controlado después de confirmar el INSERT real de persona y snapshots de Auth/todas las tablas canónicas.
 - `scripts/ci/verify-sandbox-schema-replay.sh`: ejecuta la suite exclusivamente en el replay remoto efímero, manteniendo el resto de comprobaciones. `vitest.config.ts`: la excluye cuando no está seleccionado ese destino.
 
@@ -33,3 +33,9 @@ Trece casos adicionales rechazan parejas mezcladas, privilegios incoherentes y d
 ## Transporte nativo del runner
 
 El replay08cab809/42108041222/127528396945 obtuvo31PASS y9rechazos: login, privilegios, pares de rol, base de datos y replicación pasaron; transporte y puerto no. El runner existente ya admite el backend Unix de su stack nativo, observado en su log. El helper refleja ahora ese mismo contrato: TCP loopback y puerto exacto, o ambos campos SQL nulos juntos. Rechaza nulos parciales, hosts remotos y puertos distintos, conservando las guardas URL/env antes de importar DB y los demás controles. No modifica servicios, permisos, SQL ni configuración. Backend y QA revisaron el delta final sin P1/P2;43casos preparados, replay nuevo pendiente.
+
+## Bootstrap protegido y cierre de fixtures
+
+El replayb6a27394/42109157056/127532596194 superó la guarda de sesión:34PASS/9FAIL. Su limpieza intentaba borrar organizaciones y PostgreSQL la rechazó55000 por el historial append-only, ocultando el error previo. La fuente del setup exigía cero filas excluidas, aunque el trigger de organización crea el bootstrapFree y su historial.
+
+La fixture permite exclusivamente esas dos tablas con un registro por academia y valida enSQL su estado Free/bootstrap/revisión1, referencias, fechas y ausencia de suscripción/trial; todos los demás excluidos siguen vacíos. Estas filas se protegen en los snapshots, no se exportan ni recuperan. Cleanup solo cierra el handle y no ejecuta SQL: conserva todos los registros hasta que el runner destruye su cluster efímero. Un observador comprueba el cierre idempotente sin ninguna mutación y las operaciones posteriores rechazadas. No se desactiva ningún trigger, permiso o protección.43casos; resultado remoto nuevo pendiente.

@@ -110,7 +110,9 @@ export interface CanonicalAthleteRecoverySnapshot {
 /**
  * TEST-ONLY closed scenario. No caller-supplied body, IDs, SQL, destination,
  * path, mapping or arbitrary selection. Every ID is allocated by this instance
- * after the disposable guard, seeded here, and removed by its own cleanup.
+ * after the disposable guard and seeded here. Cleanup ONLY closes the handle;
+ * the runner owns teardown of the entire disposable cluster, including immutable
+ * bootstrap history. This helper never purges organizations, Auth or history.
  *
  * Millisecond timestamps are intentional: node-pg Date -> JSON loses stored
  * microseconds. The controlled microsecond variant measures that loss against
@@ -155,7 +157,6 @@ export async function createCanonicalAthleteRecoveryRehearsal(
     ? "2026-11-06 13:45:57.789456+00" : "2026-11-06 13:45:57.789+00";
   const nullable = options.recordVariant === "nullable";
   let closed = false;
-  let seeded = false;
   let lost = false;
 
   const guard = () => {
@@ -174,15 +175,9 @@ export async function createCanonicalAthleteRecoveryRehearsal(
     if (result.rows.length !== 1) throw new CanonicalAthleteRecoveryRehearsalError("fixture_scope_changed");
   };
   const cleanup = async () => {
-    if (closed) return;
-    guard();
-    if (seeded) {
-      await db.transaction(async (tx) => {
-        // Only our fresh IDs. No user / organization selectors from a caller.
-        await tx.execute(sql`delete from zaltyko.organizations where id in (${ids.organization}::uuid, ${ids.otherOrganization}::uuid)`);
-        await tx.execute(sql`delete from auth.users where id = ${ids.user}::uuid and email = ${email}`);
-      });
-    }
+    // Memory-only, idempotent closure cannot mask an earlier test/setup error.
+    // Organization deletion would cascade into append-only entitlement history.
+    // Preserve every row until the runner tears down its own ephemeral cluster.
     closed = true;
   };
 
@@ -220,17 +215,40 @@ export async function createCanonicalAthleteRecoveryRehearsal(
           (${ids.otherAthlete}::uuid, ${ids.otherOrganization}::uuid, ${ids.otherPerson}::uuid, 'SYNTHETIC_PROTECTED_B', false, ${timestamp}::timestamptz, ${updatedTimestamp}::timestamptz)
       `);
     });
-    seeded = true;
-
     guard();
     const { exportCanonicalAcademyData } = await import("@/modules/data-rights/application/canonical-academy-return");
     const { body } = await exportCanonicalAcademyData({ userId: ids.user, organizationId: ids.organization });
     validateCanonicalAcademyArchive({ body, organizationId: ids.organization });
-    const source = (JSON.parse(body) as { data: Record<string, Row[]>; coverage: { excludedTables: Array<{ countScope: string; rowCount: unknown }> } });
+    const source = (JSON.parse(body) as { data: Record<string, Row[]>; coverage: { excludedTables: Array<{ table: string; countScope: string; rowCount: unknown }> } });
     const allowedNonempty = new Set(["organizations", "locations", "organization_members", "member_location_scopes", "people", "athletes"]);
+    // Organization INSERT creates exactly one Free bootstrap entitlement and
+    // immutable history row. They remain protected, never exported/recovered.
+    const bootstrapTables = ["organization_entitlements", "organization_entitlement_changes"];
     if (Object.entries(source.data).some(([table, rows]) => rows.length > 0 && !allowedNonempty.has(table)) ||
-        source.coverage.excludedTables.some((table) => table.countScope === "organization_id" && table.rowCount !== 0)) {
+        source.coverage.excludedTables.some((table) => table.countScope === "organization_id" &&
+          table.rowCount !== (bootstrapTables.includes(table.table) ? 1 : 0)) ||
+        bootstrapTables.some((name) => !source.coverage.excludedTables.some((table) =>
+          table.table === name && table.countScope === "organization_id" && table.rowCount === 1))) {
       throw new CanonicalAthleteRecoveryRehearsalError("fixture_has_unrecovered_dependencies");
+    }
+    const bootstrapResult = await db.execute(sql`
+      select count(*)::int as total,
+        count(*) filter (where state.plan_code = 'free' and state.source = 'bootstrap' and state.revision = 1
+          and state.source_reference = 'organization-created:' || organizations.id::text
+          and state.subscription_id is null and state.trial_id is null and state.effective_until is null
+          and state.effective_from = organizations.created_at and state.recorded_at = organizations.created_at)::int as expected
+      from (
+        select organization_id, plan_code, source, revision, source_reference, subscription_id, trial_id,
+          effective_until, effective_from, created_at as recorded_at from zaltyko.organization_entitlements
+        union all
+        select organization_id, plan_code, source, revision, source_reference, subscription_id, trial_id,
+          effective_until, effective_from, changed_at as recorded_at from zaltyko.organization_entitlement_changes
+      ) as state inner join zaltyko.organizations as organizations on organizations.id = state.organization_id
+      where organizations.id in (${ids.organization}::uuid, ${ids.otherOrganization}::uuid)
+    `);
+    const bootstrap = bootstrapResult.rows[0] as unknown as { total: number; expected: number } | undefined;
+    if (bootstrap?.total !== 4 || bootstrap.expected !== 4) {
+      throw new CanonicalAthleteRecoveryRehearsalError("unexpected_fixture_bootstrap_state");
     }
     const person = source.data.people?.[0];
     const athlete = source.data.athletes?.[0];
