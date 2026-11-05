@@ -155,6 +155,7 @@ describeDisposablePg("closed bare-athlete recovery in disposable GitHub PostgreS
       assertGeneralRecoveryBlocked(fixture);
       expect(fixture.exactFixtureTimestamps).toBe(true);
       expect(fixture.timestampDeltas).toEqual({ person_created: 0, person_updated: 0, athlete_created: 0, athlete_updated: 0 });
+      expect(fixture.sourceTimestampMicrosecondRemainders).toEqual({ person_created: 0, person_updated: 0, athlete_created: 0, athlete_updated: 0 });
       expect(fixture.recordShape).toEqual({
         isActive: false, preferredNameIsNull: false, dateOfBirthIsNull: false,
         dateOfBirthIsLeapDay: true, externalReferenceIsNull: false, timestampsDistinct: true,
@@ -193,6 +194,7 @@ describeDisposablePg("closed bare-athlete recovery in disposable GitHub PostgreS
     await withRehearsal(async (fixture) => {
       assertGeneralRecoveryBlocked(fixture);
       expect(fixture.exactFixtureTimestamps).toBe(true);
+      expect(fixture.sourceTimestampMicrosecondRemainders).toEqual({ person_created: 0, person_updated: 0, athlete_created: 0, athlete_updated: 0 });
       expect(fixture.recordShape).toEqual({
         isActive: false, preferredNameIsNull: true, dateOfBirthIsNull: true,
         dateOfBirthIsLeapDay: false, externalReferenceIsNull: true, timestampsDistinct: true,
@@ -234,16 +236,25 @@ describeDisposablePg("closed bare-athlete recovery in disposable GitHub PostgreS
     });
   });
 
-  it("measures export microsecond loss against SQL originals and refuses that recovery scenario", async () => {
+  it("recovers exact microseconds after comparing the unmodified export against SQL originals", async () => {
     await withRehearsal(async (fixture) => {
       assertGeneralRecoveryBlocked(fixture);
-      expect(fixture.exactFixtureTimestamps).toBe(false);
-      expect(fixture.timestampDeltas).toEqual({ person_created: 456, person_updated: 456, athlete_created: 456, athlete_updated: 456 });
-      const before = await fixture.snapshot();
-      await expect(fixture.loseFixtureRows()).rejects.toMatchObject({ code: "source_timestamp_precision_loss" });
-      await expect(fixture.recover()).rejects.toMatchObject({ code: "source_timestamp_precision_loss" });
-      expect(await fixture.snapshot()).toEqual(before);
-      expect(fixture.preflight.restorable).toBe(false);
+      expect(fixture.exactFixtureTimestamps).toBe(true);
+      expect(fixture.timestampDeltas).toEqual({ person_created: 0, person_updated: 0, athlete_created: 0, athlete_updated: 0 });
+      expect(fixture.sourceTimestampMicrosecondRemainders).toEqual({ person_created: 456, person_updated: 456, athlete_created: 456, athlete_updated: 456 });
+      const original = await fixture.snapshot();
+      await fixture.loseFixtureRows();
+      const lost = await fixture.snapshot();
+      expect(count(lost, "people")).toBe(count(original, "people") - 1);
+      expect(count(lost, "athletes")).toBe(count(original, "athletes") - 1);
+      expect(lost.protected).toEqual(original.protected);
+      expect(await fixture.recover()).toEqual({ scenario: "disposable_bare_athlete_v1", people: 1, athletes: 1, generalRecoveryRestorable: false });
+      // SQL JSON fingerprints retain microseconds, so equality checks the
+      // original precision as well as IDs, all other values and protected rows.
+      expect(await fixture.snapshot()).toEqual(original);
+      await expect(fixture.recover()).rejects.toMatchObject({ code: "target_id_conflict" });
+      expect(await fixture.snapshot()).toEqual(original);
+      assertGeneralRecoveryBlocked(fixture);
     }, { timestampPrecision: "microseconds" });
   });
 

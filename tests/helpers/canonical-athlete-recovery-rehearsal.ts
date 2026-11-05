@@ -114,10 +114,11 @@ export interface CanonicalAthleteRecoverySnapshot {
  * the runner owns teardown of the entire disposable cluster, including immutable
  * bootstrap history. This helper never purges organizations, Auth or history.
  *
- * Millisecond timestamps are intentional: node-pg Date -> JSON loses stored
- * microseconds. The controlled microsecond variant measures that loss against
- * its still-present SQL originals and REFUSES loss / recovery. This is not a
- * fidelity oracle for arbitrary archives, nor a product recovery capability.
+ * Both millisecond and microsecond fixtures compare the unmodified raw-query
+ * export against still-present SQL originals before simulating loss. Recovery
+ * requires zero differences; never assume Date conversion or truncate values
+ * to fit an expectation. This is not a fidelity oracle for arbitrary archives,
+ * nor a product recovery capability.
  */
 export async function createCanonicalAthleteRecoveryRehearsal(
   options: {
@@ -274,23 +275,39 @@ export async function createCanonicalAthleteRecoveryRehearsal(
       throw new CanonicalAthleteRecoveryRehearsalError("unexpected_general_preflight");
     }
 
-    // Measure against the original SQL rows BEFORE simulating loss. A rounded
-    // archive alone cannot prove whether its source ever had microseconds.
+    // Measure against the original SQL rows BEFORE simulating loss. An archive
+    // alone cannot establish the timestamp precision of its SQL source.
     const precisionResult = await db.execute(sql`
       select
         (extract(epoch from (people.created_at - ${person.created_at}::timestamptz)) * 1000000)::int as person_created,
         (extract(epoch from (people.updated_at - ${person.updated_at}::timestamptz)) * 1000000)::int as person_updated,
         (extract(epoch from (athletes.created_at - ${athlete.created_at}::timestamptz)) * 1000000)::int as athlete_created,
-        (extract(epoch from (athletes.updated_at - ${athlete.updated_at}::timestamptz)) * 1000000)::int as athlete_updated
+        (extract(epoch from (athletes.updated_at - ${athlete.updated_at}::timestamptz)) * 1000000)::int as athlete_updated,
+        (extract(microseconds from people.created_at)::bigint % 1000)::int as person_created_remainder,
+        (extract(microseconds from people.updated_at)::bigint % 1000)::int as person_updated_remainder,
+        (extract(microseconds from athletes.created_at)::bigint % 1000)::int as athlete_created_remainder,
+        (extract(microseconds from athletes.updated_at)::bigint % 1000)::int as athlete_updated_remainder
       from zaltyko.people as people inner join zaltyko.athletes as athletes
         on athletes.organization_id = people.organization_id and athletes.person_id = people.id
       where people.id = ${ids.person}::uuid and athletes.id = ${ids.athlete}::uuid
     `);
-    const timestampDeltas = precisionResult.rows[0] as unknown as {
+    const precision = precisionResult.rows[0] as unknown as {
       person_created: number; person_updated: number; athlete_created: number; athlete_updated: number;
+      person_created_remainder: number; person_updated_remainder: number;
+      athlete_created_remainder: number; athlete_updated_remainder: number;
+    } | undefined;
+    if (precisionResult.rows.length !== 1 || !precision) throw new CanonicalAthleteRecoveryRehearsalError("fixture_changed_before_precision_check");
+    const timestampDeltas = {
+      person_created: precision.person_created, person_updated: precision.person_updated,
+      athlete_created: precision.athlete_created, athlete_updated: precision.athlete_updated,
     };
-    if (precisionResult.rows.length !== 1) throw new CanonicalAthleteRecoveryRehearsalError("fixture_changed_before_precision_check");
-    const exactFixtureTimestamps = timestampDeltas && Object.values(timestampDeltas).every((value) => value === 0);
+    // SQL evidence that the original fixture really stored sub-millisecond
+    // digits, independent of how the input literal or archive was parsed.
+    const sourceTimestampMicrosecondRemainders = {
+      person_created: precision.person_created_remainder, person_updated: precision.person_updated_remainder,
+      athlete_created: precision.athlete_created_remainder, athlete_updated: precision.athlete_updated_remainder,
+    };
+    const exactFixtureTimestamps = Object.values(timestampDeltas).every((value) => value === 0);
     const requireExactFixture = () => {
       guard();
       if (!exactFixtureTimestamps) throw new CanonicalAthleteRecoveryRehearsalError("source_timestamp_precision_loss");
@@ -331,6 +348,7 @@ export async function createCanonicalAthleteRecoveryRehearsal(
       // Reports contain no archive values / fixture IDs. General recovery stays blocked.
       preflight,
       timestampDeltas,
+      sourceTimestampMicrosecondRemainders,
       exactFixtureTimestamps: Boolean(exactFixtureTimestamps),
       recordShape: {
         isActive: athlete.is_active,

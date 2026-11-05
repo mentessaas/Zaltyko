@@ -1,41 +1,36 @@
-# Prueba cerrada de recuperación de una ficha sintética
+# Recuperación cerrada de una ficha sintética
 
 ## Hallazgos y alcance
 
-El siguiente incremento de G7 prueba una operación real en PostgreSQL desechable de GitHub, sin publicar un importador. El helper existe únicamente bajo `tests/`: crea y posee dos organizaciones sintéticas, su identidad Auth compartida y una ficha sin familia, grupos, inscripciones o ledger. No acepta archivos, IDs, SQL, credenciales o destinos elegidos por un consumidor. Los únicos escenarios seleccionables son variantes fijas de datos sintéticos.
+Este incremento de G7 prueba una recuperación real en PostgreSQL desechable de GitHub, sin publicar un importador. El helper bajo tests crea y posee dos organizaciones, una identidad Auth compartida y una persona/gimnasta sin familia, grupos, inscripciones ni operaciones financieras. No admite archivos, IDs, SQL, credenciales o destinos elegidos por un consumidor. Solo selecciona variantes fijas de datos sintéticos.
 
-Guarda GitHub/Linux/flag/loopback y configuración antes de importar la base de datos; revalida antes de usarla y comprueba la sesión real. Conserva las guardas del runner. El parámetro local TLS y el rol inicial deben coincidir con el cluster efímero existente; esto no modifica permisos, TLS ni credenciales alojados.
+La guarda exige GitHub/Linux, flag de integración y URL loopback exacta antes de importar la base; revalida después. Comprueba el login y sus privilegios, parejas completas de roles, base postgres, transporte local y replicación origin. Acepta TCP con puerto exacto o el backend Unix del stack nativo que ya verifica el runner; nunca nulos parciales. No cambia roles, permisos, TLS ni credenciales alojados. Los rechazos de sesión exponen únicamente ocho booleanos fijos.
 
-## Fuentes y pruebas preparadas
+El trigger de organización crea un bootstrap Free y su historial inmutable. La fixture permite exclusivamente esas dos fuentes excluidas, con conteos y estado Free/bootstrap/revisión 1, referencias y fechas exactas y sin trial/suscripción. Las conserva íntegramente en los snapshots. Los demás datos fuera del alcance permanecen rechazados.
 
-- `tests/helpers/canonical-athlete-recovery-rehearsal.ts`: export real intacto, dependencia y proyección fija, captura de precisión contra originales SQL, pérdida de sus dos filas, recuperación transaccional y cierre idempotente de su handle. El runner destruye el cluster completo; las organizaciones, Auth y su historial inmutable se conservan durante las pruebas. Sin ruta, CLI ni consumidor de producto.
-- `tests/canonical-athlete-recovery-pg.test.ts`: guardas negativas, recuperación con valores poblados y nulos, IDs ocupados en ambas academias, replay sin duplicados, fallo controlado después de confirmar el INSERT real de persona y snapshots de Auth/todas las tablas canónicas.
-- `scripts/ci/verify-sandbox-schema-replay.sh`: ejecuta la suite exclusivamente en el replay remoto efímero, manteniendo el resto de comprobaciones. `vitest.config.ts`: la excluye cuando no está seleccionado ese destino.
+## Fuentes y comprobaciones
 
-Los snapshots deben comprobar la pérdida y recuperación exactas de las dos filas de la fixture y conservar íntegros todos los demás registros, incluidos identidad compartida, scopes, historia financiera, auditoría y outbox. El failpoint es una excepción del propio helper después del primer INSERT: prueba rollback transaccional, no un conflicto concurrente de importadores de producto.
+- tests/helpers/canonical-athlete-recovery-rehearsal.ts: export real sin alterar ni resellar; proyección fija de persona/gimnasta; comparación con originales SQL; pérdida de esas dos filas y recuperación transaccional. Cleanup solo cierra el handle, sin SQL; el runner tiene asignada la destrucción del cluster completo.
+- tests/canonical-athlete-recovery-pg.test.ts: 43 casos preparados. Guardas negativas, datos poblados y nulos, IDs ocupados en ambas academias, replay sin duplicados, rollback después de confirmar el primer INSERT y snapshots de Auth/todas las tablas canónicas. Un observador compara todas las filas antes/después de dos cierres del handle.
+- scripts/ci/verify-sandbox-schema-replay.sh ejecuta la suite en PostgreSQL efímero sin retirar comprobaciones existentes; vitest.config.ts la excluye cuando no está seleccionado ese destino. Pins de runner/manifest actualizados; SQL baseline intacto.
 
-## Precisión e importancia
+El failpoint es una excepción controlada del helper después de un INSERT real confirmado. Prueba rollback transaccional, no una carrera de importadores de producto.
 
-La exportación parcial actual convierte timestamps de PostgreSQL a Date/JSON de milisegundos. La prueba positiva usa timestamps alineados a milisegundos, distintos entre creación y actualización. La variante con microsegundos mide la pérdida contra los originales todavía presentes y debe rechazar tanto pérdida como recuperación de esa fixture, sin reparar o resellar el archivo. Un archivo aislado no puede acreditar la precisión que su origen perdió.
+## Precisión: hipótesis corregida
 
-Este resultado solo puede acreditar esa ficha privada y esos escenarios. No demuestra recuperación integral, archivos externos, catálogos, Auth/Storage/legacy, retención/supresión, autorizaciones productivas, copias reales ni RPO/RTO. El preflight general sigue bloqueado y `restorable=false`. No modifica el exportador ni convierte su salida parcial en backup integral.
+La revisión inicial supuso que el export perdería microsegundos por la conversión Date/JSON habitual de node-postgres. El recorrido real usa tx.execute y result.rows: en c50440f5, la comparación con SQL fue exacta. Por tanto, aquella pérdida era una hipótesis, no un defecto demostrado de este exportador.
 
-## Siguiente paso y estado
+El caso actual no fuerza truncamiento. Comprueba antes de perder filas que los cuatro timestamps originales almacenan realmente una fracción submilisegundo de 456 y que las diferencias entre SQL y archivo son cero. Después exige pérdida exacta, recuperación de todos los valores mediante el archivo intacto, snapshot completo idéntico y replay rechazado sin mutaciones. Las variantes alineadas a milisegundos comprueban residuos cero. Se mantiene la guarda de fidelidad ante cualquier diferencia; no se presenta su negativo como ejecutado.
 
-Revisión estática independiente y ejecución remota exacta pendientes al preparar este documento. Nada se ejecuta en Mac. Root registrará el SHA, job y resultado real en la auditoría externa, distinguiendo tests preparados, ejecutados y omitidos. No SQL alojado, producción, Stripe Live, ensayo natural, nuevos accesos ni proveedores. La preview de entregas permanece en63c64487 con invitaciones apagadas.
+## Resultados previos y límites
 
-## Ajuste del contrato de sesión después de la primera ejecución
+- 3827cae6, replay 42107177373: nueve positivos rechazados antes de la fixture por un contrato de sesión no coincidente; 18 negativos PASS. No identifica por sí solo qué campo falló.
+- 08cab809, replay 42108041222: nueve rechazos y 31 PASS; seis controles de sesión válidos y transporte/puerto rechazados.
+- b6a27394, replay 42109157056: la guarda pasó; 34 PASS y nueve fallos registrados en cleanup DELETEorg, correctamente rechazado por historial append-only. Ese cleanup ocultó el error anterior. La fuente exigía cero filas excluidas pese al bootstrap automático.
+- c50440f5, replay 42110400374: 42 PASS y un fallo en la expectativa de pérdida de microsegundos. Recuperación ms/nulos, conflictos/replay, rollback y cierre sin mutaciones pasaron; la recuperación µs completa todavía no estaba comprobada.
 
-El primer replay 42107177373/127524955878 rechazó nueve escenarios positivos en la guarda antes de crear fixtures; 18 negativos pasaron. El log del CLI mostraba su rol efectivo postgres, pero no los campos de la conexión Node; no se atribuye una causa individual sin evidencia. El helper normaliza la dirección con host(inet_server_addr()), exige login supabase_admin superuser y solo permite las parejas completas supabase_admin/none (efectivo superuser) o postgres/postgres (efectivo no superuser), manteniendo DB, TCP loopback, puerto y replicación origin exactos. No ejecuta SET ROLE ni cambia permisos.
+El siguiente resultado exacto se registra en la auditoría externa sin heredar PASS. La prueba solo acredita sus fixtures y esos escenarios: no devolución o recuperación integral, archivos externos, Auth/Storage/legacy, borrado/conservación, copias reales, permisos productivos ni RPO/RTO. El preflight general sigue blocked y restorable=false. No modifica el exportador ni convierte su paquete parcial en backup integral.
 
-Trece casos adicionales rechazan parejas mezcladas, privilegios incoherentes y destinos distintos. Ante un rechazo de sesión, el diagnóstico solo expone ocho booleanos fijos, nunca URL, credenciales o valores raw. Cuarenta casos quedan preparados para el replay; Backend y QA revisaron estáticamente el delta sin P1/P2. El nuevo resultado remoto continúa pendiente.
+## Importancia y siguiente paso
 
-## Transporte nativo del runner
-
-El replay08cab809/42108041222/127528396945 obtuvo31PASS y9rechazos: login, privilegios, pares de rol, base de datos y replicación pasaron; transporte y puerto no. El runner existente ya admite el backend Unix de su stack nativo, observado en su log. El helper refleja ahora ese mismo contrato: TCP loopback y puerto exacto, o ambos campos SQL nulos juntos. Rechaza nulos parciales, hosts remotos y puertos distintos, conservando las guardas URL/env antes de importar DB y los demás controles. No modifica servicios, permisos, SQL ni configuración. Backend y QA revisaron el delta final sin P1/P2;43casos preparados, replay nuevo pendiente.
-
-## Bootstrap protegido y cierre de fixtures
-
-El replayb6a27394/42109157056/127532596194 superó la guarda de sesión:34PASS/9FAIL. Su limpieza intentaba borrar organizaciones y PostgreSQL la rechazó55000 por el historial append-only, ocultando el error previo. La fuente del setup exigía cero filas excluidas, aunque el trigger de organización crea el bootstrapFree y su historial.
-
-La fixture permite exclusivamente esas dos tablas con un registro por academia y valida enSQL su estado Free/bootstrap/revisión1, referencias, fechas y ausencia de suscripción/trial; todos los demás excluidos siguen vacíos. Estas filas se protegen en los snapshots, no se exportan ni recuperan. Cleanup solo cierra el handle y no ejecuta SQL: conserva todos los registros hasta que el runner destruye su cluster efímero. Un observador comprueba el cierre idempotente sin ninguna mutación y las operaciones posteriores rechazadas. No se desactiva ningún trigger, permiso o protección.43casos; resultado remoto nuevo pendiente.
+Backend y QA revisaron estáticamente el delta final sin nuevos P1/P2. Los 43 casos del candidato actual quedan pendientes de replay y de CI completa. Nada se ejecuta en Mac. La preview sirve 63c64487 con invitaciones desactivadas. Sin SQL alojado, producción, Live, ensayo natural, proveedores o nuevos accesos. La publicación de otro SHA requiere revisión externa exacta.
