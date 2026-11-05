@@ -11,6 +11,9 @@ import {
 import {
   validateCanonicalAcademyArchive,
 } from "@/modules/data-rights/application/verify-canonical-academy-archive";
+import {
+  preflightCanonicalAcademyRecovery,
+} from "@/modules/data-rights/application/preflight-canonical-academy-recovery";
 
 const { getCurrentUserMock } = vi.hoisted(() => ({
   getCurrentUserMock: vi.fn(),
@@ -530,6 +533,43 @@ function exportText(value: unknown, seen = new WeakSet<object>()): string {
   return "";
 }
 
+function assertSafeBlockedRecoveryReport(
+  report: ReturnType<typeof preflightCanonicalAcademyRecovery>,
+  fixture: ExportFixture
+) {
+  expect(report).toMatchObject({
+    status: "blocked",
+    partial: true,
+    restorable: false,
+    authenticityVerified: false,
+    authorizationVerified: false,
+    destinationVerified: false,
+    referentialIntegrityVerified: false,
+    sourceCompletenessVerified: false,
+    archiveChecksumsVerified: true,
+    outsideOrganizationIdConflicts: "unknown",
+  });
+  expect(report.tables).toHaveLength(46);
+  expect(report.tables.map(table => table.table).sort())
+    .toEqual(CANONICAL_EXPORT_TABLES.map(table => table.name).sort());
+  for (const field of ["body", "data", "source", "destination", "organizationId"]) {
+    expect(report).not.toHaveProperty(field);
+  }
+
+  const serialized = JSON.stringify(report);
+  // Assert on booleans so a privacy regression never prints a leaked value as
+  // the assertion's received/expected payload in the CI log.
+  expect(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(serialized)).toBe(false);
+  expect([
+    fixture.aOrganizationMarker, fixture.bOrganizationMarker,
+    fixture.aGuardianMarker, fixture.bGuardianMarker,
+    fixture.aAthleteMarker, fixture.bAthleteMarker,
+    fixture.aGroupOneMarker, fixture.aGroupTwoMarker, fixture.bGroupMarker,
+    fixture.authSecretCanary, fixture.accessTokenCanary, fixture.serviceRoleCanary,
+    fixture.consentProofCanary, fixture.metricValueCanary,
+  ].some(value => serialized.includes(value))).toBe(false);
+}
+
 async function requestExportAs(
   userId: string,
   organizationId: string
@@ -632,6 +672,45 @@ describeDisposablePg("canonical Owner academy data export in disposable PostgreS
     expect(output).not.toContain(fixture.sharedAuthUserId);
     expect(output).not.toContain(fixture.consentProofCanary);
     expect(output).not.toContain(fixture.metricValueCanary);
+
+    // Consume the exact route response, without resealing or repairing rows for
+    // the preflight. A missing dependency here is a finding about the real
+    // exported projection, not permission to manufacture its parent fixture.
+    const recovery = preflightCanonicalAcademyRecovery({
+      body: exportedBody,
+      organizationId: fixture.organizationAId,
+    });
+    assertSafeBlockedRecoveryReport(recovery, fixture);
+    expect(recovery.destinationComparison).toBe("not_supplied");
+    expect(recovery.diagnostics.filter(issue => issue.classification === "violation"))
+      .toHaveLength(0);
+    for (const table of recovery.tables) {
+      expect(table.sourceRows).toBe(exported.data[table.table].length);
+      expect(table.declaredDestinationRows).toBeNull();
+    }
+
+    // Even the identical archive is a declared target, not authoritative live
+    // state. Every existing PK must block an overwrite; no import is attempted.
+    const collisionRecovery = preflightCanonicalAcademyRecovery({
+      body: exportedBody,
+      organizationId: fixture.organizationAId,
+      destination: { body: exportedBody },
+    });
+    assertSafeBlockedRecoveryReport(collisionRecovery, fixture);
+    expect(collisionRecovery.destinationComparison).toBe("declared_same_organization_archive");
+    const collisions = collisionRecovery.diagnostics
+      .filter(issue => issue.code === "destination_primary_key_collision")
+      .map(issue => ({ table: issue.table, occurrences: issue.occurrences }))
+      .sort((left, right) => left.table.localeCompare(right.table));
+    const expectedCollisions = exported.coverage.includedTables
+      .filter(table => table.rowCount > 0)
+      .map(table => ({ table: table.table, occurrences: table.rowCount }))
+      .sort((left, right) => left.table.localeCompare(right.table));
+    expect(expectedCollisions.length).toBeGreaterThan(0);
+    expect(collisions).toEqual(expectedCollisions);
+    for (const table of collisionRecovery.tables) {
+      expect(table.declaredDestinationRows).toBe(exported.data[table.table].length);
+    }
 
     const after = await snapshot(
       [fixture.organizationAId, fixture.organizationBId],
