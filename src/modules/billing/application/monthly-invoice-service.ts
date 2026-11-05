@@ -1023,6 +1023,9 @@ async function buildMonthlyInvoiceOptions(
     pricePlans: plans,
     families: familyResults.map((family) => ({
       ...family,
+      totalAmountCents: family.blockingReasons.includes("CURRENCY_MISMATCH")
+        ? null
+        : family.totalAmountCents,
       lines: family.lines.map((line) => ({
         athleteId: line.athleteId,
         athleteName: line.athleteName,
@@ -1722,7 +1725,11 @@ export async function issueMonthlyInvoice(
         "La cotización cambió. Actualiza la vista previa."
       );
     }
-    if (!family.canIssue || !family.currency) {
+    if (
+      !family.canIssue ||
+      !family.currency ||
+      family.totalAmountCents === null
+    ) {
       throw new OperationalError(
         "MONTHLY_INVOICE_BLOCKED",
         "Completa la familia, el responsable y la cobertura tarifaria de todas las gimnastas antes de emitir.",

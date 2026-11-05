@@ -1007,3 +1007,121 @@ function buildClassPeriodFixture(input: {
     },
   };
 }
+
+function buildTwoAthleteCurrencyFixture(secondCurrency: "EUR" | "MXN") {
+  const fixture = buildClassPeriodFixture({
+    servicePeriod: "2026-10",
+    classEffectiveFrom: "2026-01-01",
+    classEffectiveTo: null,
+  });
+  const firstEnrollment = fixture.rows.enrollments[0];
+  const firstMember = fixture.rows.familyMembers[0];
+  const firstAssignment = fixture.rows.enrollmentPriceAssignments[0];
+  const firstCoverage = fixture.rows.pricePlanClassTemplateCoverage[0];
+  const secondAmountCents = secondCurrency === "EUR" ? 5000 : 2500;
+  const secondPricePlanId =
+    secondCurrency === "EUR" ? "plan-eur-second" : "plan-mxn";
+
+  fixture.rows.pricePlans.push({
+    ...fixture.rows.pricePlans[0],
+    id: secondPricePlanId,
+    name: `Cuota mensual ${secondCurrency}`,
+    currency: secondCurrency,
+    amountCents: secondAmountCents,
+  });
+  fixture.rows.pricePlanClassTemplateCoverage.push({
+    ...firstCoverage,
+    id: `coverage-${secondCurrency.toLowerCase()}-second`,
+    pricePlanId: secondPricePlanId,
+  });
+
+  fixture.rows.enrollments.push({
+    ...firstEnrollment,
+    id: "enrollment-second",
+    enrollmentId: "enrollment-second",
+    athleteId: "athlete-second",
+    athleteName: "Gimnasta Dos",
+    givenSortName: "Dos",
+  });
+  fixture.rows.familyMembers.push({
+    ...firstMember,
+    id: "member-second",
+    memberId: "member-second",
+    athleteId: "athlete-second",
+  });
+  fixture.rows.enrollmentPriceAssignments.push({
+    ...firstAssignment,
+    id: "assignment-second",
+    enrollmentId: "enrollment-second",
+    pricePlanId: secondPricePlanId,
+    currency: secondCurrency,
+    unitAmountCents: secondAmountCents,
+  });
+
+  return fixture;
+}
+
+describe("monthly invoice currency totals", () => {
+  it("does not sum a mixed-currency family total and preserves each line", async () => {
+    const fixture = buildTwoAthleteCurrencyFixture("MXN");
+    setFixture(fixture.rows, makeTx());
+
+    const result = await getMonthlyInvoiceOptions({
+      organizationId: fixture.orgId,
+      locationId: fixture.locationId,
+      servicePeriod: "2026-10",
+      actor: { userId: "user-1", memberId: "member-1", role: "owner" },
+    });
+    const family = result.families[0];
+
+    expect(family).toMatchObject({
+      currency: null,
+      totalAmountCents: null,
+      canIssue: false,
+    });
+    expect(family?.blockingReasons).toContain("CURRENCY_MISMATCH");
+    expect(family?.quoteHash).toEqual(expect.any(String));
+    expect(
+      family?.lines.map(({ athleteId, pricePlanId, amountCents, currency }) => ({
+        athleteId,
+        pricePlanId,
+        amountCents,
+        currency,
+      }))
+    ).toEqual([
+      {
+        athleteId: "athlete-period",
+        pricePlanId: "plan-period",
+        amountCents: 10000,
+        currency: "EUR",
+      },
+      {
+        athleteId: "athlete-second",
+        pricePlanId: "plan-mxn",
+        amountCents: 2500,
+        currency: "MXN",
+      },
+    ]);
+  });
+
+  it("keeps the total for a family whose lines use one currency", async () => {
+    const fixture = buildTwoAthleteCurrencyFixture("EUR");
+    setFixture(fixture.rows, makeTx());
+
+    const result = await getMonthlyInvoiceOptions({
+      organizationId: fixture.orgId,
+      locationId: fixture.locationId,
+      servicePeriod: "2026-10",
+      actor: { userId: "user-1", memberId: "member-1", role: "owner" },
+    });
+    const family = result.families[0];
+
+    expect(family).toMatchObject({
+      currency: "EUR",
+      totalAmountCents: 15000,
+      canIssue: true,
+    });
+    expect(family?.blockingReasons).not.toContain("CURRENCY_MISMATCH");
+    expect(family?.lines.map((line) => line.amountCents)).toEqual([10000, 5000]);
+  });
+});
