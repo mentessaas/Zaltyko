@@ -59,7 +59,7 @@ type IdentityCode = (typeof IDENTITY_CODES)[number];
 const COMPARISON_CODES = [
   "LEDGER_ROWS", "INV_TOTAL", "CHG_TOTAL", "CURRENCY", "PAY_TOTAL", "ALLOC_TOTAL",
   "PAY_COUNT", "MANUAL_PAY", "PAY_CURRENCY", "ALLOC_CUR", "CHG_STATUS", "INV_STATUS",
-  "OUTBOX", "AUDIT", "BALANCE", "SRC_HASH", "DST_HASH", "SRC_REPEAT", "DST_REPEAT",
+  "OUTBOX", "AUDIT", "BALANCE", "SRC_HASH", "DST_HASH", "SRC_REPEAT", "DST_REPEAT", "TRIG_META",
 ] as const;
 type ComparisonCode = (typeof COMPARISON_CODES)[number];
 const FINGERPRINT_SECTIONS = [
@@ -81,7 +81,7 @@ const FINGERPRINT_FIELDS = {
   indexes: ["schema_name", "table_name", "name", "definition", "is_unique", "is_primary", "is_valid", "is_live", "predicate", "expressions"],
   policies: ["schema_name", "table_name", "name", "permissive", "command", "roles", "using_expression", "check_expression"],
   routines: ["schema_name", "name", "arguments", "result", "language", "kind", "owner", "acl", "source", "volatility", "security_definer", "strict", "leakproof", "parallel", "configuration", "definition"],
-  triggers: ["schema_name", "table_name", "name", "definition", "enabled", "internal", "is_constraint_trigger"],
+  triggers: ["schema_name", "table_name", "name", "definition", "enabled", "internal", "is_constraint_trigger", "constraint_identity", "function_identity", "type", "referenced_table", "supporting_index", "deferrable", "initially_deferred", "argument_count", "arguments", "columns", "has_qual", "old_table", "new_table", "parent_chain"],
   sequences: ["schema_name", "name", "data_type", "start_value", "min_value", "max_value", "increment_by", "cycle", "cache_size", "last_value"],
   defaultAcls: ["role", "schema_name", "object_type", "acl"],
   rows: ["schema_name", "table_name", "count", "hash"],
@@ -226,7 +226,7 @@ function compareFingerprints(actual: Fingerprint, expected: Fingerprint, phase: 
       log("fingerprint_difference", { phase, code, difference: "envelope_encoding" });
     }
   }
-  // Diagnostics do not substitute section equality for the original full hash.
+  // Diagnostics do not substitute section equality for the full snapshot hash.
   demandComparison(actual.hash === expected.hash, phase, code);
 }
 
@@ -1361,11 +1361,29 @@ async function verifyLedgerAmounts(client: Client, fixtures: LedgerFixture[], ph
   log("ledger_comparison_verified", { phase });
 }
 
+// Only fixed catalog expressions below call this SQL fragment builder. A NULL
+// object ACL means acldefault(kind, owner), whereas an explicit empty ACL stays
+// empty. pg_default_acl entries are compared separately, not applied retroactively.
+function canonicalAclSql(aclExpression: string, defaultExpression?: string): string {
+  const effectiveAcl = defaultExpression ? `COALESCE(${aclExpression}, ${defaultExpression})` : aclExpression;
+  return `(SELECT COALESCE(jsonb_agg(jsonb_build_object(
+    'public', acl.grantee = 0,
+    'grantee', CASE WHEN acl.grantee = 0 THEN NULL ELSE pg_get_userbyid(acl.grantee) END,
+    'grantor', pg_get_userbyid(acl.grantor),
+    'privilege', acl.privilege_type,
+    'grantable', acl.is_grantable
+  ) ORDER BY acl.grantee = 0,
+    CASE WHEN acl.grantee = 0 THEN NULL ELSE pg_get_userbyid(acl.grantee) END,
+    pg_get_userbyid(acl.grantor), acl.privilege_type, acl.is_grantable), '[]'::jsonb)
+  FROM aclexplode(${effectiveAcl}) AS acl)`;
+}
+
 async function catalogAndDataFingerprint(client: Client): Promise<Fingerprint> {
   await client.query("SET TIME ZONE 'UTC'");
   await client.query("SET extra_float_digits = 3");
   const database = await client.query(`
-    SELECT pg_get_userbyid(d.datdba) AS owner, d.datacl::text AS acl,
+    SELECT pg_get_userbyid(d.datdba) AS owner,
+      ${canonicalAclSql("d.datacl", "acldefault('d', d.datdba)")} AS acl,
       pg_encoding_to_char(d.encoding) AS encoding, d.datcollate AS collate,
       d.datctype AS ctype, d.datconnlimit AS connection_limit
     FROM pg_database d WHERE d.datname = current_database()
@@ -1380,7 +1398,7 @@ async function catalogAndDataFingerprint(client: Client): Promise<Fingerprint> {
   `);
   const schemas = await client.query(`
     SELECT n.nspname AS name, pg_get_userbyid(n.nspowner) AS owner,
-      n.nspacl::text AS acl
+      ${canonicalAclSql("n.nspacl", "acldefault('n', n.nspowner)")} AS acl
     FROM pg_namespace n WHERE n.nspname = ANY($1::text[])
     ORDER BY n.nspname
   `, [APP_SCHEMAS]);
@@ -1402,7 +1420,8 @@ async function catalogAndDataFingerprint(client: Client): Promise<Fingerprint> {
   `);
   const relations = await client.query(`
     SELECT n.nspname AS schema_name, c.relname AS name, c.relkind AS kind,
-      pg_get_userbyid(c.relowner) AS owner, c.relacl::text AS acl,
+      pg_get_userbyid(c.relowner) AS owner,
+      ${canonicalAclSql("c.relacl", "acldefault(CASE WHEN c.relkind = 'S' THEN 's' ELSE 'r' END::\"char\", c.relowner)")} AS acl,
       c.relrowsecurity AS row_security, c.relforcerowsecurity AS force_row_security,
       c.relpersistence AS persistence, c.reloptions::text AS options,
       c.relreplident AS replica_identity
@@ -1416,19 +1435,7 @@ async function catalogAndDataFingerprint(client: Client): Promise<Fingerprint> {
       a.attnotnull AS not_null, pg_get_expr(d.adbin, d.adrelid) AS default_expression,
       a.attidentity AS identity_kind, a.attgenerated AS generated_kind,
       coll_ns.nspname AS collation_schema, coll.collname AS collation_name,
-      COALESCE((
-        SELECT jsonb_agg(jsonb_build_object(
-          'grantee', CASE WHEN acl.grantee = 0 THEN 'PUBLIC' ELSE grantee.rolname END,
-          'grantor', grantor.rolname,
-          'privilege', acl.privilege_type,
-          'grantable', acl.is_grantable
-        ) ORDER BY
-          CASE WHEN acl.grantee = 0 THEN 'PUBLIC' ELSE grantee.rolname END,
-          grantor.rolname, acl.privilege_type, acl.is_grantable)
-        FROM aclexplode(a.attacl) AS acl
-        LEFT JOIN pg_roles grantee ON grantee.oid = acl.grantee
-        LEFT JOIN pg_roles grantor ON grantor.oid = acl.grantor
-      ), '[]'::jsonb) AS column_privileges
+      ${canonicalAclSql("a.attacl", "acldefault('c', c.relowner)")} AS column_privileges
     FROM pg_attribute a
     JOIN pg_class c ON c.oid = a.attrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -1441,7 +1448,8 @@ async function catalogAndDataFingerprint(client: Client): Promise<Fingerprint> {
   `, [APP_SCHEMAS]);
   const types = await client.query(`
     SELECT n.nspname AS schema_name, t.typname AS name, t.typtype AS kind,
-      pg_get_userbyid(t.typowner) AS owner, t.typacl::text AS acl,
+      pg_get_userbyid(t.typowner) AS owner,
+      ${canonicalAclSql("t.typacl", "acldefault('T', t.typowner)")} AS acl,
       format_type(t.typbasetype, t.typtypmod) AS base_type,
       t.typnotnull AS not_null, t.typdefault AS default_expression,
       t.typcategory AS category, t.typdelim AS delimiter,
@@ -1498,7 +1506,8 @@ async function catalogAndDataFingerprint(client: Client): Promise<Fingerprint> {
       pg_get_function_identity_arguments(p.oid) AS arguments,
       pg_get_function_result(p.oid) AS result,
       l.lanname AS language, p.prokind AS kind,
-      pg_get_userbyid(p.proowner) AS owner, p.proacl::text AS acl,
+      pg_get_userbyid(p.proowner) AS owner,
+      ${canonicalAclSql("p.proacl", "acldefault('f', p.proowner)")} AS acl,
       p.prosrc AS source, p.provolatile AS volatility,
       p.prosecdef AS security_definer, p.proisstrict AS strict,
       p.proleakproof AS leakproof, p.proparallel AS parallel,
@@ -1510,16 +1519,92 @@ async function catalogAndDataFingerprint(client: Client): Promise<Fingerprint> {
     WHERE n.nspname = ANY($1::text[])
     ORDER BY n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)
   `, [APP_SCHEMAS]);
-  const triggers = await client.query(`
-    SELECT n.nspname AS schema_name, c.relname AS table_name,
-      t.tgname AS name, pg_get_triggerdef(t.oid, true) AS definition,
-      t.tgenabled AS enabled, t.tgisinternal AS internal,
-      t.tgconstraint <> 0 AS is_constraint_trigger
-    FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = ANY($1::text[])
-    ORDER BY n.nspname, c.relname, t.tgname
+  const triggers = await client.query<{
+    entries: Array<Record<string, unknown>>;
+    expected_count: number;
+    definitions_valid: boolean;
+  }>(`
+    WITH RECURSIVE raw_triggers AS (
+      SELECT t.*, n.nspname AS schema_name, c.relname AS table_name,
+        pg_get_triggerdef(t.oid, true) AS raw_definition,
+        format('CREATE %sTRIGGER %I ',
+          CASE WHEN t.tgconstraint <> 0 THEN 'CONSTRAINT ' ELSE '' END,
+          t.tgname) AS definition_prefix
+      FROM pg_trigger t
+      JOIN pg_class c ON c.oid = t.tgrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+    ), trigger_metadata AS (
+      SELECT t.oid, t.tgparentid,
+        (t.raw_definition IS NOT NULL AND
+          (NOT t.tgisinternal OR starts_with(t.raw_definition, t.definition_prefix))) AS definition_valid,
+        jsonb_build_object(
+          'schema_name', t.schema_name, 'table_name', t.table_name,
+          'name', CASE WHEN t.tgisinternal THEN NULL ELSE t.tgname END,
+          'definition', CASE WHEN NOT t.tgisinternal THEN t.raw_definition
+            WHEN starts_with(t.raw_definition, t.definition_prefix) THEN
+              format('CREATE %sTRIGGER __internal__ ',
+                CASE WHEN t.tgconstraint <> 0 THEN 'CONSTRAINT ' ELSE '' END)
+              || substr(t.raw_definition, length(t.definition_prefix) + 1)
+            ELSE NULL END,
+          'enabled', t.tgenabled, 'internal', t.tgisinternal,
+          'is_constraint_trigger', t.tgconstraint <> 0,
+          'constraint_identity', CASE WHEN t.tgconstraint = 0 THEN NULL ELSE
+            jsonb_build_object('schema', con_ns.nspname, 'name', con.conname,
+              'table_schema', con_rel_ns.nspname, 'table', con_rel.relname,
+              'domain_schema', con_type_ns.nspname, 'domain', con_type.typname,
+              'kind', con.contype, 'definition', pg_get_constraintdef(con.oid, true)) END,
+          'function_identity', jsonb_build_object('schema', fn_ns.nspname,
+            'name', fn.proname, 'arguments', pg_get_function_identity_arguments(fn.oid)),
+          'type', t.tgtype,
+          'referenced_table', CASE WHEN t.tgconstrrelid = 0 THEN NULL ELSE
+            jsonb_build_object('schema', ref_ns.nspname, 'name', ref_rel.relname) END,
+          'supporting_index', CASE WHEN t.tgconstrindid = 0 THEN NULL ELSE
+            jsonb_build_object('schema', idx_ns.nspname, 'name', idx.relname) END,
+          'deferrable', t.tgdeferrable, 'initially_deferred', t.tginitdeferred,
+          'argument_count', t.tgnargs, 'arguments', encode(t.tgargs, 'hex'),
+          'columns', ARRAY(SELECT jsonb_build_object('ordinal', col.attnum, 'name', a.attname)
+            FROM unnest(t.tgattr::smallint[]) WITH ORDINALITY AS col(attnum, position)
+            LEFT JOIN pg_attribute a ON a.attrelid = t.tgrelid AND a.attnum = col.attnum
+            ORDER BY col.position),
+          -- The full deparsed definition above retains WHEN, including OLD/NEW
+          -- references. pg_get_expr with one relation cannot represent both.
+          'has_qual', t.tgqual IS NOT NULL,
+          'old_table', t.tgoldtable, 'new_table', t.tgnewtable
+        ) AS metadata
+      FROM raw_triggers t
+      JOIN pg_proc fn ON fn.oid = t.tgfoid
+      JOIN pg_namespace fn_ns ON fn_ns.oid = fn.pronamespace
+      LEFT JOIN pg_constraint con ON con.oid = t.tgconstraint
+      LEFT JOIN pg_namespace con_ns ON con_ns.oid = con.connamespace
+      LEFT JOIN pg_class con_rel ON con_rel.oid = con.conrelid
+      LEFT JOIN pg_namespace con_rel_ns ON con_rel_ns.oid = con_rel.relnamespace
+      LEFT JOIN pg_type con_type ON con_type.oid = con.contypid
+      LEFT JOIN pg_namespace con_type_ns ON con_type_ns.oid = con_type.typnamespace
+      LEFT JOIN pg_class ref_rel ON ref_rel.oid = t.tgconstrrelid
+      LEFT JOIN pg_namespace ref_ns ON ref_ns.oid = ref_rel.relnamespace
+      LEFT JOIN pg_class idx ON idx.oid = t.tgconstrindid
+      LEFT JOIN pg_namespace idx_ns ON idx_ns.oid = idx.relnamespace
+    ), trigger_tree AS (
+      SELECT oid, tgparentid, metadata, definition_valid, '[]'::jsonb AS parent_chain
+      FROM trigger_metadata WHERE tgparentid = 0
+      UNION ALL
+      SELECT child.oid, child.tgparentid, child.metadata,
+        child.definition_valid AND parent.definition_valid,
+        parent.parent_chain || jsonb_build_array(parent.metadata)
+      FROM trigger_metadata child JOIN trigger_tree parent ON parent.oid = child.tgparentid
+    )
+    SELECT COALESCE(jsonb_agg(metadata || jsonb_build_object('parent_chain', parent_chain)
+      ORDER BY metadata::text, parent_chain::text), '[]'::jsonb) AS entries,
+      (SELECT count(*)::integer FROM raw_triggers WHERE schema_name = ANY($1::text[])) AS expected_count,
+      COALESCE(bool_and(definition_valid), true) AS definitions_valid
+    FROM trigger_tree WHERE metadata->>'schema_name' = ANY($1::text[])
   `, [APP_SCHEMAS]);
+  const triggerSnapshot = triggers.rows[0];
+  // A missing parent, cycle or an unexpected pg_get_triggerdef prefix must not
+  // silently remove a trigger or erase its definition from the comparison.
+  demandComparison(triggerSnapshot && Array.isArray(triggerSnapshot.entries)
+    && triggerSnapshot.entries.length === triggerSnapshot.expected_count
+    && triggerSnapshot.definitions_valid, "source-fingerprint", "TRIG_META");
   const sequences = await client.query(`
     SELECT schemaname AS schema_name, sequencename AS name,
       data_type, start_value::text, min_value::text, max_value::text,
@@ -1530,7 +1615,8 @@ async function catalogAndDataFingerprint(client: Client): Promise<Fingerprint> {
   const defaultAcls = await client.query(`
     SELECT pg_get_userbyid(d.defaclrole) AS role,
       CASE WHEN d.defaclnamespace = 0 THEN NULL ELSE n.nspname END AS schema_name,
-      d.defaclobjtype AS object_type, d.defaclacl::text AS acl
+      d.defaclobjtype AS object_type,
+      ${canonicalAclSql("d.defaclacl")} AS acl
     FROM pg_default_acl d
     LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
     ORDER BY role, schema_name NULLS FIRST, object_type
@@ -1571,7 +1657,7 @@ async function catalogAndDataFingerprint(client: Client): Promise<Fingerprint> {
     indexes: indexes.rows,
     policies: policies.rows,
     routines: routines.rows,
-    triggers: triggers.rows,
+    triggers: triggerSnapshot.entries,
     sequences: sequences.rows,
     defaultAcls: defaultAcls.rows,
     rows,
