@@ -42,6 +42,12 @@ export function assertCanonicalAthleteRecoverySessionContext(
   // CLI session assumption to the pool, or mix halves of these reviewed pairs.
   const ownLoginRole = session?.role_name === "supabase_admin" && session.configured_role === "none";
   const cliRole = session?.role_name === "postgres" && session.configured_role === "postgres";
+  // Mirror the runner's verified native-stack transport contract. The private
+  // rehearsal also requires its strict loopback URL and disposable guards before
+  // importing the database. A Unix backend reports BOTH fields as null; never
+  // accept a partial null pair or a TCP connection on a different port.
+  const loopbackTcp = session?.server_address === "127.0.0.1" || session?.server_address === "::1";
+  const nativeSocket = session?.server_address === null && session?.server_port === null;
   const checks: SessionChecks = {
     login: session?.login_role === "supabase_admin",
     loginSuper: session?.login_is_superuser === true,
@@ -49,8 +55,8 @@ export function assertCanonicalAthleteRecoverySessionContext(
     effectivePrivilege: (ownLoginRole && session?.effective_is_superuser === true) ||
       (cliRole && session?.effective_is_superuser === false),
     database: session?.database_name === "postgres",
-    transport: session?.server_address === "127.0.0.1" || session?.server_address === "::1",
-    port: session?.server_port === targetPort,
+    transport: loopbackTcp || nativeSocket,
+    port: (loopbackTcp && session?.server_port === targetPort) || nativeSocket,
     origin: session?.replication_role === "origin",
   };
   if (Object.values(checks).some((value) => !value)) {

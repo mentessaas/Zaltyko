@@ -64,6 +64,14 @@ describeDisposablePg("closed bare-athlete recovery in disposable GitHub PostgreS
     }, 54322)).not.toThrow();
   });
 
+  it("accepts the runner's native Unix backend only with both transport fields null", () => {
+    const socketSession = { ...nativeSession, server_address: null, server_port: null };
+    expect(() => assertCanonicalAthleteRecoverySessionContext(socketSession, 54322)).not.toThrow();
+    expect(() => assertCanonicalAthleteRecoverySessionContext({
+      ...socketSession, role_name: "postgres", configured_role: "postgres", effective_is_superuser: false,
+    }, 54322)).not.toThrow();
+  });
+
   it.each([
     { login_role: "postgres" },
     { login_is_superuser: false },
@@ -74,7 +82,9 @@ describeDisposablePg("closed bare-athlete recovery in disposable GitHub PostgreS
     { role_name: "postgres", configured_role: "postgres", effective_is_superuser: true },
     { database_name: "other_database" },
     { server_address: "192.0.2.1" },
-    { server_address: null, server_port: null },
+    { server_address: null },
+    { server_port: null },
+    { server_address: "192.0.2.1", server_port: null },
     { server_port: 54323 },
     { replication_role: "replica" },
   ] as const)("refuses a mismatched session contract with boolean-only diagnostics", (override) => {
