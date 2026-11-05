@@ -3,7 +3,7 @@
 - Fecha: 5 de noviembre de 2026
 - Worktree: `/Users/elvisvaldesinerarte/Projects/Zaltyko/trabajos/Zaltyko-backup-probe-20261105`
 - Rama/HEAD de referencia: `codex/disposable-backup-probe-20261105` / `030a3a87c0c26c61e130e193a3074f268967eecf`
-- Estado: corrección de rol de sesión preparada sobre `43c5aae1`; dos intentos remotos fallidos, sin dump ni restore completados. El ajuste actual solo tiene revisión estática.
+- Estado: corrección de transporte preparada sobre `b0591dbb`; tres intentos remotos fallidos, sin dump ni restore completados. El ajuste actual solo tiene revisión estática.
 
 ## Hallazgos
 
@@ -56,3 +56,13 @@ Las URLs privadas creadas para las dos bases propias añaden exclusivamente `opt
 Los entornos cerrados de los binarios incluyen exclusivamente el `PGOPTIONS` literal anterior; `pg_dump` y `pg_restore` reciben además `--role=supabase_admin`. Se mantienen los nombres exactos de origen/destino y los guards de propiedad, marcador, estado vacío, versión, extensiones y cleanup. Se añaden checkpoints fijos de identidad del servidor, roles/extensiones y sesiones privadas, además de una allowlist de códigos de fallo. Del hijo solo puede propagarse un código de esa allowlist; no se imprimen stderr, URLs, credenciales ni datos de las fixtures.
 
 **Importancia y siguiente paso.** La propuesta corrige el tratamiento del rol de sesión sin aceptar `postgres` como identidad alternativa. La próxima revisión/ejecución remota debe confirmar la aceptación de la opción de inicio por el stack nativo, el rol efectivo del pool real y de ambos binarios, las seis extensiones exactas y las fases posteriores de replay/restore/cleanup. Nada de ello queda validado por este ajuste estático. No se ejecutaron tests, typecheck, build, SQL ni servicios en el Mac, y este cambio no ha iniciado CI remota.
+
+## Tercer intento remoto — b0591dbb y transporte del endpoint
+
+**Hallazgo y fuente.** `/tmp/zaltyko-backup-b0591dbb.log`, run `41953862099`, muestra typecheck completado y fallo `postgres-identity / SERVER_PORT`, con `cleanup: verified`. Los checks de rol, superuser, versión y recuperación preceden a ese código; el log no contiene aún nulidad de los campos SQL ni datos del socket. No demuestra si el puerto era nulo o distinto. `verify-sandbox-schema-replay.sh`, líneas 686–701, admite como transporte del stack nativo exclusivamente ambos `inet_server_*` nulos, o dirección/puerto TCP esperados. El posible proxy TCP hacia backend Unix es una hipótesis; no se encontró código/documentación de la implementación nativa de la CLI entre los artefactos locales inspeccionados que la demuestre.
+
+**Cambio.** El diagnóstico previo a las demandas de transporte solo emite booleans fijos: nulidad SQL, coincidencia del puerto SQL y evidencia del socket TCP (tipo, peer loopback y coincidencia exacta de host/puerto con la URL validada). Usa `Client.connection.stream`, ambos declarados públicos en `@types/pg`, estrechado mediante `instanceof node:net.Socket`; no usa casts de propiedades privadas, direcciones configuradas como sustituto del peer ni imprime direcciones, puertos, URLs o stderr.
+
+Se exige siempre que el socket real del cliente sea TCP hacia el loopback y puerto fijados por el stack validado. Si y solo si ambos campos SQL son nulos, se admite el caso de backend Unix ya contemplado por el control original. Un único nulo falla `SERVER_PAIR`; con ambos campos presentes se conserva dirección loopback/host exacto y puerto entero exacto. Un socket ausente, de otro tipo o hacia otro destino falla `TCP_PEER`. La verificación del socket se repite también en los `Client` privados de origen/destino y en el preflight del hijo. Los checks de identidad, rol, superuser, stack fijado, versiones, extensiones, propiedad, vacío y cleanup se conservan.
+
+**Importancia y siguiente paso.** El ajuste distingue las dos capas de transporte sin convertir el fallo previo en prueba de un proxy ni admitir puertos arbitrarios. Revisión estática y `git diff --check`; no se ejecutaron tests, typecheck, build, SQL, servicios ni CI desde esta corrección. La próxima ejecución remota debe aportar el diagnóstico y confirmar el camino efectivo antes de afirmar replay o restore válidos.

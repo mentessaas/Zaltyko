@@ -19,7 +19,7 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { spawn, spawnSync, type ChildProcessByStdio } from "node:child_process";
 import type { Readable } from "node:stream";
-import { isIP } from "node:net";
+import { isIP, Socket } from "node:net";
 
 import { Client } from "pg";
 
@@ -53,7 +53,7 @@ const SESSION_ROLE_OPTIONS = "-c role=none";
 const IDENTITY_CODES = [
   "ROLE_RESET", "LOGIN_ROLE", "ACTIVE_ROLE", "SUPERUSER", "DB_NAME",
   "SERVER_MAJOR", "SERVER_ADDR", "SERVER_PORT", "RECOVERY", "ROLE_SET",
-  "EXT_SET", "TEMPLATE", "URL_ROLE", "POOL_ROLE",
+  "EXT_SET", "TEMPLATE", "URL_ROLE", "POOL_ROLE", "TCP_PEER", "SERVER_PAIR",
 ] as const;
 type IdentityCode = (typeof IDENTITY_CODES)[number];
 
@@ -143,7 +143,7 @@ function isIdentityCode(value: unknown): value is IdentityCode {
   return typeof value === "string" && IDENTITY_CODES.some((code) => code === value);
 }
 
-function log(event: string, details: Record<string, string | number> = {}) {
+function log(event: string, details: Record<string, string | number | boolean> = {}) {
   process.stdout.write(`${JSON.stringify({ status: "INFO", event, ...details })}\n`);
 }
 
@@ -527,6 +527,31 @@ function connectClient(connectionString: string) {
   });
 }
 
+function clientTcpEvidence(client: Client, host: string, port: number) {
+  // Both properties are public in @types/pg. Narrow Duplex to the actual
+  // Node TCP socket; no private-property casts or fallback to configured host.
+  const socket = client.connection.stream;
+  const isTcp = socket instanceof Socket;
+  const peerAddress = isTcp ? socket.remoteAddress : undefined;
+  const loopback = peerAddress === "127.0.0.1" || peerAddress === "::1";
+  return {
+    socket_is_tcp: isTcp,
+    socket_peer_loopback: loopback,
+    socket_host_matches: loopback && (host === "localhost" || peerAddress === host),
+    socket_port_matches: isTcp && Number.isInteger(socket.remotePort) && socket.remotePort === port,
+  };
+}
+
+function verifyClientTcpEndpoint(client: Client, host: string, port: number, phase: SafePhase) {
+  const evidence = clientTcpEvidence(client, host, port);
+  log("postgres_client_socket_observed", { phase, ...evidence });
+  demandIdentity(
+    evidence.socket_is_tcp && evidence.socket_peer_loopback &&
+    evidence.socket_host_matches && evidence.socket_port_matches,
+    phase, "TCP_PEER"
+  );
+}
+
 function sqlWithoutPsqlGuards(source: string, phase: SafePhase): string {
   const lines = source.split(/\r?\n/);
   const guards: { kind: string; token: string }[] = [];
@@ -588,16 +613,38 @@ async function verifyPostgresIdentity(
       pg_is_in_recovery() AS in_recovery
   `);
   const row = identity.rows[0];
+  const tcp = clientTcpEvidence(admin, host, port);
+  log("postgres_transport_observed", {
+    ...tcp,
+    sql_address_null: row?.server_address === null,
+    sql_port_null: row?.server_port === null,
+    sql_port_matches: Number.isInteger(row?.server_port) && row?.server_port === port,
+  });
   demandIdentity(Boolean(row) && row!.current_database === "postgres", "postgres-identity", "DB_NAME");
   demandIdentity(row!.session_user === "supabase_admin", "postgres-identity", "LOGIN_ROLE");
   demandIdentity(row!.current_user === "supabase_admin", "postgres-identity", "ACTIVE_ROLE");
   demandIdentity(row!.is_superuser === true, "postgres-identity", "SUPERUSER");
   demandIdentity(Math.floor(Number(row!.server_version_num) / 10000) === 17, "postgres-identity", "SERVER_MAJOR");
   demandIdentity(row!.in_recovery === false, "postgres-identity", "RECOVERY");
-  demandIdentity(Number(row!.server_port) === port, "postgres-identity", "SERVER_PORT");
-  const address = String(row!.server_address ?? "").replace(/^\[|\]$/g, "");
-  demandIdentity(isIP(address) !== 0 && (address === "127.0.0.1" || address === "::1"), "postgres-identity", "SERVER_ADDR");
-  if (host !== "localhost") demandIdentity(address === host, "postgres-identity", "SERVER_ADDR");
+  demandIdentity(
+    tcp.socket_is_tcp && tcp.socket_peer_loopback && tcp.socket_host_matches && tcp.socket_port_matches,
+    "postgres-identity", "TCP_PEER"
+  );
+  const unixBackend = row!.server_address === null && row!.server_port === null;
+  demandIdentity(
+    unixBackend || (row!.server_address !== null && row!.server_port !== null),
+    "postgres-identity", "SERVER_PAIR"
+  );
+  // The existing native-stack control also accepts SQL's double-NULL Unix
+  // backend. Here that path additionally requires the actual TCP peer above
+  // to match the validated stack endpoint. Never accept a partial NULL pair.
+  if (!unixBackend) {
+    demandIdentity(Number.isInteger(row!.server_port) && row!.server_port === port, "postgres-identity", "SERVER_PORT");
+    const address = String(row!.server_address).replace(/^\[|\]$/g, "");
+    demandIdentity(isIP(address) !== 0 && (address === "127.0.0.1" || address === "::1"), "postgres-identity", "SERVER_ADDR");
+    if (host !== "localhost") demandIdentity(address === host, "postgres-identity", "SERVER_ADDR");
+  }
+  log("postgres_backend_transport_verified", { transport: unixBackend ? "sql-unix" : "loopback-tcp" });
   log("postgres_session_identity_verified");
 
   const roles = await admin.query<{ rolname: string }>(
@@ -1069,6 +1116,7 @@ async function runLedgerChild() {
     const preflight = connectClient(sourceUrl);
     try {
       await preflight.connect();
+      verifyClientTcpEndpoint(preflight, parsed.hostname.replace(/^\[|\]$/g, ""), Number(parsed.port), "ledger-child");
       await restoreSessionRole(preflight, "ledger-child");
       await verifyConnectedDatabase(preflight, sourceName, "ledger-child");
     } finally {
@@ -1552,6 +1600,8 @@ async function runExperiment() {
     target = connectClient(targetUrl);
     await source.connect();
     await target.connect();
+    verifyClientTcpEndpoint(source, localConnection.host, localConnection.port, "database-create");
+    verifyClientTcpEndpoint(target, localConnection.host, localConnection.port, "database-create");
     await restoreSessionRole(source, "database-create");
     await restoreSessionRole(target, "database-create");
     await source.query("SET TIME ZONE 'UTC'");
