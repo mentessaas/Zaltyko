@@ -1,7 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 
-import { expect, test, type Dialog } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Dialog,
+  type Response as PlaywrightResponse,
+} from "@playwright/test";
 import { Pool } from "pg";
 
 import type { MonthlyInvoiceOptionsResponse } from "../src/components/owner-dashboard/OwnerMonthlyInvoiceWorkspace";
@@ -2579,12 +2584,12 @@ test.describe("Isolated local Supabase Owner setup", () => {
     // Follow the workspace's real client navigation. Firefox aborted the
     // document goto at this transition after the family's router.refresh().
     await page.setViewportSize({ width: 1280, height: 900 });
-    const planLink = page.getByRole("navigation", { name: "Principal", exact: true })
-      .getByRole("link", { name: "Plan", exact: true });
-    await expect(planLink).toHaveAttribute("href", `/owner/subscription?organizationId=${result.organizationId}`);
     await page.getByRole("navigation", { name: "Principal", exact: true })
       .getByText("Más", { exact: true })
       .click();
+    const planLink = page.getByRole("navigation", { name: "Principal", exact: true })
+      .getByRole("link", { name: "Plan", exact: true });
+    await expect(planLink).toHaveAttribute("href", `/owner/subscription?organizationId=${result.organizationId}`);
     await expect(planLink).toBeVisible();
     await planLink.click();
     await expect(page).toHaveURL(new RegExp(`/owner/subscription\\?organizationId=${result.organizationId}$`));
@@ -2988,6 +2993,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       };
       type ProfileRow = {
         id: string;
+        person_id: string;
         member_id: string | null;
         is_active: boolean;
       };
@@ -3041,7 +3047,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       };
       const readProfiles = async (): Promise<ProfileRow[]> => {
         const result = await pool.query<ProfileRow>(
-          "select id::text as id, member_id::text as member_id, is_active from zaltyko.staff_profiles where organization_id = $1::uuid order by id",
+          "select id::text as id, person_id::text as person_id, member_id::text as member_id, is_active from zaltyko.staff_profiles where organization_id = $1::uuid order by id",
           [staffOrganizationId]
         );
         return result.rows;
@@ -3157,22 +3163,25 @@ test.describe("Isolated local Supabase Owner setup", () => {
         JSON.stringify(await readAccessCounts()) === JSON.stringify(accessBefore)
       ).toBe(true);
 
-      const keyedRecords = await pool.query<{
-        audit_count: number;
-        outbox_count: number;
-      }>(
-        "select (select count(*)::int from zaltyko.audit_log where organization_id = $1::uuid and idempotency_key = $2) as audit_count, " +
-          "(select count(*)::int from zaltyko.outbox_events where organization_id = $1::uuid and idempotency_key = $2) as outbox_count",
-        [
-          staffOrganizationId,
-          "staff_" +
-            createHash("sha256")
-              .update(commands[0]!.key!)
-              .digest("hex"),
-        ]
-      );
-      expect(keyedRecords.rows[0]?.audit_count).toBe(1);
-      expect(keyedRecords.rows[0]?.outbox_count).toBe(1);
+      const expectKeyedHistory = async (
+        key: string,
+        expectedCount: number
+      ) => {
+        const keyedRecords = await pool.query<{
+          audit_count: number;
+          outbox_count: number;
+        }>(
+          "select (select count(*)::int from zaltyko.audit_log where organization_id = $1::uuid and idempotency_key = $2) as audit_count, " +
+            "(select count(*)::int from zaltyko.outbox_events where organization_id = $1::uuid and idempotency_key = $2) as outbox_count",
+          [
+            staffOrganizationId,
+            "staff_" + createHash("sha256").update(key).digest("hex"),
+          ]
+        );
+        expect(keyedRecords.rows[0]?.audit_count).toBe(expectedCount);
+        expect(keyedRecords.rows[0]?.outbox_count).toBe(expectedCount);
+      };
+      await expectKeyedHistory(commands[0]!.key!, 1);
 
       const acceptBeforeUnload = async (dialog: Dialog) => {
         if (dialog.type() !== "beforeunload") {
@@ -3244,6 +3253,520 @@ test.describe("Isolated local Supabase Owner setup", () => {
         JSON.stringify(await readAccessCounts()) === JSON.stringify(accessBefore)
       ).toBe(true);
       await page.unroute("**" + endpoint);
+
+      const staffPath = endpoint + "/" + createdProfile.id;
+      const waitForStaffListRead = () =>
+        page.waitForResponse(
+          (response) =>
+            new URL(response.url()).pathname === endpoint &&
+            response.request().method() === "GET"
+        );
+      type StaffListPayload = {
+        data?: {
+          items?: Array<{
+            id: string;
+            givenName: string;
+            familyName: string;
+            preferredName: string | null;
+            isActive: boolean;
+            version: string;
+          }>;
+        };
+      };
+      const readListedProfile = async (response: PlaywrightResponse) => {
+        expect(response.status()).toBe(200);
+        const payload = (await response.json()) as StaffListPayload;
+        const profile = payload.data?.items?.find(
+          (item) => item.id === createdProfile.id
+        );
+        if (!profile) {
+          throw new Error("The refreshed staff list omitted its profile.");
+        }
+        return profile;
+      };
+
+      const initialListRead = waitForStaffListRead();
+      await page.getByRole("button", { name: "Actualizar lista" }).click();
+      const initialListedProfile = await readListedProfile(await initialListRead);
+      if (typeof replayVersion !== "string") {
+        throw new Error("The original create receipt omitted its version.");
+      }
+      expect(initialListedProfile.version).toBe(replayVersion);
+      const createdArticle = page.getByRole("article", {
+        name: displayName,
+        exact: true,
+      });
+      await createdArticle.getByRole("button", { name: "Editar" }).click();
+      const staleEditForm = createdArticle.locator("form");
+      await expect(staleEditForm.getByRole("heading", { name: "Editar perfil" })).toBeVisible();
+
+      // Simulate a second authorized editor changing the same record while
+      // this browser keeps its original edit draft open.
+      const concurrentKey = randomUUID();
+      const concurrentResponse = await page.context().request.patch(
+        new URL(staffPath, page.url()).toString(),
+        {
+          data: {
+            organizationId: staffOrganizationId,
+            givenName: "Concurrente",
+            familyName: staffFamilyName,
+            preferredName: "Cambio concurrente",
+            version: initialListedProfile.version,
+          },
+          headers: { "Idempotency-Key": concurrentKey },
+        }
+      );
+      expect(concurrentResponse.status()).toBe(200);
+      const concurrentPayload =
+        (await concurrentResponse.json()) as MutationPayload;
+      expect(concurrentPayload.data?.replayed).toBe(false);
+      expect(concurrentPayload.data?.receipt?.staffProfileId).toBe(
+        createdProfile.id
+      );
+      expect(concurrentPayload.data?.receipt?.isActive).toBe(true);
+      const concurrentVersion = concurrentPayload.data?.receipt?.version;
+      if (typeof concurrentVersion !== "string") {
+        throw new Error("The concurrent update omitted its new version.");
+      }
+      expect(concurrentVersion).not.toBe(initialListedProfile.version);
+      const concurrentDisplayName = "Concurrente " + staffFamilyName;
+      const snapshotAfterConcurrent = await readSnapshot();
+      expect(rowCount(snapshotAfterConcurrent, "people")).toBe(
+        rowCount(snapshotAfterReplay, "people")
+      );
+      expect(rowCount(snapshotAfterConcurrent, "staff_profiles")).toBe(
+        rowCount(snapshotAfterReplay, "staff_profiles")
+      );
+      expect(rowCount(snapshotAfterConcurrent, "audit_log")).toBe(
+        rowCount(snapshotAfterReplay, "audit_log") + 1
+      );
+      expect(rowCount(snapshotAfterConcurrent, "outbox_events")).toBe(
+        rowCount(snapshotAfterReplay, "outbox_events") + 1
+      );
+      expect(await readProfiles()).toEqual([
+        {
+          id: createdProfile.id,
+          person_id: createdProfile.person_id,
+          member_id: null,
+          is_active: true,
+        },
+      ]);
+      await expectKeyedHistory(concurrentKey, 1);
+
+      const concurrentListRead = waitForStaffListRead();
+      await page.getByRole("button", { name: "Actualizar lista" }).click();
+      await readListedProfile(await concurrentListRead);
+      const concurrentArticle = page.getByRole("article", {
+        name: concurrentDisplayName,
+        exact: true,
+      });
+      await expect(concurrentArticle).toBeVisible();
+      const retainedDraft = concurrentArticle.locator("form");
+      await expect(retainedDraft.getByLabel("Nombre", { exact: true })).toHaveValue(
+        staffGivenName
+      );
+      await expect(
+        retainedDraft.getByLabel("Apellidos", { exact: true })
+      ).toHaveValue(staffFamilyName);
+      await expect(retainedDraft.getByLabel("Nombre preferido")).toHaveValue(
+        "Entrenador E2E"
+      );
+
+      const stalePatchRequestPromise = page.waitForRequest(
+        (request) =>
+          new URL(request.url()).pathname === staffPath &&
+          request.method() === "PATCH"
+      );
+      const stalePatchResponsePromise = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === staffPath &&
+          response.request().method() === "PATCH"
+      );
+      await retainedDraft
+        .getByRole("button", { name: "Guardar cambios" })
+        .click();
+      const stalePatchRequest = await stalePatchRequestPromise;
+      const stalePatchBody = stalePatchRequest.postDataJSON() as {
+        version?: string;
+      };
+      expect(stalePatchBody.version).toBe(initialListedProfile.version);
+      const staleKey = stalePatchRequest.headers()["idempotency-key"];
+      if (!staleKey) {
+        throw new Error("The stale edit request omitted its idempotency key.");
+      }
+      const stalePatchResponse = await stalePatchResponsePromise;
+      expect(stalePatchResponse.status()).toBe(409);
+      const snapshotAfterStaleConflict = await readSnapshot();
+      expect(
+        JSON.stringify(snapshotAfterStaleConflict) ===
+          JSON.stringify(snapshotAfterConcurrent)
+      ).toBe(true);
+      await expect(
+        page.locator('[role="alert"]').filter({
+          hasText: "El perfil cambió desde que cargaste la lista.",
+        })
+      ).toBeVisible();
+      await expect(retainedDraft.getByLabel("Nombre", { exact: true })).toHaveValue(
+        staffGivenName
+      );
+      await expect(
+        page.getByRole("region", { name: "Operación pendiente" })
+      ).toHaveCount(0);
+      await expectKeyedHistory(staleKey, 0);
+
+      await retainedDraft.getByRole("button", { name: "Cancelar" }).click();
+      const currentArticle = page.getByRole("article", {
+        name: concurrentDisplayName,
+        exact: true,
+      });
+      await currentArticle.getByRole("button", { name: "Editar" }).click();
+      const editForm = currentArticle.locator("form");
+      const editedGivenName = "Entrenador";
+      const editedFamilyName = "Actualizado " + staffFamilyName;
+      const editedPreferredName = "Entrenador principal";
+      const editedDisplayName = editedGivenName + " " + editedFamilyName;
+      await editForm.getByLabel("Nombre", { exact: true }).fill(editedGivenName);
+      await editForm
+        .getByLabel("Apellidos", { exact: true })
+        .fill(editedFamilyName);
+      await editForm
+        .getByLabel("Nombre preferido")
+        .fill(editedPreferredName);
+      const updateRequestPromise = page.waitForRequest(
+        (request) =>
+          new URL(request.url()).pathname === staffPath &&
+          request.method() === "PATCH"
+      );
+      const updateResponsePromise = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === staffPath &&
+          response.request().method() === "PATCH"
+      );
+      await editForm.getByRole("button", { name: "Guardar cambios" }).click();
+      const updateRequest = await updateRequestPromise;
+      const updateBody = updateRequest.postDataJSON() as {
+        givenName?: string;
+        familyName?: string;
+        preferredName?: string | null;
+        version?: string;
+      };
+      expect(updateBody).toMatchObject({
+        givenName: editedGivenName,
+        familyName: editedFamilyName,
+        preferredName: editedPreferredName,
+        version: concurrentVersion,
+      });
+      const updateKey = updateRequest.headers()["idempotency-key"];
+      if (!updateKey) {
+        throw new Error("The successful edit omitted its idempotency key.");
+      }
+      const updateResponse = await updateResponsePromise;
+      expect(updateResponse.status()).toBe(200);
+      const updatePayload = (await updateResponse.json()) as MutationPayload;
+      expect(updatePayload.data?.replayed).toBe(false);
+      expect(updatePayload.data?.receipt?.staffProfileId).toBe(
+        createdProfile.id
+      );
+      expect(updatePayload.data?.receipt?.isActive).toBe(true);
+      const editedVersion = updatePayload.data?.receipt?.version;
+      if (typeof editedVersion !== "string") {
+        throw new Error("The successful edit omitted its version.");
+      }
+      expect(editedVersion).not.toBe(concurrentVersion);
+      await expect(
+        page.getByRole("heading", { name: editedDisplayName, exact: true })
+      ).toBeVisible();
+      const snapshotAfterEdit = await readSnapshot();
+      expect(rowCount(snapshotAfterEdit, "people")).toBe(
+        rowCount(snapshotAfterReplay, "people")
+      );
+      expect(rowCount(snapshotAfterEdit, "staff_profiles")).toBe(
+        rowCount(snapshotAfterReplay, "staff_profiles")
+      );
+      expect(rowCount(snapshotAfterEdit, "audit_log")).toBe(
+        rowCount(snapshotAfterConcurrent, "audit_log") + 1
+      );
+      expect(rowCount(snapshotAfterEdit, "outbox_events")).toBe(
+        rowCount(snapshotAfterConcurrent, "outbox_events") + 1
+      );
+      expect(await readProfiles()).toEqual([
+        {
+          id: createdProfile.id,
+          person_id: createdProfile.person_id,
+          member_id: null,
+          is_active: true,
+        },
+      ]);
+      await expectKeyedHistory(updateKey, 1);
+
+      const editedArticle = page.getByRole("article", {
+        name: editedDisplayName,
+        exact: true,
+      });
+      const archiveRequestPromise = page.waitForRequest(
+        (request) =>
+          new URL(request.url()).pathname === staffPath + "/archive" &&
+          request.method() === "POST"
+      );
+      const archiveResponsePromise = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === staffPath + "/archive" &&
+          response.request().method() === "POST"
+      );
+      await editedArticle.getByRole("button", { name: "Archivar" }).click();
+      const archiveRequest = await archiveRequestPromise;
+      const archiveBody = archiveRequest.postDataJSON() as {
+        organizationId?: string;
+        version?: string;
+      };
+      expect(archiveBody).toMatchObject({
+        organizationId: staffOrganizationId,
+        version: editedVersion,
+      });
+      const archiveKey = archiveRequest.headers()["idempotency-key"];
+      if (!archiveKey) {
+        throw new Error("The archive request omitted its idempotency key.");
+      }
+      const archiveResponse = await archiveResponsePromise;
+      expect(archiveResponse.status()).toBe(200);
+      const archivePayload = (await archiveResponse.json()) as MutationPayload;
+      expect(archivePayload.data?.replayed).toBe(false);
+      expect(archivePayload.data?.receipt?.staffProfileId).toBe(
+        createdProfile.id
+      );
+      expect(archivePayload.data?.receipt?.isActive).toBe(false);
+      const archivedVersion = archivePayload.data?.receipt?.version;
+      if (typeof archivedVersion !== "string") {
+        throw new Error("The archive receipt omitted its version.");
+      }
+      await expect(editedArticle).toHaveCount(0);
+      const snapshotAfterArchive = await readSnapshot();
+      expect(rowCount(snapshotAfterArchive, "people")).toBe(
+        rowCount(snapshotAfterReplay, "people")
+      );
+      expect(rowCount(snapshotAfterArchive, "staff_profiles")).toBe(
+        rowCount(snapshotAfterReplay, "staff_profiles")
+      );
+      expect(rowCount(snapshotAfterArchive, "audit_log")).toBe(
+        rowCount(snapshotAfterEdit, "audit_log") + 1
+      );
+      expect(rowCount(snapshotAfterArchive, "outbox_events")).toBe(
+        rowCount(snapshotAfterEdit, "outbox_events") + 1
+      );
+      expect(await readProfiles()).toEqual([
+        {
+          id: createdProfile.id,
+          person_id: createdProfile.person_id,
+          member_id: null,
+          is_active: false,
+        },
+      ]);
+      await expectKeyedHistory(archiveKey, 1);
+
+      const archivedListRead = waitForStaffListRead();
+      await page.getByLabel("Mostrar").selectOption("archived");
+      const archivedListedProfile = await readListedProfile(
+        await archivedListRead
+      );
+      expect(archivedListedProfile.version).toBe(archivedVersion);
+      expect(archivedListedProfile.isActive).toBe(false);
+      const archivedArticle = page.getByRole("article", {
+        name: editedDisplayName,
+        exact: true,
+      });
+      await expect(archivedArticle.getByText("Archivado", { exact: true })).toBeVisible();
+      const reactivateRequestPromise = page.waitForRequest(
+        (request) =>
+          new URL(request.url()).pathname === staffPath + "/reactivate" &&
+          request.method() === "POST"
+      );
+      const reactivateResponsePromise = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === staffPath + "/reactivate" &&
+          response.request().method() === "POST"
+      );
+      await archivedArticle
+        .getByRole("button", { name: "Reactivar" })
+        .click();
+      const reactivateRequest = await reactivateRequestPromise;
+      const reactivateBody = reactivateRequest.postDataJSON() as {
+        organizationId?: string;
+        version?: string;
+      };
+      expect(reactivateBody).toMatchObject({
+        organizationId: staffOrganizationId,
+        version: archivedVersion,
+      });
+      const reactivateKey = reactivateRequest.headers()["idempotency-key"];
+      if (!reactivateKey) {
+        throw new Error("The reactivation request omitted its idempotency key.");
+      }
+      const reactivateResponse = await reactivateResponsePromise;
+      expect(reactivateResponse.status()).toBe(200);
+      const reactivatePayload =
+        (await reactivateResponse.json()) as MutationPayload;
+      expect(reactivatePayload.data?.replayed).toBe(false);
+      expect(reactivatePayload.data?.receipt?.staffProfileId).toBe(
+        createdProfile.id
+      );
+      expect(reactivatePayload.data?.receipt?.isActive).toBe(true);
+      const reactivatedVersion = reactivatePayload.data?.receipt?.version;
+      if (typeof reactivatedVersion !== "string") {
+        throw new Error("The reactivation receipt omitted its version.");
+      }
+      expect(reactivatedVersion).not.toBe(archivedVersion);
+      await expect(archivedArticle).toHaveCount(0);
+      const snapshotAfterReactivate = await readSnapshot();
+      expect(rowCount(snapshotAfterReactivate, "people")).toBe(
+        rowCount(snapshotAfterReplay, "people")
+      );
+      expect(rowCount(snapshotAfterReactivate, "staff_profiles")).toBe(
+        rowCount(snapshotAfterReplay, "staff_profiles")
+      );
+      expect(rowCount(snapshotAfterReactivate, "audit_log")).toBe(
+        rowCount(snapshotAfterArchive, "audit_log") + 1
+      );
+      expect(rowCount(snapshotAfterReactivate, "outbox_events")).toBe(
+        rowCount(snapshotAfterArchive, "outbox_events") + 1
+      );
+      expect(rowCount(snapshotAfterReactivate, "audit_log")).toBe(
+        rowCount(snapshotAfterReplay, "audit_log") + 4
+      );
+      expect(rowCount(snapshotAfterReactivate, "outbox_events")).toBe(
+        rowCount(snapshotAfterReplay, "outbox_events") + 4
+      );
+      expect(await readProfiles()).toEqual([
+        {
+          id: createdProfile.id,
+          person_id: createdProfile.person_id,
+          member_id: null,
+          is_active: true,
+        },
+      ]);
+      expect(
+        JSON.stringify(await readAccessCounts()) === JSON.stringify(accessBefore)
+      ).toBe(true);
+      await expectKeyedHistory(reactivateKey, 1);
+
+      const activeListRead = waitForStaffListRead();
+      await page.getByLabel("Mostrar").selectOption("active");
+      const activeListedProfile = await readListedProfile(await activeListRead);
+      expect(activeListedProfile.version).toBe(reactivatedVersion);
+      expect(activeListedProfile.isActive).toBe(true);
+      const activeArticle = page.getByRole("article", {
+        name: editedDisplayName,
+        exact: true,
+      });
+      await expect(activeArticle.getByText("Activo", { exact: true })).toBeVisible();
+      await activeArticle.getByRole("button", { name: "Editar" }).click();
+      await expect(activeArticle.locator("form")).toBeVisible();
+
+      for (const viewport of [
+        { width: 375, height: 812 },
+        { width: 768, height: 1024 },
+        { width: 1280, height: 900 },
+      ]) {
+        await page.setViewportSize(viewport);
+        const navigation = page.getByRole("navigation", {
+          name: viewport.width < 1280 ? "Navegación móvil" : "Principal",
+          exact: true,
+        });
+        const moreSummary = navigation.locator("summary");
+        await moreSummary.click();
+        await expect(
+          navigation.getByRole("link", { name: "Personal", exact: true })
+        ).toHaveAttribute("aria-current", "page");
+        await moreSummary.click();
+
+        const geometry = await page.evaluate(() => {
+          const isVisible = (element: Element) => {
+            const rect = element.getBoundingClientRect();
+            const style = window.getComputedStyle(element);
+            return (
+              rect.width > 0 &&
+              rect.height > 0 &&
+              style.display !== "none" &&
+              style.visibility !== "hidden" &&
+              style.opacity !== "0"
+            );
+          };
+          const description = (element: Element) =>
+            (element.textContent ?? "").trim().replace(/\s+/gu, " ").slice(0, 100) ||
+            element.getAttribute("aria-label") ||
+            element.tagName.toLowerCase();
+          const interactive = Array.from(
+            document.querySelectorAll(
+              "header a[href], header button, header summary, main a[href], main button, main summary, main input, main select, main textarea"
+            )
+          ).filter(isVisible);
+          const targets = interactive.map((element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+              label: description(element),
+              x: rect.left,
+              right: rect.right,
+              y: rect.top,
+              bottom: rect.bottom,
+              width: rect.width,
+              height: rect.height,
+            };
+          });
+          const overlaps: string[] = [];
+          for (let left = 0; left < targets.length; left += 1) {
+            for (let right = left + 1; right < targets.length; right += 1) {
+              const a = targets[left]!;
+              const b = targets[right]!;
+              const intersectionWidth = Math.min(a.right, b.right) - Math.max(a.x, b.x);
+              const intersectionHeight = Math.min(a.bottom, b.bottom) - Math.max(a.y, b.y);
+              if (intersectionWidth > 1 && intersectionHeight > 1) {
+                overlaps.push(`${a.label} / ${b.label}`);
+              }
+            }
+          }
+          const textElements = Array.from(
+            document.querySelectorAll(
+              "header a[href], header button, header summary, main h1, main h2, main h3, main h4, main p, main label, main button, main a[href], main summary"
+            )
+          ).filter(isVisible);
+          const textOverflow = textElements
+            .filter((element) => element.scrollWidth > element.clientWidth + 2)
+            .map(description);
+          const outsideViewport = targets.filter(
+            (target) => target.x < -1 || target.right > window.innerWidth + 1
+          );
+          const tooSmall = targets.filter(
+            (target) => target.width < 44 || target.height < 44
+          );
+          const mainElement = document.querySelector("main");
+          return {
+            viewportWidth: window.innerWidth,
+            documentScrollWidth: document.documentElement.scrollWidth,
+            bodyScrollWidth: document.body.scrollWidth,
+            mainClientWidth: mainElement?.clientWidth ?? 0,
+            mainScrollWidth: mainElement?.scrollWidth ?? 0,
+            targets,
+            overlaps,
+            textOverflow,
+            outsideViewport,
+            tooSmall,
+          };
+        });
+        expect(geometry.viewportWidth).toBe(viewport.width);
+        expect(geometry.documentScrollWidth).toBeLessThanOrEqual(viewport.width);
+        expect(geometry.bodyScrollWidth).toBeLessThanOrEqual(viewport.width);
+        expect(geometry.mainScrollWidth).toBeLessThanOrEqual(
+          geometry.mainClientWidth + 2
+        );
+        expect(geometry.targets.length).toBeGreaterThan(0);
+        expect(geometry.outsideViewport).toEqual([]);
+        expect(geometry.tooSmall).toEqual([]);
+        expect(geometry.overlaps).toEqual([]);
+        expect(geometry.textOverflow).toEqual([]);
+      }
+      await activeArticle
+        .locator("form")
+        .getByRole("button", { name: "Cancelar" })
+        .click();
     });
   });
 });

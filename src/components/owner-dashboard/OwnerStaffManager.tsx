@@ -575,7 +575,7 @@ export function OwnerStaffManager({
       {receipt ? (
         <section aria-labelledby="owner-staff-receipt-title" className="mt-6 border border-teal-800 bg-teal-50 p-4 sm:p-5">
           <h2 id="owner-staff-receipt-title" className="font-display text-lg font-bold text-slate-950">Recibo original de la operación</h2>
-          <p className="mt-2 text-sm text-slate-800">Perfil {receipt.staffProfileId} · versión {receipt.version} · {receipt.isActive ? "activo en el recibo" : "archivado en el recibo"}{receipt.replayed ? " · respuesta recuperada" : ""}</p>
+          <p className="mt-2 text-sm text-slate-800 [overflow-wrap:anywhere]">Perfil {receipt.staffProfileId} · versión {receipt.version} · {receipt.isActive ? "activo en el recibo" : "archivado en el recibo"}{receipt.replayed ? " · respuesta recuperada" : ""}</p>
           <p className="mt-1 text-xs leading-5 text-slate-700">Este recibo describe la operación original. La sección inferior muestra el resultado de una lectura actual independiente.</p>
         </section>
       ) : null}

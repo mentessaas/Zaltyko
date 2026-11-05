@@ -87,8 +87,9 @@
     "tenant_fixture_sha256": "51480aba756d3c1b581da0c28e1ac3bcfee024e3ba2eef038982bbb09f23b06c",
     "replay_principal": "Connect to the validated loopback endpoint as the pinned stack's built-in supabase_admin login and verify its superuser identity. Each temporary migration dynamically executes session-local SET ROLE NONE inside one DO block, then asserts the effective supabase_admin superuser before application DDL; this avoids the pinned CLI's top-level role-reset reassertion. Query-level connection overrides are discarded; CI does not grant, revoke, or create roles or change persistent role settings.",
     "replay_script_path": "scripts/ci/verify-sandbox-schema-replay.sh",
-    "replay_script_sha256": "97cb669f219ba4053833a8ce7f178589dd8403d453ef8991ae169586ba17afe5",
+    "replay_script_sha256": "f744aac94d45cf3c0fbe0aa91cb24069250533ca2c34a022b6391aa5d4bbd57d",
     "prior_replay_script_pins": [
+      { "sha256": "97cb669f219ba4053833a8ce7f178589dd8403d453ef8991ae169586ba17afe5", "scope": "Historical replay procedure pin before the canonical staff PostgreSQL suite was added; not the current procedure." },
       { "sha256": "2b7c57bbabeff5779198cbe5e1b12108c8224d7234b76505675762c06e01e6d7", "scope": "Historical replay procedure pin before assisted-contact integration and owned-directory cleanup; not the current procedure." }
     ],
     "execution_evidence": "This manifest records the pinned replay procedure only; record the exact commit and CI result in the external audit report after a passing run."
