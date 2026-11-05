@@ -3,7 +3,7 @@
 - Fecha: 5 de noviembre de 2026
 - Worktree: `/Users/elvisvaldesinerarte/Projects/Zaltyko/trabajos/Zaltyko-backup-probe-20261105`
 - Rama/HEAD de referencia: `codex/disposable-backup-probe-20261105` / `030a3a87c0c26c61e130e193a3074f268967eecf`
-- Estado: corrección de transporte preparada sobre `b0591dbb`; tres intentos remotos fallidos, sin dump ni restore completados. El ajuste actual solo tiene revisión estática.
+- Estado: diagnóstico de comparación preparado sobre `c7fbcfea`; cuatro intentos remotos fallidos, sin restore exitoso acreditado. El ajuste actual solo tiene revisión estática.
 
 ## Hallazgos
 
@@ -28,7 +28,7 @@
 
 ## Importancia y límites
 
-El flujo convierte la observación del inventario en una propuesta revisable de restauración lógica de PostgreSQL en dos bases del runner efímero. El control negativo del destino ocupado y la repetición del guard sobre el destino restaurado están implementados, pero sin ejecutar. Los intentos remotos descritos al final no alcanzaron la creación de las bases propias; no hay evidencia de aplicación del baseline en ese camino, de compatibilidad del set completo de extensiones ni de restauración exitosa. No se afirma recuperación de Supabase Hosted, Auth HTTP, Storage, roles globales, WAL/backup físico, RPO/RTO ni producción. No se ejecutaron pruebas, typecheck, build, SQL local, CI dispatch ni llamadas a proveedores como parte de esta corrección.
+El flujo convierte la observación del inventario en una propuesta revisable de restauración lógica de PostgreSQL en dos bases del runner efímero. El control negativo del destino ocupado y la repetición del guard sobre el destino restaurado están implementados, pero su ejecución no queda acreditada por los logs actuales. Los tres primeros intentos remotos descritos al final no alcanzaron la creación de las bases propias; el cuarto confirma roles/extensiones y sesiones privadas, y llega a una comparación que requiere replay y servicio real previos por el flujo del código, sin acreditar restauración exitosa. No se afirma recuperación de Supabase Hosted, Auth HTTP, Storage, roles globales, WAL/backup físico, RPO/RTO ni producción. No se ejecutaron pruebas, typecheck, build, SQL local, CI dispatch ni llamadas a proveedores como parte de esta corrección.
 
 ## Fuente y siguiente paso
 
@@ -66,3 +66,15 @@ Los entornos cerrados de los binarios incluyen exclusivamente el `PGOPTIONS` lit
 Se exige siempre que el socket real del cliente sea TCP hacia el loopback y puerto fijados por el stack validado. Si y solo si ambos campos SQL son nulos, se admite el caso de backend Unix ya contemplado por el control original. Un único nulo falla `SERVER_PAIR`; con ambos campos presentes se conserva dirección loopback/host exacto y puerto entero exacto. Un socket ausente, de otro tipo o hacia otro destino falla `TCP_PEER`. La verificación del socket se repite también en los `Client` privados de origen/destino y en el preflight del hijo. Los checks de identidad, rol, superuser, stack fijado, versiones, extensiones, propiedad, vacío y cleanup se conservan.
 
 **Importancia y siguiente paso.** El ajuste distingue las dos capas de transporte sin convertir el fallo previo en prueba de un proxy ni admitir puertos arbitrarios. Revisión estática y `git diff --check`; no se ejecutaron tests, typecheck, build, SQL, servicios ni CI desde esta corrección. La próxima ejecución remota debe aportar el diagnóstico y confirmar el camino efectivo antes de afirmar replay o restore válidos.
+
+## Cuarto intento remoto — c7fbcfea y diagnóstico de comparación
+
+**Hallazgo y fuente.** `/tmp/zaltyko-backup-c7fbcfea.log`, run `41954627703`, confirma peer TCP loopback, host/puerto exactos, ambos campos SQL nulos y checks de sesión, roles/extensiones y sesiones privadas completados. El helper termina con `phase: comparison` y `cleanup: verified`. Ese nombre anterior se compartía entre la primera comprobación del ledger y las comparaciones posteriores al restore; el log no permite atribuir el fallo a una de ellas ni afirmar dump/restore exitosos. Por orden del código, llegar a cualquiera de esas comparaciones requiere haber aplicado el esquema, creado fixtures y recibido PASS del hijo que invoca el servicio real. Esta última conclusión es una inferencia del flujo, no un checkpoint que el log previo publicase por separado.
+
+**Diagnóstico estático.** Se cotejaron `verifyLedgerAmounts`, `seedLedgerAcademy`, `recordManualPaymentForCharge` y `applyPaymentAllocation` en `src/modules/billing/application/ledger-service.ts`. La fixture crea una factura/cargo con el mismo importe y moneda; el servicio inserta un pago manual exitoso por el importe solicitado, lo asigna al cargo, actualiza los estados parciales y emite `payment.allocated` y `payment.manual_recorded` tanto en outbox como audit. Ambos payloads outbox incluyen el `chargeId` usado por la consulta. No se encontró una divergencia estática que justifique cambiar los valores esperados; sin el código de aserción fallida no se atribuye el resultado a datos, servicio, parser ni consulta.
+
+**Cambio.** Cada comprobación del ledger tiene un código de una allowlist fija (fila única, totales, monedas, recuentos/método/estado, estados de cargo/factura, outbox, audit y saldo). Las conjunciones de moneda y estado se separan conservando todas sus condiciones; las colecciones de eventos deben ser arrays antes de comparar sus valores exactos. Se distinguen `source-ledger-before-dump`, `restored-source-ledger` y `restored-target-ledger`. También se etiquetan fallos de las huellas de origen/destino y su repetición. No se cambia SQL de lectura, fixture, servicio real, importe, evento esperado ni criterio de igualdad.
+
+Se añaden checkpoints de éxito con nombres fijos para entorno, inventario, bases propias vacías, replay, fixtures, servicio/cierre del pool, ledger, aislamiento, huella, dump, validación del archivo, guardas del destino, comando restore, comparación y guard repetido. Solo se publican nombres de etapa y códigos; se retira del resumen final la salida de nombres de base, hashes, importes y cantidades. Los datos permanecen disponibles internamente para los mismos controles, sin registrarlos.
+
+**Importancia y siguiente paso.** La próxima ejecución debe distinguir un fallo anterior al dump de otro posterior al restore y señalar la comprobación concreta. No se modifica ninguna expectativa para obtener PASS. Revisión estática y `git diff --check`; sin tests, typecheck, build, SQL, servicios ni dispatch remotos ejecutados por esta corrección. La recuperación completa sigue sin acreditarse.

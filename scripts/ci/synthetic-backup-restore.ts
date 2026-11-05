@@ -56,8 +56,16 @@ const IDENTITY_CODES = [
   "EXT_SET", "TEMPLATE", "URL_ROLE", "POOL_ROLE", "TCP_PEER", "SERVER_PAIR",
 ] as const;
 type IdentityCode = (typeof IDENTITY_CODES)[number];
+const COMPARISON_CODES = [
+  "LEDGER_ROWS", "INV_TOTAL", "CHG_TOTAL", "CURRENCY", "PAY_TOTAL", "ALLOC_TOTAL",
+  "PAY_COUNT", "MANUAL_PAY", "PAY_CURRENCY", "ALLOC_CUR", "CHG_STATUS", "INV_STATUS",
+  "OUTBOX", "AUDIT", "BALANCE", "SRC_HASH", "DST_HASH", "SRC_REPEAT", "DST_REPEAT",
+] as const;
+type ComparisonCode = (typeof COMPARISON_CODES)[number];
+type LedgerPhase = "source-ledger-before-dump" | "restored-source-ledger" | "restored-target-ledger";
 
 type SafePhase =
+  | LedgerPhase
   | "environment"
   | "clients"
   | "postgres-identity"
@@ -136,6 +144,10 @@ function demand(condition: unknown, phase: SafePhase): asserts condition {
 }
 
 function demandIdentity(condition: unknown, phase: SafePhase, code: IdentityCode): asserts condition {
+  if (!condition) throw new SafeFailure(phase, code);
+}
+
+function demandComparison(condition: unknown, phase: SafePhase, code: ComparisonCode): asserts condition {
   if (!condition) throw new SafeFailure(phase, code);
 }
 
@@ -1219,7 +1231,7 @@ async function assertCanonicalReadsDenied(client: Client, fixture: LedgerFixture
   }
 }
 
-async function verifyLedgerAmounts(client: Client, fixtures: LedgerFixture[]) {
+async function verifyLedgerAmounts(client: Client, fixtures: LedgerFixture[], phase: LedgerPhase) {
   for (const fixture of fixtures) {
     const result = await client.query<{
       invoice_total: string;
@@ -1262,21 +1274,24 @@ async function verifyLedgerAmounts(client: Client, fixtures: LedgerFixture[]) {
       WHERE c.organization_id = $1::uuid AND c.id = $2::uuid
       GROUP BY i.total_amount_cents, c.id, c.amount_cents, c.status, c.currency, i.status, c.organization_id
     `, [fixture.organizationId, fixture.chargeId]);
-    demand(result.rows.length === 1, "comparison");
+    demandComparison(result.rows.length === 1, phase, "LEDGER_ROWS");
     const row = result.rows[0]!;
-    demand(row.invoice_total === String(LEDGER_AMOUNT_CENTS), "comparison");
-    demand(row.charge_amount === String(LEDGER_AMOUNT_CENTS), "comparison");
-    demand(row.currency === fixture.currency, "comparison");
-    demand(row.payment_total === String(LEDGER_PAYMENT_CENTS), "comparison");
-    demand(row.allocation_total === String(LEDGER_PAYMENT_CENTS), "comparison");
-    demand(Number(row.payment_count) === 1, "comparison");
-    demand(Number(row.valid_manual_payment_count) === 1, "comparison");
-    demand(row.payment_currency === fixture.currency && row.allocation_currency === fixture.currency, "comparison");
-    demand(row.charge_status === "partially_paid" && row.invoice_status === "partially_paid", "comparison");
-    demand(row.outbox_events.join(",") === "payment.allocated,payment.manual_recorded", "comparison");
-    demand(row.audit_actions.join(",") === "payment.allocated,payment.manual_recorded", "comparison");
-    demand(LEDGER_AMOUNT_CENTS - LEDGER_PAYMENT_CENTS === LEDGER_BALANCE_CENTS, "comparison");
+    demandComparison(row.invoice_total === String(LEDGER_AMOUNT_CENTS), phase, "INV_TOTAL");
+    demandComparison(row.charge_amount === String(LEDGER_AMOUNT_CENTS), phase, "CHG_TOTAL");
+    demandComparison(row.currency === fixture.currency, phase, "CURRENCY");
+    demandComparison(row.payment_total === String(LEDGER_PAYMENT_CENTS), phase, "PAY_TOTAL");
+    demandComparison(row.allocation_total === String(LEDGER_PAYMENT_CENTS), phase, "ALLOC_TOTAL");
+    demandComparison(Number(row.payment_count) === 1, phase, "PAY_COUNT");
+    demandComparison(Number(row.valid_manual_payment_count) === 1, phase, "MANUAL_PAY");
+    demandComparison(row.payment_currency === fixture.currency, phase, "PAY_CURRENCY");
+    demandComparison(row.allocation_currency === fixture.currency, phase, "ALLOC_CUR");
+    demandComparison(row.charge_status === "partially_paid", phase, "CHG_STATUS");
+    demandComparison(row.invoice_status === "partially_paid", phase, "INV_STATUS");
+    demandComparison(Array.isArray(row.outbox_events) && row.outbox_events.join(",") === "payment.allocated,payment.manual_recorded", phase, "OUTBOX");
+    demandComparison(Array.isArray(row.audit_actions) && row.audit_actions.join(",") === "payment.allocated,payment.manual_recorded", phase, "AUDIT");
+    demandComparison(LEDGER_AMOUNT_CENTS - LEDGER_PAYMENT_CENTS === LEDGER_BALANCE_CENTS, phase, "BALANCE");
   }
+  log("ledger_comparison_verified", { phase });
 }
 
 async function catalogAndDataFingerprint(client: Client): Promise<string> {
@@ -1552,9 +1567,11 @@ async function runExperiment() {
     validateRuntimeEnvironment();
     const { workdir, cliHome, runnerTemp } = privateDirectories();
     const { marker, manifest } = readMarkerAndManifest();
+    log("environment_verified");
     activePhase = "clients";
     const pgDump = resolveClient("pg_dump", manifest, cliHome);
     const pgRestore = resolveClient("pg_restore", manifest, cliHome);
+    log("client_inventory_verified");
     activePhase = "postgres-identity";
     const localUrlFile = privatePath("LOCAL_DB_URL_FILE");
     demand(isWithin(resolve(localUrlFile), runnerTemp), "postgres-identity");
@@ -1615,8 +1632,10 @@ async function runExperiment() {
     await verifyOwnedDatabase(admin, sourceDatabase, "database-create");
     await verifyOwnedDatabase(admin, targetDatabase, "database-create");
     await verifyTargetEmpty(target, admin, targetDatabase);
+    log("owned_empty_databases_verified");
     activePhase = "schema-replay";
     await applyReviewedSchema(source);
+    log("schema_replay_verified");
 
     const fixtureSql = readFileSync(TENANT_FIXTURE_PATH, "utf8");
     demand(digest(fixtureSql) === TENANT_FIXTURE_SHA256, "fixture");
@@ -1626,16 +1645,20 @@ async function runExperiment() {
       await seedLedgerAcademy(source, "EUR"),
       await seedLedgerAcademy(source, "MXN"),
     ];
+    log("ledger_fixtures_seeded");
     activePhase = "ledger-service";
     await writeLedgersAndRunService(fixtures, sourceUrlFile, fixtureFile, workdir);
     await assertLedgerChildPoolClosed(admin, sourceDatabase.name, sourcePid);
-    activePhase = "comparison";
-    await verifyLedgerAmounts(source, fixtures);
+    log("ledger_service_and_pool_close_verified");
+    activePhase = "source-ledger-before-dump";
+    await verifyLedgerAmounts(source, fixtures, activePhase);
     activePhase = "fixture";
     await runLegacyTenantFixture(source, fixtureSql);
     for (const fixture of fixtures) await assertCanonicalReadsDenied(source, fixture);
+    log("source_tenant_isolation_verified");
     activePhase = "source-fingerprint";
     const sourceInitialFingerprint = await catalogAndDataFingerprint(source);
+    log("source_fingerprint_captured");
 
     activePhase = "dump";
     const artifactDir = assertArtifactDirectory(join(workdir, ".synthetic-restore"), workdir);
@@ -1664,6 +1687,7 @@ async function runExperiment() {
     demand(archiveBytes > 0, "dump");
     const plainArchive = readFileSync(rawArchive);
     const archiveHash = digest(plainArchive);
+    log("dump_archive_verified");
     key = randomBytes(32);
     const aad = makeArchiveAad(marker, sourceDatabase.name, targetDatabase.name);
     const encrypted = encryptArchive(plainArchive, key, aad);
@@ -1684,17 +1708,19 @@ async function runExperiment() {
       8 * 1024 * 1024
     );
     validateArchiveToc(toc.stdout.toString("utf8"), sourceDatabase.name, targetDatabase.name);
+    log("archive_integrity_and_toc_verified");
 
     activePhase = "restore";
     const sourceBeforeRestore = await catalogAndDataFingerprint(source);
-    demand(sourceBeforeRestore === sourceInitialFingerprint, "source-fingerprint");
+    demandComparison(sourceBeforeRestore === sourceInitialFingerprint, "source-fingerprint", "SRC_HASH");
     await verifyOwnedDatabase(admin, sourceDatabase, "restore");
     await verifyOwnedDatabase(admin, targetDatabase, "restore");
     await verifyTargetEmpty(target, admin, targetDatabase);
     await verifyEmptyGuardRejectsBusyTarget(target, admin, targetDatabase);
-    demand(await catalogAndDataFingerprint(source) === sourceInitialFingerprint, "source-fingerprint");
+    demandComparison(await catalogAndDataFingerprint(source) === sourceInitialFingerprint, "source-fingerprint", "SRC_HASH");
     await verifyOwnedDatabase(admin, targetDatabase, "restore");
     await verifyTargetEmpty(target, admin, targetDatabase);
+    log("restore_target_guards_verified");
     await runProcess(
       pgRestore,
       [
@@ -1711,36 +1737,33 @@ async function runExperiment() {
       clientEnv,
       "restore"
     );
+    log("restore_command_completed");
 
     activePhase = "comparison";
     await verifyOwnedDatabase(admin, targetDatabase, "comparison");
     const sourceAfterRestore = await catalogAndDataFingerprint(source);
     const targetAfterRestore = await catalogAndDataFingerprint(target);
-    demand(sourceAfterRestore === sourceInitialFingerprint, "comparison");
-    demand(targetAfterRestore === sourceInitialFingerprint, "comparison");
-    await verifyLedgerAmounts(source, fixtures);
-    await verifyLedgerAmounts(target, fixtures);
+    demandComparison(sourceAfterRestore === sourceInitialFingerprint, "comparison", "SRC_HASH");
+    demandComparison(targetAfterRestore === sourceInitialFingerprint, "comparison", "DST_HASH");
+    log("restored_catalog_and_data_verified");
+    activePhase = "restored-source-ledger";
+    await verifyLedgerAmounts(source, fixtures, activePhase);
+    activePhase = "restored-target-ledger";
+    await verifyLedgerAmounts(target, fixtures, activePhase);
+    activePhase = "fixture";
     await runLegacyTenantFixture(target, fixtureSql);
     for (const fixture of fixtures) await assertCanonicalReadsDenied(target, fixture);
+    log("restored_tenant_isolation_verified");
+    activePhase = "comparison";
     const sourceBeforeRepeatedGuard = await catalogAndDataFingerprint(source);
     const targetBeforeRepeatedGuard = await catalogAndDataFingerprint(target);
-    demand(sourceBeforeRepeatedGuard === sourceInitialFingerprint, "comparison");
-    demand(targetBeforeRepeatedGuard === sourceInitialFingerprint, "comparison");
+    demandComparison(sourceBeforeRepeatedGuard === sourceInitialFingerprint, "comparison", "SRC_HASH");
+    demandComparison(targetBeforeRepeatedGuard === sourceInitialFingerprint, "comparison", "DST_HASH");
     await verifyEmptyGuardRejectsRestoredTarget(target, admin, targetDatabase);
-    demand(await catalogAndDataFingerprint(source) === sourceBeforeRepeatedGuard, "comparison");
-    demand(await catalogAndDataFingerprint(target) === targetBeforeRepeatedGuard, "comparison");
-
-    log("verified", {
-      source_database: sourceDatabase.name,
-      target_database: targetDatabase.name,
-      archive_bytes: archiveBytes,
-      archive_sha256: archiveHash,
-      ledgers: fixtures.length,
-      currencies: "EUR,MXN",
-      amount_cents: LEDGER_AMOUNT_CENTS,
-      payment_cents: LEDGER_PAYMENT_CENTS,
-      balance_cents: LEDGER_BALANCE_CENTS,
-    });
+    demandComparison(await catalogAndDataFingerprint(source) === sourceBeforeRepeatedGuard, "comparison", "SRC_REPEAT");
+    demandComparison(await catalogAndDataFingerprint(target) === targetBeforeRepeatedGuard, "comparison", "DST_REPEAT");
+    log("repeated_restore_guard_verified");
+    log("verified");
   } catch (error) {
     primaryError = phaseFailure(activePhase, error);
   } finally {
