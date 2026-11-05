@@ -3,7 +3,7 @@
 - Fecha: 5 de noviembre de 2026
 - Worktree: `/Users/elvisvaldesinerarte/Projects/Zaltyko/trabajos/Zaltyko-backup-probe-20261105`
 - Rama/HEAD de referencia: `codex/disposable-backup-probe-20261105` / `030a3a87c0c26c61e130e193a3074f268967eecf`
-- Estado: diseño implementado para revisión; no se ha ejecutado el modo `synthetic-restore`.
+- Estado: corrección de rol de sesión preparada sobre `43c5aae1`; dos intentos remotos fallidos, sin dump ni restore completados. El ajuste actual solo tiene revisión estática.
 
 ## Hallazgos
 
@@ -28,7 +28,7 @@
 
 ## Importancia y límites
 
-El flujo convierte la observación del inventario en una propuesta revisable de restauración lógica de PostgreSQL en dos bases del runner efímero. El control negativo del destino ocupado y la repetición del guard sobre el destino restaurado están implementados, pero sin ejecutar. Todavía no hay evidencia de ejecución de `synthetic-restore`, de aplicación real del baseline en ese camino, de compatibilidad del set de extensiones en el runner ni de restauración exitosa. No se afirma recuperación de Supabase Hosted, Auth HTTP, Storage, roles globales, WAL/backup físico, RPO/RTO ni producción. No se ejecutaron pruebas, typecheck, build, SQL local, CI dispatch ni llamadas a proveedores como parte de esta implementación.
+El flujo convierte la observación del inventario en una propuesta revisable de restauración lógica de PostgreSQL en dos bases del runner efímero. El control negativo del destino ocupado y la repetición del guard sobre el destino restaurado están implementados, pero sin ejecutar. Los intentos remotos descritos al final no alcanzaron la creación de las bases propias; no hay evidencia de aplicación del baseline en ese camino, de compatibilidad del set completo de extensiones ni de restauración exitosa. No se afirma recuperación de Supabase Hosted, Auth HTTP, Storage, roles globales, WAL/backup físico, RPO/RTO ni producción. No se ejecutaron pruebas, typecheck, build, SQL local, CI dispatch ni llamadas a proveedores como parte de esta corrección.
 
 ## Fuente y siguiente paso
 
@@ -42,3 +42,17 @@ El flujo convierte la observación del inventario en una propuesta revisable de 
 ## Primer intento remoto — f421c694
 
 Run41952068788 terminó FAILURE antes de iniciar PostgreSQL: el typecheck encontró cuatro errores del helper (dos entornos ProcessEnv sin NODE_ENV, stdin ignorado tipado como Writable, asignación al NODE_ENV readonly de Next). No hubo dump ni restore ni aplicación del baseline en ese intento. El ajuste mantiene el typecheck y los guards; añade NODE_ENV=test a entornos construidos explícitamente, comprueba el valor heredado en el hijo y representa stdin como null sin cast. Pendiente nueva ejecución remota del SHA corregido.
+
+## Segundo intento remoto — 43c5aae1 y corrección de rol preparada
+
+**Hallazgo.** El log local del run `41952527462`, sobre `43c5aae1e36e0c66c0e7aa6f73cb27cd55b3d03b`, muestra typecheck completado, inventario de clientes y fallo del helper con `phase: postgres-identity` y `cleanup: verified`. No aparecen checkpoints de creación de las bases propias, dump ni restore. El acuse posterior de parada del stack es distinto del cleanup del helper y no acredita por sí solo ausencia de procesos del sistema.
+
+**Fuente.** `/tmp/zaltyko-backup-43c5aae1.log`, `verify-sandbox-schema-replay.sh` (comentario del login nativo y bloque `ci_supabase_admin_role_guard`), `synthetic-backup-restore.ts`, `src/db/pool-config.ts` y `src/db/index.ts`. El shell documenta que el login nativo `supabase_admin` comienza con `current_user=postgres`; restaura el rol mediante `SET ROLE NONE` dinámico antes de comprobar ambas identidades y el atributo superuser. El helper exigía las mismas identidades sin ese reset. Esta es una causa compatible por revisión estática; el fallo anterior no emitió el campo que permita atribuirlo de forma concluyente al rol.
+
+**Cambio.** Se restablece únicamente el rol de cada sesión `Client`, con el mismo `DO` dinámico del control de referencia. Se exige login `supabase_admin` antes del reset, y después se conservan `session_user=current_user=supabase_admin` y superuser. No hay `ALTER ROLE`, `ALTER DATABASE ... SET` ni cambio de roles persistentes. El `Client` usa la opción de inicio literal `-c role=none`; la URL base conserva su validación original y solo admite `sslmode=disable`.
+
+Las URLs privadas creadas para las dos bases propias añaden exclusivamente `options=-c role=none`, construido dentro del helper. Su parser exige loopback, puerto válido, login/contraseña, nombre completo de base `zk_src_<run>_<attempt>_<sha8>` o `zk_dst_<run>_<attempt>_<sha8>`, ausencia de fragmento y exactamente las dos opciones previstas; no acepta opciones libres ni parámetros duplicados. El hijo recibe el nombre exacto del origen en su entorno cerrado y comprueba coincidencia. Antes de importar los módulos de la aplicación abre/cierra un `Client` de preflight contra ese origen y valida el rol y la base. Después comprueba también base, identidades y superuser mediante el `db` real, antes de importar e invocar el servicio de ledger. La opción fija se conserva en `createDatabasePoolConfig` para cada conexión nueva del pool; no se modifica el código del producto.
+
+Los entornos cerrados de los binarios incluyen exclusivamente el `PGOPTIONS` literal anterior; `pg_dump` y `pg_restore` reciben además `--role=supabase_admin`. Se mantienen los nombres exactos de origen/destino y los guards de propiedad, marcador, estado vacío, versión, extensiones y cleanup. Se añaden checkpoints fijos de identidad del servidor, roles/extensiones y sesiones privadas, además de una allowlist de códigos de fallo. Del hijo solo puede propagarse un código de esa allowlist; no se imprimen stderr, URLs, credenciales ni datos de las fixtures.
+
+**Importancia y siguiente paso.** La propuesta corrige el tratamiento del rol de sesión sin aceptar `postgres` como identidad alternativa. La próxima revisión/ejecución remota debe confirmar la aceptación de la opción de inicio por el stack nativo, el rol efectivo del pool real y de ambos binarios, las seis extensiones exactas y las fases posteriores de replay/restore/cleanup. Nada de ello queda validado por este ajuste estático. No se ejecutaron tests, typecheck, build, SQL ni servicios en el Mac, y este cambio no ha iniciado CI remota.

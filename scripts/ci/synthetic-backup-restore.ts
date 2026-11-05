@@ -47,6 +47,15 @@ const LEDGER_AMOUNT_CENTS = 35025;
 const LEDGER_PAYMENT_CENTS = 12550;
 const LEDGER_BALANCE_CENTS = 22475;
 const BUSY_GUARD_SENTINEL = "ci_synthetic_restore_busy_sentinel";
+// Fixed startup option for this probe's private connections only. Never use a
+// caller-provided PGOPTIONS value or change persistent role/database settings.
+const SESSION_ROLE_OPTIONS = "-c role=none";
+const IDENTITY_CODES = [
+  "ROLE_RESET", "LOGIN_ROLE", "ACTIVE_ROLE", "SUPERUSER", "DB_NAME",
+  "SERVER_MAJOR", "SERVER_ADDR", "SERVER_PORT", "RECOVERY", "ROLE_SET",
+  "EXT_SET", "TEMPLATE", "URL_ROLE", "POOL_ROLE",
+] as const;
+type IdentityCode = (typeof IDENTITY_CODES)[number];
 
 type SafePhase =
   | "environment"
@@ -124,6 +133,14 @@ const TENANT_FIXTURE_PATH = join(ROOT, "scripts/ci/sandbox-tenant-isolation.sql"
 
 function demand(condition: unknown, phase: SafePhase): asserts condition {
   if (!condition) throw new SafeFailure(phase);
+}
+
+function demandIdentity(condition: unknown, phase: SafePhase, code: IdentityCode): asserts condition {
+  if (!condition) throw new SafeFailure(phase, code);
+}
+
+function isIdentityCode(value: unknown): value is IdentityCode {
+  return typeof value === "string" && IDENTITY_CODES.some((code) => code === value);
 }
 
 function log(event: string, details: Record<string, string | number> = {}) {
@@ -390,6 +407,18 @@ function runProcess(
       clearTimeout(timer);
       if (hardTimer) clearTimeout(hardTimer);
       if (overflow || code !== 0) {
+        // Only this fixed diagnostic allowlist can escape a failed ledger
+        // child's captured stdout; never expose its stderr or arbitrary text.
+        if (!overflow && phase === "ledger-service") {
+          try {
+            const lastLine = Buffer.concat(stdout).toString("utf8").trim().split(/\r?\n/).at(-1) ?? "";
+            const result = JSON.parse(lastLine) as { status?: unknown; code?: unknown };
+            if (result.status === "FAIL" && isIdentityCode(result.code)) {
+              rejectPromise(new SafeFailure(phase, result.code));
+              return;
+            }
+          } catch { /* Withhold malformed or unrecognized child output. */ }
+        }
         rejectPromise(new SafeFailure(phase));
         return;
       }
@@ -436,9 +465,33 @@ function parseLoopbackUrl(path: string): { url: URL; host: string; port: number;
 function makeDatabaseUrl(base: URL, databaseName: string): string {
   const url = new URL(base.toString());
   url.pathname = `/${databaseName}`;
-  url.search = "?sslmode=disable";
+  url.search = "";
+  url.searchParams.set("sslmode", "disable");
+  url.searchParams.set("options", SESSION_ROLE_OPTIONS);
   url.hash = "";
   return url.toString();
+}
+
+function parseOwnDatabaseUrl(value: string, phase: SafePhase): URL {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new SafeFailure(phase, "URL_ROLE");
+  }
+  const host = url.hostname.replace(/^\[|\]$/g, "");
+  const query = [...url.searchParams.entries()];
+  demandIdentity(
+    (url.protocol === "postgres:" || url.protocol === "postgresql:") &&
+    ["127.0.0.1", "::1", "localhost"].includes(host) &&
+    Number.isInteger(Number(url.port)) && Number(url.port) > 0 && Number(url.port) <= 65535 &&
+    url.username === "supabase_admin" && Boolean(url.password) && !url.hash &&
+    /^\/zk_(src|dst)_[0-9]+_[0-9]+_[0-9a-f]{8}$/.test(url.pathname) &&
+    query.length === 2 && url.searchParams.get("sslmode") === "disable" &&
+    url.searchParams.get("options") === SESSION_ROLE_OPTIONS,
+    phase, "URL_ROLE"
+  );
+  return url;
 }
 
 function writePgpass(path: string, host: string, port: number, password: string) {
@@ -459,12 +512,14 @@ function buildClientEnvironment(host: string, port: number, pgpassfile: string, 
     PGPORT: String(port),
     PGUSER: "supabase_admin",
     PGSSLMODE: "disable",
+    PGOPTIONS: SESSION_ROLE_OPTIONS,
   };
 }
 
 function connectClient(connectionString: string) {
   return new Client({
     connectionString,
+    options: SESSION_ROLE_OPTIONS,
     application_name: "zaltyko_synthetic_restore_ci",
     connectionTimeoutMillis: 8_000,
     query_timeout: 8 * 60_000,
@@ -514,6 +569,7 @@ async function verifyPostgresIdentity(
   host: string,
   port: number
 ): Promise<{ encoding: string; collate: string; ctype: string }> {
+  await restoreSessionRole(admin, "postgres-identity");
   const identity = await admin.query<{
     current_database: string;
     session_user: string;
@@ -532,39 +588,41 @@ async function verifyPostgresIdentity(
       pg_is_in_recovery() AS in_recovery
   `);
   const row = identity.rows[0];
-  demand(Boolean(row), "postgres-identity");
-  demand(row!.current_database === "postgres", "postgres-identity");
-  demand(row!.session_user === "supabase_admin" && row!.current_user === "supabase_admin", "postgres-identity");
-  demand(row!.is_superuser === true, "postgres-identity");
-  demand(Math.floor(Number(row!.server_version_num) / 10000) === 17, "postgres-identity");
-  demand(row!.in_recovery === false, "postgres-identity");
-  demand(Number(row!.server_port) === port, "postgres-identity");
+  demandIdentity(Boolean(row) && row!.current_database === "postgres", "postgres-identity", "DB_NAME");
+  demandIdentity(row!.session_user === "supabase_admin", "postgres-identity", "LOGIN_ROLE");
+  demandIdentity(row!.current_user === "supabase_admin", "postgres-identity", "ACTIVE_ROLE");
+  demandIdentity(row!.is_superuser === true, "postgres-identity", "SUPERUSER");
+  demandIdentity(Math.floor(Number(row!.server_version_num) / 10000) === 17, "postgres-identity", "SERVER_MAJOR");
+  demandIdentity(row!.in_recovery === false, "postgres-identity", "RECOVERY");
+  demandIdentity(Number(row!.server_port) === port, "postgres-identity", "SERVER_PORT");
   const address = String(row!.server_address ?? "").replace(/^\[|\]$/g, "");
-  demand(isIP(address) !== 0 && (address === "127.0.0.1" || address === "::1"), "postgres-identity");
-  if (host !== "localhost") demand(address === host, "postgres-identity");
+  demandIdentity(isIP(address) !== 0 && (address === "127.0.0.1" || address === "::1"), "postgres-identity", "SERVER_ADDR");
+  if (host !== "localhost") demandIdentity(address === host, "postgres-identity", "SERVER_ADDR");
+  log("postgres_session_identity_verified");
 
   const roles = await admin.query<{ rolname: string }>(
     "SELECT rolname FROM pg_roles WHERE rolname = ANY($1::text[]) ORDER BY rolname",
     [REQUIRED_ROLES]
   );
-  demand(
+  demandIdentity(
     JSON.stringify(roles.rows.map((item) => item.rolname).sort()) ===
       JSON.stringify([...REQUIRED_ROLES].sort()),
-    "postgres-identity"
+    "postgres-identity", "ROLE_SET"
   );
   const available = await admin.query<{ name: string; version: string }>(
     "SELECT name, version FROM pg_available_extension_versions"
   );
   const availableSet = new Set(available.rows.map((item) => `${item.name}\0${item.version}`));
   for (const [name, version] of EXTENSIONS) {
-    demand(availableSet.has(`${name}\0${version}`), "postgres-identity");
+    demandIdentity(availableSet.has(`${name}\0${version}`), "postgres-identity", "EXT_SET");
   }
+  log("postgres_roles_extensions_verified");
 
   const locale = await admin.query<{ encoding: string; collate: string; ctype: string }>(`
     SELECT pg_encoding_to_char(encoding) AS encoding, datcollate AS collate, datctype AS ctype
     FROM pg_database WHERE datname = 'template0'
   `);
-  demand(locale.rows.length === 1, "postgres-identity");
+  demandIdentity(locale.rows.length === 1, "postgres-identity", "TEMPLATE");
   return {
     encoding: locale.rows[0]!.encoding,
     collate: locale.rows[0]!.collate,
@@ -761,6 +819,10 @@ const ROLE_GUARD_SQL = `
 DO $ci_supabase_admin_role_guard$
 DECLARE v_is_superuser boolean;
 BEGIN
+  IF session_user <> 'supabase_admin' THEN
+    RAISE EXCEPTION 'Synthetic replay requires the supabase_admin login role';
+  END IF;
+  EXECUTE 'SET ROLE NONE';
   IF session_user <> 'supabase_admin' OR current_user <> 'supabase_admin' THEN
     RAISE EXCEPTION 'Synthetic replay requires the supabase_admin session role';
   END IF;
@@ -771,6 +833,14 @@ BEGIN
 END
 $ci_supabase_admin_role_guard$;
 `;
+
+async function restoreSessionRole(client: Client, phase: SafePhase) {
+  try {
+    await client.query(ROLE_GUARD_SQL);
+  } catch {
+    throw new SafeFailure(phase, "ROLE_RESET");
+  }
+}
 
 const AUTH_COMPATIBILITY_SQL = `
 DO $ci_auth_prerequisite_guard$
@@ -915,13 +985,8 @@ async function writeLedgersAndRunService(
 ) {
   writePrivateFile(fixtureFile, JSON.stringify({ fixtures }), "fixture");
   const sourceUrl = checkPrivateFile(sourceUrlFile, "ledger-service").toString("utf8").trim();
-  let parsed: URL;
-  try {
-    parsed = new URL(sourceUrl);
-  } catch {
-    throw new SafeFailure("ledger-service");
-  }
-  demand(parsed.username === "supabase_admin" && parsed.pathname.startsWith("/zk_src_"), "ledger-service");
+  const parsed = parseOwnDatabaseUrl(sourceUrl, "ledger-service");
+  demand(parsed.pathname.startsWith("/zk_src_"), "ledger-service");
 
   const childEnv: NodeJS.ProcessEnv = {
     CI: "true",
@@ -934,6 +999,7 @@ async function writeLedgersAndRunService(
     PATH: process.env.PATH ?? "/usr/bin:/bin",
     FIXTURE_FILE: fixtureFile,
     SOURCE_DB_URL_FILE: sourceUrlFile,
+    SOURCE_DATABASE_NAME: parsed.pathname.slice(1),
     GITHUB_ACTIONS: "true",
     RUNNER_OS: "Linux",
   };
@@ -990,14 +1056,43 @@ async function runLedgerChild() {
     } catch (error) {
       throw phaseFailure("ledger-child", error);
     }
-    const parsed = new URL(sourceUrl);
-    demand(parsed.username === "supabase_admin" && parsed.pathname.startsWith("/zk_src_"), "ledger-child");
+    const parsed = parseOwnDatabaseUrl(sourceUrl, "ledger-child");
+    const sourceName = process.env.SOURCE_DATABASE_NAME;
+    demandIdentity(
+      typeof sourceName === "string" && /^zk_src_[0-9]+_[0-9]+_[0-9a-f]{8}$/.test(sourceName) &&
+      parsed.pathname === `/${sourceName}`,
+      "ledger-child", "DB_NAME"
+    );
+    // Validate this exact private URL before importing the application's DB or
+    // ledger modules. The same literal startup option reaches every Pool
+    // connection: createDatabasePoolConfig only removes TLS URL parameters.
+    const preflight = connectClient(sourceUrl);
+    try {
+      await preflight.connect();
+      await restoreSessionRole(preflight, "ledger-child");
+      await verifyConnectedDatabase(preflight, sourceName, "ledger-child");
+    } finally {
+      await preflight.end();
+    }
     for (const name of ["DATABASE_URL", "DATABASE_URL_POOL", "DATABASE_URL_DIRECT"]) {
       process.env[name] = sourceUrl;
     }
     process.env.DOTENV_CONFIG_PATH = "/dev/null";
     demand(process.env.NODE_ENV === "test", "ledger-child");
 
+    const { db } = await import("../../src/db");
+    const { sql } = await import("drizzle-orm");
+    const poolIdentity = await db.execute(sql`
+      SELECT current_database() AS database_name, session_user, current_user,
+        (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) AS is_superuser
+    `);
+    const poolRow = poolIdentity.rows[0];
+    demandIdentity(
+      poolIdentity.rows.length === 1 && poolRow?.database_name === sourceName &&
+      poolRow.session_user === "supabase_admin" && poolRow.current_user === "supabase_admin" &&
+      poolRow.is_superuser === true,
+      "ledger-child", "POOL_ROLE"
+    );
     const { recordManualPaymentForCharge } = await import("../../src/modules/billing/application/ledger-service");
     for (const fixture of fixtures) {
       await recordManualPaymentForCharge({
@@ -1015,7 +1110,7 @@ async function runLedgerChild() {
     });
     exitCode = 0;
   } catch (error) {
-    const code = safeErrorCode(error);
+    const code = error instanceof SafeFailure ? error.safeCode : safeErrorCode(error);
     await new Promise<void>((resolveWrite) => {
       process.stdout.write(JSON.stringify({ status: "FAIL", code }), () => resolveWrite());
     });
@@ -1449,16 +1544,21 @@ async function runExperiment() {
 
     const sourceUrl = makeDatabaseUrl(localConnection.url, sourceDatabase.name);
     const targetUrl = makeDatabaseUrl(localConnection.url, targetDatabase.name);
+    demand(parseOwnDatabaseUrl(sourceUrl, "database-create").pathname === `/${sourceDatabase.name}`, "database-create");
+    demand(parseOwnDatabaseUrl(targetUrl, "database-create").pathname === `/${targetDatabase.name}`, "database-create");
     writePrivateFile(sourceUrlFile, `${sourceUrl}\n`, "postgres-identity");
     writePrivateFile(targetUrlFile, `${targetUrl}\n`, "postgres-identity");
     source = connectClient(sourceUrl);
     target = connectClient(targetUrl);
     await source.connect();
     await target.connect();
+    await restoreSessionRole(source, "database-create");
+    await restoreSessionRole(target, "database-create");
     await source.query("SET TIME ZONE 'UTC'");
     await target.query("SET TIME ZONE 'UTC'");
     await verifyConnectedDatabase(source, sourceDatabase.name, "database-create");
     await verifyConnectedDatabase(target, targetDatabase.name, "database-create");
+    log("private_database_sessions_verified");
     const sourcePidResult = await source.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
     const sourcePid = Number(sourcePidResult.rows[0]?.pid);
     demand(Number.isInteger(sourcePid) && sourcePid > 0, "database-create");
@@ -1501,6 +1601,7 @@ async function runExperiment() {
         `--host=${localConnection.host}`,
         `--port=${localConnection.port}`,
         "--username=supabase_admin",
+        "--role=supabase_admin",
         `--dbname=${sourceDatabase.name}`,
         "--format=custom",
         "--no-password",
@@ -1550,6 +1651,7 @@ async function runExperiment() {
         `--host=${localConnection.host}`,
         `--port=${localConnection.port}`,
         "--username=supabase_admin",
+        "--role=supabase_admin",
         `--dbname=${targetDatabase.name}`,
         "--exit-on-error",
         "--single-transaction",
