@@ -598,7 +598,12 @@ run_disposable_postgres_suites() {
   ZALTYKO_PG_INTEGRATION=1 ZALTYKO_PG_INTEGRATION_DATABASE_URL="$LOCAL_DB_URL" NODE_ENV=test \
   pnpm exec vitest run --project web tests/saas-capacity-postgres.integration.test.ts tests/billing-ledger-postgres.integration.test.ts tests/staff-postgres.integration.test.ts tests/owner-family-onboarding-postgres.integration.test.ts tests/owner-guardian-contacts-postgres.integration.test.ts tests/owner-attendance-sessions-postgres.integration.test.ts tests/owner-guardian-profile-postgres.integration.test.ts tests/owner-athlete-profile-isolation-pg.test.ts tests/owner-athlete-archive-pg.test.ts tests/owner-athlete-intake-pg.test.ts tests/owner-regularization-dates-pg.test.ts tests/canonical-academy-data-export-pg.test.ts \
     || return "$?"
-  # The candidate is installed only by this second guarded disposable suite,
+  # Closed two-row recovery rehearsal: its helper seeds and owns every ID,
+  # refuses non-GitHub/non-loopback targets, and never exposes an importer.
+  ZALTYKO_PG_INTEGRATION=1 ZALTYKO_PG_INTEGRATION_DATABASE_URL="$LOCAL_DB_URL" NODE_ENV=test \
+    pnpm exec vitest run --project web tests/canonical-athlete-recovery-pg.test.ts \
+    || return "$?"
+  # The candidate is installed only by this following guarded disposable suite,
   # after historical baseline/export checks. Never copied to a linked project.
   ZALTYKO_PG_INTEGRATION=1 ZALTYKO_PG_INTEGRATION_DATABASE_URL="$LOCAL_DB_URL" NODE_ENV=test \
     pnpm exec vitest run --project web tests/international-bootstrap-pg.test.ts \
@@ -646,5 +651,6 @@ printf 'PASS: exact baseline, RLS hardening, and Owner bootstrap reference seed 
 printf 'PASS: 28-table RLS, deny-policy, anon/authenticated ACL, two-academy isolation, writes, and rollback checks passed.\n'
 printf 'PASS: baseline guards refused populated and unmarked databases before DDL.\n'
 printf 'PASS: disposable PostgreSQL schema replay, RLS isolation, Free capacity, manual billing ledger concurrency, idempotent replay, and no-partial-write checks passed.\n'
+printf 'PASS: closed synthetic athlete recovery, same/cross-academy ID conflicts, replay, rollback, and timestamp-precision limit checks passed.\n'
 unset LOCAL_DB_URL
 unset EXPECTED_LOCAL_PORT
