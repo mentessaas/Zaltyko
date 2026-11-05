@@ -52,6 +52,7 @@ jobs:
           [[ "$EXPECTED_SHA" == "$DISPATCH_SHA" ]]
 
   static-and-unit:
+    needs: probe-contract
     name: Isolated static and unit checks
     if: ${{ inputs.resolution_mode != 'schema-replay' }}
     runs-on: ubuntu-latest
@@ -183,9 +184,10 @@ jobs:
   candidate-build:
     name: Remote candidate build only
     needs:
+      - probe-contract
       - static-and-unit
       - schema-replay
-    if: ${{ always() && needs.static-and-unit.result == 'success' && (inputs.resolution_mode == 'remote-build' || (inputs.resolution_mode == 'checks-and-build' && needs.schema-replay.result == 'success')) }}
+    if: ${{ always() && needs.probe-contract.result == 'success' && needs.static-and-unit.result == 'success' && (inputs.resolution_mode == 'remote-build' || (inputs.resolution_mode == 'checks-and-build' && needs.schema-replay.result == 'success')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -243,6 +245,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
 
   lockfile-refresh:
+    needs: probe-contract
     name: Propose targeted dependency lockfile refresh
     if: ${{ inputs.resolution_mode == 'lockfile-refresh' }}
     runs-on: ubuntu-latest
@@ -305,6 +308,7 @@ jobs:
           node scripts/ci/validate-lockfile-refresh.cjs
 
   vite-refresh:
+    needs: probe-contract
     name: Propose Vite 6 patch lockfile refresh
     if: ${{ inputs.resolution_mode == 'vite-refresh' }}
     runs-on: ubuntu-latest
