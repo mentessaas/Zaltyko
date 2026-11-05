@@ -9,10 +9,52 @@ type Database = typeof import("@/db").db;
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type Row = Record<string, unknown>;
 
+type SessionChecks = Record<"login" | "loginSuper" | "rolePair" | "effectivePrivilege" | "database" | "transport" | "port" | "origin", boolean>;
+
 export class CanonicalAthleteRecoveryRehearsalError extends Error {
-  constructor(public readonly code: string) {
-    super("Disposable canonical athlete recovery rehearsal refused.");
+  constructor(public readonly code: string, checks?: SessionChecks) {
+    // Fixed contract keys and booleans only. Never serialize session values,
+    // connection URLs, credentials, rows or PostgreSQL error details.
+    super(`Disposable canonical athlete recovery rehearsal refused.${checks ? ` ${JSON.stringify(checks)}` : ""}`);
     this.name = "CanonicalAthleteRecoveryRehearsalError";
+  }
+}
+
+export interface CanonicalAthleteRecoverySessionContext {
+  login_role: string;
+  login_is_superuser: boolean;
+  role_name: string;
+  effective_is_superuser: boolean;
+  configured_role: string;
+  database_name: string;
+  server_address: string | null;
+  server_port: number | null;
+  replication_role: string;
+}
+
+/** Pure, exact session tuples; no role changes or permission expansion. */
+export function assertCanonicalAthleteRecoverySessionContext(
+  session: CanonicalAthleteRecoverySessionContext | undefined,
+  targetPort: number
+): void {
+  // The CLI's postgres/postgres state is observed in the replay log. A normal
+  // Node login may keep its own supabase_admin/none state. Do not transplant a
+  // CLI session assumption to the pool, or mix halves of these reviewed pairs.
+  const ownLoginRole = session?.role_name === "supabase_admin" && session.configured_role === "none";
+  const cliRole = session?.role_name === "postgres" && session.configured_role === "postgres";
+  const checks: SessionChecks = {
+    login: session?.login_role === "supabase_admin",
+    loginSuper: session?.login_is_superuser === true,
+    rolePair: ownLoginRole || cliRole,
+    effectivePrivilege: (ownLoginRole && session?.effective_is_superuser === true) ||
+      (cliRole && session?.effective_is_superuser === false),
+    database: session?.database_name === "postgres",
+    transport: session?.server_address === "127.0.0.1" || session?.server_address === "::1",
+    port: session?.server_port === targetPort,
+    origin: session?.replication_role === "origin",
+  };
+  if (Object.values(checks).some((value) => !value)) {
+    throw new CanonicalAthleteRecoveryRehearsalError("unexpected_database_session", checks);
   }
 }
 
@@ -85,23 +127,14 @@ export async function createCanonicalAthleteRecoveryRehearsal(
   assertCanonicalAthleteRecoveryDisposableTarget();
   const sessionResult = await db.execute(sql`
     select session_user as login_role, current_user as role_name, current_database() as database_name,
-      inet_server_addr()::text as server_address, inet_server_port() as server_port,
+      host(inet_server_addr()) as server_address, inet_server_port() as server_port,
+      (select rolsuper from pg_roles where rolname = session_user) as login_is_superuser,
+      (select rolsuper from pg_roles where rolname = current_user) as effective_is_superuser,
       current_setting('role') as configured_role,
       current_setting('session_replication_role') as replication_role
   `);
-  const session = sessionResult.rows[0] as unknown as {
-    login_role: string; role_name: string; configured_role: string; database_name: string; server_address: string;
-    server_port: number; replication_role: string;
-  } | undefined;
-  // The pinned native stack's supabase_admin login starts as postgres (runner
-  // documents this). The CLI's separate SET ROLE NONE does not affect Node's
-  // pool. Validate both identities without issuing SET ROLE or changing grants.
-  if (!session || session.login_role !== "supabase_admin" || session.role_name !== "postgres" ||
-      session.configured_role !== "postgres" || session.database_name !== "postgres" ||
-      !["127.0.0.1", "::1"].includes(session.server_address) || session.server_port !== Number(target.port) ||
-      session.replication_role !== "origin") {
-    throw new CanonicalAthleteRecoveryRehearsalError("unexpected_database_session");
-  }
+  const session = sessionResult.rows[0] as unknown as CanonicalAthleteRecoverySessionContext | undefined;
+  assertCanonicalAthleteRecoverySessionContext(session, Number(target.port));
 
   const ids = {
     organization: randomUUID(), otherOrganization: randomUUID(), user: randomUUID(),

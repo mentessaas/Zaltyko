@@ -23,3 +23,9 @@ Este resultado solo puede acreditar esa ficha privada y esos escenarios. No demu
 ## Siguiente paso y estado
 
 Revisión estática independiente y ejecución remota exacta pendientes al preparar este documento. Nada se ejecuta en Mac. Root registrará el SHA, job y resultado real en la auditoría externa, distinguiendo tests preparados, ejecutados y omitidos. No SQL alojado, producción, Stripe Live, ensayo natural, nuevos accesos ni proveedores. La preview de entregas permanece en63c64487 con invitaciones apagadas.
+
+## Ajuste del contrato de sesión después de la primera ejecución
+
+El primer replay 42107177373/127524955878 rechazó nueve escenarios positivos en la guarda antes de crear fixtures; 18 negativos pasaron. El log del CLI mostraba su rol efectivo postgres, pero no los campos de la conexión Node; no se atribuye una causa individual sin evidencia. El helper normaliza la dirección con host(inet_server_addr()), exige login supabase_admin superuser y solo permite las parejas completas supabase_admin/none (efectivo superuser) o postgres/postgres (efectivo no superuser), manteniendo DB, TCP loopback, puerto y replicación origin exactos. No ejecuta SET ROLE ni cambia permisos.
+
+Trece casos adicionales rechazan parejas mezcladas, privilegios incoherentes y destinos distintos. Ante un rechazo de sesión, el diagnóstico solo expone ocho booleanos fijos, nunca URL, credenciales o valores raw. Cuarenta casos quedan preparados para el replay; Backend y QA revisaron estáticamente el delta sin P1/P2. El nuevo resultado remoto continúa pendiente.

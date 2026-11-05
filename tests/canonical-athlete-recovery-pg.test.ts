@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // This helper has no static @/db import. Its guard precedes DB initialization.
 import {
   assertCanonicalAthleteRecoveryDisposableTarget,
+  assertCanonicalAthleteRecoverySessionContext,
   createCanonicalAthleteRecoveryRehearsal,
+  type CanonicalAthleteRecoverySessionContext,
   type CanonicalAthleteRecoverySnapshot,
 } from "./helpers/canonical-athlete-recovery-rehearsal";
 
@@ -48,6 +50,48 @@ afterEach(() => {
 });
 
 describeDisposablePg("closed bare-athlete recovery in disposable GitHub PostgreSQL", () => {
+  const nativeSession: CanonicalAthleteRecoverySessionContext = {
+    login_role: "supabase_admin", login_is_superuser: true,
+    role_name: "supabase_admin", effective_is_superuser: true, configured_role: "none",
+    database_name: "postgres", server_address: "127.0.0.1", server_port: 54322,
+    replication_role: "origin",
+  };
+
+  it("checks complete Node-login and CLI role pairs without setting roles or inferring a remote target", () => {
+    expect(() => assertCanonicalAthleteRecoverySessionContext(nativeSession, 54322)).not.toThrow();
+    expect(() => assertCanonicalAthleteRecoverySessionContext({
+      ...nativeSession, role_name: "postgres", configured_role: "postgres", effective_is_superuser: false,
+    }, 54322)).not.toThrow();
+  });
+
+  it.each([
+    { login_role: "postgres" },
+    { login_is_superuser: false },
+    { role_name: "postgres", configured_role: "none", effective_is_superuser: false },
+    { role_name: "supabase_admin", configured_role: "postgres" },
+    { role_name: "authenticated", configured_role: "authenticated", effective_is_superuser: false },
+    { effective_is_superuser: false },
+    { role_name: "postgres", configured_role: "postgres", effective_is_superuser: true },
+    { database_name: "other_database" },
+    { server_address: "192.0.2.1" },
+    { server_address: null, server_port: null },
+    { server_port: 54323 },
+    { replication_role: "replica" },
+  ] as const)("refuses a mismatched session contract with boolean-only diagnostics", (override) => {
+    try {
+      assertCanonicalAthleteRecoverySessionContext({ ...nativeSession, ...override }, 54322);
+      throw new Error("Expected session rejection");
+    } catch (error) {
+      expect(error).toMatchObject({ code: "unexpected_database_session" });
+      const message = error instanceof Error ? error.message : String(error);
+      const checks = JSON.parse(message.slice(message.indexOf("{"))) as Record<string, unknown>;
+      expect(Object.keys(checks).sort()).toEqual(["login", "loginSuper", "rolePair", "effectivePrivilege", "database", "transport", "port", "origin"].sort());
+      expect(Object.values(checks).every((value) => typeof value === "boolean")).toBe(true);
+      expect(Object.values(checks).some((value) => value === false)).toBe(true);
+      expect(message.includes("192.0.2.1") || message.includes("54322") || message.includes("supabase_admin")).toBe(false);
+    }
+  });
+
   it.each([
     ["GITHUB_ACTIONS", "false"],
     ["RUNNER_OS", "macOS"],
