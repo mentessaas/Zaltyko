@@ -95,6 +95,16 @@ describe("ZAL-908 — contrato d0/d2/d7 integrado", () => {
     expect(cron).toContain("runCronWithLease");
   });
 
+  it("descarta atribución UTM del alta Owner hasta tener contrato de consentimiento servidor", () => {
+    const ownerRoute = readFileSync(
+      "src/app/api/onboarding/owner/route.ts",
+      "utf8"
+    );
+    expect(ownerRoute).not.toContain("parsed.data.utm");
+    expect(ownerRoute).not.toMatch(/\butm:\s*z\./);
+    expect(ownerRoute).not.toMatch(/utm_(?:source|medium|campaign|term|content)/);
+  });
+
   it("permite que el cierre de la secuencia no fuerce CTA cuando ya no hay siguiente paso", () => {
     const done: NextPendingResult = { done: true };
     const result = resolveOnboardingOwnerNextStepUrl(done, ACADEMY_ID);

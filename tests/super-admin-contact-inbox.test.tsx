@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SuperAdminContactInbox } from "@/app/(super-admin)/super-admin/components/SuperAdminContactInbox";
@@ -44,7 +44,8 @@ describe("bandeja SuperAdmin de solicitudes", () => {
 
     expect(await screen.findByText(/Necesitamos acceso para esta academia/)).toBeVisible();
     expect(container.textContent).toContain("País: ejemplo");
-    expect(screen.getByText("Acceso asistido por país")).toBeVisible();
+    const savedRequests = screen.getByRole("region", { name: "Solicitudes guardadas" });
+    expect(within(savedRequests).getByText("Acceso asistido por país")).toBeVisible();
     expect(container.querySelector("img, script, iframe")).toBeNull();
     const draftLink = screen.getByRole("link", { name: "Redactar correo para Responsable" });
     expect(draftLink).toHaveAttribute(`href`, `mailto:${encodeURIComponent(contactEmail)}`);

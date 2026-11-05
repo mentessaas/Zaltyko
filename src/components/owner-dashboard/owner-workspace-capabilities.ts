@@ -2,6 +2,7 @@ export type OwnerWorkspaceCapabilities = Readonly<{
   canManageOrganizationAthletes: boolean;
   canManageFinancials: boolean;
   canManageSubscription: boolean;
+  canManageStaffProfiles: boolean;
 }>;
 
 export function ownerWorkspaceCapabilitiesFor(member: {
@@ -15,5 +16,7 @@ export function ownerWorkspaceCapabilitiesFor(member: {
       canManageFinancials && member.locationScopeMode === "all",
     canManageFinancials,
     canManageSubscription: member.role === "owner",
+    canManageStaffProfiles:
+      member.role === "owner" && member.locationScopeMode === "all",
   };
 }

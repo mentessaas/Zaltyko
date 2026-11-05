@@ -573,8 +573,11 @@ async function seedMonthlyInvoiceFixture(input?: {
     locationId,
     familyId,
     familyPayerId,
+    athleteId,
+    classTemplateId,
     actor,
     servicePeriod,
+    periodStart,
     dueDate: periodEnd,
   };
 }
@@ -994,6 +997,135 @@ describe("monthly manual invoice issuance on disposable PostgreSQL", () => {
         amount_cents: "3500",
       },
     ]);
+  }, 45_000);
+
+  it("blocks a mixed-currency family without changing either academy's financial ledger", async () => {
+    assertDisposableTarget();
+    const fixture = await seedMonthlyInvoiceFixture();
+    const otherAcademy = await seedMonthlyInvoiceFixture({
+      servicePeriod: fixture.servicePeriod,
+    });
+    // Give the other academy a non-empty ledger so hashes also detect changes
+    // to existing records outside the family whose issuance is denied.
+    await issueMonthlyInvoice(await monthlyInvoiceCommand(
+      otherAcademy,
+      `ci-monthly-currency-control-${randomUUID()}`
+    ));
+
+    const second = {
+      personId: randomUUID(),
+      athleteId: randomUUID(),
+      familyMemberId: randomUUID(),
+      pricePlanId: randomUUID(),
+      enrollmentId: randomUUID(),
+      priceAssignmentId: randomUUID(),
+      coverageId: randomUUID(),
+    };
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        insert into zaltyko.people (id, organization_id, given_name, family_name)
+        values (${second.personId}::uuid, ${fixture.organizationId}::uuid, 'CI', 'Currency Athlete')
+      `);
+      await tx.execute(sql`
+        insert into zaltyko.athletes (id, organization_id, person_id)
+        values (${second.athleteId}::uuid, ${fixture.organizationId}::uuid, ${second.personId}::uuid)
+      `);
+      await tx.execute(sql`
+        insert into zaltyko.family_members (
+          id, organization_id, family_id, athlete_id, relationship, starts_on
+        ) values (
+          ${second.familyMemberId}::uuid, ${fixture.organizationId}::uuid,
+          ${fixture.familyId}::uuid, ${second.athleteId}::uuid, 'other', ${fixture.periodStart}::date
+        )
+      `);
+      await tx.execute(sql`
+        insert into zaltyko.price_plans (
+          id, organization_id, name, cadence, amount_cents, currency, is_active
+        ) values (
+          ${second.pricePlanId}::uuid, ${fixture.organizationId}::uuid,
+          'CI mixed currency monthly tariff', 'monthly', 2500, 'MXN', true
+        )
+      `);
+      await tx.execute(sql`
+        insert into zaltyko.enrollments (
+          id, organization_id, location_id, athlete_id, class_template_id,
+          price_plan_id, status, starts_on, source
+        ) values (
+          ${second.enrollmentId}::uuid, ${fixture.organizationId}::uuid,
+          ${fixture.locationId}::uuid, ${second.athleteId}::uuid,
+          ${fixture.classTemplateId}::uuid, ${second.pricePlanId}::uuid,
+          'active', ${fixture.periodStart}::date, 'owner'
+        )
+      `);
+      await tx.execute(sql`
+        insert into zaltyko.enrollment_price_assignments (
+          id, organization_id, location_id, enrollment_id, price_plan_id,
+          unit_amount_cents, currency, starts_on
+        ) values (
+          ${second.priceAssignmentId}::uuid, ${fixture.organizationId}::uuid,
+          ${fixture.locationId}::uuid, ${second.enrollmentId}::uuid,
+          ${second.pricePlanId}::uuid, 2500, 'MXN', ${fixture.periodStart}::date
+        )
+      `);
+      await tx.execute(sql`
+        insert into zaltyko.price_plan_class_template_coverage (
+          id, organization_id, location_id, price_plan_id, class_template_id, starts_on
+        ) values (
+          ${second.coverageId}::uuid, ${fixture.organizationId}::uuid,
+          ${fixture.locationId}::uuid, ${second.pricePlanId}::uuid,
+          ${fixture.classTemplateId}::uuid, ${fixture.periodStart}::date
+        )
+      `);
+    });
+
+    const usage = await db.transaction((tx) => getOrganizationUsage(tx, fixture.organizationId));
+    expect(usage.planCode).toBe("free");
+    expect(usage.readOnly).toBe(false);
+    const [before, otherBefore] = await Promise.all([
+      snapshotMonthlyInvoiceLedger(fixture.organizationId),
+      snapshotMonthlyInvoiceLedger(otherAcademy.organizationId),
+    ]);
+    expect(before.invoices.count).toBe(0);
+    expect(otherBefore.invoices.count).toBe(1);
+
+    const options = await getMonthlyInvoiceOptions({
+      organizationId: fixture.organizationId,
+      locationId: fixture.locationId,
+      servicePeriod: fixture.servicePeriod,
+      actor: fixture.actor,
+    });
+    const family = options.families.find((candidate) => candidate.familyId === fixture.familyId);
+    expect(family).toMatchObject({
+      totalAmountCents: null,
+      currency: null,
+      canIssue: false,
+      blockingReasons: ["CURRENCY_MISMATCH"],
+      quoteHash: expect.any(String),
+    });
+    if (!family?.quoteHash) throw new Error("The mixed-currency fixture must expose a quote hash");
+    expect(family.lines.map(({ athleteId, amountCents, currency }) => ({
+      athleteId, amountCents, currency,
+    })).sort((left, right) => left.currency.localeCompare(right.currency))).toEqual([
+      { athleteId: fixture.athleteId, amountCents: 3500, currency: "EUR" },
+      { athleteId: second.athleteId, amountCents: 2500, currency: "MXN" },
+    ]);
+
+    await expect(issueMonthlyInvoice({
+      organizationId: fixture.organizationId,
+      locationId: fixture.locationId,
+      familyId: fixture.familyId,
+      familyPayerId: fixture.familyPayerId,
+      servicePeriod: fixture.servicePeriod,
+      dueDate: fixture.dueDate,
+      quoteHash: family.quoteHash,
+      idempotencyKey: `ci-monthly-mixed-currency-${randomUUID()}`,
+      actor: fixture.actor,
+    })).rejects.toMatchObject({ code: "MONTHLY_INVOICE_BLOCKED", status: 422 });
+
+    // The shared snapshot compares both counts and content hashes for all
+    // eight tables, including invoice_line_enrollments, in both academies.
+    expect(await snapshotMonthlyInvoiceLedger(fixture.organizationId)).toEqual(before);
+    expect(await snapshotMonthlyInvoiceLedger(otherAcademy.organizationId)).toEqual(otherBefore);
   }, 45_000);
 
   it("rejects a new monthly invoice above Free capacity without changing the ledger", async () => {

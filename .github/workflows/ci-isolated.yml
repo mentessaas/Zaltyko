@@ -83,7 +83,9 @@ jobs:
 
       - name: Type check
         if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'
-        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm typecheck
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: sudo --preserve-env=PATH,HOME,CI,NODE_ENV,NODE_OPTIONS,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,DATABASE_URL,DATABASE_URL_POOL,DATABASE_URL_DIRECT,INTERNAL_AUTH_SECRET,SUPABASE_JWT_SECRET unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm typecheck
 
       - name: Unit tests
         if: always() && !cancelled() && steps.dependencies.outcome == 'success' && steps.network-isolation.outcome == 'success'

@@ -13,7 +13,7 @@ import { ESSENTIAL_FAQS } from "@/lib/launch/essential-public-catalog";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const baseUrl = getPublicSiteUrl();
-const description = "Gestiona gimnastas, familias, grupos, clases, asistencia y cuotas con registro manual de pagos para tu academia de gimnasia en España.";
+const description = "Software de gestión en español para academias de gimnasia artística y rítmica. Configuración administrativa para España y México, con registro manual de cuotas.";
 export const metadata: Metadata = {
   title: "Zaltyko – Software para academias de gimnasia",
   description,

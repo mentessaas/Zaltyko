@@ -19,10 +19,12 @@ La respuesta expone `totalAmountCents: null` solo si `blockingReasons` contiene 
 
 - Regresión de servicio con PostgreSQL efímero en el harness financiero existente: segunda gimnasta sintética con tarifa MXN en la familia EUR, periodo sin factura, total nulo y líneas originales; emisión rechazada 422 y recuentos de siete tablas financieras inmutables en ambas academias. Añadida por coordinación; todavía sin ejecutar. El guard de loopback y los casos previos se conservan.
 
+- Corrección de conexión a CI: ese harness financiero no es llamado por el `schema-replay` actual. Se añade el caso a `tests/billing-ledger-postgres.integration.test.ts`, que sí ejecuta el runner desechable: misma familia y clase, dos gimnastas con EUR 3.500 y MXN 2.500 céntimos, sin total combinado; rechazo 422 y recuentos **y hashes** inmutables de ocho tablas financieras en ambas academias. La academia de control tiene una cuota EUR emitida para evitar un control exclusivamente vacío. Los guards y el servicio no se modifican. Preparado, todavía sin ejecutar.
+
 ## Verificación y límites
 
 Revisión estática del builder y de su uso por `issueMonthlyInvoice`. Pruebas y build no ejecutados localmente según la instrucción de esta tarea; quedan para QA/CI remotos. No se modificó fiscalidad, conversión, esquema, SQL de migración, proveedor, datos ni flujo Live. No hay evidencia en esta revisión de una factura incorrecta emitida o cobrada.
 
 ## Siguiente paso
 
-Ejecutar las pruebas focales en QA/CI remotos y revisar el diff antes de integrar. Este worktree no se ha integrado ni publicado.
+Ejecutar la nueva regresión en QA/CI remotos. El cambio de producto ya está integrado en `527d4c2d`, que no es aprobable por fallos independientes de tipos y un selector de pruebas; la nueva regresión PostgreSQL aún no pertenece a un commit ejecutado. No está publicado en la preview ni en producción.

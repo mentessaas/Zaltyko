@@ -216,6 +216,7 @@ describe("analytics consent gate", () => {
     await waitFor(() => expect(mocks.posthog.init).toHaveBeenCalledTimes(1));
 
     const [, config] = mocks.posthog.init.mock.calls[0];
+    expect(config.before_send(null)).toBe(null);
     expect(
       config.before_send({
         event: "$pageview",

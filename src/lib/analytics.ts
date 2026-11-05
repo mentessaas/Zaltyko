@@ -113,7 +113,7 @@ export async function initAnalytics() {
       persistence: "memory",
       save_campaign_params: false,
       before_send: (event) => {
-        if (typeof window === "undefined") return null;
+        if (!event || typeof window === "undefined") return null;
         return sanitizePostHogEvent(event, {
           enabled: optionalTrackingFlags.posthog,
           consentGranted: hasAnalyticsConsent(),

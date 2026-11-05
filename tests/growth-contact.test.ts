@@ -1,15 +1,15 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ContactRequestSchema } from "@/lib/growth/contracts";
+import { ContactRequestSchema, LeadCaptureSchema } from "@/lib/growth/contracts";
 import {
   calculatePricingToContactMetric,
   PRICING_TO_CONTACT_MIN_DENOMINATOR,
   PRICING_TO_CONTACT_WINDOW_DAYS,
 } from "@/lib/growth/pricing-contact";
 
-const UUID_V4_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const VISITOR_STORAGE_KEY = "zaltyko_growth_visitor_id";
+const CONSENT_STORAGE_KEY = "zaltyko.consent.v1";
 
 function buildContactRequest(overrides: Record<string, unknown> = {}) {
   return {
@@ -25,12 +25,21 @@ function buildContactRequest(overrides: Record<string, unknown> = {}) {
 }
 
 describe("contact growth contracts", () => {
+  let resetConsentForTests: (() => void) | undefined;
+  let restoreSendBeacon: (() => void) | undefined;
+
   beforeEach(() => {
     vi.resetModules();
+    localStorage.clear();
   });
 
   afterEach(() => {
+    resetConsentForTests?.();
+    resetConsentForTests = undefined;
+    restoreSendBeacon?.();
+    restoreSendBeacon = undefined;
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("acepta migracion como motivo de contacto", () => {
@@ -46,30 +55,54 @@ describe("contact growth contracts", () => {
     expect(ContactRequestSchema.safeParse(buildContactRequest({directoryEntryId:"correo@example.com"})).success).toBe(false);
   });
 
-  it("reemplaza visitorId legacy en localStorage por UUID v4", async () => {
-    const newVisitorId = "00000000-0000-4000-8000-000000000123";
-    const storage = new Map<string, string>([[VISITOR_STORAGE_KEY, "v-001"]]);
-    const getItem = vi.fn((key: string) => storage.get(key) ?? null);
-    const setItem = vi.fn((key: string, value: string) => {
-      storage.set(key, value);
-    });
+  it("mantiene cerrada la atribución pública y purga solo su clave heredada", async () => {
+    localStorage.setItem(VISITOR_STORAGE_KEY, "legacy-visitor");
+    localStorage.setItem("unrelated.preference", "keep");
+    const getItem = vi.spyOn(Storage.prototype, "getItem");
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    const removeItem = vi.spyOn(Storage.prototype, "removeItem");
+    const fetchMock = vi.fn();
+    const sendBeacon = vi.fn(() => true);
+    const previousSendBeacon = Object.getOwnPropertyDescriptor(navigator, "sendBeacon");
+    restoreSendBeacon = () => {
+      if (previousSendBeacon) {
+        Object.defineProperty(navigator, "sendBeacon", previousSendBeacon);
+      } else {
+        Reflect.deleteProperty(navigator, "sendBeacon");
+      }
+    };
+    vi.stubGlobal("fetch", fetchMock);
+    Object.defineProperty(navigator, "sendBeacon", { configurable: true, value: sendBeacon });
 
-    vi.stubGlobal("window", {
-      localStorage: { getItem, setItem },
-    });
-    vi.stubGlobal("crypto", {
-      randomUUID: vi.fn(() => newVisitorId),
-    });
+    const consentStore = await import("@/lib/consent/store");
+    resetConsentForTests = consentStore.__resetConsentForTests;
+    const { capturePublicGrowthEvent, getGrowthVisitorId, getPublicAttribution } = await import("@/lib/growth/client");
 
-    const { getGrowthVisitorId } = await import("@/lib/growth/client");
+    expect(getGrowthVisitorId()).toBeUndefined();
+    expect(getPublicAttribution()).toEqual({});
+    capturePublicGrowthEvent({ eventName: "pricing_viewed", planCode: null, source: "public_pricing", properties: {} });
 
-    const visitorId = getGrowthVisitorId();
+    expect(getItem).not.toHaveBeenCalledWith(VISITOR_STORAGE_KEY);
+    expect(setItem).not.toHaveBeenCalledWith(VISITOR_STORAGE_KEY, expect.any(String));
+    expect(removeItem).toHaveBeenCalledWith(VISITOR_STORAGE_KEY);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(sendBeacon).not.toHaveBeenCalled();
+    expect(localStorage.getItem("unrelated.preference")).toBe("keep");
+  });
 
-    expect(visitorId).toBe(newVisitorId);
-    expect(visitorId).toMatch(UUID_V4_PATTERN);
-    expect(getItem).toHaveBeenCalledWith(VISITOR_STORAGE_KEY);
-    expect(setItem).toHaveBeenCalledWith(VISITOR_STORAGE_KEY, newVisitorId);
-    expect(storage.get(VISITOR_STORAGE_KEY)).toBe(newVisitorId);
+  it("vuelve a purgar solo su clave al revocar consentimiento", async () => {
+    localStorage.setItem(VISITOR_STORAGE_KEY, "legacy-visitor");
+    localStorage.setItem("unrelated.preference", "keep");
+    const consentStore = await import("@/lib/consent/store");
+    resetConsentForTests = consentStore.__resetConsentForTests;
+    await import("@/lib/growth/client");
+
+    localStorage.setItem(VISITOR_STORAGE_KEY, "legacy-visitor-again");
+    consentStore.writeConsent("revoked");
+
+    expect(localStorage.getItem(VISITOR_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem("unrelated.preference")).toBe("keep");
+    expect(localStorage.getItem(CONSENT_STORAGE_KEY)).toBe("revoked");
   });
 
   it("rechaza un contacto sin visitorId", () => {
@@ -82,6 +115,11 @@ describe("contact growth contracts", () => {
       ContactRequestSchema.safeParse(buildContactRequest({ visitorId: null }))
         .success
     ).toBe(false);
+  });
+
+  it("acepta un lead sin visitorId para que el formulario comercial no dependa del tracking", () => {
+    expect(LeadCaptureSchema.safeParse({ email: "lead@example.com", source: "landing_page" }).success).toBe(true);
+    expect(LeadCaptureSchema.safeParse({ email: "lead@example.com", source: "landing_page", visitorId: null }).success).toBe(true);
   });
 
   it("usa una cohorte rolling de 30 días y solo cruza visitantes elegibles", () => {

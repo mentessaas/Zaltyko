@@ -12,6 +12,7 @@ const previewCapabilities = {
   canManageOrganizationAthletes: true,
   canManageFinancials: true,
   canManageSubscription: true,
+  canManageStaffProfiles: true,
 } as const;
 
 export function OwnerWorkspacePageShell({

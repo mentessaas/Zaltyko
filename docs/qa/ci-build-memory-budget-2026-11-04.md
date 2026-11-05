@@ -23,3 +23,9 @@ Confirmar build remoto y todos los gates del mismo commit; inspeccionar fallos s
 En dc14c61d, job126918066609 de CI41928195829, `pnpm build` terminó correctamente pero el paso posterior `Type check generated Next.js route contracts` agotó el heap V8 a unos2041MiB, salida134. Su entorno no heredaba el `NODE_OPTIONS` del paso Build. El log del job identifica el proceso `tsc --noEmit`; no demuestra un error de tipos ni falta total de RAM del runner.
 
 Se asigna el mismo old-space4096 únicamente a ese paso. Se conserva `pnpm typecheck` completo, el runner estándar, timeouts y todos los demás controles. La corrección todavía necesita ejecución remota; no se ejecutaron pruebas, tipos ni builds en Mac. Los navegadores del candidato anterior continúan sin cancelación.
+
+## Tercer consumidor observado: typecheck independiente
+
+En `527d4c2dfd1425695651416c6c4d5a38a31ea251`, job127004728314 de [CI41954102738](https://github.com/mentessaas/Zaltyko/actions/runs/41954102738), lint terminó y `pnpm typecheck` agotó el heap V8 entre2020–2029MiB, salida134. No se comunicó un diagnóstico TypeScript; no se atribuye a falta total de RAM del runner. El paso independiente todavía no heredaba el presupuesto de los builds/contrato de rutas.
+
+Se añade old-space4096 al typecheck independiente principal y al equivalente aislado. En el aislado se preserva explícitamente NODE_OPTIONS al entrar en el mismo namespace sin red. Se mantienen el comando completo, versiones, runner, aislamiento, checks y timeouts. Revisión estática y ejecución remota del nuevo SHA pendientes; cero pruebas, tipos, lint, builds o instalaciones en Mac. Los demás jobs del candidato anterior continúan sin cancelación.

@@ -49,21 +49,6 @@ export const CreateAcademyBodySchema = z.object({
   disciplineVariant: z.enum(DISCIPLINE_VARIANTS).optional(),
   tenantId: z.guid().optional(),
   ownerProfileId: z.guid().optional(),
-  /**
-   * ZAL-157: UTMs first-touch del signup. Todas las keys son opcionales —
-   * si llegan vacías se persisten los defaults `direct/none/...` para
-   * mantener trazabilidad (per spec §Notas).
-   */
-  utm: z
-    .object({
-      utm_source: z.string().trim().min(1).max(128),
-      utm_medium: z.string().trim().min(1).max(128),
-      utm_campaign: z.string().trim().min(1).max(128),
-      utm_term: z.string().trim().min(1).max(128).optional(),
-      utm_content: z.string().trim().min(1).max(128).optional(),
-    })
-    .partial()
-    .optional(),
 });
 
 export const QuerySchema = z.object({
@@ -174,16 +159,6 @@ export async function createAcademy(
   const discipline = inferDisciplineFromVariant(disciplineVariant);
   const countryName =
     body.country ?? getCountryNameFromCode(normalizedCountryCode);
-  // ZAL-157: UTMs del signup. Defaults `direct/none/...` per spec para que
-  // toda academia nueva tenga atribución registrada (incluso "sin atribución"
-  // queda como `direct/none` y se puede distinguir de `null`).
-  const utmCapturedAt = new Date();
-  const utmSource = body.utm?.utm_source ?? "direct";
-  const utmMedium = body.utm?.utm_medium ?? "none";
-  const utmCampaign = body.utm?.utm_campaign ?? "none";
-  const utmTerm = body.utm?.utm_term ?? null;
-  const utmContent = body.utm?.utm_content ?? null;
-
   await client.insert(academies).values({
     id: academyId,
     tenantId,
@@ -205,12 +180,13 @@ export async function createAcademy(
     trialStartsAt: null,
     trialEndsAt: null,
     isTrialActive: false,
-    utmSource,
-    utmMedium,
-    utmCampaign,
-    utmTerm,
-    utmContent,
-    utmCapturedAt,
+    // Attribution stays unset until the server has a verifiable consent contract.
+    utmSource: null,
+    utmMedium: null,
+    utmCampaign: null,
+    utmTerm: null,
+    utmContent: null,
+    utmCapturedAt: null,
   });
 
   const activatedSportConfig = await activateAcademySportConfig(
@@ -309,9 +285,6 @@ export async function createAcademy(
         countryCode: normalizedCountryCode,
         academyType,
         disciplineVariant,
-        utm_source: utmSource,
-        utm_medium: utmMedium,
-        utm_campaign: utmCampaign,
       },
       idempotencyKey: `academy_created:v1:${academyId}`,
     });
@@ -328,9 +301,6 @@ export async function createAcademy(
         countryCode: normalizedCountryCode,
         academyType,
         disciplineVariant,
-        utm_source: utmSource,
-        utm_medium: utmMedium,
-        utm_campaign: utmCampaign,
       },
     });
   }

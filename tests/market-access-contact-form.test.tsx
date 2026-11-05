@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const capture = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/growth/client", () => ({
   capturePublicGrowthEvent: capture,
-  getGrowthVisitorId: () => "10000000-0000-4000-8000-000000000001",
   getPublicAttribution: () => ({}),
 }));
 
@@ -66,13 +65,39 @@ describe("entrada asistida internacional", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[1][1].body).toBe(original);
     expect(JSON.parse(original).marketAccess).toEqual({ countryName: "Argentina", role: "owner", disciplines: ["rhythmic"] });
-    expect(JSON.parse(original).submissionId).toMatch(/^[\da-f-]{36}$/i);
+    const request = JSON.parse(original);
+    expect(request.submissionId).toMatch(/^[\da-f-]{36}$/i);
+    expect(request.visitorId).toBe(request.submissionId);
     expect(localStorage.length).toBe(0);
     expect(sessionStorage.length).toBe(0);
     for (const [event] of capture.mock.calls) {
       expect(event.properties).not.toHaveProperty("countryName");
       expect(JSON.stringify(event)).not.toContain("club@example.com");
+      expect(JSON.stringify(event)).not.toContain("Responsable sintético");
+      expect(JSON.stringify(event)).not.toContain("Queremos gestionar clases y asistencia.");
     }
+  });
+
+  it("asigna otro UUID a un nuevo envío intencional sin guardarlo en storage", async () => {
+    fetchMock.mockResolvedValue(success());
+    render(<ContactForm defaultReason="market_access" />);
+    completeRequest();
+    const form = screen.getByRole("form", { name: "Formulario de contacto" });
+
+    fireEvent.submit(form);
+    await screen.findByText(/Solicitud guardada/);
+    const firstRequest = JSON.parse(fetchMock.mock.calls[0][1].body);
+
+    completeRequest();
+    fireEvent.submit(form);
+    await screen.findByText(/Solicitud guardada/);
+    const secondRequest = JSON.parse(fetchMock.mock.calls[1][1].body);
+
+    expect(firstRequest.visitorId).toBe(firstRequest.submissionId);
+    expect(secondRequest.visitorId).toBe(secondRequest.submissionId);
+    expect(secondRequest.submissionId).not.toBe(firstRequest.submissionId);
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
   });
 
   it("impide el doble envío mientras la solicitud está en curso", async () => {
