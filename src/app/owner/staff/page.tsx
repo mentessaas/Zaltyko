@@ -59,11 +59,11 @@ export default async function OwnerStaffPage({
     >
       {process.env.ZALTYKO_TEAM_ACCESS_ENABLED === "true" ? (
         <>
-          <OwnerStaffManager key={scope.organization.id} organizationId={scope.organization.id} organizationName={scope.organization.name} />
-          <OwnerTeamAccessPanel key={scope.organization.id} organizationId={scope.organization.id} />
+          <OwnerStaffManager key={`staff:${scope.organization.id}`} organizationId={scope.organization.id} organizationName={scope.organization.name} />
+          <OwnerTeamAccessPanel key={`access:${scope.organization.id}`} organizationId={scope.organization.id} />
         </>
       ) : (
-        <OwnerStaffManager key={scope.organization.id} organizationId={scope.organization.id} organizationName={scope.organization.name} />
+        <OwnerStaffManager key={`staff:${scope.organization.id}`} organizationId={scope.organization.id} organizationName={scope.organization.name} />
       )}
     </OwnerWorkspacePageShell>
   );

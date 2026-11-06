@@ -33,3 +33,11 @@ Implementación en curso. Sin pruebas/builds ejecutados localmente, sin nuevo co
 Personal corrige el ciclo de vida del editor al cambiar de academia mediante una clave de contexto. Sus regresiones mantienen el comando incierto original separado por academia. Owner revisó independientemente los cuatro archivos del diagnóstico de datos, sin P1/P2: nunca certifica ausencia, estado actual, autorización ni capacidad de borrado. Ninguna de estas revisiones equivale a ejecución de pruebas.
 
 El contrato del correo diferencia el build de Vercel, que expone CI=1, del runtime: la reserva y el envío siguen bloqueados en CI. Esta compatibilidad no habilita el namespace, credenciales, configuración de proveedor ni envío real.
+
+## Primer candidato y correcciones agrupadas
+
+`a197b740`: build principal, lint/tipos, móvil, RLS/migraciones, PostgreSQL desechable, Chromium, Static, Directory y GitGuardian SUCCESS. La CI aislada detecta 5966 unitarias PASS, una FAIL y seis omitidas: la rama simulada de invitaciones comparte clave entre Personal y el panel de acceso; A→B→A duplica el formulario. Se separan las claves por componente conservando la regresión completa. El control de entorno exige además documentar el selector de entregas, ahora con defaultfalse. No se heredan estos PASS al siguiente SHA.
+
+La revisión del emisor común confirma otro defecto: descartaba el resultado de Brevo y podía marcar sent ante simulación o ausencia de aceptación. El arreglo requiere simulated=false e identificador no vacío; un resultado simulado/incompleto conserva el intento como failed y devuelve false sin sentAt ni payload. Errores reales y guardas existentes se conservan. QA revisó independientemente fuente y 30 casos mock, sin P1/P2. No se habilita credencial ni se cambia Brevo. Los callers que ignoran false requieren su propia revisión; este delta no acredita que todos presenten el resultado correctamente.
+
+El siguiente candidato requiere ambas CI completas, build principal y aislado y controles exactos. Sin nuevas pruebas locales, despliegue o configuración de proveedores.

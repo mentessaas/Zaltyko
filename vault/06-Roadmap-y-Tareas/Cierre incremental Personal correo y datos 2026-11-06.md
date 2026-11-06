@@ -21,3 +21,7 @@ Evitar operaciones bajo el contexto equivocado, envíos repetidos o afirmaciones
 ## Siguiente paso
 
 Completar revisión independiente y CI remota del mismo SHA, incluida concurrencia sobre PostgreSQL desechable. Después, revisión externa antes de cualquier publicación. La recepción automática, suplencia humana, reglas fiscales, aceptación contractual y procedimientos integrales de datos siguen pendientes de sus respectivas verificaciones. Sin SQL alojado, Live, producción, ensayo ni builds/tests locales.
+
+## Corte del primer candidato
+
+a197b740 pasa PostgreSQL desechable, build principal, tipos y Chromium; no completa la CI por documentación de una variable y una regresión real de claves duplicadas en la rama simulada de invitaciones. Se corrigen ambos sin bajar controles. Se incorpora además un arreglo revisado del emisor común: simulación o respuesta sin aceptación ya no serán sent/true. El código no configura proveedores, no habilita invitaciones y no acredita recepción de correo. Las comprobaciones del candidato definitivo siguen pendientes.

@@ -27,6 +27,7 @@ vi.mock("@/modules/owner-dashboard/application/owner-scope", () => ({
 import OwnerStaffPage from "@/app/owner/staff/page";
 import { OwnerStaffManager } from "@/components/owner-dashboard/OwnerStaffManager";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
+import { OwnerTeamAccessPanel } from "@/components/owner/OwnerTeamAccessPanel";
 
 const ORGANIZATION_ID = "80000000-0000-4000-8000-000000000001";
 
@@ -56,6 +57,22 @@ describe("entrada de Personal", () => {
     expect(shell.props.children.props.organizationId).toBe(ORGANIZATION_ID);
     expect(shell.props.children.props.organizationName).toBe("Club de prueba");
     expect(shell.props.children.type).toBe(OwnerStaffManager);
+    expect(shell.props.children.key).toBe(`staff:${ORGANIZATION_ID}`);
+  });
+
+  it("distingue las claves de los paneles hermanos de Personal y acceso", async () => {
+    vi.stubEnv("ZALTYKO_TEAM_ACCESS_ENABLED", "true");
+    const shell = await OwnerStaffPage({
+      searchParams: Promise.resolve({ organizationId: ORGANIZATION_ID }),
+    }) as ReactElement<{
+      children: ReactElement<{ children: ReactElement<{ organizationId: string }>[] }>;
+    }>;
+    const panels = shell.props.children.props.children;
+
+    expect(panels).toHaveLength(2);
+    expect(panels.map(panel => panel.type)).toEqual([OwnerStaffManager, OwnerTeamAccessPanel]);
+    expect(panels.map(panel => panel.key)).toEqual([`staff:${ORGANIZATION_ID}`, `access:${ORGANIZATION_ID}`]);
+    expect(panels.every(panel => panel.props.organizationId === ORGANIZATION_ID)).toBe(true);
   });
 
   it.each([
