@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { BookOpen, Calendar, CreditCard, ShieldCheck, Upload, Users } from "lucide-react";
+import { BookOpen, Calendar, CreditCard, ShieldCheck, Users } from "lucide-react";
 
 export interface HelpArticle {
   slug: string;
@@ -27,22 +27,16 @@ export const helpCategories: HelpCategory[] = [
         title: "Cómo crear tu cuenta",
         category: "Primeros pasos",
         summary: "Registra tu usuario, confirma el acceso y empieza desde el panel inicial.",
-        steps: ["Entra en registro.", "Completa tus datos principales.", "Confirma el correo si se solicita.", "Accede al dashboard para continuar la configuración."],
+        steps: ["Entra en registro.", "Completa tus datos principales.", "Confirma el enlace recibido por correo en el mismo navegador.", "Accede al dashboard para continuar la configuración."],
       },
       {
         slug: "configurar-academia",
         title: "Configurar tu academia",
         category: "Primeros pasos",
-        summary: "Define nombre, disciplina, país, horarios básicos y datos de contacto público.",
-        steps: ["Abre Ajustes.", "Revisa la información general.", "Configura disciplina y país.", "Guarda los cambios antes de invitar a tu equipo."],
+        summary: "Crea la academia y su primera sede desde la configuración inicial.",
+        steps: ["Accede con tu cuenta confirmada.", "Completa los datos de la academia y sede en la configuración inicial.", "Revisa antes de enviar.", "Abre el resumen para continuar con gimnastas y grupos."],
       },
-      {
-        slug: "invitar-equipo",
-        title: "Invitar a tu equipo",
-        category: "Primeros pasos",
-        summary: "Añade entrenadores y perfiles administrativos con permisos adecuados.",
-        steps: ["Entra en Equipo o Entrenadores.", "Crea una invitación.", "Elige el rol correcto.", "Pide a la persona invitada que complete su acceso."],
-      },
+
     ],
   },
   {
@@ -61,7 +55,7 @@ export const helpCategories: HelpCategory[] = [
         slug: "editar-atletas",
         title: "Editar información de atletas",
         category: "Gestión de atletas",
-        summary: "Actualiza datos personales, estado, nivel y contactos desde la ficha del atleta.",
+        summary: "Actualiza los datos personales y las relaciones familiares desde la ficha del gimnasta.",
         steps: ["Abre la lista de atletas.", "Selecciona la ficha.", "Pulsa Editar.", "Guarda los cambios revisados."],
       },
       {
@@ -82,21 +76,21 @@ export const helpCategories: HelpCategory[] = [
         slug: "crear-clases",
         title: "Crear clases",
         category: "Clases y horarios",
-        summary: "Define una clase con nombre, entrenador, capacidad y programación básica.",
+        summary: "Define una clase con grupo, sede, horario y capacidad.",
         steps: ["Abre Clases.", "Pulsa Nueva clase.", "Completa los campos principales.", "Guarda y revisa la vista de detalle."],
       },
       {
         slug: "gestionar-horarios",
         title: "Gestionar horarios",
         category: "Clases y horarios",
-        summary: "Mantén horarios consistentes para que asistencia y comunicaciones funcionen correctamente.",
+        summary: "Mantén horarios consistentes para las sesiones y el registro de asistencia.",
         steps: ["Abre la clase.", "Revisa días y horas.", "Ajusta sesiones recurrentes si aplica.", "Comunica cambios importantes al equipo."],
       },
       {
         slug: "control-asistencia",
         title: "Control de asistencia",
         category: "Clases y horarios",
-        summary: "Registra presentes, ausentes y observaciones para mantener métricas de asistencia.",
+        summary: "Guarda el estado de asistencia por sesión y consulta las marcas persistidas.",
         steps: ["Abre la sesión del día.", "Marca el estado de cada atleta.", "Añade notas si es necesario.", "Guarda el registro."],
       },
     ],
@@ -110,14 +104,14 @@ export const helpCategories: HelpCategory[] = [
         slug: "configurar-planes-precio",
         title: "Configurar planes de precio",
         category: "Pagos y cobros",
-        summary: "Define conceptos de cobro claros para mensualidades, matrículas o servicios extra.",
-        steps: ["Abre Cobros.", "Revisa conceptos activos.", "Añade importes y periodicidad.", "Comprueba el resumen antes de cobrar."],
+        summary: "Define una tarifa mensual y su cobertura de clases antes de emitir cuotas familiares.",
+        steps: ["Abre Cuotas mensuales.", "Revisa familia, pagador y vencimiento.", "Configura las tarifas y coberturas que falten.", "Previsualiza antes de emitir las cuotas."],
       },
       {
         slug: "procesar-pagos",
         title: "Procesar pagos",
         category: "Pagos y cobros",
-        summary: "Registra pagos manuales o procesa cobros conectados según tu configuración.",
+        summary: "Registra manualmente pagos recibidos y asígnalos a cargos pendientes; no se realizan cobros automáticos a familias.",
         steps: ["Busca la cuenta o atleta.", "Selecciona el cargo pendiente.", "Registra el pago.", "Revisa recibo e historial."],
       },
       {
@@ -130,49 +124,6 @@ export const helpCategories: HelpCategory[] = [
     ],
   },
   {
-    title: "Importación y exportación",
-    description: "Mueve tus datos con claridad y control",
-    icon: Upload,
-    articles: [
-      {
-        slug: "importar-desde-csv",
-        title: "Importar gimnastas desde CSV o Excel",
-        category: "Importación y exportación",
-        summary: "Prepara la base principal de tu academia y revisa los errores antes de confirmar la importación.",
-        steps: [
-          "Abre Atletas e inicia la importación.",
-          "Descarga o revisa la plantilla de columnas.",
-          "Sube el archivo CSV o Excel y corrige las filas señaladas.",
-          "Confirma la importación y guarda el resumen de resultados.",
-        ],
-      },
-      {
-        slug: "migracion-acompanada",
-        title: "Solicitar una migración acompañada",
-        category: "Importación y exportación",
-        summary: "Para históricos, familias, grupos o cobros complejos, revisamos el formato y el alcance antes de empezar.",
-        steps: [
-          "Contacta con el equipo e indica el origen de los datos.",
-          "Comparte una muestra sin datos sensibles innecesarios.",
-          "Recibe el alcance, las transformaciones y las responsabilidades.",
-          "Valida una muestra antes de completar la carga.",
-        ],
-      },
-      {
-        slug: "exportar-datos",
-        title: "Exportar datos de tu academia",
-        category: "Importación y exportación",
-        summary: "Descarga los datos disponibles según tu rol y el módulo consultado.",
-        steps: [
-          "Abre el módulo que quieras revisar.",
-          "Usa la acción Exportar y elige el formato disponible.",
-          "Comprueba filtros, periodo y academia antes de descargar.",
-          "Guarda el archivo siguiendo la política interna de tu academia.",
-        ],
-      },
-    ],
-  },
-  {
     title: "Seguridad y soporte",
     description: "Trabaja con acceso controlado y ayuda clara",
     icon: ShieldCheck,
@@ -181,25 +132,15 @@ export const helpCategories: HelpCategory[] = [
         slug: "roles-y-accesos",
         title: "Entender roles y accesos",
         category: "Seguridad y soporte",
-        summary: "Cada miembro del equipo y cada familia accede según su relación autorizada con la academia.",
-        steps: [
-          "Revisa el rol antes de enviar una invitación.",
-          "Comprueba qué módulos necesita la persona.",
-          "Invita solo a cuentas vinculadas a la academia.",
-          "Revoca o ajusta el acceso cuando cambie la responsabilidad.",
-        ],
+        summary: "Los módulos operativos exigen una cuenta autorizada en la academia y, cuando corresponda, en la sede.",
+        steps: ["Revisa el rol autorizado.", "Comprueba la academia y la sede seleccionadas.", "Si aparece un acceso denegado, contacta con el responsable de tu academia."],
       },
       {
         slug: "contactar-soporte",
         title: "Contactar con soporte",
         category: "Seguridad y soporte",
-        summary: "Abre un ticket con contexto suficiente para que el equipo pueda ayudarte más rápido.",
-        steps: [
-          "Abre Ayuda o Soporte desde tu espacio de trabajo.",
-          "Elige la categoría y describe el resultado esperado.",
-          "Incluye la academia, módulo y pasos para reproducirlo; nunca envíes contraseñas.",
-          "Sigue el historial del ticket hasta su resolución.",
-        ],
+        summary: "Contacta por email con contexto suficiente, sin incluir contraseñas ni datos personales innecesarios.",
+        steps: ["Abre Ayuda.", "Escribe a hola@zaltyko.com indicando módulo, pasos y resultado esperado.", "No incluyas contraseñas ni información sensible de menores."],
       },
     ],
   },

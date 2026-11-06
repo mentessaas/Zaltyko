@@ -1,4 +1,5 @@
-name: Directory integrity
+name: Directory SQL source integrity
+
 on:
   pull_request:
     paths:
@@ -6,24 +7,45 @@ on:
       - "src/app/api/directory/**"
       - "src/app/api/super-admin/directory/**"
       - "src/app/api/onboarding/owner/**"
-      - "supabase/migrations/**"
-      - "supabase/tests/**"
-      - "scripts/directory/**"
+      - "supabase/**"
+      - "scripts/validate-rls.ts"
+      - "scripts/check-migrations-integrity.ts"
+      - "tests/ci-isolated-workflow-contract.test.ts"
       - ".github/workflows/directory-integrity.yml"
+  workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
-  isolated-database:
+  sql-source-integrity:
+    name: Validate SQL sources (no database replay)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
         with:
-          node-version: "20"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Locate isolated PostgreSQL tools
-        run: echo "$(pg_config --bindir)" >> "$GITHUB_PATH"
-      - name: Migration, restore, RLS and concurrency against a temporary database
-        run: bash scripts/directory/test-local.sh
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify loopback-only network namespace
+        run: sudo unshare --net -- bash -euc 'ip link set lo up && test "$(ip -o link show | wc -l)" -eq 1 && test -z "$(ip route show default)" && test -z "$(ip -6 route show default)"' isolated-check
+
+      - name: Validate RLS source coverage
+        run: sudo --preserve-env=PATH,HOME,CI unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm validate:rls
+
+      - name: Validate migration source integrity
+        run: sudo --preserve-env=PATH,HOME,CI unshare --net -- bash -euc 'ip link set lo up && exec "$@"' isolated-check pnpm check:migrations

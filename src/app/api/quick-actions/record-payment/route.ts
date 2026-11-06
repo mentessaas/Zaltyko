@@ -8,10 +8,12 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { ensureChargeReceipt } from "@/lib/receipts/ensure-charge-receipt";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
+import { handleApiError } from "@/lib/api-error-handler";
 
 const RecordPaymentSchema = z.object({
-    chargeId: z.string().uuid(),
-    academyId: z.string().uuid(),
+    chargeId: z.guid(),
+    academyId: z.guid(),
     amountCents: z.number().int().positive(),
     paymentMethod: z.enum(["cash", "transfer", "bizum", "card_manual", "other"]),
     idempotencyKey: z.string().min(1).max(200).optional(),
@@ -43,6 +45,8 @@ export const POST = withTenant(async (req, context) => {
         }
 
         return await withTransaction(async (tx) => {
+        await lockAcademyOperationalWrites(tx, academyId);
+        await assertAcademyOperationalWritable(tenantId!, academyId, tx);
         // Mismo advisory lock que collectCharge: serializa contra una captura
         // automática de tarjeta en vuelo (evita doble pago efectivo+tarjeta).
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${chargeId}))`);
@@ -95,6 +99,6 @@ export const POST = withTenant(async (req, context) => {
         });
     } catch (error) {
         logger.error("Error recording payment:", error);
-        return apiError("INTERNAL_ERROR", "Error al registrar el pago", 500);
+        return handleApiError(error, { endpoint: "/api/quick-actions/record-payment", method: "POST" });
     }
 });

@@ -9,6 +9,15 @@ import {
   recordBillingEvent,
   updateBillingEventStatus,
 } from "@/lib/stripe/billing-events-service";
+import { OperationalError } from "@/modules/shared/domain/operational-error";
+import {
+  getSaasStripeConfig,
+  getSaasStripeWebhookVerificationConfig,
+} from "@/modules/saas-billing/application/saas-billing-config";
+import {
+  hasSaasBillingWebhookMarker,
+  processSaasBillingWebhook,
+} from "@/modules/saas-billing/application/webhook-service";
 
 export interface WebhookContext {
   academyId: string | null;
@@ -165,8 +174,76 @@ export async function handleStripeWebhook(
   request: Request
 ): Promise<NextResponse> {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const signature = request.headers.get("stripe-signature");
+  const body = await request.text();
+
+  const saasVerification = getSaasStripeWebhookVerificationConfig();
+  if (signature && saasVerification) {
+    const verifier = new Stripe(saasVerification.secretKey, {
+      apiVersion: "2026-08-26.dahlia",
+      timeout: 10_000,
+    });
+    let saasEvent: Stripe.Event | null = null;
+    try {
+      saasEvent = verifier.webhooks.constructEvent(
+        body,
+        signature,
+        saasVerification.webhookSecret,
+        300
+      );
+    } catch {
+      // A failed SaaS signature can still be a valid legacy webhook; verify it
+      // independently below before dispatching to the legacy processor.
+    }
+    if (saasEvent && hasSaasBillingWebhookMarker(saasEvent)) {
+      const config = getSaasStripeConfig();
+      if (!config) {
+        return NextResponse.json(
+          { error: "WEBHOOK_NOT_CONFIGURED" },
+          { status: 503, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+      try {
+        const result = await processSaasBillingWebhook({
+          event: saasEvent,
+          rawBody: body,
+          config,
+        });
+        return NextResponse.json(
+          {
+            received: true,
+            duplicate: result.duplicate,
+            ignored: result.ignored ?? false,
+            quarantined: result.quarantined ?? false,
+          },
+          { headers: { "Cache-Control": "no-store" } }
+        );
+      } catch (error) {
+        logger.error("SaaS Stripe webhook processing failed", error, {
+          eventId: saasEvent.id,
+          eventType: saasEvent.type,
+        });
+        const status = error instanceof OperationalError ? error.status : 500;
+        return NextResponse.json(
+          {
+            error:
+              status === 503 ? "PROCESSING_UNAVAILABLE" : "PROCESSING_FAILED",
+          },
+          { status, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+    }
+  }
 
   if (!webhookSecret) {
+    // SaaS is configured, but this request was not authorized for its handler.
+    // A missing legacy verifier is not a server configuration failure here.
+    if (saasVerification) {
+      return NextResponse.json(
+        { error: "SIGNATURE_VERIFICATION_FAILED" },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
     logger.error("Stripe webhook secret not configured");
     return NextResponse.json(
       { error: "WEBHOOK_NOT_CONFIGURED" },
@@ -174,12 +251,15 @@ export async function handleStripeWebhook(
     );
   }
 
-  const signature = request.headers.get("stripe-signature");
-  const body = await request.text();
-
   try {
     // Verificar firma
     const event = verifyWebhookSignature(body, signature, webhookSecret);
+    if (hasSaasBillingWebhookMarker(event)) {
+      return NextResponse.json(
+        { error: "SIGNATURE_VERIFICATION_FAILED" },
+        { status: 400 }
+      );
+    }
 
     // Procesar evento
     const result = await processWebhookEvent(event);

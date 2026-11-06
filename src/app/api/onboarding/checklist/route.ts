@@ -9,7 +9,7 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { verifyAcademyAccess } from "@/lib/permissions";
 
 const querySchema = z.object({
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
 });
 
 export const GET = withTenant(async (request, context) => {

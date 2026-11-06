@@ -16,14 +16,13 @@ import {
   athletes,
   classTemplates,
   enrollments,
-  groupMemberships,
-  groups,
   locations,
   people,
   programs,
   spaces,
 } from "@/db/zaltyko-schema";
 import { calculateEffectiveCapacity } from "@/modules/scheduling/domain/capacity";
+import { hasEligibleLocationRelationships } from "@/modules/groups/application/group-athlete-location-eligibility";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import type { EnrollmentStatus } from "@/modules/enrollments/domain/contracts";
@@ -34,7 +33,6 @@ const openEnrollmentStatuses = [
   "active",
   "paused",
 ] as const;
-const openGroupMembershipStatuses = ["pending", "active", "paused"] as const;
 const pageSize = 50;
 
 function visibleLocationIds(input: {
@@ -379,42 +377,10 @@ export async function searchOwnerEnrollmentCandidates(input: {
 
   const escapedQuery = query.replace(/[\\%_]/g, "\\$&");
   const pattern = "%" + escapedQuery + "%";
-  const hasGroupMembershipAtLocation = exists(
-    db
-      .select({ id: groupMemberships.id })
-      .from(groupMemberships)
-      .innerJoin(
-        groups,
-        and(
-          eq(groups.organizationId, groupMemberships.organizationId),
-          eq(groups.id, groupMemberships.groupId),
-          eq(groups.status, "active")
-        )
-      )
-      .where(
-        and(
-          eq(groupMemberships.organizationId, scope.organization.id),
-          eq(groupMemberships.athleteId, athletes.id),
-          inArray(groupMemberships.status, [...openGroupMembershipStatuses]),
-          inArray(groups.locationId, targetLocationIds)
-        )
-      )
-      .limit(1)
-  );
-  const hasOpenEnrollmentAtLocation = exists(
-    db
-      .select({ id: enrollments.id })
-      .from(enrollments)
-      .where(
-        and(
-          eq(enrollments.organizationId, scope.organization.id),
-          eq(enrollments.athleteId, athletes.id),
-          inArray(enrollments.locationId, targetLocationIds),
-          inArray(enrollments.status, [...openEnrollmentStatuses])
-        )
-      )
-      .limit(1)
-  );
+  const hasLocationRelationship = hasEligibleLocationRelationships({
+    organizationId: scope.organization.id,
+    locationIds: targetLocationIds,
+  });
   const alreadyInTargetClass = not(
     exists(
       db
@@ -456,7 +422,7 @@ export async function searchOwnerEnrollmentCandidates(input: {
           ilike(people.preferredName, pattern),
           ilike(people.familyName, pattern)
         ),
-        or(hasGroupMembershipAtLocation, hasOpenEnrollmentAtLocation),
+        hasLocationRelationship,
         alreadyInTargetClass
       )
     )

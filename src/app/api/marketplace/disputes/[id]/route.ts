@@ -18,7 +18,7 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  if (!z.string().uuid().safeParse(id).success) {
+  if (!z.guid().safeParse(id).success) {
     return NextResponse.json({ error: "invalid_id" }, { status: 400 });
   }
   const body = await req.json().catch(() => ({}));

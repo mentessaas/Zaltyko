@@ -39,7 +39,7 @@ async function contactHandler(request: Request, context?: { params?: Promise<{ i
   try {
     const params = context?.params ? await context.params : { id: new URL(request.url).pathname.split('/').pop() || '' };
     const { id } = params;
-    if (!z.string().uuid().safeParse(id).success) {
+    if (!z.guid().safeParse(id).success) {
       return NextResponse.json({ error: "INVALID_ACADEMY_ID" }, { status: 400 });
     }
 

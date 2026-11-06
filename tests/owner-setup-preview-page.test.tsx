@@ -16,6 +16,8 @@ const getConsentRequirement = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({
   notFound,
   useRouter: () => ({ replace, refresh }),
+  usePathname: () => "/owner/setup/preview",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("@/db", () => ({

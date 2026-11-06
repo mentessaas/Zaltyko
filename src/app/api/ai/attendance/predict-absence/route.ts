@@ -11,8 +11,8 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
-  athleteId: z.string().uuid(),
-  academyId: z.string().uuid(),
+  athleteId: z.guid(),
+  academyId: z.guid(),
 });
 
 function toIsoDate(value: string | Date): string | null {

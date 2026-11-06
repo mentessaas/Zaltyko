@@ -18,7 +18,11 @@ const serverEnvSchema = z.object({
   DATABASE_URL_POOL: z.string().min(1).optional(),
   DATABASE_URL_DIRECT: z.string().min(1).optional(),
   DATABASE_POOL_MAX: z.string().regex(/^\d+$/).optional(),
-  NODE_EXTRA_CA_CERTS: z.string().min(1).optional(),
+  DATABASE_CA_CERT_PATH: z.string().min(1).optional(),
+  NODE_EXTRA_CA_CERTS: z.preprocess(
+    (value) => value === "" ? undefined : value,
+    z.string().min(1).optional()
+  ),
 
   // Supabase
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
@@ -31,6 +35,18 @@ const serverEnvSchema = z.object({
   BREVO_SENDER_NAME: z.string().min(1).optional(),
   BREVO_REPLY_TO: z.string().email().optional(),
 
+  // Contact-only delivery QA permit, OFF by default. Combination/context/window
+  // validation is fail-closed in preflight and the exclusive runtime adapter.
+  // Never add this namespace to shared email readiness or NEXT_PUBLIC variables.
+  ZALTYKO_DELIVERY_CONTACT_EMAIL_ENABLED: z.enum(["true", "false"]).optional(),
+  DELIVERY_CONTACT_EMAIL_API_KEY: z.string().optional(),
+  DELIVERY_CONTACT_EMAIL_QA_EMAIL: z.union([z.literal(""), z.string().email()]).optional(),
+  DELIVERY_CONTACT_EMAIL_QA_AUTH_USER_ID: z.union([z.literal(""), z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)]).optional(),
+  DELIVERY_CONTACT_EMAIL_RUN_ID: z.union([z.literal(""), z.string().regex(/^[a-z0-9][a-z0-9_-]{15,79}$/)]).optional(),
+  DELIVERY_CONTACT_EMAIL_REQUEST_SHA256: z.union([z.literal(""), z.string().regex(/^[0-9a-f]{64}$/)]).optional(),
+  DELIVERY_CONTACT_EMAIL_APPROVED_COMMIT_SHA: z.union([z.literal(""), z.string().regex(/^[0-9a-f]{40}$/)]).optional(),
+  DELIVERY_CONTACT_EMAIL_EXPIRES_AT: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/)]).optional(),
+
   // Mailgun solo se conserva para el webhook inbound legado (/api/mailgun)
   MAILGUN_SIGNING_KEY: z.string().min(1).optional(),
 
@@ -41,10 +57,31 @@ const serverEnvSchema = z.object({
   STRIPE_CONNECT_WEBHOOK_SECRET: z.string().optional(),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 
+  // SaaS Billing platform configuration, isolated by Stripe environment.
+  STRIPE_SAAS_ENVIRONMENT: z.enum(["test", "live"]).optional(),
+  STRIPE_SAAS_TEST_SECRET_KEY: z.string().optional(),
+  STRIPE_SAAS_LIVE_SECRET_KEY: z.string().optional(),
+  STRIPE_SAAS_TEST_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_SAAS_LIVE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_SAAS_TEST_ACCOUNT_REFERENCE: z.string().optional(),
+  STRIPE_SAAS_TEST_PORTAL_ENABLED: z.enum(["true", "false"]).optional(),
+  STRIPE_SAAS_LIVE_ACCOUNT_REFERENCE: z.string().optional(),
+  STRIPE_SAAS_LIVE_PORTAL_ENABLED: z.enum(["true", "false"]).optional(),
+  STRIPE_SAAS_TEST_PRICE_STARTER_MONTH: z.string().optional(),
+  STRIPE_SAAS_TEST_PRICE_STARTER_YEAR: z.string().optional(),
+  STRIPE_SAAS_TEST_PRICE_GROWTH_MONTH: z.string().optional(),
+  STRIPE_SAAS_TEST_PRICE_GROWTH_YEAR: z.string().optional(),
+  STRIPE_SAAS_LIVE_PRICE_STARTER_MONTH: z.string().optional(),
+  STRIPE_SAAS_LIVE_PRICE_STARTER_YEAR: z.string().optional(),
+  STRIPE_SAAS_LIVE_PRICE_GROWTH_MONTH: z.string().optional(),
+  STRIPE_SAAS_LIVE_PRICE_GROWTH_YEAR: z.string().optional(),
+
   // App
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
   NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  NODE_ENV: z
+    .enum(["development", "production", "test"])
+    .default("development"),
 
   // Feature flags
   DISABLE_ONBOARDING_AUTOMATIONS: z.string().optional(),
@@ -67,6 +104,12 @@ const serverEnvSchema = z.object({
   SEED_STRIPE_PRICE_PREMIUM: z.string().optional(),
   SEED_STRIPE_ANNUAL_PRICE_PREMIUM: z.string().optional(),
   SEED_STRIPE_PRODUCT_PREMIUM: z.string().optional(),
+}).superRefine((environment, context) => {
+  const fields = ["DELIVERY_CONTACT_EMAIL_API_KEY", "DELIVERY_CONTACT_EMAIL_QA_EMAIL", "DELIVERY_CONTACT_EMAIL_QA_AUTH_USER_ID", "DELIVERY_CONTACT_EMAIL_RUN_ID", "DELIVERY_CONTACT_EMAIL_REQUEST_SHA256", "DELIVERY_CONTACT_EMAIL_APPROVED_COMMIT_SHA", "DELIVERY_CONTACT_EMAIL_EXPIRES_AT"] as const;
+  const enabled = environment.ZALTYKO_DELIVERY_CONTACT_EMAIL_ENABLED === "true";
+  if (enabled ? fields.some((key) => !environment[key]) : fields.some((key) => Boolean(environment[key]))) {
+    context.addIssue({ code: "custom", path: ["ZALTYKO_DELIVERY_CONTACT_EMAIL_ENABLED"], message: "Contact QA requires a complete permit when ON and an empty namespace when OFF" });
+  }
 });
 
 /**
@@ -81,6 +124,18 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 });
+
+function isMissingEnvironmentIssue(
+  issue: z.ZodError["issues"][number],
+  environment: Record<string, unknown>
+): boolean {
+  const key = issue.path[0];
+  return (
+    issue.code === "invalid_type" &&
+    typeof key === "string" &&
+    environment[key] === undefined
+  );
+}
 
 /**
  * Valida y parsea las variables de entorno del servidor
@@ -99,31 +154,41 @@ function validateServerEnv() {
   if (!result.success) {
     // Solo lanzar error si hay variables requeridas faltantes
     // Las variables opcionales no causarán error
-    const requiredErrors = result.error.errors.filter(
-      (err) => err.code === "invalid_type" && err.received === "undefined"
+    const requiredErrors = result.error.issues.filter((issue) =>
+      isMissingEnvironmentIssue(issue, cleanedEnv)
     );
     if (requiredErrors.length > 0) {
-      const missingVars = requiredErrors.map((err) => err.path.join(".")).join(", ");
+      const missingVars = requiredErrors
+        .map((issue) => issue.path.join("."))
+        .join(", ");
       throw new Error(`Required environment variables missing: ${missingVars}`);
     }
     // Si hay errores de validación pero no son de variables requeridas, usar los valores
     // originales pero loguear los errores en desarrollo
     if (process.env.NODE_ENV === "development") {
-      console.warn("Algunas variables de entorno tienen problemas de validación:", result.error.errors);
+      console.warn(
+        "Algunas variables de entorno tienen problemas de validación:",
+        result.error.issues
+      );
     }
     return cleanedEnv as z.infer<typeof serverEnvSchema>;
   }
   // Advertir sobre variables críticas no configuradas
   const criticalMissing = [
     ["STRIPE_SECRET_KEY", result.data.STRIPE_SECRET_KEY],
-    ["DATABASE_URL_POOL o DATABASE_URL", result.data.DATABASE_URL_POOL ?? result.data.DATABASE_URL],
+    [
+      "DATABASE_URL_POOL o DATABASE_URL",
+      result.data.DATABASE_URL_POOL ?? result.data.DATABASE_URL,
+    ],
     ["SUPABASE_SERVICE_ROLE_KEY", result.data.SUPABASE_SERVICE_ROLE_KEY],
   ]
     .filter(([, val]) => !val)
     .map(([key]) => key);
 
   if (criticalMissing.length > 0 && process.env.NODE_ENV === "production") {
-    console.warn(`[env] Variables críticas no configuradas en producción: ${criticalMissing.join(", ")}`);
+    console.warn(
+      `[env] Variables críticas no configuradas en producción: ${criticalMissing.join(", ")}`
+    );
   }
 
   // Retornar valores parseados
@@ -138,12 +203,16 @@ function validatePublicEnv() {
   const result = publicEnvSchema.safeParse(process.env);
   if (!result.success) {
     // Solo lanzar error si hay variables requeridas faltantes
-    const requiredErrors = result.error.errors.filter(
-      (err) => err.code === "invalid_type" && err.received === "undefined"
+    const requiredErrors = result.error.issues.filter((issue) =>
+      isMissingEnvironmentIssue(issue, process.env)
     );
     if (requiredErrors.length > 0) {
-      const missingVars = requiredErrors.map((err) => err.path.join(".")).join(", ");
-      throw new Error(`Required public environment variables missing: ${missingVars}`);
+      const missingVars = requiredErrors
+        .map((issue) => issue.path.join("."))
+        .join(", ");
+      throw new Error(
+        `Required public environment variables missing: ${missingVars}`
+      );
     }
   }
   // Retornar valores parseados o valores por defecto
@@ -171,7 +240,10 @@ export const publicEnv = validatePublicEnv();
 /**
  * Helper para obtener variables de entorno con valores por defecto seguros
  */
-export function getEnvVar(key: keyof typeof serverEnv, defaultValue?: string): string {
+export function getEnvVar(
+  key: keyof typeof serverEnv,
+  defaultValue?: string
+): string {
   const value = serverEnv[key];
   if (value) {
     return value;
@@ -185,7 +257,9 @@ export function getEnvVar(key: keyof typeof serverEnv, defaultValue?: string): s
 /**
  * Helper para obtener variables de entorno opcionales
  */
-export function getOptionalEnvVar(key: keyof typeof serverEnv): string | undefined {
+export function getOptionalEnvVar(
+  key: keyof typeof serverEnv
+): string | undefined {
   return serverEnv[key];
 }
 
@@ -225,32 +299,44 @@ export function getDatabaseUrl(): string {
   if (isBuildTime) {
     return "postgresql://dummy:dummy@localhost:5432/dummy";
   }
-  
+
   // En desarrollo, permitir valor dummy si no hay variables configuradas
-  const allowDummyInDev = isDevelopment() && !serverEnv.DATABASE_URL_DIRECT && !serverEnv.DATABASE_URL;
-  
+  const allowDummyInDev =
+    isDevelopment() &&
+    !serverEnv.DATABASE_URL_DIRECT &&
+    !serverEnv.DATABASE_URL;
+
   if (isProduction()) {
     // En producción, usar el pooler por defecto
     const url = serverEnv.DATABASE_URL_POOL ?? serverEnv.DATABASE_URL;
     if (!url) {
-      throw new Error("DATABASE_URL_POOL or DATABASE_URL must be set in production");
+      throw new Error(
+        "DATABASE_URL_POOL or DATABASE_URL must be set in production"
+      );
     }
     return url;
   }
   // En desarrollo, intentar primero el pooler (más compatible con IPv4)
   // y luego la conexión directa como fallback
   // Si DATABASE_URL_DIRECT contiene "db." (conexión directa IPv6), preferir el pooler
-  const hasDirectConnection = serverEnv.DATABASE_URL_DIRECT?.includes("db.") && serverEnv.DATABASE_URL_DIRECT?.includes(".supabase.co:5432");
-  const url = (hasDirectConnection && serverEnv.DATABASE_URL_POOL) 
-    ? serverEnv.DATABASE_URL_POOL 
-    : (serverEnv.DATABASE_URL_POOL ?? serverEnv.DATABASE_URL_DIRECT ?? serverEnv.DATABASE_URL);
+  const hasDirectConnection =
+    serverEnv.DATABASE_URL_DIRECT?.includes("db.") &&
+    serverEnv.DATABASE_URL_DIRECT?.includes(".supabase.co:5432");
+  const url =
+    hasDirectConnection && serverEnv.DATABASE_URL_POOL
+      ? serverEnv.DATABASE_URL_POOL
+      : (serverEnv.DATABASE_URL_POOL ??
+        serverEnv.DATABASE_URL_DIRECT ??
+        serverEnv.DATABASE_URL);
   if (!url) {
     if (allowDummyInDev) {
       // Retornar un valor dummy que no causará errores de conexión inmediatos
       // pero permitirá que el código se ejecute
       return "postgresql://dummy:dummy@localhost:5432/dummy";
     }
-    throw new Error("DATABASE_URL_POOL, DATABASE_URL_DIRECT or DATABASE_URL must be set");
+    throw new Error(
+      "DATABASE_URL_POOL, DATABASE_URL_DIRECT or DATABASE_URL must be set"
+    );
   }
   return url;
 }
@@ -282,7 +368,12 @@ const FEATURE_REQUIREMENTS: Record<TransactionalFeature, readonly string[]> = {
   stripePlatformWebhook: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
   stripeConnectWebhook: ["STRIPE_SECRET_KEY", "STRIPE_CONNECT_WEBHOOK_SECRET"],
   cron: ["CRON_SECRET"],
-  email: ["BREVO_API_KEY", "BREVO_SENDER_EMAIL", "BREVO_SENDER_NAME", "BREVO_REPLY_TO"],
+  email: [
+    "BREVO_API_KEY",
+    "BREVO_SENDER_EMAIL",
+    "BREVO_SENDER_NAME",
+    "BREVO_REPLY_TO",
+  ],
   push: [
     "VAPID_PUBLIC_KEY",
     "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
@@ -296,6 +387,8 @@ export function getFeatureReadiness(
   feature: TransactionalFeature,
   env: NodeJS.ProcessEnv = process.env
 ): { ready: boolean; missing: string[] } {
-  const missing = FEATURE_REQUIREMENTS[feature].filter((name) => !env[name]?.trim());
+  const missing = FEATURE_REQUIREMENTS[feature].filter(
+    (name) => !env[name]?.trim()
+  );
   return { ready: missing.length === 0, missing };
 }

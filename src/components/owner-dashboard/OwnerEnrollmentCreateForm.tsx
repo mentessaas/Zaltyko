@@ -2,18 +2,15 @@
 
 import Link from "next/link";
 import { Check, Search } from "lucide-react";
-import type { FormEventHandler } from "react";
+import { useEffect, useRef, type FormEventHandler } from "react";
 
-import { fieldClassName, primaryButtonClassName } from "./owner-enrollment-ui";
-import type { Candidate, EnrollmentBundle } from "./owner-enrollment-types";
-
-type PricePlanOption = {
-  id: string;
-  name: string;
-  amountCents: number;
-  currency: string;
-  cadence: string;
-};
+import {
+  fieldClassName,
+  formatDate,
+  primaryButtonClassName,
+} from "./owner-enrollment-ui";
+import { isEnrollmentStartDateAllowed } from "./owner-enrollment-date";
+import type { Candidate, EnrollmentBundle, PricePlanOption } from "./owner-enrollment-types";
 
 function formatMoney(cents: number, currency: string): string {
   try {
@@ -45,9 +42,11 @@ type Props = {
   pricePlans: PricePlanOption[];
   pricePlansLoading: boolean;
   pricePlansError: string;
+  pricePlanUnavailable?: boolean;
   pricePlanId: string;
   createToday: string;
   busyCreate: boolean;
+  writesBlocked?: boolean;
   previewMode: boolean;
   onLocationChange: (locationId: string) => void;
   onClassChange: (classTemplateId: string) => void;
@@ -56,7 +55,17 @@ type Props = {
   onCandidateClear: () => void;
   onStartsOnChange: (date: string) => void;
   onPricePlanChange: (pricePlanId: string) => void;
+  onRetryCandidates: () => void;
+  onRetryPricePlans: () => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
+};
+
+type CandidateFocusRequest = {
+  organizationId: string;
+  locationId: string;
+  classId: string;
+  candidateId: string | null;
+  trigger: HTMLButtonElement;
 };
 
 export function OwnerEnrollmentCreateForm({
@@ -78,9 +87,11 @@ export function OwnerEnrollmentCreateForm({
   pricePlans,
   pricePlansLoading,
   pricePlansError,
+  pricePlanUnavailable = false,
   pricePlanId,
   createToday,
   busyCreate,
+  writesBlocked = false,
   previewMode,
   onLocationChange,
   onClassChange,
@@ -89,8 +100,54 @@ export function OwnerEnrollmentCreateForm({
   onCandidateClear,
   onStartsOnChange,
   onPricePlanChange,
+  onRetryCandidates,
+  onRetryPricePlans,
   onSubmit,
 }: Props) {
+  const searchRef = useRef<HTMLInputElement>(null);
+  const changeRef = useRef<HTMLButtonElement>(null);
+  const focusRequestRef = useRef<CandidateFocusRequest | null>(null);
+  const selectedCandidateId = selectedCandidate?.id ?? null;
+  const startsOnOutsideClassPeriod = Boolean(
+    selectedClass &&
+      startsOn &&
+      !isEnrollmentStartDateAllowed(startsOn, selectedClass)
+  );
+  const candidateResultsAnnouncement =
+    !selectedCandidate &&
+    !candidateLoading &&
+    !candidateError &&
+    !candidateNotice &&
+    candidateQuery.trim().length >= 2 &&
+    candidates.length > 0
+      ? `${candidates.length} ${candidates.length === 1 ? "resultado" : "resultados"} disponibles.`
+      : "";
+
+  useEffect(() => {
+    const request = focusRequestRef.current;
+    if (!request) return;
+    focusRequestRef.current = null;
+    if (
+      request.organizationId !== organizationId ||
+      request.locationId !== createLocationId ||
+      request.classId !== classTemplateId ||
+      request.candidateId !== selectedCandidateId ||
+      busyCreate || previewMode
+    ) return;
+
+    // Only follow the focused control that this interaction replaced. A delayed
+    // update must not take focus back from another field the user has reached.
+    const active = document.activeElement;
+    if (active !== request.trigger && (active !== document.body || request.trigger.isConnected)) return;
+    (selectedCandidateId === null ? searchRef.current : changeRef.current)?.focus();
+  }, [organizationId, createLocationId, classTemplateId, selectedCandidateId, busyCreate, previewMode]);
+
+  function requestCandidateFocus(trigger: HTMLButtonElement, candidateId: string | null) {
+    focusRequestRef.current = document.activeElement === trigger
+      ? { organizationId, locationId: createLocationId, classId: classTemplateId, candidateId, trigger }
+      : null;
+  }
+
   return (
     <section
       id="new-enrollment-form"
@@ -125,6 +182,7 @@ export function OwnerEnrollmentCreateForm({
       ) : (
         <form
           aria-label="Crear inscripción"
+          aria-busy={busyCreate}
           className="mt-5 grid gap-4 md:grid-cols-2"
           onSubmit={onSubmit}
         >
@@ -165,6 +223,11 @@ export function OwnerEnrollmentCreateForm({
               disabled={
                 busyCreate || previewMode || classesForLocation.length === 0
               }
+              aria-describedby={
+                classesForLocation.length === 0
+                  ? "enrollment-class-empty-help"
+                  : undefined
+              }
               required
             >
               <option value="">Selecciona una clase</option>
@@ -183,30 +246,43 @@ export function OwnerEnrollmentCreateForm({
                 </option>
               ))}
             </select>
-            {classesForLocation.length === 0 && (
-              <p className="mt-1 text-sm text-slate-700">
-                No hay clases activas en esta sede.
-              </p>
-            )}
+            <p
+              id="enrollment-class-empty-help"
+              role="status"
+              aria-live="polite"
+              className={
+                classesForLocation.length === 0
+                  ? "mt-1 text-sm text-slate-700"
+                  : "sr-only"
+              }
+            >
+              {classesForLocation.length === 0
+                ? "No hay clases activas en esta sede."
+                : ""}
+            </p>
           </div>
 
           <div className="md:col-span-2">
-            <label
-              htmlFor="enrollment-athlete-search"
-              className="mb-1 block text-sm font-semibold"
-            >
-              {participantLabel}
-            </label>
             {selectedCandidate ? (
-              <div className="flex min-h-11 items-center justify-between gap-3 border border-teal-700 bg-teal-50 px-3 py-2">
+              <p id="enrollment-athlete-label" className="mb-1 block text-sm font-semibold">{participantLabel}</p>
+            ) : (
+              <label htmlFor="enrollment-athlete-search" className="mb-1 block text-sm font-semibold">{participantLabel}</label>
+            )}
+            {selectedCandidate ? (
+              <div role="group" aria-labelledby="enrollment-athlete-label" className="flex min-h-11 items-center justify-between gap-3 border border-teal-700 bg-teal-50 px-3 py-2">
                 <span className="font-semibold text-teal-950">
                   {selectedCandidate.name}
                 </span>
                 <button
+                  ref={changeRef}
                   type="button"
-                  className="touch-target min-h-11 px-2 text-sm font-semibold text-teal-900 underline underline-offset-4"
-                  disabled={previewMode}
-                  onClick={onCandidateClear}
+                  className="touch-target min-h-11 px-2 text-sm font-semibold text-teal-900 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+                  disabled={busyCreate || previewMode}
+                  aria-label={`Cambiar ${participantLabel.toLowerCase()}: ${selectedCandidate.name}`}
+                  onClick={(event) => {
+                    requestCandidateFocus(event.currentTarget, null);
+                    onCandidateClear();
+                  }}
                 >
                   Cambiar
                 </button>
@@ -218,6 +294,7 @@ export function OwnerEnrollmentCreateForm({
                   aria-hidden="true"
                 />
                 <input
+                  ref={searchRef}
                   id="enrollment-athlete-search"
                   className={fieldClassName + " pl-10"}
                   type="search"
@@ -229,8 +306,9 @@ export function OwnerEnrollmentCreateForm({
                     onCandidateQueryChange(event.currentTarget.value)
                   }
                   placeholder="Escribe al menos dos letras"
-                  disabled={busyCreate || !classTemplateId}
-                  aria-describedby="enrollment-search-help"
+                  disabled={busyCreate || previewMode || !classTemplateId}
+                  aria-busy={candidateLoading}
+                  aria-describedby={candidateError ? "enrollment-search-help enrollment-search-error" : "enrollment-search-help"}
                 />
               </div>
             )}
@@ -240,18 +318,28 @@ export function OwnerEnrollmentCreateForm({
             >
               Solo aparecen personas vinculadas a esta sede.
             </p>
+            <p
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              aria-label="Resultados de búsqueda de gimnastas"
+              className="sr-only"
+            >
+              {candidateResultsAnnouncement}
+            </p>
             {candidateLoading && (
               <p role="status" className="mt-2 text-sm text-slate-700">
                 Buscando…
               </p>
             )}
             {candidateError && (
-              <p role="alert" className="mt-2 text-sm text-red-800">
-                {candidateError}
-              </p>
+              <div className="mt-2">
+                <p id="enrollment-search-error" role="alert" className="text-sm text-red-800">{candidateError}</p>
+                <button type="button" className="min-h-11 text-sm font-semibold text-teal-900 underline" disabled={busyCreate || previewMode || candidateLoading || !classTemplateId || candidateQuery.trim().length < 2} onClick={onRetryCandidates}>Volver a buscar</button>
+              </div>
             )}
             {candidateNotice && (
-              <p className="mt-2 text-sm text-slate-700">
+              <p role="status" className="mt-2 text-sm text-slate-700">
                 {candidateNotice}{" "}
                 <Link
                   href={
@@ -275,8 +363,12 @@ export function OwnerEnrollmentCreateForm({
                   <li key={candidate.id}>
                     <button
                       type="button"
+                      disabled={busyCreate || previewMode}
                       className="touch-target min-h-11 w-full px-3 py-2 text-left text-sm font-medium hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-teal-800"
-                      onClick={() => onCandidateSelect(candidate)}
+                      onClick={(event) => {
+                        requestCandidateFocus(event.currentTarget, candidate.id);
+                        onCandidateSelect(candidate);
+                      }}
                     >
                       {candidate.name}
                     </button>
@@ -298,10 +390,35 @@ export function OwnerEnrollmentCreateForm({
               className={fieldClassName}
               type="date"
               value={startsOn}
+              min={selectedClass?.effectiveFrom}
+              max={selectedClass?.effectiveTo ?? undefined}
+              aria-invalid={startsOnOutsideClassPeriod || undefined}
+              aria-describedby={
+                startsOnOutsideClassPeriod
+                  ? "enrollment-starts-on-help enrollment-starts-on-error"
+                  : "enrollment-starts-on-help"
+              }
               onChange={(event) => onStartsOnChange(event.currentTarget.value)}
               disabled={busyCreate || previewMode}
               required
             />
+            <p
+              id="enrollment-starts-on-help"
+              className="mt-1 text-xs leading-5 text-slate-600"
+            >
+              {selectedClass
+                ? `Periodo de la clase: ${formatDate(selectedClass.effectiveFrom)}${selectedClass.effectiveTo ? `–${formatDate(selectedClass.effectiveTo)}` : " en adelante"}.`
+                : "Elige una clase para consultar su periodo válido."}
+            </p>
+            {startsOnOutsideClassPeriod && (
+              <p
+                id="enrollment-starts-on-error"
+                role="alert"
+                className="mt-1 text-sm text-red-800"
+              >
+                La fecha debe estar dentro del periodo de la clase seleccionada.
+              </p>
+            )}
           </div>
 
           <div>
@@ -317,8 +434,11 @@ export function OwnerEnrollmentCreateForm({
               value={pricePlanId}
               onChange={(event) => onPricePlanChange(event.currentTarget.value)}
               disabled={busyCreate || previewMode || pricePlansLoading}
-              aria-describedby="enrollment-price-plan-help"
+              aria-busy={pricePlansLoading}
+              aria-invalid={pricePlanUnavailable || undefined}
+              aria-describedby={["enrollment-price-plan-help", pricePlansError && "enrollment-price-plan-error", pricePlanUnavailable && "enrollment-price-plan-unavailable"].filter(Boolean).join(" ")}
             >
+              {pricePlanUnavailable && <option value={pricePlanId} disabled>Tarifa seleccionada no disponible</option>}
               <option value="">Sin tarifa asignada</option>
               {pricePlans.map((plan) => (
                 <option key={plan.id} value={plan.id}>
@@ -339,8 +459,14 @@ export function OwnerEnrollmentCreateForm({
               </p>
             )}
             {pricePlansError && (
-              <p role="alert" className="mt-1 text-sm text-red-800">
-                {pricePlansError}
+              <div className="mt-1">
+                <p id="enrollment-price-plan-error" role="alert" className="text-sm text-red-800">{pricePlansError}</p>
+                <button type="button" className="min-h-11 text-sm font-semibold text-teal-900 underline" disabled={busyCreate || previewMode || pricePlansLoading || !createLocationId} onClick={onRetryPricePlans}>Volver a consultar las tarifas</button>
+              </div>
+            )}
+            {pricePlanUnavailable && (
+              <p id="enrollment-price-plan-unavailable" role="alert" className="mt-1 text-sm text-red-800">
+                La tarifa seleccionada ya no está disponible en esta sede. Elige otra o «Sin tarifa asignada» antes de registrar la inscripción.
               </p>
             )}
             {!pricePlansLoading &&
@@ -357,11 +483,17 @@ export function OwnerEnrollmentCreateForm({
             <button
               type="submit"
               className={primaryButtonClassName + " w-full"}
+              aria-describedby={pricePlansLoading || pricePlansError ? "enrollment-pricing-required" : pricePlanUnavailable ? "enrollment-price-plan-unavailable" : undefined}
               disabled={
+                writesBlocked ||
                 previewMode ||
                 busyCreate ||
+                pricePlansLoading ||
+                Boolean(pricePlansError) ||
+                pricePlanUnavailable ||
                 !selectedCandidate ||
                 !selectedClass ||
+                startsOnOutsideClassPeriod ||
                 selectedClass.availableSeats < 1 ||
                 !startsOn
               }
@@ -374,6 +506,12 @@ export function OwnerEnrollmentCreateForm({
                   : "Registrar inscripción pendiente"}
             </button>
           </div>
+
+          {pricePlansLoading || pricePlansError ? (
+            <p id="enrollment-pricing-required" className="text-sm leading-6 text-slate-700 md:col-span-2">
+              Para registrar la inscripción, primero debe completarse la consulta de tarifas. Después podrás elegir una tarifa o dejarla sin asignar.
+            </p>
+          ) : null}
 
           <p className="text-xs leading-5 text-slate-600 md:col-span-2">
             Fecha local de la sede: {createToday || "no disponible"}. La

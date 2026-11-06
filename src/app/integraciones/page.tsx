@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
-import { Check, CreditCard, Calendar, Mail, Zap } from "lucide-react";
+import { Check, CreditCard } from "lucide-react";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const baseUrl = getPublicSiteUrl();
@@ -16,7 +16,8 @@ export const metadata: Metadata = {
   },
 };
 
-const integrations = [
+type Integration = { name: string; description: string; icon: typeof CreditCard; features: string[]; status?: string; comingSoon?: boolean };
+const integrations: Integration[] = [
   {
     name: "Suscripción de Zaltyko (Stripe)",
     description: "Stripe gestiona el pago del plan Starter o Growth de la academia. Esta integración no activa el cobro automático de las cuotas de sus familias.",
@@ -24,41 +25,7 @@ const integrations = [
     features: ["Suscripción mensual o anual", "Gestión del plan de Zaltyko", "Estado de facturación"],
     status: "available",
   },
-  {
-    name: "Brevo",
-    description: "Email transaccional con Brevo. Envía emails automáticos a atletas, padres y entrenadores.",
-    icon: Mail,
-    features: ["Emails de bienvenida", "Recordatorios de pago", "Notificaciones de clases", "Plantillas personalizables"],
-    status: "available",
-  },
-  {
-    comingSoon: true,
-    name: "Google Calendar",
-    description: "Sincroniza horarios de clases y eventos con el calendario de tu academia.",
-    icon: Calendar,
-    features: ["Sincronización bidireccional", "Recordatorios automáticos", "Eventos de clases", "Disponibilidad de salas"],
-  },
-  {
-    comingSoon: true,
-    name: "WhatsApp Business",
-    description: "Comunícate con padres y atletas directamente por WhatsApp. Mensajes automáticos y respuestas rápidas.",
-    icon: Zap,
-    features: ["Mensajes automatizados", "Notificaciones de clase", "Recordatorios de pago", "Chat grupal por clase"],
-  },
-  {
-    comingSoon: true,
-    name: "Zoom / Google Meet",
-    description: "Clases online y reuniones con padres. Videollamadas integradas dentro de la plataforma.",
-    icon: Zap,
-    features: ["Videollamadas integradas", "Grabación de clases", "Pizarra compartida", "Salas breakout"],
-  },
-  {
-    comingSoon: true,
-    name: "Instagram / Facebook",
-    description: "Publica contenido automáticamente en redes sociales. Comparte eventos, logros y noticias.",
-    icon: Zap,
-    features: ["Publicación programada", "Historias automáticas", "Feed de competencias", "Botón de contacto"],
-  },
+
 ];
 
 export default function IntegrationsPage() {
@@ -73,16 +40,16 @@ export default function IntegrationsPage() {
             Integraciones
           </span>
           <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
-            Integraciones de Zaltyko: pagos, emails y más
+            Contratación del plan con Stripe
           </h1>
           <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-            Stripe gestiona tu suscripción a Zaltyko y Brevo el email transaccional. Para las cuotas familiares, el registro es manual en este lanzamiento.
+            Stripe gestiona la suscripción SaaS de tu academia. Para las cuotas familiares, el registro es manual en este lanzamiento.
           </p>
           <p className="mt-3 text-sm font-medium text-zaltyko-text-secondary">
-            2 integraciones disponibles · 4 en roadmap
+            Suscripción SaaS independiente de las cuotas familiares
           </p>
           <p className="mt-2 text-xs text-zaltyko-text-secondary">
-            La comunicación interna vive en Zaltyko; las conexiones externas, como WhatsApp Business, siguen sujetas a configuración y validación del proveedor.
+            El correo de acceso se utiliza para confirmar la cuenta y recuperar la contraseña. No se incluyen campañas ni recordatorios automáticos a familias.
           </p>
         </div>
       </section>

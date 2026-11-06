@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { OwnerEnrollmentsManager } from "@/components/owner-dashboard/OwnerEnrollmentsManager";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 
 export const dynamic = "force-dynamic";
 
@@ -160,7 +161,7 @@ export default async function OwnerEnrollmentsPreviewPage({
   const raw = await searchParams;
   const previewCreateForm = raw.view === "create";
   return (
-    <>
+    <OwnerWorkspacePageShell previewMode>
       <nav
         aria-label="Vistas de ejemplo"
         className="flex flex-wrap gap-3 bg-slate-100 px-4 py-3 sm:px-6 lg:px-10"
@@ -187,6 +188,6 @@ export default async function OwnerEnrollmentsPreviewPage({
         previewMode
         previewCreateForm={previewCreateForm}
       />
-    </>
+    </OwnerWorkspacePageShell>
   );
 }

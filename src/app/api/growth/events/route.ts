@@ -1,29 +1,17 @@
-import { apiCreated, apiError } from "@/lib/api-response";
-import { PublicGrowthEventSchema } from "@/lib/growth/contracts";
-import { recordGrowthEvent } from "@/lib/growth/events";
-import { withRateLimit } from "@/lib/rate-limit";
+import { apiError } from "@/lib/api-response";
 
-// @auth-flexible route-guard-reason: public anonymous analytics endpoint
+// @auth-flexible route-guard-reason: optional public analytics unavailable
 // @route-auth public
-export const POST = withRateLimit(
-  async (request) => {
-    const json = await request.json().catch(() => null);
-    const parsed = PublicGrowthEventSchema.safeParse(json);
-    if (!parsed.success) {
-      return apiError("VALIDATION_ERROR", "Evento comercial inválido", 400);
-    }
+export const dynamic = "force-dynamic";
 
-    const event = parsed.data;
-    await recordGrowthEvent({
-      eventName: event.eventName,
-      visitorId: event.visitorId,
-      planCode: event.planCode ?? null,
-      source: event.source,
-      properties: event.properties,
-      idempotencyKey: `public:${event.eventId}`,
-    });
-
-    return apiCreated({ accepted: true });
-  },
-  { limit: 30, window: 60 }
-);
+/**
+ * This optional collection circuit stays closed until an implemented consent
+ * flow can be verified at the receiving boundary. A client flag, visitor ID or
+ * asserted consent field is not that contract. Essential server-side business
+ * milestones use their own services and do not pass through this endpoint.
+ */
+export async function POST(_request: Request) {
+  return apiError("NOT_AVAILABLE", "La medición opcional no está disponible", 404, undefined, {
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}

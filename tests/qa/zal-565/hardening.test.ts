@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const TENANT_ID = "11111111-1111-1111-1111-111111111111";
-const ACADEMY_ID = "22222222-2222-2222-2222-222222222222";
-const OTHER_ACADEMY_ID = "33333333-3333-3333-3333-333333333333";
-const EVENT_ID = "77777777-7777-7777-7777-777777777777";
-const LISTING_ID = "44444444-4444-4444-4444-444444444444";
-const CHARGE_ID = "55555555-5555-5555-5555-555555555555";
+const TENANT_ID = "11111111-1111-4111-8111-111111111111";
+const ACADEMY_ID = "22222222-2222-4222-8222-222222222222";
+const OTHER_ACADEMY_ID = "33333333-3333-4333-8333-333333333333";
+const EVENT_ID = "77777777-7777-4777-8777-777777777777";
+const LISTING_ID = "44444444-4444-4444-8444-444444444444";
+const CHARGE_ID = "55555555-5555-4555-8555-555555555555";
 
 let selectQueue: unknown[][] = [];
 let updateResult: unknown[] = [];
@@ -55,7 +55,7 @@ function mockTenant(role = "admin") {
     withTenant: (handler: (request: Request, context: any) => Promise<Response>) =>
       (request: Request, context: any = {}) => handler(request, {
         tenantId: TENANT_ID,
-        userId: "66666666-6666-6666-6666-666666666666",
+        userId: "66666666-6666-4666-8666-666666666666",
         profile: { id: "profile-1", userId: "user-1", role: activeRole, tenantId: TENANT_ID },
         ...context,
       }),
@@ -88,6 +88,11 @@ function mockDb() {
     },
   }));
 }
+
+vi.mock("@/lib/limits", () => ({
+  assertAcademyOperationalWritable: vi.fn().mockResolvedValue(undefined),
+  lockAcademyOperationalWrites: vi.fn().mockResolvedValue(undefined),
+}));
 
 describe("ZAL-957: empleo", () => {
   beforeEach(() => {
@@ -190,7 +195,7 @@ describe("ZAL-957: record-payment", () => {
   it("rechaza una carrera CAS que no actualiza", async () => {
     selectQueue.push([{ id: CHARGE_ID, tenantId: TENANT_ID, academyId: ACADEMY_ID, amountCents: 2500, status: "pending" }]);
     const { POST } = await import("@/app/api/quick-actions/record-payment/route");
-    const response = await POST(request("/api/quick-actions/record-payment", "POST", { chargeId: CHARGE_ID, academyId: ACADEMY_ID, amountCents: 2500, paymentMethod: "cash" }, { "Idempotency-Key": "qa-key" }), {} as never);
+    const response = await POST(request("/api/quick-actions/record-payment", "POST", { chargeId: CHARGE_ID, academyId: ACADEMY_ID, amountCents: 2500, paymentMethod: "cash" }, { "Idempotency-Key": "qa-payment-key" }), {} as never);
     expect(response.status).toBe(409);
     expect(updateCalls).toHaveLength(1);
   });
@@ -295,7 +300,7 @@ describe("ZAL-957: eventos públicos, capability y fanout", () => {
       [{ tenantId: TENANT_ID, country: "ES", region: "Madrid", city: "Madrid" }],
       [
         { id: ACADEMY_ID, tenantId: TENANT_ID, contactEmail: "same@example.test", ownerId: "owner-1" },
-        { id: OTHER_ACADEMY_ID, tenantId: "99999999-9999-9999-9999-999999999999", contactEmail: "other@example.test", ownerId: "owner-2" },
+        { id: OTHER_ACADEMY_ID, tenantId: "99999999-9999-4999-8999-999999999999", contactEmail: "other@example.test", ownerId: "owner-2" },
       ],
     );
     const { getAcademiesEmailsByLocation } = await import("@/lib/notifications/event-recipients");

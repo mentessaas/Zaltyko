@@ -22,6 +22,12 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient(cookieStore);
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
+    if (error?.code === "flow_state_expired") {
+      // The email may already be confirmed; an expired PKCE exchange must
+      // never be treated as a session or retried with weaker verification.
+      redirect(`/auth/login?error=callback_expired&next=${encodeURIComponent(next)}`);
+    }
+
     if (!error) {
       const legalConsentVersion = searchParams.get("legal_consent_version");
       const legalConsentProof = searchParams.get("legal_consent_proof");

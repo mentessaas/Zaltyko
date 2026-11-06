@@ -52,39 +52,18 @@ describe("collect charges cron", () => {
     mocks.requireCronAuth.mockReturnValue(null);
   });
 
-  it("continúa con las demás academias cuando una falla", async () => {
-    mocks.accounts.mockResolvedValue([
-      { academyId: "academy-failing" },
-      { academyId: "academy-ready" },
-    ]);
-    mocks.collect
-      .mockRejectedValueOnce(new Error("temporary database failure"))
-      .mockResolvedValueOnce({
-        attempted: 3,
-        paid: 2,
-        failed: 1,
-        skipped: 0,
-      });
-
+  it("responde desactivado y no consulta academias ni intenta cobros", async () => {
     const response = await GET(new Request("https://zaltyko.com/api/cron/collect-charges"));
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(mocks.collect).toHaveBeenNthCalledWith(1, {
-      academyId: "academy-failing",
-      onlyDue: true,
-      batchSize: 100,
+    expect(body).toMatchObject({
+      status: "disabled",
+      reason: "FAMILY_AUTOMATIC_COLLECTION_DISABLED",
+      processed: 0,
     });
-    expect(mocks.collect).toHaveBeenNthCalledWith(2, {
-      academyId: "academy-ready",
-      onlyDue: true,
-      batchSize: 100,
-    });
-    expect(body).toEqual({ academies: 2, attempted: 3, paid: 2, failed: 2, skipped: 0 });
-    expect(mocks.error).toHaveBeenCalledWith(
-      "Collect charges failed for academy",
-      expect.any(Error),
-      { academyId: "academy-failing" }
-    );
+    expect(mocks.accounts).not.toHaveBeenCalled();
+    expect(mocks.collect).not.toHaveBeenCalled();
+    expect(mocks.error).not.toHaveBeenCalled();
   });
 });

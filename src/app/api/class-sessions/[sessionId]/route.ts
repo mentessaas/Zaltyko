@@ -6,12 +6,14 @@ import { db } from "@/db";
 import { classSessions, classes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { authorizeClassResource } from "@/lib/authz/resource-scope";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const updateSchema = z.object({
   sessionDate: z.string().optional(),
   startTime: z.string().nullable().optional(),
   endTime: z.string().nullable().optional(),
-  coachId: z.string().uuid().nullable().optional(),
+  coachId: z.guid().nullable().optional(),
   status: z.string().optional(),
   notes: z.string().nullable().optional(),
 });
@@ -79,18 +81,6 @@ export const PUT = withTenant(async (request, context) => {
   const scope = await authorizeClassResource({ context, classId: sessionRow.classId });
   if (!scope.allowed) return apiError("SESSION_NOT_FOUND", "Session not found", 404);
 
-  if (body.coachId) {
-    const [classRow] = await db
-      .select({ id: classes.id })
-      .from(classes)
-      .where(and(eq(classes.id, sessionRow.classId), eq(classes.tenantId, context.tenantId)))
-      .limit(1);
-
-    if (!classRow) {
-      return apiError("CLASS_NOT_FOUND", "Class not found", 404);
-    }
-  }
-
   const updates: Record<string, unknown> = {};
 
   if (body.sessionDate !== undefined) updates.sessionDate = body.sessionDate;
@@ -101,10 +91,51 @@ export const PUT = withTenant(async (request, context) => {
   if (body.notes !== undefined) updates.notes = body.notes;
 
   if (Object.keys(updates).length > 0) {
-    await db
-      .update(classSessions)
-      .set(updates)
-      .where(eq(classSessions.id, sessionId));
+    const updated = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, scope.resource!.academyId);
+      await assertAcademyOperationalWritable(
+        scope.resource!.tenantId,
+        scope.resource!.academyId,
+        tx
+      );
+
+      const [currentSession] = await tx
+        .select({ id: classSessions.id, classId: classSessions.classId })
+        .from(classSessions)
+        .where(and(
+          eq(classSessions.id, sessionId),
+          eq(classSessions.tenantId, context.tenantId!),
+        ))
+        .limit(1);
+
+      if (!currentSession || currentSession.classId !== sessionRow.classId) {
+        return false;
+      }
+
+      if (body.coachId) {
+        const [classRow] = await tx
+          .select({ id: classes.id })
+          .from(classes)
+          .where(and(
+            eq(classes.id, currentSession.classId),
+            eq(classes.tenantId, context.tenantId!),
+          ))
+          .limit(1);
+
+        if (!classRow) return false;
+      }
+
+      await tx
+        .update(classSessions)
+        .set(updates)
+        .where(and(
+          eq(classSessions.id, sessionId),
+          eq(classSessions.tenantId, context.tenantId!),
+        ));
+      return true;
+    });
+
+    if (!updated) return apiError("SESSION_NOT_FOUND", "Session not found", 404);
   }
 
   return apiSuccess({ ok: true });

@@ -11,6 +11,7 @@ import {
 } from "@/db/zaltyko-schema";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
+import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import {
   appendAuditEntry,
   appendOutboxEvent,
@@ -123,9 +124,9 @@ const targetSchema = Object.fromEntries(
   targetDefinitions.map(({ key }) => [key, ratioTarget])
 ) as Record<TargetMetricKey, typeof ratioTarget>;
 export const academyTargetProfileSchema = z.object({
-  organizationId: z.string().uuid(),
-  authorizationLocationId: z.string().uuid(),
-  actor: z.object({ userId: z.string().uuid(), memberId: z.string().uuid() }),
+  organizationId: z.guid(),
+  authorizationLocationId: z.guid(),
+  actor: z.object({ userId: z.guid(), memberId: z.guid() }),
   targets: z.object(targetSchema),
   idempotencyKey: z.string().trim().min(8).max(150),
 });
@@ -264,6 +265,10 @@ export async function saveAcademyTargetProfile(
         replayed: true,
       };
     }
+
+    // A valid idempotent replay is read-only; apply the SaaS write gate only
+    // when this command is about to replace the active profile and targets.
+    await assertOrganizationOperationalWritable(tx, input.organizationId);
 
     const [organization] = await tx
       .select({ currency: organizations.defaultCurrency })

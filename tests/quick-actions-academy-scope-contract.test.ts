@@ -15,6 +15,7 @@ describe("quick class academy scope", () => {
   it("rejects classes outside the selected academy", () => {
     expect(route).toContain('permission: "classes:schedule"');
     expect(route).toContain("authorizeAcademyCapability");
-    expect(route).toContain("classData.academyId !== academyId");
+    expect(route).toContain("eq(classes.id, classId)");
+    expect(route).toContain("eq(classes.academyId, academyId)");
   });
 });

@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 /** Promueve una entrada con bloqueo transaccional por clase; es segura ante concurrencia. */
 export async function promoteNextWaitingListEntry(
@@ -20,6 +21,15 @@ export async function promoteNextWaitingListEntry(
   entryId?: string,
 ) {
   const promoted = await withTransaction(async (tx) => {
+    const [candidateClass] = await tx
+      .select({ academyId: classes.academyId })
+      .from(classes)
+      .where(and(eq(classes.id, classId), eq(classes.tenantId, tenantId)))
+      .limit(1);
+    if (!candidateClass) return null;
+
+    await lockAcademyOperationalWrites(tx, candidateClass.academyId);
+    await assertAcademyOperationalWritable(tenantId, candidateClass.academyId, tx);
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${classId}))`);
     const [classRow] = await tx
       .select({
@@ -30,7 +40,7 @@ export async function promoteNextWaitingListEntry(
       .from(classes)
       .where(and(eq(classes.id, classId), eq(classes.tenantId, tenantId)))
       .limit(1);
-    if (!classRow || classRow.capacity == null) return null;
+    if (!classRow || classRow.academyId !== candidateClass.academyId || classRow.capacity == null) return null;
     const occupancyResult = await tx.execute(sql`
       select count(distinct athlete_id)::int as current from (
         select ga.athlete_id from ${classGroups} cg join ${groupAthletes} ga on ga.group_id = cg.group_id and ga.tenant_id = cg.tenant_id join ${athletes} a on a.id = ga.athlete_id and a.tenant_id = cg.tenant_id where cg.class_id = ${classId} and cg.tenant_id = ${tenantId} and a.academy_id = ${classRow.academyId} and a.deleted_at is null

@@ -19,14 +19,14 @@ export const dynamic = "force-dynamic";
 
 const PermissionSchema = z.enum(permissionEnum.enumValues);
 const AssignSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
   customPermissions: z.array(PermissionSchema).max(permissionEnum.enumValues.length).optional(),
   expiresAt: z.coerce.date().nullable().optional(),
 }).refine((value) => !value.expiresAt || value.expiresAt > new Date(), {
   message: "La fecha de expiración debe ser futura",
   path: ["expiresAt"],
 });
-const RemoveSchema = z.object({ userId: z.string().uuid() });
+const RemoveSchema = z.object({ userId: z.guid() });
 
 function ids(context: Record<string, unknown>) {
   const params = (context as { params?: { academyId?: string; roleId?: string } }).params;

@@ -10,7 +10,7 @@ import { createNotification } from "@/lib/notifications/notification-service";
 import { logger } from "@/lib/logger";
 
 const createSchema = z.object({
-  athleteId: z.string().uuid(),
+  athleteId: z.guid(),
   note: z.string().trim().min(1).max(10000),
   sharedWithParents: z.boolean().default(false),
   tags: z.array(z.string().trim().min(1).max(80)).max(20).nullable().optional(),

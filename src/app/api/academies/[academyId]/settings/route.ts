@@ -73,10 +73,10 @@ const SettingsSchema = z.object({
   countryCode: z.string().optional(),
   disciplineVariant: z.enum(DISCIPLINE_VARIANTS).optional(),
   activeDisciplineVariants: z.array(z.enum(DISCIPLINE_VARIANTS)).optional(),
-  activeProgramCodesByVariant: z.record(z.array(z.string().trim().min(1).max(80))).optional(),
-  activeApparatusCodesByVariant: z.record(z.array(z.string().trim().min(1).max(80))).optional(),
+  activeProgramCodesByVariant: z.record(z.string(), z.array(z.string().trim().min(1).max(80))).optional(),
+  activeApparatusCodesByVariant: z.record(z.string(), z.array(z.string().trim().min(1).max(80))).optional(),
   terminologyOverridesByVariant: z
-    .record(z.record(z.string().trim().max(80)))
+    .record(z.string(), z.record(z.string(), z.string().trim().max(80)))
     .optional(),
 
   // Branding

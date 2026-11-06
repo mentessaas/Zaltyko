@@ -47,8 +47,8 @@ export default async function Page({searchParams}:{searchParams:Promise<{directo
         archivos de texto; puedes guardarlas o imprimirlas.
       </p>
       {flag("communications") && <SubscriptionForm purpose="kit" />}
-      <Link href="/academias" className="underline">
-        Consultar academias
+      <Link href="/features" className="underline">
+        Ver funciones de gestión
       </Link>
     </main>
   );

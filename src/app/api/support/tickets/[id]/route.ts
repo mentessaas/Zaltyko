@@ -9,7 +9,7 @@ import { verifyAcademyAccessForProfile } from "@/lib/permissions";
 
 const updateSchema = z.object({
   status: z.enum(["open", "in_progress", "waiting", "resolved", "closed"]).optional(),
-  assignedTo: z.string().uuid().nullable().optional(),
+  assignedTo: z.guid().nullable().optional(),
 }).refine((value) => value.status !== undefined || value.assignedTo !== undefined, {
   message: "Se requiere estado o asignación",
 });
@@ -42,7 +42,7 @@ async function canAccessTicket(
 export const GET = withTenant(async (_request, context) => {
   const params = (context.params ?? {}) as { id?: string };
   const id = params.id;
-  if (!id || !z.string().uuid().safeParse(id).success) return apiError("INVALID_ID", "Ticket inválido", 400);
+  if (!id || !z.guid().safeParse(id).success) return apiError("INVALID_ID", "Ticket inválido", 400);
 
   const ticket = await resolveTicket(id);
   if (!ticket) return apiError("NOT_FOUND", "Ticket no encontrado", 404);
@@ -74,7 +74,7 @@ export const GET = withTenant(async (_request, context) => {
 export const PATCH = withTenant(async (request, context) => {
   const params = (context.params ?? {}) as { id?: string };
   const id = params.id;
-  if (!id || !z.string().uuid().safeParse(id).success) return apiError("INVALID_ID", "Ticket inválido", 400);
+  if (!id || !z.guid().safeParse(id).success) return apiError("INVALID_ID", "Ticket inválido", 400);
 
   const ticket = await resolveTicket(id);
   if (!ticket) return apiError("NOT_FOUND", "Ticket no encontrado", 404);

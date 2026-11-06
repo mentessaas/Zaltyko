@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const rateLimit = vi.hoisted(() => vi.fn());
@@ -11,26 +11,22 @@ vi.mock("@/lib/rate-limit", () => ({
 
 import { middleware } from "../middleware";
 
-describe("X-Robots-Tag de detalles de academia", () => {
+describe("retired public academy discovery", () => {
   beforeEach(() => {
+    rateLimit.mockReset();
     rateLimit.mockResolvedValue({ success: true, limit: 100, remaining: 99, reset: 9999999999 });
   });
+  afterEach(() => vi.unstubAllGlobals());
 
-  it("emite noindex/noarchive para una academia no publicable", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
-    const response = await middleware(new NextRequest("https://zaltyko.test/academias/terminal"));
-    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, noarchive");
-  });
-
-  it("falla cerrado si no puede consultar el estado", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
-    const response = await middleware(new NextRequest("https://zaltyko.test/academias/unknown"));
-    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, noarchive");
-  });
-
-  it("no añade la cabecera cuando el detalle elegible responde 200", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 200 })));
-    const response = await middleware(new NextRequest("https://zaltyko.test/academias/active"));
-    expect(response.headers.get("X-Robots-Tag")).toBeNull();
+  it.each(["terminal", "unknown", "active"])("keeps %s details unavailable without reading customer data", async id => {
+    const read = vi.fn().mockRejectedValue(new Error("No directory reads permitted by this launch"));
+    vi.stubGlobal("fetch", read);
+    const response = await middleware(new NextRequest(`https://zaltyko.test/academias/${id}`));
+    expect(response.status).toBe(404);
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow, noarchive");
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("x-middleware-next")).toBeNull();
+    expect(read).not.toHaveBeenCalled();
+    expect(rateLimit).not.toHaveBeenCalled();
   });
 });

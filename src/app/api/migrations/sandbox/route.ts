@@ -7,7 +7,7 @@ import { sandboxMigrationStore } from "@/lib/migration/sandbox-registry";
 
 const rowSchema = z.record(z.string(), z.union([z.string(), z.null()]).optional());
 const previewSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   module: z.enum(["athletes", "debts"]),
   rows: z.array(rowSchema).min(1).max(10_000),
   headers: z.array(z.string()).optional(),

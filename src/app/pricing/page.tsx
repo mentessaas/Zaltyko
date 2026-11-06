@@ -36,7 +36,7 @@ const pricingSchema = {
   "@context": "https://schema.org",
   "@type": "Product",
   name: "Planes Zaltyko",
-  description: "Software para gestión de academias de gimnasia",
+  description: "Software para gestión de academias de gimnasia. Precios base sin IVA.",
   offerCatalog: {
     "@type": "OfferCatalog",
     name: "Planes disponibles",
@@ -46,24 +46,44 @@ const pricingSchema = {
         name: "Free",
         price: String(PRODUCT_PLAN_BY_CODE.free.priceEurCents / 100),
         priceCurrency: "EUR",
+        priceSpecification: {
+          "@type": "UnitPriceSpecification",
+          priceCurrency: "EUR",
+          valueAddedTaxIncluded: false,
+        },
       },
       {
         "@type": "Offer",
         name: "Starter",
         price: String(PRODUCT_PLAN_BY_CODE.pro.priceEurCents / 100),
         priceCurrency: "EUR",
+        priceSpecification: {
+          "@type": "UnitPriceSpecification",
+          priceCurrency: "EUR",
+          valueAddedTaxIncluded: false,
+        },
       },
       {
         "@type": "Offer",
         name: "Growth",
         price: String(PRODUCT_PLAN_BY_CODE.premium.priceEurCents / 100),
         priceCurrency: "EUR",
+        priceSpecification: {
+          "@type": "UnitPriceSpecification",
+          priceCurrency: "EUR",
+          valueAddedTaxIncluded: false,
+        },
       },
       {
         "@type": "Offer",
         name: "Network",
         price: String(PRODUCT_PLAN_BY_CODE.network.priceEurCents / 100),
         priceCurrency: "EUR",
+        priceSpecification: {
+          "@type": "UnitPriceSpecification",
+          priceCurrency: "EUR",
+          valueAddedTaxIncluded: false,
+        },
       },
     ],
   },

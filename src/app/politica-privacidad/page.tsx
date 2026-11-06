@@ -3,10 +3,11 @@ import Link from "next/link";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import { SellerIdentification } from "@/components/legal/SellerIdentification";
 
 const baseUrl = getPublicSiteUrl();
 
-const updatedAt = "13 de septiembre de 2026";
+const updatedAt = "26 de octubre de 2026";
 
 const sections = [
   {
@@ -126,6 +127,8 @@ export default function PrivacyPolicy() {
               Última actualización: {updatedAt}
             </p>
           </header>
+
+          <SellerIdentification />
 
           <section className="mt-10 space-y-10">
             {sections.map((section) => (

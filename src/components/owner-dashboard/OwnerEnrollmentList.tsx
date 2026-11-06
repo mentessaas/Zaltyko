@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 import {
   fieldClassName,
@@ -19,10 +20,15 @@ import type {
 
 type Enrollment = EnrollmentBundle["enrollments"][number];
 
+const useCommittedLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 type Props = {
   bundle: EnrollmentBundle;
   selectedStatus: StatusFilter;
   previewMode: boolean;
+  navigationLocked?: boolean;
+  writesBlocked?: boolean;
   createOpen: boolean;
   busyId: string;
   confirmingCancelId: string;
@@ -43,6 +49,8 @@ export function OwnerEnrollmentList({
   bundle,
   selectedStatus,
   previewMode,
+  navigationLocked = false,
+  writesBlocked = false,
   createOpen,
   busyId,
   confirmingCancelId,
@@ -55,6 +63,37 @@ export function OwnerEnrollmentList({
   onConfirmComplete,
   onChangeStatus,
 }: Props) {
+  const focusTargetsRef = useRef({
+    cancelTrigger: new Map<string, HTMLButtonElement>(),
+    cancelConfirm: new Map<string, HTMLButtonElement>(),
+    completeTrigger: new Map<string, HTMLButtonElement>(),
+    completeConfirm: new Map<string, HTMLButtonElement>(),
+  });
+  const lastConfirmationRef = useRef<
+    { kind: "cancel" | "complete"; enrollmentId: string } | null
+  >(null);
+
+  useCommittedLayoutEffect(() => {
+    const currentConfirmation = confirmingCancelId
+      ? { kind: "cancel" as const, enrollmentId: confirmingCancelId }
+      : confirmingCompleteId
+        ? { kind: "complete" as const, enrollmentId: confirmingCompleteId }
+        : null;
+    if (currentConfirmation) {
+      const button = currentConfirmation.kind === "cancel"
+        ? focusTargetsRef.current.cancelConfirm.get(currentConfirmation.enrollmentId)
+        : focusTargetsRef.current.completeConfirm.get(currentConfirmation.enrollmentId);
+      button?.focus({ preventScroll: true });
+    } else if (lastConfirmationRef.current) {
+      const previous = lastConfirmationRef.current;
+      const button = previous.kind === "cancel"
+        ? focusTargetsRef.current.cancelTrigger.get(previous.enrollmentId)
+        : focusTargetsRef.current.completeTrigger.get(previous.enrollmentId);
+      button?.focus({ preventScroll: true });
+    }
+    lastConfirmationRef.current = currentConfirmation;
+  }, [confirmingCancelId, confirmingCompleteId]);
+
   return (
     <section aria-labelledby="enrollment-list-heading" className="mt-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -144,12 +183,34 @@ export function OwnerEnrollmentList({
         <div className="mt-4 border border-dashed border-slate-400 bg-white px-5 py-8 text-center">
           <h3 className="font-semibold">No hay inscripciones en este filtro</h3>
           <p className="mt-2 text-sm leading-6 text-slate-700">
-            Prueba otro estado o registra una plaza nueva.
+            No hay resultados con los filtros actuales. Puedes cambiar los filtros
+            sin modificar ninguna inscripción.
           </p>
+          {selectedStatus !== "all" && (
+            <button
+              type="button"
+              className={secondaryButtonClassName + " mt-4"}
+              disabled={previewMode}
+              onClick={() => onApplyFilters("all", bundle.filterLocationId ?? "all")}
+            >
+              Ver todos los estados
+            </button>
+          )}
+          {bundle.filterLocationId && bundle.locations.length > 1 && (
+            <button
+              type="button"
+              className={secondaryButtonClassName + " mt-4"}
+              disabled={previewMode}
+              onClick={() => onApplyFilters(selectedStatus, "all")}
+            >
+              Ver todas mis sedes
+            </button>
+          )}
           {!createOpen && (
             <button
               type="button"
               className={secondaryButtonClassName + " mt-4"}
+              disabled={previewMode}
               onClick={onOpenCreate}
             >
               Nueva inscripción
@@ -181,6 +242,7 @@ export function OwnerEnrollmentList({
             const confirmingCancel = confirmingCancelId === enrollment.id;
             const confirmingComplete =
               confirmingCompleteId === enrollment.id;
+            const actionContext = `${enrollment.athleteName} · ${enrollment.className} · ${enrollment.locationName}`;
 
             return (
               <li
@@ -229,7 +291,8 @@ export function OwnerEnrollmentList({
                       <button
                         type="button"
                         className={secondaryButtonClassName}
-                        disabled={busyId === enrollment.id}
+                        disabled={busyId === enrollment.id || writesBlocked}
+                        aria-label={`${enrollment.status === "paused" ? "Reanudar" : "Activar"} inscripción de ${actionContext}`}
                         onClick={() => onChangeStatus(enrollment, "active")}
                       >
                         {enrollment.status === "paused" ? "Reanudar" : "Activar"}
@@ -239,7 +302,8 @@ export function OwnerEnrollmentList({
                       <button
                         type="button"
                         className={secondaryButtonClassName}
-                        disabled={busyId === enrollment.id}
+                        disabled={busyId === enrollment.id || writesBlocked}
+                        aria-label={`Pausar inscripción de ${actionContext}`}
                         onClick={() => onChangeStatus(enrollment, "paused")}
                       >
                         Pausar
@@ -248,8 +312,13 @@ export function OwnerEnrollmentList({
                     {!previewMode && canComplete && !confirmingComplete && (
                       <button
                         type="button"
+                        ref={(button) => {
+                          if (button) focusTargetsRef.current.completeTrigger.set(enrollment.id, button);
+                          else focusTargetsRef.current.completeTrigger.delete(enrollment.id);
+                        }}
                         className={secondaryButtonClassName}
-                        disabled={busyId === enrollment.id}
+                        disabled={busyId === enrollment.id || writesBlocked}
+                        aria-label={`Finalizar inscripción de ${actionContext}`}
                         onClick={() => onConfirmComplete(enrollment.id)}
                       >
                         Finalizar
@@ -258,8 +327,13 @@ export function OwnerEnrollmentList({
                     {!previewMode && canCancel && !confirmingCancel && (
                       <button
                         type="button"
+                        ref={(button) => {
+                          if (button) focusTargetsRef.current.cancelTrigger.set(enrollment.id, button);
+                          else focusTargetsRef.current.cancelTrigger.delete(enrollment.id);
+                        }}
                         className="touch-target inline-flex min-h-11 items-center border border-slate-400 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
-                        disabled={busyId === enrollment.id}
+                        disabled={busyId === enrollment.id || writesBlocked}
+                        aria-label={`Dar de baja inscripción de ${actionContext}`}
                         onClick={() => onConfirmCancel(enrollment.id)}
                       >
                         Dar de baja
@@ -268,16 +342,21 @@ export function OwnerEnrollmentList({
                     {!previewMode && confirmingCancel && (
                       <div
                         role="group"
-                        aria-label="Confirmar baja"
+                        aria-label={`Confirmar baja de ${actionContext}`}
                         className="flex flex-wrap items-center gap-2 border border-red-300 bg-red-50 p-2"
                       >
                         <span className="px-1 text-sm font-medium text-red-950">
-                          ¿Dar de baja?
+                          ¿Dar de baja la inscripción de {actionContext}?
                         </span>
                         <button
                           type="button"
+                          ref={(button) => {
+                            if (button) focusTargetsRef.current.cancelConfirm.set(enrollment.id, button);
+                            else focusTargetsRef.current.cancelConfirm.delete(enrollment.id);
+                          }}
                           className="touch-target min-h-11 bg-red-800 px-3 text-sm font-bold text-white hover:bg-red-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-800"
-                          disabled={busyId === enrollment.id}
+                          disabled={busyId === enrollment.id || writesBlocked}
+                          aria-label={`Confirmar baja de ${actionContext}`}
                           onClick={() => onChangeStatus(enrollment, "cancelled")}
                         >
                           Confirmar
@@ -285,6 +364,8 @@ export function OwnerEnrollmentList({
                         <button
                           type="button"
                           className="touch-target min-h-11 px-3 text-sm font-semibold text-red-950 underline underline-offset-4"
+                          disabled={busyId === enrollment.id}
+                          aria-label={`Volver sin dar de baja a ${actionContext}`}
                           onClick={() => onConfirmCancel("")}
                         >
                           Volver
@@ -294,16 +375,21 @@ export function OwnerEnrollmentList({
                     {!previewMode && confirmingComplete && (
                       <div
                         role="group"
-                        aria-label="Confirmar finalización"
+                        aria-label={`Confirmar finalización de ${actionContext}`}
                         className="flex flex-wrap items-center gap-2 border border-slate-400 bg-slate-50 p-2"
                       >
                         <span className="px-1 text-sm font-medium text-slate-950">
-                          ¿Finalizar inscripción?
+                          ¿Finalizar la inscripción de {actionContext}?
                         </span>
                         <button
                           type="button"
+                          ref={(button) => {
+                            if (button) focusTargetsRef.current.completeConfirm.set(enrollment.id, button);
+                            else focusTargetsRef.current.completeConfirm.delete(enrollment.id);
+                          }}
                           className={primaryButtonClassName}
-                          disabled={busyId === enrollment.id}
+                          disabled={busyId === enrollment.id || writesBlocked}
+                          aria-label={`Confirmar finalización de ${actionContext}`}
                           onClick={() => onChangeStatus(enrollment, "completed")}
                         >
                           Confirmar
@@ -311,6 +397,8 @@ export function OwnerEnrollmentList({
                         <button
                           type="button"
                           className="touch-target min-h-11 px-3 text-sm font-semibold text-slate-900 underline underline-offset-4"
+                          disabled={busyId === enrollment.id}
+                          aria-label={`Volver sin finalizar la inscripción de ${actionContext}`}
                           onClick={() => onConfirmComplete("")}
                         >
                           Volver
@@ -341,10 +429,12 @@ export function OwnerEnrollmentList({
           aria-label="Páginas de inscripciones"
           className="mt-5 flex items-center justify-between"
         >
-          {bundle.page > 1 ? (
+          {!previewMode && !navigationLocked && bundle.page > 1 ? (
             <Link
               href={statusHref(bundle, selectedStatus, bundle.page - 1)}
               className={secondaryButtonClassName}
+              rel="prev"
+              aria-label={`Anterior: página ${bundle.page - 1} de inscripciones`}
             >
               Anterior
             </Link>
@@ -352,12 +442,14 @@ export function OwnerEnrollmentList({
             <span />
           )}
           <span className="text-sm text-slate-700">
-            {bundle.page} / {bundle.pages}
+            Página {bundle.page} de {bundle.pages}
           </span>
-          {bundle.page < bundle.pages ? (
+          {!previewMode && !navigationLocked && bundle.page < bundle.pages ? (
             <Link
               href={statusHref(bundle, selectedStatus, bundle.page + 1)}
               className={secondaryButtonClassName}
+              rel="next"
+              aria-label={`Siguiente: página ${bundle.page + 1} de inscripciones`}
             >
               Siguiente
             </Link>

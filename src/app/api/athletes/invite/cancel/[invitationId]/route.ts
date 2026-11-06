@@ -7,7 +7,7 @@ import { cancelAthleteInvitation } from "@/lib/athletes/magic-link-invite-servic
 import { verifyAcademyAccess } from "@/lib/permissions";
 
 const bodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 /**

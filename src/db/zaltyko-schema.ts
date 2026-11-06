@@ -6,6 +6,7 @@
  * code accidentally.
  */
 export * from "./schema/zaltyko-core";
+export * from "./schema/zaltyko-saas-billing";
 export * from "./schema/zaltyko-ledger";
 export * from "./schema/zaltyko-metrics";
 export * from "./schema/zaltyko-health-score";

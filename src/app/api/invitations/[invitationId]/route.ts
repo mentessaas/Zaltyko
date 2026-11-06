@@ -9,7 +9,7 @@ import { verifyAcademyAccess } from "@/lib/permissions";
 import { createAuditLog } from "@/lib/authz/audit-service";
 import type { AuditAction, AuditModule } from "@/db/schema/audit-logs";
 
-const idSchema = z.string().uuid();
+const idSchema = z.guid();
 
 /** Cancela una invitación de equipo aún pendiente, sin borrar su historial. */
 export const DELETE = withTenant(async (request, context) => {
@@ -23,7 +23,7 @@ export const DELETE = withTenant(async (request, context) => {
   if (!parsedId.success) return apiError("INVALID_INVITATION_ID", "Invitación inválida", 400);
 
   const body = await request.json().catch(() => null);
-  const parsedBody = z.object({ academyId: z.string().uuid() }).safeParse(body);
+  const parsedBody = z.object({ academyId: z.guid() }).safeParse(body);
   if (!parsedBody.success) return apiError("INVALID_PAYLOAD", "academyId inválido", 400);
 
   const { academyId } = parsedBody.data;

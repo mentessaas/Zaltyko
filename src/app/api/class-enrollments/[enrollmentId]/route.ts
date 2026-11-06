@@ -2,11 +2,13 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { classEnrollments } from "@/db/schema";
+import { classEnrollments, classes } from "@/db/schema";
 import { TenantContext, withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { authorizeClassResource } from "@/lib/authz/resource-scope";
 import { promoteNextWaitingListEntry } from "@/lib/classes/promote-waiting-list";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 type RouteContext = TenantContext<{ params?: { enrollmentId?: string } }>;
 
@@ -48,10 +50,24 @@ export const DELETE = withTenant(async (request, context) => {
       return apiError("ENROLLMENT_NOT_FOUND", "Enrollment not found", 404);
     }
 
-    // Eliminar el enrollment
-    await db
-      .delete(classEnrollments)
-      .where(eq(classEnrollments.id, enrollmentId));
+    const [classRow] = await db
+      .select({ academyId: classes.academyId })
+      .from(classes)
+      .where(and(eq(classes.id, enrollment.classId), eq(classes.tenantId, context.tenantId)))
+      .limit(1);
+    if (!classRow) {
+      return apiError("ENROLLMENT_NOT_FOUND", "Enrollment not found", 404);
+    }
+
+    // La baja y la transición al modo de solo lectura comparten el bloqueo de
+    // academia que usan las demás escrituras operativas.
+    await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, classRow.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, classRow.academyId, tx);
+      await tx
+        .delete(classEnrollments)
+        .where(and(eq(classEnrollments.id, enrollmentId), eq(classEnrollments.tenantId, context.tenantId!)));
+    });
 
     const promoted = await promoteNextWaitingListEntry(enrollment.classId, context.tenantId);
 

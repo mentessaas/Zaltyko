@@ -8,6 +8,12 @@ import { runInNewContext } from "node:vm";
 const root = process.cwd();
 const runner = readFileSync(resolve(root, "scripts/run-e2e-local.ts"), "utf8");
 const configUrl = pathToFileURL(resolve(root, "next.config.mjs")).href;
+const productionEnvironment = {
+  VERCEL: "1",
+  VERCEL_ENV: "production",
+  NEXT_PUBLIC_SUPABASE_URL: "https://jegxfahsvugilbthbked.supabase.co",
+  ZALTYKO_PRODUCTION_BUILD_OPTIMIZATIONS: "true",
+};
 
 const cases = [
   [undefined, undefined, false],
@@ -20,15 +26,17 @@ const cases = [
   ["true", "true", true],
 ] as const;
 
-function readConfigurations() {
+function readConfigurations(environments: Array<Record<string, string>> = [
+  {},
+  { E2E_LOCAL_SUPABASE: "true", ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true" },
+]) {
   const source = `
     const results = [];
-    const cases = [[null, null], ["true", "true"]];
-    for (const [index, [local, worker]] of cases.entries()) {
-      delete process.env.E2E_LOCAL_SUPABASE;
-      delete process.env.ZALTYKO_E2E_WEBPACK_BUILD_WORKER;
-      if (local !== null) process.env.E2E_LOCAL_SUPABASE = local;
-      if (worker !== null) process.env.ZALTYKO_E2E_WEBPACK_BUILD_WORKER = worker;
+    const cases = ${JSON.stringify(environments)};
+    const keys = [...new Set(cases.flatMap(environment => Object.keys(environment)))];
+    for (const [index, environment] of cases.entries()) {
+      for (const key of keys) delete process.env[key];
+      Object.assign(process.env, environment);
       // Fresh config evaluation per case; its Sentry dependency stays cached.
       const { default: c } = await import(${JSON.stringify(configUrl)} + '?worker-case=' + index);
       results.push({
@@ -68,8 +76,34 @@ describe("synthetic webpack build worker experiment", () => {
   const configSource = readFileSync(resolve(root, "next.config.mjs"), "utf8");
   // Exercise the actual side-effect-free selector without repeatedly loading Sentry.
   const selector = configSource.match(
-    /\.\.\.\((process\.env\.E2E_LOCAL_SUPABASE[\s\S]*?: \{\})\),/
+    /\.\.\.\(([\s\S]*?)\/\/ Trace the completed server output while edge\/client compilation runs\./
   )?.[1];
+  const webpackCallback = configSource.match(
+    /webpack: (\(config, \{ isServer \}\) => \{[\s\S]*?\n  \}),/
+  )?.[1];
+  const buildGateDeclarations = configSource.match(
+    /(const isSandboxPreviewBuild =[\s\S]*?)\n\/\/ Security headers/
+  )?.[1];
+
+  // Exercise the project's callback itself, without inventing a Next build context
+  // for Sentry's wrapper. The separate import tests inspect the real wrapped export.
+  function observeWebpackCache(env: Record<string, string>, isServer: boolean) {
+    expect(webpackCallback).toBeDefined();
+    expect(buildGateDeclarations).toBeDefined();
+    const initialCache = { type: "filesystem", name: "existing-cache" };
+    const config = {
+      cache: initialCache,
+      plugins: [] as Array<{ apply: unknown }>,
+      resolve: { fallback: { existing: false } },
+    };
+    const result = runInNewContext(
+      `${buildGateDeclarations!}\n(${webpackCallback!})(config, { isServer })`,
+      { process: { env }, config, isServer },
+      { timeout: 100 }
+    );
+    expect(result).toBe(config);
+    return { result, initialCache };
+  }
 
   it.each(
     cases.map(([local, worker, enabled], index) => ({
@@ -82,8 +116,8 @@ describe("synthetic webpack build worker experiment", () => {
     "isolates configuration for local=$local worker=$worker case=$index",
     ({ local, worker, enabled }) => {
       expect(selector).toBeDefined();
-      const config = runInNewContext(
-        selector!,
+      const actual = runInNewContext(
+        `Boolean(${selector!})`,
         {
           process: {
             env: {
@@ -96,16 +130,98 @@ describe("synthetic webpack build worker experiment", () => {
         },
         { timeout: 100 }
       );
-      expect(Object.hasOwn(config, "webpackBuildWorker")).toBe(enabled);
-      expect(config.webpackBuildWorker).toBe(enabled ? true : undefined);
+      expect(actual).toBe(enabled);
     }
   );
 
-  it("changes only the worker setting in the observed configuration", () => {
+  it("requires the exact preview branch, sandbox project, and optimization opt-in", () => {
+    const evaluate = (env: Record<string, string>) =>
+      runInNewContext(`Boolean(${selector!})`, { process: { env } }, { timeout: 100 });
+    const sandbox = {
+      VERCEL_ENV: "preview",
+      ZALTYKO_SANDBOX_PREVIEW_BRANCH: "codex/fix-f84-build-hang-20261019",
+      NEXT_PUBLIC_SUPABASE_URL: "https://aeeootdmuiqkfeernskw.supabase.co",
+      ZALTYKO_SANDBOX_PREVIEW_BUILD_OPTIMIZATIONS: "true",
+    };
+    expect(evaluate(sandbox)).toBe(true);
+    expect(evaluate({ ...sandbox, VERCEL_ENV: "production" })).toBe(false);
+    expect(evaluate({ ...sandbox, ZALTYKO_SANDBOX_PREVIEW_BRANCH: "main" })).toBe(false);
+    expect(evaluate({ ...sandbox, NEXT_PUBLIC_SUPABASE_URL: "https://other.supabase.co" })).toBe(false);
+    expect(evaluate({ ...sandbox, ZALTYKO_SANDBOX_PREVIEW_BUILD_OPTIMIZATIONS: "false" })).toBe(false);
+  });
+
+  it.each([
+    ["VERCEL", undefined],
+    ["VERCEL", "true"],
+    ["VERCEL", "0"],
+    ["VERCEL_ENV", undefined],
+    ["VERCEL_ENV", "preview"],
+    ["VERCEL_ENV", "development"],
+    ["NEXT_PUBLIC_SUPABASE_URL", undefined],
+    ["NEXT_PUBLIC_SUPABASE_URL", "https://aeeootdmuiqkfeernskw.supabase.co"],
+    ["NEXT_PUBLIC_SUPABASE_URL", "https://other.supabase.co"],
+    ["NEXT_PUBLIC_SUPABASE_URL", "https://jegxfahsvugilbthbked.supabase.co/"],
+    ["ZALTYKO_PRODUCTION_BUILD_OPTIMIZATIONS", undefined],
+    ["ZALTYKO_PRODUCTION_BUILD_OPTIMIZATIONS", "false"],
+    ["ZALTYKO_PRODUCTION_BUILD_OPTIMIZATIONS", "TRUE"],
+    ["ZALTYKO_PRODUCTION_BUILD_OPTIMIZATIONS", "1"],
+  ] as const)("rejects production optimization when %s=%s", (key, value) => {
+    expect(selector).toBeDefined();
+    const env: Record<string, string> = { ...productionEnvironment };
+    if (value === undefined) delete env[key];
+    else env[key] = value;
+    expect(runInNewContext(`Boolean(${selector!})`, { process: { env } }, { timeout: 100 })).toBe(false);
+    const { result, initialCache } = observeWebpackCache(env, true);
+    expect(result.cache).toBe(initialCache);
+    expect(result.plugins).toHaveLength(0);
+  });
+
+  it("enables production optimization only with all four exact requirements", () => {
+    expect(selector).toBeDefined();
+    expect(runInNewContext(
+      `Boolean(${selector!})`,
+      { process: { env: productionEnvironment } },
+      { timeout: 100 }
+    )).toBe(true);
+  });
+
+  it.each([true, false])("uses frozen memory cache for the opted-in production callback, server=%s", (isServer) => {
+    const { result } = observeWebpackCache(productionEnvironment, isServer);
+    expect(result.cache).toEqual({ type: "memory" });
+    expect(Object.isFrozen(result.cache)).toBe(true);
+    expect(result.plugins).toHaveLength(1);
+    expect(typeof result.plugins[0].apply).toBe("function");
+    expect(result.resolve.fallback.existing).toBe(false);
+    if (!isServer) {
+      for (const module of ["fs", "net", "tls", "dns", "child_process"]) {
+        expect(result.resolve.fallback[module]).toBe(false);
+      }
+    }
+  });
+
+  it("preserves the separate local and sandbox callback cache behavior", () => {
+    const local = observeWebpackCache({
+      E2E_LOCAL_SUPABASE: "true",
+      ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",
+    }, true);
+    expect(local.result.cache).toBe(local.initialCache);
+    expect(local.result.plugins).toHaveLength(0);
+    const sandbox = observeWebpackCache({
+      VERCEL_ENV: "preview",
+      ZALTYKO_SANDBOX_PREVIEW_BRANCH: "codex/fix-f84-build-hang-20261019",
+      NEXT_PUBLIC_SUPABASE_URL: "https://aeeootdmuiqkfeernskw.supabase.co",
+      ZALTYKO_SANDBOX_PREVIEW_BUILD_OPTIMIZATIONS: "true",
+    }, true);
+    expect(sandbox.result.cache).toEqual({ type: "memory" });
+    expect(Object.isFrozen(sandbox.result.cache)).toBe(true);
+  });
+
+  it("changes only the three gated build optimization settings in the observed configuration", () => {
     const [baseline, experiment] = readConfigurations();
     expect(baseline.hasWorker).toBe(false);
     expect(experiment.hasWorker).toBe(true);
     expect(experiment.worker).toBe(true);
+    expect(experiment.experimental.serverMinification).toBe(false);
     for (const config of [baseline, experiment]) {
       expect(config.webpack).toBe("function");
       expect(JSON.stringify(config.rewrites)).toContain("/monitoring");
@@ -114,6 +230,31 @@ describe("synthetic webpack build worker experiment", () => {
       });
     }
     delete experiment.experimental.webpackBuildWorker;
+    delete experiment.experimental.parallelServerBuildTraces;
+    delete experiment.experimental.serverMinification;
+    delete experiment.worker;
+    experiment.hasWorker = false;
+    expect(experiment).toEqual(baseline);
+  });
+
+  it("preserves production Sentry monitoring, CA tracing and minification in the real exported configuration", () => {
+    const [baseline, experiment] = readConfigurations([
+      { ...productionEnvironment, ZALTYKO_PRODUCTION_BUILD_OPTIMIZATIONS: "false" },
+      productionEnvironment,
+    ]);
+    expect(baseline.hasWorker).toBe(false);
+    expect(experiment.worker).toBe(true);
+    expect(experiment.experimental.parallelServerBuildTraces).toBe(true);
+    for (const config of [baseline, experiment]) {
+      expect(config.webpack).toBe("function");
+      expect(JSON.stringify(config.rewrites)).toContain("/monitoring");
+      expect(config.tracing).toEqual({ "/*": ["./certs/supabase-root-ca.crt"] });
+      // Absence preserves Next's default; production must never inherit the
+      // local/sandbox serverMinification:false override.
+      expect(config.experimental).not.toHaveProperty("serverMinification");
+    }
+    delete experiment.experimental.webpackBuildWorker;
+    delete experiment.experimental.parallelServerBuildTraces;
     delete experiment.worker;
     experiment.hasWorker = false;
     expect(experiment).toEqual(baseline);
@@ -122,7 +263,10 @@ describe("synthetic webpack build worker experiment", () => {
   it("sets the marker only in the build invocation, outside inherited and server environments", () => {
     expect(runner.match(/ZALTYKO_E2E_WEBPACK_BUILD_WORKER/g)).toHaveLength(1);
     expect(runner).toMatch(
-      /nextBuild\.args,\s*\{\s*\.\.\.childEnv,\s*NODE_ENV: "production",\s*ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",\s*\},\s*LOCAL_E2E_TIMEOUTS\.build,\s*abortController\.signal/
+      /const buildTimeoutMs =\s*process\.env\.GITHUB_ACTIONS === "true"\s*\?\s*LOCAL_E2E_TIMEOUTS\.ciBuild\s*:\s*LOCAL_E2E_TIMEOUTS\.build/
+    );
+    expect(runner).toMatch(
+      /nextBuild\.args,\s*\{\s*\.\.\.childEnv,\s*NODE_ENV: "production",\s*ZALTYKO_E2E_WEBPACK_BUILD_WORKER: "true",\s*\},\s*buildTimeoutMs,\s*abortController\.signal/
     );
     expect(runner).toMatch(
       /playwrightCli\.args,|const playwrightArgs = playwrightCli\.args/

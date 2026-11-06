@@ -49,8 +49,8 @@ describe("athlete import safety contract", () => {
     expect(panel).toContain("/rollback");
   });
 
-  it("keeps the family portal claim honest in the canonical catalog", () => {
-    expect(catalog).toContain("Portal familiar limitado");
+  it("does not advertise an unverified family portal in the launch catalog", () => {
+    expect(catalog).not.toMatch(/portal familiar/i);
     expect(catalog).not.toContain("Portal de familias completo");
   });
 

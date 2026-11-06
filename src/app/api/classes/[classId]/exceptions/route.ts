@@ -6,6 +6,9 @@ import { withTenant, TenantContext } from "@/lib/authz";
 import { logger } from "@/lib/logger";
 import { z } from "zod";
 import { authorizeClassResource } from "@/lib/authz/resource-scope";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
+import { handleApiError } from "@/lib/api-error-handler";
 
 const ExceptionBodySchema = z.object({
     exceptionDate: z.string().min(1),
@@ -99,21 +102,24 @@ async function createException(
         if (!scope.allowed) return apiError("CLASS_NOT_FOUND", "Class not found", 404);
         const { exceptionDate, reason, exceptionType } = parsed.data;
 
-        const newException = await db
-            .insert(classExceptions)
-            .values({
+        const [newException] = await withTransaction(async (tx) => {
+            await lockAcademyOperationalWrites(tx, scope.resource!.academyId);
+            await assertAcademyOperationalWritable(scope.resource!.tenantId, scope.resource!.academyId, tx);
+            return tx.insert(classExceptions)
+              .values({
                 classId,
                 exceptionDate,
                 reason,
                 exceptionType,
                 tenantId: scope.resource!.tenantId,
-            })
-            .returning();
+              })
+              .returning();
+        });
 
-        return apiSuccess({ exception: newException[0] });
+        return apiSuccess({ exception: newException });
     } catch (error) {
         logger.error("Error creating class exception:", error);
-        return apiError("CREATE_EXCEPTION_FAILED", "Error creating exception", 500);
+        return handleApiError(error);
     }
 }
 

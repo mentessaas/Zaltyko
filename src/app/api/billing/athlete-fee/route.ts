@@ -8,9 +8,9 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiError } from "@/lib/api-response";
 
 const QuerySchema = z.object({
-  academyId: z.string().uuid(),
-  athleteId: z.string().uuid(),
-  groupId: z.string().uuid().optional(),
+  academyId: z.guid(),
+  athleteId: z.guid(),
+  groupId: z.guid().optional(),
 });
 
 export const GET = withTenant(async (request, context) => {

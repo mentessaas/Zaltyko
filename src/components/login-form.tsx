@@ -81,6 +81,11 @@ export function LoginForm({
         description:
           "Inténtalo de nuevo. Si el enlace expiró, solicita uno nuevo.",
       },
+      callback_expired: {
+        title: "El acceso desde el correo ha caducado",
+        description:
+          "Inicia sesión con tu correo y contraseña para continuar. Si estabas recuperando la contraseña, solicita un nuevo enlace de recuperación.",
+      },
       consent_invalid: {
         title: "No pudimos confirmar tu aceptación",
         description:
@@ -398,6 +403,11 @@ export function LoginForm({
             {profileSetupRetry && profileRecoveryError && (
               <p role="alert" className="mb-4 text-sm text-red-700">
                 {profileRecoveryError}
+              </p>
+            )}
+            {searchParams.get("error") === "callback_expired" && (
+              <p role="status" className="mb-4 text-sm text-muted-foreground">
+                El acceso desde el correo ha caducado. Inicia sesión con tu correo y contraseña para continuar. Si estabas recuperando la contraseña, solicita un nuevo enlace de recuperación.
               </p>
             )}
             <form onSubmit={handleLogin} className="space-y-4">

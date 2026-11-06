@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { apiError, apiSuccess } from "@/lib/api-response";
 
 export const dynamic = "force-dynamic";
-const bodySchema = z.object({ academyId: z.string().uuid() });
+const bodySchema = z.object({ academyId: z.guid() });
 
 // @auth-flexible route-guard-reason: authenticated legacy ownership check; never transfers ownership.
 export async function POST(request: Request) {

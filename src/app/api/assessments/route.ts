@@ -9,6 +9,7 @@ import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
 import { verifyProgressAccess } from "@/lib/progress/service";
@@ -18,18 +19,18 @@ import {
 } from "@/lib/progress/session-context";
 
 const scoreSchema = z.object({
-  skillId: z.string().uuid(),
+  skillId: z.guid(),
   score: z.number().int().min(1).max(10),
   comments: z.string().nullable().optional(),
 });
 
 const createAssessmentSchema = z.object({
-  athleteId: z.string().uuid(),
-  sessionId: z.string().uuid().nullable().optional(),
+  athleteId: z.guid(),
+  sessionId: z.guid().nullable().optional(),
   assessmentDate: z.string(), // YYYY-MM-DD
   assessmentType: z.enum(["technical", "artistic", "execution", "coach_feedback", "competition", "practice"]),
   apparatus: z.string().nullable().optional(),
-  sportConfigId: z.string().uuid().nullable().optional(),
+  sportConfigId: z.guid().nullable().optional(),
   scores: z.array(scoreSchema).optional(),
   overallComment: z.string().nullable().optional(),
   totalScore: z.number().nullable().optional(),
@@ -185,6 +186,8 @@ export const POST = withTenant(async (request, context) => {
     });
 
     await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, athleteRow.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, athleteRow.academyId, tx);
       // Create the assessment
       await tx.insert(athleteAssessments).values({
         id: assessmentId,
@@ -224,8 +227,8 @@ export const POST = withTenant(async (request, context) => {
 });
 
 const querySchema = z.object({
-  academyId: z.string().uuid().optional(),
-  athleteId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
+  athleteId: z.guid().optional(),
   assessmentType: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).optional(),

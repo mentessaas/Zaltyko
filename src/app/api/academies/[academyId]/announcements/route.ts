@@ -148,8 +148,8 @@ const CreateAnnouncementSchema = z.object({
   priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
   category: z.enum(["general", "event", "billing", "class", "news"]).optional(),
   targetRoles: z.array(z.string()).optional(),
-  classId: z.string().uuid().optional(),
-  eventId: z.string().uuid().optional(),
+  classId: z.guid().optional(),
+  eventId: z.guid().optional(),
 });
 
 export const POST = withTenant(async (request, context) => {

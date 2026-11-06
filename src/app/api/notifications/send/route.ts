@@ -14,9 +14,9 @@ import { and, eq, or } from "drizzle-orm";
 
 const sendSchema = z.object({
   to: z.string().email(),
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   template: z.enum(["attendance-reminder", "payment-reminder", "event-invitation", "class-cancellation"]),
-  data: z.record(z.unknown()),
+  data: z.record(z.string(), z.unknown()),
 });
 
 export const POST = withTenant(async (request, context) => {

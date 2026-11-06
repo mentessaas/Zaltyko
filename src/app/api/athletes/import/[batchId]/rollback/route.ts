@@ -17,7 +17,7 @@ import { createAuditLog } from "@/lib/authz/audit-service";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 
-const ParamsSchema = z.object({ batchId: z.string().uuid() });
+const ParamsSchema = z.object({ batchId: z.guid() });
 
 /**
  * Deshace exclusivamente las gimnastas creadas por un lote terminado.

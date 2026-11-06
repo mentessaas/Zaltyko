@@ -10,7 +10,7 @@ import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { getCurrencyForCountry } from "@/lib/currency";
 
 const CreateBillingItemSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   name: z.string().min(1),
   description: z.string().optional(),
   amountCents: z.number().int().positive(),

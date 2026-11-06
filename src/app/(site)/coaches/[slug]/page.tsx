@@ -18,7 +18,7 @@ interface PageProps {
 // Generate metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { slug } = await params;
-    const coachIdentity = z.string().uuid().safeParse(slug).success
+    const coachIdentity = z.guid().safeParse(slug).success
         ? or(eq(coaches.slug, slug), eq(coaches.id, slug))
         : eq(coaches.slug, slug);
     const [coach] = await db
@@ -74,7 +74,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function CoachPublicPage({ params }: PageProps) {
     const { slug } = await params;
-    const coachIdentity = z.string().uuid().safeParse(slug).success
+    const coachIdentity = z.guid().safeParse(slug).success
         ? or(eq(coaches.slug, slug), eq(coaches.id, slug))
         : eq(coaches.slug, slug);
     // Fetch coach data

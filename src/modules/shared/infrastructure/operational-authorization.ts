@@ -14,6 +14,7 @@ import type {
   SystemActor,
 } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 
 type OperationalRole = OrganizationMember["role"];
 
@@ -24,6 +25,7 @@ export async function assertOperationalAccess(
     locationId: string;
     actor: OperationalActor;
     allowedRoles: readonly OperationalRole[];
+    intent?: "write";
   }
 ): Promise<OrganizationMember> {
   const [member] = await tx
@@ -47,7 +49,10 @@ export async function assertOperationalAccess(
     );
   }
 
-  if (member.locationScopeMode === "all") return member;
+  if (member.locationScopeMode === "all") {
+    if (input.intent === "write") await assertOrganizationOperationalWritable(tx, input.organizationId);
+    return member;
+  }
 
   const [scope] = await tx
     .select({ id: memberLocationScopes.id })
@@ -69,6 +74,7 @@ export async function assertOperationalAccess(
     );
   }
 
+  if (input.intent === "write") await assertOrganizationOperationalWritable(tx, input.organizationId);
   return member;
 }
 

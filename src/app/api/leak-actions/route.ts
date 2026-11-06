@@ -10,13 +10,13 @@ import { requireLeakProfitabilityFeature } from "@/lib/product/leak-profitabilit
 export const dynamic = "force-dynamic";
 
 const createSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   actionType: z.enum(["payment_reminder", "absence_message", "progress_message", "churn_message", "waitlist_message"]),
-  athleteId: z.string().uuid().optional(),
-  classId: z.string().uuid().optional(),
+  athleteId: z.guid().optional(),
+  classId: z.guid().optional(),
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).default("whatsapp"),
   message: z.string().max(2000).optional(),
-  payload: z.record(z.unknown()).default({}),
+  payload: z.record(z.string(), z.unknown()).default({}),
 });
 
 export const POST = withTenant(async (request, context) => {

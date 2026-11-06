@@ -4,6 +4,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { familyStripeCustomers, guardianAthletes, guardians } from "@/db/schema";
 import { getStripeClient } from "@/lib/stripe/client";
+import { throwFamilyAutomaticCollectionDisabled } from "@/lib/stripe/family-automatic-collection-disabled";
 
 /**
  * Servicio de customers de familia sobre cuentas conectadas (Connect Standard).
@@ -93,6 +94,8 @@ interface EnsureCustomerParams {
 export async function getOrCreateFamilyCustomer(
   params: EnsureCustomerParams
 ): Promise<FamilyCustomerRow> {
+  throwFamilyAutomaticCollectionDisabled();
+
   const existing = await getFamilyCustomer(params.academyId, params.profileId);
   if (existing) return existing;
 
@@ -142,6 +145,8 @@ export async function createFamilySetupIntent(
   customerId: string,
   stripeAccountId: string
 ): Promise<string> {
+  throwFamilyAutomaticCollectionDisabled();
+
   const stripe = getStripeClient();
   const setupIntent = await stripe.setupIntents.create(
     {
@@ -183,6 +188,8 @@ export async function saveDefaultPaymentMethod(params: {
   paymentMethodId: string;
   stripeAccountId: string;
 }): Promise<FamilyCustomerRow> {
+  throwFamilyAutomaticCollectionDisabled();
+
   const row = await getFamilyCustomer(params.academyId, params.profileId);
   if (!row) {
     throw new Error("FAMILY_CUSTOMER_NOT_FOUND");

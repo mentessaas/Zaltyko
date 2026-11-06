@@ -16,19 +16,20 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const bodySchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
-    familyId: z.string().uuid().optional(),
-    athleteIds: z.array(z.string().uuid()).min(1).max(50),
+    organizationId: z.guid(),
+    locationId: z.guid(),
+    familyId: z.guid().optional(),
+    athleteIds: z.array(z.guid()).min(1).max(50),
     effectiveFrom: z.string().date(),
     payer: z
       .object({
-        familyPayerId: z.string().uuid().optional(),
+        familyPayerId: z.guid().optional(),
         givenName: z.string().trim().min(1).max(100).optional(),
         familyName: z.string().trim().min(1).max(100).optional(),
         relationship: z
           .enum(["parent", "legal_guardian", "foster_guardian", "other"])
           .optional(),
+        confirmPrimaryPayerChange: z.boolean().optional(),
       })
       .strict(),
   })

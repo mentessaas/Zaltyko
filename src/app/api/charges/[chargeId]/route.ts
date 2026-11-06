@@ -10,6 +10,8 @@ import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logEvent } from "@/lib/event-logging";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const UpdateChargeSchema = z.object({
   status: z.enum(["pending", "paid", "overdue", "cancelled", "partial"]).optional(),
@@ -96,10 +98,6 @@ export const PATCH = withTenant(async (request, context) => {
       updateData.dueDate = body.dueDate ? body.dueDate.split("T")[0] : null;
     }
 
-    // Mismo advisory lock que collectCharge/record-payment: serializa contra
-    // capturas automáticas en vuelo.
-    await db.execute(sql`select pg_advisory_xact_lock(hashtext(${chargeId}))`);
-
     // Estados terminales no mutables: ni resurrect ni ediciones de importes
     // sobre cargos ya cobrados/reembolsados (romperían la conciliación).
     if (["paid", "refunded"].includes(existing.status)) {
@@ -111,11 +109,16 @@ export const PATCH = withTenant(async (request, context) => {
       }
     }
 
-    const [updated] = await db
-      .update(charges)
-      .set(updateData)
-      .where(and(eq(charges.id, chargeId), eq(charges.tenantId, existing.tenantId)))
-      .returning();
+    const [updated] = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, existing.academyId);
+      await assertAcademyOperationalWritable(existing.tenantId, existing.academyId, tx);
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${chargeId}))`);
+      return tx
+        .update(charges)
+        .set(updateData)
+        .where(and(eq(charges.id, chargeId), eq(charges.tenantId, existing.tenantId)))
+        .returning();
+    });
 
     // Log event when charge is marked as paid
     if (body.status === "paid" && existing.status !== "paid") {
@@ -173,7 +176,11 @@ export const DELETE = withTenant(async (request, context) => {
       return apiError("CHARGE_NOT_FOUND", "Charge not found", 404);
     }
 
-    await db.delete(charges).where(and(eq(charges.id, chargeId), eq(charges.tenantId, context.tenantId)));
+    await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, existing.academyId);
+      await assertAcademyOperationalWritable(existing.tenantId, existing.academyId, tx);
+      await tx.delete(charges).where(and(eq(charges.id, chargeId), eq(charges.tenantId, context.tenantId!)));
+    });
 
     return apiSuccess({ ok: true });
   } catch (error) {

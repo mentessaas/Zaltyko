@@ -58,6 +58,7 @@ import {
   type TechnicalSummarySourceItem,
 } from "@/lib/dashboard/technical-summary";
 import { logger } from "@/lib/logger";
+import { DashboardRefreshNotice } from "@/components/dashboard/DashboardRefreshNotice";
 import { useDashboardChecklist } from "@/components/dashboard/useDashboardChecklist";
 import {
   DashboardHeroSection,
@@ -223,7 +224,11 @@ export function DashboardPage({
 }: DashboardPageProps) {
   const router = useRouter();
   const { tenantAcademies, isAdmin, isOwner, specialization } = useAcademyContext();
-  const { data } = useDashboardData({ academyId, tenantId, initialData });
+  const { data, refresh: refreshDashboard, loading: dashboardLoading, error: dashboardError } = useDashboardData({
+    academyId,
+    tenantId,
+    initialData,
+  });
   const labels = getSpecializedLabels(specialization);
   const { progress: checklistProgress, items: checklistItems } = useDashboardChecklist(academyId);
   const [showAllSteps, setShowAllSteps] = useState(false);
@@ -710,6 +715,14 @@ export function DashboardPage({
         welcomeMessage={welcomeMessage}
         onNavigate={(href) => router.push(href)}
       />
+
+      {dashboardError && (
+        <DashboardRefreshNotice
+          error={dashboardError}
+          loading={dashboardLoading}
+          onRetry={() => void refreshDashboard()}
+        />
+      )}
 
       <KPISection
         metrics={data.metrics}

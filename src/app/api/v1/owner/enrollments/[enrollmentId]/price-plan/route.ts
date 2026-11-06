@@ -14,12 +14,12 @@ import { assignEnrollmentPrice } from "@/modules/enrollments/application/enrollm
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 
-const paramsSchema = z.object({ enrollmentId: z.string().uuid() });
+const paramsSchema = z.object({ enrollmentId: z.guid() });
 const bodySchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
-    pricePlanId: z.string().uuid(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
+    pricePlanId: z.guid(),
     startsOn: z.string().date(),
   })
   .strict();

@@ -6,6 +6,8 @@ import { athletes, familyContacts, guardianAthletes, guardians } from "@/db/sche
 import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const UpdateGuardianSchema = z.object({
   name: z.string().min(1).optional(),
@@ -95,48 +97,81 @@ export const PATCH = withTenant(async (request, context) => {
     return apiError("NO_CHANGES", "No changes provided", 400);
   }
 
-  // Verificar si es de family_contacts (sistema antiguo) o guardian_athletes (sistema nuevo)
   const isFamilyContact = link.guardianId === null;
+  const updated = await withTransaction(async (tx) => {
+    await lockAcademyOperationalWrites(tx, athlete.academyId);
+    await assertAcademyOperationalWritable(athlete.tenantId, athlete.academyId, tx);
 
-  if (isFamilyContact) {
-    // Actualizar en family_contacts
-    await db
-      .update(familyContacts)
-      .set({
-        ...(body.name ? { name: body.name } : {}),
-        ...(body.email ? { email: body.email.toLowerCase() } : {}),
-        ...(body.phone !== undefined ? { phone: body.phone ?? null } : {}),
-        ...(body.relationship !== undefined ? { relationship: body.relationship ?? null } : {}),
-        ...(body.notifyEmail !== undefined ? { notifyEmail: body.notifyEmail } : {}),
-        ...(body.notifySms !== undefined ? { notifySms: body.notifySms } : {}),
-      })
-      .where(and(eq(familyContacts.id, linkId), eq(familyContacts.tenantId, link.tenantId), eq(familyContacts.athleteId, athleteId)));
-
-    // Retornar el contacto actualizado
-    const [updated] = await db
-      .select({
-        linkId: familyContacts.id,
-        guardianId: sql<string | null>`NULL`,
-        profileId: sql<string | null>`NULL`,
-        name: familyContacts.name,
-        email: familyContacts.email,
-        phone: familyContacts.phone,
-        relationship: familyContacts.relationship,
-        notifyEmail: familyContacts.notifyEmail,
-        notifySms: familyContacts.notifySms,
-        isPrimary: sql<boolean>`false`,
-        linkRelationship: familyContacts.relationship,
-        createdAt: familyContacts.createdAt,
-      })
-      .from(familyContacts)
-      .where(and(eq(familyContacts.id, linkId), eq(familyContacts.tenantId, link.tenantId), eq(familyContacts.athleteId, athleteId)))
+    const [currentAthlete] = await tx
+      .select({ id: athletes.id })
+      .from(athletes)
+      .where(and(
+        eq(athletes.id, athleteId),
+        eq(athletes.tenantId, athlete.tenantId),
+        eq(athletes.academyId, athlete.academyId),
+        isNull(athletes.deletedAt),
+      ))
       .limit(1);
+    if (!currentAthlete) return null;
 
-    return apiSuccess({ item: updated });
-  } else {
-    // Actualizar en guardians y guardian_athletes (sistema nuevo)
-    if (link.guardianId && (body.name || body.email || body.phone || body.relationship || body.notifyEmail !== undefined || body.notifySms !== undefined)) {
-      await db
+    if (isFamilyContact) {
+      const [currentLink] = await tx
+        .select({ id: familyContacts.id })
+        .from(familyContacts)
+        .where(and(
+          eq(familyContacts.id, linkId),
+          eq(familyContacts.tenantId, link.tenantId),
+          eq(familyContacts.athleteId, athleteId),
+        ))
+        .limit(1);
+      if (!currentLink) return null;
+
+      await tx
+        .update(familyContacts)
+        .set({
+          ...(body.name ? { name: body.name } : {}),
+          ...(body.email ? { email: body.email.toLowerCase() } : {}),
+          ...(body.phone !== undefined ? { phone: body.phone ?? null } : {}),
+          ...(body.relationship !== undefined ? { relationship: body.relationship ?? null } : {}),
+          ...(body.notifyEmail !== undefined ? { notifyEmail: body.notifyEmail } : {}),
+          ...(body.notifySms !== undefined ? { notifySms: body.notifySms } : {}),
+        })
+        .where(and(eq(familyContacts.id, linkId), eq(familyContacts.tenantId, link.tenantId), eq(familyContacts.athleteId, athleteId)));
+
+      const [row] = await tx
+        .select({
+          linkId: familyContacts.id,
+          guardianId: sql<string | null>`NULL`,
+          profileId: sql<string | null>`NULL`,
+          name: familyContacts.name,
+          email: familyContacts.email,
+          phone: familyContacts.phone,
+          relationship: familyContacts.relationship,
+          notifyEmail: familyContacts.notifyEmail,
+          notifySms: familyContacts.notifySms,
+          isPrimary: sql<boolean>`false`,
+          linkRelationship: familyContacts.relationship,
+          createdAt: familyContacts.createdAt,
+        })
+        .from(familyContacts)
+        .where(and(eq(familyContacts.id, linkId), eq(familyContacts.tenantId, link.tenantId), eq(familyContacts.athleteId, athleteId)))
+        .limit(1);
+      return row ?? null;
+    }
+
+    const [currentLink] = await tx
+      .select({ guardianId: guardianAthletes.guardianId })
+      .from(guardianAthletes)
+      .where(and(
+        eq(guardianAthletes.id, linkId),
+        eq(guardianAthletes.tenantId, link.tenantId),
+        eq(guardianAthletes.athleteId, athleteId),
+      ))
+      .limit(1);
+    if (!currentLink) return null;
+
+    if (currentLink.guardianId && (body.name || body.email || body.phone || body.relationship || body.notifyEmail !== undefined || body.notifySms !== undefined)) {
+      await tx
         .update(guardians)
         .set({
           ...(body.name ? { name: body.name } : {}),
@@ -146,26 +181,24 @@ export const PATCH = withTenant(async (request, context) => {
           ...(body.notifyEmail !== undefined ? { notifyEmail: body.notifyEmail } : {}),
           ...(body.notifySms !== undefined ? { notifySms: body.notifySms } : {}),
         })
-        .where(and(eq(guardians.id, link.guardianId), eq(guardians.tenantId, link.tenantId)));
+        .where(and(eq(guardians.id, currentLink.guardianId), eq(guardians.tenantId, link.tenantId)));
     }
 
     if (body.isPrimary !== undefined || body.linkRelationship !== undefined) {
-      await db
+      await tx
         .update(guardianAthletes)
         .set({
           ...(body.isPrimary !== undefined ? { isPrimary: body.isPrimary } : {}),
           ...(body.linkRelationship !== undefined ? { relationship: body.linkRelationship ?? null } : {}),
         })
-        .where(
-          and(
-            eq(guardianAthletes.id, linkId),
-            eq(guardianAthletes.tenantId, link.tenantId),
-            eq(guardianAthletes.athleteId, athleteId)
-          )
-        );
+        .where(and(
+          eq(guardianAthletes.id, linkId),
+          eq(guardianAthletes.tenantId, link.tenantId),
+          eq(guardianAthletes.athleteId, athleteId),
+        ));
     }
 
-    const [updated] = await db
+    const [row] = await tx
       .select({
         linkId: guardianAthletes.id,
         guardianId: guardians.id,
@@ -182,18 +215,18 @@ export const PATCH = withTenant(async (request, context) => {
       })
       .from(guardianAthletes)
       .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
-      .where(
-        and(
-          eq(guardianAthletes.id, linkId),
-          eq(guardianAthletes.tenantId, link.tenantId),
-          eq(guardianAthletes.athleteId, athleteId),
-          eq(guardians.tenantId, link.tenantId)
-        )
-      )
+      .where(and(
+        eq(guardianAthletes.id, linkId),
+        eq(guardianAthletes.tenantId, link.tenantId),
+        eq(guardianAthletes.athleteId, athleteId),
+        eq(guardians.tenantId, link.tenantId),
+      ))
       .limit(1);
+    return row ?? null;
+  });
 
-    return apiSuccess({ item: updated });
-  }
+  if (!updated) return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
+  return apiSuccess({ item: updated });
 });
 
 export const DELETE = withTenant(async (_request, context) => {
@@ -230,58 +263,72 @@ export const DELETE = withTenant(async (_request, context) => {
     return apiError("FORBIDDEN", "Access denied", 403);
   }
 
-  // Verificar si es de family_contacts (sistema antiguo) o guardian_athletes (sistema nuevo)
   const isFamilyContact = link.guardianId === null;
+  const deleted = await withTransaction(async (tx) => {
+    await lockAcademyOperationalWrites(tx, athlete.academyId);
+    await assertAcademyOperationalWritable(athlete.tenantId, athlete.academyId, tx);
 
-  if (isFamilyContact) {
-    // Eliminar de family_contacts
-    await db
-      .delete(familyContacts)
-      .where(
-        and(
+    const [currentAthlete] = await tx
+      .select({ id: athletes.id })
+      .from(athletes)
+      .where(and(
+        eq(athletes.id, athleteId),
+        eq(athletes.tenantId, athlete.tenantId),
+        eq(athletes.academyId, athlete.academyId),
+        isNull(athletes.deletedAt),
+      ))
+      .limit(1);
+    if (!currentAthlete) return false;
+
+    if (isFamilyContact) {
+      const rows = await tx
+        .delete(familyContacts)
+        .where(and(
           eq(familyContacts.id, linkId),
           eq(familyContacts.tenantId, link.tenantId),
-          eq(familyContacts.athleteId, athleteId)
-        )
-      );
-  } else {
-    // Eliminar de guardian_athletes y posiblemente de guardians
-    if (link.guardianId) {
-      await db
-        .delete(guardianAthletes)
-        .where(
-          and(
-            eq(guardianAthletes.id, linkId),
-            eq(guardianAthletes.tenantId, link.tenantId),
-            eq(guardianAthletes.athleteId, athleteId)
-          )
-        );
-
-      const [{ remaining }] = await db
-        .select({
-          remaining: sql<number>`count(*)`,
-        })
-        .from(guardianAthletes)
-        .where(
-          and(
-            eq(guardianAthletes.guardianId, link.guardianId),
-            eq(guardianAthletes.tenantId, link.tenantId)
-          )
-        );
-
-      if (remaining === 0) {
-        await db
-          .delete(guardians)
-          .where(
-            and(
-              eq(guardians.id, link.guardianId),
-              eq(guardians.tenantId, link.tenantId)
-            )
-          );
-      }
+          eq(familyContacts.athleteId, athleteId),
+        ))
+        .returning({ id: familyContacts.id });
+      return rows.length === 1;
     }
-  }
 
+    const [currentLink] = await tx
+      .select({ guardianId: guardianAthletes.guardianId })
+      .from(guardianAthletes)
+      .where(and(
+        eq(guardianAthletes.id, linkId),
+        eq(guardianAthletes.tenantId, link.tenantId),
+        eq(guardianAthletes.athleteId, athleteId),
+      ))
+      .limit(1);
+    if (!currentLink) return false;
+
+    const rows = await tx
+      .delete(guardianAthletes)
+      .where(and(
+        eq(guardianAthletes.id, linkId),
+        eq(guardianAthletes.tenantId, link.tenantId),
+        eq(guardianAthletes.athleteId, athleteId),
+      ))
+      .returning({ id: guardianAthletes.id });
+    if (rows.length !== 1) return false;
+
+    const [{ remaining }] = await tx
+      .select({ remaining: sql<number>`count(*)` })
+      .from(guardianAthletes)
+      .where(and(
+        eq(guardianAthletes.guardianId, currentLink.guardianId),
+        eq(guardianAthletes.tenantId, link.tenantId),
+      ));
+    if (remaining === 0) {
+      await tx
+        .delete(guardians)
+        .where(and(eq(guardians.id, currentLink.guardianId), eq(guardians.tenantId, link.tenantId)));
+    }
+    return true;
+  });
+
+  if (!deleted) return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
   return apiSuccess({ ok: true });
 });
 

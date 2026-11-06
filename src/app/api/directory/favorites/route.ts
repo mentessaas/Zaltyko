@@ -11,7 +11,7 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 export async function POST(request: Request) {
   return directoryRequest(request, async (user) => {
     const { entryId, save } = z
-      .object({ entryId: z.string().uuid(), save: z.boolean() })
+      .object({ entryId: z.guid(), save: z.boolean() })
       .parse(await request.json());
     if (save && !(await getEntry(entryId)))
       return apiError("NOT_FOUND", "Ficha no disponible", 404);

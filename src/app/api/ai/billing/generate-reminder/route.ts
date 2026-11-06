@@ -14,8 +14,8 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
-  chargeId: z.string().uuid(),
-  academyId: z.string().uuid(),
+  chargeId: z.guid(),
+  academyId: z.guid(),
 });
 
 const REMINDER_STATUSES = ["pending", "overdue", "partial", "failed", "requires_action"] as const;

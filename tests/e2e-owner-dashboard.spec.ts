@@ -24,8 +24,8 @@ const criticalOwnerRoutes = [
   "classes",
   "enrollments",
   "payments",
-  "insights",
-  "health-score/setup",
+  "attendance",
+  "monthly-invoices",
 ];
 
 async function expectNoRouteError(page: Page) {
@@ -64,12 +64,11 @@ test.describe("Greenfield Owner workspace", () => {
 
     const navigation = page.getByRole("navigation", { name: "Principal" });
     await expect(navigation).toBeVisible();
+    await expect(navigation.getByRole("link", { name: /Insights|Capacidad|Health Score/i })).toHaveCount(0);
     for (const [label, href] of [
       ["Resumen", ownerRoute()],
       ["Grupos", ownerRoute("groups")],
       ["Clases", ownerRoute("classes")],
-      ["Insights", ownerRoute("insights")],
-      ["Capacidad", `${ownerRoute()}#capacity`],
       ["Inscripciones", ownerRoute("enrollments")],
       ["Cobros", ownerRoute("payments")],
     ]) {
@@ -103,7 +102,7 @@ test.describe("Greenfield Owner workspace", () => {
     await more.focus();
     await expect(more).toBeFocused();
     await page.keyboard.press("Enter");
-    for (const label of ["Insights", "Capacidad", "Cobros"]) {
+    for (const label of ["Gimnastas", "Cobros", "Plan"]) {
       await expect(navigation.getByRole("link", { name: label })).toBeVisible();
     }
 

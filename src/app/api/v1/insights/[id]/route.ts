@@ -7,8 +7,8 @@ import { getInsightDetail } from "@/modules/insights/application/insight-query";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const querySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
 });
 
 // @auth-flexible route-guard-reason: getCurrentUser resolves the verified session before params/query validation; getInsightDetail enforces organization and location scope server-side.
@@ -27,7 +27,7 @@ export async function GET(
   }
   const url = new URL(request.url);
   const parsedParams = z
-    .object({ id: z.string().uuid() })
+    .object({ id: z.guid() })
     .safeParse(await params);
   const parsedQuery = querySchema.safeParse({
     organizationId: url.searchParams.get("organization_id") ?? undefined,

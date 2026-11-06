@@ -8,7 +8,7 @@ describe("classes and sessions contract", () => {
     const sessions = readFileSync(join(process.cwd(), "src/app/api/class-sessions/route.ts"), "utf8");
     expect(waitlist).toContain("eq(athletes.academyId, classRow.academyId)");
     expect(waitlist).toContain("eq(classWaitingList.tenantId, context.tenantId)");
-    expect(sessions).toContain("eq(coaches.academyId, classRow.academyId)");
+    expect(sessions).toContain("eq(coaches.academyId, currentClass.academyId)");
     expect(sessions).toContain("La hora de fin debe ser posterior al inicio");
   });
 });

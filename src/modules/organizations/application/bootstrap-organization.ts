@@ -18,8 +18,12 @@ import {
   COMPLEMENTARY_ACTIVITY_LABELS,
   defaultLocationCode,
   GYMNASTICS_DISCIPLINE_LABELS,
-  LAUNCH_MARKET_DEFAULTS,
+  type GymnasticsDiscipline,
 } from "@/modules/organizations/domain/academy-offerings";
+import {
+  getAdministrativeMarketCapability,
+  type AdministrativeMarketCapability,
+} from "@/modules/organizations/domain/administrative-market-capabilities";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { inspectLegacyAcademySchema } from "@/lib/auth/legacy-academy-access";
 import {
@@ -36,6 +40,18 @@ const bootstrapOrganizationRequestFieldsSchema = z.object({
     .toUpperCase()
     .regex(/^[A-Z]{2}$/)
     .default("ES"),
+  defaultCurrency: z.preprocess(
+    (value) =>
+      typeof value === "string" ? value.trim().toUpperCase() : value,
+    z.enum(["EUR", "MXN"]).optional()
+  ),
+  timezone: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim().length === 0
+        ? undefined
+        : value,
+    z.string().trim().min(1).max(80).optional()
+  ),
   locationName: z.string().trim().min(2).max(120),
   idempotencyKey: z.string().trim().min(8).max(150),
 });
@@ -45,7 +61,7 @@ export const bootstrapOrganizationRequestSchema =
 
 export const bootstrapOrganizationSchema =
   bootstrapOrganizationRequestFieldsSchema
-    .extend({ userId: z.string().uuid() })
+    .extend({ userId: z.guid() })
     .and(academyOfferingsSchema);
 
 export type BootstrapOrganizationCommand = z.input<
@@ -56,6 +72,12 @@ export interface BootstrapOrganizationResult {
   organizationId: string;
   locationId: string;
   memberId: string;
+  administrativeMarket: {
+    countryCode: string;
+    defaultCurrency: string;
+    timezone: string;
+  };
+  sportCoverage: AdministrativeMarketCapability["sportCoverage"];
 }
 
 function assertValidTimezone(value: string): void {
@@ -74,7 +96,73 @@ type ResolvedBootstrapInput = z.infer<typeof bootstrapOrganizationSchema> & {
   defaultCurrency: string;
   timezone: string;
   locationCode: string;
+  sportCoverage: AdministrativeMarketCapability["sportCoverage"];
 };
+
+function resolveMarketSettings(input: {
+  countryCode: string;
+  defaultCurrency?: "EUR" | "MXN";
+  timezone?: string;
+}): {
+  capability: AdministrativeMarketCapability;
+  defaultCurrency: "EUR" | "MXN";
+  timezone: string;
+} {
+  const capability = getAdministrativeMarketCapability(input.countryCode);
+  if (!capability || !capability.selfServe) {
+    throw new OperationalError(
+      "INVALID_RELATION",
+      "Aún no está disponible el alta autoservicio para este país.",
+      422
+    );
+  }
+
+  const defaultCurrency = input.defaultCurrency ?? capability.defaultCurrency;
+  if (!capability.currencies.includes(defaultCurrency)) {
+    throw new OperationalError(
+      "INVALID_RELATION",
+      "La moneda seleccionada no está disponible para este país.",
+      422
+    );
+  }
+
+  const timezone = input.timezone ?? capability.defaultTimezone;
+  if (!timezone) {
+    throw new OperationalError(
+      "INVALID_RELATION",
+      "Selecciona la zona horaria de la sede para completar el alta.",
+      422
+    );
+  }
+  if (!capability.timezones.includes(timezone)) {
+    throw new OperationalError(
+      "INVALID_RELATION",
+      "La zona horaria seleccionada no está disponible para este país.",
+      422
+    );
+  }
+  assertValidTimezone(timezone);
+
+  return { capability, defaultCurrency, timezone };
+}
+
+function makeBootstrapResult(
+  input: ResolvedBootstrapInput,
+  ids: Pick<
+    BootstrapOrganizationResult,
+    "organizationId" | "locationId" | "memberId"
+  >
+): BootstrapOrganizationResult {
+  return {
+    ...ids,
+    administrativeMarket: {
+      countryCode: input.countryCode,
+      defaultCurrency: input.defaultCurrency,
+      timezone: input.timezone,
+    },
+    sportCoverage: input.sportCoverage,
+  };
+}
 
 function requestHash(input: ResolvedBootstrapInput): string {
   return createHash("sha256")
@@ -100,24 +188,15 @@ export async function bootstrapOrganization(
   command: BootstrapOrganizationCommand
 ): Promise<BootstrapOrganizationResult> {
   const parsed = bootstrapOrganizationSchema.parse(command);
-  const marketDefaults =
-    LAUNCH_MARKET_DEFAULTS[
-      parsed.countryCode as keyof typeof LAUNCH_MARKET_DEFAULTS
-    ];
-  if (!marketDefaults) {
-    throw new OperationalError(
-      "INVALID_RELATION",
-      "Aún no está disponible el alta autoservicio para este país.",
-      422
-    );
-  }
+  const { capability, defaultCurrency, timezone } =
+    resolveMarketSettings(parsed);
   const input: ResolvedBootstrapInput = {
     ...parsed,
-    defaultCurrency: marketDefaults.currency,
-    timezone: marketDefaults.timezone,
+    defaultCurrency,
+    timezone,
     locationCode: defaultLocationCode(parsed.locationName),
+    sportCoverage: capability.sportCoverage,
   };
-  assertValidTimezone(input.timezone);
   const hash = requestHash(input);
 
   return db.transaction(async (tx) => {
@@ -142,11 +221,11 @@ export async function bootstrapOrganization(
           409
         );
       }
-      return {
+      return makeBootstrapResult(input, {
         organizationId: prior.organizationId,
         locationId: prior.locationId,
         memberId: prior.memberId,
-      };
+      });
     }
 
     const legacySchemaState = await inspectLegacyAcademySchema((query) =>
@@ -201,6 +280,8 @@ export async function bootstrapOrganization(
       input.primaryDiscipline,
       ...input.additionalDisciplines,
     ];
+    const hasGeneralIdentityOnly =
+      input.sportCoverage.mode === "general_identity_only";
     const availableProfiles = await tx
       .select({
         id: sportProfiles.id,
@@ -213,7 +294,13 @@ export async function bootstrapOrganization(
           eq(sportProfiles.profileVersion, "identity-v1"),
           eq(sportProfiles.federationCode, "unconfigured"),
           inArray(sportProfiles.disciplineKey, requestedDisciplines),
-          inArray(sportProfiles.status, ["identity_only", "verified"])
+          hasGeneralIdentityOnly
+            ? and(
+                eq(sportProfiles.status, "identity_only"),
+                eq(sportProfiles.configurationSchemaVersion, 1),
+                eq(sportProfiles.configuration, {})
+              )
+            : inArray(sportProfiles.status, ["identity_only", "verified"])
         )
       )
       .orderBy(asc(sportProfiles.disciplineKey))
@@ -221,17 +308,22 @@ export async function bootstrapOrganization(
     const availableDisciplineKeys = new Set(
       availableProfiles.map((profile) => profile.disciplineKey)
     );
-    if (
-      availableProfiles.length !== requestedDisciplines.length ||
-      availableDisciplineKeys.size !== requestedDisciplines.length ||
-      requestedDisciplines.some(
-        (discipline) => !availableDisciplineKeys.has(discipline)
-      )
-    ) {
+    const profilesAreAvailable =
+      availableProfiles.length === requestedDisciplines.length &&
+      availableDisciplineKeys.size === requestedDisciplines.length &&
+      requestedDisciplines.every((discipline) =>
+        availableDisciplineKeys.has(discipline)
+      );
+    if (!profilesAreAvailable) {
       throw new OperationalError(
         "INVALID_RELATION",
-        "Aún no hay un perfil deportivo disponible para el país y las disciplinas seleccionadas.",
-        422
+        hasGeneralIdentityOnly
+          ? "El alta administrativa de México requiere perfiles de identidad disponibles para cada disciplina seleccionada. No se aplicarán reglas federativas automáticamente."
+          : "Aún no hay un perfil deportivo disponible para el país y las disciplinas seleccionadas.",
+        422,
+        hasGeneralIdentityOnly
+          ? { reason: "mx-discipline-identity-profiles-required" }
+          : undefined
       );
     }
 
@@ -266,25 +358,27 @@ export async function bootstrapOrganization(
       })
       .returning({ id: organizationMembers.id });
 
-    const profileByDiscipline = new Map(
-      availableProfiles.map((profile) => [profile.disciplineKey, profile.id])
-    );
+    const profilesForOrganization = requestedDisciplines.map((discipline) => {
+      const profile = availableProfiles.find(
+        (candidate) => candidate.disciplineKey === discipline
+      );
+      if (!profile) {
+        throw new OperationalError(
+          "INVALID_RELATION",
+          "No se ha encontrado el perfil deportivo seleccionado.",
+          422
+        );
+      }
+      return profile;
+    });
     const organizationSportRows = await tx
       .insert(organizationSports)
       .values(
-        requestedDisciplines.map((discipline, index) => {
-          const sportProfileId = profileByDiscipline.get(discipline);
-          if (!sportProfileId) {
-            throw new OperationalError(
-              "INVALID_RELATION",
-              "No se ha encontrado el perfil deportivo seleccionado.",
-              422
-            );
-          }
+        profilesForOrganization.map((profile, index) => {
           return {
             organizationId: organization.id,
             countryCode: input.countryCode,
-            sportProfileId,
+            sportProfileId: profile.id,
             role: index === 0 ? "primary" : "additional",
             status: "active",
           } as const;
@@ -294,16 +388,22 @@ export async function bootstrapOrganization(
         id: organizationSports.id,
         sportProfileId: organizationSports.sportProfileId,
       });
-
-    const disciplineByProfileId = new Map(
-      availableProfiles.map((profile) => [profile.id, profile.disciplineKey])
+    const organizationSportIdByProfile = new Map(
+      organizationSportRows.map((row) => [row.sportProfileId, row.id])
     );
+
     const programRows: (typeof programs.$inferInsert)[] =
-      organizationSportRows.map((organizationSport) => {
-        const discipline = disciplineByProfileId.get(
-          organizationSport.sportProfileId
+      requestedDisciplines.map((discipline) => {
+        const profile = availableProfiles.find(
+          (candidate) => candidate.disciplineKey === discipline
         );
-        if (!discipline || !(discipline in GYMNASTICS_DISCIPLINE_LABELS)) {
+        const organizationSportId = profile
+          ? organizationSportIdByProfile.get(profile.id)
+          : undefined;
+        if (
+          !organizationSportId ||
+          !(discipline in GYMNASTICS_DISCIPLINE_LABELS)
+        ) {
           throw new OperationalError(
             "INVALID_RELATION",
             "El perfil deportivo no tiene una etiqueta de programa disponible.",
@@ -313,10 +413,10 @@ export async function bootstrapOrganization(
         return {
           organizationId: organization.id,
           name: GYMNASTICS_DISCIPLINE_LABELS[
-            discipline as keyof typeof GYMNASTICS_DISCIPLINE_LABELS
+            discipline as GymnasticsDiscipline
           ],
           kind: "gymnastics_sport" as const,
-          organizationSportId: organizationSport.id,
+          organizationSportId,
           activityKey: null,
           status: "active" as const,
         };
@@ -343,11 +443,11 @@ export async function bootstrapOrganization(
     }
     await tx.insert(programs).values(programRows);
 
-    const result = {
+    const result = makeBootstrapResult(input, {
       organizationId: organization.id,
       locationId: location.id,
       memberId: member.id,
-    };
+    });
     await appendAuditEntry(tx, {
       organizationId: organization.id,
       locationId: location.id,
@@ -388,7 +488,9 @@ export async function bootstrapOrganization(
       userId: input.userId,
       idempotencyKey: input.idempotencyKey,
       requestHash: hash,
-      ...result,
+      organizationId: result.organizationId,
+      locationId: result.locationId,
+      memberId: result.memberId,
     });
     return result;
   });

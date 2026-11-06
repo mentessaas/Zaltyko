@@ -1,7 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
+import {
+  clearAttendanceRetry,
+  isDefinitiveAttendanceRejection,
+  persistAttendanceRetry,
+  readAttendanceRetries,
+  validAttendanceReceipt,
+  type AttendanceRetryRequest,
+} from "./owner-attendance-command";
+
+const useCommittedLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const attendanceStatuses = [
   { value: "present", label: "Presente" },
@@ -21,6 +34,15 @@ type SessionOption = {
   className: string;
   startsAt: string;
   timezone: string;
+  retryOnly?: boolean;
+};
+type SessionPageState = {
+  identity: string;
+  sessions: SessionOption[];
+  nextCursor: string | null;
+  loading: boolean;
+  error: string;
+  consumedCursors: string[];
 };
 type AttendanceCommand = {
   organizationId: string;
@@ -28,7 +50,41 @@ type AttendanceCommand = {
   enrollmentId: string;
   status: AttendanceStatus;
 };
-type RetryRequest = { key: string; body: AttendanceCommand };
+type RetryRequest = AttendanceRetryRequest;
+
+type AttendanceRosterState = {
+  scopeKey: string;
+  loading: boolean;
+  items: AttendanceItem[];
+  selectedStatuses: Record<string, AttendanceStatus | "">;
+  error: string;
+};
+type AttendanceWrite = { enrollmentId: string; token: symbol };
+
+function attendanceScopeKey(
+  organizationId: string,
+  locationId: string,
+  sessionId: string
+) {
+  return JSON.stringify([organizationId, locationId, sessionId]);
+}
+
+function retryScopeKey(request: RetryRequest) {
+  return attendanceScopeKey(
+    request.body.organizationId,
+    request.body.locationId,
+    request.sessionId
+  );
+}
+
+function retryRequestKey(request: RetryRequest) {
+  return JSON.stringify([
+    request.body.organizationId,
+    request.body.locationId,
+    request.sessionId,
+    request.body.enrollmentId,
+  ]);
+}
 
 const fieldClassName =
   "min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:bg-slate-100";
@@ -52,6 +108,66 @@ function responseError(payload: unknown): string {
   return "No se ha podido guardar la asistencia. Inténtalo de nuevo.";
 }
 
+function sessionOption(value: unknown): value is SessionOption {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.id === "string" &&
+    candidate.id.length > 0 &&
+    typeof candidate.className === "string" &&
+    typeof candidate.startsAt === "string" &&
+    !Number.isNaN(Date.parse(candidate.startsAt)) &&
+    typeof candidate.timezone === "string" &&
+    candidate.timezone.length > 0 &&
+    (candidate.retryOnly === undefined ||
+      typeof candidate.retryOnly === "boolean")
+  );
+}
+
+function sessionPageData(
+  payload: unknown,
+  organizationId: string,
+  locationId: string
+): { sessions: SessionOption[]; nextCursor: string | null } | null {
+  const data = responseData<unknown>(payload);
+  if (!data || typeof data !== "object") return null;
+  const candidate = data as Record<string, unknown>;
+  const organization = candidate.organization;
+  if (
+    !organization ||
+    typeof organization !== "object" ||
+    (organization as Record<string, unknown>).id !== organizationId ||
+    candidate.locationId !== locationId ||
+    !Array.isArray(candidate.sessions) ||
+    (candidate.nextCursor !== null &&
+      (typeof candidate.nextCursor !== "string" ||
+        candidate.nextCursor.length === 0)) ||
+    !candidate.sessions.every(sessionOption)
+  ) {
+    return null;
+  }
+
+  const sessions = candidate.sessions as SessionOption[];
+  if (new Set(sessions.map((session) => session.id)).size !== sessions.length) {
+    return null;
+  }
+
+  return {
+    sessions,
+    nextCursor: candidate.nextCursor as string | null,
+  };
+}
+
+function sessionPageError(payload: unknown): string {
+  if (payload && typeof payload === "object") {
+    const detail = "detail" in payload ? payload.detail : undefined;
+    const message = "message" in payload ? payload.message : undefined;
+    if (typeof detail === "string") return detail;
+    if (typeof message === "string") return message;
+  }
+  return "No se han podido cargar más sesiones. Comprueba la conexión e inténtalo de nuevo.";
+}
+
 function formatSessionDate(value: string, timezone: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
@@ -67,35 +183,245 @@ export function OwnerAttendanceManager({
   locationId,
   sessions,
   initialSessionId,
+  initialNextCursor,
+  selectedSession: requestedSession,
 }: {
   organizationId: string;
   locationId: string;
   sessions: SessionOption[];
   initialSessionId?: string | null;
+  initialNextCursor?: string | null;
+  selectedSession?: SessionOption | null;
 }) {
-  const [sessionId, setSessionId] = useState(
-    initialSessionId &&
-      sessions.some((session) => session.id === initialSessionId)
+  const planPolicy = useOwnerPlanPolicy(organizationId);
+  const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
+  const initialSessionOptions = useMemo(
+    () =>
+      requestedSession &&
+      !sessions.some((session) => session.id === requestedSession.id)
+        ? [...sessions, requestedSession]
+        : sessions,
+    [requestedSession, sessions]
+  );
+  const sessionPageIdentity = JSON.stringify([
+    organizationId,
+    locationId,
+    initialSessionId ?? null,
+    initialNextCursor ?? null,
+    initialSessionOptions,
+  ]);
+  const initialSessionPageState = useMemo<SessionPageState>(
+    () => ({
+      identity: sessionPageIdentity,
+      sessions: initialSessionOptions,
+      nextCursor: initialNextCursor ?? null,
+      loading: false,
+      error: "",
+      consumedCursors: [],
+    }),
+    [initialNextCursor, initialSessionOptions, sessionPageIdentity]
+  );
+  const [sessionPageState, setSessionPageState] = useState<SessionPageState>(
+    initialSessionPageState
+  );
+  const pageRequestController = useRef<AbortController | null>(null);
+  const pageRequestGeneration = useRef(0);
+  const pageRequestLoading = useRef(false);
+  const activeSessionPageIdentity = useRef(sessionPageIdentity);
+  const sessionPage =
+    sessionPageState.identity === sessionPageIdentity
+      ? sessionPageState
+      : initialSessionPageState;
+  const sessionOptions = sessionPage.sessions;
+
+  useCommittedLayoutEffect(() => {
+    if (activeSessionPageIdentity.current === sessionPageIdentity) return;
+    activeSessionPageIdentity.current = sessionPageIdentity;
+    pageRequestGeneration.current += 1;
+    pageRequestController.current?.abort();
+    pageRequestController.current = null;
+    pageRequestLoading.current = false;
+    setSessionPageState(initialSessionPageState);
+  }, [initialSessionPageState, sessionPageIdentity]);
+
+  useEffect(
+    () => () => {
+      pageRequestGeneration.current += 1;
+      pageRequestController.current?.abort();
+      pageRequestController.current = null;
+    },
+    []
+  );
+
+  const selectionScope = JSON.stringify([
+    organizationId,
+    locationId,
+    initialSessionId ?? null,
+  ]);
+  const initialSelection = initialSessionId
+    ? sessionOptions.some((session) => session.id === initialSessionId)
       ? initialSessionId
-      : (sessions[0]?.id ?? "")
+      : ""
+    : (sessionOptions[0]?.id ?? "");
+  const [selection, setSelection] = useState({
+    scope: selectionScope,
+    sessionId: initialSelection,
+  });
+  const sessionId =
+    selection.scope === selectionScope &&
+    (selection.sessionId === "" ||
+      sessionOptions.some((session) => session.id === selection.sessionId))
+      ? selection.sessionId
+      : initialSelection;
+  const requestedSessionUnavailable = Boolean(
+    initialSessionId &&
+      !sessionOptions.some((session) => session.id === initialSessionId)
   );
-  const [attendees, setAttendees] = useState<AttendanceItem[]>([]);
-  const [selectedStatuses, setSelectedStatuses] = useState<
-    Record<string, AttendanceStatus | "">
-  >({});
-  const [retryRequests, setRetryRequests] = useState<
-    Record<string, RetryRequest>
-  >({});
-  const [savingEnrollmentId, setSavingEnrollmentId] = useState<string | null>(
-    null
+  const selectedSession = sessionOptions.find((session) => session.id === sessionId);
+  const currentScopeKey = attendanceScopeKey(
+    organizationId,
+    locationId,
+    sessionId
   );
-  const hasPendingRetry = Object.keys(retryRequests).length > 0;
-  const [loading, setLoading] = useState(sessions.length > 0);
-  const [loadError, setLoadError] = useState("");
-  const [saveError, setSaveError] = useState("");
-  const [notice, setNotice] = useState("");
+  const activeScopeKeyRef = useRef(currentScopeKey);
+  useCommittedLayoutEffect(() => {
+    activeScopeKeyRef.current = currentScopeKey;
+  }, [currentScopeKey]);
+  const [rosterState, setRosterState] =
+    useState<AttendanceRosterState | null>(null);
+  const attendees =
+    rosterState?.scopeKey === currentScopeKey ? rosterState.items : [];
+  const selectedStatuses =
+    rosterState?.scopeKey === currentScopeKey
+      ? rosterState.selectedStatuses
+      : {};
+  const loading =
+    sessionId !== "" &&
+    (rosterState?.scopeKey !== currentScopeKey || rosterState.loading);
+  const loadError =
+    rosterState?.scopeKey === currentScopeKey ? rosterState.error : "";
+  const [retryRequests, setRetryRequests] = useState<Record<string, RetryRequest>>({});
+  const [retryStorageReady, setRetryStorageReady] = useState(false);
+  const [retryStorageError, setRetryStorageError] = useState("");
+  const [savingByScope, setSavingByScope] = useState<
+    Record<string, AttendanceWrite>
+  >({});
+  const savingByScopeRef = useRef<Record<string, AttendanceWrite>>({});
+  const savingForCurrentScope = savingByScope[currentScopeKey];
+  const pendingRetries = Object.values(retryRequests);
+  const retryForCurrentScope = pendingRetries.some(
+    (retry) => retryScopeKey(retry) === currentScopeKey
+  );
+  const [saveFeedback, setSaveFeedback] = useState({
+    scopeKey: currentScopeKey,
+    error: "",
+    notice: "",
+  });
+  const saveError =
+    saveFeedback.scopeKey === currentScopeKey ? saveFeedback.error : "";
+  const notice =
+    saveFeedback.scopeKey === currentScopeKey ? saveFeedback.notice : "";
   const [refreshKey, setRefreshKey] = useState(0);
   const requestSequence = useRef(0);
+
+  async function loadMoreSessions() {
+    const cursor = sessionPage.nextCursor;
+    if (!cursor || sessionPage.loading || pageRequestLoading.current) return;
+
+    pageRequestLoading.current = true;
+    pageRequestController.current?.abort();
+    const controller = new AbortController();
+    pageRequestController.current = controller;
+    const requestGeneration = ++pageRequestGeneration.current;
+    const requestIdentity = sessionPageIdentity;
+    const params = new URLSearchParams({
+      organizationId,
+      locationId,
+      cursor,
+    });
+    setSessionPageState((current) =>
+      current.identity === requestIdentity
+        ? { ...current, loading: true, error: "" }
+        : current
+    );
+
+    const isCurrentRequest = () =>
+      !controller.signal.aborted &&
+      pageRequestGeneration.current === requestGeneration &&
+      activeSessionPageIdentity.current === requestIdentity;
+
+    try {
+      const response = await fetch(
+        `/api/v1/owner/attendance/sessions?${params.toString()}`,
+        { cache: "no-store", signal: controller.signal }
+      );
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(sessionPageError(payload));
+      const page = sessionPageData(payload, organizationId, locationId);
+      if (!page) {
+        throw new Error(
+          "La respuesta de sesiones no coincide con esta academia y sede. Vuelve a intentarlo."
+        );
+      }
+      if (
+        page.nextCursor !== null &&
+        (page.nextCursor === cursor ||
+          sessionPage.consumedCursors.includes(page.nextCursor))
+      ) {
+        throw new Error(
+          "La paginación no avanzó de forma segura. Vuelve a intentarlo más tarde."
+        );
+      }
+      if (!isCurrentRequest()) return;
+
+      setSessionPageState((current) => {
+        if (current.identity !== requestIdentity) return current;
+        const knownIds = new Set(current.sessions.map((session) => session.id));
+        return {
+          ...current,
+          sessions: [
+            ...current.sessions,
+            ...page.sessions.filter((session) => !knownIds.has(session.id)),
+          ],
+          nextCursor: page.nextCursor,
+          consumedCursors: [...current.consumedCursors, cursor],
+          loading: false,
+          error: "",
+        };
+      });
+    } catch (cause) {
+      if (!isCurrentRequest()) return;
+      setSessionPageState((current) =>
+        current.identity === requestIdentity
+          ? {
+              ...current,
+              loading: false,
+              error:
+                cause instanceof Error && cause.name !== "TypeError"
+                  ? cause.message
+                  : "No se han podido cargar más sesiones. Comprueba la conexión e inténtalo de nuevo.",
+            }
+          : current
+      );
+    } finally {
+      if (pageRequestGeneration.current === requestGeneration) {
+        pageRequestLoading.current = false;
+        pageRequestController.current = null;
+      }
+    }
+  }
+
+  useEffect(() => {
+    const stored = readAttendanceRetries(window.sessionStorage);
+    if (stored.status === "ready") {
+      setRetryRequests(Object.fromEntries(stored.requests.map((request) => [retryRequestKey(request), request])));
+      setRetryStorageReady(true);
+    } else {
+      setRetryStorageError(stored.status === "invalid"
+        ? "Hay una asistencia pendiente local dañada. No enviaremos otro cambio hasta recuperar su estado."
+        : "El navegador no permite recuperar la asistencia pendiente. No enviaremos cambios hasta poder guardar el reintento.");
+    }
+  }, []);
 
   useEffect(() => {
     const requestId = ++requestSequence.current;
@@ -113,51 +439,81 @@ export function OwnerAttendanceManager({
           throw new Error(responseError(payload));
         }
         if (requestSequence.current === requestId) {
-          setAttendees(data.items);
-          setSelectedStatuses(
-            Object.fromEntries(
+          setRosterState({
+            scopeKey: currentScopeKey,
+            loading: false,
+            items: data.items,
+            selectedStatuses: Object.fromEntries(
               data.items.map((item) => [
                 item.enrollmentId,
                 item.attendanceStatus ?? "",
               ])
-            )
-          );
+            ),
+            error: "",
+          });
         }
       })
       .catch((cause: unknown) => {
         if (requestSequence.current === requestId) {
-          setLoadError(
-            cause instanceof Error && cause.name !== "TypeError"
-              ? cause.message
-              : "No se ha podido cargar la lista. Comprueba la conexión e inténtalo de nuevo."
-          );
+          setRosterState({
+            scopeKey: currentScopeKey,
+            loading: false,
+            items: [],
+            selectedStatuses: {},
+            error:
+              cause instanceof Error && cause.name !== "TypeError"
+                ? cause.message
+                : "No se ha podido cargar la lista. Comprueba la conexión e inténtalo de nuevo.",
+          });
         }
-      })
-      .finally(() => {
-        if (requestSequence.current === requestId) setLoading(false);
       });
 
     return () => {
       requestSequence.current += 1;
     };
-  }, [locationId, organizationId, refreshKey, sessionId]);
+  }, [currentScopeKey, locationId, organizationId, refreshKey, sessionId]);
 
   async function saveAttendance(
     enrollmentId: string,
     command: AttendanceCommand,
     retry?: RetryRequest
   ) {
+    if (
+      !retryStorageReady ||
+      (writesBlocked && !retry) ||
+      (selectedSession?.retryOnly && !retry)
+    ) {
+      return;
+    }
     const request = retry ?? {
       key: `owner-attendance:${crypto.randomUUID()}`,
       body: command,
+      sessionId,
+      uncertain: false,
     };
-    setSavingEnrollmentId(enrollmentId);
-    setSaveError("");
-    setNotice("");
-    setRetryRequests((current) => ({ ...current, [enrollmentId]: request }));
+    if (retry && retryScopeKey(retry) !== currentScopeKey) return;
+    const requestScopeKey = retryScopeKey(request);
+    if (savingByScopeRef.current[requestScopeKey]) return;
+    const requestKey = retryRequestKey(request);
+    const wasUncertainBeforeThisAttempt = retry?.uncertain ?? false;
+    const inFlightRequest = { ...request, uncertain: true };
+    if (!persistAttendanceRetry(window.sessionStorage, inFlightRequest)) {
+      setSaveFeedback({ scopeKey: requestScopeKey, error: "No se pudo guardar de forma segura el reintento; no se ha enviado la asistencia.", notice: "" });
+      return;
+    }
+    const writeToken = Symbol("attendance-write");
+    let definitivelyRejected = false;
+    const nextSavingByScope = {
+      ...savingByScopeRef.current,
+      [requestScopeKey]: { enrollmentId, token: writeToken },
+    };
+    savingByScopeRef.current = nextSavingByScope;
+    setSavingByScope(nextSavingByScope);
+    setSaveFeedback({ scopeKey: requestScopeKey, error: "", notice: "" });
+    setRetryRequests((current) => ({ ...current, [requestKey]: inFlightRequest }));
     try {
       const response = await fetch(
-        `/api/v1/owner/sessions/${encodeURIComponent(sessionId)}/attendance`,
+        `/api/v1/owner/sessions/${encodeURIComponent(request.sessionId)}/attendance`,
         {
           method: "POST",
           headers: {
@@ -169,45 +525,99 @@ export function OwnerAttendanceManager({
       );
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        if (response.status < 500) {
-          setRetryRequests((current) => {
-            const next = { ...current };
-            delete next[enrollmentId];
-            return next;
-          });
+        if (isDefinitiveAttendanceRejection(response.status, payload, wasUncertainBeforeThisAttempt)) {
+          if (clearAttendanceRetry(window.sessionStorage, request)) {
+            definitivelyRejected = true;
+            setRetryRequests((current) => {
+              const next = { ...current };
+              delete next[requestKey];
+              return next;
+            });
+          }
+        } else {
+          const uncertainRequest = { ...request, uncertain: true };
+          persistAttendanceRetry(window.sessionStorage, uncertainRequest);
+          setRetryRequests((current) => ({ ...current, [requestKey]: uncertainRequest }));
         }
         throw new Error(
-          response.status >= 500
+          !isDefinitiveAttendanceRejection(response.status, payload, wasUncertainBeforeThisAttempt)
             ? "No sabemos si se guardó. Reintenta este mismo envío para evitar duplicados."
             : responseError(payload)
         );
       }
 
-      setAttendees((current) =>
-        current.map((item) =>
-          item.enrollmentId === enrollmentId
-            ? { ...item, attendanceStatus: request.body.status }
-            : item
-        )
-      );
+      if (!validAttendanceReceipt(payload, request)) {
+        const uncertainRequest = { ...request, uncertain: true };
+        persistAttendanceRetry(window.sessionStorage, uncertainRequest);
+        setRetryRequests((current) => ({ ...current, [requestKey]: uncertainRequest }));
+        throw new Error("No hemos podido validar el recibo. Reintenta este mismo envío para evitar duplicados.");
+      }
+
+      if (!clearAttendanceRetry(window.sessionStorage, request)) {
+        const uncertainRequest = { ...request, uncertain: true };
+        persistAttendanceRetry(window.sessionStorage, uncertainRequest);
+        setRetryRequests((current) => ({ ...current, [requestKey]: uncertainRequest }));
+        throw new Error("El servidor respondió, pero no se pudo cerrar el reintento guardado. Vuelve a intentarlo con la misma solicitud.");
+      }
+
       setRetryRequests((current) => {
         const next = { ...current };
-        delete next[enrollmentId];
+        delete next[requestKey];
         return next;
       });
-      setNotice("Asistencia guardada.");
+      if (activeScopeKeyRef.current === requestScopeKey) {
+        setRosterState((current) =>
+          current?.scopeKey === requestScopeKey
+            ? {
+                ...current,
+                items: current.items.map((item) =>
+                  item.enrollmentId === enrollmentId
+                    ? { ...item, attendanceStatus: request.body.status }
+                    : item
+                ),
+              }
+            : current
+        );
+        setSaveFeedback({
+          scopeKey: requestScopeKey,
+          error: "",
+          notice: "Asistencia guardada.",
+        });
+      }
     } catch (cause) {
-      setSaveError(
-        cause instanceof Error && cause.name !== "TypeError"
-          ? cause.message
-          : "No sabemos si se guardó. Reintenta este mismo envío para evitar duplicados."
-      );
+      if (!definitivelyRejected) {
+        const uncertainRequest = { ...request, uncertain: true };
+        persistAttendanceRetry(window.sessionStorage, uncertainRequest);
+        setRetryRequests((current) => ({ ...current, [requestKey]: uncertainRequest }));
+      }
+      if (activeScopeKeyRef.current === requestScopeKey) {
+        setSaveFeedback({
+          scopeKey: requestScopeKey,
+          error:
+            cause instanceof Error && cause.name !== "TypeError"
+              ? cause.message
+              : "No sabemos si se guardó. Reintenta este mismo envío para evitar duplicados.",
+          notice: "",
+        });
+      }
     } finally {
-      setSavingEnrollmentId(null);
+      const current = savingByScopeRef.current;
+      if (current[requestScopeKey]?.token === writeToken) {
+        const next = { ...current };
+        delete next[requestScopeKey];
+        savingByScopeRef.current = next;
+        setSavingByScope(next);
+      }
     }
   }
 
-  const selectedSession = sessions.find((session) => session.id === sessionId);
+  const orphanRetries = pendingRetries.filter(
+    (retry) =>
+      retryScopeKey(retry) === currentScopeKey &&
+      !attendees.some(
+        (attendee) => attendee.enrollmentId === retry.body.enrollmentId
+      )
+  );
 
   return (
     <main className="min-h-screen bg-[#F1F3EF] px-5 py-6 text-slate-950 sm:py-10">
@@ -233,7 +643,40 @@ export function OwnerAttendanceManager({
           </div>
         </div>
 
-        {sessions.length === 0 ? (
+        <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
+
+        {pendingRetries
+          .filter((retry) => retryScopeKey(retry) !== currentScopeKey)
+          .map((retry) => {
+            const params = new URLSearchParams({
+              organizationId: retry.body.organizationId,
+              locationId: retry.body.locationId,
+              sessionId: retry.sessionId,
+            });
+            return (
+              <p
+                key={retryRequestKey(retry)}
+                role="status"
+                className="border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
+              >
+                Hay una asistencia cuyo resultado sigue sin confirmar en otra
+                sesión. Conservamos la solicitud original; vuelve a su ámbito
+                para reintentarla sin cambiar la clave ni los datos.{" "}
+                <Link
+                  className="font-bold underline underline-offset-2"
+                  href={`/owner/attendance?${params.toString()}`}
+                >
+                  Volver a esa sesión
+                </Link>
+              </p>
+            );
+          })}
+
+        {sessionOptions.length === 0 &&
+        !initialSessionId &&
+        !sessionPage.nextCursor &&
+        !sessionPage.loading &&
+        !sessionPage.error ? (
           <p className="border border-slate-300 bg-white p-5 text-sm leading-6 text-slate-700">
             Aún no hay sesiones para pasar lista. Crea una clase recurrente para
             preparar sus sesiones.
@@ -247,20 +690,17 @@ export function OwnerAttendanceManager({
                 onChange={(event) => {
                   const nextSessionId = event.target.value;
                   if (nextSessionId === sessionId) return;
-
-                  setAttendees([]);
-                  setSelectedStatuses({});
-                  setLoadError("");
-                  setSaveError("");
-                  setNotice("");
-                  setLoading(true);
-                  setSessionId(nextSessionId);
+                  setSelection({
+                    scope: selectionScope,
+                    sessionId: nextSessionId,
+                  });
                 }}
-                disabled={savingEnrollmentId !== null || hasPendingRetry}
+                disabled={Boolean(savingForCurrentScope) || retryForCurrentScope}
                 className={fieldClassName}
                 aria-label="Seleccionar sesión"
               >
-                {sessions.map((session) => (
+                <option value="">Selecciona una sesión</option>
+                {sessionOptions.map((session) => (
                   <option key={session.id} value={session.id}>
                     {session.className} ·{" "}
                     {formatSessionDate(session.startsAt, session.timezone)}
@@ -268,6 +708,40 @@ export function OwnerAttendanceManager({
                 ))}
               </select>
             </label>
+            {sessionPage.loading && (
+              <p role="status" aria-live="polite" className="text-sm text-slate-600">
+                Cargando más sesiones…
+              </p>
+            )}
+            {sessionPage.error && (
+              <div role="alert" className="border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+                <p>{sessionPage.error}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadMoreSessions()}
+                  disabled={sessionPage.loading}
+                  className="mt-3 underline underline-offset-2 disabled:opacity-50"
+                >
+                  Reintentar carga de sesiones
+                </button>
+              </div>
+            )}
+            {!sessionPage.error && sessionPage.nextCursor && (
+              <button
+                type="button"
+                onClick={() => void loadMoreSessions()}
+                disabled={sessionPage.loading}
+                className={buttonClassName}
+              >
+                {sessionPage.loading ? "Cargando sesiones…" : "Cargar más sesiones"}
+              </button>
+            )}
+            {requestedSessionUnavailable && (
+              <p role="status" className="border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+                La sesión solicitada no está disponible en esta sede. No hemos
+                seleccionado otra sesión automáticamente.
+              </p>
+            )}
             {selectedSession && (
               <p className="text-sm text-slate-600">
                 {selectedSession.className} ·{" "}
@@ -275,6 +749,12 @@ export function OwnerAttendanceManager({
                   selectedSession.startsAt,
                   selectedSession.timezone
                 )}
+              </p>
+            )}
+            {selectedSession?.retryOnly && (
+              <p role="status" className="border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+                Esta sesión solo permite recuperar una asistencia que ya se
+                había enviado. No se pueden registrar cambios nuevos aquí.
               </p>
             )}
 
@@ -296,9 +776,13 @@ export function OwnerAttendanceManager({
                 <button
                   type="button"
                   onClick={() => {
-                    setAttendees([]);
-                    setLoadError("");
-                    setLoading(true);
+                    setRosterState({
+                      scopeKey: currentScopeKey,
+                      loading: true,
+                      items: [],
+                      selectedStatuses: {},
+                      error: "",
+                    });
                     setRefreshKey((current) => current + 1);
                   }}
                   className="mt-3 underline underline-offset-2"
@@ -306,6 +790,11 @@ export function OwnerAttendanceManager({
                   Volver a intentar
                 </button>
               </div>
+            )}
+            {retryStorageError && (
+              <p role="alert" className="border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+                {retryStorageError}
+              </p>
             )}
             {saveError && (
               <p
@@ -315,6 +804,7 @@ export function OwnerAttendanceManager({
                 {saveError}
               </p>
             )}
+
             {notice && (
               <p
                 role="status"
@@ -325,16 +815,23 @@ export function OwnerAttendanceManager({
               </p>
             )}
 
-            {!loading && !loadError && attendees.length === 0 ? (
+            {sessionId && !loading && !loadError && attendees.length === 0 ? (
               <p className="border border-slate-300 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
                 No hay gimnastas con inscripción vigente en esta sesión.
               </p>
-            ) : !loadError ? (
+            ) : sessionId && !loadError ? (
               <ul className="divide-y divide-slate-200 border-y border-slate-200">
                 {attendees.map((attendee) => {
-                  const retry = retryRequests[attendee.enrollmentId];
+                  const retry = pendingRetries.find(
+                    (candidate) =>
+                      candidate.body.organizationId === organizationId &&
+                      candidate.body.locationId === locationId &&
+                      candidate.sessionId === sessionId &&
+                      candidate.body.enrollmentId === attendee.enrollmentId
+                  );
                   const status = selectedStatuses[attendee.enrollmentId] ?? "";
-                  const rowBusy = savingEnrollmentId === attendee.enrollmentId;
+                  const rowBusy =
+                    savingForCurrentScope?.enrollmentId === attendee.enrollmentId;
                   const saveAction = rowBusy
                     ? "Guardando asistencia"
                     : retry
@@ -356,15 +853,23 @@ export function OwnerAttendanceManager({
                           value={status}
                           disabled={
                             Boolean(retry) ||
-                            savingEnrollmentId !== null ||
-                            loading
+                            Boolean(savingForCurrentScope) ||
+                            loading ||
+                            Boolean(selectedSession?.retryOnly)
                           }
                           onChange={(event) => {
-                            setSelectedStatuses((current) => ({
-                              ...current,
-                              [attendee.enrollmentId]: event.target.value as
-                                AttendanceStatus | "",
-                            }));
+                            setRosterState((current) =>
+                              current?.scopeKey === currentScopeKey
+                                ? {
+                                    ...current,
+                                    selectedStatuses: {
+                                      ...current.selectedStatuses,
+                                      [attendee.enrollmentId]: event.target
+                                        .value as AttendanceStatus | "",
+                                    },
+                                  }
+                                : current
+                            );
                           }}
                           className={fieldClassName}
                           aria-label={`Asistencia de ${attendee.athleteName}`}
@@ -380,8 +885,11 @@ export function OwnerAttendanceManager({
                       <button
                         type="button"
                         disabled={
-                          savingEnrollmentId !== null ||
+                          Boolean(savingForCurrentScope) ||
                           loading ||
+                          !retryStorageReady ||
+                          (writesBlocked && !retry) ||
+                          (selectedSession?.retryOnly && !retry) ||
                           (!retry && !status)
                         }
                         onClick={() => {
@@ -411,6 +919,35 @@ export function OwnerAttendanceManager({
                 })}
               </ul>
             ) : null}
+            {sessionId && !loading && !loadError && orphanRetries.map((retry) => {
+              const rowBusy = Boolean(savingForCurrentScope);
+              return (
+                <div
+                  key={retryRequestKey(retry)}
+                  className="grid gap-3 border border-amber-300 bg-amber-50 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                >
+                  <p className="text-sm leading-6 text-amber-950">
+                    Hay una asistencia pendiente para una inscripción que ya no
+                    aparece en la lista. Solo reenviaremos la solicitud original.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={rowBusy || !retryStorageReady}
+                    onClick={() =>
+                      void saveAttendance(
+                        retry.body.enrollmentId,
+                        retry.body,
+                        retry
+                      )
+                    }
+                    className={buttonClassName}
+                    aria-label="Reintentar asistencia pendiente"
+                  >
+                    {rowBusy ? "Reintentando…" : "Reintentar envío original"}
+                  </button>
+                </div>
+              );
+            })}
           </section>
         )}
       </div>

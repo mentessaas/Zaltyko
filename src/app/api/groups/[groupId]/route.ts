@@ -16,6 +16,8 @@ import { NextResponse } from "next/server";
 import { verifyAcademySportConfig } from "@/lib/sport-config/service";
 import { isProgramCodeAllowed, normalizeApparatusCodes } from "@/lib/sport-config/validation";
 import { assertCoachesCanHandleSportConfig } from "@/lib/coaches/sport-scope";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
+import { withTransaction } from "@/lib/db-transactions";
 
 type RouteContext = TenantContext<{ params?: { groupId?: string } }>;
 
@@ -24,7 +26,7 @@ const DISCIPLINES = ["artistica", "ritmica", "general"] as const;
 const GroupUpdateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   discipline: z.enum(DISCIPLINES).optional(),
-  sportConfigId: z.string().uuid().nullable().optional(),
+  sportConfigId: z.guid().nullable().optional(),
   programCode: z.string().trim().min(1).max(80).nullable().optional(),
   levelCode: z.string().trim().min(1).max(80).nullable().optional(),
   categoryCode: z.string().trim().min(1).max(80).nullable().optional(),
@@ -32,16 +34,16 @@ const GroupUpdateSchema = z.object({
   technicalFocus: z.string().max(500).optional().nullable(),
   apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   sessionBlocks: z.array(z.string().trim().min(1).max(160)).max(8).optional(),
-  coachId: z.string().uuid().nullable().optional(),
-  assistantIds: z.array(z.string().uuid()).optional(),
-  athleteIds: z.array(z.string().uuid()).optional(),
+  coachId: z.guid().nullable().optional(),
+  assistantIds: z.array(z.guid()).optional(),
+  athleteIds: z.array(z.guid()).optional(),
   color: z
     .string()
     .regex(/^#([0-9a-fA-F]{3}){1,2}$/)
     .nullable()
     .optional(),
   monthlyFeeCents: z.number().int().min(0).nullable().optional(), // Cuota mensual en céntimos
-  billingItemId: z.string().uuid().nullable().optional(), // Concepto de cobro asociado
+  billingItemId: z.guid().nullable().optional(), // Concepto de cobro asociado
 });
 
 // Handler for PATCH - separated to apply rate limiting
@@ -170,7 +172,36 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
     }
   }
 
-  await db.transaction(async (tx) => {
+  const updated = await withTransaction(async (tx) => {
+    await lockAcademyOperationalWrites(tx, group.academyId);
+    await assertAcademyOperationalWritable(group.tenantId, group.academyId, tx);
+
+    const [currentGroup] = await tx
+      .select({ id: groups.id })
+      .from(groups)
+      .where(and(
+        eq(groups.id, groupId),
+        eq(groups.tenantId, group.tenantId),
+        eq(groups.academyId, group.academyId),
+        isNull(groups.deletedAt),
+      ))
+      .limit(1);
+    if (!currentGroup) return false;
+
+    if (athleteIds?.length) {
+      const currentAthletes = await tx
+        .select({ id: athletes.id })
+        .from(athletes)
+        .where(and(
+          eq(athletes.academyId, group.academyId),
+          eq(athletes.tenantId, group.tenantId),
+          isNull(athletes.deletedAt),
+          inArray(athletes.id, athleteIds),
+        ))
+        .limit(5000);
+      if (currentAthletes.length !== athleteIds.length) return false;
+    }
+
     const updatePayload: Record<string, unknown> = {};
     if (payload.name !== undefined) updatePayload.name = payload.name.trim();
     if (payload.discipline !== undefined) updatePayload.discipline = payload.discipline;
@@ -200,14 +231,19 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
     if (payload.billingItemId !== undefined) updatePayload.billingItemId = payload.billingItemId ?? null;
 
     if (Object.keys(updatePayload).length > 0) {
-      await tx.update(groups).set(updatePayload).where(eq(groups.id, groupId));
+      await tx.update(groups).set(updatePayload).where(and(
+        eq(groups.id, groupId),
+        eq(groups.tenantId, group.tenantId),
+        eq(groups.academyId, group.academyId),
+        isNull(groups.deletedAt),
+      ));
     }
 
     if (athleteIds) {
       const current = await tx
         .select({ athleteId: groupAthletes.athleteId })
         .from(groupAthletes)
-        .where(eq(groupAthletes.groupId, groupId))
+        .where(and(eq(groupAthletes.groupId, groupId), eq(groupAthletes.tenantId, group.tenantId)))
         .limit(5000);
       const currentIds = current.map((row) => row.athleteId);
 
@@ -236,7 +272,11 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
       if (toRemove.length) {
         await tx
           .delete(groupAthletes)
-          .where(and(eq(groupAthletes.groupId, groupId), inArray(groupAthletes.athleteId, toRemove)));
+          .where(and(
+            eq(groupAthletes.groupId, groupId),
+            eq(groupAthletes.tenantId, group.tenantId),
+            inArray(groupAthletes.athleteId, toRemove),
+          ));
 
         await tx
           .update(athletes)
@@ -250,7 +290,11 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
           );
       }
     }
+
+    return true;
   });
+
+  if (!updated) return apiError("GROUP_OR_ATHLETE_NOT_FOUND", "Group or athlete not found", 404);
 
   return apiSuccess({ ok: true });
 });
@@ -296,15 +340,35 @@ const deleteGroupHandler = withTenant(async (request, context: RouteContext) => 
     return apiError("FORBIDDEN", "Access denied", 403);
   }
 
-  await db.transaction(async (tx) => {
+  const deleted = await withTransaction(async (tx) => {
+    await lockAcademyOperationalWrites(tx, group.academyId);
+    await assertAcademyOperationalWritable(group.tenantId, group.academyId, tx);
+    const [currentGroup] = await tx
+      .select({ id: groups.id })
+      .from(groups)
+      .where(and(
+        eq(groups.id, groupId),
+        eq(groups.tenantId, group.tenantId),
+        eq(groups.academyId, group.academyId),
+        isNull(groups.deletedAt),
+      ))
+      .limit(1);
+    if (!currentGroup) return false;
+
     await tx
       .update(athletes)
       .set({ groupId: null })
       .where(and(eq(athletes.groupId, groupId), eq(athletes.tenantId, group.tenantId)));
 
-    await tx.delete(groupAthletes).where(eq(groupAthletes.groupId, groupId));
-    await tx.delete(groups).where(eq(groups.id, groupId));
+    await tx.delete(groupAthletes).where(and(
+      eq(groupAthletes.groupId, groupId),
+      eq(groupAthletes.tenantId, group.tenantId),
+    ));
+    await tx.delete(groups).where(and(eq(groups.id, groupId), eq(groups.tenantId, group.tenantId)));
+    return true;
   });
+
+  if (!deleted) return apiError("GROUP_NOT_FOUND", "Group not found", 404);
 
   return apiSuccess({ ok: true });
 });

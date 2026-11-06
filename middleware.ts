@@ -8,6 +8,7 @@ import { getAcademyRobotsHeader } from "@/lib/seo/academy-robots-directives";
 import { getLocalSupabaseCspConnectSources } from "@/lib/security/local-supabase-csp";
 import { extractAcademySlugFromHost } from "@/lib/subdomains/rewrite";
 import { getExperimentalReleaseFlags, isExperimentalRouteDisabled } from "@/lib/release/experimental-routes";
+import { isOutsideEssentialLaunch, isRetiredLaunchMarketing } from "@/lib/launch/essential-routes";
 
 // Constants
 const SUPER_ADMIN_PATH = "/super-admin";
@@ -473,6 +474,20 @@ export async function middleware(req: NextRequest) {
 
   const pathname = req.nextUrl.pathname;
 
+  // Respond before App Router can stream a 200 for a retired page's notFound().
+  // The launch cut also closes the historical marketplace API, regardless of
+  // experimental flags; it cannot become a second purchasing entry point.
+  if (isOutsideEssentialLaunch(pathname)) {
+    const response = new NextResponse(null, { status: 404 });
+    response.headers.set("Cache-Control", "no-store");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    return applySecurityHeaders(response, nonce);
+  }
+  if (isRetiredLaunchMarketing(pathname)) {
+    const target = new URL("/features", req.url);
+    return applySecurityHeaders(NextResponse.redirect(target), nonce);
+  }
+
   if (isExperimentalRouteDisabled(pathname, experimentalFlags)) {
     return applySecurityHeaders(new NextResponse(null, { status: 404 }), nonce);
   }
@@ -579,7 +594,13 @@ export async function middleware(req: NextRequest) {
     response.headers.set("X-Robots-Tag", getAcademyRobotsHeader(false) as string);
   }
 
-  return applySecurityHeaders(response, nonce);
+  const securedResponse = applySecurityHeaders(response, nonce);
+  if (pathname === "/staff/accept") {
+    securedResponse.headers.set("Referrer-Policy", "no-referrer");
+    securedResponse.headers.set("Cache-Control", "private, no-store");
+    securedResponse.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
+  return securedResponse;
 }
 
 export const config = {

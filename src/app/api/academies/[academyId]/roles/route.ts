@@ -15,7 +15,7 @@ const CreateRoleSchema = z.object({
   name: z.string().trim().min(2).max(100),
   description: z.string().trim().max(500).nullable().optional(),
   permissions: z.array(PermissionSchema).max(permissionEnum.enumValues.length).default([]),
-  inheritsFrom: z.string().uuid().nullable().optional(),
+  inheritsFrom: z.guid().nullable().optional(),
 });
 
 function academyIdFromContext(context: Record<string, unknown>) {

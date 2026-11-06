@@ -6,6 +6,7 @@ import { academies, stripeAccounts } from "@/db/schema";
 import { getStripeClient } from "@/lib/stripe/client";
 import { getAppUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { throwFamilyAutomaticCollectionDisabled } from "@/lib/stripe/family-automatic-collection-disabled";
 
 /**
  * Servicio de Stripe Connect (Standard).
@@ -86,6 +87,8 @@ interface EnsureAccountParams {
 export async function getOrCreateConnectAccount(
   params: EnsureAccountParams
 ): Promise<ConnectAccountRow> {
+  throwFamilyAutomaticCollectionDisabled();
+
   const existing = await getConnectAccount(params.academyId);
   if (existing) {
     if (existing.tenantId !== params.tenantId) {
@@ -145,6 +148,8 @@ export async function createOnboardingLink(
   stripeAccountId: string,
   academyId: string
 ): Promise<string> {
+  throwFamilyAutomaticCollectionDisabled();
+
   const stripe = getStripeClient();
   const baseUrl = getAppUrl();
   const link = await stripe.accountLinks.create({
@@ -239,6 +244,8 @@ export async function syncConnectAccountFromStripe(
 export async function refreshConnectAccountStatus(
   academyId: string
 ): Promise<ConnectAccountRow | null> {
+  throwFamilyAutomaticCollectionDisabled();
+
   const local = await getConnectAccount(academyId);
   if (!local) return null;
 

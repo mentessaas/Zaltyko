@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -9,6 +9,8 @@ import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { withTransaction, type DatabaseClient } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const UpdateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
@@ -22,9 +24,10 @@ const UpdateSchema = z.object({
 async function getGuardianScope(
   guardianId: string,
   tenantId: string,
-  requestedAthleteId?: string | null
+  requestedAthleteId?: string | null,
+  client: DatabaseClient = db
 ) {
-  return db
+  return client
     .select({
       guardianId: guardians.id,
       tenantId: guardians.tenantId,
@@ -46,6 +49,38 @@ async function getGuardianScope(
     )
     .limit(1)
     .then((rows) => rows[0] ?? null);
+}
+
+async function lockWritableGuardianAcademies(
+  client: DatabaseClient,
+  guardianId: string,
+  tenantId: string
+): Promise<boolean> {
+  const linkedAthletes = await client
+    .select({ academyId: athletes.academyId })
+    .from(guardianAthletes)
+    .innerJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
+    .where(and(
+      eq(guardianAthletes.guardianId, guardianId),
+      eq(guardianAthletes.tenantId, tenantId),
+      eq(athletes.tenantId, tenantId),
+      isNull(athletes.deletedAt),
+    ))
+    .orderBy(asc(athletes.academyId));
+
+  const academyIds = [...new Set(linkedAthletes.map((row) => row.academyId))].sort();
+  if (academyIds.length === 0) return false;
+
+  // Acquire all affected scopes before the subscription locks in the capacity
+  // guard, matching the deterministic lock order used by multi-academy webhooks.
+  for (const academyId of academyIds) {
+    await lockAcademyOperationalWrites(client, academyId);
+  }
+  for (const academyId of academyIds) {
+    await assertAcademyOperationalWritable(tenantId, academyId, client);
+  }
+
+  return true;
 }
 
 export const GET = withTenant(async (request, context) => {
@@ -143,17 +178,40 @@ export const PUT = withTenant(async (request, context) => {
     });
     if (!scope.allowed) return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
 
-    await db
-      .update(guardians)
-      .set({
-        name: body.name ?? existing.name,
-        email: body.email ?? existing.email,
-        phone: body.phone ?? existing.phone,
-        relationship: body.relationship ?? existing.relationship,
-        notifyEmail: body.notifyEmail ?? existing.notifyEmail,
-        notifySms: body.notifySms ?? existing.notifySms,
-      })
-      .where(and(eq(guardians.id, guardianId), eq(guardians.tenantId, context.tenantId)));
+    const updated = await withTransaction(async (tx) => {
+      const [current] = await tx
+        .select({
+          id: guardians.id,
+          name: guardians.name,
+          email: guardians.email,
+          phone: guardians.phone,
+          relationship: guardians.relationship,
+          notifyEmail: guardians.notifyEmail,
+          notifySms: guardians.notifySms,
+        })
+        .from(guardians)
+        .where(and(eq(guardians.id, guardianId), eq(guardians.tenantId, context.tenantId!)))
+        .limit(1);
+      if (!current) return false;
+
+      const currentScope = await getGuardianScope(guardianId, context.tenantId!, requestedAthleteId, tx);
+      if (!currentScope) return false;
+      if (!(await lockWritableGuardianAcademies(tx, guardianId, context.tenantId!))) return false;
+
+      await tx
+        .update(guardians)
+        .set({
+          name: body.name ?? current.name,
+          email: body.email ?? current.email,
+          phone: body.phone ?? current.phone,
+          relationship: body.relationship ?? current.relationship,
+          notifyEmail: body.notifyEmail ?? current.notifyEmail,
+          notifySms: body.notifySms ?? current.notifySms,
+        })
+        .where(and(eq(guardians.id, guardianId), eq(guardians.tenantId, context.tenantId!)));
+      return true;
+    });
+    if (!updated) return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
 
     return apiSuccess({ ok: true });
   } catch (error) {
@@ -194,10 +252,25 @@ export const DELETE = withTenant(async (request, context) => {
     });
     if (!scope.allowed) return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
 
-    // Delete guardian (cascades to guardianAthletes due to FK)
-    await db
-      .delete(guardians)
-      .where(and(eq(guardians.id, guardianId), eq(guardians.tenantId, context.tenantId)));
+    const deleted = await withTransaction(async (tx) => {
+      const [current] = await tx
+        .select({ id: guardians.id })
+        .from(guardians)
+        .where(and(eq(guardians.id, guardianId), eq(guardians.tenantId, context.tenantId!)))
+        .limit(1);
+      if (!current) return false;
+
+      const currentScope = await getGuardianScope(guardianId, context.tenantId!, requestedAthleteId, tx);
+      if (!currentScope) return false;
+      if (!(await lockWritableGuardianAcademies(tx, guardianId, context.tenantId!))) return false;
+
+      // Delete guardian (cascades to guardianAthletes due to FK).
+      await tx
+        .delete(guardians)
+        .where(and(eq(guardians.id, guardianId), eq(guardians.tenantId, context.tenantId!)));
+      return true;
+    });
+    if (!deleted) return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
 
     return apiSuccess({ ok: true });
   } catch (error) {

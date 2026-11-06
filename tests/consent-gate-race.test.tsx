@@ -6,13 +6,16 @@ import { afterEach, expect, it, vi } from "vitest";
 afterEach(() => {
   cleanup();
   vi.doUnmock("posthog-js");
+  vi.doUnmock("@/lib/optional-tracking-policy");
   vi.unstubAllEnvs();
 });
 
 it("does not initialize or capture if consent is revoked during PostHog import", async () => {
   vi.resetModules();
   vi.stubEnv("NEXT_PUBLIC_DISABLE_ANALYTICS", "false");
+  vi.stubEnv("NEXT_PUBLIC_ENABLE_POSTHOG", "true");
   vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_synthetic_race_test_key");
+  window.history.replaceState({}, "", "/");
 
   let releaseImport!: () => void;
   let finishImport!: () => void;
@@ -31,6 +34,18 @@ it("does not initialize or capture if consent is revoked during PostHog import",
     debug: vi.fn(),
   };
 
+  vi.doMock("@/lib/optional-tracking-policy", async (importOriginal) => {
+    const actual = await importOriginal<
+      typeof import("@/lib/optional-tracking-policy")
+    >();
+    return {
+      ...actual,
+      optionalTrackingFlags: {
+        ...actual.optionalTrackingFlags,
+        posthog: true,
+      },
+    };
+  });
   vi.doMock("posthog-js", async () => {
     importStarted();
     await importGate;
