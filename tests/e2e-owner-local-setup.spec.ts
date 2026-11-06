@@ -1671,6 +1671,32 @@ test.describe("Isolated local Supabase Owner setup", () => {
         }
       }
       await expect(page.getByRole("navigation", { name: "Operaciones de la academia" }).getByRole("link", { name: "Cuotas mensuales" })).toBeVisible();
+      const dashboardTargets = await page.locator('main form[action="/owner"] select, main form[action="/owner"] button, nav[aria-label="Operaciones de la academia"] a').evaluateAll((elements) => elements.map((element) => {
+        const box = element.getBoundingClientRect();
+        const label = element.tagName === "SELECT" ? "Sede" : element.textContent?.trim();
+        const textElement = element.tagName === "A" ? element.querySelector("span") : element.tagName === "BUTTON" ? element : null;
+        const range = document.createRange();
+        if (textElement) range.selectNodeContents(textElement);
+        const text = textElement ? range.getBoundingClientRect() : null;
+        return { label, left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height, textLeft: text?.left, textRight: text?.right };
+      }));
+      expect(dashboardTargets).toHaveLength(9);
+      for (const target of dashboardTargets) {
+        expect(target.width, target.label).toBeGreaterThanOrEqual(44);
+        expect(target.height, target.label).toBeGreaterThanOrEqual(44);
+        expect(target.left, target.label).toBeGreaterThanOrEqual(0);
+        expect(target.right, target.label).toBeLessThanOrEqual(viewport.width);
+        if (target.textLeft !== undefined && target.textRight !== undefined) {
+          expect(target.textLeft, target.label).toBeGreaterThanOrEqual(target.left - 1);
+          expect(target.textRight, target.label).toBeLessThanOrEqual(target.right + 1);
+        }
+      }
+      for (let index = 0; index < dashboardTargets.length; index++) {
+        for (const other of dashboardTargets.slice(index + 1)) {
+          const target = dashboardTargets[index];
+          expect(target.left < other.right && other.left < target.right && target.top < other.bottom && other.top < target.bottom, `${target.label} / ${other.label}`).toBe(false);
+        }
+      }
     }
     for (const path of ["insights", "health-score/setup"]) {
       const retiredResponse = await page.request.get(`/owner/${path}?${scope}`);

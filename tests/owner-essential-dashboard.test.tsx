@@ -77,6 +77,24 @@ describe("essential Owner launch surface", () => {
     expect((selector as HTMLSelectElement).value).toBe(scope.selectedLocationId);
     expect(screen.getByRole("button", { name: "Ver resumen" }).closest("form")?.getAttribute("method")).toBe("get");
   });
+  it("preserves academy and location in operational links and the GET form", () => {
+    render(<OwnerEssentialDashboard scope={{ ...scope, organization: { ...scope.organization, name: "Club de gimnasia artística y rítmica con actividades complementarias" }, locations: [{ ...scope.locations[0], name: "Sede de entrenamiento y preparación de conjuntos de competición" }], member: { ...scope.member, role: "owner", locationScopeMode: "all" } }} operationalSummary={null} />);
+    expect(screen.getByRole("heading", { level: 1, name: "Resumen" })).toBeInTheDocument();
+    const navigation = screen.getByRole("navigation", { name: "Operaciones de la academia" });
+    for (const label of ["Grupos", "Clases", "Inscripciones", "Asistencia", "Cuotas mensuales", "Cobros manuales"]) {
+      const url = new URL(within(navigation).getByRole("link", { name: label }).getAttribute("href")!, "https://example.test");
+      expect(url.searchParams.get("organizationId")).toBe(scope.organization.id);
+      expect(url.searchParams.get("locationId")).toBe(scope.selectedLocationId);
+    }
+    const athleteUrl = new URL(within(navigation).getByRole("link", { name: "Gimnastas" }).getAttribute("href")!, "https://example.test");
+    expect(athleteUrl.searchParams.get("organizationId")).toBe(scope.organization.id);
+    expect(athleteUrl.searchParams.has("locationId")).toBe(false);
+    const form = screen.getByRole("button", { name: "Ver resumen" }).closest("form")!;
+    expect(form).toHaveAttribute("action", "/owner");
+    expect(form).toHaveAttribute("method", "get");
+    expect(form.querySelector('input[name="organizationId"]')).toHaveAttribute("value", scope.organization.id);
+    expect(screen.getByRole("combobox", { name: "Sede" })).toHaveValue(scope.selectedLocationId);
+  });
   it("offers the organization aggregate only when scope authorizes it", () => {
     render(<OwnerEssentialDashboard scope={{ ...scope, canViewOrganizationAggregate: true, selectedLocationId: null }} operationalSummary={null} />);
     expect(screen.getByRole("option", { name: "Todas las sedes autorizadas" }).getAttribute("value")).toBe("");

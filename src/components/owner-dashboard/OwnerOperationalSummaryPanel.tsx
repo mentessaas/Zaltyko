@@ -18,7 +18,7 @@ export function OwnerOperationalSummaryPanel({
     return (
       <section
         aria-labelledby="operational-summary-unavailable-title"
-        className="mt-6 border border-amber-300 bg-amber-50 p-5"
+        className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 sm:p-7"
       >
         <h2
           id="operational-summary-unavailable-title"
@@ -38,26 +38,26 @@ export function OwnerOperationalSummaryPanel({
   return (
     <section
       aria-labelledby="operational-summary-title"
-      className="mt-6 border-t-4 border-teal-700 bg-white p-5 sm:p-7"
+      className="mt-6 min-w-0 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-7"
     >
-      <h2 id="operational-summary-title" className="text-2xl text-slate-950">
+      <h2 id="operational-summary-title" className="font-display text-2xl font-bold tracking-tight text-slate-950">
         Tu academia en marcha
       </h2>
       <p className="mt-2 text-sm text-slate-600">
         {scope.label} · Todos los programas y grupos de este ámbito.
       </p>
-      <div className="mt-5 grid gap-6">
-        <section aria-labelledby="operational-summary-current-title">
+      <div className="mt-6 grid min-w-0 gap-5 lg:grid-cols-2">
+        <section aria-labelledby="operational-summary-current-title" className="min-w-0 rounded-2xl bg-teal-50/60 p-5">
           <h3
             id="operational-summary-current-title"
             className="text-base font-semibold text-slate-950"
           >
             Ahora
           </h3>
-          <dl className="mt-3 grid gap-4 sm:grid-cols-2">
+          <dl className="mt-4 grid min-w-0 gap-5 sm:grid-cols-2">
             <div>
               <dt className="text-sm text-slate-600">Gimnastas activos hoy</dt>
-              <dd className="mt-1 text-3xl font-semibold text-slate-950">
+              <dd className="mt-2 break-words font-display text-4xl font-bold tabular-nums tracking-tight text-slate-950">
                 {metrics.activeAthletes}
               </dd>
               <p className="mt-1 text-xs text-slate-600">
@@ -66,7 +66,7 @@ export function OwnerOperationalSummaryPanel({
             </div>
             <div>
               <dt className="text-sm text-slate-600">Grupos activos hoy</dt>
-              <dd className="mt-1 text-3xl font-semibold text-slate-950">
+              <dd className="mt-2 break-words font-display text-4xl font-bold tabular-nums tracking-tight text-slate-950">
                 {metrics.activeGroups}
               </dd>
             </div>
@@ -75,7 +75,7 @@ export function OwnerOperationalSummaryPanel({
 
         <section
           aria-labelledby="operational-summary-period-title"
-          className="border-t border-slate-200 pt-4"
+          className="min-w-0 rounded-2xl bg-slate-50 p-5"
         >
           <h3
             id="operational-summary-period-title"
@@ -91,7 +91,7 @@ export function OwnerOperationalSummaryPanel({
               <dt className="text-sm text-slate-600">
                 Registros de asistencia
               </dt>
-              <dd className="mt-1 text-3xl font-semibold text-slate-950">
+              <dd className="mt-2 break-words font-display text-4xl font-bold tabular-nums tracking-tight text-slate-950">
                 {metrics.attendanceRecords}
               </dd>
               <p className="mt-1 text-xs text-slate-600">
@@ -106,7 +106,7 @@ export function OwnerOperationalSummaryPanel({
 
         <section
           aria-labelledby="operational-summary-payments-title"
-          className="border-t border-slate-200 pt-4"
+          className="min-w-0 rounded-2xl border border-slate-100 p-5 lg:col-span-2"
         >
           <h3
             id="operational-summary-payments-title"
@@ -116,10 +116,10 @@ export function OwnerOperationalSummaryPanel({
           </h3>
           {payments.state === "available" ? (
             <>
-              <dl className="mt-3 grid gap-4 sm:grid-cols-2">
+              <dl className="mt-4 grid min-w-0 gap-5 sm:grid-cols-2">
                 <div>
                   <dt className="text-sm text-slate-600">Cobros</dt>
-                  <dd className="mt-1 text-3xl font-semibold text-slate-950">
+                  <dd className="mt-2 break-words font-display text-4xl font-bold tabular-nums tracking-tight text-slate-950">
                     {payments.count}
                   </dd>
                 </div>
@@ -128,7 +128,7 @@ export function OwnerOperationalSummaryPanel({
                     <dt className="text-sm text-slate-600">
                       Total bruto en {currency}
                     </dt>
-                    <dd className="mt-1 text-xl font-semibold text-slate-950">
+                    <dd className="mt-2 break-words font-display text-2xl font-bold tabular-nums tracking-tight text-slate-950">
                       {new Intl.NumberFormat("es-ES", {
                         style: "currency",
                         currency,
