@@ -35,6 +35,18 @@ const serverEnvSchema = z.object({
   BREVO_SENDER_NAME: z.string().min(1).optional(),
   BREVO_REPLY_TO: z.string().email().optional(),
 
+  // Contact-only delivery QA permit, OFF by default. Combination/context/window
+  // validation is fail-closed in preflight and the exclusive runtime adapter.
+  // Never add this namespace to shared email readiness or NEXT_PUBLIC variables.
+  ZALTYKO_DELIVERY_CONTACT_EMAIL_ENABLED: z.enum(["true", "false"]).optional(),
+  DELIVERY_CONTACT_EMAIL_API_KEY: z.string().optional(),
+  DELIVERY_CONTACT_EMAIL_QA_EMAIL: z.union([z.literal(""), z.string().email()]).optional(),
+  DELIVERY_CONTACT_EMAIL_QA_AUTH_USER_ID: z.union([z.literal(""), z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)]).optional(),
+  DELIVERY_CONTACT_EMAIL_RUN_ID: z.union([z.literal(""), z.string().regex(/^[a-z0-9][a-z0-9_-]{15,79}$/)]).optional(),
+  DELIVERY_CONTACT_EMAIL_REQUEST_SHA256: z.union([z.literal(""), z.string().regex(/^[0-9a-f]{64}$/)]).optional(),
+  DELIVERY_CONTACT_EMAIL_APPROVED_COMMIT_SHA: z.union([z.literal(""), z.string().regex(/^[0-9a-f]{40}$/)]).optional(),
+  DELIVERY_CONTACT_EMAIL_EXPIRES_AT: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/)]).optional(),
+
   // Mailgun solo se conserva para el webhook inbound legado (/api/mailgun)
   MAILGUN_SIGNING_KEY: z.string().min(1).optional(),
 
@@ -92,6 +104,12 @@ const serverEnvSchema = z.object({
   SEED_STRIPE_PRICE_PREMIUM: z.string().optional(),
   SEED_STRIPE_ANNUAL_PRICE_PREMIUM: z.string().optional(),
   SEED_STRIPE_PRODUCT_PREMIUM: z.string().optional(),
+}).superRefine((environment, context) => {
+  const fields = ["DELIVERY_CONTACT_EMAIL_API_KEY", "DELIVERY_CONTACT_EMAIL_QA_EMAIL", "DELIVERY_CONTACT_EMAIL_QA_AUTH_USER_ID", "DELIVERY_CONTACT_EMAIL_RUN_ID", "DELIVERY_CONTACT_EMAIL_REQUEST_SHA256", "DELIVERY_CONTACT_EMAIL_APPROVED_COMMIT_SHA", "DELIVERY_CONTACT_EMAIL_EXPIRES_AT"] as const;
+  const enabled = environment.ZALTYKO_DELIVERY_CONTACT_EMAIL_ENABLED === "true";
+  if (enabled ? fields.some((key) => !environment[key]) : fields.some((key) => Boolean(environment[key]))) {
+    context.addIssue({ code: "custom", path: ["ZALTYKO_DELIVERY_CONTACT_EMAIL_ENABLED"], message: "Contact QA requires a complete permit when ON and an empty namespace when OFF" });
+  }
 });
 
 /**

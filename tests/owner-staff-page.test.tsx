@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
 
 const pageMocks = vi.hoisted(() => ({
@@ -25,15 +25,19 @@ vi.mock("@/modules/owner-dashboard/application/owner-scope", () => ({
 }));
 
 import OwnerStaffPage from "@/app/owner/staff/page";
+import { OwnerStaffManager } from "@/components/owner-dashboard/OwnerStaffManager";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 
 const ORGANIZATION_ID = "80000000-0000-4000-8000-000000000001";
 
 beforeEach(() => {
+  vi.stubEnv("ZALTYKO_TEAM_ACCESS_ENABLED", "false");
   pageMocks.userId = "80000000-0000-4000-8000-000000000010";
   pageMocks.role = "owner";
   pageMocks.locationScopeMode = "all";
 });
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe("entrada de Personal", () => {
   it("renderiza la academia autorizada sin seleccionar ni arrastrar una sede", async () => {
@@ -51,6 +55,7 @@ describe("entrada de Personal", () => {
     expect(shell.props.locationId).toBeUndefined();
     expect(shell.props.children.props.organizationId).toBe(ORGANIZATION_ID);
     expect(shell.props.children.props.organizationName).toBe("Club de prueba");
+    expect(shell.props.children.type).toBe(OwnerStaffManager);
   });
 
   it.each([

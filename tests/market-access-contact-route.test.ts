@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const state = vi.hoisted(() => ({
@@ -9,7 +9,7 @@ const state = vi.hoisted(() => ({
     plan: "plan", source: "source", message: "message", visitorId: "visitor-id",
   },
   transaction: vi.fn(), execute: vi.fn(),
-  insert: vi.fn(), select: vi.fn(), mail: vi.fn(), event: vi.fn(),
+  insert: vi.fn(), select: vi.fn(), mail: vi.fn(), deliveryMail: vi.fn(), event: vi.fn(),
   leadValues: [] as Record<string, unknown>[],
   interactionValues: [] as Record<string, unknown>[],
   seen: new Set<string>(),
@@ -21,7 +21,8 @@ vi.mock("@/lib/rate-limit", () => ({ withRateLimit: (handler: (request: NextRequ
 vi.mock("@/lib/directory/contracts", () => ({ flag: () => false }));
 vi.mock("@/lib/growth/events", () => ({ recordGrowthEvent: state.event }));
 vi.mock("@/lib/email/email-service", () => ({ sendEmailWithLogging: state.mail }));
-vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn(), error: vi.fn() } }));
+vi.mock("@/lib/email/delivery-contact-email", () => ({ sendDeliveryContactEmail: state.deliveryMail }));
+vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 import { POST } from "@/app/api/contact/route";
 
@@ -39,6 +40,8 @@ function request(value: unknown) {
 }
 
 beforeEach(() => {
+  vi.stubEnv("ZALTYKO_DELIVERY_PREVIEW", undefined);
+  state.deliveryMail.mockReset().mockResolvedValue({ outcome: "skipped", reason: "disabled" });
   state.insert.mockReset(); state.select.mockReset(); state.mail.mockReset(); state.event.mockReset();
   state.transaction.mockReset(); state.execute.mockReset();
   state.leadValues.length = 0; state.interactionValues.length = 0; state.seen.clear();
@@ -69,8 +72,33 @@ beforeEach(() => {
     }),
   }));
 });
+afterEach(() => vi.unstubAllEnvs());
 
 describe("persistencia del acceso asistido sin aprovisionar academias", () => {
+  it("keeps the ordinary sender outside delivery even if a QA namespace is present", async () => {
+    vi.stubEnv("DELIVERY_CONTACT_EMAIL_API_KEY", "synthetic-unused-key");
+    vi.stubEnv("ZALTYKO_DELIVERY_CONTACT_EMAIL_ENABLED", "true");
+    expect((await POST(request(body))).status).toBe(201);
+    expect(state.mail).toHaveBeenCalledTimes(1); expect(state.deliveryMail).not.toHaveBeenCalled();
+  });
+  it.each([false, true])("preserves delivery persistence/replay with no shared fallback (adapter throws=%s)", async (throws) => {
+    vi.stubEnv("ZALTYKO_DELIVERY_PREVIEW", "true");
+    if (throws) state.deliveryMail.mockRejectedValue(new Error("synthetic adapter failure"));
+    const { marketAccess: _marketAccess, ...ordinary } = body;
+    const command = { ...ordinary, reason: "support", source: "public_contact", honeypot: "" };
+    const first = await POST(request(command));
+    const replay = await POST(request(command));
+    expect(first.status).toBe(201); expect(replay.status).toBe(201);
+    const receipt = (await first.json()).data;
+    expect((await replay.json()).data).toMatchObject({ interactionId: receipt.interactionId, leadId: receipt.leadId, idempotent: true });
+    expect(state.interactionValues).toHaveLength(1);
+    expect(state.deliveryMail).toHaveBeenCalledTimes(1); expect(state.mail).not.toHaveBeenCalled();
+    expect(state.deliveryMail).toHaveBeenCalledWith({
+      name: ordinary.name, email: ordinary.email, academy: null, reason: "support", plan: null, source: "public_contact",
+      message: ordinary.message, honeypot: "", directoryEntryId: null, marketAccess: null,
+      submissionId: ordinary.submissionId, visitorId: ordinary.visitorId,
+    });
+  });
   it("conserva datos estructurados por interacción y reusa la identidad en un replay", async () => {
     const first = await POST(request(body));
     const replay = await POST(request(body));

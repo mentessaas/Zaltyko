@@ -150,24 +150,39 @@ export const POST = withRateLimit(
 
       // Send email notification
       try {
-        await sendEmailWithLogging({
-          to: "hola@zaltyko.com",
-          subject: `[Zaltyko Contact] ${subject} - ${normalizedEmail}`,
-          text: `Nombre: ${sanitizedName}\nEmail: ${normalizedEmail}\nAcademia: ${sanitizedAcademy ?? "No indicada"}\nPlan: ${plan ?? "No indicado"}\n\nMensaje:\n${emailMessage}`,
-          html: `<p><strong>Nombre:</strong> ${escapeHtml(sanitizedName)}</p>
+        if (process.env.ZALTYKO_DELIVERY_PREVIEW === "true") {
+          // Delivery never falls back to the shared/global sender, including OFF,
+          // unapproved actors and unavailable configuration. Contact stays public.
+          const { sendDeliveryContactEmail } = await import("@/lib/email/delivery-contact-email");
+          const result = await sendDeliveryContactEmail({
+            name: sanitizedName, email: normalizedEmail, academy: sanitizedAcademy,
+            reason, plan: plan ?? null, source, message: storedMessage,
+            honeypot: honeypot ?? null, directoryEntryId: directoryEntryId?.toLowerCase() ?? null,
+            marketAccess: marketAccess ?? null, submissionId: normalizedSubmissionId, visitorId: normalizedVisitorId,
+          });
+          logger.info("Delivery contact email outcome", result);
+        } else {
+          await sendEmailWithLogging({
+            to: "hola@zaltyko.com",
+            subject: `[Zaltyko Contact] ${subject} - ${normalizedEmail}`,
+            text: `Nombre: ${sanitizedName}\nEmail: ${normalizedEmail}\nAcademia: ${sanitizedAcademy ?? "No indicada"}\nPlan: ${plan ?? "No indicado"}\n\nMensaje:\n${emailMessage}`,
+            html: `<p><strong>Nombre:</strong> ${escapeHtml(sanitizedName)}</p>
 <p><strong>Email:</strong> ${escapeHtml(normalizedEmail)}</p>
 <p><strong>Academia:</strong> ${escapeHtml(sanitizedAcademy ?? "No indicada")}</p>
 <p><strong>Plan:</strong> ${escapeHtml(plan ?? "No indicado")}</p>
 <p><strong>Asunto:</strong> ${escapeHtml(subject)}</p>
 <p><strong>Mensaje:</strong></p>
 <p>${escapeHtml(emailMessage).replace(/\n/g, "<br>")}</p>`,
-          replyTo: normalizedEmail,
-          template: "public-contact-lead",
-          dedupeKey: `public-contact-lead:${submissionId}`,
-        });
+            replyTo: normalizedEmail,
+            template: "public-contact-lead",
+            dedupeKey: `public-contact-lead:${submissionId}`,
+          });
+        }
       } catch (emailError) {
-        logger.warn("Failed to send contact email", { error: emailError });
-        // Non-blocking - message is still considered sent
+        // Delivery diagnostics never serialize an Auth/provider error or request.
+        logger.warn("Failed to send contact email", process.env.ZALTYKO_DELIVERY_PREVIEW === "true"
+          ? { outcome: "unavailable" } : { error: emailError });
+        // Non-blocking: the primary request is persisted, delivery is unconfirmed.
       }
 
       return apiCreated({

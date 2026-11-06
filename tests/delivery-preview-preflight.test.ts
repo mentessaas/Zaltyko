@@ -26,6 +26,50 @@ for (const interval of ["STARTER_MONTH", "STARTER_YEAR", "GROWTH_MONTH", "GROWTH
 }
 
 describe("delivery preview isolation preflight", () => {
+  function contactPermit(): NodeJS.ProcessEnv {
+    return { ...fixture, VERCEL: "1", NODE_ENV: "production", VERCEL_GIT_COMMIT_SHA: "a".repeat(40),
+      ZALTYKO_DELIVERY_CONTACT_EMAIL_ENABLED: "true", DELIVERY_CONTACT_EMAIL_API_KEY: "synthetic-exclusive-key",
+      DELIVERY_CONTACT_EMAIL_QA_EMAIL: "qa@example.invalid", DELIVERY_CONTACT_EMAIL_QA_AUTH_USER_ID: "10000000-0000-4000-8000-000000000001",
+      DELIVERY_CONTACT_EMAIL_RUN_ID: "synthetic-run-7f3b0001", DELIVERY_CONTACT_EMAIL_REQUEST_SHA256: "b".repeat(64),
+      DELIVERY_CONTACT_EMAIL_APPROVED_COMMIT_SHA: "a".repeat(40),
+      DELIVERY_CONTACT_EMAIL_EXPIRES_AT: new Date(Date.now() + 900_000).toISOString() };
+  }
+  it("admits only the complete synthetic contact permit while shared Brevo stays forbidden", () => {
+    const permit = contactPermit();
+    const result = spawnSync(process.execPath, ["preview-build-preflight.cjs"], { env: permit, encoding: "utf8" });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('"deliveryContactEmailIsolation":true');
+    expect(result.stdout).toContain('"noExternalProviders":true');
+    expect(result.stdout).not.toContain("synthetic-exclusive-key");
+    expect(result.stdout).not.toContain("qa@example.invalid");
+    // CI=1 is a Vercel build system variable, not permission for GitHub CI.
+    expect(spawnSync(process.execPath, ["preview-build-preflight.cjs"], { env: { ...permit, CI: "1" } }).status).toBe(0);
+    expect(spawnSync(process.execPath, ["preview-build-preflight.cjs"], { env: { ...permit, CI: "1", GITHUB_ACTIONS: "true" } }).status).toBe(1);
+    expect(spawnSync(process.execPath, ["preview-build-preflight.cjs"], { env: { ...permit, BREVO_API_KEY: "synthetic-global-key" } }).status).toBe(1);
+  });
+  it.each([
+    { ZALTYKO_DELIVERY_CONTACT_EMAIL_ENABLED: "false" }, { ZALTYKO_DELIVERY_CONTACT_EMAIL_ENABLED: "" },
+    { ZALTYKO_DELIVERY_PREVIEW: "false" }, { VERCEL_ENV: "production" }, { VERCEL: "" },
+    { NODE_ENV: "test" }, { GITHUB_ACTIONS: "true" },
+    { VERCEL_GIT_COMMIT_REF: "main" }, { VERCEL_GIT_COMMIT_SHA: "c".repeat(40) },
+    { DELIVERY_CONTACT_EMAIL_API_KEY: "" }, { DELIVERY_CONTACT_EMAIL_QA_EMAIL: "QA@example.invalid" },
+    { DELIVERY_CONTACT_EMAIL_QA_AUTH_USER_ID: "bad" }, { DELIVERY_CONTACT_EMAIL_RUN_ID: "bad" },
+    { DELIVERY_CONTACT_EMAIL_REQUEST_SHA256: "bad" }, { DELIVERY_CONTACT_EMAIL_APPROVED_COMMIT_SHA: "c".repeat(40) },
+    { DELIVERY_CONTACT_EMAIL_EXPIRES_AT: "2000-01-01T00:00:00Z" },
+    { DELIVERY_CONTACT_EMAIL_EXPIRES_AT: "2999-01-01T00:00:00Z" },
+    { DELIVERY_CONTACT_EMAIL_EXPIRES_AT: "2026-11-06T12:00:00+00:00" },
+    { ZALTYKO_TEAM_ACCESS_ENABLED: "true" },
+  ])("rejects an unsafe/partial contact permit %o", (override) => {
+    const result = spawnSync(process.execPath, ["preview-build-preflight.cjs"], { env: { ...contactPermit(), ...override }, encoding: "utf8" });
+    expect(result.status).toBe(1);
+    expect(result.stdout).not.toContain("synthetic-exclusive-key");
+    expect(result.stdout).not.toContain("qa@example.invalid");
+  });
+  it.each(["API_KEY", "QA_EMAIL", "QA_AUTH_USER_ID", "RUN_ID", "REQUEST_SHA256", "APPROVED_COMMIT_SHA", "EXPIRES_AT"])("rejects partial namespace %s with OFF", (key) => {
+    expect(spawnSync(process.execPath, ["preview-build-preflight.cjs"], {
+      env: { ...fixture, [`DELIVERY_CONTACT_EMAIL_${key}`]: "synthetic" }, encoding: "utf8",
+    }).status).toBe(1);
+  });
   it("accepts only the delivery sandbox with experiment flags off", () => {
     expect(execFileSync(process.execPath, ["preview-build-preflight.cjs"], {
       env: fixture, encoding: "utf8",
