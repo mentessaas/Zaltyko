@@ -41,3 +41,11 @@ El contrato del correo diferencia el build de Vercel, que expone CI=1, del runti
 La revisión del emisor común confirma otro defecto: descartaba el resultado de Brevo y podía marcar sent ante simulación o ausencia de aceptación. El arreglo requiere simulated=false e identificador no vacío; un resultado simulado/incompleto conserva el intento como failed y devuelve false sin sentAt ni payload. Errores reales y guardas existentes se conservan. QA revisó independientemente fuente y 30 casos mock, sin P1/P2. No se habilita credencial ni se cambia Brevo. Los callers que ignoran false requieren su propia revisión; este delta no acredita que todos presenten el resultado correctamente.
 
 El siguiente candidato requiere ambas CI completas, build principal y aislado y controles exactos. Sin nuevas pruebas locales, despliegue o configuración de proveedores.
+
+## Candidato 2895f605 y diagnóstico WebKit
+
+Ambos builds, PostgreSQL desechable, unitarias5998PASS/6omitidas, Chromium3/3, Firefox3/3, seguridad, tipos/lint, móvil, RLS/migraciones, Static, Directory y GitGuardian pasan. La CI principal42136562092 falla en WebKit: Owner operativo pasa; acceso asistido espera un alert tras el click de la primera petición abortada y no lo encuentra; Personal no se ejecuta. Las cinco tareas condicionales omitidas no acreditan recorridos.
+
+El artifact sintético13466920592 muestra el botón de envío detrás de la cabecera fija. El diagnóstico anterior solo instrumentaba grupos; no permite afirmar si salió la primera POST de contacto ni demostrar una causa funcional. Owner y QA coinciden en no modificar producto por hipótesis. El siguiente ajuste centra el botón instantáneamente antes de ambos clicks nativos, conserva abort/replay/cuerpo idéntico, añade observación de la primera petición y amplía el diagnóstico a metadatos de contacto. No fuerza clicks, no genera eventos, no relaja aserciones/timeouts/retries ni cambia CSS. Una CI verde posterior no certificará una causa exclusiva del fallo previo.
+
+No hay recepción de correo, credencial real, publicación, SQL alojado, Live, producción, ensayo ni ejecución local de aplicación.

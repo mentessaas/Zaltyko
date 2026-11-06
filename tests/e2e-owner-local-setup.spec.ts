@@ -59,7 +59,7 @@ type OwnerInteractionDiagnostic = {
   type: string;
   pathname: string;
   targetTag: string;
-  buttonKind: "family-association" | "other" | "none";
+  buttonKind: "family-association" | "contact-submit" | "other" | "none";
   expanded: string | null;
   disabled: boolean | null;
   buttonId: number | null;
@@ -135,7 +135,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       const buttonIds = new WeakMap<Element, number>();
       let nextButtonId = 1;
       const recordInteraction = (type: string, target: Element | null) => {
-        if (location.pathname !== "/owner/groups") return;
+        if (!["/owner/groups", "/contact"].includes(location.pathname)) return;
         const button = target?.closest("button") ?? null;
         if (button && !buttonIds.has(button)) buttonIds.set(button, nextButtonId++);
         const events = targetWindow.__zaltykoOwnerInteractions!;
@@ -144,7 +144,10 @@ test.describe("Isolated local Supabase Owner setup", () => {
           targetTag: target?.tagName.toLowerCase() ?? "none",
           buttonKind: button
             ? (button.textContent?.trim().startsWith("Vincular familia a ")
-                ? "family-association" : "other")
+                ? "family-association"
+                : button instanceof HTMLButtonElement && button.type === "submit" &&
+                    button.form?.getAttribute("aria-label") === "Formulario de contacto"
+                  ? "contact-submit" : "other")
             : "none",
           expanded: button?.getAttribute("aria-expanded") ?? null,
           disabled: button instanceof HTMLButtonElement ? button.disabled : null,
@@ -157,17 +160,19 @@ test.describe("Isolated local Supabase Owner setup", () => {
       new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           const target = mutation.target;
-          if (target instanceof HTMLButtonElement &&
-              target.textContent?.trim().startsWith("Vincular familia a ")) {
+          if (target instanceof HTMLButtonElement && (
+              target.textContent?.trim().startsWith("Vincular familia a ") ||
+              (location.pathname === "/contact" && target.type === "submit" &&
+                target.form?.getAttribute("aria-label") === "Formulario de contacto"))) {
             recordInteraction(`attribute-${mutation.attributeName}`, target);
           }
         }
       }).observe(document, {
         subtree: true, attributes: true, attributeFilter: ["aria-expanded", "disabled"],
       });
-      for (const type of ["pointerdown", "pointerup", "click"]) {
+      for (const type of ["pointerdown", "pointerup", "click", "submit", "invalid"]) {
         document.addEventListener(type, (event) => {
-          if (location.pathname !== "/owner/groups") return;
+          if (!["/owner/groups", "/contact"].includes(location.pathname)) return;
           const target = event.target instanceof Element ? event.target : null;
           recordInteraction(event.type, target);
           if (event.type === "click") {
@@ -180,11 +185,18 @@ test.describe("Isolated local Supabase Owner setup", () => {
 
     page.on("request", (request) => {
       const pathname = diagnosticPathname(request.url());
-      if (pathname !== "/api/v1/owner/families/options") return;
-      record({ type: "family-options-request", pathname, method: request.method() });
+      if (pathname === "/api/v1/owner/families/options") {
+        record({ type: "family-options-request", pathname, method: request.method() });
+      } else if (pathname === "/api/contact" && request.method() === "POST") {
+        record({ type: "contact-request", pathname, method: request.method() });
+      }
     });
 
     page.on("requestfailed", (request) => {
+      const pathname = diagnosticPathname(request.url());
+      if (pathname === "/api/contact" && request.method() === "POST") {
+        record({ type: "contact-request-failed", pathname, method: request.method() });
+      }
       if (request.resourceType() !== "document") return;
       record({
         type: "document-request-failed",
@@ -197,6 +209,8 @@ test.describe("Isolated local Supabase Owner setup", () => {
       const pathname = diagnosticPathname(response.url());
       if (pathname === "/api/v1/owner/families/options") {
         record({ type: "family-options-response", pathname, status: response.status() });
+      } else if (pathname === "/api/contact" && response.request().method() === "POST") {
+        record({ type: "contact-response", pathname, method: "POST", status: response.status() });
       }
       if (response.request().resourceType() !== "document") return;
       record({
@@ -258,7 +272,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       const events = browserDiagnostics.map((event) => ({
         at: event.at,
         type: event.type,
-        pathname: ["/owner/groups", "/api/v1/owner/families/options"].includes(event.pathname)
+        pathname: ["/owner/groups", "/api/v1/owner/families/options", "/contact", "/api/contact"].includes(event.pathname)
           ? event.pathname : "<other-route>",
         method: event.method && ["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD", "OPTIONS"].includes(event.method)
           ? event.method : undefined,
@@ -3036,7 +3050,13 @@ test.describe("Isolated local Supabase Owner setup", () => {
 
     const submitButton = form.getByRole("button", { name: "Enviar mensaje" });
     await expect(submitButton).toBeEnabled();
+    // Focus from textarea.fill can leave the button behind the fixed header
+    // while smooth scrolling settles. Position it before the native click.
+    await submitButton.evaluate((element) => element.scrollIntoView({
+      behavior: "instant", block: "center", inline: "nearest",
+    }));
     await submitButton.click();
+    await expect.poll(() => contactPosts.length).toBe(1);
     await expect(form.getByRole("alert")).toBeVisible();
     await expect(submitButton).toBeEnabled();
     expect(contactPosts).toHaveLength(1);
@@ -3080,6 +3100,9 @@ test.describe("Isolated local Supabase Owner setup", () => {
       disciplines: ["rhythmic"],
     });
 
+    await submitButton.evaluate((element) => element.scrollIntoView({
+      behavior: "instant", block: "center", inline: "nearest",
+    }));
     await submitButton.click();
     await expect(form.getByRole("status")).toHaveText(
       "Solicitud guardada. Revisaremos la disponibilidad para tu país y te responderemos por correo."
