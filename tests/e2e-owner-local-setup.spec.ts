@@ -3249,11 +3249,11 @@ test.describe("Isolated local Supabase Owner setup", () => {
       });
       expect((await listResponsePromise).status()).toBe(200);
       await expect(
-        page.getByRole("heading", { name: "Personal", exact: true })
+        page.getByRole("heading", { name: "Equipo", exact: true })
       ).toBeVisible();
       await expect(
         page.getByText(
-          /crear un perfil no crea una cuenta, invitación ni acceso a zaltyko/i
+          "Esta persona no podrá iniciar sesión. No se crea una cuenta ni se envía una invitación."
         )
       ).toBeVisible();
       expect(
@@ -3397,9 +3397,9 @@ test.describe("Isolated local Supabase Owner setup", () => {
         .getByLabel("Apellidos", { exact: true })
         .fill(staffFamilyName);
       await createForm
-        .getByLabel("Nombre preferido")
+        .getByLabel("Nombre en el club")
         .fill("Entrenador E2E");
-      await createForm.getByRole("button", { name: "Crear perfil" }).click();
+      await createForm.getByRole("button", { name: "Añadir al equipo" }).click();
       const pending = page.getByRole("region", {
         name: "Operación pendiente",
       });
@@ -3582,7 +3582,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       });
       await createdArticle.getByRole("button", { name: "Editar" }).click();
       const staleEditForm = createdArticle.locator("form");
-      await expect(staleEditForm.getByRole("heading", { name: "Editar perfil" })).toBeVisible();
+      await expect(staleEditForm.getByRole("heading", { name: "Editar datos" })).toBeVisible();
 
       // Simulate a second authorized editor changing the same record while
       // this browser keeps its original edit draft open.
@@ -3652,7 +3652,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       await expect(
         retainedDraft.getByLabel("Apellidos", { exact: true })
       ).toHaveValue(staffFamilyName);
-      await expect(retainedDraft.getByLabel("Nombre preferido")).toHaveValue(
+      await expect(retainedDraft.getByLabel("Nombre en el club")).toHaveValue(
         "Entrenador E2E"
       );
 
@@ -3714,7 +3714,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
         .getByLabel("Apellidos", { exact: true })
         .fill(editedFamilyName);
       await editForm
-        .getByLabel("Nombre preferido")
+        .getByLabel("Nombre en el club")
         .fill(editedPreferredName);
       const updateRequestPromise = page.waitForRequest(
         (request) =>
@@ -3958,7 +3958,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
         const moreSummary = navigation.locator("summary");
         await moreSummary.click();
         await expect(
-          navigation.getByRole("link", { name: "Personal", exact: true })
+          navigation.getByRole("link", { name: "Equipo", exact: true })
         ).toHaveAttribute("aria-current", "page");
         await moreSummary.click();
 

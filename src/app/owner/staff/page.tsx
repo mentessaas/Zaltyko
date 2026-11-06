@@ -13,8 +13,8 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Personal | Zaltyko",
-  description: "Gestiona los perfiles operativos de personal de la academia.",
+  title: "Equipo | Zaltyko",
+  description: "Organiza a las personas que forman parte de tu club.",
   robots: { index: false, follow: false },
 };
 

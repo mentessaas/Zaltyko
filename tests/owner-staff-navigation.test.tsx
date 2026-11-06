@@ -36,8 +36,8 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
-describe("navegación de Personal", () => {
-  it("muestra Personal en Más en escritorio y móvil, conservando solo la academia", () => {
+describe("navegación de Equipo", () => {
+  it("muestra Equipo en Más en escritorio y móvil, conservando solo la academia", () => {
     render(
       <OwnerWorkspaceNavigation
         capabilities={ownerWorkspaceCapabilitiesFor({ role: "owner", locationScopeMode: "all" })}
@@ -49,7 +49,7 @@ describe("navegación de Personal", () => {
     const desktop = within(screen.getByRole("navigation", { name: "Principal", hidden: true }));
     const mobile = within(screen.getByRole("navigation", { name: "Navegación móvil", hidden: true }));
     for (const navigation of [desktop, mobile]) {
-      const personal = navigation.getByRole("link", { name: "Personal", hidden: true });
+      const personal = navigation.getByRole("link", { name: "Equipo", hidden: true });
       expect(personal).toHaveAttribute("href", `/owner/staff?organizationId=${ORGANIZATION_ID}`);
       expect(personal).toHaveAttribute("aria-current", "page");
       expect(personal.getAttribute("href")).not.toContain(LOCATION_ID);
@@ -58,7 +58,7 @@ describe("navegación de Personal", () => {
     const desktopNav = screen.getByRole("navigation", { name: "Principal", hidden: true });
     const firstLevelLinks = [...desktopNav.children].filter((child) => child.tagName === "A");
     expect(firstLevelLinks).toHaveLength(7);
-    expect(firstLevelLinks.map((link) => link.textContent)).not.toContain("Personal");
+    expect(firstLevelLinks.map((link) => link.textContent)).not.toContain("Equipo");
     expect(within(desktopNav).getByText("Más")).toBeInTheDocument();
   });
 
@@ -67,18 +67,18 @@ describe("navegación de Personal", () => {
     { role: "admin", locationScopeMode: "all" },
     { role: "manager", locationScopeMode: "all" },
     { role: "coach", locationScopeMode: "all" },
-  ])("no muestra Personal a $role con alcance $locationScopeMode", ({ role, locationScopeMode }) => {
+  ])("no muestra Equipo a $role con alcance $locationScopeMode", ({ role, locationScopeMode }) => {
     render(
       <OwnerWorkspaceNavigation
         capabilities={ownerWorkspaceCapabilitiesFor({ role, locationScopeMode })}
         organizationId={ORGANIZATION_ID}
       />,
     );
-    expect(screen.queryByRole("link", { name: "Personal", hidden: true })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Equipo", hidden: true })).toBeNull();
   });
 
-  it("no muestra Personal en la navegación sintética", () => {
+  it("no muestra Equipo en la navegación sintética", () => {
     render(<OwnerWorkspaceNavigation previewMode />);
-    expect(screen.queryByRole("link", { name: "Personal", hidden: true })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Equipo", hidden: true })).toBeNull();
   });
 });

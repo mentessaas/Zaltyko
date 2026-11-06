@@ -104,7 +104,7 @@ describe("OwnerStaffManager", () => {
     }));
 
     render(<OwnerStaffManager organizationId={ORGANIZATION_ID} organizationName="Club de prueba" />);
-    await screen.findByRole("heading", { name: "Perfiles registrados" });
+    await screen.findByRole("heading", { name: "Personas del equipo" });
     await screen.findByRole("heading", { name: "Operación pendiente" });
     expect(posts).toHaveLength(0);
 
@@ -161,7 +161,7 @@ describe("OwnerStaffManager", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reintentar la misma operación" }));
 
     await screen.findByRole("heading", { name: "Recibo original de la operación" });
-    await screen.findByText("No hay perfiles en este filtro. Puedes añadir un perfil sin acceso desde el formulario superior.");
+    await screen.findByText("Todavía no hay personas en esta vista. Puedes añadir a alguien al equipo desde el formulario de arriba.");
     expect(listReads).toBeGreaterThanOrEqual(2);
     expect(posts).toHaveLength(1);
     expect(posts[0].init.body).toBe(command.body);
@@ -181,11 +181,11 @@ describe("OwnerStaffManager", () => {
     const fetchMock = vi.fn(async () => emptyPage());
     vi.stubGlobal("fetch", fetchMock);
     render(<OwnerStaffManager organizationId={ORGANIZATION_ID} organizationName="Club de prueba" />);
-    await screen.findByRole("heading", { name: "Perfiles registrados" });
-    await waitFor(() => expect(screen.getByRole("button", { name: "Crear perfil" })).toBeEnabled());
+    await screen.findByRole("heading", { name: "Personas del equipo" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Añadir al equipo" })).toBeEnabled());
     fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "Ada" } });
     fireEvent.change(screen.getByLabelText("Apellidos"), { target: { value: "Lovelace" } });
-    fireEvent.click(screen.getByRole("button", { name: "Crear perfil" }));
+    fireEvent.click(screen.getByRole("button", { name: "Añadir al equipo" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Otra pestaña está gestionando perfiles");
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -197,10 +197,10 @@ describe("OwnerStaffManager", () => {
     const fetchMock = vi.fn(async () => emptyPage());
     vi.stubGlobal("fetch", fetchMock);
     render(<OwnerStaffManager organizationId={ORGANIZATION_ID} organizationName="Club de prueba" />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Crear perfil" })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Añadir al equipo" })).toBeEnabled());
     fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "Ada" } });
     fireEvent.change(screen.getByLabelText("Apellidos"), { target: { value: "Lovelace" } });
-    fireEvent.click(screen.getByRole("button", { name: "Crear perfil" }));
+    fireEvent.click(screen.getByRole("button", { name: "Añadir al equipo" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("No se envió nada ni se generó otra clave");
     expect(screen.getByRole("alert")).toHaveTextContent("mismo perfil de navegador");
@@ -213,7 +213,7 @@ describe("OwnerStaffManager", () => {
     const fetchMock = vi.fn(async () => emptyPage());
     vi.stubGlobal("fetch", fetchMock);
     render(<OwnerStaffManager organizationId={ORGANIZATION_ID} organizationName="Club de prueba" />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Crear perfil" })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Añadir al equipo" })).toBeEnabled());
 
     const foreignCommand = makeOwnerStaffCommand({
       operation: "create",
@@ -226,7 +226,7 @@ describe("OwnerStaffManager", () => {
 
     fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "Ada" } });
     fireEvent.change(screen.getByLabelText("Apellidos"), { target: { value: "Lovelace" } });
-    fireEvent.click(screen.getByRole("button", { name: "Crear perfil" }));
+    fireEvent.click(screen.getByRole("button", { name: "Añadir al equipo" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Ya hay una operación pendiente en esta academia");
     expect(screen.getByRole("button", { name: "Reintentar la misma operación" })).toBeInTheDocument();

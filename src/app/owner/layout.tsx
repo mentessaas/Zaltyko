@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Mesa de dirección",
-  description: "Estado operativo, financiero y de crecimiento de la academia.",
+  title: "Tu club",
+  description: "Tu equipo, tus clases y el día a día de tu club.",
   robots: { index: false, follow: false },
 };
 

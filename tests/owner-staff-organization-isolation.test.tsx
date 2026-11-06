@@ -49,7 +49,7 @@ function page(organizationId: string) {
 }
 
 function createForm() {
-  return within(screen.getByRole("region", { name: "Añadir perfil sin acceso" }));
+  return within(screen.getByRole("region", { name: "Añadir al equipo" }));
 }
 
 function fillCreate(givenName: string, familyName: string) {
@@ -98,12 +98,12 @@ describe("aislamiento de Personal al navegar entre academias autorizadas", () =>
     }));
 
     const view = render(await page(ORGANIZATION_A));
-    await waitFor(() => expect(createForm().getByRole("button", { name: "Crear perfil" })).toBeEnabled());
+    await waitFor(() => expect(createForm().getByRole("button", { name: "Añadir al equipo" })).toBeEnabled());
     fillCreate("Creada", "SoloA");
-    fireEvent.click(createForm().getByRole("button", { name: "Crear perfil" }));
+    fireEvent.click(createForm().getByRole("button", { name: "Añadir al equipo" }));
     await screen.findByRole("heading", { name: "Recibo original de la operación" });
     await screen.findByRole("heading", { name: "Creada SoloA" });
-    await waitFor(() => expect(createForm().getByRole("button", { name: "Crear perfil" })).toBeEnabled());
+    await waitFor(() => expect(createForm().getByRole("button", { name: "Añadir al equipo" })).toBeEnabled());
     fillCreate("Borrador privado A", "Apellido privado A");
     fireEvent.click(screen.getByRole("button", { name: "Editar" }));
     const profileA = within(screen.getByRole("article", { name: "Creada SoloA" }));
@@ -111,7 +111,7 @@ describe("aislamiento de Personal al navegar entre academias autorizadas", () =>
     expect(screen.getByRole("status")).toHaveTextContent("Operación confirmada");
 
     view.rerender(await page(ORGANIZATION_B));
-    await screen.findByText("No hay perfiles en este filtro. Puedes añadir un perfil sin acceso desde el formulario superior.");
+    await screen.findByText("Todavía no hay personas en esta vista. Puedes añadir a alguien al equipo desde el formulario de arriba.");
     expect(createForm().getByLabelText("Nombre")).toHaveValue("");
     expect(createForm().getByLabelText("Apellidos")).toHaveValue("");
     expect(screen.queryByRole("heading", { name: "Recibo original de la operación" })).toBeNull();
@@ -120,7 +120,7 @@ describe("aislamiento de Personal al navegar entre academias autorizadas", () =>
     expect(screen.queryByRole("article", { name: "Creada SoloA" })).toBeNull();
     expect(writes).toHaveLength(1);
     fillCreate("Bea", "PropiaB");
-    fireEvent.click(createForm().getByRole("button", { name: "Crear perfil" }));
+    fireEvent.click(createForm().getByRole("button", { name: "Añadir al equipo" }));
     await screen.findByRole("heading", { name: "Bea PropiaB" });
     expect(writes).toHaveLength(2);
     expect(writes[1]).toEqual({ endpoint: "/api/v1/owner/staff", body: {
@@ -156,7 +156,7 @@ describe("aislamiento de Personal al navegar entre academias autorizadas", () =>
     const view = render(await page(ORGANIZATION_A));
     await screen.findByRole("heading", { name: "Operación pendiente" });
     view.rerender(await page(ORGANIZATION_B));
-    await waitFor(() => expect(createForm().getByRole("button", { name: "Crear perfil" })).toBeEnabled());
+    await waitFor(() => expect(createForm().getByRole("button", { name: "Añadir al equipo" })).toBeEnabled());
     expect(screen.queryByRole("heading", { name: "Operación pendiente" })).toBeNull();
     expect(readOwnerStaffCommand(window.localStorage, ORGANIZATION_A)).toEqual({ kind: "pending", command: attempted });
     expect(readOwnerStaffCommand(window.localStorage, ORGANIZATION_B)).toEqual({ kind: "none" });
