@@ -187,7 +187,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
     const academyName = academy?.name ?? "Una academia";
     try {
-      await sendEmailWithLogging({
+      emailSent = await sendEmailWithLogging({
         to: parsed.data.email,
         subject: `Invitación a ${academyName} en Zaltyko`,
         html: `<p>${escapeHtml(academyName)} te ha invitado a Zaltyko como ${escapeHtml(
@@ -198,7 +198,6 @@ export const POST = withTenant(async (request, context) => {
         academyId: parsed.data.academyId,
         metadata: { role: parsed.data.role },
       });
-      emailSent = true;
     } catch {
       // La invitación sigue siendo válida y el owner recibe el enlace para
       // compartirlo/reintentar; el fallo de proveedor no revierte el negocio.

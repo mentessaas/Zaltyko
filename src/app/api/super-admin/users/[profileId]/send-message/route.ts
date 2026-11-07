@@ -44,7 +44,7 @@ export const POST = withSuperAdmin(async (request, context) => {
 
   if (body.data.type === "email") {
     try {
-      await sendEmailWithLogging({
+      const accepted = await sendEmailWithLogging({
         to: authEmail,
         subject: body.data.subject,
         html: `
@@ -67,6 +67,14 @@ export const POST = withSuperAdmin(async (request, context) => {
         tenantId: targetProfile.tenantId,
         userId: targetProfile.id,
       });
+
+      if (!accepted) {
+        return apiError(
+          "EMAIL_NOT_SENT",
+          "El correo no se ha enviado: el destinatario lo tiene bloqueado o el proveedor no lo confirmó.",
+          409
+        );
+      }
 
       return apiSuccess({ ok: true, message: "Correo enviado correctamente" });
     } catch (error: unknown) {

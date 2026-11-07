@@ -28,7 +28,7 @@ async function activateAthleteAccess(
   profileId: string,
   email?: string,
   sendInvitation: boolean = true
-): Promise<{ ok: boolean; userId: string; email: string; error?: string }> {
+): Promise<{ ok: boolean; userId: string; email: string; error?: string; emailSent?: boolean | null }> {
   // Obtener el perfil del atleta
   const [profile] = await db
     .select({
@@ -79,12 +79,13 @@ async function activateAthleteAccess(
     .where(eq(profiles.id, profileId));
 
   // Enviar correo de invitación si se solicita
+  let emailSent: boolean | null = null;
   if (sendInvitation) {
     try {
       // Generar token de reset de contraseña
       const resetLink = await generatePasswordRecoveryLink(targetEmail) ?? `${config.appUrl}/auth/reset-password`;
       
-      await sendEmailWithLogging({
+      emailSent = await sendEmailWithLogging({
         to: targetEmail,
         subject: "Activa tu cuenta de atleta - Zaltyko",
         html: `
@@ -117,6 +118,7 @@ async function activateAthleteAccess(
     } catch (emailError) {
       logger.error("Error enviando correo de activación:", emailError);
       // No fallar si el correo no se puede enviar
+      emailSent = false;
     }
   }
 
@@ -124,6 +126,7 @@ async function activateAthleteAccess(
     ok: true,
     userId: profile.userId,
     email: targetEmail,
+    emailSent,
   };
 }
 
@@ -147,9 +150,13 @@ export const POST = withSuperAdmin(async (request) => {
 
     return apiSuccess({
       ok: true,
-      message: "Acceso de atleta activado correctamente",
+      message:
+        result.emailSent === false
+          ? "Acceso activado, pero el correo para crear la contraseña no se ha enviado"
+          : "Acceso de atleta activado correctamente",
       userId: result.userId,
       email: result.email,
+      emailSent: result.emailSent ?? null,
     });
   } catch (error: unknown) {
     logger.error("Error activando acceso de atleta:", error);

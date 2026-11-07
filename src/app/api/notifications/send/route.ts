@@ -159,7 +159,7 @@ export const POST = withTenant(async (request, context) => {
   }
 
   try {
-    await sendEmailWithLogging({
+    const accepted = await sendEmailWithLogging({
       to,
       subject,
       html,
@@ -172,7 +172,8 @@ export const POST = withTenant(async (request, context) => {
       metadata: data,
     });
 
-    return apiSuccess({ ok: true });
+    // false covers preference/opt-out gates, dedupe and unconfirmed provider results.
+    return apiSuccess({ ok: accepted, sent: accepted });
   } catch (error: unknown) {
     logger.error("Error sending email:", error);
     return apiError("SEND_FAILED", "Error al enviar la notificación", 500);
