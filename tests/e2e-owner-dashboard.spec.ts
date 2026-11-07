@@ -91,7 +91,7 @@ test.describe("Greenfield Owner workspace", () => {
       name: "Navegación móvil",
     });
     await expect(navigation).toBeVisible();
-    for (const label of ["Resumen", "Grupos", "Clases", "Inscripciones"]) {
+    for (const label of ["Resumen", "Asistencia", "Clases", "Grupos"]) {
       await expect(navigation.getByRole("link", { name: label })).toBeVisible();
     }
 
@@ -102,7 +102,7 @@ test.describe("Greenfield Owner workspace", () => {
     await more.focus();
     await expect(more).toBeFocused();
     await page.keyboard.press("Enter");
-    for (const label of ["Gimnastas", "Cobros", "Plan"]) {
+    for (const label of ["Inscripciones", "Gimnastas", "Cobros", "Plan"]) {
       await expect(navigation.getByRole("link", { name: label })).toBeVisible();
     }
 

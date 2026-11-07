@@ -161,7 +161,7 @@ describe("navegación móvil Owner", () => {
         ).toBeInTheDocument();
       }
     }
-    expect(mobileNavigation.queryByText("Más", { selector: "summary" })).toBeNull();
+    expect(mobileNavigation.getByText("Más")).toBeInTheDocument();
     expect(
       desktopNavigation.getByRole("link", { name: "Grupos", hidden: true })
     ).toHaveAttribute(

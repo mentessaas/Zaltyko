@@ -250,6 +250,13 @@ body {
     min-height: 44px;
   }
 
+  /* Keeps focused or auto-scrolled controls clear of the owner bottom bar. */
+  @media (max-width: 1279px) {
+    html:has([data-owner-sidebar]) {
+      scroll-padding-bottom: 6rem;
+    }
+  }
+
   /* Hide scrollbar but allow scrolling */
   .hide-scrollbar {
     -ms-overflow-style: none;

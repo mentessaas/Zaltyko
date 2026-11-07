@@ -45,7 +45,7 @@ export function OwnerWorkspacePageShell({
       <div
         id="owner-workspace-content"
         tabIndex={-1}
-        className="xl:peer-data-[owner-sidebar]:pl-[248px]"
+        className="peer-data-[owner-sidebar]:pb-24 xl:peer-data-[owner-sidebar]:pb-0 xl:peer-data-[owner-sidebar]:pl-[248px]"
       >
         {children}
       </div>

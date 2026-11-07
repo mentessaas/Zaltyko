@@ -48,6 +48,8 @@ const DESKTOP_SECTIONS: ReadonlyArray<{ title: string; labels: readonly string[]
   { title: "Club", labels: ["Cobros"] },
 ];
 
+const MOBILE_PRIMARY_LABELS = ["Resumen", "Asistencia", "Clases", "Grupos"] as const;
+
 const FOCUS_RING =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500";
 
@@ -179,10 +181,11 @@ export function OwnerWorkspaceNavigation({
   const desktopPrimaryItems = visibleNavigationItems.filter((item) => !item.desktopOverflow);
   const desktopMoreItems = visibleNavigationItems.filter((item) => item.desktopOverflow);
   const activeDesktopMoreItem = desktopMoreItems.find((item) => item.active);
-  // Keep attendance among the five daily tasks. Organization-wide actions stay under More.
-  const mobileItems = visibleNavigationItems
-    .filter((item) => !item.href.startsWith("/owner/athletes") && !item.desktopOverflow)
-    .slice(0, 5);
+  // Floor tasks stay one tap away in the bottom bar; four tabs plus More is what
+  // fits a 375px phone with full Spanish labels. Everything else lives under More.
+  const mobileItems = MOBILE_PRIMARY_LABELS.flatMap((label) =>
+    visibleNavigationItems.filter((item) => item.label === label)
+  );
   const secondaryMobileItems = visibleNavigationItems.filter(
     (item) => !mobileItems.includes(item)
   );
@@ -302,55 +305,56 @@ export function OwnerWorkspaceNavigation({
             </span>
           ) : <OwnerSignOutButton />}
         </div>
-        {showNavigation ? (
-          <nav
-            aria-label="Navegación móvil"
-            className="mx-auto grid max-w-[92rem] grid-cols-3 gap-1 px-3 pb-3 sm:grid-cols-6 sm:px-5 lg:px-10 xl:hidden"
-          >
-            {mobileItems.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                aria-current={item.active ? "page" : undefined}
-                className={`touch-target flex min-w-0 flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl px-1 py-1.5 text-center text-xs font-semibold leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-z-brand-500 ${item.active ? "bg-z-brand-50 text-z-brand-700" : "text-z-soft hover:bg-z-canvas hover:text-z-ink"}`}
-              >
-                <ItemIcon label={item.label} className="h-[18px] w-[18px] shrink-0" />
-                {item.label}
-              </Link>
-            ))}
-            {secondaryMobileItems.length > 0 ? (
-              <details ref={mobileMoreRef} className="relative flex min-w-0">
-                <summary
-                  ref={mobileMoreSummaryRef}
-                  aria-label={activeSecondaryMobileItem ? `Más opciones. Página actual: ${activeSecondaryMobileItem.label}` : "Más opciones"}
-                  className={`touch-target flex w-full cursor-pointer list-none flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl px-1 py-1.5 text-center text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-z-brand-500 [&::-webkit-details-marker]:hidden ${activeSecondaryMobileItem ? "bg-z-brand-50 text-z-brand-700" : "text-z-soft hover:bg-z-canvas hover:text-z-ink"}`}
-                >
-                  <MoreHorizontal className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
-                  <span>Más</span>
-                </summary>
-                <ul className="absolute right-0 top-full z-30 mt-2 min-w-48 rounded-2xl border border-z-line bg-white p-2 shadow-lg shadow-slate-900/10">
-                  {secondaryMobileItems.map((item) => (
-                    <li key={item.label}>
-                      <Link
-                        href={item.href}
-                        onClick={() => {
-                          if (mobileMoreRef.current) mobileMoreRef.current.open = false;
-                          mobileMoreSummaryRef.current?.focus({ preventScroll: true });
-                        }}
-                        aria-current={item.active ? "page" : undefined}
-                        className={`touch-target flex items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${FOCUS_RING} ${item.active ? "bg-z-brand-50 text-z-brand-700" : "text-z-ink/80 hover:bg-z-canvas hover:text-z-ink"}`}
-                      >
-                        <ItemIcon label={item.label} className="h-4 w-4 shrink-0" />
-                        {item.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-          </nav>
-        ) : null}
       </header>
+      {showNavigation ? (
+        <nav
+          aria-label="Navegación móvil"
+          className="fixed inset-x-0 bottom-0 z-30 grid gap-1 border-t border-z-line bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur xl:hidden"
+          style={{ gridTemplateColumns: `repeat(${mobileItems.length + (secondaryMobileItems.length > 0 ? 1 : 0)}, minmax(0, 1fr))` }}
+        >
+          {mobileItems.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              aria-current={item.active ? "page" : undefined}
+              className={`touch-target flex min-w-0 flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl px-1 py-1.5 text-center text-[11px] font-semibold leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-z-brand-500 ${item.active ? "bg-z-brand-50 text-z-brand-700" : "text-z-soft hover:bg-z-canvas hover:text-z-ink"}`}
+            >
+              <ItemIcon label={item.label} className="h-[18px] w-[18px] shrink-0" />
+              {item.label}
+            </Link>
+          ))}
+          {secondaryMobileItems.length > 0 ? (
+            <details ref={mobileMoreRef} className="relative flex min-w-0">
+              <summary
+                ref={mobileMoreSummaryRef}
+                aria-label={activeSecondaryMobileItem ? `Más opciones. Página actual: ${activeSecondaryMobileItem.label}` : "Más opciones"}
+                className={`touch-target flex w-full cursor-pointer list-none flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl px-1 py-1.5 text-center text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-z-brand-500 [&::-webkit-details-marker]:hidden ${activeSecondaryMobileItem ? "bg-z-brand-50 text-z-brand-700" : "text-z-soft hover:bg-z-canvas hover:text-z-ink"}`}
+              >
+                <MoreHorizontal className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
+                <span>Más</span>
+              </summary>
+              <ul className="absolute bottom-full right-0 z-30 mb-2 min-w-48 rounded-2xl border border-z-line bg-white p-2 shadow-lg shadow-slate-900/10">
+                {secondaryMobileItems.map((item) => (
+                  <li key={item.label}>
+                    <Link
+                      href={item.href}
+                      onClick={() => {
+                        if (mobileMoreRef.current) mobileMoreRef.current.open = false;
+                        mobileMoreSummaryRef.current?.focus({ preventScroll: true });
+                      }}
+                      aria-current={item.active ? "page" : undefined}
+                      className={`touch-target flex items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${FOCUS_RING} ${item.active ? "bg-z-brand-50 text-z-brand-700" : "text-z-ink/80 hover:bg-z-canvas hover:text-z-ink"}`}
+                    >
+                      <ItemIcon label={item.label} className="h-4 w-4 shrink-0" />
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+        </nav>
+      ) : null}
       {organizationId && !preview ? (
         <div className="xl:peer-data-[owner-sidebar]:pl-[248px]">
           <OwnerOperationalPolicy key={`${organizationId}:${locationId ?? ""}`} organizationId={organizationId} locationId={locationId} />

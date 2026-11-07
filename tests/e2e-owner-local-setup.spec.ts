@@ -1658,7 +1658,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
           const textBox = text.getBoundingClientRect();
           return { label: element.textContent?.trim(), left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height, textLeft: textBox.left, textRight: textBox.right };
         }));
-        expect(targets).toHaveLength(6);
+        expect(targets).toHaveLength(5);
         for (const target of targets) {
           expect(target.width, target.label).toBeGreaterThanOrEqual(44);
           expect(target.height, target.label).toBeGreaterThanOrEqual(44);
