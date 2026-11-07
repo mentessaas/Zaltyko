@@ -596,7 +596,7 @@ fi
 
 run_disposable_postgres_suites() {
   ZALTYKO_PG_INTEGRATION=1 ZALTYKO_PG_INTEGRATION_DATABASE_URL="$LOCAL_DB_URL" NODE_ENV=test \
-  pnpm exec vitest run --project web tests/saas-capacity-postgres.integration.test.ts tests/billing-ledger-postgres.integration.test.ts tests/staff-postgres.integration.test.ts tests/owner-family-onboarding-postgres.integration.test.ts tests/owner-guardian-contacts-postgres.integration.test.ts tests/owner-attendance-sessions-postgres.integration.test.ts tests/owner-dashboard-today-attention-pg.test.ts tests/owner-guardian-profile-postgres.integration.test.ts tests/owner-athlete-profile-isolation-pg.test.ts tests/owner-athlete-archive-pg.test.ts tests/owner-athlete-intake-pg.test.ts tests/owner-regularization-dates-pg.test.ts tests/canonical-academy-data-export-pg.test.ts \
+  pnpm exec vitest run --project web tests/saas-capacity-postgres.integration.test.ts tests/billing-ledger-postgres.integration.test.ts tests/staff-postgres.integration.test.ts tests/owner-family-onboarding-postgres.integration.test.ts tests/owner-guardian-contacts-postgres.integration.test.ts tests/owner-attendance-sessions-postgres.integration.test.ts tests/owner-guardian-profile-postgres.integration.test.ts tests/owner-athlete-profile-isolation-pg.test.ts tests/owner-athlete-archive-pg.test.ts tests/owner-athlete-intake-pg.test.ts tests/owner-regularization-dates-pg.test.ts tests/canonical-academy-data-export-pg.test.ts \
     || return "$?"
   # Closed two-row recovery rehearsal: its helper seeds and owns every ID,
   # refuses non-GitHub/non-loopback targets, and never exposes an importer.

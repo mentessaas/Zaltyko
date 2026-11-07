@@ -7,6 +7,7 @@ import { getOwnerAttentionItems } from "@/modules/owner-dashboard/application/at
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { getOwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
 
+// Not wired into the replay script yet: that changes its pinned hash and the schema provenance chain.
 function assertDisposableTarget() {
   if (
     process.env.ZALTYKO_PG_INTEGRATION !== "1" ||
