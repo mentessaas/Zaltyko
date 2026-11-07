@@ -87,7 +87,7 @@
     "tenant_fixture_sha256": "51480aba756d3c1b581da0c28e1ac3bcfee024e3ba2eef038982bbb09f23b06c",
     "replay_principal": "Connect to the validated loopback endpoint as the pinned stack's built-in supabase_admin login and verify its superuser identity. Each temporary migration dynamically executes session-local SET ROLE NONE inside one DO block, then asserts the effective supabase_admin superuser before application DDL; this avoids the pinned CLI's top-level role-reset reassertion. Query-level connection overrides are discarded; CI does not grant, revoke, or create roles or change persistent role settings.",
     "replay_script_path": "scripts/ci/verify-sandbox-schema-replay.sh",
-    "replay_script_sha256": "b3667cf736e1a2d9860f77e227bf5de0189068470d374c85f72c7ebe15376057",
+    "replay_script_sha256": "405d7f32410c22cfa1a7ec6475abdbaba86a4dca08ac712027584ee2813a7727",
     "prior_replay_script_pins": [
       { "sha256": "7886a3b18dfea9d036a22c14e9cf48024a421416f1e92e890398f2f9076df5b1", "scope": "Historical replay procedure pin before the closed synthetic athlete recovery suite; not the current procedure." },
       { "sha256": "f744aac94d45cf3c0fbe0aa91cb24069250533ca2c34a022b6391aa5d4bbd57d", "scope": "Historical replay procedure pin before the guarded canonical team-access candidate suite; not the current procedure." },
