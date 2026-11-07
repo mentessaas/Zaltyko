@@ -466,7 +466,7 @@ export function OwnerSetupForm({
     return (
       <p
         role="alert"
-        className="mt-8 border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950"
+        className="rounded-[12px] mt-8 border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950"
       >
         No pudimos comprobar los términos vigentes de tu cuenta. Recarga la
         página para volver a intentarlo.
@@ -482,11 +482,11 @@ export function OwnerSetupForm({
       className="mt-8 grid gap-6"
     >
       <fieldset disabled={fieldsLocked} className="grid gap-6 border-0 p-0">
-        <label className="grid gap-2 text-sm font-bold text-slate-800">
+        <label className="grid gap-2 text-sm font-bold text-z-ink">
           Nombre de la academia
           <span className="relative">
             <Building2
-              className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-500"
+              className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-z-soft"
               aria-hidden="true"
             />
             <input
@@ -496,16 +496,16 @@ export function OwnerSetupForm({
               minLength={2}
               maxLength={120}
               autoComplete="organization"
-              className="touch-target w-full border border-slate-400 bg-white pl-10 pr-3 text-slate-950"
+              className="touch-target w-full border border-z-line bg-white pl-10 pr-3 text-z-ink"
             />
           </span>
         </label>
         <fieldset className="grid gap-3">
-          <legend className="text-sm font-bold text-slate-800">
+          <legend className="text-sm font-bold text-z-ink">
             ¿Cuál es la especialidad principal de tu academia?
           </legend>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="touch-target flex cursor-pointer items-center gap-3 border border-slate-400 bg-white px-4 py-3 text-sm font-semibold text-slate-900 has-[:checked]:border-teal-800 has-[:checked]:bg-teal-50">
+            <label className="rounded-[12px] touch-target flex cursor-pointer items-center gap-3 border border-z-line bg-white px-4 py-3 text-sm font-semibold text-z-ink has-[:checked]:border-z-ink has-[:checked]:bg-z-brand-50">
               <input
                 type="radio"
                 name="primaryDiscipline"
@@ -515,11 +515,11 @@ export function OwnerSetupForm({
                   activeRetryRequest?.body.primaryDiscipline === "artistic"
                 }
                 onChange={() => setPrimaryDiscipline("artistic")}
-                className="h-5 w-5 accent-teal-800"
+                className="h-5 w-5 accent-z-brand-500"
               />
               Gimnasia artística
             </label>
-            <label className="touch-target flex cursor-pointer items-center gap-3 border border-slate-400 bg-white px-4 py-3 text-sm font-semibold text-slate-900 has-[:checked]:border-teal-800 has-[:checked]:bg-teal-50">
+            <label className="rounded-[12px] touch-target flex cursor-pointer items-center gap-3 border border-z-line bg-white px-4 py-3 text-sm font-semibold text-z-ink has-[:checked]:border-z-ink has-[:checked]:bg-z-brand-50">
               <input
                 type="radio"
                 name="primaryDiscipline"
@@ -529,22 +529,22 @@ export function OwnerSetupForm({
                   activeRetryRequest?.body.primaryDiscipline === "rhythmic"
                 }
                 onChange={() => setPrimaryDiscipline("rhythmic")}
-                className="h-5 w-5 accent-teal-800"
+                className="h-5 w-5 accent-z-brand-500"
               />
               Gimnasia rítmica
             </label>
           </div>
         </fieldset>
-        <details className="border border-slate-300 bg-white">
-          <summary className="touch-target cursor-pointer px-4 py-3 text-sm font-semibold text-slate-800">
+        <details className="border border-z-line bg-white">
+          <summary className="touch-target cursor-pointer px-4 py-3 text-sm font-semibold text-z-ink">
             Añadir otras disciplinas o actividades (opcional)
           </summary>
-          <fieldset className="grid gap-3 border-t border-slate-200 p-4">
-            <legend className="px-1 text-sm text-slate-600">
+          <fieldset className="grid gap-3 border-t border-z-line p-4">
+            <legend className="px-1 text-sm text-z-soft">
               Puedes añadirlas ahora o más adelante.
             </legend>
             {primaryDiscipline && (
-              <label className="touch-target flex cursor-pointer items-start gap-3 border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800">
+              <label className="rounded-[12px] touch-target flex cursor-pointer items-start gap-3 border border-z-line bg-white px-4 py-3 text-sm text-z-ink">
                 <input
                   type="checkbox"
                   name="additionalDisciplines"
@@ -554,7 +554,7 @@ export function OwnerSetupForm({
                   defaultChecked={activeRetryRequest?.body.additionalDisciplines.includes(
                     primaryDiscipline === "artistic" ? "rhythmic" : "artistic"
                   )}
-                  className="mt-0.5 h-5 w-5 accent-teal-800"
+                  className="mt-0.5 h-5 w-5 accent-z-brand-500"
                 />
                 <span>
                   También ofrecemos gimnasia{" "}
@@ -571,7 +571,7 @@ export function OwnerSetupForm({
               ].map(([value, label]) => (
                 <label
                   key={value}
-                  className="touch-target flex cursor-pointer items-center gap-3 border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800"
+                  className="rounded-[12px] touch-target flex cursor-pointer items-center gap-3 border border-z-line bg-white px-4 py-3 text-sm text-z-ink"
                 >
                   <input
                     type="checkbox"
@@ -580,23 +580,23 @@ export function OwnerSetupForm({
                     defaultChecked={activeRetryRequest?.body.complementaryActivities.includes(
                       value
                     )}
-                    className="h-5 w-5 accent-teal-800"
+                    className="h-5 w-5 accent-z-brand-500"
                   />
                   {label}
                 </label>
               ))}
             </div>
-            <label className="grid gap-2 text-sm font-semibold text-slate-800">
+            <label className="grid gap-2 text-sm font-semibold text-z-ink">
               Otra actividad (opcional)
               <input
                 name="customActivityName"
                 defaultValue={activeRetryRequest?.body.customActivityName}
                 maxLength={80}
                 placeholder="Por ejemplo, acrobacia"
-                className="touch-target w-full border border-slate-400 bg-white px-3 text-slate-950"
+                className="rounded-[12px] touch-target w-full border border-z-line bg-white px-3 text-z-ink"
               />
             </label>
-            <p className="text-sm leading-6 text-slate-600">
+            <p className="text-sm leading-6 text-z-soft">
               Cada actividad tendrá sus propias clases y grupos. Podrás añadir
               más adelante.
             </p>
@@ -604,7 +604,7 @@ export function OwnerSetupForm({
         </details>
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="grid content-start gap-2">
-          <label className="grid gap-2 text-sm font-bold text-slate-800">
+          <label className="grid gap-2 text-sm font-bold text-z-ink">
             País de la academia
             <select
               name="countryCode"
@@ -619,7 +619,7 @@ export function OwnerSetupForm({
                     ?.defaultTimezone ?? ""
                 );
               }}
-              className="touch-target w-full border border-slate-400 bg-white px-3 text-slate-950"
+              className="rounded-[12px] touch-target w-full border border-z-line bg-white px-3 text-z-ink"
             >
               {Object.values(ADMINISTRATIVE_MARKET_REGISTRY).map((market) => (
                 <option key={market.countryCode} value={market.countryCode}>
@@ -628,15 +628,15 @@ export function OwnerSetupForm({
               ))}
             </select>
           </label>
-            <Link href="/contact?type=market_access" className="inline-flex min-h-11 items-center text-sm font-medium text-teal-800 underline underline-offset-4">
+            <Link href="/contact?type=market_access" className="inline-flex min-h-11 items-center text-sm font-medium text-z-brand-600 underline underline-offset-4">
               ¿Tu país no aparece? Solicita acceso asistido
             </Link>
           </div>
-          <label className="grid gap-2 text-sm font-bold text-slate-800">
+          <label className="grid gap-2 text-sm font-bold text-z-ink">
             Nombre de la primera sede
             <span className="relative">
               <MapPin
-                className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-500"
+                className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-z-soft"
                 aria-hidden="true"
               />
               <input
@@ -646,18 +646,18 @@ export function OwnerSetupForm({
                 minLength={2}
                 maxLength={120}
                 placeholder="Sede principal"
-                className="touch-target w-full border border-slate-400 bg-white pl-10 pr-3 text-slate-950"
+                className="touch-target w-full border border-z-line bg-white pl-10 pr-3 text-z-ink"
               />
             </span>
           </label>
-          <label className="grid gap-2 text-sm font-bold text-slate-800">
+          <label className="grid gap-2 text-sm font-bold text-z-ink">
             Zona horaria de la primera sede
             <select
               name="timezone"
               required={selectedMarket?.timezoneRequired ?? true}
               value={timezone}
               onChange={(event) => setTimezone(event.target.value)}
-              className="touch-target w-full border border-slate-400 bg-white px-3 text-slate-950"
+              className="rounded-[12px] touch-target w-full border border-z-line bg-white px-3 text-z-ink"
             >
               {!timezone && (
                 <option value="">Selecciona una zona horaria</option>
@@ -670,9 +670,9 @@ export function OwnerSetupForm({
             </select>
           </label>
         </div>
-        <div className="flex gap-3 border-l-4 border-teal-800 bg-[#F1F3EF] p-4 text-sm leading-6 text-slate-700">
+        <div className="flex gap-3 border-l-4 border-z-ink bg-[#F1F3EF] p-4 text-sm leading-6 text-z-soft">
           <ShieldCheck
-            className="mt-0.5 h-5 w-5 shrink-0 text-teal-800"
+            className="mt-0.5 h-5 w-5 shrink-0 text-z-brand-600"
             aria-hidden="true"
           />
           <p>
@@ -700,7 +700,7 @@ export function OwnerSetupForm({
         </div>
       </fieldset>
       {!activeRetryRequest && contractualConsent?.requiresAcceptance && (
-        <label className="flex items-start gap-3 rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm leading-relaxed text-slate-800">
+        <label className="flex items-start gap-3 rounded-lg border border-z-line bg-white px-3 py-3 text-sm leading-relaxed text-z-ink">
           <input
             type="checkbox"
             name="contractualAcceptance"
@@ -708,7 +708,7 @@ export function OwnerSetupForm({
             checked={consentAccepted}
             disabled={previewOnly || fieldsLocked}
             onChange={(event) => setConsentAccepted(event.target.checked)}
-            className="mt-0.5 h-5 w-5 accent-teal-800"
+            className="mt-0.5 h-5 w-5 accent-z-brand-500"
           />
           <span>
             Acepto los{" "}
@@ -736,13 +736,13 @@ export function OwnerSetupForm({
       {error && (
         <p
           role="alert"
-          className="border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+          className="rounded-[12px] border border-red-300 bg-red-50 p-3 text-sm text-red-900"
         >
           {error}
         </p>
       )}
       {restorePending && (
-        <p role="status" className="text-sm text-slate-700">
+        <p role="status" className="text-sm text-z-soft">
           Comprobando si hay un intento pendiente para esta cuenta…
         </p>
       )}
@@ -754,7 +754,7 @@ export function OwnerSetupForm({
       <button
         type="submit"
         disabled={previewOnly || pending || restorePending}
-        className="touch-target inline-flex items-center justify-center gap-2 bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-teal-900 disabled:bg-slate-500"
+        className="touch-target inline-flex items-center justify-center gap-2 bg-z-ink px-5 py-3 text-sm font-bold text-white hover:bg-black disabled:bg-slate-500"
       >
         {pending
           ? "Creando espacio…"

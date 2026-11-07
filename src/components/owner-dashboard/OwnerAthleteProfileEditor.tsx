@@ -180,11 +180,11 @@ function problemMessage(payload: unknown): string {
 }
 
 const fieldClassName =
-  "min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:bg-slate-100";
+  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas";
 const secondaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-slate-400 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+  "touch-target inline-flex min-h-11 items-center justify-center border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
 const primaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center bg-teal-800 px-4 py-2 text-sm font-bold text-white hover:bg-teal-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+  "touch-target inline-flex min-h-11 items-center justify-center bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
 
 export function pendingOwnerAthleteProfileMatches(
   command: PendingOwnerAthleteProfileUpdate | null,
@@ -464,17 +464,17 @@ export function OwnerAthleteProfileEditor({
         </button>
       )}
 
-      {!isOpen && completedNotice && <p role="status" className="basis-full border border-teal-700 bg-teal-50 p-3 text-sm text-slate-900">{completedNotice}</p>}
+      {!isOpen && completedNotice && <p role="status" className="rounded-[12px] basis-full border border-z-brand-100 bg-z-brand-50 p-3 text-sm text-z-ink">{completedNotice}</p>}
 
       {isOpen && (
         <section
           aria-labelledby={`athlete-profile-title-${athleteId}`}
-          className="mt-3 w-full border border-slate-300 bg-white p-4 sm:col-span-2"
+          className="rounded-[12px] mt-3 w-full border border-z-line bg-white p-4 sm:col-span-2"
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h4 id={`athlete-profile-title-${athleteId}`} className="font-bold">Editar ficha de gimnasta</h4>
-              <p className="mt-1 text-sm text-slate-700">Los cambios se limitan a nombre y apellidos de esta ficha.</p>
+              <p className="mt-1 text-sm text-z-soft">Los cambios se limitan a nombre y apellidos de esta ficha.</p>
             </div>
             {!activePending && (
               <button type="button" className={secondaryButtonClassName} onClick={closeEditor} disabled={saving}>
@@ -483,9 +483,9 @@ export function OwnerAthleteProfileEditor({
             )}
           </div>
 
-          {loading && <p role="status" className="mt-3 text-sm text-slate-700">Cargando ficha…</p>}
+          {loading && <p role="status" className="mt-3 text-sm text-z-soft">Cargando ficha…</p>}
           {message && (
-            <p role={messageKind === "error" ? "alert" : "status"} className="mt-3 border border-slate-300 bg-slate-50 p-3 text-sm">
+            <p role={messageKind === "error" ? "alert" : "status"} className="rounded-[12px] mt-3 border border-z-line bg-z-canvas p-3 text-sm">
               {message}
             </p>
           )}

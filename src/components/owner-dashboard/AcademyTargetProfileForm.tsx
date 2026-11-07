@@ -315,14 +315,14 @@ export function AcademyTargetProfileForm({
       <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
       {groups.map((group) => (
         <section key={group} aria-labelledby={`group-${group}`}>
-          <div className="mb-3 flex items-center gap-3 border-b border-slate-300 pb-3">
+          <div className="mb-3 flex items-center gap-3 border-b border-z-line pb-3">
             {group === "Salud financiera" ? (
               <WalletCards
-                className="h-5 w-5 text-teal-800"
+                className="h-5 w-5 text-z-brand-600"
                 aria-hidden="true"
               />
             ) : (
-              <Gauge className="h-5 w-5 text-teal-800" aria-hidden="true" />
+              <Gauge className="h-5 w-5 text-z-brand-600" aria-hidden="true" />
             )}
             <h2
               id={`group-${group}`}
@@ -337,9 +337,9 @@ export function AcademyTargetProfileForm({
               .map((field) => (
                 <label
                   key={field.key}
-                  className="grid content-start gap-2 border-l-2 border-teal-800/30 bg-white p-4"
+                  className="grid content-start gap-2 border-l-2 border-z-ink/30 bg-white p-4"
                 >
-                  <span className="text-sm font-bold text-slate-900">
+                  <span className="text-sm font-bold text-z-ink">
                     {field.label}
                   </span>
                   <span className="relative">
@@ -364,15 +364,15 @@ export function AcademyTargetProfileForm({
                       }
                       inputMode="decimal"
                       aria-describedby={`${field.key}-help`}
-                      className="touch-target w-full border border-slate-400 bg-[#FAFAF7] px-3 pr-10 font-mono text-lg text-slate-950 focus:border-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-800/30"
+                      className="rounded-[12px] touch-target w-full border border-z-line bg-[#FAFAF7] px-3 pr-10 font-mono text-lg text-z-ink focus:border-z-ink focus:outline-none focus:ring-2 focus:ring-z-brand-500/30"
                     />
-                    <span className="pointer-events-none absolute right-3 top-3 text-sm text-slate-500">
+                    <span className="pointer-events-none absolute right-3 top-3 text-sm text-z-soft">
                       %
                     </span>
                   </span>
                   <span
                     id={`${field.key}-help`}
-                    className="text-xs leading-5 text-slate-600"
+                    className="text-xs leading-5 text-z-soft"
                   >
                     {field.help}
                   </span>
@@ -392,7 +392,7 @@ export function AcademyTargetProfileForm({
       {error && (
         <p
           role="alert"
-          className="border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+          className="rounded-[12px] border border-red-300 bg-red-50 p-3 text-sm text-red-900"
         >
           {error}
           {retryRequired &&
@@ -402,7 +402,7 @@ export function AcademyTargetProfileForm({
       {storageIssue && (
         <p
           role="alert"
-          className="border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+          className="rounded-[12px] border border-red-300 bg-red-50 p-3 text-sm text-red-900"
         >
           {storageIssue}
         </p>
@@ -410,7 +410,7 @@ export function AcademyTargetProfileForm({
       {savedForCurrentOrganization && (
         <p
           aria-hidden="true"
-          className="flex items-center gap-2 text-sm font-bold text-teal-900"
+          className="flex items-center gap-2 text-sm font-bold text-z-brand-700"
         >
           <Check className="h-4 w-4" aria-hidden="true" />
           Metas guardadas. El score se actualizará al procesar la cola de
@@ -422,7 +422,7 @@ export function AcademyTargetProfileForm({
         disabled={
           pending || writesBlocked || !storageReady || Boolean(storageIssue)
         }
-        className="touch-target inline-flex items-center justify-center gap-2 justify-self-start rounded-full bg-slate-950 px-6 py-3 text-sm font-bold text-white hover:bg-teal-900 disabled:bg-slate-500"
+        className="touch-target inline-flex items-center justify-center gap-2 justify-self-start rounded-full bg-z-ink px-6 py-3 text-sm font-bold text-white hover:bg-black disabled:bg-slate-500"
       >
         {pending
           ? pendingForAnotherOrganization

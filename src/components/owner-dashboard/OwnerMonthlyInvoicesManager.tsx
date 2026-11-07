@@ -563,12 +563,12 @@ export function OwnerMonthlyInvoicesManager({
             organizationId,
             locationId,
           }).toString()}`}
-          className="min-h-11 w-fit content-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+          className="min-h-11 w-fit content-center rounded-full border border-z-line bg-white px-4 text-sm font-semibold text-z-soft hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
         >
           Volver al panel
         </Link>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-900">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-700">
             {organizationName}
           </p>
         </div>
@@ -594,7 +594,7 @@ export function OwnerMonthlyInvoicesManager({
                 setIssueError("");
                 setSuccessMessage("");
               }}
-              className="min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
+              className="rounded-[12px] min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500"
             >
               {locations.map((location) => (
                 <option key={location.id} value={location.id}>
@@ -624,12 +624,12 @@ export function OwnerMonthlyInvoicesManager({
               setQuoteNeedsReview(false);
               setState(isServicePeriod(nextPeriod) ? "loading" : "empty");
             }}
-            className="min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
+            className="rounded-[12px] min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500"
             aria-describedby="monthly-invoice-period-help"
           />
           <span
             id="monthly-invoice-period-help"
-            className="text-xs text-slate-600"
+            className="text-xs text-z-soft"
           >
             El total y el desglose llegan calculados por el servidor para este
             periodo.
@@ -640,7 +640,7 @@ export function OwnerMonthlyInvoicesManager({
         <p
           role="alert"
           aria-live="assertive"
-          className="mx-auto max-w-4xl border border-rose-400 bg-rose-50 p-4 text-sm text-rose-950"
+          className="rounded-[12px] mx-auto max-w-4xl border border-rose-400 bg-rose-50 p-4 text-sm text-rose-950"
         >
           {retryStorageError}
         </p>
@@ -648,7 +648,7 @@ export function OwnerMonthlyInvoicesManager({
       {issueRetry && (
         <div
           role="status"
-          className="mx-auto grid max-w-4xl gap-3 border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
+          className="rounded-[12px] mx-auto grid max-w-4xl gap-3 border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
         >
           <p>
             Hay una emisión cuyo resultado sigue sin confirmar. Conservamos su
@@ -659,7 +659,7 @@ export function OwnerMonthlyInvoicesManager({
               type="button"
               disabled={busy}
               onClick={replayPendingInvoice}
-              className="min-h-11 w-fit border border-amber-800 px-4 py-2 font-bold underline underline-offset-2 disabled:opacity-50"
+              className="rounded-[12px] min-h-11 w-fit border border-amber-800 px-4 py-2 font-bold underline underline-offset-2 disabled:opacity-50"
             >
               Reintentar la emisión pendiente
             </button>
@@ -678,7 +678,7 @@ export function OwnerMonthlyInvoicesManager({
         </div>
       )}
       {issueReceipt && (
-        <div role="status" className="mx-auto grid max-w-4xl gap-2 border border-teal-300 bg-teal-50 p-4 text-sm text-teal-950">
+        <div role="status" className="rounded-[12px] mx-auto grid max-w-4xl gap-2 border border-z-brand-100 bg-z-brand-50 p-4 text-sm text-z-brand-700">
           <p>{issueReceipt.message} El workspace visible no se ha actualizado.</p>
           <Link
             className="min-h-11 w-fit content-center font-bold underline underline-offset-2"
@@ -764,7 +764,7 @@ export function OwnerMonthlyInvoicesManager({
         <p
           role="status"
           aria-live="polite"
-          className="mx-auto mt-6 max-w-4xl border border-teal-300 bg-teal-50 p-4 text-sm text-teal-950"
+          className="rounded-[12px] mx-auto mt-6 max-w-4xl border border-z-brand-100 bg-z-brand-50 p-4 text-sm text-z-brand-700"
         >
           {resolutionNotice}
         </p>

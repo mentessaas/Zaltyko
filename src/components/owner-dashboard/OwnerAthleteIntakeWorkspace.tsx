@@ -83,11 +83,11 @@ const relationshipLabels: Record<Relationship, string> = {
   other: "Otra relación responsable",
 };
 const fieldClassName =
-  "min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:bg-slate-100";
+  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas";
 const primaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-teal-800 bg-teal-800 px-4 py-2 text-sm font-bold text-white hover:bg-teal-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+  "touch-target inline-flex min-h-11 items-center justify-center border border-z-ink bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
 const secondaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-slate-400 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+  "touch-target inline-flex min-h-11 items-center justify-center border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -668,36 +668,36 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
 
   const newWritesDisabled = !canStartCommand;
   return (
-    <main className="min-h-screen bg-[#F1F3EF] px-5 py-6 text-slate-950 sm:py-10">
+    <main className="min-h-screen bg-[#F1F3EF] px-5 py-6 text-z-ink sm:py-10">
       <div className="mx-auto grid max-w-5xl gap-6">
         <header>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-900">{organizationName}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-700">{organizationName}</p>
           <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">Gimnastas</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-z-soft">
             Bandeja organizativa de Owner/Admin para fichas activas que todavía no tienen asignación operativa. Las sedes y grupos se cargan desde la academia; no se aceptan identificadores escritos a mano.
           </p>
         </header>
 
         {usageState === "ready" && readOnly ? (
-          <aside role="status" className="border border-amber-600 bg-amber-50 p-4 text-sm text-slate-950">
+          <aside role="status" className="rounded-[12px] border border-amber-600 bg-amber-50 p-4 text-sm text-z-ink">
             <strong>Academia en solo lectura.</strong> Se conservan los datos. Puedes consultar la bandeja y resolver una operación exacta que ya estuviera pendiente, pero no iniciar altas ni asignaciones. <Link className="font-bold underline" href={`/owner/subscription?organizationId=${encodeURIComponent(organizationId)}#regularizar`}>Archivar excedente o contratar capacidad suficiente</Link>.
           </aside>
         ) : null}
-        {usageState === "loading" ? <p role="status" className="text-sm text-slate-700">Comprobando límites del plan antes de habilitar cambios…</p> : null}
+        {usageState === "loading" ? <p role="status" className="text-sm text-z-soft">Comprobando límites del plan antes de habilitar cambios…</p> : null}
         {usageState === "unavailable" ? (
-          <div className="border border-red-300 bg-white p-4 text-sm text-red-950">
+          <div className="rounded-[12px] border border-red-300 bg-white p-4 text-sm text-red-950">
             <p role="alert">No se pudo verificar el estado del plan. Por seguridad, las altas y asignaciones nuevas permanecen deshabilitadas.</p>
             <button type="button" className={`${secondaryButtonClassName} mt-3`} onClick={reload}>Volver a comprobar</button>
           </div>
         ) : null}
 
         {intentBlocked ? (
-          <div className="border border-red-400 bg-red-50 p-4">
+          <div className="rounded-[12px] border border-red-400 bg-red-50 p-4">
             <h2 className="font-bold">Recuperación bloqueada</h2>
             <p role="alert" className="mt-2 text-sm">{error || "No se pudo validar la operación guardada. No se enviarán cambios nuevos ni se borrará el marcador."}</p>
           </div>
         ) : intent ? (
-          <section className="border border-amber-500 bg-amber-50 p-4" aria-label="Operación pendiente">
+          <section className="rounded-[12px] border border-amber-500 bg-amber-50 p-4" aria-label="Operación pendiente">
             <h2 className="font-bold">Hay una operación pendiente de confirmar</h2>
             <p className="mt-2 text-sm">{intent.kind === "create" ? "Alta de gimnasta y vínculo familiar" : "Asignación de una ficha a un grupo"}. No se reenviará automáticamente y mantiene su academia, contenido y clave originales.</p>
             <button type="button" className={`${secondaryButtonClassName} mt-3`} onClick={retryIntent} disabled={busy}>
@@ -706,12 +706,12 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
           </section>
         ) : null}
 
-        {error && !intentBlocked && !intent ? <p role="alert" className="border border-red-300 bg-red-50 p-3 text-sm text-red-950">{error}</p> : null}
-        {notice ? <p role="status" className="border border-teal-300 bg-teal-50 p-3 text-sm">{notice}</p> : null}
+        {error && !intentBlocked && !intent ? <p role="alert" className="rounded-[12px] border border-red-300 bg-red-50 p-3 text-sm text-red-950">{error}</p> : null}
+        {notice ? <p role="status" className="rounded-[12px] border border-z-brand-100 bg-z-brand-50 p-3 text-sm">{notice}</p> : null}
 
-        <section aria-labelledby="new-athlete-heading" className="border border-slate-300 bg-white p-5 sm:p-6">
+        <section aria-labelledby="new-athlete-heading" className="rounded-[12px] border border-z-line bg-white p-5 sm:p-6">
           <h2 id="new-athlete-heading" className="font-display text-xl font-bold">Alta de gimnasta</h2>
-          <p className="mt-2 text-sm text-slate-700">Esta versión crea una familia nueva y el vínculo con la gimnasta. No crea tutor, pagador, cuenta ni envía mensajes; la familia puede quedar incompleta hasta que se complete esa asociación.</p>
+          <p className="mt-2 text-sm text-z-soft">Esta versión crea una familia nueva y el vínculo con la gimnasta. No crea tutor, pagador, cuenta ni envía mensajes; la familia puede quedar incompleta hasta que se complete esa asociación.</p>
           <form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={submitCreate}>
             <label className="text-sm font-semibold">Nombre
               <input className={`${fieldClassName} mt-2`} autoComplete="given-name" maxLength={100} value={givenName} onChange={(event) => setGivenName(event.target.value)} disabled={newWritesDisabled} required />
@@ -730,31 +730,31 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
             </label>
             <div className="sm:col-span-2">
               <button type="submit" className={primaryButtonClassName} disabled={newWritesDisabled}>Crear ficha y familia</button>
-              {newWritesDisabled ? <p className="mt-2 text-xs text-slate-600">Las nuevas escrituras se habilitan cuando el servidor confirma acceso, límites y ausencia de otra operación pendiente.</p> : null}
+              {newWritesDisabled ? <p className="mt-2 text-xs text-z-soft">Las nuevas escrituras se habilitan cuando el servidor confirma acceso, límites y ausencia de otra operación pendiente.</p> : null}
             </div>
           </form>
         </section>
 
-        <section aria-labelledby="unassigned-heading" className="border border-slate-300 bg-white p-5 sm:p-6">
+        <section aria-labelledby="unassigned-heading" className="rounded-[12px] border border-z-line bg-white p-5 sm:p-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 id="unassigned-heading" className="font-display text-xl font-bold">Fichas sin asignación operativa</h2>
-              <p className="mt-1 text-sm text-slate-600">{data ? `${data.total} fichas en total · página ${data.page}` : "La lista se obtiene del servidor."}</p>
+              <p className="mt-1 text-sm text-z-soft">{data ? `${data.total} fichas en total · página ${data.page}` : "La lista se obtiene del servidor."}</p>
             </div>
             <button type="button" className={secondaryButtonClassName} onClick={reload} disabled={listState === "loading"}>Actualizar lista</button>
           </div>
           {listState === "loading" ? <p role="status" className="mt-4">Cargando fichas y grupos elegibles…</p> : null}
           {listState === "error" ? (
-            <div className="mt-4 border border-red-300 bg-red-50 p-3">
+            <div className="rounded-[12px] mt-4 border border-red-300 bg-red-50 p-3">
               <p role="alert" className="text-sm text-red-950">{listError || "No se pudo cargar la bandeja. No se muestran datos parciales."}</p>
               <button type="button" className={`${secondaryButtonClassName} mt-2`} onClick={reload}>Volver a cargar</button>
             </div>
           ) : null}
           {listState === "ready" && data && data.items.length === 0 ? (
-            <p role="status" className="mt-4 border border-slate-300 bg-slate-50 p-4 text-sm">No hay fichas activas sin asignación operativa en esta página de la academia.</p>
+            <p role="status" className="rounded-[12px] mt-4 border border-z-line bg-z-canvas p-4 text-sm">No hay fichas activas sin asignación operativa en esta página de la academia.</p>
           ) : null}
           {listState === "ready" && data && data.items.length > 0 ? (
-            <ul className="mt-4 divide-y divide-slate-200">
+            <ul className="mt-4 divide-y divide-z-line">
               {data.items.map((athlete) => (
                 <li key={athlete.athleteId} className="py-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -762,9 +762,9 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
                       <h3 className="font-semibold">{athlete.givenName} {athlete.familyName}</h3>
                       {athlete.incompleteFamily ? (
                         <p className="mt-1 text-sm text-amber-900">Familia incompleta: falta asociar un tutor/pagador.</p>
-                      ) : <p className="mt-1 text-sm text-slate-700">Familia completa.</p>}
+                      ) : <p className="mt-1 text-sm text-z-soft">Familia completa.</p>}
                       {athlete.familySummaries.map((family) => (
-                        <p key={family.familyId} className="mt-1 text-xs text-slate-600">
+                        <p key={family.familyId} className="mt-1 text-xs text-z-soft">
                           {relationshipLabel(family.relationship)} · fecha efectiva {family.startsOn}{family.incompleteFamily ? " · faltan datos de tutor/pagador" : ""}
                         </p>
                       ))}
@@ -778,10 +778,10 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
                     )}
                   </div>
                   {data.eligibleGroups.length === 0 ? (
-                    <p className="mt-2 text-xs text-slate-600">No hay grupos activos con plazas disponibles en las sedes autorizadas. La ficha permanece sin asignación.</p>
+                    <p className="mt-2 text-xs text-z-soft">No hay grupos activos con plazas disponibles en las sedes autorizadas. La ficha permanece sin asignación.</p>
                   ) : null}
                   {assignment?.athleteId === athlete.athleteId ? (
-                    <form className="mt-4 grid gap-4 border border-slate-300 bg-slate-50 p-4 sm:grid-cols-2" onSubmit={submitAssignment}>
+                    <form className="rounded-[12px] mt-4 grid gap-4 border border-z-line bg-z-canvas p-4 sm:grid-cols-2" onSubmit={submitAssignment}>
                       <div className="text-sm font-semibold">
                         <label htmlFor={`intake-group-${athlete.athleteId}`}>Grupo y sede</label>
                         <select id={`intake-group-${athlete.athleteId}`} className={`${fieldClassName} mt-2`} value={assignment.groupId} onChange={(event) => setAssignment((current) => current ? { ...current, groupId: event.target.value } : current)} disabled={newWritesDisabled} required>
@@ -792,12 +792,12 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
                             </option>
                           ))}
                         </select>
-                        {data.eligibleGroups.length === 0 ? <span className="mt-2 block text-xs text-slate-600">No hay grupos activos con plazas disponibles en las sedes autorizadas.</span> : null}
+                        {data.eligibleGroups.length === 0 ? <span className="mt-2 block text-xs text-z-soft">No hay grupos activos con plazas disponibles en las sedes autorizadas.</span> : null}
                       </div>
                       <label className="text-sm font-semibold">Fecha civil de inicio en la sede
                         <input className={`${fieldClassName} mt-2`} type="date" aria-describedby={`assignment-date-help-${athlete.athleteId}`} value={assignment.startsOn} onChange={(event) => setAssignment((current) => current ? { ...current, startsOn: event.target.value } : current)} disabled={newWritesDisabled} required />
                       </label>
-                      <p id={`assignment-date-help-${athlete.athleteId}`} className="text-xs text-slate-600 sm:col-span-2">La primera asignación solo admite la fecha de hoy según la sede; el servidor la comprobará.</p>
+                      <p id={`assignment-date-help-${athlete.athleteId}`} className="text-xs text-z-soft sm:col-span-2">La primera asignación solo admite la fecha de hoy según la sede; el servidor la comprobará.</p>
                       <div className="sm:col-span-2">
                         <button type="submit" className={primaryButtonClassName} disabled={newWritesDisabled || !data.eligibleGroups.some((group) => group.groupId === assignment.groupId)}>Asignar gimnasta</button>
                       </div>
@@ -808,9 +808,9 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
             </ul>
           ) : null}
           {data && (data.page > 1 || data.hasMore) ? (
-            <nav aria-label="Paginación de gimnastas" className="mt-4 flex items-center justify-between gap-3 border-t border-slate-200 pt-4">
+            <nav aria-label="Paginación de gimnastas" className="mt-4 flex items-center justify-between gap-3 border-t border-z-line pt-4">
               <button type="button" className={secondaryButtonClassName} onClick={() => { setAssignment(null); setPage((value) => Math.max(1, value - 1)); }} disabled={data.page <= 1 || listState === "loading" || intent !== null}>Anterior</button>
-              <span className="text-sm text-slate-700">Página {data.page}</span>
+              <span className="text-sm text-z-soft">Página {data.page}</span>
               <button type="button" className={secondaryButtonClassName} onClick={() => { setAssignment(null); setPage((value) => value + 1); }} disabled={!data.hasMore || listState === "loading" || intent !== null}>Siguiente</button>
             </nav>
           ) : null}

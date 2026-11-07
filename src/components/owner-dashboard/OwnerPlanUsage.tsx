@@ -224,17 +224,17 @@ export function OwnerPlanUsage({ organizationId, compact = false }: { organizati
   }, []);
 
   if (compact) return usage?.readOnly ? (
-    <aside role="status" className="border-b border-amber-600 bg-amber-50 px-5 py-4 text-sm text-slate-950">
+    <aside role="status" className="border-b border-amber-600 bg-amber-50 px-5 py-4 text-sm text-z-ink">
       <strong>Academia en solo lectura.</strong> Superas los límites de {usage.planCode}. Los datos se conservan. <Link className="underline font-bold" href={`/owner/subscription?organizationId=${organizationId}#regularizar`}>Archivar excedente o contratar un plan suficiente</Link>.
     </aside>
   ) : error ? <div className="px-5 py-2 text-sm"><p role="status">{error}</p><button type="button" className="min-h-11 px-4 font-semibold underline" onClick={() => setRefresh(value => value + 1)}>Volver a consultar el uso</button></div> : null;
 
-  return <section id="regularizar" className="mt-6 border border-slate-300 bg-white p-5 sm:p-6" aria-label="Uso y regularización del plan">
+  return <section id="regularizar" className="rounded-[12px] mt-6 border border-z-line bg-white p-5 sm:p-6" aria-label="Uso y regularización del plan">
     <h2 className="font-display text-xl font-bold">Uso y regularización</h2>
       {usage ? <>
       <p className="mt-3" role="status">{usage.readOnly ? "Tus datos están guardados. La academia está en solo lectura: archiva el excedente o contrata un plan suficiente. La consulta y la gestión de la suscripción siguen disponibles." : "La academia está dentro de los límites del plan."}</p>
       <ul className="my-4 grid gap-2 sm:grid-cols-3">{usage.resources.map(item => <li key={item.resource}>{labels[item.resource]}: <strong>{item.current} / {item.limit ?? "sin límite"}</strong>{resourceCapacityLabel(item.current, item.limit, item.excess) ? ` · ${resourceCapacityLabel(item.current, item.limit, item.excess)}` : ""}</li>)}</ul>
-      <p className="text-sm text-slate-700">Archivar no borra fichas, facturas ni asistencia histórica. Cierra las pertenencias e inscripciones abiertas del recurso y, si es una clase, cancela sus sesiones futuras. Las fichas archivadas no pueden seguir operando. No se hacen cargos ni devoluciones.</p>
+      <p className="text-sm text-z-soft">Archivar no borra fichas, facturas ni asistencia histórica. Cierra las pertenencias e inscripciones abiertas del recurso y, si es una clase, cancela sus sesiones futuras. Las fichas archivadas no pueden seguir operando. No se hacen cargos ni devoluciones.</p>
       <label className="mt-4 block font-semibold">Tipo de ficha<select className="ml-3 min-h-11 rounded border p-2" value={selectedResourceHasExcess ? resource : ""} disabled={archiveLocked || resourcesWithExcess.length === 0} onChange={event => { setResource(event.target.value as Resource); setAfter(null); setSelected(null); setConfirmed(false); clearArchiveNotice(); }}>
         {resourcesWithExcess.length === 0 ? <option value="">No hay tipos con excedente</option> : resourcesWithExcess.map(item => <option key={item.resource} value={item.resource}>{labels[item.resource]} · excedente {item.excess}</option>)}
       </select></label>
@@ -249,7 +249,7 @@ export function OwnerPlanUsage({ organizationId, compact = false }: { organizati
       {archiveRecovery.organizationId !== organizationId || archiveRecovery.status === "loading" ? <p className="mt-3" role="status">Comprobando si quedó un archivo pendiente antes de permitir otro…</p> : null}
       {archiveSelection ? (
         <fieldset
-          className="mt-4 border border-amber-600 p-4"
+          className="rounded-[12px] mt-4 border border-amber-600 p-4"
           disabled={busy}
           aria-busy={busy}
           onKeyDown={event => {
@@ -268,7 +268,7 @@ export function OwnerPlanUsage({ organizationId, compact = false }: { organizati
           </label>
           <div className="mt-2 flex flex-wrap gap-2">
             <button type="button" className="min-h-11 rounded border px-5 font-semibold" disabled={archiveLocked} onClick={cancelSelection}>Cancelar selección</button>
-            <button type="button" className="min-h-11 rounded bg-slate-950 px-5 font-bold text-white disabled:opacity-50" disabled={(!confirmed && !pendingInThisOrganization) || busy || !archiveRecoveryReady} onClick={() => void archive()}>{busy ? "Archivando…" : pendingInThisOrganization ? "Reintentar el mismo archivo" : "Confirmar archivo"}</button>
+            <button type="button" className="min-h-11 rounded bg-z-ink px-5 font-bold text-white disabled:opacity-50" disabled={(!confirmed && !pendingInThisOrganization) || busy || !archiveRecoveryReady} onClick={() => void archive()}>{busy ? "Archivando…" : pendingInThisOrganization ? "Reintentar el mismo archivo" : "Confirmar archivo"}</button>
           </div>
         </fieldset>
       ) : null}

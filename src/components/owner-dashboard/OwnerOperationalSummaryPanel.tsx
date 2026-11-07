@@ -1,4 +1,7 @@
+import { CalendarDays, Sparkles, UsersRound, Wallet } from "lucide-react";
+
 import type { OwnerOperationalSummary } from "@/modules/owner-dashboard/application/operational-summary";
+import { ownerUi } from "./owner-ui";
 
 function formatPeriodDate(value: string) {
   return new Intl.DateTimeFormat("es-ES", {
@@ -18,15 +21,15 @@ export function OwnerOperationalSummaryPanel({
     return (
       <section
         aria-labelledby="operational-summary-unavailable-title"
-        className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 sm:p-7"
+        className={`mt-6 ${ownerUi.noticeWarning} p-5 sm:p-6`}
       >
         <h2
           id="operational-summary-unavailable-title"
-          className="text-xl text-slate-950"
+          className="font-display text-lg font-bold text-amber-950"
         >
           Resumen operativo no disponible
         </h2>
-        <p className="mt-2 text-sm text-slate-700">
+        <p className="mt-1 text-sm">
           No pudimos consultar la actividad. No significa que no haya datos.
         </p>
       </section>
@@ -38,35 +41,41 @@ export function OwnerOperationalSummaryPanel({
   return (
     <section
       aria-labelledby="operational-summary-title"
-      className="mt-6 min-w-0 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-7"
+      className="mt-6 min-w-0"
     >
-      <h2 id="operational-summary-title" className="font-display text-2xl font-bold tracking-tight text-slate-950">
-        Tu academia en marcha
-      </h2>
-      <p className="mt-2 text-sm text-slate-600">
-        {scope.label} · Todos los programas y grupos de este ámbito.
-      </p>
-      <div className="mt-6 grid min-w-0 gap-5 lg:grid-cols-2">
-        <section aria-labelledby="operational-summary-current-title" className="min-w-0 rounded-2xl bg-teal-50/60 p-5">
-          <h3
-            id="operational-summary-current-title"
-            className="text-base font-semibold text-slate-950"
-          >
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <h2 id="operational-summary-title" className={ownerUi.sectionTitle}>
+          Tu academia en marcha
+        </h2>
+        <p className="text-xs text-z-soft">
+          {scope.label} · Todos los programas y grupos de este ámbito.
+        </p>
+      </div>
+
+      <div className="mt-4 grid min-w-0 gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <section aria-labelledby="operational-summary-current-title" className="min-w-0">
+          <h3 id="operational-summary-current-title" className="sr-only">
             Ahora
           </h3>
-          <dl className="mt-4 grid min-w-0 gap-5 sm:grid-cols-2">
-            <div>
-              <dt className="text-sm text-slate-600">Gimnastas activos hoy</dt>
-              <dd className="mt-2 break-words font-display text-4xl font-bold tabular-nums tracking-tight text-slate-950">
+          <dl className="grid min-w-0 gap-3 sm:grid-cols-2">
+            <div className={ownerUi.metricCard}>
+              <dt className={`flex items-center justify-between gap-2 ${ownerUi.metricLabel}`}>
+                Gimnastas activos hoy
+                <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
+              </dt>
+              <dd className={`break-words ${ownerUi.metricValue}`}>
                 {metrics.activeAthletes}
               </dd>
-              <p className="mt-1 text-xs text-slate-600">
+              <p className="mt-1 text-xs text-z-soft">
                 Con pertenencia vigente a un grupo activo, sin duplicados.
               </p>
             </div>
-            <div>
-              <dt className="text-sm text-slate-600">Grupos activos hoy</dt>
-              <dd className="mt-2 break-words font-display text-4xl font-bold tabular-nums tracking-tight text-slate-950">
+            <div className={ownerUi.metricCard}>
+              <dt className={`flex items-center justify-between gap-2 ${ownerUi.metricLabel}`}>
+                Grupos activos hoy
+                <UsersRound className="h-4 w-4 shrink-0" aria-hidden="true" />
+              </dt>
+              <dd className={`break-words ${ownerUi.metricValue}`}>
                 {metrics.activeGroups}
               </dd>
             </div>
@@ -75,60 +84,63 @@ export function OwnerOperationalSummaryPanel({
 
         <section
           aria-labelledby="operational-summary-period-title"
-          className="min-w-0 rounded-2xl bg-slate-50 p-5"
+          className={`min-w-0 ${ownerUi.metricCard}`}
         >
-          <h3
-            id="operational-summary-period-title"
-            className="text-base font-semibold text-slate-950"
-          >
-            En este periodo
-          </h3>
-          <p className="mt-1 text-sm text-slate-600">
-            {formatPeriodDate(period.from)} – {formatPeriodDate(period.to)}
-          </p>
-          <dl className="mt-3">
+          <div className="flex items-center justify-between gap-2">
+            <h3
+              id="operational-summary-period-title"
+              className={ownerUi.metricLabel}
+            >
+              En este periodo
+            </h3>
+            <CalendarDays className="h-4 w-4 shrink-0 text-z-soft" aria-hidden="true" />
+          </div>
+          <dl>
             <div>
-              <dt className="text-sm text-slate-600">
+              <dt className="mt-1 text-xs text-z-soft">
                 Registros de asistencia
               </dt>
-              <dd className="mt-2 break-words font-display text-4xl font-bold tabular-nums tracking-tight text-slate-950">
+              <dd className={`break-words ${ownerUi.metricValue}`}>
                 {metrics.attendanceRecords}
               </dd>
-              <p className="mt-1 text-xs text-slate-600">
-                Incluye las marcas registradas, no solo presentes.
-              </p>
             </div>
           </dl>
-          <p className="mt-3 text-xs text-slate-600">
-            Fechas según la zona horaria de cada sede.
+          <p className="mt-1 text-xs text-z-soft">
+            {formatPeriodDate(period.from)} – {formatPeriodDate(period.to)}
+          </p>
+          <p className="mt-1 text-xs text-z-soft">
+            Incluye las marcas registradas, no solo presentes. Fechas según la zona horaria de cada sede.
           </p>
         </section>
 
         <section
           aria-labelledby="operational-summary-payments-title"
-          className="min-w-0 rounded-2xl border border-slate-100 p-5 lg:col-span-2"
+          className={`min-w-0 ${ownerUi.metricCard} xl:col-span-2`}
         >
-          <h3
-            id="operational-summary-payments-title"
-            className="text-base font-semibold text-slate-950"
-          >
-            Cobros recibidos en este periodo
-          </h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3
+              id="operational-summary-payments-title"
+              className={ownerUi.metricLabel}
+            >
+              Cobros recibidos en este periodo
+            </h3>
+            <Wallet className="h-4 w-4 shrink-0 text-z-soft" aria-hidden="true" />
+          </div>
           {payments.state === "available" ? (
             <>
-              <dl className="mt-4 grid min-w-0 gap-5 sm:grid-cols-2">
+              <dl className="mt-1 grid min-w-0 gap-x-8 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]">
                 <div>
-                  <dt className="text-sm text-slate-600">Cobros</dt>
-                  <dd className="mt-2 break-words font-display text-4xl font-bold tabular-nums tracking-tight text-slate-950">
+                  <dt className="text-xs text-z-soft">Cobros</dt>
+                  <dd className={`break-words ${ownerUi.metricValue}`}>
                     {payments.count}
                   </dd>
                 </div>
                 {payments.grossByCurrency.map(({ currency, amountCents }) => (
                   <div key={currency}>
-                    <dt className="text-sm text-slate-600">
+                    <dt className="text-xs text-z-soft">
                       Total bruto en {currency}
                     </dt>
-                    <dd className="mt-2 break-words font-display text-2xl font-bold tabular-nums tracking-tight text-slate-950">
+                    <dd className={`break-words ${ownerUi.metricValue}`}>
                       {new Intl.NumberFormat("es-ES", {
                         style: "currency",
                         currency,
@@ -137,13 +149,13 @@ export function OwnerOperationalSummaryPanel({
                   </div>
                 ))}
               </dl>
-              <p className="mt-3 text-xs text-slate-600">
+              <p className="mt-2 text-xs text-z-soft">
                 Bruto recibido sin descontar devoluciones; no es beneficio ni
                 saldo.
               </p>
             </>
           ) : (
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-z-soft">
               Tu rol no permite ver los cobros de este periodo.
             </p>
           )}

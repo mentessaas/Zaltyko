@@ -1,10 +1,32 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import {
+  type LucideIcon,
+  ArrowUpRight,
+  CalendarDays,
+  ClipboardCheck,
+  CreditCard,
+  MapPin,
+  Receipt,
+  Sparkles,
+  UserPlus,
+  UsersRound,
+} from "lucide-react";
 
 import type { OwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import type { OwnerOperationalSummary } from "@/modules/owner-dashboard/application/operational-summary";
 import { OwnerOperationalSummaryPanel } from "./OwnerOperationalSummaryPanel";
 import { ownerWorkspaceCapabilitiesFor } from "./owner-workspace-capabilities";
+import { ownerUi } from "./owner-ui";
+
+const QUICK_LINK_ICONS: Record<string, LucideIcon> = {
+  Gimnastas: Sparkles,
+  Grupos: UsersRound,
+  Clases: CalendarDays,
+  Inscripciones: UserPlus,
+  Asistencia: ClipboardCheck,
+  "Cuotas mensuales": Receipt,
+  "Cobros manuales": CreditCard,
+};
 
 /** Launch surface: persisted operations only; no analytics worker dependency. */
 export function OwnerEssentialDashboard({
@@ -34,34 +56,44 @@ export function OwnerEssentialDashboard({
     );
   }
   return (
-    <main className="min-h-screen bg-slate-50 px-5 py-8 text-slate-950 sm:py-12 lg:px-10">
-      <div className="mx-auto min-w-0 max-w-6xl">
-        <header className="mb-8">
-          <p className="break-words text-sm font-semibold text-teal-800">{scope.organization.name}</p>
-          <h1 className="mt-2 font-display text-4xl font-bold tracking-tight sm:text-5xl">Resumen</h1>
-          <p className="mt-3 max-w-xl text-base leading-relaxed text-slate-600">La actividad de tu club, a mano para organizar el día.</p>
-        </header>
-        <form action="/owner" method="get" className="flex min-w-0 flex-col gap-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:flex-row sm:flex-wrap sm:items-end sm:p-6">
+    <main className={ownerUi.page}>
+      <header className="mb-2 flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
+          <p className={ownerUi.eyebrow}>{scope.organization.name}</p>
+          <h1 className={ownerUi.pageTitle}>Resumen</h1>
+          <p className={ownerUi.pageLead}>La actividad de tu club, a mano para organizar el día.</p>
+        </div>
+        <form action="/owner" method="get" className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
           <input type="hidden" name="organizationId" value={scope.organization.id} />
-          <label className="grid min-w-0 max-w-full gap-2 text-sm font-semibold text-slate-900 sm:flex-1">
+          <label className="grid min-w-0 max-w-full gap-1.5 text-xs font-semibold text-z-soft sm:w-64">
             Sede
-            <select name="locationId" defaultValue={scope.selectedLocationId ?? ""} className="min-h-12 min-w-0 w-full max-w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-base font-normal text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800">
-              {scope.canViewOrganizationAggregate && <option value="">Todas las sedes autorizadas</option>}
-              {scope.locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
-            </select>
+            <span className="relative flex min-w-0 items-center">
+              <MapPin aria-hidden="true" className="pointer-events-none absolute left-3 h-4 w-4 text-z-soft" />
+              <select name="locationId" defaultValue={scope.selectedLocationId ?? ""} className={`${ownerUi.field} pl-9 font-medium`}>
+                {scope.canViewOrganizationAggregate && <option value="">Todas las sedes autorizadas</option>}
+                {scope.locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+              </select>
+            </span>
           </label>
-          <button type="submit" className="touch-target inline-flex min-h-12 max-w-full items-center justify-center rounded-xl bg-teal-800 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-teal-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800">Ver resumen</button>
+          <button type="submit" className={ownerUi.secondaryButton}>Ver resumen</button>
         </form>
-        <OwnerOperationalSummaryPanel summary={operationalSummary} />
-        <nav aria-label="Operaciones de la academia" className="mt-8 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {links.map(([label, href]) => (
-            <Link key={label} href={href} className="touch-target group flex min-h-16 min-w-0 items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 font-semibold text-slate-900 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800">
-              <span className="min-w-0 break-words">{label}</span>
-              <ArrowUpRight aria-hidden="true" className="h-5 w-5 shrink-0 text-teal-800" />
+      </header>
+      <OwnerOperationalSummaryPanel summary={operationalSummary} />
+      <h2 className={`mt-9 ${ownerUi.sectionTitle}`}>Accesos rápidos</h2>
+      <nav aria-label="Operaciones de la academia" className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {links.map(([label, href]) => {
+          const Icon = QUICK_LINK_ICONS[label] ?? ArrowUpRight;
+          return (
+            <Link key={label} href={href} className="touch-target group flex min-h-16 min-w-0 items-center gap-3 rounded-[14px] border border-z-line bg-white px-4 py-3 text-sm font-semibold text-z-ink transition-colors hover:border-z-brand-100 hover:bg-z-brand-50/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500">
+              <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-z-canvas text-z-brand-600 transition-colors group-hover:bg-white">
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className="min-w-0 flex-1 break-words">{label}</span>
+              <ArrowUpRight aria-hidden="true" className="h-4 w-4 shrink-0 text-z-soft transition-colors group-hover:text-z-brand-600" />
             </Link>
-          ))}
-        </nav>
-      </div>
+          );
+        })}
+      </nav>
     </main>
   );
 }

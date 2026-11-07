@@ -356,7 +356,7 @@ export function FamilyCollectionModeCard({
 
   if (!canManage) {
     return (
-      <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm leading-5 text-slate-600">
+      <p className="rounded-xl bg-z-canvas px-4 py-3 text-sm leading-5 text-z-soft">
         La modalidad se configura por familia y requiere acceso a todas las
         sedes de la academia.
       </p>
@@ -373,17 +373,17 @@ export function FamilyCollectionModeCard({
   return (
     <section
       aria-labelledby="family-collection-mode-title"
-      className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+      className="rounded-2xl border border-z-line bg-z-canvas p-4"
     >
       <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
       <div>
         <h3
           id="family-collection-mode-title"
-          className="text-sm font-bold text-slate-900"
+          className="text-sm font-bold text-z-ink"
         >
           Cobro familiar: modalidad efectiva manual
         </h3>
-        <p className="mt-1 text-sm leading-5 text-slate-600">
+        <p className="mt-1 text-sm leading-5 text-z-soft">
           Puedes guardar una solicitud futura de cobro automático; aún no inicia
           cargos ni modifica los ya emitidos.
         </p>
@@ -426,7 +426,7 @@ export function FamilyCollectionModeCard({
       ) : null}
 
       {loading ? (
-        <p className="mt-3 text-sm text-slate-600" role="status">
+        <p className="mt-3 text-sm text-z-soft" role="status">
           Cargando preferencia…
         </p>
       ) : errorMessage && !preference ? (
@@ -446,36 +446,36 @@ export function FamilyCollectionModeCard({
             }
           >
             <legend className="sr-only">Preferencia de cobro</legend>
-            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-z-line bg-white px-3 py-2">
               <input
                 checked={selectedMode === "manual"}
-                className="size-4 accent-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+                className="size-4 accent-z-brand-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
                 name={`family-collection-mode-${familyId}`}
                 onChange={() => void chooseMode("manual")}
                 type="radio"
                 value="manual"
               />
-              <span className="text-sm font-semibold text-slate-900">
+              <span className="text-sm font-semibold text-z-ink">
                 Manual
               </span>
             </label>
             <label
               className={`flex min-h-12 items-center gap-3 rounded-xl border bg-white px-3 py-2 ${
                 preference?.automaticPreferenceAvailable
-                  ? "cursor-pointer border-slate-200"
-                  : "cursor-not-allowed border-slate-200 opacity-70"
+                  ? "cursor-pointer border-z-line"
+                  : "cursor-not-allowed border-z-line opacity-70"
               }`}
             >
               <input
                 checked={selectedMode === "automatic"}
-                className="size-4 accent-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+                className="size-4 accent-z-brand-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
                 disabled={!preference?.automaticPreferenceAvailable}
                 name={`family-collection-mode-${familyId}`}
                 onChange={() => void chooseMode("automatic")}
                 type="radio"
                 value="automatic"
               />
-              <span className="text-sm font-semibold text-slate-900">
+              <span className="text-sm font-semibold text-z-ink">
                 Solicitar automático
               </span>
             </label>
@@ -489,7 +489,7 @@ export function FamilyCollectionModeCard({
             </p>
           ) : null}
           {preference && !preference.automaticPreferenceAvailable ? (
-            <p className="mt-2 text-xs leading-5 text-slate-600">
+            <p className="mt-2 text-xs leading-5 text-z-soft">
               La solicitud automática solo se puede guardar con un plan de pago
               vigente.
             </p>
@@ -503,9 +503,9 @@ export function FamilyCollectionModeCard({
       )}
 
       <div aria-live="polite" className="mt-2 min-h-5 text-xs">
-        {saving ? <span className="text-slate-600">Guardando…</span> : null}
+        {saving ? <span className="text-z-soft">Guardando…</span> : null}
         {!saving && savedMessage ? (
-          <span className="text-teal-900">{savedMessage}</span>
+          <span className="text-z-brand-700">{savedMessage}</span>
         ) : null}
         {!saving && errorMessage && preference ? (
           <span className="text-red-700" role="alert">

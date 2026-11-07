@@ -1127,11 +1127,11 @@ export function ManualPaymentForm({
 
   if (loadedCharges.length === 0) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
-        <h2 className="font-display text-xl font-bold text-slate-950">
+      <div className="rounded-3xl border border-z-line bg-white p-6 sm:p-8">
+        <h2 className="font-display text-xl font-bold text-z-ink">
           No hay cargos pendientes
         </h2>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
+        <p className="mt-2 max-w-xl text-sm leading-6 text-z-soft">
           Cuando la academia tenga un cargo abierto, podrás registrar aquí el
           dinero que ya hayas recibido y dejarlo conciliado en un solo paso.
         </p>
@@ -1190,7 +1190,7 @@ export function ManualPaymentForm({
                   value={reference}
                   onChange={(event) => setReference(event.target.value)}
                   disabled={busy}
-                  className="min-h-11 rounded-xl border border-amber-400 bg-white px-3 text-sm text-slate-950"
+                  className="min-h-11 rounded-xl border border-amber-400 bg-white px-3 text-sm text-z-ink"
                 />
               </label>
             )}
@@ -1229,9 +1229,9 @@ export function ManualPaymentForm({
   return (
     <form
       onSubmit={submit}
-      className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"
+      className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-6 rounded-3xl border border-z-line bg-white p-5 shadow-sm sm:p-8"
     >
-      <div className="rounded-2xl border border-teal-900/15 bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-950">
+      <div className="rounded-2xl border border-z-brand-100/15 bg-z-brand-50 px-4 py-3 text-sm leading-6 text-z-brand-700">
         Registra solo dinero que ya has recibido. Zaltyko no iniciará ningún
         cobro.
       </div>
@@ -1261,7 +1261,7 @@ export function ManualPaymentForm({
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
         <label
           htmlFor={chargeSelectId}
-          className="text-sm font-bold text-slate-900"
+          className="text-sm font-bold text-z-ink"
         >
           Cargo pendiente
         </label>
@@ -1271,7 +1271,7 @@ export function ManualPaymentForm({
           onChange={(event) => chooseCharge(event.target.value)}
           disabled={formLocked}
           aria-describedby={formCharge ? chargeHelpId : undefined}
-          className="min-h-12 w-full min-w-0 max-w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
+          className="min-h-12 w-full min-w-0 max-w-full rounded-xl border border-z-line bg-white px-3 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
         >
           {retryForCurrentOrganization && !retryCharge && (
             <option value={retryForCurrentOrganization.body.chargeId}>
@@ -1292,7 +1292,7 @@ export function ManualPaymentForm({
               type="button"
               onClick={() => void loadMoreCharges()}
               disabled={!pageMatchesCurrentProps || loadingMore || formLocked}
-              className="min-h-11 rounded-full border border-slate-400 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-11 rounded-full border border-z-line bg-white px-4 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loadingMore ? "Cargando cargos…" : "Cargar más cargos"}
             </button>
@@ -1306,7 +1306,7 @@ export function ManualPaymentForm({
         {formCharge && (
           <span
             id={chargeHelpId}
-            className="text-xs leading-5 text-slate-600"
+            className="text-xs leading-5 text-z-soft"
           >
             {formCharge.locationName} · Vence el{" "}
             {formatPaymentDueDate(
@@ -1322,7 +1322,7 @@ export function ManualPaymentForm({
           <div className="grid gap-2">
             <label
               htmlFor={amountInputId}
-              className="text-sm font-bold text-slate-900"
+              className="text-sm font-bold text-z-ink"
             >
               {retryForCurrentOrganization
                 ? "Importe del envío original"
@@ -1344,18 +1344,18 @@ export function ManualPaymentForm({
                   (!amountCents || amountCents > formCharge.outstandingCents)
                 }
                 aria-describedby={amountHelpId}
-                className="min-h-12 w-full rounded-xl border border-slate-300 px-3 pr-16 text-base text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
+                className="min-h-12 w-full rounded-xl border border-z-line px-3 pr-16 text-base text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
               />
               <span
                 aria-hidden="true"
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500"
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-z-soft"
               >
                 {displayedCurrency ?? formCharge.currency}
               </span>
             </span>
             <span
               id={amountHelpId}
-              className="text-xs text-slate-600"
+              className="text-xs text-z-soft"
             >
               {retryForCurrentOrganization
                 ? `Saldo actual del cargo: ${retryCharge ? formatMoney(retryCharge.outstandingCents, retryCharge.currency) : "no disponible"}. El importe original del envío se conserva para el reintento.`
@@ -1364,7 +1364,7 @@ export function ManualPaymentForm({
           </div>
 
           <label className="grid gap-2">
-            <span className="text-sm font-bold text-slate-900">
+            <span className="text-sm font-bold text-z-ink">
               {retryForCurrentOrganization
                 ? "Método del envío original"
                 : "Método de pago"}
@@ -1375,7 +1375,7 @@ export function ManualPaymentForm({
                 setMethod(event.target.value as ManualPaymentMethod)
               }
               disabled={formLocked}
-              className="min-h-12 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
+              className="min-h-12 rounded-xl border border-z-line bg-white px-3 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
             >
               <option value="bank_transfer">Transferencia</option>
               <option value="cash">Efectivo</option>
@@ -1385,7 +1385,7 @@ export function ManualPaymentForm({
           </label>
 
           <label className="grid gap-2">
-            <span className="text-sm font-bold text-slate-900">
+            <span className="text-sm font-bold text-z-ink">
               {retryForCurrentOrganization
                 ? "Fecha original de recepción"
                 : "Fecha de recepción"}
@@ -1402,14 +1402,14 @@ export function ManualPaymentForm({
               }}
               disabled={formLocked}
               required
-              className="min-h-12 rounded-xl border border-slate-300 px-3 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
+              className="min-h-12 rounded-xl border border-z-line px-3 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
             />
           </label>
 
           <label className="grid gap-2">
-            <span className="text-sm font-bold text-slate-900">
+            <span className="text-sm font-bold text-z-ink">
               Referencia{" "}
-              <span className="font-normal text-slate-500">(opcional)</span>
+              <span className="font-normal text-z-soft">(opcional)</span>
             </span>
             <input
               type="text"
@@ -1422,9 +1422,9 @@ export function ManualPaymentForm({
                 (retryRequest !== null && !retryRequest.referenceRequired)
               }
               placeholder="Por ejemplo, concepto de la transferencia"
-              className="min-h-12 rounded-xl border border-slate-300 px-3 text-sm text-slate-950 placeholder:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100"
+              className="min-h-12 rounded-xl border border-z-line px-3 text-sm text-z-ink placeholder:text-z-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
             />
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-z-soft">
               No incluyas números completos de cuenta ni datos sensibles.
             </span>
           </label>
@@ -1432,7 +1432,7 @@ export function ManualPaymentForm({
       )}
 
       {formCharge && displayedAmountCents && (
-        <p className="border-t border-slate-200 pt-4 text-sm text-slate-700">
+        <p className="border-t border-z-line pt-4 text-sm text-z-soft">
           {retryForCurrentOrganization
             ? `Importe del envío original: ${formatMoney(displayedAmountCents, displayedCurrency ?? formCharge.currency)} a `
             : `Se asignarán ${formatMoney(displayedAmountCents, formCharge.currency)} a `}
@@ -1477,7 +1477,7 @@ export function ManualPaymentForm({
                 !selectedCharge ||
                 !effectiveReceivedOn)
           }
-          className="min-h-12 rounded-full bg-teal-900 px-6 text-sm font-bold text-white hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="min-h-12 rounded-full bg-black px-6 text-sm font-bold text-white hover:bg-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {busy
             ? "Guardando…"
@@ -1487,7 +1487,7 @@ export function ManualPaymentForm({
                 ? "Resuelve primero el envío pendiente"
                 : "Guardar pago recibido"}
         </button>
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-z-soft">
           {formCharge && displayedAmountCents
             ? retryForCurrentOrganization
               ? `Importe original: ${formatMoney(displayedAmountCents, displayedCurrency ?? formCharge.currency)}`

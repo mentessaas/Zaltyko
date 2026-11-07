@@ -51,11 +51,11 @@ export type OwnerGuardianContactScope = Readonly<{ organizationId: string; locat
 type ContactsReceipt = Readonly<{ contacts: OwnerGuardianContacts; replayed: boolean }>;
 
 const fieldClassName =
-  "min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:bg-slate-100";
+  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas";
 const primaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-teal-800 bg-teal-800 px-4 py-2 text-sm font-bold text-white hover:bg-teal-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+  "touch-target inline-flex min-h-11 items-center justify-center border border-z-ink bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
 const secondaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-slate-400 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+  "touch-target inline-flex min-h-11 items-center justify-center border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -612,11 +612,11 @@ export function OwnerGuardianContactsEditor({
   const editingValue = editingKind === "email" ? emailValue : phoneValue;
 
   return (
-    <section aria-label={`Contactos de ${profileDisplayName}`} className="mt-4 w-full border border-slate-300 bg-slate-50 p-4 sm:col-span-2">
+    <section aria-label={`Contactos de ${profileDisplayName}`} className="rounded-[12px] mt-4 w-full border border-z-line bg-z-canvas p-4 sm:col-span-2">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h4 className="font-bold">Contactos del pagador</h4>
-          <p className="mt-1 text-sm text-slate-700">Editar estos datos no crea una cuenta, no envía mensajes y no verifica el contacto.</p>
+          <p className="mt-1 text-sm text-z-soft">Editar estos datos no crea una cuenta, no envía mensajes y no verifica el contacto.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" className={secondaryButtonClassName} aria-expanded={profileOpen} onClick={() => {
@@ -650,14 +650,14 @@ export function OwnerGuardianContactsEditor({
         />
       )}
 
-      {loading && <p role="status" className="mt-3 text-sm text-slate-700">Cargando contactos…</p>}
+      {loading && <p role="status" className="mt-3 text-sm text-z-soft">Cargando contactos…</p>}
       {loadError && (
-        <div className="mt-3 border border-red-300 bg-white p-3">
+        <div className="rounded-[12px] mt-3 border border-red-300 bg-white p-3">
           <p role="alert" className="text-sm text-red-900">{loadError}</p>
           <button type="button" className={`${secondaryButtonClassName} mt-2`} onClick={() => setLoadRevision((revision) => revision + 1)} disabled={operationLocked}>Volver a cargar</button>
         </div>
       )}
-      {message && <p role={messageKind === "error" ? "alert" : "status"} className="mt-3 border border-slate-300 bg-white p-3 text-sm">{message}</p>}
+      {message && <p role={messageKind === "error" ? "alert" : "status"} className="rounded-[12px] mt-3 border border-z-line bg-white p-3 text-sm">{message}</p>}
 
       {contacts && !loading && !loadError && (
         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -667,10 +667,10 @@ export function OwnerGuardianContactsEditor({
             const label = kind === "email" ? "Correo electrónico" : "Teléfono";
             const inputId = `guardian-contact-${kind}-${guardianId}`;
             return (
-              <div key={kind} className="border border-slate-300 bg-white p-3">
+              <div key={kind} className="rounded-[12px] border border-z-line bg-white p-3">
                 <h5 className="font-semibold">{label}</h5>
-                <p className="mt-1 break-all text-sm text-slate-800">{current?.value ?? "Sin dato guardado"}</p>
-                <p className="mt-1 text-xs text-slate-600">{current?.verifiedAt ? "Verificado por el sistema" : "No verificado"}</p>
+                <p className="mt-1 break-all text-sm text-z-ink">{current?.value ?? "Sin dato guardado"}</p>
+                <p className="mt-1 text-xs text-z-soft">{current?.verifiedAt ? "Verificado por el sistema" : "No verificado"}</p>
                 {editing ? (
                   <div className="mt-3 grid gap-2">
                     <label className="text-sm font-semibold" htmlFor={inputId}>{label}
@@ -686,7 +686,7 @@ export function OwnerGuardianContactsEditor({
                         disabled={inputDisabled}
                       />
                     </label>
-                    {kind === "phone" && <p className="text-xs text-slate-600">Usa + y el prefijo internacional explícito, por ejemplo +34…</p>}
+                    {kind === "phone" && <p className="text-xs text-z-soft">Usa + y el prefijo internacional explícito, por ejemplo +34…</p>}
                     <div className="flex flex-wrap gap-2">
                       <button type="button" className={primaryButtonClassName} onClick={() => submit(kind)} disabled={inputDisabled}>
                         Guardar {kind === "email" ? "correo" : "teléfono"}
@@ -706,7 +706,7 @@ export function OwnerGuardianContactsEditor({
       )}
 
       {pending && (
-        <div className="mt-4 border border-amber-400 bg-amber-50 p-3">
+        <div className="rounded-[12px] mt-4 border border-amber-400 bg-amber-50 p-3">
           <p className="text-sm text-amber-950">La operación de {pending.kind === "email" ? "correo" : "teléfono"} sigue pendiente. No se volverá a enviar automáticamente.</p>
           <button type="button" className={`${secondaryButtonClassName} mt-2`} onClick={retryPending} disabled={disabled || saving || pendingBlocked}>
             {saving ? "Comprobando contacto…" : "Reintentar la misma operación"}

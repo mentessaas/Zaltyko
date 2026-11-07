@@ -15,7 +15,7 @@ export function OwnerOperationalReadOnlyNotice({
     return (
       <p
         role="status"
-        className="mt-5 border border-slate-400 bg-slate-100 p-4 text-sm leading-6 text-slate-950"
+        className="rounded-[12px] mt-5 border border-z-line bg-z-canvas p-4 text-sm leading-6 text-z-ink"
       >
         Comprobando los límites del plan. Las escrituras nuevas están pausadas
         hasta confirmar que la academia puede operar. {" "}
@@ -34,7 +34,7 @@ export function OwnerOperationalReadOnlyNotice({
     return (
       <div
         role="status"
-        className="mt-5 border border-amber-600 bg-amber-50 p-4 text-sm leading-6 text-slate-950"
+        className="rounded-[12px] mt-5 border border-amber-600 bg-amber-50 p-4 text-sm leading-6 text-z-ink"
       >
         <p>
           No se pudieron comprobar los límites del plan. Vuelve a consultar el
@@ -65,7 +65,7 @@ export function OwnerOperationalReadOnlyNotice({
   return (
     <p
       role="status"
-      className="mt-5 border border-amber-600 bg-amber-50 p-4 text-sm leading-6 text-slate-950"
+      className="rounded-[12px] mt-5 border border-amber-600 bg-amber-50 p-4 text-sm leading-6 text-z-ink"
     >
       La academia está en solo lectura porque supera los límites del plan. Los
       datos y el historial se conservan. Para volver a operar, archiva el

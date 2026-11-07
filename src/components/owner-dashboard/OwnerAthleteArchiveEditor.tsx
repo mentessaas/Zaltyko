@@ -150,7 +150,7 @@ function problemMessage(payload: unknown): string {
 }
 
 const buttonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-slate-400 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+  "touch-target inline-flex min-h-11 items-center justify-center border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
 const dangerButtonClassName =
   "touch-target inline-flex min-h-11 items-center justify-center bg-red-800 px-4 py-2 text-sm font-bold text-white hover:bg-red-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-800 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -394,7 +394,7 @@ export function OwnerAthleteArchiveEditor({
       {(foreignStoragePending || foreignExternalPending) && <p role="alert">Hay un archivo pendiente de otra ficha o sede. Resuélvelo antes de iniciar otra operación.</p>}
       {confirmationOpen && (
         <div role="group" className="space-y-3 rounded border border-red-300 bg-red-50 p-4" aria-label="Confirmación de archivo">
-          <p className="text-sm text-slate-900">
+          <p className="text-sm text-z-ink">
             Archivar no borra la ficha. Termina sus pertenencias a grupos y clases futuras, y conserva su historial y las cuotas pendientes.
           </p>
           {activePending && <p role="status">Hay una respuesta pendiente de confirmar. El reintento usará exactamente el mismo cuerpo y la misma clave; no se enviará automáticamente.</p>}

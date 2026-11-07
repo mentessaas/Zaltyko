@@ -307,11 +307,11 @@ function problemMessage(payload: unknown): string {
 }
 
 const fieldClassName =
-  "min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:bg-slate-100";
+  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas";
 const primaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-teal-800 bg-teal-800 px-4 py-2 text-sm font-bold text-white hover:bg-teal-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+  "touch-target inline-flex min-h-11 items-center justify-center border border-z-ink bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
 const secondaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-slate-400 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+  "touch-target inline-flex min-h-11 items-center justify-center border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
 
 export function OwnerAthleteFamilyAssociationEditor({
   organizationId,
@@ -734,15 +734,15 @@ export function OwnerAthleteFamilyAssociationEditor({
       )}
 
       {!isOpen && completedNotice && (
-        <p role="status" className="basis-full border border-teal-700 bg-teal-50 p-3 text-sm text-slate-900">{completedNotice}</p>
+        <p role="status" className="rounded-[12px] basis-full border border-z-brand-100 bg-z-brand-50 p-3 text-sm text-z-ink">{completedNotice}</p>
       )}
 
       {isOpen && (
-        <section aria-labelledby={titleId} className="mt-3 w-full border border-slate-300 bg-white p-4 sm:col-span-2">
+        <section aria-labelledby={titleId} className="rounded-[12px] mt-3 w-full border border-z-line bg-white p-4 sm:col-span-2">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h4 id={titleId} className="font-bold">Asociar familia</h4>
-              <p className="mt-1 text-sm text-slate-700">Vincula a {athleteName} con una familia y una persona adulta responsable.</p>
+              <p className="mt-1 text-sm text-z-soft">Vincula a {athleteName} con una familia y una persona adulta responsable.</p>
             </div>
             {!activePending && (
               <button type="button" className={secondaryButtonClassName} onClick={closeEditor} disabled={saving || contactCommandPending}>
@@ -751,23 +751,23 @@ export function OwnerAthleteFamilyAssociationEditor({
             )}
           </div>
 
-          {message && <p role={messageKind === "error" ? "alert" : "status"} className="mt-3 border border-slate-300 bg-slate-50 p-3 text-sm">{message}</p>}
+          {message && <p role={messageKind === "error" ? "alert" : "status"} className="rounded-[12px] mt-3 border border-z-line bg-z-canvas p-3 text-sm">{message}</p>}
 
           {activePending ? (
             <p className="mt-3 text-sm text-amber-900">Los datos quedan bloqueados mientras se confirma exactamente la operación original.</p>
           ) : (
             <>
-              {loadingOptions && <p role="status" className="mt-3 text-sm text-slate-700">Cargando familias disponibles…</p>}
+              {loadingOptions && <p role="status" className="mt-3 text-sm text-z-soft">Cargando familias disponibles…</p>}
               {allowExistingFamilies && !loadingOptions && !optionsLoaded && (
                 <button type="button" className={`${secondaryButtonClassName} mt-3`} onClick={() => void loadFamilyOptions()} disabled={disabled || readOnly || saving}>
                   Cargar familias de nuevo
                 </button>
               )}
               {allowExistingFamilies && !loadingOptions && optionsLoaded && familiesWithPayers.length === 0 && (
-                <p className="mt-3 text-sm text-slate-700">No hay familias activas con una persona pagadora disponible en esta sede. Si esta gimnasta tiene una familia incompleta, complétala; crea una nueva solo si todavía no tiene vínculo familiar.</p>
+                <p className="mt-3 text-sm text-z-soft">No hay familias activas con una persona pagadora disponible en esta sede. Si esta gimnasta tiene una familia incompleta, complétala; crea una nueva solo si todavía no tiene vínculo familiar.</p>
               )}
               {!allowExistingFamilies && (
-                <p className="mt-3 border border-sky-300 bg-sky-50 p-3 text-sm text-slate-800">Tu acceso está limitado a una sede. Puedes crear una familia nueva aquí; la selección de familias existentes requiere acceso a todas las sedes porque el pagador es un dato compartido.</p>
+                <p className="rounded-[12px] mt-3 border border-sky-300 bg-sky-50 p-3 text-sm text-z-ink">Tu acceso está limitado a una sede. Puedes crear una familia nueva aquí; la selección de familias existentes requiere acceso a todas las sedes porque el pagador es un dato compartido.</p>
               )}
 
               <form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={(event) => void submit(event)}>
@@ -816,12 +816,12 @@ export function OwnerAthleteFamilyAssociationEditor({
                       </select>
                     </label>
                     {selectedPayerWillBePromoted && (
-                      <label className="flex items-start gap-2 border border-amber-400 bg-amber-50 p-3 text-sm text-slate-900 sm:col-span-2">
+                      <label className="rounded-[12px] flex items-start gap-2 border border-amber-400 bg-amber-50 p-3 text-sm text-z-ink sm:col-span-2">
                         <input type="checkbox" className="mt-1 min-h-6 min-w-6" checked={confirmPrimaryPayerChange} onChange={(event) => setConfirmPrimaryPayerChange(event.target.checked)} disabled={disabled || readOnly || saving || contactCommandPending || Boolean(activePending)} />
                         Confirmo que esta persona pasará a ser el pagador principal de toda la familia.
                       </label>
                     )}
-                    <p className="text-sm text-slate-700 sm:col-span-2">No se crea una cuenta ni se envía correo. Esta asociación tampoco registra cuotas ni inicia cobros. La persona elegida quedará como pagador principal de la familia.</p>
+                    <p className="text-sm text-z-soft sm:col-span-2">No se crea una cuenta ni se envía correo. Esta asociación tampoco registra cuotas ni inicia cobros. La persona elegida quedará como pagador principal de la familia.</p>
                   </>
                 ) : (
                   <>
@@ -842,7 +842,7 @@ export function OwnerAthleteFamilyAssociationEditor({
                         <option value="other">Otra persona responsable</option>
                       </select>
                     </label>
-                    <p className="self-end text-sm text-slate-700">{mode === "complete" ? "Esta persona completará la familia ya vinculada y será su pagador principal. Se conserva el vínculo existente." : "Esta persona será el pagador principal de la nueva familia."} No se crea una cuenta ni se envía correo; tampoco se registran cuotas ni se inicia ningún cobro.</p>
+                    <p className="self-end text-sm text-z-soft">{mode === "complete" ? "Esta persona completará la familia ya vinculada y será su pagador principal. Se conserva el vínculo existente." : "Esta persona será el pagador principal de la nueva familia."} No se crea una cuenta ni se envía correo; tampoco se registran cuotas ni se inicia ningún cobro.</p>
                   </>
                 )}
 
@@ -858,7 +858,7 @@ export function OwnerAthleteFamilyAssociationEditor({
                 </div>
               </form>
               {mode === "existing" && allowExistingFamilies && selectedPayer && selectedGuardianId && !activePending && (
-                <div className="mt-4 border-t border-slate-200 pt-4 sm:col-span-2">
+                <div className="mt-4 border-t border-z-line pt-4 sm:col-span-2">
                   <button
                     type="button"
                     className={secondaryButtonClassName}

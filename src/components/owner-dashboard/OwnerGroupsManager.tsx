@@ -202,11 +202,11 @@ function readPendingGroupCreate(
 }
 
 const fieldClassName =
-  "min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800";
+  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500";
 const primaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center gap-2 bg-teal-800 px-4 py-2 text-sm font-bold text-white hover:bg-teal-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+  "touch-target inline-flex min-h-11 items-center justify-center gap-2 bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
 const secondaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center gap-2 border border-slate-400 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+  "touch-target inline-flex min-h-11 items-center justify-center gap-2 border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
 
 function statusLabel(status: string): string {
   if (status === "pending") return "Pendiente";
@@ -1262,7 +1262,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-[#F1F3EF] px-4 py-6 text-slate-950 sm:px-6 lg:px-10">
+    <main className="min-h-[100dvh] bg-[#F1F3EF] px-4 py-6 text-z-ink sm:px-6 lg:px-10">
       <div className="mx-auto max-w-[92rem]">
         <Link
           href={ownerDashboardScopeHref(
@@ -1275,17 +1275,17 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           onClick={(event) => {
             if (commandsLocked) event.preventDefault();
           }}
-          className="touch-target inline-flex items-center gap-2 text-sm font-semibold text-slate-700 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
+          className="touch-target inline-flex items-center gap-2 text-sm font-semibold text-z-soft underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Volver al resumen
         </Link>
-        <header className="mt-5 flex flex-col gap-4 border-b border-slate-300 pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <header className="mt-5 flex flex-col gap-4 border-b border-z-line pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
               Grupos y equipos
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-z-soft">
               Organiza cada actividad por sede. Una gimnasta puede pertenecer a
               varios grupos.
             </p>
@@ -1304,7 +1304,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
         <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
 
         {membershipRecoveryFailure?.scope === membershipScope && (
-          <section role="alert" className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950">
+          <section role="alert" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink">
             <p>{membershipRecoveryFailure.message}</p>
             <button type="button" className={`${secondaryButtonClassName} mt-3`} onClick={() => setMembershipRecoveryAttempt((attempt) => attempt + 1)}>
               Volver a comprobar operación pendiente
@@ -1312,7 +1312,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           </section>
         )}
         {profileRecoveryIssue && profileRecoveryReady && (
-          <section role="alert" className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950">
+          <section role="alert" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink">
             <p>{profileRecoveryIssue}</p>
             <button type="button" className={`${secondaryButtonClassName} mt-3`} onClick={() => setProfileRecoveryAttempt((attempt) => attempt + 1)}>
               Volver a comprobar ficha pendiente
@@ -1320,7 +1320,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           </section>
         )}
         {familyRecoveryIssue && familyRecoveryReady && (
-          <section role="alert" className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950">
+          <section role="alert" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink">
             <p>{familyRecoveryIssue}</p>
             <button type="button" className={`${secondaryButtonClassName} mt-3`} onClick={() => setFamilyRecoveryAttempt((attempt) => attempt + 1)}>
               Volver a comprobar asociación familiar pendiente
@@ -1328,10 +1328,10 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           </section>
         )}
         {!archiveRecoveryLoaded && (
-          <p role="status" className="mt-5 text-sm text-slate-700">Comprobando si hay un archivo pendiente…</p>
+          <p role="status" className="mt-5 text-sm text-z-soft">Comprobando si hay un archivo pendiente…</p>
         )}
         {archiveRecoveryIssue && archiveRecoveryLoaded && (
-          <section role="alert" className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950">
+          <section role="alert" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink">
             <p>{archiveRecoveryIssue}</p>
             <button type="button" className={`${secondaryButtonClassName} mt-3`} onClick={() => setArchiveRecoveryAttempt((attempt) => attempt + 1)}>
               Volver a comprobar archivo pendiente
@@ -1339,7 +1339,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           </section>
         )}
         {pendingAthleteArchive && (
-          <section role="status" aria-labelledby="pending-athlete-archive-title" className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950">
+          <section role="status" aria-labelledby="pending-athlete-archive-title" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink">
             <h2 id="pending-athlete-archive-title" className="font-bold">Archivo de ficha pendiente de confirmar</h2>
             <p className="mt-2 leading-6">Conservamos la solicitud original y su clave. No iniciaremos otras escrituras hasta confirmar el resultado. El reintento solo se hará al pulsar el botón de la ficha original.</p>
             {pendingArchiveIsForeign && (
@@ -1350,8 +1350,8 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           </section>
         )}
         {archiveRecoveryReady && detachedPendingArchiveVisible && pendingAthleteArchive && selectedGroup && (
-          <section role="region" aria-label="Resolver archivo de ficha pendiente" className="mt-5 border border-amber-700 bg-amber-50 p-4">
-            <p className="mb-3 text-sm leading-6 text-slate-800">La ficha ya no aparece en las pertenencias actuales. Puedes comprobar la operación original con su misma clave, sin crear otro archivo.</p>
+          <section role="region" aria-label="Resolver archivo de ficha pendiente" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4">
+            <p className="mb-3 text-sm leading-6 text-z-ink">La ficha ya no aparece en las pertenencias actuales. Puedes comprobar la operación original con su misma clave, sin crear otro archivo.</p>
             <OwnerAthleteArchiveEditor
               key={`archive-detached:${pendingAthleteArchive.idempotencyKey}`}
               organizationId={pendingAthleteArchive.organizationId}
@@ -1373,10 +1373,10 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           </section>
         )}
         {!familyRecoveryReady && (
-          <p role="status" className="mt-5 text-sm text-slate-700">Comprobando si hay una asociación familiar pendiente…</p>
+          <p role="status" className="mt-5 text-sm text-z-soft">Comprobando si hay una asociación familiar pendiente…</p>
         )}
         {pendingAthleteFamilyAssociation && (
-          <section role="status" aria-labelledby="pending-family-association-title" className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950">
+          <section role="status" aria-labelledby="pending-family-association-title" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink">
             <h2 id="pending-family-association-title" className="font-bold">Asociación familiar pendiente de confirmar</h2>
             <p className="mt-2 leading-6">Conservamos el cuerpo y la clave de la solicitud original. No iniciaremos otras escrituras hasta confirmar el resultado. Reintenta solo desde el botón de esta gimnasta; nunca enviaremos la operación automáticamente.</p>
             {!pendingFamilyAssociationVisible && (
@@ -1394,7 +1394,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
             athleteId: membership.athleteId,
           }))
         ) && (
-          <p role="status" className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950">
+          <p role="status" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink">
             Hay una edición de ficha pendiente en otra academia, sede, grupo o gimnasta. No iniciaremos otras escrituras hasta comprobar la solicitud original. {" "}
             <Link className="font-bold underline" href={`/owner/groups?organizationId=${encodeURIComponent(pendingAthleteProfile.organizationId)}&locationId=${encodeURIComponent(pendingAthleteProfile.locationId)}&groupId=${encodeURIComponent(pendingAthleteProfile.groupId)}`}>
               Volver al grupo original
@@ -1402,10 +1402,10 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           </p>
         )}
         {!profileRecoveryReady && (
-          <p role="status" className="mt-5 text-sm text-slate-700">Comprobando si hay una ficha pendiente…</p>
+          <p role="status" className="mt-5 text-sm text-z-soft">Comprobando si hay una ficha pendiente…</p>
         )}
         {foreignMembershipScope && !pendingMembership && (
-          <p role="status" className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950">
+          <p role="status" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink">
             Hay un cambio de pertenencia pendiente en otra academia o grupo. No iniciaremos otra escritura hasta resolverlo.{" "}
             <Link className="font-bold underline" href={`/owner/groups?organizationId=${encodeURIComponent(foreignMembershipScope.organizationId)}&groupId=${encodeURIComponent(foreignMembershipScope.groupId)}`}>
               Volver al grupo original
@@ -1414,7 +1414,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
         )}
 
         {!groupCreateScopeLoaded && (
-          <p role="status" className="mt-5 text-sm text-slate-700">
+          <p role="status" className="mt-5 text-sm text-z-soft">
             Comprobando si hay una creación pendiente…
           </p>
         )}
@@ -1422,7 +1422,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
         {error && (
           <p
             role="alert"
-            className="mt-5 border border-red-700 bg-red-50 p-3 text-sm text-red-950"
+            className="rounded-[12px] mt-5 border border-red-700 bg-red-50 p-3 text-sm text-red-950"
           >
             {error}
           </p>
@@ -1430,7 +1430,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
         {groupCreateValidationSummary && (
           <p
             role="alert"
-            className="mt-5 border border-amber-700 bg-amber-50 p-3 text-sm text-amber-950"
+            className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-3 text-sm text-amber-950"
           >
             {groupCreateValidationSummary}
           </p>
@@ -1438,7 +1438,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
         {notice && (
           <p
             role="status"
-            className="mt-5 border border-teal-700 bg-white p-3 text-sm text-slate-900"
+            className="rounded-[12px] mt-5 border border-z-brand-100 bg-white p-3 text-sm text-z-ink"
           >
             {notice}
           </p>
@@ -1448,7 +1448,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
           <section
             role="status"
             aria-labelledby="pending-membership-title"
-            className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950"
+            className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink"
           >
             <h2 id="pending-membership-title" className="font-bold">Operación pendiente de confirmar</h2>
             <p className="mt-2 leading-6">
@@ -1477,7 +1477,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
         {currentPendingGroupCreate && (
           <section
             aria-labelledby="pending-group-create-title"
-            className="mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-slate-950"
+            className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink"
             role="status"
           >
             <h2 id="pending-group-create-title" className="font-bold">
@@ -1542,7 +1542,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                 )}
                 <Link
                   href="/contact?type=support"
-                  className="touch-target inline-flex min-h-11 items-center font-semibold text-teal-900 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
+                  className="touch-target inline-flex min-h-11 items-center font-semibold text-z-brand-700 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500"
                 >
                   Contactar soporte
                 </Link>
@@ -1554,13 +1554,13 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
         {createOpen && groupCreateScopeLoaded && (
           <section
             aria-labelledby="create-group-title"
-            className="mt-6 border border-slate-300 bg-white p-5 sm:p-6"
+            className="rounded-[12px] mt-6 border border-z-line bg-white p-5 sm:p-6"
           >
             <h2 id="create-group-title" className="text-xl font-bold">
               Crear un grupo
             </h2>
             {bundle.programs.length === 0 || bundle.locations.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-700">
+              <p className="mt-3 text-sm text-z-soft">
                 Para crear un grupo hace falta al menos una actividad y una sede
                 activa en la academia.
               </p>
@@ -1704,11 +1704,11 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
         <div className="mt-6 grid gap-6 lg:grid-cols-[19rem_minmax(0,1fr)]">
           <nav
             aria-label="Grupos de la academia"
-            className="border border-slate-300 bg-white p-4"
+            className="rounded-[12px] border border-z-line bg-white p-4"
           >
             <h2 className="mb-3 text-sm font-bold">Grupos de la academia</h2>
             {bundle.groups.length === 0 ? (
-              <p className="text-sm leading-6 text-slate-700">
+              <p className="text-sm leading-6 text-z-soft">
                 Todavía no hay grupos. Crea uno y asígnalo a una actividad y a
                 una sede.
               </p>
@@ -1726,18 +1726,18 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                       aria-current={
                         group.id === selectedGroup?.id ? "page" : undefined
                       }
-                      className={`touch-target flex min-h-14 items-center justify-between gap-3 border-l-4 px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 ${group.id === selectedGroup?.id ? "border-teal-800 bg-teal-50" : "border-transparent hover:bg-slate-50"}`}
+                      className={`touch-target flex min-h-14 items-center justify-between gap-3 border-l-4 px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 ${group.id === selectedGroup?.id ? "border-z-ink bg-z-brand-50" : "border-transparent hover:bg-z-canvas"}`}
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-semibold">
                           {group.name}
                         </span>
-                        <span className="block truncate text-xs text-slate-600">
+                        <span className="block truncate text-xs text-z-soft">
                           {group.programName ?? "Actividad sin clasificar"} ·{" "}
                           {group.locationName}
                         </span>
                       </span>
-                      <span className="shrink-0 text-xs tabular-nums text-slate-700">
+                      <span className="shrink-0 text-xs tabular-nums text-z-soft">
                         {group.memberCount}
                       </span>
                     </Link>
@@ -1749,22 +1749,22 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
 
           <section
             aria-labelledby="selected-group-title"
-            className="min-w-0 border border-slate-300 bg-white p-4 sm:p-6"
+            className="rounded-[12px] min-w-0 border border-z-line bg-white p-4 sm:p-6"
           >
             {!selectedGroup ? (
               <div className="py-8 text-center">
                 <UsersRound
-                  className="mx-auto h-8 w-8 text-slate-500"
+                  className="mx-auto h-8 w-8 text-z-soft"
                   aria-hidden="true"
                 />
                 <h2 className="mt-3 text-lg font-bold">Aún no hay grupos</h2>
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-700">
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-z-soft">
                   Crea el primero para organizar las actividades de tu academia.
                 </p>
               </div>
             ) : (
               <>
-                <div className="flex flex-col gap-3 border-b border-slate-300 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-col gap-3 border-b border-z-line pb-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <h2
                       id="selected-group-title"
@@ -1772,19 +1772,19 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                     >
                       {selectedGroup.name}
                     </h2>
-                    <p className="mt-1 text-sm text-slate-700">
+                    <p className="mt-1 text-sm text-z-soft">
                       {selectedGroup.programName ?? "Actividad sin clasificar"}{" "}
                       · {selectedGroup.locationName}
                     </p>
                   </div>
-                  <span className="inline-flex min-h-9 items-center border border-slate-300 px-3 text-sm font-semibold">
+                  <span className="rounded-[12px] inline-flex min-h-9 items-center border border-z-line px-3 text-sm font-semibold">
                     {selectedGroup.memberCount} de{" "}
                     {selectedGroup.capacity ?? "∞"} plazas
                   </span>
                 </div>
 
                 {selectedGroup.status !== "active" ? (
-                  <p className="mt-4 border border-amber-500 bg-amber-50 p-3 text-sm text-amber-950">
+                  <p className="rounded-[12px] mt-4 border border-amber-500 bg-amber-50 p-3 text-sm text-amber-950">
                     Este grupo no está activo. Puedes consultar sus
                     pertenencias, pero no añadir gimnastas.
                   </p>
@@ -1797,7 +1797,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                       >
                         Añadir una gimnasta
                       </label>
-                      <p className="mt-1 text-xs text-slate-600">
+                      <p className="mt-1 text-xs text-z-soft">
                         Busca por nombre. Solo se muestran fichas activas de
                         esta academia.
                       </p>
@@ -1825,7 +1825,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                         </button>
                       </div>
                       {candidates.length > 0 && (
-                        <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
+                        <ul className="mt-3 divide-y divide-z-line border-y border-z-line">
                           {candidates.map((candidate) => (
                             <li
                               key={candidate.id}
@@ -1848,27 +1848,27 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                         </ul>
                       )}
                     </form>
-                    <details className="mt-4 border-t border-slate-200 pt-4">
-                      <summary className="touch-target inline-flex min-h-11 cursor-pointer items-center font-semibold text-teal-900 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800">
+                    <details className="mt-4 border-t border-z-line pt-4">
+                      <summary className="touch-target inline-flex min-h-11 cursor-pointer items-center font-semibold text-z-brand-700 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500">
                         ¿No aparece? Crear ficha y añadir
                       </summary>
-                      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">
+                      <p className="mt-2 max-w-2xl text-sm leading-6 text-z-soft">
                         Busca primero para evitar duplicados. Solo pedimos
                         nombre y apellidos; no crea una cuenta familiar ni un
                         cobro.
                       </p>
                       {scopedCreateAthleteRecovery?.status === "checking" && (
-                        <p role="status" className="mt-3 border border-amber-700 bg-amber-50 p-3 text-sm">
+                        <p role="status" className="rounded-[12px] mt-3 border border-amber-700 bg-amber-50 p-3 text-sm">
                           Comprobando el recibo del alta pendiente. No se enviará otra operación mientras se valida.
                         </p>
                       )}
                       {scopedCreateAthleteRecovery?.status === "needs-input" && (
-                        <p role="status" className="mt-3 border border-amber-700 bg-amber-50 p-3 text-sm">
+                        <p role="status" className="rounded-[12px] mt-3 border border-amber-700 bg-amber-50 p-3 text-sm">
                           No aparece ningún recibo para la clave pendiente. Reintroduce exactamente el mismo nombre y apellidos para reintentar; se conservará la misma clave y no se creará otra.
                         </p>
                       )}
                       {scopedCreateAthleteRecovery?.status === "complete" && scopedCreateAthleteRecovery.receipt && (
-                        <div role="status" className="mt-3 border border-teal-700 bg-teal-50 p-3 text-sm">
+                        <div role="status" className="rounded-[12px] mt-3 border border-z-brand-100 bg-z-brand-50 p-3 text-sm">
                           <p>El recibo confirma el alta y la pertenencia al grupo. Estado actual: {statusLabel(scopedCreateAthleteRecovery.receipt.status)}.</p>
                           <button type="button" disabled={commandsLocked} className={`${secondaryButtonClassName} mt-3`} onClick={confirmRecoveredAthleteReceipt}>
                             Confirmar resultado y limpiar clave pendiente
@@ -1876,14 +1876,14 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                         </div>
                       )}
                       {scopedCreateAthleteRecovery?.status === "blocked" && (
-                        <div role="alert" className="mt-3 border border-amber-700 bg-amber-50 p-3 text-sm">
+                        <div role="alert" className="rounded-[12px] mt-3 border border-amber-700 bg-amber-50 p-3 text-sm">
                           <p>{scopedCreateAthleteRecovery.detail ?? "No se pudo validar el alta anterior. No se enviará otra operación."}</p>
                           <div className="mt-3 flex flex-wrap items-center gap-3">
                             <button type="button" disabled={commandsLocked} className={secondaryButtonClassName} onClick={() => setCreateAthleteRecoveryAttempt((attempt) => attempt + 1)}>Reintentar comprobación</button>
                             <button type="button" disabled={commandsLocked} className={secondaryButtonClassName} onClick={() => router.refresh()}>Actualizar pertenencias</button>
                             <Link href="/contact?type=support" aria-disabled={commandsLocked} tabIndex={commandsLocked ? -1 : undefined}
                               onClick={(event) => { if (commandsLocked) event.preventDefault(); }}
-                              className="touch-target inline-flex min-h-11 items-center font-semibold text-teal-900 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800">Contactar soporte</Link>
+                              className="touch-target inline-flex min-h-11 items-center font-semibold text-z-brand-700 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500">Contactar soporte</Link>
                           </div>
                         </div>
                       )}
@@ -1937,13 +1937,13 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                 <div className="mt-7">
                   <h3 className="text-lg font-bold">Pertenencias actuales</h3>
                   {bundle.memberships.length === 0 ? (
-                    <p className="mt-3 border border-slate-300 bg-slate-50 p-4 text-sm text-slate-700">
+                    <p className="rounded-[12px] mt-3 border border-z-line bg-z-canvas p-4 text-sm text-z-soft">
                       {selectedGroup.status === "active"
                         ? "Este grupo todavía no tiene gimnastas. Puedes añadir una ficha activa desde el buscador."
                         : "Este grupo no tiene pertenencias actuales. Está inactivo y no admite nuevas gimnastas."}
                     </p>
                   ) : (
-                    <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
+                    <ul className="mt-3 divide-y divide-z-line border-y border-z-line">
                       {bundle.memberships.map((membership) => {
                         const profileEditorKey = `${organizationId}:${selectedGroup.locationId}:${selectedGroup.id}:${membership.athleteId}`;
                         const profileCommandMatches = pendingOwnerAthleteProfileMatches(pendingAthleteProfile, {
@@ -1986,7 +1986,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                             <p className="font-semibold">
                               {membership.athleteName}
                             </p>
-                            <p className="mt-1 text-xs text-slate-600">
+                            <p className="mt-1 text-xs text-z-soft">
                               {statusLabel(membership.status)} desde{" "}
                               {membership.startsOn}
                             </p>
@@ -2084,7 +2084,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                             )}
                             <button
                               type="button"
-                              className="touch-target inline-flex min-h-11 items-center justify-center border border-red-700 bg-white px-3 py-2 text-sm font-semibold text-red-900 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-800 disabled:opacity-50"
+                              className="rounded-[12px] touch-target inline-flex min-h-11 items-center justify-center border border-red-700 bg-white px-3 py-2 text-sm font-semibold text-red-900 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-800 disabled:opacity-50"
                               aria-label={`Dar de baja a ${membership.athleteName}`}
                               disabled={commandsLocked || writesBlocked}
                               onClick={() =>

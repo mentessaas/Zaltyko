@@ -35,16 +35,20 @@ export function OwnerWorkspacePageShell({
       : undefined;
 
   return (
-    <>
+    <div className="min-h-screen bg-z-canvas text-z-ink">
       <OwnerWorkspaceNavigation
         capabilities={capabilities}
         organizationId={organizationId}
         locationId={locationId}
         previewMode={previewMode}
       />
-      <div id="owner-workspace-content" tabIndex={-1}>
+      <div
+        id="owner-workspace-content"
+        tabIndex={-1}
+        className="xl:peer-data-[owner-sidebar]:pl-[248px]"
+      >
         {children}
       </div>
-    </>
+    </div>
   );
 }

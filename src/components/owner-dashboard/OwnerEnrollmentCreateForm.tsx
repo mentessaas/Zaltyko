@@ -152,7 +152,7 @@ export function OwnerEnrollmentCreateForm({
     <section
       id="new-enrollment-form"
       aria-labelledby="new-enrollment-heading"
-      className="mt-6 border border-slate-300 bg-white p-5 sm:p-6"
+      className="rounded-[12px] mt-6 border border-z-line bg-white p-5 sm:p-6"
     >
       <div>
         <h2
@@ -161,20 +161,20 @@ export function OwnerEnrollmentCreateForm({
         >
           Añadir a una clase
         </h2>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-700">
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-z-soft">
           El registro queda pendiente y reserva una plaza hasta que lo actives o
           lo canceles.
         </p>
       </div>
 
       {classes.length === 0 ? (
-        <div className="mt-5 border border-dashed border-slate-400 bg-slate-50 p-4">
-          <p className="text-sm leading-6 text-slate-800">
+        <div className="rounded-[12px] mt-5 border border-dashed border-z-line bg-z-canvas p-4">
+          <p className="text-sm leading-6 text-z-ink">
             Primero crea una clase recurrente para poder asignar plazas.
           </p>
           <Link
             href={"/owner/classes?organizationId=" + organizationId}
-            className="mt-3 inline-flex min-h-11 items-center font-semibold text-teal-900 underline underline-offset-4"
+            className="mt-3 inline-flex min-h-11 items-center font-semibold text-z-brand-700 underline underline-offset-4"
           >
             Crear una clase
           </Link>
@@ -252,7 +252,7 @@ export function OwnerEnrollmentCreateForm({
               aria-live="polite"
               className={
                 classesForLocation.length === 0
-                  ? "mt-1 text-sm text-slate-700"
+                  ? "mt-1 text-sm text-z-soft"
                   : "sr-only"
               }
             >
@@ -269,14 +269,14 @@ export function OwnerEnrollmentCreateForm({
               <label htmlFor="enrollment-athlete-search" className="mb-1 block text-sm font-semibold">{participantLabel}</label>
             )}
             {selectedCandidate ? (
-              <div role="group" aria-labelledby="enrollment-athlete-label" className="flex min-h-11 items-center justify-between gap-3 border border-teal-700 bg-teal-50 px-3 py-2">
-                <span className="font-semibold text-teal-950">
+              <div role="group" aria-labelledby="enrollment-athlete-label" className="rounded-[12px] flex min-h-11 items-center justify-between gap-3 border border-z-brand-100 bg-z-brand-50 px-3 py-2">
+                <span className="font-semibold text-z-brand-700">
                   {selectedCandidate.name}
                 </span>
                 <button
                   ref={changeRef}
                   type="button"
-                  className="touch-target min-h-11 px-2 text-sm font-semibold text-teal-900 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+                  className="touch-target min-h-11 px-2 text-sm font-semibold text-z-brand-700 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
                   disabled={busyCreate || previewMode}
                   aria-label={`Cambiar ${participantLabel.toLowerCase()}: ${selectedCandidate.name}`}
                   onClick={(event) => {
@@ -290,7 +290,7 @@ export function OwnerEnrollmentCreateForm({
             ) : (
               <div className="relative">
                 <Search
-                  className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-500"
+                  className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-z-soft"
                   aria-hidden="true"
                 />
                 <input
@@ -314,7 +314,7 @@ export function OwnerEnrollmentCreateForm({
             )}
             <p
               id="enrollment-search-help"
-              className="mt-1 text-xs leading-5 text-slate-600"
+              className="mt-1 text-xs leading-5 text-z-soft"
             >
               Solo aparecen personas vinculadas a esta sede.
             </p>
@@ -328,18 +328,18 @@ export function OwnerEnrollmentCreateForm({
               {candidateResultsAnnouncement}
             </p>
             {candidateLoading && (
-              <p role="status" className="mt-2 text-sm text-slate-700">
+              <p role="status" className="mt-2 text-sm text-z-soft">
                 Buscando…
               </p>
             )}
             {candidateError && (
               <div className="mt-2">
                 <p id="enrollment-search-error" role="alert" className="text-sm text-red-800">{candidateError}</p>
-                <button type="button" className="min-h-11 text-sm font-semibold text-teal-900 underline" disabled={busyCreate || previewMode || candidateLoading || !classTemplateId || candidateQuery.trim().length < 2} onClick={onRetryCandidates}>Volver a buscar</button>
+                <button type="button" className="min-h-11 text-sm font-semibold text-z-brand-700 underline" disabled={busyCreate || previewMode || candidateLoading || !classTemplateId || candidateQuery.trim().length < 2} onClick={onRetryCandidates}>Volver a buscar</button>
               </div>
             )}
             {candidateNotice && (
-              <p role="status" className="mt-2 text-sm text-slate-700">
+              <p role="status" className="mt-2 text-sm text-z-soft">
                 {candidateNotice}{" "}
                 <Link
                   href={
@@ -348,7 +348,7 @@ export function OwnerEnrollmentCreateForm({
                     "&locationId=" +
                     createLocationId
                   }
-                  className="font-semibold text-teal-900 underline underline-offset-4"
+                  className="font-semibold text-z-brand-700 underline underline-offset-4"
                 >
                   Ir a Grupos
                 </Link>
@@ -357,14 +357,14 @@ export function OwnerEnrollmentCreateForm({
             {candidates.length > 0 && !selectedCandidate && (
               <ul
                 aria-label="Resultados de búsqueda"
-                className="mt-2 divide-y divide-slate-200 border border-slate-300 bg-white"
+                className="mt-2 divide-y divide-z-line border border-z-line bg-white"
               >
                 {candidates.map((candidate) => (
                   <li key={candidate.id}>
                     <button
                       type="button"
                       disabled={busyCreate || previewMode}
-                      className="touch-target min-h-11 w-full px-3 py-2 text-left text-sm font-medium hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-teal-800"
+                      className="touch-target min-h-11 w-full px-3 py-2 text-left text-sm font-medium hover:bg-z-brand-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-z-brand-500"
                       onClick={(event) => {
                         requestCandidateFocus(event.currentTarget, candidate.id);
                         onCandidateSelect(candidate);
@@ -404,7 +404,7 @@ export function OwnerEnrollmentCreateForm({
             />
             <p
               id="enrollment-starts-on-help"
-              className="mt-1 text-xs leading-5 text-slate-600"
+              className="mt-1 text-xs leading-5 text-z-soft"
             >
               {selectedClass
                 ? `Periodo de la clase: ${formatDate(selectedClass.effectiveFrom)}${selectedClass.effectiveTo ? `–${formatDate(selectedClass.effectiveTo)}` : " en adelante"}.`
@@ -448,20 +448,20 @@ export function OwnerEnrollmentCreateForm({
             </select>
             <p
               id="enrollment-price-plan-help"
-              className="mt-1 text-xs leading-5 text-slate-600"
+              className="mt-1 text-xs leading-5 text-z-soft"
             >
               El importe viene de la tarifa. Si queda sin asignar, no se podrá
               incluir en una factura hasta resolverlo.
             </p>
             {pricePlansLoading && (
-              <p role="status" className="mt-1 text-sm text-slate-700">
+              <p role="status" className="mt-1 text-sm text-z-soft">
                 Cargando tarifas…
               </p>
             )}
             {pricePlansError && (
               <div className="mt-1">
                 <p id="enrollment-price-plan-error" role="alert" className="text-sm text-red-800">{pricePlansError}</p>
-                <button type="button" className="min-h-11 text-sm font-semibold text-teal-900 underline" disabled={busyCreate || previewMode || pricePlansLoading || !createLocationId} onClick={onRetryPricePlans}>Volver a consultar las tarifas</button>
+                <button type="button" className="min-h-11 text-sm font-semibold text-z-brand-700 underline" disabled={busyCreate || previewMode || pricePlansLoading || !createLocationId} onClick={onRetryPricePlans}>Volver a consultar las tarifas</button>
               </div>
             )}
             {pricePlanUnavailable && (
@@ -473,7 +473,7 @@ export function OwnerEnrollmentCreateForm({
               !pricePlansError &&
               pricePlans.length === 0 &&
               !previewMode && (
-                <p className="mt-1 text-sm text-slate-700">
+                <p className="mt-1 text-sm text-z-soft">
                   No hay tarifas mensuales disponibles para esta sede.
                 </p>
               )}
@@ -508,12 +508,12 @@ export function OwnerEnrollmentCreateForm({
           </div>
 
           {pricePlansLoading || pricePlansError ? (
-            <p id="enrollment-pricing-required" className="text-sm leading-6 text-slate-700 md:col-span-2">
+            <p id="enrollment-pricing-required" className="text-sm leading-6 text-z-soft md:col-span-2">
               Para registrar la inscripción, primero debe completarse la consulta de tarifas. Después podrás elegir una tarifa o dejarla sin asignar.
             </p>
           ) : null}
 
-          <p className="text-xs leading-5 text-slate-600 md:col-span-2">
+          <p className="text-xs leading-5 text-z-soft md:col-span-2">
             Fecha local de la sede: {createToday || "no disponible"}. La
             inscripción no activa cuotas ni cobros.
           </p>

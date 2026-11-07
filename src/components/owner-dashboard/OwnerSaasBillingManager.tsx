@@ -684,21 +684,21 @@ export function OwnerSaasBillingManager({
     currentLoadState.status === "error" ? currentLoadState.message : "";
 
   return (
-    <main className="min-h-screen bg-[#F1F3EF] px-5 py-8 text-slate-950 sm:py-12">
+    <main className="min-h-screen bg-[#F1F3EF] px-5 py-8 text-z-ink sm:py-12">
       <div className="mx-auto max-w-5xl">
-        <header className="border-t-4 border-teal-800 bg-[#F8F8F4] p-6 sm:p-9">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
+        <header className="border-t-4 border-z-ink bg-z-canvas p-6 sm:p-9">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
             Gestión del plan
           </p>
           <h1 className="mt-3 font-display text-3xl font-bold tracking-[-0.035em] sm:text-4xl">
             Plan y facturación de Zaltyko
           </h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-slate-700">
+          <p className="mt-3 max-w-2xl text-base leading-7 text-z-soft">
             Consulta el acceso de tu academia y gestiona su suscripción. Esto es
             independiente de los cobros y cuotas de las familias.
           </p>
-          <div className="mt-6 border-l-2 border-teal-800 bg-white p-4">
-            <span className="block text-xs font-bold uppercase tracking-wide text-slate-500">
+          <div className="mt-6 border-l-2 border-z-ink bg-white p-4">
+            <span className="block text-xs font-bold uppercase tracking-wide text-z-soft">
               Academia
             </span>
             <span className="mt-1 block font-display text-lg font-bold">
@@ -723,7 +723,7 @@ export function OwnerSaasBillingManager({
             <h2 className="font-display text-xl font-bold">
               No hemos podido actualizar el plan
             </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
+            <p className="mt-2 text-sm leading-6 text-z-soft">
               {currentLoadError}
               {currentSnapshot
                 ? " El estado mostrado puede estar desactualizado; las operaciones quedan desactivadas hasta confirmar de nuevo."
@@ -731,7 +731,7 @@ export function OwnerSaasBillingManager({
             </p>
             <button
               type="button"
-              className="touch-target mt-4 rounded-full bg-slate-950 px-5 text-sm font-bold text-white disabled:opacity-60"
+              className="touch-target mt-4 rounded-full bg-z-ink px-5 text-sm font-bold text-white disabled:opacity-60"
               onClick={refresh}
               disabled={busyAction !== null}
             >
@@ -743,17 +743,17 @@ export function OwnerSaasBillingManager({
         {currentSnapshot ? (
           <>
             <section
-              className="mt-6 grid gap-4 border border-slate-300 bg-white p-5 sm:grid-cols-2 sm:p-6"
+              className="rounded-[12px] mt-6 grid gap-4 border border-z-line bg-white p-5 sm:grid-cols-2 sm:p-6"
               aria-label="Estado actual del plan"
             >
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                <p className="text-xs font-bold uppercase tracking-wide text-z-soft">
                   Acceso efectivo
                 </p>
                 <p className="mt-1 font-display text-2xl font-bold">
                   {activePlanName}
                 </p>
-                <p className="mt-1 text-sm text-slate-700">
+                <p className="mt-1 text-sm text-z-soft">
                   {sourceLabel(currentSnapshot.entitlement.source)}
                   {currentSnapshot.entitlement.effectiveUntil
                     ? ` · hasta ${formatDate(currentSnapshot.entitlement.effectiveUntil) ?? "fecha por confirmar"}`
@@ -761,7 +761,7 @@ export function OwnerSaasBillingManager({
                 </p>
               </div>
               <div className="sm:text-right">
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                <p className="text-xs font-bold uppercase tracking-wide text-z-soft">
                   Límite de gimnastas
                 </p>
                 <p className="mt-1 font-display text-2xl font-bold">
@@ -769,17 +769,17 @@ export function OwnerSaasBillingManager({
                     ? "Sin límite de plan"
                     : `${currentSnapshot.limits.maxAthletes} gimnastas`}
                 </p>
-                <p className="mt-1 text-sm text-slate-700">
+                <p className="mt-1 text-sm text-z-soft">
                   Revisión de acceso: {currentSnapshot.entitlement.revision}
                 </p>
               </div>
               {subscription ? (
-                <div className="border-t border-slate-200 pt-4 sm:col-span-2 sm:flex sm:items-center sm:justify-between sm:gap-4">
+                <div className="border-t border-z-line pt-4 sm:col-span-2 sm:flex sm:items-center sm:justify-between sm:gap-4">
                   <div>
                     <p className="text-sm font-bold">
                       Suscripción {subscriptionStatusLabel(subscription.status)}
                     </p>
-                    <p className="mt-1 text-sm text-slate-700">
+                    <p className="mt-1 text-sm text-z-soft">
                       {subscription.billingInterval === "year"
                         ? "Facturación anual"
                         : subscription.billingInterval === "month"
@@ -804,7 +804,7 @@ export function OwnerSaasBillingManager({
                   </div>
                   <button
                     type="button"
-                    className="touch-target mt-4 w-full rounded-full border border-slate-400 px-5 text-sm font-bold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:mt-0 sm:w-auto"
+                    className="touch-target mt-4 w-full rounded-full border border-z-line px-5 text-sm font-bold text-z-ink hover:bg-z-canvas disabled:cursor-not-allowed disabled:opacity-50 sm:mt-0 sm:w-auto"
                     onClick={() => void openPortal()}
                     disabled={
                       !canStartOperation ||
@@ -820,9 +820,9 @@ export function OwnerSaasBillingManager({
                 </div>
               ) : null}
               {isTrialActive ? (
-                <div className="border-t border-slate-200 pt-4 sm:col-span-2">
+                <div className="border-t border-z-line pt-4 sm:col-span-2">
                   <p className="text-sm font-bold">Prueba Starter activa</p>
-                  <p className="mt-1 text-sm text-slate-700">
+                  <p className="mt-1 text-sm text-z-soft">
                     {trial?.endsAt
                       ? `Finaliza el ${formatDate(trial.endsAt) ?? "fecha por confirmar"}. No se hará ningún cobro automático al terminar.`
                       : "El servidor no ha indicado todavía la fecha de fin."}
@@ -839,13 +839,13 @@ export function OwnerSaasBillingManager({
                 <p className="font-semibold">
                   {syncPresentation?.title ?? "Estado de facturación en revisión"}
                 </p>
-                <p className="mt-1 text-sm leading-6 text-slate-700">
+                <p className="mt-1 text-sm leading-6 text-z-soft">
                   {syncPresentation?.message ??
                     "Se conserva el acceso vigente que devuelve el servidor. No se activa el plan solicitado hasta confirmación."}
                 </p>
                 <button
                   type="button"
-                  className="touch-target mt-3 rounded-full border border-slate-400 px-5 text-sm font-bold disabled:opacity-60"
+                  className="touch-target mt-3 rounded-full border border-z-line px-5 text-sm font-bold disabled:opacity-60"
                   onClick={refresh}
                   disabled={busyAction !== null}
                 >
@@ -855,7 +855,7 @@ export function OwnerSaasBillingManager({
                   && pendingReadState.organizationId === organizationId && pendingReadState.status === "ready" ? (
                     <button
                       type="button"
-                      className="touch-target ml-3 mt-3 rounded-full border border-teal-800 px-5 text-sm font-bold disabled:opacity-60"
+                      className="touch-target ml-3 mt-3 rounded-full border border-z-ink px-5 text-sm font-bold disabled:opacity-60"
                       onClick={() => void recoverCheckout()}
                       disabled={busyAction !== null || !stateIsCurrent}
                     >
@@ -869,7 +869,7 @@ export function OwnerSaasBillingManager({
 
         {notice ? (
           <div
-            className="mt-4 border-l-4 border-teal-800 bg-white p-4 text-sm leading-6 text-slate-800"
+            className="mt-4 border-l-4 border-z-ink bg-white p-4 text-sm leading-6 text-z-ink"
             role="status"
             aria-live="polite"
           >
@@ -877,7 +877,7 @@ export function OwnerSaasBillingManager({
           </div>
         ) : null}
         {pendingCommand ? (
-          <section className="mt-4 border border-amber-700 bg-white p-5" aria-label="Operación de facturación pendiente" aria-busy={busyAction !== null}>
+          <section className="rounded-[12px] mt-4 border border-amber-700 bg-white p-5" aria-label="Operación de facturación pendiente" aria-busy={busyAction !== null}>
             {pendingCommand.organizationId === organizationId ? <>
               <p className="font-semibold">{pendingCommand.action === "checkout" ? `Contratación de ${pendingCommand.planCode === "growth" ? "Growth" : "Starter"} · ${pendingCommand.intent.body.billingInterval === "year" ? "pago anual" : "mensual"}` : pendingCommand.action === "portal" ? "Preparación del Portal" : "Activación de la prueba"}: pendiente de confirmar.</p>
               <p className="mt-2 text-sm">No cierres ni recargues esta página. El reintento conserva la operación, el cuerpo y la clave originales; no inicia otra contratación.</p>
@@ -887,37 +887,37 @@ export function OwnerSaasBillingManager({
         ) : null}
         {actionError ? (
           <div className="mt-4 border-l-4 border-rose-700 bg-white p-4" role="alert">
-            <p className="text-sm leading-6 text-slate-800">{actionError}</p>
-            {pendingCommand?.organizationId === organizationId ? <p className="mt-2 text-xs leading-5 text-slate-600">
+            <p className="text-sm leading-6 text-z-ink">{actionError}</p>
+            {pendingCommand?.organizationId === organizationId ? <p className="mt-2 text-xs leading-5 text-z-soft">
               El reintento de la operación pendiente conservará la misma clave y el mismo cuerpo.
             </p> : null}
           </div>
         ) : null}
         {pendingReadState.organizationId === organizationId && pendingReadState.status === "blocked" ? (
           <div className="mt-4 border-l-4 border-amber-700 bg-white p-4" role="alert">
-            <p className="text-sm leading-6 text-slate-800">{pendingReadState.message}</p>
+            <p className="text-sm leading-6 text-z-ink">{pendingReadState.message}</p>
             <button type="button" className="touch-target mt-2 rounded-full border px-4 text-sm font-bold" onClick={() => setPendingReadAttempt((value) => value + 1)}>Volver a comprobar la operación guardada</button>
           </div>
         ) : null}
 
         {activeCheckout ? (
-          <section className="mt-4 border border-teal-800 bg-white p-5">
+          <section className="rounded-[12px] mt-4 border border-z-ink bg-white p-5">
             <h2 className="font-display text-xl font-bold">
               Pago pendiente de confirmación
             </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
+            <p className="mt-2 text-sm leading-6 text-z-soft">
               La sesión se ha creado, pero el plan actual sigue vigente hasta
               que el servidor confirme el pago.
             </p>
             <a
-              className="touch-target mt-4 inline-flex rounded-full bg-teal-800 px-5 text-sm font-bold text-white hover:bg-teal-900"
+              className="touch-target mt-4 inline-flex rounded-full bg-z-ink px-5 text-sm font-bold text-white hover:bg-black"
               href={pendingCheckout.checkoutUrl}
               target="_blank"
               rel="noreferrer"
             >
               Continuar al pago seguro
             </a>
-            <p className="mt-3 text-xs leading-5 text-slate-600">
+            <p className="mt-3 text-xs leading-5 text-z-soft">
               Si vuelves aquí, actualiza el estado antes de iniciar otra
               operación.
             </p>
@@ -925,15 +925,15 @@ export function OwnerSaasBillingManager({
         ) : null}
 
         {activePortal ? (
-          <section className="mt-4 border border-slate-300 bg-white p-5">
+          <section className="rounded-[12px] mt-4 border border-z-line bg-white p-5">
             <h2 className="font-display text-xl font-bold">
               Portal de facturación listo
             </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
+            <p className="mt-2 text-sm leading-6 text-z-soft">
               Los cambios se reflejarán cuando el servidor los confirme.
             </p>
             <a
-              className="touch-target mt-4 inline-flex rounded-full border border-slate-400 px-5 text-sm font-bold text-slate-900 hover:bg-slate-50"
+              className="touch-target mt-4 inline-flex rounded-full border border-z-line px-5 text-sm font-bold text-z-ink hover:bg-z-canvas"
               href={pendingPortal.portalUrl}
               target="_blank"
               rel="noreferrer"
@@ -947,7 +947,7 @@ export function OwnerSaasBillingManager({
           <section className="mt-8" aria-labelledby="available-plans-title">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
                   Opciones disponibles
                 </p>
                 <h2
@@ -957,14 +957,14 @@ export function OwnerSaasBillingManager({
                   Elige un plan para tu academia
                 </h2>
               </div>
-              <fieldset className="flex items-center gap-1 rounded-full border border-slate-300 bg-white p-1" disabled={pendingCommand !== null || busyAction !== null}>
+              <fieldset className="flex items-center gap-1 rounded-full border border-z-line bg-white p-1" disabled={pendingCommand !== null || busyAction !== null}>
                 <legend className="sr-only">Periodo de facturación</legend>
                 {(["month", "year"] as const).map((value) => (
                   <button
                     key={value}
                     type="button"
                     aria-pressed={interval === value}
-                    className={`touch-target rounded-full px-4 text-sm font-semibold ${interval === value ? "bg-slate-950 text-white" : "text-slate-700 hover:bg-slate-100"}`}
+                    className={`touch-target rounded-full px-4 text-sm font-semibold ${interval === value ? "bg-z-ink text-white" : "text-z-soft hover:bg-z-canvas"}`}
                     onClick={() => { if (!pendingCommandRef.current && !actionInFlight.current) setInterval(value); }}
                   >
                     {value === "month" ? "Mensual" : "Anual"}
@@ -974,19 +974,19 @@ export function OwnerSaasBillingManager({
             </div>
 
             {trial?.eligible && currentSnapshot.actions.canStartTrial ? (
-              <div className="mt-5 flex flex-col gap-4 border-l-4 border-teal-800 bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div className="mt-5 flex flex-col gap-4 border-l-4 border-z-ink bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <div>
                   <h3 className="font-display text-xl font-bold">
                     Prueba Starter durante 7 días
                   </h3>
-                  <p className="mt-1 text-sm leading-6 text-slate-700">
+                  <p className="mt-1 text-sm leading-6 text-z-soft">
                     Sin tarjeta y sin cobro automático al terminar. La prueba
                     solo se activa cuando tú la solicitas.
                   </p>
                 </div>
                 <button
                   type="button"
-                  className="touch-target w-full shrink-0 rounded-full bg-teal-800 px-5 text-sm font-bold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  className="touch-target w-full shrink-0 rounded-full bg-z-ink px-5 text-sm font-bold text-white hover:bg-black disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                   onClick={() => void startTrial()}
                   disabled={
                     !canStartOperation ||
@@ -997,7 +997,7 @@ export function OwnerSaasBillingManager({
                   {displayedBusyAction === "trial" ? "Activando prueba…" : "Activar prueba"}
                 </button>
                 {trial.nextEligibleAt ? (
-                  <p className="text-xs text-slate-600">
+                  <p className="text-xs text-z-soft">
                     Disponible de nuevo desde {formatDate(trial.nextEligibleAt) ?? "fecha por confirmar"}.
                   </p>
                 ) : null}
@@ -1024,42 +1024,42 @@ export function OwnerSaasBillingManager({
                 return (
                   <article
                     key={code}
-                    className={`flex flex-col border bg-white p-5 sm:p-6 ${code === "growth" ? "border-teal-800" : "border-slate-300"}`}
+                    className={`flex flex-col border bg-white p-5 sm:p-6 ${code === "growth" ? "border-z-ink" : "border-z-line"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h3 className="font-display text-2xl font-bold">
                           {planLabel(code)}
                         </h3>
-                        <p className="mt-1 text-sm text-slate-700">
+                        <p className="mt-1 text-sm text-z-soft">
                           Hasta {product.athleteLimit} gimnastas
                         </p>
                       </div>
                       {code === "growth" ? (
-                        <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-900">
+                        <span className="rounded-full bg-z-brand-50 px-3 py-1 text-xs font-bold text-z-brand-700">
                           Crecimiento
                         </span>
                       ) : null}
                     </div>
                     <p className="mt-5 font-display text-3xl font-bold">
                       {formatPrice(code, interval) ?? "Consultar"}
-                      <span className="ml-2 text-sm font-semibold text-slate-600">
+                      <span className="ml-2 text-sm font-semibold text-z-soft">
                         {priceSubtitle(code, interval)}
                       </span>
                     </p>
-                    <p className="mt-1 text-sm text-slate-600">Precios sin IVA.</p>
+                    <p className="mt-1 text-sm text-z-soft">Precios sin IVA.</p>
                     {interval === "year" ? (
-                      <p className="mt-1 text-sm text-slate-600">
+                      <p className="mt-1 text-sm text-z-soft">
                         Pago anual por adelantado.
                       </p>
                     ) : null}
-                    <p className="mt-3 text-sm leading-6 text-slate-700">
+                    <p className="mt-3 text-sm leading-6 text-z-soft">
                       {product.description}
                     </p>
-                    <ul className="mt-4 space-y-2 text-sm text-slate-700">
+                    <ul className="mt-4 space-y-2 text-sm text-z-soft">
                       {product.features.slice(0, 3).map((feature) => (
                         <li key={feature} className="flex gap-2">
-                          <span aria-hidden="true" className="font-bold text-teal-800">
+                          <span aria-hidden="true" className="font-bold text-z-brand-600">
                             ✓
                           </span>
                           <span>{feature}</span>
@@ -1068,7 +1068,7 @@ export function OwnerSaasBillingManager({
                     </ul>
                     <button
                       type="button"
-                      className="touch-target mt-6 w-full rounded-full bg-slate-950 px-5 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="touch-target mt-6 w-full rounded-full bg-z-ink px-5 text-sm font-bold text-white hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
                       onClick={() => void startCheckout(code)}
                       disabled={!available || !stateIsCurrent || busyAction !== null}
                     >
@@ -1080,20 +1080,20 @@ export function OwnerSaasBillingManager({
             </div>
 
             {trial?.eligible === false && trial.nextEligibleAt ? (
-              <p className="mt-4 text-sm text-slate-600">
+              <p className="mt-4 text-sm text-z-soft">
                 La prueba podrá volver a solicitarse desde {formatDate(trial.nextEligibleAt) ?? "la fecha indicada por el servidor"}.
               </p>
             ) : null}
 
-            <aside className="mt-5 border border-slate-300 bg-[#F8F8F4] p-5">
+            <aside className="rounded-[12px] mt-5 border border-z-line bg-z-canvas p-5">
               <h3 className="font-display text-lg font-bold">
                 ¿Gestionas varias sedes?
               </h3>
-              <p className="mt-1 text-sm leading-6 text-slate-700">
+              <p className="mt-1 text-sm leading-6 text-z-soft">
                 Network requiere una conversación y un onboarding acompañado.
               </p>
               <Link
-                className="touch-target mt-3 inline-flex items-center text-sm font-bold text-teal-900 underline underline-offset-4"
+                className="touch-target mt-3 inline-flex items-center text-sm font-bold text-z-brand-700 underline underline-offset-4"
                 href="/contact?type=network"
               >
                 Hablar con Zaltyko
@@ -1103,13 +1103,13 @@ export function OwnerSaasBillingManager({
         ) : null}
 
         {currentSnapshot && currentLoadState.status === "ready" ? (
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-300 pt-4">
-            <p className="text-xs text-slate-600">
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-z-line pt-4">
+            <p className="text-xs text-z-soft">
               Estado leído del servidor. No se muestran datos de tarjetas.
             </p>
             <button
               type="button"
-              className="touch-target rounded-full px-4 text-sm font-bold text-teal-900 underline underline-offset-4 disabled:opacity-50"
+              className="touch-target rounded-full px-4 text-sm font-bold text-z-brand-700 underline underline-offset-4 disabled:opacity-50"
               onClick={refresh}
               disabled={busyAction !== null}
             >

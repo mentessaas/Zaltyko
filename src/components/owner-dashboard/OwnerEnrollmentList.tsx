@@ -104,7 +104,7 @@ export function OwnerEnrollmentList({
           >
             Inscripciones de la academia
           </h2>
-          <p className="mt-1 text-sm text-slate-700">
+          <p className="mt-1 text-sm text-z-soft">
             {bundle.total} resultado{bundle.total === 1 ? "" : "s"}
             {bundle.pages > 1
               ? " · página " + bundle.page + " de " + bundle.pages
@@ -180,9 +180,9 @@ export function OwnerEnrollmentList({
       )}
 
       {bundle.enrollments.length === 0 ? (
-        <div className="mt-4 border border-dashed border-slate-400 bg-white px-5 py-8 text-center">
+        <div className="rounded-[12px] mt-4 border border-dashed border-z-line bg-white px-5 py-8 text-center">
           <h3 className="font-semibold">No hay inscripciones en este filtro</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-700">
+          <p className="mt-2 text-sm leading-6 text-z-soft">
             No hay resultados con los filtros actuales. Puedes cambiar los filtros
             sin modificar ninguna inscripción.
           </p>
@@ -247,7 +247,7 @@ export function OwnerEnrollmentList({
             return (
               <li
                 key={enrollment.id}
-                className="border border-slate-300 bg-white p-4 sm:p-5"
+                className="rounded-[12px] border border-z-line bg-white p-4 sm:p-5"
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0">
@@ -264,13 +264,13 @@ export function OwnerEnrollmentList({
                         {statusLabel(enrollment.status)}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm font-medium text-slate-800">
+                    <p className="mt-1 text-sm font-medium text-z-ink">
                       {enrollment.className}
                       {enrollment.programName
                         ? " · " + enrollment.programName
                         : ""}
                     </p>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-z-soft">
                       {enrollment.locationName}
                       {" · Inicio "}
                       {formatDate(enrollment.startsOn)}
@@ -331,7 +331,7 @@ export function OwnerEnrollmentList({
                           if (button) focusTargetsRef.current.cancelTrigger.set(enrollment.id, button);
                           else focusTargetsRef.current.cancelTrigger.delete(enrollment.id);
                         }}
-                        className="touch-target inline-flex min-h-11 items-center border border-slate-400 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800"
+                        className="rounded-[12px] touch-target inline-flex min-h-11 items-center border border-z-line px-3 py-2 text-sm font-semibold text-z-soft hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500"
                         disabled={busyId === enrollment.id || writesBlocked}
                         aria-label={`Dar de baja inscripción de ${actionContext}`}
                         onClick={() => onConfirmCancel(enrollment.id)}
@@ -343,7 +343,7 @@ export function OwnerEnrollmentList({
                       <div
                         role="group"
                         aria-label={`Confirmar baja de ${actionContext}`}
-                        className="flex flex-wrap items-center gap-2 border border-red-300 bg-red-50 p-2"
+                        className="rounded-[12px] flex flex-wrap items-center gap-2 border border-red-300 bg-red-50 p-2"
                       >
                         <span className="px-1 text-sm font-medium text-red-950">
                           ¿Dar de baja la inscripción de {actionContext}?
@@ -376,9 +376,9 @@ export function OwnerEnrollmentList({
                       <div
                         role="group"
                         aria-label={`Confirmar finalización de ${actionContext}`}
-                        className="flex flex-wrap items-center gap-2 border border-slate-400 bg-slate-50 p-2"
+                        className="rounded-[12px] flex flex-wrap items-center gap-2 border border-z-line bg-z-canvas p-2"
                       >
-                        <span className="px-1 text-sm font-medium text-slate-950">
+                        <span className="px-1 text-sm font-medium text-z-ink">
                           ¿Finalizar la inscripción de {actionContext}?
                         </span>
                         <button
@@ -396,7 +396,7 @@ export function OwnerEnrollmentList({
                         </button>
                         <button
                           type="button"
-                          className="touch-target min-h-11 px-3 text-sm font-semibold text-slate-900 underline underline-offset-4"
+                          className="touch-target min-h-11 px-3 text-sm font-semibold text-z-ink underline underline-offset-4"
                           disabled={busyId === enrollment.id}
                           aria-label={`Volver sin finalizar la inscripción de ${actionContext}`}
                           onClick={() => onConfirmComplete("")}
@@ -408,12 +408,12 @@ export function OwnerEnrollmentList({
                   </div>
                 </div>
                 {previewMode && (
-                  <p className="mt-3 text-xs leading-5 text-slate-600">
+                  <p className="mt-3 text-xs leading-5 text-z-soft">
                     Acciones desactivadas en la vista de ejemplo.
                   </p>
                 )}
                 {enrollment.status === "trial" && (
-                  <p className="mt-3 text-xs leading-5 text-slate-600">
+                  <p className="mt-3 text-xs leading-5 text-z-soft">
                     Las pruebas se completan desde su flujo específico; esta
                     pantalla no modifica el seguimiento de la prueba.
                   </p>
@@ -441,7 +441,7 @@ export function OwnerEnrollmentList({
           ) : (
             <span />
           )}
-          <span className="text-sm text-slate-700">
+          <span className="text-sm text-z-soft">
             Página {bundle.page} de {bundle.pages}
           </span>
           {!previewMode && !navigationLocked && bundle.page < bundle.pages ? (

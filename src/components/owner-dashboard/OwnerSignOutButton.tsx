@@ -37,7 +37,7 @@ export function OwnerSignOutButton() {
         onClick={signOut}
         disabled={!hydrated || busy}
         aria-busy={busy}
-        className="touch-target inline-flex items-center justify-center rounded-full border border-slate-400 px-3 text-xs font-semibold text-slate-800 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-wait disabled:opacity-60"
+        className="touch-target inline-flex items-center justify-center rounded-full border border-z-line px-3 text-xs font-semibold text-z-ink hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-wait disabled:opacity-60"
       >
         {busy ? "Cerrando sesión…" : "Cerrar sesión"}
       </button>

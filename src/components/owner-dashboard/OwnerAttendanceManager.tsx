@@ -87,9 +87,9 @@ function retryRequestKey(request: RetryRequest) {
 }
 
 const fieldClassName =
-  "min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:bg-slate-100";
+  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas";
 const buttonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-teal-800 bg-teal-800 px-4 py-2 text-sm font-bold text-white hover:bg-teal-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+  "touch-target inline-flex min-h-11 items-center justify-center border border-z-ink bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
 
 function responseData<T>(payload: unknown): T | null {
   if (payload && typeof payload === "object" && "data" in payload) {
@@ -620,23 +620,23 @@ export function OwnerAttendanceManager({
   );
 
   return (
-    <main className="min-h-screen bg-[#F1F3EF] px-5 py-6 text-slate-950 sm:py-10">
+    <main className="min-h-screen bg-[#F1F3EF] px-5 py-6 text-z-ink sm:py-10">
       <div className="mx-auto grid max-w-5xl gap-8">
         <div className="grid gap-5">
           <Link
             href={`/owner?organizationId=${encodeURIComponent(organizationId)}&locationId=${encodeURIComponent(locationId)}`}
-            className="touch-target inline-flex min-h-11 w-fit items-center border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+            className="rounded-[12px] touch-target inline-flex min-h-11 w-fit items-center border border-z-line bg-white px-4 text-sm font-semibold text-z-soft hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
           >
             Volver al panel
           </Link>
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-900">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-700">
               Pase de lista
             </p>
             <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
               Asistencia de la sesión
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-z-soft sm:text-base">
               Marca la asistencia de las gimnastas inscritas. Los cambios se
               guardan individualmente.
             </p>
@@ -657,7 +657,7 @@ export function OwnerAttendanceManager({
               <p
                 key={retryRequestKey(retry)}
                 role="status"
-                className="border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
+                className="rounded-[12px] border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
               >
                 Hay una asistencia cuyo resultado sigue sin confirmar en otra
                 sesión. Conservamos la solicitud original; vuelve a su ámbito
@@ -677,14 +677,14 @@ export function OwnerAttendanceManager({
         !sessionPage.nextCursor &&
         !sessionPage.loading &&
         !sessionPage.error ? (
-          <p className="border border-slate-300 bg-white p-5 text-sm leading-6 text-slate-700">
+          <p className="rounded-[12px] border border-z-line bg-white p-5 text-sm leading-6 text-z-soft">
             Aún no hay sesiones para pasar lista. Crea una clase recurrente para
             preparar sus sesiones.
           </p>
         ) : (
-          <section className="grid gap-5 border border-slate-200 bg-white p-5 sm:p-7">
+          <section className="rounded-[12px] grid gap-5 border border-z-line bg-white p-5 sm:p-7">
             <label className="grid gap-2">
-              <span className="text-sm font-bold text-slate-900">Sesión</span>
+              <span className="text-sm font-bold text-z-ink">Sesión</span>
               <select
                 value={sessionId}
                 onChange={(event) => {
@@ -709,12 +709,12 @@ export function OwnerAttendanceManager({
               </select>
             </label>
             {sessionPage.loading && (
-              <p role="status" aria-live="polite" className="text-sm text-slate-600">
+              <p role="status" aria-live="polite" className="text-sm text-z-soft">
                 Cargando más sesiones…
               </p>
             )}
             {sessionPage.error && (
-              <div role="alert" className="border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+              <div role="alert" className="rounded-[12px] border border-red-300 bg-red-50 p-4 text-sm text-red-900">
                 <p>{sessionPage.error}</p>
                 <button
                   type="button"
@@ -737,13 +737,13 @@ export function OwnerAttendanceManager({
               </button>
             )}
             {requestedSessionUnavailable && (
-              <p role="status" className="border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+              <p role="status" className="rounded-[12px] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
                 La sesión solicitada no está disponible en esta sede. No hemos
                 seleccionado otra sesión automáticamente.
               </p>
             )}
             {selectedSession && (
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-z-soft">
                 {selectedSession.className} ·{" "}
                 {formatSessionDate(
                   selectedSession.startsAt,
@@ -752,7 +752,7 @@ export function OwnerAttendanceManager({
               </p>
             )}
             {selectedSession?.retryOnly && (
-              <p role="status" className="border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+              <p role="status" className="rounded-[12px] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
                 Esta sesión solo permite recuperar una asistencia que ya se
                 había enviado. No se pueden registrar cambios nuevos aquí.
               </p>
@@ -762,7 +762,7 @@ export function OwnerAttendanceManager({
               <p
                 role="status"
                 aria-live="polite"
-                className="text-sm text-slate-600"
+                className="text-sm text-z-soft"
               >
                 Cargando lista…
               </p>
@@ -770,7 +770,7 @@ export function OwnerAttendanceManager({
             {loadError && (
               <div
                 role="alert"
-                className="border border-red-300 bg-red-50 p-4 text-sm text-red-900"
+                className="rounded-[12px] border border-red-300 bg-red-50 p-4 text-sm text-red-900"
               >
                 <p>{loadError}</p>
                 <button
@@ -792,14 +792,14 @@ export function OwnerAttendanceManager({
               </div>
             )}
             {retryStorageError && (
-              <p role="alert" className="border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+              <p role="alert" className="rounded-[12px] border border-red-300 bg-red-50 p-4 text-sm text-red-900">
                 {retryStorageError}
               </p>
             )}
             {saveError && (
               <p
                 role="alert"
-                className="border border-red-300 bg-red-50 p-4 text-sm text-red-900"
+                className="rounded-[12px] border border-red-300 bg-red-50 p-4 text-sm text-red-900"
               >
                 {saveError}
               </p>
@@ -809,18 +809,18 @@ export function OwnerAttendanceManager({
               <p
                 role="status"
                 aria-live="polite"
-                className="border border-teal-300 bg-teal-50 p-4 text-sm text-teal-950"
+                className="rounded-[12px] border border-z-brand-100 bg-z-brand-50 p-4 text-sm text-z-brand-700"
               >
                 {notice}
               </p>
             )}
 
             {sessionId && !loading && !loadError && attendees.length === 0 ? (
-              <p className="border border-slate-300 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+              <p className="rounded-[12px] border border-z-line bg-z-canvas p-4 text-sm leading-6 text-z-soft">
                 No hay gimnastas con inscripción vigente en esta sesión.
               </p>
             ) : sessionId && !loadError ? (
-              <ul className="divide-y divide-slate-200 border-y border-slate-200">
+              <ul className="divide-y divide-z-line border-y border-z-line">
                 {attendees.map((attendee) => {
                   const retry = pendingRetries.find(
                     (candidate) =>
@@ -842,11 +842,11 @@ export function OwnerAttendanceManager({
                       key={attendee.enrollmentId}
                       className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-center"
                     >
-                      <span className="font-semibold text-slate-950">
+                      <span className="font-semibold text-z-ink">
                         {attendee.athleteName}
                       </span>
                       <label className="grid gap-1">
-                        <span className="text-xs font-semibold text-slate-600">
+                        <span className="text-xs font-semibold text-z-soft">
                           Estado
                         </span>
                         <select
@@ -924,7 +924,7 @@ export function OwnerAttendanceManager({
               return (
                 <div
                   key={retryRequestKey(retry)}
-                  className="grid gap-3 border border-amber-300 bg-amber-50 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                  className="rounded-[12px] grid gap-3 border border-amber-300 bg-amber-50 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                 >
                   <p className="text-sm leading-6 text-amber-950">
                     Hay una asistencia pendiente para una inscripción que ya no

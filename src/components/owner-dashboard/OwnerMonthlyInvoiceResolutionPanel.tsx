@@ -542,11 +542,11 @@ function isClassTemplateOption(value: unknown): value is ClassTemplateOption {
 }
 
 const fieldClassName =
-  "min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800";
+  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500";
 const primaryButtonClassName =
-  "touch-target min-h-11 border border-teal-800 bg-teal-800 px-4 py-2 text-sm font-bold text-white disabled:opacity-50";
+  "touch-target min-h-11 border border-z-ink bg-z-ink px-4 py-2 text-sm font-bold text-white disabled:opacity-50";
 const secondaryButtonClassName =
-  "touch-target min-h-11 border border-slate-400 bg-white px-4 py-2 text-sm font-semibold text-slate-800 disabled:opacity-50";
+  "touch-target min-h-11 border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink disabled:opacity-50";
 
 export function OwnerMonthlyInvoiceResolutionPanel({
   action,
@@ -1386,7 +1386,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   return (
     <section
       aria-labelledby="owner-monthly-resolution-heading"
-      className="mx-auto mt-6 grid max-w-4xl gap-4 border border-slate-300 bg-white p-5 sm:p-7"
+      className="rounded-[12px] mx-auto mt-6 grid max-w-4xl gap-4 border border-z-line bg-white p-5 sm:p-7"
     >
       <div>
         <h2 id="owner-monthly-resolution-heading" className="text-xl font-bold">
@@ -1396,7 +1396,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
               ? `Vincular a ${displayName(action.athleteName, "la gimnasta")} a una familia`
               : "Añadir una persona pagadora adulta"}
         </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
+        <p className="mt-2 text-sm leading-6 text-z-soft">
           {action.kind === "tariff"
             ? "La tarifa y su importe vienen del catálogo. La fecha de inicio se guarda en el historial de la inscripción."
             : "Selecciona una familia y confirma qué persona adulta será responsable. Solo se solicitan los datos necesarios para esta relación."}
@@ -1406,7 +1406,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       {pendingCommand && (
         <div
           role="status"
-          className="grid gap-3 border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
+          className="rounded-[12px] grid gap-3 border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
         >
           <p>
             Hay una operación de facturación cuyo resultado sigue sin
@@ -1438,7 +1438,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       )}
 
       {commandReceipt && (
-        <div role="status" className="grid gap-2 border border-teal-300 bg-teal-50 p-4 text-sm text-teal-950">
+        <div role="status" className="rounded-[12px] grid gap-2 border border-z-brand-100 bg-z-brand-50 p-4 text-sm text-z-brand-700">
           <p>{commandReceipt.message} No hemos cambiado el catálogo de la vista actual.</p>
           <Link
             className="min-h-11 w-fit content-center font-bold underline underline-offset-2"
@@ -1454,7 +1454,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       )}
 
       {pendingStorageError && (
-        <p role="alert" className="border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+        <p role="alert" className="rounded-[12px] border border-red-300 bg-red-50 p-3 text-sm text-red-900">
           {pendingStorageError}
         </p>
       )}
@@ -1508,7 +1508,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             </>
           ) : pricePlanOptionsError ? (
             <div className="grid gap-3 sm:col-span-2">
-              <p className="text-sm leading-6 text-slate-600">
+              <p className="text-sm leading-6 text-z-soft">
                 No se pudieron comprobar las tarifas y clases activas de esta
                 sede. Reintenta antes de crear una nueva.
               </p>
@@ -1538,7 +1538,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   Volver al selector de tarifas
                 </button>
               )}
-              <p className="text-sm leading-6 text-slate-600">
+              <p className="text-sm leading-6 text-z-soft">
                 {currentPricePlans.length > 0
                   ? "Crea una tarifa adicional para esta sede y selecciona explícitamente las clases que cubrirá. La tarifa actual no se modificará."
                   : "No hay tarifas mensuales para esta sede. Crea una para poder asignarla a la inscripción y selecciona las clases que cubrirá."}
@@ -1579,7 +1579,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                 />
                 <p
                   id="monthly-price-plan-amount-help"
-                  className="text-xs text-slate-600"
+                  className="text-xs text-z-soft"
                 >
                   Se usará {defaultCurrency}, la moneda de la academia. Puedes
                   usar coma o punto decimal; la tarifa será mensual.
@@ -1587,20 +1587,20 @@ export function OwnerMonthlyInvoiceResolutionPanel({
               </div>
               <fieldset
                 aria-describedby="monthly-price-plan-coverage-help"
-                className="grid gap-3 border border-slate-300 p-4"
+                className="rounded-[12px] grid gap-3 border border-z-line p-4"
               >
                 <legend className="px-1 text-sm font-bold">
                   Clases cubiertas
                 </legend>
                 <p
                   id="monthly-price-plan-coverage-help"
-                  className="text-sm leading-6 text-slate-600"
+                  className="text-sm leading-6 text-z-soft"
                 >
                   Marca cada clase activa a la que se aplicará esta tarifa. No
                   se incluirán otras clases automáticamente.
                 </p>
                 {currentClassTemplates.length === 0 ? (
-                  <p role="status" className="text-sm text-slate-700">
+                  <p role="status" className="text-sm text-z-soft">
                     No hay clases activas disponibles en esta sede. No se puede
                     crear una tarifa sin cobertura explícita.
                   </p>
@@ -1613,7 +1613,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                         <li key={classTemplate.id}>
                           <label
                             htmlFor={checkboxId}
-                            className="flex min-h-11 items-center gap-3 border border-slate-200 px-3 py-2 text-sm font-medium text-slate-900 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-teal-800"
+                            className="rounded-[12px] flex min-h-11 items-center gap-3 border border-z-line px-3 py-2 text-sm font-medium text-z-ink focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-z-brand-500"
                           >
                             <input
                               id={checkboxId}
@@ -1634,7 +1634,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                                 });
                               }}
                               disabled={pricePlanFormDisabled}
-                              className="size-5 shrink-0 accent-teal-800"
+                              className="size-5 shrink-0 accent-z-brand-500"
                             />
                             <span className="min-w-0">
                               {classTemplate.name}
@@ -1672,7 +1672,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                     className={fieldClassName}
                   />
                 </label>
-                <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-slate-900">
+                <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-z-ink">
                   <input
                     type="checkbox"
                     checked={currentPricePlanDraft.coverageHasNoEnd}
@@ -1682,7 +1682,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                       })
                     }
                     disabled={pricePlanFormDisabled}
-                    className="size-5 shrink-0 accent-teal-800"
+                    className="size-5 shrink-0 accent-z-brand-500"
                   />
                   <span>Sin fecha de fin</span>
                 </label>
@@ -1708,7 +1708,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                     />
                     <span
                       id="monthly-price-plan-coverage-dates-help"
-                      className="text-xs text-slate-600"
+                      className="text-xs text-z-soft"
                     >
                       La fecha de fin debe ser igual o posterior al inicio.
                     </span>
@@ -1729,7 +1729,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       )}
 
       {pricePlanNotice && pricePlanNoticeScope === currentScopeKey && (
-        <p role="status" aria-live="polite" className="text-sm text-teal-900">
+        <p role="status" aria-live="polite" className="text-sm text-z-brand-700">
           {pricePlanNotice}
         </p>
       )}
@@ -1797,7 +1797,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                       setPrimaryPayerConfirmationKey(null);
                     }}
                     disabled={busy}
-                    className="h-5 w-5 accent-teal-800"
+                    className="h-5 w-5 accent-z-brand-500"
                   />
                   {displayName(athlete.athleteName, "Gimnasta sin nombre")}
                 </label>
@@ -1883,7 +1883,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
           )}
 
           {primaryPayerWillChange && (
-            <label className="flex min-h-11 items-start gap-3 border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950">
+            <label className="rounded-[12px] flex min-h-11 items-start gap-3 border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950">
               <input
                 type="checkbox"
                 checked={primaryPayerChangeConfirmed}
@@ -1893,7 +1893,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
                   )
                 }
                 disabled={busy}
-                className="mt-1 h-5 w-5 accent-teal-800"
+                className="mt-1 h-5 w-5 accent-z-brand-500"
               />
               Confirmo que esta operación cambiará el pagador principal de toda la familia.
             </label>
@@ -1915,7 +1915,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
             />
             <span
               id="family-association-effective-help"
-              className="text-xs text-slate-600"
+              className="text-xs text-z-soft"
             >
               La fecha sugerida es el primer día del periodo; se usará para
               comprobar la cobertura mensual. Confírmala o ajústala antes de
@@ -1928,7 +1928,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       {error && (
         <p
           role="alert"
-          className="border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+          className="rounded-[12px] border border-red-300 bg-red-50 p-3 text-sm text-red-900"
         >
           {error}
         </p>

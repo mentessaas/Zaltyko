@@ -545,31 +545,31 @@ export function OwnerEnrollmentsManager({
   const pausedTotal = bundle.totalsByStatus.paused ?? 0;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-950 sm:px-6 lg:px-10">
+    <main className="min-h-screen bg-z-canvas px-4 py-8 text-z-ink sm:px-6 lg:px-10">
       <div className="mx-auto max-w-7xl">
         {previewMode ? (
-          <p className="text-sm font-semibold text-teal-900">
+          <p className="text-sm font-semibold text-z-brand-700">
             Vista de ejemplo · solo lectura
           </p>
         ) : (
           <Link
             href={"/owner?organizationId=" + organizationId}
-            className="touch-target inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal-900 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+            className="touch-target inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-z-brand-700 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Volver al resumen
           </Link>
         )}
 
-        <header className="mt-6 flex flex-col gap-4 border-b border-slate-300 pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <header className="mt-6 flex flex-col gap-4 border-b border-z-line pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-900">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-z-brand-700">
               Operaciones de la academia
             </p>
             <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
               Inscripciones
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-z-soft">
               Asigna una gimnasta o participante a una clase y controla su
               estado desde un solo lugar.
             </p>
@@ -600,21 +600,21 @@ export function OwnerEnrollmentsManager({
           <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
         ) : null}
 
-        <p className="mt-5 border-l-4 border-teal-700 bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-950">
+        <p className="mt-5 border-l-4 border-z-brand-100 bg-z-brand-50 px-4 py-3 text-sm leading-6 text-z-brand-700">
           El alta queda pendiente y reserva una plaza. No crea una cuota ni
           inicia cobros; los pagos se gestionan aparte.
         </p>
 
         {!previewMode &&
           (bundle.member.role === "owner" || bundle.member.role === "admin") && (
-            <p className="mt-3 text-sm leading-6 text-slate-700">
+            <p className="mt-3 text-sm leading-6 text-z-soft">
               ¿Ya registraste la inscripción?{" "}
               <Link
                 href={monthlyInvoicesHref(
                   organizationId,
                   bundle.filterLocationId ?? bundle.selectedLocationId
                 )}
-                className="font-semibold text-teal-900 underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+                className="font-semibold text-z-brand-700 underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
               >
                 Completa la familia y la persona pagadora en Cuotas mensuales
               </Link>
@@ -623,7 +623,7 @@ export function OwnerEnrollmentsManager({
           )}
 
         {pendingStorageError ? (
-          <section className="mt-5 border border-rose-700 bg-rose-50 p-4 text-sm text-rose-950" aria-label="Almacenamiento de operación pendiente">
+          <section className="rounded-[12px] mt-5 border border-rose-700 bg-rose-50 p-4 text-sm text-rose-950" aria-label="Almacenamiento de operación pendiente">
             <p role="alert">{pendingStorageError}</p>
             {pendingStorageFailureKind && (
               <button type="button" className={primaryButtonClassName + " mt-3"} onClick={recoverPendingStorage}>
@@ -634,7 +634,7 @@ export function OwnerEnrollmentsManager({
         ) : null}
 
         {pendingIntent ? (
-          <section className="mt-5 border border-amber-600 bg-amber-50 p-4" aria-label="Operación de inscripción pendiente" aria-busy={busyCreate || busyId !== ""}>
+          <section className="rounded-[12px] mt-5 border border-amber-600 bg-amber-50 p-4" aria-label="Operación de inscripción pendiente" aria-busy={busyCreate || busyId !== ""}>
             <p role="status">{pendingIntent.organizationId === organizationId ? <>{pendingIntent.description}. {busyCreate || busyId ? "Enviando la solicitud…" : "Resultado sin confirmar. La solicitud original está guardada en esta sesión; al volver solo podrás reintentar exactamente el mismo cuerpo y clave."}</> : "Hay una operación de inscripción pendiente en otra academia."}</p>
             {pendingIntent.organizationId === organizationId ? <button ref={retryButtonRef} type="button" className={primaryButtonClassName + " mt-3"} disabled={busyCreate || busyId !== ""} onClick={() => void sendIntent(pendingIntent)}>Reintentar la misma operación</button> : <p>Vuelve a la academia de esa operación antes de iniciar otra.</p>}
           </section>
@@ -724,9 +724,9 @@ export function OwnerEnrollmentsManager({
           ].map((item) => (
             <div
               key={item.label}
-              className="border border-slate-300 bg-white p-4"
+              className="rounded-[12px] border border-z-line bg-white p-4"
             >
-              <p className="text-sm font-semibold text-slate-700">
+              <p className="text-sm font-semibold text-z-soft">
                 {item.label}
               </p>
               <p className={"mt-2 text-3xl font-bold " + item.tone}>

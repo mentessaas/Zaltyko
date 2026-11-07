@@ -197,7 +197,7 @@ export function OwnerAcademyDataExport({
   return (
     <section
       aria-labelledby="owner-academy-data-export-title"
-      className="mt-6 border border-slate-300 bg-white p-5 sm:p-6"
+      className="rounded-[12px] mt-6 border border-z-line bg-white p-5 sm:p-6"
       aria-busy={isDownloading}
     >
       <div className="max-w-3xl">
@@ -207,7 +207,7 @@ export function OwnerAcademyDataExport({
         >
           Datos de tu academia
         </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-700">
+        <p className="mt-2 text-sm leading-6 text-z-soft">
           Descarga los datos operativos disponibles en un archivo JSON. El
           manifiesto incluye el alcance, los checksums y las exclusiones; revísalo
           para conocer los límites del paquete. La descarga no modifica ni
@@ -231,7 +231,7 @@ export function OwnerAcademyDataExport({
         </Button>
 
         {currentState.status === "success" ? (
-          <p role="status" className="text-sm text-slate-700">
+          <p role="status" className="text-sm text-z-soft">
             {currentState.message}
           </p>
         ) : null}
