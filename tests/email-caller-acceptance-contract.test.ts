@@ -63,10 +63,15 @@ describe("email sender result is never presented as delivery when not accepted",
   it("athlete magic-link invitations never record sentAt or success for an unsent email", () => {
     const source = read("src/lib/athletes/magic-link-invite-service.ts");
     expect(source).toContain("sentAt: null,");
-    const notAccepted = source.indexOf('throw new Error("EMAIL_NOT_ACCEPTED")');
-    expect(notAccepted).toBeGreaterThan(0);
-    expect(source.indexOf('trackEvent("first_athlete_invited"')).toBeGreaterThan(notAccepted);
-    expect(source.indexOf(".set({ sentAt: now, updatedAt: now })")).toBeGreaterThan(notAccepted);
+    const initialSend = source.indexOf("dedupeKey: `athlete-invite:${inserted.id}:0`");
+    const notAccepted = source.indexOf('throw new Error("EMAIL_NOT_ACCEPTED")', initialSend);
+    expect(initialSend).toBeGreaterThan(0);
+    expect(notAccepted).toBeGreaterThan(initialSend);
+    const beforeGuard = source.slice(initialSend, notAccepted);
+    expect(beforeGuard).not.toContain("sentAt: now");
+    expect(beforeGuard).not.toContain("trackEvent(");
+    expect(source.indexOf('trackEvent("first_athlete_invited"', notAccepted)).toBeGreaterThan(notAccepted);
+    expect(source.indexOf(".set({ sentAt: now, updatedAt: now })", notAccepted)).toBeGreaterThan(notAccepted);
     expect(source).toContain('reason: notSent ? "EMAIL_NOT_SENT" : "INTERNAL_ERROR"');
   });
 
