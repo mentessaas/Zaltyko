@@ -2,7 +2,7 @@
 
 ## Hallazgos
 
-Elvis rechaza el aspecto anterior y aprueba (7 nov) la dirección de la maqueta `Desktop/_PROYECTOS/Zaltyko/diseno-2026-11-07/zaltyko-direccion-visual.html`: estructura de SaaS de primer nivel (menú lateral, lienzo neutro, tarjetas finas, cifras grandes) adaptada a clubes de gimnasia (día organizado por sesiones, color por disciplina, tono de club).
+Elvis rechaza el aspecto anterior y aprueba (7 nov) la dirección de la maqueta `/Users/elvisvaldesinerarte/projects/Zaltyko/documentacion/diseno-2026-11-07/zaltyko-direccion-visual.html`: estructura de SaaS de primer nivel (menú lateral, lienzo neutro, tarjetas finas, cifras grandes) adaptada a clubes de gimnasia (día organizado por sesiones, color por disciplina, tono de club).
 
 Implementado en este corte:
 
