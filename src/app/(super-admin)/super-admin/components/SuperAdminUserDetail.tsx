@@ -200,10 +200,11 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         return;
       }
 
+      const activation = data?.data ?? data;
       toast.pushToast({
         title: "Acceso activado",
-        description: data.message || "Acceso activado correctamente.",
-        variant: "success",
+        description: activation?.message || "Acceso activado correctamente.",
+        variant: activation?.emailSent === false ? "warning" : "success",
       });
       
       // Refresh user data

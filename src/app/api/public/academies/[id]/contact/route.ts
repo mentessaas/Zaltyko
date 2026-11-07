@@ -111,7 +111,7 @@ async function contactHandler(request: Request, context?: { params?: Promise<{ i
     const safePhone = escapeHtml(phone || "No indicado");
     const safeMessage = escapeHtml(message).replace(/\n/g, "<br />");
 
-    await sendEmailWithLogging({
+    const delivered = await sendEmailWithLogging({
       to: recipient,
       replyTo: email,
       subject: `Nuevo contacto para ${academy.name}`,
@@ -121,6 +121,18 @@ async function contactHandler(request: Request, context?: { params?: Promise<{ i
       tenantId: academy.tenantId,
       academyId: academy.id,
     });
+
+    if (!delivered) {
+      logger.warn("Academy contact form not delivered", { academyId: id });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "CONTACT_NOT_DELIVERED",
+          message: "No hemos podido enviar tu mensaje. Inténtalo de nuevo más tarde.",
+        },
+        { status: 503 }
+      );
+    }
 
     // Registrar solo metadatos mínimos; nunca almacenar PII ni el contenido.
     logger.info("Contact form submitted", {

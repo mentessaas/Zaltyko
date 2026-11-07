@@ -116,8 +116,9 @@ const handler = withTenant(async (request, context) => {
     const inviteUrl = new URL("/auth/invite", baseUrl);
     inviteUrl.searchParams.set("token", token);
 
+    let emailSent: boolean;
     try {
-      await sendEmailWithLogging({
+      emailSent = await sendEmailWithLogging({
         to: body.email,
         subject: `Invitación a ${config.appName}`,
         html: `
@@ -143,7 +144,7 @@ const handler = withTenant(async (request, context) => {
       return apiError("MAIL_ERROR", "Error al enviar el correo", 500);
     }
 
-    return apiSuccess({ ok: true });
+    return apiSuccess({ ok: true, emailSent });
   } catch (error) {
     return handleApiError(error);
   }

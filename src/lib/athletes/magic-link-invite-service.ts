@@ -259,7 +259,10 @@ export async function createAthleteInviteBatch(
         academyId: input.academyId,
         err: err instanceof Error ? err.message : String(err),
       });
-      errors.push({ email: original, reason: "INTERNAL_ERROR" });
+      const notSent =
+        err instanceof Error &&
+        (err.message === "EMAIL_NOT_ACCEPTED" || err.message === "EMAIL_DEDUPED_OR_FAILED");
+      errors.push({ email: original, reason: notSent ? "EMAIL_NOT_SENT" : "INTERNAL_ERROR" });
     }
   }
 
@@ -401,7 +404,7 @@ async function processOne(params: {
       stateToken,
       status: "pending",
       customMessage: params.customMessage,
-      sentAt: now,
+      sentAt: null,
       expiresAt,
       resendCount: 0,
     })
@@ -422,12 +425,12 @@ async function processOne(params: {
     metadata: { invitationId: inserted.id, resendNumber: 0 },
   });
   if (!sent) {
-    // Mantener la fila pero marcar error: si Supabase entregó el link, la
-    // invitación sigue siendo válida porque el backend ya la emitió.
+    // Keep the pending row (the link stays valid and a retry takes the resend
+    // path), but never record sentAt or a success event for an unsent email.
     logger.warn("[athlete-magic-link] email dedupe or provider failed", {
       invitationId: inserted.id,
-      email: params.email,
     });
+    throw new Error("EMAIL_NOT_ACCEPTED");
   }
 
   await db
