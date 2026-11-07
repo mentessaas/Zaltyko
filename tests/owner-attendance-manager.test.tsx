@@ -115,15 +115,9 @@ describe("pase de lista Owner (mock del contrato greenfield acordado)", () => {
 
     renderAttendance();
     expect(await screen.findByText("Gimnasta sintética")).toBeVisible();
-    await user.selectOptions(
-      screen.getByRole("combobox", {
-        name: "Asistencia de Gimnasta sintética",
-      }),
-      "present"
-    );
     await user.click(
       screen.getByRole("button", {
-        name: "Guardar asistencia de Gimnasta sintética",
+        name: "Presente: Gimnasta sintética",
       })
     );
 
@@ -302,22 +296,14 @@ describe("pase de lista Owner (mock del contrato greenfield acordado)", () => {
 
     renderAttendance();
     const saveA = await screen.findByRole("button", {
-      name: "Guardar asistencia de Gimnasta A",
+      name: "Presente: Gimnasta A",
     });
     const saveB = screen.getByRole("button", {
-      name: "Guardar asistencia de Gimnasta B",
+      name: "Ausente: Gimnasta B",
     });
     expect(saveA).toBeVisible();
     expect(saveB).toBeVisible();
 
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Asistencia de Gimnasta A" }),
-      "present"
-    );
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Asistencia de Gimnasta B" }),
-      "absent"
-    );
     await user.click(saveA);
 
     expect(
@@ -327,7 +313,7 @@ describe("pase de lista Owner (mock del contrato greenfield acordado)", () => {
     ).toBeDisabled();
     expect(saveB).toBeDisabled();
     expect(
-      screen.getByRole("combobox", { name: "Asistencia de Gimnasta B" })
+      screen.getByRole("button", { name: "Presente: Gimnasta B" })
     ).toBeDisabled();
     expect(mockFetch).toHaveBeenCalledTimes(2);
 

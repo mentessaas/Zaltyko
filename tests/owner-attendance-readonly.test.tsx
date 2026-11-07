@@ -183,12 +183,11 @@ describe("asistencia Owner en solo lectura", () => {
     await waitFor(() =>
       expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument()
     );
-    expect(screen.getByLabelText("Asistencia de Bea Sintética")).toBeDisabled();
-    expect(
-      screen.getByRole("button", {
-        name: "Guardar asistencia de Bea Sintética",
-      })
-    ).toBeDisabled();
+    for (const label of ["Presente", "Ausente", "Justificada", "Llegó tarde"]) {
+      expect(
+        screen.getByRole("button", { name: `${label}: Bea Sintética` })
+      ).toBeDisabled();
+    }
     expect(
       screen.getByRole("button", {
         name: "Reintentar guardado de Ana Sintética",
@@ -323,7 +322,7 @@ describe("asistencia Owner en solo lectura", () => {
     );
     expect(screen.getByLabelText("Seleccionar sesión")).toBeEnabled();
     expect(
-      screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" })
+      screen.getByRole("button", { name: "Presente: Ana Sintética" })
     ).toBeDisabled();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ cache: "no-store" });
@@ -362,8 +361,7 @@ describe("asistencia Owner en solo lectura", () => {
     );
     await screen.findByText("Ana Sintética");
     await waitFor(() => expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText("Asistencia de Ana Sintética"), { target: { value: "absent" } });
-    const saveButton = screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" });
+    const saveButton = screen.getByRole("button", { name: "Ausente: Ana Sintética" });
 
     act(() => {
       fireEvent.click(saveButton);
@@ -430,8 +428,7 @@ describe("asistencia Owner en solo lectura", () => {
     );
     await screen.findByText("Ana Sintética");
     await waitFor(() => expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText("Asistencia de Ana Sintética"), { target: { value: "absent" } });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ausente: Ana Sintética" }));
     await screen.findByText(/No sabemos si se guardó/);
     const firstRequest = fetchMock.mock.calls.find(([, init]) => init?.method === "POST")?.[1];
 
@@ -482,8 +479,7 @@ describe("asistencia Owner en solo lectura", () => {
     const view = render(<OwnerAttendanceManager {...originalProps} />);
     await screen.findByText("Ana Sintética");
     await waitFor(() => expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText("Asistencia de Ana Sintética"), { target: { value: "absent" } });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ausente: Ana Sintética" }));
     await screen.findByText(/No sabemos si se guardó/);
     const originalPost = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
 
@@ -574,10 +570,7 @@ describe("asistencia Owner en solo lectura", () => {
     const view = render(<OwnerAttendanceManager {...originalProps} />);
     await screen.findByText("Ana Sintética");
     await waitFor(() => expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText("Asistencia de Ana Sintética"), {
-      target: { value: "absent" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ausente: Ana Sintética" }));
     await waitFor(() => expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1));
 
     view.rerender(
@@ -595,10 +588,9 @@ describe("asistencia Owner en solo lectura", () => {
       />
     );
     await screen.findByText("Beatriz Sintética");
-    const bAttendance = screen.getByLabelText("Asistencia de Beatriz Sintética");
+    const bAttendance = screen.getByRole("button", { name: "Presente: Beatriz Sintética" });
     expect(bAttendance).toBeEnabled();
-    fireEvent.change(bAttendance, { target: { value: "present" } });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Beatriz Sintética" }));
+    fireEvent.click(bAttendance);
     await waitFor(() => expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2));
     const postsBeforeResolution = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
     const headersA = postsBeforeResolution[0]?.[1]?.headers as Record<string, string>;
@@ -623,7 +615,7 @@ describe("asistencia Owner en solo lectura", () => {
       });
     });
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Guardar asistencia de Beatriz Sintética" })).toBeEnabled()
+      expect(screen.getByRole("button", { name: "Presente: Beatriz Sintética" })).toBeEnabled()
     );
     expect(screen.getByRole("link", { name: "Volver a esa sesión" })).toHaveAttribute(
       "href",
@@ -650,8 +642,7 @@ describe("asistencia Owner en solo lectura", () => {
     render(<OwnerAttendanceManager organizationId={organizationId} locationId={locationId} sessions={[{ id: sessionId, className: "Clase", startsAt: "2026-10-23T16:00:00.000Z", timezone: "Europe/Madrid" }]} />);
     await screen.findByText("Ana Sintética");
     await waitFor(() => expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText("Asistencia de Ana Sintética"), { target: { value: "absent" } });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ausente: Ana Sintética" }));
     expect(await screen.findByText(/recibo/i)).toBeVisible();
     expect(screen.queryByText("Asistencia guardada.")).not.toBeInTheDocument();
     const first = fetchMock.mock.calls.find(([, request]) => request?.method === "POST");
@@ -678,8 +669,7 @@ describe("asistencia Owner en solo lectura", () => {
     const original = render(<OwnerAttendanceManager {...props} />);
     await screen.findByText("Ana Sintética");
     await waitFor(() => expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText("Asistencia de Ana Sintética"), { target: { value: "absent" } });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ausente: Ana Sintética" }));
     await screen.findByText(/No sabemos si se guardó/);
     fireEvent.click(screen.getByRole("button", { name: "Reintentar guardado de Ana Sintética" }));
     await waitFor(() => expect(postCount).toBe(2));
@@ -714,8 +704,7 @@ describe("asistencia Owner en solo lectura", () => {
     const original = render(<OwnerAttendanceManager {...props} />);
     await screen.findByText("Ana Sintética");
     await waitFor(() => expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText("Asistencia de Ana Sintética"), { target: { value: "absent" } });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ausente: Ana Sintética" }));
     await waitFor(() => expect(postCount).toBe(1));
     const first = fetchMock.mock.calls.find(([, request]) => request?.method === "POST");
     original.unmount();
@@ -752,14 +741,12 @@ describe("asistencia Owner en solo lectura", () => {
     render(<OwnerAttendanceManager organizationId={organizationId} locationId={locationId} sessions={[{ id: sessionId, className: "Clase", startsAt: "2026-10-23T16:00:00.000Z", timezone: "Europe/Madrid" }]} />);
     await screen.findByText("Ana Sintética");
     await waitFor(() => expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText("Asistencia de Ana Sintética"), { target: { value: "absent" } });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ausente: Ana Sintética" }));
     expect(await screen.findByText("Comprueba el comando de asistencia.")).toBeVisible();
     expect(screen.queryByText(/No sabemos si se guardó/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reintentar guardado de Ana Sintética" })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Asistencia de Ana Sintética")).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" })).toBeEnabled();
-    fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" }));
+    expect(screen.getByRole("button", { name: "Ausente: Ana Sintética" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Ausente: Ana Sintética" }));
     await waitFor(() => expect(postCount).toBe(2));
     const posts = fetchMock.mock.calls.filter(([, request]) => request?.method === "POST");
     const firstHeaders = posts[0]?.[1]?.headers as Record<string, string>;
@@ -784,8 +771,7 @@ describe("asistencia Owner en solo lectura", () => {
     const view = render(<OwnerAttendanceManager {...props} />);
     await screen.findByText("Ana Sintética");
     await waitFor(() => expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText("Asistencia de Ana Sintética"), { target: { value: "absent" } });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar asistencia de Ana Sintética" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ausente: Ana Sintética" }));
     await screen.findByText(/No sabemos si se guardó/);
     fireEvent.click(screen.getByRole("button", { name: "Reintentar guardado de Ana Sintética" }));
     await waitFor(() => expect(postCount).toBe(2));

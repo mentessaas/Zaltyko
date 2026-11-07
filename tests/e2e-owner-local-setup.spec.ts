@@ -765,20 +765,23 @@ test.describe("Isolated local Supabase Owner setup", () => {
     );
     expect(selectedSessionResult.rows).toHaveLength(1);
     const selectedSessionStartsAt = selectedSessionResult.rows[0].starts_at;
-    const attendance = page.getByLabel(`Asistencia de ${athleteName}`, {
+    const attendance = page.getByRole("group", {
+      name: `Asistencia de ${athleteName}`,
       exact: true,
     });
     await expect(attendance).toBeVisible();
-    await attendance.selectOption({ label: "Presente" });
     const attendanceResponse = page.waitForResponse(
       (candidate) =>
         candidate.url().includes("/attendance") &&
         candidate.request().method() === "POST"
     );
-    await page
-      .getByRole("button", { name: `Guardar asistencia de ${athleteName}` })
+    await attendance
+      .getByRole("button", { name: `Presente: ${athleteName}`, exact: true })
       .click();
     expect((await attendanceResponse).ok()).toBe(true);
+    await expect(
+      attendance.getByRole("button", { name: `Presente: ${athleteName}`, exact: true })
+    ).toHaveAttribute("aria-pressed", "true");
 
     const billingUrl = `/owner/monthly-invoices?${scope}`;
     await page.goto(billingUrl);

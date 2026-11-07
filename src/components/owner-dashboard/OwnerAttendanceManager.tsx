@@ -98,6 +98,20 @@ const savedStatusStyle: Record<AttendanceStatus, string> = {
   absent: ownerUi.chipAttention,
 };
 
+const statusButtonLabel: Record<AttendanceStatus, string> = {
+  present: "Presente",
+  absent: "Ausente",
+  excused: "Justificada",
+  late: "Tarde",
+};
+
+const statusButtonPressed: Record<AttendanceStatus, string> = {
+  present: "border-z-comp-600 bg-z-comp-600 text-white",
+  absent: "border-z-chalk-600 bg-z-chalk-600 text-white",
+  excused: "border-z-brand-600 bg-z-brand-600 text-white",
+  late: "border-amber-700 bg-amber-700 text-white",
+};
+
 function initialsOf(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return `${parts[0]?.[0] ?? ""}${parts.length > 1 ? parts[parts.length - 1][0] : ""}`.toLocaleUpperCase("es");
@@ -880,7 +894,7 @@ export function OwnerAttendanceManager({
                   return (
                     <li
                       key={attendee.enrollmentId}
-                      className="grid gap-3 rounded-[14px] border border-z-line bg-white p-3.5 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-center sm:p-4"
+                      className="grid gap-3 rounded-[14px] border border-z-line bg-white p-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-4"
                     >
                       <div className="flex min-w-0 items-center gap-3">
                         <span
@@ -901,75 +915,81 @@ export function OwnerAttendanceManager({
                           ) : null}
                         </div>
                       </div>
-                      <label className="grid gap-1">
-                        <span className={ownerUi.smallLabel}>
-                          Estado
-                        </span>
-                        <select
-                          value={status}
-                          disabled={
-                            Boolean(retry) ||
-                            Boolean(savingForCurrentScope) ||
-                            loading ||
-                            Boolean(selectedSession?.retryOnly)
-                          }
-                          onChange={(event) => {
-                            setRosterState((current) =>
-                              current?.scopeKey === currentScopeKey
-                                ? {
-                                    ...current,
-                                    selectedStatuses: {
-                                      ...current.selectedStatuses,
-                                      [attendee.enrollmentId]: event.target
-                                        .value as AttendanceStatus | "",
-                                    },
-                                  }
-                                : current
-                            );
-                          }}
-                          className={fieldClassName}
+                      <div className="grid gap-2 sm:min-w-[26rem]">
+                        <div
+                          role="group"
                           aria-label={`Asistencia de ${attendee.athleteName}`}
+                          className="grid grid-cols-2 gap-1.5 sm:grid-cols-4"
                         >
-                          <option value="">Sin registrar</option>
-                          {attendanceStatuses.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <button
-                        type="button"
-                        disabled={
-                          Boolean(savingForCurrentScope) ||
-                          loading ||
-                          !retryStorageReady ||
-                          (writesBlocked && !retry) ||
-                          (selectedSession?.retryOnly && !retry) ||
-                          (!retry && !status)
-                        }
-                        onClick={() => {
-                          const command = retry?.body ?? {
-                            organizationId,
-                            locationId,
-                            enrollmentId: attendee.enrollmentId,
-                            status: status as AttendanceStatus,
-                          };
-                          void saveAttendance(
-                            attendee.enrollmentId,
-                            command,
-                            retry
-                          );
-                        }}
-                        className={buttonClassName}
-                        aria-label={`${saveAction} de ${attendee.athleteName}`}
-                      >
-                        {rowBusy
-                          ? "Guardando…"
-                          : retry
-                            ? "Reintentar guardado"
-                            : "Guardar asistencia"}
-                      </button>
+                          {attendanceStatuses.map((option) => {
+                            const saved = attendee.attendanceStatus === option.value;
+                            const sending = rowBusy && !retry && status === option.value;
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                aria-pressed={saved}
+                                disabled={
+                                  Boolean(retry) ||
+                                  Boolean(savingForCurrentScope) ||
+                                  loading ||
+                                  !retryStorageReady ||
+                                  writesBlocked ||
+                                  Boolean(selectedSession?.retryOnly)
+                                }
+                                onClick={() => {
+                                  setRosterState((current) =>
+                                    current?.scopeKey === currentScopeKey
+                                      ? {
+                                          ...current,
+                                          selectedStatuses: {
+                                            ...current.selectedStatuses,
+                                            [attendee.enrollmentId]: option.value,
+                                          },
+                                        }
+                                      : current
+                                  );
+                                  void saveAttendance(attendee.enrollmentId, {
+                                    organizationId,
+                                    locationId,
+                                    enrollmentId: attendee.enrollmentId,
+                                    status: option.value,
+                                  });
+                                }}
+                                className={`touch-target inline-flex min-h-12 min-w-0 items-center justify-center rounded-[10px] border px-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50 ${saved ? statusButtonPressed[option.value] : "border-z-line bg-white text-z-ink hover:bg-z-canvas"}`}
+                                aria-label={
+                                  sending
+                                    ? `Guardando asistencia de ${attendee.athleteName}`
+                                    : `${option.label}: ${attendee.athleteName}`
+                                }
+                              >
+                                {sending ? "Guardando…" : statusButtonLabel[option.value]}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {retry ? (
+                          <button
+                            type="button"
+                            disabled={
+                              Boolean(savingForCurrentScope) ||
+                              loading ||
+                              !retryStorageReady
+                            }
+                            onClick={() => {
+                              void saveAttendance(
+                                attendee.enrollmentId,
+                                retry.body,
+                                retry
+                              );
+                            }}
+                            className={buttonClassName}
+                            aria-label={`${saveAction} de ${attendee.athleteName}`}
+                          >
+                            {rowBusy ? "Guardando…" : "Reintentar guardado"}
+                          </button>
+                        ) : null}
+                      </div>
                     </li>
                   );
                 })}
