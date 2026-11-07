@@ -5,6 +5,9 @@ import { eq, and } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
 import { logger } from "@/lib/logger";
 import { authorizeClassResource } from "@/lib/authz/resource-scope";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
+import { handleApiError } from "@/lib/api-error-handler";
 
 /**
  * DELETE /api/classes/[classId]/exceptions/[exceptionId]
@@ -24,16 +27,19 @@ async function deleteException(
             return apiError("EXCEPTION_NOT_FOUND", "Exception not found", 404);
         }
 
-        const deleted = await db
-            .delete(classExceptions)
-            .where(
+        const deleted = await withTransaction(async (tx) => {
+            await lockAcademyOperationalWrites(tx, scope.resource!.academyId);
+            await assertAcademyOperationalWritable(scope.resource!.tenantId, scope.resource!.academyId, tx);
+            return tx.delete(classExceptions)
+              .where(
                 and(
                     eq(classExceptions.id, exceptionId),
                     eq(classExceptions.classId, classId),
                     eq(classExceptions.tenantId, scope.resource!.tenantId)
                 )
-            )
-            .returning();
+              )
+              .returning();
+        });
 
         if (deleted.length === 0) {
             return apiError("EXCEPTION_NOT_FOUND", "Exception not found", 404);
@@ -42,7 +48,7 @@ async function deleteException(
         return apiSuccess({ success: true });
     } catch (error) {
         logger.error("Error deleting class exception:", error);
-        return apiError("DELETE_EXCEPTION_FAILED", "Error deleting exception", 500);
+        return handleApiError(error);
     }
 }
 

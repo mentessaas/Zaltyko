@@ -1,8 +1,9 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { HelpCircle, CreditCard, Users, Calendar, BarChart3, Shield, ArrowRight } from "lucide-react";
+import { HelpCircle, CreditCard, ArrowRight } from "lucide-react";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
+import { ESSENTIAL_FAQS } from "@/lib/launch/essential-public-catalog";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const baseUrl = getPublicSiteUrl();
@@ -10,115 +11,24 @@ const baseUrl = getPublicSiteUrl();
 export const metadata: Metadata = {
   title: "Preguntas frecuentes sobre software para academias de gimnasia",
   description:
-    "Resolvemos las dudas más comunes sobre Zaltyko: precios, planes, modalidades, cancelación, importación desde Excel y comunicación con familias para tu academia de gimnasia.",
+    "Resolvemos las dudas más comunes sobre Zaltyko: precios, planes, acceso, cancelación y operativa diaria para tu academia de gimnasia.",
   alternates: {
     canonical: `${baseUrl}/faq`,
   },
   openGraph: {
     title: "Preguntas frecuentes sobre Zaltyko",
     description:
-      "Precios, planes, modalidades, cancelación, importación desde Excel y comunicación con familias para tu academia de gimnasia.",
+      "Precios, planes, acceso, cancelación y operativa diaria para tu academia de gimnasia.",
     url: `${baseUrl}/faq`,
     type: "website",
   },
 };
 
-const categories = [
-  {
-    icon: CreditCard,
-    title: "Precios y pagos",
-    questions: [
-      {
-        q: "¿Cuánto cuesta Zaltyko?",
-        a: "Zaltyko tiene un plan Free y tres opciones por etapa de academia: Starter cuesta 19€/mes, Growth 49€/mes y Network parte de 99€/mes para academias multi-sede. Network incluye onboarding acompañado y la propuesta final se ajusta a sedes y necesidades.",
-      },
-      {
-        q: "¿Puedo ver el producto antes de contratar?",
-        a: "Sí. La entrada principal es una demo guiada para revisar tu caso y validar si Zaltyko encaja con tu academia.",
-      },
-      {
-        q: "¿Cómo funcionan los planes?",
-        a: "Los planes de pago se renuevan mensualmente; Free no tiene coste ni renovación. Puedes cancelar cuando quieras desde tu panel de suscripción.",
-      },
-      {
-        q: "¿Puedo cambiar de plan?",
-        a: "Sí, puedes actualizar o reducir tu plan en cualquier momento. Los cambios se aplican inmediatamente.",
-      },
-    ],
-  },
-  {
-    icon: Users,
-    title: "Gestión de gimnastas",
-    questions: [
-      {
-        q: "¿Puedo importar gimnastas desde otro sistema?",
-        a: "Sí, puedes importar gimnastas desde Excel o CSV. Los datos de familias se vinculan después desde cada expediente; para migraciones grandes, el equipo de Zaltyko puede ayudarte con una puesta en marcha guiada.",
-      },
-      {
-        q: "¿Cómo funciona la gestión de grupos y niveles?",
-        a: "Puedes crear grupos por edad, nivel, disciplina y horario. Cada gimnasta puede pertenecer a múltiples grupos.",
-      },
-      {
-        q: "¿Hay control de asistencia?",
-        a: "Sí, tienes lista de asistencia por clase que puedes marcar con un click. También hay reportes de asistencia.",
-      },
-    ],
-  },
-  {
-    icon: Calendar,
-    title: "Clases y horarios",
-    questions: [
-      {
-        q: "¿Puedo crear clases recurrentes?",
-        a: "Sí, define el horario semanal y Zaltyko genera automáticamente todas las sesiones del mes.",
-      },
-      {
-        q: "¿Qué pasa si tengo que cancelar una clase?",
-        a: "Puedes cancelar sesiones individuales. Los padres reciben notificación automática y se marca en el historial.",
-      },
-      {
-        q: "¿Hay lista de espera?",
-        a: "Sí, puedes habilitar lista de espera por clase. Cuando se libera un cupo, el siguiente de la lista recibe notificación.",
-      },
-    ],
-  },
-  {
-    icon: BarChart3,
-    title: "Cobros y recibos",
-    questions: [
-      {
-        q: "¿Cómo cobro a los padres?",
-        a: "Zaltyko te permite controlar cuotas, pagos pendientes y recordatorios para que cada familia tenga su historial claro.",
-      },
-      {
-        q: "¿Puedo aplicar descuentos?",
-        a: "Sí, puedes crear descuentos individuales o campañas (hermanos, pronta inscripción, etc).",
-      },
-      {
-        q: "¿Qué pasa si un padre no paga?",
-        a: "Recibirás alertas de impago y podrás enviar recordatorios para resolverlo con la familia.",
-      },
-    ],
-  },
-  {
-    icon: Shield,
-    title: "Seguridad y datos",
-    questions: [
-      {
-        q: "¿Mis datos están seguros?",
-        a: "Zaltyko aplica controles por rol, aislamiento por academia y conexiones cifradas. Las opciones de exportación y borrado dependen del módulo y de la política de privacidad vigente.",
-      },
-      {
-        q: "¿Puedo borrar mis datos?",
-        a: "Puedes solicitar la eliminación de tu cuenta y datos asociados. Revisamos la solicitud conforme a la política de privacidad y las obligaciones de conservación aplicables.",
-      },
-      {
-        q: "¿Hay soporte técnico?",
-        a: "El soporte depende del plan. Growth y Network priorizan puesta en marcha, migración y acompañamiento operativo.",
-      },
-    ],
-  },
-];
+const categories = [{
+  icon: CreditCard,
+  title: "Uso y contratación",
+  questions: ESSENTIAL_FAQS.map(({ question, answer }) => ({ q: question, a: answer })),
+}];
 
 const faqSchema = {
   "@context": "https://schema.org",

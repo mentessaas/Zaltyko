@@ -6,6 +6,14 @@ export type EnrollmentBundle = Awaited<
 
 export type Candidate = { id: string; name: string };
 
+export type PricePlanOption = {
+  id: string;
+  name: string;
+  amountCents: number;
+  currency: string;
+  cadence: string;
+};
+
 export type StatusFilter =
   | "all"
   | "pending"

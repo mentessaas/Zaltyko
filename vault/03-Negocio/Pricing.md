@@ -10,7 +10,16 @@ source:
 ---
 # Pricing
 
+## Alcance vigente de apertura — 2026-10-26
+
+Esta decisión humana prevalece para la primera entrega pública sobre el empaquetado histórico de abajo. España, español y EUR; Free, Starter y Growth autoservicio; Network acompañado. Precios base aprobados **sin IVA**: Starter19€/mes o190€/año; Growth49€/mes o490€/año, sin cambiar importes. La fiscalidad, identidad del vendedor, condiciones y buzón de soporte operativo deben cerrarse antes de cobrar. No se activa Stripe Tax ni se supone que el tipo general se aplique a cualquier cliente.
+
+La promesa se limita a gimnastas/familias, grupos/clases/inscripciones, asistencia, cuotas con pagos manuales y resumen persistido. Se retiran del lanzamiento Health Score, retención, informes avanzados, portal familiar, evaluaciones, automatizaciones e importación no verificada. No se prometen resultados, adopción, prioridad de soporte ni tiempos de puesta en marcha. La suscripción SaaS es independiente de las cuotas familiares. Código preparado en la rama de entrega; publicación y pruebas del nuevo commit pendientes.
+
+
 ## Fuente de verdad comercial
+
+Actualización humana26oct2026: vendedor previsto Elvis Valdes Inerarte, futuro autónomo en España; alta todavía pendiente. Correo oficial hola@zaltyko.com confirmado por el titular, no prueba de entrega. NIF/domicilio/territorio y tratamiento fiscal pendientes. Perfil único en src/lib/launch/commercial-launch-profile.ts y guía docs/deployment/spain-seller-activation-2026-10-26.md. Contratación Live bloqueada hasta alta, datos, soporte operativo, contrato fiscal probado, textos y publicación aprobados; test no cambia. No hay impuestos automáticos ni modificación del catálogo.
 
 Esta nota debe revisarse antes de cambiar landing, checkout, limites de plan o discurso de ventas.
 

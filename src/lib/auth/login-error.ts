@@ -1,6 +1,7 @@
 const LOGIN_NOTICE_CODES = new Set([
   "access_disabled",
   "callback_failed",
+  "callback_expired",
   "consent_invalid",
   "consent_record_failed",
 ]);

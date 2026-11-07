@@ -10,7 +10,7 @@ import { verifyAcademyAccess } from "@/lib/permissions";
 import { apiSuccess, apiError } from "@/lib/api-response";
 
 const querySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   read: z.string().nullable().optional(),
   archived: z.string().nullable().optional(),
   limit: z.string().nullable().optional(),

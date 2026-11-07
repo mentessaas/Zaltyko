@@ -23,7 +23,7 @@ export const GET = withTenant(async (request, context) => {
   }
 
   const academyId = url.searchParams.get("academyId");
-  if (academyId && !z.string().uuid().safeParse(academyId).success) {
+  if (academyId && !z.guid().safeParse(academyId).success) {
     return apiError("INVALID_ACADEMY_ID", "Academy ID must be a valid UUID", 400);
   }
   const athleteIds = url.searchParams.get("athleteIds")?.split(",").filter(Boolean);

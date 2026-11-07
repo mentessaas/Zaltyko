@@ -12,34 +12,9 @@ import { useToast } from "@/components/ui/toast-provider";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
 import { checkPwnedPassword, PWNED_PASSWORD_MESSAGE } from "@/lib/security/pwned-password";
-import { trackEvent } from "@/lib/analytics";
-import { trackGoogleAdsConversion } from "@/lib/google-ads";
-import {
-  readUtmWithFallback,
-} from "@/lib/growth/utm";
 import { getRegistrationContinuationPath } from "@/lib/auth/registration-paths";
 import { getNextRegistrationRoleIndex } from "@/lib/auth/registration-role-navigation";
 import { useHydrated } from "@/lib/auth/use-hydrated";
-
-// Lee UTMs del first-touch capturado por `UtmCapture` (sessionStorage)
-// o de la query string actual. Wrapper sobre `readUtmWithFallback` para
-// tipar más estrecho y evitar repetir la plumbing. Devuelve SIEMPRE los 5
-// campos (con fallback `direct/none/...`) para mantener trazabilidad.
-function readAttribution(): {
-  utm_source: string;
-  utm_medium: string;
-  utm_campaign: string;
-  utm_content: string;
-  utm_term: string;
-} {
-  if (typeof window === "undefined") {
-    return readUtmWithFallback(new URLSearchParams(), undefined);
-  }
-  return readUtmWithFallback(
-    new URLSearchParams(window.location.search),
-    window.sessionStorage,
-  );
-}
 
   const ROLE_OPTIONS = [
   {
@@ -71,16 +46,16 @@ function readAttribution(): {
 
 type RegisterRole = (typeof ROLE_OPTIONS)[number]["value"];
 
-// Must match app_config.consent.policy_version in the reviewed migration.
-const LEGAL_CONSENT_VERSION = "v1-2026-08-01";
 const LEGAL_CONSENT_PROOF = "signup:register-form-v1";
 
 export function RegisterForm({
   ownerEntry = false,
+  ownerConsentPolicyVersion = null,
   directoryDiscoveryEnabled = false,
   directoryClaimsEnabled = false,
 }: {
   ownerEntry?: boolean;
+  ownerConsentPolicyVersion?: string | null;
   directoryDiscoveryEnabled?: boolean;
   directoryClaimsEnabled?: boolean;
 } = {}) {
@@ -91,8 +66,13 @@ export function RegisterForm({
   const directoryNext = isHydrated
     ? new URLSearchParams(window.location.search).get("next")
     : null;
-  const directoryRegistration=Boolean(directoryNext&&/^\/(academias|events|directorio)\//.test(directoryNext)&&!directoryNext.includes('\\'));
+  const directoryRegistration = !ownerEntry && Boolean(
+    directoryNext && /^\/(academias|events|directorio)\//.test(directoryNext) &&
+    !directoryNext.includes('\\')
+  );
   const [role, setRole] = useState<RegisterRole>("owner");
+  const ownerConsentPolicyUnavailable =
+    !directoryRegistration && role === "owner" && !ownerConsentPolicyVersion;
   const [termsAccepted, setTermsAccepted] = useState(false);
   const roleButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [loading, setLoading] = useState(false);
@@ -122,18 +102,15 @@ export function RegisterForm({
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Micro-conversion: cta_click. Se emite ANTES de las validaciones para
-    // que Google Ads pueda optimizar por clics en el CTA real, no por
-    // submits completados que terminan en error de validación.
-    void trackEvent("cta_click", {
-      metadata: {
-        cta_id: "register_submit",
-        cta_position: "register_form",
-        ...readAttribution(),
-      },
-    });
-    // Google Ads también recibe cta_click para optimización temprana.
-    if (!directoryRegistration) trackGoogleAdsConversion("cta_click_register");
+    if (ownerConsentPolicyUnavailable) {
+      toast.pushToast({
+        title: "No se pudo verificar la política vigente",
+        description:
+          "No crearemos una cuenta Owner hasta poder comprobar los términos actuales. Inténtalo de nuevo más tarde.",
+        variant: "error",
+      });
+      return;
+    }
 
     if (!fullName.trim()) {
       toast.pushToast({
@@ -219,8 +196,14 @@ export function RegisterForm({
             directory_account: directoryRegistration,
             // Metadata is only a hand-off for the server-side consent record;
             // authorization must never rely on user-editable user_metadata.
-            legal_consent_version: LEGAL_CONSENT_VERSION,
-            legal_consent_proof: LEGAL_CONSENT_PROOF,
+            ...(!directoryRegistration &&
+            role === "owner" &&
+            ownerConsentPolicyVersion
+              ? {
+                  legal_consent_version: ownerConsentPolicyVersion,
+                  legal_consent_proof: LEGAL_CONSENT_PROOF,
+                }
+              : {}),
           },
           emailRedirectTo,
         },
@@ -250,28 +233,6 @@ export function RegisterForm({
 
       if (data.session) {
         signupPhase = "session_confirmed";
-        // Instrumentación paid-acquisition: emite sign_up_completed solo
-        // cuando hay sesión (signup funcional, no email-pendiente). La
-        // atribución UTMs viaja en metadata para que PostHog/Google Ads
-        // puedan reconciliar origen paid.
-        const attribution = readAttribution();
-        await trackEvent(directoryRegistration ? "directory_account_registered" : "sign_up_completed", {
-          userId: data.session.user.id,
-          metadata: {
-            role: directoryRegistration ? "directory" : role,
-            signup_method: "email_password",
-            // `direct` es el fallback cuando no hay UTMs (ver UTM_DIRECT_FALLBACK);
-            // distinguir paid vs organic/direct ayuda a segmentar PostHog.
-            has_utm_source: attribution.utm_source !== "direct",
-            ...attribution,
-          },
-        });
-
-        // Google Ads conversion — el label real lo configura Elvis en la
-        // cuenta de Google Ads (Tools → Conversions) y se mapea aquí cuando
-        // esté listo. Sin label, gtag ignora el evento silenciosamente.
-        if (!directoryRegistration) trackGoogleAdsConversion("signup_completed");
-
         if (directoryRegistration) {
           router.push(directoryNext!);
           return;
@@ -318,14 +279,6 @@ export function RegisterForm({
         }
         router.push(getRegistrationContinuationPath(role));
       } else {
-        await trackEvent(directoryRegistration ? "directory_account_registered" : "sign_up_completed", {
-          metadata: {
-            role: directoryRegistration ? "directory" : role,
-            signup_method: "email_password",
-            email_confirmation_pending: true,
-            ...readAttribution(),
-          },
-        });
         router.push(`/auth/login?registered=1${directoryRegistration?`&next=${encodeURIComponent(directoryNext!)}`:""}`);
       }
     } catch {
@@ -355,6 +308,16 @@ export function RegisterForm({
   };
 
   const handleGoogleSignUp = async () => {
+    if (ownerConsentPolicyUnavailable) {
+      toast.pushToast({
+        title: "No se pudo verificar la política vigente",
+        description:
+          "No crearemos una cuenta Owner hasta poder comprobar los términos actuales. Inténtalo de nuevo más tarde.",
+        variant: "error",
+      });
+      return;
+    }
+
     if (!termsAccepted) {
       toast.pushToast({
         title: "Aceptación necesaria",
@@ -366,14 +329,25 @@ export function RegisterForm({
 
     setGoogleLoading(true);
     try {
-      const next = directoryRegistration ? directoryNext! :
-        `/auth/redirect?initial_role=${encodeURIComponent(role)}` +
-        `&legal_consent_version=${encodeURIComponent(LEGAL_CONSENT_VERSION)}` +
-        `&legal_consent_proof=${encodeURIComponent(LEGAL_CONSENT_PROOF)}`;
+      const next = directoryRegistration
+        ? directoryNext!
+        : `/auth/redirect?initial_role=${encodeURIComponent(role)}`;
       const callbackUrl = new URL("/auth/callback", window.location.origin);
       callbackUrl.searchParams.set("next", next);
-      callbackUrl.searchParams.set("legal_consent_version", LEGAL_CONSENT_VERSION);
-      callbackUrl.searchParams.set("legal_consent_proof", LEGAL_CONSENT_PROOF);
+      if (
+        !directoryRegistration &&
+        role === "owner" &&
+        ownerConsentPolicyVersion
+      ) {
+        callbackUrl.searchParams.set(
+          "legal_consent_version",
+          ownerConsentPolicyVersion
+        );
+        callbackUrl.searchParams.set(
+          "legal_consent_proof",
+          LEGAL_CONSENT_PROOF
+        );
+      }
       if (directoryRegistration) {
         callbackUrl.searchParams.set("directory_account", "1");
       }
@@ -442,7 +416,7 @@ export function RegisterForm({
         ? [
             "Primero crearás el acceso personal.",
             "Después configurarás la academia en un formulario breve.",
-            "Podrás invitar a entrenadores y familias desde tu espacio.",
+            "Podrás organizar gimnastas, clases y cuotas con pagos manuales.",
           ]
         : [
             "Padres, atletas, entrenadores y proveedores pueden tener cuenta propia.",
@@ -463,6 +437,7 @@ export function RegisterForm({
               <button
                 key={option.value}
                 type="button"
+                disabled={!isHydrated}
                 ref={(element) => {
                   roleButtonRefs.current[index] = element;
                 }}
@@ -482,7 +457,7 @@ export function RegisterForm({
               </button>
             ))}
           </div>}
-          {role === "owner" && !directoryRegistration && (
+          {role === "owner" && !directoryRegistration && directoryDiscoveryEnabled && (
             <div className="rounded-lg border border-zaltyko-teal/30 bg-zaltyko-teal/5 px-3 py-2 text-xs text-muted-foreground">
               <span className="font-semibold text-foreground">¿Tu academia ya está en Zaltyko?</span> Búscala antes de crear otro espacio.
               <p className="mt-2">
@@ -500,6 +475,7 @@ export function RegisterForm({
           <Label htmlFor="fullName">Nombre completo</Label>
           <Input
             id="fullName"
+            disabled={!isHydrated}
             name="fullName"
             type="text"
             value={fullName}
@@ -513,6 +489,7 @@ export function RegisterForm({
           <Label htmlFor="email">Correo electrónico</Label>
           <Input
             id="email"
+            disabled={!isHydrated}
             name="email"
             type="email"
             value={email}
@@ -526,6 +503,7 @@ export function RegisterForm({
           <Label htmlFor="password">Contraseña</Label>
           <Input
             id="password"
+            disabled={!isHydrated}
             name="password"
             type="password"
             value={password}
@@ -539,6 +517,7 @@ export function RegisterForm({
           <input
             type="checkbox"
             name="termsAccepted"
+            disabled={!isHydrated}
             checked={termsAccepted}
             onChange={(event) => setTermsAccepted(event.target.checked)}
             aria-required="true"
@@ -556,10 +535,27 @@ export function RegisterForm({
             .
           </span>
         </label>
+        {ownerConsentPolicyUnavailable && (
+          <p
+            id="owner-consent-policy-unavailable"
+            role="alert"
+            className="rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+          >
+            No podemos comprobar ahora los términos vigentes para crear una
+            academia. No se iniciará el alta Owner; vuelve a intentarlo más
+            tarde.
+          </p>
+        )}
         <Button
           type="submit"
           className="w-full"
-          disabled={loading || googleLoading || signupOutcomeUnknown}
+          disabled={
+            !isHydrated ||
+            loading ||
+            googleLoading ||
+            signupOutcomeUnknown ||
+            ownerConsentPolicyUnavailable
+          }
         >
           {signupOutcomeUnknown ? (
             "Alta pendiente de confirmar"
@@ -631,11 +627,16 @@ export function RegisterForm({
             googleLoading ||
             loading ||
             !termsAccepted ||
+            ownerConsentPolicyUnavailable ||
             signupOutcomeUnknown
           }
           aria-busy={!isHydrated || googleLoading}
           aria-describedby={
-            !termsAccepted ? "google-signup-consent-hint" : undefined
+            !termsAccepted
+              ? "google-signup-consent-hint"
+              : ownerConsentPolicyUnavailable
+                ? "owner-consent-policy-unavailable"
+                : undefined
           }
         >
           {googleLoading ? (

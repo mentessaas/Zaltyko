@@ -23,6 +23,7 @@ import {
   DashboardModule,
   DashboardModuleLayout,
 } from "@/components/owner-dashboard/DashboardModuleLayout";
+import { ownerDashboardScopeHref } from "@/components/owner-dashboard/owner-dashboard-scope-url";
 
 type CapacityBundle = Awaited<ReturnType<typeof getCapacityHeatmap>>;
 type CohortsBundle = Awaited<ReturnType<typeof getRetentionCohorts>>;
@@ -46,11 +47,12 @@ const statusLabels: Record<string, string> = {
   insufficient: "Insuficiente",
 };
 
-function formatDate(value: string): string {
+export function formatDate(value: string): string {
   return new Intl.DateTimeFormat("es-ES", {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   }).format(new Date(`${value}T12:00:00Z`));
 }
 
@@ -64,7 +66,7 @@ function formatTimestamp(value: string): string {
   }).format(new Date(value));
 }
 
-function formatMetric(
+export function formatMetric(
   metric: OwnerDashboardBundle["metrics"][number] | undefined
 ): string {
   if (!metric || metric.value === null) return "—";
@@ -75,9 +77,11 @@ function formatMetric(
     }).format(metric.value);
   }
   if (metric.unit === "currency_minor") {
+    if (!metric.currency) return "Moneda no disponible";
     return new Intl.NumberFormat("es-ES", {
       style: "currency",
-      currency: metric.currency ?? "EUR",
+      currency: metric.currency,
+      currencyDisplay: "code",
       maximumFractionDigits: 0,
     }).format(metric.value / 100);
   }
@@ -129,10 +133,10 @@ function ScoreDial({
         />
       </svg>
       <figcaption className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="font-mono text-6xl font-semibold tracking-[-0.08em] text-slate-950">
+        <span className="font-mono text-6xl font-semibold tracking-[-0.08em] text-z-ink">
           {value === null ? "—" : Math.round(value)}
         </span>
-        <span className="mt-2 text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
+        <span className="mt-2 text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
           {statusLabels[status] ?? status}
         </span>
       </figcaption>
@@ -157,32 +161,32 @@ function OperationalEvidence({
     }).format(new Date(`${value.slice(0, 7)}-01T12:00:00Z`));
 
   return (
-    <section className="mt-12 grid gap-8 border-t border-slate-400 pt-8 xl:grid-cols-[1fr_1fr]">
+    <section className="mt-12 grid gap-8 border-t border-z-line pt-8 xl:grid-cols-[1fr_1fr]">
       <article
         id="capacity"
         aria-labelledby="capacity-title"
         className="min-w-0"
       >
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
           Operación semanal
         </p>
         <h2 id="capacity-title" className="mt-2 text-2xl">
           Capacidad y ocupación
         </h2>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-z-soft">
           Plazas ocupadas frente al aforo efectivo de cada franja, según las
           inscripciones vigentes.
         </p>
         {!capacity ? (
           <p
             role="status"
-            className="mt-5 border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+            className="rounded-[12px] mt-5 border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
           >
             No se pudo actualizar este resumen. El resto del panel sigue
             disponible.
           </p>
         ) : capacity.cells.length === 0 ? (
-          <p className="mt-5 border border-slate-300 bg-white p-4 text-sm text-slate-600">
+          <p className="rounded-[12px] mt-5 border border-z-line bg-white p-4 text-sm text-z-soft">
             No hay clases activas con horario configurado para{" "}
             {formatDate(capacity.asOf)}.
           </p>
@@ -194,7 +198,7 @@ function OperationalEvidence({
               return (
                 <details
                   key={`${cell.isoWeekday}-${cell.startsAtLocal}-${cell.endsAtLocal}`}
-                  className="group border border-slate-300 bg-white"
+                  className="group border border-z-line bg-white"
                 >
                   <summary className="touch-target flex cursor-pointer list-none flex-wrap items-center gap-x-4 gap-y-2 p-4 marker:hidden">
                     <strong className="w-10 text-sm">
@@ -215,12 +219,12 @@ function OperationalEvidence({
                       aria-hidden="true"
                     >
                       <div
-                        className="h-full bg-teal-700"
+                        className="h-full bg-z-ink"
                         style={{ width: `${Math.min(100, percent ?? 0)}%` }}
                       />
                     </div>
                   </summary>
-                  <ul className="divide-y divide-slate-200 border-t border-slate-200 px-4">
+                  <ul className="divide-y divide-z-line border-t border-z-line px-4">
                     {cell.classes.map((item, index) => {
                       const name =
                         typeof item.name === "string"
@@ -247,7 +251,7 @@ function OperationalEvidence({
                           className="flex justify-between gap-3 py-3 text-sm"
                         >
                           <span className="min-w-0 truncate">{name}</span>
-                          <span className="shrink-0 text-slate-600">
+                          <span className="shrink-0 text-z-soft">
                             {Number(item.capacity ?? 0) === 0
                               ? "Aforo pendiente"
                               : `${openSeats} ${openSeats === 1 ? "plaza libre" : "plazas libres"}`}
@@ -255,7 +259,7 @@ function OperationalEvidence({
                           {classTemplateId && (
                             <Link
                               href={`/owner/insights?${insightParams.toString()}`}
-                              className="touch-target shrink-0 font-semibold text-teal-900 underline underline-offset-2"
+                              className="touch-target shrink-0 font-semibold text-z-brand-700 underline underline-offset-2"
                             >
                               Ver oportunidades
                             </Link>
@@ -268,7 +272,7 @@ function OperationalEvidence({
               );
             })}
             {capacity.nextCursor && (
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-z-soft">
                 Se muestran las primeras 50 franjas; aplica filtros de ámbito
                 para acotar el resumen.
               </p>
@@ -282,20 +286,20 @@ function OperationalEvidence({
         aria-labelledby="retention-title"
         className="min-w-0"
       >
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
           Evolución de grupos
         </p>
         <h2 id="retention-title" className="mt-2 text-2xl">
           Retención por cohorte
         </h2>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-z-soft">
           Seguimiento agregado por mes de primera inscripción activa; no muestra
           datos personales.
         </p>
         {!cohorts ? (
           <p
             role="status"
-            className="mt-5 border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+            className="rounded-[12px] mt-5 border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
           >
             No se pudo actualizar este resumen. El resto del panel sigue
             disponible.
@@ -309,23 +313,23 @@ function OperationalEvidence({
             </p>
             {cohorts.projection.status !== "ready" ? (
               <p
-                className="mt-4 border border-slate-300 bg-white p-4 text-sm text-slate-600"
+                className="rounded-[12px] mt-4 border border-z-line bg-white p-4 text-sm text-z-soft"
                 role="status"
               >
                 {cohorts.projection.reason ??
                   "El resumen de cohortes todavía no está disponible."}
               </p>
             ) : cohorts.items.length === 0 ? (
-              <p className="mt-4 border border-slate-300 bg-white p-4 text-sm text-slate-600">
+              <p className="rounded-[12px] mt-4 border border-z-line bg-white p-4 text-sm text-z-soft">
                 Aún no hay cohortes con historial de inscripción en este ámbito.
               </p>
             ) : (
-              <div className="mt-4 overflow-x-auto border border-slate-300 bg-white">
+              <div className="mt-4 overflow-x-auto border border-z-line bg-white">
                 <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
                   <caption className="sr-only">
                     Retención agregada por mes de primera inscripción activa
                   </caption>
-                  <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
+                  <thead className="bg-z-canvas text-xs uppercase tracking-wide text-z-soft">
                     <tr>
                       <th className="px-3 py-3" scope="col">
                         Cohorte
@@ -341,7 +345,7 @@ function OperationalEvidence({
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200">
+                  <tbody className="divide-y divide-z-line">
                     {cohorts.items.map((item) => {
                       const latest = item.matrix.at(-1);
                       const rate = latest?.retentionRate;
@@ -397,39 +401,54 @@ function EmptyDashboard({
     | null;
 }) {
   const hasOperationalSummary = operationalSummary !== undefined;
+  const groupsHref = ownerDashboardScopeHref(
+    "/owner/groups",
+    bundle.organization.id,
+    bundle.scope.locationId
+  );
+  const classesHref = ownerDashboardScopeHref(
+    "/owner/classes",
+    bundle.organization.id,
+    bundle.scope.locationId
+  );
+  const enrollmentsHref = ownerDashboardScopeHref(
+    "/owner/enrollments",
+    bundle.organization.id,
+    bundle.scope.locationId
+  );
 
   return (
     <main id="contenido" className="mx-auto max-w-5xl px-5 py-10">
       {hasOperationalSummary && (
         <>
-          <h1 className="text-3xl text-slate-950">Tu academia</h1>
+          <h1 className="text-3xl text-z-ink">Tu academia</h1>
           <OwnerOperationalSummaryPanel summary={operationalSummary} />
         </>
       )}
       <section
         id="data-status"
-        className="mt-6 w-full border-l-4 border-teal-700 bg-white p-7 shadow-soft sm:p-10"
+        className="mt-6 w-full border-l-4 border-z-brand-100 bg-white p-7 shadow-soft sm:p-10"
       >
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-teal-800">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-z-brand-600">
           Primer cierre
         </p>
         {hasOperationalSummary ? (
-          <h2 className="mt-3 text-3xl text-slate-950">
+          <h2 className="mt-3 text-3xl text-z-ink">
             Tu Health Score todavía está esperando métricas
           </h2>
         ) : (
-          <h1 className="mt-3 text-3xl text-slate-950">
+          <h1 className="mt-3 text-3xl text-z-ink">
             Tu panel todavía está esperando datos
           </h1>
         )}
-        <p className="mt-4 max-w-xl text-slate-600">
+        <p className="mt-4 max-w-xl text-z-soft">
           {bundle.priorities[0]?.detail ??
             "Completa las operaciones del período y calcula las métricas."}
         </p>
         <PipelineFreshnessNotice freshness={bundle.freshness} />
         <Link
           href={bundle.priorities[0]?.href ?? "/owner#data-status"}
-          className="touch-target mt-7 inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white"
+          className="touch-target mt-7 inline-flex items-center gap-2 rounded-full bg-z-ink px-5 py-3 text-sm font-bold text-white"
         >
           {bundle.priorities[0]?.key.startsWith("insight-")
             ? "Revisar prioridad"
@@ -439,22 +458,22 @@ function EmptyDashboard({
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
         <Link
-          href={`/owner/groups?organizationId=${bundle.organization.id}`}
-          className="touch-target ml-3 mt-7 inline-flex items-center gap-2 rounded-full border border-slate-400 bg-white px-5 py-3 text-sm font-bold text-slate-900"
+          href={groupsHref}
+          className="touch-target ml-3 mt-7 inline-flex items-center gap-2 rounded-full border border-z-line bg-white px-5 py-3 text-sm font-bold text-z-ink"
         >
           Gestionar grupos
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
         <Link
-          href={`/owner/classes?organizationId=${bundle.organization.id}`}
-          className="touch-target ml-3 mt-7 inline-flex items-center gap-2 rounded-full border border-slate-400 bg-white px-5 py-3 text-sm font-bold text-slate-900"
+          href={classesHref}
+          className="touch-target ml-3 mt-7 inline-flex items-center gap-2 rounded-full border border-z-line bg-white px-5 py-3 text-sm font-bold text-z-ink"
         >
           Gestionar clases
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
         <Link
-          href={"/owner/enrollments?organizationId=" + bundle.organization.id}
-          className="touch-target ml-3 mt-7 inline-flex items-center gap-2 rounded-full border border-slate-400 bg-white px-5 py-3 text-sm font-bold text-slate-900"
+          href={enrollmentsHref}
+          className="touch-target ml-3 mt-7 inline-flex items-center gap-2 rounded-full border border-z-line bg-white px-5 py-3 text-sm font-bold text-z-ink"
         >
           Gestionar inscripciones
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -528,7 +547,7 @@ export function OwnerDashboardView({
 }) {
   if (bundle.state === "empty") {
     return (
-      <div className="min-h-screen bg-[#F1F3EF] text-slate-950">
+      <div className="min-h-screen bg-[#F1F3EF] text-z-ink">
         <EmptyDashboard
           bundle={bundle}
           operationalSummary={operationalSummary}
@@ -559,18 +578,18 @@ export function OwnerDashboardView({
   );
 
   return (
-    <div className="min-h-screen bg-[#F1F3EF] text-slate-950">
+    <div className="min-h-screen bg-[#F1F3EF] text-z-ink">
       <main
         id="contenido"
         className="mx-auto max-w-[92rem] px-5 pb-28 pt-6 lg:px-10 lg:pb-16 lg:pt-10"
       >
         <section
           aria-labelledby="dashboard-title"
-          className="border-b border-slate-300 pb-7"
+          className="border-b border-z-line pb-7"
         >
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
                 Cierre de dirección
               </p>
               <h1
@@ -579,7 +598,7 @@ export function OwnerDashboardView({
               >
                 {bundle.organization.name}
               </h1>
-              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-z-soft">
                 <span className="inline-flex items-center gap-2">
                   <CalendarDays className="h-4 w-4" aria-hidden="true" />
                   {bundle.period
@@ -606,7 +625,7 @@ export function OwnerDashboardView({
                 value={bundle.organization.id}
               />
               <label
-                className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-600"
+                className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-z-soft"
                 htmlFor="from"
               >
                 Desde
@@ -615,11 +634,11 @@ export function OwnerDashboardView({
                   name="from"
                   type="date"
                   defaultValue={bundle.period?.start}
-                  className="touch-target rounded-none border border-slate-400 bg-white px-3 text-sm font-semibold text-slate-950"
+                  className="touch-target rounded-none border border-z-line bg-white px-3 text-sm font-semibold text-z-ink"
                 />
               </label>
               <label
-                className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-600"
+                className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-z-soft"
                 htmlFor="to"
               >
                 Hasta
@@ -628,11 +647,11 @@ export function OwnerDashboardView({
                   name="to"
                   type="date"
                   defaultValue={bundle.period?.end}
-                  className="touch-target rounded-none border border-slate-400 bg-white px-3 text-sm font-semibold text-slate-950"
+                  className="touch-target rounded-none border border-z-line bg-white px-3 text-sm font-semibold text-z-ink"
                 />
               </label>
               <label
-                className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-600"
+                className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-z-soft"
                 htmlFor="locationId"
               >
                 Ámbito
@@ -640,7 +659,7 @@ export function OwnerDashboardView({
                   id="locationId"
                   name="locationId"
                   defaultValue={bundle.scope.locationId ?? ""}
-                  className="touch-target min-w-56 rounded-none border border-slate-400 bg-white px-3 text-sm font-semibold text-slate-950"
+                  className="touch-target min-w-56 rounded-none border border-z-line bg-white px-3 text-sm font-semibold text-z-ink"
                 >
                   {bundle.scope.canViewOrganizationAggregate && (
                     <option value="">Toda la academia</option>
@@ -655,7 +674,7 @@ export function OwnerDashboardView({
               {dashboardFilters && (
                 <>
                   <label
-                    className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-600"
+                    className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-z-soft"
                     htmlFor="programId"
                   >
                     Programa
@@ -663,7 +682,7 @@ export function OwnerDashboardView({
                       id="programId"
                       name="programId"
                       defaultValue={dashboardFilters.selectedProgramId ?? ""}
-                      className="touch-target min-w-40 rounded-none border border-slate-400 bg-white px-3 text-sm font-semibold text-slate-950"
+                      className="touch-target min-w-40 rounded-none border border-z-line bg-white px-3 text-sm font-semibold text-z-ink"
                     >
                       <option value="">Todos</option>
                       {dashboardFilters.programs.map((program) => (
@@ -674,7 +693,7 @@ export function OwnerDashboardView({
                     </select>
                   </label>
                   <label
-                    className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-600"
+                    className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-z-soft"
                     htmlFor="groupId"
                   >
                     Grupo
@@ -682,7 +701,7 @@ export function OwnerDashboardView({
                       id="groupId"
                       name="groupId"
                       defaultValue={dashboardFilters.selectedGroupId ?? ""}
-                      className="touch-target min-w-40 rounded-none border border-slate-400 bg-white px-3 text-sm font-semibold text-slate-950"
+                      className="touch-target min-w-40 rounded-none border border-z-line bg-white px-3 text-sm font-semibold text-z-ink"
                     >
                       <option value="">Todos</option>
                       {dashboardFilters.groups.map((group) => (
@@ -694,11 +713,11 @@ export function OwnerDashboardView({
                   </label>
                 </>
               )}
-              <button className="touch-target rounded-none bg-slate-950 px-5 text-sm font-bold text-white hover:bg-teal-900">
+              <button className="touch-target rounded-none bg-z-ink px-5 text-sm font-bold text-white hover:bg-black">
                 Aplicar
               </button>
               {dashboardFilters && (
-                <p className="text-xs leading-5 text-slate-600 sm:col-span-2 lg:col-span-3">
+                <p className="text-xs leading-5 text-z-soft sm:col-span-2 lg:col-span-3">
                   Programa y grupo acotan aforo y cohortes; el Health Score se
                   mantiene en el ámbito academia/sede.
                 </p>
@@ -715,7 +734,7 @@ export function OwnerDashboardView({
           <div
             role="status"
             id="data-status"
-            className="mt-5 flex gap-3 border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950"
+            className="rounded-[12px] mt-5 flex gap-3 border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950"
           >
             <Clock3 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
             <div>
@@ -726,9 +745,9 @@ export function OwnerDashboardView({
         )}
 
         {bundle.state !== "stale" && (
-          <p id="data-status" className="mt-5 text-sm text-slate-600">
+          <p id="data-status" className="mt-5 text-sm text-z-soft">
             Estado de datos:{" "}
-            <strong className="text-slate-950">
+            <strong className="text-z-ink">
               {bundle.state === "insufficient"
                 ? "cobertura insuficiente"
                 : "actualizado"}
@@ -758,21 +777,21 @@ export function OwnerDashboardView({
                 <li key={priority.key}>
                   <Link
                     href={priority.href}
-                    className="group flex min-h-16 items-start gap-3 border-t border-slate-300 py-3 focus-visible:bg-white"
+                    className="group flex min-h-16 items-start gap-3 border-t border-z-line py-3 focus-visible:bg-white"
                   >
-                    <span className="mt-0.5 font-mono text-xs font-bold text-slate-600">
+                    <span className="mt-0.5 font-mono text-xs font-bold text-z-soft">
                       0{index + 1}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <strong className="block text-sm text-slate-950">
+                      <strong className="block text-sm text-z-ink">
                         {priority.title}
                       </strong>
-                      <span className="mt-1 block text-sm leading-5 text-slate-600">
+                      <span className="mt-1 block text-sm leading-5 text-z-soft">
                         {priority.detail}
                       </span>
                     </span>
                     <ChevronRight
-                      className="mt-2 h-4 w-4 text-slate-600 transition-transform group-hover:translate-x-1"
+                      className="mt-2 h-4 w-4 text-z-soft transition-transform group-hover:translate-x-1"
                       aria-hidden="true"
                     />
                   </Link>
@@ -781,7 +800,7 @@ export function OwnerDashboardView({
             </ol>
             <Link
               href="/owner/insights"
-              className="touch-target mt-5 inline-flex w-full items-center justify-center gap-2 bg-teal-800 px-5 py-3 text-sm font-bold text-white hover:bg-teal-900"
+              className="touch-target mt-5 inline-flex w-full items-center justify-center gap-2 bg-z-ink px-5 py-3 text-sm font-bold text-white hover:bg-black"
             >
               Abrir bandeja de insights{" "}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -790,28 +809,28 @@ export function OwnerDashboardView({
 
           <div
             id="score"
-            className="order-2 mt-7 border-t border-slate-400 pt-6 lg:mt-0 lg:grid lg:grid-cols-[19rem_1fr] lg:gap-8 lg:pt-0"
+            className="order-2 mt-7 border-t border-z-line pt-6 lg:mt-0 lg:grid lg:grid-cols-[19rem_1fr] lg:gap-8 lg:pt-0"
           >
             <div className="text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-soft">
                 Academy Health Score
               </p>
               <ScoreDial
                 value={bundle.score?.value ?? null}
                 status={bundle.score?.status ?? "insufficient_data"}
               />
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-z-soft">
                 Cobertura{" "}
-                <strong className="text-slate-950">
+                <strong className="text-z-ink">
                   {Math.round((bundle.score?.coverage ?? 0) * 100)}%
                 </strong>
               </p>
-              <p className="mt-1 text-xs text-slate-600">
+              <p className="mt-1 text-xs text-z-soft">
                 {bundle.scoreComparison ? (
                   <>
                     Vs. período comparable hasta{" "}
                     {formatDate(bundle.scoreComparison.previousPeriod.end)}:{" "}
-                    <strong className="text-slate-950">
+                    <strong className="text-z-ink">
                       {bundle.scoreComparison.delta > 0 ? "+" : ""}
                       {bundle.scoreComparison.delta.toFixed(1)} puntos
                     </strong>
@@ -824,7 +843,7 @@ export function OwnerDashboardView({
               </p>
               <Link
                 href="#explain-title"
-                className="touch-target mt-3 inline-flex items-center gap-2 text-sm font-bold text-teal-800 underline decoration-teal-300 underline-offset-4"
+                className="touch-target mt-3 inline-flex items-center gap-2 text-sm font-bold text-z-brand-600 underline decoration-z-brand-100 underline-offset-4"
               >
                 Ver qué lo explica{" "}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -832,20 +851,20 @@ export function OwnerDashboardView({
               {bundle.scope.canManageHealthScore && (
                 <Link
                   href={`/owner/health-score/setup?organizationId=${bundle.organization.id}`}
-                  className="touch-target mt-2 inline-flex items-center gap-2 text-sm font-bold text-slate-700 underline underline-offset-4"
+                  className="touch-target mt-2 inline-flex items-center gap-2 text-sm font-bold text-z-soft underline underline-offset-4"
                 >
                   Editar metas del score
                 </Link>
               )}
             </div>
             <div className="mt-6 lg:mt-0">
-              <div className="flex items-end justify-between border-b border-slate-400 pb-3">
+              <div className="flex items-end justify-between border-b border-z-line pb-3">
                 <h2 className="text-2xl tracking-[-0.03em]">
                   De qué está hecho
                 </h2>
-                <span className="text-xs text-slate-600">Versión trazable</span>
+                <span className="text-xs text-z-soft">Versión trazable</span>
               </div>
-              <div className="divide-y divide-slate-300">
+              <div className="divide-y divide-z-line">
                 {bundle.dimensions.map((dimension) => (
                   <div
                     id={`dimension-${dimension.key}`}
@@ -856,12 +875,12 @@ export function OwnerDashboardView({
                       <div className="flex items-center gap-2">
                         {dimension.status === "insufficient_data" ? (
                           <CircleAlert
-                            className="h-4 w-4 text-slate-600"
+                            className="h-4 w-4 text-z-soft"
                             aria-hidden="true"
                           />
                         ) : (
                           <CheckCircle2
-                            className="h-4 w-4 text-teal-700"
+                            className="h-4 w-4 text-z-brand-600"
                             aria-hidden="true"
                           />
                         )}
@@ -874,11 +893,11 @@ export function OwnerDashboardView({
                         aria-hidden="true"
                       >
                         <div
-                          className="h-full bg-teal-700"
+                          className="h-full bg-z-ink"
                           style={{ width: `${dimension.score ?? 0}%` }}
                         />
                       </div>
-                      <p className="mt-2 text-xs text-slate-600">
+                      <p className="mt-2 text-xs text-z-soft">
                         {statusLabels[dimension.status] ?? dimension.status} ·
                         cobertura {Math.round(dimension.coverage * 100)}%
                       </p>
@@ -905,7 +924,7 @@ export function OwnerDashboardView({
           <DashboardModule moduleId="kpis" title="Indicadores clave">
             <section
               aria-labelledby="kpi-title"
-              className="mt-10 border-y border-slate-400"
+              className="mt-10 border-y border-z-line"
             >
               <h2 id="kpi-title" className="sr-only">
                 Indicadores principales
@@ -917,9 +936,9 @@ export function OwnerDashboardView({
                     <article
                       id={`kpi-${key}`}
                       key={key}
-                      className={`min-h-36 p-5 lg:p-7 ${index % 2 ? "border-l border-slate-300" : ""} ${index > 1 ? "border-t border-slate-300 lg:border-t-0" : ""} ${index > 0 ? "lg:border-l" : ""}`}
+                      className={`min-h-36 p-5 lg:p-7 ${index % 2 ? "border-l border-z-line" : ""} ${index > 1 ? "border-t border-z-line lg:border-t-0" : ""} ${index > 0 ? "lg:border-l" : ""}`}
                     >
-                      <div className="flex items-center justify-between text-slate-600">
+                      <div className="flex items-center justify-between text-z-soft">
                         <span className="text-xs font-bold uppercase tracking-[0.12em]">
                           {label}
                         </span>
@@ -928,7 +947,7 @@ export function OwnerDashboardView({
                       <p className="mt-5 font-mono text-3xl font-semibold tracking-[-0.05em] tabular-nums sm:text-4xl">
                         {formatMetric(metric)}
                       </p>
-                      <p className="mt-2 text-xs text-slate-600">
+                      <p className="mt-2 text-xs text-z-soft">
                         {statusLabels[metric?.quality ?? "insufficient"] ??
                           metric?.quality}
                       </p>
@@ -943,13 +962,13 @@ export function OwnerDashboardView({
             <section className="mt-10 grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
               <article
                 aria-labelledby="trend-title"
-                className="bg-slate-950 p-6 text-white sm:p-8"
+                className="bg-z-ink p-6 text-white sm:p-8"
               >
                 <div className="flex items-baseline justify-between">
                   <h2 id="trend-title" className="text-2xl">
                     Tendencia del score
                   </h2>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-z-soft">
                     Últimos cierres
                   </span>
                 </div>
@@ -967,13 +986,13 @@ export function OwnerDashboardView({
                         {point.score === null ? "—" : Math.round(point.score)}
                       </span>
                       <div
-                        className="w-full bg-teal-400"
+                        className="w-full bg-z-brand-500"
                         style={{
                           height: `${((point.score ?? 0) / maxTrend) * 100}%`,
                         }}
                         aria-hidden="true"
                       />
-                      <span className="truncate text-center text-[10px] text-slate-400">
+                      <span className="truncate text-center text-[10px] text-z-soft">
                         {point.periodEnd.slice(5)}
                       </span>
                     </div>
@@ -988,7 +1007,7 @@ export function OwnerDashboardView({
                       <caption className="sr-only">
                         Tendencia histórica del Academy Health Score
                       </caption>
-                      <thead className="text-slate-400">
+                      <thead className="text-z-soft">
                         <tr>
                           <th className="py-2 pr-3" scope="col">
                             Fin del período
@@ -1023,9 +1042,9 @@ export function OwnerDashboardView({
 
               <article
                 aria-labelledby="money-title"
-                className="border border-slate-400 bg-white p-6 sm:p-8"
+                className="rounded-[12px] border border-z-line bg-white p-6 sm:p-8"
               >
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
                   Flujo de cobro
                 </p>
                 <h2 id="money-title" className="mt-2 text-2xl">
@@ -1039,16 +1058,16 @@ export function OwnerDashboardView({
                   ].map(([label, key]) => (
                     <div
                       key={key}
-                      className="flex items-baseline justify-between border-b border-slate-200 pb-3"
+                      className="flex items-baseline justify-between border-b border-z-line pb-3"
                     >
-                      <dt className="text-sm text-slate-600">{label}</dt>
+                      <dt className="text-sm text-z-soft">{label}</dt>
                       <dd className="font-mono text-xl font-semibold tabular-nums">
                         {formatMetric(metricByKey.get(key))}
                       </dd>
                     </div>
                   ))}
                 </dl>
-                <p className="mt-5 text-sm leading-6 text-slate-600">
+                <p className="mt-5 text-sm leading-6 text-z-soft">
                   Los reembolsos reducen lo cobrado neto; no reescriben
                   silenciosamente la obligación original.
                 </p>
@@ -1062,23 +1081,23 @@ export function OwnerDashboardView({
           >
             <section
               aria-labelledby="explain-title"
-              className="mt-12 border-t border-slate-400 pt-7"
+              className="mt-12 border-t border-z-line pt-7"
             >
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-soft">
                     Auditable
                   </p>
                   <h2 id="explain-title" className="mt-2 text-2xl">
                     Explica cualquier cifra
                   </h2>
                 </div>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-z-soft">
                   {bundle.score?.benchmarkName} ·{" "}
                   {bundle.score?.benchmarkSource}
                 </p>
               </div>
-              <div className="mt-6 divide-y divide-slate-300 border-y border-slate-300">
+              <div className="mt-6 divide-y divide-z-line border-y border-z-line">
                 {bundle.metrics
                   .filter(
                     (metric) =>
@@ -1101,36 +1120,36 @@ export function OwnerDashboardView({
                           aria-hidden="true"
                         />
                       </summary>
-                      <div className="grid gap-4 pb-5 text-sm text-slate-600 sm:grid-cols-4">
+                      <div className="grid gap-4 pb-5 text-sm text-z-soft sm:grid-cols-4">
                         <div>
-                          <span className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                          <span className="block text-xs font-bold uppercase tracking-wider text-z-soft">
                             Numerador
                           </span>
-                          <span className="mt-1 block font-mono text-slate-950">
+                          <span className="mt-1 block font-mono text-z-ink">
                             {metric.numerator ?? "—"}
                           </span>
                         </div>
                         <div>
-                          <span className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                          <span className="block text-xs font-bold uppercase tracking-wider text-z-soft">
                             Denominador
                           </span>
-                          <span className="mt-1 block font-mono text-slate-950">
+                          <span className="mt-1 block font-mono text-z-ink">
                             {metric.denominator ?? "—"}
                           </span>
                         </div>
                         <div>
-                          <span className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                          <span className="block text-xs font-bold uppercase tracking-wider text-z-soft">
                             Objetivo
                           </span>
-                          <span className="mt-1 block font-mono text-slate-950">
+                          <span className="mt-1 block font-mono text-z-ink">
                             {metric.target ?? "Sin objetivo"}
                           </span>
                         </div>
                         <div>
-                          <span className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                          <span className="block text-xs font-bold uppercase tracking-wider text-z-soft">
                             Calidad
                           </span>
-                          <span className="mt-1 block text-slate-950">
+                          <span className="mt-1 block text-z-ink">
                             {statusLabels[metric.quality] ?? metric.quality} · v
                             {metric.formulaVersion}
                           </span>
@@ -1147,7 +1166,7 @@ export function OwnerDashboardView({
           </DashboardModule>
         </DashboardModuleLayout>
 
-        <footer className="mt-10 flex flex-col gap-3 border-t border-slate-300 pt-5 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+        <footer className="mt-10 flex flex-col gap-3 border-t border-z-line pt-5 text-xs text-z-soft sm:flex-row sm:items-center sm:justify-between">
           <span>
             Último watermark:{" "}
             {bundle.score ? formatTimestamp(bundle.score.sourceWatermark) : "—"}

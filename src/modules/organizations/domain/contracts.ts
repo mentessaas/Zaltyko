@@ -9,13 +9,13 @@ export const organizationRoleSchema = z.enum([
 export type OrganizationRole = z.infer<typeof organizationRoleSchema>;
 
 export const organizationContextSchema = z.object({
-  organizationId: z.string().uuid(),
-  locationId: z.string().uuid().nullable(),
-  memberId: z.string().uuid(),
-  userId: z.string().uuid(),
+  organizationId: z.guid(),
+  locationId: z.guid().nullable(),
+  memberId: z.guid(),
+  userId: z.guid(),
   role: organizationRoleSchema,
   locationScopeMode: z.enum(["all", "selected"]),
-  allowedLocationIds: z.array(z.string().uuid()),
+  allowedLocationIds: z.array(z.guid()),
 });
 
 export type OrganizationContext = z.infer<typeof organizationContextSchema>;

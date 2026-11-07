@@ -1,0 +1,434 @@
+import { randomUUID } from "node:crypto";
+import { sql } from "drizzle-orm";
+
+import { CANONICAL_EXPORT_TABLES } from "@/modules/data-rights/application/catalog";
+import { preflightCanonicalAcademyRecovery } from "@/modules/data-rights/application/preflight-canonical-academy-recovery";
+import { validateCanonicalAcademyArchive } from "@/modules/data-rights/application/verify-canonical-academy-archive";
+
+type Database = typeof import("@/db").db;
+type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
+type Row = Record<string, unknown>;
+
+type SessionChecks = Record<"login" | "loginSuper" | "rolePair" | "effectivePrivilege" | "database" | "transport" | "port" | "origin", boolean>;
+
+export class CanonicalAthleteRecoveryRehearsalError extends Error {
+  constructor(public readonly code: string, checks?: SessionChecks) {
+    // Fixed contract keys and booleans only. Never serialize session values,
+    // connection URLs, credentials, rows or PostgreSQL error details.
+    super(`Disposable canonical athlete recovery rehearsal refused.${checks ? ` ${JSON.stringify(checks)}` : ""}`);
+    this.name = "CanonicalAthleteRecoveryRehearsalError";
+  }
+}
+
+export interface CanonicalAthleteRecoverySessionContext {
+  login_role: string;
+  login_is_superuser: boolean;
+  role_name: string;
+  effective_is_superuser: boolean;
+  configured_role: string;
+  database_name: string;
+  server_address: string | null;
+  server_port: number | null;
+  replication_role: string;
+}
+
+/** Pure, exact session tuples; no role changes or permission expansion. */
+export function assertCanonicalAthleteRecoverySessionContext(
+  session: CanonicalAthleteRecoverySessionContext | undefined,
+  targetPort: number
+): void {
+  // The CLI's postgres/postgres state is observed in the replay log. A normal
+  // Node login may keep its own supabase_admin/none state. Do not transplant a
+  // CLI session assumption to the pool, or mix halves of these reviewed pairs.
+  const ownLoginRole = session?.role_name === "supabase_admin" && session.configured_role === "none";
+  const cliRole = session?.role_name === "postgres" && session.configured_role === "postgres";
+  // Mirror the runner's verified native-stack transport contract. The private
+  // rehearsal also requires its strict loopback URL and disposable guards before
+  // importing the database. A Unix backend reports BOTH fields as null; never
+  // accept a partial null pair or a TCP connection on a different port.
+  const loopbackTcp = session?.server_address === "127.0.0.1" || session?.server_address === "::1";
+  const nativeSocket = session?.server_address === null && session?.server_port === null;
+  const checks: SessionChecks = {
+    login: session?.login_role === "supabase_admin",
+    loginSuper: session?.login_is_superuser === true,
+    rolePair: ownLoginRole || cliRole,
+    effectivePrivilege: (ownLoginRole && session?.effective_is_superuser === true) ||
+      (cliRole && session?.effective_is_superuser === false),
+    database: session?.database_name === "postgres",
+    transport: loopbackTcp || nativeSocket,
+    port: (loopbackTcp && session?.server_port === targetPort) || nativeSocket,
+    origin: session?.replication_role === "origin",
+  };
+  if (Object.values(checks).some((value) => !value)) {
+    throw new CanonicalAthleteRecoveryRehearsalError("unexpected_database_session", checks);
+  }
+}
+
+/** Pure guard: call BEFORE importing @/db, opening a pool or executing SQL. */
+export function assertCanonicalAthleteRecoveryDisposableTarget(): URL {
+  if (process.env.ZALTYKO_PG_INTEGRATION !== "1" || process.env.GITHUB_ACTIONS !== "true" ||
+      process.env.RUNNER_OS !== "Linux" || process.platform !== "linux" || process.env.NODE_ENV !== "test" || process.env.NEXT_PHASE) {
+    throw new CanonicalAthleteRecoveryRehearsalError("disposable_target_required");
+  }
+  const connectionString = process.env.ZALTYKO_PG_INTEGRATION_DATABASE_URL;
+  let parsed: URL;
+  try { parsed = new URL(connectionString ?? ""); }
+  catch { throw new CanonicalAthleteRecoveryRehearsalError("disposable_target_required"); }
+  if (!["postgres:", "postgresql:"].includes(parsed.protocol) ||
+      !["127.0.0.1", "localhost", "[::1]"].includes(parsed.hostname) ||
+      parsed.username !== "supabase_admin" || !parsed.port || !parsed.password ||
+      parsed.pathname !== "/postgres" || (parsed.search !== "" && parsed.search !== "?sslmode=disable") || parsed.hash ||
+      [process.env.DATABASE_URL, process.env.DATABASE_URL_POOL, process.env.DATABASE_URL_DIRECT].some((value) => value !== connectionString)) {
+    throw new CanonicalAthleteRecoveryRehearsalError("disposable_target_required");
+  }
+  for (const name of [
+    "SUPABASE_ACCESS_TOKEN", "SUPABASE_DB_PASSWORD", "SUPABASE_DB_URL", "SUPABASE_PROJECT_REF",
+    "SUPABASE_SERVICE_ROLE_KEY", "E2E_TARGET_SUPABASE_PROJECT_REF",
+    "STRIPE_SECRET_KEY", "STRIPE_SAAS_TEST_SECRET_KEY", "STRIPE_SAAS_LIVE_SECRET_KEY", "VERCEL_TOKEN",
+  ]) {
+    // tests/setup.ts supplies only this exact synthetic key. The runner still
+    // refuses external credentials before Vitest; every other value is denied.
+    if (name === "STRIPE_SECRET_KEY" && process.env[name] === "sk_test_mock") continue;
+    if (process.env[name]) throw new CanonicalAthleteRecoveryRehearsalError("external_credentials_present");
+  }
+  return parsed;
+}
+
+interface Fingerprint {
+  schema_name: string;
+  table_name: string;
+  row_count: number;
+  content_hash: string;
+}
+
+export interface CanonicalAthleteRecoverySnapshot {
+  all: Fingerprint[];
+  /** All Auth / canonical rows except this instance's two recovery rows. */
+  protected: Fingerprint[];
+}
+
+/**
+ * TEST-ONLY closed scenario. No caller-supplied body, IDs, SQL, destination,
+ * path, mapping or arbitrary selection. Every ID is allocated by this instance
+ * after the disposable guard and seeded here. Cleanup ONLY closes the handle;
+ * the runner owns teardown of the entire disposable cluster, including immutable
+ * bootstrap history. This helper never purges organizations, Auth or history.
+ *
+ * Both millisecond and microsecond fixtures compare the unmodified raw-query
+ * export against still-present SQL originals before simulating loss. Recovery
+ * requires zero differences; never assume Date conversion or truncate values
+ * to fit an expectation. This is not a fidelity oracle for arbitrary archives,
+ * nor a product recovery capability.
+ */
+export async function createCanonicalAthleteRecoveryRehearsal(
+  options: {
+    timestampPrecision?: "milliseconds" | "microseconds";
+    recordVariant?: "populated" | "nullable";
+  } = {}
+) {
+  const target = assertCanonicalAthleteRecoveryDisposableTarget();
+  if ((options.timestampPrecision !== undefined && !["milliseconds", "microseconds"].includes(options.timestampPrecision)) ||
+      (options.recordVariant !== undefined && !["populated", "nullable"].includes(options.recordVariant))) {
+    throw new CanonicalAthleteRecoveryRehearsalError("unsupported_fixture_variant");
+  }
+  const { db } = await import("@/db");
+  // dotenv/config can be evaluated by that import; revalidate before access.
+  assertCanonicalAthleteRecoveryDisposableTarget();
+  const sessionResult = await db.execute(sql`
+    select session_user as login_role, current_user as role_name, current_database() as database_name,
+      host(inet_server_addr()) as server_address, inet_server_port() as server_port,
+      (select rolsuper from pg_roles where rolname = session_user) as login_is_superuser,
+      (select rolsuper from pg_roles where rolname = current_user) as effective_is_superuser,
+      current_setting('role') as configured_role,
+      current_setting('session_replication_role') as replication_role
+  `);
+  const session = sessionResult.rows[0] as unknown as CanonicalAthleteRecoverySessionContext | undefined;
+  assertCanonicalAthleteRecoverySessionContext(session, Number(target.port));
+
+  const ids = {
+    organization: randomUUID(), otherOrganization: randomUUID(), user: randomUUID(),
+    member: randomUUID(), otherMember: randomUUID(), location: randomUUID(), otherLocation: randomUUID(),
+    scope: randomUUID(), otherScope: randomUUID(), person: randomUUID(), athlete: randomUUID(),
+    otherPerson: randomUUID(), otherAthlete: randomUUID(), collisionPerson: randomUUID(),
+  };
+  const email = `ci-athlete-recovery-${ids.user}@example.invalid`;
+  const timestamp = options.timestampPrecision === "microseconds"
+    ? "2026-11-05 12:34:56.123456+00" : "2026-11-05 12:34:56.123+00";
+  const updatedTimestamp = options.timestampPrecision === "microseconds"
+    ? "2026-11-06 13:45:57.789456+00" : "2026-11-06 13:45:57.789+00";
+  const nullable = options.recordVariant === "nullable";
+  let closed = false;
+  let lost = false;
+
+  const guard = () => {
+    assertCanonicalAthleteRecoveryDisposableTarget();
+    if (closed) throw new CanonicalAthleteRecoveryRehearsalError("rehearsal_closed");
+  };
+  const lockOwnedOrganization = async (tx: Transaction) => {
+    const result = await tx.execute(sql`
+      select organizations.id from zaltyko.organizations as organizations
+      inner join zaltyko.organization_members as members on members.organization_id = organizations.id
+      where organizations.id = ${ids.organization}::uuid and members.id = ${ids.member}::uuid
+        and members.user_id = ${ids.user}::uuid and members.role = 'owner' and members.status = 'active'
+        and members.location_scope_mode = 'all' and organizations.status = 'active'
+      for update of organizations
+    `);
+    if (result.rows.length !== 1) throw new CanonicalAthleteRecoveryRehearsalError("fixture_scope_changed");
+  };
+  const cleanup = async () => {
+    // Memory-only, idempotent closure cannot mask an earlier test/setup error.
+    // Organization deletion would cascade into append-only entitlement history.
+    // Preserve every row until the runner tears down its own ephemeral cluster.
+    closed = true;
+  };
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`insert into auth.users (id, email) values (${ids.user}::uuid, ${email})`);
+      await tx.execute(sql`
+        insert into zaltyko.organizations (id, name, status) values
+          (${ids.organization}::uuid, 'Synthetic recovery source', 'active'),
+          (${ids.otherOrganization}::uuid, 'Synthetic protected academy', 'active')
+      `);
+      await tx.execute(sql`
+        insert into zaltyko.locations (id, organization_id, code, name) values
+          (${ids.location}::uuid, ${ids.organization}::uuid, 'recovery-a', 'Synthetic A'),
+          (${ids.otherLocation}::uuid, ${ids.otherOrganization}::uuid, 'recovery-b', 'Synthetic B')
+      `);
+      await tx.execute(sql`
+        insert into zaltyko.organization_members (id, organization_id, user_id, role, status, location_scope_mode) values
+          (${ids.member}::uuid, ${ids.organization}::uuid, ${ids.user}::uuid, 'owner', 'active', 'all'),
+          (${ids.otherMember}::uuid, ${ids.otherOrganization}::uuid, ${ids.user}::uuid, 'owner', 'active', 'all')
+      `);
+      await tx.execute(sql`
+        insert into zaltyko.member_location_scopes (id, organization_id, member_id, location_id) values
+          (${ids.scope}::uuid, ${ids.organization}::uuid, ${ids.member}::uuid, ${ids.location}::uuid),
+          (${ids.otherScope}::uuid, ${ids.otherOrganization}::uuid, ${ids.otherMember}::uuid, ${ids.otherLocation}::uuid)
+      `);
+      await tx.execute(sql`
+        insert into zaltyko.people (id, organization_id, given_name, family_name, preferred_name, date_of_birth, created_at, updated_at) values
+          (${ids.person}::uuid, ${ids.organization}::uuid, 'Synthetic', 'Recovered athlete', ${nullable ? null : 'Synthetic preferred'}, ${nullable ? null : '2008-02-29'}::date, ${timestamp}::timestamptz, ${updatedTimestamp}::timestamptz),
+          (${ids.otherPerson}::uuid, ${ids.otherOrganization}::uuid, 'Synthetic', 'Protected athlete', 'Synthetic B', null, ${timestamp}::timestamptz, ${updatedTimestamp}::timestamptz)
+      `);
+      await tx.execute(sql`
+        insert into zaltyko.athletes (id, organization_id, person_id, external_reference, is_active, created_at, updated_at) values
+          (${ids.athlete}::uuid, ${ids.organization}::uuid, ${ids.person}::uuid, ${nullable ? null : 'SYNTHETIC_RECOVERY_A'}, false, ${timestamp}::timestamptz, ${updatedTimestamp}::timestamptz),
+          (${ids.otherAthlete}::uuid, ${ids.otherOrganization}::uuid, ${ids.otherPerson}::uuid, 'SYNTHETIC_PROTECTED_B', false, ${timestamp}::timestamptz, ${updatedTimestamp}::timestamptz)
+      `);
+    });
+    guard();
+    const { exportCanonicalAcademyData } = await import("@/modules/data-rights/application/canonical-academy-return");
+    const { body } = await exportCanonicalAcademyData({ userId: ids.user, organizationId: ids.organization });
+    validateCanonicalAcademyArchive({ body, organizationId: ids.organization });
+    const source = (JSON.parse(body) as { data: Record<string, Row[]>; coverage: { excludedTables: Array<{ table: string; countScope: string; rowCount: unknown }> } });
+    const allowedNonempty = new Set(["organizations", "locations", "organization_members", "member_location_scopes", "people", "athletes"]);
+    // Organization INSERT creates exactly one Free bootstrap entitlement and
+    // immutable history row. They remain protected, never exported/recovered.
+    const bootstrapTables = ["organization_entitlements", "organization_entitlement_changes"];
+    if (Object.entries(source.data).some(([table, rows]) => rows.length > 0 && !allowedNonempty.has(table)) ||
+        source.coverage.excludedTables.some((table) => table.countScope === "organization_id" &&
+          table.rowCount !== (bootstrapTables.includes(table.table) ? 1 : 0)) ||
+        bootstrapTables.some((name) => !source.coverage.excludedTables.some((table) =>
+          table.table === name && table.countScope === "organization_id" && table.rowCount === 1))) {
+      throw new CanonicalAthleteRecoveryRehearsalError("fixture_has_unrecovered_dependencies");
+    }
+    const bootstrapResult = await db.execute(sql`
+      select count(*)::int as total,
+        count(*) filter (where state.plan_code = 'free' and state.source = 'bootstrap' and state.revision = 1
+          and state.source_reference = 'organization-created:' || organizations.id::text
+          and state.subscription_id is null and state.trial_id is null and state.effective_until is null
+          and state.effective_from = organizations.created_at and state.recorded_at = organizations.created_at)::int as expected
+      from (
+        select organization_id, plan_code, source, revision, source_reference, subscription_id, trial_id,
+          effective_until, effective_from, created_at as recorded_at from zaltyko.organization_entitlements
+        union all
+        select organization_id, plan_code, source, revision, source_reference, subscription_id, trial_id,
+          effective_until, effective_from, changed_at as recorded_at from zaltyko.organization_entitlement_changes
+      ) as state inner join zaltyko.organizations as organizations on organizations.id = state.organization_id
+      where organizations.id in (${ids.organization}::uuid, ${ids.otherOrganization}::uuid)
+    `);
+    const bootstrap = bootstrapResult.rows[0] as unknown as { total: number; expected: number } | undefined;
+    if (bootstrap?.total !== 4 || bootstrap.expected !== 4) {
+      throw new CanonicalAthleteRecoveryRehearsalError("unexpected_fixture_bootstrap_state");
+    }
+    const person = source.data.people?.[0];
+    const athlete = source.data.athletes?.[0];
+    if (source.data.people?.length !== 1 || source.data.athletes?.length !== 1 ||
+        !person || !athlete || person.id !== ids.person || athlete.id !== ids.athlete ||
+        person.organization_id !== ids.organization || athlete.organization_id !== ids.organization || athlete.person_id !== ids.person) {
+      throw new CanonicalAthleteRecoveryRehearsalError("unexpected_fixture_archive");
+    }
+    const fixedColumns: Record<string, string[]> = {
+      people: "id organization_id given_name family_name preferred_name date_of_birth created_at updated_at".split(" "),
+      athletes: "id organization_id person_id external_reference is_active created_at updated_at".split(" "),
+    };
+    for (const table of ["people", "athletes"]) {
+      const spec = CANONICAL_EXPORT_TABLES.find((entry) => entry.name === table)!;
+      if (spec.expectedColumns.length !== fixedColumns[table]!.length ||
+          spec.exportColumns.length !== fixedColumns[table]!.length ||
+          fixedColumns[table]!.some((column) => !spec.exportColumns.includes(column))) {
+        throw new CanonicalAthleteRecoveryRehearsalError("required_values_omitted");
+      }
+    }
+    const preflight = preflightCanonicalAcademyRecovery({ body, organizationId: ids.organization });
+    if (preflight.status !== "blocked" || preflight.restorable !== false || preflight.diagnostics.some((issue) => issue.classification === "violation")) {
+      throw new CanonicalAthleteRecoveryRehearsalError("unexpected_general_preflight");
+    }
+
+    // Measure against the original SQL rows BEFORE simulating loss. An archive
+    // alone cannot establish the timestamp precision of its SQL source.
+    const precisionResult = await db.execute(sql`
+      select
+        (extract(epoch from (people.created_at - ${person.created_at}::timestamptz)) * 1000000)::int as person_created,
+        (extract(epoch from (people.updated_at - ${person.updated_at}::timestamptz)) * 1000000)::int as person_updated,
+        (extract(epoch from (athletes.created_at - ${athlete.created_at}::timestamptz)) * 1000000)::int as athlete_created,
+        (extract(epoch from (athletes.updated_at - ${athlete.updated_at}::timestamptz)) * 1000000)::int as athlete_updated,
+        (extract(microseconds from people.created_at)::bigint % 1000)::int as person_created_remainder,
+        (extract(microseconds from people.updated_at)::bigint % 1000)::int as person_updated_remainder,
+        (extract(microseconds from athletes.created_at)::bigint % 1000)::int as athlete_created_remainder,
+        (extract(microseconds from athletes.updated_at)::bigint % 1000)::int as athlete_updated_remainder
+      from zaltyko.people as people inner join zaltyko.athletes as athletes
+        on athletes.organization_id = people.organization_id and athletes.person_id = people.id
+      where people.id = ${ids.person}::uuid and athletes.id = ${ids.athlete}::uuid
+    `);
+    const precision = precisionResult.rows[0] as unknown as {
+      person_created: number; person_updated: number; athlete_created: number; athlete_updated: number;
+      person_created_remainder: number; person_updated_remainder: number;
+      athlete_created_remainder: number; athlete_updated_remainder: number;
+    } | undefined;
+    if (precisionResult.rows.length !== 1 || !precision) throw new CanonicalAthleteRecoveryRehearsalError("fixture_changed_before_precision_check");
+    const timestampDeltas = {
+      person_created: precision.person_created, person_updated: precision.person_updated,
+      athlete_created: precision.athlete_created, athlete_updated: precision.athlete_updated,
+    };
+    // SQL evidence that the original fixture really stored sub-millisecond
+    // digits, independent of how the input literal or archive was parsed.
+    const sourceTimestampMicrosecondRemainders = {
+      person_created: precision.person_created_remainder, person_updated: precision.person_updated_remainder,
+      athlete_created: precision.athlete_created_remainder, athlete_updated: precision.athlete_updated_remainder,
+    };
+    const exactFixtureTimestamps = Object.values(timestampDeltas).every((value) => value === 0);
+    const requireExactFixture = () => {
+      guard();
+      if (!exactFixtureTimestamps) throw new CanonicalAthleteRecoveryRehearsalError("source_timestamp_precision_loss");
+    };
+
+    const snapshot = async (): Promise<CanonicalAthleteRecoverySnapshot> => {
+      guard();
+      return db.transaction(async (tx) => {
+        await tx.execute(sql.raw("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"));
+        await tx.execute(sql.raw("SET LOCAL TIME ZONE 'UTC'"));
+        const catalog = await tx.execute(sql`
+          select table_schema, table_name from information_schema.tables
+          where table_schema in ('zaltyko', 'auth') and table_type = 'BASE TABLE'
+          order by table_schema, table_name
+        `);
+        const tables = catalog.rows as unknown as Array<{ table_schema: string; table_name: string }>;
+        const fingerprints = async (protect: boolean): Promise<Fingerprint[]> => {
+          const queries = tables.map((table) => {
+            const recoveryTable = table.table_schema === "zaltyko" && ["people", "athletes"].includes(table.table_name);
+            const excludedId = table.table_name === "people" ? ids.person : ids.athlete;
+            const filter = protect && recoveryTable
+              ? sql`where not (row_data.organization_id = ${ids.organization}::uuid and row_data.id = ${excludedId}::uuid)` : sql``;
+            return sql`
+              select ${table.table_schema}::text as schema_name, ${table.table_name}::text as table_name,
+                count(*)::int as row_count,
+                md5(coalesce(jsonb_agg(to_jsonb(row_data) order by to_jsonb(row_data)::text)::text, '[]')) as content_hash
+              from ${sql.identifier(table.table_schema)}.${sql.identifier(table.table_name)} as row_data ${filter}
+            `;
+          });
+          const result = await tx.execute(sql`${sql.join(queries, sql` union all `)} order by schema_name, table_name`);
+          return result.rows as unknown as Fingerprint[];
+        };
+        return { all: await fingerprints(false), protected: await fingerprints(true) };
+      });
+    };
+
+    return {
+      // Reports contain no archive values / fixture IDs. General recovery stays blocked.
+      preflight,
+      timestampDeltas,
+      sourceTimestampMicrosecondRemainders,
+      exactFixtureTimestamps: Boolean(exactFixtureTimestamps),
+      recordShape: {
+        isActive: athlete.is_active,
+        preferredNameIsNull: person.preferred_name === null,
+        dateOfBirthIsNull: person.date_of_birth === null,
+        dateOfBirthIsLeapDay: person.date_of_birth === "2008-02-29",
+        externalReferenceIsNull: athlete.external_reference === null,
+        timestampsDistinct: person.created_at !== person.updated_at && athlete.created_at !== athlete.updated_at,
+      },
+      snapshot,
+      cleanup,
+      async loseFixtureRows() {
+        requireExactFixture();
+        if (lost) throw new CanonicalAthleteRecoveryRehearsalError("fixture_already_lost");
+        await db.transaction(async (tx) => {
+          await lockOwnedOrganization(tx);
+          const deletedAthlete = await tx.execute(sql`delete from zaltyko.athletes where id = ${ids.athlete}::uuid and organization_id = ${ids.organization}::uuid returning id`);
+          const deletedPerson = await tx.execute(sql`delete from zaltyko.people where id = ${ids.person}::uuid and organization_id = ${ids.organization}::uuid returning id`);
+          if (deletedAthlete.rows.length !== 1 || deletedPerson.rows.length !== 1) throw new CanonicalAthleteRecoveryRehearsalError("fixture_changed_before_loss");
+        });
+        lost = true;
+      },
+      /** Synthetic collision controls only, using this instance's private IDs. */
+      async occupyId(entity: "person" | "athlete", scope: "same" | "other") {
+        guard();
+        if (!lost) throw new CanonicalAthleteRecoveryRehearsalError("fixture_not_lost");
+        const organization = scope === "same" ? ids.organization : ids.otherOrganization;
+        await db.transaction(async (tx) => {
+          const personId = entity === "person" ? ids.person : ids.collisionPerson;
+          await tx.execute(sql`
+            insert into zaltyko.people (id, organization_id, given_name, family_name, created_at, updated_at)
+            values (${personId}::uuid, ${organization}::uuid, 'Synthetic occupied', 'Do not overwrite', ${timestamp}::timestamptz, ${timestamp}::timestamptz)
+          `);
+          if (entity === "athlete") await tx.execute(sql`
+            insert into zaltyko.athletes (id, organization_id, person_id, created_at, updated_at)
+            values (${ids.athlete}::uuid, ${organization}::uuid, ${personId}::uuid, ${timestamp}::timestamptz, ${timestamp}::timestamptz)
+          `);
+        });
+      },
+      async recover(options: { failAfterPerson?: boolean } = {}) {
+        requireExactFixture();
+        if (!lost) throw new CanonicalAthleteRecoveryRehearsalError("fixture_not_lost");
+        try {
+          return await db.transaction(async (tx) => {
+            await lockOwnedOrganization(tx);
+            // Global PK lookups deliberately include the other organization.
+            const conflicts = await tx.execute(sql`
+              select id from zaltyko.people where id = ${ids.person}::uuid
+              union all select id from zaltyko.athletes where id = ${ids.athlete}::uuid
+            `);
+            if (conflicts.rows.length > 0) throw new CanonicalAthleteRecoveryRehearsalError("target_id_conflict");
+            await tx.execute(sql`
+              insert into zaltyko.people (id, organization_id, given_name, family_name, preferred_name, date_of_birth, created_at, updated_at)
+              values (${person.id}::uuid, ${person.organization_id}::uuid, ${person.given_name}, ${person.family_name},
+                ${person.preferred_name}, ${person.date_of_birth}::date, ${person.created_at}::timestamptz, ${person.updated_at}::timestamptz)
+            `);
+            // Test-only failpoint AFTER the first real INSERT, proving rollback
+            // rather than a rejection before any write. No runtime code imports it.
+            if (options.failAfterPerson) {
+              const inserted = await tx.execute(sql`select id from zaltyko.people where id = ${ids.person}::uuid and organization_id = ${ids.organization}::uuid`);
+              if (inserted.rows.length !== 1) throw new CanonicalAthleteRecoveryRehearsalError("failpoint_person_not_inserted");
+              throw new CanonicalAthleteRecoveryRehearsalError("injected_after_person_insert");
+            }
+            await tx.execute(sql`
+              insert into zaltyko.athletes (id, organization_id, person_id, external_reference, is_active, created_at, updated_at)
+              values (${athlete.id}::uuid, ${athlete.organization_id}::uuid, ${athlete.person_id}::uuid,
+                ${athlete.external_reference}, ${athlete.is_active}, ${athlete.created_at}::timestamptz, ${athlete.updated_at}::timestamptz)
+            `);
+            return { scenario: "disposable_bare_athlete_v1" as const, people: 1, athletes: 1, generalRecoveryRestorable: false as const };
+          });
+        } catch (error) {
+          if (error instanceof CanonicalAthleteRecoveryRehearsalError) throw error;
+          // SQL errors must not disclose row values, URLs or credentials.
+          throw new CanonicalAthleteRecoveryRehearsalError("recovery_transaction_failed");
+        }
+      },
+    };
+  } catch (error) {
+    await cleanup();
+    if (error instanceof CanonicalAthleteRecoveryRehearsalError) throw error;
+    throw new CanonicalAthleteRecoveryRehearsalError("fixture_setup_failed");
+  }
+}

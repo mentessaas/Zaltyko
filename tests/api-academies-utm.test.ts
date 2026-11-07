@@ -1,12 +1,11 @@
 /**
- * Tests de integración para ZAL-157: persistencia de UTMs en `academies`
- * durante el signup del owner.
+ * Contrato de retirada de atribución servidor: el alta de academia conserva
+ * compatibilidad con clientes que envían UTM heredado, pero no lo persiste.
  *
  * Cubre:
- * - createAcademy() persiste `utm_source/medium/campaign` cuando se pasan
- * - createAcademy() persiste `direct/none/none` como fallback si NO se pasan
- * - createAcademy() persiste `utm_captured_at` con un timestamp ISO válido
- * - createAcademy() pasa UTMs a `trackEvent` para analytics downstream
+ * - La creación sigue respondiendo 201 aunque reciba UTM heredado
+ * - Los campos UTM quedan en null, incluso cuando el cliente los envía
+ * - Los eventos academy_created no reciben valores UTM
  *
  * Patrón de mocks alineado con tests/api-academies.test.ts: la DB real no se
  * toca, se mockean las llamadas de Drizzle y se inspeccionan los payloads.
@@ -116,7 +115,7 @@ vi.mock("@/db", () => ({
   },
 }));
 
-describe("API /api/academies — ZAL-157 UTM persistence", () => {
+describe("API /api/academies — server-side attribution disabled", () => {
   // Keep the cold route import deterministic under the single-worker release
   // gate; normal test execution remains unchanged.
   beforeAll(async () => {
@@ -139,7 +138,7 @@ describe("API /api/academies — ZAL-157 UTM persistence", () => {
     process.env = { ...originalEnv };
   });
 
-  it("persiste utm_* en la fila de academies cuando el signup los trae", async () => {
+  it("ignora UTM heredado sin bloquear el alta ni persistirlo", async () => {
     selectQueue.push(
       createSelectChain({
         resolveAt: "limit",
@@ -171,16 +170,16 @@ describe("API /api/academies — ZAL-157 UTM persistence", () => {
     expect(insertCalls.length).toBeGreaterThan(0);
     const academyRow = insertCalls[0]?.payload;
     expect(academyRow).toMatchObject({
-      utmSource: "instagram",
-      utmMedium: "social",
-      utmCampaign: "zal_q1_awareness",
-      utmTerm: "gimnasia_artistica",
-      utmContent: "carousel_v2",
+      utmSource: null,
+      utmMedium: null,
+      utmCampaign: null,
+      utmTerm: null,
+      utmContent: null,
+      utmCapturedAt: null,
     });
-    expect(academyRow?.utmCapturedAt).toBeInstanceOf(Date);
   });
 
-  it("aplica fallback direct/none cuando el signup NO trae UTMs", async () => {
+  it("no registra fallback direct/none si el cliente no envía UTM", async () => {
     selectQueue.push(
       createSelectChain({
         resolveAt: "limit",
@@ -204,16 +203,16 @@ describe("API /api/academies — ZAL-157 UTM persistence", () => {
 
     const academyRow = insertCalls[0]?.payload;
     expect(academyRow).toMatchObject({
-      utmSource: "direct",
-      utmMedium: "none",
-      utmCampaign: "none",
+      utmSource: null,
+      utmMedium: null,
+      utmCampaign: null,
       utmTerm: null,
       utmContent: null,
+      utmCapturedAt: null,
     });
-    expect(academyRow?.utmCapturedAt).toBeInstanceOf(Date);
   });
 
-  it("pasa UTMs al trackEvent de analytics para atribución downstream", async () => {
+  it("omite UTMs de trackEvent aunque el cuerpo heredado los incluya", async () => {
     selectQueue.push(
       createSelectChain({
         resolveAt: "limit",
@@ -239,14 +238,13 @@ describe("API /api/academies — ZAL-157 UTM persistence", () => {
     await POST(request, {} as any);
 
     const academyCreated = trackEventCalls.find((c) => c.name === "academy_created");
-    expect(academyCreated?.payload?.metadata).toMatchObject({
-      utm_source: "google_ads",
-      utm_medium: "cpc",
-      utm_campaign: "brand_q3",
-    });
+    expect(academyCreated).toBeDefined();
+    expect(academyCreated?.payload?.metadata).not.toHaveProperty("utm_source");
+    expect(academyCreated?.payload?.metadata).not.toHaveProperty("utm_medium");
+    expect(academyCreated?.payload?.metadata).not.toHaveProperty("utm_campaign");
   });
 
-  it("el logEvent incluye UTMs en metadata", async () => {
+  it("omite UTMs de logEvent aunque el cuerpo heredado los incluya", async () => {
     selectQueue.push(
       createSelectChain({
         resolveAt: "limit",
@@ -275,14 +273,13 @@ describe("API /api/academies — ZAL-157 UTM persistence", () => {
     const academyCreatedLog = logEventCalls.find(
       (c) => c.eventType === "academy_created"
     );
-    expect(academyCreatedLog?.metadata).toMatchObject({
-      utm_source: "tiktok",
-      utm_medium: "social",
-      utm_campaign: "creator_collab",
-    });
+    expect(academyCreatedLog).toBeDefined();
+    expect(academyCreatedLog?.metadata).not.toHaveProperty("utm_source");
+    expect(academyCreatedLog?.metadata).not.toHaveProperty("utm_medium");
+    expect(academyCreatedLog?.metadata).not.toHaveProperty("utm_campaign");
   });
 
-  it("Acepta UTMs parciales (utm_source/medium/campaign sin term/content)", async () => {
+  it("ignora UTM parcial sin rechazar el alta", async () => {
     selectQueue.push(
       createSelectChain({
         resolveAt: "limit",
@@ -309,10 +306,13 @@ describe("API /api/academies — ZAL-157 UTM persistence", () => {
     expect(response.status).toBe(201);
 
     const academyRow = insertCalls[0]?.payload;
-    expect(academyRow?.utmSource).toBe("facebook");
-    expect(academyRow?.utmMedium).toBe("social");
-    expect(academyRow?.utmCampaign).toBe("launch_aug");
-    expect(academyRow?.utmTerm).toBeNull();
-    expect(academyRow?.utmContent).toBeNull();
+    expect(academyRow).toMatchObject({
+      utmSource: null,
+      utmMedium: null,
+      utmCampaign: null,
+      utmTerm: null,
+      utmContent: null,
+      utmCapturedAt: null,
+    });
   });
 });

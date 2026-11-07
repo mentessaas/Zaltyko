@@ -15,6 +15,7 @@ import { withTransaction } from "@/lib/db-transactions";
 import { markInvitationProfileComplete } from "@/lib/athletes/magic-link-invite-service";
 import { logger } from "@/lib/logger";
 import { trackEvent } from "@/lib/analytics";
+import { assertAcademyOperationalWritable, assertWithinPlanLimits, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const bodySchema = z.object({
   stateToken: z.string().min(16),
@@ -115,6 +116,25 @@ export async function POST(request: Request) {
     }
 
     const result = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, invitation.academyId);
+      await assertAcademyOperationalWritable(invitation.tenantId, invitation.academyId, tx);
+
+      const [existingAthlete] = await tx
+        .select({ id: athletes.id, deletedAt: athletes.deletedAt })
+        .from(athletes)
+        .where(
+          and(
+            eq(athletes.userId, user.id),
+            eq(athletes.academyId, invitation.academyId),
+            eq(athletes.tenantId, invitation.tenantId),
+          )
+        )
+        .limit(1);
+
+      if (!existingAthlete || existingAthlete.deletedAt) {
+        await assertWithinPlanLimits(invitation.tenantId, invitation.academyId, "athletes", tx);
+      }
+
       // 1. Asegurar profile de tipo athlete con tenantId de la invitación.
       let [profile] = await tx
         .select()
@@ -149,17 +169,6 @@ export async function POST(request: Request) {
       // 2. Crear fila en athletes. Si ya existe una para este user_id +
       //    academy_id (por una invitación previa cancelada/reabierta),
       //    reusarla.
-      const [existingAthlete] = await tx
-        .select()
-        .from(athletes)
-        .where(
-          and(
-            eq(athletes.userId, user.id),
-            eq(athletes.academyId, invitation.academyId)
-          )
-        )
-        .limit(1);
-
       let athleteId: string;
       if (existingAthlete) {
         await tx

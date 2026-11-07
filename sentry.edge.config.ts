@@ -1,3 +1,4 @@
+import { sentryPrivacyOptions } from "./src/lib/monitoring/sentry-privacy";
 // This file configures the initialization of Sentry for edge features (middleware, edge routes, and so on).
 // The config you add here will be used whenever one of the edge features is loaded.
 // Note that this config is incompatible with the Server-side SDK (@sentry/node).
@@ -24,12 +25,8 @@ Sentry.init({
   tracesSampler,
 
   debug: false,
+  ...sentryPrivacyOptions,
 
-  beforeSend(event, hint) {
-    if (process.env.NODE_ENV === "development") {
-      return null;
-    }
-    return event;
-  },
+
 });
 

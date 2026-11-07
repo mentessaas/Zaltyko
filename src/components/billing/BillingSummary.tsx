@@ -11,7 +11,7 @@ const PLAN_COPY: Record<string, { title: string; description: string }> = {
   },
   pro: {
     title: "Starter",
-    description: "Hasta 75 gimnastas · portal familiar limitado y gestión de cuotas",
+    description: "Hasta 75 gimnastas · familias y responsables y gestión de cuotas",
   },
   premium: {
     title: "Growth",

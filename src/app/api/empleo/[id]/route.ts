@@ -10,7 +10,7 @@ import { z } from "zod";
 
 type RouteContext = TenantContext<{ params: { id: string } }>;
 
-const ListingIdSchema = z.string().uuid();
+const ListingIdSchema = z.guid();
 
 // PATCH must be allow-listed. The previous `{ ...body }` accepted operational
 // columns such as `isFeatured`, `status`, `views` and timestamps from any

@@ -16,7 +16,7 @@ describe("dashboard plan consistency", () => {
 
   it("marks a live trial as Starter-compatible trialing state", () => {
     const source = readFileSync("src/lib/limits.ts", "utf8");
-    const trialBlock = source.slice(source.indexOf("if (trial.active)"), source.indexOf("const [academy]"));
+    const trialBlock = source.slice(source.indexOf("if (trialIsActive)"), source.indexOf("const [academy]"));
 
     expect(trialBlock).toContain('planCode: "pro"');
     expect(trialBlock).toContain('status: "trialing"');

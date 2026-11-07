@@ -10,9 +10,9 @@ import {
 import { ownerDashboardModuleOrderSchema } from "@/modules/owner-dashboard/domain/dashboard-layout";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
-const organizationIdSchema = z.string().uuid();
+const organizationIdSchema = z.guid();
 const saveBodySchema = z.object({
-  organizationId: z.string().uuid(),
+  organizationId: z.guid(),
   order: ownerDashboardModuleOrderSchema,
   expectedVersion: z.number().int().min(0),
 });

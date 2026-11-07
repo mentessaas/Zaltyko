@@ -1,40 +1,40 @@
 /* eslint-disable no-console */
-import { runLocalCommand } from "../lib/local-e2e-runner-core";
+import { spawnSync } from "node:child_process";
+
 import { preloadLocalE2eImages } from "../lib/local-e2e-image-preloader";
 
-const safeEnvironment = Object.fromEntries(
-  [
-    "PATH",
-    "HOME",
-    "RUNNER_TEMP",
-    "TMPDIR",
-    "DOCKER_HOST",
-    "DOCKER_CONTEXT",
-    "DOCKER_CONFIG",
-    "GITHUB_ACTIONS",
-  ].flatMap((key) =>
-    process.env[key] ? [[key, process.env[key] as string]] : []
-  )
-) as NodeJS.ProcessEnv;
-
-async function runDocker(
-  args: string[],
-  env: NodeJS.ProcessEnv,
-  timeoutMs: number
-) {
-  return runLocalCommand("docker", args, {
-    cwd: process.cwd(),
-    env,
-    timeoutMs,
-    allowNonZero: true,
-  });
+function requireCiRunner(): void {
+  if (process.env.GITHUB_ACTIONS !== "true" || process.platform !== "linux") {
+    throw new Error(
+      "Supabase image preloading is restricted to a Linux GitHub Actions runner."
+    );
+  }
 }
 
-preloadLocalE2eImages(safeEnvironment, runDocker)
-  .then(() => console.log("Pinned local Supabase images are available."))
-  .catch((error: unknown) => {
-    console.error(
-      error instanceof Error ? error.message : "Image preload failed."
-    );
-    process.exitCode = 1;
+async function main(): Promise<void> {
+  requireCiRunner();
+  await preloadLocalE2eImages(process.env, async (args, env, timeoutMs) => {
+    const result = spawnSync("docker", args, {
+      encoding: "utf8",
+      env: { ...env, DOCKER_CLI_HINTS: "false" },
+      stdio: "pipe",
+      timeout: timeoutMs,
+    });
+
+    // Keep Docker's provider-controlled diagnostics inside the tested
+    // sanitizer; never print a raw spawn error or registry response here.
+    return {
+      status: result.status,
+      stdout: result.stdout ?? "",
+      stderr: result.stderr ?? "",
+    };
   });
+  console.log("Verified the pinned local Supabase images on the CI runner.");
+}
+
+main().catch((error: unknown) => {
+  console.error(
+    `[local-supabase-image-preloader] ${error instanceof Error ? error.message : "Unknown failure"}`
+  );
+  process.exitCode = 1;
+});

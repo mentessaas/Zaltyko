@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, classCoachAssignments, classGroups, classWeekdays, classes, coaches, groups } from "@/db/schema";
-import { assertWithinPlanLimits } from "@/lib/limits";
+import { assertWithinPlanLimits, lockAcademyOperationalWrites } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
@@ -23,7 +23,7 @@ import { NextResponse } from "next/server";
 // PR 10 (Operate P2): `.nullable().optional()` en startTime/endTime/capacity
 // porque el form de clase puede limpiarlos al crear/editar. Antes, `null` → 400.
 const bodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   name: z.string().trim().min(1).max(120),
   weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   startTime: z.string().nullable().optional(),
@@ -32,8 +32,8 @@ const bodySchema = z.object({
   technicalFocus: z.string().max(500).optional().nullable(),
   apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   isExtra: z.boolean().optional().default(false),
-  groupId: z.string().uuid().nullable().optional(),
-  sportConfigId: z.string().uuid().nullable().optional(),
+  groupId: z.guid().nullable().optional(),
+  sportConfigId: z.guid().nullable().optional(),
   allowsFreeTrial: z.boolean().optional().default(false),
   waitingListEnabled: z.boolean().optional().default(false),
   cancellationHoursBefore: z.number().int().min(0).max(168).optional().default(24),
@@ -41,8 +41,8 @@ const bodySchema = z.object({
 });
 
 const querySchema = z.object({
-  academyId: z.string().uuid().optional(),
-  sportConfigId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
+  sportConfigId: z.guid().optional(),
   includeAssignments: z
     .string()
     .transform((value) => value === "true" || value === "1")
@@ -281,9 +281,7 @@ const createClassHandler = withTenant(async (request, context) => {
       // El límite y las filas relacionadas deben confirmarse juntas. El lock
       // por academia evita que dos pestañas creen clases por encima del plan
       // y evita dejar una clase huérfana si falla weekdays/classGroups.
-      if (typeof (tx as { execute?: unknown }).execute === "function") {
-        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${body.academyId}))`);
-      }
+      await lockAcademyOperationalWrites(tx, body.academyId);
       await assertWithinPlanLimits(context.tenantId!, body.academyId, "classes", tx);
 
       await tx.insert(classes).values({

@@ -22,10 +22,10 @@ export type DashboardDataState = "ready" | "empty" | "stale" | "insufficient";
 
 export const ownerDashboardQuerySchema = z
   .object({
-    organizationId: z.string().uuid().optional(),
-    locationId: z.string().uuid().optional(),
-    programId: z.string().uuid().optional(),
-    groupId: z.string().uuid().optional(),
+    organizationId: z.guid().optional(),
+    locationId: z.guid().optional(),
+    programId: z.guid().optional(),
+    groupId: z.guid().optional(),
     from: z.string().date().optional(),
     to: z.string().date().optional(),
   })

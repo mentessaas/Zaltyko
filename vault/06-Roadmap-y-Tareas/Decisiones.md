@@ -1,12 +1,46 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-25
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
+
+## 2026-10-26 — Vendedor previsto y contratación Live cerrada durante el alta
+
+**Hallazgo/fuente:** Elvis confirma que venderá como autónomo en España, pero todavía no ha formalizado el alta; nombre Elvis Valdes Inerarte y correo oficial hola@zaltyko.com. Precios base sin IVA. No aporta NIF ni domicilio profesional.
+
+**Decisión/importancia:** preparar un perfil único y textos con estado de preparación, sin afirmar alta efectiva. Checkout Live se rechaza antes de reservar operaciones o llamar al proveedor hasta acreditar alta, identidad, buzón operativo, fiscalidad, cálculo del impuesto, textos y apertura. Completar datos no habilita cargos automáticamente. Portal/webhooks y Stripe test se conservan. No configurar impuestos automáticos ni usar datos ficticios.
+
+**Siguiente paso:** CI/revisión del cambio y completar solo con los datos reales tras el alta. El contrato fiscal de Checkout sigue pendiente de implementación específica y prueba. Guía docs/deployment/spain-seller-activation-2026-10-26.md. No cambio productivo ni del ensayo.
+
+## 2026-10-25 — Reunir dependencias y MVP conservando ambos historiales
+
+- Integrar la rama de PR #236 en #234 sin rebase ni force-push. Mantener las
+  versiones más recientes ya bloqueadas en el MVP, el guard de red estricto y
+  las guardas operativas; incorporar compatibilidad UUID-like y parche Zod
+  transitivo. La combinación requiere controles remotos y revisión propios.
+- El origen `f626351` continúa hasta `d5b8d961` en el checkout recuperado.
+  La importación `f0bc9383` conserva todos sus 1.939 blobs de producto y cinco
+  archivos adicionales de main. Esta comparación acredita procedencia del
+  árbol; no convierte la importación en continuidad de commits.
+- Sin aplicación SQL ni despliegues en esta integración; las fixtures del
+  ensayo y producción permanecen fuera de sus efectos.
+
+## 2026-10-25 — Free sobre capacidad: conservar datos y solo lectura
+
+- **Decisión humana:** si una academia supera cualquier límite de Free, conservar
+  sus datos y dejar la operativa en solo lectura hasta regularizar. Mantener
+  disponibles tanto el archivo explícito del excedente como la contratación
+  de capacidad suficiente.
+- **Alcance:** política funcional del producto; no autoriza cambios en
+  producción ni sobre las cuatro academias protegidas del sandbox. El candidato
+  PR #234 implementa guardas transaccionales en rutas de escritura revisadas.
+- **Verificación:** CI remota `40193392534` pasó en `1637221798bee56b8aee9db176a277429103db40`.
+  E2E autenticado fue omitido; aplicación de la política con sesiones reales y
+  ausencia de efectos parciales siguen **NO VERIFICADAS** en este HEAD.
 
 ## Cierre CI exacto — 2026-10-16, 08:10 UTC
 
@@ -1226,3 +1260,30 @@ GitHub/Vercel reconfirmadas11:57UTC. Preparar una corrida automática de candida
 distinto, sin merge/deploy/DDL. Disponibilidad Hub y runtime NO VERIFICADOS;
 gates destino/recovery/rolapp/seguridad/review siguen NO-GO. Detalle:
 [evidencia local](../../docs/qa/logflare-hub-primary-2026-10-15.md).
+
+## 2026-10-25 — No promover una remediación con auditoría roja
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | CI de PR #236 en `main` pasó build remoto y varios controles, pero `Dependency Security & SBOM` detectó vulnerabilidades de producción. La comprobación de Zod 4 aún no se ha ejecutado para el nuevo lockfile. |
+| Decisión | Mantener la rama sin merge ni promoción hasta que la auditoría de dependencias y los checks obligatorios del SHA actualizado pasen, con revisión independiente donde GitHub la exija. No omitir ni relajar gates. |
+| Consecuencia | Una corrección de seguridad no se presenta como publicada hasta validar el árbol resultante; los cambios permanecen aislados de producción. |
+| Estado | Aplicable a PR #236; remediación ampliada en preparación. No se ha desplegado. |
+
+
+## 2026-10-25 — Alta organizativa sin grupo ficticio
+
+Se prepara una bandeja de gimnastas sin asignación operativa, exclusiva para Owner/Admin con acceso a todas las sedes. Alta transaccional de persona, gimnasta y familia explícita, con límite SaaS y recibo idempotente. No se inventa tutor/pagador ni se usa familia/outbox como ancla de sede. La primera asignación requiere grupo y sede reales activos, plaza y fecha civil actual de esa sede; conserva sin cambios las reglas de acceso por sede existentes. Fechas familiares se muestran como efectivas, no se presentan relaciones futuras como vigentes. Implementación pendiente de CI y recorrido sandbox, no publicada.
+
+
+## 2026-10-26 — Alcance de apertura pública esencial
+
+**Título:** primera versión para academias de gimnasia en España, español y EUR.
+
+**Hallazgos:** la portada, FAQs, ayuda y catálogo prometían capacidades avanzadas no acreditadas. El resumen Owner consultaba Health Score, retención y capacidad antes de mostrar actividad persistida. El manifiesto conservaba doce tareas programadas heredadas.
+
+**Fuente:** plan humano de apertura pública del 26 de octubre; código de esta rama a partir de aac0c5e33. Aprobación humana posterior: los importes de Starter/Growth son base sin IVA. La identidad fiscal del vendedor y el tratamiento aplicable siguen pendientes; no se deducen del hecho de cobrar una suscripción.
+
+**Decisión e importancia:** publicar solo acceso, academia, gimnastas/familias, grupos/clases/inscripciones, asistencia, cuotas/pagos manuales y resumen. Health Score/Insights quedan sin navegación y sus páginas directas devuelven404. El resumen no consulta métricas avanzadas. Los embudos históricos /modules/* redirigen a /features y salen del sitemap. No se incluyen tareas programadas en el candidato. Se mantienen intactos contratos API, precios base, límites y esquema; no se activa un worker global.
+
+**Siguiente paso:** CI remota completa del nuevo commit, revisión externa vigente y comprobación en delivery con academias separadas; después controles productivos y comerciales. No equivale a un lanzamiento ni a validar producción. Se conserva el ensayo natural sin consultas ni escrituras en esta ronda.

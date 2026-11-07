@@ -11,9 +11,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   return directoryRequest(request, async (user) => {
-    const id = z
-      .string()
-      .uuid()
+    const id = z.guid()
       .parse((await params).id);
     const body = z
       .object({ data: EntryDataSchema })

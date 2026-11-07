@@ -1,9 +1,10 @@
 export const dynamic = 'force-dynamic';
 
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
+import { athletes } from "@/db/schema";
 import { athleteDocuments } from "@/db/schema/athlete-documents";
 import { withTenant } from "@/lib/authz";
 import { authorizeAthleteResource } from "@/lib/authz/resource-scope";
@@ -11,7 +12,10 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { DOCUMENT_TYPES } from "@/types/athletes";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { createSignedUrl, deleteFile } from "@/lib/supabase/storage-helpers";
+import { classifyAthleteDocumentStorageReference } from "@/lib/storage/storage-object-delete-guards";
 import { logger } from "@/lib/logger";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const STORAGE_PATH_PREFIX = (tenantId: string, academyId: string, athleteId: string) =>
   `${tenantId}/${academyId}/athletes/${athleteId}/documents/`;
@@ -123,7 +127,30 @@ export const POST = withTenant(async (request, context) => {
       alertSent: false,
     };
 
-    const [inserted] = await db.insert(athleteDocuments).values(insertValues as typeof athleteDocuments.$inferInsert).returning({ id: athleteDocuments.id });
+    const inserted = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, scope.resource!.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, scope.resource!.academyId, tx);
+
+      const [currentAthlete] = await tx
+        .select({ id: athletes.id })
+        .from(athletes)
+        .where(and(
+          eq(athletes.id, athleteId),
+          eq(athletes.tenantId, context.tenantId!),
+          eq(athletes.academyId, scope.resource!.academyId),
+          isNull(athletes.deletedAt),
+        ))
+        .limit(1);
+      if (!currentAthlete) return null;
+
+      const [row] = await tx
+        .insert(athleteDocuments)
+        .values(insertValues as typeof athleteDocuments.$inferInsert)
+        .returning({ id: athleteDocuments.id });
+      return row ?? null;
+    });
+
+    if (!inserted) return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
 
     return apiCreated({ id: inserted.id });
   } catch (error) {
@@ -154,20 +181,79 @@ export const DELETE = withTenant(async (request, context) => {
       return apiError(scope.reason ?? "ATHLETE_ACCESS_DENIED", "Athlete not found", 404);
     }
 
-    const [document] = await db
-      .delete(athleteDocuments)
-      .where(and(
-        eq(athleteDocuments.id, documentId),
-        eq(athleteDocuments.athleteId, athleteId),
-        eq(athleteDocuments.tenantId, context.tenantId)
-      ))
-      .returning({ fileUrl: athleteDocuments.fileUrl });
+    const deletion = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, scope.resource!.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, scope.resource!.academyId, tx);
 
-    // Keep Storage in sync with metadata. Legacy external URLs are not ours
-    // to delete; private paths are safe because the record was scope-checked.
-    if (document?.fileUrl && !document.fileUrl.startsWith("http")) {
+      const [currentAthlete] = await tx
+        .select({ id: athletes.id })
+        .from(athletes)
+        .where(and(
+          eq(athletes.id, athleteId),
+          eq(athletes.tenantId, context.tenantId!),
+          eq(athletes.academyId, scope.resource!.academyId),
+          isNull(athletes.deletedAt),
+        ))
+        .for("update")
+        .limit(1);
+      if (!currentAthlete) return { kind: "not_found" as const };
+
+      const [document] = await tx
+        .select({ fileUrl: athleteDocuments.fileUrl })
+        .from(athleteDocuments)
+        .where(and(
+          eq(athleteDocuments.id, documentId),
+          eq(athleteDocuments.athleteId, athleteId),
+          eq(athleteDocuments.tenantId, context.tenantId!),
+        ))
+        .for("update")
+        .limit(1);
+      if (!document) return { kind: "not_found" as const };
+
+      const storageReference = classifyAthleteDocumentStorageReference(
+        document.fileUrl,
+        {
+          tenantId: context.tenantId!,
+          academyId: scope.resource!.academyId,
+          athleteId,
+        },
+      );
+      if (storageReference.kind === "invalid") {
+        return { kind: "unsafe_reference" as const };
+      }
+
+      const [row] = await tx
+        .delete(athleteDocuments)
+        .where(and(
+          eq(athleteDocuments.id, documentId),
+          eq(athleteDocuments.athleteId, athleteId),
+          eq(athleteDocuments.tenantId, context.tenantId!),
+          eq(athleteDocuments.fileUrl, document.fileUrl),
+        ))
+        .returning({ fileUrl: athleteDocuments.fileUrl });
+      if (!row) return { kind: "not_found" as const };
+
+      return {
+        kind: "deleted" as const,
+        storagePath: storageReference.kind === "private" ? storageReference.path : null,
+      };
+    });
+    if (deletion.kind === "not_found") {
+      return apiError("DOCUMENT_NOT_FOUND", "Document not found", 404);
+    }
+    if (deletion.kind === "unsafe_reference") {
+      return apiError(
+        "DOCUMENT_STORAGE_REFERENCE_UNSAFE",
+        "No se ha eliminado nada. La ruta privada del documento no pertenece a este atleta o no es válida.",
+        409,
+      );
+    }
+
+    // Legacy absolute URLs are metadata-only. Only a validated private path
+    // can reach this Storage cleanup.
+    if (deletion.storagePath) {
       try {
-        await deleteFile(document.fileUrl);
+        await deleteFile(deletion.storagePath);
       } catch (error) {
         // Metadata deletion remains successful; surface an operational signal
         // without making a user retry and risk duplicate records.

@@ -1,6 +1,13 @@
 import { isProduction } from "./env";
 import { logger } from "./logger";
 import { hasAnalyticsConsent } from "./consent/state";
+import {
+  getSafePublicTrackingPath,
+  isOptionalTrackingAllowed,
+  optionalTrackingFlags,
+  sanitizePostHogAppProperties,
+  sanitizePostHogEvent,
+} from "./optional-tracking-policy";
 
 export interface AnalyticsPayload {
   userId?: string;
@@ -16,6 +23,23 @@ export interface AnalyticsPayload {
 
 const isAnalyticsDisabled =
   process.env.NEXT_PUBLIC_DISABLE_ANALYTICS === "true";
+
+function getCurrentSafePath(requestedPath?: string): string | null {
+  if (typeof window === "undefined") return null;
+  const currentPath = getSafePublicTrackingPath(window.location.pathname);
+  const safeRequestedPath = requestedPath
+    ? getSafePublicTrackingPath(requestedPath)
+    : currentPath;
+  return currentPath && currentPath === safeRequestedPath ? currentPath : null;
+}
+
+function isPostHogAllowed(pathname = window.location.pathname): boolean {
+  return isOptionalTrackingAllowed(
+    optionalTrackingFlags.posthog,
+    hasAnalyticsConsent(),
+    pathname
+  );
+}
 
 // posthog-js se importaba de forma estatica y quedaba en el bundle
 // compartido de TODAS las paginas (incluida la home publica), sumando
@@ -43,7 +67,7 @@ export async function initAnalytics() {
   if (
     isAnalyticsDisabled ||
     typeof window === "undefined" ||
-    !hasAnalyticsConsent()
+    !isPostHogAllowed()
   ) {
     return;
   }
@@ -71,23 +95,31 @@ export async function initAnalytics() {
       !mod ||
       isAnalyticsDisabled ||
       typeof window === "undefined" ||
-      !hasAnalyticsConsent()
+      !isPostHogAllowed()
     ) {
       return;
     }
 
     mod.posthog.init(key, {
       api_host: host,
-      person_profiles: "identified_only",
+      // Avoid the SDK batch queue; its separate retry queue still prevents safe revocation.
+      request_batching: false,
+      person_profiles: "never",
       opt_out_capturing_by_default: true,
       autocapture: false,
       capture_pageview: false,
       capture_pageleave: false,
       disable_session_recording: true,
-      loaded: (posthog) => {
-        if (!isProduction()) {
-          posthog.debug();
-        }
+      persistence: "memory",
+      save_campaign_params: false,
+      before_send: (event) => {
+        if (!event || typeof window === "undefined") return null;
+        return sanitizePostHogEvent(event, {
+          enabled: optionalTrackingFlags.posthog,
+          consentGranted: hasAnalyticsConsent(),
+          pathname: window.location.pathname,
+          origin: window.location.origin,
+        });
       },
     });
     posthogInitialized = true;
@@ -103,7 +135,7 @@ export async function initAnalytics() {
   }
 }
 
-/** Stops new PostHog captures after consent is revoked. */
+/** Stops future captures; it cannot cancel requests already handed to the SDK or network. */
 export function revokeAnalytics(): void {
   if (
     isAnalyticsDisabled ||
@@ -123,34 +155,53 @@ export function revokeAnalytics(): void {
   // No module is imported solely to process a revoke.
 }
 
+/** Stops captures when navigation leaves the exact public allowlist. */
+export function suspendAnalytics(): void {
+  if (
+    typeof window === "undefined" ||
+    isPostHogAllowed()
+  ) {
+    return;
+  }
+  if (posthogInitialized) posthogModule?.posthog.opt_out_capturing();
+}
+
 // Track pageview
 export async function trackPageView(
   path: string,
   properties?: Record<string, unknown>
 ) {
+  const safePath = getCurrentSafePath(path);
   if (
     isAnalyticsDisabled ||
     typeof window === "undefined" ||
-    !hasAnalyticsConsent()
+    !safePath ||
+    !isPostHogAllowed(safePath)
   ) {
     return;
   }
 
   try {
+    await initAnalytics();
     const mod = await loadPostHog();
+    const safeProperties = sanitizePostHogAppProperties(
+      "$pageview",
+      properties ?? {},
+      safePath,
+      window.location.origin
+    );
     if (
       isAnalyticsDisabled ||
       typeof window === "undefined" ||
-      !hasAnalyticsConsent()
+      !safeProperties ||
+      !isPostHogAllowed(safePath) ||
+      !posthogInitialized
     ) {
       return;
     }
-    mod?.posthog.capture("$pageview", {
-      path,
-      ...properties,
-    });
+    mod?.posthog.capture("$pageview", safeProperties);
   } catch (error) {
-    logger.warn("Failed to track pageview", { path, error });
+    logger.warn("Failed to track pageview", { path: safePath, error });
   }
 }
 
@@ -200,34 +251,28 @@ export async function trackEvent(
     return;
   }
 
-  if (!hasAnalyticsConsent()) return;
+  const safePath = getCurrentSafePath();
+  if (!safePath || !isPostHogAllowed(safePath)) return;
 
   try {
-    const {
-      userId,
-      academyId,
-      tenantId,
-      metadata,
-      idempotencyKey: _idempotencyKey,
-      ...rest
-    } = payload;
-    void _idempotencyKey;
-
+    await initAnalytics();
     const mod = await loadPostHog();
+    const safeProperties = sanitizePostHogAppProperties(
+      eventName,
+      payload.metadata ?? {},
+      safePath,
+      window.location.origin
+    );
     if (
       isAnalyticsDisabled ||
       typeof window === "undefined" ||
-      !hasAnalyticsConsent()
+      !safeProperties ||
+      !isPostHogAllowed(safePath) ||
+      !posthogInitialized
     ) {
       return;
     }
-    mod?.posthog.capture(eventName, {
-      user_id: userId,
-      academy_id: academyId,
-      tenant_id: tenantId,
-      ...metadata,
-      ...rest,
-    });
+    mod?.posthog.capture(eventName, safeProperties);
   } catch (error) {
     logger.warn("Failed to emit analytics event", { eventName, error });
   }

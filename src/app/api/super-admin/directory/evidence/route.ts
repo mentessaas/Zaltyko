@@ -14,9 +14,7 @@ export const GET = withSuperAdmin(async (request) => {
   try {
     return apiSuccess(
       await evidenceLink(
-        z
-          .string()
-          .uuid()
+        z.guid()
           .parse(new URL(request.url).searchParams.get("claimId"))
       )
     );

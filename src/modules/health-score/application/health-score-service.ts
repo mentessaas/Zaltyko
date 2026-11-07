@@ -27,6 +27,7 @@ import {
   aggregateAcademyScore,
   aggregateDimension,
   normalizeMetric,
+  resolveMetricTarget,
   roundScore,
 } from "@/modules/health-score/domain/score-formulas";
 
@@ -39,9 +40,9 @@ const dimensions = [
 ] as const;
 
 const calculateHealthScoreSchema = z.object({
-  organizationId: z.string().uuid(),
-  metricRunId: z.string().uuid(),
-  benchmarkProfileId: z.string().uuid(),
+  organizationId: z.guid(),
+  metricRunId: z.guid(),
+  benchmarkProfileId: z.guid(),
   scoreVersionKey: z.string().trim().min(1).default("zaltyko_owner_health"),
   scoreVersion: z.number().int().positive().default(1),
   idempotencyKey: z.string().trim().min(8).max(150),
@@ -199,11 +200,7 @@ export async function calculateAcademyHealthScore(
       values.map((value) => [value.metricKey, value])
     );
     const targetFor = (metricKey: string, currency: string | null) =>
-      targets.find(
-        (target) =>
-          target.metricKey === metricKey &&
-          (target.currency === null || target.currency === currency)
-      );
+      resolveMetricTarget(targets, metricKey, currency);
 
     const dimensionResults = dimensions.map((dimension) => {
       const configured = metricWeights.filter(

@@ -325,6 +325,8 @@ async function buildMonthlyInvoiceOptions(
     athleteId: string;
     classTemplateId: string;
     className: string;
+    classEffectiveFrom: string;
+    classEffectiveTo: string | null;
     athleteName: string | null;
     familySortName: string;
     givenSortName: string;
@@ -349,6 +351,8 @@ async function buildMonthlyInvoiceOptions(
           athleteId: enrollments.athleteId,
           classTemplateId: enrollments.classTemplateId,
           className: classTemplates.name,
+          classEffectiveFrom: classTemplates.effectiveFrom,
+          classEffectiveTo: classTemplates.effectiveTo,
           athleteName: sql<string>`nullif(btrim(concat_ws(' ', ${people.givenName}, ${people.familyName})), '')`,
           familySortName: people.familyName,
           givenSortName: people.givenName,
@@ -654,11 +658,18 @@ async function buildMonthlyInvoiceOptions(
     const coversEnrollmentMonth =
       enrollment.startsOn <= bounds.start &&
       (enrollment.endsOn === null || enrollment.endsOn >= bounds.end);
+    const coversClassMonth =
+      enrollment.classEffectiveFrom <= bounds.start &&
+      (enrollment.classEffectiveTo === null ||
+        enrollment.classEffectiveTo >= bounds.end);
     const enrollmentReasons: string[] = [];
     if (enrollment.status === "pending") {
       enrollmentReasons.push("ENROLLMENT_PENDING");
     } else if (!coversEnrollmentMonth) {
       enrollmentReasons.push("ENROLLMENT_PERIOD_INCOMPLETE");
+    }
+    if (!coversClassMonth) {
+      enrollmentReasons.push("CLASS_PERIOD_INCOMPLETE");
     }
     if (memberships.length === 0) {
       enrollmentReasons.push("FAMILY_REQUIRED");
@@ -1012,6 +1023,9 @@ async function buildMonthlyInvoiceOptions(
     pricePlans: plans,
     families: familyResults.map((family) => ({
       ...family,
+      totalAmountCents: family.blockingReasons.includes("CURRENCY_MISMATCH")
+        ? null
+        : family.totalAmountCents,
       lines: family.lines.map((line) => ({
         athleteId: line.athleteId,
         athleteName: line.athleteName,
@@ -1711,7 +1725,11 @@ export async function issueMonthlyInvoice(
         "La cotización cambió. Actualiza la vista previa."
       );
     }
-    if (!family.canIssue || !family.currency) {
+    if (
+      !family.canIssue ||
+      !family.currency ||
+      family.totalAmountCents === null
+    ) {
       throw new OperationalError(
         "MONTHLY_INVOICE_BLOCKED",
         "Completa la familia, el responsable y la cobertura tarifaria de todas las gimnastas antes de emitir.",
@@ -1782,6 +1800,16 @@ export async function issueMonthlyInvoice(
         }
       );
     }
+
+    // A new monthly issuance writes both invoice and monthly replay markers.
+    // Replays return above and remain readable after the academy becomes read-only.
+    await assertOperationalAccess(tx, {
+      organizationId: input.organizationId,
+      locationId: input.locationId,
+      actor: input.actor,
+      intent: "write",
+      allowedRoles: financialRoles,
+    });
 
     const reference = `MENSUAL-${input.servicePeriod.replace("-", "")}-${input.familyId}`;
     const invoice = await issueInvoiceInTransaction(

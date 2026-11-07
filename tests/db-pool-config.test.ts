@@ -43,6 +43,52 @@ describe("database pool configuration", () => {
     expect(config.max).toBe(10);
   });
 
+  it("uses the DB-only CA with no global Node extra CA", () => {
+    const config = createDatabasePoolConfig({
+      connectionString: "postgresql://u:p@example.com:5432/db?sslmode=no-verify",
+      production: true,
+      env: { DATABASE_CA_CERT_PATH: CA_PATH, NODE_EXTRA_CA_CERTS: "" },
+    });
+
+    expect(config.ssl).toMatchObject({ rejectUnauthorized: true });
+    expect((config.ssl as { ca: string }).ca).toContain("BEGIN CERTIFICATE");
+    expect(String(config.connectionString)).not.toContain("sslmode");
+  });
+
+  it("prefers the DB-only CA to a stale global Node path", () => {
+    const config = createDatabasePoolConfig({
+      connectionString: "postgresql://u:p@example.com:5432/db",
+      production: true,
+      env: {
+        DATABASE_CA_CERT_PATH: CA_PATH,
+        NODE_EXTRA_CA_CERTS: "certs/nonexistent-legacy-ca.crt",
+      },
+    });
+
+    expect(config.ssl).toMatchObject({ rejectUnauthorized: true });
+  });
+
+  it("fails closed for a missing DB-only CA instead of falling back to legacy", () => {
+    expect(() => createDatabasePoolConfig({
+      connectionString: "postgresql://u:p@example.com:5432/db",
+      production: true,
+      env: {
+        DATABASE_CA_CERT_PATH: "certs/nonexistent-db-ca.crt",
+        NODE_EXTRA_CA_CERTS: CA_PATH,
+      },
+    })).toThrow(/DATABASE_CA_CERT_PATH/);
+  });
+
+  it("still accepts the legacy CA if the DB-only setting is absent or empty", () => {
+    const config = createDatabasePoolConfig({
+      connectionString: "postgresql://u:p@example.com:5432/db",
+      production: true,
+      env: { DATABASE_CA_CERT_PATH: "", NODE_EXTRA_CA_CERTS: CA_PATH },
+    });
+
+    expect(config.ssl).toMatchObject({ rejectUnauthorized: true });
+  });
+
   it("rejects invalid pool budgets", () => {
     expect(() =>
       createDatabasePoolConfig({

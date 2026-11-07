@@ -54,3 +54,12 @@ export function statusHref(
   if (page > 1) params.set("page", String(page));
   return "/owner/enrollments?" + params.toString();
 }
+
+export function monthlyInvoicesHref(
+  organizationId: string,
+  locationId?: string | null
+): string {
+  const params = new URLSearchParams({ organizationId });
+  if (locationId) params.set("locationId", locationId);
+  return "/owner/monthly-invoices?" + params.toString();
+}

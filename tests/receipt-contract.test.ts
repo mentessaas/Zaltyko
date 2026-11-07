@@ -7,7 +7,7 @@ describe("receipt endpoints", () => {
     const item = readFileSync("src/app/api/receipts/[receiptId]/route.ts", "utf8");
     const family = readFileSync("src/app/api/family/charges/[chargeId]/receipt/route.ts", "utf8");
     const creator = readFileSync("src/lib/receipts/ensure-charge-receipt.ts", "utf8");
-    expect(list).toContain("z.string().uuid()");
+    expect(list).toContain("z.guid()");
     expect(list).toContain(".leftJoin(athletes");
     expect(item).toContain("INVALID_RECEIPT_ID");
     expect(family).toContain("INVALID_CHARGE_ID");

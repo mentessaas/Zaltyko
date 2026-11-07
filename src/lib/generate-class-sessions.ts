@@ -3,6 +3,8 @@ import { classes, classSessions, classWeekdays, classExceptions } from "@/db/sch
 import { eq, and, gte, lte, isNull, or } from "drizzle-orm";
 import { addDays, addWeeks, startOfDay, format, getDay } from "date-fns";
 import { logger } from "@/lib/logger";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 /**
  * Genera sesiones de clase para las próximas N semanas
@@ -16,152 +18,137 @@ export async function generateClassSessions(
     weeksAhead: number = 4,
     tenantId?: string
 ): Promise<{ generated: number; skipped: number; errors: string[] }> {
-    const errors: string[] = [];
-    let generated = 0;
-    let skipped = 0;
-
     try {
-        // 1. Obtener información de la clase
-        const classInfo = await db
-            .select()
-            .from(classes)
-            .where(and(
-                eq(classes.id, classId),
-                tenantId ? eq(classes.tenantId, tenantId) : undefined
-            ))
-            .limit(1);
+        return await withTransaction(async (tx) => {
+            const [initialClass] = await tx
+                .select({ academyId: classes.academyId, tenantId: classes.tenantId })
+                .from(classes)
+                .where(and(
+                    eq(classes.id, classId),
+                    tenantId ? eq(classes.tenantId, tenantId) : undefined,
+                    isNull(classes.deletedAt),
+                ))
+                .limit(1);
 
-        if (!classInfo || classInfo.length === 0) {
-            throw new Error(`Clase ${classId} no encontrada`);
-        }
+            if (!initialClass) throw new Error(`Clase ${classId} no encontrada`);
 
-        const classData = classInfo[0];
+            await lockAcademyOperationalWrites(tx, initialClass.academyId);
 
-        // Usar autoGenerateSessions como flag de activo para generación
-        if (!classData.autoGenerateSessions) {
-            logger.warn(`Clase ${classId} no tiene auto-generación activada, saltando`);
-            return { generated: 0, skipped: 0, errors: ["Auto-generación desactivada"] };
-        }
+            // Re-read after acquiring the academy lock so deletion or tenant
+            // changes that committed while waiting cannot feed the generator.
+            const [classData] = await tx
+                .select()
+                .from(classes)
+                .where(and(
+                    eq(classes.id, classId),
+                    eq(classes.tenantId, initialClass.tenantId),
+                    isNull(classes.deletedAt),
+                ))
+                .limit(1);
 
-        // 2. Obtener días de la semana configurados
-        const weekdays = await db
-            .select()
-            .from(classWeekdays)
-            .where(and(
-                eq(classWeekdays.classId, classId),
-                tenantId ? eq(classWeekdays.tenantId, tenantId) : undefined
-            ))
-            .limit(7);
+            if (!classData) throw new Error(`Clase ${classId} no encontrada`);
 
-        if (weekdays.length === 0) {
-            throw new Error(`Clase ${classId} no tiene días de la semana configurados`);
-        }
-
-        // 3. Obtener excepciones (días festivos, cancelaciones, etc.)
-        const today = startOfDay(new Date());
-        const endDate = addWeeks(today, weeksAhead);
-
-        const exceptions = await db
-            .select()
-            .from(classExceptions)
-            .where(
-                and(
-                    eq(classExceptions.classId, classId),
-                    tenantId ? eq(classExceptions.tenantId, tenantId) : undefined,
-                    gte(classExceptions.exceptionDate, format(today, "yyyy-MM-dd")),
-                    lte(classExceptions.exceptionDate, format(endDate, "yyyy-MM-dd"))
-                )
-            )
-            .limit(400);
-
-        const exceptionDates = new Set(
-            exceptions.map((e) => format(new Date(e.exceptionDate), "yyyy-MM-dd"))
-        );
-
-        // 4. Obtener sesiones ya existentes para evitar duplicados
-        const existingSessions = await db
-            .select()
-            .from(classSessions)
-            .where(
-                and(
-                    eq(classSessions.classId, classId),
-                    tenantId ? eq(classSessions.tenantId, tenantId) : undefined,
-                    gte(classSessions.sessionDate, format(today, "yyyy-MM-dd")),
-                    lte(classSessions.sessionDate, format(endDate, "yyyy-MM-dd"))
-                )
-            )
-            .limit(400);
-
-        const existingDates = new Set(
-            existingSessions.map((s) => format(new Date(s.sessionDate), "yyyy-MM-dd"))
-        );
-
-        // 5. Generar sesiones
-        const sessionsToCreate: Array<{
-            id: string;
-            classId: string;
-            sessionDate: string;
-            startTime: string | null;
-            endTime: string | null;
-            status: "scheduled";
-            tenantId: string;
-            createdAt: Date;
-            updatedAt: Date;
-        }> = [];
-        let currentDate = today;
-
-        while (currentDate <= endDate) {
-            const dayOfWeek = getDay(currentDate); // 0 = Domingo, 1 = Lunes, etc.
-            const dateStr = format(currentDate, "yyyy-MM-dd");
-
-            // Verificar si hay clase este día de la semana
-            const weekdayConfig = weekdays.find((w) => w.weekday === dayOfWeek);
-
-            if (weekdayConfig) {
-                // Verificar si no es excepción
-                if (exceptionDates.has(dateStr)) {
-                    logger.info(`Saltando ${dateStr} - día de excepción`);
-                    skipped++;
-                }
-                // Verificar si no existe ya
-                else if (existingDates.has(dateStr)) {
-                    logger.info(`Saltando ${dateStr} - sesión ya existe`);
-                    skipped++;
-                }
-                // Crear sesión
-                else {
-                    sessionsToCreate.push({
-                        id: crypto.randomUUID(),
-                        classId: classId,
-                        sessionDate: dateStr,
-                        startTime: classData.startTime, // Usar horario de la clase
-                        endTime: classData.endTime,     // Usar horario de la clase
-                        status: "scheduled",
-                        tenantId: classData.tenantId,
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
-                    });
-                }
+            if (!classData.autoGenerateSessions) {
+                logger.warn(`Clase ${classId} no tiene auto-generación activada, saltando`);
+                return { generated: 0, skipped: 0, errors: ["Auto-generación desactivada"] };
             }
 
-            currentDate = addDays(currentDate, 1);
-        }
+            await assertAcademyOperationalWritable(classData.tenantId, classData.academyId, tx);
 
-        // 6. Insertar sesiones en batch
-        if (sessionsToCreate.length > 0) {
-            const inserted = await db.insert(classSessions).values(sessionsToCreate).onConflictDoNothing({
-                target: [classSessions.classId, classSessions.sessionDate],
-            }).returning({ id: classSessions.id });
-            generated = inserted.length;
-            logger.info(`Generadas ${generated} sesiones para clase ${classId}`);
-        }
+            const weekdays = await tx
+                .select()
+                .from(classWeekdays)
+                .where(and(eq(classWeekdays.classId, classId), eq(classWeekdays.tenantId, classData.tenantId)))
+                .limit(7);
 
-        return { generated, skipped, errors };
+            if (weekdays.length === 0) {
+                throw new Error(`Clase ${classId} no tiene días de la semana configurados`);
+            }
+
+            const today = startOfDay(new Date());
+            const endDate = addWeeks(today, weeksAhead);
+            const exceptions = await tx
+                .select()
+                .from(classExceptions)
+                .where(and(
+                    eq(classExceptions.classId, classId),
+                    eq(classExceptions.tenantId, classData.tenantId),
+                    gte(classExceptions.exceptionDate, format(today, "yyyy-MM-dd")),
+                    lte(classExceptions.exceptionDate, format(endDate, "yyyy-MM-dd")),
+                ))
+                .limit(400);
+            const exceptionDates = new Set(
+                exceptions.map((exception) => format(new Date(exception.exceptionDate), "yyyy-MM-dd"))
+            );
+
+            const existingSessions = await tx
+                .select()
+                .from(classSessions)
+                .where(and(
+                    eq(classSessions.classId, classId),
+                    eq(classSessions.tenantId, classData.tenantId),
+                    gte(classSessions.sessionDate, format(today, "yyyy-MM-dd")),
+                    lte(classSessions.sessionDate, format(endDate, "yyyy-MM-dd")),
+                ))
+                .limit(400);
+            const existingDates = new Set(
+                existingSessions.map((session) => format(new Date(session.sessionDate), "yyyy-MM-dd"))
+            );
+
+            const sessionsToCreate: Array<{
+                id: string;
+                classId: string;
+                sessionDate: string;
+                startTime: string | null;
+                endTime: string | null;
+                status: "scheduled";
+                tenantId: string;
+                createdAt: Date;
+                updatedAt: Date;
+            }> = [];
+            let skipped = 0;
+            let currentDate = today;
+
+            while (currentDate <= endDate) {
+                const weekdayConfig = weekdays.find((weekday) => weekday.weekday === getDay(currentDate));
+                const dateStr = format(currentDate, "yyyy-MM-dd");
+
+                if (weekdayConfig) {
+                    if (exceptionDates.has(dateStr) || existingDates.has(dateStr)) {
+                        skipped++;
+                    } else {
+                        sessionsToCreate.push({
+                            id: crypto.randomUUID(),
+                            classId,
+                            sessionDate: dateStr,
+                            startTime: classData.startTime,
+                            endTime: classData.endTime,
+                            status: "scheduled",
+                            tenantId: classData.tenantId,
+                            createdAt: new Date(),
+                            updatedAt: new Date(),
+                        });
+                    }
+                }
+
+                currentDate = addDays(currentDate, 1);
+            }
+
+            let generated = 0;
+            if (sessionsToCreate.length > 0) {
+                const inserted = await tx.insert(classSessions).values(sessionsToCreate).onConflictDoNothing({
+                    target: [classSessions.classId, classSessions.sessionDate],
+                }).returning({ id: classSessions.id });
+                generated = inserted.length;
+                logger.info(`Generadas ${generated} sesiones para clase ${classId}`);
+            }
+
+            return { generated, skipped, errors: [] };
+        });
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : "Error desconocido";
         logger.error(`Error generando sesiones para clase ${classId}:`, error);
-        errors.push(errorMsg);
-        return { generated, skipped, errors };
+        return { generated: 0, skipped: 0, errors: [errorMsg] };
     }
 }
 

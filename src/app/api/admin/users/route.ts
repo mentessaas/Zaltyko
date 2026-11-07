@@ -25,9 +25,9 @@ const profileRoles = [
 const InviteSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(320),
   role: z.enum(profileRoles),
-  tenantId: z.string().uuid().optional(),
-  academyIds: z.array(z.string().uuid()).max(50).optional(),
-  defaultAcademyId: z.string().uuid().optional(),
+  tenantId: z.guid().optional(),
+  academyIds: z.array(z.guid()).max(50).optional(),
+  defaultAcademyId: z.guid().optional(),
 });
 
 // Aplicar rate limiting: 20 requests por minuto para invitaciones

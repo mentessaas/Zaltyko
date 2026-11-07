@@ -28,19 +28,11 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "¿Cómo puedo dar de alta a un nuevo atleta?",
-    answer: "Desde el panel de atletas, haz clic en 'Nuevo Atleta' y completa los datos. Puedes añadir foto, información de contacto y familiares.",
-  },
-  {
-    question: "¿Puedo importar atletas desde Excel?",
-    answer: "Sí, desde el listado de Atletas puedes importar un archivo CSV con tus gimnastas. Podrás revisar los datos antes de guardarlos.",
+    answer: "Desde el panel de atletas, haz clic en 'Nuevo Atleta' y completa los datos. Después puedes asociar familias y responsables desde su ficha.",
   },
   {
     question: "¿Cómo funciona el control de asistencia?",
     answer: "En el detalle de cada clase puedes marcar la asistencia de cada gimnasta manualmente, sesión por sesión.",
-  },
-  {
-    question: "¿Puedo enviar mensajes a los padres?",
-    answer: "Sí, desde el perfil de cada atleta puedes enviar emails o configurar notificaciones automáticas para padres.",
   },
   {
     question: "¿Puedo cobrar automáticamente las cuotas a las familias?",
@@ -48,7 +40,7 @@ const faqs = [
   },
   {
     question: "¿Cómo puedo cambiar de plan?",
-    answer: "Desde el panel de Cobros de tu academia puedes cambiar de plan; Stripe gestiona el ajuste de la facturación.",
+    answer: "Desde Plan puedes consultar las opciones de suscripción de tu academia y abrir el Portal de Stripe. Las cuotas familiares se gestionan aparte.",
   },
 ];
 
@@ -81,7 +73,7 @@ export default function HelpPage() {
               Centro de ayuda de Zaltyko para tu academia
             </h1>
             <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-              Guías rápidas sobre gimnastas, cobros, clases y migración desde Excel. Si no encuentras tu respuesta, te respondemos por email en horario laboral.
+              Guías rápidas sobre gimnastas, cuotas manuales, clases y asistencia. Si no encuentras tu respuesta, puedes contactar por email.
             </p>
           </Reveal>
         </div>
@@ -142,9 +134,9 @@ export default function HelpPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-2xl font-bold text-zaltyko-text-main">¿No encontraste lo que buscabas?</h2>
           <p className="mt-4 text-zaltyko-text-secondary">
-            Nuestro equipo de soporte está disponible para ayudarte.
+            Describe tu consulta sin incluir contraseñas ni datos sensibles de menores.
           </p>
-          <div className="mt-8 flex justify-center gap-4">
+          <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link
               href="/contact"
               className="inline-flex items-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white hover:bg-zaltyko-primary-dark"

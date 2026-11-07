@@ -8,8 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid().nullable().optional(),
-  profileId: z.string().uuid().optional(), // Para modo Super Admin "ver como usuario"
+  academyId: z.guid().nullable().optional(),
+  profileId: z.guid().optional(), // Para modo Super Admin "ver como usuario"
 });
 
 export async function PATCH(request: Request) {

@@ -13,7 +13,7 @@ import { discounts } from "@/db/schema";
 // form de creación de descuento puede limpiar ese campo (clear field).
 // Antes, `null` → 400.
 const createSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   code: z.string().nullable().optional(),
   name: z.string().min(1),
   description: z.string().nullable().optional(),

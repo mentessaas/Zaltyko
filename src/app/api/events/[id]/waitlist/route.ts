@@ -56,7 +56,7 @@ export const GET = withTenant(async (_request, context) => {
 });
 
 const addToWaitlistSchema = z.object({
-  profileId: z.string().uuid(),
+  profileId: z.guid(),
 });
 
 export const POST = withTenant(async (request, context) => {

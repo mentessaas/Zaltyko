@@ -5,6 +5,7 @@ describe("isLoginNoticeCode", () => {
   it.each([
     "access_disabled",
     "callback_failed",
+    "callback_expired",
     "consent_invalid",
     "consent_record_failed",
   ])("reconoce el aviso %s", (code) => {

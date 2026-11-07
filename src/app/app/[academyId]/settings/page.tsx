@@ -34,7 +34,6 @@ import { SocialLinksEditor } from "@/components/settings/SocialLinksEditor";
 import { SportConfigurationDashboard } from "@/components/settings/SportConfigurationDashboard";
 import { SportLegacyMigrationAssistant } from "@/components/settings/SportLegacyMigrationAssistant";
 import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
-import { StripeConnectCard } from "@/components/billing/StripeConnectCard";
 import {
   DEFAULT_SETTINGS,
   DISCIPLINE_VARIANTS,
@@ -70,9 +69,8 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState(false);
 
   const [settings, setSettings] = useState<AcademySettings>(DEFAULT_SETTINGS);
-  // Al volver del onboarding de Stripe Connect (?connect=return|refresh) o con
-  // ?tab=billing, abrir directamente la pestaña de Cobros para que
-  // StripeConnectCard monte y dispare su refresco automático.
+  // Mantener los enlaces antiguos de Connect en la pestaña de cobros para
+  // mostrar allí el estado actual de disponibilidad.
   const initialTab =
     searchParams.get("connect") === "return" ||
     searchParams.get("connect") === "refresh" ||
@@ -639,7 +637,16 @@ export default function SettingsPage() {
 
           {/* Billing Tab */}
           <TabsContent value="billing" className="mt-6 space-y-6">
-            {context?.academyId && <StripeConnectCard academyId={context.academyId} />}
+            <Card>
+              <CardHeader>
+                <CardTitle>Pagos familiares</CardTitle>
+                <CardDescription>
+                  Los cobros automáticos con tarjeta y Stripe Connect no están
+                  disponibles. Registra los pagos recibidos manualmente desde
+                  Cobros.
+                </CardDescription>
+              </CardHeader>
+            </Card>
 
             <Card>
               <CardHeader>

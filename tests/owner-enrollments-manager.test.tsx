@@ -7,9 +7,11 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OwnerEnrollmentsManager } from "@/components/owner-dashboard/OwnerEnrollmentsManager";
+import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 
@@ -93,6 +95,7 @@ function enrollment(status = "active") {
 describe("OwnerEnrollmentsManager", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
     vi.stubGlobal("crypto", { randomUUID: () => "synthetic-command-id" });
     vi.stubGlobal(
       "fetch",
@@ -101,9 +104,23 @@ describe("OwnerEnrollmentsManager", () => {
         .mockImplementation(
           async (_input: RequestInfo | URL, init?: RequestInit) => {
             if (init?.method === "POST") {
+              const body = String(init.body);
+              const idempotencyKey = new Headers(init.headers).get("idempotency-key");
+              const command = JSON.parse(body) as {
+                startsOn: string;
+                pricePlanId: string | null;
+              };
               return new Response(
                 JSON.stringify({
-                  data: { id: enrollmentId, status: "pending", version: 1 },
+                  ok: true,
+                  data: {
+                    id: enrollmentId,
+                    status: "pending",
+                    version: 1,
+                    startsOn: command.startsOn,
+                    pricePlanId: command.pricePlanId,
+                    commandReceipt: { body, idempotencyKey },
+                  },
                 }),
                 { status: 201, headers: { "content-type": "application/json" } }
               );
@@ -111,7 +128,14 @@ describe("OwnerEnrollmentsManager", () => {
             if (init?.method === "PATCH") {
               return new Response(
                 JSON.stringify({
-                  data: { id: enrollmentId, status: "paused", version: 2 },
+                  ok: true,
+                  data: {
+                    id: enrollmentId,
+                    status: "paused",
+                    version: 2,
+                    startsOn: "2026-10-13",
+                    endsOn: null,
+                  },
                 }),
                 { status: 200, headers: { "content-type": "application/json" } }
               );
@@ -119,16 +143,19 @@ describe("OwnerEnrollmentsManager", () => {
             if (String(_input).includes("/owner/price-plans/options")) {
               return new Response(
                 JSON.stringify({
+                  ok: true,
                   data: {
                     items: [
                       {
-                        id: "synthetic-price-plan",
+                        id: "10000000-0000-4000-8000-000000000009",
                         name: "Tarifa mensual sintética",
                         amountCents: 2700,
                         currency: "EUR",
                         cadence: "monthly",
                       },
                     ],
+                    organizationId,
+                    locationId,
                   },
                 }),
                 { status: 200, headers: { "content-type": "application/json" } }
@@ -136,6 +163,7 @@ describe("OwnerEnrollmentsManager", () => {
             }
             return new Response(
               JSON.stringify({
+                ok: true,
                 data: { items: [{ id: athleteId, name: "Luz Sintética" }] },
               }),
               { status: 200, headers: { "content-type": "application/json" } }
@@ -146,23 +174,32 @@ describe("OwnerEnrollmentsManager", () => {
   });
 
   it("crea una inscripción pendiente en un formulario y avisa que no cobra", async () => {
+    const user = userEvent.setup();
     render(<OwnerEnrollmentsManager bundle={bundle()} selectedStatus="all" />);
     expect(screen.getByRole("heading", { name: "Inscripciones" })).toBeTruthy();
     expect(screen.getByText(/No crea una cuota ni inicia cobros/)).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText("Clase"), {
-      target: { value: classTemplateId },
-    });
-    fireEvent.change(screen.getByLabelText("Gimnasta"), {
-      target: { value: "Luz" },
-    });
+    await user.selectOptions(screen.getByLabelText("Clase"), classTemplateId);
+    await user.type(screen.getByLabelText("Gimnasta"), "Luz");
     const candidate = await screen.findByRole("button", {
       name: "Luz Sintética",
     });
-    fireEvent.click(candidate);
+    await user.click(candidate);
 
-    fireEvent.submit(screen.getByRole("form", { name: "Crear inscripción" }));
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+    const submit = screen.getByRole("button", {
+      name: "Registrar inscripción pendiente",
+    });
+    await waitFor(() => expect(submit).toBeEnabled());
+    await user.click(submit);
+    await waitFor(() =>
+      expect(
+        vi.mocked(fetch).mock.calls.some(
+          ([url, init]) =>
+            String(url) === "/api/v1/owner/enrollments" &&
+            init?.method === "POST"
+        )
+      ).toBe(true)
+    );
     const createCall = vi
       .mocked(fetch)
       .mock.calls.find(([, init]) => init?.method === "POST");
@@ -173,11 +210,12 @@ describe("OwnerEnrollmentsManager", () => {
       athleteId,
       classTemplateId,
       startsOn: "2026-10-13",
-      pricePlanId: "synthetic-price-plan",
+      pricePlanId: "10000000-0000-4000-8000-000000000009",
     });
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "Inscripción pendiente registrada. No se ha generado ningún cobro."
+    const successStatus = await screen.findByText(
+      "Inscripción registrada. Consulta su estado actualizado en el listado. Este envío no genera ningún cobro."
     );
+    expect(successStatus).toHaveAttribute("role", "status");
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
 
@@ -203,7 +241,11 @@ describe("OwnerEnrollmentsManager", () => {
         selectedStatus="all"
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Pausar" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /^Pausar inscripción de Luz Sintética/,
+      })
+    );
 
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
     const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
@@ -216,7 +258,7 @@ describe("OwnerEnrollmentsManager", () => {
       effectiveOn: "2026-10-13",
     });
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "Inscripción actualizada."
+      "Operación confirmada. Consulta el estado actualizado en el listado."
     );
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
@@ -240,14 +282,18 @@ describe("OwnerEnrollmentsManager", () => {
         selectedStatus="all"
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /^Finalizar inscripción de Luz Sintética/,
+      })
+    );
 
     const confirmation = screen.getByRole("group", {
-      name: "Confirmar finalización",
+      name: /Confirmar finalización de/,
     });
     fireEvent.click(
       within(confirmation).getByRole("button", {
-        name: "Confirmar",
+        name: /Confirmar finalización de/,
       })
     );
 
@@ -269,10 +315,18 @@ describe("OwnerEnrollmentsManager", () => {
         selectedStatus="all"
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Dar de baja" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /^Dar de baja inscripción de Luz Sintética/,
+      })
+    );
 
-    expect(screen.getByRole("group", { name: "Confirmar baja" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Confirmar" })).toBeTruthy();
+    const confirmation = screen.getByRole("group", {
+      name: /Confirmar baja de/,
+    });
+    expect(
+      within(confirmation).getByRole("button", { name: /Confirmar baja de/ })
+    ).toBeTruthy();
     expect(fetch).not.toHaveBeenCalled();
   });
 

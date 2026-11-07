@@ -26,6 +26,7 @@ import {
   type SystemActor,
 } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import {
   assertOperationalAccess,
   assertSystemOperationalScope,
@@ -48,13 +49,13 @@ const activeInsightStatuses = [
 
 const candidateSchema = z.object({
   entityType: z.string().trim().min(1).max(80),
-  entityId: z.string().uuid().optional(),
+  entityId: z.guid().optional(),
   title: z.string().trim().min(1).max(180),
   detail: z.string().trim().min(1).max(600),
-  evidence: z.record(z.unknown()),
+  evidence: z.record(z.string(), z.unknown()),
   assumptions: z.array(z.string().trim().min(1).max(300)).max(10).default([]),
   ctaKey: z.string().trim().min(1).max(80),
-  ctaPayload: z.record(z.unknown()).default({}),
+  ctaPayload: z.record(z.string(), z.unknown()).default({}),
   impactScore: z.number().min(0).max(100),
   urgencyScore: z.number().min(0).max(100),
   confidenceScore: z.number().min(0).max(100),
@@ -68,15 +69,15 @@ const candidateSchema = z.object({
 });
 
 const runInsightEvaluationSchema = z.object({
-  organizationId: z.string().uuid(),
-  authorizationLocationId: z.string().uuid(),
-  targetLocationId: z.string().uuid().optional(),
+  organizationId: z.guid(),
+  authorizationLocationId: z.guid(),
+  targetLocationId: z.guid().optional(),
   ruleKey: z.string().trim().min(1).max(80),
   ruleVersion: z.number().int().positive().default(1),
   evaluatedAt: z.string().datetime({ offset: true }),
   sourceWatermark: z.string().datetime({ offset: true }),
-  sourceMetricRunId: z.string().uuid().optional(),
-  sourceHealthScoreSnapshotId: z.string().uuid().optional(),
+  sourceMetricRunId: z.guid().optional(),
+  sourceHealthScoreSnapshotId: z.guid().optional(),
   idempotencyKey: z.string().trim().min(8).max(150),
   candidates: z.array(candidateSchema).max(500),
   actor: evaluationActorSchema,
@@ -154,6 +155,7 @@ async function assertInsightAccess(
     organizationId: input.organizationId,
     locationId: input.insight.locationId ?? input.authorizationLocationId,
     actor: input.actor,
+    intent: "write",
     allowedRoles: insightRoles,
   });
   if (!input.insight.locationId && member.locationScopeMode !== "all") {
@@ -222,6 +224,12 @@ export async function runInsightEvaluation(
         targetLocationId: input.targetLocationId ?? null,
       });
       return prior.result as unknown as InsightEvaluationResult;
+    }
+
+    // Cron/system actors keep their existing scoped flow. Human actors must
+    // pass the SaaS write gate, but only for a fresh evaluation (first DML).
+    if (!("type" in input.actor)) {
+      await assertOrganizationOperationalWritable(tx, input.organizationId);
     }
 
     const [rule] = await tx
@@ -549,18 +557,18 @@ export async function runInsightEvaluation(
 const dispositionSchema = z.discriminatedUnion("transition", [
   z.object({
     transition: z.literal("view"),
-    organizationId: z.string().uuid(),
-    authorizationLocationId: z.string().uuid(),
-    insightId: z.string().uuid(),
+    organizationId: z.guid(),
+    authorizationLocationId: z.guid(),
+    insightId: z.guid(),
     expectedVersion: z.number().int().positive(),
     idempotencyKey: z.string().trim().min(8).max(150),
     actor: operationalActorSchema,
   }),
   z.object({
     transition: z.literal("snooze"),
-    organizationId: z.string().uuid(),
-    authorizationLocationId: z.string().uuid(),
-    insightId: z.string().uuid(),
+    organizationId: z.guid(),
+    authorizationLocationId: z.guid(),
+    insightId: z.guid(),
     expectedVersion: z.number().int().positive(),
     snoozedUntil: z.string().datetime({ offset: true }),
     idempotencyKey: z.string().trim().min(8).max(150),
@@ -568,9 +576,9 @@ const dispositionSchema = z.discriminatedUnion("transition", [
   }),
   z.object({
     transition: z.literal("dismiss"),
-    organizationId: z.string().uuid(),
-    authorizationLocationId: z.string().uuid(),
-    insightId: z.string().uuid(),
+    organizationId: z.guid(),
+    authorizationLocationId: z.guid(),
+    insightId: z.guid(),
     expectedVersion: z.number().int().positive(),
     reason: z.string().trim().min(3).max(300),
     idempotencyKey: z.string().trim().min(8).max(150),
@@ -708,14 +716,14 @@ export async function changeInsightDisposition(
 }
 
 const recordActionSchema = z.object({
-  organizationId: z.string().uuid(),
-  authorizationLocationId: z.string().uuid(),
-  insightId: z.string().uuid(),
+  organizationId: z.guid(),
+  authorizationLocationId: z.guid(),
+  insightId: z.guid(),
   expectedVersion: z.number().int().positive(),
   actionKey: z.string().trim().min(1).max(80),
   targetEntityType: z.string().trim().min(1).max(80),
-  targetEntityId: z.string().uuid().optional(),
-  beforeValue: z.record(z.unknown()),
+  targetEntityId: z.guid().optional(),
+  beforeValue: z.record(z.string(), z.unknown()),
   evaluationWindowDays: z.number().int().min(1).max(365),
   idempotencyKey: z.string().trim().min(8).max(150),
   actor: operationalActorSchema,
@@ -941,11 +949,11 @@ export async function recordInsightAction(
 }
 
 const completeActionSchema = z.object({
-  organizationId: z.string().uuid(),
-  authorizationLocationId: z.string().uuid(),
-  actionId: z.string().uuid(),
+  organizationId: z.guid(),
+  authorizationLocationId: z.guid(),
+  actionId: z.guid(),
   outcome: z.enum(["positive", "neutral", "negative", "not_measurable"]),
-  afterValue: z.record(z.unknown()),
+  afterValue: z.record(z.string(), z.unknown()),
   notes: z.string().trim().max(500).optional(),
   idempotencyKey: z.string().trim().min(8).max(150),
   actor: operationalActorSchema,

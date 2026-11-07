@@ -1,3 +1,4 @@
+import { sentryPrivacyOptions } from "./src/lib/monitoring/sentry-privacy";
 // Next.js instrumentation file
 // This file is used to initialize Sentry on the server and edge runtime
 
@@ -34,29 +35,8 @@ export async function register() {
       dsn: SENTRY_DSN,
       tracesSampler,
       debug: false,
-      beforeSend(event) {
-        if (process.env.NODE_ENV === "development") {
-          return null;
-        }
+      ...sentryPrivacyOptions,
 
-        if (event.request) {
-          if (event.request.headers) {
-            delete event.request.headers["authorization"];
-            delete event.request.headers["cookie"];
-            delete event.request.headers["x-api-key"];
-          }
-
-          if (event.request.query_string) {
-            const params = new URLSearchParams(event.request.query_string);
-            params.delete("token");
-            params.delete("api_key");
-            params.delete("password");
-            event.request.query_string = params.toString();
-          }
-        }
-
-        return event;
-      },
       ignoreErrors: [
         "ECONNREFUSED",
         "ETIMEDOUT",
@@ -72,12 +52,8 @@ export async function register() {
       dsn: SENTRY_DSN,
       tracesSampler,
       debug: false,
-      beforeSend(event) {
-        if (process.env.NODE_ENV === "development") {
-          return null;
-        }
-        return event;
-      },
+      ...sentryPrivacyOptions,
+
     });
   }
 }

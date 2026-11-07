@@ -17,11 +17,11 @@ import {
 } from "@/db/schema";
 
 const querySchema = z.object({
-  athleteId: z.string().uuid(),
-  academyId: z.string().uuid().optional(),
+  athleteId: z.guid(),
+  academyId: z.guid().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
-  skillId: z.string().uuid().optional(),
+  skillId: z.guid().optional(),
 });
 
 export const GET = withTenant(async (request, context) => {

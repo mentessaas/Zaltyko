@@ -34,9 +34,10 @@ describe("family billing copy contract", () => {
 
     expect(free?.features.join(" ")).toMatch(/registro manual/i);
     expect(starter?.features.join(" ")).toMatch(/registro manual/i);
-    expect(growth?.features.join(" ")).toMatch(
-      /cobro familiar automático aún no está disponible/i
-    );
+    expect(growth?.features.join(" ")).toMatch(/registro manual/i);
+    for (const plan of [free, starter, growth]) {
+      expect(plan?.features.join(" ")).not.toMatch(/pagos automáticos|cobro automático/i);
+    }
   });
 
   it("separates general automation advice from Zaltyko's current capability", () => {
@@ -49,10 +50,11 @@ describe("family billing copy contract", () => {
   });
 
   it("describes the balance update as the result of saving a manual payment", () => {
-    expect(ownerPaymentsCopy).toContain(
-      "Al guardar,\n              Zaltyko lo vincula al cargo y actualiza el saldo pendiente."
+    const normalizedOwnerPaymentsCopy = ownerPaymentsCopy.replace(/\s+/g, " ");
+    expect(normalizedOwnerPaymentsCopy).toContain(
+      "Al guardar, Zaltyko lo vincula al cargo y actualiza el saldo pendiente."
     );
-    expect(ownerPaymentsCopy).not.toContain(
+    expect(normalizedOwnerPaymentsCopy).not.toContain(
       "actualiza el saldo pendiente automáticamente"
     );
   });

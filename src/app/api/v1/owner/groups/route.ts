@@ -18,16 +18,16 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 
 const querySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
-  groupId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
+  groupId: z.guid().optional(),
 });
 
 const bodySchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
-    programId: z.string().uuid(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
+    programId: z.guid(),
     name: z.string().trim().min(2).max(120),
     capacity: z.number().int().positive().max(5000).nullable(),
   })

@@ -11,8 +11,8 @@ import { apiSuccess, apiCreated, apiError } from "@/lib/api-response";
 
 const createInvitationSchema = z.object({
   email: z.string().email(),
-  athleteId: z.string().uuid().optional(),
-  guardianId: z.string().uuid().optional(),
+  athleteId: z.guid().optional(),
+  guardianId: z.guid().optional(),
 });
 
 export const GET = withTenant(async (request: Request, context: { tenantId: string; params: { id: string }; profile?: { id: string } }) => {

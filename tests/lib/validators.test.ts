@@ -49,4 +49,10 @@ describe("validateUuid", () => {
     const result = validateUuid("123e4567-E89B-12d3-A456-426614174000");
     expect(result.valid).toBe(true);
   });
+
+  it("preserves PostgreSQL-compatible UUID-shaped identifiers", () => {
+    const result = validateUuid("11111111-1111-1111-1111-111111111111");
+    expect(result.valid).toBe(true);
+    expect(result.error).toBeUndefined();
+  });
 });

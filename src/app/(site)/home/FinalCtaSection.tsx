@@ -3,7 +3,6 @@
 import { Sparkles, ArrowRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { EmailCapture } from "@/components/EmailCapture";
 import Reveal from "@/components/motion/Reveal";
 
 const benefits = [
@@ -38,7 +37,7 @@ export default function FinalCtaSection() {
         {/* Subtitle */}
         <Reveal delay={200}>
           <p className="text-xl text-white/80 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Ordena grupos, horarios, cobros, familias y seguimiento técnico en una plataforma pensada para gimnasia artística y rítmica.
+            Ordena grupos, horarios, asistencia, cuotas manuales y familias en una plataforma pensada para gimnasia artística y rítmica.
           </p>
         </Reveal>
 
@@ -73,21 +72,6 @@ export default function FinalCtaSection() {
             >
               Ver planes y precios
             </Link>
-          </div>
-        </Reveal>
-
-        {/* Email Capture */}
-        <Reveal delay={500}>
-          <div className="mt-8 p-6 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20">
-            <p className="text-white/80 text-sm mb-4">
-              ¿Quieres recibir ideas de gestión para academias de artística y rítmica?
-            </p>
-            <EmailCapture
-              source="final_cta"
-              variant="inline"
-              placeholder="tu@email.com"
-              buttonText="Suscribirme"
-            />
           </div>
         </Reveal>
 

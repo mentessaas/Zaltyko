@@ -25,7 +25,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    if (!z.string().uuid().safeParse(id).success) {
+    if (!z.guid().safeParse(id).success) {
       return NextResponse.json({ error: "INVALID_LISTING_ID" }, { status: 400 });
     }
 
@@ -97,7 +97,7 @@ export async function POST(
     }
 
     const { id } = await params;
-    if (!z.string().uuid().safeParse(id).success) {
+    if (!z.guid().safeParse(id).success) {
       return NextResponse.json({ error: "INVALID_LISTING_ID" }, { status: 400 });
     }
 
@@ -150,7 +150,7 @@ export async function POST(
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "VALIDATION_ERROR", details: parsed.error.errors },
+        { error: "VALIDATION_ERROR", details: parsed.error.issues },
         { status: 400 }
       );
     }

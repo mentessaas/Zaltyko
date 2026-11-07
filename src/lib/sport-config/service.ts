@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
+import type { DatabaseClient } from "@/lib/db-transactions";
 import {
   academySportConfigs,
   apparatus,
@@ -117,10 +118,10 @@ export async function verifyAcademySportConfig(params: {
   academyId: string;
   tenantId: string;
   sportConfigId?: string | null;
-}) {
+}, client: DatabaseClient = db) {
   if (!params.sportConfigId) return null;
 
-  const [row] = await db
+  const [row] = await client
     .select({
       id: academySportConfigs.id,
       academyId: academySportConfigs.academyId,

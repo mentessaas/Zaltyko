@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 
 import { Pool } from "pg";
 
@@ -316,6 +317,80 @@ async function expectOperationalError(
   });
 }
 
+async function verifyMixedCurrencyFamilyIsNotIssued(pool: Pool, owner: Actor): Promise<void> {
+  // This script already runs only against its exact loopback fixture database.
+  // Add a second synthetic athlete to its existing family, without modifying
+  // either issued invoice or either academy's original price plan.
+  const ids = {
+    person: randomUUID(), athlete: randomUUID(), member: randomUUID(),
+    pricePlan: randomUUID(), enrollment: randomUUID(), assignment: randomUUID(), coverage: randomUUID(),
+  };
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    await client.query(
+      "insert into zaltyko.people (id, organization_id, given_name, family_name) values ($1::uuid, $2::uuid, 'Synthetic', 'Currency')",
+      [ids.person, home.organizationId]
+    );
+    await client.query(
+      "insert into zaltyko.athletes (id, organization_id, person_id) values ($1::uuid, $2::uuid, $3::uuid)",
+      [ids.athlete, home.organizationId, ids.person]
+    );
+    await client.query(
+      "insert into zaltyko.family_members (id, organization_id, family_id, athlete_id, relationship, starts_on) values ($1::uuid, $2::uuid, $3::uuid, $4::uuid, 'other', current_date - 30)",
+      [ids.member, home.organizationId, home.familyId, ids.athlete]
+    );
+    await client.query(
+      "insert into zaltyko.price_plans (id, organization_id, name, cadence, amount_cents, currency, is_active) values ($1::uuid, $2::uuid, 'Synthetic MXN currency guard', 'monthly', 2500, 'MXN', true)",
+      [ids.pricePlan, home.organizationId]
+    );
+    await client.query(
+      "insert into zaltyko.enrollments (id, organization_id, location_id, athlete_id, class_template_id, price_plan_id, status, starts_on, source) values ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, $6::uuid, 'active', current_date - 30, 'owner')",
+      [ids.enrollment, home.organizationId, home.locationId, ids.athlete, home.classTemplateId, ids.pricePlan]
+    );
+    await client.query(
+      "insert into zaltyko.enrollment_price_assignments (id, organization_id, location_id, enrollment_id, price_plan_id, unit_amount_cents, currency, starts_on) values ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, 2500, 'MXN', current_date - 30)",
+      [ids.assignment, home.organizationId, home.locationId, ids.enrollment, ids.pricePlan]
+    );
+    await client.query(
+      "insert into zaltyko.price_plan_class_template_coverage (id, organization_id, location_id, price_plan_id, class_template_id, starts_on) values ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, current_date - 30)",
+      [ids.coverage, home.organizationId, home.locationId, ids.pricePlan, home.classTemplateId]
+    );
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  const month = new Date(`${nextServicePeriod()}-01T00:00:00Z`);
+  month.setUTCMonth(month.getUTCMonth() + 1);
+  const servicePeriod = month.toISOString().slice(0, 7);
+  const dueDate = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+  const before = await readFinancialCounts(pool, home.organizationId);
+  const foreignBefore = await readFinancialCounts(pool, foreign.organizationId);
+  const options = await getMonthlyInvoiceOptions({
+    organizationId: home.organizationId, locationId: home.locationId, servicePeriod, actor: owner,
+  });
+  const family = options.families.find((candidate) => candidate.familyId === home.familyId);
+  assert(family);
+  assert.equal(family.canIssue, false);
+  assert.equal(family.currency, null);
+  assert.equal(family.totalAmountCents, null);
+  assert(family.blockingReasons.includes("CURRENCY_MISMATCH"));
+  assert.deepEqual(family.lines.map((line) => `${line.currency}:${line.amountCents}`).sort(), ["EUR:3500", "MXN:2500"]);
+  assert(family.quoteHash && family.payers[0]);
+  await expectOperationalError(issueMonthlyInvoice({
+    organizationId: home.organizationId, locationId: home.locationId,
+    familyId: family.familyId, familyPayerId: family.payers[0].familyPayerId,
+    servicePeriod, dueDate, quoteHash: family.quoteHash,
+    idempotencyKey: "synthetic-financial-mixed-currency-denied-001", actor: owner,
+  }), "MONTHLY_INVOICE_BLOCKED", 422);
+  assert.deepEqual(await readFinancialCounts(pool, home.organizationId), before);
+  assert.deepEqual(await readFinancialCounts(pool, foreign.organizationId), foreignBefore);
+}
+
 async function main(): Promise<void> {
   assert.equal(process.env[LOCAL_ONLY], "1", "Local harness flag is required");
   const databaseUrl = assertLoopbackUrl("DATABASE_URL");
@@ -555,9 +630,12 @@ async function main(): Promise<void> {
       beforePaymentDenials
     );
 
+    await verifyMixedCurrencyFamilyIsNotIssued(pool, owner);
+
     console.log(
       JSON.stringify({
         status: "PASS",
+        mixedCurrencyFamily: "null total, preserved EUR/MXN lines, blocked 422 and unchanged financial counts",
         scope: "service-level PostgreSQL only; no HTTP route invoked",
         invoiceConcurrentSameKey: { invoiceRows: 1, replayed: [false, true] },
         invoiceChangedPayload:

@@ -4,6 +4,11 @@ import type { User } from "@supabase/supabase-js";
 import { sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
+import {
+  assertConsentProofMatchesSource,
+  isValidConsentProof,
+  isValidPolicyVersion,
+} from "@/lib/consent/owner-consent";
 
 export type OwnerSignupConsentErrorCode =
   "CONSENT_REQUIRED" | "CONSENT_REJECTED" | "CONSENT_STORE_UNAVAILABLE";
@@ -50,19 +55,35 @@ function required(): never {
   throw new OwnerSignupConsentError("CONSENT_REQUIRED");
 }
 
-function isValidPolicyVersion(value: unknown): value is string {
-  return typeof value === "string" && /^v[0-9]+-\d{4}-\d{2}-\d{2}$/.test(value);
-}
-
 function signupDeclarationMatches(user: User, policyVersion: string): boolean {
   const metadata = user.user_metadata as Record<string, unknown> | undefined;
-  return metadata?.legal_consent_version === policyVersion;
+  const proof = metadata?.legal_consent_proof;
+  if (
+    metadata?.legal_consent_version !== policyVersion ||
+    !isValidConsentProof(proof)
+  ) {
+    return false;
+  }
+  try {
+    assertConsentProofMatchesSource("signup", proof);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-function hasMalformedSignupPolicyVersion(user: User): boolean {
+function hasMalformedSignupConsentDeclaration(user: User): boolean {
   const metadata = user.user_metadata as Record<string, unknown> | undefined;
   const version = metadata?.legal_consent_version;
-  return version !== undefined && !isValidPolicyVersion(version);
+  const proof = metadata?.legal_consent_proof;
+  if (version === undefined && proof === undefined) return false;
+  if (!isValidPolicyVersion(version) || !isValidConsentProof(proof)) return true;
+  try {
+    assertConsentProofMatchesSource("signup", proof);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 function isFreshAuthUser(user: User, rolloutAt: unknown): boolean {
@@ -94,6 +115,27 @@ async function readPolicy(tx: OwnerSignupConsentTransaction) {
     throw new OwnerSignupConsentError("CONSENT_STORE_UNAVAILABLE");
   }
   return { policyVersion, rolloutAt };
+}
+
+/**
+ * Returns the live policy version for the public registration form. The form
+ * may declare that version after explicit acceptance, but bootstrap still
+ * verifies the declaration against this same database policy in its own
+ * transaction. If the policy store is unavailable, callers must omit the
+ * declaration and let Owner setup require a fresh explicit acceptance.
+ */
+export async function getOwnerSignupConsentPolicyVersion(
+  storeDatabase: OwnerSignupConsentDatabase = database
+): Promise<string> {
+  try {
+    return await storeDatabase.transaction(async (tx) => {
+      const policy = await readPolicy(tx);
+      return policy.policyVersion;
+    });
+  } catch (error) {
+    if (error instanceof OwnerSignupConsentError) throw error;
+    throw new OwnerSignupConsentError("CONSENT_STORE_UNAVAILABLE");
+  }
 }
 
 async function readExisting(tx: OwnerSignupConsentTransaction, userId: string) {
@@ -232,7 +274,7 @@ export async function recordOwnerSignupConsent(
       if (
         !explicitAcceptance &&
         freshAuthIdentity &&
-        hasMalformedSignupPolicyVersion(verifiedAuthUser)
+        hasMalformedSignupConsentDeclaration(verifiedAuthUser)
       ) {
         throw new OwnerSignupConsentError("CONSENT_REJECTED");
       }

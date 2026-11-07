@@ -42,18 +42,6 @@ import {
 } from "@/lib/seo/academy-robots-directives";
 import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
 
-function buildSelectChain<T>(rows: T[]) {
-  const chain: Record<string, unknown> = {};
-  chain.from = vi.fn(() => chain);
-  chain.where = vi.fn(() => chain);
-  chain.limit = vi.fn(() => chain);
-  Object.defineProperty(chain, "then", {
-    value: (resolve: (value: T[]) => unknown) => Promise.resolve(rows).then(resolve),
-    configurable: true,
-  });
-  return chain;
-}
-
 describe("SEO de academias fail-closed", () => {
   it("solo permite active/trial públicos sin suspensión", () => {
     expect(INDEXABLE_ACADEMY_STATUS_VALUES).toEqual(["active", "trial"]);
@@ -88,30 +76,13 @@ describe("SEO de academias fail-closed", () => {
     expect(metadata.robots).toEqual({ index: true, follow: true });
   });
 
-  it("incluye solo academias elegibles en el sitemap", async () => {
-    mockSelect.mockReturnValue(buildSelectChain([
-      { id: "active", status: "active", isPublic: true, isSuspended: false, statusUpdatedAt: null, createdAt: new Date("2026-09-01") },
-      { id: "trial", status: "trial", isPublic: true, isSuspended: false, statusUpdatedAt: null, createdAt: new Date("2026-09-01") },
-      { id: "churned", status: "churned", isPublic: true, isSuspended: false, statusUpdatedAt: null, createdAt: new Date("2026-09-01") },
-      { id: "suspended", status: "active", isPublic: true, isSuspended: true, statusUpdatedAt: null, createdAt: new Date("2026-09-01") },
-    ]));
+  it("no publica datos de academias ni consulta la base en el sitemap esencial", async () => {
+    mockSelect.mockClear();
+    mockSelect.mockImplementation(() => { throw new Error("DB must not be queried by the launch sitemap"); });
     const urls = await sitemap();
-    expect(urls.some((entry) => entry.url.endsWith("/academias/active"))).toBe(true);
-    expect(urls.some((entry) => entry.url.endsWith("/academias/trial"))).toBe(true);
-    expect(urls.some((entry) => entry.url.includes("churned"))).toBe(false);
-    expect(urls.some((entry) => entry.url.includes("suspended"))).toBe(false);
-  });
-
-  it("omite academias del sitemap ante un fallo de consulta", async () => {
-    const chain = buildSelectChain<never>([]);
-    Object.defineProperty(chain, "then", {
-      value: (_resolve: unknown, reject: (error: Error) => unknown) =>
-        Promise.reject(new Error("DB down")).catch(reject),
-      configurable: true,
-    });
-    mockSelect.mockReturnValue(chain);
-    const urls = await sitemap();
-    expect(urls.some((entry) => entry.url.includes("/academias/"))).toBe(false);
+    expect(urls.some(entry => entry.url.includes("/academias"))).toBe(false);
+    expect(mockSelect).not.toHaveBeenCalled();
+    expect(urls.some(entry => entry.url.endsWith("/pricing"))).toBe(true);
   });
 
   it("revalida sitemap, directorio y detalle tras cambios públicos", () => {

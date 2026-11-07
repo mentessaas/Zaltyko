@@ -15,7 +15,7 @@ import { withTransaction } from "@/lib/db-transactions";
 import { assertCoachesCanHandleSportConfig } from "@/lib/coaches/sport-scope";
 
 const updateSchema = z.object({
-  classIds: z.array(z.string().uuid()),
+  classIds: z.array(z.guid()),
 });
 
 export const GET = withTenant(async (_request, context) => {

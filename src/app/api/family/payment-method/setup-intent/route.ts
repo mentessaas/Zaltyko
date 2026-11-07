@@ -4,24 +4,22 @@ import { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz/profile-service";
-import { getOptionalEnvVar } from "@/lib/env";
-import { resolveFamilyPaymentAccess } from "@/lib/family/payment-access";
-import {
-  createFamilySetupIntent,
-  getOrCreateFamilyCustomer,
-} from "@/lib/stripe/family-customers-service";
+import { resolveFamilyPaymentScope } from "@/lib/family/payment-access";
 import { logger } from "@/lib/logger";
+import {
+  FAMILY_AUTOMATIC_COLLECTION_DISABLED,
+  FAMILY_AUTOMATIC_COLLECTION_DISABLED_MESSAGE,
+} from "@/lib/stripe/family-automatic-collection-disabled";
 
 export const dynamic = "force-dynamic";
 
-const BodySchema = z.object({ academyId: z.string().uuid() });
+const BodySchema = z.object({ academyId: z.guid() });
 
 /**
  * POST /api/family/payment-method/setup-intent
  *
- * Crea (o reutiliza) el customer de la familia en la cuenta conectada de la
- * academia y devuelve un SetupIntent client_secret para que Stripe Elements
- * guarde la tarjeta. La captura de la tarjeta ocurre 100% en Stripe (hosted).
+ * Conserva autenticación y scope familiar; no crea Customers ni SetupIntents en
+ * el lanzamiento manual-only.
  */
 export async function POST(request: Request) {
   try {
@@ -39,25 +37,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "VALIDATION_ERROR" }, { status: 400 });
     }
 
-    // Nunca revelar la configuración de pagos a una petición no autorizada.
-    // La autenticación y la validación del payload preceden al feature flag de
-    // Stripe, manteniendo el contrato 401/400 incluso en entornos sin Stripe.
-    const publishableKey = getOptionalEnvVar(
-      "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"
-    );
-    if (!publishableKey) {
-      return NextResponse.json(
-        { error: "STRIPE_NOT_CONFIGURED" },
-        { status: 503 }
-      );
-    }
-
     const profile = await getCurrentProfile(user.id);
     if (!profile) {
       return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 403 });
     }
 
-    const access = await resolveFamilyPaymentAccess({
+    const access = await resolveFamilyPaymentScope({
       userId: user.id,
       email: user.email,
       academyId: body.data.academyId,
@@ -68,32 +53,14 @@ export async function POST(request: Request) {
         { status: 403 }
       );
     }
-    if (!access.stripeAccountId || !access.tenantId || !access.connectReady) {
-      return NextResponse.json(
-        { error: "ACADEMY_PAYMENTS_NOT_READY" },
-        { status: 409 }
-      );
-    }
-
-    const customer = await getOrCreateFamilyCustomer({
-      academyId: body.data.academyId,
-      tenantId: access.tenantId,
-      profileId: profile.id,
-      stripeAccountId: access.stripeAccountId,
-      email: user.email,
-      name: profile.name,
-    });
-
-    const clientSecret = await createFamilySetupIntent(
-      customer.stripeCustomerId,
-      access.stripeAccountId
+    return NextResponse.json(
+      {
+        error: FAMILY_AUTOMATIC_COLLECTION_DISABLED,
+        code: FAMILY_AUTOMATIC_COLLECTION_DISABLED,
+        message: FAMILY_AUTOMATIC_COLLECTION_DISABLED_MESSAGE,
+      },
+      { status: 410, headers: { "Cache-Control": "private, no-store" } }
     );
-
-    return NextResponse.json({
-      clientSecret,
-      publishableKey,
-      stripeAccountId: access.stripeAccountId,
-    });
   } catch (error) {
     logger.error("Error creating family setup intent", error);
     return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });

@@ -16,11 +16,13 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademySportConfig } from "@/lib/sport-config/service";
+import { withTransaction, type DatabaseClient } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const migrationSchema = z.object({
   entityType: z.enum(["athletes", "groups", "classes", "coaches"]),
-  sportConfigId: z.string().uuid(),
-  ids: z.array(z.string().uuid()).optional().default([]),
+  sportConfigId: z.guid(),
+  ids: z.array(z.guid()).optional().default([]),
   applyAll: z.boolean().optional().default(false),
 });
 
@@ -29,8 +31,9 @@ async function getAuthorizedAcademy(params: {
   tenantId: string;
   profileId: string;
   role: string;
+  client?: DatabaseClient;
 }) {
-  const [academy] = await db
+  const [academy] = await (params.client ?? db)
     .select({
       id: academies.id,
       tenantId: academies.tenantId,
@@ -127,132 +130,137 @@ export const POST = withTenant(async (request, context) => {
       return apiError("IDS_REQUIRED", "Selecciona registros o usa applyAll", 400);
     }
 
-    const { error, academy } = await getAuthorizedAcademy({
-      academyId,
-      tenantId: context.tenantId,
-      profileId: context.profile.id,
-      role: context.profile.role,
-    });
-    if (error || !academy) return error;
+    return await withTransaction(async (tx) => {
+      const { error, academy } = await getAuthorizedAcademy({
+        academyId,
+        tenantId: context.tenantId,
+        profileId: context.profile.id,
+        role: context.profile.role,
+        client: tx,
+      });
+      if (error || !academy) return error;
 
-    const verifiedConfig = await verifyAcademySportConfig({
-      academyId,
-      tenantId: academy.tenantId,
-      sportConfigId: body.sportConfigId,
-    });
+      await lockAcademyOperationalWrites(tx, academyId);
+      await assertAcademyOperationalWritable(academy.tenantId, academyId, tx);
 
-    if (!verifiedConfig) {
-      return apiError("SPORT_CONFIG_NOT_FOUND", "La rama/modalidad no está activa en esta academia", 400);
-    }
-
-    const idFilter = body.applyAll ? undefined : body.ids;
-
-    if (body.entityType === "athletes") {
-      const rows = await db
-        .select({ id: athletes.id })
-        .from(athletes)
-        .where(and(
-          eq(athletes.academyId, academyId),
-          eq(athletes.tenantId, academy.tenantId),
-          isNull(athletes.deletedAt),
-          isNull(athletes.primarySportConfigId),
-          ...(idFilter ? [inArray(athletes.id, idFilter)] : [])
-        ))
-        .limit(10000);
-
-      const ids = rows.map((row) => row.id);
-      if (ids.length > 0) {
-        await db
-          .update(athletes)
-          .set({ primarySportConfigId: body.sportConfigId })
-          .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, academy.tenantId), inArray(athletes.id, ids)));
-
-        await db
-          .insert(athleteSportConfigs)
-          .values(ids.map((athleteId) => ({
-            id: randomUUID(),
-            tenantId: academy.tenantId,
-            athleteId,
-            academySportConfigId: body.sportConfigId,
-          })))
-          .onConflictDoNothing();
+      const verifiedConfig = await verifyAcademySportConfig({
+        academyId,
+        tenantId: academy.tenantId,
+        sportConfigId: body.sportConfigId,
+      }, tx);
+      if (!verifiedConfig) {
+        return apiError("SPORT_CONFIG_NOT_FOUND", "La rama/modalidad no está activa en esta academia", 400);
       }
 
-      return apiSuccess({ updated: ids.length });
-    }
+      const idFilter = body.applyAll ? undefined : body.ids;
 
-    if (body.entityType === "groups") {
-      const rows = await db
-        .select({ id: groups.id })
-        .from(groups)
+      if (body.entityType === "athletes") {
+        const rows = await tx
+          .select({ id: athletes.id })
+          .from(athletes)
+          .where(and(
+            eq(athletes.academyId, academyId),
+            eq(athletes.tenantId, academy.tenantId),
+            isNull(athletes.deletedAt),
+            isNull(athletes.primarySportConfigId),
+            ...(idFilter ? [inArray(athletes.id, idFilter)] : [])
+          ))
+          .limit(10000);
+
+        const ids = rows.map((row) => row.id);
+        if (ids.length > 0) {
+          await tx
+            .update(athletes)
+            .set({ primarySportConfigId: body.sportConfigId })
+            .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, academy.tenantId), inArray(athletes.id, ids)));
+
+          await tx
+            .insert(athleteSportConfigs)
+            .values(ids.map((athleteId) => ({
+              id: randomUUID(),
+              tenantId: academy.tenantId,
+              athleteId,
+              academySportConfigId: body.sportConfigId,
+            })))
+            .onConflictDoNothing();
+        }
+
+        return apiSuccess({ updated: ids.length });
+      }
+
+      if (body.entityType === "groups") {
+        const rows = await tx
+          .select({ id: groups.id })
+          .from(groups)
+          .where(and(
+            eq(groups.academyId, academyId),
+            eq(groups.tenantId, academy.tenantId),
+            isNull(groups.deletedAt),
+            isNull(groups.sportConfigId),
+            ...(idFilter ? [inArray(groups.id, idFilter)] : [])
+          ))
+          .limit(10000);
+        const ids = rows.map((row) => row.id);
+        if (ids.length > 0) {
+          await tx
+            .update(groups)
+            .set({ sportConfigId: body.sportConfigId })
+            .where(and(eq(groups.academyId, academyId), eq(groups.tenantId, academy.tenantId), inArray(groups.id, ids)));
+        }
+        return apiSuccess({ updated: ids.length });
+      }
+
+      if (body.entityType === "coaches") {
+        const rows = await tx
+          .select({ id: coaches.id })
+          .from(coaches)
+          .where(and(
+            eq(coaches.academyId, academyId),
+            eq(coaches.tenantId, academy.tenantId),
+            sql`not exists (
+              select 1
+              from coach_sport_configs csc
+              where csc.coach_id = ${coaches.id}
+                and csc.tenant_id = ${academy.tenantId}
+            )`,
+            ...(idFilter ? [inArray(coaches.id, idFilter)] : [])
+          ))
+          .limit(10000);
+        const ids = rows.map((row) => row.id);
+        if (ids.length > 0) {
+          await tx
+            .insert(coachSportConfigs)
+            .values(ids.map((coachId) => ({
+              tenantId: academy.tenantId,
+              coachId,
+              academySportConfigId: body.sportConfigId,
+            })))
+            .onConflictDoNothing();
+        }
+        return apiSuccess({ updated: ids.length });
+      }
+
+      const rows = await tx
+        .select({ id: classes.id })
+        .from(classes)
         .where(and(
-          eq(groups.academyId, academyId),
-          eq(groups.tenantId, academy.tenantId),
-          isNull(groups.deletedAt),
-          isNull(groups.sportConfigId),
-          ...(idFilter ? [inArray(groups.id, idFilter)] : [])
+          eq(classes.academyId, academyId),
+          eq(classes.tenantId, academy.tenantId),
+          isNull(classes.deletedAt),
+          isNull(classes.sportConfigId),
+          ...(idFilter ? [inArray(classes.id, idFilter)] : [])
         ))
         .limit(10000);
       const ids = rows.map((row) => row.id);
       if (ids.length > 0) {
-        await db
-          .update(groups)
+        await tx
+          .update(classes)
           .set({ sportConfigId: body.sportConfigId })
-          .where(and(eq(groups.academyId, academyId), eq(groups.tenantId, academy.tenantId), inArray(groups.id, ids)));
+          .where(and(eq(classes.academyId, academyId), eq(classes.tenantId, academy.tenantId), inArray(classes.id, ids)));
       }
+
       return apiSuccess({ updated: ids.length });
-    }
-
-    if (body.entityType === "coaches") {
-      const rows = await db
-        .select({ id: coaches.id })
-        .from(coaches)
-        .where(and(
-          eq(coaches.academyId, academyId),
-          eq(coaches.tenantId, academy.tenantId),
-          sql`not exists (
-            select 1
-            from coach_sport_configs csc
-            where csc.coach_id = ${coaches.id}
-              and csc.tenant_id = ${academy.tenantId}
-          )`,
-          ...(idFilter ? [inArray(coaches.id, idFilter)] : [])
-        ))
-        .limit(10000);
-      const ids = rows.map((row) => row.id);
-      if (ids.length > 0) {
-        await db
-          .insert(coachSportConfigs)
-          .values(ids.map((coachId) => ({
-            tenantId: academy.tenantId,
-            coachId,
-            academySportConfigId: body.sportConfigId,
-          })))
-          .onConflictDoNothing();
-      }
-      return apiSuccess({ updated: ids.length });
-    }
-
-    const rows = await db
-      .select({ id: classes.id })
-      .from(classes)
-      .where(and(
-        eq(classes.academyId, academyId),
-        eq(classes.tenantId, academy.tenantId),
-        isNull(classes.deletedAt),
-        isNull(classes.sportConfigId),
-        ...(idFilter ? [inArray(classes.id, idFilter)] : [])
-      ))
-      .limit(10000);
-    const ids = rows.map((row) => row.id);
-    if (ids.length > 0) {
-      await db
-        .update(classes)
-        .set({ sportConfigId: body.sportConfigId })
-        .where(and(eq(classes.academyId, academyId), eq(classes.tenantId, academy.tenantId), inArray(classes.id, ids)));
-    }
-
-    return apiSuccess({ updated: ids.length });
+    });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/academies/[academyId]/sport-migration", method: "POST" });
   }

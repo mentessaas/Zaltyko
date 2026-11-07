@@ -21,13 +21,16 @@ import {
   lockCommand,
 } from "@/modules/shared/infrastructure/transactional-records";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
+import { assertOrganizationResourceCapacity } from "@/modules/saas-billing/application/organization-usage";
+import { selectOwnerGroup } from "./owner-group-selection";
+import { hasEligibleGroupLocationRelationship } from "./group-athlete-location-eligibility";
 
 const openMembershipStatuses = ["pending", "active", "paused"] as const;
 const commandKeySchema = z.string().trim().min(8).max(180);
 const createGroupSchema = z.object({
-  organizationId: z.string().uuid(),
-  locationId: z.string().uuid(),
-  programId: z.string().uuid().nullable(),
+  organizationId: z.guid(),
+  locationId: z.guid(),
+  programId: z.guid().nullable(),
   name: z.string().trim().min(2).max(120),
   capacity: z.number().int().positive().max(5000).nullable(),
   idempotencyKey: commandKeySchema,
@@ -120,6 +123,7 @@ export async function createOperationalGroup(command: CreateGroupCommand) {
       organizationId: input.organizationId,
       locationId: input.locationId,
       actor: input.actor,
+      intent: "write",
       allowedRoles: privilegedRoles,
     });
 
@@ -144,6 +148,7 @@ export async function createOperationalGroup(command: CreateGroupCommand) {
       }
     }
 
+    await assertOrganizationResourceCapacity(tx, input.organizationId, "groups");
     const [group] = await tx
       .insert(groups)
       .values({
@@ -299,10 +304,10 @@ export async function getOwnerGroupsPageData(input: {
     ...group,
     memberCount: countByGroup.get(group.id) ?? 0,
   }));
-  const selectedGroup =
-    accessibleGroups.find((group) => group.id === input.groupId) ??
-    accessibleGroups[0] ??
-    null;
+  const selectedGroup = selectOwnerGroup(accessibleGroups, input.groupId);
+  if (input.groupId && !selectedGroup) {
+    throw new OperationalError("NOT_FOUND", "Grupo no encontrado", 404);
+  }
 
   const memberRows = selectedGroup
     ? await db
@@ -356,6 +361,7 @@ export async function getOwnerGroupsPageData(input: {
     locations: locationRows,
     programs: programRows,
     groups: accessibleGroups,
+    selectedLocationId: scope.selectedLocationId,
     selectedGroupId: selectedGroup?.id ?? null,
     memberships: memberRows,
     localTodayByLocation,
@@ -392,7 +398,7 @@ export async function searchGroupAthleteOptions(input: {
 
   const escapedQuery = query.replace(/[\\%_]/g, "\\$&");
   const [group] = await db
-    .select({ id: groups.id })
+    .select({ id: groups.id, locationId: groups.locationId })
     .from(groups)
     .where(
       and(
@@ -425,6 +431,11 @@ export async function searchGroupAthleteOptions(input: {
         eq(athletes.organizationId, scope.organization.id),
         eq(athletes.isActive, true),
         sql`concat_ws(' ', coalesce(nullif(btrim(${people.preferredName}), ''), ${people.givenName}), ${people.familyName}) ilike ${`%${escapedQuery}%`}`,
+        hasEligibleGroupLocationRelationship({
+          organizationId: scope.organization.id,
+          groupId: group.id,
+          locationId: group.locationId,
+        }),
         notExists(
           db
             .select({ id: groupMemberships.id })

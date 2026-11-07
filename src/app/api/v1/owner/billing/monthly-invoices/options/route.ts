@@ -16,8 +16,8 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const querySchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
     servicePeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
   })
   .strict();

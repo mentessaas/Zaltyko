@@ -48,6 +48,21 @@ const config = {
           border: "#CBD5E1",
         },
 
+        // Sistema del panel del club (2026-11-07): lienzo neutro, tinta para la
+        // acción principal, violeta de marca, coral solo para «ahora»/atención y
+        // un color estable por disciplina.
+        z: {
+          canvas: "#F6F5F2",
+          line: "#E8E6E1",
+          ink: "#17161C",
+          soft: "#6B6873",
+          brand: { 50: "#F0EEFF", 100: "#E1DDFF", 500: "#5B4CF0", 600: "#4A3BDB", 700: "#3B2EB5" },
+          chalk: { 50: "#FFF1EC", 500: "#FF5B36", 600: "#C2381A" },
+          art: { 50: "#F0EEFF", 600: "#4A3BDB" },
+          rit: { 50: "#FDECF4", 600: "#C2186B" },
+          comp: { 50: "#E6F6F2", 600: "#0E7C66" },
+        },
+
         // Compatibilidad Shadcn
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",

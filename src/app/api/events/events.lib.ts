@@ -25,14 +25,14 @@ export const EVENT_DISCIPLINES_CONST = EVENT_DISCIPLINES;
 // allowWaitlist) y campos con `.default()` (level/status) se quedan como
 // estaban.
 export const CreateEventSchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   title: z.string().min(1).max(200),
   description: z.string().nullable().optional(),
   category: z.array(z.string()).nullable().optional(),
   isPublic: z.boolean().default(false),
   level: z.enum(EVENT_LEVELS).default("internal"),
   discipline: z.enum(EVENT_DISCIPLINES).nullable().optional(),
-  sportConfigId: z.string().uuid().optional().nullable(),
+  sportConfigId: z.guid().optional().nullable(),
   eventType: z.enum(["competitions", "courses", "camps", "workshops", "clinics", "evaluations", "other"]).nullable().optional(),
   competitionTypeCode: z.string().trim().min(1).max(80).optional().nullable(),
   startDate: z.string().min(1, "La fecha de inicio es requerida"),
@@ -88,12 +88,12 @@ export const CreateEventSchema = z.object({
 });
 
 export const QuerySchema = z.object({
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
   country: z.string().optional(),
   province: z.string().optional(),
   city: z.string().optional(),
   discipline: z.enum(EVENT_DISCIPLINES).optional(),
-  sportConfigId: z.string().uuid().optional(),
+  sportConfigId: z.guid().optional(),
   level: z.enum(EVENT_LEVELS).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),

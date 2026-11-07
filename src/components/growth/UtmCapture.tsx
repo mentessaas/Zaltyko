@@ -1,27 +1,58 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 import {
-  UTM_STORAGE_KEY,
-  captureFirstTouchUtm,
-  pickUtmFromQuery,
-} from "@/lib/growth/utm";
+  subscribeConsent,
+  type ConsentSnapshot,
+} from "@/lib/consent/state";
+import { getSafePublicTrackingPath } from "@/lib/optional-tracking-policy";
+import {
+  clearFirstTouchUtm,
+  getBrowserAttributionStorage,
+  isUtmAttributionEnabled,
+  syncConsentedFirstTouchUtm,
+} from "@/lib/growth/consented-attribution";
 
 /**
- * Captura UTMs (first-touch) en cada page view. El componente no renderiza
- * nada: su único efecto es persistir el primer set de UTMs observado en
- * `sessionStorage` para que `/onboarding/owner` lo lea en el signup.
- *
- * La regla first-touch vive en `captureFirstTouchUtm`: si ya hay UTMs
- * almacenados, los nuevos se ignoran salvo que la key esté vacía.
+ * Captures first-touch UTMs only on an allowlisted public route, with the
+ * attribution flag enabled and current analytics consent granted. Revocation
+ * removes only the attribution key; unrelated onboarding drafts are untouched.
  */
 export function UtmCapture() {
+  const pathname = usePathname() ?? "";
+
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const params = pickUtmFromQuery(new URLSearchParams(window.location.search));
-    captureFirstTouchUtm(params, window.sessionStorage, UTM_STORAGE_KEY);
-  }, []);
+
+    const sync = (consent: ConsentSnapshot) => {
+      const storage = getBrowserAttributionStorage();
+      const enabled = isUtmAttributionEnabled();
+      if (!enabled || consent.value !== "granted") {
+        clearFirstTouchUtm(storage);
+        return;
+      }
+
+      const actualPath = window.location.pathname;
+      if (
+        getSafePublicTrackingPath(pathname) !==
+        getSafePublicTrackingPath(actualPath)
+      ) {
+        return;
+      }
+
+      syncConsentedFirstTouchUtm({
+        enabled,
+        consent: consent.value,
+        pathname: actualPath,
+        search: window.location.search,
+        storage,
+      });
+    };
+
+    return subscribeConsent(sync);
+  }, [pathname]);
 
   return null;
 }

@@ -22,6 +22,8 @@ import {
 } from "@/db/schema/direct-messages";
 import { apiCreated, apiError } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 import { logger } from "@/lib/logger";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { sendPushToUser } from "@/lib/notifications/push-service";
@@ -31,11 +33,11 @@ import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 const GroupAlertSchema = z.object({
-  sessionId: z.string().uuid(),
+  sessionId: z.guid(),
   content: z.string().trim().min(1).max(2000),
 }).strict();
 
-const AcademyQuerySchema = z.object({ academyId: z.string().uuid() });
+const AcademyQuerySchema = z.object({ academyId: z.guid() });
 
 const groupAlertHandler = withTenant(async (request, context) => {
   const query = AcademyQuerySchema.safeParse({
@@ -212,7 +214,9 @@ const groupAlertHandler = withTenant(async (request, context) => {
     candidateProfiles.map((item) => [item.id, item.userId])
   );
 
-  const result = await db.transaction(async (tx) => {
+  const result = await withTransaction(async (tx) => {
+    await lockAcademyOperationalWrites(tx, academyId);
+    await assertAcademyOperationalWritable(tenantId, academyId, tx);
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${session.id}, 0))`
     );

@@ -7,7 +7,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 export const dynamic = 'force-dynamic';
 
 const QuerySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   resource: z.enum(["athletes", "classes", "groups", "academies"]),
 });
 

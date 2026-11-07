@@ -1,26 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * Cobertura del handler HTTP `POST /api/charges/[chargeId]/collect`.
- *
- * El test de integración `tests/lib/stripe-charge-collection.integration.test.ts`
- * ya cubre el servicio (`collectCharge`) cuando el banco exige SCA y devuelve
- * `{ ok: false, status: "requires_action", paymentIntentId, clientSecret }`.
- * Aquí se congela el contrato HTTP que traduce ese resultado en un 409
- * `REQUIRES_ACTION` para el dashboard del owner (`StudentChargesTab.handleCollectCard`)
- * y el portal familia (`MyPaymentsWidget.payCharge`).
- *
- * ZAL-10 cerró el gap que ZAL-9 documentó: el body 409 ahora incluye `details`
- * con `clientSecret`, `stripeAccountId`, `publishableKey` y `paymentIntentId`,
- * de forma que ambos clientes pueden lanzar `stripe.confirmCardPayment` y
- * completar el 3DS sin salir del producto. El `client_secret` tiene scope de un
- * solo PaymentIntent sobre la cuenta conectada — mismo modelo ya usado en
- * `/api/family/payment-method/setup-intent` para el alta de tarjeta.
- *
- * La ruta del portal familia (`/api/family/charges/[chargeId]/pay`) migró de
- * `NextResponse.json` crudo a `apiError`/`apiSuccess`. El literal `error` se
- * conserva porque `MyPaymentsWidget` lo compara de forma exacta.
- */
+/** HTTP contract for card collection routes in the manual-only launch mode. */
 
 const mocks = vi.hoisted(() => ({
   collectChargeMock: vi.fn(),
@@ -83,9 +63,6 @@ vi.mock("@/lib/stripe/charge-collection-service", () => ({
   collectCharge: (...args: any[]) => mocks.collectChargeMock(...args),
 }));
 
-// La clave publicable de Stripe viaja en el body 409 para que el cliente pueda
-// inicializar Stripe.js sobre la cuenta conectada (mismo patrón que el alta de
-// tarjeta en `/api/family/payment-method/setup-intent`).
 vi.mock("@/lib/env", () => ({
   getOptionalEnvVar: (name: string) =>
     name === "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" ? "pk_test_123" : undefined,
@@ -155,144 +132,18 @@ beforeEach(async () => {
   }
 });
 
-describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
-  it("devuelve 409 REQUIRES_ACTION con el clientSecret del PaymentIntent (recuperacion SCA)", async () => {
-    mocks.collectChargeMock.mockResolvedValue({
-      ok: false,
-      status: "requires_action",
-      paymentIntentId: "pi_sca_42",
-      clientSecret: "pi_sca_42_secret_abc",
-      stripeAccountId: "acct_academy_1",
-      paymentMethodId: "pm_family_1",
-    });
-
-    const request = new Request(
-      `http://localhost/api/charges/${CHARGE_ID}/collect`,
-      { method: "POST" }
-    );
-
-    const response = await POST(request, {
-      params: Promise.resolve({ chargeId: CHARGE_ID }),
-    });
-
-    // === STATUS ===
-    expect(response.status).toBe(409);
-    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
-
-    const body = await response.json();
-
-    // === CODE / ERROR / MESSAGE ===
-    expect(body).toMatchObject({
-      ok: false,
-      error: "REQUIRES_ACTION",
-      code: "REQUIRES_ACTION",
-      message: expect.stringContaining("autenticación"),
-    });
-
-    // === ZAL-10: el 409 ya es accionable. `details` lleva todo lo que el cliente
-    // necesita para lanzar `stripe.confirmCardPayment` sobre la cuenta conectada
-    // sin sacar al usuario del producto. Incluye el `paymentMethodId` porque
-    // Stripe limpia el PM del PI cuando off-session lanza
-    // `authentication_required` y el cliente debe re-attacharlo explícitamente.
-    expect(body.details).toEqual({
-      paymentIntentId: "pi_sca_42",
-      clientSecret: "pi_sca_42_secret_abc",
-      stripeAccountId: "acct_academy_1",
-      publishableKey: "pk_test_123",
-      paymentMethodId: "pm_family_1",
-    });
-
-    // === El servicio subyacente recibió el id del cargo.
-    expect(mocks.collectChargeMock).toHaveBeenCalledTimes(1);
-    expect(mocks.collectChargeMock).toHaveBeenCalledWith(CHARGE_ID);
-  });
-
-  it("omite `details` si Stripe no devolvió client_secret (no se puede recuperar)", async () => {
-    mocks.collectChargeMock.mockResolvedValue({
-      ok: false,
-      status: "requires_action",
-      paymentIntentId: "pi_sca_43",
-      clientSecret: null,
-      stripeAccountId: "acct_academy_1",
-      paymentMethodId: "pm_family_1",
-    });
-
+describe("POST /api/charges/[chargeId]/collect — política manual-only", () => {
+  it("rechaza el cobro después de validar el cargo y su academia", async () => {
     const response = await POST(
       new Request(`http://localhost/api/charges/${CHARGE_ID}/collect`, { method: "POST" }),
       { params: Promise.resolve({ chargeId: CHARGE_ID }) }
     );
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(410);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     const body = await response.json();
-    expect(body.error).toBe("REQUIRES_ACTION");
-    expect(body).not.toHaveProperty("details");
-  });
-
-  it("devuelve 200 con {status: 'paid', paymentIntentId} cuando el cobro succeeded", async () => {
-    mocks.collectChargeMock.mockResolvedValue({
-      ok: true,
-      status: "paid",
-      paymentIntentId: "pi_ok_1",
-    });
-
-    const response = await POST(
-      new Request(`http://localhost/api/charges/${CHARGE_ID}/collect`, { method: "POST" }),
-      { params: Promise.resolve({ chargeId: CHARGE_ID }) }
-    );
-
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body).toMatchObject({
-      ok: true,
-      data: { status: "paid", paymentIntentId: "pi_ok_1" },
-    });
-  });
-
-  it("devuelve 409 COLLECTION_SKIPPED cuando el servicio omite el cargo", async () => {
-    mocks.collectChargeMock.mockResolvedValue({
-      ok: false,
-      status: "skipped",
-      reason: "NOT_COLLECTIBLE:paid",
-    });
-
-    const response = await POST(
-      new Request(`http://localhost/api/charges/${CHARGE_ID}/collect`, { method: "POST" }),
-      { params: Promise.resolve({ chargeId: CHARGE_ID }) }
-    );
-
-    expect(response.status).toBe(409);
-    expect(response.headers.get("Cache-Control")).toBeNull();
-    const body = await response.json();
-    expect(body).toMatchObject({
-      ok: false,
-      error: "COLLECTION_SKIPPED",
-      code: "COLLECTION_SKIPPED",
-      message: "NOT_COLLECTIBLE:paid",
-    });
-  });
-
-  it("devuelve 402 COLLECTION_FAILED cuando la tarjeta es rechazada", async () => {
-    mocks.collectChargeMock.mockResolvedValue({
-      ok: false,
-      status: "failed",
-      reason: "card_declined",
-      paymentIntentId: "pi_3",
-    });
-
-    const response = await POST(
-      new Request(`http://localhost/api/charges/${CHARGE_ID}/collect`, { method: "POST" }),
-      { params: Promise.resolve({ chargeId: CHARGE_ID }) }
-    );
-
-    expect(response.status).toBe(402);
-    const body = await response.json();
-    expect(body).toMatchObject({
-      ok: false,
-      error: "COLLECTION_FAILED",
-      code: "COLLECTION_FAILED",
-      message: "card_declined",
-    });
+    expect(body).toMatchObject({ ok: false, error: "FAMILY_AUTOMATIC_COLLECTION_DISABLED" });
+    expect(mocks.collectChargeMock).not.toHaveBeenCalled();
   });
 
   it("devuelve 404 CHARGE_NOT_FOUND si el cargo no existe", async () => {
@@ -352,78 +203,42 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
   });
 });
 
-describe("POST /api/family/charges/[chargeId]/pay — contrato SCA del portal familia", () => {
-  it("devuelve 409 REQUIRES_ACTION con clientSecret y formato apiError", async () => {
-    mocks.collectChargeMock.mockResolvedValue({
-      ok: false,
-      status: "requires_action",
-      paymentIntentId: "pi_sca_99",
-      clientSecret: "pi_sca_99_secret_xyz",
-      stripeAccountId: "acct_academy_1",
-      paymentMethodId: "pm_family_99",
-    });
-
+describe("POST /api/family/charges/[chargeId]/pay — política manual-only", () => {
+  it("rechaza el cobro tras validar la relación familiar", async () => {
     const response = await FAMILY_POST(
       new Request(`http://localhost/api/family/charges/${CHARGE_ID}/pay`, { method: "POST" })
     );
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(410);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     const body = await response.json();
-
-    // `MyPaymentsWidget.payCharge` sigue comparando `json.error === "REQUIRES_ACTION"`
-    // literalmente. `apiError` mantiene ese literal en `error` además de `code`.
     expect(body).toMatchObject({
       ok: false,
-      error: "REQUIRES_ACTION",
-      code: "REQUIRES_ACTION",
+      error: "FAMILY_AUTOMATIC_COLLECTION_DISABLED",
     });
-
-    // ZAL-10: la familia ya puede completar el 3DS desde el portal.
-    // `paymentMethodId` viaja para que `confirmCardPayment` lo re-attach.
-    expect(body.details).toEqual({
-      paymentIntentId: "pi_sca_99",
-      clientSecret: "pi_sca_99_secret_xyz",
-      stripeAccountId: "acct_academy_1",
-      publishableKey: "pk_test_123",
-      paymentMethodId: "pm_family_99",
-    });
+    expect(mocks.collectChargeMock).not.toHaveBeenCalled();
   });
 
-  it("preserva los literales de error que el widget compara (NO_SAVED_CARD)", async () => {
-    mocks.collectChargeMock.mockResolvedValue({
-      ok: false,
-      status: "skipped",
-      reason: "NO_SAVED_CARD",
-    });
-
+  it("no elude el control manual-only aunque no exista tarjeta guardada", async () => {
     const response = await FAMILY_POST(
       new Request(`http://localhost/api/family/charges/${CHARGE_ID}/pay`, { method: "POST" })
     );
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(410);
     await expect(response.json()).resolves.toMatchObject({
       ok: false,
-      error: "NO_SAVED_CARD",
+      error: "FAMILY_AUTOMATIC_COLLECTION_DISABLED",
     });
+    expect(mocks.collectChargeMock).not.toHaveBeenCalled();
   });
 
-  it("devuelve 200 apiSuccess cuando el cobro succeeded sin SCA", async () => {
-    mocks.collectChargeMock.mockResolvedValue({
-      ok: true,
-      status: "paid",
-      paymentIntentId: "pi_ok_9",
-    });
-
+  it("no ejecuta cobros con tarjeta aunque la tarjeta se considere válida", async () => {
     const response = await FAMILY_POST(
       new Request(`http://localhost/api/family/charges/${CHARGE_ID}/pay`, { method: "POST" })
     );
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      ok: true,
-      data: { status: "paid" },
-    });
+    expect(response.status).toBe(410);
+    expect(mocks.collectChargeMock).not.toHaveBeenCalled();
   });
 
   it("no llama a collectCharge si el cargo no pertenece a un hijo del usuario", async () => {

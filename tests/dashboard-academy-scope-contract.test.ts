@@ -8,7 +8,7 @@ const popularClassesRoute = readFileSync("src/app/api/dashboard/[academyId]/popu
 
 describe("dashboard academy scoping", () => {
   it("rejects malformed academy ids before querying", () => {
-    expect(dashboardRoute).toContain("z.string().uuid().safeParse(academyId)");
+    expect(dashboardRoute).toContain("z.guid().safeParse(academyId)");
     expect(dashboardRoute).toContain("verifyAcademyAccessForProfile");
   });
 

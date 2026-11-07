@@ -11,12 +11,12 @@ import { calculateDiagnosticResult } from "@/lib/reports/leak-profitability";
 export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 const createSchema = z.object({
-  academyId: z.string().uuid(),
-  answers: z.record(z.union([z.boolean(), z.number(), z.string()])),
+  academyId: z.guid(),
+  answers: z.record(z.string(), z.union([z.boolean(), z.number(), z.string()])),
 });
 
 export const GET = withTenant(async (request, context) => {

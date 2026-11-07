@@ -33,6 +33,8 @@ export interface SendEmailOptions {
   dedupeKey?: string;
 }
 
+/** True means explicit API acceptance. False also covers gated, duplicate,
+ * simulated or unconfirmed attempts; real transport errors still reject. */
 export async function sendEmailWithLogging(options: SendEmailOptions): Promise<boolean> {
   const {
     to,
@@ -134,7 +136,7 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<b
   if (!logEntry) return false;
 
   try {
-    await sendEmail({
+    const delivery: unknown = await sendEmail({
       to,
       subject,
       html,
@@ -142,7 +144,21 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<b
       replyTo: replyTo ?? process.env.BREVO_REPLY_TO ?? config.brevo.supportEmail,
     });
 
-    // Actualizar log como enviado
+    const acceptance = delivery !== null && typeof delivery === "object" && !Array.isArray(delivery)
+      ? delivery as Record<string, unknown> : null;
+    if (!acceptance || acceptance.simulated !== false ||
+      typeof acceptance.messageId !== "string" || !acceptance.messageId.trim()) {
+      // A simulation or an incomplete/malformed provider result is not acceptance.
+      // Keep the durable attempt and never persist raw provider payloads here.
+      await db.update(emailLogs).set({
+        status: "failed",
+        errorMessage: acceptance?.simulated === true
+          ? "EMAIL_DELIVERY_SIMULATED" : "EMAIL_ACCEPTANCE_UNCONFIRMED",
+      }).where(eq(emailLogs.id, logEntry.id));
+      return false;
+    }
+
+    // Sent means explicit API acceptance, not recipient Inbox delivery.
     await db
       .update(emailLogs)
       .set({

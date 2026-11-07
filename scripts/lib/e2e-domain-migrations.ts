@@ -29,3 +29,35 @@ export const E2E_LOCAL_OWNER_SIGNUP_MIGRATIONS = [
 export const E2E_LOCAL_OWNER_MONTHLY_TARIFF_MIGRATIONS = [
   "20261014001209_monthly_athlete_tariff_coverage_and_invoice_line_enrollments.sql",
 ] as const;
+
+// The local synthetic Owner browser runner starts from this current-state
+// fixture because the historical migration list does not yet reconstruct the
+// SaaS trial schema. This is explicitly not recovered migration history and is
+// never used by the guarded sandbox migration runner or production manifest.
+export const E2E_LOCAL_SCHEMA_SNAPSHOT = {
+  filename: "20261024172153_sandbox_schema_snapshot_baseline.sql",
+  sha256: "fd1bf2597b0dfd40dc6db824fa24773461f2776fa2ed7c994649be534c6a4b36",
+} as const;
+
+// These reviewed, post-snapshot files are the only overlays needed by the
+// disposable full Supabase stack used by the synthetic Owner E2E.
+export const E2E_LOCAL_SCHEMA_POST_SNAPSHOT_MIGRATIONS = [
+  {
+    filename: "20261024193934_rls_guard_missing_public_tables.sql",
+    sha256: "005d16a4b2f87727c2c47b3affe5ccd5433323fdcf02404135cbf5d11be07959",
+  },
+  {
+    filename: "20261024223700_seed_owner_bootstrap_sport_profiles.sql",
+    sha256: "d8c2a0b81a0d7f75f1f94ebd0f131ab85775a6e7904e2606a980570cbc02c225",
+  },
+] as const;
+
+// A policy row is required to exercise the fail-closed Owner signup flow. This
+// synthetic policy seed is deliberately outside supabase/migrations so it can
+// only be applied by the disposable local browser runner.
+export const E2E_LOCAL_SCHEMA_TEST_SEEDS = [
+  {
+    filename: "owner-signup-consent-policy.sql",
+    sha256: "60ce4bb87e3945e3051d96dbc0890b92be427ab9271cdd73d54c5ac4f4696947",
+  },
+] as const;

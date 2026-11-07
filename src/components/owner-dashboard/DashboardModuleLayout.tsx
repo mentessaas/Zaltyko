@@ -86,8 +86,8 @@ function SortableModule({
       }}
       className={`min-w-0 ${isDragging ? "z-10 opacity-80" : ""}`}
     >
-      <div className="mb-3 flex min-h-11 items-center justify-between gap-3 border-b border-slate-300">
-        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-600">
+      <div className="mb-3 flex min-h-11 items-center justify-between gap-3 border-b border-z-line">
+        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-z-soft">
           {title}
         </h2>
         <div className="flex items-center gap-1" role="group" aria-label={`Ordenar ${title}`}>
@@ -99,7 +99,7 @@ function SortableModule({
             disabled={saving}
             aria-label={`Arrastrar ${title} para cambiar su posición`}
             title="Arrastra para cambiar de posición"
-            className="touch-target inline-flex items-center justify-center text-slate-600 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:opacity-50"
+            className="touch-target inline-flex items-center justify-center text-z-soft hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:opacity-50"
           >
             <GripVertical className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -108,7 +108,7 @@ function SortableModule({
             disabled={saving || index === 0}
             onClick={() => onMove(-1)}
             aria-label={`Subir ${title}`}
-            className="touch-target inline-flex items-center justify-center text-slate-600 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:opacity-40"
+            className="touch-target inline-flex items-center justify-center text-z-soft hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:opacity-40"
           >
             <ArrowUp className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -117,7 +117,7 @@ function SortableModule({
             disabled={saving || index === count - 1}
             onClick={() => onMove(1)}
             aria-label={`Bajar ${title}`}
-            className="touch-target inline-flex items-center justify-center text-slate-600 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 disabled:opacity-40"
+            className="touch-target inline-flex items-center justify-center text-z-soft hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:opacity-40"
           >
             <ArrowDown className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -235,14 +235,14 @@ export function DashboardModuleLayout({
   return (
     <section aria-label="Módulos del Owner Dashboard" className="mt-8">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-z-soft">
           Organiza el panel a tu manera. Tu orden no cambia permisos ni datos.
         </p>
         <button
           type="button"
           disabled={saving || order.every((id, index) => id === moduleIds[index])}
           onClick={() => void saveOrder(moduleIds)}
-          className="touch-target inline-flex items-center gap-2 text-xs font-bold text-teal-800 underline underline-offset-4 disabled:text-slate-500"
+          className="touch-target inline-flex items-center gap-2 text-xs font-bold text-z-brand-600 underline underline-offset-4 disabled:text-z-soft"
         >
           <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
           Restablecer orden
