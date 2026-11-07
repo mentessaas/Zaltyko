@@ -569,7 +569,7 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F1F3EF] text-z-ink">
+    <div className="min-h-screen bg-z-canvas text-z-ink">
       <main
         id="contenido"
         className="mx-auto max-w-[92rem] px-5 pb-24 pt-7 lg:px-10 lg:pb-16 lg:pt-10"

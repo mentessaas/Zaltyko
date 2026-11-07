@@ -1,5 +1,6 @@
 "use client";
 
+import { ownerUi } from "./owner-ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -1262,7 +1263,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-[#F1F3EF] px-4 py-6 text-z-ink sm:px-6 lg:px-10">
+    <main className={ownerUi.page}>
       <div className="mx-auto max-w-[92rem]">
         <Link
           href={ownerDashboardScopeHref(
@@ -1282,7 +1283,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
         </Link>
         <header className="mt-5 flex flex-col gap-4 border-b border-z-line pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+            <h1 className={ownerUi.pageTitle}>
               Grupos y equipos
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-z-soft">

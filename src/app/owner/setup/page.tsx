@@ -39,7 +39,7 @@ export default async function OwnerSetupPage() {
         organizationId={null}
         locationId={null}
       >
-        <main className="grid min-h-screen place-items-center bg-[#F1F3EF] px-5 py-12 text-slate-950">
+        <main className="grid min-h-screen place-items-center bg-z-canvas px-5 py-12 text-z-ink">
           <section className="w-full max-w-2xl border-t-4 border-amber-700 bg-white p-7 shadow-soft sm:p-10">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-800">
               Cuenta vinculada
@@ -47,7 +47,7 @@ export default async function OwnerSetupPage() {
             <h1 className="mt-3 text-4xl tracking-[-0.04em]">
               No crearemos otra organización
             </h1>
-            <p className="mt-4 max-w-xl leading-7 text-slate-600" role="alert">
+            <p className="mt-4 max-w-xl leading-7 text-z-soft" role="alert">
               Esta cuenta ya tiene una relación con una academia anterior. Para
               conservar sus datos, solicita la vinculación o revisión de esa
               academia antes de continuar.
@@ -94,13 +94,13 @@ export default async function OwnerSetupPage() {
       organizationId={null}
       locationId={null}
     >
-      <main className="grid min-h-screen place-items-center bg-[#F1F3EF] px-5 py-12 text-slate-950">
-        <section className="w-full max-w-2xl border-t-4 border-teal-800 bg-white p-7 shadow-soft sm:p-10">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
+      <main className="grid min-h-screen place-items-center bg-z-canvas px-5 py-12 text-z-ink">
+        <section className="w-full max-w-2xl rounded-[16px] border border-z-line bg-white p-7 sm:p-10">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
             Tu academia
           </p>
           <h1 className="mt-3 text-4xl tracking-[-0.04em]">Crea tu academia</h1>
-          <p className="mt-4 max-w-xl leading-7 text-slate-600">
+          <p className="mt-4 max-w-xl leading-7 text-z-soft">
             Indica el nombre, la sede y las actividades. Después podrás añadir
             gimnastas, clases y cuotas.
           </p>

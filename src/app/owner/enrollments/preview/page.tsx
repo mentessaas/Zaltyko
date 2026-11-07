@@ -169,14 +169,14 @@ export default async function OwnerEnrollmentsPreviewPage({
         <Link
           href="/owner/enrollments/preview"
           aria-current={previewCreateForm ? undefined : "page"}
-          className="touch-target inline-flex min-h-11 items-center px-3 text-sm font-semibold text-teal-900 underline underline-offset-4"
+          className="touch-target inline-flex min-h-11 items-center px-3 text-sm font-semibold text-z-brand-600 underline underline-offset-4"
         >
           Lista de inscripciones
         </Link>
         <Link
           href="/owner/enrollments/preview?view=create"
           aria-current={previewCreateForm ? "page" : undefined}
-          className="touch-target inline-flex min-h-11 items-center px-3 text-sm font-semibold text-teal-900 underline underline-offset-4"
+          className="touch-target inline-flex min-h-11 items-center px-3 text-sm font-semibold text-z-brand-600 underline underline-offset-4"
         >
           Formulario de ejemplo
         </Link>

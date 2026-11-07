@@ -1,5 +1,6 @@
 "use client";
 
+import { ownerUi } from "./owner-ui";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePendingCommandExitWarning } from "./use-pending-command-exit-warning";
@@ -684,13 +685,13 @@ export function OwnerSaasBillingManager({
     currentLoadState.status === "error" ? currentLoadState.message : "";
 
   return (
-    <main className="min-h-screen bg-[#F1F3EF] px-5 py-8 text-z-ink sm:py-12">
+    <main className={ownerUi.page}>
       <div className="mx-auto max-w-5xl">
         <header className="border-t-4 border-z-ink bg-z-canvas p-6 sm:p-9">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
             Gestión del plan
           </p>
-          <h1 className="mt-3 font-display text-3xl font-bold tracking-[-0.035em] sm:text-4xl">
+          <h1 className={ownerUi.pageTitle}>
             Plan y facturación de Zaltyko
           </h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-z-soft">

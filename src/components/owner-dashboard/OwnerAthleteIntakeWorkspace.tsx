@@ -1,5 +1,6 @@
 "use client";
 
+import { ownerUi } from "./owner-ui";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { decodeOwnerUsage } from "@/components/owner-dashboard/owner-plan-usage-response";
@@ -668,11 +669,11 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
 
   const newWritesDisabled = !canStartCommand;
   return (
-    <main className="min-h-screen bg-[#F1F3EF] px-5 py-6 text-z-ink sm:py-10">
+    <main className={ownerUi.page}>
       <div className="mx-auto grid max-w-5xl gap-6">
         <header>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-700">{organizationName}</p>
-          <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">Gimnastas</h1>
+          <h1 className={ownerUi.pageTitle}>Gimnastas</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-z-soft">
             Bandeja organizativa de Owner/Admin para fichas activas que todavía no tienen asignación operativa. Las sedes y grupos se cargan desde la academia; no se aceptan identificadores escritos a mano.
           </p>

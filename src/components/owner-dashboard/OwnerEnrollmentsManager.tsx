@@ -1,5 +1,6 @@
 "use client";
 
+import { ownerUi } from "./owner-ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -545,7 +546,7 @@ export function OwnerEnrollmentsManager({
   const pausedTotal = bundle.totalsByStatus.paused ?? 0;
 
   return (
-    <main className="min-h-screen bg-z-canvas px-4 py-8 text-z-ink sm:px-6 lg:px-10">
+    <main className={ownerUi.page}>
       <div className="mx-auto max-w-7xl">
         {previewMode ? (
           <p className="text-sm font-semibold text-z-brand-700">
@@ -566,7 +567,7 @@ export function OwnerEnrollmentsManager({
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-z-brand-700">
               Operaciones de la academia
             </p>
-            <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+            <h1 className={ownerUi.pageTitle}>
               Inscripciones
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-z-soft">

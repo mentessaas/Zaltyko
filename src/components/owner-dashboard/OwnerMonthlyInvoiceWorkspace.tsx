@@ -1,5 +1,6 @@
 "use client";
 
+import { ownerUi } from "./owner-ui";
 import { useState } from "react";
 
 export type MonthlyInvoiceOptionsResponse = {
@@ -257,13 +258,13 @@ export function OwnerMonthlyInvoiceWorkspace({
   }
 
   return (
-    <main className="min-h-screen bg-[#F1F3EF] px-5 py-6 text-z-ink sm:py-10">
+    <main className={ownerUi.page}>
       <div className="mx-auto grid max-w-4xl gap-8">
         <header>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-700">
             Facturación mensual
           </p>
-          <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+          <h1 className={ownerUi.pageTitle}>
             Emitir cuota mensual
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-z-soft sm:text-base">

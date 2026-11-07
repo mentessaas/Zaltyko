@@ -670,7 +670,7 @@ export function OwnerSetupForm({
             </select>
           </label>
         </div>
-        <div className="flex gap-3 border-l-4 border-z-ink bg-[#F1F3EF] p-4 text-sm leading-6 text-z-soft">
+        <div className="flex gap-3 border-l-4 border-z-ink bg-z-canvas p-4 text-sm leading-6 text-z-soft">
           <ShieldCheck
             className="mt-0.5 h-5 w-5 shrink-0 text-z-brand-600"
             aria-hidden="true"
