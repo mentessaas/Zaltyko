@@ -26,12 +26,12 @@ export const ownerUi = {
   label: "text-sm font-semibold text-z-ink",
   smallLabel: "text-xs font-semibold text-z-soft",
   help: "text-xs leading-5 text-z-soft",
-  field: `min-h-11 min-w-0 w-full rounded-[10px] border border-z-line bg-white px-3 text-base text-z-ink transition-colors hover:border-z-soft/40 sm:text-sm ${FOCUS_RING} disabled:cursor-not-allowed disabled:bg-z-canvas disabled:opacity-70`,
+  field: `min-h-12 min-w-0 w-full rounded-[10px] border border-z-line bg-white px-3 text-base text-z-ink transition-colors hover:border-z-soft/40 sm:text-sm ${FOCUS_RING} disabled:cursor-not-allowed disabled:bg-z-canvas disabled:opacity-70`,
 
-  primaryButton: `touch-target inline-flex min-h-11 max-w-full items-center justify-center gap-2 rounded-[10px] bg-z-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-black ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
-  brandButton: `touch-target inline-flex min-h-11 max-w-full items-center justify-center gap-2 rounded-[10px] bg-z-brand-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-z-brand-600 ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
-  secondaryButton: `touch-target inline-flex min-h-11 max-w-full items-center justify-center gap-2 rounded-[10px] border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink transition-colors hover:bg-z-canvas ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
-  iconButton: `touch-target inline-flex min-h-11 min-w-11 items-center justify-center rounded-[10px] border border-z-line bg-white text-z-soft transition-colors hover:border-z-chalk-500/40 hover:bg-z-chalk-50 hover:text-z-chalk-600 ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
+  primaryButton: `touch-target inline-flex min-h-12 max-w-full items-center justify-center gap-2 rounded-[10px] bg-z-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-black ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
+  brandButton: `touch-target inline-flex min-h-12 max-w-full items-center justify-center gap-2 rounded-[10px] bg-z-brand-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-z-brand-600 ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
+  secondaryButton: `touch-target inline-flex min-h-12 max-w-full items-center justify-center gap-2 rounded-[10px] border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink transition-colors hover:bg-z-canvas ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
+  iconButton: `touch-target inline-flex min-h-12 min-w-12 items-center justify-center rounded-[10px] border border-z-line bg-white text-z-soft transition-colors hover:border-z-chalk-500/40 hover:bg-z-chalk-50 hover:text-z-chalk-600 ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
   textLink: `rounded-md text-sm font-semibold text-z-brand-600 hover:text-z-brand-700 ${FOCUS_RING}`,
 
   noticeInfo: "rounded-[12px] border border-z-brand-100 bg-z-brand-50 p-4 text-sm leading-6 text-z-brand-700",

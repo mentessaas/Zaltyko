@@ -112,7 +112,7 @@ export function OwnerTodaySessionsPanel({
                 ) : recorded ? (
                   <Link
                     href={attendanceHref(organizationId, session.locationId, session.id)}
-                    className={`${ownerUi.chipSuccess} min-h-11 gap-1`}
+                    className={`${ownerUi.chipSuccess} min-h-12 gap-1 px-3.5`}
                     aria-label={`${session.recordedAttendance}/${session.expectedAthletes}, lista pasada en ${session.className}. Revisar`}
                   >
                     <Check aria-hidden="true" className="h-3.5 w-3.5" />
