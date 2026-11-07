@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { OwnerOperationalPolicy } from "./OwnerOperationalPolicy";
 import { OwnerSignOutButton } from "./OwnerSignOutButton";
+import { OwnerSidebarPlanCard } from "./OwnerSidebarPlanCard";
 import type { OwnerWorkspaceCapabilities } from "./owner-workspace-capabilities";
 
 type NavigationItem = {
@@ -284,6 +285,12 @@ export function OwnerWorkspaceNavigation({
               </details>
             ) : null}
           </nav>
+          {organizationId && !preview ? (
+            <OwnerSidebarPlanCard
+              organizationId={organizationId}
+              subscriptionHref={capabilities?.canManageSubscription ? `/owner/subscription${organizationQuery}` : null}
+            />
+          ) : null}
         </aside>
       ) : null}
       <header className="relative z-20 border-b border-z-line bg-white xl:sticky xl:top-0 xl:bg-white/90 xl:backdrop-blur xl:peer-data-[owner-sidebar]:pl-[248px]">
