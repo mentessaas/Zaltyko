@@ -14,7 +14,9 @@ import {
 
 import type { OwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import type { OwnerOperationalSummary } from "@/modules/owner-dashboard/application/operational-summary";
+import type { OwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
 import { OwnerOperationalSummaryPanel } from "./OwnerOperationalSummaryPanel";
+import { OwnerTodaySessionsPanel } from "./OwnerTodaySessionsPanel";
 import { ownerWorkspaceCapabilitiesFor } from "./owner-workspace-capabilities";
 import { ownerUi } from "./owner-ui";
 
@@ -32,9 +34,11 @@ const QUICK_LINK_ICONS: Record<string, LucideIcon> = {
 export function OwnerEssentialDashboard({
   scope,
   operationalSummary,
+  todaySessions,
 }: {
   scope: OwnerScope;
   operationalSummary: OwnerOperationalSummary | null;
+  todaySessions?: OwnerTodaySessions | null;
 }) {
   const params = new URLSearchParams({ organizationId: scope.organization.id });
   if (scope.selectedLocationId) params.set("locationId", scope.selectedLocationId);
@@ -79,6 +83,13 @@ export function OwnerEssentialDashboard({
         </form>
       </header>
       <OwnerOperationalSummaryPanel summary={operationalSummary} />
+      {todaySessions !== undefined ? (
+        <OwnerTodaySessionsPanel
+          organizationId={scope.organization.id}
+          classesHref={`/owner/classes?${params}`}
+          today={todaySessions}
+        />
+      ) : null}
       <h2 className={`mt-9 ${ownerUi.sectionTitle}`}>Accesos rápidos</h2>
       <nav aria-label="Operaciones de la academia" className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {links.map(([label, href]) => {

@@ -32,3 +32,10 @@ Implementado en este corte:
 1. Bloques de la maqueta que requieren consultas nuevas: «Hoy en el club» (sesiones del día con pasar lista), «Necesita tu atención», asistencia semanal, ocupación por clase, reparto por disciplina.
 2. Pasar lista móvil con botones grandes; barra inferior en móvil (cambia el contrato de geometría E2E actual, se hará con su test).
 3. Rediseño fino por pantalla (Grupos, Asistencia, Gimnastas/Familias, Cobros, Configuración, Plan) sobre `owner-ui.ts`.
+
+## Hoy en el club (Resumen)
+
+- Consulta nueva de solo lectura `src/modules/owner-dashboard/application/today-sessions.ts`: sesiones cuyo inicio local (zona horaria de cada sede) es hoy, limitadas a las sedes del alcance ya autorizado por `resolveOwnerScope` (agregado de organización o sede seleccionada, igual que el resumen operativo). Máximo 25, con aviso si hay más.
+- «Esperados» usa la misma regla que la lista de asistencia (`owner-session-attendance.ts`): inscripciones `active`/`trial` con inicio ≤ fecha de la sesión y fin estrictamente posterior. «Lista pasada» = registros de asistencia de esa sesión.
+- Panel `OwnerTodaySessionsPanel`: hora local por sede, color de disciplina, «Ahora» durante la sesión, «Cancelada» sin acción, recuento de listas pendientes y enlace a `/owner/attendance` con la sesión exacta. Un fallo de consulta se muestra como no disponible, no como día vacío.
+- Sin SQL nuevo ni migraciones; sin escrituras. Tests: `tests/owner-today-sessions-panel.test.tsx` y dos casos nuevos en `tests/owner-dashboard-page-operational.test.tsx`. No ejecutados en local.

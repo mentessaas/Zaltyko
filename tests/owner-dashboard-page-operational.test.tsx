@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   scope: vi.fn(),
   dashboard: vi.fn(),
   summary: vi.fn(),
+  today: vi.fn(),
   notFound: vi.fn(),
   error: vi.fn(),
   getUser: vi.fn(),
@@ -49,6 +50,9 @@ vi.mock("@/modules/owner-dashboard/application/operational-summary", () => ({
     from: z.string().date().optional(),
     to: z.string().date().optional(),
   }),
+}));
+vi.mock("@/modules/owner-dashboard/application/today-sessions", () => ({
+  getOwnerTodaySessions: mocks.today,
 }));
 vi.mock("@/modules/owner-dashboard/application/capacity-heatmap", () => ({
   getCapacityHeatmap: async () => null,
@@ -98,6 +102,7 @@ describe("Owner page operational summary boundary", () => {
       canViewOrganizationAggregate: true,
     });
     mocks.summary.mockResolvedValue({ synthetic: "summary" });
+    mocks.today.mockResolvedValue({ sessions: [], truncated: false });
     mocks.notFound.mockImplementation(() => {
       throw new Error("NOT_FOUND");
     });
@@ -205,6 +210,25 @@ describe("Owner page operational summary boundary", () => {
     const page = await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
     const discovery = Children.toArray(page.props.children).find(child => isValidElement(child) && child.type === OwnerProductDiscovery);
     expect(isValidElement(discovery) && discovery.props).toEqual({ organizationId, locationId, role: "manager" });
+  });
+  it("loads today sessions with the same server-authorized scope and selected site", async () => {
+    const page = await OwnerDashboardPage({
+      searchParams: Promise.resolve({ organizationId, locationId }),
+    });
+    const scope = await mocks.scope.mock.results[0]?.value;
+    expect(mocks.today).toHaveBeenCalledWith({ scope, locationId });
+    const dashboard = Children.toArray(page.props.children)[0];
+    expect(isValidElement<{ todaySessions: unknown }>(dashboard) && dashboard.props.todaySessions).toEqual({ sessions: [], truncated: false });
+  });
+  it("shows today sessions as unavailable instead of an empty day when the query fails", async () => {
+    mocks.today.mockRejectedValue(new Error("Synthetic sessions failure"));
+    const page = await OwnerDashboardPage({
+      searchParams: Promise.resolve({ organizationId }),
+    });
+    const dashboard = Children.toArray(page.props.children)[0];
+    expect(isValidElement<{ todaySessions: unknown }>(dashboard) && dashboard.props.todaySessions).toBeNull();
+    expect(operationalSummaryFromPage(page)).toEqual({ synthetic: "summary" });
+    expect(mocks.error).toHaveBeenCalledOnce();
   });
   it("exposes a failed summary as unavailable rather than financial zero", async () => {
     mocks.summary.mockRejectedValue(new Error("Synthetic database failure"));
