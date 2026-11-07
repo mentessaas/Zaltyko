@@ -546,7 +546,7 @@ export function OwnerEnrollmentsManager({
   const pausedTotal = bundle.totalsByStatus.paused ?? 0;
 
   return (
-    <main className={ownerUi.page}>
+    <main className={ownerUi.pageWide}>
       <div className="mx-auto max-w-7xl">
         {previewMode ? (
           <p className="text-sm font-semibold text-z-brand-700">

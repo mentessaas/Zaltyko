@@ -687,7 +687,7 @@ export function OwnerSaasBillingManager({
   return (
     <main className={ownerUi.page}>
       <div className="mx-auto max-w-5xl">
-        <header className="border-t-4 border-z-ink bg-z-canvas p-6 sm:p-9">
+        <header className="rounded-[16px] border border-z-line bg-white p-6 sm:p-8">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
             Gestión del plan
           </p>

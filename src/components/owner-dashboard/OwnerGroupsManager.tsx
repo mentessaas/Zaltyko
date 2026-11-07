@@ -1263,7 +1263,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   }
 
   return (
-    <main className={ownerUi.page}>
+    <main className={ownerUi.pageWide}>
       <div className="mx-auto max-w-[92rem]">
         <Link
           href={ownerDashboardScopeHref(

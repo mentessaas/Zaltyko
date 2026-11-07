@@ -91,12 +91,6 @@ function retryRequestKey(request: RetryRequest) {
 const fieldClassName = ownerUi.field;
 const buttonClassName = ownerUi.primaryButton;
 
-const savedStatusStyle: Record<AttendanceStatus, string> = {
-  present: ownerUi.chipSuccess,
-  late: "inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900",
-  excused: ownerUi.chipAccent,
-  absent: ownerUi.chipAttention,
-};
 
 const statusButtonLabel: Record<AttendanceStatus, string> = {
   present: "Presente",
@@ -907,12 +901,6 @@ export function OwnerAttendanceManager({
                           <span className="block break-words font-semibold text-z-ink">
                             {attendee.athleteName}
                           </span>
-                          {attendee.attendanceStatus ? (
-                            <span className={`mt-1 ${savedStatusStyle[attendee.attendanceStatus]}`}>
-                              <span className="sr-only">Guardado: </span>
-                              {attendanceStatuses.find((option) => option.value === attendee.attendanceStatus)?.label}
-                            </span>
-                          ) : null}
                         </div>
                       </div>
                       <div className="grid gap-2 sm:min-w-[26rem]">
@@ -938,6 +926,7 @@ export function OwnerAttendanceManager({
                                   Boolean(selectedSession?.retryOnly)
                                 }
                                 onClick={() => {
+                                  if (savingByScopeRef.current[currentScopeKey]) return;
                                   setRosterState((current) =>
                                     current?.scopeKey === currentScopeKey
                                       ? {

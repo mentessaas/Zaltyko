@@ -74,6 +74,8 @@ export async function getOwnerAttentionItems(input: {
          and ct.id = s.class_template_id
         where s.organization_id = ${organizationId}::uuid
           and s.status <> 'cancelled'
+          and s.starts_at > now() - make_interval(days => ${ownerUnrecordedSessionsLookbackDays + 1})
+          and s.starts_at <= now()
           and s.ends_at <= now()
           and s.ends_at > now() - make_interval(days => ${ownerUnrecordedSessionsLookbackDays})
           and not exists (
@@ -107,7 +109,22 @@ export async function getOwnerAttentionItems(input: {
         and ct.status = 'active'
         and ct.effective_from <= (now() at time zone l.timezone)::date
         and (ct.effective_to is null or ct.effective_to >= (now() at time zone l.timezone)::date)
-        and ${expectedAt(sql`(now() at time zone l.timezone)::date`)} >= ct.capacity
+        and ${expectedAt(sql`(now() at time zone l.timezone)::date`)} >= coalesce(
+          (
+            select s.capacity_override
+            from zaltyko.sessions s
+            where s.organization_id = ct.organization_id
+              and s.class_template_id = ct.id
+              and s.status <> 'cancelled'
+              and s.capacity_override is not null
+              and s.starts_at >= now() - interval '2 days'
+              and s.starts_at < now() + interval '2 days'
+              and (s.starts_at at time zone l.timezone)::date = (now() at time zone l.timezone)::date
+            order by s.starts_at asc
+            limit 1
+          ),
+          ct.capacity
+        )
     `),
     input.includeFinancials
       ? db.execute(sql`

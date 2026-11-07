@@ -3,6 +3,7 @@ const FOCUS_RING =
 
 export const ownerUi = {
   page: "mx-auto w-full max-w-6xl px-5 pb-16 pt-7 sm:pt-9 lg:px-10",
+  pageWide: "w-full px-5 pb-16 pt-7 sm:pt-9 lg:px-10",
   pageHeader: "mb-7 sm:mb-8",
   eyebrow: "break-words text-xs font-semibold text-z-soft",
   pageTitle: "mt-1 font-display text-[28px] font-bold leading-tight tracking-tight text-z-ink sm:text-[32px]",
