@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
+import { sqlUuidArray } from "@/modules/owner-dashboard/application/sql-uuid-array";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const MAX_PERIOD_DAYS = 366;
@@ -135,14 +136,6 @@ function requireAggregateRow<T>(rows: T[], label: string): T {
   return rows[0];
 }
 
-function uuidArray(ids: string[]) {
-  if (ids.length === 0) return sql`array[]::uuid[]`;
-  return sql`array[${sql.join(
-    ids.map((id) => sql`${id}::uuid`),
-    sql`, `
-  )}]`;
-}
-
 export async function getOwnerOperationalSummary(
   input: z.input<typeof ownerOperationalSummaryQuerySchema> & { userId: string }
 ): Promise<OwnerOperationalSummary> {
@@ -179,7 +172,7 @@ export async function getOwnerOperationalSummary(
   const locationResult = await db.execute(sql`
     select id, name, timezone from zaltyko.locations
     where organization_id = ${organizationId}::uuid
-      and id = any(${uuidArray(locationFilterIds)})
+      and id = any(${sqlUuidArray(locationFilterIds)})
   `);
   const locationRows = locationResult.rows as Array<{
     id: string;
@@ -220,7 +213,7 @@ export async function getOwnerOperationalSummary(
       select l.id, l.timezone
       from zaltyko.locations l
       where l.organization_id = ${organizationId}::uuid
-        and l.id = any(${uuidArray(locationIds)})
+        and l.id = any(${sqlUuidArray(locationIds)})
     )
     select
       count(distinct athlete.id) filter (
@@ -258,7 +251,7 @@ export async function getOwnerOperationalSummary(
       on location.organization_id = attendance.organization_id
      and location.id = attendance.location_id
     where attendance.organization_id = ${organizationId}::uuid
-      and attendance.location_id = any(${uuidArray(locationIds)})
+      and attendance.location_id = any(${sqlUuidArray(locationIds)})
       and session.starts_at >= (${from}::date::timestamp at time zone location.timezone)
       and session.starts_at < ((${to}::date + 1)::timestamp at time zone location.timezone)
   `);
@@ -284,7 +277,7 @@ export async function getOwnerOperationalSummary(
         on location.organization_id = payment.organization_id
        and location.id = payment.location_id
       where payment.organization_id = ${organizationId}::uuid
-        and payment.location_id = any(${uuidArray(locationIds)})
+        and payment.location_id = any(${sqlUuidArray(locationIds)})
         and payment.status in ('succeeded', 'partially_refunded', 'refunded')
         and payment.received_at >= (${from}::date::timestamp at time zone location.timezone)
         and payment.received_at < ((${to}::date + 1)::timestamp at time zone location.timezone)

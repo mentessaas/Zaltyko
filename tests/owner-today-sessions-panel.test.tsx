@@ -75,7 +75,7 @@ describe("OwnerTodaySessionsPanel", () => {
 
     expect(within(region).getByText("4 sesiones · 1 lista pendiente")).toBeInTheDocument();
 
-    const done = within(region).getByRole("link", { name: "Lista pasada en Artística base: 14 de 15. Revisar" });
+    const done = within(region).getByRole("link", { name: "14/15, lista pasada en Artística base. Revisar" });
     expect(done).toHaveAttribute(
       "href",
       `/owner/attendance?organizationId=${organizationId}&locationId=${madrid}&sessionId=00000000-0000-4000-8000-0000000000a1`

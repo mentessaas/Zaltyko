@@ -286,7 +286,7 @@ export function OwnerWorkspaceNavigation({
           </nav>
         </aside>
       ) : null}
-      <header className="sticky top-0 z-20 border-b border-z-line bg-white/90 backdrop-blur xl:peer-data-[owner-sidebar]:pl-[248px]">
+      <header className="relative z-20 border-b border-z-line bg-white xl:sticky xl:top-0 xl:bg-white/90 xl:backdrop-blur xl:peer-data-[owner-sidebar]:pl-[248px]">
         <div className="mx-auto flex max-w-[92rem] items-center justify-between gap-4 px-5 py-3 lg:px-10">
           <div className={showNavigation ? "xl:invisible" : undefined}>{brand}</div>
           {preview ? (

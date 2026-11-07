@@ -42,11 +42,9 @@ export function OwnerTodaySessionsPanel({
             Hoy en el club
           </h2>
           <p className="text-xs text-z-soft">
-            {today === null
-              ? "Sesiones generadas desde tus clases."
-              : today.sessions.length === 0
-                ? "Sesiones generadas desde tus clases."
-                : `${today.sessions.length} ${today.sessions.length === 1 ? "sesión" : "sesiones"}${pending > 0 ? ` · ${pending} ${pending === 1 ? "lista pendiente" : "listas pendientes"}` : ""}`}
+            {today && today.sessions.length > 0
+              ? `${today.sessions.length} ${today.sessions.length === 1 ? "sesión" : "sesiones"}${pending > 0 ? ` · ${pending} ${pending === 1 ? "lista pendiente" : "listas pendientes"}` : ""}`
+              : "Sesiones generadas desde tus clases."}
           </p>
         </div>
         <Link href={classesHref} className={`${ownerUi.textLink} shrink-0`}>
@@ -80,7 +78,7 @@ export function OwnerTodaySessionsPanel({
             return (
               <li
                 key={session.id}
-                className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 ${live ? "bg-z-chalk-50/50" : ""} ${cancelled || (finished && recorded) ? "opacity-70" : ""}`}
+                className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 ${live ? "bg-z-chalk-50/50" : ""}`}
               >
                 <div className="w-14 shrink-0 text-right">
                   <div className="font-display text-sm font-bold tabular-nums text-z-ink">
@@ -97,7 +95,7 @@ export function OwnerTodaySessionsPanel({
                       {session.className}
                     </span>
                     {live ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-z-chalk-500 px-2 py-0.5 text-[11px] font-bold uppercase text-white">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-z-chalk-600 px-2 py-0.5 text-[11px] font-bold uppercase text-white">
                         <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-white" />
                         Ahora
                       </span>
@@ -115,7 +113,7 @@ export function OwnerTodaySessionsPanel({
                   <Link
                     href={attendanceHref(organizationId, session.locationId, session.id)}
                     className={`${ownerUi.chipSuccess} min-h-11 gap-1`}
-                    aria-label={`Lista pasada en ${session.className}: ${session.recordedAttendance} de ${session.expectedAthletes}. Revisar`}
+                    aria-label={`${session.recordedAttendance}/${session.expectedAthletes}, lista pasada en ${session.className}. Revisar`}
                   >
                     <Check aria-hidden="true" className="h-3.5 w-3.5" />
                     {session.recordedAttendance}/{session.expectedAthletes}

@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import type { OwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
+import { sqlUuidArray } from "@/modules/owner-dashboard/application/sql-uuid-array";
 
 export const ownerTodaySessionsLimit = 25;
 
@@ -25,19 +26,12 @@ export interface OwnerTodaySessions {
   truncated: boolean;
 }
 
-function uuidArray(ids: string[]) {
-  if (ids.length === 0) return sql`array[]::uuid[]`;
-  return sql`array[${sql.join(
-    ids.map((id) => sql`${id}::uuid`),
-    sql`, `
-  )}]`;
-}
-
 /**
  * Sessions whose local start date (per location timezone) is today, limited to
  * the locations the already-resolved owner scope allows. "Expected" mirrors the
- * attendance roster rule: active or trial enrollments that started on or before
- * the session date and end strictly after it.
+ * attendance roster rule: active athletes with active or trial enrollments at
+ * the same location that started on or before the session date and end
+ * strictly after it.
  */
 export async function getOwnerTodaySessions(input: {
   scope: OwnerScope;
@@ -56,7 +50,7 @@ export async function getOwnerTodaySessions(input: {
       select l.id, l.name, l.timezone
       from zaltyko.locations l
       where l.organization_id = ${organizationId}::uuid
-        and l.id = any(${uuidArray(locationIds)})
+        and l.id = any(${sqlUuidArray(locationIds)})
     )
     select
       s.id,
@@ -72,7 +66,12 @@ export async function getOwnerTodaySessions(input: {
       (
         select count(*)
         from zaltyko.enrollments e
+        join zaltyko.athletes athlete
+          on athlete.organization_id = e.organization_id
+         and athlete.id = e.athlete_id
+         and athlete.is_active
         where e.organization_id = s.organization_id
+          and e.location_id = s.location_id
           and e.class_template_id = s.class_template_id
           and e.status in ('active', 'trial')
           and e.starts_on <= (s.starts_at at time zone l.timezone)::date
@@ -93,6 +92,8 @@ export async function getOwnerTodaySessions(input: {
       on p.organization_id = ct.organization_id
      and p.id = ct.program_id
     where s.organization_id = ${organizationId}::uuid
+      and s.starts_at >= now() - interval '2 days'
+      and s.starts_at < now() + interval '2 days'
       and (s.starts_at at time zone l.timezone)::date = (now() at time zone l.timezone)::date
     order by s.starts_at asc, s.id asc
     limit ${ownerTodaySessionsLimit + 1}
