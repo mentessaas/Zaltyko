@@ -39,3 +39,9 @@ Implementado en este corte:
 - «Esperados» usa la misma regla que la lista de asistencia (`owner-session-attendance.ts`): inscripciones `active`/`trial` con inicio ≤ fecha de la sesión y fin estrictamente posterior. «Lista pasada» = registros de asistencia de esa sesión.
 - Panel `OwnerTodaySessionsPanel`: hora local por sede, color de disciplina, «Ahora» durante la sesión, «Cancelada» sin acción, recuento de listas pendientes y enlace a `/owner/attendance` con la sesión exacta. Un fallo de consulta se muestra como no disponible, no como día vacío.
 - Sin SQL nuevo ni migraciones; sin escrituras. Tests: `tests/owner-today-sessions-panel.test.tsx` y dos casos nuevos en `tests/owner-dashboard-page-operational.test.tsx`. No ejecutados en local.
+
+## Revisión de código, auditoría visual y Asistencia
+
+- Skill `code-review` (8 hallazgos, corregidos en `31fd1a65`): esperados con la regla exacta del pase de lista (gimnasta activo, misma sede), consulta del día acotada por `starts_at` para usar el índice, cabecera móvil no fija, contraste AA de «Ahora» y de filas pasadas, nombre accesible que contiene «14/15», helper `sqlUuidArray` compartido.
+- Skill `impeccable` (audit): 15/20; sin hallazgos del detector. Controles comunes a 48 px por PRODUCT.md (`19043dd9`). Pendiente: modo oscuro del panel (no existía antes).
+- Asistencia: rediseño visual dentro del contrato actual (selector + «Guardar asistencia de …», reintentos e idempotencia sin cambios): tarjeta de sesión con progreso «X de Y marcadas» (`role=progressbar`), filas con iniciales y estado ya guardado, avisos y controles de la base común. Marcar con un solo toque queda como cambio aparte porque altera el flujo de escritura y 58 aserciones.

@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ClipboardCheck, UsersRound } from "lucide-react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import { ownerUi } from "./owner-ui";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import {
   clearAttendanceRetry,
@@ -86,10 +88,20 @@ function retryRequestKey(request: RetryRequest) {
   ]);
 }
 
-const fieldClassName =
-  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas";
-const buttonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-z-ink bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
+const fieldClassName = ownerUi.field;
+const buttonClassName = ownerUi.primaryButton;
+
+const savedStatusStyle: Record<AttendanceStatus, string> = {
+  present: ownerUi.chipSuccess,
+  late: "inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900",
+  excused: ownerUi.chipAccent,
+  absent: ownerUi.chipAttention,
+};
+
+function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return `${parts[0]?.[0] ?? ""}${parts.length > 1 ? parts[parts.length - 1][0] : ""}`.toLocaleUpperCase("es");
+}
 
 function responseData<T>(payload: unknown): T | null {
   if (payload && typeof payload === "object" && "data" in payload) {
@@ -291,6 +303,7 @@ export function OwnerAttendanceManager({
     useState<AttendanceRosterState | null>(null);
   const attendees =
     rosterState?.scopeKey === currentScopeKey ? rosterState.items : [];
+  const recordedCount = attendees.filter((attendee) => attendee.attendanceStatus !== null).length;
   const selectedStatuses =
     rosterState?.scopeKey === currentScopeKey
       ? rosterState.selectedStatuses
@@ -620,28 +633,25 @@ export function OwnerAttendanceManager({
   );
 
   return (
-    <main className="min-h-screen bg-[#F1F3EF] px-5 py-6 text-z-ink sm:py-10">
-      <div className="mx-auto grid max-w-5xl gap-8">
-        <div className="grid gap-5">
+    <main className={ownerUi.page}>
+      <div className="mx-auto grid max-w-4xl gap-6">
+        <header className="grid gap-4">
           <Link
             href={`/owner?organizationId=${encodeURIComponent(organizationId)}&locationId=${encodeURIComponent(locationId)}`}
-            className="rounded-[12px] touch-target inline-flex min-h-11 w-fit items-center border border-z-line bg-white px-4 text-sm font-semibold text-z-soft hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
+            className={ownerUi.backLink}
           >
+            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
             Volver al panel
           </Link>
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-700">
-              Pase de lista
-            </p>
-            <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-              Asistencia de la sesión
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-z-soft sm:text-base">
+            <p className={ownerUi.eyebrow}>Pase de lista</p>
+            <h1 className={ownerUi.pageTitle}>Asistencia de la sesión</h1>
+            <p className={ownerUi.pageLead}>
               Marca la asistencia de las gimnastas inscritas. Los cambios se
               guardan individualmente.
             </p>
           </div>
-        </div>
+        </header>
 
         <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
 
@@ -657,7 +667,7 @@ export function OwnerAttendanceManager({
               <p
                 key={retryRequestKey(retry)}
                 role="status"
-                className="rounded-[12px] border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
+                className={ownerUi.noticeWarning}
               >
                 Hay una asistencia cuyo resultado sigue sin confirmar en otra
                 sesión. Conservamos la solicitud original; vuelve a su ámbito
@@ -677,14 +687,19 @@ export function OwnerAttendanceManager({
         !sessionPage.nextCursor &&
         !sessionPage.loading &&
         !sessionPage.error ? (
-          <p className="rounded-[12px] border border-z-line bg-white p-5 text-sm leading-6 text-z-soft">
-            Aún no hay sesiones para pasar lista. Crea una clase recurrente para
-            preparar sus sesiones.
-          </p>
+          <div className={ownerUi.emptyState}>
+            <span aria-hidden="true" className={ownerUi.emptyIcon}>
+              <ClipboardCheck className="h-5 w-5" />
+            </span>
+            <p className="max-w-md text-sm leading-6 text-z-soft">
+              Aún no hay sesiones para pasar lista. Crea una clase recurrente para
+              preparar sus sesiones.
+            </p>
+          </div>
         ) : (
-          <section className="rounded-[12px] grid gap-5 border border-z-line bg-white p-5 sm:p-7">
+          <section className={`${ownerUi.card} grid min-w-0 gap-5`}>
             <label className="grid gap-2">
-              <span className="text-sm font-bold text-z-ink">Sesión</span>
+              <span className={ownerUi.label}>Sesión</span>
               <select
                 value={sessionId}
                 onChange={(event) => {
@@ -714,7 +729,7 @@ export function OwnerAttendanceManager({
               </p>
             )}
             {sessionPage.error && (
-              <div role="alert" className="rounded-[12px] border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+              <div role="alert" className={ownerUi.noticeError}>
                 <p>{sessionPage.error}</p>
                 <button
                   type="button"
@@ -737,22 +752,47 @@ export function OwnerAttendanceManager({
               </button>
             )}
             {requestedSessionUnavailable && (
-              <p role="status" className="rounded-[12px] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+              <p role="status" className={ownerUi.noticeWarning}>
                 La sesión solicitada no está disponible en esta sede. No hemos
                 seleccionado otra sesión automáticamente.
               </p>
             )}
             {selectedSession && (
-              <p className="text-sm text-z-soft">
-                {selectedSession.className} ·{" "}
-                {formatSessionDate(
-                  selectedSession.startsAt,
-                  selectedSession.timezone
-                )}
-              </p>
+              <div className="grid gap-3 rounded-[14px] bg-z-canvas p-4 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-center">
+                <p className="min-w-0 break-words font-display text-lg font-bold tracking-tight text-z-ink">
+                  {selectedSession.className} ·{" "}
+                  {formatSessionDate(
+                    selectedSession.startsAt,
+                    selectedSession.timezone
+                  )}
+                </p>
+                {!loading && !loadError && attendees.length > 0 ? (
+                  <div className="min-w-0">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="font-semibold text-z-ink">
+                        {recordedCount} de {attendees.length} marcadas
+                      </span>
+                      <UsersRound className="h-4 w-4 shrink-0 text-z-soft" aria-hidden="true" />
+                    </div>
+                    <div
+                      className={`mt-1.5 ${ownerUi.meterTrack} bg-white`}
+                      role="progressbar"
+                      aria-label="Progreso del pase de lista"
+                      aria-valuemin={0}
+                      aria-valuemax={attendees.length}
+                      aria-valuenow={recordedCount}
+                    >
+                      <div
+                        className="h-1.5 rounded-full bg-z-comp-600 transition-[width]"
+                        style={{ width: `${Math.round((recordedCount / attendees.length) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             )}
             {selectedSession?.retryOnly && (
-              <p role="status" className="rounded-[12px] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+              <p role="status" className={ownerUi.noticeWarning}>
                 Esta sesión solo permite recuperar una asistencia que ya se
                 había enviado. No se pueden registrar cambios nuevos aquí.
               </p>
@@ -770,7 +810,7 @@ export function OwnerAttendanceManager({
             {loadError && (
               <div
                 role="alert"
-                className="rounded-[12px] border border-red-300 bg-red-50 p-4 text-sm text-red-900"
+                className={ownerUi.noticeError}
               >
                 <p>{loadError}</p>
                 <button
@@ -792,14 +832,14 @@ export function OwnerAttendanceManager({
               </div>
             )}
             {retryStorageError && (
-              <p role="alert" className="rounded-[12px] border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+              <p role="alert" className={ownerUi.noticeError}>
                 {retryStorageError}
               </p>
             )}
             {saveError && (
               <p
                 role="alert"
-                className="rounded-[12px] border border-red-300 bg-red-50 p-4 text-sm text-red-900"
+                className={ownerUi.noticeError}
               >
                 {saveError}
               </p>
@@ -809,7 +849,7 @@ export function OwnerAttendanceManager({
               <p
                 role="status"
                 aria-live="polite"
-                className="rounded-[12px] border border-z-brand-100 bg-z-brand-50 p-4 text-sm text-z-brand-700"
+                className={ownerUi.noticeInfo}
               >
                 {notice}
               </p>
@@ -820,7 +860,7 @@ export function OwnerAttendanceManager({
                 No hay gimnastas con inscripción vigente en esta sesión.
               </p>
             ) : sessionId && !loadError ? (
-              <ul className="divide-y divide-z-line border-y border-z-line">
+              <ul className="grid gap-2.5">
                 {attendees.map((attendee) => {
                   const retry = pendingRetries.find(
                     (candidate) =>
@@ -840,13 +880,29 @@ export function OwnerAttendanceManager({
                   return (
                     <li
                       key={attendee.enrollmentId}
-                      className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-center"
+                      className="grid gap-3 rounded-[14px] border border-z-line bg-white p-3.5 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-center sm:p-4"
                     >
-                      <span className="font-semibold text-z-ink">
-                        {attendee.athleteName}
-                      </span>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          aria-hidden="true"
+                          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-z-brand-50 text-sm font-bold text-z-brand-700"
+                        >
+                          {initialsOf(attendee.athleteName)}
+                        </span>
+                        <div className="min-w-0">
+                          <span className="block break-words font-semibold text-z-ink">
+                            {attendee.athleteName}
+                          </span>
+                          {attendee.attendanceStatus ? (
+                            <span className={`mt-1 ${savedStatusStyle[attendee.attendanceStatus]}`}>
+                              <span className="sr-only">Guardado: </span>
+                              {attendanceStatuses.find((option) => option.value === attendee.attendanceStatus)?.label}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
                       <label className="grid gap-1">
-                        <span className="text-xs font-semibold text-z-soft">
+                        <span className={ownerUi.smallLabel}>
                           Estado
                         </span>
                         <select
