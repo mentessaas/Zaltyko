@@ -17,6 +17,8 @@ import type { OwnerOperationalSummary } from "@/modules/owner-dashboard/applicat
 import type { OwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
 import { OwnerOperationalSummaryPanel } from "./OwnerOperationalSummaryPanel";
 import { OwnerTodaySessionsPanel } from "./OwnerTodaySessionsPanel";
+import { OwnerAttentionPanel } from "./OwnerAttentionPanel";
+import type { OwnerAttentionItems } from "@/modules/owner-dashboard/application/attention-items";
 import { ownerWorkspaceCapabilitiesFor } from "./owner-workspace-capabilities";
 import { ownerUi } from "./owner-ui";
 
@@ -35,11 +37,25 @@ export function OwnerEssentialDashboard({
   scope,
   operationalSummary,
   todaySessions,
+  attentionItems,
+  now = new Date(),
 }: {
   scope: OwnerScope;
   operationalSummary: OwnerOperationalSummary | null;
   todaySessions?: OwnerTodaySessions | null;
+  attentionItems?: OwnerAttentionItems | null;
+  now?: Date;
 }) {
+  const dayTimezone =
+    scope.locations.find((location) => location.id === scope.selectedLocationId)?.timezone ??
+    scope.locations[0]?.timezone ??
+    "Europe/Madrid";
+  const todayLabel = new Intl.DateTimeFormat("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: dayTimezone,
+  }).format(now);
   const params = new URLSearchParams({ organizationId: scope.organization.id });
   if (scope.selectedLocationId) params.set("locationId", scope.selectedLocationId);
   const capabilities = ownerWorkspaceCapabilitiesFor(scope.member);
@@ -63,7 +79,10 @@ export function OwnerEssentialDashboard({
     <main className={ownerUi.page}>
       <header className="mb-2 flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <p className={ownerUi.eyebrow}>{scope.organization.name}</p>
+          <p className={ownerUi.eyebrow}>
+            {scope.organization.name}
+            <span className="font-medium"> · <span className="first-letter:uppercase inline-block">{todayLabel}</span></span>
+          </p>
           <h1 className={ownerUi.pageTitle}>Resumen</h1>
           <p className={ownerUi.pageLead}>La actividad de tu club, a mano para organizar el día.</p>
         </div>
@@ -83,12 +102,23 @@ export function OwnerEssentialDashboard({
         </form>
       </header>
       <OwnerOperationalSummaryPanel summary={operationalSummary} />
-      {todaySessions !== undefined ? (
-        <OwnerTodaySessionsPanel
-          organizationId={scope.organization.id}
-          classesHref={`/owner/classes?${params}`}
-          today={todaySessions}
-        />
+      {todaySessions !== undefined || attentionItems !== undefined ? (
+        <div className="mt-6 grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+          {todaySessions !== undefined ? (
+            <OwnerTodaySessionsPanel
+              organizationId={scope.organization.id}
+              classesHref={`/owner/classes?${params}`}
+              today={todaySessions}
+            />
+          ) : null}
+          {attentionItems !== undefined ? (
+            <OwnerAttentionPanel
+              organizationId={scope.organization.id}
+              scopeQuery={params.toString()}
+              items={attentionItems}
+            />
+          ) : null}
+        </div>
       ) : null}
       <h2 className={`mt-9 ${ownerUi.sectionTitle}`}>Accesos rápidos</h2>
       <nav aria-label="Operaciones de la academia" className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">

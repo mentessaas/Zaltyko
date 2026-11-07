@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   dashboard: vi.fn(),
   summary: vi.fn(),
   today: vi.fn(),
+  attention: vi.fn(),
   notFound: vi.fn(),
   error: vi.fn(),
   getUser: vi.fn(),
@@ -53,6 +54,9 @@ vi.mock("@/modules/owner-dashboard/application/operational-summary", () => ({
 }));
 vi.mock("@/modules/owner-dashboard/application/today-sessions", () => ({
   getOwnerTodaySessions: mocks.today,
+}));
+vi.mock("@/modules/owner-dashboard/application/attention-items", () => ({
+  getOwnerAttentionItems: mocks.attention,
 }));
 vi.mock("@/modules/owner-dashboard/application/capacity-heatmap", () => ({
   getCapacityHeatmap: async () => null,
@@ -103,6 +107,7 @@ describe("Owner page operational summary boundary", () => {
     });
     mocks.summary.mockResolvedValue({ synthetic: "summary" });
     mocks.today.mockResolvedValue({ sessions: [], truncated: false });
+    mocks.attention.mockResolvedValue({ unrecordedSessions: { count: 0, latest: null }, fullClasses: 0, overdueInvoices: 0 });
     mocks.notFound.mockImplementation(() => {
       throw new Error("NOT_FOUND");
     });
@@ -228,6 +233,26 @@ describe("Owner page operational summary boundary", () => {
     const dashboard = Children.toArray(page.props.children)[0];
     expect(isValidElement<{ todaySessions: unknown }>(dashboard) && dashboard.props.todaySessions).toBeNull();
     expect(operationalSummaryFromPage(page)).toEqual({ synthetic: "summary" });
+    expect(mocks.error).toHaveBeenCalledOnce();
+  });
+  it("only counts overdue invoices for roles that can see finances", async () => {
+    await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
+    expect(mocks.attention).toHaveBeenLastCalledWith(expect.objectContaining({ includeFinancials: true }));
+    mocks.scope.mockResolvedValueOnce({
+      organization: { id: organizationId, name: "QA", defaultCurrency: "EUR" },
+      member: { id: "coach-member", role: "coach", locationScopeMode: "selected" },
+      locations: [{ id: locationId, name: "Sede QA" }],
+      selectedLocationId: locationId,
+      canViewOrganizationAggregate: false,
+    });
+    await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
+    expect(mocks.attention).toHaveBeenLastCalledWith(expect.objectContaining({ includeFinancials: false }));
+  });
+  it("shows attention items as unavailable when their query fails", async () => {
+    mocks.attention.mockRejectedValue(new Error("Synthetic attention failure"));
+    const page = await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
+    const dashboard = Children.toArray(page.props.children)[0];
+    expect(isValidElement<{ attentionItems: unknown }>(dashboard) && dashboard.props.attentionItems).toBeNull();
     expect(mocks.error).toHaveBeenCalledOnce();
   });
   it("exposes a failed summary as unavailable rather than financial zero", async () => {

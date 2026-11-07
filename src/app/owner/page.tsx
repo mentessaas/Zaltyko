@@ -14,6 +14,8 @@ import {
 } from "@/modules/owner-dashboard/application/operational-summary";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { getOwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
+import { getOwnerAttentionItems } from "@/modules/owner-dashboard/application/attention-items";
+import { ownerWorkspaceCapabilitiesFor } from "@/components/owner-dashboard/owner-workspace-capabilities";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export const dynamic = "force-dynamic";
@@ -82,12 +84,20 @@ export default async function OwnerDashboardPage({
     if (error instanceof OperationalError && ["FORBIDDEN", "LOCATION_SCOPE_DENIED"].includes(error.code)) notFound();
     logger.error("Owner operational summary failed", error);
   }
-  let todaySessions: Awaited<ReturnType<typeof getOwnerTodaySessions>> | null = null;
-  try {
-    todaySessions = await getOwnerTodaySessions({ scope, locationId: query.data.locationId });
-  } catch (error) {
-    logger.error("Owner today sessions failed", error);
-  }
+  const [todaySessions, attentionItems] = await Promise.all([
+    getOwnerTodaySessions({ scope, locationId: query.data.locationId }).catch((error: unknown) => {
+      logger.error("Owner today sessions failed", error);
+      return null;
+    }),
+    getOwnerAttentionItems({
+      scope,
+      locationId: query.data.locationId,
+      includeFinancials: ownerWorkspaceCapabilitiesFor(scope.member).canManageFinancials,
+    }).catch((error: unknown) => {
+      logger.error("Owner attention items failed", error);
+      return null;
+    }),
+  ]);
   return (
     <OwnerWorkspacePageShell
       member={scope.member}
@@ -98,6 +108,7 @@ export default async function OwnerDashboardPage({
         scope={scope}
         operationalSummary={operationalSummary}
         todaySessions={todaySessions}
+        attentionItems={attentionItems}
       />
       <OwnerProductDiscovery
         organizationId={scope.organization.id}

@@ -35,7 +35,7 @@ export function OwnerTodaySessionsPanel({
   ).length ?? 0;
 
   return (
-    <section aria-labelledby="owner-today-sessions-title" className={`mt-6 ${ownerUi.cardFlush}`}>
+    <section aria-labelledby="owner-today-sessions-title" className={`min-w-0 ${ownerUi.cardFlush}`}>
       <div className={ownerUi.cardHeader}>
         <div className="min-w-0">
           <h2 id="owner-today-sessions-title" className={ownerUi.sectionTitle}>
