@@ -10,6 +10,19 @@ import { getMobileAcademyNavigation } from "@/lib/navigation/registry";
 import { isProfileRole, type MembershipRole } from "@/lib/product/roles";
 import { cn } from "@/lib/utils";
 
+// Etiquetas de una palabra para la barra inferior (el nombre completo va en aria-label).
+const SHORT_NAV_LABELS: Record<string, string> = {
+  "Mesa de dirección": "Mesa",
+  Entrenamientos: "Sesiones",
+  "Pasar lista": "Lista",
+  Evaluaciones: "Evaluar",
+  Entrenadoras: "Equipo",
+  Entrenadores: "Equipo",
+};
+function shortNavLabel(label: string) {
+  return SHORT_NAV_LABELS[label] ?? label;
+}
+
 export function MobileAcademyNav() {
   const pathname = usePathname();
   const router = useRouter();
@@ -101,14 +114,14 @@ export function MobileAcademyNav() {
                 className={cn(
                   "flex h-14 min-h-[44px] min-w-0 flex-col items-center justify-center rounded-xl border border-transparent transition-colors",
                   active
-                    ? "border-zaltyko-teal/20 bg-zaltyko-teal/12 text-zaltyko-teal"
+                    ? "bg-mat text-white"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
                 aria-label={item.label}
                 aria-current={active ? "page" : undefined}
               >
                 <Icon className={cn("mb-1 h-5 w-5", active && "scale-110")} />
-                <span className="max-w-full truncate px-1 text-[11px] font-semibold leading-4">{item.label}</span>
+                <span className="max-w-full truncate px-1 text-xs font-semibold leading-4">{shortNavLabel(item.label)}</span>
               </button>
             );
           })}
@@ -124,7 +137,7 @@ export function MobileAcademyNav() {
               aria-label="Más secciones"
             >
               {moreOpen ? <X className="mb-1 h-5 w-5" /> : <MoreHorizontal className="mb-1 h-5 w-5" />}
-              <span className="text-[11px] font-semibold leading-4">Más</span>
+              <span className="text-xs font-semibold leading-4">Más</span>
             </button>
           )}
         </div>
@@ -143,7 +156,7 @@ export function MobileAcademyNav() {
                       router.push(item.href);
                     }}
                     className={cn(
-                      "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-center text-[11px] font-semibold",
+                      "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-center text-xs font-semibold",
                       active ? "bg-zaltyko-teal/10 text-zaltyko-teal" : "text-muted-foreground hover:bg-muted/50"
                     )}
                     aria-current={active ? "page" : undefined}

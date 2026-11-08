@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LogOut,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ZaltykoLockup } from "@/components/brand/ZaltykoMark";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { getRoleLabel } from "@/lib/roles";
@@ -139,39 +139,42 @@ export function GlobalTopNav({
     setProfileMenuOpen(false);
   };
 
+  // El menú móvil vive siempre sobre tapiz azul: su contenido usa la variante clara sobre oscuro.
+  const onMatDrawer = true;
+
   // Ocultar en auth y landing
   if (pathname && (pathname.startsWith("/auth") || pathname === "/")) return null;
 
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full border-b backdrop-blur",
+        "sticky top-0 z-50 w-full border-b",
         isDarkTheme
-          ? "border-white/10 bg-zaltyko-navy/95 text-white supports-[backdrop-filter]:bg-zaltyko-navy/95"
-          : "border-border/70 bg-background/95 supports-[backdrop-filter]:bg-background/80",
+          ? "border-white/10 bg-mat-night text-white"
+          : "border-chalk-line bg-white",
       )}
     >
       {/* Layout base: logo | navegación | acciones */}
       <div className="mx-auto grid max-w-[1920px] grid-cols-[auto,1fr,auto] items-center gap-2 overflow-visible px-4 py-2.5 sm:gap-3 md:gap-4 md:px-6 lg:gap-6 lg:px-8">
-        {/* Logo */}
+        {/* Logo: la Z en tapiz (o blanca en oscuro), con el rótulo condensado. */}
         <div className="flex min-w-0 shrink-0 items-center gap-3">
-          <Link href={homePath} className="flex shrink-0 items-center gap-2">
-            {isDarkTheme ? (
-              <Image src="/branding/zaltyko/logo-zaltyko-dark.svg" alt="Zaltyko" width={32} height={32} className="h-8 w-auto shrink-0" />
-            ) : (
-              <Image src="/branding/zaltyko/logo-zaltyko.svg" alt="Zaltyko" width={32} height={32} className="h-8 w-auto shrink-0" />
-            )}
+          <Link
+            href={homePath}
+            aria-label="Zaltyko, inicio"
+            className={cn("flex shrink-0 items-center rounded-sm", isDarkTheme ? "text-white" : "text-mat")}
+          >
+            <ZaltykoLockup markClassName="h-7 w-7" className="[&>span]:text-[1.15rem]" />
           </Link>
           {currentAcademyId && academyName ? (
-            <div className="hidden min-w-0 border-l border-border pl-3 lg:block">
+            <div className="hidden min-w-0 border-l-[3px] border-chalk-line pl-3 lg:block xl:hidden">
               <p className="truncate text-sm font-semibold text-foreground">{academyName}</p>
               {academyType ? (
-                <p className="truncate text-[10px] capitalize text-muted-foreground">{formatAcademyType(academyType)}</p>
+                <p className="truncate text-xs capitalize text-muted-foreground">{formatAcademyType(academyType)}</p>
               ) : null}
             </div>
           ) : null}
           {isSuperAdmin && (
-            <span className="hidden shrink-0 rounded-full bg-zaltyko-electric/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zaltyko-electric lg:inline-flex">
+            <span className="floor-label hidden shrink-0 rounded-sm bg-mat-night px-2 py-1 text-white lg:inline-flex">
               Super Admin
             </span>
           )}
@@ -199,10 +202,9 @@ export function GlobalTopNav({
           <div className="flex w-max min-w-full items-center justify-center">
             <div
               className={cn(
-                "flex w-max items-center gap-1 rounded-2xl px-2 py-1 lg:gap-1.5 lg:px-3",
-                isDarkTheme
-                  ? "border border-white/10 bg-white/5 shadow-none"
-                  : "border border-border/60 bg-card/80 shadow-soft"
+                // Navegación de áreas globales: rótulos en línea; el activo lleva
+                // debajo un tramo de cinta (como la barra pública), sin cápsula.
+                "flex w-max items-stretch gap-1 lg:gap-2"
               )}
             >
               {navItems.map((item) => {
@@ -214,14 +216,14 @@ export function GlobalTopNav({
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-transparent px-3 py-2 font-sans text-xs font-medium transition-colors",
+                      "relative flex min-h-11 shrink-0 items-center gap-1.5 px-2.5 font-sans text-sm font-semibold transition-colors after:absolute after:inset-x-2.5 after:bottom-0 after:h-[3px] after:origin-center after:transition-transform after:duration-200",
                       isDarkTheme
                         ? active
-                          ? "border-zaltyko-electric/30 bg-zaltyko-electric/10 text-zaltyko-electric shadow-soft"
-                          : "text-white/70 hover:border-white/10 hover:bg-white/5 hover:text-white"
+                          ? "text-white after:scale-x-100 after:bg-white"
+                          : "text-white/70 after:scale-x-0 after:bg-white hover:text-white"
                         : active
-                          ? "border-zaltyko-teal/20 bg-zaltyko-teal/10 text-zaltyko-teal shadow-soft font-semibold"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                          ? "text-mat after:scale-x-100 after:bg-mat"
+                          : "text-ramp-600 after:scale-x-0 after:bg-mat hover:text-mat-night",
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" strokeWidth={1.8} />
@@ -283,7 +285,7 @@ export function GlobalTopNav({
                   <p className={cn("truncate text-xs font-semibold", isDarkTheme ? "text-white" : "text-foreground")}>
                     {userName}
                   </p>
-                  <p className={cn("truncate text-[10px]", isDarkTheme ? "text-white/60" : "text-muted-foreground")}>
+                  <p className={cn("truncate text-xs", isDarkTheme ? "text-white/60" : "text-muted-foreground")}>
                     {userRole ? getRoleLabel(userRole) : "Usuario"}
                   </p>
                 </div>
@@ -339,7 +341,7 @@ export function GlobalTopNav({
                     type="button"
                     onClick={handleGoToHome}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2 py-1.5 font-sans text-xs font-medium transition",
+                      "flex min-h-11 w-full items-center gap-2 rounded-md px-2.5 font-sans text-sm font-medium transition",
                       isDarkTheme ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
@@ -349,7 +351,7 @@ export function GlobalTopNav({
                     type="button"
                     onClick={handleGoToProfile}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2 py-1.5 font-sans text-xs font-medium transition",
+                      "flex min-h-11 w-full items-center gap-2 rounded-md px-2.5 font-sans text-sm font-medium transition",
                       isDarkTheme ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
@@ -387,7 +389,7 @@ export function GlobalTopNav({
                             }
                           }}
                           className={cn(
-                            "flex w-full items-center gap-2 rounded-md px-2 py-1.5 font-sans text-xs font-medium transition",
+                            "flex min-h-11 w-full items-center gap-2 rounded-md px-2.5 font-sans text-sm font-medium transition",
                             isDarkTheme ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
                           )}
                         >
@@ -413,7 +415,7 @@ export function GlobalTopNav({
                                 onClick={() => setProfileMenuOpen(false)}
                                 aria-current={isActive ? "page" : undefined}
                                 className={cn(
-                                  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 font-sans text-xs font-medium transition",
+                                  "flex min-h-11 w-full items-center gap-2 rounded-md px-2.5 font-sans text-sm font-medium transition",
                                   isActive
                                     ? isDarkTheme
                                       ? "bg-zaltyko-electric/10 text-zaltyko-electric font-semibold"
@@ -439,7 +441,7 @@ export function GlobalTopNav({
                       onClick={handleSignOut}
                       disabled={loading}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 font-sans text-xs font-semibold transition disabled:opacity-60",
+                        "flex min-h-11 w-full items-center gap-2 rounded-md px-2.5 font-sans text-sm font-semibold transition disabled:opacity-60",
                         "text-zaltyko-coral hover:bg-zaltyko-coral/10",
                       )}
                     >
@@ -455,25 +457,22 @@ export function GlobalTopNav({
 
       {/* Drawer móvil para navegación */}
       {mobileMenuOpen && (
-        <div className={cn("fixed inset-0 z-[1000] h-screen w-screen overflow-y-auto lg:hidden", isDarkTheme ? "bg-zaltyko-navy text-white" : "bg-background")}>
-          <div className={cn("flex items-center justify-between border-b px-4 py-4", isDarkTheme ? "border-white/10" : "border-border")}>
-            <div className="flex items-center gap-2">
-              {isDarkTheme ? (
-                <Image src="/branding/zaltyko/logo-zaltyko-dark.svg" alt="Zaltyko" width={32} height={32} className="h-8 w-auto" />
-              ) : (
-                <Image src="/branding/zaltyko/logo-zaltyko.svg" alt="Zaltyko" width={32} height={32} className="h-8 w-auto" />
-              )}
+        // Menú móvil «Magnesio sobre tapiz»: zona de seguridad azul, rótulos grandes.
+        <div className="mat-field-deep fixed inset-0 z-[1000] h-screen w-screen overflow-y-auto text-white lg:hidden">
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+            <div className="flex items-center gap-2 text-white">
+              <ZaltykoLockup markClassName="h-7 w-7" />
             </div>
             <button
               type="button"
               onClick={() => setMobileMenuOpen(false)}
-              className={cn("rounded-lg p-2 transition", isDarkTheme ? "text-white/80 hover:bg-white/5" : "text-muted-foreground hover:bg-muted")}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-md text-white hover:bg-white/10"
               aria-label="Cerrar menú"
             >
               <X className="h-6 w-6" strokeWidth={1.8} />
             </button>
           </div>
-          <nav className="space-y-2 px-4 py-6">
+          <nav className="px-4 py-4">
             {(currentAcademyId ? academyNavItems : navItems).map((item) => {
               const active = isPrimaryNavActive(pathname, item.href, isSuperAdmin);
               const academyActive = currentAcademyId
@@ -487,14 +486,8 @@ export function GlobalTopNav({
                   onClick={() => setMobileMenuOpen(false)}
                   aria-current={academyActive ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-xl px-4 py-4 font-sans text-base font-medium transition-all duration-200 active:scale-[0.98] min-h-[52px]",
-                    isDarkTheme
-                      ? academyActive
-                        ? "bg-zaltyko-electric/10 text-zaltyko-electric shadow-sm"
-                        : "bg-white/10 text-white hover:bg-white/15"
-                      : academyActive
-                        ? "bg-zaltyko-teal/10 text-zaltyko-teal shadow-sm"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    "font-display flex min-h-14 items-center gap-3 border-b border-white/10 px-2 text-xl font-extrabold uppercase tracking-[0.02em] transition-colors",
+                    academyActive ? "bg-white text-mat-deep" : "text-white/85 hover:bg-white/10 hover:text-white",
                   )}
                 >
                   <Icon className="h-5 w-5 shrink-0" strokeWidth={1.8} />
@@ -506,7 +499,7 @@ export function GlobalTopNav({
 
           {/* Notification Bell en móvil */}
           {currentAcademyId && (
-            <div className="px-4 py-3 border-b" style={{ borderColor: isDarkTheme ? "rgba(255,255,255,0.1)" : undefined }}>
+            <div className="px-4 py-3 border-b" style={{ borderColor: onMatDrawer ? "rgba(255,255,255,0.1)" : undefined }}>
               <NotificationBell />
             </div>
           )}
@@ -515,40 +508,40 @@ export function GlobalTopNav({
           <div
             className={cn(
               "mt-2 border-t px-4 pb-6",
-              isDarkTheme ? "border-white/10" : "border-border"
+              onMatDrawer ? "border-white/10" : "border-border"
             )}
           >
             <div className="pt-4 space-y-3">
               <div className="flex items-center gap-3">
                 <span className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
-                  isDarkTheme ? "bg-zaltyko-electric/15 text-zaltyko-electric" : "bg-zaltyko-teal/10 text-zaltyko-teal"
+                  onMatDrawer ? "bg-zaltyko-electric/15 text-zaltyko-electric" : "bg-zaltyko-teal/10 text-zaltyko-teal"
                 )}>
                   {userName?.slice(0, 1)?.toUpperCase() ?? (userEmail?.slice(0, 1)?.toUpperCase() ?? "U")}
                 </span>
                 <div className="min-w-0 flex-1">
                   {userName ? (
                     <>
-                      <p className={cn("truncate font-sans text-sm font-semibold", isDarkTheme ? "text-white" : "text-foreground")}>
+                      <p className={cn("truncate font-sans text-sm font-semibold", onMatDrawer ? "text-white" : "text-foreground")}>
                         {userName}
                       </p>
                       {userEmail && (
-                        <p className={cn("truncate font-sans text-xs", isDarkTheme ? "text-white/70" : "text-muted-foreground")}>
+                        <p className={cn("truncate font-sans text-xs", onMatDrawer ? "text-white/70" : "text-muted-foreground")}>
                           {userEmail}
                         </p>
                       )}
                     </>
                   ) : userEmail ? (
-                    <p className={cn("truncate font-sans text-sm font-semibold", isDarkTheme ? "text-white" : "text-foreground")}>
+                    <p className={cn("truncate font-sans text-sm font-semibold", onMatDrawer ? "text-white" : "text-foreground")}>
                       {userEmail}
                     </p>
                   ) : (
-                    <p className={cn("truncate font-sans text-sm font-semibold", isDarkTheme ? "text-white" : "text-foreground")}>
+                    <p className={cn("truncate font-sans text-sm font-semibold", onMatDrawer ? "text-white" : "text-foreground")}>
                       Usuario
                     </p>
                   )}
                   {userRole && (
-                    <p className={cn("mt-0.5 font-sans text-xs", isDarkTheme ? "text-white/60" : "text-muted-foreground")}>
+                    <p className={cn("mt-0.5 font-sans text-xs", onMatDrawer ? "text-white/60" : "text-muted-foreground")}>
                       {getRoleLabel(userRole)}
                     </p>
                   )}
@@ -559,8 +552,8 @@ export function GlobalTopNav({
                   type="button"
                   onClick={() => { setMobileMenuOpen(false); handleGoToHome(); }}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-xl px-4 py-3 font-sans text-sm font-medium transition",
-                    isDarkTheme
+                    "flex min-h-12 w-full items-center gap-3 rounded-md px-3 font-sans text-base font-semibold transition",
+                    onMatDrawer
                       ? "text-white/80 hover:bg-white/10 hover:text-white"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
@@ -573,8 +566,8 @@ export function GlobalTopNav({
                   type="button"
                   onClick={() => { setMobileMenuOpen(false); handleGoToProfile(); }}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-xl px-4 py-3 font-sans text-sm font-medium transition",
-                    isDarkTheme
+                    "flex min-h-12 w-full items-center gap-3 rounded-md px-3 font-sans text-base font-semibold transition",
+                    onMatDrawer
                       ? "text-white/80 hover:bg-white/10 hover:text-white"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
@@ -583,13 +576,13 @@ export function GlobalTopNav({
                   <span>Mi perfil</span>
                 </button>
 
-                <div className={cn("border-t pt-1.5 mt-1.5", isDarkTheme ? "border-white/10" : "border-border")}>
+                <div className={cn("border-t pt-1.5 mt-1.5", onMatDrawer ? "border-white/10" : "border-border")}>
                   <button
                     type="button"
                     onClick={() => { setMobileMenuOpen(false); handleSignOut(); }}
                     disabled={loading}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-xl px-4 py-3 font-sans text-sm font-semibold transition disabled:opacity-60",
+                      "flex min-h-12 w-full items-center gap-3 rounded-md px-3 font-sans text-base font-semibold transition disabled:opacity-60",
                       "text-zaltyko-coral hover:bg-zaltyko-coral/10"
                     )}
                   >

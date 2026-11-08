@@ -61,7 +61,7 @@ export function ContactAcademyForm({ academyId, academyName }: ContactAcademyFor
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-6 py-3 font-semibold text-zaltyko-primary-dark transition hover:scale-105"
+        className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-6 py-3 font-semibold text-zaltyko-primary-dark transition"
       >
         <Mail className="h-5 w-5" />
         Contactar academia
@@ -151,7 +151,7 @@ export function ContactAcademyForm({ academyId, academyName }: ContactAcademyFor
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-zaltyko-primary to-zaltyko-primary-dark px-4 py-2 font-semibold text-white transition hover:scale-105 disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-zaltyko-primary to-zaltyko-primary-dark px-4 py-2 font-semibold text-white transition disabled:opacity-50"
             >
               {isSubmitting ? (
                 "Enviando..."

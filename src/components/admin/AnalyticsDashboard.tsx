@@ -38,10 +38,10 @@ export function AnalyticsDashboard() {
   }, []);
 
   if (loading) {
-    return <p style={{ color: "#64748b", padding: 24 }}>Cargando analytics…</p>;
+    return <p style={{ color: "#5C6782", padding: 24 }}>Cargando analytics…</p>;
   }
   if (!data) {
-    return <p style={{ color: "#dc2626", padding: 24 }}>Error cargando analytics</p>;
+    return <p style={{ color: "#C93C20", padding: 24 }}>Error cargando analytics</p>;
   }
 
   const c = data.counts;
@@ -51,13 +51,13 @@ export function AnalyticsDashboard() {
     <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px", fontFamily: "system-ui, sans-serif" }}>
       <header style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Analytics — Zaltyko</h1>
-        <p style={{ color: "#64748b", fontSize: 13, margin: "4px 0 0" }}>
+        <p style={{ color: "#5C6782", fontSize: 13, margin: "4px 0 0" }}>
           Vista global del SaaS. Solo super-admin.
         </p>
       </header>
 
       <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, color: "#475569", textTransform: "uppercase" }}>
+        <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, color: "#3E4A66", textTransform: "uppercase" }}>
           Conteos globales
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
@@ -72,7 +72,7 @@ export function AnalyticsDashboard() {
       </section>
 
       <section>
-        <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, color: "#475569", textTransform: "uppercase" }}>
+        <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, color: "#3E4A66", textTransform: "uppercase" }}>
           Últimos 30 días
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
@@ -101,15 +101,15 @@ function Card({
     <div
       style={{
         padding: 16,
-        background: highlight ? "#fef3c7" : "white",
-        border: `1px solid ${highlight ? "#fcd34d" : "#e2e8f0"}`,
+        background: highlight ? "#FDECE7" : "white",
+        border: `1px solid ${highlight ? "#F5AE9D" : "#D5DAE3"}`,
         borderRadius: 8,
       }}
     >
-      <p style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", margin: 0 }}>
+      <p style={{ fontSize: 11, color: "#5C6782", textTransform: "uppercase", letterSpacing: "0.04em", margin: 0 }}>
         {label}
       </p>
-      <p style={{ fontSize: wide ? 22 : 24, fontWeight: 700, color: "#0f172a", margin: "6px 0 0" }}>
+      <p style={{ fontSize: wide ? 22 : 24, fontWeight: 700, color: "#0B1430", margin: "6px 0 0" }}>
         {value}
       </p>
     </div>

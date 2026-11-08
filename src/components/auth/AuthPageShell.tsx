@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { ZaltykoLockup } from "@/components/brand/ZaltykoMark";
 
 interface AuthPageShellProps {
   title: string;
@@ -18,6 +17,11 @@ interface AuthPageShellProps {
   highlights: string[];
 }
 
+/**
+ * Entrada «Magnesio sobre tapiz»: el formulario vive sobre magnesio, a la
+ * izquierda; a la derecha, el tapiz con su cinta y el mensaje del espacio
+ * al que se entra. En móvil, una franja de tapiz encabeza el formulario.
+ */
 export function AuthPageShell({
   title,
   description,
@@ -30,81 +34,57 @@ export function AuthPageShell({
   highlights,
 }: AuthPageShellProps) {
   return (
-    <div className="min-h-screen overflow-hidden bg-zaltyko-navy text-white">
-      <div className="pointer-events-none absolute inset-0 opacity-80 zaltyko-motion-lines" />
-      <div className="mx-auto grid min-h-screen max-w-7xl lg:grid-cols-[minmax(0,520px),1fr]">
-        <main className="relative flex min-h-screen flex-col px-6 py-6 sm:px-8 lg:px-12">
-          <div>
-            <Link
-              href={backHref}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {backLabel}
-            </Link>
-          </div>
-
-          <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
-            <div className="rounded-2xl border border-white/10 bg-zaltyko-white p-6 text-foreground shadow-medium sm:p-8">
-              <div className="space-y-5">
-                <Image
-                  src="/branding/zaltyko/logo-zaltyko.svg"
-                  alt="Zaltyko"
-                  width={132}
-                  height={38}
-                  className="h-9 w-auto"
-                  priority
-                />
-                <div className="space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-zaltyko-teal">
-                    Acceso seguro
-                  </p>
-                  <h1 className="font-display text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">
-                    {title}
-                  </h1>
-                  <p className="text-sm leading-6 text-muted-foreground sm:text-base">
-                    {description}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-8">{children}</div>
-
-              <div className="mt-6 text-sm text-muted-foreground">{footer}</div>
-            </div>
-          </div>
-        </main>
-
-        <aside className="relative hidden border-l border-white/10 lg:flex">
-          <div className="flex w-full items-center px-10 py-12 xl:px-14">
-            <div className="mx-auto max-w-xl space-y-8">
-              <div className="space-y-3">
-                <p className="text-sm font-medium uppercase tracking-[0.16em] text-zaltyko-teal">
-                  Zaltyko
-                </p>
-                <h2 className="font-display text-4xl font-semibold tracking-normal text-white">
-                  {sideTitle}
-                </h2>
-                <p className="text-base leading-7 text-white/64">{sideDescription}</p>
-              </div>
-
-              <div className="grid gap-3">
-                {highlights.map((highlight) => (
-                  <div
-                    key={highlight}
-                    className={cn(
-                      "flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4"
-                    )}
-                  >
-                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-zaltyko-teal" />
-                    <p className="text-sm leading-6 text-white/78">{highlight}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </aside>
+    <div className="chalk-field min-h-screen text-mat-night lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="mat-field-deep flex h-16 items-center justify-between px-5 lg:hidden">
+        <Link href="/" aria-label="Zaltyko, inicio" className="text-white">
+          <ZaltykoLockup markClassName="h-7 w-7" />
+        </Link>
+        <Link href={backHref} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-white/85">
+          <ArrowLeft aria-hidden className="h-4 w-4" />
+          {backLabel}
+        </Link>
       </div>
+
+      <main className="flex min-h-[calc(100vh-4rem)] flex-col px-6 py-8 sm:px-10 lg:min-h-screen lg:px-16 lg:py-10">
+        <div className="hidden items-center justify-between lg:flex">
+          <Link href="/" aria-label="Zaltyko, inicio" className="text-mat">
+            <ZaltykoLockup markClassName="h-8 w-8" />
+          </Link>
+          <Link
+            href={backHref}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm font-semibold text-ramp-600 hover:text-mat"
+          >
+            <ArrowLeft aria-hidden className="h-4 w-4" />
+            {backLabel}
+          </Link>
+        </div>
+
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
+          <h1 className="font-display text-[clamp(2.5rem,6vw,3.75rem)] font-black uppercase leading-[0.92] text-mat-night">
+            {title}
+          </h1>
+          <p className="mt-4 text-base leading-relaxed text-ramp-600">{description}</p>
+          <div className="mt-8 border-t-[3px] border-mat-night pt-8">{children}</div>
+          <div className="mt-8 text-sm text-ramp-600">{footer}</div>
+        </div>
+      </main>
+
+      <aside className="mat-field relative hidden overflow-hidden lg:flex">
+        <div aria-hidden className="pointer-events-none absolute inset-6 border-[3px] border-white/80" />
+        <div className="relative flex w-full flex-col justify-end p-16 xl:p-20">
+          <h2 className="font-display max-w-lg text-[clamp(2.5rem,4vw,4rem)] font-black uppercase leading-[0.92] text-white">
+            {sideTitle}
+          </h2>
+          <p className="mt-5 max-w-md text-lg leading-relaxed text-white/85">{sideDescription}</p>
+          <ul className="mt-10 max-w-lg border-t-[3px] border-white">
+            {highlights.map((highlight) => (
+              <li key={highlight} className="border-b border-white/20 py-4 text-base leading-relaxed text-white/90">
+                {highlight}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </aside>
     </div>
   );
 }

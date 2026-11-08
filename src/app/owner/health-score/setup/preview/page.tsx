@@ -5,9 +5,9 @@ import { AcademyTargetProfileForm } from "@/components/owner-dashboard/AcademyTa
 export default function AcademyHealthScoreSetupPreviewPage() {
   if (process.env.NODE_ENV === "production") notFound();
   return (
-    <main className="min-h-screen bg-[#F1F3EF] px-5 py-8 text-slate-950 sm:py-14">
+    <main className="min-h-screen bg-[#E9ECE6] px-5 py-8 text-slate-950 sm:py-14">
       <div className="mx-auto max-w-5xl">
-        <header className="grid gap-6 border-t-4 border-teal-800 bg-[#F8F8F4] p-6 sm:p-10 lg:grid-cols-[1fr_16rem] lg:items-end">
+        <header className="grid gap-6 border-t-4 border-teal-800 bg-[#F4F6F2] p-6 sm:p-10 lg:grid-cols-[1fr_16rem] lg:items-end">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
               Preview sintética · Academy Health Score
@@ -21,7 +21,7 @@ export default function AcademyHealthScoreSetupPreviewPage() {
               el mercado.
             </p>
           </div>
-          <div className="border-l-2 border-teal-800 bg-white p-4">
+          <div className="border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-4">
             <span className="block text-xs font-bold uppercase tracking-wide text-slate-500">
               Academia ficticia
             </span>
@@ -34,7 +34,7 @@ export default function AcademyHealthScoreSetupPreviewPage() {
           </div>
         </header>
         <section
-          className="mt-8 bg-[#E7EAE3] p-5 sm:p-8"
+          className="mt-8 bg-[#E9ECE6] p-5 sm:p-8"
           aria-label="Objetivos sintéticos de salud"
         >
           <div className="mb-7">

@@ -29,11 +29,11 @@ interface DonutChartProps {
 }
 
 const defaultColors = [
-  "#1FC7B6",
-  "#2B2E83",
-  "#CBD5E1",
-  "#FF6B57",
-  "#0F172A",
+  "#8FB4FF",
+  "#14307F",
+  "#D5DAE3",
+  "#E5482A",
+  "#0B1430",
 ];
 
 export function BarChart({ data, height = 200, showValues = true, className }: BarChartProps) {
@@ -122,7 +122,7 @@ export function LineChart({ data, height = 200, showArea = true, className }: Li
             y1={tick * (height - 20)}
             x2="280"
             y2={tick * (height - 20)}
-            stroke="#CBD5E1"
+            stroke="#D5DAE3"
             opacity="0.4"
             strokeWidth="1"
             strokeDasharray="4 4"
@@ -142,7 +142,7 @@ export function LineChart({ data, height = 200, showArea = true, className }: Li
         <path
           d={pathD}
           fill="none"
-          stroke="#1FC7B6"
+          stroke="#8FB4FF"
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -156,7 +156,7 @@ export function LineChart({ data, height = 200, showArea = true, className }: Li
               cy={point.y}
               r="6"
               fill="white"
-              stroke="#1FC7B6"
+              stroke="#8FB4FF"
               strokeWidth="3"
             />
             <title>{`${point.label}: ${point.value}`}</title>
@@ -166,8 +166,8 @@ export function LineChart({ data, height = 200, showArea = true, className }: Li
         {/* Gradient definition */}
         <defs>
           <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#1FC7B6" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#1FC7B6" stopOpacity="0" />
+            <stop offset="0%" stopColor="#8FB4FF" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#8FB4FF" stopOpacity="0" />
           </linearGradient>
         </defs>
       </svg>

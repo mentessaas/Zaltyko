@@ -1,7 +1,7 @@
 export default function OwnerDashboardLoading() {
   return (
     <main
-      className="min-h-screen bg-[#F1F3EF] px-5 py-12 text-slate-950"
+      className="min-h-screen bg-[#E9ECE6] px-5 py-12 text-slate-950"
       aria-busy="true"
     >
       <div className="mx-auto max-w-[92rem] animate-pulse motion-reduce:animate-none">

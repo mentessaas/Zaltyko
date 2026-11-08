@@ -45,7 +45,7 @@ export default async function AcademyHealthScoreSetupPage({
   } catch (error) {
     if (error instanceof OperationalError && error.code === "INVALID_RELATION") {
       return (
-        <main className="min-h-screen bg-[#F1F3EF] px-5 py-8 text-slate-950 sm:py-14">
+        <main className="min-h-screen bg-[#E9ECE6] px-5 py-8 text-slate-950 sm:py-14">
           <div className="mx-auto max-w-3xl">
             <a
               href={`/owner?organizationId=${scope.organization.id}`}
@@ -55,7 +55,7 @@ export default async function AcademyHealthScoreSetupPage({
             </a>
             <section
               role="alert"
-              className="mt-8 border-l-4 border-amber-700 bg-white p-6 sm:p-8"
+              className="mt-8 border border-amber-700 bg-white p-6 sm:p-8"
             >
               <h1 className="font-display text-2xl font-bold">
                 No se pudieron validar las metas guardadas
@@ -79,7 +79,7 @@ export default async function AcademyHealthScoreSetupPage({
     .where(eq(organizations.id, scope.organization.id))
     .limit(1);
   return (
-    <main className="min-h-screen bg-[#F1F3EF] px-5 py-8 text-slate-950 sm:py-14">
+    <main className="min-h-screen bg-[#E9ECE6] px-5 py-8 text-slate-950 sm:py-14">
       <div className="mx-auto max-w-5xl">
         <a
           href={`/owner?organizationId=${scope.organization.id}`}
@@ -87,7 +87,7 @@ export default async function AcademyHealthScoreSetupPage({
         >
           ← Volver a Mesa de dirección
         </a>
-        <header className="mt-8 grid gap-6 border-t-4 border-teal-800 bg-[#F8F8F4] p-6 sm:p-10 lg:grid-cols-[1fr_16rem] lg:items-end">
+        <header className="mt-8 grid gap-6 border-t-4 border-teal-800 bg-[#F4F6F2] p-6 sm:p-10 lg:grid-cols-[1fr_16rem] lg:items-end">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
               Academy Health Score · configuración
@@ -101,7 +101,7 @@ export default async function AcademyHealthScoreSetupPage({
               comparación con el mercado.
             </p>
           </div>
-          <div className="border-l-2 border-teal-800 bg-white p-4">
+          <div className="border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-4">
             <span className="block text-xs font-bold uppercase tracking-wide text-slate-500">
               Academia
             </span>
@@ -114,7 +114,7 @@ export default async function AcademyHealthScoreSetupPage({
           </div>
         </header>
         <section
-          className="mt-8 bg-[#E7EAE3] p-5 sm:p-8"
+          className="mt-8 bg-[#E9ECE6] p-5 sm:p-8"
           aria-label="Objetivos de salud"
         >
           <div className="mb-7 flex flex-wrap items-end justify-between gap-3">

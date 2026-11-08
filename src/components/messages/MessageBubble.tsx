@@ -69,7 +69,7 @@ export const MessageBubble = memo(function MessageBubble({
         <p className="text-sm whitespace-pre-wrap break-words">{content}</p>
 
         <div
-          className={`text-[10px] mt-1 ${
+          className={`text-xs mt-1 ${
             isOwnMessage ? "text-primary-foreground/60" : "text-muted-foreground"
           }`}
         >

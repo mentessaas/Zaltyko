@@ -88,7 +88,7 @@ export function MarketplaceSearch({
         }}
       >
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase" }}>
+          <span style={{ fontSize: 11, color: "#5C6782", textTransform: "uppercase" }}>
             {t.search}
           </span>
           <input
@@ -100,7 +100,7 @@ export function MarketplaceSearch({
           />
         </label>
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase" }}>
+          <span style={{ fontSize: 11, color: "#5C6782", textTransform: "uppercase" }}>
             {t.minPrice}
           </span>
           <input
@@ -114,7 +114,7 @@ export function MarketplaceSearch({
           />
         </label>
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase" }}>
+          <span style={{ fontSize: 11, color: "#5C6782", textTransform: "uppercase" }}>
             {t.maxPrice}
           </span>
           <input
@@ -128,7 +128,7 @@ export function MarketplaceSearch({
           />
         </label>
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase" }}>
+          <span style={{ fontSize: 11, color: "#5C6782", textTransform: "uppercase" }}>
             {t.condition}
           </span>
           <select
@@ -147,7 +147,7 @@ export function MarketplaceSearch({
           disabled={pending}
           style={{
             padding: "8px 14px",
-            background: "#0f172a",
+            background: "#0B1430",
             color: "white",
             border: 0,
             borderRadius: 6,
@@ -163,8 +163,8 @@ export function MarketplaceSearch({
           style={{
             padding: "8px 14px",
             background: "transparent",
-            color: "#64748b",
-            border: "1px solid #cbd5e1",
+            color: "#5C6782",
+            border: "1px solid #D5DAE3",
             borderRadius: 6,
             cursor: "pointer",
             fontSize: 13,
@@ -180,7 +180,7 @@ export function MarketplaceSearch({
 const inputStyle: React.CSSProperties = {
   padding: "8px 10px",
   fontSize: 14,
-  border: "1px solid #cbd5e1",
+  border: "1px solid #D5DAE3",
   borderRadius: 6,
   fontFamily: "inherit",
 };

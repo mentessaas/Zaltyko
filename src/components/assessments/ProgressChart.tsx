@@ -97,13 +97,13 @@ export function ProgressChart({ assessments, athleteName }: ProgressChartProps) 
 
   // Colores para cada skill
   const colors = [
-    "#3b82f6", // blue
-    "#10b981", // green
-    "#f59e0b", // amber
-    "#ef4444", // red
+    "#5B7BE0", // blue
+    "#1E3FA8", // green
+    "#3E4A66", // amber
+    "#E5482A", // red
     "#8b5cf6", // violet
     "#ec4899", // pink
-    "#06b6d4", // cyan
+    "#8FB4FF", // cyan
     "#84cc16", // lime
   ];
 

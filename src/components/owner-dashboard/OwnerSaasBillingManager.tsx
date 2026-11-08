@@ -652,9 +652,9 @@ export function OwnerSaasBillingManager({
     currentLoadState.status === "error" ? currentLoadState.message : "";
 
   return (
-    <main className="min-h-screen bg-[#F1F3EF] px-5 py-8 text-slate-950 sm:py-12">
+    <main className="min-h-screen bg-[#E9ECE6] px-5 py-8 text-slate-950 sm:py-12">
       <div className="mx-auto max-w-5xl">
-        <header className="border-t-4 border-teal-800 bg-[#F8F8F4] p-6 sm:p-9">
+        <header className="border-t-4 border-teal-800 bg-[#F4F6F2] p-6 sm:p-9">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
             Gestión del plan
           </p>
@@ -665,7 +665,7 @@ export function OwnerSaasBillingManager({
             Consulta el acceso de tu academia y gestiona su suscripción. Esto es
             independiente de los cobros y cuotas de las familias.
           </p>
-          <div className="mt-6 border-l-2 border-teal-800 bg-white p-4">
+          <div className="mt-6 border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-4">
             <span className="block text-xs font-bold uppercase tracking-wide text-slate-500">
               Academia
             </span>
@@ -685,7 +685,7 @@ export function OwnerSaasBillingManager({
 
         {currentLoadError ? (
           <section
-            className="mt-6 border-l-4 border-amber-700 bg-white p-5"
+            className="mt-6 border border-amber-700 bg-white p-5"
             role="alert"
           >
             <h2 className="font-display text-xl font-bold">
@@ -801,7 +801,7 @@ export function OwnerSaasBillingManager({
 
             {!syncIsReady ? (
               <section
-                className="mt-4 border-l-4 border-amber-700 bg-white p-5"
+                className="mt-4 border border-amber-700 bg-white p-5"
                 role="status"
               >
                 <p className="font-semibold">
@@ -826,7 +826,7 @@ export function OwnerSaasBillingManager({
 
         {notice ? (
           <div
-            className="mt-4 border-l-4 border-teal-800 bg-white p-4 text-sm leading-6 text-slate-800"
+            className="mt-4 border border-teal-800 bg-white p-4 text-sm leading-6 text-slate-800"
             role="status"
             aria-live="polite"
           >
@@ -843,7 +843,7 @@ export function OwnerSaasBillingManager({
           </section>
         ) : null}
         {actionError ? (
-          <div className="mt-4 border-l-4 border-rose-700 bg-white p-4" role="alert">
+          <div className="mt-4 border border-rose-700 bg-white p-4" role="alert">
             <p className="text-sm leading-6 text-slate-800">{actionError}</p>
             {pendingCommand?.organizationId === organizationId ? <p className="mt-2 text-xs leading-5 text-slate-600">
               El reintento de la operación pendiente conservará la misma clave y el mismo cuerpo.
@@ -851,7 +851,7 @@ export function OwnerSaasBillingManager({
           </div>
         ) : null}
         {pendingReadState.organizationId === organizationId && pendingReadState.status === "blocked" ? (
-          <div className="mt-4 border-l-4 border-amber-700 bg-white p-4" role="alert">
+          <div className="mt-4 border border-amber-700 bg-white p-4" role="alert">
             <p className="text-sm leading-6 text-slate-800">{pendingReadState.message}</p>
             <button type="button" className="touch-target mt-2 rounded-full border px-4 text-sm font-bold" onClick={() => setPendingReadAttempt((value) => value + 1)}>Volver a comprobar la operación guardada</button>
           </div>
@@ -931,7 +931,7 @@ export function OwnerSaasBillingManager({
             </div>
 
             {trial?.eligible && currentSnapshot.actions.canStartTrial ? (
-              <div className="mt-5 flex flex-col gap-4 border-l-4 border-teal-800 bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div className="mt-5 flex flex-col gap-4 border border-teal-800 bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <div>
                   <h3 className="font-display text-xl font-bold">
                     Prueba Starter durante 7 días
@@ -1041,7 +1041,7 @@ export function OwnerSaasBillingManager({
               </p>
             ) : null}
 
-            <aside className="mt-5 border border-slate-300 bg-[#F8F8F4] p-5">
+            <aside className="mt-5 border border-slate-300 bg-[#F4F6F2] p-5">
               <h3 className="font-display text-lg font-bold">
                 ¿Gestionas varias sedes?
               </h3>

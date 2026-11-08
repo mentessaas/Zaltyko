@@ -193,7 +193,7 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
             </nav>
 
             {!available && (
-              <span className="mb-4 inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <span className="mb-4 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {t.comingSoon}
               </span>
             )}
@@ -278,7 +278,7 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
                     className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground cursor-not-allowed select-none"
                   >
                     {mod.label}
-                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide">
                       {t.comingSoon}
                     </span>
                   </span>

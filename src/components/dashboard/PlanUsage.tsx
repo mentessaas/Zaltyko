@@ -14,6 +14,8 @@ interface PlanUsageProps {
   academyId: string;
   athleteLabel: string;
   classLabel: string;
+  /** "onMat": línea en blanco al pie de la banda de tapiz, sin tarjeta. */
+  tone?: "default" | "onMat";
 }
 
 function getProgressColor(percent: number) {
@@ -22,7 +24,7 @@ function getProgressColor(percent: number) {
   return "bg-zaltyko-teal";
 }
 
-export function PlanUsage({ plan, academyId, athleteLabel, classLabel }: PlanUsageProps) {
+export function PlanUsage({ plan, academyId, athleteLabel, classLabel, tone = "default" }: PlanUsageProps) {
   const effectivePlanName = getProductPlanPublicName(plan.planCode, plan.planNickname);
   const usageSummary = plan.athleteLimit != null
     ? `${plan.usedAthletes}/${plan.athleteLimit} ${athleteLabel}`
@@ -31,19 +33,46 @@ export function PlanUsage({ plan, academyId, athleteLabel, classLabel }: PlanUsa
     ? `, ${plan.usedClasses}/${plan.classLimit} ${classLabel}`
     : "";
 
-  return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card p-4 shadow-soft">
-      <div className="flex items-start justify-between gap-3">
+  if (tone === "onMat") {
+    return (
+      <div className="flex flex-col gap-3 text-white sm:flex-row sm:items-center sm:gap-6">
+        <p className="shrink-0 text-sm">
+          <span className="font-display text-lg font-black uppercase">Plan {effectivePlanName}</span>
+          <span className="text-white/80"> · {getSubscriptionStatusLabel(plan.status)}</span>
+        </p>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-            Estado del plan
+          <p className="tabular text-sm text-white/90">
+            {usageSummary}
+            {classesSummary}
           </p>
-          <h3 className="mt-0.5 font-display text-base font-semibold text-foreground">{effectivePlanName}</h3>
-          <p className="text-[10px] text-muted-foreground">Estado: {getSubscriptionStatusLabel(plan.status)}</p>
+          <Progress
+            value={plan.athletePercent}
+            aria-label="Uso del plan"
+            className="mt-1.5 h-1.5 rounded-full bg-white/20"
+            indicatorClassName={cn("transition-all", plan.athletePercent >= 90 ? "bg-signal" : "bg-white")}
+          />
         </div>
         <Link
           href={`/app/${academyId}/billing`}
-          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-zaltyko-indigo/25 px-2 py-1 text-[10px] font-semibold text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5 dark:border-zaltyko-electric/35 dark:text-zaltyko-electric dark:hover:bg-zaltyko-electric/10"
+          className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-md border border-white/50 px-3 text-sm font-bold text-white transition hover:border-white hover:bg-white/10 focus-visible:ring-white focus-visible:ring-offset-mat"
+        >
+          Mejorar plan
+          <ArrowUpRight aria-hidden className="h-4 w-4" />
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-chalk-line bg-white p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-display text-lg font-black uppercase leading-none text-foreground">Plan {effectivePlanName}</h3>
+          <p className="text-xs text-muted-foreground">Estado: {getSubscriptionStatusLabel(plan.status)}</p>
+        </div>
+        <Link
+          href={`/app/${academyId}/billing`}
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-zaltyko-indigo/25 px-2 py-1 text-xs font-semibold text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5 dark:border-zaltyko-electric/35 dark:text-zaltyko-electric dark:hover:bg-zaltyko-electric/10"
         >
           Mejorar
           <ArrowUpRight className="h-3 w-3" strokeWidth={1.8} />
@@ -51,7 +80,7 @@ export function PlanUsage({ plan, academyId, athleteLabel, classLabel }: PlanUsa
       </div>
 
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground">
+        <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
           <span>Resumen</span>
           <span className="text-xs font-semibold text-foreground">
             {usageSummary}{classesSummary}
@@ -70,14 +99,14 @@ export function PlanUsage({ plan, academyId, athleteLabel, classLabel }: PlanUsa
         <div className="mt-3 flex flex-wrap gap-2 border-t border-border/60 pt-3">
           <Link
             href={`/app/${academyId}/billing/scholarships`}
-            className="inline-flex items-center gap-1 text-[10px] font-semibold text-zaltyko-teal transition hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-zaltyko-teal transition hover:underline"
           >
             Ver becas
             <ArrowUpRight className="h-3 w-3" />
           </Link>
           <Link
             href={`/app/${academyId}/billing/discounts`}
-            className="inline-flex items-center gap-1 text-[10px] font-semibold text-zaltyko-teal transition hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-zaltyko-teal transition hover:underline"
           >
             Ver descuentos
             <ArrowUpRight className="h-3 w-3" />

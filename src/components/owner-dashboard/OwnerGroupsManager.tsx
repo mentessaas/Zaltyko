@@ -911,7 +911,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-[#F1F3EF] px-4 py-6 text-slate-950 sm:px-6 lg:px-10">
+    <main className="min-h-[100dvh] bg-[#E9ECE6] px-4 py-6 text-slate-950 sm:px-6 lg:px-10">
       <div className="mx-auto max-w-[92rem]">
         <Link
           href={ownerDashboardScopeHref(
@@ -1282,7 +1282,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                       aria-current={
                         group.id === selectedGroup?.id ? "page" : undefined
                       }
-                      className={`touch-target flex min-h-14 items-center justify-between gap-3 border-l-4 px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 ${group.id === selectedGroup?.id ? "border-teal-800 bg-teal-50" : "border-transparent hover:bg-slate-50"}`}
+                      className={`touch-target flex min-h-14 items-center justify-between gap-3 border px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-800 ${group.id === selectedGroup?.id ? "border-teal-800 bg-teal-50" : "border-transparent hover:bg-slate-50"}`}
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-semibold">

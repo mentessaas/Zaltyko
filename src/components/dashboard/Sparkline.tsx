@@ -15,7 +15,7 @@ interface SparklineProps {
  * Mini-gráfico de tendencia (sin ejes ni tooltip) para embeber dentro de las
  * tarjetas KPI. Recibe datos reales; si hay menos de 2 puntos no renderiza nada.
  */
-function SparklineImpl({ data, color = "#00796B", height = 34 }: SparklineProps) {
+function SparklineImpl({ data, color = "#1E3FA8", height = 34 }: SparklineProps) {
   const gradientId = useId();
 
   if (!data || data.length < 2) return null;

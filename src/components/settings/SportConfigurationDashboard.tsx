@@ -96,64 +96,49 @@ export function SportConfigurationDashboard({ academyId }: SportConfigurationDas
     );
   }
 
+  // Estado por rama como lista reglada: una fila por pendiente, en el idioma
+  // de la academia y con su acción. Sin jerga interna («legacy», «scope»).
+  const branchLower = fallbackTerms.branch.toLowerCase();
+  const gapRows = [
+    { key: "athletes", count: data.gaps.athletesWithoutSportConfig, text: `${fallbackTerms.athletes.toLowerCase()} sin ${branchLower} asignada`, href: `/app/${academyId}/settings`, action: `Asignar ${branchLower}` },
+    { key: "groups", count: data.gaps.groupsWithoutSportConfig, text: `${fallbackTerms.groups.toLowerCase()} sin ${branchLower} asignada`, href: `/app/${academyId}/settings`, action: `Asignar ${branchLower}` },
+    { key: "classes", count: data.gaps.classesWithoutSportConfig, text: `clases sin ${branchLower} asignada`, href: `/app/${academyId}/settings`, action: `Asignar ${branchLower}` },
+    { key: "coaches", count: data.gaps.coachesWithoutSportScope, text: `${fallbackCoachPlural.toLowerCase()} disponibles en todas las ${branchLower}s`, href: `/app/${academyId}/coaches?sportConfigId=unscoped`, action: "Revisar" },
+  ].filter((row) => row.count > 0);
+
   return (
     <Card>
       <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <CardTitle>Estado operativo por rama</CardTitle>
+            <CardTitle>Estado por {branchLower}</CardTitle>
             <CardDescription>
-              Revisa si atletas, grupos, clases, licencias y comunicaciones están alineados con las ramas activas.
+              Comprueba que {fallbackTerms.athletes.toLowerCase()}, grupos, clases, licencias y comunicaciones están en su {branchLower}.
             </CardDescription>
           </div>
           <Badge variant={totalGaps > 0 ? "pending" : "active"}>
-            {totalGaps > 0 ? `${totalGaps} dato(s) sin rama` : "Sin gaps críticos"}
+            {totalGaps > 0 ? `${totalGaps} ${totalGaps === 1 ? "pendiente" : "pendientes"}` : "Todo clasificado"}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {totalGaps > 0 && (
-          <div className="rounded-xl border border-zaltyko-indigo/25 bg-zaltyko-indigo/10 p-4 text-sm text-zaltyko-indigo">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="font-medium">Datos legacy pendientes de clasificar</p>
-                <p className="mt-1 text-muted-foreground">
-                  {fallbackTerms.athletes}: {data.gaps.athletesWithoutSportConfig} · {fallbackTerms.groups}: {data.gaps.groupsWithoutSportConfig} · Clases: {data.gaps.classesWithoutSportConfig} · {fallbackCoachPlural} sin scope: {data.gaps.coachesWithoutSportScope}
+      <CardContent className="space-y-6">
+        {gapRows.length > 0 && (
+          <ul className="border-y border-chalk-line">
+            {gapRows.map((row) => (
+              <li key={row.key} className="flex flex-wrap items-center justify-between gap-3 border-b border-chalk-line py-3 last:border-b-0">
+                <p className="text-sm text-mat-night">
+                  <span className="font-display tabular mr-2 text-2xl font-black">{row.count}</span>
+                  {row.text}
                 </p>
-              </div>
-            </div>
-          </div>
+                <Button asChild size="sm" variant="outline">
+                  <a href={row.href}>{row.action}</a>
+                </Button>
+              </li>
+            ))}
+          </ul>
         )}
 
-        <div className="grid gap-3 md:grid-cols-4">
-          <AuditLink
-            label={`${fallbackTerms.athletes} sin ${fallbackTerms.branch.toLowerCase()}`}
-            value={data.gaps.athletesWithoutSportConfig}
-            href={`/app/${academyId}/settings`}
-            action="Migrar"
-          />
-          <AuditLink
-            label={`${fallbackTerms.groups} sin ${fallbackTerms.branch.toLowerCase()}`}
-            value={data.gaps.groupsWithoutSportConfig}
-            href={`/app/${academyId}/settings`}
-            action="Migrar"
-          />
-          <AuditLink
-            label="Clases sin rama"
-            value={data.gaps.classesWithoutSportConfig}
-            href={`/app/${academyId}/settings`}
-            action="Migrar"
-          />
-          <AuditLink
-            label="Coaches sin scope"
-            value={data.gaps.coachesWithoutSportScope}
-            href={`/app/${academyId}/coaches?sportConfigId=unscoped`}
-            action="Revisar"
-          />
-        </div>
-
-        <div className="grid gap-3 xl:grid-cols-3">
+        <div className="grid gap-6 xl:grid-cols-3">
           {data.items.map((item) => (
             <SportDashboardBranchCard key={item.id} academyId={academyId} item={item} />
           ))}
@@ -175,7 +160,7 @@ function SportDashboardBranchCard({
   const coachLabelPlural = pluralizeFirstWord(terms.coach);
 
   return (
-    <div className="rounded-xl border border-border bg-zaltyko-warm-white p-4">
+    <div className="border-t-[3px] border-mat-night pt-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold text-foreground">{item.branchName}</p>
@@ -219,30 +204,6 @@ function SportDashboardBranchCard({
   );
 }
 
-function AuditLink({
-  label,
-  value,
-  href,
-  action,
-}: {
-  label: string;
-  value: number;
-  href: string;
-  action: string;
-}) {
-  const hasPending = value > 0;
-
-  return (
-    <div className={`rounded-xl border p-4 ${hasPending ? "border-zaltyko-indigo/25 bg-zaltyko-indigo/10" : "border-border bg-card"}`}>
-      <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">{label}</p>
-      <p className="mt-1 font-display text-2xl font-semibold text-foreground">{value}</p>
-      <Button asChild size="sm" variant="outline" className="mt-3" disabled={!hasPending}>
-        <a href={href}>{action}</a>
-      </Button>
-    </div>
-  );
-}
-
 function Metric({
   label,
   value,
@@ -258,7 +219,7 @@ function Metric({
         {icon}
       </div>
       <p className="font-display text-lg font-semibold text-foreground">{value}</p>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );
 }

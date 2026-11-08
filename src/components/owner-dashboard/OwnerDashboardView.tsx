@@ -114,7 +114,7 @@ function ScoreDial({
           cy="88"
           r="72"
           fill="none"
-          stroke="#DDE4E1"
+          stroke="#D5DAE3"
           strokeWidth="10"
         />
         <circle
@@ -122,7 +122,7 @@ function ScoreDial({
           cy="88"
           r="72"
           fill="none"
-          stroke={value === null ? "#64748B" : "#00796B"}
+          stroke={value === null ? "#5C6782" : "#1E3FA8"}
           strokeLinecap="round"
           strokeWidth="10"
           strokeDasharray={circumference}
@@ -304,7 +304,7 @@ function OperationalEvidence({
           </p>
         ) : (
           <>
-            <p className="mt-4 border-l-2 border-amber-500 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+            <p className="mt-4 rounded-md border border-signal/30 bg-signal-wash p-3 text-xs leading-5 text-signal-ink">
               {cohorts.pauseGrace.reason} La fecha de cohorte usa el primer
               estado activo registrado; si falta historial, usa el inicio de la
               inscripción.
@@ -425,7 +425,7 @@ function EmptyDashboard({
       )}
       <section
         id="data-status"
-        className="mt-6 w-full border-l-4 border-teal-700 bg-white p-7 shadow-soft sm:p-10"
+        className="mt-6 w-full border border-teal-700 bg-white p-7 shadow-soft sm:p-10"
       >
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-teal-800">
           Primer cierre
@@ -545,7 +545,7 @@ export function OwnerDashboardView({
 }) {
   if (bundle.state === "empty") {
     return (
-      <div className="min-h-screen bg-[#F1F3EF] text-slate-950">
+      <div className="min-h-screen bg-[#E9ECE6] text-slate-950">
         <EmptyDashboard
           bundle={bundle}
           operationalSummary={operationalSummary}
@@ -576,7 +576,7 @@ export function OwnerDashboardView({
   );
 
   return (
-    <div className="min-h-screen bg-[#F1F3EF] text-slate-950">
+    <div className="min-h-screen bg-[#E9ECE6] text-slate-950">
       <main
         id="contenido"
         className="mx-auto max-w-[92rem] px-5 pb-28 pt-6 lg:px-10 lg:pb-16 lg:pt-10"
@@ -760,8 +760,8 @@ export function OwnerDashboardView({
           aria-labelledby="priority-title"
           className="mt-7 lg:grid lg:grid-cols-[0.9fr_2.1fr] lg:gap-8"
         >
-          <div className="order-1 border-t-4 border-zaltyko-coral bg-[#FFF8F2] p-5 lg:p-7">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#A33A2D]">
+          <div className="order-1 border-t-4 border-zaltyko-coral bg-[#FDF3F0] p-5 lg:p-7">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#B8331A]">
               Primero hoy
             </p>
             <h2
@@ -990,7 +990,7 @@ export function OwnerDashboardView({
                         }}
                         aria-hidden="true"
                       />
-                      <span className="truncate text-center text-[10px] text-slate-400">
+                      <span className="truncate text-center text-xs text-slate-400">
                         {point.periodEnd.slice(5)}
                       </span>
                     </div>

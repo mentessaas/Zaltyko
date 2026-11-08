@@ -152,7 +152,7 @@ function ToastItem({ toast, onDismiss }: { toast: ToastDefinition; onDismiss: (i
   return (
     <div
       className={cn(
-        "pointer-events-auto animate-in slide-in-from-right-full overflow-hidden rounded-lg border-l-4 shadow-lg transition-all duration-300",
+        "pointer-events-auto animate-in slide-in-from-right-full overflow-hidden rounded-lg border shadow-lg transition-all duration-300",
         config.borderColor,
         config.bgColor
       )}

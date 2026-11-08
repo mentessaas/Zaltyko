@@ -90,7 +90,7 @@ export function AttendanceRiskWidget({ academyId }: AttendanceRiskWidgetProps) {
           </button>
         </div>
       ) : alerts.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Sin atletas en riesgo detectado.</p>
+        <p className="text-sm text-muted-foreground">Nadie en riesgo de abandono ahora mismo.</p>
       ) : (
         <div className="space-y-3">
           {highestRisk.map((alert) => (

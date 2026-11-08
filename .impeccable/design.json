@@ -1,0 +1,691 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-09T00:30:00+01:00",
+  "title": "Design System: Zaltyko",
+  "extensions": {
+    "colorMeta": {
+      "mat": {
+        "role": "primary",
+        "displayName": "Azul Tapiz",
+        "canonical": "#1E3FA8",
+        "tonalRamp": [
+          "#0B1430",
+          "#0F2463",
+          "#14307F",
+          "#1E3FA8",
+          "#4A6BD3",
+          "#7C99E6",
+          "#CED9F6",
+          "#F0F3FC"
+        ],
+        "scaleNote": "MAT_SCALE (50–950) en tailwind.config.mjs; reasigna teal, emerald, green, cyan, sky, blue, indigo, violet, purple y lime."
+      },
+      "mat-deep": {
+        "role": "primary",
+        "displayName": "Zona de Seguridad",
+        "canonical": "#14307F",
+        "tonalRamp": [
+          "#0B1430",
+          "#0F2463",
+          "#14307F",
+          "#1E3FA8",
+          "#4A6BD3",
+          "#7C99E6",
+          "#CED9F6",
+          "#F0F3FC"
+        ]
+      },
+      "mat-night": {
+        "role": "primary",
+        "displayName": "Noche de Pabellón",
+        "canonical": "#0B1430",
+        "tonalRamp": [
+          "#0B1430",
+          "#0F2463",
+          "#14307F",
+          "#1E3FA8",
+          "#4A6BD3",
+          "#7C99E6",
+          "#CED9F6",
+          "#F0F3FC"
+        ]
+      },
+      "mat-light": {
+        "role": "secondary",
+        "displayName": "Tapiz Claro",
+        "canonical": "#5B7BE0",
+        "tonalRamp": [
+          "#0B1430",
+          "#0F2463",
+          "#14307F",
+          "#1E3FA8",
+          "#4A6BD3",
+          "#7C99E6",
+          "#CED9F6",
+          "#F0F3FC"
+        ]
+      },
+      "mat-lane": {
+        "role": "secondary",
+        "displayName": "Azul Calle",
+        "canonical": "#8FB4FF",
+        "tonalRamp": [
+          "#0B1430",
+          "#0F2463",
+          "#14307F",
+          "#1E3FA8",
+          "#4A6BD3",
+          "#7C99E6",
+          "#CED9F6",
+          "#F0F3FC"
+        ]
+      },
+      "mat-wash": {
+        "role": "secondary",
+        "displayName": "Lavado Tapiz",
+        "canonical": "#E8EDFB",
+        "tonalRamp": [
+          "#0B1430",
+          "#0F2463",
+          "#14307F",
+          "#1E3FA8",
+          "#4A6BD3",
+          "#7C99E6",
+          "#CED9F6",
+          "#F0F3FC"
+        ]
+      },
+      "signal": {
+        "role": "tertiary",
+        "displayName": "Coral Señal",
+        "canonical": "#E5482A",
+        "tonalRamp": [
+          "#431109",
+          "#7A2414",
+          "#B8331A",
+          "#C93C20",
+          "#E5482A",
+          "#EE806A",
+          "#FAD3C9",
+          "#FDF3F0"
+        ],
+        "scaleNote": "SIGNAL_SCALE (50–950) en tailwind.config.mjs; reasigna amber, yellow, orange, red, rose, pink y fuchsia."
+      },
+      "signal-ink": {
+        "role": "tertiary",
+        "displayName": "Coral Tinta",
+        "canonical": "#B8331A",
+        "tonalRamp": [
+          "#431109",
+          "#7A2414",
+          "#B8331A",
+          "#C93C20",
+          "#E5482A",
+          "#EE806A",
+          "#FAD3C9",
+          "#FDF3F0"
+        ]
+      },
+      "signal-dark": {
+        "role": "tertiary",
+        "displayName": "Coral Oscuro",
+        "canonical": "#C2391E",
+        "tonalRamp": [
+          "#431109",
+          "#7A2414",
+          "#B8331A",
+          "#C93C20",
+          "#E5482A",
+          "#EE806A",
+          "#FAD3C9",
+          "#FDF3F0"
+        ]
+      },
+      "signal-wash": {
+        "role": "tertiary",
+        "displayName": "Lavado Señal",
+        "canonical": "#FDECE7",
+        "tonalRamp": [
+          "#431109",
+          "#7A2414",
+          "#B8331A",
+          "#C93C20",
+          "#E5482A",
+          "#EE806A",
+          "#FAD3C9",
+          "#FDF3F0"
+        ]
+      },
+      "chalk": {
+        "role": "neutral",
+        "displayName": "Magnesio",
+        "canonical": "#F4F6F2",
+        "tonalRamp": [
+          "#0B1430",
+          "#162038",
+          "#27314C",
+          "#3E4A66",
+          "#5C6782",
+          "#B4BCCB",
+          "#E9ECE6",
+          "#F4F6F2"
+        ]
+      },
+      "chalk-dust": {
+        "role": "neutral",
+        "displayName": "Polvo",
+        "canonical": "#E9ECE6",
+        "tonalRamp": [
+          "#0B1430",
+          "#162038",
+          "#27314C",
+          "#3E4A66",
+          "#5C6782",
+          "#B4BCCB",
+          "#E9ECE6",
+          "#F4F6F2"
+        ]
+      },
+      "chalk-line": {
+        "role": "neutral",
+        "displayName": "Línea de Magnesio",
+        "canonical": "#D5DAE3",
+        "tonalRamp": [
+          "#0B1430",
+          "#162038",
+          "#27314C",
+          "#3E4A66",
+          "#5C6782",
+          "#8A93A8",
+          "#D5DAE3",
+          "#F4F6F2"
+        ]
+      },
+      "tape": {
+        "role": "neutral",
+        "displayName": "Cinta",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#0B1430",
+          "#162038",
+          "#27314C",
+          "#3E4A66",
+          "#5C6782",
+          "#B4BCCB",
+          "#F4F6F2",
+          "#FFFFFF"
+        ]
+      },
+      "ramp-300": {
+        "role": "neutral",
+        "displayName": "Rampa 300",
+        "canonical": "#B4BCCB",
+        "tonalRamp": [
+          "#0B1430",
+          "#162038",
+          "#27314C",
+          "#3E4A66",
+          "#5C6782",
+          "#8A93A8",
+          "#B4BCCB",
+          "#D5DAE3"
+        ]
+      },
+      "ramp-400": {
+        "role": "neutral",
+        "displayName": "Rampa 400",
+        "canonical": "#8A93A8",
+        "tonalRamp": [
+          "#0B1430",
+          "#162038",
+          "#27314C",
+          "#3E4A66",
+          "#5C6782",
+          "#8A93A8",
+          "#B4BCCB",
+          "#D5DAE3"
+        ]
+      },
+      "ramp-500": {
+        "role": "neutral",
+        "displayName": "Rampa 500",
+        "canonical": "#5C6782",
+        "tonalRamp": [
+          "#0B1430",
+          "#162038",
+          "#27314C",
+          "#3E4A66",
+          "#5C6782",
+          "#8A93A8",
+          "#B4BCCB",
+          "#D5DAE3"
+        ],
+        "scaleNote": "RAMP_SCALE (50–950) en tailwind.config.mjs; reasigna gray, slate, zinc, neutral y stone."
+      },
+      "ramp-600": {
+        "role": "neutral",
+        "displayName": "Rampa 600",
+        "canonical": "#3E4A66",
+        "tonalRamp": [
+          "#0B1430",
+          "#162038",
+          "#27314C",
+          "#3E4A66",
+          "#5C6782",
+          "#8A93A8",
+          "#B4BCCB",
+          "#D5DAE3"
+        ]
+      },
+      "ramp-700": {
+        "role": "neutral",
+        "displayName": "Rampa 700",
+        "canonical": "#27314C",
+        "tonalRamp": [
+          "#0B1430",
+          "#162038",
+          "#27314C",
+          "#3E4A66",
+          "#5C6782",
+          "#8A93A8",
+          "#B4BCCB",
+          "#D5DAE3"
+        ]
+      },
+      "ramp-800": {
+        "role": "neutral",
+        "displayName": "Rampa 800",
+        "canonical": "#162038",
+        "tonalRamp": [
+          "#0B1430",
+          "#162038",
+          "#27314C",
+          "#3E4A66",
+          "#5C6782",
+          "#8A93A8",
+          "#B4BCCB",
+          "#D5DAE3"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Titular del primer viewport, portada de precios y cierre; mayúsculas, blanco sobre tapiz, font-stretch 72 %."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Titulares de sección pública y de la entrada; variante corta clamp(2rem, 4.5vw, 3.5rem) / 0.95."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Título de pantalla en la app (PageHeader) y de la banda del panel."
+      },
+      "panel-title": {
+        "displayName": "Panel title",
+        "purpose": "Título de cada panel reglado del panel de dirección, en noche bajo la regla de 3 px; mayúsculas, condensada, 1.5rem."
+      },
+      "step-current": {
+        "displayName": "Paso actual",
+        "purpose": "Número del paso actual de la puesta en marcha a 6rem en azul tapiz, con el total en gris de rampa; cifras tabulares, sin icono ni círculo."
+      },
+      "step-pending": {
+        "displayName": "Paso pendiente",
+        "purpose": "Numeral de los pasos pendientes en el <ol> desplegado, 3rem en ramp-400 en una columna de 48 px; pasa a azul tapiz al pasar el ratón."
+      },
+      "row-title": {
+        "displayName": "Row title",
+        "purpose": "Nombres de módulo, plan y país en listas regladas; condensado y en mayúsculas."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Horas, recuentos, precios y KPIs con cifras tabulares; hasta 3.75rem en el marcador del primer viewport."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Texto de trabajo a anchura normal."
+      },
+      "lede": {
+        "displayName": "Lede",
+        "purpose": "Párrafo de entrada de sección, máx. 36-42rem, en ramp-600 sobre claro o blanco al 85 % sobre tapiz."
+      },
+      "label": {
+        "displayName": "Rótulo de pista",
+        "purpose": "Cabeceras de panel, migas, cabeceras de tabla, secciones del lateral; nombra el dato, nunca antetítulo de un titular."
+      }
+    },
+    "shadows": [
+      {
+        "name": "soft",
+        "value": "0 1px 2px rgba(11, 20, 48, 0.06), 0 2px 6px -2px rgba(11, 20, 48, 0.08)",
+        "purpose": "Contacto de la tarjeta base blanca sobre magnesio y de la navegación inferior móvil; nunca en paneles reglados."
+      },
+      {
+        "name": "medium",
+        "value": "0 6px 20px -6px rgba(11, 20, 48, 0.18)",
+        "purpose": "Desplegables, menús y overlays."
+      },
+      {
+        "name": "button-edge",
+        "value": "0 1px 0 rgba(11, 20, 48, 0.25)",
+        "purpose": "Canto inferior del botón principal."
+      },
+      {
+        "name": "hero-cta",
+        "value": "0 8px 20px -10px rgba(11, 20, 48, 0.8)",
+        "purpose": "Solo el CTA blanco del primer viewport."
+      },
+      {
+        "name": "nav-scrolled",
+        "value": "0 10px 24px -18px rgba(11, 20, 48, 0.9)",
+        "purpose": "Barra pública al desplazarse."
+      },
+      {
+        "name": "tape-frame",
+        "value": "inset 0 0 0 3px rgba(255, 255, 255, 0.92)",
+        "purpose": "Marco de cinta como sombra interior cuando no se usa un borde absoluto."
+      },
+      {
+        "name": "brand / indigo (alias heredado)",
+        "value": "0 1px 2px rgba(11, 20, 48, 0.08), 0 4px 10px -6px rgba(11, 20, 48, 0.2)",
+        "purpose": "Solo para pantallas antiguas que aún lo piden: sombra corta de contacto, sin halo. El código nuevo no lo escribe."
+      },
+      {
+        "name": "lift (alias heredado)",
+        "value": "0 1px 2px rgba(11, 20, 48, 0.08), 0 6px 14px -8px rgba(11, 20, 48, 0.28)",
+        "purpose": "Alias heredado convertido en contacto corto; no implica levantar la superficie."
+      },
+      {
+        "name": "glow (alias heredado)",
+        "value": "0 0 0 3px rgba(30, 63, 168, 0.18)",
+        "purpose": "Anillo de 3 px de tapiz al 18 %, no un resplandor."
+      }
+    ],
+    "motion": [
+      {
+        "name": "chalk-stroke",
+        "value": "420ms cubic-bezier(0.16, 1, 0.3, 1) both",
+        "purpose": "Dibujado de cada palote; escalonado 45 ms, máximo 12 trazos."
+      },
+      {
+        "name": "control",
+        "value": "150ms ease-out",
+        "purpose": "Color, fondo y borde de botones, filas y tarjetas (.card-hover solo cambia el borde a tapiz). Nunca traslación vertical: no queda ningún hover:-translate-y-* en src."
+      },
+      {
+        "name": "tape-underline",
+        "value": "200ms ease-out (scaleX)",
+        "purpose": "Tramo de cinta de 3 px bajo el enlace activo de la barra pública y de la navegación de áreas globales."
+      },
+      {
+        "name": "line-draw",
+        "value": "900ms cubic-bezier(0.2, 0.7, 0.2, 1)",
+        "purpose": "Dibujado de líneas SVG del pulso operativo."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "prefers-reduced-motion anula animaciones y transiciones."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Acción principal sobre magnesio o blanco: relleno tapiz, hover a zona de seguridad.",
+      "html": "<button class=\"ds-btn-primary\">Pasar lista</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 24px; border: 1px solid transparent; border-radius: 8px; background: #1E3FA8; color: #fff; font-family: Archivo, ui-sans-serif, system-ui; font-size: 14px; font-weight: 600; letter-spacing: 0.01em; box-shadow: 0 1px 0 rgba(11,20,48,0.25); cursor: pointer; transition: background-color 150ms ease-out, transform 150ms ease-out; } .ds-btn-primary:hover { background: #14307F; } .ds-btn-primary:active { transform: scale(0.99); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px #F4F6F2, 0 0 0 4px #1E3FA8; }"
+    },
+    {
+      "name": "Botón contorno",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Acción secundaria: blanco con borde de rampa, hover a tapiz.",
+      "html": "<button class=\"ds-btn-outline\">Gestionar grupos</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 24px; border: 1px solid #B4BCCB; border-radius: 8px; background: #fff; color: #0B1430; font-family: Archivo, ui-sans-serif, system-ui; font-size: 14px; font-weight: 600; letter-spacing: 0.01em; cursor: pointer; transition: border-color 150ms ease-out, color 150ms ease-out; } .ds-btn-outline:hover { border-color: #1E3FA8; color: #1E3FA8; } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 2px #F4F6F2, 0 0 0 4px #1E3FA8; }"
+    },
+    {
+      "name": "CTA cinta sobre tapiz",
+      "kind": "button",
+      "refersTo": "button-tape",
+      "description": "CTA blanco tipo cinta sobre el campo azul, con su pareja de contorno blanco.",
+      "html": "<div class=\"ds-mat\"><a class=\"ds-btn-tape\" href=\"#\">Crear academia gratis</a><a class=\"ds-btn-tape-ghost\" href=\"#\">Ver planes</a></div>",
+      "css": ".ds-mat { display: flex; flex-wrap: wrap; gap: 12px; padding: 32px; background: #1E3FA8; } .ds-btn-tape { display: inline-flex; align-items: center; min-height: 56px; padding: 0 28px; border-radius: 8px; background: #fff; color: #14307F; font-family: Archivo, ui-sans-serif, system-ui; font-size: 16px; font-weight: 800; text-decoration: none; box-shadow: 0 8px 20px -10px rgba(11,20,48,0.8); transition: background-color 150ms ease-out; } .ds-btn-tape:hover { background: #E8EDFB; } .ds-btn-tape:focus-visible, .ds-btn-tape-ghost:focus-visible { outline: none; box-shadow: 0 0 0 2px #1E3FA8, 0 0 0 4px #fff; } .ds-btn-tape-ghost { display: inline-flex; align-items: center; min-height: 56px; padding: 0 28px; border: 2px solid rgba(255,255,255,0.6); border-radius: 8px; color: #fff; font-family: Archivo, ui-sans-serif, system-ui; font-size: 16px; font-weight: 700; text-decoration: none; transition: border-color 150ms ease-out, background-color 150ms ease-out; } .ds-btn-tape-ghost:hover { border-color: #fff; background: rgba(255,255,255,0.1); }"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de 44 px, borde de magnesio, foco en tapiz con anillo suave.",
+      "html": "<input class=\"ds-input\" type=\"email\" placeholder=\"tu@email.com\" aria-label=\"Correo electrónico\">",
+      "css": ".ds-input { width: 100%; max-width: 360px; height: 44px; padding: 8px 16px; border: 1px solid #D5DAE3; border-radius: 10px; background: #fff; color: #0B1430; font-family: Archivo, ui-sans-serif, system-ui; font-size: 14px; transition: border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: #3E4A66; } .ds-input:focus-visible { outline: none; border-color: #1E3FA8; box-shadow: 0 0 0 4px rgba(30,63,168,0.15); }"
+    },
+    {
+      "name": "Lateral de academia",
+      "kind": "nav",
+      "refersTo": "sidebar-item-active",
+      "description": "Lateral en zona de seguridad: nombre condensado sobre cinta, rótulos en azul calle, activo como pastilla blanca.",
+      "html": "<nav class=\"ds-side\"><p class=\"ds-side-name\">Club Gimnasia Norte</p><p class=\"ds-side-label\">Día a día</p><a class=\"ds-side-item ds-side-item--active\" href=\"#\" aria-current=\"page\">Panel</a><a class=\"ds-side-item\" href=\"#\">Gimnastas</a><a class=\"ds-side-item\" href=\"#\">Grupos</a></nav>",
+      "css": ".ds-side { width: 256px; padding: 20px 16px; background: #14307F; color: #fff; font-family: Archivo, ui-sans-serif, system-ui; display: flex; flex-direction: column; gap: 2px; } .ds-side-name { margin: 0 0 16px; padding: 0 8px 16px; border-bottom: 3px solid #fff; font-size: 24px; font-weight: 900; font-stretch: 72%; text-transform: uppercase; line-height: 0.95; } .ds-side-label { margin: 8px 8px 6px; font-size: 12px; font-weight: 700; font-stretch: 80%; letter-spacing: 0.08em; text-transform: uppercase; color: #8FB4FF; } .ds-side-item { display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 8px; color: rgba(255,255,255,0.8); font-size: 14.4px; font-weight: 600; text-decoration: none; transition: background-color 150ms, color 150ms; } .ds-side-item:hover { background: rgba(255,255,255,0.1); color: #fff; } .ds-side-item:focus-visible { outline: none; box-shadow: 0 0 0 2px #14307F, 0 0 0 4px #fff; } .ds-side-item--active, .ds-side-item--active:hover { background: #fff; color: #14307F; }"
+    },
+    {
+      "name": "Navegación de áreas globales",
+      "kind": "nav",
+      "refersTo": "floor-tag",
+      "description": "Barra global sin academia activa: rótulos en línea de 44 px, el activo con un tramo de cinta de 3 px debajo; Super Admin como distintivo de área en noche.",
+      "html": "<header class=\"ds-gnav\"><span class=\"ds-gnav-z\">ZALTYKO</span><span class=\"ds-floor-tag\">Super Admin</span><nav class=\"ds-gnav-links\" aria-label=\"Navegación principal\"><a class=\"ds-gnav-link\" href=\"#\" aria-current=\"page\">Academias</a><a class=\"ds-gnav-link\" href=\"#\">Usuarios</a><a class=\"ds-gnav-link\" href=\"#\">Facturación</a></nav></header>",
+      "css": ".ds-gnav { display: flex; align-items: center; gap: 16px; padding: 0 24px; border-bottom: 1px solid #D5DAE3; background: #fff; font-family: Archivo, ui-sans-serif, system-ui; } .ds-gnav-z { font-size: 18px; font-weight: 900; font-stretch: 72%; color: #1E3FA8; } .ds-floor-tag { display: inline-flex; padding: 4px 8px; border-radius: 6px; background: #0B1430; color: #fff; font-size: 12px; line-height: 16px; font-weight: 700; font-stretch: 80%; letter-spacing: 0.08em; text-transform: uppercase; } .ds-gnav-links { display: flex; gap: 8px; margin-left: auto; } .ds-gnav-link { position: relative; display: flex; align-items: center; min-height: 44px; padding: 0 10px; font-size: 14px; font-weight: 600; color: #3E4A66; text-decoration: none; transition: color 150ms ease-out; } .ds-gnav-link::after { content: \"\"; position: absolute; left: 10px; right: 10px; bottom: 0; height: 3px; background: #1E3FA8; transform: scaleX(0); transition: transform 200ms ease-out; } .ds-gnav-link:hover { color: #0B1430; } .ds-gnav-link[aria-current=\"page\"] { color: #1E3FA8; } .ds-gnav-link[aria-current=\"page\"]::after { transform: scaleX(1); } .ds-gnav-link:focus-visible { outline: 2px solid #1E3FA8; outline-offset: 2px; border-radius: 4px; } @media (prefers-reduced-motion: reduce) { .ds-gnav-link::after { transition: none; } }"
+    },
+    {
+      "name": "Chip de estado de sesión",
+      "kind": "chip",
+      "refersTo": "state-chip-live",
+      "description": "Rectángulo corto en mayúsculas: En pista, Lista pasada, Próxima.",
+      "html": "<span class=\"ds-chip ds-chip--live\">En pista</span> <span class=\"ds-chip ds-chip--done\">Lista pasada</span> <span class=\"ds-chip ds-chip--next\">Próxima</span>",
+      "css": ".ds-chip { display: inline-flex; padding: 4px 8px; border: 1px solid transparent; border-radius: 6px; font-family: Archivo, ui-sans-serif, system-ui; font-size: 11.2px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; } .ds-chip--live { background: #1E3FA8; color: #fff; } .ds-chip--done { background: #E9ECE6; color: #3E4A66; } .ds-chip--next { border-color: #B4BCCB; color: #3E4A66; }"
+    },
+    {
+      "name": "Chip de estado de datos",
+      "kind": "chip",
+      "refersTo": "state-chip-ready",
+      "description": "Estado de una serie (pulso operativo) en las tres familias del mundo: polvo listo, lavado tapiz cargando, lavado señal sin conexión.",
+      "html": "<span class=\"ds-dchip ds-dchip--ready\"><i></i>Sin datos</span> <span class=\"ds-dchip ds-dchip--loading\"><i></i>Cargando datos</span> <span class=\"ds-dchip ds-dchip--error\"><i></i>Sin conexión</span>",
+      "css": ".ds-dchip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 6px; font-family: Archivo, ui-sans-serif, system-ui; font-size: 12px; font-weight: 600; } .ds-dchip i { width: 6px; height: 6px; border-radius: 50%; } .ds-dchip--ready { background: #E9ECE6; color: #3E4A66; } .ds-dchip--ready i { background: #1E3FA8; } .ds-dchip--loading { background: #E8EDFB; color: #14307F; } .ds-dchip--loading i { background: #5B7BE0; animation: ds-pulse 1.2s ease-in-out infinite; } .ds-dchip--error { background: #FDECE7; color: #B8331A; } .ds-dchip--error i { background: #E5482A; } @keyframes ds-pulse { 50% { opacity: 0.4; } } @media (prefers-reduced-motion: reduce) { .ds-dchip--loading i { animation: none; } }"
+    },
+    {
+      "name": "Panel reglado",
+      "kind": "card",
+      "refersTo": "panel-ruled",
+      "description": "Bloque por defecto del panel de dirección: blanco, 12 px, borde de magnesio y regla superior de 3 px en noche, sin sombra; filas regladas dentro (aquí, Programadas con etiqueta de grupo teñida por groupInk).",
+      "html": "<section class=\"ds-panel\"><h3 class=\"ds-panel-title\">Programadas para los próximos días</h3><div class=\"ds-panel-row\"><a class=\"ds-panel-name\" href=\"#\">Iniciación GAF</a><span class=\"ds-panel-meta\">Martes 12 · 17:00</span><span class=\"ds-group\"><span class=\"ds-group-dot\" style=\"background:#1E3FA8\"></span>Benjamín A</span></div><div class=\"ds-panel-row\"><a class=\"ds-panel-name\" href=\"#\">Tecnificación</a><span class=\"ds-panel-meta\">Martes 12 · 18:30</span><span class=\"ds-group\"><span class=\"ds-group-dot\" style=\"background:#3E4A66\"></span>Alevín</span></div></section>",
+      "css": ".ds-panel { max-width: 420px; padding: 20px; border: 1px solid #D5DAE3; border-top: 3px solid #0B1430; border-radius: 12px; background: #fff; color: #0B1430; font-family: Archivo, ui-sans-serif, system-ui; } .ds-panel-title { margin: 0 0 8px; font-size: 24px; font-weight: 900; font-stretch: 72%; text-transform: uppercase; line-height: 1; color: #0B1430; } .ds-panel-row { display: flex; flex-direction: column; gap: 6px; padding: 16px 0; border-top: 1px solid #D5DAE3; font-size: 14px; } .ds-panel-row:first-of-type { border-top: 0; } .ds-panel-name { font-weight: 600; color: #0B1430; text-decoration: none; transition: color 150ms ease-out; } .ds-panel-name:hover { color: #1E3FA8; } .ds-panel-name:focus-visible { outline: 2px solid #1E3FA8; outline-offset: 2px; border-radius: 4px; } .ds-panel-meta { font-size: 12px; color: #5C6782; font-variant-numeric: tabular-nums; } .ds-group { display: inline-flex; align-self: flex-start; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid #D5DAE3; border-radius: 6px; font-size: 12px; font-weight: 600; color: #0B1430; } .ds-group-dot { width: 6px; height: 6px; border-radius: 50%; }"
+    },
+    {
+      "name": "Pizarra de sesiones",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Panel reglado: cabecera con regla de 3 px en tapiz y rótulo de pista; hora tabular condensada por fila; fila en curso en lavado tapiz.",
+      "html": "<section class=\"ds-board\"><header class=\"ds-board-head\"><span class=\"ds-board-label\">Hoy en pista · 3 sesiones</span></header><div class=\"ds-board-row\"><span class=\"ds-board-time\">16:30</span><span class=\"ds-board-group\">Iniciación GAF<small>Pista 2 · Suelo y barra</small></span></div><div class=\"ds-board-row ds-board-row--live\"><span class=\"ds-board-time\">17:30</span><span class=\"ds-board-group\">Base 3 GAF<small>Pista 1 · Suelo</small></span></div></section>",
+      "css": ".ds-board { max-width: 520px; overflow: hidden; border: 1px solid #D5DAE3; border-radius: 12px; background: #fff; font-family: Archivo, ui-sans-serif, system-ui; color: #0B1430; } .ds-board-head { padding: 12px 20px; border-bottom: 3px solid #1E3FA8; } .ds-board-label { font-size: 12px; font-weight: 700; font-stretch: 80%; letter-spacing: 0.08em; text-transform: uppercase; color: #1E3FA8; } .ds-board-row { display: flex; align-items: flex-start; gap: 16px; padding: 16px 20px; border-bottom: 1px solid #D5DAE3; } .ds-board-row:last-child { border-bottom: 0; } .ds-board-row--live { background: #E8EDFB; } .ds-board-time { width: 80px; flex-shrink: 0; font-size: 30px; font-weight: 900; font-stretch: 72%; line-height: 1; font-variant-numeric: tabular-nums; } .ds-board-group { display: flex; flex-direction: column; font-size: 14px; font-weight: 600; } .ds-board-group small { font-size: 14px; font-weight: 400; color: #5C6782; }"
+    },
+    {
+      "name": "Puesta en marcha",
+      "kind": "custom",
+      "refersTo": "panel-ruled",
+      "description": "Panel reglado con el paso actual en numeral de 6rem y los pendientes como lista ordenada de numerales de 3rem.",
+      "html": "<section class=\"ds-setup\"><div class=\"ds-setup-head\"><p class=\"ds-setup-now\" aria-hidden=\"true\">3<span>/7</span></p><div><h3 class=\"ds-setup-title\">Puesta en marcha</h3><p class=\"ds-setup-sub\">Paso 3 de 7 · 29 % completado</p></div></div><ol class=\"ds-setup-list\"><li><button class=\"ds-setup-step\" type=\"button\"><span class=\"ds-setup-num\">4</span><span><b>Crear grupos</b><small>Ordena a tus gimnastas por nivel</small></span></button></li><li><button class=\"ds-setup-step\" type=\"button\"><span class=\"ds-setup-num\">5</span><span><b>Invitar entrenadoras</b><small>Reparte las sesiones</small></span></button></li></ol></section>",
+      "css": ".ds-setup { max-width: 520px; overflow: hidden; border: 1px solid #D5DAE3; border-top: 3px solid #0B1430; border-radius: 12px; background: #fff; color: #0B1430; font-family: Archivo, ui-sans-serif, system-ui; } .ds-setup-head { display: flex; align-items: center; gap: 28px; padding: 20px; } .ds-setup-now { margin: 0; font-size: 96px; font-weight: 900; font-stretch: 72%; line-height: 0.8; color: #1E3FA8; font-variant-numeric: tabular-nums; } .ds-setup-now span { font-size: 30px; color: #B4BCCB; } .ds-setup-title { margin: 0; font-size: 24px; font-weight: 900; font-stretch: 72%; text-transform: uppercase; line-height: 1; } .ds-setup-sub { margin: 4px 0 0; font-size: 14px; color: #3E4A66; } .ds-setup-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid #D5DAE3; } .ds-setup-list li { border-bottom: 1px solid #D5DAE3; } .ds-setup-list li:last-child { border-bottom: 0; } .ds-setup-step { display: flex; width: 100%; align-items: center; gap: 20px; padding: 16px 20px; border: 0; background: transparent; text-align: left; font: inherit; color: inherit; cursor: pointer; transition: background-color 150ms ease-out; } .ds-setup-step:hover { background: #E8EDFB; } .ds-setup-step:focus-visible { outline: 2px solid #1E3FA8; outline-offset: -2px; } .ds-setup-num { width: 48px; flex-shrink: 0; font-size: 48px; font-weight: 900; font-stretch: 72%; line-height: 1; color: #8A93A8; font-variant-numeric: tabular-nums; transition: color 150ms ease-out; } .ds-setup-step:hover .ds-setup-num { color: #1E3FA8; } .ds-setup-step b { display: block; font-weight: 600; } .ds-setup-step small { display: block; margin-top: 2px; font-size: 14px; color: #5C6782; }"
+    },
+    {
+      "name": "Palotes de magnesio",
+      "kind": "custom",
+      "refersTo": "mat",
+      "description": "Firma del mundo: grupos de cinco trazos (cuatro y el quinto cruzado) cuyo número es la cifra anunciada.",
+      "html": "<div class=\"ds-tally-wrap\"><svg class=\"ds-tally\" viewBox=\"0 0 92 40\" role=\"img\" aria-label=\"7 de 10 presentes\"><line x1=\"5.1\" y1=\"4\" x2=\"6.9\" y2=\"36\"/><line x1=\"14.6\" y1=\"4\" x2=\"13.4\" y2=\"36\"/><line x1=\"21.8\" y1=\"4\" x2=\"22.2\" y2=\"36\"/><line x1=\"30.8\" y1=\"4\" x2=\"29.2\" y2=\"36\"/><line x1=\"1\" y1=\"28.6\" x2=\"37\" y2=\"11.4\"/><line x1=\"52.3\" y1=\"4\" x2=\"51.7\" y2=\"36\"/><line x1=\"59.3\" y1=\"4\" x2=\"60.7\" y2=\"36\"/><line class=\"off\" x1=\"68.4\" y1=\"4\" x2=\"67.6\" y2=\"36\"/><line class=\"off\" x1=\"75.4\" y1=\"4\" x2=\"76.6\" y2=\"36\"/><line class=\"off\" x1=\"47\" y1=\"31.4\" x2=\"83\" y2=\"8.6\"/></svg><span class=\"ds-tally-figure\">7<small>/10</small></span></div>",
+      "css": ".ds-tally-wrap { display: inline-flex; align-items: flex-end; gap: 24px; padding: 24px 28px; background: #1E3FA8; color: #fff; font-family: Archivo, ui-sans-serif, system-ui; } .ds-tally { height: 64px; width: auto; overflow: visible; } .ds-tally line { stroke: currentColor; stroke-width: 3.4; stroke-linecap: round; opacity: 0.95; stroke-dasharray: 40; animation: ds-chalk 420ms cubic-bezier(0.16,1,0.3,1) both; } .ds-tally line.off { stroke-width: 2; opacity: 0.22; stroke-dasharray: none; animation: none; } .ds-tally line:nth-child(2) { animation-delay: 45ms; } .ds-tally line:nth-child(3) { animation-delay: 90ms; } .ds-tally line:nth-child(4) { animation-delay: 135ms; } .ds-tally line:nth-child(5) { animation-delay: 180ms; } .ds-tally line:nth-child(6) { animation-delay: 225ms; } .ds-tally line:nth-child(7) { animation-delay: 270ms; } @keyframes ds-chalk { from { stroke-dashoffset: 40; } to { stroke-dashoffset: 0; } } @media (prefers-reduced-motion: reduce) { .ds-tally line { animation: none; } } .ds-tally-figure { font-size: 60px; font-weight: 900; font-stretch: 72%; line-height: 1; font-variant-numeric: tabular-nums; } .ds-tally-figure small { font-size: 24px; color: #8FB4FF; }"
+    },
+    {
+      "name": "Chip de cinta",
+      "kind": "chip",
+      "refersTo": "group-tag",
+      "description": "Rectángulo de 6 px para estados y etiquetas; neutro, con el color de grupo solo en el punto (groupInk).",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-chip-tape\"><span class=\"ds-chip-dot\"></span>Iniciación A</span><span class=\"ds-chip-muted\">Nivel 2</span><span class=\"ds-chip-wash\">Principal</span></div>",
+      "css": ".ds-chips { display: flex; flex-wrap: wrap; gap: 8px; font-family: Archivo, ui-sans-serif, system-ui; } .ds-chip-tape, .ds-chip-muted, .ds-chip-wash { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 6px; font-size: 12px; line-height: 16px; } .ds-chip-tape { border: 1px solid #D5DAE3; background: #fff; color: #0B1430; font-weight: 600; } .ds-chip-dot { width: 8px; height: 8px; border-radius: 9999px; background: #5B7BE0; } .ds-chip-muted { background: #E9ECE6; color: #3E4A66; font-weight: 500; } .ds-chip-wash { background: #E8EDFB; color: #14307F; font-weight: 600; }"
+    },
+    {
+      "name": "Cajón móvil de la barra global",
+      "kind": "nav",
+      "refersTo": "sidebar-item-active",
+      "description": "Menú móvil a pantalla completa en zona de seguridad: filas condensadas en mayúsculas de 56 px, activo como franja de cinta blanca.",
+      "html": "<div class=\"ds-drawer\"><div class=\"ds-drawer-top\"><span class=\"ds-drawer-lockup\">ZALTYKO</span><button class=\"ds-drawer-close\" aria-label=\"Cerrar menú\">×</button></div><nav aria-label=\"Navegación principal\"><a class=\"ds-drawer-row\" href=\"#\" aria-current=\"page\">Mesa de dirección</a><a class=\"ds-drawer-row\" href=\"#\">Gimnastas</a><a class=\"ds-drawer-row\" href=\"#\">Sesiones</a></nav></div>",
+      "css": ".ds-drawer { background: #14307F; color: #fff; font-family: Archivo, ui-sans-serif, system-ui; padding-bottom: 16px; } .ds-drawer-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); } .ds-drawer-lockup { font-weight: 900; font-stretch: 72%; font-size: 18px; } .ds-drawer-close { width: 44px; height: 44px; border: 0; border-radius: 6px; background: transparent; color: #fff; font-size: 24px; cursor: pointer; } .ds-drawer-close:hover { background: rgba(255,255,255,0.1); } nav { padding: 16px; } .ds-drawer-row { display: flex; align-items: center; min-height: 56px; padding: 0 8px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 20px; font-weight: 800; font-stretch: 72%; text-transform: uppercase; letter-spacing: 0.02em; color: rgba(255,255,255,0.85); text-decoration: none; transition: background-color 150ms ease-out, color 150ms ease-out; } .ds-drawer-row:hover { background: rgba(255,255,255,0.1); color: #fff; } .ds-drawer-row[aria-current=\"page\"] { background: #fff; color: #14307F; } .ds-drawer-row:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Magnesio sobre tapiz",
+    "overview": "La academia vista desde la pista. El sistema toma sus materiales del suelo de competición de gimnasia: el tapiz azul de moqueta, la zona de seguridad más oscura que lo rodea, la cinta blanca de 5 cm que marca el límite y el polvo de magnesio que deja marcas en manos, aparatos y pizarras. No hay tarjetas flotando sobre gris: hay campos de color con fibra, reglas de cinta que estructuran y cifras grandes condensadas, como un marcador de pabellón.\n\nDos superficies se turnan. El tapiz (azul de competición con un ruido fino que imita la moqueta) lleva los momentos de marca y de orientación: primer viewport, cierre, panel de entrada, barra pública, lateral de la academia, banda de cabecera del panel. El magnesio (blanco roto con grano de tiza) es la mesa de trabajo donde vive el contenido denso. Encima de ambos, la información se ordena en listas regladas: una línea gruesa de 3 px abre el bloque y líneas finas separan las filas. La densidad es de herramienta de dirección: filas de 48–56 px, cifras tabulares, poco aire decorativo y mucho dato real.\n\nLa firma es el palote de magnesio: cuatro trazos y el quinto cruzado, dibujados a mano en SVG. No es un adorno: el número de trazos es siempre la cifra que se anuncia (presentes de una sesión, plazas ocupadas). El movimiento es seco, como un aterrizaje clavado: nada rebota, los trazos se dibujan de arriba abajo en 420 ms y se acabó. El mundo rechaza de forma explícita el SaaS blanco con captura de panel y el texto degradado; el énfasis es peso, anchura y tamaño.",
+    "keyCharacteristics": [
+      "Una sola familia variable (Archivo) en dos anchuras: condensada en mayúsculas para rótulos y cifras, normal para trabajar.",
+      "Azul tapiz como estructura y acción; coral señal reservado a alertas y deudas.",
+      "Reglas de cinta (3 px) en lugar de tarjetas anidadas; listas y tablas antes que rejillas de tarjetas.",
+      "Cifras tabulares grandes como protagonistas (horas, asistencia, precios, KPIs).",
+      "Palotes de magnesio como única ilustración, siempre ligados a un dato.",
+      "Movimiento corto y sin rebote; `prefers-reduced-motion` lo anula todo."
+    ],
+    "rules": [
+      {
+        "name": "The Señal Rule",
+        "body": "El coral solo aparece cuando algo pide atención (deuda, error, borrado). Como texto o como fondo con texto blanco se usa una tinta oscura (`signal-ink` en código nuevo, `signal-dark` por alias y `--destructive`); `signal` puro es relleno o punto, nunca letra ni fondo de botón.",
+        "section": "colors"
+      },
+      {
+        "name": "The Lane Rule",
+        "body": "`mat-lane` como texto pequeño solo va sobre `mat-deep` o `mat-night` (≈5,8:1). Sobre `mat` (≈4,3:1) solo se admite a tamaño grande (≥24 px o ≥18,7 px en negrita) o como icono. Los rótulos pequeños sobre la banda `mat` del panel van en blanco al 85 %.",
+        "section": "colors"
+      },
+      {
+        "name": "The Group Ink Rule",
+        "body": "El color que cada academia elige para sus grupos es un dato, no un color de interfaz. Se pinta siempre a través de `groupInk()` (`src/lib/mat/group-ink.ts`), que lo traduce de forma estable (hash del valor de origen, o del nombre del grupo si no hay color) a uno de cinco tonos del tapiz: `mat`, `mat-light`, `mat-deep`, `mat-lane` y `ramp-600`. El mismo origen da siempre el mismo tono. Solo aparece como punto de 6–8 px junto al nombre del grupo, que es quien lleva la información; nunca como fondo, borde de tarjeta o texto. La etiqueta que rodea al punto es neutra (cinta con borde y texto de interfaz), no se tiñe con el color del grupo. Ningún color de usuario entra en la paleta, y el coral queda fuera de las tintas de grupo.",
+        "section": "colors"
+      },
+      {
+        "name": "The Alias Rule",
+        "body": "El mundo se hereda por alias a nivel de tema, sin editar archivo por archivo. Hay dos capas:\n- **Alias de marca:** los nombres heredados `zaltyko-*` apuntan al mundo (teal → tapiz, indigo → zona de seguridad, navy → noche, coral → coral oscuro `signal-dark`, mist → línea de magnesio, warm-white → polvo, electric → calle, primary-light → tapiz claro).\n- **Familias de Tailwind reasignadas:** `tailwind.config.mjs` define tres escalas completas (50–950) y sustituye con ellas las familias de Tailwind. `MAT_SCALE` (de `#F0F3FC` a `#0B1430`, con `mat-wash` en el 100, `mat` en el 700 y `mat-deep` en el 800) sustituye a teal, emerald, green, cyan, sky, blue, indigo, violet, purple y lime. `SIGNAL_SCALE` (de `#FDF3F0` a `#431109`, con `signal-wash` en el 100, `signal` en el 500 y `signal-ink` en el 700) sustituye a amber, yellow, orange, red, rose, pink y fuchsia. `RAMP_SCALE` (la rampa de `#F4F6F2` a `#0B1430`, más un 950 `#070D20`) sustituye a gray, slate, zinc, neutral y stone. Así, cualquier `bg-emerald-50` o `text-amber-700` heredado se pinta en dos tintas.\n\nLos alias existen para que las pantallas antiguas hereden el mundo, no para escribir con ellos. El código nuevo escribe los tokens semánticos `mat`, `chalk`, `tape`, `signal` y `ramp`, nunca `teal-*`, `amber-*`, `gray-*` ni `zaltyko-*`. Efecto a vigilar: un aviso heredado en ámbar o amarillo se pinta ahora en coral, con el mismo tono que un error. Un aviso que no sea deuda, error ni borrado se reescribe con los tokens del mundo; el alias no lo arregla.",
+        "section": "colors"
+      },
+      {
+        "name": "The Stretch Rule",
+        "body": "La anchura es la jerarquía. Titulares a 72 % de anchura, encabezados sin clase a 78 %, rótulos a 80 %, texto a 100 %. Nunca se simula condensación con `letter-spacing` negativo ni con otra fuente.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Toda cifra que se compara o se actualiza (horas, «7/10», precios, porcentajes, fechas en listas) usa cifras tabulares. Las tablas las activan por defecto.",
+        "section": "typography"
+      },
+      {
+        "name": "The Label Is Data Rule",
+        "body": "El rótulo de pista nombra el bloque de datos que tiene debajo o al lado («Sesiones de hoy», «País»). No se coloca como antetítulo decorativo encima de un titular.",
+        "section": "typography"
+      },
+      {
+        "name": "The Ruled List Rule",
+        "body": "Antes que una rejilla de tarjetas, una lista reglada: regla de 3 px arriba, separadores de 1 px, nombre condensado a la izquierda y detalle a la derecha. Módulos, planes, guías, países, acciones rápidas, recomendaciones, sesiones programadas y pasos pendientes siguen esta forma.",
+        "section": "layout"
+      },
+      {
+        "name": "The No Card In Card Rule",
+        "body": "Dentro de un panel reglado no se anidan tarjetas: el contenido se ordena en filas regladas. Las filas no llevan sombra, ni barra lateral de color, ni radio propio; el estado se marca con el fondo de la fila (`mat-wash`, `signal-wash`, `chalk-dust`).",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Mat Rule",
+        "body": "Ninguna superficie se levanta al pasar el ratón en el mundo nuevo: el hover cambia color, fondo o borde (`mat-wash`, `chalk`, borde `mat`), no altura. La utilidad compartida de hover de tarjeta (`.card-hover`) solo pasa el borde a azul tapiz en 150 ms. No hay excepciones: no queda ningún `hover:-translate-y-*` en `src`, tampoco en el CTA blanco del primer viewport. El único desplazamiento al pasar el ratón es el de la flecha de un enlace (`translate-x`), que mueve el icono, no la superficie.",
+        "section": "elevation"
+      },
+      {
+        "name": "The No Fake Zero Rule",
+        "body": "Un cero que en realidad significa «aún no hay datos» no se pinta como dato: ni «0 %» de asistencia sin gimnastas, ni una línea plana en una serie vacía. Se muestra «—» o «Sin datos», con una frase que diga qué hace falta registrar.",
+        "section": "components"
+      },
+      {
+        "name": "The Still True Rule",
+        "body": "Un consejo, aviso de arranque o estado vacío solo aparece mientras sigue siendo cierto, y se condiciona a un recuento real (gimnastas, grupos, sesiones), no a un indicador de «visto» ni a una fecha. La guía que ya no describe la academia es ruido.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "**Do** alternar tapiz (`mat`/`mat-deep` con su fibra) y magnesio (`chalk` con grano) por secciones; el contenido denso siempre sobre magnesio o blanco.",
+      "**Do** abrir cada lista, tabla o cabecera con una regla de cinta de 3 px (noche sobre claro, blanca sobre azul) y separar filas con 1 px de `chalk-line` o blanco al 15–20 %.",
+      "**Do** escribir titulares, nombres de módulo y cifras en Archivo condensada negra; texto de trabajo en Archivo normal.",
+      "**Do** usar cifras tabulares en toda hora, recuento, precio y porcentaje.",
+      "**Do** ligar cada palote de magnesio a una cifra real y rotular como «Datos de ejemplo» o «Demostración» cualquier dato ilustrativo.",
+      "**Do** reservar el coral para deudas, errores y borrados, con `signal-ink` como texto o fondo de botón sobre claro; `signal` solo para puntos y rellenos.",
+      "**Do** pintar todo color de grupo con `groupInk()` y como punto de 6 px junto al nombre del grupo.",
+      "**Do** construir los bloques del panel como paneles reglados (12 px, borde `chalk-line`, regla superior de 3 px en `mat-night`, sin sombra) con filas regladas dentro.",
+      "**Do** condicionar cada consejo de arranque a un recuento real y retirarlo en cuanto deja de ser cierto (gimnastas < 5, grupos = 0).",
+      "**Do** mostrar «—» o «Sin datos» cuando un cero significa que aún no hay datos (asistencia sin gimnastas, serie toda a cero).",
+      "**Do** marcar estados con las tres familias del mundo: tapiz (`mat-wash`/`mat-deep`) para en curso o activo, polvo (`chalk-dust`/`ramp-600`) para reposo o listo, señal (`signal-wash`/`signal-ink`) para error o deuda.",
+      "**Do** usar etiquetas de una palabra en la navegación inferior móvil y llevar el nombre completo en `aria-label`.",
+      "**Do** mantener objetivos táctiles de 44 px, 0,75 rem como tamaño mínimo de texto y el anillo de foco de 2 px (blanco sobre tapiz).",
+      "**Do** escribir con los tokens del mundo (`mat`, `chalk`, `tape`, `signal`, `ramp`) en código nuevo, aunque las familias de Tailwind ya se pinten en dos tintas por alias.",
+      "**Do** usar chips de cinta (rectángulo de 6 px) para estados y etiquetas, con el color de grupo solo en el punto.",
+      "**Do** mostrar horas en HH:MM y fechas en formato corto español, y traducir cualquier código técnico (aparatos, estados) a una etiqueta en español.",
+      "**Do** dejar una sola acción principal por vista; el resto, de contorno."
+    ],
+    "donts": [
+      "**Don't** usar texto degradado, halos de color ni fondos con ondas: el énfasis es peso, anchura y tamaño.",
+      "**Don't** usar el coral como decoración, acento de marca o color de icono neutro, ni poner texto blanco sobre `signal` puro.",
+      "**Don't** pintar el color de grupo elegido por la academia tal cual, ni usarlo como fondo, borde o texto.",
+      "**Don't** construir rejillas de tarjetas con icono cuando una lista reglada dice lo mismo, ni anidar tarjetas dentro de un panel reglado.",
+      "**Don't** marcar filas o alertas con pestañas laterales de color (`border-l-4`), ni subrayar paneles redondeados con una línea gruesa de acento (`border-b-2`); el estado va en el fondo de la fila y los bordes son de 1 px.",
+      "**Don't** usar tamaños de texto sueltos por debajo de 0,75 rem (`text-[10px]`, `text-[11px]`).",
+      "**Don't** levantar tarjetas al pasar el ratón (`hover:-translate-y-*`) ni animar con rebote; el tapiz frena en seco.",
+      "**Don't** introducir grises fuera de la rampa ni una segunda familia tipográfica.",
+      "**Don't** escribir familias de Tailwind (`amber-*`, `red-*`, `teal-*`, `emerald-*`, `gray-*`, `slate-*`…) ni alias `zaltyko-*` en código nuevo: se pintan en el mundo solo por compatibilidad, y un ámbar heredado sale en coral de error.",
+      "**Don't** escribir colores hexadecimales sueltos en componentes de interfaz; si un gráfico o un estilo en línea necesita un literal, ha de ser un valor de las escalas del mundo o una variable CSS del tema.",
+      "**Don't** poner `mat-lane` como texto pequeño sobre `mat`.",
+      "**Don't** fabricar testimonios, logos ni métricas para rellenar superficies de marca."
+    ],
+    "knownGaps": [
+      "**Cuerpo de `/super-admin`:** antetítulo en píldora, titular en dos tonos, tarjetas KPI con franjas, puntos con el color en crudo de cada serie y la Z con degradado. Solo su barra global (distintivo de área) entró en el mundo; el resto de su paleta se pinta en dos tintas solo por el alias.",
+      "**Plantillas de correo, PDF y Stripe:** otro medio, con sus propios colores literales y fuentes.",
+      "**Editores de marca de la academia y escaparate (`BrandingEditor`, editor de página pública, tienda):** ahí los colores son contenido de la persona usuaria, no interfaz.",
+      "**Terminología de entrenadoras partida:** la navegación dice «Entrenadoras» (del registro de especialización) y la página dice «Entrenadores/as» (de la terminología de la configuración deportiva).",
+      "**Detector «gray-on-color»:** 14 hallazgos que son tinta de rampa sobre lavados teñidos con contraste suficiente; no se cambiaron.",
+      "**Sin revisión visual:** errores de formulario, estados hover y rótulos de la navegación global para usuarios que no son super admin están verificados solo en código.",
+      "**`MyAttendanceWidget`:** «Ausente» y «Excusa» comparten el mismo coral; dos categorías que no se distinguen y una excusa que se pinta como alerta.",
+      "**Hexadecimales fuera del mundo que siguen en interfaz:** `ui/chart.tsx` (paleta por defecto con `#1FC7B6`, `#FF6B57`, `#2B2E83`), `DashboardCard`, `RegistrationChart` de eventos, `AnalyticsWidgets` (pizarras de Tailwind `#64748B`, `#E2E8F0`), marketplace (`MarketplaceSearch`, `MarketplaceBrowse`, `MarketplaceAdminClient`, `ListingDetail`), administración de tienda (`StoreAdminClient`, `StripeOnboardingClient`), `SubdomainToggle`, `ComparisonSection` de la home (`#00695C`) y el área de propietario (`owner/*`, `owner-dashboard/*`, con `#F1F3EF`, `#F8F8F4`, `#A33A2D`). El modo oscuro del mensaje de error de campo usa `#FF8A73`, un valor suelto.",
+      "**Área de propietario (`owner/*`):** además de sus literales, marca bloques con una franja lateral de 2 px (`border-l-2` en teal, ámbar o pizarra) y conserva un enlace de salto en píldora.",
+      "**Ficha de gimnasta, interior:** las filas de resumen de asistencia, sesiones y contactos siguen siendo cajas de 12 px sobre polvo dentro del panel reglado, con rótulos en mayúsculas y tracking. Esto rompe The No Card In Card Rule. Los chips de estado y «Principal» ya son rectángulos, pero conservan mayúsculas con tracking en `zaltyko-teal` al 10 %.",
+      "**Tabla de gimnastas:** el distintivo de estado (`AthleteStatusBadge`), la etiqueta de la tarjeta móvil y los botones de acciones por lote siguen en píldora (`rounded-full`).",
+      "**Panel de clases, interior:** el bloque de base recomendada anida cuatro tarjetas de 12 px y una tarjeta de «Puesta a punto guiada» dentro del panel reglado. El estado vacío de la tabla es una caja de 14 px con `shadow-soft`, no el estado vacío discontinuo del sistema.",
+      "**Pulso operativo:** el área bajo la línea conserva un degradado de la tinta (del 12 % al 0 %), y la fila de pestañas va dentro de un contenedor redondeado sobre `muted`.",
+      "**Alertas:** cada alerta conserva su propio radio (8 px) dentro del panel reglado, aunque ya no tiene sombra al pasar el ratón.",
+      "**Objetivos táctiles por debajo de 44 px:** el filtro de rama de grupos (40 px) y los ítems del menú de perfil de la barra global (unos 28 px).",
+      "**Botones hechos a mano fuera de `Button`:** el CTA del estado vacío de grupos usa 12 px de radio, `shadow-soft` y `zaltyko-teal`. Los botones del cajón móvil de la barra global para la cuenta conservan 12 px de radio.",
+      "**`AthleteProfileHeader` sin uso:** no se monta en ninguna ruta y conserva banda noche, avatar con sombra y tarjetas de 14 px con `shadow-soft`. No sirve de referencia.",
+      "**Familias de Tailwind por nombre:** unos 264 archivos de `src` aún escriben `amber`, `red`, `green`, `teal`, `gray`, `slate`… Gracias a The Alias Rule se pintan en dos tintas, pero no se diseñaron una a una: conservan radios de 16 px, tarjetas con sombra y avisos ámbar que ahora salen en coral de error."
+    ]
+  }
+}

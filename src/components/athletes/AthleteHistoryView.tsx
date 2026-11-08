@@ -265,7 +265,7 @@ export function AthleteHistoryView({
           {filteredAssessments.map((assessment) => (
             <Card
               key={assessment.id}
-              className="hover:shadow-lg transition-shadow cursor-pointer"
+              className=" transition-shadow cursor-pointer"
               onClick={() =>
                 setExpandedId(expandedId === assessment.id ? null : assessment.id)
               }

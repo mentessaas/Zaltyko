@@ -277,7 +277,7 @@ export function OwnerSetupForm({
             </span>
           </label>
         </div>
-        <div className="flex gap-3 border-l-4 border-teal-800 bg-[#F1F3EF] p-4 text-sm leading-6 text-slate-700">
+        <div className="flex gap-3 border border-teal-800 bg-[#E9ECE6] p-4 text-sm leading-6 text-slate-700">
           <ShieldCheck
             className="mt-0.5 h-5 w-5 shrink-0 text-teal-800"
             aria-hidden="true"

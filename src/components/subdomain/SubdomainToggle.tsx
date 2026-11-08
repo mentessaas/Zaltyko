@@ -56,8 +56,8 @@ export function SubdomainToggle({
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>
           Subdominio personalizado
         </h1>
-        <p style={{ color: "#64748b", fontSize: 13, margin: "4px 0 0" }}>
-          {academyName} · slug actual: <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>{slug}</code>
+        <p style={{ color: "#5C6782", fontSize: 13, margin: "4px 0 0" }}>
+          {academyName} · slug actual: <code style={{ background: "#E9ECE6", padding: "2px 6px", borderRadius: 4 }}>{slug}</code>
         </p>
       </header>
 
@@ -65,7 +65,7 @@ export function SubdomainToggle({
         style={{
           padding: 20,
           background: "white",
-          border: "1px solid #e2e8f0",
+          border: "1px solid #D5DAE3",
           borderRadius: 10,
           marginBottom: 20,
         }}
@@ -75,7 +75,7 @@ export function SubdomainToggle({
             <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
               Activar <code>{slug}.zaltyko.com</code>
             </h2>
-            <p style={{ color: "#64748b", fontSize: 13, margin: "4px 0 0", lineHeight: 1.4 }}>
+            <p style={{ color: "#5C6782", fontSize: 13, margin: "4px 0 0", lineHeight: 1.4 }}>
               Disponible en plan Network. Tu academia obtendrá una URL propia
               con SEO consolidado.
             </p>
@@ -89,7 +89,7 @@ export function SubdomainToggle({
               width: 56,
               height: 32,
               borderRadius: 100,
-              background: enabled ? "#16a34a" : "#cbd5e1",
+              background: enabled ? "#1E3FA8" : "#D5DAE3",
               border: 0,
               cursor: pending ? "wait" : "pointer",
               position: "relative",
@@ -113,7 +113,7 @@ export function SubdomainToggle({
           </button>
         </div>
         {error && (
-          <p style={{ color: "#dc2626", fontSize: 13, marginTop: 12 }}>
+          <p style={{ color: "#C93C20", fontSize: 13, marginTop: 12 }}>
             {error}
           </p>
         )}
@@ -122,19 +122,19 @@ export function SubdomainToggle({
       <section
         style={{
           padding: 16,
-          background: "#f8fafc",
-          border: "1px solid #e2e8f0",
+          background: "#F4F6F2",
+          border: "1px solid #D5DAE3",
           borderRadius: 8,
           fontSize: 13,
         }}
       >
-        <h3 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 8px", textTransform: "uppercase", color: "#475569" }}>
+        <h3 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 8px", textTransform: "uppercase", color: "#3E4A66" }}>
           URL canónica actual
         </h3>
-        <p style={{ margin: "4px 0", fontFamily: "monospace", color: enabled ? "#16a34a" : "#475569" }}>
+        <p style={{ margin: "4px 0", fontFamily: "monospace", color: enabled ? "#1E3FA8" : "#3E4A66" }}>
           {enabled ? canonicalWithSub : canonicalWithoutSub}
         </p>
-        <p style={{ fontSize: 12, color: "#64748b", marginTop: 8, lineHeight: 1.4 }}>
+        <p style={{ fontSize: 12, color: "#5C6782", marginTop: 8, lineHeight: 1.4 }}>
           Zaltyko usa un certificado TLS wildcard para <code>*.zaltyko.com</code>.
           Para activar subdominios en producción necesitas el DNS wildcard
           apuntando a la IP del servidor (Vercel lo gestiona automáticamente).
@@ -144,7 +144,7 @@ export function SubdomainToggle({
       <p style={{ marginTop: 16 }}>
         <a
           href={`/app/${academyId}/settings`}
-          style={{ color: "#64748b", fontSize: 13 }}
+          style={{ color: "#5C6782", fontSize: 13 }}
         >
           ← Volver a ajustes
         </a>

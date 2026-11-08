@@ -150,12 +150,12 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "rounded-card border border-border bg-card p-5 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-medium",
+        "rounded-card border border-border bg-card p-5 shadow-soft transition-all duration-200",
         className
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-muted-foreground">
+        <p className="text-xs font-bold uppercase tracking-[0.09em] text-muted-foreground">
           {label}
         </p>
         {icon && (

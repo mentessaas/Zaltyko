@@ -94,7 +94,7 @@ export function MarketplaceAdminClient({
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>
             Marketplace — {academyName}
           </h1>
-          <p style={{ color: "#64748b", fontSize: 13, margin: "4px 0 0" }}>
+          <p style={{ color: "#5C6782", fontSize: 13, margin: "4px 0 0" }}>
             Vende material o slots sobrantes a otras academias. Zaltyko cobra una
             comisión del 10% sobre cada venta (5% plan Growth, 0% plan Network).
           </p>
@@ -104,7 +104,7 @@ export function MarketplaceAdminClient({
           onClick={() => setShowForm((v) => !v)}
           style={{
             padding: "8px 14px",
-            background: "#0f172a",
+            background: "#0B1430",
             color: "white",
             border: 0,
             borderRadius: 6,
@@ -119,9 +119,9 @@ export function MarketplaceAdminClient({
       {showForm && <NewListingForm onSubmit={create} disabled={saving} />}
 
       {loading ? (
-        <p style={{ color: "#64748b" }}>Cargando…</p>
+        <p style={{ color: "#5C6782" }}>Cargando…</p>
       ) : listings.length === 0 ? (
-        <p style={{ color: "#64748b", fontStyle: "italic" }}>
+        <p style={{ color: "#5C6782", fontStyle: "italic" }}>
           Aún no has publicado listings en el marketplace.
         </p>
       ) : (
@@ -134,13 +134,13 @@ export function MarketplaceAdminClient({
                 gap: 12,
                 padding: 14,
                 background: "white",
-                border: "1px solid #e2e8f0",
+                border: "1px solid #D5DAE3",
                 borderRadius: 8,
               }}
             >
               <div style={{ flex: 1 }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>{l.title}</h3>
-                <p style={{ color: "#64748b", fontSize: 12, margin: "4px 0 0" }}>
+                <p style={{ color: "#5C6782", fontSize: 12, margin: "4px 0 0" }}>
                   {formatPrice(l.priceCents, l.currency)} · {l.condition} ·{" "}
                   {l.quantityAvailable - l.quantitySold}/{l.quantityAvailable} disp.
                 </p>
@@ -150,8 +150,8 @@ export function MarketplaceAdminClient({
                   fontSize: 11,
                   padding: "2px 8px",
                   background:
-                    l.status === "active" ? "#dcfce7" : l.status === "sold" ? "#fef3c7" : "#f1f5f9",
-                  color: l.status === "active" ? "#166534" : l.status === "sold" ? "#92400e" : "#475569",
+                    l.status === "active" ? "#dcfce7" : l.status === "sold" ? "#fef3c7" : "#E9ECE6",
+                  color: l.status === "active" ? "#166534" : l.status === "sold" ? "#92400e" : "#3E4A66",
                   borderRadius: 100,
                   fontWeight: 600,
                 }}
@@ -207,8 +207,8 @@ function NewListingForm({
       }}
       style={{
         padding: 16,
-        background: "#f8fafc",
-        border: "1px solid #e2e8f0",
+        background: "#F4F6F2",
+        border: "1px solid #D5DAE3",
         borderRadius: 8,
         marginBottom: 16,
         display: "grid",
@@ -264,7 +264,7 @@ function NewListingForm({
         style={{
           gridColumn: "1 / -1",
           padding: "10px",
-          background: "#16a34a",
+          background: "#1E3FA8",
           color: "white",
           border: 0,
           borderRadius: 6,
@@ -284,19 +284,19 @@ const fieldLabel: React.CSSProperties = {
   gap: 4,
   fontSize: 13,
   fontWeight: 600,
-  color: "#0f172a",
+  color: "#0B1430",
 };
 const fieldInput: React.CSSProperties = {
   padding: "8px 10px",
   fontSize: 14,
-  border: "1px solid #cbd5e1",
+  border: "1px solid #D5DAE3",
   borderRadius: 6,
   fontFamily: "inherit",
 };
 const miniBtn: React.CSSProperties = {
   padding: "6px 12px",
   background: "white",
-  border: "1px solid #cbd5e1",
+  border: "1px solid #D5DAE3",
   borderRadius: 4,
   cursor: "pointer",
   fontSize: 12,

@@ -49,7 +49,7 @@ export function SuperAdminSidebar() {
           })}
         </nav>
         <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 font-sans text-xs text-white/70">
-          <p className="flex items-center gap-2 font-display text-[11px] uppercase tracking-wide text-zaltyko-accent-light">
+          <p className="flex items-center gap-2 font-display text-xs uppercase tracking-wide text-zaltyko-accent-light">
             <BarChart3 className="h-3.5 w-3.5" strokeWidth={1.8} />
             Panel global
           </p>

@@ -25,7 +25,7 @@ export default async function SubdomainSettingsPage({
       <h1 style={{ fontSize: "1.5rem", marginBottom: "0.75rem" }}>
         Configuración de subdominio
       </h1>
-      <p style={{ color: "#475569", lineHeight: 1.6 }}>
+      <p style={{ color: "#3E4A66", lineHeight: 1.6 }}>
         Las columnas <code>public_slug</code> y <code>subdomain_enabled</code> aún
         no están migradas en la tabla <code>academies</code> (auditoría E2E
         2026-09-24). Solicita tu subdominio por soporte hasta que la migración

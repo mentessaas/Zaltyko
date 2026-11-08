@@ -332,7 +332,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             href={card.href}
             className="group rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-3 transition hover:border-zaltyko-teal/30 hover:bg-white"
           >
-            <p className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">{card.title}</p>
+            <p className="truncate text-xs font-bold uppercase tracking-[0.08em] text-slate-400">{card.title}</p>
             <p className="mt-1 font-display text-xl font-bold tracking-[-0.03em] text-slate-950">{card.value}</p>
             <p className="mt-1 truncate text-xs text-slate-500">{card.subtitle}</p>
           </Link>
@@ -802,7 +802,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             <div className="overflow-x-auto">
               <table className="min-w-full text-xs">
                 <thead>
-                  <tr className="border-b border-white/10 bg-white/5 text-left text-[10px] uppercase tracking-wide text-white/50">
+                  <tr className="border-b border-white/10 bg-white/5 text-left text-xs uppercase tracking-wide text-white/50">
                     <th className="px-4 py-3 font-medium">Fecha</th>
                     <th className="px-4 py-3 font-medium">Evento</th>
                     <th className="px-4 py-3 font-medium">Academia</th>

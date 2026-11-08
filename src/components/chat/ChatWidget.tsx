@@ -139,7 +139,7 @@ export function ChatWidget({ athleteInfo }: ChatWidgetProps) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-zaltyko-teal hover:bg-zaltyko-primary-dark text-white rounded-full shadow-soft flex items-center justify-center transition-all duration-150 hover:scale-[1.03]"
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-zaltyko-teal hover:bg-zaltyko-primary-dark text-white rounded-full shadow-soft flex items-center justify-center transition-all duration-150"
         aria-label={isOpen ? 'Cerrar chat' : 'Abrir chat'}
       >
         {isOpen ? (
@@ -199,9 +199,9 @@ export function ChatWidget({ athleteInfo }: ChatWidgetProps) {
               <div className="flex justify-start" role="status" aria-label="El asistente está escribiendo">
                 <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3">
                   <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse motion-reduce:animate-none" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse motion-reduce:animate-none" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse motion-reduce:animate-none" style={{ animationDelay: '300ms' }} />
                   </div>
                 </div>
               </div>

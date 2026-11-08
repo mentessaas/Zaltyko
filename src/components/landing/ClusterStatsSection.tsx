@@ -99,7 +99,7 @@ export default function ClusterStatsSection({
           {stats.map((stat, index) => (
             <div
               key={index}
-              className="text-center p-8 rounded-2xl bg-card border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+              className="text-center p-8 rounded-2xl bg-card border border-gray-100 shadow-sm transition-shadow"
             >
               <div
                 className={`w-14 h-14 ${stat.bg} rounded-2xl flex items-center justify-center mx-auto mb-4`}

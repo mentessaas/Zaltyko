@@ -33,7 +33,7 @@ export function WelcomeBanner({
   const athletePlural = pluralizeFirstWord(labels.athleteSingular).toLowerCase();
 
   return (
-    <div className="relative rounded-card border border-border border-b-2 border-b-zaltyko-teal bg-card p-6 shadow-soft">
+    <div className="relative rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-6">
       <button
         onClick={() => setDismissed(true)}
         className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-control text-zaltyko-text-light transition hover:bg-zaltyko-white hover:text-foreground"
@@ -47,14 +47,14 @@ export function WelcomeBanner({
           <div className="flex h-10 w-10 items-center justify-center rounded-control bg-zaltyko-primary-ultralight">
             {isNewUser ? <Users className="h-5 w-5 text-zaltyko-teal" /> : <Rocket className="h-5 w-5 text-zaltyko-teal" />}
           </div>
-          <h2 className="font-display text-2xl font-bold text-foreground">
-            {isNewUser ? `¡Bienvenido a Zaltyko, ${displayName}!` : `¡Hola de nuevo, ${displayName}!`}
+          <h2 className="font-display text-2xl font-black uppercase leading-none text-mat-night">
+            {isNewUser ? `Te damos la bienvenida, ${displayName}` : `Hola de nuevo, ${displayName}`}
           </h2>
         </div>
         <p className="text-base leading-relaxed text-muted-foreground">
           {isNewUser ? (
             <>
-              <strong className="text-zaltyko-teal">{academyName || "Tu academia"}</strong> ya está creada.
+              Tu academia <strong className="text-mat">{academyName || ""}</strong> ya está lista.
               Añade tus {athletePlural} y crea el primer {labels.groupLabel.toLowerCase()} para empezar a ver el panel con datos reales.
             </>
           ) : (

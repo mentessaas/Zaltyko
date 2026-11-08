@@ -106,7 +106,7 @@ export function NextStepsWidget({ academyId, metrics, checklistProgress }: NextS
   const firstStep = nextSteps[0];
 
   return (
-    <div className="space-y-4 rounded-card border border-border border-b-2 border-b-zaltyko-teal bg-card p-6 shadow-soft">
+    <div className="space-y-4 rounded-card border border-border border-b border-b-zaltyko-teal bg-card p-6 shadow-soft">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 space-y-1">
           <div className="flex items-center gap-2">

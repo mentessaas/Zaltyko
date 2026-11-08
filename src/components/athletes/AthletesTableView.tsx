@@ -491,6 +491,7 @@ export const AthletesTableView = memo(function AthletesTableView({
         onExportCSV={handleExportCSV}
         onGroupChange={setGroupFilter}
         onImportClick={() => setImportOpen(true)}
+        athleteCount={athletes.length}
         onLevelChange={setLevelFilter}
         onQueryChange={setQuery}
         onSportConfigChange={setSportConfigFilter}

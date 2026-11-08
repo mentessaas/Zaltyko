@@ -92,7 +92,7 @@ export function MarketplaceBrowse({
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px", fontFamily: "system-ui, sans-serif" }}>
       <header style={{ marginBottom: 32 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}>{t.title}</h1>
-        <p style={{ color: "#64748b", fontSize: 15, margin: 0, maxWidth: 720 }}>{t.subtitle}</p>
+        <p style={{ color: "#5C6782", fontSize: 15, margin: 0, maxWidth: 720 }}>{t.subtitle}</p>
       </header>
 
       {adaptedCategories.length > 0 && (
@@ -104,7 +104,7 @@ export function MarketplaceBrowse({
       )}
 
       {filtered.length === 0 ? (
-        <p style={{ color: "#64748b", fontStyle: "italic" }}>{t.empty}</p>
+        <p style={{ color: "#5C6782", fontStyle: "italic" }}>{t.empty}</p>
       ) : (
         <div
           style={{
@@ -122,7 +122,7 @@ export function MarketplaceBrowse({
                 style={{
                   padding: 16,
                   background: "white",
-                  border: "1px solid #e2e8f0",
+                  border: "1px solid #D5DAE3",
                   borderRadius: 8,
                   display: "flex",
                   flexDirection: "column",
@@ -143,9 +143,9 @@ export function MarketplaceBrowse({
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
                       padding: "2px 8px",
-                      background: "#f1f5f9",
+                      background: "#E9ECE6",
                       borderRadius: 100,
-                      color: "#475569",
+                      color: "#3E4A66",
                     }}
                   >
                     {l.condition === "new"
@@ -155,7 +155,7 @@ export function MarketplaceBrowse({
                       : l.condition}
                   </span>
                   {soldOut && (
-                    <span style={{ fontSize: 10, color: "#dc2626", fontWeight: 700 }}>
+                    <span style={{ fontSize: 10, color: "#C93C20", fontWeight: 700 }}>
                       {t.soldOut}
                     </span>
                   )}
@@ -172,7 +172,7 @@ export function MarketplaceBrowse({
                   <p
                     style={{
                       fontSize: 13,
-                      color: "#64748b",
+                      color: "#5C6782",
                       lineHeight: 1.45,
                       margin: 0,
                       display: "-webkit-box",
@@ -191,13 +191,13 @@ export function MarketplaceBrowse({
                     alignItems: "baseline",
                     marginTop: "auto",
                     paddingTop: 8,
-                    borderTop: "1px solid #f1f5f9",
+                    borderTop: "1px solid #E9ECE6",
                   }}
                 >
                   <strong style={{ fontSize: 18 }}>
                     {formatPrice(l.priceCents, l.currency, locale)}
                   </strong>
-                  <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                  <span style={{ fontSize: 11, color: "#8A93A8" }}>
                     {remaining} {t.available}
                   </span>
                 </div>

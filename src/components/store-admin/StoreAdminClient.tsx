@@ -89,7 +89,7 @@ export function StoreAdminClient({
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Tienda — {academyName}</h1>
-          <p style={{ color: "#64748b", fontSize: 13, margin: "4px 0 0" }}>
+          <p style={{ color: "#5C6782", fontSize: 13, margin: "4px 0 0" }}>
             Productos visibles en tu tienda pública. Los pagos van a tu cuenta Stripe Connect.
           </p>
         </div>
@@ -98,7 +98,7 @@ export function StoreAdminClient({
           onClick={() => setShowNew((v) => !v)}
           style={{
             padding: "8px 14px",
-            background: "#0f172a",
+            background: "#0B1430",
             color: "white",
             border: 0,
             borderRadius: 6,
@@ -114,7 +114,7 @@ export function StoreAdminClient({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {products.length === 0 ? (
-          <p style={{ color: "#64748b", fontStyle: "italic", padding: 24, textAlign: "center" }}>
+          <p style={{ color: "#5C6782", fontStyle: "italic", padding: 24, textAlign: "center" }}>
             Aún no tienes productos. Crea el primero.
           </p>
         ) : (
@@ -127,20 +127,20 @@ export function StoreAdminClient({
                 gap: 16,
                 padding: 14,
                 background: "white",
-                border: "1px solid #e2e8f0",
+                border: "1px solid #D5DAE3",
                 borderRadius: 8,
                 opacity: p.isActive ? 1 : 0.5,
               }}
             >
               <div style={{ flex: 1 }}>
                 <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>{p.name}</h2>
-                <p style={{ color: "#64748b", fontSize: 12, margin: "4px 0 0" }}>
+                <p style={{ color: "#5C6782", fontSize: 12, margin: "4px 0 0" }}>
                   {p.productType} · {formatPrice(p.priceCents, p.currency)}
                   {p.stockQuantity !== null && ` · Stock: ${p.stockQuantity}`}
                   {p.stockQuantity !== null &&
                     p.lowStockThreshold !== null &&
                     p.stockQuantity <= p.lowStockThreshold && (
-                      <span style={{ color: "#dc2626", fontWeight: 600 }}> ⚠ stock bajo</span>
+                      <span style={{ color: "#C93C20", fontWeight: 600 }}> ⚠ stock bajo</span>
                     )}
                 </p>
               </div>
@@ -208,8 +208,8 @@ function NewProductForm({
       }}
       style={{
         padding: 16,
-        background: "#f8fafc",
-        border: "1px solid #e2e8f0",
+        background: "#F4F6F2",
+        border: "1px solid #D5DAE3",
         borderRadius: 8,
         marginBottom: 16,
         display: "grid",
@@ -262,7 +262,7 @@ function NewProductForm({
         style={{
           gridColumn: "1 / -1",
           padding: "10px",
-          background: "#16a34a",
+          background: "#1E3FA8",
           color: "white",
           border: 0,
           borderRadius: 6,
@@ -282,19 +282,19 @@ const fieldLabel: React.CSSProperties = {
   gap: 4,
   fontSize: 13,
   fontWeight: 600,
-  color: "#0f172a",
+  color: "#0B1430",
 };
 const fieldInput: React.CSSProperties = {
   padding: "8px 10px",
   fontSize: 14,
-  border: "1px solid #cbd5e1",
+  border: "1px solid #D5DAE3",
   borderRadius: 6,
   fontFamily: "inherit",
 };
 const miniBtn: React.CSSProperties = {
   padding: "6px 12px",
   background: "white",
-  border: "1px solid #cbd5e1",
+  border: "1px solid #D5DAE3",
   borderRadius: 4,
   cursor: "pointer",
   fontSize: 12,

@@ -4,6 +4,7 @@ import type { SportConfigOption } from "@/components/groups/types";
 import { WEEKDAY_OPTIONS } from "@/lib/classes/constants";
 import type { CoachOption, GroupOption } from "./edit-class-dialog-model";
 import { pluralizeFirstWord } from "@/lib/specialization/registry";
+import { groupInk } from "@/lib/mat/group-ink";
 
 const fieldClassName =
   "w-full rounded-card border border-border bg-card px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
@@ -489,7 +490,7 @@ function GroupOptionRow({
         className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
       />
       <div className="flex items-center gap-2">
-        {group.color && <span className="h-3 w-3 rounded-full" style={{ backgroundColor: group.color }} />}
+        {group.color && <span className="h-3 w-3 rounded-full" style={{ backgroundColor: groupInk(group.color) }} />}
         <p className="font-medium text-foreground">{group.name}</p>
       </div>
     </label>

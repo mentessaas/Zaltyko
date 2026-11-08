@@ -50,10 +50,10 @@ export default function DemoSection() {
             {/* Play button */}
             <Link
               href="/contact?type=demo"
-              className="relative z-10 flex h-20 w-20 items-center justify-center rounded-full bg-zaltyko-teal shadow-2xl shadow-[0_10px_30px_rgba(31,199,182,0.22)] transition-all duration-300 hover:scale-110 hover:bg-zaltyko-primary-dark group"
+              className="relative z-10 flex h-20 w-20 items-center justify-center rounded-full bg-zaltyko-teal shadow-2xl shadow-[0_10px_30px_rgba(31,199,182,0.22)] transition-all duration-300 hover:bg-zaltyko-primary-dark group"
               aria-label="Solicitar demo guiada"
             >
-              <Play className="w-8 h-8 text-white ml-1 group-hover:scale-110 transition-transform" fill="white" />
+              <Play className="w-8 h-8 text-white ml-1 transition-transform" fill="white" />
             </Link>
 
             <p className="relative z-10 mt-4 text-white/60 text-sm">

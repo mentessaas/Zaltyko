@@ -105,7 +105,7 @@ export function OwnerWorkspaceNavigation() {
       >
         Saltar al contenido
       </a>
-      <header className="border-b border-slate-300/80 bg-[#F8F8F4]">
+      <header className="border-b border-slate-300/80 bg-[#F4F6F2]">
         <div className="mx-auto max-w-[92rem] px-5 py-4 lg:px-10">
           <div className="flex items-center justify-between gap-4">
             <Link
@@ -119,7 +119,7 @@ export function OwnerWorkspaceNavigation() {
                 <span className="block font-display text-base font-bold leading-none">
                   Zaltyko
                 </span>
-                <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
+                <span className="mt-1 block text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
                   Mesa de dirección
                 </span>
               </span>

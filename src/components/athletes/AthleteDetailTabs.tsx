@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { groupInk } from "@/lib/mat/group-ink";
+import { getAthleteStatusLabel } from "@/lib/athletes/constants";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
@@ -110,10 +112,17 @@ export function AthleteDetailTabs({
 
   const totalSessions = Object.values(attendanceTotals).reduce((sum, value) => sum + value, 0);
 
+  // Ficha «Magnesio sobre tapiz»: paneles reglados, sin sombra.
   const detailCardClass =
-    "rounded-2xl border border-border bg-card p-6 shadow-soft";
+    "rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-6";
+  const dateFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  const prettyDate = (value: string | Date | null | undefined) => {
+    if (!value) return null;
+    const d = value instanceof Date ? value : new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value);
+    return Number.isNaN(d.getTime()) ? String(value) : dateFmt.format(d);
+  };
   const subtlePanelClass =
-    "rounded-xl border border-border/70 bg-zaltyko-warm-white px-4 py-3";
+    "border-b border-chalk-line py-3 last:border-b-0";
 
   return (
     <Tabs defaultValue="info" className="w-full">
@@ -130,32 +139,24 @@ export function AthleteDetailTabs({
         <section className={detailCardClass}>
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">{terms.athlete}</p>
-              <h1 className="font-display text-3xl font-semibold text-foreground">{athlete.name}</h1>
+              <h1 className="font-display text-[clamp(2rem,3.5vw,3rem)] font-black uppercase leading-[0.95] text-mat-night">{athlete.name}</h1>
               <div className="mt-3 flex flex-wrap gap-3 text-xs">
-                <span className="rounded-full bg-zaltyko-teal/10 px-3 py-1 font-medium text-zaltyko-teal">
-                  Estado: {athlete.status}
+                <span className="rounded-md bg-mat-wash px-2.5 py-1 font-semibold text-mat-deep">
+                  {getAthleteStatusLabel(athlete.status ?? "")}
                 </span>
                 {athlete.level && (
-                  <span className="rounded-full bg-zaltyko-indigo/10 px-3 py-1 font-medium text-zaltyko-indigo">
+                  <span className="rounded-md bg-chalk-dust px-2.5 py-1 font-semibold text-ramp-600">
                     {terms.level}: {athlete.level}
                   </span>
                 )}
                 {athlete.groupName && (
                   <span
-                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium"
-                    style={
-                      athlete.groupColor
-                        ? {
-                            borderColor: athlete.groupColor,
-                            color: athlete.groupColor,
-                          }
-                        : undefined
-                    }
+                    className="inline-flex items-center gap-2 rounded-md border border-chalk-line px-2.5 py-1 font-semibold text-mat-night"
                   >
                     <span
-                      className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: athlete.groupColor ?? "currentColor" }}
+                      aria-hidden
+                      className="h-1.5 w-1.5 rounded-full"
+                      style={{ backgroundColor: groupInk(athlete.groupColor, athlete.groupName) }}
                     />
                     {athlete.groupName}
                   </span>
@@ -164,13 +165,10 @@ export function AthleteDetailTabs({
             </div>
             <div className="text-right text-sm text-muted-foreground">
               <p>
-                Registrado el{" "}
-                {athlete.createdAt
-                  ? new Date(athlete.createdAt).toLocaleDateString("es-ES")
-                  : "—"}
+                Alta: {prettyDate(athlete.createdAt) ?? "—"}
               </p>
               <p>Edad: {age ?? "No disponible"}</p>
-              {formattedDob && <p>Nacido el {formattedDob}</p>}
+              {formattedDob && <p>Nacimiento: {prettyDate(formattedDob)}</p>}
             </div>
           </header>
         </section>
@@ -184,7 +182,7 @@ export function AthleteDetailTabs({
             {Object.entries(attendanceTotals).map(([status, value]) => (
               <div
                 key={status}
-                className="flex items-center justify-between rounded-xl border border-border/70 bg-zaltyko-warm-white px-3 py-2 text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground"
+                className="flex items-center justify-between border-b-[3px] border-mat-night pb-2 text-xs font-bold uppercase tracking-[0.05em] text-muted-foreground"
               >
                 <span>{STATUS_LABELS[status] ?? status}</span>
                 <span className="font-display text-base font-semibold text-foreground">{value}</span>
@@ -224,7 +222,7 @@ export function AthleteDetailTabs({
                         : "Horario no definido"}
                     </p>
                   </div>
-                  <span className="rounded-full bg-zaltyko-teal/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.05em] text-zaltyko-teal">
+                  <span className="rounded-md bg-mat-wash px-2.5 py-1 text-xs font-semibold text-mat-deep">
                     {session.status ? STATUS_LABELS[session.status] ?? session.status : "—"}
                   </span>
                 </div>
@@ -284,7 +282,7 @@ export function AthleteDetailTabs({
                           <p className="text-xs text-muted-foreground">
                             {contact.email ?? "Sin correo"} · {contact.phone ?? "Sin teléfono"}
                           </p>
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             Notificaciones:{" "}
                             {[
                               contact.notifyEmail ? "Email" : null,
@@ -311,7 +309,7 @@ export function AthleteDetailTabs({
                           <p className="font-semibold text-foreground">
                             {guardian.name}
                             {guardian.isPrimary ? (
-                              <span className="ml-2 rounded-full bg-zaltyko-teal/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.05em] text-zaltyko-teal">
+                              <span className="ml-2 rounded-md bg-mat-wash px-2 py-0.5 text-xs font-semibold text-mat-deep">
                                 Principal
                               </span>
                             ) : null}
@@ -319,7 +317,7 @@ export function AthleteDetailTabs({
                           <p className="text-xs text-muted-foreground">
                             {guardian.email ?? "Sin correo"} · {guardian.phone ?? "Sin teléfono"}
                           </p>
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             {guardian.relationship ?? "Relación no especificada"}
                           </p>
                         </li>

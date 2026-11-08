@@ -44,14 +44,14 @@ const ACCENT_TO_STRIP: Record<string, string> = {
 
 // Color del sparkline por acento (hex, alineado a la paleta de marca)
 const ACCENT_TO_HEX: Record<string, string> = {
-  sky: "#2B2E83",
-  emerald: "#00796B",
-  red: "#FF6B57",
-  amber: "#FF6B57",
-  coral: "#FF6B57",
-  slate: "#2B2E83",
-  "zaltyko-primary": "#00796B",
-  "zaltyko-accent": "#FF6B57",
+  sky: "#14307F",
+  emerald: "#1E3FA8",
+  red: "#E5482A",
+  amber: "#E5482A",
+  coral: "#E5482A",
+  slate: "#14307F",
+  "zaltyko-primary": "#1E3FA8",
+  "zaltyko-accent": "#E5482A",
 };
 
 export interface DashboardCardProps {
@@ -102,7 +102,7 @@ export function DashboardCard({
     <Link
       href={href}
       className={cn(
-        "group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:border-zaltyko-teal/40 hover:shadow-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.99]"
+        "group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-soft transition-all duration-300 hover:border-zaltyko-teal/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.99]"
       )}
     >
       {/* Barra de acento superior */}
@@ -123,7 +123,7 @@ export function DashboardCard({
             {trend && (
               <span
                 className={cn(
-                  "flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                  "flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold",
                   trend.direction === "up"
                     ? "bg-zaltyko-teal/12 text-zaltyko-teal"
                     : "bg-zaltyko-coral/12 text-zaltyko-coral"

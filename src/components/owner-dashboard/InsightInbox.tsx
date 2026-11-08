@@ -80,8 +80,8 @@ function Evidence({ evidence }: { evidence: Record<string, unknown> }) {
   return (
     <dl className="grid grid-cols-2 gap-px border border-slate-300 bg-slate-300 sm:grid-cols-3">
       {entries.map(([key, value]) => (
-        <div key={key} className="bg-[#F8F8F4] p-3">
-          <dt className="break-words text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">
+        <div key={key} className="bg-[#F4F6F2] p-3">
+          <dt className="break-words text-xs font-bold uppercase tracking-[0.12em] text-slate-600">
             {key.replaceAll("_", " ")}
           </dt>
           <dd className="mt-1 break-words font-mono text-sm font-semibold text-slate-950">
@@ -250,7 +250,7 @@ function InsightCard({
           <span className="bg-slate-950 px-2.5 py-1.5 text-white">
             {Math.round(item.priorityScore)} / 100
           </span>
-          <span className="text-[#A33A2D]">
+          <span className="text-[#B8331A]">
             {severityLabels[item.severity] ?? item.severity}
           </span>
           <span className="text-slate-600">
@@ -271,8 +271,8 @@ function InsightCard({
       </p>
 
       {estimate && (
-        <div className="mt-5 border-l-4 border-zaltyko-coral bg-[#FFF8F2] p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#A33A2D]">
+        <div className="mt-5 border border-zaltyko-coral bg-[#FDF3F0] p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#B8331A]">
             Hipótesis de valor, no garantía
           </p>
           <p className="mt-1 font-mono text-2xl font-semibold text-slate-950">
@@ -335,7 +335,7 @@ function InsightCard({
       {isGroupSimulation && simulationOpen && (
         <section
           aria-label="Simulación hipotética de un nuevo grupo"
-          className="mt-5 border border-teal-800 bg-[#F3F8F5] p-4 sm:p-6"
+          className="mt-5 border border-teal-800 bg-[#F4F6F2] p-4 sm:p-6"
         >
           <h3 className="text-xl font-semibold">Prueba una hipótesis</h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
@@ -515,7 +515,7 @@ function InsightCard({
           <summary className="touch-target cursor-pointer py-2 font-semibold text-slate-600 underline decoration-slate-300 underline-offset-4">
             No es relevante
           </summary>
-          <div className="grid gap-3 border-l-2 border-slate-300 pl-4 sm:grid-cols-[1fr_auto] sm:items-end">
+          <div className="grid gap-3 border-t border-chalk-line pt-4 sm:grid-cols-[1fr_auto] sm:items-end">
             <label className="grid gap-2 font-semibold text-slate-700">
               Motivo del descarte
               <textarea
@@ -567,7 +567,7 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F1F3EF] text-slate-950">
+    <div className="min-h-screen bg-[#E9ECE6] text-slate-950">
       <main
         id="contenido"
         className="mx-auto max-w-[92rem] px-5 pb-24 pt-7 lg:px-10 lg:pb-16 lg:pt-10"
@@ -661,7 +661,7 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
         <OwnerOperationalReadOnlyNotice organizationId={bundle.organization.id} />
 
         {bundle.items.length === 0 ? (
-          <section className="mt-8 border-l-4 border-teal-800 bg-white p-7 shadow-soft sm:p-10">
+          <section className="mt-8 border border-teal-800 bg-white p-7 shadow-soft sm:p-10">
             <Lightbulb className="h-7 w-7 text-teal-800" aria-hidden="true" />
             <h2 className="mt-4 text-3xl">No hay decisiones pendientes</h2>
             <p className="mt-3 max-w-xl leading-6 text-slate-600">

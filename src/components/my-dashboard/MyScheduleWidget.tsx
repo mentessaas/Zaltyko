@@ -124,14 +124,6 @@ export function MyScheduleWidget({ sessions, academyCountry }: MyScheduleWidgetP
               <Badge
                 variant="outline"
                 className="mt-2 text-xs"
-                style={
-                  session.groupColor
-                    ? {
-                        borderColor: session.groupColor,
-                        color: session.groupColor,
-                      }
-                    : undefined
-                }
               >
                 {session.groupName}
               </Badge>
@@ -139,14 +131,14 @@ export function MyScheduleWidget({ sessions, academyCountry }: MyScheduleWidgetP
             {(session.technicalFocus || session.apparatus.length > 0) && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {session.technicalFocus && (
-                  <span className="rounded-full bg-muted px-2 py-1 text-[11px] text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
                     {session.technicalFocus}
                   </span>
                 )}
                 {session.apparatus.slice(0, 2).map((item) => (
                   <span
                     key={item}
-                    className="rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                    className="rounded-full border border-border bg-background px-2 py-1 text-xs text-muted-foreground"
                   >
                     {apparatusLabels[item] || item}
                   </span>

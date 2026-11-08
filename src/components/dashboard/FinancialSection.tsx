@@ -30,7 +30,7 @@ export function FinancialSection({
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+    <section className="overflow-hidden rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white">
       <button
         type="button"
         onClick={onToggleFinancials}

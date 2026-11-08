@@ -29,13 +29,13 @@ const Legend = dynamic(() => import("recharts").then((mod) => mod.Legend), { ssr
 
 // Theme colors
 const COLORS = {
-  red: "#DC2626",
-  emerald: "#10B981",
-  amber: "#F59E0B",
-  rose: "#F43F5E",
-  blue: "#3B82F6",
-  cyan: "#06B6D4",
-  indigo: "#6366F1",
+  red: "#C93C20",
+  emerald: "#1E3FA8",
+  amber: "#3E4A66",
+  rose: "#E5482A",
+  blue: "#5B7BE0",
+  cyan: "#8FB4FF",
+  indigo: "#14307F",
 };
 
 const CHART_COLORS = [COLORS.red, COLORS.emerald, COLORS.amber, COLORS.rose, COLORS.blue, COLORS.cyan];
@@ -265,9 +265,9 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
                     <stop offset="95%" stopColor={COLORS.red} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#64748B" />
-                <YAxis tick={{ fontSize: 12 }} stroke="#64748B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#D5DAE3" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#5C6782" />
+                <YAxis tick={{ fontSize: 12 }} stroke="#5C6782" />
                 <Tooltip content={<CustomTooltip />} />
                 <Area
                   type="monotone"
@@ -291,9 +291,9 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={data.revenueByMonth}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#64748B" />
-                <YAxis tick={{ fontSize: 12 }} stroke="#64748B" tickFormatter={(v) => formatCurrency(Number(v), currency)} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#D5DAE3" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#5C6782" />
+                <YAxis tick={{ fontSize: 12 }} stroke="#5C6782" tickFormatter={(v) => formatCurrency(Number(v), currency)} />
                 <Tooltip content={<CustomTooltip formatter={(value: number) => formatCurrency(value, currency)} />} />
                 <Bar dataKey="revenue" fill={COLORS.emerald} radius={[4, 4, 0, 0]} name="Ingresos" />
               </BarChart>
@@ -344,9 +344,9 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={data.dailyAttendance}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="#64748B" />
-                <YAxis tick={{ fontSize: 12 }} stroke="#64748B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#D5DAE3" />
+                <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="#5C6782" />
+                <YAxis tick={{ fontSize: 12 }} stroke="#5C6782" />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
                 <Line
@@ -379,13 +379,13 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={data.topClasses} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis type="number" tick={{ fontSize: 12 }} stroke="#64748B" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#D5DAE3" />
+                <XAxis type="number" tick={{ fontSize: 12 }} stroke="#5C6782" />
                 <YAxis
                   type="category"
                   dataKey="name"
                   tick={{ fontSize: 11 }}
-                  stroke="#64748B"
+                  stroke="#5C6782"
                   width={100}
                 />
                 <Tooltip content={<CustomTooltip />} />
@@ -415,9 +415,9 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
                   <stop offset="95%" stopColor={COLORS.rose} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#64748B" />
-              <YAxis tick={{ fontSize: 12 }} stroke="#64748B" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#D5DAE3" />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#5C6782" />
+              <YAxis tick={{ fontSize: 12 }} stroke="#5C6782" />
               <Tooltip content={<CustomTooltip />} />
               <Legend />
               <Area

@@ -58,7 +58,7 @@ export function UpcomingClassesCard({ title, date, classes }: UpcomingClassesCar
                     <div className="flex items-center gap-1.5">
                       <Avatar className="h-5 w-5">
                         <AvatarImage src={classItem.instructor.avatar} />
-                        <AvatarFallback className="text-[10px] bg-zaltyko-primary-light text-zaltyko-primary-dark">
+                        <AvatarFallback className="text-xs bg-zaltyko-primary-light text-zaltyko-primary-dark">
                           {classItem.instructor.name
                             .split(" ")
                             .map((n) => n[0])

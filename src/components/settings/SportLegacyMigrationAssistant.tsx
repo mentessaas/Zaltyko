@@ -136,7 +136,7 @@ export function SportLegacyMigrationAssistant({
       <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <CardTitle>Asistente de migración legacy</CardTitle>
+            <CardTitle>Clasificar datos por {terms.branch.toLowerCase()}</CardTitle>
             <CardDescription>
               Asigna una rama activa a datos antiguos que todavía no tienen configuración deportiva.
             </CardDescription>
@@ -207,7 +207,7 @@ export function SportLegacyMigrationAssistant({
 
             {entityType === "coaches" && (
               <p className="rounded-lg border border-border bg-zaltyko-warm-white px-3 py-2 text-xs text-muted-foreground">
-                {entityLabels.coaches} sin scope están disponibles para todas las ramas como compatibilidad legacy. Al asignarles una {terms.branch.toLowerCase()} aquí quedarán acotados a esa configuración.
+                {entityLabels.coaches} sin {terms.branch.toLowerCase()} asignada pueden trabajar en todas. Si les asignas una aquí, solo verán esa {terms.branch.toLowerCase()}.
               </p>
             )}
 

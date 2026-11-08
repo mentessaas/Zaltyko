@@ -337,7 +337,7 @@ export function MyDashboardPage({
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-200">{isParent ? "Tu espacio familiar" : "Tu progreso en pista"}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-200">{isParent ? "Tu espacio familiar" : "Tu progreso en pista"}</p>
             <h1 className="mt-1 font-display text-2xl font-bold tracking-[-0.03em] text-white">
               ¡Hola, {profileName || "Usuario"}!
             </h1>
@@ -397,14 +397,6 @@ export function MyDashboardPage({
                       <Badge
                         variant="outline"
                         className="bg-background"
-                        style={
-                          activeAthleteData.groupColor
-                            ? {
-                                borderColor: activeAthleteData.groupColor,
-                                color: activeAthleteData.groupColor,
-                              }
-                            : undefined
-                        }
                       >
                         {activeAthleteData.groupName}
                       </Badge>

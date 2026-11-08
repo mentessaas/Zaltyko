@@ -72,7 +72,7 @@ export function QuickActionsWidget({ academyId, data, loading, onRefresh }: Quic
                         Accede a las tareas operativas más comunes con un solo clic
                     </p>
                 </CardHeader>
-                <CardContent className="grid gap-3 p-4">
+                <CardContent className="px-5 pb-3 pt-0">
                     {pendingClasses > 0 && (
                         <QuickAction
                             icon={<Calendar className="h-5 w-5" />}
@@ -102,8 +102,8 @@ export function QuickActionsWidget({ academyId, data, loading, onRefresh }: Quic
                     {unassignedAthletes > 0 && (
                         <QuickAction
                             icon={<UserPlus className="h-5 w-5" />}
-                            label={`Atletas sin ${specialization.labels.groupLabel}`}
-                            description={`${unassignedAthletes} ${unassignedAthletes === 1 ? "atleta" : "atletas"} sin asignar`}
+                            label={`${specialization.labels.athletesPlural} sin ${specialization.labels.groupLabel.toLowerCase()}`}
+                            description={`${unassignedAthletes} ${unassignedAthletes === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()} sin asignar`}
                             badge={unassignedAthletes}
                             onClick={() => {
                                 router.push(`/app/${academyId}/athletes`);

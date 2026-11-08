@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { AthleteProfileHeaderInfo } from "@/types/athletes";
+import { groupInk } from "@/lib/mat/group-ink";
 
 interface AthleteProfileHeaderProps {
   athleteId: string;
@@ -143,7 +144,7 @@ export function AthleteProfileHeader({
                   <Users className="h-3.5 w-3.5" />
                   <span
                     className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: athlete.groupColor ?? "#888" }}
+                    style={{ backgroundColor: groupInk(athlete.groupColor, athlete.groupName ?? undefined) }}
                   />
                   {athlete.groupName}
                 </span>

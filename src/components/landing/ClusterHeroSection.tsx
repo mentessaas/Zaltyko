@@ -64,7 +64,7 @@ function ClusterHeroSectionImpl({
           </p>
 
           {!available && (
-            <span className="mb-4 inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span className="mb-4 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {comingSoonLabel}
             </span>
           )}

@@ -33,7 +33,7 @@ export default async function OwnerSetupPage() {
     if (legacyHome.destination === "blocked") redirect(legacyHome.redirectUrl);
 
     return (
-      <main className="grid min-h-screen place-items-center bg-[#F1F3EF] px-5 py-12 text-slate-950">
+      <main className="grid min-h-screen place-items-center bg-[#E9ECE6] px-5 py-12 text-slate-950">
         <section className="w-full max-w-2xl border-t-4 border-amber-700 bg-white p-7 shadow-soft sm:p-10">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-800">
             Cuenta vinculada
@@ -82,7 +82,7 @@ export default async function OwnerSetupPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#F1F3EF] px-5 py-12 text-slate-950">
+    <main className="grid min-h-screen place-items-center bg-[#E9ECE6] px-5 py-12 text-slate-950">
       <section className="w-full max-w-2xl border-t-4 border-teal-800 bg-white p-7 shadow-soft sm:p-10">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
           Tu academia

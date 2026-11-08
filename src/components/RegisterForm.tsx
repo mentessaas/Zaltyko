@@ -128,7 +128,7 @@ export function RegisterForm({
       toast.pushToast({
         title: "No se pudo verificar la política vigente",
         description:
-          "No crearemos una cuenta Owner hasta poder comprobar los términos actuales. Inténtalo de nuevo más tarde.",
+          "No crearemos la cuenta de dirección hasta poder comprobar los términos actuales. Inténtalo de nuevo más tarde.",
         variant: "error",
       });
       return;
@@ -377,7 +377,7 @@ export function RegisterForm({
       toast.pushToast({
         title: "No se pudo verificar la política vigente",
         description:
-          "No crearemos una cuenta Owner hasta poder comprobar los términos actuales. Inténtalo de nuevo más tarde.",
+          "No crearemos la cuenta de dirección hasta poder comprobar los términos actuales. Inténtalo de nuevo más tarde.",
         variant: "error",
       });
       return;
@@ -599,11 +599,11 @@ export function RegisterForm({
           <p
             id="owner-consent-policy-unavailable"
             role="alert"
-            className="rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+            className="rounded-md border border-signal/30 bg-signal-wash px-3 py-2 text-sm text-signal-ink"
           >
             No podemos comprobar ahora los términos vigentes para crear una
-            academia. No se iniciará el alta Owner; vuelve a intentarlo más
-            tarde.
+            academia. No se creará la cuenta de dirección; vuelve a intentarlo
+            más tarde.
           </p>
         )}
         <Button

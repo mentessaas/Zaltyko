@@ -251,7 +251,7 @@ export function OwnerMonthlyInvoiceWorkspace({
   }
 
   return (
-    <main className="min-h-screen bg-[#F1F3EF] px-5 py-6 text-slate-950 sm:py-10">
+    <main className="min-h-screen bg-[#E9ECE6] px-5 py-6 text-slate-950 sm:py-10">
       <div className="mx-auto grid max-w-4xl gap-8">
         <header>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-900">

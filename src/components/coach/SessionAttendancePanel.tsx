@@ -11,6 +11,7 @@ import type {
   SessionWorkspaceAttendance,
 } from "@/components/coach/session-workspace-types";
 import { cn } from "@/lib/utils";
+import { groupInk } from "@/lib/mat/group-ink";
 
 const STATUS_OPTIONS: Array<{
   value: AttendanceStatus;
@@ -160,7 +161,7 @@ function SessionAttendancePanelImpl({
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   {athlete.groupColor ? (
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: athlete.groupColor }} aria-hidden="true" />
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: groupInk(athlete.groupColor) }} aria-hidden="true" />
                   ) : null}
                   <h3 className="truncate font-semibold text-foreground">{athlete.name}</h3>
                 </div>

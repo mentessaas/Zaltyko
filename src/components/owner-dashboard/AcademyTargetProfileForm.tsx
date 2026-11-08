@@ -337,7 +337,7 @@ export function AcademyTargetProfileForm({
               .map((field) => (
                 <label
                   key={field.key}
-                  className="grid content-start gap-2 border-l-2 border-teal-800/30 bg-white p-4"
+                  className="grid content-start gap-2 border-t-[3px] border-t-mat-night bg-white p-4"
                 >
                   <span className="text-sm font-bold text-slate-900">
                     {field.label}
@@ -364,7 +364,7 @@ export function AcademyTargetProfileForm({
                       }
                       inputMode="decimal"
                       aria-describedby={`${field.key}-help`}
-                      className="touch-target w-full border border-slate-400 bg-[#FAFAF7] px-3 pr-10 font-mono text-lg text-slate-950 focus:border-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-800/30"
+                      className="touch-target w-full border border-slate-400 bg-[#F4F6F2] px-3 pr-10 font-mono text-lg text-slate-950 focus:border-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-800/30"
                     />
                     <span className="pointer-events-none absolute right-3 top-3 text-sm text-slate-500">
                       %
@@ -381,7 +381,7 @@ export function AcademyTargetProfileForm({
           </div>
         </section>
       ))}
-      <aside className="flex gap-3 border-l-4 border-amber-600 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+      <aside className="flex gap-3 border border-amber-600 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
         <RotateCcw className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
         <p>
           Son metas internas que defines para tu academia. No son promedios del

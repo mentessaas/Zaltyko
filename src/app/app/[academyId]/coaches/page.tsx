@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { academies, classCoachAssignments, classes, coaches, coachSportConfigs, groups } from "@/db/schema";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
-import { pluralizeFirstWord } from "@/lib/specialization/registry";
+import { getSpecializedNavigationLabel, pluralizeFirstWord, resolveAcademySpecialization } from "@/lib/specialization/registry";
 
 import { CoachesTableView } from "@/components/coaches/CoachesTableView";
 import { PageHeader } from "@/components/ui/page-header";
@@ -33,6 +33,13 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
       id: academies.id,
       name: academies.name,
       tenantId: academies.tenantId,
+      academyType: academies.academyType,
+      country: academies.country,
+      countryCode: academies.countryCode,
+      discipline: academies.discipline,
+      disciplineVariant: academies.disciplineVariant,
+      federationConfigVersion: academies.federationConfigVersion,
+      specializationStatus: academies.specializationStatus,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -159,7 +166,13 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
     sportConfigs,
     sportConfigFilter === "unscoped" ? null : sportConfigFilter
   );
-  const coachLabelPlural = pluralizeFirstWord(terms.coach);
+  // Mismo nombre que la navegación (registro de especialización), para que
+  // la barra lateral, las migas y el título digan lo mismo.
+  const coachLabelPlural = getSpecializedNavigationLabel(
+    resolveAcademySpecialization(academy),
+    "coaches",
+    pluralizeFirstWord(terms.coach)
+  );
 
   const groupsByCoach = new Map<string, { id: string; name: string; color: string | null; sportConfigId: string | null; role: "principal" | "asistente" }[]>();
 
@@ -237,7 +250,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
         breadcrumbs={[
           { label: "Dashboard", href: `/app/${academy.id}/dashboard` },
           { label: academy.name ?? "Academia", href: `/app/${academy.id}/dashboard` },
-          { label: "Entrenadores" },
+          { label: coachLabelPlural },
         ]}
         title={coachLabelPlural}
         description="Controla al staff técnico, asigna clases y mantén sus datos de contacto al día."

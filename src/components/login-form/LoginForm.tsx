@@ -154,7 +154,7 @@ export function LoginForm() {
           <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 rounded-xl border border-border/50 bg-background/80 backdrop-blur px-4 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-background hover:text-foreground hover:shadow-lg hover:border-zaltyko-primary/30"
+              className="inline-flex items-center gap-2 rounded-xl border border-border/50 bg-background/80 backdrop-blur px-4 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-background hover:text-foreground hover:border-zaltyko-primary/30"
             >
               <ArrowLeft className="h-4 w-4" />
               Volver
@@ -168,7 +168,7 @@ export function LoginForm() {
                 <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-zaltyko-primary to-zaltyko-primary-dark flex items-center justify-center text-white font-bold shadow-lg shadow-zaltyko-primary/30">
                   <Sparkles className="h-6 w-6" />
                 </div>
-                <span className="font-display text-2xl font-bold bg-gradient-to-r from-zaltyko-primary to-zaltyko-primary-dark bg-clip-text text-transparent">
+                <span className="font-display text-2xl font-bold text-mat">
                   Zaltyko
                 </span>
               </div>

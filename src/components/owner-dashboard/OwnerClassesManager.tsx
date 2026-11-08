@@ -681,7 +681,7 @@ export function OwnerClassesManager({ bundle }: { bundle: ClassesBundle }) {
               </label>
             </div>
 
-            <p className="border-l-2 border-teal-700 pl-3 text-xs leading-5 text-slate-700">
+            <p className="border-t border-chalk-line pt-3 text-xs leading-5 text-ramp-600">
               Al guardar se crean la clase recurrente y sus sesiones de hasta
               los próximos 120 días. No se crean matrículas ni cobros.
             </p>

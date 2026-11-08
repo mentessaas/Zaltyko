@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/modal";
 import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 import { pluralizeFirstWord } from "@/lib/specialization/registry";
+import { groupInk } from "@/lib/mat/group-ink";
 
 type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
@@ -325,19 +326,11 @@ export function AttendanceDialog({
                   <p className="text-xs text-muted-foreground">{athlete.id}</p>
                   {athlete.groupName && (
                     <span
-                      className="mt-1 inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wide"
-                      style={
-                        athlete.groupColor
-                          ? {
-                              borderColor: athlete.groupColor,
-                              color: athlete.groupColor,
-                            }
-                          : undefined
-                      }
+                      className="mt-1 inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-xs uppercase tracking-wide"
                     >
                       <span
                         className="h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: athlete.groupColor ?? "currentColor" }}
+                        style={{ backgroundColor: groupInk(athlete.groupColor) }}
                       />
                       {athlete.groupName}
                     </span>

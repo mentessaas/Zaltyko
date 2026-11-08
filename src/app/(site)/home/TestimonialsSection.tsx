@@ -46,7 +46,7 @@ export default function TestimonialsSection() {
           {proofPoints.map((point) => (
             <div
               key={point.title}
-              className="relative bg-white dark:bg-card rounded-2xl p-8 border border-gray-100 dark:border-border shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+              className="relative bg-white dark:bg-card rounded-2xl p-8 border border-gray-100 dark:border-border shadow-lg transition-all duration-300"
             >
               {/* Accent icon */}
               <div className="absolute -top-4 left-8">

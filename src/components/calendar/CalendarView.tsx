@@ -282,7 +282,7 @@ export default function CalendarView({
           )}
         </div>
         {session.startTime && (
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
             <span>
               {formatTimeForCountry(session.date + "T" + session.startTime, academyCountry)}
@@ -292,13 +292,13 @@ export default function CalendarView({
           </div>
         )}
         {session.coachName && !isCompact && (
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <User className="h-3 w-3" />
             <span className="line-clamp-1">{session.coachName}</span>
           </div>
         )}
         {session.isPlaceholder && (
-          <div className="mt-1 rounded bg-zaltyko-coral/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-zaltyko-coral">
+          <div className="mt-1 rounded bg-zaltyko-coral/10 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-zaltyko-coral">
             No generada
           </div>
         )}
@@ -372,7 +372,7 @@ export default function CalendarView({
                           {formatDateForCountry(day, academyCountry, "d")}
                         </span>
                         {isDayToday && (
-                          <span className="rounded-full bg-zaltyko-teal px-2 py-0.5 text-[10px] font-semibold text-white">
+                          <span className="rounded-full bg-zaltyko-teal px-2 py-0.5 text-xs font-semibold text-white">
                             Hoy
                           </span>
                         )}
@@ -447,7 +447,7 @@ export default function CalendarView({
                         {formatDateForCountry(day, academyCountry, "d")}
                       </span>
                       {daySessions.length > 0 && (
-                        <span className="text-[10px] font-semibold text-zaltyko-teal">
+                        <span className="text-xs font-semibold text-zaltyko-teal">
                           {daySessions.length}
                         </span>
                       )}
@@ -459,7 +459,7 @@ export default function CalendarView({
                         renderSessionChip(session, true)
                       )}
                       {daySessions.length > 2 && (
-                        <div className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                        <div className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
                           +{daySessions.length - 2} más
                         </div>
                       )}

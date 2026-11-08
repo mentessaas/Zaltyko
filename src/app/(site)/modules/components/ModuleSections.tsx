@@ -147,10 +147,10 @@ export function BenefitsSection({ benefits }: BenefitsSectionProps) {
           {benefits.map((benefit) => (
             <div
               key={benefit.title}
-              className="relative rounded-2xl bg-zaltyko-bg p-6 border border-zaltyko-border/50 hover:border-zaltyko-primary/40 transition-all duration-300 hover:shadow-xl hover:shadow-zaltyko-primary/10 hover:-translate-y-1 group overflow-hidden"
+              className="relative rounded-2xl bg-zaltyko-bg p-6 border border-zaltyko-border/50 hover:border-zaltyko-primary/40 transition-all duration-300 hover:shadow-zaltyko-primary/10 group overflow-hidden"
             >
               <div className="pointer-events-none absolute inset-0 bg-zaltyko-teal/5 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
-              <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-card bg-zaltyko-primary-ultralight transition-transform duration-300 group-hover:scale-110">
+              <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-card bg-zaltyko-primary-ultralight transition-transform duration-300">
                 <benefit.icon className="w-7 h-7 text-zaltyko-teal" />
               </div>
               <h3 className="font-display text-lg font-bold text-zaltyko-text-main mb-2 group-hover:text-zaltyko-primary transition-colors">
@@ -200,9 +200,9 @@ export function UseCasesSection({ useCases }: UseCasesSectionProps) {
           {useCases.map((useCase) => (
             <div
               key={useCase.role}
-              className="bg-white dark:bg-card rounded-2xl border border-zaltyko-border/50 dark:border-border p-8 shadow-lg hover:shadow-2xl hover:shadow-zaltyko-primary/10 transition-all duration-300 hover:-translate-y-2 group"
+              className="bg-white dark:bg-card rounded-2xl border border-zaltyko-border/50 dark:border-border p-8 shadow-lg hover:shadow-zaltyko-primary/10 transition-all duration-300 group"
             >
-              <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-card bg-zaltyko-primary-ultralight transition-transform duration-300 group-hover:scale-110">
+              <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-card bg-zaltyko-primary-ultralight transition-transform duration-300">
                 <useCase.icon className="w-8 h-8 text-zaltyko-teal" />
               </div>
               <p className="text-sm font-bold text-zaltyko-primary uppercase tracking-wider mb-2 group-hover:translate-x-1 transition-transform">

@@ -13,6 +13,7 @@ import { getGroupTechnicalGuidance } from "@/lib/specialization/technical-guidan
 import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import { logger } from "@/lib/logger";
 import { formatMinorCurrency, getCurrencyForCountry } from "@/lib/currency";
+import { groupInk } from "@/lib/mat/group-ink";
 
 interface GroupViewProps {
   academyId: string;
@@ -89,7 +90,7 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
               {detail.color && (
                 <span
                   className="inline-flex h-6 w-6 rounded-full border border-border"
-                  style={{ backgroundColor: detail.color }}
+                  style={{ backgroundColor: groupInk(detail.color) }}
                   aria-label={`Color ${detail.color}`}
                 />
               )}

@@ -9,6 +9,7 @@ import { EditCoachDialog } from "@/components/coaches/EditCoachDialog";
 import { PublicProfileBadge } from "@/components/shared/PublicProfileBadge";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 import { pluralizeFirstWord } from "@/lib/specialization/registry";
+import { groupInk } from "@/lib/mat/group-ink";
 
 interface ClassOption {
   id: string;
@@ -172,7 +173,7 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-mat px-4 text-sm font-bold text-white transition-colors hover:bg-mat-deep"
           >
             Nuevo miembro del staff
           </button>
@@ -196,7 +197,7 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-mat px-4 text-sm font-bold text-white transition-colors hover:bg-mat-deep"
             >
               Crear primer perfil de staff
             </button>
@@ -251,7 +252,7 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
                   <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">Sin asignaciones</span>
                 ) : (
                   coach.classes.map((cls) => (
-                    <span key={cls.id} className="rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-600">
+                    <span key={cls.id} className="rounded-md bg-mat-wash px-2.5 py-1 font-semibold text-mat-deep">
                       {cls.name}
                     </span>
                   ))
@@ -266,9 +267,8 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
                     <span
                       key={`${group.id}-${group.role}`}
                       className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium"
-                      style={group.color ? { borderColor: group.color, color: group.color } : undefined}
                     >
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: group.color ?? "currentColor" }} />
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: groupInk(group.color) }} />
                       {group.name}
                     </span>
                   ))
@@ -313,7 +313,7 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
                     </div>
                     {coach.createdAt && (
                       <p className="text-xs text-muted-foreground">
-                        Alta: {coach.createdAt.slice(0, 10)}
+                        Alta: {new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(coach.createdAt))}
                       </p>
                     )}
                   </div>
@@ -349,7 +349,7 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
                       coach.classes.map((cls) => (
                         <span
                           key={cls.id}
-                          className="rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-600"
+                          className="rounded-md bg-mat-wash px-2.5 py-1 font-semibold text-mat-deep"
                         >
                           {cls.name}
                         </span>
@@ -368,21 +368,13 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
                         <span
                           key={`${group.id}-${group.role}`}
                           className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium"
-                          style={
-                            group.color
-                              ? {
-                                  borderColor: group.color,
-                                  color: group.color,
-                                }
-                              : undefined
-                          }
                         >
                           <span
                             className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: group.color ?? "currentColor" }}
+                            style={{ backgroundColor: groupInk(group.color) }}
                           />
                           {group.name}
-                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          <span className="text-xs uppercase tracking-wide text-muted-foreground">
                             {group.role}
                           </span>
                         </span>

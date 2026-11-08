@@ -261,7 +261,7 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
             <Link
               key={action.title}
               href={action.href}
-              className="group flex flex-col gap-1 rounded-lg border border-border bg-background p-4 text-sm transition hover:-translate-y-0.5 hover:border-primary/60 hover:shadow"
+              className="group flex flex-col gap-1 rounded-lg border border-border bg-background p-4 text-sm transition hover:border-primary/60 hover:shadow"
             >
               <span className="font-semibold text-foreground group-hover:text-primary">
                 {action.title}

@@ -2,35 +2,23 @@ import type { Metadata } from "next";
 import { Schema } from "@/components/Schema";
 import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 
-// Componentes de la Home (marketing landing)
+// Home «Magnesio sobre tapiz»
 import Navbar from "@/app/(site)/Navbar";
-import HeroSection from "@/app/(site)/home/HeroSection";
-import SocialProofSection from "@/app/(site)/home/SocialProofSection";
-import ModulesSection from "@/app/(site)/home/ModulesSection";
-import ClusterDiscoverySection from "@/app/(site)/home/ClusterDiscoverySection";
-import ComparisonSection from "@/app/(site)/home/ComparisonSection";
-import LatestArticlesSection from "@/app/(site)/home/LatestArticlesSection";
-import SeoExtendedSection from "@/app/(site)/home/SeoExtendedSection";
-import FaqSection from "@/app/(site)/home/FaqSection";
-import FinalCtaSection from "@/app/(site)/home/FinalCtaSection";
 import Footer from "@/app/(site)/Footer";
-import StickyCtaBar from "@/app/(site)/home/StickyCtaBar";
+import MatHero from "@/app/(site)/mat/MatHero";
+import {
+  AfternoonBoard,
+  BeforeAfter,
+  CountryMatrix,
+  MatClose,
+  MatFaq,
+  ModuleRegister,
+  PlansLine,
+} from "@/app/(site)/mat/HomeSections";
+import { HOME_FAQS } from "@/app/(site)/mat/faq-data";
+import LatestGuides from "@/app/(site)/mat/LatestGuides";
 import { SkipLink } from "@/components/ui/skip-link";
-import Marquee from "@/components/motion/Marquee";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
-
-const HOME_MARQUEE_ITEMS = [
-  "Gimnastas por nivel y aparato",
-  "Cuotas y pagos organizados",
-  "Asistencia por sesión",
-  "Portal familiar limitado",
-  "Evaluaciones técnicas",
-  "Eventos y competiciones",
-  "Historial de pagos",
-  "Comunicación interna",
-  "Multi-sede",
-  "Informes de dirección",
-];
 
 const baseUrl = getPublicSiteUrl();
 
@@ -100,42 +88,20 @@ export default function HomePage() {
       <Navbar />
 
       <main id="main-content">
-        {/* Hero con H1 principal */}
-        <HeroSection />
-
-        {/* Cinta continua de características */}
-        <Marquee items={HOME_MARQUEE_ITEMS} />
-
-        {/* Social proof - logos y estadísticas */}
-        <SocialProofSection />
-
-        {/* Comparativa vs Excel y alternativas */}
-        <ComparisonSection />
-
-        {/* Módulos principales - cada uno con descripción SEO */}
-        <ModulesSection />
-
-        {/* Clusters SEO - países y modalidades */}
-        <ClusterDiscoverySection />
-
-        {/* Sección SEO extendida - 300-400 palabras */}
-        <SeoExtendedSection />
-
-        {/* FAQ con preguntas de negocio */}
-        <FaqSection />
-
-        {/* Últimos artículos del blog */}
-        <LatestArticlesSection />
-
-        {/* CTA Final */}
-        <FinalCtaSection />
+        <MatHero />
+        <AfternoonBoard />
+        <ModuleRegister />
+        <BeforeAfter />
+        <PlansLine />
+        <MatFaq />
+        {/* SEO: guías por país y modalidad, y las últimas del blog. */}
+        <CountryMatrix />
+        <LatestGuides />
+        <MatClose />
       </main>
 
       <Footer />
 
-      {/* CTA Sticky en scroll */}
-      <StickyCtaBar />
-      
       {/* Schema.org structured data */}
       <Schema
         json={{
@@ -211,80 +177,11 @@ export default function HomePage() {
         json={{
           "@context": "https://schema.org",
           "@type": "FAQPage",
-          mainEntity: [
-            {
-              "@type": "Question",
-              name: "¿Para qué modalidades sirve Zaltyko?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Zaltyko está enfocado en gimnasia artística femenina, gimnasia artística masculina y gimnasia rítmica. Si tu academia trabaja artística y rítmica, puedes configurarla como mixta.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "¿Cuánto cuesta Zaltyko?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Free es gratis hasta 30 gimnastas y 1 academia. Starter cuesta 19€/mes (hasta 75 gimnastas), Growth 49€/mes (hasta 200 gimnastas) y Network parte de 99€/mes para academias multi-sede, con onboarding acompañado y propuesta final según sedes y necesidades. Puedes ver el detalle completo en la página de planes.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "¿Cuánto tiempo tarda en configurarse?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "La puesta en marcha es guiada y se adapta al volumen de datos y al equipo. Empezamos por academia, gimnastas, grupos, horarios y cobros sin prometer una duración cerrada antes de revisar el caso.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "¿Sirve si ahora trabajo con Excel o WhatsApp?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Sí. Zaltyko está pensado para pasar de hojas dispersas y mensajes sueltos a un sistema ordenado para dirección, entrenadores y familias.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "¿Puedo migrar mis datos desde Excel o Google Sheets?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Zaltyko permite importar gimnastas desde Excel o CSV. Para otros datos o migraciones amplias, revisamos el formato y planteamos una puesta en marcha guiada.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "¿Cumple con la normativa de protección de datos de menores?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Zaltyko aísla los datos por academia y aplica controles de acceso por rol y relación autorizada. La gestión de consentimientos y las obligaciones legales de tu academia deben revisarse conforme a la política de privacidad y al asesoramiento aplicable.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "¿Qué plan necesito para mi academia?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Depende del tamaño, número de grupos, sedes y necesidades de cobro. Por eso priorizamos una demo corta antes de recomendar Starter, Growth o Network.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "¿Puedo cancelar en cualquier momento?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Sí. No hay permanencia ni penalizaciones. Cancela cuando quieras desde tu panel de cuenta. Si cancelas el plan de pago, volverás automáticamente al plan gratuito.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "¿Funciona en móvil?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Sí. Zaltyko es una aplicación web responsive y el flujo de clase del coach está verificado en móvil. El pase de lista está optimizado para pista: se registra la asistencia en un toque desde \"Pasar lista hoy\".",
-              },
-            },
-          ],
+          mainEntity: HOME_FAQS.map((faq) => ({
+            "@type": "Question",
+            name: faq.question,
+            acceptedAnswer: { "@type": "Answer", text: faq.answer },
+          })),
         }}
       />
     </>

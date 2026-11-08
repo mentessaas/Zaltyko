@@ -4,22 +4,22 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
         default:
-          "border-transparent bg-zaltyko-teal/12 text-zaltyko-teal hover:bg-zaltyko-teal/18",
+          "border-transparent bg-mat-wash text-mat-deep hover:bg-[#D9E2F8]",
         outline:
           "border-zaltyko-mist bg-white text-zaltyko-text-main hover:bg-zaltyko-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:hover:bg-slate-800",
         active:
-          "border-transparent bg-zaltyko-teal/12 text-zaltyko-teal hover:bg-zaltyko-teal/18",
+          "border-transparent bg-mat-wash text-mat-deep hover:bg-[#D9E2F8]",
         pending:
           "border-transparent bg-zaltyko-mist/30 text-slate-600 hover:bg-zaltyko-mist/40",
         success:
-          "border-transparent bg-zaltyko-teal/12 text-zaltyko-teal hover:bg-zaltyko-teal/18",
+          "border-transparent bg-mat-wash text-mat-deep hover:bg-[#D9E2F8]",
         error:
-          "border-transparent bg-zaltyko-coral/12 text-zaltyko-coral hover:bg-zaltyko-coral/18",
+          "border-transparent bg-signal-wash text-signal-ink hover:bg-[#FBDCD3]",
       },
     },
     defaultVariants: {

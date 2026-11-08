@@ -556,10 +556,10 @@ export function NotificationCenter({
                             </p>
                           )}
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-[10px]">
+                            <Badge variant="outline" className="text-xs">
                               {NOTIFICATION_TYPE_LABELS[notification.type] || notification.type}
                             </Badge>
-                            <p className="text-[10px] text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               {formatNotificationDate(notification.createdAt)}
                             </p>
                           </div>

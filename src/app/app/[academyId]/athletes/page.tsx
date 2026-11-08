@@ -218,15 +218,15 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
         breadcrumbs={[
           { label: "Dashboard", href: `/app/${academy.id}/dashboard` },
           { label: academy.name ?? "Academia", href: `/app/${academy.id}/dashboard` },
-          { label: "Atletas" },
+          { label: "Gimnastas" },
         ]}
-        title="Atletas"
-        description="Gestiona atletas, contactos familiares y niveles de entrenamiento."
+        title="Gimnastas"
+        description="Fichas, contactos familiares y niveles de entrenamiento de cada gimnasta."
         icon={<Users className="h-5 w-5" strokeWidth={1.5} />}
       />
 
       {/* Widget de Riesgo de Abandono - AI */}
-      <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="grid gap-5">
         <div className="min-w-0">
           <AttendanceRiskWidget academyId={academy.id} />
         </div>

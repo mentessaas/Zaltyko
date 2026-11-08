@@ -339,7 +339,7 @@ export function OptimizedOwnerProfile({
 
       {/* Estadísticas rápidas */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className=" transition-shadow">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-muted-foreground">Academias</CardTitle>
@@ -357,7 +357,7 @@ export function OptimizedOwnerProfile({
           </CardFooter>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className=" transition-shadow">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-muted-foreground">Plan actual</CardTitle>
@@ -384,7 +384,7 @@ export function OptimizedOwnerProfile({
           </CardFooter>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className=" transition-shadow">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-muted-foreground">Equipo</CardTitle>
@@ -402,7 +402,7 @@ export function OptimizedOwnerProfile({
           </CardFooter>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className=" transition-shadow">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-muted-foreground">Estado</CardTitle>

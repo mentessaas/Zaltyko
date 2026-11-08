@@ -403,7 +403,7 @@ export function OwnerAttendanceManager({
   );
 
   return (
-    <main className="min-h-screen bg-[#F1F3EF] px-5 py-6 text-slate-950 sm:py-10">
+    <main className="min-h-screen bg-[#E9ECE6] px-5 py-6 text-slate-950 sm:py-10">
       <div className="mx-auto grid max-w-5xl gap-8">
         <div className="grid gap-5">
           <Link

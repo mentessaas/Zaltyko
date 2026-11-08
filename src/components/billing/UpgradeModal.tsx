@@ -159,7 +159,7 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                 {step === "preview" ? (
                     <div className="space-y-6">
                         {/* Plan Preview */}
-                        <div className="rounded-card border border-border border-b-2 border-b-zaltyko-teal bg-card p-6">
+                        <div className="rounded-card border border-border border-b border-b-zaltyko-teal bg-card p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-2xl font-bold text-foreground">{planDetails.name}</h3>
                                 <Badge className="bg-zaltyko-primary-ultralight text-zaltyko-teal border-transparent">

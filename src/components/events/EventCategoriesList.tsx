@@ -87,24 +87,24 @@ export function EventCategoriesList({ categories, countryName, className }: Even
                   )}
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {category.minAge !== null && category.maxAge !== null && (
-                      <Badge variant="outline" className="text-[10px] py-0 h-5">
+                      <Badge variant="outline" className="text-xs py-0 h-5">
                         {formatAgeRange(category.minAge, category.maxAge)}
                       </Badge>
                     )}
                     {category.gender && (
-                      <Badge variant="outline" className="text-[10px] py-0 h-5">
+                      <Badge variant="outline" className="text-xs py-0 h-5">
                         {getGenderLabel(category.gender)}
                       </Badge>
                     )}
                     {category.levels && category.levels.length > 0 && (
                       <>
                         {category.levels.slice(0, 2).map((level) => (
-                          <Badge key={level} variant="outline" className="text-[10px] py-0 h-5">
+                          <Badge key={level} variant="outline" className="text-xs py-0 h-5">
                             {getLevelLabels([level])[0]}
                           </Badge>
                         ))}
                         {category.levels.length > 2 && (
-                          <Badge variant="outline" className="text-[10px] py-0 h-5">
+                          <Badge variant="outline" className="text-xs py-0 h-5">
                             +{category.levels.length - 2}
                           </Badge>
                         )}

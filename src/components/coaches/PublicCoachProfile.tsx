@@ -119,7 +119,7 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                                                 href={url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white transition-all hover:bg-white/25 hover:scale-110"
+                                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white transition-all hover:bg-white/25"
                                             >
                                                 <Icon className="h-5 w-5" />
                                             </a>
@@ -160,7 +160,7 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                                     {coach.achievements.map((achievement, index) => (
                                         <div
                                             key={index}
-                                            className="border-l-4 border-zaltyko-teal bg-zaltyko-teal/5 p-4 rounded-r-lg"
+                                            className="border border-zaltyko-teal bg-zaltyko-teal/5 p-4 rounded-r-lg"
                                         >
                                             <h3 className="font-semibold text-foreground">
                                                 {achievement.title}
@@ -198,7 +198,7 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                                                 alt={`Foto ${index + 1}`}
                                                 width={300}
                                                 height={300}
-                                                className="h-full w-full object-cover transition-transform hover:scale-110"
+                                                className="h-full w-full object-cover transition-transform"
                                             />
                                         </div>
                                     ))}
