@@ -168,11 +168,11 @@ test.describe("L6 — JSON-LD / sitemap accuracy", () => {
     await gotoPublic(page, "/pricing");
     const interval = page.getByRole("group", { name: "Periodicidad de precios" });
     await expect(interval.getByRole("button", { name: "Mensual", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByText("Sin permanencia. Puedes cambiar a pago anual desde Facturación.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Durante la apertura, las academias fundadoras usan Starter o Growth sin coste. La contratación con pago se abrirá al cerrar la facturación, con estos precios.", { exact: true })).toBeVisible();
     await interval.getByRole("button", { name: "Anual · ahorra 2 meses" }).click();
     await expect(page.getByText(/190\s*€\/año/)).toBeVisible();
     await expect(page.getByText(/490\s*€\/año/)).toBeVisible();
-    await expect(page.getByText("Importe anual cobrado de una vez. Elige esta modalidad al contratar desde Facturación.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Durante la apertura, las academias fundadoras usan Starter o Growth sin coste. La contratación con pago se abrirá al cerrar la facturación, con estos precios.", { exact: true })).toBeVisible();
     await expect(page.getByText(/próximamente/i)).toHaveCount(0);
   });
 

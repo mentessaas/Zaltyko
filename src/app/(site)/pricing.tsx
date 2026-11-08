@@ -70,7 +70,7 @@ const commonBenefits = [
   },
 ];
 
-export default function PricingSection() {
+export default function PricingSection({ paidCheckoutOpen = false }: { paidCheckoutOpen?: boolean } = {}) {
   const [billingInterval, setBillingInterval] = useState<"month" | "year">(
     "month"
   );
@@ -141,9 +141,11 @@ export default function PricingSection() {
             </button>
           </div>
           <p className="text-center font-sans text-sm text-muted-foreground">
-            {billingInterval === "year"
-              ? "Importe anual cobrado de una vez. Elige esta modalidad al contratar desde Facturación."
-              : "Sin permanencia. Puedes cambiar a pago anual desde Facturación."}
+            {!paidCheckoutOpen
+              ? "Durante la apertura, las academias fundadoras usan Starter o Growth sin coste. La contratación con pago se abrirá al cerrar la facturación, con estos precios."
+              : billingInterval === "year"
+                ? "Importe anual cobrado de una vez. Elige esta modalidad al contratar desde Facturación."
+                : "Sin permanencia. Puedes cambiar a pago anual desde Facturación."}
           </p>
         </div>
 

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import PricingSection from "@/app/(site)/pricing";
+import { isSaasCheckoutEnabled } from "@/lib/launch/commercial-launch-profile";
 import { Schema } from "@/components/Schema";
 import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
@@ -94,7 +95,7 @@ export default function PricingPage() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 pt-20">
-        <PricingSection />
+        <PricingSection paidCheckoutOpen={isSaasCheckoutEnabled("live")} />
       </main>
       <Footer />
       <Schema json={pricingSchema} />
