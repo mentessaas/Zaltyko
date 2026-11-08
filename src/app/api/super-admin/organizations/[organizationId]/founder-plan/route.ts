@@ -11,7 +11,7 @@ import {
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { appendAuditEntry } from "@/modules/shared/infrastructure/transactional-records";
 
-export const FOUNDER_PLAN_MAX_DAYS = 366;
+const FOUNDER_PLAN_MAX_DAYS = 366;
 
 const paramsSchema = z.object({ organizationId: z.guid() });
 
