@@ -25,6 +25,14 @@ export interface RateLimitConfig {
    * Time window in seconds
    */
   window: number;
+
+  /**
+   * What to do when Redis fails at runtime (not when it is unconfigured).
+   * "deny" (default) protects public and unauthenticated endpoints; "allow"
+   * keeps already-authenticated academy traffic working during an outage.
+   * Identifiers from getVerifiedTenantRateLimitIdentifier always allow.
+   */
+  onBackendError?: "deny" | "allow";
 }
 
 export interface RateLimitResult {
@@ -236,8 +244,15 @@ export async function rateLimit(
   } catch (error) {
     logger.error("Rate limit error:", error);
 
-    // En producción, denegar requests si el sistema de rate limiting falla
-    // para prevenir ataques DDoS cuando Redis no está disponible
+    // A Redis outage must not take down every academy's workspace: traffic
+    // already tied to a verified tenant keeps working; everything else (public,
+    // unauthenticated) stays denied so the outage cannot be used for abuse.
+    const allowVerifiedTraffic =
+      config.onBackendError === "allow" || identifier.includes(":tenant:");
+    if (process.env.NODE_ENV === "production" && allowVerifiedTraffic) {
+      return { success: true, limit, remaining: limit, reset: now + window };
+    }
+
     if (process.env.NODE_ENV === "production") {
       return {
         success: false,

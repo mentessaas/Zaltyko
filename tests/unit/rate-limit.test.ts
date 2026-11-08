@@ -91,6 +91,48 @@ describe("Rate Limiting", () => {
       expect(result.success).toBe(false);
     });
 
+    it("keeps denying verified traffic when KV is not configured (deployment error)", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("VERCEL_ENV", "production");
+      vi.stubEnv("KV_REST_API_URL", "");
+      vi.stubEnv("KV_REST_API_TOKEN", "");
+
+      const result = await rateLimit({
+        identifier: "/api/v1/owner/groups:tenant:tenant-1:ip:203.0.113.8",
+        limit: 10,
+        window: 60,
+        onBackendError: "allow",
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    it("on a Redis outage denies public traffic but keeps verified academy traffic working", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("VERCEL_ENV", "production");
+      vi.stubEnv("KV_REST_API_URL", "https://kv.example.test");
+      vi.stubEnv("KV_REST_API_TOKEN", "synthetic-token");
+      kvMock.eval.mockRejectedValue(new Error("synthetic outage"));
+
+      const publicResult = await rateLimit({ identifier: "/api/contact:ip:203.0.113.8", limit: 10, window: 60 });
+      const verifiedTenant = await rateLimit({
+        identifier: "/api/v1/owner/groups:tenant:tenant-1:ip:203.0.113.8",
+        limit: 10,
+        window: 60,
+      });
+      const ownerMiddleware = await rateLimit({
+        identifier: "/api/v1/owner/groups:ip:203.0.113.8",
+        limit: 10,
+        window: 60,
+        onBackendError: "allow",
+      });
+
+      expect(publicResult.success).toBe(false);
+      expect(verifiedTenant.success).toBe(true);
+      expect(ownerMiddleware.success).toBe(true);
+      kvMock.eval.mockReset();
+    });
+
     it("allows only the explicitly isolated GitHub E2E sandbox when KV is absent", async () => {
       vi.stubEnv("NODE_ENV", "production");
       vi.stubEnv("VERCEL_ENV", "preview");

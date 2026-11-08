@@ -359,7 +359,12 @@ async function checkRateLimit(
   const pathname = req.nextUrl.pathname;
   const { rateLimit, getLimitForRoute, getClientIdentifier } = await import("@/lib/rate-limit");
   const identifier = `${pathname}:${getClientIdentifier(req)}`;
-  const result = await rateLimit({ identifier, ...getLimitForRoute(pathname) });
+  const result = await rateLimit({
+    identifier,
+    ...getLimitForRoute(pathname),
+    // Owner API routes always re-verify session and tenant before acting.
+    onBackendError: pathname.startsWith("/api/v1/owner/") ? "allow" : "deny",
+  });
   const resetSeconds = Math.max(0, result.reset - Math.floor(Date.now() / 1000));
   const headers = {
     "X-RateLimit-Limit": String(result.limit),
