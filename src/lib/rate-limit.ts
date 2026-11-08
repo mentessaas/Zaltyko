@@ -157,6 +157,22 @@ function localE2ERateLimit(
   };
 }
 
+const SLIDING_WINDOW_SCRIPT = `
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local window = tonumber(ARGV[2])
+local limit = tonumber(ARGV[3])
+redis.call('ZREMRANGEBYSCORE', key, 0, now - window)
+local count = redis.call('ZCARD', key)
+if count >= limit then
+  local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+  return {0, count, tonumber(oldest[2]) or now}
+end
+redis.call('ZADD', key, now, ARGV[4])
+redis.call('EXPIRE', key, window)
+return {1, count + 1, now}
+`;
+
 export async function rateLimit(
   config: RateLimitConfig
 ): Promise<RateLimitResult> {
@@ -167,7 +183,6 @@ export async function rateLimit(
 
   // Get current timestamp in seconds
   const now = Math.floor(Date.now() / 1000);
-  const windowStart = now - window;
 
   // Isolated GitHub E2E has no Redis service. It uses disposable accounts and
   // a hard-coded non-production Supabase sandbox; never enable this in Vercel
@@ -195,45 +210,28 @@ export async function rateLimit(
   }
 
   try {
-    // Use Redis sorted set to track requests with timestamps
-    // Remove old requests outside the current window
-    await kv.zremrangebyscore(key, 0, windowStart);
+    // One atomic EVAL per check: a single round trip and a single billed
+    // command, with the same sliding-log semantics as before.
+    const [allowed, count, oldest] = (await kv.eval(
+      SLIDING_WINDOW_SCRIPT,
+      [key],
+      [now, window, limit, `${now}:${Math.random()}`]
+    )) as [number, number, number];
 
-    // Count requests in the current window
-    const requestCount = await kv.zcard(key);
-
-    // Check if limit is exceeded
-    if (requestCount >= limit) {
-      // Get the oldest request timestamp to calculate reset time
-      const oldestRequests = await kv.zrange(key, 0, 0, { withScores: true });
-      const oldestTimestamp =
-        oldestRequests.length > 0 ? (oldestRequests[1] as number) : now;
-
-      const reset = Math.ceil(oldestTimestamp + window);
-
+    if (Number(allowed) !== 1) {
       return {
         success: false,
         limit,
         remaining: 0,
-        reset,
+        reset: Math.ceil(Number(oldest) + window),
       };
     }
-
-    // Add current request to the sorted set
-    await kv.zadd(key, { score: now, member: `${now}:${Math.random()}` });
-
-    // Set expiration on the key to clean up automatically
-    await kv.expire(key, window);
-
-    // Calculate remaining requests
-    const remaining = limit - (requestCount + 1);
-    const reset = now + window;
 
     return {
       success: true,
       limit,
-      remaining,
-      reset,
+      remaining: limit - Number(count),
+      reset: now + window,
     };
   } catch (error) {
     logger.error("Rate limit error:", error);

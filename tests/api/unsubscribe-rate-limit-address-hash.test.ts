@@ -33,6 +33,24 @@ vi.mock("@vercel/kv", () => ({
       }
     ),
     expire: vi.fn(async () => 1),
+    eval: vi.fn(
+      async (_script: string, keys: string[], args: Array<string | number>) => {
+        const [key] = keys;
+        const now = Number(args[0]);
+        const window = Number(args[1]);
+        const limit = Number(args[2]);
+        const bucket = (state.buckets.get(key) ?? []).filter(
+          (entry) => entry.score > now - window
+        );
+        if (bucket.length >= limit) {
+          state.buckets.set(key, bucket);
+          return [0, bucket.length, bucket[0]?.score ?? now];
+        }
+        bucket.push({ score: now, member: String(args[3]) });
+        state.buckets.set(key, bucket);
+        return [1, bucket.length, now];
+      }
+    ),
   },
 }));
 

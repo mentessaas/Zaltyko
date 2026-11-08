@@ -66,6 +66,72 @@ async function loadSessionsByIds(
     .limit(1000);
 }
 
+/**
+ * Inserts the weekly-schedule sessions of one template for local dates in
+ * [startDate, endDate], clamped to the template's effective range. Idempotent
+ * through the (organization, template, starts_at) unique index; serialized per
+ * template with an advisory lock. Callers own authorization and auditing.
+ */
+export async function insertTemplateSessionsInRange(
+  tx: TransactionClient,
+  range: {
+    organizationId: string;
+    classTemplateId: string;
+    startDate: string;
+    endDate: string;
+  }
+): Promise<void> {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`${range.organizationId}:sessions:${range.classTemplateId}`}, 0))`
+  );
+
+  await tx.execute(sql`
+    insert into zaltyko.sessions (
+      id,
+      organization_id,
+      location_id,
+      class_template_id,
+      space_id,
+      status,
+      starts_at,
+      ends_at
+    )
+    select
+      gen_random_uuid(),
+      template.organization_id,
+      template.location_id,
+      template.id,
+      template.default_space_id,
+      'scheduled'::zaltyko.session_status,
+      (day.local_date + weekday.starts_at_local) at time zone location.timezone,
+      (day.local_date + weekday.ends_at_local) at time zone location.timezone
+    from zaltyko.class_templates template
+    join zaltyko.locations location
+      on location.organization_id = template.organization_id
+     and location.id = template.location_id
+    join zaltyko.class_template_weekdays weekday
+      on weekday.organization_id = template.organization_id
+     and weekday.class_template_id = template.id
+    cross join lateral (
+      select generated_day::date as local_date
+      from generate_series(
+        ${range.startDate}::date,
+        ${range.endDate}::date,
+        interval '1 day'
+      ) generated_day
+    ) day
+    where template.organization_id = ${range.organizationId}::uuid
+      and template.id = ${range.classTemplateId}::uuid
+      and extract(isodow from day.local_date)::int = weekday.iso_weekday
+      and day.local_date >= greatest(template.effective_from, ${range.startDate}::date)
+      and day.local_date <= least(
+        coalesce(template.effective_to, ${range.endDate}::date),
+        ${range.endDate}::date
+      )
+    on conflict (organization_id, class_template_id, starts_at) do nothing
+  `);
+}
+
 export async function materializeSessions(
   command: MaterializeSessionsCommand,
   transaction?: TransactionClient
@@ -178,55 +244,12 @@ export async function materializeSessions(
       );
     }
 
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`${input.organizationId}:sessions:${input.classTemplateId}`}, 0))`
-    );
-
-    await tx.execute(sql`
-      insert into zaltyko.sessions (
-        id,
-        organization_id,
-        location_id,
-        class_template_id,
-        space_id,
-        status,
-        starts_at,
-        ends_at
-      )
-      select
-        gen_random_uuid(),
-        template.organization_id,
-        template.location_id,
-        template.id,
-        template.default_space_id,
-        'scheduled'::zaltyko.session_status,
-        (day.local_date + weekday.starts_at_local) at time zone location.timezone,
-        (day.local_date + weekday.ends_at_local) at time zone location.timezone
-      from zaltyko.class_templates template
-      join zaltyko.locations location
-        on location.organization_id = template.organization_id
-       and location.id = template.location_id
-      join zaltyko.class_template_weekdays weekday
-        on weekday.organization_id = template.organization_id
-       and weekday.class_template_id = template.id
-      cross join lateral (
-        select generated_day::date as local_date
-        from generate_series(
-          ${input.startDate}::date,
-          ${input.endDate}::date,
-          interval '1 day'
-        ) generated_day
-      ) day
-      where template.organization_id = ${input.organizationId}::uuid
-        and template.id = ${input.classTemplateId}::uuid
-        and extract(isodow from day.local_date)::int = weekday.iso_weekday
-        and day.local_date >= greatest(template.effective_from, ${input.startDate}::date)
-        and day.local_date <= least(
-          coalesce(template.effective_to, ${input.endDate}::date),
-          ${input.endDate}::date
-        )
-      on conflict (organization_id, class_template_id, starts_at) do nothing
-    `);
+    await insertTemplateSessionsInRange(tx, {
+      organizationId: input.organizationId,
+      classTemplateId: input.classTemplateId,
+      startDate: input.startDate,
+      endDate: input.endDate,
+    });
 
     const sessionIdsResult = await tx.execute(sql`
       select session.id

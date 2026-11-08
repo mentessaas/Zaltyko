@@ -13,6 +13,7 @@ const kvMock = vi.hoisted(() => ({
   zrange: vi.fn(),
   zadd: vi.fn(),
   expire: vi.fn(),
+  eval: vi.fn(),
 }));
 
 vi.mock("@vercel/kv", () => ({ kv: kvMock }));
@@ -144,6 +145,7 @@ describe("Rate Limiting", () => {
       expect(kvMock.zrange).not.toHaveBeenCalled();
       expect(kvMock.zadd).not.toHaveBeenCalled();
       expect(kvMock.expire).not.toHaveBeenCalled();
+      expect(kvMock.eval).not.toHaveBeenCalled();
     });
 
     it("enforces the local E2E sliding window per identifier and expires old events", async () => {
