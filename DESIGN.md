@@ -201,6 +201,15 @@ components:
 
 # Design System: Zaltyko
 
+## Contrato de dirección
+
+- **Tesis:** la academia vista desde la pista. Rechaza el SaaS blanco con captura de panel: el producto se demuestra contando la tarde con marcas de magnesio.
+- **Mundo propio:** tapiz azul de competición (#1E3FA8, #14307F, noche #0B1430), blanco magnesio (#F4F6F2), cinta de límite blanca de 5 cm como estructura, coral señal (#E5482A) solo para alertas. Archivo condensada en mayúsculas para rótulos, Archivo normal para trabajar, cifras tabulares.
+- **Historia:** la directora entiende que Zaltyko habla de grupos, niveles y sesiones; ve la tarde contada en palotes; crea su academia.
+- **Primera pantalla:** tapiz azul a sangre con marco de cinta; titular condensado blanco a la izquierda a 5-6rem; a la derecha la sesión de hoy donde tocar a una gimnasta añade un palote de magnesio; CTA blanco tipo cinta bajo el titular.
+- **Forma:** Magnesio sobre tapiz, candidata 7 de 7, seed 709cef6f.
+- **Cierre:** sin revisión ni documentación no está terminado; cada imagen que se publique lleva su procedencia.
+
 ## Overview
 
 **Creative North Star: "Magnesio sobre tapiz"**

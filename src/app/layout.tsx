@@ -33,14 +33,8 @@ const bodyFont = localFont({
   declarations: [{ prop: "font-stretch", value: "62% 125%" }],
 });
 
-const DIRECTION_CONTRACT = `<!--
-THESIS: La academia vista desde la pista. Rechaza el SaaS blanco con captura de panel: el producto se demuestra contando la tarde con marcas de magnesio.
-OWN-WORLD: Tapiz azul de competición (#1E3FA8, #14307F, noche #0B1430), blanco magnesio (#F4F6F2), cinta de límite blanca de 5 cm como estructura, coral señal (#E5482A) solo para alertas. Archivo condensada en mayúsculas para rótulos, Archivo normal para trabajar, cifras tabulares.
-STORY: La directora entiende que Zaltyko habla de grupos, niveles y sesiones; ve la tarde contada en palotes; crea su academia.
-FIRST VIEWPORT: Tapiz azul a sangre con marco de cinta; titular condensado blanco a la izquierda a 5-6rem; a la derecha la sesión de hoy donde tocar a una gimnasta añade un palote de magnesio; CTA blanco tipo cinta bajo el titular.
-FORM: Magnesio sobre tapiz, candidata 7 de 7, seed 709cef6f.
-FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
--->`;
+// La tesis de dirección visual vive en DESIGN.md («Contrato de dirección»);
+// no se incrusta en el HTML que reciben las academias.
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -179,7 +173,6 @@ export default async function RootLayout({
         className={cn(bodyFont.variable, displayFont.variable, "font-sans antialiased")}
         suppressHydrationWarning
       >
-        <div hidden aria-hidden dangerouslySetInnerHTML={{ __html: DIRECTION_CONTRACT }} />
         <OptionalTelemetryBoundary>
           <UtmCapture />
           <OfflineBanner />
