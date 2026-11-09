@@ -189,10 +189,34 @@ describe("resolveSessionAttendanceAccess · coach con sesión, sede u organizaci
     });
   });
 
-  it("deniega una sesión de otra sede de su club", async () => {
+  it("permite una sesión de su sede sin asignación (entrenador sustituto, opción A)", async () => {
+    await expect(
+      resolveSessionAttendanceAccess({ ...base, sessionId: ids.sessionUnassigned })
+    ).resolves.toMatchObject({ role: "coach", sessionId: ids.sessionUnassigned });
+  });
+
+  it("una sesión de otra sede de su club responde igual que una inexistente", async () => {
+    const otherSite = await resolveSessionAttendanceAccess({
+      ...base,
+      locationId: ids.siteOther,
+      sessionId: ids.sessionOtherSite,
+    }).catch((error: unknown) => error);
+    const missing = await resolveSessionAttendanceAccess({
+      ...base,
+      locationId: ids.siteOther,
+      sessionId: "a0000000-0000-4000-8000-0000000000ff",
+    }).catch((error: unknown) => error);
+
+    expect(otherSite).toMatchObject({ code: "NOT_FOUND", status: 404 });
+    expect(missing).toMatchObject({ code: "NOT_FOUND", status: 404 });
+    expect((otherSite as Error).message).toBe((missing as Error).message);
+  });
+
+  it("el manager con sede limitada conserva su denegación explícita", async () => {
     await expect(
       resolveSessionAttendanceAccess({
         ...base,
+        userId: ids.manager,
         locationId: ids.siteOther,
         sessionId: ids.sessionOtherSite,
       })
@@ -216,9 +240,9 @@ describe("resolveSessionAttendanceAccess · coach con sesión, sede u organizaci
     ).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
   });
 
-  it("deniega a un coach sin sedes", async () => {
+  it("a un coach sin sedes ninguna sesión le existe", async () => {
     await expect(
       resolveSessionAttendanceAccess({ ...base, userId: ids.coachNoSites })
-    ).rejects.toMatchObject({ code: "LOCATION_SCOPE_DENIED", status: 403 });
+    ).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
   });
 });

@@ -72,6 +72,7 @@ import {
   createFakeDb,
   createFakeDbState,
   ids,
+  members,
   type FakeDbState,
 } from "./helpers/coach-access-fake-db";
 
@@ -308,12 +309,53 @@ describe("coach permitido solo en su sede", () => {
         organizationId: ids.orgA,
         expectedLocationId: ids.siteAssigned,
         sessionId: ids.sessionAssigned,
+        actor: { userId: ids.coach, memberId: members[ids.coach].memberId },
       })
     );
   });
 
+  it("pasa lista como sustituto en una sesión de su sede sin asignación (opción A)", async () => {
+    const path = `/api/v1/owner/sessions/${ids.sessionUnassigned}/attendance`;
+    const params = { sessionId: ids.sessionUnassigned };
+
+    const read = await call(loadSessionAttendance, "GET", `${path}${query(ownSite)}`, { params });
+    const write = await call(loadSessionAttendance, "POST", path, {
+      params,
+      body: { ...ownSite, enrollmentId: e, status: "late" },
+    });
+
+    expect(read.status).toBe(200);
+    expect(write.status).toBe(201);
+    expect(mocks.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: ids.sessionUnassigned,
+        actor: { userId: ids.coach, memberId: members[ids.coach].memberId },
+      })
+    );
+  });
+
+  it("una sesión de otra sede devuelve lo mismo que una inexistente", async () => {
+    const target = { organizationId: ids.orgA, locationId: ids.siteOther };
+    const responses = await Promise.all(
+      [ids.sessionOtherSite, "a0000000-0000-4000-8000-0000000000ff"].map((sessionId) =>
+        call(
+          loadSessionAttendance,
+          "GET",
+          `/api/v1/owner/sessions/${sessionId}/attendance${query(target)}`,
+          { params: { sessionId } }
+        )
+      )
+    );
+
+    const [otherSite, missing] = await Promise.all(
+      responses.map(async (response) => ({ status: response.status, body: await response.json() }))
+    );
+    expect(otherSite).toEqual(missing);
+    expect(otherSite.status).toBe(404);
+  });
+
   it.each([
-    ["sesión de otra sede con esa sede", ids.sessionOtherSite, { organizationId: ids.orgA, locationId: ids.siteOther }, 403],
+    ["sesión de otra sede con esa sede", ids.sessionOtherSite, { organizationId: ids.orgA, locationId: ids.siteOther }, 404],
     ["sesión de otra sede disfrazada con su sede", ids.sessionOtherSite, ownSite, 404],
     ["su sesión con otra sede", ids.sessionAssigned, { organizationId: ids.orgA, locationId: ids.siteOther }, 404],
     ["sesión de otro club", ids.sessionForeign, foreignClub, 403],

@@ -14,6 +14,7 @@ import {
   sessions,
   staffProfiles,
 } from "@/db/zaltyko-schema";
+import type { DatabaseClient } from "@/lib/db-transactions";
 import { MAX_CLASS_CAPACITY } from "@/modules/scheduling/domain/class-capacity";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -34,8 +35,8 @@ export type OwnerSessionAttendanceItem = {
 
 /**
  * Resolves an authenticated member's access to one session. Unlike
- * resolveOwnerScope this permits coaches, but only for sessions assigned to
- * their active staff profile.
+ * resolveOwnerScope this permits coaches, bounded by their site scope: a
+ * session outside the coach's sites answers exactly like a missing session.
  */
 export async function resolveSessionAttendanceAccess(command: {
   userId: string;
@@ -120,6 +121,11 @@ export async function resolveSessionAttendanceAccess(command: {
       )
       .limit(1);
     if (!locationScope) {
+      // A coach must not learn that a session of another site exists: same
+      // answer as a missing session. Other roles keep their explicit denial.
+      if (member.role === "coach") {
+        throw new OperationalError("NOT_FOUND", "Sesión no encontrada", 404);
+      }
       throw new OperationalError(
         "LOCATION_SCOPE_DENIED",
         "El miembro no tiene acceso a esta sede",
@@ -128,34 +134,12 @@ export async function resolveSessionAttendanceAccess(command: {
     }
   }
 
-  if (member.role === "coach") {
-    const [assignment] = await db
-      .select({ id: sessionStaff.id })
-      .from(sessionStaff)
-      .innerJoin(
-        staffProfiles,
-        and(
-          eq(staffProfiles.organizationId, sessionStaff.organizationId),
-          eq(staffProfiles.id, sessionStaff.staffProfileId),
-          eq(staffProfiles.memberId, member.id),
-          eq(staffProfiles.isActive, true)
-        )
-      )
-      .where(
-        and(
-          eq(sessionStaff.organizationId, input.organizationId),
-          eq(sessionStaff.sessionId, input.sessionId)
-        )
-      )
-      .limit(1);
-    if (!assignment) {
-      throw new OperationalError(
-        "FORBIDDEN",
-        "El coach no está asignado a esta sesión",
-        403
-      );
-    }
-  }
+  // P1 #8, decision 2026-11-09 (option A): a coach takes attendance in any
+  // session of their own sites; a substitute coach must not be blocked. The
+  // site scope above is the boundary. Per-session staff assignment
+  // (findActiveSessionStaffAssignment) is NOT required here; restricting
+  // assigned sessions to their staff (option B) is a separate task, to be
+  // decided once a screen to assign staff to sessions exists.
 
   return {
     memberId: member.id,
@@ -165,6 +149,37 @@ export async function resolveSessionAttendanceAccess(command: {
     sessionId: input.sessionId,
     session,
   };
+}
+
+/**
+ * Active staff assignment of a member to a session (zaltyko.session_staff).
+ * Kept for the separate per-session assignment task (P1 #8, option B); the
+ * attendance paths deliberately do not require it today.
+ */
+export async function findActiveSessionStaffAssignment(
+  client: DatabaseClient,
+  input: { organizationId: string; sessionId: string; memberId: string }
+): Promise<{ id: string } | null> {
+  const [assignment] = await client
+    .select({ id: sessionStaff.id })
+    .from(sessionStaff)
+    .innerJoin(
+      staffProfiles,
+      and(
+        eq(staffProfiles.organizationId, sessionStaff.organizationId),
+        eq(staffProfiles.id, sessionStaff.staffProfileId),
+        eq(staffProfiles.memberId, input.memberId),
+        eq(staffProfiles.isActive, true)
+      )
+    )
+    .where(
+      and(
+        eq(sessionStaff.organizationId, input.organizationId),
+        eq(sessionStaff.sessionId, input.sessionId)
+      )
+    )
+    .limit(1);
+  return assignment ?? null;
 }
 
 /** Returns only the active roster and the current attendance status. */

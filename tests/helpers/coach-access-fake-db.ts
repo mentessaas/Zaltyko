@@ -27,6 +27,8 @@ export const ids = {
   siteOther: "a0000000-0000-4000-8000-000000000012",
   siteForeign: "b0000000-0000-4000-8000-000000000011",
   sessionAssigned: "a0000000-0000-4000-8000-000000000021",
+  /** Same site as sessionAssigned, without any staff assigned (substitute). */
+  sessionUnassigned: "a0000000-0000-4000-8000-000000000023",
   sessionOtherSite: "a0000000-0000-4000-8000-000000000022",
   sessionForeign: "b0000000-0000-4000-8000-000000000021",
   owner: "c0000000-0000-4000-8000-000000000001",
@@ -66,6 +68,7 @@ const locationsById: Record<
 
 const sessionsById: Record<string, { organizationId: string; locationId: string }> = {
   [ids.sessionAssigned]: { organizationId: ids.orgA, locationId: ids.siteAssigned },
+  [ids.sessionUnassigned]: { organizationId: ids.orgA, locationId: ids.siteAssigned },
   [ids.sessionOtherSite]: { organizationId: ids.orgA, locationId: ids.siteOther },
   [ids.sessionForeign]: { organizationId: ids.orgForeign, locationId: ids.siteForeign },
 };
