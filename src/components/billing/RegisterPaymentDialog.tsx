@@ -96,7 +96,7 @@ export function RegisterPaymentDialog({
 
     const validation = formSchema.safeParse(formData);
     if (!validation.success) {
-      setError(validation.error.errors[0]?.message || "Error de validación.");
+      setError(validation.error.issues[0]?.message || "Error de validación.");
       return;
     }
 

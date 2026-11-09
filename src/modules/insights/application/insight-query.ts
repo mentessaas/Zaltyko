@@ -14,9 +14,9 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 const visibleStatuses = ["open", "viewed", "actioned", "snoozed"] as const;
 
 export const insightListQuerySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
-  entityId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
+  entityId: z.guid().optional(),
   status: z
     .enum(["open", "viewed", "actioned", "snoozed", "dismissed", "resolved"])
     .optional(),
@@ -82,7 +82,7 @@ function decodeCursor(value: string | undefined): CursorValue | null {
       .object({
         priority: z.number().min(0).max(100),
         lastSeenAt: z.string().datetime(),
-        id: z.string().uuid(),
+        id: z.guid(),
       })
       .parse(JSON.parse(Buffer.from(value, "base64url").toString("utf8")));
   } catch {

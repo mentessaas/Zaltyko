@@ -23,21 +23,39 @@ const freshSignupConsent = {
   policyVersion: "v1-2026-10-14",
   requiresAcceptance: false,
 };
+const setupReceipt = {
+  organizationId: "a0000000-0000-4000-8000-000000000001",
+  locationId: "a0000000-0000-4000-8000-000000000002",
+  memberId: "a0000000-0000-4000-8000-000000000003",
+};
+const ownerUserId = "a0000000-0000-4000-8000-000000000004";
+
+function retryStorageKey(userId: string) {
+  return "zaltyko-owner-bootstrap-retry:v1:" + userId;
+}
 
 function renderFreshSignupForm() {
-  return render(<OwnerSetupForm contractualConsent={freshSignupConsent} />);
+  return render(
+    <OwnerSetupForm
+      contractualConsent={freshSignupConsent}
+      ownerUserId={ownerUserId}
+    />
+  );
 }
 
 beforeEach(() => {
   mockReplace.mockReset();
   mockRefresh.mockReset();
   mockFetch.mockReset();
+  sessionStorage.clear();
   vi.stubGlobal("fetch", mockFetch);
   vi.stubGlobal("crypto", { randomUUID: () => "synthetic-bootstrap-key" });
 });
 
 afterEach(() => {
   cleanup();
+  sessionStorage.clear();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -56,6 +74,13 @@ async function completeRequiredFields(
 }
 
 describe("alta owner greenfield", () => {
+  it("ofrece acceso asistido a otro país sin enviar un alta ni elegir un país ficticio", () => {
+    renderFreshSignupForm();
+    expect(screen.getByRole("link", { name: /Tu país no aparece/ })).toHaveAttribute("href", "/contact?type=market_access");
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
   it("reintenta el mismo payload y mantiene bloqueados los campos tras resultado incierto", async () => {
     const user = userEvent.setup();
     mockFetch
@@ -67,10 +92,10 @@ describe("alta owner greenfield", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ organizationId: "synthetic-organization" }),
+        json: async () => setupReceipt,
       });
 
-    renderFreshSignupForm();
+    const view = renderFreshSignupForm();
     expect(
       screen.queryByRole("checkbox", {
         name: /Acepto los términos y condiciones y he leído la política de privacidad/,
@@ -85,7 +110,15 @@ describe("alta owner greenfield", () => {
       "No podemos confirmar si se creó el espacio"
     );
     expect(screen.getByLabelText("Nombre de la academia")).toBeDisabled();
-    const retryButton = screen.getByRole("button", {
+    expect(
+      sessionStorage.getItem(retryStorageKey(ownerUserId))
+    ).not.toBeNull();
+    view.unmount();
+
+    renderFreshSignupForm();
+    const academyName = await screen.findByLabelText("Nombre de la academia");
+    expect(academyName).toHaveValue("Club sintético");
+    const retryButton = await screen.findByRole("button", {
       name: "Reintentar el mismo envío",
     });
     await user.click(retryButton);
@@ -104,12 +137,15 @@ describe("alta owner greenfield", () => {
       primaryDiscipline: "artistic",
       countryCode: "ES",
     });
+    expect(JSON.parse(String(first.body))).not.toHaveProperty("defaultCurrency");
+    expect(JSON.parse(String(first.body))).not.toHaveProperty("timezone");
     expect(JSON.parse(String(first.body))).not.toHaveProperty(
       "contractualAcceptance"
     );
     expect(mockReplace).toHaveBeenCalledWith(
-      "/owner?organizationId=synthetic-organization"
+      `/owner?organizationId=${setupReceipt.organizationId}`
     );
+    expect(sessionStorage.getItem(retryStorageKey(ownerUserId))).toBeNull();
   });
 
   it("explica el resultado incierto de red y reintenta con la misma clave y payload", async () => {
@@ -119,7 +155,7 @@ describe("alta owner greenfield", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ organizationId: "synthetic-organization" }),
+        json: async () => setupReceipt,
       });
 
     renderFreshSignupForm();
@@ -147,8 +183,50 @@ describe("alta owner greenfield", () => {
       "idempotency-key": "synthetic-bootstrap-key",
     });
     expect(mockReplace).toHaveBeenCalledWith(
-      "/owner?organizationId=synthetic-organization"
+      `/owner?organizationId=${setupReceipt.organizationId}`
     );
+  });
+
+  it("conserva el recibo original si el reintento tras una respuesta incierta da 403", async () => {
+    const user = userEvent.setup();
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({}),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: async () => ({ detail: "No autorizado." }),
+      });
+
+    renderFreshSignupForm();
+    await completeRequiredFields(user);
+    await user.click(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No podemos confirmar si se creó el espacio"
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Reintentar el mismo envío" })
+    );
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("No podemos confirmar el resultado");
+    expect(alert).not.toHaveTextContent("No autorizado.");
+    expect(
+      sessionStorage.getItem(retryStorageKey(ownerUserId))
+    ).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Reintentar el mismo envío" })
+    ).toBeEnabled();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const first = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const retry = mockFetch.mock.calls[1]?.[1] as RequestInit;
+    expect(retry.headers).toEqual(first.headers);
+    expect(retry.body).toBe(first.body);
   });
 
   it("permite corregir un rechazo definitivo con una clave nueva", async () => {
@@ -168,7 +246,7 @@ describe("alta owner greenfield", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ organizationId: "synthetic-organization" }),
+        json: async () => setupReceipt,
       });
 
     renderFreshSignupForm();
@@ -201,6 +279,203 @@ describe("alta owner greenfield", () => {
     });
   });
 
+  it("envía país, moneda y zona horaria de México y conserva el mismo intento incierto", async () => {
+    const user = userEvent.setup();
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({ detail: "Respuesta temporal." }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => setupReceipt,
+      });
+
+    const view = renderFreshSignupForm();
+    await user.selectOptions(
+      screen.getByLabelText("País de la academia"),
+      "MX"
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Zona horaria de la primera sede"),
+      "America/Monterrey"
+    );
+    expect(
+      screen.getByText(/gestión administrativa en México está en validación/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/es independiente de la contratación SaaS/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /contratación comercial para México aún no está habilitada/i
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/No incluye funciones federativas mexicanas/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/no emite comprobantes fiscales mexicanos/)
+    ).toBeInTheDocument();
+    await completeRequiredFields(user);
+    await user.click(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No podemos confirmar si se creó el espacio"
+    );
+    const academyName = screen.getByLabelText("Nombre de la academia");
+    expect(academyName).toBeDisabled();
+    view.unmount();
+
+    renderFreshSignupForm();
+    expect(
+      await screen.findByLabelText("País de la academia")
+    ).toHaveValue("MX");
+    expect(
+      screen.getByLabelText("Zona horaria de la primera sede")
+    ).toHaveValue("America/Monterrey");
+    await user.click(
+      await screen.findByRole("button", { name: "Reintentar el mismo envío" })
+    );
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    const first = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const retry = mockFetch.mock.calls[1]?.[1] as RequestInit;
+    expect(retry.headers).toEqual(first.headers);
+    expect(retry.body).toBe(first.body);
+    expect(JSON.parse(String(first.body))).toMatchObject({
+      countryCode: "MX",
+      defaultCurrency: "MXN",
+      timezone: "America/Monterrey",
+    });
+    expect(sessionStorage.getItem(retryStorageKey(ownerUserId))).toBeNull();
+  });
+
+  it("mantiene el alta española compatible y envía una zona horaria alternativa si se elige", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => setupReceipt,
+    });
+
+    renderFreshSignupForm();
+    await user.selectOptions(
+      screen.getByLabelText("Zona horaria de la primera sede"),
+      "Atlantic/Canary"
+    );
+    await completeRequiredFields(user);
+    await user.click(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    );
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledOnce());
+    const body = JSON.parse(String(mockFetch.mock.calls[0]?.[1]?.body));
+    expect(body).toMatchObject({
+      countryCode: "ES",
+      timezone: "Atlantic/Canary",
+    });
+    expect(body).not.toHaveProperty("defaultCurrency");
+  });
+
+  it("no expone ni reutiliza el intento pendiente de otra cuenta", async () => {
+    const user = userEvent.setup();
+    const firstUserId = "a0000000-0000-4000-8000-000000000014";
+    const secondUserId = "a0000000-0000-4000-8000-000000000015";
+    mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    const firstView = render(
+      <OwnerSetupForm
+        contractualConsent={freshSignupConsent}
+        ownerUserId={firstUserId}
+      />
+    );
+    await completeRequiredFields(user);
+    await user.click(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No podemos confirmar si se creó el espacio"
+    );
+    expect(
+      sessionStorage.getItem(retryStorageKey(firstUserId))
+    ).not.toBeNull();
+    firstView.unmount();
+
+    render(
+      <OwnerSetupForm
+        contractualConsent={freshSignupConsent}
+        ownerUserId={secondUserId}
+      />
+    );
+    expect(
+      await screen.findByLabelText("Nombre de la academia")
+    ).toHaveValue("");
+    expect(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    ).toBeEnabled();
+    expect(mockFetch).toHaveBeenCalledOnce();
+    expect(
+      sessionStorage.getItem(retryStorageKey(firstUserId))
+    ).not.toBeNull();
+  });
+
+  it("descarta un DTO de reintento malformado sin enviarlo automáticamente", async () => {
+    sessionStorage.setItem(
+      retryStorageKey(ownerUserId),
+      JSON.stringify({
+        version: 2,
+        ownerUserId,
+        key: "malformed-key",
+        serializedBody: "{}",
+      })
+    );
+
+    renderFreshSignupForm();
+
+    expect(
+      await screen.findByText(/No pudimos validar un intento guardado/)
+    ).toBeInTheDocument();
+    expect(sessionStorage.getItem(retryStorageKey(ownerUserId))).toBeNull();
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    ).toBeEnabled();
+  });
+
+  it("avisa si el navegador bloquea el recibo y conserva el reintento en memoria", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("storage blocked");
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: async () => ({}),
+    });
+
+    renderFreshSignupForm();
+    await completeRequiredFields(user);
+    await user.click(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No podemos confirmar si se creó el espacio"
+    );
+    expect(
+      screen.getByText(/el reintento solo se conserva mientras esta página permanezca abierta/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Reintentar el mismo envío" })
+    ).toBeEnabled();
+    expect(mockFetch).toHaveBeenCalledOnce();
+  });
+
   it("falla cerrada cuando no se pudo leer el estado contractual", () => {
     render(<OwnerSetupForm />);
 
@@ -218,7 +493,7 @@ describe("alta owner greenfield", () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 201,
-      json: async () => ({ organizationId: "synthetic-organization" }),
+      json: async () => setupReceipt,
     });
     render(
       <OwnerSetupForm

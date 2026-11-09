@@ -1,5 +1,13 @@
 # Configuración para Producción
 
+> **Guía histórica; no usar para el lanzamiento MVP vigente.** Las recetas
+> siguientes incluyen políticas Storage sin scope de academia y activación de
+> cron/Realtime que no forman parte de la entrega autorizada. Se conservan como
+> antecedente, no como instrucciones ejecutables ni descripción del estado real.
+> Usar [el procedimiento MVP vigente](deployment/mvp-release-procedure-2026-10-25.md)
+> y su evidencia. No aplicar el SQL, activar tareas ni ejecutar las pruebas
+> locales de este documento por inferencia.
+
 Esta guía detalla los pasos necesarios para configurar el proyecto en producción.
 
 ## 1. Dependencias Instaladas

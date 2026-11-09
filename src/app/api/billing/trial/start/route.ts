@@ -6,7 +6,7 @@ import { getBillingAcademyAccess } from "@/lib/billing/access";
 import { startAcademyTrial } from "@/lib/billing/trial-service";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
 });
 
 export const POST = withTenant(async (request, context) => {

@@ -285,7 +285,7 @@ export default function AssessmentsClientView({
             <Card
               key={assessment.id}
               className={cn(
-                "transition-all hover:shadow-md",
+                "transition-all",
                 selectedAthlete === assessment.athleteId && "ring-2 ring-primary"
               )}
             >

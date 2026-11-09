@@ -15,7 +15,9 @@ describe("athlete documents scope contract", () => {
 
     expect(upload).toContain("ACADEMY_ATHLETE_MISMATCH");
     expect(route).toContain("DOCUMENT_PATH_OUT_OF_SCOPE");
-    expect(route).toContain("deleteFile(document.fileUrl)");
+    expect(route).toContain("classifyAthleteDocumentStorageReference");
+    expect(route).toContain('"DOCUMENT_STORAGE_REFERENCE_UNSAFE"');
+    expect(route).toContain("await deleteFile(deletion.storagePath)");
     expect(route).toContain("INVALID_DOCUMENT_DATES");
   });
 });

@@ -8,7 +8,7 @@ import { discountCampaigns, discounts } from "@/db/schema";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 const updateCampaignSchema = z.object({
-  discountId: z.string().uuid().optional(),
+  discountId: z.guid().optional(),
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   startDate: z.string().optional(),

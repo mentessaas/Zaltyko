@@ -38,11 +38,11 @@ interface RegistrationChartProps {
 }
 
 const COLORS = {
-  confirmed: "#1FC7B6",
-  pending: "#2B2E83",
-  waitlisted: "#CBD5E1",
-  cancelled: "#FF6B57",
-  available: "#CBD5E1",
+  confirmed: "#8FB4FF",
+  pending: "#14307F",
+  waitlisted: "#D5DAE3",
+  cancelled: "#E5482A",
+  available: "#D5DAE3",
 };
 
 export function RegistrationChart({ data, eventTitle }: RegistrationChartProps) {
@@ -297,13 +297,13 @@ export function RegistrationTrendChart({ data }: RegistrationTrendChartProps) {
               />
               <Bar
                 dataKey="registrations"
-                fill="#1FC7B6"
+                fill="#8FB4FF"
                 name="Inscripciones"
                 radius={[4, 4, 0, 0]}
               />
               <Bar
                 dataKey="confirmations"
-                fill="#2B2E83"
+                fill="#14307F"
                 name="Confirmaciones"
                 radius={[4, 4, 0, 0]}
               />

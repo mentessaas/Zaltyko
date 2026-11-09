@@ -110,11 +110,22 @@ export default function InviteUserForm({
         throw new Error(data?.error ?? "No se pudo enviar la invitación");
       }
 
-      toast.pushToast({
-        title: "Invitación enviada",
-        description: "El usuario recibirá un correo con instrucciones.",
-        variant: "success",
-      });
+      const payload = await response.json().catch(() => null);
+      const emailSent = payload?.data?.emailSent !== false;
+      toast.pushToast(
+        emailSent
+          ? {
+              title: "Invitación enviada",
+              description: "El usuario recibirá un correo con instrucciones.",
+              variant: "success",
+            }
+          : {
+              title: "Invitación guardada sin correo",
+              description:
+                "La invitación está creada, pero el correo no se ha enviado. Vuelve a intentarlo más tarde.",
+              variant: "warning",
+            }
+      );
       resetForm();
       router.refresh();
     } catch (error) {

@@ -191,7 +191,7 @@ function Row({ label, value, muted }: { label: string; value: string; muted?: bo
       style={{
         display: "flex",
         justifyContent: "space-between",
-        color: muted ? "#94a3b8" : "#0f172a",
+        color: muted ? "#8A93A8" : "#0B1430",
         fontSize: muted ? 12 : 14,
       }}
     >
@@ -205,14 +205,14 @@ const fieldLabel: React.CSSProperties = {
   display: "block",
   fontSize: 13,
   fontWeight: 600,
-  color: "#0f172a",
+  color: "#0B1430",
   marginBottom: 4,
 };
 const fieldInput: React.CSSProperties = {
   width: "100%",
   padding: "8px 10px",
   fontSize: 14,
-  border: "1px solid #cbd5e1",
+  border: "1px solid #D5DAE3",
   borderRadius: 6,
   fontFamily: "inherit",
 };

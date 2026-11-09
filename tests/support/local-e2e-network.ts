@@ -2,7 +2,7 @@ import type { BrowserContext, Route } from "@playwright/test";
 
 export const HIBP_FIXTURE_BODY = `${"0".repeat(35)}:0\r\n`;
 const EXPECTED_SENTRY_REPLAY_URL =
-  "https://browser.sentry-cdn.com/10.73.0/replay.min.js";
+  "https://browser.sentry-cdn.com/10.76.2/replay.min.js";
 
 type RequestInput = {
   url: string;

@@ -3,16 +3,17 @@ import Link from "next/link";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import { SellerIdentification } from "@/components/legal/SellerIdentification";
 
 const baseUrl = getPublicSiteUrl();
 
-const updatedAt = "13 de septiembre de 2026";
+const updatedAt = "26 de octubre de 2026";
 
 const sections = [
   {
     title: "1. Objeto",
     paragraphs: [
-      "Las presentes Condiciones regulan el acceso y uso de Zaltyko, plataforma SaaS que permite a academias de gimnasia gestionar atletas, staff, clases, eventos y cobros internos.",
+      "Estas condiciones describen Zaltyko, plataforma SaaS para gestionar familias, gimnastas, grupos, clases, inscripciones, asistencia y cuotas con registro manual de pagos. Los pagos familiares no se cobran automáticamente.",
       "Al registrarte, acceder o utilizar el servicio confirmas que tienes autoridad para hacerlo en nombre de una organización y aceptas estos términos.",
     ],
   },
@@ -26,9 +27,9 @@ const sections = [
   {
     title: "3. Planes, pagos y suscripción",
     paragraphs: [
-      "Ofrecemos planes Starter, Growth y Network descritos en https://zaltyko.com/pricing. Los pagos recurrentes se procesan a través de Stripe u otro proveedor autorizado.",
+      "El catálogo incluye Free, Starter y Growth. Starter tiene un precio base de 19 €/mes o 190 €/año; Growth, de 49 €/mes o 490 €/año. Estos precios no incluyen IVA. El impuesto aplicable y el importe final deberán mostrarse antes de confirmar la contratación. Network requiere contratación acompañada.",
+      "La suscripción SaaS de la academia es independiente de las cuotas de sus familias, cuyos pagos se registran manualmente. Las pruebas de contratación en sandbox no son compras reales.",
       "Puedes cancelar o cambiar de plan en cualquier momento desde el portal de suscripción. Si solicitas la baja, el plan continuará activo hasta el final del periodo en curso.",
-      "Para compras realizadas a través de Stripe, aplicamos un periodo de reembolso de 7 días en caso de insatisfacción, siempre que no se haya utilizado de forma abusiva el servicio.",
     ],
   },
   {
@@ -42,7 +43,7 @@ const sections = [
     title: "5. Propiedad intelectual",
     paragraphs: [
       "El software, la marca Zaltyko y sus componentes son propiedad de Zaltyko. El uso del servicio no concede derechos de propiedad intelectual sobre ellos, salvo las licencias limitadas contempladas en estos términos.",
-      "La información cargada por tu academia seguirá siendo tuya. Tienes derecho a exportarla mientras la cuenta esté activa o durante los 30 días posteriores a la cancelación.",
+      "La información cargada por tu academia seguirá siendo tuya. Puedes ejercer los derechos sobre los datos personales conforme a la Política de Privacidad.",
     ],
   },
   {
@@ -69,7 +70,7 @@ const sections = [
     title: "9. Terminación",
     paragraphs: [
       "Puedes dejar de usar el servicio en cualquier momento. También podremos suspender o cancelar tu acceso si incumples estos términos o si lo exige una autoridad competente.",
-      "Salvo obligación legal, eliminaremos los datos de tu cuenta 30 días después de la terminación definitiva.",
+      "La conservación y eliminación de los datos se rigen por la Política de Privacidad y las obligaciones legales aplicables.",
     ],
   },
   {
@@ -81,7 +82,7 @@ const sections = [
   {
     title: "11. Legislación aplicable y jurisdicción",
     paragraphs: [
-      "Estos términos se rigen por la legislación española. Cualquier controversia se someterá a los tribunales de Madrid, salvo que una normativa imperativa establezca otra jurisdicción.",
+      "Estos términos se rigen por la legislación española, respetando las normas imperativas y la jurisdicción que corresponda legalmente.",
     ],
   },
   {
@@ -124,6 +125,8 @@ export default function TermsOfServicePage() {
               Última actualización: {updatedAt}
             </p>
           </header>
+
+          <SellerIdentification />
 
           <section className="mt-10 space-y-10">
             {sections.map((section) => (

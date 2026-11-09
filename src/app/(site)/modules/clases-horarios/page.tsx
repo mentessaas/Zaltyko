@@ -11,7 +11,7 @@ import {
 
 export const metadata: Metadata = {
   title: "Gestión de Clases y Horarios",
-  description: "Organiza clases, horarios y asistencia de tu academia de gimnasia. Calendario visual con inscripciones automáticas y control de capacidad.",
+  description: "Organiza clases, horarios, capacidad, inscripciones y asistencia de tu academia desde el panel de gestión.",
   keywords: [
     "gestión de clases de gimnasia",
     "horarios gimnasia",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: "Gestión de Clases y Horarios",
-    description: "Organiza clases, horarios y asistencia de tu academia de gimnasia. Calendario visual con inscripciones automáticas.",
+    description: "Organiza clases, horarios, capacidad, inscripciones y asistencia de tu academia desde el panel de gestión.",
     type: "website",
   },
 };
@@ -35,62 +35,61 @@ Las familias preguntan constantemente por horarios disponibles, y responder requ
 
 El control de asistencia manual es propenso a errores y consume tiempo valioso que los entrenadores deberían dedicar a la enseñanza. Sin datos precisos de asistencia, es imposible identificar patrones de abandono o evaluar la popularidad real de cada horario.`;
 
-const solutionContent = `El módulo de gestión de clases y horarios de Zaltyko transforma la organización de tu academia con un calendario visual intuitivo que muestra toda tu programación de un vistazo. Define horarios recurrentes por día de la semana y el sistema los replica automáticamente, permitiéndote gestionar excepciones puntuales sin afectar la programación base.
+const solutionContent = `El panel de gestión permite a la dirección organizar horarios y gestionar capacidad e inscripciones de cada clase.
 
-Cada clase tiene su configuración propia: capacidad máxima, rango de edades, nivel requerido y entrenador asignado. Cuando un grupo alcanza su límite, el sistema activa automáticamente una lista de espera ordenada. Si se libera una plaza, notifica al siguiente en la lista para que confirme su asistencia.
+La asignación de entrenadores con acceso propio está en preparación.
 
-El control de asistencia es rápido y preciso. Los entrenadores marcan presencias desde cualquier dispositivo en segundos, generando automáticamente el historial de cada atleta. Los padres pueden justificar ausencias desde su portal, y el sistema te alerta sobre patrones de inasistencia que podrían indicar riesgo de abandono.`;
+La dirección registra la asistencia de cada sesión y consulta las marcas guardadas.`;
 
 const solutionFeatures = [
-  "Calendario visual con vistas diaria, semanal y mensual",
-  "Clases recurrentes con gestión de excepciones para festivos",
-  "Capacidad máxima por grupo con lista de espera automática",
-  "Asignación de entrenadores y control de disponibilidad",
-  "Control de asistencia digital desde cualquier dispositivo",
-  "Notificaciones automáticas de cambios a familias afectadas",
+  "Programación de clases y sesiones",
+  "Programación y capacidad gestionadas por la dirección",
+  "Inscripciones administradas desde el panel de gestión",
+  "Asignación de entrenadores con acceso propio en preparación",
+  "Registro y consulta de asistencia por sesión",
 ];
 
 const benefits = [
   {
     icon: Clock,
-    title: "Organización instantánea",
-    description: "Visualiza toda tu semana de clases y detecta conflictos antes de que ocurran.",
+    title: "Organización de clases",
+    description: "Gestiona la programación y capacidad de los grupos desde el panel.",
   },
   {
     icon: Users,
-    title: "Grupos equilibrados",
-    description: "Mantén una capacidad clara en cada clase con controles y lista de espera configurables.",
+    title: "Capacidad e inscripciones",
+    description: "Administra la capacidad de cada clase y sus inscripciones.",
   },
   {
     icon: TrendingUp,
-    title: "Datos de asistencia",
-    description: "Identifica patrones y optimiza horarios basándote en asistencia real.",
+    title: "Registro de asistencia",
+    description: "Consulta las marcas de asistencia guardadas por sesión.",
   },
   {
     icon: CheckCircle,
-    title: "Comunicación eficiente",
-    description: "Cambios de horario notificados automáticamente a las familias correctas.",
+    title: "Acceso de entrenadores",
+    description: "El acceso y la asignación de entrenadores están en preparación.",
   },
 ];
 
 const useCases = [
   {
-    role: "Entrenadores",
+    role: "Dirección",
     icon: GraduationCap,
-    title: "Tu agenda siempre clara",
-    description: "Consulta tu programación diaria, semanal o mensual desde tu móvil. Marca asistencias en segundos y accede a las fichas de las gimnastas presentes para adaptar la sesión según el grupo real del día.",
+    title: "Tu programación siempre clara",
+    description: "Consulta la programación y registra la asistencia de cada sesión desde el panel de gestión.",
   },
   {
     role: "Administrativos",
     icon: Briefcase,
-    title: "Gestión de inscripciones simplificada",
-    description: "Asigna gimnastas a clases con un clic, gestiona cambios de grupo y maneja listas de espera sin llamadas ni correos. El sistema te muestra la disponibilidad real de cada horario al instante.",
+    title: "Gestión de inscripciones",
+    description: "Administra las inscripciones y la capacidad de cada clase desde el panel de gestión.",
   },
   {
     role: "Dueños de academia",
     icon: Users,
-    title: "Optimiza tu oferta",
-    description: "Analiza qué horarios tienen mayor demanda y cuáles están infrautilizados. Toma decisiones sobre apertura de nuevos grupos o redistribución de recursos basándote en datos reales de ocupación.",
+    title: "Organiza tu programación",
+    description: "Revisa las clases, la capacidad y las inscripciones de tu academia desde el panel de gestión.",
   },
 ];
 
@@ -107,7 +106,7 @@ export default function ClasesHorariosPage() {
             name: "Zaltyko - Clases y Horarios",
             applicationCategory: "BusinessApplication",
             operatingSystem: "Web",
-            description: "Módulo de gestión de clases y horarios para academias de gimnasia. Calendario visual, inscripciones y control de asistencia.",
+            description: "Módulo para organizar clases y sesiones, gestionar inscripciones y registrar asistencia.",
             featureList: solutionFeatures,
             offers: {
               "@type": "Offer",
@@ -122,7 +121,7 @@ export default function ClasesHorariosPage() {
       <ModuleHero
         icon={Calendar}
         title="Clases y Horarios"
-        subtitle="Organiza la programación de tu academia con un calendario visual intuitivo. Gestiona grupos, capacidades, asistencia y cambios de horario sin complicaciones."
+        subtitle="Organiza clases y sesiones desde el panel de gestión. Administra capacidad, inscripciones y asistencia."
         color={MODULE_COLOR}
       />
 
@@ -133,7 +132,7 @@ export default function ClasesHorariosPage() {
       />
 
       <SolutionSection
-        title="Calendario inteligente para tu academia"
+        title="Clases y horarios para tu academia"
         content={solutionContent}
         features={solutionFeatures}
         color={MODULE_COLOR}

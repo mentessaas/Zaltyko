@@ -19,6 +19,7 @@ import { useAcademyContext } from "@/hooks/use-academy-context";
 import { formatDateForCountry } from "@/lib/date-utils";
 import TodayQuickActions from "@/components/coach/TodayQuickActions";
 import { pluralizeFirstWord } from "@/lib/specialization/registry";
+import { groupInk } from "@/lib/mat/group-ink";
 
 interface CoachAthlete {
   id: string;
@@ -129,7 +130,7 @@ export function CoachDashboardPage({
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-teal-400/20 blur-3xl" />
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-200">Tu jornada en la pista</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-200">Tu jornada en la pista</p>
             <h1 className="font-display text-2xl font-bold tracking-[-0.03em] text-white lg:text-4xl">
               Hola, {profileName ?? specialization.labels.coachLabel.toLowerCase()}
             </h1>
@@ -234,7 +235,7 @@ export function CoachDashboardPage({
                   {session.groupColor && (
                     <div
                       className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: session.groupColor }}
+                      style={{ backgroundColor: groupInk(session.groupColor) }}
                     />
                   )}
                   <div>
@@ -332,7 +333,7 @@ export function CoachDashboardPage({
                     {athlete.groupColor && (
                       <div
                         className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: athlete.groupColor }}
+                        style={{ backgroundColor: groupInk(athlete.groupColor) }}
                       />
                     )}
                     <div>
@@ -453,7 +454,7 @@ export function CoachDashboardPage({
                     {cls.groupColor && (
                       <div
                         className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: cls.groupColor }}
+                        style={{ backgroundColor: groupInk(cls.groupColor) }}
                       />
                     )}
                     <div>

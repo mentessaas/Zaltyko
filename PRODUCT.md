@@ -98,3 +98,13 @@ Constraints:
 ## Accessibility & Inclusion
 
 WCAG 2.2 AA is the product bar (validated in production on landing surfaces). Coach capture happens in noisy gyms with wet hands and gloves — large tap targets (≥48 CSS px), no hover-only interactions, no precision requirements. Family portal must work on low-end Android phones. Spanish first; future locales (`/en`, `/pt`) require new content, not just translation (see `docs/I18N_EVALUATION.md`).
+## Dirección visual y alcance público (2026-11-09)
+
+- **Usuario principal confirmado (2026-11-08):** la dirección de la academia, es decir, la dueña o el director. Lleva a la vez el negocio y el deporte, trabaja en el ordenador del despacho y consulta el móvil entre sesiones.
+- **Identidad única «Magnesio sobre tapiz»** en toda la plataforma: web pública, `/app` y el panel del club `/owner`. Sustituye a la dirección violeta del panel del club aprobada el 2026-11-07. El sistema está en `DESIGN.md` y `.impeccable/design.json`.
+- **Lo que se publica sale de una sola fuente:** `src/lib/launch/essential-public-catalog.ts` (`ESSENTIAL_FEATURES`, `ESSENTIAL_FAQS`).
+  - **Qué abarca:** gimnastas y familias, grupos y clases, asistencia por sesión, cuotas con registro manual de pagos y resumen de actividad.
+  - **Dónde:** configuración administrativa para España y México.
+  - **Qué no se promete en la web:** importación de CSV o Excel, portal familiar, cobro automático, evaluaciones, eventos ni multisede como funciones del lanzamiento.
+  - **Control:** lo vigila `tests/audit/public-claims.catalog.test.ts`.
+- **Nota:** las capacidades listadas más arriba describen el producto completo en el código. No todas forman parte del lanzamiento público.

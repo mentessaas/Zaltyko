@@ -15,20 +15,21 @@ import {
   createScheduledClass,
   getOwnerClassesPageData,
 } from "@/modules/scheduling/application/class-management-service";
+import { MAX_CLASS_CAPACITY } from "@/modules/scheduling/domain/class-capacity";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const querySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
 });
 
 const bodySchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
-    programId: z.string().uuid().nullable(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
+    programId: z.guid().nullable(),
     name: z.string().trim().min(2).max(120),
-    capacity: z.number().int().positive().max(5000),
+    capacity: z.number().int().positive().max(MAX_CLASS_CAPACITY),
     effectiveFrom: z.string().date(),
     effectiveTo: z.string().date().nullable(),
     schedule: z

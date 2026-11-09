@@ -8,7 +8,6 @@ import {
 } from "@/db/zaltyko-schema";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import {
-  evaluateAutomaticCollectionPlanEligibility,
   type EntitlementPlanCode,
   type EntitlementSnapshot,
   type EntitlementSource,
@@ -19,11 +18,13 @@ import {
   appendOutboxEvent,
 } from "@/modules/shared/infrastructure/transactional-records";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { FAMILY_AUTOMATIC_COLLECTION_DISABLED } from "@/lib/stripe/family-automatic-collection-disabled";
+import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 
 const inputSchema = z.object({
-  userId: z.string().uuid(),
-  organizationId: z.string().uuid(),
-  familyId: z.string().uuid(),
+  userId: z.guid(),
+  organizationId: z.guid(),
+  familyId: z.guid(),
 });
 
 const commandSchema = inputSchema.extend({
@@ -191,22 +192,10 @@ async function buildPreference(
     requestedMode: "manual" | "automatic";
     version: number;
     preferenceEntitlementRevision: number | null;
-  },
-  now = new Date()
+  }
 ): Promise<FamilyCollectionPreference> {
   const planState = await loadPlanState(executor, input.organizationId);
-  const planEligibility = evaluateAutomaticCollectionPlanEligibility({
-    organizationId: input.organizationId,
-    entitlement: planState.entitlement,
-    subscription: planState.subscription,
-    now,
-  });
   const entitlementRevision = planState.entitlement?.revision ?? null;
-  const requiresConfirmation =
-    input.requestedMode === "automatic" &&
-    (!planEligibility.eligible ||
-      input.preferenceEntitlementRevision !==
-        planEligibility.entitlementRevision);
 
   return {
     organizationId: input.organizationId,
@@ -215,53 +204,24 @@ async function buildPreference(
     effectiveMode: "manual",
     version: input.version,
     entitlementRevision,
+    // Keep the stored revision visible for historical preferences, even though
+    // the effective mode is always manual for this release.
     preferenceEntitlementRevision: input.preferenceEntitlementRevision,
-    automaticPreferenceAvailable: planEligibility.eligible,
+    automaticPreferenceAvailable: false,
     automaticProcessingEnabled: false,
-    automaticStatus: planEligibility.eligible
-      ? "not_released"
-      : "paid_plan_required",
-    requiresConfirmation,
+    automaticStatus: "not_released",
+    requiresConfirmation: false,
   };
 }
 
-/**
- * Snapshot the family's current request when issuing a future charge. A stale
- * request or any non-paid entitlement always yields manual; this never starts
- * a payment attempt.
- */
-export async function getChargeCollectionModeSnapshot(input: {
+/** Every family charge remains manual while automatic collection is disabled. */
+export async function getChargeCollectionModeSnapshot(_input: {
   executor: Pick<typeof db, "select" | "execute">;
   organizationId: string;
   familyId: string;
   now?: Date;
 }): Promise<"manual" | "automatic"> {
-  const [preference] = await input.executor
-    .select({
-      requestedMode: familyCollectionPreferences.requestedMode,
-      entitlementRevision: familyCollectionPreferences.entitlementRevision,
-    })
-    .from(familyCollectionPreferences)
-    .where(
-      and(
-        eq(familyCollectionPreferences.organizationId, input.organizationId),
-        eq(familyCollectionPreferences.familyId, input.familyId)
-      )
-    )
-    .limit(1);
-  if (preference?.requestedMode !== "automatic") return "manual";
-
-  const planState = await loadPlanState(input.executor, input.organizationId);
-  const eligibility = evaluateAutomaticCollectionPlanEligibility({
-    organizationId: input.organizationId,
-    entitlement: planState.entitlement,
-    subscription: planState.subscription,
-    now: input.now,
-  });
-  return eligibility.eligible &&
-    preference.entitlementRevision === eligibility.entitlementRevision
-    ? "automatic"
-    : "manual";
+  return "manual";
 }
 
 export async function getFamilyCollectionPreference(input: {
@@ -327,7 +287,24 @@ export async function saveFamilyCollectionPreference(input: {
     );
   }
 
+  if (parsed.mode === "automatic") {
+    await requireOrganizationWideScope({
+      canViewOrganizationAggregate: scope.canViewOrganizationAggregate,
+      familyId: parsed.familyId,
+      organizationId: scope.organization.id,
+      locationIds: scope.locations.map((location) => location.id),
+      executor: db,
+    });
+    throw new OperationalError(
+      FAMILY_AUTOMATIC_COLLECTION_DISABLED,
+      "El cobro automático familiar no está disponible; conserva el registro manual de pagos.",
+      409,
+      { code: FAMILY_AUTOMATIC_COLLECTION_DISABLED }
+    );
+  }
+
   return db.transaction(async (tx) => {
+    await assertOrganizationOperationalWritable(tx, scope.organization.id);
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${`family-collection-preference:${scope.organization.id}:${parsed.familyId}`}, 0))`
     );
@@ -341,20 +318,6 @@ export async function saveFamilyCollectionPreference(input: {
 
     const now = new Date();
     const planState = await loadPlanState(tx, scope.organization.id);
-    const planEligibility = evaluateAutomaticCollectionPlanEligibility({
-      organizationId: scope.organization.id,
-      entitlement: planState.entitlement,
-      subscription: planState.subscription,
-      now,
-    });
-    if (parsed.mode === "automatic" && !planEligibility.eligible) {
-      throw new OperationalError(
-        "FEATURE_NOT_AVAILABLE",
-        "El cobro automático solo se puede solicitar con un entitlement de pago vigente.",
-        409
-      );
-    }
-
     const auditIdempotencyKey = `family-collection-preference:${parsed.idempotencyKey}`;
     const [priorCommand] = await tx
       .select({
@@ -397,8 +360,7 @@ export async function saveFamilyCollectionPreference(input: {
             typeof priorMetadata.entitlementRevision === "number"
               ? priorMetadata.entitlementRevision
               : null,
-        },
-        now
+        }
       );
     }
 
@@ -495,8 +457,7 @@ export async function saveFamilyCollectionPreference(input: {
         requestedMode: parsed.mode,
         version: nextVersion,
         preferenceEntitlementRevision: entitlementRevision,
-      },
-      now
+      }
     );
   });
 }

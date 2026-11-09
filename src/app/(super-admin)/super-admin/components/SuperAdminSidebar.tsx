@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import { ZaltykoLockup } from "@/components/brand/ZaltykoMark";
 import { usePathname } from "next/navigation";
 import { BarChart3 } from "lucide-react";
 
@@ -16,15 +16,8 @@ export function SuperAdminSidebar() {
     <aside className="relative hidden w-64 flex-shrink-0 overflow-hidden border-r border-white/10 bg-zaltyko-navy px-5 py-6 text-white lg:flex">
       <div className="flex h-full w-full flex-col gap-8 overflow-y-auto">
         <div>
-          <Image
-            src="/branding/zaltyko/logo-zaltyko-dark.svg"
-            alt="Zaltyko"
-            width={132}
-            height={40}
-            className="h-10 w-auto"
-            priority
-          />
-          <p className="mt-3 font-display text-lg font-semibold text-white">Super Admin</p>
+          <ZaltykoLockup className="text-white" markClassName="h-8 w-8" />
+          <p className="floor-label mt-4 border-b-[3px] border-white pb-3 text-mat-lane">Super Admin</p>
         </div>
         <nav className="flex-1 space-y-1 font-sans text-sm">
           {SUPER_ADMIN_NAV_ITEMS.map((item) => {
@@ -36,10 +29,10 @@ export function SuperAdminSidebar() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group flex min-h-[44px] items-center gap-3 rounded-xl border border-transparent px-3 py-3 transition-all duration-200",
+                  "group flex min-h-[44px] items-center gap-3 rounded-md px-3 py-3 transition-colors duration-150",
                   active
-                    ? "border-zaltyko-electric/30 bg-zaltyko-electric/10 text-zaltyko-electric shadow-soft"
-                    : "text-white/70 hover:border-white/10 hover:bg-white/5 hover:text-white"
+                    ? "bg-white font-semibold text-mat-deep"
+                    : "text-white/75 hover:bg-white/10 hover:text-white"
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" strokeWidth={1.8} />
@@ -48,8 +41,8 @@ export function SuperAdminSidebar() {
             );
           })}
         </nav>
-        <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 font-sans text-xs text-white/70">
-          <p className="flex items-center gap-2 font-display text-[11px] uppercase tracking-wide text-zaltyko-accent-light">
+        <div className="border-t border-white/15 pt-4 font-sans text-xs text-white/70">
+          <p className="floor-label flex items-center gap-2 text-mat-lane">
             <BarChart3 className="h-3.5 w-3.5" strokeWidth={1.8} />
             Panel global
           </p>

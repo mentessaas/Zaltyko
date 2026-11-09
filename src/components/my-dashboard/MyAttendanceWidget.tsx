@@ -42,9 +42,9 @@ export function MyAttendanceWidget({ data }: MyAttendanceWidgetProps) {
   const attendanceRate = Math.round((data.present / data.total) * 100);
 
   const chartData = [
-    { label: "Presente", value: data.present, color: "#10B981" },
-    { label: "Ausente", value: data.absent, color: "#EF4444" },
-    { label: "Excusa", value: data.excused, color: "#F59E0B" },
+    { label: "Presente", value: data.present, color: "#1E3FA8" },
+    { label: "Ausente", value: data.absent, color: "#E5482A" },
+    { label: "Excusa", value: data.excused, color: "#8A93A8" },
   ];
 
   const getStatusIcon = (status: string) => {

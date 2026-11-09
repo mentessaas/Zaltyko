@@ -68,7 +68,7 @@ export function StatsCard({
   const cardContent = (
     <div
       className={cn(
-        "rounded-2xl border p-6 shadow-soft transition-all duration-150 hover:border-zaltyko-teal/40 hover:shadow-medium",
+        "rounded-2xl border p-6 shadow-soft transition-all duration-150 hover:border-zaltyko-teal/40",
         styles.bg,
         styles.border,
         className

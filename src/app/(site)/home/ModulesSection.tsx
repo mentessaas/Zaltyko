@@ -94,7 +94,7 @@ export default function ModulesSection() {
             >
               <div
                 className={cn(
-                  "h-full rounded-card border border-zaltyko-mist dark:border-border bg-white dark:bg-card p-6 transition-all duration-200 hover:-translate-y-1.5 hover:border-zaltyko-teal hover:shadow-lift"
+                  "h-full rounded-card border border-zaltyko-mist dark:border-border bg-white dark:bg-card p-6 transition-all duration-200 hover:border-zaltyko-teal"
                 )}
               >
               {/* Icon */}

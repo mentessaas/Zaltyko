@@ -25,18 +25,19 @@ import { cn } from "@/lib/utils";
  */
 
 export const CHART_COLORS = {
-  teal: "#00796B",
-  electric: "#1FC7B6",
-  indigo: "#2B2E83",
-  coral: "#FF6B57",
-  slate: "#94A3B8",
+  // «Magnesio sobre tapiz»: series en azules del tapiz; coral solo alertas.
+  teal: "#1E3FA8",
+  electric: "#8FB4FF",
+  indigo: "#14307F",
+  coral: "#E5482A",
+  slate: "#8A93A8",
 } as const;
 
 export type ChartPoint = Record<string, string | number>;
 
 const axisProps = {
-  stroke: "hsl(215 20.2% 65.1%)",
-  fontSize: 11,
+  stroke: "hsl(var(--muted-foreground))",
+  fontSize: 12,
   tickLine: false,
   axisLine: false,
 } as const;
@@ -46,14 +47,14 @@ function ChartTooltip() {
     <Tooltip
       cursor={{ stroke: CHART_COLORS.electric, strokeOpacity: 0.3 }}
       contentStyle={{
-        backgroundColor: "hsl(222 47% 11%)",
-        border: "1px solid hsl(217.2 32.6% 17.5%)",
+        backgroundColor: "hsl(var(--popover))",
+        border: "1px solid hsl(var(--border))",
         borderRadius: 10,
-        color: "#F8FAFC",
+        color: "hsl(var(--popover-foreground))",
         fontSize: 12,
         padding: "8px 12px",
       }}
-      labelStyle={{ color: "hsl(210 40% 98%)", fontWeight: 600, marginBottom: 4 }}
+      labelStyle={{ color: "hsl(var(--popover-foreground))", fontWeight: 600, marginBottom: 4 }}
       itemStyle={{ padding: 0 }}
     />
   );
@@ -86,7 +87,7 @@ export function BrandLineChart({
     <div className={cn("w-full", className)} style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(215 20.2% 65.1%)" strokeOpacity={0.25} vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" strokeOpacity={0.25} vertical={false} />
           <XAxis dataKey={xKey} {...axisProps} />
           <YAxis {...axisProps} width={44} />
           {ChartTooltip()}
@@ -142,7 +143,7 @@ export function BrandBarChart({
     <div className={cn("w-full", className)} style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(215 20.2% 65.1%)" strokeOpacity={0.25} vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" strokeOpacity={0.25} vertical={false} />
           <XAxis dataKey={xKey} {...axisProps} />
           <YAxis {...axisProps} width={44} />
           {ChartTooltip()}
@@ -198,7 +199,7 @@ export function BrandAreaChart({
               <stop offset="100%" stopColor={areaColor} stopOpacity={0.02} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(215 20.2% 65.1%)" strokeOpacity={0.25} vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" strokeOpacity={0.25} vertical={false} />
           <XAxis dataKey={xKey} {...axisProps} />
           <YAxis {...axisProps} width={44} />
           {ChartTooltip()}

@@ -73,7 +73,7 @@ export function PlanComparison({ currentPlan = "free", onSelectPlan, loading = f
         <div className="w-full">
             {/* Header */}
             <div className="text-center mb-12">
-                <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-zaltyko-primary to-zaltyko-accent-teal bg-clip-text text-transparent">
+                <h2 className="text-4xl font-bold mb-4 text-mat-night">
                     Elige el plan perfecto para tu academia
                 </h2>
                 <p className="text-lg text-zaltyko-text-light max-w-2xl mx-auto">

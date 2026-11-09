@@ -1,13 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { CreditCard, AlertCircle, CheckCircle, Clock, ArrowRight, Loader2, Receipt } from "lucide-react";
+import { CreditCard, AlertCircle, CheckCircle, Clock, ArrowRight, Receipt } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FamilyPaymentMethodCard } from "@/components/billing/FamilyPaymentMethodCard";
-import { confirmScaChallenge, parseScaRecoveryDetails } from "@/lib/stripe/confirm-sca-client";
-import { waitForChargePaid } from "@/lib/billing/wait-for-charge-paid";
 import { formatMinorCurrency, getCurrencyForCountry } from "@/lib/currency";
 import { formatDateForCountry } from "@/lib/date-utils";
 import { useAcademyContext } from "@/hooks/use-academy-context";
@@ -36,62 +32,7 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
   const { academyCountry } = useAcademyContext();
   const defaultCurrency = getCurrencyForCountry(academyCountry);
   const [showAll, setShowAll] = useState(false);
-  const [payingId, setPayingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const router = useRouter();
-
-  const payCharge = async (chargeId: string) => {
-    setPayingId(chargeId);
-    setActionError(null);
-    try {
-      const res = await fetch(`/api/family/charges/${chargeId}/pay`, { method: "POST" });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        if (json.error === "NO_SAVED_CARD") {
-          setActionError("Añade una tarjeta para poder pagar.");
-        } else if (json.error === "REQUIRES_ACTION") {
-          // El banco pide 3DS: completamos el reto aquí mismo con el
-          // client_secret del PaymentIntent en vez de derivar a la app bancaria.
-          const sca = parseScaRecoveryDetails(json.details);
-          if (!sca) {
-            setActionError("Tu banco pide autenticación. Inténtalo desde tu app bancaria.");
-            return;
-          }
-          const confirmation = await confirmScaChallenge(sca);
-          if (!confirmation.ok) {
-            setActionError(confirmation.message);
-            return;
-          }
-          // El reto 3DS fue OK en Stripe, pero el webhook
-          // `payment_intent.succeeded` reconcilia la fila en DB con asincronía.
-          // Sondeamos el endpoint de status hasta `paid` (o 5s) y solo
-          // entonces refrescamos: si no, ganamos la carrera y la lista muestra
-          // el cargo aún en "Pago fallido".
-          await waitForChargePaid({
-            fetchStatus: async (signal) => {
-              const r = await fetch(`/api/family/charges/${chargeId}/status`, { signal });
-              if (!r.ok) return null;
-              const j = await r.json().catch(() => null);
-              const status = (j?.data?.status ?? null) as string | null;
-              return status ? { status } : null;
-            },
-          });
-          router.refresh();
-          return;
-        } else if (json.error === "CONNECT_NOT_READY") {
-          setActionError("La academia aún no tiene activados los pagos con tarjeta.");
-        } else {
-          setActionError("No se pudo completar el pago. Revisa tu tarjeta.");
-        }
-        return;
-      }
-      router.refresh();
-    } catch {
-      setActionError("Error de conexión al procesar el pago.");
-    } finally {
-      setPayingId(null);
-    }
-  };
 
   const openReceipt = async (chargeId: string) => {
     try {
@@ -115,7 +56,6 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
           <p className="mt-2 text-sm font-medium text-foreground">¡Todo al día!</p>
           <p className="text-xs text-muted-foreground">No tienes pagos pendientes</p>
         </div>
-        {academyId && <FamilyPaymentMethodCard academyId={academyId} />}
       </div>
     );
   }
@@ -263,7 +203,7 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
     <div className="space-y-4">
       {/* Resumen de pagos pendientes */}
       {pendingCharges.length > 0 && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-50/50 p-3 dark:bg-amber-950/30">
+        <div className="rounded-lg border border-amber-500/30 bg-amber-50/50 p-3 dark:bg-amber-950/30">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-amber-600" />
@@ -277,6 +217,10 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {pendingCharges.length} pago(s) pendientes
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Para acordar el pago, contacta directamente con tu academia.
+            Zaltyko no procesa pagos familiares con tarjeta.
           </p>
         </div>
       )}
@@ -325,23 +269,6 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
                   )}
                 </div>
               )}
-              {/* Acciones: pagar (pendiente/vencido/fallido) o recibo (pagado) */}
-              {academyId && PAYABLE_STATUSES.has(charge.status) && (
-                <div className="pl-8">
-                  <Button
-                    size="sm"
-                    onClick={() => payCharge(charge.id)}
-                    disabled={payingId === charge.id}
-                  >
-                    {payingId === charge.id ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <CreditCard className="mr-2 h-4 w-4" />
-                    )}
-                    Pagar ahora
-                  </Button>
-                </div>
-              )}
               {academyId && charge.status === "paid" && (
                 <div className="pl-8">
                   <Button variant="ghost" size="sm" onClick={() => openReceipt(charge.id)}>
@@ -355,8 +282,6 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
       </div>
 
       {actionError && <p className="text-sm text-red-600 dark:text-red-300" role="alert">{actionError}</p>}
-
-      {academyId && <FamilyPaymentMethodCard academyId={academyId} />}
 
       {/* Ver todos / ver menos */}
       {charges.length > 4 && (

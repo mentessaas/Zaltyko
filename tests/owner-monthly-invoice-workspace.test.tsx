@@ -154,6 +154,41 @@ function renderWorkspace(
 afterEach(cleanup);
 
 describe("OwnerMonthlyInvoiceWorkspace", () => {
+  it("explica la vigencia incompleta de la clase y bloquea la emisión", async () => {
+    const user = userEvent.setup();
+    const base = options();
+    const family = base.families[0]!;
+    const handlers = renderWorkspace({
+      options: options({
+        families: [
+          {
+            ...family,
+            blockingReasons: ["CLASS_PERIOD_INCOMPLETE"],
+            enrollments: family.enrollments.map((enrollment) => ({
+              ...enrollment,
+              billable: false,
+              blockingReasons: ["CLASS_PERIOD_INCOMPLETE"],
+            })),
+            lines: [],
+            totalAmountCents: 0,
+            canIssue: false,
+            quoteHash: null,
+          },
+        ],
+      }),
+    });
+
+    expect(
+      screen.getAllByText("La clase no está vigente durante todo este periodo.")
+        .length
+    ).toBeGreaterThan(0);
+    await user.selectOptions(screen.getByLabelText("Quién paga"), payerId);
+    expect(
+      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+    ).toBeDisabled();
+    expect(handlers.onIssue).not.toHaveBeenCalled();
+  });
+
   it("muestra una tarifa por gimnasta y clases cubiertas sin recalcular el total del servidor", () => {
     renderWorkspace();
 

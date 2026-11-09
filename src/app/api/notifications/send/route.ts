@@ -14,9 +14,9 @@ import { and, eq, or } from "drizzle-orm";
 
 const sendSchema = z.object({
   to: z.string().email(),
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   template: z.enum(["attendance-reminder", "payment-reminder", "event-invitation", "class-cancellation"]),
-  data: z.record(z.unknown()),
+  data: z.record(z.string(), z.unknown()),
 });
 
 export const POST = withTenant(async (request, context) => {
@@ -159,7 +159,7 @@ export const POST = withTenant(async (request, context) => {
   }
 
   try {
-    await sendEmailWithLogging({
+    const accepted = await sendEmailWithLogging({
       to,
       subject,
       html,
@@ -172,7 +172,8 @@ export const POST = withTenant(async (request, context) => {
       metadata: data,
     });
 
-    return apiSuccess({ ok: true });
+    // false covers preference/opt-out gates, dedupe and unconfirmed provider results.
+    return apiSuccess({ ok: accepted, sent: accepted });
   } catch (error: unknown) {
     logger.error("Error sending email:", error);
     return apiError("SEND_FAILED", "Error al enviar la notificación", 500);

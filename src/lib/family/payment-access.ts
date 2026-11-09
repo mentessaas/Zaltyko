@@ -13,6 +13,11 @@ export interface FamilyPaymentAccess {
   connectReady?: boolean;
 }
 
+export interface FamilyPaymentScope {
+  allowed: boolean;
+  reason?: string;
+}
+
 export interface FamilyChargeAccess {
   id: string;
   athleteId: string;
@@ -61,15 +66,8 @@ export async function resolveFamilyPaymentAccess(params: {
   email: string;
   academyId: string;
 }): Promise<FamilyPaymentAccess> {
-  const children = await getFamilyChildrenForUser({
-    userId: params.userId,
-    email: params.email,
-  });
-
-  const hasChildInAcademy = children.some((child) => child.academyId === params.academyId);
-  if (!hasChildInAcademy) {
-    return { allowed: false, reason: "NO_CHILD_IN_ACADEMY" };
-  }
+  const scope = await resolveFamilyPaymentScope(params);
+  if (!scope.allowed) return scope;
 
   const account = await getConnectAccount(params.academyId);
   if (!account) {
@@ -82,4 +80,22 @@ export async function resolveFamilyPaymentAccess(params: {
     tenantId: account.tenantId,
     connectReady: isConnectReady(account),
   };
+}
+
+/** Authorizes family membership without consulting academy Connect state. */
+export async function resolveFamilyPaymentScope(params: {
+  userId: string;
+  email: string;
+  academyId: string;
+}): Promise<FamilyPaymentScope> {
+  const children = await getFamilyChildrenForUser({
+    userId: params.userId,
+    email: params.email,
+  });
+
+  const hasChildInAcademy = children.some((child) => child.academyId === params.academyId);
+  if (!hasChildInAcademy) {
+    return { allowed: false, reason: "NO_CHILD_IN_ACADEMY" };
+  }
+  return { allowed: true };
 }

@@ -8,11 +8,13 @@ import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyGroupAccess } from "@/lib/permissions";
+import { withTransaction } from "@/lib/db-transactions";
+import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
 
 const BulkCreateChargesSchema = z.object({
-  academyId: z.string().uuid(),
-  groupId: z.string().uuid(),
-  billingItemId: z.string().uuid(),
+  academyId: z.guid(),
+  groupId: z.guid(),
+  billingItemId: z.guid(),
   period: z.string().regex(/^\d{4}-\d{2}$/), // Format: YYYY-MM
   dueDate: z.string().optional(), // ISO date string
 });
@@ -136,17 +138,26 @@ export const POST = withTenant(async (request, context) => {
       });
     }
 
-    await db
-      .insert(charges)
-      .values(newCharges)
-      // Respaldo de BD anti-doble-cargo (índice único academy/athlete/period):
-      // una carrera concurrente no duplica los cargos.
-      .onConflictDoNothing();
+    const insertedCharges = await withTransaction(async (tx) => {
+      await lockAcademyOperationalWrites(tx, body.academyId);
+      await assertAcademyOperationalWritable(context.tenantId!, body.academyId, tx);
+      return tx
+        .insert(charges)
+        .values(newCharges)
+        // Respaldo de BD anti-doble-cargo (índice único academy/athlete/period):
+        // una carrera concurrente no duplica los cargos.
+        .onConflictDoNothing()
+        .returning({ id: charges.id });
+    });
+
+    // La lectura previa no ve los cargos que gane otra petición concurrente.
+    const created = insertedCharges.length;
+    const skipped = existingAthleteIds.size + newCharges.length - created;
 
     return apiCreated({
-      message: `Created ${newCharges.length} charge(s)`,
-      created: newCharges.length,
-      skipped: existingCharges.length,
+      message: `Created ${created} charge(s)`,
+      created,
+      skipped,
     });
   } catch (error) {
     return handleApiError(error, {

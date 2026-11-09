@@ -10,7 +10,16 @@ source:
 ---
 # Mensajes aprobados
 
+## Alcance vigente de apertura — 2026-10-26
+
+Esta decisión humana prevalece para la primera entrega pública sobre el empaquetado histórico de abajo. España, español y EUR; Free, Starter y Growth autoservicio; Network acompañado. Precios base aprobados **sin IVA**: Starter19€/mes o190€/año; Growth49€/mes o490€/año, sin cambiar importes. La fiscalidad, identidad del vendedor, condiciones y buzón de soporte operativo deben cerrarse antes de cobrar. No se activa Stripe Tax ni se supone que el tipo general se aplique a cualquier cliente.
+
+La promesa se limita a gimnastas/familias, grupos/clases/inscripciones, asistencia, cuotas con pagos manuales y resumen persistido. Se retiran del lanzamiento Health Score, retención, informes avanzados, portal familiar, evaluaciones, automatizaciones e importación no verificada. No se prometen resultados, adopción, prioridad de soporte ni tiempos de puesta en marcha. La suscripción SaaS es independiente de las cuotas familiares. Código preparado en la rama de entrega; publicación y pruebas del nuevo commit pendientes.
+
+
 ## Promesa principal
+
+La entrada pública `/auth/register`, con o sin parámetros de rol, presenta únicamente la cuenta de dirección y creación de academia en esta apertura. No anuncia alta de proveedores, marketplace ni un portal familiar verificado. Se conserva el acceso de cuentas existentes y los contratos internos por rol; no se reclasifican usuarios. Corrección preparada el26oct, pendiente de CI y publicación del nuevo commit.
 
 Gestiona tu academia deportiva sin perder el foco en lo que importa: formar atletas.
 
@@ -113,3 +122,8 @@ Usar en entrevistas, demos manuales y documentos internos; no publicar como prom
 ## Regla
 
 Todo cambio de copy publico debe revisarse contra [[Inventario de producto]] y [[Pricing]].
+
+
+### Vendedor y precios — declaración humana26oct2026
+
+Promotor y futuro titular: Elvis Valdes Inerarte, España; no afirmar alta de autónomo hasta que sea efectiva. Correo oficial hola@zaltyko.com (recepción/respuesta pendiente de comprobación). Precios base sin IVA. Información legal aún en preparación y contratación Live cerrada; nunca publicar NIF/domicilio ficticios ni totales fiscales no confirmados.

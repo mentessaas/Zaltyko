@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MarketAccessRequestSchema } from "./market-access";
 
 export const PUBLIC_GROWTH_EVENT_NAMES = [
   "directory_viewed",
@@ -36,7 +37,7 @@ const safePropertyValue = z.union([
 ]);
 
 const safeProperties = z
-  .record(safePropertyValue)
+  .record(z.string(), safePropertyValue)
   .default({})
   .superRefine((properties, context) => {
     const entries = Object.entries(properties);
@@ -60,9 +61,9 @@ const safeProperties = z
 
 export const PublicGrowthEventSchema = z
   .object({
-    eventId: z.string().uuid(),
+    eventId: z.guid(),
     eventName: z.enum(PUBLIC_GROWTH_EVENT_NAMES),
-    visitorId: z.string().uuid(),
+    visitorId: z.guid(),
     planCode: z.enum(COMMERCIAL_PLAN_SLUGS).nullable().optional(),
     source: z
       .string()
@@ -86,8 +87,8 @@ export const LeadCaptureSchema = z
       .regex(/^[a-z0-9_-]+$/i)
       .default("landing_page"),
     plan: z.enum(COMMERCIAL_PLAN_SLUGS).nullable().optional(),
-    eventId: z.string().uuid().nullable().optional(),
-    visitorId: z.string().uuid().nullable().optional(),
+    eventId: z.guid().nullable().optional(),
+    visitorId: z.guid().nullable().optional(),
   })
   .strict();
 
@@ -105,11 +106,12 @@ export const ContactRequestSchema = z
         "support",
         "billing",
         "partnership",
+        "market_access",
         "other",
       ])
       .default("demo"),
     plan: z.enum(COMMERCIAL_PLAN_SLUGS).nullable().optional(),
-    visitorId: z.string().uuid(),
+    visitorId: z.guid(),
     source: z
       .string()
       .trim()
@@ -119,17 +121,26 @@ export const ContactRequestSchema = z
       .default("contact_form"),
     message: z.string().trim().min(10).max(2_000),
     honeypot: z.string().max(100).nullable().optional(),
-    directoryEntryId: z.string().uuid().optional(),
-    submissionId: z.string().uuid(),
+    directoryEntryId: z.guid().optional(),
+    submissionId: z.guid(),
+    marketAccess: MarketAccessRequestSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (value.reason === "market_access" && !value.marketAccess) {
+      context.addIssue({ code: "custom", path: ["marketAccess"], message: "Indica el país, tu función y las disciplinas del club" });
+    }
+    if (value.reason !== "market_access" && value.marketAccess) {
+      context.addIssue({ code: "custom", path: ["marketAccess"], message: "Los datos de acceso asistido requieren ese motivo de contacto" });
+    }
+  });
 
 const nullableShortText = z.string().trim().max(180).nullable().optional();
 const nullableLongText = z.string().trim().max(2_000).nullable().optional();
 
 export const CommercialInterviewInputSchema = z
   .object({
-    leadId: z.string().uuid().nullable().optional(),
+    leadId: z.guid().nullable().optional(),
     academyName: z.string().trim().min(2).max(140),
     contactName: nullableShortText,
     contactEmail: z.string().trim().email().max(254).nullable().optional(),

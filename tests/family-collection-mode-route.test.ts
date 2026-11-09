@@ -15,9 +15,9 @@ vi.mock("@/modules/billing/application/family-collection-preferences", () => ({
   saveFamilyCollectionPreference: vi.fn(),
 }));
 
-const userId = "10000000-0000-0000-0000-000000000101";
-const organizationId = "10000000-0000-0000-0000-000000000001";
-const familyId = "10000000-0000-0000-0000-000000000601";
+const userId = "10000000-0000-4000-8000-000000000101";
+const organizationId = "10000000-0000-4000-8000-000000000001";
+const familyId = "10000000-0000-4000-8000-000000000601";
 
 function putRequest(body: unknown, idempotencyKey = "family-preference-001") {
   return new Request(

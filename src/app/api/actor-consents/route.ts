@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { actorConsents, actorPages, athletes, guardianAthletes, guardians, profiles } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth/current-user";
 
-const pageIdSchema = z.string().uuid();
+const pageIdSchema = z.guid();
 
 async function isLinkedGuardian(actorPageId: string, userId: string) {
   const [link] = await db

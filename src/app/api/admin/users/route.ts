@@ -25,9 +25,9 @@ const profileRoles = [
 const InviteSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(320),
   role: z.enum(profileRoles),
-  tenantId: z.string().uuid().optional(),
-  academyIds: z.array(z.string().uuid()).max(50).optional(),
-  defaultAcademyId: z.string().uuid().optional(),
+  tenantId: z.guid().optional(),
+  academyIds: z.array(z.guid()).max(50).optional(),
+  defaultAcademyId: z.guid().optional(),
 });
 
 // Aplicar rate limiting: 20 requests por minuto para invitaciones
@@ -116,8 +116,9 @@ const handler = withTenant(async (request, context) => {
     const inviteUrl = new URL("/auth/invite", baseUrl);
     inviteUrl.searchParams.set("token", token);
 
+    let emailSent: boolean;
     try {
-      await sendEmailWithLogging({
+      emailSent = await sendEmailWithLogging({
         to: body.email,
         subject: `Invitación a ${config.appName}`,
         html: `
@@ -143,7 +144,7 @@ const handler = withTenant(async (request, context) => {
       return apiError("MAIL_ERROR", "Error al enviar el correo", 500);
     }
 
-    return apiSuccess({ ok: true });
+    return apiSuccess({ ok: true, emailSent });
   } catch (error) {
     return handleApiError(error);
   }

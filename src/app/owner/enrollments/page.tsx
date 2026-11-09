@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { OwnerEnrollmentsManager } from "@/components/owner-dashboard/OwnerEnrollmentsManager";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { createClient } from "@/lib/supabase/server";
 import { getOwnerEnrollmentsPageData } from "@/modules/enrollments/application/enrollment-query-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -17,8 +18,8 @@ export const metadata: Metadata = {
 };
 
 const querySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
   status: z
     .enum([
       "all",
@@ -83,9 +84,15 @@ export default async function OwnerEnrollmentsPage({
   }
 
   return (
-    <OwnerEnrollmentsManager
-      bundle={{ ...bundle, filterLocationId: query.data.locationId ?? null }}
-      selectedStatus={query.data.status}
-    />
+    <OwnerWorkspacePageShell
+      member={bundle.member}
+      organizationId={bundle.organization.id}
+      locationId={query.data.locationId ?? (bundle.member.locationScopeMode === "all" ? null : bundle.selectedLocationId)}
+    >
+      <OwnerEnrollmentsManager
+        bundle={{ ...bundle, filterLocationId: query.data.locationId ?? null }}
+        selectedStatus={query.data.status}
+      />
+    </OwnerWorkspacePageShell>
   );
 }

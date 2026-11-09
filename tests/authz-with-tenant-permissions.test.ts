@@ -71,6 +71,7 @@ vi.mock("@/lib/logger", () => ({
 }));
 
 import { assertSuperAdmin, withAuthenticatedNoTenant, withBearerTenant, withTenant } from "@/lib/authz";
+import { AppError } from "@/lib/errors";
 
 const handler = vi.fn(async () => new Response("ok", { status: 200 }));
 
@@ -133,6 +134,22 @@ describe("withTenant permission enforcement", () => {
     const response = await withTenant(handler)(request("academy-a"), {});
     expect(response.status).toBe(200);
     expect(handler).toHaveBeenCalledOnce();
+  });
+
+  it("returns the handler's AppError status instead of an unhandled 500", async () => {
+    Object.assign(mocks.profile, { role: "owner" });
+    Object.assign(mocks.effectivePermissions, { isOwner: true, source: "owner" });
+    const guardedHandler = vi.fn(async () => {
+      throw new AppError("La academia supera los límites", "PLAN_OVER_CAPACITY", 409);
+    });
+
+    const response = await withTenant(guardedHandler)(request("academy-a", "POST"), {});
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "PLAN_OVER_CAPACITY",
+      message: "La academia supera los límites",
+    });
   });
 
   it("denies an owner of academy A in academy B", async () => {

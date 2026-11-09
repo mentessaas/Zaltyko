@@ -10,7 +10,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiCreated, apiError } from "@/lib/api-response";
 
 const registerSchema = z.object({
-  profileId: z.string().uuid(),
+  profileId: z.guid(),
   notes: z.string().optional(),
 });
 

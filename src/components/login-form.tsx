@@ -81,6 +81,11 @@ export function LoginForm({
         description:
           "Inténtalo de nuevo. Si el enlace expiró, solicita uno nuevo.",
       },
+      callback_expired: {
+        title: "El acceso desde el correo ha caducado",
+        description:
+          "Inicia sesión con tu correo y contraseña para continuar. Si estabas recuperando la contraseña, solicita un nuevo enlace de recuperación.",
+      },
       consent_invalid: {
         title: "No pudimos confirmar tu aceptación",
         description:
@@ -339,8 +344,8 @@ export function LoginForm({
   return (
     <>
       <AuthPageShell
-        title="Bienvenido de nuevo"
-        description="Accede para gestionar atletas, clases, pagos y comunicación desde tu academia."
+        title="Hola de nuevo"
+        description="Entra para gestionar gimnastas, sesiones, cobros y comunicación de tu academia."
         footer={
           profileSetupRetry ? (
             "Tu cuenta ya está creada. Confirma tu sesión y continúa la configuración; no necesitas registrarte otra vez."
@@ -357,11 +362,11 @@ export function LoginForm({
           )
         }
         sideTitle="Todo tu equipo en el lugar correcto"
-        sideDescription="Zaltyko lleva a cada usuario a su espacio: dirección, entrenadores, familias o administración."
+        sideDescription="Zaltyko lleva a cada persona a su espacio: dirección, equipo técnico, familias o administración."
         highlights={[
           "Dirección y administración entran directamente al panel de la academia.",
-          "Entrenadores acceden a sus clases, atletas y tareas del día.",
-          "Familias y atletas ven solo la información que necesitan.",
+          "El equipo técnico entra a sus sesiones, gimnastas y tareas del día.",
+          "Familias y gimnastas ven solo la información que necesitan.",
         ]}
       >
         {profileSetupRetry && profileRecoveryReady ? (
@@ -377,7 +382,7 @@ export function LoginForm({
               configuración de tu academia. No necesitas registrarte otra vez.
             </p>
             {profileRecoveryError && (
-              <p role="alert" className="text-sm text-red-700">
+              <p role="alert" className="text-sm font-medium text-signal-ink">
                 {profileRecoveryError}
               </p>
             )}
@@ -396,8 +401,13 @@ export function LoginForm({
         ) : (
           <>
             {profileSetupRetry && profileRecoveryError && (
-              <p role="alert" className="mb-4 text-sm text-red-700">
+              <p role="alert" className="mb-4 text-sm font-medium text-signal-ink">
                 {profileRecoveryError}
+              </p>
+            )}
+            {searchParams.get("error") === "callback_expired" && (
+              <p role="status" className="mb-4 text-sm text-muted-foreground">
+                El acceso desde el correo ha caducado. Inicia sesión con tu correo y contraseña para continuar. Si estabas recuperando la contraseña, solicita un nuevo enlace de recuperación.
               </p>
             )}
             <form onSubmit={handleLogin} className="space-y-4">
@@ -413,7 +423,15 @@ export function LoginForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="password">Contraseña</Label>
+                  <Link
+                    href={`/auth/forgot-password?next=${encodeURIComponent(authFlowNextPath)}`}
+                    className="-my-3 inline-flex min-h-11 items-center rounded-sm text-sm font-semibold text-mat underline decoration-1 underline-offset-4 hover:decoration-2"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
                 <Input
                   id="password"
                   type="password"
@@ -423,14 +441,9 @@ export function LoginForm({
                   autoComplete="current-password"
                 />
               </div>
-              <Link
-                href={`/auth/forgot-password?next=${encodeURIComponent(authFlowNextPath)}`}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-md border-2 border-zaltyko-indigo/40 bg-zaltyko-indigo/10 px-4 text-sm font-semibold text-zaltyko-indigo underline decoration-1 underline-offset-4 transition-colors hover:bg-zaltyko-indigo/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-indigo focus-visible:ring-offset-2"
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
               <Button
                 type="submit"
+                size="lg"
                 className="w-full"
                 disabled={!isHydrated || loading}
               >
@@ -449,11 +462,17 @@ export function LoginForm({
               </Button>
             </form>
 
-            <div className="mt-4 flex flex-col gap-3">
+            <div className="my-6 flex items-center gap-4" aria-hidden>
+              <span className="h-px flex-1 bg-chalk-line" />
+              <span className="floor-label text-ramp-500">o continúa con</span>
+              <span className="h-px flex-1 bg-chalk-line" />
+            </div>
+
+            <div className="flex flex-col gap-3">
               <Button
                 onClick={handleMagicLink}
                 variant="outline"
-                className="w-full border-zaltyko-primary-dark text-zaltyko-primary-dark hover:bg-zaltyko-primary-dark hover:text-white"
+                className="w-full"
                 disabled={!isHydrated || magicLinkLoading || loading}
               >
                 {magicLinkLoading ? (

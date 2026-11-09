@@ -20,11 +20,12 @@ interface AthletesKanbanViewProps {
 const KANBAN_STATUSES: AthleteStatus[] = ["trial", "active", "inactive", "paused", "archived"];
 
 const STATUS_STYLES: Record<AthleteStatus, string> = {
-  trial: "border-zaltyko-indigo/30 bg-zaltyko-indigo/10",
-  active: "border-zaltyko-teal/30 bg-zaltyko-teal/10",
-  inactive: "border-border bg-muted/50",
-  paused: "border-amber-300/50 bg-amber-50",
-  archived: "border-slate-300 bg-slate-100",
+  // Dos tintas: los estados se distinguen por intensidad de azul y magnesio.
+  trial: "border-mat/20 bg-mat-wash",
+  active: "border-mat/30 bg-mat-wash",
+  inactive: "border-chalk-line bg-chalk-dust",
+  paused: "border-chalk-line bg-chalk-dust",
+  archived: "border-ramp-300 bg-chalk-dust",
 };
 
 export function AthletesKanbanView({
@@ -46,7 +47,7 @@ export function AthletesKanbanView({
             <section key={status} className={`min-h-[280px] rounded-2xl border p-3 ${STATUS_STYLES[status]}`}>
               <header className="mb-3 flex items-center justify-between gap-2">
                 <h2 className="text-sm font-bold text-foreground">{getAthleteStatusLabel(status)}</h2>
-                <span className="rounded-full bg-card px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                <span className="rounded-md bg-card px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                   {statusAthletes.length}
                 </span>
               </header>
@@ -90,13 +91,13 @@ export function AthletesKanbanView({
                         </div>
                       </div>
 
-                      <div className="mt-3 flex flex-wrap gap-1.5 text-[11px]">
+                      <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
                         {athlete.groupName && (
-                          <span className="rounded-full bg-muted px-2 py-1 font-medium text-muted-foreground">
+                          <span className="rounded-md bg-muted px-2 py-1 font-medium text-muted-foreground">
                             {athlete.groupName}
                           </span>
                         )}
-                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-muted-foreground">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground">
                           <Users className="h-3 w-3" />
                           {athlete.guardianCount ?? 0}
                         </span>

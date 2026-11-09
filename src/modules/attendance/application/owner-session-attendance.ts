@@ -14,13 +14,14 @@ import {
   sessions,
   staffProfiles,
 } from "@/db/zaltyko-schema";
+import { MAX_CLASS_CAPACITY } from "@/modules/scheduling/domain/class-capacity";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const scopeSchema = z.object({
-  userId: z.string().uuid(),
-  organizationId: z.string().uuid(),
-  locationId: z.string().uuid(),
-  sessionId: z.string().uuid(),
+  userId: z.guid(),
+  organizationId: z.guid(),
+  locationId: z.guid(),
+  sessionId: z.guid(),
 });
 
 const attendanceRoles = ["owner", "admin", "manager", "coach"] as const;
@@ -260,7 +261,7 @@ export async function loadOwnerSessionAttendanceRoster(
       )
     )
     .orderBy(people.familyName, people.givenName)
-    .limit(500);
+    .limit(MAX_CLASS_CAPACITY);
 
   return rows.map((row) => ({
     enrollmentId: row.enrollmentId,

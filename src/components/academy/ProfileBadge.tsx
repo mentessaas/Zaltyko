@@ -70,7 +70,7 @@ export function ProfileBadge({
                         >
                           <span className="truncate">{academy.name ?? "Sin nombre"}</span>
                           {isCurrent && (
-                            <span className="ml-2 shrink-0 text-[10px] font-semibold uppercase">
+                            <span className="ml-2 shrink-0 text-xs font-semibold uppercase">
                               Actual
                             </span>
                           )}

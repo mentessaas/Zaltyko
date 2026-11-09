@@ -7,46 +7,41 @@ import { cn } from "@/lib/utils";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { AppProviders } from "./providers";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { OfflineBanner } from "@/components/ui/offline-banner";
 import { UpdateBanner } from "@/components/ui/update-banner";
 import { InstallPrompt } from "@/components/ui/install-prompt";
+import { OptionalTelemetryBoundary } from "@/components/OptionalTelemetryBoundary";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { UtmCapture } from "@/components/growth/UtmCapture";
-import { GoogleAdsTracking } from "@/components/GoogleAdsTracking";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
-const spaceGrotesk = localFont({
-  src: [
-    { path: "../assets/fonts/space-grotesk-400.ttf", weight: "400", style: "normal" },
-    { path: "../assets/fonts/space-grotesk-500.ttf", weight: "500", style: "normal" },
-    { path: "../assets/fonts/space-grotesk-600.ttf", weight: "600", style: "normal" },
-    { path: "../assets/fonts/space-grotesk-700.ttf", weight: "700", style: "normal" },
-  ],
+// «Magnesio sobre tapiz»: una sola familia, Archivo (OFL, variable en peso y
+// anchura). Normal para texto e interfaz; condensada (font-stretch) para
+// titulares, como la rotulación de los paneles de competición. Se conservan
+// los nombres de variable CSS para no tocar el resto del sistema.
+const displayFont = localFont({
+  src: [{ path: "../assets/fonts/archivo-variable.ttf", weight: "100 900", style: "normal" }],
   display: "swap",
   variable: "--font-space-grotesk",
+  declarations: [{ prop: "font-stretch", value: "62% 125%" }],
 });
 
-// Body: Manrope (geométrica, distintiva). Se conserva el nombre de variable
-// CSS --font-inter para no tocar el resto del sistema de estilos.
 const bodyFont = localFont({
-  src: [
-    { path: "../assets/fonts/manrope-400.ttf", weight: "400", style: "normal" },
-    { path: "../assets/fonts/manrope-500.ttf", weight: "500", style: "normal" },
-    { path: "../assets/fonts/manrope-600.ttf", weight: "600", style: "normal" },
-    { path: "../assets/fonts/manrope-700.ttf", weight: "700", style: "normal" },
-  ],
+  src: [{ path: "../assets/fonts/archivo-variable.ttf", weight: "100 900", style: "normal" }],
   display: "swap",
   variable: "--font-inter",
+  declarations: [{ prop: "font-stretch", value: "62% 125%" }],
 });
+
+// La tesis de dirección visual vive en DESIGN.md («Contrato de dirección»);
+// no se incrusta en el HTML que reciben las academias.
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  themeColor: "#0F172A",
+  themeColor: "#14307F",
   viewportFit: "cover",
 };
 
@@ -137,7 +132,7 @@ export default async function RootLayout({
 }>) {
   // El nonce CSP se genera por request en middleware.ts y se expone vía el
   // header `x-nonce`. Sin propagarlo a `<html nonce>` y a los `<Script>` que
-  // metan scripts inline (Google Ads, etc.), el navegador bloquea el bundle
+  // metan scripts inline, el navegador bloquea el bundle
   // de hidratación de React porque el CSP no encuentra un nonce que matchear.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
@@ -169,29 +164,28 @@ export default async function RootLayout({
           <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
         )}
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#0F172A" />
+        <meta name="theme-color" content="#14307F" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
       <body
-        className={cn(bodyFont.variable, spaceGrotesk.variable, "font-sans antialiased")}
+        className={cn(bodyFont.variable, displayFont.variable, "font-sans antialiased")}
         suppressHydrationWarning
       >
-        <UtmCapture />
-        <OfflineBanner />
-        <UpdateBanner />
-        <InstallPrompt />
-        <GoogleAdsTracking nonce={nonce} />
-        <AppProviders nonce={nonce}>
-          <PostHogProvider>
-            {children}
-            <BottomNav />
-          </PostHogProvider>
-        </AppProviders>
-        <ServiceWorkerRegister />
-        <Analytics />
-        <SpeedInsights />
+        <OptionalTelemetryBoundary>
+          <UtmCapture />
+          <OfflineBanner />
+          <UpdateBanner />
+          <InstallPrompt />
+          <AppProviders nonce={nonce}>
+            <PostHogProvider>
+              {children}
+              <BottomNav />
+            </PostHogProvider>
+          </AppProviders>
+          <ServiceWorkerRegister />
+        </OptionalTelemetryBoundary>
       </body>
     </html>
   );

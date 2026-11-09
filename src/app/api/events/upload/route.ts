@@ -31,7 +31,7 @@ export const POST = withTenant(async (request, context) => {
     }
 
     if (eventId) {
-      const parsedEventId = z.string().uuid().safeParse(eventId);
+      const parsedEventId = z.guid().safeParse(eventId);
       if (!parsedEventId.success) {
         return apiError("INVALID_EVENT_ID", "El evento no es válido", 400);
       }

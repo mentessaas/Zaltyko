@@ -49,7 +49,7 @@ export function AcademySidebar() {
   const effectiveProfileRole = isProfileRole(context.profileRole) ? context.profileRole : "owner";
   const isLimitedMember = effectiveProfileRole === "athlete" || effectiveProfileRole === "parent";
   const isCoachMember = context.membershipRole === "coach" && !context.isSuperAdmin;
-  const searchPlaceholder = isCoachMember ? "Buscar mis atletas…" : "Buscar atletas…";
+  const searchPlaceholder = isCoachMember ? "Buscar mis gimnastas…" : "Buscar gimnastas…";
   const showSearch = !isLimitedMember;
 
   const handleSearch = (event: React.FormEvent) => {
@@ -63,67 +63,61 @@ export function AcademySidebar() {
   };
 
   return (
-    <aside className="hidden w-72 flex-col border-r border-white/10 bg-zaltyko-navy px-5 py-6 text-white lg:flex">
-      <div className="mb-5 rounded-[20px] border border-white/10 bg-gradient-to-br from-white/[0.12] to-white/[0.03] p-4 shadow-[0_20px_40px_-28px_rgba(0,0,0,0.8)]">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-teal-200/80">
-          Academia
-        </p>
-        <p className="mt-2 truncate font-display text-lg font-bold tracking-[-0.02em] text-white">
+    // Barra lateral «Magnesio sobre tapiz»: la zona de seguridad del tapiz.
+    // Estructura tomada de @ballmac/app-shell-1 (hallado con ui-indexador):
+    // academia arriba, acción principal, navegación agrupada con rótulos;
+    // el activo es un tramo de cinta blanca con texto azul.
+    <aside className="mat-field-deep hidden w-64 shrink-0 flex-col px-4 py-5 text-white lg:flex">
+      <div className="border-b-[3px] border-white px-2 pb-4">
+        <p className="font-display line-clamp-2 break-words text-2xl font-black uppercase leading-[0.95] text-white">
           {context.academyName}
         </p>
         {context.planNickname || context.planCode ? (
-          <p className="mt-1 text-xs text-white/75">
-            {getProductPlanPublicName(context.planCode, context.planNickname)}
+          <p className="floor-label mt-2 text-mat-lane">
+            Plan {getProductPlanPublicName(context.planCode, context.planNickname)}
           </p>
         ) : null}
       </div>
 
       {showSearch && (
-        <form onSubmit={handleSearch} className="mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/70" />
+        <form onSubmit={handleSearch} role="search" className="mt-4">
+          <label className="relative block">
+            <span className="sr-only">{searchPlaceholder}</span>
+            <Search aria-hidden className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/70" />
             <input
               type="search"
               placeholder={searchPlaceholder}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="w-full rounded-card border border-white/10 bg-white/[0.06] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/70 focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+              className="h-10 w-full rounded-md border border-white/15 bg-mat-night/35 pl-9 pr-3 text-sm text-white placeholder:text-white/65 focus:border-white focus:outline-none focus:ring-2 focus:ring-white/40"
             />
-          </div>
+          </label>
         </form>
       )}
 
       {canCreateAthlete && (
-      <div className="mb-5">
-        <Button
-          asChild
-          variant="outline"
-          size="sm"
-          className="min-h-10 w-full justify-center border-white/20 bg-white/[0.08] text-xs font-semibold text-white hover:bg-white/15"
+        <Link
+          href={`${basePath}/athletes/new`}
+          className="mt-3 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md bg-white text-sm font-bold text-mat-deep transition-colors hover:bg-chalk focus-visible:ring-white focus-visible:ring-offset-mat-deep"
         >
-          <Link href={`${basePath}/athletes/new`}>
-            <Plus className="mr-1 h-3 w-3" />
-            Nuevo atleta
-          </Link>
-        </Button>
-      </div>
+          <Plus aria-hidden className="h-4 w-4" />
+          Añadir gimnasta
+        </Link>
       )}
 
       {context.isSuperAdmin && (
-        <div className="mb-4">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full border-white/30 bg-white/[0.08] font-semibold text-white hover:bg-white/15"
-            onClick={() => router.push("/super-admin/academies")}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" strokeWidth={2} />
-            Volver a Super Admin
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-3 w-full border-white/30 bg-transparent font-semibold text-white hover:border-white hover:bg-white/10 hover:text-white"
+          onClick={() => router.push("/super-admin/academies")}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" strokeWidth={2} />
+          Volver a Super Admin
+        </Button>
       )}
 
-      <nav className="space-y-5 text-sm">
+      <nav aria-label="Academia" className="mt-6 space-y-6 text-sm">
         {[
           { label: "Operación", keys: ["dashboard", "athletes", "groups", "classes", "attendance-today", "events", "assessments"] },
           { label: "Relación", keys: ["messages", "announcements"] },
@@ -133,8 +127,8 @@ export function AcademySidebar() {
           if (sectionItems.length === 0) return null;
           return (
             <div key={section.label}>
-              <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/60">{section.label}</p>
-              <ul className="space-y-1">
+              <p className="floor-label mb-1.5 px-2 text-mat-lane">{section.label}</p>
+              <ul className="space-y-0.5">
                 {sectionItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
@@ -145,13 +139,13 @@ export function AcademySidebar() {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex min-h-11 items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm font-medium transition-colors",
+                    "flex min-h-10 items-center gap-3 rounded-md px-2.5 text-sm font-semibold transition-colors focus-visible:ring-white focus-visible:ring-offset-mat-deep",
                     active
-                      ? "border-white/20 bg-white/[0.12] text-white shadow-soft"
-                      : "text-white/75 hover:border-white/10 hover:bg-white/[0.06] hover:text-white"
+                      ? "bg-white text-mat-deep"
+                      : "text-white/80 hover:bg-white/10 hover:text-white"
                   )}
                 >
-                  <Icon className="h-5 w-5 shrink-0" strokeWidth={1.8} />
+                  <Icon aria-hidden className="h-[1.1rem] w-[1.1rem] shrink-0" strokeWidth={2} />
                   <span className="flex-1">{item.label}</span>
                 </Link>
                 </li>

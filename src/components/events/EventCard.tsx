@@ -92,7 +92,7 @@ export function EventCard({
               <EventStatusBadge status={event.status} />
             )}
             {event.isPublic && (
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-xs">
                 Público
               </Badge>
             )}

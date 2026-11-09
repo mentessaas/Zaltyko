@@ -17,7 +17,7 @@ import { verifyAcademyAccess } from "@/lib/permissions";
 // depth) Y en el servicio (segunda barrera). Si alguien cambia la constante,
 // el Zod cap también.
 const inviteBodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   emails: z
     .array(z.string().trim().min(3))
     .min(1, "Incluye al menos un email")

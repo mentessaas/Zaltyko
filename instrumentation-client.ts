@@ -1,4 +1,10 @@
+import { sentryPrivacyOptions } from "./src/lib/monitoring/sentry-privacy";
 import * as Sentry from "@sentry/nextjs";
+import { captureTeamInvitationFragment, discardTeamInvitationToken } from "./src/lib/auth/team-invitation-fragment";
+
+// The fragment is never sent in the HTTP request. Remove it before initializing
+// a browser SDK; this acceptance document does not initialize Sentry at all.
+const teamInvitationDocument = captureTeamInvitationFragment();
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
@@ -14,24 +20,16 @@ function tracesSampler(samplingContext: {
   return 0.1;
 }
 
-Sentry.init({
+if (!teamInvitationDocument) Sentry.init({
   dsn: SENTRY_DSN,
   tracesSampler,
   debug: false,
-  replaysOnErrorSampleRate: 1.0,
-  replaysSessionSampleRate: 0.05,
-  // El Session Replay de Sentry (rrweb) es lo que dominaba el chunk
-  // compartido por TODAS las páginas (134KB / ~442KB sin minificar,
-  // confirmado en el build) — se cargaba entero para el 100% de las
-  // visitas aunque solo graba al 5%. lazyLoadIntegration() lo separa en
-  // un chunk aparte que solo se descarga cuando realmente se activa.
+  ...sentryPrivacyOptions,
+  replaysOnErrorSampleRate: 0,
+  replaysSessionSampleRate: 0,
+  // No replay integration or replay envelopes in the launch candidate.
   integrations: [],
-  beforeSend(event) {
-    if (process.env.NODE_ENV === "development") {
-      return null;
-    }
-    return event;
-  },
+
   ignoreErrors: [
     "top.GLOBALS",
     "originalCreateNotification",
@@ -50,16 +48,24 @@ Sentry.init({
   ],
 });
 
-if (typeof window !== "undefined") {
-  Sentry.lazyLoadIntegration("replayIntegration").then((replayIntegration) => {
-    Sentry.addIntegration(
-      replayIntegration({
-        maskAllText: true,
-        blockAllMedia: true,
-      })
-    );
-  });
-}
+// Replay is not loaded until its collection and retention are separately reviewed.
 
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+export const onRouterTransitionStart: typeof Sentry.captureRouterTransitionStart = (...args) => {
+  // A new navigation cannot reuse a credential left by an unmounted/failed page.
+  // The document bootstrap-to-page handoff still works without navigation.
+  discardTeamInvitationToken();
+  // Next may announce the destination before updating window.location. Never
+  // forward an invitation destination (which may include its fragment) to SDKs.
+  try {
+    if (new URL(args[0], "https://zaltyko.invalid").pathname === "/staff/accept") {
+      captureTeamInvitationFragment();
+      return;
+    }
+  } catch {
+    return;
+  }
+  // Never recapture an abandoned source fragment while leaving the page.
+  if (typeof window !== "undefined" && window.location.pathname === "/staff/accept") return;
+  return Sentry.captureRouterTransitionStart(...args);
+};
 

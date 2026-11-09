@@ -10,13 +10,15 @@ describe("public mobile navigation contract", () => {
     expect(source).toContain('aria-label="Navegación principal"');
     expect(source).toContain('event.key === "Escape"');
     expect(source).toContain('document.body.style.overflow = "hidden"');
-    expect(source).toContain('bg-zaltyko-navy/25 backdrop-blur-[2px]');
+    // Velo del menú móvil en noche del sistema «Magnesio sobre tapiz».
+    expect(source).toContain('bg-mat-night/40 lg:hidden');
   });
 
   it("keeps the full navigation out of the tablet-width overlap zone", () => {
-    expect(source).toContain("shadow-soft lg:flex");
-    expect(source).toContain("hover:bg-zaltyko-warm-white");
+    // La navegación completa solo aparece desde lg; la barra es de tapiz.
+    expect(source).toContain("gap-1 lg:flex");
+    expect(source).toContain("hover:bg-white/10");
     expect(source).toContain("lg:hidden");
-    expect(source).not.toContain("shadow-soft md:flex");
+    expect(source).not.toContain("md:flex");
   });
 });

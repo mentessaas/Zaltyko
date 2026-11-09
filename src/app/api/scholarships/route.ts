@@ -11,8 +11,8 @@ import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 // `requiredDocuments` porque el form de creación de beca puede limpiar
 // esos campos (clear field). Antes, `null` → 400.
 const createSchema = z.object({
-  academyId: z.string().uuid(),
-  athleteId: z.string().uuid(),
+  academyId: z.guid(),
+  athleteId: z.guid(),
   name: z.string().min(1),
   description: z.string().nullable().optional(),
   discountType: z.enum(["percentage", "fixed"]).default("percentage"),

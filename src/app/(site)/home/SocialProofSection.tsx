@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, FileSpreadsheet, CreditCard, Users } from "lucide-react";
+import { Building2, Users, CreditCard } from "lucide-react";
 import Reveal from "@/components/motion/Reveal";
 
 // No hay todavía cifras de clientes que citar (ver LANDING-CRO.md). En vez de
@@ -14,19 +14,19 @@ const steps = [
     description: "Sedes, grupos y niveles por modalidad, en una puesta en marcha guiada.",
   },
   {
-    icon: FileSpreadsheet,
-    title: "Importas tus gimnastas",
-    description: "Desde Excel o CSV, sin migración manual gimnasta por gimnasta.",
+    icon: Users,
+    title: "Organizas gimnastas",
+    description: "Crea y mantén las fichas de tus gimnastas desde el panel de gestión.",
   },
   {
     icon: CreditCard,
-    title: "Activas cobros y horarios",
-    description: "Cuotas recurrentes y clases listas para pasar lista desde el móvil.",
+    title: "Registras cuotas y pagos",
+    description: "Emite cuotas por familia y registra los pagos manualmente; la asistencia se anota por sesión.",
   },
   {
     icon: Users,
-    title: "Sumas a tu equipo",
-    description: "Coaches y familias entran con acceso según su rol, sin permisos de más.",
+    title: "Gestionas la academia",
+    description: "Personal permite mantener perfiles sin acceso; la dirección gestiona clases y asistencia desde el panel de gestión. El acceso propio de entrenadores está en preparación.",
   },
 ];
 

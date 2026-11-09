@@ -11,12 +11,12 @@ import { and, eq } from "drizzle-orm";
 import { reportDateSchema, validateReportPeriod } from "@/lib/reports/query-schemas";
 
 const reportSchema = z.object({
-  academyId: z.string().uuid(),
-  athleteId: z.string().uuid(),
+  academyId: z.guid(),
+  athleteId: z.guid(),
   startDate: reportDateSchema,
   endDate: reportDateSchema,
-  skillId: z.string().uuid().optional(),
-  sportConfigId: z.string().uuid().optional(),
+  skillId: z.guid().optional(),
+  sportConfigId: z.guid().optional(),
   compare: z.enum(["true", "false"]).optional(),
 }).superRefine(validateReportPeriod);
 

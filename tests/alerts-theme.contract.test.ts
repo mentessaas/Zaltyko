@@ -7,7 +7,10 @@ describe("alerts widget theme contract", () => {
   it("keeps medium alerts and dismiss controls readable in dark mode", () => {
     expect(source).not.toContain("bg-amber-50/");
     expect(source).not.toContain("hover:bg-white");
-    expect(source).toContain("bg-amber-500/10");
+    // «Magnesio sobre tapiz» (2026-11-09): los avisos medios usan polvo de
+    // magnesio en claro y la superficie atenuada del tema en oscuro.
+    expect(source).toContain("dark:bg-muted");
+    expect(source).toContain("dark:bg-card");
     expect(source).toContain("hover:bg-muted");
   });
 });

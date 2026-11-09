@@ -34,7 +34,6 @@ import { SocialLinksEditor } from "@/components/settings/SocialLinksEditor";
 import { SportConfigurationDashboard } from "@/components/settings/SportConfigurationDashboard";
 import { SportLegacyMigrationAssistant } from "@/components/settings/SportLegacyMigrationAssistant";
 import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
-import { StripeConnectCard } from "@/components/billing/StripeConnectCard";
 import {
   DEFAULT_SETTINGS,
   DISCIPLINE_VARIANTS,
@@ -70,9 +69,8 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState(false);
 
   const [settings, setSettings] = useState<AcademySettings>(DEFAULT_SETTINGS);
-  // Al volver del onboarding de Stripe Connect (?connect=return|refresh) o con
-  // ?tab=billing, abrir directamente la pestaña de Cobros para que
-  // StripeConnectCard monte y dispare su refresco automático.
+  // Mantener los enlaces antiguos de Connect en la pestaña de cobros para
+  // mostrar allí el estado actual de disponibilidad.
   const initialTab =
     searchParams.get("connect") === "return" ||
     searchParams.get("connect") === "refresh" ||
@@ -559,10 +557,12 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-zaltyko-warm-white p-4 text-sm">
-                  <p className="font-medium text-foreground">Configuración técnica activa</p>
-                  <p className="mt-1 text-muted-foreground">
-                    {settings.federationConfigVersion} · estado {settings.specializationStatus}
+                <div className="border-y border-chalk-line py-4 text-sm">
+                  <p className="font-semibold text-mat-night">Configuración federativa</p>
+                  <p className="mt-1 text-ramp-600">
+                    {settings.specializationStatus === "legacy" || settings.federationConfigVersion.startsWith("legacy")
+                      ? "Usa la configuración inicial de Zaltyko para tu modalidad."
+                      : `Versión ${settings.federationConfigVersion}.`}
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
                     Si la academia ya opera con datos reales, cambiar disciplina o país debe tratarse como migración guiada.
@@ -573,7 +573,7 @@ export default function SettingsPage() {
                   <Label htmlFor="publicDescription">Descripción pública</Label>
                   <Textarea
                     id="publicDescription"
-                    value={settings.publicDescription}
+                    value={settings.publicDescription ?? ""}
                     onChange={(e) => updateSettings("publicDescription", e.target.value)}
                     placeholder="Describe tu academia para el directorio público..."
                     rows={4}
@@ -639,7 +639,16 @@ export default function SettingsPage() {
 
           {/* Billing Tab */}
           <TabsContent value="billing" className="mt-6 space-y-6">
-            {context?.academyId && <StripeConnectCard academyId={context.academyId} />}
+            <Card>
+              <CardHeader>
+                <CardTitle>Pagos familiares</CardTitle>
+                <CardDescription>
+                  Los cobros automáticos con tarjeta y Stripe Connect no están
+                  disponibles. Registra los pagos recibidos manualmente desde
+                  Cobros.
+                </CardDescription>
+              </CardHeader>
+            </Card>
 
             <Card>
               <CardHeader>
@@ -703,7 +712,7 @@ function TerminologyPreview({ terminology }: { terminology: Record<string, strin
 
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="text-xs font-medium text-muted-foreground">Listado</p>
-          <div className="mt-2 grid grid-cols-3 gap-1 text-[11px] text-muted-foreground">
+          <div className="mt-2 grid grid-cols-3 gap-1 text-xs text-muted-foreground">
             <span>{terms.athlete}</span>
             <span>{terms.group}</span>
             <span>{terms.apparatus}</span>

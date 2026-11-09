@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { organizationMembers } from "@/db/zaltyko-schema";
 import { OwnerSetupForm } from "@/components/owner-dashboard/OwnerSetupForm";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { isMissingCanonicalOwnerSchema } from "@/lib/auth/canonical-owner-schema";
 import { findLegacyAcademyMemberships } from "@/lib/auth/legacy-academy-access";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
@@ -33,21 +34,27 @@ export default async function OwnerSetupPage() {
     if (legacyHome.destination === "blocked") redirect(legacyHome.redirectUrl);
 
     return (
-      <main className="grid min-h-screen place-items-center bg-[#F1F3EF] px-5 py-12 text-slate-950">
-        <section className="w-full max-w-2xl border-t-4 border-amber-700 bg-white p-7 shadow-soft sm:p-10">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-800">
-            Cuenta vinculada
-          </p>
-          <h1 className="mt-3 text-4xl tracking-[-0.04em]">
-            No crearemos otra organización
-          </h1>
-          <p className="mt-4 max-w-xl leading-7 text-slate-600" role="alert">
-            Esta cuenta ya tiene una relación con una academia anterior. Para
-            conservar sus datos, solicita la vinculación o revisión de esa
-            academia antes de continuar.
-          </p>
-        </section>
-      </main>
+      <OwnerWorkspacePageShell
+        member={null}
+        organizationId={null}
+        locationId={null}
+      >
+        <main className="grid min-h-screen place-items-center bg-z-canvas px-5 py-12 text-z-ink">
+          <section className="w-full max-w-2xl border-t-4 border-amber-700 bg-white p-7 shadow-soft sm:p-10">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-800">
+              Cuenta vinculada
+            </p>
+            <h1 className="mt-3 text-4xl tracking-[-0.04em]">
+              No crearemos otra organización
+            </h1>
+            <p className="mt-4 max-w-xl leading-7 text-z-soft" role="alert">
+              Esta cuenta ya tiene una relación con una academia anterior. Para
+              conservar sus datos, solicita la vinculación o revisión de esa
+              academia antes de continuar.
+            </p>
+          </section>
+        </main>
+      </OwnerWorkspacePageShell>
     );
   }
 
@@ -82,18 +89,24 @@ export default async function OwnerSetupPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#F1F3EF] px-5 py-12 text-slate-950">
-      <section className="w-full max-w-2xl border-t-4 border-teal-800 bg-white p-7 shadow-soft sm:p-10">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
-          Tu academia
-        </p>
-        <h1 className="mt-3 text-4xl tracking-[-0.04em]">Crea tu academia</h1>
-        <p className="mt-4 max-w-xl leading-7 text-slate-600">
-          Indica el nombre, la sede y las actividades. Después podrás añadir
-          gimnastas, clases y cuotas.
-        </p>
-        <OwnerSetupForm contractualConsent={contractualConsent} />
-      </section>
-    </main>
+    <OwnerWorkspacePageShell
+      member={null}
+      organizationId={null}
+      locationId={null}
+    >
+      <main className="grid min-h-screen place-items-center bg-z-canvas px-5 py-12 text-z-ink">
+        <section className="w-full max-w-2xl rounded-xl border border-z-line bg-white p-7 sm:p-10">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
+            Tu academia
+          </p>
+          <h1 className="mt-3 text-4xl tracking-[-0.04em]">Crea tu academia</h1>
+          <p className="mt-4 max-w-xl leading-7 text-z-soft">
+            Indica el nombre, la sede y las actividades. Después podrás añadir
+            gimnastas, clases y cuotas.
+          </p>
+          <OwnerSetupForm contractualConsent={contractualConsent} ownerUserId={user.id} />
+        </section>
+      </main>
+    </OwnerWorkspacePageShell>
   );
 }

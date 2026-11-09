@@ -11,11 +11,11 @@ export default async function MarketplaceSuccessPage({
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>
         ¡Compra confirmada!
       </h1>
-      <p style={{ color: "#475569", marginBottom: 24, lineHeight: 1.5 }}>
+      <p style={{ color: "#3E4A66", marginBottom: 24, lineHeight: 1.5 }}>
         Tu pago se ha procesado. El vendedor ha sido notificado y se pondrá en
         contacto contigo para coordinar la entrega.
       </p>
-      <p style={{ color: "#94a3b8", fontSize: 13, marginBottom: 24 }}>
+      <p style={{ color: "#8A93A8", fontSize: 13, marginBottom: 24 }}>
         Pedido: {id.slice(0, 8)}
       </p>
       <Link
@@ -23,7 +23,7 @@ export default async function MarketplaceSuccessPage({
         style={{
           display: "inline-block",
           padding: "10px 16px",
-          background: "#0f172a",
+          background: "#0B1430",
           color: "white",
           borderRadius: 6,
           textDecoration: "none",

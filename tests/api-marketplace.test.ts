@@ -4,7 +4,7 @@
  * /marketplace/nuevo publica siempre vía POST /api/marketplace. Antes del
  * fix, la página montaba <MarketplaceForm /> sin pasar props, por lo que
  * `userId` y `sellerType` viajaban como `undefined` en el body. El schema
- * Zod exigía `userId: z.string().uuid()` y `sellerType` con default
+ * Zod exigía `userId: z.guid()` y `sellerType` con default
  * "external" en el form, así que:
  *
  *   - POST devolvía 400 VALIDATION_ERROR siempre (P0 real para el

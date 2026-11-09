@@ -14,16 +14,16 @@ import { replaceCoachSportConfigScope, validateSportConfigIdsForAcademy } from "
 // PR 10 (Operate P2): `.nullable().optional()` en campos que el form de coach
 // puede limpiar (clear field). Antes, `null` → 400.
 const bodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   name: z.string().trim().min(1).max(120),
   email: z.string().email().nullable().optional(),
   phone: z.string().nullable().optional(),
-  profileId: z.string().uuid().nullable().optional(),
-  sportConfigIds: z.array(z.string().uuid()).optional(),
+  profileId: z.guid().nullable().optional(),
+  sportConfigIds: z.array(z.guid()).optional(),
 });
 
 const querySchema = z.object({
-  academyId: z.string().uuid().optional(),
+  academyId: z.guid().optional(),
   includeAssignments: z
     .string()
     .transform((value) => value === "true" || value === "1")

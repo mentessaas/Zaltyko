@@ -89,7 +89,7 @@ export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage =
         const category = categoryConfig[ticket.category];
 
         return (
-          <Card key={ticket.id} className="hover:shadow-md transition-shadow">
+          <Card key={ticket.id} className=" transition-shadow">
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">

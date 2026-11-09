@@ -17,7 +17,7 @@ export interface OwnerScope {
     role: OrganizationMember["role"];
     locationScopeMode: OrganizationMember["locationScopeMode"];
   };
-  locations: Array<{ id: string; name: string }>;
+  locations: Array<{ id: string; name: string; timezone?: string | null }>;
   selectedLocationId: string | null;
   canViewOrganizationAggregate: boolean;
 }
@@ -90,7 +90,11 @@ export async function resolveOwnerScope(input: {
   }
 
   const allLocations = await db
-    .select({ id: locations.id, name: locations.name })
+    .select({
+      id: locations.id,
+      name: locations.name,
+      timezone: locations.timezone,
+    })
     .from(locations)
     .where(eq(locations.organizationId, membership.organizationId))
     .orderBy(asc(locations.name))
@@ -99,7 +103,11 @@ export async function resolveOwnerScope(input: {
     membership.locationScopeMode === "all"
       ? allLocations
       : await db
-          .select({ id: locations.id, name: locations.name })
+          .select({
+            id: locations.id,
+            name: locations.name,
+            timezone: locations.timezone,
+          })
           .from(memberLocationScopes)
           .innerJoin(
             locations,

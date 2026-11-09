@@ -1,179 +1,169 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { Menu, X, ArrowRight } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Menu, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+
+import { ZaltykoLockup } from "@/components/brand/ZaltykoMark";
 import { isPublicNavigationActive } from "@/lib/navigation/active";
 import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
 
 const links = [
-  { href: "/academias", label: "Academias" },
-  { href: "/events", label: "Eventos" },
-  { href: "/blog", label: "Blog" },
   { href: "/features", label: "Producto" },
   { href: "/pricing", label: "Precios" },
   { href: "/ayuda", label: "Ayuda" },
 ];
 
+/**
+ * Barra pública «Magnesio sobre tapiz»: la zona de seguridad azul oscuro
+ * que rodea el tapiz. El enlace activo lleva debajo un tramo de cinta blanca.
+ */
 export default function Navbar() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
-
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [mounted]);
-
-  useEffect(() => {
     if (!isMenuOpen) return;
-
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setIsMenuOpen(false);
     };
-    document.addEventListener("keydown", handleKeyDown);
-
+    document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", onKey);
     };
   }, [isMenuOpen]);
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-50">
+    <header className="fixed inset-x-0 top-0 z-50">
       <nav
+        aria-label="Navegación principal"
         className={cn(
-          "transition-all duration-300",
-          scrolled
-            ? "border-b border-zaltyko-border/50 bg-white/95 dark:border-border dark:bg-background/95 py-2 shadow-soft backdrop-blur-lg"
-            : "border-b border-transparent bg-white/80 dark:bg-background/80 py-3 backdrop-blur-md"
+          "mat-field-deep border-b border-white/10 transition-shadow duration-200",
+          scrolled && "shadow-[0_10px_24px_-18px_rgba(11,20,48,0.9)]"
         )}
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <Link href="/" className="group flex items-center gap-2.5">
-              <Image
-                src="/branding/zaltyko/logo-zaltyko.svg"
-                alt="Zaltyko"
-                width={200}
-                height={60}
-                className="transition-transform duration-150 group-hover:scale-[1.02]"
-                style={{ width: 132, height: "auto" }}
-                priority
-              />
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
+          <Link
+            href="/"
+            aria-label="Zaltyko, inicio"
+            className="rounded-sm text-white focus-visible:ring-white focus-visible:ring-offset-mat-deep"
+          >
+            <ZaltykoLockup markClassName="h-7 w-7" />
+          </Link>
+
+          <ul className="hidden items-stretch gap-1 lg:flex">
+            {links.map((link) => {
+              const active = isPublicNavigationActive(pathname, link.href);
+              return (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "relative inline-flex h-16 items-center px-3 text-sm font-semibold transition-colors focus-visible:ring-white focus-visible:ring-offset-mat-deep",
+                      active ? "text-white" : "text-white/75 hover:text-white"
+                    )}
+                  >
+                    {link.label}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute inset-x-3 bottom-0 h-[3px] bg-white transition-transform duration-200 ease-out",
+                        active ? "scale-x-100" : "scale-x-0"
+                      )}
+                    />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/auth/login"
+              className="hidden min-h-11 items-center rounded-md px-3 text-sm font-semibold text-white/85 transition-colors hover:text-white focus-visible:ring-white focus-visible:ring-offset-mat-deep sm:inline-flex"
+            >
+              Iniciar sesión
             </Link>
-
-            <div className="hidden items-center gap-2 rounded-2xl border border-zaltyko-mist/70 bg-white/80 dark:border-border dark:bg-card/80 px-2 py-1 shadow-soft lg:flex">
-              {links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  aria-current={isPublicNavigationActive(pathname, link.href) ? "page" : undefined}
-                  className={cn(
-                    "inline-flex min-h-10 items-center rounded-xl border border-transparent px-4 py-2 text-sm font-medium transition-colors",
-                    isPublicNavigationActive(pathname, link.href)
-                      ? "border-zaltyko-teal/20 bg-zaltyko-teal/10 text-zaltyko-teal"
-                      : "text-zaltyko-text-secondary dark:text-muted-foreground hover:bg-zaltyko-white dark:hover:bg-muted hover:text-zaltyko-teal"
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-4">
-              <Link
-                href="/auth/login"
-                className="hidden text-sm font-semibold text-zaltyko-navy dark:text-foreground transition-colors hover:text-zaltyko-teal sm:inline"
-              >
-                Iniciar sesión
-              </Link>
-              <Link
-                href="/auth/register?role=owner"
-                className={cn(
-                  buttonVariants({ variant: "default" }),
-                  "whitespace-nowrap rounded-full px-3 py-2 text-xs shadow-soft sm:px-5 sm:text-sm"
-                )}
-              >
-                <span className="sm:hidden">Crear cuenta</span>
-                <span className="hidden sm:inline">Crear cuenta gratis</span>
-                <ArrowRight className="ml-1.5 h-4 w-4" />
-              </Link>
-
-              <button
-                type="button"
-                onClick={() => setIsMenuOpen((prev) => !prev)}
-                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 text-zaltyko-text-secondary dark:text-muted-foreground hover:bg-zaltyko-warm-white dark:hover:bg-muted lg:hidden"
-                aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
-                aria-expanded={isMenuOpen}
-                aria-controls="public-mobile-menu"
-              >
-                {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </button>
-            </div>
+            <Link
+              href="/auth/register?role=owner"
+              className="inline-flex min-h-11 items-center whitespace-nowrap rounded-md bg-white px-4 text-sm font-bold text-mat-deep transition-colors hover:bg-chalk focus-visible:ring-white focus-visible:ring-offset-mat-deep"
+            >
+              <span className="sm:hidden">Crear cuenta</span>
+              <span className="hidden sm:inline">Crear cuenta gratis</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen((prev) => !prev)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-md text-white hover:bg-white/10 focus-visible:ring-white focus-visible:ring-offset-mat-deep lg:hidden"
+              aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
+              aria-expanded={isMenuOpen}
+              aria-controls="public-mobile-menu"
+            >
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
           </div>
         </div>
 
         {isMenuOpen && (
           <>
             <div
-              className="fixed inset-0 z-40 bg-zaltyko-navy/25 backdrop-blur-[2px] lg:hidden"
+              className="fixed inset-0 top-16 z-40 bg-mat-night/40 lg:hidden"
               aria-hidden="true"
               onClick={() => setIsMenuOpen(false)}
             />
             <div
               id="public-mobile-menu"
-              className="absolute left-0 right-0 top-full z-50 max-h-[calc(100dvh-5rem)] animate-in overflow-y-auto border-b border-zaltyko-mist dark:border-border bg-white dark:bg-card shadow-medium lg:hidden slide-in-from-top-5"
-              role="navigation"
-              aria-label="Navegación principal"
+              className="mat-field-deep absolute inset-x-0 top-full z-50 max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-white/10 px-4 pb-6 pt-2 lg:hidden"
             >
-            <div className="space-y-1 px-4 py-6">
-              {links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  aria-current={isPublicNavigationActive(pathname, link.href) ? "page" : undefined}
-                  className="block rounded-lg px-4 py-3 text-base font-medium text-zaltyko-text-secondary dark:text-muted-foreground hover:bg-zaltyko-warm-white dark:hover:bg-muted hover:text-zaltyko-teal"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <div className="mt-6 space-y-3 border-t border-zaltyko-mist pt-4">
-                <Link
-                  href="/auth/login"
-                  className="block w-full rounded-lg px-4 py-3 text-center text-base font-semibold text-zaltyko-navy hover:bg-zaltyko-warm-white"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Iniciar sesión
-                </Link>
+              <ul>
+                {links.map((link) => {
+                  const active = isPublicNavigationActive(pathname, link.href);
+                  return (
+                    <li key={link.href} className="border-b border-white/10">
+                      <Link
+                        href={link.href}
+                        aria-current={active ? "page" : undefined}
+                        onClick={() => setIsMenuOpen(false)}
+                        className={cn(
+                          "font-display flex min-h-14 items-center text-2xl font-bold uppercase tracking-[0.02em]",
+                          active ? "text-white" : "text-white/80"
+                        )}
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mt-6 grid gap-3">
                 <Link
                   href="/auth/register?role=owner"
-                  className={cn(
-                    buttonVariants({ variant: "default", size: "lg" }),
-                    "w-full justify-center"
-                  )}
                   onClick={() => setIsMenuOpen(false)}
+                  className="inline-flex min-h-12 items-center justify-center rounded-md bg-white text-base font-bold text-mat-deep"
                 >
                   Crear cuenta gratis
                 </Link>
+                <Link
+                  href="/auth/login"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="inline-flex min-h-12 items-center justify-center rounded-md border border-white/40 text-base font-semibold text-white"
+                >
+                  Iniciar sesión
+                </Link>
               </div>
-            </div>
             </div>
           </>
         )}

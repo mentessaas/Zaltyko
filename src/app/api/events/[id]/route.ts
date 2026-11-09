@@ -31,7 +31,7 @@ const UpdateEventSchema = z.object({
   isPublic: z.boolean().optional(),
   level: z.enum(EVENT_LEVELS).nullable().optional(),
   discipline: z.enum(EVENT_DISCIPLINES).nullable().optional(),
-  sportConfigId: z.string().uuid().nullable().optional(),
+  sportConfigId: z.guid().nullable().optional(),
   eventType: z.enum(["competitions", "courses", "camps", "workshops", "clinics", "evaluations", "other"]).nullable().optional(),
   competitionTypeCode: z.string().trim().min(1).max(80).nullable().optional(),
   startDate: z.string().nullable().optional(),
@@ -101,7 +101,7 @@ interface RouteContext {
 export async function GET(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    if (!z.string().uuid().safeParse(id).success) {
+    if (!z.guid().safeParse(id).success) {
       return apiError("INVALID_EVENT_ID", "Identificador de evento inválido", 400);
     }
 

@@ -134,7 +134,7 @@ function ClusterInterlinkingImpl({
                     className="flex items-center justify-between p-3 rounded-xl bg-muted cursor-not-allowed select-none"
                   >
                     <span className="text-muted-foreground font-medium">{item.label}</span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-background px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       <Clock className="h-3 w-3" />
                       {t.comingSoon}
                     </span>
@@ -173,7 +173,7 @@ function ClusterInterlinkingImpl({
                 <Clock className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <span className="mb-2 inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <span className="mb-2 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {t.comingSoon}
                 </span>
                 <p className="text-gray-700">{t.federationComingSoon}</p>

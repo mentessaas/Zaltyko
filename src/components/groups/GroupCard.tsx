@@ -32,13 +32,12 @@ export function GroupCard({ academyId, group, sportConfigLabel, onEdit }: GroupC
   const isStarterGroup = starterGroupNames.has(group.name);
 
   return (
-    <article className="group relative flex flex-col gap-4 overflow-hidden rounded-[22px] border border-border/80 bg-card p-5 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.5)] transition duration-200 hover:-translate-y-0.5 hover:border-zaltyko-teal/30 hover:shadow-[0_24px_52px_-32px_rgba(0,121,107,0.38)]">
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-zaltyko-teal/70 via-zaltyko-electric/70 to-zaltyko-indigo/60 opacity-60 transition-opacity group-hover:opacity-100" />
+    <article className="group relative flex flex-col gap-4 overflow-hidden rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-5 transition-colors duration-150 hover:border-t-mat">
       <header>
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold text-foreground">{group.name}</h3>
+          <h3 className="font-display text-2xl font-extrabold uppercase leading-tight text-mat-night">{group.name}</h3>
           {isStarterGroup && (
-            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+            <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
               Plantilla inicial
             </span>
           )}
@@ -47,7 +46,7 @@ export function GroupCard({ academyId, group, sportConfigLabel, onEdit }: GroupC
           {group.level ? `${specialization.labels.levelLabel}: ${group.level}` : specialization.labels.disciplineName}
         </p>
         {sportConfigLabel && (
-          <span className="mt-2 inline-flex rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+          <span className="mt-2 inline-flex rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground">
             {sportConfigLabel}
           </span>
         )}
@@ -67,7 +66,7 @@ export function GroupCard({ academyId, group, sportConfigLabel, onEdit }: GroupC
               {(group.apparatus ?? []).map((item) => (
                 <span
                   key={item}
-                  className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground"
+                  className="rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground"
                 >
                   {apparatusLabels[item] || item}
                 </span>
@@ -75,7 +74,7 @@ export function GroupCard({ academyId, group, sportConfigLabel, onEdit }: GroupC
               {(group.sessionBlocks ?? []).slice(0, 2).map((item) => (
                 <span
                   key={item}
-                  className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground"
+                  className="rounded-md bg-muted px-2.5 py-1 text-xs text-muted-foreground"
                 >
                   {item}
                 </span>
@@ -83,31 +82,42 @@ export function GroupCard({ academyId, group, sportConfigLabel, onEdit }: GroupC
             </div>
           </div>
         )}
-        <div className="flex items-center gap-4">
-          <span className="text-muted-foreground">
-            {group.athleteCount} {group.athleteCount === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()}
-          </span>
-          <span className="text-muted-foreground">·</span>
-          <span className="text-muted-foreground">Creado {createdAtDate}</span>
-        </div>
+        {/* Métricas en una fila de dos celdas (patrón de los bloques
+            stats de @blocks-so hallados con ui-indexador) en lugar de
+            repetir el recuento en el cuerpo y en una pastilla del pie. */}
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border">
+          <div className="bg-card px-3 py-2">
+            <dt className="text-xs text-muted-foreground">
+              {group.athleteCount === 1
+                ? specialization.labels.athleteSingular
+                : specialization.labels.athletesPlural}
+            </dt>
+            <dd className="font-display text-3xl font-black tabular-nums text-mat-night">{group.athleteCount}</dd>
+          </div>
+          <div className="bg-card px-3 py-2">
+            <dt className="text-xs capitalize text-muted-foreground">
+              {coachCount === 1 ? specialization.labels.coachLabel.toLowerCase() : coachLabelPlural}
+            </dt>
+            <dd className="font-display text-3xl font-black tabular-nums text-mat-night">{coachCount}</dd>
+          </div>
+        </dl>
       </div>
 
-      <footer className="mt-auto flex items-center justify-between gap-4 border-t border-border pt-4">
-        <span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-          {coachCount} {coachCount === 1 ? specialization.labels.coachLabel.toLowerCase() : coachLabelPlural} · {group.athleteCount} {group.athleteCount === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()}
-        </span>
-        <div className="flex items-center gap-3">
+      <footer className="mt-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border pt-4">
+        <span className="whitespace-nowrap text-xs text-muted-foreground">Creado {createdAtDate}</span>
+        <div className="flex items-center gap-1">
           {onEdit && (
             <button
+              type="button"
               onClick={() => onEdit(group)}
-              className="text-sm font-semibold text-primary hover:underline"
+              className="min-h-9 whitespace-nowrap rounded-lg px-3 text-sm font-semibold text-primary hover:bg-primary/10"
             >
               Editar
             </button>
           )}
           <Link
             href={`/app/${academyId}/groups/${group.id}`}
-            className="text-sm font-semibold text-primary hover:underline"
+            className="inline-flex min-h-9 items-center whitespace-nowrap rounded-lg px-3 text-sm font-semibold text-primary hover:bg-primary/10"
           >
             Ver grupo
           </Link>

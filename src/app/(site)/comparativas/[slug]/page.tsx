@@ -146,7 +146,7 @@ export default async function ComparisonDetailPage({ params }: PageProps) {
                     </th>
                     <th className="px-4 py-4 text-center text-sm font-bold bg-zaltyko-teal text-white">
                       <span className="block">Zaltyko</span>
-                      <span className="text-[11px] font-medium">Especializado</span>
+                      <span className="text-xs font-medium">Especializado</span>
                     </th>
                     <th className="px-4 py-4 text-center text-sm font-semibold text-muted-foreground border-b border-border">
                       {content.competitor.name}

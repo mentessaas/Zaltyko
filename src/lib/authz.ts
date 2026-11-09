@@ -18,6 +18,7 @@ import {
   LoginDisabledError,
 } from "./authz/errors";
 import { logger } from "@/lib/logger";
+import { handleApiError } from "@/lib/api-error-handler";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import {
@@ -311,7 +312,7 @@ export function withTenant<Ctx extends Record<string, unknown>>(
         return tenantRateLimitResponse;
       }
 
-      return handler(request, {
+      return await handler(request, {
         ...contextWithParams,
         tenantId: handlerTenantId,
         userId,
@@ -347,14 +348,10 @@ export function withTenant<Ctx extends Record<string, unknown>>(
         );
       }
 
-      logger.error("Error in withTenant", error);
-      return NextResponse.json(
-        {
-          error: "INTERNAL_ERROR",
-          message: "Error interno del servidor",
-        },
-        { status: 500 }
-      );
+      return handleApiError(error, {
+        endpoint: new URL(request.url).pathname,
+        method: request.method,
+      });
     }
   };
 }

@@ -1,266 +1,235 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Shield, Clock, Globe2 } from "lucide-react";
 import Link from "next/link";
 
 import { PricingPageTracker } from "@/components/growth/PricingPageTracker";
 import { TrackedPlanLink } from "@/components/growth/TrackedPlanLink";
-import Reveal from "@/components/motion/Reveal";
 import type { CommercialPlanSlug } from "@/lib/growth/contracts";
 import { PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
+import { cn } from "@/lib/utils";
 
-type Plan = {
-  title: string;
-  price: string;
-  priceEurCents: number;
-  description: string;
-  cta: string;
-  highlight: boolean;
-  features: string[];
-  ctaHref: string;
-  planCode: CommercialPlanSlug;
-  annualPriceEurCents?: number;
-};
+/**
+ * Precios «Magnesio sobre tapiz»: cabecera en tapiz, y debajo una tabla
+ * reglada de cuatro columnas sobre magnesio, como una hoja de inscripción.
+ * El plan destacado lleva el campo azul; el resto, solo línea. Todas las
+ * cifras salen del catálogo; nada se escribe a mano.
+ */
 
-const plans: Plan[] = PRODUCT_PLANS.map((plan) => ({
-  title: plan.publicName,
-  price:
-    plan.priceEurCents === 0
-      ? "Incluido"
-      : `${formatPlanAmount(plan.priceEurCents)}/mes`,
-  priceEurCents: plan.priceEurCents,
-  description: plan.description,
-  cta: plan.cta,
-  highlight: Boolean(plan.highlight),
-  features: plan.features,
-  ctaHref: plan.ctaHref,
-  planCode:
-    plan.code === "pro"
-      ? "starter"
-      : plan.code === "premium"
-        ? "growth"
-        : plan.code,
-  annualPriceEurCents: plan.annualPriceEurCents,
+const plans = PRODUCT_PLANS.map((plan) => ({
+  ...plan,
+  planCode: (plan.code === "pro" ? "starter" : plan.code === "premium" ? "growth" : plan.code) as CommercialPlanSlug,
 }));
 
-const euroAmountExact = new Intl.NumberFormat("es-ES", {
+const euroExact = new Intl.NumberFormat("es-ES", {
   style: "currency",
   currency: "EUR",
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
 
-const commonBenefits = [
-  {
-    icon: Shield,
-    title: "Aislamiento por academia",
-    description: "Controles de acceso y separación de datos por academia.",
-  },
-  {
-    icon: Clock,
-    title: "Puesta en marcha guiada",
-    description:
-      "Un recorrido paso a paso para configurar la operación principal.",
-  },
-  {
-    icon: Globe2,
-    title: "Especializado en gimnasia",
-    description: "Terminología y flujos para gimnasia artística y rítmica.",
-  },
+const LIMIT_ROWS: { label: string; get: (p: (typeof plans)[number]) => string }[] = [
+  { label: "Gimnastas", get: (p) => (p.athleteLimit === null ? "Ilimitadas" : `Hasta ${p.athleteLimit}`) },
+  { label: "Grupos", get: (p) => (p.groupLimit === null ? "Ilimitados" : String(p.groupLimit)) },
+  { label: "Clases activas", get: (p) => (p.classLimit === null ? "Ilimitadas" : String(p.classLimit)) },
+  { label: "Academias", get: (p) => (p.academyLimit === null ? "Multi-sede" : String(p.academyLimit)) },
 ];
 
-export default function PricingSection() {
-  const [billingInterval, setBillingInterval] = useState<"month" | "year">(
-    "month"
-  );
+const PROMISES = [
+  { title: "Aislamiento por academia", text: "Controles de acceso por rol y separación de datos entre academias." },
+  { title: "Puesta en marcha guiada", text: "Un recorrido paso a paso para configurar la operación principal." },
+  { title: "Solo gimnasia", text: "Terminología y flujos de gimnasia artística y rítmica." },
+];
+
+export default function PricingSection({ paidCheckoutOpen = false }: { paidCheckoutOpen?: boolean } = {}) {
+  const [interval, setBilling] = useState<"month" | "year">("month");
 
   return (
-    <section id="planes" className="py-20">
+    <div id="planes">
       <PricingPageTracker />
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        {/* Trial banner */}
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-zaltyko-teal/25 bg-zaltyko-teal/10 px-5 py-2 text-sm font-medium text-zaltyko-navy">
-            7 días de Starter sin tarjeta · una activación por academia cada 12
-            meses
-          </div>
-        </div>
 
-        <Reveal>
-          <div className="text-center">
-            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">
-              Planes
-            </span>
-            <h1 className="mt-4 font-display text-3xl font-semibold text-foreground sm:text-4xl">
-              Planes pensados por etapa de academia
-            </h1>
-            <p className="mt-3 font-sans text-base text-muted-foreground">
-              No vendemos módulos sueltos: vendemos dirección diaria, cobros
-              claros y seguimiento técnico para gimnasia artística y rítmica.
-            </p>
-            <p className="mt-2 font-sans text-sm text-muted-foreground">
-              Empieza gratis y configura tu academia. Desde Facturación puedes
-              activar 7 días de Starter sin tarjeta y, después, elegir Starter o
-              Growth con pago mensual o anual. La prueba no genera cargos
-              automáticos.
-            </p>
-          </div>
-        </Reveal>
-
-        <div className="mt-8 flex flex-col items-center gap-3">
-          <div
-            className="inline-flex rounded-full border border-border bg-muted/60 p-1"
-            role="group"
-            aria-label="Periodicidad de precios"
+      <section aria-labelledby="pricing-title" className="mat-field relative overflow-hidden">
+        <div aria-hidden className="pointer-events-none absolute inset-x-3 bottom-0 top-3 border-x-[3px] border-t-[3px] border-white/80 sm:inset-x-6 sm:top-6" />
+        <div className="relative mx-auto max-w-7xl px-8 pb-14 pt-16 sm:px-14 lg:pb-16 lg:pt-20">
+          <h1
+            id="pricing-title"
+            className="font-display max-w-4xl text-[clamp(2.75rem,7vw,5.5rem)] font-black uppercase leading-[0.9] text-white"
           >
-            <button
-              type="button"
-              aria-pressed={billingInterval === "month"}
-              onClick={() => setBillingInterval("month")}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                billingInterval === "month"
-                  ? "bg-zaltyko-teal text-white shadow-soft"
-                  : "text-foreground hover:bg-background"
-              }`}
-            >
-              Mensual
-            </button>
-            <button
-              type="button"
-              aria-pressed={billingInterval === "year"}
-              onClick={() => setBillingInterval("year")}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                billingInterval === "year"
-                  ? "bg-zaltyko-teal text-white shadow-soft"
-                  : "text-foreground hover:bg-background"
-              }`}
-            >
-              Anual · ahorra 2 meses
-            </button>
-          </div>
-          <p className="text-center font-sans text-sm text-muted-foreground">
-            {billingInterval === "year"
-              ? "Importe anual cobrado de una vez. Elige esta modalidad al contratar desde Facturación."
-              : "Sin permanencia. Puedes cambiar a pago anual desde Facturación."}
-          </p>
-        </div>
-
-        <div className="mt-8 grid items-center gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {plans.map((plan, index) => (
-            <Reveal key={plan.title} delay={index * 80} className="h-full">
-              <article
-                className={`flex h-full flex-col rounded-card border bg-card p-8 transition-all duration-200 hover:-translate-y-1.5 hover:shadow-lift ${
-                  plan.highlight
-                    ? "border-zaltyko-mist border-b-[3px] border-b-zaltyko-teal"
-                    : "border-zaltyko-mist"
-                }`}
-              >
-                <div className="mb-2 flex items-baseline justify-between">
-                  <h3 className="font-display text-xl font-semibold text-foreground">
-                    {plan.title}
-                  </h3>
-                  {plan.highlight && (
-                    <span className="text-xs font-semibold uppercase tracking-[0.06em] text-zaltyko-teal">
-                      Más elegido
-                    </span>
-                  )}
-                </div>
-                <div className="mt-1">
-                  {billingInterval === "year" && plan.annualPriceEurCents ? (
-                    <>
-                      <p className="font-display text-3xl font-bold tabular-nums text-foreground">
-                        {formatPlanAmount(plan.annualPriceEurCents)}
-                        <span className="text-base font-medium">/año</span>
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {euroAmountExact.format(
-                          plan.annualPriceEurCents / 12 / 100
-                        )}
-                        /mes equivalente · ahorras{" "}
-                        {formatPlanAmount(plan.priceEurCents * 2)}/año
-                      </p>
-                    </>
-                  ) : (
-                    <p className="font-display text-3xl font-bold tabular-nums text-foreground">
-                      {plan.price}
-                    </p>
-                  )}
-                  {billingInterval === "year" &&
-                    plan.planCode === "network" && (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Periodicidad a confirmar en la propuesta multi-sede.
-                      </p>
-                    )}
-                </div>
-                <p className="mt-2 font-sans text-sm text-muted-foreground">
-                  {plan.description}
-                </p>
-
-                <ul className="mt-6 space-y-3 font-sans text-sm text-foreground">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 text-zaltyko-teal" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <TrackedPlanLink
-                  href={plan.ctaHref}
-                  planCode={plan.planCode}
-                  className={`mt-8 inline-flex min-h-11 items-center justify-center rounded-full px-6 py-2 text-sm font-semibold transition ${
-                    plan.highlight
-                      ? "bg-zaltyko-teal text-white hover:bg-zaltyko-primary-dark"
-                      : "border border-zaltyko-mist text-foreground hover:bg-muted"
-                  }`}
-                >
-                  {plan.cta}
-                </TrackedPlanLink>
-              </article>
-            </Reveal>
-          ))}
-        </div>
-
-        <div className="mt-16 grid gap-6 md:grid-cols-3">
-          {commonBenefits.map((benefit, index) => {
-            const Icon = benefit.icon;
-            return (
-              <Reveal key={benefit.title} delay={index * 90}>
-                <article className="h-full rounded-3xl border border-border bg-card p-6 shadow-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zaltyko-accent/20 text-zaltyko-accent">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-4 font-display text-lg font-semibold text-foreground">
-                    {benefit.title}
-                  </h3>
-                  <p className="mt-2 font-sans text-sm text-muted-foreground">
-                    {benefit.description}
-                  </p>
-                </article>
-              </Reveal>
-            );
-          })}
-        </div>
-
-        <Reveal>
-          <div className="mt-16 rounded-3xl border border-border bg-muted/50 p-8 text-center">
-            <h3 className="font-display text-2xl font-semibold text-foreground">
-              ¿Necesitas migrar datos o coordinar varias sedes?
-            </h3>
-            <p className="mt-3 font-sans text-sm text-slate-600">
-              Empieza por tu cuenta. Si necesitas importar datos complejos o
-              coordinar varias sedes, podemos orientarte por email.
+            Un plan por etapa de academia
+          </h1>
+          <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <p className="max-w-2xl text-lg leading-relaxed text-white/85">
+              Organiza gimnastas, grupos, asistencia y cuotas con registro manual de pagos para gimnasia
+              artística y rítmica. Empieza gratis y configura tu academia. Desde Facturación puedes activar
+              7 días de Starter sin tarjeta (una activación por academia cada 12 meses) y después elegir
+              Starter o Growth con pago mensual o anual. La prueba no genera cargos automáticos. Precios sin IVA.
             </p>
+
+            <fieldset aria-label="Periodicidad de precios">
+              <legend className="sr-only">Periodicidad de precios</legend>
+              <div className="relative inline-grid grid-cols-2 rounded-md bg-mat-night/40 p-1">
+                <span
+                  aria-hidden
+                  className={cn(
+                    "pointer-events-none absolute bottom-1 top-1 rounded-sm bg-white transition-transform duration-200 ease-out motion-reduce:transition-none",
+                    interval === "year" && "translate-x-full"
+                  )}
+                  style={{ left: "4px", width: "calc(50% - 4px)" }}
+                />
+                {(
+                  [
+                    ["month", "Mensual"],
+                    ["year", "Anual · ahorra 2 meses"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label
+                    key={value}
+                    className="relative z-10 cursor-pointer whitespace-nowrap rounded-sm px-4 py-2.5 text-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-white"
+                  >
+                    <input
+                      type="radio"
+                      name="billing-interval"
+                      value={value}
+                      checked={interval === value}
+                      onChange={() => setBilling(value)}
+                      className="sr-only"
+                    />
+                    <span className={cn("text-sm font-bold transition-colors", interval === value ? "text-mat-deep" : "text-white")}>
+                      {label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        </div>
+      </section>
+
+      <section aria-label="Planes" className="chalk-field">
+        <div className="mx-auto max-w-7xl px-6 py-14 sm:px-10 lg:px-14 lg:py-20">
+          <ul className="grid overflow-hidden rounded-lg border border-chalk-line bg-white md:grid-cols-2 xl:grid-cols-4">
+            {plans.map((plan, i) => {
+              const yearly = interval === "year" && plan.annualPriceEurCents;
+              return (
+                <li
+                  key={plan.code}
+                  className={cn(
+                    "flex flex-col border-chalk-line",
+                    i > 0 && "border-t md:border-t-0",
+                    i % 2 === 1 && "md:border-l",
+                    i >= 2 && "md:border-t xl:border-t-0",
+                    i > 0 && "xl:border-l",
+                    plan.highlight && "mat-field text-white"
+                  )}
+                >
+                  <div className="flex flex-1 flex-col p-6 lg:p-7">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className={cn("font-display text-3xl font-black uppercase", plan.highlight ? "text-white" : "text-mat-night")}>
+                        {plan.publicName}
+                      </h2>
+                      {plan.highlight && (
+                        <span className="floor-label rounded-sm bg-white px-2 py-1 text-mat-deep">Más capacidad</span>
+                      )}
+                    </div>
+
+                    <div className="mt-5 min-h-[5.5rem]">
+                      <p className={cn("font-display tabular text-5xl font-black leading-none", plan.highlight ? "text-white" : "text-mat")}>
+                        {plan.code === "network" && !yearly ? (
+                          <span className={cn("mr-1.5 text-lg font-bold", plan.highlight ? "text-white/80" : "text-ramp-500")}>desde</span>
+                        ) : null}
+                        {plan.priceEurCents === 0
+                          ? "0 €"
+                          : yearly
+                            ? formatPlanAmount(plan.annualPriceEurCents!)
+                            : formatPlanAmount(plan.priceEurCents)}
+                        <span className={cn("ml-1 text-lg font-bold", plan.highlight ? "text-white/80" : "text-ramp-500")}>
+                          {plan.priceEurCents === 0 ? "" : yearly ? "/año" : "/mes"}
+                        </span>
+                      </p>
+                      <p className={cn("mt-2 text-sm", plan.highlight ? "text-white/85" : "text-ramp-600")}>
+                        {yearly
+                          ? `${euroExact.format(plan.annualPriceEurCents! / 1200)}/mes equivalente · ahorras ${formatPlanAmount(plan.priceEurCents * 2)}`
+                          : interval === "year" && plan.code === "network"
+                            ? "Periodicidad a confirmar en la propuesta multi-sede."
+                            : plan.description}
+                      </p>
+                    </div>
+
+                    <dl className={cn("mt-6 border-t-[3px]", plan.highlight ? "border-white" : "border-mat-night")}>
+                      {LIMIT_ROWS.map((row) => (
+                        <div
+                          key={row.label}
+                          className={cn("flex items-baseline justify-between gap-3 border-b py-2.5 text-sm", plan.highlight ? "border-white/20" : "border-chalk-line")}
+                        >
+                          <dt className={plan.highlight ? "text-white/80" : "text-ramp-600"}>{row.label}</dt>
+                          <dd className="tabular font-bold">{row.get(plan)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+
+                    <ul className={cn("mt-5 space-y-2.5 text-sm leading-relaxed", plan.highlight ? "text-white/90" : "text-ramp-600")}>
+                      {plan.features.map((f) => (
+                        <li key={f} className="flex gap-2.5">
+                          <span aria-hidden className={cn("mt-2 h-1.5 w-3 shrink-0", plan.highlight ? "bg-white" : "bg-mat")} />
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="p-6 pt-0 lg:p-7 lg:pt-0">
+                    <TrackedPlanLink
+                      href={plan.ctaHref}
+                      planCode={plan.planCode}
+                      className={cn(
+                        "inline-flex min-h-12 w-full items-center justify-center whitespace-nowrap rounded-md px-5 text-sm font-extrabold transition-colors",
+                        plan.highlight
+                          ? "bg-white text-mat-deep hover:bg-chalk focus-visible:ring-white focus-visible:ring-offset-mat"
+                          : "border-2 border-mat-night text-mat-night hover:bg-mat-night hover:text-white"
+                      )}
+                    >
+                      {plan.cta}
+                    </TrackedPlanLink>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          <p className="mt-5 text-sm text-ramp-600">
+            {!paidCheckoutOpen
+              ? "Durante la apertura, las academias fundadoras usan Starter o Growth sin coste. La contratación con pago se abrirá al cerrar la facturación, con estos precios."
+              : interval === "year"
+                ? "Importe anual cobrado de una vez. Elige esta modalidad al contratar desde Facturación."
+                : "Sin permanencia. Puedes cambiar a pago anual desde Facturación."}
+          </p>
+
+          <div className="mt-16 grid gap-10 border-t-[3px] border-mat-night pt-8 md:grid-cols-3">
+            {PROMISES.map((p) => (
+              <div key={p.title}>
+                <h2 className="font-display text-2xl font-extrabold uppercase text-mat-night">{p.title}</h2>
+                <p className="mt-2 leading-relaxed text-ramp-600">{p.text}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-16 flex flex-col gap-6 rounded-lg bg-mat-night p-8 text-white sm:p-10 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="font-display text-3xl font-black uppercase">¿Migrar datos o coordinar varias sedes?</h2>
+              <p className="mt-2 max-w-2xl text-white/80">
+                Empieza por tu cuenta. Si necesitas importar datos complejos o coordinar varias sedes, te
+                orientamos por email.
+              </p>
+            </div>
             <Link
               href="/contact?type=migracion"
-              className="mt-6 inline-flex items-center justify-center rounded-full border border-border px-6 py-3 text-sm font-semibold text-foreground hover:bg-muted"
+              className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-md bg-white px-6 text-sm font-extrabold text-mat-night focus-visible:ring-white focus-visible:ring-offset-mat-night"
             >
               Consultar una migración
             </Link>
           </div>
-        </Reveal>
-      </div>
-    </section>
+        </div>
+      </section>
+    </div>
   );
 }

@@ -4,15 +4,17 @@ import Link from "next/link";
 import { z } from "zod";
 
 import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentForm";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { createClient } from "@/lib/supabase/server";
 import { getManualPaymentOptions } from "@/modules/billing/application/manual-payments";
+import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export const dynamic = "force-dynamic";
 
 const pageQuerySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
 });
 
 export default async function OwnerPaymentsPage({
@@ -67,44 +69,69 @@ export default async function OwnerPaymentsPage({
     monthlyInvoiceQuery.set("locationId", query.data.locationId);
   }
 
-  return (
-    <main className="min-h-screen bg-[#F1F3EF] px-5 py-6 text-slate-950 sm:py-10">
-      <div className="mx-auto grid max-w-4xl gap-8">
-        <div className="grid gap-5">
-          <Link
-            href={`/owner?${dashboardQuery.toString()}`}
-            className="min-h-11 w-fit content-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
-          >
-            Volver al panel
-          </Link>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-900">
-              {options.organization.name}
-            </p>
-            <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-              Registrar un pago recibido
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-              Anota una transferencia, efectivo o pago en el local. Al guardar,
-              Zaltyko lo vincula al cargo y actualiza el saldo pendiente.
-            </p>
-          </div>
-          <Link
-            href={`/owner/monthly-invoices?${monthlyInvoiceQuery.toString()}`}
-            className="min-h-11 w-fit content-center border border-teal-800 bg-teal-800 px-4 py-2 text-sm font-bold text-white hover:bg-teal-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
-          >
-            Emitir cuota mensual
-          </Link>
-        </div>
+  let scope: Awaited<ReturnType<typeof resolveOwnerScope>>;
+  try {
+    scope = await resolveOwnerScope({
+      userId: user.id,
+      organizationId: options.organization.id,
+      locationId: options.selectedLocationId ?? undefined,
+    });
+  } catch (error) {
+    if (
+      error instanceof OperationalError &&
+      (error.code === "FORBIDDEN" ||
+        error.code === "LOCATION_SCOPE_DENIED" ||
+        error.code === "NOT_FOUND")
+    ) {
+      notFound();
+    }
+    throw error;
+  }
 
-        <ManualPaymentForm
-          organizationId={options.organization.id}
-          charges={options.charges}
-          canManageFamilyCollectionPreferences={
-            options.canManageFamilyCollectionPreferences
-          }
-        />
-      </div>
-    </main>
+  return (
+    <OwnerWorkspacePageShell
+      member={scope.member}
+      organizationId={scope.organization.id}
+      locationId={scope.selectedLocationId}
+    >
+      <main className="min-h-screen bg-z-canvas px-5 py-6 text-z-ink sm:py-10">
+        <div className="mx-auto grid max-w-4xl gap-8">
+          <div className="grid gap-5">
+            <Link
+              href={`/owner?${dashboardQuery.toString()}`}
+              className="min-h-11 w-fit content-center rounded-full border border-z-line bg-white px-4 text-sm font-semibold text-z-soft hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
+            >
+              Volver al panel
+            </Link>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-600">
+                {options.organization.name}
+              </p>
+              <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+                Registrar un pago recibido
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-z-soft sm:text-base">
+                Anota una transferencia, efectivo o pago en el local. Al guardar,
+                Zaltyko lo vincula al cargo y actualiza el saldo pendiente.
+              </p>
+            </div>
+            <Link
+              href={`/owner/monthly-invoices?${monthlyInvoiceQuery.toString()}`}
+              className="min-h-11 w-fit content-center rounded-[10px] border border-z-ink bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
+            >
+              Emitir cuota mensual
+            </Link>
+          </div>
+
+          <ManualPaymentForm
+            actorId={user.id}
+            organizationId={options.organization.id}
+            locationId={options.selectedLocationId}
+            charges={options.charges}
+            nextCursor={options.nextCursor}
+          />
+        </div>
+      </main>
+    </OwnerWorkspacePageShell>
   );
 }

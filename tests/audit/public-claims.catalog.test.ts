@@ -9,6 +9,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { ESSENTIAL_FAQS, ESSENTIAL_FEATURES } from "@/lib/launch/essential-public-catalog";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -169,13 +170,14 @@ describe("L2 — copy pública presente en componentes", () => {
   const faq = readSiteFile("src/app/(site)/home/FaqSection.tsx");
   const pricing = readSiteFile("src/app/(site)/pricing.tsx");
 
-  it("ComparisonSection afirma features clave", () => {
-    expect(comparison).toContain("Registro y seguimiento de pagos");
+  it("la portada publica solo capacidades esenciales y no estadísticas o módulos avanzados", () => {
+    const home = readSiteFile("src/app/page.tsx");
+    for (const retired of ["ComparisonSection", "SocialProofSection", "ModulesSection", "SeoExtendedSection"]) {
+      expect(home).not.toContain(retired);
+    }
+    expect(ESSENTIAL_FEATURES).toHaveLength(5);
+    expect(ESSENTIAL_FEATURES.flatMap(item => item.features).join(" ")).not.toMatch(/Health Score|retención|portal familiar|cobro automático|rúbrica/i);
     expect(comparison).not.toContain("Cobros automáticos");
-    expect(comparison).toContain("Pase de lista por sesión");
-    expect(comparison).toContain("Evaluaciones con rúbrica");
-    expect(comparison).toContain("7 días de Starter sin tarjeta");
-    expect(comparison).toContain("Importación base desde Excel");
   });
 
   it("explica el cobro familiar manual del lanzamiento sin prometer automatización", () => {
@@ -194,23 +196,26 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(seoExtended).toContain("Pagos registrados y pendientes a la vista");
     expect(help).toContain("No en este lanzamiento");
     expect(llmsFull).toContain("Zaltyko no inicia cargos automáticos a las familias");
-    expect(planCatalog).toContain("Gestión de cuotas, registro manual de pagos y reportes básicos");
+    expect(planCatalog).toContain("Asistencia y cuotas mensuales con registro manual de pagos");
     expect(homeModules).not.toContain("avisos automáticos a familias");
     expect(seoExtended).not.toContain("Cobros automáticos y recordatorios programados");
   });
 
   it("FaqSection contiene respuesta RGPD sobre menores", () => {
-    expect(faq).toContain("protección de datos de menores");
-    expect(faq).toContain("aísla los datos por academia");
-    expect(faq).toContain("controles de acceso por rol");
-    expect(faq).toContain("No hay permanencia ni penalizaciones");
-    expect(faq).toContain("verificado en móvil");
+    expect(ESSENTIAL_FAQS.map(item => `${item.question} ${item.answer}`).join(" ")).toContain("protección de datos de menores");
+    expect(ESSENTIAL_FAQS.map(item => `${item.question} ${item.answer}`).join(" ")).toContain("aísla los datos por academia");
+    expect(ESSENTIAL_FAQS.map(item => `${item.question} ${item.answer}`).join(" ")).toContain("controles de acceso por rol");
+    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).toContain("hasta archivar el excedente o contratar capacidad suficiente");
+    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).toContain("web adaptable a móvil");
   });
 
   it("Network mantiene el mismo precio base y matiz sales-assisted en las FAQs", () => {
     const home = readSiteFile("src/app/page.tsx");
     const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
-    for (const copy of [faq, home, faqPage]) {
+    expect(faqPage).toContain("ESSENTIAL_FAQS");
+    expect(faq).toContain("ESSENTIAL_FAQS");
+    expect(home).toContain("ESSENTIAL_FAQS");
+    for (const copy of [ESSENTIAL_FAQS.map(item => item.answer).join(" ")]) {
       expect(copy).toContain("Network parte de 99€/mes");
       expect(copy).toContain("propuesta final");
     }
@@ -218,11 +223,13 @@ describe("L2 — copy pública presente en componentes", () => {
 
   it("la FAQ de cancelación distingue Free de los planes de pago", () => {
     const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
-    expect(faqPage).toContain("Los planes de pago se renuevan mensualmente; Free no tiene coste ni renovación.");
+    expect(faqPage).toContain("ESSENTIAL_FAQS");
+    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).toContain("Al finalizar el periodo de acceso, la academia vuelve a Free");
   });
 
   it("PricingSection comunica prueba explícita y comparación mensual/anual", () => {
     const copy = pricing.replace(/\s+/g, " ");
+    expect(copy).toContain("Precios sin IVA");
     expect(copy).toContain("7 días de Starter sin tarjeta");
     expect(copy).toContain("una activación por academia cada 12 meses");
     expect(copy).toContain("Empieza gratis y configura tu academia");
@@ -249,8 +256,11 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(privacy).not.toContain("Mentes SaaS S.L.");
     expect(terms).toContain("Zaltyko se reserva");
     expect(privacy).toContain("operada bajo la marca Zaltyko");
-    expect(terms).toContain("13 de septiembre de 2026");
-    expect(privacy).toContain("13 de septiembre de 2026");
+    expect(terms).toContain("26 de octubre de 2026");
+    expect(privacy).toContain("26 de octubre de 2026");
+    // Both documents must expose the same actual seller and pending-status notice.
+    expect(terms).toContain("<SellerIdentification />");
+    expect(privacy).toContain("<SellerIdentification />");
   });
 
   it("los CTAs públicos no confunden cuenta con academia", () => {
@@ -326,11 +336,10 @@ describe("L2 — claims de módulos alineados con capacidades verificadas", () =
     }
   });
 
-  it("la FAQ de importación separa gimnastas de datos familiares", () => {
+  it("la FAQ esencial no promete importaciones sin validar", () => {
     const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
-    expect(faqPage).toContain("importar gimnastas desde Excel o CSV");
-    expect(faqPage).toContain("Los datos de familias se vinculan después desde cada expediente");
-    expect(faqPage).not.toContain("importar gimnastas y familias");
+    expect(faqPage).toContain("ESSENTIAL_FAQS");
+    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).not.toMatch(/importa[rn]?|Excel|CSV/i);
   });
 
   it("describe las exportaciones como apoyo operativo revisable", () => {
@@ -345,31 +354,22 @@ describe("L2 — claims de módulos alineados con capacidades verificadas", () =
     expect(features).not.toContain("bg-primary-dark");
   });
 
-  it("mantiene el alcance del portal familiar consistente en pantallas de plan", () => {
-    const planScreens = [
-      readSiteFile("src/app/dashboard/account-form.tsx"),
-      readSiteFile("src/components/billing/BillingPanel.tsx"),
-      readSiteFile("src/components/billing/BillingSummary.tsx"),
-      readSiteFile("src/components/profiles/OptimizedOwnerProfile.tsx"),
-      readSiteFile("src/lib/limits.ts"),
-    ];
-    for (const copy of planScreens) {
-      const normalized = copy.toLowerCase();
-      expect(normalized).toContain("portal familiar limitado");
-      expect(normalized).not.toContain("portal familias");
+  it("las pantallas de planes no prometen un portal familiar fuera del lanzamiento", () => {
+    for (const file of [
+      "src/app/dashboard/account-form.tsx", "src/components/billing/BillingPanel.tsx",
+      "src/components/billing/BillingSummary.tsx", "src/components/profiles/OptimizedOwnerProfile.tsx",
+      "src/lib/limits.ts", "src/lib/plans/catalog.ts",
+    ]) {
+      const copy = readSiteFile(file).toLowerCase();
+      expect(copy).not.toMatch(/portal familiar|portal familias|portal de familias/);
     }
-
-    const catalog = readSiteFile("src/lib/plans/catalog.ts").toLowerCase();
-    const indicator = readSiteFile("src/components/onboarding/LimitIndicator.tsx");
-    expect(catalog).toContain("portal familiar limitado");
-    expect(indicator).toContain("benefits: plan.features");
-    expect(indicator.toLowerCase()).not.toContain("portal familias");
+    expect(readSiteFile("src/components/onboarding/LimitIndicator.tsx")).toContain("benefits: plan.features");
   });
 
-  it("no presenta el portal familiar como una capacidad ilimitada en el escaparate", () => {
+  it("el escaparate no promete un portal para familias", () => {
     const home = readSiteFile("src/app/page.tsx").toLowerCase();
-    expect(home).toContain("portal familiar limitado");
-    expect(home).not.toContain("portal de familias");
+    expect(home).not.toMatch(/portal familiar|portal de familias/);
+    expect(ESSENTIAL_FEATURES.flatMap(item => item.features).join(" ")).not.toMatch(/portal familiar/i);
   });
 
   it("no publica funciones de eventos o documentos que aún no son operativas", () => {

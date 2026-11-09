@@ -3,6 +3,8 @@
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const trackingPolicyMock = vi.hoisted(() => ({ posthogEnabled: true }));
+
 const mocks = vi.hoisted(() => {
   const importStarted = vi.fn();
   const posthog = {
@@ -32,6 +34,20 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("posthog-js", async () => mocks.importPostHog());
+vi.mock("@/lib/optional-tracking-policy", async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import("@/lib/optional-tracking-policy")
+  >();
+  return {
+    ...actual,
+    optionalTrackingFlags: {
+      ...actual.optionalTrackingFlags,
+      get posthog() {
+        return trackingPolicyMock.posthogEnabled;
+      },
+    },
+  };
+});
 vi.mock("@/lib/growth/events", () => ({
   recordGrowthEvent: vi.fn(async () => undefined),
 }));
@@ -44,18 +60,22 @@ async function loadConsentAndAnalytics() {
 }
 
 beforeEach(async () => {
+  trackingPolicyMock.posthogEnabled = true;
   vi.resetModules();
   vi.stubEnv("NEXT_PUBLIC_DISABLE_ANALYTICS", "false");
+  vi.stubEnv("NEXT_PUBLIC_ENABLE_POSTHOG", "true");
   vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_synthetic_test_key");
   vi.stubEnv("NEXT_PUBLIC_POSTHOG_HOST", "https://posthog.test.invalid");
   vi.stubGlobal("window", window);
   mocks.reset();
+  window.history.replaceState({}, "", "/");
   window.localStorage.clear();
   const { store } = await loadConsentAndAnalytics();
   store.writeConsent("unset");
 });
 
 afterEach(async () => {
+  trackingPolicyMock.posthogEnabled = true;
   cleanup();
   const { __resetConsentForTests } = await import("@/lib/consent/store");
   __resetConsentForTests();
@@ -95,7 +115,10 @@ describe("analytics consent gate", () => {
     await waitFor(() =>
       expect(mocks.posthog.capture).toHaveBeenCalledWith(
         "$pageview",
-        expect.objectContaining({ path: "/" })
+        expect.objectContaining({
+          "$current_url": expect.stringMatching(/^http:\/\/localhost(?::\d+)?\/$/),
+          "$pathname": "/",
+        })
       )
     );
     const [, config] = mocks.posthog.init.mock.calls[0];
@@ -105,8 +128,27 @@ describe("analytics consent gate", () => {
       capture_pageview: false,
       capture_pageleave: false,
       disable_session_recording: true,
+      request_batching: false,
+      person_profiles: "never",
+      persistence: "memory",
     });
     expect(mocks.posthog.opt_in_capturing).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps PostHog closed when its explicit provider flag is absent", async () => {
+    trackingPolicyMock.posthogEnabled = false;
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_POSTHOG", "false");
+    vi.resetModules();
+    const { store, analytics, PostHogProvider } =
+      await loadConsentAndAnalytics();
+    store.writeConsent("granted");
+    render(<PostHogProvider>Contenido</PostHogProvider>);
+
+    await analytics.initAnalytics();
+    await analytics.trackPageView("/");
+    expect(mocks.importStarted).not.toHaveBeenCalled();
+    expect(mocks.posthog.init).not.toHaveBeenCalled();
+    expect(mocks.posthog.capture).not.toHaveBeenCalled();
   });
 
   it("blocks by default and handles deny, grant, revoke, and regrant", async () => {
@@ -145,6 +187,65 @@ describe("analytics consent gate", () => {
     await analytics.trackPageView("/after-revoke");
     await analytics.trackEvent("after_revoke");
     expect(mocks.posthog.capture).toHaveBeenCalledTimes(captureCount);
+  });
+
+  it("suspends PostHog on a private route and rejects events there", async () => {
+    const { store, analytics, PostHogProvider } =
+      await loadConsentAndAnalytics();
+    store.writeConsent("granted");
+    const view = render(<PostHogProvider>Contenido</PostHogProvider>);
+    await waitFor(() => expect(mocks.posthog.init).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.posthog.capture).toHaveBeenCalledTimes(1));
+
+    window.history.pushState({}, "", "/owner/attendance?session=secret");
+    expect(mocks.posthog.opt_out_capturing).toHaveBeenCalledTimes(1);
+    const captureCount = mocks.posthog.capture.mock.calls.length;
+    await analytics.trackPageView("/owner/attendance");
+    await analytics.trackEvent("lead_captured", {
+      metadata: { source: "landing_page", email: "family@example.test" },
+    });
+    expect(mocks.posthog.capture).toHaveBeenCalledTimes(captureCount);
+    view.unmount();
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("rechecks the current path in PostHog before_send", async () => {
+    const { store, PostHogProvider } = await loadConsentAndAnalytics();
+    store.writeConsent("granted");
+    const view = render(<PostHogProvider>Contenido</PostHogProvider>);
+    await waitFor(() => expect(mocks.posthog.init).toHaveBeenCalledTimes(1));
+
+    const [, config] = mocks.posthog.init.mock.calls[0];
+    expect(config.before_send(null)).toBe(null);
+    expect(
+      config.before_send({
+        event: "$pageview",
+        properties: {
+          "$current_url": `${window.location.origin}/?email=family@example.test`,
+          "$referrer": `${window.location.origin}/owner?token=secret`,
+          "$process_person_profile": true,
+          user_id: "private-user",
+          path: "/owner?token=secret",
+        },
+      })
+    ).toMatchObject({
+      event: "$pageview",
+      properties: {
+        "$current_url": `${window.location.origin}/`,
+        "$pathname": "/",
+        "$process_person_profile": false,
+      },
+    });
+
+    window.history.pushState({}, "", "/dashboard/profile?email=secret");
+    expect(
+      config.before_send({
+        event: "$pageview",
+        properties: { "$current_url": `${window.location.origin}/` },
+      })
+    ).toBe(null);
+    view.unmount();
+    window.history.replaceState({}, "", "/");
   });
 
   it("revokes in this tab when another tab clears localStorage", async () => {

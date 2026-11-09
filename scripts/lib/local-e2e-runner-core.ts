@@ -8,6 +8,7 @@ export const LOCAL_E2E_TIMEOUTS = {
   preflight: 15_000,
   setup: 240_000,
   build: 240_000,
+  ciBuild: 360_000,
   stop: 120_000,
   // Existing Playwright webServer (240 s) plus the unchanged spec timeout (300 s).
   browser: 540_000,

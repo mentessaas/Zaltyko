@@ -17,18 +17,18 @@ import {
 } from "@/modules/attendance/application/owner-session-attendance";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
-const paramsSchema = z.object({ sessionId: z.string().uuid() });
+const paramsSchema = z.object({ sessionId: z.guid() });
 const querySchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
   })
   .strict();
 const bodySchema = z
   .object({
-    organizationId: z.string().uuid(),
-    locationId: z.string().uuid(),
-    enrollmentId: z.string().uuid(),
+    organizationId: z.guid(),
+    locationId: z.guid(),
+    enrollmentId: z.guid(),
     status: z.enum(["present", "absent", "excused", "late"]),
   })
   .strict();

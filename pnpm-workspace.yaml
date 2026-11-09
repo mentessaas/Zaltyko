@@ -61,7 +61,12 @@ overrides:
   # basic-ftp: CPU DoS in Unix directory listing parser (GHSA-c475-qrg2-pj4r)
   basic-ftp: ^6.2.1
   # DOMPurify: in-place sanitization hooks can leave handlers armed (GHSA-p98j-92pf-mc4p)
-  dompurify: ^3.4.16
+  dompurify: ^3.4.17
+  # body-parser compressed-request trailing-bytes DoS (GHSA-27r3-jxmh-p828)
+  'body-parser@1': ^1.20.9
+  'body-parser@2': ^2.4.0
+  # Keep transitive Zod consumers on the patched collection-validation release.
+  zod: ^4.6.7
   # Lighthouse 13 upgrades its Puppeteer toolchain and removes vulnerable extract-zip
   # from @puppeteer/browsers; the Lighthouse job runs on Node 22.12+.
   lighthouse: ^13.5.0
@@ -71,6 +76,9 @@ overrides:
   tmp: ^0.2.4
   # uuid: falta de comprobacion de limites en v3/v5/v6 con `buf` (GHSA-w5hq-g745-h8pq)
   uuid: ^11.1.1
+  # postcss-selector-parser quadratic-time selector parsing (GHSA-rj75-hqrm-r3gf).
+  # Scope the major-version override to the one transitive consumer that pins 6.0.10.
+  '@tailwindcss/typography>postcss-selector-parser': ^7.1.6
 
   # --- Pre-existing dependency hygiene pins ---
   ws: ^8.21.0

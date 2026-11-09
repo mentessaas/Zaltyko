@@ -22,7 +22,13 @@ const isCI = Boolean(process.env.CI);
 const nextCli = localCliEntrypoint(process.cwd(), "next");
 const quoteShellArgument = (value: string) =>
   `'${value.replace(/'/g, "'\\''")}'`;
-const nextServerCommand = `${quoteShellArgument(process.execPath)} ${quoteShellArgument(nextCli)} ${isCI || isLocalSupabaseRun ? "start" : "dev"}`;
+// Pin the synthetic server to the same validated loopback hostname used by
+// the browser. Next constructs the route Request URL from its server hostname;
+// leaving it implicit can differ from Origin and correctly fail CSRF guards.
+const localServerHostnameArgument = isLocalSupabaseRun
+  ? ` --hostname ${quoteShellArgument(new URL(baseURL).hostname)}`
+  : "";
+const nextServerCommand = `${quoteShellArgument(process.execPath)} ${quoteShellArgument(nextCli)} ${isCI || isLocalSupabaseRun ? "start" : "dev"}${localServerHostnameArgument}`;
 
 const isPublicReadOnlyRun = process.env.E2E_PUBLIC_READ_ONLY === "true";
 

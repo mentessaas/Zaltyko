@@ -91,7 +91,7 @@ export function FormField({
           onChange={handleChange}
           onBlur={handleBlur}
           className={cn(
-            displayError && "border-red-500 focus-visible:ring-red-500",
+            displayError && "border-signal focus-visible:ring-signal/40",
             isValid && "border-zaltyko-primary focus-visible:ring-zaltyko-primary",
             className
           )}
@@ -102,11 +102,11 @@ export function FormField({
           <CheckCircle2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zaltyko-primary" />
         )}
         {displayError && (
-          <AlertCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />
+          <AlertCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-signal-ink" />
         )}
       </div>
       {displayError && (
-        <p id={`${inputProps.id}-error`} className="text-xs text-red-600 dark:text-red-400" role="alert">
+        <p id={`${inputProps.id}-error`} className="text-xs font-medium text-signal-ink dark:text-signal-light" role="alert">
           {displayError}
         </p>
       )}

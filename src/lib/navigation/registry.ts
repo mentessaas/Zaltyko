@@ -293,6 +293,20 @@ const SUPER_ADMIN_NAV: NavigationDefinition[] = [
     roles: ["super_admin"],
   },
   {
+    key: "contact-requests",
+    label: "Solicitudes",
+    icon: MessageSquare,
+    href: "/super-admin/solicitudes",
+    roles: ["super_admin"],
+  },
+  {
+    key: "founder-plans",
+    label: "Fundadores",
+    icon: CreditCard,
+    href: "/super-admin/fundadores",
+    roles: ["super_admin"],
+  },
+  {
     key: "support",
     label: "Soporte",
     icon: LifeBuoy,

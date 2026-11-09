@@ -10,6 +10,7 @@ import {
 } from "@/db/zaltyko-schema";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import {
   appendAuditEntry,
@@ -22,8 +23,8 @@ import type { TransactionClient } from "@/lib/db-transactions";
 
 const materializeSessionsSchema = z
   .object({
-    organizationId: z.string().uuid(),
-    classTemplateId: z.string().uuid(),
+    organizationId: z.guid(),
+    classTemplateId: z.guid(),
     startDate: z.string().date(),
     endDate: z.string().date(),
     idempotencyKey: z.string().trim().min(8).max(180),
@@ -63,6 +64,72 @@ async function loadSessionsByIds(
     )
     .orderBy(asc(sessions.startsAt))
     .limit(1000);
+}
+
+/**
+ * Inserts the weekly-schedule sessions of one template for local dates in
+ * [startDate, endDate], clamped to the template's effective range. Idempotent
+ * through the (organization, template, starts_at) unique index; serialized per
+ * template with an advisory lock. Callers own authorization and auditing.
+ */
+export async function insertTemplateSessionsInRange(
+  tx: TransactionClient,
+  range: {
+    organizationId: string;
+    classTemplateId: string;
+    startDate: string;
+    endDate: string;
+  }
+): Promise<void> {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`${range.organizationId}:sessions:${range.classTemplateId}`}, 0))`
+  );
+
+  await tx.execute(sql`
+    insert into zaltyko.sessions (
+      id,
+      organization_id,
+      location_id,
+      class_template_id,
+      space_id,
+      status,
+      starts_at,
+      ends_at
+    )
+    select
+      gen_random_uuid(),
+      template.organization_id,
+      template.location_id,
+      template.id,
+      template.default_space_id,
+      'scheduled'::zaltyko.session_status,
+      (day.local_date + weekday.starts_at_local) at time zone location.timezone,
+      (day.local_date + weekday.ends_at_local) at time zone location.timezone
+    from zaltyko.class_templates template
+    join zaltyko.locations location
+      on location.organization_id = template.organization_id
+     and location.id = template.location_id
+    join zaltyko.class_template_weekdays weekday
+      on weekday.organization_id = template.organization_id
+     and weekday.class_template_id = template.id
+    cross join lateral (
+      select generated_day::date as local_date
+      from generate_series(
+        ${range.startDate}::date,
+        ${range.endDate}::date,
+        interval '1 day'
+      ) generated_day
+    ) day
+    where template.organization_id = ${range.organizationId}::uuid
+      and template.id = ${range.classTemplateId}::uuid
+      and extract(isodow from day.local_date)::int = weekday.iso_weekday
+      and day.local_date >= greatest(template.effective_from, ${range.startDate}::date)
+      and day.local_date <= least(
+        coalesce(template.effective_to, ${range.endDate}::date),
+        ${range.endDate}::date
+      )
+    on conflict (organization_id, class_template_id, starts_at) do nothing
+  `);
 }
 
 export async function materializeSessions(
@@ -118,14 +185,47 @@ export async function materializeSessions(
         startDate: input.startDate,
         endDate: input.endDate,
       });
+      const priorIds = z.array(z.string().uuid()).safeParse(priorEvent.payload.sessionIds);
+      const priorAggregateId = z.string().uuid().safeParse(priorEvent.aggregateId);
+      const sessionCount = priorEvent.payload.sessionCount;
+      if (
+        priorEvent.aggregateType !== "class_template" ||
+        !priorAggregateId.success ||
+        priorAggregateId.data.toLowerCase() !== input.classTemplateId.toLowerCase() ||
+        !priorIds.success ||
+        !Number.isSafeInteger(sessionCount) ||
+        sessionCount !== priorIds.data.length ||
+        new Set(priorIds.data).size !== priorIds.data.length
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "El resultado previo de generación de sesiones no es coherente",
+          409
+        );
+      }
+      const priorSessions = await loadSessionsByIds(
+        tx,
+        input.organizationId,
+        priorIds.data
+      );
+      if (
+        priorSessions.length !== priorIds.data.length ||
+        priorSessions.some(
+          (session) =>
+            session.classTemplateId !== input.classTemplateId ||
+            session.locationId !== template.locationId
+        )
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "Las sesiones del resultado previo no coinciden con la plantilla",
+          409
+        );
+      }
+      return priorSessions;
     }
-    const priorIds = priorEvent?.payload.sessionIds;
-    if (
-      Array.isArray(priorIds) &&
-      priorIds.every((id) => typeof id === "string")
-    ) {
-      return loadSessionsByIds(tx, input.organizationId, priorIds);
-    }
+
+    await assertOrganizationOperationalWritable(tx, input.organizationId);
 
     const [schedule] = await tx
       .select({ count: sql<number>`count(*)::int` })
@@ -144,55 +244,12 @@ export async function materializeSessions(
       );
     }
 
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`${input.organizationId}:sessions:${input.classTemplateId}`}, 0))`
-    );
-
-    await tx.execute(sql`
-      insert into zaltyko.sessions (
-        id,
-        organization_id,
-        location_id,
-        class_template_id,
-        space_id,
-        status,
-        starts_at,
-        ends_at
-      )
-      select
-        gen_random_uuid(),
-        template.organization_id,
-        template.location_id,
-        template.id,
-        template.default_space_id,
-        'scheduled'::zaltyko.session_status,
-        (day.local_date + weekday.starts_at_local) at time zone location.timezone,
-        (day.local_date + weekday.ends_at_local) at time zone location.timezone
-      from zaltyko.class_templates template
-      join zaltyko.locations location
-        on location.organization_id = template.organization_id
-       and location.id = template.location_id
-      join zaltyko.class_template_weekdays weekday
-        on weekday.organization_id = template.organization_id
-       and weekday.class_template_id = template.id
-      cross join lateral (
-        select generated_day::date as local_date
-        from generate_series(
-          ${input.startDate}::date,
-          ${input.endDate}::date,
-          interval '1 day'
-        ) generated_day
-      ) day
-      where template.organization_id = ${input.organizationId}::uuid
-        and template.id = ${input.classTemplateId}::uuid
-        and extract(isodow from day.local_date)::int = weekday.iso_weekday
-        and day.local_date >= greatest(template.effective_from, ${input.startDate}::date)
-        and day.local_date <= least(
-          coalesce(template.effective_to, ${input.endDate}::date),
-          ${input.endDate}::date
-        )
-      on conflict (organization_id, class_template_id, starts_at) do nothing
-    `);
+    await insertTemplateSessionsInRange(tx, {
+      organizationId: input.organizationId,
+      classTemplateId: input.classTemplateId,
+      startDate: input.startDate,
+      endDate: input.endDate,
+    });
 
     const sessionIdsResult = await tx.execute(sql`
       select session.id

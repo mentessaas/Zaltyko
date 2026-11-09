@@ -1,3 +1,4 @@
+import { sentryPrivacyOptions } from "./src/lib/monitoring/sentry-privacy";
 // This file configures the initialization of Sentry on the server.
 // The config you add here will be used whenever the server handles a request.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
@@ -23,30 +24,9 @@ Sentry.init({
   tracesSampler,
 
   debug: false,
+  ...sentryPrivacyOptions,
 
-  beforeSend(event, hint) {
-    if (process.env.NODE_ENV === "development") {
-      return null;
-    }
 
-    if (event.request) {
-      if (event.request.headers) {
-        delete event.request.headers["authorization"];
-        delete event.request.headers["cookie"];
-        delete event.request.headers["x-api-key"];
-      }
-
-      if (event.request.query_string) {
-        const params = new URLSearchParams(event.request.query_string);
-        params.delete("token");
-        params.delete("api_key");
-        params.delete("password");
-        event.request.query_string = params.toString();
-      }
-    }
-
-    return event;
-  },
 
   ignoreErrors: [
     "ECONNREFUSED",

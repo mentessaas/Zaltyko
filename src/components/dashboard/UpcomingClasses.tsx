@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import { groupInk } from "@/lib/mat/group-ink";
 import Link from "next/link";
 import { CalendarClock, Users, ClipboardCheck, ArrowRight } from "lucide-react";
 
@@ -38,14 +39,11 @@ function UpcomingClassesImpl({
   const displayedClasses = classes.slice(0, 5);
 
   return (
-    <div className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-soft">
+    <div className="space-y-5 rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-5">
       <header className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-            {`Calendario de ${classLabelPlural}`}
-          </p>
-          <h3 className="mt-1 font-display text-xl font-semibold text-foreground">
-            {classes.length > 0 ? "Programadas para los próximos días" : `Sin ${classLabelPlural} en el calendario`}
+          <h3 className="font-display text-2xl font-black uppercase leading-none text-mat-night">
+            {classes.length > 0 ? `Calendario de ${classLabelPlural}` : `Sin ${classLabelPlural} en el calendario`}
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
             {classes.length > 0
@@ -56,7 +54,7 @@ function UpcomingClassesImpl({
         {classes.length > 0 && (
           <Link
             href={`/app/${academyId}/classes`}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-zaltyko-teal transition hover:underline"
+            className="inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-mat transition hover:underline"
           >
             Ver todas
             <ArrowRight className="h-3 w-3" />
@@ -64,7 +62,7 @@ function UpcomingClassesImpl({
         )}
       </header>
 
-      <div className="space-y-3">
+      <div>
         {displayedClasses.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 px-4 py-8 text-center">
             <CalendarClock className="mb-2 h-8 w-8 text-muted-foreground/60" />
@@ -79,7 +77,7 @@ function UpcomingClassesImpl({
           displayedClasses.map((item) => (
             <div
               key={item.id}
-              className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm transition hover:border-zaltyko-teal/40 hover:bg-muted"
+              className="flex flex-col gap-3 border-t border-chalk-line py-4 text-sm first:border-t-0"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -116,26 +114,20 @@ function UpcomingClassesImpl({
                 <CalendarClock className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.6} />
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <div className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs">
+                <div className="inline-flex items-center gap-1 rounded-md bg-chalk-dust px-2 py-1 text-xs">
                   <Users className="h-3 w-3" strokeWidth={1.8} />
                   {item.coaches.length > 0
                     ? item.coaches.map((coach) => coach.name ?? "Sin nombre").join(", ")
                     : `Sin ${coachLabelPlural}`}
                 </div>
                 {item.groupName && (
-                  <span
-                    className="inline-flex items-center gap-2 rounded-full border px-2 py-1 font-semibold"
-                    style={
-                      item.groupColor
-                        ? { color: item.groupColor, borderColor: item.groupColor }
-                        : undefined
-                    }
-                  >
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-chalk-line px-2 py-1 font-semibold text-mat-night">
+                    <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: groupInk(item.groupColor, item.groupName) }} />
                     {item.groupName}
                   </span>
                 )}
                 {item.isSessionPlaceholder && (
-                  <span className="rounded-full border border-dashed border-zaltyko-navy/35 px-2 py-1 text-[0.7rem] font-semibold text-foreground">
+                  <span className="rounded-full border border-dashed border-zaltyko-navy/35 px-2 py-1 text-xs font-semibold text-foreground">
                     Sesiones no generadas
                   </span>
                 )}

@@ -71,7 +71,7 @@ export default function SeoExtendedSection() {
             href="/auth/register?role=owner"
             className={cn(
               buttonVariants({ variant: "default", size: "lg" }),
-              "shadow-soft hover:shadow-medium"
+              "shadow-soft"
             )}
           >
             Crear cuenta y configurar academia

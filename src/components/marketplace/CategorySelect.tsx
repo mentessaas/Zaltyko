@@ -32,7 +32,7 @@ const selectStyle: React.CSSProperties = {
   width: "100%",
   padding: "8px 10px",
   fontSize: 14,
-  border: "1px solid #cbd5e1",
+  border: "1px solid #D5DAE3",
   borderRadius: 6,
   fontFamily: "inherit",
 };

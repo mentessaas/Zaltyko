@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { OwnerEnrollmentsManager } from "@/components/owner-dashboard/OwnerEnrollmentsManager";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 
 export const dynamic = "force-dynamic";
 
@@ -160,7 +161,7 @@ export default async function OwnerEnrollmentsPreviewPage({
   const raw = await searchParams;
   const previewCreateForm = raw.view === "create";
   return (
-    <>
+    <OwnerWorkspacePageShell previewMode>
       <nav
         aria-label="Vistas de ejemplo"
         className="flex flex-wrap gap-3 bg-slate-100 px-4 py-3 sm:px-6 lg:px-10"
@@ -168,14 +169,14 @@ export default async function OwnerEnrollmentsPreviewPage({
         <Link
           href="/owner/enrollments/preview"
           aria-current={previewCreateForm ? undefined : "page"}
-          className="touch-target inline-flex min-h-11 items-center px-3 text-sm font-semibold text-teal-900 underline underline-offset-4"
+          className="touch-target inline-flex min-h-11 items-center px-3 text-sm font-semibold text-z-brand-600 underline underline-offset-4"
         >
           Lista de inscripciones
         </Link>
         <Link
           href="/owner/enrollments/preview?view=create"
           aria-current={previewCreateForm ? "page" : undefined}
-          className="touch-target inline-flex min-h-11 items-center px-3 text-sm font-semibold text-teal-900 underline underline-offset-4"
+          className="touch-target inline-flex min-h-11 items-center px-3 text-sm font-semibold text-z-brand-600 underline underline-offset-4"
         >
           Formulario de ejemplo
         </Link>
@@ -187,6 +188,6 @@ export default async function OwnerEnrollmentsPreviewPage({
         previewMode
         previewCreateForm={previewCreateForm}
       />
-    </>
+    </OwnerWorkspacePageShell>
   );
 }

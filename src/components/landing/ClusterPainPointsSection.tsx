@@ -76,7 +76,7 @@ export default function ClusterPainPointsSection({
       <section className="py-20 bg-card">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-            <span className="mb-4 inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span className="mb-4 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {comingSoon.badge}
             </span>
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 mb-4">

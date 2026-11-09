@@ -9,10 +9,10 @@ import { logger } from "@/lib/logger";
 export const dynamic = 'force-dynamic';
 
 const updatePreferencesSchema = z.object({
-  emailNotifications: z.record(z.boolean()).optional(),
+  emailNotifications: z.record(z.string(), z.boolean()).optional(),
   inAppNotifications: z.object({
     enabled: z.boolean().optional(),
-    types: z.record(z.boolean()).optional(),
+    types: z.record(z.string(), z.boolean()).optional(),
   }).optional(),
   classReminders: z.object({
     enabled: z.boolean().optional(),

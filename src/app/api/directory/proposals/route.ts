@@ -16,7 +16,7 @@ export async function POST(request: Request) {
         z.object({ kind: z.literal("proposal"), entry: EntryInputSchema }),
         z.object({
           kind: z.enum(["correction", "removal"]),
-          entryId: z.string().uuid(),
+          entryId: z.guid(),
           message: z.string().trim().min(10).max(2000),
         }),
       ])

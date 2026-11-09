@@ -47,9 +47,11 @@ import { trackEvent } from "@/lib/analytics";
 import { enqueueOnboardingOwnerD0 } from "@/lib/onboarding-owner-integration";
 import { logger } from "@/lib/logger";
 import { recordOwnerSignupConsent } from "@/lib/consent/owner-consent-store";
+import { getUserSubscription } from "@/lib/limits";
+import { getAdministrativeMarketCapability } from "@/modules/organizations/domain/administrative-market-capabilities";
 
 const bodySchema = z.object({
-  directoryEntryId:z.string().uuid().optional(),
+  directoryEntryId:z.guid().optional(),
   directoryActivation:z.literal(true).optional(),
   fullName: z.string().trim().min(2).max(120),
   academyName: z.string().trim().min(3).max(120),
@@ -68,30 +70,14 @@ const bodySchema = z.object({
   region: z.string().trim().max(80).optional(),
   city: z.string().trim().max(80).optional(),
   activeProgramCodesByVariant: z
-    .record(z.array(z.string().trim().min(1).max(80)))
+    .record(z.string(), z.array(z.string().trim().min(1).max(80)))
     .optional(),
   activeApparatusCodesByVariant: z
-    .record(z.array(z.string().trim().min(1).max(80)))
+    .record(z.string(), z.array(z.string().trim().min(1).max(80)))
     .optional(),
   starterGroupKeys: z.array(z.string().trim().min(1).max(80)).optional(),
   starterGroupsByVariant: z
-    .record(z.array(z.string().trim().min(1).max(80)))
-    .optional(),
-  /**
-   * ZAL-157: UTMs first-touch leídos por el cliente
-   * (`sessionStorage` > URL params > fallback `direct/none/...`). Validación
-   * de formato se hace en `src/lib/growth/utm.ts` antes del POST; el server
-   * vuelve a validar longitud y patrón como defensa en profundidad.
-   */
-  utm: z
-    .object({
-      utm_source: z.string().trim().min(1).max(128),
-      utm_medium: z.string().trim().min(1).max(128),
-      utm_campaign: z.string().trim().min(1).max(128),
-      utm_term: z.string().trim().min(1).max(128),
-      utm_content: z.string().trim().min(1).max(128),
-    })
-    .partial()
+    .record(z.string(), z.array(z.string().trim().min(1).max(80)))
     .optional(),
 });
 
@@ -129,19 +115,30 @@ export async function POST(request: Request) {
     );
   }
 
+  const administrativeCountryCode = normalizeCountryCode(
+    parsed.data.countryCode
+  );
+  const administrativeMarket = administrativeCountryCode
+    ? getAdministrativeMarketCapability(administrativeCountryCode)
+    : null;
+  if (!administrativeCountryCode || !administrativeMarket?.selfServe) {
+    return apiError(
+      "INVALID_RELATION",
+      "Aún no está disponible el alta autoservicio para este país.",
+      422
+    );
+  }
 
   const duplicateIdentity = {
     name: parsed.data.academyName,
-    countryCode:
-      normalizeCountryCode(parsed.data.countryCode) ?? parsed.data.countryCode,
+    countryCode: administrativeCountryCode,
     region: parsed.data.region,
     city: parsed.data.city,
   };
   const directoryId=parsed.data.directoryEntryId;
   const requestedDirectoryIdentity: DirectoryAcademyIdentity = {
     name: parsed.data.academyName,
-    countryCode:
-      normalizeCountryCode(parsed.data.countryCode) ?? parsed.data.countryCode,
+    countryCode: administrativeCountryCode,
     region: parsed.data.region,
     city: parsed.data.city,
   };
@@ -387,6 +384,56 @@ export async function POST(request: Request) {
       };
     }
 
+    const activeVariants = Array.from(
+      new Set([
+        parsed.data.disciplineVariant,
+        ...(parsed.data.activeDisciplineVariants ?? []),
+      ])
+    );
+    let starterGroupCount = 0;
+    let starterClassCount = 0;
+    for (const variant of activeVariants) {
+      const specialization = resolveAcademySpecialization({
+        countryCode: parsed.data.countryCode,
+        country: parsed.data.country,
+        disciplineVariant: variant,
+        academyType: mapDisciplineVariantToAcademyType(variant),
+        specializationStatus: "configured",
+      });
+      const presets = getStarterGroupPresets(specialization);
+      const selectedKeys =
+        parsed.data.starterGroupsByVariant?.[variant] ??
+        (variant === parsed.data.disciplineVariant
+          ? parsed.data.starterGroupKeys
+          : undefined) ??
+        presets.map((preset) => preset.key);
+      const selectedGroups = presets.filter((preset) => selectedKeys.includes(preset.key));
+      starterGroupCount += selectedGroups.length;
+      starterClassCount += getStarterClassPresets(specialization, selectedGroups).length;
+    }
+
+    const subscription = await getUserSubscription(user.id, tx);
+    if (subscription.groupLimit !== null && starterGroupCount > subscription.groupLimit) {
+      return {
+        error: apiError(
+          "PLAN_LIMIT_REACHED",
+          "La configuración inicial supera el límite de grupos de tu plan. Reduce los grupos de inicio o mejora el plan antes de crear la academia.",
+          402,
+          { resource: "groups", currentCount: starterGroupCount, limit: subscription.groupLimit }
+        ),
+      };
+    }
+    if (subscription.classLimit !== null && starterClassCount > subscription.classLimit) {
+      return {
+        error: apiError(
+          "PLAN_LIMIT_REACHED",
+          "La configuración inicial supera el límite de clases de tu plan. Reduce las clases de inicio o mejora el plan antes de crear la academia.",
+          402,
+          { resource: "classes", currentCount: starterClassCount, limit: subscription.classLimit }
+        ),
+      };
+    }
+
     const result = await createAcademy(
       {
         // A public listing is approved evidence. Never let the activation form
@@ -405,7 +452,6 @@ export async function POST(request: Request) {
         ),
         region: directoryIdentity?.region ?? undefined,
         city: directoryIdentity?.city ?? undefined,
-        utm: parsed.data.utm,
       },
       {
         profile: {
@@ -426,12 +472,6 @@ export async function POST(request: Request) {
       await tx.execute(sql`UPDATE directory_entries SET academy_id=${result.id}::uuid,updated_at=now() WHERE id=${directoryId}::uuid`);
       await tx.execute(sql`INSERT INTO directory_audit(entry_id,actor_id,action,metadata) VALUES(${directoryId}::uuid,${user.id}::uuid,'saas_activated',${JSON.stringify({academyId:result.id})}::jsonb)`);
     }
-    const activeVariants = Array.from(
-      new Set([
-        parsed.data.disciplineVariant,
-        ...(parsed.data.activeDisciplineVariants ?? []),
-      ])
-    );
     const activeConfigByVariant = new Map<
       string,
       Awaited<ReturnType<typeof activateAcademySportConfig>>
@@ -624,9 +664,6 @@ export async function POST(request: Request) {
         parsed.data.countryCode,
       academyType: setup.result.academyType,
       disciplineVariant: parsed.data.disciplineVariant,
-      utm_source: parsed.data.utm?.utm_source ?? null,
-      utm_medium: parsed.data.utm?.utm_medium ?? null,
-      utm_campaign: parsed.data.utm?.utm_campaign ?? null,
     },
   });
 
@@ -644,9 +681,6 @@ export async function POST(request: Request) {
         parsed.data.countryCode,
       academyType: setup.result.academyType,
       disciplineVariant: parsed.data.disciplineVariant,
-      utm_source: parsed.data.utm?.utm_source ?? null,
-      utm_medium: parsed.data.utm?.utm_medium ?? null,
-      utm_campaign: parsed.data.utm?.utm_campaign ?? null,
     },
     idempotencyKey: `academy_created:v1:${setup.result.id}`,
   });

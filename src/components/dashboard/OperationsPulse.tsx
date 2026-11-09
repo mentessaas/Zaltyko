@@ -20,28 +20,28 @@ const METRICS: Array<{
     key: "athletes",
     label: "Gimnastas",
     icon: Users,
-    color: "#00796B",
+    color: "#1E3FA8",
     currentLabel: (value) => (value === 1 ? "gimnasta en la academia" : "gimnastas en la academia"),
   },
   {
     key: "coaches",
     label: "Equipo",
     icon: UserCheck,
-    color: "#2B2E83",
+    color: "#14307F",
     currentLabel: (value) => (value === 1 ? "persona en el equipo" : "personas en el equipo"),
   },
   {
     key: "groups",
     label: "Grupos",
     icon: BarChart3,
-    color: "#1FC7B6",
+    color: "#3E4A66",
     currentLabel: (value) => (value === 1 ? "grupo activo" : "grupos activos"),
   },
   {
     key: "attendance",
     label: "Asistencia",
     icon: Activity,
-    color: "#FF6B57",
+    color: "#0B1430",
     currentLabel: () => "asistencia actual",
   },
 ];
@@ -76,27 +76,28 @@ export function OperationsPulse({ series, status, onRetry }: OperationsPulseProp
   const current = values.at(-1) ?? null;
   const previous = values.at(-2) ?? null;
   const delta = current !== null && previous !== null ? current - previous : null;
-  const path = useMemo(() => linePath(values, 640, 180), [values]);
+  // Una academia nueva devuelve series a cero: eso es «sin datos», no una línea plana.
+  const hasSignal = values.some((value) => value !== 0);
+  const path = useMemo(() => (hasSignal ? linePath(values, 640, 180) : ""), [values, hasSignal]);
 
   return (
-    <section className="overflow-hidden rounded-[24px] border border-border bg-card shadow-[0_18px_50px_-28px_rgba(15,23,42,0.38)]">
+    <section className="overflow-hidden rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white">
       <div className="flex flex-col gap-4 border-b border-border px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Ritmo de la academia</p>
-          <div className="mt-1 flex items-center gap-3">
-            <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-foreground">Pulso operativo</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="font-display text-2xl font-black uppercase leading-none text-foreground">Pulso operativo</h2>
             <span className={cn(
-              "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold",
-              status === "ready" ? "bg-muted text-muted-foreground" : status === "error" ? "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400" : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+              "inline-flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs font-semibold",
+              status === "ready" ? "bg-chalk-dust text-ramp-600" : status === "error" ? "bg-signal-wash text-signal-ink" : "bg-mat-wash text-mat-deep"
             )}>
-              <span className={cn("h-1.5 w-1.5 rounded-full", status === "ready" ? "bg-zaltyko-electric" : status === "error" ? "bg-red-500" : "bg-amber-500 animate-pulse")} />
-              {status === "ready" ? "Serie actual" : status === "error" ? "Sin conexión" : "Cargando datos"}
+              <span className={cn("h-1.5 w-1.5 rounded-full", status === "ready" ? "bg-mat" : status === "error" ? "bg-signal" : "bg-mat-light animate-pulse motion-reduce:animate-none")} />
+              {status === "ready" ? (hasSignal ? "Serie actual" : "Sin datos") : status === "error" ? "Sin conexión" : "Cargando datos"}
             </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">Evolución de los últimos 14 días</p>
         </div>
 
-        <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-muted/60 p-1" role="tablist" aria-label="Métrica del pulso operativo">
+        <div className="flex max-w-full gap-1 overflow-x-auto border-b border-chalk-line" role="tablist" aria-label="Métrica del pulso operativo">
           {METRICS.map((item) => {
             const Icon = item.icon;
             const selected = item.key === metric;
@@ -108,8 +109,8 @@ export function OperationsPulse({ series, status, onRetry }: OperationsPulseProp
                 aria-selected={selected}
                 onClick={() => setMetric(item.key)}
                 className={cn(
-                  "flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors duration-200",
-                  selected ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  "flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors duration-200",
+                  selected ? "bg-white text-mat-night ring-1 ring-chalk-line" : "text-ramp-600 hover:text-mat-night"
                 )}
               >
                 <Icon className="h-3.5 w-3.5" style={{ color: selected ? item.color : undefined }} />
@@ -122,7 +123,7 @@ export function OperationsPulse({ series, status, onRetry }: OperationsPulseProp
 
       <div className="grid gap-6 px-5 py-5 sm:px-6 lg:grid-cols-[180px_1fr] lg:items-center">
         <div>
-          <p className="font-display text-4xl font-bold tracking-[-0.04em] text-foreground">
+          <p className="font-display tabular text-5xl font-black leading-none text-mat-night">
             {current === null ? "—" : (
               <CountUp
                 key={metric}
@@ -145,16 +146,10 @@ export function OperationsPulse({ series, status, onRetry }: OperationsPulseProp
           )}
         </div>
 
-        <div className="min-h-[180px] rounded-2xl bg-foreground/[0.03] px-2 py-3">
+        <div className="min-h-[180px] rounded-lg border border-chalk-line bg-chalk px-2 py-3">
           {path ? (
             <svg key={metric} viewBox="0 0 640 180" className="h-[180px] w-full" role="img" aria-label={`Evolución de ${activeMetric.label.toLowerCase()} en los últimos 14 días`}>
-              <defs>
-                <linearGradient id="pulse-fill" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor={activeMetric.color} stopOpacity="0.2" />
-                  <stop offset="100%" stopColor={activeMetric.color} stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d={`${path} L630 170 L10 170 Z`} fill="url(#pulse-fill)" />
+              
               {/* La línea se dibuja al montar y al cambiar de métrica (reduced-motion: aparece directa) */}
               <path
                 d={path}
@@ -177,13 +172,15 @@ export function OperationsPulse({ series, status, onRetry }: OperationsPulseProp
                   <button
                     type="button"
                     onClick={onRetry}
-                    className="min-h-9 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground transition hover:border-zaltyko-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal focus-visible:ring-offset-2"
+                    className="min-h-11 rounded-md border border-ramp-300 bg-white px-4 text-sm font-semibold text-mat-night transition hover:border-mat hover:text-mat"
                   >
                     Reintentar
                   </button>
                 </div>
               ) : (
-                "Aún no hay suficientes datos para dibujar la evolución."
+                <span className="max-w-xs text-center">
+                  Sin datos todavía. La evolución aparece cuando registres {activeMetric.label.toLowerCase()} y asistencia.
+                </span>
               )}
             </div>
           )}

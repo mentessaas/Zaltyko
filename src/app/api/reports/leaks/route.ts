@@ -21,7 +21,7 @@ import { calculateClassProfitability } from "@/lib/reports/leak-profitability";
 export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.guid(),
   period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
 });
 

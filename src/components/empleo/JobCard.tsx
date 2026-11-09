@@ -56,7 +56,7 @@ export function JobCard({ job }: JobCardProps) {
 
   return (
     <Link href={`/empleo/${job.id}`} className="block min-w-0">
-      <Card className="hover:shadow-lg transition-shadow">
+      <Card className=" transition-shadow">
         <CardHeader className="p-4">
           <div className="flex min-w-0 items-start justify-between gap-3">
             <div className="min-w-0 flex-1">

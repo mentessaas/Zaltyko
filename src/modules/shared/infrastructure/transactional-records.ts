@@ -4,6 +4,7 @@ import { auditLog, outboxEvents } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { assertAnalyticsSafePayload } from "@/modules/events/domain/domain-event";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { lockOrganizationForSaasMutation } from "@/modules/saas-billing/application/entitlement-service";
 
 type IdempotencyComparable = string | number | boolean | null;
 
@@ -27,6 +28,9 @@ export async function lockCommand(
   organizationId: string,
   idempotencyKey: string
 ): Promise<void> {
+  // Always organization before resource locks: serializes archive, plan changes,
+  // and capacity-sensitive commands, including commands with distinct keys.
+  await lockOrganizationForSaasMutation(tx, organizationId);
   await tx.execute(
     sql`select pg_advisory_xact_lock(hashtextextended(${`${organizationId}:command:${idempotencyKey}`}, 0))`
   );

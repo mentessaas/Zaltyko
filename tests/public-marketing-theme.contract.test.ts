@@ -14,12 +14,15 @@ describe("public marketing dark mode", () => {
       "src/app/(site)/home/DemoSection.tsx",
       "src/app/(site)/home/ModulesSection.tsx",
       "src/components/motion/Marquee.tsx",
-      "src/app/(site)/Navbar.tsx",
     ];
     for (const file of files) expect(readFileSync(file, "utf8")).toContain("dark:");
     expect(readFileSync(files[0], "utf8")).toContain("dark:bg-background");
     expect(readFileSync(files[1], "utf8")).toContain("dark:bg-card");
     expect(readFileSync(files[2], "utf8")).toContain("dark:bg-card");
-    expect(readFileSync(files[files.length - 1], "utf8")).toContain("dark:bg-background");
+    // La barra pública es siempre de tapiz oscuro con texto blanco, en claro y
+    // en oscuro, así que no necesita variante dark: propia.
+    const navbar = readFileSync("src/app/(site)/Navbar.tsx", "utf8");
+    expect(navbar).toContain("mat-field-deep");
+    expect(navbar).toContain("text-white");
   });
 });

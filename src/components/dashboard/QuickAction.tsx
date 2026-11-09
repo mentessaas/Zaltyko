@@ -27,20 +27,17 @@ export function QuickAction({
             onClick={onClick}
             disabled={disabled}
             className={cn(
-                "group relative flex w-full items-center gap-4 rounded-2xl border border-border bg-card p-4 text-left shadow-soft transition-all duration-150",
-                "hover:border-zaltyko-teal/40 hover:bg-muted",
-                "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border disabled:hover:bg-card disabled:hover:shadow-soft",
-                variant === "destructive" && "border-zaltyko-coral/40 bg-zaltyko-coral/5",
-                variant === "secondary" && "border-zaltyko-indigo/25 bg-zaltyko-indigo/5 dark:border-zaltyko-electric/30 dark:bg-zaltyko-electric/10"
+                // Fila reglada (no tarjeta dentro de tarjeta): separador de magnesio
+                // y fondo azul suave al pasar. La señal coral solo para deudas.
+                "group relative flex min-h-14 w-full items-center gap-4 border-b border-chalk-line px-1 py-3 text-left transition-colors duration-150 last:border-b-0",
+                "hover:bg-mat-wash",
+                "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
             )}
         >
             <div
                 className={cn(
-                    "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors",
-                    variant === "default" && "bg-zaltyko-teal/12 text-zaltyko-teal",
-                    variant === "destructive" && "bg-zaltyko-coral/12 text-zaltyko-coral",
-                    variant === "secondary" && "bg-zaltyko-indigo/10 text-zaltyko-indigo dark:bg-zaltyko-electric/15 dark:text-zaltyko-electric",
-                    variant === "outline" && "bg-muted text-foreground"
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors",
+                    variant === "destructive" ? "bg-signal-wash text-signal-ink" : "bg-mat-wash text-mat"
                 )}
             >
                 {icon}

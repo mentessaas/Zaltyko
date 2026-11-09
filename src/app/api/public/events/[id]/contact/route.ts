@@ -32,7 +32,7 @@ interface RouteContext {
 async function contactHandler(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    if (!z.string().uuid().safeParse(id).success) {
+    if (!z.guid().safeParse(id).success) {
       return NextResponse.json({ error: "INVALID_EVENT_ID" }, { status: 400 });
     }
 
@@ -97,7 +97,7 @@ async function contactHandler(request: Request, context: RouteContext) {
     const safePhone = escapeHtml(phone || "No indicado");
     const safeMessage = escapeHtml(message).replace(/\n/g, "<br />");
 
-    await sendEmailWithLogging({
+    const delivered = await sendEmailWithLogging({
       to: recipient,
       replyTo: email,
       subject: `Nuevo contacto sobre el evento: ${event.title}`,
@@ -107,6 +107,18 @@ async function contactHandler(request: Request, context: RouteContext) {
       tenantId: event.tenantId,
       academyId: event.academyId,
     });
+
+    if (!delivered) {
+      logger.warn("Event contact form not delivered", { eventId: id });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "CONTACT_NOT_DELIVERED",
+          message: "No hemos podido enviar tu mensaje. Inténtalo de nuevo más tarde.",
+        },
+        { status: 503 }
+      );
+    }
 
     // Registrar solo metadatos mínimos; nunca almacenar PII ni el contenido.
     logger.info("Event contact form submitted", {

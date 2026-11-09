@@ -30,15 +30,15 @@ export function canTransitionEnrollment(
 }
 
 export const enrollmentMutationSchema = z.object({
-  organizationId: z.string().uuid(),
-  enrollmentId: z.string().uuid(),
+  organizationId: z.guid(),
+  enrollmentId: z.guid(),
   expectedVersion: z.number().int().positive(),
   idempotencyKey: z.string().trim().min(8).max(200),
 });
 
 export const transferEnrollmentSchema = enrollmentMutationSchema.extend({
-  targetLocationId: z.string().uuid(),
-  targetClassTemplateId: z.string().uuid(),
+  targetLocationId: z.guid(),
+  targetClassTemplateId: z.guid(),
   startsOn: z.string().date(),
   sourceStatus: enrollmentStatusSchema.refine(
     (status) =>

@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { OwnerClassesManager } from "@/components/owner-dashboard/OwnerClassesManager";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { createClient } from "@/lib/supabase/server";
 import { getOwnerClassesPageData } from "@/modules/scheduling/application/class-management-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -18,8 +19,8 @@ export const metadata: Metadata = {
 };
 
 const querySchema = z.object({
-  organizationId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
+  organizationId: z.guid().optional(),
+  locationId: z.guid().optional(),
 });
 
 export default async function OwnerClassesPage({
@@ -63,5 +64,22 @@ export default async function OwnerClassesPage({
     throw error;
   }
 
-  return <OwnerClassesManager bundle={bundle} />;
+  const navigationLocationId =
+    query.data.locationId ??
+    (bundle.member.locationScopeMode === "all"
+      ? null
+      : bundle.selectedLocationId);
+
+  return (
+    <OwnerWorkspacePageShell
+      member={bundle.member}
+      organizationId={bundle.organization.id}
+      locationId={navigationLocationId}
+    >
+      <OwnerClassesManager
+        bundle={bundle}
+        navigationLocationId={navigationLocationId}
+      />
+    </OwnerWorkspacePageShell>
+  );
 }

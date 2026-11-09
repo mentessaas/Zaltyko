@@ -14,6 +14,7 @@ import { getAppUrl } from "@/lib/env";
 import { trackEvent } from "@/lib/analytics";
 import { logger } from "@/lib/logger";
 import { isAcademyBlockedFromSending } from "@/lib/academy-status";
+import { assertWithinPlanLimits } from "@/lib/limits";
 
 export const ATHLETE_INVITE_BULK_MAX = 10;
 export const ATHLETE_INVITE_DEFAULT_EXPIRES_DAYS = 7;
@@ -201,6 +202,10 @@ export async function createAthleteInviteBatch(
     throw new Error("ACADEMY_NOT_FOUND");
   }
 
+  // No emitir invitaciones nuevas si la academia ya está en su límite de
+  // atletas: el alta final vuelve a validar dentro de su transacción.
+  await assertWithinPlanLimits(input.tenantId, input.academyId, "athletes");
+
   // 2. Normalizar y dedupe input (función pura testeable).
   const { valid: normalized, errors } = validateAndNormalizeEmails(
     input.emails.map((e) => e.email)
@@ -254,7 +259,10 @@ export async function createAthleteInviteBatch(
         academyId: input.academyId,
         err: err instanceof Error ? err.message : String(err),
       });
-      errors.push({ email: original, reason: "INTERNAL_ERROR" });
+      const notSent =
+        err instanceof Error &&
+        (err.message === "EMAIL_NOT_ACCEPTED" || err.message === "EMAIL_DEDUPED_OR_FAILED");
+      errors.push({ email: original, reason: notSent ? "EMAIL_NOT_SENT" : "INTERNAL_ERROR" });
     }
   }
 
@@ -396,7 +404,7 @@ async function processOne(params: {
       stateToken,
       status: "pending",
       customMessage: params.customMessage,
-      sentAt: now,
+      sentAt: null,
       expiresAt,
       resendCount: 0,
     })
@@ -417,12 +425,12 @@ async function processOne(params: {
     metadata: { invitationId: inserted.id, resendNumber: 0 },
   });
   if (!sent) {
-    // Mantener la fila pero marcar error: si Supabase entregó el link, la
-    // invitación sigue siendo válida porque el backend ya la emitió.
+    // Keep the pending row (the link stays valid and a retry takes the resend
+    // path), but never record sentAt or a success event for an unsent email.
     logger.warn("[athlete-magic-link] email dedupe or provider failed", {
       invitationId: inserted.id,
-      email: params.email,
     });
+    throw new Error("EMAIL_NOT_ACCEPTED");
   }
 
   await db

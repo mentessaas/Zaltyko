@@ -97,6 +97,7 @@ function authUser(
   createdAt: string,
   userMetadata: Record<string, unknown> = {
     legal_consent_version: policyVersion,
+    legal_consent_proof: "signup:register-form-v1",
   }
 ): User {
   return {
@@ -161,20 +162,33 @@ describe("Owner signup contractual consent", () => {
     const store = new FakeDatabase();
     await expect(
       recordOwnerSignupConsent(
-        authUser(newCreatedAt, { legal_consent_version: "broken" }),
+        authUser(newCreatedAt, {
+          legal_consent_version: "broken",
+          legal_consent_proof: "signup:register-form-v1",
+        }),
         { requestKey: "request-bad-metadata-123" },
         store
       )
     ).rejects.toMatchObject({ code: "CONSENT_REJECTED" });
     await expect(
       recordOwnerSignupConsent(
-        authUser(newCreatedAt, { legal_consent_version: "v1-2026-07-01" }),
+        authUser(newCreatedAt, {
+          legal_consent_version: "v1-2026-07-01",
+          legal_consent_proof: "signup:register-form-v1",
+        }),
         { requestKey: "request-old-policy-123" },
         store
       )
     ).rejects.toMatchObject({ code: "CONSENT_REQUIRED" });
     expect(store.existing).toBeUndefined();
     expect(store.audits).toHaveLength(0);
+    await expect(
+      recordOwnerSignupConsent(
+        authUser(newCreatedAt, { legal_consent_version: policyVersion }),
+        { requestKey: "request-missing-proof-123" },
+        store
+      )
+    ).rejects.toMatchObject({ code: "CONSENT_REJECTED" });
   });
 
   it("permite aceptación explícita para cuenta existente y regrant revocado", async () => {

@@ -64,7 +64,7 @@ const EventCard = memo(function EventCard({ event, locale }: EventCardProps) {
           {eventDate ? (
             <div className="flex w-14 flex-col items-center justify-center rounded-control bg-zaltyko-coral/10 px-2 py-2 leading-none">
               <span className="text-xl font-bold text-zaltyko-coral">{eventDate.day}</span>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-zaltyko-coral/80">{eventDate.month}</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-zaltyko-coral/80">{eventDate.month}</span>
             </div>
           ) : (
             <div className="flex items-center gap-2 text-sm text-gray-500">

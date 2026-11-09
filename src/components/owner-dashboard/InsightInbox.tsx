@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import {
   ArrowRight,
   BellRing,
@@ -64,10 +66,12 @@ function formatEstimate(item: InsightListItem): string | null {
   ) {
     return null;
   }
-  const currency = item.estimateCurrency ?? "EUR";
+  if (!item.estimateCurrency) return "Moneda no disponible";
+  const currency = item.estimateCurrency;
   const format = new Intl.NumberFormat("es-ES", {
     style: "currency",
     currency,
+    currencyDisplay: "code",
     maximumFractionDigits: 0,
   });
   return `${format.format(item.estimatedValueMinMinor / 100)}–${format.format(item.estimatedValueMaxMinor / 100)}`;
@@ -76,13 +80,13 @@ function formatEstimate(item: InsightListItem): string | null {
 function Evidence({ evidence }: { evidence: Record<string, unknown> }) {
   const entries = Object.entries(evidence).slice(0, 6);
   return (
-    <dl className="grid grid-cols-2 gap-px border border-slate-300 bg-slate-300 sm:grid-cols-3">
+    <dl className="grid grid-cols-2 gap-px border border-z-line bg-slate-300 sm:grid-cols-3">
       {entries.map(([key, value]) => (
-        <div key={key} className="bg-[#F8F8F4] p-3">
-          <dt className="break-words text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">
+        <div key={key} className="bg-z-canvas p-3">
+          <dt className="break-words text-[10px] font-bold uppercase tracking-[0.12em] text-z-soft">
             {key.replaceAll("_", " ")}
           </dt>
-          <dd className="mt-1 break-words font-mono text-sm font-semibold text-slate-950">
+          <dd className="mt-1 break-words font-mono text-sm font-semibold text-z-ink">
             {typeof value === "number"
               ? new Intl.NumberFormat("es-ES", {
                   maximumFractionDigits: 2,
@@ -98,13 +102,23 @@ function Evidence({ evidence }: { evidence: Record<string, unknown> }) {
 function InsightCard({
   item,
   bundle,
+  writesBlocked,
 }: {
   item: InsightListItem;
   bundle: InsightListBundle;
+  writesBlocked: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryAvailable, setRetryAvailable] = useState(false);
+  const mutationInFlightRef = useRef(false);
+  const pendingMutationRef = useRef<{
+    intent: "action" | "snooze" | "dismiss";
+    path: string;
+    body: string;
+    idempotencyKey: string;
+  } | null>(null);
   const [dismissReason, setDismissReason] = useState("");
   const [simulationOpen, setSimulationOpen] = useState(false);
   const [proposedCapacity, setProposedCapacity] = useState("");
@@ -137,23 +151,34 @@ function InsightCard({
     expectedVersion: item.version,
   };
 
-  async function mutate(
-    intent: "action" | "snooze" | "dismiss",
-    path: string,
-    payload: Record<string, unknown>
+  async function sendMutation(
+    command: NonNullable<typeof pendingMutationRef.current>
   ) {
-    setPending(intent);
+    if (writesBlocked || mutationInFlightRef.current) return;
+    mutationInFlightRef.current = true;
+    setPending(command.intent);
+    setRetryAvailable(false);
     setError(null);
     try {
-      const response = await fetch(path, {
+      const response = await fetch(command.path, {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "idempotency-key": crypto.randomUUID(),
+          "idempotency-key": command.idempotencyKey,
         },
-        body: JSON.stringify(payload),
+        body: command.body,
       });
       if (!response.ok) {
+        const ambiguous =
+          response.status === 408 ||
+          response.status === 425 ||
+          response.status === 429 ||
+          response.status >= 500;
+        if (ambiguous) {
+          setRetryAvailable(true);
+        } else {
+          pendingMutationRef.current = null;
+        }
         const problem = (await response.json().catch(() => null)) as {
           detail?: string;
         } | null;
@@ -161,65 +186,109 @@ function InsightCard({
           problem?.detail ?? "No se ha podido guardar el cambio."
         );
       }
+      pendingMutationRef.current = null;
       router.refresh();
     } catch (cause) {
+      if (pendingMutationRef.current === command) {
+        setRetryAvailable(true);
+      }
       setError(
         cause instanceof Error
           ? cause.message
           : "No se ha podido guardar el cambio."
       );
     } finally {
+      mutationInFlightRef.current = false;
       setPending(null);
     }
+  }
+
+  async function mutate(
+    intent: "action" | "snooze" | "dismiss",
+    path: string,
+    payload: Record<string, unknown>
+  ) {
+    if (writesBlocked || mutationInFlightRef.current) return;
+    const body = JSON.stringify(payload);
+    const existing = pendingMutationRef.current;
+    if (existing) {
+      if (
+        existing.intent !== intent ||
+        existing.path !== path ||
+        existing.body !== body
+      ) {
+        setError(
+          "Hay un envío anterior sin confirmar. Repite ese mismo envío antes de iniciar otro."
+        );
+        return;
+      }
+      await sendMutation(existing);
+      return;
+    }
+
+    const command = {
+      intent,
+      path,
+      body,
+      idempotencyKey: crypto.randomUUID(),
+    };
+    pendingMutationRef.current = command;
+    await sendMutation(command);
+  }
+
+  function retryPendingMutation() {
+    const command = pendingMutationRef.current;
+    if (!command || writesBlocked || mutationInFlightRef.current) return;
+    void sendMutation(command);
   }
 
   return (
     <article
       id={`insight-${item.id}`}
-      className="scroll-mt-6 border-t-4 border-teal-800 bg-white p-5 shadow-soft sm:p-7"
+      className="scroll-mt-6 border-t-4 border-z-ink bg-white p-5 shadow-soft sm:p-7"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.12em]">
-          <span className="bg-slate-950 px-2.5 py-1.5 text-white">
+          <span className="bg-z-ink px-2.5 py-1.5 text-white">
             {Math.round(item.priorityScore)} / 100
           </span>
-          <span className="text-[#A33A2D]">
+          <span className="text-z-chalk-600">
             {severityLabels[item.severity] ?? item.severity}
           </span>
-          <span className="text-slate-600">
+          <span className="text-z-soft">
             {statusLabels[item.status] ?? item.status}
           </span>
         </div>
-        <span className="inline-flex items-center gap-1.5 text-xs text-slate-600">
+        <span className="inline-flex items-center gap-1.5 text-xs text-z-soft">
           <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
           {formatTimestamp(item.lastSeenAt)}
         </span>
       </div>
 
-      <h2 className="mt-5 text-2xl tracking-[-0.03em] text-slate-950 sm:text-3xl">
+      <h2 className="mt-5 text-2xl tracking-[-0.03em] text-z-ink sm:text-3xl">
         {item.title}
       </h2>
-      <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
+      <p className="mt-3 max-w-3xl text-sm leading-6 text-z-soft sm:text-base">
         {item.detail}
       </p>
 
       {estimate && (
-        <div className="mt-5 border-l-4 border-zaltyko-coral bg-[#FFF8F2] p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#A33A2D]">
+        <div className="mt-5 rounded-md border border-z-line border-t-[3px] border-t-zaltyko-coral bg-z-chalk-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-z-chalk-600">
             Hipótesis de valor, no garantía
           </p>
-          <p className="mt-1 font-mono text-2xl font-semibold text-slate-950">
+          <p className="mt-1 font-mono text-2xl font-semibold text-z-ink">
             {estimate}
           </p>
         </div>
       )}
 
-      <details className="group mt-5 border-y border-slate-300">
+      <details className="group mt-5 border-y border-z-line">
         <summary className="touch-target flex cursor-pointer list-none items-center gap-3 py-3 font-semibold marker:hidden">
-          <ShieldCheck className="h-4 w-4 text-teal-800" aria-hidden="true" />
+          <ShieldCheck className="h-4 w-4 text-z-brand-600" aria-hidden="true" />
           <span className="min-w-0 flex-1">Evidencia y supuestos</span>
           <MoreHorizontal
-            className="h-5 w-5 text-slate-600"
+            className="h-5 w-5 text-z-soft"
             aria-hidden="true"
           />
         </summary>
@@ -227,10 +296,10 @@ function InsightCard({
           <Evidence evidence={item.evidence} />
           {item.assumptions.length > 0 && (
             <div className="mt-4">
-              <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-600">
+              <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-z-soft">
                 Supuestos declarados
               </h3>
-              <ul className="mt-2 space-y-2 text-sm leading-5 text-slate-600">
+              <ul className="mt-2 space-y-2 text-sm leading-5 text-z-soft">
                 {item.assumptions.map((assumption, index) => (
                   <li key={index} className="flex gap-2">
                     <span aria-hidden="true">—</span>
@@ -240,35 +309,45 @@ function InsightCard({
               </ul>
             </div>
           )}
-          <p className="mt-4 text-xs text-slate-600">
+          <p className="mt-4 text-xs text-z-soft">
             Regla {item.ruleKey} · v{item.ruleVersion}
           </p>
         </div>
       </details>
 
       {error && (
-        <p
+        <div
           role="alert"
-          className="mt-4 border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+          className="rounded-[12px] mt-4 border border-red-300 bg-red-50 p-3 text-sm text-red-900"
         >
-          {error}
-        </p>
+          <p>{error}</p>
+          {retryAvailable && pendingMutationRef.current && (
+            <button
+              type="button"
+              disabled={pending !== null || writesBlocked}
+              onClick={retryPendingMutation}
+              className="rounded-[12px] touch-target mt-2 border border-red-800 px-3 py-2 font-bold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Reintentar el mismo envío
+            </button>
+          )}
+        </div>
       )}
 
       {isGroupSimulation && simulationOpen && (
         <section
           aria-label="Simulación hipotética de un nuevo grupo"
-          className="mt-5 border border-teal-800 bg-[#F3F8F5] p-4 sm:p-6"
+          className="rounded-[12px] mt-5 border border-z-ink bg-z-canvas p-4 sm:p-6"
         >
           <h3 className="text-xl font-semibold">Prueba una hipótesis</h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-z-soft">
             La demanda contactable viene de la evidencia de este insight. Define
             tú la capacidad y, si quieres, un precio mensual hipotético. Los
             porcentajes son escenarios de sensibilidad, no una conversión
             observada ni un benchmark.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className="grid gap-2 text-sm font-semibold text-slate-800">
+            <label className="grid gap-2 text-sm font-semibold text-z-ink">
               Plazas del grupo hipotético
               <input
                 aria-label="Plazas del grupo hipotético"
@@ -278,11 +357,12 @@ function InsightCard({
                 step={1}
                 inputMode="numeric"
                 value={proposedCapacity}
+                disabled={retryAvailable}
                 onChange={(event) => setProposedCapacity(event.target.value)}
-                className="min-h-11 border border-slate-400 bg-white px-3 text-base"
+                className="rounded-[12px] min-h-11 border border-z-line bg-white px-3 text-base"
               />
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-slate-800">
+            <label className="grid gap-2 text-sm font-semibold text-z-ink">
               Precio mensual hipotético por plaza (opcional, {bundle.organization.defaultCurrency})
               <input
                 aria-label={`Precio mensual hipotético por plaza en ${bundle.organization.defaultCurrency}`}
@@ -292,28 +372,29 @@ function InsightCard({
                 step="0.01"
                 inputMode="decimal"
                 value={monthlyPrice}
+                disabled={retryAvailable}
                 onChange={(event) => setMonthlyPrice(event.target.value)}
-                className="min-h-11 border border-slate-400 bg-white px-3 text-base"
+                className="rounded-[12px] min-h-11 border border-z-line bg-white px-3 text-base"
               />
             </label>
           </div>
           {validSimulation ? (
             <>
-              <p className="mt-4 text-sm font-semibold text-slate-800">
+              <p className="mt-4 text-sm font-semibold text-z-ink">
                 Demanda contactable observada: {eligibleDemand} · plazas
                 hipotéticas vendibles: {Math.min(eligibleDemand, capacityValue)}
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 {simulation.map((scenario) => (
-                  <div key={scenario.key} className="border border-slate-300 bg-white p-3">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-600">
+                  <div key={scenario.key} className="rounded-[12px] border border-z-line bg-white p-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-z-soft">
                       {scenario.label} · {Math.round(scenario.conversionRate * 100)}%
                     </p>
                     <p className="mt-1 text-lg font-semibold">
                       {scenario.estimatedEnrollments} altas hipotéticas
                     </p>
                     {scenario.grossMonthlyMinor !== null && (
-                      <p className="font-mono text-sm text-slate-700">
+                      <p className="font-mono text-sm text-z-soft">
                         {new Intl.NumberFormat("es-ES", {
                           style: "currency",
                           currency: bundle.organization.defaultCurrency,
@@ -323,14 +404,14 @@ function InsightCard({
                   </div>
                 ))}
               </div>
-              <p className="mt-3 text-xs leading-5 text-slate-600">
+              <p className="mt-3 text-xs leading-5 text-z-soft">
                 Estimación hipotética, no compromiso de altas ni ingreso. No
                 descuenta impagos, descuentos, impuestos o costes. Ejecutar esta
                 simulación no crea grupo, clase, plazas ni comunicaciones.
               </p>
             </>
           ) : (
-            <p className="mt-4 text-sm text-slate-700">
+            <p className="mt-4 text-sm text-z-soft">
               Introduce una capacidad de 1 a 100 plazas para ver los escenarios.
               El precio, si lo añades, debe estar entre 0 y 100.000 por mes.
             </p>
@@ -341,7 +422,12 @@ function InsightCard({
       <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
         <button
           type="button"
-          disabled={pending !== null || item.status === "actioned"}
+          disabled={
+            pending !== null ||
+            retryAvailable ||
+            item.status === "actioned" ||
+            (!isGroupSimulation && writesBlocked)
+          }
           onClick={() => {
             if (isGroupSimulation) {
               setSimulationOpen((open) => !open);
@@ -356,7 +442,7 @@ function InsightCard({
               evaluationWindowDays: 30,
             });
           }}
-          className="touch-target inline-flex items-center justify-center gap-2 bg-teal-800 px-5 py-3 text-sm font-bold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:bg-slate-400"
+          className="touch-target inline-flex items-center justify-center gap-2 bg-z-ink px-5 py-3 text-sm font-bold text-white hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           {item.status === "actioned"
             ? "Acción registrada"
@@ -376,7 +462,13 @@ function InsightCard({
         {isGroupSimulation && simulationOpen && (
           <button
             type="button"
-            disabled={pending !== null || item.status === "actioned" || !validSimulation}
+            disabled={
+              pending !== null ||
+              retryAvailable ||
+              item.status === "actioned" ||
+              !validSimulation ||
+              writesBlocked
+            }
             onClick={() =>
               mutate("action", `/api/v1/insights/${item.id}/actions`, {
                 ...basePayload,
@@ -393,14 +485,19 @@ function InsightCard({
                 evaluationWindowDays: 30,
               })
             }
-            className="touch-target border border-teal-800 px-5 py-3 text-sm font-bold text-teal-900 hover:bg-teal-50 disabled:cursor-not-allowed disabled:text-slate-400"
+            className="rounded-[12px] touch-target border border-z-ink px-5 py-3 text-sm font-bold text-z-brand-700 hover:bg-z-brand-50 disabled:cursor-not-allowed disabled:text-z-soft"
           >
             {pending === "action" ? "Guardando…" : "Guardar simulación y seguimiento"}
           </button>
         )}
         <button
           type="button"
-          disabled={pending !== null || item.status === "actioned"}
+          disabled={
+            pending !== null ||
+            retryAvailable ||
+            item.status === "actioned" ||
+            writesBlocked
+          }
           onClick={() => {
             const tomorrow = new Date();
             tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
@@ -409,7 +506,7 @@ function InsightCard({
               snoozedUntil: tomorrow.toISOString(),
             });
           }}
-          className="touch-target border border-slate-400 bg-white px-5 py-3 text-sm font-bold text-slate-950 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-400"
+          className="rounded-[12px] touch-target border border-z-line bg-white px-5 py-3 text-sm font-bold text-z-ink hover:bg-z-canvas disabled:cursor-not-allowed disabled:text-z-soft"
         >
           {pending === "snooze" ? "Guardando…" : "Recordar mañana"}
         </button>
@@ -417,31 +514,37 @@ function InsightCard({
 
       {item.status !== "actioned" && (
         <details className="mt-4 text-sm">
-          <summary className="touch-target cursor-pointer py-2 font-semibold text-slate-600 underline decoration-slate-300 underline-offset-4">
+          <summary className="touch-target cursor-pointer py-2 font-semibold text-z-soft underline decoration-slate-300 underline-offset-4">
             No es relevante
           </summary>
-          <div className="grid gap-3 border-l-2 border-slate-300 pl-4 sm:grid-cols-[1fr_auto] sm:items-end">
-            <label className="grid gap-2 font-semibold text-slate-700">
+          <div className="grid gap-3 border-t border-z-line pt-4 sm:grid-cols-[1fr_auto] sm:items-end">
+            <label className="grid gap-2 font-semibold text-z-soft">
               Motivo del descarte
               <textarea
                 value={dismissReason}
+                disabled={retryAvailable}
                 onChange={(event) => setDismissReason(event.target.value)}
                 minLength={3}
                 maxLength={300}
                 rows={2}
-                className="border border-slate-400 bg-white p-3 font-normal text-slate-950"
+                className="rounded-[12px] border border-z-line bg-white p-3 font-normal text-z-ink"
               />
             </label>
             <button
               type="button"
-              disabled={pending !== null || dismissReason.trim().length < 3}
+              disabled={
+                pending !== null ||
+                retryAvailable ||
+                dismissReason.trim().length < 3 ||
+                writesBlocked
+              }
               onClick={() =>
                 mutate("dismiss", `/api/v1/insights/${item.id}/dismiss`, {
                   ...basePayload,
                   reason: dismissReason,
                 })
               }
-              className="touch-target border border-slate-400 px-4 py-3 font-bold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-400"
+              className="rounded-[12px] touch-target border border-z-line px-4 py-3 font-bold text-z-soft hover:bg-z-canvas disabled:cursor-not-allowed disabled:text-z-soft"
             >
               {pending === "dismiss" ? "Descartando…" : "Descartar"}
             </button>
@@ -453,6 +556,8 @@ function InsightCard({
 }
 
 export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
+  const planPolicy = useOwnerPlanPolicy(bundle.organization.id);
+  const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
   const filterBase = new URLSearchParams({
     organizationId: bundle.organization.id,
   });
@@ -464,22 +569,22 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F1F3EF] text-slate-950">
+    <div className="min-h-screen bg-z-canvas text-z-ink">
       <main
         id="contenido"
         className="mx-auto max-w-[92rem] px-5 pb-24 pt-7 lg:px-10 lg:pb-16 lg:pt-10"
       >
-        <section className="border-b border-slate-400 pb-7">
+        <section className="border-b border-z-line pb-7">
           <div className="grid gap-7 lg:grid-cols-[1fr_auto] lg:items-end">
             <div>
-              <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-teal-800">
+              <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
                 <BellRing className="h-4 w-4" aria-hidden="true" />
                 Decisiones activas
               </p>
               <h1 className="mt-2 max-w-4xl text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
                 Qué merece atención ahora
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-z-soft sm:text-base">
                 Evidencia, supuestos y siguiente acción en un mismo sitio. Cada
                 cambio queda versionado y cada resultado puede medirse.
               </p>
@@ -501,12 +606,12 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
                   value={bundle.scope.entityId}
                 />
               )}
-              <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-600">
+              <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-z-soft">
                 Ámbito
                 <select
                   name="locationId"
                   defaultValue={bundle.scope.locationId ?? ""}
-                  className="touch-target border border-slate-400 bg-white px-3 text-sm font-semibold text-slate-950"
+                  className="rounded-[12px] touch-target border border-z-line bg-white px-3 text-sm font-semibold text-z-ink"
                 >
                   {bundle.scope.canViewOrganizationAggregate && (
                     <option value="">Toda la academia</option>
@@ -518,12 +623,12 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
                   ))}
                 </select>
               </label>
-              <button className="touch-target bg-slate-950 px-5 text-sm font-bold text-white">
+              <button className="touch-target bg-z-ink px-5 text-sm font-bold text-white">
                 Aplicar
               </button>
             </form>
           </div>
-          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-600">
+          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-z-soft">
             <span className="inline-flex items-center gap-1.5">
               <Target className="h-4 w-4" aria-hidden="true" />
               {bundle.items.length} prioridades visibles
@@ -555,18 +660,20 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
           </div>
         </section>
 
+        <OwnerOperationalReadOnlyNotice organizationId={bundle.organization.id} />
+
         {bundle.items.length === 0 ? (
-          <section className="mt-8 border-l-4 border-teal-800 bg-white p-7 shadow-soft sm:p-10">
-            <Lightbulb className="h-7 w-7 text-teal-800" aria-hidden="true" />
+          <section className="mt-8 rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-white p-7 shadow-soft sm:p-10">
+            <Lightbulb className="h-7 w-7 text-z-brand-600" aria-hidden="true" />
             <h2 className="mt-4 text-3xl">No hay decisiones pendientes</h2>
-            <p className="mt-3 max-w-xl leading-6 text-slate-600">
+            <p className="mt-3 max-w-xl leading-6 text-z-soft">
               El motor no ha encontrado una condición accionable en este ámbito.
               Esto no sustituye la revisión de cobertura y calidad de datos del
               cierre.
             </p>
             <Link
               href="/owner"
-              className="touch-target mt-6 inline-flex items-center gap-2 bg-slate-950 px-5 py-3 text-sm font-bold text-white"
+              className="touch-target mt-6 inline-flex items-center gap-2 bg-z-ink px-5 py-3 text-sm font-bold text-white"
             >
               Volver al resumen
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -575,7 +682,7 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
         ) : (
           <section aria-label="Lista de insights" className="mt-8 grid gap-6">
             {bundle.items.map((item) => (
-              <InsightCard key={item.id} item={item} bundle={bundle} />
+              <InsightCard key={item.id} item={item} bundle={bundle} writesBlocked={writesBlocked} />
             ))}
           </section>
         )}
@@ -584,7 +691,7 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
           <div className="mt-8 text-center">
             <Link
               href={`/owner/insights?${new URLSearchParams({ ...Object.fromEntries(filterBase), cursor: bundle.nextCursor }).toString()}`}
-              className="touch-target inline-flex items-center border border-slate-400 bg-white px-5 py-3 text-sm font-bold text-slate-950"
+              className="rounded-[12px] touch-target inline-flex items-center border border-z-line bg-white px-5 py-3 text-sm font-bold text-z-ink"
             >
               Ver siguientes prioridades
             </Link>

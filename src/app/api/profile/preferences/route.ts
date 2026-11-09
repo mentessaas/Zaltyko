@@ -12,7 +12,7 @@ import { logger } from "@/lib/logger";
 const UpdatePreferencesSchema = z.object({
   timezone: z.string().optional(),
   language: z.string().optional(),
-  emailNotifications: z.record(z.boolean()).optional(),
+  emailNotifications: z.record(z.string(), z.boolean()).optional(),
 });
 
 export async function PATCH(request: Request) {

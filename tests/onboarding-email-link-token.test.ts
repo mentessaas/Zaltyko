@@ -41,15 +41,20 @@ describe("onboarding/email-link-token (ZAL-324 Gap 5)", () => {
     expect(result.reason).toBe("EXPIRED");
   });
 
-  it("rechaza tokens con firma manipulada", () => {
+  it.each([0, 15, 31])("rechaza tokens con el byte %i de la firma manipulado", (byteIndex) => {
     const { token } = buildEmailLinkToken({
       email: "owner@academia.test",
       purpose: "unsubscribe",
       nowMs: NOW_MS,
     });
-    // voltear un caracter del suffix (firma)
-    const parts = token.split(".");
-    const tampered = `${parts[0]}.${parts[1]?.slice(0, -2)}AA`;
+    // Replacing a suffix with "AA" can leave a random signature unchanged.
+    // Flip an actual signature bit, including its final byte, before encoding.
+    const [payload, encodedSignature] = token.split(".");
+    const signature = Buffer.from(encodedSignature!, "base64url");
+    expect(signature).toHaveLength(32);
+    signature[byteIndex] = signature[byteIndex]! ^ 1;
+    const tampered = `${payload}.${signature.toString("base64url")}`;
+    expect(tampered).not.toBe(token);
     const result = verifyEmailLinkToken(tampered, NOW_MS + 1000);
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("INVALID_SIGNATURE");

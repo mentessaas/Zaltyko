@@ -7,10 +7,10 @@ import { db } from "@/db";
 import { discounts, discountUsageHistory, charges } from "@/db/schema";
 
 const applyDiscountSchema = z.object({
-  academyId: z.string().uuid(),
-  discountId: z.string().uuid(),
-  chargeId: z.string().uuid(),
-  athleteId: z.string().uuid(),
+  academyId: z.guid(),
+  discountId: z.guid(),
+  chargeId: z.guid(),
+  athleteId: z.guid(),
   amount: z.number(),
 });
 

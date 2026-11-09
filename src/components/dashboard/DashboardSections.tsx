@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
+
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
   Calendar,
   ChevronDown,
   ChevronUp,
-  Circle,
   ClipboardList,
   MessageCircle,
   Wallet,
@@ -16,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { PlanUsage } from "@/components/dashboard/PlanUsage";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { LiveClock } from "@/components/mat/LiveClock";
 import type { DashboardActivity, DashboardPlanUsage, DashboardSportConfigBreakdown } from "@/lib/dashboard";
 import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
@@ -73,30 +75,34 @@ export function DashboardHeroSection({
   const CTAIcon = primaryCTA.icon;
 
   return (
-    <section className="zaltyko-motion-lines overflow-hidden rounded-2xl border border-border bg-card px-5 py-5 shadow-soft lg:px-6">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex-1 space-y-3">
-          <div className="space-y-1">
-            <p className="text-xs font-medium uppercase tracking-[0.16em] text-zaltyko-teal">
-              Panel operativo
-            </p>
-            <h1 className="font-display text-2xl font-semibold tracking-normal text-foreground lg:text-3xl">
-              {academyName ?? "Academia"} · {labels.disciplineName}
-            </h1>
-            <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-              Hola, {profileName ?? "equipo"}. {welcomeMessage}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => onNavigate(primaryCTA.href)} className="gap-2" size="sm">
-              <CTAIcon className="h-4 w-4" />
+    // Cabecera «Magnesio sobre tapiz»: banda de tapiz con el nombre de la
+    // academia rotulado, el saludo y la acción del día; a la derecha, el
+    // reloj de pista y el uso del plan.
+    <section className="mat-field relative overflow-hidden rounded-xl">
+      <div aria-hidden className="pointer-events-none absolute inset-2 rounded-md border-[3px] border-white/70" />
+      <div className="relative flex flex-col gap-6 px-6 py-7 lg:flex-row lg:items-end lg:justify-between lg:px-8 lg:py-8">
+        <div className="flex-1">
+          <h1 className="font-display text-[clamp(2rem,4vw,3.25rem)] font-black uppercase leading-[0.92] text-white">
+            {academyName ?? "Academia"}
+          </h1>
+          <p className="floor-label mt-2 text-white/85">{labels.disciplineName}</p>
+          <p className="mt-4 max-w-2xl text-base leading-relaxed text-white/90">
+            Hola, {profileName ?? "equipo"}. {welcomeMessage}
+          </p>
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onNavigate(primaryCTA.href)}
+              className="inline-flex min-h-11 items-center gap-2 rounded-md bg-white px-5 text-sm font-extrabold text-mat-deep transition-colors hover:bg-chalk focus-visible:ring-white focus-visible:ring-offset-mat"
+            >
+              <CTAIcon aria-hidden className="h-4 w-4" />
               {primaryCTA.label}
-            </Button>
+            </button>
             {tenantAcademies.length > 1 && (
               <div className="group relative">
                 <button
                   type="button"
-                  className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
+                  className="flex min-h-11 items-center gap-2 rounded-md border border-white/40 px-3 text-xs font-semibold text-white transition hover:border-white"
                 >
                   <span className="max-w-[120px] truncate">{academyName ?? "Academia"}</span>
                   <ChevronDown className="h-3 w-3" />
@@ -123,14 +129,17 @@ export function DashboardHeroSection({
             )}
           </div>
         </div>
-        <div className="lg:w-72">
-          <PlanUsage
-            plan={plan}
-            academyId={academyId}
-            athleteLabel={labels.athletesPlural.toLowerCase()}
-            classLabel={pluralizeFirstWord(labels.classLabel).toLowerCase()}
-          />
-        </div>
+        <LiveClock className="text-white lg:text-right" />
+      </div>
+      {/* Uso del plan como línea al pie de la banda, no como tarjeta anidada. */}
+      <div className="relative border-t border-white/25 px-6 pb-5 pt-4 lg:px-8">
+        <PlanUsage
+          plan={plan}
+          academyId={academyId}
+          athleteLabel={labels.athletesPlural.toLowerCase()}
+          classLabel={pluralizeFirstWord(labels.classLabel).toLowerCase()}
+          tone="onMat"
+        />
       </div>
     </section>
   );
@@ -150,13 +159,11 @@ export function SportBreakdownSection({
   if (items.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+    <section className="rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-5">
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">
-            Distribución deportiva
-          </p>
-          <h2 className="font-display text-xl font-semibold text-foreground">Actividad por rama</h2>
+          <h2 className="font-display text-2xl font-black uppercase leading-none text-mat-night">Actividad por rama</h2>
+          <p className="mt-1 text-sm text-ramp-500">Distribución deportiva de la academia</p>
         </div>
         <Button size="sm" variant="outline" onClick={() => onNavigate(`/app/${academyId}/settings`)}>
           Gestionar ramas
@@ -164,7 +171,7 @@ export function SportBreakdownSection({
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         {items.map((item) => (
-          <div key={item.sportConfigId} className="rounded-xl border border-border bg-zaltyko-warm-white p-4">
+          <div key={item.sportConfigId} className="border-t-[3px] border-mat-night pt-3">
             <p className="text-sm font-semibold text-foreground">{item.branchName}</p>
             <p className="text-xs text-muted-foreground">{item.disciplineName}</p>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
@@ -191,14 +198,14 @@ export function StarterSetupSection({
   onNavigate: (href: string) => void;
 }) {
   return (
-    <section className="rounded-2xl border border-zaltyko-teal/20 bg-zaltyko-teal/5 p-5 shadow-soft">
+    <section className="rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
-          <p className="text-sm font-semibold text-foreground">
-            {`Tu academia ya arrancó con una base recomendada para ${labels.disciplineName.toLowerCase()}`}
-          </p>
-          <p className="text-sm text-foreground">
-            Ahora toca revisar responsables, ajustar horarios y adaptar la plantilla inicial a tu realidad diaria.
+          <h2 className="font-display text-2xl font-black uppercase leading-none text-mat-night">
+            {`Base recomendada para ${labels.disciplineName.toLowerCase()}`}
+          </h2>
+          <p className="text-sm text-ramp-600">
+            Tu academia ya arrancó con ella. Ahora toca revisar responsables, ajustar horarios y adaptar la plantilla inicial a tu realidad diaria.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -211,13 +218,12 @@ export function StarterSetupSection({
         </div>
       </div>
       {recommendation && (
-        <div className="mt-4 rounded-xl border border-border bg-card/90 p-4">
+        <div className="mt-4 border-t border-chalk-line pt-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-[0.12em] text-zaltyko-teal">
-                Siguiente ajuste recomendado
+              <p className="text-sm font-semibold text-mat-night">
+                <span className="text-mat">Siguiente ajuste:</span> {recommendation.title}
               </p>
-              <p className="text-sm font-semibold text-foreground">{recommendation.title}</p>
               <p className="text-sm text-muted-foreground">{recommendation.description}</p>
             </div>
             <Button size="sm" variant="outline" onClick={() => onNavigate(recommendation.href)}>
@@ -238,25 +244,31 @@ export function QuickNavigationSection({ academyId }: { academyId: string }) {
     { href: `/app/${academyId}/messages`, icon: MessageCircle, title: "Mensajes", subtitle: "Comunicación", color: "text-zaltyko-teal" },
   ];
 
+  // Accesos como una fila reglada de rótulos (no cuatro tarjetas iguales).
   return (
-    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {links.map((link) => {
-        const Icon = link.icon;
-        return (
-          <a
-            key={link.href}
-            href={link.href}
-            className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft transition hover:border-zaltyko-teal/40"
-          >
-            <Icon className={`h-5 w-5 ${link.color}`} />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{link.title}</p>
-              <p className="text-xs text-muted-foreground">{link.subtitle}</p>
-            </div>
-          </a>
-        );
-      })}
-    </section>
+    <nav aria-label="Accesos rápidos" className="border-y border-chalk-line">
+      <ul className="grid grid-cols-2 lg:grid-cols-4">
+        {links.map((link, i) => {
+          const Icon = link.icon;
+          return (
+            <li key={link.href} className={i % 2 === 1 ? "border-l border-chalk-line" : i >= 2 ? "lg:border-l lg:border-chalk-line" : ""}>
+              <Link
+                href={link.href}
+                className="group flex min-h-16 items-center gap-3 px-4 py-3 transition-colors hover:bg-mat-wash"
+              >
+                <Icon aria-hidden className="h-5 w-5 shrink-0 text-mat" strokeWidth={2} />
+                <span className="min-w-0">
+                  <span className="font-display block text-lg font-extrabold uppercase leading-none text-mat-night group-hover:text-mat">
+                    {link.title}
+                  </span>
+                  <span className="text-xs text-ramp-500">{link.subtitle}</span>
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }
 
@@ -280,72 +292,67 @@ export function DashboardOnboardingPanel({
     ? Math.round((progress.completed / progress.total) * 100)
     : null;
 
+  // Puesta en marcha «Magnesio sobre tapiz»: el número del paso manda, a
+  // tamaño de rótulo de pista (donación del libro de instrucciones). La
+  // secuencia es información: cuántos pasos llevas y cuál toca.
+  const currentStep = progress ? Math.min(progress.completed + 1, progress.total) : null;
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 space-y-2">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onToggleSteps}
-              className="flex items-center justify-center rounded-md p-1 text-primary transition-colors hover:bg-primary/10"
-              aria-label={showAllSteps ? "Ocultar pasos" : "Ver pasos pendientes"}
-              aria-expanded={showAllSteps}
-            >
-              {showAllSteps ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-            <h3 className="text-sm font-semibold text-foreground">Próximo paso</h3>
-            {progress && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground">
-                {progress.completed}/{progress.total}
-              </span>
-            )}
-          </div>
-          {progressPercent !== null && (
-            <div className="space-y-1">
-              <Progress value={progressPercent} className="h-1.5" />
-              <p className="text-xs text-muted-foreground">{progressPercent}% completado</p>
-            </div>
+    <section aria-labelledby="setup-title" className="overflow-hidden rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white">
+      <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:gap-7">
+        {currentStep !== null && progress && (
+          <p className="font-display tabular shrink-0 text-8xl font-black leading-[0.8] text-mat" aria-hidden>
+            {currentStep}
+            <span className="text-3xl text-ramp-300">/{progress.total}</span>
+          </p>
+        )}
+        <div className="min-w-0 flex-1">
+          <h2 id="setup-title" className="font-display text-2xl font-black uppercase leading-none text-mat-night">
+            Puesta en marcha
+          </h2>
+          <p className="mt-1 text-sm text-ramp-600">
+            {progress
+              ? `Paso ${currentStep} de ${progress.total}${progressPercent !== null ? ` · ${progressPercent}% completado` : ""}`
+              : "Configura lo esencial de tu academia."}
+          </p>
+          {progressPercent !== null && <Progress value={progressPercent} aria-label="Progreso de la puesta en marcha" className="mt-3 h-1.5 bg-chalk-dust" />}
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {nextSetupStep && NextSetupIcon && (
+            <Button onClick={() => onNavigate(nextSetupStep.href)} className="gap-2">
+              <NextSetupIcon aria-hidden className="h-4 w-4" />
+              {nextSetupStep.label}
+            </Button>
+          )}
+          {pendingSteps.length > 0 && (
+            <Button variant="outline" onClick={onToggleSteps} aria-expanded={showAllSteps} className="gap-1.5">
+              {showAllSteps ? "Ocultar pasos" : `Ver ${pendingSteps.length} pendientes`}
+              {showAllSteps ? <ChevronUp aria-hidden className="h-4 w-4" /> : <ChevronDown aria-hidden className="h-4 w-4" />}
+            </Button>
           )}
         </div>
-        {nextSetupStep && NextSetupIcon && (
-          <Button onClick={() => onNavigate(nextSetupStep.href)} size="sm" className="shrink-0 gap-2">
-            <NextSetupIcon className="h-3.5 w-3.5" />
-            {nextSetupStep.label}
-          </Button>
-        )}
       </div>
 
       {showAllSteps && pendingSteps.length > 0 && (
-        <div className="mt-4 space-y-2 border-t border-border pt-4">
-          <p className="mb-2 text-xs font-semibold text-muted-foreground">
-            Pasos pendientes ({pendingSteps.length}):
-          </p>
-          <ul className="space-y-1.5">
-            {pendingSteps.map((step, index) => {
-              const StepIcon = step.icon;
-              return (
-                <li key={`${step.href}-${index}`}>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate(step.href)}
-                    className="flex w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-muted"
-                  >
-                    <Circle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <StepIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <span className="block font-medium text-muted-foreground">{step.label}</span>
-                      {step.description && (
-                        <span className="mt-0.5 block text-xs text-muted-foreground/70">{step.description}</span>
-                      )}
-                    </div>
-                    <ArrowRight className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <ol className="border-t border-chalk-line">
+          {pendingSteps.map((step, index) => (
+            <li key={`${step.href}-${index}`} className="border-b border-chalk-line last:border-b-0">
+              <button
+                type="button"
+                onClick={() => onNavigate(step.href)}
+                className="group flex w-full items-center gap-5 px-5 py-4 text-left transition-colors hover:bg-mat-wash"
+              >
+                <span className="font-display tabular w-12 shrink-0 text-5xl font-black leading-none text-ramp-400 group-hover:text-mat">
+                  {(progress?.completed ?? 0) + index + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold text-mat-night">{step.label}</span>
+                  {step.description && <span className="mt-0.5 block text-sm text-ramp-500">{step.description}</span>}
+                </span>
+                <ArrowRight aria-hidden className="h-4 w-4 shrink-0 text-ramp-400 group-hover:text-mat" />
+              </button>
+            </li>
+          ))}
+        </ol>
       )}
     </section>
   );
@@ -363,7 +370,7 @@ export function RecentActivityPanel({
   onToggle: () => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+    <section className="overflow-hidden rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white">
       <button
         type="button"
         onClick={onToggle}
@@ -388,7 +395,7 @@ function SportBreakdownMetric({ value, label }: { value: number; label: string }
   return (
     <div>
       <p className="font-display text-xl font-semibold text-foreground">{value}</p>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );
 }

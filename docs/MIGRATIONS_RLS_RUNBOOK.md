@@ -1,12 +1,15 @@
 # Migrations And RLS Runbook
 
-This repository uses Drizzle for schema definitions and a single consolidated Supabase RLS file.
+This repository uses Drizzle for schema definitions, versioned Supabase migrations, a consolidated RLS reference, and a separate sandbox schema snapshot.
 
 ## Sources Of Truth
 
 - Schema: `src/db/schema/index.ts`
 - Generated Drizzle migrations: `drizzle/`
 - RLS policies: `supabase/rls-consolidated.sql`
+- Sandbox current-state snapshot: `supabase/schema-snapshots/20261024172153_sandbox_schema_snapshot_baseline.sql` (see its manifest for provenance and SHA-256)
+
+The sandbox snapshot is not recovered migration history and is not an executable migration. Its guarded replay is limited to a fresh disposable CI database; never apply it to an existing database or production. Production requires a separate compatibility diff, review, and authorization.
 
 Deprecated RLS files such as `supabase/rls.sql` and `supabase/rls-policies.sql` are historical references only. Do not apply them to a live environment.
 
