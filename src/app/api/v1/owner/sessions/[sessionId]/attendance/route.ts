@@ -48,7 +48,7 @@ function withPrivateNoStore(response: NextResponse): NextResponse {
   return response;
 }
 
-// @auth-flexible route-guard-reason: the verified session is resolved first; session organization/site, active membership, location scope and coach assignment are checked by resolveSessionAttendanceAccess, while writes repeat role/session/enrollment validation transactionally in recordAttendance.
+// @auth-flexible route-guard-reason: the verified session is resolved first; session organization/site, active membership and location scope (a coach is bounded to their sites, and another site answers as a missing session) are checked by resolveSessionAttendanceAccess, while writes repeat role/session/enrollment validation transactionally in recordAttendance.
 export async function GET(
   request: Request,
   context: { params: Promise<{ sessionId: string }> }
@@ -104,7 +104,7 @@ export async function GET(
   }
 }
 
-// @auth-flexible route-guard-reason: the actor is derived from the verified session and active organization membership; the operation rechecks location/role, coach assignment, session/enrollment relation, enrollment validity and idempotency inside the transactional service.
+// @auth-flexible route-guard-reason: the actor is derived from the verified session and active organization membership; the operation rechecks location/role, session/enrollment relation, enrollment validity and idempotency inside the transactional service.
 export async function POST(
   request: Request,
   context: { params: Promise<{ sessionId: string }> }

@@ -37,7 +37,7 @@ function withPrivateNoStore(response: NextResponse): NextResponse {
   return response;
 }
 
-// @auth-flexible route-guard-reason: getCurrentUser resolves the verified actor; resolveOwnerScope validates active owner/admin/manager membership and selected location before rate limiting, and getOwnerAttendanceSessionOptions reauthorizes that same organization/site on every keyset request. The cursor only denotes a position.
+// @auth-flexible route-guard-reason: getCurrentUser resolves the verified actor; resolveOwnerScope validates active owner/admin/manager/coach membership (coach only through the explicit coach_operations surface) and selected location before rate limiting, and getOwnerAttendanceSessionOptions reauthorizes that same organization/site on every keyset request. The cursor only denotes a position.
 export async function GET(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) return unauthenticatedResponse();
@@ -60,6 +60,7 @@ export async function GET(request: Request) {
       userId: user.id,
       organizationId: query.data.organizationId,
       locationId: query.data.locationId,
+      surface: "coach_operations",
     });
     const limit = await rateLimit({
       identifier: getVerifiedTenantRateLimitIdentifier(

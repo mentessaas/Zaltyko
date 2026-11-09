@@ -300,14 +300,17 @@ describe("replay de asistencia cuando la academia está en solo lectura", () => 
     expectNoWrites();
   });
 
-  it("mantiene la asignación de sesión para un coach antes de consultar el replay", async () => {
+  // P1 #8, opción A (2026-11-09): el coach pasa lista en cualquier sesión de
+  // sus sedes; la asignación por sesión ya no es requisito. La sede sigue
+  // limitada por assertOperationalAccess (ver la prueba de sede anterior).
+  it("permite a un coach de la sede sin asignación recuperar el replay sin capacidad de escritura", async () => {
     const { tx, setRole } = makeTransaction();
     setRole("coach");
     coachAssigned = false;
 
-    await expect(run(tx)).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
+    await expect(run(tx)).resolves.toEqual(priorAttendance);
 
-    expect(mocks.findEvent).not.toHaveBeenCalled();
+    expect(mocks.findEvent).toHaveBeenCalledOnce();
     expect(mocks.assertWritable).not.toHaveBeenCalled();
     expectNoWrites();
   });
@@ -319,22 +322,6 @@ describe("replay de asistencia cuando la academia está en solo lectura", () => 
     await expect(run(tx)).resolves.toEqual(priorAttendance);
 
     expect(mocks.findEvent).toHaveBeenCalledOnce();
-    expect(mocks.assertWritable).not.toHaveBeenCalled();
-    expectNoWrites();
-  });
-
-  it.each([
-    { description: "inactivo", active: false, assignedMemberId: memberId },
-    { description: "asociado a otro miembro", active: true, assignedMemberId: "10000000-0000-4000-8000-000000000099" },
-  ])("deniega al coach si el perfil está $description", async ({ active, assignedMemberId }) => {
-    const { tx, setRole, setProfileIsActive, setProfileMemberId } = makeTransaction();
-    setRole("coach");
-    setProfileIsActive(active);
-    setProfileMemberId(assignedMemberId);
-
-    await expect(run(tx)).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
-
-    expect(mocks.findEvent).not.toHaveBeenCalled();
     expect(mocks.assertWritable).not.toHaveBeenCalled();
     expectNoWrites();
   });

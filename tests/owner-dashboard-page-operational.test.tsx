@@ -187,8 +187,43 @@ describe("Owner page operational summary boundary", () => {
       to: undefined,
     });
     expect(operationalSummaryFromPage(page)).toEqual({ synthetic: "summary" });
-    expect(mocks.scope).toHaveBeenCalledWith({ userId: "synthetic-user", organizationId });
+    expect(mocks.scope).toHaveBeenCalledWith({
+      userId: "synthetic-user",
+      organizationId,
+      surface: "coach_operations",
+    });
     expect(mocks.dashboard).not.toHaveBeenCalled();
+  });
+  it("envía al coach a Pasar lista (su Hoy) sin calcular el Resumen de la organización", async () => {
+    mocks.scope.mockResolvedValue({
+      organization: { id: organizationId, name: "QA", defaultCurrency: "EUR" },
+      member: { id: "synthetic-coach", role: "coach", locationScopeMode: "selected" },
+      locations: [{ id: locationId, name: "Sede QA" }],
+      selectedLocationId: locationId,
+      canViewOrganizationAggregate: false,
+    });
+
+    await expect(
+      OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) })
+    ).rejects.toThrow(
+      `REDIRECT:/owner/attendance?organizationId=${organizationId}&locationId=${locationId}`
+    );
+    expect(mocks.summary).not.toHaveBeenCalled();
+    expect(mocks.today).not.toHaveBeenCalled();
+    expect(mocks.attention).not.toHaveBeenCalled();
+  });
+  it("un coach sin sedes va a Pasar lista, donde se le explica, y no a crear academia", async () => {
+    mocks.scope.mockRejectedValue(
+      new OperationalError("LOCATION_SCOPE_DENIED", "Sin sedes asignadas", 403, {
+        reason: "coach_without_locations",
+        organizationId,
+      })
+    );
+
+    await expect(
+      OwnerDashboardPage({ searchParams: Promise.resolve({}) })
+    ).rejects.toThrow(`REDIRECT:/owner/attendance?organizationId=${organizationId}`);
+    expect(mocks.summary).not.toHaveBeenCalled();
   });
   it("passes selected site and dates, but not program/group filters", async () => {
     await OwnerDashboardPage({
@@ -243,9 +278,10 @@ describe("Owner page operational summary boundary", () => {
   it("only counts overdue invoices for roles that can see finances", async () => {
     await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
     expect(mocks.attention).toHaveBeenLastCalledWith(expect.objectContaining({ includeFinancials: true }));
+    // A manager reaches the Resumen but cannot see finances (coaches are redirected first).
     mocks.scope.mockResolvedValueOnce({
       organization: { id: organizationId, name: "QA", defaultCurrency: "EUR" },
-      member: { id: "coach-member", role: "coach", locationScopeMode: "selected" },
+      member: { id: "manager-member", role: "manager", locationScopeMode: "selected" },
       locations: [{ id: locationId, name: "Sede QA" }],
       selectedLocationId: locationId,
       canViewOrganizationAggregate: false,
@@ -289,10 +325,11 @@ describe("Owner page operational summary boundary", () => {
       selectedLocationId: locationId,
       canViewOrganizationAggregate: false,
     });
-    const page = await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
+    // coach is the only role outside owner/admin/manager; P1 #8 sends it to Pasar lista first.
+    await expect(
+      OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) })
+    ).rejects.toThrow("REDIRECT:/owner/attendance?");
     expect(mocks.setup).not.toHaveBeenCalled();
-    const dashboard = Children.toArray(page.props.children)[0];
-    expect(isValidElement<{ setupProgress: unknown }>(dashboard) && dashboard.props.setupProgress).toBeNull();
   });
   it("exposes a failed summary as unavailable rather than financial zero", async () => {
     mocks.summary.mockRejectedValue(new Error("Synthetic database failure"));

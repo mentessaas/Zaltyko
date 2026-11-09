@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
@@ -9,6 +10,15 @@ import { createClient } from "@/lib/supabase/server";
 import { getOwnerAttendanceSessionOptions } from "@/modules/attendance/application/owner-attendance-sessions";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { OwnerTodaySessionsPanel } from "@/components/owner-dashboard/OwnerTodaySessionsPanel";
+import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { logger } from "@/lib/logger";
+import { getOwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
+import {
+  coachHomeHref,
+  coachWithoutLocationsOrganizationId,
+  isCoachRole,
+} from "@/modules/owner-dashboard/domain/coach-access";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +63,10 @@ export default async function OwnerAttendancePage({
       sessionId: query.data.sessionId,
     });
   } catch (error) {
+    const coachOrganizationId = coachWithoutLocationsOrganizationId(error);
+    if (coachOrganizationId) {
+      return <CoachWithoutLocations />;
+    }
     if (error instanceof OperationalError) {
       if (error.code === "FORBIDDEN" && !query.data.organizationId) {
         redirect("/owner/setup");
@@ -74,6 +88,7 @@ export default async function OwnerAttendancePage({
       userId: user.id,
       organizationId: data.organization.id,
       locationId: query.data.locationId,
+      surface: "coach_operations",
     });
   } catch (error) {
     if (
@@ -87,13 +102,54 @@ export default async function OwnerAttendancePage({
     throw error;
   }
 
+  // P1 #8: /owner sends coaches here, so this page also carries their "Hoy",
+  // computed from the same coach scope (one assigned site, no aggregate).
+  const coachMode = isCoachRole(scope.member.role);
+  const coachToday = coachMode
+    ? await getOwnerTodaySessions({ scope, locationId: data.locationId }).catch(
+        (error: unknown) => {
+          logger.error("Coach today sessions failed", error);
+          return null;
+        }
+      )
+    : null;
+
   return (
     <OwnerWorkspacePageShell
       member={scope.member}
       organizationId={scope.organization.id}
       locationId={scope.selectedLocationId}
     >
+      {coachMode ? (
+        <div className="mx-auto w-full max-w-6xl px-5 pt-7 sm:pt-9 lg:px-10">
+          <div className="mx-auto grid max-w-4xl gap-4">
+            {scope.locations.length > 1 ? (
+              <nav aria-label="Sedes asignadas" className="flex flex-wrap gap-2">
+                {scope.locations.map((location) => (
+                  <Link
+                    key={location.id}
+                    href={coachHomeHref({
+                      organizationId: scope.organization.id,
+                      locationId: location.id,
+                    })}
+                    aria-current={location.id === data.locationId ? "page" : undefined}
+                    className={location.id === data.locationId ? ownerUi.primaryButton : ownerUi.secondaryButton}
+                  >
+                    {location.name}
+                  </Link>
+                ))}
+              </nav>
+            ) : null}
+            <OwnerTodaySessionsPanel
+              organizationId={scope.organization.id}
+              classesHref={null}
+              today={coachToday}
+            />
+          </div>
+        </div>
+      ) : null}
       <OwnerAttendanceManager
+        coachMode={coachMode}
         organizationId={data.organization.id}
         locationId={data.locationId}
         sessions={data.sessions}
@@ -101,6 +157,34 @@ export default async function OwnerAttendancePage({
         initialNextCursor={data.nextCursor}
         selectedSession={data.selectedSession}
       />
+    </OwnerWorkspacePageShell>
+  );
+}
+
+/** A coach with no assigned site sees nothing operational, only this. */
+function CoachWithoutLocations() {
+  // No organization context: the plan-policy probe would only fail again for a
+  // coach without sites, and there is nothing operational to scope.
+  return (
+    <OwnerWorkspacePageShell
+      member={{ role: "coach", locationScopeMode: "selected" }}
+      organizationId={null}
+      locationId={null}
+    >
+      <main className={ownerUi.page}>
+        <section
+          aria-labelledby="coach-without-locations-title"
+          className={`mx-auto max-w-2xl ${ownerUi.emptyState}`}
+        >
+          <h1 id="coach-without-locations-title" className={ownerUi.sectionTitle}>
+            Aún no tienes sedes asignadas
+          </h1>
+          <p className="max-w-md text-sm leading-6 text-z-soft">
+            Para ver las sesiones de hoy y pasar lista, la persona responsable
+            del club tiene que asignarte al menos una sede en Equipo.
+          </p>
+        </section>
+      </main>
     </OwnerWorkspacePageShell>
   );
 }

@@ -13,6 +13,7 @@ const previewCapabilities = {
   canManageFinancials: true,
   canManageSubscription: true,
   canManageStaffProfiles: true,
+  coachOperationsOnly: false,
 } as const;
 
 export function OwnerWorkspacePageShell({
