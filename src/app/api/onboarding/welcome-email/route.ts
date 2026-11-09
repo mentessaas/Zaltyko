@@ -117,16 +117,16 @@ export async function POST(request: Request) {
               <h2 style="color: #0D47A1; margin-top: 0; font-size: 20px;">Próximos pasos recomendados:</h2>
               <ul style="list-style: none; padding: 0;">
                 <li style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
-                  ✓ Crea tu primer grupo de entrenamiento
+                  ✓ Crea tu primer grupo
                 </li>
                 <li style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
-                  ✓ Añade atletas a tu academia
+                  ✓ Da de alta a tus gimnastas
                 </li>
                 <li style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
                   ✓ Invita a tus entrenadores
                 </li>
                 <li style="padding: 8px 0;">
-                  ✓ Configura tus métodos de pago
+                  ✓ Prepara las tarifas de tus cuotas mensuales
                 </li>
               </ul>
             </div>
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
             <div style="text-align: center; margin: 30px 0;">
               <a href="${config.appUrl}/app/${academyId}/dashboard"
                  style="display: inline-block; background: #0D47A1; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
-                Ir a mi dashboard
+                Ir a mi panel
               </a>
             </div>
 
@@ -171,12 +171,12 @@ Hola ${profile.name || "Usuario"},
 ¡Nos alegra tenerte en Zaltyko! Tu academia ${academyName} está lista para comenzar.
 
 Próximos pasos recomendados:
-- Crea tu primer grupo de entrenamiento
-- Añade atletas a tu academia
+- Crea tu primer grupo
+- Da de alta a tus gimnastas
 - Invita a tus entrenadores
-- Configura tus métodos de pago
+- Prepara las tarifas de tus cuotas mensuales
 
-Accede a tu dashboard: ${config.appUrl}/app/${academyId}/dashboard
+Accede a tu panel: ${config.appUrl}/app/${academyId}/dashboard
 
 Si tienes alguna pregunta, contacta a ${config.brevo.supportEmail}
 

@@ -12,8 +12,8 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Facturación mensual | Zaltyko",
-  description: "Emite facturas mensuales pendientes para las familias.",
+  title: "Cuotas mensuales | Zaltyko",
+  description: "Emite las cuotas mensuales pendientes de las familias.",
   robots: { index: false, follow: false },
 };
 

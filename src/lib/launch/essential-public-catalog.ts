@@ -12,8 +12,8 @@ export const ESSENTIAL_FEATURES = [
   },
   {
     id: "asistencia", label: "Asistencia", title: "Asistencia por sesión",
-    features: ["Selección de clase y sesión", "Registro de asistencia", "Consulta de marcas guardadas"],
-    impact: "Mantén un registro de cada entrenamiento",
+    features: ["Selección de clase y sesión", "Pase de lista", "Consulta de marcas guardadas"],
+    impact: "Mantén un registro de cada sesión",
   },
   {
     id: "billing", label: "Cuotas manuales", title: "Cuotas y pagos registrados",
@@ -30,7 +30,7 @@ export const ESSENTIAL_FEATURES = [
 export const ESSENTIAL_FAQS = [
   { question: "¿Para qué academias está pensado?", answer: "Para academias de gimnasia artística y rítmica. La configuración administrativa en español contempla España y México. Las cuotas familiares se registran manualmente en EUR o MXN, según la moneda de la academia; no hay conversión automática ni emisión de facturas fiscales mexicanas. Si tu academia está en otro país, contáctanos para consultar el acceso." },
   { question: "¿Qué planes y precios hay?", answer: "Free incluye hasta 30 gimnastas, 3 grupos y 10 clases activas. Starter cuesta 19 €/mes o 190 €/año hasta 75 gimnastas; Growth, 49 €/mes o 490 €/año hasta 200. Precios sin IVA. Network parte de 99€/mes, sin IVA; su propuesta final se acuerda mediante contacto y puesta en marcha acompañada. Los precios de los planes SaaS se expresan en EUR y la contratación internacional todavía no está habilitada." },
-  { question: "¿Zaltyko cobra automáticamente a las familias?", answer: "Las cuotas familiares se emiten y sus pagos se registran manualmente. La suscripción de tu academia a Starter o Growth es una contratación SaaS independiente." },
+  { question: "¿Zaltyko cobra automáticamente a las familias?", answer: "Las cuotas familiares se emiten y sus pagos se registran manualmente. El plan de tu academia (Starter o Growth) es una contratación SaaS independiente." },
   { question: "¿Qué ocurre al cancelar o terminar la prueba?", answer: "Al finalizar el periodo de acceso, la academia vuelve a Free. Si supera sus límites, conserva sus datos y queda en solo lectura hasta archivar el excedente o contratar capacidad suficiente." },
   { question: "¿Cómo empiezo?", answer: "Crea tu cuenta, confirma el correo y configura tu academia y sede. Después puedes añadir gimnastas, familias, grupos y clases. Si necesitas varias sedes, contacta para revisar Network." },
   { question: "¿Cómo se aborda la protección de datos de menores?", answer: "Zaltyko aísla los datos por academia y aplica controles de acceso por rol. La academia debe gestionar los permisos y la información de sus familias conforme a su política de privacidad; estos controles no sustituyen sus obligaciones." },

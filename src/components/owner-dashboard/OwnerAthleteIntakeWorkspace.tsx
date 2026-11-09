@@ -303,7 +303,7 @@ function errorMessage(code: string | null): string {
     case "INVALID_DATE_RANGE": return "La asignación inicial solo admite la fecha civil actual de la sede elegida.";
     case "FAMILY_MEMBERSHIP_DATE_CONFLICT": return "La ficha ya tiene un vínculo familiar que se solapa con esa fecha.";
     case "IDEMPOTENCY_CONFLICT": return "La clave guardada no coincide con un recibo recuperable. Se conserva bloqueada y no se enviarán cambios nuevos.";
-    case "LOCATION_SCOPE_DENIED": return "Esta bandeja requiere acceso Owner/Admin a todas las sedes de la academia.";
+    case "LOCATION_SCOPE_DENIED": return "Esta bandeja requiere acceso de dirección o administración a todas las sedes de la academia.";
     case "FORBIDDEN": return "Tu sesión ya no tiene permiso para esta operación. Conservamos el estado de esta pantalla.";
     case "NOT_FOUND": return "La ficha, familia, grupo o academia ya no está disponible. Vuelve a consultar antes de continuar.";
     default: return "No se pudo completar la operación. Comprueba la conexión y vuelve a consultar.";
@@ -675,7 +675,7 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-700">{organizationName}</p>
           <h1 className={ownerUi.pageTitle}>Gimnastas</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-z-soft">
-            Bandeja organizativa de Owner/Admin para fichas activas que todavía no tienen asignación operativa. Las sedes y grupos se cargan desde la academia; no se aceptan identificadores escritos a mano.
+            Bandeja de la dirección para fichas activas que todavía no tienen asignación operativa. Las sedes y grupos se cargan desde la academia; no se aceptan identificadores escritos a mano.
           </p>
         </header>
 

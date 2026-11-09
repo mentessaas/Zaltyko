@@ -27,12 +27,12 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: "¿Cómo puedo dar de alta a un nuevo atleta?",
-    answer: "Desde el panel de atletas, haz clic en 'Nuevo Atleta' y completa los datos. Después puedes asociar familias y responsables desde su ficha.",
+    question: "¿Cómo doy de alta a una gimnasta?",
+    answer: "Desde Gimnastas, completa «Alta de gimnasta» con sus datos. Después puedes vincular a su familia y a las personas responsables desde su ficha.",
   },
   {
-    question: "¿Cómo funciona el control de asistencia?",
-    answer: "En el detalle de cada clase puedes marcar la asistencia de cada gimnasta manualmente, sesión por sesión.",
+    question: "¿Cómo se pasa lista?",
+    answer: "Desde Hoy en el club o desde Asistencia eliges la sesión y marcas la asistencia de cada gimnasta.",
   },
   {
     question: "¿Puedo cobrar automáticamente las cuotas a las familias?",
@@ -40,7 +40,7 @@ const faqs = [
   },
   {
     question: "¿Cómo puedo cambiar de plan?",
-    answer: "Desde Plan puedes consultar las opciones de suscripción de tu academia y abrir el Portal de Stripe. Las cuotas familiares se gestionan aparte.",
+    answer: "Desde Plan puedes consultar los planes disponibles para tu academia y abrir el Portal de Stripe. Las cuotas familiares se gestionan aparte.",
   },
 ];
 

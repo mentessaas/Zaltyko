@@ -233,7 +233,7 @@ export function DashboardModuleLayout({
   }
 
   return (
-    <section aria-label="Módulos del Owner Dashboard" className="mt-8">
+    <section aria-label="Módulos del Resumen" className="mt-8">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-z-soft">
           Organiza el panel a tu manera. Tu orden no cambia permisos ni datos.

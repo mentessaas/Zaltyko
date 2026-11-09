@@ -137,7 +137,7 @@ test.describe("Greenfield Owner workspace", () => {
       ).toBeVisible();
       if (path === "payments") {
         await expect(
-          page.getByRole("link", { name: "Volver al panel" })
+          page.getByRole("link", { name: "Volver al resumen" })
         ).toHaveAttribute("href", ownerRoute());
       }
     });

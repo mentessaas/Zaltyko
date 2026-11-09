@@ -6,7 +6,7 @@ import {
   type DirectoryKind,
 } from "@/lib/directory/contracts";
 export const inputClass =
-  "block w-full rounded-lg border border-border bg-background p-3";
+  "block w-full rounded-lg border border-border bg-background p-3 text-foreground";
 export const buttonClass =
   "min-h-11 rounded-lg bg-primary px-4 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 text-primary-foreground disabled:opacity-50";
 export function EntryEditor({

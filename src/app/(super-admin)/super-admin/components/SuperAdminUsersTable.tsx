@@ -270,7 +270,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
           <Button
             variant="outline"
             size="sm"
-            className="border-zaltyko-primary/60 bg-zaltyko-primary/20 text-zaltyko-primary-light hover:border-zaltyko-primary-light hover:bg-zaltyko-primary/30 hover:text-white"
+            className="border-zaltyko-primary/60 bg-zaltyko-primary/20 text-mat-lane hover:border-zaltyko-primary-light hover:bg-zaltyko-primary/30 hover:text-white"
             onClick={handleSyncAthletes}
             disabled={syncing || loading}
           >
@@ -403,8 +403,8 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                     className={cn(
                       "inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide",
                       user.isSuspended
-                        ? "bg-zaltyko-coral/15 text-zaltyko-coral"
-                        : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
+                        ? "bg-zaltyko-coral/15 text-signal-light"
+                        : "bg-zaltyko-primary/15 text-mat-lane",
                     )}
                   >
                     <ShieldAlert className="h-3.5 w-3.5" strokeWidth={1.8} />
@@ -413,7 +413,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                 </td>
                 <td className="hidden px-4 py-4 align-top sm:table-cell">
                   {user.planCode ? (
-                    <span className="inline-flex rounded-full bg-zaltyko-primary/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zaltyko-primary-light">
+                    <span className="inline-flex rounded-full bg-zaltyko-primary/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-mat-lane">
                       {getProductPlanPublicName(user.planCode)}
                     </span>
                   ) : (
@@ -427,7 +427,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                       size="sm"
                       className={cn(
                         "border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20",
-                        user.isSuspended && "border-zaltyko-primary/40 text-zaltyko-primary-light",
+                        user.isSuspended && "border-zaltyko-primary/40 text-mat-lane",
                       )}
                       onClick={() =>
                         mutateUser(user.id, {

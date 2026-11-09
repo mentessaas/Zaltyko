@@ -109,7 +109,7 @@ export default function HeroSection() {
             <div className="rounded-card border border-zaltyko-mist bg-white shadow-soft">
               <div className="flex items-center justify-between border-b border-zaltyko-mist px-5 py-4">
                 <div>
-                  <p className="font-display text-sm font-bold text-zaltyko-navy">Entrenamiento · Base 3</p>
+                  <p className="font-display text-sm font-bold text-zaltyko-navy">Sesión de ejemplo · Base 3</p>
                   <p className="text-xs text-zaltyko-text-light">Hoy · 17:30</p>
                 </div>
                 <p className="font-display text-lg font-bold tabular-nums text-zaltyko-navy">

@@ -135,7 +135,7 @@ function StaffReadOnlyNotice({
       className="rounded-[12px] mt-5 border border-amber-600 bg-amber-50 p-4 text-sm leading-6 text-z-ink"
     >
       La academia está en solo lectura: puedes consultar las listas, pero no
-      registrar asistencia nueva. Los datos se conservan. Avisa a la persona
+      pasar lista. Los datos se conservan. Avisa a la persona
       responsable del club para que lo regularice.
     </p>
   );

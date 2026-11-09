@@ -92,7 +92,7 @@ export function ownerStaffErrorMessage(status: number, code: string | null): str
   if (code === "STAFF_PROFILE_VERSION_CONFLICT" || status === 409) return "El perfil cambió desde que cargaste la lista. Actualiza los perfiles y revisa los datos antes de volver a guardar.";
   if (status === 401) return "Tu sesión ha caducado. Inicia sesión y vuelve a cargar los perfiles.";
   if (status === 403) return "Tu cuenta no tiene permiso para gestionar estos perfiles.";
-  if (status === 404) return "El perfil o la organización ya no están disponibles. Actualiza la lista.";
+  if (status === 404) return "El perfil o la academia ya no están disponibles. Actualiza la lista.";
   if (status === 400 || status === 415 || status === 422) return "No se aceptaron los datos del perfil. Revisa los nombres e inténtalo de nuevo.";
   if (status === 429) return "Hay demasiadas solicitudes seguidas. La operación queda guardada para un reintento manual.";
   return "No se pudo completar la solicitud. Se conserva para poder comprobar o repetir exactamente la misma operación.";

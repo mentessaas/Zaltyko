@@ -293,8 +293,8 @@ export function OwnerMonthlyInvoicesManager({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- show why invoice writes are paused.
     setRetryStorageError(
       pending.status === "invalid"
-        ? "No se puede validar una emisión pendiente guardada. No se enviará otra factura hasta resolver ese registro."
-        : "El almacenamiento de sesión no está disponible. No se enviará ninguna factura hasta que se pueda guardar y recuperar el reintento seguro."
+        ? "No se puede validar una emisión pendiente guardada. No se enviará otra cuota hasta resolver ese registro."
+        : "El almacenamiento de sesión no está disponible. No se enviará ninguna cuota hasta que se pueda guardar y recuperar el reintento seguro."
     );
   }, []);
 
@@ -334,7 +334,7 @@ export function OwnerMonthlyInvoicesManager({
       if (isSameIssue(stored.request, request)) {
         setRetryStorageState("blocked");
         setRetryStorageError(
-          "No se pudo actualizar el estado del reintento en el almacenamiento de sesión. No se ha enviado la factura; vuelve a habilitarlo y reintenta."
+          "No se pudo actualizar el estado del reintento en el almacenamiento de sesión. No se ha enviado la cuota; vuelve a habilitarlo y reintenta."
         );
       } else {
         setRetryStorageState("ready");
@@ -348,8 +348,8 @@ export function OwnerMonthlyInvoicesManager({
     setRetryStorageState("blocked");
     setRetryStorageError(
       stored.status === "invalid"
-        ? "No se puede validar una emisión pendiente guardada. No se enviará otra factura hasta resolver ese registro."
-        : "No se pudo guardar la emisión pendiente de forma segura. No se ha enviado la factura; habilita el almacenamiento de sesión y vuelve a cargar la página."
+        ? "No se puede validar una emisión pendiente guardada. No se enviará otra cuota hasta resolver ese registro."
+        : "No se pudo guardar la emisión pendiente de forma segura. No se ha enviado la cuota; habilita el almacenamiento de sesión y vuelve a cargar la página."
     );
     return false;
   }
@@ -375,7 +375,7 @@ export function OwnerMonthlyInvoicesManager({
     retainUncertainRetry(request);
     setRetryStorageState("blocked");
     setRetryStorageError(
-      "La respuesta llegó, pero no se pudo limpiar el reintento guardado. Conservamos la misma clave y el mismo contenido; vuelve a intentarlo antes de preparar otra factura."
+      "La respuesta llegó, pero no se pudo limpiar el reintento guardado. Conservamos la misma clave y el mismo contenido; vuelve a intentarlo antes de preparar otra cuota."
     );
     return false;
   }
@@ -384,7 +384,7 @@ export function OwnerMonthlyInvoicesManager({
     const uncertainRequest = { ...request, hasAmbiguousAttempt: true };
     if (!persistRetryRequest(uncertainRequest)) {
       setIssueError(
-        "No se ha enviado la factura porque no pudimos conservar de forma segura el mismo reintento."
+        "No se ha enviado la cuota porque no pudimos conservar de forma segura el mismo reintento."
       );
       return;
     }
@@ -451,7 +451,7 @@ export function OwnerMonthlyInvoicesManager({
           setIssueError(
             responseMessage(
               payload,
-              "No se ha podido emitir la factura. Revisa los datos e inténtalo de nuevo."
+              "No se ha podido emitir la cuota. Revisa los datos e inténtalo de nuevo."
             )
           );
         }
@@ -465,15 +465,15 @@ export function OwnerMonthlyInvoicesManager({
       }>(payload);
       if (!isUuid(data?.invoiceId)) {
         throw new Error(
-          "La respuesta no confirma qué factura se emitió. Conservamos la operación para reintentarla con la misma clave."
+          "La respuesta no confirma qué cuota se emitió. Conservamos la operación para reintentarla con la misma clave."
         );
       }
       clearResolvedRetry(request);
       if (currentScopeKeyRef.current === request.scopeKey) {
         setSuccessMessage(
           data.chargeStatus === "due" && data.collectionMode === "manual"
-            ? "Factura emitida y pendiente. No se ha registrado ni iniciado un pago."
-            : "Factura emitida; no se ha registrado ni iniciado un pago."
+            ? "Cuota emitida y pendiente de pago. No se ha registrado ni iniciado un pago."
+            : "Cuota emitida; no se ha registrado ni iniciado un pago."
         );
         setQuoteNeedsReview(false);
         await loadOptionsRef.current();
@@ -482,7 +482,7 @@ export function OwnerMonthlyInvoicesManager({
           organizationId: request.body.organizationId,
           locationId: request.body.locationId,
           servicePeriod: request.body.servicePeriod,
-          message: "La factura se emitió correctamente en la operación iniciada para el ámbito original.",
+          message: "La cuota se emitió correctamente en la operación iniciada para el ámbito original.",
         });
       }
     } catch (error) {
@@ -491,7 +491,7 @@ export function OwnerMonthlyInvoicesManager({
         setIssueError(
           error instanceof Error
             ? error.message
-            : "No se ha podido emitir la factura."
+            : "No se ha podido emitir la cuota."
         );
       }
     } finally {
@@ -565,7 +565,7 @@ export function OwnerMonthlyInvoicesManager({
           }).toString()}`}
           className="min-h-11 w-fit content-center rounded-full border border-z-line bg-white px-4 text-sm font-semibold text-z-soft hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
         >
-          Volver al panel
+          Volver al resumen
         </Link>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-700">
@@ -679,7 +679,7 @@ export function OwnerMonthlyInvoicesManager({
       )}
       {issueReceipt && (
         <div role="status" className="rounded-[12px] mx-auto grid max-w-4xl gap-2 border border-z-brand-100 bg-z-brand-50 p-4 text-sm text-z-brand-700">
-          <p>{issueReceipt.message} El workspace visible no se ha actualizado.</p>
+          <p>{issueReceipt.message} La pantalla actual no se ha actualizado.</p>
           <Link
             className="min-h-11 w-fit content-center font-bold underline underline-offset-2"
             href={`/owner/monthly-invoices?${new URLSearchParams({

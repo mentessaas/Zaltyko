@@ -653,7 +653,7 @@ export function OwnerAttendanceManager({
               className={ownerUi.backLink}
             >
               <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
-              Volver al panel
+              Volver al resumen
             </Link>
           )}
           <div>

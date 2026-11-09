@@ -208,7 +208,7 @@ export default async function ComparisonDetailPage({ params }: PageProps) {
                   <ul className="space-y-2">
                     {content.zaltykoContras.map((item) => (
                       <li key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <X aria-hidden="true" className="h-4 w-4 mt-0.5 text-muted-foreground/60 shrink-0" />
+                        <X aria-hidden="true" className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                         <span>{item}</span>
                       </li>
                     ))}
@@ -235,7 +235,7 @@ export default async function ComparisonDetailPage({ params }: PageProps) {
                   <ul className="space-y-2">
                     {content.competitorContras.map((item) => (
                       <li key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <X aria-hidden="true" className="h-4 w-4 mt-0.5 text-muted-foreground/60 shrink-0" />
+                        <X aria-hidden="true" className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                         <span>{item}</span>
                       </li>
                     ))}
@@ -274,7 +274,7 @@ export default async function ComparisonDetailPage({ params }: PageProps) {
                 <ul className="space-y-2 text-sm">
                   {content.idealForCompetitor.map((item) => (
                     <li key={item} className="flex items-start gap-2 text-muted-foreground">
-                      <Check aria-hidden="true" className="h-4 w-4 mt-0.5 text-muted-foreground/60 shrink-0" />
+                      <Check aria-hidden="true" className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                       <span>{item}</span>
                     </li>
                   ))}
