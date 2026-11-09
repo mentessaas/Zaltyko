@@ -68,6 +68,36 @@ export function ManualPaymentForm({
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
   const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useOrganizationDraftField<string | null>(
+    organizationId,
+    null
+  );
+  const [saved, setSaved] = useOrganizationDraftField(organizationId, false);
+  const {
+    retryRequest,
+    setRetryRequest,
+    retryStorageReady,
+    retryStorageError,
+    setRetryStorageError,
+    actorScopeHash,
+    pendingCount,
+    setPendingCount,
+    otherActorPending,
+    setOtherActorPending,
+    legacyRecoveryRequired,
+    legacyRecoveryBusy,
+    recoverLegacyPendingPayment,
+  } = useManualPaymentRetryStorage({ actorId, setError });
+  const paymentInFlight = useRef(false);
+  const formLocked =
+    busy ||
+    retryRequest !== null ||
+    pendingCount > 0 ||
+    otherActorPending ||
+    legacyRecoveryRequired ||
+    !retryStorageReady ||
+    retryStorageError !== null;
   const {
     pageMatchesCurrentProps,
     loadedCharges,
@@ -75,7 +105,13 @@ export function ManualPaymentForm({
     loadingMore,
     loadMoreError,
     loadMoreCharges,
-  } = useManualPaymentPagination({ organizationId, locationId, charges, nextCursor });
+  } = useManualPaymentPagination({
+    organizationId,
+    locationId,
+    charges,
+    nextCursor,
+    formLocked,
+  });
   const firstCharge = loadedCharges[0];
   const [chargeId, setChargeId] = useOrganizationDraftField(
     organizationId,
@@ -105,28 +141,6 @@ export function ManualPaymentForm({
     organizationId,
     ""
   );
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useOrganizationDraftField<string | null>(
-    organizationId,
-    null
-  );
-  const [saved, setSaved] = useOrganizationDraftField(organizationId, false);
-  const {
-    retryRequest,
-    setRetryRequest,
-    retryStorageReady,
-    retryStorageError,
-    setRetryStorageError,
-    actorScopeHash,
-    pendingCount,
-    setPendingCount,
-    otherActorPending,
-    setOtherActorPending,
-    legacyRecoveryRequired,
-    legacyRecoveryBusy,
-    recoverLegacyPendingPayment,
-  } = useManualPaymentRetryStorage({ actorId, setError });
-  const paymentInFlight = useRef(false);
 
   useEffect(() => {
     setToday("");
@@ -531,14 +545,6 @@ export function ManualPaymentForm({
     : effectiveReceivedOn;
   const displayedCurrency =
     retryForCurrentOrganization?.snapshot.currency ?? selectedCharge?.currency;
-  const formLocked =
-    busy ||
-    retryRequest !== null ||
-    pendingCount > 0 ||
-    otherActorPending ||
-    legacyRecoveryRequired ||
-    !retryStorageReady ||
-    retryStorageError !== null;
   const retryScopeNotice = (
     <ManualPaymentRetryScopeNotice
       retryRequest={retryRequest}
@@ -636,7 +642,7 @@ export function ManualPaymentForm({
         }
         loadedCharges={loadedCharges}
         pageCursor={pageCursor}
-        onLoadMore={() => void loadMoreCharges(formLocked)}
+        onLoadMore={() => void loadMoreCharges()}
         loadMoreDisabled={!pageMatchesCurrentProps || loadingMore || formLocked}
         loadingMore={loadingMore}
         loadMoreError={loadMoreError}

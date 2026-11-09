@@ -18,11 +18,14 @@ export function useManualPaymentPagination({
   locationId,
   charges,
   nextCursor,
+  formLocked,
 }: {
   organizationId: string;
   locationId: string | null;
   charges: OpenManualPaymentCharge[];
   nextCursor: string | null;
+  /** The form's lock in this render: a locked form cannot load more charges. */
+  formLocked: boolean;
 }) {
   const paginationPageIdentity = useMemo(
     () => ({}),
@@ -76,8 +79,7 @@ export function useManualPaymentPagination({
     paginationPageIdentity,
   ]);
 
-  /** `formLocked` is the form's lock at click time; the manager computes it. */
-  async function loadMoreCharges(formLocked: boolean) {
+  async function loadMoreCharges() {
     const activeRequest = activePaginationRequest.current;
     if (
       !pageMatchesCurrentProps ||
