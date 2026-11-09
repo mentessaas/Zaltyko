@@ -8,7 +8,7 @@ import { getAcademyRobotsHeader } from "@/lib/seo/academy-robots-directives";
 import { getLocalSupabaseCspConnectSources } from "@/lib/security/local-supabase-csp";
 import { extractAcademySlugFromHost } from "@/lib/subdomains/rewrite";
 import { getExperimentalReleaseFlags, isExperimentalRouteDisabled } from "@/lib/release/experimental-routes";
-import { isOutsideEssentialLaunch, isRetiredLaunchMarketing } from "@/lib/launch/essential-routes";
+import { isOutsideEssentialLaunch, isRetiredLaunchApi, isRetiredLaunchMarketing } from "@/lib/launch/essential-routes";
 
 // Constants
 const SUPER_ADMIN_PATH = "/super-admin";
@@ -447,6 +447,18 @@ function i18nRedirectResponse(request: NextRequest): NextResponse | null {
   return response;
 }
 
+function launchClosedResponse(status: 404 | 410, nonce: string): NextResponse {
+  const response = status === 410
+    ? NextResponse.json(
+      { ok: false, error: "ROUTE_RETIRED", code: "ROUTE_RETIRED", message: "Este servicio no forma parte de Zaltyko." },
+      { status: 410 }
+    )
+    : new NextResponse(null, { status: 404 });
+  response.headers.set("Cache-Control", "no-store");
+  response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  return applySecurityHeaders(response, nonce);
+}
+
 export async function middleware(req: NextRequest) {
   const nonce = generateNonce();
   if (isPreviewMutationPointingAtProduction(req)) {
@@ -472,6 +484,9 @@ export async function middleware(req: NextRequest) {
     }
     const url = req.nextUrl.clone();
     url.pathname = `/a/${slug}${url.pathname === "/" ? "" : url.pathname}`;
+    // A rewrite does not run middleware again: apply the launch cut to the
+    // rewritten path so club.zaltyko.com/tienda stays closed like /a/club/tienda.
+    if (isOutsideEssentialLaunch(url.pathname)) return launchClosedResponse(404, nonce);
     url.host = "zaltyko.com";
     url.protocol = "https:";
     return applySecurityHeaders(NextResponse.rewrite(url), nonce);
@@ -479,15 +494,13 @@ export async function middleware(req: NextRequest) {
 
   const pathname = req.nextUrl.pathname;
 
+  // The launch cut runs before the experimental flags, so no environment
+  // variable can reopen the historical store, Stripe Connect checkout or
+  // marketplace: they cannot become a second purchasing entry point.
+  // Retired APIs answer 410 before any rate limiter or handler runs.
+  if (isRetiredLaunchApi(pathname)) return launchClosedResponse(410, nonce);
   // Respond before App Router can stream a 200 for a retired page's notFound().
-  // The launch cut also closes the historical marketplace API, regardless of
-  // experimental flags; it cannot become a second purchasing entry point.
-  if (isOutsideEssentialLaunch(pathname)) {
-    const response = new NextResponse(null, { status: 404 });
-    response.headers.set("Cache-Control", "no-store");
-    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
-    return applySecurityHeaders(response, nonce);
-  }
+  if (isOutsideEssentialLaunch(pathname)) return launchClosedResponse(404, nonce);
   if (isRetiredLaunchMarketing(pathname)) {
     const target = new URL("/features", req.url);
     return applySecurityHeaders(NextResponse.redirect(target), nonce);

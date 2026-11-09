@@ -68,9 +68,11 @@ describe("IndexNow cron contract", () => {
     const urls = submitted[0] as string[];
     expect(urls[0]).toBe("https://zaltyko.com/");
     expect(urls).toContain("https://zaltyko.com/pricing");
-    expect(urls).toContain("https://zaltyko.com/academias");
     expect(urls).toContain("https://zaltyko.com/faq");
-    expect(urls).toContain("https://zaltyko.com/integraciones");
+    // Same finite set as the sitemap: retired pages are never resubmitted.
+    for (const retired of ["/academias", "/marketplace", "/empleo", "/events", "/sobre-nosotros", "/integraciones"]) {
+      expect(urls).not.toContain(`https://zaltyko.com${retired}`);
+    }
     expect(urls).not.toContain("https://zaltyko.com/app");
     expect(urls).not.toContain("https://zaltyko.com/api");
     expect(urls.every((u) => u.startsWith("https://zaltyko.com/"))).toBe(true);

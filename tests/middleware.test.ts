@@ -79,10 +79,14 @@ describe("middleware", () => {
   it.each([
     "/owner/insights", "/owner/health-score/setup", "/owner/health-score/setup/preview",
     "/marketplace", "/marketplace/nuevo", "/dashboard/marketplace/mis-productos",
-    "/api/marketplace", "/api/marketplace/listings", "/app/academy-id/marketplace",
-    "/academias", "/coaches", "/events", "/empleo", "/%6darketplace", "/api/%6darketplace",
+    "/app/academy-id/marketplace", "/app/academy-id/store", "/app/academy-id/store/onboarding",
+    "/a/club-test/tienda", "/a/club-test/tienda/success",
+    "/academias", "/coaches", "/events", "/empleo", "/%6darketplace",
+    "/integraciones", "/integrations", "/docs",
   ])("returns a real 404 before rendering the retired route %s", async path => {
     vi.stubEnv("ENABLE_ACADEMY_MARKETPLACE", "true");
+    vi.stubEnv("ENABLE_B2B_STORE", "true");
+    vi.stubEnv("ENABLE_ACTOR_PAGES", "true");
     try {
       const response = await middleware(new NextRequest(`https://zaltyko.test${path}`));
       expect(response.status).toBe(404);
@@ -94,11 +98,42 @@ describe("middleware", () => {
     } finally { vi.unstubAllEnvs(); }
   });
 
-  it("rejects a marketplace mutation before any rate limiter or handler can run", async () => {
-    const response = await middleware(new NextRequest("https://zaltyko.test/api/marketplace/mis-productos", { method: "POST" }));
-    expect(response.status).toBe(404);
-    expect(response.headers.get("x-middleware-next")).toBeNull();
-    expect(rateLimitMock).not.toHaveBeenCalled();
+  it.each([
+    ["GET", "/api/marketplace"], ["GET", "/api/marketplace/listings"], ["GET", "/api/%6darketplace"],
+    ["POST", "/api/marketplace/mis-productos"],
+    ["POST", "/api/checkout"],
+    ["GET", "/api/products"], ["PATCH", "/api/products/product-id"], ["GET", "/api/products/product-id/variants"],
+    ["GET", "/api/listing-categories"], ["GET", "/api/listing-categories/tree"],
+    ["POST", "/api/academy/stripe-connect/onboard"],
+    ["POST", "/api/academy/subdomain"],
+    ["GET", "/api/advertising/zones/sidebar"],
+    ["GET", "/api/docs"],
+  ])("answers 410 for retired API %s %s even with every experimental flag on", async (method, path) => {
+    vi.stubEnv("ENABLE_ACADEMY_MARKETPLACE", "true");
+    vi.stubEnv("ENABLE_B2B_STORE", "true");
+    vi.stubEnv("ENABLE_ACTOR_PAGES", "true");
+    try {
+      const response = await middleware(new NextRequest(`https://zaltyko.test${path}`, { method }));
+      expect(response.status).toBe(410);
+      await expect(response.json()).resolves.toMatchObject({ ok: false, code: "ROUTE_RETIRED" });
+      expect(response.headers.get("x-middleware-next")).toBeNull();
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(response.headers.get("X-Robots-Tag")).toContain("noindex");
+      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(rateLimitMock).not.toHaveBeenCalled();
+    } finally { vi.unstubAllEnvs(); }
+  });
+
+  it("keeps the store closed on an academy subdomain, where the rewrite skips middleware", async () => {
+    vi.stubEnv("ENABLE_ACTOR_PAGES", "true");
+    vi.stubEnv("ENABLE_B2B_STORE", "true");
+    try {
+      const response = await middleware(new NextRequest("https://club-test.zaltyko.com/tienda", {
+        headers: { host: "club-test.zaltyko.com" },
+      }));
+      expect(response.status).toBe(404);
+      expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+    } finally { vi.unstubAllEnvs(); }
   });
 
   it.each(["/comparativas/zaltyko-vs-excel", "/blog/migrar-excel", "/sobre-nosotros", "/modules/comunicacion", "/es/gimnasia-ritmica/espana", "/en/artistic-gymnastics"])("redirects retired marketing %s to current capabilities", async path => {
@@ -108,7 +143,7 @@ describe("middleware", () => {
     expect(response.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
   });
 
-  it.each(["/pricing", "/auth/callback", "/owner", "/owner/subscription", "/api/v1/owner/saas/usage", "/marketplaces", "/owner/insights-extra"])("keeps essential or distinct segment %s on its existing route", async path => {
+  it.each(["/pricing", "/auth/callback", "/owner", "/owner/subscription", "/api/v1/owner/saas/usage", "/marketplaces", "/owner/insights-extra", "/api/productsx", "/api/public/academies"])("keeps essential or distinct segment %s on its existing route", async path => {
     const response = await middleware(new NextRequest(`https://zaltyko.test${path}`));
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
