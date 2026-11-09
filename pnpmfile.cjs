@@ -6,8 +6,8 @@
 
 const PATCHED_DEPENDENCIES = new Map([
   ["esbuild", "^0.25.0"],
-  ["fast-uri", "^3.1.8"],
-  ["ip-address", "^10.7.1"],
+  ["fast-uri", "^3.1.9"],
+  ["ip-address", "^10.7.4"],
   ["js-yaml", "^4.3.2"],
   ["basic-ftp", "^6.2.1"],
   ["dompurify", "^3.4.17"],
@@ -53,6 +53,20 @@ module.exports = {
         const patchedRange = major === 1 ? "^1.20.9" : major === 2 ? "^2.4.0" : undefined;
         if (patchedRange && dependencies["body-parser"] !== patchedRange) {
           bumped[field] = { ...dependencies, "body-parser": patchedRange };
+          changed = true;
+        }
+      }
+
+      // undici 7 below 7.30.1 has TLS validation, cache-poisoning and DoS
+      // advisories (reached only through jsdom in tests). Lift the 7.x line
+      // to its fix without forcing other majors onto it.
+      for (const field of ["dependencies", "optionalDependencies", "devDependencies"]) {
+        const dependencies = bumped[field];
+        if (!dependencies?.undici) continue;
+        const range = String(dependencies.undici);
+        const major = Number.parseInt(range.replace(/^[^0-9]*/, "").split(".")[0], 10);
+        if (major === 7 && range !== "^7.30.1") {
+          bumped[field] = { ...dependencies, undici: "^7.30.1" };
           changed = true;
         }
       }
