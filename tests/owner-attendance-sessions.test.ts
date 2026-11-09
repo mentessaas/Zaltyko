@@ -67,7 +67,7 @@ describe("Owner attendance session cursor validation", () => {
       userId: otherUserId,
       organizationId,
       locationId,
-      cursor: makeCursor(),
+      surface: "coach_operations",
     });
   });
 

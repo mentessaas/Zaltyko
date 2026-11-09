@@ -205,6 +205,7 @@ export function OwnerAttendanceManager({
   initialSessionId,
   initialNextCursor,
   selectedSession: requestedSession,
+  coachMode = false,
 }: {
   organizationId: string;
   locationId: string;
@@ -212,6 +213,8 @@ export function OwnerAttendanceManager({
   initialSessionId?: string | null;
   initialNextCursor?: string | null;
   selectedSession?: SessionOption | null;
+  /** Coach seat (P1 #8): no links to the management panel or the plan. */
+  coachMode?: boolean;
 }) {
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
@@ -644,13 +647,15 @@ export function OwnerAttendanceManager({
     <main className={ownerUi.page}>
       <div className="mx-auto grid max-w-4xl gap-6">
         <header className="grid gap-4">
-          <Link
-            href={`/owner?organizationId=${encodeURIComponent(organizationId)}&locationId=${encodeURIComponent(locationId)}`}
-            className={ownerUi.backLink}
-          >
-            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Volver al panel
-          </Link>
+          {coachMode ? null : (
+            <Link
+              href={`/owner?organizationId=${encodeURIComponent(organizationId)}&locationId=${encodeURIComponent(locationId)}`}
+              className={ownerUi.backLink}
+            >
+              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Volver al panel
+            </Link>
+          )}
           <div>
             <p className={ownerUi.eyebrow}>Pase de lista</p>
             <h1 className={ownerUi.pageTitle}>Asistencia de la sesión</h1>
@@ -661,7 +666,10 @@ export function OwnerAttendanceManager({
           </div>
         </header>
 
-        <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
+        <OwnerOperationalReadOnlyNotice
+          organizationId={organizationId}
+          subscriptionLinks={!coachMode}
+        />
 
         {pendingRetries
           .filter((retry) => retryScopeKey(retry) !== currentScopeKey)

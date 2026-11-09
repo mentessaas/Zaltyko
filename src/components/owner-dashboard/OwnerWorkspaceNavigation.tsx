@@ -28,6 +28,8 @@ type NavigationItem = {
   active: boolean;
   desktopOverflow?: boolean;
   capability?: keyof OwnerWorkspaceCapabilities;
+  /** Destinations a coach may open: only taking attendance (P1 #8). */
+  coachAllowed?: boolean;
 };
 
 const ITEM_ICONS: Record<string, LucideIcon> = {
@@ -149,6 +151,7 @@ export function OwnerWorkspaceNavigation({
       label: "Asistencia",
       href: `/owner/attendance${scopedQuery}`,
       active: isRouteActive(pathname, "/owner/attendance"),
+      coachAllowed: true,
     },
     {
       label: "Cobros",
@@ -172,11 +175,13 @@ export function OwnerWorkspaceNavigation({
   ];
   // Production pages pass capabilities from their validated server scope.
   // Missing capabilities fail closed; route guards remain authoritative.
-  const visibleNavigationItems = navigationItems.filter(
-    (item) =>
-      previewMode ||
-      !item.capability ||
-      capabilities?.[item.capability] === true
+  const coachOnly = !previewMode && capabilities?.coachOperationsOnly === true;
+  const visibleNavigationItems = navigationItems.filter((item) =>
+    coachOnly
+      ? item.coachAllowed === true
+      : previewMode ||
+        !item.capability ||
+        capabilities?.[item.capability] === true
   );
   const desktopPrimaryItems = visibleNavigationItems.filter((item) => !item.desktopOverflow);
   const desktopMoreItems = visibleNavigationItems.filter((item) => item.desktopOverflow);
@@ -288,7 +293,7 @@ export function OwnerWorkspaceNavigation({
               </details>
             ) : null}
           </nav>
-          {organizationId && !preview ? (
+          {organizationId && !preview && !coachOnly ? (
             <OwnerSidebarPlanCard
               organizationId={organizationId}
               subscriptionHref={capabilities?.canManageSubscription ? `/owner/subscription${organizationQuery}` : null}

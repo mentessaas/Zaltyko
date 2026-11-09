@@ -102,7 +102,14 @@ export async function getOwnerAttendanceSessionOptions(input: {
   cursor?: string;
 }) {
   const cursor = decodeCursor(input.cursor);
-  const scope = await resolveOwnerScope(input);
+  // Taking attendance is one of the two coach surfaces (P1 #8): coaches are
+  // admitted here, still bounded to the sites of their own scope.
+  const scope = await resolveOwnerScope({
+    userId: input.userId,
+    organizationId: input.organizationId,
+    locationId: input.locationId,
+    surface: "coach_operations",
+  });
   const locationId =
     input.locationId ??
     scope.selectedLocationId ??

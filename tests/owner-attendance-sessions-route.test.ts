@@ -97,6 +97,7 @@ describe("Owner attendance session pagination route", () => {
       userId,
       organizationId,
       locationId,
+      surface: "coach_operations",
     });
     expect(mocks.rateLimit).toHaveBeenCalledWith(
       expect.objectContaining({ identifier: `verified:${organizationId}` })

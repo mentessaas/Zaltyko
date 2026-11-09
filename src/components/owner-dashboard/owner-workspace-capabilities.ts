@@ -3,6 +3,11 @@ export type OwnerWorkspaceCapabilities = Readonly<{
   canManageFinancials: boolean;
   canManageSubscription: boolean;
   canManageStaffProfiles: boolean;
+  /**
+   * Coach seat (P1 #8): the workspace only offers taking attendance (with
+   * today's sessions). Route guards stay authoritative; this only trims the UI.
+   */
+  coachOperationsOnly: boolean;
 }>;
 
 export function ownerWorkspaceCapabilitiesFor(member: {
@@ -18,5 +23,6 @@ export function ownerWorkspaceCapabilitiesFor(member: {
     canManageSubscription: member.role === "owner",
     canManageStaffProfiles:
       member.role === "owner" && member.locationScopeMode === "all",
+    coachOperationsOnly: member.role === "coach",
   };
 }

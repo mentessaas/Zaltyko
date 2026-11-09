@@ -17,6 +17,7 @@ import { getOwnerTodaySessions } from "@/modules/owner-dashboard/application/tod
 import { getOwnerAttentionItems } from "@/modules/owner-dashboard/application/attention-items";
 import { ownerWorkspaceCapabilitiesFor } from "@/components/owner-dashboard/owner-workspace-capabilities";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { coachHomeHref, coachWithoutLocationsOrganizationId, isCoachRole } from "@/modules/owner-dashboard/domain/coach-access";
 
 export const dynamic = "force-dynamic";
 
@@ -59,8 +60,10 @@ export default async function OwnerDashboardPage({
 
   let scope: Awaited<ReturnType<typeof resolveOwnerScope>>;
   try {
-    scope = await resolveOwnerScope({ userId: user.id, ...query.data });
+    scope = await resolveOwnerScope({ userId: user.id, ...query.data, surface: "coach_operations" });
   } catch (error) {
+    const coachOrganizationId = coachWithoutLocationsOrganizationId(error);
+    if (coachOrganizationId) redirect(coachHomeHref({ organizationId: coachOrganizationId }));
     if (
       error instanceof OperationalError &&
       (error.code === "FORBIDDEN" || error.code === "LOCATION_SCOPE_DENIED")
@@ -70,6 +73,8 @@ export default async function OwnerDashboardPage({
     }
     throw error;
   }
+  // P1 #8: a coach only has Hoy + Pasar lista; both live on the attendance page.
+  if (isCoachRole(scope.member.role)) redirect(coachHomeHref({ organizationId: scope.organization.id, locationId: scope.selectedLocationId }));
 
   let operationalSummary: Awaited<ReturnType<typeof getOwnerOperationalSummary>> | null = null;
   try {

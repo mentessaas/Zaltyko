@@ -6,11 +6,15 @@ import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 export function OwnerOperationalReadOnlyNotice({
   organizationId,
   enabled = true,
+  subscriptionLinks = true,
 }: {
   organizationId: string;
   enabled?: boolean;
+  /** False for coaches (P1 #8): they cannot open Plan, so no link to it. */
+  subscriptionLinks?: boolean;
 }) {
   const policy = useOwnerPlanPolicy(organizationId, enabled);
+  if (!subscriptionLinks) return <StaffReadOnlyNotice policy={policy} />;
   if (policy.status === "loading") {
     return (
       <p
@@ -77,6 +81,62 @@ export function OwnerOperationalReadOnlyNotice({
         Uso y regularización
       </Link>
       .
+    </p>
+  );
+}
+
+/** Coach wording: same states, no commercial links, points to the club lead. */
+function StaffReadOnlyNotice({
+  policy,
+}: {
+  policy: ReturnType<typeof useOwnerPlanPolicy>;
+}) {
+  if (policy.status === "loading") {
+    return (
+      <p
+        role="status"
+        className="rounded-[12px] mt-5 border border-z-line bg-z-canvas p-4 text-sm leading-6 text-z-ink"
+      >
+        Comprobando si la academia puede registrar cambios. Podrás pasar lista
+        en cuanto termine la comprobación.
+      </p>
+    );
+  }
+
+  if (policy.status === "error") {
+    return (
+      <div
+        role="status"
+        className="rounded-[12px] mt-5 border border-amber-600 bg-amber-50 p-4 text-sm leading-6 text-z-ink"
+      >
+        <p>
+          No se pudo comprobar si la academia puede registrar cambios. Vuelve a
+          intentarlo; si sigue fallando, avisa a la persona responsable del
+          club.
+        </p>
+        <button
+          type="button"
+          className="mt-2 min-h-11 font-bold underline underline-offset-2"
+          onClick={() =>
+            window.dispatchEvent(new Event("zaltyko:plan-usage-changed"))
+          }
+        >
+          Volver a comprobar
+        </button>
+      </div>
+    );
+  }
+
+  if (!policy.readOnly) return null;
+
+  return (
+    <p
+      role="status"
+      className="rounded-[12px] mt-5 border border-amber-600 bg-amber-50 p-4 text-sm leading-6 text-z-ink"
+    >
+      La academia está en solo lectura: puedes consultar las listas, pero no
+      registrar asistencia nueva. Los datos se conservan. Avisa a la persona
+      responsable del club para que lo regularice.
     </p>
   );
 }
