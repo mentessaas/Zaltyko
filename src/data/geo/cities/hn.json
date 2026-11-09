@@ -1,0 +1,150 @@
+{
+  "atlantida": [
+    {
+      "value": "la-ceiba",
+      "label": "La Ceiba"
+    },
+    {
+      "value": "tela",
+      "label": "Tela"
+    }
+  ],
+  "choluteca": [
+    {
+      "value": "choluteca",
+      "label": "Choluteca"
+    },
+    {
+      "value": "san-lorenzo",
+      "label": "San Lorenzo"
+    }
+  ],
+  "colon": [
+    {
+      "value": "trujillo",
+      "label": "Trujillo"
+    },
+    {
+      "value": "tocoa",
+      "label": "Tocoa"
+    }
+  ],
+  "comayagua": [
+    {
+      "value": "comayagua",
+      "label": "Comayagua"
+    },
+    {
+      "value": "siguatepeque",
+      "label": "Siguatepeque"
+    }
+  ],
+  "copan": [
+    {
+      "value": "santa-rosa-copan",
+      "label": "Santa Rosa de Copán"
+    },
+    {
+      "value": "copan-ruinas",
+      "label": "Copán Ruinas"
+    }
+  ],
+  "cortes": [
+    {
+      "value": "san-pedro-sula",
+      "label": "San Pedro Sula"
+    },
+    {
+      "value": "puerto-cortes",
+      "label": "Puerto Cortés"
+    }
+  ],
+  "el-paraiso": [
+    {
+      "value": "yuscaran",
+      "label": "Yuscarán"
+    },
+    {
+      "value": "danli",
+      "label": "Danlí"
+    }
+  ],
+  "francisco-morazan": [
+    {
+      "value": "tegucigalpa",
+      "label": "Tegucigalpa"
+    },
+    {
+      "value": "comayaguela",
+      "label": "Comayagüela"
+    }
+  ],
+  "gracias-dios": [
+    {
+      "value": "puerto-lempira",
+      "label": "Puerto Lempira"
+    }
+  ],
+  "intibuca": [
+    {
+      "value": "la-esperanza",
+      "label": "La Esperanza"
+    }
+  ],
+  "islas-bahia": [
+    {
+      "value": "roatan",
+      "label": "Roatán"
+    }
+  ],
+  "la-paz": [
+    {
+      "value": "la-paz",
+      "label": "La Paz"
+    }
+  ],
+  "lempira": [
+    {
+      "value": "gracias",
+      "label": "Gracias"
+    }
+  ],
+  "ocotepeque": [
+    {
+      "value": "nueva-ocotepeque",
+      "label": "Nueva Ocotepeque"
+    }
+  ],
+  "olancho": [
+    {
+      "value": "juticalpa",
+      "label": "Juticalpa"
+    },
+    {
+      "value": "catacamas",
+      "label": "Catacamas"
+    }
+  ],
+  "santa-barbara": [
+    {
+      "value": "santa-barbara",
+      "label": "Santa Bárbara"
+    }
+  ],
+  "valle": [
+    {
+      "value": "nacaome",
+      "label": "Nacaome"
+    }
+  ],
+  "yoro": [
+    {
+      "value": "yoro",
+      "label": "Yoro"
+    },
+    {
+      "value": "el-progreso",
+      "label": "El Progreso"
+    }
+  ]
+}

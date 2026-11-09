@@ -1,0 +1,110 @@
+{
+  "ahuachapan": [
+    {
+      "value": "ahuachapan",
+      "label": "Ahuachapán"
+    }
+  ],
+  "cabanas": [
+    {
+      "value": "sensuntepeque",
+      "label": "Sensuntepeque"
+    }
+  ],
+  "chalatenango": [
+    {
+      "value": "chalatenango",
+      "label": "Chalatenango"
+    }
+  ],
+  "cuscatlan": [
+    {
+      "value": "cojutepeque",
+      "label": "Cojutepeque"
+    }
+  ],
+  "la-libertad": [
+    {
+      "value": "santa-tecla",
+      "label": "Santa Tecla"
+    },
+    {
+      "value": "antiguo-cuscatlan",
+      "label": "Antiguo Cuscatlán"
+    }
+  ],
+  "la-paz": [
+    {
+      "value": "zacatecoluca",
+      "label": "Zacatecoluca"
+    }
+  ],
+  "la-union": [
+    {
+      "value": "la-union",
+      "label": "La Unión"
+    }
+  ],
+  "morazan": [
+    {
+      "value": "san-francisco-gotera",
+      "label": "San Francisco Gotera"
+    }
+  ],
+  "san-miguel": [
+    {
+      "value": "san-miguel",
+      "label": "San Miguel"
+    },
+    {
+      "value": "ciudad-barrios",
+      "label": "Ciudad Barrios"
+    }
+  ],
+  "san-salvador": [
+    {
+      "value": "san-salvador",
+      "label": "San Salvador"
+    },
+    {
+      "value": "soyapango",
+      "label": "Soyapango"
+    },
+    {
+      "value": "apopa",
+      "label": "Apopa"
+    }
+  ],
+  "san-vicente": [
+    {
+      "value": "san-vicente",
+      "label": "San Vicente"
+    }
+  ],
+  "santa-ana": [
+    {
+      "value": "santa-ana",
+      "label": "Santa Ana"
+    },
+    {
+      "value": "metapan",
+      "label": "Metapán"
+    }
+  ],
+  "sonsonate": [
+    {
+      "value": "sonsonate",
+      "label": "Sonsonate"
+    },
+    {
+      "value": "acajutla",
+      "label": "Acajutla"
+    }
+  ],
+  "usulutan": [
+    {
+      "value": "usulutan",
+      "label": "Usulután"
+    }
+  ]
+}

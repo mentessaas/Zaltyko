@@ -50,7 +50,7 @@ import {
   getRegionLabel,
   getRegionPlaceholder,
 } from "@/lib/countryRegions";
-import { findCitiesByRegion } from "@/lib/citiesByRegion";
+import { useCitiesByRegion } from "@/hooks/use-cities-by-region";
 import { TERMINOLOGY_KEYS } from "@/lib/sport-config/catalog";
 import { logger } from "@/lib/logger";
 import {
@@ -82,10 +82,7 @@ export default function SettingsPage() {
     () => findRegionsByCountry(settings.countryCode.toLowerCase()),
     [settings.countryCode]
   );
-  const cityOptions = useMemo(
-    () => findCitiesByRegion(settings.countryCode.toLowerCase(), settings.region),
-    [settings.countryCode, settings.region]
-  );
+  const cityOptions = useCitiesByRegion(settings.countryCode, settings.region);
   const activeSportConfigEditors = useMemo(
     () => buildActiveSportConfigEditors(settings),
     [settings]

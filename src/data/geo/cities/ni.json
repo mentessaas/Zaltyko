@@ -1,0 +1,128 @@
+{
+  "boaco": [
+    {
+      "value": "boaco",
+      "label": "Boaco"
+    }
+  ],
+  "carazo": [
+    {
+      "value": "jinotepe",
+      "label": "Jinotepe"
+    }
+  ],
+  "chinandega": [
+    {
+      "value": "chinandega",
+      "label": "Chinandega"
+    },
+    {
+      "value": "corinto",
+      "label": "Corinto"
+    }
+  ],
+  "chontales": [
+    {
+      "value": "juigalpa",
+      "label": "Juigalpa"
+    }
+  ],
+  "esteli": [
+    {
+      "value": "esteli",
+      "label": "Estelí"
+    }
+  ],
+  "granada": [
+    {
+      "value": "granada",
+      "label": "Granada"
+    }
+  ],
+  "jinotega": [
+    {
+      "value": "jinotega",
+      "label": "Jinotega"
+    }
+  ],
+  "leon": [
+    {
+      "value": "leon",
+      "label": "León"
+    },
+    {
+      "value": "la-paz-centro",
+      "label": "La Paz Centro"
+    }
+  ],
+  "madriz": [
+    {
+      "value": "somoto",
+      "label": "Somoto"
+    }
+  ],
+  "managua": [
+    {
+      "value": "managua",
+      "label": "Managua"
+    },
+    {
+      "value": "ciudad-sandino",
+      "label": "Ciudad Sandino"
+    }
+  ],
+  "masaya": [
+    {
+      "value": "masaya",
+      "label": "Masaya"
+    },
+    {
+      "value": "catarina",
+      "label": "Catarina"
+    }
+  ],
+  "matagalpa": [
+    {
+      "value": "matagalpa",
+      "label": "Matagalpa"
+    },
+    {
+      "value": "sebaco",
+      "label": "Sebaco"
+    }
+  ],
+  "nueva-segovia": [
+    {
+      "value": "ocotal",
+      "label": "Ocotal"
+    }
+  ],
+  "rio-san-juan": [
+    {
+      "value": "san-carlos",
+      "label": "San Carlos"
+    }
+  ],
+  "rivas": [
+    {
+      "value": "rivas",
+      "label": "Rivas"
+    },
+    {
+      "value": "san-jorge",
+      "label": "San Jorge"
+    }
+  ],
+  "costa-caribe-norte": [
+    {
+      "value": "puerto-cabezas",
+      "label": "Puerto Cabezas"
+    }
+  ],
+  "costa-caribe-sur": [
+    {
+      "value": "bluefields",
+      "label": "Bluefields"
+    }
+  ]
+}

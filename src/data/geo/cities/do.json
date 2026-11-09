@@ -1,0 +1,230 @@
+{
+  "azua": [
+    {
+      "value": "azua",
+      "label": "Azua"
+    }
+  ],
+  "baoruco": [
+    {
+      "value": "neiba",
+      "label": "Neiba"
+    }
+  ],
+  "barahona": [
+    {
+      "value": "barahona",
+      "label": "Barahona"
+    }
+  ],
+  "dajabon": [
+    {
+      "value": "dajabon",
+      "label": "Dajabón"
+    }
+  ],
+  "distrito-nacional": [
+    {
+      "value": "santo-domingo",
+      "label": "Santo Domingo"
+    }
+  ],
+  "duarte": [
+    {
+      "value": "san-francisco-macoris",
+      "label": "San Francisco de Macorís"
+    },
+    {
+      "value": "villa-riva",
+      "label": "Villa Riva"
+    }
+  ],
+  "espailat": [
+    {
+      "value": "moca",
+      "label": "Moca"
+    },
+    {
+      "value": "gaspar-hernandez",
+      "label": "Gaspar Hernández"
+    }
+  ],
+  "hato-mayor": [
+    {
+      "value": "hato-mayor",
+      "label": "Hato Mayor"
+    }
+  ],
+  "hermanas-mirabal": [
+    {
+      "value": "salcedo",
+      "label": "Salcedo"
+    }
+  ],
+  "independencia": [
+    {
+      "value": "jimani",
+      "label": "Jimaní"
+    }
+  ],
+  "la-altagracia": [
+    {
+      "value": "higuey",
+      "label": "Higüey"
+    },
+    {
+      "value": "punta-cana",
+      "label": "Punta Cana"
+    }
+  ],
+  "la-romana": [
+    {
+      "value": "la-romana",
+      "label": "La Romana"
+    },
+    {
+      "value": "bayahibe",
+      "label": "Bayahibe"
+    }
+  ],
+  "la-vega": [
+    {
+      "value": "la-vega",
+      "label": "La Vega"
+    },
+    {
+      "value": "jarabacoa",
+      "label": "Jarabacoa"
+    }
+  ],
+  "maria-trinidad-sanchez": [
+    {
+      "value": "nagua",
+      "label": "Nagua"
+    }
+  ],
+  "monsenor-nouel": [
+    {
+      "value": "bonao",
+      "label": "Bonao"
+    }
+  ],
+  "monte-cristi": [
+    {
+      "value": "monte-cristi",
+      "label": "Monte Cristi"
+    }
+  ],
+  "monte-plata": [
+    {
+      "value": "monte-plata",
+      "label": "Monte Plata"
+    }
+  ],
+  "pedernales": [
+    {
+      "value": "pedernales",
+      "label": "Pedernales"
+    }
+  ],
+  "peravia": [
+    {
+      "value": "bani",
+      "label": "Baní"
+    },
+    {
+      "value": "nizao",
+      "label": "Nizao"
+    }
+  ],
+  "puerto-plata": [
+    {
+      "value": "puerto-plata",
+      "label": "Puerto Plata"
+    },
+    {
+      "value": "sosua",
+      "label": "Sosúa"
+    }
+  ],
+  "samana": [
+    {
+      "value": "samana",
+      "label": "Samaná"
+    },
+    {
+      "value": "las-terrenas",
+      "label": "Las Terrenas"
+    }
+  ],
+  "san-cristobal": [
+    {
+      "value": "san-cristobal",
+      "label": "San Cristóbal"
+    },
+    {
+      "value": "villa-altagracia",
+      "label": "Villa Altagracia"
+    }
+  ],
+  "san-jose-ooa": [
+    {
+      "value": "san-jose-ooa",
+      "label": "San José de Ocoa"
+    }
+  ],
+  "san-juan": [
+    {
+      "value": "san-juan",
+      "label": "San Juan"
+    }
+  ],
+  "san-pedro-macoris": [
+    {
+      "value": "san-pedro-macoris",
+      "label": "San Pedro de Macorís"
+    },
+    {
+      "value": "los-llanos",
+      "label": "Los Llanos"
+    }
+  ],
+  "sanchez-ramirez": [
+    {
+      "value": "cotui",
+      "label": "Cotui"
+    }
+  ],
+  "santiago": [
+    {
+      "value": "santiago",
+      "label": "Santiago"
+    },
+    {
+      "value": "villa-gonzalez",
+      "label": "Villa González"
+    }
+  ],
+  "santiago-rodriguez": [
+    {
+      "value": "san-ignacio-sabaneta",
+      "label": "San Ignacio de Sabaneta"
+    }
+  ],
+  "santo-domingo": [
+    {
+      "value": "santo-domingo-este",
+      "label": "Santo Domingo Este"
+    },
+    {
+      "value": "santo-domingo-norte",
+      "label": "Santo Domingo Norte"
+    }
+  ],
+  "valverde": [
+    {
+      "value": "mao",
+      "label": "Mao"
+    }
+  ]
+}

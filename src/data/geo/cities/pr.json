@@ -1,0 +1,50 @@
+{
+  "aguadilla": [
+    {
+      "value": "aguadilla",
+      "label": "Aguadilla"
+    }
+  ],
+  "arecibo": [
+    {
+      "value": "arecibo",
+      "label": "Arecibo"
+    }
+  ],
+  "bayamon": [
+    {
+      "value": "bayamon",
+      "label": "Bayamón"
+    }
+  ],
+  "carolina": [
+    {
+      "value": "carolina",
+      "label": "Carolina"
+    }
+  ],
+  "caguas": [
+    {
+      "value": "caguas",
+      "label": "Caguas"
+    }
+  ],
+  "mayaguez": [
+    {
+      "value": "mayaguez",
+      "label": "Mayagüez"
+    }
+  ],
+  "ponce": [
+    {
+      "value": "ponce",
+      "label": "Ponce"
+    }
+  ],
+  "san-juan": [
+    {
+      "value": "san-juan",
+      "label": "San Juan"
+    }
+  ]
+}

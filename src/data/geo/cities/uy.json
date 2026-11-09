@@ -1,0 +1,132 @@
+{
+  "artigas": [
+    {
+      "value": "artigas",
+      "label": "Artigas"
+    }
+  ],
+  "canelones": [
+    {
+      "value": "canelones",
+      "label": "Canelones"
+    },
+    {
+      "value": "las-piedras",
+      "label": "Las Piedras"
+    }
+  ],
+  "cerro-largo": [
+    {
+      "value": "melo",
+      "label": "Melo"
+    }
+  ],
+  "colonia": [
+    {
+      "value": "colonia-del-sacramento",
+      "label": "Colonia del Sacramento"
+    },
+    {
+      "value": "carmelo",
+      "label": "Carmelo"
+    }
+  ],
+  "durazno": [
+    {
+      "value": "durazno",
+      "label": "Durazno"
+    }
+  ],
+  "flores": [
+    {
+      "value": "trinidad",
+      "label": "Trinidad"
+    }
+  ],
+  "florida": [
+    {
+      "value": "florida",
+      "label": "Florida"
+    }
+  ],
+  "lavalleja": [
+    {
+      "value": "minas",
+      "label": "Minas"
+    }
+  ],
+  "maldonado": [
+    {
+      "value": "maldonado",
+      "label": "Maldonado"
+    },
+    {
+      "value": "punta-del-este",
+      "label": "Punta del Este"
+    }
+  ],
+  "montevideo": [
+    {
+      "value": "montevideo",
+      "label": "Montevideo"
+    }
+  ],
+  "paysandu": [
+    {
+      "value": "paysandu",
+      "label": "Paysandú"
+    }
+  ],
+  "rio-negro": [
+    {
+      "value": "fray-bentos",
+      "label": "Fray Bentos"
+    }
+  ],
+  "rivera": [
+    {
+      "value": "rivera",
+      "label": "Rivera"
+    }
+  ],
+  "rocha": [
+    {
+      "value": "rocha",
+      "label": "Rocha"
+    },
+    {
+      "value": "chuy",
+      "label": "Chuy"
+    }
+  ],
+  "salto": [
+    {
+      "value": "salto",
+      "label": "Salto"
+    }
+  ],
+  "san-jose": [
+    {
+      "value": "san-jose-mayo",
+      "label": "San José de Mayo"
+    }
+  ],
+  "soriano": [
+    {
+      "value": "mercedes",
+      "label": "Mercedes"
+    }
+  ],
+  "tacuarembo": [
+    {
+      "value": "tacuarembo",
+      "label": "Tacuarembó"
+    }
+  ],
+  "treinta-tres": [
+    {
+      "value": "treinta-tres",
+      "label": "Treinta y Tres"
+    }
+  ]
+}
