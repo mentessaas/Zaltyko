@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { COUNTRY_REGION_OPTIONS, findRegionsByCountry, getRegionLabel, getRegionPlaceholder, getCityPlaceholder } from "@/lib/countryRegions";
-import { findCitiesByRegion } from "@/lib/citiesByRegion";
+import { useCitiesByRegion } from "@/hooks/use-cities-by-region";
 
 interface LocationSelectProps {
   countryCode?: string | null;
@@ -32,7 +32,7 @@ export function LocationSelect({
 
   // Obtener regiones y ciudades según selección
   const regions = countryCode ? findRegionsByCountry(countryCode) : [];
-  const cities = countryCode && provinceValue ? findCitiesByRegion(countryCode, provinceValue) : [];
+  const cities = useCitiesByRegion(countryCode, provinceValue);
 
   // Encontrar nombres completos
   const selectedCountry = COUNTRY_REGION_OPTIONS.find(c => c.value === countryCode);

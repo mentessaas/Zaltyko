@@ -1,0 +1,434 @@
+{
+  "amazonas": [
+    {
+      "value": "leticia",
+      "label": "Leticia"
+    }
+  ],
+  "antioquia": [
+    {
+      "value": "medellin",
+      "label": "Medellín"
+    },
+    {
+      "value": "bello",
+      "label": "Bello"
+    },
+    {
+      "value": "itagui",
+      "label": "Itagüí"
+    },
+    {
+      "value": "envigado",
+      "label": "Envigado"
+    },
+    {
+      "value": "sabaneta",
+      "label": "Sabaneta"
+    },
+    {
+      "value": "la-estrella",
+      "label": "La Estrella"
+    },
+    {
+      "value": "caldas",
+      "label": "Caldas"
+    },
+    {
+      "value": "rionegro",
+      "label": "Rionegro"
+    },
+    {
+      "value": "girardota",
+      "label": "Girardota"
+    },
+    {
+      "value": "copacabana",
+      "label": "Copacabana"
+    },
+    {
+      "value": "barbosa",
+      "label": "Barbosa"
+    },
+    {
+      "value": "guarne",
+      "label": "Guarne"
+    },
+    {
+      "value": "santuario",
+      "label": "Santuario"
+    },
+    {
+      "value": "marinilla",
+      "label": "Marinilla"
+    },
+    {
+      "value": "el-retiro",
+      "label": "El Retiro"
+    }
+  ],
+  "arauca": [
+    {
+      "value": "arauca",
+      "label": "Arauca"
+    }
+  ],
+  "atlantico": [
+    {
+      "value": "barranquilla",
+      "label": "Barranquilla"
+    },
+    {
+      "value": "soledad",
+      "label": "Soledad"
+    }
+  ],
+  "bolivar": [
+    {
+      "value": "cartagena",
+      "label": "Cartagena de Indias"
+    },
+    {
+      "value": "magangue",
+      "label": "Magangué"
+    }
+  ],
+  "boyaca": [
+    {
+      "value": "tunja",
+      "label": "Tunja"
+    },
+    {
+      "value": "duitama",
+      "label": "Duitama"
+    }
+  ],
+  "caldas": [
+    {
+      "value": "manizales",
+      "label": "Manizales"
+    },
+    {
+      "value": "la-dorada",
+      "label": "La Dorada"
+    }
+  ],
+  "caqueta": [
+    {
+      "value": "florencia",
+      "label": "Florencia"
+    }
+  ],
+  "casanare": [
+    {
+      "value": "yopal",
+      "label": "Yopal"
+    }
+  ],
+  "cauca": [
+    {
+      "value": "popayan",
+      "label": "Popayán"
+    },
+    {
+      "value": "santander",
+      "label": "Santander de Quilichao"
+    }
+  ],
+  "cesar": [
+    {
+      "value": "valledupar",
+      "label": "Valledupar"
+    },
+    {
+      "value": "aguachica",
+      "label": "Aguachica"
+    }
+  ],
+  "choco": [
+    {
+      "value": "quibdo",
+      "label": "Quibdó"
+    }
+  ],
+  "cordoba": [
+    {
+      "value": "monteria",
+      "label": "Montería"
+    },
+    {
+      "value": "sahagun",
+      "label": "Sahagún"
+    }
+  ],
+  "cundinamarca": [
+    {
+      "value": "bogota",
+      "label": "Bogotá"
+    },
+    {
+      "value": "soacha",
+      "label": "Soacha"
+    },
+    {
+      "value": "facatativa",
+      "label": "Facatativá"
+    },
+    {
+      "value": "girardot",
+      "label": "Girardot"
+    },
+    {
+      "value": "zipaquira",
+      "label": "Zipaquirá"
+    },
+    {
+      "value": "chia",
+      "label": "Chía"
+    },
+    {
+      "value": "cajica",
+      "label": "Cajicá"
+    },
+    {
+      "value": "madrid",
+      "label": "Madrid"
+    },
+    {
+      "value": "mosquera",
+      "label": "Mosquera"
+    },
+    {
+      "value": "funza",
+      "label": "Funza"
+    },
+    {
+      "value": "sibate",
+      "label": "Sibaté"
+    },
+    {
+      "value": "fusagasuga",
+      "label": "Fusagasugá"
+    },
+    {
+      "value": "ubate",
+      "label": "Ubaté"
+    },
+    {
+      "value": "villeta",
+      "label": "Villeta"
+    },
+    {
+      "value": "guaduas",
+      "label": "Guaduas"
+    }
+  ],
+  "gua": [
+    {
+      "value": "inirida",
+      "label": "Inírida"
+    }
+  ],
+  "guajira": [
+    {
+      "value": "riohacha",
+      "label": "Riohacha"
+    },
+    {
+      "value": "maicao",
+      "label": "Maicao"
+    }
+  ],
+  "guaviare": [
+    {
+      "value": "san-jose",
+      "label": "San José del Guaviare"
+    }
+  ],
+  "huila": [
+    {
+      "value": "neiva",
+      "label": "Neiva"
+    },
+    {
+      "value": "pitalito",
+      "label": "Pitalito"
+    }
+  ],
+  "magdalena": [
+    {
+      "value": "santa-marta",
+      "label": "Santa Marta"
+    },
+    {
+      "value": "cienaga",
+      "label": "Ciénaga"
+    }
+  ],
+  "meta": [
+    {
+      "value": "villavicencio",
+      "label": "Villavicencio"
+    },
+    {
+      "value": "acacias",
+      "label": "Acacías"
+    }
+  ],
+  "narino": [
+    {
+      "value": "pasto",
+      "label": "Pasto"
+    },
+    {
+      "value": "tumaco",
+      "label": "Tumaco"
+    }
+  ],
+  "norte-santander": [
+    {
+      "value": "cucuta",
+      "label": "Cúcuta"
+    },
+    {
+      "value": "ocaña",
+      "label": "Ocaña"
+    }
+  ],
+  "putumayo": [
+    {
+      "value": "mocoa",
+      "label": "Mocoa"
+    }
+  ],
+  "quindio": [
+    {
+      "value": "armenia",
+      "label": "Armenia"
+    },
+    {
+      "value": "calarca",
+      "label": "Calarcá"
+    }
+  ],
+  "risaralda": [
+    {
+      "value": "pereira",
+      "label": "Pereira"
+    },
+    {
+      "value": "dosquebradas",
+      "label": "Dosquebradas"
+    }
+  ],
+  "san-andres": [
+    {
+      "value": "san-andres",
+      "label": "San Andrés"
+    }
+  ],
+  "santander": [
+    {
+      "value": "bucaramanga",
+      "label": "Bucaramanga"
+    },
+    {
+      "value": "floridablanca",
+      "label": "Floridablanca"
+    }
+  ],
+  "sucre": [
+    {
+      "value": "sincelejo",
+      "label": "Sincelejo"
+    },
+    {
+      "value": "corozal",
+      "label": "Corozal"
+    }
+  ],
+  "tolima": [
+    {
+      "value": "ibague",
+      "label": "Ibagué"
+    },
+    {
+      "value": "espinal",
+      "label": "El Espinal"
+    }
+  ],
+  "valle-cauca": [
+    {
+      "value": "cali",
+      "label": "Cali"
+    },
+    {
+      "value": "palmira",
+      "label": "Palmira"
+    },
+    {
+      "value": "buenaventura",
+      "label": "Buenaventura"
+    },
+    {
+      "value": "tulua",
+      "label": "Tuluá"
+    },
+    {
+      "value": "cartago",
+      "label": "Cartago"
+    },
+    {
+      "value": "buga",
+      "label": "Buga"
+    },
+    {
+      "value": "yumbo",
+      "label": "Yumbo"
+    },
+    {
+      "value": "ginebra",
+      "label": "Ginebra"
+    },
+    {
+      "value": "guacari",
+      "label": "Guacarí"
+    },
+    {
+      "value": "ginebra",
+      "label": "Ginebra"
+    },
+    {
+      "value": "cerrito",
+      "label": "El Cerrito"
+    },
+    {
+      "value": "vijes",
+      "label": "Vijes"
+    },
+    {
+      "value": "yotoco",
+      "label": "Yotoco"
+    },
+    {
+      "value": "restrepo",
+      "label": "Restrepo"
+    },
+    {
+      "value": "darien",
+      "label": "Darién"
+    }
+  ],
+  "vaupes": [
+    {
+      "value": "mitu",
+      "label": "Mitú"
+    }
+  ],
+  "vichada": [
+    {
+      "value": "puerto-carreno",
+      "label": "Puerto Carreño"
+    }
+  ]
+}

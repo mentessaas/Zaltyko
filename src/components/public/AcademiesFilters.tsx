@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getRegionLabel, getCityPlaceholder, COUNTRY_REGION_OPTIONS, findRegionsByCountry } from "@/lib/countryRegions";
-import { findCitiesByRegion } from "@/lib/citiesByRegion";
+import { findCitiesByRegionAsync } from "@/lib/geo-loader";
 import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 const ACADEMY_TYPES = [
@@ -87,6 +87,19 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
       return;
     }
 
+    // City lists load per country on demand; ignore a late answer if the
+    // selection changed meanwhile.
+    let active = true;
+    const showCities = (countryValue: string, regionValue: string) => {
+      void findCitiesByRegionAsync(countryValue, regionValue)
+        .then(citiesList => {
+          if (active) setCities(citiesList.map(c => c.label).sort());
+        })
+        .catch(() => {
+          if (active) setCities([]);
+        });
+    };
+
     // Si hay región seleccionada, buscar el país correspondiente
     const normalizedCountry = country ? country.toLowerCase() : null;
     
@@ -95,9 +108,7 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
       for (const countryOption of COUNTRY_REGION_OPTIONS) {
         const regionOption = countryOption.regions.find(r => r.label === region);
         if (regionOption) {
-          const citiesList = findCitiesByRegion(countryOption.value, regionOption.value);
-          const cityLabels = citiesList.map(c => c.label);
-          setCities(cityLabels.sort());
+          showCities(countryOption.value, regionOption.value);
           break;
         }
       }
@@ -107,9 +118,7 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
       const regionOption = regionsList.find(r => r.label === region);
       
       if (regionOption) {
-        const citiesList = findCitiesByRegion(normalizedCountry, regionOption.value);
-        const cityLabels = citiesList.map(c => c.label);
-        setCities(cityLabels.sort());
+        showCities(normalizedCountry, regionOption.value);
       } else {
         setCities([]);
       }
@@ -120,6 +129,9 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
       setCity("");
       setPrevRegion(region);
     }
+    return () => {
+      active = false;
+    };
   }, [region, country, prevRegion]);
 
   // Aplicar filtros
