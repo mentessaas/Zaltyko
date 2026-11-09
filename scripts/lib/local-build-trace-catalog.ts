@@ -312,6 +312,7 @@ export const buildTraceSourcePaths: ReadonlySet<string> = new Set([
   "src/app/api/growth/events/route.ts",
   "src/app/api/guardians/[guardianId]/route.ts",
   "src/app/api/guardians/route.ts",
+  "src/app/api/health/live/route.ts",
   "src/app/api/health/route.ts",
   "src/app/api/invitations/[invitationId]/route.ts",
   "src/app/api/invitations/complete/route.ts",
