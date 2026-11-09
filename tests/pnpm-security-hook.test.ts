@@ -34,6 +34,31 @@ describe("patched dependency compatibility", () => {
     }
   );
 
+  it.each(["dependencies", "optionalDependencies", "devDependencies"] as const)(
+    "lifts only the undici 7 line to its TLS and cache fix in %s",
+    (field) => {
+      for (const [requested, expected] of [
+        ["^7.25.0", "^7.30.1"],
+        ["7.29.1", "^7.30.1"],
+        ["^6.21.0", "^6.21.0"],
+        ["^8.12.3", "^8.12.3"],
+      ]) {
+        const input: PackageManifest = { name: "consumer", [field]: { undici: requested } };
+        expect(readPackage(input)[field]?.undici).toBe(expected);
+        expect(input[field]?.undici).toBe(requested);
+      }
+    }
+  );
+
+  it("raises the fast-uri and ip-address floors to their patched releases", () => {
+    const output = readPackage({
+      name: "consumer",
+      dependencies: { "fast-uri": "^3.0.1", "ip-address": "^10.0.1" },
+    });
+    expect(output.dependencies?.["fast-uri"]).toBe("^3.1.9");
+    expect(output.dependencies?.["ip-address"]).toBe("^10.7.4");
+  });
+
   it("patches transitive Zod while retaining the scoped selector-parser fix", () => {
     const output = readPackage({
       name: "@tailwindcss/typography",
