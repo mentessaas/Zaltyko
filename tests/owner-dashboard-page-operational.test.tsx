@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   summary: vi.fn(),
   today: vi.fn(),
   attention: vi.fn(),
+  setup: vi.fn(),
   notFound: vi.fn(),
   error: vi.fn(),
   getUser: vi.fn(),
@@ -57,6 +58,9 @@ vi.mock("@/modules/owner-dashboard/application/today-sessions", () => ({
 }));
 vi.mock("@/modules/owner-dashboard/application/attention-items", () => ({
   getOwnerAttentionItems: mocks.attention,
+}));
+vi.mock("@/modules/owner-dashboard/application/setup-checklist", () => ({
+  getOwnerSetupProgress: mocks.setup,
 }));
 vi.mock("@/modules/owner-dashboard/application/capacity-heatmap", () => ({
   getCapacityHeatmap: async () => null,
@@ -108,6 +112,7 @@ describe("Owner page operational summary boundary", () => {
     mocks.summary.mockResolvedValue({ synthetic: "summary" });
     mocks.today.mockResolvedValue({ sessions: [], truncated: false });
     mocks.attention.mockResolvedValue({ unrecordedSessions: { count: 0, latest: null }, fullClasses: 0, overdueInvoices: 0 });
+    mocks.setup.mockResolvedValue({ synthetic: "setup" });
     mocks.notFound.mockImplementation(() => {
       throw new Error("NOT_FOUND");
     });
@@ -254,6 +259,40 @@ describe("Owner page operational summary boundary", () => {
     const dashboard = Children.toArray(page.props.children)[0];
     expect(isValidElement<{ attentionItems: unknown }>(dashboard) && dashboard.props.attentionItems).toBeNull();
     expect(mocks.error).toHaveBeenCalledOnce();
+  });
+  it("loads the setup checklist with the same server-authorized scope and selected site", async () => {
+    const page = await OwnerDashboardPage({
+      searchParams: Promise.resolve({ organizationId, locationId }),
+    });
+    const scope = await mocks.scope.mock.results[0]?.value;
+    expect(mocks.setup).toHaveBeenCalledWith({ scope, locationId });
+    const dashboard = Children.toArray(page.props.children)[0];
+    expect(isValidElement<{ setupProgress: unknown }>(dashboard) && dashboard.props.setupProgress).toEqual({ synthetic: "setup" });
+  });
+  it("omits the setup checklist when its query fails without blocking the rest of the Resumen", async () => {
+    mocks.setup.mockRejectedValue(new Error("Synthetic setup failure"));
+    const page = await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
+    const dashboard = Children.toArray(page.props.children)[0];
+    expect(isValidElement<{ setupProgress: unknown; todaySessions: unknown; attentionItems: unknown }>(dashboard) && dashboard.props).toMatchObject({
+      setupProgress: null,
+      todaySessions: { sessions: [], truncated: false },
+      attentionItems: { fullClasses: 0 },
+    });
+    expect(operationalSummaryFromPage(page)).toEqual({ synthetic: "summary" });
+    expect(mocks.error).toHaveBeenCalledOnce();
+  });
+  it("does not query the setup checklist for roles outside owner, admin and manager", async () => {
+    mocks.scope.mockResolvedValueOnce({
+      organization: { id: organizationId, name: "QA", defaultCurrency: "EUR" },
+      member: { id: "coach-member", role: "coach", locationScopeMode: "selected" },
+      locations: [{ id: locationId, name: "Sede QA" }],
+      selectedLocationId: locationId,
+      canViewOrganizationAggregate: false,
+    });
+    const page = await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
+    expect(mocks.setup).not.toHaveBeenCalled();
+    const dashboard = Children.toArray(page.props.children)[0];
+    expect(isValidElement<{ setupProgress: unknown }>(dashboard) && dashboard.props.setupProgress).toBeNull();
   });
   it("exposes a failed summary as unavailable rather than financial zero", async () => {
     mocks.summary.mockRejectedValue(new Error("Synthetic database failure"));

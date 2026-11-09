@@ -15,6 +15,8 @@ import {
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { getOwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
 import { getOwnerAttentionItems } from "@/modules/owner-dashboard/application/attention-items";
+import { getOwnerSetupProgress } from "@/modules/owner-dashboard/application/setup-checklist";
+import { canSeeOwnerSetupChecklist } from "@/modules/owner-dashboard/application/setup-checklist-steps";
 import { ownerWorkspaceCapabilitiesFor } from "@/components/owner-dashboard/owner-workspace-capabilities";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -84,7 +86,7 @@ export default async function OwnerDashboardPage({
     if (error instanceof OperationalError && ["FORBIDDEN", "LOCATION_SCOPE_DENIED"].includes(error.code)) notFound();
     logger.error("Owner operational summary failed", error);
   }
-  const [todaySessions, attentionItems] = await Promise.all([
+  const [todaySessions, attentionItems, setupProgress] = await Promise.all([
     getOwnerTodaySessions({ scope, locationId: query.data.locationId }).catch((error: unknown) => {
       logger.error("Owner today sessions failed", error);
       return null;
@@ -97,6 +99,12 @@ export default async function OwnerDashboardPage({
       logger.error("Owner attention items failed", error);
       return null;
     }),
+    canSeeOwnerSetupChecklist(scope.member.role)
+      ? getOwnerSetupProgress({ scope, locationId: query.data.locationId }).catch((error: unknown) => {
+          logger.error("Owner setup checklist failed", error);
+          return null;
+        })
+      : Promise.resolve(null),
   ]);
   return (
     <OwnerWorkspacePageShell
@@ -109,6 +117,7 @@ export default async function OwnerDashboardPage({
         operationalSummary={operationalSummary}
         todaySessions={todaySessions}
         attentionItems={attentionItems}
+        setupProgress={setupProgress}
       />
       <OwnerProductDiscovery
         organizationId={scope.organization.id}
