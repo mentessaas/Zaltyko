@@ -74,3 +74,18 @@ Diff local sobre `f8186491`. Revisión estática y `git diff --check`. El invent
 1. CI remota del commit.
 2. Integración en la PR 234, coordinada con quien escribe en ella.
 3. Tras publicar en entregas, comprobar por HTTP: 410 en `/api/checkout` y `/api/docs`, 404 en `/integraciones`.
+
+## Segunda revisión (sesión «Zaltyko development continuation», solo lectura)
+
+No encontró nada bloqueante. Aplicado:
+- **Medio, subdominio retirado a medias.** `/app/*/subdomain` también responde 404 en el corte. Solo controla `/api/academy/subdomain`, que ahora da 410. Con `ENABLE_ACTOR_PAGES` activo, el interruptor se habría pintado para fallar siempre. La smoke de roles ya esperaba 404 ahí.
+- **Bajo, ya existía en main.** El matcher de `src/middleware.ts` saltaba cualquier ruta acabada en extensión de imagen, también bajo `/api`. Así, `/api/products/x.png` llegaba al handler sin pasar por el corte ni por los flags. Ahora:
+  - `/api/:path*` pasa siempre por el middleware;
+  - la exclusión de imágenes solo se aplica fuera de `/api`;
+  - la copia de `config` en `middleware.ts` (raíz) queda idéntica, con un test que lo comprueba;
+  - hay tests del matcher y del 410 con sufijo de imagen.
+
+Confirmado sin cambios:
+- el corte sobre la ruta reescrita de subdominio, también con la ruta codificada (`%74ienda` → 404);
+- quitar `/integraciones` no rompe el sitemap, IndexNow, los E2E de geometría ni ningún enlace;
+- cada API retirada tiene su página cerrada y no hay ningún consumidor vivo.

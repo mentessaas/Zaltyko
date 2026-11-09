@@ -9,7 +9,35 @@ vi.mock("@/lib/rate-limit", () => ({
   getClientIdentifier: () => "ip:test",
 }));
 
-import { middleware } from "../middleware";
+import { config as rootConfig, middleware } from "../middleware";
+import { config } from "../src/middleware";
+
+/** Mirrors Next's matcher semantics for the two entry shapes used here. */
+function runsMiddleware(pathname: string, matchers: readonly string[]): boolean {
+  return matchers.some(matcher => matcher.endsWith("/:path*")
+    ? pathname === matcher.slice(0, -"/:path*".length) || pathname.startsWith(matcher.slice(0, -":path*".length))
+    : new RegExp(`^${matcher}$`).test(pathname));
+}
+
+describe("middleware matcher", () => {
+  it("keeps the root copy identical to the src/middleware.ts that Next reads", () => {
+    expect(rootConfig.matcher).toEqual(config.matcher);
+  });
+
+  it.each(["/api/products/x.png", "/api/marketplace/listings/x.svg", "/api/checkout", "/api", "/api/docs/spec.webp"])(
+    "runs on API path %s even with an image-like suffix",
+    path => expect(runsMiddleware(path, config.matcher)).toBe(true)
+  );
+
+  it.each(["/", "/pricing", "/owner", "/a/club/tienda", "/docs"])("runs on page %s", path => {
+    expect(runsMiddleware(path, config.matcher)).toBe(true);
+  });
+
+  it.each(["/_next/static/chunk.js", "/_next/image", "/favicon.ico", "/brand/logo.svg", "/hero.webp"])(
+    "skips static asset %s",
+    path => expect(runsMiddleware(path, config.matcher)).toBe(false)
+  );
+});
 
 describe("middleware", () => {
   it("serves the invitation landing without an Auth redirect and prevents referrers or caching", async () => {
@@ -80,6 +108,7 @@ describe("middleware", () => {
     "/owner/insights", "/owner/health-score/setup", "/owner/health-score/setup/preview",
     "/marketplace", "/marketplace/nuevo", "/dashboard/marketplace/mis-productos",
     "/app/academy-id/marketplace", "/app/academy-id/store", "/app/academy-id/store/onboarding",
+    "/app/academy-id/subdomain",
     "/a/club-test/tienda", "/a/club-test/tienda/success",
     "/academias", "/coaches", "/events", "/empleo", "/%6darketplace",
     "/integraciones", "/integrations", "/docs",
@@ -108,6 +137,8 @@ describe("middleware", () => {
     ["POST", "/api/academy/subdomain"],
     ["GET", "/api/advertising/zones/sidebar"],
     ["GET", "/api/docs"],
+    ["GET", "/api/products/x.png"],
+    ["GET", "/api/marketplace/listings/x.svg"],
   ])("answers 410 for retired API %s %s even with every experimental flag on", async (method, path) => {
     vi.stubEnv("ENABLE_ACADEMY_MARKETPLACE", "true");
     vi.stubEnv("ENABLE_B2B_STORE", "true");
