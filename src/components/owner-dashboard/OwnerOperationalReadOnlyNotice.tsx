@@ -127,7 +127,7 @@ function StaffReadOnlyNotice({
     );
   }
 
-  if (!policy.readOnly) return null;
+  if (policy.status !== "ready" || !policy.readOnly) return null;
 
   return (
     <p

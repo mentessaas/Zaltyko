@@ -278,9 +278,10 @@ describe("Owner page operational summary boundary", () => {
   it("only counts overdue invoices for roles that can see finances", async () => {
     await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
     expect(mocks.attention).toHaveBeenLastCalledWith(expect.objectContaining({ includeFinancials: true }));
+    // A manager reaches the Resumen but cannot see finances (coaches are redirected first).
     mocks.scope.mockResolvedValueOnce({
       organization: { id: organizationId, name: "QA", defaultCurrency: "EUR" },
-      member: { id: "coach-member", role: "coach", locationScopeMode: "selected" },
+      member: { id: "manager-member", role: "manager", locationScopeMode: "selected" },
       locations: [{ id: locationId, name: "Sede QA" }],
       selectedLocationId: locationId,
       canViewOrganizationAggregate: false,
@@ -324,10 +325,11 @@ describe("Owner page operational summary boundary", () => {
       selectedLocationId: locationId,
       canViewOrganizationAggregate: false,
     });
-    const page = await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
+    // coach is the only role outside owner/admin/manager; P1 #8 sends it to Pasar lista first.
+    await expect(
+      OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) })
+    ).rejects.toThrow("REDIRECT:/owner/attendance?");
     expect(mocks.setup).not.toHaveBeenCalled();
-    const dashboard = Children.toArray(page.props.children)[0];
-    expect(isValidElement<{ setupProgress: unknown }>(dashboard) && dashboard.props.setupProgress).toBeNull();
   });
   it("exposes a failed summary as unavailable rather than financial zero", async () => {
     mocks.summary.mockRejectedValue(new Error("Synthetic database failure"));
