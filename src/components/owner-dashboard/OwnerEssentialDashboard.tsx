@@ -19,6 +19,11 @@ import { OwnerOperationalSummaryPanel } from "./OwnerOperationalSummaryPanel";
 import { OwnerTodaySessionsPanel } from "./OwnerTodaySessionsPanel";
 import { OwnerAttentionPanel } from "./OwnerAttentionPanel";
 import type { OwnerAttentionItems } from "@/modules/owner-dashboard/application/attention-items";
+import {
+  buildOwnerSetupChecklist,
+  type OwnerSetupProgress,
+} from "@/modules/owner-dashboard/application/setup-checklist-steps";
+import { OwnerSetupChecklistPanel } from "./OwnerSetupChecklistPanel";
 import { ownerWorkspaceCapabilitiesFor } from "./owner-workspace-capabilities";
 import { ownerUi } from "./owner-ui";
 
@@ -38,12 +43,15 @@ export function OwnerEssentialDashboard({
   operationalSummary,
   todaySessions,
   attentionItems,
+  setupProgress,
   now = new Date(),
 }: {
   scope: OwnerScope;
   operationalSummary: OwnerOperationalSummary | null;
   todaySessions?: OwnerTodaySessions | null;
   attentionItems?: OwnerAttentionItems | null;
+  /** Launch checklist facts; null/undefined (query failed or role excluded) hides it. */
+  setupProgress?: OwnerSetupProgress | null;
   now?: Date;
 }) {
   const dayTimezone =
@@ -59,6 +67,13 @@ export function OwnerEssentialDashboard({
   const params = new URLSearchParams({ organizationId: scope.organization.id });
   if (scope.selectedLocationId) params.set("locationId", scope.selectedLocationId);
   const capabilities = ownerWorkspaceCapabilitiesFor(scope.member);
+  const setupChecklist = setupProgress
+    ? buildOwnerSetupChecklist(setupProgress, {
+        organizationId: scope.organization.id,
+        selectedLocationId: scope.selectedLocationId,
+        canManageOrganizationAthletes: capabilities.canManageOrganizationAthletes,
+      })
+    : null;
   const links: Array<[string, string]> = [];
   if (capabilities.canManageOrganizationAthletes) {
     links.push(["Gimnastas", `/owner/athletes?organizationId=${scope.organization.id}`]);
@@ -101,6 +116,12 @@ export function OwnerEssentialDashboard({
           <button type="submit" className={ownerUi.secondaryButton}>Ver resumen</button>
         </form>
       </header>
+      {setupChecklist ? (
+        <OwnerSetupChecklistPanel
+          checklist={setupChecklist}
+          locationName={scope.locations.find((location) => location.id === scope.selectedLocationId)?.name ?? null}
+        />
+      ) : null}
       <OwnerOperationalSummaryPanel summary={operationalSummary} />
       {todaySessions !== undefined || attentionItems !== undefined ? (
         <div className="mt-6 grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
