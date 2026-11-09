@@ -8,6 +8,17 @@ source:
 ---
 
 
+## 2026-11-09 — Corte de lanzamiento: tienda, checkout Connect y documentación de la API retirados (P0 #1)
+
+**Hallazgos.** El corte de lanzamiento ya cerraba marketplace, insights y health-score. En cambio, `api/checkout` (checkout público con Stripe Connect), `api/products`, el alta de Connect y `api/academy/subdomain` solo estaban cerrados por variables de entorno que se pueden reabrir. `api/listing-categories` era pública sin cierre. `/integraciones` anunciaba como «Disponible» la contratación con Stripe aunque el cobro está cerrado, y `/docs` publicaba la especificación de toda la API. Ahora el corte va antes que esas variables. Las APIs históricas (marketplace, checkout, productos, categorías, Connect, subdominio, publicidad y `api/docs`) responden 410. `/integraciones`, `/integrations`, `/docs`, `/a/<slug>/tienda` y `/app/<id>/store` responden 404, también tras el reescrito de subdominio de academia. `/integraciones` sale del sitemap, IndexNow usa el mismo conjunto que el sitemap y el superadmin ya no enlaza a `/docs`. Test nuevo: cada API abierta sin sesión debe figurar en una lista blanca justificada o estar retirada.
+
+**Fuente.** Rama `claude/legacy-surface-closure-20261109`, commit `df21ef07` sobre `f8186491` (head de la PR 234); docs/qa/legacy-surface-closure-2026-11-09.md. Revisión estática y `git diff --check`. La lógica de la lista blanca se evaluó con el clasificador real sobre `src/app/api`: 18 handlers abiertos, 0 inesperados y 0 entradas obsoletas. Sin vitest, tsc, eslint ni build en el Mac.
+
+**Importancia.** La línea roja (sin Connect ni cobro a familias) ya no depende de que nadie toque una variable en producción, y la web deja de anunciar una contratación cerrada. Los componentes que llamaban a estas APIs solo se montan en páginas ya cerradas con 404.
+
+**Siguiente paso.** Llevar el commit a la PR 234 a través de la sesión que escribe en ella, y obtener la CI remota y la revisión de Elvis. Tras publicar en entregas, comprobar por HTTP el 410 de `/api/checkout` y `/api/docs` y el 404 de `/integraciones`. Pendientes fuera de alcance: `tests/audit/public-claims.spec.ts`, que ya estaba obsoleto y no corre en CI; `/api/rate-limit-test` y `api/dev/session` (plan #23). Sin SQL, Live, producción, ensayo ni proveedores.
+
+
 ## 2026-10-27 — APT mirror-file en runners de navegadores
 
 CI40417855338: Chromium/Firefox y5146 unitarias PASS(3skip); WebKit cancelado al límite30min durante instalación, sin ejecutar E2E. Logs muestran mirror+file:/etc/apt/apt-mirrors.txt y descargas Azure; el helper previo no contemplaba esa indirection y no imprimió cambio. Se añade reescritura acotada del archivo de mirrors y descubrimiento de fuentes .list/.sources, sin modificar firmas/suites/componentes/repositorios ajenos. Regresión de mirror-file con metadata, comentarios, lookalikes e idempotencia pendiente de CI remota; no pruebas/build locales. Sin despliegues, producción ni ensayo. Monitor9a0 cerrado por fallo terminal; nuevo candidato requerirá todos los gates y revisión externa.

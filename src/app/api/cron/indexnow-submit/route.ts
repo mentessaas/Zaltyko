@@ -3,30 +3,17 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 import { submitIndexNow } from "@/lib/seo/indexnow";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import { ESSENTIAL_PUBLIC_ROUTES } from "@/lib/launch/essential-routes";
 
-// Curated submit set: public landing routes that benefit most from fast
-// re-crawl (cluster pages, academy directory, pricing). Internal app routes
-// are intentionally excluded — they don't live behind a canonical public
-// surface and IndexNow would 422 them as "URL doesn't belong to host".
+// Submit set: the same finite public routes as the sitemap. Retired pages
+// answer 404 or redirect, so asking search engines to re-crawl them would
+// only spread dead URLs. Internal app routes are intentionally excluded.
 //
 // To trigger after a deploy from Vercel:
 //   curl -H "Authorization: Bearer $CRON_SECRET" \
 //        https://zaltyko.com/api/cron/indexnow-submit
 // Or schedule via vercel.json cron entry pointing at this route.
-const PUBLIC_ROUTES = [
-  "/",
-  "/features",
-  "/pricing",
-  "/academias",
-  "/coaches",
-  "/marketplace",
-  "/empleo",
-  "/events",
-  "/faq",
-  "/contact",
-  "/sobre-nosotros",
-  "/integraciones",
-];
+const PUBLIC_ROUTES = ESSENTIAL_PUBLIC_ROUTES;
 
 export async function GET(request: Request) {
   const authError = requireCronAuth(request);
