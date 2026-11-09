@@ -78,13 +78,13 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
                 />
                 {(
                   [
-                    ["month", "Mensual"],
-                    ["year", "Anual · ahorra 2 meses"],
+                    ["month", "Mensual", null],
+                    ["year", "Anual", "ahorra 2 meses"],
                   ] as const
-                ).map(([value, label]) => (
+                ).map(([value, label, note]) => (
                   <label
                     key={value}
-                    className="relative z-10 cursor-pointer whitespace-nowrap rounded-sm px-4 py-2.5 text-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-white"
+                    className="relative z-10 flex cursor-pointer flex-col items-center justify-center whitespace-nowrap rounded-sm px-4 py-2.5 text-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-white"
                   >
                     <input
                       type="radio"
@@ -96,6 +96,15 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
                     />
                     <span className={cn("text-sm font-bold transition-colors", interval === value ? "text-mat-deep" : "text-white")}>
                       {label}
+                      {note && (
+                        <>
+                          {/* Below sm the saving drops to its own smaller line so
+                              "Anual · ahorra 2 meses" never overflows the half-width
+                              option at 375 px; the separator stays for screen readers. */}
+                          <span className="sr-only sm:not-sr-only"> · </span>
+                          <span className="block text-xs font-semibold sm:inline sm:text-sm sm:font-bold">{note}</span>
+                        </>
+                      )}
                     </span>
                   </label>
                 ))}
