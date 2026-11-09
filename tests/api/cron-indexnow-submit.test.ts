@@ -27,6 +27,7 @@ vi.mock("@/lib/api-response", () => ({
 }));
 
 import { GET } from "@/app/api/cron/indexnow-submit/route";
+import { ESSENTIAL_PUBLIC_ROUTES } from "@/lib/launch/essential-routes";
 
 describe("IndexNow cron contract", () => {
   beforeEach(() => {
@@ -52,7 +53,7 @@ describe("IndexNow cron contract", () => {
 
   it("envía el conjunto curado de rutas públicas a IndexNow", async () => {
     mocks.submitIndexNow.mockResolvedValue({
-      submitted: 12,
+      submitted: ESSENTIAL_PUBLIC_ROUTES.length,
       accepted: true,
       status: 202,
     });
@@ -60,7 +61,7 @@ describe("IndexNow cron contract", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.urlsSubmitted).toBe(12);
+    expect(body.urlsSubmitted).toBe(ESSENTIAL_PUBLIC_ROUTES.length);
     expect(body.accepted).toBe(true);
     expect(body.upstreamStatus).toBe(202);
 
