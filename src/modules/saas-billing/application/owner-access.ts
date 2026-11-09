@@ -53,7 +53,7 @@ export async function resolveSaasOwnerScope(input: {
   if (membership.role !== "owner") {
     throw new OperationalError(
       "FORBIDDEN",
-      "Solo la persona Owner puede gestionar la suscripción",
+      "Solo la dirección de la academia puede gestionar la suscripción",
       403
     );
   }

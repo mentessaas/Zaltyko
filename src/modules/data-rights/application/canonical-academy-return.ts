@@ -244,7 +244,7 @@ async function verifyOwnerMembership(
     throw new CanonicalAcademyExportError(
       403,
       "canonical-export-forbidden",
-      "Solo una persona Owner activa con acceso a todas las sedes puede descargar esta exportación."
+      "Solo la dirección de la academia, con acceso a todas las sedes, puede descargar esta exportación."
     );
   }
 }

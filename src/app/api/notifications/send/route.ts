@@ -104,7 +104,7 @@ export const POST = withTenant(async (request, context) => {
   switch (template) {
     case "attendance-reminder":
       html = AttendanceReminderTemplate({
-        athleteName: (data.athleteName as string) || "el atleta",
+        athleteName: (data.athleteName as string) || "tu gimnasta",
         className: (data.className as string) || "Clase",
         sessionDate: (data.sessionDate as string) || new Date().toLocaleDateString(),
         sessionTime: data.sessionTime as string | undefined,
@@ -120,7 +120,7 @@ export const POST = withTenant(async (request, context) => {
           ? data.amount
           : 0;
       html = PaymentReminderTemplate({
-        athleteName: (data.athleteName as string) || "el atleta",
+        athleteName: (data.athleteName as string) || "tu gimnasta",
         amount: amountValue,
         dueDate: (data.dueDate as string) || new Date().toLocaleDateString(),
         academyName: (data.academyName as string) || "Tu academia",
@@ -144,7 +144,7 @@ export const POST = withTenant(async (request, context) => {
 
     case "class-cancellation":
       html = ClassCancellationTemplate({
-        athleteName: (data.athleteName as string) || "el atleta",
+        athleteName: (data.athleteName as string) || "tu gimnasta",
         className: (data.className as string) || "Clase",
         sessionDate: (data.sessionDate as string) || new Date().toLocaleDateString(),
         sessionTime: data.sessionTime as string | undefined,
