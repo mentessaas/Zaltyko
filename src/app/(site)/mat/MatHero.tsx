@@ -156,7 +156,7 @@ export default function MatHero() {
               );
             })}
           </ul>
-          <p className="mt-3 text-xs font-medium text-white/75">
+          <p className="mt-3 text-xs font-medium text-white/85">
             Ejemplo con datos ficticios: toca una gimnasta y suma un palote.
           </p>
         </div>

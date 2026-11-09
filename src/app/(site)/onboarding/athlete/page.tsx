@@ -117,7 +117,7 @@ export default function AthleteOnboardingPage() {
                 </div>
                 <h1 className="text-2xl font-bold text-foreground">Bienvenido/a, gimnasta</h1>
                 <p className="text-muted-foreground">
-                  Con tu cuenta personal podrás consultar tu calendario de entrenos,
+                  Con tu cuenta personal podrás consultar tu calendario de clases,
                   ver tu progreso y compartirlo con tu familia.
                 </p>
               </div>
@@ -127,7 +127,7 @@ export default function AthleteOnboardingPage() {
                   <Calendar className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Tu calendario</p>
-                    <p className="text-xs text-muted-foreground">Consulta horarios y eventos de entreno</p>
+                    <p className="text-xs text-muted-foreground">Consulta horarios y eventos de tus clases</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 rounded-card bg-card p-3">

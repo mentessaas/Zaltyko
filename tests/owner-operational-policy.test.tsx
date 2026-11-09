@@ -24,5 +24,5 @@ it("fails closed and can recover without commercial access", async () => {
   await waitFor(() => expect(screen.getByTestId("policy")).toHaveTextContent("error"));
   fireEvent.click(screen.getByRole("button", { name: "Volver a consultar el uso" }));
   await waitFor(() => expect(screen.getByTestId("policy")).toHaveTextContent("blocked"));
-  expect(screen.getByRole("status")).toHaveTextContent("persona Owner");
+  expect(screen.getByRole("status")).toHaveTextContent("La dirección de la academia");
 });

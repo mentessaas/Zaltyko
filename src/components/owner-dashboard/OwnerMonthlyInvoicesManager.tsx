@@ -679,7 +679,7 @@ export function OwnerMonthlyInvoicesManager({
       )}
       {issueReceipt && (
         <div role="status" className="rounded-[12px] mx-auto grid max-w-4xl gap-2 border border-z-brand-100 bg-z-brand-50 p-4 text-sm text-z-brand-700">
-          <p>{issueReceipt.message} El workspace visible no se ha actualizado.</p>
+          <p>{issueReceipt.message} La pantalla actual no se ha actualizado.</p>
           <Link
             className="min-h-11 w-fit content-center font-bold underline underline-offset-2"
             href={`/owner/monthly-invoices?${new URLSearchParams({

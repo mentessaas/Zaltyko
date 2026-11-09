@@ -127,7 +127,7 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
 
 ## Pendientes
 
-- **Archivos en refactor:** `monthly-invoice-service.ts` devuelve mensajes con «factura» («Factura no encontrada», «Ya existe una factura para esta familia y periodo…») y `OwnerMonthlyInvoiceResolutionPanel.tsx` dice «operación de facturación». Pasarán a «cuota» cuando termine el refactor.
+- **Archivos en refactor:** `monthly-invoice-service.ts` devuelve mensajes con «factura» («Factura no encontrada», «Ya existe una factura para esta familia y periodo…») y `OwnerMonthlyInvoiceResolutionPanel.tsx` dice «operación de facturación». Pasarán a «cuota» cuando termine el refactor. `ManualPaymentForm.tsx` (líneas 786 y 1087) dice «otra sesión de Owner»; pasará a «otra sesión de la dirección».
 - **«Recibo» técnico:** `OwnerGroupsManager`, `OwnerStaffManager`, `OwnerSetupForm` y otros llaman «recibo» al comprobante de una operación idempotente. No es dinero, pero choca con el sentido habitual. Falta decidir si pasa a «comprobante de la operación».
 - **Rutas retiradas del lanzamiento:** `/modules`, `/comparativas`, `/blog`, `/sobre-nosotros` y los clústeres por modalidad redirigen a `/features`, y `/coaches` responde 404 (`middleware.ts` con `src/lib/launch/essential-routes.ts`). Conservan «atleta», «padres», «staff» y «dashboard»; se unificarán si vuelven a servirse.
 - **`/app` antiguo:** mantiene su vocabulario hasta la migración P2 #18.

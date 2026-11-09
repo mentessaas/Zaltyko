@@ -331,7 +331,7 @@ describe("ámbito de facturas mensuales", () => {
       json: async () => ({ ok: true, data: { invoiceId: "a0000000-0000-4000-8000-000000000003" } }),
     });
 
-    expect(await screen.findByText(/factura se emitió correctamente en la operación iniciada para el ámbito original/)).toBeVisible();
+    expect(await screen.findByText(/cuota se emitió correctamente en la operación iniciada para el ámbito original/)).toBeVisible();
     expect(screen.getByTestId("workspace-scope")).toHaveTextContent("sin-opciones");
     expect(screen.getByRole("link", { name: "Volver al ámbito de la emisión" })).toHaveAttribute(
       "href",

@@ -143,7 +143,7 @@ function reasonLabel(reason: string): string {
     FAMILY_PAYER_REQUIRED:
       "Selecciona una persona pagadora adulta para esta familia.",
     NO_ACTIVE_ENROLLMENTS:
-      "No hay inscripciones activas con cuota en este periodo.",
+      "No hay inscripciones activas que generen cuota en este periodo.",
     CURRENCY_MISMATCH: "Las tarifas no usan una misma moneda.",
     PERIOD_ALREADY_INVOICED:
       "La cuota de este periodo ya está emitida para esta familia.",
@@ -268,8 +268,8 @@ export function OwnerMonthlyInvoiceWorkspace({
             Emitir cuota mensual
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-z-soft sm:text-base">
-            Revisa la cuota completa de la familia. Emitir la deja pendiente; no
-            registra ni inicia un pago.
+            Revisa la cuota completa de la familia. Al emitirla queda pendiente
+            de pago; no se registra ni se inicia ningún pago.
           </p>
         </header>
 
@@ -304,8 +304,8 @@ export function OwnerMonthlyInvoiceWorkspace({
             (options.families.length === 0 &&
               options.unassignedEnrollments.length === 0)) && (
             <p className="rounded-[12px] border border-z-line bg-white p-5 text-sm leading-6 text-z-soft">
-              No hay familias con inscripciones mensuales con cuota en este
-              periodo.
+              No hay familias con inscripciones mensuales que generen cuota en
+              este periodo.
             </p>
           )}
 

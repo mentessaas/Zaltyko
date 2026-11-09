@@ -138,7 +138,7 @@ export function TeamInvitationAcceptance() {
     <main className="mx-auto w-full max-w-2xl px-5 py-10 text-slate-950 [overflow-wrap:anywhere] sm:py-16">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-900">Zaltyko · Equipo</p>
       <h1 className="mt-3 font-display text-3xl font-bold">Invitación a una academia</h1>
-      <p className="mt-3 text-sm leading-6 text-slate-700">Revisa la organización, el rol y las sedes antes de aceptar. Abrir este enlace no concede acceso.</p>
+      <p className="mt-3 text-sm leading-6 text-slate-700">Revisa la academia, el rol y las sedes antes de aceptar. Abrir este enlace no concede acceso.</p>
       {phase === "checking" ? <p role="status" className="mt-6 text-sm">Comprobando invitación…</p> : null}
       {phase === "missing" ? <p role="status" className="mt-6 border border-amber-700 bg-amber-50 p-4 text-sm leading-6">Abre el enlace original de la invitación. Si acabas de iniciar sesión, vuelve a abrir ese enlace para revisarla. Si ya no lo tienes, pide a la dirección de la academia que lo reemita.</p> : null}
       {phase === "login" ? <section className="mt-6 border border-slate-300 p-5" aria-labelledby="invitation-login-title">

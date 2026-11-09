@@ -32,7 +32,7 @@ const faqs = [
   },
   {
     question: "¿Cómo se pasa lista?",
-    answer: "Desde Hoy en el club o desde Asistencia eliges la sesión y marcas a cada gimnasta, sesión por sesión.",
+    answer: "Desde Hoy en el club o desde Asistencia eliges la sesión y marcas la asistencia de cada gimnasta.",
   },
   {
     question: "¿Puedo cobrar automáticamente las cuotas a las familias?",
