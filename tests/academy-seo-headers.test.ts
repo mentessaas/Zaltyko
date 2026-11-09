@@ -29,4 +29,40 @@ describe("retired public academy discovery", () => {
     expect(read).not.toHaveBeenCalled();
     expect(rateLimit).not.toHaveBeenCalled();
   });
+
+  it("answers /academias/<id> from the launch cut, not from a robots lookup", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const response = await middleware(new NextRequest("https://zaltyko.test/academias/club-ejemplo"));
+    // The cut's empty 404 with no-store: a robots decision would have let the
+    // request through (x-middleware-next) with an X-Robots-Tag of "noindex, noarchive".
+    expect(response.status).toBe(404);
+    expect(await response.text()).toBe("");
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow, noarchive");
+    expect(response.headers.get("x-middleware-next")).toBeNull();
+  });
+});
+
+describe("indexing decisions without network", () => {
+  beforeEach(() => {
+    rateLimit.mockReset();
+    rateLimit.mockResolvedValue({ success: true, limit: 100, remaining: 99, reset: 9999999999 });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each(["/", "/pricing", "/features", "/owner", "/staff/accept", "/academias/club-ejemplo", "/api/v1/owner/saas/usage"])(
+    "never fetches on %s to decide X-Robots-Tag",
+    async path => {
+      const network = vi.fn().mockRejectedValue(new Error("middleware must not fetch"));
+      vi.stubGlobal("fetch", network);
+      await middleware(new NextRequest(`https://zaltyko.test${path}`));
+      expect(network).not.toHaveBeenCalled();
+    }
+  );
+
+  it("does not tag ordinary pages as noindex", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const response = await middleware(new NextRequest("https://zaltyko.test/pricing"));
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("X-Robots-Tag")).toBeNull();
+  });
 });

@@ -31,7 +31,11 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  pageExtensions: ["ts", "tsx", "mdx"],
+  // Files named `*.dev.ts` (today only src/app/api/dev/session/route.dev.ts)
+  // are routes under `next dev` and do not exist in any `next build`:
+  // production, the delivery preview and the synthetic E2E never ship them.
+  pageExtensions:
+    process.env.NODE_ENV === "development" ? ["dev.ts", "ts", "tsx", "mdx"] : ["ts", "tsx", "mdx"],
   // Deshabilitar exportación estática (la app es completamente dinámica)
   output: undefined, // No usar 'export', usar modo estándar de Next.js
   outputFileTracingRoot: resolve(__dirname),

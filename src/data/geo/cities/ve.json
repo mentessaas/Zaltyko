@@ -1,0 +1,226 @@
+{
+  "amazonas": [
+    {
+      "value": "puerto-ayacucho",
+      "label": "Puerto Ayacucho"
+    }
+  ],
+  "anzategui": [
+    {
+      "value": "barcelona",
+      "label": "Barcelona"
+    },
+    {
+      "value": "puerto-la-cruz",
+      "label": "Puerto La Cruz"
+    },
+    {
+      "value": "el-tigre",
+      "label": "El Tigre"
+    }
+  ],
+  "apure": [
+    {
+      "value": "san-fernando",
+      "label": "San Fernando de Apure"
+    },
+    {
+      "value": "guasdualito",
+      "label": "Guasdualito"
+    }
+  ],
+  "aragua": [
+    {
+      "value": "maracay",
+      "label": "Maracay"
+    },
+    {
+      "value": "turmero",
+      "label": "Turmero"
+    },
+    {
+      "value": "la-victoria",
+      "label": "La Victoria"
+    }
+  ],
+  "barinas": [
+    {
+      "value": "barinas",
+      "label": "Barinas"
+    }
+  ],
+  "bolivar": [
+    {
+      "value": "ciudad-bolivar",
+      "label": "Ciudad Bolívar"
+    },
+    {
+      "value": "ciudad-guayana",
+      "label": "Ciudad Guayana"
+    }
+  ],
+  "carabobo": [
+    {
+      "value": "valencia",
+      "label": "Valencia"
+    },
+    {
+      "value": "puerto-cabello",
+      "label": "Puerto Cabello"
+    },
+    {
+      "value": "guacara",
+      "label": "Guacara"
+    }
+  ],
+  "cojedes": [
+    {
+      "value": "san-carlos",
+      "label": "San Carlos"
+    }
+  ],
+  "delta-amacuro": [
+    {
+      "value": "tucupita",
+      "label": "Tucupita"
+    }
+  ],
+  "distrito-capital": [
+    {
+      "value": "caracas",
+      "label": "Caracas"
+    }
+  ],
+  "falcon": [
+    {
+      "value": "coro",
+      "label": "Coro"
+    },
+    {
+      "value": "punto-fijo",
+      "label": "Punto Fijo"
+    }
+  ],
+  "guarico": [
+    {
+      "value": "san-juan-los-morros",
+      "label": "San Juan de los Morros"
+    },
+    {
+      "value": "calabozo",
+      "label": "Calabozo"
+    }
+  ],
+  "lara": [
+    {
+      "value": "barquisimeto",
+      "label": "Barquisimeto"
+    },
+    {
+      "value": "cabudare",
+      "label": "Cabudare"
+    }
+  ],
+  "merida": [
+    {
+      "value": "merida",
+      "label": "Mérida"
+    },
+    {
+      "value": "el-vigia",
+      "label": "El Vigía"
+    }
+  ],
+  "miranda": [
+    {
+      "value": "los-teques",
+      "label": "Los Teques"
+    },
+    {
+      "value": "guarenas",
+      "label": "Guarenas"
+    },
+    {
+      "value": "guatire",
+      "label": "Guatire"
+    }
+  ],
+  "monagas": [
+    {
+      "value": "maturin",
+      "label": "Maturín"
+    },
+    {
+      "value": "caripito",
+      "label": "Caripito"
+    }
+  ],
+  "nueva-esparta": [
+    {
+      "value": "la-asuncion",
+      "label": "La Asunción"
+    }
+  ],
+  "portuguesa": [
+    {
+      "value": "guanare",
+      "label": "Guanare"
+    },
+    {
+      "value": "acarigua",
+      "label": "Acarigua"
+    }
+  ],
+  "sucre": [
+    {
+      "value": "cumana",
+      "label": "Cumaná"
+    },
+    {
+      "value": "carupano",
+      "label": "Carúpano"
+    }
+  ],
+  "tachira": [
+    {
+      "value": "san-cristobal",
+      "label": "San Cristóbal"
+    },
+    {
+      "value": "rubio",
+      "label": "Rubio"
+    }
+  ],
+  "trujillo": [
+    {
+      "value": "trujillo",
+      "label": "Trujillo"
+    }
+  ],
+  "vargas": [
+    {
+      "value": "la-guaira",
+      "label": "La Guaira"
+    }
+  ],
+  "yaracuy": [
+    {
+      "value": "san-felipe",
+      "label": "San Felipe"
+    }
+  ],
+  "zulia": [
+    {
+      "value": "maracaibo",
+      "label": "Maracaibo"
+    },
+    {
+      "value": "cabimas",
+      "label": "Cabimas"
+    },
+    {
+      "value": "ciudad-ojeda",
+      "label": "Ciudad Ojeda"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "chuquisaca": [
+    {
+      "value": "sucre",
+      "label": "Sucre"
+    }
+  ],
+  "cochabamba": [
+    {
+      "value": "cochabamba",
+      "label": "Cochabamba"
+    },
+    {
+      "value": "quillacollo",
+      "label": "Quillacollo"
+    }
+  ],
+  "beni": [
+    {
+      "value": "trinidad",
+      "label": "Trinidad"
+    }
+  ],
+  "la-paz": [
+    {
+      "value": "la-paz",
+      "label": "La Paz"
+    },
+    {
+      "value": "el-alto",
+      "label": "El Alto"
+    }
+  ],
+  "oruro": [
+    {
+      "value": "oruro",
+      "label": "Oruro"
+    }
+  ],
+  "pando": [
+    {
+      "value": "cobija",
+      "label": "Cobija"
+    }
+  ],
+  "potosi": [
+    {
+      "value": "potosi",
+      "label": "Potosí"
+    }
+  ],
+  "santa-cruz": [
+    {
+      "value": "santa-cruz",
+      "label": "Santa Cruz de la Sierra"
+    },
+    {
+      "value": "montero",
+      "label": "Montero"
+    }
+  ],
+  "tarija": [
+    {
+      "value": "tarija",
+      "label": "Tarija"
+    }
+  ]
+}
