@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { COUNTRY_REGION_OPTIONS, findRegionsByCountry, getRegionLabel, getRegionPlaceholder, getCityPlaceholder } from "@/lib/countryRegions";
-import { findCitiesByRegion } from "@/lib/citiesByRegion";
+import { useCitiesByRegion } from "@/hooks/use-cities-by-region";
 import { ACADEMY_TYPES } from "@/lib/onboardingCopy";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 
@@ -87,10 +87,7 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
     [formData.countryCode]
   );
 
-  const cityOptions = useMemo(
-    () => findCitiesByRegion(formData.countryCode.toLowerCase(), formData.region),
-    [formData.countryCode, formData.region]
-  );
+  const cityOptions = useCitiesByRegion(formData.countryCode, formData.region);
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

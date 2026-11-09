@@ -1,0 +1,172 @@
+{
+  "ba": [
+    {
+      "value": "buenos-aires",
+      "label": "Buenos Aires"
+    },
+    {
+      "value": "la-plata",
+      "label": "La Plata"
+    },
+    {
+      "value": "mar-del-plata",
+      "label": "Mar del Plata"
+    },
+    {
+      "value": "bahia-blanca",
+      "label": "Bahía Blanca"
+    }
+  ],
+  "cat": [
+    {
+      "value": "san-fernando",
+      "label": "San Fernando del Valle de Catamarca"
+    }
+  ],
+  "cha": [
+    {
+      "value": "resistencia",
+      "label": "Resistencia"
+    }
+  ],
+  "chu": [
+    {
+      "value": "rawson",
+      "label": "Rawson"
+    },
+    {
+      "value": "comodoro-rivadavia",
+      "label": "Comodoro Rivadavia"
+    }
+  ],
+  "cor": [
+    {
+      "value": "cordoba",
+      "label": "Córdoba"
+    },
+    {
+      "value": "rio-cuarto",
+      "label": "Río Cuarto"
+    }
+  ],
+  "ctes": [
+    {
+      "value": "corrientes",
+      "label": "Corrientes"
+    }
+  ],
+  "er": [
+    {
+      "value": "parana",
+      "label": "Paraná"
+    }
+  ],
+  "fo": [
+    {
+      "value": "formosa",
+      "label": "Formosa"
+    }
+  ],
+  "juj": [
+    {
+      "value": "san-salvador",
+      "label": "San Salvador de Jujuy"
+    }
+  ],
+  "lp": [
+    {
+      "value": "santa-rosa",
+      "label": "Santa Rosa"
+    }
+  ],
+  "lr": [
+    {
+      "value": "la-rioja",
+      "label": "La Rioja"
+    }
+  ],
+  "men": [
+    {
+      "value": "mendoza",
+      "label": "Mendoza"
+    },
+    {
+      "value": "san-rafael",
+      "label": "San Rafael"
+    }
+  ],
+  "mis": [
+    {
+      "value": "posadas",
+      "label": "Posadas"
+    }
+  ],
+  "neu": [
+    {
+      "value": "neuquen",
+      "label": "Neuquén"
+    }
+  ],
+  "rn": [
+    {
+      "value": "viedma",
+      "label": "Viedma"
+    },
+    {
+      "value": "bariloche",
+      "label": "San Carlos de Bariloche"
+    }
+  ],
+  "sal": [
+    {
+      "value": "salta",
+      "label": "Salta"
+    }
+  ],
+  "sju": [
+    {
+      "value": "san-juan",
+      "label": "San Juan"
+    }
+  ],
+  "sl": [
+    {
+      "value": "san-luis",
+      "label": "San Luis"
+    }
+  ],
+  "sc": [
+    {
+      "value": "rio-gallegos",
+      "label": "Río Gallegos"
+    }
+  ],
+  "sf": [
+    {
+      "value": "santa-fe",
+      "label": "Santa Fe"
+    },
+    {
+      "value": "rosario",
+      "label": "Rosario"
+    }
+  ],
+  "sgo": [
+    {
+      "value": "santiago-del-estero",
+      "label": "Santiago del Estero"
+    }
+  ],
+  "tf": [
+    {
+      "value": "ushuaia",
+      "label": "Ushuaia"
+    }
+  ],
+  "tuc": [
+    {
+      "value": "san-miguel",
+      "label": "San Miguel de Tucumán"
+    }
+  ]
+}

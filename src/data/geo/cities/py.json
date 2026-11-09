@@ -1,0 +1,122 @@
+{
+  "asuncion": [
+    {
+      "value": "asuncion",
+      "label": "Asunción"
+    }
+  ],
+  "alto-parana": [
+    {
+      "value": "ciudad-del-este",
+      "label": "Ciudad del Este"
+    },
+    {
+      "value": "hernandarias",
+      "label": "Hernandarias"
+    }
+  ],
+  "amambay": [
+    {
+      "value": "pedro-juan-caballero",
+      "label": "Pedro Juan Caballero"
+    }
+  ],
+  "boqueron": [
+    {
+      "value": "filadelfia",
+      "label": "Filadelfia"
+    }
+  ],
+  "caaguazu": [
+    {
+      "value": "coronel-oviedo",
+      "label": "Coronel Oviedo"
+    }
+  ],
+  "caazapa": [
+    {
+      "value": "caazapa",
+      "label": "Caazapá"
+    }
+  ],
+  "canindeyu": [
+    {
+      "value": "salto-del-guaira",
+      "label": "Salto del Guairá"
+    }
+  ],
+  "central": [
+    {
+      "value": "san-lorenzo",
+      "label": "San Lorenzo"
+    },
+    {
+      "value": "fernando-de-la-mora",
+      "label": "Fernando de la Mora"
+    }
+  ],
+  "concepcion": [
+    {
+      "value": "concepcion",
+      "label": "Concepción"
+    }
+  ],
+  "cordillera": [
+    {
+      "value": "caacupe",
+      "label": "Caacupé"
+    }
+  ],
+  "guaira": [
+    {
+      "value": "villarrica",
+      "label": "Villarrica"
+    }
+  ],
+  "itapua": [
+    {
+      "value": "encarnacion",
+      "label": "Encarnación"
+    },
+    {
+      "value": "carmen-del-parana",
+      "label": "Carmen del Paraná"
+    }
+  ],
+  "misiones": [
+    {
+      "value": "san-juan-bautista",
+      "label": "San Juan Bautista"
+    }
+  ],
+  "neembucu": [
+    {
+      "value": "pilar",
+      "label": "Pilar"
+    }
+  ],
+  "paraguari": [
+    {
+      "value": "paraguari",
+      "label": "Paraguarí"
+    }
+  ],
+  "presidente-hayes": [
+    {
+      "value": "villa-hayes",
+      "label": "Villa Hayes"
+    }
+  ],
+  "san-pedro": [
+    {
+      "value": "san-pedro",
+      "label": "San Pedro"
+    }
+  ],
+  "alto-paraguay": [
+    {
+      "value": "fuerte-olimpo",
+      "label": "Fuerte Olimpo"
+    }
+  ]
+}

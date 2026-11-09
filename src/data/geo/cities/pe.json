@@ -1,0 +1,268 @@
+{
+  "amazonas": [
+    {
+      "value": "chachapoyas",
+      "label": "Chachapoyas"
+    }
+  ],
+  "ancash": [
+    {
+      "value": "huaraz",
+      "label": "Huaraz"
+    },
+    {
+      "value": "chimbote",
+      "label": "Chimbote"
+    },
+    {
+      "value": "caraz",
+      "label": "Caraz"
+    }
+  ],
+  "apurimac": [
+    {
+      "value": "abancay",
+      "label": "Abancay"
+    },
+    {
+      "value": "andahuaylas",
+      "label": "Andahuaylas"
+    }
+  ],
+  "arequipa": [
+    {
+      "value": "arequipa",
+      "label": "Arequipa"
+    },
+    {
+      "value": "cerro-verde",
+      "label": "Cerro Verde"
+    },
+    {
+      "value": "mollendo",
+      "label": "Mollendo"
+    }
+  ],
+  "ayacucho": [
+    {
+      "value": "ayacucho",
+      "label": "Ayacucho"
+    },
+    {
+      "value": "huanta",
+      "label": "Huanta"
+    }
+  ],
+  "cajamarca": [
+    {
+      "value": "cajamarca",
+      "label": "Cajamarca"
+    },
+    {
+      "value": "jaen",
+      "label": "Jaén"
+    },
+    {
+      "value": "cutervo",
+      "label": "Cutervo"
+    }
+  ],
+  "callao": [
+    {
+      "value": "callao",
+      "label": "Callao"
+    }
+  ],
+  "cusco": [
+    {
+      "value": "cusco",
+      "label": "Cusco"
+    },
+    {
+      "value": "sicuani",
+      "label": "Sicuani"
+    },
+    {
+      "value": "quillabamba",
+      "label": "Quillabamba"
+    }
+  ],
+  "huancavelica": [
+    {
+      "value": "huancavelica",
+      "label": "Huancavelica"
+    }
+  ],
+  "huanuco": [
+    {
+      "value": "huanuco",
+      "label": "Huánuco"
+    },
+    {
+      "value": "tingo-maria",
+      "label": "Tingo María"
+    }
+  ],
+  "ica": [
+    {
+      "value": "ica",
+      "label": "Ica"
+    },
+    {
+      "value": "chincha-alta",
+      "label": "Chincha Alta"
+    },
+    {
+      "value": "pisco",
+      "label": "Pisco"
+    }
+  ],
+  "junin": [
+    {
+      "value": "huancayo",
+      "label": "Huancayo"
+    },
+    {
+      "value": "jauja",
+      "label": "Jauja"
+    },
+    {
+      "value": "tarma",
+      "label": "Tarma"
+    }
+  ],
+  "la-libertad": [
+    {
+      "value": "trujillo",
+      "label": "Trujillo"
+    },
+    {
+      "value": "chimbote",
+      "label": "Chimbote"
+    },
+    {
+      "value": "huamachuco",
+      "label": "Huamachuco"
+    }
+  ],
+  "lambayeque": [
+    {
+      "value": "chiclayo",
+      "label": "Chiclayo"
+    },
+    {
+      "value": "lambayeque",
+      "label": "Lambayeque"
+    },
+    {
+      "value": "ferreñafe",
+      "label": "Ferreñafe"
+    }
+  ],
+  "lima": [
+    {
+      "value": "lima",
+      "label": "Lima"
+    },
+    {
+      "value": "huacho",
+      "label": "Huacho"
+    },
+    {
+      "value": "cañete",
+      "label": "Cañete"
+    },
+    {
+      "value": "barranca",
+      "label": "Barranca"
+    }
+  ],
+  "loreto": [
+    {
+      "value": "iquitos",
+      "label": "Iquitos"
+    },
+    {
+      "value": "yurimaguas",
+      "label": "Yurimaguas"
+    }
+  ],
+  "madre-de-dios": [
+    {
+      "value": "puerto-maldonado",
+      "label": "Puerto Maldonado"
+    }
+  ],
+  "moquegua": [
+    {
+      "value": "moquegua",
+      "label": "Moquegua"
+    },
+    {
+      "value": "ilo",
+      "label": "Ilo"
+    }
+  ],
+  "pasco": [
+    {
+      "value": "cerro-de-pasco",
+      "label": "Cerro de Pasco"
+    }
+  ],
+  "piura": [
+    {
+      "value": "piura",
+      "label": "Piura"
+    },
+    {
+      "value": "sullana",
+      "label": "Sullana"
+    },
+    {
+      "value": "talara",
+      "label": "Talara"
+    }
+  ],
+  "puno": [
+    {
+      "value": "puno",
+      "label": "Puno"
+    },
+    {
+      "value": "juliaca",
+      "label": "Juliaca"
+    }
+  ],
+  "san-martin": [
+    {
+      "value": "moyobamba",
+      "label": "Moyobamba"
+    },
+    {
+      "value": "tarapoto",
+      "label": "Tarapoto"
+    }
+  ],
+  "tacna": [
+    {
+      "value": "tacna",
+      "label": "Tacna"
+    }
+  ],
+  "tumbes": [
+    {
+      "value": "tumbes",
+      "label": "Tumbes"
+    }
+  ],
+  "ucayali": [
+    {
+      "value": "pucallpa",
+      "label": "Pucallpa"
+    },
+    {
+      "value": "contamana",
+      "label": "Contamana"
+    }
+  ]
+}

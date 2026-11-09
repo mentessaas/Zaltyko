@@ -1,0 +1,186 @@
+{
+  "alta-verapaz": [
+    {
+      "value": "coban",
+      "label": "Cobán"
+    },
+    {
+      "value": "san-pedro-carcha",
+      "label": "San Pedro Carchá"
+    }
+  ],
+  "baja-verapaz": [
+    {
+      "value": "salamá",
+      "label": "Salamá"
+    }
+  ],
+  "chimaltenango": [
+    {
+      "value": "chimaltenango",
+      "label": "Chimaltenango"
+    },
+    {
+      "value": "tepan",
+      "label": "Tepán"
+    }
+  ],
+  "chiquimula": [
+    {
+      "value": "chiquimula",
+      "label": "Chiquimula"
+    }
+  ],
+  "el-progreso": [
+    {
+      "value": "guastatoya",
+      "label": "Guastatoya"
+    }
+  ],
+  "escuintla": [
+    {
+      "value": "escuintla",
+      "label": "Escuintla"
+    },
+    {
+      "value": "santa-lucia-cotzumalguapa",
+      "label": "Santa Lucía Cotzumalguapa"
+    }
+  ],
+  "guatemala": [
+    {
+      "value": "ciudad-guatemala",
+      "label": "Ciudad de Guatemala"
+    },
+    {
+      "value": "mixco",
+      "label": "Mixco"
+    },
+    {
+      "value": "villa-nueva",
+      "label": "Villa Nueva"
+    }
+  ],
+  "huehuetenango": [
+    {
+      "value": "huehuetenango",
+      "label": "Huehuetenango"
+    },
+    {
+      "value": "la-democracia",
+      "label": "La Democracia"
+    }
+  ],
+  "izabal": [
+    {
+      "value": "puerto-barios",
+      "label": "Puerto Barrios"
+    },
+    {
+      "value": "livingston",
+      "label": "Livingston"
+    }
+  ],
+  "jalapa": [
+    {
+      "value": "jalapa",
+      "label": "Jalapa"
+    }
+  ],
+  "jutiapa": [
+    {
+      "value": "jutiapa",
+      "label": "Jutiapa"
+    }
+  ],
+  "peten": [
+    {
+      "value": "flores",
+      "label": "Flores"
+    },
+    {
+      "value": "san-benito",
+      "label": "San Benito"
+    }
+  ],
+  "quetzaltenango": [
+    {
+      "value": "quetzaltenango",
+      "label": "Quetzaltenango"
+    },
+    {
+      "value": "salcaja",
+      "label": "Salcajá"
+    }
+  ],
+  "quiche": [
+    {
+      "value": "santa-cruz-quiche",
+      "label": "Santa Cruz del Quiché"
+    },
+    {
+      "value": "chichicastenango",
+      "label": "Chichicastenango"
+    }
+  ],
+  "retalhuleu": [
+    {
+      "value": "retalhuleu",
+      "label": "Retalhuleu"
+    }
+  ],
+  "sacatepequez": [
+    {
+      "value": "antigua-guatemala",
+      "label": "Antigua Guatemala"
+    },
+    {
+      "value": "ciudad-vieja",
+      "label": "Ciudad Vieja"
+    }
+  ],
+  "san-marcos": [
+    {
+      "value": "san-marcos",
+      "label": "San Marcos"
+    }
+  ],
+  "santa-rosa": [
+    {
+      "value": "cuilapa",
+      "label": "Cuilapa"
+    }
+  ],
+  "solola": [
+    {
+      "value": "solola",
+      "label": "Sololá"
+    },
+    {
+      "value": "panajachel",
+      "label": "Panajachel"
+    }
+  ],
+  "suchitepequez": [
+    {
+      "value": "mazatenango",
+      "label": "Mazatenango"
+    },
+    {
+      "value": "chicacao",
+      "label": "Chicacao"
+    }
+  ],
+  "totonicapan": [
+    {
+      "value": "totonicapan",
+      "label": "Totonicapán"
+    }
+  ],
+  "zacapa": [
+    {
+      "value": "zacapa",
+      "label": "Zacapa"
+    }
+  ]
+}

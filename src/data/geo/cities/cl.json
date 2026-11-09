@@ -1,0 +1,226 @@
+{
+  "arica-parinacota": [
+    {
+      "value": "arica",
+      "label": "Arica"
+    }
+  ],
+  "tarapaca": [
+    {
+      "value": "iquique",
+      "label": "Iquique"
+    }
+  ],
+  "antofagasta": [
+    {
+      "value": "antofagasta",
+      "label": "Antofagasta"
+    },
+    {
+      "value": "calama",
+      "label": "Calama"
+    }
+  ],
+  "atacama": [
+    {
+      "value": "copiapo",
+      "label": "Copiapó"
+    },
+    {
+      "value": "vallenar",
+      "label": "Vallenar"
+    }
+  ],
+  "coquimbo": [
+    {
+      "value": "la-serena",
+      "label": "La Serena"
+    },
+    {
+      "value": "coquimbo",
+      "label": "Coquimbo"
+    }
+  ],
+  "valparaiso": [
+    {
+      "value": "valparaiso",
+      "label": "Valparaíso"
+    },
+    {
+      "value": "vina-del-mar",
+      "label": "Viña del Mar"
+    },
+    {
+      "value": "quillota",
+      "label": "Quillota"
+    }
+  ],
+  "metropolitana": [
+    {
+      "value": "santiago",
+      "label": "Santiago"
+    },
+    {
+      "value": "puente-alto",
+      "label": "Puente Alto"
+    },
+    {
+      "value": "maipu",
+      "label": "Maipú"
+    },
+    {
+      "value": "san-bernardo",
+      "label": "San Bernardo"
+    },
+    {
+      "value": "la-florida",
+      "label": "La Florida"
+    },
+    {
+      "value": "penalolen",
+      "label": "Peñalolén"
+    },
+    {
+      "value": "las-condes",
+      "label": "Las Condes"
+    },
+    {
+      "value": "providencia",
+      "label": "Providencia"
+    },
+    {
+      "value": "nunoa",
+      "label": "Ñuñoa"
+    },
+    {
+      "value": "recoleta",
+      "label": "Recoleta"
+    },
+    {
+      "value": "independencia",
+      "label": "Independencia"
+    },
+    {
+      "value": "conchali",
+      "label": "Conchalí"
+    },
+    {
+      "value": "renca",
+      "label": "Renca"
+    },
+    {
+      "value": "cerro-navia",
+      "label": "Cerro Navia"
+    },
+    {
+      "value": "lo-prado",
+      "label": "Lo Prado"
+    },
+    {
+      "value": "quilicura",
+      "label": "Quilicura"
+    },
+    {
+      "value": "colina",
+      "label": "Colina"
+    },
+    {
+      "value": "lampa",
+      "label": "Lampa"
+    },
+    {
+      "value": "tiltil",
+      "label": "Tiltil"
+    },
+    {
+      "value": "pudahuel",
+      "label": "Pudahuel"
+    }
+  ],
+  "ohiggins": [
+    {
+      "value": "rancagua",
+      "label": "Rancagua"
+    },
+    {
+      "value": "san-fernando",
+      "label": "San Fernando"
+    }
+  ],
+  "maule": [
+    {
+      "value": "talca",
+      "label": "Talca"
+    },
+    {
+      "value": "curico",
+      "label": "Curicó"
+    }
+  ],
+  "nuble": [
+    {
+      "value": "chillan",
+      "label": "Chillán"
+    },
+    {
+      "value": "san-carlos",
+      "label": "San Carlos"
+    }
+  ],
+  "biobio": [
+    {
+      "value": "concepcion",
+      "label": "Concepción"
+    },
+    {
+      "value": "los-angeles",
+      "label": "Los Ángeles"
+    }
+  ],
+  "araucania": [
+    {
+      "value": "temuco",
+      "label": "Temuco"
+    },
+    {
+      "value": "villarrica",
+      "label": "Villarrica"
+    }
+  ],
+  "los-rios": [
+    {
+      "value": "valdivia",
+      "label": "Valdivia"
+    },
+    {
+      "value": "osorno",
+      "label": "Osorno"
+    }
+  ],
+  "los-lagos": [
+    {
+      "value": "puerto-montt",
+      "label": "Puerto Montt"
+    },
+    {
+      "value": "castro",
+      "label": "Castro"
+    }
+  ],
+  "aysen": [
+    {
+      "value": "coyhaique",
+      "label": "Coyhaique"
+    }
+  ],
+  "magallanes": [
+    {
+      "value": "punta-arenas",
+      "label": "Punta Arenas"
+    },
+    {
+      "value": "puerto-natales",
+      "label": "Puerto Natales"
+    }
+  ]
+}
