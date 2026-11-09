@@ -34,6 +34,30 @@ const eslintConfig = [
   },
 }),
 {
+  // The rebuilt domain reads `@/db/zaltyko-schema` (or its zaltyko-* files).
+  // Several canonical names replace legacy concepts on purpose, so canonical
+  // code must not reach the legacy barrel by accident. Mirrored by
+  // tests/canonical-schema-boundary.test.ts.
+  files: [
+    "src/modules/**/*.{ts,tsx}",
+    "src/app/owner/**/*.{ts,tsx}",
+    "src/components/owner-dashboard/**/*.{ts,tsx}",
+    "src/app/api/v1/**/*.{ts,tsx}",
+  ],
+  rules: {
+    "no-restricted-imports": ["error", {
+      paths: [{
+        name: "@/db/schema",
+        message: "Canonical code imports @/db/zaltyko-schema, not the legacy schema barrel.",
+      }],
+      patterns: [{
+        group: ["@/db/schema/*", "!@/db/schema/zaltyko-*", "!@/db/schema/owner-signup-consent"],
+        message: "Canonical code imports @/db/zaltyko-schema, not legacy schema tables.",
+      }],
+    }],
+  },
+},
+{
   ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", ".worktrees/**"]
 },
 ];
