@@ -1,5 +1,7 @@
 # Runbook — E2E SCA/3DS live (ZAL-10 / ZAL-410)
 
+> **Retirado el 2026-11-09.** La suite `tests/e2e-zaltyko-sca-3ds-flow.spec.ts` se eliminó junto con el cobro a familias por Stripe Connect, fuera del lanzamiento. Se conserva en el historial de Git (commit anterior a la limpieza). Ver `docs/qa/e2e-legacy-cleanup-2026-11-09.md`.
+
 Recorrido real del reto 3D Secure con la tarjeta `4000 0027 6000 3184`, en los
 dos puntos de entrada del criterio de aceptación de ZAL-10: dashboard del owner
 y portal de familia.

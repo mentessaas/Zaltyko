@@ -43,10 +43,8 @@ const authStates = [
       }
     : null,
   // Family/parent — aprovisionado por `scripts/prepare-e2e-family-auth.ts`.
-  // Necesario para que `tests/e2e-zaltyko-stripe-connect-flow.spec.ts` pueda
-  // golpear /api/family/payment-method/setup-intent con sesión real y reemplazar
-  // la verificación manual de SetupIntent declarada en
-  // `docs/COBROS_Y_CUOTAS.md` l. 85-95. ZAL-3.
+  // Lo usaba la suite de cobro con Stripe Connect a familias, retirada el
+  // 2026-11-09 junto con Connect (ver docs/qa/e2e-legacy-cleanup-2026-11-09.md).
   process.env.E2E_FAMILY_EMAIL && process.env.E2E_FAMILY_PASSWORD
     ? {
         label: "family",

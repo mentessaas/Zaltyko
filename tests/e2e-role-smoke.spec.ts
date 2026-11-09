@@ -76,7 +76,6 @@ const ownerLegacyReadOnlyPaths = [
   "/dashboard/empleo/mis-postulaciones",
   "/dashboard/events",
   "/dashboard/events/new",
-  "/dashboard/marketplace/mis-productos",
   "/dashboard/messages",
   "/dashboard",
   "/dashboard/plan-limits",
