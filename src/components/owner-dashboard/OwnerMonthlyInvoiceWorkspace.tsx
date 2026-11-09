@@ -137,21 +137,21 @@ function reasonLabel(reason: string): string {
       "La tarifa asignada no cubre este periodo completo.",
     PRICE_PLAN_NOT_AVAILABLE: "La tarifa ya no está disponible.",
     PRICE_ASSIGNMENT_CURRENCY_MISMATCH:
-      "La tarifa usa una moneda distinta a la de la factura.",
+      "La tarifa usa una moneda distinta a la de la cuota.",
     PRICE_PLAN_ZERO_AMOUNT:
       "La tarifa tiene un importe de cero y requiere revisión.",
     FAMILY_PAYER_REQUIRED:
       "Selecciona una persona pagadora adulta para esta familia.",
     NO_ACTIVE_ENROLLMENTS:
-      "No hay inscripciones activas para facturar en este periodo.",
+      "No hay inscripciones activas con cuota en este periodo.",
     CURRENCY_MISMATCH: "Las tarifas no usan una misma moneda.",
     PERIOD_ALREADY_INVOICED:
-      "Este periodo ya está facturado para esta familia.",
+      "La cuota de este periodo ya está emitida para esta familia.",
     INVOICE_VOIDED:
-      "La factura de este periodo está anulada; no se puede emitir otra desde esta pantalla.",
+      "La cuota de este periodo está anulada; no se puede emitir otra desde esta pantalla.",
   };
   return (
-    labels[reason] ?? "Esta factura requiere revisar un dato de la inscripción."
+    labels[reason] ?? "Esta cuota requiere revisar un dato de la inscripción."
   );
 }
 
@@ -262,13 +262,13 @@ export function OwnerMonthlyInvoiceWorkspace({
       <div className="mx-auto grid max-w-4xl gap-8">
         <header>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-700">
-            Facturación mensual
+            Cuotas mensuales
           </p>
           <h1 className={ownerUi.pageTitle}>
             Emitir cuota mensual
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-z-soft sm:text-base">
-            Revisa la cuota completa de la familia. Emitir crea la factura; no
+            Revisa la cuota completa de la familia. Emitir la deja pendiente; no
             registra ni inicia un pago.
           </p>
         </header>
@@ -279,7 +279,7 @@ export function OwnerMonthlyInvoiceWorkspace({
             aria-live="polite"
             className="text-sm text-z-soft"
           >
-            Cargando opciones de facturación…
+            Cargando cuotas mensuales…
           </p>
         )}
 
@@ -304,7 +304,7 @@ export function OwnerMonthlyInvoiceWorkspace({
             (options.families.length === 0 &&
               options.unassignedEnrollments.length === 0)) && (
             <p className="rounded-[12px] border border-z-line bg-white p-5 text-sm leading-6 text-z-soft">
-              No hay familias con inscripciones mensuales para facturar en este
+              No hay familias con inscripciones mensuales con cuota en este
               periodo.
             </p>
           )}
@@ -320,7 +320,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                 id="monthly-invoice-options-heading"
                 className="text-xl font-bold"
               >
-                Revisa la factura
+                Revisa la cuota
               </h2>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -436,7 +436,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                 <div className="rounded-[12px] grid gap-3 border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
                   <p>
                     Esta familia todavía no tiene un pagador adulto asignado. La
-                    factura no se puede emitir hasta vincularlo explícitamente.
+                    cuota no se puede emitir hasta vincularlo explícitamente.
                   </p>
                   <button
                     type="button"
@@ -598,7 +598,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                   role="alert"
                   className="rounded-[12px] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
                 >
-                  Ya existe una factura para esta familia y periodo. No se puede
+                  Ya existe una cuota para esta familia y periodo. No se puede
                   emitir otra desde esta pantalla.
                 </p>
               )}
@@ -615,7 +615,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                     Inscripciones sin familia
                   </h3>
                   <p className="text-sm text-z-soft">
-                    No aparecen en las facturas de este periodo y no bloquean a
+                    No aparecen en las cuotas de este periodo y no bloquean a
                     las demás familias.
                   </p>
                   <ul className="grid gap-2">
@@ -704,7 +704,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                   {selectedFamily.totalAmountCents !== null &&
                     selectedFamily.currency && (
                       <p className="flex flex-wrap justify-between gap-2 border-t border-z-line pt-4 text-lg font-bold">
-                        <span>Total de la factura</span>
+                        <span>Total de la cuota</span>
                         <span>
                           {formatMoney(
                             selectedFamily.totalAmountCents,
@@ -732,7 +732,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                 onClick={issue}
                 className={buttonClassName}
               >
-                {busy ? "Emitiendo factura…" : "Emitir factura pendiente"}
+                {busy ? "Emitiendo cuota…" : "Emitir cuota pendiente"}
                 {selectedFamily?.totalAmountCents !== null &&
                   selectedFamily?.currency &&
                   ` · ${formatMoney(selectedFamily.totalAmountCents, selectedFamily.currency)}`}

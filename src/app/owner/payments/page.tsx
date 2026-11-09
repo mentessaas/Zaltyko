@@ -101,7 +101,7 @@ export default async function OwnerPaymentsPage({
               href={`/owner?${dashboardQuery.toString()}`}
               className="min-h-11 w-fit content-center rounded-full border border-z-line bg-white px-4 text-sm font-semibold text-z-soft hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
             >
-              Volver al panel
+              Volver al resumen
             </Link>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-600">

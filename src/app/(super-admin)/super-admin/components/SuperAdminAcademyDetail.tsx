@@ -242,7 +242,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
             <Button
               variant="outline"
               size="sm"
-              className="border-zaltyko-primary/40 bg-zaltyko-primary/10 text-zaltyko-primary-light hover:border-zaltyko-primary-light hover:bg-zaltyko-primary-light/20"
+              className="border-zaltyko-primary/40 bg-zaltyko-primary/10 text-mat-lane hover:border-zaltyko-primary-light hover:bg-zaltyko-primary-light/20"
               onClick={() => router.push(`/app/${academy.id}/dashboard`)}
               disabled={academy.isSuspended}
             >
@@ -253,8 +253,8 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
               className={cn(
                 "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide",
                 academy.isSuspended
-                  ? "bg-zaltyko-coral/15 text-zaltyko-coral"
-                  : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
+                  ? "bg-zaltyko-coral/15 text-signal-light"
+                  : "bg-zaltyko-primary/15 text-mat-lane",
               )}
             >
               {academy.isSuspended ? "Suspendida" : "Activa"}
@@ -294,7 +294,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                   <Input
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-slate-500"
+                    className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-white/60"
                     placeholder="Nombre de la academia"
                   />
                 </div>
@@ -318,7 +318,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                     <Input
                       value={formData.country}
                       onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                      className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-slate-500"
+                      className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-white/60"
                       placeholder="España"
                     />
                   </div>
@@ -327,7 +327,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                     <Input
                       value={formData.region}
                       onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-                      className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-slate-500"
+                      className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-white/60"
                     />
                   </div>
                 </div>
@@ -336,10 +336,10 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                   <Input
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-slate-500"
+                    className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-white/60"
                   />
                 </div>
-                <p className="flex items-center gap-2 text-xs text-white/40">
+                <p className="flex items-center gap-2 text-xs text-white/60">
                   <MapPin className="h-3.5 w-3.5" strokeWidth={1.8} />
                   Ubicación usada en el listado de academias
                 </p>
@@ -438,7 +438,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
           {formData.isSuspended !== academy.isSuspended && (
             <div className="mr-auto w-full max-w-md space-y-2">
               <Label htmlFor="academy-action-reason" className="text-xs uppercase tracking-wide text-white/60">Motivo del cambio de acceso</Label>
-              <Textarea id="academy-action-reason" value={actionReason} onChange={(event) => setActionReason(event.target.value)} placeholder="Explica por qué suspendes o reactivas esta academia" className="min-h-20 border-white/20 bg-white/10 text-white" />
+              <Textarea id="academy-action-reason" value={actionReason} onChange={(event) => setActionReason(event.target.value)} placeholder="Explica por qué suspendes o reactivas esta academia" className="min-h-20 border-white/20 bg-white/10 text-white placeholder:text-white/60" />
             </div>
           )}
           <Button

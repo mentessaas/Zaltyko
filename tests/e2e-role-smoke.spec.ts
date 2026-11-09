@@ -240,7 +240,7 @@ test.describe("role smoke: academy owner", () => {
       page.getByRole("heading", { name: "Inscripciones", exact: true })
     ).toBeVisible();
     await expect(
-      page.getByText(/El alta queda pendiente y reserva una plaza/)
+      page.getByText(/La inscripción queda pendiente y reserva una plaza/)
     ).toBeVisible();
     await expect(
       page.getByText(/No crea una cuota ni inicia cobros/)

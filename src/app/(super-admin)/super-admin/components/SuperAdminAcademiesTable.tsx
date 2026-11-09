@@ -338,8 +338,8 @@ export function SuperAdminAcademiesTable({
                     className={cn(
                       "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide",
                       academy.isSuspended
-                        ? "bg-zaltyko-coral/15 text-zaltyko-coral"
-                        : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
+                        ? "bg-zaltyko-coral/15 text-signal-light"
+                        : "bg-zaltyko-primary/15 text-mat-lane",
                     )}
                   >
                     {academy.isSuspended ? "Suspendida" : "Activa"}
@@ -388,7 +388,7 @@ export function SuperAdminAcademiesTable({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-zaltyko-coral/40 bg-zaltyko-coral/10 text-zaltyko-coral hover:border-zaltyko-coral hover:bg-zaltyko-coral/20"
+                      className="border-zaltyko-coral/40 bg-zaltyko-coral/10 text-signal-light hover:border-zaltyko-coral hover:bg-zaltyko-coral/20"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(academy);
@@ -419,7 +419,7 @@ export function SuperAdminAcademiesTable({
       <p className="font-sans text-xs text-white/50">
         Selecciona <span className="font-semibold text-white/70">Ver detalle</span> para revisar la operación, miembros y configuración de una academia.
         Para cambios operativos avanzados también puedes abrir el{" "}
-        <Link href="/dashboard/academies" className="font-semibold text-zaltyko-primary-light hover:underline">
+        <Link href="/dashboard/academies" className="font-semibold text-mat-lane hover:underline">
           panel de academias
         </Link>.
       </p>

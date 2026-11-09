@@ -39,7 +39,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     features: [
       "Hasta 30 gimnastas",
       "1 academia",
-      "3 grupos de entrenamiento",
+      "3 grupos",
       "10 clases activas",
       "Asistencia y cobros básicos con registro manual",
     ],

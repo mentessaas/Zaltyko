@@ -602,7 +602,7 @@ export function OwnerEnrollmentsManager({
         ) : null}
 
         <p className="mt-5 rounded-md border border-z-line border-t-[3px] border-t-z-brand-100 bg-z-brand-50 px-4 py-3 text-sm leading-6 text-z-brand-700">
-          El alta queda pendiente y reserva una plaza. No crea una cuota ni
+          La inscripción queda pendiente y reserva una plaza. No crea una cuota ni
           inicia cobros; los pagos se gestionan aparte.
         </p>
 

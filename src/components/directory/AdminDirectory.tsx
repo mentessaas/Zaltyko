@@ -291,7 +291,7 @@ export function AdminDirectory() {
               ))}
             </select>
           </label>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-white/70">
             El enlace debe describir las condiciones de reutilización. La
             referencia de autorización debe apuntar a un permiso escrito
             verificable; anotar que la página es pública no basta. La

@@ -38,7 +38,7 @@ export function SuperAdminHeader({ userName, userEmail }: SuperAdminHeaderProps)
     <header className="border-b border-white/10 bg-zaltyko-navy px-6 py-4 text-white">
       <div className="flex items-center justify-between gap-4">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 rounded-full bg-zaltyko-accent/10 px-3 py-1 font-display text-xs font-semibold uppercase tracking-wide text-zaltyko-accent">
+          <div className="inline-flex items-center gap-2 rounded-full bg-zaltyko-accent/10 px-3 py-1 font-display text-xs font-semibold uppercase tracking-wide text-mat-lane">
             SUPER ADMIN
           </div>
           <p className="font-display text-xl font-semibold text-white">Panel de control global</p>
@@ -81,7 +81,7 @@ export function SuperAdminHeader({ userName, userEmail }: SuperAdminHeaderProps)
               aria-current={active ? "page" : undefined}
               className={cn(
                 "rounded-full border border-white/10 px-4 py-2 transition hover:border-white/30 hover:bg-white/10",
-                active ? "border-zaltyko-teal/20 bg-zaltyko-teal/12 text-zaltyko-teal" : "text-white/70",
+                active ? "border-zaltyko-teal/20 bg-zaltyko-teal/12 text-mat-lane" : "text-white/70",
               )}
             >
               {item.label}
@@ -94,7 +94,7 @@ export function SuperAdminHeader({ userName, userEmail }: SuperAdminHeaderProps)
         <div className="fixed inset-0 z-50 bg-zaltyko-navy/95 backdrop-blur-sm lg:hidden">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="space-y-1">
-              <p className="font-display text-xs uppercase tracking-[0.35em] text-zaltyko-accent">Super Admin</p>
+              <p className="font-display text-xs uppercase tracking-[0.35em] text-mat-lane">Super Admin</p>
               <p className="font-display text-lg font-semibold text-white">Menú de navegación</p>
             </div>
             <div className="flex items-center gap-2">
@@ -124,7 +124,7 @@ export function SuperAdminHeader({ userName, userEmail }: SuperAdminHeaderProps)
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "flex items-center gap-3 rounded-2xl border border-white/10 px-4 py-3 font-sans text-base font-medium text-white/90 transition",
-                    active ? "border-zaltyko-teal/20 bg-zaltyko-teal/12 text-zaltyko-teal" : "bg-white/5 hover:border-white/20 hover:bg-white/10",
+                    active ? "border-zaltyko-teal/20 bg-zaltyko-teal/12 text-mat-lane" : "bg-white/5 hover:border-white/20 hover:bg-white/10",
                   )}
                   onClick={() => setMobileMenuOpen(false)}
                 >

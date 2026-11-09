@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Clases recurrentes | Zaltyko",
   description:
-    "Organiza entrenamientos semanales y genera sus próximas sesiones.",
+    "Organiza clases semanales y genera sus próximas sesiones.",
   robots: { index: false, follow: false },
 };
 

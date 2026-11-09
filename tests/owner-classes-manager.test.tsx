@@ -73,7 +73,7 @@ describe("OwnerClassesManager", () => {
     expect(
       screen.getByRole("button", { name: "Añadir otro horario" })
     ).toBeTruthy();
-    expect(screen.getByText(/No se crean matrículas ni cobros/)).toBeTruthy();
+    expect(screen.getByText(/No se crean inscripciones ni cobros/)).toBeTruthy();
   });
 
   it("crea clase y sesiones en un envío idempotente", async () => {

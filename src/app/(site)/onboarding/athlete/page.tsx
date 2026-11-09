@@ -141,7 +141,7 @@ export default function AthleteOnboardingPage() {
                   <User className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Comparte con tu familia</p>
-                    <p className="text-xs text-muted-foreground">Tus padres pueden seguir tu avance</p>
+                    <p className="text-xs text-muted-foreground">Tu familia puede seguir tu avance</p>
                   </div>
                 </div>
               </div>
@@ -255,7 +255,7 @@ export default function AthleteOnboardingPage() {
                   Atrás
                 </Button>
                 <Button onClick={handleFinish} disabled={loading} className="flex-1">
-                  {loading ? "Guardando..." : "Ir al dashboard"}
+                  {loading ? "Guardando..." : "Ir a mi panel"}
                 </Button>
               </div>
             </CardContent>
@@ -271,7 +271,7 @@ export default function AthleteOnboardingPage() {
               </div>
               <h2 className="text-xl font-bold text-foreground">¡Listo!</h2>
               <p className="text-sm text-muted-foreground">
-                Perfil guardado. Redirigiendo a tu dashboard...
+                Perfil guardado. Redirigiendo a tu panel...
               </p>
             </CardContent>
           </Card>

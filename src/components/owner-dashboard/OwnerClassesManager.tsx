@@ -380,7 +380,7 @@ export function OwnerClassesManager({
           </h1>
           <p className={ownerUi.pageLead}>
             Indica el horario y las plazas una sola vez. Zaltyko prepara el
-            calendario de entrenamientos por ti.
+            calendario de sesiones por ti.
           </p>
         </div>
         <Link
@@ -711,7 +711,7 @@ export function OwnerClassesManager({
               <Info className="mt-1 h-4 w-4 shrink-0 text-z-brand-600" aria-hidden="true" />
               <span>
                 Al guardar se crean la clase recurrente y sus sesiones de hasta
-                los próximos 120 días. No se crean matrículas ni cobros.
+                los próximos 120 días. No se crean inscripciones ni cobros.
               </span>
             </p>
 
@@ -751,7 +751,7 @@ export function OwnerClassesManager({
                 </span>
                 <p className="max-w-md text-sm leading-6 text-z-soft">
                   Aún no hay clases recurrentes. Crea la primera para organizar
-                  entrenamientos y preparar el calendario.
+                  sus sesiones y preparar el calendario.
                 </p>
               </div>
             ) : (

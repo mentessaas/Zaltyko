@@ -451,7 +451,7 @@ export function OwnerEnrollmentCreateForm({
               className="mt-1 text-xs leading-5 text-z-soft"
             >
               El importe viene de la tarifa. Si queda sin asignar, no se podrá
-              incluir en una factura hasta resolverlo.
+              incluir en una cuota hasta resolverlo.
             </p>
             {pricePlansLoading && (
               <p role="status" className="mt-1 text-sm text-z-soft">

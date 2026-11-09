@@ -230,7 +230,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
           name="name"
           required
           autoComplete="name"
-          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-gray-400 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
+          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-ramp-500 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
           placeholder="Tu nombre"
         />
       </div>
@@ -245,7 +245,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
           name="email"
           required
           autoComplete="email"
-          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-gray-400 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
+          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-ramp-500 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
           placeholder="tu@email.com"
         />
       </div>
@@ -316,7 +316,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
           id="academy"
           name="academy"
           autoComplete="organization"
-          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-gray-400 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
+          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-ramp-500 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
           placeholder="Ej: Club Gimnasia Centro"
         />
       </div>
@@ -332,7 +332,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
           required
           minLength={10}
           maxLength={selectedReason === "market_access" ? 1_600 : 2_000}
-          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-gray-400 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
+          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-ramp-500 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
           placeholder={selectedReason === "market_access"
             ? "Describe la gestión que necesitas, sin nombres ni datos de gimnastas."
             : "Cuéntanos qué necesitas resolver."}

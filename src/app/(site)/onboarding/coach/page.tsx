@@ -116,7 +116,7 @@ export default function CoachOnboardingPage() {
                 <h1 className="text-2xl font-bold text-foreground">Bienvenido/a, entrenador/a</h1>
                 <p className="text-muted-foreground">
                   Te damos la bienvenida a Zaltyko. Con tu cuenta podrás gestionar clases,
-                  registrar atletas y compartir evaluaciones técnicas.
+                  registrar gimnastas y compartir evaluaciones técnicas.
                 </p>
               </div>
 
@@ -125,14 +125,14 @@ export default function CoachOnboardingPage() {
                   <Calendar className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Gestión de clases</p>
-                    <p className="text-xs text-muted-foreground">Organiza horarios y registra asistencia</p>
+                    <p className="text-xs text-muted-foreground">Organiza horarios y pasa lista</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 rounded-card bg-card p-3">
                   <Users className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
-                    <p className="font-medium text-sm">Registro de atletas</p>
-                    <p className="text-xs text-muted-foreground">Controla quién asiste a cada entreno</p>
+                    <p className="font-medium text-sm">Registro de gimnastas</p>
+                    <p className="text-xs text-muted-foreground">Controla quién asiste a cada sesión</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 rounded-card bg-card p-3">
@@ -255,7 +255,7 @@ export default function CoachOnboardingPage() {
                   Atrás
                 </Button>
                 <Button onClick={handleFinish} disabled={loading} className="flex-1">
-                  {loading ? "Guardando..." : "Ir al dashboard"}
+                  {loading ? "Guardando..." : "Ir a mi panel"}
                 </Button>
               </div>
             </CardContent>
@@ -271,7 +271,7 @@ export default function CoachOnboardingPage() {
               </div>
               <h2 className="text-xl font-bold text-foreground">¡Listo!</h2>
               <p className="text-sm text-muted-foreground">
-                Perfil guardado. Redirigiendo a tu dashboard...
+                Perfil guardado. Redirigiendo a tu panel...
               </p>
             </CardContent>
           </Card>

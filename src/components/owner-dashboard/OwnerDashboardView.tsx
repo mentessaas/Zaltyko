@@ -566,7 +566,7 @@ export function OwnerDashboardView({
     { key: "net_collected_minor", label: "Cobrado neto", icon: Banknote },
     {
       key: "active_athletes_count",
-      label: "Atletas activos",
+      label: "Gimnastas activos",
       icon: UsersRound,
     },
     { key: "cohort_retention_rate", label: "Retención", icon: Sparkles },
@@ -617,7 +617,7 @@ export function OwnerDashboardView({
             <form
               method="get"
               className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:items-end"
-              aria-label="Filtros del dashboard"
+              aria-label="Filtros del Resumen"
             >
               <input
                 type="hidden"

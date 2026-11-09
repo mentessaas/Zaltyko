@@ -50,7 +50,7 @@ describe("TeamInvitationAcceptance", () => {
     render(<StrictMode><TeamInvitationAcceptance /></StrictMode>);
     await screen.findByRole("heading", { name: "Revisa el acceso solicitado" });
     expect(screen.getByText("Academia sintética")).toBeInTheDocument();
-    expect(screen.getByText("Coach")).toBeInTheDocument();
+    expect(screen.getByText("Entrenador/a")).toBeInTheDocument();
     expect(screen.getByText("Sede Norte")).toBeInTheDocument();
     expect(requests.length).toBeGreaterThan(0);
     for (const request of requests) {
@@ -107,7 +107,7 @@ describe("TeamInvitationAcceptance", () => {
     expect(accepts[1]).toEqual(accepts[0]);
     expect(JSON.parse(String(accepts[0].body))).toEqual({ token: TOKEN });
     expect(accepts[0].headers).toMatchObject({ "Idempotency-Key": "82000000-0000-4000-8000-000000000099" });
-    expect(screen.getByText(/aceptar no habilita por sí solo la asistencia de un coach/u)).toBeInTheDocument();
+    expect(screen.getByText(/aceptar no habilita por sí solo el pase de lista/u)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Aceptar invitación/u })).toBeNull();
   });
 

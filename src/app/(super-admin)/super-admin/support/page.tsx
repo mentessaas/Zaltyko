@@ -150,10 +150,15 @@ export default async function SuperAdminSupportPage({ searchParams }: PageProps)
 
   return (
     <div className="container mx-auto py-8">
-      <PageHeader
-        title="Soporte"
-        description="Gestiona todos los tickets de soporte"
-      />
+      {/* El cuerpo de /super-admin es noche: la cabecera compartida se pinta
+          con su variante nocturna (texto magnesio y rampa 300) para no quedar
+          en tinta noche sobre noche. */}
+      <div className="dark">
+        <PageHeader
+          title="Soporte"
+          description="Gestiona todos los tickets de soporte"
+        />
+      </div>
 
       <Suspense fallback={<TicketFiltersSkeleton />}>
         <TicketsContent filters={filters} />

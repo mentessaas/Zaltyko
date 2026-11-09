@@ -524,7 +524,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                       {violation.resource === "classes" && "Clases"}
                       {violation.resource === "groups" && "Grupos"}
                     </h3>
-                    <span className="text-sm text-zaltyko-coral">
+                    <span className="text-sm text-signal-light">
                       {violation.currentCount} / {violation.limit ?? "∞"}
                     </span>
                   </div>
@@ -539,7 +539,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                           <li key={item.id}>• {item.name ?? `ID: ${item.id}`}</li>
                         ))}
                         {violation.items.length > 5 && (
-                          <li className="text-white/40">... y {violation.items.length - 5} más</li>
+                          <li className="text-white/60">... y {violation.items.length - 5} más</li>
                         )}
                       </ul>
                     </div>
@@ -615,7 +615,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
               <Button
                 variant="outline"
                 size="sm"
-                className="border-zaltyko-accent/60 bg-zaltyko-accent/20 text-zaltyko-primary-dark font-semibold shadow-sm hover:border-zaltyko-accent-light hover:bg-zaltyko-accent/30 hover:text-zaltyko-primary-dark"
+                className="border-zaltyko-accent/60 bg-zaltyko-accent/20 text-white font-semibold shadow-sm hover:border-zaltyko-accent-light hover:bg-zaltyko-accent/30 hover:text-white"
                 onClick={handleActivateAthleteAccess}
                 disabled={activatingAccess || saving}
               >
@@ -635,7 +635,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
             <Button
               variant="outline"
               size="sm"
-              className="border-zaltyko-primary/60 bg-zaltyko-primary/20 text-zaltyko-primary-light font-semibold shadow-sm hover:border-zaltyko-primary-light hover:bg-zaltyko-primary/30 hover:text-white"
+              className="border-zaltyko-primary/60 bg-zaltyko-primary/20 text-mat-lane font-semibold shadow-sm hover:border-zaltyko-primary-light hover:bg-zaltyko-primary/30 hover:text-white"
               onClick={handleToggleSuspension}
               disabled={saving || user.role === "super_admin"}
             >
@@ -655,8 +655,8 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
               className={cn(
                 "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide",
                 user.isSuspended
-                  ? "bg-zaltyko-coral/15 text-zaltyko-coral"
-                  : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
+                  ? "bg-zaltyko-coral/15 text-signal-light"
+                  : "bg-zaltyko-primary/15 text-mat-lane",
               )}
             >
               {user.isSuspended ? "Suspendido" : "Activo"}
@@ -677,7 +677,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                   <Input
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
+                    className="border-white/20 bg-white/10 text-white placeholder:text-white/60"
                     placeholder="Nombre del usuario"
                     disabled={user.role === "super_admin"}
                   />
@@ -689,7 +689,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
+                      className="border-white/20 bg-white/10 text-white placeholder:text-white/60"
                       placeholder="correo@ejemplo.com"
                       disabled={user.role === "super_admin"}
                     />
@@ -840,7 +840,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                     id="super-admin-message-subject"
                     value={messageForm.subject}
                     onChange={(e) => setMessageForm({ ...messageForm, subject: e.target.value })}
-                    className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
+                    className="border-white/20 bg-white/10 text-white placeholder:text-white/60"
                     placeholder="Asunto del mensaje"
                     disabled={sendingMessage || !user.email}
                   />
@@ -851,7 +851,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                     id="super-admin-message-body"
                     value={messageForm.message}
                     onChange={(e) => setMessageForm({ ...messageForm, message: e.target.value })}
-                    className="min-h-[120px] w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/60 focus:outline-none"
+                    className="min-h-[120px] w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/60 focus:border-white/60 focus:outline-none"
                     placeholder="Escribe tu mensaje aquí..."
                     disabled={sendingMessage || !user.email}
                   />
@@ -891,7 +891,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                 <div className="mt-2 grid grid-cols-2 gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
                   <div className="rounded-lg border border-white/10 bg-white/5 p-3">
                     <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-zaltyko-primary-light" strokeWidth={1.8} />
+                      <Building2 className="h-4 w-4 text-mat-lane" strokeWidth={1.8} />
                       <div>
                         <p className="text-xs text-white/50">Academias</p>
                         <p className="text-lg font-semibold text-white">{user.stats.academiesOwned}</p>
