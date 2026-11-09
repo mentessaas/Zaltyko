@@ -94,7 +94,7 @@ export default async function SuperAdminSettingsPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-2">
         <Link href="/super-admin/dashboard" className="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-white/25">
           <p className="font-semibold text-white">Métricas de dirección</p>
           <p className="mt-1 text-xs text-white/55">Volver al pulso global del SaaS.</p>
@@ -102,10 +102,6 @@ export default async function SuperAdminSettingsPage() {
         <Link href="/super-admin/academies" className="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-white/25">
           <p className="font-semibold text-white">Academias</p>
           <p className="mt-1 text-xs text-white/55">Gestionar estado y configuración por academia.</p>
-        </Link>
-        <Link href="/docs" className="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-white/25">
-          <p className="font-semibold text-white">Documentación operativa</p>
-          <p className="mt-1 text-xs text-white/55">Consultar contratos y procedimientos del producto.</p>
         </Link>
       </section>
     </div>
