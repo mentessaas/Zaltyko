@@ -5,7 +5,12 @@ export { middleware } from "../middleware";
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Every API path runs through middleware, even one ending in an image
+    // extension (/api/products/x.png): the launch cut, rate limits and auth
+    // gates must not be skippable by a file-like suffix.
+    "/api/:path*",
+    // Pages and assets: skip static files and images outside /api.
+    "/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
 
