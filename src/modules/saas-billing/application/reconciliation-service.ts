@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
+// eslint-disable-next-line no-restricted-imports -- platform identity: the super-admin role and suspension live only in the legacy profiles table.
 import { profiles } from "@/db/schema/profiles";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
