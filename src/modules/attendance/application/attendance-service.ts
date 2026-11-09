@@ -5,9 +5,7 @@ import { db } from "@/db";
 import {
   attendanceRecords,
   enrollments,
-  sessionStaff,
   sessions,
-  staffProfiles,
   type AttendanceRecord,
 } from "@/db/zaltyko-schema";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
@@ -87,43 +85,18 @@ export async function recordAttendance(
       throw new OperationalError("NOT_FOUND", "Sesión no encontrada", 404);
     }
 
-    const member = await assertOperationalAccess(tx, {
+    await assertOperationalAccess(tx, {
       organizationId: input.organizationId,
       locationId: session.locationId,
       actor: input.actor,
       allowedRoles: ["owner", "manager", "admin", "coach"],
     });
 
-    if (member.role === "coach") {
-      const [assignment] = await tx
-        .select({ id: sessionStaff.id })
-        .from(sessionStaff)
-        .innerJoin(
-          staffProfiles,
-          and(
-            eq(staffProfiles.organizationId, sessionStaff.organizationId),
-            eq(staffProfiles.id, sessionStaff.staffProfileId),
-            eq(staffProfiles.memberId, member.id),
-            eq(staffProfiles.isActive, true)
-          )
-        )
-        .where(
-          and(
-            eq(sessionStaff.organizationId, input.organizationId),
-            eq(sessionStaff.sessionId, session.id)
-          )
-        )
-        .limit(1);
-
-      if (!assignment) {
-        throw new OperationalError(
-          "FORBIDDEN",
-          "El coach no está asignado a esta sesión",
-          403
-        );
-      }
-    }
-
+    // P1 #8, decision 2026-11-09 (option A): assertOperationalAccess above
+    // already bounds a coach to the session's site; no per-session staff
+    // assignment is required, so a substitute coach can take attendance.
+    // Restricting assigned sessions (option B, see
+    // findActiveSessionStaffAssignment) is a separate task.
     const priorEvent = await findOutboxEvent(tx, {
       organizationId: input.organizationId,
       eventName,

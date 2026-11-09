@@ -11,6 +11,7 @@ import { findLegacyAcademyMemberships } from "@/lib/auth/legacy-academy-access";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
 import { getOwnerContractualConsentRequirement } from "@/modules/organizations/application/owner-signup-consent";
 import { createClient } from "@/lib/supabase/server";
+import { coachHomeHref } from "@/modules/owner-dashboard/domain/coach-access";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,7 @@ export default async function OwnerSetupPage() {
   }
 
   let existing: { organizationId: string } | undefined;
+  let coachSeat: { organizationId: string } | undefined;
   try {
     [existing] = await db
       .select({ organizationId: organizationMembers.organizationId })
@@ -71,10 +73,26 @@ export default async function OwnerSetupPage() {
         )
       )
       .limit(1);
+    // P1 #8: a coach seat must never be offered the "create academy" form;
+    // it lands on its only surface (Hoy + Pasar lista) instead.
+    if (!existing) {
+      [coachSeat] = await db
+        .select({ organizationId: organizationMembers.organizationId })
+        .from(organizationMembers)
+        .where(
+          and(
+            eq(organizationMembers.userId, user.id),
+            eq(organizationMembers.status, "active"),
+            eq(organizationMembers.role, "coach")
+          )
+        )
+        .limit(1);
+    }
   } catch (error) {
     if (!isMissingCanonicalOwnerSchema(error)) throw error;
   }
   if (existing) redirect(`/owner?organizationId=${existing.organizationId}`);
+  if (coachSeat) redirect(coachHomeHref({ organizationId: coachSeat.organizationId }));
 
   let contractualConsent: {
     policyVersion: string;

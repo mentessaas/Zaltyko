@@ -24,7 +24,8 @@ export function OwnerTodaySessionsPanel({
   now = new Date(),
 }: {
   organizationId: string;
-  classesHref: string;
+  /** Null hides "Ver clases" (coaches cannot open Clases, P1 #8). */
+  classesHref: string | null;
   today: OwnerTodaySessions | null;
   now?: Date;
 }) {
@@ -47,9 +48,11 @@ export function OwnerTodaySessionsPanel({
               : "Sesiones generadas desde tus clases."}
           </p>
         </div>
-        <Link href={classesHref} className={`${ownerUi.textLink} shrink-0`}>
-          Ver clases
-        </Link>
+        {classesHref ? (
+          <Link href={classesHref} className={`${ownerUi.textLink} shrink-0`}>
+            Ver clases
+          </Link>
+        ) : null}
       </div>
 
       {today === null ? (

@@ -8,6 +8,7 @@ import {
   organizations,
   type OrganizationMember,
 } from "@/db/zaltyko-schema";
+import { COACH_WITHOUT_LOCATIONS_REASON } from "@/modules/owner-dashboard/domain/coach-access";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export interface OwnerScope {
@@ -22,7 +23,20 @@ export interface OwnerScope {
   canViewOrganizationAggregate: boolean;
 }
 
+/**
+ * Roles that may use the management surface (Resumen, Personas, Club...).
+ * Every caller of resolveOwnerScope gets this set unless it explicitly opts in
+ * to the coach operations surface, so new routes fail closed for coaches.
+ */
 const ownerSurfaceRoles = new Set(["owner", "admin", "manager"]);
+
+/**
+ * "coach_operations" is the only surface a coach may use: today's sessions and
+ * taking attendance, always for one assigned site at a time.
+ */
+export type OwnerScopeSurface = "management" | "coach_operations";
+
+const coachOperationsRoles = new Set([...ownerSurfaceRoles, "coach"]);
 
 async function auditDeniedAccess(input: {
   organizationId?: string;
@@ -50,7 +64,12 @@ export async function resolveOwnerScope(input: {
   userId: string;
   organizationId?: string;
   locationId?: string;
+  surface?: OwnerScopeSurface;
 }): Promise<OwnerScope> {
+  const allowedRoles =
+    input.surface === "coach_operations"
+      ? coachOperationsRoles
+      : ownerSurfaceRoles;
   const memberships = await db
     .select({
       memberId: organizationMembers.id,
@@ -73,10 +92,13 @@ export async function resolveOwnerScope(input: {
     )
     .orderBy(asc(organizations.name))
     .limit(100);
+  // Without an explicit organization, pick the first membership this surface
+  // admits so a coach seat elsewhere never hides an owner's own academy.
   const membership = input.organizationId
     ? memberships.find((item) => item.organizationId === input.organizationId)
-    : memberships[0];
-  if (!membership || !ownerSurfaceRoles.has(membership.role)) {
+    : (memberships.find((item) => allowedRoles.has(item.role)) ??
+      memberships[0]);
+  if (!membership || !allowedRoles.has(membership.role)) {
     await auditDeniedAccess({
       organizationId: input.organizationId,
       userId: input.userId,
@@ -142,7 +164,11 @@ export async function resolveOwnerScope(input: {
       403
     );
   }
-  const canViewOrganizationAggregate = membership.locationScopeMode === "all";
+  const isCoach = membership.role === "coach";
+  // A coach never sees the organization aggregate, even with "all" sites: the
+  // coach surface always works on one site of their scope at a time.
+  const canViewOrganizationAggregate =
+    !isCoach && membership.locationScopeMode === "all";
   const selectedLocationId = canViewOrganizationAggregate
     ? (requestedLocation?.id ?? null)
     : (requestedLocation?.id ?? locationRows[0]?.id ?? null);
@@ -150,12 +176,18 @@ export async function resolveOwnerScope(input: {
     await auditDeniedAccess({
       organizationId: membership.organizationId,
       userId: input.userId,
-      reason: "no_assigned_locations",
+      reason: isCoach ? COACH_WITHOUT_LOCATIONS_REASON : "no_assigned_locations",
     });
     throw new OperationalError(
       "LOCATION_SCOPE_DENIED",
       "Sin sedes asignadas",
-      403
+      403,
+      isCoach
+        ? {
+            reason: COACH_WITHOUT_LOCATIONS_REASON,
+            organizationId: membership.organizationId,
+          }
+        : undefined
     );
   }
 

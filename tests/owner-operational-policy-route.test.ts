@@ -29,7 +29,7 @@ describe("site-scoped operational policy without commercial access", () => {
     const response = await GET(request());
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(mocks.scope).toHaveBeenCalledWith({ userId: "qa-limited", organizationId, locationId });
+    expect(mocks.scope).toHaveBeenCalledWith({ userId: "qa-limited", organizationId, locationId, surface: "coach_operations" });
     expect(mocks.usage).toHaveBeenCalledWith(tx, organizationId);
     expect(mocks.execute).toHaveBeenCalledOnce();
     expect((await response.json()).data).toEqual({ readOnly: false, planCode: "free" });
@@ -37,6 +37,13 @@ describe("site-scoped operational policy without commercial access", () => {
   it("retains organization-wide read-only enforcement for a staff site", async () => {
     mocks.usage.mockResolvedValue({ readOnly: true, planCode: "free", resources: [{ current: 31 }] });
     expect((await (await GET(request())).json()).data).toEqual({ readOnly: true, planCode: "free" });
+  });
+  it("lets a coach read the read-only flag but masks the commercial plan", async () => {
+    mocks.scope.mockResolvedValue({ organization: { id: organizationId }, member: { role: "coach" }, selectedLocationId: locationId });
+    mocks.usage.mockResolvedValue({ readOnly: true, planCode: "growth", resources: [{ current: 31 }], subscriptionId: "must-not-leak" });
+    const body = await (await GET(request())).json();
+    expect(body.data).toEqual({ readOnly: true, planCode: "staff" });
+    expect(JSON.stringify(body)).not.toContain("growth");
   });
   it.each(["membership_or_role", "location_scope", "no_assigned_locations"])("denies %s before reading organization usage", async reason => {
     mocks.scope.mockRejectedValue(new OperationalError("FORBIDDEN", reason, 403));

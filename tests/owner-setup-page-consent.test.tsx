@@ -170,4 +170,16 @@ describe("lectura de aceptación contractual antes del setup Owner", () => {
     await expect(OwnerSetupPage()).rejects.toThrow("connection reset");
     expect(getConsentRequirement).not.toHaveBeenCalled();
   });
+
+  it("envía a una persona entrenadora a Pasar lista en vez de ofrecer crear academia", async () => {
+    const coachOrganizationId = "10000000-0000-4000-8000-000000000001";
+    dbLimit
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ organizationId: coachOrganizationId }]);
+
+    await expect(OwnerSetupPage()).rejects.toThrow(
+      `NEXT_REDIRECT:/owner/attendance?organizationId=${coachOrganizationId}`
+    );
+    expect(getConsentRequirement).not.toHaveBeenCalled();
+  });
 });

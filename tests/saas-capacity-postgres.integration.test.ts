@@ -929,14 +929,22 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
     ]);
     expect(await snapshot(fixture.organizationId)).toEqual(beforeCoachRead);
 
-    const beforeDeniedCoachRead = await snapshot(fixture.organizationId);
+    // P1 #8, opción A (2026-11-09): un coach sustituto de la sede pasa lista
+    // aunque no esté asignado a la sesión; el límite es su alcance por sede.
+    const beforeSubstituteCoachRead = await snapshot(fixture.organizationId);
     await expect(getOwnerSessionAttendance({
       userId: unassignedCoach.userId,
       organizationId: fixture.organizationId,
       locationId: fixture.targetLocationId,
       sessionId: fixture.sessionId,
-    })).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
-    expect(await snapshot(fixture.organizationId)).toEqual(beforeDeniedCoachRead);
+    })).resolves.toEqual([
+      {
+        enrollmentId: fixture.enrollmentId,
+        athleteName: "Enrollment athlete 1 Synthetic",
+        attendanceStatus: "present",
+      },
+    ]);
+    expect(await snapshot(fixture.organizationId)).toEqual(beforeSubstituteCoachRead);
 
     const rollbackKey = "ci-attendance-rollback-" + randomUUID();
     await db.execute(sql`

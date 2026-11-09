@@ -12,7 +12,7 @@ config({ path: resolve(process.cwd(), ".env") });
 
 /**
  * Siembra un cargo `pending` para el athlete E2E de la academia aislada, de
- * forma que `tests/e2e-zaltyko-stripe-connect-flow.spec.ts` pueda ejercitar
+ * forma que la suite de cobro con Connect (retirada el 2026-11-09) pudiera ejercitar
  * `POST /api/charges/[id]/collect` off-session sin depender de que QA cree el
  * cargo a mano.
  *
