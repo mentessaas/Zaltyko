@@ -1,30 +1,43 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { z } from "zod";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
 import {
   clearPendingManualPayment,
   createManualPaymentRetrySnapshot,
-  fingerprintManualPaymentActor,
-  LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY,
-  migrateLegacyPendingManualPayment,
-  persistManualPaymentBalanceMarker,
   persistPendingManualPayment,
   persistResolvedManualPaymentMarker,
   readAllPendingManualPayments,
-  readLegacyPendingManualPayment,
   readResolvedManualPaymentMarker,
   restoreManualPaymentRetryBody,
   withManualPaymentRetryLock,
-  type ManualPaymentRetryStorageLike,
   type ManualPaymentRetrySnapshot,
 } from "./manual-payment-retry-storage";
-import { formatPaymentDueDate } from "./owner-payment-date";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import { useOrganizationDraftField } from "./use-organization-draft-field";
+import {
+  formatMoney,
+  getBrowserStorage,
+  getRetryReceivedOn,
+  isMatchingManualPaymentResponse,
+  parseAmountCents,
+  toPendingPaymentRequest,
+  type ManualPaymentMethod,
+  type PaymentRequest,
+} from "./manual-payment-form-model";
+import { useManualPaymentPagination } from "./use-manual-payment-pagination";
+import {
+  useManualPaymentBalanceMarkerSync,
+  useManualPaymentRetryStorage,
+} from "./use-manual-payment-retry-storage";
+import {
+  ManualPaymentEmptyState,
+  ManualPaymentLegacyRecoveryNotice,
+  ManualPaymentOtherActorNotice,
+  ManualPaymentRetryScopeNotice,
+} from "./ManualPaymentNotices";
+import { ManualPaymentChargeField, ManualPaymentDetailsFields } from "./ManualPaymentFormFields";
 
 import type { OpenManualPaymentCharge } from "@/modules/billing/application/manual-payments";
 import {
@@ -32,154 +45,6 @@ import {
   getCalendarDateInTimezone,
 } from "@/modules/billing/domain/manual-payment-date";
 
-type ManualPaymentMethod = "cash" | "bank_transfer" | "card_terminal" | "other";
-
-type PaymentRequest = {
-  organizationId: string;
-  chargeId: string;
-  amountCents: number;
-  method: ManualPaymentMethod;
-  reference?: string;
-  receivedAt: string;
-};
-
-type PendingPaymentRequest = {
-  key: string;
-  body: PaymentRequest;
-  snapshot: ManualPaymentRetrySnapshot;
-  referenceRequired: boolean;
-};
-
-type ManualPaymentOptionsRequest = {
-  id: number;
-  generation: number;
-  pageIdentity: object;
-  scopeKey: string;
-  cursor: string;
-  controller: AbortController;
-};
-
-type LoadedManualPaymentPage = {
-  identity: object;
-  charges: OpenManualPaymentCharge[];
-  cursor: string | null;
-};
-
-const manualPaymentOptionsResponseSchema = z.object({
-  ok: z.literal(true),
-  data: z.object({
-    charges: z.array(
-      z.object({
-        chargeId: z.string().uuid(),
-        familyId: z.string().uuid(),
-        locationId: z.string().uuid(),
-        locationName: z.string(),
-        locationTimezone: z.string(),
-        invoiceReference: z.string(),
-        payerName: z.string().nullable(),
-        currency: z.string().regex(/^[A-Z]{3}$/),
-        dueAt: z.string(),
-        totalCents: z.number().int().nonnegative().safe(),
-        allocatedCents: z.number().int().nonnegative().safe(),
-        outstandingCents: z.number().int().positive().safe(),
-      })
-    ),
-    nextCursor: z.string().min(1).max(4096).nullable(),
-  }),
-});
-
-function isMatchingManualPaymentResponse(
-  value: unknown,
-  request: PaymentRequest
-): boolean {
-  if (!value || typeof value !== "object") return false;
-  const response = value as { ok?: unknown; data?: unknown };
-  if (!response.data || typeof response.data !== "object") return false;
-  const data = response.data as {
-    chargeId?: unknown;
-    amountCents?: unknown;
-    method?: unknown;
-    receivedAt?: unknown;
-  };
-
-  return (
-    response.ok === true &&
-    data.chargeId === request.chargeId &&
-    data.amountCents === request.amountCents &&
-    data.method === request.method &&
-    data.receivedAt === request.receivedAt
-  );
-}
-
-function formatMoney(cents: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("es-ES", {
-      style: "currency",
-      currency,
-    }).format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
-  }
-}
-
-function formatManualPaymentMethod(method: ManualPaymentMethod): string {
-  const labels: Record<ManualPaymentMethod, string> = {
-    cash: "Efectivo",
-    bank_transfer: "Transferencia",
-    card_terminal: "Tarjeta en el local",
-    other: "Otro",
-  };
-  return labels[method];
-}
-
-function getRetryReceivedOn(
-  request: PendingPaymentRequest,
-  charge: OpenManualPaymentCharge | null
-): string | null {
-  if (!charge) return null;
-  try {
-    return getCalendarDateInTimezone(
-      new Date(request.body.receivedAt),
-      charge.locationTimezone
-    );
-  } catch {
-    return null;
-  }
-}
-
-function parseAmountCents(value: string): number | null {
-  const normalized = value.trim().replace(",", ".");
-  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null;
-  const cents = Math.round(Number(normalized) * 100);
-  return Number.isSafeInteger(cents) && cents > 0 ? cents : null;
-}
-
-function getBrowserStorage(
-  kind: "localStorage" | "sessionStorage"
-): ManualPaymentRetryStorageLike | null {
-  try {
-    return window[kind];
-  } catch {
-    return null;
-  }
-}
-
-function toPendingPaymentRequest(
-  snapshot: ManualPaymentRetrySnapshot
-): PendingPaymentRequest {
-  return {
-    key: snapshot.idempotencyKey,
-    body: {
-      organizationId: snapshot.organizationId,
-      chargeId: snapshot.chargeId,
-      amountCents: snapshot.amountCents,
-      method: snapshot.method,
-      receivedAt: snapshot.receivedAt,
-    },
-    snapshot,
-    referenceRequired: snapshot.referenceSha256 !== null,
-  };
-}
 
 export function ManualPaymentForm({
   actorId,
@@ -203,28 +68,50 @@ export function ManualPaymentForm({
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
   const router = useRouter();
-  const paginationPageIdentity = useMemo(
-    () => ({}),
-    [organizationId, locationId, charges, nextCursor]
-  );
-  const [loadedPage, setLoadedPage] = useState<LoadedManualPaymentPage>(() => ({
-    identity: paginationPageIdentity,
-    charges,
-    cursor: nextCursor,
-  }));
-  const pageMatchesCurrentProps =
-    loadedPage.identity === paginationPageIdentity;
-  const loadedCharges = pageMatchesCurrentProps ? loadedPage.charges : charges;
-  const pageCursor = pageMatchesCurrentProps ? loadedPage.cursor : nextCursor;
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [loadMoreError, setLoadMoreError] = useState(false);
-  const paginationScopeKey = JSON.stringify([organizationId, locationId]);
-  const paginationGeneration = useRef(0);
-  const paginationRequestSequence = useRef(0);
-  const activePaginationRequest = useRef<ManualPaymentOptionsRequest | null>(
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useOrganizationDraftField<string | null>(
+    organizationId,
     null
   );
-  const paginationMounted = useRef(false);
+  const [saved, setSaved] = useOrganizationDraftField(organizationId, false);
+  const {
+    retryRequest,
+    setRetryRequest,
+    retryStorageReady,
+    retryStorageError,
+    setRetryStorageError,
+    actorScopeHash,
+    pendingCount,
+    setPendingCount,
+    otherActorPending,
+    setOtherActorPending,
+    legacyRecoveryRequired,
+    legacyRecoveryBusy,
+    recoverLegacyPendingPayment,
+  } = useManualPaymentRetryStorage({ actorId, setError });
+  const paymentInFlight = useRef(false);
+  const formLocked =
+    busy ||
+    retryRequest !== null ||
+    pendingCount > 0 ||
+    otherActorPending ||
+    legacyRecoveryRequired ||
+    !retryStorageReady ||
+    retryStorageError !== null;
+  const {
+    pageMatchesCurrentProps,
+    loadedCharges,
+    pageCursor,
+    loadingMore,
+    loadMoreError,
+    loadMoreCharges,
+  } = useManualPaymentPagination({
+    organizationId,
+    locationId,
+    charges,
+    nextCursor,
+    formLocked,
+  });
   const firstCharge = loadedCharges[0];
   const [chargeId, setChargeId] = useOrganizationDraftField(
     organizationId,
@@ -254,198 +141,6 @@ export function ManualPaymentForm({
     organizationId,
     ""
   );
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useOrganizationDraftField<string | null>(
-    organizationId,
-    null
-  );
-  const [saved, setSaved] = useOrganizationDraftField(organizationId, false);
-  const [retryRequest, setRetryRequest] =
-    useState<PendingPaymentRequest | null>(null);
-  const [retryStorageReady, setRetryStorageReady] = useState(false);
-  const [retryStorageError, setRetryStorageError] = useState<string | null>(null);
-  const [actorScopeHash, setActorScopeHash] = useState<string | null>(null);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [otherActorPending, setOtherActorPending] = useState(false);
-  const [legacyRecoveryRequired, setLegacyRecoveryRequired] = useState(false);
-  const [legacyRecoveryBusy, setLegacyRecoveryBusy] = useState(false);
-  const paymentInFlight = useRef(false);
-
-  useEffect(() => {
-    paginationMounted.current = true;
-    return () => {
-      paginationMounted.current = false;
-      paginationGeneration.current += 1;
-      activePaginationRequest.current?.controller.abort();
-      activePaginationRequest.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    paginationGeneration.current += 1;
-    activePaginationRequest.current?.controller.abort();
-    activePaginationRequest.current = null;
-    setLoadedPage({
-      identity: paginationPageIdentity,
-      charges,
-      cursor: nextCursor,
-    });
-    setLoadingMore(false);
-    setLoadMoreError(false);
-  }, [
-    organizationId,
-    locationId,
-    charges,
-    nextCursor,
-    paginationPageIdentity,
-  ]);
-
-  useEffect(() => {
-    let active = true;
-    let currentScopeHash: string | null = null;
-    setRetryStorageReady(false);
-    setRetryRequest(null);
-    setPendingCount(0);
-    setOtherActorPending(false);
-    setLegacyRecoveryRequired(false);
-    setLegacyRecoveryBusy(false);
-    setActorScopeHash(null);
-    setRetryStorageError(null);
-
-    const applyPending = (snapshots: ManualPaymentRetrySnapshot[]) => {
-      const actorSnapshots = snapshots.filter(
-        (snapshot) => snapshot.actorScopeHash === currentScopeHash
-      );
-      setPendingCount(actorSnapshots.length);
-      setOtherActorPending(actorSnapshots.length !== snapshots.length);
-      setRetryRequest(
-        actorSnapshots[0] ? toPendingPaymentRequest(actorSnapshots[0]) : null
-      );
-    };
-
-    const showStorageError = (message: string) => {
-      if (!active) return;
-      setRetryStorageError(message);
-      setRetryStorageReady(true);
-    };
-
-    void fingerprintManualPaymentActor(actorId)
-      .then(async (scopeHash) => {
-        if (!active) return;
-        currentScopeHash = scopeHash;
-        const durableStorage = getBrowserStorage("localStorage");
-        const legacyStorage = getBrowserStorage("sessionStorage");
-        if (!durableStorage || !legacyStorage) {
-          throw new Error("storage-unavailable");
-        }
-        const storedState = await withManualPaymentRetryLock(async () => {
-          const legacyStatus = readLegacyPendingManualPayment(legacyStorage);
-          if (legacyStatus === "invalid") throw new Error("storage-invalid");
-          if (legacyStatus === "unavailable") {
-            throw new Error("storage-unavailable");
-          }
-          return {
-            legacyStatus,
-            pending: readAllPendingManualPayments(durableStorage),
-          };
-        });
-        if (!active) return;
-        setActorScopeHash(scopeHash);
-        setLegacyRecoveryRequired(storedState.legacyStatus === "pending");
-        const pending = storedState.pending;
-        if (pending.status === "pending") {
-          applyPending(pending.snapshots);
-        } else if (pending.status === "invalid") {
-          showStorageError(
-            "Hay un registro pendiente dañado. No se enviará otro pago para evitar duplicados."
-          );
-          return;
-        } else if (pending.status === "unavailable") {
-          throw new Error("storage-unavailable");
-        } else {
-          applyPending([]);
-        }
-        setRetryStorageReady(true);
-      })
-      .catch((error: unknown) => {
-        const message =
-          error instanceof Error && error.message === "storage-invalid"
-            ? "Hay un registro pendiente dañado. No se enviará otro pago para evitar duplicados."
-            : "El almacenamiento seguro o la coordinación entre pestañas no está disponible. No se enviará el pago.";
-        showStorageError(message);
-      });
-
-    const refreshFromDurableStorage = () => {
-      if (!active) return;
-      const durableStorage = getBrowserStorage("localStorage");
-      if (!durableStorage) {
-        setRetryStorageError(
-          "El almacenamiento seguro ya no está disponible. No registres otro pago hasta recuperarlo."
-        );
-        return;
-      }
-      const legacyStorage = getBrowserStorage("sessionStorage");
-      if (!legacyStorage) {
-        setRetryStorageError(
-          "No se pudo comprobar si queda un envío antiguo sin recuperar. No registres otro pago hasta recuperar el almacenamiento."
-        );
-        return;
-      }
-      if (!currentScopeHash) return;
-      void withManualPaymentRetryLock(async () => ({
-        pending: readAllPendingManualPayments(durableStorage),
-        legacyStatus: readLegacyPendingManualPayment(legacyStorage),
-      }))
-        .then((storedState) => {
-          if (!active) return;
-          if (
-            storedState.legacyStatus === "invalid" ||
-            storedState.legacyStatus === "unavailable"
-          ) {
-            setRetryStorageError(
-              "No se pudo verificar el envío antiguo pendiente. No registres otro pago hasta resolverlo."
-            );
-            return;
-          }
-          setLegacyRecoveryRequired(storedState.legacyStatus === "pending");
-          const pending = storedState.pending;
-          if (pending.status === "pending") {
-            applyPending(pending.snapshots);
-            setRetryStorageError(null);
-          } else if (pending.status === "none") {
-            applyPending([]);
-            setRetryStorageError(null);
-          } else {
-            setRetryStorageError(
-              "No se pudo verificar el envío guardado entre pestañas. No registres otro pago hasta recuperar el almacenamiento."
-            );
-          }
-        })
-        .catch(() => {
-          if (!active) return;
-          setRetryStorageError(
-            "La coordinación entre pestañas ya no está disponible. No registres otro pago hasta recuperarla."
-          );
-        });
-    };
-    const handleStorage = (event: StorageEvent) => {
-      if (
-        event.key === null ||
-        event.key.startsWith("zaltyko:pending-manual-payment:v2:") ||
-        event.key.startsWith("zaltyko:resolved-manual-payment:v2:") ||
-        event.key === LEGACY_PENDING_MANUAL_PAYMENT_STORAGE_KEY
-      ) {
-        refreshFromDurableStorage();
-      }
-    };
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener("focus", refreshFromDurableStorage);
-    return () => {
-      active = false;
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("focus", refreshFromDurableStorage);
-    };
-  }, [actorId]);
 
   useEffect(() => {
     setToday("");
@@ -466,45 +161,7 @@ export function ManualPaymentForm({
     return () => window.cancelAnimationFrame(frame);
   }, [organizationId, selectedTimezone]);
 
-  useEffect(() => {
-    if (!actorScopeHash) return;
-    const storage = getBrowserStorage("localStorage");
-    if (!storage) return;
-    void withManualPaymentRetryLock(async () => {
-      const pending = readAllPendingManualPayments(storage);
-      if (pending.status === "invalid" || pending.status === "unavailable") {
-        return;
-      }
-      const snapshots = pending.status === "pending" ? pending.snapshots : [];
-      for (const charge of loadedCharges) {
-        if (
-          snapshots.some(
-            (snapshot) =>
-              snapshot.organizationId === organizationId &&
-              snapshot.chargeId === charge.chargeId
-          )
-        ) {
-          continue;
-        }
-        const marker = readResolvedManualPaymentMarker(
-          storage,
-          organizationId,
-          charge.chargeId
-        );
-        if (
-          marker.status === "marker" &&
-          marker.marker.remainingCents !== charge.outstandingCents
-        ) {
-          persistManualPaymentBalanceMarker(
-            storage,
-            organizationId,
-            charge.chargeId,
-            charge.outstandingCents
-          );
-        }
-      }
-    }).catch(() => undefined);
-  }, [actorScopeHash, loadedCharges, organizationId]);
+  useManualPaymentBalanceMarkerSync({ actorScopeHash, loadedCharges, organizationId });
 
   function chooseCharge(nextChargeId: string) {
     const currentCharge = loadedCharges.find(
@@ -523,83 +180,6 @@ export function ManualPaymentForm({
     setAmount(nextCharge ? (nextCharge.outstandingCents / 100).toFixed(2) : "");
     setSaved(false);
     setError(null);
-  }
-
-  async function loadMoreCharges() {
-    const activeRequest = activePaginationRequest.current;
-    if (
-      !pageMatchesCurrentProps ||
-      !pageCursor ||
-      (activeRequest?.generation === paginationGeneration.current &&
-        activeRequest.scopeKey === paginationScopeKey) ||
-      formLocked
-    ) {
-      return;
-    }
-    const request: ManualPaymentOptionsRequest = {
-      id: ++paginationRequestSequence.current,
-      generation: paginationGeneration.current,
-      pageIdentity: paginationPageIdentity,
-      scopeKey: paginationScopeKey,
-      cursor: pageCursor,
-      controller: new AbortController(),
-    };
-    activePaginationRequest.current = request;
-    const isCurrentRequest = () => {
-      const active = activePaginationRequest.current;
-      return (
-        paginationMounted.current &&
-        paginationGeneration.current === request.generation &&
-        active !== null &&
-        active.id === request.id &&
-        active.pageIdentity === request.pageIdentity &&
-        active.scopeKey === request.scopeKey
-      );
-    };
-
-    setLoadingMore(true);
-    setLoadMoreError(false);
-    try {
-      const params = new URLSearchParams({
-        organizationId,
-        cursor: request.cursor,
-      });
-      if (locationId) params.set("locationId", locationId);
-      const response = await fetch(
-        `/api/v1/owner/billing/manual-payments?${params.toString()}`,
-        {
-          headers: { accept: "application/json" },
-          signal: request.controller.signal,
-        }
-      );
-      if (!isCurrentRequest()) return;
-      const raw: unknown = await response.json().catch(() => null);
-      if (!isCurrentRequest()) return;
-      const parsed = manualPaymentOptionsResponseSchema.safeParse(raw);
-      if (!response.ok || !parsed.success) throw new Error("page-unavailable");
-
-      setLoadedPage((current) => {
-        if (current.identity !== request.pageIdentity) return current;
-        const known = new Set(current.charges.map((charge) => charge.chargeId));
-        return {
-          identity: current.identity,
-          charges: [
-            ...current.charges,
-            ...parsed.data.data.charges.filter(
-              (charge) => !known.has(charge.chargeId)
-            ),
-          ],
-          cursor: parsed.data.data.nextCursor,
-        };
-      });
-    } catch {
-      if (isCurrentRequest()) setLoadMoreError(true);
-    } finally {
-      if (isCurrentRequest()) {
-        activePaginationRequest.current = null;
-        setLoadingMore(false);
-      }
-    }
   }
 
   function retryPendingPayment() {
@@ -625,93 +205,6 @@ export function ManualPaymentForm({
       .catch(() => {
         setError("No se pudo verificar la referencia de forma segura. No se ha enviado el pago.");
       });
-  }
-
-  async function recoverLegacyPendingPayment() {
-    if (
-      !legacyRecoveryRequired ||
-      legacyRecoveryBusy ||
-      !retryStorageReady ||
-      !actorScopeHash
-    ) {
-      return;
-    }
-    setLegacyRecoveryBusy(true);
-    setError(null);
-    try {
-      await withManualPaymentRetryLock(async () => {
-        const durableStorage = getBrowserStorage("localStorage");
-        const legacyStorage = getBrowserStorage("sessionStorage");
-        if (!durableStorage || !legacyStorage) {
-          throw new Error("legacy-storage-unavailable");
-        }
-        const legacyStatus = readLegacyPendingManualPayment(legacyStorage);
-        if (legacyStatus === "invalid" || legacyStatus === "unavailable") {
-          throw new Error("legacy-storage-invalid");
-        }
-        const pending = readAllPendingManualPayments(durableStorage);
-        if (pending.status === "invalid" || pending.status === "unavailable") {
-          throw new Error("retry-storage-unavailable");
-        }
-        if (pending.status === "pending" && pending.snapshots.length > 0) {
-          const actorSnapshots = pending.snapshots.filter(
-            (snapshot) => snapshot.actorScopeHash === actorScopeHash
-          );
-          setPendingCount(actorSnapshots.length);
-          setOtherActorPending(actorSnapshots.length !== pending.snapshots.length);
-          setRetryRequest(
-            actorSnapshots[0]
-              ? toPendingPaymentRequest(actorSnapshots[0])
-              : null
-          );
-          setError(
-            "Resuelve primero el otro envío pendiente; el envío antiguo seguirá guardado para recuperarlo después."
-          );
-          return;
-        }
-        if (legacyStatus === "none") {
-          setLegacyRecoveryRequired(false);
-          setError("El envío antiguo ya no está pendiente. Se volvió a comprobar el almacenamiento.");
-          return;
-        }
-
-        const migration = migrateLegacyPendingManualPayment(
-          legacyStorage,
-          durableStorage,
-          actorScopeHash
-        );
-        if (migration !== "migrated") {
-          throw new Error("legacy-recovery-failed");
-        }
-        const recovered = readAllPendingManualPayments(durableStorage);
-        if (recovered.status !== "pending") {
-          throw new Error("legacy-recovery-failed");
-        }
-        const actorSnapshots = recovered.snapshots.filter(
-          (snapshot) => snapshot.actorScopeHash === actorScopeHash
-        );
-        if (actorSnapshots.length === 0) {
-          throw new Error("legacy-recovery-failed");
-        }
-        setPendingCount(actorSnapshots.length);
-        setOtherActorPending(actorSnapshots.length !== recovered.snapshots.length);
-        setRetryRequest(toPendingPaymentRequest(actorSnapshots[0]!));
-        setLegacyRecoveryRequired(false);
-        setError(
-          "El envío antiguo quedó vinculado a esta sesión y conserva su clave original. No se ha enviado; pulsa Reintentar el mismo registro para consultar su resultado."
-        );
-      });
-    } catch (error: unknown) {
-      setError(
-        error instanceof Error && error.message === "legacy-storage-invalid"
-          ? "No se pudo validar el envío antiguo. Se conserva sin modificar y no se ha enviado."
-          : error instanceof Error && error.message === "legacy-recovery-failed"
-            ? "No se pudo recuperar el envío antiguo. Se conserva para revisión y no se ha enviado."
-            : "No se pudo coordinar la recuperación. El envío antiguo se conserva y no se ha enviado."
-      );
-    } finally {
-      setLegacyRecoveryBusy(false);
-    }
   }
 
   async function sendPayment(
@@ -1052,177 +545,54 @@ export function ManualPaymentForm({
     : effectiveReceivedOn;
   const displayedCurrency =
     retryForCurrentOrganization?.snapshot.currency ?? selectedCharge?.currency;
-  const formLocked =
-    busy ||
-    retryRequest !== null ||
-    pendingCount > 0 ||
-    otherActorPending ||
-    legacyRecoveryRequired ||
-    !retryStorageReady ||
-    retryStorageError !== null;
-  const retryScopeNotice =
-    retryRequest && !retryBelongsToCurrentOrganization ? (
-      <div
-        role="alert"
-        className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
-      >
-        <p>
-          Hay un envío de pago pendiente de confirmar en otra academia. Para
-          evitar duplicados o confusiones, resuélvelo primero en su academia de
-          origen.
-        </p>
-        <Link
-          href={`/owner/payments?organizationId=${encodeURIComponent(retryRequest.body.organizationId)}`}
-          className="mt-2 inline-block font-bold underline underline-offset-2"
-        >
-          Volver a los pagos de la academia del envío pendiente
-        </Link>
-      </div>
-    ) : null;
-  const otherActorPendingNotice = otherActorPending ? (
-    <div
-      role="alert"
-      className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
-    >
-      Hay un envío pendiente en otra sesión de Owner. Vuelve a la cuenta que lo
-      inició para reintentar ese mismo registro antes de crear otro pago.
-    </div>
-  ) : null;
-  const legacyRecoveryNotice = legacyRecoveryRequired ? (
-    <div
-      role="alert"
-      className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
-    >
-      <p>
-        Hay un envío antiguo que no conserva qué usuario lo inició. Si lo
-        recuperas, quedará vinculado a la sesión autenticada actual. El servidor
-        volverá a comprobar los permisos y no se enviará hasta que pulses
-        «Reintentar el mismo registro».
-      </p>
-      {(pendingCount > 0 || otherActorPending) && (
-        <p className="mt-2">
-          Resuelve primero el otro envío pendiente; este registro antiguo
-          permanecerá guardado.
-        </p>
-      )}
-      <button
-        type="button"
-        disabled={
-          busy ||
-          legacyRecoveryBusy ||
-          !retryStorageReady ||
-          retryStorageError !== null ||
-          pendingCount > 0 ||
-          otherActorPending
-        }
-        onClick={() => void recoverLegacyPendingPayment()}
-        className="mt-3 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {legacyRecoveryBusy
-          ? "Recuperando…"
-          : "Vincular el envío antiguo a esta sesión"}
-      </button>
-    </div>
-  ) : null;
+  const retryScopeNotice = (
+    <ManualPaymentRetryScopeNotice
+      retryRequest={retryRequest}
+      retryBelongsToCurrentOrganization={retryBelongsToCurrentOrganization}
+    />
+  );
+  const otherActorPendingNotice = (
+    <ManualPaymentOtherActorNotice otherActorPending={otherActorPending} />
+  );
+  const legacyRecoveryNotice = (
+    <ManualPaymentLegacyRecoveryNotice
+      legacyRecoveryRequired={legacyRecoveryRequired}
+      otherSubmissionPending={pendingCount > 0 || otherActorPending}
+      disabled={
+        busy ||
+        legacyRecoveryBusy ||
+        !retryStorageReady ||
+        retryStorageError !== null ||
+        pendingCount > 0 ||
+        otherActorPending
+      }
+      legacyRecoveryBusy={legacyRecoveryBusy}
+      onRecover={() => void recoverLegacyPendingPayment()}
+    />
+  );
 
   if (loadedCharges.length === 0) {
     return (
-      <div className="rounded-3xl border border-z-line bg-white p-6 sm:p-8">
-        <h2 className="font-display text-xl font-bold text-z-ink">
-          No hay cargos pendientes
-        </h2>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-z-soft">
-          Cuando la academia tenga un cargo abierto, podrás registrar aquí el
-          dinero que ya hayas recibido y dejarlo conciliado en un solo paso.
-        </p>
-        {retryScopeNotice}
-        {otherActorPendingNotice}
-        {legacyRecoveryNotice}
-        {retryStorageError && (
-          <p role="alert" className="mt-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-            {retryStorageError}
-          </p>
-        )}
-        {retryRequest && retryBelongsToCurrentOrganization && (
-          <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
-            <p>
-              Hay un envío anterior cuyo resultado no se pudo confirmar. Puedes
-              consultar el mismo envío sin crear otro registro.
-            </p>
-            <dl className="mt-3 grid gap-2 rounded-lg bg-white/70 p-3 sm:grid-cols-2">
-              <div>
-                <dt className="font-semibold">Importe original</dt>
-                <dd>
-                  {formatMoney(
-                    retryRequest.body.amountCents,
-                    retryRequest.snapshot.currency
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold">Método original</dt>
-                <dd>{formatManualPaymentMethod(retryRequest.body.method)}</dd>
-              </div>
-              <div>
-                <dt className="font-semibold">Fecha original de recepción</dt>
-                <dd>
-                  {retryReceivedOn ?? retryRequest.body.receivedAt}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold">Saldo actual del cargo</dt>
-                <dd>
-                  {retryCharge
-                    ? formatMoney(
-                        retryCharge.outstandingCents,
-                        retryCharge.currency
-                      )
-                    : "No disponible entre los cargos pendientes"}
-                </dd>
-              </div>
-            </dl>
-            {retryRequest.referenceRequired && (
-              <label className="mt-3 grid gap-2">
-                <span className="font-semibold">Vuelve a introducir la referencia del envío</span>
-                <input
-                  type="text"
-                  maxLength={200}
-                  value={reference}
-                  onChange={(event) => setReference(event.target.value)}
-                  disabled={busy}
-                  className="min-h-11 rounded-xl border border-amber-400 bg-white px-3 text-sm text-z-ink"
-                />
-              </label>
-            )}
-            <button
-              type="button"
-              disabled={
-                busy || !retryStorageReady || retryStorageError !== null
-              }
-              onClick={retryPendingPayment}
-              className="mt-2 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {busy ? "Comprobando…" : "Reintentar el mismo registro"}
-            </button>
-          </div>
-        )}
-        {error && (
-          <p
-            role="alert"
-            className="mt-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900"
-          >
-            {error}
-          </p>
-        )}
-        {saved && (
-          <p
-            role="status"
-            className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950"
-          >
-            Pago guardado y asignado al cargo.
-          </p>
-        )}
-      </div>
+      <ManualPaymentEmptyState
+        notices={
+          <>
+            {retryScopeNotice}
+            {otherActorPendingNotice}
+            {legacyRecoveryNotice}
+          </>
+        }
+        retryStorageError={retryStorageError}
+        retryForCurrentOrganization={retryForCurrentOrganization}
+        retryCharge={retryCharge}
+        retryReceivedOn={retryReceivedOn}
+        reference={reference}
+        onReferenceChange={setReference}
+        busy={busy}
+        retryStorageReady={retryStorageReady}
+        onRetry={retryPendingPayment}
+        error={error}
+        saved={saved}
+      />
     );
   }
 
@@ -1258,177 +628,60 @@ export function ManualPaymentForm({
         </p>
       )}
 
-      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
-        <label
-          htmlFor={chargeSelectId}
-          className="text-sm font-bold text-z-ink"
-        >
-          Cargo pendiente
-        </label>
-        <select
-          id={chargeSelectId}
-          value={displayedChargeId}
-          onChange={(event) => chooseCharge(event.target.value)}
-          disabled={formLocked}
-          aria-describedby={formCharge ? chargeHelpId : undefined}
-          className="min-h-12 w-full min-w-0 max-w-full rounded-xl border border-z-line bg-white px-3 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
-        >
-          {retryForCurrentOrganization && !retryCharge && (
-            <option value={retryForCurrentOrganization.body.chargeId}>
-              Cargo del envío original (saldo actual no disponible)
-            </option>
-          )}
-          {loadedCharges.map((charge) => (
-            <option key={charge.chargeId} value={charge.chargeId}>
-              {charge.payerName ?? "Pagador sin nombre"} ·{" "}
-              {charge.invoiceReference} ·{" "}
-              {formatMoney(charge.outstandingCents, charge.currency)} pendiente
-            </option>
-          ))}
-        </select>
-        {pageCursor && (
-          <div className="grid justify-items-start gap-2">
-            <button
-              type="button"
-              onClick={() => void loadMoreCharges()}
-              disabled={!pageMatchesCurrentProps || loadingMore || formLocked}
-              className="min-h-11 rounded-full border border-z-line bg-white px-4 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loadingMore ? "Cargando cargos…" : "Cargar más cargos"}
-            </button>
-            {loadMoreError && (
-              <p role="alert" className="text-sm text-rose-800">
-                No se pudieron cargar más cargos. Reintenta sin cambiar el pago seleccionado.
-              </p>
-            )}
-          </div>
-        )}
-        {formCharge && (
-          <span
-            id={chargeHelpId}
-            className="text-xs leading-5 text-z-soft"
-          >
-            {formCharge.locationName} · Vence el{" "}
-            {formatPaymentDueDate(
-              formCharge.dueAt,
-              formCharge.locationTimezone
-            )}
-          </span>
-        )}
-      </div>
+      <ManualPaymentChargeField
+        chargeSelectId={chargeSelectId}
+        chargeHelpId={chargeHelpId}
+        displayedChargeId={displayedChargeId}
+        onChooseCharge={chooseCharge}
+        formLocked={formLocked}
+        formCharge={formCharge}
+        missingRetryChargeId={
+          retryForCurrentOrganization && !retryCharge
+            ? retryForCurrentOrganization.body.chargeId
+            : null
+        }
+        loadedCharges={loadedCharges}
+        pageCursor={pageCursor}
+        onLoadMore={() => void loadMoreCharges()}
+        loadMoreDisabled={!pageMatchesCurrentProps || loadingMore || formLocked}
+        loadingMore={loadingMore}
+        loadMoreError={loadMoreError}
+      />
 
       {formCharge && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <label
-              htmlFor={amountInputId}
-              className="text-sm font-bold text-z-ink"
-            >
-              {retryForCurrentOrganization
-                ? "Importe del envío original"
-                : "Importe recibido"}
-            </label>
-            <span className="relative">
-              <input
-                id={amountInputId}
-                type="text"
-                inputMode="decimal"
-                pattern="[0-9]+([.,][0-9]{1,2})?"
-                value={displayedAmount}
-                onChange={(event) => setAmount(event.target.value)}
-                disabled={formLocked}
-                required
-                aria-invalid={
-                  !retryForCurrentOrganization &&
-                  amount.trim().length > 0 &&
-                  (!amountCents || amountCents > formCharge.outstandingCents)
-                }
-                aria-describedby={amountHelpId}
-                className="min-h-12 w-full rounded-xl border border-z-line px-3 pr-16 text-base text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
-              />
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-z-soft"
-              >
-                {displayedCurrency ?? formCharge.currency}
-              </span>
-            </span>
-            <span
-              id={amountHelpId}
-              className="text-xs text-z-soft"
-            >
-              {retryForCurrentOrganization
-                ? `Saldo actual del cargo: ${retryCharge ? formatMoney(retryCharge.outstandingCents, retryCharge.currency) : "no disponible"}. El importe original del envío se conserva para el reintento.`
-                : `Pendiente: ${formatMoney(formCharge.outstandingCents, formCharge.currency)} · Usa coma o punto decimal.`}
-            </span>
-          </div>
-
-          <label className="grid gap-2">
-            <span className="text-sm font-bold text-z-ink">
-              {retryForCurrentOrganization
-                ? "Método del envío original"
-                : "Método de pago"}
-            </span>
-            <select
-              value={displayedMethod}
-              onChange={(event) =>
-                setMethod(event.target.value as ManualPaymentMethod)
-              }
-              disabled={formLocked}
-              className="min-h-12 rounded-xl border border-z-line bg-white px-3 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
-            >
-              <option value="bank_transfer">Transferencia</option>
-              <option value="cash">Efectivo</option>
-              <option value="card_terminal">Tarjeta en el local</option>
-              <option value="other">Otro</option>
-            </select>
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-sm font-bold text-z-ink">
-              {retryForCurrentOrganization
-                ? "Fecha original de recepción"
-                : "Fecha de recepción"}
-            </span>
-            <input
-              type="date"
-              value={displayedReceivedOn}
-              max={today || undefined}
-              onChange={(event) => {
-                if (dateInterpretationError === "received-date") {
-                  setDateInterpretationError(null);
-                }
-                setReceivedOn(event.target.value);
-              }}
-              disabled={formLocked}
-              required
-              className="min-h-12 rounded-xl border border-z-line px-3 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
-            />
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-sm font-bold text-z-ink">
-              Referencia{" "}
-              <span className="font-normal text-z-soft">(opcional)</span>
-            </span>
-            <input
-              type="text"
-              maxLength={200}
-              value={reference}
-              onChange={(event) => setReference(event.target.value)}
-              disabled={
-                busy ||
-                !retryStorageReady ||
-                (retryRequest !== null && !retryRequest.referenceRequired)
-              }
-              placeholder="Por ejemplo, concepto de la transferencia"
-              className="min-h-12 rounded-xl border border-z-line px-3 text-sm text-z-ink placeholder:text-z-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
-            />
-            <span className="text-xs text-z-soft">
-              No incluyas números completos de cuenta ni datos sensibles.
-            </span>
-          </label>
-        </div>
+        <ManualPaymentDetailsFields
+          formCharge={formCharge}
+          isRetry={Boolean(retryForCurrentOrganization)}
+          retryCharge={retryCharge}
+          amountInputId={amountInputId}
+          amountHelpId={amountHelpId}
+          displayedAmount={displayedAmount}
+          onAmountChange={setAmount}
+          amountInvalid={
+            !retryForCurrentOrganization &&
+            amount.trim().length > 0 &&
+            (!amountCents || amountCents > formCharge.outstandingCents)
+          }
+          displayedCurrency={displayedCurrency}
+          displayedMethod={displayedMethod}
+          onMethodChange={setMethod}
+          displayedReceivedOn={displayedReceivedOn}
+          today={today}
+          onReceivedOnChange={(value) => {
+            if (dateInterpretationError === "received-date") {
+              setDateInterpretationError(null);
+            }
+            setReceivedOn(value);
+          }}
+          reference={reference}
+          onReferenceChange={setReference}
+          referenceDisabled={
+            busy ||
+            !retryStorageReady ||
+            (retryRequest !== null && !retryRequest.referenceRequired)
+          }
+          formLocked={formLocked}
+        />
       )}
 
       {formCharge && displayedAmountCents && (
