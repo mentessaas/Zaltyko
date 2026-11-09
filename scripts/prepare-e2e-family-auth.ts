@@ -15,8 +15,8 @@ config({ path: resolve(process.cwd(), ".env") });
 /**
  * Prepara una cuenta E2E de family/parent dentro de una academia aislada, con
  * un athlete asociado para que `resolveFamilyPaymentAccess` autorice el
- * SetupIntent y el cobro off-session. Cierra el prerequisite que
- * `tests/e2e-zaltyko-stripe-connect-flow.spec.ts` declara como "futuro":
+ * SetupIntent y el cobro off-session. Lo pedía la suite de cobro con Stripe
+ * Connect, retirada el 2026-11-09 (docs/qa/e2e-legacy-cleanup-2026-11-09.md):
  *
  *   > scripts/prepare-e2e-family-auth.ts (futuro) para crear el usuario parent
  *   > con un `family` storage state.
@@ -360,8 +360,7 @@ async function main() {
     console.log("\nE2E family ready. Next steps:");
     console.log("  1. Run `pnpm test:e2e:auth --project=chromium` with owner/family/athlete credentials");
     console.log("     to generate .auth/family.json and .auth/athlete.json.");
-    console.log("  2. Run `pnpm playwright test tests/e2e-zaltyko-stripe-connect-flow.spec.ts`");
-    console.log("     with E2E_STRIPE_CONNECT_FLOW=1 and a Stripe test sandbox.");
+    console.log("  2. Run the authenticated family suites that need .auth/family.json.");
   } finally {
     await pool.end();
   }
