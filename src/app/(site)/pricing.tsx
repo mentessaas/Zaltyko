@@ -61,8 +61,11 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
             <p className="max-w-2xl text-lg leading-relaxed text-white/85">
               Organiza gimnastas, grupos, asistencia y cuotas con registro manual de pagos para gimnasia
               artística y rítmica. Empieza gratis y configura tu academia. Desde Facturación puedes activar
-              7 días de Starter sin tarjeta (una activación por academia cada 12 meses) y después elegir
-              Starter o Growth con pago mensual o anual. La prueba no genera cargos automáticos. Precios sin IVA.
+              7 días de Starter sin tarjeta (una activación por academia cada 12 meses).{" "}
+              {paidCheckoutOpen
+                ? "Después puedes elegir Starter o Growth con pago mensual o anual."
+                : "Durante la apertura, las academias fundadoras usan Starter o Growth sin coste; la contratación con pago llegará después."}{" "}
+              La prueba no genera cargos automáticos. Precios sin IVA.
             </p>
 
             <fieldset aria-label="Periodicidad de precios">
@@ -84,7 +87,7 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
                 ).map(([value, label]) => (
                   <label
                     key={value}
-                    className="relative z-10 cursor-pointer whitespace-nowrap rounded-sm px-4 py-2.5 text-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-white"
+                    className="relative z-10 flex min-h-11 cursor-pointer items-center justify-center rounded-sm px-3 py-2 text-center leading-tight sm:whitespace-nowrap sm:px-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-white"
                   >
                     <input
                       type="radio"
