@@ -1,0 +1,210 @@
+{
+  "azuay": [
+    {
+      "value": "cuenca",
+      "label": "Cuenca"
+    },
+    {
+      "value": "gualaceo",
+      "label": "Gualaceo"
+    }
+  ],
+  "bolivar": [
+    {
+      "value": "guaranda",
+      "label": "Guaranda"
+    }
+  ],
+  "canar": [
+    {
+      "value": "azogues",
+      "label": "Azogues"
+    }
+  ],
+  "carchi": [
+    {
+      "value": "tulcan",
+      "label": "Tulcán"
+    }
+  ],
+  "chimborazo": [
+    {
+      "value": "riobamba",
+      "label": "Riobamba"
+    },
+    {
+      "value": "guaranda",
+      "label": "Guaranda"
+    }
+  ],
+  "cotopaxi": [
+    {
+      "value": "latacunga",
+      "label": "Latacunga"
+    },
+    {
+      "value": "saquisili",
+      "label": "Saquisilí"
+    }
+  ],
+  "el-oro": [
+    {
+      "value": "machala",
+      "label": "Machala"
+    },
+    {
+      "value": "santa-rosa",
+      "label": "Santa Rosa"
+    }
+  ],
+  "esmeraldas": [
+    {
+      "value": "esmeraldas",
+      "label": "Esmeraldas"
+    },
+    {
+      "value": "atacames",
+      "label": "Atacames"
+    }
+  ],
+  "galapagos": [
+    {
+      "value": "puerto-baquerizo",
+      "label": "Puerto Baquerizo Moreno"
+    }
+  ],
+  "guayas": [
+    {
+      "value": "guayaquil",
+      "label": "Guayaquil"
+    },
+    {
+      "value": "samborondon",
+      "label": "Samborondón"
+    },
+    {
+      "value": "durán",
+      "label": "Durán"
+    }
+  ],
+  "imbabura": [
+    {
+      "value": "ibalra",
+      "label": "Ibarra"
+    },
+    {
+      "value": "otavalo",
+      "label": "Otavalo"
+    }
+  ],
+  "loja": [
+    {
+      "value": "loja",
+      "label": "Loja"
+    },
+    {
+      "value": "catamayo",
+      "label": "Catamayo"
+    }
+  ],
+  "los-rios": [
+    {
+      "value": "babahoyo",
+      "label": "Babahoyo"
+    },
+    {
+      "value": "quevedo",
+      "label": "Quevedo"
+    }
+  ],
+  "manabi": [
+    {
+      "value": "portoviejo",
+      "label": "Portoviejo"
+    },
+    {
+      "value": "manta",
+      "label": "Manta"
+    },
+    {
+      "value": "bahia",
+      "label": "Bahía de Caráquez"
+    }
+  ],
+  "morona-santiago": [
+    {
+      "value": "macas",
+      "label": "Macas"
+    }
+  ],
+  "napo": [
+    {
+      "value": "tena",
+      "label": "Tena"
+    }
+  ],
+  "orellana": [
+    {
+      "value": "francisco-orellana",
+      "label": "Francisco de Orellana"
+    }
+  ],
+  "pastaza": [
+    {
+      "value": "puyo",
+      "label": "Puyo"
+    }
+  ],
+  "pichincha": [
+    {
+      "value": "quito",
+      "label": "Quito"
+    },
+    {
+      "value": "sangolqui",
+      "label": "Sangolquí"
+    },
+    {
+      "value": "cayambe",
+      "label": "Cayambe"
+    }
+  ],
+  "santa-elena": [
+    {
+      "value": "santa-elena",
+      "label": "Santa Elena"
+    },
+    {
+      "value": "salinas",
+      "label": "Salinas"
+    }
+  ],
+  "santo-domingo": [
+    {
+      "value": "santo-domingo",
+      "label": "Santo Domingo de los Colorados"
+    }
+  ],
+  "sucumbios": [
+    {
+      "value": "nueva-loja",
+      "label": "Nueva Loja"
+    }
+  ],
+  "tungurahua": [
+    {
+      "value": "ambato",
+      "label": "Ambato"
+    },
+    {
+      "value": "pelileo",
+      "label": "Pelileo"
+    }
+  ],
+  "zamora-chinchipe": [
+    {
+      "value": "zamora",
+      "label": "Zamora"
+    }
+  ]
+}

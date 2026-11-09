@@ -4,7 +4,6 @@ import crypto from "crypto";
 import { isDevFeaturesEnabled } from "@/lib/dev";
 import { DEV_SESSION_COOKIE, parseDevSessionCookie } from "@/lib/dev-session";
 import { locales, defaultLocale, type Locale } from "@/i18n";
-import { getAcademyRobotsHeader } from "@/lib/seo/academy-robots-directives";
 import { getLocalSupabaseCspConnectSources } from "@/lib/security/local-supabase-csp";
 import { extractAcademySlugFromHost } from "@/lib/subdomains/rewrite";
 import { getExperimentalReleaseFlags, isExperimentalRouteDisabled } from "@/lib/release/experimental-routes";
@@ -318,40 +317,6 @@ function isAcademyAppPath(pathname: string) {
   return pathname.startsWith("/app/") || pathname.startsWith("/super-admin/");
 }
 
-function getIndividualAcademyId(pathname: string): string | null {
-  const match = pathname.match(/^\/academias\/([^/]+)\/?$/);
-  if (!match?.[1]) return null;
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * El detalle público es la lectura autoritativa para el header. Ese endpoint
- * solo responde 200 para academias que cumplen el contrato de indexabilidad;
- * cualquier 404, error o respuesta no verificable falla cerrado.
- */
-async function shouldNoIndexAcademy(request: NextRequest): Promise<boolean> {
-  const academyId = getIndividualAcademyId(request.nextUrl.pathname);
-  if (!academyId) return false;
-
-  try {
-    const endpoint = new URL(
-      process.env.DIRECTORY_CATALOG_ENABLED === "true" ? `/api/directory/entries/${encodeURIComponent(academyId)}` : `/api/public/academies/${encodeURIComponent(academyId)}`,
-      request.url
-    );
-    const response = await fetch(endpoint, {
-      headers: { accept: "application/json" },
-      cache: "no-store",
-    });
-    return !response.ok;
-  } catch {
-    return true;
-  }
-}
-
 async function checkRateLimit(
   req: NextRequest,
   body: Record<string, unknown>
@@ -608,9 +573,9 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  if (await shouldNoIndexAcademy(req)) {
-    response.headers.set("X-Robots-Tag", getAcademyRobotsHeader(false) as string);
-  }
+  // X-Robots-Tag is decided locally (launch cut, /staff/accept below); the
+  // middleware never fetches to decide indexing. Academy detail pages set
+  // their own robots metadata if they are ever reopened.
 
   const securedResponse = applySecurityHeaders(response, nonce);
   if (pathname === "/staff/accept") {

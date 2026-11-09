@@ -1,0 +1,640 @@
+{
+  "alabama": [
+    {
+      "value": "birmingham",
+      "label": "Birmingham"
+    },
+    {
+      "value": "montgomery",
+      "label": "Montgomery"
+    },
+    {
+      "value": "mobile",
+      "label": "Mobile"
+    }
+  ],
+  "alaska": [
+    {
+      "value": "anchorage",
+      "label": "Anchorage"
+    },
+    {
+      "value": "fairbanks",
+      "label": "Fairbanks"
+    }
+  ],
+  "arizona": [
+    {
+      "value": "phoenix",
+      "label": "Phoenix"
+    },
+    {
+      "value": "tucson",
+      "label": "Tucson"
+    },
+    {
+      "value": "mesa",
+      "label": "Mesa"
+    }
+  ],
+  "arkansas": [
+    {
+      "value": "little-rock",
+      "label": "Little Rock"
+    },
+    {
+      "value": "fort-smith",
+      "label": "Fort Smith"
+    }
+  ],
+  "california": [
+    {
+      "value": "los-angeles",
+      "label": "Los Angeles"
+    },
+    {
+      "value": "san-diego",
+      "label": "San Diego"
+    },
+    {
+      "value": "san-jose",
+      "label": "San Jose"
+    },
+    {
+      "value": "san-francisco",
+      "label": "San Francisco"
+    },
+    {
+      "value": "fresno",
+      "label": "Fresno"
+    },
+    {
+      "value": "sacramento",
+      "label": "Sacramento"
+    },
+    {
+      "value": "long-beach",
+      "label": "Long Beach"
+    },
+    {
+      "value": "oakland",
+      "label": "Oakland"
+    }
+  ],
+  "colorado": [
+    {
+      "value": "denver",
+      "label": "Denver"
+    },
+    {
+      "value": "colorado-springs",
+      "label": "Colorado Springs"
+    },
+    {
+      "value": "aurora",
+      "label": "Aurora"
+    }
+  ],
+  "connecticut": [
+    {
+      "value": "bridgeport",
+      "label": "Bridgeport"
+    },
+    {
+      "value": "new-haven",
+      "label": "New Haven"
+    },
+    {
+      "value": "hartford",
+      "label": "Hartford"
+    }
+  ],
+  "delaware": [
+    {
+      "value": "wilmington",
+      "label": "Wilmington"
+    },
+    {
+      "value": "dover",
+      "label": "Dover"
+    }
+  ],
+  "florida": [
+    {
+      "value": "miami",
+      "label": "Miami"
+    },
+    {
+      "value": "tampa",
+      "label": "Tampa"
+    },
+    {
+      "value": "orlando",
+      "label": "Orlando"
+    },
+    {
+      "value": "jacksonville",
+      "label": "Jacksonville"
+    },
+    {
+      "value": "fort-lauderdale",
+      "label": "Fort Lauderdale"
+    }
+  ],
+  "georgia": [
+    {
+      "value": "atlanta",
+      "label": "Atlanta"
+    },
+    {
+      "value": "augusta",
+      "label": "Augusta"
+    },
+    {
+      "value": "columbus",
+      "label": "Columbus"
+    }
+  ],
+  "hawaii": [
+    {
+      "value": "honolulu",
+      "label": "Honolulu"
+    },
+    {
+      "value": "hilo",
+      "label": "Hilo"
+    }
+  ],
+  "idaho": [
+    {
+      "value": "boise",
+      "label": "Boise"
+    },
+    {
+      "value": "nampa",
+      "label": "Nampa"
+    }
+  ],
+  "illinois": [
+    {
+      "value": "chicago",
+      "label": "Chicago"
+    },
+    {
+      "value": "aurora",
+      "label": "Aurora"
+    },
+    {
+      "value": "rockford",
+      "label": "Rockford"
+    }
+  ],
+  "indiana": [
+    {
+      "value": "indianapolis",
+      "label": "Indianapolis"
+    },
+    {
+      "value": "fort-wayne",
+      "label": "Fort Wayne"
+    }
+  ],
+  "iowa": [
+    {
+      "value": "des-moines",
+      "label": "Des Moines"
+    },
+    {
+      "value": "cedar-rapids",
+      "label": "Cedar Rapids"
+    }
+  ],
+  "kansas": [
+    {
+      "value": "wichita",
+      "label": "Wichita"
+    },
+    {
+      "value": "overland-park",
+      "label": "Overland Park"
+    }
+  ],
+  "kentucky": [
+    {
+      "value": "louisville",
+      "label": "Louisville"
+    },
+    {
+      "value": "lexington",
+      "label": "Lexington"
+    }
+  ],
+  "louisiana": [
+    {
+      "value": "new-orleans",
+      "label": "New Orleans"
+    },
+    {
+      "value": "baton-rouge",
+      "label": "Baton Rouge"
+    },
+    {
+      "value": "shreveport",
+      "label": "Shreveport"
+    }
+  ],
+  "maine": [
+    {
+      "value": "portland",
+      "label": "Portland"
+    },
+    {
+      "value": "lewiston",
+      "label": "Lewiston"
+    }
+  ],
+  "maryland": [
+    {
+      "value": "baltimore",
+      "label": "Baltimore"
+    },
+    {
+      "value": "frederick",
+      "label": "Frederick"
+    }
+  ],
+  "massachusetts": [
+    {
+      "value": "boston",
+      "label": "Boston"
+    },
+    {
+      "value": "worcester",
+      "label": "Worcester"
+    },
+    {
+      "value": "springfield",
+      "label": "Springfield"
+    }
+  ],
+  "michigan": [
+    {
+      "value": "detroit",
+      "label": "Detroit"
+    },
+    {
+      "value": "grand-rapids",
+      "label": "Grand Rapids"
+    },
+    {
+      "value": "warren",
+      "label": "Warren"
+    }
+  ],
+  "minnesota": [
+    {
+      "value": "minneapolis",
+      "label": "Minneapolis"
+    },
+    {
+      "value": "saint-paul",
+      "label": "Saint Paul"
+    }
+  ],
+  "mississippi": [
+    {
+      "value": "jackson",
+      "label": "Jackson"
+    },
+    {
+      "value": "gulfport",
+      "label": "Gulfport"
+    }
+  ],
+  "missouri": [
+    {
+      "value": "kansas-city",
+      "label": "Kansas City"
+    },
+    {
+      "value": "saint-louis",
+      "label": "Saint Louis"
+    },
+    {
+      "value": "springfield",
+      "label": "Springfield"
+    }
+  ],
+  "montana": [
+    {
+      "value": "billings",
+      "label": "Billings"
+    },
+    {
+      "value": "missoula",
+      "label": "Missoula"
+    }
+  ],
+  "nebraska": [
+    {
+      "value": "omaha",
+      "label": "Omaha"
+    },
+    {
+      "value": "lincoln",
+      "label": "Lincoln"
+    }
+  ],
+  "nevada": [
+    {
+      "value": "las-vegas",
+      "label": "Las Vegas"
+    },
+    {
+      "value": "henderson",
+      "label": "Henderson"
+    },
+    {
+      "value": "reno",
+      "label": "Reno"
+    }
+  ],
+  "new-hampshire": [
+    {
+      "value": "manchester",
+      "label": "Manchester"
+    },
+    {
+      "value": "nashua",
+      "label": "Nashua"
+    }
+  ],
+  "new-jersey": [
+    {
+      "value": "newark",
+      "label": "Newark"
+    },
+    {
+      "value": "jersey-city",
+      "label": "Jersey City"
+    },
+    {
+      "value": "paterson",
+      "label": "Paterson"
+    }
+  ],
+  "new-mexico": [
+    {
+      "value": "albuquerque",
+      "label": "Albuquerque"
+    },
+    {
+      "value": "las-cruces",
+      "label": "Las Cruces"
+    }
+  ],
+  "new-york": [
+    {
+      "value": "new-york",
+      "label": "New York"
+    },
+    {
+      "value": "buffalo",
+      "label": "Buffalo"
+    },
+    {
+      "value": "rochester",
+      "label": "Rochester"
+    },
+    {
+      "value": "albany",
+      "label": "Albany"
+    }
+  ],
+  "north-carolina": [
+    {
+      "value": "charlotte",
+      "label": "Charlotte"
+    },
+    {
+      "value": "raleigh",
+      "label": "Raleigh"
+    },
+    {
+      "value": "greensboro",
+      "label": "Greensboro"
+    }
+  ],
+  "north-dakota": [
+    {
+      "value": "fargo",
+      "label": "Fargo"
+    },
+    {
+      "value": "bismarck",
+      "label": "Bismarck"
+    }
+  ],
+  "ohio": [
+    {
+      "value": "columbus",
+      "label": "Columbus"
+    },
+    {
+      "value": "cleveland",
+      "label": "Cleveland"
+    },
+    {
+      "value": "cincinnati",
+      "label": "Cincinnati"
+    }
+  ],
+  "oklahoma": [
+    {
+      "value": "oklahoma-city",
+      "label": "Oklahoma City"
+    },
+    {
+      "value": "tulsa",
+      "label": "Tulsa"
+    }
+  ],
+  "oregon": [
+    {
+      "value": "portland",
+      "label": "Portland"
+    },
+    {
+      "value": "eugene",
+      "label": "Eugene"
+    }
+  ],
+  "pennsylvania": [
+    {
+      "value": "philadelphia",
+      "label": "Philadelphia"
+    },
+    {
+      "value": "pittsburgh",
+      "label": "Pittsburgh"
+    },
+    {
+      "value": "allentown",
+      "label": "Allentown"
+    }
+  ],
+  "rhode-island": [
+    {
+      "value": "providence",
+      "label": "Providence"
+    },
+    {
+      "value": "warwick",
+      "label": "Warwick"
+    }
+  ],
+  "south-carolina": [
+    {
+      "value": "charleston",
+      "label": "Charleston"
+    },
+    {
+      "value": "columbia",
+      "label": "Columbia"
+    }
+  ],
+  "south-dakota": [
+    {
+      "value": "sioux-falls",
+      "label": "Sioux Falls"
+    },
+    {
+      "value": "rapid-city",
+      "label": "Rapid City"
+    }
+  ],
+  "tennessee": [
+    {
+      "value": "nashville",
+      "label": "Nashville"
+    },
+    {
+      "value": "memphis",
+      "label": "Memphis"
+    },
+    {
+      "value": "knoxville",
+      "label": "Knoxville"
+    }
+  ],
+  "texas": [
+    {
+      "value": "houston",
+      "label": "Houston"
+    },
+    {
+      "value": "san-antonio",
+      "label": "San Antonio"
+    },
+    {
+      "value": "dallas",
+      "label": "Dallas"
+    },
+    {
+      "value": "austin",
+      "label": "Austin"
+    },
+    {
+      "value": "fort-worth",
+      "label": "Fort Worth"
+    },
+    {
+      "value": "el-paso",
+      "label": "El Paso"
+    }
+  ],
+  "utah": [
+    {
+      "value": "salt-lake-city",
+      "label": "Salt Lake City"
+    },
+    {
+      "value": "west-valley-city",
+      "label": "West Valley City"
+    }
+  ],
+  "vermont": [
+    {
+      "value": "burlington",
+      "label": "Burlington"
+    },
+    {
+      "value": "essex",
+      "label": "Essex"
+    }
+  ],
+  "virginia": [
+    {
+      "value": "virginia-beach",
+      "label": "Virginia Beach"
+    },
+    {
+      "value": "norfolk",
+      "label": "Norfolk"
+    },
+    {
+      "value": "richmond",
+      "label": "Richmond"
+    }
+  ],
+  "washington": [
+    {
+      "value": "seattle",
+      "label": "Seattle"
+    },
+    {
+      "value": "spokane",
+      "label": "Spokane"
+    },
+    {
+      "value": "tacoma",
+      "label": "Tacoma"
+    }
+  ],
+  "west-virginia": [
+    {
+      "value": "charleston",
+      "label": "Charleston"
+    },
+    {
+      "value": "huntington",
+      "label": "Huntington"
+    }
+  ],
+  "wisconsin": [
+    {
+      "value": "milwaukee",
+      "label": "Milwaukee"
+    },
+    {
+      "value": "madison",
+      "label": "Madison"
+    }
+  ],
+  "wyoming": [
+    {
+      "value": "cheyenne",
+      "label": "Cheyenne"
+    },
+    {
+      "value": "casper",
+      "label": "Casper"
+    }
+  ],
+  "district-columbia": [
+    {
+      "value": "washington",
+      "label": "Washington D.C."
+    }
+  ]
+}

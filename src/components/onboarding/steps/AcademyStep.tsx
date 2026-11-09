@@ -7,7 +7,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LimitIndicator } from "@/components/onboarding/LimitIndicator";
 import { StepPreview } from "@/components/onboarding/StepPreview";
 import { COUNTRY_REGION_OPTIONS, findRegionsByCountry, getRegionLabel, getRegionPlaceholder, getCityPlaceholder } from "@/lib/countryRegions";
-import { findCitiesByRegion } from "@/lib/citiesByRegion";
+import { useCitiesByRegion } from "@/hooks/use-cities-by-region";
 import { ACADEMY_TYPES } from "@/lib/onboardingCopy";
 import { getProductPlanPublicName } from "@/lib/plans/catalog";
 import { ArrowRight, Lock, CheckCircle2, TrendingUp, Clock } from "lucide-react";
@@ -73,9 +73,8 @@ export function AcademyStep({
     ? findRegionsByCountry(selectedCountry).map((r) => ({ value: r.value, label: r.label }))
     : [];
 
-  const cityOptions = selectedRegion
-    ? findCitiesByRegion(selectedCountry, selectedRegion).map((c) => ({ value: c.value, label: c.label }))
-    : [];
+  const regionCities = useCitiesByRegion(selectedCountry, selectedRegion);
+  const cityOptions = regionCities.map((c) => ({ value: c.value, label: c.label }));
 
   // Si tiene academia y alcanzó el límite de su plan
   if (userHasAcademies && existingAcademies.length > 0 && userPlanInfo && !userPlanInfo.canCreateMore) {
@@ -210,7 +209,7 @@ export function AcademyStep({
             academyType,
             country: selectedCountry ? COUNTRY_REGION_OPTIONS.find(c => c.value === selectedCountry)?.label : undefined,
             region: selectedRegion ? findRegionsByCountry(selectedCountry).find(r => r.value === selectedRegion)?.label : undefined,
-            city: selectedCity ? findCitiesByRegion(selectedCountry, selectedRegion).find(c => c.value === selectedCity)?.label : undefined,
+            city: selectedCity ? regionCities.find(c => c.value === selectedCity)?.label : undefined,
           }}
         />
       )}

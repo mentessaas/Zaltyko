@@ -1,0 +1,146 @@
+{
+  "artemisa": [
+    {
+      "value": "artemisa",
+      "label": "Artemisa"
+    },
+    {
+      "value": "san-antonio",
+      "label": "San Antonio de los Baños"
+    }
+  ],
+  "camaguey": [
+    {
+      "value": "camaguey",
+      "label": "Camagüey"
+    },
+    {
+      "value": "florida",
+      "label": "Florida"
+    }
+  ],
+  "ciego-avila": [
+    {
+      "value": "ciego-avila",
+      "label": "Ciego de Ávila"
+    },
+    {
+      "value": "moron",
+      "label": "Morón"
+    }
+  ],
+  "cienfuegos": [
+    {
+      "value": "cienfuegos",
+      "label": "Cienfuegos"
+    }
+  ],
+  "granma": [
+    {
+      "value": "bayamo",
+      "label": "Bayamo"
+    },
+    {
+      "value": "manzanillo",
+      "label": "Manzanillo"
+    }
+  ],
+  "guantanamo": [
+    {
+      "value": "guantanamo",
+      "label": "Guantánamo"
+    },
+    {
+      "value": "baracoa",
+      "label": "Baracoa"
+    }
+  ],
+  "holguin": [
+    {
+      "value": "holguin",
+      "label": "Holguín"
+    },
+    {
+      "value": "banes",
+      "label": "Banes"
+    }
+  ],
+  "isla-juventud": [
+    {
+      "value": "nueva-gerona",
+      "label": "Nueva Gerona"
+    }
+  ],
+  "la-habana": [
+    {
+      "value": "la-habana",
+      "label": "La Habana"
+    },
+    {
+      "value": "centro-habana",
+      "label": "Centro Habana"
+    },
+    {
+      "value": "vedado",
+      "label": "Vedado"
+    }
+  ],
+  "las-tunas": [
+    {
+      "value": "las-tunas",
+      "label": "Las Tunas"
+    }
+  ],
+  "matanzas": [
+    {
+      "value": "matanzas",
+      "label": "Matanzas"
+    },
+    {
+      "value": "cardenas",
+      "label": "Cárdenas"
+    }
+  ],
+  "mayabeque": [
+    {
+      "value": "san-jose-lajas",
+      "label": "San José de las Lajas"
+    }
+  ],
+  "pinar-del-rio": [
+    {
+      "value": "pinar-del-rio",
+      "label": "Pinar del Río"
+    },
+    {
+      "value": "consolacion-sur",
+      "label": "Consolación del Sur"
+    }
+  ],
+  "sancti-spiritus": [
+    {
+      "value": "sancti-spiritus",
+      "label": "Sancti Spíritus"
+    }
+  ],
+  "santiago-cuba": [
+    {
+      "value": "santiago-cuba",
+      "label": "Santiago de Cuba"
+    },
+    {
+      "value": "san-luis",
+      "label": "San Luis"
+    }
+  ],
+  "villa-clara": [
+    {
+      "value": "santa-clara",
+      "label": "Santa Clara"
+    },
+    {
+      "value": "placetas",
+      "label": "Placetas"
+    }
+  ]
+}

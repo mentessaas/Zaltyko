@@ -1,0 +1,100 @@
+{
+  "bocas-del-toro": [
+    {
+      "value": "bocas-del-toro",
+      "label": "Bocas del Toro"
+    }
+  ],
+  "chiriqui": [
+    {
+      "value": "david",
+      "label": "David"
+    },
+    {
+      "value": "puerto-armuelles",
+      "label": "Puerto Armuelles"
+    }
+  ],
+  "cocle": [
+    {
+      "value": "penonome",
+      "label": "Penonomé"
+    },
+    {
+      "value": "aguadulce",
+      "label": "Aguadulce"
+    }
+  ],
+  "colon": [
+    {
+      "value": "colon",
+      "label": "Colón"
+    },
+    {
+      "value": "cristobal",
+      "label": "Cristóbal"
+    }
+  ],
+  "darien": [
+    {
+      "value": "la-palma",
+      "label": "La Palma"
+    }
+  ],
+  "herrera": [
+    {
+      "value": "chitre",
+      "label": "Chitré"
+    }
+  ],
+  "los-santos": [
+    {
+      "value": "las-tablas",
+      "label": "Las Tablas"
+    }
+  ],
+  "panama": [
+    {
+      "value": "ciudad-panama",
+      "label": "Ciudad de Panamá"
+    },
+    {
+      "value": "san-miguelito",
+      "label": "San Miguelito"
+    }
+  ],
+  "panama-oeste": [
+    {
+      "value": "la-chorrera",
+      "label": "La Chorrera"
+    },
+    {
+      "value": "arraijan",
+      "label": "Arraiján"
+    }
+  ],
+  "veraguas": [
+    {
+      "value": "santiago",
+      "label": "Santiago"
+    }
+  ],
+  "guna-yala": [
+    {
+      "value": "el-porvenir",
+      "label": "El Porvenir"
+    }
+  ],
+  "embera-wounaan": [
+    {
+      "value": "union-choco",
+      "label": "Unión Chocó"
+    }
+  ],
+  "ngabe-bugle": [
+    {
+      "value": "llano-tugri",
+      "label": "Llano Tugrí"
+    }
+  ]
+}

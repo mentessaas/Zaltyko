@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getRegionLabel, getRegionPlaceholder, getCityPlaceholder, COUNTRY_REGION_OPTIONS, findRegionsByCountry } from "@/lib/countryRegions";
-import { findCitiesByRegion } from "@/lib/citiesByRegion";
+import { findCitiesByRegionAsync } from "@/lib/geo-loader";
 import { logger } from "@/lib/logger";
 import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
@@ -104,27 +104,41 @@ export function EventsFilters({ onFiltersChange }: EventsFiltersProps) {
 
   // Filtrar ciudades según región
   useEffect(() => {
+    // City lists load per country on demand; ignore a late answer if the
+    // selection changed meanwhile.
+    let active = true;
+    const showCities = (countryValue: string, regionValue: string) => {
+      void findCitiesByRegionAsync(countryValue, regionValue)
+        .then(citiesList => {
+          if (active) setCities(citiesList.map(c => c.label));
+        })
+        .catch(() => {
+          if (active) setCities([]);
+        });
+    };
+
     if (province && country) {
       const normalizedCountry = country.toLowerCase();
       const regionsList = findRegionsByCountry(normalizedCountry);
       const regionOption = regionsList.find(r => r.label === province);
       
       if (regionOption) {
-        const citiesList = findCitiesByRegion(normalizedCountry, regionOption.value);
-        setCities(citiesList.map(c => c.label));
+        showCities(normalizedCountry, regionOption.value);
       }
     } else if (province) {
       for (const countryOption of COUNTRY_REGION_OPTIONS) {
         const regionOption = countryOption.regions.find(r => r.label === province);
         if (regionOption) {
-          const citiesList = findCitiesByRegion(countryOption.value, regionOption.value);
-          setCities(citiesList.map(c => c.label));
+          showCities(countryOption.value, regionOption.value);
           break;
         }
       }
     } else {
       setCities([]);
     }
+    return () => {
+      active = false;
+    };
   }, [province, country]);
 
   const applyFilters = useCallback(() => {

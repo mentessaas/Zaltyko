@@ -1,0 +1,76 @@
+{
+  "alajuela": [
+    {
+      "value": "alajuela",
+      "label": "Alajuela"
+    },
+    {
+      "value": "san-ramon",
+      "label": "San Ramón"
+    }
+  ],
+  "cartago": [
+    {
+      "value": "cartago",
+      "label": "Cartago"
+    },
+    {
+      "value": "paraiso",
+      "label": "Paraíso"
+    }
+  ],
+  "guanacaste": [
+    {
+      "value": "liberia",
+      "label": "Liberia"
+    },
+    {
+      "value": "nicoya",
+      "label": "Nicoya"
+    }
+  ],
+  "heredia": [
+    {
+      "value": "heredia",
+      "label": "Heredia"
+    },
+    {
+      "value": "san-rafael",
+      "label": "San Rafael"
+    }
+  ],
+  "limon": [
+    {
+      "value": "limon",
+      "label": "Limón"
+    },
+    {
+      "value": "puerto-limon",
+      "label": "Puerto Limón"
+    }
+  ],
+  "puntarenas": [
+    {
+      "value": "puntarenas",
+      "label": "Puntarenas"
+    },
+    {
+      "value": "golfito",
+      "label": "Golfito"
+    }
+  ],
+  "san-jose": [
+    {
+      "value": "san-jose",
+      "label": "San José"
+    },
+    {
+      "value": "escazu",
+      "label": "Escazú"
+    },
+    {
+      "value": "desamparados",
+      "label": "Desamparados"
+    }
+  ]
+}

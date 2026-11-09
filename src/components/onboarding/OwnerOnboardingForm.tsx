@@ -19,7 +19,7 @@ import {
   getRegionLabel,
   getRegionPlaceholder,
 } from "@/lib/countryRegions";
-import { findCitiesByRegion } from "@/lib/citiesByRegion";
+import { useCitiesByRegion } from "@/hooks/use-cities-by-region";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getStarterClassPresets, getStarterGroupPresets } from "@/lib/specialization/operational-presets";
 import { getSportConfigSeedByVariant, getSportConfigSeedsByCountry } from "@/lib/sport-config/catalog";
@@ -114,7 +114,7 @@ export function OwnerOnboardingForm({
   );
 
   const regionOptions = useMemo(() => findRegionsByCountry(countryCode), [countryCode]);
-  const cityOptions = useMemo(() => findCitiesByRegion(countryCode, region), [countryCode, region]);
+  const cityOptions = useCitiesByRegion(countryCode, region);
 
   // Conserva únicamente datos de configuración no sensibles para que una
   // interrupción no obligue a repetir el onboarding desde cero.
