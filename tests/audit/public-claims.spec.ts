@@ -167,9 +167,11 @@ test.describe("L6 — JSON-LD / sitemap accuracy", () => {
   test("Pricing permite comparar facturación mensual y anual", async ({ page }) => {
     await gotoPublic(page, "/pricing");
     const interval = page.getByRole("group", { name: "Periodicidad de precios" });
-    await expect(interval.getByRole("button", { name: "Mensual", exact: true })).toHaveAttribute("aria-pressed", "true");
+    // Selector de periodicidad como grupo de radios nativos (Magnesio, 2026-11-09).
+    await expect(interval.getByRole("radio", { name: "Mensual", exact: true })).toBeChecked();
     await expect(page.getByText("Durante la apertura, las academias fundadoras usan Starter o Growth sin coste. La contratación con pago se abrirá al cerrar la facturación, con estos precios.", { exact: true })).toBeVisible();
-    await interval.getByRole("button", { name: "Anual · ahorra 2 meses" }).click();
+    await interval.getByText("Anual · ahorra 2 meses", { exact: true }).click();
+    await expect(interval.getByRole("radio", { name: "Anual · ahorra 2 meses" })).toBeChecked();
     await expect(page.getByText(/190\s*€\/año/)).toBeVisible();
     await expect(page.getByText(/490\s*€\/año/)).toBeVisible();
     await expect(page.getByText("Durante la apertura, las academias fundadoras usan Starter o Growth sin coste. La contratación con pago se abrirá al cerrar la facturación, con estos precios.", { exact: true })).toBeVisible();
