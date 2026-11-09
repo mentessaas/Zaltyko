@@ -13,6 +13,7 @@ import { isRetiredLaunchApi, RETIRED_LAUNCH_API_PREFIXES } from "@/lib/launch/es
  */
 const PUBLIC_API_ALLOWLIST: Record<string, string> = {
   "GET /api/health": "Uptime monitor; no personal data.",
+  "GET /api/health/live": "Liveness for the uptime monitor; no database, no personal data.",
   "GET /api/plans": "Public pricing shown on the website.",
   "POST /api/leads": "Website email capture, rate limited.",
   "POST /api/growth/events": "First-party measurement behind consent, rate limited.",
