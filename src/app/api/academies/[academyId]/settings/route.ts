@@ -24,6 +24,7 @@ import {
   getCountryNameFromCode,
   inferDisciplineFromVariant,
   mapDisciplineVariantToAcademyType,
+  inferDisciplineVariantFromAcademyType,
   normalizeCountryCode,
 } from "@/lib/specialization/registry";
 import { sanitizeTerminologyOverrides } from "@/lib/sport-config/terminology";
@@ -434,7 +435,8 @@ export const GET = withTenant(async (request, context) => {
       countryCode: academy.countryCode || academy.country || "",
       region: academy.region || "",
       city: academy.city || "",
-      disciplineVariant: academy.disciplineVariant || "rhythmic",
+      // Sin variante guardada, se deduce del tipo de academia (antes: siempre «rítmica»).
+      disciplineVariant: academy.disciplineVariant || inferDisciplineVariantFromAcademyType(academy.academyType),
       activeDisciplineVariants: sportConfigs.map((config) => config.defaultDisciplineVariant),
       sportConfigs,
       federationConfigVersion: academy.federationConfigVersion || "legacy-default-v1",

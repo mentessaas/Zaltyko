@@ -252,7 +252,7 @@ function InsightCard({
           <span className="bg-z-ink px-2.5 py-1.5 text-white">
             {Math.round(item.priorityScore)} / 100
           </span>
-          <span className="text-[#A33A2D]">
+          <span className="text-z-chalk-600">
             {severityLabels[item.severity] ?? item.severity}
           </span>
           <span className="text-z-soft">
@@ -273,8 +273,8 @@ function InsightCard({
       </p>
 
       {estimate && (
-        <div className="mt-5 border-l-4 border-zaltyko-coral bg-[#FFF8F2] p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#A33A2D]">
+        <div className="mt-5 rounded-md border border-z-line border-t-[3px] border-t-zaltyko-coral bg-z-chalk-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-z-chalk-600">
             Hipótesis de valor, no garantía
           </p>
           <p className="mt-1 font-mono text-2xl font-semibold text-z-ink">
@@ -337,7 +337,7 @@ function InsightCard({
       {isGroupSimulation && simulationOpen && (
         <section
           aria-label="Simulación hipotética de un nuevo grupo"
-          className="rounded-[12px] mt-5 border border-z-ink bg-[#F3F8F5] p-4 sm:p-6"
+          className="rounded-[12px] mt-5 border border-z-ink bg-z-canvas p-4 sm:p-6"
         >
           <h3 className="text-xl font-semibold">Prueba una hipótesis</h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-z-soft">
@@ -517,7 +517,7 @@ function InsightCard({
           <summary className="touch-target cursor-pointer py-2 font-semibold text-z-soft underline decoration-slate-300 underline-offset-4">
             No es relevante
           </summary>
-          <div className="grid gap-3 border-l-2 border-z-line pl-4 sm:grid-cols-[1fr_auto] sm:items-end">
+          <div className="grid gap-3 border-t border-z-line pt-4 sm:grid-cols-[1fr_auto] sm:items-end">
             <label className="grid gap-2 font-semibold text-z-soft">
               Motivo del descarte
               <textarea
@@ -663,7 +663,7 @@ export function InsightInbox({ bundle }: { bundle: InsightListBundle }) {
         <OwnerOperationalReadOnlyNotice organizationId={bundle.organization.id} />
 
         {bundle.items.length === 0 ? (
-          <section className="mt-8 border-l-4 border-z-ink bg-white p-7 shadow-soft sm:p-10">
+          <section className="mt-8 rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-white p-7 shadow-soft sm:p-10">
             <Lightbulb className="h-7 w-7 text-z-brand-600" aria-hidden="true" />
             <h2 className="mt-4 text-3xl">No hay decisiones pendientes</h2>
             <p className="mt-3 max-w-xl leading-6 text-z-soft">

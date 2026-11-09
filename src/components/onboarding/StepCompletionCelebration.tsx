@@ -44,7 +44,7 @@ export function StepCompletionCelebration({
           <div className="relative">
             <div className="absolute inset-0 animate-ping rounded-full bg-green-500/20" />
             <CheckCircle2 className="relative h-16 w-16 text-green-500" />
-            <Sparkles className="absolute -right-2 -top-2 h-6 w-6 animate-bounce text-yellow-400" />
+            <Sparkles className="absolute -right-2 -top-2 h-6 w-6 text-mat" />
           </div>
           <div className="text-center">
             <h3 className="text-2xl font-bold">¡Paso {stepNumber} completado!</h3>

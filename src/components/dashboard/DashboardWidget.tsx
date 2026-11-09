@@ -81,7 +81,7 @@ export function DashboardWidget({
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-xl border bg-card p-5 shadow-sm transition-all hover:shadow-md",
+        "group relative overflow-hidden rounded-xl border bg-card p-5 shadow-sm transition-all",
         className
       )}
     >

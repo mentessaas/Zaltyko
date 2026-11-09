@@ -105,15 +105,6 @@ export function MyProgressWidget({
           <Badge
             variant="outline"
             className="text-sm"
-            style={
-              athleteData.groupColor
-                ? {
-                    borderColor: athleteData.groupColor,
-                    color: athleteData.groupColor,
-                    backgroundColor: `${athleteData.groupColor}10`,
-                  }
-                : undefined
-            }
           >
             {athleteData.groupName}
           </Badge>

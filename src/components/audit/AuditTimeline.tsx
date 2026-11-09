@@ -27,7 +27,7 @@ const ACTION_LABELS: Record<string, string> = {
 export function AuditTimeline({ entries }: { entries: Entry[] }) {
   if (entries.length === 0) {
     return (
-      <p style={{ color: "#64748b", padding: 24, textAlign: "center" }}>
+      <p style={{ color: "#5C6782", padding: 24, textAlign: "center" }}>
         Sin eventos registrados aún.
       </p>
     );
@@ -49,7 +49,7 @@ export function AuditTimeline({ entries }: { entries: Entry[] }) {
             display: "flex",
             gap: 12,
             padding: "10px 12px",
-            borderBottom: "1px solid #f1f5f9",
+            borderBottom: "1px solid #E9ECE6",
             alignItems: "flex-start",
           }}
         >
@@ -61,16 +61,16 @@ export function AuditTimeline({ entries }: { entries: Entry[] }) {
               borderRadius: 100,
               background:
                 e.status === "success"
-                  ? "#dcfce7"
+                  ? "#E8EDFB"
                   : e.status === "failed"
-                  ? "#fee2e2"
-                  : "#dbeafe",
+                  ? "#FDECE7"
+                  : "#E8EDFB",
               color:
                 e.status === "success"
-                  ? "#166534"
+                  ? "#14307F"
                   : e.status === "failed"
-                  ? "#991b1b"
-                  : "#1e40af",
+                  ? "#962A16"
+                  : "#14307F",
               flexShrink: 0,
               textTransform: "uppercase",
               letterSpacing: "0.04em",
@@ -83,11 +83,11 @@ export function AuditTimeline({ entries }: { entries: Entry[] }) {
               {ACTION_LABELS[e.action] ?? e.action}
             </p>
             {e.description && (
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748b" }}>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#5C6782" }}>
                 {e.description}
               </p>
             )}
-            <p style={{ margin: "4px 0 0", fontSize: 11, color: "#94a3b8" }}>
+            <p style={{ margin: "4px 0 0", fontSize: 11, color: "#8A93A8" }}>
               {new Date(e.createdAt).toLocaleString("es-ES")}
             </p>
           </div>

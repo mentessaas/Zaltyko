@@ -60,10 +60,10 @@ export function EventCard({ event }: EventCardProps) {
   return (
     <Link
       href={`/events/${event.id}`}
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card p-6 shadow-lg transition-all duration-300 hover:border-zaltyko-primary/50 hover:shadow-xl hover:shadow-zaltyko-primary/10"
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card p-6 shadow-lg transition-all duration-300 hover:border-zaltyko-primary/50 hover:shadow-zaltyko-primary/10"
     >
       {/* Imagen o placeholder */}
-      <div className="mb-4 flex h-32 w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-muted shadow-sm transition-all group-hover:scale-105 group-hover:border-zaltyko-primary/50">
+      <div className="mb-4 flex h-32 w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-muted shadow-sm transition-all group-hover:border-zaltyko-primary/50">
         {event.images && event.images.length > 0 ? (
           <Image
             src={event.images[0]}

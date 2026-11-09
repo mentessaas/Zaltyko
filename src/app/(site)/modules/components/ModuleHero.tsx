@@ -36,7 +36,7 @@ export default function ModuleHero({ icon: Icon, title, subtitle }: ModuleHeroPr
               href="/auth/register?role=owner"
               className={cn(
                 buttonVariants({ variant: "default", size: "lg" }),
-                "shadow-soft transition-all duration-150 hover:shadow-medium"
+                "shadow-soft transition-all duration-150"
               )}
             >
               <Sparkles className="mr-2 h-5 w-5" />

@@ -116,7 +116,7 @@ function ScoreDial({
           cy="88"
           r="72"
           fill="none"
-          stroke="#DDE4E1"
+          stroke="#D5DAE3"
           strokeWidth="10"
         />
         <circle
@@ -124,7 +124,7 @@ function ScoreDial({
           cy="88"
           r="72"
           fill="none"
-          stroke={value === null ? "#64748B" : "#00796B"}
+          stroke={value === null ? "#8A93A8" : "#1E3FA8"}
           strokeLinecap="round"
           strokeWidth="10"
           strokeDasharray={circumference}
@@ -306,7 +306,7 @@ function OperationalEvidence({
           </p>
         ) : (
           <>
-            <p className="mt-4 border-l-2 border-amber-500 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+            <p className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-amber-500 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
               {cohorts.pauseGrace.reason} La fecha de cohorte usa el primer
               estado activo registrado; si falta historial, usa el inicio de la
               inscripción.
@@ -427,7 +427,7 @@ function EmptyDashboard({
       )}
       <section
         id="data-status"
-        className="mt-6 w-full border-l-4 border-z-brand-100 bg-white p-7 shadow-soft sm:p-10"
+        className="mt-6 w-full rounded-md border border-z-line border-t-[3px] border-t-z-brand-100 bg-white p-7 shadow-soft sm:p-10"
       >
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-z-brand-600">
           Primer cierre
@@ -762,8 +762,8 @@ export function OwnerDashboardView({
           aria-labelledby="priority-title"
           className="mt-7 lg:grid lg:grid-cols-[0.9fr_2.1fr] lg:gap-8"
         >
-          <div className="order-1 border-t-4 border-zaltyko-coral bg-[#FFF8F2] p-5 lg:p-7">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#A33A2D]">
+          <div className="order-1 rounded-md border border-z-line border-t-[3px] border-t-zaltyko-coral bg-z-chalk-50 p-5 lg:p-7">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-chalk-600">
               Primero hoy
             </p>
             <h2

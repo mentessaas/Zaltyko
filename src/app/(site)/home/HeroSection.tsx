@@ -72,7 +72,7 @@ export default function HeroSection() {
                   href="/auth/register?role=owner"
                   className={cn(
                     buttonVariants({ variant: "default", size: "lg" }),
-                    "group bg-zaltyko-teal px-8 py-6 text-base text-white shadow-brand transition-all duration-200 hover:bg-zaltyko-primary-dark hover:shadow-lift"
+                    "group bg-zaltyko-teal px-8 py-6 text-base text-white shadow-brand transition-all duration-200 hover:bg-zaltyko-primary-dark"
                   )}
                 >
                   Crear cuenta y configurar academia

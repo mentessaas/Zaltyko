@@ -331,4 +331,77 @@ describe("API /api/academies/[academyId]/settings sport config", () => {
       })
     );
   }, 20000);
+
+  describe("GET: variante deportiva sin guardar", () => {
+    function queueAcademyForGet(overrides: Record<string, unknown>) {
+      selectQueue.push([
+        {
+          id: ACADEMY_ID,
+          name: "Academia Test",
+          academyType: "artistica",
+          country: "España",
+          countryCode: "ES",
+          region: "Madrid",
+          city: "Madrid",
+          discipline: null,
+          disciplineVariant: null,
+          federationConfigVersion: null,
+          specializationStatus: "pending",
+          publicDescription: null,
+          isPublic: false,
+          logoUrl: null,
+          website: null,
+          contactEmail: null,
+          contactPhone: null,
+          address: null,
+          socialInstagram: null,
+          socialFacebook: null,
+          socialTwitter: null,
+          socialYoutube: null,
+          tenantId: TENANT_ID,
+          ownerId: PROFILE_ID,
+          timezone: "Europe/Madrid",
+          brandingColors: null,
+          scheduleConfig: null,
+          taxId: null,
+          invoicePrefix: null,
+          ...overrides,
+        },
+      ]);
+    }
+
+    async function getSettings() {
+      // Sin configuraciones deportivas, el GET solo consulta la academia.
+      vi.doMock("@/lib/sport-config/service", () => ({
+        getAcademySportConfigOptions: vi.fn().mockResolvedValue([]),
+      }));
+      const { GET } = await importRoute();
+      const response = await GET(
+        new Request(`http://localhost/api/academies/${ACADEMY_ID}/settings`),
+        { params: { academyId: ACADEMY_ID } } as never
+      );
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as { data: { disciplineVariant: string } };
+      return body.data;
+    }
+
+    it("deduce artistic_female de una academia artística sin variante guardada", async () => {
+      queueAcademyForGet({ academyType: "artistica", disciplineVariant: null });
+      expect((await getSettings()).disciplineVariant).toBe("artistic_female");
+    }, 20000);
+
+    it("deduce general de una academia general o de tipo desconocido, nunca rítmica", async () => {
+      queueAcademyForGet({ academyType: "general", disciplineVariant: null });
+      expect((await getSettings()).disciplineVariant).toBe("general");
+
+      vi.resetModules();
+      queueAcademyForGet({ academyType: "otro", disciplineVariant: null });
+      expect((await getSettings()).disciplineVariant).toBe("general");
+    }, 20000);
+
+    it("respeta la variante guardada", async () => {
+      queueAcademyForGet({ academyType: "artistica", disciplineVariant: "rhythmic" });
+      expect((await getSettings()).disciplineVariant).toBe("rhythmic");
+    }, 20000);
+  });
 });

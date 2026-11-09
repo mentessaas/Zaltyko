@@ -22,10 +22,10 @@ export function AcademyCard({ academy }: AcademyCardProps) {
   return (
     <Link
       href={`/academias/${academy.id}`}
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card p-6 shadow-lg transition-all duration-300 hover:border-zaltyko-primary/50 hover:shadow-xl hover:shadow-zaltyko-primary/10"
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card p-6 shadow-lg transition-all duration-300 hover:border-zaltyko-primary/50 hover:shadow-zaltyko-primary/10"
     >
       {/* Logo o placeholder */}
-      <div className="mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted shadow-sm transition-all group-hover:scale-105 group-hover:border-zaltyko-primary/50">
+      <div className="mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted shadow-sm transition-all group-hover:border-zaltyko-primary/50">
         {academy.logoUrl ? (
           <Image
             src={academy.logoUrl}

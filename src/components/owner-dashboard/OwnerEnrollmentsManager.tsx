@@ -591,7 +591,7 @@ export function OwnerEnrollmentsManager({
         </header>
 
         {previewMode && (
-          <p className="mt-5 border-l-4 border-amber-600 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+          <p className="mt-5 rounded-md border border-z-line border-t-[3px] border-t-amber-600 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
             Datos ficticios para revisar la pantalla. No se consulta ni modifica
             ninguna academia.
           </p>
@@ -601,7 +601,7 @@ export function OwnerEnrollmentsManager({
           <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
         ) : null}
 
-        <p className="mt-5 border-l-4 border-z-brand-100 bg-z-brand-50 px-4 py-3 text-sm leading-6 text-z-brand-700">
+        <p className="mt-5 rounded-md border border-z-line border-t-[3px] border-t-z-brand-100 bg-z-brand-50 px-4 py-3 text-sm leading-6 text-z-brand-700">
           El alta queda pendiente y reserva una plaza. No crea una cuota ni
           inicia cobros; los pagos se gestionan aparte.
         </p>

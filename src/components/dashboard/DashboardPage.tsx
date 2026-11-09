@@ -724,13 +724,9 @@ export function DashboardPage({
         />
       )}
 
-      <KPISection
-        metrics={data.metrics}
-        academyId={academyId}
-        labels={labels}
-        trends={kpiTrends}
-      />
-
+      {/* Mientras la academia está en puesta en marcha, el siguiente paso va
+          primero (contrato de prioridad del onboarding). Después, hoy antes que
+          las métricas acumuladas. */}
       {showOnboardingGuides && (
         <DashboardOnboardingPanel
           nextSetupStep={getNextSetupStep}
@@ -741,6 +737,36 @@ export function DashboardPage({
           onToggleSteps={() => setShowAllSteps((value) => !value)}
         />
       )}
+
+      <section aria-label="Hoy" className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="order-2 min-w-0 lg:order-1 lg:col-span-1">
+          <QuickActionsWidget
+            academyId={academyId}
+            data={quickActionsData}
+            loading={quickActionsLoading}
+            onRefresh={() => void loadQuickActions()}
+          />
+        </div>
+        <div className="order-1 min-w-0 lg:order-2 lg:col-span-2">
+          {(() => {
+            const today = getTodayInCountryTimezone(academyCountry);
+            const hasClassesToday = data.upcomingClasses.some((c) => {
+              if (c.isSessionPlaceholder) return false;
+              return isSameDayInTimezone(c.sessionDate, today, academyCountry);
+            });
+            return hasClassesToday ? (
+              <TodayClassesWidget classes={data.upcomingClasses} academyId={academyId} academyCountry={academyCountry} />
+            ) : null;
+          })()}
+        </div>
+      </section>
+
+      <KPISection
+        metrics={data.metrics}
+        academyId={academyId}
+        labels={labels}
+        trends={kpiTrends}
+      />
 
       <OperationsPulse series={kpiTrends} status={kpiTrendsStatus} onRetry={() => void loadKpiTrends()} />
 
@@ -767,33 +793,6 @@ export function DashboardPage({
         />
       </section>
 
-      {/*2.3. Quick Actions Widget - DESTACADO Y ÚTIL */}
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-1">
-          <QuickActionsWidget
-            academyId={academyId}
-            data={quickActionsData}
-            loading={quickActionsLoading}
-            onRefresh={() => void loadQuickActions()}
-          />
-        </div>
-        <div className="lg:col-span-2">
-          {/*2.5. Clases de hoy - DESTACADO SI HAY CLASES HOY */}
-          {(() => {
-            const today = getTodayInCountryTimezone(academyCountry);
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            const hasClassesToday = data.upcomingClasses.some((c) => {
-              if (c.isSessionPlaceholder) return false;
-              return isSameDayInTimezone(c.sessionDate, today, academyCountry);
-              // eslint-disable-next-line react-hooks/exhaustive-deps
-            });
-            return hasClassesToday ? (
-              <TodayClassesWidget classes={data.upcomingClasses} academyId={academyId} academyCountry={academyCountry} />
-            ) : null;
-          })()}
-        </div>
-      </section>
-
       <QuickNavigationSection academyId={academyId} />
 
       {/* Widgets secundarios (desglose por rama, resumen técnico, próximos eventos) — colapsados por defecto */}
@@ -806,7 +805,7 @@ export function DashboardPage({
         <button
           type="button"
           onClick={() => setShowMoreWidgets((value) => !value)}
-          className="flex min-h-11 w-full items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground shadow-soft"
+          className="flex min-h-12 w-full items-center justify-between border-y border-chalk-line px-1 py-3 text-sm font-semibold text-mat transition-colors hover:bg-mat-wash"
           aria-expanded={showMoreWidgets}
         >
           {showMoreWidgets ? "Ver menos" : "Ver más: desglose técnico y próximos eventos"}
@@ -856,8 +855,8 @@ export function DashboardPage({
         onToggleFinancials={() => setShowFinancials((value) => !value)}
       />
 
-      {/*Banner de bienvenida solo para usuarios completamente nuevos */}
-      {isNewUser && (
+      {/* Bienvenida solo si no hay ya un panel de puesta en marcha que diga lo mismo. */}
+      {isNewUser && !showOnboardingGuides && (
         <section>
           <WelcomeBanner
             academyName={academyName}

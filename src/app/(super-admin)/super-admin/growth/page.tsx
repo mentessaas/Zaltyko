@@ -148,7 +148,7 @@ export default async function SuperAdminGrowthPage() {
                 Pricing → contacto (30 días):{" "}
                 {rateLabel(metrics.intentToContactRate)}
               </p>
-              <p className="mt-2 text-[11px] text-white/45">
+              <p className="mt-2 text-xs text-white/45">
                 Estado: {metrics.intentToContactStatus} · N=
                 {metrics.pricingVisitors}/30 · motivos demo, network y sales
               </p>

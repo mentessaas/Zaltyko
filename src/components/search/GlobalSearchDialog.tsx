@@ -407,15 +407,15 @@ export function GlobalSearchDialog({ academyId, open, onOpenChange }: GlobalSear
         <div className="flex items-center justify-between px-4 py-2 border-t text-xs text-muted-foreground">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">↑↓</kbd>
+              <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">↑↓</kbd>
               Navegar
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">↵</kbd>
+              <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">↵</kbd>
               Seleccionar
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">esc</kbd>
+              <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">esc</kbd>
               Cerrar
             </span>
           </div>

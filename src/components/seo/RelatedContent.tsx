@@ -55,7 +55,7 @@ export default function RelatedContent({
                   className="group flex items-start justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 hover:border-zaltyko-teal/40 hover:bg-zaltyko-teal/5 transition-colors"
                 >
                   <div className="min-w-0">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       {p.category}
                     </span>
                     <p className="text-sm font-medium text-foreground group-hover:text-zaltyko-teal leading-snug line-clamp-2">
@@ -87,7 +87,7 @@ export default function RelatedContent({
                   className="group flex items-start justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 hover:border-zaltyko-teal/40 hover:bg-zaltyko-teal/5 transition-colors"
                 >
                   <div className="min-w-0">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Comparativa
                     </span>
                     <p className="text-sm font-medium text-foreground group-hover:text-zaltyko-teal leading-snug line-clamp-2">

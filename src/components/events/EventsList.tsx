@@ -127,7 +127,7 @@ export function EventsList({ academyId, events, sportConfigs = [], academyCountr
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {events.map((event) => (
-            <Card key={event.id} className="group relative overflow-hidden border-border/80 transition hover:-translate-y-0.5 hover:border-zaltyko-teal/40 hover:shadow-[0_20px_48px_-30px_rgba(0,121,107,0.35)]">
+            <Card key={event.id} className="group relative overflow-hidden border-border/80 transition hover:border-zaltyko-teal/40 hover:shadow-[0_20px_48px_-30px_rgba(0,121,107,0.35)]">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-zaltyko-teal/70 via-zaltyko-electric/60 to-zaltyko-indigo/60 opacity-60 transition-opacity group-hover:opacity-100" />
               <CardHeader>
                 <div className="flex items-start justify-between">

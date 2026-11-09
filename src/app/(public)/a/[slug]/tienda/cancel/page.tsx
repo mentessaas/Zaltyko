@@ -11,7 +11,7 @@ export default async function StoreCancelPage({
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>
         Pago cancelado
       </h1>
-      <p style={{ color: "#475569", marginBottom: 24, lineHeight: 1.5 }}>
+      <p style={{ color: "#3E4A66", marginBottom: 24, lineHeight: 1.5 }}>
         No se ha realizado ningún cargo. Puedes volver a la tienda cuando quieras.
       </p>
       <Link
@@ -19,7 +19,7 @@ export default async function StoreCancelPage({
         style={{
           display: "inline-block",
           padding: "10px 16px",
-          background: "#0f172a",
+          background: "#0B1430",
           color: "white",
           borderRadius: 6,
           textDecoration: "none",

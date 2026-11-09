@@ -13,12 +13,12 @@ export default async function StoreSuccessPage({
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>
         ¡Gracias por tu compra!
       </h1>
-      <p style={{ color: "#475569", marginBottom: 24, lineHeight: 1.5 }}>
+      <p style={{ color: "#3E4A66", marginBottom: 24, lineHeight: 1.5 }}>
         Tu pago se ha procesado correctamente. La academia te contactará para
         coordinar la entrega.
       </p>
       {sale && (
-        <p style={{ color: "#94a3b8", fontSize: 13, marginBottom: 24 }}>
+        <p style={{ color: "#8A93A8", fontSize: 13, marginBottom: 24 }}>
           Referencia: {sale.slice(0, 8)}
         </p>
       )}
@@ -27,7 +27,7 @@ export default async function StoreSuccessPage({
         style={{
           display: "inline-block",
           padding: "10px 16px",
-          background: "#0f172a",
+          background: "#0B1430",
           color: "white",
           borderRadius: 6,
           textDecoration: "none",

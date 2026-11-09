@@ -550,11 +550,11 @@ export function OwnerStaffManager({
         </p>
       </header>
 
-      {mutationError ? <p role="alert" className="mb-5 rounded-[14px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950 sm:p-5">{mutationError}</p> : null}
-      {notice ? <p role="status" aria-live="polite" className="mb-5 rounded-[14px] border border-z-brand-100 bg-z-brand-50 p-4 text-sm leading-6 text-z-brand-700 sm:p-5">{notice}</p> : null}
+      {mutationError ? <p role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950 sm:p-5">{mutationError}</p> : null}
+      {notice ? <p role="status" aria-live="polite" className="mb-5 rounded-xl border border-z-brand-100 bg-z-brand-50 p-4 text-sm leading-6 text-z-brand-700 sm:p-5">{notice}</p> : null}
 
       {pendingCommand ? (
-        <section aria-labelledby="owner-staff-pending-title" className="mb-6 rounded-[14px] border border-amber-200 bg-amber-50 p-5 sm:p-6">
+        <section aria-labelledby="owner-staff-pending-title" className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5 sm:p-6">
           <h2 id="owner-staff-pending-title" className="font-display text-lg font-bold text-z-ink">Operación pendiente</h2>
           <p className="mt-2 text-sm leading-6 text-z-ink">
             Sigue pendiente la acción de {operationLabel(pendingCommand.operation)}. Se ha guardado en este navegador para que puedas reintentar exactamente la misma acción desde una pestaña con acceso. No se envía automáticamente al abrir o actualizar la página.
@@ -565,9 +565,9 @@ export function OwnerStaffManager({
         </section>
       ) : null}
 
-      <section aria-labelledby="owner-staff-create-title" className="rounded-[16px] border border-z-line bg-white p-5 sm:p-7">
+      <section aria-labelledby="owner-staff-create-title" className="rounded-xl border border-z-line bg-white p-5 sm:p-7">
         <div className="flex items-start gap-3 sm:gap-4">
-          <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-z-brand-50 text-z-brand-600">
+          <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-z-brand-50 text-z-brand-600">
             <UserRound className="h-5 w-5" />
           </span>
           <div className="min-w-0">
@@ -578,7 +578,7 @@ export function OwnerStaffManager({
         <form className="mt-7 space-y-6" onSubmit={submitCreate}>
           <NameFields prefix="owner-staff-create" draft={createDraft} disabled={!canWrite} onChange={updateCreateDraft} />
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <p className="flex max-w-xl items-start gap-2.5 rounded-[14px] bg-z-canvas px-4 py-3 text-sm leading-6 text-z-soft">
+            <p className="flex max-w-xl items-start gap-2.5 rounded-xl bg-z-canvas px-4 py-3 text-sm leading-6 text-z-soft">
               <LockKeyhole aria-hidden="true" className="mt-1 h-4 w-4 shrink-0 text-z-brand-600" />
               <span>Esta persona no podrá iniciar sesión. No se crea una cuenta ni se envía una invitación.</span>
             </p>
@@ -591,7 +591,7 @@ export function OwnerStaffManager({
       </section>
 
       {receipt ? (
-        <section aria-labelledby="owner-staff-receipt-title" className="mt-6 rounded-[14px] border border-z-brand-100 bg-z-brand-50 p-5 sm:p-6">
+        <section aria-labelledby="owner-staff-receipt-title" className="mt-6 rounded-xl border border-z-brand-100 bg-z-brand-50 p-5 sm:p-6">
           <h2 id="owner-staff-receipt-title" className="font-display text-lg font-bold text-z-ink">Recibo original de la operación</h2>
           <p className="mt-2 text-sm text-z-ink [overflow-wrap:anywhere]">Perfil {receipt.staffProfileId} · versión {receipt.version} · {receipt.isActive ? "activo en el recibo" : "archivado en el recibo"}{receipt.replayed ? " · respuesta recuperada" : ""}</p>
           <p className="mt-1 text-xs leading-5 text-z-soft">Esta es la confirmación de aquella operación. Debajo puedes consultar la lista actual del equipo, que puede incluir cambios posteriores.</p>
@@ -622,14 +622,14 @@ export function OwnerStaffManager({
 
         {listState === "loading" ? <p role="status" aria-live="polite" className="py-8 text-sm text-z-soft">Cargando equipo…</p> : null}
         {listState === "error" ? (
-          <div className="mt-5 rounded-[14px] border border-rose-200 bg-rose-50 p-5">
+          <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-5">
             <p role="alert" className="text-sm leading-6 text-z-ink">{listError}</p>
             <button type="button" className={`${SECONDARY_BUTTON_CLASS} mt-3`} onClick={() => setRefreshKey((value) => value + 1)}>Volver a cargar</button>
           </div>
         ) : null}
         {listState === "ready" && items.length === 0 ? (
-          <div className="mt-5 flex flex-col items-center rounded-[16px] bg-z-canvas px-6 py-10 text-center sm:py-12">
-            <span aria-hidden="true" className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-white text-z-brand-600">
+          <div className="mt-5 flex flex-col items-center rounded-xl bg-z-canvas px-6 py-10 text-center sm:py-12">
+            <span aria-hidden="true" className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white text-z-brand-600">
               <UsersRound className="h-6 w-6" />
             </span>
             <p className="max-w-md text-sm leading-6 text-z-soft">Todavía no hay personas en esta vista. Puedes añadir a alguien al equipo desde el formulario de arriba.</p>
@@ -638,10 +638,10 @@ export function OwnerStaffManager({
         {listState === "ready" && items.length > 0 ? (
           <ul className="mt-5 grid gap-3">
             {items.map((profile) => (
-              <li key={profile.id} className="rounded-[14px] border border-z-line bg-white p-5 sm:p-6">
+              <li key={profile.id} className="rounded-xl border border-z-line bg-white p-5 sm:p-6">
                 <article aria-labelledby={`owner-staff-${profile.id}-name`} className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
-                    <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-z-brand-50 font-display text-sm font-bold text-z-brand-600">
+                    <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-z-brand-50 font-display text-sm font-bold text-z-brand-600">
                       {profile.givenName.slice(0, 1)}{profile.familyName.slice(0, 1)}
                     </span>
                     <div className="min-w-0">
@@ -654,7 +654,7 @@ export function OwnerStaffManager({
                     </div>
                   </div>
                   {editDraft?.staffProfileId === profile.id ? (
-                    <form className="w-full min-w-0 space-y-5 rounded-[14px] bg-z-canvas p-4 sm:p-5 lg:max-w-3xl" onSubmit={(event) => submitEdit(event, profile)}>
+                    <form className="w-full min-w-0 space-y-5 rounded-xl bg-z-canvas p-4 sm:p-5 lg:max-w-3xl" onSubmit={(event) => submitEdit(event, profile)}>
                       <h4 className="font-display text-base font-bold text-z-ink">Editar datos</h4>
                       <NameFields prefix={`owner-staff-edit-${profile.id}`} draft={editDraft} disabled={!canWrite} onChange={updateEditDraft} />
                       <div className="flex flex-col gap-2 sm:flex-row">

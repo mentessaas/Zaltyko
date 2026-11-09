@@ -127,7 +127,7 @@ export const ConversationList = memo(function ConversationList({
                     <div className="flex items-center justify-between">
                       <span className="text-sm truncate">{displayName}</span>
                       {conv.lastMessageAt && (
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(conv.lastMessageAt), {
                             addSuffix: false,
                             locale: es,
@@ -141,7 +141,7 @@ export const ConversationList = memo(function ConversationList({
                         {conv.lastMessagePreview || "Sin mensajes"}
                       </p>
                       {conv.unreadCount > 0 && (
-                        <span className="ml-2 px-1.5 py-0.5 text-[10px] font-medium bg-primary text-primary-foreground rounded-full min-w-[18px] text-center">
+                        <span className="ml-2 px-1.5 py-0.5 text-xs font-medium bg-primary text-primary-foreground rounded-full min-w-[18px] text-center">
                           {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
                         </span>
                       )}

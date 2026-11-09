@@ -1,0 +1,200 @@
+{
+ "title": "Elige el mundo visual de Zaltyko",
+ "question": "El sorteo asignó «Magnesio sobre tapiz». Quédatelo, elige una alternativa o vuelve a tirar.",
+ "options": [
+  {
+   "id": "assigned",
+   "label": "Magnesio sobre tapiz",
+   "kicker": "THE ROLL",
+   "lineage": "el tapiz azul del suelo de competición, la cinta blanca de los límites y el bote de magnesio",
+   "thesis": "La academia vista desde la pista: azul de tapiz, cinta blanca y marcas de magnesio que cuentan lo que pasó hoy.",
+   "palette": [
+    "#1E3FA8",
+    "#F4F6F2",
+    "#0B1430",
+    "#FF5A36",
+    "#8FB4FF"
+   ],
+   "materials": [
+    "tapiz de moqueta azul",
+    "magnesio en polvo",
+    "cinta de límite 5 cm"
+   ],
+   "viewport": "Un tapiz azul a sangre con el titular en grotesca condensada blanca; a la derecha, la sesión de hoy como palotes de magnesio que suman asistencia en vivo, y la acción principal en una pastilla de cinta blanca.",
+   "risk": "Si el azul se usa tímido, cae en 'SaaS azul corporativo'; exige compromiso total de color en la web.",
+   "raised": [
+    {
+     "from": "challenger-noir",
+     "raise": "Disciplina de dos tintas: azul tapiz y blanco magnesio hacen todo; el coral solo marca alertas."
+    },
+    {
+     "from": "challenger-exposure",
+     "raise": "Neutros en una rampa escalonada de 9 pasos y cifras tabulares en toda la app."
+    },
+    {
+     "from": "challenger-broadcast",
+     "raise": "Un reloj de sesión fijo en una esquina: qué entrenamiento está en pista ahora."
+    },
+    {
+     "from": "challenger-brick",
+     "raise": "Numerales de paso enormes en la puesta en marcha de la academia."
+    }
+   ]
+  },
+  {
+   "id": "model-pick",
+   "label": "Hoja de jueces",
+   "kicker": "IMPECCABLE’S PICK",
+   "lineage": "actas de puntuación D/E y marcadores de competición FIG",
+   "thesis": "Cada dato de la academia leído como una nota de jueces: D, E, penalización, total.",
+   "palette": [
+    "#101418",
+    "#F2F0EA",
+    "#0057FF",
+    "#E4002B"
+   ],
+   "materials": [
+    "papel de acta",
+    "marcador LED"
+   ],
+   "viewport": "Un acta a pantalla completa con la academia como 'gimnasta' y sus cifras del día en casillas.",
+   "risk": "Es la dirección más previsible para deporte: tablas y marcadores, ya vista en muchos productos deportivos."
+  },
+  {
+   "id": "challenger-splitflap",
+   "label": "Panel de salidas",
+   "verdict": "competitive",
+   "lineage": "paneles split-flap de estación",
+   "thesis": "Las sesiones de hoy como un panel de salidas: filas por hora, pista, grupo, estado.",
+   "palette": [
+    "#111111",
+    "#F5F5F0",
+    "#FFB000",
+    "#B3261E"
+   ],
+   "materials": [
+    "lamas negras",
+    "pintura blanca",
+    "lámpara ámbar"
+   ],
+   "viewport": "Un panel con las sesiones de la tarde que se actualiza letra a letra al pasar lista.",
+   "case": "Encaja con 'hoy primero', pero la dirección no reconoce la estación como su mundo; gana claridad, pierde identificación.",
+   "risk": "Puede leerse como novedad retro si la rejilla no es estricta.",
+   "hero": "https://impeccable.style/worlds/cards/signals-instruments-split-flap-concourse-hero.webp"
+  },
+  {
+   "id": "challenger-broadcast",
+   "label": "Señal de emergencia",
+   "verdict": "declined",
+   "lineage": "cartas de ajuste y señal degradada",
+   "thesis": "La academia como una emisión que se interrumpe.",
+   "palette": [
+    "#0A0A0A",
+    "#FFFFFF",
+    "#FFD400",
+    "#00A3FF"
+   ],
+   "materials": [
+    "barras de color",
+    "ruido de cinta"
+   ],
+   "viewport": "Barras de color con código de tiempo en la esquina.",
+   "risk": "Transmite alarma, lo contrario de 'bajo control'.",
+   "case": "Falla en identificación y claridad para una directora de club.",
+   "kept": "Un reloj vivo fijado a una esquina.",
+   "hero": "https://impeccable.style/worlds/cards/digital-design-canon-emergency-signal-degradation-hero.webp"
+  },
+  {
+   "id": "challenger-noir",
+   "label": "Cartel noir a dos tintas",
+   "verdict": "declined",
+   "lineage": "one-sheets de cine negro",
+   "thesis": "Sombras largas y titulares condensados.",
+   "palette": [
+    "#111111",
+    "#E8A33D",
+    "#F1E9D6"
+   ],
+   "materials": [
+    "dos tintas",
+    "papel crema"
+   ],
+   "viewport": "Una figura pequeña con una sombra enorme.",
+   "risk": "Dramático y ajeno a un club de gimnasia infantil.",
+   "case": "Pierde en identificación y claridad.",
+   "kept": "Compromiso total con dos tintas.",
+   "hero": "https://impeccable.style/worlds/cards/posters-covers-sleeves-noir-one-sheet-duotone-hero.webp"
+  },
+  {
+   "id": "challenger-exposure",
+   "label": "Ficha de exposición",
+   "verdict": "declined",
+   "lineage": "fichas de laboratorio fotográfico",
+   "thesis": "Zonas tonales y tramas como estado.",
+   "palette": [
+    "#1A1A1A",
+    "#8C8C8C",
+    "#EDEDED",
+    "#C2187A"
+   ],
+   "materials": [
+    "papel vegetal",
+    "rampa de zonas"
+   ],
+   "viewport": "Hojas translúcidas solapadas.",
+   "risk": "Abstracto para un usuario no técnico.",
+   "case": "Pierde en ambos ejes.",
+   "kept": "Neutros como rampa escalonada y cifras tabulares.",
+   "hero": "https://impeccable.style/worlds/cards/operate-b-exposure-record-zone-sheets-hero.webp"
+  },
+  {
+   "id": "challenger-brick",
+   "label": "Libro de instrucciones",
+   "verdict": "declined",
+   "lineage": "manuales de construcción por pasos",
+   "thesis": "Configurar la academia paso a paso.",
+   "palette": [
+    "#7FB7E8",
+    "#111111",
+    "#D7262E",
+    "#FFD100"
+   ],
+   "materials": [
+    "papel azul cielo",
+    "trazo negro"
+   ],
+   "viewport": "Pasos numerados con piezas.",
+   "risk": "Infantiliza a la dirección.",
+   "case": "Solo aporta en el onboarding.",
+   "kept": "Numerales de paso enormes.",
+   "hero": "https://impeccable.style/worlds/cards/games-toys-physics-play-brick-build-instructions-hero.webp"
+  }
+ ],
+ "reroll": {
+  "registers": [
+   "safer",
+   "bolder"
+  ]
+ },
+ "buildPath": {
+  "value": "code",
+  "toggle": false
+ },
+ "canon": true,
+ "canonCard": {
+  "label": "El estándar de la categoría",
+  "thesis": "SaaS de gestión deportiva limpio: fondo blanco, un color de marca y captura del panel.",
+  "palette": [
+   "#FFFFFF",
+   "#0F172A",
+   "#00796B"
+  ],
+  "materials": [
+   "rejilla limpia",
+   "captura de producto"
+  ],
+  "viewport": "Titular a la izquierda, captura del panel a la derecha, logos debajo.",
+  "risk": "Indistinguible de la competencia por diseño."
+ },
+ "steer": true
+}

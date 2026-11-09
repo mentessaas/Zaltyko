@@ -39,22 +39,22 @@ export function AlertsWidget({ alerts, loading = false, error = null, onRetry }:
   const getSeverityColor = (severity: DashboardAlert["severity"]) => {
     switch (severity) {
       case "high":
-        return "border-l-4 border-l-zaltyko-coral border-y border-r border-zaltyko-coral/20 bg-zaltyko-coral/5";
+        return "border border-signal/30 bg-signal-wash dark:border-signal/40 dark:bg-signal/10";
       case "medium":
-        return "border-l-4 border-l-amber-500 border-y border-r border-amber-500/25 bg-amber-500/10";
+        return "border border-chalk-line bg-chalk-dust dark:border-border dark:bg-muted";
       case "low":
-        return "border-l-4 border-l-zaltyko-teal border-y border-r border-zaltyko-teal/20 bg-zaltyko-teal/5";
+        return "border border-chalk-line bg-mat-wash dark:border-border dark:bg-mat/15";
     }
   };
 
   const getSeverityIconColor = (severity: DashboardAlert["severity"]) => {
     switch (severity) {
       case "high":
-        return "bg-zaltyko-coral/15 text-zaltyko-coral";
+        return "bg-signal-wash text-signal-ink dark:bg-signal/20 dark:text-signal-light";
       case "medium":
-        return "bg-amber-500/15 text-amber-400";
+        return "bg-mat-wash text-mat-deep dark:bg-mat/25 dark:text-mat-lane";
       case "low":
-        return "bg-zaltyko-teal/15 text-zaltyko-teal";
+        return "bg-mat-wash text-mat dark:bg-mat/25 dark:text-mat-lane";
     }
   };
 
@@ -64,8 +64,8 @@ export function AlertsWidget({ alerts, loading = false, error = null, onRetry }:
 
   if (error && visibleAlerts.length === 0) {
     return (
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4" role="alert" aria-live="polite">
-        <p className="text-sm text-amber-800 dark:text-amber-200">{error}</p>
+      <div className="rounded-lg border border-signal/30 bg-signal-wash p-4" role="alert" aria-live="polite">
+        <p className="text-sm text-signal-ink">{error}</p>
         {onRetry && <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>Reintentar</Button>}
       </div>
     );
@@ -76,17 +76,14 @@ export function AlertsWidget({ alerts, loading = false, error = null, onRetry }:
   }
 
   return (
-    <div className="space-y-4 rounded-lg border border-border bg-card p-6 shadow-sm">
+    <div className="space-y-4 rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-5 dark:border-border dark:border-t-mat-lane dark:bg-card">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zaltyko-coral/15 text-zaltyko-coral">
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-signal-wash text-signal-ink">
             <AlertTriangle className="h-5 w-5" strokeWidth={2} />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Alertas activas
-            </p>
-            <h3 className="text-lg font-semibold text-foreground">
+            <h3 className="font-display text-2xl font-black uppercase leading-none text-mat-night dark:text-foreground">
               {visibleAlerts.length} {visibleAlerts.length === 1 ? "alerta requiere atención" : "alertas requieren atención"}
             </h3>
           </div>
@@ -100,7 +97,7 @@ export function AlertsWidget({ alerts, loading = false, error = null, onRetry }:
             <div
               key={alert.id}
               className={cn(
-                "relative flex items-start gap-3 rounded-lg border p-4 transition-all hover:shadow-sm",
+                "relative flex items-start gap-3 rounded-md border p-4 transition-colors hover:border-mat",
                 getSeverityColor(alert.severity)
               )}
             >

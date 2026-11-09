@@ -165,9 +165,10 @@ describe("ConfirmDialog", () => {
         onConfirm={vi.fn()}
       />
     );
-    // En variant destructive el boton confirmar usa bg-zaltyko-coral.
+    // En variant destructive el boton confirmar usa la tinta de señal del sistema
+    // «Magnesio sobre tapiz» (antes, bg-zaltyko-coral).
     const confirmButton = screen.getByRole("button", { name: "Confirmar" });
-    expect(confirmButton.className).toContain("bg-zaltyko-coral");
+    expect(confirmButton.className).toContain("bg-signal-ink");
   });
 
   it("muestra estado 'Procesando...' mientras la promesa esta pending", async () => {

@@ -88,7 +88,7 @@ export function DisputesDashboard() {
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
             Marketplace — Disputes
           </h1>
-          <p style={{ color: "#64748b", fontSize: 13, margin: "4px 0 0" }}>
+          <p style={{ color: "#5C6782", fontSize: 13, margin: "4px 0 0" }}>
             Zaltyko super-admin dashboard. Mediación de conflictos entre academias.
           </p>
         </div>
@@ -101,9 +101,9 @@ export function DisputesDashboard() {
                 onClick={() => setFilter(s)}
                 style={{
                   padding: "6px 12px",
-                  background: filter === s ? "#0f172a" : "white",
-                  color: filter === s ? "white" : "#475569",
-                  border: "1px solid #e2e8f0",
+                  background: filter === s ? "#0B1430" : "white",
+                  color: filter === s ? "white" : "#3E4A66",
+                  border: "1px solid #D5DAE3",
                   borderRadius: 6,
                   cursor: "pointer",
                   fontSize: 12,
@@ -117,9 +117,9 @@ export function DisputesDashboard() {
       </header>
 
       {loading ? (
-        <p style={{ color: "#64748b" }}>Cargando…</p>
+        <p style={{ color: "#5C6782" }}>Cargando…</p>
       ) : rows.length === 0 ? (
-        <p style={{ color: "#64748b" }}>Sin disputes {filter ? `en estado "${STATUS_LABELS[filter]}"` : ""}.</p>
+        <p style={{ color: "#5C6782" }}>Sin disputes {filter ? `en estado "${STATUS_LABELS[filter]}"` : ""}.</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {rows.map((r) => (
@@ -128,7 +128,7 @@ export function DisputesDashboard() {
               style={{
                 padding: 16,
                 background: "white",
-                border: "1px solid #e2e8f0",
+                border: "1px solid #D5DAE3",
                 borderRadius: 8,
               }}
             >
@@ -137,10 +137,10 @@ export function DisputesDashboard() {
                   <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 4px" }}>
                     {REASON_LABELS[r.dispute.reason] ?? r.dispute.reason} · Order {r.order.id.slice(0, 8)}
                   </h3>
-                  <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 8px" }}>
+                  <p style={{ color: "#5C6782", fontSize: 13, margin: "0 0 8px" }}>
                     {r.dispute.description}
                   </p>
-                  <p style={{ color: "#94a3b8", fontSize: 11, margin: 0 }}>
+                  <p style={{ color: "#8A93A8", fontSize: 11, margin: 0 }}>
                     {r.sellerAcademy.name} · {formatPrice(r.order.totalCents, r.order.currency)} ·{" "}
                     {new Date(r.dispute.createdAt).toLocaleDateString("es-ES")}
                   </p>
@@ -151,9 +151,9 @@ export function DisputesDashboard() {
                       display: "inline-block",
                       padding: "3px 10px",
                       background:
-                        r.dispute.status === "open" ? "#fee2e2" : "#dbeafe",
+                        r.dispute.status === "open" ? "#FDECE7" : "#E8EDFB",
                       color:
-                        r.dispute.status === "open" ? "#991b1b" : "#1e40af",
+                        r.dispute.status === "open" ? "#962A16" : "#14307F",
                       borderRadius: 100,
                       fontSize: 11,
                       fontWeight: 700,
@@ -172,7 +172,7 @@ export function DisputesDashboard() {
                       style={{
                         display: "block",
                         padding: "6px 12px",
-                        background: "#0f172a",
+                        background: "#0B1430",
                         color: "white",
                         border: 0,
                         borderRadius: 6,
@@ -191,9 +191,9 @@ export function DisputesDashboard() {
                   style={{
                     marginTop: 12,
                     paddingTop: 12,
-                    borderTop: "1px solid #f1f5f9",
+                    borderTop: "1px solid #E9ECE6",
                     fontSize: 12,
-                    color: "#475569",
+                    color: "#3E4A66",
                   }}
                 >
                   Resolución: {r.dispute.resolutionNotes}

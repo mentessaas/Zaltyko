@@ -84,27 +84,25 @@ function StatsCard({ title, value, icon, description, trend, variant = "default"
     danger: "text-zaltyko-coral",
   };
 
+  // Celda de marcador «Magnesio sobre tapiz»: cifra condensada y nombre en la
+  // misma línea base; sin tarjeta ni icono en caja (iconos y variantes se
+  // conservan en la API, pero no se pintan).
+  void icon;
+  void variantStyles;
+  void iconStyles;
   return (
-    <div className={`rounded-2xl border p-5 shadow-soft ${variantStyles[variant]}`}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">{title}</p>
-          <p className="mt-1 font-display text-3xl font-bold text-foreground">{value}</p>
-          {description && (
-            <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-          )}
-          {trend && (
-            <div className="mt-2 flex items-center gap-1 text-xs">
-              <TrendingUp className="h-3 w-3 text-zaltyko-teal" />
-              <span className="text-zaltyko-teal">{trend.value}%</span>
-              <span className="text-muted-foreground">{trend.label}</span>
-            </div>
-          )}
-        </div>
-        <div className="rounded-xl bg-muted/40 p-3">
-          <div className={iconStyles[variant]}>{icon}</div>
-        </div>
-      </div>
+    <div className="flex flex-col justify-center gap-1 px-5 py-4">
+      <p className="flex items-baseline gap-2">
+        <span className="font-display tabular text-3xl font-black leading-none text-mat-night">{value}</span>
+        <span className="font-display text-lg font-extrabold uppercase leading-none text-mat">{title}</span>
+      </p>
+      {description && <p className="text-xs text-ramp-500">{description}</p>}
+      {trend && (
+        <p className="flex items-center gap-1 text-xs text-mat">
+          <TrendingUp aria-hidden className="h-3 w-3" />
+          {trend.value}% <span className="text-ramp-500">{trend.label}</span>
+        </p>
+      )}
     </div>
   );
 }
@@ -293,8 +291,8 @@ export function ClassesDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Header con stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* Marcador reglado */}
+      <div className="grid grid-cols-2 divide-chalk-line overflow-hidden rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white lg:grid-cols-4 [&>*:nth-child(even)]:border-l [&>*:nth-child(n+3)]:border-t lg:[&>*:nth-child(n+2)]:border-l lg:[&>*:nth-child(n+3)]:border-t-0 [&>*]:border-chalk-line">
         <StatsCard
           title={`Total ${classLabelPlural}`}
           value={stats.totalClasses}
@@ -323,7 +321,7 @@ export function ClassesDashboard({
       </div>
 
       {starterClassCount > 0 && (
-        <div className="space-y-4 rounded-2xl border border-zaltyko-teal/20 bg-zaltyko-teal/5 p-5 shadow-soft">
+        <div className="space-y-4 rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-5">
           <div className="space-y-1">
             <p className="text-sm font-semibold text-foreground">
               La plantilla inicial ya incluye {starterClassCount} {starterClassCount === 1 ? specialization.labels.classLabel.toLowerCase() : pluralizeFirstWord(specialization.labels.classLabel).toLowerCase()}.
@@ -333,39 +331,39 @@ export function ClassesDashboard({
             </p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
+          <div className="grid border-y border-chalk-line md:grid-cols-2 xl:grid-cols-4">
+            <div className="border-b border-chalk-line px-1 py-3 md:border-b-0 md:[&:not(:first-child)]:border-l md:[&:not(:first-child)]:pl-4">
+              <p className="text-xs font-semibold text-ramp-600">
                 Listas para operar
               </p>
-              <p className="mt-1 font-display text-2xl font-bold text-foreground">{starterSetup.readyCount}</p>
+              <p className="font-display tabular mt-1 text-3xl font-black leading-none text-mat-night">{starterSetup.readyCount}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {starterSetup.completionPercentage}% de la plantilla ya está afinada
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
+            <div className="border-b border-chalk-line px-1 py-3 md:border-b-0 md:[&:not(:first-child)]:border-l md:[&:not(:first-child)]:pl-4">
+              <p className="text-xs font-semibold text-ramp-600">
                 Responsables pendientes
               </p>
-              <p className="mt-1 font-display text-2xl font-bold text-foreground">{starterSetup.missingCoachCount}</p>
+              <p className="font-display tabular mt-1 text-3xl font-black leading-none text-mat-night">{starterSetup.missingCoachCount}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {coachLabelPlural} sin asignar en clases base
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
+            <div className="border-b border-chalk-line px-1 py-3 md:border-b-0 md:[&:not(:first-child)]:border-l md:[&:not(:first-child)]:pl-4">
+              <p className="text-xs font-semibold text-ramp-600">
                 Horarios por cerrar
               </p>
-              <p className="mt-1 font-display text-2xl font-bold text-foreground">{starterSetup.flexibleScheduleCount}</p>
+              <p className="font-display tabular mt-1 text-3xl font-black leading-none text-mat-night">{starterSetup.flexibleScheduleCount}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Bloques con días u horas todavía abiertos
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
+            <div className="border-b border-chalk-line px-1 py-3 md:border-b-0 md:[&:not(:first-child)]:border-l md:[&:not(:first-child)]:pl-4">
+              <p className="text-xs font-semibold text-ramp-600">
                 Estructura pendiente
               </p>
-              <p className="mt-1 font-display text-2xl font-bold text-foreground">
+              <p className="font-display tabular mt-1 text-3xl font-black leading-none text-mat-night">
                 {starterSetup.missingTemplateCount + starterSetup.missingGroupCount + starterSetup.missingCapacityCount}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -375,7 +373,7 @@ export function ClassesDashboard({
           </div>
 
           {(starterSetup.items.some((item) => !item.isReady) || starterSetup.missingTemplateCount > 0) && (
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="border-b border-chalk-line px-1 py-3 md:border-b-0 md:[&:not(:first-child)]:border-l md:[&:not(:first-child)]:pl-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-foreground">Puesta a punto guiada</p>
@@ -450,9 +448,6 @@ export function ClassesDashboard({
 
       {/* Quick actions */}
       <div className="flex flex-wrap gap-3">
-        <Button onClick={() => setCreateOpen(true)}>
-          Nuevo {specialization.labels.classLabel}
-        </Button>
         <Button variant="outline" asChild>
           <Link href={`/dashboard/calendar?academyId=${encodeURIComponent(academyId)}`}>
             <Calendar className="mr-2 h-4 w-4" />

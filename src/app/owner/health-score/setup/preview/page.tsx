@@ -9,7 +9,7 @@ export default function AcademyHealthScoreSetupPreviewPage() {
     <OwnerWorkspacePageShell previewMode>
       <main className="min-h-screen bg-z-canvas px-5 py-8 text-z-ink sm:py-14">
         <div className="mx-auto max-w-5xl">
-          <header className="grid gap-6 rounded-[16px] border border-z-line bg-white p-6 sm:p-10 lg:grid-cols-[1fr_16rem] lg:items-end">
+          <header className="grid gap-6 rounded-xl border border-z-line bg-white p-6 sm:p-10 lg:grid-cols-[1fr_16rem] lg:items-end">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
                 Preview sintética · Academy Health Score
@@ -23,7 +23,7 @@ export default function AcademyHealthScoreSetupPreviewPage() {
                 el mercado.
               </p>
             </div>
-            <div className="border-l-2 border-z-ink bg-white p-4">
+            <div className="rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-white p-4">
               <span className="block text-xs font-bold uppercase tracking-wide text-z-soft">
                 Academia ficticia
               </span>
@@ -36,7 +36,7 @@ export default function AcademyHealthScoreSetupPreviewPage() {
             </div>
           </header>
           <section
-            className="mt-8 bg-[#E7EAE3] p-5 sm:p-8"
+            className="mt-8 bg-chalk-dust p-5 sm:p-8"
             aria-label="Objetivos sintéticos de salud"
           >
             <div className="mb-7">

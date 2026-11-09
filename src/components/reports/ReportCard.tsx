@@ -17,7 +17,7 @@ export function ReportCard({ title, description, icon, href, color, compact }: R
   if (compact) {
     return (
       <Link href={href}>
-        <Card className="hover:shadow-md transition-shadow cursor-pointer">
+        <Card className=" transition-shadow cursor-pointer">
           <CardContent className="p-4 flex items-center gap-4">
             <div className={`p-3 rounded-lg ${color}`}>
               {icon}
@@ -34,9 +34,9 @@ export function ReportCard({ title, description, icon, href, color, compact }: R
 
   return (
     <Link href={href}>
-      <Card className="hover:shadow-lg transition-all cursor-pointer group h-full">
+      <Card className=" transition-all cursor-pointer group h-full">
         <CardContent className="p-6 flex flex-col h-full">
-          <div className={`p-3 rounded-lg w-fit ${color} mb-4 group-hover:scale-110 transition-transform`}>
+          <div className={`p-3 rounded-lg w-fit ${color} mb-4 transition-transform`}>
             {icon}
           </div>
           <h3 className="text-lg font-semibold mb-2">{title}</h3>

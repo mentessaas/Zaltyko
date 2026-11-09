@@ -26,7 +26,7 @@ export default function FeaturesSection() {
                   key={feature.id}
                   value={feature.id}
                   onClick={() => setActiveFeature(feature.id)}
-                  className="flex min-w-[140px] flex-col items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-5 py-4 font-sans text-sm font-medium text-white/70 transition data-[state=active]:border-zaltyko-accent/50 data-[state=active]:bg-zaltyko-accent/10 data-[state=active]:text-white"
+                  className="flex min-w-[140px] flex-col items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-5 py-4 font-sans text-sm font-medium text-white/70 transition data-[state=active]:border-white data-[state=active]:bg-white/15 data-[state=active]:text-white"
                 >
                   <Icon className="h-6 w-6" />
                   <span>{feature.label}</span>
@@ -39,13 +39,13 @@ export default function FeaturesSection() {
             <TabsContent
               key={feature.id}
               value={feature.id}
-              className="space-y-8 rounded-3xl border border-white/10 bg-white/5 p-8 shadow-xl"
+              className="space-y-8 rounded-xl border border-white/10 border-t-[3px] border-t-white bg-white/5 p-8"
             >
               <div className="space-y-6">
-                <h3 className="font-display text-2xl font-semibold text-white">
+                <h3 className="font-display text-3xl font-black uppercase leading-none text-white">
                   {feature.content.title}
                 </h3>
-                <p className="font-display text-sm uppercase tracking-[0.25em] text-zaltyko-accent">
+                <p className="floor-label text-mat-lane">
                   Impacto
                 </p>
                 <p className="font-sans text-base text-white/70">
@@ -55,9 +55,9 @@ export default function FeaturesSection() {
                   {feature.content.features.map((item, index) => (
                     <div
                       key={index}
-                      className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4"
+                      className="flex items-start gap-3 rounded-md border border-white/10 bg-white/5 p-4"
                     >
-                      <Check className="mt-1 h-5 w-5 flex-shrink-0 text-zaltyko-accent" />
+                      <Check className="mt-1 h-5 w-5 flex-shrink-0 text-mat-lane" />
                       <span className="font-sans text-sm leading-relaxed text-white/80">
                         {item}
                       </span>

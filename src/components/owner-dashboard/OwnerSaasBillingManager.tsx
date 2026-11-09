@@ -687,7 +687,7 @@ export function OwnerSaasBillingManager({
   return (
     <main className={ownerUi.page}>
       <div className="mx-auto max-w-5xl">
-        <header className="rounded-[16px] border border-z-line bg-white p-6 sm:p-8">
+        <header className="rounded-xl border border-z-line bg-white p-6 sm:p-8">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
             Gestión del plan
           </p>
@@ -698,7 +698,7 @@ export function OwnerSaasBillingManager({
             Consulta el acceso de tu academia y gestiona su suscripción. Esto es
             independiente de los cobros y cuotas de las familias.
           </p>
-          <div className="mt-6 border-l-2 border-z-ink bg-white p-4">
+          <div className="mt-6 rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-white p-4">
             <span className="block text-xs font-bold uppercase tracking-wide text-z-soft">
               Academia
             </span>
@@ -718,7 +718,7 @@ export function OwnerSaasBillingManager({
 
         {currentLoadError ? (
           <section
-            className="mt-6 border-l-4 border-amber-700 bg-white p-5"
+            className="mt-6 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-5"
             role="alert"
           >
             <h2 className="font-display text-xl font-bold">
@@ -834,7 +834,7 @@ export function OwnerSaasBillingManager({
 
             {!syncIsReady ? (
               <section
-                className="mt-4 border-l-4 border-amber-700 bg-white p-5"
+                className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-5"
                 role="status"
               >
                 <p className="font-semibold">
@@ -870,7 +870,7 @@ export function OwnerSaasBillingManager({
 
         {notice ? (
           <div
-            className="mt-4 border-l-4 border-z-ink bg-white p-4 text-sm leading-6 text-z-ink"
+            className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-white p-4 text-sm leading-6 text-z-ink"
             role="status"
             aria-live="polite"
           >
@@ -887,7 +887,7 @@ export function OwnerSaasBillingManager({
           </section>
         ) : null}
         {actionError ? (
-          <div className="mt-4 border-l-4 border-rose-700 bg-white p-4" role="alert">
+          <div className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-rose-700 bg-white p-4" role="alert">
             <p className="text-sm leading-6 text-z-ink">{actionError}</p>
             {pendingCommand?.organizationId === organizationId ? <p className="mt-2 text-xs leading-5 text-z-soft">
               El reintento de la operación pendiente conservará la misma clave y el mismo cuerpo.
@@ -895,7 +895,7 @@ export function OwnerSaasBillingManager({
           </div>
         ) : null}
         {pendingReadState.organizationId === organizationId && pendingReadState.status === "blocked" ? (
-          <div className="mt-4 border-l-4 border-amber-700 bg-white p-4" role="alert">
+          <div className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-4" role="alert">
             <p className="text-sm leading-6 text-z-ink">{pendingReadState.message}</p>
             <button type="button" className="touch-target mt-2 rounded-full border px-4 text-sm font-bold" onClick={() => setPendingReadAttempt((value) => value + 1)}>Volver a comprobar la operación guardada</button>
           </div>
@@ -975,7 +975,7 @@ export function OwnerSaasBillingManager({
             </div>
 
             {trial?.eligible && currentSnapshot.actions.canStartTrial ? (
-              <div className="mt-5 flex flex-col gap-4 border-l-4 border-z-ink bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div className="mt-5 flex flex-col gap-4 rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <div>
                   <h3 className="font-display text-xl font-bold">
                     Prueba Starter durante 7 días

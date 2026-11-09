@@ -3,6 +3,7 @@ import Link from "next/link";
 import { asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { groupInk } from "@/lib/mat/group-ink";
 import {
   academies,
   attendanceRecords,
@@ -286,17 +287,10 @@ export default async function CoachDetailPage({ params }: PageProps) {
                         >
                           <span
                             className="inline-flex items-center gap-2 font-semibold"
-                            style={
-                              group.color
-                                ? {
-                                    color: group.color,
-                                  }
-                                : undefined
-                            }
                           >
                             <span
                               className="h-2 w-2 rounded-full"
-                              style={{ backgroundColor: group.color ?? "currentColor" }}
+                              style={{ backgroundColor: groupInk(group.color) }}
                             />
                             {group.name}
                           </span>
@@ -325,17 +319,10 @@ export default async function CoachDetailPage({ params }: PageProps) {
                         >
                           <span
                             className="inline-flex items-center gap-2"
-                            style={
-                              group.color
-                                ? {
-                                    color: group.color,
-                                  }
-                                : undefined
-                            }
                           >
                             <span
                               className="h-2 w-2 rounded-full"
-                              style={{ backgroundColor: group.color ?? "currentColor" }}
+                              style={{ backgroundColor: groupInk(group.color) }}
                             />
                             {group.name}
                           </span>

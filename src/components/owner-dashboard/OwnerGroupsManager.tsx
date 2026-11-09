@@ -1727,7 +1727,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                       aria-current={
                         group.id === selectedGroup?.id ? "page" : undefined
                       }
-                      className={`touch-target flex min-h-14 items-center justify-between gap-3 border-l-4 px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 ${group.id === selectedGroup?.id ? "border-z-ink bg-z-brand-50" : "border-transparent hover:bg-z-canvas"}`}
+                      className={`touch-target flex min-h-14 items-center justify-between gap-3 rounded-md px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 ${group.id === selectedGroup?.id ? "bg-z-brand-50 text-z-brand-700" : "hover:bg-z-canvas"}`}
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-semibold">

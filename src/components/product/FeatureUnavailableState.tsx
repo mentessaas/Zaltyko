@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 
 interface FeatureUnavailableStateProps {
   title: string;
@@ -9,6 +10,10 @@ interface FeatureUnavailableStateProps {
   backLabel?: string;
 }
 
+/**
+ * Pantalla de función aún no disponible, con la misma cabecera que el resto
+ * de la app. El estado va en la línea de descripción, no en un antetítulo.
+ */
 export function FeatureUnavailableState({
   title,
   description,
@@ -16,13 +21,9 @@ export function FeatureUnavailableState({
   backLabel = "Volver",
 }: FeatureUnavailableStateProps) {
   return (
-    <div className="mx-auto flex min-h-[50vh] max-w-2xl flex-col items-start justify-center gap-5 rounded-xl border bg-card p-8 shadow-sm">
-      <div className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-wide text-primary">Disponible más adelante</p>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">{title}</h1>
-        <p className="text-base text-muted-foreground">{description}</p>
-      </div>
-      <Button asChild>
+    <div className="mx-auto max-w-[1500px] space-y-6">
+      <PageHeader title={title} description={`Disponible más adelante. ${description}`} />
+      <Button asChild variant="outline">
         <Link href={backHref}>{backLabel}</Link>
       </Button>
     </div>

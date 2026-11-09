@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { logger } from "@/lib/logger";
+import { groupInk } from "@/lib/mat/group-ink";
 
 const WEEKDAY_LABELS = [
   { day: 0, label: "Domingo", short: "Dom" },
@@ -228,15 +229,12 @@ export function ClassesCalendarView({
                             key={classItem.id}
                             draggable
                             onDragStart={() => handleDragStart(classItem)}
-                            className={`mb-1 cursor-move rounded-md border p-2 text-xs shadow-sm transition-transform hover:scale-[1.02] ${
+                            className={`mb-1 cursor-move rounded-md border p-2 text-xs transition-colors hover:border-mat ${
                               classItem.allowsFreeTrial
                                 ? "border-blue-400 bg-blue-50"
                                 : "border-border bg-card"
                             }`}
-                            style={{
-                              borderLeftColor: classItem.groupColor || "#6366f1",
-                              borderLeftWidth: "3px",
-                            }}
+                            style={{ borderTopColor: groupInk(classItem.groupColor), borderTopWidth: "3px" }}
                           >
                             <div className="font-semibold truncate">{classItem.name}</div>
                             <div className="text-muted-foreground">
@@ -252,14 +250,14 @@ export function ClassesCalendarView({
                                       style={{ width: `${occupancy}%` }}
                                     />
                                   </div>
-                                  <span className="text-[10px] text-muted-foreground">
+                                  <span className="text-xs text-muted-foreground">
                                     {occupancy}%
                                   </span>
                                 </div>
                               </div>
                             )}
                             {classItem.coaches.length > 0 && (
-                              <div className="mt-1 truncate text-[10px] text-muted-foreground">
+                              <div className="mt-1 truncate text-xs text-muted-foreground">
                                 {classItem.coaches[0].name}
                               </div>
                             )}
@@ -289,7 +287,7 @@ export function ClassesCalendarView({
                 <div
                   key={classItem.id}
                   className="flex items-center justify-between rounded-xl border border-border/80 p-3 transition hover:border-zaltyko-teal/30 hover:bg-muted/50"
-                  style={{ borderLeftColor: classItem.groupColor || "#6366f1", borderLeftWidth: "3px" }}
+                  style={{ borderLeftColor: groupInk(classItem.groupColor), borderLeftWidth: "1px" }}
                 >
                   <div>
                     <div className="font-medium">{classItem.name}</div>

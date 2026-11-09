@@ -111,9 +111,9 @@ function Chip({
       aria-pressed={active}
       style={{
         padding: "4px 10px",
-        background: active ? "#0f172a" : "white",
-        color: active ? "white" : "#475569",
-        border: "1px solid #e2e8f0",
+        background: active ? "#0B1430" : "white",
+        color: active ? "white" : "#3E4A66",
+        border: "1px solid #D5DAE3",
         borderRadius: 100,
         fontSize: 12,
         cursor: "pointer",

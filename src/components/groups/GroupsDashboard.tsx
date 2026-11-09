@@ -407,7 +407,7 @@ export function GroupsDashboard({
         </section>
       )}
 
-      <section className="flex flex-col gap-4 rounded-[22px] border border-border/80 bg-card p-5 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] lg:flex-row lg:items-center lg:justify-between">
+      <section className="flex flex-col gap-4 border-b border-chalk-line pb-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex-1 space-y-2">
           <p className="text-sm font-medium text-foreground">
             Estructura inicial sugerida para {specialization.labels.disciplineName.toLowerCase()}
@@ -433,7 +433,7 @@ export function GroupsDashboard({
           <select
             value={sportConfigFilter}
             onChange={(event) => updateSportConfigFilter(event.target.value)}
-            className="min-h-10 min-w-[220px] rounded-md border border-border bg-background px-3 py-2 text-sm"
+            className="min-h-11 min-w-[220px] rounded-md border border-ramp-300 bg-white px-3 py-2 text-sm"
           >
             <option value="">Todas las ramas</option>
             {sportConfigs.map((config) => (
@@ -442,21 +442,31 @@ export function GroupsDashboard({
               </option>
             ))}
           </select>
-          <TooltipOnboarding
-            tooltipId="tooltip_create_group"
-            message={`Empieza aquí: crea un grupo para organizar a tus ${specialization.labels.athletesPlural.toLowerCase()} por nivel y horario.`}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedPreset(null);
-                setCreateOpen(true);
-              }}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark"
-            >
-              Nuevo grupo
-            </button>
-          </TooltipOnboarding>
+          {(() => {
+            const createGroupButton = (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPreset(null);
+                  setCreateOpen(true);
+                }}
+                className="inline-flex min-h-11 items-center justify-center rounded-md bg-mat px-4 text-sm font-bold text-white transition-colors hover:bg-mat-deep"
+              >
+                Nuevo grupo
+              </button>
+            );
+            // «Empieza aquí» solo tiene sentido mientras no hay ningún grupo.
+            return groups.length === 0 ? (
+              <TooltipOnboarding
+                tooltipId="tooltip_create_group"
+                message={`Empieza aquí: crea un grupo para organizar a tus ${specialization.labels.athletesPlural.toLowerCase()} por nivel y horario.`}
+              >
+                {createGroupButton}
+              </TooltipOnboarding>
+            ) : (
+              createGroupButton
+            );
+          })()}
         </div>
       </section>
 
@@ -471,7 +481,7 @@ export function GroupsDashboard({
       )}
 
       {groups.length === 0 ? (
-        <div className="rounded-[22px] border border-dashed border-border bg-card p-12 text-center shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
+        <div className="rounded-xl border-2 border-dashed border-ramp-300 bg-white p-12 text-center">
           <p className="mb-4 text-sm text-muted-foreground">
             {selectedSportConfig
               ? `No hay grupos para ${selectedSportConfig.branchName} · ${selectedSportConfig.disciplineName}.`
@@ -483,7 +493,7 @@ export function GroupsDashboard({
               setSelectedPreset(null);
               setCreateOpen(true);
             }}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-zaltyko-primary-dark"
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-mat px-4 text-sm font-bold text-white transition-colors hover:bg-mat-deep"
           >
             Crear primer grupo
           </button>

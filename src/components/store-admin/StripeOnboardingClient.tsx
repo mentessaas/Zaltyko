@@ -52,7 +52,7 @@ export function StripeOnboardingClient({
         <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>
           Onboarding finalizado
         </h1>
-        <p style={{ color: "#475569", marginBottom: 24 }}>
+        <p style={{ color: "#3E4A66", marginBottom: 24 }}>
           Has vuelto de Stripe. Verificamos tu estado en unos segundos.
         </p>
         <button
@@ -60,7 +60,7 @@ export function StripeOnboardingClient({
           onClick={() => router.refresh()}
           style={{
             padding: "10px 16px",
-            background: "#0f172a",
+            background: "#0B1430",
             color: "white",
             border: 0,
             borderRadius: 6,
@@ -70,9 +70,9 @@ export function StripeOnboardingClient({
         >
           Verificar estado
         </button>
-        <p style={{ marginTop: 16, fontSize: 13, color: "#64748b" }}>
+        <p style={{ marginTop: 16, fontSize: 13, color: "#5C6782" }}>
           ¿Quieres seguir configurando?{" "}
-          <a href={`/app/${academyId}/store`} style={{ color: "#6366f1" }}>
+          <a href={`/app/${academyId}/store`} style={{ color: "#14307F" }}>
             Volver a la tienda
           </a>
         </p>
@@ -85,13 +85,13 @@ export function StripeOnboardingClient({
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>
         Conecta tu cuenta de Stripe
       </h1>
-      <p style={{ color: "#475569", marginBottom: 20, lineHeight: 1.5 }}>
+      <p style={{ color: "#3E4A66", marginBottom: 20, lineHeight: 1.5 }}>
         Para vender en la tienda y en el marketplace, Zaltyko usa Stripe Connect
         con <strong>destination charges</strong>: el dinero va directo a tu
         cuenta, y Zaltyko cobra una comisión sobre cada venta (10% por defecto,
         5% en plan Growth, 0% en Network).
       </p>
-      <p style={{ color: "#475569", marginBottom: 24, lineHeight: 1.5, fontSize: 13 }}>
+      <p style={{ color: "#3E4A66", marginBottom: 24, lineHeight: 1.5, fontSize: 13 }}>
         Te redirigiremos a Stripe para que completes el KYC (datos fiscales,
         cuenta bancaria, verificación de identidad). Es un proceso de ~5
         minutos. Stripe no comparte tus datos bancarios con Zaltyko.
@@ -114,7 +114,7 @@ export function StripeOnboardingClient({
         {pending ? "Conectando con Stripe…" : "Conectar con Stripe"}
       </button>
       {error && (
-        <p style={{ color: "#dc2626", marginTop: 12, fontSize: 13 }}>
+        <p style={{ color: "#C93C20", marginTop: 12, fontSize: 13 }}>
           Error: {error}
         </p>
       )}

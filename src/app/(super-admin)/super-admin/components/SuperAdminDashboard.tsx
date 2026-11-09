@@ -14,7 +14,6 @@ import {
   DollarSign,
   UserCheck,
   ArrowUpRight,
-  Zap,
   AlertTriangle,
   XCircle,
   Play,
@@ -36,7 +35,6 @@ const ResponsiveContainer = dynamic(() => import("recharts").then((mod) => mod.R
 const BarChart = dynamic(() => import("recharts").then((mod) => mod.BarChart), { ssr: false });
 const Bar = dynamic(() => import("recharts").then((mod) => mod.Bar), { ssr: false });
 
-import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { normalizeSuperAdminMetrics } from "@/lib/super-admin-metrics";
 import type { SuperAdminMetrics, EventLogEntry } from "@/lib/superAdminService";
 import { useSuperAdminData } from "@/hooks/useSuperAdminData";
@@ -59,7 +57,8 @@ import {
   formatSuperAdminMonth,
 } from "@/lib/super-admin-date";
 
-const CHART_COLORS = ["#1FC7B6", "#2B2E83", "#CBD5E1", "#FF6B57", "#0F172A", "#5CE0D4", "#818CF8"];
+// Series sobre noche: azul de calle, tapiz medio, rampa clara, señal clara y cinta.
+const CHART_COLORS = ["#8FB4FF", "#5B7BE0", "#B4BCCB", "#FF8A73", "#E9ECE6", "#7C99E6", "#8A93A8"];
 
 interface SuperAdminDashboardProps {
   initialMetrics: SuperAdminMetrics;
@@ -170,9 +169,9 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
     return safeMetrics.planStatuses.map((status) => ({
       name: getSubscriptionStatusLabel(status.status),
       total: status.total,
-      fill: status.status === "active" ? "#10B981" :
-            status.status === "past_due" ? "#F59E0B" :
-            status.status === "canceled" ? "#EF4444" : "#6B7280",
+      fill: status.status === "active" ? "#8FB4FF" :
+            status.status === "past_due" ? "#FF8A73" :
+            status.status === "canceled" ? "#E5482A" : "#8A93A8",
     }));
   }, [safeMetrics.planStatuses]);
 
@@ -280,31 +279,26 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6 sm:space-y-8">
       {/* Hero Header */}
-      <section className="relative overflow-hidden rounded-card border border-white/10 bg-zaltyko-navy p-6 sm:p-8">
-        <div className="absolute inset-0 zaltyko-motion-lines opacity-60" />
+      <section className="relative overflow-hidden rounded-xl border border-white/10 border-t-[3px] border-t-white bg-zaltyko-navy p-6 sm:p-8">
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-zaltyko-teal/30 bg-zaltyko-teal/10 px-3 py-1">
-              <Zap className="h-3.5 w-3.5 text-zaltyko-teal" strokeWidth={2} />
-              <span className="text-xs font-semibold uppercase tracking-wider text-zaltyko-teal">Panel de Control</span>
-            </div>
-            <h1 className="font-display text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
-              Dashboard <span className="text-zaltyko-teal">Super Admin</span>
+            <h1 className="font-display text-[clamp(2.25rem,5vw,3.75rem)] font-black uppercase leading-[0.92] text-white">
+              Panel de control
             </h1>
             <p className="max-w-xl font-sans text-base text-white/70 sm:text-lg">
               Métricas operativas del SaaS basadas en datos registrados. Las series sin fuente real se muestran como estados vacíos.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-medium text-white/70">
-              <Clock className="h-3.5 w-3.5 text-zaltyko-teal" strokeWidth={1.8} />
+            <div className="inline-flex items-center gap-2 rounded-md border border-white/15 px-3 py-2 text-xs font-medium text-white/75">
+              <Clock className="h-3.5 w-3.5 text-mat-lane" strokeWidth={1.8} />
               Datos actuales
             </div>
             <Button
               onClick={refresh}
               disabled={loading}
-              className="shrink-0 gap-2 rounded-xl border border-white/20 bg-white/10 text-white shadow-soft hover:border-white/40 hover:bg-white/20"
+              className="shrink-0 gap-2 rounded-lg border border-transparent bg-white text-mat-deep hover:bg-chalk"
             >
               <Activity className={cn("h-4 w-4", loading && "animate-spin")} strokeWidth={1.8} />
               {loading ? "Actualizando…" : "Refrescar"}
@@ -319,22 +313,43 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       </section>
 
       {/* Stats Cards with Trends */}
-      <section className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-5">
-        {cards.slice(0, 5).map((card) => (
-          <DashboardCard key={card.title} {...card} />
-        ))}
+      {/* Marcador reglado de noche: cifra grande, rótulo de pista y detalle. */}
+      <section aria-label="Indicadores principales" className="grid w-full grid-cols-1 gap-px overflow-hidden rounded-xl border border-white/10 border-t-[3px] border-t-white bg-white/10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {cards.slice(0, 5).map((card) => {
+          const Icon = card.icon;
+          return (
+            <Link
+              key={card.title}
+              href={card.href}
+              className="group flex min-w-0 flex-col gap-2 bg-zaltyko-navy p-5 transition-colors hover:bg-[#121B36] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-mat-lane"
+            >
+              <span className="flex items-start justify-between gap-3">
+                <span className="floor-label text-mat-lane">{card.title}</span>
+                <Icon aria-hidden className="h-4 w-4 shrink-0 text-white/60" strokeWidth={1.8} />
+              </span>
+              <span className="font-display text-5xl font-black leading-none tabular-nums text-white">{card.value}</span>
+              <span className="text-sm leading-snug text-white/70">{card.subtitle}</span>
+              {"trend" in card && card.trend ? (
+                <span className="text-xs font-semibold text-white/80">
+                  {card.trend.direction === "up" ? "+" : "−"}
+                  {card.trend.value}% frente al periodo anterior
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
       </section>
 
-      <section className="grid w-full grid-cols-2 gap-3 rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] sm:grid-cols-3 lg:grid-cols-5">
+      <section aria-label="Indicadores secundarios" className="grid w-full grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10 sm:grid-cols-3 lg:grid-cols-6">
         {cards.slice(5).map((card) => (
           <Link
             key={card.title}
             href={card.href}
-            className="group rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-3 transition hover:border-zaltyko-teal/30 hover:bg-white"
+            className="group min-w-0 bg-zaltyko-navy px-4 py-4 transition-colors hover:bg-[#121B36] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-mat-lane"
           >
-            <p className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">{card.title}</p>
-            <p className="mt-1 font-display text-xl font-bold tracking-[-0.03em] text-slate-950">{card.value}</p>
-            <p className="mt-1 truncate text-xs text-slate-500">{card.subtitle}</p>
+            <p className="floor-label truncate text-white/60">{card.title}</p>
+            <p className="mt-1 font-display text-3xl font-black leading-none tabular-nums text-white">{card.value}</p>
+            <p className="mt-1 truncate text-xs text-white/60">{card.subtitle}</p>
           </Link>
         ))}
       </section>
@@ -409,7 +424,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             setSelectedChart("usersByRole");
           }}
           className={cn(
-            "group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left transition-colors",
+            "group relative w-full overflow-hidden rounded-xl border border-white/10 border-t-[3px] border-t-white bg-white/5 p-6 text-left transition-colors",
             pieChartData.length > 0 ? "hover:border-white/30" : "cursor-default"
           )}
         >
@@ -428,7 +443,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
           <div className="relative flex items-center justify-center">
             {safeMetrics.usersByRole.length === 0 ? (
-              <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5">
+              <div className="flex h-48 items-center justify-center rounded-md border border-dashed border-white/20">
                 <p className="text-sm text-white/50">Sin datos disponibles</p>
               </div>
             ) : (
@@ -485,7 +500,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             setSelectedChart("planDistribution");
           }}
           className={cn(
-            "group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left transition-colors",
+            "group relative w-full overflow-hidden rounded-xl border border-white/10 border-t-[3px] border-t-white bg-white/5 p-6 text-left transition-colors",
             planPieData.length > 0 ? "hover:border-white/30" : "cursor-default"
           )}
         >
@@ -506,7 +521,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
           <div className="relative flex items-center justify-center">
             {safeMetrics.planDistribution.length === 0 ? (
-              <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5">
+              <div className="flex h-48 items-center justify-center rounded-md border border-dashed border-white/20">
                 <p className="text-sm text-white/50">Sin suscripciones con plan asignado</p>
               </div>
             ) : (
@@ -563,7 +578,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           setSelectedChart("subscriptionStatus");
         }}
         className={cn(
-          "group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left transition-colors",
+          "group relative w-full overflow-hidden rounded-xl border border-white/10 border-t-[3px] border-t-white bg-white/5 p-6 text-left transition-colors",
           subscriptionBarData.length > 0 ? "hover:border-white/30" : "cursor-default"
         )}
       >
@@ -583,7 +598,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         </header>
 
         {subscriptionBarData.length === 0 ? (
-          <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5">
+          <div className="flex h-40 items-center justify-center rounded-md border border-dashed border-white/20">
             <p className="text-sm text-white/50">Sin datos de suscripciones</p>
           </div>
         ) : (
@@ -622,7 +637,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       </button>
 
       {/* Monthly Academies - Area Chart */}
-      <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
+      <section className="group relative overflow-hidden rounded-xl border border-white/10 border-t-[3px] border-t-white bg-white/5 p-6">
 
         <header className="relative mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -648,7 +663,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         </header>
 
         {chartDataset.length === 0 ? (
-          <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5">
+          <div className="flex h-48 items-center justify-center rounded-md border border-dashed border-white/20">
             <p className="text-sm text-white/50">Sin datos de academias</p>
           </div>
         ) : (
@@ -657,8 +672,8 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               <AreaChart data={chartDataset}>
                 <defs>
                   <linearGradient id="colorAcademies" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#1FC7B6" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#1FC7B6" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#8FB4FF" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#8FB4FF" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis
@@ -688,12 +703,12 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                 <Area
                   type="monotone"
                   dataKey="total"
-                  stroke="#1FC7B6"
+                  stroke="#8FB4FF"
                   strokeWidth={3}
                   fillOpacity={1}
                   fill="url(#colorAcademias)"
-                  dot={{ fill: "#1FC7B6", strokeWidth: 0, r: 4 }}
-                  activeDot={{ fill: "#1FC7B6", strokeWidth: 2, stroke: "#fff", r: 6 }}
+                  dot={{ fill: "#8FB4FF", strokeWidth: 0, r: 4 }}
+                  activeDot={{ fill: "#8FB4FF", strokeWidth: 2, stroke: "#fff", r: 6 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -702,7 +717,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       </section>
 
       {/* Revenue Trend Chart */}
-      <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
+      <section className="group relative overflow-hidden rounded-xl border border-white/10 border-t-[3px] border-t-white bg-white/5 p-6">
 
         <header className="relative mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -726,7 +741,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         </header>
 
         {revenueDataset.length === 0 ? (
-          <div className="flex h-48 min-w-0 flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-6 text-center">
+          <div className="flex h-48 min-w-0 flex-col items-center justify-center rounded-md border border-dashed border-white/20 px-6 text-center">
             <p className="text-sm font-medium text-white/70">Aún no hay ingresos SaaS por mes</p>
             <p className="mt-1 max-w-md text-xs text-white/45">
               Cuando se cobre la primera factura sincronizada con Stripe, la evolución aparecerá aquí.
@@ -738,8 +753,8 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               <AreaChart data={revenueDataset}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#34D399" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#34D399" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#E9ECE6" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#E9ECE6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis
@@ -770,12 +785,12 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                 <Area
                   type="monotone"
                   dataKey="total"
-                  stroke="#34D399"
+                  stroke="#E9ECE6"
                   strokeWidth={3}
                   fillOpacity={1}
                   fill="url(#colorRevenue)"
-                  dot={{ fill: "#34D399", strokeWidth: 0, r: 4 }}
-                  activeDot={{ fill: "#34D399", strokeWidth: 2, stroke: "#fff", r: 6 }}
+                  dot={{ fill: "#E9ECE6", strokeWidth: 0, r: 4 }}
+                  activeDot={{ fill: "#E9ECE6", strokeWidth: 2, stroke: "#fff", r: 6 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -784,7 +799,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       </section>
 
       {initialEvents.length > 0 && (
-        <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
+        <section className="group relative overflow-hidden rounded-xl border border-white/10 border-t-[3px] border-t-white bg-white/5 p-6">
 
           <header className="relative mb-6 flex items-center justify-between">
             <div>
@@ -802,7 +817,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             <div className="overflow-x-auto">
               <table className="min-w-full text-xs">
                 <thead>
-                  <tr className="border-b border-white/10 bg-white/5 text-left text-[10px] uppercase tracking-wide text-white/50">
+                  <tr className="border-b border-white/10 bg-white/5 text-left text-xs uppercase tracking-wide text-white/50">
                     <th className="px-4 py-3 font-medium">Fecha</th>
                     <th className="px-4 py-3 font-medium">Evento</th>
                     <th className="px-4 py-3 font-medium">Academia</th>

@@ -177,7 +177,7 @@ export function CoachNotesManager({
       ) : (
         <div className="space-y-4">
           {filteredNotes.map((note) => (
-            <Card key={note.id} className="hover:shadow-lg transition-shadow">
+            <Card key={note.id} className=" transition-shadow">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">

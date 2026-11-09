@@ -8,7 +8,7 @@ export default function OwnerSetupPreviewPage() {
   return (
     <OwnerWorkspacePageShell previewMode>
       <main className="grid min-h-screen place-items-center bg-z-canvas px-5 py-12 text-z-ink">
-        <section className="w-full max-w-2xl rounded-[16px] border border-z-line bg-white p-7 sm:p-10">
+        <section className="w-full max-w-2xl rounded-xl border border-z-line bg-white p-7 sm:p-10">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
             Tu academia
           </p>
@@ -19,7 +19,7 @@ export default function OwnerSetupPreviewPage() {
           </p>
           <p
             role="status"
-            className="mt-6 border-l-4 border-amber-500 bg-amber-50 p-4 text-sm leading-6 text-amber-950"
+            className="mt-6 rounded-md border border-z-line border-t-[3px] border-t-amber-500 bg-amber-50 p-4 text-sm leading-6 text-amber-950"
           >
             Vista previa con datos sintéticos. No se creará ninguna academia ni se
             guardará tu aceptación de los términos.

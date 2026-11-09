@@ -17,8 +17,8 @@ export default function OwnerDashboardError({
 
   return (
     <main className="grid min-h-screen place-items-center bg-z-canvas px-5 py-16 text-z-ink">
-      <section className="max-w-xl border-l-4 border-zaltyko-coral bg-white p-8 shadow-soft">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#A33A2D]">
+      <section className="max-w-xl rounded-md border border-z-line border-t-[3px] border-t-zaltyko-coral bg-white p-8 shadow-soft">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-chalk-600">
           Panel no disponible
         </p>
         <h1 className="mt-3 text-3xl">No hemos podido cargar este cierre</h1>

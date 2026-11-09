@@ -49,7 +49,7 @@ function TimeBlock({ value, label, size }: { value: number; label: string; size:
       >
         {String(value).padStart(2, "0")}
       </div>
-      <span className={cn("text-muted-foreground mt-1", size === "sm" ? "text-[10px]" : size === "md" ? "text-xs" : "text-sm")}>
+      <span className={cn("text-muted-foreground mt-1", size === "sm" ? "text-xs" : size === "md" ? "text-xs" : "text-sm")}>
         {label}
       </span>
     </div>

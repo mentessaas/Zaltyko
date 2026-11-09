@@ -13,6 +13,7 @@ import { getStarterClassPresets, getStarterGroupPresets } from "@/lib/specializa
 import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 import { pluralizeFirstWord } from "@/lib/specialization/registry";
+import { groupInk } from "@/lib/mat/group-ink";
 
 const WEEKDAY_LABELS: Record<number, string> = {
   0: "Domingo",
@@ -75,6 +76,24 @@ interface ClassesTableViewProps {
   };
 }
 
+
+// Códigos de aparato que llegan en inglés desde datos antiguos o semillas.
+const APPARATUS_FALLBACK_ES: Record<string, string> = {
+  floor: "Suelo",
+  beam: "Barra de equilibrio",
+  vault: "Salto",
+  bars: "Paralelas asimétricas",
+  "uneven-bars": "Paralelas asimétricas",
+  "parallel-bars": "Paralelas",
+  rings: "Anillas",
+  pommel: "Caballo con arcos",
+  "high-bar": "Barra fija",
+  hoop: "Aro",
+  ball: "Pelota",
+  clubs: "Mazas",
+  ribbon: "Cinta",
+  rope: "Cuerda",
+};
 export function ClassesTableView({
   academyId,
   classes,
@@ -140,9 +159,9 @@ export function ClassesTableView({
         : "Sin día fijo";
     const time =
       item.startTime && item.endTime
-        ? `${item.startTime} – ${item.endTime}`
+        ? `${item.startTime.slice(0, 5)} – ${item.endTime.slice(0, 5)}`
         : item.startTime
-        ? `Desde ${item.startTime}`
+        ? `Desde ${item.startTime.slice(0, 5)}`
         : "Horario flexible";
     return `${days} · ${time}`;
   };
@@ -216,7 +235,7 @@ export function ClassesTableView({
           <button
             type="submit"
             disabled={isPending}
-            className="min-h-10 rounded-full bg-zaltyko-teal px-4 py-2 text-xs font-semibold text-white hover:bg-zaltyko-primary-dark disabled:opacity-60"
+            className="min-h-11 rounded-md border border-ramp-300 bg-white px-4 text-sm font-semibold text-mat-night hover:border-mat hover:text-mat disabled:opacity-60"
           >
             Filtrar
           </button>
@@ -226,7 +245,7 @@ export function ClassesTableView({
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-zaltyko-primary-dark"
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-mat px-4 text-sm font-bold text-white transition-colors hover:bg-mat-deep"
           >
             Crear {classTermLower}
           </button>
@@ -234,7 +253,7 @@ export function ClassesTableView({
       </section>
 
       {isEmpty ? (
-        <div className="rounded-2xl border border-border bg-card p-12 text-center shadow-soft">
+        <div className="rounded-xl border-2 border-dashed border-ramp-300 bg-white p-12 text-center">
           <p className="mb-4 text-sm text-muted-foreground">
             {hasActiveFilters
               ? `No se encontraron ${classTermPluralLower} con esos criterios.`
@@ -244,7 +263,7 @@ export function ClassesTableView({
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-zaltyko-primary-dark"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-mat px-4 text-sm font-bold text-white transition-colors hover:bg-mat-deep"
             >
               Crear primer {classTermLower}
             </button>
@@ -266,7 +285,7 @@ export function ClassesTableView({
                       {item.name}
                     </Link>
                     {starterClassNames.has(item.name) && (
-                      <span className="rounded-full border border-zaltyko-teal/30 bg-zaltyko-teal/10 px-2 py-0.5 text-[11px] font-semibold text-zaltyko-teal">
+                      <span className="rounded-md border border-zaltyko-teal/30 bg-zaltyko-teal/10 px-2 py-0.5 text-xs font-semibold text-zaltyko-teal">
                         Plantilla inicial
                       </span>
                     )}
@@ -289,12 +308,12 @@ export function ClassesTableView({
 
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 {item.coaches.length === 0 ? (
-                  <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                  <span className="rounded-md bg-muted px-3 py-1 text-muted-foreground">
                     Sin responsables asignados
                   </span>
                 ) : (
                   item.coaches.map((coach) => (
-                    <span key={coach.id} className="rounded-full bg-zaltyko-indigo/10 px-3 py-1 text-zaltyko-indigo">
+                    <span key={coach.id} className="rounded-md bg-zaltyko-indigo/10 px-3 py-1 text-zaltyko-indigo">
                       {coach.name}
                     </span>
                   ))
@@ -303,17 +322,16 @@ export function ClassesTableView({
 
               <div className="mt-2 flex flex-wrap gap-2 text-xs">
                 {item.groups.length === 0 ? (
-                  <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                  <span className="rounded-md bg-muted px-3 py-1 text-muted-foreground">
                     Sin {groupTermLower} vinculado
                   </span>
                 ) : (
                   item.groups.map((group) => (
                     <span
                       key={group.id}
-                      className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium"
-                      style={group.color ? { borderColor: group.color, color: group.color } : undefined}
+                      className="inline-flex items-center gap-2 rounded-md border px-3 py-1 font-medium"
                     >
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: group.color ?? "currentColor" }} />
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: groupInk(group.color) }} />
                       {group.name}
                     </span>
                   ))
@@ -349,7 +367,7 @@ export function ClassesTableView({
                         {item.name}
                       </Link>
                       {starterClassNames.has(item.name) && (
-                        <span className="rounded-full border border-zaltyko-teal/30 bg-zaltyko-teal/10 px-2 py-0.5 text-[11px] font-semibold text-zaltyko-teal">
+                        <span className="rounded-md border border-zaltyko-teal/30 bg-zaltyko-teal/10 px-2 py-0.5 text-xs font-semibold text-zaltyko-teal">
                           Plantilla inicial
                         </span>
                       )}
@@ -363,27 +381,27 @@ export function ClassesTableView({
                     </div>
                     {item.createdAt && (
                       <p className="text-xs text-muted-foreground">
-                        Creada el {item.createdAt.slice(0, 10)}
+                        Creada el {new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(item.createdAt))}
                       </p>
                     )}
                     {item.sportConfigId && (
-                      <span className="inline-flex w-fit rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                      <span className="inline-flex w-fit rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                         {sportConfigNameById.get(item.sportConfigId) ?? "Configuración deportiva"}
                       </span>
                     )}
                     {(item.technicalFocus || (item.apparatus?.length ?? 0) > 0) && (
                       <div className="flex flex-wrap gap-2">
                         {item.technicalFocus && (
-                          <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
+                          <span className="rounded-md bg-muted px-2.5 py-1 text-xs text-muted-foreground">
                             {item.technicalFocus}
                           </span>
                         )}
                         {(item.apparatus ?? []).map((apparatus) => (
                           <span
                             key={apparatus}
-                            className="rounded-full border border-border bg-card px-2.5 py-1 text-[11px] text-muted-foreground"
+                            className="rounded-md border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground"
                           >
-                            {apparatusLabels[apparatus] || apparatus}
+                            {apparatusLabels[apparatus] || APPARATUS_FALLBACK_ES[apparatus.toLowerCase()] || apparatus}
                           </span>
                         ))}
                       </div>
@@ -395,21 +413,21 @@ export function ClassesTableView({
                   <div className="flex flex-col items-end gap-1">
                     <span>{item.capacity ?? "—"}</span>
                     {item.capacity && item.capacity > 0 && (
-                      <AlertBadge type="capacity" severity="medium" className="text-[10px]" />
+                      <AlertBadge type="capacity" severity="medium" className="text-xs" />
                     )}
                   </div>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2 text-xs">
                     {item.coaches.length === 0 ? (
-                      <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                      <span className="rounded-md bg-muted px-3 py-1 text-muted-foreground">
                         Sin responsables asignados
                       </span>
                     ) : (
                       item.coaches.map((coach) => (
                         <span
                           key={coach.id}
-                          className="rounded-full bg-zaltyko-indigo/10 px-3 py-1 text-zaltyko-indigo"
+                          className="rounded-md bg-zaltyko-indigo/10 px-3 py-1 text-zaltyko-indigo"
                         >
                           {coach.name}
                         </span>
@@ -420,26 +438,18 @@ export function ClassesTableView({
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2 text-xs">
                     {item.groups.length === 0 ? (
-                      <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                      <span className="rounded-md bg-muted px-3 py-1 text-muted-foreground">
                         Sin {groupTermLower} vinculado
                       </span>
                     ) : (
                       item.groups.map((group) => (
                         <span
                           key={group.id}
-                          className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium"
-                          style={
-                            group.color
-                              ? {
-                                  borderColor: group.color,
-                                  color: group.color,
-                                }
-                              : undefined
-                          }
+                          className="inline-flex items-center gap-2 rounded-md border px-3 py-1 font-medium"
                         >
                           <span
                             className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: group.color ?? "currentColor" }}
+                            style={{ backgroundColor: groupInk(group.color) }}
                           />
                           {group.name}
                         </span>

@@ -95,7 +95,7 @@ export default async function OwnerSetupPage() {
       locationId={null}
     >
       <main className="grid min-h-screen place-items-center bg-z-canvas px-5 py-12 text-z-ink">
-        <section className="w-full max-w-2xl rounded-[16px] border border-z-line bg-white p-7 sm:p-10">
+        <section className="w-full max-w-2xl rounded-xl border border-z-line bg-white p-7 sm:p-10">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
             Tu academia
           </p>

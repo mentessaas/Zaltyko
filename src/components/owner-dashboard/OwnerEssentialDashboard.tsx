@@ -125,7 +125,7 @@ export function OwnerEssentialDashboard({
         {links.map(([label, href]) => {
           const Icon = QUICK_LINK_ICONS[label] ?? ArrowUpRight;
           return (
-            <Link key={label} href={href} className="touch-target group flex min-h-16 min-w-0 items-center gap-3 rounded-[14px] border border-z-line bg-white px-4 py-3 text-sm font-semibold text-z-ink transition-colors hover:border-z-brand-100 hover:bg-z-brand-50/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500">
+            <Link key={label} href={href} className="touch-target group flex min-h-16 min-w-0 items-center gap-3 rounded-xl border border-z-line bg-white px-4 py-3 text-sm font-semibold text-z-ink transition-colors hover:border-z-brand-100 hover:bg-z-brand-50/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500">
               <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-z-canvas text-z-brand-600 transition-colors group-hover:bg-white">
                 <Icon className="h-4 w-4" />
               </span>

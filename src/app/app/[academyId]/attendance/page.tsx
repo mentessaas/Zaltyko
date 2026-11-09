@@ -15,6 +15,7 @@ import {
 } from "@/db/schema";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { groupInk } from "@/lib/mat/group-ink";
 
 /**
  * AttendanceOverviewPage - Vista principal de asistencia
@@ -260,15 +261,14 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
 
                 <div className="mt-3 flex flex-wrap gap-2 text-xs">
                   {session.groups.length === 0 ? (
-                    <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">Sin grupo</span>
+                    <span className="rounded-md bg-muted px-3 py-1 text-muted-foreground">Sin grupo</span>
                   ) : (
                     session.groups.map((group) => (
                       <span
                         key={group.id}
-                        className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium"
-                        style={group.color ? { borderColor: group.color, color: group.color } : undefined}
+                        className="inline-flex items-center gap-2 rounded-md border px-3 py-1 font-medium"
                       >
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: group.color ?? "currentColor" }} />
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: groupInk(group.color) }} />
                         {group.name}
                       </span>
                     ))
@@ -291,7 +291,7 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
                 <th className="px-4 py-3 font-medium">Clase</th>
                 <th className="px-4 py-3 font-medium">Fecha</th>
                 <th className="px-4 py-3 font-medium">Horario</th>
-                <th className="px-4 py-3 font-medium">Coach</th>
+                <th className="px-4 py-3 font-medium">Equipo técnico</th>
                 <th className="px-4 py-3 font-medium">Grupos</th>
                 <th className="px-4 py-3 font-medium">Asistencia</th>
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
@@ -315,26 +315,18 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2 text-xs">
                         {session.groups.length === 0 ? (
-                          <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                          <span className="rounded-md bg-muted px-3 py-1 text-muted-foreground">
                             Sin grupo
                           </span>
                         ) : (
                           session.groups.map((group) => (
                             <span
                               key={group.id}
-                              className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium"
-                              style={
-                                group.color
-                                  ? {
-                                      borderColor: group.color,
-                                      color: group.color,
-                                    }
-                                  : undefined
-                              }
+                              className="inline-flex items-center gap-2 rounded-md border px-3 py-1 font-medium"
                             >
                               <span
                                 className="h-2 w-2 rounded-full"
-                                style={{ backgroundColor: group.color ?? "currentColor" }}
+                                style={{ backgroundColor: groupInk(group.color) }}
                               />
                               {group.name}
                             </span>

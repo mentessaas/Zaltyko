@@ -766,7 +766,7 @@ export function OwnerAttendanceManager({
               </p>
             )}
             {selectedSession && (
-              <div className="grid gap-3 rounded-[14px] bg-z-canvas p-4 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-center">
+              <div className="grid gap-3 rounded-xl bg-z-canvas p-4 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-center">
                 <p className="min-w-0 break-words font-display text-lg font-bold tracking-tight text-z-ink">
                   {selectedSession.className} ·{" "}
                   {formatSessionDate(
@@ -888,7 +888,7 @@ export function OwnerAttendanceManager({
                   return (
                     <li
                       key={attendee.enrollmentId}
-                      className="grid gap-3 rounded-[14px] border border-z-line bg-white p-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-4"
+                      className="grid gap-3 rounded-xl border border-z-line bg-white p-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-4"
                     >
                       <div className="flex min-w-0 items-center gap-3">
                         <span

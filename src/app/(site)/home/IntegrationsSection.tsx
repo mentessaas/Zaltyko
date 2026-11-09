@@ -73,7 +73,7 @@ export default function IntegrationsSection() {
               <div className="flex items-start gap-6">
                 {/* Icon */}
                 <div className={cn(
-                  "w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br transition-transform duration-300 group-hover:scale-105",
+                  "w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br transition-transform duration-300",
                   integration.color
                 )}>
                   <integration.icon className="w-8 h-8 text-white" />

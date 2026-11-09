@@ -9,8 +9,14 @@ html {
 }
 
 ::selection {
-  background-color: #1FC7B6;
+  background-color: #1E3FA8;
   color: #ffffff;
+}
+
+/* Titulares condensados: la anchura vive en la fuente variable, no en otra familia. */
+.font-display {
+  font-stretch: 72%;
+  letter-spacing: -0.005em;
 }
 
 html,
@@ -34,82 +40,82 @@ body {
 @layer base {
   :root {
     color-scheme: light;
-    /* Zaltyko Brand Book v1 */
-    --background: 210 33% 97%; /* Quiet canvas #F5F8F8 */
-    --foreground: 222 47% 11%; /* Midnight Navy #0F172A */
+    /* «Magnesio sobre tapiz». Escena: la directora en su despacho por la
+       tarde y con el móvil bajo los fluorescentes del pabellón → fondo claro
+       de magnesio; el azul tapiz estructura y actúa. */
+    --background: 90 18% 96%; /* magnesio #F4F6F2 */
+    --foreground: 225 63% 12%; /* noche #0B1430 */
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
- 
+    --card-foreground: 225 63% 12%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
- 
-    /* Deep Teal #00796B = color de acción/marca (botones, links).
-       Electric Teal #1FC7B6 queda como acento vibrante (--ring, charts, glows). */
-    --primary: 172 100% 24%; /* Deep Teal #00796B */
+    --popover-foreground: 225 63% 12%;
+
+    --primary: 226 70% 39%; /* tapiz #1E3FA8 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 238 51% 34%; /* Deep Indigo #2B2E83 */
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 224 73% 29%; /* zona de seguridad #14307F */
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 24% 95%;
-    /* 44% (no 46.9%): 46.9% da 4.24:1 sobre --muted y falla WCAG AA.
-       44% -> 4.70 sobre --muted, 5.27 sobre --card/--background. Ver ZAL-575 Tier A paso 1. */
-    --muted-foreground: 215.4 16.3% 44%;
+    --muted: 90 14% 91%; /* #E9ECE6 */
+    /* #5C6782: 4.7:1 sobre --muted, 5.5:1 sobre --background, 6:1 sobre blanco. */
+    --muted-foreground: 223 17% 44%;
 
-    --accent: 238 51% 34%; /* Deep Indigo */
-    --accent-foreground: 210 40% 98%;
+    --accent: 224 73% 29%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 7 100% 67%; /* Coral Accent #FF6B57 */
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 10 73% 44%; /* señal oscura #C2391E: 5.4:1 sobre blanco (texto y botón) */
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214 24% 88%; /* quieter borders */
-    --input: 214 24% 84%;
-    --ring: 175 74% 45%;
- 
-    --radius: 1.125rem;
+    --border: 219 20% 86%; /* línea de magnesio #D5DAE3 */
+    --input: 219 18% 75%; /* #B4BCCB */
+    --ring: 226 70% 39%;
 
-    --chart-1: 175 74% 45%;
-    --chart-2: 238 51% 34%;
-    --chart-3: 213 27% 84%;
-    --chart-4: 7 100% 67%;
-    --chart-5: 222 47% 11%;
+    --radius: 0.625rem;
+
+    --chart-1: 226 70% 39%;
+    --chart-2: 218 100% 78%;
+    --chart-3: 224 73% 29%;
+    --chart-4: 10 78% 53%;
+    --chart-5: 223 17% 44%;
   }
  
   .dark {
     color-scheme: dark;
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
- 
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
- 
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
- 
-    --primary: 175 74% 45%; /* Electric Teal en dark: mejor contraste sobre navy */
-    --primary-foreground: 0 0% 100%;
+    /* Pabellón con las luces bajas: noche azul, magnesio como texto. */
+    --background: 225 63% 10%;
+    --foreground: 90 18% 96%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
- 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
- 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
- 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
- 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 175 74% 45%;
+    --card: 225 50% 14%;
+    --card-foreground: 90 18% 96%;
 
-    --chart-1: 175 74% 45%;
-    --chart-2: 238 51% 54%;
-    --chart-3: 213 27% 84%;
-    --chart-4: 7 100% 67%;
+    --popover: 225 50% 14%;
+    --popover-foreground: 90 18% 96%;
+
+    --primary: 218 100% 78%; /* #8FB4FF: azul claro legible sobre noche */
+    --primary-foreground: 225 63% 12%;
+
+    --secondary: 224 60% 22%;
+    --secondary-foreground: 90 18% 96%;
+
+    --muted: 225 40% 18%;
+    --muted-foreground: 219 30% 75%;
+
+    --accent: 224 60% 22%;
+    --accent-foreground: 90 18% 96%;
+
+    --destructive: 10 85% 62%;
+    --destructive-foreground: 225 63% 12%;
+
+    --border: 224 35% 24%;
+    --input: 224 30% 32%;
+    --ring: 218 100% 78%;
+
+    --chart-1: 218 100% 78%;
+    --chart-2: 226 70% 55%;
+    --chart-3: 219 30% 75%;
+    --chart-4: 10 85% 62%;
     --chart-5: 210 40% 98%;
   }
 }
@@ -123,12 +129,56 @@ body {
     @apply border border-zaltyko-mist/70 bg-white shadow-soft transition-colors duration-150 dark:border-slate-700 dark:bg-slate-900;
   }
 
+  /* Sin texto degradado en este mundo: el énfasis es peso y tamaño. Se
+     conserva el nombre para no romper usos antiguos. */
   .text-gradient {
-    background-image: linear-gradient(120deg, #00796B 0%, #1FC7B6 45%, #2B2E83 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
+    color: #1E3FA8;
+  }
+
+  /* ── Materiales «Magnesio sobre tapiz» ─────────────────────────────── */
+
+  /* Tapiz: azul de competición con la fibra de la moqueta (ruido fino). */
+  .mat-field {
+    background-color: #1E3FA8;
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+      radial-gradient(120% 90% at 85% 10%, rgba(143, 180, 255, 0.18), transparent 60%);
+    color: #ffffff;
+  }
+  .mat-field-deep {
+    background-color: #14307F;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    color: #ffffff;
+  }
+
+  /* Polvo de magnesio: superficies claras con grano de tiza. */
+  .chalk-field {
+    background-color: #F4F6F2;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .04 0 0 0 0 .08 0 0 0 0 .19 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* Cinta de límite: el marco blanco de 5 cm del suelo de competición. */
+  .tape-frame {
+    box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.92);
+  }
+  .tape-rule {
+    height: 3px;
+    background: currentColor;
+  }
+
+  /* Rótulo de pista: mayúsculas condensadas con aire. */
+  .floor-label {
+    font-family: var(--font-space-grotesk), ui-sans-serif, system-ui;
+    font-stretch: 80%;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 
   /* Superficies por jerarquía — alternativa a bg-white/bg-gray-50 sueltos */
@@ -140,16 +190,15 @@ body {
     @apply bg-zaltyko-white dark:bg-zaltyko-navy/30;
   }
 
-  /* Hover unificado de cards (reemplaza shadow-sm hover:shadow-lg hover:-translate-y-1) */
+  /* Hover unificado de cards (reemplaza shadow-sm hover:shadow-lg) */
+  /* Tapiz plano: el hover marca el borde, no levanta la superficie. */
   .card-hover {
-    @apply transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-brand;
+    @apply transition-colors duration-150 ease-out hover:border-mat;
   }
 
   .zaltyko-motion-lines {
-    background-image: url("data:image/svg+xml,%3Csvg width='680' height='180' viewBox='0 0 680 180' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 115C110 78 190 164 292 96C395 27 478 20 680 66' stroke='%231FC7B6' stroke-opacity='.12'/%3E%3Cpath d='M0 145C120 110 204 184 308 120C420 51 494 52 680 90' stroke='%232B2E83' stroke-opacity='.16' stroke-dasharray='5 7'/%3E%3Cpath d='M0 84C118 58 204 130 312 66C425 0 520 6 680 42' stroke='%23FF6B57' stroke-opacity='.10'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right top;
-    background-size: min(680px, 100%) auto;
+    /* Antes: ondas decorativas. Ahora: nada; el mundo no usa adornos de fondo. */
+    background-image: none;
   }
 }
 
@@ -162,7 +211,17 @@ body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
     overflow-x: hidden;
-    background-image: radial-gradient(circle at 10% 0%, rgba(31, 199, 182, 0.05), transparent 24rem);
+    caret-color: #1E3FA8;
+    scrollbar-color: #B4BCCB transparent;
+  }
+  /* Cifras tabulares en tablas: columnas de números alineadas. */
+  table,
+  td,
+  th {
+    font-variant-numeric: tabular-nums;
+  }
+  a {
+    text-underline-offset: 0.2em;
   }
 
   /* Los menús nativos de <select> no heredan de forma fiable el color del
@@ -186,6 +245,8 @@ body {
   /* Tipografía Zaltyko */
   h1, h2, h3, h4, h5, h6 {
     @apply font-display;
+    font-stretch: 78%;
+    text-wrap: balance;
   }
   
   h1 {
@@ -220,7 +281,7 @@ body {
   }
 
   ::selection {
-    background: #0f766e;
+    background: #1E3FA8;
     color: white;
   }
 }
@@ -368,11 +429,6 @@ body {
   100% { background-position: 200% 0; }
 }
 
-@keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
-}
-
 @keyframes pulse-ring {
   0% { transform: scale(0.8); opacity: 1; }
   100% { transform: scale(1.3); opacity: 0; }
@@ -404,9 +460,6 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
-.animate-bounce-subtle {
-  animation: bounce 1s ease-in-out infinite;
-}
 
 /* Delay utilities for staggered animations */
 .delay-75 { animation-delay: 75ms; }
@@ -421,8 +474,9 @@ body {
   transition: transform 0.2s ease;
 }
 
+/* Tapiz plano: sin elevación al pasar (se conserva la clase por compatibilidad). */
 .transition-transform-hover:hover {
-  transform: translateY(-2px);
+  transform: none;
 }
 
 .transition-colors {
@@ -468,5 +522,218 @@ body {
   .zk-draw-line {
     stroke-dasharray: none;
     animation: none;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   «Magnesio sobre tapiz» de noche (The Night Mat Rule).
+   El tapiz no cambia de noche: sigue siendo azul. Lo que cambia es el papel:
+   las superficies blancas pasan a la tarjeta nocturna, el magnesio al fondo,
+   la tinta noche a texto magnesio, el azul tapiz como texto a azul de calle
+   (#8FB4FF) y la regla de 3 px en noche a cinta blanca. Se aplica a las
+   clases literales del mundo en `.dark`, en la capa de componentes, para que
+   una variante `dark:` explícita en un componente siga mandando. Dentro de una
+   superficie de tapiz (mat-field, bg-mat…) se restaura el valor de día: un
+   botón blanco sobre azul sigue siendo blanco con texto tapiz.
+   ───────────────────────────────────────────────────────────────────────── */
+@layer components {
+  .dark .bg-white,
+  .dark .bg-white\/95,
+  .dark .bg-white\/70 {
+    background-color: hsl(var(--card));
+  }
+  .dark .bg-chalk,
+  .dark .bg-z-canvas {
+    background-color: hsl(var(--background));
+  }
+  .dark .bg-chalk-dust,
+  .dark .bg-z-comp-50,
+  .dark .bg-z-rit-50 {
+    background-color: hsl(var(--muted));
+  }
+  .dark .bg-mat-wash,
+  .dark .bg-z-brand-50,
+  .dark .bg-z-art-50 {
+    background-color: rgba(143, 180, 255, 0.12);
+  }
+  .dark .bg-signal-wash,
+  .dark .bg-z-chalk-50 {
+    background-color: rgba(229, 72, 42, 0.16);
+  }
+  .dark .bg-z-ink {
+    background-color: #1E3FA8;
+  }
+  .dark .bg-z-comp-600 {
+    background-color: #E9ECE6;
+  }
+  .dark .bg-z-rit-600 {
+    background-color: #B4BCCB;
+  }
+  .dark .bg-z-art-600 {
+    background-color: #8FB4FF;
+  }
+  .dark .hover\:bg-mat-wash:hover,
+  .dark .hover\:bg-z-brand-50:hover {
+    background-color: rgba(143, 180, 255, 0.12);
+  }
+  .dark .hover\:bg-chalk:hover,
+  .dark .hover\:bg-z-canvas:hover,
+  .dark .hover\:bg-chalk-dust:hover,
+  .dark .hover\:bg-white:hover {
+    background-color: hsl(var(--muted));
+  }
+  .dark .hover\:bg-z-ink:hover {
+    background-color: #14307F;
+  }
+  .dark .text-mat-night,
+  .dark .text-z-ink,
+  .dark .text-mat-deep,
+  .dark .text-z-comp-600 {
+    color: hsl(var(--foreground));
+  }
+  .dark .text-ramp-600,
+  .dark .text-ramp-500,
+  .dark .text-z-soft,
+  .dark .text-ramp-700 {
+    color: hsl(var(--muted-foreground));
+  }
+  .dark .text-mat,
+  .dark .text-z-brand-600,
+  .dark .text-z-brand-700,
+  .dark .text-z-art-600 {
+    color: #8FB4FF;
+  }
+  .dark .text-z-rit-600 {
+    color: #B4BCCB;
+  }
+  .dark .text-signal-ink,
+  .dark .text-z-chalk-600 {
+    color: #FF8A73;
+  }
+  .dark .hover\:text-mat:hover,
+  .dark .hover\:text-mat-night:hover,
+  .dark .hover\:text-z-ink:hover,
+  .dark .hover\:text-z-brand-700:hover {
+    color: #8FB4FF;
+  }
+  .dark .border-chalk-line,
+  .dark .border-z-line,
+  .dark .border-ramp-200,
+  .dark .border-ramp-300,
+  .dark .border-z-brand-100 {
+    border-color: hsl(var(--border));
+  }
+  .dark .divide-chalk-line > :not([hidden]) ~ :not([hidden]),
+  .dark .divide-z-line > :not([hidden]) ~ :not([hidden]) {
+    border-color: hsl(var(--border));
+  }
+  .dark .border-t-mat-night,
+  .dark .border-t-z-ink {
+    border-top-color: #E9ECE6;
+  }
+  .dark .border-mat-night,
+  .dark .border-z-ink {
+    border-color: #E9ECE6;
+  }
+  .dark .border-mat,
+  .dark .border-b-mat {
+    border-color: #8FB4FF;
+  }
+  .dark .hover\:border-mat:hover,
+  .dark .hover\:border-z-brand-500:hover {
+    border-color: #8FB4FF;
+  }
+  .dark .outline-z-brand-500,
+  .dark .focus-visible\:outline-z-brand-500:focus-visible {
+    outline-color: #8FB4FF;
+  }
+  .dark .chalk-field {
+    background-color: hsl(var(--background));
+  }
+
+  /* El bloque noche (pie, avisos de cierre) se despega del fondo nocturno. */
+  .dark .bg-mat-night {
+    background-color: hsl(var(--card));
+  }
+
+  /* Sobre tapiz, la tinta de tapiz solo aparece encima de piezas blancas
+     (píldoras, chips, botones de cinta): se conserva su valor de día. */
+  .dark :is(.mat-field, .mat-field-deep, .bg-mat, .bg-mat-deep, .bg-z-brand-500) :is(.text-mat-deep, .text-mat-night) {
+    color: #14307f;
+  }
+
+  /* Superficies de tapiz: de noche conservan el blanco y la tinta de día. */
+  .dark :is(.mat-field, .mat-field-deep, .bg-mat, .bg-mat-deep, .bg-mat-night, .bg-z-brand-500) .bg-white {
+    background-color: #fff;
+  }
+  .dark :is(.mat-field, .mat-field-deep, .bg-mat, .bg-mat-deep, .bg-mat-night, .bg-z-brand-500) :is(.bg-white, .bg-chalk) :is(.text-mat-deep, .text-mat-night, .text-mat),
+  .dark :is(.mat-field, .mat-field-deep, .bg-mat, .bg-mat-deep, .bg-mat-night, .bg-z-brand-500) :is(.text-mat-deep, .text-mat-night).bg-white,
+  .dark :is(.mat-field, .mat-field-deep, .bg-mat, .bg-mat-deep, .bg-mat-night, .bg-z-brand-500) .bg-white:is(.text-mat-deep, .text-mat-night, .text-mat) {
+    color: #14307f;
+  }
+}
+
+/* The Night Mat Rule, alias heredados `zaltyko-*`: el azul como texto pasa a
+   azul de calle, los lavados a lavado de calle y las líneas a la línea nocturna. */
+@layer components {
+  .dark .text-zaltyko-teal,
+  .dark .text-zaltyko-primary,
+  .dark .text-zaltyko-indigo,
+  .dark .text-zaltyko-primary-dark,
+  .dark .text-zaltyko-accent,
+  .dark .text-zaltyko-electric {
+    color: #8FB4FF;
+  }
+  .dark .hover\:text-zaltyko-teal:hover,
+  .dark .hover\:text-zaltyko-primary-dark:hover,
+  .dark .hover\:text-zaltyko-primary:hover,
+  .dark .hover\:text-zaltyko-indigo:hover {
+    color: #8FB4FF;
+  }
+  .dark .group:hover .group-hover\:text-zaltyko-teal {
+    color: #8FB4FF;
+  }
+  .dark .text-zaltyko-navy,
+  .dark .text-zaltyko-text-main {
+    color: hsl(var(--foreground));
+  }
+  .dark .text-zaltyko-text-secondary,
+  .dark .text-zaltyko-text-light,
+  .dark .text-zaltyko-neutral-dark\/70 {
+    color: hsl(var(--muted-foreground));
+  }
+  .dark .text-zaltyko-coral {
+    color: #FF8A73;
+  }
+  .dark .bg-zaltyko-teal\/10,
+  .dark .bg-zaltyko-teal\/5,
+  .dark .bg-zaltyko-indigo\/10,
+  .dark .bg-zaltyko-primary\/10,
+  .dark .bg-zaltyko-primary-ultralight {
+    background-color: rgba(143, 180, 255, 0.12);
+  }
+  .dark .hover\:bg-zaltyko-teal\/5:hover,
+  .dark .hover\:bg-zaltyko-indigo\/5:hover {
+    background-color: rgba(143, 180, 255, 0.12);
+  }
+  .dark .bg-zaltyko-coral\/10 {
+    background-color: rgba(229, 72, 42, 0.16);
+  }
+  .dark .bg-zaltyko-warm-white,
+  .dark .bg-zaltyko-mist\/30 {
+    background-color: hsl(var(--muted));
+  }
+  .dark .border-zaltyko-mist,
+  .dark .border-zaltyko-border {
+    border-color: hsl(var(--border));
+  }
+  .dark .border-zaltyko-teal\/30,
+  .dark .border-zaltyko-teal\/25,
+  .dark .border-zaltyko-teal\/20 {
+    border-color: rgba(143, 180, 255, 0.35);
+  }
+  .dark .hover\:border-zaltyko-teal\/40:hover,
+  .dark .hover\:border-zaltyko-primary\/50:hover {
+    border-color: #8FB4FF;
   }
 }
