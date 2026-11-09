@@ -61,9 +61,9 @@ export const DEFAULT_SETTINGS: AcademySettings = {
   federationConfigVersion: "legacy-default-v1",
   specializationStatus: "legacy",
   branding: {
-    primaryColor: "#8FB4FF",
-    secondaryColor: "#14307F",
-    accentColor: "#E5482A",
+    primaryColor: "#1FC7B6",
+    secondaryColor: "#2B2E83",
+    accentColor: "#FF6B57",
     fontHeading: "Space Grotesk",
     fontBody: "Inter",
     logoUrl: "",

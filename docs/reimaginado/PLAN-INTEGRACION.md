@@ -306,3 +306,14 @@ Hay que decidir entre diseñar el modo oscuro del mundo o desactivarlo temporalm
   - series de los gráficos con la paleta del mundo;
   - lateral con `ZaltykoLockup` y el ítem activo en cinta blanca.
 - **Test nuevo** en `tests/api-academy-settings-sport-config.test.ts`, pedido por la revisión de backend. Un GET sin variante guardada da `artistic_female` para el tipo artística y `general` para el tipo general o desconocido; si hay variante guardada, se respeta.
+
+## Paso 11: revisión de la otra sesión (2026-11-09)
+
+**Integrado:** `dcf97043` entró en la PR 234 por fast-forward. Encima, la otra sesión añadió `cc289020`: `DIRECTION_CONTRACT` ya no se pinta como div oculto en cada página, porque eran notas internas visibles para cualquier visitante. Ahora vive en `DESIGN.md`. Las CI están en marcha sobre `cc289020`.
+
+**Observaciones de la revisión, corregidas en esta rama encima de `cc289020`:**
+1. **Colores de marca por defecto** (`academy-settings-model.ts`): la reasignación masiva de colores literales había cambiado también los colores de marca por defecto de la academia. Son contenido de la academia, no interfaz, y una academia sin marca guardada los habría persistido al pulsar Guardar. Vuelven a los valores de la RC (`#1FC7B6`, `#2B2E83`, `#FF6B57`). En el resto de `src` no cambió ningún otro valor por defecto de marca; solo `themeColor`, que es interfaz.
+2. **`noticeError` frente a `noticeWarning`:** el error lleva ahora regla superior de 3 px en tinta de señal y texto semibold, así que no depende solo del color.
+3. **`chipSuccess`:** pasa a cinta sólida de tapiz con texto blanco. «Al día» y «pagado» vuelven a destacar y siguen legibles de noche.
+
+**Verificado:** `tsc` y eslint, exit 0. vitest de owner, ajustes y marca: 139 archivos y 1.597 tests, todos pasan.

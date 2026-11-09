@@ -40,14 +40,14 @@ export const ownerUi = {
 
   noticeInfo: "rounded-md border border-z-brand-100 bg-z-brand-50 p-4 text-sm leading-6 text-z-brand-700",
   noticeWarning: "rounded-md border border-z-chalk-500/30 bg-z-chalk-50 p-4 text-sm leading-6 text-z-ink",
-  noticeError: "rounded-md border border-z-chalk-500/40 bg-z-chalk-50 p-4 text-sm leading-6 text-z-chalk-600",
+  noticeError: "rounded-md border border-z-chalk-500/40 border-t-[3px] border-t-z-chalk-600 bg-z-chalk-50 p-4 text-sm font-semibold leading-6 text-z-chalk-600",
 
   emptyState: "flex flex-col items-center rounded-xl border border-dashed border-z-line bg-white px-6 py-10 text-center sm:py-12",
   emptyIcon: "mb-4 flex h-11 w-11 items-center justify-center rounded-md bg-z-brand-50 text-z-brand-600",
   chip: "inline-flex items-center rounded-md bg-z-canvas px-2 py-1 text-xs font-semibold text-z-ink",
   chipAccent: "inline-flex items-center rounded-md bg-z-brand-50 px-2.5 py-1 text-xs font-semibold text-z-brand-700",
   chipAttention: "inline-flex items-center rounded-md bg-z-chalk-50 px-2.5 py-1 text-xs font-semibold text-z-chalk-600",
-  chipSuccess: "inline-flex items-center rounded-md bg-z-comp-50 px-2.5 py-1 text-xs font-semibold text-z-comp-600",
+  chipSuccess: "inline-flex items-center rounded-md bg-z-brand-500 px-2.5 py-1 text-xs font-semibold text-white",
   meterTrack: "h-1.5 overflow-hidden rounded-full bg-chalk-dust",
 } as const;
 
