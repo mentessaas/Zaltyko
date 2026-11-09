@@ -154,7 +154,7 @@ export function OwnerGroupsPendingMembershipNotice({
   pendingMembership: PendingMembershipCommand;
   canRetryMembership: boolean;
   busy: boolean;
-  retryMembershipRef: RefObject<HTMLButtonElement>;
+  retryMembershipRef: RefObject<HTMLButtonElement | null>;
   onRetry: () => void;
 }) {
   return (
