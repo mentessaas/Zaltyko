@@ -46,7 +46,7 @@ export default async function OwnerSetupPage() {
               Cuenta vinculada
             </p>
             <h1 className="mt-3 text-4xl tracking-[-0.04em]">
-              No crearemos otra organización
+              No crearemos otra academia
             </h1>
             <p className="mt-4 max-w-xl leading-7 text-z-soft" role="alert">
               Esta cuenta ya tiene una relación con una academia anterior. Para

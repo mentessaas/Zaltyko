@@ -133,7 +133,7 @@ Disculpa las molestias,
 Nos alegra mucho tener a {{athleteName}} como parte de nuestra academia.
 
 Resumen de la inscripción:
-- Atleta: {{athleteName}}
+- Gimnasta: {{athleteName}}
 - Nivel: {{level}}
 - Clase: {{className}}
 - Horario: {{schedule}}

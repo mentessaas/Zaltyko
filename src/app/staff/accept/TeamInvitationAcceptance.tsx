@@ -10,7 +10,7 @@ import type {
 } from "@/modules/staff/domain/team-access-contract";
 
 const BUTTON = "inline-flex min-h-11 items-center justify-center border border-slate-950 bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-55";
-const GENERIC_ERROR = "No se pudo verificar esta invitación con tu sesión. Comprueba que has iniciado sesión y confirmado el correo al que te invitaron. Si el enlace ya no es válido, pide al Owner que lo reemita.";
+const GENERIC_ERROR = "No se pudo verificar esta invitación con tu sesión. Comprueba que has iniciado sesión y confirmado el correo al que te invitaron. Si el enlace ya no es válido, pide a la dirección de la academia que lo reemita.";
 
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
@@ -138,9 +138,9 @@ export function TeamInvitationAcceptance() {
     <main className="mx-auto w-full max-w-2xl px-5 py-10 text-slate-950 [overflow-wrap:anywhere] sm:py-16">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-900">Zaltyko · Equipo</p>
       <h1 className="mt-3 font-display text-3xl font-bold">Invitación a una academia</h1>
-      <p className="mt-3 text-sm leading-6 text-slate-700">Revisa la organización, el rol y las sedes antes de aceptar. Abrir este enlace no concede acceso.</p>
+      <p className="mt-3 text-sm leading-6 text-slate-700">Revisa la academia, el rol y las sedes antes de aceptar. Abrir este enlace no concede acceso.</p>
       {phase === "checking" ? <p role="status" className="mt-6 text-sm">Comprobando invitación…</p> : null}
-      {phase === "missing" ? <p role="status" className="mt-6 border border-amber-700 bg-amber-50 p-4 text-sm leading-6">Abre el enlace original de la invitación. Si acabas de iniciar sesión, vuelve a abrir ese enlace para revisarla. Si ya no lo tienes, pide al Owner que lo reemita.</p> : null}
+      {phase === "missing" ? <p role="status" className="mt-6 border border-amber-700 bg-amber-50 p-4 text-sm leading-6">Abre el enlace original de la invitación. Si acabas de iniciar sesión, vuelve a abrir ese enlace para revisarla. Si ya no lo tienes, pide a la dirección de la academia que lo reemita.</p> : null}
       {phase === "login" ? <section className="mt-6 border border-slate-300 p-5" aria-labelledby="invitation-login-title">
         <h2 id="invitation-login-title" className="text-lg font-bold">Inicia sesión para revisarla</h2>
         <p className="mt-2 text-sm leading-6">Usa la cuenta con el correo al que te invitaron y confirma ese correo. Después de iniciar sesión, vuelve a abrir el enlace original. La invitación no se acepta automáticamente.</p>
@@ -151,16 +151,16 @@ export function TeamInvitationAcceptance() {
       {inspected && (phase === "ready" || phase === "uncertain") ? <section className="mt-6 border border-slate-300 bg-white p-5" aria-labelledby="invitation-summary-title">
         <h2 id="invitation-summary-title" className="text-xl font-bold">Revisa el acceso solicitado</h2>
         <dl className="mt-4 space-y-4 text-sm">
-          <div><dt className="font-semibold">Organización</dt><dd className="mt-1">{inspected.organization.name}</dd></div>
-          <div><dt className="font-semibold">Rol</dt><dd className="mt-1">{inspected.role === "coach" ? "Coach" : "Manager"}</dd></div>
+          <div><dt className="font-semibold">Academia</dt><dd className="mt-1">{inspected.organization.name}</dd></div>
+          <div><dt className="font-semibold">Rol</dt><dd className="mt-1">{inspected.role === "coach" ? "Entrenador/a" : "Coordinador/a"}</dd></div>
           <div><dt className="font-semibold">Sedes</dt><dd className="mt-1"><ul className="list-inside list-disc">{inspected.locations.map(location => <li key={location.id}>{location.name}</li>)}</ul></dd></div>
         </dl>
-        <p className="mt-4 text-sm leading-6 text-slate-700">Al aceptar se crea tu membresía para estas sedes. Un coach necesita además un perfil vinculado y sesiones asignadas antes de poder gestionar su asistencia; esta pantalla no realiza esos pasos.</p>
+        <p className="mt-4 text-sm leading-6 text-slate-700">Al aceptar se crea tu membresía para estas sedes. Un entrenador o entrenadora necesita además un perfil vinculado y sesiones asignadas antes de poder pasar lista; esta pantalla no realiza esos pasos.</p>
         <button type="button" className={`${BUTTON} mt-5 w-full sm:w-auto`} disabled={busy} onClick={() => void accept()}>{busy ? "Confirmando…" : phase === "uncertain" ? "Reintentar la misma aceptación" : "Aceptar invitación"}</button>
       </section> : null}
       {phase === "accepted" ? <section role="status" className="mt-6 border border-teal-800 bg-teal-50 p-5">
         <h2 className="text-xl font-bold">Invitación aceptada</h2>
-        <p className="mt-2 text-sm leading-6">Se ha confirmado tu membresía en {inspected?.organization.name} para las sedes revisadas. El vínculo del perfil y la asignación de sesiones son pasos posteriores del Owner; aceptar no habilita por sí solo la asistencia de un coach.</p>
+        <p className="mt-2 text-sm leading-6">Se ha confirmado tu membresía en {inspected?.organization.name} para las sedes revisadas. El vínculo del perfil y la asignación de sesiones son pasos posteriores de la dirección de la academia; aceptar no habilita por sí solo el pase de lista.</p>
       </section> : null}
     </main>
   );

@@ -82,7 +82,7 @@ const syntheticBundle: InsightListBundle = {
       },
       assumptions: [
         "El pendiente procede del ledger interno conciliable.",
-        "No se muestra información personal de familias o atletas.",
+        "No se muestra información personal de familias o gimnastas.",
       ],
       ctaKey: "review_collections",
       ctaPayload: {},

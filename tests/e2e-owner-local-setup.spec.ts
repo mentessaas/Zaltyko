@@ -1257,15 +1257,15 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await expect(invoiceLine).toContainText(/35,00/);
     await expect(payerSelect).toHaveValue("");
     await payerSelect.selectOption({ label: adultName });
-    await expect(page.getByText("Total de la factura")).toBeVisible();
+    await expect(page.getByText("Total de la cuota")).toBeVisible();
     await expect(
-      page.getByText("Total de la factura").locator("..").getByText(/35,00/)
+      page.getByText("Total de la cuota").locator("..").getByText(/35,00/)
     ).toBeVisible();
     await page
       .getByLabel("Fecha de vencimiento", { exact: true })
       .fill(`${servicePeriod}-15`);
     const invoiceButton = page.getByRole("button", {
-      name: /Emitir factura pendiente/,
+      name: /Emitir cuota pendiente/,
     });
     await expect(invoiceButton).toBeEnabled();
     const invoiceResponse = page.waitForResponse(
@@ -1318,7 +1318,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await expect(
       page
         .getByRole("status")
-        .filter({ hasText: "Factura emitida y pendiente" })
+        .filter({ hasText: "Cuota emitida y pendiente de pago" })
     ).toBeVisible();
 
     let manualPaymentPostCount = 0;

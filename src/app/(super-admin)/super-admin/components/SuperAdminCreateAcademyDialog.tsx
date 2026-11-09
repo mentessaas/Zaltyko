@@ -123,7 +123,7 @@ export function SuperAdminCreateAcademyDialog() {
             </label>
 
             <div className="border-t border-white/10 pt-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-white/40">Cuenta del dueño</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Cuenta del dueño</p>
             </div>
 
             <label className="block text-sm text-white/70">

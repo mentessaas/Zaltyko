@@ -244,7 +244,7 @@ export default function ParentOnboardingPage() {
                   Atrás
                 </Button>
                 <Button onClick={handleFinish} disabled={loading} className="flex-1">
-                  {loading ? "Guardando..." : "Ir al dashboard"}
+                  {loading ? "Guardando..." : "Ir a mi panel"}
                 </Button>
               </div>
             </CardContent>
@@ -259,7 +259,7 @@ export default function ParentOnboardingPage() {
               </div>
               <h2 className="text-xl font-bold text-foreground">¡Listo!</h2>
               <p className="text-sm text-muted-foreground">
-                Perfil configurado. Redirigiendo a tu dashboard...
+                Perfil configurado. Redirigiendo a tu panel...
               </p>
             </CardContent>
           </Card>

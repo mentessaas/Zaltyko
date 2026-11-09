@@ -41,7 +41,7 @@ export function PublicAcademiesTable({ academies: initialAcademies }: PublicAcad
           onClick={() => setFilter("all")}
           className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
             filter === "all"
-              ? "bg-zaltyko-accent text-zaltyko-primary-dark"
+              ? "bg-white text-mat-deep"
               : "bg-white/5 text-white/70 hover:bg-white/10"
           }`}
         >
@@ -51,7 +51,7 @@ export function PublicAcademiesTable({ academies: initialAcademies }: PublicAcad
           onClick={() => setFilter("public")}
           className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
             filter === "public"
-              ? "bg-zaltyko-accent text-zaltyko-primary-dark"
+              ? "bg-white text-mat-deep"
               : "bg-white/5 text-white/70 hover:bg-white/10"
           }`}
         >
@@ -61,7 +61,7 @@ export function PublicAcademiesTable({ academies: initialAcademies }: PublicAcad
           onClick={() => setFilter("private")}
           className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
             filter === "private"
-              ? "bg-zaltyko-accent text-zaltyko-primary-dark"
+              ? "bg-white text-mat-deep"
               : "bg-white/5 text-white/70 hover:bg-white/10"
           }`}
         >

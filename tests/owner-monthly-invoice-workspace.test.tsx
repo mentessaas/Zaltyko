@@ -184,7 +184,7 @@ describe("OwnerMonthlyInvoiceWorkspace", () => {
     ).toBeGreaterThan(0);
     await user.selectOptions(screen.getByLabelText("Quién paga"), payerId);
     expect(
-      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+      screen.getByRole("button", { name: /Emitir cuota pendiente/ })
     ).toBeDisabled();
     expect(handlers.onIssue).not.toHaveBeenCalled();
   });
@@ -208,10 +208,10 @@ describe("OwnerMonthlyInvoiceWorkspace", () => {
     expect(athleteLines[1]).toHaveTextContent(/20,00\s*€/);
     expect(athleteLines[0]).toHaveClass("sm:grid-cols-[minmax(0,1fr)_auto]");
     expect(
-      screen.getByText("Total de la factura").parentElement
+      screen.getByText("Total de la cuota").parentElement
     ).toHaveTextContent(/52,00\s*€/);
     expect(
-      screen.getByRole("button", { name: /Emitir factura pendiente · 52,00/ })
+      screen.getByRole("button", { name: /Emitir cuota pendiente · 52,00/ })
     ).toBeDisabled();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     expect(
@@ -263,7 +263,7 @@ describe("OwnerMonthlyInvoiceWorkspace", () => {
       );
       await user.selectOptions(screen.getByLabelText("Quién paga"), payerId);
       expect(
-        screen.getByRole("button", { name: /Emitir factura pendiente/ })
+        screen.getByRole("button", { name: /Emitir cuota pendiente/ })
       ).toBeDisabled();
     }
   );
@@ -274,7 +274,7 @@ describe("OwnerMonthlyInvoiceWorkspace", () => {
 
     await user.selectOptions(screen.getByLabelText("Quién paga"), payerId);
     await user.click(
-      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+      screen.getByRole("button", { name: /Emitir cuota pendiente/ })
     );
 
     expect(handlers.onIssue).toHaveBeenCalledWith({
@@ -318,7 +318,7 @@ describe("OwnerMonthlyInvoiceWorkspace", () => {
 
     expect(screen.getByLabelText("Quién paga")).toHaveValue("");
     expect(
-      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+      screen.getByRole("button", { name: /Emitir cuota pendiente/ })
     ).toBeDisabled();
   });
 
@@ -340,7 +340,7 @@ describe("OwnerMonthlyInvoiceWorkspace", () => {
     await user.selectOptions(screen.getByLabelText("Quién paga"), payerId);
     expect(screen.getByText("Inscripciones sin familia")).toBeVisible();
     expect(
-      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+      screen.getByRole("button", { name: /Emitir cuota pendiente/ })
     ).toBeEnabled();
     await user.click(
       screen.getByRole("button", {
@@ -362,7 +362,7 @@ describe("OwnerMonthlyInvoiceWorkspace", () => {
       }),
     });
     expect(
-      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+      screen.getByRole("button", { name: /Emitir cuota pendiente/ })
     ).toBeDisabled();
     expect(screen.getByText("Falta asignar una tarifa mensual.")).toBeVisible();
   });
@@ -417,7 +417,7 @@ describe("OwnerMonthlyInvoiceWorkspace", () => {
     const user = userEvent.setup();
     const handlers = renderWorkspace({ state: "loading", options: undefined });
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Cargando opciones de facturación"
+      "Cargando cuotas mensuales"
     );
 
     cleanup();

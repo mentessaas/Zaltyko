@@ -267,7 +267,7 @@ export async function triggerAttendanceReminders(scope?: {
 
       try {
         const html = AttendanceReminderTemplate({
-          athleteName: athlete.athleteName || "el atleta",
+          athleteName: athlete.athleteName || "tu gimnasta",
           className,
           sessionDate: formatLongDateForCountry(
             session.sessionDate,
@@ -390,7 +390,7 @@ export async function triggerPaymentReminders(): Promise<number> {
       const amount = charge.amountCents / 100;
 
       const html = PaymentReminderTemplate({
-        athleteName: athlete.athleteName || "el atleta",
+        athleteName: athlete.athleteName || "tu gimnasta",
         amount: amount,
         dueDate: charge.dueDate
           ? formatLongDateForCountry(charge.dueDate, charge.academyCountry)
@@ -538,7 +538,7 @@ export async function triggerScheduledPaymentReminders(
 
       try {
         const html = PaymentReminderTemplate({
-          athleteName: athlete?.athleteName || "el atleta",
+          athleteName: athlete?.athleteName || "tu gimnasta",
           amount,
           dueDate: charge.dueDate
             ? formatLongDateForCountry(charge.dueDate, charge.academyCountry)
@@ -685,7 +685,7 @@ export async function sendManualPaymentReminder({
   const amount = charge.amountCents / 100;
 
   const html = PaymentReminderTemplate({
-    athleteName: athlete?.athleteName || "el atleta",
+    athleteName: athlete?.athleteName || "tu gimnasta",
     amount,
     dueDate: charge.dueDate
       ? formatLongDateForCountry(charge.dueDate, charge.academyCountry)
@@ -935,7 +935,7 @@ export async function triggerClassCancellation(
 
     try {
       const html = ClassCancellationTemplate({
-        athleteName: athlete.athleteName || "el atleta",
+        athleteName: athlete.athleteName || "tu gimnasta",
         className: session.className || "Clase",
         sessionDate: formatLongDateForCountry(
           session.sessionDate,

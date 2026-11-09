@@ -436,7 +436,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
       />
     );
     await findPrimaryFamilySelect();
-    expect(screen.getByRole("link", { name: "Volver al panel" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Volver al resumen" })).toHaveAttribute(
       "href", `/owner?organizationId=${organizationId}&locationId=${locationId}`
     );
     currentOptions = monthlyOptions({
@@ -473,7 +473,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     expect(screen.getByLabelText(/^Mes de la cuota/u)).toHaveValue(period);
     await user.selectOptions(await findPrimaryFamilySelect(), familyId);
     expect(screen.getByLabelText(/^Mes de la cuota/u)).toHaveValue(period);
-    expect(screen.getByRole("link", { name: "Volver al panel" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Volver al resumen" })).toHaveAttribute(
       "href", `/owner?organizationId=${organizationId}&locationId=${nextLocationId}`
     );
     currentOptions = monthlyOptions({
@@ -1285,7 +1285,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
       target: { value: "2026-10-31" },
     });
     await user.click(
-      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+      screen.getByRole("button", { name: /Emitir cuota pendiente/ })
     );
 
     const issueCall = await waitFor(() => {
@@ -1314,7 +1314,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     expect(body).not.toHaveProperty("amountCents");
     expect(body).not.toHaveProperty("enrollmentIds");
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "Factura emitida; no se ha registrado ni iniciado un pago."
+      "Cuota emitida; no se ha registrado ni iniciado un pago."
     );
   });
 
@@ -1328,7 +1328,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
       target: { value: "2026-10-31" },
     });
     await user.click(
-      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+      screen.getByRole("button", { name: /Emitir cuota pendiente/ })
     );
 
     await screen.findByText("Respuesta perdida de prueba");
@@ -1384,7 +1384,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
       screen.getByRole("button", { name: "Reintentar la emisión pendiente" })
     );
     await screen.findByText(
-      "Factura emitida; no se ha registrado ni iniciado un pago."
+      "Cuota emitida; no se ha registrado ni iniciado un pago."
     );
     expect(monthlyInvoiceIssueRequests).toHaveLength(3);
     expect(monthlyInvoiceIntentPresentAtPost).toEqual([true, true, true]);
@@ -1451,7 +1451,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
       target: { value: "2026-10-31" },
     });
     await user.click(
-      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+      screen.getByRole("button", { name: /Emitir cuota pendiente/ })
     );
 
     expect(
@@ -1474,12 +1474,12 @@ describe("OwnerMonthlyInvoicesManager", () => {
       target: { value: "2026-10-31" },
     });
     await user.click(
-      screen.getByRole("button", { name: /Emitir factura pendiente/ })
+      screen.getByRole("button", { name: /Emitir cuota pendiente/ })
     );
 
     expect(
       await screen.findByText(
-        "No se pudo guardar la emisión pendiente de forma segura. No se ha enviado la factura; habilita el almacenamiento de sesión y vuelve a cargar la página."
+        "No se pudo guardar la emisión pendiente de forma segura. No se ha enviado la cuota; habilita el almacenamiento de sesión y vuelve a cargar la página."
       )
     ).toBeInTheDocument();
     expect(monthlyInvoiceIssueRequests).toHaveLength(0);

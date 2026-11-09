@@ -53,7 +53,7 @@ export function AfternoonBoard() {
         <div className="mt-12 grid gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
           <div className="overflow-hidden rounded-lg border border-chalk-line bg-white shadow-soft">
             <div className="flex items-center justify-between border-b-[3px] border-mat px-5 py-3">
-              <p className="floor-label text-mat">Sesiones de hoy</p>
+              <p className="floor-label text-mat">Hoy en el club</p>
               <p className="text-xs font-medium text-ramp-500">Datos de ejemplo</p>
             </div>
             <table className="w-full text-left text-sm">

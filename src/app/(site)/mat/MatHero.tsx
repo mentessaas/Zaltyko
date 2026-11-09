@@ -100,6 +100,13 @@ export default function MatHero() {
         {/* Sesión de esta tarde, pintada sobre el propio tapiz: los palotes son
             magnesio blanco, la lista va entre líneas de cinta. Sin tarjeta. */}
         <div className="relative">
+          {/* La ficha es ilustrativa: se rotula como ejemplo antes del dato,
+              no solo en el pie (P2 #21). Blanco sobre el brillo del tapiz:
+              5,8:1 en el peor punto. */}
+          <p className="floor-label mb-3 inline-flex items-center gap-2 text-white">
+            <span className="rounded-sm border border-white/60 px-1.5 py-0.5 text-white">Ejemplo</span>
+            Sesión ilustrativa con datos ficticios
+          </p>
           <div className="flex items-end justify-between gap-4 border-b-[3px] border-white pb-4">
             <div>
               <p className="font-display text-3xl font-black uppercase leading-none text-white">Base 3 GAF</p>
@@ -149,8 +156,8 @@ export default function MatHero() {
               );
             })}
           </ul>
-          <p className="mt-3 text-xs font-medium text-white/75">
-            Vista ilustrativa con datos ficticios: toca una gimnasta y suma un palote.
+          <p className="mt-3 text-xs font-medium text-white/85">
+            Ejemplo con datos ficticios: toca una gimnasta y suma un palote.
           </p>
         </div>
       </div>

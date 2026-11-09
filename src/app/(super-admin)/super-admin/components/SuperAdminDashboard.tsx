@@ -360,8 +360,8 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
           <header className="relative mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-zaltyko-coral" />
-              <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-coral">
+              <AlertTriangle className="h-5 w-5 text-signal-light" />
+              <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-signal-light">
                 Alertas de Suscripciones
               </h3>
             </div>
@@ -386,9 +386,9 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  {alert.status === "past_due" && <Clock className="h-5 w-5 text-zaltyko-coral" />}
-                  {alert.status === "canceled" && <XCircle className="h-5 w-5 text-zaltyko-coral" />}
-                  {alert.status === "trialing" && <Play className="h-5 w-5 text-zaltyko-teal" />}
+                  {alert.status === "past_due" && <Clock className="h-5 w-5 text-signal-light" />}
+                  {alert.status === "canceled" && <XCircle className="h-5 w-5 text-signal-light" />}
+                  {alert.status === "trialing" && <Play className="h-5 w-5 text-mat-lane" />}
                   <div>
                     <p className="font-medium text-white">
                       {alert.status === "past_due"
@@ -400,7 +400,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                     <p className="text-xs text-white/60">{alert.count} suscripción(es)</p>
                   </div>
                 </div>
-                <ChevronRight className="h-4 w-4 text-white/40" />
+                <ChevronRight className="h-4 w-4 text-white/60" />
               </div>
             ))}
           </div>
@@ -436,7 +436,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               </h3>
               <p className="text-xs text-white/50 mt-1">Total: {safeMetrics.totals.users}</p>
             </div>
-            <span className="text-xs text-white/40">
+            <span className="text-xs text-white/60">
               {pieChartData.length > 0 ? "Abrir desglose" : "Sin desglose disponible"}
             </span>
           </header>
@@ -514,7 +514,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                 {safeMetrics.planDistribution.length} {safeMetrics.planDistribution.length === 1 ? "plan con suscripciones" : "planes con suscripciones"}
               </p>
             </div>
-            <span className="text-xs text-white/40">
+            <span className="text-xs text-white/60">
               {planPieData.length > 0 ? "Abrir desglose" : "Sin desglose disponible"}
             </span>
           </header>
@@ -592,7 +592,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               Ingresos de suscripciones SaaS acumulados: {CURRENCY_FORMATTER.format(safeMetrics.totals.revenue / 100)} · {safeMetrics.totals.paidInvoices} recibos cobrados
             </p>
           </div>
-          <span className="text-xs text-white/40">
+          <span className="text-xs text-white/60">
             {subscriptionBarData.length > 0 ? "Abrir desglose" : "Sin desglose disponible"}
           </span>
         </header>
@@ -650,8 +650,8 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           </div>
           <div className="flex items-center gap-2 mt-2 sm:mt-0">
             <div className="flex items-center gap-1.5 rounded-full bg-zaltyko-teal/15 px-3 py-1.5">
-              <TrendingUp className="h-3.5 w-3.5 text-zaltyko-teal" />
-              <span className="text-xs font-semibold text-zaltyko-teal">
+              <TrendingUp className="h-3.5 w-3.5 text-mat-lane" />
+              <span className="text-xs font-semibold text-mat-lane">
                 {academyDelta === null
                   ? "Sin variación"
                   : academyDelta === 0
@@ -743,7 +743,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         {revenueDataset.length === 0 ? (
           <div className="flex h-48 min-w-0 flex-col items-center justify-center rounded-md border border-dashed border-white/20 px-6 text-center">
             <p className="text-sm font-medium text-white/70">Aún no hay ingresos SaaS por mes</p>
-            <p className="mt-1 max-w-md text-xs text-white/45">
+            <p className="mt-1 max-w-md text-xs text-white/60">
               Cuando se cobre la primera factura sincronizada con Stripe, la evolución aparecerá aquí.
             </p>
           </div>
