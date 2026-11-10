@@ -73,6 +73,11 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
 - **Prohibido:** padres como genérico, acudiente, apoderado.
 - **Dónde aparece:** `OwnerAthleteFamilyAssociationEditor`, `OwnerGuardianProfileEditor`, cuotas mensuales.
 
+### Portal de familias
+- **Elegido:** portal de familias, el espacio de solo lectura en `/familia` donde un tutor consulta el horario, la asistencia y las cuotas de sus gimnastas. La portada se titula «Tu familia».
+- **Prohibido:** app de padres, zona de padres, área de clientes. Tampoco «pagar» ni «pago online»: el portal solo informa y repite que «El pago se gestiona directamente con tu academia».
+- **Dónde aparece:** `/familia`, `/familia/gimnastas/[id]`, `/familia/cuotas` y `docs/producto/portal-familias.md` (P2 #16).
+
 ### Inscripción
 - **Elegido:** inscripción, el vínculo de una gimnasta con una clase o un grupo, con su tarifa y su estado.
 - **Prohibido:** matrícula. Tampoco «alta» para la inscripción: «alta» es crear la ficha de una gimnasta.

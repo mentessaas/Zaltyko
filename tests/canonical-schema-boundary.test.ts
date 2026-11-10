@@ -11,7 +11,9 @@ import { describe, expect, it } from "vitest";
 const CANONICAL_ROOTS = [
   "src/modules",
   "src/app/owner",
+  "src/app/familia",
   "src/components/owner-dashboard",
+  "src/components/family-portal",
   "src/app/api/v1",
 ];
 

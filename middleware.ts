@@ -317,6 +317,11 @@ function isAcademyAppPath(pathname: string) {
   return pathname.startsWith("/app/") || pathname.startsWith("/super-admin/");
 }
 
+/** Read-only family portal (P2 #16): data about minors, never cached. */
+function isFamilyPortalPath(pathname: string) {
+  return pathname === "/familia" || pathname.startsWith("/familia/");
+}
+
 async function checkRateLimit(
   req: NextRequest,
   body: Record<string, unknown>
@@ -520,8 +525,8 @@ export async function middleware(req: NextRequest) {
     rateLimitHeaders = rateLimitResult.headers;
   }
 
-  // 2. Rate limit academy app + super-admin paths
-  if (isAcademyAppPath(pathname)) {
+  // 2. Rate limit academy app, super-admin and family portal paths
+  if (isAcademyAppPath(pathname) || isFamilyPortalPath(pathname)) {
     const rateLimitResult = await checkRateLimit(req, {
       error: "RATE_LIMIT_EXCEEDED",
       message: "Demasiadas requests. Intenta de nuevo más tarde.",
@@ -578,7 +583,7 @@ export async function middleware(req: NextRequest) {
   // their own robots metadata if they are ever reopened.
 
   const securedResponse = applySecurityHeaders(response, nonce);
-  if (pathname === "/staff/accept") {
+  if (pathname === "/staff/accept" || isFamilyPortalPath(pathname)) {
     securedResponse.headers.set("Referrer-Policy", "no-referrer");
     securedResponse.headers.set("Cache-Control", "private, no-store");
     securedResponse.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
