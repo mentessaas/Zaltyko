@@ -8,6 +8,56 @@ source:
 ---
 
 
+## 2026-11-10 — Revisión de la PR 266 (panel de competencia): seguridad, integridad y datos personales
+
+**Hallazgos.** La revisión de la sesión coordinadora dio 8/10. Problemas encontrados:
+- Las tablas `ci_*` no tenían ningún test que comprobara su RLS, porque `validate-rls.ts` solo cubre tablas con tenant.
+- El esquema llegaba a drizzle-kit a través de `src/db/schema/index.ts`.
+- Las referencias a fuentes y empresas no se validaban en el servidor.
+- El titular del resumen ejecutivo afirmaba más de lo que dice la evidencia.
+- Fichas y semilla incluían nombres de personas físicas.
+
+**Cambio.**
+- El esquema `ci_*` sale del índice que lee drizzle-kit.
+- Nuevo test de contrato del candidato SQL y de `withSuperAdmin` en las 13 rutas (17 handlers).
+- Validación en servidor de fuentes y empresas vinculadas; los errores 23503 y 23514 pasan a 400.
+- `safeHttpUrl` al pintar enlaces y CHECK de `website` en el candidato.
+- `db:seed:competencia` solo escribe en loopback salvo con `--permitir-base-remota`.
+- El componente de la ficha queda partido en `src/components/competencia/perfil/`.
+- El hueco del resumen se reformula como «nadie muestra detección de choques». La asignación de entrenadoras y las sustituciones pasan a «igualar».
+- Se quitan los nombres de personas físicas.
+- Semilla alineada con las fichas: 21 planes.
+
+**Pruebas.**
+- `tsc`, ESLint, Prettier, `gate:all`, `audit-api-routes --strict` y `check:migrations` en verde.
+- 46 suites (273 pruebas) de esquema, RLS, navegación, super-admin y competencia en verde.
+- La suite completa no terminó en local en 10 minutos. Antes del corte fallaron dos pruebas de `mobile/tests/tooling-dos-regression.test.ts` (mapas de código y gzip), ajenas a este cambio.
+
+**Sin resolver.** El candidato SQL sigue sin aplicar y necesita autorización de Elvis.
+
+## 2026-11-10 — Investigación competitiva y panel `/super-admin/competencia`
+
+**Hallazgos.** Cuatro documentos nuevos en `docs/research/competencia/`: resumen ejecutivo, fichas, matrices y plan de validación a 30 días. El dosier de RG Manager de Google Drive es el mismo PDF que publica su web (SHA-256 idéntico); su IA solo aparece en el dosier.
+
+**Cambio.** Panel interno de inteligencia competitiva (solo super-admin): listado con filtros, ficha con 16 secciones y estado de cada dato, fuentes, precios con coste estimado S/M/L, cobertura de flujos, comparación, oportunidades, flujos con el estado de Zaltyko, archivo con historial y semilla idempotente.
+- Esquema Drizzle `src/db/schema/competitive-intelligence.ts`.
+- Candidato SQL `docs/deployment/candidates/20261110180000_competitive_intelligence_candidate.sql`. **No se ha aplicado** en ningún entorno alojado; requiere autorización de Elvis.
+- Rutas `src/app/api/super-admin/competencia/*` protegidas con `withSuperAdmin`, con validación Zod.
+
+**Pruebas.**
+- `tsc --noEmit` OK, ESLint de los archivos tocados OK, `pnpm gate:all` limpio, `audit-api-routes --strict` sin riesgos, `check:migrations` OK, Prettier OK.
+- Vitest: 3 suites y 32 pruebas en verde (`tests/competencia-panel.test.ts`, `tests/super-admin-competencia-routes.test.ts`, `tests/product-roles-navigation.test.ts`). No se ejecutó la suite completa.
+- Verificación local autorizada con Postgres efímero y `next dev`:
+  - El candidato se instala, rechaza la reinstalación y fuerza RLS.
+  - La semilla es idempotente.
+  - Recorrido completo en el navegador, incluida la persistencia al recargar.
+  - Página sin desbordamiento horizontal a 375 px.
+- Para que la sesión de desarrollo actuara como super-admin hubo que crear en la base efímera un perfil sintético y un disparador local, porque `dev-session-provider` recrea el usuario de demostración como `owner`. Esa base ya se ha borrado.
+
+**Sin resolver.**
+- `drizzle-kit export` falla en `main` por un nombre de restricción CHECK duplicado en `zaltyko.family_collection_preferences`. Es un problema previo y ajeno a este cambio.
+- No hay CI remota ni PR de este cambio.
+
 ## 2026-11-09 — Corte de lanzamiento: tienda, checkout Connect y documentación de la API retirados (P0 #1)
 
 **Hallazgos.** El corte de lanzamiento ya cerraba marketplace, insights y health-score. En cambio, `api/checkout` (checkout público con Stripe Connect), `api/products`, el alta de Connect y `api/academy/subdomain` solo estaban cerrados por variables de entorno que se pueden reabrir. `api/listing-categories` era pública sin cierre. `/integraciones` anunciaba como «Disponible» la contratación con Stripe aunque el cobro está cerrado, y `/docs` publicaba la especificación de toda la API. Ahora el corte va antes que esas variables. Las APIs históricas (marketplace, checkout, productos, categorías, Connect, subdominio, publicidad y `api/docs`) responden 410. `/integraciones`, `/integrations`, `/docs`, `/a/<slug>/tienda` y `/app/<id>/store` responden 404, también tras el reescrito de subdominio de academia. `/integraciones` sale del sitemap, IndexNow usa el mismo conjunto que el sitemap y el superadmin ya no enlaza a `/docs`. Test nuevo: cada API abierta sin sesión debe figurar en una lista blanca justificada o estar retirada.

@@ -15,6 +15,18 @@ source:
   - ../07-Auditorias-y-Riesgos/Auditoria MVP gimnasia - 2026-06-23.md
   - ../07-Auditorias-y-Riesgos/Registro de riesgos.md (bloqueantes con Elvis)
 ---
+
+## Competencia — backlog derivado de la investigación del 2026-11-10
+
+Fuente: `docs/research/competencia/plan-validacion-30-dias.md`. No construir nada solo porque lo tenga un competidor.
+- P1 · Activar invitaciones de entrenadoras. Depende del correo transaccional aislado.
+- P1 · Entrenadora titular por clase y sustitución por sesión, sobre `session_staff`. Hoy hay modelo, pero no API ni UI.
+- P1 · Importación desde Excel con vista previa y migración asistida.
+- P2 · Avisos de choque de entrenadora o pista al guardar horarios. Validar antes con 5 clubes.
+- P2 · Aplicar con autorización el candidato de admisiones y cerrar solicitud → inscripción.
+- Deuda · `drizzle-kit export` falla por una restricción CHECK duplicada en `zaltyko.family_collection_preferences`.
+- Pendiente de autorización · Aplicar `20261110180000_competitive_intelligence_candidate.sql` para usar el panel fuera de local.
+
 ## P0 vigente — apertura esencial España, 2026-10-26
 
 - Aislamiento alojado e09: dos academias independientes, lecturas propias200/ajenas403-404 y mezcla de sedes ajenas403 comprobadas en uso, grupos, clases y opciones de cuotas según matriz. Pendientes escrituras cruzadas, candidatos de inscripción completos y roles restringidos entre sedes de una misma academia. Fuente docs/qa/delivery-academy-isolation-2026-10-26.md.

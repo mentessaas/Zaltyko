@@ -109,3 +109,9 @@ export * from "./categories";
 // Trust pack (marketplace disputes + ratings)
 export * from "./trust";
 export * from "./directory";
+
+// Inteligencia competitiva interna (super-admin): NO se exporta aquí a propósito.
+// drizzle.config.ts lee este índice y un `db:generate`/`push` crearía las tablas
+// ci_* sin RLS ni REVOKE, expuestas por PostgREST. Se importan directamente de
+// "@/db/schema/competitive-intelligence" y solo se crean con el candidato
+// docs/deployment/candidates/20261110180000_competitive_intelligence_candidate.sql.

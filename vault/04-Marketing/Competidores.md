@@ -8,6 +8,8 @@ source:
 ---
 # Competidores
 
+> **Actualización 2026-11-10:** la investigación vigente de competidores de gimnasia (RG Manager, ScoreGym, GimnasiaTotal, Clybo, OneClub, Clupik, Jackrabbit, iClassPro y FlipBiz) está en `docs/research/competencia/`. Para mantenerla, usa el panel `/super-admin/competencia`. Esta nota se conserva como contexto histórico.
+
 ## Panorama
 
 El mercado incluye software generalista de fitness, academias y membresias. Zaltyko compite diferenciandose por vertical deportivo, español nativo y necesidades de academias con familias, niveles, eventos y evaluaciones.

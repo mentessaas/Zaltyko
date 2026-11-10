@@ -1,0 +1,3126 @@
+{
+  "version": "2026-11-10",
+  "generatedOn": "2026-11-10",
+  "flows": [
+    {
+      "key": "altas_familias",
+      "name": "Alta de gimnastas y familias",
+      "valuedBy": "Dirección, secretaría",
+      "zaltykoStatus": "completo",
+      "zaltykoCodeRefs": "src/app/owner/athletes · OwnerAthleteIntakeWorkspace.tsx · api/v1/owner/athlete-intake · api/v1/owner/families/associations",
+      "demandEvidence": "Universal en todos los competidores",
+      "opportunity": null,
+      "decision": "igualar",
+      "sortOrder": 10
+    },
+    {
+      "key": "importacion_excel",
+      "name": "Importación desde Excel/CSV",
+      "valuedBy": "Dirección al migrar",
+      "zaltykoStatus": "ausente",
+      "zaltykoCodeRefs": "Solo existe src/app/api/athletes/import del modelo antiguo, fuera de /owner",
+      "demandEvidence": "RG Manager, OneClub, Clybo y FlipBiz lo anuncian como reductor del coste de cambio",
+      "opportunity": "Importador con vista previa + migración asistida",
+      "decision": "igualar",
+      "sortOrder": 20
+    },
+    {
+      "key": "grupos_temporada",
+      "name": "Grupos por nivel y temporada",
+      "valuedBy": "Dirección técnica",
+      "zaltykoStatus": "completo",
+      "zaltykoCodeRefs": "OwnerGroupsManager.tsx · api/v1/owner/groups · zaltyko.groups / group_memberships / group_membership_history",
+      "demandEvidence": "Universal",
+      "opportunity": "Temporada y categoría por disciplina",
+      "decision": "superar",
+      "sortOrder": 30
+    },
+    {
+      "key": "horarios_sesiones",
+      "name": "Horarios recurrentes y sesiones",
+      "valuedBy": "Dirección, entrenadoras",
+      "zaltykoStatus": "completo",
+      "zaltykoCodeRefs": "OwnerClassesManager.tsx · src/modules/scheduling/application/class-management-service.ts",
+      "demandEvidence": "Universal",
+      "opportunity": null,
+      "decision": "igualar",
+      "sortOrder": 40
+    },
+    {
+      "key": "asignacion_entrenadoras",
+      "name": "Asignar entrenadora a clase o sesión y sustituciones",
+      "valuedBy": "Dirección técnica, entrenadoras",
+      "zaltykoStatus": "parcial",
+      "zaltykoCodeRefs": "Modelo zaltyko.session_staff y regla session_without_coach (evaluate-p0-rules.ts); sin API ni pantalla de asignación",
+      "demandEvidence": "ScoreGym (entrenadora por grupo, observado), RG Manager (sustituciones en notas de versión), FlipBiz (turnos)",
+      "opportunity": "Entrenadora titular por clase y sustitución por sesión",
+      "decision": "igualar",
+      "sortOrder": 50
+    },
+    {
+      "key": "deteccion_solapes",
+      "name": "Detección de choques de entrenadora o pista",
+      "valuedBy": "Dirección técnica",
+      "zaltykoStatus": "parcial",
+      "zaltykoCodeRefs": "class-management-service.ts:60 solo valida franjas repetidas de la misma clase; no cruza clases, entrenadoras ni zaltyko.spaces",
+      "demandEvidence": "Sin evidencia en ningún competidor; hipótesis del caso Akros",
+      "opportunity": "Aviso (no bloqueo) al guardar horarios",
+      "decision": "diferenciar",
+      "sortOrder": 60
+    },
+    {
+      "key": "cambios_avisos",
+      "name": "Cambios de horario y avisos a familias",
+      "valuedBy": "Entrenadoras, familias",
+      "zaltykoStatus": "ausente",
+      "zaltykoCodeRefs": "No hay comunicaciones en /owner",
+      "demandEvidence": "RG Manager (calendario con cambios y push), ScoreGym",
+      "opportunity": null,
+      "decision": "posponer",
+      "sortOrder": 70
+    },
+    {
+      "key": "asistencia",
+      "name": "Asistencia por sesión",
+      "valuedBy": "Entrenadoras",
+      "zaltykoStatus": "completo",
+      "zaltykoCodeRefs": "src/app/owner/attendance · owner-session-attendance.ts · api/v1/owner/sessions/[sessionId]/attendance · coach-access.ts",
+      "demandEvidence": "Universal; Clybo sin conexión",
+      "opportunity": null,
+      "decision": "igualar",
+      "sortOrder": 80
+    },
+    {
+      "key": "inscripciones",
+      "name": "Inscripciones e historial de estado",
+      "valuedBy": "Secretaría",
+      "zaltykoStatus": "completo",
+      "zaltykoCodeRefs": "src/app/owner/enrollments · zaltyko.enrollments · enrollment_status_history",
+      "demandEvidence": "Universal",
+      "opportunity": null,
+      "decision": "igualar",
+      "sortOrder": 90
+    },
+    {
+      "key": "solicitud_prueba",
+      "name": "Solicitud pública de prueba y bandeja",
+      "valuedBy": "Dirección",
+      "zaltykoStatus": "pendiente_produccion",
+      "zaltykoCodeRefs": "/solicitar-prueba/[token] · /owner/requests · OwnerTrialRequestsWorkspace.tsx · candidato SQL 20261110120000_admission_requests_candidate.sql NO aplicado",
+      "demandEvidence": "RG Manager, Clybo, GimnasiaTotal (preinscripción)",
+      "opportunity": "Cerrar prueba → inscripción",
+      "decision": "igualar",
+      "sortOrder": 100
+    },
+    {
+      "key": "cuotas_manuales",
+      "name": "Cuotas y pagos registrados manualmente",
+      "valuedBy": "Tesorería, junta",
+      "zaltykoStatus": "completo",
+      "zaltykoCodeRefs": "OwnerMonthlyInvoicesManager.tsx · api/v1/owner/billing/monthly-invoices · ManualPaymentForm.tsx",
+      "demandEvidence": "Universal",
+      "opportunity": null,
+      "decision": "igualar",
+      "sortOrder": 110
+    },
+    {
+      "key": "remesas_sepa",
+      "name": "Remesas SEPA y domiciliación",
+      "valuedBy": "Tesorería",
+      "zaltykoStatus": "ausente",
+      "zaltykoCodeRefs": "Modelos family_payment_authorizations sin flujo; Connect retirado (essential-routes.ts)",
+      "demandEvidence": "RG Manager, ScoreGym (XML observado), Clybo, OneClub",
+      "opportunity": null,
+      "decision": "posponer",
+      "sortOrder": 120
+    },
+    {
+      "key": "impagos",
+      "name": "Impagos, devoluciones y reintentos",
+      "valuedBy": "Tesorería",
+      "zaltykoStatus": "parcial",
+      "zaltykoCodeRefs": "Pendientes visibles; sin devoluciones bancarias",
+      "demandEvidence": "OneClub (estudio de 1.351 recibos), ScoreGym (devuelto)",
+      "opportunity": null,
+      "decision": "posponer",
+      "sortOrder": 130
+    },
+    {
+      "key": "facturacion_fiscal",
+      "name": "Facturación fiscal (VeriFactu/TicketBAI)",
+      "valuedBy": "Tesorería",
+      "zaltykoStatus": "ausente",
+      "zaltykoCodeRefs": "—",
+      "demandEvidence": "RG Manager, Clybo (add-on 10 €), ScoreGym",
+      "opportunity": null,
+      "decision": "posponer",
+      "sortOrder": 140
+    },
+    {
+      "key": "autorizaciones",
+      "name": "Autorizaciones y consentimientos firmados por familias",
+      "valuedBy": "Dirección, familias",
+      "zaltykoStatus": "ausente",
+      "zaltykoCodeRefs": "Solo consentimiento de alta del propietario",
+      "demandEvidence": "RG Manager, Clybo, GimnasiaTotal",
+      "opportunity": null,
+      "decision": "posponer",
+      "sortOrder": 150
+    },
+    {
+      "key": "portal_familiar",
+      "name": "Portal o app para familias",
+      "valuedBy": "Familias",
+      "zaltykoStatus": "parcial",
+      "zaltykoCodeRefs": "Portal canónico de solo lectura en main (P2 #16, #261): src/app/familia (horario, asistencia, cuotas) y src/modules/family-portal. Sin alta de familias: nadie escribe guardians.auth_user_id y /owner crea vínculos con can_view_athletes=false. my-dashboard es del modelo antiguo.",
+      "demandEvidence": "Casi todos los competidores",
+      "opportunity": null,
+      "decision": "igualar",
+      "sortOrder": 160
+    },
+    {
+      "key": "competiciones",
+      "name": "Competiciones, convocatorias y resultados",
+      "valuedBy": "Dirección técnica",
+      "zaltykoStatus": "ausente",
+      "zaltykoCodeRefs": "«En preparación» en src/modules/product-discovery/domain/feature-catalog.ts; tablas antiguas competition-results.ts",
+      "demandEvidence": "RG Manager, ScoreGym (ecosistema), Clybo (pronto)",
+      "opportunity": null,
+      "decision": "posponer",
+      "sortOrder": 170
+    },
+    {
+      "key": "campus_eventos",
+      "name": "Campus, intensivos y eventos",
+      "valuedBy": "Dirección",
+      "zaltykoStatus": "ausente",
+      "zaltykoCodeRefs": "/events cerrado en lanzamiento",
+      "demandEvidence": "RG Manager, OneClub (festival con entradas)",
+      "opportunity": null,
+      "decision": "posponer",
+      "sortOrder": 180
+    },
+    {
+      "key": "progreso_tecnico",
+      "name": "Progreso técnico y planificación de sesiones",
+      "valuedBy": "Entrenadoras, familias",
+      "zaltykoStatus": "ausente",
+      "zaltykoCodeRefs": "«En preparación» en el catálogo; código antiguo de skills/assessments no conectado",
+      "demandEvidence": "Jackrabbit, iClassPro, FlipBiz (lesson plans IA), RG Manager (planificación)",
+      "opportunity": "Biblioteca GAF/GAM sobre sesiones existentes",
+      "decision": "diferenciar",
+      "sortOrder": 190
+    },
+    {
+      "key": "formacion_entrenadoras",
+      "name": "Formación y coordinación de entrenadoras",
+      "valuedBy": "Dirección técnica",
+      "zaltykoStatus": "ausente",
+      "zaltykoCodeRefs": "—",
+      "demandEvidence": "FlipBiz + USA Gymnastics",
+      "opportunity": "Contenido técnico como canal (experimento E1)",
+      "decision": null,
+      "sortOrder": 200
+    },
+    {
+      "key": "equipo_permisos",
+      "name": "Equipo, roles e invitaciones",
+      "valuedBy": "Dirección",
+      "zaltykoStatus": "parcial",
+      "zaltykoCodeRefs": "OwnerStaffManager.tsx · api/v1/owner/staff · rol entrenador (PR #255); invitaciones desactivadas (teamFeatureUnavailableResponse)",
+      "demandEvidence": "Universal",
+      "opportunity": "Activar acceso de entrenadoras",
+      "decision": "igualar",
+      "sortOrder": 210
+    },
+    {
+      "key": "control_horario",
+      "name": "Control horario del personal",
+      "valuedBy": "Junta",
+      "zaltykoStatus": "ausente",
+      "zaltykoCodeRefs": "—",
+      "demandEvidence": "RG Manager, GimnasiaTotal (gratis), Clybo, FlipBiz",
+      "opportunity": null,
+      "decision": "posponer",
+      "sortOrder": 220
+    },
+    {
+      "key": "exportacion",
+      "name": "Exportación de datos",
+      "valuedBy": "Dirección",
+      "zaltykoStatus": "parcial",
+      "zaltykoCodeRefs": "api/v1/owner/data-export (exportación parcial)",
+      "demandEvidence": "RG Manager (Excel), Clupik",
+      "opportunity": null,
+      "decision": "igualar",
+      "sortOrder": 230
+    },
+    {
+      "key": "informes_resumen",
+      "name": "Resumen e informes para dirección",
+      "valuedBy": "Dirección",
+      "zaltykoStatus": "completo",
+      "zaltykoCodeRefs": "OwnerEssentialDashboard.tsx; insights y health score cerrados en lanzamiento (isOutsideEssentialLaunch)",
+      "demandEvidence": "Todos; FlipBiz Owner Brief",
+      "opportunity": "Resumen con la siguiente acción",
+      "decision": "superar",
+      "sortOrder": 240
+    },
+    {
+      "key": "app_movil",
+      "name": "Uso móvil (app nativa o web adaptable)",
+      "valuedBy": "Todos",
+      "zaltykoStatus": "parcial",
+      "zaltykoCodeRefs": "Web adaptable comprobada a 375 px; sin app nativa",
+      "demandEvidence": "RG Manager, Clybo, OneClub, Clupik, FlipBiz con apps nativas",
+      "opportunity": null,
+      "decision": "posponer",
+      "sortOrder": 250
+    }
+  ],
+  "competitors": [
+    {
+      "slug": "rg-manager",
+      "name": "RG Manager",
+      "website": "https://www.rgmanager.com/",
+      "competitorType": "directo",
+      "countries": ["ES"],
+      "disciplines": [
+        "ritmica",
+        "artistica",
+        "acrobatica",
+        "aerobica",
+        "trampolin",
+        "multideporte"
+      ],
+      "clientSizes": ["pequeno", "mediano", "grande"],
+      "researchStatus": "completa",
+      "summary": "Software todo-en-uno para clubes de rítmica y disciplinas afines, lanzado en 2026, con app iOS/Android, precios públicos por tramos y 30 días gratis.",
+      "sources": [
+        {
+          "ref": "web",
+          "url": "https://www.rgmanager.com/",
+          "title": "Portada RG Manager",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Funciones, perfiles, disciplinas, precios 35/79/150 € IVA incl., 30 días gratis sin permanencia, equipo de dos personas (equipo fundador).",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "dossier",
+          "url": "https://www.rgmanager.com/assets/docs/RG-Manager-dosier-informativo.pdf",
+          "title": "Dosier informativo (PDF)",
+          "accessedOn": "2026-11-10",
+          "sourceType": "dossier",
+          "claim": "Anuncia asistente de IA, subvenciones, gastos, contratos y nóminas, licencias; soporte prioritario en todos los planes.",
+          "evidenceLevel": "declarado",
+          "notes": "Mismo archivo (SHA-256 idéntico) que el enlace de Google Drive recibido.",
+          "accessible": true
+        },
+        {
+          "ref": "drive",
+          "url": "https://drive.google.com/file/d/1VpIwK71Y8C1_XjNsjtrhdcg42Uisvn4C/view",
+          "title": "Dosier en Google Drive",
+          "accessedOn": "2026-11-10",
+          "sourceType": "dossier",
+          "claim": "Copia del dosier; idéntica al PDF de la web.",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "ios",
+          "url": "https://apps.apple.com/es/app/rg-manager/id6762121877",
+          "title": "App Store",
+          "accessedOn": "2026-11-10",
+          "sourceType": "app_store",
+          "claim": "Publicada el 16-05-2026 por una persona física (no una empresa); 2 valoraciones (5); ≈27 versiones entre sept. y nov. 2026; ficha dice «específicamente para gimnasia rítmica».",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "play",
+          "url": "https://play.google.com/store/apps/details?id=com.edisik.rgmanager",
+          "title": "Google Play",
+          "accessedOn": "2026-11-10",
+          "sourceType": "app_store",
+          "claim": "100+ descargas; desarrollador Edisik; actualizada 9-11-2026.",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "yt",
+          "url": "https://www.youtube.com/@RGManager8/videos",
+          "title": "Canal YouTube",
+          "accessedOn": "2026-11-10",
+          "sourceType": "redes",
+          "claim": "14 vídeos tutoriales por rol, 2 suscriptores.",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "edisik",
+          "url": "https://edisik.com/",
+          "title": "Edisik",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Agencia de software a medida y automatización con IA; publica la app Android.",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        }
+      ],
+      "sections": {
+        "descripcion": {
+          "content": "Plataforma web + apps iOS/Android para clubes: deportistas, familias, grupos, entrenamientos, competiciones, cuotas y remesas, facturas, comunicaciones, autorizaciones, campus, biblioteca de músicas y control horario.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["web", "dossier"]
+        },
+        "icp": {
+          "content": "Clubes asociativos españoles de rítmica (origen) y otras 6 disciplinas, de 40 a 120+ deportistas y hasta 12 entrenadoras, con junta y coordinación técnica.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["web", "ios"]
+        },
+        "buyer_persona": {
+          "content": "Usuario: entrenadoras y familias. Recomendador: coordinación técnica. Decisor: junta/administración. Pagador: club. Detonantes declarados: WhatsApp desordenado, cuotas manuales, autorizaciones en papel, control horario.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["web"]
+        },
+        "fundadores_equipo": {
+          "content": "La web presenta un equipo fundador de dos personas (comunicación y marketing; tecnología y ciberseguridad). App iOS publicada por una persona física; Android por Edisik (agencia). No se identifican fundadores ni entidad legal titular.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["web", "ios", "play", "edisik"]
+        },
+        "posicionamiento": {
+          "content": "«Menos gestión. Más deporte.» Todo el club en un solo lugar; tono cercano, en femenino; adiós a WhatsApp con confirmación de lectura.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["web"]
+        },
+        "promesas": {
+          "content": "Cuotas que se generan solas, remesas y recordatorios, autorizaciones firmadas en la app, más autonomía para las familias, crecer sin cambiar de herramienta.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["web", "dossier"]
+        },
+        "funciones": {
+          "content": "Importación Excel con revisión; inscripción pública; grupos con horarios y excepciones; sustituciones; asistencia; convocatorias; competiciones y resultados; cuotas mensuales/trimestrales con descuentos; SEPA; tarjeta vía Stripe; facturas y rectificativas; gastos; campus; autorizaciones; músicas y vídeos; tienda; control horario; exportación a Excel. Sin evidencia de detección de solapes.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["web", "dossier", "ios"]
+        },
+        "precios": {
+          "content": "Básico 35 €, Premium 79 €, Empresa 150 € al mes, IVA incluido. Todas las funciones en todos los planes. 30 días gratis sin tarjeta.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["web"]
+        },
+        "limites": {
+          "content": "Básico: 40 deportistas y 4 entrenadores. Premium: 120 y 12. Empresa: ilimitado.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["web"]
+        },
+        "modelo_negocio": {
+          "content": "Suscripción por tramos de tamaño; cobro con tarjeta a familias a través de la cuenta Stripe del club con comisiones «a consultar».",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["dossier"]
+        },
+        "captacion": {
+          "content": "Web en ES/CA/EN, dosier descargable, tutoriales en YouTube por rol, Instagram y TikTok, WhatsApp comercial, prueba gratuita autoservicio.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["web", "yt"]
+        },
+        "contenido": {
+          "content": "Tutoriales por rol (14 vídeos); sin blog ni recursos gratuitos visibles.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["yt"]
+        },
+        "alianzas": {
+          "content": "Sin alianzas visibles con federaciones o terceros.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "sin_evidencia",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "fortalezas": {
+          "content": "Amplitud funcional, precio público claro, app nativa y ritmo de entrega muy alto (≈27 versiones en 2 meses).",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["ios"]
+        },
+        "debilidades": {
+          "content": "Producto muy joven (2026), poca prueba social (2 valoraciones, 2 suscriptores), dosier con errores y promesas de IA no visibles en la web ni en las notas de versión.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["dossier", "ios", "yt"]
+        },
+        "oportunidades_zaltyko": {
+          "content": "No competir en amplitud: igualar en entrenadoras por grupo y sustituciones, diferenciar en detección de choques de horario, entrenadora o pista (sin evidencia pública en RG Manager) y en honestidad de lo que funciona hoy.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        }
+      },
+      "pricing": [
+        {
+          "planName": "Básico",
+          "priceAmount": 35,
+          "currency": "EUR",
+          "billingPeriod": "mes",
+          "vatMode": "incluido",
+          "limitsText": "40 deportistas, 4 entrenadores",
+          "feesText": "Tarjeta vía Stripe: consultar comisiones",
+          "extrasText": null,
+          "trialText": "30 días sin tarjeta",
+          "commitmentText": "Sin permanencia",
+          "estimateSmall": "35 €/mes",
+          "estimateMedium": "No cabe (máx. 40 deportistas)",
+          "estimateLarge": "No cabe (máx. 40 deportistas)",
+          "sourceRef": "web",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        },
+        {
+          "planName": "Premium",
+          "priceAmount": 79,
+          "currency": "EUR",
+          "billingPeriod": "mes",
+          "vatMode": "incluido",
+          "limitsText": "120 deportistas, 12 entrenadores",
+          "feesText": "Tarjeta vía Stripe: consultar comisiones",
+          "extrasText": null,
+          "trialText": "30 días sin tarjeta",
+          "commitmentText": "Sin permanencia",
+          "estimateSmall": "79 €/mes (Básico es más barato)",
+          "estimateMedium": "79 €/mes",
+          "estimateLarge": "No cabe (máx. 120 deportistas)",
+          "sourceRef": "web",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        },
+        {
+          "planName": "Empresa",
+          "priceAmount": 150,
+          "currency": "EUR",
+          "billingPeriod": "mes",
+          "vatMode": "incluido",
+          "limitsText": "Ilimitado",
+          "feesText": "Tarjeta vía Stripe: consultar comisiones",
+          "extrasText": null,
+          "trialText": "30 días sin tarjeta",
+          "commitmentText": "Sin permanencia",
+          "estimateSmall": "150 €/mes (hay planes más baratos)",
+          "estimateMedium": "150 €/mes (Premium es más barato)",
+          "estimateLarge": "150 €/mes",
+          "sourceRef": "web",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        }
+      ],
+      "flows": [
+        {
+          "flow": "altas_familias",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "web",
+          "notes": null
+        },
+        {
+          "flow": "importacion_excel",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "dossier",
+          "notes": null
+        },
+        {
+          "flow": "grupos_temporada",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "ios",
+          "notes": null
+        },
+        {
+          "flow": "horarios_sesiones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "ios",
+          "notes": null
+        },
+        {
+          "flow": "asignacion_entrenadoras",
+          "coverage": "resuelve",
+          "evidenceLevel": "observado",
+          "sourceRef": "ios",
+          "notes": "Notas de versión: gestión de sustituciones y avisos de retraso"
+        },
+        {
+          "flow": "deteccion_solapes",
+          "coverage": "desconocido",
+          "evidenceLevel": "sin_evidencia",
+          "sourceRef": null,
+          "notes": null
+        },
+        {
+          "flow": "cambios_avisos",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "web",
+          "notes": null
+        },
+        {
+          "flow": "asistencia",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "web",
+          "notes": null
+        },
+        {
+          "flow": "inscripciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "dossier",
+          "notes": null
+        },
+        {
+          "flow": "solicitud_prueba",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "dossier",
+          "notes": null
+        },
+        {
+          "flow": "cuotas_manuales",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "web",
+          "notes": null
+        },
+        {
+          "flow": "remesas_sepa",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "web",
+          "notes": null
+        },
+        {
+          "flow": "impagos",
+          "coverage": "parcial",
+          "evidenceLevel": "declarado",
+          "sourceRef": "dossier",
+          "notes": null
+        },
+        {
+          "flow": "facturacion_fiscal",
+          "coverage": "parcial",
+          "evidenceLevel": "declarado",
+          "sourceRef": "web",
+          "notes": "Facturas y rectificativas; sin mención de VeriFactu"
+        },
+        {
+          "flow": "autorizaciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "web",
+          "notes": null
+        },
+        {
+          "flow": "portal_familiar",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "web",
+          "notes": null
+        },
+        {
+          "flow": "competiciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "dossier",
+          "notes": null
+        },
+        {
+          "flow": "campus_eventos",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "web",
+          "notes": null
+        },
+        {
+          "flow": "progreso_tecnico",
+          "coverage": "parcial",
+          "evidenceLevel": "declarado",
+          "sourceRef": "dossier",
+          "notes": "Planificación de entrenamientos; sin progresiones técnicas"
+        },
+        {
+          "flow": "equipo_permisos",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "web",
+          "notes": null
+        },
+        {
+          "flow": "control_horario",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "web",
+          "notes": null
+        },
+        {
+          "flow": "exportacion",
+          "coverage": "resuelve",
+          "evidenceLevel": "observado",
+          "sourceRef": "ios",
+          "notes": null
+        },
+        {
+          "flow": "app_movil",
+          "coverage": "resuelve",
+          "evidenceLevel": "observado",
+          "sourceRef": "ios",
+          "notes": null
+        }
+      ]
+    },
+    {
+      "slug": "scoregym-club",
+      "name": "ScoreGym Club",
+      "website": "https://www.scoregym.es/club/",
+      "competitorType": "directo",
+      "countries": ["ES"],
+      "disciplines": [
+        "ritmica",
+        "artistica",
+        "trampolin",
+        "acrobatica",
+        "aerobica",
+        "recreativa"
+      ],
+      "clientSizes": ["pequeno", "mediano", "grande", "federacion"],
+      "researchStatus": "en_curso",
+      "summary": "Ecosistema digital de la gimnasia (federación, club, inscripciones, competición, resultados, calendario y entradas QR). El módulo Club tiene demo pública sin registro.",
+      "sources": [
+        {
+          "ref": "club",
+          "url": "https://www.scoregym.es/club/",
+          "title": "ScoreGym Club",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Software especializado en gimnasia; demo pública con 70 gimnastas, 55 familias y 9 grupos; sin precios públicos.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "home",
+          "url": "https://www.scoregym.es/",
+          "title": "Ecosistema ScoreGym",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Federación, club, inscripciones con firma OTP, competición con jurados y tablets, resultados, calendario y entradas QR.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "demo",
+          "url": "https://club.scoregym.es/demo.php",
+          "title": "Demo Club Gimnasia Aurora",
+          "accessedOn": "2026-11-10",
+          "sourceType": "tutorial_demo",
+          "claim": "Grupos con disciplina, categoría, nivel, entrenadora, horario, instalación, ocupación y cuota; SEPA XML; dos grupos se solapan en la misma pista sin aviso visible.",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "legal",
+          "url": "https://www.scoregym.es/aviso-legal/?lang=es",
+          "title": "Aviso legal",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Titular, NIF y domicilio «Pendiente de completar».",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "res",
+          "url": "https://scoregym.es/resultados?lang=es",
+          "title": "Resultados",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Una competición publicada: XXVI Trofeo Virgen del Pilar (10-10-2026, Zaragoza, GR, 218 participantes).",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "gr",
+          "url": "https://www.scoregym.es/club/gimnasia-ritmica/?lang=es",
+          "title": "Página rítmica",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Página SEO por disciplina con FAQ; primera en Bing para «software gestión club gimnasia rítmica».",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        }
+      ],
+      "sections": {
+        "descripcion": {
+          "content": "Plataforma especializada en gimnasia que se vende como ecosistema; ScoreGym Club cubre gimnastas, familias, grupos, entrenadoras, horarios, asistencia, cuotas, recibos, SEPA, documentos, comunicaciones e inscripciones.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["club", "home"]
+        },
+        "icp": {
+          "content": "Clubes de cualquier disciplina de gimnasia (rítmica, artística, estética, trampolín, acrobática, aeróbica, general, parkour) y federaciones u organizadores de competiciones.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["club", "home"]
+        },
+        "buyer_persona": {
+          "content": "Decisor: dirección del club («deja de administrar Excel… empieza a dirigir tu club»). El formulario pregunta tamaño y si llegaron por federación o competición: comprador también federativo.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["club"]
+        },
+        "fundadores_equipo": {
+          "content": "Sin identificar: el aviso legal deja titular, NIF y domicilio «pendiente de completar».",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["legal"]
+        },
+        "posicionamiento": {
+          "content": "«Software para clubes de gimnasia. Todo conectado.» «No es un gestor deportivo genérico con otro logotipo.»",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["club"]
+        },
+        "promesas": {
+          "content": "Una sola fuente de verdad; la información viaja del club a la inscripción, la competición y el resultado público.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home"]
+        },
+        "funciones": {
+          "content": "Observado en la demo: grupos con instalación y espacio, asistencia con retraso/justificada, economía cobrado/pendiente/devuelto, SEPA XML, facturas del club, ajustes fiscales, comunicaciones, tienda y uniformidad.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["demo"]
+        },
+        "precios": {
+          "content": "Sin precios públicos; requiere solicitar información.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["club"]
+        },
+        "limites": {
+          "content": "",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "sin_evidencia",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "modelo_negocio": {
+          "content": "Varios productos (club, competición, entradas) vendidos a clubes y organizadores; precio no público.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["home"]
+        },
+        "captacion": {
+          "content": "SEO por disciplina, demo sin registro, competiciones con resultados públicos, federación.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gr", "res", "demo"]
+        },
+        "contenido": {
+          "content": "Páginas por disciplina con FAQ; sin blog visible.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gr"]
+        },
+        "alianzas": {
+          "content": "Gestionó al menos un trofeo de rítmica en Zaragoza; posible relación con organizadores aragoneses no confirmada.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["res"]
+        },
+        "fortalezas": {
+          "content": "Especialización en gimnasia, demo abierta muy convincente y canal propio vía competición.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["demo", "res"]
+        },
+        "debilidades": {
+          "content": "Titular sin identificar y sin precios públicos: fricción de confianza para un club que compara.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["legal"]
+        },
+        "oportunidades_zaltyko": {
+          "content": "Copiar la demo sin registro; diferenciarse con precio transparente, titular identificado y avisos de choque de pista/entrenadora que su demo no muestra.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        }
+      },
+      "pricing": [
+        {
+          "planName": "Club",
+          "priceAmount": null,
+          "currency": "EUR",
+          "billingPeriod": "consultar",
+          "vatMode": "desconocido",
+          "limitsText": null,
+          "feesText": null,
+          "extrasText": null,
+          "trialText": "Demo pública de solo lectura",
+          "commitmentText": null,
+          "estimateSmall": "Desconocido",
+          "estimateMedium": "Desconocido",
+          "estimateLarge": "Desconocido",
+          "sourceRef": "club",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        }
+      ],
+      "flows": [
+        {
+          "flow": "altas_familias",
+          "coverage": "resuelve",
+          "evidenceLevel": "observado",
+          "sourceRef": "demo",
+          "notes": null
+        },
+        {
+          "flow": "grupos_temporada",
+          "coverage": "resuelve",
+          "evidenceLevel": "observado",
+          "sourceRef": "demo",
+          "notes": null
+        },
+        {
+          "flow": "horarios_sesiones",
+          "coverage": "resuelve",
+          "evidenceLevel": "observado",
+          "sourceRef": "demo",
+          "notes": null
+        },
+        {
+          "flow": "asignacion_entrenadoras",
+          "coverage": "resuelve",
+          "evidenceLevel": "observado",
+          "sourceRef": "demo",
+          "notes": "Entrenadora por grupo"
+        },
+        {
+          "flow": "deteccion_solapes",
+          "coverage": "no",
+          "evidenceLevel": "observado",
+          "sourceRef": "demo",
+          "notes": "Solape en la demo sin aviso visible; no prueba ausencia de la función"
+        },
+        {
+          "flow": "asistencia",
+          "coverage": "resuelve",
+          "evidenceLevel": "observado",
+          "sourceRef": "demo",
+          "notes": null
+        },
+        {
+          "flow": "inscripciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "club",
+          "notes": null
+        },
+        {
+          "flow": "solicitud_prueba",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "club",
+          "notes": null
+        },
+        {
+          "flow": "cuotas_manuales",
+          "coverage": "resuelve",
+          "evidenceLevel": "observado",
+          "sourceRef": "demo",
+          "notes": null
+        },
+        {
+          "flow": "remesas_sepa",
+          "coverage": "resuelve",
+          "evidenceLevel": "observado",
+          "sourceRef": "demo",
+          "notes": null
+        },
+        {
+          "flow": "impagos",
+          "coverage": "parcial",
+          "evidenceLevel": "observado",
+          "sourceRef": "demo",
+          "notes": null
+        },
+        {
+          "flow": "facturacion_fiscal",
+          "coverage": "parcial",
+          "evidenceLevel": "observado",
+          "sourceRef": "demo",
+          "notes": null
+        },
+        {
+          "flow": "portal_familiar",
+          "coverage": "parcial",
+          "evidenceLevel": "declarado",
+          "sourceRef": "club",
+          "notes": null
+        },
+        {
+          "flow": "competiciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "home",
+          "notes": null
+        }
+      ]
+    },
+    {
+      "slug": "gimnasiatotal",
+      "name": "GimnasiaTotal",
+      "website": "https://www.gimnasiatotal.com/",
+      "competitorType": "directo",
+      "countries": ["ES"],
+      "disciplines": [
+        "ritmica",
+        "artistica",
+        "aerobica",
+        "acrobatica",
+        "trampolin"
+      ],
+      "clientSizes": ["pequeno", "mediano"],
+      "researchStatus": "en_curso",
+      "summary": "Plan gratuito para siempre de gestión y control horario para clubes de gimnasia; monetiza con web del club integrada (290 €/año) y pasarela de pago opcional.",
+      "sources": [
+        {
+          "ref": "home",
+          "url": "https://www.gimnasiatotal.com/",
+          "title": "Portada",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Plan Free 0 €, Plan Club 290 €/año IVA incl., pasarela 2 % + 0,25 € + IVA, referidos 10–30 %, anuncios de material.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "free",
+          "url": "https://www.gimnasiatotal.com/plan-free.php",
+          "title": "Condiciones Plan Free",
+          "accessedOn": "2026-11-10",
+          "sourceType": "precios",
+          "claim": "Free sin límite de alumnado ni tiempo, acompañamiento en la puesta en marcha; actualizado 24-09-2026.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "legal",
+          "url": "https://www.gimnasiatotal.com/aviso-legal",
+          "title": "Aviso legal",
+          "accessedOn": "2026-11-10",
+          "sourceType": "registro",
+          "claim": "Titular persona física en Menorca; derechos de Gimnasia Total S.C.",
+          "evidenceLevel": "observado",
+          "notes": "No se reproduce el NIF publicado.",
+          "accessible": true
+        },
+        {
+          "ref": "ads",
+          "url": "https://www.gimnasiatotal.com/anuncios",
+          "title": "Anuncios",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Portal de compraventa con muy pocos anuncios publicados.",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        }
+      ],
+      "sections": {
+        "descripcion": {
+          "content": "Software de gestión gratuito (alumnado, preinscripciones, recibos, asistencia, libro de cuentas, personal, registro horario, autorizaciones, músicas) + web del club de pago.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home", "free"]
+        },
+        "icp": {
+          "content": "Clubes de gimnasia pequeños que trabajan con hojas de cálculo, WhatsApp, Drive y Google Forms.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home"]
+        },
+        "buyer_persona": {
+          "content": "Dirección o junta que busca cumplir el registro horario sin coste y tener web propia.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["home"]
+        },
+        "fundadores_equipo": {
+          "content": "Titular persona física con domicilio en Menorca; derechos atribuidos a Gimnasia Total S.C.; web diseñada por la agencia 5ipunt.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["legal"]
+        },
+        "posicionamiento": {
+          "content": "«Especialistas en la digitalización de clubs de gimnasia»; única herramienta que gestiona la web y la gestión interna.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home"]
+        },
+        "promesas": {
+          "content": "«Evita sanciones y multas» con el control horario gratis; dejar de usar herramientas dispersas.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home"]
+        },
+        "funciones": {
+          "content": "Preinscripciones con campos dinámicos, recibos y cobros (efectivo, transferencia, domiciliación), calendarios, asistencia, contabilidad, personal y fichaje, autorizaciones, documentos y músicas, web integrada.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home", "free"]
+        },
+        "precios": {
+          "content": "Free 0 €; Plan Club 290 €/año IVA incl. (web, dominio, hosting); pasarela opcional 2 % + 0,25 € + IVA.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home"]
+        },
+        "limites": {
+          "content": "Free sin límite de alumnado ni tiempo; no incluye web.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["free"]
+        },
+        "modelo_negocio": {
+          "content": "Freemium: gestión gratis, ingresos por web anual y comisión de pasarela.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home"]
+        },
+        "captacion": {
+          "content": "Alta gratuita, WhatsApp, Instagram, TikTok, programa de referidos (10 % hasta 30 %), portal de anuncios.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home"]
+        },
+        "contenido": {
+          "content": "",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "sin_evidencia",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "alianzas": {
+          "content": "",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "sin_evidencia",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "fortalezas": {
+          "content": "Precio 0 sin límites y gancho legal (registro horario) muy concreto.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "debilidades": {
+          "content": "Sin demo, tutoriales ni app visibles; tracción desconocida; portal de anuncios casi vacío.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["ads"]
+        },
+        "oportunidades_zaltyko": {
+          "content": "No competir en precio; ganar en experiencia y en coordinación técnica. El registro horario gratuito es un gancho a vigilar.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        }
+      },
+      "pricing": [
+        {
+          "planName": "Free",
+          "priceAmount": 0,
+          "currency": "EUR",
+          "billingPeriod": "mes",
+          "vatMode": "incluido",
+          "limitsText": "Alumnado ilimitado; sin web",
+          "feesText": "Pasarela opcional 2 % + 0,25 € + IVA por transacción",
+          "extrasText": null,
+          "trialText": "Gratis para siempre",
+          "commitmentText": "Sin permanencia",
+          "estimateSmall": "0 € (+ ≈54 €/mes si todo se cobra con tarjeta a 50 €)",
+          "estimateMedium": "0 € (+ ≈136 €/mes con tarjeta)",
+          "estimateLarge": "0 € (+ ≈272 €/mes con tarjeta)",
+          "sourceRef": "home",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        },
+        {
+          "planName": "Plan Club",
+          "priceAmount": 290,
+          "currency": "EUR",
+          "billingPeriod": "ano",
+          "vatMode": "incluido",
+          "limitsText": "Free + web integrada",
+          "feesText": "Pasarela opcional 2 % + 0,25 € + IVA",
+          "extrasText": "Idiomas y secciones extra",
+          "trialText": null,
+          "commitmentText": null,
+          "estimateSmall": "24,17 €/mes",
+          "estimateMedium": "24,17 €/mes",
+          "estimateLarge": "24,17 €/mes",
+          "sourceRef": "home",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        }
+      ],
+      "flows": [
+        {
+          "flow": "altas_familias",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "home",
+          "notes": null
+        },
+        {
+          "flow": "solicitud_prueba",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "home",
+          "notes": null
+        },
+        {
+          "flow": "cuotas_manuales",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "free",
+          "notes": null
+        },
+        {
+          "flow": "remesas_sepa",
+          "coverage": "parcial",
+          "evidenceLevel": "declarado",
+          "sourceRef": "free",
+          "notes": "Modalidad domiciliación; sin evidencia de fichero SEPA"
+        },
+        {
+          "flow": "asistencia",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "free",
+          "notes": null
+        },
+        {
+          "flow": "autorizaciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "free",
+          "notes": null
+        },
+        {
+          "flow": "control_horario",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "home",
+          "notes": null
+        },
+        {
+          "flow": "portal_familiar",
+          "coverage": "parcial",
+          "evidenceLevel": "declarado",
+          "sourceRef": "home",
+          "notes": null
+        }
+      ]
+    },
+    {
+      "slug": "clybo",
+      "name": "Clybo’",
+      "website": "https://clybo.app/gimnasia-ritmica/",
+      "competitorType": "espana_gimnasia",
+      "countries": ["ES", "MT"],
+      "disciplines": ["ritmica", "multideporte"],
+      "clientSizes": ["pequeno", "mediano", "grande", "federacion"],
+      "researchStatus": "en_curso",
+      "summary": "Software de clubes a 29 €/mes IVA incluido sin límites, con apps de staff y familias, editor de músicas para rítmica y producto hermano de competiciones (en «muy pronto»).",
+      "sources": [
+        {
+          "ref": "gr",
+          "url": "https://clybo.app/gimnasia-ritmica/",
+          "title": "Clybo rítmica",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Cuotas con tarjeta o remesa, inscripción por temporada, consentimientos versionados, Estudio de música, pasar lista sin conexión, registro horario; FlamaTech Consulting LTD (Malta).",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "precios",
+          "url": "https://clybo.app/precios/",
+          "title": "Precios",
+          "accessedOn": "2026-11-10",
+          "sourceType": "precios",
+          "claim": "Basic 29 €/mes o 290 €/año IVA incl. sin límites; fiscal 10 €/mes; sin comisión propia; Conector MCP «Próximamente».",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "apps",
+          "url": "https://itunes.apple.com/search?term=clybo&entity=software&country=es",
+          "title": "App Store (API)",
+          "accessedOn": "2026-11-10",
+          "sourceType": "app_store",
+          "claim": "Apps Tutores y Staff publicadas el 5–6-11-2026, sin valoraciones.",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "cr",
+          "url": "https://competicionesritmica.com/",
+          "title": "Competiciones Rítmica",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Producto hermano en «Muy pronto».",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        }
+      ],
+      "sections": {
+        "descripcion": {
+          "content": "Panel web y dos apps (staff y familias) para cuotas, inscripciones, comunicación, personal y asistencia; página específica para rítmica.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gr"]
+        },
+        "icp": {
+          "content": "Clubes de rítmica de cualquier tamaño («un club de 40 paga lo mismo que uno de 400») y federaciones con plan a medida.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gr", "precios"]
+        },
+        "fundadores_equipo": {
+          "content": "FlamaTech Consulting LTD (Sliema, Malta); sin nombres de equipo publicados.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gr"]
+        },
+        "posicionamiento": {
+          "content": "«Diseñado con clubes de rítmica»; cobrar en la cuenta del club sin comisión de Clybo.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gr"]
+        },
+        "funciones": {
+          "content": "Cuotas por grupo con descuento por hermanas, tarjeta en Stripe del club o remesa (plantillas Cajamar/BBVA), reintentos, matrícula cobrada al enviar, consentimientos versionados, editor de músicas, pasar lista sin conexión, registro horario con auditoría, sustituciones, app de familias en 10 idiomas, VeriFactu/TicketBAI como add-on.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gr", "precios"]
+        },
+        "precios": {
+          "content": "Basic 29 €/mes (290 €/año) IVA incluido; add-on fiscal 10 €/mes; Federación a medida.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["precios"]
+        },
+        "limites": {
+          "content": "Sin límite de deportistas, entrenadoras ni gestores.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["precios"]
+        },
+        "modelo_negocio": {
+          "content": "Precio plano sin comisión propia sobre cobros; add-on fiscal; plan federación.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["precios"]
+        },
+        "captacion": {
+          "content": "Página por deporte, centro de ayuda con guías paso a paso, glosario, guía VeriFactu, WhatsApp, llamada gratuita, prueba de 30 días sin tarjeta.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gr"]
+        },
+        "contenido": {
+          "content": "Guías públicas por tarea (crear cuota, remesas, formulario, músicas, asistencia sin conexión).",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gr"]
+        },
+        "alianzas": {
+          "content": "",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "sin_evidencia",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "fortalezas": {
+          "content": "Precio plano agresivo y funciones muy específicas de rítmica (músicas).",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "debilidades": {
+          "content": "Lanzamiento muy reciente (apps de noviembre de 2026), sin clientes visibles, empresa en Malta sin equipo identificado.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["apps"]
+        },
+        "oportunidades_zaltyko": {
+          "content": "Validar si los límites de grupos de Zaltyko frenan la compra frente a un precio plano sin límites.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        }
+      },
+      "pricing": [
+        {
+          "planName": "Basic",
+          "priceAmount": 29,
+          "currency": "EUR",
+          "billingPeriod": "mes",
+          "vatMode": "incluido",
+          "limitsText": "Sin límites",
+          "feesText": "Sin comisión propia; aplica la tarifa de Stripe",
+          "extrasText": null,
+          "trialText": "30 días sin tarjeta",
+          "commitmentText": "Sin permanencia",
+          "estimateSmall": "29 €/mes",
+          "estimateMedium": "29 €/mes",
+          "estimateLarge": "29 €/mes",
+          "sourceRef": "precios",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        },
+        {
+          "planName": "Basic anual",
+          "priceAmount": 290,
+          "currency": "EUR",
+          "billingPeriod": "ano",
+          "vatMode": "incluido",
+          "limitsText": "Sin límites",
+          "feesText": "Sin comisión propia; aplica la tarifa de Stripe",
+          "extrasText": null,
+          "trialText": "30 días sin tarjeta",
+          "commitmentText": "Pago anual por adelantado",
+          "estimateSmall": "290 €/año (≈24,17 €/mes)",
+          "estimateMedium": "290 €/año (≈24,17 €/mes)",
+          "estimateLarge": "290 €/año (≈24,17 €/mes)",
+          "sourceRef": "precios",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        },
+        {
+          "planName": "Add-on Fiscalidad",
+          "priceAmount": 10,
+          "currency": "EUR",
+          "billingPeriod": "mes",
+          "vatMode": "desconocido",
+          "limitsText": "Facturas VeriFactu/TicketBAI sin límite",
+          "feesText": null,
+          "extrasText": null,
+          "trialText": null,
+          "commitmentText": null,
+          "estimateSmall": "+10 €/mes (39 € con Basic mensual)",
+          "estimateMedium": "+10 €/mes (39 € con Basic mensual)",
+          "estimateLarge": "+10 €/mes (39 € con Basic mensual)",
+          "sourceRef": "precios",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        }
+      ],
+      "flows": [
+        {
+          "flow": "altas_familias",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gr",
+          "notes": null
+        },
+        {
+          "flow": "importacion_excel",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "precios",
+          "notes": "Importación CSV masiva"
+        },
+        {
+          "flow": "asignacion_entrenadoras",
+          "coverage": "parcial",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gr",
+          "notes": "Sustituciones por sesión"
+        },
+        {
+          "flow": "asistencia",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gr",
+          "notes": null
+        },
+        {
+          "flow": "solicitud_prueba",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gr",
+          "notes": null
+        },
+        {
+          "flow": "remesas_sepa",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gr",
+          "notes": null
+        },
+        {
+          "flow": "impagos",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gr",
+          "notes": null
+        },
+        {
+          "flow": "facturacion_fiscal",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "precios",
+          "notes": null
+        },
+        {
+          "flow": "autorizaciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gr",
+          "notes": null
+        },
+        {
+          "flow": "portal_familiar",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gr",
+          "notes": null
+        },
+        {
+          "flow": "competiciones",
+          "coverage": "parcial",
+          "evidenceLevel": "observado",
+          "sourceRef": "cr",
+          "notes": "Producto hermano aún no publicado"
+        },
+        {
+          "flow": "control_horario",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gr",
+          "notes": null
+        },
+        {
+          "flow": "app_movil",
+          "coverage": "resuelve",
+          "evidenceLevel": "observado",
+          "sourceRef": "apps",
+          "notes": null
+        }
+      ]
+    },
+    {
+      "slug": "oneclub",
+      "name": "OneClub",
+      "website": "https://oneclubapp.com/es/deporte/gimnasia",
+      "competitorType": "espana_gimnasia",
+      "countries": ["ES"],
+      "disciplines": ["ritmica", "artistica", "multideporte"],
+      "clientSizes": ["pequeno", "mediano", "grande"],
+      "researchStatus": "en_curso",
+      "summary": "Software multideporte nacido en Sevilla que monetiza con cuota + 3 % por cobro; para gimnasia destaca festival con entradas y descuento por hermana.",
+      "sources": [
+        {
+          "ref": "gim",
+          "url": "https://oneclubapp.com/es/deporte/gimnasia",
+          "title": "OneClub gimnasia",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Grupos por nivel, familias con varias hijas, festival con entradas, cuotas de competición; «desde 49 €/mes»; testimonio anónimo de club de 210 gimnastas.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "precios",
+          "url": "https://oneclubapp.com/es/precios",
+          "title": "Precios",
+          "accessedOn": "2026-11-10",
+          "sourceType": "precios",
+          "claim": "Centros y escuelas 99 €/mes + IVA + 3 % por cobro (mín. 0,35 €) o 165 €/mes con TPV Redsys + 300 €; estudio de 1.351 recibos.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "about",
+          "url": "https://oneclubapp.com/es/about",
+          "title": "Sobre nosotros",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Equipo directivo declarado de cuatro personas (CEO y CPO, COO, CTO, CMO); «más de 150 clubes».",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "clubes",
+          "url": "https://oneclubapp.com/es/clubes",
+          "title": "Directorio de clubes",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Directorio con unos 24 clubes, varios de demostración y mayoría de fútbol, aunque dice incluir todos los registrados.",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        }
+      ],
+      "sections": {
+        "descripcion": {
+          "content": "Gestión de socios, cuotas con tarjeta/SEPA y reintentos, inscripciones, entradas y tienda para clubes multideporte, con página específica de gimnasia.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gim", "precios"]
+        },
+        "icp": {
+          "content": "Clubes de rítmica federados, escuelas de artística o psicomotricidad con festival, secciones de gimnasia en polideportivos o AMPA.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gim"]
+        },
+        "fundadores_equipo": {
+          "content": "Equipo directivo declarado de cuatro personas: CEO y CPO, COO, CTO y CMO.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["about"]
+        },
+        "posicionamiento": {
+          "content": "«La cuota, cobrada. El campo, lleno.» Precios transparentes y comparativas «sin maquillaje».",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["precios", "about"]
+        },
+        "funciones": {
+          "content": "Descuento por hermana automático, factura agrupada por familia, entradas del festival con aforo, cuotas de competición y licencias separadas, canales por grupo con confirmación de lectura, lista de espera, asistencia.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gim"]
+        },
+        "precios": {
+          "content": "Centros y escuelas (gimnasia): 99 €/mes + IVA + 3 % por cobro con su pasarela; o 165 €/mes + 300 € de alta con TPV Redsys. La página de gimnasia dice «desde 49 €/mes» (contradicción).",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["precios", "gim"]
+        },
+        "limites": {
+          "content": "El precio no depende del número de socios.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["precios"]
+        },
+        "modelo_negocio": {
+          "content": "Suscripción + 3 % sobre cuotas, inscripciones, entradas y tienda, repercutido por defecto a la familia.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["precios"]
+        },
+        "captacion": {
+          "content": "Comparativas, páginas «alternativa a», guías LOPIVI y fiscalidad, glosario, subvenciones, blog, estudio de datos propios, demo de 20 minutos.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["precios"]
+        },
+        "contenido": {
+          "content": "Estudio de impagos con 1.351 recibos de 2026 (11,3 % con fallo, 2,3 % perdido).",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["precios"]
+        },
+        "alianzas": {
+          "content": "",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "sin_evidencia",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "fortalezas": {
+          "content": "Cobros con reintentos y contenido de captación maduro.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "debilidades": {
+          "content": "Tracción declarada (150+) no cuadra con su directorio público (~24 clubes); gimnasia es una vertical secundaria.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["clubes", "about"]
+        },
+        "oportunidades_zaltyko": {
+          "content": "Aprender el contenido comparativo honesto; no competir en cobros mientras Zaltyko no cobre a familias.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        }
+      },
+      "pricing": [
+        {
+          "planName": "Centros y escuelas (pasarela OneClub)",
+          "priceAmount": 99,
+          "currency": "EUR",
+          "billingPeriod": "mes",
+          "vatMode": "excluido",
+          "limitsText": "Sin límite de socios",
+          "feesText": "3 % por cobro (mín. 0,35 €), por defecto lo paga la familia",
+          "extrasText": null,
+          "trialText": "Demo",
+          "commitmentText": "Sin permanencia",
+          "estimateSmall": "119,79 € IVA incl. + ≈45 € de comisión",
+          "estimateMedium": "119,79 € + ≈112,5 €",
+          "estimateLarge": "119,79 € + ≈225 €",
+          "sourceRef": "precios",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        },
+        {
+          "planName": "Centros y escuelas (TPV Redsys)",
+          "priceAmount": 165,
+          "currency": "EUR",
+          "billingPeriod": "mes",
+          "vatMode": "excluido",
+          "limitsText": "Sin domiciliación SEPA ni cargo automático",
+          "feesText": "Comisión del banco",
+          "extrasText": "300 € de implementación",
+          "trialText": "Demo",
+          "commitmentText": "Sin permanencia",
+          "estimateSmall": "165 € + IVA",
+          "estimateMedium": "165 € + IVA",
+          "estimateLarge": "165 € + IVA",
+          "sourceRef": "precios",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        }
+      ],
+      "flows": [
+        {
+          "flow": "altas_familias",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gim",
+          "notes": null
+        },
+        {
+          "flow": "importacion_excel",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "precios",
+          "notes": null
+        },
+        {
+          "flow": "grupos_temporada",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gim",
+          "notes": null
+        },
+        {
+          "flow": "asistencia",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gim",
+          "notes": null
+        },
+        {
+          "flow": "inscripciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gim",
+          "notes": null
+        },
+        {
+          "flow": "remesas_sepa",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "precios",
+          "notes": null
+        },
+        {
+          "flow": "impagos",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "precios",
+          "notes": null
+        },
+        {
+          "flow": "campus_eventos",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gim",
+          "notes": "Festival con entradas"
+        },
+        {
+          "flow": "portal_familiar",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "precios",
+          "notes": null
+        }
+      ]
+    },
+    {
+      "slug": "clupik",
+      "name": "Clupik",
+      "website": "https://clupik.com/software-gimnasia/",
+      "competitorType": "espana_gimnasia",
+      "countries": ["ES", "MX", "AR"],
+      "disciplines": ["multideporte"],
+      "clientSizes": ["pequeno", "mediano", "grande", "federacion"],
+      "researchStatus": "en_curso",
+      "summary": "Plataforma multideporte madura (gestión + web + app propia) con plan Free, compra de Leverade (federaciones) y 1.000+ clubes declarados.",
+      "sources": [
+        {
+          "ref": "gim",
+          "url": "https://clupik.com/software-gimnasia/",
+          "title": "Clupik gimnasia",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Gestión, comunicación, entrenamientos con lesiones, tienda; «más de 1.000 clubes en más de 25 países»; prueba de 7 días con acompañamiento.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "precios",
+          "url": "https://clupik.com/precios/",
+          "title": "Precios",
+          "accessedOn": "2026-11-10",
+          "sourceType": "precios",
+          "claim": "Free / Pro 39 € / Élite 99 € / Custom; Clupik Pay 3 %–1,8 % + 0,25 € + IVA; app personalizada 49 €/mes.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "tekios",
+          "url": "https://tekiosmag.com/2022/03/23/alvaro-herranz-cofundador-y-ceo-de-clupik-todas-las-entidades-deportivas-aunque-no-esten-digitalizadas-son-conscientes-de-que-es-un-camino-que-tienen-que-tomar/",
+          "title": "Entrevista Tekios (2022)",
+          "accessedOn": "2026-11-10",
+          "sourceType": "prensa",
+          "claim": "Entrevista al cofundador y CEO: empezaron en 2017, primera versión a finales de 2018.",
+          "evidenceLevel": "confirmado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "leverade",
+          "url": "https://murciaplaza.com/murciaplaza/la-madrilena-clupik-compra-la-murciana-leverade",
+          "title": "Murcia Plaza: compra de Leverade",
+          "accessedOn": "2026-11-10",
+          "sourceType": "prensa",
+          "claim": "Absorción de Leverade (federaciones), 15 federaciones nacionales, inversores como Sportboost.",
+          "evidenceLevel": "confirmado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "apps",
+          "url": "https://itunes.apple.com/search?term=clupik&entity=software&country=es",
+          "title": "App Store (API)",
+          "accessedOn": "2026-11-10",
+          "sourceType": "app_store",
+          "claim": "App Clupik 3,1/5 con 23 valoraciones y decenas de apps de marca blanca.",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        }
+      ],
+      "sections": {
+        "descripcion": {
+          "content": "Herramienta de gestión + web profesional + app (estándar o de marca) para clubes, ligas y federaciones.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gim"]
+        },
+        "icp": {
+          "content": "Clubes y entidades deportivas de cualquier deporte; gimnasia es una vertical más.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gim"]
+        },
+        "fundadores_equipo": {
+          "content": "Clupik Management S.L. (Madrid). Equipo fundador con cofundador y CEO entrevistado en prensa.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "confirmado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["tekios", "leverade"]
+        },
+        "posicionamiento": {
+          "content": "«Lleva la gestión de tu club de gimnasia al máximo nivel» con herramienta, web y app propia.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gim"]
+        },
+        "funciones": {
+          "content": "Inscripciones con pago, licencias, base de datos, comunicación segmentada, entrenamientos, convocatorias y asistencia, lesiones, informes, tienda con stock, patrocinadores, gestión de competiciones de liga.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gim", "precios"]
+        },
+        "precios": {
+          "content": "Free 0 €; Pro 39 €/mes (35 € anual); Élite 99 €/mes (89 € anual); Custom. IVA de la suscripción no indicado.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["precios"]
+        },
+        "limites": {
+          "content": "Free: 1 deporte, 3 equipos o 50 deportistas, 1 admin. Pro: 20 equipos o 300 deportistas, 2 admins. Élite: 35 equipos o 800 deportistas.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["precios"]
+        },
+        "modelo_negocio": {
+          "content": "Freemium + comisión Clupik Pay decreciente por plan + app de marca 49 €/mes.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["precios"]
+        },
+        "captacion": {
+          "content": "Curso gratuito de gestión de clubes, webinars, casos de éxito, distribuidores y partners, federaciones.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gim"]
+        },
+        "alianzas": {
+          "content": "Leverade integrada: trabajo con 15 federaciones nacionales.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "confirmado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["leverade"]
+        },
+        "fortalezas": {
+          "content": "Trayectoria, red federativa y app de marca blanca.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "debilidades": {
+          "content": "Generalista: nada específico de aparatos, músicas o conjuntos; app genérica con 3,1/5.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["apps"]
+        },
+        "oportunidades_zaltyko": {
+          "content": "Especialización real en gimnasia frente a un multideporte.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        }
+      },
+      "pricing": [
+        {
+          "planName": "Free",
+          "priceAmount": 0,
+          "currency": "EUR",
+          "billingPeriod": "mes",
+          "vatMode": "desconocido",
+          "limitsText": "1 deporte, 3 equipos o 50 deportistas, 1 admin",
+          "feesText": "Clupik Pay 3 % + 0,25 € + IVA",
+          "extrasText": null,
+          "trialText": null,
+          "commitmentText": null,
+          "estimateSmall": "0 € si cabe en 3 equipos",
+          "estimateMedium": null,
+          "estimateLarge": null,
+          "sourceRef": "precios",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        },
+        {
+          "planName": "Pro",
+          "priceAmount": 39,
+          "currency": "EUR",
+          "billingPeriod": "mes",
+          "vatMode": "desconocido",
+          "limitsText": "20 equipos o 300 deportistas, 2 admins",
+          "feesText": "Clupik Pay 2,3 % + 0,25 € + IVA",
+          "extrasText": "App personalizada 49 €/mes",
+          "trialText": "7 días",
+          "commitmentText": null,
+          "estimateSmall": "39 € (+ ≈51 € si todo con Clupik Pay a 50 €)",
+          "estimateMedium": "39 € (+ ≈127 €)",
+          "estimateLarge": "39 € (+ ≈254 €)",
+          "sourceRef": "precios",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        },
+        {
+          "planName": "Élite",
+          "priceAmount": 99,
+          "currency": "EUR",
+          "billingPeriod": "mes",
+          "vatMode": "desconocido",
+          "limitsText": "35 equipos o 800 deportistas",
+          "feesText": "Clupik Pay 1,8 % + 0,25 € + IVA",
+          "extrasText": "App personalizada 49 €/mes",
+          "trialText": "7 días",
+          "commitmentText": null,
+          "estimateSmall": null,
+          "estimateMedium": null,
+          "estimateLarge": null,
+          "sourceRef": "precios",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        }
+      ],
+      "flows": [
+        {
+          "flow": "altas_familias",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gim",
+          "notes": null
+        },
+        {
+          "flow": "inscripciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "precios",
+          "notes": null
+        },
+        {
+          "flow": "asistencia",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "precios",
+          "notes": null
+        },
+        {
+          "flow": "cuotas_manuales",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gim",
+          "notes": null
+        },
+        {
+          "flow": "portal_familiar",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gim",
+          "notes": null
+        },
+        {
+          "flow": "exportacion",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "precios",
+          "notes": null
+        },
+        {
+          "flow": "competiciones",
+          "coverage": "parcial",
+          "evidenceLevel": "declarado",
+          "sourceRef": "precios",
+          "notes": "Orientado a ligas y partidos"
+        },
+        {
+          "flow": "app_movil",
+          "coverage": "resuelve",
+          "evidenceLevel": "observado",
+          "sourceRef": "apps",
+          "notes": null
+        }
+      ]
+    },
+    {
+      "slug": "jackrabbit-class",
+      "name": "Jackrabbit Class",
+      "website": "https://www.jackrabbitclass.com/gymnastics/",
+      "competitorType": "internacional",
+      "countries": ["US"],
+      "disciplines": [
+        "artistica",
+        "cheer_tumbling_ninja",
+        "recreativa",
+        "multideporte"
+      ],
+      "clientSizes": ["pequeno", "mediano", "grande", "multisede"],
+      "researchStatus": "en_curso",
+      "summary": "Software estadounidense para centros de actividades infantiles (gimnasia, danza, natación, cheer, música) con precio por número de alumnos.",
+      "sources": [
+        {
+          "ref": "gym",
+          "url": "https://www.jackrabbitclass.com/gymnastics/",
+          "title": "Jackrabbit gimnasia",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "«Voted #1 Software for Gyms», 7.000+ clientes (todas las verticales), skills tracking, check-in, waivers, BNPL.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "pricing",
+          "url": "https://www.jackrabbitclass.com/pricing/",
+          "title": "Pricing",
+          "accessedOn": "2026-11-10",
+          "sourceType": "precios",
+          "claim": "Desde 49 USD/mes según alumnos al final del mes; Plus desde 93 USD + 169 USD de alta; Enterprise 245/331 USD; sin contrato.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        }
+      ],
+      "sections": {
+        "descripcion": {
+          "content": "Gestión de clases, registro online, facturación y pagos, portal y app de familias, informes y seguimiento de habilidades.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gym"]
+        },
+        "icp": {
+          "content": "Centros de actividades infantiles en EE. UU., de pequeños a empresas multisede.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gym", "pricing"]
+        },
+        "fundadores_equipo": {
+          "content": "",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "sin_evidencia",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "posicionamiento": {
+          "content": "Liberar tiempo del propietario para el crecimiento y el coaching.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gym"]
+        },
+        "funciones": {
+          "content": "Citas y privadas, billing con BNPL, registro online, familias, informes, skills tracking, check-in autoservicio, políticas y waivers por clase, panel BI.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gym", "pricing"]
+        },
+        "precios": {
+          "content": "Desde 49 USD/mes por tramos de alumnos (tramos no visibles en HTML); Plus desde 93 USD/mes + 169 USD; Enterprise 245 USD (331 con app de marca).",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["pricing"]
+        },
+        "limites": {
+          "content": "Precio según alumnos al final de cada mes; sugieren archivar familias inactivas.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["pricing"]
+        },
+        "modelo_negocio": {
+          "content": "Suscripción por volumen + procesamiento de pagos + app de marca; recomiendan repercutir tasas a las familias.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["pricing"]
+        },
+        "captacion": {
+          "content": "Demo, webinars, ferias, marketplace de partners, comparativas, formación bajo demanda.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["gym"]
+        },
+        "fortalezas": {
+          "content": "Profundidad y base instalada; el seguimiento de habilidades es estándar en EE. UU.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "debilidades": {
+          "content": "Precio que crece con los alumnos; enfoque estadounidense.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "oportunidades_zaltyko": {
+          "content": "Confirmar si el seguimiento técnico es expectativa también en España antes de construirlo.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        }
+      },
+      "pricing": [
+        {
+          "planName": "Jackrabbit Class",
+          "priceAmount": 49,
+          "currency": "USD",
+          "billingPeriod": "mes",
+          "vatMode": "excluido",
+          "limitsText": "Por alumnos al final del mes",
+          "feesText": "Procesamiento propio",
+          "extrasText": "Plus (app de marca) desde 93 USD + 169 USD alta",
+          "trialText": "Demo",
+          "commitmentText": "Sin contrato",
+          "estimateSmall": "Desde 49 USD (tramo exacto no visible)",
+          "estimateMedium": "Desconocido",
+          "estimateLarge": "Desconocido",
+          "sourceRef": "pricing",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        }
+      ],
+      "flows": [
+        {
+          "flow": "inscripciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gym",
+          "notes": null
+        },
+        {
+          "flow": "asistencia",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gym",
+          "notes": null
+        },
+        {
+          "flow": "cuotas_manuales",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gym",
+          "notes": null
+        },
+        {
+          "flow": "portal_familiar",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gym",
+          "notes": null
+        },
+        {
+          "flow": "progreso_tecnico",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gym",
+          "notes": null
+        },
+        {
+          "flow": "autorizaciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "gym",
+          "notes": null
+        },
+        {
+          "flow": "informes_resumen",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "pricing",
+          "notes": null
+        }
+      ]
+    },
+    {
+      "slug": "iclasspro",
+      "name": "iClassPro",
+      "website": "https://www.iclasspro.com/gymnastics-software-features",
+      "competitorType": "internacional",
+      "countries": ["US", "GB", "AU", "NZ"],
+      "disciplines": [
+        "artistica",
+        "cheer_tumbling_ninja",
+        "recreativa",
+        "multideporte"
+      ],
+      "clientSizes": ["mediano", "grande", "multisede"],
+      "researchStatus": "en_curso",
+      "summary": "Referente de gestión para gimnasios en EE. UU. y mundo anglosajón, con precio por sede y muchos extras.",
+      "sources": [
+        {
+          "ref": "features",
+          "url": "https://www.iclasspro.com/gymnastics-software-features",
+          "title": "Funciones para gimnasia",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Reservas, TPV, evaluaciones con certificados, make-up tokens, kiosco, QuickBooks, testimonios con nombre.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "pricing",
+          "url": "https://www.iclasspro.com/iclasspro-pricing",
+          "title": "Pricing",
+          "accessedOn": "2026-11-10",
+          "sourceType": "precios",
+          "claim": "Signature 139, Elite 199, Premium 299 USD por sede; SMS por crédito; app de marca 499 + 150 USD/mes.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "staffapp",
+          "url": "https://itunes.apple.com/search?term=iclasspro&entity=software&country=us",
+          "title": "App Store (API)",
+          "accessedOn": "2026-11-10",
+          "sourceType": "app_store",
+          "claim": "iClassPro Staff Portal 2,1/5 con 31 valoraciones.",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        }
+      ],
+      "sections": {
+        "descripcion": {
+          "content": "Gestión de clases, eventos, privadas, cumpleaños, pagos, TPV, app, portal de familias y de staff, automatizaciones.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["features"]
+        },
+        "icp": {
+          "content": "Gimnasios de gimnasia, cheer, natación y danza en EE. UU., Reino Unido, Australia y Nueva Zelanda.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["pricing"]
+        },
+        "fundadores_equipo": {
+          "content": "",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "sin_evidencia",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "posicionamiento": {
+          "content": "«The #1 Class Management Software for Gymnastics Clubs Worldwide».",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["features"]
+        },
+        "funciones": {
+          "content": "Skill tracking y evaluaciones con certificados, make-up tokens, bonos, kiosco de check-in, fichaje de staff, waivers, comunicaciones automatizadas, QuickBooks, BI.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["features", "pricing"]
+        },
+        "precios": {
+          "content": "Signature 139 USD, Elite 199 USD (sin compromiso), Premium 299 USD (12 meses), por sede y mes.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["pricing"]
+        },
+        "limites": {
+          "content": "Precio por sede, no por alumnos.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["pricing"]
+        },
+        "modelo_negocio": {
+          "content": "Suscripción por sede + SMS por crédito + app de marca + add-ons (Growth Engine 59 USD, web Kickstart desde 899 USD).",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["pricing"]
+        },
+        "captacion": {
+          "content": "Demo personalizada, blog, testimonios de propietarios con años de uso.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["features"]
+        },
+        "fortalezas": {
+          "content": "Amplitud y madurez; propuestas concretas de gimnasia (make-ups, evaluaciones).",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "debilidades": {
+          "content": "La app de staff tiene 2,1/5 con 31 valoraciones: señal de fricción para entrenadores.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "observado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["staffapp"]
+        },
+        "oportunidades_zaltyko": {
+          "content": "Una experiencia de entrenadora simple puede ser diferencia real.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        }
+      },
+      "pricing": [
+        {
+          "planName": "Signature",
+          "priceAmount": 139,
+          "currency": "USD",
+          "billingPeriod": "mes",
+          "vatMode": "excluido",
+          "limitsText": "Por sede",
+          "feesText": "Procesamiento propio; SMS por crédito",
+          "extrasText": "App de marca 499 + 150 USD/mes",
+          "trialText": "Demo",
+          "commitmentText": "Sin compromiso",
+          "estimateSmall": "139 USD",
+          "estimateMedium": "139 USD",
+          "estimateLarge": "139 USD",
+          "sourceRef": "pricing",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        },
+        {
+          "planName": "Elite",
+          "priceAmount": 199,
+          "currency": "USD",
+          "billingPeriod": "mes",
+          "vatMode": "excluido",
+          "limitsText": "Por sede; incluye citas",
+          "feesText": null,
+          "extrasText": null,
+          "trialText": "Demo",
+          "commitmentText": "Sin compromiso",
+          "estimateSmall": null,
+          "estimateMedium": null,
+          "estimateLarge": null,
+          "sourceRef": "pricing",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        },
+        {
+          "planName": "Premium",
+          "priceAmount": 299,
+          "currency": "USD",
+          "billingPeriod": "mes",
+          "vatMode": "excluido",
+          "limitsText": "Por sede",
+          "feesText": null,
+          "extrasText": null,
+          "trialText": "Demo",
+          "commitmentText": "12 meses",
+          "estimateSmall": null,
+          "estimateMedium": null,
+          "estimateLarge": null,
+          "sourceRef": "pricing",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        }
+      ],
+      "flows": [
+        {
+          "flow": "inscripciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "features",
+          "notes": null
+        },
+        {
+          "flow": "asistencia",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "features",
+          "notes": null
+        },
+        {
+          "flow": "progreso_tecnico",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "features",
+          "notes": null
+        },
+        {
+          "flow": "portal_familiar",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "features",
+          "notes": null
+        },
+        {
+          "flow": "control_horario",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "pricing",
+          "notes": null
+        },
+        {
+          "flow": "informes_resumen",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "features",
+          "notes": null
+        },
+        {
+          "flow": "autorizaciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "pricing",
+          "notes": null
+        }
+      ]
+    },
+    {
+      "slug": "flipbiz",
+      "name": "FlipBiz",
+      "website": "https://flipbizonline.com/",
+      "competitorType": "internacional",
+      "countries": ["US"],
+      "disciplines": [
+        "artistica",
+        "trampolin",
+        "recreativa",
+        "cheer_tumbling_ninja"
+      ],
+      "clientSizes": ["pequeno", "mediano", "grande", "multisede"],
+      "researchStatus": "completa",
+      "summary": "«Sistema operativo para clubes de gimnasia» que entra por la formación de entrenadores (con USA Gymnastics) y sube hasta la gestión completa del gimnasio.",
+      "sources": [
+        {
+          "ref": "home",
+          "url": "https://flipbizonline.com/",
+          "title": "Portada FlipBiz",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Formación (150+ cursos), lesson plans con IA, formularios, turnos y fichaje, chat, Class Management, Family App, Gymtelligence.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "pricing",
+          "url": "https://flipbizonline.com/pricing/",
+          "title": "Pricing",
+          "accessedOn": "2026-11-10",
+          "sourceType": "precios",
+          "claim": "Train 85 USD (40 staff), Growth 150 USD (75 staff), FlipOS 199 USD (ilimitado); 14 días; sin contrato.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "train",
+          "url": "https://flipbizonline.com/train/",
+          "title": "Train",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Cursos de educadores conocidos y de USAG, constructor de cursos propios, lesson plans IA ilimitados.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "class",
+          "url": "https://flipbizonline.com/class-management/",
+          "title": "Class Management",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Familias, inscripción, asistencia, autopago, campamentos, cumpleaños, privadas, make-ups, waivers, Owner Brief, Ask Flip.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "sites",
+          "url": "https://flipbizonline.com/flipsites/",
+          "title": "FlipSites",
+          "accessedOn": "2026-11-10",
+          "sourceType": "web_oficial",
+          "claim": "Web rehecha en 3 días, 39 USD/mes, conectada al portal de familias; solo con Class Management.",
+          "evidenceLevel": "declarado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "usag",
+          "url": "https://usagym.org/usa-gymnastics-announces-new-member-club-benefit-through-flipbiz-educational-partnership/",
+          "title": "USA Gymnastics (9-06-2026)",
+          "accessedOn": "2026-11-10",
+          "sourceType": "alianza",
+          "claim": "Portal FlipBiz gratis para Member Clubs: 1 propietario + 3 staff, 20+ cursos, planes de 52 semanas.",
+          "evidenceLevel": "confirmado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "ig",
+          "url": "https://www.insidegymnastics.com/news-features/flipbiz-and-inside-gymnastics-magazine-partner-for-content-program/",
+          "title": "Inside Gymnastics (3-08-2026)",
+          "accessedOn": "2026-11-10",
+          "sourceType": "prensa",
+          "claim": "Fundador y CEO con experiencia dirigiendo un club de gimnasia; Inside Gymnastics socio oficial de noticias; stand en el congreso de USAG.",
+          "evidenceLevel": "confirmado",
+          "notes": null,
+          "accessible": true
+        },
+        {
+          "ref": "apps",
+          "url": "https://itunes.apple.com/search?term=flipbiz&entity=software&country=us",
+          "title": "App Store (API)",
+          "accessedOn": "2026-11-10",
+          "sourceType": "app_store",
+          "claim": "FlipBiz (26-05-2026, 4,1/5 con 8) y FlipBiz Family (2-10-2026, sin valoraciones).",
+          "evidenceLevel": "observado",
+          "notes": null,
+          "accessible": true
+        }
+      ],
+      "sections": {
+        "descripcion": {
+          "content": "Una app para formar al equipo, organizar su semana y gestionar el mostrador: cursos, lesson plans con IA, formularios, turnos, fichaje, chat, gestión de clases, facturación y app de familias.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home"]
+        },
+        "icp": {
+          "content": "Propietarios de clubes de gimnasia, cheer, tumbling y ninja en EE. UU., de una a diez sedes.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home"]
+        },
+        "buyer_persona": {
+          "content": "Entrada por la dirección técnica («¿están formados mis entrenadores?»); escala al responsable de turnos y al propietario que quiere un solo sistema.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["pricing"]
+        },
+        "fundadores_equipo": {
+          "content": "Equipo fundador: su fundador y CEO también dirige operaciones en un club de gimnasia de EE. UU.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "confirmado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["ig"]
+        },
+        "posicionamiento": {
+          "content": "«The operating system for gymnastics clubs». «Your competitors sell islands.»",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home"]
+        },
+        "promesas": {
+          "content": "Seis herramientas y seis logins → una app; migrar en un fin de semana; el horario sabe quién está cualificado.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home", "pricing"]
+        },
+        "funciones": {
+          "content": "Formación con certificados, constructor de cursos, Lesson Plan AI, incidentes firmados en el móvil, turnos con cualificación, fichaje, chat, Class Management, Family App con check-in en pantalla bloqueada, Gymtelligence, Owner Brief, Ask Flip, FlipSites.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["home", "class", "sites"]
+        },
+        "precios": {
+          "content": "Train 85 USD, Growth 150 USD, FlipOS 199 USD al mes por gimnasio; FlipSites +39 USD/mes.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["pricing", "sites"]
+        },
+        "limites": {
+          "content": "Staff: 40 (Train), 75 (Growth), ilimitado (FlipOS). Gymtelligence limitada por plan.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["pricing"]
+        },
+        "modelo_negocio": {
+          "content": "Escalera de producto: entrada barata por formación, subida a turnos y luego a gestión completa; web como add-on de retención.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["pricing"]
+        },
+        "captacion": {
+          "content": "Alianza con USA Gymnastics (portal gratis para Member Clubs), Inside Gymnastics, educadores con nombre propio, congresos, migración asistida gratuita.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "confirmado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["usag", "ig"]
+        },
+        "contenido": {
+          "content": "150+ cursos con 1–5 nuevos al mes; números de Inside Gymnastics dentro de la app.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "declarado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["train", "ig"]
+        },
+        "alianzas": {
+          "content": "USA Gymnastics, Inside Gymnastics, Fun & Fit, Tumblebear, HeadGames, All In Gym, Joy's Jym, MedGym, FlipNinja y otros.",
+          "dataStatus": "verificado",
+          "evidenceLevel": "confirmado",
+          "lastVerifiedOn": "2026-11-10",
+          "sourceRefs": ["usag", "train"]
+        },
+        "fortalezas": {
+          "content": "Canal de distribución vía federación y contenido; une formación, turnos y gestión en un único dato.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        },
+        "debilidades": {
+          "content": "Class Management y Family App muy recientes (app de familias de octubre de 2026); sin datos públicos de clientes; dependencia del mercado estadounidense.",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": ["apps"]
+        },
+        "oportunidades_zaltyko": {
+          "content": "Probar en España una puerta de entrada por coordinación de entrenadoras con contenido técnico (E1) y puesta en marcha asistida (E2).",
+          "dataStatus": "pendiente_revision",
+          "evidenceLevel": "inferido",
+          "lastVerifiedOn": null,
+          "sourceRefs": []
+        }
+      },
+      "pricing": [
+        {
+          "planName": "Train",
+          "priceAmount": 85,
+          "currency": "USD",
+          "billingPeriod": "mes",
+          "vatMode": "desconocido",
+          "limitsText": "40 staff",
+          "feesText": null,
+          "extrasText": null,
+          "trialText": "14 días",
+          "commitmentText": "Sin contrato",
+          "estimateSmall": "85 USD (solo formación)",
+          "estimateMedium": null,
+          "estimateLarge": null,
+          "sourceRef": "pricing",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        },
+        {
+          "planName": "Growth",
+          "priceAmount": 150,
+          "currency": "USD",
+          "billingPeriod": "mes",
+          "vatMode": "desconocido",
+          "limitsText": "75 staff",
+          "feesText": null,
+          "extrasText": null,
+          "trialText": "14 días",
+          "commitmentText": "Sin contrato",
+          "estimateSmall": null,
+          "estimateMedium": "150 USD (equipo, sin gestión de familias)",
+          "estimateLarge": null,
+          "sourceRef": "pricing",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        },
+        {
+          "planName": "FlipOS",
+          "priceAmount": 199,
+          "currency": "USD",
+          "billingPeriod": "mes",
+          "vatMode": "desconocido",
+          "limitsText": "Staff ilimitado; incluye Class Management",
+          "feesText": "No publicado",
+          "extrasText": "FlipSites 39 USD/mes",
+          "trialText": "14 días",
+          "commitmentText": "Sin contrato",
+          "estimateSmall": "199 USD",
+          "estimateMedium": "199 USD",
+          "estimateLarge": "199 USD",
+          "sourceRef": "pricing",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        }
+      ],
+      "flows": [
+        {
+          "flow": "formacion_entrenadoras",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "train",
+          "notes": null
+        },
+        {
+          "flow": "asignacion_entrenadoras",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "home",
+          "notes": "Turnos con cualificación"
+        },
+        {
+          "flow": "control_horario",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "pricing",
+          "notes": null
+        },
+        {
+          "flow": "progreso_tecnico",
+          "coverage": "parcial",
+          "evidenceLevel": "declarado",
+          "sourceRef": "class",
+          "notes": "Skills marcados por el coach; lesson plans IA"
+        },
+        {
+          "flow": "importacion_excel",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "pricing",
+          "notes": "Migración asistida"
+        },
+        {
+          "flow": "inscripciones",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "class",
+          "notes": null
+        },
+        {
+          "flow": "asistencia",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "class",
+          "notes": null
+        },
+        {
+          "flow": "cuotas_manuales",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "class",
+          "notes": null
+        },
+        {
+          "flow": "portal_familiar",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "class",
+          "notes": null
+        },
+        {
+          "flow": "campus_eventos",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "class",
+          "notes": null
+        },
+        {
+          "flow": "informes_resumen",
+          "coverage": "resuelve",
+          "evidenceLevel": "declarado",
+          "sourceRef": "class",
+          "notes": null
+        },
+        {
+          "flow": "app_movil",
+          "coverage": "resuelve",
+          "evidenceLevel": "observado",
+          "sourceRef": "apps",
+          "notes": null
+        }
+      ]
+    }
+  ],
+  "opportunities": [
+    {
+      "title": "Activar el acceso de entrenadoras (invitaciones)",
+      "classification": "igualar",
+      "priority": 1,
+      "whoPays": "Dirección o propietario",
+      "frequency": "Diaria",
+      "currentCost": "Una sola persona usa Zaltyko; el uso semanal depende de ella",
+      "minimumSolution": "Invitación por correo con rol entrenador y sedes",
+      "codeDependencies": "Correo transaccional aislado (hoy OFF); src/modules/staff/application/canonical-team-access.ts",
+      "confidence": "alta",
+      "effort": "M",
+      "successMetric": "% de academias piloto con ≥ 1 entrenadora activa cada semana",
+      "validationPlan": "5 entrevistas: ¿quién pasa lista hoy y dónde?",
+      "status": "hipotesis",
+      "description": "Sin acceso de entrenadoras no hay uso semanal ni recomendación interna.",
+      "competitorSlugs": ["rg-manager", "scoregym-club", "clybo"]
+    },
+    {
+      "title": "Entrenadora titular por clase y sustitución por sesión",
+      "classification": "igualar",
+      "priority": 2,
+      "whoPays": "Dirección técnica",
+      "frequency": "Semanal (cambios), diaria (consulta)",
+      "currentCost": "Cuadrante en Excel + WhatsApp",
+      "minimumSolution": "Asignar titular por clase; sustituir en una sesión; «Hoy» muestra la propia",
+      "codeDependencies": "zaltyko.session_staff, class_templates, OwnerClassesManager.tsx, regla session_without_coach",
+      "confidence": "media",
+      "effort": "M",
+      "successMetric": "% de sesiones con entrenadora asignada y sustituciones registradas",
+      "validationPlan": "Pedir el cuadrante real de 5 clubes y contar cambios por mes",
+      "status": "hipotesis",
+      "description": "El modelo existe pero no hay API ni pantalla.",
+      "competitorSlugs": ["rg-manager", "scoregym-club", "flipbiz"]
+    },
+    {
+      "title": "Avisos de choque de entrenadora y pista al montar horarios",
+      "classification": "diferenciar",
+      "priority": 3,
+      "whoPays": "Dirección técnica",
+      "frequency": "Al montar temporada y en cada cambio",
+      "currentCost": "Choques descubiertos en pista",
+      "minimumSolution": "Aviso (no bloqueo) al guardar si coincide entrenadora o espacio",
+      "codeDependencies": "zaltyko.spaces, session_staff, class-management-service.ts",
+      "confidence": "baja",
+      "effort": "S",
+      "successMetric": "Choques avisados y corregidos antes de la sesión",
+      "validationPlan": "Pedir a 5 clubes los choques del último mes",
+      "status": "hipotesis",
+      "description": "Ningún competidor muestra evidencia de resolverlo; en la demo de ScoreGym hay un solape sin aviso.",
+      "competitorSlugs": ["scoregym-club", "rg-manager"]
+    },
+    {
+      "title": "Importación de Excel con vista previa y migración asistida",
+      "classification": "igualar",
+      "priority": 4,
+      "whoPays": "Dirección al cambiar de sistema",
+      "frequency": "Una vez; bloquea la compra",
+      "currentCost": "Horas de tecleo y miedo a perder datos",
+      "minimumSolution": "Plantilla → vista previa con errores → confirmar; llamada de 30 minutos",
+      "codeDependencies": "src/modules/athletes/application/owner-athlete-intake.ts e idempotencia existente",
+      "confidence": "media",
+      "effort": "M",
+      "successMetric": "Tiempo desde alta hasta primera asistencia < 1 día",
+      "validationPlan": "Pedir Excel anonimizados a los pilotos",
+      "status": "hipotesis",
+      "description": "RG Manager, OneClub, Clybo y FlipBiz lo anuncian.",
+      "competitorSlugs": ["rg-manager", "oneclub", "clybo", "flipbiz"]
+    },
+    {
+      "title": "Cerrar el recorrido solicitud de prueba → inscripción",
+      "classification": "igualar",
+      "priority": 5,
+      "whoPays": "Dirección",
+      "frequency": "Picos en septiembre y enero",
+      "currentCost": "Formularios sueltos y mensajes",
+      "minimumSolution": "Aplicar el candidato SQL autorizado y convertir solicitud en gimnasta + inscripción",
+      "codeDependencies": "docs/deployment/candidates/20261110120000_admission_requests_candidate.sql, trial-service.ts, waitlists",
+      "confidence": "alta",
+      "effort": "S",
+      "successMetric": "% de solicitudes convertidas en inscripción",
+      "validationPlan": "Medir tras abrir el embudo",
+      "status": "validando",
+      "description": "Código en main; tabla sin aplicar.",
+      "competitorSlugs": ["rg-manager", "clybo", "gimnasiatotal"]
+    },
+    {
+      "title": "Revisar límites de grupos por plan",
+      "classification": "superar",
+      "priority": 6,
+      "whoPays": "Clubes medianos",
+      "frequency": "Al contratar",
+      "currentCost": "Un club de 75 con 9 grupos no cabe en Starter",
+      "minimumSolution": "Decisión explícita de pricing solo si las entrevistas lo confirman",
+      "codeDependencies": "src/lib/plans/catalog.ts y tests de claims",
+      "confidence": "baja",
+      "effort": "S",
+      "successMetric": "Clubes M que caben en el plan que eligen",
+      "validationPlan": "Pregunta 12 del guion de entrevistas",
+      "status": "hipotesis",
+      "description": "Hipótesis: no cambiar precios sin evidencia (regla del repositorio).",
+      "competitorSlugs": ["clybo", "rg-manager"]
+    },
+    {
+      "title": "Contenido técnico para captar academias (estilo FlipBiz)",
+      "classification": "diferenciar",
+      "priority": 7,
+      "whoPays": "—",
+      "frequency": "Canal",
+      "currentCost": "—",
+      "minimumSolution": "Plantilla de cuadrante de temporada sin choques (experimento E1)",
+      "codeDependencies": "Ninguna",
+      "confidence": "baja",
+      "effort": "S",
+      "successMetric": "≥ 25 descargas con correo de club y ≥ 5 llamadas en 14 días",
+      "validationPlan": "Experimento E1",
+      "status": "hipotesis",
+      "description": "FlipBiz distribuye vía formación y USA Gymnastics.",
+      "competitorSlugs": ["flipbiz"]
+    },
+    {
+      "title": "Remesas SEPA y cobro a familias",
+      "classification": "posponer",
+      "priority": null,
+      "whoPays": "Tesorería",
+      "frequency": "Mensual",
+      "currentCost": "Banco + Excel",
+      "minimumSolution": "—",
+      "codeDependencies": "Decisión de lanzamiento: no cobrar a familias; dictamen fiscal pendiente",
+      "confidence": "media",
+      "effort": "L",
+      "successMetric": "—",
+      "validationPlan": "Si ≥ 6/10 entrevistas lo ponen como primer dolor, reabrir",
+      "status": "hipotesis",
+      "description": "Alta demanda, mejor resuelta por la competencia.",
+      "competitorSlugs": ["rg-manager", "oneclub", "clybo", "scoregym-club"]
+    },
+    {
+      "title": "App nativa, competiciones, campus, tienda, control horario e IA",
+      "classification": "posponer",
+      "priority": null,
+      "whoPays": "Varios",
+      "frequency": "Variable",
+      "currentCost": "—",
+      "minimumSolution": "—",
+      "codeDependencies": "—",
+      "confidence": "baja",
+      "effort": "L",
+      "successMetric": "—",
+      "validationPlan": "Sin evidencia de que decidan la compra del ICP inicial",
+      "status": "hipotesis",
+      "description": "Los competidores lo tienen; no construir solo por eso.",
+      "competitorSlugs": ["rg-manager", "clybo", "flipbiz"]
+    }
+  ]
+}

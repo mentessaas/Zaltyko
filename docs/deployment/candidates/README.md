@@ -55,6 +55,37 @@ si alguna de las dos relaciones ya existe.
   ningún entorno. La CI verde no equivale a autorización.
 - Contexto y corte mínimo: `docs/producto/embudo-captacion.md`.
 
+## Candidato del panel de inteligencia competitiva (super-admin)
+
+`20261110180000_competitive_intelligence_candidate.sql` crea ocho tablas
+`public.ci_*` para el panel interno `/super-admin/competencia`: competidores,
+secciones de la ficha con estado del dato, fuentes, flujos de producto y su
+cobertura, planes de precios, oportunidades e historial de cambios. Solo guarda
+información pública de empresas del mercado; ningún dato de academias,
+familias ni menores. No toca tablas existentes, se niega a reinstalarse si
+alguna relación ya existe, fuerza RLS y deniega cualquier acceso de clientes
+`anon`/`authenticated`; el servidor accede con `withSuperAdmin`.
+
+- Esquema Drizzle espejo: `src/db/schema/competitive-intelligence.ts`. **No se
+  exporta desde `src/db/schema/index.ts`** a propósito: `drizzle.config.ts` lee
+  ese índice y un `db:generate`/`push` crearía las tablas sin RLS ni `REVOKE`,
+  expuestas por PostgREST. El código lo importa directamente.
+- `tests/competencia-security-contract.test.ts` comprueba que este SQL crea las
+  mismas tablas que el esquema, que todas tienen `ENABLE`/`FORCE ROW LEVEL
+  SECURITY`, `REVOKE` a `public`/`anon`/`authenticated` y la política
+  restrictiva, y que el esquema no llega a drizzle-kit (`validate-rls.ts` no
+  cubre estas tablas porque no tienen tenant).
+- Semilla idempotente: `src/content/competencia/semilla-2026-11.json`, que se
+  carga con `pnpm db:seed:competencia` o con el botón «Cargar datos iniciales»
+  del panel. Solo inserta lo que falta. El script solo acepta bases en loopback;
+  una base alojada exige `-- --permitir-base-remota` además de la autorización.
+- Mientras no se aplique, `src/lib/competencia/storage.ts`
+  (`isCompetitiveIntelligenceAvailable`) detecta que faltan las tablas y el
+  panel muestra «no disponible» sin errores a medias.
+- **Requiere autorización de Elvis para aplicarse.** Solo se ha instalado en un
+  PostgreSQL efímero local para comprobar el panel (10-11-2026); no se ha
+  aplicado en sandbox ni en producción.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.
