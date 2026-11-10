@@ -46,6 +46,10 @@ const REMOTE_SANDBOX_SUITES = [
   "tests/saas-preview-regularization-pg.test.ts",
   "tests/saas-preview-readonly-boundaries-pg.test.ts",
 ];
+const OWN_HARNESS_SUITES = ["tests/lib/stripe-charge-collection-concurrency.real-pg.test.ts"];
+const EXCLUDED_SUITES = [...REMOTE_SANDBOX_SUITES, ...OWN_HARNESS_SUITES];
+const FRESH_DATABASE_SUITES = ["tests/saas-reconciliation-service-pg.test.ts"];
+const PG_SUITE_PATTERN = /-pg\.test\.ts$|-postgres\.integration\.test\.ts$/;
 
 const FORBIDDEN_ENV = [
   "SUPABASE_ACCESS_TOKEN",
@@ -68,7 +72,7 @@ type Plan = {
   batches: Array<{ source: "replay" | "discovered"; database: "shared" | "fresh"; suites: string[] }>;
   replay_suites: string[];
   discovered_suites: string[];
-  excluded_suites: Array<{ path: string; reason: string }>;
+  excluded_suites: Array<{ path: string; category: string; reason: string }>;
   fresh_database_suites: Array<{ path: string; reason: string }>;
   suite_count: number;
 };
@@ -86,12 +90,39 @@ function makeTemporaryRoot(prefix: string) {
   return directory;
 }
 
-function runPlanner(command: "plan" | "verify-pins", root = ROOT, extraArgs: string[] = []) {
-  const result = spawnSync("python3", ["-I", PLANNER_PATH, command, "--root", root, ...extraArgs], {
+function runPlanner(command: "plan" | "verify-pins" | "verify-reports", root = ROOT, extraArgs: string[] = []) {
+  return spawnSync("python3", ["-I", PLANNER_PATH, command, "--root", root, ...extraArgs], {
     cwd: ROOT,
     encoding: "utf8",
   });
-  return result;
+}
+
+/** Synthetic roots have no real fresh-database suite unless a test adds one. */
+function runSyntheticPlan(root: string, fresh: Record<string, string> = {}) {
+  return runPlanner("plan", root, ["--fresh-database-suites-json", JSON.stringify(fresh)]);
+}
+
+/** Ordered `apply_migration "$X_NAME"` steps of the integration script. */
+function scriptAppliedMigrations(text: string) {
+  return [...text.matchAll(/^\s*apply_migration "\$([A-Z0-9_]+_NAME)"/gm)].map((match) => match[1]);
+}
+
+/** Ordered destinations `$CI_WORKDIR/supabase/migrations/$X_NAME` of the replay. */
+function replayMigrationDestinations(text: string) {
+  const beforeSuites = text.slice(0, text.indexOf("\nrun_disposable_postgres_suites() {"));
+  const sequence: string[] = [];
+  for (const match of beforeSuites.matchAll(/\$CI_WORKDIR\/supabase\/migrations\/\$([A-Z0-9_]+_NAME)\b/g)) {
+    if (sequence.at(-1) !== match[1]) sequence.push(match[1]);
+  }
+  return sequence;
+}
+
+function listPgSuitesOnDisk(root: string) {
+  return (readdirSync(path.join(root, "tests"), { recursive: true }) as string[])
+    .map((file) => file.split(path.sep).join("/"))
+    .filter((file) => PG_SUITE_PATTERN.test(file))
+    .map((file) => `tests/${file}`)
+    .sort();
 }
 
 /** Independent reading of run_disposable_postgres_suites, in order. */
@@ -114,7 +145,10 @@ function writeSyntheticRoot(options: { suites: string[]; replaySuites: string[] 
     "",
   ].join("\n");
   writeFileSync(path.join(root, "scripts/ci/verify-sandbox-schema-replay.sh"), replay);
-  for (const suite of options.suites) writeFileSync(path.join(root, suite), "// synthetic\n");
+  for (const suite of options.suites) {
+    mkdirSync(path.dirname(path.join(root, suite)), { recursive: true });
+    writeFileSync(path.join(root, suite), "// synthetic\n");
+  }
   return root;
 }
 
@@ -147,6 +181,13 @@ describe("Postgres integration workflow contract", () => {
     }
     const checkout = job.steps.find((step) => step.uses?.startsWith("actions/checkout@"));
     expect(checkout?.with?.["persist-credentials"]).toBe(false);
+  });
+
+  it("pins every action to a full commit SHA", () => {
+    const uses = job.steps.flatMap((step) => (step.uses ? [step.uses] : []));
+    expect(uses.length).toBeGreaterThan(0);
+    for (const reference of uses) expect(reference).toMatch(/@[0-9a-f]{40}\b/);
+    expect(workflowText.match(/^\s*(?:-\s*)?uses:/gm)?.length).toBe(uses.length);
   });
 
   it("installs only the checksum-verified CLI pinned by the reviewed replay", () => {
@@ -225,11 +266,11 @@ describe("Postgres integration workflow contract", () => {
     ]) {
       expect(script).toContain(step);
     }
-    // Ordered exactly like the reviewed replay.
-    const order = ["Marker-guarded", "RLS hardening migration\"", "Owner bootstrap reference seed\"", "Synthetic two-academy"].map(
-      (needle) => script.indexOf(needle, script.indexOf("# 3. Same sources"))
-    );
-    expect(order.every((value, index) => value > (order[index - 1] ?? 0))).toBe(true);
+    // Same migration steps and order as the reviewed replay; its two guard
+    // probes only prove refusals and are not applied here.
+    const replaySteps = replayMigrationDestinations(replayScript);
+    expect(replaySteps.slice(-2)).toEqual(["GUARD_PROBE_NAME", "UNMARKED_PROBE_NAME"]);
+    expect(scriptAppliedMigrations(script)).toEqual(replaySteps.slice(0, -2));
     expect(script).toContain('"<redacted-connection>"');
     expect(script).toContain('"<redacted-jwt>"');
     expect(script).toContain('"<redacted-key>"');
@@ -263,6 +304,35 @@ describe("Postgres integration workflow contract", () => {
     expect(result.stderr).toContain("The replay script differs from the manifest pin.");
   });
 
+  it("refuses a replay whose migration steps or name constants drifted", () => {
+    const writeReplay = (text: string) => {
+      const root = makeTemporaryRoot("zaltyko-pg-drift-");
+      mkdirSync(path.join(root, "scripts/ci"), { recursive: true });
+      writeFileSync(path.join(root, "scripts/ci/verify-sandbox-schema-replay.sh"), text);
+      return root;
+    };
+    const tenantStep = 'cat -- "$ROLE_GUARD_FILE" "$ROOT/scripts/ci/sandbox-tenant-isolation.sql" \\\n';
+    expect(replayScript).toContain(tenantStep);
+
+    // An extra migration step using an existing constant.
+    const extraStep = replayScript.replace(
+      tenantStep,
+      'cp -- "$ROLE_GUARD_FILE" "$CI_WORKDIR/supabase/migrations/$RLS_HARDENING_MIGRATION_NAME"\n' + tenantStep
+    );
+    const extraResult = runPlanner("verify-pins", writeReplay(extraStep));
+    expect(extraResult.status).toBe(1);
+    expect(extraResult.stderr).toContain("The replay migration steps drifted from the reviewed sequence");
+
+    // A new name constant.
+    const extraConstant = replayScript.replace(
+      /^(readonly TENANT_MIGRATION_NAME=.*)$/m,
+      '$1\nreadonly EXTRA_STEP_NAME="20261024223799_extra_step.sql"'
+    );
+    const constantResult = runPlanner("verify-pins", writeReplay(extraConstant));
+    expect(constantResult.status).toBe(1);
+    expect(constantResult.stderr).toContain("different set of migration name constants: EXTRA_STEP_NAME");
+  });
+
   it("runs every run_disposable_postgres_suites suite in the reviewed order, then new suites", () => {
     const result = runPlanner("plan");
     expect(result.stderr).toBe("");
@@ -282,25 +352,41 @@ describe("Postgres integration workflow contract", () => {
       for (const batch of plan.batches.slice(firstDiscovered)) expect(batch.suites).toHaveLength(1);
     }
 
-    const onDisk = readdirSync(path.join(ROOT, "tests"))
-      .filter((file) => /-pg\.test\.ts$|-postgres\.integration\.test\.ts$/.test(file))
-      .map((file) => `tests/${file}`)
-      .sort();
+    const onDisk = listPgSuitesOnDisk(ROOT);
     const planned = plan.batches.flatMap((batch) => batch.suites);
     expect([...planned, ...plan.excluded_suites.map((item) => item.path)].sort()).toEqual(onDisk);
     expect(plan.suite_count).toBe(planned.length);
     expect(new Set(planned).size).toBe(planned.length);
   });
 
-  it("always keeps the two remote-sandbox suites out of the disposable run", () => {
+  it("keeps the remote-sandbox and own-harness suites out of the disposable run", () => {
     const result = runPlanner("plan");
     const plan = JSON.parse(result.stdout) as Plan;
-    expect(plan.excluded_suites.map((item) => item.path).sort()).toEqual([...REMOTE_SANDBOX_SUITES].sort());
-    for (const item of plan.excluded_suites) expect(item.reason).toMatch(/remote SaaS preview sandbox/);
+    expect(plan.excluded_suites.map((item) => item.path).sort()).toEqual([...EXCLUDED_SUITES].sort());
+    for (const item of plan.excluded_suites) {
+      if (REMOTE_SANDBOX_SUITES.includes(item.path)) {
+        expect(item.category).toBe("remote-sandbox");
+        expect(item.reason).toMatch(/remote SaaS preview sandbox/);
+      } else {
+        expect(item.category).toBe("own-harness");
+        expect(item.reason).toMatch(/run-charge-concurrency-test\.sh/);
+        expect(item.reason).toMatch(/CHARGE_CONCURRENCY_TEST/);
+        expect(item.reason).toMatch(/TRUNCATE/);
+      }
+    }
     const planned = plan.batches.flatMap((batch) => batch.suites);
-    for (const suite of REMOTE_SANDBOX_SUITES) expect(planned).not.toContain(suite);
+    for (const suite of EXCLUDED_SUITES) expect(planned).not.toContain(suite);
+    expect(script).toMatch(/\bCHARGE_CONCURRENCY_TEST\b/);
     expect(script).not.toMatch(/ZALTYKO_SANDBOX_READONLY_TESTS=1/);
     expect(script).toContain("CI_ISOLATED=1");
+  });
+
+  it("runs the SaaS reconciliation suite alone on its own fresh database", () => {
+    const plan = JSON.parse(runPlanner("plan").stdout) as Plan;
+    expect(plan.fresh_database_suites.map((item) => item.path)).toEqual(FRESH_DATABASE_SUITES);
+    const freshBatches = plan.batches.filter((batch) => batch.database === "fresh");
+    expect(freshBatches).toEqual(FRESH_DATABASE_SUITES.map((suite) => ({ source: "discovered", database: "fresh", suites: [suite] })));
+    expect(plan.batches.slice(-freshBatches.length)).toEqual(freshBatches);
   });
 
   it("discovers a new PostgreSQL suite and runs it alone after the replay batches", () => {
@@ -311,11 +397,12 @@ describe("Postgres integration workflow contract", () => {
         "tests/b-postgres.integration.test.ts",
         "tests/new-feature-pg.test.ts",
         "tests/new-ledger-postgres.integration.test.ts",
+        "tests/sub/x-pg.test.ts",
         "tests/unrelated.test.ts",
-        ...REMOTE_SANDBOX_SUITES,
+        ...EXCLUDED_SUITES,
       ],
     });
-    const result = runPlanner("plan", root);
+    const result = runSyntheticPlan(root);
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
     const plan = JSON.parse(result.stdout) as Plan;
@@ -323,8 +410,10 @@ describe("Postgres integration workflow contract", () => {
       { source: "replay", database: "shared", suites: ["tests/a-pg.test.ts", "tests/b-postgres.integration.test.ts"] },
       { source: "discovered", database: "shared", suites: ["tests/new-feature-pg.test.ts"] },
       { source: "discovered", database: "shared", suites: ["tests/new-ledger-postgres.integration.test.ts"] },
+      { source: "discovered", database: "shared", suites: ["tests/sub/x-pg.test.ts"] },
     ]);
-    expect(plan.suite_count).toBe(4);
+    expect(plan.suite_count).toBe(5);
+    expect(listPgSuitesOnDisk(root)).toContain("tests/sub/x-pg.test.ts");
   });
 
   it("runs suites marked for a fresh database alone, last, each on a rebuilt database", () => {
@@ -334,11 +423,10 @@ describe("Postgres integration workflow contract", () => {
         "tests/a-pg.test.ts",
         "tests/global-claims-pg.test.ts",
         "tests/z-shared-pg.test.ts",
-        ...REMOTE_SANDBOX_SUITES,
+        ...EXCLUDED_SUITES,
       ],
     });
-    const fresh = JSON.stringify({ "tests/global-claims-pg.test.ts": "Asserts no claimable rows in the whole database." });
-    const result = runPlanner("plan", root, ["--fresh-database-suites-json", fresh]);
+    const result = runSyntheticPlan(root, { "tests/global-claims-pg.test.ts": "Asserts no claimable rows in the whole database." });
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
     const plan = JSON.parse(result.stdout) as Plan;
@@ -353,7 +441,7 @@ describe("Postgres integration workflow contract", () => {
       { "tests/a-pg.test.ts": "already a replay suite" },
       { "tests/global-claims-pg.test.ts": " " },
     ]) {
-      const refused = runPlanner("plan", root, ["--fresh-database-suites-json", JSON.stringify(invalid)]);
+      const refused = runSyntheticPlan(root, invalid);
       expect(refused.status).toBe(1);
       expect(refused.stderr).toContain("PostgreSQL integration plan refused");
     }
@@ -364,27 +452,122 @@ describe("Postgres integration workflow contract", () => {
     expect(script).toMatch(/fresh\) database_count=\$\(\(database_count \+ 1\)\); build_database/);
   });
 
-  it("runs PostgreSQL suite files sequentially, never in parallel", () => {
+  it("runs PostgreSQL suite files sequentially, never in parallel", async () => {
     expect(script).toContain("pnpm exec vitest run --project web --no-file-parallelism");
-    expect(readFileSync(path.join(ROOT, "vitest.config.ts"), "utf8")).toContain("maxWorkers: 1");
+    const config = (await import("../vitest.config")).default as unknown as { test?: { maxWorkers?: number } };
+    expect(config.test?.maxWorkers).toBe(1);
   });
 
   it("fails closed on a stale exclusion or a remote-sandbox suite in the replay batches", () => {
     const stale = writeSyntheticRoot({
       replaySuites: ["tests/a-pg.test.ts"],
-      suites: ["tests/a-pg.test.ts", REMOTE_SANDBOX_SUITES[0]],
+      suites: ["tests/a-pg.test.ts", ...EXCLUDED_SUITES.slice(1)],
     });
-    const staleResult = runPlanner("plan", stale);
+    const staleResult = runSyntheticPlan(stale);
     expect(staleResult.status).toBe(1);
     expect(staleResult.stderr).toContain("Stale exclusion");
 
     const remote = writeSyntheticRoot({
       replaySuites: ["tests/a-pg.test.ts", REMOTE_SANDBOX_SUITES[1]],
-      suites: ["tests/a-pg.test.ts", ...REMOTE_SANDBOX_SUITES],
+      suites: ["tests/a-pg.test.ts", ...EXCLUDED_SUITES],
     });
-    const remoteResult = runPlanner("plan", remote);
+    const remoteResult = runSyntheticPlan(remote);
     expect(remoteResult.status).toBe(1);
     expect(remoteResult.stderr).toContain("remote-sandbox suite cannot run on disposable Postgres");
+  });
+
+  describe("verify-reports", () => {
+    const plan = {
+      batches: [
+        { source: "replay", database: "shared", suites: ["tests/a-pg.test.ts", "tests/b-pg.test.ts"] },
+        { source: "discovered", database: "fresh", suites: ["tests/c-pg.test.ts"] },
+      ],
+      discovered_suites: ["tests/c-pg.test.ts"],
+      fresh_database_suites: [{ path: "tests/c-pg.test.ts", reason: "synthetic" }],
+      excluded_suites: [],
+    };
+    type Assertion = { status: string };
+    type FileResult = { name: string; status: string; assertionResults: Assertion[] };
+    const passed = (count: number) => Array.from({ length: count }, () => ({ status: "passed" }));
+    const file = (suite: string, status: string, assertionResults: Assertion[]): FileResult => ({
+      name: `/synthetic-root/${suite}`,
+      status,
+      assertionResults,
+    });
+
+    function verify(reports: FileResult[][]) {
+      const directory = makeTemporaryRoot("zaltyko-pg-reports-");
+      const reportDir = path.join(directory, "reports");
+      mkdirSync(reportDir);
+      reports.forEach((testResults, index) =>
+        writeFileSync(path.join(reportDir, `batch-0${index + 1}.json`), JSON.stringify({ testResults }))
+      );
+      const planFile = path.join(directory, "plan.json");
+      writeFileSync(planFile, JSON.stringify(plan));
+      const summaryFile = path.join(directory, "summary.md");
+      const result = runPlanner("verify-reports", "/synthetic-root", [
+        "--plan",
+        planFile,
+        "--reports",
+        reportDir,
+        "--summary",
+        summaryFile,
+      ]);
+      return { ...result, summary: readFileSync(summaryFile, "utf8") };
+    }
+
+    const healthy = () => [
+      [file("tests/a-pg.test.ts", "passed", passed(3)), file("tests/b-pg.test.ts", "passed", passed(2))],
+      [file("tests/c-pg.test.ts", "passed", passed(4))],
+    ];
+
+    it("accepts a run where every planned suite passed and reports counts", () => {
+      const result = verify(healthy());
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("PASS: 3 PostgreSQL suites, 9 tests on disposable local Postgres.");
+      expect(result.summary).toContain("| `tests/c-pg.test.ts` | discovered | fresh | 4 | 0 | 0 | ok |");
+    });
+
+    it("refuses a suite whose tests were all skipped", () => {
+      const reports = healthy();
+      reports[1] = [file("tests/c-pg.test.ts", "passed", [{ status: "skipped" }, { status: "skipped" }])];
+      const result = verify(reports);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("tests/c-pg.test.ts: no passed tests");
+    });
+
+    it("refuses a batch report with empty testResults", () => {
+      const reports = healthy();
+      reports[1] = [];
+      const result = verify(reports);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("tests/c-pg.test.ts: no vitest result");
+    });
+
+    it("refuses a failed file without assertions (import or hook failure)", () => {
+      const reports = healthy();
+      reports[0][1] = file("tests/b-pg.test.ts", "failed", []);
+      const result = verify(reports);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("tests/b-pg.test.ts: failed (0 failed test(s))");
+    });
+
+    it("refuses a reported file that was not planned", () => {
+      const reports = healthy();
+      reports[1].push(file("tests/unplanned-pg.test.ts", "passed", passed(1)));
+      const result = verify(reports);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("tests/unplanned-pg.test.ts: reported but not planned");
+    });
+
+    it("refuses skipped tests mixed with passed ones", () => {
+      const reports = healthy();
+      reports[0][0] = file("tests/a-pg.test.ts", "passed", [...passed(2), { status: "todo" }]);
+      const result = verify(reports);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("tests/a-pg.test.ts: 1 skipped/todo test(s)");
+    });
   });
 });
 

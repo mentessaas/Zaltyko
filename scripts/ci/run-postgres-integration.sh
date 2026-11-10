@@ -143,7 +143,7 @@ print(f"Planned PostgreSQL suites: {plan['suite_count']} in {len(plan['batches']
 for index, batch in enumerate(plan["batches"], start=1):
     print(f"  batch {index} [{batch['source']}, {batch['database']} database]: " + " ".join(batch["suites"]))
 for item in plan["excluded_suites"]:
-    print(f"  excluded: {item['path']} ({item['reason']})")
+    print(f"  excluded [{item['category']}]: {item['path']} ({item['reason']})")
 PY
 
 # build_database N: start disposable native stack number N and rebuild the
@@ -441,88 +441,8 @@ unset LOCAL_DB_URL EXPECTED_LOCAL_PORT
 
 # 5. Prove the suites really ran: every planned file must report at least one
 #    passed test, none failed and none skipped. Only names and counts are printed.
-if ! python3 - "$PLAN_FILE" "$REPORT_DIR" "$ROOT" "${GITHUB_STEP_SUMMARY:-}" <<'PY'
-from pathlib import Path
-import json
-import sys
-
-plan = json.load(open(sys.argv[1], encoding="utf-8"))
-report_dir, root = Path(sys.argv[2]), Path(sys.argv[3]).resolve()
-summary_path = sys.argv[4]
-planned = [suite for batch in plan["batches"] for suite in batch["suites"]]
-results = {}
-for report in sorted(report_dir.glob("batch-*.json")):
-    try:
-        payload = json.loads(report.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        continue
-    for item in payload.get("testResults", []):
-        try:
-            name = Path(item["name"]).resolve().relative_to(root).as_posix()
-        except (KeyError, ValueError):
-            name = str(item.get("name", "?"))
-        counts = results.setdefault(name, {"passed": 0, "failed": 0, "skipped": 0, "file_failed": False})
-        if item.get("status") == "failed":
-            counts["file_failed"] = True
-        for assertion in item.get("assertionResults", []):
-            status = assertion.get("status")
-            key = status if status in {"passed", "failed"} else "skipped"
-            counts[key] += 1
-
-problems = []
-rows = []
-for suite in planned:
-    counts = results.get(suite)
-    if counts is None:
-        problems.append(f"{suite}: no vitest result (not executed or crashed before reporting)")
-        rows.append((suite, "-", "-", "-", "NOT RUN"))
-        continue
-    state = "ok"
-    if counts["failed"] or counts["file_failed"]:
-        state = "FAILED"
-        problems.append(f"{suite}: {counts['failed']} failed test(s)")
-    elif counts["passed"] == 0:
-        state = "NO TESTS RAN"
-        problems.append(f"{suite}: no passed tests")
-    elif counts["skipped"]:
-        state = "SKIPPED TESTS"
-        problems.append(f"{suite}: {counts['skipped']} skipped/todo test(s) with ZALTYKO_PG_INTEGRATION=1")
-    rows.append((suite, counts["passed"], counts["failed"], counts["skipped"], state))
-unexpected = sorted(set(results) - set(planned))
-for suite in unexpected:
-    problems.append(f"{suite}: reported but not planned")
-
-total_passed = sum(r[1] for r in rows if isinstance(r[1], int))
-total_failed = sum(r[2] for r in rows if isinstance(r[2], int))
-discovered = set(plan["discovered_suites"])
-lines = [
-    "## Postgres integration",
-    "",
-    f"Disposable local Supabase Postgres (native, loopback). Suites: **{len(planned)}** "
-    f"({len(planned) - len(discovered)} from run_disposable_postgres_suites, {len(discovered)} discovered). "
-    f"Tests passed: **{total_passed}**, failed: **{total_failed}**.",
-    "",
-    "| Suite | Origin | Passed | Failed | Skipped | State |",
-    "| --- | --- | ---: | ---: | ---: | --- |",
-]
-for suite, passed, failed, skipped, state in rows:
-    origin = "discovered" if suite in discovered else "replay"
-    lines.append(f"| `{suite}` | {origin} | {passed} | {failed} | {skipped} | {state} |")
-lines += ["", "Excluded (remote sandbox only):"]
-lines += [f"- `{item['path']}`: {item['reason']}" for item in plan["excluded_suites"]]
-text = "\n".join(lines) + "\n"
-print(text)
-if summary_path:
-    with open(summary_path, "a", encoding="utf-8") as handle:
-        handle.write(text)
-if problems:
-    print("PostgreSQL integration problems:", file=sys.stderr)
-    for problem in problems:
-        print(f"  - {problem}", file=sys.stderr)
-    raise SystemExit(1)
-print(f"PASS: {len(planned)} PostgreSQL suites, {total_passed} tests on disposable local Postgres.")
-PY
-then
+if ! python3 "$PLANNER" verify-reports --root "$ROOT" --plan "$PLAN_FILE" --reports "$REPORT_DIR" \
+  ${GITHUB_STEP_SUMMARY:+--summary "$GITHUB_STEP_SUMMARY"}; then
   fail "At least one PostgreSQL suite failed, was skipped or did not report."
 fi
 [[ "$failed_batches" -eq 0 ]] || fail "$failed_batches PostgreSQL suite batch(es) failed."
