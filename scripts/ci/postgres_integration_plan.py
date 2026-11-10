@@ -48,9 +48,7 @@ REMOTE_SANDBOX_SUITES = frozenset(EXCLUDED_SUITES)
 # entry runs alone, after every shared batch, on a freshly rebuilt disposable
 # database. Every entry needs a reason and must name an existing discovered
 # suite that the replay does not already run.
-FRESH_DATABASE_SUITES: dict[str, str] = {
-    "tests/admission-requests-pg.test.ts": "TEMPORARY: exercise the fresh-database path in CI; reverted next commit.",
-}
+FRESH_DATABASE_SUITES: dict[str, str] = {}
 
 REPLAY_CONSTANTS = (
     "ROLE_PROBE_NAME",
