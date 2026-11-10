@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
 
 import { SourceForm } from "@/components/competencia/SourceForm";
 import {
@@ -7,6 +6,7 @@ import {
   EvidencePill,
   PageIntro,
   Pill,
+  SafeExternalLink,
   SubNav,
   UnavailableNotice,
   ciButtonGhost,
@@ -175,15 +175,12 @@ export default async function FuentesPage({
           {rows.map(({ source, competitorName, competitorSlug }) => (
             <li key={source.id} className={`${ciCard} space-y-2`}>
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <a
-                  href={source.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="inline-flex min-w-0 items-center gap-1 break-all font-medium text-zaltyko-electric hover:underline"
+                <SafeExternalLink
+                  url={source.url}
+                  className="min-w-0 break-all font-medium"
                 >
-                  {source.title ?? source.url}{" "}
-                  <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                </a>
+                  {source.title ?? source.url}
+                </SafeExternalLink>
                 {competitorSlug ? (
                   <Link
                     href={`/super-admin/competencia/${competitorSlug}`}

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -10,7 +10,7 @@ import {
   ciOpportunities,
   ciPricingPlans,
   ciSources,
-} from "@/db/schema";
+} from "@/db/schema/competitive-intelligence";
 
 import type {
   CompetitiveSeed,
@@ -38,6 +38,57 @@ type Executor = Database | Tx;
 export class CompetenciaNotFoundError extends Error {
   constructor(public readonly entity: string) {
     super(`${entity} no encontrado`);
+  }
+}
+
+/** Referencia a una fuente o empresa que no existe o no corresponde (400). */
+export class CompetenciaReferenceError extends Error {}
+
+/**
+ * Las fuentes citadas por una ficha deben existir y ser de esa misma empresa:
+ * `source_ids` es un array sin clave foránea y la base no lo comprueba.
+ */
+async function assertSourcesBelongTo(
+  executor: Executor,
+  competitorId: string,
+  sourceIds: ReadonlyArray<string | null | undefined>
+) {
+  const ids = [...new Set(sourceIds.filter((id): id is string => !!id))];
+  if (ids.length === 0) return;
+  const rows = await executor
+    .select({ id: ciSources.id, competitorId: ciSources.competitorId })
+    .from(ciSources)
+    .where(inArray(ciSources.id, ids))
+    .limit(ids.length);
+  const found = new Map(rows.map((row) => [row.id, row.competitorId]));
+  for (const id of ids) {
+    if (!found.has(id)) {
+      throw new CompetenciaReferenceError(`La fuente ${id} no existe`);
+    }
+    if (found.get(id) !== competitorId) {
+      throw new CompetenciaReferenceError(
+        `La fuente ${id} no pertenece a esta empresa`
+      );
+    }
+  }
+}
+
+/** Las empresas vinculadas a una oportunidad deben existir. */
+async function assertCompetitorsExist(
+  executor: Executor,
+  competitorIds: ReadonlyArray<string>
+) {
+  const ids = [...new Set(competitorIds)];
+  if (ids.length === 0) return;
+  const rows = await executor
+    .select({ id: ciCompetitors.id })
+    .from(ciCompetitors)
+    .where(inArray(ciCompetitors.id, ids))
+    .limit(ids.length);
+  const found = new Set(rows.map((row) => row.id));
+  const missing = ids.find((id) => !found.has(id));
+  if (missing) {
+    throw new CompetenciaReferenceError(`La empresa ${missing} no existe`);
   }
 }
 
@@ -205,6 +256,7 @@ export async function upsertSection(
 ) {
   return db.transaction(async (tx) => {
     const competitor = await requireCompetitor(tx, competitorId);
+    await assertSourcesBelongTo(tx, competitorId, input.sourceIds ?? []);
     const [previous] = await tx
       .select()
       .from(ciCompetitorSections)
@@ -389,6 +441,7 @@ export async function upsertFlowCoverage(
       .where(eq(ciFlows.id, input.flowId))
       .limit(1);
     if (!flow) throw new CompetenciaNotFoundError("Flujo");
+    await assertSourcesBelongTo(tx, competitorId, [input.sourceId]);
     const [previous] = await tx
       .select()
       .from(ciCompetitorFlows)
@@ -440,6 +493,7 @@ export async function createPricingPlan(
 ) {
   return db.transaction(async (tx) => {
     const competitor = await requireCompetitor(tx, competitorId);
+    await assertSourcesBelongTo(tx, competitorId, [input.sourceId]);
     const [plan] = await tx
       .insert(ciPricingPlans)
       .values({ competitorId, ...pricingValues(input) })
@@ -469,6 +523,7 @@ export async function updatePricingPlan(
       .where(eq(ciPricingPlans.id, planId))
       .limit(1);
     if (!previous) throw new CompetenciaNotFoundError("Plan de precios");
+    await assertSourcesBelongTo(tx, previous.competitorId, [input.sourceId]);
     const values = pricingValues(input);
     const diff = computeDiff(previous, values);
     if (Object.keys(diff).length === 0) return previous;
@@ -497,6 +552,7 @@ export async function createOpportunity(
   actorProfileId: string | null
 ) {
   return db.transaction(async (tx) => {
+    await assertCompetitorsExist(tx, input.competitorIds ?? []);
     const [opportunity] = await tx
       .insert(ciOpportunities)
       .values({ ...input, createdByProfileId: actorProfileId })
@@ -526,6 +582,7 @@ export async function updateOpportunity(
       .where(eq(ciOpportunities.id, opportunityId))
       .limit(1);
     if (!previous) throw new CompetenciaNotFoundError("Oportunidad");
+    await assertCompetitorsExist(tx, input.competitorIds ?? []);
     const diff = computeDiff(previous, input);
     if (Object.keys(diff).length === 0) return previous;
     const [opportunity] = await tx

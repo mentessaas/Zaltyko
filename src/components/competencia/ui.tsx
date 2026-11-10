@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 
 import {
   DATA_STATUS_LABELS,
@@ -12,6 +13,7 @@ import {
   type FlowCoverage,
   type OpportunityClass,
   type ZaltykoFlowStatus,
+  safeHttpUrl,
 } from "@/lib/competencia/domain";
 import {
   REVIEW_STATE_LABELS,
@@ -265,5 +267,43 @@ export function UnavailableNotice() {
         <code>pnpm db:seed:competencia</code> o con el botón del panel.
       </p>
     </div>
+  );
+}
+
+/**
+ * Enlace externo a una fuente o web. Si la URL no es http(s), se muestra como
+ * texto sin enlace en lugar de meterla en un `href`.
+ */
+export function SafeExternalLink({
+  url,
+  children,
+  className,
+  iconClassName = "h-3.5 w-3.5 shrink-0",
+}: {
+  url: string | null | undefined;
+  children: ReactNode;
+  className?: string;
+  iconClassName?: string;
+}) {
+  const href = safeHttpUrl(url);
+  if (!href) {
+    return (
+      <span className={cn("break-all text-white/70", className)}>
+        {children}
+      </span>
+    );
+  }
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer noopener"
+      className={cn(
+        "inline-flex items-center gap-1 text-zaltyko-electric hover:underline",
+        className
+      )}
+    >
+      {children} <ExternalLink className={iconClassName} aria-hidden />
+    </a>
   );
 }

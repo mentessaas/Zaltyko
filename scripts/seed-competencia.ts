@@ -5,17 +5,39 @@
  *
  * Requiere que el candidato SQL esté aplicado en la base de DATABASE_URL:
  *   docs/deployment/candidates/20261110180000_competitive_intelligence_candidate.sql
- * No ejecutar contra bases alojadas sin autorización expresa.
  *
- * Uso: pnpm db:seed:competencia
+ * Por defecto solo acepta bases en loopback (localhost, 127.x, ::1). Para una
+ * base alojada hay que pasar `--permitir-base-remota` y contar con la
+ * autorización expresa de Elvis; nunca se ejecuta contra una base remota por
+ * accidente.
+ *
+ * Uso: pnpm db:seed:competencia [-- --permitir-base-remota]
  */
 import "dotenv/config";
 
-import { applyCompetitiveSeed } from "@/lib/competencia/mutations";
-import { loadCompetitiveSeed } from "@/lib/competencia/seed";
-import { isCompetitiveIntelligenceAvailable } from "@/lib/competencia/storage";
+import { checkSeedTarget } from "@/lib/competencia/seed-guard";
 
 async function main() {
+  const target = checkSeedTarget(
+    process.env.DATABASE_URL,
+    process.argv.slice(2)
+  );
+  if (!target.ok) {
+    console.error(`Semilla de competencia cancelada: ${target.reason}`);
+    process.exit(1);
+  }
+  if (target.remote) {
+    console.warn(
+      `Aviso: se va a escribir en una base remota (${target.host}) por ${"--permitir-base-remota"}.`
+    );
+  }
+
+  // Importación diferida: no se abre ninguna conexión antes de validar el host.
+  const { isCompetitiveIntelligenceAvailable } =
+    await import("@/lib/competencia/storage");
+  const { applyCompetitiveSeed } = await import("@/lib/competencia/mutations");
+  const { loadCompetitiveSeed } = await import("@/lib/competencia/seed");
+
   if (!(await isCompetitiveIntelligenceAvailable())) {
     console.error(
       "Las tablas ci_* no existen en esta base. Aplica antes el candidato SQL " +

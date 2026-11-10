@@ -17,19 +17,19 @@ const FiltersSchema = z.object({
   competitorId: z.guid().nullable().optional().catch(null),
   evidence: z.enum(EVIDENCE_LEVELS).nullable().optional().catch(null),
   type: z.enum(SOURCE_TYPES).nullable().optional().catch(null),
-  q: z.string().trim().max(120).nullable().optional(),
+  q: z.string().trim().max(120).nullable().optional().catch(null),
 });
 
 /** @resource-scope super-admin — withSuperAdmin verifies the global authority. */
 export const GET = withSuperAdmin(async (request) => {
-  const search = new URL(request.url).searchParams;
-  const filters = FiltersSchema.parse({
-    competitorId: search.get("competitorId"),
-    evidence: search.get("evidence"),
-    type: search.get("type"),
-    q: search.get("q"),
-  });
   try {
+    const search = new URL(request.url).searchParams;
+    const filters = FiltersSchema.parse({
+      competitorId: search.get("competitorId"),
+      evidence: search.get("evidence"),
+      type: search.get("type"),
+      q: search.get("q"),
+    });
     const items = await listSources(filters);
     return apiSuccess({ items }, { total: items.length });
   } catch (error) {

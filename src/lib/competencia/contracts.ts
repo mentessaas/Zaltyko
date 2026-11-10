@@ -241,7 +241,7 @@ export type OpportunityInput = z.infer<typeof OpportunityInputSchema>;
 
 /** Filtros del listado. `URLSearchParams.get()` devuelve null: aceptarlo explícitamente. */
 export const CompetitorFiltersSchema = z.object({
-  q: z.string().trim().max(120).nullable().optional(),
+  q: z.string().trim().max(120).nullable().optional().catch(null),
   type: z.enum(COMPETITOR_TYPES).nullable().optional().catch(null),
   country: countryCode.nullable().optional().catch(null),
   discipline: z.enum(DISCIPLINES).nullable().optional().catch(null),

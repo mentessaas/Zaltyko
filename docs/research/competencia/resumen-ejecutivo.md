@@ -1,6 +1,6 @@
 # Resumen ejecutivo — investigación competitiva (10-11-2026)
 
-**Hallazgo principal.** En España ya hay al menos cinco ofertas que hablan directamente a clubes de gimnasia: RG Manager, ScoreGym Club, GimnasiaTotal, Clybo’ y OneClub. Clupik es la alternativa generalista con más trayectoria. Las cinco primeras se venden por **cobros, familias y documentos**. Ninguna muestra evidencia pública de resolver **la coordinación de grupos, entrenadoras y horarios sin choques**. Zaltyko tiene hoy un núcleo operativo real (grupos, clases, sesiones, asistencia, inscripciones y cuotas manuales). Le faltan dos piezas cercanas a ese hueco: asignar entrenadoras a sesiones y dejarlas entrar.
+**Hallazgo principal.** En España ya hay al menos cinco ofertas que hablan directamente a clubes de gimnasia: RG Manager, ScoreGym Club, GimnasiaTotal, Clybo’ y OneClub. Clupik es la alternativa generalista con más trayectoria. Las cinco primeras se venden por **cobros, familias y documentos**. Parte de la coordinación del equipo ya está cubierta: la demo de ScoreGym muestra entrenadora por grupo y RG Manager anuncia sustituciones. Lo que ninguna muestra con evidencia pública es **detectar choques de horario, entrenadora o pista** al montar o cambiar el cuadrante. Zaltyko tiene hoy un núcleo operativo real (grupos, clases, sesiones, asistencia, inscripciones y cuotas manuales). Para competir ahí le faltan primero dos piezas que la competencia ya tiene, dejar entrar a las entrenadoras y asignarlas a sesiones (igualar); la detección de choques sería la diferencia, y está por validar.
 
 - **Fuente:** [fichas-competidores.md](./fichas-competidores.md) y [matriz-competitiva.md](./matriz-competitiva.md), con enlaces y nivel de evidencia junto a cada dato.
 - **Importancia:** alta. Define a quién vender primero y qué construir.
@@ -19,7 +19,7 @@
 
 1. **Vender primero a academias y clubes de rítmica o artística en España de 30 a 150 gimnastas, con 3 a 10 entrenadoras.** La puerta de entrada es la **operación diaria**: grupos, entrenadoras, horarios y asistencia. No se entra por cobros.
    - *Qué la cambiaría:* que 6 de cada 10 entrevistas pongan el cobro de cuotas o la remesa SEPA como primer dolor. En cobros, RG Manager, OneClub y Clybo están mejor resueltos.
-2. **Construir primero el acceso de entrenadoras (invitaciones) y la asignación de entrenadora por clase, con sustitución por sesión.** Ambas piezas se apoyan en modelos que ya existen. Los avisos de choque de entrenadora o pista quedan detrás, como diferenciación que hay que validar.
+2. **Construir primero, para igualar, el acceso de entrenadoras (invitaciones) y la asignación de entrenadora por clase, con sustitución por sesión.** ScoreGym y RG Manager ya las muestran o anuncian, y ambas piezas se apoyan en modelos que ya existen en Zaltyko. La diferenciación son los avisos de choque de entrenadora o pista: van detrás y hay que validarlos antes de construirlos.
    - *Qué la cambiaría:* que los clubes entrevistados casi nunca tengan sustituciones ni choques. Entonces la prioridad pasaría a la importación desde Excel y a cerrar el recorrido solicitud de prueba → inscripción.
 3. **No tocar precios ni límites esta semana.** En las entrevistas hay que preguntar explícitamente por el límite de 5 grupos de Starter.
    - *Qué la cambiaría:* que 4 de cada 10 clubes de menos de 75 gimnastas tengan más de 5 grupos. En ese caso habría que tomar una decisión de pricing documentada, con su actualización de catálogo, tests y vault.
@@ -45,13 +45,13 @@ Dentro del repositorio hay un panel interno para consultar y mantener esta inves
   - Archivar, marcar inactivo y reactivar, conservando todo el historial.
   - Comparación de hasta seis empresas, con Zaltyko como referencia.
   - Registro de fuentes y oportunidades editables, y edición del estado real de Zaltyko por flujo.
-- **Datos iniciales:** `src/content/competencia/semilla-2026-11.json` contiene las 9 empresas de la lista, 43 fuentes con fecha, 20 planes de precios, 25 flujos con su estado en Zaltyko y referencias al código, 101 coberturas y 9 oportunidades. Los huecos aparecen como «Pendiente de investigar»; no se rellenaron con suposiciones.
+- **Datos iniciales:** `src/content/competencia/semilla-2026-11.json` contiene las 9 empresas de la lista, 43 fuentes con fecha, 21 planes de precios, 25 flujos con su estado en Zaltyko y referencias al código, 101 coberturas y 9 oportunidades. Los huecos aparecen como «Pendiente de investigar»; no se rellenaron con suposiciones.
 - **Dónde se guardan los datos:** en Postgres, en ocho tablas `public.ci_*`.
   - Las crea el candidato `docs/deployment/candidates/20261110180000_competitive_intelligence_candidate.sql`, que **no se ha aplicado en ningún entorno alojado** y necesita autorización expresa.
   - Mientras no se aplique, el panel muestra «no disponible» sin errores.
 - **Cómo arrancarlo en local:**
   1. Aplica el candidato SQL a un Postgres local que tenga `public.profiles`.
-  2. Carga los datos con `pnpm db:seed:competencia`, o con el botón «Cargar datos iniciales» del panel. La carga es idempotente: solo inserta lo que falta.
+  2. Carga los datos con `pnpm db:seed:competencia`, o con el botón «Cargar datos iniciales» del panel. La carga es idempotente: solo inserta lo que falta. El script se niega a escribir en una base que no sea local salvo con `--permitir-base-remota`.
   3. Arranca la app con `pnpm dev` y entra con un perfil `super_admin`.
 - **Comprobado el 10-11-2026** (Postgres efímero local y `next dev`):
   - El candidato SQL se instala, se niega a reinstalarse, fuerza RLS y deniega el acceso a `anon` y `authenticated`.

@@ -54,7 +54,7 @@
       "zaltykoCodeRefs": "Modelo zaltyko.session_staff y regla session_without_coach (evaluate-p0-rules.ts); sin API ni pantalla de asignación",
       "demandEvidence": "ScoreGym (entrenadora por grupo, observado), RG Manager (sustituciones en notas de versión), FlipBiz (turnos)",
       "opportunity": "Entrenadora titular por clase y sustitución por sesión",
-      "decision": "superar",
+      "decision": "igualar",
       "sortOrder": 50
     },
     {
@@ -303,7 +303,7 @@
           "title": "Portada RG Manager",
           "accessedOn": "2026-11-10",
           "sourceType": "web_oficial",
-          "claim": "Funciones, perfiles, disciplinas, precios 35/79/150 € IVA incl., 30 días gratis sin permanencia, equipo (Paula e Itziar Mensa).",
+          "claim": "Funciones, perfiles, disciplinas, precios 35/79/150 € IVA incl., 30 días gratis sin permanencia, equipo de dos personas (equipo fundador).",
           "evidenceLevel": "declarado",
           "notes": null,
           "accessible": true
@@ -336,7 +336,7 @@
           "title": "App Store",
           "accessedOn": "2026-11-10",
           "sourceType": "app_store",
-          "claim": "Publicada el 16-05-2026 por «Lluc Gimenez»; 2 valoraciones (5); ≈27 versiones entre sept. y nov. 2026; ficha dice «específicamente para gimnasia rítmica».",
+          "claim": "Publicada el 16-05-2026 por una persona física (no una empresa); 2 valoraciones (5); ≈27 versiones entre sept. y nov. 2026; ficha dice «específicamente para gimnasia rítmica».",
           "evidenceLevel": "observado",
           "notes": null,
           "accessible": true
@@ -398,7 +398,7 @@
           "sourceRefs": ["web"]
         },
         "fundadores_equipo": {
-          "content": "La web presenta a Paula Mensa (comunicación y marketing) e Itziar Mensa (tecnología y ciberseguridad). App iOS publicada por «Lluc Gimenez»; Android por Edisik (agencia). No se identifican fundadores ni entidad legal titular.",
+          "content": "La web presenta un equipo fundador de dos personas (comunicación y marketing; tecnología y ciberseguridad). App iOS publicada por una persona física; Android por Edisik (agencia). No se identifican fundadores ni entidad legal titular.",
           "dataStatus": "verificado",
           "evidenceLevel": "observado",
           "lastVerifiedOn": "2026-11-10",
@@ -482,7 +482,7 @@
           "sourceRefs": ["dossier", "ios", "yt"]
         },
         "oportunidades_zaltyko": {
-          "content": "No competir en amplitud: superar en coordinación de grupos, entrenadoras y horarios (choques, sustituciones) y en honestidad de lo que funciona hoy.",
+          "content": "No competir en amplitud: igualar en entrenadoras por grupo y sustituciones, diferenciar en detección de choques de horario, entrenadora o pista (sin evidencia pública en RG Manager) y en honestidad de lo que funciona hoy.",
           "dataStatus": "pendiente_revision",
           "evidenceLevel": "inferido",
           "lastVerifiedOn": null,
@@ -502,8 +502,8 @@
           "trialText": "30 días sin tarjeta",
           "commitmentText": "Sin permanencia",
           "estimateSmall": "35 €/mes",
-          "estimateMedium": null,
-          "estimateLarge": null,
+          "estimateMedium": "No cabe (máx. 40 deportistas)",
+          "estimateLarge": "No cabe (máx. 40 deportistas)",
           "sourceRef": "web",
           "dataStatus": "verificado",
           "lastVerifiedOn": "2026-11-10",
@@ -520,9 +520,9 @@
           "extrasText": null,
           "trialText": "30 días sin tarjeta",
           "commitmentText": "Sin permanencia",
-          "estimateSmall": null,
+          "estimateSmall": "79 €/mes (Básico es más barato)",
           "estimateMedium": "79 €/mes",
-          "estimateLarge": null,
+          "estimateLarge": "No cabe (máx. 120 deportistas)",
           "sourceRef": "web",
           "dataStatus": "verificado",
           "lastVerifiedOn": "2026-11-10",
@@ -539,8 +539,8 @@
           "extrasText": null,
           "trialText": "30 días sin tarjeta",
           "commitmentText": "Sin permanencia",
-          "estimateSmall": null,
-          "estimateMedium": null,
+          "estimateSmall": "150 €/mes (hay planes más baratos)",
+          "estimateMedium": "150 €/mes (Premium es más barato)",
           "estimateLarge": "150 €/mes",
           "sourceRef": "web",
           "dataStatus": "verificado",
@@ -1485,6 +1485,25 @@
           "reviewAfterDays": 60
         },
         {
+          "planName": "Basic anual",
+          "priceAmount": 290,
+          "currency": "EUR",
+          "billingPeriod": "ano",
+          "vatMode": "incluido",
+          "limitsText": "Sin límites",
+          "feesText": "Sin comisión propia; aplica la tarifa de Stripe",
+          "extrasText": null,
+          "trialText": "30 días sin tarjeta",
+          "commitmentText": "Pago anual por adelantado",
+          "estimateSmall": "290 €/año (≈24,17 €/mes)",
+          "estimateMedium": "290 €/año (≈24,17 €/mes)",
+          "estimateLarge": "290 €/año (≈24,17 €/mes)",
+          "sourceRef": "precios",
+          "dataStatus": "verificado",
+          "lastVerifiedOn": "2026-11-10",
+          "reviewAfterDays": 60
+        },
+        {
           "planName": "Add-on Fiscalidad",
           "priceAmount": 10,
           "currency": "EUR",
@@ -1495,9 +1514,9 @@
           "extrasText": null,
           "trialText": null,
           "commitmentText": null,
-          "estimateSmall": "+10 €/mes",
-          "estimateMedium": "+10 €/mes",
-          "estimateLarge": "+10 €/mes",
+          "estimateSmall": "+10 €/mes (39 € con Basic mensual)",
+          "estimateMedium": "+10 €/mes (39 € con Basic mensual)",
+          "estimateLarge": "+10 €/mes (39 € con Basic mensual)",
           "sourceRef": "precios",
           "dataStatus": "verificado",
           "lastVerifiedOn": "2026-11-10",
@@ -1637,7 +1656,7 @@
           "title": "Sobre nosotros",
           "accessedOn": "2026-11-10",
           "sourceType": "web_oficial",
-          "claim": "Equipo: J. C. Sánchez Tejada (CEO y CPO), J. M. Benítez (COO), I. Cantillana (CTO), P. Lobo (CMO); «más de 150 clubes».",
+          "claim": "Equipo directivo declarado de cuatro personas (CEO y CPO, COO, CTO, CMO); «más de 150 clubes».",
           "evidenceLevel": "declarado",
           "notes": null,
           "accessible": true
@@ -1670,7 +1689,7 @@
           "sourceRefs": ["gim"]
         },
         "fundadores_equipo": {
-          "content": "Juan Carlos Sánchez Tejada (CEO y CPO), Juan Miguel Benítez (COO), Ignacio Cantillana (CTO), Pedro Lobo (CMO).",
+          "content": "Equipo directivo declarado de cuatro personas: CEO y CPO, COO, CTO y CMO.",
           "dataStatus": "verificado",
           "evidenceLevel": "declarado",
           "lastVerifiedOn": "2026-11-10",
@@ -1899,7 +1918,7 @@
           "title": "Entrevista Tekios (2022)",
           "accessedOn": "2026-11-10",
           "sourceType": "prensa",
-          "claim": "Álvaro Herranz, cofundador y CEO; empezaron en 2017, primera versión a finales de 2018.",
+          "claim": "Entrevista al cofundador y CEO: empezaron en 2017, primera versión a finales de 2018.",
           "evidenceLevel": "confirmado",
           "notes": null,
           "accessible": true
@@ -1943,7 +1962,7 @@
           "sourceRefs": ["gim"]
         },
         "fundadores_equipo": {
-          "content": "Clupik Management S.L. (Madrid). Álvaro Herranz, cofundador y CEO.",
+          "content": "Clupik Management S.L. (Madrid). Equipo fundador con cofundador y CEO entrevistado en prensa.",
           "dataStatus": "verificado",
           "evidenceLevel": "confirmado",
           "lastVerifiedOn": "2026-11-10",
@@ -2671,7 +2690,7 @@
           "title": "Inside Gymnastics (3-08-2026)",
           "accessedOn": "2026-11-10",
           "sourceType": "prensa",
-          "claim": "Brent Gwinn, fundador y CEO; Inside Gymnastics socio oficial de noticias; stand en el congreso de USAG.",
+          "claim": "Fundador y CEO con experiencia dirigiendo un club de gimnasia; Inside Gymnastics socio oficial de noticias; stand en el congreso de USAG.",
           "evidenceLevel": "confirmado",
           "notes": null,
           "accessible": true
@@ -2711,7 +2730,7 @@
           "sourceRefs": ["pricing"]
         },
         "fundadores_equipo": {
-          "content": "Brent Gwinn, fundador y CEO (también COO de Suncoast Gymnastics, Tampa).",
+          "content": "Equipo fundador: su fundador y CEO también dirige operaciones en un club de gimnasia de EE. UU.",
           "dataStatus": "verificado",
           "evidenceLevel": "confirmado",
           "lastVerifiedOn": "2026-11-10",
@@ -2969,7 +2988,7 @@
     },
     {
       "title": "Entrenadora titular por clase y sustitución por sesión",
-      "classification": "superar",
+      "classification": "igualar",
       "priority": 2,
       "whoPays": "Dirección técnica",
       "frequency": "Semanal (cambios), diaria (consulta)",

@@ -310,3 +310,22 @@ export function slugify(value: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
 }
+
+/**
+ * Devuelve la URL solo si es http(s) válida. Se usa al pintar enlaces externos:
+ * aunque la API y la base ya lo exigen, un dato antiguo o importado nunca debe
+ * acabar como `javascript:` u otro esquema dentro de un `href`.
+ */
+export function safeHttpUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return null;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}

@@ -29,9 +29,12 @@ import {
   type CiPricingPlanRow,
   type CiSectionRow,
   type CiSourceRow,
-} from "@/db/schema";
+} from "@/db/schema/competitive-intelligence";
+
+import { logger } from "@/lib/logger";
 
 import type { CompetitorFilters } from "./contracts";
+import { isMissingTableError } from "./pg-errors";
 import { SECTION_KEYS } from "./domain";
 import {
   needsAttention,
@@ -57,56 +60,31 @@ const LIST_LIMIT = 500;
 /**
  * Las tablas `ci_*` llegan por un candidato SQL que requiere autorización. Si
  * faltan, el panel se muestra como «no disponible» en lugar de fallar a medias.
+ * Cualquier otro fallo de base de datos (conexión, permisos…) es un error real:
+ * se registra y se propaga para que no se confunda con «falta la migración».
  */
 export async function isCompetitiveIntelligenceAvailable(): Promise<boolean> {
+  const checks = CI_TABLES.map(
+    (table) => sql`to_regclass(${`public.${table}`}) is not null`
+  );
   try {
-    const checks = CI_TABLES.map(
-      (table) => sql`to_regclass(${`public.${table}`}) is not null`
-    );
     const result = await db.execute(
       sql`select (${sql.join(checks, sql` and `)}) as available`
     );
     const row = (result as unknown as { rows?: Array<{ available: boolean }> })
       .rows?.[0];
     return Boolean(row?.available);
-  } catch {
-    return false;
+  } catch (error) {
+    if (isMissingTableError(error)) return false;
+    logger.error(
+      "competencia: no se pudo comprobar si las tablas ci_* existen",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw error;
   }
 }
 
-export function isMissingTableError(error: unknown): boolean {
-  const code =
-    typeof error === "object" && error !== null && "code" in error
-      ? String(error.code)
-      : null;
-  const causeCode =
-    typeof error === "object" &&
-    error !== null &&
-    "cause" in error &&
-    typeof error.cause === "object" &&
-    error.cause !== null &&
-    "code" in error.cause
-      ? String((error.cause as { code: unknown }).code)
-      : null;
-  return code === "42P01" || causeCode === "42P01";
-}
-
-export function isUniqueViolation(error: unknown): boolean {
-  const code =
-    typeof error === "object" && error !== null && "code" in error
-      ? String(error.code)
-      : null;
-  const causeCode =
-    typeof error === "object" &&
-    error !== null &&
-    "cause" in error &&
-    typeof error.cause === "object" &&
-    error.cause !== null &&
-    "code" in error.cause
-      ? String((error.cause as { code: unknown }).code)
-      : null;
-  return code === "23505" || causeCode === "23505";
-}
+export { isMissingTableError, isUniqueViolation } from "./pg-errors";
 
 /* ---------- Listado ---------- */
 

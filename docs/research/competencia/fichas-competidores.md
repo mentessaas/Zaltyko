@@ -25,9 +25,9 @@ Tamaños de club usados para los costes: **S = 30 gimnastas y 3 entrenadores**, 
 **Resumen:** software todo-en-uno para clubes de gimnasia rítmica y disciplinas afines, lanzado en 2026, con app iOS/Android, precio público por tramos y prueba de 30 días. Es el competidor más parecido en comprador y en alcance funcional, y el que más rápido publica.
 
 ### Empresa, fundadores y equipo
-- La web presenta a dos personas: **Paula Mensa** (comunicación y marketing; doble grado en Comunicación Audiovisual y Gestión de la Información) e **Itziar Mensa** (tecnología y ciberseguridad; doble grado en Ingeniería de Sistemas Aeroespaciales y Telemática, máster en Ciberseguridad). La web no usa la palabra «fundadoras». [Declarado] [rgmanager.com, sección Nosotros](https://www.rgmanager.com/)
-- El dosier PDF tiene como autora de metadatos a «Paula Mensa», creado con Canva el 9-11-2026. [Observado] [Dosier](https://www.rgmanager.com/assets/docs/RG-Manager-dosier-informativo.pdf)
-- La app iOS la publica **«Lluc Gimenez»** (persona física como vendedor en App Store). La app Android la publica **Edisik** (correo de soporte en el dominio edisik.com). Edisik se presenta como agencia de software a medida y automatización con IA. [Observado] [App Store](https://apps.apple.com/es/app/rg-manager/id6762121877) · [Google Play](https://play.google.com/store/apps/details?id=com.edisik.rgmanager) · [edisik.com](https://edisik.com/)
+- La web presenta un equipo de dos personas (equipo fundador): una responsable de comunicación y marketing y otra de tecnología y ciberseguridad. La web no usa la palabra «fundadoras». No se recogen nombres ni formación de personas físicas. [Declarado] [rgmanager.com, sección Nosotros](https://www.rgmanager.com/)
+- El dosier PDF tiene como autora de metadatos a una persona del equipo, y se creó con Canva el 9-11-2026. [Observado] [Dosier](https://www.rgmanager.com/assets/docs/RG-Manager-dosier-informativo.pdf)
+- La app iOS la publica una **persona física** como vendedor en App Store (no una empresa). La app Android la publica **Edisik** (correo de soporte en el dominio edisik.com). Edisik se presenta como agencia de software a medida y automatización con IA. [Observado] [App Store](https://apps.apple.com/es/app/rg-manager/id6762121877) · [Google Play](https://play.google.com/store/apps/details?id=com.edisik.rgmanager) · [edisik.com](https://edisik.com/)
 - Entidad legal titular del servicio: **no identificada** en las páginas revisadas (la política de privacidad está en app.rgmanager.com y no se analizó). [Sin evidencia]
 - Inferencia: el producto parece desarrollado por una agencia (Edisik) con un equipo de marca/negocio reducido; no puedo afirmar quién es socio ni quién es empleado. [Inferido]
 
@@ -202,8 +202,8 @@ Lectura: el dosier va por delante de la web (anuncia IA y módulos administrativ
 **Resumen:** software multideporte nacido en Sevilla; monetiza con cuota + **3 % sobre lo cobrado** con su pasarela. Fuerte en contenido comparativo y en cobros con reintentos.
 
 ### Empresa y equipo
-- Equipo declarado: Juan Carlos Sánchez Tejada (CEO y CPO), Juan Miguel Benítez (COO), Ignacio Cantillana (CTO), Pedro Lobo (CMO). Historia: empezaron con un club de fútbol de Sevilla. [Declarado] [Sobre nosotros](https://oneclubapp.com/es/about)
-- Apps: «OneClub · Mi Club» (publicada 8-09-2026, vendedor a nombre del CEO, 3 valoraciones) y apps anteriores de «OneClub App SL» (2025). [Observado] [App Store API](https://itunes.apple.com/search?term=oneclub%20mi%20club&entity=software&country=es)
+- Equipo directivo declarado de cuatro personas (CEO y CPO, COO, CTO y CMO). Historia: empezaron con un club de fútbol de Sevilla. [Declarado] [Sobre nosotros](https://oneclubapp.com/es/about)
+- Apps: «OneClub · Mi Club» (publicada 8-09-2026, vendedor a nombre de una persona física, 3 valoraciones) y apps anteriores de «OneClub App SL» (2025). [Observado] [App Store API](https://itunes.apple.com/search?term=oneclub%20mi%20club&entity=software&country=es)
 
 ### Tracción
 - Declaran «más de 150 clubes en toda España». [Declarado]
@@ -229,7 +229,7 @@ Lectura: el dosier va por delante de la web (anuncia IA y módulos administrativ
 **Resumen:** el actor con más trayectoria de la lista española: gestión + web + app (también de marca), plan Free, compra de Leverade (federaciones) y presencia internacional declarada. Gimnasia es una vertical más.
 
 ### Empresa y equipo
-- Clupik Management S.L. (Madrid). Álvaro Herranz, cofundador y CEO; empezaron a darle forma en 2017 y primera versión a finales de 2018. [Confirmado] [Tekios, 2022](https://tekiosmag.com/2022/03/23/alvaro-herranz-cofundador-y-ceo-de-clupik-todas-las-entidades-deportivas-aunque-no-esten-digitalizadas-son-conscientes-de-que-es-un-camino-que-tienen-que-tomar/)
+- Clupik Management S.L. (Madrid). Entrevista en prensa a su cofundador y CEO: empezaron a darle forma en 2017 y primera versión a finales de 2018. [Confirmado] [Tekios, 2022](https://tekiosmag.com/2022/03/23/alvaro-herranz-cofundador-y-ceo-de-clupik-todas-las-entidades-deportivas-aunque-no-esten-digitalizadas-son-conscientes-de-que-es-un-camino-que-tienen-que-tomar/)
 - Absorbió a Leverade (gestión de federaciones, Murcia); fusión anunciada el 22-11-2023 y BORME de 2024; inversores entre los que cita Sportboost; «digitalización de 15 federaciones nacionales». [Confirmado] [Murcia Plaza](https://murciaplaza.com/murciaplaza/la-madrilena-clupik-compra-la-murciana-leverade)
 - Beneficiaria de FEDER e ICEX Next. [Declarado] [Clupik](https://clupik.com/software-gimnasia/)
 
@@ -276,7 +276,7 @@ Lectura: el dosier va por delante de la web (anuncia IA y módulos administrativ
 ## 9. FlipBiz (EE. UU.) — referente internacional (análisis especial)
 
 ### Empresa y tracción
-- Fundador y CEO: **Brent Gwinn**, también COO de Suncoast Gymnastics (Tampa, Florida) según su perfil público. [Confirmado] [Inside Gymnastics](https://www.insidegymnastics.com/news-features/flipbiz-and-inside-gymnastics-magazine-partner-for-content-program/) · [LinkedIn vía Bing](https://www.linkedin.com/in/brent-gwinn-338324140)
+- Equipo fundador: su fundador y CEO también dirige operaciones en un club de gimnasia de EE. UU. (perfil de dueño de club que vende a dueños de club). [Confirmado] [Inside Gymnastics](https://www.insidegymnastics.com/news-features/flipbiz-and-inside-gymnastics-magazine-partner-for-content-program/)
 - Nació como plataforma de **formación y onboarding de staff** (dominio flipbiztrain.com) y en 2026 se convierte en «sistema operativo para clubes de gimnasia». [Confirmado por la nota de Inside Gymnastics]
 - App FlipBiz (staff) publicada el 26-05-2026, 4,1/5 con 8 valoraciones; **FlipBiz Family** publicada el 2-10-2026, sin valoraciones. [Observado] [App Store API](https://itunes.apple.com/search?term=flipbiz&entity=software&country=us)
 - Clientes de pago, ingresos, uso: **desconocidos**. Los únicos números públicos son de catálogo (150+ cursos, 8+ partners) y un ejemplo de migración (103 hojas de asistencia, 89 clases, 612 inscripciones, 32 meses de facturación de «un gimnasio real», sin nombre). [Declarado]

@@ -111,6 +111,10 @@ export const ciCompetitors = pgTable(
       "ci_competitors_slug_check",
       sql`${table.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`
     ),
+    websiteCheck: check(
+      "ci_competitors_website_check",
+      sql`${table.website} is null or ${table.website} ~* '^https?://'`
+    ),
   })
 );
 

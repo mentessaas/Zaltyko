@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   updateCompetitor: vi.fn(),
   createSource: vi.fn(),
   listCompetitors: vi.fn(),
+  listSources: vi.fn(),
+  applyCompetitiveSeed: vi.fn(),
   logAdminAction: vi.fn(),
 }));
 
@@ -57,12 +59,17 @@ vi.mock("@/lib/competencia/mutations", async (importOriginal) => {
     createCompetitor: mocks.createCompetitor,
     updateCompetitor: mocks.updateCompetitor,
     createSource: mocks.createSource,
+    applyCompetitiveSeed: mocks.applyCompetitiveSeed,
   };
 });
 vi.mock("@/lib/competencia/storage", async (importOriginal) => {
   const original =
     await importOriginal<typeof import("@/lib/competencia/storage")>();
-  return { ...original, listCompetitors: mocks.listCompetitors };
+  return {
+    ...original,
+    listCompetitors: mocks.listCompetitors,
+    listSources: mocks.listSources,
+  };
 });
 
 import {
@@ -70,7 +77,11 @@ import {
   POST as createRoute,
 } from "@/app/api/super-admin/competencia/competitors/route";
 import { PATCH as updateRoute } from "@/app/api/super-admin/competencia/competitors/[competitorId]/route";
-import { POST as createSourceRoute } from "@/app/api/super-admin/competencia/sources/route";
+import { POST as seedRoute } from "@/app/api/super-admin/competencia/seed/route";
+import {
+  GET as listSourcesRoute,
+  POST as createSourceRoute,
+} from "@/app/api/super-admin/competencia/sources/route";
 import { CompetenciaNotFoundError } from "@/lib/competencia/mutations";
 
 const COMPETITOR_ID = "6f1f0b0e-5b0c-4c2a-9d7e-1a2b3c4d5e6f";
@@ -93,6 +104,8 @@ describe("API super-admin de competencia", () => {
       isSuspended: false,
     });
     mocks.listCompetitors.mockResolvedValue([]);
+    mocks.listSources.mockResolvedValue([]);
+    mocks.logAdminAction.mockResolvedValue(undefined);
   });
 
   it("exige sesión antes de leer o escribir", async () => {
@@ -265,5 +278,85 @@ describe("API super-admin de competencia", () => {
       }),
       "profile-1"
     );
+  });
+
+  it("un fallo del registro de auditoría tras guardar no convierte el alta en 500", async () => {
+    mocks.createCompetitor.mockResolvedValueOnce({
+      id: COMPETITOR_ID,
+      slug: "log-soft",
+      name: "Log Soft",
+    });
+    mocks.logAdminAction.mockRejectedValueOnce(new Error("audit down"));
+    const response = await createRoute(
+      jsonRequest("/api/super-admin/competencia/competitors", "POST", {
+        name: "Log Soft",
+        competitorType: "directo",
+      }),
+      {}
+    );
+    expect(response.status).toBe(201);
+  });
+
+  it("ignora una búsqueda de fuentes demasiado larga en vez de devolver 500", async () => {
+    const response = await listSourcesRoute(
+      new Request(
+        `http://localhost/api/super-admin/competencia/sources?q=${"a".repeat(300)}&evidence=inventado`
+      ),
+      {}
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.listSources).toHaveBeenCalledWith({
+      competitorId: null,
+      evidence: null,
+      type: null,
+      q: null,
+    });
+  });
+
+  describe("POST /seed", () => {
+    const seedRequest = () =>
+      new Request("http://localhost/api/super-admin/competencia/seed", {
+        method: "POST",
+      });
+
+    it("solo lo puede lanzar un super-admin", async () => {
+      mocks.getCurrentProfile.mockResolvedValueOnce({
+        id: "profile-2",
+        role: "owner",
+        isSuspended: false,
+      });
+      const response = await seedRoute(seedRequest(), {});
+      expect(response.status).toBe(403);
+      expect(mocks.applyCompetitiveSeed).not.toHaveBeenCalled();
+    });
+
+    it("aplica la semilla versionada y devuelve el informe", async () => {
+      const report = {
+        competitorsCreated: 9,
+        sectionsCreated: 0,
+        sourcesCreated: 43,
+        pricingCreated: 21,
+        flowsCreated: 25,
+        coverageCreated: 101,
+        opportunitiesCreated: 9,
+      };
+      mocks.applyCompetitiveSeed.mockResolvedValueOnce(report);
+      const response = await seedRoute(seedRequest(), {});
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.data.report).toEqual(report);
+      expect(mocks.applyCompetitiveSeed).toHaveBeenCalledWith(
+        expect.objectContaining({ version: expect.any(String) }),
+        "profile-1"
+      );
+    });
+
+    it("responde 503 si faltan las tablas ci_*", async () => {
+      mocks.applyCompetitiveSeed.mockRejectedValueOnce(
+        Object.assign(new Error("missing"), { code: "42P01" })
+      );
+      const response = await seedRoute(seedRequest(), {});
+      expect(response.status).toBe(503);
+    });
   });
 });

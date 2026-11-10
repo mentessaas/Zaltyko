@@ -1,4 +1,5 @@
 -- CANDIDATE ONLY. Requires Elvis's explicit authorization before any hosted apply.
+-- CANDIDATO: requiere autorización de Elvis. No aplicar en sandbox ni producción.
 -- Panel interno de inteligencia competitiva (super-admin).
 -- Additive: eight new public relations prefixed ci_; no existing table, row,
 -- role or policy changes. Global market data only: no tenant, academy, family
@@ -43,7 +44,8 @@ create table public.ci_competitors (
   constraint ci_competitors_research_check check (research_status in ('pendiente', 'en_curso', 'completa')),
   constraint ci_competitors_lifecycle_check check (lifecycle_status in ('activo', 'inactivo', 'archivado')),
   constraint ci_competitors_archived_check check ((lifecycle_status = 'archivado') = (archived_at is not null)),
-  constraint ci_competitors_slug_check check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$')
+  constraint ci_competitors_slug_check check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+  constraint ci_competitors_website_check check (website is null or website ~* '^https?://')
 );
 create unique index ci_competitors_slug_unique on public.ci_competitors(slug);
 create index ci_competitors_lifecycle_idx on public.ci_competitors(lifecycle_status, name);
