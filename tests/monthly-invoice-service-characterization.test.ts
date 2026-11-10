@@ -24,8 +24,6 @@
  * fixing it is a separate, deliberate change.
  */
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 
@@ -1705,16 +1703,6 @@ describe("SQL text", () => {
       .sort()
       .flatMap((name) => [...seen.get(name)!].sort().map((text) => `-- ${name}\n${text}\n`))
       .join("\n");
-    let stored: string | null = null;
-    try {
-      stored = readFileSync(join(process.cwd(), "tests", SQL_SNAPSHOT), "utf8");
-    } catch {
-      stored = null;
-    }
-    if (stored !== listing) {
-      // Printed in full so the snapshot can be reviewed from the CI log.
-      console.log(`MONTHLY_SQL_SNAPSHOT_BEGIN\n${listing}MONTHLY_SQL_SNAPSHOT_END`);
-    }
     // Regenerate with `vitest -u` after a deliberate SQL change and review the diff.
     await expect(listing).toMatchFileSnapshot(SQL_SNAPSHOT);
   });

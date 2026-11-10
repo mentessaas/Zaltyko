@@ -275,7 +275,7 @@ describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
     expect(family.canIssue).toBe(true);
     // One fee per athlete, at the assignment price (3000 / 3200), not the plan's 3500.
     expect(
-      family.lines.map((line) => [line.athleteId, line.amountCents, line.coveredEnrollments.length])
+      family.lines.map((line) => [line.athleteId, line.unitAmountCents, line.coveredEnrollments.length])
     ).toEqual(
       [
         [fixture.athleteA.athleteId, 3000, 2],
