@@ -647,9 +647,22 @@ export async function createOwnerAthleteIntake(
   command: z.input<typeof intakeCommandSchema>
 ): Promise<OwnerAthleteIntakeCreated> {
   const input = intakeCommandSchema.parse(command);
+  return db.transaction((tx) => createOwnerAthleteIntakeInTx(tx, input));
+}
+
+/**
+ * Same command inside a caller-owned transaction (P2 #15: a trial request is
+ * converted atomically). Validation, locks, authorization, idempotency,
+ * outbox and audit are identical to `createOwnerAthleteIntake`.
+ */
+export async function createOwnerAthleteIntakeInTx(
+  tx: TransactionClient,
+  command: z.input<typeof intakeCommandSchema>
+): Promise<OwnerAthleteIntakeCreated> {
+  const input = intakeCommandSchema.parse(command);
   const commandFingerprint = fingerprint(input);
 
-  return db.transaction(async (tx) => {
+  {
     await lockCommand(tx, input.organizationId, input.idempotencyKey);
     await assertOwnerAdminAllSites(tx, input);
 
@@ -807,7 +820,7 @@ export async function createOwnerAthleteIntake(
       },
     });
     return { athleteId, familyId, incompleteFamily, replayed: false };
-  });
+  }
 }
 
 async function isFamilyIncomplete(

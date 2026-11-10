@@ -331,10 +331,22 @@ async function assertGuardianCanContactAthlete(
 export async function joinWaitlist(
   command: JoinWaitlistCommand
 ): Promise<WaitlistEntry> {
+  joinWaitlistSchema.parse(command);
+  return db.transaction((tx) => joinWaitlistInTx(tx, command));
+}
+
+/**
+ * Same command inside a caller-owned transaction (P2 #15). Authorization,
+ * locks, idempotency, outbox and audit are identical to `joinWaitlist`.
+ */
+export async function joinWaitlistInTx(
+  tx: TransactionClient,
+  command: JoinWaitlistCommand
+): Promise<WaitlistEntry> {
   const input = joinWaitlistSchema.parse(command);
   const eventName = "waitlist.joined";
 
-  return db.transaction(async (tx) => {
+  {
     await lockCommand(tx, input.organizationId, input.idempotencyKey);
     const prior = await loadEntryFromEvent(tx, {
       organizationId: input.organizationId,
@@ -553,7 +565,7 @@ export async function joinWaitlist(
     });
 
     return entry;
-  });
+  }
 }
 
 export async function sendWaitlistOffer(

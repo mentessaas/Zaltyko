@@ -354,6 +354,9 @@ const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
 
   // Public forms - restrictive to prevent spam
   "/api/public/academies": { limit: 5, window: 60 },
+  // Solicitudes de prueba de familias (P2 #15): el handler añade límites por
+  // IP con ventana larga y por email (hash), además de este global.
+  "/api/public/trial-requests": { limit: 5, window: 60 },
 };
 
 /**

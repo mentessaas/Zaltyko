@@ -31,6 +31,30 @@ productivo propuesto queda bloqueado sin marcadores externos específicos. Esos
 marcadores no prueban por sí solos la identidad de una conexión ni constituyen
 autorización humana. No configurarlos ni ejecutar el modo productivo todavía.
 
+## Candidato de solicitudes de prueba (P2 #15)
+
+`20261110120000_admission_requests_candidate.sql` crea solo
+`zaltyko.admission_links` (el enlace público que la academia activa,
+desactiva o regenera, con un token de 128 bits) y `zaltyko.admission_requests`
+(la solicitud que una familia deja desde ese enlace, antes de que exista la
+ficha de la gimnasta). No toca tablas existentes, filas, roles ni objetos
+legacy. Fuerza RLS, revoca `anon` y `authenticated`, y se niega a reinstalarse
+si alguna de las dos relaciones ya existe.
+
+- SHA-256: `cc3534438ca14a25086f33d14850ad361daf22891ec1d29f1f01e533643f62ea`.
+- Prueba: `tests/admission-requests-pg.test.ts` (instala el candidato solo en
+  PostgreSQL desechable de GitHub y borra las tablas al terminar). **No se
+  ejecuta en ningún CI todavía:** no se ha añadido a
+  `scripts/ci/verify-sandbox-schema-replay.sh`, porque ese script y
+  `supabase/schema-snapshot-manifest.json` son un contrato protegido con sus
+  hashes fijados. Queda pendiente de ejecutar en schema-replay cuando Elvis lo
+  autorice, con la actualización de esa cadena de procedencia en una PR propia.
+- Mientras no se aplique, `src/modules/admissions/application/admission-storage.ts`
+  detecta que falta y el embudo responde «no disponible», sin errores a medias.
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+  ningún entorno. La CI verde no equivale a autorización.
+- Contexto y corte mínimo: `docs/producto/embudo-captacion.md`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.
