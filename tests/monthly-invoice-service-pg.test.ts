@@ -22,7 +22,7 @@
  * Keyset pages and filter batches (more than 200 rows, more than 100 pairs)
  * are covered by the characterization suite: Free allows only 10 classes.
  */
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -375,22 +375,73 @@ async function ledgerRows(organizationId: string) {
   return result.rows[0];
 }
 
-/** The PostgreSQL error at the end of an error's `cause` chain (Drizzle wraps it). */
-function databaseErrorOf(error: unknown) {
-  let current: unknown = error;
-  for (let depth = 0; depth < 5 && current; depth += 1) {
-    const candidate = current as { code?: unknown; table?: unknown; constraint?: unknown; cause?: unknown };
-    if (typeof candidate.code === "string" && /^[0-9A-Z]{5}$/.test(candidate.code)) {
-      return { code: candidate.code, table: candidate.table, constraint: candidate.constraint };
-    }
-    current = candidate.cause;
-  }
-  return null;
+/**
+ * Reference the service must give the fixture family's December invoice at a
+ * site, written out independently of the service.
+ */
+function expectedReference(fixture: Fixture, locationId: string) {
+  const siteHash = createHash("sha256")
+    .update(`zaltyko:monthly-invoice-site:v1:${locationId}`)
+    .digest("hex")
+    .slice(0, 16);
+  return `MENSUAL-202612-${fixture.familyId}-${siteHash}`;
+}
+
+/** Reference format used before the site discriminator. */
+function legacyReference(fixture: Fixture) {
+  return `MENSUAL-202612-${fixture.familyId}`;
+}
+
+/**
+ * Turns an issued invoice into one issued by the previous code: every row is
+ * the one the service wrote, only the reference goes back to the old format.
+ */
+async function useLegacyReference(fixture: Fixture, invoiceId: string) {
+  const updated = await db.execute(sql`
+    update zaltyko.invoices set reference = ${legacyReference(fixture)}
+    where organization_id = ${fixture.organizationId}::uuid and id = ${invoiceId}::uuid
+    returning id
+  `);
+  expect(updated.rows).toHaveLength(1);
+}
+
+function byReference(left: { reference: string }, right: { reference: string }) {
+  if (left.reference === right.reference) return 0;
+  return left.reference < right.reference ? -1 : 1;
+}
+
+async function invoiceReferences(fixture: Fixture) {
+  const result = await db.execute(sql`
+    select location_id::text as location_id, reference
+    from zaltyko.invoices
+    where organization_id = ${fixture.organizationId}::uuid
+  `);
+  return result.rows
+    .map((row) => ({ locationId: String(row.location_id), reference: String(row.reference) }))
+    .sort(byReference);
+}
+
+/** Header, lines and charges of one invoice, to prove another issuance left it alone. */
+async function invoiceSnapshot(fixture: Fixture, invoiceId: string) {
+  const result = await db.execute(sql`
+    select i.location_id::text as location_id, i.reference, i.status::text as status,
+      i.total_amount_cents::int as total_amount_cents, i.version::int as version,
+      (select count(*)::int from zaltyko.invoice_lines il
+        where il.organization_id = i.organization_id and il.invoice_id = i.id) as lines,
+      (select coalesce(sum(c.amount_cents), 0)::int from zaltyko.charges c
+        where c.organization_id = i.organization_id and c.invoice_id = i.id) as charged_cents
+    from zaltyko.invoices i
+    where i.organization_id = ${fixture.organizationId}::uuid and i.id = ${invoiceId}::uuid
+  `);
+  expect(result.rows).toHaveLength(1);
+  return result.rows[0];
 }
 
 const NO_LEDGER_ROWS ={ invoices: 0, lines: 0, covered: 0, charges: 0, markers: 0 };
 /** One invoice for the default fixture: two lines, three covered classes, two charges. */
 const ONE_INVOICE = { invoices: 1, lines: 2, covered: 3, charges: 2, markers: 1 };
+/** ONE_INVOICE at the first site plus athlete A's single-class invoice at the second site. */
+const TWO_SITE_INVOICES = { invoices: 2, lines: 3, covered: 4, charges: 3, markers: 2 };
 
 /**
  * Waits until `expected` other sessions are blocked on the organization row
@@ -685,14 +736,7 @@ describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
     expect(await ledgerRows(tenantB.organizationId)).toEqual(NO_LEDGER_ROWS);
   }, 45_000);
 
-  it("CURRENT BEHAVIOUR: a second site cannot issue the same family's month (reference collision)", async () => {
-    // BUG conocido: monthly-invoice-service.ts builds the invoice reference as
-    // `MENSUAL-${YYYYMM}-${familyId}`, without the site, while the schema keeps
-    // invoices_reference_uq UNIQUE (organization_id, reference). A family with
-    // classes at two sites of one organization gets its month invoiced at the
-    // first site only: the quote at the second site says it can issue, and the
-    // ledger insert then fails with a raw unique violation (23505), not an
-    // OperationalError. Pinned here on purpose; the fix is a separate decision.
+  it("issues the same family's month at a second site without touching the first site's invoice", async () => {
     const fixture = await seedFamily();
     const secondSite = await seedSecondSite(fixture);
 
@@ -711,33 +755,125 @@ describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
       issueCommand(fixture, familyAtSecondSite.quoteHash!, undefined, secondSite.locationId)
     );
     expect(secondSiteInvoice.replayed).toBe(false);
+    const secondSiteBefore = await invoiceSnapshot(fixture, secondSiteInvoice.invoice.id);
 
-    const references = await db.execute(sql`
-      select reference from zaltyko.invoices
-      where organization_id = ${fixture.organizationId}::uuid
-    `);
-    expect(references.rows).toEqual([{ reference: `MENSUAL-202612-${fixture.familyId}` }]);
-    const secondSiteLedger = { invoices: 1, lines: 1, covered: 1, charges: 1, markers: 1 };
-    expect(await ledgerRows(fixture.organizationId)).toEqual(secondSiteLedger);
-
-    // The other invoice does not block this site's quote: it is per site.
+    // The first site then issues the whole family for the same month.
     const family = await quoteFor(fixture);
     expect(family).toMatchObject({ canIssue: true, existingInvoiceId: null, blockingReasons: [] });
     expect(quotedLines(family)).toEqual(expectedLines(fixture));
+    const issued = await issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!));
+    expect(issued.replayed).toBe(false);
+    expect(issued.invoice.id).not.toBe(secondSiteInvoice.invoice.id);
 
-    // But issuing it reuses the same reference and the ledger insert fails.
-    const failure = await issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!)).then(
-      () => null,
-      (caught: unknown) => caught
+    expect(await invoiceReferences(fixture)).toEqual(
+      [
+        { locationId: fixture.locationId, reference: expectedReference(fixture, fixture.locationId) },
+        { locationId: secondSite.locationId, reference: expectedReference(fixture, secondSite.locationId) },
+      ].sort(byReference)
     );
-    expect(failure, "expected the second site's issuance to fail").toBeInstanceOf(Error);
-    expect((failure as Error).name).not.toBe("OperationalError");
-    expect(databaseErrorOf(failure)).toEqual({
-      code: "23505",
-      table: "invoices",
-      constraint: "invoices_reference_uq",
+    expect(await ledgerRows(fixture.organizationId)).toEqual(TWO_SITE_INVOICES);
+    expect(await invoiceSnapshot(fixture, secondSiteInvoice.invoice.id)).toEqual(secondSiteBefore);
+
+    // Each site's quote now reports its own invoice only.
+    expect(await quoteFor(fixture, secondSite.locationId)).toMatchObject({
+      existingInvoiceId: secondSiteInvoice.invoice.id,
+      blockingReasons: ["PERIOD_ALREADY_INVOICED"],
     });
-    // The whole issuance rolled back: only the second site's invoice exists.
-    expect(await ledgerRows(fixture.organizationId)).toEqual(secondSiteLedger);
+    expect(await quoteFor(fixture)).toMatchObject({
+      existingInvoiceId: issued.invoice.id,
+      blockingReasons: ["PERIOD_ALREADY_INVOICED"],
+    });
+  }, 45_000);
+
+  it("issues at a second site while the other site's invoice keeps the pre-site reference", async () => {
+    // The case that failed before the fix: a month already invoiced with the
+    // old `MENSUAL-YYYYMM-<family>` reference at one site.
+    const fixture = await seedFamily();
+    const secondSite = await seedSecondSite(fixture);
+    const familyAtSecondSite = await quoteFor(fixture, secondSite.locationId);
+    const secondSiteInvoice = await issueMonthlyInvoice(
+      issueCommand(fixture, familyAtSecondSite.quoteHash!, undefined, secondSite.locationId)
+    );
+    await useLegacyReference(fixture, secondSiteInvoice.invoice.id);
+    const secondSiteBefore = await invoiceSnapshot(fixture, secondSiteInvoice.invoice.id);
+
+    const family = await quoteFor(fixture);
+    expect(family).toMatchObject({ canIssue: true, existingInvoiceId: null, blockingReasons: [] });
+    const issued = await issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!));
+    expect(issued.replayed).toBe(false);
+
+    expect(await invoiceReferences(fixture)).toEqual(
+      [
+        { locationId: fixture.locationId, reference: expectedReference(fixture, fixture.locationId) },
+        { locationId: secondSite.locationId, reference: legacyReference(fixture) },
+      ].sort(byReference)
+    );
+    expect(await ledgerRows(fixture.organizationId)).toEqual(TWO_SITE_INVOICES);
+    expect(await invoiceSnapshot(fixture, secondSiteInvoice.invoice.id)).toEqual(secondSiteBefore);
+  }, 45_000);
+
+  it("replays, and never duplicates, a month invoiced at the same site with the pre-site reference", async () => {
+    const fixture = await seedFamily();
+    const family = await quoteFor(fixture);
+    const command = issueCommand(fixture, family.quoteHash!);
+    const original = await issueMonthlyInvoice(command);
+    await useLegacyReference(fixture, original.invoice.id);
+
+    // Replay by idempotency key.
+    const byKey = await issueMonthlyInvoice(command);
+    expect(byKey.replayed).toBe(true);
+    expect(byKey.invoice.id).toBe(original.invoice.id);
+
+    // Replay by family, site and period: a new key with the same quote.
+    const byPeriod = await issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!));
+    expect(byPeriod.replayed).toBe(true);
+    expect(byPeriod.invoice.id).toBe(original.invoice.id);
+
+    // The quote reports the month as invoiced, not as a reference collision.
+    expect(await quoteFor(fixture)).toMatchObject({
+      canIssue: false,
+      existingInvoiceId: original.invoice.id,
+      blockingReasons: ["PERIOD_ALREADY_INVOICED"],
+    });
+    expect(await invoiceReferences(fixture)).toEqual([
+      { locationId: fixture.locationId, reference: legacyReference(fixture) },
+    ]);
+    expect(await ledgerRows(fixture.organizationId)).toEqual(ONE_INVOICE);
+  }, 45_000);
+
+  it("reports a reference held by another invoice in the quote and refuses to issue", async () => {
+    const fixture = await seedFamily();
+    // An invoice without monthly lines (for example a manual one) that already
+    // uses the reference this family's month would get at this site.
+    const heldBy = randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.invoices (
+        id, organization_id, location_id, family_id, reference, status,
+        currency, total_amount_cents, issued_at, due_at, idempotency_key
+      ) values (
+        ${heldBy}::uuid, ${fixture.organizationId}::uuid, ${fixture.locationId}::uuid,
+        ${fixture.familyId}::uuid, ${expectedReference(fixture, fixture.locationId)}, 'issued',
+        'EUR', 1000, ${`${PERIOD_START}T09:00:00Z`}::timestamptz,
+        ${`${PERIOD_END}T12:00:00Z`}::timestamptz, ${`ci-manual-${heldBy}`}
+      )
+    `);
+    const family = await quoteFor(fixture);
+    expect(family).toMatchObject({
+      canIssue: false,
+      existingInvoiceId: null,
+      blockingReasons: ["INVOICE_REFERENCE_TAKEN"],
+    });
+    await expect(issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!))).rejects.toMatchObject({
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 422,
+      details: { blockingReasons: ["INVOICE_REFERENCE_TAKEN"] },
+    });
+    expect(await ledgerRows(fixture.organizationId)).toEqual({
+      invoices: 1,
+      lines: 0,
+      covered: 0,
+      charges: 0,
+      markers: 0,
+    });
   }, 45_000);
 });

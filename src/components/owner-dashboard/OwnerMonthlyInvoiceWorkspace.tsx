@@ -149,6 +149,8 @@ function reasonLabel(reason: string): string {
       "La cuota de este periodo ya está emitida para esta familia.",
     INVOICE_VOIDED:
       "La cuota de este periodo está anulada; no se puede emitir otra desde esta pantalla.",
+    INVOICE_REFERENCE_TAKEN:
+      "Ya existe otra factura con la referencia de esta cuota; revisa las facturas de la familia.",
   };
   return (
     labels[reason] ?? "Esta cuota requiere revisar un dato de la inscripción."

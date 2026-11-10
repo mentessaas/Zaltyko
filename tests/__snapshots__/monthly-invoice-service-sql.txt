@@ -106,5 +106,8 @@ select "id", "organization_id", "location_id", "enrollment_id", "price_plan_id",
 -- readPricePlans
 select "id", "name", "amount_cents", "currency", "cadence" from "zaltyko"."price_plans" where ("zaltyko"."price_plans"."organization_id" = $1 and "zaltyko"."price_plans"."is_active" = $2 and "zaltyko"."price_plans"."cadence" = $3) order by "zaltyko"."price_plans"."id" asc limit $4
 
+-- readReferenceOwners
+select "id", "reference" from "zaltyko"."invoices" where ("zaltyko"."invoices"."organization_id" = $1 and "zaltyko"."invoices"."reference" in ($2)) order by "zaltyko"."invoices"."id" asc limit $3
+
 -- rollback
 rollback

@@ -126,6 +126,71 @@ function fingerprint(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
+/**
+ * Hex characters of the site discriminator in a monthly invoice reference.
+ *
+ * Why a hash of the location id and not the site itself:
+ * - The full UUID would give 8 + 6 + 1 + 36 + 1 + 36 = 88 characters, over the
+ *   ledger's 80-character reference limit (ledger-service issueInvoiceSchema).
+ * - `locations.code` is unique per organization but may be up to 32 characters
+ *   (84 in total, also over the limit) and can be edited, so an old reference
+ *   could later match a different site that reuses the code.
+ * - The location id is immutable; its SHA-256 is uniformly distributed even if
+ *   ids were ever time-ordered, unlike a plain UUID prefix.
+ *
+ * Why 16 hex characters (64 bits): references only need to differ between the
+ * sites of one organization for the same family and month. Two sites collide
+ * with probability 2^-64; an organization with 1,000 sites has ~5·10^5 pairs,
+ * about 3·10^-14 overall. The reference stays at a fixed 68 characters, 12 under
+ * the limit. Even then a collision is not silent: the quote reports
+ * INVOICE_REFERENCE_TAKEN and the insert is translated into an OperationalError.
+ */
+const MONTHLY_REFERENCE_SITE_HEX_LENGTH = 16;
+
+/**
+ * Reference of a monthly invoice: `MENSUAL-YYYYMM-<familyId>-<siteHash16>`.
+ *
+ * Invoices issued before the site discriminator keep their stored
+ * `MENSUAL-YYYYMM-<familyId>` reference; they never equal a new reference
+ * (different length), and replay detection, by idempotency marker and by
+ * family + site + period lines, does not read the reference at all.
+ */
+export function monthlyInvoiceReference(input: {
+  servicePeriod: string;
+  familyId: string;
+  locationId: string;
+}): string {
+  const siteHash = createHash("sha256")
+    .update(`zaltyko:monthly-invoice-site:v1:${input.locationId.toLowerCase()}`)
+    .digest("hex")
+    .slice(0, MONTHLY_REFERENCE_SITE_HEX_LENGTH);
+  return `MENSUAL-${input.servicePeriod.replace("-", "")}-${input.familyId.toLowerCase()}-${siteHash}`;
+}
+
+const INVOICE_REFERENCE_CONSTRAINT = "invoices_reference_uq";
+
+/** True when a database error (or any error in its cause chain) is the reference unique violation. */
+function isInvoiceReferenceViolation(error: unknown): boolean {
+  const seen = new Set<unknown>();
+  let current: unknown = error;
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    const candidate = current as {
+      code?: unknown;
+      constraint?: unknown;
+      cause?: unknown;
+    };
+    if (
+      candidate.code === "23505" &&
+      candidate.constraint === INVOICE_REFERENCE_CONSTRAINT
+    ) {
+      return true;
+    }
+    current = candidate.cause;
+  }
+  return false;
+}
+
 function canonicalMonthlyLines(
   lines: Array<{
     athleteId: string;
@@ -957,6 +1022,48 @@ async function buildMonthlyInvoiceOptions(
   });
   const existingByFamily = new Map<string, (typeof existingRows)[number]>();
   for (const row of existingRows) existingByFamily.set(row.familyId, row);
+  const existingInvoiceIds = new Set(existingRows.map((row) => row.invoiceId));
+
+  // The ledger keeps invoices_reference_uq UNIQUE (organization_id, reference).
+  // Look up the reference each family would get so the quote does not offer an
+  // issuance that the insert would reject. The family's own invoice for this
+  // site and period is already reported above and is ignored here.
+  const referenceByFamily = new Map(
+    familyIds.map((familyId) => [
+      familyId,
+      monthlyInvoiceReference({
+        servicePeriod: input.servicePeriod,
+        familyId,
+        locationId: input.locationId,
+      }),
+    ])
+  );
+  const referenceOwners = await readKeysetPagesByBatches<
+    { invoiceId: string; reference: string },
+    string
+  >({
+    values: [...new Set(referenceByFamily.values())],
+    batchSize: READ_FILTER_BATCH_SIZE,
+    cursorOf: (row) => row.invoiceId,
+    fetchPage: (references, cursor, limit) => {
+      const conditions = [
+        eq(invoices.organizationId, input.organizationId),
+        inArray(invoices.reference, references),
+      ];
+      if (cursor) conditions.push(gt(invoices.id, cursor));
+      return tx
+        .select({ invoiceId: invoices.id, reference: invoices.reference })
+        .from(invoices)
+        .where(and(...conditions))
+        .orderBy(asc(invoices.id))
+        .limit(limit);
+    },
+  });
+  const takenReferences = new Set(
+    referenceOwners
+      .filter((row) => !existingInvoiceIds.has(row.invoiceId))
+      .map((row) => row.reference)
+  );
 
   for (const family of familyResults) {
     family.blockingReasons = [
@@ -989,6 +1096,10 @@ async function buildMonthlyInvoiceOptions(
           ? "INVOICE_VOIDED"
           : "PERIOD_ALREADY_INVOICED"
       );
+    }
+    const reference = referenceByFamily.get(family.familyId);
+    if (reference && takenReferences.has(reference)) {
+      family.blockingReasons.push("INVOICE_REFERENCE_TAKEN");
     }
     family.blockingReasons = [...new Set(family.blockingReasons)];
     family.canIssue = family.blockingReasons.length === 0;
@@ -1811,7 +1922,11 @@ export async function issueMonthlyInvoice(
       allowedRoles: financialRoles,
     });
 
-    const reference = `MENSUAL-${input.servicePeriod.replace("-", "")}-${input.familyId}`;
+    const reference = monthlyInvoiceReference({
+      servicePeriod: input.servicePeriod,
+      familyId: input.familyId,
+      locationId: input.locationId,
+    });
     const invoice = await issueInvoiceInTransaction(
       tx,
       {
@@ -1836,7 +1951,19 @@ export async function issueMonthlyInvoice(
         })),
       },
       { collectionMode: "manual" }
-    );
+    ).catch((error: unknown) => {
+      // A concurrent invoice outside these locks (for example a manual one) can
+      // still take the reference after the quote. The transaction is already
+      // aborted and rolls back; report a domain conflict instead of a raw 23505.
+      if (isInvoiceReferenceViolation(error)) {
+        throw conflict(
+          "INVOICE_REFERENCE_TAKEN",
+          "Ya existe otra factura con la referencia de esta cuota mensual. Revisa las facturas de la familia antes de emitir.",
+          { reference }
+        );
+      }
+      throw error;
+    });
 
     await appendOutboxEvent(tx, {
       organizationId: input.organizationId,
