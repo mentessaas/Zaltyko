@@ -68,6 +68,7 @@ export default defineConfig({
                   "tests/market-access-contact-postgres.integration.test.ts",
                   "tests/owner-dashboard-today-attention-pg.test.ts",
                   "tests/admission-requests-pg.test.ts",
+                  "tests/saas-reconciliation-service-pg.test.ts",
                 ]),
             ...(!runSandboxReadonlyPostgresSuites
               ? [
