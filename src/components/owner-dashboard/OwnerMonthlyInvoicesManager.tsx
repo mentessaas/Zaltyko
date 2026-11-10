@@ -416,6 +416,7 @@ export function OwnerMonthlyInvoicesManager({
           "INVOICE_VOIDED",
           "ENROLLMENT_ALREADY_BILLED",
           "FAMILY_PAYER_INVALID",
+          "INVOICE_REFERENCE_TAKEN",
         ].includes(code ?? "");
         // The route rejects 4xx before the service or the service transaction rolls back.
         // A later 4xx cannot clear an operation after an ambiguous first attempt.
@@ -441,7 +442,8 @@ export function OwnerMonthlyInvoicesManager({
           (code === "PERIOD_ALREADY_INVOICED" ||
             code === "INVOICE_VOIDED" ||
             code === "ENROLLMENT_ALREADY_BILLED" ||
-            code === "FAMILY_PAYER_INVALID")
+            code === "FAMILY_PAYER_INVALID" ||
+            code === "INVOICE_REFERENCE_TAKEN")
         ) {
           setQuoteNeedsReview(true);
           setState("loading");

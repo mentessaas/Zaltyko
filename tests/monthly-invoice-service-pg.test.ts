@@ -32,6 +32,7 @@ import {
   getMonthlyInvoiceOptions,
   issueMonthlyInvoice,
 } from "@/modules/billing/application/monthly-invoice-service";
+import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const describeDisposablePg = describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1");
 
@@ -871,6 +872,129 @@ describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
     expect(await ledgerRows(fixture.organizationId)).toEqual({
       invoices: 1,
       lines: 0,
+      covered: 0,
+      charges: 0,
+      markers: 0,
+    });
+  }, 45_000);
+
+  it("refuses as a conflict, with a full rollback, a reference taken by an invoice committed during the issuance", async () => {
+    // The race between the quote and the insert. Why the issuance cannot get a
+    // raw 23505 from invoices_reference_uq here: every invoice insert checks
+    // invoices_organization_id_fkey, which takes FOR KEY SHARE on the
+    // organization row until commit, and the issuance takes FOR UPDATE on that
+    // row (lockCommand) before it reads anything. A competing invoice therefore
+    // either commits first, and the re-quote under the locks sees it (this
+    // test), or waits for the issuance to finish and gets the 23505 itself. An
+    // insert that starts after that lock writes its index entry before its FK
+    // check, so both would deadlock and PostgreSQL would abort one (40P01).
+    // The translation of a 23505 into INVOICE_REFERENCE_TAKEN stays as
+    // defence if that lock changes; the characterization suite covers it.
+    const fixture = await seedFamily();
+    const family = await quoteFor(fixture);
+    expect(family.canIssue).toBe(true);
+
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let markInserted!: () => void;
+    const inserted = new Promise<void>((resolve) => {
+      markInserted = resolve;
+    });
+    const heldBy = randomUUID();
+    const competing = db.transaction(async (tx) => {
+      await tx.execute(sql`
+        insert into zaltyko.invoices (
+          id, organization_id, location_id, family_id, reference, status,
+          currency, total_amount_cents, issued_at, due_at, idempotency_key
+        ) values (
+          ${heldBy}::uuid, ${fixture.organizationId}::uuid, ${fixture.locationId}::uuid,
+          ${fixture.familyId}::uuid, ${expectedReference(fixture, fixture.locationId)}, 'issued',
+          'EUR', 1000, ${`${PERIOD_START}T09:00:00Z`}::timestamptz,
+          ${`${PERIOD_END}T12:00:00Z`}::timestamptz, ${`ci-manual-${heldBy}`}
+        )
+      `);
+      markInserted();
+      await released;
+    });
+    await inserted;
+    const issuance = issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!)).then(
+      () => null,
+      (caught: unknown) => caught
+    );
+    try {
+      // The issuance is open and blocked on the organization row.
+      expect(await waitForOrganizationLockWaiters(1)).toBe(1);
+    } finally {
+      release();
+      await competing;
+    }
+    const failure = await issuance;
+    expect(failure).toBeInstanceOf(OperationalError);
+    expect(failure).toMatchObject({ code: "QUOTE_STALE", status: 409 });
+
+    // Nothing of the issuance remains, and the quote now explains why.
+    expect(await ledgerRows(fixture.organizationId)).toEqual({
+      invoices: 1,
+      lines: 0,
+      covered: 0,
+      charges: 0,
+      markers: 0,
+    });
+    expect(await quoteFor(fixture)).toMatchObject({
+      canIssue: false,
+      existingInvoiceId: null,
+      blockingReasons: ["INVOICE_REFERENCE_TAKEN"],
+    });
+  }, 45_000);
+
+  it("blocks, and never issues, a month the family already has invoiced without a site", async () => {
+    // invoices.location_id is nullable. An old monthly invoice without a site
+    // is neither replayed per site nor protected by the reference any more, so
+    // the quote must block instead of offering a second invoice.
+    const fixture = await seedFamily();
+    const siteLess = randomUUID();
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        insert into zaltyko.invoices (
+          id, organization_id, location_id, family_id, reference, status,
+          currency, total_amount_cents, issued_at, due_at, idempotency_key
+        ) values (
+          ${siteLess}::uuid, ${fixture.organizationId}::uuid, null,
+          ${fixture.familyId}::uuid, ${legacyReference(fixture)}, 'issued',
+          'EUR', 3000, ${`${PERIOD_START}T09:00:00Z`}::timestamptz,
+          ${`${PERIOD_END}T12:00:00Z`}::timestamptz, ${`ci-legacy-${siteLess}`}
+        )
+      `);
+      // A legacy per-enrollment monthly line: no athlete, no site.
+      await tx.execute(sql`
+        insert into zaltyko.invoice_lines (
+          id, organization_id, invoice_id, location_id, athlete_id, enrollment_id,
+          price_plan_id, line_type, quantity, unit_amount_cents, amount_cents, currency,
+          service_period_start, service_period_end
+        ) values (
+          ${randomUUID()}::uuid, ${fixture.organizationId}::uuid, ${siteLess}::uuid, null, null,
+          ${fixture.enrollmentA1}::uuid, ${fixture.pricePlanId}::uuid, 'monthly_fee', 1, 3000, 3000,
+          'EUR', ${PERIOD_START}::date, ${PERIOD_END}::date
+        )
+      `);
+    });
+
+    const family = await quoteFor(fixture);
+    expect(family).toMatchObject({
+      canIssue: false,
+      existingInvoiceId: null,
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"],
+    });
+    await expect(issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!))).rejects.toMatchObject({
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 422,
+      details: { blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"] },
+    });
+    expect(await ledgerRows(fixture.organizationId)).toEqual({
+      invoices: 1,
+      lines: 1,
       covered: 0,
       charges: 0,
       markers: 0,

@@ -972,10 +972,15 @@ async function buildMonthlyInvoiceOptions(
       left.athleteId.localeCompare(right.athleteId)
     );
   }
+  // Monthly invoices of this site, plus any monthly invoice of the family for
+  // the month without a site (location_id is nullable in the ledger). Those
+  // site-less invoices are not matched by the per-site replay below, so they
+  // block the quote instead: a false block is safer than a second invoice.
   const existingRows = await readKeysetPagesByBatches<
     {
       familyId: string;
       invoiceId: string;
+      locationId: string | null;
       status: string;
       voidedAt: Date | null;
     },
@@ -987,7 +992,10 @@ async function buildMonthlyInvoiceOptions(
     fetchPage: (ids, cursor, limit) => {
       const conditions = [
         eq(invoices.organizationId, input.organizationId),
-        eq(invoices.locationId, input.locationId),
+        or(
+          eq(invoices.locationId, input.locationId),
+          isNull(invoices.locationId)
+        ),
         inArray(invoices.familyId, ids),
         eq(invoiceLines.lineType, "monthly_fee"),
         eq(invoiceLines.servicePeriodStart, bounds.start),
@@ -998,6 +1006,7 @@ async function buildMonthlyInvoiceOptions(
         .select({
           familyId: invoices.familyId,
           invoiceId: invoices.id,
+          locationId: invoices.locationId,
           status: invoices.status,
           voidedAt: invoices.voidedAt,
         })
@@ -1013,6 +1022,7 @@ async function buildMonthlyInvoiceOptions(
         .groupBy(
           invoices.id,
           invoices.familyId,
+          invoices.locationId,
           invoices.status,
           invoices.voidedAt
         )
@@ -1021,7 +1031,11 @@ async function buildMonthlyInvoiceOptions(
     },
   });
   const existingByFamily = new Map<string, (typeof existingRows)[number]>();
-  for (const row of existingRows) existingByFamily.set(row.familyId, row);
+  const siteLessFamilies = new Set<string>();
+  for (const row of existingRows) {
+    if (row.locationId === null) siteLessFamilies.add(row.familyId);
+    else existingByFamily.set(row.familyId, row);
+  }
   const existingInvoiceIds = new Set(existingRows.map((row) => row.invoiceId));
 
   // The ledger keeps invoices_reference_uq UNIQUE (organization_id, reference).
@@ -1096,6 +1110,9 @@ async function buildMonthlyInvoiceOptions(
           ? "INVOICE_VOIDED"
           : "PERIOD_ALREADY_INVOICED"
       );
+    }
+    if (siteLessFamilies.has(family.familyId)) {
+      family.blockingReasons.push("PERIOD_INVOICED_WITHOUT_SITE");
     }
     const reference = referenceByFamily.get(family.familyId);
     if (reference && takenReferences.has(reference)) {

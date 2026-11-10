@@ -1069,12 +1069,29 @@ describe("getMonthlyInvoiceOptions: blocking reasons", () => {
     ["a void invoice", { status: "void", voidedAt: null }, "INVOICE_VOIDED", true],
     ["a voided timestamp", { status: "open", voidedAt: new Date("2026-11-03T10:00:00Z") }, "INVOICE_VOIDED", true],
   ])("blocks a family that already has %s for the month", async (_label, invoice, reason, voided) => {
-    world.handlers.readExistingInvoices = () => [{ familyId: FAM, invoiceId: INVOICE, ...invoice }];
+    world.handlers.readExistingInvoices = () => [
+      { familyId: FAM, invoiceId: INVOICE, locationId: LOC, ...invoice },
+    ];
     const [family] = (await options()).families;
     expect(family).toMatchObject({
       existingInvoiceId: INVOICE,
       existingInvoiceVoided: voided,
       blockingReasons: [reason],
+      canIssue: false,
+    });
+  });
+
+  it("blocks a family with a monthly invoice for the month that has no site", async () => {
+    // invoices.location_id is nullable. The per-site replay never matches such
+    // an invoice, so the quote blocks instead of offering a second invoice.
+    world.handlers.readExistingInvoices = () => [
+      { familyId: FAM, invoiceId: INVOICE_2, locationId: null, status: "open", voidedAt: null },
+    ];
+    const [family] = (await options()).families;
+    expect(family).toMatchObject({
+      existingInvoiceId: null,
+      existingInvoiceVoided: false,
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"],
       canIssue: false,
     });
   });
@@ -1099,7 +1116,7 @@ describe("getMonthlyInvoiceOptions: blocking reasons", () => {
 
   it("does not count the family's own invoice for the site and month as a reference collision", async () => {
     world.handlers.readExistingInvoices = () => [
-      { familyId: FAM, invoiceId: INVOICE, status: "open", voidedAt: null },
+      { familyId: FAM, invoiceId: INVOICE, locationId: LOC, status: "open", voidedAt: null },
     ];
     world.handlers.readReferenceOwners = () => [{ invoiceId: INVOICE, reference: REFERENCE }];
     const [family] = (await options()).families;
@@ -1768,6 +1785,25 @@ describe("issueMonthlyInvoice: guards and concurrency", () => {
     };
     await expect(issueMonthlyInvoice(command())).rejects.toBe(failure);
     expect(trace().slice(-2)).toEqual(["issueInvoice", "rollback"]);
+  });
+
+  it("refuses to issue when the family's month was invoiced without a site", async () => {
+    world.handlers.readExistingInvoices = () => [
+      { familyId: FAM, invoiceId: INVOICE_2, locationId: null, status: "open", voidedAt: null },
+    ];
+    const blockedHash = quoteHash({
+      lines: [HASH_LINE_A, HASH_LINE_B],
+      totalAmountCents: 9000,
+      currency: "EUR",
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"],
+    });
+    await expectFailure(issueMonthlyInvoice(command({ quoteHash: blockedHash })), {
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 422,
+      details: { blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"] },
+    });
+    expect(trace()).toEqual([...QUOTE_UNDER_LOCKS, "findPeriodInvoices", "rollback"]);
+    expect(callsOf("issueInvoice")).toEqual([]);
   });
 
   it("refuses to issue when the quote already reports the reference as taken", async () => {
