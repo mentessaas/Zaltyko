@@ -1,0 +1,110 @@
+-- begin
+begin
+
+-- commit
+commit
+
+-- findBilledAthletes
+select "zaltyko"."invoice_lines"."invoice_id", coalesce("zaltyko"."invoice_lines"."athlete_id", "zaltyko"."enrollments"."athlete_id") from "zaltyko"."invoice_lines" inner join "zaltyko"."invoices" on ("zaltyko"."invoices"."organization_id" = "zaltyko"."invoice_lines"."organization_id" and "zaltyko"."invoices"."id" = "zaltyko"."invoice_lines"."invoice_id") left join "zaltyko"."enrollments" on ("zaltyko"."enrollments"."organization_id" = "zaltyko"."invoice_lines"."organization_id" and "zaltyko"."enrollments"."id" = "zaltyko"."invoice_lines"."enrollment_id") where ("zaltyko"."invoice_lines"."organization_id" = $1 and "zaltyko"."invoices"."location_id" = $2 and "zaltyko"."invoice_lines"."line_type" = $3 and "zaltyko"."invoice_lines"."service_period_start" = $4 and "zaltyko"."invoice_lines"."service_period_end" = $5 and ("zaltyko"."invoice_lines"."athlete_id" in ($6, $7) or "zaltyko"."enrollments"."athlete_id" in ($8, $9))) limit $10
+
+-- findInvoiceMarker
+select "id", "organization_id", "location_id", "event_name", "event_version", "aggregate_type", "aggregate_id", "idempotency_key", "payload", "status", "attempts", "occurred_at", "available_at", "processed_at", "last_error", "created_at" from "zaltyko"."outbox_events" where ("zaltyko"."outbox_events"."organization_id" = $1 and "zaltyko"."outbox_events"."event_name" = $2 and "zaltyko"."outbox_events"."aggregate_id" = $3) limit $4
+
+-- findPeriodInvoices
+select distinct "zaltyko"."invoices"."id" from "zaltyko"."invoices" inner join "zaltyko"."invoice_lines" on ("zaltyko"."invoice_lines"."organization_id" = "zaltyko"."invoices"."organization_id" and "zaltyko"."invoice_lines"."invoice_id" = "zaltyko"."invoices"."id" and "zaltyko"."invoice_lines"."line_type" = $1 and "zaltyko"."invoice_lines"."service_period_start" = $2 and "zaltyko"."invoice_lines"."service_period_end" = $3) where ("zaltyko"."invoices"."organization_id" = $4 and "zaltyko"."invoices"."family_id" = $5 and "zaltyko"."invoices"."location_id" = $6) order by "zaltyko"."invoices"."id" asc limit $7
+
+-- findPriorMarker
+select "id", "organization_id", "location_id", "event_name", "event_version", "aggregate_type", "aggregate_id", "idempotency_key", "payload", "status", "attempts", "occurred_at", "available_at", "processed_at", "last_error", "created_at" from "zaltyko"."outbox_events" where ("zaltyko"."outbox_events"."organization_id" = $1 and "zaltyko"."outbox_events"."event_name" = $2 and "zaltyko"."outbox_events"."idempotency_key" = $3) limit $4
+
+-- loadInvoice
+select "id", "organization_id", "location_id", "family_id", "family_payer_id", "reference", "status", "currency", "total_amount_cents", "issued_at", "due_at", "voided_at", "idempotency_key", "version", "created_at", "updated_at" from "zaltyko"."invoices" where ("zaltyko"."invoices"."organization_id" = $1 and "zaltyko"."invoices"."id" = $2) limit $3
+
+-- lockAthletes
+select id from zaltyko.athletes where organization_id = $1::uuid and id in ($2::uuid, $3::uuid) order by id for update
+
+-- lockCharges
+select "id", "status", "collection_mode" from "zaltyko"."charges" where ("zaltyko"."charges"."organization_id" = $1 and "zaltyko"."charges"."invoice_id" = $2) order by "zaltyko"."charges"."id" asc limit $3 for update
+
+-- lockClassTemplates
+select id from zaltyko.class_templates where organization_id = $1::uuid and location_id = $2::uuid and id in ($3::uuid) order by id for update
+
+-- lockCoverage
+select id from zaltyko.price_plan_class_template_coverage where organization_id = $1::uuid and location_id = $2::uuid and price_plan_id in ($3::uuid) and class_template_id in ($4::uuid) and starts_on <= $5::date and (ends_on is null or ends_on >= $6::date) order by id for update
+
+-- lockEnrollments
+select id, class_template_id from zaltyko.enrollments where organization_id = $1::uuid and id in ($2::uuid, $3::uuid) order by id for update
+
+-- lockFamily
+select id from zaltyko.families where organization_id = $1::uuid and id = $2::uuid for update
+
+-- lockLocation
+select id from zaltyko.locations where organization_id = $1::uuid and id = $2::uuid and is_active = true for update
+
+-- lockPriceAssignments
+select id, price_plan_id from zaltyko.enrollment_price_assignments where organization_id = $1::uuid and location_id = $2::uuid and enrollment_id in ($3::uuid, $4::uuid) and starts_on <= $5::date and (ends_on is null or ends_on >= $6::date) order by id for update
+
+-- lockPricePlans
+select id from zaltyko.price_plans where organization_id = $1::uuid and id in ($2::uuid) order by id for update
+
+-- readCoverage
+select "id", "price_plan_id", "class_template_id", "starts_on", "ends_on" from "zaltyko"."price_plan_class_template_coverage" where ("zaltyko"."price_plan_class_template_coverage"."organization_id" = $1 and "zaltyko"."price_plan_class_template_coverage"."location_id" = $2 and "zaltyko"."price_plan_class_template_coverage"."starts_on" <= $3 and ("zaltyko"."price_plan_class_template_coverage"."ends_on" is null or "zaltyko"."price_plan_class_template_coverage"."ends_on" >= $4) and ("zaltyko"."price_plan_class_template_coverage"."price_plan_id" = $5 and "zaltyko"."price_plan_class_template_coverage"."class_template_id" = $6)) order by "zaltyko"."price_plan_class_template_coverage"."id" asc limit $7
+
+-- readCoverage
+select "id", "price_plan_id", "class_template_id", "starts_on", "ends_on" from "zaltyko"."price_plan_class_template_coverage" where ("zaltyko"."price_plan_class_template_coverage"."organization_id" = $1 and "zaltyko"."price_plan_class_template_coverage"."location_id" = $2 and "zaltyko"."price_plan_class_template_coverage"."starts_on" <= $3 and ("zaltyko"."price_plan_class_template_coverage"."ends_on" is null or "zaltyko"."price_plan_class_template_coverage"."ends_on" >= $4) and (("zaltyko"."price_plan_class_template_coverage"."price_plan_id" = $5 and "zaltyko"."price_plan_class_template_coverage"."class_template_id" = $6) or … 98 more … or ("zaltyko"."price_plan_class_template_coverage"."price_plan_id" = $203 and "zaltyko"."price_plan_class_template_coverage"."class_template_id" = $204))) order by "zaltyko"."price_plan_class_template_coverage"."id" asc limit $205
+
+-- readCoveredEnrollments
+select "invoice_line_id", "enrollment_id", "class_template_id", "class_name_snapshot", "price_assignment_id" from "zaltyko"."invoice_line_enrollments" where ("zaltyko"."invoice_line_enrollments"."organization_id" = $1 and "zaltyko"."invoice_line_enrollments"."invoice_line_id" in ($2, $3)) order by "zaltyko"."invoice_line_enrollments"."invoice_line_id" asc, "zaltyko"."invoice_line_enrollments"."enrollment_id" asc limit $4
+
+-- readEnrollments
+select "zaltyko"."enrollments"."id", "zaltyko"."enrollments"."athlete_id", "zaltyko"."enrollments"."class_template_id", "zaltyko"."class_templates"."name", "zaltyko"."class_templates"."effective_from", "zaltyko"."class_templates"."effective_to", nullif(btrim(concat_ws(' ', "zaltyko"."people"."given_name", "zaltyko"."people"."family_name")), ''), "zaltyko"."people"."family_name", "zaltyko"."people"."given_name", "zaltyko"."enrollments"."status", "zaltyko"."enrollments"."starts_on", "zaltyko"."enrollments"."ends_on" from "zaltyko"."enrollments" inner join "zaltyko"."athletes" on ("zaltyko"."athletes"."organization_id" = "zaltyko"."enrollments"."organization_id" and "zaltyko"."athletes"."id" = "zaltyko"."enrollments"."athlete_id" and "zaltyko"."athletes"."is_active" = $1) inner join "zaltyko"."people" on ("zaltyko"."people"."organization_id" = "zaltyko"."athletes"."organization_id" and "zaltyko"."people"."id" = "zaltyko"."athletes"."person_id") inner join "zaltyko"."class_templates" on ("zaltyko"."class_templates"."organization_id" = "zaltyko"."enrollments"."organization_id" and "zaltyko"."class_templates"."location_id" = "zaltyko"."enrollments"."location_id" and "zaltyko"."class_templates"."id" = "zaltyko"."enrollments"."class_template_id") where ("zaltyko"."enrollments"."organization_id" = $2 and "zaltyko"."enrollments"."location_id" = $3 and "zaltyko"."enrollments"."status" in ($4, $5) and "zaltyko"."enrollments"."starts_on" <= $6 and ("zaltyko"."enrollments"."ends_on" is null or "zaltyko"."enrollments"."ends_on" >= $7) and "zaltyko"."enrollments"."id" > $8) order by "zaltyko"."enrollments"."id" asc limit $9
+
+-- readEnrollments
+select "zaltyko"."enrollments"."id", "zaltyko"."enrollments"."athlete_id", "zaltyko"."enrollments"."class_template_id", "zaltyko"."class_templates"."name", "zaltyko"."class_templates"."effective_from", "zaltyko"."class_templates"."effective_to", nullif(btrim(concat_ws(' ', "zaltyko"."people"."given_name", "zaltyko"."people"."family_name")), ''), "zaltyko"."people"."family_name", "zaltyko"."people"."given_name", "zaltyko"."enrollments"."status", "zaltyko"."enrollments"."starts_on", "zaltyko"."enrollments"."ends_on" from "zaltyko"."enrollments" inner join "zaltyko"."athletes" on ("zaltyko"."athletes"."organization_id" = "zaltyko"."enrollments"."organization_id" and "zaltyko"."athletes"."id" = "zaltyko"."enrollments"."athlete_id" and "zaltyko"."athletes"."is_active" = $1) inner join "zaltyko"."people" on ("zaltyko"."people"."organization_id" = "zaltyko"."athletes"."organization_id" and "zaltyko"."people"."id" = "zaltyko"."athletes"."person_id") inner join "zaltyko"."class_templates" on ("zaltyko"."class_templates"."organization_id" = "zaltyko"."enrollments"."organization_id" and "zaltyko"."class_templates"."location_id" = "zaltyko"."enrollments"."location_id" and "zaltyko"."class_templates"."id" = "zaltyko"."enrollments"."class_template_id") where ("zaltyko"."enrollments"."organization_id" = $2 and "zaltyko"."enrollments"."location_id" = $3 and "zaltyko"."enrollments"."status" in ($4, $5) and "zaltyko"."enrollments"."starts_on" <= $6 and ("zaltyko"."enrollments"."ends_on" is null or "zaltyko"."enrollments"."ends_on" >= $7)) order by "zaltyko"."enrollments"."id" asc limit $8
+
+-- readExistingInvoices
+select "zaltyko"."invoices"."family_id", "zaltyko"."invoices"."id", "zaltyko"."invoices"."status", "zaltyko"."invoices"."voided_at" from "zaltyko"."invoices" inner join "zaltyko"."invoice_lines" on ("zaltyko"."invoice_lines"."organization_id" = "zaltyko"."invoices"."organization_id" and "zaltyko"."invoice_lines"."invoice_id" = "zaltyko"."invoices"."id") where ("zaltyko"."invoices"."organization_id" = $1 and "zaltyko"."invoices"."location_id" = $2 and "zaltyko"."invoices"."family_id" in ($3) and "zaltyko"."invoice_lines"."line_type" = $4 and "zaltyko"."invoice_lines"."service_period_start" = $5 and "zaltyko"."invoice_lines"."service_period_end" = $6) group by "zaltyko"."invoices"."id", "zaltyko"."invoices"."family_id", "zaltyko"."invoices"."status", "zaltyko"."invoices"."voided_at" order by "zaltyko"."invoices"."id" asc limit $7
+
+-- readFamilyCohort
+select "id", "athlete_id" from "zaltyko"."family_members" where ("zaltyko"."family_members"."organization_id" = $1 and "zaltyko"."family_members"."family_id" = $2 and "zaltyko"."family_members"."starts_on" <= $3 and ("zaltyko"."family_members"."ends_on" is null or "zaltyko"."family_members"."ends_on" >= $4)) order by "zaltyko"."family_members"."id" asc limit $5
+
+-- readFamilyMembers
+select "zaltyko"."family_members"."id", "zaltyko"."family_members"."family_id", "zaltyko"."family_members"."athlete_id", "zaltyko"."family_members"."starts_on", "zaltyko"."family_members"."ends_on", "zaltyko"."families"."is_active" from "zaltyko"."family_members" inner join "zaltyko"."families" on ("zaltyko"."families"."organization_id" = "zaltyko"."family_members"."organization_id" and "zaltyko"."families"."id" = "zaltyko"."family_members"."family_id") where ("zaltyko"."family_members"."organization_id" = $1 and "zaltyko"."family_members"."athlete_id" in ($2) and "zaltyko"."family_members"."starts_on" <= $3 and ("zaltyko"."family_members"."ends_on" is null or "zaltyko"."family_members"."ends_on" >= $4)) order by "zaltyko"."family_members"."id" asc limit $5
+
+-- readFamilyMembers
+select "zaltyko"."family_members"."id", "zaltyko"."family_members"."family_id", "zaltyko"."family_members"."athlete_id", "zaltyko"."family_members"."starts_on", "zaltyko"."family_members"."ends_on", "zaltyko"."families"."is_active" from "zaltyko"."family_members" inner join "zaltyko"."families" on ("zaltyko"."families"."organization_id" = "zaltyko"."family_members"."organization_id" and "zaltyko"."families"."id" = "zaltyko"."family_members"."family_id") where ("zaltyko"."family_members"."organization_id" = $1 and "zaltyko"."family_members"."athlete_id" in ($2, $3) and "zaltyko"."family_members"."starts_on" <= $4 and ("zaltyko"."family_members"."ends_on" is null or "zaltyko"."family_members"."ends_on" >= $5)) order by "zaltyko"."family_members"."id" asc limit $6
+
+-- readFamilyMembers
+select "zaltyko"."family_members"."id", "zaltyko"."family_members"."family_id", "zaltyko"."family_members"."athlete_id", "zaltyko"."family_members"."starts_on", "zaltyko"."family_members"."ends_on", "zaltyko"."families"."is_active" from "zaltyko"."family_members" inner join "zaltyko"."families" on ("zaltyko"."families"."organization_id" = "zaltyko"."family_members"."organization_id" and "zaltyko"."families"."id" = "zaltyko"."family_members"."family_id") where ("zaltyko"."family_members"."organization_id" = $1 and "zaltyko"."family_members"."athlete_id" in ($2, …, $201) and "zaltyko"."family_members"."starts_on" <= $202 and ("zaltyko"."family_members"."ends_on" is null or "zaltyko"."family_members"."ends_on" >= $203) and "zaltyko"."family_members"."id" > $204) order by "zaltyko"."family_members"."id" asc limit $205
+
+-- readFamilyMembers
+select "zaltyko"."family_members"."id", "zaltyko"."family_members"."family_id", "zaltyko"."family_members"."athlete_id", "zaltyko"."family_members"."starts_on", "zaltyko"."family_members"."ends_on", "zaltyko"."families"."is_active" from "zaltyko"."family_members" inner join "zaltyko"."families" on ("zaltyko"."families"."organization_id" = "zaltyko"."family_members"."organization_id" and "zaltyko"."families"."id" = "zaltyko"."family_members"."family_id") where ("zaltyko"."family_members"."organization_id" = $1 and "zaltyko"."family_members"."athlete_id" in ($2, …, $201) and "zaltyko"."family_members"."starts_on" <= $202 and ("zaltyko"."family_members"."ends_on" is null or "zaltyko"."family_members"."ends_on" >= $203)) order by "zaltyko"."family_members"."id" asc limit $204
+
+-- readIssuedLines
+select "zaltyko"."invoice_lines"."id", coalesce("zaltyko"."invoice_lines"."athlete_id", "zaltyko"."enrollments"."athlete_id"), "zaltyko"."invoice_lines"."athlete_id", "zaltyko"."invoice_lines"."enrollment_id", "zaltyko"."invoice_lines"."price_plan_id", nullif(btrim(concat_ws(' ', "zaltyko"."people"."given_name", "zaltyko"."people"."family_name")), ''), "zaltyko"."invoice_lines"."amount_cents", "zaltyko"."invoice_lines"."currency" from "zaltyko"."invoice_lines" left join "zaltyko"."enrollments" on ("zaltyko"."enrollments"."organization_id" = "zaltyko"."invoice_lines"."organization_id" and "zaltyko"."enrollments"."id" = "zaltyko"."invoice_lines"."enrollment_id") left join "zaltyko"."athletes" on ("zaltyko"."athletes"."organization_id" = "zaltyko"."invoice_lines"."organization_id" and "zaltyko"."athletes"."id" = coalesce("zaltyko"."invoice_lines"."athlete_id", "zaltyko"."enrollments"."athlete_id")) left join "zaltyko"."people" on ("zaltyko"."people"."organization_id" = "zaltyko"."athletes"."organization_id" and "zaltyko"."people"."id" = "zaltyko"."athletes"."person_id") where ("zaltyko"."invoice_lines"."organization_id" = $1 and "zaltyko"."invoice_lines"."invoice_id" = $2) order by "zaltyko"."invoice_lines"."id" asc limit $3
+
+-- readLocation
+select "id", "timezone" from "zaltyko"."locations" where ("zaltyko"."locations"."organization_id" = $1 and "zaltyko"."locations"."id" = $2 and "zaltyko"."locations"."is_active" = $3) limit $4
+
+-- readLocationTimezone
+select "timezone" from "zaltyko"."locations" where ("zaltyko"."locations"."organization_id" = $1 and "zaltyko"."locations"."id" = $2 and "zaltyko"."locations"."is_active" = $3) limit $4
+
+-- readPayers
+select "zaltyko"."family_payers"."family_id", "zaltyko"."family_payers"."id", "zaltyko"."family_payers"."is_primary", nullif(btrim(concat_ws(' ', "zaltyko"."people"."given_name", "zaltyko"."people"."family_name")), ''), "zaltyko"."family_payers"."starts_on", "zaltyko"."family_payers"."ends_on" from "zaltyko"."family_payers" inner join "zaltyko"."family_guardians" on ("zaltyko"."family_guardians"."organization_id" = "zaltyko"."family_payers"."organization_id" and "zaltyko"."family_guardians"."family_id" = "zaltyko"."family_payers"."family_id" and "zaltyko"."family_guardians"."guardian_id" = "zaltyko"."family_payers"."guardian_id" and "zaltyko"."family_guardians"."is_active" = $1) inner join "zaltyko"."guardians" on ("zaltyko"."guardians"."organization_id" = "zaltyko"."family_payers"."organization_id" and "zaltyko"."guardians"."id" = "zaltyko"."family_payers"."guardian_id" and "zaltyko"."guardians"."is_active" = $2) inner join "zaltyko"."people" on ("zaltyko"."people"."organization_id" = "zaltyko"."guardians"."organization_id" and "zaltyko"."people"."id" = "zaltyko"."guardians"."person_id") where ("zaltyko"."family_payers"."organization_id" = $3 and "zaltyko"."family_payers"."family_id" in ($4) and "zaltyko"."family_payers"."starts_on" <= $5 and ("zaltyko"."family_payers"."ends_on" is null or "zaltyko"."family_payers"."ends_on" >= $6)) order by "zaltyko"."family_payers"."id" asc limit $7
+
+-- readPriceAssignments
+select "id", "organization_id", "location_id", "enrollment_id", "price_plan_id", "unit_amount_cents", "currency", "starts_on", "ends_on", "created_at", "updated_at" from "zaltyko"."enrollment_price_assignments" where ("zaltyko"."enrollment_price_assignments"."organization_id" = $1 and "zaltyko"."enrollment_price_assignments"."enrollment_id" in ($2) and "zaltyko"."enrollment_price_assignments"."starts_on" <= $3 and ("zaltyko"."enrollment_price_assignments"."ends_on" is null or "zaltyko"."enrollment_price_assignments"."ends_on" >= $4)) order by "zaltyko"."enrollment_price_assignments"."id" asc limit $5
+
+-- readPriceAssignments
+select "id", "organization_id", "location_id", "enrollment_id", "price_plan_id", "unit_amount_cents", "currency", "starts_on", "ends_on", "created_at", "updated_at" from "zaltyko"."enrollment_price_assignments" where ("zaltyko"."enrollment_price_assignments"."organization_id" = $1 and "zaltyko"."enrollment_price_assignments"."enrollment_id" in ($2, $3) and "zaltyko"."enrollment_price_assignments"."starts_on" <= $4 and ("zaltyko"."enrollment_price_assignments"."ends_on" is null or "zaltyko"."enrollment_price_assignments"."ends_on" >= $5)) order by "zaltyko"."enrollment_price_assignments"."id" asc limit $6
+
+-- readPriceAssignments
+select "id", "organization_id", "location_id", "enrollment_id", "price_plan_id", "unit_amount_cents", "currency", "starts_on", "ends_on", "created_at", "updated_at" from "zaltyko"."enrollment_price_assignments" where ("zaltyko"."enrollment_price_assignments"."organization_id" = $1 and "zaltyko"."enrollment_price_assignments"."enrollment_id" in ($2, …, $201) and "zaltyko"."enrollment_price_assignments"."starts_on" <= $202 and ("zaltyko"."enrollment_price_assignments"."ends_on" is null or "zaltyko"."enrollment_price_assignments"."ends_on" >= $203) and "zaltyko"."enrollment_price_assignments"."id" > $204) order by "zaltyko"."enrollment_price_assignments"."id" asc limit $205
+
+-- readPriceAssignments
+select "id", "organization_id", "location_id", "enrollment_id", "price_plan_id", "unit_amount_cents", "currency", "starts_on", "ends_on", "created_at", "updated_at" from "zaltyko"."enrollment_price_assignments" where ("zaltyko"."enrollment_price_assignments"."organization_id" = $1 and "zaltyko"."enrollment_price_assignments"."enrollment_id" in ($2, …, $201) and "zaltyko"."enrollment_price_assignments"."starts_on" <= $202 and ("zaltyko"."enrollment_price_assignments"."ends_on" is null or "zaltyko"."enrollment_price_assignments"."ends_on" >= $203)) order by "zaltyko"."enrollment_price_assignments"."id" asc limit $204
+
+-- readPricePlans
+select "id", "name", "amount_cents", "currency", "cadence" from "zaltyko"."price_plans" where ("zaltyko"."price_plans"."organization_id" = $1 and "zaltyko"."price_plans"."is_active" = $2 and "zaltyko"."price_plans"."cadence" = $3) order by "zaltyko"."price_plans"."id" asc limit $4
+
+-- rollback
+rollback
