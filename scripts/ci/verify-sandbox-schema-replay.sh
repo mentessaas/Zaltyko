@@ -617,12 +617,7 @@ run_disposable_postgres_suites() {
   # Team-access DDL is a candidate installed inside its guarded integration
   # suite only. No linked Supabase project or external credentials are used.
   ZALTYKO_PG_INTEGRATION=1 ZALTYKO_PG_INTEGRATION_DATABASE_URL="$LOCAL_DB_URL" NODE_ENV=test \
-    pnpm exec vitest run --project web tests/canonical-team-access-pg.test.ts \
-    || return "$?"
-  # P2 #15 trial-request DDL is a candidate pending Elvis's authorization. Its
-  # suite installs it only in this disposable database and drops it afterwards.
-  ZALTYKO_PG_INTEGRATION=1 ZALTYKO_PG_INTEGRATION_DATABASE_URL="$LOCAL_DB_URL" NODE_ENV=test \
-    pnpm exec vitest run --project web tests/admission-requests-pg.test.ts
+    pnpm exec vitest run --project web tests/canonical-team-access-pg.test.ts
 }
 if ! run_disposable_postgres_suites >"$INTEGRATION_LOG" 2>&1; then
   printf 'Sanitized PostgreSQL integration failure follows; connection strings and long credentials are redacted.\n' >&2

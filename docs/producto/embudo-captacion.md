@@ -106,7 +106,7 @@ Reglas del corte:
 - **Supresión.** «Eliminar datos personales» sustituye nombres y email, borra teléfono, año y comentario, y conserva el registro (fecha, sede, estado y auditoría). Solo en solicitudes descartadas; no se puede reabrir después.
 - **Correo.** No se envía nada. El punto de enganche queda documentado en `admission-requests.ts` (después de la inserción, evento `admission_request.received`) y desactivado.
 - **Sin cobros.** Ni Stripe ni Connect. Al convertir no se crea inscripción ni cuota: solo la ficha y la familia.
-- **Pruebas PostgreSQL.** `tests/admission-requests-pg.test.ts` no se ejecuta en el CI de las PR. Solo corre en el replay de esquema aislado (`ci-isolated.yml`, modo `schema-replay`), que está limitado a la rama puente y se lanzará cuando Elvis lo autorice.
+- **Pruebas PostgreSQL.** `tests/admission-requests-pg.test.ts` no se ejecuta en ningún CI todavía. No se ha añadido a `scripts/ci/verify-sandbox-schema-replay.sh`, porque ese script y `supabase/schema-snapshot-manifest.json` son un contrato protegido. Queda pendiente de ejecutar en schema-replay cuando Elvis lo autorice.
 
 ## Importancia
 
