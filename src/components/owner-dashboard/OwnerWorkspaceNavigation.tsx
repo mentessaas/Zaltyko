@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ClipboardCheck,
   CreditCard,
+  Inbox,
   LayoutDashboard,
   MoreHorizontal,
   Sparkles,
@@ -39,6 +40,7 @@ const ITEM_ICONS: Record<string, LucideIcon> = {
   Gimnastas: Sparkles,
   Grupos: UsersRound,
   Inscripciones: UserPlus,
+  Solicitudes: Inbox,
   Equipo: Users,
   Cobros: Wallet,
   Plan: CreditCard,
@@ -46,7 +48,7 @@ const ITEM_ICONS: Record<string, LucideIcon> = {
 
 const DESKTOP_SECTIONS: ReadonlyArray<{ title: string; labels: readonly string[] }> = [
   { title: "Día a día", labels: ["Resumen", "Asistencia", "Clases"] },
-  { title: "Personas", labels: ["Gimnastas", "Grupos", "Inscripciones"] },
+  { title: "Personas", labels: ["Solicitudes", "Gimnastas", "Grupos", "Inscripciones"] },
   { title: "Club", labels: ["Cobros"] },
 ];
 
@@ -120,6 +122,13 @@ export function OwnerWorkspaceNavigation({
       href: `/owner/groups${scopedQuery}`,
       active: isRouteActive(pathname, "/owner/groups"),
     },
+    ...(!previewMode
+      ? [{
+          label: "Solicitudes",
+          href: `/owner/requests${scopedQuery}`,
+          active: isRouteActive(pathname, "/owner/requests"),
+        }]
+      : []),
     {
       label: "Gimnastas",
       href: `/owner/athletes${organizationQuery}`,

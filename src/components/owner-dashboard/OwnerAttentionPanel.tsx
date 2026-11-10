@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, AlertCircle, Receipt, UsersRound, type LucideIcon } from "lucide-react";
+import { CheckCircle2, AlertCircle, Inbox, Receipt, UsersRound, type LucideIcon } from "lucide-react";
 
 import type { OwnerAttentionItems } from "@/modules/owner-dashboard/application/attention-items";
 import { ownerUi } from "./owner-ui";
@@ -39,6 +39,18 @@ export function OwnerAttentionPanel({
         ? `/owner/attendance?${new URLSearchParams({ organizationId, locationId: latest.locationId, sessionId: latest.id })}`
         : `/owner/attendance?${scopeQuery}`,
       action: "Completar",
+      tone: "attention",
+    });
+  }
+  if (items && (items.newTrialRequests ?? 0) > 0) {
+    const count = items.newTrialRequests ?? 0;
+    rows.push({
+      key: "trial-requests",
+      icon: Inbox,
+      title: plural(count, "solicitud de prueba nueva", "solicitudes de prueba nuevas"),
+      detail: "Familias que piden una clase de prueba",
+      href: `/owner/requests?${scopeQuery}`,
+      action: "Responder",
       tone: "attention",
     });
   }

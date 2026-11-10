@@ -57,7 +57,7 @@ describe("navegación de Equipo", () => {
 
     const desktopNav = screen.getByRole("navigation", { name: "Principal", hidden: true });
     const firstLevelLinks = [...desktopNav.children].filter((child) => child.tagName === "A");
-    expect(firstLevelLinks).toHaveLength(7);
+    expect(firstLevelLinks).toHaveLength(8);
     expect(firstLevelLinks.map((link) => link.textContent)).not.toContain("Equipo");
     expect(within(desktopNav).getByText("Más")).toBeInTheDocument();
   });

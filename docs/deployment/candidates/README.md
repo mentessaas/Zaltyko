@@ -31,6 +31,24 @@ productivo propuesto queda bloqueado sin marcadores externos específicos. Esos
 marcadores no prueban por sí solos la identidad de una conexión ni constituyen
 autorización humana. No configurarlos ni ejecutar el modo productivo todavía.
 
+## Candidato de solicitudes de prueba (P2 #15)
+
+`20261110120000_admission_requests_candidate.sql` crea solo
+`zaltyko.admission_requests`. Es la etapa previa a la ficha de la gimnasta:
+la solicitud que una familia deja desde el enlace público de la academia. No
+toca tablas existentes, filas, roles ni objetos legacy. Fuerza RLS, revoca
+`anon` y `authenticated`, y se niega a reinstalarse si la relación ya existe.
+
+- SHA-256: `b128cb452adaa4043bab6249b415a19bef5f72753d7df0954a22fe1885a72db9`.
+- Prueba: `tests/admission-requests-pg.test.ts`. La lanza
+  `scripts/ci/verify-sandbox-schema-replay.sh`, que la instala solo en la
+  PostgreSQL desechable de GitHub y la borra al terminar.
+- Mientras no se aplique, `src/modules/admissions/application/admission-storage.ts`
+  detecta que falta y el embudo responde «no disponible», sin errores a medias.
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+  ningún entorno. La CI verde no equivale a autorización.
+- Contexto y corte mínimo: `docs/producto/embudo-captacion.md`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.

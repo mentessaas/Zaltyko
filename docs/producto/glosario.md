@@ -125,6 +125,11 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
 - **Regla:** todo dato ilustrativo de la web se rotula como ejemplo antes del dato, no solo en un pie: «Ejemplo», «Datos de ejemplo» o «Sesión ilustrativa con datos ficticios».
 - **Dónde aparece:** ficha del primer viewport (`MatHero`) y pizarra «Hoy en el club» (`HomeSections`).
 
+### Solicitud de prueba y lista de espera
+- **Elegido:** «solicitud de prueba» (en la navegación, «Solicitudes») es la petición de una familia desde el enlace público de la academia, antes de que exista la ficha de la gimnasta. «Lista de espera» es la espera canónica de una clase. Una solicitud se «pasa a inscripción» o se «pasa a lista de espera»; se «marca como contactada» o se «descarta».
+- **Prohibido:** lead, prospecto o contacto para la solicitud; «reserva» (no se reserva sesión); «prueba gratuita», que en Zaltyko es la del plan; «alta» para la solicitud, porque el alta es crear la ficha.
+- **Dónde aparece:** `/solicitar-prueba/[organizationId]`, `OwnerTrialRequestsWorkspace`, navegación (Solicitudes) y «Necesita tu atención». Origen: P2 #15 (`docs/producto/embudo-captacion.md`).
+
 ## Pendientes
 
 - **Archivos en refactor:** `monthly-invoice-service.ts` devuelve mensajes con «factura» («Factura no encontrada», «Ya existe una factura para esta familia y periodo…») y `OwnerMonthlyInvoiceResolutionPanel.tsx` dice «operación de facturación». Pasarán a «cuota» cuando termine el refactor. `ManualPaymentForm.tsx` (líneas 786 y 1087) dice «otra sesión de Owner»; pasará a «otra sesión de la dirección».
