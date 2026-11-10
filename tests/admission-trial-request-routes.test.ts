@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   convert: vi.fn(),
   anonymize: vi.fn(),
   manageLink: vi.fn(),
-  resolveOrg: vi.fn(),
+  resolveLink: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/current-user", () => ({ getCurrentUser: mocks.currentUser }));
@@ -31,7 +31,7 @@ vi.mock("@/modules/admissions/application/admission-requests", async (importOrig
   convertTrialRequest: mocks.convert,
   anonymizeTrialRequest: mocks.anonymize,
   manageAdmissionLink: mocks.manageLink,
-  resolveAdmissionLinkOrganization: mocks.resolveOrg,
+  resolveAdmissionLink: mocks.resolveLink,
 }));
 
 import { POST as submitRoute } from "@/app/api/public/trial-requests/route";
@@ -50,6 +50,7 @@ const SITE = "a0000000-0000-4000-8000-000000000011";
 const REQUEST_ID = "a0000000-0000-4000-8000-0000000000cc";
 const USER = "a0000000-0000-4000-8000-0000000000ee";
 const TOKEN = "0123456789abcdef0123456789abcdef";
+const LINK_ID = "a0000000-0000-4000-8000-0000000000f1";
 
 function request(path: string, method: string, body?: unknown, origin: string | null = ORIGIN) {
   const headers = new Headers();
@@ -94,7 +95,7 @@ beforeEach(() => {
   mocks.rateLimit.mockResolvedValue({ success: true, limit: 10, remaining: 9, reset: 0 });
   mocks.currentUser.mockResolvedValue({ id: USER });
   mocks.ownerScope.mockResolvedValue(scope);
-  mocks.resolveOrg.mockResolvedValue(ORG);
+  mocks.resolveLink.mockResolvedValue({ linkId: LINK_ID, organizationId: ORG });
 });
 
 describe("POST /api/public/trial-requests", () => {
@@ -149,7 +150,7 @@ describe("POST /api/public/trial-requests", () => {
     expect(await response.json()).toEqual({ ok: true, data: { received: true } });
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(mocks.submit).toHaveBeenCalledWith(expect.objectContaining({ contactEmail: "ana@example.invalid", linkToken: TOKEN }));
-    expect(mocks.resolveOrg).toHaveBeenCalledWith(TOKEN);
+    expect(mocks.resolveLink).toHaveBeenCalledWith(TOKEN);
   });
 
   it("responde 200 a un reenvío idéntico y propaga 503 si no está activado", async () => {
@@ -169,8 +170,8 @@ describe("token del enlace público", () => {
 
   it("responde igual a un token desconocido, desactivado o revocado", async () => {
     // El servicio no distingue: los tres casos devuelven null al resolver.
-    const unknown = await problemFor(() => mocks.resolveOrg.mockResolvedValueOnce(null));
-    const disabled = await problemFor(() => mocks.resolveOrg.mockResolvedValueOnce(null));
+    const unknown = await problemFor(() => mocks.resolveLink.mockResolvedValueOnce(null));
+    const disabled = await problemFor(() => mocks.resolveLink.mockResolvedValueOnce(null));
     // Revocado entre la resolución y la escritura: el servicio lanza el mismo 404.
     const revoked = await problemFor(() =>
       mocks.submit.mockRejectedValueOnce(new OperationalError("NOT_FOUND", LINK_NOT_RECEIVING_MESSAGE, 404))
@@ -187,24 +188,39 @@ describe("token del enlace público", () => {
   it("rechaza tokens mal formados sin consultar la base de datos", async () => {
     const response = await submitRoute(request("/api/public/trial-requests", "POST", publicBody({ linkToken: ORG })));
     expect(response.status).toBe(400);
-    expect(mocks.resolveOrg).not.toHaveBeenCalled();
+    expect(mocks.resolveLink).not.toHaveBeenCalled();
   });
 
-  it("aplica el límite por academia resuelta desde el enlace", async () => {
+  it("aplica el cupo por enlace resuelto en el servidor", async () => {
     mocks.rateLimit
       .mockResolvedValueOnce({ success: true, limit: 10, remaining: 9, reset: 0 })
       .mockResolvedValueOnce({ success: true, limit: 5, remaining: 4, reset: 0 })
       .mockResolvedValueOnce({ success: false, limit: 30, remaining: 0, reset: 0 });
     const response = await submitRoute(request("/api/public/trial-requests", "POST", publicBody()));
     expect(response.status).toBe(429);
-    expect(mocks.rateLimit.mock.calls[2]?.[0]).toEqual({ identifier: `trial-requests:org:${ORG}`, limit: 30, window: 3600 });
+    expect(mocks.rateLimit.mock.calls[2]?.[0]).toEqual({ identifier: `trial-requests:link:${LINK_ID}`, limit: 30, window: 3600 });
     expect(mocks.submit).not.toHaveBeenCalled();
   });
 
-  it("no aplica el límite por academia a un token que no resuelve", async () => {
-    mocks.resolveOrg.mockResolvedValueOnce(null);
+  it("no gasta cupo del enlace con un token que no resuelve ni con datos inválidos", async () => {
+    mocks.resolveLink.mockResolvedValueOnce(null);
     await submitRoute(request("/api/public/trial-requests", "POST", publicBody()));
-    expect(mocks.rateLimit.mock.calls.map(([config]) => config.identifier)).not.toContain(`trial-requests:org:${ORG}`);
+    await submitRoute(request("/api/public/trial-requests", "POST", publicBody({ privacyConsent: false })));
+    const identifiers = mocks.rateLimit.mock.calls.map(([config]) => String(config.identifier));
+    expect(identifiers.some((identifier) => identifier.startsWith("trial-requests:link:"))).toBe(false);
+  });
+
+  it("cuenta por enlace, no por academia: otro enlace de la misma academia tiene su propio cupo", async () => {
+    const OTHER_LINK = "a0000000-0000-4000-8000-0000000000f2";
+    mocks.submit.mockResolvedValue({ requestId: REQUEST_ID, replayed: false });
+    mocks.resolveLink.mockResolvedValueOnce({ linkId: LINK_ID, organizationId: ORG });
+    await submitRoute(request("/api/public/trial-requests", "POST", publicBody()));
+    mocks.resolveLink.mockResolvedValueOnce({ linkId: OTHER_LINK, organizationId: ORG });
+    await submitRoute(request("/api/public/trial-requests", "POST", publicBody()));
+    const identifiers = mocks.rateLimit.mock.calls.map(([config]) => String(config.identifier));
+    expect(identifiers).toContain(`trial-requests:link:${LINK_ID}`);
+    expect(identifiers).toContain(`trial-requests:link:${OTHER_LINK}`);
+    expect(identifiers.some((identifier) => identifier.includes(":org:"))).toBe(false);
   });
 });
 
@@ -326,7 +342,7 @@ describe("POST /api/v1/owner/trial-requests/[requestId]/status y /convert", () =
     expect(response.status).toBe(404);
   });
 
-  it("valida el destino de la conversión antes de resolver el alcance", async () => {
+  it("rechaza la lista de espera en la ruta antes de resolver el alcance", async () => {
     const response = await convertRoute(
       request(`/api/v1/owner/trial-requests/${REQUEST_ID}/convert`, "POST", {
         organizationId: ORG,
@@ -339,7 +355,25 @@ describe("POST /api/v1/owner/trial-requests/[requestId]/status y /convert", () =
       params()
     );
     expect(response.status).toBe(400);
-    expect((await response.json()).detail).toBe("Elige la clase de la lista de espera");
+    expect((await response.json()).detail).toBe("La lista de espera todavía no está disponible en la bandeja");
+    expect(mocks.convert).not.toHaveBeenCalled();
+  });
+
+  it("rechaza la lista de espera por API aunque traiga una clase", async () => {
+    const response = await convertRoute(
+      request(`/api/v1/owner/trial-requests/${REQUEST_ID}/convert`, "POST", {
+        organizationId: ORG,
+        expectedRevision: 1,
+        familyName: "Pérez",
+        relationship: "parent",
+        destination: "waitlist",
+        classTemplateId: SITE,
+      }),
+      params()
+    );
+    expect(response.status).toBe(400);
+    expect((await response.json()).detail).toBe("La lista de espera todavía no está disponible en la bandeja");
+    expect(mocks.ownerScope).not.toHaveBeenCalled();
     expect(mocks.convert).not.toHaveBeenCalled();
   });
 

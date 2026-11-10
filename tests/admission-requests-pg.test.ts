@@ -14,7 +14,7 @@ import {
   getPublicAdmissionTarget,
   listOwnerTrialRequests,
   manageAdmissionLink,
-  resolveAdmissionLinkOrganization,
+  resolveAdmissionLink,
   submitPublicTrialRequest,
 } from "@/modules/admissions/application/admission-requests";
 import { isAdmissionStorageAvailable } from "@/modules/admissions/application/admission-storage";
@@ -271,7 +271,7 @@ describe.skipIf(!disposablePgEnabled)("solicitudes de prueba en PostgreSQL desec
 
     await expectNotReceiving(unknownToken);
     expect(await getPublicAdmissionTarget(unknownToken)).toBeNull();
-    expect(await resolveAdmissionLinkOrganization(unknownToken)).toBeNull();
+    expect(await resolveAdmissionLink(unknownToken)).toBeNull();
 
     const siteLink = await link(ownerA, a.organizationId, a.locationIds[1]!, "enable");
     await link(ownerA, a.organizationId, a.locationIds[1]!, "disable");
@@ -283,7 +283,7 @@ describe.skipIf(!disposablePgEnabled)("solicitudes de prueba en PostgreSQL desec
     const regenerated = await link(ownerA, a.organizationId, a.locationIds[1]!, "regenerate");
     expect(regenerated!.token).not.toBe(siteLink!.token);
     await expectNotReceiving(siteLink!.token);
-    expect(await resolveAdmissionLinkOrganization(siteLink!.token)).toBeNull();
+    expect(await resolveAdmissionLink(siteLink!.token)).toBeNull();
     // El enlace de una sede solo admite esa sede.
     await expect(
       submitPublicTrialRequest(publicRequest(regenerated!.token, a.locationIds[0]!))
@@ -291,7 +291,16 @@ describe.skipIf(!disposablePgEnabled)("solicitudes de prueba en PostgreSQL desec
     const siteRequest = await submitPublicTrialRequest(publicRequest(regenerated!.token, null));
     expect(siteRequest.replayed).toBe(false);
     expect(await count("admission_requests", a.organizationId)).toBe(before + 1);
-    expect(await resolveAdmissionLinkOrganization(regenerated!.token)).toBe(a.organizationId);
+    expect(await resolveAdmissionLink(regenerated!.token)).toEqual({ linkId: regenerated!.id, organizationId: a.organizationId });
+
+    // Rotar un enlace desactivado conserva el estado: el token nuevo tampoco admite solicitudes.
+    await link(ownerA, a.organizationId, a.locationIds[1]!, "disable");
+    const rotatedWhileDisabled = await link(ownerA, a.organizationId, a.locationIds[1]!, "regenerate");
+    expect(rotatedWhileDisabled).toMatchObject({ enabled: false });
+    expect(rotatedWhileDisabled!.token).not.toBe(regenerated!.token);
+    await expectNotReceiving(rotatedWhileDisabled!.token);
+    await expectNotReceiving(regenerated!.token);
+    expect(await link(ownerA, a.organizationId, a.locationIds[1]!, "enable")).toMatchObject({ enabled: true, token: rotatedWhileDisabled!.token });
   });
 
   it("guarda la solicitud pública sin crear gimnastas y la reenvía de forma idempotente", async () => {

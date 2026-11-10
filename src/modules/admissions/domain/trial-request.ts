@@ -169,7 +169,7 @@ const relationshipSchema = z.enum([
   "other",
 ]);
 
-export const ownerTrialRequestConvertCommandSchema = z
+const ownerTrialRequestConvertBaseSchema = z
   .object({
     organizationId: z.guid(),
     expectedRevision: z.number().int().positive(),
@@ -178,23 +178,46 @@ export const ownerTrialRequestConvertCommandSchema = z
     destination: z.enum(["enrollment", "waitlist"]),
     classTemplateId: z.guid().nullable(),
   })
-  .strict()
-  .superRefine((value, context) => {
-    if (value.destination === "waitlist" && !value.classTemplateId) {
-      context.addIssue({
-        code: "custom",
-        path: ["classTemplateId"],
-        message: "Elige la clase de la lista de espera",
-      });
-    }
-    if (value.destination === "enrollment" && value.classTemplateId) {
-      context.addIssue({
-        code: "custom",
-        path: ["classTemplateId"],
-        message: "La inscripción se completa en la bandeja de gimnastas",
-      });
-    }
-  });
+  .strict();
+
+/** Comando del servicio: la lista de espera está implementada y probada. */
+export const ownerTrialRequestConvertCommandSchema = ownerTrialRequestConvertBaseSchema.superRefine((value, context) => {
+  if (value.destination === "waitlist" && !value.classTemplateId) {
+    context.addIssue({
+      code: "custom",
+      path: ["classTemplateId"],
+      message: "Elige la clase de la lista de espera",
+    });
+  }
+  if (value.destination === "enrollment" && value.classTemplateId) {
+    context.addIssue({
+      code: "custom",
+      path: ["classTemplateId"],
+      message: "La inscripción se completa en la bandeja de gimnastas",
+    });
+  }
+});
+
+export const TRIAL_REQUEST_WAITLIST_UNAVAILABLE =
+  "La lista de espera todavía no está disponible en la bandeja";
+
+/**
+ * Comando de la ruta HTTP: rechaza la lista de espera hasta que exista una
+ * vista de espera en /owner (hoy ninguna pantalla lee `waitlist_entries`).
+ */
+export const ownerTrialRequestConvertRouteSchema = ownerTrialRequestConvertBaseSchema.superRefine((value, context) => {
+  if (value.destination === "waitlist") {
+    context.addIssue({ code: "custom", path: ["destination"], message: TRIAL_REQUEST_WAITLIST_UNAVAILABLE });
+    return;
+  }
+  if (value.classTemplateId) {
+    context.addIssue({
+      code: "custom",
+      path: ["classTemplateId"],
+      message: "La inscripción se completa en la bandeja de gimnastas",
+    });
+  }
+});
 
 export const ownerAdmissionLinkCommandSchema = z
   .object({

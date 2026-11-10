@@ -131,10 +131,16 @@ export async function getPublicAdmissionTarget(token: string): Promise<PublicAdm
   return { organizationName: link.organization_name, locations };
 }
 
-/** Academia del enlace, para el límite de peticiones por academia. */
-export async function resolveAdmissionLinkOrganization(token: string): Promise<string | null> {
+/**
+ * Enlace activo resuelto en el servidor, para el cupo por enlace: si alguien
+ * agota el cupo de un enlace, regenerarlo da a la academia uno limpio.
+ */
+export async function resolveAdmissionLink(
+  token: string
+): Promise<{ linkId: string; organizationId: string } | null> {
   await assertAdmissionStorageAvailable(db);
-  return (await resolveActiveLink(db, token, false))?.organization_id ?? null;
+  const link = await resolveActiveLink(db, token, false);
+  return link ? { linkId: link.link_id, organizationId: link.organization_id } : null;
 }
 
 export type PublicTrialRequestResult = { requestId: string; replayed: boolean };
@@ -690,9 +696,7 @@ export async function anonymizeTrialRequest(input: {
   expectedRevision: number;
 }): Promise<TrialRequestMutationResult> {
   if (!guid.safeParse(input.requestId).success) throw requestNotFound();
-  if (!managingRoles.has(input.scope.member.role)) {
-    throw new OperationalError("FORBIDDEN", "Eliminar datos personales requiere la dirección o la administración", 403);
-  }
+  if (!canManageTrialRequests(input.scope)) throw managersOnly("Eliminar datos personales");
   return db.transaction(async (tx) => {
     await assertAdmissionStorageAvailable(tx);
     // Mismo orden de bloqueo que la conversión (academia → solicitud): las
@@ -806,14 +810,14 @@ export async function manageAdmissionLink(input: {
         after,
       });
 
-    const create = async () => {
+    const create = async (enabled: boolean) => {
       const inserted = await tx.execute(sql`
-        insert into zaltyko.admission_links (organization_id, location_id, token, created_by_member_id)
-        values (${organizationId}::uuid, ${input.locationId}::uuid, ${newAdmissionLinkToken()}, ${input.scope.member.id}::uuid)
+        insert into zaltyko.admission_links (organization_id, location_id, token, enabled, created_by_member_id)
+        values (${organizationId}::uuid, ${input.locationId}::uuid, ${newAdmissionLinkToken()}, ${enabled}, ${input.scope.member.id}::uuid)
         returning id::text as id
       `);
       const id = (inserted.rows[0] as { id: string }).id;
-      await audit("admission_link.created", id, null, { enabled: true });
+      await audit("admission_link.created", id, null, { enabled });
       return id;
     };
 
@@ -826,7 +830,7 @@ export async function manageAdmissionLink(input: {
         }
         linkId = existing.id;
       } else {
-        linkId = await create();
+        linkId = await create(true);
       }
     } else if (input.action === "disable") {
       if (!existing) throw new OperationalError("NOT_FOUND", "No hay ningún enlace activo", 404);
@@ -842,7 +846,9 @@ export async function manageAdmissionLink(input: {
         `);
         await audit("admission_link.revoked", existing.id, { enabled: existing.enabled }, { enabled: false, revoked: true });
       }
-      linkId = await create();
+      // Rotar el token conserva el estado: un enlace desactivado sigue
+      // desactivado. Sin enlace previo, regenerar equivale a activarlo.
+      linkId = await create(existing ? existing.enabled === true : true);
     }
 
     const result = await tx.execute(sql`

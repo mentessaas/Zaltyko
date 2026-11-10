@@ -12,6 +12,7 @@ import {
   ownerAdmissionLinkCommandSchema,
   ownerTrialRequestAnonymizeCommandSchema,
   ownerTrialRequestConvertCommandSchema,
+  ownerTrialRequestConvertRouteSchema,
   ownerTrialRequestStatusCommandSchema,
   publicTrialRequestSchema,
   trialRequestIntakeKey,
@@ -128,6 +129,17 @@ describe("estados y comandos de la bandeja", () => {
     expect(ownerTrialRequestConvertCommandSchema.safeParse({ ...base, destination: "enrollment", classTemplateId: SITE }).success).toBe(false);
     expect(ownerTrialRequestConvertCommandSchema.safeParse({ ...base, destination: "enrollment", classTemplateId: null }).success).toBe(true);
     expect(ownerTrialRequestConvertCommandSchema.safeParse({ ...base, destination: "waitlist", classTemplateId: SITE }).success).toBe(true);
+  });
+
+  it("la ruta HTTP solo admite inscripción hasta que exista la vista de espera", () => {
+    const base = { organizationId: ORG, expectedRevision: 1, familyName: "Pérez", relationship: "parent" };
+    expect(ownerTrialRequestConvertRouteSchema.safeParse({ ...base, destination: "enrollment", classTemplateId: null }).success).toBe(true);
+    for (const classTemplateId of [null, SITE]) {
+      const parsed = ownerTrialRequestConvertRouteSchema.safeParse({ ...base, destination: "waitlist", classTemplateId });
+      expect(parsed.success).toBe(false);
+      expect(parsed.error?.issues[0]?.message).toBe("La lista de espera todavía no está disponible en la bandeja");
+    }
+    expect(ownerTrialRequestConvertRouteSchema.safeParse({ ...base, destination: "enrollment", classTemplateId: SITE }).success).toBe(false);
   });
 
   it("deriva claves de idempotencia de la solicitud y su revisión", () => {

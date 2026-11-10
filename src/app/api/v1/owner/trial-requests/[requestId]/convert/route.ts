@@ -11,7 +11,7 @@ import {
   rateLimitExceededResponse,
 } from "@/lib/rate-limit";
 import { convertTrialRequest } from "@/modules/admissions/application/admission-requests";
-import { ownerTrialRequestConvertCommandSchema } from "@/modules/admissions/domain/trial-request";
+import { ownerTrialRequestConvertRouteSchema } from "@/modules/admissions/domain/trial-request";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { hasSameOrigin } from "@/modules/saas-billing/application/owner-access";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -52,7 +52,7 @@ export async function POST(
 
   const params = paramsSchema.safeParse(await context.params);
   const body = await request.json().catch(() => null);
-  const parsed = ownerTrialRequestConvertCommandSchema.safeParse(body);
+  const parsed = ownerTrialRequestConvertRouteSchema.safeParse(body);
   if (!params.success || !parsed.success) {
     return noStore(
       problemResponse({

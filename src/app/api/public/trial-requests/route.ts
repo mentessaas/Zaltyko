@@ -10,7 +10,7 @@ import {
 } from "@/lib/rate-limit";
 import {
   LINK_NOT_RECEIVING_MESSAGE,
-  resolveAdmissionLinkOrganization,
+  resolveAdmissionLink,
   submitPublicTrialRequest,
 } from "@/modules/admissions/application/admission-requests";
 import { publicTrialRequestSchema } from "@/modules/admissions/domain/trial-request";
@@ -22,8 +22,12 @@ const MAX_BODY_BYTES = 8 * 1024;
 const IP_LIMIT = { limit: 10, window: 60 * 60 };
 /** Por dirección (hash, nunca el email en claro). */
 const ADDRESS_LIMIT = { limit: 5, window: 60 * 60 };
-/** Por academia, resuelta desde el enlace en el servidor. */
-const ORGANIZATION_LIMIT = { limit: 30, window: 60 * 60 };
+/**
+ * Por enlace, resuelto en el servidor. Contar por enlace y no por academia
+ * permite a la academia recuperar el cupo regenerando el enlace si alguien lo
+ * agota.
+ */
+const LINK_LIMIT = { limit: 30, window: 60 * 60 };
 
 function noStore(response: NextResponse): NextResponse {
   response.headers.set("cache-control", "private, no-store");
@@ -34,7 +38,7 @@ function received(): NextResponse {
   return noStore(apiCreated({ received: true }));
 }
 
-// @auth-flexible route-guard-reason: public trial-request form for families. No session or cookie is read; it only accepts same-origin JSON, rejects bodies over 8 KB, validates with a strict schema, requires privacy consent, rate-limits by IP, by email hash and by the academy resolved from an enabled link token, and writes one row scoped to that academy and site. It never creates athletes, families or contacts and never sends email.
+// @auth-flexible route-guard-reason: public trial-request form for families. No session or cookie is read; it only accepts same-origin JSON, rejects bodies over 8 KB, validates with a strict schema, requires privacy consent, rate-limits by IP, by email hash and by the enabled link resolved from its token, and writes one row scoped to that academy and site. It never creates athletes, families or contacts and never sends email.
 export async function POST(request: Request) {
   if (!hasSameOrigin(request)) {
     return noStore(
@@ -119,15 +123,15 @@ export async function POST(request: Request) {
   try {
     // Desconocido, desactivado, revocado o academia que no recibe: la misma
     // respuesta, para no confirmar qué enlaces existen.
-    const organizationId = await resolveAdmissionLinkOrganization(parsed.data.linkToken);
-    if (!organizationId) {
+    const link = await resolveAdmissionLink(parsed.data.linkToken);
+    if (!link) {
       return noStore(operationalProblem(new OperationalError("NOT_FOUND", LINK_NOT_RECEIVING_MESSAGE, 404)));
     }
-    const organizationLimit = await rateLimit({
-      identifier: `trial-requests:org:${organizationId}`,
-      ...ORGANIZATION_LIMIT,
+    const linkLimit = await rateLimit({
+      identifier: `trial-requests:link:${link.linkId}`,
+      ...LINK_LIMIT,
     });
-    if (!organizationLimit.success) return noStore(rateLimitExceededResponse(organizationLimit));
+    if (!linkLimit.success) return noStore(rateLimitExceededResponse(linkLimit));
 
     const result = await submitPublicTrialRequest(parsed.data);
     return result.replayed
