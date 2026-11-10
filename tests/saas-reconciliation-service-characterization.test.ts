@@ -7,13 +7,20 @@
  * idempotent confirmation and the batch consumer outcomes.
  *
  * The database is a synthetic fake: every SQL statement is compiled with
- * PgDialect, classified by its text and answered by the scenario. An
- * unexpected statement fails the test, so a refactor that changes the queries
- * a flow issues is caught here. No real Postgres or Stripe is touched, so these
- * tests run in the regular Unit Tests job (no ZALTYKO_PG_INTEGRATION needed).
+ * PgDialect, classified by its text and answered by the scenario. The tests
+ * pin the order of the statements (and the transaction each one runs in),
+ * their exact parameters and, through a file snapshot, their normalized SQL
+ * text. The fake does NOT evaluate WHERE or SET clauses, row locks or
+ * constraints: saas-reconciliation-service-pg.test.ts covers those on a
+ * disposable PostgreSQL. No real Postgres or Stripe is touched here, so this
+ * file runs in the regular Unit Tests job (no ZALTYKO_PG_INTEGRATION needed).
+ *
+ * Tests named "CURRENT BEHAVIOUR" pin behaviour that looks like a bug. They
+ * exist so a refactor does not change it by accident; fixing it is a separate,
+ * deliberate change.
  */
 import { createHash, createHmac } from "node:crypto";
-import { inflateRawSync } from "node:zlib";
+import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -423,29 +430,46 @@ function classify(sqlText: string): Statement {
 }
 
 type Handler = (params: unknown[], previousCalls: number) => Row[];
-type Call = { name: Statement; params: unknown[]; inTransaction: boolean };
+type Call = {
+  name: Statement;
+  params: unknown[];
+  inTransaction: boolean;
+  /** 1-based number of the db.transaction the statement ran in, or null. */
+  transaction: number | null;
+  /** Compiled SQL with whitespace collapsed. */
+  sql: string;
+};
 
 const world: {
   operator: Row[];
   handlers: Partial<Record<Statement, Handler>>;
   calls: Call[];
+  transactions: number;
   stripeSubscription: unknown;
   stripeInvoice: unknown;
 } = {
   operator: [],
   handlers: {},
   calls: [],
+  transactions: 0,
   stripeSubscription: null,
   stripeInvoice: null,
 };
 
 const dialect = new PgDialect();
+const normalizeSql = (text: string) => text.replace(/\s+/g, " ").trim();
 
-async function run(query: unknown, inTransaction: boolean) {
+async function run(query: unknown, transaction: number | null) {
   const compiled = dialect.sqlToQuery(query as never);
   const name = classify(compiled.sql);
   const previousCalls = world.calls.filter((call) => call.name === name).length;
-  world.calls.push({ name, params: compiled.params, inTransaction });
+  world.calls.push({
+    name,
+    params: compiled.params,
+    inTransaction: transaction !== null,
+    transaction,
+    sql: normalizeSql(compiled.sql),
+  });
   const handler = world.handlers[name];
   if (!handler) {
     throw new Error(`No synthetic answer for SQL statement "${name}"`);
@@ -454,11 +478,21 @@ async function run(query: unknown, inTransaction: boolean) {
 }
 
 const callsOf = (name: Statement) => world.calls.filter((call) => call.name === name);
-const statementNames = () => world.calls.map((call) => call.name);
+const paramsOf = (name: Statement) => callsOf(name).map((call) => call.params);
+/** Statement order, tagged "@txN" when the statement ran inside transaction N. */
+const trace = () =>
+  world.calls.map((call) =>
+    call.transaction === null ? call.name : `${call.name}@tx${call.transaction}`
+  );
+
+function clearCalls() {
+  world.calls = [];
+  world.transactions = 0;
+}
 
 function resetWorld() {
   world.operator = [{ role: "super_admin", isSuspended: false }];
-  world.calls = [];
+  clearCalls();
   world.stripeSubscription = stripeSubscription();
   world.stripeInvoice = stripeInvoice();
   world.handlers = {
@@ -523,10 +557,12 @@ beforeEach(() => {
   mocks.execute.mockReset();
   mocks.select.mockReset();
   mocks.transaction.mockReset();
-  mocks.execute.mockImplementation((query: unknown) => run(query, false));
+  mocks.execute.mockImplementation((query: unknown) => run(query, null));
   mocks.transaction.mockImplementation(
-    async (callback: (tx: { execute: (query: unknown) => Promise<unknown> }) => unknown) =>
-      callback({ execute: (query: unknown) => run(query, true) })
+    async (callback: (tx: { execute: (query: unknown) => Promise<unknown> }) => unknown) => {
+      const transaction = ++world.transactions;
+      return callback({ execute: (query: unknown) => run(query, transaction) });
+    }
   );
   mocks.select.mockImplementation(() => ({
     from: () => ({ where: () => ({ limit: async () => world.operator }) }),
@@ -857,7 +893,12 @@ describe("previewSaasReconciliation: subscription snapshot", () => {
     });
     expect(provider.retrieveInvoice).not.toHaveBeenCalled();
     expect(provider.retrieveSubscription).toHaveBeenCalledWith("sub_synthetic");
-    expect(statementNames()).toEqual(["readEvent", "readBaseline"]);
+    expect(trace()).toEqual(["readEvent", "readBaseline"]);
+    expect(paramsOf("readEvent")).toEqual([[eventId]]);
+    // Scoped by the event's organization, environment and Stripe account.
+    expect(paramsOf("readBaseline")).toEqual([
+      [organizationId, "test", "acct_synthetic", "sub_synthetic"],
+    ]);
   });
 
   it("signs the deflated canonical claims with HMAC-SHA256", async () => {
@@ -1197,8 +1238,102 @@ describe("previewSaasReconciliation: invoices", () => {
 
 async function previewToken(): Promise<string> {
   const { previewToken: token } = await preview();
-  world.calls = [];
+  clearCalls();
   return token;
+}
+
+/** Signs arbitrary claims with the test secret, as a forged-but-signed token. */
+function signedToken(payload: Buffer): string {
+  const encoded = payload.toString("base64url");
+  const signature = createHmac("sha256", SECRET)
+    .update(`saas-reconciliation-v1.${encoded}`)
+    .digest("base64url");
+  return `v1.${encoded}.${signature}`;
+}
+
+const deflated = (value: unknown) =>
+  deflateRawSync(Buffer.from(JSON.stringify(value), "utf8"));
+
+/** Zips the column list of the decision INSERT with its parameters. */
+function insertedDecision(): Row {
+  const call = callsOf("insertDecision")[0]!;
+  const columnList = /reconciliation_decisions \((.*?)\) values/.exec(call.sql)?.[1];
+  const columns = (columnList ?? "").split(",").map((column) => column.trim());
+  expect(columns).toHaveLength(60);
+  expect(call.params).toHaveLength(columns.length);
+  return Object.fromEntries(columns.map((column, index) => [column, call.params[index]]));
+}
+
+const noInvoiceColumns = {
+  invoice_reference: null,
+  invoice_status: null,
+  invoice_customer_reference: null,
+  invoice_subscription_reference: null,
+  invoice_currency: null,
+  invoice_paid_amount: null,
+  invoice_period_started_at: null,
+  invoice_period_ends_at: null,
+  invoice_price_reference: null,
+  invoice_plan_code: null,
+};
+
+/** Every column of the decision INSERT for the default status snapshot. */
+function expectedDecisionColumns(token: string, overrides: Row = {}): Row {
+  const claims = decodeToken(token);
+  return {
+    id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+    organization_id: organizationId,
+    webhook_event_id: eventId,
+    actor_user_id: actorId,
+    request_id: "req-confirm",
+    idempotency_key: "confirm-key-0001",
+    confirmation_request_sha256: requestHashFor(token),
+    resolution_kind: "status_snapshot",
+    reason: NORMALIZED_REASON,
+    provider_account_reference: "acct_synthetic",
+    environment: "test",
+    provider_event_id: "evt_synthetic",
+    event_created_at: "2026-11-09 08:00:00+00",
+    provider_object_reference: "sub_synthetic",
+    payload_sha256: "a".repeat(64),
+    preview_token_sha256: sha256(token),
+    preview_issued_at: "2026-11-10T12:00:00.000Z",
+    preview_expires_at: "2026-11-10T12:05:00.000Z",
+    expected_fencing_version: 3,
+    expected_last_provider_event_reference: "evt_previous",
+    expected_subscription_updated_at: "2026-11-01 00:00:05.123456+00",
+    expected_subscription_plan_code: "starter",
+    expected_subscription_price_reference: "price_starter_month",
+    expected_subscription_billing_interval: "month",
+    expected_subscription_provider_status: "active",
+    expected_subscription_cancel_at_period_end: false,
+    expected_subscription_canceled_at: null,
+    expected_subscription_period_started_at: pgPeriodStart,
+    expected_subscription_period_ends_at: pgPeriodEnd,
+    expected_entitlement_revision: 4,
+    expected_entitlement_plan_code: "starter",
+    expected_entitlement_source: "stripe_subscription",
+    expected_entitlement_source_reference: "stripe-invoice:in_previous",
+    expected_entitlement_subscription_id: subscriptionId,
+    expected_entitlement_trial_id: null,
+    expected_entitlement_effective_from: pgPeriodStart,
+    expected_entitlement_effective_until: pgPeriodEnd,
+    evidence_observed_at: "2026-11-10T12:00:00.000Z",
+    execution_expires_at: "2026-11-10T12:02:00.000Z",
+    snapshot_sha256: claims.snapshotSha256,
+    observed_subscription_reference: "sub_synthetic",
+    observed_customer_reference: "cus_synthetic",
+    observed_plan_code: "starter",
+    observed_provider_status: "active",
+    observed_cancel_at_period_end: false,
+    observed_canceled_at: null,
+    observed_current_period_started_at: periodStart,
+    observed_current_period_ends_at: periodEnd,
+    observed_price_reference: "price_starter_month",
+    observed_latest_invoice_reference: "in_synthetic",
+    ...noInvoiceColumns,
+    ...overrides,
+  };
 }
 
 function requestHashFor(token: string, actor = actorId) {
@@ -1208,6 +1343,9 @@ function requestHashFor(token: string, actor = actorId) {
     reason: REASON,
   });
 }
+
+/** Last preview token of a test, for cases that build forged claims from it. */
+let lastToken = "";
 
 describe("confirmSaasReconciliation", () => {
   it("queues a decision, links it to the inbox event and audits it", async () => {
@@ -1220,43 +1358,41 @@ describe("confirmSaasReconciliation", () => {
       eventId,
       status: "queued",
     });
-    expect(statementNames()).toEqual([
+    expect(trace()).toEqual([
       "findDecisionByKey",
       "readEvent",
       "readEvent",
-      "lockEvent",
-      "findDecisionByKey",
-      "lockOrganization",
-      "lockBaseline",
-      "insertDecision",
-      "linkDecision",
-      "insertAudit",
+      "lockEvent@tx1",
+      "findDecisionByKey@tx1",
+      "lockOrganization@tx1",
+      "lockBaseline@tx1",
+      "insertDecision@tx1",
+      "linkDecision@tx1",
+      "insertAudit@tx1",
     ]);
-    expect(callsOf("findDecisionByKey").map((call) => call.params)).toEqual([
+    expect(paramsOf("findDecisionByKey")).toEqual([
       [eventId, "confirm-key-0001"],
       [eventId, "confirm-key-0001"],
+    ]);
+    expect(paramsOf("readEvent")).toEqual([[eventId], [eventId]]);
+    expect(paramsOf("lockEvent")).toEqual([[eventId]]);
+    expect(paramsOf("lockOrganization")).toEqual([[organizationId]]);
+    expect(paramsOf("lockBaseline")).toEqual([
+      [organizationId, "test", "acct_synthetic", "sub_synthetic"],
     ]);
 
-    const decisionParams = callsOf("insertDecision")[0]!.params;
-    expect(decisionParams[0]).toBe(result.decisionId);
-    expect(decisionParams).toEqual(
-      expect.arrayContaining([
-        organizationId,
-        eventId,
-        actorId,
-        "req-confirm",
-        "confirm-key-0001",
-        requestHashFor(token),
-        "status_snapshot",
-        NORMALIZED_REASON,
-        sha256(token),
-        "2026-11-10T12:01:00.000Z",
-        "2026-11-10T12:03:00.000Z",
-        decodeToken(token).snapshotSha256,
-      ])
+    // Every column of the INSERT paired with its value (catches swapped columns).
+    const decision = insertedDecision();
+    expect(decision).toEqual(
+      expectedDecisionColumns(token, {
+        id: result.decisionId,
+        evidence_observed_at: "2026-11-10T12:01:00.000Z",
+        execution_expires_at: "2026-11-10T12:03:00.000Z",
+      })
     );
+    expect(decision.snapshot_sha256).toBe(subscriptionSnapshotHash);
 
-    expect(callsOf("linkDecision")[0]!.params).toEqual([result.decisionId, eventId, 3]);
+    expect(paramsOf("linkDecision")).toEqual([[result.decisionId, eventId, 3]]);
 
     const auditParams = callsOf("insertAudit")[0]!.params;
     expect(auditParams.slice(0, 6)).toEqual([
@@ -1288,8 +1424,40 @@ describe("confirmSaasReconciliation", () => {
     world.stripeInvoice = stripeInvoice({ amount_paid: 1 });
     const token = await previewToken();
     await confirmSaasReconciliation(confirmInput(token), dependencies());
-    expect(callsOf("insertDecision")[0]!.params).toEqual(
-      expect.arrayContaining(["paid_invoice_grant", "in_synthetic", "eur", 1, "price_starter_month", "starter"])
+    expect(insertedDecision()).toEqual(
+      expectedDecisionColumns(token, {
+        resolution_kind: "paid_invoice_grant",
+        provider_object_reference: "in_synthetic",
+        invoice_reference: "in_synthetic",
+        invoice_status: "paid",
+        invoice_customer_reference: "cus_synthetic",
+        invoice_subscription_reference: "sub_synthetic",
+        invoice_currency: "eur",
+        invoice_paid_amount: 1,
+        invoice_period_started_at: periodStart,
+        invoice_period_ends_at: periodEnd,
+        invoice_price_reference: "price_starter_month",
+        invoice_plan_code: "starter",
+      })
+    );
+  });
+
+  it("stores only the status columns of a failed invoice", async () => {
+    world.handlers.readEvent = () => [
+      eventRow({ event_type: "invoice.payment_failed", provider_object_reference: "in_synthetic" }),
+    ];
+    world.handlers.lockEvent = world.handlers.readEvent;
+    world.stripeInvoice = stripeInvoice({ status: "open", amount_paid: 0 });
+    const token = await previewToken();
+    await confirmSaasReconciliation(confirmInput(token), dependencies());
+    expect(insertedDecision()).toEqual(
+      expectedDecisionColumns(token, {
+        provider_object_reference: "in_synthetic",
+        invoice_reference: "in_synthetic",
+        invoice_status: "open",
+        invoice_customer_reference: "cus_synthetic",
+        invoice_subscription_reference: "sub_synthetic",
+      })
     );
   });
 
@@ -1447,6 +1615,109 @@ describe("confirmSaasReconciliation", () => {
     await expectFailure(confirmSaasReconciliation(confirmInput(token), dependencies()), STATE_CHANGED);
     expect(callsOf("insertAudit")).toEqual([]);
   });
+
+  // Concurrency guard on the row locked inside the transaction (L1274-1289):
+  // the unlocked re-read passed, but the locked row changed meanwhile.
+  it.each([
+    ["has disappeared", () => []],
+    ["has another fencing version", () => [eventRow({ fencing_version: 4 })]],
+    ["was already requeued", () => [eventRow({ status: "received" })]],
+    ["got another decision", () => [eventRow({ reconciliation_decision_id: previousDecisionId })]],
+    ["changed its error code", () => [eventRow({ last_error_code: "signature_mismatch" })]],
+    ["changed its payload", () => [eventRow({ payload_sha256: "f".repeat(64) })]],
+    ["moved to another organization", () => [eventRow({ organization_id: subscriptionId })]],
+  ])("rejects the confirmation when the locked inbox row %s", async (_label, lockedEvent) => {
+    const token = await previewToken();
+    world.handlers.lockEvent = lockedEvent;
+    await expectFailure(confirmSaasReconciliation(confirmInput(token), dependencies()), STATE_CHANGED);
+    expect(trace()).toEqual([
+      "findDecisionByKey",
+      "readEvent",
+      "readEvent",
+      "lockEvent@tx1",
+      "findDecisionByKey@tx1",
+    ]);
+    expect(callsOf("insertDecision")).toEqual([]);
+  });
+
+  it("returns 404 when the event's organization cannot be locked", async () => {
+    const token = await previewToken();
+    world.handlers.lockOrganization = () => [];
+    await expectFailure(confirmSaasReconciliation(confirmInput(token), dependencies()), {
+      code: "NOT_FOUND",
+      status: 404,
+      publicCode: "EVENT_NOT_FOUND",
+    });
+    expect(callsOf("lockBaseline")).toEqual([]);
+    expect(callsOf("insertDecision")).toEqual([]);
+  });
+
+  it("rejects the confirmation when the locked baseline disappeared", async () => {
+    const token = await previewToken();
+    world.handlers.lockBaseline = () => [];
+    await expectFailure(confirmSaasReconciliation(confirmInput(token), dependencies()), STATE_CHANGED);
+    expect(callsOf("insertDecision")).toEqual([]);
+  });
+
+  it("rejects a preview issued for another event with a 403", async () => {
+    const token = await previewToken();
+    await expectFailure(
+      confirmSaasReconciliation(
+        confirmInput(token, { eventId: "20000000-0000-4000-8000-00000000000a" }),
+        dependencies()
+      ),
+      { code: "FORBIDDEN", status: 403 }
+    );
+    expect(world.calls).toEqual([]);
+  });
+
+  it.each([
+    ["a payload that is not deflated", () => Buffer.from(JSON.stringify({ version: 1 }), "utf8")],
+    ["a payload that is not JSON", () => deflateRawSync(Buffer.from("not json", "utf8"))],
+    ["a payload above 16 KiB once inflated", () => deflated({ version: 1, padding: "x".repeat(17_000) })],
+    ["claims that are an array", () => deflated([])],
+    ["claims with version \"1\"", () => deflated({ ...decodeToken(lastToken), version: "1" })],
+    ["claims without snapshotSha256", () => {
+      const claims = decodeToken(lastToken);
+      delete claims.snapshotSha256;
+      return deflated(claims);
+    }],
+    ["claims without evidence", () => deflated({ ...decodeToken(lastToken), evidence: null })],
+  ])("rejects a correctly signed token with %s as PREVIEW_STALE", async (_label, payload) => {
+    lastToken = await previewToken();
+    await expectFailure(
+      confirmSaasReconciliation(confirmInput(signedToken(payload())), dependencies()),
+      PREVIEW_STALE
+    );
+    expect(world.calls).toEqual([]);
+  });
+
+  it("replays an existing decision without Stripe configuration", async () => {
+    const token = await previewToken();
+    const unconfigured = {
+      signingSecret: SECRET,
+      provider: provider as unknown as StripeReconciliationProvider,
+    };
+    world.handlers.findDecisionByKey = () => [
+      decisionRow("e".repeat(64), { confirmation_request_sha256: requestHashFor(token) }),
+    ];
+    await expect(confirmSaasReconciliation(confirmInput(token), unconfigured)).resolves.toEqual({
+      decisionId,
+      eventId,
+      status: "replayed",
+    });
+    expect(trace()).toEqual(["findDecisionByKey", "resultOutcome"]);
+
+    // A first confirmation still needs the configuration.
+    world.handlers.findDecisionByKey = () => [];
+    clearCalls();
+    await expectFailure(confirmSaasReconciliation(confirmInput(token), unconfigured), {
+      code: "FEATURE_NOT_AVAILABLE",
+      status: 503,
+      publicCode: "PROVIDER_UNAVAILABLE",
+    });
+    expect(trace()).toEqual(["findDecisionByKey"]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1459,14 +1730,68 @@ const subscriptionSnapshotHash = canonicalHash({
   statusInvoice: null,
 });
 
+const paidHash = canonicalHash({
+  subscription: expectedSubscriptionEvidence,
+  invoice: expectedPaidInvoiceEvidence,
+  statusInvoice: null,
+});
+
 function scenarioDecision(snapshot: string, overrides: Row = {}) {
   world.handlers.claimEvents = () => [claimRow()];
   world.handlers.readDecision = () => [decisionRow(snapshot, overrides)];
 }
 
-const zero = { claimed: 0, applied: 0, stale: 0, retrying: 0, leaseLost: 0 };
+function paidInvoiceEvent() {
+  world.handlers.readEvent = () => [
+    eventRow({ event_type: "invoice.paid", provider_object_reference: "in_synthetic" }),
+  ];
+}
 
-describe("consumeSaasReconciliationBatch", () => {
+const zero = { claimed: 0, applied: 0, stale: 0, retrying: 0, leaseLost: 0 };
+const consume = (overrides: SaasReconciliationDependencies = {}) =>
+  consumeSaasReconciliationBatch({}, dependencies(overrides));
+
+const inTx = (transaction: number, ...names: Statement[]) =>
+  names.map((name) => `${name}@tx${transaction}`);
+/** Statements before the transaction of a claim whose evidence is re-read. */
+const READ_PHASE = ["claimEvents", "readDecision", "readEvent", "readBaseline"];
+const LOCKED_STATE: Statement[] = [
+  "lockClaimedEvent",
+  "lockOrganization",
+  "lockSubscription",
+  "lockEntitlement",
+];
+/** A stale close decided inside applyDecision's transaction. */
+const STALE_IN_TX = inTx(1, ...LOCKED_STATE, "insertResult", "insertAudit", "finishEvent");
+/** A stale close through closeStaleDecision (its own transaction). */
+const CLOSE_STALE = inTx(1, ...LOCKED_STATE, "insertResult", "insertAudit", "finishStale");
+
+const STALE_FINISH = ["quarantined", false, "reconciliation_stale", eventId, decisionId, leaseToken, 5];
+const PROCESSED_FINISH = ["processed", true, null, eventId, decisionId, leaseToken, 5];
+
+/** Lock statements are fenced by event, decision, lease and fencing version. */
+function expectLockedStateParams() {
+  expect(paramsOf("lockClaimedEvent")).toEqual([[eventId, decisionId, leaseToken, 5]]);
+  expect(paramsOf("lockOrganization")).toEqual([[organizationId]]);
+  expect(paramsOf("lockSubscription")).toEqual([
+    [organizationId, "test", "acct_synthetic", "sub_synthetic"],
+  ]);
+  expect(paramsOf("lockEntitlement")).toEqual([[organizationId]]);
+}
+
+function auditOf(index = 0) {
+  const params = callsOf("insertAudit")[index]!.params;
+  return {
+    head: params.slice(0, 6),
+    before: JSON.parse(params[6] as string) as unknown,
+    after: JSON.parse(params[7] as string) as unknown,
+    metadata: JSON.parse(params[8] as string) as unknown,
+  };
+}
+
+const previousGrant = { revision: 4, sourceReference: "stripe-invoice:in_previous" };
+
+describe("consumeSaasReconciliationBatch: claiming", () => {
   it.each([0, 51, 2.5, -1])("rejects a batch size of %s", async (batchSize) => {
     await expectFailure(consumeSaasReconciliationBatch({ batchSize }, dependencies()), BAD_REQUEST);
     expect(world.calls).toEqual([]);
@@ -1474,58 +1799,168 @@ describe("consumeSaasReconciliationBatch", () => {
 
   it("claims 10 events by default with a 60 s lease and reports an empty batch", async () => {
     await expect(consumeSaasReconciliationBatch(undefined, dependencies())).resolves.toEqual(zero);
-    expect(callsOf("claimEvents")[0]!.params).toEqual([10, 60_000]);
+    expect(paramsOf("claimEvents")).toEqual([[10, 60_000]]);
     await consumeSaasReconciliationBatch({ batchSize: 50 }, dependencies());
-    expect(callsOf("claimEvents")[1]!.params).toEqual([50, 60_000]);
+    expect(paramsOf("claimEvents")[1]).toEqual([50, 60_000]);
+    expect(trace()).toEqual(["claimEvents", "claimEvents"]);
   });
 
   it("counts a claim without decision as a lost lease", async () => {
     world.handlers.claimEvents = () => [claimRow()];
-    await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toEqual({
-      ...zero,
-      claimed: 1,
-      leaseLost: 1,
-    });
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, leaseLost: 1 });
+    expect(trace()).toEqual(["claimEvents", "readDecision"]);
+    expect(paramsOf("readDecision")).toEqual([[decisionId]]);
   });
 
+  it("processes a batch of three claims in order: applied, stale and retrying", async () => {
+    const batch = [
+      { event: eventId, decision: decisionId, lease: leaseToken, fencing: 5 },
+      {
+        event: "20000000-0000-4000-8000-00000000000b",
+        decision: "20000000-0000-4000-8000-00000000000c",
+        lease: "20000000-0000-4000-8000-00000000000d",
+        fencing: 7,
+      },
+      {
+        event: "20000000-0000-4000-8000-00000000000e",
+        decision: "20000000-0000-4000-8000-00000000000f",
+        lease: "20000000-0000-4000-8000-000000000010",
+        fencing: 9,
+      },
+    ];
+    world.handlers.claimEvents = () =>
+      batch.map((entry) =>
+        claimRow({
+          id: entry.event,
+          decision_id: entry.decision,
+          lease_token: entry.lease,
+          fencing_version: entry.fencing,
+        })
+      );
+    world.handlers.readDecision = (params) => {
+      const index = batch.findIndex((entry) => entry.decision === params[0]);
+      const entry = batch[index]!;
+      return [
+        decisionRow(subscriptionSnapshotHash, {
+          id: entry.decision,
+          webhook_event_id: entry.event,
+          // The second decision expired before the consumer reached it.
+          ...(index === 1 ? { execution_expires_at: T0.toISOString() } : {}),
+        }),
+      ];
+    };
+    world.handlers.readEvent = (params) => [eventRow({ id: params[0] })];
+    // First Stripe call (claim 1) answers; the second (claim 3) times out.
+    provider.retrieveSubscription
+      .mockImplementationOnce(async () => world.stripeSubscription)
+      .mockRejectedValueOnce(new Error("timeout"));
+
+    await expect(consume()).resolves.toEqual({
+      claimed: 3,
+      applied: 1,
+      stale: 1,
+      retrying: 1,
+      leaseLost: 0,
+    });
+    expect(trace()).toEqual([
+      "claimEvents",
+      "readDecision",
+      "readEvent",
+      "readBaseline",
+      ...inTx(1, ...LOCKED_STATE, "updateSubscription", "insertResult", "insertAudit", "finishEvent"),
+      "readDecision",
+      ...inTx(2, ...LOCKED_STATE, "insertResult", "insertAudit", "finishStale"),
+      "readDecision",
+      "readEvent",
+      "scheduleRetry",
+    ]);
+    expect(paramsOf("readDecision")).toEqual(batch.map((entry) => [entry.decision]));
+    expect(paramsOf("readEvent")).toEqual([[batch[0]!.event], [batch[2]!.event]]);
+    expect(paramsOf("lockClaimedEvent")).toEqual([
+      [batch[0]!.event, batch[0]!.decision, batch[0]!.lease, 5],
+      [batch[1]!.event, batch[1]!.decision, batch[1]!.lease, 7],
+    ]);
+    expect(paramsOf("insertResult").map((params) => [params[0], params.at(-1)])).toEqual([
+      [batch[0]!.decision, "status_snapshot_applied"],
+      [batch[1]!.decision, "evidence_expired"],
+    ]);
+    expect(paramsOf("finishEvent")).toEqual([
+      ["processed", true, null, batch[0]!.event, batch[0]!.decision, batch[0]!.lease, 5],
+    ]);
+    expect(paramsOf("finishStale")).toEqual([
+      [batch[1]!.event, batch[1]!.decision, batch[1]!.lease, 7],
+    ]);
+    expect(paramsOf("scheduleRetry")).toEqual([
+      [3_000, batch[2]!.event, batch[2]!.decision, batch[2]!.lease, 9],
+    ]);
+  });
+});
+
+describe("consumeSaasReconciliationBatch: expired evidence and retries", () => {
   it("closes an expired decision as stale without calling Stripe", async () => {
     scenarioDecision(subscriptionSnapshotHash, {
       execution_expires_at: T0.toISOString(),
     });
-    await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toEqual({
-      ...zero,
-      claimed: 1,
-      stale: 1,
-    });
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, stale: 1 });
     expect(provider.retrieveSubscription).not.toHaveBeenCalled();
-    expect(callsOf("insertResult")[0]!.params).toEqual([
-      decisionId,
-      5,
-      null,
-      4,
-      4,
-      "stripe-invoice:in_previous",
-      "stripe-invoice:in_previous",
-      "evidence_expired",
+    expect(trace()).toEqual(["claimEvents", "readDecision", ...CLOSE_STALE]);
+    expectLockedStateParams();
+    expect(paramsOf("insertResult")).toEqual([
+      [
+        decisionId,
+        5,
+        null,
+        4,
+        4,
+        "stripe-invoice:in_previous",
+        "stripe-invoice:in_previous",
+        "evidence_expired",
+      ],
     ]);
-    expect(callsOf("insertAudit")[0]!.params.slice(2, 6)).toEqual([
-      "saas_webhook.quarantine_resolution_stale",
-      eventId,
-      "req-confirm",
-      `${decisionId}:stale`,
-    ]);
-    expect(callsOf("finishStale")).toHaveLength(1);
+    expect(auditOf()).toEqual({
+      head: [
+        organizationId,
+        actorId,
+        "saas_webhook.quarantine_resolution_stale",
+        eventId,
+        "req-confirm",
+        `${decisionId}:stale`,
+      ],
+      before: previousGrant,
+      after: previousGrant,
+      metadata: { decisionId, resultCode: "evidence_expired", observedSnapshotSha256: null },
+    });
+    expect(paramsOf("finishStale")).toEqual([[eventId, decisionId, leaseToken, 5]]);
   });
 
   it("counts an expired decision whose lease was lost", async () => {
     scenarioDecision(subscriptionSnapshotHash, { execution_expires_at: T0.toISOString() });
     world.handlers.lockClaimedEvent = () => [];
-    await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toEqual({
-      ...zero,
-      claimed: 1,
-      leaseLost: 1,
-    });
-    expect(callsOf("insertResult")).toEqual([]);
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, leaseLost: 1 });
+    expect(trace()).toEqual(["claimEvents", "readDecision", ...inTx(1, "lockClaimedEvent")]);
+  });
+
+  it("closes as stale when the evidence expires between the pre-check and the transaction", async () => {
+    scenarioDecision(subscriptionSnapshotHash);
+    const clock = vi.fn(() => new Date(T0.getTime() + 2 * 60_000));
+    clock.mockReturnValueOnce(T0);
+    await expect(consume({ now: clock })).resolves.toEqual({ ...zero, claimed: 1, stale: 1 });
+    expect(clock).toHaveBeenCalledTimes(2);
+    expect(trace()).toEqual([...READ_PHASE, ...STALE_IN_TX]);
+    expect(paramsOf("insertResult")).toEqual([
+      [
+        decisionId,
+        5,
+        null,
+        4,
+        4,
+        "stripe-invoice:in_previous",
+        "stripe-invoice:in_previous",
+        "evidence_expired",
+      ],
+    ]);
+    expect(paramsOf("finishEvent")).toEqual([STALE_FINISH]);
+    expect(callsOf("updateSubscription")).toEqual([]);
   });
 
   it.each([
@@ -1537,29 +1972,95 @@ describe("consumeSaasReconciliationBatch", () => {
     world.handlers.claimEvents = () => [claimRow({ attempts })];
     world.handlers.readDecision = () => [decisionRow(subscriptionSnapshotHash)];
     provider.retrieveSubscription.mockRejectedValueOnce(new Error("timeout"));
-    await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toEqual({
-      ...zero,
-      claimed: 1,
-      retrying: 1,
-    });
-    expect(callsOf("scheduleRetry")[0]!.params).toEqual([
-      backoff,
-      eventId,
-      decisionId,
-      leaseToken,
-      5,
-    ]);
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, retrying: 1 });
+    expect(trace()).toEqual(["claimEvents", "readDecision", "readEvent", "scheduleRetry"]);
+    expect(paramsOf("scheduleRetry")).toEqual([[backoff, eventId, decisionId, leaseToken, 5]]);
   });
 
   it("counts a retry that lost its lease", async () => {
     scenarioDecision(subscriptionSnapshotHash);
     provider.retrieveSubscription.mockRejectedValueOnce(new Error("timeout"));
     world.handlers.scheduleRetry = () => [];
-    await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toEqual({
-      ...zero,
-      claimed: 1,
-      leaseLost: 1,
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, leaseLost: 1 });
+  });
+
+  it.each([
+    ["the stale close of an expired decision", { execution_expires_at: T0.toISOString() }, false],
+    ["the stale close of a changed Stripe snapshot", {}, true],
+  ])(
+    "CURRENT BEHAVIOUR: rejects the whole batch with a 409 when %s loses its lease (possible bug)",
+    async (_label, overrides, changeStripe) => {
+      scenarioDecision(subscriptionSnapshotHash, overrides);
+      if (changeStripe) world.stripeSubscription = stripeSubscription({ status: "past_due" });
+      world.handlers.finishStale = () => [];
+      // closeStaleDecision is not wrapped like applyDecision: the lease error
+      // escapes consume() instead of being counted as leaseLost.
+      await expectFailure(consume(), STATE_CHANGED);
+      expect(trace().at(-1)).toBe("finishStale@tx1");
+    }
+  );
+
+  it.each([
+    ["a zero revision", [lockedEntitlementRow({ revision: 0 })], { code: "FEATURE_NOT_AVAILABLE", status: 503 }],
+    ["a non-numeric revision", [lockedEntitlementRow({ revision: "abc" })], { code: "FEATURE_NOT_AVAILABLE", status: 503 }],
+    ["no entitlement row", [], STATE_CHANGED],
+  ])(
+    "CURRENT BEHAVIOUR: rejects the whole batch when the stale close finds %s (possible bug)",
+    async (_label, entitlementRows, expected) => {
+      scenarioDecision(subscriptionSnapshotHash, { execution_expires_at: T0.toISOString() });
+      world.handlers.lockEntitlement = () => entitlementRows;
+      await expectFailure(consume(), expected);
+      expect(trace()).toEqual(["claimEvents", "readDecision", ...inTx(1, ...LOCKED_STATE)]);
+      expect(callsOf("insertResult")).toEqual([]);
+    }
+  );
+});
+
+describe("consumeSaasReconciliationBatch: status snapshots", () => {
+  it("applies a status snapshot without touching the entitlement", async () => {
+    scenarioDecision(subscriptionSnapshotHash);
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, applied: 1 });
+    expect(trace()).toEqual([
+      ...READ_PHASE,
+      ...inTx(1, ...LOCKED_STATE, "updateSubscription", "insertResult", "insertAudit", "finishEvent"),
+    ]);
+    expect(paramsOf("readDecision")).toEqual([[decisionId]]);
+    expect(paramsOf("readEvent")).toEqual([[eventId]]);
+    expect(paramsOf("readBaseline")).toEqual([
+      [organizationId, "test", "acct_synthetic", "sub_synthetic"],
+    ]);
+    expectLockedStateParams();
+    expect(paramsOf("updateSubscription")).toEqual([
+      ["active", false, null, "evt_synthetic", subscriptionId],
+    ]);
+    expect(callsOf("updateEntitlement")).toEqual([]);
+    expect(paramsOf("insertResult")).toEqual([
+      [
+        decisionId,
+        "applied",
+        5,
+        subscriptionSnapshotHash,
+        4,
+        4,
+        "stripe-invoice:in_previous",
+        "stripe-invoice:in_previous",
+        "status_snapshot_applied",
+      ],
+    ]);
+    expect(auditOf()).toEqual({
+      head: [
+        organizationId,
+        actorId,
+        "saas_webhook.quarantine_resolution_applied",
+        eventId,
+        "req-confirm",
+        `${decisionId}:result`,
+      ],
+      before: previousGrant,
+      after: previousGrant,
+      metadata: { decisionId, resultCode: "status_snapshot_applied", outcome: "applied" },
     });
+    expect(paramsOf("finishEvent")).toEqual([PROCESSED_FINISH]);
   });
 
   it("closes the decision as stale when the Stripe snapshot changed", async () => {
@@ -1570,106 +2071,124 @@ describe("consumeSaasReconciliationBatch", () => {
       invoice: null,
       statusInvoice: null,
     });
-    await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toEqual({
-      ...zero,
-      claimed: 1,
-      stale: 1,
-    });
-    expect(callsOf("insertResult")[0]!.params).toEqual([
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, stale: 1 });
+    expect(trace()).toEqual([...READ_PHASE, ...CLOSE_STALE]);
+    expect(paramsOf("insertResult")).toEqual([
+      [
+        decisionId,
+        5,
+        changedHash,
+        4,
+        4,
+        "stripe-invoice:in_previous",
+        "stripe-invoice:in_previous",
+        "provider_snapshot_changed",
+      ],
+    ]);
+    expect(auditOf().metadata).toEqual({
       decisionId,
-      5,
-      changedHash,
-      4,
-      4,
-      "stripe-invoice:in_previous",
-      "stripe-invoice:in_previous",
-      "provider_snapshot_changed",
-    ]);
-  });
-
-  it("applies a status snapshot without touching the entitlement", async () => {
-    scenarioDecision(subscriptionSnapshotHash);
-    await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toEqual({
-      ...zero,
-      claimed: 1,
-      applied: 1,
+      resultCode: "provider_snapshot_changed",
+      observedSnapshotSha256: changedHash,
     });
-    expect(callsOf("updateSubscription")[0]!.params).toEqual([
-      "active",
-      false,
-      null,
-      "evt_synthetic",
-      subscriptionId,
-    ]);
-    expect(callsOf("updateEntitlement")).toEqual([]);
-    expect(callsOf("insertResult")[0]!.params).toEqual([
-      decisionId,
-      "applied",
-      5,
-      subscriptionSnapshotHash,
-      4,
-      4,
-      "stripe-invoice:in_previous",
-      "stripe-invoice:in_previous",
-      "status_snapshot_applied",
-    ]);
-    expect(callsOf("finishEvent")[0]!.params.slice(0, 3)).toEqual(["processed", true, null]);
   });
 
   it("closes a status snapshot as stale when the locked baseline changed", async () => {
     scenarioDecision(subscriptionSnapshotHash);
     world.handlers.lockEntitlement = () => [lockedEntitlementRow({ revision: 5 })];
-    await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toMatchObject({ stale: 1 });
-    expect(callsOf("insertResult")[0]!.params.at(-1)).toBe("baseline_changed");
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, stale: 1 });
+    expect(trace()).toEqual([...READ_PHASE, ...STALE_IN_TX]);
+    expect(paramsOf("insertResult")).toEqual([
+      [
+        decisionId,
+        5,
+        subscriptionSnapshotHash,
+        5,
+        5,
+        "stripe-invoice:in_previous",
+        "stripe-invoice:in_previous",
+        "baseline_changed",
+      ],
+    ]);
+    expect(paramsOf("finishEvent")).toEqual([STALE_FINISH]);
     expect(callsOf("updateSubscription")).toEqual([]);
   });
 
   it("closes as stale when the canonical subscription disappeared", async () => {
     scenarioDecision(subscriptionSnapshotHash);
     world.handlers.lockSubscription = () => [];
-    await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toMatchObject({ stale: 1 });
-    expect(callsOf("insertResult")[0]!.params.at(-1)).toBe("canonical_state_missing");
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, stale: 1 });
+    expect(trace()).toEqual([...READ_PHASE, ...STALE_IN_TX]);
+    expect(paramsOf("insertResult")[0]!.at(-1)).toBe("canonical_state_missing");
   });
 
-  it("refuses a status snapshot that would change the plan", async () => {
-    world.stripeSubscription = stripeSubscription({
-      items: { data: [{ quantity: 1, price: stripePrice("growth", "month") }] },
-    });
-    const growthHash = canonicalHash({
-      subscription: {
-        ...expectedSubscriptionEvidence,
-        planCode: "growth",
-        priceReference: "price_growth_month",
-      },
+  it.each([
+    [
+      "the plan",
+      { items: { data: [{ quantity: 1, price: stripePrice("growth", "month") }] } },
+      { planCode: "growth", priceReference: "price_growth_month" },
+    ],
+    [
+      "the price within the same plan",
+      { items: { data: [{ quantity: 1, price: stripePrice("starter", "year") }] } },
+      { billingInterval: "year", priceReference: "price_starter_year" },
+    ],
+    [
+      "the period start",
+      { current_period_start: epoch("2026-11-02T00:00:00.000Z") },
+      { currentPeriodStartedAt: "2026-11-02T00:00:00.000Z" },
+    ],
+    [
+      "the period end",
+      { current_period_end: epoch("2026-12-15T00:00:00.000Z") },
+      { currentPeriodEndsAt: "2026-12-15T00:00:00.000Z" },
+    ],
+  ])("refuses a status snapshot that would change %s", async (_label, stripeOverride, evidenceOverride) => {
+    world.stripeSubscription = stripeSubscription(stripeOverride);
+    const snapshot = canonicalHash({
+      subscription: { ...expectedSubscriptionEvidence, ...evidenceOverride },
       invoice: null,
       statusInvoice: null,
     });
-    scenarioDecision(growthHash);
-    await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toMatchObject({ stale: 1 });
-    expect(callsOf("insertResult")[0]!.params.at(-1)).toBe("status_snapshot_would_change_entitlement");
+    scenarioDecision(snapshot);
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, stale: 1 });
+    expect(trace()).toEqual([...READ_PHASE, ...STALE_IN_TX]);
+    expect(paramsOf("insertResult")[0]!.at(-1)).toBe("status_snapshot_would_change_entitlement");
+    expect(callsOf("updateSubscription")).toEqual([]);
   });
 
-  describe("paid invoice grants", () => {
-    const paidHash = canonicalHash({
-      subscription: expectedSubscriptionEvidence,
-      invoice: expectedPaidInvoiceEvidence,
-      statusInvoice: null,
-    });
+  it("CURRENT BEHAVIOUR: turns a stale close with an invalid entitlement revision into a retry", async () => {
+    scenarioDecision(subscriptionSnapshotHash);
+    world.handlers.lockEntitlement = () => [lockedEntitlementRow({ revision: 0 })];
+    // baseline_changed -> actualEntitlement throws 503 -> applyDecision retries.
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, retrying: 1 });
+    expect(trace()).toEqual([...READ_PHASE, ...inTx(1, ...LOCKED_STATE), "scheduleRetry"]);
+    expect(callsOf("insertResult")).toEqual([]);
+  });
+});
 
-    beforeEach(() => {
-      world.handlers.readEvent = () => [
-        eventRow({ event_type: "invoice.paid", provider_object_reference: "in_synthetic" }),
-      ];
-    });
+describe("consumeSaasReconciliationBatch: paid invoice grants", () => {
+  beforeEach(paidInvoiceEvent);
 
-    it("grants the paid period and bumps the entitlement revision", async () => {
-      scenarioDecision(paidHash, { resolution_kind: "paid_invoice_grant", invoice_plan_code: "starter" });
-      await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toEqual({
-        ...zero,
-        claimed: 1,
-        applied: 1,
-      });
-      expect(callsOf("updateSubscription")[0]!.params).toEqual([
+  const paidDecision = { resolution_kind: "paid_invoice_grant", invoice_plan_code: "starter" };
+
+  it("grants the paid period and bumps the entitlement revision", async () => {
+    scenarioDecision(paidHash, paidDecision);
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, applied: 1 });
+    expect(trace()).toEqual([
+      ...READ_PHASE,
+      ...inTx(
+        1,
+        ...LOCKED_STATE,
+        "updateSubscription",
+        "updateEntitlement",
+        "insertResult",
+        "insertAudit",
+        "finishEvent"
+      ),
+    ]);
+    expectLockedStateParams();
+    expect(paramsOf("updateSubscription")).toEqual([
+      [
         "price_starter_month",
         "starter",
         "active",
@@ -1680,17 +2199,21 @@ describe("consumeSaasReconciliationBatch", () => {
         null,
         "evt_synthetic",
         subscriptionId,
-      ]);
-      expect(callsOf("updateTrial")).toEqual([]);
-      expect(callsOf("updateEntitlement")[0]!.params).toEqual([
+      ],
+    ]);
+    expect(callsOf("updateTrial")).toEqual([]);
+    expect(paramsOf("updateEntitlement")).toEqual([
+      [
         "starter",
         "stripe-invoice:in_synthetic",
         subscriptionId,
         periodStart,
         periodEnd,
         organizationId,
-      ]);
-      expect(callsOf("insertResult")[0]!.params).toEqual([
+      ],
+    ]);
+    expect(paramsOf("insertResult")).toEqual([
+      [
         decisionId,
         "applied",
         5,
@@ -1700,32 +2223,59 @@ describe("consumeSaasReconciliationBatch", () => {
         "stripe-invoice:in_previous",
         "stripe-invoice:in_synthetic",
         "paid_invoice_granted",
-      ]);
+      ],
+    ]);
+    expect(auditOf()).toEqual({
+      head: [
+        organizationId,
+        actorId,
+        "saas_webhook.quarantine_resolution_applied",
+        eventId,
+        "req-confirm",
+        `${decisionId}:result`,
+      ],
+      before: previousGrant,
+      after: { revision: 5, sourceReference: "stripe-invoice:in_synthetic" },
+      metadata: { decisionId, resultCode: "paid_invoice_granted", outcome: "applied" },
     });
+    expect(paramsOf("finishEvent")).toEqual([PROCESSED_FINISH]);
+  });
 
-    it("converts an active trial when the paid invoice replaces it", async () => {
-      scenarioDecision(paidHash, {
-        resolution_kind: "paid_invoice_grant",
-        expected_entitlement_trial_id: trialId,
-      });
-      world.handlers.lockEntitlement = () => [lockedEntitlementRow({ trial_id: trialId })];
-      await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toMatchObject({ applied: 1 });
-      expect(callsOf("updateTrial")[0]!.params).toEqual([trialId, organizationId]);
+  it("converts an active trial when the paid invoice replaces it", async () => {
+    scenarioDecision(paidHash, { ...paidDecision, expected_entitlement_trial_id: trialId });
+    world.handlers.lockEntitlement = () => [lockedEntitlementRow({ trial_id: trialId })];
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, applied: 1 });
+    expect(trace()).toEqual([
+      ...READ_PHASE,
+      ...inTx(
+        1,
+        ...LOCKED_STATE,
+        "updateSubscription",
+        "updateTrial",
+        "updateEntitlement",
+        "insertResult",
+        "insertAudit",
+        "finishEvent"
+      ),
+    ]);
+    expect(paramsOf("updateTrial")).toEqual([[trialId, organizationId]]);
+  });
+
+  it("reports an invoice that was already granted without a second grant", async () => {
+    scenarioDecision(paidHash, {
+      ...paidDecision,
+      expected_entitlement_source_reference: "stripe-invoice:in_synthetic",
     });
-
-    it("reports an invoice that was already granted without a second grant", async () => {
-      const granted = {
-        source_reference: "stripe-invoice:in_synthetic",
-      };
-      scenarioDecision(paidHash, {
-        resolution_kind: "paid_invoice_grant",
-        expected_entitlement_source_reference: "stripe-invoice:in_synthetic",
-      });
-      world.handlers.lockEntitlement = () => [lockedEntitlementRow(granted)];
-      await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toMatchObject({ applied: 1 });
-      expect(callsOf("updateEntitlement")).toEqual([]);
-      expect(callsOf("updateSubscription")).toEqual([]);
-      expect(callsOf("insertResult")[0]!.params).toEqual([
+    world.handlers.lockEntitlement = () => [
+      lockedEntitlementRow({ source_reference: "stripe-invoice:in_synthetic" }),
+    ];
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, applied: 1 });
+    expect(trace()).toEqual([
+      ...READ_PHASE,
+      ...inTx(1, ...LOCKED_STATE, "insertResult", "insertAudit", "finishEvent"),
+    ]);
+    expect(paramsOf("insertResult")).toEqual([
+      [
         decisionId,
         "already_applied",
         5,
@@ -1735,48 +2285,243 @@ describe("consumeSaasReconciliationBatch", () => {
         "stripe-invoice:in_synthetic",
         "stripe-invoice:in_synthetic",
         "invoice_already_granted",
-      ]);
+      ],
+    ]);
+    expect(auditOf().metadata).toEqual({
+      decisionId,
+      resultCode: "invoice_already_granted",
+      outcome: "already_applied",
+    });
+  });
+
+  it("refuses an invoice that is no longer the latest one", async () => {
+    world.stripeSubscription = stripeSubscription({ latest_invoice: "in_newer" });
+    const hash = canonicalHash({
+      subscription: { ...expectedSubscriptionEvidence, latestInvoiceReference: "in_newer" },
+      invoice: expectedPaidInvoiceEvidence,
+      statusInvoice: null,
+    });
+    scenarioDecision(hash, paidDecision);
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, stale: 1 });
+    expect(trace()).toEqual([...READ_PHASE, ...STALE_IN_TX]);
+    expect(paramsOf("insertResult")[0]!.at(-1)).toBe("invoice_not_current_or_price_changed");
+    expect(callsOf("updateEntitlement")).toEqual([]);
+  });
+
+  it("refuses a paid period that already ended", async () => {
+    scenarioDecision(paidHash, {
+      ...paidDecision,
+      execution_expires_at: "2026-12-01T00:02:00.000Z",
+    });
+    vi.setSystemTime(new Date("2026-12-01T00:00:00.000Z"));
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, stale: 1 });
+    expect(paramsOf("insertResult")[0]!.at(-1)).toBe("invoice_not_current_or_price_changed");
+  });
+
+  it("closes a paid grant without invoice evidence as paid_evidence_missing", async () => {
+    // The decision says paid_invoice_grant but the event is a subscription
+    // event, so the re-read evidence carries no invoice.
+    world.handlers.readEvent = () => [eventRow()];
+    scenarioDecision(subscriptionSnapshotHash, paidDecision);
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, stale: 1 });
+    expect(trace()).toEqual([...READ_PHASE, ...STALE_IN_TX]);
+    expect(paramsOf("insertResult")).toEqual([
+      [
+        decisionId,
+        5,
+        subscriptionSnapshotHash,
+        4,
+        4,
+        "stripe-invoice:in_previous",
+        "stripe-invoice:in_previous",
+        "paid_evidence_missing",
+      ],
+    ]);
+    expect(callsOf("updateSubscription")).toEqual([]);
+  });
+
+  it("schedules a retry after the subscription update when the entitlement update returns nothing", async () => {
+    scenarioDecision(paidHash, paidDecision);
+    world.handlers.updateEntitlement = () => [];
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, retrying: 1 });
+    // In PostgreSQL the transaction rolls back the subscription update.
+    expect(trace()).toEqual([
+      ...READ_PHASE,
+      ...inTx(1, ...LOCKED_STATE, "updateSubscription", "updateEntitlement"),
+      "scheduleRetry",
+    ]);
+    expect(paramsOf("scheduleRetry")).toEqual([[3_000, eventId, decisionId, leaseToken, 5]]);
+  });
+
+  it("counts a lost lease when the event can no longer be finished", async () => {
+    scenarioDecision(paidHash, paidDecision);
+    world.handlers.finishEvent = () => [];
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, leaseLost: 1 });
+    expect(trace().at(-1)).toBe("finishEvent@tx1");
+    expect(callsOf("scheduleRetry")).toEqual([]);
+  });
+
+  it("CURRENT BEHAVIOUR: reports a changed revision as baseline_changed (entitlement_revision_changed is unreachable)", async () => {
+    scenarioDecision(paidHash, paidDecision);
+    world.handlers.lockEntitlement = () => [lockedEntitlementRow({ revision: 5 })];
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, stale: 1 });
+    expect(paramsOf("insertResult")[0]!.at(-1)).toBe("baseline_changed");
+  });
+
+  it("CURRENT BEHAVIOUR: a non-integer revision reaches entitlement_revision_changed but ends in a retry", async () => {
+    // matchesDecisionBaseline accepts 4.5 === 4.5; the paid path then rejects
+    // it as not a safe integer, and the stale close throws 503 on the same
+    // revision, so the entitlement_revision_changed result is never written.
+    scenarioDecision(paidHash, { ...paidDecision, expected_entitlement_revision: 4.5 });
+    world.handlers.lockEntitlement = () => [lockedEntitlementRow({ revision: 4.5 })];
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, retrying: 1 });
+    expect(trace()).toEqual([...READ_PHASE, ...inTx(1, ...LOCKED_STATE), "scheduleRetry"]);
+    expect(callsOf("insertResult")).toEqual([]);
+    expect(callsOf("updateEntitlement")).toEqual([]);
+  });
+
+  it("grants the full period for a one-cent invoice, from preview to consumer", async () => {
+    world.handlers.lockEvent = world.handlers.readEvent;
+    world.stripeInvoice = stripeInvoice({ amount_paid: 1 });
+    const token = await previewToken();
+    const confirmed = await confirmSaasReconciliation(confirmInput(token), dependencies());
+    const stored = insertedDecision();
+    expect(stored).toMatchObject({
+      resolution_kind: "paid_invoice_grant",
+      invoice_paid_amount: 1,
+      invoice_currency: "eur",
     });
 
-    it("refuses an invoice that is no longer the latest one", async () => {
-      world.stripeSubscription = stripeSubscription({ latest_invoice: "in_newer" });
-      const hash = canonicalHash({
-        subscription: { ...expectedSubscriptionEvidence, latestInvoiceReference: "in_newer" },
-        invoice: expectedPaidInvoiceEvidence,
-        statusInvoice: null,
-      });
-      scenarioDecision(hash, { resolution_kind: "paid_invoice_grant" });
-      await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toMatchObject({ stale: 1 });
-      expect(callsOf("insertResult")[0]!.params.at(-1)).toBe("invoice_not_current_or_price_changed");
-      expect(callsOf("updateEntitlement")).toEqual([]);
-    });
+    clearCalls();
+    vi.setSystemTime(new Date(T0.getTime() + 30_000));
+    world.handlers.claimEvents = () => [claimRow({ decision_id: confirmed.decisionId })];
+    world.handlers.readDecision = () => [stored];
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, applied: 1 });
+    // amount_paid is never compared with the plan price (1900 cents).
+    expect(paramsOf("updateEntitlement")).toEqual([
+      [
+        "starter",
+        "stripe-invoice:in_synthetic",
+        subscriptionId,
+        periodStart,
+        periodEnd,
+        organizationId,
+      ],
+    ]);
+    expect(paramsOf("insertResult")[0]!.at(-1)).toBe("paid_invoice_granted");
+  });
+});
 
-    it("refuses a paid period that already ended", async () => {
-      scenarioDecision(paidHash, {
-        resolution_kind: "paid_invoice_grant",
-        execution_expires_at: "2026-12-01T00:02:00.000Z",
-      });
-      vi.setSystemTime(new Date("2026-12-01T00:00:00.000Z"));
-      await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toMatchObject({ stale: 1 });
-      expect(callsOf("insertResult")[0]!.params.at(-1)).toBe("invoice_not_current_or_price_changed");
-    });
+// ---------------------------------------------------------------------------
+// SQL text
+// ---------------------------------------------------------------------------
 
-    it("schedules a retry when the entitlement update returns nothing", async () => {
-      scenarioDecision(paidHash, { resolution_kind: "paid_invoice_grant" });
-      world.handlers.updateEntitlement = () => [];
-      await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toMatchObject({ retrying: 1 });
-      expect(callsOf("scheduleRetry")).toHaveLength(1);
-    });
+const ALL_STATEMENTS: Statement[] = [
+  "claimEvents",
+  "findDecisionByKey",
+  "finishEvent",
+  "finishStale",
+  "insertAudit",
+  "insertDecision",
+  "insertResult",
+  "linkDecision",
+  "lockBaseline",
+  "lockClaimedEvent",
+  "lockEntitlement",
+  "lockEvent",
+  "lockOrganization",
+  "lockSubscription",
+  "readBaseline",
+  "readDecision",
+  "readEvent",
+  "resultOutcome",
+  "scheduleRetry",
+  "staleResult",
+  "updateEntitlement",
+  "updateSubscription",
+  "updateTrial",
+];
 
-    it("counts a lost lease when the event can no longer be finished", async () => {
-      scenarioDecision(paidHash, { resolution_kind: "paid_invoice_grant" });
-      world.handlers.finishEvent = () => [];
-      await expect(consumeSaasReconciliationBatch({}, dependencies())).resolves.toMatchObject({
-        claimed: 1,
-        applied: 0,
-        leaseLost: 1,
-      });
-      expect(callsOf("scheduleRetry")).toEqual([]);
-    });
+describe("SQL text", () => {
+  it("pins the normalized SQL of every statement the service issues", async () => {
+    const seen = new Map<Statement, Set<string>>();
+    const collect = () => {
+      for (const call of world.calls) {
+        const texts = seen.get(call.name) ?? new Set<string>();
+        texts.add(call.sql);
+        seen.set(call.name, texts);
+      }
+    };
+    const scenario = async (setup: () => void, body: () => Promise<unknown>) => {
+      resetWorld();
+      setup();
+      await body();
+      collect();
+    };
+
+    // Preview after a stale decision, first confirmation and its replay.
+    await scenario(
+      () => {
+        world.handlers.readEvent = () => [eventRow({ reconciliation_decision_id: previousDecisionId })];
+        world.handlers.staleResult = () => [{ outcome: "stale" }];
+      },
+      () => preview()
+    );
+    await scenario(
+      () => undefined,
+      async () => confirmSaasReconciliation(confirmInput(await previewToken()), dependencies())
+    );
+    await scenario(
+      () => {
+        world.handlers.resultOutcome = () => [{ outcome: "applied" }];
+      },
+      async () => {
+        const token = await previewToken();
+        world.handlers.findDecisionByKey = () => [
+          decisionRow("e".repeat(64), { confirmation_request_sha256: requestHashFor(token) }),
+        ];
+        return confirmSaasReconciliation(confirmInput(token), dependencies());
+      }
+    );
+    // Consumer: stale close, status snapshot, stale in transaction, paid grant
+    // with a trial, and a provider retry.
+    await scenario(
+      () => scenarioDecision(subscriptionSnapshotHash, { execution_expires_at: T0.toISOString() }),
+      () => consume()
+    );
+    await scenario(() => scenarioDecision(subscriptionSnapshotHash), () => consume());
+    await scenario(
+      () => {
+        scenarioDecision(subscriptionSnapshotHash);
+        world.handlers.lockEntitlement = () => [lockedEntitlementRow({ revision: 5 })];
+      },
+      () => consume()
+    );
+    await scenario(
+      () => {
+        paidInvoiceEvent();
+        scenarioDecision(paidHash, {
+          resolution_kind: "paid_invoice_grant",
+          expected_entitlement_trial_id: trialId,
+        });
+        world.handlers.lockEntitlement = () => [lockedEntitlementRow({ trial_id: trialId })];
+      },
+      () => consume()
+    );
+    await scenario(
+      () => {
+        scenarioDecision(subscriptionSnapshotHash);
+        provider.retrieveSubscription.mockRejectedValueOnce(new Error("timeout"));
+      },
+      () => consume()
+    );
+
+    expect([...seen.keys()].sort()).toEqual(ALL_STATEMENTS);
+    const listing = [...seen.keys()]
+      .sort()
+      .flatMap((name) => [...seen.get(name)!].sort().map((text) => `-- ${name}\n${text}\n`))
+      .join("\n");
+    // Regenerate with `vitest -u` after a deliberate SQL change and review the diff.
+    await expect(listing).toMatchFileSnapshot("./__snapshots__/saas-reconciliation-service-sql.txt");
   });
 });
