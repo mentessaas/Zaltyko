@@ -41,7 +41,9 @@ const eslintConfig = [
   files: [
     "src/modules/**/*.{ts,tsx}",
     "src/app/owner/**/*.{ts,tsx}",
+    "src/app/familia/**/*.{ts,tsx}",
     "src/components/owner-dashboard/**/*.{ts,tsx}",
+    "src/components/family-portal/**/*.{ts,tsx}",
     "src/app/api/v1/**/*.{ts,tsx}",
   ],
   rules: {
