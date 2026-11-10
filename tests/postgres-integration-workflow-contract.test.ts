@@ -65,10 +65,11 @@ const FORBIDDEN_ENV = [
 ];
 
 type Plan = {
-  batches: Array<{ source: "replay" | "discovered"; suites: string[] }>;
+  batches: Array<{ source: "replay" | "discovered"; database: "shared" | "fresh"; suites: string[] }>;
   replay_suites: string[];
   discovered_suites: string[];
   excluded_suites: Array<{ path: string; reason: string }>;
+  fresh_database_suites: Array<{ path: string; reason: string }>;
   suite_count: number;
 };
 
@@ -85,8 +86,8 @@ function makeTemporaryRoot(prefix: string) {
   return directory;
 }
 
-function runPlanner(command: "plan" | "verify-pins", root = ROOT) {
-  const result = spawnSync("python3", ["-I", PLANNER_PATH, command, "--root", root], {
+function runPlanner(command: "plan" | "verify-pins", root = ROOT, extraArgs: string[] = []) {
+  const result = spawnSync("python3", ["-I", PLANNER_PATH, command, "--root", root, ...extraArgs], {
     cwd: ROOT,
     encoding: "utf8",
   });
@@ -312,11 +313,53 @@ describe("Postgres integration workflow contract", () => {
     expect(result.status).toBe(0);
     const plan = JSON.parse(result.stdout) as Plan;
     expect(plan.batches).toEqual([
-      { source: "replay", suites: ["tests/a-pg.test.ts", "tests/b-postgres.integration.test.ts"] },
-      { source: "discovered", suites: ["tests/new-feature-pg.test.ts"] },
-      { source: "discovered", suites: ["tests/new-ledger-postgres.integration.test.ts"] },
+      { source: "replay", database: "shared", suites: ["tests/a-pg.test.ts", "tests/b-postgres.integration.test.ts"] },
+      { source: "discovered", database: "shared", suites: ["tests/new-feature-pg.test.ts"] },
+      { source: "discovered", database: "shared", suites: ["tests/new-ledger-postgres.integration.test.ts"] },
     ]);
     expect(plan.suite_count).toBe(4);
+  });
+
+  it("runs suites marked for a fresh database alone, last, each on a rebuilt database", () => {
+    const root = writeSyntheticRoot({
+      replaySuites: ["tests/a-pg.test.ts"],
+      suites: [
+        "tests/a-pg.test.ts",
+        "tests/global-claims-pg.test.ts",
+        "tests/z-shared-pg.test.ts",
+        ...REMOTE_SANDBOX_SUITES,
+      ],
+    });
+    const fresh = JSON.stringify({ "tests/global-claims-pg.test.ts": "Asserts no claimable rows in the whole database." });
+    const result = runPlanner("plan", root, ["--fresh-database-suites-json", fresh]);
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+    const plan = JSON.parse(result.stdout) as Plan;
+    expect(plan.batches).toEqual([
+      { source: "replay", database: "shared", suites: ["tests/a-pg.test.ts"] },
+      { source: "discovered", database: "shared", suites: ["tests/z-shared-pg.test.ts"] },
+      { source: "discovered", database: "fresh", suites: ["tests/global-claims-pg.test.ts"] },
+    ]);
+
+    for (const invalid of [
+      { "tests/missing-pg.test.ts": "stale" },
+      { "tests/a-pg.test.ts": "already a replay suite" },
+      { "tests/global-claims-pg.test.ts": " " },
+    ]) {
+      const refused = runPlanner("plan", root, ["--fresh-database-suites-json", JSON.stringify(invalid)]);
+      expect(refused.status).toBe(1);
+      expect(refused.stderr).toContain("PostgreSQL integration plan refused");
+    }
+
+    // The runner rebuilds the schema on a new stack, after stopping the previous one.
+    const builder = script.slice(script.indexOf("build_database() {"));
+    expect(builder.indexOf("stack stop")).toBeLessThan(builder.indexOf("stack start"));
+    expect(script).toMatch(/fresh\) database_count=\$\(\(database_count \+ 1\)\); build_database/);
+  });
+
+  it("runs PostgreSQL suite files sequentially, never in parallel", () => {
+    expect(script).toContain("pnpm exec vitest run --project web --no-file-parallelism");
+    expect(readFileSync(path.join(ROOT, "vitest.config.ts"), "utf8")).toContain("maxWorkers: 1");
   });
 
   it("fails closed on a stale exclusion or a remote-sandbox suite in the replay batches", () => {

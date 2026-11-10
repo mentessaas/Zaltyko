@@ -36,10 +36,12 @@ esac
 
 readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 readonly PLANNER="$ROOT/scripts/ci/postgres_integration_plan.py"
-readonly PROJECT_ID="zaltyko-pgint-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-readonly CI_WORKDIR="$RUNNER_TEMP/$PROJECT_ID"
-readonly CLI_HOME="$RUNNER_TEMP/$PROJECT_ID-home"
-readonly STATE_DIR="$RUNNER_TEMP/$PROJECT_ID-state"
+readonly PROJECT_BASE="zaltyko-pgint-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+readonly STATE_DIR="$RUNNER_TEMP/$PROJECT_BASE-state"
+# Set by build_database for the stack currently in use.
+PROJECT_ID=""
+CI_WORKDIR=""
+CLI_HOME=""
 readonly PINS_FILE="$STATE_DIR/pins.json"
 readonly PLAN_FILE="$STATE_DIR/plan.json"
 readonly START_LOG="$STATE_DIR/start.log"
@@ -55,7 +57,7 @@ local_stack_started=false
 owned_paths=()
 
 cleanup() {
-  if [[ "$local_stack_started" == "true" && -n "${CLI:-}" ]]; then
+  if [[ "$local_stack_started" == "true" && -n "${CLI:-}" && -n "$PROJECT_ID" ]]; then
     "$CLI" --workdir "$CI_WORKDIR" stack stop --stack "$PROJECT_ID" >/dev/null 2>&1 || true
   fi
   # Remove only paths this run created; a pre-existing path is refused below
@@ -65,12 +67,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for path in "$CI_WORKDIR" "$CLI_HOME" "$STATE_DIR"; do
-  [[ ! -e "$path" && ! -L "$path" ]] || fail "Refusing to reuse an existing disposable path."
-  mkdir "$path"
-  owned_paths+=("$path")
-done
-mkdir -p "$CI_WORKDIR/supabase/migrations" "$REPORT_DIR" "$SUITE_LOG_DIR"
+# claim_path PATH: create a new disposable directory this run owns.
+claim_path() {
+  [[ ! -e "$1" && ! -L "$1" ]] || fail "Refusing to reuse an existing disposable path."
+  mkdir "$1"
+  owned_paths+=("$1")
+}
+claim_path "$STATE_DIR"
+mkdir -p "$REPORT_DIR" "$SUITE_LOG_DIR"
 
 # Sanitize any captured CLI or vitest output before it reaches the job log.
 # Usage: sanitized_excerpt LOG MAX_LINES [all|errors|summary]
@@ -137,10 +141,27 @@ import sys
 plan = json.load(open(sys.argv[1], encoding="utf-8"))
 print(f"Planned PostgreSQL suites: {plan['suite_count']} in {len(plan['batches'])} vitest invocations.")
 for index, batch in enumerate(plan["batches"], start=1):
-    print(f"  batch {index} [{batch['source']}]: " + " ".join(batch["suites"]))
+    print(f"  batch {index} [{batch['source']}, {batch['database']} database]: " + " ".join(batch["suites"]))
 for item in plan["excluded_suites"]:
     print(f"  excluded: {item['path']} ({item['reason']})")
 PY
+
+# build_database N: start disposable native stack number N and rebuild the
+# reviewed schema on it. Any previous stack is stopped first, so a suite marked
+# "fresh" never sees rows written by earlier suites.
+build_database() {
+  if [[ "$local_stack_started" == "true" ]]; then
+    "$CLI" --workdir "$CI_WORKDIR" stack stop --stack "$PROJECT_ID" >/dev/null 2>&1 \
+      || fail "The previous disposable stack could not be stopped before a fresh database."
+    local_stack_started=false
+  fi
+  PROJECT_ID="$PROJECT_BASE-db$1"
+  CI_WORKDIR="$RUNNER_TEMP/$PROJECT_ID"
+  CLI_HOME="$RUNNER_TEMP/$PROJECT_ID-home"
+  claim_path "$CI_WORKDIR"
+  claim_path "$CLI_HOME"
+  mkdir -p "$CI_WORKDIR/supabase/migrations"
+  printf 'Building disposable database %s.\n' "$1"
 
 export SUPABASE_HOME="$CLI_HOME"
 export SUPABASE_EXPERIMENTAL_STACK=1
@@ -378,26 +399,33 @@ apply_migration "$RLS_HARDENING_MIGRATION_NAME" "RLS hardening migration" "$RLS_
 apply_migration "$BOOTSTRAP_SEED_MIGRATION_NAME" "Owner bootstrap reference seed" "$BOOTSTRAP_SEED_SOURCE"
 apply_migration "$TENANT_MIGRATION_NAME" "Synthetic two-academy RLS isolation check" "$TENANT_FIXTURE_SOURCE"
 rm -f -- "$REPLAY_LOG"
+}
 
 # 4. Run every planned suite. A failing batch does not stop later batches so
 #    one run reports every failure; the job still fails at the end.
 mapfile -t batch_lines < <(python3 -c '
 import json, sys
 for batch in json.load(open(sys.argv[1], encoding="utf-8"))["batches"]:
-    print(batch["source"] + "\t" + " ".join(batch["suites"]))
+    print(batch["source"] + "\t" + batch["database"] + "\t" + " ".join(batch["suites"]))
 ' "$PLAN_FILE")
 [[ "${#batch_lines[@]}" -gt 0 ]] || fail "The PostgreSQL suite plan is empty."
 
 failed_batches=0
 batch_index=0
+database_count=0
 for line in "${batch_lines[@]}"; do
   batch_index=$((batch_index + 1))
-  source_kind="${line%%$'\t'*}"
-  read -r -a suites <<<"${line#*$'\t'}"
+  IFS=$'\t' read -r source_kind database_kind suite_list <<<"$line"
+  read -r -a suites <<<"$suite_list"
+  case "$database_kind" in
+    shared) [[ "$database_count" -gt 0 ]] || { database_count=1; build_database "$database_count"; } ;;
+    fresh) database_count=$((database_count + 1)); build_database "$database_count" ;;
+    *) fail "Unknown database mode in the suite plan." ;;
+  esac
   label="$(printf 'batch-%02d' "$batch_index")"
-  printf '::group::PostgreSQL %s [%s]: %s\n' "$label" "$source_kind" "${suites[*]}"
+  printf '::group::PostgreSQL %s [%s, %s database]: %s\n' "$label" "$source_kind" "$database_kind" "${suites[*]}"
   if ZALTYKO_PG_INTEGRATION=1 ZALTYKO_PG_INTEGRATION_DATABASE_URL="$LOCAL_DB_URL" NODE_ENV=test CI_ISOLATED=1 \
-    pnpm exec vitest run --project web \
+    pnpm exec vitest run --project web --no-file-parallelism \
       --reporter=default --reporter=json --outputFile.json="$REPORT_DIR/$label.json" \
       "${suites[@]}" >"$SUITE_LOG_DIR/$label.log" 2>&1; then
     sanitized_excerpt "$SUITE_LOG_DIR/$label.log" 60 summary

@@ -43,6 +43,13 @@ EXCLUDED_SUITES: dict[str, str] = {
 }
 REMOTE_SANDBOX_SUITES = frozenset(EXCLUDED_SUITES)
 
+# Suites that must not share a database with any other suite (for example,
+# ones that assert global emptiness of a table other suites write to). Each
+# entry runs alone, after every shared batch, on a freshly rebuilt disposable
+# database. Every entry needs a reason and must name an existing discovered
+# suite that the replay does not already run.
+FRESH_DATABASE_SUITES: dict[str, str] = {}
+
 REPLAY_CONSTANTS = (
     "ROLE_PROBE_NAME",
     "AUTH_JWT_MIGRATION_NAME",
@@ -122,7 +129,9 @@ def discover_suites(root: Path) -> list[str]:
     return sorted(found)
 
 
-def build_plan(root: Path) -> dict[str, object]:
+def build_plan(root: Path, fresh_database_suites: dict[str, str] | None = None) -> dict[str, object]:
+    if fresh_database_suites is None:
+        fresh_database_suites = FRESH_DATABASE_SUITES
     text = _replay_text(root)
     replay_batches = replay_suite_batches(text)
     replay_suites = [item for batch in replay_batches for item in batch]
@@ -136,14 +145,25 @@ def build_plan(root: Path) -> dict[str, object]:
     for suite in EXCLUDED_SUITES:
         if suite not in discovered:
             raise PlanError(f"Stale exclusion; the suite no longer exists: {suite}")
+    for suite, reason in fresh_database_suites.items():
+        if not reason.strip():
+            raise PlanError(f"A fresh-database suite needs a reason: {suite}")
+        if suite not in discovered:
+            raise PlanError(f"Stale fresh-database entry; the suite no longer exists: {suite}")
+        if suite in replay_suites or suite in EXCLUDED_SUITES:
+            raise PlanError(f"A fresh-database suite cannot also be a replay or excluded suite: {suite}")
 
     additional = [
         suite for suite in discovered if suite not in replay_suites and suite not in EXCLUDED_SUITES
     ]
-    batches = [{"source": "replay", "suites": batch} for batch in replay_batches]
+    shared_additional = [suite for suite in additional if suite not in fresh_database_suites]
+    fresh_additional = [suite for suite in additional if suite in fresh_database_suites]
+    batches = [{"source": "replay", "database": "shared", "suites": batch} for batch in replay_batches]
     # Each discovered suite runs alone, after the reviewed replay order, so a
-    # new candidate cannot change what an older suite observes.
-    batches += [{"source": "discovered", "suites": [suite]} for suite in additional]
+    # new candidate cannot change what an older suite observes. Suites that
+    # need their own database come last, each on a freshly rebuilt one.
+    batches += [{"source": "discovered", "database": "shared", "suites": [suite]} for suite in shared_additional]
+    batches += [{"source": "discovered", "database": "fresh", "suites": [suite]} for suite in fresh_additional]
     planned = [item for batch in batches for item in batch["suites"]]
     uncovered = sorted(set(discovered) - set(planned) - set(EXCLUDED_SUITES))
     if uncovered:
@@ -153,6 +173,9 @@ def build_plan(root: Path) -> dict[str, object]:
         "replay_suites": replay_suites,
         "discovered_suites": additional,
         "excluded_suites": [{"path": path, "reason": reason} for path, reason in EXCLUDED_SUITES.items()],
+        "fresh_database_suites": [
+            {"path": path, "reason": reason} for path, reason in sorted(fresh_database_suites.items())
+        ],
         "suite_count": len(planned),
     }
 
@@ -214,10 +237,24 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("verify-pins", "plan"))
     parser.add_argument("--root", default=str(Path(__file__).resolve().parents[2]))
+    parser.add_argument(
+        "--fresh-database-suites-json",
+        help="Override FRESH_DATABASE_SUITES with a JSON object (contract tests only).",
+    )
     args = parser.parse_args(argv)
     root = Path(args.root).resolve()
     try:
-        result = verify_pins(root) if args.command == "verify-pins" else build_plan(root)
+        fresh = None
+        if args.fresh_database_suites_json is not None:
+            fresh = json.loads(args.fresh_database_suites_json)
+            if not isinstance(fresh, dict) or not all(
+                isinstance(key, str) and isinstance(value, str) for key, value in fresh.items()
+            ):
+                raise PlanError("The fresh-database override must map suite paths to reasons.")
+        result = verify_pins(root) if args.command == "verify-pins" else build_plan(root, fresh)
+    except json.JSONDecodeError:
+        print("PostgreSQL integration plan refused: the fresh-database override is not JSON.", file=sys.stderr)
+        return 1
     except PlanError as error:
         print(f"PostgreSQL integration plan refused: {error}", file=sys.stderr)
         return 1
