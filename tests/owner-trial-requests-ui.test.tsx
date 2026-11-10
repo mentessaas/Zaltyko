@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, className }: { href: string; children: ReactNode; className?: string }) => (
-    <a href={href} className={className}>{children}</a>
+  default: ({ href, children, ...props }: { href: string; children: ReactNode } & Record<string, unknown>) => (
+    <a href={href} {...props}>{children}</a>
   ),
 }));
 
