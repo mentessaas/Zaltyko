@@ -40,6 +40,7 @@ const ALL_LABELS = [
   "Equipo",
   "Clases",
   "Inscripciones",
+  "Solicitudes",
   "Asistencia",
   "Cobros",
   "Plan",
@@ -116,7 +117,7 @@ describe("navegación del coach", () => {
     expect(screen.getByText("operational-policy-probe")).toBeInTheDocument();
   });
 
-  it.each(["Resumen", "Grupos", "Gimnastas", "Equipo", "Clases", "Inscripciones", "Cobros", "Plan"])(
+  it.each(["Resumen", "Grupos", "Gimnastas", "Equipo", "Clases", "Inscripciones", "Solicitudes", "Cobros", "Plan"])(
     "no enlaza %s ni en escritorio ni en móvil",
     (label) => {
       renderFor("coach", "all");
@@ -128,7 +129,7 @@ describe("navegación del coach", () => {
 });
 
 describe("owner/admin/manager sin cambios", () => {
-  it("el owner con todas las sedes sigue viendo los 9 destinos y la tarjeta de plan", () => {
+  it("el owner con todas las sedes sigue viendo los 10 destinos y la tarjeta de plan", () => {
     renderFor("owner", "all");
 
     expect([...linkLabels("Principal")].sort()).toEqual([...ALL_LABELS].sort());

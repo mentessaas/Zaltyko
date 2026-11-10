@@ -1,6 +1,7 @@
 import { sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
+import { countNewTrialRequests } from "@/modules/admissions/application/admission-attention";
 import type { OwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { sqlUuidArray } from "@/modules/owner-dashboard/application/sql-uuid-array";
 
@@ -13,6 +14,11 @@ export interface OwnerAttentionItems {
   };
   fullClasses: number;
   overdueInvoices: number | null;
+  /**
+   * Solicitudes de prueba nuevas (P2 #15). Ausente mientras la tabla candidata
+   * `zaltyko.admission_requests` no esté instalada.
+   */
+  newTrialRequests?: number;
 }
 
 /**
@@ -57,7 +63,7 @@ export async function getOwnerAttentionItems(input: {
       and (e.ends_on is null or e.ends_on > ${dateSql})
   )`;
 
-  const [sessionResult, classResult, invoiceResult] = await Promise.all([
+  const [sessionResult, classResult, invoiceResult, newTrialRequests] = await Promise.all([
     db.execute(sql`
       with scoped_locations as (
         select l.id, l.timezone
@@ -141,6 +147,7 @@ export async function getOwnerAttentionItems(input: {
             }
         `)
       : Promise.resolve(null),
+    countNewTrialRequests(db, organizationId, locationIds),
   ]);
 
   const sessionRow = sessionResult.rows[0] as
@@ -159,5 +166,6 @@ export async function getOwnerAttentionItems(input: {
     },
     fullClasses: Number(classRow?.count ?? 0),
     overdueInvoices: input.includeFinancials ? Number(invoiceRow?.count ?? 0) : null,
+    ...(newTrialRequests === null ? {} : { newTrialRequests }),
   };
 }
