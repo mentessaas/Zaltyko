@@ -1,29 +1,35 @@
-import { and, asc, desc, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   attendanceRecords,
-  charges,
   classTemplates,
   classTemplateWeekdays,
   enrollments,
   invoices,
   locations,
-  paymentAllocations,
   sessions,
 } from "@/db/zaltyko-schema";
+import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
+import {
+  familyCanViewAthlete,
+  familyCanViewFees,
+} from "@/modules/family-portal/application/family-portal-sql";
 import {
   localIsoDate,
   requireVisibleFamilyAthlete,
-  type FamilyPortalAccess,
   type FamilyPortalAthlete,
+  type VisibleFamilyAthlete,
 } from "@/modules/family-portal/domain/family-portal-access";
 
 /**
- * Read-only family portal queries (P2 #16). Every function receives the
- * access already resolved for the signed-in account and binds organization,
- * athlete and family ids from it, never from the URL. Nothing here writes,
- * charges or sends anything.
+ * Read-only family portal queries (P2 #16).
+ *
+ * Every exported read takes the session user id, never an access object, and
+ * resolves the access itself. Each SQL statement then repeats the whole
+ * canonical chain in an `exists` bound to that user id (family-portal-sql.ts),
+ * on top of the organization, athlete and family ids taken from the resolved
+ * access. Nothing here writes, charges or sends anything.
  */
 
 export const FAMILY_SCHEDULE_DAYS = 14;
@@ -66,11 +72,6 @@ export interface FamilyUpcomingSession {
   status: "scheduled" | "completed" | "cancelled";
 }
 
-export interface FamilyAthleteSchedule extends FamilyAthleteHeader {
-  classes: FamilyScheduleClass[];
-  upcomingSessions: FamilyUpcomingSession[];
-}
-
 export interface FamilyAttendanceEntry {
   recordId: string;
   className: string;
@@ -80,8 +81,19 @@ export interface FamilyAttendanceEntry {
   status: "present" | "absent" | "excused" | "late";
 }
 
+export interface FamilyAthleteSchedule extends FamilyAthleteHeader {
+  classes: FamilyScheduleClass[];
+  upcomingSessions: FamilyUpcomingSession[];
+}
+
 export interface FamilyAthleteAttendance extends FamilyAthleteHeader {
   entries: FamilyAttendanceEntry[];
+}
+
+export interface FamilyAthleteOverview extends FamilyAthleteHeader {
+  classes: FamilyScheduleClass[];
+  upcomingSessions: FamilyUpcomingSession[];
+  attendance: FamilyAttendanceEntry[];
 }
 
 export interface FamilyFee {
@@ -90,7 +102,11 @@ export interface FamilyFee {
   status: (typeof VISIBLE_FEE_STATUSES)[number];
   currency: string;
   totalCents: number;
+  /** Allocated to non-void charges minus succeeded refunds of those allocations. */
   paidCents: number;
+  /** Succeeded refunds of those allocations. */
+  refundedCents: number;
+  /** Ledger rule: total minus allocated (a refund does not reopen the fee). */
   pendingCents: number;
   dueAt: string;
   periodStart: string | null;
@@ -123,29 +139,35 @@ function isVisibleFeeStatus(status: string): status is FamilyFee["status"] {
   return (VISIBLE_FEE_STATUSES as readonly string[]).includes(status);
 }
 
-function header(access: FamilyPortalAccess, athleteId: string): FamilyAthleteHeader {
-  const { academy, athlete } = requireVisibleFamilyAthlete(access, athleteId);
+function header(visible: VisibleFamilyAthlete): FamilyAthleteHeader {
   return {
-    organizationId: academy.organizationId,
-    organizationName: academy.organizationName,
-    athlete,
+    organizationId: visible.academy.organizationId,
+    organizationName: visible.academy.organizationName,
+    athlete: visible.athlete,
   };
 }
 
-export async function getFamilyAthleteSchedule(input: {
-  access: FamilyPortalAccess;
+/** Resolves the session user's access and 404s on any foreign athlete. */
+async function requireAthleteForUser(input: {
+  userId: string;
   athleteId: string;
-  now?: Date;
-}): Promise<FamilyAthleteSchedule> {
-  // 404 before any domain read when the athlete is not this account's.
-  const base = header(input.access, input.athleteId);
-  const academy = input.access.academies.find(
-    (item) => item.organizationId === base.organizationId
-  );
-  const now = input.now ?? new Date();
-  const today = localIsoDate(now, academy?.timezone ?? "Europe/Madrid");
-  const organizationId = base.organizationId;
-  const athleteId = base.athlete.athleteId;
+  now: Date;
+}): Promise<VisibleFamilyAthlete> {
+  const access = await resolveFamilyPortalAccess({
+    userId: input.userId,
+    now: input.now,
+  });
+  return requireVisibleFamilyAthlete(access, input.athleteId);
+}
+
+async function loadSchedule(
+  visible: VisibleFamilyAthlete,
+  userId: string,
+  now: Date
+): Promise<Pick<FamilyAthleteSchedule, "classes" | "upcomingSessions">> {
+  const organizationId = visible.academy.organizationId;
+  const athleteId = visible.athlete.athleteId;
+  const today = localIsoDate(now, visible.academy.timezone);
 
   const enrollmentRows = await db
     .select({
@@ -178,7 +200,13 @@ export async function getFamilyAthleteSchedule(input: {
         eq(enrollments.organizationId, organizationId),
         eq(enrollments.athleteId, athleteId),
         inArray(enrollments.status, [...SCHEDULE_ENROLLMENT_STATUSES]),
-        or(isNull(enrollments.endsOn), gte(enrollments.endsOn, today))
+        or(isNull(enrollments.endsOn), gte(enrollments.endsOn, today)),
+        familyCanViewAthlete({
+          userId,
+          now,
+          organizationRef: enrollments.organizationId,
+          athleteRef: enrollments.athleteId,
+        })
       )
     )
     .orderBy(asc(classTemplates.name), asc(enrollments.id))
@@ -201,9 +229,7 @@ export async function getFamilyAthleteSchedule(input: {
         ]
       : []
   );
-  if (classes.length === 0) {
-    return { ...base, classes, upcomingSessions: [] };
-  }
+  if (classes.length === 0) return { classes, upcomingSessions: [] };
 
   const classTemplateIds = [...new Set(classes.map((item) => item.classTemplateId))];
   const weekdayRows = await db
@@ -217,7 +243,21 @@ export async function getFamilyAthleteSchedule(input: {
     .where(
       and(
         eq(classTemplateWeekdays.organizationId, organizationId),
-        inArray(classTemplateWeekdays.classTemplateId, classTemplateIds)
+        inArray(classTemplateWeekdays.classTemplateId, classTemplateIds),
+        sql`exists (
+          select 1
+          from zaltyko.enrollments fp_e
+          where fp_e.organization_id = ${classTemplateWeekdays.organizationId}
+            and fp_e.class_template_id = ${classTemplateWeekdays.classTemplateId}
+            and fp_e.athlete_id = ${athleteId}::uuid
+            and fp_e.status in ('trial', 'active', 'paused')
+            and ${familyCanViewAthlete({
+              userId,
+              now,
+              organizationRef: sql`fp_e.organization_id`,
+              athleteRef: sql`fp_e.athlete_id`,
+            })}
+        )`
       )
     )
     .orderBy(
@@ -243,10 +283,10 @@ export async function getFamilyAthleteSchedule(input: {
         .map((item) => item.classTemplateId)
     ),
   ];
-  if (attendingClassIds.length === 0) {
-    return { ...base, classes, upcomingSessions: [] };
-  }
+  if (attendingClassIds.length === 0) return { classes, upcomingSessions: [] };
+
   const until = new Date(now.getTime() + FAMILY_SCHEDULE_DAYS * 86_400_000);
+  const sessionLocalDate = sql`(${sessions.startsAt} at time zone ${locations.timezone})::date`;
   const sessionRows = await db
     .select({
       sessionId: sessions.id,
@@ -270,7 +310,24 @@ export async function getFamilyAthleteSchedule(input: {
         eq(sessions.organizationId, organizationId),
         inArray(sessions.classTemplateId, attendingClassIds),
         gte(sessions.endsAt, now),
-        lt(sessions.startsAt, until)
+        lt(sessions.startsAt, until),
+        sql`exists (
+          select 1
+          from zaltyko.enrollments fp_e
+          where fp_e.organization_id = ${sessions.organizationId}
+            and fp_e.class_template_id = ${sessions.classTemplateId}
+            and fp_e.athlete_id = ${athleteId}::uuid
+            and fp_e.status in ('trial', 'active')
+            and fp_e.starts_on <= ${sessionLocalDate}
+            and (fp_e.ends_on is null or fp_e.ends_on >= ${sessionLocalDate})
+            and ${familyCanViewAthlete({
+              userId,
+              now,
+              organizationRef: sql`fp_e.organization_id`,
+              athleteRef: sql`fp_e.athlete_id`,
+              sinceRef: sessions.startsAt,
+            })}
+        )`
       )
     )
     .orderBy(asc(sessions.startsAt), asc(sessions.id))
@@ -279,7 +336,8 @@ export async function getFamilyAthleteSchedule(input: {
   const upcomingSessions: FamilyUpcomingSession[] = [];
   for (const row of sessionRows) {
     const sessionDate = localIsoDate(new Date(row.startsAt), row.timezone);
-    // Only sessions inside the athlete's own enrollment window.
+    // Defense in depth: same enrollment window and visibility start as the SQL.
+    if (sessionDate < visible.athlete.visibleSince) continue;
     const enrollment = classes.find(
       (item) =>
         item.classTemplateId === row.classTemplateId &&
@@ -299,14 +357,14 @@ export async function getFamilyAthleteSchedule(input: {
     });
   }
 
-  return { ...base, classes, upcomingSessions };
+  return { classes, upcomingSessions };
 }
 
-export async function getFamilyAthleteAttendance(input: {
-  access: FamilyPortalAccess;
-  athleteId: string;
-}): Promise<FamilyAthleteAttendance> {
-  const base = header(input.access, input.athleteId);
+async function loadAttendance(
+  visible: VisibleFamilyAthlete,
+  userId: string,
+  now: Date
+): Promise<FamilyAttendanceEntry[]> {
   const rows = await db
     .select({
       recordId: attendanceRecords.id,
@@ -340,33 +398,122 @@ export async function getFamilyAthleteAttendance(input: {
     )
     .where(
       and(
-        eq(attendanceRecords.organizationId, base.organizationId),
-        eq(attendanceRecords.athleteId, base.athlete.athleteId)
+        eq(attendanceRecords.organizationId, visible.academy.organizationId),
+        eq(attendanceRecords.athleteId, visible.athlete.athleteId),
+        familyCanViewAthlete({
+          userId,
+          now,
+          organizationRef: attendanceRecords.organizationId,
+          athleteRef: attendanceRecords.athleteId,
+          sinceRef: sessions.startsAt,
+        })
       )
     )
     .orderBy(desc(sessions.startsAt), desc(attendanceRecords.id))
     .limit(FAMILY_ATTENDANCE_LIMIT);
 
-  return {
-    ...base,
-    entries: rows.map((row) => ({
+  return rows
+    .filter(
+      // Defense in depth: no history before the visible membership started.
+      (row) =>
+        localIsoDate(new Date(row.sessionStartsAt), visible.academy.timezone) >=
+        visible.athlete.visibleSince
+    )
+    .map((row) => ({
       recordId: row.recordId,
       className: row.className,
       locationName: row.locationName,
       timezone: row.timezone,
       sessionStartsAt: iso(row.sessionStartsAt),
       status: row.status,
-    })),
+    }));
+}
+
+export async function getFamilyAthleteSchedule(input: {
+  userId: string;
+  athleteId: string;
+  now?: Date;
+}): Promise<FamilyAthleteSchedule> {
+  const now = input.now ?? new Date();
+  const visible = await requireAthleteForUser({ ...input, now });
+  return { ...header(visible), ...(await loadSchedule(visible, input.userId, now)) };
+}
+
+export async function getFamilyAthleteAttendance(input: {
+  userId: string;
+  athleteId: string;
+  now?: Date;
+}): Promise<FamilyAthleteAttendance> {
+  const now = input.now ?? new Date();
+  const visible = await requireAthleteForUser({ ...input, now });
+  return {
+    ...header(visible),
+    entries: await loadAttendance(visible, input.userId, now),
   };
 }
 
-/** Issued fees of the account's own families, per academy. Read-only. */
+/** Schedule and attendance of one athlete with a single access resolution. */
+export async function getFamilyAthleteOverview(input: {
+  userId: string;
+  athleteId: string;
+  now?: Date;
+}): Promise<FamilyAthleteOverview> {
+  const now = input.now ?? new Date();
+  const visible = await requireAthleteForUser({ ...input, now });
+  const [schedule, attendance] = await Promise.all([
+    loadSchedule(visible, input.userId, now),
+    loadAttendance(visible, input.userId, now),
+  ]);
+  return { ...header(visible), ...schedule, attendance };
+}
+
+/** Issued fees of the families this account pays for, per academy. */
 export async function getFamilyFees(input: {
-  access: FamilyPortalAccess;
+  userId: string;
+  now?: Date;
 }): Promise<FamilyAcademyFees[]> {
+  const now = input.now ?? new Date();
+  const access = await resolveFamilyPortalAccess({ userId: input.userId, now });
   const result: FamilyAcademyFees[] = [];
-  for (const academy of input.access.academies) {
-    if (academy.familyIds.length === 0) continue;
+
+  // Correlated subqueries: one row per invoice, no join fan-out.
+  const liveCharges = sql`
+    fp_c.organization_id = ${invoices.organizationId}
+    and fp_c.invoice_id = ${invoices.id}
+    and fp_c.status <> 'void'`;
+  const allocatedCents = sql<string>`coalesce((
+    select sum(fp_pa.amount_cents)
+    from zaltyko.payment_allocations fp_pa
+    join zaltyko.charges fp_c
+      on fp_c.organization_id = fp_pa.organization_id
+      and fp_c.id = fp_pa.charge_id
+    where ${liveCharges}
+  ), 0)::text`;
+  const refundedCents = sql<string>`coalesce((
+    select sum(fp_r.amount_cents)
+    from zaltyko.refunds fp_r
+    join zaltyko.payment_allocations fp_pa
+      on fp_pa.organization_id = fp_r.organization_id
+      and fp_pa.id = fp_r.payment_allocation_id
+    join zaltyko.charges fp_c
+      on fp_c.organization_id = fp_pa.organization_id
+      and fp_c.id = fp_pa.charge_id
+    where ${liveCharges}
+      and fp_r.status = 'succeeded'
+  ), 0)::text`;
+  const periodStart = sql<string | null>`(
+    select min(fp_c.service_period_start)::text
+    from zaltyko.charges fp_c
+    where ${liveCharges}
+  )`;
+  const periodEnd = sql<string | null>`(
+    select max(fp_c.service_period_end)::text
+    from zaltyko.charges fp_c
+    where ${liveCharges}
+  )`;
+
+  for (const academy of access.academies) {
+    if (academy.feeFamilyIds.length === 0) continue;
     const rows = await db
       .select({
         invoiceId: invoices.id,
@@ -375,34 +522,25 @@ export async function getFamilyFees(input: {
         currency: invoices.currency,
         totalCents: invoices.totalAmountCents,
         dueAt: invoices.dueAt,
-        periodStart: sql<string | null>`min(${charges.servicePeriodStart})::text`,
-        periodEnd: sql<string | null>`max(${charges.servicePeriodEnd})::text`,
-        paidCents: sql<string>`coalesce(sum(${paymentAllocations.amountCents}), 0)::text`,
+        periodStart,
+        periodEnd,
+        allocatedCents,
+        refundedCents,
       })
       .from(invoices)
-      .leftJoin(
-        charges,
-        and(
-          eq(charges.organizationId, invoices.organizationId),
-          eq(charges.invoiceId, invoices.id),
-          ne(charges.status, "void")
-        )
-      )
-      .leftJoin(
-        paymentAllocations,
-        and(
-          eq(paymentAllocations.organizationId, charges.organizationId),
-          eq(paymentAllocations.chargeId, charges.id)
-        )
-      )
       .where(
         and(
           eq(invoices.organizationId, academy.organizationId),
-          inArray(invoices.familyId, academy.familyIds),
-          inArray(invoices.status, [...VISIBLE_FEE_STATUSES])
+          inArray(invoices.familyId, academy.feeFamilyIds),
+          inArray(invoices.status, [...VISIBLE_FEE_STATUSES]),
+          familyCanViewFees({
+            userId: input.userId,
+            now,
+            organizationRef: invoices.organizationId,
+            familyRef: invoices.familyId,
+          })
         )
       )
-      .groupBy(invoices.id)
       .orderBy(desc(invoices.dueAt), desc(invoices.reference))
       .limit(FAMILY_FEES_LIMIT);
 
@@ -410,7 +548,8 @@ export async function getFamilyFees(input: {
       const status = row.status;
       if (!isVisibleFeeStatus(status)) return [];
       const totalCents = cents(row.totalCents);
-      const paidCents = Math.min(cents(row.paidCents), totalCents);
+      const allocated = Math.min(cents(row.allocatedCents), totalCents);
+      const refunded = Math.min(cents(row.refundedCents), allocated);
       return [
         {
           invoiceId: row.invoiceId,
@@ -418,8 +557,9 @@ export async function getFamilyFees(input: {
           status,
           currency: row.currency,
           totalCents,
-          paidCents: status === "paid" ? totalCents : paidCents,
-          pendingCents: status === "paid" ? 0 : totalCents - paidCents,
+          paidCents: allocated - refunded,
+          refundedCents: refunded,
+          pendingCents: status === "paid" ? 0 : totalCents - allocated,
           dueAt: iso(row.dueAt),
           periodStart: row.periodStart ?? null,
           periodEnd: row.periodEnd ?? null,

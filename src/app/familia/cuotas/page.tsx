@@ -1,7 +1,5 @@
-import { FamilyNoAccess } from "@/components/family-portal/FamilyNoAccess";
 import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
-import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
 import { getFamilyFees } from "@/modules/family-portal/application/family-portal-reads";
 import {
   FAMILY_PAYMENT_NOTICE,
@@ -17,8 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function FamilyFeesPage() {
   const user = await requireFamilyUser("/familia/cuotas");
-  const access = await resolveFamilyPortalAccess({ userId: user.id });
-  const academies = await getFamilyFees({ access });
+  const academies = await getFamilyFees({ userId: user.id });
 
   return (
     <FamilyPortalShell active="fees">
@@ -33,7 +30,15 @@ export default async function FamilyFeesPage() {
       </p>
 
       {academies.length === 0 ? (
-        <FamilyNoAccess />
+        <section className={ownerUi.emptyState} aria-labelledby="family-no-fees-title">
+          <h2 id="family-no-fees-title" className={ownerUi.cardTitle}>
+            No hay cuotas que consultar
+          </h2>
+          <p className={`${ownerUi.muted} mt-3 max-w-md`}>
+            Las cuotas solo las ve la persona pagadora de la familia. Si crees que es un
+            error, habla con tu academia.
+          </p>
+        </section>
       ) : (
         <div className="space-y-6">
           {academies.map((academy) => (
@@ -67,7 +72,7 @@ export default async function FamilyFeesPage() {
                             {feeStatusLabel(fee.status)}
                           </span>
                         </div>
-                        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
+                        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3 lg:grid-cols-6">
                           {period ? (
                             <div>
                               <dt className={ownerUi.smallLabel}>Periodo</dt>
@@ -84,6 +89,20 @@ export default async function FamilyFeesPage() {
                               {formatMoney(fee.totalCents, fee.currency)}
                             </dd>
                           </div>
+                          <div>
+                            <dt className={ownerUi.smallLabel}>Pagado</dt>
+                            <dd className="tabular-nums">
+                              {formatMoney(fee.paidCents, fee.currency)}
+                            </dd>
+                          </div>
+                          {fee.refundedCents > 0 ? (
+                            <div>
+                              <dt className={ownerUi.smallLabel}>Devuelto</dt>
+                              <dd className="tabular-nums">
+                                {formatMoney(fee.refundedCents, fee.currency)}
+                              </dd>
+                            </div>
+                          ) : null}
                           <div>
                             <dt className={ownerUi.smallLabel}>Pendiente</dt>
                             <dd className="tabular-nums font-semibold">

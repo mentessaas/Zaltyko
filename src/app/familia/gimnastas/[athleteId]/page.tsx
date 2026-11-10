@@ -4,11 +4,9 @@ import { z } from "zod";
 
 import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
-import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
 import {
   FAMILY_SCHEDULE_DAYS,
-  getFamilyAthleteAttendance,
-  getFamilyAthleteSchedule,
+  getFamilyAthleteOverview,
 } from "@/modules/family-portal/application/family-portal-reads";
 import {
   attendanceStatusLabel,
@@ -38,15 +36,10 @@ export default async function FamilyAthletePage({
   const athleteId = parsed.data;
 
   const user = await requireFamilyUser(`/familia/gimnastas/${athleteId}`);
-  const access = await resolveFamilyPortalAccess({ userId: user.id });
 
-  let schedule: Awaited<ReturnType<typeof getFamilyAthleteSchedule>>;
-  let attendance: Awaited<ReturnType<typeof getFamilyAthleteAttendance>>;
+  let schedule: Awaited<ReturnType<typeof getFamilyAthleteOverview>>;
   try {
-    [schedule, attendance] = await Promise.all([
-      getFamilyAthleteSchedule({ access, athleteId }),
-      getFamilyAthleteAttendance({ access, athleteId }),
-    ]);
+    schedule = await getFamilyAthleteOverview({ userId: user.id, athleteId });
   } catch (error) {
     // Foreign, unknown and unlinked athletes all get the same 404.
     if (error instanceof OperationalError && error.code === "NOT_FOUND") {
@@ -63,6 +56,10 @@ export default async function FamilyAthletePage({
       <header className={`${ownerUi.pageHeader} mt-3`}>
         <p className={ownerUi.eyebrow}>{schedule.organizationName}</p>
         <h1 className={ownerUi.pageTitle}>{schedule.athlete.displayName}</h1>
+        <p className={ownerUi.pageLead}>
+          Datos desde el {formatCalendarDate(schedule.athlete.visibleSince)}, fecha en
+          que la gimnasta se vinculó a tu familia.
+        </p>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -143,13 +140,13 @@ export default async function FamilyAthletePage({
           <h2 id="family-attendance-title" className={ownerUi.sectionTitle}>
             Asistencia
           </h2>
-          {attendance.entries.length === 0 ? (
+          {schedule.attendance.length === 0 ? (
             <p className={`${ownerUi.muted} mt-3`}>
               Todavía no hay pases de lista registrados.
             </p>
           ) : (
             <ul className="mt-4 divide-y divide-z-line">
-              {attendance.entries.map((entry) => (
+              {schedule.attendance.map((entry) => (
                 <li
                   key={entry.recordId}
                   className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"

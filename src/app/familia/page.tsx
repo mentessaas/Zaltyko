@@ -42,7 +42,7 @@ export default async function FamilyPortalHomePage() {
               </h2>
               {academy.athletes.length === 0 ? (
                 <p className={`${ownerUi.muted} mt-3`}>
-                  No hay gimnastas visibles para esta cuenta en esta academia.
+                  Esta cuenta solo consulta las cuotas de la familia en esta academia.
                 </p>
               ) : (
                 <ul className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -59,7 +59,7 @@ export default async function FamilyPortalHomePage() {
                   ))}
                 </ul>
               )}
-              {academy.familyIds.length > 0 ? (
+              {academy.feeFamilyIds.length > 0 ? (
                 <Link
                   href="/familia/cuotas"
                   className={`${ownerUi.secondaryButton} mt-4`}
