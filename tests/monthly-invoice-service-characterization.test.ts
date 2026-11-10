@@ -24,6 +24,8 @@
  * fixing it is a separate, deliberate change.
  */
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 
@@ -557,6 +559,77 @@ function onlyAthleteA() {
   world.handlers.readFamilyMembers = () => [memberRow()];
   world.handlers.readPriceAssignments = () => [assignmentRow()];
   world.handlers.readFamilyCohort = () => [{ cursorId: MEM_A, athleteId: ATH_A }];
+}
+
+// ---------------------------------------------------------------------------
+// Bulk fixture for keyset pages and filter batches
+// ---------------------------------------------------------------------------
+
+const PAGE_SIZE = 200;
+/**
+ * 201 athletes of family FAM, each with one enrollment in a class of its own.
+ * That forces a second enrollment page (200 + 1), a second athlete and
+ * enrollment filter batch (200 + 1) with a cursor page inside the full batch,
+ * and three (plan, class) coverage batches (100 + 100 + 1).
+ */
+const BULK_SIZE = 201;
+const bulk = Array.from({ length: BULK_SIZE }, (_, index) => {
+  const n = 1001 + index;
+  return {
+    athleteId: id("5", n),
+    enrollmentId: id("6", n),
+    classTemplateId: id("7", n),
+    assignmentId: id("9", n),
+    coverageId: id("a", n),
+    memberId: id("4", n),
+  };
+});
+
+/**
+ * Answers a keyset read the way PostgreSQL would: only rows whose batch keys
+ * are among the bound parameters, after the cursor (`"id" > $n`) when the
+ * statement has one, ordered by id and cut at the bound limit.
+ */
+function keysetPager(
+  rows: Row[],
+  options: { idOf: (row: Row) => string; batchKeys?: string[] }
+): Handler {
+  return (params) => {
+    const sqlText = world.calls.at(-1)!.sql!;
+    const cursorPlaceholder = /"id" > \$(\d+)\) order by/.exec(sqlText)?.[1];
+    const cursor = cursorPlaceholder ? String(params[Number(cursorPlaceholder) - 1]) : null;
+    const limit = Number(params[params.length - 1]);
+    return rows
+      .filter((row) => (options.batchKeys ?? []).every((key) => params.includes(row[key])))
+      .filter((row) => cursor === null || options.idOf(row) > cursor)
+      .sort((left, right) => (options.idOf(left) < options.idOf(right) ? -1 : 1))
+      .slice(0, limit);
+  };
+}
+
+function bulkWorld() {
+  world.handlers.readEnrollments = keysetPager(
+    bulk.map((item) =>
+      enrollmentRow({
+        enrollmentId: item.enrollmentId,
+        athleteId: item.athleteId,
+        classTemplateId: item.classTemplateId,
+      })
+    ),
+    { idOf: (row) => String(row.enrollmentId) }
+  );
+  world.handlers.readFamilyMembers = keysetPager(
+    bulk.map((item) => memberRow({ memberId: item.memberId, athleteId: item.athleteId })),
+    { idOf: (row) => String(row.memberId), batchKeys: ["athleteId"] }
+  );
+  world.handlers.readPriceAssignments = keysetPager(
+    bulk.map((item) => assignmentRow({ id: item.assignmentId, enrollmentId: item.enrollmentId })),
+    { idOf: (row) => String(row.id), batchKeys: ["enrollmentId"] }
+  );
+  world.handlers.readCoverage = keysetPager(
+    bulk.map((item) => coverageRow({ id: item.coverageId, classTemplateId: item.classTemplateId })),
+    { idOf: (row) => String(row.id), batchKeys: ["pricePlanId", "classTemplateId"] }
+  );
 }
 
 beforeEach(() => {
@@ -1142,6 +1215,175 @@ describe("getMonthlyInvoiceOptions: money", () => {
   });
 });
 
+describe("getMonthlyInvoiceOptions: month-end boundaries", () => {
+  // An end date on the last day of the month (2026-11-30) still covers the
+  // whole month; one day earlier does not. Pins every `>= end` comparison.
+  it.each([
+    ["an enrollment", () => {
+      world.handlers.readEnrollments = () => [enrollmentRow({ endsOn: END })];
+    }],
+    ["a class", () => {
+      world.handlers.readEnrollments = () => [enrollmentRow({ classEffectiveTo: END })];
+    }],
+    ["a family membership", () => {
+      world.handlers.readFamilyMembers = () => [memberRow({ endsOn: END })];
+    }],
+    ["a price assignment", () => {
+      world.handlers.readPriceAssignments = () => [assignmentRow({ endsOn: END })];
+    }],
+    ["a tariff coverage", () => {
+      world.handlers.readCoverage = () => [coverageRow({ endsOn: END })];
+    }],
+    ["a payer", () => {
+      world.handlers.readPayers = () => [payerRow({ endsOn: END })];
+    }],
+  ] as Array<[string, () => void]>)("bills %s that ends on the last day of the month", async (_label, setup) => {
+    onlyAthleteA();
+    setup();
+    const [family] = (await options()).families;
+    expect(family!.enrollments[0]).toMatchObject({ billable: true, blockingReasons: [] });
+    expect(family!.lines).toEqual([
+      {
+        athleteId: ATH_A,
+        athleteName: "Ana Pérez",
+        pricePlanId: PLAN,
+        pricePlanName: "Cuota mensual",
+        amountCents: 4500,
+        currency: "EUR",
+        coveredEnrollments: [covered(ENR_A1, ASG_A1)],
+      },
+    ]);
+    expect(family!.blockingReasons).toEqual([]);
+    expect(family!.canIssue).toBe(true);
+    expect(family!.quoteHash).toBe(
+      quoteHash({ lines: [HASH_LINE_A], totalAmountCents: 4500, currency: "EUR" })
+    );
+  });
+
+  it.each([
+    ["an enrollment", () => {
+      world.handlers.readEnrollments = () => [enrollmentRow({ endsOn: "2026-11-29" })];
+    }, "ENROLLMENT_PERIOD_INCOMPLETE"],
+    ["a class", () => {
+      world.handlers.readEnrollments = () => [enrollmentRow({ classEffectiveTo: "2026-11-29" })];
+    }, "CLASS_PERIOD_INCOMPLETE"],
+    ["a family membership", () => {
+      world.handlers.readFamilyMembers = () => [memberRow({ endsOn: "2026-11-29" })];
+    }, "FAMILY_MEMBERSHIP_PERIOD_INCOMPLETE"],
+    ["a price assignment", () => {
+      world.handlers.readPriceAssignments = () => [assignmentRow({ endsOn: "2026-11-29" })];
+    }, "PRICE_ASSIGNMENT_PERIOD_INCOMPLETE"],
+    ["a tariff coverage", () => {
+      world.handlers.readCoverage = () => [coverageRow({ endsOn: "2026-11-29" })];
+    }, "TARIFF_COVERAGE_INCOMPLETE"],
+  ] as Array<[string, () => void, string]>)("blocks %s that ends the day before", async (_label, setup, reason) => {
+    onlyAthleteA();
+    setup();
+    const [family] = (await options()).families;
+    expect(family!.enrollments[0]).toMatchObject({ billable: false, blockingReasons: [reason] });
+    expect(family!.lines).toEqual([]);
+    expect(family!.canIssue).toBe(false);
+  });
+
+  it("asks the database for payers valid from the first to the last day", async () => {
+    // The payer window is only filtered in SQL: starts_on <= start and
+    // ends_on >= end (see the snapshot). The bound values are pinned here.
+    await options();
+    expect(paramsOf("readPayers")).toEqual([[true, true, ORG, FAM, START, END, PAGE_SIZE]]);
+  });
+});
+
+describe("getMonthlyInvoiceOptions: keyset pages and filter batches", () => {
+  const athleteIds = bulk.map((item) => item.athleteId);
+  const enrollmentIds = bulk.map((item) => item.enrollmentId);
+
+  it("quotes all 201 athletes: nothing on a later page or batch is lost", async () => {
+    bulkWorld();
+    const result = await options();
+    expect(result.unassignedEnrollments).toEqual([]);
+    expect(result.families.map((family) => family.familyId)).toEqual([FAM]);
+    const [family] = result.families;
+    expect(family!.enrollments).toHaveLength(BULK_SIZE);
+    expect(family!.enrollments.filter((enrollment) => !enrollment.billable)).toEqual([]);
+    expect(family!.lines).toEqual(
+      bulk.map((item) => ({
+        athleteId: item.athleteId,
+        athleteName: "Ana Pérez",
+        pricePlanId: PLAN,
+        pricePlanName: "Cuota mensual",
+        amountCents: 4500,
+        currency: "EUR",
+        coveredEnrollments: [covered(item.enrollmentId, item.assignmentId, item.classTemplateId)],
+      }))
+    );
+    expect(family!.totalAmountCents).toBe(BULK_SIZE * 4500);
+    expect(family!.blockingReasons).toEqual([]);
+    expect(family!.canIssue).toBe(true);
+    expect(family!.quoteHash).toBe(
+      quoteHash({
+        lines: bulk.map((item) =>
+          hashLine({
+            athleteId: item.athleteId,
+            coveredEnrollments: [covered(item.enrollmentId, item.assignmentId, item.classTemplateId)],
+          })
+        ),
+        totalAmountCents: BULK_SIZE * 4500,
+        currency: "EUR",
+      })
+    );
+  });
+
+  it("follows the enrollment cursor to a second page", async () => {
+    bulkWorld();
+    await options();
+    expect(paramsOf("readEnrollments")).toEqual([
+      [true, ORG, LOC, "active", "pending", END, START, PAGE_SIZE],
+      [true, ORG, LOC, "active", "pending", END, START, bulk[199]!.enrollmentId, PAGE_SIZE],
+    ]);
+  });
+
+  it("filters athletes and enrollments in batches of 200 and pages inside a full batch", async () => {
+    bulkWorld();
+    await options();
+    expect(paramsOf("readFamilyMembers")).toEqual([
+      [ORG, ...athleteIds.slice(0, 200), END, START, PAGE_SIZE],
+      [ORG, ...athleteIds.slice(0, 200), END, START, bulk[199]!.memberId, PAGE_SIZE],
+      [ORG, athleteIds[200], END, START, PAGE_SIZE],
+    ]);
+    expect(paramsOf("readPriceAssignments")).toEqual([
+      [ORG, ...enrollmentIds.slice(0, 200), END, START, PAGE_SIZE],
+      [ORG, ...enrollmentIds.slice(0, 200), END, START, bulk[199]!.assignmentId, PAGE_SIZE],
+      [ORG, enrollmentIds[200], END, START, PAGE_SIZE],
+    ]);
+  });
+
+  it("filters (plan, class) coverage pairs in batches of 100", async () => {
+    bulkWorld();
+    await options();
+    const pairs = bulk.map((item) => [PLAN, item.classTemplateId]);
+    expect(paramsOf("readCoverage")).toEqual([
+      [ORG, LOC, END, START, ...pairs.slice(0, 100).flat(), PAGE_SIZE],
+      [ORG, LOC, END, START, ...pairs.slice(100, 200).flat(), PAGE_SIZE],
+      [ORG, LOC, END, START, ...pairs.slice(200).flat(), PAGE_SIZE],
+    ]);
+  });
+
+  it("blocks the athlete whose rows only come in the last batch when that batch is empty", async () => {
+    // Control for the batching tests: without the 201st athlete's coverage
+    // the quote must change, so a skipped last batch cannot go unnoticed.
+    bulkWorld();
+    const answerCoverage = world.handlers.readCoverage!;
+    world.handlers.readCoverage = (params, previousCalls) =>
+      previousCalls === 2 ? [] : answerCoverage(params, previousCalls);
+    const [family] = (await options()).families;
+    expect(family!.lines).toHaveLength(BULK_SIZE - 1);
+    expect(family!.conflicts).toEqual([
+      { athleteId: bulk[200]!.athleteId, code: "TARIFF_COVERAGE_INCOMPLETE", enrollmentIds: [bulk[200]!.enrollmentId] },
+    ]);
+    expect(family!.canIssue).toBe(false);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // issueMonthlyInvoice
 // ---------------------------------------------------------------------------
@@ -1529,14 +1771,63 @@ describe("issueMonthlyInvoice: replay by idempotency key", () => {
     world.handlers.findPriorMarker = () => [markerRow({ pricingModel: undefined })];
     world.handlers.readIssuedLines = () => issuedLineRows({ pricePlanId: null, amountCents: 1 });
     world.handlers.readCoveredEnrollments = () => [];
-    await expect(issueMonthlyInvoice(command())).resolves.toMatchObject({ replayed: true });
+    await expect(issueMonthlyInvoice(command())).resolves.toEqual({
+      invoice: invoiceRow(),
+      replayed: true,
+      // Returned as stored: no plan, 1 cent, no covered classes.
+      lines: [
+        { ...ISSUED_LINES[0], pricePlanId: null, amountCents: 1, coveredEnrollments: [] },
+        { ...ISSUED_LINES[1], coveredEnrollments: [] },
+      ],
+      chargeStatus: "due",
+      collectionMode: "manual",
+      charges: [{ id: CHARGE, status: "due" }],
+    });
+    expect(trace()).toEqual(REPLAY_TRACE);
   });
 
   it("checks read access on the stored invoice's site", async () => {
     world.handlers.findPriorMarker = () => [markerRow({ pricingModel: "legacy" })];
     world.handlers.loadInvoice = () => [invoiceRow({ locationId: LOC_2 })];
-    await issueMonthlyInvoice(command());
+    await expect(issueMonthlyInvoice(command())).resolves.toEqual({
+      invoice: invoiceRow({ locationId: LOC_2 }),
+      replayed: true,
+      lines: ISSUED_LINES,
+      chargeStatus: "due",
+      collectionMode: "manual",
+      charges: [{ id: CHARGE, status: "due" }],
+    });
     expect(paramsOf("access")).toEqual([[readAccess()], [readAccess(LOC_2)]]);
+    expect(trace()).toEqual(REPLAY_TRACE);
+  });
+
+  it("validates the stored invoice total, not the sum of its lines", async () => {
+    // The lines still sum 9000 (the quoted total); the stored invoice says 9001.
+    // Recomputing the total from the lines would replay; the service refuses.
+    world.handlers.findPriorMarker = () => [markerRow()];
+    world.handlers.loadInvoice = () => [invoiceRow({ totalAmountCents: 9001 })];
+    await expectFailure(issueMonthlyInvoice(command()), {
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 500,
+    });
+    expect(trace().slice(-2)).toEqual(["readCoveredEnrollments", "rollback"]);
+  });
+
+  it("CURRENT BEHAVIOUR: replays a stored total that differs from the sum of its lines when the hash used it", async () => {
+    // Mirror image: the quote hash was taken over a total of 9001 while the
+    // lines sum 9000. Nothing checks total = sum of lines, so it replays.
+    const hash = quoteHash({ lines: [HASH_LINE_A, HASH_LINE_B], totalAmountCents: 9001, currency: "EUR" });
+    world.handlers.findPriorMarker = () => [markerRow({ quoteHash: hash })];
+    world.handlers.loadInvoice = () => [invoiceRow({ totalAmountCents: 9001 })];
+    await expect(issueMonthlyInvoice(command({ quoteHash: hash }))).resolves.toEqual({
+      invoice: invoiceRow({ totalAmountCents: 9001 }),
+      replayed: true,
+      lines: ISSUED_LINES,
+      chargeStatus: "due",
+      collectionMode: "manual",
+      charges: [{ id: CHARGE, status: "due" }],
+    });
+    expect(trace()).toEqual(REPLAY_TRACE);
   });
 
   it("refuses to replay a voided invoice", async () => {
@@ -1670,7 +1961,39 @@ const ALL_STATEMENTS: Statement[] = [
 
 const SQL_SNAPSHOT = "./__snapshots__/monthly-invoice-service-sql.txt";
 
+/**
+ * Shortens what batched reads repeat: placeholder lists of four or more
+ * (`in ($2, …, $201)`) and runs of four or more OR groups that only differ in
+ * their placeholders. The keyset tests pin the full parameter lists.
+ */
+function compactSql(text: string): string {
+  const lists = text.replace(
+    /\$(\d+)((?:, \$\d+){3,})/g,
+    (_match, first: string, rest: string) => `$${first}, …, $${/\d+$/.exec(rest)![0]}`
+  );
+  return lists.replace(
+    /\(([^()]*)\)((?: or \([^()]*\)){3,})/g,
+    (match, first: string, rest: string) => {
+      const groups = [first, ...rest.slice(" or (".length, -1).split(") or (")];
+      const shape = (group: string) => group.replace(/\$\d+/g, "$");
+      if (groups.some((group) => shape(group) !== shape(first))) return match;
+      return `(${first}) or … ${groups.length - 2} more … or (${groups.at(-1)})`;
+    }
+  );
+}
+
+function readStoredSnapshot(): string | null {
+  try {
+    return readFileSync(join(process.cwd(), "tests", SQL_SNAPSHOT), "utf8");
+  } catch {
+    return null;
+  }
+}
+
 describe("SQL text", () => {
+  // The snapshot is the contract of the SQL this service sends. Regenerating it
+  // with `vitest -u` is only acceptable together with a reviewed diff of the
+  // .txt file in the PR, and the PR must justify every statement that changes.
   it("pins the normalized SQL of every statement the service issues", async () => {
     const seen = new Map<string, Set<string>>();
     const scenario = async (setup: () => void, body: () => Promise<unknown>) => {
@@ -1680,11 +2003,14 @@ describe("SQL text", () => {
       for (const call of world.calls) {
         if (call.sql === undefined) continue;
         const texts = seen.get(call.name) ?? new Set<string>();
-        texts.add(call.sql);
+        texts.add(compactSql(call.sql));
         seen.set(call.name, texts);
       }
     };
 
+    // A quote over 201 athletes: second enrollment page (`"id" > $n`), cursor
+    // page inside a full filter batch, a one-value batch and a 100-pair batch.
+    await scenario(bulkWorld, () => options());
     // New issuance (two athletes), replay by key, replay by period and a rollback.
     await scenario(() => undefined, () => issueMonthlyInvoice(command()));
     await scenario(() => {
@@ -1703,7 +2029,12 @@ describe("SQL text", () => {
       .sort()
       .flatMap((name) => [...seen.get(name)!].sort().map((text) => `-- ${name}\n${text}\n`))
       .join("\n");
-    // Regenerate with `vitest -u` after a deliberate SQL change and review the diff.
+    if (readStoredSnapshot() !== listing) {
+      // CI never writes snapshots: print the listing whole so a mismatch can be
+      // reviewed from the job log instead of a truncated diff.
+      console.log(`MONTHLY_SQL_SNAPSHOT_BEGIN\n${listing}MONTHLY_SQL_SNAPSHOT_END`);
+    }
+    // Regenerate with `vitest -u` only after a deliberate SQL change; see above.
     await expect(listing).toMatchFileSnapshot(SQL_SNAPSHOT);
   });
 });
