@@ -335,9 +335,15 @@ async function loadSchedule(
 
   const upcomingSessions: FamilyUpcomingSession[] = [];
   for (const row of sessionRows) {
+    // Defense in depth, mirroring the SQL: the enrollment window uses the
+    // site's calendar (sessionLocalDate) and the visibility start uses the
+    // academy's (fp_o.default_timezone in familyCanViewAthlete).
     const sessionDate = localIsoDate(new Date(row.startsAt), row.timezone);
-    // Defense in depth: same enrollment window and visibility start as the SQL.
-    if (sessionDate < visible.athlete.visibleSince) continue;
+    const academySessionDate = localIsoDate(
+      new Date(row.startsAt),
+      visible.academy.timezone
+    );
+    if (academySessionDate < visible.athlete.visibleSince) continue;
     const enrollment = classes.find(
       (item) =>
         item.classTemplateId === row.classTemplateId &&

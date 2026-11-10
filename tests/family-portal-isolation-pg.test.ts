@@ -4,13 +4,17 @@
  * Ejecuta las lecturas reales del portal (y las guardas SQL directamente)
  * sobre el esquema canónico replicado en un Postgres local de GitHub. Cubre:
  * dos academias, dos familias en la misma academia, una gimnasta compartida
- * por dos familias, un tutor en dos academias, accesos revocados
+ * por dos familias, el pagador con can_view_athletes = false que crea hoy
+ * /owner, pagadores terminados y futuros, una membresía que termina hoy,
+ * un tutor en dos academias, accesos revocados
  * (auth_user_id nulo, vínculo inactivo, familia inactiva, tutor inactivo),
  * membresías pasadas y futuras, academias suspended y closed, cuotas draft y
  * void, un cargo anulado, reembolsos y asistencia anterior al vínculo.
  *
- * Solo corre con ZALTYKO_PG_INTEGRATION=1 (job «Disposable local schema
- * replay» de .github/workflows/ci-isolated.yml); en el resto se omite.
+ * Solo corre con ZALTYKO_PG_INTEGRATION=1 contra un Postgres desechable; en
+ * el resto se omite. Aún no está registrada en ningún job de CI: el script de
+ * replay está fijado por supabase/schema-snapshot-manifest.json y su
+ * ejecución la decide Elvis (ver docs/producto/portal-familias.md).
  */
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
@@ -98,14 +102,17 @@ async function seedFixture() {
     userA: id(), userA2: id(), userViewer: id(), userNullLink: id(),
     userLinkInactive: id(), userFamilyInactive: id(), userGuardianInactive: id(),
     userSuspended: id(), userClosed: id(),
+    userPayerNoView: id(), userPayerEnded: id(), userPayerFuture: id(),
     // Guardians (one person each).
     gA: id(), gAinB: id(), gA2: id(), gViewer: id(), gNullLink: id(),
     gLinkInactive: id(), gFamilyInactive: id(), gGuardianInactive: id(),
     gSuspended: id(), gClosed: id(),
+    gPayerNoView: id(), gPayerEnded: id(), gPayerFuture: id(),
     // Families.
     famA: id(), famA2: id(), famInactive: id(), famB: id(), famSuspended: id(), famClosed: id(),
     // Athletes.
     ana: id(), bruno: id(), fede: id(), carla: id(), ines: id(), dani: id(), olga: id(), pia: id(),
+    lia: id(),
     // Schedule.
     classNorth: id(), classSouth: id(), classB: id(),
     enrAna: id(), enrCarla: id(), enrDani: id(),
@@ -121,6 +128,7 @@ async function seedFixture() {
   const users = [
     f.userA, f.userA2, f.userViewer, f.userNullLink, f.userLinkInactive,
     f.userFamilyInactive, f.userGuardianInactive, f.userSuspended, f.userClosed,
+    f.userPayerNoView, f.userPayerEnded, f.userPayerFuture,
   ];
   await db.execute(sql`
     insert into auth.users (id, email)
@@ -157,6 +165,7 @@ async function seedFixture() {
     [f.dani, f.orgB, "Dani", true],
     [f.olga, f.orgSuspended, "Olga", true],
     [f.pia, f.orgClosed, "Pia", true],
+    [f.lia, f.orgA, "Lia", true],
   ];
   for (const [athleteId, organizationId, givenName, active] of athleteRows) {
     await db.execute(sql`
@@ -181,6 +190,9 @@ async function seedFixture() {
     [f.gGuardianInactive, f.orgA, f.userGuardianInactive, false],
     [f.gSuspended, f.orgSuspended, f.userSuspended, true],
     [f.gClosed, f.orgClosed, f.userClosed, true],
+    [f.gPayerNoView, f.orgA, f.userPayerNoView, true],
+    [f.gPayerEnded, f.orgA, f.userPayerEnded, true],
+    [f.gPayerFuture, f.orgA, f.userPayerFuture, true],
   ];
   for (const [guardianId, organizationId, authUserId, active] of guardianRows) {
     await db.execute(sql`
@@ -216,6 +228,11 @@ async function seedFixture() {
     [f.orgA, f.famA, f.gGuardianInactive, true, true],
     [f.orgSuspended, f.famSuspended, f.gSuspended, true, true],
     [f.orgClosed, f.famClosed, f.gClosed, true, true],
+    // Production default today (owner-family-association.ts:719): payer
+    // links are created with can_view_athletes = false.
+    [f.orgA, f.famA, f.gPayerNoView, false, true],
+    [f.orgA, f.famA, f.gPayerEnded, false, true],
+    [f.orgA, f.famA, f.gPayerFuture, false, true],
   ];
   for (const [organizationId, familyId, guardianId, canView, active] of linkRows) {
     await db.execute(sql`
@@ -229,19 +246,28 @@ async function seedFixture() {
 
   // Payers: gA (A), gAinB (B), gA2 (A2), and revoked-access guardians that
   // must not regain fees through their payer row. gViewer is not a payer.
-  const payerRows: Array<[string, string, string]> = [
-    [f.orgA, f.famA, f.gA],
-    [f.orgB, f.famB, f.gAinB],
-    [f.orgA, f.famA2, f.gA2],
-    [f.orgA, f.famA, f.gLinkInactive],
-    [f.orgA, f.famInactive, f.gFamilyInactive],
-    [f.orgSuspended, f.famSuspended, f.gSuspended],
-    [f.orgClosed, f.famClosed, f.gClosed],
+  // [organization, family, guardian, starts, ends].
+  const payerRows: Array<[string, string, string, string, string | null]> = [
+    [f.orgA, f.famA, f.gA, "2026-09-01", null],
+    [f.orgB, f.famB, f.gAinB, "2026-09-01", null],
+    [f.orgA, f.famA2, f.gA2, "2026-09-01", null],
+    [f.orgA, f.famA, f.gLinkInactive, "2026-09-01", null],
+    [f.orgA, f.famInactive, f.gFamilyInactive, "2026-09-01", null],
+    [f.orgSuspended, f.famSuspended, f.gSuspended, "2026-09-01", null],
+    [f.orgClosed, f.famClosed, f.gClosed, "2026-09-01", null],
+    [f.orgA, f.famA, f.gPayerNoView, "2026-09-01", null],
+    // Payer period already over, and one that has not started yet.
+    [f.orgA, f.famA, f.gPayerEnded, "2026-01-01", "2026-10-31"],
+    [f.orgA, f.famA, f.gPayerFuture, "2026-12-01", null],
   ];
-  for (const [organizationId, familyId, guardianId] of payerRows) {
+  for (const [organizationId, familyId, guardianId, startsOn, endsOn] of payerRows) {
     await db.execute(sql`
-      insert into zaltyko.family_payers (organization_id, family_id, guardian_id, is_primary, starts_on)
-      values (${organizationId}::uuid, ${familyId}::uuid, ${guardianId}::uuid, false, '2026-09-01')
+      insert into zaltyko.family_payers (
+        organization_id, family_id, guardian_id, is_primary, starts_on, ends_on
+      ) values (
+        ${organizationId}::uuid, ${familyId}::uuid, ${guardianId}::uuid, false,
+        ${startsOn}::date, ${endsOn}::date
+      )
     `);
   }
 
@@ -257,6 +283,8 @@ async function seedFixture() {
     [f.orgB, f.famB, f.dani, "2026-09-01", null],
     [f.orgSuspended, f.famSuspended, f.olga, "2026-09-01", null],
     [f.orgClosed, f.famClosed, f.pia, "2026-09-01", null],
+    // Membership that ends exactly today (2026-11-10 in Madrid).
+    [f.orgA, f.famA, f.lia, "2026-09-01", "2026-11-10"],
   ];
   for (const [organizationId, familyId, athleteId, startsOn, endsOn] of memberRows) {
     await db.execute(sql`
@@ -474,7 +502,10 @@ describeDisposablePg("Family portal isolation on disposable PostgreSQL", () => {
         timezone: "Europe/Madrid",
         defaultCurrency: "EUR",
         feeFamilyIds: [f.famA],
-        athletes: [{ athleteId: f.ana, displayName: "Ana Portal", visibleSince: "2026-09-01" }],
+        athletes: [
+          { athleteId: f.ana, displayName: "Ana Portal", visibleSince: "2026-09-01" },
+          { athleteId: f.lia, displayName: "Lia Portal", visibleSince: "2026-09-01" },
+        ],
       },
       {
         organizationId: f.orgB,
@@ -502,7 +533,14 @@ describeDisposablePg("Family portal isolation on disposable PostgreSQL", () => {
     // Viewer without payer row: athletes yes, fees no.
     const accessViewer = await resolveFamilyPortalAccess({ userId: f.userViewer, now: NOW });
     expect(accessViewer.academies).toEqual([
-      expect.objectContaining({ organizationId: f.orgA, feeFamilyIds: [], athletes: [expect.objectContaining({ athleteId: f.ana })] }),
+      expect.objectContaining({
+        organizationId: f.orgA,
+        feeFamilyIds: [],
+        athletes: [
+          expect.objectContaining({ athleteId: f.ana }),
+          expect.objectContaining({ athleteId: f.lia }),
+        ],
+      }),
     ]);
     expect(await getFamilyFees({ userId: f.userViewer, now: NOW })).toEqual([]);
 
@@ -600,6 +638,64 @@ describeDisposablePg("Family portal isolation on disposable PostgreSQL", () => {
         academy.fees.map((fee) => fee.invoiceId)
       )
     ).toEqual([f.invA2]);
+  });
+
+  it("applies payer periods and today's membership end like production data", async () => {
+    assertDisposableTarget();
+    const f = await seedFixture();
+
+    // Production default: payer link with can_view_athletes = false.
+    const payerNoView = await resolveFamilyPortalAccess({ userId: f.userPayerNoView, now: NOW });
+    expect(payerNoView.academies).toEqual([
+      {
+        organizationId: f.orgA,
+        organizationName: `CI portal A ${f.suffix}`,
+        timezone: "Europe/Madrid",
+        defaultCurrency: "EUR",
+        feeFamilyIds: [f.famA],
+        athletes: [],
+      },
+    ]);
+    expect(
+      (await getFamilyFees({ userId: f.userPayerNoView, now: NOW })).flatMap((academy) =>
+        academy.fees.map((fee) => [fee.invoiceId, fee.paidCents, fee.pendingCents])
+      )
+    ).toEqual([[f.invA, 2000, 2000]]);
+    for (const athleteId of [f.ana, f.lia]) {
+      await notFound(getFamilyAthleteOverview({ userId: f.userPayerNoView, athleteId, now: NOW }));
+      expect(await guardedAttendanceIds(f.userPayerNoView, athleteId)).toEqual([]);
+    }
+
+    // Payer period over (ended 31 October) or not started (1 December).
+    for (const userId of [f.userPayerEnded, f.userPayerFuture]) {
+      expect((await resolveFamilyPortalAccess({ userId, now: NOW })).academies).toEqual([]);
+      expect(await getFamilyFees({ userId, now: NOW })).toEqual([]);
+      await notFound(getFamilyAthleteOverview({ userId, athleteId: f.ana, now: NOW }));
+    }
+    // The future payer gains the fees once the period starts.
+    const afterStart = new Date("2026-12-01T09:00:00.000Z");
+    expect(
+      (await getFamilyFees({ userId: f.userPayerFuture, now: afterStart })).map(
+        (academy) => academy.organizationId
+      )
+    ).toEqual([f.orgA]);
+
+    // Lia's membership ends today: visible all of 10 November (Madrid), gone on the 11th.
+    const lastDay = await getFamilyAthleteOverview({ userId: f.userA, athleteId: f.lia, now: NOW });
+    expect(lastDay.athlete).toEqual({ athleteId: f.lia, displayName: "Lia Portal", visibleSince: "2026-09-01" });
+    const lateEvening = new Date("2026-11-10T22:30:00.000Z"); // 23:30 in Madrid
+    expect(
+      (await resolveFamilyPortalAccess({ userId: f.userA, now: lateEvening })).academies[0].athletes.map(
+        (athlete) => athlete.athleteId
+      )
+    ).toEqual([f.ana, f.lia]);
+    const nextDay = new Date("2026-11-10T23:30:00.000Z"); // 00:30 on the 11th in Madrid
+    await notFound(getFamilyAthleteOverview({ userId: f.userA, athleteId: f.lia, now: nextDay }));
+    expect(
+      (await resolveFamilyPortalAccess({ userId: f.userA, now: nextDay })).academies[0].athletes.map(
+        (athlete) => athlete.athleteId
+      )
+    ).toEqual([f.ana]);
   });
 
   it("revoked, inactive, suspended and closed access sees nothing", async () => {
