@@ -280,6 +280,35 @@ describe("middleware", () => {
     });
   });
 
+  it.each(["/familia", "/familia/cuotas", "/familia/gimnastas/a1000000-0000-4000-8000-000000000041"])(
+    "rate-limits the family portal page %s and forbids caching or indexing",
+    async (path) => {
+      const response = await middleware(new NextRequest(`https://zaltyko.test${path}`));
+      expect(rateLimitMock).toHaveBeenCalledOnce();
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+      expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+      expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+      expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow, noarchive");
+    }
+  );
+
+  it("answers 429 on the family portal when the rate limit is exceeded", async () => {
+    rateLimitMock.mockResolvedValue({
+      success: false,
+      limit: 100,
+      remaining: 0,
+      reset: Math.floor(Date.now() / 1000) + 60,
+    });
+    const response = await middleware(new NextRequest("https://zaltyko.test/familia/cuotas"));
+    expect(response.status).toBe(429);
+  });
+
+  it("does not treat look-alike paths as the family portal", async () => {
+    const response = await middleware(new NextRequest("https://zaltyko.test/familiares"));
+    expect(rateLimitMock).not.toHaveBeenCalled();
+    expect(response.headers.get("Cache-Control")).not.toBe("private, no-store");
+  });
+
   it("does not localize application or commercial routes without localized handlers", async () => {
     const pricingResponse = await middleware(new NextRequest("https://zaltyko.test/pricing"));
     const academyResponse = await middleware(
