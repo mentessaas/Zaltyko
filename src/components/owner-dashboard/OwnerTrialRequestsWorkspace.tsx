@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Copy, Inbox, Mail, Phone } from "lucide-react";
 
 import {
@@ -36,10 +36,12 @@ type RequestItem = {
   athleteBirthYear: number | null;
   message: string | null;
   createdAt: string;
+  anonymized: boolean;
   revision: number;
   convertedAthleteId: string | null;
   waitlistEntryId: string | null;
 };
+type AdmissionLink = { id: string; locationId: string | null; token: string; enabled: boolean };
 type RequestPage = {
   available: boolean;
   items: RequestItem[];
@@ -47,8 +49,8 @@ type RequestPage = {
   page: number;
   hasMore: boolean;
   counts: { new: number; contacted: number; closed: number };
-  classOptions: Array<{ id: string; name: string; locationId: string }>;
-  canConvert: boolean;
+  links: AdmissionLink[];
+  canManage: boolean;
 };
 type LoadState =
   | { kind: "loading" }
@@ -91,6 +93,7 @@ export function OwnerTrialRequestsWorkspace({
   const [origin, setOrigin] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const busyRef = useRef<string | null>(null);
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<{ id: string; message: string } | null>(null);
 
@@ -125,21 +128,6 @@ export function OwnerTrialRequestsWorkspace({
     void load();
   }, [load]);
 
-  const shareLinks = useMemo(() => {
-    if (!origin) return [];
-    const visible = locationId ? locations.filter((location) => location.id === locationId) : locations;
-    if (visible.length === 1) {
-      return [{ label: visible[0]!.name, url: trialRequestShareUrl(origin, organizationId, visible[0]!.id) }];
-    }
-    return [
-      { label: "Todas las sedes (la familia elige)", url: trialRequestShareUrl(origin, organizationId) },
-      ...visible.map((location) => ({
-        label: location.name,
-        url: trialRequestShareUrl(origin, organizationId, location.id),
-      })),
-    ];
-  }, [origin, locationId, locations, organizationId]);
-
   async function copy(url: string) {
     try {
       await navigator.clipboard.writeText(url);
@@ -149,51 +137,73 @@ export function OwnerTrialRequestsWorkspace({
     }
   }
 
-  async function mutate(item: RequestItem, path: "status" | "convert", body: Record<string, unknown>) {
-    setBusyId(item.id);
+  /** Un único envío a la vez: un doble clic no repite la operación. */
+  async function post(busyKey: string, url: string, body: Record<string, unknown>): Promise<boolean> {
+    if (busyRef.current) return false;
+    busyRef.current = busyKey;
+    setBusyId(busyKey);
     setActionError(null);
     try {
-      const response = await fetch(`${ENDPOINT}/${item.id}/${path}`, {
+      const response = await fetch(url, {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/json" },
-        body: JSON.stringify({ organizationId, expectedRevision: item.revision, ...body }),
+        body: JSON.stringify({ organizationId, ...body }),
       });
       if (!response.ok) {
-        setActionError({ id: item.id, message: await problemDetail(response, "No se pudo guardar el cambio.") });
+        setActionError({ id: busyKey, message: await problemDetail(response, "No se pudo guardar el cambio.") });
         if (response.status === 409) await load();
         return false;
       }
       await load();
       return true;
     } catch {
-      setActionError({ id: item.id, message: "No se pudo guardar el cambio. Revisa la conexión." });
+      setActionError({ id: busyKey, message: "No se pudo guardar el cambio. Revisa la conexión." });
       return false;
     } finally {
+      busyRef.current = null;
       setBusyId(null);
+    }
+  }
+
+  async function mutate(item: RequestItem, path: "status" | "convert" | "anonymize", body: Record<string, unknown>) {
+    if (busyId) return false;
+    return post(item.id, `${ENDPOINT}/${item.id}/${path}`, { expectedRevision: item.revision, ...body });
+  }
+
+  async function manageLink(linkLocationId: string | null, action: "enable" | "disable" | "regenerate") {
+    if (busyId) return;
+    const ok = await post(`link:${linkLocationId ?? "all"}`, `${ENDPOINT}/links`, { locationId: linkLocationId, action });
+    if (ok) {
+      setNotice(
+        action === "disable"
+          ? "Enlace desactivado: ya no admite solicitudes."
+          : action === "regenerate"
+            ? "Enlace nuevo creado. El anterior ya no funciona."
+            : "Enlace activado."
+      );
     }
   }
 
   async function onConvert(event: FormEvent<HTMLFormElement>, item: RequestItem) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const destination = form.get("destination") === "waitlist" ? "waitlist" : "enrollment";
     const ok = await mutate(item, "convert", {
       familyName: String(form.get("familyName") ?? "").trim(),
       relationship: String(form.get("relationship") ?? "parent"),
-      destination,
-      classTemplateId: destination === "waitlist" ? String(form.get("classTemplateId") ?? "") || null : null,
+      destination: "enrollment",
+      classTemplateId: null,
     });
     if (ok) {
       setConvertingId(null);
-      setNotice(
-        destination === "waitlist"
-          ? `${item.athleteGivenName} ya está en la lista de espera.`
-          : `${item.athleteGivenName} ya tiene ficha. Asígnale grupo en Gimnastas para inscribirla.`
-      );
+      setNotice(`${item.athleteGivenName} ya tiene ficha. Asígnale grupo en Gimnastas para inscribirla.`);
     }
   }
 
   const data = state.kind === "ready" ? state.data : null;
+  const linkSlots: Array<{ locationId: string | null; label: string }> = [
+    { locationId: null, label: locations.length > 1 ? "Todas las sedes (la familia elige)" : (locations[0]?.name ?? "Academia") },
+    ...(locations.length > 1 ? locations.map((location) => ({ locationId: location.id, label: location.name })) : []),
+  ].filter((slot) => !locationId || slot.locationId === null || slot.locationId === locationId);
 
   return (
     <main className={ownerUi.page}>
@@ -202,44 +212,81 @@ export function OwnerTrialRequestsWorkspace({
         <h1 className={ownerUi.pageTitle}>Solicitudes</h1>
         <p className={ownerUi.pageLead}>
           Familias que piden una clase de prueba en {organizationName}. Respóndeles y, cuando os pongáis de
-          acuerdo, pásalas a inscripción o a lista de espera sin volver a escribir sus datos.
+          acuerdo, pásalas a inscripción sin volver a escribir sus datos.
         </p>
       </header>
 
       {data && !data.available ? (
         <p role="status" className={`${ownerUi.noticeWarning} mb-6`}>
           <strong>Pendiente de activar.</strong> Las solicitudes en línea se activarán cuando se instale su
-          almacenamiento. Mientras tanto, el enlace dice a las familias que la academia aún no recibe
-          solicitudes en línea.
+          almacenamiento. Hasta entonces no se puede crear el enlace para familias.
         </p>
       ) : null}
 
-      <section aria-labelledby="trial-share-title" className={`${ownerUi.card} mb-6`}>
-        <h2 id="trial-share-title" className={ownerUi.sectionTitle}>
-          Enlace para familias
-        </h2>
-        <p className={`${ownerUi.muted} mt-2`}>
-          Ponlo en tu web, en redes o en un mensaje. No envía correos ni crea cuentas: la solicitud llega aquí.
-        </p>
-        <ul className="mt-4 grid gap-3">
-          {shareLinks.map((link) => (
-            <li key={link.url} className="grid gap-1.5">
-              <span className={ownerUi.smallLabel}>{link.label}</span>
-              <div className="flex min-w-0 gap-2">
-                <input readOnly value={link.url} aria-label={`Enlace: ${link.label}`} className={ownerUi.field} />
-                <button
-                  type="button"
-                  className={ownerUi.iconButton}
-                  onClick={() => void copy(link.url)}
-                  aria-label={`Copiar enlace: ${link.label}`}
-                >
-                  <Copy aria-hidden="true" className="h-4 w-4" />
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {data?.available ? (
+        <section aria-labelledby="trial-share-title" className={`${ownerUi.card} mb-6`}>
+          <h2 id="trial-share-title" className={ownerUi.sectionTitle}>
+            Enlace para familias
+          </h2>
+          <p className={`${ownerUi.muted} mt-2`}>
+            Solo funciona mientras esté activado. Ponlo en tu web, en redes o en un mensaje: no envía correos ni
+            crea cuentas, y la solicitud llega aquí.
+          </p>
+          <ul className="mt-4 grid gap-4">
+            {linkSlots.map((slot) => {
+              const link = data.links.find((candidate) => candidate.locationId === slot.locationId) ?? null;
+              const key = `link:${slot.locationId ?? "all"}`;
+              const busy = busyId !== null;
+              const url = link && origin ? trialRequestShareUrl(origin, link.token) : null;
+              return (
+                <li key={key} className="grid gap-2">
+                  <span className={ownerUi.smallLabel}>
+                    {slot.label} · {link?.enabled ? "Activado" : link ? "Desactivado" : "Sin enlace"}
+                  </span>
+                  {url && link?.enabled ? (
+                    <div className="flex min-w-0 gap-2">
+                      <input readOnly value={url} aria-label={`Enlace: ${slot.label}`} className={ownerUi.field} />
+                      <button
+                        type="button"
+                        className={ownerUi.iconButton}
+                        onClick={() => void copy(url)}
+                        aria-label={`Copiar enlace: ${slot.label}`}
+                      >
+                        <Copy aria-hidden="true" className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : null}
+                  {data.canManage ? (
+                    <div className="flex flex-wrap gap-2">
+                      {!link?.enabled ? (
+                        <button type="button" className={ownerUi.primaryButton} disabled={busy} onClick={() => void manageLink(slot.locationId, "enable")}>
+                          Activar enlace
+                        </button>
+                      ) : (
+                        <button type="button" className={ownerUi.secondaryButton} disabled={busy} onClick={() => void manageLink(slot.locationId, "disable")}>
+                          Desactivar
+                        </button>
+                      )}
+                      {link ? (
+                        <button type="button" className={ownerUi.secondaryButton} disabled={busy} onClick={() => void manageLink(slot.locationId, "regenerate")}>
+                          Generar enlace nuevo
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : !link?.enabled ? (
+                    <p className={ownerUi.help}>La dirección o la administración puede activarlo.</p>
+                  ) : null}
+                  {actionError?.id === key ? (
+                    <p role="alert" className={ownerUi.noticeError}>
+                      {actionError.message}
+                    </p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       {notice ? (
         <p role="status" className={`${ownerUi.noticeInfo} mb-6`}>
@@ -311,27 +358,26 @@ export function OwnerTrialRequestsWorkspace({
           <p className={`${ownerUi.muted} mt-1 max-w-md`}>
             {view === "open"
               ? "Cuando una familia use el enlace, su solicitud aparecerá aquí y en «Necesita tu atención»."
-              : "Las solicitudes pasadas a inscripción, a lista de espera o descartadas se guardan aquí."}
+              : "Las solicitudes pasadas a inscripción o descartadas se guardan aquí."}
           </p>
         </div>
       ) : data ? (
         <>
-          {!data.canConvert && view === "open" ? (
+          {!data.canManage && view === "open" ? (
             <p className={`${ownerUi.help} mb-3`}>
-              Pasar una solicitud a inscripción o a lista de espera lo hace la dirección o la administración
-              con acceso a todas las sedes. Tú puedes marcarla como contactada o descartarla.
+              Pasar una solicitud a inscripción lo hace la dirección o la administración con acceso a todas las
+              sedes. Tú puedes marcarla como contactada o descartarla.
             </p>
           ) : null}
           <ul className="grid gap-3">
             {data.items.map((item) => {
-              const classes = data.classOptions.filter((option) => option.locationId === item.locationId);
-              const busy = busyId === item.id;
+              const busy = busyId !== null;
               return (
                 <li key={item.id} className={ownerUi.listItem}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="break-words text-base font-semibold text-z-ink">
-                        {item.athleteGivenName}
+                        {item.anonymized ? "Datos eliminados" : item.athleteGivenName}
                         {item.athleteBirthYear ? (
                           <span className="font-normal text-z-soft"> · año de nacimiento {item.athleteBirthYear}</span>
                         ) : null}
@@ -342,26 +388,28 @@ export function OwnerTrialRequestsWorkspace({
                     </div>
                     <span className={statusChip(item.status)}>{trialRequestStatusLabels[item.status]}</span>
                   </div>
-                  <div className="mt-3 grid gap-1 text-sm text-z-ink">
-                    <p className="break-words">
-                      <span className="font-semibold">{item.contactName}</span>
-                    </p>
-                    <p className="flex flex-wrap gap-x-4 gap-y-1">
-                      <a className={`${ownerUi.textLink} inline-flex items-center gap-1.5`} href={`mailto:${item.contactEmail}`}>
-                        <Mail aria-hidden="true" className="h-4 w-4" />
-                        <span className="break-all">{item.contactEmail}</span>
-                      </a>
-                      {item.contactPhone ? (
-                        <a className={`${ownerUi.textLink} inline-flex items-center gap-1.5`} href={`tel:${item.contactPhone.replace(/[^+0-9]/g, "")}`}>
-                          <Phone aria-hidden="true" className="h-4 w-4" />
-                          {item.contactPhone}
+                  {item.anonymized ? null : (
+                    <div className="mt-3 grid gap-1 text-sm text-z-ink">
+                      <p className="break-words">
+                        <span className="font-semibold">{item.contactName}</span>
+                      </p>
+                      <p className="flex flex-wrap gap-x-4 gap-y-1">
+                        <a className={`${ownerUi.textLink} inline-flex items-center gap-1.5`} href={`mailto:${item.contactEmail}`}>
+                          <Mail aria-hidden="true" className="h-4 w-4" />
+                          <span className="break-all">{item.contactEmail}</span>
                         </a>
+                        {item.contactPhone ? (
+                          <a className={`${ownerUi.textLink} inline-flex items-center gap-1.5`} href={`tel:${item.contactPhone.replace(/[^+0-9]/g, "")}`}>
+                            <Phone aria-hidden="true" className="h-4 w-4" />
+                            {item.contactPhone}
+                          </a>
+                        ) : null}
+                      </p>
+                      {item.message ? (
+                        <p className={`${ownerUi.subtlePanel} mt-2 whitespace-pre-line break-words`}>{item.message}</p>
                       ) : null}
-                    </p>
-                    {item.message ? (
-                      <p className={`${ownerUi.subtlePanel} mt-2 whitespace-pre-line break-words`}>{item.message}</p>
-                    ) : null}
-                  </div>
+                    </div>
+                  )}
 
                   {actionError?.id === item.id ? (
                     <p role="alert" className={`${ownerUi.noticeError} mt-3`}>
@@ -382,7 +430,7 @@ export function OwnerTrialRequestsWorkspace({
                     ) : null}
                     {item.status === "new" || item.status === "contacted" ? (
                       <>
-                        {data.canConvert ? (
+                        {data.canManage ? (
                           <button
                             type="button"
                             className={ownerUi.primaryButton}
@@ -390,7 +438,7 @@ export function OwnerTrialRequestsWorkspace({
                             aria-expanded={convertingId === item.id}
                             onClick={() => setConvertingId(convertingId === item.id ? null : item.id)}
                           >
-                            Pasar a inscripción o lista de espera
+                            Pasar a inscripción
                           </button>
                         ) : null}
                         <button
@@ -403,17 +451,33 @@ export function OwnerTrialRequestsWorkspace({
                         </button>
                       </>
                     ) : null}
-                    {item.status === "declined" ? (
-                      <button
-                        type="button"
-                        className={ownerUi.secondaryButton}
-                        disabled={busy}
-                        onClick={() => void mutate(item, "status", { status: "contacted" })}
-                      >
-                        Reabrir
-                      </button>
+                    {item.status === "declined" && !item.anonymized ? (
+                      <>
+                        <button
+                          type="button"
+                          className={ownerUi.secondaryButton}
+                          disabled={busy}
+                          onClick={() => void mutate(item, "status", { status: "contacted" })}
+                        >
+                          Reabrir
+                        </button>
+                        {data.canManage ? (
+                          <button
+                            type="button"
+                            className={ownerUi.secondaryButton}
+                            disabled={busy}
+                            onClick={() => {
+                              if (window.confirm("Se borrarán el nombre, el email, el teléfono y el comentario. No se puede deshacer.")) {
+                                void mutate(item, "anonymize", {});
+                              }
+                            }}
+                          >
+                            Eliminar datos personales
+                          </button>
+                        ) : null}
+                      </>
                     ) : null}
-                    {item.status === "converted" && data.canConvert ? (
+                    {item.status === "converted" && data.canManage ? (
                       <Link
                         className={ownerUi.secondaryButton}
                         href={`/owner/athletes?${new URLSearchParams({ organizationId }).toString()}`}
@@ -423,11 +487,11 @@ export function OwnerTrialRequestsWorkspace({
                     ) : null}
                   </div>
 
-                  {convertingId === item.id && data.canConvert ? (
+                  {convertingId === item.id && data.canManage ? (
                     <form
                       onSubmit={(event) => void onConvert(event, item)}
                       className={`${ownerUi.subtlePanel} mt-4 grid gap-4`}
-                      aria-label={`Pasar a ${item.athleteGivenName} a inscripción o lista de espera`}
+                      aria-label={`Pasar a ${item.athleteGivenName} a inscripción`}
                     >
                       <label className="grid gap-1.5">
                         <span className={ownerUi.label}>Apellidos de {item.athleteGivenName}</span>
@@ -443,42 +507,14 @@ export function OwnerTrialRequestsWorkspace({
                           ))}
                         </select>
                       </label>
-                      <fieldset className="grid gap-2">
-                        <legend className={ownerUi.label}>Destino</legend>
-                        <label className="flex items-start gap-3 text-sm text-z-ink">
-                          <input type="radio" name="destination" value="enrollment" defaultChecked className="mt-1" />
-                          <span>
-                            <strong>Inscripción.</strong> Crea la ficha y la deja en Gimnastas para asignarle grupo.
-                          </span>
-                        </label>
-                        <label className="flex items-start gap-3 text-sm text-z-ink">
-                          <input type="radio" name="destination" value="waitlist" className="mt-1" disabled={classes.length === 0} />
-                          <span>
-                            <strong>Lista de espera.</strong> Crea la ficha y la apunta en la espera de una clase.
-                            {classes.length === 0 ? " Esta sede no tiene clases activas." : null}
-                          </span>
-                        </label>
-                        {classes.length > 0 ? (
-                          <label className="grid gap-1.5">
-                            <span className={ownerUi.smallLabel}>Clase (solo para lista de espera)</span>
-                            <select name="classTemplateId" defaultValue="" className={ownerUi.field} disabled={busy}>
-                              <option value="">Elige una clase</option>
-                              {classes.map((option) => (
-                                <option key={option.id} value={option.id}>
-                                  {option.name}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        ) : null}
-                      </fieldset>
                       <p className={ownerUi.help}>
-                        La familia queda pendiente de completar: añade a {item.contactName} y su contacto desde la
-                        ficha cuando lo necesites. No se crea ninguna cuota ni cobro.
+                        Se crean la ficha y la familia; no se crea ninguna inscripción ni cuota. La gimnasta queda en
+                        Gimnastas para asignarle grupo. Añade a {item.contactName} y su contacto desde la ficha cuando
+                        lo necesites.
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <button type="submit" className={ownerUi.primaryButton} disabled={busy}>
-                          {busy ? "Guardando…" : "Confirmar"}
+                          {busyId === item.id ? "Guardando…" : "Confirmar"}
                         </button>
                         <button
                           type="button"

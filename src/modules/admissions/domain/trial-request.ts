@@ -53,6 +53,13 @@ export function isOpenTrialRequest(status: TrialRequestStatus): boolean {
   return (openTrialRequestStatuses as readonly string[]).includes(status);
 }
 
+/** Token público del enlace: 128 bits aleatorios en hexadecimal. */
+export const admissionLinkTokenSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[0-9a-f]{32}$/u);
+
 const controlCharacters = /[\u0000-\u001f\u007f]/u;
 const htmlLike = /[<>]/u;
 
@@ -104,7 +111,7 @@ export function maxTrialRequestBirthYear(now = new Date()): number {
  */
 export const publicTrialRequestSchema = z
   .object({
-    organizationId: z.guid().transform((value) => value.toLowerCase()),
+    linkToken: admissionLinkTokenSchema,
     locationId: z
       .guid()
       .transform((value) => value.toLowerCase())
@@ -189,21 +196,45 @@ export const ownerTrialRequestConvertCommandSchema = z
     }
   });
 
+export const ownerAdmissionLinkCommandSchema = z
+  .object({
+    organizationId: z.guid(),
+    locationId: z.guid().nullable(),
+    action: z.enum(["enable", "disable", "regenerate"]),
+  })
+  .strict();
+
+export const ownerTrialRequestAnonymizeCommandSchema = z
+  .object({
+    organizationId: z.guid(),
+    expectedRevision: z.number().int().positive(),
+  })
+  .strict();
+
+/** Texto que sustituye a los datos personales suprimidos. */
+export const ANONYMIZED_CONTACT_NAME = "Datos eliminados";
+export const ANONYMIZED_ATHLETE_NAME = "—";
+export function anonymizedContactEmail(requestId: string): string {
+  return `eliminado-${requestId.toLowerCase().slice(0, 8)}@anonimizado.invalid`;
+}
+
 export type OwnerTrialRequestConvertCommand = z.output<
   typeof ownerTrialRequestConvertCommandSchema
 >;
 
-/** Claves deterministas: un reintento reutiliza el alta y la espera ya creadas. */
-export function trialRequestIntakeKey(requestId: string): string {
-  return `admission-request:${requestId.toLowerCase()}:athlete`;
+/**
+ * Claves de idempotencia de la conversión. Incluyen la revisión esperada: la
+ * conversión es una sola transacción, así que un fallo no deja nada guardado
+ * y un intento posterior con otra revisión nunca choca con uno anterior.
+ */
+export function trialRequestIntakeKey(requestId: string, revision: number): string {
+  return `admission-request:${requestId.toLowerCase()}:r${revision}:athlete`;
 }
 
-export function trialRequestWaitlistKey(requestId: string): string {
-  return `admission-request:${requestId.toLowerCase()}:waitlist`;
+export function trialRequestWaitlistKey(requestId: string, revision: number): string {
+  return `admission-request:${requestId.toLowerCase()}:r${revision}:waitlist`;
 }
 
-export function trialRequestShareUrl(origin: string, organizationId: string, locationId?: string | null): string {
-  const url = new URL(`/solicitar-prueba/${encodeURIComponent(organizationId)}`, origin);
-  if (locationId) url.searchParams.set("sede", locationId);
-  return url.toString();
+export function trialRequestShareUrl(origin: string, token: string): string {
+  return new URL(`/solicitar-prueba/${encodeURIComponent(token)}`, origin).toString();
 }

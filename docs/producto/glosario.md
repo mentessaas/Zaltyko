@@ -126,9 +126,9 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
 - **Dónde aparece:** ficha del primer viewport (`MatHero`) y pizarra «Hoy en el club» (`HomeSections`).
 
 ### Solicitud de prueba y lista de espera
-- **Elegido:** «solicitud de prueba» (en la navegación, «Solicitudes») es la petición de una familia desde el enlace público de la academia, antes de que exista la ficha de la gimnasta. «Lista de espera» es la espera canónica de una clase. Una solicitud se «pasa a inscripción» o se «pasa a lista de espera»; se «marca como contactada» o se «descarta».
+- **Elegido:** «solicitud de prueba» (en la navegación, «Solicitudes») es la petición de una familia desde el enlace público de la academia, antes de que exista la ficha de la gimnasta. «Lista de espera» es la espera canónica de una clase. Una solicitud se «pasa a inscripción» (y, cuando exista la vista de espera en `/owner`, «a lista de espera»); se «marca como contactada», se «descarta» y, si está descartada, se le pueden «eliminar los datos personales». El «enlace para familias» se «activa», se «desactiva» o se «genera de nuevo».
 - **Prohibido:** lead, prospecto o contacto para la solicitud; «reserva» (no se reserva sesión); «prueba gratuita», que en Zaltyko es la del plan; «alta» para la solicitud, porque el alta es crear la ficha.
-- **Dónde aparece:** `/solicitar-prueba/[organizationId]`, `OwnerTrialRequestsWorkspace`, navegación (Solicitudes) y «Necesita tu atención». Origen: P2 #15 (`docs/producto/embudo-captacion.md`).
+- **Dónde aparece:** `/solicitar-prueba/[token]`, `OwnerTrialRequestsWorkspace`, navegación (Solicitudes) y «Necesita tu atención». Origen: P2 #15 (`docs/producto/embudo-captacion.md`).
 
 ## Pendientes
 

@@ -32,22 +32,20 @@ function newSubmissionId(): string {
 
 function errorMessage(status: number, detail: unknown): string {
   if (status === 429) return "Has enviado varias solicitudes seguidas. Espera un rato e inténtalo de nuevo.";
-  if (status === 503) return "La academia todavía no recibe solicitudes en línea.";
+  if (status === 503 || status === 404) return "Este enlace no admite solicitudes. Pide a la academia uno nuevo.";
   if (status === 409) return "Esta solicitud ya se envió con otros datos. Recarga la página para enviar una nueva.";
   if (typeof detail === "string" && detail.trim()) return detail;
   return "No se pudo enviar la solicitud. Tus datos siguen aquí; inténtalo de nuevo.";
 }
 
 export function PublicTrialRequestForm({
-  organizationId,
+  linkToken,
   organizationName,
   locations,
-  initialLocationId,
 }: {
-  organizationId: string;
+  linkToken: string;
   organizationName: string;
   locations: Location[];
-  initialLocationId: string | null;
 }) {
   const idPrefix = useId();
   const submissionId = useRef<string | null>(null);
@@ -62,7 +60,7 @@ export function PublicTrialRequestForm({
     const text = (name: string) => String(form.get(name) ?? "").trim();
     const birthYear = text("athleteBirthYear");
     const payload = {
-      organizationId,
+      linkToken,
       locationId: locations.length === 1 ? locations[0]!.id : text("locationId") || null,
       contactName: text("contactName"),
       contactEmail: text("contactEmail"),
@@ -127,7 +125,7 @@ export function PublicTrialRequestForm({
           <select
             name="locationId"
             required
-            defaultValue={initialLocationId ?? ""}
+            defaultValue=""
             className={fieldClassName}
             disabled={submitting}
           >

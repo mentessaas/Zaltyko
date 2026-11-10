@@ -34,15 +34,19 @@ autorización humana. No configurarlos ni ejecutar el modo productivo todavía.
 ## Candidato de solicitudes de prueba (P2 #15)
 
 `20261110120000_admission_requests_candidate.sql` crea solo
-`zaltyko.admission_requests`. Es la etapa previa a la ficha de la gimnasta:
-la solicitud que una familia deja desde el enlace público de la academia. No
-toca tablas existentes, filas, roles ni objetos legacy. Fuerza RLS, revoca
-`anon` y `authenticated`, y se niega a reinstalarse si la relación ya existe.
+`zaltyko.admission_links` (el enlace público que la academia activa,
+desactiva o regenera, con un token de 128 bits) y `zaltyko.admission_requests`
+(la solicitud que una familia deja desde ese enlace, antes de que exista la
+ficha de la gimnasta). No toca tablas existentes, filas, roles ni objetos
+legacy. Fuerza RLS, revoca `anon` y `authenticated`, y se niega a reinstalarse
+si alguna de las dos relaciones ya existe.
 
-- SHA-256: `b128cb452adaa4043bab6249b415a19bef5f72753d7df0954a22fe1885a72db9`.
+- SHA-256: `cc3534438ca14a25086f33d14850ad361daf22891ec1d29f1f01e533643f62ea`.
 - Prueba: `tests/admission-requests-pg.test.ts`. La lanza
   `scripts/ci/verify-sandbox-schema-replay.sh`, que la instala solo en la
-  PostgreSQL desechable de GitHub y la borra al terminar.
+  PostgreSQL desechable de GitHub y borra las tablas al terminar. **No se
+  ejecuta en el CI de las PR:** el replay aislado está limitado a la rama
+  puente y se lanzará cuando Elvis lo autorice.
 - Mientras no se aplique, `src/modules/admissions/application/admission-storage.ts`
   detecta que falta y el embudo responde «no disponible», sin errores a medias.
 - **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en

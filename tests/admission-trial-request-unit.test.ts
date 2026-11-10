@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  canConvertTrialRequests,
+  canManageTrialRequests,
+  newAdmissionLinkToken,
   trialRequestLocationIds,
 } from "@/modules/admissions/application/admission-requests";
 import {
   TRIAL_REQUEST_PRIVACY_VERSION,
+  anonymizedContactEmail,
   canTransitionTrialRequest,
+  ownerAdmissionLinkCommandSchema,
+  ownerTrialRequestAnonymizeCommandSchema,
   ownerTrialRequestConvertCommandSchema,
   ownerTrialRequestStatusCommandSchema,
   publicTrialRequestSchema,
@@ -19,10 +23,11 @@ const ORG = "a0000000-0000-4000-8000-000000000001";
 const SITE = "a0000000-0000-4000-8000-000000000011";
 const OTHER_SITE = "a0000000-0000-4000-8000-000000000012";
 const SUBMISSION = "a0000000-0000-4000-8000-0000000000aa";
+const TOKEN = "0123456789abcdef0123456789abcdef";
 
 function valid(overrides: Record<string, unknown> = {}) {
   return {
-    organizationId: ORG,
+    linkToken: TOKEN,
     locationId: SITE,
     submissionId: SUBMISSION,
     contactName: "  Ana   Pérez ",
@@ -81,6 +86,20 @@ describe("formulario público de solicitud de prueba", () => {
     expect(publicTrialRequestSchema.safeParse(valid({ message: "x".repeat(501) })).success).toBe(false);
   });
 
+  it("solo acepta tokens de enlace de 128 bits en hexadecimal", () => {
+    expect(publicTrialRequestSchema.parse(valid({ linkToken: TOKEN.toUpperCase() })).linkToken).toBe(TOKEN);
+    for (const linkToken of ["", "abc", `${TOKEN}0`, "g".repeat(32), ORG]) {
+      expect(publicTrialRequestSchema.safeParse(valid({ linkToken })).success).toBe(false);
+    }
+    expect(publicTrialRequestSchema.safeParse(valid({ organizationId: ORG })).success).toBe(false);
+  });
+
+  it("genera tokens nuevos de 32 caracteres hexadecimales distintos", () => {
+    const tokens = new Set(Array.from({ length: 20 }, () => newAdmissionLinkToken()));
+    expect(tokens.size).toBe(20);
+    for (const token of tokens) expect(token).toMatch(/^[0-9a-f]{32}$/);
+  });
+
   it("fija la versión del texto de consentimiento", () => {
     expect(TRIAL_REQUEST_PRIVACY_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
@@ -111,21 +130,28 @@ describe("estados y comandos de la bandeja", () => {
     expect(ownerTrialRequestConvertCommandSchema.safeParse({ ...base, destination: "waitlist", classTemplateId: SITE }).success).toBe(true);
   });
 
-  it("deriva claves de idempotencia estables a partir de la solicitud", () => {
-    expect(trialRequestIntakeKey(SUBMISSION.toUpperCase())).toBe(`admission-request:${SUBMISSION}:athlete`);
-    expect(trialRequestWaitlistKey(SUBMISSION)).toBe(`admission-request:${SUBMISSION}:waitlist`);
-    expect(trialRequestIntakeKey(SUBMISSION).length).toBeLessThanOrEqual(150);
+  it("deriva claves de idempotencia de la solicitud y su revisión", () => {
+    expect(trialRequestIntakeKey(SUBMISSION.toUpperCase(), 1)).toBe(`admission-request:${SUBMISSION}:r1:athlete`);
+    expect(trialRequestWaitlistKey(SUBMISSION, 2)).toBe(`admission-request:${SUBMISSION}:r2:waitlist`);
+    expect(trialRequestIntakeKey(SUBMISSION, 1)).not.toBe(trialRequestIntakeKey(SUBMISSION, 2));
+    expect(trialRequestIntakeKey(SUBMISSION, 10_000).length).toBeLessThanOrEqual(150);
   });
 
-  it("construye el enlace público por academia y, si se pide, por sede", () => {
-    expect(trialRequestShareUrl("https://zaltyko.com", ORG)).toBe(`https://zaltyko.com/solicitar-prueba/${ORG}`);
-    expect(trialRequestShareUrl("https://zaltyko.com", ORG, SITE)).toBe(
-      `https://zaltyko.com/solicitar-prueba/${ORG}?sede=${SITE}`
-    );
+  it("construye el enlace público con el token, sin el id de la academia", () => {
+    expect(trialRequestShareUrl("https://zaltyko.com", TOKEN)).toBe(`https://zaltyko.com/solicitar-prueba/${TOKEN}`);
+  });
+
+  it("valida los comandos de enlace y de supresión", () => {
+    expect(ownerAdmissionLinkCommandSchema.safeParse({ organizationId: ORG, locationId: null, action: "enable" }).success).toBe(true);
+    expect(ownerAdmissionLinkCommandSchema.safeParse({ organizationId: ORG, locationId: SITE, action: "regenerate" }).success).toBe(true);
+    expect(ownerAdmissionLinkCommandSchema.safeParse({ organizationId: ORG, action: "enable" }).success).toBe(false);
+    expect(ownerAdmissionLinkCommandSchema.safeParse({ organizationId: ORG, locationId: null, action: "delete" }).success).toBe(false);
+    expect(ownerTrialRequestAnonymizeCommandSchema.safeParse({ organizationId: ORG, expectedRevision: 2 }).success).toBe(true);
+    expect(anonymizedContactEmail(SUBMISSION)).toMatch(/^eliminado-[0-9a-f]{8}@anonimizado\.invalid$/);
   });
 });
 
-describe("alcance por sede y permiso de conversión", () => {
+describe("alcance por sede y permiso de gestión", () => {
   const scope = { locations: [{ id: SITE, name: "Sede 1" }] };
 
   it("limita las sedes a las autorizadas", () => {
@@ -141,10 +167,10 @@ describe("alcance por sede y permiso de conversión", () => {
   });
 
   it("solo la dirección o administración con todas las sedes convierte", () => {
-    expect(canConvertTrialRequests({ member: { id: "m", role: "owner", locationScopeMode: "all" } })).toBe(true);
-    expect(canConvertTrialRequests({ member: { id: "m", role: "admin", locationScopeMode: "all" } })).toBe(true);
-    expect(canConvertTrialRequests({ member: { id: "m", role: "owner", locationScopeMode: "selected" } })).toBe(false);
-    expect(canConvertTrialRequests({ member: { id: "m", role: "manager", locationScopeMode: "all" } })).toBe(false);
-    expect(canConvertTrialRequests({ member: { id: "m", role: "coach", locationScopeMode: "all" } })).toBe(false);
+    expect(canManageTrialRequests({ member: { id: "m", role: "owner", locationScopeMode: "all" } })).toBe(true);
+    expect(canManageTrialRequests({ member: { id: "m", role: "admin", locationScopeMode: "all" } })).toBe(true);
+    expect(canManageTrialRequests({ member: { id: "m", role: "owner", locationScopeMode: "selected" } })).toBe(false);
+    expect(canManageTrialRequests({ member: { id: "m", role: "manager", locationScopeMode: "all" } })).toBe(false);
+    expect(canManageTrialRequests({ member: { id: "m", role: "coach", locationScopeMode: "all" } })).toBe(false);
   });
 });

@@ -15,7 +15,7 @@ import { OwnerTrialRequestsWorkspace } from "@/components/owner-dashboard/OwnerT
 const ORG = "00000000-0000-4000-8000-000000000001";
 const SITE = "00000000-0000-4000-8000-000000000002";
 const REQUEST_ID = "00000000-0000-4000-8000-0000000000c1";
-const CLASS_ID = "00000000-0000-4000-8000-0000000000d1";
+const TOKEN = "0123456789abcdef0123456789abcdef";
 
 function page(overrides: Record<string, unknown> = {}) {
   return {
@@ -35,6 +35,7 @@ function page(overrides: Record<string, unknown> = {}) {
         message: "Rítmica, martes o jueves",
         createdAt: "2026-11-10T09:00:00.000Z",
         handledAt: null,
+        anonymized: false,
         revision: 1,
         convertedAthleteId: null,
         waitlistEntryId: null,
@@ -46,8 +47,8 @@ function page(overrides: Record<string, unknown> = {}) {
     hasMore: false,
     counts: { new: 1, contacted: 0, closed: 0 },
     locations: [{ id: SITE, name: "Sede Centro" }],
-    classOptions: [{ id: CLASS_ID, name: "Base 3 GAF", locationId: SITE }],
-    canConvert: true,
+    links: [{ id: "00000000-0000-4000-8000-0000000000e1", locationId: null, token: TOKEN, enabled: true, createdAt: "2026-11-10T08:00:00.000Z" }],
+    canManage: true,
     ...overrides,
   };
 }
@@ -85,9 +86,8 @@ describe("bandeja de solicitudes", () => {
 
     expect(await screen.findByText("Lúa")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /ana@example.invalid/ })).toHaveAttribute("href", "mailto:ana@example.invalid");
-    expect(screen.getByLabelText("Enlace: Sede Centro")).toHaveValue(
-      `${window.location.origin}/solicitar-prueba/${ORG}?sede=${SITE}`
-    );
+    expect(screen.getByLabelText("Enlace: Sede Centro")).toHaveValue(`${window.location.origin}/solicitar-prueba/${TOKEN}`);
+    expect(screen.getByRole("button", { name: "Desactivar" })).toBeInTheDocument();
     const [url] = fetchMock.mock.calls[0]!;
     expect(String(url)).toBe(`/api/v1/owner/trial-requests?organizationId=${ORG}&view=open&page=1&pageSize=25`);
   });
@@ -98,38 +98,56 @@ describe("bandeja de solicitudes", () => {
     expect(await screen.findByText("Pendiente de activar.")).toBeInTheDocument();
   });
 
-  it("no ofrece convertir a quien no tiene todas las sedes", async () => {
-    fetchMock.mockResolvedValue(json(200, { ok: true, data: page({ canConvert: false }) }));
+  it("no ofrece convertir ni gestionar el enlace a quien no tiene todas las sedes", async () => {
+    fetchMock.mockResolvedValue(json(200, { ok: true, data: page({ canManage: false }) }));
     renderWorkspace();
     await screen.findByText("Lúa");
-    expect(screen.queryByRole("button", { name: "Pasar a inscripción o lista de espera" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Pasar a inscripción" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Desactivar" })).toBeNull();
     expect(screen.getByRole("button", { name: "Marcar como contactada" })).toBeInTheDocument();
   });
 
-  it("envía la revisión esperada al marcar como contactada", async () => {
+  it("activa el enlace cuando no existe", async () => {
     fetchMock
-      .mockResolvedValueOnce(json(200, { ok: true, data: page() }))
-      .mockResolvedValueOnce(json(200, { ok: true, data: { id: REQUEST_ID, status: "contacted", revision: 2 } }))
-      .mockResolvedValue(json(200, { ok: true, data: page({ items: [] }) }));
+      .mockResolvedValueOnce(json(200, { ok: true, data: page({ links: [] }) }))
+      .mockResolvedValueOnce(json(200, { ok: true, data: { id: "x", locationId: null, token: TOKEN, enabled: true } }))
+      .mockResolvedValue(json(200, { ok: true, data: page() }));
     renderWorkspace();
-    fireEvent.click(await screen.findByRole("button", { name: "Marcar como contactada" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Activar enlace" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     const [url, init] = fetchMock.mock.calls[1]!;
-    expect(String(url)).toBe(`/api/v1/owner/trial-requests/${REQUEST_ID}/status`);
-    expect(JSON.parse(String(init?.body))).toEqual({ organizationId: ORG, expectedRevision: 1, status: "contacted" });
+    expect(String(url)).toBe("/api/v1/owner/trial-requests/links");
+    expect(JSON.parse(String(init?.body))).toEqual({ organizationId: ORG, locationId: null, action: "enable" });
   });
 
-  it("pasa a lista de espera con la clase elegida", async () => {
+  it("envía la revisión esperada y no repite la operación con un doble clic", async () => {
+    let release: (value: Response) => void = () => undefined;
     fetchMock
       .mockResolvedValueOnce(json(200, { ok: true, data: page() }))
-      .mockResolvedValueOnce(json(200, { ok: true, data: { id: REQUEST_ID, status: "waitlisted", revision: 2 } }))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { release = resolve; }))
       .mockResolvedValue(json(200, { ok: true, data: page({ items: [] }) }));
     renderWorkspace();
-    fireEvent.click(await screen.findByRole("button", { name: "Pasar a inscripción o lista de espera" }));
-    const form = screen.getByRole("form", { name: "Pasar a Lúa a inscripción o lista de espera" });
+    const button = await screen.findByRole("button", { name: "Marcar como contactada" });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    release(json(200, { ok: true, data: { id: REQUEST_ID, status: "contacted", revision: 2 } }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
+    expect(posts).toHaveLength(1);
+    expect(String(posts[0]![0])).toBe(`/api/v1/owner/trial-requests/${REQUEST_ID}/status`);
+    expect(JSON.parse(String(posts[0]![1]?.body))).toEqual({ organizationId: ORG, expectedRevision: 1, status: "contacted" });
+  });
+
+  it("pasa a inscripción sin ofrecer la lista de espera", async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(200, { ok: true, data: page() }))
+      .mockResolvedValueOnce(json(200, { ok: true, data: { id: REQUEST_ID, status: "converted", revision: 2 } }))
+      .mockResolvedValue(json(200, { ok: true, data: page({ items: [] }) }));
+    renderWorkspace();
+    fireEvent.click(await screen.findByRole("button", { name: "Pasar a inscripción" }));
+    const form = screen.getByRole("form", { name: "Pasar a Lúa a inscripción" });
+    expect(within(form).queryByText(/lista de espera/i)).toBeNull();
     fireEvent.change(within(form).getByLabelText("Apellidos de Lúa"), { target: { value: "Pérez" } });
-    fireEvent.click(within(form).getByRole("radio", { name: /Lista de espera/ }));
-    fireEvent.change(within(form).getByLabelText("Clase (solo para lista de espera)"), { target: { value: CLASS_ID } });
     fireEvent.submit(form);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     const [url, init] = fetchMock.mock.calls[1]!;
@@ -139,10 +157,27 @@ describe("bandeja de solicitudes", () => {
       expectedRevision: 1,
       familyName: "Pérez",
       relationship: "parent",
-      destination: "waitlist",
-      classTemplateId: CLASS_ID,
+      destination: "enrollment",
+      classTemplateId: null,
     });
-    expect(await screen.findByText("Lúa ya está en la lista de espera.")).toBeInTheDocument();
+    expect(await screen.findByText("Lúa ya tiene ficha. Asígnale grupo en Gimnastas para inscribirla.")).toBeInTheDocument();
+  });
+
+  it("ofrece eliminar datos personales solo en descartadas y pide confirmación", async () => {
+    const declined = page({ items: [{ ...page().items[0], status: "declined", revision: 2 }] });
+    fetchMock
+      .mockResolvedValueOnce(json(200, { ok: true, data: declined }))
+      .mockResolvedValueOnce(json(200, { ok: true, data: { id: REQUEST_ID, status: "declined", revision: 3 } }))
+      .mockResolvedValue(json(200, { ok: true, data: page({ items: [] }) }));
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderWorkspace();
+    fireEvent.click(await screen.findByRole("button", { name: "Eliminar datos personales" }));
+    expect(confirm).toHaveBeenCalled();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    const [url, init] = fetchMock.mock.calls[1]!;
+    expect(String(url)).toBe(`/api/v1/owner/trial-requests/${REQUEST_ID}/anonymize`);
+    expect(JSON.parse(String(init?.body))).toEqual({ organizationId: ORG, expectedRevision: 2 });
+    confirm.mockRestore();
   });
 });
 
