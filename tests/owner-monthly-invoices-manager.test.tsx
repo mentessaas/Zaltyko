@@ -1318,6 +1318,57 @@ describe("OwnerMonthlyInvoicesManager", () => {
     );
   });
 
+  it("recarga el presupuesto tras un 409 INVOICE_REFERENCE_TAKEN y muestra el bloqueo", async () => {
+    const user = userEvent.setup();
+    renderManager();
+    await user.selectOptions(await findPrimaryFamilySelect(), familyId);
+    await user.selectOptions(screen.getByLabelText("Quién paga"), payerId);
+    fireEvent.change(screen.getByLabelText("Fecha de vencimiento"), {
+      target: { value: "2026-10-31" },
+    });
+    const optionsRequests = () =>
+      vi
+        .mocked(fetch)
+        .mock.calls.filter((item) =>
+          String(item[0]).includes("monthly-invoices/options")
+        ).length;
+    const optionsRequestsBeforeIssue = optionsRequests();
+    // The server rolled back: another invoice holds this month's reference.
+    const family = monthlyOptions().families[0]!;
+    currentOptions = monthlyOptions({
+      families: [
+        {
+          ...family,
+          blockingReasons: ["INVOICE_REFERENCE_TAKEN"],
+          canIssue: false,
+          quoteHash: "b".repeat(64),
+        },
+      ],
+    });
+    nextMonthlyInvoiceIssueResponse = {
+      data: {
+        type: "invoice-reference-taken",
+        detail: "Ya existe otra factura con la referencia de esta cuota mensual.",
+      },
+      status: 409,
+    };
+    await user.click(
+      screen.getByRole("button", { name: /Emitir cuota pendiente/ })
+    );
+
+    expect(
+      await screen.findByText(
+        "Ya existe otra factura con la referencia de esta cuota; revisa las facturas de la familia."
+      )
+    ).toBeInTheDocument();
+    expect(optionsRequests()).toBeGreaterThan(optionsRequestsBeforeIssue);
+    expect(monthlyInvoiceIssueRequests).toHaveLength(1);
+    // A definitive pre-commit rejection: no retry is kept for this command.
+    expect(readPendingMonthlyInvoiceIssue(window.sessionStorage)).toEqual({
+      status: "none",
+    });
+  });
+
   it("guarda antes de enviar y recupera el mismo comando tras perder la respuesta, sin replay automático", async () => {
     const user = userEvent.setup();
     failMonthlyInvoiceIssueOnce = true;

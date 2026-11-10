@@ -83,6 +83,7 @@ vi.mock("@/modules/billing/application/ledger-service", () => ({
 import {
   getMonthlyInvoiceOptions,
   issueMonthlyInvoice,
+  monthlyInvoiceReference,
 } from "@/modules/billing/application/monthly-invoice-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -139,6 +140,13 @@ const PRICING_NOTE =
   "Una cuota mensual completa por gimnasta; las clases incluidas se declaran explícitamente. No se prorratea.";
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
+/**
+ * Monthly invoice reference, written out independently of the service:
+ * `MENSUAL-YYYYMM-<familyId>-<first 16 hex of the site hash>`.
+ */
+const siteTag = (locationId: string) =>
+  sha256(`zaltyko:monthly-invoice-site:v1:${locationId}`).slice(0, 16);
+const REFERENCE = `MENSUAL-202611-${FAM}-${siteTag(LOC)}`;
 
 // ---------------------------------------------------------------------------
 // Fixture rows (keys are the Drizzle field names the service selects)
@@ -225,6 +233,8 @@ const payerRow = (overrides: Row = {}): Row => ({
   ...overrides,
 });
 
+// Stored with the reference format used before the site discriminator: replays
+// by key and by period never read the reference.
 const invoiceRow = (overrides: Row = {}): Row => ({
   id: INVOICE,
   organizationId: ORG,
@@ -394,6 +404,7 @@ type Statement =
   | "readCoverage"
   | "readPayers"
   | "readExistingInvoices"
+  | "readReferenceOwners"
   | "lockLocation"
   | "lockFamily"
   | "lockAthletes"
@@ -451,7 +462,8 @@ function classify(sqlText: string): Statement {
     case "family_payers":
       return "readPayers";
     case "invoices":
-      return s.includes(" group by ") ? "readExistingInvoices" : "loadInvoice";
+      if (s.includes(" group by ")) return "readExistingInvoices";
+      return where.includes('"reference" in') ? "readReferenceOwners" : "loadInvoice";
     case "outbox_events":
       return where.includes("aggregate_id") ? "findInvoiceMarker" : "findPriorMarker";
     case "invoice_lines":
@@ -528,6 +540,7 @@ function resetWorld() {
     readCoverage: () => [coverageRow()],
     readPayers: () => [payerRow()],
     readExistingInvoices: () => [],
+    readReferenceOwners: () => [],
     lockLocation: () => [{ id: LOC }],
     lockFamily: () => [{ id: FAM }],
     lockAthletes: () => [{ id: ATH_A }, { id: ATH_B }],
@@ -701,6 +714,7 @@ const OPTIONS_READS = [
   "readCoverage",
   "readPayers",
   "readExistingInvoices",
+  "readReferenceOwners",
 ];
 
 /** Locks and reads before the quote, in their fixed order. */
@@ -854,6 +868,8 @@ describe("getMonthlyInvoiceOptions: quote", () => {
     expect(paramsOf("readExistingInvoices")).toEqual([
       [ORG, LOC, FAM, "monthly_fee", START, END, 200],
     ]);
+    // The reference is unique per organization, so this lookup is not per site.
+    expect(paramsOf("readReferenceOwners")).toEqual([[ORG, REFERENCE, 200]]);
   });
 
   it("rejects an invalid period with a 422 inside the transaction", async () => {
@@ -1053,7 +1069,9 @@ describe("getMonthlyInvoiceOptions: blocking reasons", () => {
     ["a void invoice", { status: "void", voidedAt: null }, "INVOICE_VOIDED", true],
     ["a voided timestamp", { status: "open", voidedAt: new Date("2026-11-03T10:00:00Z") }, "INVOICE_VOIDED", true],
   ])("blocks a family that already has %s for the month", async (_label, invoice, reason, voided) => {
-    world.handlers.readExistingInvoices = () => [{ familyId: FAM, invoiceId: INVOICE, ...invoice }];
+    world.handlers.readExistingInvoices = () => [
+      { familyId: FAM, invoiceId: INVOICE, locationId: LOC, ...invoice },
+    ];
     const [family] = (await options()).families;
     expect(family).toMatchObject({
       existingInvoiceId: INVOICE,
@@ -1061,6 +1079,48 @@ describe("getMonthlyInvoiceOptions: blocking reasons", () => {
       blockingReasons: [reason],
       canIssue: false,
     });
+  });
+
+  it("blocks a family with a monthly invoice for the month that has no site", async () => {
+    // invoices.location_id is nullable. The per-site replay never matches such
+    // an invoice, so the quote blocks instead of offering a second invoice.
+    world.handlers.readExistingInvoices = () => [
+      { familyId: FAM, invoiceId: INVOICE_2, locationId: null, status: "open", voidedAt: null },
+    ];
+    const [family] = (await options()).families;
+    expect(family).toMatchObject({
+      existingInvoiceId: null,
+      existingInvoiceVoided: false,
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"],
+      canIssue: false,
+    });
+  });
+
+  it("blocks a family whose reference another invoice of the organization already holds", async () => {
+    world.handlers.readReferenceOwners = () => [{ invoiceId: INVOICE_2, reference: REFERENCE }];
+    const [family] = (await options()).families;
+    expect(family).toMatchObject({
+      existingInvoiceId: null,
+      blockingReasons: ["INVOICE_REFERENCE_TAKEN"],
+      canIssue: false,
+    });
+    expect(family!.quoteHash).toBe(
+      quoteHash({
+        lines: [HASH_LINE_A, HASH_LINE_B],
+        totalAmountCents: 9000,
+        currency: "EUR",
+        blockingReasons: ["INVOICE_REFERENCE_TAKEN"],
+      })
+    );
+  });
+
+  it("does not count the family's own invoice for the site and month as a reference collision", async () => {
+    world.handlers.readExistingInvoices = () => [
+      { familyId: FAM, invoiceId: INVOICE, locationId: LOC, status: "open", voidedAt: null },
+    ];
+    world.handlers.readReferenceOwners = () => [{ invoiceId: INVOICE, reference: REFERENCE }];
+    const [family] = (await options()).families;
+    expect(family!.blockingReasons).toEqual(["PERIOD_ALREADY_INVOICED"]);
   });
 });
 
@@ -1454,7 +1514,7 @@ describe("issueMonthlyInvoice: new issuance", () => {
           locationId: LOC,
           familyId: FAM,
           familyPayerId: PAYER,
-          reference: `MENSUAL-202611-${FAM}`,
+          reference: REFERENCE,
           currency: "EUR",
           dueAt: DUE_AT,
           idempotencyKey: KEY,
@@ -1692,6 +1752,122 @@ describe("issueMonthlyInvoice: guards and concurrency", () => {
     expect(trace().slice(-2)).toEqual(["issueInvoice", "rollback"]);
     expect(callsOf("appendOutbox")).toEqual([]);
     expect(callsOf("appendAudit")).toEqual([]);
+  });
+
+  /** Shape of a node-postgres unique violation wrapped by Drizzle. */
+  const uniqueViolation = (constraint: string) =>
+    Object.assign(new Error("Failed query: insert into invoices"), {
+      cause: Object.assign(new Error("duplicate key value violates unique constraint"), {
+        code: "23505",
+        table: "invoices",
+        constraint,
+      }),
+    });
+
+  it("reports a reference taken after the quote as INVOICE_REFERENCE_TAKEN and rolls back", async () => {
+    world.dependencies.issueInvoice = () => {
+      throw uniqueViolation("invoices_reference_uq");
+    };
+    await expectFailure(issueMonthlyInvoice(command()), {
+      code: "INVOICE_REFERENCE_TAKEN",
+      status: 409,
+      details: { reference: REFERENCE },
+    });
+    expect(trace().slice(-2)).toEqual(["issueInvoice", "rollback"]);
+    expect(callsOf("appendOutbox")).toEqual([]);
+    expect(callsOf("appendAudit")).toEqual([]);
+  });
+
+  it("lets any other unique violation from the ledger through unchanged", async () => {
+    const failure = uniqueViolation("invoices_idempotency_key_uq");
+    world.dependencies.issueInvoice = () => {
+      throw failure;
+    };
+    await expect(issueMonthlyInvoice(command())).rejects.toBe(failure);
+    expect(trace().slice(-2)).toEqual(["issueInvoice", "rollback"]);
+  });
+
+  it("refuses to issue when the family's month was invoiced without a site", async () => {
+    world.handlers.readExistingInvoices = () => [
+      { familyId: FAM, invoiceId: INVOICE_2, locationId: null, status: "open", voidedAt: null },
+    ];
+    const blockedHash = quoteHash({
+      lines: [HASH_LINE_A, HASH_LINE_B],
+      totalAmountCents: 9000,
+      currency: "EUR",
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"],
+    });
+    await expectFailure(issueMonthlyInvoice(command({ quoteHash: blockedHash })), {
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 422,
+      details: { blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"] },
+    });
+    expect(trace()).toEqual([...QUOTE_UNDER_LOCKS, "findPeriodInvoices", "rollback"]);
+    expect(callsOf("issueInvoice")).toEqual([]);
+  });
+
+  it("refuses to issue when the quote already reports the reference as taken", async () => {
+    world.handlers.readReferenceOwners = () => [{ invoiceId: INVOICE_2, reference: REFERENCE }];
+    const blockedHash = quoteHash({
+      lines: [HASH_LINE_A, HASH_LINE_B],
+      totalAmountCents: 9000,
+      currency: "EUR",
+      blockingReasons: ["INVOICE_REFERENCE_TAKEN"],
+    });
+    await expectFailure(issueMonthlyInvoice(command({ quoteHash: blockedHash })), {
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 422,
+      details: { blockingReasons: ["INVOICE_REFERENCE_TAKEN"] },
+    });
+    expect(trace()).toEqual([...QUOTE_UNDER_LOCKS, "findPeriodInvoices", "rollback"]);
+    expect(callsOf("issueInvoice")).toEqual([]);
+  });
+});
+
+describe("monthlyInvoiceReference", () => {
+  // ledger-service issueInvoiceSchema: reference max 80 characters.
+  const LEDGER_REFERENCE_MAX = 80;
+
+  it("builds MENSUAL-YYYYMM-<family>-<site hash> for the fixture", () => {
+    expect(
+      monthlyInvoiceReference({ servicePeriod: PERIOD, familyId: FAM, locationId: LOC })
+    ).toBe(REFERENCE);
+  });
+
+  it("fits the ledger limit in the worst case, with a fixed length of 68", () => {
+    // Every part has a fixed width (YYYYMM, 36-character UUID, 16 hex), so
+    // the longest period and an all-F upper-case UUID are the worst case.
+    const worst = monthlyInvoiceReference({
+      servicePeriod: "9999-12",
+      familyId: "FFFFFFFF-FFFF-4FFF-BFFF-FFFFFFFFFFFF",
+      locationId: "FFFFFFFF-FFFF-4FFF-BFFF-FFFFFFFFFFFF",
+    });
+    expect(worst).toMatch(/^MENSUAL-999912-ffffffff-ffff-4fff-bfff-ffffffffffff-[0-9a-f]{16}$/);
+    expect(worst).toHaveLength(68);
+    expect(worst.length).toBeLessThanOrEqual(LEDGER_REFERENCE_MAX);
+  });
+
+  it("differs between the sites of one family and month and from the pre-site format", () => {
+    const first = monthlyInvoiceReference({ servicePeriod: PERIOD, familyId: FAM, locationId: LOC });
+    const second = monthlyInvoiceReference({ servicePeriod: PERIOD, familyId: FAM, locationId: LOC_2 });
+    expect(second).toBe(`MENSUAL-202611-${FAM}-${siteTag(LOC_2)}`);
+    expect(second).not.toBe(first);
+    expect(first).not.toBe(`MENSUAL-202611-${FAM}`);
+    expect(first.startsWith(`MENSUAL-202611-${FAM}-`)).toBe(true);
+  });
+
+  it("does not depend on the letter case of the ids", () => {
+    const familyId = "abcdef01-2345-4abc-8def-0123456789ab";
+    const locationId = "fedcba98-7654-4cba-9fed-ba9876543210";
+    const lower = monthlyInvoiceReference({ servicePeriod: PERIOD, familyId, locationId });
+    expect(lower).toBe(`MENSUAL-202611-${familyId}-${siteTag(locationId)}`);
+    expect(
+      monthlyInvoiceReference({
+        servicePeriod: PERIOD,
+        familyId: familyId.toUpperCase(),
+        locationId: locationId.toUpperCase(),
+      })
+    ).toBe(lower);
   });
 });
 
@@ -1956,6 +2132,7 @@ const ALL_STATEMENTS: Statement[] = [
   "readPayers",
   "readPriceAssignments",
   "readPricePlans",
+  "readReferenceOwners",
   "rollback",
 ];
 
