@@ -2113,6 +2113,35 @@ describe("consumeSaasReconciliationBatch: status snapshots", () => {
     expect(callsOf("updateSubscription")).toEqual([]);
   });
 
+  // matchesDecisionBaseline (L1832-1846): the locked subscription row must
+  // still be the one the decision approved.
+  it.each([
+    ["updated_at", { updated_at: "2026-11-10 11:59:00.000001+00" }],
+    ["organization_id", { organization_id: subscriptionId }],
+    ["customer_reference", { customer_reference: "cus_other" }],
+    ["canceled_at", { canceled_at: "2026-11-09 10:00:00+00" }],
+  ])("closes as baseline_changed when the locked subscription changed its %s", async (_label, override) => {
+    scenarioDecision(subscriptionSnapshotHash);
+    world.handlers.lockSubscription = () => [lockedSubscriptionRow(override)];
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, stale: 1 });
+    expect(trace()).toEqual([...READ_PHASE, ...STALE_IN_TX]);
+    expect(paramsOf("insertResult")).toEqual([
+      [
+        decisionId,
+        5,
+        subscriptionSnapshotHash,
+        4,
+        4,
+        "stripe-invoice:in_previous",
+        "stripe-invoice:in_previous",
+        "baseline_changed",
+      ],
+    ]);
+    expect(callsOf("updateSubscription")).toEqual([]);
+    expect(callsOf("updateTrial")).toEqual([]);
+    expect(callsOf("updateEntitlement")).toEqual([]);
+  });
+
   it("closes as stale when the canonical subscription disappeared", async () => {
     scenarioDecision(subscriptionSnapshotHash);
     world.handlers.lockSubscription = () => [];
@@ -2306,6 +2335,118 @@ describe("consumeSaasReconciliationBatch: paid invoice grants", () => {
     expect(trace()).toEqual([...READ_PHASE, ...STALE_IN_TX]);
     expect(paramsOf("insertResult")[0]!.at(-1)).toBe("invoice_not_current_or_price_changed");
     expect(callsOf("updateEntitlement")).toEqual([]);
+  });
+
+  // invoiceIsCurrent (L1964-1971): price and period must match the subscription.
+  it.each([
+    [
+      "is for another price of the same plan",
+      { price: { id: "price_starter_year" }, period: { start: epoch(periodStart), end: epoch(periodEnd) } },
+      { priceReference: "price_starter_year" },
+    ],
+    [
+      "covers another period than the subscription",
+      {
+        price: { id: "price_starter_month" },
+        period: { start: epoch(periodStart), end: epoch("2026-11-20T00:00:00.000Z") },
+      },
+      { periodEndsAt: "2026-11-20T00:00:00.000Z" },
+    ],
+  ])("refuses a paid invoice whose line %s", async (_label, line, invoiceOverride) => {
+    world.stripeInvoice = stripeInvoice({ lines: { data: [line] } });
+    const hash = canonicalHash({
+      subscription: expectedSubscriptionEvidence,
+      invoice: { ...expectedPaidInvoiceEvidence, ...invoiceOverride },
+      statusInvoice: null,
+    });
+    scenarioDecision(hash, paidDecision);
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, stale: 1 });
+    expect(trace()).toEqual([...READ_PHASE, ...STALE_IN_TX]);
+    expect(paramsOf("insertResult")).toEqual([
+      [
+        decisionId,
+        5,
+        hash,
+        4,
+        4,
+        "stripe-invoice:in_previous",
+        "stripe-invoice:in_previous",
+        "invoice_not_current_or_price_changed",
+      ],
+    ]);
+    expect(callsOf("updateSubscription")).toEqual([]);
+    expect(callsOf("updateEntitlement")).toEqual([]);
+  });
+
+  it("grants again when the entitlement has the same invoice but another plan (L1956)", async () => {
+    scenarioDecision(paidHash, {
+      ...paidDecision,
+      expected_entitlement_plan_code: "growth",
+      expected_entitlement_source_reference: "stripe-invoice:in_synthetic",
+    });
+    world.handlers.lockEntitlement = () => [
+      lockedEntitlementRow({ plan_code: "growth", source_reference: "stripe-invoice:in_synthetic" }),
+    ];
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, applied: 1 });
+    expect(trace()).toEqual([
+      ...READ_PHASE,
+      ...inTx(
+        1,
+        ...LOCKED_STATE,
+        "updateSubscription",
+        "updateEntitlement",
+        "insertResult",
+        "insertAudit",
+        "finishEvent"
+      ),
+    ]);
+    expect(paramsOf("updateEntitlement")[0]![0]).toBe("starter");
+    expect(paramsOf("insertResult")).toEqual([
+      [
+        decisionId,
+        "applied",
+        5,
+        paidHash,
+        4,
+        5,
+        "stripe-invoice:in_synthetic",
+        "stripe-invoice:in_synthetic",
+        "paid_invoice_granted",
+      ],
+    ]);
+  });
+
+  it("uses the decision's invoice plan for an unmapped invoice price (fallbackInvoicePlanCode, L1506)", async () => {
+    const legacyLine = { price: { id: "price_legacy" }, period: { start: epoch(periodStart), end: epoch(periodEnd) } };
+    world.stripeInvoice = stripeInvoice({ lines: { data: [legacyLine] } });
+    // Without the fallback the evidence could not be built and the claim would retry.
+    const hash = canonicalHash({
+      subscription: expectedSubscriptionEvidence,
+      invoice: { ...expectedPaidInvoiceEvidence, priceReference: "price_legacy", planCode: "growth" },
+      statusInvoice: null,
+    });
+    scenarioDecision(hash, { ...paidDecision, invoice_plan_code: "growth" });
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, stale: 1 });
+    expect(trace()).toEqual([...READ_PHASE, ...STALE_IN_TX]);
+    expect(paramsOf("insertResult")[0]!.slice(2)).toEqual([
+      hash,
+      4,
+      4,
+      "stripe-invoice:in_previous",
+      "stripe-invoice:in_previous",
+      "invoice_not_current_or_price_changed",
+    ]);
+    expect(callsOf("updateEntitlement")).toEqual([]);
+  });
+
+  it("CURRENT BEHAVIOUR: retries forever an unmapped invoice price when the decision has no plan", async () => {
+    const legacyLine = { price: { id: "price_legacy" }, period: { start: epoch(periodStart), end: epoch(periodEnd) } };
+    world.stripeInvoice = stripeInvoice({ lines: { data: [legacyLine] } });
+    scenarioDecision(paidHash, { ...paidDecision, invoice_plan_code: null });
+    // PRICE_PLAN_NOT_AVAILABLE is deterministic, but the consumer treats any
+    // evidence error as a provider outage.
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, retrying: 1 });
+    expect(trace()).toEqual([...READ_PHASE, "scheduleRetry"]);
   });
 
   it("refuses a paid period that already ended", async () => {

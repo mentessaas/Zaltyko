@@ -8,6 +8,13 @@
  * suites). Each test seeds its own organizations with random ids and Stripe
  * references and consumes every decision it creates, so no claimable event is
  * left behind for the next test.
+ *
+ * Requires an isolated webhook inbox: consumeSaasReconciliationBatch claims
+ * events of EVERY Stripe account and organization, and the exact batch counts
+ * below assume these are the only reconciliation decisions in the database.
+ * beforeEach therefore refuses to start while any claimable event exists in
+ * the whole database. Do not run it against a database shared with other
+ * reconciliation work.
  */
 import { createHash, randomUUID } from "node:crypto";
 
@@ -526,6 +533,48 @@ describeDisposablePg("SaaS reconciliation service on disposable PostgreSQL", () 
     expect(await resultOf(locked.confirmed.decisionId)).toMatchObject({ outcome: "applied" });
   }, 30_000);
 
+  it("lets only one of two parallel confirmations with different keys queue a decision", async () => {
+    const operator = await seedOperator();
+    const fixture = await seedOrganization();
+    const eventId = await subscriptionEvent(fixture);
+    const preview = await previewSaasReconciliation(
+      { eventId, actorUserId: operator, requestId: `ci-preview-${eventId}` },
+      dependencies
+    );
+    const confirm = (key: string) =>
+      confirmSaasReconciliation(
+        {
+          eventId,
+          actorUserId: operator,
+          requestId: `ci-confirm-${key}`,
+          previewToken: preview.previewToken,
+          reason: REASON,
+          idempotencyKey: key,
+        },
+        dependencies
+      );
+
+    const outcomes = await Promise.allSettled([confirm(`ci-key-a-${eventId}`), confirm(`ci-key-b-${eventId}`)]);
+    const queued = outcomes.filter((outcome) => outcome.status === "fulfilled");
+    const rejected = outcomes.filter((outcome) => outcome.status === "rejected");
+    expect(queued).toHaveLength(1);
+    expect(queued[0]).toMatchObject({ value: { eventId, status: "queued" } });
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]).toMatchObject({
+      reason: { code: "VERSION_CONFLICT", status: 409, details: { code: "STATE_CHANGED" } },
+    });
+
+    const decisions = await firstRow(sql`
+      select count(*)::int as count
+      from zaltyko.organization_saas_webhook_reconciliation_decisions
+      where webhook_event_id = ${eventId}::uuid
+    `);
+    expect(decisions?.count).toBe(1);
+    expect(await eventState(eventId)).toMatchObject({ status: "received", fencing_version: 1 });
+
+    await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, applied: 1 });
+  }, 30_000);
+
   it("never lets two parallel consumers process the same event", async () => {
     const operator = await seedOperator();
     const fixtures = [await seedOrganization(), await seedOrganization(), await seedOrganization()];
@@ -561,7 +610,7 @@ describeDisposablePg("SaaS reconciliation service on disposable PostgreSQL", () 
       update zaltyko.organization_saas_webhook_events
       set status = 'processing',
           lease_token = gen_random_uuid(),
-          lease_until = clock_timestamp() + interval '1500 milliseconds',
+          lease_until = clock_timestamp() + interval '5 seconds',
           fencing_version = fencing_version + 1,
           attempts = attempts + 1,
           reconciliation_next_attempt_at = null,
@@ -573,7 +622,7 @@ describeDisposablePg("SaaS reconciliation service on disposable PostgreSQL", () 
 
     // The lease is still valid: nobody can take it.
     await expect(consume()).resolves.toEqual(zero);
-    await sleep(1_700);
+    await sleep(5_200);
     await expect(consume()).resolves.toEqual({ ...zero, claimed: 1, applied: 1 });
 
     const state = await eventState(eventId);
