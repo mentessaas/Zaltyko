@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import {
   displayName,
+  emptyPricePlanDraft,
   isDateValue,
   isUuid,
   parseMonthlyAmountCents,
@@ -13,7 +14,7 @@ import {
   responseData,
   responseMessage,
   secondaryButtonClassName,
-  emptyPricePlanDraft,
+  type PayerRelationship,
   type PricePlanOption,
   type ResolutionAction,
 } from "./owner-monthly-resolution-model";
@@ -40,7 +41,6 @@ import { MonthlyResolutionFamilyFields } from "./OwnerMonthlyResolutionFamilyFie
 
 export type { ResolutionAction } from "./owner-monthly-resolution-model";
 export { PENDING_OWNER_MONTHLY_RESOLUTION_STORAGE_KEY } from "./owner-monthly-resolution-pending-storage";
-
 
 export function OwnerMonthlyInvoiceResolutionPanel({
   action,
@@ -107,9 +107,8 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   );
   const [givenName, setGivenName] = useState("");
   const [familyName, setFamilyName] = useState("");
-  const [relationship, setRelationship] = useState<
-    "parent" | "legal_guardian" | "foster_guardian" | "other"
-  >("parent");
+  const [relationship, setRelationship] =
+    useState<PayerRelationship>("parent");
   const [commandReceipt, setCommandReceipt] = useState<{
     organizationId: string;
     locationId: string;
@@ -608,7 +607,6 @@ export function OwnerMonthlyInvoiceResolutionPanel({
 
   const pendingMatchesCurrentScope =
     pendingCommand?.scopeKey === currentScopeKey;
-
 
   return (
     <section

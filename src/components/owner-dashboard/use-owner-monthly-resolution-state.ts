@@ -204,7 +204,8 @@ export function useMonthlyPricePlanDraft({
     setPricePlanCreationScopeKey(null);
     setPricePlanNotice("");
     setPricePlanNoticeScope("");
-  }, [currentScopeKey, servicePeriodStart]);
+    // pendingCommandRef is the panel's stable ref object; listed for exhaustive-deps.
+  }, [currentScopeKey, pendingCommandRef, servicePeriodStart]);
 
   const currentPricePlanDraft =
     pricePlanDraft.scopeKey === currentScopeKey
@@ -416,6 +417,10 @@ export function useMonthlyResolutionCatalog({
     optionsRetry,
     organizationId,
     servicePeriodStart,
+    // Stable useState setters received from the panel; listed for exhaustive-deps.
+    setError,
+    setPricePlanDraft,
+    setSelectedPricePlanId,
   ]);
 
   const pricePlanOptionsMatchCurrentScope =
