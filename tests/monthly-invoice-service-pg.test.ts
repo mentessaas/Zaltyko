@@ -251,6 +251,12 @@ function issueCommand(fixture: Fixture, quoteHash: string, idempotencyKey = `ci-
   };
 }
 
+// Plain code-unit order, independent of locale collation.
+function byAthleteId(left: { athleteId: string }, right: { athleteId: string }) {
+  if (left.athleteId === right.athleteId) return 0;
+  return left.athleteId < right.athleteId ? -1 : 1;
+}
+
 async function ledgerRows(organizationId: string) {
   const result = await db.execute(sql`
     select
@@ -273,14 +279,35 @@ describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
     const fixture = await seedFamily();
     const family = await quoteFor(fixture);
     expect(family.canIssue).toBe(true);
-    // One fee per athlete, at the assignment price (3000 / 3200), not the plan's 3500.
+    // One fee per athlete, at the assignment price (3000 / 3200), not the plan's 3500,
+    // covering every class of that athlete. Both sides are sorted explicitly.
     expect(
-      family.lines.map((line) => [line.athleteId, line.unitAmountCents, line.coveredEnrollments.length])
+      family.lines
+        .map((line) => ({
+          athleteId: line.athleteId,
+          pricePlanId: line.pricePlanId,
+          amountCents: line.amountCents,
+          currency: line.currency,
+          coveredEnrollmentIds: line.coveredEnrollments.map((covered) => covered.enrollmentId).sort(),
+        }))
+        .sort(byAthleteId)
     ).toEqual(
       [
-        [fixture.athleteA.athleteId, 3000, 2],
-        [fixture.athleteB.athleteId, 3200, 1],
-      ].sort((left, right) => String(left[0]).localeCompare(String(right[0])))
+        {
+          athleteId: fixture.athleteA.athleteId,
+          pricePlanId: fixture.pricePlanId,
+          amountCents: 3000,
+          currency: "EUR",
+          coveredEnrollmentIds: [fixture.enrollmentA1, fixture.enrollmentA2].sort(),
+        },
+        {
+          athleteId: fixture.athleteB.athleteId,
+          pricePlanId: fixture.pricePlanId,
+          amountCents: 3200,
+          currency: "EUR",
+          coveredEnrollmentIds: [fixture.enrollmentB1],
+        },
+      ].sort(byAthleteId)
     );
     expect(family.totalAmountCents).toBe(6200);
 
@@ -306,22 +333,23 @@ describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
       from zaltyko.invoice_lines il
       join zaltyko.charges c on c.organization_id = il.organization_id and c.invoice_line_id = il.id
       where il.organization_id = ${fixture.organizationId}::uuid
-      order by il.athlete_id
     `);
-    expect(persisted.rows).toEqual(
+    const byAthleteColumn = (left: { athlete_id: unknown }, right: { athlete_id: unknown }) =>
+      byAthleteId({ athleteId: String(left.athlete_id) }, { athleteId: String(right.athlete_id) });
+    expect([...persisted.rows].sort(byAthleteColumn)).toEqual(
       [
-        [fixture.athleteA.athleteId, 3000, 2],
-        [fixture.athleteB.athleteId, 3200, 1],
+        { athlete_id: fixture.athleteA.athleteId, cents: 3000, covered: 2 },
+        { athlete_id: fixture.athleteB.athleteId, cents: 3200, covered: 1 },
       ]
-        .sort((left, right) => String(left[0]).localeCompare(String(right[0])))
-        .map(([athleteId, cents, coveredCount]) => ({
-          athlete_id: athleteId,
+        .sort(byAthleteColumn)
+        .map(({ athlete_id, cents, covered }) => ({
+          athlete_id,
           amount_cents: cents,
           charge_cents: cents,
           collection_mode: "manual",
           period_start: fixture.periodStart,
           period_end: fixture.periodEnd,
-          covered: coveredCount,
+          covered,
         }))
     );
   }, 45_000);
