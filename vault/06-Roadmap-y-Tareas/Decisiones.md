@@ -8,6 +8,14 @@ source:
 
 # Decisiones
 
+## 2026-11-10 — Puerta de entrada «operación diaria» y prioridad a entrenadoras
+
+**Hallazgo/fuente:** investigación competitiva de 9 empresas (RG Manager, ScoreGym, GimnasiaTotal, Clybo, OneClub, Clupik, Jackrabbit, iClassPro, FlipBiz) en `docs/research/competencia/`. Los competidores españoles se venden por cobros, familias y documentos; ninguno muestra evidencia pública de detectar choques de entrenadora o pista. Zaltyko tiene `zaltyko.session_staff` y la regla `session_without_coach`, pero no hay API ni pantalla para asignar entrenadoras, y la detección de solapes solo mira las franjas de una misma clase.
+
+**Decisión/importancia:** vender primero a clubes de rítmica o artística en España con 30–150 gimnastas y 3–10 entrenadoras, entrando por la operación diaria (grupos, entrenadoras, horarios, asistencia), no por cobros. Prioridad de producto: invitaciones de entrenadoras → entrenadora titular por clase con sustitución por sesión → importación desde Excel; los avisos de choque se validan antes de construirlos. Precios y límites no cambian sin evidencia de entrevistas. Akros se usa solo como ejemplo de cómo trabaja una academia, no como prueba de mercado.
+
+**Siguiente paso:** ejecutar `docs/research/competencia/plan-validacion-30-dias.md` (10 entrevistas, 3 pilotos y experimentos E1/E2). Reabrir la decisión si 6/10 entrevistas ponen el cobro o SEPA como primer dolor.
+
 ## 2026-10-26 — Vendedor previsto y contratación Live cerrada durante el alta
 
 **Hallazgo/fuente:** Elvis confirma que venderá como autónomo en España, pero todavía no ha formalizado el alta; nombre Elvis Valdes Inerarte y correo oficial hola@zaltyko.com. Precios base sin IVA. No aporta NIF ni domicilio profesional.

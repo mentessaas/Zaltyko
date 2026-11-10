@@ -8,6 +8,7 @@ import {
   CreditCard,
   FileText,
   Globe,
+  Radar,
   LayoutDashboard,
   LifeBuoy,
   Megaphone,
@@ -297,6 +298,13 @@ const SUPER_ADMIN_NAV: NavigationDefinition[] = [
     label: "Solicitudes",
     icon: MessageSquare,
     href: "/super-admin/solicitudes",
+    roles: ["super_admin"],
+  },
+  {
+    key: "competition",
+    label: "Competencia",
+    icon: Radar,
+    href: "/super-admin/competencia",
     roles: ["super_admin"],
   },
   {

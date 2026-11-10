@@ -21,6 +21,8 @@ source:
 ---
 # Matriz competitiva gimnasia
 
+> **Actualización 2026-11-10:** la investigación vigente de competidores de gimnasia (RG Manager, ScoreGym, GimnasiaTotal, Clybo, OneClub, Clupik, Jackrabbit, iClassPro y FlipBiz) está en `docs/research/competencia/`. Para mantenerla, usa el panel `/super-admin/competencia`. Esta nota se conserva como contexto histórico.
+
 ## Lectura rapida
 
 La competencia anglosajona valida el mercado y sube el liston funcional, pero suele ser cara, amplia y menos localizada. La oportunidad para Zaltyko esta en academias pequenas y medianas de gimnasia artistica/ritmica en espanol: adopcion barata, lenguaje de modalidad, comunicacion interna y flujo operativo simple.

@@ -109,3 +109,7 @@ export * from "./categories";
 // Trust pack (marketplace disputes + ratings)
 export * from "./trust";
 export * from "./directory";
+
+// Inteligencia competitiva interna (super-admin). Candidato SQL no aplicado:
+// docs/deployment/candidates/20261110180000_competitive_intelligence_candidate.sql
+export * from "./competitive-intelligence";
