@@ -27,7 +27,7 @@ SNAPSHOT_REL = Path(
 )
 MANIFEST_REL = Path("supabase/schema-snapshot-manifest.json")
 EXPECTED_SNAPSHOT_SHA256 = "fd1bf2597b0dfd40dc6db824fa24773461f2776fa2ed7c994649be534c6a4b36"
-EXPECTED_MANIFEST_SHA256 = "c182b3588d8ea7c19e442db90bf97b9c54fa32449f7be5be4c0097b130473efd"
+EXPECTED_MANIFEST_SHA256 = "3af073deef735fa8823b47a9fa315855546b4c8dbdd46ad9c36894a5d4751515"
 EXPECTED_PROJECT_REF = "aeeootdmuiqkfeernskw"
 EXPECTED_MIGRATION_CANDIDATE_FILENAME = "20261025202902_canonical_domain_installation_candidate.sql"
 TARGET_SCHEMAS = {"zaltyko", "zaltyko_domain_private"}
