@@ -1,0 +1,55 @@
+name: Postgres integration
+
+# Runs every PostgreSQL integration suite against a one-run native Postgres
+# inside the GitHub runner. No secrets, no linked or remote project, no
+# environment: the database is rebuilt from the reviewed replay sources, which
+# are only read and hash-checked (see scripts/ci/run-postgres-integration.sh).
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: postgres-integration-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  postgres-integration:
+    name: Postgres integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download the pinned Supabase CLI release archive
+        run: curl --fail --silent --show-error --location --retry 3 "https://github.com/supabase/cli/releases/download/v2.119.0/supabase_2.119.0_linux_amd64.tar.gz" --output "$RUNNER_TEMP/supabase_2.119.0_linux_amd64.tar.gz"
+
+      - name: Test the schema replay CLI installer with synthetic archives
+        run: python3 scripts/ci/test_install_schema_replay_supabase_cli.py
+
+      - name: Verify and install the pinned Supabase CLI
+        run: python3 scripts/ci/install_schema_replay_supabase_cli.py "$RUNNER_TEMP/supabase_2.119.0_linux_amd64.tar.gz"
+
+      - name: Build disposable schema and run PostgreSQL integration suites
+        run: bash scripts/ci/run-postgres-integration.sh
