@@ -17,6 +17,7 @@ import {
 import {
   clearPendingMonthlyInvoiceIssue,
   persistPendingMonthlyInvoiceIssue,
+  PRE_COMMIT_MONTHLY_INVOICE_REJECTIONS,
   readPendingMonthlyInvoiceIssue,
   type MonthlyInvoiceIssueBody,
   type PendingMonthlyInvoiceIssue,
@@ -409,15 +410,8 @@ export function OwnerMonthlyInvoicesManager({
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         const code = problemCode(payload);
-        const knownPreCommitDomainRejection = [
-          "QUOTE_STALE",
-          "MONTHLY_INVOICE_BLOCKED",
-          "PERIOD_ALREADY_INVOICED",
-          "INVOICE_VOIDED",
-          "ENROLLMENT_ALREADY_BILLED",
-          "FAMILY_PAYER_INVALID",
-          "INVOICE_REFERENCE_TAKEN",
-        ].includes(code ?? "");
+        const knownPreCommitDomainRejection =
+          PRE_COMMIT_MONTHLY_INVOICE_REJECTIONS.includes(code ?? "");
         // The route rejects 4xx before the service or the service transaction rolls back.
         // A later 4xx cannot clear an operation after an ambiguous first attempt.
         const definitiveFirstRejection =

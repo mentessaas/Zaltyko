@@ -1846,6 +1846,7 @@ export const buildTraceSourcePaths: ReadonlySet<string> = new Set([
   "src/modules/billing/application/manual-payments.ts",
   "src/modules/billing/application/monthly-invoice-service.ts",
   "src/modules/billing/application/monthly-invoice/blocking-reasons.ts",
+  "src/modules/billing/application/monthly-invoice/errors.ts",
   "src/modules/billing/application/monthly-invoice/inputs.ts",
   "src/modules/billing/application/monthly-invoice/issue-locks.ts",
   "src/modules/billing/application/monthly-invoice/issue.ts",

@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type CoveredEnrollment = {
   enrollmentId: string;
   classTemplateId: string;
@@ -7,6 +11,10 @@ export type CoveredEnrollment = {
   assignmentId: string;
 };
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type QuoteLine = {
   athleteId: string;
   athleteName: string | null;
@@ -17,6 +25,10 @@ export type QuoteLine = {
   coveredEnrollments: CoveredEnrollment[];
 };
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type QuoteFamily = {
   familyId: string;
   athleteNames: string[];
@@ -57,7 +69,13 @@ export type QuoteFamily = {
   existingInvoiceVoided: boolean;
 };
 
-/** A line as it enters the quote hash (quoted or recovered from a stored invoice). */
+/**
+ * A line as it enters the quote hash (quoted or recovered from a stored
+ * invoice).
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type HashedMonthlyLine = {
   athleteId: string;
   pricePlanId: string | null;
@@ -95,6 +113,9 @@ function canonicalMonthlyLines(lines: HashedMonthlyLine[]) {
  * Hash that binds an issuance to the exact quote shown to the owner. The key
  * order and the sorts are part of the contract: replays recompute it from the
  * stored invoice, so any change here breaks idempotent replays of old invoices.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
  */
 export function monthlyQuoteHash(input: {
   organizationId: string;

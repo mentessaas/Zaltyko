@@ -19,6 +19,23 @@ export type PendingMonthlyInvoiceIssue = Readonly<{
 export const PENDING_MONTHLY_INVOICE_ISSUE_STORAGE_KEY =
   "zaltyko:pending-monthly-invoice-issue:v1";
 
+/**
+ * Problem codes the issue route only returns before its transaction commits
+ * (the transaction rolls back). On a first, unambiguous attempt they clear the
+ * pending retry even when they arrive with a 5xx status; any 4xx already does.
+ * The exact list is pinned by tests/owner-monthly-invoices-manager.test.tsx.
+ */
+export const PRE_COMMIT_MONTHLY_INVOICE_REJECTIONS: readonly string[] =
+  Object.freeze([
+    "QUOTE_STALE",
+    "MONTHLY_INVOICE_BLOCKED",
+    "PERIOD_ALREADY_INVOICED",
+    "INVOICE_VOIDED",
+    "ENROLLMENT_ALREADY_BILLED",
+    "FAMILY_PAYER_INVALID",
+    "INVOICE_REFERENCE_TAKEN",
+  ] as const);
+
 const PENDING_KEYS = "body,hasAmbiguousAttempt,key,scopeKey,version";
 const BODY_KEYS =
   "dueDate,familyId,familyPayerId,locationId,organizationId,quoteHash,servicePeriod";

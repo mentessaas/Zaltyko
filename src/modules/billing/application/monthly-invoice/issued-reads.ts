@@ -1,15 +1,14 @@
 /**
  * Reads of an issued monthly invoice: header, lines with their covered
- * enrollments, and charge state (locked), plus the family cohort used by the
- * issuance. Shared by the new issuance and both replay paths.
+ * enrollments, and charge state (locked), and the check that no quoted athlete
+ * already has a monthly line. Shared by the new issuance and both replay paths.
  */
-import { and, asc, eq, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, or, sql } from "drizzle-orm";
 
 import {
   athletes,
   charges,
   enrollments,
-  familyMembers,
   invoiceLineEnrollments,
   invoiceLines,
   invoices,
@@ -20,11 +19,14 @@ import type { TransactionClient } from "@/lib/db-transactions";
 import { readAllKeysetPages } from "@/modules/billing/application/keyset-pagination";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
-import { conflict, type PeriodBounds } from "./inputs";
+import { conflict } from "./errors";
+import type { IssueMonthlyInvoiceInput, PeriodBounds } from "./inputs";
 import { compareNullableStrings, READ_PAGE_SIZE } from "./paging";
 
+/** Parte de la firma pública: lo reexporta monthly-invoice-service.ts. */
 export type MonthlyChargeStatus = "due" | "partially_paid" | "paid" | "void";
 
+/** Parte de la firma pública: lo reexporta monthly-invoice-service.ts. */
 export type MonthlyChargeState = {
   chargeStatus: MonthlyChargeStatus | "mixed";
   collectionMode: "manual";
@@ -34,6 +36,12 @@ export type MonthlyChargeState = {
   }>;
 };
 
+/**
+ * @internal Lee la cabecera sin bloquear sus cargos. Los replays la combinan
+ * con loadMonthlyReplayState, que bloquea los cargos antes de leer el estado;
+ * el orden de bloqueos exige pasar por issueMonthlyInvoice. Importa desde
+ * monthly-invoice-service.
+ */
 export async function loadInvoice(
   tx: TransactionClient,
   organizationId: string,
@@ -198,6 +206,7 @@ export async function loadIssuedLines(
   );
 }
 
+/** Parte de la firma pública: lo reexporta monthly-invoice-service.ts. */
 export type IssuedMonthlyLines = Awaited<ReturnType<typeof loadIssuedLines>>;
 
 export async function loadMonthlyChargeState(
@@ -273,35 +282,64 @@ export async function loadMonthlyReplayState(
   return { invoice, ...chargeState };
 }
 
-export async function loadMonthlyFamilyMemberships(
+/**
+ * ENROLLMENT_ALREADY_BILLED when any quoted athlete already has a monthly line
+ * for the site and period on another invoice (by athlete, or by enrollment for
+ * per-enrollment legacy lines).
+ *
+ * @internal Solo para issueMonthlyInvoice, después de la segunda cotización
+ * bajo bloqueos. Importa desde monthly-invoice-service.
+ */
+export async function assertAthletesNotBilled(
   tx: TransactionClient,
-  organizationId: string,
-  familyId: string,
-  bounds: PeriodBounds
-): Promise<Array<{ cursorId: string; athleteId: string }>> {
-  return readAllKeysetPages<{ cursorId: string; athleteId: string }>({
-    pageSize: READ_PAGE_SIZE,
-    cursorOf: (row) => row.cursorId,
-    fetchPage: (cursor, limit) => {
-      const conditions = [
-        eq(familyMembers.organizationId, organizationId),
-        eq(familyMembers.familyId, familyId),
-        lte(familyMembers.startsOn, bounds.end),
+  input: IssueMonthlyInvoiceInput,
+  bounds: PeriodBounds,
+  athleteIds: string[]
+): Promise<void> {
+  const previouslyBilledAthletes = await tx
+    .select({
+      invoiceId: invoiceLines.invoiceId,
+      athleteId: sql<
+        string | null
+      >`coalesce(${invoiceLines.athleteId}, ${enrollments.athleteId})`,
+    })
+    .from(invoiceLines)
+    .innerJoin(
+      invoices,
+      and(
+        eq(invoices.organizationId, invoiceLines.organizationId),
+        eq(invoices.id, invoiceLines.invoiceId)
+      )
+    )
+    .leftJoin(
+      enrollments,
+      and(
+        eq(enrollments.organizationId, invoiceLines.organizationId),
+        eq(enrollments.id, invoiceLines.enrollmentId)
+      )
+    )
+    .where(
+      and(
+        eq(invoiceLines.organizationId, input.organizationId),
+        eq(invoices.locationId, input.locationId),
+        eq(invoiceLines.lineType, "monthly_fee"),
+        eq(invoiceLines.servicePeriodStart, bounds.start),
+        eq(invoiceLines.servicePeriodEnd, bounds.end),
         or(
-          isNull(familyMembers.endsOn),
-          gte(familyMembers.endsOn, bounds.start)
-        ),
-      ];
-      if (cursor) conditions.push(gt(familyMembers.id, cursor));
-      return tx
-        .select({
-          cursorId: familyMembers.id,
-          athleteId: familyMembers.athleteId,
-        })
-        .from(familyMembers)
-        .where(and(...conditions))
-        .orderBy(asc(familyMembers.id))
-        .limit(limit);
-    },
-  });
+          inArray(invoiceLines.athleteId, athleteIds),
+          inArray(enrollments.athleteId, athleteIds)
+        )
+      )
+    )
+    .limit(1);
+  if (previouslyBilledAthletes.length) {
+    throw conflict(
+      "ENROLLMENT_ALREADY_BILLED",
+      "Una o más gimnastas ya tienen una cuota para esta sede y este periodo.",
+      {
+        invoiceId: previouslyBilledAthletes[0].invoiceId,
+        athleteId: previouslyBilledAthletes[0].athleteId,
+      }
+    );
+  }
 }

@@ -15,6 +15,7 @@ import type { MonthlyInvoiceOptionsResponse } from "@/components/owner-dashboard
 import {
   PENDING_MONTHLY_INVOICE_ISSUE_STORAGE_KEY,
   persistPendingMonthlyInvoiceIssue,
+  PRE_COMMIT_MONTHLY_INVOICE_REJECTIONS,
   readPendingMonthlyInvoiceIssue,
 } from "@/components/owner-dashboard/monthly-invoice-retry-storage";
 import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
@@ -1390,7 +1391,11 @@ describe("OwnerMonthlyInvoicesManager", () => {
     expect(monthlyInvoiceIntentPresentAtPost).toEqual([true]);
   }
 
-  it.each([
+  // The reviewed list, written out here on purpose: adding, removing or
+  // reordering a code in PRE_COMMIT_MONTHLY_INVOICE_REJECTIONS must fail until
+  // this list is updated after checking that the route only returns that code
+  // before commit.
+  const reviewedPreCommitRejections = [
     "QUOTE_STALE",
     "MONTHLY_INVOICE_BLOCKED",
     "PERIOD_ALREADY_INVOICED",
@@ -1398,7 +1403,17 @@ describe("OwnerMonthlyInvoicesManager", () => {
     "ENROLLMENT_ALREADY_BILLED",
     "FAMILY_PAYER_INVALID",
     "INVOICE_REFERENCE_TAKEN",
-  ])(
+  ];
+
+  it("fija la lista exacta de rechazos previos al commit", () => {
+    expect(PRE_COMMIT_MONTHLY_INVOICE_REJECTIONS).toEqual(
+      reviewedPreCommitRejections
+    );
+    // Frozen: no module can add a code at runtime.
+    expect(Object.isFrozen(PRE_COMMIT_MONTHLY_INVOICE_REJECTIONS)).toBe(true);
+  });
+
+  it.each(reviewedPreCommitRejections)(
     "descarta el reintento guardado cuando la primera respuesta es %s con estado 500",
     async (code) => {
       const detail = `Rechazo sintético ${code}`;

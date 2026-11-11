@@ -4,12 +4,9 @@
  * invoice through the ledger plus its replay marker and audit entry, all in one
  * transaction.
  */
-import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { enrollments, invoiceLines, invoices } from "@/db/zaltyko-schema";
-import type { TransactionClient } from "@/lib/db-transactions";
 import { issueInvoiceInTransaction } from "@/modules/billing/application/ledger-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
@@ -18,17 +15,20 @@ import {
   appendOutboxEvent,
 } from "@/modules/shared/infrastructure/transactional-records";
 
+import { conflict } from "./errors";
 import {
-  conflict,
   financialRoles,
   keySchema,
   periodBounds,
   periodSchema,
   type IssueMonthlyInvoiceInput,
-  type PeriodBounds,
 } from "./inputs";
 import { lockIssuanceScope, lockQuotedRows } from "./issue-locks";
-import { loadIssuedLines, loadMonthlyChargeState } from "./issued-reads";
+import {
+  assertAthletesNotBilled,
+  loadIssuedLines,
+  loadMonthlyChargeState,
+} from "./issued-reads";
 import { buildMonthlyInvoiceOptions } from "./quote";
 import {
   isInvoiceReferenceViolation,
@@ -239,63 +239,4 @@ export async function issueMonthlyInvoice(
       ...(await loadMonthlyChargeState(tx, input.organizationId, invoice.id)),
     };
   });
-}
-
-/**
- * ENROLLMENT_ALREADY_BILLED when any quoted athlete already has a monthly line
- * for the site and period on another invoice (by athlete, or by enrollment for
- * per-enrollment legacy lines).
- */
-async function assertAthletesNotBilled(
-  tx: TransactionClient,
-  input: IssueMonthlyInvoiceInput,
-  bounds: PeriodBounds,
-  athleteIds: string[]
-): Promise<void> {
-  const previouslyBilledAthletes = await tx
-    .select({
-      invoiceId: invoiceLines.invoiceId,
-      athleteId: sql<
-        string | null
-      >`coalesce(${invoiceLines.athleteId}, ${enrollments.athleteId})`,
-    })
-    .from(invoiceLines)
-    .innerJoin(
-      invoices,
-      and(
-        eq(invoices.organizationId, invoiceLines.organizationId),
-        eq(invoices.id, invoiceLines.invoiceId)
-      )
-    )
-    .leftJoin(
-      enrollments,
-      and(
-        eq(enrollments.organizationId, invoiceLines.organizationId),
-        eq(enrollments.id, invoiceLines.enrollmentId)
-      )
-    )
-    .where(
-      and(
-        eq(invoiceLines.organizationId, input.organizationId),
-        eq(invoices.locationId, input.locationId),
-        eq(invoiceLines.lineType, "monthly_fee"),
-        eq(invoiceLines.servicePeriodStart, bounds.start),
-        eq(invoiceLines.servicePeriodEnd, bounds.end),
-        or(
-          inArray(invoiceLines.athleteId, athleteIds),
-          inArray(enrollments.athleteId, athleteIds)
-        )
-      )
-    )
-    .limit(1);
-  if (previouslyBilledAthletes.length) {
-    throw conflict(
-      "ENROLLMENT_ALREADY_BILLED",
-      "Una o más gimnastas ya tienen una cuota para esta sede y este periodo.",
-      {
-        invoiceId: previouslyBilledAthletes[0].invoiceId,
-        athleteId: previouslyBilledAthletes[0].athleteId,
-      }
-    );
-  }
 }
