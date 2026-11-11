@@ -86,7 +86,7 @@ function iso(value: Date | string): string {
 async function readProgress(
   tx: TransactionClient,
   access: AthleteAccess,
-  input: { organizationId: string; objectiveStatus: ObjectiveStatus | null | undefined }
+  input: { organizationId: string; objectiveStatus?: ObjectiveStatus | null }
 ): Promise<AthleteProgressView> {
   const athleteId = access.athlete.id;
   const objectiveConditions = [
