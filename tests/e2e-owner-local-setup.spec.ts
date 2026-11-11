@@ -2935,7 +2935,9 @@ test.describe("Isolated local Supabase Owner setup", () => {
     expect(await exportDownload.failure()).toBeNull();
   });
 
-  test("acepta una solicitud sintética de acceso asistido sin crear academia ni prometer apertura", async ({
+  // TEMPORAL (se revierte antes de marcar la PR como lista): repite este caso
+  // para comprobar en CI que deja de ser inestable en los tres navegadores.
+  for (const attempt of [1, 2, 3, 4, 5, 6, 7, 8]) test(`acepta una solicitud sintética de acceso asistido sin crear academia ni prometer apertura #${attempt}`, async ({
     page,
   }) => {
     const organizationCountBefore = await pool.query<{ count: number }>(
