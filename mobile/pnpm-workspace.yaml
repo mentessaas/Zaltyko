@@ -11,7 +11,7 @@ overrides:
   "brace-expansion@^5.0.0": "^5.0.12"
   "js-yaml@^4.1.0": "^4.3.2"
   shell-quote: 1.11.0
-  # node-forge: 18 alertas (RSA/PKCS#1, ASN.1, PKCS#12), corregidas en 1.4.3.
+  # node-forge: 21 avisos (RSA/PKCS#1, ASN.1, PKCS#12), corregidos en 1.4.1 y 1.4.3.
   node-forge: 1.4.3
   # vite 8.3.0-8.3.2: 6 alertas (solo vitest); fijado a 8.3.3, la mínima corregida.
   vite: 8.3.3
