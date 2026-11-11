@@ -20,6 +20,17 @@ source:
 **Sin resolver (seguimiento).** `glob` 13 y `minimatch` 10 (solo se corrigen en 14 y 11, saltos mayores; los usan herramientas de build, lint y Expo CLI, no el runtime), `deepmerge` 4.3.1 (sin parche publicado) y `zod` 3 en la app móvil (solo se corrige en 4). Detalle en la descripción de las PR y en `auditorias/2026-11-11/dependencias-p0-2-anexo.md` (fuera del repo).
 
 
+
+## 2026-11-11 — Frontera ESLint de athlete-progress y contrato de sesiones
+
+**Cambio.**
+- Los módulos internos de objetivos y observaciones pasan a `src/modules/athlete-progress/application/athlete-progress/` (access, reads, objectives, observations y storage).
+- La fachada `athlete-progress-service.ts` exporta también la disponibilidad. Las páginas `/owner/attendance` y `/owner/groups` ya no importan `storage` directamente.
+- La frontera nueva está en `eslint.internal-boundaries.json`. `tests/internal-module-boundaries.test.ts` genera la misma matriz de formas de importación que monthly-invoice para reconciliation y athlete-progress. Así se cubren `vi.importActual`, las plantillas sin expresiones e `import x = require()` en reconciliation, junto con las fronteras cruzadas y el esquema heredado.
+- `tests/zaltyko-sessions-never-deleted.test.ts` comprueba que ningún flujo borra `zaltyko.sessions`.
+
+**Pruebas.** Sin cambio de comportamiento ni migraciones. No se ejecutó nada en local: el resultado está en la CI de la PR.
+
 ## 2026-11-11 — Objetivos y observaciones por gimnasta (P2 #17, primera parte)
 
 **Cambio.**

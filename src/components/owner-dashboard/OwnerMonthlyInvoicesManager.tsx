@@ -18,7 +18,9 @@ import {
   clearPendingMonthlyInvoiceIssue,
   persistPendingMonthlyInvoiceIssue,
   PRE_COMMIT_MONTHLY_INVOICE_REJECTIONS,
+  ROLLED_BACK_MONTHLY_INVOICE_RETRY,
   readPendingMonthlyInvoiceIssue,
+  restorePendingMonthlyInvoiceIssueAfterRollback,
   type MonthlyInvoiceIssueBody,
   type PendingMonthlyInvoiceIssue,
 } from "./monthly-invoice-retry-storage";
@@ -363,6 +365,19 @@ export function OwnerMonthlyInvoicesManager({
     );
   }
 
+  // CONCURRENCY_RETRY: the attempt rolled back, so it adds no ambiguity. Keep
+  // the same key and content with the ambiguity the command had before it.
+  function retainRolledBackRetry(request: RetryIssue) {
+    if (!restorePendingMonthlyInvoiceIssueAfterRollback(request)) {
+      // Could not lower it in storage: keep it as ambiguous, the safe side.
+      retainUncertainRetry(request);
+      return;
+    }
+    setIssueRetry((current) =>
+      isSameIssue(current, request) ? request : current
+    );
+  }
+
   function clearResolvedRetry(request: RetryIssue): boolean {
     if (clearPendingMonthlyInvoiceIssue(request)) {
       setIssueRetry((current) =>
@@ -420,6 +435,8 @@ export function OwnerMonthlyInvoicesManager({
             knownPreCommitDomainRejection);
         if (definitiveFirstRejection) {
           clearResolvedRetry(request);
+        } else if (code === ROLLED_BACK_MONTHLY_INVOICE_RETRY) {
+          retainRolledBackRetry(request);
         } else {
           retainUncertainRetry(request);
         }
