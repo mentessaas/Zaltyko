@@ -2,7 +2,8 @@
  * Public facade of monthly invoicing. Routes, scripts, components and tests
  * import from here; the implementation lives in ./monthly-invoice/:
  *
- * - inputs.ts            command types, period/key schemas, roles, conflict()
+ * - inputs.ts            command types, period/key schemas, roles
+ * - errors.ts            conflict(): 409 OperationalError
  * - paging.ts            page sizes and batched keyset reads
  * - reference.ts         `MENSUAL-YYYYMM-<familyId>-<siteHash16>` and the 23505 check
  * - quote-model.ts       quote types and the quote hash

@@ -23,8 +23,8 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import { assertIdempotencyPayload } from "@/modules/shared/infrastructure/transactional-records";
 
+import { conflict } from "./errors";
 import {
-  conflict,
   financialRoles,
   type IssueMonthlyInvoiceInput,
   type PeriodBounds,

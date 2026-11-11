@@ -20,7 +20,8 @@ import type { TransactionClient } from "@/lib/db-transactions";
 import { readAllKeysetPages } from "@/modules/billing/application/keyset-pagination";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
-import { conflict, type PeriodBounds } from "./inputs";
+import { conflict } from "./errors";
+import type { PeriodBounds } from "./inputs";
 import { compareNullableStrings, READ_PAGE_SIZE } from "./paging";
 
 /**

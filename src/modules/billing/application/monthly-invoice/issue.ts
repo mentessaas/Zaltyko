@@ -18,8 +18,8 @@ import {
   appendOutboxEvent,
 } from "@/modules/shared/infrastructure/transactional-records";
 
+import { conflict } from "./errors";
 import {
-  conflict,
   financialRoles,
   keySchema,
   periodBounds,

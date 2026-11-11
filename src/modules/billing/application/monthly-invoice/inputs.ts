@@ -1,10 +1,7 @@
 import { z } from "zod";
 
 import { operationalActorSchema } from "@/modules/shared/application/actor";
-import {
-  OperationalError,
-  type OperationalErrorCode,
-} from "@/modules/shared/domain/operational-error";
+import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 /**
  * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
@@ -59,16 +56,4 @@ export function periodBounds(servicePeriod: string): PeriodBounds {
   const [year, month] = servicePeriod.split("-").map(Number);
   const end = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
   return { start: `${servicePeriod}-01`, end };
-}
-
-/**
- * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
- * monthly-invoice-service.ts.
- */
-export function conflict(
-  code: OperationalErrorCode,
-  detail: string,
-  extra?: Record<string, unknown>
-) {
-  return new OperationalError(code, detail, 409, extra);
 }
