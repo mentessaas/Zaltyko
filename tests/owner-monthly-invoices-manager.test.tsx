@@ -1471,6 +1471,8 @@ describe("OwnerMonthlyInvoicesManager", () => {
       throw new Error("El interbloqueo borró la emisión pendiente.");
     }
     expect(stored.request.key).toBe(issueIdempotencyKey);
+    // The attempt rolled back: the same key is kept, but not as ambiguous.
+    expect(stored.request.hasAmbiguousAttempt).toBe(false);
 
     const user = userEvent.setup();
     await user.click(
@@ -1485,6 +1487,56 @@ describe("OwnerMonthlyInvoicesManager", () => {
     expect(readPendingMonthlyInvoiceIssue(window.sessionStorage)).toEqual({
       status: "none",
     });
+  });
+
+  it("tras un interbloqueo, un rechazo definitivo del reintento limpia la emisión pendiente y deja preparar otra", async () => {
+    await issueOnceWith({
+      data: {
+        type: "https://zaltyko.com/problems/concurrency-retry",
+        status: 503,
+        detail: "Interbloqueo sintético",
+        errors: { retryable: true },
+      },
+      status: 503,
+    });
+    await screen.findAllByText("Interbloqueo sintético");
+
+    const user = userEvent.setup();
+    nextMonthlyInvoiceIssueResponse = {
+      data: {
+        type: "https://zaltyko.com/problems/family-payer-invalid",
+        detail: "Pagador sintético no vigente",
+      },
+      status: 422,
+    };
+    await user.click(
+      screen.getByRole("button", { name: "Reintentar la emisión pendiente" })
+    );
+    await screen.findAllByText("Pagador sintético no vigente");
+    expect(monthlyInvoiceIssueRequests).toHaveLength(2);
+    expect(monthlyInvoiceIssueRequests[1]).toEqual(monthlyInvoiceIssueRequests[0]);
+
+    // Definitive and nothing ambiguous before it: the pending issue is gone.
+    await waitFor(() =>
+      expect(readPendingMonthlyInvoiceIssue(window.sessionStorage)).toEqual({
+        status: "none",
+      })
+    );
+    expect(
+      screen.queryByRole("button", { name: "Reintentar la emisión pendiente" })
+    ).not.toBeInTheDocument();
+
+    // The Owner can prepare and send another issuance.
+    await user.selectOptions(await screen.findByLabelText("Quién paga"), payerId);
+    const issueButton = await screen.findByRole("button", {
+      name: /Emitir cuota pendiente/,
+    });
+    await waitFor(() => expect(issueButton).toBeEnabled());
+    await user.click(issueButton);
+    await screen.findByText(
+      "Cuota emitida; no se ha registrado ni iniciado un pago."
+    );
+    expect(monthlyInvoiceIssueRequests).toHaveLength(3);
   });
 
   it("guarda antes de enviar y recupera el mismo comando tras perder la respuesta, sin replay automático", async () => {
