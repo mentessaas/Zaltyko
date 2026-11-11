@@ -34,38 +34,115 @@ const SAME_MAJOR_FLOORS = [
   { name: "@hono/node-server", major: 2, floor: "2.1.3" },
 ];
 
-// Lowest version an alternative of a semver range admits, as [major, minor,
-// patch], or undefined for anything that is not a plain version/^/~/>= bound.
-function lowerBound(alternative) {
-  const match = /^(?:\^|~|>=|=)?\s*v?(\d+)(?:\.(\d+|x|\*))?(?:\.(\d+|x|\*))?$/.exec(alternative.trim());
+// --- Floor rewriting (small, dependency-free semver subset) -----------------
+// pnpm runs this hook before node_modules exists, so `semver` cannot be
+// required. The subset below covers every range shape npm registries use in
+// practice; anything else is left untouched and reported through pnpm's log.
+
+const VERSION = /^v?(\d+)(?:\.(\d+|x|X|\*))?(?:\.(\d+|x|X|\*))?(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
+
+// Parse a (possibly partial) version: "6", "6.16", "6.x", "2.1.3-rc.1".
+function parseVersion(text) {
+  const match = VERSION.exec(text);
   if (!match) return undefined;
-  return [match[1], match[2], match[3]].map((part) => (/^\d+$/.test(part ?? "") ? Number(part) : 0));
+  const parts = [match[1], match[2], match[3]];
+  const wildcardAt = parts.findIndex((part) => part === undefined || /^[xX*]$/.test(part));
+  return {
+    numbers: parts.map((part) => (/^\d+$/.test(part ?? "") ? Number(part) : 0)),
+    // How many leading components are concrete (3 = full version).
+    precision: wildcardAt === -1 ? 3 : wildcardAt,
+    prerelease: match[4],
+  };
 }
 
-function isBelow(version, floor) {
+function compareVersions(a, b) {
   for (let index = 0; index < 3; index += 1) {
-    if (version[index] !== floor[index]) return version[index] < floor[index];
+    if (a.numbers[index] !== b.numbers[index]) return a.numbers[index] < b.numbers[index] ? -1 : 1;
   }
-  return false;
+  if (a.prerelease === b.prerelease) return 0;
+  if (a.prerelease === undefined) return 1; // 2.1.3 > 2.1.3-rc.1
+  if (b.prerelease === undefined) return -1;
+  return a.prerelease < b.prerelease ? -1 : 1;
 }
 
-// Raise a consumer range to `^floor` only when one of its `||` alternatives
-// sits on the floor's major line and can still resolve below the floor.
-// Ranges already at or above the floor (e.g. `^2.2.0`) and ranges on other
-// majors are returned untouched, so this never downgrades nor crosses a major.
-function liftToFloor(requested, { major, floor }) {
-  const floorParts = floor.split(".").map(Number);
-  const needsLift = String(requested)
-    .split("||")
-    .map(lowerBound)
-    .some((bound) => bound !== undefined && bound[0] === major && isBelow(bound, floorParts));
-  return needsLift ? `^${floor}` : requested;
+const COMPARATOR = /^(>=|<=|>|<|=)?\s*(.+)$/;
+
+// Rewrite one `||` alternative so that it can no longer resolve below
+// `floor`, keeping the consumer's operator. Returns the (possibly unchanged)
+// alternative, or undefined when the shape is not understood.
+function liftAlternative(alternative, rule, floor) {
+  const text = alternative.trim();
+  const floorText = rule.floor;
+
+  // Hyphen range "A - B".
+  const hyphen = /^(\S+)\s+-\s+(\S+)$/.exec(text);
+  if (hyphen) {
+    const low = parseVersion(hyphen[1]);
+    const high = parseVersion(hyphen[2]);
+    if (!low || !high) return undefined;
+    if (low.numbers[0] !== rule.major || compareVersions(low, floor) >= 0) return text;
+    return compareVersions(high, floor) >= 0 ? `${floorText} - ${hyphen[2]}` : `^${floorText}`;
+  }
+
+  // Caret, tilde, exact and partial versions.
+  const simple = /^(\^|~|=)?\s*(\S+)$/.exec(text);
+  if (simple && !/^[<>]/.test(text)) {
+    const operator = simple[1] ?? "";
+    const version = parseVersion(simple[2]);
+    if (!version) return undefined;
+    if (version.precision === 0) return text; // "*" / "x": not tied to a major
+    if (version.numbers[0] !== rule.major || compareVersions(version, floor) >= 0) return text;
+    if (operator === "^" || operator === "~" || operator === "=") return `${operator}${floorText}`;
+    if (version.precision === 1) return `^${floorText}`; // "6" / "6.x"
+    if (version.precision === 2) return `~${floorText}`; // "6.16" / "6.16.x"
+    return floorText; // exact pin stays exact
+  }
+
+  // Comparator set, e.g. ">=6 <7" or ">=6.7.0".
+  const comparators = text.split(/\s+/).map((token) => {
+    const match = COMPARATOR.exec(token);
+    const version = match && parseVersion(match[2]);
+    return version ? { operator: match[1] ?? "=", version, token } : undefined;
+  });
+  if (comparators.some((comparator) => comparator === undefined)) return undefined;
+  const lower = comparators.find(({ operator }) => operator === ">=" || operator === ">");
+  if (!lower || lower.version.numbers[0] !== rule.major) return text;
+  if (compareVersions(lower.version, floor) >= 0) return text;
+  const upperExcludesFloor = comparators.some(({ operator, version }) =>
+    (operator === "<" && compareVersions(version, floor) <= 0) ||
+    (operator === "<=" && compareVersions(version, floor) < 0));
+  if (upperExcludesFloor) return `^${floorText}`;
+  return comparators
+    .map((comparator) => (comparator === lower ? `>=${floorText}` : comparator.token))
+    .join(" ");
+}
+
+// Raise each `||` alternative that sits on the rule's major line and can still
+// resolve below the floor; alternatives on other majors, already at or above
+// the floor, or not understood (tags, `workspace:`, URLs…) stay as they are.
+function liftToFloor(requested, rule, log) {
+  const floor = parseVersion(rule.floor);
+  const alternatives = String(requested).split("||");
+  let unknown = false;
+  const lifted = alternatives.map((alternative) => {
+    const next = liftAlternative(alternative, rule, floor);
+    if (next === undefined) {
+      unknown = true;
+      return alternative.trim();
+    }
+    return next;
+  });
+  if (unknown && typeof log === "function") {
+    log(`pnpmfile: rango no reconocido para ${rule.name} (${requested}); se deja igual, revisar a mano.`);
+  }
+  const result = lifted.join(" || ");
+  return result === alternatives.map((alternative) => alternative.trim()).join(" || ") ? requested : result;
 }
 
 /** @type {import('pnpm').PnpmFileHooks} */
 module.exports = {
   hooks: {
-    readPackage(pkg) {
+    readPackage(pkg, context) {
       if (!pkg?.name) return pkg;
 
       const bumped = { ...pkg };
@@ -117,7 +194,7 @@ module.exports = {
         for (const rule of SAME_MAJOR_FLOORS) {
           const requested = bumped[field][rule.name];
           if (requested === undefined) continue;
-          const lifted = liftToFloor(requested, rule);
+          const lifted = liftToFloor(requested, rule, context?.log);
           if (lifted !== requested) {
             bumped[field] = { ...bumped[field], [rule.name]: lifted };
             changed = true;

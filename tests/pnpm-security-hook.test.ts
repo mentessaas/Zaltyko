@@ -13,7 +13,7 @@ type PackageManifest = {
 
 const require = createRequire(import.meta.url);
 const { readPackage } = require("../pnpmfile.cjs").hooks as {
-  readPackage: (pkg: PackageManifest) => PackageManifest;
+  readPackage: (pkg: PackageManifest, context?: { log: (message: string) => void }) => PackageManifest;
 };
 
 describe("patched dependency compatibility", () => {
@@ -60,28 +60,64 @@ describe("patched dependency compatibility", () => {
   });
 
   it.each(["dependencies", "optionalDependencies", "devDependencies"] as const)(
-    "lifts qs 6 and @hono/node-server 2 to a floor, never down nor across a major, in %s",
+    "lifts qs 6 and @hono/node-server 2 to a floor, keeping the operator, never down nor across a major, in %s",
     (field) => {
       for (const [name, requested, expected] of [
-        ["qs", "~6.16.0", "^6.16.1"],
+        // Operator preserved.
+        ["qs", "~6.16.0", "~6.16.1"],
         ["qs", "^6.14.0", "^6.16.1"],
-        ["qs", "6.16.0", "^6.16.1"],
+        ["qs", "6.16.0", "6.16.1"],
+        ["qs", "=6.16.0", "=6.16.1"],
+        ["qs", "6.x", "^6.16.1"],
+        ["qs", "6.16.x", "~6.16.1"],
+        // Comparator sets and hyphen ranges.
+        ["qs", ">=6 <7", ">=6.16.1 <7"],
+        ["qs", ">=6.7.0", ">=6.16.1"],
+        ["qs", "6.0.0 - 6.20.0", "6.16.1 - 6.20.0"],
+        ["qs", ">=6.7.0 <6.16.0", "^6.16.1"],
+        ["qs", "6.0.0 - 6.10.0", "^6.16.1"],
+        // Only the alternative on the vulnerable major moves.
+        ["qs", "^6.14.0 || ^7.0.0", "^6.16.1 || ^7.0.0"],
+        ["@hono/node-server", "^1.19.9 || ^2.0.5", "^1.19.9 || ^2.1.3"],
+        // Pre-releases of the fixed version are still below it.
+        ["@hono/node-server", "2.1.3-rc.1", "2.1.3"],
+        ["@hono/node-server", "^2.1.3-rc.1", "^2.1.3"],
+        ["@hono/node-server", "^2.1.1", "^2.1.3"],
+        // Already at or above the floor, or on another major: untouched.
         ["qs", "^6.16.1", "^6.16.1"],
         ["qs", "^6.17.0", "^6.17.0"],
         ["qs", "^5.2.0", "^5.2.0"],
-        ["@hono/node-server", "^1.19.9 || ^2.0.5", "^2.1.3"],
-        ["@hono/node-server", "^2.1.1", "^2.1.3"],
+        ["qs", ">=5 <6", ">=5 <6"],
         ["@hono/node-server", "~2.1.3", "~2.1.3"],
         ["@hono/node-server", "^2.2.0", "^2.2.0"],
         ["@hono/node-server", "^1.19.9", "^1.19.9"],
-        ["@hono/node-server", "workspace:*", "workspace:*"],
       ]) {
         const input: PackageManifest = { name: "consumer", [field]: { [name]: requested } };
-        expect(readPackage(input)[field]?.[name]).toBe(expected);
+        expect(readPackage(input)[field]?.[name], `${name}@${requested}`).toBe(expected);
         expect(input[field]?.[name]).toBe(requested);
       }
     }
   );
+
+  it("leaves unrecognised ranges alone and reports them through pnpm's log", () => {
+    for (const [name, requested] of [
+      ["qs", "latest"],
+      ["qs", "*"],
+      ["@hono/node-server", "workspace:*"],
+      ["@hono/node-server", "npm:other@2.0.0"],
+    ]) {
+      const logs: string[] = [];
+      const output = readPackage(
+        { name: "consumer", dependencies: { [name]: requested } },
+        { log: (message: string) => logs.push(message) }
+      );
+      expect(output.dependencies?.[name]).toBe(requested);
+      expect(logs).toEqual([expect.stringContaining(`${name} (${requested})`)]);
+    }
+    const logs: string[] = [];
+    readPackage({ name: "consumer", dependencies: { qs: "^6.17.0" } }, { log: (message: string) => logs.push(message) });
+    expect(logs).toEqual([]);
+  });
 
   it("resolves no vulnerable qs, @hono/node-server or @vitest/mocker release", () => {
     const lock = load(readFileSync(new URL("../pnpm-lock.yaml", import.meta.url), "utf8")) as {
