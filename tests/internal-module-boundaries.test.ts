@@ -95,12 +95,54 @@ const INTERNAL = "@/modules/billing/application/monthly-invoice";
 
 type LintCase = [filePath: string, code: string, ruleId: "no-restricted-imports" | "no-restricted-syntax"];
 
+/** The reviewed monthly-invoice matrix: every other boundary must cover the same forms. */
+const MONTHLY_CASES: LintCase[] = [
+    // Static imports and re-exports (no-restricted-imports).
+    ["tests/sample-internal.test.ts", `import { lockQuotedRows } from "${INTERNAL}/issue-locks";\nvoid lockQuotedRows;\n`, "no-restricted-imports"],
+    ["tests/sample-internal-type.test.ts", `import type { MonthlyIssueResult } from "${INTERNAL}/replay";\nexport type R = MonthlyIssueResult;\n`, "no-restricted-imports"],
+    ["tests/sample-index.test.ts", `import * as internals from "${INTERNAL}/index";\nvoid internals;\n`, "no-restricted-imports"],
+    ["tests/sample-dir.test.ts", `import * as internals from "${INTERNAL}";\nvoid internals;\n`, "no-restricted-imports"],
+    ["scripts/sample-internal.ts", `import { replayByPeriod } from "../src/modules/billing/application/monthly-invoice/replay";\nvoid replayByPeriod;\n`, "no-restricted-imports"],
+    ["scripts/sample-internal.mjs", `import { loadInvoice } from "../src/modules/billing/application/monthly-invoice/issued-reads.ts";\nvoid loadInvoice;\n`, "no-restricted-imports"],
+    ["src/lib/sample-internal.ts", `export { loadInvoice } from "${INTERNAL}/issued-reads";\n`, "no-restricted-imports"],
+    ["src/lib/sample-star.ts", `export * from "${INTERNAL}/issue-locks";\n`, "no-restricted-imports"],
+    ["src/lib/sample-star-ns.ts", `export * as locks from "${INTERNAL}/issue-locks";\n`, "no-restricted-imports"],
+    ["src/lib/sample-internal.js", `import { buildMonthlyInvoiceOptions } from "${INTERNAL}/quote";\nvoid buildMonthlyInvoiceOptions;\n`, "no-restricted-imports"],
+    ["src/app/api/v1/owner/sample/route.ts", `import { buildMonthlyInvoiceOptions } from "${INTERNAL}/quote";\nvoid buildMonthlyInvoiceOptions;\n`, "no-restricted-imports"],
+    ["src/components/owner-dashboard/SampleInternal.tsx", `import { lockIssuanceScope } from "${INTERNAL}/issue-locks";\nvoid lockIssuanceScope;\n`, "no-restricted-imports"],
+    ["middleware.ts", `import { lockIssuanceScope } from "${INTERNAL}/issue-locks";\nvoid lockIssuanceScope;\n`, "no-restricted-imports"],
+    ["instrumentation.ts", `import { lockIssuanceScope } from "${INTERNAL}/issue-locks";\nvoid lockIssuanceScope;\n`, "no-restricted-imports"],
+    ["instrumentation-client.ts", `import { lockIssuanceScope } from "${INTERNAL}/issue-locks";\nvoid lockIssuanceScope;\n`, "no-restricted-imports"],
+    ["sentry.server.config.ts", `import { lockIssuanceScope } from "${INTERNAL}/issue-locks";\nvoid lockIssuanceScope;\n`, "no-restricted-imports"],
+    ["sentry.edge.config.ts", `import { lockIssuanceScope } from "${INTERNAL}/issue-locks";\nvoid lockIssuanceScope;\n`, "no-restricted-imports"],
+    // Relative spellings, exact for each billing scope.
+    ["src/modules/billing/sample.ts", `import { loadInvoice } from "./application/monthly-invoice/issued-reads";\nvoid loadInvoice;\n`, "no-restricted-imports"],
+    ["src/modules/billing/domain/sample.ts", `import { lockQuotedRows } from "../application/monthly-invoice/issue-locks";\nvoid lockQuotedRows;\n`, "no-restricted-imports"],
+    ["src/modules/billing/application/sample-sibling.ts", `import { replayByIdempotencyKey } from "./monthly-invoice/replay";\nvoid replayByIdempotencyKey;\n`, "no-restricted-imports"],
+    ["src/modules/billing/application/sample-sibling-dir.ts", `import * as internals from "./monthly-invoice";\nvoid internals;\n`, "no-restricted-imports"],
+    ["src/modules/billing/application/nested/sample.ts", `import { loadInvoice } from "../monthly-invoice/issued-reads";\nvoid loadInvoice;\n`, "no-restricted-imports"],
+    // Dynamic forms (no-restricted-syntax).
+    ["tests/sample-dynamic.test.ts", `export const load = () => import("${INTERNAL}/quote");\n`, "no-restricted-syntax"],
+    ["tests/sample-dynamic-template.test.ts", "export const load = () => import(`" + INTERNAL + "/quote`);\n", "no-restricted-syntax"],
+    ["scripts/sample-require.cjs", `const { loadInvoice } = require("../src/modules/billing/application/monthly-invoice/issued-reads");\nvoid loadInvoice;\n`, "no-restricted-syntax"],
+    ["scripts/sample-require-template.ts", "const internals = require(`../src/modules/billing/application/monthly-invoice`);\nvoid internals;\n", "no-restricted-syntax"],
+    ["scripts/sample-import-equals.ts", `import internals = require("../src/modules/billing/application/monthly-invoice/quote");\nvoid internals;\n`, "no-restricted-syntax"],
+    ["tests/sample-mock.test.ts", `vi.mock("${INTERNAL}/issue-locks", () => ({}));\n`, "no-restricted-syntax"],
+    ["tests/sample-do-mock.test.ts", `vi.doMock("${INTERNAL}/issue-locks");\n`, "no-restricted-syntax"],
+    ["tests/sample-unmock.test.ts", `vi.unmock("${INTERNAL}/issue-locks");\n`, "no-restricted-syntax"],
+    ["tests/sample-do-unmock.test.ts", `vi.doUnmock("${INTERNAL}/replay");\n`, "no-restricted-syntax"],
+    ["tests/sample-import-actual.test.ts", `export const actual = () => vi.importActual("${INTERNAL}/issue-locks");\n`, "no-restricted-syntax"],
+    ["tests/sample-import-mock.test.ts", `export const mocked = () => vi.importMock("${INTERNAL}/replay");\n`, "no-restricted-syntax"],
+    ["src/modules/billing/application/sample-dynamic.ts", `export const load = () => import("./monthly-invoice/quote");\n`, "no-restricted-syntax"],
+];
+
 /**
  * The same import forms the monthly-invoice matrix checks, generated for
  * another boundary: static imports and re-exports from every lint:app root,
  * the exact relative spellings of each scope, and every dynamic form
  * (import(), template literals without expressions, require(), import x =
- * require(), vi.mock / vi.doMock / vi.importActual / vi.importMock).
+ * require(), vi.mock / vi.doMock / vi.unmock / vi.doUnmock / vi.importActual /
+ * vi.importMock).
  */
 function parityCases(boundary: Boundary, internalModule: string, label: string): LintCase[] {
   const alias = `@/${boundary.dir.slice("src/".length)}`;
@@ -140,11 +182,89 @@ function parityCases(boundary: Boundary, internalModule: string, label: string):
     [`scripts/sample-${label}-import-equals.ts`, `import internals = require("${fromScripts}/${internalModule}");\nvoid internals;\n`, syntax],
     [`tests/sample-${label}-mock.test.ts`, `vi.mock("${target}", () => ({}));\n`, syntax],
     [`tests/sample-${label}-do-mock.test.ts`, `vi.doMock("${target}");\n`, syntax],
+    [`tests/sample-${label}-unmock.test.ts`, `vi.unmock("${target}");\n`, syntax],
+    [`tests/sample-${label}-do-unmock.test.ts`, `vi.doUnmock("${target}");\n`, syntax],
     [`tests/sample-${label}-import-actual.test.ts`, `export const actual = () => vi.importActual("${target}");\n`, syntax],
     [`tests/sample-${label}-import-mock.test.ts`, `export const mocked = () => vi.importMock("${target}");\n`, syntax],
     [`${layerDir}/sample-${label}-dynamic.ts`, `export const load = () => import("./${name}/${internalModule}");\n`, syntax],
   ];
 }
+
+const ROOT_LINT_FILES = new Set([
+  "middleware.ts",
+  "instrumentation.ts",
+  "instrumentation-client.ts",
+  "sentry.server.config.ts",
+  "sentry.edge.config.ts",
+]);
+
+/**
+ * Boundary-independent shape of a lint case: where the file lives (relative to
+ * the boundary's module and layer), which import form it uses, how the
+ * specifier is spelled, and the rule that must fire. Two matrices cover the
+ * same forms when their sorted signatures are equal.
+ */
+function caseSignature(boundary: Boundary, [filePath, code, ruleId]: LintCase): string {
+  const [, , moduleName, layer, name] = boundary.dir.split("/");
+  const moduleRoot = `src/modules/${moduleName}`;
+  const layerDir = `${moduleRoot}/${layer}`;
+  const extension = filePath.match(/\.[a-z]+$/)?.[0] ?? "";
+  const where = ROOT_LINT_FILES.has(filePath)
+    ? filePath
+    : filePath.startsWith("tests/")
+      ? "tests"
+      : filePath.startsWith("scripts/")
+        ? `scripts${extension}`
+        : filePath.startsWith("src/lib/")
+          ? `lib${extension}`
+          : filePath.startsWith("src/app/api/")
+            ? "api-route"
+            : filePath.startsWith("src/components/")
+              ? "component"
+              : filePath.startsWith(`${layerDir}/nested/`)
+                ? "layer/nested"
+                : filePath.startsWith(`${layerDir}/`)
+                  ? "layer"
+                  : filePath.startsWith(`${moduleRoot}/domain/`)
+                    ? "module/domain"
+                    : filePath.startsWith(`${moduleRoot}/`)
+                      ? "module"
+                      : `other:${filePath}`;
+  const forms: Array<[RegExp, string]> = [
+    [/^import type /m, "type"],
+    [/\bimport \w+ = require\(/, "import-equals"],
+    [/\bvi\.(mock|doMock|unmock|doUnmock|importActual|importMock)\(/, "vi"],
+    [/\brequire\(`/, "require-template"],
+    [/\brequire\(/, "require"],
+    [/\bimport\(`/, "dynamic-template"],
+    [/\bimport\(/, "dynamic"],
+    [/^export \* as /m, "export-star-ns"],
+    [/^export \* /m, "export-star"],
+    [/^export \{/m, "export-named"],
+    [/^import \* as \w+ from /m, "namespace"],
+    [/^import \{/m, "named"],
+  ];
+  const formMatch = forms.find(([pattern]) => pattern.test(code));
+  const form =
+    formMatch?.[1] === "vi" ? `vi.${code.match(forms[2][0])![1]}` : (formMatch?.[1] ?? `unknown:${code}`);
+  const specifier = code.match(/(["'`])((?:@\/|\.\.?\/)[^"'`]+)\1/)?.[2] ?? "";
+  const lastSegment = specifier.split("/").at(-1);
+  const spelling = specifier.endsWith("/index")
+    ? "index"
+    : lastSegment === name
+      ? "dir"
+      : specifier.endsWith(".ts")
+        ? "extension"
+        : specifier.startsWith("../")
+          ? "parent"
+          : specifier.startsWith("./")
+            ? "sibling"
+            : "alias";
+  return `${where} | ${form} | ${spelling} | ${ruleId}`;
+}
+
+const signatures = (boundary: Boundary, cases: LintCase[]) =>
+  cases.map((lintCase) => caseSignature(boundary, lintCase)).sort();
 
 describe("internal-module boundaries (ESLint)", { timeout: 120_000 }, () => {
   beforeAll(async () => {
@@ -164,43 +284,7 @@ describe("internal-module boundaries (ESLint)", { timeout: 120_000 }, () => {
     engine = new FlatESLint({ cwd: process.cwd() });
   }, 120_000);
 
-  it.each([
-    // Static imports and re-exports (no-restricted-imports).
-    ["tests/sample-internal.test.ts", `import { lockQuotedRows } from "${INTERNAL}/issue-locks";\nvoid lockQuotedRows;\n`, "no-restricted-imports"],
-    ["tests/sample-internal-type.test.ts", `import type { MonthlyIssueResult } from "${INTERNAL}/replay";\nexport type R = MonthlyIssueResult;\n`, "no-restricted-imports"],
-    ["tests/sample-index.test.ts", `import * as internals from "${INTERNAL}/index";\nvoid internals;\n`, "no-restricted-imports"],
-    ["tests/sample-dir.test.ts", `import * as internals from "${INTERNAL}";\nvoid internals;\n`, "no-restricted-imports"],
-    ["scripts/sample-internal.ts", `import { replayByPeriod } from "../src/modules/billing/application/monthly-invoice/replay";\nvoid replayByPeriod;\n`, "no-restricted-imports"],
-    ["scripts/sample-internal.mjs", `import { loadInvoice } from "../src/modules/billing/application/monthly-invoice/issued-reads.ts";\nvoid loadInvoice;\n`, "no-restricted-imports"],
-    ["src/lib/sample-internal.ts", `export { loadInvoice } from "${INTERNAL}/issued-reads";\n`, "no-restricted-imports"],
-    ["src/lib/sample-star.ts", `export * from "${INTERNAL}/issue-locks";\n`, "no-restricted-imports"],
-    ["src/lib/sample-star-ns.ts", `export * as locks from "${INTERNAL}/issue-locks";\n`, "no-restricted-imports"],
-    ["src/lib/sample-internal.js", `import { buildMonthlyInvoiceOptions } from "${INTERNAL}/quote";\nvoid buildMonthlyInvoiceOptions;\n`, "no-restricted-imports"],
-    ["src/app/api/v1/owner/sample/route.ts", `import { buildMonthlyInvoiceOptions } from "${INTERNAL}/quote";\nvoid buildMonthlyInvoiceOptions;\n`, "no-restricted-imports"],
-    ["src/components/owner-dashboard/SampleInternal.tsx", `import { lockIssuanceScope } from "${INTERNAL}/issue-locks";\nvoid lockIssuanceScope;\n`, "no-restricted-imports"],
-    ["middleware.ts", `import { lockIssuanceScope } from "${INTERNAL}/issue-locks";\nvoid lockIssuanceScope;\n`, "no-restricted-imports"],
-    ["instrumentation.ts", `import { lockIssuanceScope } from "${INTERNAL}/issue-locks";\nvoid lockIssuanceScope;\n`, "no-restricted-imports"],
-    ["instrumentation-client.ts", `import { lockIssuanceScope } from "${INTERNAL}/issue-locks";\nvoid lockIssuanceScope;\n`, "no-restricted-imports"],
-    ["sentry.server.config.ts", `import { lockIssuanceScope } from "${INTERNAL}/issue-locks";\nvoid lockIssuanceScope;\n`, "no-restricted-imports"],
-    ["sentry.edge.config.ts", `import { lockIssuanceScope } from "${INTERNAL}/issue-locks";\nvoid lockIssuanceScope;\n`, "no-restricted-imports"],
-    // Relative spellings, exact for each billing scope.
-    ["src/modules/billing/sample.ts", `import { loadInvoice } from "./application/monthly-invoice/issued-reads";\nvoid loadInvoice;\n`, "no-restricted-imports"],
-    ["src/modules/billing/domain/sample.ts", `import { lockQuotedRows } from "../application/monthly-invoice/issue-locks";\nvoid lockQuotedRows;\n`, "no-restricted-imports"],
-    ["src/modules/billing/application/sample-sibling.ts", `import { replayByIdempotencyKey } from "./monthly-invoice/replay";\nvoid replayByIdempotencyKey;\n`, "no-restricted-imports"],
-    ["src/modules/billing/application/sample-sibling-dir.ts", `import * as internals from "./monthly-invoice";\nvoid internals;\n`, "no-restricted-imports"],
-    ["src/modules/billing/application/nested/sample.ts", `import { loadInvoice } from "../monthly-invoice/issued-reads";\nvoid loadInvoice;\n`, "no-restricted-imports"],
-    // Dynamic forms (no-restricted-syntax).
-    ["tests/sample-dynamic.test.ts", `export const load = () => import("${INTERNAL}/quote");\n`, "no-restricted-syntax"],
-    ["tests/sample-dynamic-template.test.ts", "export const load = () => import(`" + INTERNAL + "/quote`);\n", "no-restricted-syntax"],
-    ["scripts/sample-require.cjs", `const { loadInvoice } = require("../src/modules/billing/application/monthly-invoice/issued-reads");\nvoid loadInvoice;\n`, "no-restricted-syntax"],
-    ["scripts/sample-require-template.ts", "const internals = require(`../src/modules/billing/application/monthly-invoice`);\nvoid internals;\n", "no-restricted-syntax"],
-    ["scripts/sample-import-equals.ts", `import internals = require("../src/modules/billing/application/monthly-invoice/quote");\nvoid internals;\n`, "no-restricted-syntax"],
-    ["tests/sample-mock.test.ts", `vi.mock("${INTERNAL}/issue-locks", () => ({}));\n`, "no-restricted-syntax"],
-    ["tests/sample-do-mock.test.ts", `vi.doMock("${INTERNAL}/issue-locks");\n`, "no-restricted-syntax"],
-    ["tests/sample-import-actual.test.ts", `export const actual = () => vi.importActual("${INTERNAL}/issue-locks");\n`, "no-restricted-syntax"],
-    ["tests/sample-import-mock.test.ts", `export const mocked = () => vi.importMock("${INTERNAL}/replay");\n`, "no-restricted-syntax"],
-    ["src/modules/billing/application/sample-dynamic.ts", `export const load = () => import("./monthly-invoice/quote");\n`, "no-restricted-syntax"],
-  ])("rechaza monthly-invoice/* desde %s", async (filePath, code, ruleId) => {
+  it.each(MONTHLY_CASES)("rechaza monthly-invoice/* desde %s", async (filePath, code, ruleId) => {
     const messages = await boundaryMessages(filePath, code);
     expect(messages).toHaveLength(1);
     expect(messages[0].ruleId).toBe(ruleId);
@@ -323,13 +407,14 @@ describe("internal-module boundaries (ESLint)", { timeout: 120_000 }, () => {
     expect(await boundaryMessages(operator, source, REC_FACADE)).toEqual([]);
   });
 
-  it("la matriz de paridad cubre las mismas formas que monthly-invoice", () => {
-    const cases = parityCases(RECONCILIATION, "lease", "parity");
-    expect(cases).toHaveLength(32);
-    const codes = cases.map(([, code]) => code).join("\n");
-    for (const form of ["vi.importActual(", "vi.importMock(", "vi.doMock(", "import(`", "require(`", "import internals = require("]) {
-      expect(codes, form).toContain(form);
-    }
+  it("la matriz generada reproduce exactamente las formas de la matriz revisada de monthly-invoice", () => {
+    const reviewed = signatures(MONTHLY, MONTHLY_CASES);
+    expect(new Set(reviewed).size, "cada caso revisado es una forma distinta").toBe(reviewed.length);
+    expect(reviewed.some((signature) => signature.includes("vi.unmock"))).toBe(true);
+    expect(reviewed.some((signature) => signature.includes("vi.doUnmock"))).toBe(true);
+    expect(signatures(MONTHLY, parityCases(MONTHLY, "issue-locks", "monthly-parity"))).toEqual(reviewed);
+    expect(signatures(RECONCILIATION, parityCases(RECONCILIATION, "lease", "rec-parity"))).toEqual(reviewed);
+    expect(signatures(ATHLETE_PROGRESS, parityCases(ATHLETE_PROGRESS, "access", "ap"))).toEqual(reviewed);
   });
 
   it.each(parityCases(RECONCILIATION, "lease", "rec-parity"))(
