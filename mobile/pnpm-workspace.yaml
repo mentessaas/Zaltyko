@@ -15,3 +15,5 @@ overrides:
   node-forge: 1.4.3
   # vite 8.3.0-8.3.2: 6 alertas (solo vitest); fijado a 8.3.3, la mínima corregida.
   vite: 8.3.3
+  # rolldown: dependencia de vite 8.3.3 (~1.2.11), fijada a la mínima.
+  rolldown: 1.2.11
