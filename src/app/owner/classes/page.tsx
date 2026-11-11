@@ -8,6 +8,8 @@ import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorks
 import { createClient } from "@/lib/supabase/server";
 import { getOwnerClassesPageData } from "@/modules/scheduling/application/class-management-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { getUpcomingScheduleConflicts } from "@/modules/schedule-conflicts/application/schedule-conflicts-service";
+import { OwnerUpcomingConflicts } from "@/components/owner-dashboard/OwnerScheduleConflicts";
 import { db } from "@/db";
 import { logger } from "@/lib/logger";
 import {
@@ -84,6 +86,16 @@ export default async function OwnerClassesPage({
         })
     : null;
 
+  // O2: choques próximos de entrenadora y pista en las sedes de su alcance.
+  // Solo lectura, acotado y con tiempo máximo; si falla, no se muestra nada.
+  const upcomingConflicts = await getUpcomingScheduleConflicts({
+    organizationId: bundle.organization.id,
+    locationIds: (query.data.locationId ? bundle.locations.filter((location) => location.id === query.data.locationId) : bundle.locations).map(
+      (location) => location.id
+    ),
+    viewer: { memberId: bundle.member.id, role: bundle.member.role },
+  });
+
   const navigationLocationId =
     query.data.locationId ??
     (bundle.member.locationScopeMode === "all"
@@ -96,6 +108,7 @@ export default async function OwnerClassesPage({
       organizationId={bundle.organization.id}
       locationId={navigationLocationId}
     >
+      <OwnerUpcomingConflicts upcoming={upcomingConflicts} coachMode={false} />
       <OwnerClassesManager
         bundle={bundle}
         navigationLocationId={navigationLocationId}

@@ -41,6 +41,10 @@ vi.mock("@/modules/owner-dashboard/application/today-sessions", () => ({
 vi.mock("@/modules/athlete-progress/application/athlete-progress-service", () => ({
   isAthleteProgressAvailableForPage: mocks.progressAvailable,
 }));
+// O2: los choques próximos se prueban en tests/schedule-conflicts-*.
+vi.mock("@/modules/schedule-conflicts/application/schedule-conflicts-service", () => ({
+  getUpcomingScheduleConflicts: async () => null,
+}));
 vi.mock("@/modules/coach-assignment/application/coach-assignment-service", () => ({
   isCoachAssignmentAvailableForPage: mocks.coachAssignmentAvailable,
   withSessionCoaches: mocks.withSessionCoaches,

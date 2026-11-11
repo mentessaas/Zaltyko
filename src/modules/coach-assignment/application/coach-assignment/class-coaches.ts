@@ -34,6 +34,7 @@ import { classTitularIds, coachesByIds, eligibleCoaches } from "./queries";
 import { assignmentIdempotencyKey, findPriorAssignment, lockAssignmentRequest } from "./replay";
 import { assertCoachAssignmentStorageAvailable } from "./storage";
 import { inAssignmentTransaction, lockTemplateSessions } from "./transactions";
+import { coachWarnings, warningAudit } from "./warnings";
 
 export const CLASS_COACHES_SET_ACTION = "class_template.coaches_set";
 
@@ -97,7 +98,7 @@ export async function getClassCoaches(input: {
 async function propagateToFutureSessions(
   tx: TransactionClient,
   input: { organizationId: string; classTemplateId: string; staffProfileIds: string[] }
-): Promise<{ updatedSessionCount: number; clearedSubstitutionCount: number }> {
+): Promise<{ updatedSessionCount: number; clearedSubstitutionCount: number; futureSessionIds: string[] }> {
   // Tope explícito: ninguna sesión se genera más allá de
   // max(hoy, inicio de la clase) + SESSION_HORIZON_TARGET_DAYS (creación de la
   // clase y job de horizonte), así que no se bloquea nada por encima. El día
@@ -119,7 +120,7 @@ async function propagateToFutureSessions(
     for update of session
   `);
   const lockedIds = (locked.rows as Array<{ id: string }>).map((row) => row.id);
-  if (lockedIds.length === 0) return { updatedSessionCount: 0, clearedSubstitutionCount: 0 };
+  if (lockedIds.length === 0) return { updatedSessionCount: 0, clearedSubstitutionCount: 0, futureSessionIds: [] };
 
   const markers = await tx.execute(sql`
     select session_id::text as id
@@ -165,7 +166,7 @@ async function propagateToFutureSessions(
     `);
     clearedSubstitutionCount = cleared.rows.length;
   }
-  return { updatedSessionCount: sessionIds.length, clearedSubstitutionCount };
+  return { updatedSessionCount: sessionIds.length, clearedSubstitutionCount, futureSessionIds: lockedIds };
 }
 
 export async function setClassCoaches(input: {
@@ -198,7 +199,7 @@ export async function setClassCoaches(input: {
     if (replayed) {
       // Un reintento se puede leer aunque el plan haya pasado a solo lectura.
       await assertClassManagerAccess(tx, { organizationId: command.organizationId, locationId: template.locationId, actor: input.actor });
-      return { ...(await classView(tx, scope)), updatedSessionCount: 0, clearedSubstitutionCount: 0, replayed: true };
+      return { ...(await classView(tx, scope)), updatedSessionCount: 0, clearedSubstitutionCount: 0, replayed: true, warnings: [] };
     }
 
     const manager = await assertClassManagerAccess(tx, {
@@ -212,7 +213,7 @@ export async function setClassCoaches(input: {
     const current = await classTitularIds(tx, command.organizationId, template.id);
     if (!sameStaffSet(current, expected)) throw staleAssignment();
     if (sameStaffSet(current, target)) {
-      return { ...(await classView(tx, scope)), updatedSessionCount: 0, clearedSubstitutionCount: 0, replayed: false };
+      return { ...(await classView(tx, scope)), updatedSessionCount: 0, clearedSubstitutionCount: 0, replayed: false, warnings: [] };
     }
     await assertAdditionsEligible(tx, {
       organizationId: command.organizationId,
@@ -240,10 +241,18 @@ export async function setClassCoaches(input: {
       `);
     }
 
-    const { updatedSessionCount, clearedSubstitutionCount } = await propagateToFutureSessions(tx, {
+    const { updatedSessionCount, clearedSubstitutionCount, futureSessionIds } = await propagateToFutureSessions(tx, {
       organizationId: command.organizationId,
       classTemplateId: template.id,
       staffProfileIds: target,
+    });
+
+    // O2: solo avisa. El cambio ya está guardado; los choques se devuelven y
+    // quedan en la auditoría.
+    const warnings = await coachWarnings(tx, {
+      organizationId: command.organizationId,
+      staffProfileIds: target,
+      sessionIds: futureSessionIds,
     });
 
     await appendAuditEntry(tx, {
@@ -256,10 +265,10 @@ export async function setClassCoaches(input: {
       idempotencyKey: assignmentIdempotencyKey(command.clientRequestId),
       before: { staffProfileIds: current },
       after: { staffProfileIds: target, updatedSessionCount, clearedSubstitutionCount },
-      metadata: { memberId: manager.memberId },
+      metadata: { memberId: manager.memberId, ...warningAudit(warnings) },
     });
 
-    return { ...(await classView(tx, scope)), updatedSessionCount, clearedSubstitutionCount, replayed: false };
+    return { ...(await classView(tx, scope)), updatedSessionCount, clearedSubstitutionCount, replayed: false, warnings };
   });
 }
 

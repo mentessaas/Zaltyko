@@ -40,6 +40,7 @@ import {
 import { assignmentIdempotencyKey, findPriorAssignment, lockAssignmentRequest } from "./replay";
 import { assertCoachAssignmentStorageAvailable } from "./storage";
 import { inAssignmentTransaction, lockTemplateSessions } from "./transactions";
+import { coachWarnings, warningAudit } from "./warnings";
 
 export const SESSION_COACHES_SET_ACTION = "session.coaches_set";
 
@@ -143,6 +144,7 @@ export async function setSessionCoaches(input: {
       return {
         ...(await sessionView(tx, { organizationId: command.organizationId, session, viewerMemberId: reader.memberId, manager: true })),
         replayed: true,
+        warnings: [],
       };
     }
 
@@ -167,6 +169,7 @@ export async function setSessionCoaches(input: {
       return {
         ...(await sessionView(tx, { organizationId: command.organizationId, session, viewerMemberId: manager.memberId, manager: true })),
         replayed: false,
+        warnings: [],
       };
     }
 
@@ -214,6 +217,13 @@ export async function setSessionCoaches(input: {
       `);
     }
 
+    // O2: solo avisa. La sustitución ya está guardada.
+    const warnings = await coachWarnings(tx, {
+      organizationId: command.organizationId,
+      staffProfileIds: target,
+      sessionIds: [session.id],
+    });
+
     await appendAuditEntry(tx, {
       organizationId: command.organizationId,
       locationId: session.locationId,
@@ -224,12 +234,13 @@ export async function setSessionCoaches(input: {
       idempotencyKey: assignmentIdempotencyKey(command.clientRequestId),
       before: { staffProfileIds: current, substitution: Boolean(priorOverride), reason: priorOverride?.reason ?? null },
       after: { staffProfileIds: target, substitution, reason },
-      metadata: { memberId: manager.memberId, classTemplateId: session.classTemplateId },
+      metadata: { memberId: manager.memberId, classTemplateId: session.classTemplateId, ...warningAudit(warnings) },
     });
 
     return {
       ...(await sessionView(tx, { organizationId: command.organizationId, session, viewerMemberId: manager.memberId, manager: true })),
       replayed: false,
+      warnings,
     };
   });
 }

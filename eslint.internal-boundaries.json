@@ -40,6 +40,14 @@
       "facadeSpecifier": "@/modules/session-plans/application/session-plan-service",
       "message": "session-plan/* es interno. Importa desde @/modules/session-plans/application/session-plan-service: la autorización por rol, sede y sesión, la detección del candidato sin aplicar y la transacción de cada operación solo se garantizan a través de la fachada.",
       "exceptions": []
+    },
+    {
+      "name": "schedule-conflicts",
+      "dir": "src/modules/schedule-conflicts/application/schedule-conflicts",
+      "facade": "src/modules/schedule-conflicts/application/schedule-conflicts-service.ts",
+      "facadeSpecifier": "@/modules/schedule-conflicts/application/schedule-conflicts-service",
+      "message": "schedule-conflicts/* es interno. Importa desde @/modules/schedule-conflicts/application/schedule-conflicts-service: la acotación al horizonte y a las sedes de quien mira y el tiempo máximo de las consultas solo se garantizan a través de la fachada.",
+      "exceptions": []
     }
   ]
 }

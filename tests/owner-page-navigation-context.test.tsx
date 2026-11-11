@@ -17,6 +17,10 @@ vi.mock("@/modules/scheduling/application/class-management-service", () => ({
 vi.mock("@/modules/enrollments/application/enrollment-query-service", () => ({
   getOwnerEnrollmentsPageData: mocks.enrollments,
 }));
+// O2: los choques próximos se prueban en tests/schedule-conflicts-*.
+vi.mock("@/modules/schedule-conflicts/application/schedule-conflicts-service", () => ({
+  getUpcomingScheduleConflicts: async () => null,
+}));
 // O1: sin el candidato de titulares aplicado la página no lee titulares.
 vi.mock("@/modules/coach-assignment/application/coach-assignment-service", () => ({
   isCoachAssignmentAvailableForPage: async () => false,

@@ -55,6 +55,7 @@ const MONTHLY = boundaryNamed("monthly-invoice");
 const RECONCILIATION = boundaryNamed("reconciliation");
 const ATHLETE_PROGRESS = boundaryNamed("athlete-progress");
 const COACH_ASSIGNMENT = boundaryNamed("coach-assignment");
+const SCHEDULE_CONFLICTS = boundaryNamed("schedule-conflicts");
 const SESSION_PLAN = boundaryNamed("session-plan");
 const INTERNAL_DIR = MONTHLY.dir;
 const FACADE = MONTHLY.facade;
@@ -418,8 +419,21 @@ describe("internal-module boundaries (ESLint)", { timeout: 120_000 }, () => {
     expect(signatures(RECONCILIATION, parityCases(RECONCILIATION, "lease", "rec-parity"))).toEqual(reviewed);
     expect(signatures(ATHLETE_PROGRESS, parityCases(ATHLETE_PROGRESS, "access", "ap"))).toEqual(reviewed);
     expect(signatures(COACH_ASSIGNMENT, parityCases(COACH_ASSIGNMENT, "storage", "ca"))).toEqual(reviewed);
+    expect(signatures(SCHEDULE_CONFLICTS, parityCases(SCHEDULE_CONFLICTS, "detect", "sc"))).toEqual(reviewed);
     expect(signatures(SESSION_PLAN, parityCases(SESSION_PLAN, "plans", "sp"))).toEqual(reviewed);
   });
+
+  // schedule-conflicts/* (O2): mismas formas que el resto de fronteras.
+  it.each(parityCases(SCHEDULE_CONFLICTS, "detect", "sc"))(
+    "rechaza schedule-conflicts/* desde %s",
+    async (filePath, code, ruleId) => {
+      const messages = await boundaryMessages(filePath, code, SCHEDULE_CONFLICTS.facadeSpecifier);
+      expect(messages, code).toHaveLength(1);
+      expect(messages[0].ruleId).toBe(ruleId);
+      expect(messages[0].severity).toBe(2);
+      expect(messages[0].message).toContain("schedule-conflicts/* es interno");
+    }
+  );
 
   // coach-assignment/* (O1): mismas formas que el resto de fronteras.
   it.each(parityCases(COACH_ASSIGNMENT, "storage", "ca"))(
@@ -577,6 +591,7 @@ describe("internal-module boundaries (definiciones y excepciones)", () => {
       "athlete-progress",
       "coach-assignment",
       "session-plan",
+      "schedule-conflicts",
     ]);
     for (const boundary of boundaries) {
       expect(Object.keys(boundary).sort(), boundary.name).toEqual([

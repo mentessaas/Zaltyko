@@ -72,6 +72,7 @@ export default defineConfig({
                   "tests/athlete-progress-pg.test.ts",
                   "tests/session-plans-pg.test.ts",
                   "tests/coach-assignment-pg.test.ts",
+                  "tests/schedule-conflicts-pg.test.ts",
                   "tests/saas-reconciliation-service-pg.test.ts",
                   "tests/monthly-invoice-service-pg.test.ts",
                 ]),
