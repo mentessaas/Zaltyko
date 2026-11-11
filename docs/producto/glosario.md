@@ -145,6 +145,11 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
 - **Prohibido:** meta, reto o «skill» por objetivo; comentario, nota de progreso o «feedback» por observación; «pública» o «visible para familias» por «compartible con la familia», porque el portal todavía no la muestra.
 - **Dónde aparece:** `OwnerAthleteProgressPanel` (ficha en Grupos), `OwnerSessionObservationForm` (Pasar lista) y `docs/producto/objetivos-y-observaciones.md` (P2 #17).
 
+### Titular y sustitución
+- **Elegido:** «titular», la persona del equipo con rol Entrenador/a que da una clase de forma habitual («Titulares: Ana Ruiz y Bea Gil»). «Sustitución», el cambio de quién entrena en una sesión concreta sin tocar la clase; se «quita la sustitución» para volver a los titulares. La sesión muestra «Quién entrena»; Hoy, «Entrena: …». Para la entrenadora, Hoy separa «Tus sesiones» y «Resto de la sede».
+- **Prohibido:** profesor/a, monitor/a o coach por titular; «suplente» o «cubrir» como nombre del cambio; «turno» por sesión.
+- **Dónde aparece:** `OwnerClassCoaches` (Clases), `OwnerSessionCoaches` (Pasar lista), `OwnerTodaySessionsPanel` y `docs/producto/entrenadoras-por-clase.md` (O1).
+
 ## Pendientes
 
 - **Archivos en refactor:** `monthly-invoice-service.ts` devuelve mensajes con «factura» («Factura no encontrada», «Ya existe una factura para esta familia y periodo…») y `OwnerMonthlyInvoiceResolutionPanel.tsx` dice «operación de facturación». Pasarán a «cuota» cuando termine el refactor. `ManualPaymentForm.tsx` (líneas 786 y 1087) dice «otra sesión de Owner»; pasará a «otra sesión de la dirección».

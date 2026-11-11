@@ -12,6 +12,10 @@ import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-s
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { db } from "@/db";
 import { isAthleteProgressAvailableForPage } from "@/modules/athlete-progress/application/athlete-progress-service";
+import {
+  isCoachAssignmentAvailableForPage,
+  withSessionCoaches,
+} from "@/modules/coach-assignment/application/coach-assignment-service";
 import { OwnerTodaySessionsPanel } from "@/components/owner-dashboard/OwnerTodaySessionsPanel";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { logger } from "@/lib/logger";
@@ -118,6 +122,15 @@ export default async function OwnerAttendancePage({
 
   // P2 #17: sin el candidato SQL aplicado no se muestran los accesos.
   const progressAvailable = await isAthleteProgressAvailableForPage(db);
+  // O1: lo mismo para titulares y sustituciones. Hoy de la entrenadora pone
+  // primero sus sesiones asignadas, sin añadir ninguna que no viera ya.
+  const coachAssignmentAvailable = await isCoachAssignmentAvailableForPage(db);
+  const coachTodayWithCoaches = coachAssignmentAvailable
+    ? await withSessionCoaches(db, coachToday, {
+        organizationId: scope.organization.id,
+        viewerMemberId: scope.member.id,
+      })
+    : coachToday;
 
   return (
     <OwnerWorkspacePageShell
@@ -148,7 +161,8 @@ export default async function OwnerAttendancePage({
             <OwnerTodaySessionsPanel
               organizationId={scope.organization.id}
               classesHref={null}
-              today={coachToday}
+              today={coachTodayWithCoaches}
+              prioritizeViewerSessions
             />
           </div>
         </div>
@@ -162,6 +176,7 @@ export default async function OwnerAttendancePage({
         initialNextCursor={data.nextCursor}
         selectedSession={data.selectedSession}
         progressAvailable={progressAvailable}
+        coachAssignmentAvailable={coachAssignmentAvailable}
       />
     </OwnerWorkspacePageShell>
   );

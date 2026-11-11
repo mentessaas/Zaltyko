@@ -4,6 +4,10 @@ Fecha: 11 de noviembre de 2026. Plan de mejora `auditorias/2026-11-08/plan-mejor
 
 Objetivo: que la dirección de una academia dé acceso a su equipo sin depender del correo transaccional (G4, apagado), y que cada cuenta que entra quede vinculada a su ficha del equipo (`staff_profiles.member_id`). Ese vínculo es el que necesita la asignación de entrenadoras por clase (PR 276, su «Decide Elvis» n.º 1).
 
+**Enlace con O1 (PR 276, ya en main).** La asignación de titulares y sustituciones solo ofrece como asignables las fichas activas con `member_id` cuyo acceso esté activo, tenga el rol Entrenador/a y la sede en su alcance (`eligibleCoaches` en `coach-assignment`). Al aceptar una invitación de Entrenador/a con sus sedes, la ficha queda vinculada y la persona pasa a ser asignable en esas sedes, sin ningún paso más. Esta PR no cambia la elegibilidad de O1.
+
+Hay una diferencia de criterio con O1. O1 deja que se borren fichas sin bloqueos (cascada en `session_staff` y en titulares). En cambio, la FK de una invitación a su ficha es NO ACTION: borrar una ficha con una invitación que la referencia se bloquea. Hoy ningún flujo borra fichas; si llega uno, decidirá entre cascada o `set null`, como queda en «Decide Elvis».
+
 ## Qué había y qué cambia
 
 Ya existía una **fase 1** (5 de noviembre, `docs/qa/team-access-release-candidate-2026-11-05.md`) detrás de `ZALTYKO_TEAM_ACCESS_ENABLED=false`:

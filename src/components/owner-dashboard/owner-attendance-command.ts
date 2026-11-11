@@ -134,3 +134,17 @@ export function isDefinitiveAttendanceRejection(status: number, payload: unknown
     typeof payload.detail === "string" && payload.detail.trim().length > 0 &&
     DEFINITIVE_BUSINESS_REJECTIONS.get(status)?.has(String(payload.type)) === true;
 }
+
+/**
+ * 409 de un interbloqueo con otra escritura sobre la sesión: la asistencia no
+ * se guardó y se puede repetir con la misma clave. No es un rechazo definitivo,
+ * así que el reintento guardado se conserva.
+ */
+export function isRetryableAttendanceConflict(status: number, payload: unknown): boolean {
+  return status === 409 && isRecord(payload) &&
+    payload.type === "https://zaltyko.com/problems/concurrency-retry" &&
+    isRecord(payload.errors) && payload.errors.retryable === true;
+}
+
+export const RETRYABLE_ATTENDANCE_CONFLICT_MESSAGE =
+  "Otra operación estaba usando esta sesión y la asistencia no se guardó. Pulsa «Reintentar guardado»: lo marcado se conserva.";

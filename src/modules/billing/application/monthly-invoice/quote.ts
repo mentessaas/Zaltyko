@@ -8,8 +8,10 @@ import type { TransactionClient } from "@/lib/db-transactions";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 
 import {
+  addLineLessSiteInvoices,
   finalizeFamilyQuotes,
   indexExistingInvoices,
+  indexInvoiceStatesByFamily,
 } from "./blocking-reasons";
 import {
   financialRoles,
@@ -28,7 +30,10 @@ import {
   readReferenceOwners,
   readTariffCoverage,
 } from "./quote-reads";
-import { monthlyInvoiceReference } from "./reference";
+import {
+  legacyMonthlyInvoiceReferenceKey,
+  monthlyInvoiceReference,
+} from "./reference";
 
 /**
  * @internal Cotización dentro de una transacción ajena. Solo la usan
@@ -94,7 +99,7 @@ export async function buildMonthlyInvoiceOptions(
     bounds,
     familyIds
   );
-  const { existingByFamily, siteLessFamilies, existingInvoiceIds } =
+  const { existingByFamily, existingInvoiceIds } =
     indexExistingInvoices(existingRows);
 
   // The ledger keeps invoices_reference_uq UNIQUE (organization_id, reference).
@@ -111,13 +116,73 @@ export async function buildMonthlyInvoiceOptions(
       }),
     ])
   );
+  // A monthly invoice issued before the site discriminator without a site and
+  // without monthly_fee lines for the month is invisible to the read above.
+  // Its pre-site reference still names the family and the month, so the same
+  // lookup also asks for those references, without case. Better a false block
+  // than a second invoice for the month.
+  const familyByLegacyReference = new Map(
+    familyIds.map((familyId): [string, string] => [
+      legacyMonthlyInvoiceReferenceKey({
+        servicePeriod: input.servicePeriod,
+        familyId,
+      }),
+      familyId,
+    ])
+  );
   const referenceOwners = await readReferenceOwners(tx, input, [
-    ...new Set(referenceByFamily.values()),
+    ...new Set([
+      ...referenceByFamily.values(),
+      ...familyByLegacyReference.keys(),
+    ]),
   ]);
+  // The unique index compares exactly, so a current reference is taken only by
+  // the same string; a pre-site reference never equals one (different length).
   const takenReferences = new Set(
     referenceOwners
       .filter((row) => !existingInvoiceIds.has(row.invoiceId))
       .map((row) => row.reference)
+  );
+  // Without a site: found by its monthly_fee lines or by its pre-site
+  // reference. A pre-site reference at a site belongs to that site: this
+  // site's is handled below, and another site's is not this quote's.
+  const siteLessByFamily = indexInvoiceStatesByFamily([
+    ...existingRows.filter((row) => row.locationId === null),
+    ...referenceOwners.flatMap((row) => {
+      const familyId = familyByLegacyReference.get(
+        row.reference.toLowerCase()
+      );
+      return familyId !== undefined && row.locationId === null
+        ? [{ familyId, status: row.status, voidedAt: row.voidedAt }]
+        : [];
+    }),
+  ]);
+  // A pre-site reference held by an invoice of this site that the lines read
+  // did not return: it has no monthly_fee lines for the month, yet its
+  // reference names this family and month. It is reported like the family's
+  // invoice for the site (PERIOD_ALREADY_INVOICED or INVOICE_VOIDED, with its id).
+  const siteId = input.locationId.toLowerCase();
+  addLineLessSiteInvoices(
+    existingByFamily,
+    existingInvoiceIds,
+    referenceOwners.flatMap((row) => {
+      const familyId = familyByLegacyReference.get(
+        row.reference.toLowerCase()
+      );
+      return familyId !== undefined &&
+        row.locationId?.toLowerCase() === siteId &&
+        !existingInvoiceIds.has(row.invoiceId)
+        ? [
+            {
+              familyId,
+              invoiceId: row.invoiceId,
+              locationId: row.locationId,
+              status: row.status,
+              voidedAt: row.voidedAt,
+            },
+          ]
+        : [];
+    })
   );
 
   finalizeFamilyQuotes(familyResults, {
@@ -125,7 +190,7 @@ export async function buildMonthlyInvoiceOptions(
     locationId: input.locationId,
     servicePeriod: input.servicePeriod,
     existingByFamily,
-    siteLessFamilies,
+    siteLessByFamily,
     referenceByFamily,
     takenReferences,
   });

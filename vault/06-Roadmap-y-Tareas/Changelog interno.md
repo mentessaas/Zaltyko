@@ -8,6 +8,17 @@ source:
 ---
 
 
+## 2026-11-11 — Vulnerabilidades de dependencias restantes (P0 #2)
+
+**Cambio.** Dos PR en borrador: web (`pnpm-lock.yaml`) y app móvil (`mobile/`). Solo versiones de parche o menores; ningún salto mayor.
+- **Web:** `qs` 6.16.1 y `@hono/node-server` 2.1.3 con el hook `pnpmfile.cjs` (solo dentro de su línea mayor) y espejo comentado en `pnpm-workspace.yaml`; `vitest` y `@vitest/coverage-v8` 4.1.12. El proyector de lockfile de Vite (`scripts/ci/project-vite-lockfile-core.cjs`) y su test pasan de `vitest@4.1.11` a 4.1.12: es lo que bloqueaba esta subida en la PR 248.
+- **Móvil:** `node-forge` 1.4.3 (21 avisos, 42 alertas en los dos lockfiles; sustituye al parche local de la PR 187), `decode-uri-component` 0.5.1, `vite` 8.3.3 (+ `rolldown` 1.2.11) y `vitest` 4.1.12. Expo SDK 57 sin cambios.
+- **Lockfiles:** regenerados en GitHub Actions con el workflow nuevo `dependency-lockfile-refresh.yml` (solo lectura, sin secretos ni scripts; deja los lockfiles como artefacto). No se instaló nada en el Mac.
+
+**Pruebas.** Tests nuevos del hook y del lockfile real en `tests/pnpm-security-hook.test.ts`. Resultado en la CI de cada PR; nada ejecutado en local.
+
+**Sin resolver (seguimiento).** `glob` 13 y `minimatch` 10 (solo se corrigen en 14 y 11, saltos mayores; los usan herramientas de build, lint y Expo CLI, no el runtime), `deepmerge` 4.3.1 (sin parche publicado) y `zod` 3 en la app móvil (solo se corrige en 4). Detalle en la descripción de las PR y en `auditorias/2026-11-11/dependencias-p0-2-anexo.md` (fuera del repo).
+
 
 
 
@@ -37,6 +48,30 @@ source:
 - `tests/zaltyko-sessions-never-deleted.test.ts` comprueba que ningún flujo borra `zaltyko.sessions`.
 
 **Pruebas.** Sin cambio de comportamiento ni migraciones. No se ejecutó nada en local: el resultado está en la CI de la PR.
+
+## 2026-11-11 — Entrenadoras titulares por clase y sustitución por sesión (O1)
+
+**Cambio.**
+- Módulo `src/modules/coach-assignment/` tras la fachada `coach-assignment-service.ts` (frontera registrada en `eslint.internal-boundaries.json`).
+- La dirección, administración y coordinación asignan titulares a cada clase (rol Entrenador/a con acceso a la sede) y cambian quién entrena en una sesión con un motivo cerrado. Las sesiones generadas heredan las titulares; las futuras sin sustitución pasan a las nuevas titulares.
+- API `/api/v1/owner/classes/[classTemplateId]/coaches` y `/api/v1/owner/sessions/[sessionId]/coaches` (GET/PUT). La entrenadora solo lee la sesión, con el acceso de Pasar lista.
+- Interfaz: titulares en la ficha de clase, «Quién entrena» en Pasar lista y «Entrena: …» en Hoy; el Hoy de la entrenadora pone primero «Tus sesiones».
+- Candidato SQL `docs/deployment/candidates/20261111180000_coach_assignment_candidate.sql` (`class_template_staff`, `session_staff_overrides`; RLS ENABLE/FORCE, REVOKE). **No se ejecutó en ningún entorno alojado; requiere autorización de Elvis.** Sin aplicar, todo queda dormido (503 y accesos ocultos) y nada escribe en `session_staff`.
+
+**Pruebas.** Dominio, contrato, rutas, frontera, UI, matriz del entrenador y `tests/coach-assignment-pg.test.ts` en el job «Postgres integration». No se ejecutó nada en local (regla del encargo): resultado en la CI de la PR.
+
+**Sin resolver.** «Decide Elvis» de `docs/producto/entrenadoras-por-clase.md`, sobre todo el vínculo ficha de equipo ↔ acceso (`staff_profiles.member_id`), que ningún flujo rellena: hasta que O3 lo haga, nadie es asignable.
+
+**Ronda 2 (revisión 7,5/10 del coordinador).**
+- Carrera sustitución ↔ titulares: orden de cerrojos común (petición → academia → plantilla → sesiones). El cambio de titulares relee las marcas después de bloquear las sesiones. Dos pruebas PG deterministas con `pg_stat_activity`.
+- 40P01/40001/55P03 → 409 reintentable. El mismo `clientRequestId` por las dos rutas ya no interbloquea.
+- FK de la candidata sin RESTRICT: cascada en las asignaciones; `on delete set null (columna)` en quien asignó o sustituyó, para no bloquear el borrado de usuarios ni data-rights.
+- REVOKE de `anon`/`authenticated` sobre `session_staff`, que pasa a tener datos; la detección lo exige.
+- 404 para una clase de otra sede; `assignment_role` unificado; la marca se quita si la sesión vuelve a coincidir con las titulares; el motivo solo lo ve la dirección; la UI recarga tras un 409 y gestiona el foco.
+
+**Ronda 3 (revisión 8/10).**
+- Ciclo con Pasar lista: la ruta de asistencia traduce 40P01/40001/55P03 a 409 reintentable con un helper compartido (`shared/infrastructure/retryable-db-conflict.ts`). Pasar lista lo explica y conserva lo marcado. Prueba PG con las rutas reales. El orden de cerrojos de Pasar lista no cambia.
+- La candidata pasa `session_staff_profile_fk` a CASCADE (Decide Elvis) y aborta en PostgreSQL < 15. La propagación queda topada al horizonte de generación. Nueva prueba de `assignment_role` con una fila de otro rol.
 
 ## 2026-11-11 — Objetivos y observaciones por gimnasta (P2 #17, primera parte)
 
