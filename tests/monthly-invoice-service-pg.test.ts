@@ -506,10 +506,14 @@ function signal() {
   return { promise, resolve };
 }
 
-/** Inserts a monthly invoice without a site and without lines, as old code could leave it. */
+/**
+ * Inserts a monthly invoice header with the pre-site reference and without
+ * lines, as old code could leave it: without a site unless `locationId` is set.
+ */
 async function insertSiteLessInvoice(
   fixture: Fixture,
-  state: { status: "issued" | "void"; voidedAt: string | null }
+  state: { status: "issued" | "void"; voidedAt: string | null },
+  locationId: string | null = null
 ) {
   const invoiceId = randomUUID();
   await db.execute(sql`
@@ -517,7 +521,7 @@ async function insertSiteLessInvoice(
       id, organization_id, location_id, family_id, reference, status,
       currency, total_amount_cents, issued_at, due_at, voided_at, idempotency_key
     ) values (
-      ${invoiceId}::uuid, ${fixture.organizationId}::uuid, null,
+      ${invoiceId}::uuid, ${fixture.organizationId}::uuid, ${locationId}::uuid,
       ${fixture.familyId}::uuid, ${legacyReference(fixture)}, ${state.status}::zaltyko.invoice_status,
       'EUR', 6200, ${`${PERIOD_START}T09:00:00Z`}::timestamptz,
       ${`${PERIOD_END}T12:00:00Z`}::timestamptz, ${state.voidedAt}::timestamptz,
@@ -1107,6 +1111,32 @@ describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
       code: "MONTHLY_INVOICE_BLOCKED",
       status: 422,
       details: { blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE_VOIDED"] },
+    });
+    expect(await ledgerRows(fixture.organizationId)).toEqual({
+      invoices: 1,
+      lines: 0,
+      covered: 0,
+      charges: 0,
+      markers: 0,
+    });
+  }, 45_000);
+
+  it("blocks a month invoiced at the same site with the pre-site reference and no monthly_fee lines", async () => {
+    // Neither the per-site replay nor PERIOD_ALREADY_INVOICED read the
+    // reference, and this header has no monthly_fee lines for the month.
+    const fixture = await seedFamily();
+    await insertSiteLessInvoice(fixture, { status: "issued", voidedAt: null }, fixture.locationId);
+
+    const family = await quoteFor(fixture);
+    expect(family).toMatchObject({
+      canIssue: false,
+      existingInvoiceId: null,
+      blockingReasons: ["PERIOD_ALREADY_INVOICED"],
+    });
+    await expect(issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!))).rejects.toMatchObject({
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 422,
+      details: { blockingReasons: ["PERIOD_ALREADY_INVOICED"] },
     });
     expect(await ledgerRows(fixture.organizationId)).toEqual({
       invoices: 1,

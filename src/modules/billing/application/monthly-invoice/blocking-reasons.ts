@@ -228,6 +228,7 @@ export function finalizeFamilyQuotes(
     servicePeriod: string;
     existingByFamily: ReadonlyMap<string, ExistingMonthlyInvoiceRow>;
     siteLessByFamily: ReadonlyMap<string, MonthlyInvoiceState>;
+    lineLessAtSiteByFamily: ReadonlyMap<string, MonthlyInvoiceState>;
     referenceByFamily: ReadonlyMap<string, string>;
     takenReferences: ReadonlySet<string>;
   }
@@ -260,6 +261,16 @@ export function finalizeFamilyQuotes(
         existing.voidedAt !== null || existing.status === "void";
       family.blockingReasons.push(
         family.existingInvoiceVoided
+          ? "INVOICE_VOIDED"
+          : "PERIOD_ALREADY_INVOICED"
+      );
+    }
+    const lineLessAtSite = context.lineLessAtSiteByFamily.get(family.familyId);
+    if (lineLessAtSite) {
+      // A pre-site monthly invoice of this site without monthly_fee lines for
+      // the month: neither the replay nor the read above can see it.
+      family.blockingReasons.push(
+        lineLessAtSite === "voided"
           ? "INVOICE_VOIDED"
           : "PERIOD_ALREADY_INVOICED"
       );

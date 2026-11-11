@@ -142,8 +142,8 @@ export async function buildMonthlyInvoiceOptions(
       .map((row) => row.reference)
   );
   // Without a site: found by its monthly_fee lines or by its pre-site
-  // reference. A pre-site reference at a site is an invoice of that site; the
-  // lines read reports it at this site, and another site's is not this quote's.
+  // reference. A pre-site reference at a site belongs to that site: this
+  // site's is handled below, and another site's is not this quote's.
   const siteLessByFamily = indexInvoiceStatesByFamily([
     ...existingRows.filter((row) => row.locationId === null),
     ...referenceOwners.flatMap((row) => {
@@ -153,6 +153,21 @@ export async function buildMonthlyInvoiceOptions(
         : [];
     }),
   ]);
+  // A pre-site reference held by an invoice of this site that the lines read
+  // did not return: that invoice has no monthly_fee lines for the month, so
+  // neither the replay nor PERIOD_ALREADY_INVOICED would see it, yet its
+  // reference names this family and month. Blocked for the same reason.
+  const siteId = input.locationId.toLowerCase();
+  const lineLessAtSiteByFamily = indexInvoiceStatesByFamily(
+    referenceOwners.flatMap((row) => {
+      const familyId = familyByLegacyReference.get(row.reference);
+      return familyId !== undefined &&
+        row.locationId?.toLowerCase() === siteId &&
+        !existingInvoiceIds.has(row.invoiceId)
+        ? [{ familyId, status: row.status, voidedAt: row.voidedAt }]
+        : [];
+    })
+  );
 
   finalizeFamilyQuotes(familyResults, {
     organizationId: input.organizationId,
@@ -160,6 +175,7 @@ export async function buildMonthlyInvoiceOptions(
     servicePeriod: input.servicePeriod,
     existingByFamily,
     siteLessByFamily,
+    lineLessAtSiteByFamily,
     referenceByFamily,
     takenReferences,
   });

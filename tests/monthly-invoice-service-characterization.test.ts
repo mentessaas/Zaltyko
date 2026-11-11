@@ -1168,6 +1168,41 @@ describe("getMonthlyInvoiceOptions: blocking reasons", () => {
     expect(family).toMatchObject({ blockingReasons: [], canIssue: true, quoteHash: QUOTE_HASH });
   });
 
+  it.each([
+    ["issued", { status: "issued", voidedAt: null }, "PERIOD_ALREADY_INVOICED"],
+    ["voided", { status: "void", voidedAt: null }, "INVOICE_VOIDED"],
+  ])(
+    "blocks a month invoiced at this site with the pre-site reference and no monthly_fee lines (%s)",
+    async (_label, invoice, reason) => {
+      // The lines read did not return it, so neither the replay nor
+      // PERIOD_ALREADY_INVOICED would see it.
+      world.handlers.readReferenceOwners = () => [
+        { invoiceId: INVOICE_2, reference: LEGACY_REFERENCE, locationId: LOC, ...invoice },
+      ];
+      const [family] = (await options()).families;
+      expect(family).toMatchObject({
+        existingInvoiceId: null,
+        existingInvoiceVoided: false,
+        blockingReasons: [reason],
+        canIssue: false,
+      });
+    }
+  );
+
+  it("reports a pre-site invoice of this site with monthly_fee lines once, as the lines read does", async () => {
+    world.handlers.readExistingInvoices = () => [
+      { familyId: FAM, invoiceId: INVOICE, locationId: LOC, status: "open", voidedAt: null },
+    ];
+    world.handlers.readReferenceOwners = () => [
+      { invoiceId: INVOICE, reference: LEGACY_REFERENCE, locationId: LOC, status: "open", voidedAt: null },
+    ];
+    const [family] = (await options()).families;
+    expect(family).toMatchObject({
+      existingInvoiceId: INVOICE,
+      blockingReasons: ["PERIOD_ALREADY_INVOICED"],
+    });
+  });
+
   it("looks up both spellings of the pre-site reference of a family id with letters", async () => {
     const familyWithLetters = "2abcdef0-0000-4000-8000-00000000000f";
     world.handlers.readFamilyMembers = () => [
