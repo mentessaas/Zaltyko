@@ -11,6 +11,7 @@ vi.mock("@/modules/owner-dashboard/application/owner-scope", () => ({ resolveOwn
 vi.mock("@/lib/rate-limit", () => ({
   getLimitForRoute: () => ({ limit: 20, window: 60 }),
   getVerifiedTenantRateLimitIdentifier: () => "synthetic-team-access",
+  getClientIdentifier: () => "ip:203.0.113.7",
   rateLimit: mocks.limit,
   rateLimitExceededResponse: () => new Response(JSON.stringify({ ok: false }), { status: 429 }),
 }));
@@ -254,6 +255,28 @@ describe("Team access real HTTP guards with synthetic session and service bounda
       });
     }
   }
+
+  it("counts each route separately and limits opening/accepting links also per network origin", async () => {
+    await inspect(request("/staff/invitations/inspect", "POST", { token }));
+    await accept(request("/staff/invitations/accept", "POST", { token }, { "idempotency-key": key }));
+    await listAccess(request(`/owner/staff/access?organizationId=${organizationId}`, "GET"));
+    const identifiers = mocks.limit.mock.calls.map(([options]) => (options as { identifier: string }).identifier);
+    expect(identifiers).toEqual([
+      `team-access:/api/v1/staff/invitations/inspect:${userId}`,
+      "team-invitation-link:/api/v1/staff/invitations/inspect:ip:203.0.113.7",
+      `team-access:/api/v1/staff/invitations/accept:${userId}`,
+      "team-invitation-link:/api/v1/staff/invitations/accept:ip:203.0.113.7",
+      `team-access:/api/v1/owner/staff/access:${userId}`,
+    ]);
+  });
+
+  it("a network-origin denial on a link returns private 429 without application work", async () => {
+    mocks.limit.mockResolvedValueOnce({ success: true }).mockResolvedValueOnce({ success: false });
+    const response = await inspect(request("/staff/invitations/inspect", "POST", { token }));
+    expect(response.status).toBe(429);
+    privateResponse(response);
+    expect(mocks.inspect).not.toHaveBeenCalled();
+  });
 
   it("accept requires an idempotency key while inspect needs none", async () => {
     expect((await accept(request("/staff/invitations/accept", "POST", { token }))).status).toBe(400);

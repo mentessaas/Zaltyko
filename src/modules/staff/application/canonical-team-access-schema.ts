@@ -124,7 +124,7 @@ const manifest = [
       check("normalized_email = lower(btrim(normalized_email)) AND length(normalized_email) >= 3 AND length(normalized_email) <= 254 AND strpos(normalized_email,'@'::text) > 1"),
       check(enumSet("role", ["manager", "coach"], "zaltyko.member_role")), check(enumSet("status", ["pending", "accepted", "revoked"])), check("token_sha256 ~ '^[0-9a-f]{64}$'::text"), check("revision > 0"),
       check("(status='pending' AND accepted_by_user_id IS NULL AND accepted_member_id IS NULL AND accepted_at IS NULL AND revoked_by_member_id IS NULL AND revoked_at IS NULL) OR (status='accepted' AND accepted_by_user_id IS NOT NULL AND accepted_member_id IS NOT NULL AND accepted_at IS NOT NULL AND revoked_by_member_id IS NULL AND revoked_at IS NULL) OR (status='revoked' AND accepted_by_user_id IS NULL AND accepted_member_id IS NULL AND accepted_at IS NULL AND revoked_by_member_id IS NOT NULL AND revoked_at IS NOT NULL)")],
-    indexes: [index(["id"], true, true), index(["token_sha256"], true), index(["organization_id", "id"], true), index(["organization_id", "normalized_email"], true, false, "status='pending'::text"), index(["organization_id", "id"], false)],
+    indexes: [index(["id"], true, true), index(["token_sha256"], true), index(["organization_id", "id"], true), index(["organization_id", "normalized_email"], true, false, "status='pending'::text"), index(["organization_id", "staff_profile_id"], true, false, "status='pending'::text AND staff_profile_id IS NOT NULL"), index(["organization_id", "id"], false)],
   },
   {
     name: scopes,

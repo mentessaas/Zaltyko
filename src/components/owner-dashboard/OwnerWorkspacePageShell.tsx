@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 
 import { OwnerWorkspaceNavigation } from "./OwnerWorkspaceNavigation";
+import { isCanonicalTeamAccessAvailableCached } from "@/modules/staff/application/canonical-team-access";
+
 import { ownerWorkspaceCapabilitiesFor } from "./owner-workspace-capabilities";
 
 type MemberCapabilities = Readonly<{
@@ -17,7 +19,12 @@ const previewCapabilities = {
   coachOperationsOnly: false,
 } as const;
 
-export function OwnerWorkspacePageShell({
+/** Roles that may manage team invitations (O3) when the feature is available. */
+function mayManageTeamAccess(member: MemberCapabilities): boolean {
+  return ((member.role === "owner" || member.role === "admin") && member.locationScopeMode === "all") || member.role === "manager";
+}
+
+export async function OwnerWorkspacePageShell({
   children,
   member,
   organizationId,
@@ -34,8 +41,9 @@ export function OwnerWorkspacePageShell({
     ? previewCapabilities
     : member
       ? ownerWorkspaceCapabilitiesFor(member, {
-          // Server component: the flag never reaches the client bundle.
-          teamAccessEnabled: process.env.ZALTYKO_TEAM_ACCESS_ENABLED === "true",
+          // Server component: flag AND the exact reviewed schema, cached
+          // briefly; nothing reaches the client bundle.
+          teamAccessEnabled: mayManageTeamAccess(member) ? await isCanonicalTeamAccessAvailableCached() : false,
         })
       : undefined;
 

@@ -40,6 +40,9 @@ create table zaltyko.organization_member_invitations (
   foreign key (organization_id, invited_by_member_id) references zaltyko.organization_members(organization_id,id),
   foreign key (organization_id, accepted_member_id) references zaltyko.organization_members(organization_id,id),
   foreign key (organization_id, revoked_by_member_id) references zaltyko.organization_members(organization_id,id),
+  -- NO ACTION on purpose: no flow deletes team profiles (they are archived with
+  -- is_active=false) and data-rights only exports them. A composite SET NULL
+  -- would also null organization_id; if profiles are ever erased, decide then.
   foreign key (organization_id, staff_profile_id) references zaltyko.staff_profiles(organization_id,id),
   -- Exactly one target: an existing team profile, or both names for a new one.
   check ((staff_profile_id is not null and invitee_given_name is null and invitee_family_name is null)
@@ -55,6 +58,14 @@ create table zaltyko.organization_member_invitations (
 -- Deliberately includes expired pending invitations: only explicit reissue rotates.
 create unique index organization_member_invitations_pending_email_uq
   on zaltyko.organization_member_invitations(organization_id,normalized_email) where status='pending';
+-- One pending invitation per existing team profile (O3).
+create unique index organization_member_invitations_pending_profile_uq
+  on zaltyko.organization_member_invitations(organization_id,staff_profile_id) where status='pending' and staff_profile_id is not null;
+-- Retention: closed invitations keep email and names as access-control
+-- evidence for the academy (who was invited, by whom, when). Anonymising them
+-- in place is not supported by the NOT NULL email and the target CHECK; an
+-- erasure would delete the invitation row (scopes cascade) once its receipts
+-- are no longer needed. Policy pending (docs/producto/invitaciones-equipo.md).
 create index organization_member_invitations_organization_idx
   on zaltyko.organization_member_invitations(organization_id,id);
 

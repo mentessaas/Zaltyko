@@ -1,7 +1,7 @@
 import type { NextResponse } from "next/server";
 import { apiError } from "@/lib/api-response";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { getLimitForRoute, rateLimit, rateLimitExceededResponse } from "@/lib/rate-limit";
+import { getClientIdentifier, getLimitForRoute, rateLimit, rateLimitExceededResponse } from "@/lib/rate-limit";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { assertTeamAccessEnabled } from "@/modules/staff/application/canonical-team-access";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -28,13 +28,23 @@ export function teamRouteError(error: unknown): NextResponse {
   return teamNoStore(apiError("FEATURE_NOT_AVAILABLE", "El acceso de equipo no está disponible. Inténtalo más tarde.", 503));
 }
 
-export async function withTeamUser(request: Request, work: (userId: string) => Promise<NextResponse>): Promise<NextResponse> {
+/** Opening or accepting a link: also limited per network origin, across accounts. */
+export const TEAM_INVITATION_LINK_IP_LIMIT = { limit: 30, window: 60 } as const;
+
+export async function withTeamUser(request: Request, work: (userId: string) => Promise<NextResponse>, options: { invitationLink?: boolean } = {}): Promise<NextResponse> {
   try {
     assertTeamAccessEnabled();
     const user = await getCurrentUser(request);
     if (!user) return teamNoStore(apiError("AUTHENTICATION_REQUIRED", "Inicia sesión para continuar.", 401));
-    const limit = await rateLimit({ identifier: `team-access:${user.id}`, ...getLimitForRoute(new URL(request.url).pathname) });
+    // Separate counters per route: managing the panel never spends the budget
+    // for opening or accepting links, and vice versa.
+    const pathname = new URL(request.url).pathname;
+    const limit = await rateLimit({ identifier: `team-access:${pathname}:${user.id}`, ...getLimitForRoute(pathname) });
     if (!limit.success) return teamNoStore(rateLimitExceededResponse(limit));
+    if (options.invitationLink) {
+      const network = await rateLimit({ identifier: `team-invitation-link:${pathname}:${getClientIdentifier(request)}`, ...TEAM_INVITATION_LINK_IP_LIMIT });
+      if (!network.success) return teamNoStore(rateLimitExceededResponse(network));
+    }
     return teamNoStore(await work(user.id));
   } catch (error) { return teamRouteError(error); }
 }

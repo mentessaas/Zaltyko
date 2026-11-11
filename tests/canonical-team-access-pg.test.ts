@@ -34,12 +34,22 @@ async function expectPgCode(promise: Promise<unknown>, code: string) {
   expect(error?.cause?.code ?? error?.code).toBe(code);
 }
 
-async function identity(email?: string, confirmed = true) {
+/**
+ * Synthetic Auth user plus its Auth identity. `provider: "email"` is the
+ * email/password identity; OAuth identities state `email_verified`.
+ */
+async function identity(email?: string, confirmed = true, auth: { provider?: string; emailVerified?: boolean; identityEmail?: string } = {}) {
   const userId = randomUUID();
   const normalizedEmail = email ?? `team-${userId}@example.invalid`;
   await db.execute(sql`insert into auth.users(id,email,email_confirmed_at)
     values (${userId}::uuid,${normalizedEmail},${confirmed ? new Date().toISOString() : null}::timestamptz)`);
-  return { userId, email: normalizedEmail };
+  const provider = auth.provider ?? "email";
+  if (provider !== "none") {
+    const data = { sub: userId, email: auth.identityEmail ?? normalizedEmail, ...(auth.emailVerified === undefined ? {} : { email_verified: auth.emailVerified }) };
+    await db.execute(sql`insert into auth.identities(provider_id,user_id,identity_data,provider)
+      values (${`${provider}-${userId}`},${userId}::uuid,${JSON.stringify(data)}::jsonb,${provider})`);
+  }
+  return { userId, email: normalizedEmail.trim().toLowerCase() };
 }
 
 async function fixture() {
@@ -90,10 +100,12 @@ async function linkedProfile(organizationId: string, memberId: string) {
   return result.rows as Array<{ id: string; given_name: string; family_name: string; is_active: boolean }>;
 }
 
+/** Waits until `count` acceptances block on the invitation row lock (by query). */
 async function waitForLockWaiters(count: number) {
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const result = await db.execute(sql`select count(*)::int as waiting from pg_stat_activity
-      where datname=current_database() and wait_event_type='Lock' and pid<>pg_backend_pid()`);
+      where datname=current_database() and wait_event_type='Lock' and pid<>pg_backend_pid()
+        and query ilike '%from zaltyko.organization_member_invitations%' and query ilike '%for update%'`);
     if (Number((result.rows[0] as { waiting: number }).waiting) >= count) return;
     await new Promise(resolveWait => setTimeout(resolveWait, 25));
   }
@@ -117,6 +129,15 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
     // upstream column required by this suite, after every CI/loopback guard.
     // This is never baseline/candidate SQL and never runs against hosted Auth.
     await db.execute(sql`alter table auth.users add column if not exists email_confirmed_at timestamptz`);
+    // Same guard: the minimal stub has no identities table; real Supabase does.
+    // Only the columns the service reads (and real NOT NULL ones) are created.
+    await db.execute(sql`create table if not exists auth.identities (
+      id uuid primary key default gen_random_uuid(),
+      provider_id text not null,
+      user_id uuid not null,
+      identity_data jsonb not null,
+      provider text not null,
+      unique (provider_id, provider))`);
     process.env.ZALTYKO_TEAM_ACCESS_ENABLED = "true";
     // The guard refuses an existing partial candidate before touching its ACLs.
     await expect(db.transaction(async tx => {
@@ -448,12 +469,21 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
     await expect(invite(manager, await identity(), { locationIds: [f.locationA, f.locationB] })).rejects.toMatchObject({ status: 403 });
     await expect(revokeCanonicalTeamInvitation({ ...manager, invitationId: ownerInvitation.invitation.id, revision: 1, idempotencyKey: key() })).rejects.toMatchObject({ status: 403 });
     expect(await snapshot(f.organizationId)).toEqual(before);
+    // Profiles carry no site: a manager neither sees nor links existing ones,
+    // and cannot manage an invitation that names one.
+    const existing = await staffProfile(f.organizationId, "Ficha", "Ajena");
+    await expect(invite(manager, await identity(), { locationIds: [f.locationA], staffProfileId: existing })).rejects.toMatchObject({ status: 403 });
+    const ownerExisting = await invite(f, await identity(), { locationIds: [f.locationA], staffProfileId: existing });
+    await expect(reissueCanonicalTeamInvitation({ ...manager, invitationId: ownerExisting.invitation.id, revision: 1, idempotencyKey: key() })).rejects.toMatchObject({ status: 403 });
+    await expect(revokeCanonicalTeamInvitation({ ...manager, invitationId: ownerExisting.invitation.id, revision: 1, idempotencyKey: key() })).rejects.toMatchObject({ status: 403 });
     const coachUser = await identity();
     const own = await invite(manager, coachUser, { locationIds: [f.locationA] });
     const view = await listCanonicalTeamAccess(manager);
     expect(view.viewer).toEqual({ role: "manager", invitableRoles: ["coach"] });
     expect(view.activeLocations.map(location => location.id)).toEqual([f.locationA]);
     expect(view.invitations.map(item => item.id)).toEqual([own.invitation.id]);
+    expect(view.linkableStaffProfiles).toEqual([]);
+    expect(JSON.stringify(view)).not.toContain("Ajena");
     expect(view.members.every(member => member.role === "coach")).toBe(true);
     // If the manager loses the site before acceptance, the link stops working.
     await db.execute(sql`delete from zaltyko.member_location_scopes where member_id=${manager.actor.memberId}::uuid`);
@@ -488,6 +518,7 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
         returning id
       )
       insert into zaltyko.athletes (organization_id, person_id) select ${f.organizationId}::uuid, new_people.id from new_people`);
+    expect(await inspectCanonicalTeamInvitation({ userId: who.userId, token: created.token! })).toMatchObject({ joinable: false });
     const before = await snapshot(f.organizationId);
     await expect(invite(f, await identity())).rejects.toMatchObject({ status: 409, code: "PLAN_OVER_CAPACITY" });
     await expect(reissueCanonicalTeamInvitation({ ...f, invitationId: created.invitation.id, revision: 1, idempotencyKey: key() })).rejects.toMatchObject({ status: 409, code: "PLAN_OVER_CAPACITY" });
@@ -527,5 +558,43 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
         where m.organization_id=${f.organizationId}::uuid and m.user_id=${who.userId}::uuid) as profiles,
       (select count(*)::int from zaltyko.organization_team_command_receipts where organization_id=${f.organizationId}::uuid and operation='accept') as receipts`);
     expect(counts.rows[0]).toEqual({ members: 1, profiles: 1, receipts: 1 });
+  });
+
+  it("does not trust email_confirmed_at alone: needs an email identity or a verified allow-listed OAuth one", async () => {
+    const f = await fixture();
+    const attempt = async (who: Awaited<ReturnType<typeof identity>>) => {
+      const created = await invite(f, who);
+      return acceptCanonicalTeamInvitation({ userId: who.userId, token: created.token!, idempotencyKey: key() });
+    };
+    for (const who of [
+      await identity(undefined, true, { provider: "none" }),
+      await identity(undefined, true, { provider: "github", emailVerified: true }),
+      await identity(undefined, true, { provider: "google", emailVerified: false }),
+      await identity(undefined, true, { provider: "google" }),
+      await identity(undefined, true, { provider: "email", identityEmail: "otra@example.invalid" }),
+    ]) {
+      await expect(attempt(who)).rejects.toMatchObject({ status: 404, message: expect.stringMatching(GENERIC_INVALID) });
+    }
+    expect((await attempt(await identity(undefined, true, { provider: "google", emailVerified: true }))).membership.status).toBe("active");
+  });
+
+  it("matches the invited email regardless of case and surrounding spaces", async () => {
+    const f = await fixture(); const userId = randomUUID(); const base = `Mixed.${userId}@Example.Invalid`;
+    await db.execute(sql`insert into auth.users(id,email,email_confirmed_at) values (${userId}::uuid,${` ${base} `},now())`);
+    await db.execute(sql`insert into auth.identities(provider_id,user_id,identity_data,provider)
+      values (${`email-${userId}`},${userId}::uuid,${JSON.stringify({ sub: userId, email: base })}::jsonb,'email')`);
+    const created = await createCanonicalTeamInvitation({ ...f, email: `  ${base.toUpperCase()} `, role: "coach", locationIds: [f.locationA],
+      givenName: "Mixta", familyName: "Mayúsculas", idempotencyKey: key() });
+    expect(created.invitation.email).toBe(base.toLowerCase());
+    expect((await acceptCanonicalTeamInvitation({ userId, token: created.token!, idempotencyKey: key() })).membership.status).toBe("active");
+  });
+
+  it("the database also refuses two pending invitations for the same team profile", async () => {
+    const f = await fixture(); const profileId = await staffProfile(f.organizationId);
+    const created = await invite(f, await identity(), { staffProfileId: profileId });
+    await expectPgCode(db.execute(sql`insert into zaltyko.organization_member_invitations
+      (organization_id,normalized_email,role,invited_by_member_id,token_sha256,expires_at,staff_profile_id)
+      values (${f.organizationId}::uuid,'otra@example.invalid','coach',${f.actor.memberId}::uuid,${sha(randomUUID())},now()+interval '7 days',${profileId}::uuid)`), "23505");
+    expect(created.invitation.person.staffProfileId).toBe(profileId);
   });
 });

@@ -20,7 +20,8 @@ function inspection(value: unknown): value is TeamInvitationInspection {
   return record(value) && record(value.organization) && typeof value.organization.id === "string"
     && typeof value.organization.name === "string" && (value.role === "manager" || value.role === "coach")
     && Array.isArray(value.locations) && value.locations.length > 0
-    && value.locations.every(location => record(location) && typeof location.id === "string" && typeof location.name === "string");
+    && value.locations.every(location => record(location) && typeof location.id === "string" && typeof location.name === "string")
+    && (value.joinable === undefined || typeof value.joinable === "boolean");
 }
 
 function acceptance(value: unknown, inspected: TeamInvitationInspection): value is TeamInvitationAcceptanceResult {
@@ -159,7 +160,8 @@ export function TeamInvitationAcceptance() {
           <div><dt className="font-semibold">Sedes</dt><dd className="mt-1"><ul className="list-inside list-disc">{inspected.locations.map(location => <li key={location.id}>{location.name}</li>)}</ul></dd></div>
         </dl>
         <p className="mt-4 text-sm leading-6 text-slate-700">Al aceptar se crea tu acceso a estas sedes y tu cuenta queda vinculada a tu ficha del equipo de la academia. El enlace solo sirve una vez.</p>
-        <button type="button" className={`${BUTTON} mt-5 w-full sm:w-auto`} disabled={busy} onClick={() => void accept()}>{busy ? "Confirmando…" : phase === "uncertain" ? "Reintentar la misma aceptación" : "Aceptar invitación"}</button>
+        {inspected.joinable === false ? <p role="alert" className="mt-4 border border-amber-700 bg-amber-50 p-4 text-sm leading-6">La academia no puede incorporar a nadie al equipo ahora mismo. Consulta a la dirección de la academia antes de aceptar; el enlace seguirá siendo válido hasta que caduque.</p> : null}
+        <button type="button" className={`${BUTTON} mt-5 w-full sm:w-auto`} disabled={busy || inspected.joinable === false} onClick={() => void accept()}>{busy ? "Confirmando…" : phase === "uncertain" ? "Reintentar la misma aceptación" : "Aceptar invitación"}</button>
       </section> : null}
       {phase === "accepted" ? <section role="status" className="mt-6 border border-teal-800 bg-teal-50 p-5">
         <h2 className="text-xl font-bold">Invitación aceptada</h2>

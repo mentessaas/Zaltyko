@@ -122,4 +122,13 @@ describe("TeamInvitationAcceptance", () => {
     expect(document.body.textContent).not.toContain("otra-persona@example.test");
     expect(screen.queryByRole("button", { name: "Aceptar invitación" })).toBeNull();
   });
+
+  it("avisa antes de aceptar si la academia no puede incorporar a nadie (plan en solo lectura)", async () => {
+    const fetchMock = vi.fn(async () => json(200, { ...inspected, joinable: false }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TeamInvitationAcceptance />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("no puede incorporar a nadie al equipo ahora mismo");
+    expect(screen.getByRole("button", { name: "Aceptar invitación" })).toBeDisabled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

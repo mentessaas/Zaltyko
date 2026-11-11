@@ -63,7 +63,10 @@ describe("canonical team access request contract", () => {
     expect(canManageTeamInvitation(manager, { role: "coach", locationIds: [siteA, siteB] })).toBe(false);
     expect(canManageTeamInvitation(manager, { role: "manager", locationIds: [siteA] })).toBe(false);
     expect(canManageTeamInvitation(manager, { role: "coach", locationIds: [] })).toBe(false);
+    // Profiles carry no site: a manager never links nor manages an existing one.
+    expect(canManageTeamInvitation(manager, { role: "coach", locationIds: [siteA], existingProfile: true })).toBe(false);
     const owner = teamInviterAuthorityFor({ role: "owner", locationScopeMode: "all" }, [])!;
+    expect(canManageTeamInvitation(owner, { role: "coach", locationIds: [siteA], existingProfile: true })).toBe(true);
     expect(canManageTeamInvitation(owner, { role: "manager", locationIds: [siteA, siteB] })).toBe(true);
   });
 

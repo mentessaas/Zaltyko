@@ -68,8 +68,14 @@ export function teamInvitableRoles(authority: TeamInviterAuthority): TeamInvitat
   return authority.role === "manager" ? ["coach"] : ["coach", "manager"];
 }
 
-export function canManageTeamInvitation(authority: TeamInviterAuthority, invitation: { role: TeamInvitationRole; locationIds: string[] }): boolean {
+/**
+ * Team profiles carry no site, so linking an existing one (and inheriting its
+ * class assignments) stays with owner/admin. A manager only invites people
+ * with a new profile, and never manages invitations that name an existing one.
+ */
+export function canManageTeamInvitation(authority: TeamInviterAuthority, invitation: { role: TeamInvitationRole; locationIds: string[]; existingProfile?: boolean }): boolean {
   if (!teamInvitableRoles(authority).includes(invitation.role)) return false;
+  if (authority.role === "manager" && invitation.existingProfile) return false;
   if (authority.locationIds === null) return true;
   const allowed = new Set(authority.locationIds);
   return invitation.locationIds.length > 0 && invitation.locationIds.every(id => allowed.has(id));
@@ -125,7 +131,15 @@ export type TeamInvitationInspection = {
   organization: { id: string; name: string };
   role: TeamInvitationRole;
   locations: TeamLocation[];
+  /** False while the academy cannot add anyone (plan read-only); shown before accepting. */
+  joinable: boolean;
 };
+
+/**
+ * OAuth providers whose identity data states a verified email
+ * (`email_verified: true`). Any other provider is refused for invitations.
+ */
+export const TEAM_VERIFIED_EMAIL_OAUTH_PROVIDERS = ["google"] as const;
 export type TeamInvitationAcceptance = {
   membership: { id: string; role: TeamInvitationRole; status: "active"; locationScopeMode: "selected"; locations: TeamLocation[]; staffProfileId: string };
   replayed: boolean;

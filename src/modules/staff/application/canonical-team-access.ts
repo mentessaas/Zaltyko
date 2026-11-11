@@ -9,12 +9,12 @@ import { appendAuditEntry, assertIdempotencyPayload, lockCommand } from "@/modul
 import {
   canManageTeamInvitation, createTeamInvitationSchema, teamIdempotencyKeySchema, teamInvitableRoles,
   teamInvitationDelivery, teamInvitationIdSchema, teamInvitationTarget, teamInviterAuthorityFor,
-  teamOrganizationSchema, teamTokenSchema,
+  teamOrganizationSchema, teamTokenSchema, TEAM_VERIFIED_EMAIL_OAUTH_PROVIDERS,
   type TeamAccess, type TeamInvitation, type TeamInvitationAcceptance,
   type TeamInvitationInspection, type TeamInvitationResult, type TeamInvitationRevokeResult,
   type TeamInvitationTarget, type TeamInviterAuthority, type TeamLocation, type TeamMemberRole, type TeamMemberStatus,
 } from "@/modules/staff/domain/team-access-contract";
-import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
+import { assertOrganizationOperationalWritable, getOrganizationUsage } from "@/modules/saas-billing/application/organization-usage";
 import { assertCanonicalTeamAccessSchema } from "@/modules/staff/application/canonical-team-access-schema";
 
 type Tx = TransactionClient;
@@ -69,6 +69,18 @@ export async function isCanonicalTeamAccessAvailable(): Promise<boolean> {
   }
 }
 
+let availabilityCache: { value: boolean; expiresAt: number } | null = null;
+
+/** Same check for every /owner page (navigation), cached briefly per server process. */
+export async function isCanonicalTeamAccessAvailableCached(ttlMs = 30_000): Promise<boolean> {
+  if (process.env.ZALTYKO_TEAM_ACCESS_ENABLED !== "true") return false;
+  const now = Date.now();
+  if (availabilityCache && availabilityCache.expiresAt > now) return availabilityCache.value;
+  const value = await isCanonicalTeamAccessAvailable();
+  availabilityCache = { value, expiresAt: now + ttlMs };
+  return value;
+}
+
 async function transaction<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
   assertTeamAccessEnabled();
   try {
@@ -118,10 +130,10 @@ async function assertManager(tx: Tx, input: OwnerInput, lock = false): Promise<T
   return authority;
 }
 
-function assertCanManage(authority: TeamInviterAuthority, invitation: { role: "manager" | "coach"; locationIds: string[] }): void {
+function assertCanManage(authority: TeamInviterAuthority, invitation: { role: "manager" | "coach"; locationIds: string[]; existingProfile?: boolean }): void {
   if (!canManageTeamInvitation(authority, invitation)) {
     throw new OperationalError("FORBIDDEN", authority.role === "manager"
-      ? "La coordinación solo puede invitar a entrenadoras o entrenadores en sus propias sedes."
+      ? "La coordinación solo puede invitar a entrenadoras o entrenadores de sus sedes y con una ficha nueva; vincular una ficha existente corresponde a la dirección o la administración."
       : "No puedes gestionar esta invitación.", 403);
   }
 }
@@ -129,7 +141,7 @@ function assertCanManage(authority: TeamInviterAuthority, invitation: { role: "m
 /** The current inviter must still be allowed to grant exactly this access. */
 async function assertInviter(tx: Tx, row: InvitationRow, locationIds: string[]): Promise<void> {
   const authority = await memberAuthority(tx, { organizationId: row.organization_id, memberId: row.invited_by_member_id }, true);
-  if (!authority || !canManageTeamInvitation(authority, { role: row.role, locationIds })) throw invalidInvitation();
+  if (!authority || !canManageTeamInvitation(authority, { role: row.role, locationIds, existingProfile: row.staff_profile_id !== null })) throw invalidInvitation();
 }
 
 async function assertPlanWritable(tx: Tx, organizationId: string, forInvitee = false): Promise<void> {
@@ -175,6 +187,19 @@ async function confirmedEmail(tx: Tx, userId: string): Promise<string> {
       and btrim(email)<>'' for share`);
   const email = result.rows[0]?.email;
   if (!email) throw invalidInvitation();
+  // email_confirmed_at alone is not proof: OAuth sign-ins and auto-confirm can
+  // set it without the inbox being verified. Require an identity for exactly
+  // this email that is either the email/password provider (verified through
+  // Supabase's mandatory confirmation, see the activation checklist) or an
+  // allow-listed OAuth provider that states email_verified=true.
+  const providers = sql.join(TEAM_VERIFIED_EMAIL_OAUTH_PROVIDERS.map(provider => sql`${provider}`), sql`,`);
+  const verified = await query<{ ok: boolean }>(tx, sql`select exists (
+      select 1 from auth.identities i
+      where i.user_id=${userId}::uuid and lower(btrim(i.identity_data->>'email'))=${email}
+        and (i.provider='email'
+          or (i.provider in (${providers}) and lower(coalesce(i.identity_data->>'email_verified','false'))='true'))
+    ) as ok`);
+  if (verified.rows[0]?.ok !== true) throw invalidInvitation();
   return email;
 }
 
@@ -312,11 +337,12 @@ export async function listCanonicalTeamAccess(input: OwnerInput): Promise<TeamAc
     const invitationDtos: TeamInvitation[] = [];
     for (const { id } of invitations.rows) {
       const row = await readInvitation(tx, input.organizationId, id);
-      if (!canManageTeamInvitation(authority, { role: row.role, locationIds: await invitationLocationIds(tx, row) })) continue;
+      if (!canManageTeamInvitation(authority, { role: row.role, locationIds: await invitationLocationIds(tx, row), existingProfile: row.staff_profile_id !== null })) continue;
       invitationDtos.push(await invitationDto(tx, row));
     }
     // unbounded-read-ok: active team profiles of one academy, for the invitation form.
-    const linkable = await query<{ id: string; name: string }>(tx, sql`select s.id::text,btrim(p.given_name||' '||p.family_name) as name
+    // A manager never sees nor links existing profiles (they carry no site).
+    const linkable = authority.role === "manager" ? { rows: [] as Array<{ id: string; name: string }> } : await query<{ id: string; name: string }>(tx, sql`select s.id::text,btrim(p.given_name||' '||p.family_name) as name
       from zaltyko.staff_profiles s join zaltyko.people p on p.organization_id=s.organization_id and p.id=s.person_id
       where s.organization_id=${input.organizationId}::uuid and s.is_active and s.member_id is null
         and not exists (select 1 from zaltyko.organization_member_invitations i
@@ -340,7 +366,7 @@ export async function createCanonicalTeamInvitation(input: CommandInput & { emai
     const authority = await lockOwnerCommand(tx, input, command.key);
     const prior = await priorReceipt(tx, { organizationId: input.organizationId, userId: input.actor.userId, ...command });
     if (prior) return { invitation: await invitationDto(tx, await readInvitation(tx, input.organizationId, prior.invitation_id), prior), token: null, replayed: true, delivery: teamInvitationDelivery() };
-    assertCanManage(authority, { role: parsed.role, locationIds: parsed.locationIds });
+    assertCanManage(authority, { role: parsed.role, locationIds: parsed.locationIds, existingProfile: target.kind === "existing" });
     await assertOperationalOrganization(tx, input.organizationId);
     await assertPlanWritable(tx, input.organizationId);
     await explicitLocations(tx, input.organizationId, parsed.locationIds);
@@ -378,7 +404,7 @@ export async function reissueCanonicalTeamInvitation(input: InvitationCommandInp
     const prior = await priorReceipt(tx, { organizationId: input.organizationId, userId: input.actor.userId, ...command });
     if (prior) return { invitation: await invitationDto(tx, await readInvitation(tx, input.organizationId, prior.invitation_id), prior), token: null, replayed: true, delivery: teamInvitationDelivery() };
     const row = await readInvitation(tx, input.organizationId, input.invitationId, true);
-    assertCanManage(authority, { role: row.role, locationIds: await invitationLocationIds(tx, row) });
+    assertCanManage(authority, { role: row.role, locationIds: await invitationLocationIds(tx, row), existingProfile: row.staff_profile_id !== null });
     validateVersion(row, input.revision);
     await assertOperationalOrganization(tx, input.organizationId);
     await assertPlanWritable(tx, input.organizationId);
@@ -403,7 +429,7 @@ export async function revokeCanonicalTeamInvitation(input: InvitationCommandInpu
     const prior = await priorReceipt(tx, { organizationId: input.organizationId, userId: input.actor.userId, ...command });
     if (prior) return { id: prior.invitation_id, status: "revoked", revision: prior.invitation_revision, replayed: true };
     const row = await readInvitation(tx, input.organizationId, input.invitationId, true);
-    assertCanManage(authority, { role: row.role, locationIds: await invitationLocationIds(tx, row) });
+    assertCanManage(authority, { role: row.role, locationIds: await invitationLocationIds(tx, row), existingProfile: row.staff_profile_id !== null });
     validateVersion(row, input.revision);
     // Revoking a pending invitation remains possible for expired/inactive orgs
     // and in plan read-only mode: it only removes possible access and never
@@ -448,7 +474,9 @@ export async function inspectCanonicalTeamInvitation(input: { userId: string; to
     const org = await assertOperationalOrganization(tx, row.organization_id);
     const locations = await locationsFor(tx, row, true);
     await assertInviter(tx, row, locations.map(location => location.id));
-    return { organization: { id: org.id, name: org.name }, role: row.role, locations };
+    // Read-only plan check, so the page can warn before the person accepts.
+    const usage = await getOrganizationUsage(tx, row.organization_id);
+    return { organization: { id: org.id, name: org.name }, role: row.role, locations, joinable: !usage.readOnly };
   });
 }
 
