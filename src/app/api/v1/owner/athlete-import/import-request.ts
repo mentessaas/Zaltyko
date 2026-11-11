@@ -1,7 +1,17 @@
 /**
- * Shared request handling of the athlete import routes: session, same origin,
- * upload limits, the multipart form and the Owner scope. The upload is read
- * into memory only; it is never written to disk or to storage.
+ * Shared request handling of the athlete import routes. In this order, and
+ * before a single byte of the body is read:
+ *
+ * 1. session and same origin;
+ * 2. the academy from the query string (`?organizationId=`) and the Owner
+ *    scope: an active owner or admin with every site, as the manual intake;
+ * 3. the rate limit;
+ * 4. the Idempotency-Key, when the route needs one;
+ * 5. the declared size.
+ *
+ * Then the body is read as a stream and cut at the limit, whatever the
+ * Content-Length says, and only then parsed as a form. The upload stays in
+ * memory; it is never written to disk or to storage.
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -22,7 +32,7 @@ import { hasSameOrigin } from "@/modules/saas-billing/application/owner-access";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 /** Room for the multipart envelope and the small text fields. */
-const MAX_REQUEST_BYTES = ATHLETE_IMPORT_MAX_BYTES + 64 * 1024;
+export const ATHLETE_IMPORT_MAX_REQUEST_BYTES = ATHLETE_IMPORT_MAX_BYTES + 64 * 1024;
 
 export function noStore(response: NextResponse): NextResponse {
   response.headers.set("cache-control", "private, no-store");
@@ -36,52 +46,122 @@ export type ImportRequest = {
   fileBytes: Uint8Array;
   mapping: AthleteImportMapping | null;
   previewToken: string | null;
+  legalBasisConfirmed: boolean;
+  idempotencyKey: string | null;
 };
 
 type Parsed = { ok: true; value: ImportRequest } | { ok: false; response: NextResponse };
 
-function invalid(detail: string, type = "invalid-athlete-import-request", status = 400): Parsed {
-  return { ok: false, response: noStore(problemResponse({ status, title: "Importación no válida", detail, type })) };
+function refuse(status: number, detail: string, type: string, title = "Importación no válida"): Parsed {
+  return { ok: false, response: noStore(problemResponse({ status, title, detail, type })) };
 }
 
-/**
- * Authenticates, checks origin and size, reads the form and resolves the
- * Owner scope (owner, admin or manager; coaches are refused). The service
- * repeats the role and site checks inside its transaction.
- */
-export async function readImportRequest(request: Request): Promise<Parsed> {
+const tooLarge = () =>
+  refuse(413, "El fichero supera los 2 MB. Divídelo en varios ficheros.", "athlete-import-too-large");
+
+/** Reads at most `limit` bytes of the body; null when it is longer. */
+async function readBodyWithin(request: Request, limit: number): Promise<Uint8Array | null> {
+  if (!request.body) return new Uint8Array();
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body;
+}
+
+const idempotencyKeySchema = z.string().trim().min(8).max(150);
+
+export async function readImportRequest(
+  request: Request,
+  options: { requireIdempotencyKey?: boolean } = {}
+): Promise<Parsed> {
   const user = await getCurrentUser(request);
   if (!user) {
-    return {
-      ok: false,
-      response: noStore(
-        problemResponse({
-          status: 401,
-          title: "Autenticación requerida",
-          detail: "Inicia sesión para importar gimnastas.",
-          type: "authentication-required",
-        })
-      ),
-    };
+    return refuse(401, "Inicia sesión para importar gimnastas.", "authentication-required", "Autenticación requerida");
   }
   if (!hasSameOrigin(request)) {
-    return invalid("La solicitud debe proceder de la misma web.", "invalid-origin", 403);
+    return refuse(403, "La solicitud debe proceder de la misma web.", "invalid-origin", "Origen no válido");
   }
-  const declaredLength = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_REQUEST_BYTES) {
-    return invalid("El fichero supera los 2 MB. Divídelo en varios ficheros.", "athlete-import-too-large", 413);
+  const organizationId = z.guid().safeParse(new URL(request.url).searchParams.get("organizationId"));
+  if (!organizationId.success) {
+    return refuse(400, "Indica la academia en la dirección de la petición.", "invalid-athlete-import-request");
   }
 
-  const form = await request.formData().catch(() => null);
-  if (!form) return invalid("Envía el fichero en un formulario.");
+  let scope: Awaited<ReturnType<typeof resolveOwnerScope>>;
+  try {
+    scope = await resolveOwnerScope({ userId: user.id, organizationId: organizationId.data.toLowerCase() });
+    if (!(["owner", "admin"] as string[]).includes(scope.member.role)) {
+      throw new OperationalError(
+        "FORBIDDEN",
+        "Solo la propiedad o la administración de la academia pueden importar gimnastas.",
+        403
+      );
+    }
+    if (scope.member.locationScopeMode !== "all") {
+      throw new OperationalError(
+        "LOCATION_SCOPE_DENIED",
+        "Importar gimnastas requiere acceso a todas las sedes de la academia.",
+        403
+      );
+    }
+  } catch (error) {
+    if (error instanceof OperationalError) return { ok: false, response: noStore(operationalProblem(error)) };
+    throw error;
+  }
+
+  // Counted per route (preview and confirmation apart), academy and client
+  // address, before the body is read.
+  const limit = await rateLimit({
+    identifier: getVerifiedTenantRateLimitIdentifier(request, scope.organization.id),
+    ...getLimitForRoute(new URL(request.url).pathname),
+  });
+  if (!limit.success) return { ok: false, response: noStore(rateLimitExceededResponse(limit)) };
+
+  let idempotencyKey: string | null = null;
+  if (options.requireIdempotencyKey) {
+    const key = idempotencyKeySchema.safeParse(request.headers.get("idempotency-key") ?? "");
+    if (!key.success) {
+      return refuse(
+        400,
+        "Falta la clave de la operación (Idempotency-Key, de 8 a 150 caracteres).",
+        "invalid-athlete-import-request"
+      );
+    }
+    idempotencyKey = key.data;
+  }
+
+  const declared = request.headers.get("content-length");
+  if (declared !== null && (!/^\d+$/u.test(declared) || Number(declared) > ATHLETE_IMPORT_MAX_REQUEST_BYTES)) {
+    return tooLarge();
+  }
+  const body = await readBodyWithin(request, ATHLETE_IMPORT_MAX_REQUEST_BYTES);
+  if (!body) return tooLarge();
+  const form = await new Response(body, {
+    headers: { "content-type": request.headers.get("content-type") ?? "" },
+  })
+    .formData()
+    .catch(() => null);
+  if (!form) return refuse(400, "Envía el fichero en un formulario.", "invalid-athlete-import-request");
   const file = form.get("file");
-  const organizationId = z.guid().safeParse(form.get("organizationId"));
-  if (!(file instanceof File) || !organizationId.success) {
-    return invalid("Elige un fichero CSV o Excel (.xlsx) y la academia.");
+  if (!(file instanceof Blob)) {
+    return refuse(400, "Elige un fichero CSV o Excel (.xlsx).", "invalid-athlete-import-request");
   }
-  if (file.size > ATHLETE_IMPORT_MAX_BYTES) {
-    return invalid("El fichero supera los 2 MB. Divídelo en varios ficheros.", "athlete-import-too-large", 413);
-  }
+  if (file.size > ATHLETE_IMPORT_MAX_BYTES) return tooLarge();
 
   let mapping: AthleteImportMapping | null = null;
   const rawMapping = form.get("mapping");
@@ -90,35 +170,24 @@ export async function readImportRequest(request: Request): Promise<Parsed> {
     try {
       decoded = JSON.parse(rawMapping);
     } catch {
-      return invalid("El mapeo de columnas no es válido.");
+      return refuse(400, "El mapeo de columnas no es válido.", "invalid-athlete-import-request");
     }
     const parsed = athleteImportMappingSchema.safeParse(decoded);
-    if (!parsed.success) return invalid("El mapeo de columnas no es válido.");
+    if (!parsed.success) return refuse(400, "El mapeo de columnas no es válido.", "invalid-athlete-import-request");
     mapping = parsed.data;
   }
   const rawToken = form.get("previewToken");
-  const previewToken = typeof rawToken === "string" && /^[a-f0-9]{64}$/u.test(rawToken) ? rawToken : null;
-
-  try {
-    const scope = await resolveOwnerScope({ userId: user.id, organizationId: organizationId.data.toLowerCase() });
-    const limit = await rateLimit({
-      identifier: getVerifiedTenantRateLimitIdentifier(request, scope.organization.id),
-      ...getLimitForRoute(new URL(request.url).pathname),
-    });
-    if (!limit.success) return { ok: false, response: noStore(rateLimitExceededResponse(limit)) };
-    return {
-      ok: true,
-      value: {
-        userId: user.id,
-        organizationId: scope.organization.id,
-        memberId: scope.member.id,
-        fileBytes: new Uint8Array(await file.arrayBuffer()),
-        mapping,
-        previewToken,
-      },
-    };
-  } catch (error) {
-    if (error instanceof OperationalError) return { ok: false, response: noStore(operationalProblem(error)) };
-    throw error;
-  }
+  return {
+    ok: true,
+    value: {
+      userId: user.id,
+      organizationId: scope.organization.id,
+      memberId: scope.member.id,
+      fileBytes: new Uint8Array(await file.arrayBuffer()),
+      mapping,
+      previewToken: typeof rawToken === "string" && /^[a-f0-9]{64}$/u.test(rawToken) ? rawToken : null,
+      legalBasisConfirmed: form.get("legalBasisConfirmed") === "true",
+      idempotencyKey,
+    },
+  };
 }

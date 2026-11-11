@@ -5,7 +5,7 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 import { noStore, readImportRequest } from "../import-request";
 
-// @auth-flexible route-guard-reason: readImportRequest authenticates the cookie session, requires the same origin and resolves the Owner scope (owner, admin or manager); the service rechecks the active member, role and sites in its read transaction. Nothing is written.
+// @auth-flexible route-guard-reason: readImportRequest authenticates the cookie session, requires the same origin, resolves the Owner scope (owner or admin with every site) and applies the rate limit before reading the body; the service rechecks the member in its read transaction. Nothing is written.
 export async function POST(request: Request) {
   const parsed = await readImportRequest(request);
   if (!parsed.ok) return parsed.response;
