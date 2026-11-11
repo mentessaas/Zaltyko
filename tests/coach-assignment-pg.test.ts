@@ -921,18 +921,25 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
       const attendanceKey = `ci-cycle-${randomUUID()}`;
       const clientRequestId = randomUUID();
 
-      // Un tercero retiene la fila de la academia. La sustitución llega primero
-      // a ella (academia → plantilla → sesión); Pasar lista bloquea antes la
-      // sesión y espera después a la academia (sesión → academia).
+      // Determinista: un tercero retiene el cerrojo de la plantilla. La
+      // sustitución toma la fila de la academia y espera en la plantilla; Pasar
+      // lista bloquea la sesión y espera a la academia, que ya tiene la
+      // sustitución. Al liberar la plantilla, la sustitución pide la sesión y el
+      // ciclo sesión ↔ academia es seguro: PostgreSQL aborta a una de las dos
+      // (cualquiera puede ser la víctima).
       const holder = holdLock(async (tx) => {
-        await tx.execute(sql`select id from zaltyko.organizations where id = ${d.organizationId}::uuid for update`);
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtextextended(${`${d.organizationId}:sessions:${classD}`}, 0))`
+        );
       });
       await holder.held;
       const substitution = substituteRoute(substitutionRequest(clientRequestId), params);
       let attendance: Promise<Response> | undefined;
       try {
+        // La sustitución ya tiene la academia y espera en la plantilla.
         expect(await waitForLockWaiters(1)).toBe(1);
         attendance = recordAttendanceRoute(attendanceRequest(attendanceKey), params);
+        // Pasar lista tiene la sesión y espera a la academia.
         expect(await waitForLockWaiters(2)).toBe(2);
       } finally {
         holder.release();

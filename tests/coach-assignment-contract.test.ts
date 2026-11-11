@@ -140,11 +140,13 @@ describe("candidato SQL de titulares y sustituciones", () => {
   });
 
   it("aborta si cualquiera de las tablas ya existe, antes de crear nada", () => {
-    const preflight = lower.indexOf("raise exception");
-    expect(preflight).toBeGreaterThan(0);
-    expect(preflight).toBeLessThan(lower.indexOf("create table"));
+    // La última comprobación del preflight es la de las tablas, antes de crear nada.
+    const firstCreate = lower.indexOf("create table");
+    const tablesCheck = lower.lastIndexOf("raise exception", firstCreate);
+    expect(tablesCheck).toBeGreaterThan(0);
+    expect(lower.slice(tablesCheck, firstCreate)).toContain("absent; inspect existing schema before promotion");
     for (const table of TABLES) {
-      expect(lower.slice(0, preflight)).toContain(`to_regclass('zaltyko.${table}') is not null`);
+      expect(lower.slice(0, tablesCheck)).toContain(`to_regclass('zaltyko.${table}') is not null`);
     }
   });
 
@@ -279,9 +281,10 @@ describe("candidato SQL de titulares y sustituciones", () => {
 describe("el esquema de titulares queda fuera de drizzle-kit y de validate:rls", () => {
   it("no se exporta desde los índices ni vive en src/db/schema", () => {
     for (const path of ["src/db/schema/index.ts", "src/db/zaltyko-schema.ts"]) {
-      expect(read(path), path).not.toMatch(/coach-assignment/);
+      // `./class-coach-assignments` es una tabla legacy distinta; aquí se busca este módulo.
+      expect(read(path), path).not.toMatch(/modules\/coach-assignment|coach-assignment-schema/);
     }
-    expect(read("drizzle.config.ts")).not.toContain("coach-assignment");
+    expect(read("drizzle.config.ts")).not.toMatch(/modules\/coach-assignment|coach-assignment-schema/);
     const schemaDir = join(ROOT, "src/db/schema");
     for (const entry of readdirSync(schemaDir)) {
       const path = join(schemaDir, entry);
