@@ -36,6 +36,15 @@ export const PRE_COMMIT_MONTHLY_INVOICE_REJECTIONS: readonly string[] =
     "INVOICE_REFERENCE_TAKEN",
   ] as const);
 
+/**
+ * Problem code of an issuance PostgreSQL aborted to break a deadlock (40P01).
+ * The route returns it (503) only after the transaction rolled back, so that
+ * attempt wrote nothing: the screen keeps the same key and content to retry,
+ * without marking the attempt as ambiguous. A later definitive rejection of a
+ * command with no ambiguous attempt can then still clear it.
+ */
+export const ROLLED_BACK_MONTHLY_INVOICE_RETRY = "CONCURRENCY_RETRY";
+
 const PENDING_KEYS = "body,hasAmbiguousAttempt,key,scopeKey,version";
 const BODY_KEYS =
   "dueDate,familyId,familyPayerId,locationId,organizationId,quoteHash,servicePeriod";
@@ -197,6 +206,42 @@ export function persistPendingMonthlyInvoiceIssue(
       return false;
     }
   } else if (current.status !== "none") {
+    return false;
+  }
+
+  try {
+    const encoded = JSON.stringify(normalized);
+    storage.setItem(PENDING_MONTHLY_INVOICE_ISSUE_STORAGE_KEY, encoded);
+    const saved = readPendingMonthlyInvoiceIssue(storage);
+    return (
+      saved.status === "pending" &&
+      JSON.stringify(saved.request) === encoded
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * After a ROLLED_BACK_MONTHLY_INVOICE_RETRY response, puts back the ambiguity
+ * the stored command had before that attempt (`request.hasAmbiguousAttempt`).
+ * persistPendingMonthlyInvoiceIssue never lowers it; this is the one exception,
+ * because that response proves the attempt rolled back. Only for the same
+ * stored command, and never raises it.
+ */
+export function restorePendingMonthlyInvoiceIssueAfterRollback(
+  request: PendingMonthlyInvoiceIssue,
+  storage: StorageLike | null = defaultStorage()
+): boolean {
+  const normalized = parsePending(request);
+  if (!normalized || !storage) return false;
+
+  const current = readPendingMonthlyInvoiceIssue(storage);
+  if (
+    current.status !== "pending" ||
+    !sameCommand(current.request, normalized) ||
+    (normalized.hasAmbiguousAttempt && !current.request.hasAmbiguousAttempt)
+  ) {
     return false;
   }
 

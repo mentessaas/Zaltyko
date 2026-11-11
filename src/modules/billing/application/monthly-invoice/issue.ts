@@ -15,7 +15,7 @@ import {
   appendOutboxEvent,
 } from "@/modules/shared/infrastructure/transactional-records";
 
-import { conflict } from "./errors";
+import { conflict, deadlockRetry, isDeadlockDetected } from "./errors";
 import {
   financialRoles,
   keySchema,
@@ -55,7 +55,7 @@ export async function issueMonthlyInvoice(
   };
   const bounds = periodBounds(input.servicePeriod);
 
-  return db.transaction(async (tx) => {
+  const issuance = db.transaction(async (tx) => {
     await assertOperationalAccess(tx, {
       organizationId: input.organizationId,
       locationId: input.locationId,
@@ -238,5 +238,15 @@ export async function issueMonthlyInvoice(
       lines: await loadIssuedLines(tx, input.organizationId, invoice.id),
       ...(await loadMonthlyChargeState(tx, input.organizationId, invoice.id)),
     };
+  });
+
+  return issuance.catch((error: unknown) => {
+    // The issuance takes its locks in a fixed order, but another command of
+    // the organization may wait on the same rows in another order. PostgreSQL
+    // then aborts one transaction (40P01). When it is this one, it has fully
+    // rolled back, so the same command can be retried with the same
+    // idempotency key.
+    if (isDeadlockDetected(error)) throw deadlockRetry();
+    throw error;
   });
 }

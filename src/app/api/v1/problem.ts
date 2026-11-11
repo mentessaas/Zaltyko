@@ -27,17 +27,25 @@ export function problemResponse(input: {
   );
 }
 
+function operationalTitle(error: OperationalError): string {
+  // A rolled-back attempt the client should simply repeat (for example a
+  // deadlock PostgreSQL broke): say so instead of a generic failure.
+  if (error.code === "CONCURRENCY_RETRY") {
+    return "Operación ocupada, vuelve a intentarlo";
+  }
+  return error.status === 403
+    ? "Acceso denegado"
+    : error.status === 404
+      ? "Recurso no encontrado"
+      : error.status === 409
+        ? "Conflicto de versión o estado"
+        : "Solicitud no procesable";
+}
+
 export function operationalProblem(error: OperationalError) {
   return problemResponse({
     status: error.status,
-    title:
-      error.status === 403
-        ? "Acceso denegado"
-        : error.status === 404
-          ? "Recurso no encontrado"
-          : error.status === 409
-            ? "Conflicto de versión o estado"
-            : "Solicitud no procesable",
+    title: operationalTitle(error),
     detail: error.message,
     type: error.code.toLowerCase().replaceAll("_", "-"),
     errors: error.details,

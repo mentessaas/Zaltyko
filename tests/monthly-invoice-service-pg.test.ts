@@ -467,6 +467,71 @@ async function waitForOrganizationLockWaiters(expected: number) {
   throw new Error(`Only ${waiting} of ${expected} issuances reached the organization lock`);
 }
 
+/**
+ * Waits until `expected` other sessions are blocked on a lock while running a
+ * statement whose text matches `queryPattern` (SQL LIKE). With `waitEvent`,
+ * only that lock type counts (`transactionid`: a row or index entry written
+ * by a transaction that has not finished yet).
+ */
+async function waitForLockWaiters(
+  queryPattern: string,
+  expected: number,
+  waitEvent?: string
+) {
+  const deadline = Date.now() + 15_000;
+  let waiting = 0;
+  while (Date.now() < deadline) {
+    const result = await db.execute(sql`
+      select count(*)::int as waiting
+      from pg_stat_activity
+      where datname = current_database()
+        and pid <> pg_backend_pid()
+        and wait_event_type = 'Lock'
+        and (${waitEvent ?? null}::text is null or wait_event = ${waitEvent ?? null}::text)
+        and query like ${queryPattern}
+    `);
+    waiting = Number(result.rows[0]?.waiting ?? 0);
+    if (waiting >= expected) return waiting;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Only ${waiting} of ${expected} sessions waited on ${queryPattern}`);
+}
+
+/** A promise the test resolves by hand, to hold a competing transaction open. */
+function signal() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+/**
+ * Inserts a monthly invoice header with the pre-site reference and without
+ * lines, as old code could leave it: without a site unless `locationId` is set.
+ */
+async function insertSiteLessInvoice(
+  fixture: Fixture,
+  state: { status: "issued" | "void"; voidedAt: string | null },
+  locationId: string | null = null,
+  reference = legacyReference(fixture)
+) {
+  const invoiceId = randomUUID();
+  await db.execute(sql`
+    insert into zaltyko.invoices (
+      id, organization_id, location_id, family_id, reference, status,
+      currency, total_amount_cents, issued_at, due_at, voided_at, idempotency_key
+    ) values (
+      ${invoiceId}::uuid, ${fixture.organizationId}::uuid, ${locationId}::uuid,
+      ${fixture.familyId}::uuid, ${reference}, ${state.status}::zaltyko.invoice_status,
+      'EUR', 6200, ${`${PERIOD_START}T09:00:00Z`}::timestamptz,
+      ${`${PERIOD_END}T12:00:00Z`}::timestamptz, ${state.voidedAt}::timestamptz,
+      ${`ci-legacy-${invoiceId}`}
+    )
+  `);
+  return invoiceId;
+}
+
 describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
   beforeEach(() => {
     assertDisposableTarget();
@@ -999,5 +1064,264 @@ describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
       charges: 0,
       markers: 0,
     });
+  }, 45_000);
+
+  it("blocks a month invoiced without a site that has no monthly_fee lines, found by its pre-site reference", async () => {
+    // Old code could leave a monthly header without a site and without lines
+    // for the month. The lines read cannot see it; its pre-site reference
+    // still names the family and the month.
+    const fixture = await seedFamily();
+    await insertSiteLessInvoice(fixture, { status: "issued", voidedAt: null });
+
+    const family = await quoteFor(fixture);
+    expect(family).toMatchObject({
+      canIssue: false,
+      existingInvoiceId: null,
+      existingInvoiceVoided: false,
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"],
+    });
+    await expect(issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!))).rejects.toMatchObject({
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 422,
+      details: { blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"] },
+    });
+    expect(await ledgerRows(fixture.organizationId)).toEqual({
+      invoices: 1,
+      lines: 0,
+      covered: 0,
+      charges: 0,
+      markers: 0,
+    });
+  }, 45_000);
+
+  it("finds the pre-site reference without case", async () => {
+    // The old route accepted the family id in any case and stored it verbatim.
+    const fixture = await seedFamily();
+    await insertSiteLessInvoice(
+      fixture,
+      { status: "issued", voidedAt: null },
+      null,
+      legacyReference(fixture).toUpperCase()
+    );
+
+    expect(await quoteFor(fixture)).toMatchObject({
+      canIssue: false,
+      existingInvoiceId: null,
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"],
+    });
+  }, 45_000);
+
+  it("blocks with its own reason a voided month invoiced without a site", async () => {
+    const fixture = await seedFamily();
+    await insertSiteLessInvoice(fixture, {
+      status: "void",
+      voidedAt: `${PERIOD_START}T10:00:00Z`,
+    });
+
+    const family = await quoteFor(fixture);
+    expect(family).toMatchObject({
+      canIssue: false,
+      existingInvoiceId: null,
+      existingInvoiceVoided: false,
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE_VOIDED"],
+    });
+    await expect(issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!))).rejects.toMatchObject({
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 422,
+      details: { blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE_VOIDED"] },
+    });
+    expect(await ledgerRows(fixture.organizationId)).toEqual({
+      invoices: 1,
+      lines: 0,
+      covered: 0,
+      charges: 0,
+      markers: 0,
+    });
+  }, 45_000);
+
+  it("blocks a month invoiced at the same site with the pre-site reference and no monthly_fee lines", async () => {
+    // Neither the per-site replay nor PERIOD_ALREADY_INVOICED read the
+    // reference, and this header has no monthly_fee lines for the month.
+    const fixture = await seedFamily();
+    const legacyInvoiceId = await insertSiteLessInvoice(
+      fixture,
+      { status: "issued", voidedAt: null },
+      fixture.locationId
+    );
+
+    const family = await quoteFor(fixture);
+    expect(family).toMatchObject({
+      canIssue: false,
+      existingInvoiceId: legacyInvoiceId,
+      existingInvoiceVoided: false,
+      blockingReasons: ["PERIOD_ALREADY_INVOICED"],
+    });
+    await expect(issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!))).rejects.toMatchObject({
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 422,
+      details: { blockingReasons: ["PERIOD_ALREADY_INVOICED"] },
+    });
+    expect(await ledgerRows(fixture.organizationId)).toEqual({
+      invoices: 1,
+      lines: 0,
+      covered: 0,
+      charges: 0,
+      markers: 0,
+    });
+  }, 45_000);
+
+  it("turns a deadlock into a retryable error, and the retry with the same key issues the month once", async () => {
+    // Builds the lock cycle on purpose, with no timing assumption:
+    // - `holder` keeps the family row, which the issuance locks after the
+    //   organization row and the site row;
+    // - `gate` keeps the site row, so the issuance stops right after taking the
+    //   organization row (lockCommand);
+    // - `holder` asks for the organization row and waits on the issuance. Its
+    //   deadlock_timeout is 30 s, so it never runs the deadlock check first;
+    // - `gate` lets the issuance go on: it asks for the family row and closes
+    //   the cycle. Its own check (deadlock_timeout, 1 s by default) finds it
+    //   and PostgreSQL aborts the issuance with 40P01.
+    const fixture = await seedFamily();
+    const family = await quoteFor(fixture);
+    expect(family.canIssue).toBe(true);
+    const command = issueCommand(fixture, family.quoteHash!);
+
+    const familyHeld = signal();
+    const holderMayWait = signal();
+    const siteHeld = signal();
+    const gateOpen = signal();
+    const holder = db.transaction(async (tx) => {
+      await tx.execute(sql`set local deadlock_timeout = '30s'`);
+      await tx.execute(sql`
+        select id from zaltyko.families
+        where organization_id = ${fixture.organizationId}::uuid and id = ${fixture.familyId}::uuid
+        for update
+      `);
+      familyHeld.resolve();
+      await holderMayWait.promise;
+      await tx.execute(sql`
+        select id from zaltyko.organizations where id = ${fixture.organizationId}::uuid for update
+      `);
+    });
+    const gate = db.transaction(async (tx) => {
+      await tx.execute(sql`
+        select id from zaltyko.locations
+        where organization_id = ${fixture.organizationId}::uuid and id = ${fixture.locationId}::uuid
+        for update
+      `);
+      siteHeld.resolve();
+      await gateOpen.promise;
+    });
+    await Promise.all([familyHeld.promise, siteHeld.promise]);
+
+    const issuance = issueMonthlyInvoice(command).then(
+      () => null,
+      (caught: unknown) => caught
+    );
+    try {
+      // The issuance holds the organization row and waits on the site row.
+      expect(await waitForLockWaiters("%from zaltyko.locations%for update%", 1)).toBe(1);
+      holderMayWait.resolve();
+      // The holder now waits on the issuance's organization row.
+      expect(await waitForOrganizationLockWaiters(1)).toBe(1);
+    } finally {
+      holderMayWait.resolve();
+      gateOpen.resolve();
+      await gate;
+    }
+    const failure = await issuance;
+    await holder;
+
+    expect(failure).toBeInstanceOf(OperationalError);
+    expect(failure).toMatchObject({
+      code: "CONCURRENCY_RETRY",
+      status: 503,
+      details: { retryable: true },
+    });
+    expect((failure as OperationalError).message).toMatch(/Vuelve a intentarlo/);
+    // The aborted issuance left nothing behind.
+    expect(await ledgerRows(fixture.organizationId)).toEqual(NO_LEDGER_ROWS);
+
+    // The owner screen retries the same command with the same key: one invoice.
+    const retried = await issueMonthlyInvoice(command);
+    expect(retried.replayed).toBe(false);
+    expect(await ledgerRows(fixture.organizationId)).toEqual(ONE_INVOICE);
+
+    // A second retry with that key (a lost response) replays it: no second charge.
+    const replayed = await issueMonthlyInvoice(command);
+    expect(replayed.replayed).toBe(true);
+    expect(replayed.invoice.id).toBe(retried.invoice.id);
+    expect(await ledgerRows(fixture.organizationId)).toEqual(ONE_INVOICE);
+  }, 60_000);
+
+  it("reports a real 23505 on invoices_reference_uq as INVOICE_REFERENCE_TAKEN, with a full rollback", async () => {
+    // The test above "a reference taken by an invoice committed during the
+    // issuance" explains why no ordinary writer can reach this window: every
+    // invoice insert checks the organization FK (FOR KEY SHARE) and the
+    // issuance holds FOR UPDATE on that row. The competing writer here skips
+    // the FK triggers (session_replication_role = replica, superuser only, as
+    // in this disposable database), so it takes no lock on the organization
+    // row. Its uncommitted invoice is invisible to the quote under locks, and
+    // the issuance's insert waits on that row's reference in the unique index.
+    // Its rows still point to real organization, site and family rows.
+    const fixture = await seedFamily();
+    const family = await quoteFor(fixture);
+    expect(family.canIssue).toBe(true);
+    const reference = expectedReference(fixture, fixture.locationId);
+
+    const inserted = signal();
+    const released = signal();
+    const heldBy = randomUUID();
+    const competing = db.transaction(async (tx) => {
+      await tx.execute(sql`set local session_replication_role = replica`);
+      await tx.execute(sql`
+        insert into zaltyko.invoices (
+          id, organization_id, location_id, family_id, reference, status,
+          currency, total_amount_cents, issued_at, due_at, idempotency_key
+        ) values (
+          ${heldBy}::uuid, ${fixture.organizationId}::uuid, ${fixture.locationId}::uuid,
+          ${fixture.familyId}::uuid, ${reference}, 'issued',
+          'EUR', 1000, ${`${PERIOD_START}T09:00:00Z`}::timestamptz,
+          ${`${PERIOD_END}T12:00:00Z`}::timestamptz, ${`ci-manual-${heldBy}`}
+        )
+      `);
+      inserted.resolve();
+      await released.promise;
+    });
+    await inserted.promise;
+
+    const issuance = issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!)).then(
+      () => null,
+      (caught: unknown) => caught
+    );
+    try {
+      // The issuance got past every lock and the quote, and its insert now
+      // waits for the competing transaction to decide on the same reference.
+      expect(
+        await waitForLockWaiters('%insert into "zaltyko"."invoices"%', 1, "transactionid")
+      ).toBe(1);
+    } finally {
+      released.resolve();
+      await competing;
+    }
+    const failure = await issuance;
+
+    expect(failure).toBeInstanceOf(OperationalError);
+    expect(failure).toMatchObject({
+      code: "INVOICE_REFERENCE_TAKEN",
+      status: 409,
+      details: { reference },
+    });
+    // Only the competing invoice remains; the issuance rolled back whole.
+    expect(await ledgerRows(fixture.organizationId)).toEqual({
+      invoices: 1,
+      lines: 0,
+      covered: 0,
+      charges: 0,
+      markers: 0,
+    });
+    expect(await invoiceReferences(fixture)).toEqual([
+      { locationId: fixture.locationId, reference },
+    ]);
   }, 45_000);
 });

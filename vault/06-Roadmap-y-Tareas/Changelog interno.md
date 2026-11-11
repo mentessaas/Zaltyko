@@ -8,6 +8,17 @@ source:
 ---
 
 
+## 2026-11-11 — Vulnerabilidades de dependencias restantes (P0 #2)
+
+**Cambio.** Dos PR en borrador: web (`pnpm-lock.yaml`) y app móvil (`mobile/`). Solo versiones de parche o menores; ningún salto mayor.
+- **Web:** `qs` 6.16.1 y `@hono/node-server` 2.1.3 con el hook `pnpmfile.cjs` (solo dentro de su línea mayor) y espejo comentado en `pnpm-workspace.yaml`; `vitest` y `@vitest/coverage-v8` 4.1.12. El proyector de lockfile de Vite (`scripts/ci/project-vite-lockfile-core.cjs`) y su test pasan de `vitest@4.1.11` a 4.1.12: es lo que bloqueaba esta subida en la PR 248.
+- **Móvil:** `node-forge` 1.4.3 (21 avisos, 42 alertas en los dos lockfiles; sustituye al parche local de la PR 187), `decode-uri-component` 0.5.1, `vite` 8.3.3 (+ `rolldown` 1.2.11) y `vitest` 4.1.12. Expo SDK 57 sin cambios.
+- **Lockfiles:** regenerados en GitHub Actions con el workflow nuevo `dependency-lockfile-refresh.yml` (solo lectura, sin secretos ni scripts; deja los lockfiles como artefacto). No se instaló nada en el Mac.
+
+**Pruebas.** Tests nuevos del hook y del lockfile real en `tests/pnpm-security-hook.test.ts`. Resultado en la CI de cada PR; nada ejecutado en local.
+
+**Sin resolver (seguimiento).** `glob` 13 y `minimatch` 10 (solo se corrigen en 14 y 11, saltos mayores; los usan herramientas de build, lint y Expo CLI, no el runtime), `deepmerge` 4.3.1 (sin parche publicado) y `zod` 3 en la app móvil (solo se corrige en 4). Detalle en la descripción de las PR y en `auditorias/2026-11-11/dependencias-p0-2-anexo.md` (fuera del repo).
+
 
 
 ## 2026-11-11 — Importar gimnastas desde Excel o CSV con vista previa (O4)
