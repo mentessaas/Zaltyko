@@ -13,6 +13,10 @@ import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-s
 import { hasSameOrigin } from "@/modules/saas-billing/application/owner-access";
 import type { OperationalActor } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import {
+  isRetryableDbConflict,
+  retryableDbConflictError,
+} from "@/modules/shared/infrastructure/retryable-db-conflict";
 
 /**
  * Piezas comunes de las rutas de entrenadoras por clase y por sesión (O1).
@@ -100,5 +104,15 @@ export function readResponse<T>(data: T): NextResponse {
 
 export function coachAssignmentError(error: unknown): NextResponse {
   if (error instanceof OperationalError) return noStore(operationalProblem(error));
+  // Defensa en profundidad: el servicio ya traduce interbloqueos y fallos de
+  // serialización dentro de su transacción, pero cualquier consulta previa
+  // (alcance, acceso a la sesión) también puede abortar. Nunca 500.
+  if (isRetryableDbConflict(error)) {
+    return noStore(
+      operationalProblem(
+        retryableDbConflictError("La base de datos estaba ocupada con otra operación. Vuelve a intentarlo.")
+      )
+    );
+  }
   throw error;
 }

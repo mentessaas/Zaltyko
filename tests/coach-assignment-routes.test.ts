@@ -230,3 +230,59 @@ describe("entrenadoras de una sesión", () => {
     expect(mocks.setSession).not.toHaveBeenCalled();
   });
 });
+
+describe("errores de PostgreSQL reintentables en las rutas (servicio simulado)", () => {
+  function drizzleWrapped(code: string): Error {
+    // Así llega con Drizzle y node-postgres: el código va en `cause`.
+    return Object.assign(new Error("Failed query: select ..."), {
+      cause: Object.assign(new Error("deadlock detected"), { code }),
+    });
+  }
+  function pgDirect(code: string): Error {
+    return Object.assign(new Error("deadlock detected"), { code });
+  }
+
+  const cases = [
+    ["GET clase", () => mocks.getClass, async () => (await loadClass()).GET(request("GET", `/api/v1/owner/classes/${classTemplateId}/coaches?organizationId=${organizationId}`), params({ classTemplateId }))],
+    ["PUT clase", () => mocks.setClass, async () => (await loadClass()).PUT(request("PUT", `/api/v1/owner/classes/${classTemplateId}/coaches`, classBody), params({ classTemplateId }))],
+    ["GET sesión", () => mocks.getSession, async () => (await loadSession()).GET(request("GET", `/api/v1/owner/sessions/${sessionId}/coaches?organizationId=${organizationId}&locationId=${locationId}`), params({ sessionId }))],
+    ["PUT sesión", () => mocks.setSession, async () => (await loadSession()).PUT(request("PUT", `/api/v1/owner/sessions/${sessionId}/coaches`, sessionBody), params({ sessionId }))],
+  ] as const;
+
+  for (const [label, service, call] of cases) {
+    for (const [variant, build] of [["envuelto en cause", drizzleWrapped], ["directo", pgDirect]] as const) {
+      it.each(["40P01", "40001", "55P03"])(`${label}: %s ${variant} → 409 reintentable, no 500`, async (code) => {
+        service().mockImplementation(async () => {
+          throw build(code);
+        });
+        const response = await call();
+        expect(response.status).toBe(409);
+        expect(response.headers.get("cache-control")).toBe("private, no-store");
+        const problem = await response.json();
+        expect(problem).toMatchObject({
+          type: "https://zaltyko.com/problems/version-conflict",
+          status: 409,
+          errors: { retryable: true },
+        });
+        // Red de la ruta: el servicio simulado no traduce.
+        expect(problem.detail).toBe("La base de datos estaba ocupada con otra operación. Vuelve a intentarlo.");
+      });
+    }
+  }
+
+  it("otro error de base de datos se sigue propagando (500 del framework)", async () => {
+    const failure = drizzleWrapped("23505");
+    mocks.setClass.mockImplementation(async () => {
+      throw failure;
+    });
+    const { PUT } = await loadClass();
+    let thrown: unknown;
+    try {
+      await PUT(request("PUT", `/api/v1/owner/classes/${classTemplateId}/coaches`, classBody), params({ classTemplateId }));
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBe(failure);
+  });
+});
+
