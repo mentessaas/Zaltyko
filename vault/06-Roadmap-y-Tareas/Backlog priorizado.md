@@ -34,6 +34,8 @@ Fuente: `docs/research/competencia/plan-validacion-30-dias.md`. No construir nad
 - P2 · Incluir objetivos y observaciones en la exportación canónica de la academia.
 - P2 · Decidir si el portal de familias muestra las observaciones compartibles (hoy `FAMILY_PORTAL_SHOWS_OBSERVATIONS = false`).
 - P2 · Segunda parte de P2 #17: planificación sobre sesiones; después, biblioteca GAF/GAM.
+- Deuda (PR aparte) · Frontera ESLint del servicio partido de athlete-progress: mover `athlete-progress-{access,reads,objectives,observations}.ts` a `src/modules/athlete-progress/application/athlete-progress/`, registrarla en `eslint.internal-boundaries.json` y actualizar `tests/internal-module-boundaries.test.ts`.
+- Deuda (PR aparte) · Prueba de contrato de que ningún flujo borra `zaltyko.sessions` (la FK de observaciones a sesiones es NO ACTION a propósito).
 
 ## P0 vigente — apertura esencial España, 2026-10-26
 
