@@ -82,7 +82,7 @@
     "decode-uri-component": "GHSA-qr28-fpjm-wq7f: DoS cuadratico con secuencias %XX; corregido en 0.5.1 (query-string de expo-router).",
     "node-forge@<1.4.3": "Suelo, no pin: solo sube a ^1.4.3 a quien aún admite una versión vulnerable (@expo/cli y @expo/code-signing-certificates piden ^1.3.3). 21 avisos (RSA/PKCS#1, ASN.1, PKCS#12) corregidos en 1.4.1 y 1.4.3. La devDependency directa 1.4.3 no la toca el selector y existe para que el test de regresión resuelva node-forge.",
     "vite (devDependency directa, sin override)": "8.3.3, la mínima que corrige 6 avisos de 8.3.0-8.3.2; solo tests. Directa porque en vitest 4.1.12 vite es un peer. Exacta hasta revisar el 2026-11-25: 8.3.8 añade el peer opcional @vitejs/devtools 0.8 y con npm 10 rompe `npm install` (arborist, «edgesOut»); entonces se valorará ^8.3.3 con npm 11.",
-    "vite@8.3.3>rolldown (solo pnpm)": "1.2.11, la mínima que admite vite 8.3.3 (~1.2.11) y la que ya resuelve npm. Acotado a vite 8.3.3: deja de aplicarse al subir vite. Evita 1.2.19 (publicada el 2026-11-11, binding wasm con @emnapi 2.0.0-beta). Revisar el 2026-11-25."
+    "vite@8.3.3>rolldown (solo pnpm)": "1.2.11, la mínima que admite vite 8.3.3 (~1.2.11). Acotado a vite 8.3.3: deja de aplicarse al subir vite. Evita 1.2.19 (publicada el 2026-11-11, binding wasm con @emnapi 2.0.0-beta). En npm no hace falta: package-lock.json ya tenía rolldown 1.2.11 en main (vite 8.3.1 pedía ~1.2.9) y npm conserva una versión bloqueada mientras cumpla el rango nuevo; `npm ci` instala exactamente el lockfile. Revisar el 2026-11-25."
   },
   "overrides": {
     "uuid": "^11.1.1",
