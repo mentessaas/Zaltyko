@@ -50,10 +50,14 @@ for (const [label, page, service] of [
       { name: "sede autorizada Manager", role: "manager", mode: "selected", requested: locationB, expected: locationB },
       { name: "admin limitado sin query", role: "admin", mode: "selected", requested: undefined, expected: locationA },
     ])("conserva $name sin tomar el default de creación como filtro agregado", async ({ role, mode, requested, expected }) => {
+      // Forma real de getOwnerClassesPageData: sedes y clases siempre llegan
+      // (O2 lee las sedes para «Choques próximos»).
       const bundle = {
         organization: { id: organizationId },
-        member: { role, locationScopeMode: mode },
+        member: { id: "synthetic-member", role, locationScopeMode: mode },
         selectedLocationId: requested ?? locationA,
+        locations: [{ id: locationA, name: "Norte" }, { id: locationB, name: "Sur" }],
+        classes: [],
       };
       service.mockResolvedValue(bundle);
       const result = await page({ searchParams: Promise.resolve({
@@ -69,9 +73,18 @@ for (const [label, page, service] of [
         userId: "synthetic-user", organizationId, locationId: requested,
       }));
       // Navigation must not change the form's existing, authorized default.
-      expect(result.props.children.props.bundle.selectedLocationId).toBe(bundle.selectedLocationId);
+      // Clases puede pintar antes «Choques próximos» (O2): se busca el gestor.
+      const content = [result.props.children].flat().find(
+        (child: { props?: { bundle?: unknown } } | null) => Boolean(child?.props?.bundle)
+      );
+      expect(content.props.bundle.selectedLocationId).toBe(bundle.selectedLocationId);
       if (label === "Clases") {
-        expect(result.props.children.props.navigationLocationId).toBe(expected);
+        expect(content.props.navigationLocationId).toBe(expected);
+        // Si la detección no llega (null), la página se pinta igual, sin la sección.
+        const conflicts = [result.props.children].flat().find(
+          (child: { props?: Record<string, unknown> } | null) => Boolean(child?.props && "upcoming" in child.props)
+        );
+        expect(conflicts.props.upcoming).toBeNull();
       }
     });
   });
