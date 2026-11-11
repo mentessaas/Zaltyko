@@ -1,7 +1,7 @@
 /**
  * Reads of an issued monthly invoice: header, lines with their covered
- * enrollments, and charge state (locked). Shared by the new issuance and both
- * replay paths.
+ * enrollments, and charge state (locked), and the check that no quoted athlete
+ * already has a monthly line. Shared by the new issuance and both replay paths.
  */
 import { and, asc, eq, gt, inArray, or, sql } from "drizzle-orm";
 
@@ -20,6 +20,7 @@ import { readAllKeysetPages } from "@/modules/billing/application/keyset-paginat
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 import { conflict } from "./errors";
+import type { IssueMonthlyInvoiceInput, PeriodBounds } from "./inputs";
 import { compareNullableStrings, READ_PAGE_SIZE } from "./paging";
 
 /**
@@ -288,4 +289,66 @@ export async function loadMonthlyReplayState(
     );
   }
   return { invoice, ...chargeState };
+}
+
+/**
+ * ENROLLMENT_ALREADY_BILLED when any quoted athlete already has a monthly line
+ * for the site and period on another invoice (by athlete, or by enrollment for
+ * per-enrollment legacy lines).
+ *
+ * @internal Solo para issueMonthlyInvoice, después de la segunda cotización
+ * bajo bloqueos. Importa desde monthly-invoice-service.
+ */
+export async function assertAthletesNotBilled(
+  tx: TransactionClient,
+  input: IssueMonthlyInvoiceInput,
+  bounds: PeriodBounds,
+  athleteIds: string[]
+): Promise<void> {
+  const previouslyBilledAthletes = await tx
+    .select({
+      invoiceId: invoiceLines.invoiceId,
+      athleteId: sql<
+        string | null
+      >`coalesce(${invoiceLines.athleteId}, ${enrollments.athleteId})`,
+    })
+    .from(invoiceLines)
+    .innerJoin(
+      invoices,
+      and(
+        eq(invoices.organizationId, invoiceLines.organizationId),
+        eq(invoices.id, invoiceLines.invoiceId)
+      )
+    )
+    .leftJoin(
+      enrollments,
+      and(
+        eq(enrollments.organizationId, invoiceLines.organizationId),
+        eq(enrollments.id, invoiceLines.enrollmentId)
+      )
+    )
+    .where(
+      and(
+        eq(invoiceLines.organizationId, input.organizationId),
+        eq(invoices.locationId, input.locationId),
+        eq(invoiceLines.lineType, "monthly_fee"),
+        eq(invoiceLines.servicePeriodStart, bounds.start),
+        eq(invoiceLines.servicePeriodEnd, bounds.end),
+        or(
+          inArray(invoiceLines.athleteId, athleteIds),
+          inArray(enrollments.athleteId, athleteIds)
+        )
+      )
+    )
+    .limit(1);
+  if (previouslyBilledAthletes.length) {
+    throw conflict(
+      "ENROLLMENT_ALREADY_BILLED",
+      "Una o más gimnastas ya tienen una cuota para esta sede y este periodo.",
+      {
+        invoiceId: previouslyBilledAthletes[0].invoiceId,
+        athleteId: previouslyBilledAthletes[0].athleteId,
+      }
+    );
+  }
 }
