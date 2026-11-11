@@ -7,10 +7,12 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { appendAuditEntry } from "@/modules/shared/infrastructure/transactional-records";
 import { insertTemplateSessionsInRange } from "./session-service";
 
-/** Keep at least this many days of generated sessions ahead of today. */
-export const SESSION_HORIZON_REFILL_DAYS = 60;
-/** Generate up to this many days ahead (same cap as class creation). */
-export const SESSION_HORIZON_TARGET_DAYS = 120;
+import {
+  SESSION_HORIZON_REFILL_DAYS,
+  SESSION_HORIZON_TARGET_DAYS,
+} from "@/modules/scheduling/domain/session-horizon";
+
+export { SESSION_HORIZON_REFILL_DAYS, SESSION_HORIZON_TARGET_DAYS };
 export const SESSION_HORIZON_BATCH_LIMIT = 500;
 
 function addDays(date: string, days: number): string {

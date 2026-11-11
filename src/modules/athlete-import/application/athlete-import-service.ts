@@ -26,6 +26,10 @@ import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/ap
 import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import {
+  isRetryableDbConflict,
+  retryableDbConflictError,
+} from "@/modules/shared/infrastructure/retryable-db-conflict";
+import {
   findOutboxEvent,
   lockCommand,
   lockGroupCapacity,
@@ -115,13 +119,6 @@ function sqlState(error: unknown): string | null {
 }
 
 /**
- * Deadlock (40P01), serialization failure (40001) and lock not available
- * (55P03): PostgreSQL aborted the transaction to resolve a race; nothing was
- * written.
- */
-const RETRYABLE_SQLSTATES = new Set(["40P01", "40001", "55P03"]);
-
-/**
  * Drizzle puts the statement parameters in its error message; here they are
  * names, birth dates and contacts. Anything that is not an OperationalError
  * leaves as a bare error with the SQLSTATE only, so neither logs nor Sentry
@@ -132,17 +129,16 @@ async function withoutPersonalData<T>(work: () => Promise<T>): Promise<T> {
     return await work();
   } catch (error) {
     if (error instanceof OperationalError || error instanceof ZodError) throw error;
-    const code = sqlState(error);
-    if (code && RETRYABLE_SQLSTATES.has(code)) {
-      // The whole transaction rolled back: the same command, with the same
-      // Idempotency-Key, can simply be sent again.
-      throw new OperationalError(
-        "CONCURRENCY_RETRY",
-        "Otra operación de la academia estaba cambiando a la vez los mismos datos y la importación se ha cancelado sin guardar nada. Vuelve a pulsar «Importar»: se repite la misma operación y no se duplicará nada.",
-        503,
-        { retryable: true }
+    // Deadlock, serialization failure or lock not available: the whole
+    // transaction rolled back, so the same command with the same
+    // Idempotency-Key can simply be sent again. The import screen keeps its key
+    // per preview, whatever the status, so the shared 409 fits.
+    if (isRetryableDbConflict(error)) {
+      throw retryableDbConflictError(
+        "Otra operación de la academia estaba cambiando a la vez los mismos datos y la importación se ha cancelado sin guardar nada. Vuelve a pulsar «Importar»: se repite la misma operación y no se duplicará nada."
       );
     }
+    const code = sqlState(error);
     throw new Error(`La importación de gimnastas falló${code ? ` (SQLSTATE ${code})` : ""}.`);
   }
 }

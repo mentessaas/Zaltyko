@@ -117,7 +117,7 @@ La coordinación, el entrenador y cualquier rol con sedes limitadas reciben 403.
   - Bajo el bloqueo (el mismo que toma cualquier alta de gimnasta) se bloquea el cupo de los grupos afectados en orden. Después se vuelve a decidir cada fila contra el estado actual y se escribe.
   - Dos confirmaciones simultáneas del mismo fichero crean cada gimnasta una sola vez.
   - **Orden de cerrojos:** el mismo que el alta en grupo existente. Primero la organización (`lockCommand`), después el cupo de cada grupo, ordenado por id, y luego las lecturas y escrituras.
-  - **Carreras con otras operaciones.** Si PostgreSQL aborta la transacción por interbloqueo (40P01), serialización (40001) o bloqueo no disponible (55P03), la respuesta es `CONCURRENCY_RETRY` (503, reintentable): no se ha guardado nada y la pantalla repite la misma operación con la misma clave.
+  - **Carreras con otras operaciones.** Si PostgreSQL aborta la transacción por interbloqueo (40P01), serialización (40001) o bloqueo no disponible (55P03), la respuesta es `CONCURRENCY_RETRY` (409 reintentable, con el helper compartido `retryable-db-conflict.ts`): no se ha guardado nada y la pantalla repite la misma operación con la misma clave.
 - **Datos personales fuera de los registros** (con prueba propia).
   - El evento y la auditoría solo guardan identificadores, filas y códigos.
   - Los errores de base de datos salen del servicio sin sus parámetros, solo con el SQLSTATE, para que ni los logs ni Sentry reciban nombres o contactos.

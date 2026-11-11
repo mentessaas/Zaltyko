@@ -2,7 +2,8 @@ packages:
   - .
 overrides:
   "uuid": "^11.1.1"
-  "decode-uri-component": "^0.5.0"
+  # GHSA-qr28-fpjm-wq7f (DoS cuadrático), corregido en 0.5.1.
+  "decode-uri-component": "^0.5.1"
   "@xmldom/xmldom": "^0.9.12"
   "image-size": "npm:image-size-next@^2.1.1"
   "brace-expansion@^1.1.7": "^1.1.21"
@@ -10,3 +11,7 @@ overrides:
   "brace-expansion@^5.0.0": "^5.0.12"
   "js-yaml@^4.1.0": "^4.3.2"
   shell-quote: 1.11.0
+  # node-forge: suelo 1.4.3 (21 avisos); no toca a quien ya pide >=1.4.3.
+  "node-forge@<1.4.3": "^1.4.3"
+  # rolldown 1.2.11 solo bajo vite 8.3.3 (mínima que admite; evita 1.2.19). Revisar 2026-11-25.
+  "vite@8.3.3>rolldown": "1.2.11"

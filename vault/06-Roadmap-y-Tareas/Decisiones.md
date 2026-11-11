@@ -22,6 +22,14 @@ source:
 
 **Siguiente paso:** Elvis confirma o cambia los nueve puntos «Decide Elvis» del documento de producto.
 
+## 2026-11-11 — Titulares por clase y sustituciones (O1): opciones conservadoras pendientes de Elvis
+
+**Hallazgo/fuente:** O1 de `docs/research/competencia/matriz-competitiva.md`; diseño en `docs/producto/entrenadoras-por-clase.md`. `zaltyko.session_staff` existe en `supabase/migrations`, pero nada modelaba la titular de una clase ni la marca de sustitución.
+
+**Decisión/importancia (provisional, conservadora):** solo es asignable una ficha de equipo activa vinculada a un acceso activo con rol Entrenador/a y la sede; no se crean fichas a partir del correo de Auth. El motivo de sustitución es un código cerrado, sin texto libre. Cualquier entrenadora de la sede sigue pasando lista en cualquier sesión (P1 #8, opción A). Titulares y sustituciones quedan dormidos tras el candidato `20261111180000_coach_assignment_candidate.sql`.
+
+**Siguiente paso:** Elvis decide el vínculo ficha ↔ acceso (propuesta: que lo cree la aceptación de la invitación de O3) y autoriza (o no) aplicar el candidato.
+
 ## 2026-11-11 — Objetivos y observaciones: opciones conservadoras pendientes de Elvis
 
 **Hallazgo/fuente:** P2 #17 (primera parte), `docs/producto/objetivos-y-observaciones.md`.

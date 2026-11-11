@@ -116,7 +116,8 @@ describe("errores de la importación sin datos personales", () => {
       mocks.transaction.mockRejectedValueOnce(race);
       const error = await caught(previewAthleteImport({ organizationId, userId, actor, fileBytes: file }));
       expect(error).toBeInstanceOf(OperationalError);
-      expect(error).toMatchObject({ code: "CONCURRENCY_RETRY", status: 503, details: { retryable: true } });
+      // The shared helper (retryable-db-conflict.ts): a retryable 409.
+      expect(error).toMatchObject({ code: "CONCURRENCY_RETRY", status: 409, details: { retryable: true } });
       const message = (error as OperationalError).message;
       for (const value of PERSONAL) expect(message, value).not.toContain(value);
     }

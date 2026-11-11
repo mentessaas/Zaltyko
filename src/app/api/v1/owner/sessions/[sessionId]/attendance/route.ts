@@ -16,6 +16,10 @@ import {
   resolveSessionAttendanceAccess,
 } from "@/modules/attendance/application/owner-session-attendance";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import {
+  isRetryableDbConflict,
+  retryableDbConflictError,
+} from "@/modules/shared/infrastructure/retryable-db-conflict";
 
 const paramsSchema = z.object({ sessionId: z.guid() });
 const querySchema = z
@@ -170,6 +174,16 @@ export async function POST(
     );
   } catch (error) {
     if (error instanceof OperationalError) return operationalProblem(error);
+    // Un interbloqueo con otra escritura sobre la misma sesión (por ejemplo,
+    // una sustitución de entrenadoras) deshace la transacción entera: 409
+    // reintentable con la misma clave, nunca 500.
+    if (isRetryableDbConflict(error)) {
+      return operationalProblem(
+        retryableDbConflictError(
+          "Otra operación estaba usando esta sesión y la asistencia no se guardó. Vuelve a intentarlo: lo marcado se conserva."
+        )
+      );
+    }
     throw error;
   }
 }
