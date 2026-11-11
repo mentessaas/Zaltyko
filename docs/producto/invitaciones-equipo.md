@@ -88,6 +88,7 @@ Esta PR amplía el candidato (aún sin aplicar en ningún entorno) con `staff_pr
 ## Casilla de activación (antes de encender el flag)
 
 - [ ] **Elvis:** en el Supabase de producción, confirmar que la confirmación de email es **obligatoria** (sin «autoconfirm») y revisar los proveedores OAuth activos. Solo Google (con `email_verified`) está en la lista permitida; añadir otro exige revisar si garantiza un correo verificado.
+- [ ] Comprobar que el rol con el que conecta la app puede leer `auth.identities` (`SELECT`). Sin ese permiso, la función queda «no disponible»: no se ofrece y no bloquea a nadie a medias.
 - [ ] Autorizar y aplicar `20261105120000_canonical_team_access_candidate.sql` en el destino revisado.
 - [ ] Activar `ZALTYKO_TEAM_ACCESS_ENABLED=true` solo después de lo anterior.
 

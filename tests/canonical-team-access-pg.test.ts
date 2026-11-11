@@ -130,6 +130,7 @@ async function snapshot(organizationId: string) {
 
 describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team access on disposable PostgreSQL", () => {
   const previousFlag = process.env.ZALTYKO_TEAM_ACCESS_ENABLED;
+  let createdIdentitiesStub = false;
   beforeAll(async () => {
     assertDisposableTarget();
     // Historical disposable replay uses a minimal Auth stub. Add only the real
@@ -138,6 +139,8 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
     await db.execute(sql`alter table auth.users add column if not exists email_confirmed_at timestamptz`);
     // Same guard: the minimal stub has no identities table; real Supabase does.
     // Only the columns the service reads (and real NOT NULL ones) are created.
+    const existing = await db.execute(sql`select to_regclass('auth.identities') is not null as present`);
+    createdIdentitiesStub = (existing.rows[0] as { present: boolean }).present !== true;
     await db.execute(sql`create table if not exists auth.identities (
       id uuid primary key default gen_random_uuid(),
       provider_id text not null,
@@ -153,7 +156,9 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
     })).rejects.toThrow(/all three new relations absent/);
     await db.execute(sql.raw(candidate()));
   });
-  afterAll(() => {
+  afterAll(async () => {
+    // Leave the shared disposable database as other suites expect it.
+    if (createdIdentitiesStub && process.env.ZALTYKO_PG_INTEGRATION === "1") await db.execute(sql`drop table if exists auth.identities`);
     if (previousFlag === undefined) delete process.env.ZALTYKO_TEAM_ACCESS_ENABLED;
     else process.env.ZALTYKO_TEAM_ACCESS_ENABLED = previousFlag;
   });

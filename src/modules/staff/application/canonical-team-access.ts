@@ -62,7 +62,13 @@ export function assertTeamAccessEnabled(): void {
 export async function isCanonicalTeamAccessAvailable(): Promise<boolean> {
   if (process.env.ZALTYKO_TEAM_ACCESS_ENABLED !== "true") return false;
   try {
-    await db.transaction(async tx => { await assertCanonicalTeamAccessSchema(tx); });
+    await db.transaction(async tx => {
+      await assertCanonicalTeamAccessSchema(tx);
+      // Acceptance verifies the Auth identity: without SELECT on
+      // auth.identities for the app role the feature is unavailable, instead
+      // of failing every invitee with a 503 later.
+      await tx.execute(sql`select 1 from auth.identities limit 0`);
+    });
     return true;
   } catch {
     return false;
@@ -70,15 +76,30 @@ export async function isCanonicalTeamAccessAvailable(): Promise<boolean> {
 }
 
 let availabilityCache: { value: boolean; expiresAt: number } | null = null;
+let availabilityInFlight: Promise<boolean> | null = null;
 
-/** Same check for every /owner page (navigation), cached briefly per server process. */
-export async function isCanonicalTeamAccessAvailableCached(ttlMs = 30_000): Promise<boolean> {
+/**
+ * Same check for every /owner page (navigation), cached briefly per server
+ * process. Concurrent renders share one in-flight check, and a slow catalog
+ * read counts as unavailable after `timeoutMs` so navigation never waits on it.
+ */
+export async function isCanonicalTeamAccessAvailableCached(ttlMs = 30_000, timeoutMs = 2_000): Promise<boolean> {
   if (process.env.ZALTYKO_TEAM_ACCESS_ENABLED !== "true") return false;
-  const now = Date.now();
-  if (availabilityCache && availabilityCache.expiresAt > now) return availabilityCache.value;
-  const value = await isCanonicalTeamAccessAvailable();
-  availabilityCache = { value, expiresAt: now + ttlMs };
-  return value;
+  if (availabilityCache && availabilityCache.expiresAt > Date.now()) return availabilityCache.value;
+  if (!availabilityInFlight) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<boolean>(resolveTimeout => { timer = setTimeout(() => resolveTimeout(false), timeoutMs); });
+    availabilityInFlight = Promise.race([isCanonicalTeamAccessAvailable(), timeout])
+      .then(value => {
+        availabilityCache = { value, expiresAt: Date.now() + ttlMs };
+        return value;
+      })
+      .finally(() => {
+        if (timer) clearTimeout(timer);
+        availabilityInFlight = null;
+      });
+  }
+  return availabilityInFlight;
 }
 
 async function transaction<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
