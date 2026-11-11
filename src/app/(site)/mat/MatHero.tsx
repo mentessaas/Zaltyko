@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 
 import { ChalkTally } from "@/components/mat/ChalkTally";
+import { PUBLIC_PROMISE } from "@/lib/launch/essential-public-catalog";
 import { cn } from "@/lib/utils";
 
 /**
@@ -69,8 +70,8 @@ export default function MatHero() {
             de gimnasia.
           </h1>
           <p className="mt-7 max-w-xl text-lg leading-relaxed text-white/85 sm:text-xl">
-            Gimnastas y familias, grupos y clases, asistencia por sesión y cuotas con registro
-            manual de pagos. Hecho solo para clubes de gimnasia artística y rítmica.
+            {PUBLIC_PROMISE} Con fichas de gimnastas y familias, y cuotas con registro manual de
+            pagos. Hecho solo para clubes de gimnasia artística y rítmica.
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">

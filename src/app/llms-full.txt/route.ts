@@ -13,12 +13,20 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const LLMS_FULL = `# Zaltyko — Software para academias de gimnasia
 
-Lanzamiento en España, español y euros.
+Lanzamiento en español; configuración administrativa para España y México.
 - Registro, consentimiento, confirmación y recuperación de cuenta.
 - Gimnastas, familias y responsables; alta, edición y archivo.
 - Grupos, clases, inscripciones y asistencia por sesión.
 - Cuotas familiares mensuales y registro manual de pagos.
 - Resumen calculado desde datos persistidos y navegación adaptable.
+- Sesiones de hoy en el Resumen y pase de lista desde el móvil.
+- Importación de gimnastas desde Excel o CSV con vista previa; no duplica gimnastas existentes.
+- Lista de puesta en marcha para academias nuevas.
+- Zona horaria propia de cada sede; cuotas en la moneda de la academia (EUR o MXN).
+- Historial de grupos conservado al archivar una ficha.
+- Altas, inscripciones, cuotas, pagos y listas protegidos contra el doble envío.
+
+En preparación, sin fecha y no disponibles todavía: acceso para entrenadoras, entrenadora titular por clase y sustituciones, objetivos y planificación de sesiones, portal de familias y solicitudes de prueba desde la web.
 
 Zaltyko no inicia cargos automáticos a las familias.
 La suscripción SaaS de la academia es independiente de esas cuotas.

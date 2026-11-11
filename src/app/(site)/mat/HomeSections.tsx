@@ -6,7 +6,12 @@ import { DisclosureAccordion } from "@/components/ui/disclosure-accordion";
 import { PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
 import { cn } from "@/lib/utils";
 
-import { ESSENTIAL_FAQS, ESSENTIAL_FEATURES } from "@/lib/launch/essential-public-catalog";
+import {
+  ESSENTIAL_FAQS,
+  ESSENTIAL_FEATURES,
+  IMPLEMENTED_HIGHLIGHTS,
+  IN_PREPARATION,
+} from "@/lib/launch/essential-public-catalog";
 
 /* ─────────────────────────────────────────────────────────────────────────
    La tarde en pista: el panel de dirección contado como una pizarra de
@@ -181,6 +186,42 @@ export function ModuleRegister() {
             </div>
           ))}
         </dl>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Lo que ya hace hoy: funciones activas que la web no contaba, y lo que está
+   en preparación, sin fechas. Todo sale del catálogo público.
+   ───────────────────────────────────────────────────────────────────────── */
+
+export function ImplementedNow() {
+  return (
+    <section aria-labelledby="now-title" className="chalk-field border-y border-chalk-line">
+      <div className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-14 lg:py-24">
+        <h2 id="now-title" className="font-display text-[clamp(2rem,4.5vw,3.5rem)] font-black uppercase leading-[0.95] text-mat-night">
+          Lo que ya hace hoy
+        </h2>
+        <ul className="mt-10 grid gap-x-10 border-t-[3px] border-mat-night sm:grid-cols-2 lg:grid-cols-3">
+          {IMPLEMENTED_HIGHLIGHTS.map((item) => (
+            <li key={item.id} className="border-b border-chalk-line py-6">
+              <h3 className="font-display text-xl font-extrabold uppercase leading-tight text-mat">{item.title}</h3>
+              <p className="mt-2 leading-relaxed text-ramp-600">{item.text}</p>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-10 max-w-3xl">
+          <h3 className="floor-label text-mat-night">En preparación</h3>
+          <p className="mt-2 text-sm text-ramp-600">
+            Todavía no están disponibles y no tienen fecha comprometida.
+          </p>
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ramp-600">
+            {IN_PREPARATION.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
       </div>
     </section>
   );

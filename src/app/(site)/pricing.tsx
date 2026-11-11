@@ -220,8 +220,8 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
             <div>
               <h2 className="font-display text-3xl font-black uppercase">¿Migrar datos o coordinar varias sedes?</h2>
               <p className="mt-2 max-w-2xl text-white/80">
-                Empieza por tu cuenta. Si necesitas importar datos complejos o coordinar varias sedes, te
-                orientamos por email.
+                Empieza por tu cuenta: importa tus gimnastas desde Excel o CSV con vista previa. Si necesitas
+                traer otros datos (cuotas, pagos o historial) o coordinar varias sedes, te orientamos por email.
               </p>
             </div>
             <Link

@@ -336,10 +336,17 @@ describe("L2 — claims de módulos alineados con capacidades verificadas", () =
     }
   });
 
-  it("la FAQ esencial no promete importaciones sin validar", () => {
+  it("la FAQ esencial solo habla de importación en la pregunta de la importación activa (PR 278)", () => {
     const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
     expect(faqPage).toContain("ESSENTIAL_FAQS");
-    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).not.toMatch(/importa[rn]?|Excel|CSV/i);
+    const importFaq = ESSENTIAL_FAQS.find(item => item.question === "¿Puedo traer mis gimnastas desde un Excel?");
+    expect(importFaq?.answer).toContain("vista previa");
+    expect(importFaq?.answer).toContain("no se duplican");
+    expect(importFaq?.answer).toContain("propiedad o la administración");
+    expect(importFaq?.answer).toContain("Las cuotas, los pagos y el historial no se importan");
+    expect(
+      ESSENTIAL_FAQS.filter(item => item !== importFaq).map(item => item.answer).join(" ")
+    ).not.toMatch(/importa[rn]?|Excel|CSV/i);
   });
 
   it("describe las exportaciones como apoyo operativo revisable", () => {
