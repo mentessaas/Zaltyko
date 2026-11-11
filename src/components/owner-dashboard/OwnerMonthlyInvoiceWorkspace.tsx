@@ -153,6 +153,8 @@ function reasonLabel(reason: string): string {
       "Ya existe otra factura con la referencia de esta cuota; revisa las facturas de la familia.",
     PERIOD_INVOICED_WITHOUT_SITE:
       "Esta familia ya tiene una cuota de este periodo sin sede asignada; revísala antes de emitir otra.",
+    PERIOD_INVOICED_WITHOUT_SITE_VOIDED:
+      "Esta familia tiene una cuota de este periodo sin sede asignada que está anulada; no se puede emitir otra desde esta pantalla.",
   };
   return (
     labels[reason] ?? "Esta cuota requiere revisar un dato de la inscripción."

@@ -189,6 +189,37 @@ describe("OwnerMonthlyInvoiceWorkspace", () => {
     expect(handlers.onIssue).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      "PERIOD_INVOICED_WITHOUT_SITE",
+      "Esta familia ya tiene una cuota de este periodo sin sede asignada; revísala antes de emitir otra.",
+    ],
+    [
+      "PERIOD_INVOICED_WITHOUT_SITE_VOIDED",
+      "Esta familia tiene una cuota de este periodo sin sede asignada que está anulada; no se puede emitir otra desde esta pantalla.",
+    ],
+  ])(
+    "explica %s con su propio texto y no deja emitir",
+    async (reason, text) => {
+      const user = userEvent.setup();
+      const family = options().families[0]!;
+      const handlers = renderWorkspace({
+        options: options({
+          families: [
+            { ...family, blockingReasons: [reason], canIssue: false },
+          ],
+        }),
+      });
+
+      expect(screen.getAllByText(text).length).toBeGreaterThan(0);
+      await user.selectOptions(screen.getByLabelText("Quién paga"), payerId);
+      expect(
+        screen.getByRole("button", { name: /Emitir cuota pendiente/ })
+      ).toBeDisabled();
+      expect(handlers.onIssue).not.toHaveBeenCalled();
+    }
+  );
+
   it("muestra una tarifa por gimnasta y clases cubiertas sin recalcular el total del servidor", () => {
     renderWorkspace();
 

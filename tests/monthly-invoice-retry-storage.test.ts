@@ -6,6 +6,7 @@ import {
   clearPendingMonthlyInvoiceIssue,
   persistPendingMonthlyInvoiceIssue,
   readPendingMonthlyInvoiceIssue,
+  restorePendingMonthlyInvoiceIssueAfterRollback,
   type PendingMonthlyInvoiceIssue,
 } from "@/components/owner-dashboard/monthly-invoice-retry-storage";
 
@@ -76,6 +77,49 @@ describe("monthly invoice retry storage", () => {
     expect(
       clearPendingMonthlyInvoiceIssue(uncertain, window.sessionStorage)
     ).toBe(true);
+    expect(readPendingMonthlyInvoiceIssue(window.sessionStorage)).toEqual({
+      status: "none",
+    });
+  });
+
+  it("lowers the ambiguity only after a rolled-back attempt of the same command", () => {
+    const original = pending();
+    const uncertain = { ...original, hasAmbiguousAttempt: true };
+    expect(persistPendingMonthlyInvoiceIssue(uncertain, window.sessionStorage)).toBe(
+      true
+    );
+
+    // Another command, or no stored command, is never touched.
+    expect(
+      restorePendingMonthlyInvoiceIssueAfterRollback(
+        {
+          ...original,
+          key: "owner-monthly-invoice:10000000-0000-4000-8000-000000000912",
+        },
+        window.sessionStorage
+      )
+    ).toBe(false);
+    expect(readPendingMonthlyInvoiceIssue(window.sessionStorage)).toEqual({
+      status: "pending",
+      request: uncertain,
+    });
+
+    expect(
+      restorePendingMonthlyInvoiceIssueAfterRollback(original, window.sessionStorage)
+    ).toBe(true);
+    expect(readPendingMonthlyInvoiceIssue(window.sessionStorage)).toEqual({
+      status: "pending",
+      request: original,
+    });
+
+    // It never raises the ambiguity: that stays with persistPendingMonthlyInvoiceIssue.
+    expect(
+      restorePendingMonthlyInvoiceIssueAfterRollback(uncertain, window.sessionStorage)
+    ).toBe(false);
+    expect(clearPendingMonthlyInvoiceIssue(original, window.sessionStorage)).toBe(true);
+    expect(
+      restorePendingMonthlyInvoiceIssueAfterRollback(original, window.sessionStorage)
+    ).toBe(false);
     expect(readPendingMonthlyInvoiceIssue(window.sessionStorage)).toEqual({
       status: "none",
     });

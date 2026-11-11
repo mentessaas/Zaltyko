@@ -41,6 +41,23 @@ export function monthlyInvoiceReference(input: {
   return `MENSUAL-${input.servicePeriod.replace("-", "")}-${input.familyId.toLowerCase()}-${siteHash}`;
 }
 
+/**
+ * Reference a monthly invoice of the family and month got before the site
+ * discriminator, `MENSUAL-YYYYMM-<familyId>`, in lower case. That code built it
+ * from the family id of the command as sent, and its route accepted any case
+ * (z.string().uuid()), so it is compared without case: readReferenceOwners
+ * matches `lower(reference)` and the caller indexes it by this lower-case key.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
+export function legacyMonthlyInvoiceReferenceKey(input: {
+  servicePeriod: string;
+  familyId: string;
+}): string {
+  return `MENSUAL-${input.servicePeriod.replace("-", "")}-${input.familyId}`.toLowerCase();
+}
+
 const INVOICE_REFERENCE_CONSTRAINT = "invoices_reference_uq";
 
 /**
