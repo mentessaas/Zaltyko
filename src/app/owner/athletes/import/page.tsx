@@ -45,9 +45,11 @@ export default async function OwnerAthleteImportPage({
     throw error;
   }
 
-  // Owner, admin and manager (coordinación). The import service rechecks the
-  // role and, for a manager limited to some sites, the site of every group.
-  if (!["owner", "admin", "manager"].includes(scope.member.role)) notFound();
+  // Same rule as the manual intake: owner or admin with every site. The routes
+  // and the import service check it again.
+  if ((scope.member.role !== "owner" && scope.member.role !== "admin") || scope.member.locationScopeMode !== "all") {
+    notFound();
+  }
 
   if (!query.data.organizationId) {
     redirect(`/owner/athletes/import?organizationId=${encodeURIComponent(scope.organization.id)}`);

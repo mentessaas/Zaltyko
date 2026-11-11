@@ -13,6 +13,7 @@ import {
   type AthleteImportMapping,
 } from "@/modules/athlete-import/domain/athlete-import-rows";
 
+import { athleteImportTemplateXlsx } from "./athlete-import-template";
 import { ownerUi } from "./owner-ui";
 
 const PREVIEW_ENDPOINT = "/api/v1/owner/athlete-import/preview";
@@ -40,6 +41,7 @@ export type AthleteImportPreviewResponse = {
   headers: string[];
   mapping: AthleteImportMapping;
   mappingProblems: string[];
+  hiddenRows: number[];
   rows: PreviewRow[];
   summary: {
     total: number;
@@ -83,8 +85,8 @@ async function readProblem(response: Response, fallback: string): Promise<string
   return typeof payload?.detail === "string" ? payload.detail : fallback;
 }
 
-function download(name: string, content: string) {
-  const url = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8" }));
+function download(name: string, content: string | Uint8Array, type = "text/csv;charset=utf-8") {
+  const url = URL.createObjectURL(new Blob([content as BlobPart], { type }));
   const link = document.createElement("a");
   link.href = url;
   link.download = name;
@@ -118,6 +120,8 @@ export function OwnerAthleteImportWorkspace({
   // One key per previewed file and mapping: a retry after a lost response
   // replays the same import instead of creating it twice.
   const [confirmKey, setConfirmKey] = useState<{ token: string; key: string } | null>(null);
+  const [legalConfirmed, setLegalConfirmed] = useState(false);
+  const query = `?organizationId=${encodeURIComponent(organizationId)}`;
 
   const problemRows = useMemo(
     () => (preview?.rows ?? []).filter((row) => row.status !== "create"),
@@ -134,10 +138,9 @@ export function OwnerAthleteImportWorkspace({
     setResult(null);
     try {
       const form = new FormData();
-      form.set("organizationId", organizationId);
       form.set("file", file);
       if (nextMapping) form.set("mapping", JSON.stringify(nextMapping));
-      const response = await fetch(PREVIEW_ENDPOINT, { method: "POST", body: form });
+      const response = await fetch(`${PREVIEW_ENDPOINT}${query}`, { method: "POST", body: form });
       if (!response.ok) {
         setPreview(null);
         setError(await readProblem(response, "No se pudo leer el fichero. Revísalo e inténtalo de nuevo."));
@@ -155,7 +158,7 @@ export function OwnerAthleteImportWorkspace({
   }
 
   async function confirmImport() {
-    if (!preview || !file || !mapping || !preview.canConfirm) return;
+    if (!preview || !file || !mapping || !preview.canConfirm || !legalConfirmed) return;
     const key =
       confirmKey && confirmKey.token === preview.previewToken ? confirmKey.key : newKey();
     setConfirmKey({ token: preview.previewToken, key });
@@ -163,11 +166,11 @@ export function OwnerAthleteImportWorkspace({
     setError("");
     try {
       const form = new FormData();
-      form.set("organizationId", organizationId);
       form.set("file", file);
       form.set("mapping", JSON.stringify(mapping));
       form.set("previewToken", preview.previewToken);
-      const response = await fetch(CONFIRM_ENDPOINT, {
+      form.set("legalBasisConfirmed", "true");
+      const response = await fetch(`${CONFIRM_ENDPOINT}${query}`, {
         method: "POST",
         headers: { "Idempotency-Key": key },
         body: form,
@@ -214,8 +217,9 @@ export function OwnerAthleteImportWorkspace({
           1. Fichero
         </h2>
         <p className={ownerUi.muted}>
-          Columnas obligatorias: nombre, apellidos y fecha de nacimiento (DD/MM/AAAA). Opcionales: grupo y
-          datos del tutor. El teléfono, con prefijo internacional (+34…). Máximo 1.000 filas y 2 MB.
+          Columnas obligatorias: nombre y apellidos. Opcionales: fecha de nacimiento (DD/MM/AAAA), grupo y
+          datos del tutor. Las reglas son las del alta manual: el teléfono va completo con prefijo y sin
+          espacios (+34600000000). Máximo 1.000 filas y 2 MB.
         </p>
         <div className="flex flex-wrap gap-3">
           <button
@@ -223,7 +227,24 @@ export function OwnerAthleteImportWorkspace({
             className={ownerUi.secondaryButton}
             onClick={() => download("plantilla-gimnastas-zaltyko.csv", athleteImportTemplateCsv())}
           >
-            Descargar plantilla
+            Descargar plantilla CSV
+          </button>
+          <button
+            type="button"
+            className={ownerUi.secondaryButton}
+            onClick={() =>
+              void athleteImportTemplateXlsx().then(
+                (bytes) =>
+                  download(
+                    "plantilla-gimnastas-zaltyko.xlsx",
+                    bytes,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  ),
+                () => setError("No se pudo generar la plantilla de Excel. Usa la plantilla CSV.")
+              )
+            }
+          >
+            Descargar plantilla Excel
           </button>
         </div>
         <label className="grid gap-2">
@@ -239,6 +260,7 @@ export function OwnerAthleteImportWorkspace({
               setMapping(null);
               setResult(null);
               setConfirmKey(null);
+              setLegalConfirmed(false);
               setError("");
             }}
           />
@@ -329,6 +351,49 @@ export function OwnerAthleteImportWorkspace({
               Tu plan admite {preview.plan.limit} gimnastas y ya tienes {preview.plan.current}.
             </p>
           ) : null}
+          {preview.hiddenRows.length > 0 ? (
+            <p role="note" className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950">
+              Las filas ocultas o filtradas del Excel no se importan ({preview.hiddenRows.length}):{" "}
+              {preview.hiddenRows.slice(0, 20).join(", ")}
+              {preview.hiddenRows.length > 20 ? "…" : ""}. Muéstralas en el Excel si quieres importarlas.
+            </p>
+          ) : null}
+          <details className={ownerUi.subtlePanel}>
+            <summary className="cursor-pointer text-sm font-semibold text-z-ink">Qué significa cada resultado</summary>
+            <dl className="mt-3 grid gap-2 text-sm">
+              <div>
+                <dt className="font-semibold">Se crea</dt>
+                <dd>La fila es válida y se dará de alta al confirmar.</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Error</dt>
+                <dd>Falta un dato o no es válido. Corrígelo en el fichero y vuelve a subirlo.</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Duplicada</dt>
+                <dd>
+                  Ya existe en la academia, o se repite en el fichero, una gimnasta con el mismo nombre y la misma
+                  fecha de nacimiento (o sin fecha para distinguirlas). No se crea otra.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-semibold">No se importa</dt>
+                <dd>Es válida, pero su grupo está lleno o supera el límite de tu plan.</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Aviso</dt>
+                <dd>Se importa, pero conviene revisar lo que indica.</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Familia y tutor</dt>
+                <dd>
+                  Las hermanas con el mismo email o teléfono de tutor comparten familia. Si el tutor ya está en la
+                  academia con el mismo nombre, se usa su familia. Sin tutor se crea una familia incompleta, como en
+                  el alta manual.
+                </dd>
+              </div>
+            </dl>
+          </details>
           {preview.plan.readOnly ? (
             <p role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950">
               La academia está en solo lectura porque supera los límites del plan. No se puede importar hasta
@@ -410,16 +475,30 @@ export function OwnerAthleteImportWorkspace({
           </div>
           {!result ? (
             <div className="flex flex-wrap items-center gap-3">
+              <label className="flex w-full items-start gap-2 text-sm text-z-ink">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4"
+                  checked={legalConfirmed}
+                  onChange={(event) => setLegalConfirmed(event.target.checked)}
+                />
+                <span>
+                  Declaro que tengo base legal para tratar estos datos y que he informado a las familias.
+                </span>
+              </label>
               <button
                 type="button"
                 className={ownerUi.primaryButton}
-                disabled={!preview.canConfirm || mappingDirty || busy}
+                disabled={!preview.canConfirm || mappingDirty || busy || !legalConfirmed}
                 onClick={() => void confirmImport()}
               >
                 Importar {plural(summary.toCreate, "gimnasta", "gimnastas")}
               </button>
               {mappingDirty ? (
                 <span className={ownerUi.help}>Actualiza la vista previa antes de importar.</span>
+              ) : null}
+              {!legalConfirmed && preview.canConfirm ? (
+                <span className={ownerUi.help}>Marca la declaración para poder importar.</span>
               ) : null}
             </div>
           ) : null}

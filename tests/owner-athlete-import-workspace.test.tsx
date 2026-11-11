@@ -30,6 +30,7 @@ function preview(overrides: Partial<AthleteImportPreviewResponse> = {}): Athlete
       guardianRelationship: null,
     },
     mappingProblems: [],
+    hiddenRows: [],
     rows: [
       {
         row: 2,
@@ -122,8 +123,8 @@ beforeEach(() => {
         headers: (init?.headers ?? {}) as Record<string, string>,
         form: init?.body as FormData,
       });
-      if (url.endsWith("/preview")) return json({ data: nextPreview });
-      if (url.endsWith("/confirm")) {
+      if (url.startsWith("/api/v1/owner/athlete-import/preview?")) return json({ data: nextPreview });
+      if (url.startsWith("/api/v1/owner/athlete-import/confirm?")) {
         if (failConfirmOnce) {
           failConfirmOnce = false;
           throw new TypeError("Respuesta perdida de prueba");
@@ -170,8 +171,7 @@ describe("OwnerAthleteImportWorkspace", () => {
     await loadPreview();
 
     expect(requests).toHaveLength(1);
-    expect(requests[0]!.url).toBe("/api/v1/owner/athlete-import/preview");
-    expect(requests[0]!.form.get("organizationId")).toBe(organizationId);
+    expect(requests[0]!.url).toBe(`/api/v1/owner/athlete-import/preview?organizationId=${organizationId}`);
     expect(requests[0]!.form.get("mapping")).toBeNull();
     expect(screen.getByTestId("athlete-import-summary")).toHaveTextContent(
       "3 filas: se crearán 2 gimnastas, 1 familia, 0 tutores y 1 alta en grupo. 0 filas con errores, 1 duplicada y 0 que no se importan."
@@ -182,11 +182,15 @@ describe("OwnerAthleteImportWorkspace", () => {
     expect(within(table).getByText("Duplicada")).toBeInTheDocument();
     expect(within(table).getByText(/Aviso: Comparte tutor con la fila 2/)).toBeInTheDocument();
     expect(within(table).getByText(/Error: Ya existe en la academia/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Importar 2 gimnastas" })).toBeEnabled();
+    // Nothing is imported until the legal declaration is ticked.
+    expect(screen.getByRole("button", { name: "Importar 2 gimnastas" })).toBeDisabled();
+    expect(screen.getByText("Marca la declaración para poder importar.")).toBeInTheDocument();
+    expect(screen.getByText("Qué significa cada resultado")).toBeInTheDocument();
   });
 
   it("al cambiar una columna pide actualizar la vista previa y no deja importar hasta entonces", async () => {
     const user = await loadPreview();
+    await user.click(screen.getByLabelText(/Declaro que tengo base legal/));
 
     await user.selectOptions(screen.getByLabelText("Grupo"), "");
     expect(screen.getByRole("button", { name: "Importar 2 gimnastas" })).toBeDisabled();
@@ -200,6 +204,7 @@ describe("OwnerAthleteImportWorkspace", () => {
 
   it("confirma con la misma clave si se pierde la respuesta y muestra lo creado y lo saltado", async () => {
     const user = await loadPreview();
+    await user.click(screen.getByLabelText(/Declaro que tengo base legal/));
     failConfirmOnce = true;
 
     await user.click(screen.getByRole("button", { name: "Importar 2 gimnastas" }));
@@ -207,11 +212,13 @@ describe("OwnerAthleteImportWorkspace", () => {
     await user.click(screen.getByRole("button", { name: "Importar 2 gimnastas" }));
     await screen.findByText("Importación completada");
 
-    const confirms = requests.filter((request) => request.url.endsWith("/confirm"));
+    const confirms = requests.filter((request) => request.url.includes("/confirm?"));
     expect(confirms).toHaveLength(2);
     expect(confirms[0]!.headers["Idempotency-Key"]).toMatch(/^owner-athlete-import:/u);
     expect(confirms[1]!.headers["Idempotency-Key"]).toBe(confirms[0]!.headers["Idempotency-Key"]);
     expect(confirms[0]!.form.get("previewToken")).toBe("b".repeat(64));
+    expect(confirms[0]!.form.get("legalBasisConfirmed")).toBe("true");
+    expect(confirms[0]!.url).toBe(`/api/v1/owner/athlete-import/confirm?organizationId=${organizationId}`);
     expect(JSON.parse(String(confirms[0]!.form.get("mapping")))).toMatchObject({ givenName: 0, dateOfBirth: 2 });
     expect(screen.getByText("Gimnastas creadas: 2. Filas no importadas: 1.")).toBeInTheDocument();
     expect(screen.getByText(/Fila 4: Ya existe en la academia/)).toBeInTheDocument();
@@ -219,10 +226,17 @@ describe("OwnerAthleteImportWorkspace", () => {
 
   it("en solo lectura avisa y no deja importar", async () => {
     nextPreview = preview({ plan: { current: 31, limit: 30, readOnly: true }, canConfirm: false });
-    await loadPreview();
+    const user = await loadPreview();
+    await user.click(screen.getByLabelText(/Declaro que tengo base legal/));
 
     expect(screen.getByText(/La academia está en solo lectura/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Importar 2 gimnastas" })).toBeDisabled();
+  });
+
+  it("avisa de las filas ocultas o filtradas que no se importan", async () => {
+    nextPreview = preview({ hiddenRows: [7, 9] });
+    await loadPreview();
+    expect(screen.getByRole("note")).toHaveTextContent("Las filas ocultas o filtradas del Excel no se importan (2): 7, 9.");
   });
 
   it("explica las columnas que faltan y no muestra filas", async () => {
