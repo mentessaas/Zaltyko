@@ -31,10 +31,10 @@ const keys = (version: string) => {
   return {
     vite: locator,
     react: `@vitejs/plugin-react@5.2.0(${locator})`,
-    mocker: `@vitest/mocker@4.1.11(${locator})`,
+    mocker: `@vitest/mocker@4.1.12(${locator})`,
     paths: `vite-tsconfig-paths@5.1.4(typescript@5.9.3)(${locator})`,
-    vitest: `vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(jsdom@29.1.1)(${locator})`,
-    coverage: "@vitest/coverage-v8@4.1.11(vitest@4.1.11)",
+    vitest: `vitest@4.1.12(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(@vitest/coverage-v8@4.1.12)(jsdom@29.1.1)(${locator})`,
+    coverage: "@vitest/coverage-v8@4.1.12(vitest@4.1.12)",
   };
 };
 
@@ -102,7 +102,7 @@ function lockObject(version: string, driftRaw = false) {
     [snapshotKeys.paths]: { optionalDependencies: { vite: context } },
     [snapshotKeys.vitest]: {
       dependencies: {
-        "@vitest/mocker": `4.1.11(vite@${context})`,
+        "@vitest/mocker": `4.1.12(vite@${context})`,
         vite: context,
       },
     },
@@ -120,8 +120,8 @@ function lockObject(version: string, driftRaw = false) {
       "@vitejs/plugin-react": { specifier: "^5.2.0", version: `5.2.0(${viteLocator(version)})` },
       vite: { specifier: version, version: context },
       "vite-tsconfig-paths": { specifier: "^5.1.0", version: `5.1.4(typescript@5.9.3)(${viteLocator(version)})` },
-      vitest: { specifier: "^4.1.11", version: snapshotKeys.vitest.slice("vitest@".length) },
-      "@vitest/coverage-v8": { specifier: "^4.1.11", version: "4.1.11(vitest@4.1.11)" },
+      vitest: { specifier: "^4.1.12", version: snapshotKeys.vitest.slice("vitest@".length) },
+      "@vitest/coverage-v8": { specifier: "^4.1.12", version: "4.1.12(vitest@4.1.12)" },
       eslint: { specifier: "^8", version: "8.57.1" },
     },
   };
@@ -146,7 +146,7 @@ function manifest(version: string) {
   return JSON.stringify({
     name: "fixture",
     dependencies: { react: "^18" },
-    devDependencies: { vite: version, vitest: "^4.1.11" },
+    devDependencies: { vite: version, vitest: "^4.1.12" },
   }, null, 2) + "\n";
 }
 
@@ -230,7 +230,7 @@ describe("Vite 6.4.3 to 6.4.5 lockfile core", () => {
     expect(projected.lockfileText).not.toContain("leftpad: 1.0.2");
     expect(projected.lockfileText).toContain(`vitest: ${newVitestContext}`);
     expect(projected.lockfileText).not.toContain(oldVitestContext);
-    expect(projected.lockfileText).not.toContain("4.1.11(4.1.11(");
+    expect(projected.lockfileText).not.toContain("4.1.12(4.1.12(");
     expect(projected.hashes.projectedLockfileSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(core.assertCandidateEquivalentToBase(input.baseLockfileText, projected.lockfileText)).toBe(true);
   });
@@ -241,7 +241,7 @@ describe("Vite 6.4.3 to 6.4.5 lockfile core", () => {
     expect(result.lockfileText).toContain("vite@6.4.5:");
     expect(result.lockfileText).toContain(`vitest: ${newVitestContext}`);
     expect(result.lockfileText).not.toContain("vite@6.4.3");
-    expect(result.lockfileText).not.toContain("4.1.11(4.1.11(");
+    expect(result.lockfileText).not.toContain("4.1.12(4.1.12(");
   });
 
   it("accepts a checkout fixture already pinned to 6.4.5 by synthesizing the 6.4.3 preimage", () => {
@@ -259,7 +259,7 @@ describe("Vite 6.4.3 to 6.4.5 lockfile core", () => {
     const good = core.projectViteLockfileCore(input);
     expect(good.lockfileText).toContain(`vitest: ${newVitestContext}`);
     const bad = rawLockWith((lock) => {
-      lock.snapshots[newKeys.coverage].dependencies.vitest = `4.1.11(${newVitestContext})`;
+      lock.snapshots[newKeys.coverage].dependencies.vitest = `4.1.12(${newVitestContext})`;
     });
     expectFailure(() => core.projectViteLockfileCore({ ...input, rawLockfileText: bad }));
   });
