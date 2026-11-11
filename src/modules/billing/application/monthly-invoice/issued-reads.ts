@@ -23,16 +23,10 @@ import { conflict } from "./errors";
 import type { IssueMonthlyInvoiceInput, PeriodBounds } from "./inputs";
 import { compareNullableStrings, READ_PAGE_SIZE } from "./paging";
 
-/**
- * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
- * monthly-invoice-service.ts.
- */
+/** Parte de la firma pública: lo reexporta monthly-invoice-service.ts. */
 export type MonthlyChargeStatus = "due" | "partially_paid" | "paid" | "void";
 
-/**
- * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
- * monthly-invoice-service.ts.
- */
+/** Parte de la firma pública: lo reexporta monthly-invoice-service.ts. */
 export type MonthlyChargeState = {
   chargeStatus: MonthlyChargeStatus | "mixed";
   collectionMode: "manual";
@@ -212,10 +206,7 @@ export async function loadIssuedLines(
   );
 }
 
-/**
- * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
- * monthly-invoice-service.ts.
- */
+/** Parte de la firma pública: lo reexporta monthly-invoice-service.ts. */
 export type IssuedMonthlyLines = Awaited<ReturnType<typeof loadIssuedLines>>;
 
 export async function loadMonthlyChargeState(

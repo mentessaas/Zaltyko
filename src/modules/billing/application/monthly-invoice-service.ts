@@ -20,6 +20,12 @@ export type {
   IssueMonthlyInvoiceInput,
   MonthlyInvoiceOptionsInput,
 } from "./monthly-invoice/inputs";
+export type {
+  IssuedMonthlyLines,
+  MonthlyChargeState,
+  MonthlyChargeStatus,
+} from "./monthly-invoice/issued-reads";
+export type { MonthlyIssueResult } from "./monthly-invoice/replay";
 export { monthlyInvoiceReference } from "./monthly-invoice/reference";
 export { getMonthlyInvoiceOptions } from "./monthly-invoice/quote";
 export {

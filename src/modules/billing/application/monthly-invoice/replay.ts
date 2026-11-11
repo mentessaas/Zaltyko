@@ -38,10 +38,7 @@ import {
 } from "./issued-reads";
 import { monthlyQuoteHash } from "./quote-model";
 
-/**
- * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
- * monthly-invoice-service.ts.
- */
+/** Parte de la firma pública: lo reexporta monthly-invoice-service.ts. */
 export type MonthlyIssueResult = {
   invoice: Invoice;
   replayed: boolean;
