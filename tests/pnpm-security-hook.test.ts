@@ -59,6 +59,51 @@ describe("patched dependency compatibility", () => {
     expect(output.dependencies?.["ip-address"]).toBe("^10.7.4");
   });
 
+  it.each(["dependencies", "optionalDependencies", "devDependencies"] as const)(
+    "lifts qs 6 and @hono/node-server 2 to their fixes without crossing a major in %s",
+    (field) => {
+      for (const [name, requested, expected] of [
+        ["qs", "~6.16.0", "^6.16.1"],
+        ["qs", "^6.14.0", "^6.16.1"],
+        ["qs", "^5.2.0", "^5.2.0"],
+        ["@hono/node-server", "^1.19.9 || ^2.0.5", "2.1.3"],
+        ["@hono/node-server", "^2.1.1", "2.1.3"],
+        ["@hono/node-server", "^1.19.9", "^1.19.9"],
+        ["@hono/node-server", "workspace:*", "workspace:*"],
+      ]) {
+        const input: PackageManifest = { name: "consumer", [field]: { [name]: requested } };
+        expect(readPackage(input)[field]?.[name]).toBe(expected);
+        expect(input[field]?.[name]).toBe(requested);
+      }
+    }
+  );
+
+  it("resolves no vulnerable qs, @hono/node-server or @vitest/mocker release", () => {
+    const lock = load(readFileSync(new URL("../pnpm-lock.yaml", import.meta.url), "utf8")) as {
+      packages: Record<string, unknown>;
+    };
+    const versions = (name: string) =>
+      Object.keys(lock.packages)
+        .filter((key) => key.startsWith(`${name}@`))
+        .map((key) => key.slice(name.length + 1).split("(")[0]);
+    const atLeast = (version: string, floor: string) => {
+      const [a, b] = [version, floor].map((value) => value.split(".").map(Number));
+      for (let index = 0; index < 3; index += 1) {
+        if (a[index] !== b[index]) return a[index] > b[index];
+      }
+      return true;
+    };
+    for (const [name, floor] of [
+      ["qs", "6.16.1"],
+      ["@hono/node-server", "2.1.3"],
+      ["@vitest/mocker", "4.1.12"],
+    ]) {
+      const resolved = versions(name);
+      expect(resolved.length).toBeGreaterThan(0);
+      for (const version of resolved) expect(atLeast(version, floor), `${name}@${version}`).toBe(true);
+    }
+  });
+
   it("patches transitive Zod while retaining the scoped selector-parser fix", () => {
     const output = readPackage({
       name: "@tailwindcss/typography",

@@ -22,6 +22,20 @@ const PATCHED_DEPENDENCIES = new Map([
   ["sharp", "^0.35.5"],
 ]);
 
+const SAME_MAJOR_FLOORS = [
+  // qs 6.7.0–6.16.0: `stringify` with arrayFormat "comma" throws on array
+  // items whose own `toString` is not callable (DoS, GHSA-6pq8-jhm2-2vcw).
+  // Reached at runtime through express 4/5 and body-parser. Fixed in 6.16.1.
+  { name: "qs", major: 6, range: "^6.16.1" },
+  // @hono/node-server < 2.1.3: `serveStatic` decodes the request path twice
+  // and can skip middleware on static paths (GHSA-rmxm-3fg6-px4f). Reached
+  // through @modelcontextprotocol/sdk, which accepts `^1.19.9 || ^2.0.5` and
+  // already resolves the 2.x line; 1.x has no patched release. Exact on
+  // purpose: the lowest fixed release. A caret range resolves 2.1.7, published
+  // the same day this override was written and with a widened hono peer.
+  { name: "@hono/node-server", major: 2, range: "2.1.3" },
+];
+
 /** @type {import('pnpm').PnpmFileHooks} */
 module.exports = {
   hooks: {
@@ -68,6 +82,25 @@ module.exports = {
         if (major === 7 && range !== "^7.30.1") {
           bumped[field] = { ...dependencies, undici: "^7.30.1" };
           changed = true;
+        }
+      }
+
+      // Same-major security floors for transitive packages (P0 #2, 2026-11-11).
+      // A consumer range is lifted only when one of its `||` alternatives is
+      // on the listed major, so no consumer is ever pushed onto a new major.
+      for (const field of ["dependencies", "optionalDependencies", "devDependencies"]) {
+        const dependencies = bumped[field];
+        if (!dependencies) continue;
+        for (const { name, major, range } of SAME_MAJOR_FLOORS) {
+          const requested = dependencies[name];
+          if (requested === undefined || requested === range) continue;
+          const majors = String(requested)
+            .split("||")
+            .map((alternative) => Number.parseInt(alternative.trim().replace(/^[^0-9]*/, "").split(".")[0], 10));
+          if (majors.includes(major)) {
+            bumped[field] = { ...bumped[field], [name]: range };
+            changed = true;
+          }
         }
       }
 
