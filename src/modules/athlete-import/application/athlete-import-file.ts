@@ -1,8 +1,12 @@
 /**
  * Reads the uploaded spreadsheet in memory, on the server. Nothing is written
  * to disk. CSV (UTF-8 or Windows-1252, separated by `;`, `,` or tabs) and XLSX
- * (first sheet) are accepted. Formulas are never evaluated: an XLSX cell gives
- * only the value the spreadsheet stored, and a CSV cell is plain text.
+ * (first sheet only) are accepted. Formulas are never evaluated: an XLSX cell
+ * gives only the value the spreadsheet stored, and a CSV cell is plain text.
+ *
+ * Nothing is cut silently. Every logical row is read (a CSV record with a
+ * multi-line cell is one row; blank rows do not count) and a file with more
+ * than ATHLETE_IMPORT_MAX_ROWS data rows is refused as a whole.
  */
 import { parse } from "csv-parse/sync";
 import * as XLSX from "xlsx";
@@ -14,6 +18,9 @@ export const ATHLETE_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
 /** Data rows, without the header. */
 export const ATHLETE_IMPORT_MAX_ROWS = 1000;
 export const ATHLETE_IMPORT_MAX_COLUMNS = 50;
+/** Sum of the uncompressed sizes an XLSX declares, checked before opening it. */
+export const ATHLETE_IMPORT_MAX_UNZIPPED_BYTES = 20 * 1024 * 1024;
+const MAX_ZIP_ENTRIES = 1000;
 
 export type ImportFileRow = Readonly<{ row: number; cells: string[] }>;
 
@@ -21,6 +28,8 @@ export type ParsedImportFile = Readonly<{
   format: "csv" | "xlsx";
   headers: string[];
   rows: ImportFileRow[];
+  /** Spreadsheet numbers of hidden or filtered rows, which are not imported. */
+  hiddenRows: number[];
 }>;
 
 function invalidFile(message: string, reason: string): OperationalError {
@@ -33,6 +42,52 @@ function isZip(bytes: Uint8Array): boolean {
 
 function isLegacyExcel(bytes: Uint8Array): boolean {
   return bytes.length >= 4 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0;
+}
+
+const tooLargeUnzipped = () =>
+  invalidFile(
+    "El Excel ocupa demasiado al descomprimirlo. Guarda solo la hoja de gimnastas o expórtala como CSV.",
+    "XLSX_TOO_LARGE"
+  );
+const brokenZip = () =>
+  invalidFile("No se pudo abrir el Excel. Guárdalo de nuevo como .xlsx o como CSV.", "XLSX_MALFORMED");
+
+/**
+ * ZIP bomb guard: reads the central directory and adds up the uncompressed
+ * size every entry declares, before the XLSX reader inflates anything. ZIP64
+ * archives (sizes beyond 4 GiB) are refused outright.
+ */
+export function assertZipWithinLimits(bytes: Uint8Array): void {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const lowest = Math.max(0, bytes.length - 22 - 0xffff);
+  let end = -1;
+  for (let offset = bytes.length - 22; offset >= lowest; offset -= 1) {
+    if (view.getUint32(offset, true) === 0x06054b50) {
+      end = offset;
+      break;
+    }
+  }
+  if (end < 0) throw brokenZip();
+  const entries = view.getUint16(end + 10, true);
+  const directorySize = view.getUint32(end + 12, true);
+  const directoryOffset = view.getUint32(end + 16, true);
+  if (entries === 0xffff || directoryOffset === 0xffffffff || directorySize === 0xffffffff) {
+    throw tooLargeUnzipped();
+  }
+  if (entries > MAX_ZIP_ENTRIES) throw tooLargeUnzipped();
+  if (directoryOffset + directorySize > end) throw brokenZip();
+  let total = 0;
+  let offset = directoryOffset;
+  for (let entry = 0; entry < entries; entry += 1) {
+    if (offset + 46 > end || view.getUint32(offset, true) !== 0x02014b50) throw brokenZip();
+    const compressed = view.getUint32(offset + 20, true);
+    const uncompressed = view.getUint32(offset + 24, true);
+    if (compressed === 0xffffffff || uncompressed === 0xffffffff) throw tooLargeUnzipped();
+    total += uncompressed;
+    if (total > ATHLETE_IMPORT_MAX_UNZIPPED_BYTES) throw tooLargeUnzipped();
+    offset +=
+      46 + view.getUint16(offset + 28, true) + view.getUint16(offset + 30, true) + view.getUint16(offset + 32, true);
+  }
 }
 
 function decodeText(bytes: Uint8Array): string {
@@ -59,38 +114,53 @@ export function detectDelimiter(text: string): ";" | "," | "\t" {
   return best![1] > 0 ? best![0] : ";";
 }
 
+type SourceRecord = { row: number; cells: string[] };
+
+const isBlank = (cells: readonly string[]) => cells.every((cell) => !cell.trim());
+
 /**
- * Builds the result from the raw table. `headerRow` is the spreadsheet number
- * of the header row, so every data row keeps the number the user sees.
+ * `records` are the non-blank rows in file order with their spreadsheet
+ * number. The first one is the header.
  */
-function finish(format: ParsedImportFile["format"], table: string[][], headerRow: number): ParsedImportFile {
-  const [rawHeaders, ...data] = table;
-  const headers = (rawHeaders ?? []).map((header) => header.trim());
-  if (headers.length === 0 || headers.every((header) => !header)) {
+function finish(
+  format: ParsedImportFile["format"],
+  records: SourceRecord[],
+  hidden: ReadonlySet<number>
+): ParsedImportFile {
+  const [header, ...data] = records;
+  const headers = (header?.cells ?? []).map((cell) => cell.trim());
+  if (!header || headers.every((cell) => !cell)) {
     throw invalidFile("El fichero está vacío o no tiene una fila de títulos.", "EMPTY");
   }
-  if (headers.length > ATHLETE_IMPORT_MAX_COLUMNS) {
+  const width = Math.max(headers.length, ...data.map((record) => record.cells.length));
+  if (width > ATHLETE_IMPORT_MAX_COLUMNS) {
     throw invalidFile(
       `El fichero tiene más de ${ATHLETE_IMPORT_MAX_COLUMNS} columnas. Deja solo las de la plantilla.`,
       "TOO_MANY_COLUMNS"
     );
   }
-  const rows = data
-    .map((cells, index) => ({
-      row: headerRow + index + 1,
-      cells: headers.map((_header, column) => String(cells[column] ?? "")),
-    }))
-    .filter((item) => item.cells.some((cell) => cell.trim()));
-  if (rows.length === 0) {
+  if (data.length === 0) {
     throw invalidFile("El fichero no tiene filas de gimnastas debajo de los títulos.", "NO_ROWS");
   }
-  if (rows.length > ATHLETE_IMPORT_MAX_ROWS) {
+  if (data.length > ATHLETE_IMPORT_MAX_ROWS) {
     throw invalidFile(
-      `El fichero tiene más de ${ATHLETE_IMPORT_MAX_ROWS} filas. Divídelo en varios ficheros.`,
+      `El fichero tiene ${data.length} filas y el máximo es ${ATHLETE_IMPORT_MAX_ROWS}. Divídelo en varios ficheros: no se ha importado ninguna fila.`,
       "TOO_MANY_ROWS"
     );
   }
-  return { format, headers, rows };
+  const rows: ImportFileRow[] = [];
+  const hiddenRows: number[] = [];
+  for (const record of data) {
+    if (hidden.has(record.row)) {
+      hiddenRows.push(record.row);
+      continue;
+    }
+    rows.push({ row: record.row, cells: headers.map((_header, column) => record.cells[column] ?? "") });
+  }
+  if (rows.length === 0) {
+    throw invalidFile("Todas las filas del fichero están ocultas o filtradas.", "NO_ROWS");
+  }
+  return { format, headers, rows, hiddenRows };
 }
 
 function parseCsv(bytes: Uint8Array): ParsedImportFile {
@@ -104,11 +174,9 @@ function parseCsv(bytes: Uint8Array): ParsedImportFile {
       // A quote inside an unquoted cell (O"Neil, =HYPERLINK("…")) stays as
       // text; a quoted cell that never closes is still refused.
       relax_quotes: true,
-      // Blank lines stay as records so row numbers match the file; finish()
-      // drops rows whose cells are all empty.
+      // Blank lines stay as records so row numbers match the spreadsheet;
+      // finish() only receives the non-blank ones.
       skip_empty_lines: false,
-      // Header plus the maximum, plus one row to detect the excess.
-      to_line: ATHLETE_IMPORT_MAX_ROWS + 50,
     }) as string[][];
   } catch {
     throw invalidFile(
@@ -116,14 +184,17 @@ function parseCsv(bytes: Uint8Array): ParsedImportFile {
       "CSV_MALFORMED"
     );
   }
-  return finish("csv", table, 1);
+  const records = table
+    .map((cells, index) => ({ row: index + 1, cells: cells.map(String) }))
+    .filter((record) => !isBlank(record.cells));
+  return finish("csv", records, new Set());
 }
 
-function cellText(cell: XLSX.CellObject | undefined): string {
+function cellText(cell: XLSX.CellObject | undefined, date1904: boolean): string {
   if (!cell) return "";
   if (cell.t === "n" && typeof cell.v === "number") {
     if (cell.z && XLSX.SSF.is_date(cell.z)) {
-      const date = XLSX.SSF.parse_date_code(cell.v);
+      const date = XLSX.SSF.parse_date_code(cell.v, { date1904 });
       if (!date) return "";
       return `${date.y}-${String(date.m).padStart(2, "0")}-${String(date.d).padStart(2, "0")}`;
     }
@@ -135,43 +206,52 @@ function cellText(cell: XLSX.CellObject | undefined): string {
   return "";
 }
 
+type DenseSheet = {
+  "!data"?: Array<Array<XLSX.CellObject | undefined> | undefined>;
+  "!rows"?: Array<{ hidden?: boolean } | undefined>;
+};
+
 function parseXlsx(bytes: Uint8Array): ParsedImportFile {
+  assertZipWithinLimits(bytes);
   let workbook: XLSX.WorkBook;
   try {
     workbook = XLSX.read(bytes, {
       type: "array",
+      // Only the first sheet is parsed.
+      sheets: 0,
+      dense: true,
       cellFormula: false,
       cellHTML: false,
       cellNF: true,
       cellDates: false,
+      // Needed for the row properties that mark hidden and filtered rows.
+      cellStyles: true,
       bookVBA: false,
-      // Never parse more rows than the limit needs.
-      sheetRows: ATHLETE_IMPORT_MAX_ROWS + 50,
     });
   } catch {
-    throw invalidFile("No se pudo abrir el Excel. Guárdalo de nuevo como .xlsx o como CSV.", "XLSX_MALFORMED");
+    throw brokenZip();
   }
   const sheetName = workbook.SheetNames[0];
-  const sheet = sheetName ? workbook.Sheets[sheetName] : undefined;
-  if (!sheet || !sheet["!ref"]) {
-    throw invalidFile("La primera hoja del Excel está vacía.", "EMPTY");
-  }
-  const range = XLSX.utils.decode_range(sheet["!ref"]);
-  if (range.e.c - range.s.c + 1 > ATHLETE_IMPORT_MAX_COLUMNS) {
-    throw invalidFile(
-      `El fichero tiene más de ${ATHLETE_IMPORT_MAX_COLUMNS} columnas. Deja solo las de la plantilla.`,
-      "TOO_MANY_COLUMNS"
-    );
-  }
-  const table: string[][] = [];
-  for (let row = range.s.r; row <= range.e.r; row += 1) {
+  const sheet = (sheetName ? workbook.Sheets[sheetName] : undefined) as (XLSX.WorkSheet & DenseSheet) | undefined;
+  if (!sheet) throw invalidFile("La primera hoja del Excel está vacía.", "EMPTY");
+  const date1904 = Boolean(workbook.Workbook?.WBProps?.date1904);
+
+  // Only the cells that exist are visited, whatever range the sheet declares.
+  const records: SourceRecord[] = [];
+  (sheet["!data"] ?? []).forEach((rowCells, rowIndex) => {
+    if (!rowCells) return;
     const cells: string[] = [];
-    for (let column = range.s.c; column <= range.e.c; column += 1) {
-      cells.push(cellText(sheet[XLSX.utils.encode_cell({ r: row, c: column })] as XLSX.CellObject | undefined));
-    }
-    table.push(cells);
-  }
-  return finish("xlsx", table, range.s.r + 1);
+    rowCells.forEach((cell, column) => {
+      cells[column] = cellText(cell, date1904);
+    });
+    const filled = Array.from(cells, (cell) => cell ?? "");
+    if (!isBlank(filled)) records.push({ row: rowIndex + 1, cells: filled });
+  });
+  const hidden = new Set<number>();
+  (sheet["!rows"] ?? []).forEach((properties, rowIndex) => {
+    if (properties?.hidden) hidden.add(rowIndex + 1);
+  });
+  return finish("xlsx", records, hidden);
 }
 
 /**
