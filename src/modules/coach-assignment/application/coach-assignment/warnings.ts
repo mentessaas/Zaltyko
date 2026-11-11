@@ -5,9 +5,16 @@ import { logger } from "@/lib/logger";
 import { findScheduleConflicts } from "@/modules/schedule-conflicts/application/schedule-conflicts-service";
 import type { ScheduleConflict } from "@/modules/schedule-conflicts/domain/schedule-conflicts";
 
+/** Tiempo máximo de cada consulta de avisos mientras O1 tiene sus cerrojos. */
+export const WARNINGS_STATEMENT_TIMEOUT = "1500ms";
+
 /**
  * O2: choques de horario de las entrenadoras recién asignadas en las sesiones
  * afectadas. Se calcula después de guardar y SOLO AVISA:
+ * - con `statement_timeout` de WARNINGS_STATEMENT_TIMEOUT dentro del savepoint,
+ *   para no alargar los cerrojos de O1 con el tiempo general (30 s); al salir
+ *   se restaura el valor anterior de la transacción (un `set local` dentro de
+ *   un savepoint liberado seguiría vigente hasta el final de la transacción);
  * - va en un savepoint (transacción anidada): si la detección falla, también
  *   por un error de SQL, se deshace solo el savepoint, el guardado sigue y se
  *   devuelve null con un log;
@@ -28,8 +35,13 @@ export async function coachWarnings(
   }
 ): Promise<ScheduleConflict[] | null> {
   if (input.staffProfileIds.length === 0 || input.sessionIds.length === 0) return [];
+  let previousTimeout: string | null = null;
   try {
+    previousTimeout = String(
+      ((await tx.execute(sql`select current_setting('statement_timeout') as value`)).rows[0] as { value: string }).value
+    );
     return await tx.transaction(async (savepoint) => {
+      await savepoint.execute(sql`select set_config('statement_timeout', ${WARNINGS_STATEMENT_TIMEOUT}, true)`);
       const visible = await savepoint.execute(sql`
         select coalesce(array_agg(location.id::text order by location.id), array[]::text[]) as location_ids
         from zaltyko.locations location
@@ -62,6 +74,16 @@ export async function coachWarnings(
   } catch (error) {
     logger.error("Schedule conflict warnings failed; the assignment was saved without them", error);
     return null;
+  } finally {
+    if (previousTimeout !== null) {
+      try {
+        // En su propio savepoint: si fallara, la transacción de O1 sigue sana.
+        const restore = previousTimeout;
+        await tx.transaction((savepoint) => savepoint.execute(sql`select set_config('statement_timeout', ${restore}, true)`));
+      } catch (error) {
+        logger.error("Could not restore statement_timeout after schedule conflict warnings", error);
+      }
+    }
   }
 }
 

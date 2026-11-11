@@ -9,4 +9,10 @@
  * Solo avisa: nada aquí bloquea ni cambia datos.
  */
 export { findScheduleConflicts, CONFLICT_HORIZON_DAYS, type ConflictFilter } from "./schedule-conflicts/detect";
-export { getUpcomingScheduleConflicts, type UpcomingConflicts } from "./schedule-conflicts/upcoming";
+export {
+  getUpcomingScheduleConflicts,
+  loadUpcomingScheduleConflicts,
+  PAGE_BUDGET_MS,
+  type LoadGuard,
+  type UpcomingConflicts,
+} from "./schedule-conflicts/upcoming";

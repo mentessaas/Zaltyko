@@ -38,7 +38,12 @@ Reglas comunes:
   - la consulta aplica las mismas reglas exactas que el dominio (solape en cualquier sede o sedes distintas sin margen), así que el límite no se llena de parejas que luego no son choque;
   - a las sedes de quien mira; las dos sesiones de un choque tienen que estar en ellas;
   - a 50 avisos (`MAX_CONFLICTS`), y se indica si hay más.
-- **En las páginas** la carga va en paralelo con el resto (`Promise.all`), en una transacción `read only` con `set local statement_timeout`, y tiene un **presupuesto total de 1,5 s por página** (`Promise.race` con un temporizador). Si se agota o falla, devuelve `null` y la página se pinta igual que antes. El alcance (sedes activas y fichas de la entrenadora) se resuelve en una sola consulta.
+- **En las páginas** la carga va en paralelo con el resto (`Promise.all`), en una transacción `read only`, y tiene un **presupuesto total de 1,5 s por página** (`Promise.race` con un temporizador). Para no competir por el pool (5 conexiones en producción):
+  - al agotarse el presupuesto, la carga se marca como abandonada (`AbortSignal`) y no pide conexión ni lanza más consultas; se comprueba antes de pedir conexión y antes de cada consulta;
+  - antes de cada consulta, `statement_timeout` se fija al presupuesto que queda, no a un valor fijo;
+  - si el pool ya tiene peticiones esperando conexión, no se carga.
+  - Si se agota o falla, devuelve `null` y la página se pinta igual que antes. El alcance (sedes activas y fichas de la entrenadora) se resuelve en una sola consulta.
+- **En O1**, los avisos corren dentro de su savepoint con `statement_timeout` de 1,5 s, para no alargar los cerrojos de O1 con el tiempo general (30 s). Al salir se restaura el valor anterior, también en su propio savepoint.
 - **Qué está activo:**
   - Los avisos al asignar y sustituir dependen de O1, que sigue dormido hasta aplicar su candidato.
   - «Choques próximos» funciona ya con tablas aplicadas. Hoy no mostrará nada porque ningún flujo escribe asignaciones (O1 dormido) ni espacios: ninguna pantalla crea pistas.
@@ -72,6 +77,9 @@ Reglas comunes:
   - alcance de la entrenadora y de la dirección;
   - más de 50 clases seguidas en la misma sede no tapan un choque real al final;
   - presupuesto agotado → `null`, y `statement_timeout` no queda activo en el pool;
+  - una carga abandonada entre consultas no lanza la siguiente, y con el presupuesto agotado no pide conexión;
+  - las páginas no muestran un choque a 20 días (horizonte de 14) y no se leen sesiones empezadas hace más de un día; cada caso tiene su control, que falla si se quita el filtro;
+  - en O1, los avisos ven `statement_timeout = 1500ms` y la auditoría posterior vuelve a ver el valor de siempre;
   - el aviso no bloquea: una sustitución real con O1 se guarda, devuelve el aviso y queda auditada;
   - si la detección falla con un error de SQL, la sustitución se guarda igual (`warnings: null`);
   - los avisos al guardar solo nombran sedes visibles para quien guarda.

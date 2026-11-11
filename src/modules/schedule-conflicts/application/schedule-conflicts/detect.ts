@@ -45,6 +45,12 @@ export type ConflictFilter = {
   include?: { coach?: boolean; space?: boolean };
   /** Días hacia delante; por defecto CONFLICT_HORIZON_DAYS (horizonte completo). */
   horizonDays?: number;
+  /**
+   * Se llama justo antes de cada consulta. Las páginas lo usan para no
+   * consultar si la carga ya se abandonó y para fijar statement_timeout al
+   * presupuesto que queda.
+   */
+  beforeQuery?: () => Promise<void>;
 };
 
 export const CONFLICT_HORIZON_DAYS = SESSION_HORIZON_TARGET_DAYS + 1;
@@ -132,6 +138,7 @@ function toSession(row: PairRow, side: "a" | "b"): ConflictSession {
 async function coachPairs(client: DatabaseClient, filter: ConflictFilter): Promise<PairRow[]> {
   const staff = filter.staffProfileIds ? [...filter.staffProfileIds] : null;
   if (staff && staff.length === 0) return [];
+  await filter.beforeQuery?.();
   const result = await client.execute(sql`
     with window_sessions as (${windowSessions(filter)}),
     assigned as (
@@ -177,6 +184,7 @@ async function coachPairs(client: DatabaseClient, filter: ConflictFilter): Promi
 }
 
 async function spacePairs(client: DatabaseClient, filter: ConflictFilter): Promise<PairRow[]> {
+  await filter.beforeQuery?.();
   const result = await client.execute(sql`
     with window_sessions as (${windowSessions(filter)})
     select a.space_id::text as subject_id, space.name as subject_name,

@@ -8,11 +8,32 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 // Permite simular que la detección falla con un error de SQL dentro de la
 // transacción de O1, para probar que el guardado no depende de ella.
 const detection = vi.hoisted(() => ({ fail: false }));
+// Sonda del statement_timeout dentro del savepoint de avisos de O1 y después.
+const probe = vi.hoisted(() => ({ on: false, inside: null as string | null, after: null as string | null }));
+vi.mock("@/modules/shared/infrastructure/transactional-records", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/modules/shared/infrastructure/transactional-records")>();
+  return {
+    ...actual,
+    appendAuditEntry: async (...args: Parameters<typeof actual.appendAuditEntry>) => {
+      if (probe.on) {
+        const { sql: rawSql } = await import("drizzle-orm");
+        const result = await args[0].execute(rawSql`select current_setting('statement_timeout') as value`);
+        probe.after = String((result.rows[0] as { value: string }).value);
+      }
+      return actual.appendAuditEntry(...args);
+    },
+  };
+});
 vi.mock("@/modules/schedule-conflicts/application/schedule-conflicts-service", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/modules/schedule-conflicts/application/schedule-conflicts-service")>();
   return {
     ...actual,
     findScheduleConflicts: async (...args: Parameters<typeof actual.findScheduleConflicts>) => {
+      if (probe.on) {
+        const { sql: rawSql } = await import("drizzle-orm");
+        const result = await args[0].execute(rawSql`select current_setting('statement_timeout') as value`);
+        probe.inside = String((result.rows[0] as { value: string }).value);
+      }
       if (detection.fail) {
         const { sql: rawSql } = await import("drizzle-orm");
         await args[0].execute(rawSql`select 1 / 0`);
@@ -27,6 +48,7 @@ import { setSessionCoaches } from "@/modules/coach-assignment/application/coach-
 import {
   findScheduleConflicts,
   getUpcomingScheduleConflicts,
+  loadUpcomingScheduleConflicts,
 } from "@/modules/schedule-conflicts/application/schedule-conflicts-service";
 
 /**
@@ -355,6 +377,79 @@ describe.skipIf(!disposablePgEnabled)("avisos de choque en PostgreSQL desechable
     expect(result.conflicts.map(pairKey)).toEqual([key("coach_overlap", last.id, clash)]);
   }, 60_000);
 
+  it("las páginas miran 14 días: un choque a 20 días no aparece, aunque el detector lo vea", async () => {
+    const h = await academy("H", 1);
+    const nia = await staffProfile(h.organizationId, "Nía", "Vega", (await member(h.organizationId, "coach", "all", [], "nia")).memberId);
+    const kh1 = await classTemplate(h.organizationId, h.locationIds[0]!, "CI Lejana 1");
+    const kh2 = await classTemplate(h.organizationId, h.locationIds[0]!, "CI Lejana 2");
+    const far1 = await session(h.organizationId, h.locationIds[0]!, kh1, at(20, 17), at(20, 18, 30));
+    const far2 = await session(h.organizationId, h.locationIds[0]!, kh2, at(20, 18), at(20, 19));
+    await assign(h.organizationId, far1, nia);
+    await assign(h.organizationId, far2, nia);
+    // Control: el detector con el horizonte completo sí lo ve.
+    expect((await findScheduleConflicts(db, { organizationId: h.organizationId })).conflicts.map(pairKey)).toEqual([
+      key("coach_overlap", far1, far2),
+    ]);
+    const page = await getUpcomingScheduleConflicts({
+      organizationId: h.organizationId,
+      locationIds: h.locationIds,
+      viewer: { memberId: randomUUID(), role: "owner" },
+    });
+    expect(page).toEqual({ conflicts: [], truncated: false });
+  });
+
+  it("no lee sesiones empezadas hace más de un día, aunque sigan abiertas", async () => {
+    const i = await academy("I", 1);
+    const oli = await staffProfile(i.organizationId, "Oli", "Ramos", (await member(i.organizationId, "coach", "all", [], "oli")).memberId);
+    const ki = await classTemplate(i.organizationId, i.locationIds[0]!, "CI Campus");
+    const kj = await classTemplate(i.organizationId, i.locationIds[0]!, "CI Hoy");
+    const now = Date.now();
+    const iso = (offsetMs: number) => new Date(now + offsetMs).toISOString();
+    const hour = 3_600_000;
+    // Empezó hace 2 días y termina dentro de 3 horas: fuera de la ventana.
+    const old = await session(i.organizationId, i.locationIds[0]!, ki, iso(-48 * hour), iso(3 * hour));
+    // Empezó hace 12 horas y termina dentro de 3 horas: dentro (control).
+    const recent = await session(i.organizationId, i.locationIds[0]!, ki, iso(-12 * hour), iso(3 * hour));
+    const current = await session(i.organizationId, i.locationIds[0]!, kj, iso(1 * hour), iso(2 * hour));
+    for (const id of [old, recent, current]) await assign(i.organizationId, id, oli);
+    const keys = (await findScheduleConflicts(db, { organizationId: i.organizationId })).conflicts.map(pairKey);
+    expect(keys).toEqual([key("coach_overlap", recent, current)]);
+    expect(keys.join()).not.toContain(old);
+  });
+
+  it("una carga abandonada entre consultas no lanza la siguiente", async () => {
+    // El guardián da presupuesto hasta después de la consulta de alcance y lo
+    // agota justo antes de la consulta de choques (5.ª comprobación).
+    let checks = 0;
+    const guard = {
+      signal: new AbortController().signal,
+      remainingMs: () => {
+        checks += 1;
+        return checks <= 4 ? 1000 : 0;
+      },
+    };
+    const outcome = await loadUpcomingScheduleConflicts(
+      { organizationId: a.organizationId, locationIds: a.locationIds, viewer: { memberId: randomUUID(), role: "owner" } },
+      guard
+    ).then(
+      () => "completed",
+      (error: Error) => error.name
+    );
+    expect(outcome).toBe("LoadAbandoned");
+    // Ninguna comprobación más después del abandono: la consulta de choques no se lanzó.
+    expect(checks).toBe(5);
+    // Con el presupuesto ya agotado desde el principio no pide ni conexión.
+    let early = 0;
+    const exhausted = { signal: new AbortController().signal, remainingMs: () => ((early += 1), 0) };
+    await expect(
+      loadUpcomingScheduleConflicts(
+        { organizationId: a.organizationId, locationIds: a.locationIds, viewer: { memberId: randomUUID(), role: "owner" } },
+        exhausted
+      )
+    ).rejects.toMatchObject({ name: "LoadAbandoned" });
+    expect(early).toBe(1);
+  });
+
   it("en las páginas, un presupuesto agotado devuelve null y no deja statement_timeout activo", async () => {
     const before = ((await db.execute(sql`show statement_timeout`)).rows[0] as { statement_timeout: string }).statement_timeout;
     const exhausted = await getUpcomingScheduleConflicts({
@@ -441,6 +536,38 @@ describe.skipIf(!disposablePgEnabled)("avisos de choque en PostgreSQL desechable
         scheduleWarnings: [{ kind: "coach_overlap", staffProfileId: lia }],
       });
       expect(JSON.stringify(audit.rows)).not.toContain("Lía");
+    }, 60_000);
+
+    it("los avisos de O1 corren con statement_timeout acotado y luego se restaura el de la transacción", async () => {
+      const j = await academy("J", 1);
+      const owner = await member(j.organizationId, "owner", "all");
+      const pau = await staffProfile(j.organizationId, "Pau", "Llorente", (await member(j.organizationId, "coach", "all", [], "pau")).memberId);
+      const kj = await classTemplate(j.organizationId, j.locationIds[0]!, "CI Sonda");
+      const target = await session(j.organizationId, j.locationIds[0]!, kj, at(5, 18), at(5, 19));
+      const baseline = ((await db.execute(sql`show statement_timeout`)).rows[0] as { statement_timeout: string }).statement_timeout;
+      probe.on = true;
+      probe.inside = null;
+      probe.after = null;
+      try {
+        await setSessionCoaches({
+          actor: owner,
+          sessionId: target,
+          command: {
+            organizationId: j.organizationId,
+            locationId: j.locationIds[0]!,
+            clientRequestId: randomUUID(),
+            staffProfileIds: [pau],
+            expectedStaffProfileIds: [],
+            reason: null,
+          },
+        });
+      } finally {
+        probe.on = false;
+      }
+      expect(probe.inside).toBe("1500ms");
+      // Tras liberar el savepoint, la auditoría de O1 vuelve a ver el valor de siempre.
+      expect(probe.after).toBe(baseline);
+      expect(probe.after).not.toBe("1500ms");
     }, 60_000);
 
     it("si la detección falla (error de SQL), la sustitución se guarda igual y el aviso queda como no disponible", async () => {
