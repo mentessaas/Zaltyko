@@ -70,6 +70,7 @@ export default defineConfig({
                   "tests/family-portal-isolation-pg.test.ts",
                   "tests/admission-requests-pg.test.ts",
                   "tests/athlete-progress-pg.test.ts",
+                  "tests/session-plans-pg.test.ts",
                   "tests/saas-reconciliation-service-pg.test.ts",
                   "tests/monthly-invoice-service-pg.test.ts",
                 ]),

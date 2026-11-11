@@ -12,6 +12,7 @@ import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-s
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { db } from "@/db";
 import { isAthleteProgressAvailableForPage } from "@/modules/athlete-progress/application/athlete-progress-service";
+import { isSessionPlanAvailableForPage } from "@/modules/session-plans/application/session-plan-service";
 import { OwnerTodaySessionsPanel } from "@/components/owner-dashboard/OwnerTodaySessionsPanel";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { logger } from "@/lib/logger";
@@ -118,6 +119,7 @@ export default async function OwnerAttendancePage({
 
   // P2 #17: sin el candidato SQL aplicado no se muestran los accesos.
   const progressAvailable = await isAthleteProgressAvailableForPage(db);
+  const sessionPlansAvailable = await isSessionPlanAvailableForPage(db);
 
   return (
     <OwnerWorkspacePageShell
@@ -162,6 +164,7 @@ export default async function OwnerAttendancePage({
         initialNextCursor={data.nextCursor}
         selectedSession={data.selectedSession}
         progressAvailable={progressAvailable}
+        sessionPlansAvailable={sessionPlansAvailable}
       />
     </OwnerWorkspacePageShell>
   );

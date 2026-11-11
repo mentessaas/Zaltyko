@@ -182,6 +182,9 @@ const deniedCases: DeniedCase[] = [
   { route: "owner/trial-requests/links/route.ts", method: "POST", area: "solicitudes", load: () => import("@/app/api/v1/owner/trial-requests/links/route"), path: () => "/api/v1/owner/trial-requests/links", body: (t) => ({ organizationId: t.organizationId, locationId: t.locationId, action: "enable" }) },
   // Clases, grupos e inscripciones
   { route: "owner/classes/route.ts", method: "GET", area: "clases", load: () => import("@/app/api/v1/owner/classes/route"), path: (t) => `/api/v1/owner/classes${query({ organizationId: t.organizationId, locationId: t.locationId })}` },
+  // P2 #17: la plantilla de plan de una clase es solo de la dirección.
+  { route: "owner/classes/[classTemplateId]/plan-template/route.ts", method: "GET", area: "clases", load: () => import("@/app/api/v1/owner/classes/[classTemplateId]/plan-template/route"), params: { classTemplateId: e }, path: (t) => `/api/v1/owner/classes/${e}/plan-template${query({ organizationId: t.organizationId, locationId: t.locationId })}` },
+  { route: "owner/classes/[classTemplateId]/plan-template/route.ts", method: "PUT", area: "clases", load: () => import("@/app/api/v1/owner/classes/[classTemplateId]/plan-template/route"), params: { classTemplateId: e }, path: () => `/api/v1/owner/classes/${e}/plan-template`, body: (t) => ({ organizationId: t.organizationId, locationId: t.locationId, expectedRevision: null, focus: "Salto", blocks: [] }) },
   { route: "owner/groups/route.ts", method: "GET", area: "grupos", load: () => import("@/app/api/v1/owner/groups/route"), path: (t) => `/api/v1/owner/groups${query({ organizationId: t.organizationId, locationId: t.locationId })}` },
   { route: "owner/groups/[groupId]/memberships/route.ts", method: "GET", area: "grupos", load: () => import("@/app/api/v1/owner/groups/[groupId]/memberships/route"), params: { groupId: e }, path: (t) => `/api/v1/owner/groups/${e}/memberships${query({ organizationId: t.organizationId, q: "ana" })}` },
   { route: "owner/groups/[groupId]/memberships/route.ts", method: "POST", area: "grupos", load: () => import("@/app/api/v1/owner/groups/[groupId]/memberships/route"), params: { groupId: e }, path: () => `/api/v1/owner/groups/${e}/memberships`, body: (t) => ({ organizationId: t.organizationId, athleteId: e, startsOn: day, status: "active" }) },
@@ -502,6 +505,11 @@ const coachAllowed = new Set([
   "PATCH owner/athletes/[athleteId]/observations/[observationId]/route.ts",
   "GET owner/sessions/[sessionId]/observations/route.ts",
   "POST owner/sessions/[sessionId]/observations/route.ts",
+  // P2 #17 (segunda parte): plan de la sesión con el criterio de Pasar lista
+  // (sede asignada, no session_staff) (tests/session-plans-*).
+  "GET owner/sessions/[sessionId]/plan/route.ts",
+  "PUT owner/sessions/[sessionId]/plan/route.ts",
+  "PUT owner/sessions/[sessionId]/plan/blocks/[blockId]/route.ts",
 ]);
 
 function routeFiles(directory: string): string[] {
@@ -555,6 +563,8 @@ describe("inventario de /api/v1", () => {
       "src/app/owner/attendance/page.tsx",
       // P2 #17: única entrada de las rutas de objetivos y observaciones.
       "src/app/api/v1/owner/athlete-progress-http.ts",
+      // P2 #17 (segunda parte): única entrada de las rutas del plan de sesión.
+      "src/app/api/v1/owner/session-plan-http.ts",
     ]);
     const sourceFiles = (directory: string): string[] =>
       readdirSync(directory).flatMap((entry) => {

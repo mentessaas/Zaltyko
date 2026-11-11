@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ClipboardCheck, UsersRound } from "lucide-react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
 import { OwnerSessionAthleteProgress } from "./OwnerSessionAthleteProgress";
+import { OwnerSessionPlanPanel } from "./OwnerSessionPlanPanel";
 import { OwnerSessionObservationForm } from "./OwnerSessionObservationForm";
 import { ownerUi } from "./owner-ui";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
@@ -209,6 +210,7 @@ export function OwnerAttendanceManager({
   selectedSession: requestedSession,
   coachMode = false,
   progressAvailable = false,
+  sessionPlansAvailable = false,
 }: {
   organizationId: string;
   locationId: string;
@@ -223,6 +225,8 @@ export function OwnerAttendanceManager({
    * existen. Sin ellas no se muestran sus accesos.
    */
   progressAvailable?: boolean;
+  /** P2 #17 (segunda parte): el servidor comprobó que existe la planificación. */
+  sessionPlansAvailable?: boolean;
 }) {
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
@@ -815,6 +819,15 @@ export function OwnerAttendanceManager({
                 ) : null}
               </div>
             )}
+            {sessionPlansAvailable && sessionId && !selectedSession?.retryOnly ? (
+              <OwnerSessionPlanPanel
+                key={sessionId}
+                organizationId={organizationId}
+                locationId={locationId}
+                sessionId={sessionId}
+                readOnly={writesBlocked}
+              />
+            ) : null}
             {selectedSession?.retryOnly && (
               <p role="status" className={ownerUi.noticeWarning}>
                 Esta sesión solo permite recuperar una asistencia que ya se
