@@ -10,6 +10,28 @@ source:
 
 
 
+## 2026-11-11 — Importar gimnastas desde Excel o CSV con vista previa (O4)
+
+**Cambio.**
+- **Pantalla `/owner/athletes/import`.** Se llega desde Gimnastas con «Importar desde Excel o CSV». Tiene:
+  - plantilla CSV;
+  - mapeo de columnas automático y editable;
+  - vista previa fila a fila con errores y avisos en español;
+  - resumen y confirmación.
+- **Módulo `src/modules/athlete-import/`** con dominio puro, lectura de ficheros y servicio. Las rutas son `POST /api/v1/owner/athlete-import/{preview,confirm}`.
+- **Qué crea:** gimnasta, persona con fecha de nacimiento, familia, tutor con email y teléfono principales, vínculos y alta en grupo con historial. Lo hace en una transacción, con `Idempotency-Key`, el límite del plan, el solo lectura y la autorización por rol y sede.
+- **Seguridad del fichero:**
+  - límites de 2 MB, 1.000 filas y 50 columnas;
+  - lectura en memoria y sin evaluar fórmulas;
+  - rechazo de nombres con aspecto de fórmula;
+  - CSV exportados neutralizados.
+- **Límite de peticiones:** 10 por minuto y academia.
+- **Sin migración ni dependencias nuevas:** usa `csv-parse` y `xlsx`, ya presentes.
+
+**Pruebas.** Unitarias, de ficheros, de clasificación, de UI y `tests/athlete-import-pg.test.ts` en «Postgres integration». No se ejecutó nada en local (regla del encargo): resultado en la CI de la PR.
+
+**Sin resolver.** Los siete puntos «Decide Elvis» de `docs/producto/importacion-excel.md`.
+
 ## 2026-11-11 — Frontera ESLint de athlete-progress y contrato de sesiones
 
 **Cambio.**
