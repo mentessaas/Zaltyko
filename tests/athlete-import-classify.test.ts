@@ -1,13 +1,13 @@
 /**
  * O4 · Qué hace la importación con cada fila frente a lo que ya hay en la
  * academia. La clasificación es pura y la comparten la vista previa y la
- * confirmación. Datos sintéticos.
+ * confirmación. Excepción revisada de la frontera athlete-import
+ * (eslint.internal-boundaries.json). Datos sintéticos.
  */
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-vi.mock("@/db", () => ({ db: {} }));
-
-import { classifyImportRows } from "@/modules/athlete-import/application/athlete-import-service";
+import { classifyImportRows } from "@/modules/athlete-import/application/athlete-import/classify";
+import type { ExistingContact } from "@/modules/athlete-import/application/athlete-import/model";
 import {
   deriveImportMapping,
   validateImportRow,
@@ -40,14 +40,22 @@ const group = (overrides: Record<string, unknown> = {}) => ({
   localDate: "2026-11-11",
   ...overrides,
 });
+const contact = (overrides: Partial<ExistingContact>): ExistingContact => ({
+  guardianId: "g1",
+  kind: "email",
+  value: "marta@example.invalid",
+  givenName: "Marta",
+  familyName: "Prueba",
+  familyIds: ["f1"],
+  ...overrides,
+});
 
 const emptyContext = {
   groups: [group()],
   athletes: [] as Array<{ givenName: string; familyName: string; dateOfBirth: string | null; isActive: boolean }>,
-  contacts: [] as Array<{ guardianId: string; kind: "email" | "phone"; value: string; familyIds: string[] }>,
+  contacts: [] as ExistingContact[],
   usage: { current: 0, limit: 30 as number | null, readOnly: false },
 };
-const everySite = { allLocations: true, locationIds: new Set<string>() };
 
 function summary(result: ReturnType<typeof classifyImportRows>) {
   return result.map((item) => ({
@@ -74,8 +82,7 @@ describe("duplicados", () => {
           { givenName: "Bea", familyName: "Sintética", dateOfBirth: "2015-02-01", isActive: false },
           { givenName: "Carla", familyName: "Sintética", dateOfBirth: null, isActive: true },
         ],
-      },
-      everySite
+      }
     );
     expect(summary(result)).toEqual([
       { row: 2, status: "create", codes: [] },
@@ -88,17 +95,45 @@ describe("duplicados", () => {
     expect(result[1]!.plan).toBeNull();
   });
 
+  it("sin fecha de nacimiento compara solo por nombre, en el fichero y en la academia", () => {
+    const result = classifyImportRows(
+      rows(
+        ["Lucía", "Prueba", "15/03/2016"],
+        ["Lucía", "Prueba", ""],
+        ["Ana", "Prueba", ""],
+        ["Ana", "Prueba", "2017-01-01"],
+        ["Dana", "Prueba", ""],
+        ["Eva", "Prueba", ""]
+      ),
+      {
+        ...emptyContext,
+        athletes: [{ givenName: "Dana", familyName: "Prueba", dateOfBirth: "2014-04-04", isActive: true }],
+      }
+    );
+    expect(summary(result)).toEqual([
+      { row: 2, status: "create", codes: [] },
+      { row: 3, status: "duplicate", codes: ["DATE_MISSING", "DUPLICATE_IN_FILE_POSSIBLE"] },
+      { row: 4, status: "create", codes: ["DATE_MISSING"] },
+      { row: 5, status: "duplicate", codes: ["DUPLICATE_IN_FILE_POSSIBLE"] },
+      { row: 6, status: "duplicate", codes: ["DATE_MISSING", "DUPLICATE_POSSIBLE"] },
+      { row: 7, status: "create", codes: ["DATE_MISSING"] },
+    ]);
+  });
+
   it("no considera duplicada a otra gimnasta con el mismo nombre y otra fecha", () => {
-    const result = classifyImportRows(rows(["Lucía", "Prueba", "15/03/2016"]), {
+    const result = classifyImportRows(rows(["Lucía", "Prueba", "15/03/2016"], ["Lucía", "Prueba", "16/03/2016"]), {
       ...emptyContext,
       athletes: [{ givenName: "Lucía", familyName: "Prueba", dateOfBirth: "2017-03-15", isActive: true }],
-    }, everySite);
-    expect(summary(result)).toEqual([{ row: 2, status: "create", codes: [] }]);
+    });
+    expect(summary(result)).toEqual([
+      { row: 2, status: "create", codes: [] },
+      { row: 3, status: "create", codes: [] },
+    ]);
   });
 });
 
-describe("grupos y sedes", () => {
-  it("encuentra el grupo sin mayúsculas ni tildes y rechaza los desconocidos o repetidos", () => {
+describe("grupos", () => {
+  it("encuentra el grupo sin mayúsculas ni tildes en cualquier sede y rechaza los desconocidos o repetidos", () => {
     const result = classifyImportRows(
       rows(
         ["Lucía", "Prueba", "15/03/2016", "iniciacion"],
@@ -112,8 +147,7 @@ describe("grupos y sedes", () => {
           group({ groupId: "20000000-0000-4000-8000-000000000002", name: "Base" }),
           group({ groupId: "20000000-0000-4000-8000-000000000003", name: "BASE", locationId: otherSite }),
         ],
-      },
-      everySite
+      }
     );
     expect(summary(result)).toEqual([
       { row: 2, status: "create", codes: [] },
@@ -123,26 +157,6 @@ describe("grupos y sedes", () => {
     expect(result[0]!.plan?.group?.groupId).toBe("20000000-0000-4000-8000-000000000001");
   });
 
-  it("con acceso a algunas sedes solo ve sus grupos y exige grupo en cada fila", () => {
-    const result = classifyImportRows(
-      rows(
-        ["Lucía", "Prueba", "15/03/2016", "Iniciación"],
-        ["Ana", "Prueba", "15/03/2016", "Otra sede"],
-        ["Bea", "Prueba", "15/03/2016", ""]
-      ),
-      {
-        ...emptyContext,
-        groups: [group(), group({ groupId: "20000000-0000-4000-8000-000000000004", name: "Otra sede", locationId: otherSite })],
-      },
-      { allLocations: false, locationIds: new Set([site]) }
-    );
-    expect(summary(result)).toEqual([
-      { row: 2, status: "create", codes: [] },
-      { row: 3, status: "error", codes: ["GROUP_NOT_FOUND"] },
-      { row: 4, status: "error", codes: ["GROUP_REQUIRED"] },
-    ]);
-  });
-
   it("no llena un grupo por encima de su capacidad", () => {
     const result = classifyImportRows(
       rows(
@@ -150,8 +164,7 @@ describe("grupos y sedes", () => {
         ["Ana", "Prueba", "15/03/2016", "Iniciación"],
         ["Bea", "Prueba", "15/03/2016", ""]
       ),
-      { ...emptyContext, groups: [group({ capacity: 3, occupancy: 2 })] },
-      everySite
+      { ...emptyContext, groups: [group({ capacity: 3, occupancy: 2 })] }
     );
     expect(summary(result)).toEqual([
       { row: 2, status: "create", codes: [] },
@@ -162,27 +175,19 @@ describe("grupos y sedes", () => {
 });
 
 describe("tutores y familias", () => {
-  it("agrupa a las hermanas por email o teléfono del tutor y reutiliza la familia de un tutor existente", () => {
+  it("agrupa a las hermanas por email o teléfono del tutor y reutiliza la familia de un tutor existente con el mismo nombre", () => {
     const result = classifyImportRows(
       rows(
         ["Lucía", "Prueba", "15/03/2016", "", "Marta", "Prueba", "marta@example.invalid", "", "Madre"],
         ["Ana", "Prueba", "16/03/2016", "", "Marta", "Prueba", "", "", "Madre"],
         ["Bea", "Prueba", "17/03/2016", "", "Marta", "Prueba", "MARTA@example.invalid", "+34600000001", "Madre"],
-        ["Carla", "Prueba", "18/03/2016", "", "Pilar", "Prueba", "", "+34600000001", "Madre"],
-        ["Dana", "Prueba", "19/03/2016", "", "Rosa", "Prueba", "rosa@example.invalid", "", "Madre"]
+        ["Carla", "Prueba", "18/03/2016", "", "MARTA", "prueba", "", "+34600000001", "Madre"],
+        ["Dana", "Prueba", "19/03/2016", "", "Rosa", "Sintética", "rosa@example.invalid", "", "Madre"]
       ),
       {
         ...emptyContext,
-        contacts: [
-          {
-            guardianId: "30000000-0000-4000-8000-000000000001",
-            kind: "email",
-            value: "rosa@example.invalid",
-            familyIds: ["40000000-0000-4000-8000-000000000001"],
-          },
-        ],
-      },
-      everySite
+        contacts: [contact({ guardianId: "g9", value: "rosa@example.invalid", givenName: "Rosa", familyName: "Sintética", familyIds: ["f9"] })],
+      }
     );
     expect(summary(result)).toEqual([
       { row: 2, status: "create", codes: [] },
@@ -197,28 +202,49 @@ describe("tutores y familias", () => {
     expect(plans[2]!.newFamilyKey).toBe(plans[0]!.newFamilyKey);
     // Same phone as row 4: the same new family.
     expect(plans[3]!.newFamilyKey).toBe(plans[0]!.newFamilyKey);
-    expect(plans[4]!.existingFamilyId).toBe("40000000-0000-4000-8000-000000000001");
+    expect(plans[4]!.existingFamilyId).toBe("f9");
   });
 
-  it("no adivina la familia de un tutor existente con varias familias o con contactos de dos tutores", () => {
+  it("nunca elige: contacto compartido, contactos de dos tutores, otro nombre o varias familias son errores de fila", () => {
     const result = classifyImportRows(
       rows(
-        ["Lucía", "Prueba", "15/03/2016", "", "Marta", "Prueba", "marta@example.invalid", "", "Madre"],
-        ["Ana", "Prueba", "16/03/2016", "", "Rosa", "Prueba", "rosa@example.invalid", "+34600000009", "Madre"]
+        ["Lucía", "Prueba", "15/03/2016", "", "Marta", "Prueba", "compartido@example.invalid", "", "Madre"],
+        ["Ana", "Prueba", "16/03/2016", "", "Rosa", "Prueba", "rosa@example.invalid", "+34600000009", "Madre"],
+        ["Bea", "Prueba", "17/03/2016", "", "Pilar", "Otra", "nora@example.invalid", "", "Madre"],
+        ["Carla", "Prueba", "18/03/2016", "", "Inés", "Prueba", "ines@example.invalid", "", "Madre"]
       ),
       {
         ...emptyContext,
         contacts: [
-          { guardianId: "g1", kind: "email", value: "marta@example.invalid", familyIds: ["f1", "f2"] },
-          { guardianId: "g2", kind: "email", value: "rosa@example.invalid", familyIds: ["f3"] },
-          { guardianId: "g3", kind: "phone", value: "+34600000009", familyIds: ["f4"] },
+          contact({ guardianId: "g1", value: "compartido@example.invalid" }),
+          contact({ guardianId: "g2", value: "compartido@example.invalid", givenName: "Elena" }),
+          contact({ guardianId: "g3", value: "rosa@example.invalid", givenName: "Rosa" }),
+          contact({ guardianId: "g4", kind: "phone", value: "+34600000009", givenName: "Rosa" }),
+          contact({ guardianId: "g5", value: "nora@example.invalid", givenName: "Nora", familyName: "Prueba" }),
+          contact({ guardianId: "g6", value: "ines@example.invalid", givenName: "Inés", familyIds: ["f1", "f2"] }),
         ],
-      },
-      everySite
+      }
     );
     expect(summary(result)).toEqual([
-      { row: 2, status: "error", codes: ["GUARDIAN_FAMILY_UNCLEAR"] },
+      { row: 2, status: "error", codes: ["GUARDIAN_AMBIGUOUS"] },
       { row: 3, status: "error", codes: ["GUARDIAN_CONFLICT"] },
+      { row: 4, status: "error", codes: ["GUARDIAN_NAME_MISMATCH"] },
+      { row: 5, status: "error", codes: ["GUARDIAN_FAMILY_UNCLEAR"] },
+    ]);
+    expect(result.every((item) => item.plan === null)).toBe(true);
+  });
+
+  it("no une a dos tutores distintos del fichero que comparten email", () => {
+    const result = classifyImportRows(
+      rows(
+        ["Lucía", "Prueba", "15/03/2016", "", "Marta", "Prueba", "familia@example.invalid", "", "Madre"],
+        ["Ana", "Prueba", "16/03/2016", "", "Jorge", "Prueba", "familia@example.invalid", "", "Padre"]
+      ),
+      emptyContext
+    );
+    expect(summary(result)).toEqual([
+      { row: 2, status: "create", codes: [] },
+      { row: 3, status: "error", codes: ["GUARDIAN_NAME_MISMATCH_IN_FILE"] },
     ]);
   });
 });
@@ -232,8 +258,7 @@ describe("límite del plan", () => {
         ["Ana", "Prueba", "15/03/2016"],
         ["Bea", "Prueba", "15/03/2016"]
       ),
-      { ...emptyContext, usage: { current: 28, limit: 30, readOnly: false } },
-      everySite
+      { ...emptyContext, usage: { current: 28, limit: 30, readOnly: false } }
     );
     expect(summary(result)).toEqual([
       { row: 2, status: "create", codes: [] },
@@ -247,11 +272,10 @@ describe("límite del plan", () => {
   });
 
   it("sin límite crea todas las filas válidas", () => {
-    const result = classifyImportRows(
-      rows(["Lucía", "Prueba", "15/03/2016"], ["Ana", "Prueba", "15/03/2016"]),
-      { ...emptyContext, usage: { current: 500, limit: null, readOnly: false } },
-      everySite
-    );
+    const result = classifyImportRows(rows(["Lucía", "Prueba", "15/03/2016"], ["Ana", "Prueba", "15/03/2016"]), {
+      ...emptyContext,
+      usage: { current: 500, limit: null, readOnly: false },
+    });
     expect(result.every((item) => item.preview.status === "create")).toBe(true);
   });
 });
