@@ -7,6 +7,7 @@ import { OwnerStaffManager } from "@/components/owner-dashboard/OwnerStaffManage
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { OwnerTeamAccessPanel } from "@/components/owner/OwnerTeamAccessPanel";
 import { createClient } from "@/lib/supabase/server";
+import { isCanonicalTeamAccessAvailable } from "@/modules/staff/application/canonical-team-access";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -46,7 +47,14 @@ export default async function OwnerStaffPage({
     throw error;
   }
 
-  if (scope.member.role !== "owner" || scope.member.locationScopeMode !== "all") notFound();
+  // Personal (directory) stays with the owner with every site. Team
+  // invitations (O3) also open to admin with every site and to managers, but
+  // only when the flag is on and the reviewed candidate is installed.
+  const ownerAll = scope.member.role === "owner" && scope.member.locationScopeMode === "all";
+  const invitationManager = ((scope.member.role === "owner" || scope.member.role === "admin") && scope.member.locationScopeMode === "all")
+    || scope.member.role === "manager";
+  const teamAccessAvailable = invitationManager ? await isCanonicalTeamAccessAvailable() : false;
+  if (!ownerAll && !teamAccessAvailable) notFound();
 
   if (!query.data.organizationId) {
     redirect(`/owner/staff?organizationId=${encodeURIComponent(scope.organization.id)}`);
@@ -57,13 +65,15 @@ export default async function OwnerStaffPage({
       member={scope.member}
       organizationId={scope.organization.id}
     >
-      {process.env.ZALTYKO_TEAM_ACCESS_ENABLED === "true" ? (
+      {ownerAll && teamAccessAvailable ? (
         <>
           <OwnerStaffManager key={`staff:${scope.organization.id}`} organizationId={scope.organization.id} organizationName={scope.organization.name} />
           <OwnerTeamAccessPanel key={`access:${scope.organization.id}`} organizationId={scope.organization.id} />
         </>
-      ) : (
+      ) : ownerAll ? (
         <OwnerStaffManager key={`staff:${scope.organization.id}`} organizationId={scope.organization.id} organizationName={scope.organization.name} />
+      ) : (
+        <OwnerTeamAccessPanel key={`access:${scope.organization.id}`} organizationId={scope.organization.id} />
       )}
     </OwnerWorkspacePageShell>
   );

@@ -33,6 +33,24 @@ source:
 
 
 
+
+## 2026-11-11 — Invitaciones al equipo con vínculo de ficha (O3)
+
+**Cambio.**
+- La invitación nombra la ficha del equipo: una existente o el nombre de una nueva. Al aceptar se rellena `staff_profiles.member_id`, que es lo que necesita la asignación de entrenadoras por clase (PR 276).
+- Invitan la dirección y la administración con todas las sedes, y la coordinación (solo entrenadores y solo en sus sedes).
+- Un enlace caducado responde igual que uno inválido.
+- El plan en solo lectura bloquea invitar, reemitir y aceptar.
+- Abrir o aceptar enlaces tiene un límite de 10 intentos por minuto.
+- Equipo se muestra a quien gestiona invitaciones solo con la función activa y el candidato instalado.
+- La página de aceptación ofrece también registrarse.
+
+**Datos.** Se amplía el candidato `20261105120000_canonical_team_access_candidate.sql`, nunca aplicado, junto con su manifiesto y la exportación. **No se ejecutó en ningún entorno alojado; requiere autorización de Elvis.**
+
+**Pruebas.** Contrato, seguridad HTTP, interfaz, navegación y la suite `canonical-team-access-pg`, que incluye una doble aceptación determinista. No se ejecutó nada en local.
+
+**Sin resolver.** Las decisiones «Decide Elvis» de `docs/producto/invitaciones-equipo.md`: coordinación, índice único de ficha, baja de miembros y correo G4.
+
 ## 2026-11-11 — Frontera ESLint de athlete-progress y contrato de sesiones
 
 **Cambio.**

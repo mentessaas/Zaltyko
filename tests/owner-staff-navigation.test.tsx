@@ -77,6 +77,27 @@ describe("navegación de Equipo", () => {
     expect(screen.queryByRole("link", { name: "Equipo", hidden: true })).toBeNull();
   });
 
+  it.each([
+    { role: "admin", locationScopeMode: "all", visible: true },
+    { role: "manager", locationScopeMode: "selected", visible: true },
+    { role: "admin", locationScopeMode: "selected", visible: false },
+    { role: "coach", locationScopeMode: "all", visible: false },
+  ])("con invitaciones de equipo activas (O3), Equipo es visible para $role/$locationScopeMode: $visible", ({ role, locationScopeMode, visible }) => {
+    render(
+      <OwnerWorkspaceNavigation
+        capabilities={ownerWorkspaceCapabilitiesFor({ role, locationScopeMode }, { teamAccessEnabled: true })}
+        organizationId={ORGANIZATION_ID}
+      />,
+    );
+    const links = screen.queryAllByRole("link", { name: "Equipo", hidden: true });
+    if (visible) {
+      expect(links.length).toBeGreaterThan(0);
+      for (const link of links) expect(link).toHaveAttribute("href", `/owner/staff?organizationId=${ORGANIZATION_ID}`);
+    } else {
+      expect(links).toHaveLength(0);
+    }
+  });
+
   it("no muestra Equipo en la navegación sintética", () => {
     render(<OwnerWorkspaceNavigation previewMode />);
     expect(screen.queryByRole("link", { name: "Equipo", hidden: true })).toBeNull();

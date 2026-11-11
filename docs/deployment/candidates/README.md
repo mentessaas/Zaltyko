@@ -184,6 +184,31 @@ reinstalarse si alguna de las cuatro relaciones ya existe.
   ningún entorno. La CI verde no equivale a autorización.
 - Producto: `docs/producto/planificacion-sesiones.md`.
 
+## Candidato de acceso de equipo (fase 1 + O3)
+
+`20261105120000_canonical_team_access_candidate.sql` crea
+`zaltyko.organization_member_invitations`,
+`zaltyko.organization_member_invitation_scopes` y
+`zaltyko.organization_team_command_receipts`. La fase 1 (5 de noviembre)
+añadió las invitaciones con hash del token, las sedes y los recibos idempotentes.
+O3 (11 de noviembre) añade en las invitaciones la ficha del equipo a la que
+van: `staff_profile_id`, con clave foránea compuesta a `zaltyko.staff_profiles`,
+o `invitee_given_name` e `invitee_family_name` para una ficha nueva, con un
+CHECK de «exactamente una de las dos». No cambia relaciones existentes; al
+aceptar, el servidor rellena `staff_profiles.member_id`.
+
+- Fuerza RLS y revoca a `public`, `anon` y `authenticated`. Se niega a
+  reinstalarse si alguna relación ya existe.
+- `src/modules/staff/application/canonical-team-access-schema.ts` compara el
+  catálogo con el manifiesto exacto: columnas, restricciones, índices, RLS, ACL
+  y triggers de las FK. Ante cualquier desviación, 503.
+- Prueba: `tests/canonical-team-access-pg.test.ts` (replay y job «Postgres
+  integration»).
+- Producto: `docs/producto/invitaciones-equipo.md`.
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+  ningún entorno. La función sigue además detrás de
+  `ZALTYKO_TEAM_ACCESS_ENABLED`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.

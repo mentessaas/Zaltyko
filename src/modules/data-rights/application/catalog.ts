@@ -36,7 +36,7 @@ export const OPTIONAL_TEAM_ACCESS_EXPORT_TABLES = [
     table: "organization_member_invitations",
     category: "team_access_credentials",
     reason: "Invitation identities, credential hashes and acceptance evidence require a separate protected access-data return; only this academy's count is included.",
-    columns: ["id", "organization_id", "normalized_email", "role", "status", "invited_by_member_id", "token_sha256", "expires_at", "revision", "accepted_by_user_id", "accepted_member_id", "accepted_at", "revoked_by_member_id", "revoked_at", "created_at", "updated_at"],
+    columns: ["id", "organization_id", "normalized_email", "role", "status", "invited_by_member_id", "token_sha256", "expires_at", "revision", "staff_profile_id", "invitee_given_name", "invitee_family_name", "accepted_by_user_id", "accepted_member_id", "accepted_at", "revoked_by_member_id", "revoked_at", "created_at", "updated_at"],
   },
   {
     table: "organization_member_invitation_scopes",
