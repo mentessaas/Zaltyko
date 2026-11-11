@@ -20,6 +20,7 @@ import {
   lockCommand,
 } from "@/modules/shared/infrastructure/transactional-records";
 import type { TransactionClient } from "@/lib/db-transactions";
+import { inheritClassCoachesForNewSessions } from "@/modules/coach-assignment/application/coach-assignment-service";
 
 const materializeSessionsSchema = z
   .object({
@@ -71,6 +72,8 @@ async function loadSessionsByIds(
  * [startDate, endDate], clamped to the template's effective range. Idempotent
  * through the (organization, template, starts_at) unique index; serialized per
  * template with an advisory lock. Callers own authorization and auditing.
+ * Newly inserted sessions inherit the class's head coaches (O1) when that
+ * candidate is applied; otherwise nothing else changes.
  */
 export async function insertTemplateSessionsInRange(
   tx: TransactionClient,
@@ -85,7 +88,7 @@ export async function insertTemplateSessionsInRange(
     sql`select pg_advisory_xact_lock(hashtextextended(${`${range.organizationId}:sessions:${range.classTemplateId}`}, 0))`
   );
 
-  await tx.execute(sql`
+  const inserted = await tx.execute(sql`
     insert into zaltyko.sessions (
       id,
       organization_id,
@@ -129,7 +132,14 @@ export async function insertTemplateSessionsInRange(
         ${range.endDate}::date
       )
     on conflict (organization_id, class_template_id, starts_at) do nothing
+    returning id
   `);
+
+  await inheritClassCoachesForNewSessions(tx, {
+    organizationId: range.organizationId,
+    classTemplateId: range.classTemplateId,
+    sessionIds: (inserted.rows as Array<{ id: string }>).map((row) => String(row.id)),
+  });
 }
 
 export async function materializeSessions(

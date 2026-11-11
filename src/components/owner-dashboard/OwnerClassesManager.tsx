@@ -18,6 +18,8 @@ import { usePendingCommandExitWarning } from "@/components/owner-dashboard/use-p
 import { OwnerOperationalReadOnlyNotice } from "@/components/owner-dashboard/OwnerOperationalReadOnlyNotice";
 import { useOwnerPlanPolicy } from "@/components/owner-dashboard/owner-plan-usage-store";
 import { ownerDashboardScopeHref } from "@/components/owner-dashboard/owner-dashboard-scope-url";
+import { OwnerClassCoaches } from "@/components/owner-dashboard/OwnerClassCoaches";
+import type { CoachRef } from "@/modules/coach-assignment/domain/coach-assignment";
 
 const useCommittedLayoutEffect =
   typeof window === "undefined" ? useEffect : useLayoutEffect;
@@ -99,9 +101,15 @@ function hasOverlappingSchedule(schedule: ScheduleSlot[]): boolean {
 export function OwnerClassesManager({
   bundle,
   navigationLocationId,
+  coachAssignment = null,
 }: {
   bundle: ClassesBundle;
   navigationLocationId: string | null;
+  /**
+   * O1: titulares por clase. Null cuando el candidato SQL no está aplicado:
+   * entonces la ficha de clase no muestra titulares ni el botón para asignarlos.
+   */
+  coachAssignment?: { titularsByClass: Record<string, CoachRef[]> } | null;
 }) {
   const fieldIdPrefix = useId();
   const programSelectId = `${fieldIdPrefix}-program`;
@@ -798,6 +806,16 @@ export function OwnerClassesManager({
                         ? ` hasta ${formatDate(classItem.effectiveTo)}`
                         : " · sin fecha de fin"}
                     </p>
+                    {coachAssignment ? (
+                      <OwnerClassCoaches
+                        organizationId={organizationId}
+                        locationId={classItem.locationId}
+                        classTemplateId={classItem.id}
+                        className={classItem.name}
+                        initialTitulars={coachAssignment.titularsByClass[classItem.id] ?? []}
+                        writesBlocked={writesBlocked}
+                      />
+                    ) : null}
                   </li>
                 ))}
               </ul>

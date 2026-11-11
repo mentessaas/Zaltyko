@@ -13,7 +13,9 @@ import {
   ownerOperationalSummaryQuerySchema,
 } from "@/modules/owner-dashboard/application/operational-summary";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
+import { db } from "@/db";
 import { getOwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
+import { withSessionCoaches } from "@/modules/coach-assignment/application/coach-assignment-service";
 import { getOwnerAttentionItems } from "@/modules/owner-dashboard/application/attention-items";
 import { getOwnerSetupProgress } from "@/modules/owner-dashboard/application/setup-checklist";
 import { canSeeOwnerSetupChecklist } from "@/modules/owner-dashboard/application/setup-checklist-steps";
@@ -111,6 +113,12 @@ export default async function OwnerDashboardPage({
         })
       : Promise.resolve(null),
   ]);
+  // O1: quién entrena en cada sesión de Hoy. Sin el candidato aplicado, o si
+  // la consulta falla, Hoy se pinta igual que antes.
+  const todayWithCoaches = await withSessionCoaches(db, todaySessions, {
+    organizationId: scope.organization.id,
+    viewerMemberId: scope.member.id,
+  });
   return (
     <OwnerWorkspacePageShell
       member={scope.member}
@@ -120,7 +128,7 @@ export default async function OwnerDashboardPage({
       <OwnerEssentialDashboard
         scope={scope}
         operationalSummary={operationalSummary}
-        todaySessions={todaySessions}
+        todaySessions={todayWithCoaches}
         attentionItems={attentionItems}
         setupProgress={setupProgress}
       />

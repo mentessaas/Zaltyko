@@ -181,6 +181,11 @@ const deniedCases: DeniedCase[] = [
   { route: "owner/trial-requests/[requestId]/anonymize/route.ts", method: "POST", area: "solicitudes", load: () => import("@/app/api/v1/owner/trial-requests/[requestId]/anonymize/route"), params: { requestId: e }, path: () => `/api/v1/owner/trial-requests/${e}/anonymize`, body: (t) => ({ organizationId: t.organizationId, expectedRevision: 1 }) },
   { route: "owner/trial-requests/links/route.ts", method: "POST", area: "solicitudes", load: () => import("@/app/api/v1/owner/trial-requests/links/route"), path: () => "/api/v1/owner/trial-requests/links", body: (t) => ({ organizationId: t.organizationId, locationId: t.locationId, action: "enable" }) },
   // Clases, grupos e inscripciones
+  // O1: titulares por clase y sustitución por sesión. El coach no asigna ni
+  // sustituye, ni siquiera en su sede.
+  { route: "owner/classes/[classTemplateId]/coaches/route.ts", method: "GET", area: "clases", load: () => import("@/app/api/v1/owner/classes/[classTemplateId]/coaches/route"), params: { classTemplateId: e }, path: (t) => `/api/v1/owner/classes/${e}/coaches${query({ organizationId: t.organizationId, locationId: t.locationId })}` },
+  { route: "owner/classes/[classTemplateId]/coaches/route.ts", method: "PUT", area: "clases", load: () => import("@/app/api/v1/owner/classes/[classTemplateId]/coaches/route"), params: { classTemplateId: e }, path: () => `/api/v1/owner/classes/${e}/coaches`, body: (t) => ({ organizationId: t.organizationId, locationId: t.locationId, clientRequestId: e, staffProfileIds: [], expectedStaffProfileIds: [] }) },
+  { route: "owner/sessions/[sessionId]/coaches/route.ts", method: "PUT", area: "clases", load: () => import("@/app/api/v1/owner/sessions/[sessionId]/coaches/route"), params: { sessionId: e }, path: () => `/api/v1/owner/sessions/${e}/coaches`, body: (t) => ({ organizationId: t.organizationId, locationId: t.locationId, clientRequestId: e, staffProfileIds: [], expectedStaffProfileIds: [], reason: null }) },
   { route: "owner/classes/route.ts", method: "GET", area: "clases", load: () => import("@/app/api/v1/owner/classes/route"), path: (t) => `/api/v1/owner/classes${query({ organizationId: t.organizationId, locationId: t.locationId })}` },
   { route: "owner/groups/route.ts", method: "GET", area: "grupos", load: () => import("@/app/api/v1/owner/groups/route"), path: (t) => `/api/v1/owner/groups${query({ organizationId: t.organizationId, locationId: t.locationId })}` },
   { route: "owner/groups/[groupId]/memberships/route.ts", method: "GET", area: "grupos", load: () => import("@/app/api/v1/owner/groups/[groupId]/memberships/route"), params: { groupId: e }, path: (t) => `/api/v1/owner/groups/${e}/memberships${query({ organizationId: t.organizationId, q: "ana" })}` },
@@ -502,6 +507,9 @@ const coachAllowed = new Set([
   "PATCH owner/athletes/[athleteId]/observations/[observationId]/route.ts",
   "GET owner/sessions/[sessionId]/observations/route.ts",
   "POST owner/sessions/[sessionId]/observations/route.ts",
+  // O1: la entrenadora lee quién entrena en una sesión de su sede, con el
+  // mismo acceso que Pasar lista (resolveSessionAttendanceAccess). No asigna.
+  "GET owner/sessions/[sessionId]/coaches/route.ts",
 ]);
 
 function routeFiles(directory: string): string[] {

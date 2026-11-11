@@ -8,6 +8,12 @@ import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorks
 import { createClient } from "@/lib/supabase/server";
 import { getOwnerClassesPageData } from "@/modules/scheduling/application/class-management-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { db } from "@/db";
+import { logger } from "@/lib/logger";
+import {
+  getClassTitularsByClass,
+  isCoachAssignmentAvailableForPage,
+} from "@/modules/coach-assignment/application/coach-assignment-service";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +70,20 @@ export default async function OwnerClassesPage({
     throw error;
   }
 
+  // O1: titulares por clase, solo con el candidato SQL aplicado. Si la
+  // lectura falla, la ficha de clase se pinta como antes, sin titulares.
+  const coachAssignment = (await isCoachAssignmentAvailableForPage(db))
+    ? await getClassTitularsByClass(db, {
+        organizationId: bundle.organization.id,
+        classTemplateIds: bundle.classes.map((classItem) => classItem.id),
+      })
+        .then((titularsByClass) => ({ titularsByClass }))
+        .catch((error: unknown) => {
+          logger.error("Class titulars failed", error);
+          return null;
+        })
+    : null;
+
   const navigationLocationId =
     query.data.locationId ??
     (bundle.member.locationScopeMode === "all"
@@ -79,6 +99,7 @@ export default async function OwnerClassesPage({
       <OwnerClassesManager
         bundle={bundle}
         navigationLocationId={navigationLocationId}
+        coachAssignment={coachAssignment}
       />
     </OwnerWorkspacePageShell>
   );

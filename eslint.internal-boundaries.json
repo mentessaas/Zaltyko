@@ -24,6 +24,14 @@
       "facadeSpecifier": "@/modules/athlete-progress/application/athlete-progress-service",
       "message": "athlete-progress/* es interno. Importa desde @/modules/athlete-progress/application/athlete-progress-service: la autorización por rol, sede y gimnasta, la detección del candidato sin aplicar y la transacción de cada operación solo se garantizan a través de la fachada.",
       "exceptions": []
+    },
+    {
+      "name": "coach-assignment",
+      "dir": "src/modules/coach-assignment/application/coach-assignment",
+      "facade": "src/modules/coach-assignment/application/coach-assignment-service.ts",
+      "facadeSpecifier": "@/modules/coach-assignment/application/coach-assignment-service",
+      "message": "coach-assignment/* es interno. Importa desde @/modules/coach-assignment/application/coach-assignment-service: la autorización por rol y sede, la elegibilidad de quien se asigna, la detección del candidato sin aplicar y el orden de cerrojos entre titulares, sustituciones y generación de sesiones solo se garantizan a través de la fachada.",
+      "exceptions": []
     }
   ]
 }
