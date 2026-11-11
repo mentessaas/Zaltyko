@@ -2,15 +2,31 @@
 -- alojada (sandbox o producción). No aplicado en ningún entorno.
 -- O1: entrenadora titular por clase y sustitución por sesión
 -- (docs/producto/entrenadoras-por-clase.md).
--- Aditivo: dos relaciones nuevas en zaltyko; no cambia tablas, filas ni roles.
--- El único cambio sobre un objeto existente es retirar a anon y authenticated
--- el acceso directo a zaltyko.session_staff (ver el final). Las entrenadoras de cada sesión siguen viviendo en
--- zaltyko.session_staff (ya aplicada en 20261006080702); este candidato solo
--- añade la titular de la clase y la marca de sustitución con su motivo.
+-- Dos relaciones nuevas en zaltyko; no cambia filas ni roles. Las
+-- entrenadoras de cada sesión siguen viviendo en zaltyko.session_staff (ya
+-- aplicada en 20261006080702); este candidato añade la titular de la clase y
+-- la marca de sustitución con su motivo. Sobre esa tabla existente hace dos
+-- cambios, ambos «Decide Elvis» (ver el final): retirar a anon y
+-- authenticated el acceso directo y pasar session_staff_profile_fk de
+-- RESTRICT a CASCADE.
+-- Requiere PostgreSQL 15 o superior: `on delete set null (columna)`. El
+-- preflight aborta con un mensaje claro en versiones anteriores.
+-- Elvis: confirmar la versión de PostgreSQL de producción antes de aplicar.
 -- Reinstalar aborta antes de tocar nada: una instalación parcial o divergente
 -- exige reconciliación humana, nunca reparación.
 do $coach_assignment_candidate_preflight$
 begin
+  if current_setting('server_version_num')::integer < 150000 then
+    raise exception 'Coach assignment candidate requires PostgreSQL 15 or later (ON DELETE SET NULL with a column list); found %', current_setting('server_version');
+  end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'session_staff_profile_fk'
+      and conrelid = to_regclass('zaltyko.session_staff')
+      and confdeltype = 'r'
+  ) then
+    raise exception 'Coach assignment candidate requires zaltyko.session_staff_profile_fk in its applied RESTRICT form; inspect existing schema before promotion';
+  end if;
   if to_regclass('zaltyko.class_template_staff') is not null
      or to_regclass('zaltyko.session_staff_overrides') is not null then
     raise exception 'Coach assignment candidate requires zaltyko.class_template_staff and zaltyko.session_staff_overrides absent; inspect existing schema before promotion';
@@ -88,6 +104,15 @@ revoke all on table zaltyko.session_staff_overrides from public, anon, authentic
 -- expone en la Data API. Nada en la app la lee con la clave de cliente: el
 -- servidor autoriza con assertOperationalAccess. Se retira el acceso directo.
 revoke all on table zaltyko.session_staff from anon, authenticated;
+-- session_staff_profile_fk (20261006080702) es RESTRICT: con titulares
+-- heredadas, borrar la ficha de equipo de una titular quedaría bloqueado por
+-- sus sesiones. Pasa a CASCADE, coherente con class_template_staff: la
+-- asignación desaparece con la ficha y el histórico queda en audit_log.
+-- Modifica una tabla ya aplicada: Decide Elvis.
+alter table zaltyko.session_staff drop constraint session_staff_profile_fk;
+alter table zaltyko.session_staff
+  add constraint session_staff_profile_fk
+    foreign key (organization_id, staff_profile_id) references zaltyko.staff_profiles(organization_id, id) on delete cascade;
 -- Sin políticas ni grants para clientes directos: el único escritor y lector es
 -- el servidor, que autoriza con resolveOwnerScope y assertOperationalAccess.
 -- Los datos son de la academia (responsable); Zaltyko los trata por su cuenta.

@@ -81,6 +81,13 @@ export async function isCoachAssignmentStorageAvailable(client: DatabaseClient):
           select bool_or(has_table_privilege(r.oid, 'zaltyko.session_staff', 'SELECT,INSERT,UPDATE,DELETE'))
             from pg_roles r where r.rolname in ('anon', 'authenticated')
         ), false)
+        -- ... y pasa session_staff_profile_fk a CASCADE.
+        and exists (
+          select 1 from pg_constraint
+          where conname = 'session_staff_profile_fk'
+            and conrelid = 'zaltyko.session_staff'::regclass
+            and confdeltype = 'c'
+        )
       else false end as available
   `);
   return (result.rows[0] as { available?: unknown } | undefined)?.available === true;

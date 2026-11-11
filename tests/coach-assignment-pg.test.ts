@@ -3,7 +3,21 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { sql } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+// Solo para la prueba de ciclo con Pasar lista, que llama a las rutas reales:
+// la identidad sale de una cabecera de la propia prueba y el límite de
+// peticiones no interviene. Los servicios y la base de datos son los reales.
+vi.mock("@/lib/auth/current-user", () => ({
+  getCurrentUser: async (request: Request) => {
+    const id = request.headers.get("x-ci-user");
+    return id ? { id } : null;
+  },
+}));
+vi.mock("@/lib/rate-limit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/rate-limit")>()),
+  rateLimit: async () => ({ success: true, limit: 1000, remaining: 999, reset: Math.floor(Date.now() / 1000) + 60 }),
+}));
 
 import { db } from "@/db";
 import {
@@ -93,7 +107,7 @@ async function expectCandidateRefused(promise: Promise<unknown>) {
   expect(error).not.toBeNull();
   const raised = error?.cause ?? error;
   expect(raised?.code).toBe("P0001");
-  expect(raised?.message).toMatch(/^Coach assignment candidate requires .* absent; inspect existing schema before promotion$/);
+  expect(raised?.message).toMatch(/^Coach assignment candidate requires .*; inspect existing schema before promotion$/);
 }
 
 type Actor = { userId: string; memberId: string };
@@ -210,6 +224,17 @@ async function auditActions(organizationId: string, targetId: string) {
 }
 
 const sorted = (...ids: string[]) => [...ids].sort();
+
+/**
+ * Inicio a las 16:30 UTC dentro de `days` días. Las sesiones futuras de las
+ * pruebas quedan dentro del horizonte que recorre la propagación (hoy + 120
+ * días), sea cual sea la fecha del CI.
+ */
+function inDays(days: number): string {
+  const value = new Date(Date.now() + days * 86_400_000);
+  value.setUTCHours(16, 30, 0, 0);
+  return value.toISOString();
+}
 
 /** Espera a que `expected` conexiones estén bloqueadas esperando un cerrojo. */
 async function waitForLockWaiters(expected: number) {
@@ -341,11 +366,11 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
     classS2 = await classTemplate(a.organizationId, a.locationIds[1]!, "CI Iniciación");
     classB = await classTemplate(b.organizationId, b.locationIds[0]!, "CI Base B");
     pastS1 = await session(a.organizationId, a.locationIds[0]!, classS1, "2026-10-05T16:30:00Z", "completed");
-    futureS1a = await session(a.organizationId, a.locationIds[0]!, classS1, "2030-01-10T16:30:00Z");
-    futureS1b = await session(a.organizationId, a.locationIds[0]!, classS1, "2030-01-17T16:30:00Z");
-    cancelledS1 = await session(a.organizationId, a.locationIds[0]!, classS1, "2030-01-24T16:30:00Z", "cancelled");
-    futureS2 = await session(a.organizationId, a.locationIds[1]!, classS2, "2030-01-11T16:30:00Z");
-    futureB = await session(b.organizationId, b.locationIds[0]!, classB, "2030-01-10T16:30:00Z");
+    futureS1a = await session(a.organizationId, a.locationIds[0]!, classS1, inDays(10));
+    futureS1b = await session(a.organizationId, a.locationIds[0]!, classS1, inDays(17));
+    cancelledS1 = await session(a.organizationId, a.locationIds[0]!, classS1, inDays(24), "cancelled");
+    futureS2 = await session(a.organizationId, a.locationIds[1]!, classS2, inDays(11));
+    futureB = await session(b.organizationId, b.locationIds[0]!, classB, inDays(10));
 
     // Funcionalidad dormida: sin el candidato, todo responde 503 sin escribir,
     // la generación de sesiones sigue igual y Hoy no recibe datos.
@@ -378,8 +403,14 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
     if (!disposablePgEnabled) return;
     await db.execute(sql`drop table if exists zaltyko.session_staff_overrides`);
     await db.execute(sql`drop table if exists zaltyko.class_template_staff`);
-    // Deja la base compartida como estaba: el candidato retira este GRANT.
+    // Deja la base compartida como estaba: el candidato retira este GRANT y
+    // pasa session_staff_profile_fk a CASCADE.
     await db.execute(sql`grant select on table zaltyko.session_staff to authenticated`);
+    await db.execute(sql`alter table zaltyko.session_staff drop constraint session_staff_profile_fk`);
+    await db.execute(sql`
+      alter table zaltyko.session_staff add constraint session_staff_profile_fk
+        foreign key (organization_id, staff_profile_id) references zaltyko.staff_profiles (organization_id, id) on delete restrict
+    `);
   });
 
   it("fuerza RLS, niega el acceso directo de anon/authenticated y rechaza reinstalar", async () => {
@@ -412,6 +443,11 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
              has_table_privilege('anon', 'zaltyko.session_staff', 'SELECT') as anon_select
     `);
     expect(sessionStaff.rows[0]).toEqual({ authenticated_select: false, anon_select: false });
+    const profileFk = await db.execute(sql`
+      select confdeltype::text as action from pg_constraint
+      where conname = 'session_staff_profile_fk' and conrelid = 'zaltyko.session_staff'::regclass
+    `);
+    expect(profileFk.rows).toEqual([{ action: "c" }]);
     await expectCandidateRefused(db.execute(sql.raw(candidate())));
   });
 
@@ -619,6 +655,22 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
     expect(await count("session_staff_overrides", a.organizationId)).toBe(before.overrides);
   });
 
+  it("una fila previa con otro rol pasa a 'coach' al asignarla, sin duplicarse", async () => {
+    await db.execute(sql`
+      insert into zaltyko.session_staff (organization_id, session_id, staff_profile_id, assignment_role)
+      values (${a.organizationId}::uuid, ${futureS2}::uuid, ${carla}::uuid, 'assistant')
+    `);
+    // Una fila que no es de entrenadora no cuenta como asignada.
+    expect((await getSessionCoaches({ actor: ownerA, sessionId: futureS2, query: s2() })).coaches).toEqual([]);
+    const result = await setSession(ownerA, futureS2, [carla], [], null, s2());
+    expect(result.coaches.map((coach) => coach.name)).toEqual(["Carla Pons"]);
+    const rows = await db.execute(sql`
+      select assignment_role from zaltyko.session_staff
+      where session_id = ${futureS2}::uuid and staff_profile_id = ${carla}::uuid
+    `);
+    expect(rows.rows).toEqual([{ assignment_role: "coach" }]);
+  });
+
   it("en solo lectura del plan se puede leer y repetir, pero no asignar ni sustituir", async () => {
     const clientRequestId = randomUUID();
     const current = sorted(ana, carla);
@@ -675,8 +727,8 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
       yago = await staffProfile(c.organizationId, "Yago", "Benet", (await member(c.organizationId, "coach", "all", [], "yago")).memberId);
       zara = await staffProfile(c.organizationId, "Zara", "Cano", (await member(c.organizationId, "coach", "all", [], "zara")).memberId);
       classK = await classTemplate(c.organizationId, c.locationIds[0]!, "CI Competición");
-      sessionK1 = await session(c.organizationId, c.locationIds[0]!, classK, "2030-03-04T16:30:00Z");
-      sessionK2 = await session(c.organizationId, c.locationIds[0]!, classK, "2030-03-11T16:30:00Z");
+      sessionK1 = await session(c.organizationId, c.locationIds[0]!, classK, inDays(30));
+      sessionK2 = await session(c.organizationId, c.locationIds[0]!, classK, inDays(37));
       await setClass(ownerC, classK, [xavi], [], sc());
     }, 60_000);
 
@@ -781,6 +833,134 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
       // La ficha titular de una clase sin sesiones se borra y su asignación con ella.
       await db.execute(sql`delete from zaltyko.staff_profiles where id = ${walo}::uuid`);
       expect(await getClassTitularsByClass(db, { organizationId: c.organizationId, classTemplateIds: [classK2] })).toEqual({});
+
+      // También la de una titular con sesiones heredadas: session_staff_profile_fk
+      // pasa a CASCADE con el candidato.
+      const classK3 = await classTemplate(c.organizationId, c.locationIds[0]!, "CI Con sesiones");
+      const sessionK3 = await session(c.organizationId, c.locationIds[0]!, classK3, inDays(12));
+      const vera = await staffProfile(c.organizationId, "Vera", "Gómez", (await member(c.organizationId, "coach", "all", [], "vera")).memberId);
+      expect((await setClass(ownerC, classK3, [vera], [], sc())).updatedSessionCount).toBe(1);
+      expect(await sessionStaffIds(sessionK3)).toEqual([vera]);
+      await db.execute(sql`delete from zaltyko.staff_profiles where id = ${vera}::uuid`);
+      expect(await sessionStaffIds(sessionK3)).toEqual([]);
+      expect(await getClassTitularsByClass(db, { organizationId: c.organizationId, classTemplateIds: [classK3] })).toEqual({});
+    }, 60_000);
+  });
+
+  describe("Pasar lista y sustitución a la vez (academia D)", () => {
+    let d: Awaited<ReturnType<typeof academy>>;
+    let ownerD: Actor;
+    let coachD: Actor;
+    let lia: string;
+    let mar: string;
+    let sessionD: string;
+    let enrollmentD: string;
+    const sd = () => ({ organizationId: d.organizationId, locationId: d.locationIds[0]! });
+
+    beforeAll(async () => {
+      d = await academy("D", 1);
+      ownerD = await member(d.organizationId, "owner", "all");
+      coachD = await member(d.organizationId, "coach", "selected", [d.locationIds[0]!], "lia");
+      lia = await staffProfile(d.organizationId, "Lía", "Ferrer", coachD.memberId);
+      mar = await staffProfile(d.organizationId, "Mar", "Iglesias", (await member(d.organizationId, "coach", "all", [], "mar")).memberId);
+      const classD = await classTemplate(d.organizationId, d.locationIds[0]!, "CI Pasar lista");
+      sessionD = await session(d.organizationId, d.locationIds[0]!, classD, inDays(5));
+      const athleteId = randomUUID();
+      await db.execute(sql`
+        insert into zaltyko.people (id, organization_id, given_name, family_name)
+        values (${athleteId}::uuid, ${d.organizationId}::uuid, 'Nora', 'Pasa Lista')
+      `);
+      await db.execute(sql`
+        insert into zaltyko.athletes (id, organization_id, person_id, is_active)
+        values (${athleteId}::uuid, ${d.organizationId}::uuid, ${athleteId}::uuid, true)
+      `);
+      enrollmentD = randomUUID();
+      await db.execute(sql`
+        insert into zaltyko.enrollments (id, organization_id, location_id, athlete_id, class_template_id, status, starts_on, source)
+        values (${enrollmentD}::uuid, ${d.organizationId}::uuid, ${d.locationIds[0]}::uuid, ${athleteId}::uuid, ${classD}::uuid,
+          'active', '2026-09-01', 'owner')
+      `);
+      await setClass(ownerD, classD, [lia], [], sd());
+    }, 60_000);
+
+    function attendanceRequest(idempotencyKey: string) {
+      return new Request(`https://zaltyko.test/api/v1/owner/sessions/${sessionD}/attendance`, {
+        method: "POST",
+        headers: {
+          origin: "https://zaltyko.test",
+          "content-type": "application/json",
+          "idempotency-key": idempotencyKey,
+          "x-ci-user": coachD.userId,
+        },
+        body: JSON.stringify({ ...sd(), enrollmentId: enrollmentD, status: "present" }),
+      });
+    }
+
+    function substitutionRequest(clientRequestId: string) {
+      return new Request(`https://zaltyko.test/api/v1/owner/sessions/${sessionD}/coaches`, {
+        method: "PUT",
+        headers: { origin: "https://zaltyko.test", "content-type": "application/json", "x-ci-user": ownerD.userId },
+        body: JSON.stringify({
+          ...sd(),
+          clientRequestId,
+          staffProfileIds: [mar],
+          expectedStaffProfileIds: [lia],
+          reason: "absence",
+        }),
+      });
+    }
+
+    it("el ciclo sesión ↔ academia acaba en 409 reintentable, nunca en 500, y al reintentar se aplican las dos", async () => {
+      const { POST: recordAttendanceRoute } = await import("@/app/api/v1/owner/sessions/[sessionId]/attendance/route");
+      const { PUT: substituteRoute } = await import("@/app/api/v1/owner/sessions/[sessionId]/coaches/route");
+      const params = { params: Promise.resolve({ sessionId: sessionD }) };
+      const attendanceKey = `ci-cycle-${randomUUID()}`;
+      const clientRequestId = randomUUID();
+
+      // Un tercero retiene la fila de la academia. La sustitución llega primero
+      // a ella (academia → plantilla → sesión); Pasar lista bloquea antes la
+      // sesión y espera después a la academia (sesión → academia).
+      const holder = holdLock(async (tx) => {
+        await tx.execute(sql`select id from zaltyko.organizations where id = ${d.organizationId}::uuid for update`);
+      });
+      await holder.held;
+      const substitution = substituteRoute(substitutionRequest(clientRequestId), params);
+      let attendance: Promise<Response> | undefined;
+      try {
+        expect(await waitForLockWaiters(1)).toBe(1);
+        attendance = recordAttendanceRoute(attendanceRequest(attendanceKey), params);
+        expect(await waitForLockWaiters(2)).toBe(2);
+      } finally {
+        holder.release();
+      }
+      await holder.done;
+      // Si cualquiera de las dos rutas lanzara (500), estas promesas fallarían.
+      const [first, second] = await Promise.all([substitution, attendance!]);
+      const statuses = [first.status, second.status];
+      // PostgreSQL detecta el interbloqueo y aborta una de las dos.
+      expect(statuses.filter((status) => status === 409)).toHaveLength(1);
+      for (const response of [first, second]) {
+        expect([200, 201, 409]).toContain(response.status);
+        if (response.status === 409) {
+          expect(await response.json()).toMatchObject({
+            type: "https://zaltyko.com/problems/version-conflict",
+            errors: { retryable: true },
+          });
+        }
+      }
+
+      // Reintento de la abortada con la misma clave.
+      if (first.status === 409) expect((await substituteRoute(substitutionRequest(clientRequestId), params)).status).toBe(200);
+      if (second.status === 409) expect((await recordAttendanceRoute(attendanceRequest(attendanceKey), params)).status).toBe(201);
+
+      // Las dos quedan aplicadas.
+      const recorded = await db.execute(sql`
+        select status::text as status from zaltyko.attendance_records
+        where session_id = ${sessionD}::uuid and enrollment_id = ${enrollmentD}::uuid
+      `);
+      expect(recorded.rows).toEqual([{ status: "present" }]);
+      expect(await sessionStaffIds(sessionD)).toEqual([mar]);
+      expect(await hasMarker(sessionD)).toBe(true);
     }, 60_000);
   });
 });

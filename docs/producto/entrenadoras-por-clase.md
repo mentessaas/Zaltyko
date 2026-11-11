@@ -33,7 +33,11 @@ Todo se comprueba en el servidor y dentro de la transacción de cada operación 
 
 ### Concurrencia
 
-Todas las escrituras toman los cerrojos en el mismo orden, sin ciclos: petición (`clientRequestId`), fila de la academia (la toma el control de solo lectura del plan, como el resto de `/owner`), plantilla de clase (el mismo cerrojo que la generación de sesiones) y filas de sesión. Así, una sustitución y un cambio de titulares de la misma clase no se cruzan. Además, el cambio de titulares bloquea primero las sesiones futuras y solo después lee sus marcas de sustitución, en otra sentencia: una sustitución confirmada mientras esperaba no se pisa. Si aun así PostgreSQL aborta por interbloqueo o serialización (40P01, 40001), la API responde 409 reintentable, nunca 500.
+Todas las escrituras toman los cerrojos en el mismo orden, sin ciclos: petición (`clientRequestId`), fila de la academia (la toma el control de solo lectura del plan, como el resto de `/owner`), plantilla de clase (el mismo cerrojo que la generación de sesiones) y filas de sesión. Así, una sustitución y un cambio de titulares de la misma clase no se cruzan. Además, el cambio de titulares bloquea primero las sesiones futuras y solo después lee sus marcas de sustitución, en otra sentencia: una sustitución confirmada mientras esperaba no se pisa. Si aun así PostgreSQL aborta por interbloqueo o serialización (40P01, 40001, 55P03), la API responde 409 reintentable, nunca 500.
+
+**Ciclo con Pasar lista.** Pasar lista (código en producción, sin cambios de orden) bloquea primero la sesión y después la academia; la sustitución, al revés. Si coinciden en la misma sesión, PostgreSQL aborta una de las dos. Las dos rutas responden entonces 409 reintentable: la de asistencia también, gracias a `src/modules/shared/infrastructure/retryable-db-conflict.ts`. Pasar lista conserva lo marcado como reintento con la misma clave y lo explica. Lo prueba `tests/coach-assignment-pg.test.ts` con las rutas reales.
+
+**Tope de la propagación.** Solo se bloquean sesiones futuras hasta `max(ahora, inicio de la clase) + SESSION_HORIZON_TARGET_DAYS` (constante de `src/modules/scheduling/domain/session-horizon.ts`), que es hasta donde se generan.
 
 La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que aísla. RLS (ENABLE + FORCE) y los REVOKE a `anon` y `authenticated` son defensa en profundidad.
 
@@ -57,7 +61,9 @@ La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que 
 - `zaltyko.session_staff` (ya aplicada en `supabase/migrations/20261006080702_establish_zaltyko_domain_foundation.sql`): quién entrena en cada sesión, con `assignment_role = 'coach'`. No tenía API ni pantalla; ahora la escriben las titulares heredadas y las sustituciones.
 - Candidato `zaltyko.class_template_staff`: titulares de cada clase (academia, clase, ficha de equipo, quién asignó y cuándo).
 - Candidato `zaltyko.session_staff_overrides`: una fila por sesión en sustitución, con motivo (código cerrado), quién y cuándo. Se borra al quitar la sustitución y en cascada con la sesión.
-- **Borrados.** Ninguna FK nueva bloquea un borrado. Hoy el superadmin borra usuarios de Auth y la cascada borra su `organization_members`. Las asignaciones se borran en cascada con la clase, la sesión o la ficha de equipo; el histórico queda en `audit_log`. Quien asignó o sustituyó pasa a null con `on delete set null (columna)` (PostgreSQL 15+; el proyecto usa 17) y la pantalla muestra «Equipo». La FK de `session_staff` hacia `staff_profiles`, ya aplicada, sigue siendo RESTRICT: no es de este cambio.
+- **Borrados.** Ninguna FK nueva bloquea un borrado. Hoy el superadmin borra usuarios de Auth y la cascada borra su `organization_members`. Las asignaciones se borran en cascada con la clase, la sesión o la ficha de equipo; el histórico queda en `audit_log`. Quien asignó o sustituyó pasa a null con `on delete set null (columna)` (PostgreSQL 15+; el proyecto usa 17) y la pantalla muestra «Equipo». La FK de `session_staff` hacia `staff_profiles` se trata en el punto siguiente.
+- **`session_staff_profile_fk`.** Ya aplicada como RESTRICT, bloquearía borrar la ficha de una titular con sesiones heredadas. El candidato la pasa a CASCADE, coherente con `class_template_staff` (Decide Elvis: modifica una tabla aplicada). El preflight exige que siga en RESTRICT antes de cambiarla, y la detección exige CASCADE para activar la función.
+- **Versión de PostgreSQL.** `on delete set null (columna)` requiere PostgreSQL 15 o superior; el preflight aborta con un mensaje claro en versiones anteriores. **Elvis: confirmar la versión de PostgreSQL de producción.**
 - **`session_staff` y la Data API.** `20261006080702` le da `GRANT SELECT` a `authenticated` con una política por academia, así que cualquier miembro podría leer las asignaciones de todas las sedes si `zaltyko` se expone en la Data API. El repositorio no lo declara en `supabase/config.toml`; el proyecto alojado no se consultó (regla del encargo). El candidato hace `REVOKE` del acceso de `anon` y `authenticated` a `session_staff`: nada en la app la lee con la clave de cliente. La detección exige ese REVOKE para activar la función.
 - El espejo Drizzle está en `src/modules/coach-assignment/infrastructure/coach-assignment-schema.ts`, fuera de `src/db/schema/` y sin exportar a drizzle-kit, como en las PR 266 y 271.
 - No se encontró ninguna forma previa de modelar la titular de una clase: `class_templates` no tiene columnas de personal y ninguna migración ni candidata relaciona clases con fichas de equipo.
@@ -74,6 +80,8 @@ La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que 
 8. **Tope.** Seis personas por clase y por sesión.
 9. **Al aplicar el candidato:** añadir las dos tablas a la exportación y a las políticas de `data-rights`, y mover el espejo a `src/db/schema/` con `validate:rls`. La regla de aviso `session_without_coach` empezará a tener datos reales.
 10. **Motivo visible para la entrenadora.** Hoy solo lo ve la dirección; la entrenadora ve que hay sustitución, quién y cuándo, pero no por qué. ¿Se le muestra?
+11. **`session_staff_profile_fk` a CASCADE.** Modifica una tabla ya aplicada para que borrar una ficha de equipo no quede bloqueado por sus sesiones.
+12. **Versión de PostgreSQL de producción.** Confirmar que es 15 o superior.
 
 ## Pruebas
 

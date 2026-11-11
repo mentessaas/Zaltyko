@@ -110,7 +110,33 @@ describe("candidato SQL de titulares y sustituciones", () => {
     expect(foundation).toContain("create table zaltyko.session_staff (");
     expect(foundation).toContain("constraint session_staff_uq unique (organization_id, session_id, staff_profile_id)");
     expect(foundation).toMatch(/'sessions', 'session_staff'/);
-    expect(stripSqlComments(lower)).not.toMatch(/(create|alter|drop) table zaltyko\.session_staff\b/);
+    expect(stripSqlComments(lower)).not.toMatch(/(create|drop) table zaltyko\.session_staff\b/);
+    // El único ALTER sobre session_staff es el de su FK a staff_profiles.
+    const alters = [...stripSqlComments(lower).matchAll(/alter table zaltyko\.session_staff\b[^;]*;/g)].map((match) =>
+      normalize(match[0])
+    );
+    expect(alters).toEqual([
+      "alter table zaltyko.session_staff drop constraint session_staff_profile_fk;",
+      "alter table zaltyko.session_staff add constraint session_staff_profile_fk foreign key (organization_id, staff_profile_id) references zaltyko.staff_profiles(organization_id, id) on delete cascade;",
+    ]);
+    expect(foundation).toContain(
+      "constraint session_staff_profile_fk foreign key (organization_id, staff_profile_id)\n    references zaltyko.staff_profiles (organization_id, id) on delete restrict"
+    );
+    expect(lower).toContain("decide elvis");
+  });
+
+  it("exige PostgreSQL 15+ y la FK de session_staff tal como está aplicada, antes de crear nada", () => {
+    const body = stripSqlComments(lower);
+    const firstCreate = body.indexOf("create table");
+    const version = body.indexOf("current_setting('server_version_num')::integer < 150000");
+    expect(version).toBeGreaterThan(0);
+    expect(version).toBeLessThan(firstCreate);
+    expect(body.slice(0, firstCreate)).toContain("requires postgresql 15 or later");
+    expect(body.slice(0, firstCreate)).toMatch(/conname = 'session_staff_profile_fk'[\s\S]*confdeltype = 'r'/);
+    expect(lower).toContain("elvis: confirmar la versión de postgresql de producción");
+    // La detección solo activa la función con la FK ya en cascada.
+    const storage = read("src/modules/coach-assignment/application/coach-assignment/storage.ts");
+    expect(storage).toMatch(/conname = 'session_staff_profile_fk'[\s\S]*confdeltype = 'c'/);
   });
 
   it("aborta si cualquiera de las tablas ya existe, antes de crear nada", () => {

@@ -18,6 +18,7 @@ import {
 import type { OperationalActor } from "@/modules/shared/application/actor";
 import { appendAuditEntry } from "@/modules/shared/infrastructure/transactional-records";
 import { sqlUuidArray } from "@/modules/owner-dashboard/application/sql-uuid-array";
+import { SESSION_HORIZON_TARGET_DAYS } from "@/modules/scheduling/domain/session-horizon";
 
 import {
   assertAdditionsEligible,
@@ -94,13 +95,21 @@ async function propagateToFutureSessions(
   tx: TransactionClient,
   input: { organizationId: string; classTemplateId: string; staffProfileIds: string[] }
 ): Promise<{ updatedSessionCount: number; clearedSubstitutionCount: number }> {
+  // Tope explícito: ninguna sesión se genera más allá de
+  // max(hoy, inicio de la clase) + SESSION_HORIZON_TARGET_DAYS (creación de la
+  // clase y job de horizonte), así que no se bloquea nada por encima.
   const locked = await tx.execute(sql`
     select session.id::text as id
     from zaltyko.sessions session
+    join zaltyko.class_templates template
+      on template.organization_id = session.organization_id
+     and template.id = session.class_template_id
     where session.organization_id = ${input.organizationId}::uuid
       and session.class_template_id = ${input.classTemplateId}::uuid
       and session.status = 'scheduled'
       and session.starts_at > now()
+      and session.starts_at <= greatest(now(), template.effective_from::timestamptz)
+        + make_interval(days => ${SESSION_HORIZON_TARGET_DAYS}::int)
     order by session.id
     for update of session
   `);

@@ -29,6 +29,10 @@ source:
 - REVOKE de `anon`/`authenticated` sobre `session_staff`, que pasa a tener datos; la detección lo exige.
 - 404 para una clase de otra sede; `assignment_role` unificado; la marca se quita si la sesión vuelve a coincidir con las titulares; el motivo solo lo ve la dirección; la UI recarga tras un 409 y gestiona el foco.
 
+**Ronda 3 (revisión 8/10).**
+- Ciclo con Pasar lista: la ruta de asistencia traduce 40P01/40001/55P03 a 409 reintentable con un helper compartido (`shared/infrastructure/retryable-db-conflict.ts`). Pasar lista lo explica y conserva lo marcado. Prueba PG con las rutas reales. El orden de cerrojos de Pasar lista no cambia.
+- La candidata pasa `session_staff_profile_fk` a CASCADE (Decide Elvis) y aborta en PostgreSQL < 15. La propagación queda topada al horizonte de generación. Nueva prueba de `assignment_role` con una fila de otro rol.
+
 ## 2026-11-11 — Objetivos y observaciones por gimnasta (P2 #17, primera parte)
 
 **Cambio.**

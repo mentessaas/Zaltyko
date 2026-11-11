@@ -3,6 +3,10 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import {
+  isRetryableDbConflict,
+  retryableDbConflictError,
+} from "@/modules/shared/infrastructure/retryable-db-conflict";
 
 /**
  * Transacción de una operación de asignación. Orden de cerrojos común a todas
@@ -16,34 +20,13 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
  * Si aun así PostgreSQL aborta por interbloqueo o serialización, se responde
  * 409 reintentable en vez de 500.
  */
-const RETRYABLE_PG_CODES = new Set(["40P01", "40001", "55P03"]);
-
-function pgCode(error: unknown): string | null {
-  for (let current: unknown = error, depth = 0; current && depth < 4; depth += 1) {
-    const code = (current as { code?: unknown }).code;
-    if (typeof code === "string") return code;
-    current = (current as { cause?: unknown }).cause;
-  }
-  return null;
-}
-
-export function isRetryableAssignmentConflict(error: unknown): boolean {
-  const code = pgCode(error);
-  return code !== null && RETRYABLE_PG_CODES.has(code);
-}
-
 export async function inAssignmentTransaction<T>(work: (tx: TransactionClient) => Promise<T>): Promise<T> {
   try {
     return await db.transaction(work);
   } catch (error) {
     if (error instanceof OperationalError) throw error;
-    if (isRetryableAssignmentConflict(error)) {
-      throw new OperationalError(
-        "VERSION_CONFLICT",
-        "Otra operación estaba cambiando estas entrenadoras a la vez. Vuelve a intentarlo.",
-        409,
-        { retryable: true }
-      );
+    if (isRetryableDbConflict(error)) {
+      throw retryableDbConflictError("Otra operación estaba cambiando estas entrenadoras a la vez. Vuelve a intentarlo.");
     }
     throw error;
   }

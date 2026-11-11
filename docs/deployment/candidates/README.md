@@ -128,10 +128,13 @@ en `zaltyko.session_staff`, ya aplicada en
 No toca filas, roles ni objetos legacy. Fuerza RLS, revoca `public`, `anon`
 y `authenticated`, no crea políticas ni grants y se niega a reinstalarse si
 alguna de las dos relaciones ya existe. Sobre objetos existentes solo hace una
-cosa: retirar a `anon` y `authenticated` el acceso directo a
-`zaltyko.session_staff`, que pasa a tener datos reales. Ninguna FK nueva
-bloquea borrados: cascada en las asignaciones y `on delete set null (columna)`
-(PostgreSQL 15+) en quien asignó o sustituyó.
+cosa en dos pasos sobre `zaltyko.session_staff`, que pasa a tener datos
+reales: retira a `anon` y `authenticated` el acceso directo y pasa
+`session_staff_profile_fk` de RESTRICT a CASCADE (Decide Elvis: tabla ya
+aplicada). Ninguna FK bloquea borrados: cascada en las asignaciones y
+`on delete set null (columna)` en quien asignó o sustituyó. **Requiere
+PostgreSQL 15 o superior**: el preflight aborta en versiones anteriores
+(Elvis: confirmar la versión de producción).
 
 - Esquema Drizzle espejo: `src/modules/coach-assignment/infrastructure/coach-assignment-schema.ts`.
   **No se exporta** desde `src/db/schema/index.ts` ni desde

@@ -190,3 +190,38 @@ describe("Owner session attendance HTTP boundary", () => {
     );
   });
 });
+
+describe("interbloqueos al pasar lista", () => {
+  it.each(["40P01", "40001", "55P03"])(
+    "%s se responde como 409 reintentable, no como 500",
+    async (code) => {
+      mocks.recordAttendance.mockRejectedValue(
+        Object.assign(new Error("Failed query"), {
+          cause: Object.assign(new Error("deadlock detected"), { code }),
+        })
+      );
+
+      const response = await POST(request("POST", payload), context);
+
+      expect(response.status).toBe(409);
+      expect(response.headers.get("cache-control")).toContain("no-store");
+      const problem = await response.json();
+      expect(problem).toMatchObject({
+        type: "https://zaltyko.com/problems/version-conflict",
+        status: 409,
+        errors: { retryable: true },
+      });
+      expect(problem.detail).toContain("Vuelve a intentarlo");
+    }
+  );
+
+  it("cualquier otro fallo de base de datos se sigue propagando", async () => {
+    const failure = Object.assign(new Error("Failed query"), {
+      cause: Object.assign(new Error("duplicate key"), { code: "23505" }),
+    });
+    mocks.recordAttendance.mockRejectedValue(failure);
+
+    await expect(POST(request("POST", payload), context)).rejects.toBe(failure);
+  });
+});
+

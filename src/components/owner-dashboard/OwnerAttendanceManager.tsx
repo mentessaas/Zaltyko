@@ -12,6 +12,8 @@ import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import {
   clearAttendanceRetry,
   isDefinitiveAttendanceRejection,
+  isRetryableAttendanceConflict,
+  RETRYABLE_ATTENDANCE_CONFLICT_MESSAGE,
   persistAttendanceRetry,
   readAttendanceRetries,
   validAttendanceReceipt,
@@ -579,9 +581,11 @@ export function OwnerAttendanceManager({
           setRetryRequests((current) => ({ ...current, [requestKey]: uncertainRequest }));
         }
         throw new Error(
-          !isDefinitiveAttendanceRejection(response.status, payload, wasUncertainBeforeThisAttempt)
-            ? "No sabemos si se guardó. Reintenta este mismo envío para evitar duplicados."
-            : responseError(payload)
+          isRetryableAttendanceConflict(response.status, payload)
+            ? RETRYABLE_ATTENDANCE_CONFLICT_MESSAGE
+            : !isDefinitiveAttendanceRejection(response.status, payload, wasUncertainBeforeThisAttempt)
+              ? "No sabemos si se guardó. Reintenta este mismo envío para evitar duplicados."
+              : responseError(payload)
         );
       }
 
