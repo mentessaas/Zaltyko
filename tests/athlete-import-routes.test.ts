@@ -68,16 +68,23 @@ function request(
   } as RequestInit);
 }
 
-/** A body that records whether anyone read it. */
+/**
+ * A body that records whether anyone read it. With highWaterMark 0 the stream
+ * only pulls when a reader asks for data; the default (1) pulls once as soon
+ * as the stream is created, which would mark it as read with no reader.
+ */
 function watchedBody(size = 16) {
   const state = { pulled: false };
-  const stream = new ReadableStream<Uint8Array>({
-    pull(controller) {
-      state.pulled = true;
-      controller.enqueue(new Uint8Array(size));
-      controller.close();
+  const stream = new ReadableStream<Uint8Array>(
+    {
+      pull(controller) {
+        state.pulled = true;
+        controller.enqueue(new Uint8Array(size));
+        controller.close();
+      },
     },
-  });
+    { highWaterMark: 0 }
+  );
   return { stream, state };
 }
 
@@ -91,6 +98,15 @@ beforeEach(() => {
 });
 
 describe("entrada de la importación de gimnastas", () => {
+  it("el detector de lectura solo marca un cuerpo que alguien lee", async () => {
+    const idle = watchedBody();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(idle.state.pulled).toBe(false);
+    const read = watchedBody();
+    await new Response(read.stream).arrayBuffer();
+    expect(read.state.pulled).toBe(true);
+  });
+
   it("pide sesión antes de nada", async () => {
     mocks.currentUser.mockResolvedValueOnce(null);
     const { stream, state } = watchedBody();

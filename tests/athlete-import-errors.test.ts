@@ -107,6 +107,21 @@ describe("errores de la importación sin datos personales", () => {
     expect(error.message).toBe("La importación de gimnastas falló.");
   });
 
+  it.each(["40P01", "40001", "55P03"])(
+    "convierte %s en CONCURRENCY_RETRY reintentable, sin datos personales",
+    async (code) => {
+      const race = Object.assign(new Error("Failed query: insert ...\nparams: Lucía,Prueba,marta@example.invalid"), {
+        cause: Object.assign(new Error("deadlock detected"), { code }),
+      });
+      mocks.transaction.mockRejectedValueOnce(race);
+      const error = await caught(previewAthleteImport({ organizationId, userId, actor, fileBytes: file }));
+      expect(error).toBeInstanceOf(OperationalError);
+      expect(error).toMatchObject({ code: "CONCURRENCY_RETRY", status: 503, details: { retryable: true } });
+      const message = (error as OperationalError).message;
+      for (const value of PERSONAL) expect(message, value).not.toContain(value);
+    }
+  );
+
   it("deja pasar sin cambios los errores de negocio, que no llevan datos personales", async () => {
     const business = new OperationalError("FORBIDDEN", "Solo la propiedad o la administración…", 403);
     mocks.transaction.mockRejectedValueOnce(business);

@@ -551,9 +551,10 @@ describeDisposablePg("importación de gimnastas en PostgreSQL desechable", () =>
     expect((await counts(fixture.organizationId)).athletes).toBe(3);
   }, 60_000);
 
-  it("espera el cupo del grupo y respeta la plaza que se ocupó mientras tanto", async () => {
-    // Fails if the confirmation stopped locking the group capacity, or decided
-    // before taking that lock.
+  it("toma el cupo del grupo antes de decidir: espera a quien lo tiene", async () => {
+    // Fails if the confirmation stopped locking the group capacity. The holder
+    // takes only the group lock and writes nothing, so it never needs the
+    // organization row the import holds.
     const fixture = await seed({ groupCapacity: 1 });
     const held = signal();
     const release = signal();
@@ -563,7 +564,36 @@ describeDisposablePg("importación de gimnastas en PostgreSQL desechable", () =>
       );
       held.resolve();
       await release.promise;
-      // While the confirmation waits on the group, its only place is taken.
+    });
+    await held.promise;
+    const confirmation = confirmAthleteImport(
+      confirmCommand(fixture, csv("Lucía;Prueba;15/03/2016;Iniciación CI;;;;;"))
+    );
+    try {
+      expect(await waitForLockWaiters("%pg_advisory_xact_lock%", 1)).toBe(1);
+    } finally {
+      release.resolve();
+      await holder;
+    }
+    const result = await confirmation;
+    expect(result.created.map((item) => item.row)).toEqual([2]);
+  }, 60_000);
+
+  it("respeta la plaza que otra alta ocupó mientras esperaba, con el mismo orden de cerrojos", async () => {
+    // Fails if the confirmation trusted the group occupancy read before the
+    // locks. The other writer follows the canonical order of the group
+    // membership commands: organization row, then the group capacity lock.
+    const fixture = await seed({ groupCapacity: 1 });
+    const held = signal();
+    const release = signal();
+    const holder = db.transaction(async (tx) => {
+      await tx.execute(sql`select id from zaltyko.organizations where id = ${fixture.organizationId}::uuid for update`);
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`${fixture.organizationId}:group-capacity:${fixture.groupId}`}, 0))`
+      );
+      held.resolve();
+      await release.promise;
+      // While the confirmation waits, the group's only place is taken.
       await tx.execute(sql`
         with person as (
           insert into zaltyko.people (organization_id, given_name, family_name)
@@ -583,7 +613,7 @@ describeDisposablePg("importación de gimnastas en PostgreSQL desechable", () =>
       confirmCommand(fixture, csv("Lucía;Prueba;15/03/2016;Iniciación CI;;;;;"))
     );
     try {
-      expect(await waitForLockWaiters("%pg_advisory_xact_lock%", 1)).toBe(1);
+      expect(await waitForLockWaiters("%from zaltyko.organizations%for update%", 1)).toBe(1);
     } finally {
       release.resolve();
       await holder;
