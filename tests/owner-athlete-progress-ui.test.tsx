@@ -53,10 +53,14 @@ function progress(overrides: Record<string, unknown> = {}) {
         canEdit: false,
       },
     ],
+    moreObjectives: false,
+    moreObservations: false,
     canWrite: true,
     ...overrides,
   };
 }
+
+const UNAVAILABLE = { detail: "no", errors: { reason: "athlete_progress_unavailable" } };
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -84,7 +88,7 @@ function renderPanel(readOnly = false) {
 
 describe("OwnerAthleteProgressPanel", () => {
   it("muestra «no disponible» si la migración candidata no está aplicada (503)", async () => {
-    fetchMock.mockResolvedValue(json(503, { detail: "no" }));
+    fetchMock.mockResolvedValue(json(503, UNAVAILABLE));
     renderPanel();
     expect(await screen.findByText(/todavía no están disponibles en tu academia/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Añadir objetivo" })).not.toBeInTheDocument();
@@ -92,6 +96,58 @@ describe("OwnerAthleteProgressPanel", () => {
       `/api/v1/owner/athletes/${ATHLETE}/progress?organizationId=${ORG}&locationId=${SITE}`,
       expect.objectContaining({ cache: "no-store" })
     );
+  });
+
+  it("cualquier otro 503 es un error con su detalle, no «no disponible»", async () => {
+    fetchMock.mockResolvedValue(json(503, { detail: "No se ha podido comprobar el uso del plan" }));
+    renderPanel();
+    expect(await screen.findByRole("alert")).toHaveTextContent("No se ha podido comprobar el uso del plan");
+    expect(screen.queryByText(/todavía no están disponibles/)).not.toBeInTheDocument();
+  });
+
+  it("avisa cuando hay más registros de los que se muestran", async () => {
+    fetchMock.mockResolvedValue(json(200, { ok: true, data: progress({ moreObjectives: true, moreObservations: true }) }));
+    renderPanel();
+    expect(await screen.findByText(/Hay más objetivos de los que se muestran/)).toBeInTheDocument();
+    expect(screen.getByText(/hay más anteriores/)).toBeInTheDocument();
+  });
+
+  it("al pulsar «Editar» el foco va al texto y al cancelar vuelve al botón", async () => {
+    const own = progress();
+    own.observations[0]!.canEdit = true;
+    fetchMock.mockResolvedValue(json(200, { ok: true, data: own }));
+    renderPanel();
+    fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+    await waitFor(() => expect(screen.getByLabelText("Editar observación")).toHaveFocus());
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Editar" })).toHaveFocus());
+  });
+
+  it("en Pasar lista lee por la inscripción de la sesión, sin formularios de alta", async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(200, { ok: true, data: progress() }))
+      .mockResolvedValueOnce(json(200, { ok: true, data: { id: OBJECTIVE, revision: 2, replayed: false } }))
+      .mockResolvedValueOnce(json(200, { ok: true, data: progress() }));
+    render(
+      <OwnerAthleteProgressPanel
+        organizationId={ORG}
+        locationId={SITE}
+        sessionRef={{ sessionId: SESSION, enrollmentId: ENROLLMENT }}
+        athleteName="Lúa Pérez"
+        readOnly={false}
+        compact
+      />
+    );
+    expect(await screen.findByText("Objetivos y últimas observaciones")).toBeInTheDocument();
+    expect(fetchMock.mock.calls[0]![0]).toBe(
+      `/api/v1/owner/sessions/${SESSION}/observations?organizationId=${ORG}&locationId=${SITE}&enrollmentId=${ENROLLMENT}`
+    );
+    expect(screen.queryByRole("button", { name: "Añadir objetivo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Añadir observación" })).not.toBeInTheDocument();
+    // El cambio de estado usa la gimnasta que devolvió el servidor.
+    fireEvent.click(screen.getByRole("button", { name: "Marcar conseguido: Rueda sin manos" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/v1/owner/athletes/${ATHLETE}/objectives/${OBJECTIVE}/status`);
   });
 
   it("pinta objetivos con historial y observaciones con su visibilidad", async () => {
@@ -172,6 +228,28 @@ describe("OwnerAthleteProgressPanel", () => {
 });
 
 describe("OwnerSessionObservationForm (Pasar lista)", () => {
+  it("cerrado no monta el formulario (Tailwind anularía [hidden]) y al abrirlo enfoca el texto", async () => {
+    const { container } = render(
+      <OwnerSessionObservationForm
+        organizationId={ORG}
+        locationId={SITE}
+        sessionId={SESSION}
+        enrollmentId={ENROLLMENT}
+        athleteName="Lúa Pérez"
+        disabled={false}
+      />
+    );
+    expect(container.querySelector("form")).toBeNull();
+    expect(container.querySelector("textarea")).toBeNull();
+    const toggle = screen.getByRole("button", { name: "Añadir observación a Lúa Pérez" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(toggle);
+    expect(container.querySelector("form")).not.toBeNull();
+    await waitFor(() => expect(screen.getByLabelText("Observación sobre Lúa Pérez")).toHaveFocus());
+    fireEvent.click(toggle);
+    expect(container.querySelector("form")).toBeNull();
+  });
+
   it("envía la inscripción de la sesión y queda desactivado en solo lectura", async () => {
     const { rerender } = render(
       <OwnerSessionObservationForm
@@ -223,7 +301,7 @@ describe("OwnerSessionObservationForm (Pasar lista)", () => {
         disabled={false}
       />
     );
-    fetchMock.mockResolvedValueOnce(json(503, {}));
+    fetchMock.mockResolvedValueOnce(json(503, UNAVAILABLE));
     fireEvent.click(screen.getByRole("button", { name: "Añadir observación a Lúa Pérez" }));
     fireEvent.change(screen.getByLabelText("Observación sobre Lúa Pérez"), { target: { value: "Nota" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar observación" }));

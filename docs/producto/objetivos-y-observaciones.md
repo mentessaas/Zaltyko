@@ -7,10 +7,16 @@ Objetivo: que el equipo técnico deje constancia, en la ficha de cada gimnasta, 
 ## Qué hay
 
 - **Objetivo.** Título breve (2–120 caracteres), disciplina opcional (GAF o GAM) y aparato opcional de esa disciplina, fecha objetivo opcional y estado: *en curso*, *conseguido* o *descartado*. Guarda quién lo creó y cuándo, y un historial con cada cambio de estado (quién, cuándo, de qué a qué). No hay biblioteca de elementos: el título es texto libre.
-- **Observación.** Texto breve (hasta 1000 caracteres) con fecha, autor y visibilidad: *solo equipo* (por defecto) o *compartible con la familia*. Puede enlazarse a una sesión de la misma sede (lo hace el acceso rápido de Pasar lista) y a un objetivo de la misma gimnasta.
-- **Dónde se ve.**
+- **Observación.** Texto breve (hasta 1000 caracteres) con fecha, autor y visibilidad: *solo equipo* (por defecto) o *compartible con la familia*. Puede enlazarse a un objetivo de la misma gimnasta y a una sesión (lo hace el acceso rápido de Pasar lista). La sesión debe cumplir tres condiciones:
+  - ser de la misma sede;
+  - no ser posterior a la fecha de la observación ni, si no la hay, a hoy;
+  - tener a la gimnasta como participante en esa fecha, por inscripción en la clase o por pertenencia a un grupo vinculado a la clase.
+- **Dónde se ve.** Los accesos solo aparecen si el servidor comprueba que las tablas existen. Sin la migración no se ven, y si alguien llama a la API recibe 503.
   - En `/owner/groups`, cada gimnasta de un grupo tiene el botón «Objetivos y observaciones», que despliega la sección dentro de su ficha.
-  - En Pasar lista (`/owner/attendance`, también desde «Hoy en el club»), cada gimnasta de la sesión tiene el botón «Observación» para añadir una nota rápida a esa sesión.
+  - En Pasar lista (`/owner/attendance`, que para el entrenador es también «Hoy»), cada gimnasta de la sesión tiene dos botones:
+    - «Observación», para añadir una nota rápida a esa sesión.
+    - «Ver objetivos», un desplegable con los objetivos y las 5 últimas observaciones. Desde ahí se puede cambiar el estado de los objetivos propios y editar las observaciones propias. La gimnasta se identifica por su inscripción en la clase de la sesión.
+- **Listados.** Se muestran los 100 objetivos y las 50 observaciones más recientes. Si hay más, la sección lo dice.
 
 ## Quién puede hacer qué
 
@@ -25,7 +31,7 @@ Todo se comprueba en el servidor, dentro de la transacción de cada operación (
 
 1. `resolveOwnerScope` con la superficie `coach_operations`: miembro activo, rol permitido y sede de su alcance.
 2. `assertOperationalAccess`: vuelve a comprobar miembro, rol y sede y, en escrituras, que el plan no esté en solo lectura.
-3. La sede pertenece a la academia, y la gimnasta también y está vinculada a esa sede.
+3. La sede pertenece a la academia y está activa. La gimnasta también es de la academia y está vinculada a esa sede.
 4. Cada registro guarda la sede desde la que se creó; quien tiene sedes seleccionadas solo ve y toca registros de esas sedes.
 
 La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que aísla. RLS (ENABLE + FORCE) y los REVOKE a `anon` y `authenticated` son defensa en profundidad frente a clientes directos.
@@ -33,7 +39,10 @@ La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que 
 ## Solo lectura y funcionalidad dormida
 
 - **Plan en solo lectura:** se puede consultar todo, pero crear, cambiar estado o editar responde 409 `PLAN_OVER_CAPACITY`, igual que el resto de `/owner`. Repetir una creación ya guardada (mismo identificador de petición) devuelve el registro sin escribir. La interfaz desactiva los formularios y lo explica.
-- **Migración sin aplicar:** las tablas están en el candidato `docs/deployment/candidates/20261111120000_athlete_progress_candidate.sql`, que **requiere autorización de Elvis**. Mientras no se aplique, las API responden 503 «todavía no están activados» y la interfaz muestra «no disponible», sin errores 500 ni escrituras a medias.
+- **Migración sin aplicar:** las tablas están en el candidato `docs/deployment/candidates/20261111120000_athlete_progress_candidate.sql`, que **requiere autorización de Elvis**. Mientras no se aplique:
+  - Las páginas no muestran los accesos.
+  - Las API responden 503 con el motivo `athlete_progress_unavailable`, sin errores 500 ni escrituras a medias.
+  - La interfaz solo trata como «no disponible» ese 503 concreto; cualquier otro 503 se muestra como error.
 
 ## Modelo de datos (candidato)
 
@@ -41,7 +50,7 @@ La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que 
 - `zaltyko.athlete_objective_status_history`: una fila al crear (`from_status` nulo, revisión 1) y otra por cambio.
 - `zaltyko.athlete_observations`: academia, gimnasta, sede, identificador de petición, texto, visibilidad, fecha, sesión y objetivo opcionales, autor, última edición y revisión.
 
-Todas las claves foráneas son compuestas con `organization_id`. La sesión debe ser de la misma sede que la observación y el objetivo, de la misma gimnasta. La auditoría (`zaltyko.audit_log`) registra altas, cambios de estado y ediciones sin copiar el texto de las observaciones.
+Todas las restricciones tienen nombre de menos de 63 caracteres, y el espejo Drizzle repite las CHECK y los únicos. Todas las claves foráneas son compuestas con `organization_id`. La de sesiones queda en NO ACTION: ningún flujo borra sesiones, porque se cancelan por estado, y un `set null` compuesto anularía también la academia y la sede. La sesión debe ser de la misma sede que la observación y el objetivo, de la misma gimnasta. La auditoría (`zaltyko.audit_log`) registra altas, cambios de estado y ediciones sin copiar el texto de las observaciones.
 
 ## Decide Elvis
 
@@ -52,11 +61,14 @@ Todas las claves foráneas son compuestas con `organization_id`. La sesión debe
 5. **Visibilidad entre sedes.** Un registro solo lo ve quien tiene la sede donde se creó (o todas). Si una gimnasta entrena en dos sedes, el entrenador de una no ve las notas de la otra.
 6. **Gimnasta archivada.** El entrenador deja de verla; la dirección conserva la lectura del historial, sin escritura.
 7. **Exportación de datos.** La exportación canónica de la academia no incluye todavía estas tablas; habrá que añadirlas al aplicar el candidato.
+8. **Lectura del entrenador.** Resuelta con «Ver objetivos» en Pasar lista: ve objetivos y las 5 últimas observaciones de cada gimnasta de la sesión, y puede cambiar el estado de lo que creó. No tiene acceso a la ficha completa de Grupos, que sigue siendo de la dirección.
+9. **Espejo Drizzle fuera de `src/db/schema/`.** Está en `src/modules/athlete-progress/infrastructure/` para que `validate:rls`, que solo valida el historial aplicado, no lo trate como migración. Al aplicar el candidato hay que moverlo a `src/db/schema/`, sin exportarlo a drizzle-kit, y la migración debe superar `validate:rls`.
 
 ## Pruebas
 
 - `tests/athlete-progress-domain.test.ts`: validación Zod (incluido `null` en parámetros opcionales), aparatos por disciplina, permisos y regla de familias.
-- `tests/athlete-progress-contract.test.ts`: candidato, espejo Drizzle y detección con las mismas tablas y columnas; RLS ENABLE/FORCE y REVOKE en las tres; fuera de drizzle-kit; el portal de familias no las lee.
+- `tests/athlete-progress-contract.test.ts`: candidato, espejo Drizzle y detección con las mismas tablas, columnas, tipos, NOT NULL, defaults, CHECK (nombre y expresión), únicos e índices; nombres de menos de 63 caracteres; RLS ENABLE/FORCE y REVOKE en las tres; fuera de drizzle-kit; el portal de familias no las lee.
 - `tests/athlete-progress-routes.test.ts`: orden de comprobaciones de las rutas, 401/403/400/429, 503 «no disponible», 201 frente a 200 en repeticiones.
-- `tests/owner-athlete-progress-ui.test.tsx`: estados de la sección y del acceso rápido (no disponible, solo lectura, archivada, errores).
-- `tests/athlete-progress-pg.test.ts` (job «Postgres integration»): funcionalidad dormida, RLS/REVOKE, aislamiento entre academias, entrenador sin asignación, gimnasta archivada, historial de estados, idempotencia, concurrencia y bloqueo en solo lectura.
+- `tests/owner-athlete-progress-ui.test.tsx`: estados de la sección y del acceso rápido (no disponible, otro 503, solo lectura, archivada, «hay más», foco, formulario cerrado fuera del DOM, lectura por sesión).
+- `tests/owner-athlete-progress-entry.test.tsx` y `tests/owner-coach-attendance-page.test.tsx`: los accesos aparecen solo con las tablas disponibles.
+- `tests/athlete-progress-pg.test.ts` (job «Postgres integration»): funcionalidad dormida, RLS/REVOKE, aislamiento entre academias, sede desactivada, entrenador sin asignación, gimnasta archivada, historial de estados, idempotencia, concurrencia, sesiones (otra clase, futura, otra sede, participación por grupo), lectura desde Pasar lista, «hay más» y bloqueo en solo lectura.

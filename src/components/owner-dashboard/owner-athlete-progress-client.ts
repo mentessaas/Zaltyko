@@ -1,6 +1,7 @@
-import type {
-  AthleteProgressView,
-  ProgressWriteResult,
+import {
+  ATHLETE_PROGRESS_UNAVAILABLE_REASON,
+  type AthleteProgressView,
+  type ProgressWriteResult,
 } from "@/modules/athlete-progress/domain/athlete-progress";
 
 /**
@@ -30,6 +31,14 @@ function problemDetail(payload: unknown): string | null {
   return null;
 }
 
+function unavailableReason(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object" || !("errors" in payload)) return null;
+  const errors = (payload as { errors?: unknown }).errors;
+  if (!errors || typeof errors !== "object" || !("reason" in errors)) return null;
+  const reason = (errors as { reason?: unknown }).reason;
+  return typeof reason === "string" ? reason : null;
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<ProgressFetchResult<T>> {
   let response: Response;
   try {
@@ -38,7 +47,11 @@ async function request<T>(url: string, init?: RequestInit): Promise<ProgressFetc
     return { status: "error", message: GENERIC_ERROR, code: 0 };
   }
   const payload: unknown = await response.json().catch(() => null);
-  if (response.status === 503) return { status: "unavailable" };
+  // Solo el 503 de la migración sin aplicar es «no disponible»; cualquier
+  // otro 503 (por ejemplo, el uso del plan no se pudo comprobar) es un error.
+  if (response.status === 503 && unavailableReason(payload) === ATHLETE_PROGRESS_UNAVAILABLE_REASON) {
+    return { status: "unavailable" };
+  }
   if (!response.ok) {
     return { status: "error", message: problemDetail(payload) ?? GENERIC_ERROR, code: response.status };
   }
@@ -62,6 +75,13 @@ export function fetchAthleteProgress(scope: ProgressScope, athleteId: string) {
   const params = new URLSearchParams(scope);
   return request<AthleteProgressView>(
     `/api/v1/owner/athletes/${encodeURIComponent(athleteId)}/progress?${params.toString()}`
+  );
+}
+
+export function fetchSessionAthleteProgress(scope: ProgressScope, sessionId: string, enrollmentId: string) {
+  const params = new URLSearchParams({ ...scope, enrollmentId });
+  return request<AthleteProgressView>(
+    `/api/v1/owner/sessions/${encodeURIComponent(sessionId)}/observations?${params.toString()}`
   );
 }
 

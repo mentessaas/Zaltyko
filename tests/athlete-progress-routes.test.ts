@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   scope: vi.fn(),
   rateLimit: vi.fn(),
   getProgress: vi.fn(),
+  getSessionProgress: vi.fn(),
   createObjective: vi.fn(),
   changeStatus: vi.fn(),
   createObservation: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 vi.mock("@/modules/owner-dashboard/application/owner-scope", () => ({ resolveOwnerScope: mocks.scope }));
 vi.mock("@/modules/athlete-progress/application/athlete-progress-service", () => ({
   getAthleteProgress: mocks.getProgress,
+  getSessionAthleteProgress: mocks.getSessionProgress,
   createAthleteObjective: mocks.createObjective,
   changeAthleteObjectiveStatus: mocks.changeStatus,
   createAthleteObservation: mocks.createObservation,
@@ -64,6 +66,7 @@ beforeEach(() => {
     mocks.scope,
     mocks.rateLimit,
     mocks.getProgress,
+    mocks.getSessionProgress,
     mocks.createObjective,
     mocks.changeStatus,
     mocks.createObservation,
@@ -141,6 +144,35 @@ describe("GET progreso de una gimnasta", () => {
     const response = await GET(request("GET", path), params({ athleteId }));
     expect(response.status).toBe(429);
     expect(mocks.getProgress).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET progreso desde Pasar lista", () => {
+  it("exige la inscripción y la pasa al servicio con la sesión de la ruta", async () => {
+    mocks.getSessionProgress.mockResolvedValue({ athlete: { id: athleteId }, objectives: [], observations: [] });
+    const { GET } = await loadSessionObservations();
+    const missing = await GET(
+      request("GET", `/api/v1/owner/sessions/${sessionId}/observations?organizationId=${organizationId}&locationId=${locationId}`),
+      params({ sessionId })
+    );
+    expect(missing.status).toBe(400);
+    expect(mocks.scope).not.toHaveBeenCalled();
+
+    const response = await GET(
+      request(
+        "GET",
+        `/api/v1/owner/sessions/${sessionId}/observations?organizationId=${organizationId}&locationId=${locationId}&enrollmentId=${enrollmentId}`
+      ),
+      params({ sessionId })
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(mocks.scope).toHaveBeenCalledWith(expect.objectContaining({ surface: "coach_operations", locationId }));
+    expect(mocks.getSessionProgress).toHaveBeenCalledWith({
+      actor: { userId: mocks.user!.id, memberId },
+      sessionId,
+      query: { organizationId, locationId, enrollmentId },
+    });
   });
 });
 

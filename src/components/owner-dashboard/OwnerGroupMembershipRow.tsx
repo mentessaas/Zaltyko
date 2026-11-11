@@ -29,6 +29,7 @@ export function OwnerGroupMembershipRow({
   allowExistingFamilies,
   commandsLocked,
   writesBlocked,
+  showProgress = false,
   profileEditorKey,
   profileEditorDisabled,
   pendingAthleteProfile,
@@ -57,6 +58,8 @@ export function OwnerGroupMembershipRow({
   allowExistingFamilies: boolean;
   commandsLocked: boolean;
   writesBlocked: boolean;
+  /** P2 #17: solo si el servidor confirmó que existen las tablas. */
+  showProgress?: boolean;
   profileEditorKey: string;
   profileEditorDisabled: boolean;
   pendingAthleteProfile: ProfileEditorProps["pendingCommand"];
@@ -189,21 +192,23 @@ export function OwnerGroupMembershipRow({
         >
           Dar de baja
         </button>
-        <button
-          type="button"
-          className={secondaryButtonClassName}
-          aria-expanded={progressOpen}
-          aria-controls={progressPanelId}
-          aria-label={`Objetivos y observaciones de ${membership.athleteName}`}
-          onClick={() => setProgressOpen((open) => !open)}
-        >
-          <Flag className="h-4 w-4" aria-hidden="true" />
-          Objetivos y observaciones
-        </button>
+        {showProgress ? (
+          <button
+            type="button"
+            className={secondaryButtonClassName}
+            aria-expanded={progressOpen}
+            aria-controls={progressOpen ? progressPanelId : undefined}
+            aria-label={`Objetivos y observaciones de ${membership.athleteName}`}
+            onClick={() => setProgressOpen((open) => !open)}
+          >
+            <Flag className="h-4 w-4" aria-hidden="true" />
+            Objetivos y observaciones
+          </button>
+        ) : null}
       </div>
       </div>
-      <div id={progressPanelId} hidden={!progressOpen}>
-        {progressOpen ? (
+      {showProgress && progressOpen ? (
+        <div id={progressPanelId}>
           <OwnerAthleteProgressPanel
             organizationId={organizationId}
             locationId={locationId}
@@ -211,8 +216,8 @@ export function OwnerGroupMembershipRow({
             athleteName={membership.athleteName}
             readOnly={writesBlocked}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </li>
   );
 }

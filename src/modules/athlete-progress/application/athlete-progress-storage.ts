@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import type { DatabaseClient } from "@/lib/db-transactions";
+import { ATHLETE_PROGRESS_UNAVAILABLE_REASON } from "@/modules/athlete-progress/domain/athlete-progress";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 /**
@@ -112,8 +113,21 @@ export function athleteProgressStorageUnavailable(): OperationalError {
   return new OperationalError(
     "FEATURE_NOT_AVAILABLE",
     "Los objetivos y observaciones todavía no están activados en esta academia.",
-    503
+    503,
+    { reason: ATHLETE_PROGRESS_UNAVAILABLE_REASON }
   );
+}
+
+/**
+ * Para las páginas: decide si se muestran los accesos a la sección. Ante
+ * cualquier fallo responde false, porque ocultar un acceso nunca rompe nada.
+ */
+export async function isAthleteProgressAvailableForPage(client: DatabaseClient): Promise<boolean> {
+  try {
+    return await isAthleteProgressStorageAvailable(client);
+  } catch {
+    return false;
+  }
 }
 
 export async function assertAthleteProgressStorageAvailable(client: DatabaseClient): Promise<void> {

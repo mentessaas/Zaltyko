@@ -60,7 +60,14 @@ import { OwnerGroupsSidebar } from "./OwnerGroupsSidebar";
 import { OwnerGroupAthleteCreateDetails, OwnerGroupAthleteSearchForm } from "./OwnerGroupAthleteIntake";
 import { OwnerGroupMembershipRow } from "./OwnerGroupMembershipRow";
 
-export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
+export function OwnerGroupsManager({
+  bundle,
+  progressAvailable = false,
+}: {
+  bundle: GroupsBundle;
+  /** P2 #17: el servidor comprobó que existen las tablas de objetivos y observaciones. */
+  progressAvailable?: boolean;
+}) {
   const router = useRouter();
   const organizationId = bundle.organization.id;
   const planPolicy = useOwnerPlanPolicy(organizationId);
@@ -998,6 +1005,7 @@ export function OwnerGroupsManager({ bundle }: { bundle: GroupsBundle }) {
                             allowExistingFamilies={bundle.member.locationScopeMode === "all"}
                             commandsLocked={commandsLocked}
                             writesBlocked={writesBlocked}
+                            showProgress={progressAvailable}
                             profileEditorKey={profileEditorKey}
                             profileEditorDisabled={profileEditorDisabled}
                             pendingAthleteProfile={pendingAthleteProfile}

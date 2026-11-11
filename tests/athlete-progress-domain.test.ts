@@ -13,6 +13,7 @@ import {
   isObservationShareableWithFamily,
   isValidObjectiveTransition,
   localDateInTimeZone,
+  sessionAthleteProgressQuerySchema,
   sessionObservationCommandSchema,
   updateObservationCommandSchema,
 } from "@/modules/athlete-progress/domain/athlete-progress";
@@ -27,6 +28,12 @@ describe("consulta de la ficha", () => {
     expect(athleteProgressQuerySchema.safeParse({ ...scope, objectiveStatus: null }).success).toBe(true);
     expect(athleteProgressQuerySchema.safeParse({ ...scope }).success).toBe(true);
     expect(athleteProgressQuerySchema.safeParse({ ...scope, objectiveStatus: "achieved" }).success).toBe(true);
+  });
+
+  it("desde Pasar lista exige la inscripción y acepta el filtro ausente como null", () => {
+    expect(sessionAthleteProgressQuerySchema.safeParse({ ...scope, enrollmentId: clientRequestId, objectiveStatus: null }).success).toBe(true);
+    expect(sessionAthleteProgressQuerySchema.safeParse({ ...scope }).success).toBe(false);
+    expect(sessionAthleteProgressQuerySchema.safeParse({ ...scope, enrollmentId: clientRequestId, athleteId: clientRequestId }).success).toBe(false);
   });
 
   it("exige academia y sede válidas y rechaza filtros desconocidos", () => {

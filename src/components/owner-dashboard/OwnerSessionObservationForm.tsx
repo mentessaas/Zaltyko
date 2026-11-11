@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { MessageSquarePlus } from "lucide-react";
 
 import {
@@ -45,6 +45,11 @@ export function OwnerSessionObservationForm({
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
   const [requestId, setRequestId] = useState(newClientRequestId);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Al abrir el formulario, el foco va al texto.
+  useEffect(() => {
+    if (open) textareaRef.current?.focus();
+  }, [open]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -79,7 +84,7 @@ export function OwnerSessionObservationForm({
         type="button"
         className={`${ownerUi.secondaryButton} min-h-11`}
         aria-expanded={open}
-        aria-controls={`${ids}-form`}
+        aria-controls={open ? `${ids}-form` : undefined}
         aria-label={`Añadir observación a ${athleteName}`}
         disabled={disabled}
         onClick={() => {
@@ -93,49 +98,52 @@ export function OwnerSessionObservationForm({
       <p aria-live="polite" className={saved ? ownerUi.help : "sr-only"}>
         {saved}
       </p>
-      <form
-        id={`${ids}-form`}
-        hidden={!open}
-        onSubmit={(event) => void submit(event)}
-        className="grid gap-2 rounded-md border border-z-line bg-z-canvas p-3"
-      >
-        <label htmlFor={`${ids}-body`} className={ownerUi.smallLabel}>
-          Observación sobre {athleteName}
-        </label>
-        <textarea
-          id={`${ids}-body`}
-          className={`${ownerUi.field} min-h-20 py-2`}
-          value={body}
-          maxLength={OBSERVATION_BODY_MAX}
-          onChange={(event) => setBody(event.target.value)}
-        />
-        <fieldset className="grid gap-1">
-          <legend className={ownerUi.smallLabel}>¿Quién puede verla?</legend>
-          <div className="flex flex-wrap gap-3">
-            {(["team", "family"] as const).map((option) => (
-              <label key={option} className="touch-target inline-flex min-h-11 items-center gap-2 text-sm text-z-ink">
-                <input
-                  type="radio"
-                  name={`${ids}-visibility`}
-                  value={option}
-                  checked={visibility === option}
-                  onChange={() => setVisibility(option)}
-                />
-                {observationVisibilityLabels[option]}
-              </label>
-            ))}
-          </div>
-          {visibility === "family" ? <p className={ownerUi.help}>{FAMILY_VISIBILITY_HELP}</p> : null}
-        </fieldset>
-        {error ? (
-          <p role="alert" className={ownerUi.noticeError}>
-            {error}
-          </p>
-        ) : null}
-        <button type="submit" className={ownerUi.primaryButton} disabled={busy || disabled}>
-          {busy ? "Guardando…" : "Guardar observación"}
-        </button>
-      </form>
+      {/* Solo se monta abierto: con Tailwind, `.grid` anularía el atributo hidden. */}
+      {open ? (
+        <form
+          id={`${ids}-form`}
+          onSubmit={(event) => void submit(event)}
+          className="grid gap-2 rounded-md border border-z-line bg-z-canvas p-3"
+        >
+          <label htmlFor={`${ids}-body`} className={ownerUi.smallLabel}>
+            Observación sobre {athleteName}
+          </label>
+          <textarea
+            ref={textareaRef}
+            id={`${ids}-body`}
+            className={`${ownerUi.field} min-h-20 py-2`}
+            value={body}
+            maxLength={OBSERVATION_BODY_MAX}
+            onChange={(event) => setBody(event.target.value)}
+          />
+          <fieldset className="grid gap-1">
+            <legend className={ownerUi.smallLabel}>¿Quién puede verla?</legend>
+            <div className="flex flex-wrap gap-3">
+              {(["team", "family"] as const).map((option) => (
+                <label key={option} className="touch-target inline-flex min-h-11 items-center gap-2 text-sm text-z-ink">
+                  <input
+                    type="radio"
+                    name={`${ids}-visibility`}
+                    value={option}
+                    checked={visibility === option}
+                    onChange={() => setVisibility(option)}
+                  />
+                  {observationVisibilityLabels[option]}
+                </label>
+              ))}
+            </div>
+            {visibility === "family" ? <p className={ownerUi.help}>{FAMILY_VISIBILITY_HELP}</p> : null}
+          </fieldset>
+          {error ? (
+            <p role="alert" className={ownerUi.noticeError}>
+              {error}
+            </p>
+          ) : null}
+          <button type="submit" className={ownerUi.primaryButton} disabled={busy || disabled}>
+            {busy ? "Guardando…" : "Guardar observación"}
+          </button>
+        </form>
+      ) : null}
     </div>
   );
 }

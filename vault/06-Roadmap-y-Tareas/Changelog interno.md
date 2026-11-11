@@ -22,6 +22,15 @@ source:
 
 **Sin resolver.** Las decisiones «Decide Elvis» de `docs/producto/objetivos-y-observaciones.md` (familias, borrado, ediciones entre entrenadores, alcance de coordinación, exportación).
 
+**Ronda 2 (revisión 7/10 del coordinador).**
+- El formulario rápido de Pasar lista solo se monta abierto: con Tailwind, `.grid` anulaba `hidden`.
+- Los accesos se ocultan si el servidor no encuentra las tablas.
+- La sesión vinculada exige participación de la gimnasta y una fecha no futura.
+- El entrenador lee objetivos y últimas observaciones con «Ver objetivos».
+- El servicio queda partido en cuatro módulos tras una fachada.
+- La candidata pasa a tener todas las restricciones con nombre (menos de 63 caracteres); el espejo repite las CHECK y el contrato compara tipos y CHECK.
+- Otros cambios: sede activa obligatoria, «Coordinador/a», 503 con motivo propio, aviso de «hay más» y foco en formularios.
+
 ## 2026-11-10 — Revisión de la PR 266 (panel de competencia): seguridad, integridad y datos personales
 
 **Hallazgos.** La revisión de la sesión coordinadora dio 8/10. Problemas encontrados:

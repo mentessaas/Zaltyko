@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ClipboardCheck, UsersRound } from "lucide-react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import { OwnerSessionAthleteProgress } from "./OwnerSessionAthleteProgress";
 import { OwnerSessionObservationForm } from "./OwnerSessionObservationForm";
 import { ownerUi } from "./owner-ui";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
@@ -207,6 +208,7 @@ export function OwnerAttendanceManager({
   initialNextCursor,
   selectedSession: requestedSession,
   coachMode = false,
+  progressAvailable = false,
 }: {
   organizationId: string;
   locationId: string;
@@ -216,6 +218,11 @@ export function OwnerAttendanceManager({
   selectedSession?: SessionOption | null;
   /** Coach seat (P1 #8): no links to the management panel or the plan. */
   coachMode?: boolean;
+  /**
+   * P2 #17: el servidor comprobó que las tablas de objetivos y observaciones
+   * existen. Sin ellas no se muestran sus accesos.
+   */
+  progressAvailable?: boolean;
 }) {
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
@@ -987,15 +994,25 @@ export function OwnerAttendanceManager({
                             {rowBusy ? "Guardando…" : "Reintentar guardado"}
                           </button>
                         ) : null}
-                        {sessionId && !selectedSession?.retryOnly ? (
-                          <OwnerSessionObservationForm
-                            organizationId={organizationId}
-                            locationId={locationId}
-                            sessionId={sessionId}
-                            enrollmentId={attendee.enrollmentId}
-                            athleteName={attendee.athleteName}
-                            disabled={writesBlocked}
-                          />
+                        {progressAvailable && sessionId && !selectedSession?.retryOnly ? (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <OwnerSessionObservationForm
+                              organizationId={organizationId}
+                              locationId={locationId}
+                              sessionId={sessionId}
+                              enrollmentId={attendee.enrollmentId}
+                              athleteName={attendee.athleteName}
+                              disabled={writesBlocked}
+                            />
+                            <OwnerSessionAthleteProgress
+                              organizationId={organizationId}
+                              locationId={locationId}
+                              sessionId={sessionId}
+                              enrollmentId={attendee.enrollmentId}
+                              athleteName={attendee.athleteName}
+                              readOnly={writesBlocked}
+                            />
+                          </div>
                         ) : null}
                       </div>
                     </li>

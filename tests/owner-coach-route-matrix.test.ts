@@ -500,6 +500,7 @@ const coachAllowed = new Set([
   "POST owner/athletes/[athleteId]/objectives/[objectiveId]/status/route.ts",
   "POST owner/athletes/[athleteId]/observations/route.ts",
   "PATCH owner/athletes/[athleteId]/observations/[observationId]/route.ts",
+  "GET owner/sessions/[sessionId]/observations/route.ts",
   "POST owner/sessions/[sessionId]/observations/route.ts",
 ]);
 

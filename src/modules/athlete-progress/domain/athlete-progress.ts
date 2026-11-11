@@ -60,6 +60,12 @@ export const observationVisibilityLabels: Record<ObservationVisibility, string> 
   family: "Compartible con la familia",
 };
 
+/**
+ * Motivo del 503 cuando el candidato SQL no está aplicado. El cliente solo
+ * muestra «no disponible» con este motivo; cualquier otro 503 es un error.
+ */
+export const ATHLETE_PROGRESS_UNAVAILABLE_REASON = "athlete_progress_unavailable";
+
 export const OBJECTIVE_TITLE_MAX = 120;
 export const OBSERVATION_BODY_MAX = 1000;
 export const OBSERVATIONS_PAGE_SIZE = 50;
@@ -193,6 +199,15 @@ export const athleteProgressQuerySchema = z
   })
   .strict();
 
+/** Lectura desde Pasar lista: la gimnasta llega por su inscripción en la sesión. */
+export const sessionAthleteProgressQuerySchema = z
+  .object({
+    ...scopeShape,
+    enrollmentId: z.guid(),
+    objectiveStatus: z.enum(OBJECTIVE_STATUSES).nullable().optional(),
+  })
+  .strict();
+
 export const createObjectiveCommandSchema = z
   .object({
     ...scopeShape,
@@ -254,6 +269,7 @@ export const sessionObservationCommandSchema = z
   .strict();
 
 export type AthleteProgressQuery = z.infer<typeof athleteProgressQuerySchema>;
+export type SessionAthleteProgressQuery = z.infer<typeof sessionAthleteProgressQuerySchema>;
 export type CreateObjectiveCommand = z.infer<typeof createObjectiveCommandSchema>;
 export type ChangeObjectiveStatusCommand = z.infer<typeof changeObjectiveStatusCommandSchema>;
 export type CreateObservationCommand = z.infer<typeof createObservationCommandSchema>;
@@ -305,6 +321,9 @@ export type AthleteProgressView = {
   athlete: { id: string; name: string; archived: boolean };
   objectives: AthleteObjectiveView[];
   observations: AthleteObservationView[];
+  /** Hay más registros de los que caben en una respuesta (OBJECTIVES_LIMIT / OBSERVATIONS_PAGE_SIZE). */
+  moreObjectives: boolean;
+  moreObservations: boolean;
   /** Escritura posible para este rol y gimnasta (el plan se comprueba aparte). */
   canWrite: boolean;
 };

@@ -12,6 +12,7 @@ import {
   createAthleteObservation,
   createSessionObservation,
   getAthleteProgress,
+  getSessionAthleteProgress,
   updateAthleteObservation,
 } from "@/modules/athlete-progress/application/athlete-progress-service";
 import { isAthleteProgressStorageAvailable } from "@/modules/athlete-progress/application/athlete-progress-storage";
@@ -206,6 +207,9 @@ describe.skipIf(!disposablePgEnabled)("objetivos y observaciones en PostgreSQL d
   let otherClassS1: string;
   let sessionS1: string;
   let sessionS2: string;
+  let sessionOtherClassS1: string;
+  let futureSessionS1: string;
+  let groupS1: string;
   let enrollmentAna: string;
   let enrollmentOtherClass: string;
 
@@ -249,7 +253,7 @@ describe.skipIf(!disposablePgEnabled)("objetivos y observaciones en PostgreSQL d
     dani = await athlete(a.organizationId, "Dani");
     eva = await athlete(a.organizationId, "Eva", false);
     zoe = await athlete(b.organizationId, "Zoe");
-    const groupS1 = await group(a.organizationId, a.locationIds[0]!, "Base 3 GAF");
+    groupS1 = await group(a.organizationId, a.locationIds[0]!, "Base 3 GAF");
     const groupS2 = await group(a.organizationId, a.locationIds[1]!, "Base 2 GAF");
     await joinGroup(a.organizationId, groupS1, ana);
     await joinGroup(a.organizationId, groupS2, bea);
@@ -277,12 +281,18 @@ describe.skipIf(!disposablePgEnabled)("objetivos y observaciones en PostgreSQL d
     `);
     sessionS1 = randomUUID();
     sessionS2 = randomUUID();
+    sessionOtherClassS1 = randomUUID();
+    futureSessionS1 = randomUUID();
     await db.execute(sql`
       insert into zaltyko.sessions (id, organization_id, location_id, class_template_id, status, starts_at, ends_at)
       values (${sessionS1}::uuid, ${a.organizationId}::uuid, ${a.locationIds[0]}::uuid, ${classS1}::uuid, 'completed',
                 '2026-10-05T16:30:00Z', '2026-10-05T18:00:00Z'),
              (${sessionS2}::uuid, ${a.organizationId}::uuid, ${a.locationIds[1]}::uuid, ${classS2}::uuid, 'completed',
-                '2026-10-05T16:30:00Z', '2026-10-05T18:00:00Z')
+                '2026-10-05T16:30:00Z', '2026-10-05T18:00:00Z'),
+             (${sessionOtherClassS1}::uuid, ${a.organizationId}::uuid, ${a.locationIds[0]}::uuid, ${otherClassS1}::uuid, 'completed',
+                '2026-10-06T16:30:00Z', '2026-10-06T18:00:00Z'),
+             (${futureSessionS1}::uuid, ${a.organizationId}::uuid, ${a.locationIds[0]}::uuid, ${classS1}::uuid, 'scheduled',
+                '2030-01-10T16:30:00Z', '2030-01-10T18:00:00Z')
     `);
 
     // Funcionalidad dormida: sin el candidato, todo responde 503 sin escribir.
@@ -365,6 +375,8 @@ describe.skipIf(!disposablePgEnabled)("objetivos y observaciones en PostgreSQL d
       { revision: 3, fromStatus: "achieved", toStatus: "in_progress" },
     ]);
     expect((await read(ownerA, ana, s1(), "achieved")).objectives.map((item) => item.id)).not.toContain(created.id);
+    // Sin ficha de equipo se muestra el rol con el término del glosario.
+    expect(stored.history[2]!.changedByName).toBe("Coordinador/a");
 
     const audit = await db.execute(sql`
       select action, after::text as after from zaltyko.audit_log
@@ -494,6 +506,76 @@ describe.skipIf(!disposablePgEnabled)("objetivos y observaciones en PostgreSQL d
     await expect(
       createSessionObservation({ actor: ownerB, sessionId: sessionS1, command: { ...command, organizationId: b.organizationId, locationId: b.locationIds[0]!, clientRequestId: randomUUID() } })
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("una sede desactivada no existe, ni siquiera para la dirección", async () => {
+    const inactive = randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.locations (id, organization_id, code, name, timezone, is_active)
+      values (${inactive}::uuid, ${a.organizationId}::uuid, ${`ci-prog-off-${a.organizationId.slice(0, 8)}`}, 'Sede cerrada', 'Europe/Madrid', false)
+    `);
+    const scope = { organizationId: a.organizationId, locationId: inactive };
+    await expect(read(ownerA, ana, scope)).rejects.toMatchObject({ code: "NOT_FOUND", message: "Sede no encontrada" });
+    await expect(observation(ownerA, ana, scope)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("vincular una sesión exige que la gimnasta participara y que la sesión no sea posterior", async () => {
+    const withSession = (sessionId: string, overrides: Record<string, unknown> = {}) =>
+      observation(ownerA, ana, s1(), { sessionId, body: "Vinculada", ...overrides });
+    // Sesión de otra clase en la que Ana no está.
+    await expect(withSession(sessionOtherClassS1)).rejects.toMatchObject({ code: "INVALID_RELATION", status: 422 });
+    // Sesión futura, o posterior a la fecha indicada.
+    await expect(withSession(futureSessionS1)).rejects.toMatchObject({ code: "INVALID_DATE_RANGE", status: 422 });
+    await expect(withSession(sessionS1, { observedOn: "2026-10-01" })).rejects.toMatchObject({ code: "INVALID_DATE_RANGE" });
+    // Sesión de otra sede.
+    await expect(withSession(sessionS2)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    // Válida: la fecha por defecto es la de la sesión.
+    const linked = await withSession(sessionS1);
+    const stored = (await read(ownerA, ana, s1())).observations.find((item) => item.id === linked.id)!;
+    expect(stored).toMatchObject({ sessionId: sessionS1, observedOn: "2026-10-05" });
+
+    // Dani no está inscrita en la clase de sessionS1; participa al vincular su grupo a la clase.
+    await expect(observation(ownerA, dani, s1(), { sessionId: sessionS1 })).rejects.toMatchObject({ code: "INVALID_RELATION" });
+    await db.execute(sql`
+      insert into zaltyko.class_template_groups (organization_id, class_template_id, group_id)
+      values (${a.organizationId}::uuid, ${classS1}::uuid, ${groupS1}::uuid)
+    `);
+    expect(await observation(ownerA, dani, s1(), { sessionId: sessionS1 })).toMatchObject({ replayed: false });
+  });
+
+  it("desde Pasar lista el entrenador lee objetivos y últimas observaciones por la inscripción", async () => {
+    const query = { ...s1(), enrollmentId: enrollmentAna, objectiveStatus: null };
+    const view = await getSessionAthleteProgress({ actor: coachA1, sessionId: sessionS1, query });
+    expect(view.athlete).toMatchObject({ id: ana, name: "Ana Progreso" });
+    expect(view.objectives.length).toBeGreaterThan(0);
+    expect(view.objectives.find((item) => item.title === "Vertical 3 segundos")?.canChangeStatus).toBe(true);
+    expect(view.objectives.find((item) => item.title === "Paloma en paralelas")?.canChangeStatus).toBe(false);
+    await expect(getSessionAthleteProgress({ actor: coachA2, sessionId: sessionS1, query })).rejects.toMatchObject({
+      code: "LOCATION_SCOPE_DENIED",
+    });
+    await expect(
+      getSessionAthleteProgress({ actor: coachA1, sessionId: sessionS1, query: { ...query, enrollmentId: enrollmentOtherClass } })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(
+      getSessionAthleteProgress({ actor: coachA1, sessionId: sessionS2, query })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("marca que hay más observaciones cuando pasan del límite", async () => {
+    await db.execute(sql`
+      insert into zaltyko.athlete_observations (
+        organization_id, athlete_id, location_id, client_request_id, body, observed_on,
+        author_member_id, updated_by_member_id
+      )
+      select ${a.organizationId}::uuid, ${bea}::uuid, ${a.locationIds[1]}::uuid, gen_random_uuid(),
+             'Serie ' || series.n, date '2026-10-01' + series.n, ${ownerA.memberId}::uuid, ${ownerA.memberId}::uuid
+      from generate_series(1, 51) as series(n)
+    `);
+    const view = await read(ownerA, bea, s2());
+    expect(view.observations).toHaveLength(50);
+    expect(view.moreObservations).toBe(true);
+    expect(view.observations[0]!.body).toBe("Serie 51");
+    expect(view.moreObjectives).toBe(false);
   });
 
   it("en solo lectura del plan se puede leer y repetir, pero no escribir", async () => {

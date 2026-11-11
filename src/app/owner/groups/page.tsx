@@ -4,6 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { OwnerGroupsManager } from "@/components/owner-dashboard/OwnerGroupsManager";
+import { db } from "@/db";
+import { isAthleteProgressAvailableForPage } from "@/modules/athlete-progress/application/athlete-progress-storage";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { createClient } from "@/lib/supabase/server";
 import { getOwnerGroupsPageData } from "@/modules/groups/application/group-management-service";
@@ -69,6 +71,8 @@ export default async function OwnerGroupsPage({
     }
     throw error;
   }
+  // P2 #17: sin el candidato SQL aplicado no se muestran los accesos.
+  const progressAvailable = await isAthleteProgressAvailableForPage(db);
   return (
     <OwnerWorkspacePageShell
       member={data.member}
@@ -78,6 +82,7 @@ export default async function OwnerGroupsPage({
       <OwnerGroupsManager
         key={data.selectedGroupId ?? "none"}
         bundle={data}
+        progressAvailable={progressAvailable}
       />
     </OwnerWorkspacePageShell>
   );

@@ -25,6 +25,7 @@ import {
 import {
   FAMILY_VISIBILITY_HELP,
   fetchAthleteProgress,
+  fetchSessionAthleteProgress,
   formatProgressDate,
   newClientRequestId,
   patchObservation,
@@ -35,6 +36,9 @@ import {
   type ProgressScope,
 } from "./owner-athlete-progress-client";
 import { ownerUi } from "./owner-ui";
+
+/** En Pasar lista solo se muestran las últimas observaciones. */
+const COMPACT_OBSERVATIONS = 5;
 
 type LoadState =
   | { status: "loading" }
@@ -64,14 +68,21 @@ export function OwnerAthleteProgressPanel({
   organizationId,
   locationId,
   athleteId,
+  sessionRef,
   athleteName,
   readOnly,
+  compact = false,
 }: {
   organizationId: string;
   locationId: string;
-  athleteId: string;
+  /** Ficha de Grupos: la gimnasta se conoce. */
+  athleteId?: string;
+  /** Pasar lista: la gimnasta sale de su inscripción en la sesión (servidor). */
+  sessionRef?: { sessionId: string; enrollmentId: string };
   athleteName: string;
   readOnly: boolean;
+  /** Modo de Pasar lista: consulta y cambios de estado, sin formularios de alta. */
+  compact?: boolean;
 }) {
   const headingId = useId();
   const [state, setState] = useState<LoadState>({ status: "loading" });
@@ -82,12 +93,17 @@ export function OwnerAthleteProgressPanel({
   const load = useCallback(async () => {
     const current = ++sequence.current;
     setState((previous) => (previous.status === "ready" ? previous : { status: "loading" }));
-    const result = await fetchAthleteProgress({ organizationId, locationId }, athleteId);
+    const scopeInput = { organizationId, locationId };
+    const result = athleteId
+      ? await fetchAthleteProgress(scopeInput, athleteId)
+      : sessionRef
+        ? await fetchSessionAthleteProgress(scopeInput, sessionRef.sessionId, sessionRef.enrollmentId)
+        : ({ status: "error", message: "Falta la gimnasta.", code: 0 } as const);
     if (current !== sequence.current) return;
     if (result.status === "ok") setState({ status: "ready", data: result.data });
     else if (result.status === "unavailable") setState({ status: "unavailable" });
     else setState({ status: "error", message: result.message });
-  }, [organizationId, locationId, athleteId]);
+  }, [organizationId, locationId, athleteId, sessionRef?.sessionId, sessionRef?.enrollmentId]);
 
   useEffect(() => {
     void load();
@@ -105,7 +121,7 @@ export function OwnerAthleteProgressPanel({
     <section aria-labelledby={headingId} className={`${ownerUi.subtlePanel} grid gap-4`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 id={headingId} className="font-display text-lg font-black uppercase leading-none text-z-ink">
-          Objetivos y observaciones
+          {compact ? "Objetivos y últimas observaciones" : "Objetivos y observaciones"}
         </h3>
         <p className={ownerUi.help}>{athleteName}</p>
       </div>
@@ -131,10 +147,11 @@ export function OwnerAthleteProgressPanel({
       {state.status === "ready" ? (
         <ProgressContent
           scope={scope}
-          athleteId={athleteId}
+          athleteId={state.data.athlete.id}
           data={state.data}
           readOnly={readOnly}
           onSaved={afterWrite}
+          compact={compact}
         />
       ) : null}
     </section>
@@ -147,14 +164,17 @@ function ProgressContent({
   data,
   readOnly,
   onSaved,
+  compact,
 }: {
   scope: ProgressScope;
   athleteId: string;
   data: AthleteProgressView;
   readOnly: boolean;
   onSaved: (message: string) => Promise<void>;
+  compact: boolean;
 }) {
   const writable = data.canWrite && !readOnly;
+  const visibleObservations = compact ? data.observations.slice(0, COMPACT_OBSERVATIONS) : data.observations;
   return (
     <div className="grid gap-5">
       {data.athlete.archived ? (
@@ -186,7 +206,10 @@ function ProgressContent({
             ))}
           </ul>
         )}
-        {writable ? <ObjectiveForm scope={scope} athleteId={athleteId} onSaved={onSaved} /> : null}
+        {data.moreObjectives ? (
+          <p className={ownerUi.help}>Hay más objetivos de los que se muestran: se ven los {data.objectives.length} más recientes.</p>
+        ) : null}
+        {writable && !compact ? <ObjectiveForm scope={scope} athleteId={athleteId} onSaved={onSaved} /> : null}
       </div>
 
       <div className="grid gap-3">
@@ -197,7 +220,7 @@ function ProgressContent({
           <p className={ownerUi.muted}>Todavía no hay observaciones.</p>
         ) : (
           <ul className="grid gap-2">
-            {data.observations.map((observation) => (
+            {visibleObservations.map((observation) => (
               <ObservationItem
                 key={observation.id}
                 scope={scope}
@@ -210,7 +233,12 @@ function ProgressContent({
             ))}
           </ul>
         )}
-        {writable ? (
+        {data.moreObservations || visibleObservations.length < data.observations.length ? (
+          <p className={ownerUi.help}>
+            Se muestran las {visibleObservations.length} observaciones más recientes; hay más anteriores.
+          </p>
+        ) : null}
+        {writable && !compact ? (
           <ObservationForm scope={scope} athleteId={athleteId} objectives={data.objectives} onSaved={onSaved} />
         ) : null}
       </div>
@@ -582,10 +610,19 @@ function ObservationItem({
 }) {
   const ids = useId();
   const [editing, setEditing] = useState(false);
+  const editRef = useRef<HTMLTextAreaElement>(null);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
   const [body, setBody] = useState(observation.body);
   const [visibility, setVisibility] = useState<ObservationVisibility>(observation.visibility);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Al abrir la edición, el foco va al texto; al cerrarla, vuelve a «Editar».
+  const wasEditing = useRef(false);
+  useEffect(() => {
+    if (editing) editRef.current?.focus();
+    else if (wasEditing.current) editButtonRef.current?.focus();
+    wasEditing.current = editing;
+  }, [editing]);
   const objective = objectives.find((item) => item.id === observation.objectiveId);
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -625,6 +662,7 @@ function ObservationItem({
             Editar observación
           </label>
           <textarea
+            ref={editRef}
             id={`${ids}-edit`}
             className={`${ownerUi.field} min-h-24 py-2`}
             value={body}
@@ -662,6 +700,7 @@ function ObservationItem({
           <p className="whitespace-pre-line break-words text-sm leading-6 text-z-ink">{observation.body}</p>
           {writable && observation.canEdit ? (
             <button
+              ref={editButtonRef}
               type="button"
               className={`${ownerUi.secondaryButton} justify-self-start`}
               onClick={() => setEditing(true)}

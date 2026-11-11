@@ -10,6 +10,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getOwnerAttendanceSessionOptions } from "@/modules/attendance/application/owner-attendance-sessions";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { db } from "@/db";
+import { isAthleteProgressAvailableForPage } from "@/modules/athlete-progress/application/athlete-progress-storage";
 import { OwnerTodaySessionsPanel } from "@/components/owner-dashboard/OwnerTodaySessionsPanel";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { logger } from "@/lib/logger";
@@ -114,6 +116,9 @@ export default async function OwnerAttendancePage({
       )
     : null;
 
+  // P2 #17: sin el candidato SQL aplicado no se muestran los accesos.
+  const progressAvailable = await isAthleteProgressAvailableForPage(db);
+
   return (
     <OwnerWorkspacePageShell
       member={scope.member}
@@ -156,6 +161,7 @@ export default async function OwnerAttendancePage({
         initialSessionId={query.data.sessionId}
         initialNextCursor={data.nextCursor}
         selectedSession={data.selectedSession}
+        progressAvailable={progressAvailable}
       />
     </OwnerWorkspacePageShell>
   );
