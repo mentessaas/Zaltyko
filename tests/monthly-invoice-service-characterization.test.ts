@@ -147,6 +147,8 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
 const siteTag = (locationId: string) =>
   sha256(`zaltyko:monthly-invoice-site:v1:${locationId}`).slice(0, 16);
 const REFERENCE = `MENSUAL-202611-${FAM}-${siteTag(LOC)}`;
+/** Reference before the site discriminator, as the old code stored it. */
+const LEGACY_REFERENCE = `MENSUAL-202611-${FAM}`;
 
 // ---------------------------------------------------------------------------
 // Fixture rows (keys are the Drizzle field names the service selects)
@@ -463,7 +465,8 @@ function classify(sqlText: string): Statement {
       return "readPayers";
     case "invoices":
       if (s.includes(" group by ")) return "readExistingInvoices";
-      return where.includes('"reference" in') ? "readReferenceOwners" : "loadInvoice";
+      // readReferenceOwners compares `lower("reference") in (...)`.
+      return /"reference"\)? in /.test(where) ? "readReferenceOwners" : "loadInvoice";
     case "outbox_events":
       return where.includes("aggregate_id") ? "findInvoiceMarker" : "findPriorMarker";
     case "invoice_lines":
@@ -869,7 +872,11 @@ describe("getMonthlyInvoiceOptions: quote", () => {
       [ORG, LOC, FAM, "monthly_fee", START, END, 200],
     ]);
     // The reference is unique per organization, so this lookup is not per site.
-    expect(paramsOf("readReferenceOwners")).toEqual([[ORG, REFERENCE, 200]]);
+    // It also asks for the pre-site reference (PR: monthly invoice without a
+    // site and without monthly_fee lines), and compares both without case.
+    expect(paramsOf("readReferenceOwners")).toEqual([
+      [ORG, REFERENCE.toLowerCase(), LEGACY_REFERENCE.toLowerCase(), 200],
+    ]);
   });
 
   it("rejects an invalid period with a 422 inside the transaction", async () => {
@@ -1094,6 +1101,158 @@ describe("getMonthlyInvoiceOptions: blocking reasons", () => {
       blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"],
       canIssue: false,
     });
+  });
+
+  it.each([
+    ["a void status", { status: "void", voidedAt: null }],
+    ["a voided timestamp", { status: "open", voidedAt: new Date("2026-11-03T10:00:00Z") }],
+  ])("blocks with its own reason a month invoiced without a site and voided (%s)", async (_label, invoice) => {
+    world.handlers.readExistingInvoices = () => [
+      { familyId: FAM, invoiceId: INVOICE_2, locationId: null, ...invoice },
+    ];
+    const [family] = (await options()).families;
+    expect(family).toMatchObject({
+      existingInvoiceId: null,
+      existingInvoiceVoided: false,
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE_VOIDED"],
+      canIssue: false,
+    });
+    expect(family!.quoteHash).toBe(
+      quoteHash({
+        lines: [HASH_LINE_A, HASH_LINE_B],
+        totalAmountCents: 9000,
+        currency: "EUR",
+        blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE_VOIDED"],
+      })
+    );
+  });
+
+  it("keeps PERIOD_INVOICED_WITHOUT_SITE while any invoice without a site is not voided", async () => {
+    world.handlers.readExistingInvoices = () => [
+      { familyId: FAM, invoiceId: INVOICE, locationId: null, status: "void", voidedAt: null },
+      { familyId: FAM, invoiceId: INVOICE_2, locationId: null, status: "open", voidedAt: null },
+    ];
+    const [family] = (await options()).families;
+    expect(family!.blockingReasons).toEqual(["PERIOD_INVOICED_WITHOUT_SITE"]);
+  });
+
+  it.each([
+    ["issued", { status: "issued", voidedAt: null }, "PERIOD_INVOICED_WITHOUT_SITE"],
+    ["voided", { status: "void", voidedAt: new Date("2026-11-03T10:00:00Z") }, "PERIOD_INVOICED_WITHOUT_SITE_VOIDED"],
+  ])(
+    "blocks a month invoiced without a site and without monthly_fee lines, found by its pre-site reference (%s)",
+    async (_label, invoice, reason) => {
+      // The lines read cannot see such a header; the pre-site reference
+      // MENSUAL-YYYYMM-<familyId> with location_id NULL still names the family
+      // and the month.
+      world.handlers.readReferenceOwners = () => [
+        { invoiceId: INVOICE_2, reference: LEGACY_REFERENCE, locationId: null, ...invoice },
+      ];
+      const [family] = (await options()).families;
+      expect(family).toMatchObject({
+        existingInvoiceId: null,
+        existingInvoiceVoided: false,
+        blockingReasons: [reason],
+        canIssue: false,
+      });
+    }
+  );
+
+  it("does not block on a pre-site reference held by an invoice of another site", async () => {
+    // That invoice belongs to the other site; at its own site the lines read
+    // reports it (PERIOD_ALREADY_INVOICED or a replay).
+    world.handlers.readReferenceOwners = () => [
+      { invoiceId: INVOICE_2, reference: LEGACY_REFERENCE, locationId: LOC_2, status: "issued", voidedAt: null },
+    ];
+    const [family] = (await options()).families;
+    expect(family).toMatchObject({ blockingReasons: [], canIssue: true, quoteHash: QUOTE_HASH });
+  });
+
+  it.each([
+    ["issued", { status: "issued", voidedAt: null }, "PERIOD_ALREADY_INVOICED", false],
+    ["voided", { status: "void", voidedAt: null }, "INVOICE_VOIDED", true],
+  ])(
+    "blocks a month invoiced at this site with the pre-site reference and no monthly_fee lines (%s)",
+    async (_label, invoice, reason, voided) => {
+      // The lines read did not return it, so neither the replay nor
+      // PERIOD_ALREADY_INVOICED would see it. It is reported with its id.
+      world.handlers.readReferenceOwners = () => [
+        { invoiceId: INVOICE_2, reference: LEGACY_REFERENCE, locationId: LOC, ...invoice },
+      ];
+      const [family] = (await options()).families;
+      expect(family).toMatchObject({
+        existingInvoiceId: INVOICE_2,
+        existingInvoiceVoided: voided,
+        blockingReasons: [reason],
+        canIssue: false,
+      });
+    }
+  );
+
+  it("prefers, between two pre-site invoices of this site without lines, the one that is not voided", async () => {
+    world.handlers.readReferenceOwners = () => [
+      { invoiceId: INVOICE, reference: LEGACY_REFERENCE, locationId: LOC, status: "void", voidedAt: null },
+      { invoiceId: INVOICE_2, reference: LEGACY_REFERENCE, locationId: LOC, status: "issued", voidedAt: null },
+    ];
+    const [family] = (await options()).families;
+    expect(family).toMatchObject({
+      existingInvoiceId: INVOICE_2,
+      existingInvoiceVoided: false,
+      blockingReasons: ["PERIOD_ALREADY_INVOICED"],
+    });
+  });
+
+  it("reports a pre-site invoice of this site with monthly_fee lines once, as the lines read does", async () => {
+    world.handlers.readExistingInvoices = () => [
+      { familyId: FAM, invoiceId: INVOICE, locationId: LOC, status: "open", voidedAt: null },
+    ];
+    world.handlers.readReferenceOwners = () => [
+      { invoiceId: INVOICE, reference: LEGACY_REFERENCE, locationId: LOC, status: "open", voidedAt: null },
+    ];
+    const [family] = (await options()).families;
+    expect(family).toMatchObject({
+      existingInvoiceId: INVOICE,
+      blockingReasons: ["PERIOD_ALREADY_INVOICED"],
+    });
+  });
+
+  it("matches the pre-site reference of a family id with letters without case", async () => {
+    // The old route accepted the family id in any case and kept it verbatim.
+    const familyWithLetters = "2abcdef0-0000-4000-8000-00000000000f";
+    world.handlers.readFamilyMembers = () => [
+      memberRow({ familyId: familyWithLetters }),
+      memberB({ familyId: familyWithLetters }),
+    ];
+    world.handlers.readPayers = () => [payerRow({ familyId: familyWithLetters })];
+    const storedLegacyReference = `MENSUAL-202611-2AbCdEf0-0000-4000-8000-00000000000F`;
+    world.handlers.readReferenceOwners = () => [
+      { invoiceId: INVOICE_2, reference: storedLegacyReference, locationId: null, status: "issued", voidedAt: null },
+    ];
+    const [family] = (await options()).families;
+    expect(paramsOf("readReferenceOwners")).toEqual([
+      [
+        ORG,
+        `mensual-202611-${familyWithLetters}-${siteTag(LOC)}`,
+        `mensual-202611-${familyWithLetters}`,
+        200,
+      ],
+    ]);
+    expect(family).toMatchObject({
+      familyId: familyWithLetters,
+      existingInvoiceId: null,
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"],
+      canIssue: false,
+    });
+  });
+
+  it("keeps INVOICE_REFERENCE_TAKEN exact: a current reference in another case does not collide", async () => {
+    // invoices_reference_uq compares exactly, so such an invoice would not
+    // reject the insert; the lookup without case only serves pre-site references.
+    world.handlers.readReferenceOwners = () => [
+      { invoiceId: INVOICE_2, reference: REFERENCE.toLowerCase(), locationId: LOC, status: "issued", voidedAt: null },
+    ];
+    const [family] = (await options()).families;
+    expect(family).toMatchObject({ blockingReasons: [], canIssue: true, quoteHash: QUOTE_HASH });
   });
 
   it("blocks a family whose reference another invoice of the organization already holds", async () => {
@@ -1785,6 +1944,88 @@ describe("issueMonthlyInvoice: guards and concurrency", () => {
     };
     await expect(issueMonthlyInvoice(command())).rejects.toBe(failure);
     expect(trace().slice(-2)).toEqual(["issueInvoice", "rollback"]);
+  });
+
+  /** Shape of a node-postgres deadlock (SQLSTATE 40P01). */
+  const deadlock = () =>
+    Object.assign(new Error("deadlock detected"), { code: "40P01" });
+  const wrappedDeadlock = () =>
+    Object.assign(new Error("Failed query: select id from zaltyko.families"), {
+      cause: deadlock(),
+    });
+
+  it.each([
+    ["raw, on a row lock", "lockFamily", deadlock],
+    ["wrapped by Drizzle, on a row lock", "lockFamily", wrappedDeadlock],
+    ["wrapped by Drizzle, on the last quoted-row lock", "lockPricePlans", wrappedDeadlock],
+  ] as const)(
+    "turns a deadlock (%s) into a retryable CONCURRENCY_RETRY and rolls back",
+    async (_label, statement, failure) => {
+      world.handlers[statement] = () => {
+        throw failure();
+      };
+      const error = await issueMonthlyInvoice(command()).then(
+        () => null,
+        (caught: unknown) => caught
+      );
+      expect(error).toBeInstanceOf(OperationalError);
+      expect(error).toMatchObject({
+        code: "CONCURRENCY_RETRY",
+        status: 503,
+        details: { retryable: true },
+      });
+      expect((error as OperationalError).message).toMatch(
+        /se ha cancelado sin guardar nada.*Vuelve a intentarlo/
+      );
+      expect(trace().slice(-2)).toEqual([statement, "rollback"]);
+      expect(callsOf("issueInvoice")).toEqual([]);
+      expect(callsOf("appendOutbox")).toEqual([]);
+      expect(callsOf("appendAudit")).toEqual([]);
+    }
+  );
+
+  it("turns a deadlock on the ledger insert into CONCURRENCY_RETRY, past the reference check", async () => {
+    world.dependencies.issueInvoice = () => {
+      throw wrappedDeadlock();
+    };
+    await expectFailure(issueMonthlyInvoice(command()), {
+      code: "CONCURRENCY_RETRY",
+      status: 503,
+      details: { retryable: true },
+    });
+    expect(trace().slice(-2)).toEqual(["issueInvoice", "rollback"]);
+    expect(callsOf("appendOutbox")).toEqual([]);
+    expect(callsOf("appendAudit")).toEqual([]);
+  });
+
+  it("lets any other database error through unchanged", async () => {
+    const failure = Object.assign(new Error("could not obtain lock"), {
+      cause: Object.assign(new Error("lock not available"), { code: "55P03" }),
+    });
+    world.handlers.lockFamily = () => {
+      throw failure;
+    };
+    await expect(issueMonthlyInvoice(command())).rejects.toBe(failure);
+    expect(trace().slice(-2)).toEqual(["lockFamily", "rollback"]);
+  });
+
+  it("refuses to issue a month invoiced without a site that only its pre-site reference reveals", async () => {
+    world.handlers.readReferenceOwners = () => [
+      { invoiceId: INVOICE_2, reference: LEGACY_REFERENCE, locationId: null, status: "issued", voidedAt: null },
+    ];
+    const blockedHash = quoteHash({
+      lines: [HASH_LINE_A, HASH_LINE_B],
+      totalAmountCents: 9000,
+      currency: "EUR",
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"],
+    });
+    await expectFailure(issueMonthlyInvoice(command({ quoteHash: blockedHash })), {
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 422,
+      details: { blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"] },
+    });
+    expect(trace()).toEqual([...QUOTE_UNDER_LOCKS, "findPeriodInvoices", "rollback"]);
+    expect(callsOf("issueInvoice")).toEqual([]);
   });
 
   it("refuses to issue when the family's month was invoiced without a site", async () => {

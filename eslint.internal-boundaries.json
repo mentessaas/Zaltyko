@@ -16,6 +16,14 @@
       "facadeSpecifier": "@/modules/saas-billing/application/reconciliation-service",
       "message": "reconciliation/* es interno. Importa desde @/modules/saas-billing/application/reconciliation-service: el lease, el fencing y el orden de bloqueos de la reconciliación solo se garantizan a través de previewSaasReconciliation, confirmSaasReconciliation y consumeSaasReconciliationBatch.",
       "exceptions": []
+    },
+    {
+      "name": "athlete-progress",
+      "dir": "src/modules/athlete-progress/application/athlete-progress",
+      "facade": "src/modules/athlete-progress/application/athlete-progress-service.ts",
+      "facadeSpecifier": "@/modules/athlete-progress/application/athlete-progress-service",
+      "message": "athlete-progress/* es interno. Importa desde @/modules/athlete-progress/application/athlete-progress-service: la autorización por rol, sede y gimnasta, la detección del candidato sin aplicar y la transacción de cada operación solo se garantizan a través de la fachada.",
+      "exceptions": []
     }
   ]
 }

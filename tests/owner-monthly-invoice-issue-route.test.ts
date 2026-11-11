@@ -173,6 +173,27 @@ describe("Owner monthly-invoice issue HTTP boundary", () => {
     });
   });
 
+  it("answers a rolled-back deadlock as a retryable 503 with a clear title", async () => {
+    const detail =
+      "Otra operación de la academia estaba cambiando a la vez los mismos datos y la emisión se ha cancelado sin guardar nada. Vuelve a intentarlo: se usa la misma operación, así que la cuota no se duplicará.";
+    mocks.issueMonthlyInvoice.mockRejectedValueOnce(
+      new OperationalError("CONCURRENCY_RETRY", detail, 503, { retryable: true })
+    );
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("content-type")).toBe("application/problem+json");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(await response.json()).toEqual({
+      type: "https://zaltyko.com/problems/concurrency-retry",
+      title: "Operación ocupada, vuelve a intentarlo",
+      status: 503,
+      detail,
+      errors: { retryable: true },
+    });
+  });
+
   it("returns an idempotent replay as success rather than a second creation", async () => {
     mocks.issueMonthlyInvoice.mockResolvedValueOnce({
       invoice: {
