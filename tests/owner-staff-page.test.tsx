@@ -17,6 +17,11 @@ vi.mock("@/lib/supabase/server", () => ({
     auth: { getUser: async () => ({ data: { user: pageMocks.userId ? { id: pageMocks.userId } : null } }) },
   })),
 }));
+// The page shows team access only when the flag is on AND the reviewed
+// candidate is installed; here availability follows the flag.
+vi.mock("@/modules/staff/application/canonical-team-access", () => ({
+  isCanonicalTeamAccessAvailable: vi.fn(async () => process.env.ZALTYKO_TEAM_ACCESS_ENABLED === "true"),
+}));
 vi.mock("@/modules/owner-dashboard/application/owner-scope", () => ({
   resolveOwnerScope: vi.fn(async () => ({
     member: { role: pageMocks.role, locationScopeMode: pageMocks.locationScopeMode },
@@ -80,7 +85,35 @@ describe("entrada de Personal", () => {
     { role: "owner", locationScopeMode: "selected" },
     { role: "manager", locationScopeMode: "all" },
     { role: "coach", locationScopeMode: "all" },
-  ])("deniega $role con alcance $locationScopeMode", async ({ role, locationScopeMode }) => {
+  ])("sin acceso de equipo disponible deniega $role con alcance $locationScopeMode", async ({ role, locationScopeMode }) => {
+    pageMocks.role = role;
+    pageMocks.locationScopeMode = locationScopeMode;
+    await expect(OwnerStaffPage({
+      searchParams: Promise.resolve({ organizationId: ORGANIZATION_ID }),
+    })).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it.each([
+    { role: "admin", locationScopeMode: "all" },
+    { role: "manager", locationScopeMode: "all" },
+    { role: "manager", locationScopeMode: "selected" },
+  ])("con acceso de equipo disponible, $role ($locationScopeMode) ve solo las invitaciones, sin Personal", async ({ role, locationScopeMode }) => {
+    vi.stubEnv("ZALTYKO_TEAM_ACCESS_ENABLED", "true");
+    pageMocks.role = role;
+    pageMocks.locationScopeMode = locationScopeMode;
+    const shell = await OwnerStaffPage({
+      searchParams: Promise.resolve({ organizationId: ORGANIZATION_ID }),
+    }) as ReactElement<{ children: ReactElement<{ organizationId: string }> }>;
+    expect(shell.props.children.type).toBe(OwnerTeamAccessPanel);
+    expect(shell.props.children.key).toBe(`access:${ORGANIZATION_ID}`);
+  });
+
+  it.each([
+    { role: "owner", locationScopeMode: "selected" },
+    { role: "admin", locationScopeMode: "selected" },
+    { role: "coach", locationScopeMode: "selected" },
+  ])("con acceso de equipo disponible sigue denegando $role ($locationScopeMode)", async ({ role, locationScopeMode }) => {
+    vi.stubEnv("ZALTYKO_TEAM_ACCESS_ENABLED", "true");
     pageMocks.role = role;
     pageMocks.locationScopeMode = locationScopeMode;
     await expect(OwnerStaffPage({

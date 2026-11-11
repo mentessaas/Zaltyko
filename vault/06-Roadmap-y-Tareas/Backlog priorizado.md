@@ -37,6 +37,14 @@ Fuente: `docs/research/competencia/plan-validacion-30-dias.md`. No construir nad
 - Hecho (2026-11-11) · Frontera ESLint de athlete-progress: módulos internos en `src/modules/athlete-progress/application/athlete-progress/`, registrada en `eslint.internal-boundaries.json` y en `tests/internal-module-boundaries.test.ts`.
 - Hecho (2026-11-11) · `tests/zaltyko-sessions-never-deleted.test.ts`: ningún flujo borra `zaltyko.sessions` (Drizzle ni SQL crudo).
 
+
+## O3 — Invitaciones al equipo, pendientes (2026-11-11)
+
+- Pendiente de autorización · Aplicar `20261105120000_canonical_team_access_candidate.sql` y activar `ZALTYKO_TEAM_ACCESS_ENABLED`.
+- P2 · Índice único `staff_profiles(organization_id, member_id)` en una migración propia, tras comprobar que no hay duplicados.
+- P2 · Baja y suspensión de miembros aceptados desde Equipo.
+- P2 · Envío por correo cuando el correo aislado G4 esté activo (`teamInvitationDelivery()`).
+
 ## P0 vigente — apertura esencial España, 2026-10-26
 
 - Aislamiento alojado e09: dos academias independientes, lecturas propias200/ajenas403-404 y mezcla de sedes ajenas403 comprobadas en uso, grupos, clases y opciones de cuotas según matriz. Pendientes escrituras cruzadas, candidatos de inscripción completos y roles restringidos entre sedes de una misma academia. Fuente docs/qa/delivery-academy-isolation-2026-10-26.md.

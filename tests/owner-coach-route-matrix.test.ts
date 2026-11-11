@@ -207,7 +207,7 @@ const deniedCases: DeniedCase[] = [
   // Personal y equipo
   { route: "owner/staff/route.ts", method: "GET", area: "equipo", load: () => import("@/app/api/v1/owner/staff/route"), path: (t) => `/api/v1/owner/staff${query({ organizationId: t.organizationId })}` },
   { route: "owner/staff/access/route.ts", method: "GET", area: "equipo", load: () => import("@/app/api/v1/owner/staff/access/route"), path: (t) => `/api/v1/owner/staff/access${query({ organizationId: t.organizationId })}` },
-  { route: "owner/staff/invitations/route.ts", method: "POST", area: "equipo", load: () => import("@/app/api/v1/owner/staff/invitations/route"), path: () => "/api/v1/owner/staff/invitations", body: (t) => ({ organizationId: t.organizationId, email: "coach2@example.invalid", role: "coach", locationIds: [t.locationId] }) },
+  { route: "owner/staff/invitations/route.ts", method: "POST", area: "equipo", load: () => import("@/app/api/v1/owner/staff/invitations/route"), path: () => "/api/v1/owner/staff/invitations", body: (t) => ({ organizationId: t.organizationId, email: "coach2@example.invalid", role: "coach", locationIds: [t.locationId], givenName: "Ana", familyName: "Ruiz" }) },
   // Plan y suscripción
   { route: "owner/saas/billing/route.ts", method: "GET", area: "plan", load: () => import("@/app/api/v1/owner/saas/billing/route"), path: (t) => `/api/v1/owner/saas/billing${query({ organizationId: t.organizationId })}` },
   { route: "owner/saas/checkout/route.ts", method: "GET", area: "plan", load: () => import("@/app/api/v1/owner/saas/checkout/route"), path: (t) => `/api/v1/owner/saas/checkout${query({ organizationId: t.organizationId })}` },
@@ -458,6 +458,9 @@ const apiRoot = join(process.cwd(), "src/app/api/v1");
 
 /** Mutaciones no ejecutadas arriba: su guard debe estar en el código. */
 const staticallyGuarded: Record<string, { guard: string; via?: string }> = {
+  // O4: las dos rutas de importación comparten la entrada de import-request.ts.
+  "POST owner/athlete-import/confirm/route.ts": { guard: "resolveOwnerScope", via: "src/app/api/v1/owner/athlete-import/import-request.ts" },
+  "POST owner/athlete-import/preview/route.ts": { guard: "resolveOwnerScope", via: "src/app/api/v1/owner/athlete-import/import-request.ts" },
   "POST owner/athlete-intake/[athleteId]/assign/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/athlete-intake/route.ts": { guard: "resolveOwnerScope" },
   "PATCH owner/athletes/[athleteId]/route.ts": { guard: "resolveOwnerScope" },
@@ -477,8 +480,8 @@ const staticallyGuarded: Record<string, { guard: string; via?: string }> = {
   "POST owner/staff/[staffProfileId]/archive/route.ts": { guard: "requireOwnerAllScope" },
   "POST owner/staff/[staffProfileId]/reactivate/route.ts": { guard: "requireOwnerAllScope" },
   "PATCH owner/staff/[staffProfileId]/route.ts": { guard: "requireOwnerAllScope" },
-  "POST owner/staff/invitations/[id]/reissue/route.ts": { guard: "withTeamOwner" },
-  "DELETE owner/staff/invitations/[id]/route.ts": { guard: "withTeamOwner" },
+  "POST owner/staff/invitations/[id]/reissue/route.ts": { guard: "withTeamManager" },
+  "DELETE owner/staff/invitations/[id]/route.ts": { guard: "withTeamManager" },
   "POST owner/staff/route.ts": { guard: "requireOwnerAllScope" },
   "POST insights/[id]/actions/route.ts": { guard: "resolveInsightApiScope" },
   "POST insights/[id]/dismiss/route.ts": { guard: "resolveInsightApiScope" },

@@ -27,6 +27,8 @@ type Command = {
   requested?: { email: string; role: TeamInvitationRole; locationIds: string[] };
 };
 
+type PersonChoice = "new" | "existing";
+
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
@@ -35,8 +37,13 @@ function locations(value: unknown): value is TeamLocation[] {
   return Array.isArray(value) && value.every(item => record(item) && typeof item.id === "string" && typeof item.name === "string");
 }
 
+function person(value: unknown): value is TeamInvitation["person"] {
+  return record(value) && (value.kind === "existing" || value.kind === "new") && typeof value.name === "string"
+    && (value.staffProfileId === null || typeof value.staffProfileId === "string");
+}
+
 function invitation(value: unknown): value is TeamInvitation {
-  return record(value) && typeof value.id === "string" && typeof value.email === "string"
+  return record(value) && typeof value.id === "string" && typeof value.email === "string" && person(value.person)
     && (value.role === "manager" || value.role === "coach")
     && ["pending", "accepted", "revoked"].includes(String(value.status))
     && typeof value.expired === "boolean" && typeof value.expiresAt === "string"
@@ -47,12 +54,16 @@ function invitation(value: unknown): value is TeamInvitation {
 function access(value: unknown, organizationId: string): value is TeamAccess {
   return record(value) && record(value.organization) && value.organization.id === organizationId
     && typeof value.organization.name === "string" && locations(value.activeLocations)
+    && record(value.viewer) && ["owner", "admin", "manager"].includes(String(value.viewer.role))
+    && Array.isArray(value.viewer.invitableRoles) && value.viewer.invitableRoles.every(item => item === "coach" || item === "manager")
+    && locations(value.linkableStaffProfiles)
     && Array.isArray(value.invitations) && value.invitations.every(invitation)
     && Array.isArray(value.members) && value.members.every(member => record(member)
       && typeof member.id === "string" && ["owner", "admin", "manager", "coach"].includes(String(member.role))
       && ["invited", "active", "suspended", "revoked"].includes(String(member.status))
       && (member.locationScopeMode === "all" || member.locationScopeMode === "selected")
-      && locations(member.effectiveLocations));
+      && locations(member.effectiveLocations)
+      && (member.staffProfile === null || (record(member.staffProfile) && typeof member.staffProfile.id === "string" && typeof member.staffProfile.name === "string")));
 }
 
 function invitationResult(value: unknown): value is TeamInvitationResult {
@@ -73,18 +84,24 @@ function matchesCommand(value: TeamInvitationResult, command: Command): boolean 
     && value.invitation.requestedLocations.map(location => location.id).sort().join(",") === command.requested.locationIds.join(",");
 }
 
+/** Glosario: «Entrenador/a», «Coordinador/a» y la dirección de la academia. */
 function roleLabel(role: string): string {
-  return ({ owner: "Owner", admin: "Administrador", manager: "Manager", coach: "Coach" } as Record<string, string>)[role] ?? role;
+  return ({ owner: "Dirección", admin: "Administración", manager: "Coordinador/a", coach: "Entrenador/a" } as Record<string, string>)[role] ?? role;
 }
 
 function invitationStatus(item: TeamInvitation): string {
   if (item.status === "accepted") return "Aceptada";
   if (item.status === "revoked") return "Revocada";
-  return item.expired ? "Expirada" : "Pendiente";
+  return item.expired ? "Caducada" : "Pendiente";
 }
 
 function memberStatus(status: string): string {
   return ({ invited: "Invitado", active: "Activo", suspended: "Suspendido", revoked: "Revocado" } as Record<string, string>)[status] ?? status;
+}
+
+function formatExpiry(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
 export function OwnerTeamAccessPanel({ organizationId }: { organizationId: string }) {
@@ -98,6 +115,10 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<TeamInvitationRole>("coach");
   const [locationIds, setLocationIds] = useState<string[]>([]);
+  const [personChoice, setPersonChoice] = useState<PersonChoice>("new");
+  const [staffProfileId, setStaffProfileId] = useState("");
+  const [givenName, setGivenName] = useState("");
+  const [familyName, setFamilyName] = useState("");
   const [revealedLink, setRevealedLink] = useState<string | null>(null);
   const busyRef = useRef(false);
   const pendingRef = useRef<Command | null>(null);
@@ -124,6 +145,8 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
       const confirmed = payload.data;
       setData(confirmed);
       setLocationIds(current => current.filter(id => confirmed.activeLocations.some(location => location.id === id)));
+      setStaffProfileId(current => confirmed.linkableStaffProfiles.some(profile => profile.id === current) ? current : "");
+      setRole(current => confirmed.viewer.invitableRoles.includes(current) ? current : "coach");
     } catch {
       if (requestId === readRef.current && scopeRef.current === organizationId) {
         setListError("No se pudo confirmar el estado de los accesos. Vuelve a cargar la lista antes de realizar cambios.");
@@ -139,6 +162,10 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
     setError("");
     setEmail("");
     setLocationIds([]);
+    setStaffProfileId("");
+    setGivenName("");
+    setFamilyName("");
+    setPersonChoice("new");
     setPending(null);
     pendingRef.current = null;
     uncertainRef.current = false;
@@ -173,15 +200,15 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
       }
       if (response.status < 200 || response.status >= 300) {
         if (uncertainRef.current) {
-          setError("La sesión o el estado actual no permiten recuperar el recibo original. El resultado anterior sigue sin confirmar; conserva esta página y recupera la misma solicitud con el Owner original.");
+          setError("La sesión o el estado actual no permiten recuperar el recibo original. El resultado anterior sigue sin confirmar; conserva esta página y recupera la misma solicitud con la misma cuenta.");
           return;
         }
         pendingRef.current = null;
         setPending(null);
         setError(response.status === 409
-          ? "La invitación cambió o ya existe una pendiente para ese correo. Se ha solicitado una lectura actual; revisa la fila antes de reemitir o revocar."
+          ? "La invitación cambió, ya existe una pendiente para ese correo o ficha, o la academia está en solo lectura. Se ha solicitado una lectura actual; revisa la fila antes de reemitir o revocar."
           : response.status === 401 || response.status === 403
-            ? "Tu sesión no permite gestionar estos accesos. Inicia sesión con el Owner autorizado y vuelve a abrir Personal."
+            ? "Tu sesión no permite gestionar esta invitación. La coordinación solo invita a entrenadoras o entrenadores de sus sedes."
             : "No se pudo completar la operación. Revisa el estado actual antes de volver a intentarlo.");
       } else if (record(payload) && command.operation === "revoke" && revokeResult(payload.data, command.invitationId)) {
         pendingRef.current = null;
@@ -195,11 +222,16 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
         setPending(null);
         if (payload.data.token && !payload.data.replayed) {
           setRevealedLink(`${window.location.origin}/staff/accept#token=${payload.data.token}`);
-          setMessage("Enlace disponible solo en esta pantalla. No se ha enviado ningún correo. Copia el enlace para compartirlo manualmente.");
+          setMessage("Enlace disponible solo en esta pantalla y válido 7 días. No se ha enviado ningún correo: cópialo y compártelo por el canal que uses con esa persona (por ejemplo, WhatsApp).");
         } else {
           setMessage("Operación recuperada sin enlace. El enlace original no se vuelve a revelar. Si lo necesitas, usa Reemitir enlace en la invitación pendiente; invalidará el anterior.");
         }
-        if (command.operation === "create") setEmail("");
+        if (command.operation === "create") {
+          setEmail("");
+          setGivenName("");
+          setFamilyName("");
+          setStaffProfileId("");
+        }
       } else {
         throw new Error("UNCONFIRMED_RECEIPT");
       }
@@ -224,14 +256,19 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
       setError("Indica un correo y selecciona al menos una sede activa.");
       return;
     }
+    if (operation === "create" && (personChoice === "existing" ? !staffProfileId : !givenName.trim() || !familyName.trim())) {
+      setError(personChoice === "existing" ? "Elige la ficha del equipo de esta persona." : "Escribe el nombre y los apellidos de la persona.");
+      return;
+    }
     let key: string;
     try { key = window.crypto.randomUUID(); } catch {
       setError("No se pudo preparar una clave segura. No se ha enviado la operación.");
       return;
     }
     const requested = operation === "create" ? { email: email.trim().toLowerCase(), role, locationIds: [...locationIds].sort() } : undefined;
+    const target = personChoice === "existing" ? { staffProfileId } : { givenName: givenName.trim(), familyName: familyName.trim() };
     const body = operation === "create"
-      ? JSON.stringify({ organizationId, ...requested })
+      ? JSON.stringify({ organizationId, ...requested, ...target })
       : operation === "reissue" ? JSON.stringify({ organizationId }) : undefined;
     const endpoint = operation === "create" ? `${ENDPOINT}/invitations`
       : operation === "reissue" ? `${ENDPOINT}/invitations/${encodeURIComponent(item!.id)}/reissue`
@@ -249,9 +286,9 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
   return (
     <section aria-labelledby="team-access-title" className="mx-auto max-w-6xl px-5 pb-12 lg:px-10 [overflow-wrap:anywhere]">
       <header className="border-t border-slate-300 pt-7">
-        <h2 id="team-access-title" className="font-display text-2xl font-bold text-slate-950">Accesos de equipo</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">Invita a una persona con su propia cuenta y sedes seleccionadas. Los perfiles de Personal son independientes: un perfil sin cuenta no concede acceso.</p>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">Esta fase permite invitar y aceptar. El vínculo del perfil, la asignación de sesiones y la baja de miembros no están disponibles aquí. Aceptar como coach todavía no habilita asistencia a sesiones.</p>
+        <h2 id="team-access-title" className="font-display text-2xl font-bold text-slate-950">Invitaciones al equipo</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">Invita a una persona del equipo para que entre con su propia cuenta en las sedes que elijas. Al aceptar, su cuenta queda vinculada a su ficha del equipo: la que elijas de Equipo o una nueva con el nombre que escribas.</p>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">El enlace es de un solo uso, caduca a los 7 días y solo sirve con el correo invitado. No se envía ningún correo: copia el enlace y compártelo tú. Revocar una invitación no da de baja a quien ya la aceptó.</p>
       </header>
       {error ? <p role="alert" className="mt-4 border border-amber-700 bg-amber-50 p-4 text-sm leading-6">{error}</p> : null}
       {message ? <p role="status" className="mt-4 border border-teal-800 bg-teal-50 p-4 text-sm leading-6">{message}</p> : null}
@@ -287,10 +324,41 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
           </label>
           <label className="min-w-0 text-sm font-semibold" htmlFor="team-role">Rol solicitado
             <select id="team-role" value={role} disabled={disabled} onChange={event => setRole(event.target.value as TeamInvitationRole)} className={INPUT}>
-              <option value="coach">Coach</option><option value="manager">Manager</option>
+              {(data?.viewer.invitableRoles ?? ["coach"]).map(item => <option key={item} value={item}>{roleLabel(item)}</option>)}
             </select>
           </label>
         </div>
+        <fieldset disabled={disabled} className="min-w-0">
+          <legend className="text-sm font-semibold">Persona del equipo</legend>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input type="radio" name="team-person" value="new" checked={personChoice === "new"} onChange={() => setPersonChoice("new")} className="h-5 w-5 accent-teal-800" />
+              Nueva ficha
+            </label>
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input type="radio" name="team-person" value="existing" checked={personChoice === "existing"} disabled={!data?.linkableStaffProfiles.length} onChange={() => setPersonChoice("existing")} className="h-5 w-5 accent-teal-800" />
+              Ficha que ya está en Equipo
+            </label>
+          </div>
+          {personChoice === "existing" ? (
+            <label className="mt-3 block min-w-0 text-sm font-semibold" htmlFor="team-staff-profile">Ficha del equipo
+              <select id="team-staff-profile" value={staffProfileId} onChange={event => setStaffProfileId(event.target.value)} className={INPUT}>
+                <option value="">Elige una ficha</option>
+                {data?.linkableStaffProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+              </select>
+            </label>
+          ) : (
+            <div className="mt-3 grid min-w-0 gap-4 sm:grid-cols-2">
+              <label className="min-w-0 text-sm font-semibold" htmlFor="team-given-name">Nombre
+                <input id="team-given-name" autoComplete="off" maxLength={100} value={givenName} onChange={event => setGivenName(event.target.value)} className={INPUT} />
+              </label>
+              <label className="min-w-0 text-sm font-semibold" htmlFor="team-family-name">Apellidos
+                <input id="team-family-name" autoComplete="off" maxLength={100} value={familyName} onChange={event => setFamilyName(event.target.value)} className={INPUT} />
+              </label>
+            </div>
+          )}
+          {data && data.linkableStaffProfiles.length === 0 ? <p className="mt-2 text-xs text-slate-600">No hay fichas de Equipo sin cuenta vinculada.</p> : null}
+        </fieldset>
         <fieldset disabled={disabled}>
           <legend className="text-sm font-semibold">Sedes solicitadas · selecciona al menos una</legend>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -301,7 +369,7 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
           </div>
           {data?.activeLocations.length === 0 ? <p className="mt-2 text-sm">No hay sedes activas para invitar.</p> : null}
         </fieldset>
-        <p className="text-sm leading-6 text-slate-700">Solicitados; todavía sin acceso: {roleLabel(role)} · {data?.activeLocations.filter(location => locationIds.includes(location.id)).map(location => location.name).join(", ") || "sin sedes seleccionadas"}. No se envía correo automático.</p>
+        <p className="text-sm leading-6 text-slate-700">Solicitado, todavía sin acceso: {roleLabel(role)} · {data?.activeLocations.filter(location => locationIds.includes(location.id)).map(location => location.name).join(", ") || "sin sedes seleccionadas"}. No se envía correo automático.</p>
         <button type="submit" className={BUTTON} disabled={disabled || locationIds.length === 0}>Crear invitación y mostrar enlace</button>
       </form>
       {data ? <>
@@ -313,9 +381,10 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
                 <div className="min-w-0">
                   <h4 className="font-semibold">{item.email}</h4>
                   <p className="mt-1 text-sm">{roleLabel(item.role)} · {invitationStatus(item)}</p>
+                  <p className="mt-1 text-sm text-slate-700">Ficha del equipo: {item.person.name || "sin nombre"}{item.person.kind === "new" ? " (se creará al aceptar)" : ""}.</p>
                   <p className="mt-2 text-sm text-slate-700">Sedes solicitadas: {item.requestedLocations.map(location => location.name).join(", ") || "sin sedes confirmadas"}.</p>
                   <p className="mt-1 text-sm text-slate-700">{item.status === "pending" ? "Todavía sin acceso por esta invitación." : "Consulta los miembros para comprobar el acceso actual."}</p>
-                  <p className="mt-1 text-xs text-slate-600">Vencimiento: {item.expiresAt} · revisión {item.revision}</p>
+                  <p className="mt-1 text-xs text-slate-600">Caduca: <time dateTime={item.expiresAt}>{formatExpiry(item.expiresAt)}</time> · revisión {item.revision}</p>
                 </div>
                 {item.status === "pending" ? <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <button type="button" className={BUTTON} disabled={disabled} onClick={() => start("reissue", item)}>Reemitir enlace</button>
@@ -330,8 +399,8 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
           <h3 id="team-members-title" className="font-display text-xl font-bold">Miembros</h3>
           {data.members.length === 0 ? <p className="mt-3 text-sm text-slate-700">No hay miembros en la lectura actual.</p> : <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
             {data.members.map((member, index) => <li key={member.id} className="py-4">
-              <h4 className="font-semibold">Miembro {index + 1} · {roleLabel(member.role)}</h4>
-              <p className="mt-1 text-sm">{memberStatus(member.status)}</p>
+              <h4 className="font-semibold">{member.staffProfile?.name ?? `Miembro ${index + 1}`} · {roleLabel(member.role)}</h4>
+              <p className="mt-1 text-sm">{memberStatus(member.status)}{member.staffProfile ? "" : " · sin ficha del equipo vinculada"}</p>
               <p className="mt-2 text-sm text-slate-700">{member.status === "active"
                 ? `Sedes con acceso efectivo: ${member.effectiveLocations.map(location => location.name).join(", ") || "ninguna confirmada"}.`
                 : "Sin acceso activo confirmado."}</p>
