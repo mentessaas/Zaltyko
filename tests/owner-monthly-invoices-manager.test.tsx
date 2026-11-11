@@ -1447,6 +1447,46 @@ describe("OwnerMonthlyInvoicesManager", () => {
     expect(monthlyInvoiceIssueRequests).toHaveLength(1);
   });
 
+  it("tras un interbloqueo (CONCURRENCY_RETRY, 503) explica qué pasó y reintenta con la misma clave", async () => {
+    // The service turns a PostgreSQL deadlock (40P01) into this problem after
+    // a full rollback. Not a pre-commit rejection on purpose: the same key is
+    // kept, so the retry either issues once or replays.
+    const detail =
+      "Otra operación de la academia estaba cambiando a la vez los mismos datos y la emisión se ha cancelado sin guardar nada. Vuelve a intentarlo: se usa la misma operación, así que la cuota no se duplicará.";
+    await issueOnceWith({
+      data: {
+        type: "https://zaltyko.com/problems/concurrency-retry",
+        title: "Solicitud no procesable",
+        status: 503,
+        detail,
+        errors: { retryable: true },
+      },
+      status: 503,
+    });
+
+    expect((await screen.findAllByText(detail)).length).toBeGreaterThan(0);
+    const stored = readPendingMonthlyInvoiceIssue(window.sessionStorage);
+    expect(stored.status).toBe("pending");
+    if (stored.status !== "pending") {
+      throw new Error("El interbloqueo borró la emisión pendiente.");
+    }
+    expect(stored.request.key).toBe(issueIdempotencyKey);
+
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: "Reintentar la emisión pendiente" })
+    );
+    await screen.findByText(
+      "Cuota emitida; no se ha registrado ni iniciado un pago."
+    );
+    expect(monthlyInvoiceIssueRequests).toHaveLength(2);
+    expect(monthlyInvoiceIssueRequests[1]).toEqual(monthlyInvoiceIssueRequests[0]);
+    expect(monthlyInvoiceIssueRequests[1]?.key).toBe(issueIdempotencyKey);
+    expect(readPendingMonthlyInvoiceIssue(window.sessionStorage)).toEqual({
+      status: "none",
+    });
+  });
+
   it("guarda antes de enviar y recupera el mismo comando tras perder la respuesta, sin replay automático", async () => {
     const user = userEvent.setup();
     failMonthlyInvoiceIssueOnce = true;

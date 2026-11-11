@@ -467,6 +467,45 @@ async function waitForOrganizationLockWaiters(expected: number) {
   throw new Error(`Only ${waiting} of ${expected} issuances reached the organization lock`);
 }
 
+/**
+ * Waits until `expected` other sessions are blocked on a lock while running a
+ * statement whose text matches `queryPattern` (SQL LIKE). With `waitEvent`,
+ * only that lock type counts (`transactionid`: a row or index entry written
+ * by a transaction that has not finished yet).
+ */
+async function waitForLockWaiters(
+  queryPattern: string,
+  expected: number,
+  waitEvent?: string
+) {
+  const deadline = Date.now() + 15_000;
+  let waiting = 0;
+  while (Date.now() < deadline) {
+    const result = await db.execute(sql`
+      select count(*)::int as waiting
+      from pg_stat_activity
+      where datname = current_database()
+        and pid <> pg_backend_pid()
+        and wait_event_type = 'Lock'
+        and (${waitEvent ?? null}::text is null or wait_event = ${waitEvent ?? null}::text)
+        and query like ${queryPattern}
+    `);
+    waiting = Number(result.rows[0]?.waiting ?? 0);
+    if (waiting >= expected) return waiting;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Only ${waiting} of ${expected} sessions waited on ${queryPattern}`);
+}
+
+/** A promise the test resolves by hand, to hold a competing transaction open. */
+function signal() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
   beforeEach(() => {
     assertDisposableTarget();
@@ -1000,4 +1039,88 @@ describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
       markers: 0,
     });
   }, 45_000);
+
+  it("turns a deadlock into a retryable error, and the retry with the same key issues the month once", async () => {
+    // Builds the lock cycle on purpose, with no timing assumption:
+    // - `holder` keeps the family row, which the issuance locks after the
+    //   organization row and the site row;
+    // - `gate` keeps the site row, so the issuance stops right after taking the
+    //   organization row (lockCommand);
+    // - `holder` asks for the organization row and waits on the issuance. Its
+    //   deadlock_timeout is 30 s, so it never runs the deadlock check first;
+    // - `gate` lets the issuance go on: it asks for the family row and closes
+    //   the cycle. Its own check (deadlock_timeout, 1 s by default) finds it
+    //   and PostgreSQL aborts the issuance with 40P01.
+    const fixture = await seedFamily();
+    const family = await quoteFor(fixture);
+    expect(family.canIssue).toBe(true);
+    const command = issueCommand(fixture, family.quoteHash!);
+
+    const familyHeld = signal();
+    const holderMayWait = signal();
+    const siteHeld = signal();
+    const gateOpen = signal();
+    const holder = db.transaction(async (tx) => {
+      await tx.execute(sql`set local deadlock_timeout = '30s'`);
+      await tx.execute(sql`
+        select id from zaltyko.families
+        where organization_id = ${fixture.organizationId}::uuid and id = ${fixture.familyId}::uuid
+        for update
+      `);
+      familyHeld.resolve();
+      await holderMayWait.promise;
+      await tx.execute(sql`
+        select id from zaltyko.organizations where id = ${fixture.organizationId}::uuid for update
+      `);
+    });
+    const gate = db.transaction(async (tx) => {
+      await tx.execute(sql`
+        select id from zaltyko.locations
+        where organization_id = ${fixture.organizationId}::uuid and id = ${fixture.locationId}::uuid
+        for update
+      `);
+      siteHeld.resolve();
+      await gateOpen.promise;
+    });
+    await Promise.all([familyHeld.promise, siteHeld.promise]);
+
+    const issuance = issueMonthlyInvoice(command).then(
+      () => null,
+      (caught: unknown) => caught
+    );
+    try {
+      // The issuance holds the organization row and waits on the site row.
+      expect(await waitForLockWaiters("%from zaltyko.locations%for update%", 1)).toBe(1);
+      holderMayWait.resolve();
+      // The holder now waits on the issuance's organization row.
+      expect(await waitForOrganizationLockWaiters(1)).toBe(1);
+    } finally {
+      holderMayWait.resolve();
+      gateOpen.resolve();
+      await gate;
+    }
+    const failure = await issuance;
+    await holder;
+
+    expect(failure).toBeInstanceOf(OperationalError);
+    expect(failure).toMatchObject({
+      code: "CONCURRENCY_RETRY",
+      status: 503,
+      details: { retryable: true },
+    });
+    expect((failure as OperationalError).message).toMatch(/Vuelve a intentarlo/);
+    // The aborted issuance left nothing behind.
+    expect(await ledgerRows(fixture.organizationId)).toEqual(NO_LEDGER_ROWS);
+
+    // The owner screen retries the same command with the same key: one invoice.
+    const retried = await issueMonthlyInvoice(command);
+    expect(retried.replayed).toBe(false);
+    expect(await ledgerRows(fixture.organizationId)).toEqual(ONE_INVOICE);
+
+    // A second retry with that key (a lost response) replays it: no second charge.
+    const replayed = await issueMonthlyInvoice(command);
+    expect(replayed.replayed).toBe(true);
+    expect(replayed.invoice.id).toBe(retried.invoice.id);
+    expect(await ledgerRows(fixture.organizationId)).toEqual(ONE_INVOICE);
+  }, 60_000);
 });

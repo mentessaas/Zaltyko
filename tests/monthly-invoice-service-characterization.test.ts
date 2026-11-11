@@ -1787,6 +1787,69 @@ describe("issueMonthlyInvoice: guards and concurrency", () => {
     expect(trace().slice(-2)).toEqual(["issueInvoice", "rollback"]);
   });
 
+  /** Shape of a node-postgres deadlock (SQLSTATE 40P01). */
+  const deadlock = () =>
+    Object.assign(new Error("deadlock detected"), { code: "40P01" });
+  const wrappedDeadlock = () =>
+    Object.assign(new Error("Failed query: select id from zaltyko.families"), {
+      cause: deadlock(),
+    });
+
+  it.each([
+    ["raw, on a row lock", "lockFamily", deadlock],
+    ["wrapped by Drizzle, on a row lock", "lockFamily", wrappedDeadlock],
+    ["wrapped by Drizzle, on the last quoted-row lock", "lockPricePlans", wrappedDeadlock],
+  ] as const)(
+    "turns a deadlock (%s) into a retryable CONCURRENCY_RETRY and rolls back",
+    async (_label, statement, failure) => {
+      world.handlers[statement] = () => {
+        throw failure();
+      };
+      const error = await issueMonthlyInvoice(command()).then(
+        () => null,
+        (caught: unknown) => caught
+      );
+      expect(error).toBeInstanceOf(OperationalError);
+      expect(error).toMatchObject({
+        code: "CONCURRENCY_RETRY",
+        status: 503,
+        details: { retryable: true },
+      });
+      expect((error as OperationalError).message).toMatch(
+        /se ha cancelado sin guardar nada.*Vuelve a intentarlo/
+      );
+      expect(trace().slice(-2)).toEqual([statement, "rollback"]);
+      expect(callsOf("issueInvoice")).toEqual([]);
+      expect(callsOf("appendOutbox")).toEqual([]);
+      expect(callsOf("appendAudit")).toEqual([]);
+    }
+  );
+
+  it("turns a deadlock on the ledger insert into CONCURRENCY_RETRY, past the reference check", async () => {
+    world.dependencies.issueInvoice = () => {
+      throw wrappedDeadlock();
+    };
+    await expectFailure(issueMonthlyInvoice(command()), {
+      code: "CONCURRENCY_RETRY",
+      status: 503,
+      details: { retryable: true },
+    });
+    expect(trace().slice(-2)).toEqual(["issueInvoice", "rollback"]);
+    expect(callsOf("appendOutbox")).toEqual([]);
+    expect(callsOf("appendAudit")).toEqual([]);
+  });
+
+  it("lets any other database error through unchanged", async () => {
+    const failure = Object.assign(new Error("could not obtain lock"), {
+      cause: Object.assign(new Error("lock not available"), { code: "55P03" }),
+    });
+    world.handlers.lockFamily = () => {
+      throw failure;
+    };
+    await expect(issueMonthlyInvoice(command())).rejects.toBe(failure);
+    expect(trace().slice(-2)).toEqual(["lockFamily", "rollback"]);
+  });
+
   it("refuses to issue when the family's month was invoiced without a site", async () => {
     world.handlers.readExistingInvoices = () => [
       { familyId: FAM, invoiceId: INVOICE_2, locationId: null, status: "open", voidedAt: null },
