@@ -73,9 +73,12 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
       {/* Contact Info & Form */}
       <section className="bg-white py-16 dark:bg-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <Reveal>
           <div className="grid gap-12 lg:grid-cols-2">
-            {/* Contact Info */}
+            {/* Contact Info. Solo esta columna se revela con movimiento: el
+                formulario no se desplaza nunca, porque la entrada de Reveal
+                (translateY de 26px durante 0,6 s al hidratar) movía las casillas
+                bajo el puntero y un clic podía caer en la opción de al lado. */}
+            <Reveal>
             <div>
               <h2 className="text-2xl font-bold text-zaltyko-text-main mb-6">Cómo contactarnos</h2>
               <div className="space-y-6">
@@ -113,13 +116,14 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
               </div>
             </div>
 
-            {/* Contact Form */}
+            </Reveal>
+
+            {/* Contact Form: sin Reveal (ver arriba). */}
             <div>
               <h2 className="text-2xl font-bold text-zaltyko-text-main mb-6">Cuéntanos qué necesitas</h2>
               <ContactForm defaultReason={type} defaultPlan={selectedPlan} directoryEntryId={directoryEntryId} />
             </div>
           </div>
-          </Reveal>
         </div>
       </section>
 

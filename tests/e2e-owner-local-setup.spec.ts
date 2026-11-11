@@ -2965,6 +2965,21 @@ test.describe("Isolated local Supabase Owner setup", () => {
     });
     const form = page.getByRole("form", { name: "Formulario de contacto" });
     await expect(form).toBeVisible();
+    // Espera determinista a la hidratación: el botón dice «Preparando
+    // formulario...» y está deshabilitado hasta que React monta el formulario.
+    await expect(form.getByRole("button", { name: "Enviar mensaje" })).toBeEnabled();
+    // Ningún ancestro del formulario se desplaza con transform: una entrada
+    // animada (Reveal) movía las casillas bajo el puntero al hidratar y el clic
+    // de check() podía caer en la opción de al lado.
+    const transformedAncestors = await form.evaluate((element) => {
+      const moved: string[] = [];
+      for (let node = element as HTMLElement | null; node; node = node.parentElement) {
+        const transform = getComputedStyle(node).transform;
+        if (transform && transform !== "none") moved.push(`${node.tagName.toLowerCase()}.${node.className}`);
+      }
+      return moved;
+    });
+    expect(transformedAncestors).toEqual([]);
     await expect(form.getByLabel("Nombre completo")).toBeVisible();
     await expect(form.getByLabel("Email")).toBeVisible();
     await expect(form.getByLabel("País del club")).toBeVisible();
