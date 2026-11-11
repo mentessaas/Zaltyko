@@ -6,6 +6,10 @@ import { createSaasStripeClient, getSaasStripeConfig, type SaasStripeConfig } fr
 import { fail } from "./errors";
 import type { StripeReconciliationProvider, SaasReconciliationDependencies, Runtime } from "./model";
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function providerFor(config: SaasStripeConfig): StripeReconciliationProvider {
   const stripe = createSaasStripeClient(config);
   return {
@@ -22,6 +26,10 @@ export function providerFor(config: SaasStripeConfig): StripeReconciliationProvi
   };
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function getRuntime(
   dependencies?: SaasReconciliationDependencies
 ): Runtime {

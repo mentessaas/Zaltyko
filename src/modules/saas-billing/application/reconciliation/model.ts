@@ -5,18 +5,46 @@
  */
 import type { SaasBillingInterval, SaasStripeConfig, SelfServePlanCode } from "../saas-billing-config";
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export const PREVIEW_TTL_MS = 5 * 60_000;
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export const EVIDENCE_TTL_MS = 2 * 60_000;
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export const LEASE_TTL_MS = 60_000;
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export const MAX_BATCH_SIZE = 50;
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export type ResolutionKind = "status_snapshot" | "paid_invoice_grant";
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export type PlanCode = SelfServePlanCode;
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export type ProviderStatus =
   | "incomplete"
   | "incomplete_expired"
@@ -59,6 +87,10 @@ export interface SaasReconciliationDependencies {
   now?: () => Date;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export interface EventRecord {
   id: string;
   organization_id: string | null;
@@ -77,6 +109,10 @@ export interface EventRecord {
   reconciliation_decision_id: string | null;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export interface SubscriptionBaseline {
   id: string;
   organization_id: string;
@@ -96,6 +132,10 @@ export interface SubscriptionBaseline {
   updated_at: string;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export interface EntitlementBaseline {
   revision: number | string;
   plan_code: string;
@@ -107,11 +147,19 @@ export interface EntitlementBaseline {
   effective_until: string | null;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export interface BaselineRecord {
   subscription: SubscriptionBaseline;
   entitlement: EntitlementBaseline;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export interface SubscriptionEvidence {
   reference: string;
   customerReference: string;
@@ -126,6 +174,10 @@ export interface SubscriptionEvidence {
   latestInvoiceReference: string | null;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export interface InvoiceEvidence {
   reference: string;
   status: string;
@@ -139,6 +191,10 @@ export interface InvoiceEvidence {
   planCode: PlanCode;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export interface SnapshotEvidence {
   subscription: SubscriptionEvidence;
   invoice: InvoiceEvidence | null;
@@ -150,6 +206,10 @@ export interface SnapshotEvidence {
   } | null;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export interface PreviewClaims {
   version: 1;
   actorUserId: string;
@@ -178,6 +238,10 @@ export interface PreviewClaims {
   snapshotSha256: string;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export interface DecisionRecord {
   id: string;
   organization_id: string;
@@ -241,6 +305,10 @@ export interface DecisionRecord {
   invoice_plan_code: PlanCode | null;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export interface ClaimedEvent {
   id: string;
   decision_id: string;
@@ -250,6 +318,10 @@ export interface ClaimedEvent {
   attempts: number;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export interface Runtime {
   config: SaasStripeConfig;
   provider: StripeReconciliationProvider;

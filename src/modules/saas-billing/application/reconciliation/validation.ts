@@ -5,12 +5,20 @@
 import { fail } from "./errors";
 import type { ConfirmSaasReconciliationInput } from "./model";
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function assertUuid(value: string, label: string): void {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value)) {
     throw fail("VERSION_CONFLICT", `${label} no es válido`, 400);
   }
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function validateRequestId(requestId: string): void {
   if (!requestId.trim() || requestId.length > 200) {
     throw fail("VERSION_CONFLICT", "requestId no válido", 400);
@@ -26,6 +34,10 @@ export function normalizeSaasReconciliationReason(reason: string): string {
   return normalized;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function validateConfirmationInput(input: ConfirmSaasReconciliationInput): string {
   assertUuid(input.eventId, "eventId");
   assertUuid(input.actorUserId, "actorUserId");

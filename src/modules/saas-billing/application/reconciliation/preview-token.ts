@@ -10,6 +10,10 @@ import { fail } from "./errors";
 import { resolutionFor, hashEvidence } from "./evidence";
 import { PREVIEW_TTL_MS, EVIDENCE_TTL_MS, type SaasReconciliationDependencies, type EventRecord, type BaselineRecord, type SnapshotEvidence, type PreviewClaims } from "./model";
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function signingSecret(dependencies?: SaasReconciliationDependencies): string {
   const secret =
     dependencies?.signingSecret ??
@@ -24,6 +28,10 @@ export function signingSecret(dependencies?: SaasReconciliationDependencies): st
   return secret;
 }
 
+/**
+ * @internal Solo para previewSaasReconciliation, que firma las claims de un
+ * evento en cuarentena comprobado. Importa desde reconciliation-service.
+ */
 export function signToken(claims: PreviewClaims, secret: string): string {
   const payload = deflateRawSync(Buffer.from(canonicalJson(claims), "utf8"), {
     level: 9,
@@ -34,6 +42,11 @@ export function signToken(claims: PreviewClaims, secret: string): string {
   return `v1.${payload}.${signature}`;
 }
 
+/**
+ * @internal Solo para confirmSaasReconciliation: verificar la firma no basta,
+ * la confirmación vuelve a comprobar el evento, la evidencia y la línea base
+ * bajo bloqueo. Importa desde reconciliation-service.
+ */
 export function verifyToken(token: string, secret: string): PreviewClaims {
   if (token.length > 16_384) {
     throw fail("VERSION_CONFLICT", "El preview no es válido", 400);
@@ -80,6 +93,10 @@ export function verifyToken(token: string, secret: string): PreviewClaims {
   return claims as unknown as PreviewClaims;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function claimsFrom(input: {
   event: EventRecord;
   baseline: BaselineRecord;

@@ -5,6 +5,10 @@
 import { sql } from "drizzle-orm";
 import type { TransactionClient } from "@/lib/db-transactions";
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export async function appendReconciliationAudit(
   tx: TransactionClient,
   input: {

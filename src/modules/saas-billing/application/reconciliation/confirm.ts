@@ -19,6 +19,10 @@ import { readEvent, existingIdempotency } from "./reads";
 import { getRuntime } from "./runtime";
 import { validateConfirmationInput } from "./validation";
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export async function idempotentResponse(
   decision: DecisionRecord,
   actorUserId: string,
@@ -45,6 +49,10 @@ export async function idempotentResponse(
   };
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export async function assertFreshClaims(claims: PreviewClaims): Promise<void> {
   if (Date.parse(claims.expiresAt) <= Date.now()) {
     throw fail("VERSION_CONFLICT", "El preview ha caducado; genera uno nuevo", 409, "PREVIEW_STALE");
@@ -67,6 +75,11 @@ export async function assertFreshClaims(claims: PreviewClaims): Promise<void> {
   }
 }
 
+/**
+ * @internal Solo para confirmSaasReconciliation, dentro de su transacción y
+ * después de bloquear la fila del inbox: bloquea organización, suscripción y
+ * entitlement en ese orden. Importa desde reconciliation-service.
+ */
 export async function assertLockedBaseline(
   tx: TransactionClient,
   claims: PreviewClaims
@@ -151,6 +164,10 @@ export async function assertLockedBaseline(
   }
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function compareBaseline(
   current: BaselineRecord,
   expected: BaselineRecord

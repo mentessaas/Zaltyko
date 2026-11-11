@@ -10,6 +10,13 @@ import { objectRows } from "./canonical";
 import { fail } from "./errors";
 import type { EventRecord, SubscriptionBaseline, EntitlementBaseline, DecisionRecord, ClaimedEvent } from "./model";
 
+/**
+ * @internal Solo para consumeSaasReconciliationBatch. Exige un evento
+ * reclamado por ese consumidor (lease_token, fencing_version y lease_until
+ * vigentes) y bloquea en el orden evento, organización, suscripción y
+ * entitlement; fuera de él puede escribir sin lease o interbloquear. Importa
+ * desde reconciliation-service.
+ */
 export async function lockClaimedState(
   tx: TransactionClient,
   claim: ClaimedEvent,
@@ -71,6 +78,13 @@ export async function lockClaimedState(
   return { event, subscription, entitlement };
 }
 
+/**
+ * @internal Solo para consumeSaasReconciliationBatch. Exige un evento
+ * reclamado por ese consumidor (lease_token, fencing_version y lease_until
+ * vigentes) y bloquea en el orden evento, organización, suscripción y
+ * entitlement; fuera de él puede escribir sin lease o interbloquear. Importa
+ * desde reconciliation-service.
+ */
 export async function scheduleRetry(
   claim: ClaimedEvent,
   decision: DecisionRecord
@@ -93,6 +107,13 @@ export async function scheduleRetry(
   return result.rows.length === 1;
 }
 
+/**
+ * @internal Solo para consumeSaasReconciliationBatch. Exige un evento
+ * reclamado por ese consumidor (lease_token, fencing_version y lease_until
+ * vigentes) y bloquea en el orden evento, organización, suscripción y
+ * entitlement; fuera de él puede escribir sin lease o interbloquear. Importa
+ * desde reconciliation-service.
+ */
 export async function finishEvent(
   tx: TransactionClient,
   claim: ClaimedEvent,

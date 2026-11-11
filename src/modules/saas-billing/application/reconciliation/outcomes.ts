@@ -10,6 +10,10 @@ import { fail } from "./errors";
 import { lockClaimedState, finishEvent } from "./lease";
 import type { EventRecord, SubscriptionBaseline, EntitlementBaseline, DecisionRecord, ClaimedEvent } from "./model";
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function actualEntitlement(entitlement: EntitlementBaseline | null): {
   revision: number;
   sourceReference: string;
@@ -22,6 +26,13 @@ export function actualEntitlement(entitlement: EntitlementBaseline | null): {
   return { revision, sourceReference: entitlement.source_reference };
 }
 
+/**
+ * @internal Solo para consumeSaasReconciliationBatch. Exige un evento
+ * reclamado por ese consumidor (lease_token, fencing_version y lease_until
+ * vigentes) y bloquea en el orden evento, organización, suscripción y
+ * entitlement; fuera de él puede escribir sin lease o interbloquear. Importa
+ * desde reconciliation-service.
+ */
 export async function closeStaleDecision(
   claim: ClaimedEvent,
   decision: DecisionRecord,
@@ -75,6 +86,11 @@ export async function closeStaleDecision(
   });
 }
 
+/**
+ * @internal Solo dentro de la transacción de consumeSaasReconciliationBatch,
+ * después de lockClaimedState: presupone el lease y los bloqueos ya tomados.
+ * Importa desde reconciliation-service.
+ */
 export async function insertStaleWithinTransaction(
   tx: TransactionClient,
   claim: ClaimedEvent,
@@ -114,6 +130,11 @@ export async function insertStaleWithinTransaction(
   return "stale";
 }
 
+/**
+ * @internal Solo dentro de la transacción de consumeSaasReconciliationBatch,
+ * después de lockClaimedState: presupone el lease y los bloqueos ya tomados.
+ * Importa desde reconciliation-service.
+ */
 export async function finishAppliedWithinTransaction(
   tx: TransactionClient,
   claim: ClaimedEvent,

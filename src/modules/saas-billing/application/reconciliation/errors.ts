@@ -5,6 +5,10 @@
  */
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function fail(
   code: ConstructorParameters<typeof OperationalError>[0],
   message: string,

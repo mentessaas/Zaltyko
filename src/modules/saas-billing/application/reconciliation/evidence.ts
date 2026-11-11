@@ -11,6 +11,10 @@ import { fail } from "./errors";
 import type { ResolutionKind, PlanCode, ProviderStatus, StripeReconciliationProvider, EventRecord, BaselineRecord, SubscriptionEvidence, InvoiceEvidence, SnapshotEvidence } from "./model";
 import { readBaseline } from "./reads";
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function resolvePrice(
   config: SaasStripeConfig,
   priceReference: string
@@ -25,6 +29,10 @@ export function resolvePrice(
   return null;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function canonicalPrice(
   value: unknown,
   config: SaasStripeConfig
@@ -61,6 +69,10 @@ export function canonicalPrice(
   return { ...mapped, priceReference };
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function providerStatus(value: unknown): ProviderStatus {
   const allowed: ProviderStatus[] = [
     "incomplete",
@@ -78,6 +90,10 @@ export function providerStatus(value: unknown): ProviderStatus {
   return value as ProviderStatus;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function epochFrom(value: unknown): string {
   const timestamp = dateIso(value);
   if (!timestamp) {
@@ -86,6 +102,10 @@ export function epochFrom(value: unknown): string {
   return timestamp;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function linePriceReference(line: Record<string, unknown>): string | null {
   const legacy = line.price;
   const legacyId = stringId(legacy);
@@ -95,6 +115,10 @@ export function linePriceReference(line: Record<string, unknown>): string | null
   return stringId(details?.price);
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function toSubscriptionEvidence(
   value: unknown,
   config: SaasStripeConfig
@@ -138,6 +162,10 @@ export function toSubscriptionEvidence(
   };
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function resolutionFor(eventType: string): ResolutionKind {
   if (eventType === "invoice.paid") return "paid_invoice_grant";
   if (
@@ -156,6 +184,10 @@ export function resolutionFor(eventType: string): ResolutionKind {
   );
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export async function retrieveFromProvider<T>(operation: () => Promise<T>): Promise<T> {
   try {
     return await operation();
@@ -170,6 +202,10 @@ export async function retrieveFromProvider<T>(operation: () => Promise<T>): Prom
   }
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function subscriptionReferenceFromInvoice(invoice: Record<string, unknown>): string | null {
   const direct = stringId(invoice.subscription);
   if (direct) return direct;
@@ -178,6 +214,10 @@ export function subscriptionReferenceFromInvoice(invoice: Record<string, unknown
   return stringId(details?.subscription);
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export async function retrieveProviderEvidence(input: {
   event: EventRecord;
   baseline?: BaselineRecord;
@@ -337,6 +377,10 @@ export async function retrieveProviderEvidence(input: {
   };
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export function hashEvidence(evidence: SnapshotEvidence): string {
   return sha256(canonicalJson(evidence));
 }

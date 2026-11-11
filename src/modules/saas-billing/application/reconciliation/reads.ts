@@ -9,6 +9,10 @@ import { objectRows } from "./canonical";
 import { fail } from "./errors";
 import type { PlanCode, ProviderStatus, EventRecord, BaselineRecord, DecisionRecord } from "./model";
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export async function readEvent(eventId: string): Promise<EventRecord> {
   const result = await db.execute(sql`
     select id, organization_id, provider_account_reference, environment,
@@ -25,6 +29,10 @@ export async function readEvent(eventId: string): Promise<EventRecord> {
   return event;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export async function readBaseline(
   event: EventRecord,
   subscriptionReference: string
@@ -104,6 +112,10 @@ export async function readBaseline(
   };
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export async function hasStaleResult(decisionId: string): Promise<boolean> {
   const result = await db.execute(sql`
     select result.outcome
@@ -115,6 +127,10 @@ export async function hasStaleResult(decisionId: string): Promise<boolean> {
   return row?.outcome === "stale";
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export async function existingIdempotency(
   eventId: string,
   idempotencyKey: string
@@ -129,6 +145,10 @@ export async function existingIdempotency(
   return objectRows<DecisionRecord>(result)[0] ?? null;
 }
 
+/**
+ * @internal Uso exclusivo de reconciliation/*; la API pública está en
+ * reconciliation-service.ts.
+ */
 export async function readDecision(decisionId: string): Promise<DecisionRecord | null> {
   const result = await db.execute(sql`
     select
