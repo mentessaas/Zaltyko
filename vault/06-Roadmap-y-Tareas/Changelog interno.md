@@ -21,7 +21,6 @@ source:
 
 
 
-<<<<<<< HEAD
 ## 2026-11-11 — Importar gimnastas desde Excel o CSV con vista previa (O4)
 
 **Cambio.**
@@ -52,7 +51,6 @@ source:
 - **Rutas.** Academia en la query; permisos, límite de peticiones y `Idempotency-Key` antes de leer el cuerpo, que se lee en streaming con tope.
 - **Servicio.** Partido en fachada y módulos internos con frontera ESLint. El fichero se procesa fuera del bloqueo y bajo el bloqueo solo se vuelve a decidir. El token va ligado a la academia y al usuario, y los errores de base de datos salen sin parámetros.
 - **Pantalla.** Declaración legal obligatoria (queda en la auditoría), glosario y plantilla Excel.
-=======
 
 ## 2026-11-11 — Invitaciones al equipo con vínculo de ficha (O3)
 
@@ -70,7 +68,6 @@ source:
 **Pruebas.** Contrato, seguridad HTTP, interfaz, navegación y la suite `canonical-team-access-pg`, que incluye una doble aceptación determinista. No se ejecutó nada en local.
 
 **Sin resolver.** Las decisiones «Decide Elvis» de `docs/producto/invitaciones-equipo.md`: coordinación, índice único de ficha, baja de miembros y correo G4.
->>>>>>> origin/main
 
 ## 2026-11-11 — Frontera ESLint de athlete-progress y contrato de sesiones
 
