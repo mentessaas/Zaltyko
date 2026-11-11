@@ -1,4 +1,0 @@
-{
-  "$comment": "Excepciones revisadas a la frontera de monthly-invoice/* (eslint.config.mjs). Solo ficheros concretos de tests/ o scripts/, cada uno con su motivo. Las valida tests/monthly-invoice-internal-boundary.test.ts.",
-  "exceptions": []
-}

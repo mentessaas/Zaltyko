@@ -19,7 +19,10 @@ const CANONICAL_ROOTS = [
 
 /** Reviewed exceptions: file → legacy specifier and why. */
 const ALLOWED_LEGACY_IMPORTS: Record<string, { specifier: string; reason: string }> = {
-  "src/modules/saas-billing/application/reconciliation-service.ts": {
+  // The operator check moved from the reconciliation-service.ts facade to its
+  // own internal module; the import, its reason and its eslint-disable are
+  // unchanged.
+  "src/modules/saas-billing/application/reconciliation/operator.ts": {
     specifier: "@/db/schema/profiles",
     reason: "Platform identity: super-admin role and suspension live only in the legacy profiles table.",
   },
