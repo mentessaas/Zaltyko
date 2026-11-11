@@ -603,10 +603,13 @@ export async function readExistingMonthlyInvoices(
 }
 
 /**
- * Invoices of the organization that already hold one of the references.
+ * Invoices of the organization whose reference equals one of `references`
+ * without case (`lower(reference) in (...)`); rows keep the stored reference.
  * invoices_reference_uq is UNIQUE (organization_id, reference), so this read
  * is not filtered by site. The quote also looks up the pre-site references
  * here; their site and state tell a monthly invoice without a site apart.
+ * Comparing without case may return more rows than the unique index would
+ * collide with; the caller compares current references exactly.
  *
  * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
  * monthly-invoice-service.ts.
@@ -617,13 +620,13 @@ export async function readReferenceOwners(
   references: readonly string[]
 ): Promise<ReferenceOwnerRow[]> {
   return readKeysetPagesByBatches<ReferenceOwnerRow, string>({
-    values: references,
+    values: [...new Set(references.map((reference) => reference.toLowerCase()))],
     batchSize: READ_FILTER_BATCH_SIZE,
     cursorOf: (row) => row.invoiceId,
     fetchPage: (refs, cursor, limit) => {
       const conditions = [
         eq(invoices.organizationId, input.organizationId),
-        inArray(invoices.reference, refs),
+        inArray(sql`lower(${invoices.reference})`, refs),
       ];
       if (cursor) conditions.push(gt(invoices.id, cursor));
       return tx

@@ -31,7 +31,7 @@ import {
   readTariffCoverage,
 } from "./quote-reads";
 import {
-  legacyMonthlyInvoiceReferences,
+  legacyMonthlyInvoiceReferenceKey,
   monthlyInvoiceReference,
 } from "./reference";
 
@@ -119,15 +119,16 @@ export async function buildMonthlyInvoiceOptions(
   // A monthly invoice issued before the site discriminator without a site and
   // without monthly_fee lines for the month is invisible to the read above.
   // Its pre-site reference still names the family and the month, so the same
-  // lookup also asks for those references. Better a false block than a second
-  // invoice for the month.
+  // lookup also asks for those references, without case. Better a false block
+  // than a second invoice for the month.
   const familyByLegacyReference = new Map(
-    familyIds.flatMap((familyId) =>
-      legacyMonthlyInvoiceReferences({
+    familyIds.map((familyId) => [
+      legacyMonthlyInvoiceReferenceKey({
         servicePeriod: input.servicePeriod,
         familyId,
-      }).map((reference) => [reference, familyId] as const)
-    )
+      }),
+      familyId,
+    ])
   );
   const referenceOwners = await readReferenceOwners(tx, input, [
     ...new Set([
@@ -135,8 +136,8 @@ export async function buildMonthlyInvoiceOptions(
       ...familyByLegacyReference.keys(),
     ]),
   ]);
-  // Only current references can collide: a pre-site reference never equals
-  // one (different length), so having it in this set changes nothing.
+  // The unique index compares exactly, so a current reference is taken only by
+  // the same string; a pre-site reference never equals one (different length).
   const takenReferences = new Set(
     referenceOwners
       .filter((row) => !existingInvoiceIds.has(row.invoiceId))
@@ -148,7 +149,9 @@ export async function buildMonthlyInvoiceOptions(
   const siteLessByFamily = indexInvoiceStatesByFamily([
     ...existingRows.filter((row) => row.locationId === null),
     ...referenceOwners.flatMap((row) => {
-      const familyId = familyByLegacyReference.get(row.reference);
+      const familyId = familyByLegacyReference.get(
+        row.reference.toLowerCase()
+      );
       return familyId !== undefined && row.locationId === null
         ? [{ familyId, status: row.status, voidedAt: row.voidedAt }]
         : [];
@@ -163,7 +166,9 @@ export async function buildMonthlyInvoiceOptions(
     existingByFamily,
     existingInvoiceIds,
     referenceOwners.flatMap((row) => {
-      const familyId = familyByLegacyReference.get(row.reference);
+      const familyId = familyByLegacyReference.get(
+        row.reference.toLowerCase()
+      );
       return familyId !== undefined &&
         row.locationId?.toLowerCase() === siteId &&
         !existingInvoiceIds.has(row.invoiceId)

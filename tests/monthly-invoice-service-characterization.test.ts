@@ -147,10 +147,7 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
 const siteTag = (locationId: string) =>
   sha256(`zaltyko:monthly-invoice-site:v1:${locationId}`).slice(0, 16);
 const REFERENCE = `MENSUAL-202611-${FAM}-${siteTag(LOC)}`;
-/**
- * Reference before the site discriminator. FAM has no letters, so its upper-
- * and lower-case spellings are the same single reference.
- */
+/** Reference before the site discriminator, as the old code stored it. */
 const LEGACY_REFERENCE = `MENSUAL-202611-${FAM}`;
 
 // ---------------------------------------------------------------------------
@@ -468,7 +465,8 @@ function classify(sqlText: string): Statement {
       return "readPayers";
     case "invoices":
       if (s.includes(" group by ")) return "readExistingInvoices";
-      return where.includes('"reference" in') ? "readReferenceOwners" : "loadInvoice";
+      // readReferenceOwners compares `lower("reference") in (...)`.
+      return /"reference"\)? in /.test(where) ? "readReferenceOwners" : "loadInvoice";
     case "outbox_events":
       return where.includes("aggregate_id") ? "findInvoiceMarker" : "findPriorMarker";
     case "invoice_lines":
@@ -875,8 +873,10 @@ describe("getMonthlyInvoiceOptions: quote", () => {
     ]);
     // The reference is unique per organization, so this lookup is not per site.
     // It also asks for the pre-site reference (PR: monthly invoice without a
-    // site and without monthly_fee lines).
-    expect(paramsOf("readReferenceOwners")).toEqual([[ORG, REFERENCE, LEGACY_REFERENCE, 200]]);
+    // site and without monthly_fee lines), and compares both without case.
+    expect(paramsOf("readReferenceOwners")).toEqual([
+      [ORG, REFERENCE.toLowerCase(), LEGACY_REFERENCE.toLowerCase(), 200],
+    ]);
   });
 
   it("rejects an invalid period with a 422 inside the transaction", async () => {
@@ -1216,22 +1216,43 @@ describe("getMonthlyInvoiceOptions: blocking reasons", () => {
     });
   });
 
-  it("looks up both spellings of the pre-site reference of a family id with letters", async () => {
+  it("matches the pre-site reference of a family id with letters without case", async () => {
+    // The old route accepted the family id in any case and kept it verbatim.
     const familyWithLetters = "2abcdef0-0000-4000-8000-00000000000f";
     world.handlers.readFamilyMembers = () => [
       memberRow({ familyId: familyWithLetters }),
       memberB({ familyId: familyWithLetters }),
     ];
-    await options();
+    world.handlers.readPayers = () => [payerRow({ familyId: familyWithLetters })];
+    const storedLegacyReference = `MENSUAL-202611-2AbCdEf0-0000-4000-8000-00000000000F`;
+    world.handlers.readReferenceOwners = () => [
+      { invoiceId: INVOICE_2, reference: storedLegacyReference, locationId: null, status: "issued", voidedAt: null },
+    ];
+    const [family] = (await options()).families;
     expect(paramsOf("readReferenceOwners")).toEqual([
       [
         ORG,
-        `MENSUAL-202611-${familyWithLetters}-${siteTag(LOC)}`,
-        `MENSUAL-202611-${familyWithLetters}`,
-        `MENSUAL-202611-${familyWithLetters.toUpperCase()}`,
+        `mensual-202611-${familyWithLetters}-${siteTag(LOC)}`,
+        `mensual-202611-${familyWithLetters}`,
         200,
       ],
     ]);
+    expect(family).toMatchObject({
+      familyId: familyWithLetters,
+      existingInvoiceId: null,
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"],
+      canIssue: false,
+    });
+  });
+
+  it("keeps INVOICE_REFERENCE_TAKEN exact: a current reference in another case does not collide", async () => {
+    // invoices_reference_uq compares exactly, so such an invoice would not
+    // reject the insert; the lookup without case only serves pre-site references.
+    world.handlers.readReferenceOwners = () => [
+      { invoiceId: INVOICE_2, reference: REFERENCE.toLowerCase(), locationId: LOC, status: "issued", voidedAt: null },
+    ];
+    const [family] = (await options()).families;
+    expect(family).toMatchObject({ blockingReasons: [], canIssue: true, quoteHash: QUOTE_HASH });
   });
 
   it("blocks a family whose reference another invoice of the organization already holds", async () => {

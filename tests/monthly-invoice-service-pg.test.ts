@@ -513,7 +513,8 @@ function signal() {
 async function insertSiteLessInvoice(
   fixture: Fixture,
   state: { status: "issued" | "void"; voidedAt: string | null },
-  locationId: string | null = null
+  locationId: string | null = null,
+  reference = legacyReference(fixture)
 ) {
   const invoiceId = randomUUID();
   await db.execute(sql`
@@ -522,7 +523,7 @@ async function insertSiteLessInvoice(
       currency, total_amount_cents, issued_at, due_at, voided_at, idempotency_key
     ) values (
       ${invoiceId}::uuid, ${fixture.organizationId}::uuid, ${locationId}::uuid,
-      ${fixture.familyId}::uuid, ${legacyReference(fixture)}, ${state.status}::zaltyko.invoice_status,
+      ${fixture.familyId}::uuid, ${reference}, ${state.status}::zaltyko.invoice_status,
       'EUR', 6200, ${`${PERIOD_START}T09:00:00Z`}::timestamptz,
       ${`${PERIOD_END}T12:00:00Z`}::timestamptz, ${state.voidedAt}::timestamptz,
       ${`ci-legacy-${invoiceId}`}
@@ -1090,6 +1091,23 @@ describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
       covered: 0,
       charges: 0,
       markers: 0,
+    });
+  }, 45_000);
+
+  it("finds the pre-site reference without case", async () => {
+    // The old route accepted the family id in any case and stored it verbatim.
+    const fixture = await seedFamily();
+    await insertSiteLessInvoice(
+      fixture,
+      { status: "issued", voidedAt: null },
+      null,
+      legacyReference(fixture).toUpperCase()
+    );
+
+    expect(await quoteFor(fixture)).toMatchObject({
+      canIssue: false,
+      existingInvoiceId: null,
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"],
     });
   }, 45_000);
 
