@@ -175,8 +175,12 @@ async function seedTutor(fixture: Fixture, tutor: { givenName: string; familyNam
   return { guardianId, familyId };
 }
 
-function csv(...lines: string[]): Uint8Array {
-  return new TextEncoder().encode([HEADERS.join(";"), ...lines].join("\r\n"));
+function csv(...lines: string[]): Uint8Array<ArrayBuffer> {
+  // Copied into a plain ArrayBuffer: the service takes Uint8Array<ArrayBuffer>.
+  const encoded = new TextEncoder().encode([HEADERS.join(";"), ...lines].join("\r\n"));
+  const bytes = new Uint8Array(new ArrayBuffer(encoded.byteLength));
+  bytes.set(encoded);
+  return bytes;
 }
 
 const THREE_ATHLETES = csv(
@@ -189,7 +193,7 @@ function base(fixture: Fixture) {
   return { organizationId: fixture.organizationId, userId: fixture.userId, actor: fixture.actor };
 }
 
-function confirmCommand(fixture: Fixture, fileBytes: Uint8Array, idempotencyKey = `ci-import-${randomUUID()}`) {
+function confirmCommand(fixture: Fixture, fileBytes: Uint8Array<ArrayBuffer>, idempotencyKey = `ci-import-${randomUUID()}`) {
   return {
     ...base(fixture),
     fileBytes,
@@ -200,7 +204,7 @@ function confirmCommand(fixture: Fixture, fileBytes: Uint8Array, idempotencyKey 
   };
 }
 
-async function previewAndConfirm(fixture: Fixture, fileBytes: Uint8Array, idempotencyKey = `ci-import-${randomUUID()}`) {
+async function previewAndConfirm(fixture: Fixture, fileBytes: Uint8Array<ArrayBuffer>, idempotencyKey = `ci-import-${randomUUID()}`) {
   const preview = await previewAthleteImport({ ...base(fixture), fileBytes });
   expect(preview.previewToken).toBe(athleteImportPreviewToken(fileBytes, MAPPING, fixture));
   const result = await confirmAthleteImport(confirmCommand(fixture, fileBytes, idempotencyKey));

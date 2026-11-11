@@ -21,10 +21,12 @@ const organizationId = "10000000-0000-4000-8000-000000000001";
 const userId = "20000000-0000-4000-8000-000000000001";
 const actor = { userId, memberId: "30000000-0000-4000-8000-000000000001" };
 const PERSONAL = ["Lucía", "Prueba", "marta@example.invalid", "+34600000001", "2016-03-15"];
-const file = new TextEncoder().encode(
+const encodedFile = new TextEncoder().encode(
   "Nombre;Apellidos;Fecha de nacimiento;Email del tutor;Teléfono del tutor;Nombre del tutor;Apellidos del tutor\n" +
     "Lucía;Prueba;15/03/2016;marta@example.invalid;+34600000001;Marta;Prueba\n"
 );
+const file = new Uint8Array(new ArrayBuffer(encodedFile.byteLength));
+file.set(encodedFile);
 
 /** What Drizzle and node-postgres throw: the statement and its parameters in the message. */
 function drizzleError() {

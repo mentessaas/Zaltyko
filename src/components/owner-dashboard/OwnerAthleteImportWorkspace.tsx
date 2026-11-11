@@ -85,8 +85,8 @@ async function readProblem(response: Response, fallback: string): Promise<string
   return typeof payload?.detail === "string" ? payload.detail : fallback;
 }
 
-function download(name: string, content: string | Uint8Array, type = "text/csv;charset=utf-8") {
-  const url = URL.createObjectURL(new Blob([content as BlobPart], { type }));
+function download(name: string, content: string | Uint8Array<ArrayBuffer>, type = "text/csv;charset=utf-8") {
+  const url = URL.createObjectURL(new Blob([content], { type }));
   const link = document.createElement("a");
   link.href = url;
   link.download = name;

@@ -43,7 +43,8 @@ export type ImportRequest = {
   userId: string;
   organizationId: string;
   memberId: string;
-  fileBytes: Uint8Array;
+  /** Backed by a plain ArrayBuffer, as the import service and Response expect. */
+  fileBytes: Uint8Array<ArrayBuffer>;
   mapping: AthleteImportMapping | null;
   previewToken: string | null;
   legalBasisConfirmed: boolean;
@@ -60,8 +61,8 @@ const tooLarge = () =>
   refuse(413, "El fichero supera los 2 MB. Divídelo en varios ficheros.", "athlete-import-too-large");
 
 /** Reads at most `limit` bytes of the body; null when it is longer. */
-async function readBodyWithin(request: Request, limit: number): Promise<Uint8Array | null> {
-  if (!request.body) return new Uint8Array();
+async function readBodyWithin(request: Request, limit: number): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (!request.body) return new Uint8Array(new ArrayBuffer(0));
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -75,7 +76,7 @@ async function readBodyWithin(request: Request, limit: number): Promise<Uint8Arr
     }
     chunks.push(value);
   }
-  const body = new Uint8Array(total);
+  const body = new Uint8Array(new ArrayBuffer(total));
   let offset = 0;
   for (const chunk of chunks) {
     body.set(chunk, offset);

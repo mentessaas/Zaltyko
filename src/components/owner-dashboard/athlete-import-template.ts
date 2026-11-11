@@ -11,7 +11,7 @@ const TEXT_ROWS = 1000;
  * forgotten example is never imported). The spreadsheet library is loaded on
  * demand, only when the Owner asks for this template.
  */
-export async function athleteImportTemplateXlsx(): Promise<Uint8Array> {
+export async function athleteImportTemplateXlsx(): Promise<Uint8Array<ArrayBuffer>> {
   const XLSX = await import("xlsx");
   const headers = ATHLETE_IMPORT_FIELDS.map((field) => ATHLETE_IMPORT_TEMPLATE_HEADERS[field]);
   const sheet = XLSX.utils.aoa_to_sheet([headers]);
