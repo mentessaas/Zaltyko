@@ -4,7 +4,7 @@ import { join, relative } from "node:path";
 import { PgDialect, getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
-import { ATHLETE_PROGRESS_TABLES } from "@/modules/athlete-progress/application/athlete-progress-storage";
+import { ATHLETE_PROGRESS_TABLES } from "@/modules/athlete-progress/application/athlete-progress-service";
 import {
   athleteObjectives,
   athleteObjectiveStatusHistory,

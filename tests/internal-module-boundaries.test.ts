@@ -6,7 +6,9 @@ import { beforeAll, describe, expect, it } from "vitest";
  * Contract for the internal-module boundaries in eslint.config.mjs, defined in
  * eslint.internal-boundaries.json: for each split service, only its facade and
  * the modules of its directory may import those modules (monthly-invoice:
- * issuance lock order; reconciliation: lease, fencing and lock order).
+ * issuance lock order; reconciliation: lease, fencing and lock order;
+ * athlete-progress: authorization by role, site and athlete, dormant-storage
+ * detection and one transaction per operation).
  *
  * Three layers:
  * - The real ESLint configuration, through the ESLint API, on sample files. It
@@ -51,6 +53,7 @@ function boundaryNamed(name: string): Boundary {
 
 const MONTHLY = boundaryNamed("monthly-invoice");
 const RECONCILIATION = boundaryNamed("reconciliation");
+const ATHLETE_PROGRESS = boundaryNamed("athlete-progress");
 const INTERNAL_DIR = MONTHLY.dir;
 const FACADE = MONTHLY.facade;
 const FACADE_SPECIFIER = MONTHLY.facadeSpecifier;
@@ -90,25 +93,10 @@ async function legacySchemaMessages(filePath: string, code: string) {
 
 const INTERNAL = "@/modules/billing/application/monthly-invoice";
 
-describe("internal-module boundaries (ESLint)", { timeout: 120_000 }, () => {
-  beforeAll(async () => {
-    // ESLint 8.57: loadESLint({ useFlatConfig: true }) returns the flat-config
-    // engine, which reads eslint.config.mjs from the repository root like
-    // `pnpm lint` does.
-    const { loadESLint } = (await import("eslint")) as unknown as {
-      loadESLint: (options: {
-        useFlatConfig: boolean;
-        cwd: string;
-      }) => Promise<new (options: { cwd: string }) => LintEngine>;
-    };
-    const FlatESLint = await loadESLint({
-      useFlatConfig: true,
-      cwd: process.cwd(),
-    });
-    engine = new FlatESLint({ cwd: process.cwd() });
-  }, 120_000);
+type LintCase = [filePath: string, code: string, ruleId: "no-restricted-imports" | "no-restricted-syntax"];
 
-  it.each([
+/** The reviewed monthly-invoice matrix: every other boundary must cover the same forms. */
+const MONTHLY_CASES: LintCase[] = [
     // Static imports and re-exports (no-restricted-imports).
     ["tests/sample-internal.test.ts", `import { lockQuotedRows } from "${INTERNAL}/issue-locks";\nvoid lockQuotedRows;\n`, "no-restricted-imports"],
     ["tests/sample-internal-type.test.ts", `import type { MonthlyIssueResult } from "${INTERNAL}/replay";\nexport type R = MonthlyIssueResult;\n`, "no-restricted-imports"],
@@ -141,10 +129,162 @@ describe("internal-module boundaries (ESLint)", { timeout: 120_000 }, () => {
     ["scripts/sample-import-equals.ts", `import internals = require("../src/modules/billing/application/monthly-invoice/quote");\nvoid internals;\n`, "no-restricted-syntax"],
     ["tests/sample-mock.test.ts", `vi.mock("${INTERNAL}/issue-locks", () => ({}));\n`, "no-restricted-syntax"],
     ["tests/sample-do-mock.test.ts", `vi.doMock("${INTERNAL}/issue-locks");\n`, "no-restricted-syntax"],
+    ["tests/sample-unmock.test.ts", `vi.unmock("${INTERNAL}/issue-locks");\n`, "no-restricted-syntax"],
+    ["tests/sample-do-unmock.test.ts", `vi.doUnmock("${INTERNAL}/replay");\n`, "no-restricted-syntax"],
     ["tests/sample-import-actual.test.ts", `export const actual = () => vi.importActual("${INTERNAL}/issue-locks");\n`, "no-restricted-syntax"],
     ["tests/sample-import-mock.test.ts", `export const mocked = () => vi.importMock("${INTERNAL}/replay");\n`, "no-restricted-syntax"],
     ["src/modules/billing/application/sample-dynamic.ts", `export const load = () => import("./monthly-invoice/quote");\n`, "no-restricted-syntax"],
-  ])("rechaza monthly-invoice/* desde %s", async (filePath, code, ruleId) => {
+];
+
+/**
+ * The same import forms the monthly-invoice matrix checks, generated for
+ * another boundary: static imports and re-exports from every lint:app root,
+ * the exact relative spellings of each scope, and every dynamic form
+ * (import(), template literals without expressions, require(), import x =
+ * require(), vi.mock / vi.doMock / vi.unmock / vi.doUnmock / vi.importActual /
+ * vi.importMock).
+ */
+function parityCases(boundary: Boundary, internalModule: string, label: string): LintCase[] {
+  const alias = `@/${boundary.dir.slice("src/".length)}`;
+  const [, , moduleName, layer, name] = boundary.dir.split("/");
+  const moduleRoot = `src/modules/${moduleName}`;
+  const layerDir = `${moduleRoot}/${layer}`;
+  const target = `${alias}/${internalModule}`;
+  const fromScripts = `../${boundary.dir}`;
+  const imports = "no-restricted-imports" as const;
+  const syntax = "no-restricted-syntax" as const;
+  const use = "import { x } from";
+  return [
+    [`tests/sample-${label}.test.ts`, `${use} "${target}";\nvoid x;\n`, imports],
+    [`tests/sample-${label}-type.test.ts`, `import type { T } from "${target}";\nexport type R = T;\n`, imports],
+    [`tests/sample-${label}-index.test.ts`, `import * as internals from "${alias}/index";\nvoid internals;\n`, imports],
+    [`tests/sample-${label}-dir.test.ts`, `import * as internals from "${alias}";\nvoid internals;\n`, imports],
+    [`scripts/sample-${label}.ts`, `${use} "${fromScripts}/${internalModule}";\nvoid x;\n`, imports],
+    [`scripts/sample-${label}.mjs`, `${use} "${fromScripts}/${internalModule}.ts";\nvoid x;\n`, imports],
+    [`src/lib/sample-${label}.ts`, `export { x } from "${target}";\n`, imports],
+    [`src/lib/sample-${label}-star.ts`, `export * from "${target}";\n`, imports],
+    [`src/lib/sample-${label}-star-ns.ts`, `export * as internals from "${target}";\n`, imports],
+    [`src/lib/sample-${label}.js`, `${use} "${target}";\nvoid x;\n`, imports],
+    [`src/app/api/v1/owner/sample-${label}/route.ts`, `${use} "${target}";\nvoid x;\n`, imports],
+    [`src/components/owner-dashboard/Sample${label}.tsx`, `${use} "${target}";\nvoid x;\n`, imports],
+    ...["middleware.ts", "instrumentation.ts", "instrumentation-client.ts", "sentry.server.config.ts", "sentry.edge.config.ts"].map(
+      (file): LintCase => [file, `${use} "${target}";\nvoid x;\n`, imports]
+    ),
+    [`${moduleRoot}/sample-${label}.ts`, `${use} "./${layer}/${name}/${internalModule}";\nvoid x;\n`, imports],
+    [`${moduleRoot}/domain/sample-${label}.ts`, `${use} "../${layer}/${name}/${internalModule}";\nvoid x;\n`, imports],
+    [`${layerDir}/sample-${label}-sibling.ts`, `${use} "./${name}/${internalModule}";\nvoid x;\n`, imports],
+    [`${layerDir}/sample-${label}-sibling-dir.ts`, `import * as internals from "./${name}";\nvoid internals;\n`, imports],
+    [`${layerDir}/nested/sample-${label}.ts`, `${use} "../${name}/${internalModule}";\nvoid x;\n`, imports],
+    [`tests/sample-${label}-dynamic.test.ts`, `export const load = () => import("${target}");\n`, syntax],
+    [`tests/sample-${label}-dynamic-template.test.ts`, "export const load = () => import(`" + target + "`);\n", syntax],
+    [`scripts/sample-${label}-require.cjs`, `const { x } = require("${fromScripts}/${internalModule}");\nvoid x;\n`, syntax],
+    [`scripts/sample-${label}-require-template.ts`, "const internals = require(`" + fromScripts + "`);\nvoid internals;\n", syntax],
+    [`scripts/sample-${label}-import-equals.ts`, `import internals = require("${fromScripts}/${internalModule}");\nvoid internals;\n`, syntax],
+    [`tests/sample-${label}-mock.test.ts`, `vi.mock("${target}", () => ({}));\n`, syntax],
+    [`tests/sample-${label}-do-mock.test.ts`, `vi.doMock("${target}");\n`, syntax],
+    [`tests/sample-${label}-unmock.test.ts`, `vi.unmock("${target}");\n`, syntax],
+    [`tests/sample-${label}-do-unmock.test.ts`, `vi.doUnmock("${target}");\n`, syntax],
+    [`tests/sample-${label}-import-actual.test.ts`, `export const actual = () => vi.importActual("${target}");\n`, syntax],
+    [`tests/sample-${label}-import-mock.test.ts`, `export const mocked = () => vi.importMock("${target}");\n`, syntax],
+    [`${layerDir}/sample-${label}-dynamic.ts`, `export const load = () => import("./${name}/${internalModule}");\n`, syntax],
+  ];
+}
+
+const ROOT_LINT_FILES = new Set([
+  "middleware.ts",
+  "instrumentation.ts",
+  "instrumentation-client.ts",
+  "sentry.server.config.ts",
+  "sentry.edge.config.ts",
+]);
+
+/**
+ * Boundary-independent shape of a lint case: where the file lives (relative to
+ * the boundary's module and layer), which import form it uses, how the
+ * specifier is spelled, and the rule that must fire. Two matrices cover the
+ * same forms when their sorted signatures are equal.
+ */
+function caseSignature(boundary: Boundary, [filePath, code, ruleId]: LintCase): string {
+  const [, , moduleName, layer, name] = boundary.dir.split("/");
+  const moduleRoot = `src/modules/${moduleName}`;
+  const layerDir = `${moduleRoot}/${layer}`;
+  const extension = filePath.match(/\.[a-z]+$/)?.[0] ?? "";
+  const where = ROOT_LINT_FILES.has(filePath)
+    ? filePath
+    : filePath.startsWith("tests/")
+      ? "tests"
+      : filePath.startsWith("scripts/")
+        ? `scripts${extension}`
+        : filePath.startsWith("src/lib/")
+          ? `lib${extension}`
+          : filePath.startsWith("src/app/api/")
+            ? "api-route"
+            : filePath.startsWith("src/components/")
+              ? "component"
+              : filePath.startsWith(`${layerDir}/nested/`)
+                ? "layer/nested"
+                : filePath.startsWith(`${layerDir}/`)
+                  ? "layer"
+                  : filePath.startsWith(`${moduleRoot}/domain/`)
+                    ? "module/domain"
+                    : filePath.startsWith(`${moduleRoot}/`)
+                      ? "module"
+                      : `other:${filePath}`;
+  const forms: Array<[RegExp, string]> = [
+    [/^import type /m, "type"],
+    [/\bimport \w+ = require\(/, "import-equals"],
+    [/\bvi\.(mock|doMock|unmock|doUnmock|importActual|importMock)\(/, "vi"],
+    [/\brequire\(`/, "require-template"],
+    [/\brequire\(/, "require"],
+    [/\bimport\(`/, "dynamic-template"],
+    [/\bimport\(/, "dynamic"],
+    [/^export \* as /m, "export-star-ns"],
+    [/^export \* /m, "export-star"],
+    [/^export \{/m, "export-named"],
+    [/^import \* as \w+ from /m, "namespace"],
+    [/^import \{/m, "named"],
+  ];
+  const formMatch = forms.find(([pattern]) => pattern.test(code));
+  const form =
+    formMatch?.[1] === "vi" ? `vi.${code.match(forms[2][0])![1]}` : (formMatch?.[1] ?? `unknown:${code}`);
+  const specifier = code.match(/(["'`])((?:@\/|\.\.?\/)[^"'`]+)\1/)?.[2] ?? "";
+  const lastSegment = specifier.split("/").at(-1);
+  const spelling = specifier.endsWith("/index")
+    ? "index"
+    : lastSegment === name
+      ? "dir"
+      : specifier.endsWith(".ts")
+        ? "extension"
+        : specifier.startsWith("../")
+          ? "parent"
+          : specifier.startsWith("./")
+            ? "sibling"
+            : "alias";
+  return `${where} | ${form} | ${spelling} | ${ruleId}`;
+}
+
+const signatures = (boundary: Boundary, cases: LintCase[]) =>
+  cases.map((lintCase) => caseSignature(boundary, lintCase)).sort();
+
+describe("internal-module boundaries (ESLint)", { timeout: 120_000 }, () => {
+  beforeAll(async () => {
+    // ESLint 8.57: loadESLint({ useFlatConfig: true }) returns the flat-config
+    // engine, which reads eslint.config.mjs from the repository root like
+    // `pnpm lint` does.
+    const { loadESLint } = (await import("eslint")) as unknown as {
+      loadESLint: (options: {
+        useFlatConfig: boolean;
+        cwd: string;
+      }) => Promise<new (options: { cwd: string }) => LintEngine>;
+    };
+    const FlatESLint = await loadESLint({
+      useFlatConfig: true,
+      cwd: process.cwd(),
+    });
+    engine = new FlatESLint({ cwd: process.cwd() });
+  }, 120_000);
+
+  it.each(MONTHLY_CASES)("rechaza monthly-invoice/* desde %s", async (filePath, code, ruleId) => {
     const messages = await boundaryMessages(filePath, code);
     expect(messages).toHaveLength(1);
     expect(messages[0].ruleId).toBe(ruleId);
@@ -266,6 +406,103 @@ describe("internal-module boundaries (ESLint)", { timeout: 120_000 }, () => {
     expect(await legacySchemaMessages(operator, source)).toEqual([]);
     expect(await boundaryMessages(operator, source, REC_FACADE)).toEqual([]);
   });
+
+  it("la matriz generada reproduce exactamente las formas de la matriz revisada de monthly-invoice", () => {
+    const reviewed = signatures(MONTHLY, MONTHLY_CASES);
+    expect(new Set(reviewed).size, "cada caso revisado es una forma distinta").toBe(reviewed.length);
+    expect(reviewed.some((signature) => signature.includes("vi.unmock"))).toBe(true);
+    expect(reviewed.some((signature) => signature.includes("vi.doUnmock"))).toBe(true);
+    expect(signatures(MONTHLY, parityCases(MONTHLY, "issue-locks", "monthly-parity"))).toEqual(reviewed);
+    expect(signatures(RECONCILIATION, parityCases(RECONCILIATION, "lease", "rec-parity"))).toEqual(reviewed);
+    expect(signatures(ATHLETE_PROGRESS, parityCases(ATHLETE_PROGRESS, "access", "ap"))).toEqual(reviewed);
+  });
+
+  it.each(parityCases(RECONCILIATION, "lease", "rec-parity"))(
+    "rechaza reconciliation/* con todas las formas desde %s",
+    async (filePath, code, ruleId) => {
+      const messages = await boundaryMessages(filePath, code, REC_FACADE);
+      expect(messages, code).toHaveLength(1);
+      expect(messages[0].ruleId).toBe(ruleId);
+      expect(messages[0].severity).toBe(2);
+    }
+  );
+
+  // -------------------------------------------------------------------------
+  // athlete-progress/* (P2 #17) and the three boundaries together
+  // -------------------------------------------------------------------------
+
+  const AP = "@/modules/athlete-progress/application/athlete-progress";
+  const AP_FACADE = ATHLETE_PROGRESS.facadeSpecifier;
+
+  it.each(parityCases(ATHLETE_PROGRESS, "access", "ap"))(
+    "rechaza athlete-progress/* desde %s",
+    async (filePath, code, ruleId) => {
+      const messages = await boundaryMessages(filePath, code, AP_FACADE);
+      expect(messages, code).toHaveLength(1);
+      expect(messages[0].ruleId).toBe(ruleId);
+      expect(messages[0].severity).toBe(2);
+      expect(messages[0].message).toContain("athlete-progress/* es interno");
+    }
+  );
+
+  it.each([
+    // Las fronteras de monthly-invoice y reconciliation siguen vigentes dentro de athlete-progress/*.
+    [`${ATHLETE_PROGRESS.dir}/access.ts`, `import { lockQuotedRows } from "${INTERNAL}/issue-locks";\nvoid lockQuotedRows;\n`, FACADE_SPECIFIER, "no-restricted-imports"],
+    [`${ATHLETE_PROGRESS.dir}/reads.ts`, `export const load = () => vi.importActual("${INTERNAL}/quote");\n`, FACADE_SPECIFIER, "no-restricted-syntax"],
+    [ATHLETE_PROGRESS.facade, `export * from "${REC}/lease";\n`, REC_FACADE, "no-restricted-imports"],
+    [`${ATHLETE_PROGRESS.dir}/storage.ts`, `export const load = () => import("${REC}/apply");\n`, REC_FACADE, "no-restricted-syntax"],
+    // Y los módulos internos de las otras fronteras no alcanzan athlete-progress/*.
+    [`${INTERNAL_DIR}/issue.ts`, `import { authorizeMember } from "${AP}/access";\nvoid authorizeMember;\n`, AP_FACADE, "no-restricted-imports"],
+    [`${RECONCILIATION.dir}/apply.ts`, "export const load = () => import(`" + AP + "/reads`);\n", AP_FACADE, "no-restricted-syntax"],
+    [RECONCILIATION.facade, `export * from "${AP}/storage";\n`, AP_FACADE, "no-restricted-imports"],
+  ])("las tres fronteras se aplican entre sí (%s)", async (filePath, code, facadeSpecifier, ruleId) => {
+    const messages = await boundaryMessages(filePath, code, facadeSpecifier);
+    expect(messages, code).toHaveLength(1);
+    expect(messages[0].ruleId).toBe(ruleId);
+    expect(messages[0].severity).toBe(2);
+  });
+
+  it.each([
+    ["tests/sample-ap-facade.test.ts", `import { getAthleteProgress } from "${AP_FACADE}";\nvoid getAthleteProgress;\nvi.mock("${AP_FACADE}");\n`],
+    ["src/app/owner/sample-ap/page.tsx", `import { isAthleteProgressAvailableForPage } from "${AP_FACADE}";\nvoid isAthleteProgressAvailableForPage;\n`],
+    ["src/app/api/v1/owner/sample-ap/route.ts", `import { createAthleteObjective } from "${AP_FACADE}";\nexport const load = () => import("${AP_FACADE}");\nvoid createAthleteObjective;\n`],
+    // Dominio, infraestructura y el cliente de UI no son internos.
+    ["src/components/owner-dashboard/SampleApClient.tsx", `import { OBJECTIVE_STATUSES } from "@/modules/athlete-progress/domain/athlete-progress";\nimport { fetchAthleteProgress } from "./owner-athlete-progress-client";\nvoid OBJECTIVE_STATUSES;\nvoid fetchAthleteProgress;\n`],
+    ["src/modules/athlete-progress/domain/sample-ap.ts", `import { athleteObjectives } from "../infrastructure/athlete-progress-schema";\nexport * from "../application/athlete-progress-service";\nvoid athleteObjectives;\n`],
+    ["src/modules/athlete-progress/application/sample-ap-sibling.ts", `export * from "./athlete-progress-service";\n`],
+  ])("permite la fachada de athlete-progress y lo que no es interno (%s)", async (filePath, code) => {
+    expect(await boundaryMessages(filePath, code, AP_FACADE)).toEqual([]);
+  });
+
+  it("permite que la fachada de athlete-progress y sus módulos internos se importen entre sí", async () => {
+    expect(
+      await boundaryMessages(
+        ATHLETE_PROGRESS.facade,
+        `export { getAthleteProgress } from "./athlete-progress/reads";\nexport * from "./athlete-progress/storage";\n`,
+        AP_FACADE
+      )
+    ).toEqual([]);
+    expect(
+      await boundaryMessages(
+        `${ATHLETE_PROGRESS.dir}/reads.ts`,
+        `import { authorizeMember } from "./access";\nimport { isAthleteProgressStorageAvailable } from "${AP}/storage";\nexport const load = () => import("./objectives");\nvoid authorizeMember;\nvoid isAthleteProgressStorageAvailable;\n`,
+        AP_FACADE
+      )
+    ).toEqual([]);
+  });
+
+  it("mantiene el esquema heredado en la fachada, los módulos internos y el dominio de athlete-progress", async () => {
+    for (const filePath of [
+      ATHLETE_PROGRESS.facade,
+      `${ATHLETE_PROGRESS.dir}/access.ts`,
+      "src/modules/athlete-progress/domain/sample-legacy.ts",
+      "src/modules/athlete-progress/application/sample-legacy.ts",
+    ]) {
+      const messages = await legacySchemaMessages(filePath, `import { athletes } from "@/db/schema";\nvoid athletes;\n`);
+      expect(messages, filePath).toHaveLength(1);
+      expect(messages[0].severity, filePath).toBe(2);
+    }
+  });
 });
 
 describe("internal-module boundaries (definiciones y excepciones)", () => {
@@ -274,6 +511,7 @@ describe("internal-module boundaries (definiciones y excepciones)", () => {
     expect(boundaries.map((boundary) => boundary.name)).toEqual([
       "monthly-invoice",
       "reconciliation",
+      "athlete-progress",
     ]);
     for (const boundary of boundaries) {
       expect(Object.keys(boundary).sort(), boundary.name).toEqual([
@@ -479,6 +717,21 @@ describe("internal-module boundaries (fuentes)", () => {
     ];
     for (const [file, specifier, expected] of reconciliation) {
       expect(reachesDir(RECONCILIATION.dir, file, specifier), `${file}: ${specifier}`).toBe(expected);
+    }
+    const athleteProgress: Array<[string, string, boolean]> = [
+      ["tests/x.test.ts", "@/modules/athlete-progress/application/athlete-progress/access", true],
+      ["tests/x.test.ts", "@/modules/athlete-progress/application/athlete-progress", true],
+      ["src/modules/athlete-progress/application/x.ts", "./athlete-progress/storage", true],
+      ["src/modules/athlete-progress/domain/x.ts", "../application/athlete-progress/reads", true],
+      ["scripts/x.ts", "../src/modules/athlete-progress/application/athlete-progress/objectives", true],
+      ["tests/x.test.ts", ATHLETE_PROGRESS.facadeSpecifier, false],
+      ["src/modules/athlete-progress/application/x.ts", "./athlete-progress-service", false],
+      ["src/components/owner-dashboard/x.tsx", "@/modules/athlete-progress/domain/athlete-progress", false],
+      ["src/components/owner-dashboard/x.tsx", "./owner-athlete-progress-client", false],
+      ["tests/x.test.ts", "@/modules/athlete-progress/infrastructure/athlete-progress-schema", false],
+    ];
+    for (const [file, specifier, expected] of athleteProgress) {
+      expect(reachesDir(ATHLETE_PROGRESS.dir, file, specifier), `${file}: ${specifier}`).toBe(expected);
     }
   });
 });

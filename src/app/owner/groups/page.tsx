@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { OwnerGroupsManager } from "@/components/owner-dashboard/OwnerGroupsManager";
 import { db } from "@/db";
-import { isAthleteProgressAvailableForPage } from "@/modules/athlete-progress/application/athlete-progress-storage";
+import { isAthleteProgressAvailableForPage } from "@/modules/athlete-progress/application/athlete-progress-service";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { createClient } from "@/lib/supabase/server";
 import { getOwnerGroupsPageData } from "@/modules/groups/application/group-management-service";

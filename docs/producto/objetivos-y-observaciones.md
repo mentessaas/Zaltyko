@@ -27,7 +27,7 @@ Objetivo: que el equipo técnico deje constancia, en la ficha de cada gimnasta, 
 | Entrenador/a | Solo gimnastas con inscripción o grupo **abierto** en una sede asignada (mismo criterio que Pasar lista); solo registros de sus sedes; nunca archivadas | Sí, en sus sedes | Solo los que creó | Solo las suyas |
 | Familias | Nada | Nada | — | — |
 
-Todo se comprueba en el servidor, dentro de la transacción de cada operación (`src/modules/athlete-progress/application/athlete-progress-service.ts`):
+Todo se comprueba en el servidor, dentro de la transacción de cada operación. La fachada es `src/modules/athlete-progress/application/athlete-progress-service.ts`, y sus módulos internos (`athlete-progress/*`) están protegidos por una frontera ESLint en `eslint.internal-boundaries.json`:
 
 1. `resolveOwnerScope` con la superficie `coach_operations`: miembro activo, rol permitido y sede de su alcance.
 2. `assertOperationalAccess`: vuelve a comprobar miembro, rol y sede y, en escrituras, que el plan no esté en solo lectura.
@@ -50,7 +50,7 @@ La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que 
 - `zaltyko.athlete_objective_status_history`: una fila al crear (`from_status` nulo, revisión 1) y otra por cambio.
 - `zaltyko.athlete_observations`: academia, gimnasta, sede, identificador de petición, texto, visibilidad, fecha, sesión y objetivo opcionales, autor, última edición y revisión.
 
-Todas las restricciones tienen nombre de menos de 63 caracteres, y el espejo Drizzle repite las CHECK y los únicos. Todas las claves foráneas son compuestas con `organization_id`. La de sesiones queda en NO ACTION: ningún flujo borra sesiones, porque se cancelan por estado, y un `set null` compuesto anularía también la academia y la sede. La sesión debe ser de la misma sede que la observación y el objetivo, de la misma gimnasta. La auditoría (`zaltyko.audit_log`) registra altas, cambios de estado y ediciones sin copiar el texto de las observaciones.
+Todas las restricciones tienen nombre de menos de 63 caracteres, y el espejo Drizzle repite las CHECK y los únicos. Todas las claves foráneas son compuestas con `organization_id`. La de sesiones queda en NO ACTION: ningún flujo borra sesiones, porque se cancelan por estado, y un `set null` compuesto anularía también la academia y la sede. `tests/zaltyko-sessions-never-deleted.test.ts` lo comprueba recorriendo el código, los scripts, las migraciones y las candidatas. La sesión debe ser de la misma sede que la observación y el objetivo, de la misma gimnasta. La auditoría (`zaltyko.audit_log`) registra altas, cambios de estado y ediciones sin copiar el texto de las observaciones.
 
 ## Decide Elvis
 

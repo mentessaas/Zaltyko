@@ -32,7 +32,7 @@ import {
   notFound,
   type ActorInput,
   type AthleteAccess,
-} from "./athlete-progress-access";
+} from "./access";
 
 /** Observaciones por gimnasta (P2 #17). Uso interno: entra por la fachada. */
 
