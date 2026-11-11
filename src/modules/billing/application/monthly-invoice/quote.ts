@@ -122,7 +122,7 @@ export async function buildMonthlyInvoiceOptions(
   // lookup also asks for those references, without case. Better a false block
   // than a second invoice for the month.
   const familyByLegacyReference = new Map(
-    familyIds.map((familyId) => [
+    familyIds.map((familyId): [string, string] => [
       legacyMonthlyInvoiceReferenceKey({
         servicePeriod: input.servicePeriod,
         familyId,
