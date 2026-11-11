@@ -141,7 +141,13 @@ export type ExistingMonthlyInvoiceRow = {
  * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
  * monthly-invoice-service.ts.
  */
-export type ReferenceOwnerRow = { invoiceId: string; reference: string };
+export type ReferenceOwnerRow = {
+  invoiceId: string;
+  reference: string;
+  locationId: string | null;
+  status: string;
+  voidedAt: Date | null;
+};
 
 /**
  * Active site of the quote; 404 when it does not belong to the organization.
@@ -599,7 +605,8 @@ export async function readExistingMonthlyInvoices(
 /**
  * Invoices of the organization that already hold one of the references.
  * invoices_reference_uq is UNIQUE (organization_id, reference), so this read
- * is not filtered by site.
+ * is not filtered by site. The quote also looks up the pre-site references
+ * here; their site and state tell a monthly invoice without a site apart.
  *
  * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
  * monthly-invoice-service.ts.
@@ -620,7 +627,13 @@ export async function readReferenceOwners(
       ];
       if (cursor) conditions.push(gt(invoices.id, cursor));
       return tx
-        .select({ invoiceId: invoices.id, reference: invoices.reference })
+        .select({
+          invoiceId: invoices.id,
+          reference: invoices.reference,
+          locationId: invoices.locationId,
+          status: invoices.status,
+          voidedAt: invoices.voidedAt,
+        })
         .from(invoices)
         .where(and(...conditions))
         .orderBy(asc(invoices.id))

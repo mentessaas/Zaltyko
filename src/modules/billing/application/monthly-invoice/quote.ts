@@ -10,6 +10,7 @@ import { assertOperationalAccess } from "@/modules/shared/infrastructure/operati
 import {
   finalizeFamilyQuotes,
   indexExistingInvoices,
+  indexInvoiceStatesByFamily,
 } from "./blocking-reasons";
 import {
   financialRoles,
@@ -28,7 +29,10 @@ import {
   readReferenceOwners,
   readTariffCoverage,
 } from "./quote-reads";
-import { monthlyInvoiceReference } from "./reference";
+import {
+  legacyMonthlyInvoiceReferences,
+  monthlyInvoiceReference,
+} from "./reference";
 
 /**
  * @internal Cotización dentro de una transacción ajena. Solo la usan
@@ -94,7 +98,7 @@ export async function buildMonthlyInvoiceOptions(
     bounds,
     familyIds
   );
-  const { existingByFamily, siteLessFamilies, existingInvoiceIds } =
+  const { existingByFamily, existingInvoiceIds } =
     indexExistingInvoices(existingRows);
 
   // The ledger keeps invoices_reference_uq UNIQUE (organization_id, reference).
@@ -111,21 +115,51 @@ export async function buildMonthlyInvoiceOptions(
       }),
     ])
   );
+  // A monthly invoice issued before the site discriminator without a site and
+  // without monthly_fee lines for the month is invisible to the read above.
+  // Its pre-site reference still names the family and the month, so the same
+  // lookup also asks for those references. Better a false block than a second
+  // invoice for the month.
+  const familyByLegacyReference = new Map(
+    familyIds.flatMap((familyId) =>
+      legacyMonthlyInvoiceReferences({
+        servicePeriod: input.servicePeriod,
+        familyId,
+      }).map((reference) => [reference, familyId] as const)
+    )
+  );
   const referenceOwners = await readReferenceOwners(tx, input, [
-    ...new Set(referenceByFamily.values()),
+    ...new Set([
+      ...referenceByFamily.values(),
+      ...familyByLegacyReference.keys(),
+    ]),
   ]);
+  // Only current references can collide: a pre-site reference never equals
+  // one (different length), so having it in this set changes nothing.
   const takenReferences = new Set(
     referenceOwners
       .filter((row) => !existingInvoiceIds.has(row.invoiceId))
       .map((row) => row.reference)
   );
+  // Without a site: found by its monthly_fee lines or by its pre-site
+  // reference. A pre-site reference at a site is an invoice of that site; the
+  // lines read reports it at this site, and another site's is not this quote's.
+  const siteLessByFamily = indexInvoiceStatesByFamily([
+    ...existingRows.filter((row) => row.locationId === null),
+    ...referenceOwners.flatMap((row) => {
+      const familyId = familyByLegacyReference.get(row.reference);
+      return familyId !== undefined && row.locationId === null
+        ? [{ familyId, status: row.status, voidedAt: row.voidedAt }]
+        : [];
+    }),
+  ]);
 
   finalizeFamilyQuotes(familyResults, {
     organizationId: input.organizationId,
     locationId: input.locationId,
     servicePeriod: input.servicePeriod,
     existingByFamily,
-    siteLessFamilies,
+    siteLessByFamily,
     referenceByFamily,
     takenReferences,
   });

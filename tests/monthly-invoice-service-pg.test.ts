@@ -506,6 +506,27 @@ function signal() {
   return { promise, resolve };
 }
 
+/** Inserts a monthly invoice without a site and without lines, as old code could leave it. */
+async function insertSiteLessInvoice(
+  fixture: Fixture,
+  state: { status: "issued" | "void"; voidedAt: string | null }
+) {
+  const invoiceId = randomUUID();
+  await db.execute(sql`
+    insert into zaltyko.invoices (
+      id, organization_id, location_id, family_id, reference, status,
+      currency, total_amount_cents, issued_at, due_at, voided_at, idempotency_key
+    ) values (
+      ${invoiceId}::uuid, ${fixture.organizationId}::uuid, null,
+      ${fixture.familyId}::uuid, ${legacyReference(fixture)}, ${state.status}::zaltyko.invoice_status,
+      'EUR', 6200, ${`${PERIOD_START}T09:00:00Z`}::timestamptz,
+      ${`${PERIOD_END}T12:00:00Z`}::timestamptz, ${state.voidedAt}::timestamptz,
+      ${`ci-legacy-${invoiceId}`}
+    )
+  `);
+  return invoiceId;
+}
+
 describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
   beforeEach(() => {
     assertDisposableTarget();
@@ -1034,6 +1055,62 @@ describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
     expect(await ledgerRows(fixture.organizationId)).toEqual({
       invoices: 1,
       lines: 1,
+      covered: 0,
+      charges: 0,
+      markers: 0,
+    });
+  }, 45_000);
+
+  it("blocks a month invoiced without a site that has no monthly_fee lines, found by its pre-site reference", async () => {
+    // Old code could leave a monthly header without a site and without lines
+    // for the month. The lines read cannot see it; its pre-site reference
+    // still names the family and the month.
+    const fixture = await seedFamily();
+    await insertSiteLessInvoice(fixture, { status: "issued", voidedAt: null });
+
+    const family = await quoteFor(fixture);
+    expect(family).toMatchObject({
+      canIssue: false,
+      existingInvoiceId: null,
+      existingInvoiceVoided: false,
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"],
+    });
+    await expect(issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!))).rejects.toMatchObject({
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 422,
+      details: { blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE"] },
+    });
+    expect(await ledgerRows(fixture.organizationId)).toEqual({
+      invoices: 1,
+      lines: 0,
+      covered: 0,
+      charges: 0,
+      markers: 0,
+    });
+  }, 45_000);
+
+  it("blocks with its own reason a voided month invoiced without a site", async () => {
+    const fixture = await seedFamily();
+    await insertSiteLessInvoice(fixture, {
+      status: "void",
+      voidedAt: `${PERIOD_START}T10:00:00Z`,
+    });
+
+    const family = await quoteFor(fixture);
+    expect(family).toMatchObject({
+      canIssue: false,
+      existingInvoiceId: null,
+      existingInvoiceVoided: false,
+      blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE_VOIDED"],
+    });
+    await expect(issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!))).rejects.toMatchObject({
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 422,
+      details: { blockingReasons: ["PERIOD_INVOICED_WITHOUT_SITE_VOIDED"] },
+    });
+    expect(await ledgerRows(fixture.organizationId)).toEqual({
+      invoices: 1,
+      lines: 0,
       covered: 0,
       charges: 0,
       markers: 0,
