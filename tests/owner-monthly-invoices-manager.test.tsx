@@ -1456,7 +1456,7 @@ describe("OwnerMonthlyInvoicesManager", () => {
     await issueOnceWith({
       data: {
         type: "https://zaltyko.com/problems/concurrency-retry",
-        title: "Solicitud no procesable",
+        title: "Operación ocupada, vuelve a intentarlo",
         status: 503,
         detail,
         errors: { retryable: true },
