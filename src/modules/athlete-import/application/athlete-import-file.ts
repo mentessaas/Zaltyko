@@ -8,6 +8,8 @@
  * multi-line cell is one row; blank rows do not count) and a file with more
  * than ATHLETE_IMPORT_MAX_ROWS data rows is refused as a whole.
  */
+import { inflateRawSync } from "node:zlib";
+
 import { parse } from "csv-parse/sync";
 import * as XLSX from "xlsx";
 
@@ -52,10 +54,25 @@ const tooLargeUnzipped = () =>
 const brokenZip = () =>
   invalidFile("No se pudo abrir el Excel. Guárdalo de nuevo como .xlsx o como CSV.", "XLSX_MALFORMED");
 
+/** Shared strings (all the text of the sheet) may use at most half the budget. */
+export const ATHLETE_IMPORT_MAX_SHARED_STRINGS_BYTES = 10 * 1024 * 1024;
+
+const inconsistentZip = () =>
+  invalidFile(
+    "El Excel tiene un formato interno incoherente. Guárdalo de nuevo como .xlsx o como CSV.",
+    "XLSX_INCONSISTENT"
+  );
+
 /**
- * ZIP bomb guard: reads the central directory and adds up the uncompressed
- * size every entry declares, before the XLSX reader inflates anything. ZIP64
- * archives (sizes beyond 4 GiB) are refused outright.
+ * ZIP bomb guard, before the XLSX reader touches the file:
+ *
+ * 1. adds up the uncompressed sizes the central directory declares and
+ *    refuses more than 20 MB, more than 1,000 entries, ZIP64 or encryption;
+ * 2. checks every local header against its central entry (name, method and,
+ *    unless the sizes come in a data descriptor, both sizes);
+ * 3. inflates every entry itself with a hard output cap equal to the size it
+ *    declares, so an archive that lies about its sizes is refused instead of
+ *    trusted. After this, SheetJS inflates the same bytes to the same sizes.
  */
 export function assertZipWithinLimits(bytes: Uint8Array): void {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -76,17 +93,64 @@ export function assertZipWithinLimits(bytes: Uint8Array): void {
   }
   if (entries > MAX_ZIP_ENTRIES) throw tooLargeUnzipped();
   if (directoryOffset + directorySize > end) throw brokenZip();
+
+  type Entry = { name: string; flags: number; method: number; compressed: number; uncompressed: number; localOffset: number };
+  const list: Entry[] = [];
   let total = 0;
   let offset = directoryOffset;
   for (let entry = 0; entry < entries; entry += 1) {
     if (offset + 46 > end || view.getUint32(offset, true) !== 0x02014b50) throw brokenZip();
+    const flags = view.getUint16(offset + 8, true);
+    const method = view.getUint16(offset + 10, true);
     const compressed = view.getUint32(offset + 20, true);
     const uncompressed = view.getUint32(offset + 24, true);
-    if (compressed === 0xffffffff || uncompressed === 0xffffffff) throw tooLargeUnzipped();
+    const nameLength = view.getUint16(offset + 28, true);
+    const localOffset = view.getUint32(offset + 42, true);
+    if (compressed === 0xffffffff || uncompressed === 0xffffffff || localOffset === 0xffffffff) {
+      throw tooLargeUnzipped();
+    }
+    if (flags & 0x1) throw inconsistentZip();
     total += uncompressed;
     if (total > ATHLETE_IMPORT_MAX_UNZIPPED_BYTES) throw tooLargeUnzipped();
-    offset +=
-      46 + view.getUint16(offset + 28, true) + view.getUint16(offset + 30, true) + view.getUint16(offset + 32, true);
+    const name = new TextDecoder().decode(bytes.subarray(offset + 46, offset + 46 + nameLength));
+    if (name === "xl/sharedStrings.xml" && uncompressed > ATHLETE_IMPORT_MAX_SHARED_STRINGS_BYTES) {
+      throw tooLargeUnzipped();
+    }
+    list.push({ name, flags, method, compressed, uncompressed, localOffset });
+    offset += 46 + nameLength + view.getUint16(offset + 30, true) + view.getUint16(offset + 32, true);
+  }
+
+  for (const entry of list) {
+    const local = entry.localOffset;
+    if (local + 30 > directoryOffset || view.getUint32(local, true) !== 0x04034b50) throw inconsistentZip();
+    const localFlags = view.getUint16(local + 6, true);
+    const localMethod = view.getUint16(local + 8, true);
+    const localNameLength = view.getUint16(local + 26, true);
+    const dataStart = local + 30 + localNameLength + view.getUint16(local + 28, true);
+    const localName = new TextDecoder().decode(bytes.subarray(local + 30, local + 30 + localNameLength));
+    if (localName !== entry.name || localMethod !== entry.method || (localFlags & 0x1) !== 0) throw inconsistentZip();
+    if (
+      !(entry.flags & 0x8) &&
+      (view.getUint32(local + 18, true) !== entry.compressed || view.getUint32(local + 22, true) !== entry.uncompressed)
+    ) {
+      throw inconsistentZip();
+    }
+    if (dataStart + entry.compressed > directoryOffset) throw inconsistentZip();
+    const data = bytes.subarray(dataStart, dataStart + entry.compressed);
+    let produced: number;
+    if (entry.method === 0) {
+      produced = data.length;
+    } else if (entry.method === 8) {
+      try {
+        produced = inflateRawSync(data, { maxOutputLength: Math.max(1, entry.uncompressed) }).length;
+      } catch {
+        // Either more output than declared (the cap) or corrupt data.
+        throw inconsistentZip();
+      }
+    } else {
+      throw inconsistentZip();
+    }
+    if (produced !== entry.uncompressed) throw inconsistentZip();
   }
 }
 

@@ -5,11 +5,19 @@
 import { deflateRawSync } from "node:zlib";
 
 import * as XLSX from "xlsx";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// XLSX.read passes through to the real reader; the wrapper only records the
+// options so a test can pin `sheets: 0`.
+vi.mock("xlsx", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("xlsx")>();
+  return { ...actual, read: vi.fn(actual.read) };
+});
 
 import {
   ATHLETE_IMPORT_MAX_BYTES,
   ATHLETE_IMPORT_MAX_ROWS,
+  ATHLETE_IMPORT_MAX_SHARED_STRINGS_BYTES,
   ATHLETE_IMPORT_MAX_UNZIPPED_BYTES,
   assertZipWithinLimits,
   detectDelimiter,
@@ -204,16 +212,24 @@ describe("XLSX", () => {
 });
 
 describe("bomba ZIP", () => {
-  /** A ZIP with one entry whose declared uncompressed size is `size` bytes of zeros. */
-  function zipOf(size: number): Uint8Array {
-    const name = Buffer.from("xl/worksheets/sheet1.xml");
+  /**
+   * A ZIP with one entry of `size` zero bytes, deflated. `declared` is the
+   * uncompressed size the central directory claims and `localDeclared` the one
+   * the local header claims (both default to the truth).
+   */
+  function zipOf(
+    size: number,
+    options: { declared?: number; localDeclared?: number; entryName?: string } = {}
+  ): Uint8Array {
+    const name = Buffer.from(options.entryName ?? "xl/worksheets/sheet1.xml");
     const data = deflateRawSync(Buffer.alloc(size), { level: 9 });
+    const declared = options.declared ?? size;
     const local = Buffer.alloc(30);
     local.writeUInt32LE(0x04034b50, 0);
     local.writeUInt16LE(20, 4);
     local.writeUInt16LE(8, 8);
     local.writeUInt32LE(data.length, 18);
-    local.writeUInt32LE(size, 22);
+    local.writeUInt32LE(options.localDeclared ?? declared, 22);
     local.writeUInt16LE(name.length, 26);
     const central = Buffer.alloc(46);
     central.writeUInt32LE(0x02014b50, 0);
@@ -221,7 +237,7 @@ describe("bomba ZIP", () => {
     central.writeUInt16LE(20, 6);
     central.writeUInt16LE(8, 10);
     central.writeUInt32LE(data.length, 20);
-    central.writeUInt32LE(size, 24);
+    central.writeUInt32LE(declared, 24);
     central.writeUInt16LE(name.length, 28);
     const directoryOffset = local.length + name.length + data.length;
     const end = Buffer.alloc(22);
@@ -240,7 +256,41 @@ describe("bomba ZIP", () => {
     expect(failure(bomb)).toEqual({ code: "IMPORT_FILE_INVALID", status: 422, reason: "XLSX_TOO_LARGE" });
   });
 
-  it("deja pasar un ZIP por debajo del tope", () => {
+  it("deja pasar un ZIP coherente por debajo del tope", () => {
     expect(() => assertZipWithinLimits(zipOf(1024))).not.toThrow();
+  });
+
+  it("rechaza un ZIP que miente: declara 1 KB y al descomprimir daría más de 20 MB", () => {
+    const liar = zipOf(ATHLETE_IMPORT_MAX_UNZIPPED_BYTES + 1024 * 1024, { declared: 1024 });
+    expect(liar.length).toBeLessThan(200 * 1024);
+    expect(failure(liar)).toEqual({ code: "IMPORT_FILE_INVALID", status: 422, reason: "XLSX_INCONSISTENT" });
+  });
+
+  it("rechaza un ZIP que declara más de lo que contiene", () => {
+    expect(failure(zipOf(1024, { declared: 4096 }))).toMatchObject({ reason: "XLSX_INCONSISTENT" });
+  });
+
+  it("rechaza un ZIP cuya cabecera local no coincide con el directorio central", () => {
+    expect(failure(zipOf(2048, { localDeclared: 1024 }))).toMatchObject({ reason: "XLSX_INCONSISTENT" });
+  });
+
+  it("limita los textos compartidos a 10 MB", () => {
+    const strings = zipOf(1024, {
+      entryName: "xl/sharedStrings.xml",
+      declared: ATHLETE_IMPORT_MAX_SHARED_STRINGS_BYTES + 1,
+    });
+    expect(failure(strings)).toMatchObject({ reason: "XLSX_TOO_LARGE" });
+  });
+
+  it("solo procesa la primera hoja del libro", () => {
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([["Nombre", "Apellidos"], ["Lucía", "Prueba"]]), "Gimnastas");
+    XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([["Otra", "Hoja"], ["Ana", "Prueba"]]), "Otra");
+    const bytes = new Uint8Array(XLSX.write(book, { type: "array", bookType: "xlsx" }) as ArrayBuffer);
+    vi.mocked(XLSX.read).mockClear();
+
+    expect(parseAthleteImportFile(bytes).rows).toEqual([{ row: 2, cells: ["Lucía", "Prueba"] }]);
+    expect(vi.mocked(XLSX.read)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(XLSX.read).mock.calls[0]![1]).toMatchObject({ sheets: 0, dense: true, cellFormula: false });
   });
 });

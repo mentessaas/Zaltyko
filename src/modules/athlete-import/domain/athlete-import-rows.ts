@@ -37,6 +37,17 @@ export const ATHLETE_IMPORT_FIELD_LABELS: Readonly<Record<AthleteImportField, st
   guardianRelationship: "Parentesco",
 };
 
+/**
+ * Column titles of the downloadable templates: the label plus the format the
+ * value must follow where it is easy to get wrong. The import recognises them
+ * because the text in brackets is ignored when matching titles.
+ */
+export const ATHLETE_IMPORT_TEMPLATE_HEADERS: Readonly<Record<AthleteImportField, string>> = {
+  ...ATHLETE_IMPORT_FIELD_LABELS,
+  dateOfBirth: "Fecha de nacimiento (DD/MM/AAAA)",
+  guardianPhone: "Teléfono del tutor (+34600000000, sin espacios)",
+};
+
 /** Header spellings recognised for each field, already normalised. */
 const HEADER_SYNONYMS: Readonly<Record<AthleteImportField, readonly string[]>> = {
   givenName: ["nombre", "nombre gimnasta", "nombre de la gimnasta", "nombre del gimnasta", "first name"],
@@ -102,7 +113,8 @@ export function normalizeHeader(value: string): string {
  */
 export function deriveImportMapping(headers: readonly string[]): AthleteImportMapping {
   const used = new Set<number>();
-  const normalized = headers.map(normalizeHeader);
+  // "Teléfono del tutor (+34600000000, sin espacios)" matches "teléfono del tutor".
+  const normalized = headers.map((header) => normalizeHeader(header.replace(/\([^)]*\)/gu, " ")));
   const mapping = {} as Record<AthleteImportField, number | null>;
   for (const field of ATHLETE_IMPORT_FIELDS) {
     const synonyms = new Set([normalizeHeader(ATHLETE_IMPORT_FIELD_LABELS[field]), ...HEADER_SYNONYMS[field]]);
@@ -435,7 +447,7 @@ export function isBlankRow(cells: readonly string[]): boolean {
  * a forgotten example can never be imported as a real athlete.
  */
 export function athleteImportTemplateCsv(): string {
-  const headers = ATHLETE_IMPORT_FIELDS.map((field) => escapeCsvCell(ATHLETE_IMPORT_FIELD_LABELS[field]));
+  const headers = ATHLETE_IMPORT_FIELDS.map((field) => escapeCsvCell(ATHLETE_IMPORT_TEMPLATE_HEADERS[field]));
   return `\uFEFF${headers.join(";")}\r\n`;
 }
 

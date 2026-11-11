@@ -218,8 +218,13 @@ export function OwnerAthleteImportWorkspace({
         </h2>
         <p className={ownerUi.muted}>
           Columnas obligatorias: nombre y apellidos. Opcionales: fecha de nacimiento (DD/MM/AAAA), grupo y
-          datos del tutor. Las reglas son las del alta manual: el teléfono va completo con prefijo y sin
-          espacios (+34600000000). Máximo 1.000 filas y 2 MB.
+          datos del tutor. Máximo 1.000 filas y 2 MB.
+        </p>
+        <p className={ownerUi.muted}>
+          <strong>Teléfono del tutor:</strong> con prefijo internacional y sin espacios, por ejemplo{" "}
+          <code>+34600000000</code>. «+34 600 000 000» o «600000000» no se aceptan, igual que en la ficha del
+          tutor. Si escribes en Excel sobre la plantilla CSV, empieza por un apóstrofo (<code>&apos;+34600000000</code>)
+          para que Excel no lo convierta en número; la plantilla Excel ya trae esa columna como texto.
         </p>
         <div className="flex flex-wrap gap-3">
           <button

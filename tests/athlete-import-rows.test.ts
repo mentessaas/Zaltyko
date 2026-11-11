@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ATHLETE_IMPORT_TEMPLATE_HEADERS,
   athleteDuplicateKey,
   athleteImportIssuesCsv,
   athleteImportTemplateCsv,
@@ -213,8 +214,16 @@ describe("validación de una fila", () => {
 });
 
 describe("ficheros que genera la pantalla", () => {
-  it("la plantilla solo trae los títulos, con BOM y separada por punto y coma", () => {
-    expect(athleteImportTemplateCsv()).toBe(`﻿${TEMPLATE_HEADERS.join(";")}\r\n`);
+  it("la plantilla solo trae los títulos, con el formato de fecha y teléfono, BOM y punto y coma", () => {
+    expect(athleteImportTemplateCsv()).toBe(
+      "\uFEFFNombre;Apellidos;Fecha de nacimiento (DD/MM/AAAA);Grupo;Nombre del tutor;Apellidos del tutor;" +
+        'Email del tutor;"Teléfono del tutor (+34600000000, sin espacios)";Parentesco\r\n'
+    );
+  });
+
+  it("los títulos de la plantilla, con su texto entre paréntesis, se reconocen al importar", () => {
+    expect(deriveImportMapping(Object.values(ATHLETE_IMPORT_TEMPLATE_HEADERS))).toEqual(deriveImportMapping(TEMPLATE_HEADERS));
+    expect(deriveImportMapping(["Nombre", "Apellidos", "Teléfono (móvil)"]).guardianPhone).toBe(2);
   });
 
   it("neutraliza las fórmulas al reexportar y entrecomilla separadores", () => {
