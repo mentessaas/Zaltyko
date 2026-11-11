@@ -117,6 +117,33 @@ grants y se niega a reinstalarse si alguna de las tres relaciones ya existe.
   ningún entorno. La CI verde no equivale a autorización.
 - Producto: `docs/producto/objetivos-y-observaciones.md`.
 
+## Candidato de titulares por clase y sustituciones (O1)
+
+`20261111180000_coach_assignment_candidate.sql` crea solo
+`zaltyko.class_template_staff` (titulares de cada clase, con quién las asignó)
+y `zaltyko.session_staff_overrides` (marca de sustitución de una sesión, con un
+motivo de código cerrado, quién y cuándo). Quién entrena en cada sesión sigue
+en `zaltyko.session_staff`, ya aplicada en
+`supabase/migrations/20261006080702_establish_zaltyko_domain_foundation.sql`.
+No toca tablas existentes, filas, roles ni objetos legacy. Fuerza RLS, revoca
+`public`, `anon` y `authenticated`, no crea políticas ni grants y se niega a
+reinstalarse si alguna de las dos relaciones ya existe.
+
+- Esquema Drizzle espejo: `src/modules/coach-assignment/infrastructure/coach-assignment-schema.ts`.
+  **No se exporta** desde `src/db/schema/index.ts` ni desde
+  `src/db/zaltyko-schema.ts` y vive fuera de `src/db/schema/`, como el
+  candidato de la PR 271.
+- Contrato: `tests/coach-assignment-contract.test.ts`.
+- Prueba: `tests/coach-assignment-pg.test.ts`, en el job «Postgres
+  integration». Instala el candidato solo en el PostgreSQL desechable de
+  GitHub y borra las tablas al terminar.
+- Mientras no se aplique, `coach-assignment/storage.ts` detecta que falta: las
+  rutas responden 503 (`coach_assignment_storage_unavailable`), las pantallas
+  ocultan titulares y sustituciones, y la generación de sesiones no cambia.
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+  ningún entorno. La CI verde no equivale a autorización.
+- Producto: `docs/producto/entrenadoras-por-clase.md`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.

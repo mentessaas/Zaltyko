@@ -274,6 +274,7 @@ describe("internal-module boundaries (definiciones y excepciones)", () => {
     expect(boundaries.map((boundary) => boundary.name)).toEqual([
       "monthly-invoice",
       "reconciliation",
+      "coach-assignment",
     ]);
     for (const boundary of boundaries) {
       expect(Object.keys(boundary).sort(), boundary.name).toEqual([

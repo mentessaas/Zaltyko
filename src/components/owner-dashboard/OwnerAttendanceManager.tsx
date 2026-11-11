@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ClipboardCheck, UsersRound } from "lucide-react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import { OwnerSessionCoaches } from "./OwnerSessionCoaches";
 import { OwnerSessionAthleteProgress } from "./OwnerSessionAthleteProgress";
 import { OwnerSessionObservationForm } from "./OwnerSessionObservationForm";
 import { ownerUi } from "./owner-ui";
@@ -209,6 +210,7 @@ export function OwnerAttendanceManager({
   selectedSession: requestedSession,
   coachMode = false,
   progressAvailable = false,
+  coachAssignmentAvailable = false,
 }: {
   organizationId: string;
   locationId: string;
@@ -223,6 +225,11 @@ export function OwnerAttendanceManager({
    * existen. Sin ellas no se muestran sus accesos.
    */
   progressAvailable?: boolean;
+  /**
+   * O1: el servidor comprobó que las tablas de titulares y sustituciones
+   * existen. Sin ellas no se muestra quién entrena.
+   */
+  coachAssignmentAvailable?: boolean;
 }) {
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
@@ -815,6 +822,16 @@ export function OwnerAttendanceManager({
                 ) : null}
               </div>
             )}
+            {coachAssignmentAvailable && selectedSession ? (
+              <OwnerSessionCoaches
+                key={selectedSession.id}
+                organizationId={organizationId}
+                locationId={locationId}
+                sessionId={selectedSession.id}
+                coachMode={coachMode}
+                writesBlocked={writesBlocked}
+              />
+            ) : null}
             {selectedSession?.retryOnly && (
               <p role="status" className={ownerUi.noticeWarning}>
                 Esta sesión solo permite recuperar una asistencia que ya se

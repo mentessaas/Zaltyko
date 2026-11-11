@@ -9,6 +9,19 @@ source:
 
 
 
+## 2026-11-11 — Entrenadoras titulares por clase y sustitución por sesión (O1)
+
+**Cambio.**
+- Módulo `src/modules/coach-assignment/` tras la fachada `coach-assignment-service.ts` (frontera registrada en `eslint.internal-boundaries.json`).
+- La dirección, administración y coordinación asignan titulares a cada clase (rol Entrenador/a con acceso a la sede) y cambian quién entrena en una sesión con un motivo cerrado. Las sesiones generadas heredan las titulares; las futuras sin sustitución pasan a las nuevas titulares.
+- API `/api/v1/owner/classes/[classTemplateId]/coaches` y `/api/v1/owner/sessions/[sessionId]/coaches` (GET/PUT). La entrenadora solo lee la sesión, con el acceso de Pasar lista.
+- Interfaz: titulares en la ficha de clase, «Quién entrena» en Pasar lista y «Entrena: …» en Hoy; el Hoy de la entrenadora pone primero «Tus sesiones».
+- Candidato SQL `docs/deployment/candidates/20261111180000_coach_assignment_candidate.sql` (`class_template_staff`, `session_staff_overrides`; RLS ENABLE/FORCE, REVOKE). **No se ejecutó en ningún entorno alojado; requiere autorización de Elvis.** Sin aplicar, todo queda dormido (503 y accesos ocultos) y nada escribe en `session_staff`.
+
+**Pruebas.** Dominio, contrato, rutas, frontera, UI, matriz del entrenador y `tests/coach-assignment-pg.test.ts` en el job «Postgres integration». No se ejecutó nada en local (regla del encargo): resultado en la CI de la PR.
+
+**Sin resolver.** «Decide Elvis» de `docs/producto/entrenadoras-por-clase.md`, sobre todo el vínculo ficha de equipo ↔ acceso (`staff_profiles.member_id`), que ningún flujo rellena: hasta que O3 lo haga, nadie es asignable.
+
 ## 2026-11-11 — Objetivos y observaciones por gimnasta (P2 #17, primera parte)
 
 **Cambio.**
