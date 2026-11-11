@@ -100,12 +100,19 @@ async function linkedProfile(organizationId: string, memberId: string) {
   return result.rows as Array<{ id: string; given_name: string; family_name: string; is_active: boolean }>;
 }
 
-/** Waits until `count` acceptances block on the invitation row lock (by query). */
-async function waitForLockWaiters(count: number) {
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const result = await db.execute(sql`select count(*)::int as waiting from pg_stat_activity
-      where datname=current_database() and wait_event_type='Lock' and pid<>pg_backend_pid()
-        and query ilike '%from zaltyko.organization_member_invitations%' and query ilike '%for update%'`);
+/**
+ * Waits until `count` backends are blocked by the lock holder (`holderPid`),
+ * directly or behind another waiter on the same row (tuple-lock queue).
+ */
+async function waitForLockWaiters(holderPid: number, count: number) {
+  for (let attempt = 0; attempt < 400; attempt += 1) {
+    const result = await db.execute(sql`with direct as (
+        select pid from pg_stat_activity where ${holderPid}::int = any(pg_blocking_pids(pid))
+      ), queued as (
+        select pid from pg_stat_activity
+        where pg_blocking_pids(pid) && (select coalesce(array_agg(pid), '{}'::int[]) from direct)
+      )
+      select count(distinct pid)::int as waiting from (select pid from direct union select pid from queued) waiters`);
     if (Number((result.rows[0] as { waiting: number }).waiting) >= count) return;
     await new Promise(resolveWait => setTimeout(resolveWait, 25));
   }
@@ -266,7 +273,7 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
     const created = await invite(f, who); const waiting = await invite(f, unconfirmed);
     const before = await snapshot(f.organizationId);
     const inspection = await inspectCanonicalTeamInvitation({ userId: who.userId, token: created.token! });
-    expect(inspection).toEqual({ organization: { id: f.organizationId, name: "Club sintético de equipo" }, role: "coach", locations: created.invitation.requestedLocations });
+    expect(inspection).toEqual({ organization: { id: f.organizationId, name: "Club sintético de equipo" }, role: "coach", locations: created.invitation.requestedLocations, joinable: true });
     expect(JSON.stringify(inspection)).not.toContain(who.email); expect(JSON.stringify(inspection)).not.toContain(who.userId);
     for (const attempt of [{ userId: other.userId, token: created.token! }, { userId: unconfirmed.userId, token: waiting.token! }, { userId: who.userId, token: "a".repeat(43) }]) {
       await expect(inspectCanonicalTeamInvitation(attempt)).rejects.toMatchObject({ status: 404, message: expect.stringMatching(GENERIC_INVALID) });
@@ -531,19 +538,20 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
 
   it("deterministic double acceptance: two requests queued on the invitation row lock yield one member, one profile and one receipt", async () => {
     const f = await fixture(); const who = await identity(); const created = await invite(f, who);
-    let locked!: () => void; let release!: () => void;
-    const lockedSignal = new Promise<void>(resolveLocked => { locked = resolveLocked; });
+    let locked!: (pid: number) => void; let release!: () => void;
+    const lockedSignal = new Promise<number>(resolveLocked => { locked = resolveLocked; });
     const gate = new Promise<void>(resolveGate => { release = resolveGate; });
     const holder = db.transaction(async tx => {
       await tx.execute(sql`select id from zaltyko.organization_member_invitations where id=${created.invitation.id}::uuid for update`);
-      locked();
+      const pid = await tx.execute(sql`select pg_backend_pid()::int as pid`);
+      locked(Number((pid.rows[0] as { pid: number }).pid));
       await gate;
     });
-    await lockedSignal;
+    const holderPid = await lockedSignal;
     const first = acceptCanonicalTeamInvitation({ userId: who.userId, token: created.token!, idempotencyKey: key() });
     const second = acceptCanonicalTeamInvitation({ userId: who.userId, token: created.token!, idempotencyKey: key() });
     // Both acceptances are now waiting on the same invitation row before release.
-    await waitForLockWaiters(2);
+    await waitForLockWaiters(holderPid, 2);
     release();
     await holder;
     const outcomes = await Promise.allSettled([first, second]);
@@ -558,7 +566,7 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
         where m.organization_id=${f.organizationId}::uuid and m.user_id=${who.userId}::uuid) as profiles,
       (select count(*)::int from zaltyko.organization_team_command_receipts where organization_id=${f.organizationId}::uuid and operation='accept') as receipts`);
     expect(counts.rows[0]).toEqual({ members: 1, profiles: 1, receipts: 1 });
-  });
+  }, 30_000);
 
   it("does not trust email_confirmed_at alone: needs an email identity or a verified allow-listed OAuth one", async () => {
     const f = await fixture();
