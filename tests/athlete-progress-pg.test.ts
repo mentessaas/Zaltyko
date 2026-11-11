@@ -83,6 +83,20 @@ async function expectPgCode(promise: Promise<unknown>, code: string) {
   expect(error?.cause?.code ?? error?.code).toBe(code);
 }
 
+async function expectCandidateRefused(promise: Promise<unknown>) {
+  // Drizzle envuelve el error ("Failed query: <sql>"); el raise del preflight
+  // está en cause, con su SQLSTATE P0001. No basta con buscar en el mensaje,
+  // porque el propio texto del SQL lo contiene.
+  const error = (await promise.then(
+    () => null,
+    (failure) => failure
+  )) as { code?: string; message?: string; cause?: { code?: string; message?: string } } | null;
+  expect(error).not.toBeNull();
+  const raised = error?.cause ?? error;
+  expect(raised?.code).toBe("P0001");
+  expect(raised?.message).toMatch(/^Athlete progress candidate requires .* absent; inspect existing schema before promotion$/);
+}
+
 type Actor = { userId: string; memberId: string };
 
 async function member(
@@ -276,12 +290,13 @@ describe.skipIf(!disposablePgEnabled)("objetivos y observaciones en PostgreSQL d
     await expect(read(ownerA, ana, s1())).rejects.toMatchObject({ code: "FEATURE_NOT_AVAILABLE", status: 503 });
     await expect(objective(ownerA, ana, s1())).rejects.toMatchObject({ code: "FEATURE_NOT_AVAILABLE", status: 503 });
     // El preflight rechaza una relación parcial antes de tocar nada.
-    await expect(
+    await expectCandidateRefused(
       db.transaction(async (tx) => {
         await tx.execute(sql`create table zaltyko.athlete_observations (id uuid)`);
         await tx.execute(sql.raw(candidate()));
       })
-    ).rejects.toThrow(/athlete_observations absent/);
+    );
+    expect(await isAthleteProgressStorageAvailable(db)).toBe(false);
     await db.execute(sql.raw(candidate()));
   }, 60_000);
 
@@ -318,7 +333,7 @@ describe.skipIf(!disposablePgEnabled)("objetivos y observaciones en PostgreSQL d
         );
       }
     }
-    await expect(db.execute(sql.raw(candidate()))).rejects.toThrow(/athlete_objectives absent/);
+    await expectCandidateRefused(db.execute(sql.raw(candidate())));
   });
 
   it("guarda el historial de estados, repite de forma idempotente y detecta versiones viejas", async () => {
