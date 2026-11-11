@@ -11,7 +11,7 @@ import { getOwnerAttendanceSessionOptions } from "@/modules/attendance/applicati
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { db } from "@/db";
-import { isAthleteProgressAvailableForPage } from "@/modules/athlete-progress/application/athlete-progress-storage";
+import { isAthleteProgressAvailableForPage } from "@/modules/athlete-progress/application/athlete-progress-service";
 import {
   isCoachAssignmentAvailableForPage,
   withSessionCoaches,

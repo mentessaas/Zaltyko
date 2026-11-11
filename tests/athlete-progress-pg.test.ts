@@ -13,9 +13,9 @@ import {
   createSessionObservation,
   getAthleteProgress,
   getSessionAthleteProgress,
+  isAthleteProgressStorageAvailable,
   updateAthleteObservation,
 } from "@/modules/athlete-progress/application/athlete-progress-service";
-import { isAthleteProgressStorageAvailable } from "@/modules/athlete-progress/application/athlete-progress-storage";
 import { getOrganizationUsage } from "@/modules/saas-billing/application/organization-usage";
 
 /**

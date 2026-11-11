@@ -110,7 +110,7 @@ grants y se niega a reinstalarse si alguna de las tres relaciones ya existe.
 - Prueba: `tests/athlete-progress-pg.test.ts`, en el job «Postgres
   integration». Instala el candidato solo en el PostgreSQL desechable de
   GitHub y borra las tablas al terminar.
-- Mientras no se aplique, `src/modules/athlete-progress/application/athlete-progress-storage.ts`
+- Mientras no se aplique, `src/modules/athlete-progress/application/athlete-progress/storage.ts` (interno; se usa a través de la fachada `athlete-progress-service.ts`)
   detecta que falta y la sección responde «no disponible» (503), sin errores
   a medias.
 - **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en

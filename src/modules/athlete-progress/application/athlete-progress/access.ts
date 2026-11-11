@@ -23,7 +23,7 @@ import type { OperationalActor } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 
-import { assertAthleteProgressStorageAvailable } from "./athlete-progress-storage";
+import { assertAthleteProgressStorageAvailable } from "./storage";
 
 /**
  * Autorización de objetivos y observaciones (P2 #17). Uso interno: el resto
