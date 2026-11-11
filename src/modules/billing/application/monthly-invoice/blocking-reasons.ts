@@ -159,7 +159,8 @@ export function evaluateEnrollment(
 }
 
 /**
- * Invoices already issued for the period, split by whether they have a site.
+ * Invoices already issued for the period at the site, by family. Rows without
+ * a site are left to indexInvoiceStatesByFamily.
  *
  * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
  * monthly-invoice-service.ts.
@@ -168,13 +169,78 @@ export function indexExistingInvoices(
   existingRows: readonly ExistingMonthlyInvoiceRow[]
 ) {
   const existingByFamily = new Map<string, ExistingMonthlyInvoiceRow>();
-  const siteLessFamilies = new Set<string>();
   for (const row of existingRows) {
-    if (row.locationId === null) siteLessFamilies.add(row.familyId);
-    else existingByFamily.set(row.familyId, row);
+    if (row.locationId !== null) existingByFamily.set(row.familyId, row);
   }
   const existingInvoiceIds = new Set(existingRows.map((row) => row.invoiceId));
-  return { existingByFamily, siteLessFamilies, existingInvoiceIds };
+  return { existingByFamily, existingInvoiceIds };
+}
+
+/**
+ * Adds to `existingByFamily` the pre-site invoices of this site that the lines
+ * read did not return: they have no monthly_fee lines for the month, so neither
+ * the replay nor PERIOD_ALREADY_INVOICED would see them, yet their reference
+ * names the family and the month. They then block as PERIOD_ALREADY_INVOICED or
+ * INVOICE_VOIDED and report their id. An invoice found by its lines keeps its
+ * place; between two without lines, one that is not voided wins.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
+export function addLineLessSiteInvoices(
+  existingByFamily: Map<string, ExistingMonthlyInvoiceRow>,
+  lineInvoiceIds: ReadonlySet<string>,
+  rows: readonly ExistingMonthlyInvoiceRow[]
+): void {
+  const isVoided = (row: ExistingMonthlyInvoiceRow) =>
+    row.voidedAt !== null || row.status === "void";
+  for (const row of rows) {
+    const current = existingByFamily.get(row.familyId);
+    if (
+      !current ||
+      (!lineInvoiceIds.has(current.invoiceId) &&
+        isVoided(current) &&
+        !isVoided(row))
+    ) {
+      existingByFamily.set(row.familyId, row);
+    }
+  }
+}
+
+/**
+ * State of a family's monthly invoices for the period in one group (for
+ * example, those without a site): `issued` while any of them is not voided,
+ * `voided` when all of them are.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
+export type MonthlyInvoiceState = "issued" | "voided";
+
+/**
+ * Indexes a group of monthly invoices by family, for example those without a
+ * site, found by their monthly_fee lines or by their pre-site reference. An
+ * invoice counts as voided with the same rule as INVOICE_VOIDED: a void status
+ * or a voided timestamp.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
+export function indexInvoiceStatesByFamily(
+  rows: readonly Pick<
+    ExistingMonthlyInvoiceRow,
+    "familyId" | "status" | "voidedAt"
+  >[]
+): Map<string, MonthlyInvoiceState> {
+  const stateByFamily = new Map<string, MonthlyInvoiceState>();
+  for (const row of rows) {
+    const voided = row.voidedAt !== null || row.status === "void";
+    if (!voided) stateByFamily.set(row.familyId, "issued");
+    else if (!stateByFamily.has(row.familyId)) {
+      stateByFamily.set(row.familyId, "voided");
+    }
+  }
+  return stateByFamily;
 }
 
 /**
@@ -192,7 +258,7 @@ export function finalizeFamilyQuotes(
     locationId: string;
     servicePeriod: string;
     existingByFamily: ReadonlyMap<string, ExistingMonthlyInvoiceRow>;
-    siteLessFamilies: ReadonlySet<string>;
+    siteLessByFamily: ReadonlyMap<string, MonthlyInvoiceState>;
     referenceByFamily: ReadonlyMap<string, string>;
     takenReferences: ReadonlySet<string>;
   }
@@ -229,8 +295,15 @@ export function finalizeFamilyQuotes(
           : "PERIOD_ALREADY_INVOICED"
       );
     }
-    if (context.siteLessFamilies.has(family.familyId)) {
-      family.blockingReasons.push("PERIOD_INVOICED_WITHOUT_SITE");
+    const siteLess = context.siteLessByFamily.get(family.familyId);
+    if (siteLess) {
+      // A voided invoice without a site still blocks, as INVOICE_VOIDED does
+      // at the site: the owner reviews it before another one is issued.
+      family.blockingReasons.push(
+        siteLess === "voided"
+          ? "PERIOD_INVOICED_WITHOUT_SITE_VOIDED"
+          : "PERIOD_INVOICED_WITHOUT_SITE"
+      );
     }
     const reference = context.referenceByFamily.get(family.familyId);
     if (reference && context.takenReferences.has(reference)) {
