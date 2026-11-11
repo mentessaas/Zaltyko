@@ -260,7 +260,7 @@ describe("errores de PostgreSQL reintentables en las rutas (servicio simulado)",
         expect(response.headers.get("cache-control")).toBe("private, no-store");
         const problem = await response.json();
         expect(problem).toMatchObject({
-          type: "https://zaltyko.com/problems/version-conflict",
+          type: "https://zaltyko.com/problems/concurrency-retry",
           status: 409,
           errors: { retryable: true },
         });

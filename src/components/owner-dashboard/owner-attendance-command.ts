@@ -142,7 +142,7 @@ export function isDefinitiveAttendanceRejection(status: number, payload: unknown
  */
 export function isRetryableAttendanceConflict(status: number, payload: unknown): boolean {
   return status === 409 && isRecord(payload) &&
-    payload.type === "https://zaltyko.com/problems/version-conflict" &&
+    payload.type === "https://zaltyko.com/problems/concurrency-retry" &&
     isRecord(payload.errors) && payload.errors.retryable === true;
 }
 

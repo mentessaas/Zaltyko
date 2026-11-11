@@ -207,7 +207,7 @@ describe("interbloqueos al pasar lista", () => {
       expect(response.headers.get("cache-control")).toContain("no-store");
       const problem = await response.json();
       expect(problem).toMatchObject({
-        type: "https://zaltyko.com/problems/version-conflict",
+        type: "https://zaltyko.com/problems/concurrency-retry",
         status: 409,
         errors: { retryable: true },
       });

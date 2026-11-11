@@ -22,7 +22,11 @@ export function isRetryableDbConflict(error: unknown): boolean {
   return code !== null && RETRYABLE_DB_CONFLICT_CODES.has(code);
 }
 
-/** 409 reintentable, nunca 500: la orden no se aplicó y se puede repetir. */
+/**
+ * 409 reintentable, nunca 500: la orden no se aplicó y se puede repetir con la
+ * misma clave. Usa el código CONCURRENCY_RETRY de la emisión mensual (título
+ * «Operación ocupada, vuelve a intentarlo»), aunque allí el estado es 503.
+ */
 export function retryableDbConflictError(message: string): OperationalError {
-  return new OperationalError("VERSION_CONFLICT", message, 409, { retryable: true });
+  return new OperationalError("CONCURRENCY_RETRY", message, 409, { retryable: true });
 }

@@ -959,7 +959,7 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
         expect([200, 201, 409]).toContain(response.status);
         if (response.status === 409) {
           expect(await response.json()).toMatchObject({
-            type: "https://zaltyko.com/problems/version-conflict",
+            type: "https://zaltyko.com/problems/concurrency-retry",
             errors: { retryable: true },
           });
         }

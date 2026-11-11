@@ -32,7 +32,7 @@ describe("conflictos reintentables de PostgreSQL", () => {
     const error = retryableDbConflictError("Vuelve a intentarlo.");
     expect(error).toBeInstanceOf(OperationalError);
     expect({ code: error.code, status: error.status, details: error.details }).toEqual({
-      code: "VERSION_CONFLICT",
+      code: "CONCURRENCY_RETRY",
       status: 409,
       details: { retryable: true },
     });

@@ -174,7 +174,7 @@ describe("pase de lista Owner (mock del contrato greenfield acordado)", () => {
         ok: false,
         status: 409,
         json: async () => ({
-          type: "https://zaltyko.com/problems/version-conflict",
+          type: "https://zaltyko.com/problems/concurrency-retry",
           title: "Conflicto de versión o estado",
           status: 409,
           detail: "Otra operación estaba usando esta sesión y la asistencia no se guardó.",

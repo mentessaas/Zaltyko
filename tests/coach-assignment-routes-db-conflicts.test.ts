@@ -75,7 +75,7 @@ describe("rutas de asignación con el servicio real ante abortos de PostgreSQL",
         expect(response.status).toBe(409);
         const problem = await response.json();
         expect(problem).toMatchObject({
-          type: "https://zaltyko.com/problems/version-conflict",
+          type: "https://zaltyko.com/problems/concurrency-retry",
           status: 409,
           errors: { retryable: true },
         });
