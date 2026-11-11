@@ -3,40 +3,57 @@ import { join, posix, relative, sep } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 
 /**
- * Contract for the monthly-invoice boundary in eslint.config.mjs: only the
- * facade monthly-invoice-service.ts and the modules of
- * src/modules/billing/application/monthly-invoice/ may import those modules.
- * The issuance lock order is only guaranteed through issueMonthlyInvoice.
+ * Contract for the internal-module boundaries in eslint.config.mjs, defined in
+ * eslint.internal-boundaries.json: for each split service, only its facade and
+ * the modules of its directory may import those modules (monthly-invoice:
+ * issuance lock order; reconciliation: lease, fencing and lock order).
  *
  * Three layers:
  * - The real ESLint configuration, through the ESLint API, on sample files. It
  *   fails if a rule disappears, becomes a warning, stops matching an import
  *   form, or is overridden by a later config object (no-restricted-imports and
  *   no-restricted-syntax options do not merge).
- * - The reviewed exceptions in eslint.monthly-invoice-exceptions.json.
+ * - The boundary definitions and reviewed exceptions in
+ *   eslint.internal-boundaries.json.
  * - A scan of the repository sources that resolves every specifier against
  *   its file. `pnpm lint` in CI only lints src/ and the root files, so this is
  *   the barrier for tests/ and scripts/, and it also covers the relative paths
  *   and template specifiers ESLint cannot resolve.
  */
 
-const INTERNAL_DIR = "src/modules/billing/application/monthly-invoice";
-const FACADE = "src/modules/billing/application/monthly-invoice-service.ts";
-const FACADE_SPECIFIER = "@/modules/billing/application/monthly-invoice-service";
-const EXCEPTIONS_FILE = "eslint.monthly-invoice-exceptions.json";
+const BOUNDARIES_FILE = "eslint.internal-boundaries.json";
 /** Root files linted by `lint:app` (package.json). */
 const ROOT_FILE = /^(?:middleware\.ts|instrumentation[^/]*\.ts|sentry\.[^/]*\.ts)$/;
 /** This file embeds internal specifiers as text for the ESLint samples. */
-const SELF = "tests/monthly-invoice-internal-boundary.test.ts";
+const SELF = "tests/internal-module-boundaries.test.ts";
 
 type Exception = { file: string; reason: string };
-function readExceptions(): Exception[] {
+type Boundary = {
+  name: string;
+  dir: string;
+  facade: string;
+  facadeSpecifier: string;
+  message: string;
+  exceptions: Exception[];
+};
+function readBoundaries(): Boundary[] {
   const parsed = JSON.parse(
-    readFileSync(join(process.cwd(), EXCEPTIONS_FILE), "utf8")
-  ) as { exceptions?: unknown };
-  expect(Array.isArray(parsed.exceptions), EXCEPTIONS_FILE).toBe(true);
-  return parsed.exceptions as Exception[];
+    readFileSync(join(process.cwd(), BOUNDARIES_FILE), "utf8")
+  ) as { boundaries?: unknown };
+  expect(Array.isArray(parsed.boundaries), BOUNDARIES_FILE).toBe(true);
+  return parsed.boundaries as Boundary[];
 }
+function boundaryNamed(name: string): Boundary {
+  const boundary = readBoundaries().find((candidate) => candidate.name === name);
+  if (!boundary) throw new Error(`Missing boundary ${name} in ${BOUNDARIES_FILE}`);
+  return boundary;
+}
+
+const MONTHLY = boundaryNamed("monthly-invoice");
+const RECONCILIATION = boundaryNamed("reconciliation");
+const INTERNAL_DIR = MONTHLY.dir;
+const FACADE = MONTHLY.facade;
+const FACADE_SPECIFIER = MONTHLY.facadeSpecifier;
 
 type LintMessage = { ruleId: string | null; severity: number; message: string };
 type LintEngine = {
@@ -48,13 +65,17 @@ type LintEngine = {
 
 let engine: LintEngine;
 
-async function boundaryMessages(filePath: string, code: string) {
+async function boundaryMessages(
+  filePath: string,
+  code: string,
+  facadeSpecifier = FACADE_SPECIFIER
+) {
   const [result] = await engine.lintText(code, { filePath, warnIgnored: true });
   return result.messages.filter(
     (message) =>
       (message.ruleId === "no-restricted-imports" ||
         message.ruleId === "no-restricted-syntax") &&
-      message.message.includes(FACADE_SPECIFIER)
+      message.message.includes(facadeSpecifier)
   );
 }
 
@@ -69,7 +90,7 @@ async function legacySchemaMessages(filePath: string, code: string) {
 
 const INTERNAL = "@/modules/billing/application/monthly-invoice";
 
-describe("monthly-invoice internal boundary (ESLint)", { timeout: 120_000 }, () => {
+describe("internal-module boundaries (ESLint)", { timeout: 120_000 }, () => {
   beforeAll(async () => {
     // ESLint 8.57: loadESLint({ useFlatConfig: true }) returns the flat-config
     // engine, which reads eslint.config.mjs from the repository root like
@@ -175,11 +196,108 @@ describe("monthly-invoice internal boundary (ESLint)", { timeout: 120_000 }, () 
       expect(messages[0].severity, filePath).toBe(2);
     }
   });
+
+  // -------------------------------------------------------------------------
+  // reconciliation/* (saas-billing) and the two boundaries together
+  // -------------------------------------------------------------------------
+
+  const REC = "@/modules/saas-billing/application/reconciliation";
+  const REC_FACADE = RECONCILIATION.facadeSpecifier;
+
+  it.each([
+    ["tests/sample-rec.test.ts", `import { lockClaimedState } from "${REC}/lease";\nvoid lockClaimedState;\n`, "no-restricted-imports"],
+    ["tests/sample-rec-type.test.ts", `import type { DecisionRecord } from "${REC}/model";\nexport type D = DecisionRecord;\n`, "no-restricted-imports"],
+    ["tests/sample-rec-dir.test.ts", `import * as internals from "${REC}";\nvoid internals;\n`, "no-restricted-imports"],
+    ["scripts/sample-rec.ts", `import { applyDecision } from "../src/modules/saas-billing/application/reconciliation/apply";\nvoid applyDecision;\n`, "no-restricted-imports"],
+    ["src/lib/sample-rec-star.ts", `export * from "${REC}/consumer";\n`, "no-restricted-imports"],
+    ["src/app/api/v1/admin/saas/webhooks/[eventId]/reconciliation/sample/route.ts", `import { claimsFrom } from "${REC}/preview-token";\nvoid claimsFrom;\n`, "no-restricted-imports"],
+    ["middleware.ts", `import { finishEvent } from "${REC}/lease";\nvoid finishEvent;\n`, "no-restricted-imports"],
+    ["src/modules/saas-billing/sample.ts", `import { applyDecision } from "./application/reconciliation/apply";\nvoid applyDecision;\n`, "no-restricted-imports"],
+    ["src/modules/saas-billing/domain/sample.ts", `import { lockClaimedState } from "../application/reconciliation/lease";\nvoid lockClaimedState;\n`, "no-restricted-imports"],
+    ["src/modules/saas-billing/application/sample-sibling.ts", `import { closeStaleDecision } from "./reconciliation/outcomes";\nvoid closeStaleDecision;\n`, "no-restricted-imports"],
+    ["src/modules/saas-billing/application/nested/sample.ts", `import * as internals from "../reconciliation";\nvoid internals;\n`, "no-restricted-imports"],
+    ["tests/sample-rec-dynamic.test.ts", `export const load = () => import("${REC}/lease");\n`, "no-restricted-syntax"],
+    ["tests/sample-rec-mock.test.ts", `vi.mock("${REC}/lease", () => ({}));\n`, "no-restricted-syntax"],
+    ["scripts/sample-rec-require.cjs", `const { scheduleRetry } = require("../src/modules/saas-billing/application/reconciliation/lease");\nvoid scheduleRetry;\n`, "no-restricted-syntax"],
+    ["src/modules/saas-billing/application/sample-rec-dynamic.ts", `export const load = () => import("./reconciliation/apply");\n`, "no-restricted-syntax"],
+    // A monthly-invoice internal module still cannot reach reconciliation/*.
+    [`${INTERNAL_DIR}/issue.ts`, `import { lockClaimedState } from "${REC}/lease";\nvoid lockClaimedState;\n`, "no-restricted-imports"],
+    [`${INTERNAL_DIR}/issue.ts`, `export const load = () => import("${REC}/apply");\n`, "no-restricted-syntax"],
+  ])("rechaza reconciliation/* desde %s", async (filePath, code, ruleId) => {
+    const messages = await boundaryMessages(filePath, code, REC_FACADE);
+    expect(messages).toHaveLength(1);
+    expect(messages[0].ruleId).toBe(ruleId);
+    expect(messages[0].severity).toBe(2);
+    expect(messages[0].message).toContain("consumeSaasReconciliationBatch");
+  });
+
+  it.each([
+    [`${RECONCILIATION.dir}/apply.ts`, `import { lockQuotedRows } from "${INTERNAL}/issue-locks";\nvoid lockQuotedRows;\n`, "no-restricted-imports"],
+    [`${RECONCILIATION.dir}/apply.ts`, `export const load = () => import("${INTERNAL}/quote");\n`, "no-restricted-syntax"],
+    [RECONCILIATION.facade, `export * from "${INTERNAL}/issue";\n`, "no-restricted-imports"],
+  ])("un módulo de reconciliation tampoco alcanza monthly-invoice/* (%s)", async (filePath, code, ruleId) => {
+    const messages = await boundaryMessages(filePath, code);
+    expect(messages).toHaveLength(1);
+    expect(messages[0].ruleId).toBe(ruleId);
+    expect(messages[0].severity).toBe(2);
+  });
+
+  it.each([
+    ["tests/sample-rec-facade.test.ts", `import { consumeSaasReconciliationBatch } from "${REC_FACADE}";\nvoid consumeSaasReconciliationBatch;\nvi.mock("${REC_FACADE}");\n`],
+    ["src/app/api/v1/admin/saas/webhooks/[eventId]/reconciliation/sample-facade/route.ts", `import { previewSaasReconciliation } from "${REC_FACADE}";\nimport { noStore } from "../route-utils";\nvoid previewSaasReconciliation;\nvoid noStore;\n`],
+    ["src/modules/saas-billing/application/sample-time.ts", `import { sameInstant } from "./reconciliation-time";\nexport * from "./reconciliation-service";\nvoid sameInstant;\n`],
+    [RECONCILIATION.facade, `export * from "./reconciliation/consumer";\nexport { previewSaasReconciliation } from "${REC}/preview";\n`],
+    [`${RECONCILIATION.dir}/apply.ts`, `import { lockClaimedState } from "./lease";\nimport type { DecisionRecord } from "${REC}/model";\nexport const load = () => import("./outcomes");\nvoid lockClaimedState;\nexport type D = DecisionRecord;\n`],
+  ])("permite la fachada de reconciliation y sus módulos entre sí (%s)", async (filePath, code) => {
+    expect(await boundaryMessages(filePath, code, REC_FACADE)).toEqual([]);
+  });
+
+  it("mantiene el esquema heredado en reconciliation/* y respeta la excepción revisada de operator.ts", async () => {
+    const messages = await legacySchemaMessages(
+      `${RECONCILIATION.dir}/reads.ts`,
+      `import { athletes } from "@/db/schema";\nvoid athletes;\n`
+    );
+    expect(messages).toHaveLength(1);
+    expect(messages[0].severity).toBe(2);
+
+    const operator = `${RECONCILIATION.dir}/operator.ts`;
+    const source = readFileSync(join(process.cwd(), operator), "utf8");
+    expect(source).toContain('from "@/db/schema/profiles"');
+    expect(await legacySchemaMessages(operator, source)).toEqual([]);
+    expect(await boundaryMessages(operator, source, REC_FACADE)).toEqual([]);
+  });
 });
 
-describe("monthly-invoice internal boundary (excepciones)", () => {
-  it("solo admite ficheros concretos de tests/ o scripts/ con motivo", () => {
-    for (const exception of readExceptions()) {
+describe("internal-module boundaries (definiciones y excepciones)", () => {
+  it("define cada frontera con su directorio, fachada y mensaje", () => {
+    const boundaries = readBoundaries();
+    expect(boundaries.map((boundary) => boundary.name)).toEqual([
+      "monthly-invoice",
+      "reconciliation",
+    ]);
+    for (const boundary of boundaries) {
+      expect(Object.keys(boundary).sort(), boundary.name).toEqual([
+        "dir",
+        "exceptions",
+        "facade",
+        "facadeSpecifier",
+        "message",
+        "name",
+      ]);
+      expect(boundary.dir, boundary.name).toMatch(/^src\/modules\/[^/]+\/[^/]+\/[^/]+$/);
+      expect(boundary.dir.split("/").at(-1), boundary.name).toBe(boundary.name);
+      expect(existsSync(join(process.cwd(), boundary.dir)), boundary.dir).toBe(true);
+      expect(existsSync(join(process.cwd(), boundary.facade)), boundary.facade).toBe(true);
+      expect(`src/${boundary.facadeSpecifier.slice(2)}.ts`, boundary.name).toBe(boundary.facade);
+      expect(boundary.facadeSpecifier.startsWith("@/"), boundary.name).toBe(true);
+      expect(boundary.message, boundary.name).toContain(boundary.facadeSpecifier);
+      expect(boundary.message, boundary.name).toContain(`${boundary.name}/* es interno`);
+      expect(Array.isArray(boundary.exceptions), boundary.name).toBe(true);
+    }
+  });
+
+  it("solo admite excepciones de ficheros concretos de tests/ o scripts/ con motivo", () => {
+    for (const exception of readBoundaries().flatMap((boundary) => boundary.exceptions)) {
       expect(Object.keys(exception).sort(), JSON.stringify(exception)).toEqual([
         "file",
         "reason",
@@ -236,12 +354,16 @@ function resolveSpecifier(file: string, specifier: string): string | null {
   return null;
 }
 
-function reachesInternalDir(file: string, specifier: string): boolean {
+function reachesDir(dir: string, file: string, specifier: string): boolean {
   const target = resolveSpecifier(file, specifier);
-  return target !== null && (target === INTERNAL_DIR || target.startsWith(`${INTERNAL_DIR}/`));
+  return target !== null && (target === dir || target.startsWith(`${dir}/`));
 }
 
-describe("monthly-invoice internal boundary (fuentes)", () => {
+function reachesInternalDir(file: string, specifier: string): boolean {
+  return reachesDir(INTERNAL_DIR, file, specifier);
+}
+
+describe("internal-module boundaries (fuentes)", () => {
   const files = [
     ...["src", "tests", "scripts"].flatMap((root) =>
       sourceFiles(join(process.cwd(), root))
@@ -260,20 +382,33 @@ describe("monthly-invoice internal boundary (fuentes)", () => {
     expect(files).toContain("sentry.server.config.ts");
   });
 
-  it("solo la fachada, los módulos internos y las excepciones importan monthly-invoice/*", () => {
-    const allowed = new Set([
-      FACADE,
-      SELF,
-      ...readExceptions().map((exception) => exception.file),
-    ]);
-    const violations = files
-      .filter((file) => !allowed.has(file) && !file.startsWith(`${INTERNAL_DIR}/`))
-      .flatMap((file) =>
-        specifiers(readFileSync(join(process.cwd(), file), "utf8"))
-          .filter((specifier) => reachesInternalDir(file, specifier))
-          .map((specifier) => `${file}: ${specifier}`)
-      );
-    expect(violations).toEqual([]);
+  it.each(readBoundaries().map((boundary) => [boundary.name, boundary] as const))(
+    "solo la fachada, los módulos internos y las excepciones importan %s/*",
+    (_name, boundary) => {
+      const allowed = new Set([
+        boundary.facade,
+        SELF,
+        ...boundary.exceptions.map((exception) => exception.file),
+      ]);
+      const violations = files
+        .filter((file) => !allowed.has(file) && !file.startsWith(`${boundary.dir}/`))
+        .flatMap((file) =>
+          specifiers(readFileSync(join(process.cwd(), file), "utf8"))
+            .filter((specifier) => reachesDir(boundary.dir, file, specifier))
+            .map((specifier) => `${file}: ${specifier}`)
+        );
+      expect(violations).toEqual([]);
+    }
+  );
+
+  it("encuentra los módulos internos de cada frontera", () => {
+    for (const boundary of readBoundaries()) {
+      expect(
+        files.filter((file) => file.startsWith(`${boundary.dir}/`)).length,
+        boundary.name
+      ).toBeGreaterThan(1);
+      expect(files, boundary.name).toContain(boundary.facade);
+    }
   });
 
   it("reconoce las formas de importación", () => {
@@ -329,6 +464,21 @@ describe("monthly-invoice internal boundary (fuentes)", () => {
     }
     for (const [file, specifier] of no) {
       expect(reachesInternalDir(file, specifier), `${file}: ${specifier}`).toBe(false);
+    }
+    const reconciliation: Array<[string, string, boolean]> = [
+      ["tests/x.test.ts", "@/modules/saas-billing/application/reconciliation/lease", true],
+      ["src/modules/saas-billing/application/webhook-service.ts", "./reconciliation", true],
+      ["src/modules/saas-billing/domain/x.ts", "../application/reconciliation/apply", true],
+      ["tests/x.test.ts", RECONCILIATION.facadeSpecifier, false],
+      ["src/modules/saas-billing/application/x.ts", "./reconciliation-time", false],
+      [
+        "src/app/api/v1/admin/saas/webhooks/[eventId]/reconciliation/confirm/route.ts",
+        "../route-utils",
+        false,
+      ],
+    ];
+    for (const [file, specifier, expected] of reconciliation) {
+      expect(reachesDir(RECONCILIATION.dir, file, specifier), `${file}: ${specifier}`).toBe(expected);
     }
   });
 });

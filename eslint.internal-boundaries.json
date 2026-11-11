@@ -1,0 +1,21 @@
+{
+  "$comment": "Fronteras de módulos internos (eslint.config.mjs). Cada servicio partido en módulos internos solo se importa a través de su fachada. Las excepciones solo admiten ficheros concretos de tests/ o scripts/, cada uno con su motivo. Lo valida tests/internal-module-boundaries.test.ts.",
+  "boundaries": [
+    {
+      "name": "monthly-invoice",
+      "dir": "src/modules/billing/application/monthly-invoice",
+      "facade": "src/modules/billing/application/monthly-invoice-service.ts",
+      "facadeSpecifier": "@/modules/billing/application/monthly-invoice-service",
+      "message": "monthly-invoice/* es interno. Importa desde @/modules/billing/application/monthly-invoice-service: el orden de bloqueos de la emisión solo se garantiza a través de issueMonthlyInvoice.",
+      "exceptions": []
+    },
+    {
+      "name": "reconciliation",
+      "dir": "src/modules/saas-billing/application/reconciliation",
+      "facade": "src/modules/saas-billing/application/reconciliation-service.ts",
+      "facadeSpecifier": "@/modules/saas-billing/application/reconciliation-service",
+      "message": "reconciliation/* es interno. Importa desde @/modules/saas-billing/application/reconciliation-service: el lease, el fencing y el orden de bloqueos de la reconciliación solo se garantizan a través de previewSaasReconciliation, confirmSaasReconciliation y consumeSaasReconciliationBatch.",
+      "exceptions": []
+    }
+  ]
+}

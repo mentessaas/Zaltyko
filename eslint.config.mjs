@@ -32,18 +32,19 @@ const legacySchemaPatterns = [{
   message: "Canonical code imports @/db/zaltyko-schema, not legacy schema tables.",
 }];
 
-// Monthly invoicing is split into internal modules under
-// src/modules/billing/application/monthly-invoice/. Only the facade
-// monthly-invoice-service.ts and those modules may import them: the issuance
-// lock order (site, family, athletes, quoted rows) is only guaranteed through
-// issueMonthlyInvoice. Mirrored by tests/monthly-invoice-internal-boundary.test.ts.
+// Internal-module boundaries (P2 #19). A large service is split into internal
+// modules behind a public facade; only the facade and the modules of that
+// directory may import them, because the lock order and the invariants of the
+// service are only guaranteed through the facade. Each boundary (directory,
+// facade, message and reviewed exceptions) is defined once in
+// eslint.internal-boundaries.json and mirrored by
+// tests/internal-module-boundaries.test.ts.
 //
 // What ESLint covers, on src/, tests/, scripts/ and the root files of lint:app:
 // - Static imports, `import type`, `export … from` and `export * from`
 //   (no-restricted-imports), with any specifier that spells the real path
-//   `…/billing/application/monthly-invoice[/…]`, plus the relative forms that
-//   reach the directory from src/modules/billing at depths 0–2 (see
-//   monthlyInvoiceRelativeScopes).
+//   `…/<module>/<layer>/<name>[/…]`, plus the relative forms that reach the
+//   directory from src/modules/<module> at depths 0–2 (relativeScopes).
 // - `import()`, `require()`, `import x = require()`, vi.mock / vi.doMock /
 //   vi.unmock / vi.doUnmock / vi.importActual / vi.importMock, with a string or
 //   a template without expressions (no-restricted-syntax), for the same
@@ -53,68 +54,60 @@ const legacySchemaPatterns = [{
 // resolves every specifier against its file and covers them for the
 // repository's own files.
 const sourceExtensions = "{ts,tsx,js,jsx,mjs,cjs}";
-const monthlyInvoiceDir = "src/modules/billing/application/monthly-invoice";
-const monthlyInvoiceInternalFiles = [
-  "src/modules/billing/application/monthly-invoice-service.ts",
-  `${monthlyInvoiceDir}/**/*.${sourceExtensions}`,
-];
-// Reviewed exceptions: tests/ or scripts/ files only, each with its reason, in
-// eslint.monthly-invoice-exceptions.json (validated by the contract test).
-// Empty today: every test and script goes through the facade.
-const monthlyInvoiceInternalImportExceptions = JSON.parse(
-  readFileSync(new URL("./eslint.monthly-invoice-exceptions.json", import.meta.url), "utf8")
-).exceptions.map((exception) => exception.file);
-const monthlyInvoiceBoundaryMessage =
-  "monthly-invoice/* es interno. Importa desde @/modules/billing/application/monthly-invoice-service: el orden de bloqueos de la emisión solo se garantiza a través de issueMonthlyInvoice.";
-// Relative spellings of the internal directory that are exact for the files
-// of each scope. Elsewhere `./monthly-invoice` may be an unrelated folder.
-const monthlyInvoiceRelativeScopes = [
-  {
-    files: [`src/modules/billing/*.${sourceExtensions}`],
-    ignores: [],
-    prefixes: ["./application/monthly-invoice"],
-  },
-  {
-    files: [`src/modules/billing/*/*.${sourceExtensions}`],
-    ignores: ["src/modules/billing/application/**"],
-    prefixes: ["../application/monthly-invoice"],
-  },
-  {
-    files: [`src/modules/billing/application/*.${sourceExtensions}`],
-    ignores: monthlyInvoiceInternalFiles,
-    prefixes: ["./monthly-invoice"],
-  },
-  {
-    files: [`src/modules/billing/application/*/*.${sourceExtensions}`],
-    ignores: monthlyInvoiceInternalFiles,
-    prefixes: ["../monthly-invoice"],
-  },
-];
+const internalBoundaries = JSON.parse(
+  readFileSync(new URL("./eslint.internal-boundaries.json", import.meta.url), "utf8")
+).boundaries.map((boundary) => {
+  // dir is src/modules/<module>/<layer>/<name>.
+  const segments = boundary.dir.split("/");
+  if (segments.length !== 5 || segments[0] !== "src" || segments[1] !== "modules") {
+    throw new Error(`Invalid internal boundary directory: ${boundary.dir}`);
+  }
+  const [, , module, layer, name] = segments;
+  const parent = segments.slice(0, 4).join("/");
+  const grandparent = segments.slice(0, 3).join("/");
+  const internalFiles = [boundary.facade, `${boundary.dir}/**/*.${sourceExtensions}`];
+  return {
+    ...boundary,
+    internalFiles,
+    exceptionFiles: boundary.exceptions.map((exception) => exception.file),
+    path: `${module}/${layer}/${name}`,
+    // Relative spellings of the directory that are exact for the files of each
+    // scope. Elsewhere `./<name>` may be an unrelated folder.
+    relativeScopes: [
+      { files: [`${grandparent}/*.${sourceExtensions}`], ignores: [], prefixes: [`./${layer}/${name}`] },
+      { files: [`${grandparent}/*/*.${sourceExtensions}`], ignores: [`${parent}/**`], prefixes: [`../${layer}/${name}`] },
+      { files: [`${parent}/*.${sourceExtensions}`], ignores: internalFiles, prefixes: [`./${name}`] },
+      { files: [`${parent}/*/*.${sourceExtensions}`], ignores: internalFiles, prefixes: [`../${name}`] },
+    ],
+  };
+});
+const allInternalFiles = internalBoundaries.flatMap((boundary) => boundary.internalFiles);
+const allExceptionFiles = internalBoundaries.flatMap((boundary) => boundary.exceptionFiles);
 
-function monthlyInvoiceImportPattern(prefixes = []) {
+function boundaryImportPattern(boundary, prefixes = []) {
   return {
     group: [
-      "**/billing/application/monthly-invoice",
-      "**/billing/application/monthly-invoice/**",
+      `**/${boundary.path}`,
+      `**/${boundary.path}/**`,
       ...prefixes.flatMap((prefix) => [prefix, `${prefix}/**`]),
     ],
-    message: monthlyInvoiceBoundaryMessage,
+    message: boundary.message,
   };
 }
 
 // esquery regexes cannot contain "/", so it is written as \x2F.
-function monthlyInvoiceSpecifierRegex(prefixes = []) {
+function boundarySpecifierRegex(boundary, prefixes = []) {
   const slash = "\\x2F";
   const escape = (text) =>
     text.replaceAll(".", "\\.").replaceAll("/", slash);
   return [
-    `(^|${slash})billing${slash}application${slash}monthly-invoice($|${slash})`,
+    `(^|${slash})${escape(boundary.path)}($|${slash})`,
     ...prefixes.map((prefix) => `^${escape(prefix)}($|${slash})`),
   ].join("|");
 }
 
-function monthlyInvoiceSyntaxRestrictions(prefixes = []) {
-  const regex = monthlyInvoiceSpecifierRegex(prefixes);
+function boundarySyntaxRestrictions(boundary, prefixes = []) {
+  const regex = boundarySpecifierRegex(boundary, prefixes);
   const firstArgument = (call) => [
     `${call} > Literal.arguments:first-child[value=/${regex}/]`,
     `${call} > TemplateLiteral.arguments:first-child[expressions.length=0] > TemplateElement[value.raw=/${regex}/]`,
@@ -127,19 +120,28 @@ function monthlyInvoiceSyntaxRestrictions(prefixes = []) {
     ...firstArgument(
       'CallExpression[callee.type="MemberExpression"][callee.object.name="vi"][callee.property.name=/^(mock|doMock|unmock|doUnmock|importActual|importMock)$/]'
     ),
-  ].map((selector) => ({ selector, message: monthlyInvoiceBoundaryMessage }));
+  ].map((selector) => ({ selector, message: boundary.message }));
 }
 
-function monthlyInvoiceBoundaryRules({ canonical, prefixes = [] }) {
+// Complete options for one file group: no-restricted-imports and
+// no-restricted-syntax options do not merge across config objects, so every
+// group restates the legacy-schema restriction (canonical code) and every
+// boundary that applies to it. `prefixes` adds the relative spellings of one
+// boundary for its scopes.
+function boundaryRules({ canonical, boundaries, prefixes = { name: null, list: [] } }) {
+  const prefixesOf = (boundary) => (boundary.name === prefixes.name ? prefixes.list : []);
   return {
     "no-restricted-imports": ["error", {
       ...(canonical ? { paths: legacySchemaPaths } : {}),
       patterns: [
         ...(canonical ? legacySchemaPatterns : []),
-        monthlyInvoiceImportPattern(prefixes),
+        ...boundaries.map((boundary) => boundaryImportPattern(boundary, prefixesOf(boundary))),
       ],
     }],
-    "no-restricted-syntax": ["error", ...monthlyInvoiceSyntaxRestrictions(prefixes)],
+    "no-restricted-syntax": [
+      "error",
+      ...boundaries.flatMap((boundary) => boundarySyntaxRestrictions(boundary, prefixesOf(boundary))),
+    ],
   };
 }
 
@@ -166,11 +168,12 @@ const eslintConfig = [
     "react-hooks/static-components": "warn",
   },
 }),
-// no-restricted-imports and no-restricted-syntax options do not merge across
-// config objects: for each file the last matching object wins. Order: every
-// file (boundary), canonical code (legacy schema + boundary), the billing
-// scopes with relative spellings (legacy schema + boundary + relative), then
-// the facade and the internal modules (legacy schema only, no boundary).
+// Internal-module boundaries and legacy schema. For each file the last
+// matching object wins, so the order is: every file (all boundaries), canonical
+// code (legacy schema + all boundaries), the relative scopes of each boundary
+// (legacy schema + all boundaries + that boundary's relative spellings), each
+// boundary's facade and internal modules (legacy schema + the other
+// boundaries), and each boundary's reviewed exceptions (the other boundaries).
 {
   files: [
     `src/**/*.${sourceExtensions}`,
@@ -181,32 +184,41 @@ const eslintConfig = [
     "instrumentation*.ts",
     "sentry.*.ts",
   ],
-  ignores: [
-    ...monthlyInvoiceInternalFiles,
-    ...monthlyInvoiceInternalImportExceptions,
-  ],
-  rules: monthlyInvoiceBoundaryRules({ canonical: false }),
+  ignores: [...allInternalFiles, ...allExceptionFiles],
+  rules: boundaryRules({ canonical: false, boundaries: internalBoundaries }),
 },
 {
   files: canonicalFiles,
-  ignores: monthlyInvoiceInternalFiles,
-  rules: monthlyInvoiceBoundaryRules({ canonical: true }),
+  ignores: allInternalFiles,
+  rules: boundaryRules({ canonical: true, boundaries: internalBoundaries }),
 },
-...monthlyInvoiceRelativeScopes.map((scope) => ({
-  files: scope.files,
-  ignores: scope.ignores,
-  rules: monthlyInvoiceBoundaryRules({ canonical: true, prefixes: scope.prefixes }),
+...internalBoundaries.flatMap((boundary) =>
+  boundary.relativeScopes.map((scope) => ({
+    files: scope.files,
+    ignores: [...scope.ignores, ...allInternalFiles],
+    rules: boundaryRules({
+      canonical: true,
+      boundaries: internalBoundaries,
+      prefixes: { name: boundary.name, list: scope.prefixes },
+    }),
+  }))
+),
+...internalBoundaries.map((boundary) => ({
+  files: boundary.internalFiles,
+  rules: boundaryRules({
+    canonical: true,
+    boundaries: internalBoundaries.filter((other) => other !== boundary),
+  }),
 })),
-{
-  files: monthlyInvoiceInternalFiles,
-  rules: {
-    "no-restricted-imports": ["error", {
-      paths: legacySchemaPaths,
-      patterns: legacySchemaPatterns,
-    }],
-    "no-restricted-syntax": "off",
-  },
-},
+...internalBoundaries
+  .filter((boundary) => boundary.exceptionFiles.length > 0)
+  .map((boundary) => ({
+    files: boundary.exceptionFiles,
+    rules: boundaryRules({
+      canonical: false,
+      boundaries: internalBoundaries.filter((other) => other !== boundary),
+    }),
+  })),
 {
   ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", ".worktrees/**"]
 },
