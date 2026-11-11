@@ -54,6 +54,7 @@ function boundaryNamed(name: string): Boundary {
 const MONTHLY = boundaryNamed("monthly-invoice");
 const RECONCILIATION = boundaryNamed("reconciliation");
 const ATHLETE_PROGRESS = boundaryNamed("athlete-progress");
+const COACH_ASSIGNMENT = boundaryNamed("coach-assignment");
 const SESSION_PLAN = boundaryNamed("session-plan");
 const INTERNAL_DIR = MONTHLY.dir;
 const FACADE = MONTHLY.facade;
@@ -416,8 +417,21 @@ describe("internal-module boundaries (ESLint)", { timeout: 120_000 }, () => {
     expect(signatures(MONTHLY, parityCases(MONTHLY, "issue-locks", "monthly-parity"))).toEqual(reviewed);
     expect(signatures(RECONCILIATION, parityCases(RECONCILIATION, "lease", "rec-parity"))).toEqual(reviewed);
     expect(signatures(ATHLETE_PROGRESS, parityCases(ATHLETE_PROGRESS, "access", "ap"))).toEqual(reviewed);
+    expect(signatures(COACH_ASSIGNMENT, parityCases(COACH_ASSIGNMENT, "storage", "ca"))).toEqual(reviewed);
     expect(signatures(SESSION_PLAN, parityCases(SESSION_PLAN, "plans", "sp"))).toEqual(reviewed);
   });
+
+  // coach-assignment/* (O1): mismas formas que el resto de fronteras.
+  it.each(parityCases(COACH_ASSIGNMENT, "storage", "ca"))(
+    "rechaza coach-assignment/* desde %s",
+    async (filePath, code, ruleId) => {
+      const messages = await boundaryMessages(filePath, code, COACH_ASSIGNMENT.facadeSpecifier);
+      expect(messages, code).toHaveLength(1);
+      expect(messages[0].ruleId).toBe(ruleId);
+      expect(messages[0].severity).toBe(2);
+      expect(messages[0].message).toContain("coach-assignment/* es interno");
+    }
+  );
 
   it.each(parityCases(RECONCILIATION, "lease", "rec-parity"))(
     "rechaza reconciliation/* con todas las formas desde %s",
@@ -561,6 +575,7 @@ describe("internal-module boundaries (definiciones y excepciones)", () => {
       "monthly-invoice",
       "reconciliation",
       "athlete-progress",
+      "coach-assignment",
       "session-plan",
     ]);
     for (const boundary of boundaries) {

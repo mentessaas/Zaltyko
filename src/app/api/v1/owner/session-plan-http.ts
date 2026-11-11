@@ -12,6 +12,10 @@ import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-s
 import { hasSameOrigin } from "@/modules/saas-billing/application/owner-access";
 import type { OperationalActor } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import {
+  isRetryableDbConflict,
+  retryableDbConflictError,
+} from "@/modules/shared/infrastructure/retryable-db-conflict";
 import type { SessionPlanWriteResult } from "@/modules/session-plans/domain/session-plan";
 
 /**
@@ -83,30 +87,25 @@ export function writeResponse(result: SessionPlanWriteResult): NextResponse {
 }
 
 /**
- * Conflictos de PostgreSQL que se resuelven reintentando (interbloqueo,
- * serialización, cerrojo no disponible) y unicidad: 409, nunca 500.
- * Equivalente local del helper compartido `retryable-db-conflict` de la PR
- * 276, que todavía no está en main; al entrar, esta función pasa a usarlo.
+ * Conflictos de PostgreSQL: los reintentables (interbloqueo, serialización,
+ * cerrojo no disponible) usan el helper compartido `retryable-db-conflict`
+ * (409 CONCURRENCY_RETRY); una unicidad que el servicio no tradujo también es
+ * 409. Nunca 500.
  */
-const RETRYABLE_PG_CODES = new Set(["40P01", "40001", "55P03"]);
-
 function postgresCode(error: unknown): string | null {
-  const failure = error as { code?: unknown; cause?: { code?: unknown } } | null;
-  const code = failure?.cause?.code ?? failure?.code;
-  return typeof code === "string" ? code : null;
+  for (let current: unknown = error, depth = 0; current && depth < 4; depth += 1) {
+    const code = (current as { code?: unknown }).code;
+    if (typeof code === "string") return code;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return null;
 }
 
 export function dbConflictError(error: unknown): OperationalError | null {
-  const code = postgresCode(error);
-  if (code && RETRYABLE_PG_CODES.has(code)) {
-    return new OperationalError(
-      "CONCURRENCY_RETRY",
-      "Otra persona estaba guardando a la vez. Vuelve a intentarlo.",
-      409,
-      { retryable: true }
-    );
+  if (isRetryableDbConflict(error)) {
+    return retryableDbConflictError("Otra persona estaba guardando a la vez. Vuelve a intentarlo.");
   }
-  if (code === "23505") {
+  if (postgresCode(error) === "23505") {
     return new OperationalError(
       "IDEMPOTENCY_CONFLICT",
       "Esta petición choca con otra ya guardada. Recarga y vuelve a intentarlo.",

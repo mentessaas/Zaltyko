@@ -19,6 +19,14 @@ export interface OwnerTodaySession {
   capacity: number;
   expectedAthletes: number;
   recordedAttendance: number;
+  /**
+   * O1, solo cuando el candidato de titulares está aplicado (lo rellena
+   * coach-assignment-service.withSessionCoaches): quién entrena, si hay
+   * sustitución y si la sesión es de quien mira.
+   */
+  coachNames?: string[];
+  substitution?: boolean;
+  assignedToViewer?: boolean;
 }
 
 export interface OwnerTodaySessions {

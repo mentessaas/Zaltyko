@@ -140,6 +140,11 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
 - **Prohibido:** meta, reto o «skill» por objetivo; comentario, nota de progreso o «feedback» por observación; «pública» o «visible para familias» por «compartible con la familia», porque el portal todavía no la muestra.
 - **Dónde aparece:** `OwnerAthleteProgressPanel` (ficha en Grupos), `OwnerSessionObservationForm` (Pasar lista) y `docs/producto/objetivos-y-observaciones.md` (P2 #17).
 
+### Titular y sustitución
+- **Elegido:** «titular», la persona del equipo con rol Entrenador/a que da una clase de forma habitual («Titulares: Ana Ruiz y Bea Gil»). «Sustitución», el cambio de quién entrena en una sesión concreta sin tocar la clase; se «quita la sustitución» para volver a los titulares. La sesión muestra «Quién entrena»; Hoy, «Entrena: …». Para la entrenadora, Hoy separa «Tus sesiones» y «Resto de la sede».
+- **Prohibido:** profesor/a, monitor/a o coach por titular; «suplente» o «cubrir» como nombre del cambio; «turno» por sesión.
+- **Dónde aparece:** `OwnerClassCoaches` (Clases), `OwnerSessionCoaches` (Pasar lista), `OwnerTodaySessionsPanel` y `docs/producto/entrenadoras-por-clase.md` (O1).
+
 ### Guion de la sesión y modelo de la clase
 - **Elegido:**
   - «guion de la sesión»: lo que se va a trabajar en una sesión concreta (foco del día, bloques y nota). Su acción es «Crear guion» o «Editar guion».

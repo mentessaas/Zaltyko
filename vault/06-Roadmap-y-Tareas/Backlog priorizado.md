@@ -20,7 +20,7 @@ source:
 
 Fuente: `docs/research/competencia/plan-validacion-30-dias.md`. No construir nada solo porque lo tenga un competidor.
 - P1 · Activar invitaciones de entrenadoras. Depende del correo transaccional aislado.
-- P1 · Entrenadora titular por clase y sustitución por sesión, sobre `session_staff`. Hoy hay modelo, pero no API ni UI.
+- P1 · Entrenadora titular por clase y sustitución por sesión, sobre `session_staff`. Hecho en código (O1, 2026-11-11) tras el candidato `20261111180000_coach_assignment_candidate.sql`, **dormido hasta que Elvis lo autorice**. Pendiente: vincular ficha de equipo y acceso (`staff_profiles.member_id`) al aceptar la invitación (O3); sin ese vínculo nadie es asignable.
 - P1 · Importación desde Excel con vista previa y migración asistida.
 - P2 · Avisos de choque de entrenadora o pista al guardar horarios. Validar antes con 5 clubes.
 - P2 · Aplicar con autorización el candidato de admisiones y cerrar solicitud → inscripción.

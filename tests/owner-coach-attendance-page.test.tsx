@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   scope: vi.fn(),
   today: vi.fn(),
   progressAvailable: vi.fn(),
+  coachAssignmentAvailable: vi.fn(),
+  withSessionCoaches: vi.fn(),
   sessionPlansAvailable: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error("NOT_FOUND");
@@ -38,6 +40,10 @@ vi.mock("@/modules/owner-dashboard/application/today-sessions", () => ({
 }));
 vi.mock("@/modules/athlete-progress/application/athlete-progress-service", () => ({
   isAthleteProgressAvailableForPage: mocks.progressAvailable,
+}));
+vi.mock("@/modules/coach-assignment/application/coach-assignment-service", () => ({
+  isCoachAssignmentAvailableForPage: mocks.coachAssignmentAvailable,
+  withSessionCoaches: mocks.withSessionCoaches,
 }));
 vi.mock("@/modules/session-plans/application/session-plan-service", () => ({
   isSessionPlanAvailableForPage: mocks.sessionPlansAvailable,
@@ -104,6 +110,39 @@ beforeEach(() => {
   mocks.today.mockResolvedValue({ sessions: [], truncated: false });
   mocks.progressAvailable.mockResolvedValue(false);
   mocks.sessionPlansAvailable.mockResolvedValue(false);
+  mocks.coachAssignmentAvailable.mockResolvedValue(false);
+  mocks.withSessionCoaches.mockImplementation(async (_client: unknown, today: unknown) => today);
+});
+
+describe("Titulares y sustituciones en Pasar lista (O1)", () => {
+  it("sin el candidato aplicado no se muestra quién entrena ni se reordena Hoy", async () => {
+    mocks.scope.mockResolvedValue(scopeFor("coach"));
+
+    const page = await OwnerAttendancePage({ searchParams: Promise.resolve({ organizationId }) });
+
+    expect(mocks.withSessionCoaches).not.toHaveBeenCalled();
+    const [manager] = findAll(page, OwnerAttendanceManager);
+    expect(manager.props).toMatchObject({ coachAssignmentAvailable: false });
+  });
+
+  it("con el candidato aplicado, Hoy de la entrenadora pone primero sus sesiones con su propio alcance", async () => {
+    const enriched = { sessions: [], truncated: false, enriched: true };
+    mocks.coachAssignmentAvailable.mockResolvedValue(true);
+    mocks.withSessionCoaches.mockResolvedValue(enriched);
+    mocks.scope.mockResolvedValue(scopeFor("coach"));
+
+    const page = await OwnerAttendancePage({ searchParams: Promise.resolve({ organizationId }) });
+
+    expect(mocks.withSessionCoaches).toHaveBeenCalledWith(
+      expect.anything(),
+      { sessions: [], truncated: false },
+      { organizationId, viewerMemberId: "synthetic-member" }
+    );
+    const [today] = findAll(page, OwnerTodaySessionsPanel);
+    expect(today.props).toMatchObject({ today: enriched, prioritizeViewerSessions: true });
+    const [manager] = findAll(page, OwnerAttendanceManager);
+    expect(manager.props).toMatchObject({ coachAssignmentAvailable: true, coachMode: true });
+  });
 });
 
 describe("Objetivos y observaciones en Pasar lista (P2 #17)", () => {

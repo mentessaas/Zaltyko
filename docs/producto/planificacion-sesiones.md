@@ -68,7 +68,7 @@ La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que 
 - **Edición:** se envía la revisión actual.
   - Si otra persona cambió el guion antes: 409 `VERSION_CONFLICT`.
   - Repetir una edición ya guardada (mismo `clientRequestId`, revisión anterior y mismo contenido) responde como reintento. La última petición se guarda en `last_request_id`.
-- **Conflictos de PostgreSQL** reintentables (40P01, 40001 y 55P03): 409 `CONCURRENCY_RETRY`. Es un equivalente local del helper compartido de la PR 276, que se adoptará cuando esté en main.
+- **Conflictos de PostgreSQL** reintentables (40P01, 40001 y 55P03): 409 `CONCURRENCY_RETRY` con el helper compartido `src/modules/shared/infrastructure/retryable-db-conflict.ts` (O1). Una unicidad que no sea la de sesión ni la de petición, como la posición diferida al confirmar, también es 409 `CONCURRENCY_RETRY`.
 
 ## API
 
@@ -114,10 +114,10 @@ Cada escritura deja una entrada de auditoría sin texto libre: solo revisiones y
 ## Decide Elvis
 
 1. **Modelo de la clase solo para la dirección.** He elegido la opción conservadora: owner, admin y manager lo crean y cambian; el entrenador solo lo copia. El modelo afecta a todas las sesiones futuras de la clase. ¿Debe poder cambiarlo también el entrenador de la sede?
-2. **Criterio de acceso del guion.** Es el de Pasar lista: la sede, no `session_staff`. Cuando entre la asignación de entrenadores a sesiones (PR 276), ¿debe restringirse la edición a quien da la sesión?
+2. **Criterio de acceso del guion.** Es el de Pasar lista: la sede, no `session_staff`. Con O1 (PR 276) ya se sabe quién entrena cada sesión (titulares y sustituciones), pero el guion no lo usa todavía. ¿Debe restringirse la edición a quien da la sesión, dejando la lectura a toda la sede?
 3. **Vínculos con objetivos.** Solo se crean con objetivos *en curso*. Los vínculos ya hechos se conservan aunque cambien el objetivo o la participación, y los de sedes que no ves no se pueden quitar.
 4. **Marcar bloques.** Se permite desde la hora de inicio, sin límite posterior. Una sesión cancelada no se marca.
-5. **Hoy.** No hay vista del guion dentro de la tarjeta de Hoy, para no tocar `OwnerTodaySessionsPanel` mientras la PR 276 lo cambia. Hoy enlaza a Pasar lista, donde está el guion.
+5. **Hoy.** No hay vista del guion dentro de la tarjeta de Hoy: Hoy enlaza a Pasar lista, donde está el guion, junto a «Quién entrena» de O1. Añadirlo en la tarjeta es un paso posterior.
 6. **Familias.** No ven nada del guion.
 
 ## Pruebas

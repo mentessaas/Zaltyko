@@ -159,6 +159,60 @@ describe("pase de lista Owner (mock del contrato greenfield acordado)", () => {
     );
   });
 
+  it("ante un interbloqueo (409 reintentable) avisa, conserva lo marcado y reintenta con la misma clave", async () => {
+    const user = userEvent.setup();
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          data: { items: [{ enrollmentId, athleteName: "Gimnasta sintética", attendanceStatus: null }] },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({
+          type: "https://zaltyko.com/problems/concurrency-retry",
+          title: "Conflicto de versión o estado",
+          status: 409,
+          detail: "Otra operación estaba usando esta sesión y la asistencia no se guardó.",
+          errors: { retryable: true },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          data: {
+            id: "10000000-0000-4000-8000-000000000008",
+            sessionId,
+            enrollmentId,
+            status: "present",
+            recordedAt: "2026-10-13T17:00:00.000Z",
+          },
+        }),
+      });
+
+    renderAttendance();
+    expect(await screen.findByText("Gimnasta sintética")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Presente: Gimnasta sintética" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Otra operación estaba usando esta sesión y la asistencia no se guardó"
+    );
+    // Lo marcado se conserva como reintento con la misma solicitud.
+    await user.click(screen.getByRole("button", { name: "Reintentar guardado de Gimnasta sintética" }));
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(3));
+    const firstPost = mockFetch.mock.calls[1];
+    const retryPost = mockFetch.mock.calls[2];
+    expect(retryPost?.[1]?.headers).toEqual(firstPost?.[1]?.headers);
+    expect(retryPost?.[1]?.body).toBe(firstPost?.[1]?.body);
+    expect(await screen.findByRole("status")).toHaveTextContent("Asistencia guardada.");
+  });
+
   it("formatea la hora con la zona de la sede", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,

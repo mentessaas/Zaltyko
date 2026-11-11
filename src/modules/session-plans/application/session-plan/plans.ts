@@ -36,6 +36,7 @@ import {
   type SessionPlanRow,
 } from "@/modules/session-plans/infrastructure/session-plan-schema";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { retryableDbConflictError } from "@/modules/shared/infrastructure/retryable-db-conflict";
 import { appendAuditEntry, lockCommand } from "@/modules/shared/infrastructure/transactional-records";
 
 import {
@@ -104,12 +105,7 @@ function uniqueViolation(error: unknown): OperationalError | null {
   if (cause.constraint === "session_plans_request_uq") return idempotencyConflict();
   // Cualquier otra unicidad (por ejemplo, la posición diferida de los bloques
   // al confirmar) es una escritura concurrente: se reintenta, no es idempotencia.
-  return new OperationalError(
-    "CONCURRENCY_RETRY",
-    "Otra persona estaba guardando a la vez. Recarga y vuelve a intentarlo.",
-    409,
-    { retryable: true }
-  );
+  return retryableDbConflictError("Otra persona estaba guardando a la vez. Recarga y vuelve a intentarlo.");
 }
 
 async function loadPlan(

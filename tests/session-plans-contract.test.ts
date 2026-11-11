@@ -280,7 +280,12 @@ describe("rutas API de planificación", () => {
     const mapping = plans.slice(plans.indexOf("function uniqueViolation"), plans.indexOf("async function loadPlan"));
     expect(mapping).toContain('cause.constraint === "session_plans_session_uq"');
     expect(mapping).toContain('cause.constraint === "session_plans_request_uq") return idempotencyConflict();');
-    expect(mapping).toContain('"CONCURRENCY_RETRY"');
+    expect(mapping).toContain("retryableDbConflictError(");
+    // Los conflictos reintentables usan el helper compartido de O1, sin copia local.
+    const http = read("src/app/api/v1/owner/session-plan-http.ts");
+    expect(http).toContain('from "@/modules/shared/infrastructure/retryable-db-conflict"');
+    expect(http).toContain("isRetryableDbConflict(error)");
+    expect(http).not.toMatch(/40P01|40001|55P03/);
   });
 
   it("lee los objetivos por la fachada de athlete-progress, no por su infraestructura", () => {
