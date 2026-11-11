@@ -13,5 +13,5 @@ overrides:
   shell-quote: 1.11.0
   # node-forge: 18 alertas (RSA/PKCS#1, ASN.1, PKCS#12), corregidas en 1.4.3.
   node-forge: 1.4.3
-  # vite 8.3.0-8.3.2: 6 alertas (solo vitest), corregidas en 8.3.3.
-  vite: ^8.3.3
+  # vite 8.3.0-8.3.2: 6 alertas (solo vitest); fijado a 8.3.3, la mínima corregida.
+  vite: 8.3.3
