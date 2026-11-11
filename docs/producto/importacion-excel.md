@@ -9,7 +9,11 @@ Objetivo: que una academia que vive en Excel pase sus gimnastas, sus tutores y s
 ## Recorrido
 
 1. **Gimnastas → «Importar desde Excel o CSV»** (`/owner/athletes/import`). Solo lo ven la propiedad y la administración con todas las sedes.
-2. **Plantilla.** Se puede bajar en CSV (separado por `;`, con BOM UTF-8) o en Excel (.xlsx). Solo trae los títulos en español; no hay fila de ejemplo que pueda importarse por error.
+2. **Plantilla.** Se puede bajar en CSV (separado por `;`, con BOM UTF-8) o en Excel (.xlsx).
+   - Solo trae los títulos en español; no hay fila de ejemplo que pueda importarse por error.
+   - Los títulos llevan el formato donde es fácil equivocarse: «Fecha de nacimiento (DD/MM/AAAA)» y «Teléfono del tutor (+34600000000, sin espacios)». El texto entre paréntesis se ignora al reconocer columnas.
+   - En la plantilla Excel, la columna del teléfono ya tiene formato de texto para que Excel no quite el `+`.
+   - La pantalla explica lo mismo y, para el CSV abierto en Excel, cómo escribir el teléfono como texto.
 3. **Fichero.** Se sube un CSV o un `.xlsx`. Del Excel se lee la primera hoja.
 4. **Vista previa.** No escribe nada y tiene tres partes:
    - **Columnas.** Se asignan solas por el título, sin distinguir mayúsculas ni tildes y con sinónimos frecuentes. Cada asignación se puede cambiar con un desplegable. Si falta una columna obligatoria o se repite una, se explica y no se muestran filas.
@@ -84,7 +88,12 @@ La coordinación, el entrenador y cualquier rol con sedes limitadas reciben 403.
   - **Filas:** se cuentan **filas lógicas**. Una celda de varias líneas es una fila y las filas vacías no cuentan. No se recorta nada en silencio: con más de 1.000 filas se rechaza el fichero entero, con el número de filas.
   - **Dónde se lee:** en memoria en el servidor, sin guardar nada en disco ni en almacenamiento.
   - **Tipo:** se decide por el contenido. Un ZIP es XLSX y lo demás es CSV en UTF-8 o Windows-1252, con `;`, `,` o tabulador. Los `.xls` antiguos se rechazan.
-  - **Bomba ZIP.** Antes de abrir un XLSX se leen las cabeceras del ZIP y se rechaza si declara más de 20 MB descomprimidos, más de 1.000 entradas o ZIP64. Solo se procesa la primera hoja y solo se recorren las celdas que existen, sea cual sea el rango que declare la hoja.
+  - **Bomba ZIP.** Antes de que SheetJS abra un XLSX:
+    1. se suman los tamaños descomprimidos que declara el directorio central y se rechaza si pasan de 20 MB (10 MB para los textos compartidos), si hay más de 1.000 entradas, si es ZIP64 o si está cifrado;
+    2. se compara cada cabecera local con su entrada central (nombre, método y tamaños);
+    3. se descomprime cada entrada con `zlib.inflateRawSync` y un tope de salida igual al tamaño que declara. Un ZIP que mienta sobre sus tamaños se rechaza en vez de creerse.
+
+    Solo se procesa la primera hoja (`sheets: 0`) y solo se recorren las celdas que existen, sea cual sea el rango que declare la hoja.
   - **Filas ocultas o filtradas** del Excel: no se importan y la vista previa dice cuáles son.
 - **Fórmulas:**
   - **No se evalúan nunca.** Del XLSX se lee el valor que guardó Excel, y en el CSV todo es texto.
@@ -107,7 +116,7 @@ La coordinación, el entrenador y cualquier rol con sedes limitadas reciben 403.
   - El fichero se procesa y clasifica una sola vez, **fuera** del bloqueo de la organización.
   - Bajo el bloqueo (el mismo que toma cualquier alta de gimnasta) se bloquea el cupo de los grupos afectados en orden. Después se vuelve a decidir cada fila contra el estado actual y se escribe.
   - Dos confirmaciones simultáneas del mismo fichero crean cada gimnasta una sola vez.
-- **Datos personales fuera de los registros.**
+- **Datos personales fuera de los registros** (con prueba propia).
   - El evento y la auditoría solo guardan identificadores, filas y códigos.
   - Los errores de base de datos salen del servicio sin sus parámetros, solo con el SQLSTATE, para que ni los logs ni Sentry reciban nombres o contactos.
 
@@ -132,9 +141,17 @@ La coordinación, el entrenador y cualquier rol con sedes limitadas reciben 403.
 - `tests/athlete-import-file.test.ts`:
   - **CSV:** filas lógicas (celdas de varias líneas, filas vacías), límite exacto con más de 2.000 líneas físicas, exceso tras el antiguo corte, Windows-1252.
   - **XLSX:** más de 1.000 filas, 1.000 filas con huecos, filas ocultas, sistema de fechas 1904, fórmulas con valor guardado.
-  - **Bomba ZIP:** un ZIP sintético de unos pocos KB que declara más de 20 MB.
+  - **Bomba ZIP:**
+    - un ZIP sintético de unos pocos KB que declara más de 20 MB;
+    - otro que declara 1 KB y descomprimido daría más de 20 MB;
+    - uno que declara más de lo que contiene;
+    - una cabecera local que no coincide;
+    - textos compartidos de más de 10 MB;
+    - una prueba que falla si se quita `sheets: 0`.
   - **Ficheros malformados.**
 - `tests/athlete-import-classify.test.ts` (excepción revisada de la frontera): duplicados con y sin fecha, grupos, capacidad, hermanas, tutores existentes (contacto compartido, contactos de dos tutores, otro nombre, varias familias), tutores distintos con el mismo email en el fichero y límite del plan.
+- `tests/athlete-import-errors.test.ts`: los errores de base de datos de la vista previa y de la confirmación salen sin nombres, emails, teléfonos ni fechas (solo el SQLSTATE y sin `cause`); los errores de negocio pasan sin cambios.
+- `tests/athlete-import-template.test.ts`: la plantilla Excel trae los títulos con su formato y el teléfono como texto, y vacía no importa nada.
 - `tests/athlete-import-routes.test.ts`: 401, origen, 403 por rol y por sede, 429, 413 por tamaño declarado y por streaming, falta de `Idempotency-Key` y de la declaración. En todos los rechazos se comprueba que no se leyó el cuerpo.
 - `tests/athlete-import-pg.test.ts` (PostgreSQL desechable):
   - **Escritura:** lo que se escribe, incluida la fecha local; el evento sin datos personales; la misma clave no duplica; clave reutilizada, vista previa ajena y token de otra academia.
