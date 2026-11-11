@@ -11,9 +11,7 @@ overrides:
   "brace-expansion@^5.0.0": "^5.0.12"
   "js-yaml@^4.1.0": "^4.3.2"
   shell-quote: 1.11.0
-  # node-forge: 21 avisos (RSA/PKCS#1, ASN.1, PKCS#12), corregidos en 1.4.1 y 1.4.3.
-  node-forge: 1.4.3
-  # vite 8.3.0-8.3.2: 6 alertas (solo vitest); fijado a 8.3.3, la mínima corregida.
-  vite: 8.3.3
-  # rolldown: dependencia de vite 8.3.3 (~1.2.11), fijada a la mínima.
-  rolldown: 1.2.11
+  # node-forge: suelo 1.4.3 (21 avisos); no toca a quien ya pide >=1.4.3.
+  "node-forge@<1.4.3": "^1.4.3"
+  # rolldown 1.2.11 solo bajo vite 8.3.3 (mínima que admite; evita 1.2.19). Revisar 2026-11-25.
+  "vite@8.3.3>rolldown": "1.2.11"
