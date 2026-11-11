@@ -26,7 +26,7 @@ import {
   isVisible,
   notFound,
   type ActorInput,
-} from "./athlete-progress-access";
+} from "./access";
 
 /** Objetivos por gimnasta (P2 #17). Uso interno: entra por la fachada. */
 

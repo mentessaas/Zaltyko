@@ -32,7 +32,7 @@ import {
   visibleFilter,
   type ActorInput,
   type AthleteAccess,
-} from "./athlete-progress-access";
+} from "./access";
 
 /** Lecturas de objetivos y observaciones (P2 #17). Uso interno: entra por la fachada. */
 
