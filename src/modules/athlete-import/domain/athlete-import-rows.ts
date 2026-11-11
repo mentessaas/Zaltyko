@@ -1,8 +1,11 @@
 /**
  * Athlete import from a spreadsheet (O4): columns, header mapping and row
  * validation. Pure functions with no database or file access, shared by the
- * preview and the confirmation so both judge every row the same way.
+ * preview and the confirmation so both judge every row the same way. The
+ * rules follow the manual intake: date of birth optional, contacts normalized
+ * exactly like the guardian contact editor, no payer.
  */
+import { normalizeOwnerGuardianContact } from "@/modules/families/domain/guardian-contact-normalization";
 
 export const ATHLETE_IMPORT_FIELDS = [
   "givenName",
@@ -18,11 +21,8 @@ export const ATHLETE_IMPORT_FIELDS = [
 
 export type AthleteImportField = (typeof ATHLETE_IMPORT_FIELDS)[number];
 
-export const REQUIRED_IMPORT_FIELDS: readonly AthleteImportField[] = [
-  "givenName",
-  "familyName",
-  "dateOfBirth",
-];
+/** The manual intake asks only for the name; the date of birth is optional. */
+export const REQUIRED_IMPORT_FIELDS: readonly AthleteImportField[] = ["givenName", "familyName"];
 
 /** Column titles of the downloadable template, in this order. */
 export const ATHLETE_IMPORT_FIELD_LABELS: Readonly<Record<AthleteImportField, string>> = {
@@ -148,7 +148,7 @@ export function mappingProblems(
  * is exported again (CSV injection). Names starting with them are refused, so
  * the import never stores one.
  */
-const FORMULA_PREFIX = /^[=+\-@\t\r]/u;
+const FORMULA_PREFIX = /^[=+\-@\t\r|\uFF1D\uFF0B\uFF0D\uFF20\uFF5C]/u;
 
 /** Quotes a cell for CSV and neutralises formula prefixes with a leading apostrophe. */
 export function escapeCsvCell(value: string): string {
@@ -164,14 +164,23 @@ function cleanText(value: string): string {
     .trim();
 }
 
-/** Comparison key of a person name: no accents, no punctuation, lower case. */
+/**
+ * Comparison key of a person name: compatibility forms folded, no accents, no
+ * punctuation, lower case. Letters of any script are kept, so a name written
+ * in Cyrillic or Chinese never collapses to an empty key.
+ */
 export function nameKey(value: string): string {
-  return normalizeHeader(value);
+  return value
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
+    .toLocaleLowerCase("es")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 }
 
 /**
- * Duplicate criterion: same academy (implicit), same given name and family
- * name compared without case, accents or punctuation, and same date of birth.
+ * Exact duplicate key: same academy (implicit), same given name and family
+ * name compared with nameKey, and same date of birth.
  */
 export function athleteDuplicateKey(input: {
   givenName: string;
@@ -240,21 +249,20 @@ export function parseImportDate(
   return { ok: true, value: iso8601 };
 }
 
-/** Same rule as the guardian contact editor: lower case, valid address, at most 254 characters. */
+/** Exactly the rule of the guardian contact editor; formula-like values are refused too. */
 export function parseImportEmail(value: string): string | null {
-  const email = value.trim().toLowerCase();
-  if (email.length > 254 || FORMULA_PREFIX.test(email)) return null;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email) ? email : null;
+  if (FORMULA_PREFIX.test(value.trim())) return null;
+  const normalized = normalizeOwnerGuardianContact("email", value);
+  return normalized.success ? normalized.normalizedValue : null;
 }
 
 /**
- * E.164 only, as the guardian contact editor requires: spaces, dots, dashes and
- * brackets are dropped and a leading 00 becomes +. No country prefix is guessed.
+ * Exactly the rule of the guardian contact editor: an E.164 value as written,
+ * with its international prefix. No prefix is guessed and nothing is rewritten.
  */
 export function parseImportPhone(value: string): string | null {
-  let phone = value.trim().replace(/[\s.\-()]/gu, "");
-  if (phone.startsWith("00")) phone = `+${phone.slice(2)}`;
-  return /^\+[1-9]\d{7,14}$/u.test(phone) ? phone : null;
+  const normalized = normalizeOwnerGuardianContact("phone", value);
+  return normalized.success ? normalized.normalizedValue : null;
 }
 
 const RELATIONSHIPS: ReadonlyArray<readonly [Relationship, readonly string[]]> = [
@@ -322,7 +330,14 @@ export function validateImportRow(
   let dateOfBirth: string | null = null;
   const rawDate = read("dateOfBirth");
   if (!rawDate) {
-    issues.push(issue("error", "dateOfBirth", "REQUIRED", "Falta la fecha de nacimiento."));
+    issues.push(
+      issue(
+        "warning",
+        "dateOfBirth",
+        "DATE_MISSING",
+        "Sin fecha de nacimiento: para evitar duplicados se compara solo por nombre."
+      )
+    );
   } else {
     const parsed = parseImportDate(rawDate, today);
     if (parsed.ok) dateOfBirth = parsed.value;
@@ -364,7 +379,9 @@ export function validateImportRow(
     if (guardianFields.email) {
       email = parseImportEmail(guardianFields.email);
       if (!email) {
-        issues.push(issue("error", "guardianEmail", "EMAIL_INVALID", "El email del tutor no es válido."));
+        issues.push(
+          issue("error", "guardianEmail", "EMAIL_INVALID", "Indica un correo válido de hasta 254 caracteres.")
+        );
       }
     }
     let phone: string | null = null;
@@ -376,7 +393,7 @@ export function validateImportRow(
             "error",
             "guardianPhone",
             "PHONE_INVALID",
-            "Escribe el teléfono con prefijo internacional, por ejemplo +34 600 000 000."
+            "Escribe el teléfono completo con prefijo internacional y sin espacios, por ejemplo +34600000000."
           )
         );
       }
