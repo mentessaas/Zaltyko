@@ -68,6 +68,7 @@ jobs:
           node --version
           pnpm --version
           npm --version
+          npx --yes npm@11.21.1 --version
 
       - name: Web — pnpm-lock.yaml
         if: env.TARGETS == 'all' || env.TARGETS == 'web'
@@ -78,11 +79,15 @@ jobs:
         working-directory: mobile
         run: pnpm install --lockfile-only --ignore-scripts --ignore-workspace
 
+      # npm 10 (el de Node 22) se rompe con el ciclo de peers opcionales de
+      # vite 8 (@vitejs/devtools -> vitest@*): «Cannot read properties of null
+      # (reading 'edgesOut')» en arborist. npm 11.21.1 lo resuelve sin
+      # --legacy-peer-deps. Versión fijada para que el resultado sea repetible.
       - name: Mobile — package-lock.json
         if: env.TARGETS == 'all' || env.TARGETS == 'mobile'
         working-directory: mobile
         run: |
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund || {
+          npx --yes npm@11.21.1 install --package-lock-only --ignore-scripts --no-audit --no-fund || {
             tail -n 80 "$HOME"/.npm/_logs/*-debug-0.log
             exit 1
           }
