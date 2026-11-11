@@ -271,6 +271,18 @@ describe("rutas API de planificación", () => {
     expect(helper).toContain('input.surface === "session" ? { surface: "coach_operations" as const } : {}');
   });
 
+  it("la detección exige la unicidad de posición diferida y distingue las violaciones de unicidad", () => {
+    const storage = read("src/modules/session-plans/application/session-plan/storage.ts");
+    expect(storage).toContain("con.condeferrable and con.condeferred");
+    expect(storage).toContain("con.conname = 'session_plan_blocks_position_uq'");
+    expect(storage).toMatch(/\$\{allColumnsMatch\}\s+and \$\{positionDeferred\}/);
+    const plans = read("src/modules/session-plans/application/session-plan/plans.ts");
+    const mapping = plans.slice(plans.indexOf("function uniqueViolation"), plans.indexOf("async function loadPlan"));
+    expect(mapping).toContain('cause.constraint === "session_plans_session_uq"');
+    expect(mapping).toContain('cause.constraint === "session_plans_request_uq") return idempotencyConflict();');
+    expect(mapping).toContain('"CONCURRENCY_RETRY"');
+  });
+
   it("lee los objetivos por la fachada de athlete-progress, no por su infraestructura", () => {
     const dir = "src/modules/session-plans/application/session-plan";
     for (const file of readdirSync(join(ROOT, dir))) {

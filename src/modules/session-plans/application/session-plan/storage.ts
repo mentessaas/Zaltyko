@@ -82,6 +82,19 @@ const regclassList = sql.join(
   tableNames.map((table) => sql`to_regclass(${qualified(table)})`),
   sql`, `
 );
+/**
+ * Editar el guion reordena bloques en su sitio: la unicidad de posición tiene
+ * que ser DEFERRABLE INITIALLY DEFERRED. Sin ella, la sección queda «no
+ * disponible» en vez de fallar al reordenar.
+ */
+const positionDeferred = sql`coalesce((
+    select bool_and(con.condeferrable and con.condeferred)
+      from pg_constraint con
+     where con.conrelid = to_regclass('zaltyko.session_plan_blocks')
+       and con.conname = 'session_plan_blocks_position_uq'
+       and con.contype = 'u'
+  ), false)`;
+
 const anyClientPrivilege = sql.join(
   tableNames.map(
     (table) => sql`has_table_privilege(r.oid, ${qualified(table)}, 'SELECT,INSERT,UPDATE,DELETE')`
@@ -94,6 +107,7 @@ export async function isSessionPlanStorageAvailable(client: DatabaseClient): Pro
     select case
       when ${relationsPresent} then
         ${allColumnsMatch}
+        and ${positionDeferred}
         and (select count(*) = ${tableNames.length} from pg_class c
               where c.oid in (${regclassList})
                 and c.relrowsecurity and c.relforcerowsecurity)

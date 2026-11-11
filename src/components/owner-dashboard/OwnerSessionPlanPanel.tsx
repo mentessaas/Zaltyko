@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ClipboardList, Plus, Trash2 } from "lucide-react";
 
 import {
@@ -110,6 +110,10 @@ export function OwnerSessionPlanPanel({
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "error" | "info"; text: string } | null>(null);
+  // «Crear desde el modelo» conserva su identificador de petición hasta que
+  // tiene éxito: un reintento tras un fallo de red es la misma petición y el
+  // servidor lo reconoce como repetición.
+  const templateRequestId = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     const result = await fetchSessionPlan(scope, sessionId);
@@ -125,12 +129,17 @@ export function OwnerSessionPlanPanel({
     void load();
   }, [load]);
 
-  async function run(action: () => Promise<{ status: string; message?: string }>, success: string) {
+  async function run(
+    action: () => Promise<{ status: string; message?: string }>,
+    success: string,
+    onSuccess?: () => void
+  ) {
     setBusy(true);
     setMessage(null);
     const result = await action();
     setBusy(false);
     if (result.status === "ok") {
+      onSuccess?.();
       setMessage({ tone: "info", text: success });
       setDraft(null);
       await load();
@@ -190,11 +199,13 @@ export function OwnerSessionPlanPanel({
               "Guion guardado."
             )
           }
-          onCreateFromTemplate={() =>
+          onCreateFromTemplate={() => {
+            templateRequestId.current ??= newRequestId();
+            const clientRequestId = templateRequestId.current;
             void run(
               () =>
                 putSessionPlan(scope, sessionId, {
-                  clientRequestId: newRequestId(),
+                  clientRequestId,
                   expectedRevision: null,
                   source: "template",
                   focus: null,
@@ -202,9 +213,12 @@ export function OwnerSessionPlanPanel({
                   blocks: [],
                   objectiveIds: [],
                 }),
-              "Guion creado desde el modelo de la clase."
-            )
-          }
+              "Guion creado desde el modelo de la clase.",
+              () => {
+                templateRequestId.current = null;
+              }
+            );
+          }}
           onToggleBlock={(blockId, done) =>
             void run(() => putBlockDone(scope, sessionId, blockId, done), done ? "Bloque marcado como hecho." : "Bloque marcado como pendiente.")
           }

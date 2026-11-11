@@ -428,6 +428,22 @@ describe.skipIf(!disposablePgEnabled)("planificación sobre sesiones en PostgreS
       }
     }
     await expectCandidateRefused(db.execute(sql.raw(plansCandidate())), /absent; inspect existing schema before promotion$/);
+
+    // Sin la unicidad de posición diferida la sección queda «no disponible».
+    const rollback = new Error("rollback");
+    const seen = await db
+      .transaction(async (tx) => {
+        await tx.execute(sql`alter table zaltyko.session_plan_blocks drop constraint session_plan_blocks_position_uq`);
+        await tx.execute(sql`
+          alter table zaltyko.session_plan_blocks
+            add constraint session_plan_blocks_position_uq unique (organization_id, plan_id, position)
+        `);
+        expect(await isSessionPlanStorageAvailable(tx)).toBe(false);
+        throw rollback;
+      })
+      .catch((error: unknown) => error);
+    expect(seen).toBe(rollback);
+    expect(await isSessionPlanStorageAvailable(db)).toBe(true);
   });
 
   it("el entrenador de la sede crea y lee el plan sin estar asignado a la sesión", async () => {
@@ -479,9 +495,9 @@ describe.skipIf(!disposablePgEnabled)("planificación sobre sesiones en PostgreS
     await expectPgCode(
       db.execute(sql`
         insert into zaltyko.session_plans (organization_id, location_id, session_id, client_request_id,
-          created_by_member_id, updated_by_member_id)
+          last_request_id, created_by_member_id, updated_by_member_id)
         values (${b.organizationId}::uuid, ${b.locationIds[0]}::uuid, ${pastS1}::uuid, ${randomUUID()}::uuid,
-          ${ownerB.memberId}::uuid, ${ownerB.memberId}::uuid)
+          ${randomUUID()}::uuid, ${ownerB.memberId}::uuid, ${ownerB.memberId}::uuid)
       `),
       "23503"
     );

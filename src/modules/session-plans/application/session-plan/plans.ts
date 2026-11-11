@@ -101,7 +101,15 @@ function uniqueViolation(error: unknown): OperationalError | null {
   const cause = failure?.cause ?? failure;
   if (cause?.code !== "23505") return null;
   if (cause.constraint === "session_plans_session_uq") return alreadyHasPlan();
-  return idempotencyConflict();
+  if (cause.constraint === "session_plans_request_uq") return idempotencyConflict();
+  // Cualquier otra unicidad (por ejemplo, la posición diferida de los bloques
+  // al confirmar) es una escritura concurrente: se reintenta, no es idempotencia.
+  return new OperationalError(
+    "CONCURRENCY_RETRY",
+    "Otra persona estaba guardando a la vez. Recarga y vuelve a intentarlo.",
+    409,
+    { retryable: true }
+  );
 }
 
 async function loadPlan(

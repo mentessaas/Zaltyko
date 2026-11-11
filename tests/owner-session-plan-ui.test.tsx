@@ -171,6 +171,24 @@ describe("panel del plan de la sesión", () => {
     expect(await screen.findByText("Movilidad")).toBeInTheDocument();
   });
 
+  it("un reintento de «Crear desde el modelo» tras un fallo de red reutiliza la misma petición", async () => {
+    let next = 0;
+    vi.stubGlobal("crypto", { randomUUID: () => `91000000-0000-4000-8000-00000000010${next++}` });
+    fetchMock.mockResolvedValueOnce(json(200, { ok: true, data: pageView({ template: { exists: true, revision: 2 } }) }));
+    fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    fetchMock.mockResolvedValueOnce(json(200, { ok: true, data: { id: PLAN, revision: 1, replayed: true } }));
+    fetchMock.mockResolvedValueOnce(json(200, { ok: true, data: pageView({ plan }) }));
+    renderPanel();
+    const button = await screen.findByRole("button", { name: "Crear desde el modelo de la clase" });
+    fireEvent.click(button);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Comprueba la conexión");
+    fireEvent.click(screen.getByRole("button", { name: "Crear desde el modelo de la clase" }));
+    expect(await screen.findByText("Guion creado desde el modelo de la clase.")).toBeInTheDocument();
+    const ids = calls("PUT").map(([, init]) => JSON.parse(String((init as RequestInit).body)).clientRequestId);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toBe(ids[1]);
+  });
+
   it("crea un plan con bloques, aparato de la disciplina y objetivos de la sesión", async () => {
     fetchMock.mockResolvedValueOnce(json(200, { ok: true, data: pageView() }));
     fetchMock.mockResolvedValueOnce(json(201, { ok: true, data: { id: PLAN, revision: 1, replayed: false } }));
