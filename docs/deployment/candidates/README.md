@@ -151,6 +151,39 @@ PostgreSQL 15 o superior**: el preflight aborta en versiones anteriores
   ningún entorno. La CI verde no equivale a autorización.
 - Producto: `docs/producto/entrenadoras-por-clase.md`.
 
+## Candidato de planificación sobre sesiones (P2 #17, segunda parte)
+
+`20261111200000_session_plans_candidate.sql` crea solo
+`zaltyko.session_plans` (el «guion de la sesión», uno por sesión: foco del
+día, nota, revisión del modelo copiado y la última petición para reintentos), `zaltyko.session_plan_blocks` (hasta 20 bloques con
+tipo, disciplina GAF/GAM/rítmica y aparato de una lista cerrada, contenido
+libre, duración aproximada y marca de hecho), `zaltyko.session_plan_objectives`
+(objetivos de gimnastas que el plan trabaja) y `zaltyko.class_plan_templates`
+(el «modelo de la clase», opcional, con los bloques en `jsonb`). La posición
+de los bloques es única y diferida, para reordenarlos en su sitio. No toca tablas
+existentes, filas, roles ni objetos legacy. Fuerza RLS, revoca `public`,
+`anon` y `authenticated`, no crea políticas ni grants y se niega a
+reinstalarse si alguna de las cuatro relaciones ya existe.
+
+- **Depende del candidato de objetivos y observaciones**
+  (`20261111120000_athlete_progress_candidate.sql`): su preflight aborta si
+  `zaltyko.athlete_objectives` no existe. Se aplican en ese orden.
+- La FK a `zaltyko.sessions` queda en NO ACTION: ningún flujo borra sesiones
+  (`tests/zaltyko-sessions-never-deleted.test.ts`).
+- Esquema Drizzle espejo: `src/modules/session-plans/infrastructure/session-plan-schema.ts`,
+  fuera de `src/db/schema/` y sin exportarse desde los índices, igual que el
+  espejo de objetivos.
+- Contrato: `tests/session-plans-contract.test.ts`.
+- Prueba: `tests/session-plans-pg.test.ts`, en el job «Postgres integration».
+  Instala los dos candidatos solo en el PostgreSQL desechable de GitHub y
+  borra las tablas al terminar.
+- Mientras no se aplique, la detección interna de `session-plan/storage.ts`
+  (a través de la fachada `session-plan-service.ts`) responde «no disponible»
+  (503) y Pasar lista no muestra el plan.
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+  ningún entorno. La CI verde no equivale a autorización.
+- Producto: `docs/producto/planificacion-sesiones.md`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.

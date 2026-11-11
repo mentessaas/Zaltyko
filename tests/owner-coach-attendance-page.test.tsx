@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   progressAvailable: vi.fn(),
   coachAssignmentAvailable: vi.fn(),
   withSessionCoaches: vi.fn(),
+  sessionPlansAvailable: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error("NOT_FOUND");
   }),
@@ -43,6 +44,9 @@ vi.mock("@/modules/athlete-progress/application/athlete-progress-service", () =>
 vi.mock("@/modules/coach-assignment/application/coach-assignment-service", () => ({
   isCoachAssignmentAvailableForPage: mocks.coachAssignmentAvailable,
   withSessionCoaches: mocks.withSessionCoaches,
+}));
+vi.mock("@/modules/session-plans/application/session-plan-service", () => ({
+  isSessionPlanAvailableForPage: mocks.sessionPlansAvailable,
 }));
 
 import OwnerAttendancePage from "@/app/owner/attendance/page";
@@ -105,6 +109,7 @@ beforeEach(() => {
   });
   mocks.today.mockResolvedValue({ sessions: [], truncated: false });
   mocks.progressAvailable.mockResolvedValue(false);
+  mocks.sessionPlansAvailable.mockResolvedValue(false);
   mocks.coachAssignmentAvailable.mockResolvedValue(false);
   mocks.withSessionCoaches.mockImplementation(async (_client: unknown, today: unknown) => today);
 });
@@ -155,6 +160,26 @@ describe("Objetivos y observaciones en Pasar lista (P2 #17)", () => {
     expect(mocks.progressAvailable).toHaveBeenCalledTimes(1);
     const [manager] = findAll(page, OwnerAttendanceManager);
     expect(manager.props).toMatchObject({ progressAvailable: available });
+  });
+});
+
+describe("Plan de la sesión en Pasar lista (P2 #17, segunda parte)", () => {
+  it.each([
+    ["coach", false],
+    ["coach", true],
+    ["owner", false],
+    ["owner", true],
+  ] as const)("%s con sessionPlansAvailable=%s recibe esa disponibilidad", async (role, available) => {
+    mocks.sessionPlansAvailable.mockResolvedValue(available);
+    mocks.scope.mockResolvedValue(scopeFor(role));
+
+    const page = await OwnerAttendancePage({
+      searchParams: Promise.resolve({ organizationId }),
+    });
+
+    expect(mocks.sessionPlansAvailable).toHaveBeenCalledTimes(1);
+    const [manager] = findAll(page, OwnerAttendanceManager);
+    expect(manager.props).toMatchObject({ sessionPlansAvailable: available });
   });
 });
 
