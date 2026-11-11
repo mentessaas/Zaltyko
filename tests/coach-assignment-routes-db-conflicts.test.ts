@@ -85,3 +85,25 @@ describe("rutas de asignación con el servicio real ante abortos de PostgreSQL",
     }
   }
 });
+
+describe("un error de base de datos no reintentable no se disfraza de 409", () => {
+  for (const [label, call] of routes) {
+    it(`${label}: un 23505 que sale del servicio real se propaga (no 409)`, async () => {
+      const failure = postgresAbort("23505", true);
+      mocks.transaction.mockImplementation(async () => {
+        throw failure;
+      });
+      let thrown: unknown;
+      let response: Response | undefined;
+      try {
+        response = await call();
+      } catch (error) {
+        thrown = error;
+      }
+      expect(mocks.transaction).toHaveBeenCalledOnce();
+      expect(response).toBeUndefined();
+      expect(thrown).toBe(failure);
+    });
+  }
+});
+

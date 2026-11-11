@@ -24,8 +24,18 @@ export function isRetryableDbConflict(error: unknown): boolean {
 
 /**
  * 409 reintentable, nunca 500: la orden no se aplicó y se puede repetir con la
- * misma clave. Usa el código CONCURRENCY_RETRY de la emisión mensual (título
- * «Operación ocupada, vuelve a intentarlo»), aunque allí el estado es 503.
+ * misma clave. Usa el código CONCURRENCY_RETRY (título «Operación ocupada,
+ * vuelve a intentarlo»).
+ *
+ * Dos estados para el mismo código, a propósito:
+ * - 409 aquí, para Pasar lista y la asignación de entrenadoras. Sus clientes
+ *   tratan este 409 como no definitivo: conservan el reintento con la misma
+ *   clave (isRetryableAttendanceConflict, OwnerClassCoaches/OwnerSessionCoaches).
+ * - 503 en la emisión mensual (monthly-invoice/errors.ts, deadlockRetry). Su
+ *   gestor trata cualquier 4xx del primer intento como rechazo definitivo y
+ *   descarta la orden pendiente; un 409 allí perdería la clave de reintento.
+ * NO usar este helper en la emisión mensual sin revisar antes ese gestor: lo
+ * impide tests/retryable-db-conflict.test.ts.
  */
 export function retryableDbConflictError(message: string): OperationalError {
   return new OperationalError("CONCURRENCY_RETRY", message, 409, { retryable: true });

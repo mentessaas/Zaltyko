@@ -255,6 +255,47 @@ async function waitForLockWaiters(expected: number) {
   throw new Error(`Only ${waiting} of ${expected} operations reached the lock`);
 }
 
+type Waiter = { pid: number; blockers: number[]; waitEvent: string; query: string };
+
+/** Esperas de cerrojo de la base, con quién bloquea a cada una (pg_blocking_pids). */
+async function lockWaiters(): Promise<Waiter[]> {
+  const result = await db.execute(sql`
+    select pid, array_to_string(pg_blocking_pids(pid), ',') as blockers,
+      coalesce(wait_event, '') as wait_event, left(query, 200) as query
+    from pg_stat_activity
+    where datname = current_database() and pid <> pg_backend_pid() and wait_event_type = 'Lock'
+  `);
+  return (result.rows as Array<{ pid: number; blockers: string; wait_event: string; query: string }>).map((row) => ({
+    pid: Number(row.pid),
+    blockers: row.blockers ? row.blockers.split(",").map(Number) : [],
+    waitEvent: row.wait_event,
+    query: row.query,
+  }));
+}
+
+/** Volcado para el mensaje de error si la espera esperada no aparece. */
+async function lockDiagnostics(): Promise<string> {
+  const locks = await db.execute(sql`
+    select l.pid, l.locktype, l.mode, l.granted, l.relation::regclass::text as relation, left(a.query, 120) as query
+    from pg_locks l join pg_stat_activity a on a.pid = l.pid
+    where a.datname = current_database() and l.pid <> pg_backend_pid()
+      and (not l.granted or l.locktype in ('advisory', 'transactionid', 'tuple'))
+    order by l.pid
+  `);
+  return JSON.stringify({ waiters: await lockWaiters(), locks: locks.rows });
+}
+
+/** Espera a que alguna conexión quede bloqueada por `blockerPid` y la devuelve. */
+async function waitForBlockedBy(blockerPid: number): Promise<Waiter> {
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    const waiter = (await lockWaiters()).find((item) => item.blockers.includes(blockerPid));
+    if (waiter) return waiter;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Nobody became blocked by pid ${blockerPid}: ${await lockDiagnostics()}`);
+}
+
 async function hasMarker(sessionId: string) {
   const result = await db.execute(sql`
     select count(*)::int as count from zaltyko.session_staff_overrides where session_id = ${sessionId}::uuid
@@ -914,20 +955,20 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
       });
     }
 
-    it("con esperas cruzadas sesión ↔ academia no hay 500, como mucho un 409 reintentable, y al reintentar se aplican las dos", async () => {
+    it("Pasar lista y la sustitución no se interbloquean: las dos bloquean primero la academia", async () => {
       const { POST: recordAttendanceRoute } = await import("@/app/api/v1/owner/sessions/[sessionId]/attendance/route");
       const { PUT: substituteRoute } = await import("@/app/api/v1/owner/sessions/[sessionId]/coaches/route");
       const params = { params: Promise.resolve({ sessionId: sessionD }) };
-      const attendanceKey = `ci-cycle-${randomUUID()}`;
+      const attendanceKey = `ci-order-${randomUUID()}`;
       const clientRequestId = randomUUID();
 
-      // Determinista: un tercero retiene el cerrojo de la plantilla. La
-      // sustitución toma la fila de la academia y espera en la plantilla; Pasar
-      // lista bloquea la sesión y espera a la academia, que ya tiene la
-      // sustitución. Al liberar la plantilla, la sustitución pide la sesión y el
-      // ciclo sesión ↔ academia es seguro: PostgreSQL aborta a una de las dos
-      // (cualquiera puede ser la víctima).
+      // Pasar lista (recordAttendance) empieza con lockCommand, que bloquea la
+      // fila de la academia (lockOrganizationForSaasMutation) ANTES que la
+      // sesión. La asignación también: academia → plantilla → sesión. Mismo
+      // orden, sin ciclo. Esta prueba lo demuestra con pg_blocking_pids.
+      let holderPid = 0;
       const holder = holdLock(async (tx) => {
+        holderPid = Number(((await tx.execute(sql`select pg_backend_pid() as pid`)).rows[0] as { pid: number }).pid);
         await tx.execute(
           sql`select pg_advisory_xact_lock(hashtextextended(${`${d.organizationId}:sessions:${classD}`}, 0))`
         );
@@ -936,40 +977,32 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
       const substitution = substituteRoute(substitutionRequest(clientRequestId), params);
       let attendance: Promise<Response> | undefined;
       try {
-        // La sustitución ya tiene la academia y espera en la plantilla.
-        expect(await waitForLockWaiters(1)).toBe(1);
+        // La sustitución tiene la academia y espera en la plantilla del tercero.
+        const substitutionWait = await waitForBlockedBy(holderPid);
+        expect(substitutionWait.waitEvent).toBe("advisory");
+        expect(substitutionWait.query).toContain("pg_advisory_xact_lock");
+
         attendance = recordAttendanceRoute(attendanceRequest(attendanceKey), params);
-        // Pasar lista tiene la sesión y espera a la academia: dos esperas
-        // cruzadas a la vez, observadas en pg_stat_activity.
-        expect(await waitForLockWaiters(2)).toBe(2);
+        // Pasar lista queda bloqueada por la sustitución en la fila de la
+        // academia, antes de tocar la sesión.
+        const attendanceWait = await waitForBlockedBy(substitutionWait.pid);
+        expect(attendanceWait.query).toContain("from zaltyko.organizations");
+        expect(attendanceWait.query.toLowerCase()).toContain("for update");
+        // Nadie tiene bloqueada la fila de la sesión: no hay espera cruzada posible.
+        await db.transaction(async (tx) => {
+          await tx.execute(sql`select id from zaltyko.sessions where id = ${sessionD}::uuid for update nowait`);
+        });
+      } catch (error) {
+        throw new Error(`${error instanceof Error ? error.message : String(error)}\n${await lockDiagnostics()}`);
       } finally {
         holder.release();
       }
       await holder.done;
-      // Si cualquiera de las dos rutas lanzara (500), estas promesas fallarían.
+
+      // Se serializan: ninguna se aborta, ningún 500 ni 409.
       const [first, second] = await Promise.all([substitution, attendance!]);
-      const statuses = [first.status, second.status];
-      // Si PostgreSQL llega a detectar el interbloqueo, aborta una de las dos
-      // (cualquiera puede ser la víctima) y esa responde 409 reintentable. En
-      // el CI no siempre se produce: el orden en que se despiertan las esperas
-      // no está garantizado. La prueba es correcta en cualquier orden: nunca
-      // 500, como mucho un 409 y, tras reintentar, las dos aplicadas.
-      expect(statuses.filter((status) => status === 409).length).toBeLessThanOrEqual(1);
-      for (const response of [first, second]) {
-        expect([200, 201, 409]).toContain(response.status);
-        if (response.status === 409) {
-          expect(await response.json()).toMatchObject({
-            type: "https://zaltyko.com/problems/concurrency-retry",
-            errors: { retryable: true },
-          });
-        }
-      }
+      expect([first.status, second.status]).toEqual([200, 201]);
 
-      // Reintento de la abortada con la misma clave.
-      if (first.status === 409) expect((await substituteRoute(substitutionRequest(clientRequestId), params)).status).toBe(200);
-      if (second.status === 409) expect((await recordAttendanceRoute(attendanceRequest(attendanceKey), params)).status).toBe(201);
-
-      // Las dos quedan aplicadas.
       const recorded = await db.execute(sql`
         select status::text as status from zaltyko.attendance_records
         where session_id = ${sessionD}::uuid and enrollment_id = ${enrollmentD}::uuid

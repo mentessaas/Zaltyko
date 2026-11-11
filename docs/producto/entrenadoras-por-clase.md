@@ -35,7 +35,7 @@ Todo se comprueba en el servidor y dentro de la transacción de cada operación 
 
 Todas las escrituras toman los cerrojos en el mismo orden, sin ciclos: petición (`clientRequestId`), fila de la academia (la toma el control de solo lectura del plan, como el resto de `/owner`), plantilla de clase (el mismo cerrojo que la generación de sesiones) y filas de sesión. Así, una sustitución y un cambio de titulares de la misma clase no se cruzan. Además, el cambio de titulares bloquea primero las sesiones futuras y solo después lee sus marcas de sustitución, en otra sentencia: una sustitución confirmada mientras esperaba no se pisa. Si aun así PostgreSQL aborta por interbloqueo o serialización (40P01, 40001, 55P03), la API responde 409 reintentable, nunca 500.
 
-**Ciclo con Pasar lista.** Pasar lista (código en producción, sin cambios de orden) bloquea primero la sesión y después la academia; la sustitución, al revés. Si coinciden en la misma sesión, PostgreSQL aborta una de las dos. Las dos rutas responden entonces 409 reintentable: la de asistencia también, gracias a `src/modules/shared/infrastructure/retryable-db-conflict.ts`. Pasar lista conserva lo marcado como reintento con la misma clave y lo explica. Lo prueba `tests/coach-assignment-pg.test.ts` con las rutas reales: con dos esperas cruzadas observadas en `pg_stat_activity`, ninguna ruta da 500, hay como mucho un 409 reintentable y, tras reintentar, las dos quedan aplicadas. En el CI el interbloqueo no siempre llega a producirse, porque PostgreSQL no garantiza en qué orden despierta las esperas; la prueba es correcta en ambos casos.
+**Pasar lista y la sustitución no se interbloquean.** Las dos bloquean primero la fila de la academia: Pasar lista en `lockCommand` (`lockOrganizationForSaasMutation`), antes de tocar la sesión, y la asignación en el control de solo lectura. Así se serializan. `tests/coach-assignment-pg.test.ts` lo demuestra con `pg_blocking_pids`: Pasar lista queda bloqueada por la sustitución en la fila de la academia mientras nadie tiene la sesión, y las dos terminan bien. Aun así, la ruta de asistencia traduce un interbloqueo a 409 reintentable (`CONCURRENCY_RETRY`) como defensa, y Pasar lista conserva lo marcado.
 
 **Tope de la propagación.** Solo se bloquean sesiones futuras hasta `max(ahora, inicio de la clase) + SESSION_HORIZON_TARGET_DAYS` (constante de `src/modules/scheduling/domain/session-horizon.ts`), que es hasta donde se generan, más un día de margen para las sedes al oeste de UTC.
 
@@ -85,7 +85,7 @@ La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que 
 
 ## Seguimiento separado
 
-- **Alinear el orden de cerrojos de Pasar lista** (sesión → academia) con el de la asignación (academia → plantilla → sesión), con el análisis de la descripción de la PR 276. Hoy el ciclo acaba en 409 reintentable en las dos rutas, sin 500 ni pérdida de datos.
+- Unificar el estado de `CONCURRENCY_RETRY`: 409 en Pasar lista y en la asignación, 503 en la emisión mensual (su gestor trata los 4xx como definitivos; ver `retryable-db-conflict.ts`).
 
 ## Pruebas
 
