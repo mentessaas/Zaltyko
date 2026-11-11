@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 
-import { db } from "@/db";
 import type { TransactionClient } from "@/lib/db-transactions";
 import {
   addedStaffProfileIds,
@@ -40,6 +39,7 @@ import {
 } from "./queries";
 import { assignmentIdempotencyKey, findPriorAssignment, lockAssignmentRequest } from "./replay";
 import { assertCoachAssignmentStorageAvailable } from "./storage";
+import { inAssignmentTransaction, lockTemplateSessions } from "./transactions";
 
 export const SESSION_COACHES_SET_ACTION = "session.coaches_set";
 
@@ -60,9 +60,11 @@ async function sessionView(
     locationId: session.locationId,
     coaches,
     titulars,
+    // El motivo solo lo ve la dirección: una entrenadora no ve por qué se
+    // sustituyó a una compañera (decide Elvis si se amplía).
     substitution: override
       ? {
-          reason: override.reason,
+          reason: input.manager ? override.reason : null,
           changedAt: override.changedAt,
           changedByName: await memberDisplayName(tx, organizationId, override.changedByMemberId),
         }
@@ -81,7 +83,7 @@ export async function getSessionCoaches(input: {
   query: SessionCoachesQuery;
 }): Promise<SessionCoachesView> {
   const query = sessionCoachesQuerySchema.parse(input.query);
-  return db.transaction(async (tx) => {
+  return inAssignmentTransaction(async (tx) => {
     await assertCoachAssignmentStorageAvailable(tx);
     // El acceso va antes que la sesión: una entrenadora fuera de su sede no
     // distingue una sesión ajena de una inexistente.
@@ -119,22 +121,24 @@ export async function setSessionCoaches(input: {
   const expected = normalizeStaffProfileIds(command.expectedStaffProfileIds);
   const scope = { organizationId: command.organizationId, locationId: command.locationId };
 
-  return db.transaction(async (tx) => {
+  return inAssignmentTransaction(async (tx) => {
     await assertCoachAssignmentStorageAvailable(tx);
     // Primero el rol y la sede, sin escritura: quien no puede asignar recibe
     // 403 aunque la sesión no exista.
     await assertManagerAccess(tx, { ...scope, actor: input.actor });
-    const session = await loadSession(tx, { ...scope, sessionId: input.sessionId, forUpdate: true });
+    const found = await loadSession(tx, { ...scope, sessionId: input.sessionId });
 
+    // Orden de cerrojos común (transactions.ts): petición, plantilla y sesión.
     await lockAssignmentRequest(tx, command.organizationId, command.clientRequestId);
     const replayed = await findPriorAssignment(tx, {
       organizationId: command.organizationId,
       clientRequestId: command.clientRequestId,
       targetType: "session",
-      targetId: session.id,
+      targetId: found.id,
       staffProfileIds: target,
     });
     if (replayed) {
+      const session = await loadSession(tx, { ...scope, sessionId: found.id });
       const reader = await assertManagerAccess(tx, { ...scope, actor: input.actor });
       return {
         ...(await sessionView(tx, { organizationId: command.organizationId, session, viewerMemberId: reader.memberId, manager: true })),
@@ -143,6 +147,8 @@ export async function setSessionCoaches(input: {
     }
 
     const manager = await assertManagerAccess(tx, { ...scope, actor: input.actor, intent: "write" });
+    await lockTemplateSessions(tx, command.organizationId, found.classTemplateId);
+    const session = await loadSession(tx, { ...scope, sessionId: found.id, forUpdate: true });
     if (session.status === "cancelled") {
       throw new OperationalError("INVALID_STATE_TRANSITION", "La sesión está cancelada.", 409);
     }

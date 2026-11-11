@@ -113,6 +113,8 @@ export type SessionCoachesView = {
 export type ClassCoachesWriteResult = ClassCoachesView & {
   /** Sesiones futuras sin sustitución que pasaron a las nuevas titulares. */
   updatedSessionCount: number;
+  /** Sesiones sustituidas que ya coinciden con las nuevas titulares y dejan de estarlo. */
+  clearedSubstitutionCount: number;
   replayed: boolean;
 };
 

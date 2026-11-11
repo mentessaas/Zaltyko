@@ -211,6 +211,50 @@ async function auditActions(organizationId: string, targetId: string) {
 
 const sorted = (...ids: string[]) => [...ids].sort();
 
+/** Espera a que `expected` conexiones estén bloqueadas esperando un cerrojo. */
+async function waitForLockWaiters(expected: number) {
+  const deadline = Date.now() + 15_000;
+  let waiting = 0;
+  while (Date.now() < deadline) {
+    const result = await db.execute(sql`
+      select count(*)::int as waiting
+      from pg_stat_activity
+      where datname = current_database()
+        and pid <> pg_backend_pid()
+        and wait_event_type = 'Lock'
+    `);
+    waiting = Number((result.rows[0] as { waiting?: number } | undefined)?.waiting ?? 0);
+    if (waiting >= expected) return waiting;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Only ${waiting} of ${expected} operations reached the lock`);
+}
+
+async function hasMarker(sessionId: string) {
+  const result = await db.execute(sql`
+    select count(*)::int as count from zaltyko.session_staff_overrides where session_id = ${sessionId}::uuid
+  `);
+  return Number((result.rows[0] as { count: number }).count) > 0;
+}
+
+/** Abre una transacción que retiene un cerrojo hasta que se llame a release(). */
+function holdLock(work: (tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) => Promise<unknown>) {
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let markHeld!: () => void;
+  const held = new Promise<void>((resolve) => {
+    markHeld = resolve;
+  });
+  const done = db.transaction(async (tx) => {
+    await work(tx);
+    markHeld();
+    await released;
+  });
+  return { held, release, done };
+}
+
 describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en PostgreSQL desechable", () => {
   let a: Awaited<ReturnType<typeof academy>>;
   let b: Awaited<ReturnType<typeof academy>>;
@@ -334,6 +378,8 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
     if (!disposablePgEnabled) return;
     await db.execute(sql`drop table if exists zaltyko.session_staff_overrides`);
     await db.execute(sql`drop table if exists zaltyko.class_template_staff`);
+    // Deja la base compartida como estaba: el candidato retira este GRANT.
+    await db.execute(sql`grant select on table zaltyko.session_staff to authenticated`);
   });
 
   it("fuerza RLS, niega el acceso directo de anon/authenticated y rechaza reinstalar", async () => {
@@ -360,6 +406,12 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
         );
       }
     }
+    // session_staff pasa a tener datos: el candidato retira el acceso directo.
+    const sessionStaff = await db.execute(sql`
+      select has_table_privilege('authenticated', 'zaltyko.session_staff', 'SELECT') as authenticated_select,
+             has_table_privilege('anon', 'zaltyko.session_staff', 'SELECT') as anon_select
+    `);
+    expect(sessionStaff.rows[0]).toEqual({ authenticated_select: false, anon_select: false });
     await expectCandidateRefused(db.execute(sql.raw(candidate())));
   });
 
@@ -392,8 +444,15 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
     });
     await expect(setClass(coachAna, classS1, [ana], [])).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
     await expect(setSession(coachAna, futureS1a, [ana], [])).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
-    // La coordinación de S1 no gestiona S2.
-    await expect(setClass(managerS1, classS2, [carla], [], s2())).rejects.toMatchObject({ code: "LOCATION_SCOPE_DENIED" });
+    // La coordinación de S1 no gestiona S2, y una clase de S2 responde igual
+    // que una inexistente (sin oráculo de existencia).
+    await expect(setClass(managerS1, classS2, [carla], [], s2())).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
+    await expect(
+      getClassCoaches({ actor: managerS1, classTemplateId: classS2, query: { organizationId: a.organizationId } })
+    ).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
+    await expect(
+      getClassCoaches({ actor: managerS1, classTemplateId: randomUUID(), query: { organizationId: a.organizationId } })
+    ).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
     expect(await count("class_template_staff", a.organizationId)).toBe(0);
     expect(await count("session_staff", a.organizationId)).toBe(0);
   });
@@ -419,7 +478,7 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
     const audit = await auditActions(a.organizationId, classS1);
     expect(audit).toHaveLength(1);
     expect(audit[0]).toMatchObject({ action: "class_template.coaches_set", actor: ownerA.userId });
-    expect(audit[0]!.after).toEqual({ staffProfileIds: [ana], updatedSessionCount: 2 });
+    expect(audit[0]!.after).toEqual({ staffProfileIds: [ana], updatedSessionCount: 2, clearedSubstitutionCount: 0 });
     expect(JSON.stringify(audit[0])).not.toContain("Ana Ruiz");
     const stored = await db.execute(sql`
       select assigned_by_member_id::text as by from zaltyko.class_template_staff where class_template_id = ${classS1}::uuid
@@ -450,7 +509,13 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
     // La entrenadora de la sede lee quién está; no ve candidatas ni puede cambiarlo.
     const asCoach = await getSessionCoaches({ actor: coachAna, sessionId: futureS1b, query: s1() });
     expect(asCoach).toMatchObject({ assignedToViewer: true, canWrite: false, eligible: null, substitution: null });
-    expect((await getSessionCoaches({ actor: coachAna, sessionId: futureS1a, query: s1() })).assignedToViewer).toBe(false);
+    // Ve que hay sustitución, pero no el motivo; la dirección sí.
+    const substitutedAsCoach = await getSessionCoaches({ actor: coachAna, sessionId: futureS1a, query: s1() });
+    expect(substitutedAsCoach.assignedToViewer).toBe(false);
+    expect(substitutedAsCoach.substitution).toMatchObject({ reason: null });
+    expect((await getSessionCoaches({ actor: ownerA, sessionId: futureS1a, query: s1() })).substitution).toMatchObject({
+      reason: "absence",
+    });
     // Fuera de su sede la sesión no existe para ella.
     await expect(getSessionCoaches({ actor: coachDani, sessionId: futureS1a, query: s1() })).rejects.toMatchObject({
       code: "NOT_FOUND",
@@ -589,4 +654,133 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
     expect(await count("session_staff", a.organizationId)).toBe(before.staff);
     expect(await count("session_staff_overrides", a.organizationId)).toBe(before.overrides);
   }, 60_000);
+
+  describe("concurrencia y borrados (academia C)", () => {
+    let c: Awaited<ReturnType<typeof academy>>;
+    let ownerC: Actor;
+    let managerC: Actor;
+    let xavi: string;
+    let yago: string;
+    let zara: string;
+    let classK: string;
+    let sessionK1: string;
+    let sessionK2: string;
+    const sc = () => ({ organizationId: c.organizationId, locationId: c.locationIds[0]! });
+
+    beforeAll(async () => {
+      c = await academy("C", 1);
+      ownerC = await member(c.organizationId, "owner", "all");
+      managerC = await member(c.organizationId, "manager", "all", [], "manager-c");
+      xavi = await staffProfile(c.organizationId, "Xavi", "Abad", (await member(c.organizationId, "coach", "all", [], "xavi")).memberId);
+      yago = await staffProfile(c.organizationId, "Yago", "Benet", (await member(c.organizationId, "coach", "all", [], "yago")).memberId);
+      zara = await staffProfile(c.organizationId, "Zara", "Cano", (await member(c.organizationId, "coach", "all", [], "zara")).memberId);
+      classK = await classTemplate(c.organizationId, c.locationIds[0]!, "CI Competición");
+      sessionK1 = await session(c.organizationId, c.locationIds[0]!, classK, "2030-03-04T16:30:00Z");
+      sessionK2 = await session(c.organizationId, c.locationIds[0]!, classK, "2030-03-11T16:30:00Z");
+      await setClass(ownerC, classK, [xavi], [], sc());
+    }, 60_000);
+
+    it("una sustitución que se confirma mientras el cambio de titulares espera el bloqueo no se pisa", async () => {
+      // Otro escritor sustituye K1 y retiene la fila de la sesión.
+      const holder = holdLock(async (tx) => {
+        await tx.execute(sql`select id from zaltyko.sessions where id = ${sessionK1}::uuid for update`);
+        await tx.execute(sql`delete from zaltyko.session_staff where session_id = ${sessionK1}::uuid and assignment_role = 'coach'`);
+        await tx.execute(sql`
+          insert into zaltyko.session_staff (organization_id, session_id, staff_profile_id, assignment_role)
+          values (${c.organizationId}::uuid, ${sessionK1}::uuid, ${yago}::uuid, 'coach')
+        `);
+        await tx.execute(sql`
+          insert into zaltyko.session_staff_overrides (organization_id, session_id, reason, changed_by_member_id)
+          values (${c.organizationId}::uuid, ${sessionK1}::uuid, 'absence', ${ownerC.memberId}::uuid)
+        `);
+      });
+      await holder.held;
+      const change = setClass(ownerC, classK, [zara], [xavi], sc()).then(
+        (value) => value,
+        (caught: unknown) => caught
+      );
+      try {
+        // El cambio de titulares está bloqueado en la fila de K1.
+        expect(await waitForLockWaiters(1)).toBe(1);
+      } finally {
+        holder.release();
+      }
+      await holder.done;
+      const result = await change;
+      expect(result).toMatchObject({ updatedSessionCount: 1, clearedSubstitutionCount: 0, replayed: false });
+      // K1 conserva la sustitución confirmada; solo K2 pasa a las nuevas titulares.
+      expect(await sessionStaffIds(sessionK1)).toEqual([yago]);
+      expect(await hasMarker(sessionK1)).toBe(true);
+      expect(await sessionStaffIds(sessionK2)).toEqual([zara]);
+      expect(await hasMarker(sessionK2)).toBe(false);
+    }, 60_000);
+
+    it("sustitución y cambio de titulares de la misma clase se serializan en la plantilla, y la marca se quita si ya coincide", async () => {
+      // Un tercero retiene el cerrojo de la plantilla (como una generación de sesiones).
+      const holder = holdLock(async (tx) => {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtextextended(${`${c.organizationId}:sessions:${classK}`}, 0))`
+        );
+      });
+      await holder.held;
+      const substitution = setSession(ownerC, sessionK2, [xavi], [zara], "reinforcement", sc()).then(
+        (value) => value,
+        (caught: unknown) => caught
+      );
+      let titularChange: Promise<unknown> | undefined;
+      try {
+        // La sustitución llega primero a la plantilla.
+        expect(await waitForLockWaiters(1)).toBe(1);
+        titularChange = setClass(managerC, classK, [xavi], [zara], sc()).then(
+          (value) => value,
+          (caught: unknown) => caught
+        );
+        // El cambio de titulares espera detrás (en la academia o en la plantilla).
+        expect(await waitForLockWaiters(2)).toBe(2);
+      } finally {
+        holder.release();
+      }
+      await holder.done;
+      expect(await substitution).toMatchObject({ replayed: false, substitution: { reason: "reinforcement" } });
+      // Las nuevas titulares coinciden con K2: deja de estar en sustitución.
+      expect(await titularChange).toMatchObject({ updatedSessionCount: 0, clearedSubstitutionCount: 1 });
+      expect(await sessionStaffIds(sessionK2)).toEqual([xavi]);
+      expect(await hasMarker(sessionK2)).toBe(false);
+      // K1 sigue sustituida (Yago no es titular).
+      expect(await sessionStaffIds(sessionK1)).toEqual([yago]);
+      expect(await hasMarker(sessionK1)).toBe(true);
+    }, 60_000);
+
+    it("el mismo clientRequestId por las dos rutas no interbloquea: la segunda recibe 409", async () => {
+      const clientRequestId = randomUUID();
+      const results = await Promise.allSettled([
+        setClass(ownerC, classK, [xavi, yago], [xavi], sc(), clientRequestId),
+        setSession(ownerC, sessionK2, [yago], [xavi], "other", sc(), clientRequestId),
+      ]);
+      const rejected = results.filter((item) => item.status === "rejected") as PromiseRejectedResult[];
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0]!.reason).toMatchObject({ code: "IDEMPOTENCY_CONFLICT", status: 409 });
+    }, 60_000);
+
+    it("borrar el miembro que asignó o sustituyó, o una ficha titular sin sesiones, no queda bloqueado", async () => {
+      const classK2 = await classTemplate(c.organizationId, c.locationIds[0]!, "CI Sin sesiones");
+      const walo = await staffProfile(c.organizationId, "Walo", "Duran", (await member(c.organizationId, "coach", "all", [], "walo")).memberId);
+      await setClass(managerC, classK2, [walo], [], sc());
+      const current = await sessionStaffIds(sessionK1);
+      await setSession(managerC, sessionK1, [zara], current, "absence", sc());
+
+      // Lo mismo que hace la cascada al borrar su usuario de Auth.
+      await db.execute(sql`delete from zaltyko.organization_members where id = ${managerC.memberId}::uuid`);
+      const assigned = await db.execute(sql`
+        select assigned_by_member_id from zaltyko.class_template_staff where class_template_id = ${classK2}::uuid
+      `);
+      expect(assigned.rows).toEqual([{ assigned_by_member_id: null }]);
+      const view = await getSessionCoaches({ actor: ownerC, sessionId: sessionK1, query: sc() });
+      expect(view.substitution).toMatchObject({ reason: "absence", changedByName: "Equipo" });
+
+      // La ficha titular de una clase sin sesiones se borra y su asignación con ella.
+      await db.execute(sql`delete from zaltyko.staff_profiles where id = ${walo}::uuid`);
+      expect(await getClassTitularsByClass(db, { organizationId: c.organizationId, classTemplateIds: [classK2] })).toEqual({});
+    }, 60_000);
+  });
 });

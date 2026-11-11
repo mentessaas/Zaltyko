@@ -75,6 +75,12 @@ export async function isCoachAssignmentStorageAvailable(client: DatabaseClient):
           select bool_or(${anyClientPrivilege})
             from pg_roles r where r.rolname in ('anon', 'authenticated')
         ), false)
+        -- El candidato retira también el acceso directo a session_staff, que
+        -- pasa a tener datos reales: sin ese REVOKE la función sigue dormida.
+        and not coalesce((
+          select bool_or(has_table_privilege(r.oid, 'zaltyko.session_staff', 'SELECT,INSERT,UPDATE,DELETE'))
+            from pg_roles r where r.rolname in ('anon', 'authenticated')
+        ), false)
       else false end as available
   `);
   return (result.rows[0] as { available?: unknown } | undefined)?.available === true;

@@ -126,17 +126,44 @@ describe("titulares en la ficha de clase", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("todavía no está disponible");
   });
 
-  it("muestra el conflicto si otra persona cambió la lista", async () => {
+  it("tras un 409 recarga la lista actual y lleva el foco al aviso", async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(200, { data: { classTemplateId: CLASS, locationId: SITE, titulars: [], eligible: [ana, bea], canWrite: true } }))
+      .mockResolvedValueOnce(json(409, { detail: "Otra persona cambió las entrenadoras mientras editabas." }))
+      .mockResolvedValueOnce(json(200, { data: { classTemplateId: CLASS, locationId: SITE, titulars: [bea], eligible: [ana, bea], canWrite: true } }));
+    render(
+      <OwnerClassCoaches organizationId={ORG} locationId={SITE} classTemplateId={CLASS} className="Base" initialTitulars={[]} writesBlocked={false} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Asignar titulares de Base" }));
+    const first = await screen.findByLabelText("Ana Ruiz");
+    await waitFor(() => expect(first).toHaveFocus());
+    fireEvent.click(first);
+    fireEvent.click(screen.getByRole("button", { name: "Guardar titulares" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Otra persona cambió");
+    expect(alert).toHaveTextContent("Hemos cargado la lista actual");
+    await waitFor(() => expect(alert).toHaveFocus());
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(screen.getByLabelText("Bea Gil")).toBeChecked();
+    expect(screen.getByLabelText("Ana Ruiz")).not.toBeChecked();
+  });
+
+  it("al guardar devuelve el foco al botón", async () => {
     fetchMock
       .mockResolvedValueOnce(json(200, { data: { classTemplateId: CLASS, locationId: SITE, titulars: [], eligible: [ana], canWrite: true } }))
-      .mockResolvedValueOnce(json(409, { detail: "Otra persona cambió las entrenadoras mientras editabas." }));
+      .mockResolvedValueOnce(
+        json(200, { data: { classTemplateId: CLASS, locationId: SITE, titulars: [ana], eligible: [ana], canWrite: true, updatedSessionCount: 0, replayed: false } })
+      );
     render(
       <OwnerClassCoaches organizationId={ORG} locationId={SITE} classTemplateId={CLASS} className="Base" initialTitulars={[]} writesBlocked={false} />
     );
     fireEvent.click(screen.getByRole("button", { name: "Asignar titulares de Base" }));
     fireEvent.click(await screen.findByLabelText("Ana Ruiz"));
     fireEvent.click(screen.getByRole("button", { name: "Guardar titulares" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Otra persona cambió");
+    const trigger = await screen.findByRole("button", { name: "Cambiar titulares de Base" });
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(screen.getByRole("status")).toHaveTextContent("Las próximas sesiones que se generen los heredan");
   });
 });
 
@@ -174,12 +201,13 @@ describe("quién entrena en Pasar lista", () => {
     });
   });
 
-  it("la entrenadora ve quién entrena y si es suya, sin botones para cambiarlo", async () => {
+  it("la entrenadora ve quién entrena y si es suya, sin el motivo ni botones para cambiarlo", async () => {
     fetchMock.mockResolvedValueOnce(
       json(200, {
         data: sessionView({
           coaches: [bea],
-          substitution: { reason: null, changedAt: "2026-11-11T09:00:00.000Z", changedByName: "Coordinador/a" },
+          // Aunque llegara un motivo, la vista de entrenadora no lo pinta.
+          substitution: { reason: "absence", changedAt: "2026-11-11T09:00:00.000Z", changedByName: "Coordinador/a" },
           eligible: null,
           canWrite: false,
           assignedToViewer: true,
@@ -192,6 +220,27 @@ describe("quién entrena en Pasar lista", () => {
     expect(screen.getByText("Sustitución")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cambiar en esta sesión" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Quitar la sustitución" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Motivo/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ausencia/)).not.toBeInTheDocument();
+  });
+
+  it("tras un 409 recarga quién entrena en la sesión y avisa", async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(200, { data: sessionView() }))
+      .mockResolvedValueOnce(json(409, { detail: "Otra persona cambió las entrenadoras mientras editabas." }))
+      .mockResolvedValueOnce(json(200, { data: sessionView({ coaches: [bea] }) }));
+    render(<OwnerSessionCoaches organizationId={ORG} locationId={SITE} sessionId={SESSION} coachMode={false} writesBlocked={false} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Cambiar en esta sesión" }));
+    const group = screen.getByRole("group", { name: "Quién entrena en esta sesión" });
+    await waitFor(() => expect(within(group).getByLabelText("Ana Ruiz")).toHaveFocus());
+    fireEvent.click(within(group).getByLabelText("Bea Gil"));
+    fireEvent.click(within(group).getByRole("button", { name: "Guardar para esta sesión" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Hemos cargado quién entrena ahora");
+    await waitFor(() => expect(alert).toHaveFocus());
+    expect(screen.getByText("Bea Gil")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Quién entrena en esta sesión" })).not.toBeInTheDocument();
   });
 
   it("en solo lectura la dirección consulta pero no cambia", async () => {

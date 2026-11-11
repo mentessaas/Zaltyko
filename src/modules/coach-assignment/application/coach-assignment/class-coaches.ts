@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 
-import { db } from "@/db";
 import type { DatabaseClient, TransactionClient } from "@/lib/db-transactions";
 import {
   addedStaffProfileIds,
@@ -22,7 +21,7 @@ import { sqlUuidArray } from "@/modules/owner-dashboard/application/sql-uuid-arr
 
 import {
   assertAdditionsEligible,
-  assertManagerAccess,
+  assertClassManagerAccess,
   assertManagerMembership,
   loadClassTemplate,
   staleAssignment,
@@ -30,23 +29,9 @@ import {
 import { classTitularIds, coachesByIds, eligibleCoaches } from "./queries";
 import { assignmentIdempotencyKey, findPriorAssignment, lockAssignmentRequest } from "./replay";
 import { assertCoachAssignmentStorageAvailable } from "./storage";
+import { inAssignmentTransaction, lockTemplateSessions } from "./transactions";
 
 export const CLASS_COACHES_SET_ACTION = "class_template.coaches_set";
-
-/**
- * Mismo cerrojo que la generación de sesiones de la plantilla
- * (session-service.insertTemplateSessionsInRange): una generación en curso
- * hereda las titulares de antes o las de después, nunca una mezcla.
- */
-export async function lockTemplateSessions(
-  tx: TransactionClient,
-  organizationId: string,
-  classTemplateId: string
-): Promise<void> {
-  await tx.execute(
-    sql`select pg_advisory_xact_lock(hashtextextended(${`${organizationId}:sessions:${classTemplateId}`}, 0))`
-  );
-}
 
 async function classView(
   tx: TransactionClient,
@@ -71,7 +56,7 @@ export async function getClassCoaches(input: {
   query: ClassCoachesQuery;
 }): Promise<ClassCoachesView> {
   const query = classCoachesQuerySchema.parse(input.query);
-  return db.transaction(async (tx) => {
+  return inAssignmentTransaction(async (tx) => {
     await assertCoachAssignmentStorageAvailable(tx);
     await assertManagerMembership(tx, { organizationId: query.organizationId, actor: input.actor });
     const template = await loadClassTemplate(tx, {
@@ -79,7 +64,7 @@ export async function getClassCoaches(input: {
       classTemplateId: input.classTemplateId,
       locationId: query.locationId,
     });
-    await assertManagerAccess(tx, {
+    await assertClassManagerAccess(tx, {
       organizationId: query.organizationId,
       locationId: template.locationId,
       actor: input.actor,
@@ -94,14 +79,21 @@ export async function getClassCoaches(input: {
 
 /**
  * Pasa a las nuevas titulares las sesiones futuras programadas de la clase que
- * no tienen sustitución. Las sesiones pasadas, canceladas o con sustitución no
- * se tocan. Bloquea las filas de sesión, igual que una sustitución, para que
- * las dos operaciones no se crucen sobre la misma sesión.
+ * no tienen sustitución. Las pasadas, canceladas o sustituidas no cambian.
+ *
+ * Primero bloquea todas las sesiones futuras programadas de la clase y solo
+ * después, en otra sentencia (otra instantánea), lee sus marcas de
+ * sustitución: una sustitución que termina mientras se espera el bloqueo ya se
+ * ve y no se pisa. Además la sustitución toma el mismo cerrojo de plantilla
+ * que este cambio (ver transactions.ts).
+ *
+ * Una sesión sustituida cuya lista coincide ya con las nuevas titulares deja
+ * de estar en sustitución.
  */
 async function propagateToFutureSessions(
   tx: TransactionClient,
   input: { organizationId: string; classTemplateId: string; staffProfileIds: string[] }
-): Promise<number> {
+): Promise<{ updatedSessionCount: number; clearedSubstitutionCount: number }> {
   const locked = await tx.execute(sql`
     select session.id::text as id
     from zaltyko.sessions session
@@ -109,33 +101,57 @@ async function propagateToFutureSessions(
       and session.class_template_id = ${input.classTemplateId}::uuid
       and session.status = 'scheduled'
       and session.starts_at > now()
-      and not exists (
-        select 1 from zaltyko.session_staff_overrides marker
-        where marker.organization_id = session.organization_id
-          and marker.session_id = session.id
-      )
     order by session.id
     for update of session
   `);
-  const sessionIds = (locked.rows as Array<{ id: string }>).map((row) => row.id);
-  if (sessionIds.length === 0) return 0;
+  const lockedIds = (locked.rows as Array<{ id: string }>).map((row) => row.id);
+  if (lockedIds.length === 0) return { updatedSessionCount: 0, clearedSubstitutionCount: 0 };
 
-  await tx.execute(sql`
-    delete from zaltyko.session_staff
+  const markers = await tx.execute(sql`
+    select session_id::text as id
+    from zaltyko.session_staff_overrides
     where organization_id = ${input.organizationId}::uuid
-      and session_id = any(${sqlUuidArray(sessionIds)})
-      and assignment_role = 'coach'
+      and session_id = any(${sqlUuidArray(lockedIds)})
   `);
-  if (input.staffProfileIds.length > 0) {
+  const substituted = new Set((markers.rows as Array<{ id: string }>).map((row) => row.id));
+  const sessionIds = lockedIds.filter((id) => !substituted.has(id));
+
+  if (sessionIds.length > 0) {
     await tx.execute(sql`
-      insert into zaltyko.session_staff (organization_id, session_id, staff_profile_id, assignment_role)
-      select ${input.organizationId}::uuid, session_id, staff_profile_id, 'coach'
-      from unnest(${sqlUuidArray(sessionIds)}) as session_id
-      cross join unnest(${sqlUuidArray(input.staffProfileIds)}) as staff_profile_id
-      on conflict (organization_id, session_id, staff_profile_id) do nothing
+      delete from zaltyko.session_staff
+      where organization_id = ${input.organizationId}::uuid
+        and session_id = any(${sqlUuidArray(sessionIds)})
+        and assignment_role = 'coach'
     `);
+    if (input.staffProfileIds.length > 0) {
+      await tx.execute(sql`
+        insert into zaltyko.session_staff (organization_id, session_id, staff_profile_id, assignment_role)
+        select ${input.organizationId}::uuid, session_id, staff_profile_id, 'coach'
+        from unnest(${sqlUuidArray(sessionIds)}) as session_id
+        cross join unnest(${sqlUuidArray(input.staffProfileIds)}) as staff_profile_id
+        on conflict (organization_id, session_id, staff_profile_id) do update set assignment_role = 'coach'
+      `);
+    }
   }
-  return sessionIds.length;
+
+  let clearedSubstitutionCount = 0;
+  if (substituted.size > 0) {
+    const cleared = await tx.execute(sql`
+      delete from zaltyko.session_staff_overrides marker
+      where marker.organization_id = ${input.organizationId}::uuid
+        and marker.session_id = any(${sqlUuidArray([...substituted])})
+        and coalesce((
+          select array_agg(assignment.staff_profile_id order by assignment.staff_profile_id)
+          from zaltyko.session_staff assignment
+          where assignment.organization_id = marker.organization_id
+            and assignment.session_id = marker.session_id
+            and assignment.assignment_role = 'coach'
+        ), array[]::uuid[]) = ${sqlUuidArray(input.staffProfileIds)}::uuid[]
+      returning marker.session_id
+    `);
+    clearedSubstitutionCount = cleared.rows.length;
+  }
+  return { updatedSessionCount: sessionIds.length, clearedSubstitutionCount };
 }
 
 export async function setClassCoaches(input: {
@@ -147,7 +163,7 @@ export async function setClassCoaches(input: {
   const target = normalizeStaffProfileIds(command.staffProfileIds);
   const expected = normalizeStaffProfileIds(command.expectedStaffProfileIds);
 
-  return db.transaction(async (tx) => {
+  return inAssignmentTransaction(async (tx) => {
     await assertCoachAssignmentStorageAvailable(tx);
     await assertManagerMembership(tx, { organizationId: command.organizationId, actor: input.actor });
     const template = await loadClassTemplate(tx, {
@@ -167,11 +183,11 @@ export async function setClassCoaches(input: {
     });
     if (replayed) {
       // Un reintento se puede leer aunque el plan haya pasado a solo lectura.
-      await assertManagerAccess(tx, { organizationId: command.organizationId, locationId: template.locationId, actor: input.actor });
-      return { ...(await classView(tx, scope)), updatedSessionCount: 0, replayed: true };
+      await assertClassManagerAccess(tx, { organizationId: command.organizationId, locationId: template.locationId, actor: input.actor });
+      return { ...(await classView(tx, scope)), updatedSessionCount: 0, clearedSubstitutionCount: 0, replayed: true };
     }
 
-    const manager = await assertManagerAccess(tx, {
+    const manager = await assertClassManagerAccess(tx, {
       organizationId: command.organizationId,
       locationId: template.locationId,
       actor: input.actor,
@@ -182,7 +198,7 @@ export async function setClassCoaches(input: {
     const current = await classTitularIds(tx, command.organizationId, template.id);
     if (!sameStaffSet(current, expected)) throw staleAssignment();
     if (sameStaffSet(current, target)) {
-      return { ...(await classView(tx, scope)), updatedSessionCount: 0, replayed: false };
+      return { ...(await classView(tx, scope)), updatedSessionCount: 0, clearedSubstitutionCount: 0, replayed: false };
     }
     await assertAdditionsEligible(tx, {
       organizationId: command.organizationId,
@@ -210,7 +226,7 @@ export async function setClassCoaches(input: {
       `);
     }
 
-    const updatedSessionCount = await propagateToFutureSessions(tx, {
+    const { updatedSessionCount, clearedSubstitutionCount } = await propagateToFutureSessions(tx, {
       organizationId: command.organizationId,
       classTemplateId: template.id,
       staffProfileIds: target,
@@ -225,11 +241,11 @@ export async function setClassCoaches(input: {
       targetId: template.id,
       idempotencyKey: assignmentIdempotencyKey(command.clientRequestId),
       before: { staffProfileIds: current },
-      after: { staffProfileIds: target, updatedSessionCount },
+      after: { staffProfileIds: target, updatedSessionCount, clearedSubstitutionCount },
       metadata: { memberId: manager.memberId },
     });
 
-    return { ...(await classView(tx, scope)), updatedSessionCount, replayed: false };
+    return { ...(await classView(tx, scope)), updatedSessionCount, clearedSubstitutionCount, replayed: false };
   });
 }
 

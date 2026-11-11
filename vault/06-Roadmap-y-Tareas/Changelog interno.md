@@ -22,6 +22,13 @@ source:
 
 **Sin resolver.** «Decide Elvis» de `docs/producto/entrenadoras-por-clase.md`, sobre todo el vínculo ficha de equipo ↔ acceso (`staff_profiles.member_id`), que ningún flujo rellena: hasta que O3 lo haga, nadie es asignable.
 
+**Ronda 2 (revisión 7,5/10 del coordinador).**
+- Carrera sustitución ↔ titulares: orden de cerrojos común (petición → academia → plantilla → sesiones). El cambio de titulares relee las marcas después de bloquear las sesiones. Dos pruebas PG deterministas con `pg_stat_activity`.
+- 40P01/40001/55P03 → 409 reintentable. El mismo `clientRequestId` por las dos rutas ya no interbloquea.
+- FK de la candidata sin RESTRICT: cascada en las asignaciones; `on delete set null (columna)` en quien asignó o sustituyó, para no bloquear el borrado de usuarios ni data-rights.
+- REVOKE de `anon`/`authenticated` sobre `session_staff`, que pasa a tener datos; la detección lo exige.
+- 404 para una clase de otra sede; `assignment_role` unificado; la marca se quita si la sesión vuelve a coincidir con las titulares; el motivo solo lo ve la dirección; la UI recarga tras un 409 y gestiona el foco.
+
 ## 2026-11-11 — Objetivos y observaciones por gimnasta (P2 #17, primera parte)
 
 **Cambio.**

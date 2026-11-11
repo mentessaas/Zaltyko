@@ -165,6 +165,51 @@ describe("candidato SQL de titulares y sustituciones", () => {
     for (const name of names) expect(name.length, name).toBeLessThan(63);
   });
 
+  it("ningún borrado queda bloqueado: cascada en asignaciones y SET NULL de una columna en quien asignó", () => {
+    const body = stripSqlComments(lower);
+    expect(body).not.toMatch(/on delete restrict|on delete no action/);
+    const fkOnDelete = (block: string) =>
+      new Map(
+        [...block.matchAll(/constraint ([a-z_]+)\s+foreign key \([^)]*\) references [^\n]*? on delete (cascade|set null)(?: \(([a-z_]+)\))?/g)].map(
+          (match) => [match[1], { action: match[2], columns: match[3] ?? null }] as const
+        )
+      );
+    const expected: Record<string, { action: string; columns: string | null }> = {
+      class_template_staff_template_fk: { action: "cascade", columns: null },
+      class_template_staff_profile_fk: { action: "cascade", columns: null },
+      class_template_staff_member_fk: { action: "set null", columns: "assigned_by_member_id" },
+      session_staff_overrides_session_fk: { action: "cascade", columns: null },
+      session_staff_overrides_member_fk: { action: "set null", columns: "changed_by_member_id" },
+    };
+    const found = new Map([...blocks.values()].flatMap((block) => [...fkOnDelete(block)]));
+    expect(Object.fromEntries(found)).toEqual(expected);
+    // El espejo Drizzle repite la acción (sin la lista de columnas, que no sabe expresar).
+    for (const table of TABLES) {
+      for (const fk of drizzleTables.get(table)!.foreignKeys) {
+        const name = fk.getName();
+        if (name.endsWith("_organizations_id_fk")) continue;
+        expect(fk.onDelete, name).toBe(expected[name]!.action);
+      }
+    }
+    // Las columnas que pasan a null al borrar el miembro admiten null.
+    for (const [table, column] of [
+      ["class_template_staff", "assigned_by_member_id"],
+      ["session_staff_overrides", "changed_by_member_id"],
+    ] as const) {
+      expect(candidateColumns(blocks.get(table)!).find((item) => item.name === column)?.notNull, column).toBe(false);
+    }
+  });
+
+  it("retira el acceso directo de anon y authenticated a session_staff, que pasa a tener datos", () => {
+    const body = stripSqlComments(lower);
+    expect(body).toContain("revoke all on table zaltyko.session_staff from anon, authenticated;");
+    const foundation = read("supabase/migrations/20261006080702_establish_zaltyko_domain_foundation.sql");
+    expect(foundation).toMatch(/grant select on table[\s\S]*zaltyko\.session_staff,[\s\S]*to authenticated;/);
+    // La detección exige ese REVOKE: sin él la función sigue dormida.
+    const storage = read("src/modules/coach-assignment/application/coach-assignment/storage.ts");
+    expect(storage).toContain("has_table_privilege(r.oid, 'zaltyko.session_staff', 'SELECT,INSERT,UPDATE,DELETE')");
+  });
+
   it("el motivo es un código cerrado igual al del dominio, sin columna de texto libre", () => {
     const reason = candidateChecks(blocks.get("session_staff_overrides")!).get("session_staff_overrides_reason_check");
     expect(reason).toBe(
@@ -197,7 +242,7 @@ describe("candidato SQL de titulares y sustituciones", () => {
       }
     }
     expect(body).toContain(
-      "foreign key (organization_id, staff_profile_id) references zaltyko.staff_profiles(organization_id, id) on delete restrict"
+      "foreign key (organization_id, staff_profile_id) references zaltyko.staff_profiles(organization_id, id) on delete cascade"
     );
     expect(body).toContain(
       "foreign key (organization_id, session_id) references zaltyko.sessions(organization_id, id) on delete cascade"

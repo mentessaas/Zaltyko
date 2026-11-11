@@ -125,9 +125,13 @@ y `zaltyko.session_staff_overrides` (marca de sustitución de una sesión, con u
 motivo de código cerrado, quién y cuándo). Quién entrena en cada sesión sigue
 en `zaltyko.session_staff`, ya aplicada en
 `supabase/migrations/20261006080702_establish_zaltyko_domain_foundation.sql`.
-No toca tablas existentes, filas, roles ni objetos legacy. Fuerza RLS, revoca
-`public`, `anon` y `authenticated`, no crea políticas ni grants y se niega a
-reinstalarse si alguna de las dos relaciones ya existe.
+No toca filas, roles ni objetos legacy. Fuerza RLS, revoca `public`, `anon`
+y `authenticated`, no crea políticas ni grants y se niega a reinstalarse si
+alguna de las dos relaciones ya existe. Sobre objetos existentes solo hace una
+cosa: retirar a `anon` y `authenticated` el acceso directo a
+`zaltyko.session_staff`, que pasa a tener datos reales. Ninguna FK nueva
+bloquea borrados: cascada en las asignaciones y `on delete set null (columna)`
+(PostgreSQL 15+) en quien asignó o sustituyó.
 
 - Esquema Drizzle espejo: `src/modules/coach-assignment/infrastructure/coach-assignment-schema.ts`.
   **No se exporta** desde `src/db/schema/index.ts` ni desde

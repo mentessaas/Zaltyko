@@ -59,6 +59,21 @@ export function OwnerSessionCoaches({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pendingRequest = useRef<{ id: string; key: string } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const fieldsetRef = useRef<HTMLFieldSetElement>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  // Adónde va el foco tras el próximo render: al abrir, a la primera casilla;
+  // al guardar o cancelar, de vuelta al botón; ante un error, al aviso.
+  const focusNext = useRef<"first" | "trigger" | "error" | null>(null);
+
+  useEffect(() => {
+    const target = focusNext.current;
+    if (!target) return;
+    focusNext.current = null;
+    if (target === "first") fieldsetRef.current?.querySelector<HTMLInputElement>("input, select")?.focus();
+    if (target === "trigger") triggerRef.current?.focus();
+    if (target === "error") errorRef.current?.focus();
+  });
 
   useEffect(() => {
     let active = true;
@@ -124,11 +139,26 @@ export function OwnerSessionCoaches({
     });
     setSaving(false);
     if (result.status !== "ok") {
+      if (result.status === "error" && result.code === 409) {
+        // Otra persona cambió la sesión (o el plan pasó a solo lectura): se
+        // recarga quién entrena y se pide revisar antes de volver a guardar.
+        pendingRequest.current = null;
+        const fresh = await fetchSessionCoaches({ organizationId, locationId, sessionId });
+        if (fresh.status === "ok") {
+          setLoad({ status: "ready", view: fresh.data });
+          setDraft(null);
+          setError(`${result.message} Hemos cargado quién entrena ahora: revísalo y vuelve a guardar.`);
+          focusNext.current = "error";
+          return;
+        }
+      }
       setError(result.status === "unavailable" ? COACH_ASSIGNMENT_UNAVAILABLE_MESSAGE : result.message);
+      focusNext.current = "error";
       return;
     }
     pendingRequest.current = null;
     setDraft(null);
+    focusNext.current = "trigger";
     setLoad({ status: "ready", view: result.data });
     setMessage(
       result.data.substitution
@@ -159,7 +189,7 @@ export function OwnerSessionCoaches({
       ) : null}
       {view.substitution ? (
         <p className={ownerUi.help}>
-          {view.substitution.reason ? `Motivo: ${SUBSTITUTION_REASON_LABELS[view.substitution.reason]}. ` : ""}
+          {view.substitution.reason && !coachMode ? `Motivo: ${SUBSTITUTION_REASON_LABELS[view.substitution.reason]}. ` : ""}
           Cambio de {view.substitution.changedByName} el {formatChangedAt(view.substitution.changedAt)}.
           {view.titulars.length > 0 ? ` Titulares de la clase: ${names(view.titulars)}.` : " La clase no tiene titular."}
         </p>
@@ -168,15 +198,19 @@ export function OwnerSessionCoaches({
       {canEdit && !draft ? (
         <div className="flex flex-wrap gap-2">
           <button
+            ref={triggerRef}
             type="button"
             className={ownerUi.secondaryButton}
             disabled={writesBlocked || saving}
-            onClick={() =>
+            onClick={() => {
+              focusNext.current = "first";
+              setMessage(null);
+              setError(null);
               setDraft({
                 selected: view.coaches.map((coach) => coach.staffProfileId),
                 reason: view.substitution?.reason ?? "",
-              })
-            }
+              });
+            }}
           >
             Cambiar en esta sesión
           </button>
@@ -197,7 +231,7 @@ export function OwnerSessionCoaches({
       ) : null}
 
       {canEdit && draft ? (
-        <fieldset className="grid gap-3" aria-describedby={`${formId}-help`}>
+        <fieldset ref={fieldsetRef} className="grid gap-3" aria-describedby={`${formId}-help`}>
           <legend className={ownerUi.label}>Quién entrena en esta sesión</legend>
           <p id={`${formId}-help`} className={ownerUi.help}>
             Solo cambia esta sesión; la clase mantiene sus titulares. Aparecen las personas del equipo con rol
@@ -271,7 +305,15 @@ export function OwnerSessionCoaches({
             >
               {saving ? "Guardando…" : "Guardar para esta sesión"}
             </button>
-            <button type="button" className={ownerUi.secondaryButton} disabled={saving} onClick={() => setDraft(null)}>
+            <button
+              type="button"
+              className={ownerUi.secondaryButton}
+              disabled={saving}
+              onClick={() => {
+                focusNext.current = "trigger";
+                setDraft(null);
+              }}
+            >
               Cancelar
             </button>
           </div>
@@ -284,7 +326,7 @@ export function OwnerSessionCoaches({
         </p>
       ) : null}
       {error ? (
-        <p role="alert" className={ownerUi.noticeError}>
+        <p ref={errorRef} tabIndex={-1} role="alert" className={ownerUi.noticeError}>
           {error}
         </p>
       ) : null}

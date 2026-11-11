@@ -26,6 +26,12 @@ import {
  * migración debe superar `validate:rls`.
  * tests/coach-assignment-contract.test.ts comprueba que el candidato, este
  * archivo y la detección de almacenamiento describen las mismas tablas y columnas.
+ *
+ * Borrados: la ficha de equipo y la clase o sesión borran en cascada; el
+ * miembro que asignó o sustituyó pasa a null. El candidato usa
+ * `on delete set null (<columna>)` (PostgreSQL 15+) para no anular
+ * organization_id; Drizzle no expresa esa lista de columnas, así que aquí
+ * figura como "set null" y el contrato comprueba el texto exacto del candidato.
  */
 
 export const classTemplateStaff = zaltyko.table(
@@ -37,7 +43,8 @@ export const classTemplateStaff = zaltyko.table(
       .references(() => organizations.id, { onDelete: "cascade" }),
     classTemplateId: uuid("class_template_id").notNull(),
     staffProfileId: uuid("staff_profile_id").notNull(),
-    assignedByMemberId: uuid("assigned_by_member_id").notNull(),
+    // Null si se borra el miembro que asignó (SET NULL de una sola columna).
+    assignedByMemberId: uuid("assigned_by_member_id"),
     assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -52,12 +59,12 @@ export const classTemplateStaff = zaltyko.table(
       name: "class_template_staff_profile_fk",
       columns: [table.organizationId, table.staffProfileId],
       foreignColumns: [staffProfiles.organizationId, staffProfiles.id],
-    }).onDelete("restrict"),
+    }).onDelete("cascade"),
     foreignKey({
       name: "class_template_staff_member_fk",
       columns: [table.organizationId, table.assignedByMemberId],
       foreignColumns: [organizationMembers.organizationId, organizationMembers.id],
-    }).onDelete("restrict"),
+    }).onDelete("set null"),
   ]
 );
 
@@ -74,7 +81,8 @@ export const sessionStaffOverrides = zaltyko.table(
       .references(() => organizations.id, { onDelete: "cascade" }),
     sessionId: uuid("session_id").notNull(),
     reason: text("reason"),
-    changedByMemberId: uuid("changed_by_member_id").notNull(),
+    // Null si se borra el miembro que hizo el cambio.
+    changedByMemberId: uuid("changed_by_member_id"),
     changedAt: timestamp("changed_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -89,6 +97,6 @@ export const sessionStaffOverrides = zaltyko.table(
       name: "session_staff_overrides_member_fk",
       columns: [table.organizationId, table.changedByMemberId],
       foreignColumns: [organizationMembers.organizationId, organizationMembers.id],
-    }).onDelete("restrict"),
+    }).onDelete("set null"),
   ]
 );

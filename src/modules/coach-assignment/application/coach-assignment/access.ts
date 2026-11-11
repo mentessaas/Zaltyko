@@ -119,6 +119,26 @@ export async function assertManagerAccess(
 }
 
 /**
+ * Acceso de gestión a una clase concreta. Si la sede de la clase queda fuera
+ * del alcance, se responde como si la clase no existiera (404): una
+ * coordinación con sedes seleccionadas no distingue clases ajenas de
+ * inexistentes.
+ */
+export async function assertClassManagerAccess(
+  tx: TransactionClient,
+  input: { organizationId: string; locationId: string; actor: OperationalActor; intent?: "write" }
+): Promise<{ memberId: string; role: CoachAssignmentRole }> {
+  try {
+    return await assertManagerAccess(tx, input);
+  } catch (error) {
+    if (error instanceof OperationalError && error.code === "LOCATION_SCOPE_DENIED") {
+      throw new OperationalError("NOT_FOUND", "Clase no encontrada", 404);
+    }
+    throw error;
+  }
+}
+
+/**
  * Lectura de una sesión. A una entrenadora fuera de su sede se le responde
  * como si la sesión no existiera, igual que en Pasar lista.
  */

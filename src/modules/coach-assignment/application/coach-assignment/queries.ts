@@ -146,7 +146,8 @@ export async function sessionCoachIds(
 export type OverrideRow = {
   reason: SubstitutionReason | null;
   changedAt: string;
-  changedByMemberId: string;
+  /** Null si el miembro que hizo el cambio ya no existe. */
+  changedByMemberId: string | null;
 };
 
 export async function sessionOverride(
@@ -154,7 +155,7 @@ export async function sessionOverride(
   organizationId: string,
   sessionId: string
 ): Promise<OverrideRow | null> {
-  const [row] = await rows<{ reason: string | null; changed_at: Date | string; changed_by_member_id: string }>(
+  const [row] = await rows<{ reason: string | null; changed_at: Date | string; changed_by_member_id: string | null }>(
     client,
     sql`
       select reason, changed_at, changed_by_member_id::text
@@ -167,7 +168,7 @@ export async function sessionOverride(
   return {
     reason: (row.reason as SubstitutionReason | null) ?? null,
     changedAt: new Date(row.changed_at).toISOString(),
-    changedByMemberId: String(row.changed_by_member_id),
+    changedByMemberId: row.changed_by_member_id ? String(row.changed_by_member_id) : null,
   };
 }
 
@@ -182,8 +183,9 @@ const roleFallbackNames: Record<string, string> = {
 export async function memberDisplayName(
   client: DatabaseClient,
   organizationId: string,
-  memberId: string
+  memberId: string | null
 ): Promise<string> {
+  if (!memberId) return "Equipo";
   const [row] = await rows<{ role: string; given_name: string | null; family_name: string | null; preferred_name: string | null }>(
     client,
     sql`

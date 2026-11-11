@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { UserRound } from "lucide-react";
 
 import type { CoachRef } from "@/modules/coach-assignment/domain/coach-assignment";
@@ -45,15 +45,28 @@ export function OwnerClassCoaches({
   const [error, setError] = useState<string | null>(null);
   // Un reintento de la misma petición reutiliza su id: el servidor la reconoce.
   const pendingRequest = useRef<{ id: string; ids: string } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const fieldsetRef = useRef<HTMLFieldSetElement>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  // Adónde va el foco tras el próximo render: al abrir, a la primera casilla;
+  // al guardar o cancelar, de vuelta al botón; ante un error, al aviso.
+  const focusNext = useRef<"first" | "trigger" | "error" | null>(null);
 
-  async function open() {
-    setMessage(null);
-    setError(null);
-    setEditor({ status: "loading" });
+  useEffect(() => {
+    const target = focusNext.current;
+    if (!target) return;
+    focusNext.current = null;
+    if (target === "first") fieldsetRef.current?.querySelector<HTMLInputElement>("input")?.focus();
+    if (target === "trigger") triggerRef.current?.focus();
+    if (target === "error") errorRef.current?.focus();
+  });
+
+  async function load(selection?: "keep-error") {
     const result = await fetchClassCoaches({ organizationId, locationId, classTemplateId });
     if (result.status !== "ok") {
       setEditor({ status: "closed" });
       setError(result.status === "unavailable" ? COACH_ASSIGNMENT_UNAVAILABLE_MESSAGE : result.message);
+      focusNext.current = "error";
       return;
     }
     setTitulars(result.data.titulars);
@@ -64,6 +77,19 @@ export function OwnerClassCoaches({
       selected: result.data.titulars.map((coach) => coach.staffProfileId),
       saving: false,
     });
+    focusNext.current = selection === "keep-error" ? "error" : "first";
+  }
+
+  async function open() {
+    setMessage(null);
+    setError(null);
+    setEditor({ status: "loading" });
+    await load();
+  }
+
+  function close() {
+    setEditor({ status: "closed" });
+    focusNext.current = "trigger";
   }
 
   function toggle(staffProfileId: string, checked: boolean) {
@@ -97,13 +123,22 @@ export function OwnerClassCoaches({
       expectedStaffProfileIds: editor.current.map((coach) => coach.staffProfileId),
     });
     if (result.status !== "ok") {
+      if (result.status === "error" && result.code === 409) {
+        // Otra persona cambió la lista (o el plan pasó a solo lectura): se
+        // recarga la lista actual y se pide revisar antes de volver a guardar.
+        pendingRequest.current = null;
+        setError(`${result.message} Hemos cargado la lista actual: revísala y vuelve a guardar.`);
+        await load("keep-error");
+        return;
+      }
       setEditor({ ...editor, saving: false });
       setError(result.status === "unavailable" ? COACH_ASSIGNMENT_UNAVAILABLE_MESSAGE : result.message);
+      focusNext.current = "error";
       return;
     }
     pendingRequest.current = null;
     setTitulars(result.data.titulars);
-    setEditor({ status: "closed" });
+    close();
     const count = result.data.updatedSessionCount;
     setMessage(
       count > 0
@@ -136,6 +171,7 @@ export function OwnerClassCoaches({
         </p>
         {editor.status === "closed" ? (
           <button
+            ref={triggerRef}
             type="button"
             className={ownerUi.secondaryButton}
             onClick={() => void open()}
@@ -157,7 +193,7 @@ export function OwnerClassCoaches({
       ) : null}
 
       {editor.status === "ready" ? (
-        <fieldset className={`mt-3 ${ownerUi.subtlePanel}`} aria-describedby={`${fieldsetId}-help`}>
+        <fieldset ref={fieldsetRef} className={`mt-3 ${ownerUi.subtlePanel}`} aria-describedby={`${fieldsetId}-help`}>
           <legend className={`${ownerUi.label} px-1`}>Titulares de {className}</legend>
           <p id={`${fieldsetId}-help`} className={`mt-1 ${ownerUi.help}`}>
             Solo aparecen personas del equipo con rol Entrenador/a y acceso a esta sede. Las sesiones futuras sin
@@ -204,7 +240,7 @@ export function OwnerClassCoaches({
             <button
               type="button"
               className={ownerUi.secondaryButton}
-              onClick={() => setEditor({ status: "closed" })}
+              onClick={close}
               disabled={editor.saving}
             >
               Cancelar
@@ -219,7 +255,7 @@ export function OwnerClassCoaches({
         </p>
       ) : null}
       {error ? (
-        <p role="alert" className={`mt-3 ${ownerUi.noticeError}`}>
+        <p ref={errorRef} tabIndex={-1} role="alert" className={`mt-3 ${ownerUi.noticeError}`}>
           {error}
         </p>
       ) : null}
