@@ -591,6 +591,7 @@ describe("internal-module boundaries (definiciones y excepciones)", () => {
       "athlete-progress",
       "coach-assignment",
       "session-plan",
+      "athlete-import",
       "schedule-conflicts",
     ]);
     for (const boundary of boundaries) {

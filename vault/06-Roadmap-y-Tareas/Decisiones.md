@@ -9,6 +9,19 @@ source:
 # Decisiones
 
 
+## 2026-11-11 — Importación desde Excel/CSV (O4): criterio de duplicados conservador
+
+**Hallazgo/fuente:** matriz competitiva (O4); `docs/producto/importacion-excel.md`. RG Manager, OneClub, Clybo y FlipBiz anuncian importación; el canónico `/owner` no tenía ninguna.
+
+**Decisión/importancia (provisional, conservadora):**
+- **Duplicados.** La misma gimnasta es mismo nombre y apellidos, sin mayúsculas, tildes ni signos, más la misma fecha de nacimiento, dentro de la academia y aunque esté archivada. Una gimnasta existente con el mismo nombre y sin fecha bloquea la fila.
+- **Tutor.** No se crea pagador. Un tutor existente se reutiliza solo si coinciden el contacto y el nombre y tiene una única familia activa.
+- **Permisos y reglas (ronda 2).** Solo la propiedad o la administración con todas las sedes. La fecha de nacimiento es opcional y los contactos siguen la regla exacta del editor, como el alta manual. Hay una declaración legal obligatoria antes de importar.
+- **Plan.** Se importa hasta el límite del plan, en el orden del fichero.
+- **Datos.** Sin tabla de lotes: el resultado vive en el evento de outbox, que también da la idempotencia.
+
+**Siguiente paso:** Elvis confirma o cambia los nueve puntos «Decide Elvis» del documento de producto.
+
 ## 2026-11-11 — Titulares por clase y sustituciones (O1): opciones conservadoras pendientes de Elvis
 
 **Hallazgo/fuente:** O1 de `docs/research/competencia/matriz-competitiva.md`; diseño en `docs/producto/entrenadoras-por-clase.md`. `zaltyko.session_staff` existe en `supabase/migrations`, pero nada modelaba la titular de una clase ni la marca de sustitución.
