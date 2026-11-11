@@ -20,15 +20,23 @@ function json(status: number, data: unknown) {
 
 function invitation(overrides: Partial<TeamInvitation> = {}): TeamInvitation {
   return { id: INVITATION_ID, email: "coach@example.test", role: "coach", status: "pending", expired: false,
-    expiresAt: "2026-11-12T12:00:00.000Z", revision: 3, requestedLocations: [location], ...overrides };
+    expiresAt: "2026-11-12T12:00:00.000Z", revision: 3, requestedLocations: [location],
+    person: { kind: "new", staffProfileId: null, name: "Ana Ruiz" }, ...overrides };
 }
 
-function access(invitations: TeamInvitation[] = []): TeamAccess {
-  return { organization: { id: ORGANIZATION_ID, name: "Academia sintética" }, activeLocations: [location, otherLocation], invitations, members: [] };
+const PROFILE_ID = "81000000-0000-4000-8000-000000000005";
+
+function access(invitations: TeamInvitation[] = [], overrides: Partial<TeamAccess> = {}): TeamAccess {
+  return { organization: { id: ORGANIZATION_ID, name: "Academia sintética" },
+    viewer: { role: "owner", invitableRoles: ["coach", "manager"] },
+    activeLocations: [location, otherLocation], linkableStaffProfiles: [{ id: PROFILE_ID, name: "Bea Martín" }],
+    invitations, members: [], ...overrides };
 }
 
 function fillCreate() {
   fireEvent.change(screen.getByLabelText("Correo de la persona invitada"), { target: { value: "Coach@Example.test" } });
+  fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: " Ana " } });
+  fireEvent.change(screen.getByLabelText("Apellidos"), { target: { value: "Ruiz" } });
   fireEvent.click(screen.getByLabelText("Sede Norte"));
   fireEvent.click(screen.getByLabelText("Sede Centro"));
 }
@@ -64,7 +72,7 @@ describe("OwnerTeamAccessPanel", () => {
     const posts = calls.filter(call => call.init?.method === "POST");
     expect(posts).toHaveLength(1);
     expect(posts[0].url).toBe("/api/v1/owner/staff/invitations");
-    expect(JSON.parse(String(posts[0].init?.body))).toEqual({ organizationId: ORGANIZATION_ID, email: "coach@example.test", role: "manager", locationIds: [LOCATION_ID, OTHER_LOCATION_ID] });
+    expect(JSON.parse(String(posts[0].init?.body))).toEqual({ organizationId: ORGANIZATION_ID, email: "coach@example.test", role: "manager", locationIds: [LOCATION_ID, OTHER_LOCATION_ID], givenName: "Ana", familyName: "Ruiz" });
     expect(posts[0].init?.headers).toMatchObject({ "Idempotency-Key": "81000000-0000-4000-8000-000000000099" });
     expect(storageWrite).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Ocultar enlace" }));
@@ -138,7 +146,7 @@ describe("OwnerTeamAccessPanel", () => {
       return json(200, access([invitation({ expired: true, revision: reads === 1 ? 3 : 4 })]));
     }));
     render(<OwnerTeamAccessPanel organizationId={ORGANIZATION_ID} />);
-    await screen.findByText("Coach · Expirada");
+    await screen.findByText("Entrenador/a · Caducada");
     fireEvent.click(screen.getByRole("button", { name: "Reemitir enlace" }));
     await screen.findByText(/revisión 4/u);
     expect(writes).toHaveLength(1);
@@ -163,7 +171,7 @@ describe("OwnerTeamAccessPanel", () => {
       ]));
     }));
     render(<OwnerTeamAccessPanel organizationId={ORGANIZATION_ID} />);
-    await screen.findByText("Coach · Expirada");
+    await screen.findByText("Entrenador/a · Caducada");
     expect(within(screen.getByRole("article", { name: "Invitación para accepted@example.test" })).queryByRole("button")).toBeNull();
     expect(within(screen.getByRole("article", { name: "Invitación para revoked@example.test" })).queryByRole("button")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Revocar invitación" }));
@@ -179,7 +187,7 @@ describe("OwnerTeamAccessPanel", () => {
     vi.stubGlobal("fetch", vi.fn(async () => {
       reads += 1;
       const data = access();
-      data.members = [{ id: "member", role: "coach", status: "active", locationScopeMode: "selected", effectiveLocations: [location] }];
+      data.members = [{ id: "member", role: "coach", status: "active", locationScopeMode: "selected", effectiveLocations: [location], staffProfile: null }];
       if (reads > 1) data.organization.id = "otra-organizacion";
       return json(200, data);
     }));
@@ -189,5 +197,55 @@ describe("OwnerTeamAccessPanel", () => {
     await screen.findByRole("alert");
     expect(screen.queryByText("Sedes con acceso efectivo: Sede Norte.")).toBeNull();
     expect(screen.getByRole("button", { name: "Crear invitación y mostrar enlace" })).toBeDisabled();
+  });
+
+  it("la coordinación solo ve el rol de entrenador/a y puede invitar a una ficha que ya está en Equipo", async () => {
+    const posts: RequestInit[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        posts.push(init);
+        return json(201, { invitation: invitation({ email: "bea@example.test", person: { kind: "existing", staffProfileId: PROFILE_ID, name: "Bea Martín" } }), token: TOKEN, replayed: false });
+      }
+      return json(200, access([], { viewer: { role: "manager", invitableRoles: ["coach"] }, activeLocations: [location] }));
+    }));
+    render(<OwnerTeamAccessPanel organizationId={ORGANIZATION_ID} />);
+    await screen.findByText("No hay invitaciones registradas.");
+    const roleSelect = screen.getByLabelText("Rol solicitado");
+    expect(within(roleSelect).getAllByRole("option").map(option => option.textContent)).toEqual(["Entrenador/a"]);
+    expect(screen.queryByLabelText("Sede Centro")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Correo de la persona invitada"), { target: { value: "bea@example.test" } });
+    fireEvent.click(screen.getByRole("radio", { name: "Ficha que ya está en Equipo" }));
+    fireEvent.change(screen.getByLabelText("Ficha del equipo"), { target: { value: PROFILE_ID } });
+    fireEvent.click(screen.getByLabelText("Sede Norte"));
+    fireEvent.click(screen.getByRole("button", { name: "Crear invitación y mostrar enlace" }));
+    await screen.findByLabelText("Enlace privado para compartir una vez");
+    expect(JSON.parse(String(posts[0].body))).toEqual({ organizationId: ORGANIZATION_ID, email: "bea@example.test", role: "coach", locationIds: [LOCATION_ID], staffProfileId: PROFILE_ID });
+    expect(screen.getByText(/válido 7 días/u)).toBeInTheDocument();
+  });
+
+  it("exige nombre y apellidos para una ficha nueva sin enviar nada", async () => {
+    const fetchMock = vi.fn(async () => json(200, access()));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<OwnerTeamAccessPanel organizationId={ORGANIZATION_ID} />);
+    await screen.findByText("No hay invitaciones registradas.");
+    fireEvent.change(screen.getByLabelText("Correo de la persona invitada"), { target: { value: "ana@example.test" } });
+    fireEvent.click(screen.getByLabelText("Sede Norte"));
+    fireEvent.click(screen.getByRole("button", { name: "Crear invitación y mostrar enlace" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Escribe el nombre y los apellidos");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("muestra la ficha vinculada de cada miembro y la persona de cada invitación", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => json(200, access([invitation()], {
+      members: [
+        { id: "m1", role: "coach", status: "active", locationScopeMode: "selected", effectiveLocations: [location], staffProfile: { id: PROFILE_ID, name: "Bea Martín" } },
+        { id: "m2", role: "manager", status: "active", locationScopeMode: "selected", effectiveLocations: [location], staffProfile: null },
+      ],
+    }))));
+    render(<OwnerTeamAccessPanel organizationId={ORGANIZATION_ID} />);
+    expect(await screen.findByRole("heading", { name: "Bea Martín · Entrenador/a" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Miembro 2 · Coordinador/a" })).toBeInTheDocument();
+    expect(screen.getByText(/sin ficha del equipo vinculada/u)).toBeInTheDocument();
+    expect(screen.getByText("Ficha del equipo: Ana Ruiz (se creará al aceptar).")).toBeInTheDocument();
   });
 });

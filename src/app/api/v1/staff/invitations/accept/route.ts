@@ -10,5 +10,5 @@ export async function POST(request: Request) {
   const input = teamTokenBodySchema.safeParse(await request.json().catch(() => null));
   const key = teamIdempotencyKeySchema.safeParse(request.headers.get("idempotency-key"));
   if (!input.success || !key.success) return invalidTeamInput();
-  return withTeamUser(request, async userId => apiSuccess(await acceptCanonicalTeamInvitation({ ...input.data, userId, idempotencyKey: key.data })));
+  return withTeamUser(request, async userId => apiSuccess(await acceptCanonicalTeamInvitation({ ...input.data, userId, idempotencyKey: key.data })), { invitationLink: true });
 }

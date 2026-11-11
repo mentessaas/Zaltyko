@@ -4,16 +4,24 @@ export type OwnerWorkspaceCapabilities = Readonly<{
   canManageSubscription: boolean;
   canManageStaffProfiles: boolean;
   /**
+   * O3: team invitations (owner/admin with every site, or a manager) while
+   * ZALTYKO_TEAM_ACCESS_ENABLED is on. Opens Equipo for admins and managers.
+   */
+  canManageTeamAccess: boolean;
+  /**
    * Coach seat (P1 #8): the workspace only offers taking attendance (with
    * today's sessions). Route guards stay authoritative; this only trims the UI.
    */
   coachOperationsOnly: boolean;
 }>;
 
-export function ownerWorkspaceCapabilitiesFor(member: {
-  role: string;
-  locationScopeMode: string;
-}): OwnerWorkspaceCapabilities {
+export function ownerWorkspaceCapabilitiesFor(
+  member: {
+    role: string;
+    locationScopeMode: string;
+  },
+  options: { teamAccessEnabled?: boolean } = {}
+): OwnerWorkspaceCapabilities {
   const canManageFinancials = member.role === "owner" || member.role === "admin";
 
   return {
@@ -23,6 +31,11 @@ export function ownerWorkspaceCapabilitiesFor(member: {
     canManageSubscription: member.role === "owner",
     canManageStaffProfiles:
       member.role === "owner" && member.locationScopeMode === "all",
+    canManageTeamAccess:
+      options.teamAccessEnabled === true &&
+      (((member.role === "owner" || member.role === "admin") &&
+        member.locationScopeMode === "all") ||
+        member.role === "manager"),
     coachOperationsOnly: member.role === "coach",
   };
 }
