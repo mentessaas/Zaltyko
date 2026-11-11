@@ -20,8 +20,9 @@ import { SESSION_HORIZON_TARGET_DAYS } from "@/modules/scheduling/domain/session
  *
  * Acotada siempre:
  * - a la academia (organization_id en cada tabla y en cada unión);
- * - a las sesiones no canceladas que aún no han terminado y empiezan antes de
- *   ahora + SESSION_HORIZON_TARGET_DAYS + 1 (hasta donde se generan);
+ * - a las sesiones no canceladas que aún no han terminado, empezadas como
+ *   mucho hace un día (no se recorre el histórico) y que empiezan antes de
+ *   ahora + `horizonDays` (por defecto, hasta donde se generan);
  * - a las sedes indicadas, si las hay: las dos sesiones de un choque tienen que
  *   estar en ellas (quien solo ve unas sedes no ve choques con otras);
  * - a MAX_CONFLICTS + 1 parejas.
@@ -37,8 +38,13 @@ export type ConflictFilter = {
   staffProfileIds?: readonly string[] | null;
   /** Solo choques en los que participe alguna de estas sesiones. */
   involvingSessionIds?: readonly string[] | null;
-  /** Qué tipos calcular. */
+  /**
+   * Qué tipos calcular. Por defecto solo entrenadora: la pista va tras
+   * SPACE_CONFLICT_WARNINGS_ENABLED (apagado) y hay que pedirla explícitamente.
+   */
   include?: { coach?: boolean; space?: boolean };
+  /** Días hacia delante; por defecto CONFLICT_HORIZON_DAYS (horizonte completo). */
+  horizonDays?: number;
 };
 
 export const CONFLICT_HORIZON_DAYS = SESSION_HORIZON_TARGET_DAYS + 1;
@@ -85,7 +91,8 @@ function windowSessions(filter: ConflictFilter): SQL {
     where session.organization_id = ${filter.organizationId}::uuid
       and session.status <> 'cancelled'
       and session.ends_at > now()
-      and session.starts_at <= now() + make_interval(days => ${CONFLICT_HORIZON_DAYS}::int)
+      and session.starts_at > now() - interval '1 day'
+      and session.starts_at <= now() + make_interval(days => ${filter.horizonDays ?? CONFLICT_HORIZON_DAYS}::int)
       ${locations ? sql`and session.location_id = any(${sqlUuidArray(locations)})` : sql``}
   `;
 }
@@ -145,8 +152,17 @@ async function coachPairs(client: DatabaseClient, filter: ConflictFilter): Promi
     join assigned b
       on b.staff_profile_id = a.staff_profile_id
      and a.id < b.id
-     and a.starts_at < b.ends_at + make_interval(mins => ${TRAVEL_BUFFER_MINUTES}::int)
-     and b.starts_at < a.ends_at + make_interval(mins => ${TRAVEL_BUFFER_MINUTES}::int)
+     -- Exactamente las reglas del dominio (coachConflictKind), para que el
+     -- LIMIT no se llene de parejas que luego no son choque: o se solapan (en
+     -- cualquier sede) o están en sedes distintas sin margen para desplazarse.
+     and (
+       (a.starts_at < b.ends_at and b.starts_at < a.ends_at)
+       or (
+         a.location_id <> b.location_id
+         and a.starts_at < b.ends_at + make_interval(mins => ${TRAVEL_BUFFER_MINUTES}::int)
+         and b.starts_at < a.ends_at + make_interval(mins => ${TRAVEL_BUFFER_MINUTES}::int)
+       )
+     )
     join zaltyko.staff_profiles staff
       on staff.organization_id = ${filter.organizationId}::uuid
      and staff.id = a.staff_profile_id
@@ -191,13 +207,11 @@ export async function findScheduleConflicts(
   client: DatabaseClient,
   filter: ConflictFilter
 ): Promise<{ conflicts: ScheduleConflict[]; truncated: boolean }> {
-  const include = { coach: true, space: true, ...filter.include };
+  const include = { coach: true, space: false, ...filter.include };
   const conflicts: ScheduleConflict[] = [];
-  let truncated = false;
   if (include.coach) {
     const rows = await coachPairs(client, filter);
-    truncated ||= rows.length > MAX_CONFLICTS;
-    for (const row of rows.slice(0, MAX_CONFLICTS)) {
+    for (const row of rows) {
       const [first, second] = orderedPair(toSession(row, "a"), toSession(row, "b"));
       const kind = coachConflictKind(first, second);
       if (kind) conflicts.push({ kind, subjectId: row.subject_id, subjectName: row.subject_name, first, second });
@@ -205,13 +219,14 @@ export async function findScheduleConflicts(
   }
   if (include.space) {
     const rows = await spacePairs(client, filter);
-    truncated ||= rows.length > MAX_CONFLICTS;
-    for (const row of rows.slice(0, MAX_CONFLICTS)) {
+    for (const row of rows) {
       const [first, second] = orderedPair(toSession(row, "a"), toSession(row, "b"));
       const kind = spaceConflictKind(first, second);
       if (kind) conflicts.push({ kind, subjectId: row.subject_id, subjectName: row.subject_name, first, second });
     }
   }
+  // Cada consulta pide MAX_CONFLICTS + 1 parejas que ya son choque, así que
+  // «hay más» se sabe después de filtrar.
   const sorted = sortConflicts(conflicts);
-  return { conflicts: sorted.slice(0, MAX_CONFLICTS), truncated: truncated || sorted.length > MAX_CONFLICTS };
+  return { conflicts: sorted.slice(0, MAX_CONFLICTS), truncated: sorted.length > MAX_CONFLICTS };
 }

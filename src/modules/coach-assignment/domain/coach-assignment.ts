@@ -120,12 +120,14 @@ export type ClassCoachesWriteResult = ClassCoachesView & {
   replayed: boolean;
   /**
    * O2: choques de horario de las titulares tras guardar. Solo avisan: el
-   * cambio ya está guardado.
+   * cambio ya está guardado. null si no se pudieron calcular (el guardado no
+   * falla por eso); [] en un reintento, porque se dieron en la respuesta
+   * original.
    */
-  warnings: ScheduleConflict[];
+  warnings: ScheduleConflict[] | null;
 };
 
-export type SessionCoachesWriteResult = SessionCoachesView & { replayed: boolean; warnings: ScheduleConflict[] };
+export type SessionCoachesWriteResult = SessionCoachesView & { replayed: boolean; warnings: ScheduleConflict[] | null };
 
 /** Resumen de una sesión de Hoy: quién está y si hay sustitución. */
 export type SessionCoachSummary = {

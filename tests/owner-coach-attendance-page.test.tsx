@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   progressAvailable: vi.fn(),
   coachAssignmentAvailable: vi.fn(),
   withSessionCoaches: vi.fn(),
+  upcomingConflicts: vi.fn(),
   sessionPlansAvailable: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error("NOT_FOUND");
@@ -43,7 +44,7 @@ vi.mock("@/modules/athlete-progress/application/athlete-progress-service", () =>
 }));
 // O2: los choques próximos se prueban en tests/schedule-conflicts-*.
 vi.mock("@/modules/schedule-conflicts/application/schedule-conflicts-service", () => ({
-  getUpcomingScheduleConflicts: async () => null,
+  getUpcomingScheduleConflicts: mocks.upcomingConflicts,
 }));
 vi.mock("@/modules/coach-assignment/application/coach-assignment-service", () => ({
   isCoachAssignmentAvailableForPage: mocks.coachAssignmentAvailable,
@@ -56,6 +57,7 @@ vi.mock("@/modules/session-plans/application/session-plan-service", () => ({
 import OwnerAttendancePage from "@/app/owner/attendance/page";
 import { OwnerAttendanceManager } from "@/components/owner-dashboard/OwnerAttendanceManager";
 import { OwnerTodaySessionsPanel } from "@/components/owner-dashboard/OwnerTodaySessionsPanel";
+import { OwnerScheduleConflictList } from "@/components/owner-dashboard/OwnerScheduleConflicts";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 
 const organizationId = "a0000000-0000-4000-8000-000000000001";
@@ -116,6 +118,31 @@ beforeEach(() => {
   mocks.sessionPlansAvailable.mockResolvedValue(false);
   mocks.coachAssignmentAvailable.mockResolvedValue(false);
   mocks.withSessionCoaches.mockImplementation(async (_client: unknown, today: unknown) => today);
+  mocks.upcomingConflicts.mockResolvedValue(null);
+});
+
+describe("Tus choques próximos en el Hoy de la entrenadora (O2)", () => {
+  it("se piden con el rol real de entrenadora, su miembro y solo sus sedes, y se muestran", async () => {
+    const conflicts = { conflicts: [{ kind: "coach_overlap" }], truncated: false };
+    mocks.upcomingConflicts.mockResolvedValue(conflicts);
+    mocks.scope.mockResolvedValue(scopeFor("coach", [{ id: siteNorth, name: "Norte" }]));
+
+    const page = await OwnerAttendancePage({ searchParams: Promise.resolve({ organizationId }) });
+
+    expect(mocks.upcomingConflicts).toHaveBeenCalledWith({
+      organizationId,
+      locationIds: [siteNorth],
+      viewer: { memberId: "synthetic-member", role: "coach" },
+    });
+    const [list] = findAll(page, OwnerScheduleConflictList);
+    expect(list.props).toMatchObject({ conflicts: conflicts.conflicts, variant: "upcoming", title: "Tus choques próximos" });
+  });
+
+  it("dirección no los pide en Pasar lista (los ve en Clases)", async () => {
+    mocks.scope.mockResolvedValue(scopeFor("owner"));
+    await OwnerAttendancePage({ searchParams: Promise.resolve({ organizationId }) });
+    expect(mocks.upcomingConflicts).not.toHaveBeenCalled();
+  });
 });
 
 describe("Titulares y sustituciones en Pasar lista (O1)", () => {

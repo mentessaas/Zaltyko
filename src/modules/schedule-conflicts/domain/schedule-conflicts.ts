@@ -14,6 +14,22 @@ export const TRAVEL_BUFFER_MINUTES = 30;
 /** Tope de avisos que se calculan y muestran de una vez. */
 export const MAX_CONFLICTS = 50;
 
+/**
+ * Días hacia delante que miran las páginas de uso diario («Choques próximos»
+ * en Clases y en el Hoy de la entrenadora). Conservador a propósito: los
+ * avisos al guardar titulares o una sustitución miran el horizonte completo
+ * de sesiones generadas.
+ */
+export const PAGE_CONFLICT_HORIZON_DAYS = 14;
+
+/**
+ * Interruptor interno de los avisos de pista, APAGADO. En gimnasia lo normal
+ * es compartir el practicable, así que avisar por pista generaría ruido. El
+ * detector existe y está probado; activarlo (en general, por pista o por sede)
+ * es «Decide Elvis».
+ */
+export const SPACE_CONFLICT_WARNINGS_ENABLED = false;
+
 export type ConflictKind = "coach_overlap" | "coach_travel" | "space_overlap";
 
 export type ConflictSession = {
@@ -104,22 +120,33 @@ export function orderedPair(a: ConflictSession, b: ConflictSession): [ConflictSe
     : [b, a];
 }
 
-function day(value: string, timezone: string): string {
-  return new Intl.DateTimeFormat("es-ES", { weekday: "short", day: "numeric", month: "short", timeZone: timezone }).format(
-    new Date(value)
-  );
+/**
+ * Zona horaria utilizable: la de la sede o, si no es válida, UTC (y se indica
+ * en el texto). Nunca lanza: un aviso no puede romper el render.
+ */
+export function safeTimezone(timezone: string): { timezone: string; fallback: boolean } {
+  try {
+    new Intl.DateTimeFormat("es-ES", { timeZone: timezone }).format(0);
+    return { timezone, fallback: false };
+  } catch {
+    return { timezone: "UTC", fallback: true };
+  }
 }
 
-function time(value: string, timezone: string): string {
-  return new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(new Date(value));
+function format(value: string, timezone: string, options: Intl.DateTimeFormatOptions): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "fecha desconocida";
+  return new Intl.DateTimeFormat("es-ES", { ...options, timeZone: timezone }).format(date);
 }
 
 /** ««Base 3» (lun, 17 nov, 17:30–19:00, Sede Norte)», en la hora de su sede. */
 export function describeSession(session: ConflictSession): string {
-  return `«${session.className}» (${day(session.startsAt, session.timezone)}, ${time(session.startsAt, session.timezone)}–${time(
-    session.endsAt,
-    session.timezone
-  )}, ${session.locationName})`;
+  const zone = safeTimezone(session.timezone);
+  const day = format(session.startsAt, zone.timezone, { weekday: "short", day: "numeric", month: "short" });
+  const hours = { hour: "2-digit", minute: "2-digit" } as const;
+  const from = format(session.startsAt, zone.timezone, hours);
+  const to = format(session.endsAt, zone.timezone, hours);
+  return `«${session.className}» (${day}, ${from}–${to}${zone.fallback ? " UTC" : ""}, ${session.locationName})`;
 }
 
 /** Frase del aviso: quién, qué sesiones y cuándo. */

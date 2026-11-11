@@ -251,6 +251,7 @@ export async function setClassCoaches(input: {
     // quedan en la auditoría.
     const warnings = await coachWarnings(tx, {
       organizationId: command.organizationId,
+      memberId: manager.memberId,
       staffProfileIds: target,
       sessionIds: futureSessionIds,
     });

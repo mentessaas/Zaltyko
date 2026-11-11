@@ -220,6 +220,7 @@ export async function setSessionCoaches(input: {
     // O2: solo avisa. La sustitución ya está guardada.
     const warnings = await coachWarnings(tx, {
       organizationId: command.organizationId,
+      memberId: manager.memberId,
       staffProfileIds: target,
       sessionIds: [session.id],
     });

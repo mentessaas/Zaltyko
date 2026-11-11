@@ -3,7 +3,24 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { sql } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+// Permite simular que la detección falla con un error de SQL dentro de la
+// transacción de O1, para probar que el guardado no depende de ella.
+const detection = vi.hoisted(() => ({ fail: false }));
+vi.mock("@/modules/schedule-conflicts/application/schedule-conflicts-service", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/modules/schedule-conflicts/application/schedule-conflicts-service")>();
+  return {
+    ...actual,
+    findScheduleConflicts: async (...args: Parameters<typeof actual.findScheduleConflicts>) => {
+      if (detection.fail) {
+        const { sql: rawSql } = await import("drizzle-orm");
+        await args[0].execute(rawSql`select 1 / 0`);
+      }
+      return actual.findScheduleConflicts(...args);
+    },
+  };
+});
 
 import { db } from "@/db";
 import { setSessionCoaches } from "@/modules/coach-assignment/application/coach-assignment-service";
@@ -228,7 +245,11 @@ describe.skipIf(!disposablePgEnabled)("avisos de choque en PostgreSQL desechable
   }, 60_000);
 
   it("detecta choques de entrenadora en la misma sede y en otra, y de pista, sin contar canceladas ni contactos", async () => {
-    const { conflicts, truncated } = await findScheduleConflicts(db, { organizationId: a.organizationId });
+    // El detector de pista está apagado en las páginas; aquí se pide explícitamente.
+    const { conflicts, truncated } = await findScheduleConflicts(db, {
+      organizationId: a.organizationId,
+      include: { coach: true, space: true },
+    });
     expect(truncated).toBe(false);
     const keys = conflicts.map(pairKey).sort();
     expect(keys).toEqual(
@@ -250,8 +271,8 @@ describe.skipIf(!disposablePgEnabled)("avisos de choque en PostgreSQL desechable
   });
 
   it("aísla las academias: los choques de B no aparecen en A ni al revés", async () => {
-    const inA = await findScheduleConflicts(db, { organizationId: a.organizationId });
-    const inB = await findScheduleConflicts(db, { organizationId: b.organizationId });
+    const inA = await findScheduleConflicts(db, { organizationId: a.organizationId, include: { coach: true, space: true } });
+    const inB = await findScheduleConflicts(db, { organizationId: b.organizationId, include: { coach: true, space: true } });
     expect(JSON.stringify(inA)).not.toContain(sBOverlap);
     expect(inB.conflicts).toHaveLength(1);
     expect(inB.conflicts[0]).toMatchObject({ kind: "coach_overlap", subjectName: "Zoe Lara" });
@@ -289,7 +310,75 @@ describe.skipIf(!disposablePgEnabled)("avisos de choque en PostgreSQL desechable
       locationIds: a.locationIds,
       viewer: { memberId: randomUUID(), role: "owner" },
     });
-    expect(ownerAll?.conflicts).toHaveLength(4);
+    // En las páginas, los avisos de pista están apagados (SPACE_CONFLICT_WARNINGS_ENABLED).
+    expect(ownerAll?.conflicts.map(pairKey).sort()).toEqual(
+      [key("coach_overlap", s1Early, s1Overlap), key("coach_travel", s1Touch, s2Travel), key("coach_overlap", s1Early, s2Overlap)].sort()
+    );
+    // Por defecto, el detector tampoco calcula pistas.
+    expect((await findScheduleConflicts(db, { organizationId: a.organizationId })).conflicts.some((c) => c.kind === "space_overlap")).toBe(false);
+  });
+
+  it("más de 50 clases seguidas en la misma sede no tapan un choque real al final", async () => {
+    const e = await academy("E", 1);
+    const lola = await staffProfile(e.organizationId, "Lola", "Martín", (await member(e.organizationId, "coach", "all", [], "lola")).memberId);
+    const morning = await classTemplate(e.organizationId, e.locationIds[0]!, "CI Seguidas");
+    const extra = await classTemplate(e.organizationId, e.locationIds[0]!, "CI Extra");
+    // 60 sesiones de una hora, una detrás de otra (se tocan: no chocan).
+    await db.execute(sql`
+      with base as (select date_trunc('hour', now()) + interval '2 days' as starts_at)
+      insert into zaltyko.sessions (organization_id, location_id, class_template_id, status, starts_at, ends_at)
+      select ${e.organizationId}::uuid, ${e.locationIds[0]}::uuid, ${morning}::uuid, 'scheduled',
+        base.starts_at + make_interval(hours => n), base.starts_at + make_interval(hours => n + 1)
+      from base, generate_series(0, 59) as n
+    `);
+    await db.execute(sql`
+      insert into zaltyko.session_staff (organization_id, session_id, staff_profile_id, assignment_role)
+      select organization_id, id, ${lola}::uuid, 'coach' from zaltyko.sessions where class_template_id = ${morning}::uuid
+    `);
+    const last = (
+      await db.execute(sql`
+        select id::text as id, starts_at from zaltyko.sessions
+        where class_template_id = ${morning}::uuid order by starts_at desc limit 1
+      `)
+    ).rows[0] as { id: string; starts_at: Date };
+    const clash = randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.sessions (id, organization_id, location_id, class_template_id, status, starts_at, ends_at)
+      values (${clash}::uuid, ${e.organizationId}::uuid, ${e.locationIds[0]}::uuid, ${extra}::uuid, 'scheduled',
+        ${new Date(last.starts_at).toISOString()}::timestamptz + interval '30 minutes',
+        ${new Date(last.starts_at).toISOString()}::timestamptz + interval '90 minutes')
+    `);
+    await assign(e.organizationId, clash, lola);
+
+    const result = await findScheduleConflicts(db, { organizationId: e.organizationId });
+    expect(result.truncated).toBe(false);
+    expect(result.conflicts.map(pairKey)).toEqual([key("coach_overlap", last.id, clash)]);
+  }, 60_000);
+
+  it("en las páginas, un presupuesto agotado devuelve null y no deja statement_timeout activo", async () => {
+    const before = ((await db.execute(sql`show statement_timeout`)).rows[0] as { statement_timeout: string }).statement_timeout;
+    const exhausted = await getUpcomingScheduleConflicts({
+      organizationId: a.organizationId,
+      locationIds: a.locationIds,
+      viewer: { memberId: randomUUID(), role: "owner" },
+      budgetMs: 0,
+    });
+    expect(exhausted).toBeNull();
+    // Deja terminar la carga abandonada antes de mirar las conexiones.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const normal = await getUpcomingScheduleConflicts({
+      organizationId: a.organizationId,
+      locationIds: a.locationIds,
+      viewer: { memberId: randomUUID(), role: "owner" },
+    });
+    expect(normal?.conflicts.length).toBeGreaterThan(0);
+    // `set local` solo dura la transacción: ninguna conexión del pool lo conserva.
+    const checks = await Promise.all(
+      Array.from({ length: 4 }, () =>
+        db.transaction(async (tx) => ((await tx.execute(sql`show statement_timeout`)).rows[0] as { statement_timeout: string }).statement_timeout)
+      )
+    );
+    for (const value of checks) expect(value).toBe(before);
   });
 
   describe("el aviso no bloquea (con el candidato de O1)", () => {
@@ -352,6 +441,66 @@ describe.skipIf(!disposablePgEnabled)("avisos de choque en PostgreSQL desechable
         scheduleWarnings: [{ kind: "coach_overlap", staffProfileId: lia }],
       });
       expect(JSON.stringify(audit.rows)).not.toContain("Lía");
+    }, 60_000);
+
+    it("si la detección falla (error de SQL), la sustitución se guarda igual y el aviso queda como no disponible", async () => {
+      const f = await academy("F", 1);
+      const owner = await member(f.organizationId, "owner", "all");
+      const mia = await staffProfile(f.organizationId, "Mía", "Soto", (await member(f.organizationId, "coach", "all", [], "mia")).memberId);
+      const kf = await classTemplate(f.organizationId, f.locationIds[0]!, "CI Fallo");
+      const target = await session(f.organizationId, f.locationIds[0]!, kf, at(3, 18), at(3, 19));
+      detection.fail = true;
+      try {
+        const result = await setSessionCoaches({
+          actor: owner,
+          sessionId: target,
+          command: {
+            organizationId: f.organizationId,
+            locationId: f.locationIds[0]!,
+            clientRequestId: randomUUID(),
+            staffProfileIds: [mia],
+            expectedStaffProfileIds: [],
+            reason: null,
+          },
+        });
+        expect(result.warnings).toBeNull();
+        expect(result.coaches.map((coach) => coach.staffProfileId)).toEqual([mia]);
+      } finally {
+        detection.fail = false;
+      }
+      const audit = await db.execute(sql`
+        select metadata from zaltyko.audit_log
+        where organization_id = ${f.organizationId}::uuid and target_id = ${target}::uuid and action = 'session.coaches_set'
+      `);
+      expect((audit.rows[0] as { metadata: Record<string, unknown> }).metadata).toMatchObject({ scheduleWarningsUnavailable: true });
+    }, 60_000);
+
+    it("los avisos al guardar solo nombran sedes que ve quien guarda", async () => {
+      const g = await academy("G", 2);
+      const managerSite1 = await member(g.organizationId, "manager", "selected", [g.locationIds[0]!], "manager-g");
+      const noa = await staffProfile(g.organizationId, "Noa", "Prieto", (await member(g.organizationId, "coach", "all", [], "noa")).memberId);
+      const kg1 = await classTemplate(g.organizationId, g.locationIds[0]!, "CI Sede 1");
+      const kg2 = await classTemplate(g.organizationId, g.locationIds[1]!, "CI Sede 2");
+      const otherSite = await session(g.organizationId, g.locationIds[1]!, kg2, at(4, 17), at(4, 18, 30));
+      const target = await session(g.organizationId, g.locationIds[0]!, kg1, at(4, 18), at(4, 19));
+      await assign(g.organizationId, otherSite, noa);
+      const result = await setSessionCoaches({
+        actor: managerSite1,
+        sessionId: target,
+        command: {
+          organizationId: g.organizationId,
+          locationId: g.locationIds[0]!,
+          clientRequestId: randomUUID(),
+          staffProfileIds: [noa],
+          expectedStaffProfileIds: [],
+          reason: null,
+        },
+      });
+      // Hay un choque real con la sede 2, pero la coordinación de la sede 1 no la ve.
+      expect(result.warnings).toEqual([]);
+      expect((await findScheduleConflicts(db, { organizationId: g.organizationId })).conflicts.map(pairKey)).toEqual([
+        key("coach_overlap", otherSite, target),
+      ]);
     }, 60_000);
   });
 });

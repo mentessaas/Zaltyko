@@ -72,29 +72,34 @@ export default async function OwnerClassesPage({
     throw error;
   }
 
-  // O1: titulares por clase, solo con el candidato SQL aplicado. Si la
-  // lectura falla, la ficha de clase se pinta como antes, sin titulares.
-  const coachAssignment = (await isCoachAssignmentAvailableForPage(db))
-    ? await getClassTitularsByClass(db, {
-        organizationId: bundle.organization.id,
-        classTemplateIds: bundle.classes.map((classItem) => classItem.id),
-      })
-        .then((titularsByClass) => ({ titularsByClass }))
-        .catch((error: unknown) => {
-          logger.error("Class titulars failed", error);
-          return null;
-        })
-    : null;
-
-  // O2: choques próximos de entrenadora y pista en las sedes de su alcance.
-  // Solo lectura, acotado y con tiempo máximo; si falla, no se muestra nada.
-  const upcomingConflicts = await getUpcomingScheduleConflicts({
-    organizationId: bundle.organization.id,
-    locationIds: (query.data.locationId ? bundle.locations.filter((location) => location.id === query.data.locationId) : bundle.locations).map(
-      (location) => location.id
+  // En paralelo:
+  // - O1: titulares por clase, solo con el candidato SQL aplicado. Si la
+  //   lectura falla, la ficha de clase se pinta como antes, sin titulares.
+  // - O2: choques próximos de entrenadora en las sedes de su alcance. Solo
+  //   lectura, 14 días y un presupuesto de 1,5 s; si no llega, no se muestra.
+  const [coachAssignment, upcomingConflicts] = await Promise.all([
+    isCoachAssignmentAvailableForPage(db).then((available) =>
+      available
+        ? getClassTitularsByClass(db, {
+            organizationId: bundle.organization.id,
+            classTemplateIds: bundle.classes.map((classItem) => classItem.id),
+          })
+            .then((titularsByClass) => ({ titularsByClass }))
+            .catch((error: unknown) => {
+              logger.error("Class titulars failed", error);
+              return null;
+            })
+        : null
     ),
-    viewer: { memberId: bundle.member.id, role: bundle.member.role },
-  });
+    getUpcomingScheduleConflicts({
+      organizationId: bundle.organization.id,
+      locationIds: (query.data.locationId
+        ? bundle.locations.filter((location) => location.id === query.data.locationId)
+        : bundle.locations
+      ).map((location) => location.id),
+      viewer: { memberId: bundle.member.id, role: bundle.member.role },
+    }),
+  ]);
 
   const navigationLocationId =
     query.data.locationId ??

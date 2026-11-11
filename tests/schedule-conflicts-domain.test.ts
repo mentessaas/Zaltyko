@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PAGE_CONFLICT_HORIZON_DAYS,
+  SPACE_CONFLICT_WARNINGS_ENABLED,
   TRAVEL_BUFFER_MINUTES,
   coachConflictKind,
   describeConflict,
   gapMinutes,
   intervalsOverlap,
   orderedPair,
+  safeTimezone,
   sortConflicts,
   spaceConflictKind,
   type ConflictSession,
@@ -133,3 +136,21 @@ describe("texto del aviso", () => {
     expect(sortConflicts([later, sooner])).toEqual([sooner, later]);
   });
 });
+
+describe("valores conservadores y robustez", () => {
+  it("las páginas miran 14 días y los avisos de pista están apagados", () => {
+    expect(PAGE_CONFLICT_HORIZON_DAYS).toBe(14);
+    expect(SPACE_CONFLICT_WARNINGS_ENABLED).toBe(false);
+  });
+
+  it("una zona horaria inválida no rompe el texto: usa UTC y lo indica", () => {
+    expect(safeTimezone("Europe/Madrid")).toEqual({ timezone: "Europe/Madrid", fallback: false });
+    expect(safeTimezone("Marte/Olimpo")).toEqual({ timezone: "UTC", fallback: true });
+    const broken = session({ sessionId: "x", timezone: "Marte/Olimpo", startsAt: "2026-11-16T16:30:00Z", endsAt: "2026-11-16T18:00:00Z" });
+    const other = session({ sessionId: "y", startsAt: "2026-11-16T17:00:00Z", endsAt: "2026-11-16T18:30:00Z" });
+    const text = describeConflict({ kind: "coach_overlap", subjectId: "ana", subjectName: "Ana Ruiz", first: broken, second: other });
+    expect(text).toContain("16:30–18:00 UTC, Sede Norte");
+    expect(() => describeConflict({ kind: "coach_overlap", subjectId: "a", subjectName: "A", first: { ...broken, startsAt: "no es fecha" }, second: other })).not.toThrow();
+  });
+});
+

@@ -124,11 +124,20 @@ export default async function OwnerAttendancePage({
     : null;
 
   // P2 #17: sin el candidato SQL aplicado no se muestran los accesos.
-  const [progressAvailable, sessionPlansAvailable, coachAssignmentAvailable] = await Promise.all([
+  const [progressAvailable, sessionPlansAvailable, coachAssignmentAvailable, coachConflicts] = await Promise.all([
     isAthleteProgressAvailableForPage(db),
     isSessionPlanAvailableForPage(db),
     // O1: lo mismo para titulares y sustituciones.
     isCoachAssignmentAvailableForPage(db),
+    // O2: la entrenadora ve sus propios choques próximos, solo en sus sedes
+    // (14 días, presupuesto de 1,5 s; si no llega, no se muestra).
+    coachMode
+      ? getUpcomingScheduleConflicts({
+          organizationId: scope.organization.id,
+          locationIds: scope.locations.map((location) => location.id),
+          viewer: { memberId: scope.member.id, role: scope.member.role },
+        })
+      : Promise.resolve(null),
   ]);
   // O1: Hoy de la entrenadora pone primero sus sesiones asignadas, sin añadir
   // ninguna que no viera ya.
@@ -138,14 +147,6 @@ export default async function OwnerAttendancePage({
         viewerMemberId: scope.member.id,
       })
     : coachToday;
-  // O2: la entrenadora ve sus propios choques próximos, solo en sus sedes.
-  const coachConflicts = coachMode
-    ? await getUpcomingScheduleConflicts({
-        organizationId: scope.organization.id,
-        locationIds: scope.locations.map((location) => location.id),
-        viewer: { memberId: scope.member.id, role: scope.member.role },
-      })
-    : null;
 
   return (
     <OwnerWorkspacePageShell
