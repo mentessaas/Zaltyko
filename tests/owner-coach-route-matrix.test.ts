@@ -450,6 +450,9 @@ const apiRoot = join(process.cwd(), "src/app/api/v1");
 
 /** Mutaciones no ejecutadas arriba: su guard debe estar en el código. */
 const staticallyGuarded: Record<string, { guard: string; via?: string }> = {
+  // O4: las dos rutas de importación comparten la entrada de import-request.ts.
+  "POST owner/athlete-import/confirm/route.ts": { guard: "resolveOwnerScope", via: "src/app/api/v1/owner/athlete-import/import-request.ts" },
+  "POST owner/athlete-import/preview/route.ts": { guard: "resolveOwnerScope", via: "src/app/api/v1/owner/athlete-import/import-request.ts" },
   "POST owner/athlete-intake/[athleteId]/assign/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/athlete-intake/route.ts": { guard: "resolveOwnerScope" },
   "PATCH owner/athletes/[athleteId]/route.ts": { guard: "resolveOwnerScope" },
