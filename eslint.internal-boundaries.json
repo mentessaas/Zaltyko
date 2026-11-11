@@ -40,6 +40,19 @@
       "facadeSpecifier": "@/modules/session-plans/application/session-plan-service",
       "message": "session-plan/* es interno. Importa desde @/modules/session-plans/application/session-plan-service: la autorización por rol, sede y sesión, la detección del candidato sin aplicar y la transacción de cada operación solo se garantizan a través de la fachada.",
       "exceptions": []
+    },
+    {
+      "name": "athlete-import",
+      "dir": "src/modules/athlete-import/application/athlete-import",
+      "facade": "src/modules/athlete-import/application/athlete-import-service.ts",
+      "facadeSpecifier": "@/modules/athlete-import/application/athlete-import-service",
+      "message": "athlete-import/* es interno. Importa desde @/modules/athlete-import/application/athlete-import-service: la autorización, el bloqueo de la organización y la segunda evaluación de cada fila antes de escribir datos de menores solo se garantizan a través de previewAthleteImport y confirmAthleteImport.",
+      "exceptions": [
+        {
+          "file": "tests/athlete-import-classify.test.ts",
+          "reason": "Prueba unitaria de la clasificación pura de filas (duplicados, tutores, grupos y plan) sin base de datos; no escribe ni toma bloqueos."
+        }
+      ]
     }
   ]
 }

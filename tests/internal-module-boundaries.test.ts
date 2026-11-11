@@ -577,6 +577,7 @@ describe("internal-module boundaries (definiciones y excepciones)", () => {
       "athlete-progress",
       "coach-assignment",
       "session-plan",
+      "athlete-import",
     ]);
     for (const boundary of boundaries) {
       expect(Object.keys(boundary).sort(), boundary.name).toEqual([

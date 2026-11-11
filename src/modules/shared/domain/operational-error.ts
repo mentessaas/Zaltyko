@@ -41,7 +41,9 @@ export type OperationalErrorCode =
   | "PRICE_ASSIGNMENT_PERIOD_INCOMPLETE"
   | "PRICE_PLAN_ZERO_AMOUNT"
   | "CURRENCY_MISMATCH"
-  | "FAMILY_AUTOMATIC_COLLECTION_DISABLED";
+  | "FAMILY_AUTOMATIC_COLLECTION_DISABLED"
+  | "IMPORT_FILE_INVALID"
+  | "IMPORT_PREVIEW_STALE";
 
 export class OperationalError extends Error {
   constructor(

@@ -350,6 +350,8 @@ const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
 
   // Import - very restrictive
   "/api/athletes/import": { limit: 5, window: 60 },
+  // Each call parses a whole spreadsheet; confirmation also writes it.
+  "/api/v1/owner/athlete-import": { limit: 10, window: 60 },
 
   // Webhooks - no limits (called by external services)
   "/api/stripe/webhook": { limit: 1000, window: 60 },
