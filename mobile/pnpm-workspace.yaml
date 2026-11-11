@@ -2,7 +2,8 @@ packages:
   - .
 overrides:
   "uuid": "^11.1.1"
-  "decode-uri-component": "^0.5.0"
+  # GHSA-qr28-fpjm-wq7f (DoS cuadrático), corregido en 0.5.1.
+  "decode-uri-component": "^0.5.1"
   "@xmldom/xmldom": "^0.9.12"
   "image-size": "npm:image-size-next@^2.1.1"
   "brace-expansion@^1.1.7": "^1.1.21"
@@ -10,3 +11,9 @@ overrides:
   "brace-expansion@^5.0.0": "^5.0.12"
   "js-yaml@^4.1.0": "^4.3.2"
   shell-quote: 1.11.0
+  # node-forge: 18 alertas (RSA/PKCS#1, ASN.1, PKCS#12), corregidas en 1.4.3.
+  node-forge: 1.4.3
+  # vite 8.3.0-8.3.2: 6 alertas (solo vitest); fijado a 8.3.3, la mínima corregida.
+  vite: 8.3.3
+  # rolldown: dependencia de vite 8.3.3 (~1.2.11), fijada a la mínima.
+  rolldown: 1.2.11

@@ -66,37 +66,51 @@
     "braces": "3.0.3",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.1",
-    "node-forge": "1.4.0",
+    "node-forge": "1.4.3",
     "patch-package": "8.0.1",
     "prettier": "^3.4.0",
     "shell-quote": "1.11.0",
     "typescript": "~6.0.3",
-    "vitest": "^4.1.11"
+    "vite": "8.3.3",
+    "vitest": "^4.1.12"
   },
   "engines": {
     "node": ">=22"
   },
+  "//overrides": {
+    "motivo": "Motivo de los overrides de seguridad añadidos o cambiados en P0 #2 (2026-11-11). El mismo valor va en `overrides` (npm, package-lock.json) y en `pnpm.overrides` (pnpm 9: pnpm-lock.yaml, el que instala la CI). Los demás overrides son anteriores y no cambian.",
+    "decode-uri-component": "GHSA-qr28-fpjm-wq7f: DoS cuadratico con secuencias %XX; corregido en 0.5.1 (query-string de expo-router).",
+    "node-forge": "GHSA-86w9-cpqp-85rv y otras 17: verificacion RSA/PKCS#1, ASN.1 y PKCS#12; corregido en 1.4.3. Lo usan @expo/cli y @expo/code-signing-certificates (firma de actualizaciones OTA en desarrollo). El override usa la misma especificación exacta que la devDependency directa, como exige npm.",
+    "vite": "GHSA-587h-7wmj-h5pm y otras 5 de vite 8.3.0-8.3.2; fijado a 8.3.3, la versión mínima corregida. Solo lo usa vitest (tests). Va también como devDependency directa: en vitest 4.1.12 vite es un peer y pnpm conserva el peer autoinstalado (8.3.0) aunque cambie el override. Exacto a propósito: 8.3.8 añade el peer opcional @vitejs/devtools 0.8.",
+    "rolldown": "Dependencia de vite 8.3.3 (`~1.2.11`). Fijada a 1.2.11, la mínima que admite vite: pnpm elegía 1.2.19 (publicada el 2026-11-11, con un binding wasm que arrastra @emnapi 2.0.0-beta) y npm 1.2.11; así los dos lockfiles coinciden. Solo la usan los tests."
+  },
   "overrides": {
     "uuid": "^11.1.1",
-    "decode-uri-component": "^0.5.0",
+    "decode-uri-component": "^0.5.1",
     "@xmldom/xmldom": "^0.9.12",
     "image-size": "npm:image-size-next@^2.1.1",
     "brace-expansion@^1.1.7": "^1.1.21",
     "brace-expansion@^4.0.1": "^5.0.12",
     "brace-expansion@^5.0.0": "^5.0.12",
     "js-yaml@^4.1.0": "^4.3.2",
-    "shell-quote": "1.11.0"
+    "shell-quote": "1.11.0",
+    "node-forge": "1.4.3",
+    "vite": "8.3.3",
+    "rolldown": "1.2.11"
   },
   "pnpm": {
     "overrides": {
       "uuid": "^11.1.1",
-      "decode-uri-component": "^0.5.0",
+      "decode-uri-component": "^0.5.1",
       "@xmldom/xmldom": "^0.9.12",
       "image-size": "npm:image-size-next@^2.1.1",
       "brace-expansion@^1.1.7": "^1.1.21",
       "brace-expansion@^4.0.1": "^5.0.12",
       "brace-expansion@^5.0.0": "^5.0.12",
-      "js-yaml@^4.1.0": "^4.3.2"
+      "js-yaml@^4.1.0": "^4.3.2",
+      "node-forge": "1.4.3",
+      "vite": "8.3.3",
+      "rolldown": "1.2.11"
     }
   }
 }
