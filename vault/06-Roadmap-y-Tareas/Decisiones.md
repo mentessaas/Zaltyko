@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+
+## 2026-11-11 — Objetivos y observaciones: opciones conservadoras pendientes de Elvis
+
+**Hallazgo/fuente:** P2 #17 (primera parte), `docs/producto/objetivos-y-observaciones.md`.
+
+**Decisión/importancia (provisional, conservadora):** el entrenador solo edita sus observaciones y solo cambia el estado de los objetivos que creó; cada registro solo lo ve quien tiene la sede donde se creó; la coordinación con sedes seleccionadas queda limitada a ellas; no hay borrado; la gimnasta archivada es de solo lectura y deja de verla el entrenador; el portal de familias no muestra observaciones aunque estén marcadas como compartibles.
+
+**Siguiente paso:** Elvis confirma o cambia cada punto y autoriza (o no) aplicar el candidato `20261111120000_athlete_progress_candidate.sql`.
+
 ## 2026-11-10 — Puerta de entrada «operación diaria» y prioridad a entrenadoras
 
 **Hallazgo/fuente:** investigación competitiva de 9 empresas (RG Manager, ScoreGym, GimnasiaTotal, Clybo, OneClub, Clupik, Jackrabbit, iClassPro, FlipBiz) en `docs/research/competencia/`. Los competidores españoles se venden por cobros, familias y documentos; ScoreGym muestra entrenadora por grupo y RG Manager anuncia sustituciones, pero ninguno muestra evidencia pública de detectar choques de horario, entrenadora o pista. Zaltyko tiene `zaltyko.session_staff` y la regla `session_without_coach`, pero no hay API ni pantalla para asignar entrenadoras, y la detección de solapes solo mira las franjas de una misma clase.

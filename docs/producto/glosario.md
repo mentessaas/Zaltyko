@@ -135,6 +135,11 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
 - **Prohibido:** lead, prospecto o contacto para la solicitud; «reserva» (no se reserva sesión); «prueba gratuita», que en Zaltyko es la del plan; «alta» para la solicitud, porque el alta es crear la ficha.
 - **Dónde aparece:** `/solicitar-prueba/[token]`, `OwnerTrialRequestsWorkspace`, navegación (Solicitudes) y «Necesita tu atención». Origen: P2 #15 (`docs/producto/embudo-captacion.md`).
 
+### Objetivo y observación
+- **Elegido:** «objetivo», lo que una gimnasta está trabajando, con estado «En curso», «Conseguido» o «Descartado». «Observación», la nota breve del equipo sobre una gimnasta, «Solo equipo» o «Compartible con la familia». La sección de la ficha se llama «Objetivos y observaciones».
+- **Prohibido:** meta, reto o «skill» por objetivo; comentario, nota de progreso o «feedback» por observación; «pública» o «visible para familias» por «compartible con la familia», porque el portal todavía no la muestra.
+- **Dónde aparece:** `OwnerAthleteProgressPanel` (ficha en Grupos), `OwnerSessionObservationForm` (Pasar lista) y `docs/producto/objetivos-y-observaciones.md` (P2 #17).
+
 ## Pendientes
 
 - **Archivos en refactor:** `monthly-invoice-service.ts` devuelve mensajes con «factura» («Factura no encontrada», «Ya existe una factura para esta familia y periodo…») y `OwnerMonthlyInvoiceResolutionPanel.tsx` dice «operación de facturación». Pasarán a «cuota» cuando termine el refactor. `ManualPaymentForm.tsx` (líneas 786 y 1087) dice «otra sesión de Owner»; pasará a «otra sesión de la dirección».

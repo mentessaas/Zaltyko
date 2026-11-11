@@ -27,6 +27,16 @@ Fuente: `docs/research/competencia/plan-validacion-30-dias.md`. No construir nad
 - Deuda · `drizzle-kit export` falla por una restricción CHECK duplicada en `zaltyko.family_collection_preferences`.
 - Pendiente de autorización · Aplicar `20261110180000_competitive_intelligence_candidate.sql` para usar el panel fuera de local.
 
+
+## P2 #17 — Objetivos y observaciones, pendientes tras la primera parte (2026-11-11)
+
+- Pendiente de autorización · Aplicar `20261111120000_athlete_progress_candidate.sql`; al promoverlo, mover el espejo Drizzle a `src/db/schema/` y superar `validate:rls`.
+- P2 · Incluir objetivos y observaciones en la exportación canónica de la academia.
+- P2 · Decidir si el portal de familias muestra las observaciones compartibles (hoy `FAMILY_PORTAL_SHOWS_OBSERVATIONS = false`).
+- P2 · Segunda parte de P2 #17: planificación sobre sesiones; después, biblioteca GAF/GAM.
+- Deuda (PR aparte) · Frontera ESLint del servicio partido de athlete-progress: mover `athlete-progress-{access,reads,objectives,observations}.ts` a `src/modules/athlete-progress/application/athlete-progress/`, registrarla en `eslint.internal-boundaries.json` y actualizar `tests/internal-module-boundaries.test.ts`.
+- Deuda (PR aparte) · Prueba de contrato de que ningún flujo borra `zaltyko.sessions` (la FK de observaciones a sesiones es NO ACTION a propósito).
+
 ## P0 vigente — apertura esencial España, 2026-10-26
 
 - Aislamiento alojado e09: dos academias independientes, lecturas propias200/ajenas403-404 y mezcla de sedes ajenas403 comprobadas en uso, grupos, clases y opciones de cuotas según matriz. Pendientes escrituras cruzadas, candidatos de inscripción completos y roles restringidos entre sedes de una misma academia. Fuente docs/qa/delivery-academy-isolation-2026-10-26.md.

@@ -86,6 +86,37 @@ alguna relación ya existe, fuerza RLS y deniega cualquier acceso de clientes
   PostgreSQL efímero local para comprobar el panel (10-11-2026); no se ha
   aplicado en sandbox ni en producción.
 
+## Candidato de objetivos y observaciones por gimnasta (P2 #17)
+
+`20261111120000_athlete_progress_candidate.sql` crea solo
+`zaltyko.athlete_objectives` (objetivo con aparato GAF/GAM opcional, fecha
+objetivo y estado), `zaltyko.athlete_objective_status_history` (una fila al
+crear y otra por cada cambio de estado) y `zaltyko.athlete_observations`
+(observación breve, interna del equipo o marcada como compartible con la
+familia, con vínculo opcional a una sesión de la misma sede y a un objetivo de
+la misma gimnasta). No toca tablas existentes, filas, roles ni objetos legacy.
+Fuerza RLS, revoca `public`, `anon` y `authenticated`, no crea políticas ni
+grants y se niega a reinstalarse si alguna de las tres relaciones ya existe.
+
+- Esquema Drizzle espejo: `src/modules/athlete-progress/infrastructure/athlete-progress-schema.ts`.
+  **No se exporta** desde `src/db/schema/index.ts` ni desde
+  `src/db/zaltyko-schema.ts` (precedente de la PR 266) y además vive fuera de
+  `src/db/schema/`, porque `pnpm validate:rls` solo valida el historial
+  aplicado. Al promover el candidato a `supabase/migrations`, el espejo pasa a
+  `src/db/schema/` y la migración debe superar `validate:rls`.
+- Contrato: `tests/athlete-progress-contract.test.ts` (mismas tablas y columnas
+  en candidato, espejo y detección; RLS ENABLE/FORCE y REVOKE en las tres;
+  fuera de drizzle-kit; el portal de familias no las lee).
+- Prueba: `tests/athlete-progress-pg.test.ts`, en el job «Postgres
+  integration». Instala el candidato solo en el PostgreSQL desechable de
+  GitHub y borra las tablas al terminar.
+- Mientras no se aplique, `src/modules/athlete-progress/application/athlete-progress-storage.ts`
+  detecta que falta y la sección responde «no disponible» (503), sin errores
+  a medias.
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+  ningún entorno. La CI verde no equivale a autorización.
+- Producto: `docs/producto/objetivos-y-observaciones.md`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.

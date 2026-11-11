@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   options: vi.fn(),
   scope: vi.fn(),
   today: vi.fn(),
+  progressAvailable: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error("NOT_FOUND");
   }),
@@ -33,6 +34,9 @@ vi.mock("@/modules/owner-dashboard/application/owner-scope", () => ({
 }));
 vi.mock("@/modules/owner-dashboard/application/today-sessions", () => ({
   getOwnerTodaySessions: mocks.today,
+}));
+vi.mock("@/modules/athlete-progress/application/athlete-progress-storage", () => ({
+  isAthleteProgressAvailableForPage: mocks.progressAvailable,
 }));
 
 import OwnerAttendancePage from "@/app/owner/attendance/page";
@@ -94,6 +98,25 @@ beforeEach(() => {
     selectedSession: null,
   });
   mocks.today.mockResolvedValue({ sessions: [], truncated: false });
+  mocks.progressAvailable.mockResolvedValue(false);
+});
+
+describe("Objetivos y observaciones en Pasar lista (P2 #17)", () => {
+  it.each([
+    [false, "sin la migración candidata aplicada no se muestran los accesos"],
+    [true, "con las tablas disponibles se muestran los accesos"],
+  ] as const)("progressAvailable=%s: %s", async (available) => {
+    mocks.progressAvailable.mockResolvedValue(available);
+    mocks.scope.mockResolvedValue(scopeFor("coach"));
+
+    const page = await OwnerAttendancePage({
+      searchParams: Promise.resolve({ organizationId }),
+    });
+
+    expect(mocks.progressAvailable).toHaveBeenCalledTimes(1);
+    const [manager] = findAll(page, OwnerAttendanceManager);
+    expect(manager.props).toMatchObject({ progressAvailable: available });
+  });
 });
 
 describe("Pasar lista para el coach (P1 #8)", () => {

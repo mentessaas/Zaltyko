@@ -8,6 +8,29 @@ source:
 ---
 
 
+
+## 2026-11-11 — Objetivos y observaciones por gimnasta (P2 #17, primera parte)
+
+**Cambio.**
+- Módulo `src/modules/athlete-progress/`: objetivos (título, GAF/GAM y aparato opcionales, fecha objetivo, estado con historial) y observaciones (texto breve, solo equipo o compartible con la familia, vínculo opcional a sesión y objetivo).
+- API en `/api/v1/owner/athletes/[athleteId]/{progress,objectives,observations}` y acceso rápido `/api/v1/owner/sessions/[sessionId]/observations`. Superficie `coach_operations`: el entrenador solo llega a gimnastas con inscripción o grupo abierto en una sede asignada.
+- Interfaz: botón «Objetivos y observaciones» en cada gimnasta de Grupos y botón «Observación» en Pasar lista.
+- Candidato SQL `docs/deployment/candidates/20261111120000_athlete_progress_candidate.sql` (RLS ENABLE/FORCE, REVOKE). **No se ejecutó en ningún entorno alojado; requiere autorización de Elvis.** Sin aplicar, la API responde 503 y la interfaz «no disponible».
+- El espejo Drizzle vive en el módulo, fuera de `src/db/schema/`, para que ni drizzle-kit ni `validate:rls` lo traten como historial aplicado.
+
+**Pruebas.** Unitarias, contrato, rutas, UI y `tests/athlete-progress-pg.test.ts` en el job «Postgres integration». No se ejecutó nada en local (regla del encargo): resultado en la CI de la PR.
+
+**Sin resolver.** Las decisiones «Decide Elvis» de `docs/producto/objetivos-y-observaciones.md` (familias, borrado, ediciones entre entrenadores, alcance de coordinación, exportación).
+
+**Ronda 2 (revisión 7/10 del coordinador).**
+- El formulario rápido de Pasar lista solo se monta abierto: con Tailwind, `.grid` anulaba `hidden`.
+- Los accesos se ocultan si el servidor no encuentra las tablas.
+- La sesión vinculada exige participación de la gimnasta y una fecha no futura.
+- El entrenador lee objetivos y últimas observaciones con «Ver objetivos».
+- El servicio queda partido en cuatro módulos tras una fachada.
+- La candidata pasa a tener todas las restricciones con nombre (menos de 63 caracteres); el espejo repite las CHECK y el contrato compara tipos y CHECK.
+- Otros cambios: sede activa obligatoria, «Coordinador/a», 503 con motivo propio, aviso de «hay más» y foco en formularios.
+
 ## 2026-11-10 — Revisión de la PR 266 (panel de competencia): seguridad, integridad y datos personales
 
 **Hallazgos.** La revisión de la sesión coordinadora dio 8/10. Problemas encontrados:
