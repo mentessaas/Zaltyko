@@ -55,6 +55,7 @@ const MONTHLY = boundaryNamed("monthly-invoice");
 const RECONCILIATION = boundaryNamed("reconciliation");
 const ATHLETE_PROGRESS = boundaryNamed("athlete-progress");
 const COACH_ASSIGNMENT = boundaryNamed("coach-assignment");
+const SESSION_PLAN = boundaryNamed("session-plan");
 const INTERNAL_DIR = MONTHLY.dir;
 const FACADE = MONTHLY.facade;
 const FACADE_SPECIFIER = MONTHLY.facadeSpecifier;
@@ -417,6 +418,7 @@ describe("internal-module boundaries (ESLint)", { timeout: 120_000 }, () => {
     expect(signatures(RECONCILIATION, parityCases(RECONCILIATION, "lease", "rec-parity"))).toEqual(reviewed);
     expect(signatures(ATHLETE_PROGRESS, parityCases(ATHLETE_PROGRESS, "access", "ap"))).toEqual(reviewed);
     expect(signatures(COACH_ASSIGNMENT, parityCases(COACH_ASSIGNMENT, "storage", "ca"))).toEqual(reviewed);
+    expect(signatures(SESSION_PLAN, parityCases(SESSION_PLAN, "plans", "sp"))).toEqual(reviewed);
   });
 
   // coach-assignment/* (O1): mismas formas que el resto de fronteras.
@@ -517,6 +519,53 @@ describe("internal-module boundaries (ESLint)", { timeout: 120_000 }, () => {
       expect(messages[0].severity, filePath).toBe(2);
     }
   });
+
+  // -------------------------------------------------------------------------
+  // session-plan/* (P2 #17, segunda parte)
+  // -------------------------------------------------------------------------
+
+  const SP = "@/modules/session-plans/application/session-plan";
+  const SP_FACADE = SESSION_PLAN.facadeSpecifier;
+
+  it.each(parityCases(SESSION_PLAN, "plans", "sp"))(
+    "rechaza session-plan/* desde %s",
+    async (filePath, code, ruleId) => {
+      const messages = await boundaryMessages(filePath, code, SP_FACADE);
+      expect(messages, code).toHaveLength(1);
+      expect(messages[0].ruleId).toBe(ruleId);
+      expect(messages[0].severity).toBe(2);
+      expect(messages[0].message).toContain("session-plan/* es interno");
+    }
+  );
+
+  it.each([
+    // athlete-progress/* sigue siendo interno también desde session-plan/*.
+    [`${SESSION_PLAN.dir}/access.ts`, `import { authorizeMember } from "${AP}/access";\nvoid authorizeMember;\n`, AP_FACADE, "no-restricted-imports"],
+    [`${SESSION_PLAN.dir}/plans.ts`, `export const load = () => import("${AP}/reads");\n`, AP_FACADE, "no-restricted-syntax"],
+    // Y athlete-progress/* no alcanza session-plan/*.
+    [`${ATHLETE_PROGRESS.dir}/reads.ts`, `import { getSessionPlan } from "${SP}/plans";\nvoid getSessionPlan;\n`, SP_FACADE, "no-restricted-imports"],
+    [ATHLETE_PROGRESS.facade, `export * from "${SP}/storage";\n`, SP_FACADE, "no-restricted-imports"],
+  ])("session-plan y athlete-progress se aplican entre sí (%s)", async (filePath, code, facadeSpecifier, ruleId) => {
+    const messages = await boundaryMessages(filePath, code, facadeSpecifier);
+    expect(messages, code).toHaveLength(1);
+    expect(messages[0].ruleId).toBe(ruleId);
+    expect(messages[0].severity).toBe(2);
+  });
+
+  it.each([
+    ["tests/sample-sp-facade.test.ts", `import { getSessionPlan } from "${SP_FACADE}";\nvoid getSessionPlan;\nvi.mock("${SP_FACADE}");\n`],
+    ["src/app/owner/sample-sp/page.tsx", `import { isSessionPlanAvailableForPage } from "${SP_FACADE}";\nvoid isSessionPlanAvailableForPage;\n`],
+    ["src/app/api/v1/owner/sample-sp/route.ts", `import { saveSessionPlan } from "${SP_FACADE}";\nvoid saveSessionPlan;\n`],
+    // Dominio, infraestructura y el cliente de UI no son internos.
+    ["src/components/owner-dashboard/SampleSpClient.tsx", `import { BLOCK_KINDS } from "@/modules/session-plans/domain/session-plan";\nimport { fetchSessionPlan } from "./owner-session-plan-client";\nvoid BLOCK_KINDS;\nvoid fetchSessionPlan;\n`],
+    ["src/modules/session-plans/domain/sample-sp.ts", `import { sessionPlans } from "../infrastructure/session-plan-schema";\nexport * from "../application/session-plan-service";\nvoid sessionPlans;\n`],
+    ["src/modules/session-plans/application/sample-sp-sibling.ts", `export * from "./session-plan-service";\n`],
+    // La fachada y sus módulos internos se importan entre sí.
+    [SESSION_PLAN.facade, `export { getSessionPlan } from "./session-plan/plans";\nexport * from "./session-plan/storage";\n`],
+    [`${SESSION_PLAN.dir}/plans.ts`, `import { authorizeMember } from "./access";\nimport { isSessionPlanStorageAvailable } from "${SP}/storage";\nvoid authorizeMember;\nvoid isSessionPlanStorageAvailable;\n`],
+  ])("permite la fachada de session-plan y lo que no es interno (%s)", async (filePath, code) => {
+    expect(await boundaryMessages(filePath, code, SP_FACADE)).toEqual([]);
+  });
 });
 
 describe("internal-module boundaries (definiciones y excepciones)", () => {
@@ -527,6 +576,7 @@ describe("internal-module boundaries (definiciones y excepciones)", () => {
       "reconciliation",
       "athlete-progress",
       "coach-assignment",
+      "session-plan",
       "athlete-import",
     ]);
     for (const boundary of boundaries) {
@@ -748,6 +798,19 @@ describe("internal-module boundaries (fuentes)", () => {
     ];
     for (const [file, specifier, expected] of athleteProgress) {
       expect(reachesDir(ATHLETE_PROGRESS.dir, file, specifier), `${file}: ${specifier}`).toBe(expected);
+    }
+    const sessionPlan: Array<[string, string, boolean]> = [
+      ["tests/x.test.ts", "@/modules/session-plans/application/session-plan/plans", true],
+      ["tests/x.test.ts", "@/modules/session-plans/application/session-plan", true],
+      ["src/modules/session-plans/application/x.ts", "./session-plan/storage", true],
+      ["src/modules/session-plans/domain/x.ts", "../application/session-plan/access", true],
+      ["tests/x.test.ts", SESSION_PLAN.facadeSpecifier, false],
+      ["src/modules/session-plans/application/x.ts", "./session-plan-service", false],
+      ["src/components/owner-dashboard/x.tsx", "@/modules/session-plans/domain/session-plan", false],
+      ["tests/x.test.ts", "@/modules/session-plans/infrastructure/session-plan-schema", false],
+    ];
+    for (const [file, specifier, expected] of sessionPlan) {
+      expect(reachesDir(SESSION_PLAN.dir, file, specifier), `${file}: ${specifier}`).toBe(expected);
     }
   });
 });

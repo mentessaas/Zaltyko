@@ -34,6 +34,14 @@
       "exceptions": []
     },
     {
+      "name": "session-plan",
+      "dir": "src/modules/session-plans/application/session-plan",
+      "facade": "src/modules/session-plans/application/session-plan-service.ts",
+      "facadeSpecifier": "@/modules/session-plans/application/session-plan-service",
+      "message": "session-plan/* es interno. Importa desde @/modules/session-plans/application/session-plan-service: la autorización por rol, sede y sesión, la detección del candidato sin aplicar y la transacción de cada operación solo se garantizan a través de la fachada.",
+      "exceptions": []
+    },
+    {
       "name": "athlete-import",
       "dir": "src/modules/athlete-import/application/athlete-import",
       "facade": "src/modules/athlete-import/application/athlete-import-service.ts",

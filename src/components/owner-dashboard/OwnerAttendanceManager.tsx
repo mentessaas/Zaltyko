@@ -6,6 +6,7 @@ import { ArrowLeft, ClipboardCheck, UsersRound } from "lucide-react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
 import { OwnerSessionCoaches } from "./OwnerSessionCoaches";
 import { OwnerSessionAthleteProgress } from "./OwnerSessionAthleteProgress";
+import { OwnerSessionPlanPanel } from "./OwnerSessionPlanPanel";
 import { OwnerSessionObservationForm } from "./OwnerSessionObservationForm";
 import { ownerUi } from "./owner-ui";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
@@ -213,6 +214,7 @@ export function OwnerAttendanceManager({
   coachMode = false,
   progressAvailable = false,
   coachAssignmentAvailable = false,
+  sessionPlansAvailable = false,
 }: {
   organizationId: string;
   locationId: string;
@@ -232,6 +234,8 @@ export function OwnerAttendanceManager({
    * existen. Sin ellas no se muestra quién entrena.
    */
   coachAssignmentAvailable?: boolean;
+  /** P2 #17 (segunda parte): el servidor comprobó que existe la planificación. */
+  sessionPlansAvailable?: boolean;
 }) {
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
@@ -834,6 +838,15 @@ export function OwnerAttendanceManager({
                 sessionId={selectedSession.id}
                 coachMode={coachMode}
                 writesBlocked={writesBlocked}
+              />
+            ) : null}
+            {sessionPlansAvailable && sessionId && !selectedSession?.retryOnly ? (
+              <OwnerSessionPlanPanel
+                key={sessionId}
+                organizationId={organizationId}
+                locationId={locationId}
+                sessionId={sessionId}
+                readOnly={writesBlocked}
               />
             ) : null}
             {selectedSession?.retryOnly && (
