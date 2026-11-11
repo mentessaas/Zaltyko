@@ -54,8 +54,14 @@ overrides:
   # sharp/librsvg memory-safety issue (CVE-2026-96889)
   sharp: ^0.35.5
   'next>sharp': ^0.35.5
-  # qs / flatted / ajv pre-existing pins
-  qs: ^6.14.2
+  # qs / flatted / ajv pre-existing pins. qs: floor 6.16.1 for the stringify
+  # arrayFormat=comma DoS (GHSA-6pq8-jhm2-2vcw), only inside the vulnerable
+  # 6.7.0-6.16.0 range so qs 5 never moves to 6; mirrors pnpmfile.cjs.
+  'qs@>=6.7.0 <6.16.1': ^6.16.1
+  # @hono/node-server serveStatic double decode bypass (GHSA-rmxm-3fg6-px4f):
+  # floor 2.1.3 inside the 2.x line only (1.x has no fix and must not jump to
+  # 2); never lowers a consumer already above it; mirrors pnpmfile.cjs.
+  '@hono/node-server@>=2.0.0 <2.1.3': ^2.1.3
   flatted: ^3.4.2
   'eslint>ajv': ^6.14.0
   # basic-ftp: CPU DoS in Unix directory listing parser (GHSA-c475-qrg2-pj4r)

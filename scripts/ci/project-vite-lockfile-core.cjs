@@ -18,16 +18,16 @@ const OLD_LOCATOR = `vite@${OLD_CONTEXT}`;
 const NEXT_LOCATOR = `vite@${NEXT_CONTEXT}`;
 const OLD_PACKAGE = `vite@${OLD}`;
 const NEXT_PACKAGE = `vite@${NEXT}`;
-const COVERAGE_KEY = "@vitest/coverage-v8@4.1.11(vitest@4.1.11)";
+const COVERAGE_KEY = "@vitest/coverage-v8@4.1.12(vitest@4.1.12)";
 
 function snapshotKeys(context) {
   const locator = `vite@${context}`;
   return {
     vite: `vite@${context}`,
     react: `@vitejs/plugin-react@5.2.0(${locator})`,
-    mocker: `@vitest/mocker@4.1.11(${locator})`,
+    mocker: `@vitest/mocker@4.1.12(${locator})`,
     paths: `vite-tsconfig-paths@5.1.4(typescript@5.9.3)(${locator})`,
-    vitest: `vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(jsdom@29.1.1)(${locator})`,
+    vitest: `vitest@4.1.12(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(@vitest/coverage-v8@4.1.12)(jsdom@29.1.1)(${locator})`,
     coverage: COVERAGE_KEY,
   };
 }
@@ -453,7 +453,7 @@ function normalizedSnapshotBlocks(candidate, keys) {
   check(mocker.optionalDependencies?.vite === NEXT_CONTEXT, "LOCK_REFERENCE");
   check(paths.optionalDependencies?.vite === NEXT_CONTEXT, "LOCK_REFERENCE");
   check(vitest.dependencies?.vite === NEXT_CONTEXT, "LOCK_REFERENCE");
-  check(vitest.dependencies?.["@vitest/mocker"] === `4.1.11(vite@${NEXT_CONTEXT})`, "LOCK_REFERENCE");
+  check(vitest.dependencies?.["@vitest/mocker"] === `4.1.12(vite@${NEXT_CONTEXT})`, "LOCK_REFERENCE");
 
   const baseVitest = BASE_KEYS.vitest.slice("vitest@".length);
   const nextVitest = RAW_KEYS.vitest.slice("vitest@".length);
@@ -463,7 +463,7 @@ function normalizedSnapshotBlocks(candidate, keys) {
   mocker.optionalDependencies.vite = OLD_CONTEXT;
   paths.optionalDependencies.vite = OLD_CONTEXT;
   vitest.dependencies.vite = OLD_CONTEXT;
-  vitest.dependencies["@vitest/mocker"] = `4.1.11(vite@${OLD_CONTEXT})`;
+  vitest.dependencies["@vitest/mocker"] = `4.1.12(vite@${OLD_CONTEXT})`;
   coverage.dependencies.vitest = baseVitest;
   return rawBlocks;
 }
