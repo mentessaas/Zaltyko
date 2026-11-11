@@ -9,10 +9,20 @@
  * - athlete-progress/objectives.ts: alta y cambio de estado con historial.
  * - athlete-progress/observations.ts: alta, acceso rápido y edición.
  * - athlete-progress/storage.ts: detección del candidato SQL sin aplicar.
+ * - athlete-progress/planning.ts: objetivos para la planificación de sesiones.
  * Cada operación abre su propia transacción y vuelve a autorizarlo todo.
  */
 export { getAthleteProgress, getSessionAthleteProgress } from "./athlete-progress/reads";
 export { changeAthleteObjectiveStatus, createAthleteObjective } from "./athlete-progress/objectives";
+/**
+ * Lectura de objetivos para la planificación de sesiones (session-plans):
+ * corre dentro de la transacción del llamador, que ya autorizó.
+ */
+export {
+  findInProgressObjectivesForPlanning,
+  findObjectivesForPlanning,
+  type PlanningObjective,
+} from "./athlete-progress/planning";
 export {
   createAthleteObservation,
   createSessionObservation,

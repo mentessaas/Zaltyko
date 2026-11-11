@@ -150,6 +150,17 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
 - **Prohibido:** profesor/a, monitor/a o coach por titular; «suplente» o «cubrir» como nombre del cambio; «turno» por sesión.
 - **Dónde aparece:** `OwnerClassCoaches` (Clases), `OwnerSessionCoaches` (Pasar lista), `OwnerTodaySessionsPanel` y `docs/producto/entrenadoras-por-clase.md` (O1).
 
+### Guion de la sesión y modelo de la clase
+- **Elegido:**
+  - «guion de la sesión»: lo que se va a trabajar en una sesión concreta (foco del día, bloques y nota). Su acción es «Crear guion» o «Editar guion».
+  - «modelo de la clase»: el guion de partida de una clase, que se copia al crear el guion de una sesión («Crear desde el modelo de la clase», «Guardar como modelo de la clase»).
+  - «Bloque» es cada parte del guion; «Hecho», su marca al terminar.
+- **Prohibido:**
+  - «plan», «planificación» o «plan de entrenamiento» en textos visibles, porque «plan» es el plan de Zaltyko;
+  - «plantilla», vetada como en Equipo;
+  - «rutina» o «programa», porque «Programa» es otra cosa en Clases.
+- **Dónde aparece:** `OwnerSessionPlanPanel` (Pasar lista) y `docs/producto/planificacion-sesiones.md` (P2 #17, segunda parte). En código y en la base se llaman `session_plans` y `class_plan_templates`.
+
 ## Pendientes
 
 - **Archivos en refactor:** `monthly-invoice-service.ts` devuelve mensajes con «factura» («Factura no encontrada», «Ya existe una factura para esta familia y periodo…») y `OwnerMonthlyInvoiceResolutionPanel.tsx` dice «operación de facturación». Pasarán a «cuota» cuando termine el refactor. `ManualPaymentForm.tsx` (líneas 786 y 1087) dice «otra sesión de Owner»; pasará a «otra sesión de la dirección».

@@ -187,6 +187,9 @@ const deniedCases: DeniedCase[] = [
   { route: "owner/classes/[classTemplateId]/coaches/route.ts", method: "PUT", area: "clases", load: () => import("@/app/api/v1/owner/classes/[classTemplateId]/coaches/route"), params: { classTemplateId: e }, path: () => `/api/v1/owner/classes/${e}/coaches`, body: (t) => ({ organizationId: t.organizationId, locationId: t.locationId, clientRequestId: e, staffProfileIds: [], expectedStaffProfileIds: [] }) },
   { route: "owner/sessions/[sessionId]/coaches/route.ts", method: "PUT", area: "clases", load: () => import("@/app/api/v1/owner/sessions/[sessionId]/coaches/route"), params: { sessionId: e }, path: () => `/api/v1/owner/sessions/${e}/coaches`, body: (t) => ({ organizationId: t.organizationId, locationId: t.locationId, clientRequestId: e, staffProfileIds: [], expectedStaffProfileIds: [], reason: null }) },
   { route: "owner/classes/route.ts", method: "GET", area: "clases", load: () => import("@/app/api/v1/owner/classes/route"), path: (t) => `/api/v1/owner/classes${query({ organizationId: t.organizationId, locationId: t.locationId })}` },
+  // P2 #17: la plantilla de plan de una clase es solo de la dirección.
+  { route: "owner/classes/[classTemplateId]/plan-template/route.ts", method: "GET", area: "clases", load: () => import("@/app/api/v1/owner/classes/[classTemplateId]/plan-template/route"), params: { classTemplateId: e }, path: (t) => `/api/v1/owner/classes/${e}/plan-template${query({ organizationId: t.organizationId, locationId: t.locationId })}` },
+  { route: "owner/classes/[classTemplateId]/plan-template/route.ts", method: "PUT", area: "clases", load: () => import("@/app/api/v1/owner/classes/[classTemplateId]/plan-template/route"), params: { classTemplateId: e }, path: () => `/api/v1/owner/classes/${e}/plan-template`, body: (t) => ({ organizationId: t.organizationId, locationId: t.locationId, expectedRevision: null, focus: "Salto", blocks: [] }) },
   { route: "owner/groups/route.ts", method: "GET", area: "grupos", load: () => import("@/app/api/v1/owner/groups/route"), path: (t) => `/api/v1/owner/groups${query({ organizationId: t.organizationId, locationId: t.locationId })}` },
   { route: "owner/groups/[groupId]/memberships/route.ts", method: "GET", area: "grupos", load: () => import("@/app/api/v1/owner/groups/[groupId]/memberships/route"), params: { groupId: e }, path: (t) => `/api/v1/owner/groups/${e}/memberships${query({ organizationId: t.organizationId, q: "ana" })}` },
   { route: "owner/groups/[groupId]/memberships/route.ts", method: "POST", area: "grupos", load: () => import("@/app/api/v1/owner/groups/[groupId]/memberships/route"), params: { groupId: e }, path: () => `/api/v1/owner/groups/${e}/memberships`, body: (t) => ({ organizationId: t.organizationId, athleteId: e, startsOn: day, status: "active" }) },
@@ -510,6 +513,11 @@ const coachAllowed = new Set([
   // O1: la entrenadora lee quién entrena en una sesión de su sede, con el
   // mismo acceso que Pasar lista (resolveSessionAttendanceAccess). No asigna.
   "GET owner/sessions/[sessionId]/coaches/route.ts",
+  // P2 #17 (segunda parte): plan de la sesión con el criterio de Pasar lista
+  // (sede asignada, no session_staff) (tests/session-plans-*).
+  "GET owner/sessions/[sessionId]/plan/route.ts",
+  "PUT owner/sessions/[sessionId]/plan/route.ts",
+  "PUT owner/sessions/[sessionId]/plan/blocks/[blockId]/route.ts",
 ]);
 
 function routeFiles(directory: string): string[] {
@@ -563,6 +571,8 @@ describe("inventario de /api/v1", () => {
       "src/app/owner/attendance/page.tsx",
       // P2 #17: única entrada de las rutas de objetivos y observaciones.
       "src/app/api/v1/owner/athlete-progress-http.ts",
+      // P2 #17 (segunda parte): única entrada de las rutas del plan de sesión.
+      "src/app/api/v1/owner/session-plan-http.ts",
     ]);
     const sourceFiles = (directory: string): string[] =>
       readdirSync(directory).flatMap((entry) => {
