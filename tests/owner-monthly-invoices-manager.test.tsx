@@ -1409,6 +1409,8 @@ describe("OwnerMonthlyInvoicesManager", () => {
     expect(PRE_COMMIT_MONTHLY_INVOICE_REJECTIONS).toEqual(
       reviewedPreCommitRejections
     );
+    // Frozen: no module can add a code at runtime.
+    expect(Object.isFrozen(PRE_COMMIT_MONTHLY_INVOICE_REJECTIONS)).toBe(true);
   });
 
   it.each(reviewedPreCommitRejections)(

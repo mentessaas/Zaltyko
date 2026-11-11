@@ -25,15 +25,16 @@ export const PENDING_MONTHLY_INVOICE_ISSUE_STORAGE_KEY =
  * pending retry even when they arrive with a 5xx status; any 4xx already does.
  * The exact list is pinned by tests/owner-monthly-invoices-manager.test.tsx.
  */
-export const PRE_COMMIT_MONTHLY_INVOICE_REJECTIONS: readonly string[] = [
-  "QUOTE_STALE",
-  "MONTHLY_INVOICE_BLOCKED",
-  "PERIOD_ALREADY_INVOICED",
-  "INVOICE_VOIDED",
-  "ENROLLMENT_ALREADY_BILLED",
-  "FAMILY_PAYER_INVALID",
-  "INVOICE_REFERENCE_TAKEN",
-];
+export const PRE_COMMIT_MONTHLY_INVOICE_REJECTIONS: readonly string[] =
+  Object.freeze([
+    "QUOTE_STALE",
+    "MONTHLY_INVOICE_BLOCKED",
+    "PERIOD_ALREADY_INVOICED",
+    "INVOICE_VOIDED",
+    "ENROLLMENT_ALREADY_BILLED",
+    "FAMILY_PAYER_INVALID",
+    "INVOICE_REFERENCE_TAKEN",
+  ] as const);
 
 const PENDING_KEYS = "body,hasAmbiguousAttempt,key,scopeKey,version";
 const BODY_KEYS =
