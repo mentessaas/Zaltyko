@@ -20,6 +20,9 @@ import { appendAuditEntry } from "@/modules/shared/infrastructure/transactional-
 import { sqlUuidArray } from "@/modules/owner-dashboard/application/sql-uuid-array";
 import { SESSION_HORIZON_TARGET_DAYS } from "@/modules/scheduling/domain/session-horizon";
 
+/** Horizonte de generación más un día de margen por la zona horaria de la sede. */
+export const PROPAGATION_HORIZON_DAYS = SESSION_HORIZON_TARGET_DAYS + 1;
+
 import {
   assertAdditionsEligible,
   assertClassManagerAccess,
@@ -97,7 +100,9 @@ async function propagateToFutureSessions(
 ): Promise<{ updatedSessionCount: number; clearedSubstitutionCount: number }> {
   // Tope explícito: ninguna sesión se genera más allá de
   // max(hoy, inicio de la clase) + SESSION_HORIZON_TARGET_DAYS (creación de la
-  // clase y job de horizonte), así que no se bloquea nada por encima.
+  // clase y job de horizonte), así que no se bloquea nada por encima. El día
+  // de margen cubre las sedes al oeste de UTC: la sesión de la tarde del
+  // último día local cae ya en el día siguiente en UTC.
   const locked = await tx.execute(sql`
     select session.id::text as id
     from zaltyko.sessions session
@@ -109,7 +114,7 @@ async function propagateToFutureSessions(
       and session.status = 'scheduled'
       and session.starts_at > now()
       and session.starts_at <= greatest(now(), template.effective_from::timestamptz)
-        + make_interval(days => ${SESSION_HORIZON_TARGET_DAYS}::int)
+        + make_interval(days => ${PROPAGATION_HORIZON_DAYS}::int)
     order by session.id
     for update of session
   `);

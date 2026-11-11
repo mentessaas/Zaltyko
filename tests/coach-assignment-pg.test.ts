@@ -401,16 +401,19 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
 
   afterAll(async () => {
     if (!disposablePgEnabled) return;
-    await db.execute(sql`drop table if exists zaltyko.session_staff_overrides`);
-    await db.execute(sql`drop table if exists zaltyko.class_template_staff`);
-    // Deja la base compartida como estaba: el candidato retira este GRANT y
-    // pasa session_staff_profile_fk a CASCADE.
-    await db.execute(sql`grant select on table zaltyko.session_staff to authenticated`);
-    await db.execute(sql`alter table zaltyko.session_staff drop constraint session_staff_profile_fk`);
-    await db.execute(sql`
-      alter table zaltyko.session_staff add constraint session_staff_profile_fk
-        foreign key (organization_id, staff_profile_id) references zaltyko.staff_profiles (organization_id, id) on delete restrict
-    `);
+    // Deja la base compartida como estaba, en una sola transacción: si un paso
+    // falla, se deshace todo y el error se ve (no queda session_staff sin FK
+    // ni sin GRANT). El candidato retira el GRANT y pasa la FK a CASCADE.
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`drop table if exists zaltyko.session_staff_overrides`);
+      await tx.execute(sql`drop table if exists zaltyko.class_template_staff`);
+      await tx.execute(sql`grant select on table zaltyko.session_staff to authenticated`);
+      await tx.execute(sql`alter table zaltyko.session_staff drop constraint if exists session_staff_profile_fk`);
+      await tx.execute(sql`
+        alter table zaltyko.session_staff add constraint session_staff_profile_fk
+          foreign key (organization_id, staff_profile_id) references zaltyko.staff_profiles (organization_id, id) on delete restrict
+      `);
+    });
   });
 
   it("fuerza RLS, niega el acceso directo de anon/authenticated y rechaza reinstalar", async () => {
@@ -855,6 +858,7 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
     let mar: string;
     let sessionD: string;
     let enrollmentD: string;
+    let classD: string;
     const sd = () => ({ organizationId: d.organizationId, locationId: d.locationIds[0]! });
 
     beforeAll(async () => {
@@ -863,7 +867,7 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
       coachD = await member(d.organizationId, "coach", "selected", [d.locationIds[0]!], "lia");
       lia = await staffProfile(d.organizationId, "Lía", "Ferrer", coachD.memberId);
       mar = await staffProfile(d.organizationId, "Mar", "Iglesias", (await member(d.organizationId, "coach", "all", [], "mar")).memberId);
-      const classD = await classTemplate(d.organizationId, d.locationIds[0]!, "CI Pasar lista");
+      classD = await classTemplate(d.organizationId, d.locationIds[0]!, "CI Pasar lista");
       sessionD = await session(d.organizationId, d.locationIds[0]!, classD, inDays(5));
       const athleteId = randomUUID();
       await db.execute(sql`
@@ -961,6 +965,21 @@ describe.skipIf(!disposablePgEnabled)("titulares por clase y sustituciones en Po
       expect(recorded.rows).toEqual([{ status: "present" }]);
       expect(await sessionStaffIds(sessionD)).toEqual([mar]);
       expect(await hasMarker(sessionD)).toBe(true);
+    }, 60_000);
+
+    it("la propagación llega al último día del horizonte con un día de margen por zona horaria", async () => {
+      const at = (milliseconds: number) => new Date(Date.now() + milliseconds).toISOString();
+      const day = 86_400_000;
+      // Tarde del último día en una sede al oeste de UTC: ya es el día 121 en UTC.
+      const edge = await session(d.organizationId, d.locationIds[0]!, classD, at(120 * day + 20 * 3_600_000));
+      // Más allá del horizonte y del margen: nunca se genera, no se bloquea.
+      const beyond = await session(d.organizationId, d.locationIds[0]!, classD, at(123 * day));
+      const result = await setClass(ownerD, classD, [mar], [lia], sd());
+      expect(await sessionStaffIds(edge)).toEqual([mar]);
+      expect(await sessionStaffIds(beyond)).toEqual([]);
+      // sessionD estaba sustituida con Mar: coincide con las nuevas titulares y deja de estarlo.
+      expect(result).toMatchObject({ updatedSessionCount: 1, clearedSubstitutionCount: 1 });
+      expect(await hasMarker(sessionD)).toBe(false);
     }, 60_000);
   });
 });
