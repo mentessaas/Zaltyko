@@ -1369,6 +1369,69 @@ describe("OwnerMonthlyInvoicesManager", () => {
     });
   });
 
+  // knownPreCommitDomainRejection: a 4xx on the first attempt already clears the
+  // retry, so the list only matters when one of these codes arrives with a 5xx
+  // (for example MONTHLY_INVOICE_BLOCKED 500 from the charge-state check, whose
+  // transaction rolls back). These tests pin the list and that effect.
+  async function issueOnceWith(next: { data: unknown; status: number }) {
+    const user = userEvent.setup();
+    renderManager();
+    await user.selectOptions(await findPrimaryFamilySelect(), familyId);
+    await user.selectOptions(screen.getByLabelText("Quién paga"), payerId);
+    fireEvent.change(screen.getByLabelText("Fecha de vencimiento"), {
+      target: { value: "2026-10-31" },
+    });
+    nextMonthlyInvoiceIssueResponse = next;
+    await user.click(
+      screen.getByRole("button", { name: /Emitir cuota pendiente/ })
+    );
+    await waitFor(() => expect(monthlyInvoiceIssueRequests).toHaveLength(1));
+    // The command was stored as pending before the POST left.
+    expect(monthlyInvoiceIntentPresentAtPost).toEqual([true]);
+  }
+
+  it.each([
+    "QUOTE_STALE",
+    "MONTHLY_INVOICE_BLOCKED",
+    "PERIOD_ALREADY_INVOICED",
+    "INVOICE_VOIDED",
+    "ENROLLMENT_ALREADY_BILLED",
+    "FAMILY_PAYER_INVALID",
+    "INVOICE_REFERENCE_TAKEN",
+  ])(
+    "descarta el reintento guardado cuando la primera respuesta es %s con estado 500",
+    async (code) => {
+      const detail = `Rechazo sintético ${code}`;
+      await issueOnceWith({ data: { code, detail }, status: 500 });
+
+      expect((await screen.findAllByText(detail)).length).toBeGreaterThan(0);
+      await waitFor(() =>
+        expect(readPendingMonthlyInvoiceIssue(window.sessionStorage)).toEqual({
+          status: "none",
+        })
+      );
+      expect(monthlyInvoiceIssueRequests).toHaveLength(1);
+    }
+  );
+
+  it("conserva el reintento como incierto cuando un 500 no trae un código de rechazo conocido", async () => {
+    const detail = "Error interno sintético";
+    await issueOnceWith({
+      data: { code: "INTERNAL_ERROR", detail },
+      status: 500,
+    });
+
+    expect((await screen.findAllByText(detail)).length).toBeGreaterThan(0);
+    const stored = readPendingMonthlyInvoiceIssue(window.sessionStorage);
+    expect(stored.status).toBe("pending");
+    if (stored.status !== "pending") {
+      throw new Error("Un 500 sin código conocido borró la emisión pendiente.");
+    }
+    expect(stored.request.hasAmbiguousAttempt).toBe(true);
+    expect(stored.request.key).toBe(issueIdempotencyKey);
+    expect(monthlyInvoiceIssueRequests).toHaveLength(1);
+  });
+
   it("guarda antes de enviar y recupera el mismo comando tras perder la respuesta, sin replay automático", async () => {
     const user = userEvent.setup();
     failMonthlyInvoiceIssueOnce = true;
