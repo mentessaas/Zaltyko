@@ -126,6 +126,11 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
 - **Decisión:** `/owner` no tenía ningún texto en español para el rol `manager`. «Coordinador/a» es una propuesta de esta PR que Elvis debe confirmar.
 - **Dónde aparece:** navegación (Equipo), `OwnerStaffManager`, `TeamInvitationAcceptance`.
 
+### Invitación al equipo
+- **Elegido:** «invitación al equipo», el enlace de un solo uso con el que la dirección da acceso a una persona del equipo con un rol (Entrenador/a o Coordinador/a) y unas sedes. Se «crea», se «reemite» (enlace nuevo, el anterior deja de valer), se «revoca» y la persona la «acepta». Estados visibles: «Pendiente», «Caducada», «Aceptada», «Revocada». La «ficha del equipo» es el registro de Equipo (`staff_profiles`) que queda vinculado a su cuenta.
+- **Prohibido:** «invitación de staff», «acceso de coach», «alta de usuario», y decir que se ha enviado un correo: hoy el enlace se copia y se comparte a mano.
+- **Dónde aparece:** `OwnerTeamAccessPanel` (`/owner/staff`), `/staff/accept` y `docs/producto/invitaciones-equipo.md` (O3).
+
 ### Datos de ejemplo
 - **Regla:** todo dato ilustrativo de la web se rotula como ejemplo antes del dato, no solo en un pie: «Ejemplo», «Datos de ejemplo» o «Sesión ilustrativa con datos ficticios».
 - **Dónde aparece:** ficha del primer viewport (`MatHero`) y pizarra «Hoy en el club» (`HomeSections`).

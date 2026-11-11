@@ -29,6 +29,8 @@ type NavigationItem = {
   active: boolean;
   desktopOverflow?: boolean;
   capability?: keyof OwnerWorkspaceCapabilities;
+  /** Also shown when this other capability is granted. */
+  alternativeCapability?: keyof OwnerWorkspaceCapabilities;
   /** Destinations a coach may open: only taking attendance (P1 #8). */
   coachAllowed?: boolean;
 };
@@ -142,6 +144,7 @@ export function OwnerWorkspaceNavigation({
           active: isRouteActive(pathname, "/owner/staff"),
           desktopOverflow: true,
           capability: "canManageStaffProfiles" as const,
+          alternativeCapability: "canManageTeamAccess" as const,
         }]
       : []),
     {
@@ -190,7 +193,9 @@ export function OwnerWorkspaceNavigation({
       ? item.coachAllowed === true
       : previewMode ||
         !item.capability ||
-        capabilities?.[item.capability] === true
+        capabilities?.[item.capability] === true ||
+        (item.alternativeCapability !== undefined &&
+          capabilities?.[item.alternativeCapability] === true)
   );
   const desktopPrimaryItems = visibleNavigationItems.filter((item) => !item.desktopOverflow);
   const desktopMoreItems = visibleNavigationItems.filter((item) => item.desktopOverflow);

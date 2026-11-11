@@ -13,6 +13,7 @@ const previewCapabilities = {
   canManageFinancials: true,
   canManageSubscription: true,
   canManageStaffProfiles: true,
+  canManageTeamAccess: false,
   coachOperationsOnly: false,
 } as const;
 
@@ -32,7 +33,10 @@ export function OwnerWorkspacePageShell({
   const capabilities = previewMode
     ? previewCapabilities
     : member
-      ? ownerWorkspaceCapabilitiesFor(member)
+      ? ownerWorkspaceCapabilitiesFor(member, {
+          // Server component: the flag never reaches the client bundle.
+          teamAccessEnabled: process.env.ZALTYKO_TEAM_ACCESS_ENABLED === "true",
+        })
       : undefined;
 
   return (

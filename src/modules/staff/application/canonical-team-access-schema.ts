@@ -106,14 +106,21 @@ const foreign = (columns: string[], foreignTable: string, foreignColumns: string
 const index = (columns: string[], unique: boolean, primary = false, predicate: string | null = null): Index => ({ columns, unique, primary, predicate, valid: true, ready: true, immediate: true, live: true, nullsNotDistinct: false, method: "btree", expression: null, keyCount: columns.length, columnCount: columns.length, options: columns.map(() => 0), operatorClasses: columns.map(column => `pg_catalog.${["normalized_email", "idempotency_key", "token_sha256"].includes(column) ? "text_ops" : "uuid_ops"}`) });
 const enumSet = (column: string, values: string[], type = "text") => `${column} = ANY (ARRAY[${values.map(value => `'${value}'::${type}`).join(",")}])`;
 
-/** Exact reviewed phase-one candidate; any structural addition needs review. */
+/**
+ * Exact reviewed candidate (phase one plus the O3 team-profile link); any
+ * structural addition needs review.
+ */
 const manifest = [
   {
     name: invitation,
-    columns: [id(), uuid("organization_id"), col("normalized_email", "text"), col("role", "member_role"), col("status", "text", true, "'pending'::text"), uuid("invited_by_member_id"), col("token_sha256", "text"), timestamp("expires_at"), col("revision", "int4", true, "1"), uuid("accepted_by_user_id", false), uuid("accepted_member_id", false), timestamp("accepted_at", false), uuid("revoked_by_member_id", false), timestamp("revoked_at", false), timestamp("created_at", true, true), timestamp("updated_at", true, true)],
+    columns: [id(), uuid("organization_id"), col("normalized_email", "text"), col("role", "member_role"), col("status", "text", true, "'pending'::text"), uuid("invited_by_member_id"), col("token_sha256", "text"), timestamp("expires_at"), col("revision", "int4", true, "1"), uuid("staff_profile_id", false), col("invitee_given_name", "text", false), col("invitee_family_name", "text", false), uuid("accepted_by_user_id", false), uuid("accepted_member_id", false), timestamp("accepted_at", false), uuid("revoked_by_member_id", false), timestamp("revoked_at", false), timestamp("created_at", true, true), timestamp("updated_at", true, true)],
     constraints: [key("p", ["id"]), key("u", ["token_sha256"]), key("u", ["organization_id", "id"]),
       foreign(["organization_id"], "organizations", ["id"], "c"), foreign(["accepted_by_user_id"], "users", ["id"], "a", "auth"),
       foreign(["organization_id", "invited_by_member_id"], "organization_members", ["organization_id", "id"]), foreign(["organization_id", "accepted_member_id"], "organization_members", ["organization_id", "id"]), foreign(["organization_id", "revoked_by_member_id"], "organization_members", ["organization_id", "id"]),
+      foreign(["organization_id", "staff_profile_id"], "staff_profiles", ["organization_id", "id"]),
+      check("(staff_profile_id IS NOT NULL AND invitee_given_name IS NULL AND invitee_family_name IS NULL) OR (staff_profile_id IS NULL AND invitee_given_name IS NOT NULL AND invitee_family_name IS NOT NULL)"),
+      check("invitee_given_name IS NULL OR (length(btrim(invitee_given_name)) >= 1 AND length(btrim(invitee_given_name)) <= 100)"),
+      check("invitee_family_name IS NULL OR (length(btrim(invitee_family_name)) >= 1 AND length(btrim(invitee_family_name)) <= 100)"),
       check("normalized_email = lower(btrim(normalized_email)) AND length(normalized_email) >= 3 AND length(normalized_email) <= 254 AND strpos(normalized_email,'@'::text) > 1"),
       check(enumSet("role", ["manager", "coach"], "zaltyko.member_role")), check(enumSet("status", ["pending", "accepted", "revoked"])), check("token_sha256 ~ '^[0-9a-f]{64}$'::text"), check("revision > 0"),
       check("(status='pending' AND accepted_by_user_id IS NULL AND accepted_member_id IS NULL AND accepted_at IS NULL AND revoked_by_member_id IS NULL AND revoked_at IS NULL) OR (status='accepted' AND accepted_by_user_id IS NOT NULL AND accepted_member_id IS NOT NULL AND accepted_at IS NOT NULL AND revoked_by_member_id IS NULL AND revoked_at IS NULL) OR (status='revoked' AND accepted_by_user_id IS NULL AND accepted_member_id IS NULL AND accepted_at IS NULL AND revoked_by_member_id IS NOT NULL AND revoked_at IS NOT NULL)")],

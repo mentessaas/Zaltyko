@@ -2,7 +2,7 @@ import type { NextResponse } from "next/server";
 import { apiError } from "@/lib/api-response";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getLimitForRoute, rateLimit, rateLimitExceededResponse } from "@/lib/rate-limit";
-import { requireOwnerAllScope } from "@/app/api/v1/owner/staff/route-helpers";
+import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { assertTeamAccessEnabled } from "@/modules/staff/application/canonical-team-access";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import type { OperationalActor } from "@/modules/shared/application/actor";
@@ -39,9 +39,17 @@ export async function withTeamUser(request: Request, work: (userId: string) => P
   } catch (error) { return teamRouteError(error); }
 }
 
-export async function withTeamOwner(request: Request, organizationId: string, work: (actor: OperationalActor) => Promise<NextResponse>): Promise<NextResponse> {
+/**
+ * Invitation managers (O3): owner or admin with every site, or a manager. The
+ * service narrows a manager to coaches in their own sites and repeats this
+ * authorization inside each transaction after the command lock.
+ */
+export async function withTeamManager(request: Request, organizationId: string, work: (actor: OperationalActor) => Promise<NextResponse>): Promise<NextResponse> {
   return withTeamUser(request, async userId => {
-    const scope = await requireOwnerAllScope(userId, organizationId);
+    const scope = await resolveOwnerScope({ userId, organizationId });
+    const role = scope.member.role;
+    const allowed = ((role === "owner" || role === "admin") && scope.member.locationScopeMode === "all") || role === "manager";
+    if (!allowed) throw new OperationalError("FORBIDDEN", "Solo la dirección, la administración o la coordinación pueden gestionar las invitaciones del equipo.", 403);
     return work({ userId, memberId: scope.member.id });
   });
 }

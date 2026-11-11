@@ -72,6 +72,8 @@ describe("TeamInvitationAcceptance", () => {
     render(<TeamInvitationAcceptance />);
     const login = await screen.findByRole("link", { name: "Iniciar sesión" });
     expect(login).toHaveAttribute("href", "/auth/login");
+    // O3: sin cuenta, se registra con el correo invitado y vuelve al enlace.
+    expect(screen.getByRole("link", { name: "Crear una cuenta con ese correo" })).toHaveAttribute("href", "/auth/register");
     expect(screen.getByText(/Después de iniciar sesión, vuelve a abrir el enlace original/u)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Aceptar invitación" })).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -107,7 +109,8 @@ describe("TeamInvitationAcceptance", () => {
     expect(accepts[1]).toEqual(accepts[0]);
     expect(JSON.parse(String(accepts[0].body))).toEqual({ token: TOKEN });
     expect(accepts[0].headers).toMatchObject({ "Idempotency-Key": "82000000-0000-4000-8000-000000000099" });
-    expect(screen.getByText(/aceptar no habilita por sí solo el pase de lista/u)).toBeInTheDocument();
+    expect(screen.getByText(/con tu ficha del equipo vinculada/u)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ir a mi panel" })).toHaveAttribute("href", "/owner");
     expect(screen.queryByRole("button", { name: /Aceptar invitación/u })).toBeNull();
   });
 

@@ -86,6 +86,7 @@ describe("capacidad coachOperationsOnly", () => {
       canManageFinancials: false,
       canManageSubscription: false,
       canManageStaffProfiles: false,
+      canManageTeamAccess: false,
       coachOperationsOnly: true,
     });
   });

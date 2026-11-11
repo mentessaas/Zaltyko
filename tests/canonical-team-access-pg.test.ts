@@ -57,8 +57,47 @@ async function fixture() {
 }
 
 type Fixture = Awaited<ReturnType<typeof fixture>>;
-async function invite(f: Fixture, who: Awaited<ReturnType<typeof identity>>, overrides: Partial<{ role: "manager" | "coach"; locationIds: string[]; idempotencyKey: string }> = {}) {
-  return createCanonicalTeamInvitation({ ...f, email: who.email, role: "coach", locationIds: [f.locationA, f.locationB], idempotencyKey: key(), ...overrides });
+type InviteOverrides = Partial<{ role: "manager" | "coach"; locationIds: string[]; idempotencyKey: string;
+  staffProfileId: string | null; givenName: string | null; familyName: string | null }>;
+async function invite(f: Fixture, who: Awaited<ReturnType<typeof identity>>, overrides: InviteOverrides = {}) {
+  const target = overrides.staffProfileId ? { staffProfileId: overrides.staffProfileId, givenName: null, familyName: null } : { givenName: "Persona", familyName: "Sintética" };
+  return createCanonicalTeamInvitation({ ...f, email: who.email, role: "coach", locationIds: [f.locationA, f.locationB], idempotencyKey: key(), ...target, ...overrides });
+}
+
+const GENERIC_INVALID = /no es válido para tu cuenta/u;
+
+/** Existing team profile without an account (as created from Personal). */
+async function staffProfile(organizationId: string, givenName = "Bea", familyName = "Ficha") {
+  const personId = randomUUID(); const profileId = randomUUID();
+  await db.execute(sql`insert into zaltyko.people(id,organization_id,given_name,family_name) values (${personId}::uuid,${organizationId}::uuid,${givenName},${familyName})`);
+  await db.execute(sql`insert into zaltyko.staff_profiles(id,organization_id,person_id,is_active) values (${profileId}::uuid,${organizationId}::uuid,${personId}::uuid,true)`);
+  return profileId;
+}
+
+async function memberOf(f: Fixture, role: "owner" | "admin" | "manager" | "coach", mode: "all" | "selected", locationIds: string[] = []) {
+  const user = await identity(); const memberId = randomUUID();
+  await db.execute(sql`insert into zaltyko.organization_members(id,organization_id,user_id,role,status,location_scope_mode)
+    values (${memberId}::uuid,${f.organizationId}::uuid,${user.userId}::uuid,${role},'active',${mode})`);
+  for (const locationId of locationIds) await db.execute(sql`insert into zaltyko.member_location_scopes(organization_id,member_id,location_id)
+    values (${f.organizationId}::uuid,${memberId}::uuid,${locationId}::uuid)`);
+  return { ...f, actor: { userId: user.userId, memberId } };
+}
+
+async function linkedProfile(organizationId: string, memberId: string) {
+  const result = await db.execute(sql`select s.id::text as id,p.given_name,p.family_name,s.is_active from zaltyko.staff_profiles s
+    join zaltyko.people p on p.organization_id=s.organization_id and p.id=s.person_id
+    where s.organization_id=${organizationId}::uuid and s.member_id=${memberId}::uuid`);
+  return result.rows as Array<{ id: string; given_name: string; family_name: string; is_active: boolean }>;
+}
+
+async function waitForLockWaiters(count: number) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const result = await db.execute(sql`select count(*)::int as waiting from pg_stat_activity
+      where datname=current_database() and wait_event_type='Lock' and pid<>pg_backend_pid()`);
+    if (Number((result.rows[0] as { waiting: number }).waiting) >= count) return;
+    await new Promise(resolveWait => setTimeout(resolveWait, 25));
+  }
+  throw new Error("Concurrent acceptances did not reach the invitation row lock");
 }
 
 async function snapshot(organizationId: string) {
@@ -191,8 +230,9 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
     const before = await snapshot(f.organizationId);
     expect((await listCanonicalTeamAccess(f)).invitations[0]).toMatchObject({ status: "pending", expired: true, revision: 1 });
     await expect(invite(f, who)).rejects.toMatchObject({ status: 409 });
-    await expect(inspectCanonicalTeamInvitation({ userId: who.userId, token: pending.token! })).rejects.toMatchObject({ status: 410 });
-    await expect(acceptCanonicalTeamInvitation({ userId: who.userId, token: pending.token!, idempotencyKey: key() })).rejects.toMatchObject({ status: 410 });
+    // O3: an expired link answers exactly like an unknown or used one.
+    await expect(inspectCanonicalTeamInvitation({ userId: who.userId, token: pending.token! })).rejects.toMatchObject({ status: 404, message: expect.stringMatching(GENERIC_INVALID) });
+    await expect(acceptCanonicalTeamInvitation({ userId: who.userId, token: pending.token!, idempotencyKey: key() })).rejects.toMatchObject({ status: 404, message: expect.stringMatching(GENERIC_INVALID) });
     expect(await snapshot(f.organizationId)).toEqual(before);
     const idempotencyKey = key();
     const result = await revokeCanonicalTeamInvitation({ ...f, invitationId: pending.invitation.id, revision: 1, idempotencyKey });
@@ -208,7 +248,7 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
     expect(inspection).toEqual({ organization: { id: f.organizationId, name: "Club sintético de equipo" }, role: "coach", locations: created.invitation.requestedLocations });
     expect(JSON.stringify(inspection)).not.toContain(who.email); expect(JSON.stringify(inspection)).not.toContain(who.userId);
     for (const attempt of [{ userId: other.userId, token: created.token! }, { userId: unconfirmed.userId, token: waiting.token! }, { userId: who.userId, token: "a".repeat(43) }]) {
-      await expect(inspectCanonicalTeamInvitation(attempt)).rejects.toMatchObject({ status: 404, message: "La invitación no está disponible para esta identidad." });
+      await expect(inspectCanonicalTeamInvitation(attempt)).rejects.toMatchObject({ status: 404, message: expect.stringMatching(GENERIC_INVALID) });
     }
     expect(await snapshot(f.organizationId)).toEqual(before);
   });
@@ -308,13 +348,10 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
     expect(await snapshot(f.organizationId)).toEqual(inviterChanged);
   });
 
-  it("denies managers/admins/coaches/Owner-selected and cross-org resource use", async () => {
+  it("denies coaches and selected-scope owners/admins, and cross-org resource use", async () => {
     const f = await fixture(); const who = await identity(); const created = await invite(f, who);
-    for (const role of ["manager", "admin", "coach", "owner"] as const) {
-      const identityUser = await identity(); const memberId = randomUUID();
-      await db.execute(sql`insert into zaltyko.organization_members(id,organization_id,user_id,role,status,location_scope_mode)
-        values (${memberId}::uuid,${f.organizationId}::uuid,${identityUser.userId}::uuid,${role},'active',${role === "owner" ? "selected" : "all"})`);
-      const actor = { userId: identityUser.userId, memberId };
+    for (const [role, mode] of [["coach", "all"], ["coach", "selected"], ["owner", "selected"], ["admin", "selected"]] as const) {
+      const { actor } = await memberOf(f, role, mode, mode === "selected" ? [f.locationA, f.locationB] : []);
       const before = await snapshot(f.organizationId);
       await expect(listCanonicalTeamAccess({ ...f, actor })).rejects.toMatchObject({ status: 403 });
       await expect(invite({ ...f, actor }, await identity())).rejects.toMatchObject({ status: 403 });
@@ -351,5 +388,144 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
       expect(archive.coverage.excludedTables).toContainEqual(expect.objectContaining({ table, rowCount: table === "organization_member_invitation_scopes" ? 2 : 1, valuesExported: false }));
     }
     expect(await snapshot(f.organizationId)).toEqual(before);
+  });
+
+  // ---------------------------------------------------------------------------
+  // O3: team profile link, inviter authority, plan read-only, deterministic race
+  // ---------------------------------------------------------------------------
+
+  it("acceptance creates the named team profile and links staff_profiles.member_id", async () => {
+    const f = await fixture(); const who = await identity();
+    const created = await invite(f, who, { givenName: "Lúa", familyName: "Pérez" });
+    expect(created.invitation.person).toEqual({ kind: "new", staffProfileId: null, name: "Lúa Pérez" });
+    expect(created.delivery).toBe("manual_link");
+    const accepted = await acceptCanonicalTeamInvitation({ userId: who.userId, token: created.token!, idempotencyKey: key() });
+    const profiles = await linkedProfile(f.organizationId, accepted.membership.id);
+    expect(profiles).toEqual([{ id: accepted.membership.staffProfileId, given_name: "Lúa", family_name: "Pérez", is_active: true }]);
+    const list = await listCanonicalTeamAccess(f);
+    expect(list.members.find(member => member.id === accepted.membership.id)?.staffProfile).toEqual({ id: accepted.membership.staffProfileId, name: "Lúa Pérez" });
+    const audit = await db.execute(sql`select metadata from zaltyko.audit_log where organization_id=${f.organizationId}::uuid and action='team.invitation_accept'`);
+    expect(audit.rows[0]).toMatchObject({ metadata: { staffProfileId: accepted.membership.staffProfileId } });
+  });
+
+  it("acceptance links an existing team profile once; it cannot be targeted twice nor linked if it changed", async () => {
+    const f = await fixture(); const profileId = await staffProfile(f.organizationId, "Bea", "Martín");
+    expect((await listCanonicalTeamAccess(f)).linkableStaffProfiles).toContainEqual({ id: profileId, name: "Bea Martín" });
+    const who = await identity();
+    const created = await invite(f, who, { staffProfileId: profileId });
+    expect(created.invitation.person).toEqual({ kind: "existing", staffProfileId: profileId, name: "Bea Martín" });
+    // While pending, the profile is no longer offered nor can be targeted again.
+    expect((await listCanonicalTeamAccess(f)).linkableStaffProfiles.map(item => item.id)).not.toContain(profileId);
+    await expect(invite(f, await identity(), { staffProfileId: profileId })).rejects.toMatchObject({ status: 409 });
+    const accepted = await acceptCanonicalTeamInvitation({ userId: who.userId, token: created.token!, idempotencyKey: key() });
+    expect(accepted.membership.staffProfileId).toBe(profileId);
+    expect((await linkedProfile(f.organizationId, accepted.membership.id)).map(row => row.id)).toEqual([profileId]);
+    await expect(invite(f, await identity(), { staffProfileId: profileId })).rejects.toMatchObject({ status: 409 });
+
+    // Archived or meanwhile-linked profiles: invitation refused / acceptance rolled back.
+    const archived = await staffProfile(f.organizationId, "Archivada", "Ficha");
+    await db.execute(sql`update zaltyko.staff_profiles set is_active=false where id=${archived}::uuid`);
+    await expect(invite(f, await identity(), { staffProfileId: archived })).rejects.toMatchObject({ status: 409 });
+    const raced = await staffProfile(f.organizationId, "Cambiada", "Ficha"); const late = await identity();
+    const pending = await invite(f, late, { staffProfileId: raced });
+    await db.execute(sql`update zaltyko.staff_profiles set member_id=${f.actor.memberId}::uuid where id=${raced}::uuid`);
+    const before = await snapshot(f.organizationId);
+    await expect(acceptCanonicalTeamInvitation({ userId: late.userId, token: pending.token!, idempotencyKey: key() })).rejects.toMatchObject({ status: 409 });
+    expect(await snapshot(f.organizationId)).toEqual(before);
+    // A profile of another academy cannot be named.
+    const foreign = await fixture(); const foreignProfile = await staffProfile(foreign.organizationId);
+    await expect(invite(f, await identity(), { staffProfileId: foreignProfile })).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("owner and admin with every site invite managers; a manager invites only coaches in their own sites", async () => {
+    const f = await fixture();
+    const admin = await memberOf(f, "admin", "all");
+    expect((await invite(admin, await identity(), { role: "manager" })).invitation.role).toBe("manager");
+    const manager = await memberOf(f, "manager", "selected", [f.locationA]);
+    const ownerInvitation = await invite(f, await identity(), { locationIds: [f.locationA, f.locationB] });
+    const before = await snapshot(f.organizationId);
+    await expect(invite(manager, await identity(), { role: "manager", locationIds: [f.locationA] })).rejects.toMatchObject({ status: 403 });
+    await expect(invite(manager, await identity(), { locationIds: [f.locationA, f.locationB] })).rejects.toMatchObject({ status: 403 });
+    await expect(revokeCanonicalTeamInvitation({ ...manager, invitationId: ownerInvitation.invitation.id, revision: 1, idempotencyKey: key() })).rejects.toMatchObject({ status: 403 });
+    expect(await snapshot(f.organizationId)).toEqual(before);
+    const coachUser = await identity();
+    const own = await invite(manager, coachUser, { locationIds: [f.locationA] });
+    const view = await listCanonicalTeamAccess(manager);
+    expect(view.viewer).toEqual({ role: "manager", invitableRoles: ["coach"] });
+    expect(view.activeLocations.map(location => location.id)).toEqual([f.locationA]);
+    expect(view.invitations.map(item => item.id)).toEqual([own.invitation.id]);
+    expect(view.members.every(member => member.role === "coach")).toBe(true);
+    // If the manager loses the site before acceptance, the link stops working.
+    await db.execute(sql`delete from zaltyko.member_location_scopes where member_id=${manager.actor.memberId}::uuid`);
+    await expect(acceptCanonicalTeamInvitation({ userId: coachUser.userId, token: own.token!, idempotencyKey: key() })).rejects.toMatchObject({ status: 404, message: expect.stringMatching(GENERIC_INVALID) });
+  });
+
+  it("isolates academies: another academy's owner sees and manages nothing of this one", async () => {
+    const f = await fixture(); const foreign = await fixture(); const who = await identity();
+    const created = await invite(f, who);
+    const foreignView = await listCanonicalTeamAccess(foreign);
+    expect(foreignView.invitations).toEqual([]);
+    expect(JSON.stringify(foreignView)).not.toContain(who.email);
+    await expect(listCanonicalTeamAccess({ ...f, actor: foreign.actor })).rejects.toMatchObject({ status: 403 });
+    await expect(reissueCanonicalTeamInvitation({ ...foreign, invitationId: created.invitation.id, revision: 1, idempotencyKey: key() })).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("rejects another account, even with the right link, and leaves the invitation pending", async () => {
+    const f = await fixture(); const who = await identity(); const intruder = await identity();
+    const created = await invite(f, who);
+    const before = await snapshot(f.organizationId);
+    await expect(acceptCanonicalTeamInvitation({ userId: intruder.userId, token: created.token!, idempotencyKey: key() })).rejects.toMatchObject({ status: 404, message: expect.stringMatching(GENERIC_INVALID) });
+    expect(await snapshot(f.organizationId)).toEqual(before);
+    expect((await acceptCanonicalTeamInvitation({ userId: who.userId, token: created.token!, idempotencyKey: key() })).membership.status).toBe("active");
+  });
+
+  it("in plan read-only mode blocks invite, reissue and acceptance but still allows revoking", async () => {
+    const f = await fixture(); const who = await identity(); const created = await invite(f, who);
+    await db.execute(sql`
+      with new_people as (
+        insert into zaltyko.people (organization_id, given_name, family_name)
+        select ${f.organizationId}::uuid, 'Capacidad sintética', series.n::text from generate_series(1, 31) as series(n)
+        returning id
+      )
+      insert into zaltyko.athletes (organization_id, person_id) select ${f.organizationId}::uuid, new_people.id from new_people`);
+    const before = await snapshot(f.organizationId);
+    await expect(invite(f, await identity())).rejects.toMatchObject({ status: 409, code: "PLAN_OVER_CAPACITY" });
+    await expect(reissueCanonicalTeamInvitation({ ...f, invitationId: created.invitation.id, revision: 1, idempotencyKey: key() })).rejects.toMatchObject({ status: 409, code: "PLAN_OVER_CAPACITY" });
+    const refused = await acceptCanonicalTeamInvitation({ userId: who.userId, token: created.token!, idempotencyKey: key() }).catch(error => error);
+    expect(refused).toMatchObject({ status: 409 });
+    expect(String(refused.message)).not.toMatch(/plan|límite/iu);
+    expect(await snapshot(f.organizationId)).toEqual(before);
+    expect(await revokeCanonicalTeamInvitation({ ...f, invitationId: created.invitation.id, revision: 1, idempotencyKey: key() })).toMatchObject({ status: "revoked" });
+  });
+
+  it("deterministic double acceptance: two requests queued on the invitation row lock yield one member, one profile and one receipt", async () => {
+    const f = await fixture(); const who = await identity(); const created = await invite(f, who);
+    let locked!: () => void; let release!: () => void;
+    const lockedSignal = new Promise<void>(resolveLocked => { locked = resolveLocked; });
+    const gate = new Promise<void>(resolveGate => { release = resolveGate; });
+    const holder = db.transaction(async tx => {
+      await tx.execute(sql`select id from zaltyko.organization_member_invitations where id=${created.invitation.id}::uuid for update`);
+      locked();
+      await gate;
+    });
+    await lockedSignal;
+    const first = acceptCanonicalTeamInvitation({ userId: who.userId, token: created.token!, idempotencyKey: key() });
+    const second = acceptCanonicalTeamInvitation({ userId: who.userId, token: created.token!, idempotencyKey: key() });
+    // Both acceptances are now waiting on the same invitation row before release.
+    await waitForLockWaiters(2);
+    release();
+    await holder;
+    const outcomes = await Promise.allSettled([first, second]);
+    const fulfilled = outcomes.filter(outcome => outcome.status === "fulfilled");
+    const rejected = outcomes.filter((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].reason).toMatchObject({ status: 404, message: expect.stringMatching(GENERIC_INVALID) });
+    const counts = await db.execute(sql`select
+      (select count(*)::int from zaltyko.organization_members where organization_id=${f.organizationId}::uuid and user_id=${who.userId}::uuid) as members,
+      (select count(*)::int from zaltyko.staff_profiles s join zaltyko.organization_members m on m.organization_id=s.organization_id and m.id=s.member_id
+        where m.organization_id=${f.organizationId}::uuid and m.user_id=${who.userId}::uuid) as profiles,
+      (select count(*)::int from zaltyko.organization_team_command_receipts where organization_id=${f.organizationId}::uuid and operation='accept') as receipts`);
+    expect(counts.rows[0]).toEqual({ members: 1, profiles: 1, receipts: 1 });
   });
 });

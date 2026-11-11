@@ -1,5 +1,9 @@
 -- CANDIDATE ONLY. Not applied or approved for hosted databases.
--- Additive phase 1: invitation lifecycle only; no legacy tables or profile links.
+-- Requiere autorización de Elvis antes de cualquier aplicación (sandbox o producción).
+-- Additive: invitation lifecycle plus the team profile the invitation is for
+-- (O3, 2026-11-11): an existing zaltyko.staff_profiles row, or the name of a new
+-- one. Acceptance links staff_profiles.member_id in the same transaction. No
+-- legacy tables; no change to existing relations.
 -- Inspect provenance, backup, grants and all constraints before any promotion.
 -- Reapplication deliberately aborts before touching any existing object. A
 -- partial/divergent installation requires human reconciliation, never repair.
@@ -22,6 +26,9 @@ create table zaltyko.organization_member_invitations (
   token_sha256 text not null unique check (token_sha256 ~ '^[0-9a-f]{64}$'),
   expires_at timestamptz not null,
   revision integer not null default 1 check (revision > 0),
+  staff_profile_id uuid,
+  invitee_given_name text,
+  invitee_family_name text,
   accepted_by_user_id uuid references auth.users(id),
   accepted_member_id uuid,
   accepted_at timestamptz,
@@ -33,6 +40,12 @@ create table zaltyko.organization_member_invitations (
   foreign key (organization_id, invited_by_member_id) references zaltyko.organization_members(organization_id,id),
   foreign key (organization_id, accepted_member_id) references zaltyko.organization_members(organization_id,id),
   foreign key (organization_id, revoked_by_member_id) references zaltyko.organization_members(organization_id,id),
+  foreign key (organization_id, staff_profile_id) references zaltyko.staff_profiles(organization_id,id),
+  -- Exactly one target: an existing team profile, or both names for a new one.
+  check ((staff_profile_id is not null and invitee_given_name is null and invitee_family_name is null)
+    or (staff_profile_id is null and invitee_given_name is not null and invitee_family_name is not null)),
+  check (invitee_given_name is null or (length(btrim(invitee_given_name)) >= 1 and length(btrim(invitee_given_name)) <= 100)),
+  check (invitee_family_name is null or (length(btrim(invitee_family_name)) >= 1 and length(btrim(invitee_family_name)) <= 100)),
   check (
     (status = 'pending' and accepted_by_user_id is null and accepted_member_id is null and accepted_at is null and revoked_by_member_id is null and revoked_at is null)
     or (status = 'accepted' and accepted_by_user_id is not null and accepted_member_id is not null and accepted_at is not null and revoked_by_member_id is null and revoked_at is null)

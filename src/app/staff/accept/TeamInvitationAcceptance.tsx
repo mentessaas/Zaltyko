@@ -144,7 +144,10 @@ export function TeamInvitationAcceptance() {
       {phase === "login" ? <section className="mt-6 border border-slate-300 p-5" aria-labelledby="invitation-login-title">
         <h2 id="invitation-login-title" className="text-lg font-bold">Inicia sesión para revisarla</h2>
         <p className="mt-2 text-sm leading-6">Usa la cuenta con el correo al que te invitaron y confirma ese correo. Después de iniciar sesión, vuelve a abrir el enlace original. La invitación no se acepta automáticamente.</p>
-        <Link href="/auth/login" prefetch={false} className={`${BUTTON} mt-4`}>Iniciar sesión</Link>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Link href="/auth/login" prefetch={false} className={BUTTON}>Iniciar sesión</Link>
+          <Link href="/auth/register" prefetch={false} className={BUTTON}>Crear una cuenta con ese correo</Link>
+        </div>
       </section> : null}
       {error ? <p role="alert" className="mt-6 border border-amber-700 bg-amber-50 p-4 text-sm leading-6">{error}</p> : null}
       {phase === "invalid" ? <button type="button" className={`${BUTTON} mt-4`} onClick={() => setInspectionAttempt(current => current + 1)}>Volver a comprobar invitación</button> : null}
@@ -155,12 +158,13 @@ export function TeamInvitationAcceptance() {
           <div><dt className="font-semibold">Rol</dt><dd className="mt-1">{inspected.role === "coach" ? "Entrenador/a" : "Coordinador/a"}</dd></div>
           <div><dt className="font-semibold">Sedes</dt><dd className="mt-1"><ul className="list-inside list-disc">{inspected.locations.map(location => <li key={location.id}>{location.name}</li>)}</ul></dd></div>
         </dl>
-        <p className="mt-4 text-sm leading-6 text-slate-700">Al aceptar se crea tu membresía para estas sedes. Un entrenador o entrenadora necesita además un perfil vinculado y sesiones asignadas antes de poder pasar lista; esta pantalla no realiza esos pasos.</p>
+        <p className="mt-4 text-sm leading-6 text-slate-700">Al aceptar se crea tu acceso a estas sedes y tu cuenta queda vinculada a tu ficha del equipo de la academia. El enlace solo sirve una vez.</p>
         <button type="button" className={`${BUTTON} mt-5 w-full sm:w-auto`} disabled={busy} onClick={() => void accept()}>{busy ? "Confirmando…" : phase === "uncertain" ? "Reintentar la misma aceptación" : "Aceptar invitación"}</button>
       </section> : null}
       {phase === "accepted" ? <section role="status" className="mt-6 border border-teal-800 bg-teal-50 p-5">
         <h2 className="text-xl font-bold">Invitación aceptada</h2>
-        <p className="mt-2 text-sm leading-6">Se ha confirmado tu membresía en {inspected?.organization.name} para las sedes revisadas. El vínculo del perfil y la asignación de sesiones son pasos posteriores de la dirección de la academia; aceptar no habilita por sí solo el pase de lista.</p>
+        <p className="mt-2 text-sm leading-6">Ya formas parte del equipo de {inspected?.organization.name} en las sedes revisadas, con tu ficha del equipo vinculada. Las clases que te asigne la dirección aparecerán en tu panel.</p>
+        <Link href="/owner" prefetch={false} className={`${BUTTON} mt-4`}>Ir a mi panel</Link>
       </section> : null}
     </main>
   );
