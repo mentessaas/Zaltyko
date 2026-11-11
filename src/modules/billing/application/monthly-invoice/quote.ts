@@ -8,6 +8,7 @@ import type { TransactionClient } from "@/lib/db-transactions";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 
 import {
+  addLineLessSiteInvoices,
   finalizeFamilyQuotes,
   indexExistingInvoices,
   indexInvoiceStatesByFamily,
@@ -154,17 +155,27 @@ export async function buildMonthlyInvoiceOptions(
     }),
   ]);
   // A pre-site reference held by an invoice of this site that the lines read
-  // did not return: that invoice has no monthly_fee lines for the month, so
-  // neither the replay nor PERIOD_ALREADY_INVOICED would see it, yet its
-  // reference names this family and month. Blocked for the same reason.
+  // did not return: it has no monthly_fee lines for the month, yet its
+  // reference names this family and month. It is reported like the family's
+  // invoice for the site (PERIOD_ALREADY_INVOICED or INVOICE_VOIDED, with its id).
   const siteId = input.locationId.toLowerCase();
-  const lineLessAtSiteByFamily = indexInvoiceStatesByFamily(
+  addLineLessSiteInvoices(
+    existingByFamily,
+    existingInvoiceIds,
     referenceOwners.flatMap((row) => {
       const familyId = familyByLegacyReference.get(row.reference);
       return familyId !== undefined &&
         row.locationId?.toLowerCase() === siteId &&
         !existingInvoiceIds.has(row.invoiceId)
-        ? [{ familyId, status: row.status, voidedAt: row.voidedAt }]
+        ? [
+            {
+              familyId,
+              invoiceId: row.invoiceId,
+              locationId: row.locationId,
+              status: row.status,
+              voidedAt: row.voidedAt,
+            },
+          ]
         : [];
     })
   );
@@ -175,7 +186,6 @@ export async function buildMonthlyInvoiceOptions(
     servicePeriod: input.servicePeriod,
     existingByFamily,
     siteLessByFamily,
-    lineLessAtSiteByFamily,
     referenceByFamily,
     takenReferences,
   });

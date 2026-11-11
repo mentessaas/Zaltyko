@@ -177,6 +177,37 @@ export function indexExistingInvoices(
 }
 
 /**
+ * Adds to `existingByFamily` the pre-site invoices of this site that the lines
+ * read did not return: they have no monthly_fee lines for the month, so neither
+ * the replay nor PERIOD_ALREADY_INVOICED would see them, yet their reference
+ * names the family and the month. They then block as PERIOD_ALREADY_INVOICED or
+ * INVOICE_VOIDED and report their id. An invoice found by its lines keeps its
+ * place; between two without lines, one that is not voided wins.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
+export function addLineLessSiteInvoices(
+  existingByFamily: Map<string, ExistingMonthlyInvoiceRow>,
+  lineInvoiceIds: ReadonlySet<string>,
+  rows: readonly ExistingMonthlyInvoiceRow[]
+): void {
+  const isVoided = (row: ExistingMonthlyInvoiceRow) =>
+    row.voidedAt !== null || row.status === "void";
+  for (const row of rows) {
+    const current = existingByFamily.get(row.familyId);
+    if (
+      !current ||
+      (!lineInvoiceIds.has(current.invoiceId) &&
+        isVoided(current) &&
+        !isVoided(row))
+    ) {
+      existingByFamily.set(row.familyId, row);
+    }
+  }
+}
+
+/**
  * State of a family's monthly invoices for the period in one group (for
  * example, those without a site): `issued` while any of them is not voided,
  * `voided` when all of them are.
@@ -228,7 +259,6 @@ export function finalizeFamilyQuotes(
     servicePeriod: string;
     existingByFamily: ReadonlyMap<string, ExistingMonthlyInvoiceRow>;
     siteLessByFamily: ReadonlyMap<string, MonthlyInvoiceState>;
-    lineLessAtSiteByFamily: ReadonlyMap<string, MonthlyInvoiceState>;
     referenceByFamily: ReadonlyMap<string, string>;
     takenReferences: ReadonlySet<string>;
   }
@@ -261,16 +291,6 @@ export function finalizeFamilyQuotes(
         existing.voidedAt !== null || existing.status === "void";
       family.blockingReasons.push(
         family.existingInvoiceVoided
-          ? "INVOICE_VOIDED"
-          : "PERIOD_ALREADY_INVOICED"
-      );
-    }
-    const lineLessAtSite = context.lineLessAtSiteByFamily.get(family.familyId);
-    if (lineLessAtSite) {
-      // A pre-site monthly invoice of this site without monthly_fee lines for
-      // the month: neither the replay nor the read above can see it.
-      family.blockingReasons.push(
-        lineLessAtSite === "voided"
           ? "INVOICE_VOIDED"
           : "PERIOD_ALREADY_INVOICED"
       );

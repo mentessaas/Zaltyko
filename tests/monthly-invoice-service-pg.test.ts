@@ -1125,12 +1125,17 @@ describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
     // Neither the per-site replay nor PERIOD_ALREADY_INVOICED read the
     // reference, and this header has no monthly_fee lines for the month.
     const fixture = await seedFamily();
-    await insertSiteLessInvoice(fixture, { status: "issued", voidedAt: null }, fixture.locationId);
+    const legacyInvoiceId = await insertSiteLessInvoice(
+      fixture,
+      { status: "issued", voidedAt: null },
+      fixture.locationId
+    );
 
     const family = await quoteFor(fixture);
     expect(family).toMatchObject({
       canIssue: false,
-      existingInvoiceId: null,
+      existingInvoiceId: legacyInvoiceId,
+      existingInvoiceVoided: false,
       blockingReasons: ["PERIOD_ALREADY_INVOICED"],
     });
     await expect(issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!))).rejects.toMatchObject({

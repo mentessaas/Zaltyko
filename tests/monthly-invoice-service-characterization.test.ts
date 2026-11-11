@@ -1169,25 +1169,38 @@ describe("getMonthlyInvoiceOptions: blocking reasons", () => {
   });
 
   it.each([
-    ["issued", { status: "issued", voidedAt: null }, "PERIOD_ALREADY_INVOICED"],
-    ["voided", { status: "void", voidedAt: null }, "INVOICE_VOIDED"],
+    ["issued", { status: "issued", voidedAt: null }, "PERIOD_ALREADY_INVOICED", false],
+    ["voided", { status: "void", voidedAt: null }, "INVOICE_VOIDED", true],
   ])(
     "blocks a month invoiced at this site with the pre-site reference and no monthly_fee lines (%s)",
-    async (_label, invoice, reason) => {
+    async (_label, invoice, reason, voided) => {
       // The lines read did not return it, so neither the replay nor
-      // PERIOD_ALREADY_INVOICED would see it.
+      // PERIOD_ALREADY_INVOICED would see it. It is reported with its id.
       world.handlers.readReferenceOwners = () => [
         { invoiceId: INVOICE_2, reference: LEGACY_REFERENCE, locationId: LOC, ...invoice },
       ];
       const [family] = (await options()).families;
       expect(family).toMatchObject({
-        existingInvoiceId: null,
-        existingInvoiceVoided: false,
+        existingInvoiceId: INVOICE_2,
+        existingInvoiceVoided: voided,
         blockingReasons: [reason],
         canIssue: false,
       });
     }
   );
+
+  it("prefers, between two pre-site invoices of this site without lines, the one that is not voided", async () => {
+    world.handlers.readReferenceOwners = () => [
+      { invoiceId: INVOICE, reference: LEGACY_REFERENCE, locationId: LOC, status: "void", voidedAt: null },
+      { invoiceId: INVOICE_2, reference: LEGACY_REFERENCE, locationId: LOC, status: "issued", voidedAt: null },
+    ];
+    const [family] = (await options()).families;
+    expect(family).toMatchObject({
+      existingInvoiceId: INVOICE_2,
+      existingInvoiceVoided: false,
+      blockingReasons: ["PERIOD_ALREADY_INVOICED"],
+    });
+  });
 
   it("reports a pre-site invoice of this site with monthly_fee lines once, as the lines read does", async () => {
     world.handlers.readExistingInvoices = () => [
