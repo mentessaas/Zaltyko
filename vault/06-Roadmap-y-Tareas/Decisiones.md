@@ -15,13 +15,12 @@ source:
 
 **Decisión/importancia (provisional, conservadora):**
 - **Duplicados.** La misma gimnasta es mismo nombre y apellidos, sin mayúsculas, tildes ni signos, más la misma fecha de nacimiento, dentro de la academia y aunque esté archivada. Una gimnasta existente con el mismo nombre y sin fecha bloquea la fila.
-- **Fecha de nacimiento** obligatoria.
-- **Teléfono** en E.164, sin adivinar el prefijo.
-- **Tutor.** No se crea pagador. Un tutor existente se reutiliza solo si tiene una única familia activa.
+- **Tutor.** No se crea pagador. Un tutor existente se reutiliza solo si coinciden el contacto y el nombre y tiene una única familia activa.
+- **Permisos y reglas (ronda 2).** Solo la propiedad o la administración con todas las sedes. La fecha de nacimiento es opcional y los contactos siguen la regla exacta del editor, como el alta manual. Hay una declaración legal obligatoria antes de importar.
 - **Plan.** Se importa hasta el límite del plan, en el orden del fichero.
 - **Datos.** Sin tabla de lotes: el resultado vive en el evento de outbox, que también da la idempotencia.
 
-**Siguiente paso:** Elvis confirma o cambia los siete puntos «Decide Elvis» del documento de producto.
+**Siguiente paso:** Elvis confirma o cambia los nueve puntos «Decide Elvis» del documento de producto.
 
 ## 2026-11-11 — Objetivos y observaciones: opciones conservadoras pendientes de Elvis
 

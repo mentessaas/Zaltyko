@@ -30,7 +30,16 @@ source:
 
 **Pruebas.** Unitarias, de ficheros, de clasificación, de UI y `tests/athlete-import-pg.test.ts` en «Postgres integration». No se ejecutó nada en local (regla del encargo): resultado en la CI de la PR.
 
-**Sin resolver.** Los siete puntos «Decide Elvis» de `docs/producto/importacion-excel.md`.
+**Sin resolver.** Los puntos «Decide Elvis» de `docs/producto/importacion-excel.md`.
+
+**Ronda 2 (revisión 6,5/10 del coordinador).**
+- **Permisos.** Solo la propiedad o la administración con todas las sedes, como el alta manual.
+- **Reglas de datos.** La fecha de nacimiento es opcional y el email y el teléfono siguen la regla exacta del editor de contactos (normalizador compartido).
+- **Tutores.** Un contacto compartido por varios tutores o con otro nombre da error de fila; ya no se elige una familia.
+- **Lector.** Cuenta filas lógicas y rechaza el exceso sin recortar. Antes de abrir un XLSX comprueba el tamaño descomprimido declarado en el ZIP (20 MB). Lee solo la primera hoja, entiende el sistema de fechas 1904 y no importa las filas ocultas.
+- **Rutas.** Academia en la query; permisos, límite de peticiones y `Idempotency-Key` antes de leer el cuerpo, que se lee en streaming con tope.
+- **Servicio.** Partido en fachada y módulos internos con frontera ESLint. El fichero se procesa fuera del bloqueo y bajo el bloqueo solo se vuelve a decidir. El token va ligado a la academia y al usuario, y los errores de base de datos salen sin parámetros.
+- **Pantalla.** Declaración legal obligatoria (queda en la auditoría), glosario y plantilla Excel.
 
 ## 2026-11-11 — Frontera ESLint de athlete-progress y contrato de sesiones
 
