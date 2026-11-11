@@ -24,6 +24,9 @@ vi.mock("@/components/owner-dashboard/OwnerWorkspacePageShell", () => ({
 // The branch with invitations is exercised as composition only. No invitation
 // API or enabled runtime is required to verify the profile subtree's lifetime.
 vi.mock("@/components/owner/OwnerTeamAccessPanel", () => ({ OwnerTeamAccessPanel: () => null }));
+vi.mock("@/modules/staff/application/canonical-team-access", () => ({
+  isCanonicalTeamAccessAvailable: vi.fn(async () => process.env.ZALTYKO_TEAM_ACCESS_ENABLED === "true"),
+}));
 
 import OwnerStaffPage from "@/app/owner/staff/page";
 import {

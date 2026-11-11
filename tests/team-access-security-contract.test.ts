@@ -11,6 +11,7 @@ vi.mock("@/modules/owner-dashboard/application/owner-scope", () => ({ resolveOwn
 vi.mock("@/lib/rate-limit", () => ({
   getLimitForRoute: () => ({ limit: 20, window: 60 }),
   getVerifiedTenantRateLimitIdentifier: () => "synthetic-team-access",
+  getClientIdentifier: () => "ip:203.0.113.7",
   rateLimit: mocks.limit,
   rateLimitExceededResponse: () => new Response(JSON.stringify({ ok: false }), { status: 429 }),
 }));
@@ -44,7 +45,7 @@ const otherLocationId = "10000000-0000-4000-8000-000000000006";
 const token = "a".repeat(43);
 const key = "synthetic-team-command-001";
 const base = "https://synthetic.invalid/api/v1";
-const inviteBody = { organizationId, email: " Synthetic@example.invalid ", role: "coach", locationIds: [locationId] };
+const inviteBody = { organizationId, email: " Synthetic@example.invalid ", role: "coach", locationIds: [locationId], givenName: " Ana ", familyName: "Ruiz" };
 const scope = { organization: { id: organizationId, name: "Synthetic Academy" }, member: { id: memberId, role: "owner", locationScopeMode: "all" } };
 const commandMocks = [mocks.list, mocks.invite, mocks.reissue, mocks.revoke, mocks.inspect, mocks.accept];
 
@@ -126,13 +127,24 @@ describe("Team access real HTTP guards with synthetic session and service bounda
   }
 
   for (const route of ownerCalls) {
-    for (const [role, mode] of [["owner", "selected"], ["manager", "all"], ["admin", "all"], ["coach", "selected"]]) {
+    // O3: owner/admin with every site and managers reach the service (which
+    // narrows a manager to coaches in their own sites); nobody else does.
+    for (const [role, mode] of [["owner", "selected"], ["admin", "selected"], ["coach", "selected"], ["coach", "all"]]) {
       it(`${route.name}: ${role}/${mode} is denied before canonical service calls`, async () => {
         mocks.scope.mockResolvedValue({ ...scope, member: { ...scope.member, role, locationScopeMode: mode } });
         const response = await route.call();
         expect(response.status).toBe(403);
         privateResponse(response);
         noServiceCalls();
+      });
+    }
+
+    for (const [role, mode] of [["admin", "all"], ["manager", "all"], ["manager", "selected"]]) {
+      it(`${route.name}: ${role}/${mode} reaches the canonical service with its verified actor`, async () => {
+        mocks.scope.mockResolvedValue({ ...scope, member: { ...scope.member, role, locationScopeMode: mode } });
+        const response = await route.call();
+        expect(response.status).toBeLessThan(300);
+        privateResponse(response);
       });
     }
 
@@ -151,7 +163,7 @@ describe("Team access real HTTP guards with synthetic session and service bounda
     privateResponse(response);
     expect(mocks.invite).toHaveBeenCalledWith({
       organizationId, email: "synthetic@example.invalid", role: "coach", locationIds: [locationId, otherLocationId],
-      actor: { userId, memberId }, idempotencyKey: key,
+      givenName: "Ana", familyName: "Ruiz", actor: { userId, memberId }, idempotencyKey: key,
     });
     expect(await response.json()).toMatchObject({ ok: true, data: { token, replayed: false } });
   });
@@ -160,6 +172,9 @@ describe("Team access real HTTP guards with synthetic session and service bounda
     { ...inviteBody, role: "owner" }, { ...inviteBody, role: "admin" },
     { ...inviteBody, locationIds: [] }, { ...inviteBody, locationIds: [locationId, locationId] },
     { ...inviteBody, userId }, { ...inviteBody, locationScopeMode: "all" },
+    // O3: the team profile target is exactly one of an existing profile or both names.
+    { ...inviteBody, givenName: null, familyName: null }, { ...inviteBody, familyName: null },
+    { ...inviteBody, staffProfileId: locationId }, { ...inviteBody, staffProfileId: "not-a-uuid", givenName: null, familyName: null },
   ]) {
     it(`rejects invalid or privilege-bearing invitation body ${JSON.stringify(body)}`, async () => {
       const response = await invite(request("/owner/staff/invitations", "POST", body, { "idempotency-key": key }));
@@ -240,6 +255,28 @@ describe("Team access real HTTP guards with synthetic session and service bounda
       });
     }
   }
+
+  it("counts each route separately and limits opening/accepting links also per network origin", async () => {
+    await inspect(request("/staff/invitations/inspect", "POST", { token }));
+    await accept(request("/staff/invitations/accept", "POST", { token }, { "idempotency-key": key }));
+    await listAccess(request(`/owner/staff/access?organizationId=${organizationId}`, "GET"));
+    const identifiers = mocks.limit.mock.calls.map(([options]) => (options as { identifier: string }).identifier);
+    expect(identifiers).toEqual([
+      `team-access:/api/v1/staff/invitations/inspect:${userId}`,
+      "team-invitation-link:/api/v1/staff/invitations/inspect:ip:203.0.113.7",
+      `team-access:/api/v1/staff/invitations/accept:${userId}`,
+      "team-invitation-link:/api/v1/staff/invitations/accept:ip:203.0.113.7",
+      `team-access:/api/v1/owner/staff/access:${userId}`,
+    ]);
+  });
+
+  it("a network-origin denial on a link returns private 429 without application work", async () => {
+    mocks.limit.mockResolvedValueOnce({ success: true }).mockResolvedValueOnce({ success: false });
+    const response = await inspect(request("/staff/invitations/inspect", "POST", { token }));
+    expect(response.status).toBe(429);
+    privateResponse(response);
+    expect(mocks.inspect).not.toHaveBeenCalled();
+  });
 
   it("accept requires an idempotency key while inspect needs none", async () => {
     expect((await accept(request("/staff/invitations/accept", "POST", { token }))).status).toBe(400);

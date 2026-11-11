@@ -9,5 +9,5 @@ export async function POST(request: Request) {
   if (unavailable) return unavailable;
   const input = teamTokenBodySchema.safeParse(await request.json().catch(() => null));
   if (!input.success) return invalidTeamInput();
-  return withTeamUser(request, async userId => apiSuccess(await inspectCanonicalTeamInvitation({ ...input.data, userId })));
+  return withTeamUser(request, async userId => apiSuccess(await inspectCanonicalTeamInvitation({ ...input.data, userId })), { invitationLink: true });
 }
