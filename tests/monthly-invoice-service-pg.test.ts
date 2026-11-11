@@ -1123,4 +1123,75 @@ describeDisposablePg("monthly invoice service on disposable PostgreSQL", () => {
     expect(replayed.invoice.id).toBe(retried.invoice.id);
     expect(await ledgerRows(fixture.organizationId)).toEqual(ONE_INVOICE);
   }, 60_000);
+
+  it("reports a real 23505 on invoices_reference_uq as INVOICE_REFERENCE_TAKEN, with a full rollback", async () => {
+    // The test above "a reference taken by an invoice committed during the
+    // issuance" explains why no ordinary writer can reach this window: every
+    // invoice insert checks the organization FK (FOR KEY SHARE) and the
+    // issuance holds FOR UPDATE on that row. The competing writer here skips
+    // the FK triggers (session_replication_role = replica, superuser only, as
+    // in this disposable database), so it takes no lock on the organization
+    // row. Its uncommitted invoice is invisible to the quote under locks, and
+    // the issuance's insert waits on that row's reference in the unique index.
+    // Its rows still point to real organization, site and family rows.
+    const fixture = await seedFamily();
+    const family = await quoteFor(fixture);
+    expect(family.canIssue).toBe(true);
+    const reference = expectedReference(fixture, fixture.locationId);
+
+    const inserted = signal();
+    const released = signal();
+    const heldBy = randomUUID();
+    const competing = db.transaction(async (tx) => {
+      await tx.execute(sql`set local session_replication_role = replica`);
+      await tx.execute(sql`
+        insert into zaltyko.invoices (
+          id, organization_id, location_id, family_id, reference, status,
+          currency, total_amount_cents, issued_at, due_at, idempotency_key
+        ) values (
+          ${heldBy}::uuid, ${fixture.organizationId}::uuid, ${fixture.locationId}::uuid,
+          ${fixture.familyId}::uuid, ${reference}, 'issued',
+          'EUR', 1000, ${`${PERIOD_START}T09:00:00Z`}::timestamptz,
+          ${`${PERIOD_END}T12:00:00Z`}::timestamptz, ${`ci-manual-${heldBy}`}
+        )
+      `);
+      inserted.resolve();
+      await released.promise;
+    });
+    await inserted.promise;
+
+    const issuance = issueMonthlyInvoice(issueCommand(fixture, family.quoteHash!)).then(
+      () => null,
+      (caught: unknown) => caught
+    );
+    try {
+      // The issuance got past every lock and the quote, and its insert now
+      // waits for the competing transaction to decide on the same reference.
+      expect(
+        await waitForLockWaiters('%insert into "zaltyko"."invoices"%', 1, "transactionid")
+      ).toBe(1);
+    } finally {
+      released.resolve();
+      await competing;
+    }
+    const failure = await issuance;
+
+    expect(failure).toBeInstanceOf(OperationalError);
+    expect(failure).toMatchObject({
+      code: "INVOICE_REFERENCE_TAKEN",
+      status: 409,
+      details: { reference },
+    });
+    // Only the competing invoice remains; the issuance rolled back whole.
+    expect(await ledgerRows(fixture.organizationId)).toEqual({
+      invoices: 1,
+      lines: 0,
+      covered: 0,
+      charges: 0,
+      markers: 0,
+    });
+    expect(await invoiceReferences(fixture)).toEqual([
+      { locationId: fixture.locationId, reference },
+    ]);
+  }, 45_000);
 });
