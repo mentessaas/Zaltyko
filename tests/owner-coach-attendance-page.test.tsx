@@ -35,7 +35,7 @@ vi.mock("@/modules/owner-dashboard/application/owner-scope", () => ({
 vi.mock("@/modules/owner-dashboard/application/today-sessions", () => ({
   getOwnerTodaySessions: mocks.today,
 }));
-vi.mock("@/modules/athlete-progress/application/athlete-progress-storage", () => ({
+vi.mock("@/modules/athlete-progress/application/athlete-progress-service", () => ({
   isAthleteProgressAvailableForPage: mocks.progressAvailable,
 }));
 

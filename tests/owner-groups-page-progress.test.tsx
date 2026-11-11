@@ -27,7 +27,7 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/modules/groups/application/group-management-service", () => ({
   getOwnerGroupsPageData: mocks.pageData,
 }));
-vi.mock("@/modules/athlete-progress/application/athlete-progress-storage", () => ({
+vi.mock("@/modules/athlete-progress/application/athlete-progress-service", () => ({
   isAthleteProgressAvailableForPage: mocks.progressAvailable,
 }));
 
