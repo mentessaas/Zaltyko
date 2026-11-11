@@ -66,8 +66,8 @@ describe("patched dependency compatibility", () => {
         ["qs", "~6.16.0", "^6.16.1"],
         ["qs", "^6.14.0", "^6.16.1"],
         ["qs", "^5.2.0", "^5.2.0"],
-        ["@hono/node-server", "^1.19.9 || ^2.0.5", "^2.1.3"],
-        ["@hono/node-server", "^2.1.1", "^2.1.3"],
+        ["@hono/node-server", "^1.19.9 || ^2.0.5", "2.1.3"],
+        ["@hono/node-server", "^2.1.1", "2.1.3"],
         ["@hono/node-server", "^1.19.9", "^1.19.9"],
         ["@hono/node-server", "workspace:*", "workspace:*"],
       ]) {

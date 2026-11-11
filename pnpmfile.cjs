@@ -30,8 +30,10 @@ const SAME_MAJOR_FLOORS = [
   // @hono/node-server < 2.1.3: `serveStatic` decodes the request path twice
   // and can skip middleware on static paths (GHSA-rmxm-3fg6-px4f). Reached
   // through @modelcontextprotocol/sdk, which accepts `^1.19.9 || ^2.0.5` and
-  // already resolves the 2.x line; 1.x has no patched release.
-  { name: "@hono/node-server", major: 2, range: "^2.1.3" },
+  // already resolves the 2.x line; 1.x has no patched release. Exact on
+  // purpose: the lowest fixed release. A caret range resolves 2.1.7, published
+  // the same day this override was written and with a widened hono peer.
+  { name: "@hono/node-server", major: 2, range: "2.1.3" },
 ];
 
 /** @type {import('pnpm').PnpmFileHooks} */
