@@ -81,7 +81,11 @@ jobs:
       - name: Mobile — package-lock.json
         if: env.TARGETS == 'all' || env.TARGETS == 'mobile'
         working-directory: mobile
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund || {
+            tail -n 80 "$HOME"/.npm/_logs/*-debug-0.log
+            exit 1
+          }
 
       - name: Fail if anything other than lockfiles changed
         run: |

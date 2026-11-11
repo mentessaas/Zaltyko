@@ -79,7 +79,7 @@
   "//overrides": {
     "motivo": "Motivo de los overrides de seguridad añadidos o cambiados en P0 #2 (2026-11-11). El mismo valor va en `overrides` (npm, package-lock.json) y en `pnpm.overrides` (pnpm 9: pnpm-lock.yaml, el que instala la CI). Los demás overrides son anteriores y no cambian.",
     "decode-uri-component": "GHSA-qr28-fpjm-wq7f: DoS cuadratico con secuencias %XX; corregido en 0.5.1 (query-string de expo-router).",
-    "node-forge": "GHSA-86w9-cpqp-85rv y otras 17: verificacion RSA/PKCS#1, ASN.1 y PKCS#12; corregido en 1.4.3. Lo usan @expo/cli y @expo/code-signing-certificates (firma de actualizaciones OTA en desarrollo). npm exige `$node-forge` para no chocar con la devDependency directa.",
+    "node-forge": "GHSA-86w9-cpqp-85rv y otras 17: verificacion RSA/PKCS#1, ASN.1 y PKCS#12; corregido en 1.4.3. Lo usan @expo/cli y @expo/code-signing-certificates (firma de actualizaciones OTA en desarrollo). El override usa la misma especificación exacta que la devDependency directa, como exige npm.",
     "vite": "GHSA-587h-7wmj-h5pm y otras 5 de vite 8.3.0-8.3.2; corregido en 8.3.3. Solo lo usa vitest (tests)."
   },
   "overrides": {
@@ -92,7 +92,7 @@
     "brace-expansion@^5.0.0": "^5.0.12",
     "js-yaml@^4.1.0": "^4.3.2",
     "shell-quote": "1.11.0",
-    "node-forge": "$node-forge",
+    "node-forge": "1.4.3",
     "vite": "^8.3.3"
   },
   "pnpm": {
