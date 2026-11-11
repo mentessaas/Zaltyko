@@ -26,15 +26,41 @@ const SAME_MAJOR_FLOORS = [
   // qs 6.7.0–6.16.0: `stringify` with arrayFormat "comma" throws on array
   // items whose own `toString` is not callable (DoS, GHSA-6pq8-jhm2-2vcw).
   // Reached at runtime through express 4/5 and body-parser. Fixed in 6.16.1.
-  { name: "qs", major: 6, range: "^6.16.1" },
+  { name: "qs", major: 6, floor: "6.16.1" },
   // @hono/node-server < 2.1.3: `serveStatic` decodes the request path twice
   // and can skip middleware on static paths (GHSA-rmxm-3fg6-px4f). Reached
   // through @modelcontextprotocol/sdk, which accepts `^1.19.9 || ^2.0.5` and
-  // already resolves the 2.x line; 1.x has no patched release. Exact on
-  // purpose: the lowest fixed release. A caret range resolves 2.1.7, published
-  // the same day this override was written and with a widened hono peer.
-  { name: "@hono/node-server", major: 2, range: "2.1.3" },
+  // already resolves the 2.x line; 1.x has no patched release.
+  { name: "@hono/node-server", major: 2, floor: "2.1.3" },
 ];
+
+// Lowest version an alternative of a semver range admits, as [major, minor,
+// patch], or undefined for anything that is not a plain version/^/~/>= bound.
+function lowerBound(alternative) {
+  const match = /^(?:\^|~|>=|=)?\s*v?(\d+)(?:\.(\d+|x|\*))?(?:\.(\d+|x|\*))?$/.exec(alternative.trim());
+  if (!match) return undefined;
+  return [match[1], match[2], match[3]].map((part) => (/^\d+$/.test(part ?? "") ? Number(part) : 0));
+}
+
+function isBelow(version, floor) {
+  for (let index = 0; index < 3; index += 1) {
+    if (version[index] !== floor[index]) return version[index] < floor[index];
+  }
+  return false;
+}
+
+// Raise a consumer range to `^floor` only when one of its `||` alternatives
+// sits on the floor's major line and can still resolve below the floor.
+// Ranges already at or above the floor (e.g. `^2.2.0`) and ranges on other
+// majors are returned untouched, so this never downgrades nor crosses a major.
+function liftToFloor(requested, { major, floor }) {
+  const floorParts = floor.split(".").map(Number);
+  const needsLift = String(requested)
+    .split("||")
+    .map(lowerBound)
+    .some((bound) => bound !== undefined && bound[0] === major && isBelow(bound, floorParts));
+  return needsLift ? `^${floor}` : requested;
+}
 
 /** @type {import('pnpm').PnpmFileHooks} */
 module.exports = {
@@ -86,19 +112,14 @@ module.exports = {
       }
 
       // Same-major security floors for transitive packages (P0 #2, 2026-11-11).
-      // A consumer range is lifted only when one of its `||` alternatives is
-      // on the listed major, so no consumer is ever pushed onto a new major.
       for (const field of ["dependencies", "optionalDependencies", "devDependencies"]) {
-        const dependencies = bumped[field];
-        if (!dependencies) continue;
-        for (const { name, major, range } of SAME_MAJOR_FLOORS) {
-          const requested = dependencies[name];
-          if (requested === undefined || requested === range) continue;
-          const majors = String(requested)
-            .split("||")
-            .map((alternative) => Number.parseInt(alternative.trim().replace(/^[^0-9]*/, "").split(".")[0], 10));
-          if (majors.includes(major)) {
-            bumped[field] = { ...bumped[field], [name]: range };
+        if (!bumped[field]) continue;
+        for (const rule of SAME_MAJOR_FLOORS) {
+          const requested = bumped[field][rule.name];
+          if (requested === undefined) continue;
+          const lifted = liftToFloor(requested, rule);
+          if (lifted !== requested) {
+            bumped[field] = { ...bumped[field], [rule.name]: lifted };
             changed = true;
           }
         }

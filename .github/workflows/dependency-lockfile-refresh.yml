@@ -46,6 +46,10 @@ jobs:
       contents: read
     env:
       TARGETS: ${{ inputs.targets || 'all' }}
+      # corepack: sin pregunta interactiva y sin exigir el packageManager raíz
+      # (pnpm) al ejecutar npm dentro de mobile/.
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      COREPACK_ENABLE_STRICT: "0"
     steps:
       - name: Checkout without persisted credentials
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -68,7 +72,7 @@ jobs:
           node --version
           pnpm --version
           npm --version
-          npx --yes npm@11.21.1 --version
+          corepack npm@11.21.1+sha512.613ccbe90044257c87713bb426251ced128ca7e9b3949b65eeb18b98445a5d441e14720c73d6ad76be86f4cf42f2f0d66efe347a9a13400ccd2f6fcfb5954385 --version
 
       - name: Web — pnpm-lock.yaml
         if: env.TARGETS == 'all' || env.TARGETS == 'web'
@@ -82,12 +86,15 @@ jobs:
       # npm 10 (el de Node 22) se rompe con el ciclo de peers opcionales de
       # vite 8 (@vitejs/devtools -> vitest@*): «Cannot read properties of null
       # (reading 'edgesOut')» en arborist. npm 11.21.1 lo resuelve sin
-      # --legacy-peer-deps. Versión fijada para que el resultado sea repetible.
+      # --legacy-peer-deps. Se ejecuta con corepack (incluido en Node 22) y el
+      # sha512 del tarball fijado: si el registro sirviera otro contenido,
+      # corepack aborta antes de ejecutar nada. El hash es el `dist.integrity`
+      # publicado de npm@11.21.1 pasado a hexadecimal.
       - name: Mobile — package-lock.json
         if: env.TARGETS == 'all' || env.TARGETS == 'mobile'
         working-directory: mobile
         run: |
-          npx --yes npm@11.21.1 install --package-lock-only --ignore-scripts --no-audit --no-fund || {
+          corepack npm@11.21.1+sha512.613ccbe90044257c87713bb426251ced128ca7e9b3949b65eeb18b98445a5d441e14720c73d6ad76be86f4cf42f2f0d66efe347a9a13400ccd2f6fcfb5954385 install --package-lock-only --ignore-scripts --no-audit --no-fund || {
             tail -n 80 "$HOME"/.npm/_logs/*-debug-0.log
             exit 1
           }

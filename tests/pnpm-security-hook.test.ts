@@ -60,14 +60,19 @@ describe("patched dependency compatibility", () => {
   });
 
   it.each(["dependencies", "optionalDependencies", "devDependencies"] as const)(
-    "lifts qs 6 and @hono/node-server 2 to their fixes without crossing a major in %s",
+    "lifts qs 6 and @hono/node-server 2 to a floor, never down nor across a major, in %s",
     (field) => {
       for (const [name, requested, expected] of [
         ["qs", "~6.16.0", "^6.16.1"],
         ["qs", "^6.14.0", "^6.16.1"],
+        ["qs", "6.16.0", "^6.16.1"],
+        ["qs", "^6.16.1", "^6.16.1"],
+        ["qs", "^6.17.0", "^6.17.0"],
         ["qs", "^5.2.0", "^5.2.0"],
-        ["@hono/node-server", "^1.19.9 || ^2.0.5", "2.1.3"],
-        ["@hono/node-server", "^2.1.1", "2.1.3"],
+        ["@hono/node-server", "^1.19.9 || ^2.0.5", "^2.1.3"],
+        ["@hono/node-server", "^2.1.1", "^2.1.3"],
+        ["@hono/node-server", "~2.1.3", "~2.1.3"],
+        ["@hono/node-server", "^2.2.0", "^2.2.0"],
         ["@hono/node-server", "^1.19.9", "^1.19.9"],
         ["@hono/node-server", "workspace:*", "workspace:*"],
       ]) {
