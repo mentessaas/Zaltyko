@@ -12,7 +12,7 @@
  * - quote-families.ts    families, athlete lines and tariff conflicts
  * - quote.ts             getMonthlyInvoiceOptions / buildMonthlyInvoiceOptions
  * - issued-reads.ts      issued invoice, lines, charge and replay state
- * - issue-locks.ts       lock order of an issuance
+ * - issue-locks.ts       lock order of an issuance and the family cohort it locks
  * - replay.ts            replay by idempotency key and by period
  * - issue.ts             issueMonthlyInvoice
  */
@@ -25,7 +25,7 @@ export { getMonthlyInvoiceOptions } from "./monthly-invoice/quote";
 export {
   loadIssuedLines,
   loadMonthlyChargeState,
-  loadMonthlyFamilyMemberships,
   loadMonthlyReplayState,
 } from "./monthly-invoice/issued-reads";
+export { loadMonthlyFamilyMemberships } from "./monthly-invoice/issue-locks";
 export { issueMonthlyInvoice } from "./monthly-invoice/issue";

@@ -9,16 +9,17 @@
  *    enrollments, price assignments, tariff coverage, class templates and price
  *    plans, each sorted by id.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, isNull, lte, or, sql } from "drizzle-orm";
 
-import { locations } from "@/db/zaltyko-schema";
+import { familyMembers, locations } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
+import { readAllKeysetPages } from "@/modules/billing/application/keyset-pagination";
 import { calendarDueDateToUtc } from "@/modules/billing/domain/calendar-due-date";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { lockCommand } from "@/modules/shared/infrastructure/transactional-records";
 
 import type { IssueMonthlyInvoiceInput, PeriodBounds } from "./inputs";
-import { loadMonthlyFamilyMemberships } from "./issued-reads";
+import { READ_PAGE_SIZE } from "./paging";
 
 /**
  * Takes the site and family locks, resolves the due date in the site's
@@ -205,4 +206,42 @@ export async function lockQuotedRows(
         order by id for update
       `);
   }
+}
+
+/**
+ * Athletes of the family whose membership overlaps the period, in membership
+ * id order. issueMonthlyInvoice reads this cohort under the family-scope lock
+ * and then locks the athletes sorted by id (lockIssuanceScope).
+ */
+export async function loadMonthlyFamilyMemberships(
+  tx: TransactionClient,
+  organizationId: string,
+  familyId: string,
+  bounds: PeriodBounds
+): Promise<Array<{ cursorId: string; athleteId: string }>> {
+  return readAllKeysetPages<{ cursorId: string; athleteId: string }>({
+    pageSize: READ_PAGE_SIZE,
+    cursorOf: (row) => row.cursorId,
+    fetchPage: (cursor, limit) => {
+      const conditions = [
+        eq(familyMembers.organizationId, organizationId),
+        eq(familyMembers.familyId, familyId),
+        lte(familyMembers.startsOn, bounds.end),
+        or(
+          isNull(familyMembers.endsOn),
+          gte(familyMembers.endsOn, bounds.start)
+        ),
+      ];
+      if (cursor) conditions.push(gt(familyMembers.id, cursor));
+      return tx
+        .select({
+          cursorId: familyMembers.id,
+          athleteId: familyMembers.athleteId,
+        })
+        .from(familyMembers)
+        .where(and(...conditions))
+        .orderBy(asc(familyMembers.id))
+        .limit(limit);
+    },
+  });
 }

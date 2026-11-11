@@ -1,15 +1,14 @@
 /**
  * Reads of an issued monthly invoice: header, lines with their covered
- * enrollments, and charge state (locked), plus the family cohort used by the
- * issuance. Shared by the new issuance and both replay paths.
+ * enrollments, and charge state (locked). Shared by the new issuance and both
+ * replay paths.
  */
-import { and, asc, eq, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, or, sql } from "drizzle-orm";
 
 import {
   athletes,
   charges,
   enrollments,
-  familyMembers,
   invoiceLineEnrollments,
   invoiceLines,
   invoices,
@@ -21,7 +20,6 @@ import { readAllKeysetPages } from "@/modules/billing/application/keyset-paginat
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 import { conflict } from "./errors";
-import type { PeriodBounds } from "./inputs";
 import { compareNullableStrings, READ_PAGE_SIZE } from "./paging";
 
 /**
@@ -290,37 +288,4 @@ export async function loadMonthlyReplayState(
     );
   }
   return { invoice, ...chargeState };
-}
-
-export async function loadMonthlyFamilyMemberships(
-  tx: TransactionClient,
-  organizationId: string,
-  familyId: string,
-  bounds: PeriodBounds
-): Promise<Array<{ cursorId: string; athleteId: string }>> {
-  return readAllKeysetPages<{ cursorId: string; athleteId: string }>({
-    pageSize: READ_PAGE_SIZE,
-    cursorOf: (row) => row.cursorId,
-    fetchPage: (cursor, limit) => {
-      const conditions = [
-        eq(familyMembers.organizationId, organizationId),
-        eq(familyMembers.familyId, familyId),
-        lte(familyMembers.startsOn, bounds.end),
-        or(
-          isNull(familyMembers.endsOn),
-          gte(familyMembers.endsOn, bounds.start)
-        ),
-      ];
-      if (cursor) conditions.push(gt(familyMembers.id, cursor));
-      return tx
-        .select({
-          cursorId: familyMembers.id,
-          athleteId: familyMembers.athleteId,
-        })
-        .from(familyMembers)
-        .where(and(...conditions))
-        .orderBy(asc(familyMembers.id))
-        .limit(limit);
-    },
-  });
 }
