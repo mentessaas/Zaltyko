@@ -19,13 +19,23 @@ import type {
   TariffCoverageRow,
 } from "./quote-reads";
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type EnrollmentEvaluation = {
   enrollmentReasons: string[];
   assignedPrice: QuoteFamily["enrollments"][number]["assignedPrice"];
   quoteLine: QuoteLine | null;
 };
 
-/** Reasons that keep one enrollment out of the invoice, and its quote line when billable. */
+/**
+ * Reasons that keep one enrollment out of the invoice, and its quote line when
+ * billable.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export function evaluateEnrollment(
   enrollment: QuoteEnrollmentRow,
   context: {
@@ -148,7 +158,12 @@ export function evaluateEnrollment(
   return { enrollmentReasons, assignedPrice, quoteLine };
 }
 
-/** Invoices already issued for the period, split by whether they have a site. */
+/**
+ * Invoices already issued for the period, split by whether they have a site.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export function indexExistingInvoices(
   existingRows: readonly ExistingMonthlyInvoiceRow[]
 ) {
@@ -166,6 +181,9 @@ export function indexExistingInvoices(
  * Completes each family: blocking reasons, currency, total, existing invoice,
  * reference collision, `canIssue` and the quote hash. Mutates the families in
  * place, in order.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
  */
 export function finalizeFamilyQuotes(
   familyResults: QuoteFamily[],

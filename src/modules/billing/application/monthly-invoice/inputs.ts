@@ -6,8 +6,20 @@ import {
   type OperationalErrorCode,
 } from "@/modules/shared/domain/operational-error";
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export const periodSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export const keySchema = z.string().trim().min(8).max(180);
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export const financialRoles = ["owner", "admin"] as const;
 
 export type MonthlyInvoiceOptionsInput = {
@@ -25,8 +37,16 @@ export type IssueMonthlyInvoiceInput = MonthlyInvoiceOptionsInput & {
   idempotencyKey: string;
 };
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type PeriodBounds = { start: string; end: string };
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export function periodBounds(servicePeriod: string): PeriodBounds {
   const parsed = periodSchema.safeParse(servicePeriod);
   if (!parsed.success) {
@@ -41,6 +61,10 @@ export function periodBounds(servicePeriod: string): PeriodBounds {
   return { start: `${servicePeriod}-01`, end };
 }
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export function conflict(
   code: OperationalErrorCode,
   detail: string,

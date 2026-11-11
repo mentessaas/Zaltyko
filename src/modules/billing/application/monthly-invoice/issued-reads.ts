@@ -23,8 +23,16 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { conflict, type PeriodBounds } from "./inputs";
 import { compareNullableStrings, READ_PAGE_SIZE } from "./paging";
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type MonthlyChargeStatus = "due" | "partially_paid" | "paid" | "void";
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type MonthlyChargeState = {
   chargeStatus: MonthlyChargeStatus | "mixed";
   collectionMode: "manual";
@@ -34,6 +42,12 @@ export type MonthlyChargeState = {
   }>;
 };
 
+/**
+ * @internal Lee la cabecera sin bloquear sus cargos. Los replays la combinan
+ * con loadMonthlyReplayState, que bloquea los cargos antes de leer el estado;
+ * el orden de bloqueos exige pasar por issueMonthlyInvoice. Importa desde
+ * monthly-invoice-service.
+ */
 export async function loadInvoice(
   tx: TransactionClient,
   organizationId: string,
@@ -198,6 +212,10 @@ export async function loadIssuedLines(
   );
 }
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type IssuedMonthlyLines = Awaited<ReturnType<typeof loadIssuedLines>>;
 
 export async function loadMonthlyChargeState(

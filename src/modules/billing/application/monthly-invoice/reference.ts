@@ -43,7 +43,13 @@ export function monthlyInvoiceReference(input: {
 
 const INVOICE_REFERENCE_CONSTRAINT = "invoices_reference_uq";
 
-/** True when a database error (or any error in its cause chain) is the reference unique violation. */
+/**
+ * True when a database error (or any error in its cause chain) is the
+ * reference unique violation.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export function isInvoiceReferenceViolation(error: unknown): boolean {
   const seen = new Set<unknown>();
   let current: unknown = error;

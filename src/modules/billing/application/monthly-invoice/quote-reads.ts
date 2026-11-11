@@ -50,6 +50,10 @@ type QuoteScope = Pick<
   "organizationId" | "locationId"
 >;
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type MonthlyPricePlanRow = {
   id: string;
   name: string;
@@ -58,6 +62,10 @@ export type MonthlyPricePlanRow = {
   cadence: string;
 };
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type QuoteEnrollmentRow = {
   enrollmentId: string;
   athleteId: string;
@@ -73,6 +81,10 @@ export type QuoteEnrollmentRow = {
   endsOn: string | null;
 };
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type FamilyMemberRow = {
   memberId: string;
   familyId: string;
@@ -82,8 +94,16 @@ export type FamilyMemberRow = {
   familyIsActive: boolean;
 };
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type PriceAssignmentRow = typeof enrollmentPriceAssignments.$inferSelect;
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type TariffCoverageRow = {
   id: string;
   pricePlanId: string;
@@ -92,6 +112,10 @@ export type TariffCoverageRow = {
   endsOn: string | null;
 };
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type FamilyPayerRow = {
   familyId: string;
   familyPayerId: string;
@@ -101,6 +125,10 @@ export type FamilyPayerRow = {
   endsOn: string | null;
 };
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type ExistingMonthlyInvoiceRow = {
   familyId: string;
   invoiceId: string;
@@ -109,9 +137,18 @@ export type ExistingMonthlyInvoiceRow = {
   voidedAt: Date | null;
 };
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type ReferenceOwnerRow = { invoiceId: string; reference: string };
 
-/** Active site of the quote; 404 when it does not belong to the organization. */
+/**
+ * Active site of the quote; 404 when it does not belong to the organization.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export async function readActiveLocation(
   tx: TransactionClient,
   input: QuoteScope
@@ -133,7 +170,12 @@ export async function readActiveLocation(
   return location;
 }
 
-/** Active monthly price plans, sorted by name (es) then id. */
+/**
+ * Active monthly price plans, sorted by name (es) then id.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export async function readMonthlyPricePlans(
   tx: TransactionClient,
   input: QuoteScope
@@ -173,6 +215,9 @@ export async function readMonthlyPricePlans(
 /**
  * Active or pending enrollments of the site that overlap the period, with an
  * active athlete; sorted by family name, given name (es) and enrollment id.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
  */
 export async function readPeriodEnrollments(
   tx: TransactionClient,
@@ -244,7 +289,12 @@ export async function readPeriodEnrollments(
   return enrollmentRows;
 }
 
-/** Family memberships of the athletes that overlap the period. */
+/**
+ * Family memberships of the athletes that overlap the period.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export async function readAthleteFamilyMemberships(
   tx: TransactionClient,
   input: QuoteScope,
@@ -290,7 +340,12 @@ export async function readAthleteFamilyMemberships(
   });
 }
 
-/** Price assignments of the enrollments that overlap the period. */
+/**
+ * Price assignments of the enrollments that overlap the period.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export async function readEnrollmentPriceAssignments(
   tx: TransactionClient,
   input: QuoteScope,
@@ -326,6 +381,9 @@ export async function readEnrollmentPriceAssignments(
  * Tariff coverage of the distinct (price plan, class template) pairs that the
  * assigned enrollments use, for the site and period. When an enrollment has
  * several assignments the last one read decides its pair, as before.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
  */
 export async function readTariffCoverage(
   tx: TransactionClient,
@@ -406,6 +464,9 @@ export async function readTariffCoverage(
 /**
  * Payers valid for the whole period whose guardian is active and linked to
  * the family; sorted by family, non-primary first, then payer id.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
  */
 export async function readFamilyPayers(
   tx: TransactionClient,
@@ -478,6 +539,9 @@ export async function readFamilyPayers(
  * the month without a site (location_id is nullable in the ledger). Those
  * site-less invoices are not matched by the per-site replay, so they block the
  * quote instead: a false block is safer than a second invoice.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
  */
 export async function readExistingMonthlyInvoices(
   tx: TransactionClient,
@@ -536,6 +600,9 @@ export async function readExistingMonthlyInvoices(
  * Invoices of the organization that already hold one of the references.
  * invoices_reference_uq is UNIQUE (organization_id, reference), so this read
  * is not filtered by site.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
  */
 export async function readReferenceOwners(
   tx: TransactionClient,

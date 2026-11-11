@@ -16,6 +16,10 @@ import type {
   TariffCoverageRow,
 } from "./quote-reads";
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type UnassignedEnrollment = {
   enrollmentId: string;
   athleteId: string;
@@ -39,6 +43,9 @@ function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string) {
  * One QuoteFamily per family with an enrollment in the period, plus the
  * enrollments of athletes without a family. Lines and conflicts are resolved
  * per athlete; totals, reasons and hashes are left to finalizeFamilyQuotes.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
  */
 export function assembleQuoteFamilies(args: {
   bounds: PeriodBounds;

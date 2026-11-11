@@ -1,13 +1,28 @@
 import { readAllKeysetPages } from "@/modules/billing/application/keyset-pagination";
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export const READ_PAGE_SIZE = 200;
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export const READ_FILTER_BATCH_SIZE = 200;
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export const COVERAGE_PAIR_BATCH_SIZE = 100;
 
 /**
  * Reads every keyset page for each batch of filter values, in batch order.
  * Keeps `inArray` filters bounded (READ_FILTER_BATCH_SIZE) and every page at
  * READ_PAGE_SIZE rows.
+ *
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
  */
 export async function readKeysetPagesByBatches<T, K>(args: {
   values: readonly K[];
@@ -33,6 +48,10 @@ export async function readKeysetPagesByBatches<T, K>(args: {
   return rows;
 }
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export function compareNullableStrings(
   left: string | null,
   right: string | null

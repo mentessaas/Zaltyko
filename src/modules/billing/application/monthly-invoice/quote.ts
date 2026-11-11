@@ -30,6 +30,13 @@ import {
 } from "./quote-reads";
 import { monthlyInvoiceReference } from "./reference";
 
+/**
+ * @internal Cotización dentro de una transacción ajena. Solo la usan
+ * getMonthlyInvoiceOptions (lectura) e issueMonthlyInvoice (antes y después de
+ * bloquear las filas cotizadas). Fuera de ahí no toma los bloqueos de la
+ * emisión: el orden de bloqueos exige pasar por issueMonthlyInvoice. Importa
+ * desde monthly-invoice-service.
+ */
 export async function buildMonthlyInvoiceOptions(
   tx: TransactionClient,
   input: MonthlyInvoiceOptionsInput

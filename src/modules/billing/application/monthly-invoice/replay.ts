@@ -38,6 +38,10 @@ import {
 } from "./issued-reads";
 import { monthlyQuoteHash } from "./quote-model";
 
+/**
+ * @internal Uso exclusivo de monthly-invoice/*; la API pública está en
+ * monthly-invoice-service.ts.
+ */
 export type MonthlyIssueResult = {
   invoice: Invoice;
   replayed: boolean;
@@ -55,6 +59,10 @@ type QuotedFamily = {
  * Replay by idempotency key. Returns null when there is no marker for the key;
  * throws when the marker belongs to a different command or the stored invoice
  * no longer matches its quote.
+ *
+ * @internal Solo para issueMonthlyInvoice: presupone los bloqueos de
+ * lockIssuanceScope tomados y el acceso comprobado. El orden de bloqueos exige
+ * pasar por issueMonthlyInvoice; importa desde monthly-invoice-service.
  */
 export async function replayByIdempotencyKey(
   tx: TransactionClient,
@@ -143,6 +151,10 @@ export async function replayByIdempotencyKey(
  * Returns null when the family has no monthly invoice for the site and period;
  * returns the replay when it is the same command; throws
  * PERIOD_ALREADY_INVOICED otherwise.
+ *
+ * @internal Solo para issueMonthlyInvoice: presupone lockIssuanceScope,
+ * lockQuotedRows y la segunda cotización bajo bloqueos. El orden de bloqueos
+ * exige pasar por issueMonthlyInvoice; importa desde monthly-invoice-service.
  */
 export async function replayByPeriod(
   tx: TransactionClient,

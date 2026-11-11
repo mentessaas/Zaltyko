@@ -23,6 +23,12 @@ import { loadMonthlyFamilyMemberships } from "./issued-reads";
 /**
  * Takes the site and family locks, resolves the due date in the site's
  * timezone and locks the family's athletes. Returns the due instant.
+ *
+ * @internal Solo para issueMonthlyInvoice. El orden de bloqueos de la emisión
+ * (periodo, sede, familia, gimnastas y filas cotizadas) solo se garantiza a
+ * través de issueMonthlyInvoice; fuera de él puede bloquear en otro orden e
+ * interbloquear con asociaciones de familia y cobros. Importa desde
+ * monthly-invoice-service.
  */
 export async function lockIssuanceScope(
   tx: TransactionClient,
@@ -105,6 +111,12 @@ export async function lockIssuanceScope(
 /**
  * Locks every row the quote of the family depends on, so the quote taken
  * right after is stable until commit.
+ *
+ * @internal Solo para issueMonthlyInvoice. El orden de bloqueos de la emisión
+ * (periodo, sede, familia, gimnastas y filas cotizadas) solo se garantiza a
+ * través de issueMonthlyInvoice; fuera de él puede bloquear en otro orden e
+ * interbloquear con asociaciones de familia y cobros. Importa desde
+ * monthly-invoice-service.
  */
 export async function lockQuotedRows(
   tx: TransactionClient,
