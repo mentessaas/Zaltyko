@@ -120,12 +120,13 @@ grants y se niega a reinstalarse si alguna de las tres relaciones ya existe.
 ## Candidato de planificación sobre sesiones (P2 #17, segunda parte)
 
 `20261111200000_session_plans_candidate.sql` crea solo
-`zaltyko.session_plans` (un plan por sesión: foco del día, nota y revisión de
-la plantilla copiada), `zaltyko.session_plan_blocks` (hasta 20 bloques con
+`zaltyko.session_plans` (el «guion de la sesión», uno por sesión: foco del
+día, nota, revisión del modelo copiado y la última petición para reintentos), `zaltyko.session_plan_blocks` (hasta 20 bloques con
 tipo, disciplina GAF/GAM/rítmica y aparato de una lista cerrada, contenido
 libre, duración aproximada y marca de hecho), `zaltyko.session_plan_objectives`
 (objetivos de gimnastas que el plan trabaja) y `zaltyko.class_plan_templates`
-(plantilla opcional por clase, con los bloques en `jsonb`). No toca tablas
+(el «modelo de la clase», opcional, con los bloques en `jsonb`). La posición
+de los bloques es única y diferida, para reordenarlos en su sitio. No toca tablas
 existentes, filas, roles ni objetos legacy. Fuerza RLS, revoca `public`,
 `anon` y `authenticated`, no crea políticas ni grants y se niega a
 reinstalarse si alguna de las cuatro relaciones ya existe.

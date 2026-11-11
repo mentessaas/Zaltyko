@@ -1,12 +1,17 @@
 import { randomUUID } from "node:crypto";
 
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, notInArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import type { TransactionClient } from "@/lib/db-transactions";
-import { athleteObjectives } from "@/modules/athlete-progress/infrastructure/athlete-progress-schema";
+import {
+  findInProgressObjectivesForPlanning,
+  findObjectivesForPlanning,
+  type PlanningObjective,
+} from "@/modules/athlete-progress/application/athlete-progress-service";
 import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import {
+  BLOCKS_MAX,
   canManageClassPlanTemplate,
   canMarkBlocks,
   markBlockCommandSchema,
@@ -27,6 +32,7 @@ import {
   sessionPlanBlocks,
   sessionPlanObjectives,
   sessionPlans,
+  type SessionPlanBlockRow,
   type SessionPlanRow,
 } from "@/modules/session-plans/infrastructure/session-plan-schema";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -45,18 +51,57 @@ import {
   type PlannedSession,
 } from "./access";
 
-/** Plan de una sesión (P2 #17, segunda parte). Uso interno: entra por la fachada. */
+/**
+ * Guion de una sesión (P2 #17, segunda parte; en código, «session plan»). Uso
+ * interno: entra por la fachada.
+ *
+ * Concurrencia: guardar el guion y marcar un bloque toman el mismo cerrojo por
+ * sesión (lockCommand con planLockKey), así que una marca nunca se pierde ni
+ * da un 404 falso por una edición simultánea. Además, editar actualiza los
+ * bloques en su sitio (mismo id); la unicidad de posición es diferida.
+ */
 
 const now = () => new Date();
+const OBJECTIVE_OPTIONS_LIMIT = 500;
+
+export function planLockKey(sessionId: string): string {
+  return `session-plan:${sessionId}`;
+}
 
 function invalidObjective(): OperationalError {
   // Mismo mensaje para un objetivo inexistente, de otra academia, de otra sede
-  // no visible o de una gimnasta que no está en la sesión: no revela cuál.
+  // no visible, que no está en curso o de una gimnasta que no está en la
+  // sesión: no revela cuál.
   return new OperationalError(
     "INVALID_RELATION",
-    "Algún objetivo no es de una gimnasta de esta sesión.",
+    "Algún objetivo no está en curso o no es de una gimnasta de esta sesión.",
     422
   );
+}
+
+function idempotencyConflict(): OperationalError {
+  return new OperationalError(
+    "IDEMPOTENCY_CONFLICT",
+    "Esta petición ya se usó con otros datos. Recarga y vuelve a intentarlo.",
+    409
+  );
+}
+
+function alreadyHasPlan(): OperationalError {
+  return new OperationalError("VERSION_CONFLICT", "Esta sesión ya tiene guion. Recarga para verlo y editarlo.", 409);
+}
+
+/**
+ * Las restricciones únicas son la última barrera ante dos peticiones a la vez
+ * (por ejemplo, el mismo clientRequestId en dos sesiones distintas). Se
+ * responden como 409 claros, nunca como 500.
+ */
+function uniqueViolation(error: unknown): OperationalError | null {
+  const failure = error as { code?: string; constraint?: string; cause?: { code?: string; constraint?: string } };
+  const cause = failure?.cause ?? failure;
+  if (cause?.code !== "23505") return null;
+  if (cause.constraint === "session_plans_session_uq") return alreadyHasPlan();
+  return idempotencyConflict();
 }
 
 async function loadPlan(
@@ -72,48 +117,42 @@ async function loadPlan(
   return row ?? null;
 }
 
-type ObjectiveRow = { id: string; athleteId: string; title: string; status: string; locationId: string };
-
-async function loadObjectives(
-  tx: TransactionClient,
-  organizationId: string,
-  ids: readonly string[]
-): Promise<ObjectiveRow[]> {
-  if (ids.length === 0) return [];
+async function loadBlocks(tx: TransactionClient, organizationId: string, planId: string): Promise<SessionPlanBlockRow[]> {
   return tx
-    .select({
-      id: athleteObjectives.id,
-      athleteId: athleteObjectives.athleteId,
-      title: athleteObjectives.title,
-      status: athleteObjectives.status,
-      locationId: athleteObjectives.locationId,
-    })
-    .from(athleteObjectives)
-    .where(and(eq(athleteObjectives.organizationId, organizationId), inArray(athleteObjectives.id, [...ids])))
-    .limit(ids.length);
+    .select()
+    .from(sessionPlanBlocks)
+    .where(and(eq(sessionPlanBlocks.organizationId, organizationId), eq(sessionPlanBlocks.planId, planId)))
+    .orderBy(asc(sessionPlanBlocks.position))
+    .limit(BLOCKS_MAX);
 }
 
-/**
- * Un objetivo se vincula solo si es de una gimnasta que participa en la sesión
- * y quien edita ve la sede desde la que se creó.
- */
-async function validatedObjectives(
+/** Todos los vínculos del guion, también los de sedes que quien lee no ve. */
+async function loadLinkedObjectives(
   tx: TransactionClient,
-  access: Access,
-  input: { organizationId: string; session: PlannedSession; objectiveIds: readonly string[] }
-): Promise<ObjectiveRow[]> {
-  if (input.objectiveIds.length === 0) return [];
-  const rows = await loadObjectives(tx, input.organizationId, input.objectiveIds);
-  if (rows.length !== input.objectiveIds.length) throw invalidObjective();
-  const participants = await sessionParticipants(tx, {
-    organizationId: input.organizationId,
-    locationId: access.location.id,
-    session: input.session,
-  });
-  for (const row of rows) {
-    if (!participants.has(row.athleteId) || !isVisible(access, row.locationId)) throw invalidObjective();
-  }
-  return rows;
+  organizationId: string,
+  planId: string
+): Promise<PlanningObjective[]> {
+  // unbounded-read-ok: los vínculos de un guion están limitados por la validación de escritura.
+  const links = await tx
+    .select({ objectiveId: sessionPlanObjectives.objectiveId })
+    .from(sessionPlanObjectives)
+    .where(and(eq(sessionPlanObjectives.organizationId, organizationId), eq(sessionPlanObjectives.planId, planId)));
+  return findObjectivesForPlanning(tx, { organizationId, objectiveIds: links.map((link) => link.objectiveId) });
+}
+
+function toObjectiveView(objective: PlanningObjective, participants: Map<string, string>): SessionPlanObjectiveView {
+  return {
+    objectiveId: objective.id,
+    athleteId: objective.athleteId,
+    // Una gimnasta que ya no está en la sesión conserva el vínculo, sin nombre.
+    athleteName: participants.get(objective.athleteId) ?? "Gimnasta fuera de la sesión",
+    title: objective.title,
+    status: objective.status,
+  };
+}
+
+function byAthleteThenTitle(left: SessionPlanObjectiveView, right: SessionPlanObjectiveView): number {
+  return left.athleteName.localeCompare(right.athleteName, "es") || left.title.localeCompare(right.title, "es");
 }
 
 async function readPlanView(
@@ -121,29 +160,8 @@ async function readPlanView(
   access: Access,
   input: { organizationId: string; plan: SessionPlanRow; participants: Map<string, string> }
 ): Promise<SessionPlanView> {
-  const blocks = await tx
-    .select()
-    .from(sessionPlanBlocks)
-    .where(
-      and(eq(sessionPlanBlocks.organizationId, input.organizationId), eq(sessionPlanBlocks.planId, input.plan.id))
-    )
-    .orderBy(asc(sessionPlanBlocks.position))
-    .limit(20);
-  // unbounded-read-ok: los vínculos de un plan están limitados a PLAN_OBJECTIVES_MAX por la validación de escritura.
-  const links = await tx
-    .select({ objectiveId: sessionPlanObjectives.objectiveId })
-    .from(sessionPlanObjectives)
-    .where(
-      and(
-        eq(sessionPlanObjectives.organizationId, input.organizationId),
-        eq(sessionPlanObjectives.planId, input.plan.id)
-      )
-    );
-  const objectives = await loadObjectives(
-    tx,
-    input.organizationId,
-    links.map((link) => link.objectiveId)
-  );
+  const blocks = await loadBlocks(tx, input.organizationId, input.plan.id);
+  const objectives = await loadLinkedObjectives(tx, input.organizationId, input.plan.id);
   return {
     id: input.plan.id,
     revision: input.plan.revision,
@@ -161,28 +179,14 @@ async function readPlanView(
       done: block.doneAt !== null,
       doneAt: block.doneAt ? new Date(block.doneAt).toISOString() : null,
     })),
-    // Un objetivo de una sede que esta persona no ve no se muestra.
+    // Un objetivo de una sede que esta persona no ve no se muestra; al guardar,
+    // el servidor lo conserva (resolveObjectiveLinks).
     objectives: objectives
       .filter((objective) => isVisible(access, objective.locationId))
       .map((objective) => toObjectiveView(objective, input.participants))
       .sort(byAthleteThenTitle),
     updatedAt: new Date(input.plan.updatedAt).toISOString(),
   };
-}
-
-function toObjectiveView(objective: ObjectiveRow, participants: Map<string, string>): SessionPlanObjectiveView {
-  return {
-    objectiveId: objective.id,
-    athleteId: objective.athleteId,
-    // Una gimnasta que ya no está en la sesión conserva el vínculo, sin nombre.
-    athleteName: participants.get(objective.athleteId) ?? "Gimnasta fuera de la sesión",
-    title: objective.title,
-    status: objective.status,
-  };
-}
-
-function byAthleteThenTitle(left: SessionPlanObjectiveView, right: SessionPlanObjectiveView): number {
-  return left.athleteName.localeCompare(right.athleteName, "es") || left.title.localeCompare(right.title, "es");
 }
 
 export async function getSessionPlan(
@@ -212,28 +216,13 @@ export async function getSessionPlan(
       )
       .limit(1);
 
-    // Opciones: objetivos en curso de las gimnastas de la sesión, visibles.
-    const athleteIds = [...participants.keys()];
-    const inProgress =
-      athleteIds.length === 0
-        ? []
-        : await tx
-            .select({
-              id: athleteObjectives.id,
-              athleteId: athleteObjectives.athleteId,
-              title: athleteObjectives.title,
-              status: athleteObjectives.status,
-              locationId: athleteObjectives.locationId,
-            })
-            .from(athleteObjectives)
-            .where(
-              and(
-                eq(athleteObjectives.organizationId, query.organizationId),
-                inArray(athleteObjectives.athleteId, athleteIds),
-                eq(athleteObjectives.status, "in_progress")
-              )
-            )
-            .limit(500);
+    // Opciones: objetivos en curso de las gimnastas de la sesión, visibles,
+    // más los ya vinculados que esta persona ve.
+    const inProgress = await findInProgressObjectivesForPlanning(tx, {
+      organizationId: query.organizationId,
+      athleteIds: [...participants.keys()],
+      limit: OBJECTIVE_OPTIONS_LIMIT,
+    });
     const options = new Map<string, SessionPlanObjectiveView>();
     for (const objective of inProgress) {
       if (isVisible(access, objective.locationId)) options.set(objective.id, toObjectiveView(objective, participants));
@@ -261,40 +250,15 @@ export async function getSessionPlan(
 type PlanContent = {
   focus: string | null;
   note: string | null;
-  blocks: Array<TemplateBlock & { id?: string | null }>;
+  blocks: Array<TemplateBlock & { id: string | null }>;
   fromTemplateRevision: number | null;
 };
 
-async function contentFor(
-  tx: TransactionClient,
-  access: Access,
-  input: { organizationId: string; session: PlannedSession; command: SaveSessionPlanCommand }
-): Promise<PlanContent> {
-  if (input.command.source === "template") {
-    const [template] = await tx
-      .select()
-      .from(classPlanTemplates)
-      .where(
-        and(
-          eq(classPlanTemplates.organizationId, input.organizationId),
-          eq(classPlanTemplates.locationId, access.location.id),
-          eq(classPlanTemplates.classTemplateId, input.session.classTemplateId)
-        )
-      )
-      .limit(1);
-    if (!template) throw notFound("Esta clase no tiene plantilla de plan");
-    // Copia: cambiar la plantilla después no toca este plan.
-    return {
-      focus: template.focus,
-      note: template.note,
-      blocks: parseStoredTemplateBlocks(template.blocks),
-      fromTemplateRevision: template.revision,
-    };
-  }
+function manualContent(command: SaveSessionPlanCommand): PlanContent {
   return {
-    focus: input.command.focus ?? null,
-    note: input.command.note ?? null,
-    blocks: input.command.blocks.map((block) => ({
+    focus: command.focus ?? null,
+    note: command.note ?? null,
+    blocks: command.blocks.map((block) => ({
       id: block.id ?? null,
       kind: block.kind,
       discipline: block.discipline ?? null,
@@ -306,52 +270,183 @@ async function contentFor(
   };
 }
 
-async function writeBlocks(
+async function contentFor(
   tx: TransactionClient,
+  access: Access,
+  input: { organizationId: string; session: PlannedSession; command: SaveSessionPlanCommand }
+): Promise<PlanContent> {
+  if (input.command.source !== "template") return manualContent(input.command);
+  const [template] = await tx
+    .select()
+    .from(classPlanTemplates)
+    .where(
+      and(
+        eq(classPlanTemplates.organizationId, input.organizationId),
+        eq(classPlanTemplates.locationId, access.location.id),
+        eq(classPlanTemplates.classTemplateId, input.session.classTemplateId)
+      )
+    )
+    .limit(1);
+  if (!template) throw notFound("Esta clase no tiene modelo");
+  // Copia: cambiar el modelo después no toca este guion.
+  return {
+    focus: template.focus,
+    note: template.note,
+    blocks: parseStoredTemplateBlocks(template.blocks).map((block) => ({ ...block, id: null })),
+    fromTemplateRevision: template.revision,
+  };
+}
+
+/**
+ * ¿La petición repetida pide exactamente lo que ya está guardado? Compara foco,
+ * nota, bloques en orden (un bloque sin id coincide con el que se creó para
+ * él) y los vínculos que quien guarda ve.
+ */
+async function storedMatches(
+  tx: TransactionClient,
+  access: Access,
+  input: { organizationId: string; plan: SessionPlanRow; command: SaveSessionPlanCommand }
+): Promise<boolean> {
+  if (input.command.source === "template") return true;
+  const content = manualContent(input.command);
+  if (input.plan.focus !== content.focus || input.plan.note !== content.note) return false;
+  const blocks = await loadBlocks(tx, input.organizationId, input.plan.id);
+  if (blocks.length !== content.blocks.length) return false;
+  const sameBlocks = blocks.every((stored, index) => {
+    const wanted = content.blocks[index]!;
+    return (
+      (wanted.id === null || wanted.id === stored.id) &&
+      stored.kind === wanted.kind &&
+      stored.discipline === wanted.discipline &&
+      stored.apparatus === wanted.apparatus &&
+      stored.content === wanted.content &&
+      stored.durationMinutes === wanted.durationMinutes
+    );
+  });
+  if (!sameBlocks) return false;
+  const visible = (await loadLinkedObjectives(tx, input.organizationId, input.plan.id))
+    .filter((objective) => isVisible(access, objective.locationId))
+    .map((objective) => objective.id)
+    .sort();
+  return JSON.stringify(visible) === JSON.stringify([...input.command.objectiveIds].sort());
+}
+
+/**
+ * Vínculos finales del guion:
+ * - los vínculos existentes que quien guarda no ve (otra sede) se conservan
+ *   siempre: no puede quitar lo que no ve;
+ * - los existentes que sigue pidiendo se conservan aunque la gimnasta ya no
+ *   participe o el objetivo ya no esté en curso;
+ * - solo los NUEVOS se validan: objetivo de la academia, en curso, de una
+ *   gimnasta que participa en la sesión y de una sede que quien guarda ve.
+ */
+async function resolveObjectiveLinks(
+  tx: TransactionClient,
+  access: Access,
   input: {
     organizationId: string;
-    planId: string;
-    blocks: PlanContent["blocks"];
-    previous: Map<string, { doneAt: Date | null; doneByMemberId: string | null }>;
+    session: PlannedSession;
+    requested: readonly string[];
+    existing: PlanningObjective[];
   }
+): Promise<PlanningObjective[]> {
+  const existingById = new Map(input.existing.map((objective) => [objective.id, objective]));
+  const final = new Map<string, PlanningObjective>();
+  for (const objective of input.existing) {
+    if (!isVisible(access, objective.locationId)) final.set(objective.id, objective);
+  }
+  const newIds: string[] = [];
+  for (const id of input.requested) {
+    const kept = existingById.get(id);
+    if (kept) final.set(id, kept);
+    else newIds.push(id);
+  }
+  if (newIds.length > 0) {
+    const rows = await findObjectivesForPlanning(tx, { organizationId: input.organizationId, objectiveIds: newIds });
+    if (rows.length !== newIds.length) throw invalidObjective();
+    const participants = await sessionParticipants(tx, {
+      organizationId: input.organizationId,
+      locationId: access.location.id,
+      session: input.session,
+    });
+    for (const row of rows) {
+      if (row.status !== "in_progress" || !participants.has(row.athleteId) || !isVisible(access, row.locationId)) {
+        throw invalidObjective();
+      }
+      final.set(row.id, row);
+    }
+  }
+  return [...final.values()];
+}
+
+/**
+ * Bloques en su sitio: los conservados se actualizan por id (su marca de hecho
+ * no se toca), los quitados se borran y los nuevos se insertan. La unicidad de
+ * posición es diferida, así que el orden de estas sentencias no importa.
+ */
+async function writeBlocks(
+  tx: TransactionClient,
+  input: { organizationId: string; planId: string; blocks: PlanContent["blocks"]; previousIds: Set<string> }
 ): Promise<void> {
-  await tx
-    .delete(sessionPlanBlocks)
-    .where(and(eq(sessionPlanBlocks.organizationId, input.organizationId), eq(sessionPlanBlocks.planId, input.planId)));
-  if (input.blocks.length === 0) return;
-  await tx.insert(sessionPlanBlocks).values(
-    input.blocks.map((block, index) => {
-      // Un bloque que se conserva mantiene su identificador y su marca de hecho.
-      const kept = block.id ? input.previous.get(block.id) : undefined;
-      return {
-        ...(kept && block.id ? { id: block.id } : {}),
-        organizationId: input.organizationId,
-        planId: input.planId,
-        position: index + 1,
-        kind: block.kind,
-        discipline: block.discipline,
-        apparatus: block.apparatus,
-        content: block.content,
-        durationMinutes: block.durationMinutes,
-        doneAt: kept?.doneAt ?? null,
-        doneByMemberId: kept?.doneByMemberId ?? null,
-      };
-    })
-  );
+  const keptIds = input.blocks.map((block) => block.id).filter((id): id is string => Boolean(id));
+  const removed = [...input.previousIds].filter((id) => !keptIds.includes(id));
+  if (removed.length > 0) {
+    await tx
+      .delete(sessionPlanBlocks)
+      .where(
+        and(
+          eq(sessionPlanBlocks.organizationId, input.organizationId),
+          eq(sessionPlanBlocks.planId, input.planId),
+          inArray(sessionPlanBlocks.id, removed)
+        )
+      );
+  }
+  const inserts: Array<typeof sessionPlanBlocks.$inferInsert> = [];
+  for (const [index, block] of input.blocks.entries()) {
+    const values = {
+      position: index + 1,
+      kind: block.kind,
+      discipline: block.discipline,
+      apparatus: block.apparatus,
+      content: block.content,
+      durationMinutes: block.durationMinutes,
+    };
+    if (block.id) {
+      await tx
+        .update(sessionPlanBlocks)
+        .set(values)
+        .where(
+          and(
+            eq(sessionPlanBlocks.organizationId, input.organizationId),
+            eq(sessionPlanBlocks.planId, input.planId),
+            eq(sessionPlanBlocks.id, block.id)
+          )
+        );
+    } else {
+      inserts.push({ organizationId: input.organizationId, planId: input.planId, ...values });
+    }
+  }
+  if (inserts.length > 0) await tx.insert(sessionPlanBlocks).values(inserts);
 }
 
 async function writeObjectives(
   tx: TransactionClient,
-  input: { organizationId: string; planId: string; objectives: ObjectiveRow[] }
+  input: { organizationId: string; planId: string; objectives: PlanningObjective[]; previousIds: Set<string> }
 ): Promise<void> {
+  const finalIds = input.objectives.map((objective) => objective.id);
   await tx
     .delete(sessionPlanObjectives)
     .where(
-      and(eq(sessionPlanObjectives.organizationId, input.organizationId), eq(sessionPlanObjectives.planId, input.planId))
+      and(
+        eq(sessionPlanObjectives.organizationId, input.organizationId),
+        eq(sessionPlanObjectives.planId, input.planId),
+        ...(finalIds.length > 0 ? [notInArray(sessionPlanObjectives.objectiveId, finalIds)] : [])
+      )
     );
-  if (input.objectives.length === 0) return;
+  const added = input.objectives.filter((objective) => !input.previousIds.has(objective.id));
+  if (added.length === 0) return;
   await tx.insert(sessionPlanObjectives).values(
-    input.objectives.map((objective) => ({
+    added.map((objective) => ({
       organizationId: input.organizationId,
       planId: input.planId,
       athleteId: objective.athleteId,
@@ -365,118 +460,141 @@ export async function saveSessionPlan(
 ): Promise<SessionPlanWriteResult> {
   const command = saveSessionPlanCommandSchema.parse(input.command);
   const organizationId = command.organizationId;
-  return db.transaction(async (tx) => {
-    const access = await authorizeMember(tx, { ...command, actor: input.actor, allowedRoles: SESSION_PLAN_ROLES });
-    const session = await loadSession(tx, access, { organizationId, sessionId: input.sessionId });
-    // Un solo escritor por sesión: el alta y las ediciones se serializan.
-    await lockCommand(tx, organizationId, `session-plan:${session.id}`);
-    const existing = await loadPlan(tx, { organizationId, sessionId: session.id, forUpdate: true });
+  try {
+    return await db.transaction(async (tx) => {
+      const access = await authorizeMember(tx, { ...command, actor: input.actor, allowedRoles: SESSION_PLAN_ROLES });
+      const session = await loadSession(tx, access, { organizationId, sessionId: input.sessionId });
+      // Un solo escritor por sesión: alta, ediciones y marcas se serializan.
+      await lockCommand(tx, organizationId, planLockKey(session.id));
+      const existing = await loadPlan(tx, { organizationId, sessionId: session.id, forUpdate: true });
 
-    if (command.expectedRevision === null) {
-      if (existing) {
-        // Reintento de la misma petición de alta: devuelve lo ya creado.
-        if (existing.clientRequestId === command.clientRequestId) {
+      if (command.expectedRevision === null) {
+        if (existing) {
+          // Reintento del mismo alta: devuelve lo ya creado.
+          if (existing.clientRequestId === command.clientRequestId) {
+            if (!(await storedMatches(tx, access, { organizationId, plan: existing, command }))) throw idempotencyConflict();
+            return { id: existing.id, revision: existing.revision, replayed: true };
+          }
+          throw alreadyHasPlan();
+        }
+        const [reused] = await tx
+          .select({ id: sessionPlans.id })
+          .from(sessionPlans)
+          .where(and(eq(sessionPlans.organizationId, organizationId), eq(sessionPlans.clientRequestId, command.clientRequestId)))
+          .limit(1);
+        if (reused) throw idempotencyConflict();
+      } else {
+        if (!existing) throw notFound("Esta sesión todavía no tiene guion");
+        // Reintento de una edición ya guardada: misma petición y mismo contenido.
+        if (
+          existing.lastRequestId === command.clientRequestId &&
+          existing.revision === command.expectedRevision + 1
+        ) {
+          if (!(await storedMatches(tx, access, { organizationId, plan: existing, command }))) throw idempotencyConflict();
           return { id: existing.id, revision: existing.revision, replayed: true };
         }
-        throw new OperationalError(
-          "VERSION_CONFLICT",
-          "Esta sesión ya tiene plan. Recarga para verlo y editarlo.",
-          409
-        );
+        if (existing.revision !== command.expectedRevision) throw staleRevision();
       }
-    } else {
-      if (!existing) throw notFound("Esta sesión todavía no tiene plan");
-      if (existing.revision !== command.expectedRevision) throw staleRevision();
-    }
 
-    await assertOrganizationOperationalWritable(tx, organizationId);
-    assertSessionEditable(session);
-    const content = await contentFor(tx, access, { organizationId, session, command });
-    const objectives = await validatedObjectives(tx, access, {
-      organizationId,
-      session,
-      objectiveIds: command.objectiveIds,
-    });
-    const memberId = access.member.id;
+      await assertOrganizationOperationalWritable(tx, organizationId);
+      assertSessionEditable(session);
+      const content = await contentFor(tx, access, { organizationId, session, command });
+      const memberId = access.member.id;
 
-    if (!existing) {
-      const [created] = await tx
-        .insert(sessionPlans)
-        .values({
+      if (!existing) {
+        const objectives = await resolveObjectiveLinks(tx, access, {
+          organizationId,
+          session,
+          requested: command.objectiveIds,
+          existing: [],
+        });
+        const [created] = await tx
+          .insert(sessionPlans)
+          .values({
+            organizationId,
+            locationId: access.location.id,
+            sessionId: session.id,
+            clientRequestId: command.clientRequestId,
+            lastRequestId: command.clientRequestId,
+            focus: content.focus,
+            note: content.note,
+            fromTemplateRevision: content.fromTemplateRevision,
+            createdByMemberId: memberId,
+            updatedByMemberId: memberId,
+          })
+          .returning({ id: sessionPlans.id, revision: sessionPlans.revision });
+        if (!created) throw new OperationalError("FEATURE_NOT_AVAILABLE", "No se pudo guardar el guion", 503);
+        await writeBlocks(tx, { organizationId, planId: created.id, blocks: content.blocks, previousIds: new Set() });
+        await writeObjectives(tx, { organizationId, planId: created.id, objectives, previousIds: new Set() });
+        await appendAuditEntry(tx, {
           organizationId,
           locationId: access.location.id,
-          sessionId: session.id,
-          clientRequestId: command.clientRequestId,
+          actorUserId: input.actor.userId,
+          action: "session_plan.created",
+          targetType: "session_plan",
+          targetId: created.id,
+          idempotencyKey: `session-plan:created:${command.clientRequestId}`,
+          after: { revision: 1, blocks: content.blocks.length, objectives: objectives.length },
+          metadata: { sessionId: session.id, fromTemplateRevision: content.fromTemplateRevision },
+        });
+        return { id: created.id, revision: created.revision, replayed: false };
+      }
+
+      const previousBlocks = await loadBlocks(tx, organizationId, existing.id);
+      const previousIds = new Set(previousBlocks.map((block) => block.id));
+      if (content.blocks.some((block) => block.id && !previousIds.has(block.id))) {
+        throw new OperationalError("INVALID_RELATION", "Algún bloque no es de este guion.", 422);
+      }
+      const existingObjectives = await loadLinkedObjectives(tx, organizationId, existing.id);
+      const objectives = await resolveObjectiveLinks(tx, access, {
+        organizationId,
+        session,
+        requested: command.objectiveIds,
+        existing: existingObjectives,
+      });
+      await writeBlocks(tx, { organizationId, planId: existing.id, blocks: content.blocks, previousIds });
+      await writeObjectives(tx, {
+        organizationId,
+        planId: existing.id,
+        objectives,
+        previousIds: new Set(existingObjectives.map((objective) => objective.id)),
+      });
+      const revision = existing.revision + 1;
+      await tx
+        .update(sessionPlans)
+        .set({
           focus: content.focus,
           note: content.note,
-          fromTemplateRevision: content.fromTemplateRevision,
-          createdByMemberId: memberId,
+          revision,
+          lastRequestId: command.clientRequestId,
           updatedByMemberId: memberId,
+          updatedAt: now(),
         })
-        .returning({ id: sessionPlans.id, revision: sessionPlans.revision });
-      if (!created) throw new OperationalError("FEATURE_NOT_AVAILABLE", "No se pudo guardar el plan", 503);
-      await writeBlocks(tx, { organizationId, planId: created.id, blocks: content.blocks, previous: new Map() });
-      await writeObjectives(tx, { organizationId, planId: created.id, objectives });
+        .where(and(eq(sessionPlans.organizationId, organizationId), eq(sessionPlans.id, existing.id)));
       await appendAuditEntry(tx, {
         organizationId,
         locationId: access.location.id,
         actorUserId: input.actor.userId,
-        action: "session_plan.created",
+        action: "session_plan.updated",
         targetType: "session_plan",
-        targetId: created.id,
-        idempotencyKey: `session-plan:created:${command.clientRequestId}`,
-        after: { revision: 1, blocks: content.blocks.length, objectives: objectives.length },
-        metadata: { sessionId: session.id, fromTemplateRevision: content.fromTemplateRevision },
+        targetId: existing.id,
+        idempotencyKey: `session-plan:updated:${existing.id}:${revision}`,
+        before: { revision: existing.revision },
+        after: { revision, blocks: content.blocks.length, objectives: objectives.length },
+        metadata: { sessionId: session.id },
       });
-      return { id: created.id, revision: created.revision, replayed: false };
-    }
-
-    // unbounded-read-ok: los bloques de un plan están limitados a 20 por CHECK.
-    const previousBlocks = await tx
-      .select({
-        id: sessionPlanBlocks.id,
-        doneAt: sessionPlanBlocks.doneAt,
-        doneByMemberId: sessionPlanBlocks.doneByMemberId,
-      })
-      .from(sessionPlanBlocks)
-      .where(and(eq(sessionPlanBlocks.organizationId, organizationId), eq(sessionPlanBlocks.planId, existing.id)));
-    const previous = new Map(previousBlocks.map((block) => [block.id, block]));
-    if (content.blocks.some((block) => block.id && !previous.has(block.id))) {
-      throw new OperationalError("INVALID_RELATION", "Algún bloque no es de este plan.", 422);
-    }
-    await writeBlocks(tx, { organizationId, planId: existing.id, blocks: content.blocks, previous });
-    await writeObjectives(tx, { organizationId, planId: existing.id, objectives });
-    const revision = existing.revision + 1;
-    await tx
-      .update(sessionPlans)
-      .set({
-        focus: content.focus,
-        note: content.note,
-        revision,
-        updatedByMemberId: memberId,
-        updatedAt: now(),
-      })
-      .where(and(eq(sessionPlans.organizationId, organizationId), eq(sessionPlans.id, existing.id)));
-    await appendAuditEntry(tx, {
-      organizationId,
-      locationId: access.location.id,
-      actorUserId: input.actor.userId,
-      action: "session_plan.updated",
-      targetType: "session_plan",
-      targetId: existing.id,
-      idempotencyKey: `session-plan:updated:${existing.id}:${revision}`,
-      before: { revision: existing.revision },
-      after: { revision, blocks: content.blocks.length, objectives: objectives.length },
-      metadata: { sessionId: session.id },
+      return { id: existing.id, revision, replayed: false };
     });
-    return { id: existing.id, revision, replayed: false };
-  });
+  } catch (error) {
+    throw uniqueViolation(error) ?? error;
+  }
 }
 
 /**
- * Marca o desmarca un bloque como hecho. Idempotente: pedir el estado que ya
- * tiene no cambia nada (ni la hora ni quién lo marcó). No cambia la revisión
- * del plan, así que no choca con quien lo está editando.
+ * Marca o desmarca un bloque como hecho. Toma el cerrojo del guion antes de
+ * leer, así que espera a cualquier edición en curso y nunca la pisa.
+ * Idempotente: pedir el estado que ya tiene no cambia nada (ni la hora ni
+ * quién lo marcó). No cambia la revisión del guion.
  */
 export async function markSessionPlanBlock(
   input: ActorInput & { sessionId: string; blockId: string; command: unknown }
@@ -486,6 +604,7 @@ export async function markSessionPlanBlock(
   return db.transaction(async (tx) => {
     const access = await authorizeMember(tx, { ...command, actor: input.actor, allowedRoles: SESSION_PLAN_ROLES });
     const session = await loadSession(tx, access, { organizationId, sessionId: input.sessionId });
+    await lockCommand(tx, organizationId, planLockKey(session.id));
     const plan = await loadPlan(tx, { organizationId, sessionId: session.id, forUpdate: false });
     if (!plan) throw notFound("Bloque no encontrado");
     const [block] = await tx
@@ -508,7 +627,7 @@ export async function markSessionPlanBlock(
       throw new OperationalError(
         "INVALID_STATE_TRANSITION",
         session.status === "cancelled"
-          ? "La sesión está cancelada: su plan es de solo lectura."
+          ? "La sesión está cancelada: su guion es de solo lectura."
           : "Podrás marcar los bloques cuando empiece la sesión.",
         409
       );

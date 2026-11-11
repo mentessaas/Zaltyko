@@ -50,6 +50,7 @@ export const sessionPlans = zaltyko.table(
     locationId: uuid("location_id").notNull(),
     sessionId: uuid("session_id").notNull(),
     clientRequestId: uuid("client_request_id").notNull(),
+    lastRequestId: uuid("last_request_id").notNull(),
     focus: text("focus"),
     note: text("note"),
     fromTemplateRevision: integer("from_template_revision"),
@@ -112,6 +113,8 @@ export const sessionPlanBlocks = zaltyko.table(
   },
   (table) => [
     unique("session_plan_blocks_org_id_uq").on(table.organizationId, table.id),
+    // En el candidato es DEFERRABLE INITIALLY DEFERRED (Drizzle no lo expresa;
+    // tests/session-plans-contract.test.ts lo comprueba en el SQL).
     unique("session_plan_blocks_position_uq").on(table.organizationId, table.planId, table.position),
     check("session_plan_blocks_position_check", raw("position >= 1 and position <= 20")),
     check(

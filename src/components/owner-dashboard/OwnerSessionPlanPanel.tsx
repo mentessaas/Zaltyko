@@ -146,12 +146,12 @@ export function OwnerSessionPlanPanel({
       <div className="flex items-center gap-2">
         <ClipboardList className="h-4 w-4 shrink-0 text-z-soft" aria-hidden="true" />
         <h3 id={titleId} className="text-sm font-bold text-z-ink">
-          Plan de la sesión
+          Guion de la sesión
         </h3>
       </div>
       {state.status === "loading" ? (
         <p role="status" aria-live="polite" className={ownerUi.help}>
-          Cargando el plan…
+          Cargando el guion…
         </p>
       ) : state.status === "unavailable" ? (
         <p role="status" className={ownerUi.help}>
@@ -187,7 +187,7 @@ export function OwnerSessionPlanPanel({
                   blocks: current.blocks,
                   objectiveIds: current.objectiveIds,
                 }),
-              "Plan guardado."
+              "Guion guardado."
             )
           }
           onCreateFromTemplate={() =>
@@ -202,7 +202,7 @@ export function OwnerSessionPlanPanel({
                   blocks: [],
                   objectiveIds: [],
                 }),
-              "Plan creado desde la plantilla de la clase."
+              "Guion creado desde el modelo de la clase."
             )
           }
           onToggleBlock={(blockId, done) =>
@@ -225,7 +225,7 @@ export function OwnerSessionPlanPanel({
                     durationMinutes: block.durationMinutes,
                   })),
                 }),
-              "Plantilla de la clase guardada. Se copiará en los planes nuevos de esta clase."
+              "Modelo de la clase guardado. Se copiará en los guiones nuevos de esta clase."
             );
           }}
         />
@@ -285,25 +285,25 @@ function ReadyPlan({
 
   const plan = view.plan;
   const readOnlyNotice = readOnly ? (
-    <p className={ownerUi.help}>La academia está en solo lectura: puedes ver el plan, pero no cambiarlo.</p>
+    <p className={ownerUi.help}>La academia está en solo lectura: puedes ver el guion, pero no cambiarlo.</p>
   ) : view.session.cancelled ? (
-    <p className={ownerUi.help}>La sesión está cancelada: su plan es de solo lectura.</p>
+    <p className={ownerUi.help}>La sesión está cancelada: su guion es de solo lectura.</p>
   ) : null;
 
   if (!plan) {
     return (
       <div className="grid gap-2">
-        <p className={ownerUi.help}>Esta sesión todavía no tiene plan.</p>
+        <p className={ownerUi.help}>Esta sesión todavía no tiene guion.</p>
         {readOnlyNotice}
         {editable ? (
           <div className="flex flex-wrap gap-2">
             <button type="button" className={ownerUi.secondaryButton} onClick={onEdit} disabled={busy}>
               <Plus className="h-4 w-4" aria-hidden="true" />
-              Crear plan
+              Crear guion
             </button>
             {view.template.exists ? (
               <button type="button" className={ownerUi.secondaryButton} onClick={onCreateFromTemplate} disabled={busy}>
-                Crear desde la plantilla de la clase
+                Crear desde el modelo de la clase
               </button>
             ) : null}
           </div>
@@ -364,7 +364,7 @@ function ReadyPlan({
           </ol>
         </>
       ) : (
-        <p className={ownerUi.help}>El plan no tiene bloques.</p>
+        <p className={ownerUi.help}>El guion no tiene bloques.</p>
       )}
       {plan.objectives.length > 0 ? (
         <div className="grid gap-1">
@@ -388,11 +388,11 @@ function ReadyPlan({
       {editable ? (
         <div className="flex flex-wrap gap-2">
           <button type="button" className={ownerUi.secondaryButton} onClick={onEdit} disabled={busy}>
-            Editar plan
+            Editar guion
           </button>
           {view.canManageTemplate ? (
             <button type="button" className={ownerUi.secondaryButton} onClick={onSaveAsTemplate} disabled={busy}>
-              {view.template.exists ? "Actualizar la plantilla de la clase" : "Guardar como plantilla de la clase"}
+              {view.template.exists ? "Actualizar el modelo de la clase" : "Guardar como modelo de la clase"}
             </button>
           ) : null}
         </div>
@@ -602,7 +602,7 @@ function PlanEditor({
             Añadir bloque
           </button>
         ) : (
-          <p className={ownerUi.help}>Un plan admite hasta {BLOCKS_MAX} bloques.</p>
+          <p className={ownerUi.help}>Un guion admite hasta {BLOCKS_MAX} bloques.</p>
         )}
       </fieldset>
 
@@ -653,7 +653,7 @@ function PlanEditor({
       {invalid ? <p className={ownerUi.help}>Cada bloque necesita un contenido.</p> : null}
       <div className="flex flex-wrap gap-2">
         <button type="submit" className={ownerUi.primaryButton} disabled={busy || invalid}>
-          {busy ? "Guardando…" : "Guardar plan"}
+          {busy ? "Guardando…" : "Guardar guion"}
         </button>
         <button type="button" className={ownerUi.secondaryButton} onClick={onCancel} disabled={busy}>
           Cancelar

@@ -135,12 +135,12 @@ export async function saveClassPlanTemplate(
         }
         throw new OperationalError(
           "VERSION_CONFLICT",
-          "Esta clase ya tiene plantilla. Recarga para verla y editarla.",
+          "Esta clase ya tiene modelo. Recarga para verlo y editarlo.",
           409
         );
       }
     } else {
-      if (!existing) throw notFound("Esta clase todavía no tiene plantilla");
+      if (!existing) throw notFound("Esta clase todavía no tiene modelo");
       if (existing.revision !== command.expectedRevision) throw staleRevision();
     }
 
@@ -159,7 +159,7 @@ export async function saveClassPlanTemplate(
           updatedByMemberId: memberId,
         })
         .returning({ id: classPlanTemplates.id, revision: classPlanTemplates.revision });
-      if (!created) throw new OperationalError("FEATURE_NOT_AVAILABLE", "No se pudo guardar la plantilla", 503);
+      if (!created) throw new OperationalError("FEATURE_NOT_AVAILABLE", "No se pudo guardar el modelo de la clase", 503);
       await appendAuditEntry(tx, {
         organizationId,
         locationId: access.location.id,

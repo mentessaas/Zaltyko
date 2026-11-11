@@ -59,7 +59,7 @@ export async function PUT(request: Request, context: { params: Promise<{ session
   const body = saveSessionPlanCommandSchema.safeParse(await request.json().catch(() => null));
   if (!params.success || !body.success) {
     return invalidInput(
-      "Revisa el plan: foco de hasta 200 caracteres, nota de hasta 1000 y como mucho 20 bloques.",
+      "Revisa el guion: foco de hasta 200 caracteres, nota de hasta 1000 y como mucho 20 bloques.",
       "invalid-session-plan",
       body.success ? undefined : body.error.flatten()
     );

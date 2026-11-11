@@ -6,7 +6,10 @@ import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { db } from "@/db";
-import { createAthleteObjective } from "@/modules/athlete-progress/application/athlete-progress-service";
+import {
+  changeAthleteObjectiveStatus,
+  createAthleteObjective,
+} from "@/modules/athlete-progress/application/athlete-progress-service";
 import { getOrganizationUsage } from "@/modules/saas-billing/application/organization-usage";
 import {
   getClassPlanTemplate,
@@ -204,6 +207,49 @@ async function count(table: string, organizationId: string) {
     sql`select count(*)::int as count from ${sql.identifier("zaltyko")}.${sql.identifier(table)} where organization_id = ${organizationId}::uuid`
   );
   return Number((result.rows[0] as { count: number }).count);
+}
+
+/**
+ * Espera a que `count` conexiones estén bloqueadas detrás de `holderPid`,
+ * directa o indirectamente (en cola detrás de otra que espera).
+ */
+async function waitForLockWaiters(holderPid: number, count: number) {
+  for (let attempt = 0; attempt < 1200; attempt += 1) {
+    const result = await db.execute(sql`with direct as (
+        select pid from pg_stat_activity where ${holderPid}::int = any(pg_blocking_pids(pid))
+      ), queued as (
+        select pid from pg_stat_activity
+        where pg_blocking_pids(pid) && (select coalesce(array_agg(pid), '{}'::int[]) from direct)
+      )
+      select count(distinct pid)::int as waiting from (select pid from direct union select pid from queued) waiters`);
+    if (Number((result.rows[0] as { waiting: number }).waiting) >= count) return;
+    await new Promise((resolveWait) => setTimeout(resolveWait, 25));
+  }
+  throw new Error("The session plan writers did not queue behind the held lock");
+}
+
+/**
+ * Retiene el mismo cerrojo consultivo que lockCommand toma para el guion de
+ * una sesión, hasta que se llama a release().
+ */
+async function holdPlanLock(organizationId: string, sessionId: string) {
+  let locked!: (pid: number) => void;
+  let release!: () => void;
+  const lockedSignal = new Promise<number>((resolveLocked) => {
+    locked = resolveLocked;
+  });
+  const gate = new Promise<void>((resolveGate) => {
+    release = resolveGate;
+  });
+  const holder = db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`${organizationId}:command:session-plan:${sessionId}`}, 0))`
+    );
+    const pid = await tx.execute(sql`select pg_backend_pid()::int as pid`);
+    locked(Number((pid.rows[0] as { pid: number }).pid));
+    await gate;
+  });
+  return { pid: await lockedSignal, release, holder };
 }
 
 const TABLES = ["session_plans", "session_plan_blocks", "session_plan_objectives", "class_plan_templates"];
@@ -628,6 +674,184 @@ describe.skipIf(!disposablePgEnabled)("planificación sobre sesiones en PostgreS
     // Y una sesión de otra sede no existe en esta.
     await expect(fromTemplate(sessionS2)).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
+
+  it("conserva los vínculos que quien guarda no ve y solo valida los nuevos", async () => {
+    // pastS1Second tiene vínculos a Ana (S1) y a Dani (creado en S2).
+    const view = await read(managerA1, pastS1Second, s1());
+    expect(view.plan!.objectives.map((objective) => objective.objectiveId)).toEqual([objectiveAna]);
+    await saveSessionPlan({
+      actor: managerA1,
+      sessionId: pastS1Second,
+      command: { ...s1(), clientRequestId: randomUUID(), expectedRevision: view.plan!.revision, focus: "Sin Ana", blocks: [], objectiveIds: [] },
+    });
+    const links = await db.execute(
+      sql`select objective_id from zaltyko.session_plan_objectives where plan_id = ${view.plan!.id}::uuid`
+    );
+    // La coordinadora de S1 quitó el de Ana, que ve, pero no puede quitar el de S2.
+    expect(links.rows.map((row) => (row as { objective_id: string }).objective_id)).toEqual([objectiveDaniS2]);
+    expect((await read(ownerA, pastS1Second, s1())).plan!.objectives.map((objective) => objective.objectiveId)).toEqual([
+      objectiveDaniS2,
+    ]);
+
+    // Un vínculo ya hecho se conserva aunque la gimnasta deje de participar o
+    // el objetivo deje de estar en curso; uno nuevo exige ambas cosas.
+    const lia = await athlete(a.organizationId, "Lía");
+    const enrollmentLia = randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.enrollments (id, organization_id, location_id, athlete_id, class_template_id, status, starts_on, source)
+      values (${enrollmentLia}::uuid, ${a.organizationId}::uuid, ${a.locationIds[0]}::uuid, ${lia}::uuid, ${classS1}::uuid,
+        'active', '2026-09-01', 'owner')
+    `);
+    const objectiveFor = async (athleteId: string, title: string) =>
+      (await createAthleteObjective({ actor: ownerA, athleteId, command: { ...s1(), clientRequestId: randomUUID(), title } })).id;
+    const liaFirst = await objectiveFor(lia, "Rondada");
+    const liaSecond = await objectiveFor(lia, "Flic-flac");
+    const anaAchieved = await objectiveFor(ana, "Vertical");
+    await changeAthleteObjectiveStatus({
+      actor: ownerA,
+      athleteId: ana,
+      objectiveId: anaAchieved,
+      command: { ...s1(), expectedRevision: 1, status: "achieved" },
+    });
+    // Nuevo vínculo a un objetivo que no está en curso: rechazado.
+    const liaSession = await session(a.organizationId, a.locationIds[0]!, classS1, "2026-10-29T16:30:00Z");
+    await expect(create(coachA1, liaSession, s1(), { objectiveIds: [anaAchieved] })).rejects.toMatchObject({
+      code: "INVALID_RELATION",
+      status: 422,
+    });
+    const created = await create(coachA1, liaSession, s1(), { objectiveIds: [liaFirst] });
+
+    // Lía deja la clase antes de esa sesión y su objetivo se consigue.
+    await db.execute(sql`update zaltyko.enrollments set ends_on = '2026-10-01' where id = ${enrollmentLia}::uuid`);
+    await changeAthleteObjectiveStatus({
+      actor: ownerA,
+      athleteId: lia,
+      objectiveId: liaFirst,
+      command: { ...s1(), expectedRevision: 1, status: "achieved" },
+    });
+    const kept = await saveSessionPlan({
+      actor: coachA1,
+      sessionId: liaSession,
+      command: { ...s1(), clientRequestId: randomUUID(), expectedRevision: 1, focus: "Rondada", blocks: [], objectiveIds: [liaFirst] },
+    });
+    expect(kept.revision).toBe(2);
+    const keptView = await read(coachA1, liaSession, s1());
+    expect(keptView.plan!.objectives).toEqual([
+      expect.objectContaining({ objectiveId: liaFirst, status: "achieved", athleteName: "Gimnasta fuera de la sesión" }),
+    ]);
+    // Pero no se puede añadir otro objetivo suyo: ya no participa.
+    await expect(
+      saveSessionPlan({
+        actor: coachA1,
+        sessionId: liaSession,
+        command: { ...s1(), clientRequestId: randomUUID(), expectedRevision: 2, blocks: [], objectiveIds: [liaFirst, liaSecond] },
+      })
+    ).rejects.toMatchObject({ code: "INVALID_RELATION" });
+    expect(created.id).toBe(keptView.plan!.id);
+  });
+
+  it("idempotencia: el mismo clientRequestId en otra sesión es 409 y repetir una edición guardada es un reintento", async () => {
+    const one = await session(a.organizationId, a.locationIds[0]!, classS1, "2026-10-30T16:30:00Z");
+    const two = await session(a.organizationId, a.locationIds[0]!, classS1, "2026-10-31T16:30:00Z");
+    const clientRequestId = randomUUID();
+    const first = await create(ownerA, one, s1(), { clientRequestId });
+    await expect(create(ownerA, two, s1(), { clientRequestId })).rejects.toMatchObject({
+      code: "IDEMPOTENCY_CONFLICT",
+      status: 409,
+    });
+    expect((await read(ownerA, two, s1())).plan).toBeNull();
+    // Mismo reintento de alta con otro contenido: conflicto, no reintento.
+    await expect(create(ownerA, one, s1(), { clientRequestId, focus: "Otro foco" })).rejects.toMatchObject({
+      code: "IDEMPOTENCY_CONFLICT",
+    });
+
+    const view = await read(ownerA, one, s1());
+    const edit = {
+      ...s1(),
+      clientRequestId: randomUUID(),
+      expectedRevision: first.revision,
+      focus: "Rondada y flic",
+      blocks: view.plan!.blocks.map((block) => ({
+        id: block.id,
+        kind: block.kind,
+        discipline: block.discipline,
+        apparatus: block.apparatus,
+        content: block.content,
+        durationMinutes: block.durationMinutes,
+      })),
+    };
+    const saved = await saveSessionPlan({ actor: ownerA, sessionId: one, command: edit });
+    expect(saved).toEqual({ id: first.id, revision: 2, replayed: false });
+    expect(await saveSessionPlan({ actor: ownerA, sessionId: one, command: edit })).toEqual({ ...saved, replayed: true });
+    await expect(
+      saveSessionPlan({ actor: ownerA, sessionId: one, command: { ...edit, focus: "Distinto" } })
+    ).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
+    // Otra petición con la revisión antigua sigue siendo un conflicto de revisión.
+    await expect(
+      saveSessionPlan({ actor: ownerA, sessionId: one, command: { ...edit, clientRequestId: randomUUID() } })
+    ).rejects.toMatchObject({ code: "VERSION_CONFLICT" });
+  });
+
+  it("carrera determinista: marcar un bloque y editar el guion a la vez no pierden la marca ni dan 404", async () => {
+    const raced = await session(a.organizationId, a.locationIds[0]!, classS1, "2026-11-01T16:30:00Z");
+    await create(coachA1, raced, s1());
+    const initial = await read(coachA1, raced, s1());
+    const [warmup, technique] = initial.plan!.blocks;
+    const editCommand = (expectedRevision: number) => ({
+      ...s1(),
+      clientRequestId: randomUUID(),
+      expectedRevision,
+      focus: "Reordenado",
+      blocks: [
+        { id: technique!.id, kind: "technique", discipline: "gaf", apparatus: "floor", content: "Rondada flic", durationMinutes: 30 },
+        { id: warmup!.id, kind: "warmup", content: "Movilidad", durationMinutes: 10 },
+      ],
+    });
+
+    // 1) La marca llega primero y la edición después, las dos en cola detrás
+    //    del mismo cerrojo del guion.
+    const firstLock = await holdPlanLock(a.organizationId, raced);
+    const mark = markSessionPlanBlock({ actor: coachA1, sessionId: raced, blockId: warmup!.id, command: { ...s1(), done: true } });
+    await waitForLockWaiters(firstLock.pid, 1);
+    const edit = saveSessionPlan({ actor: ownerA, sessionId: raced, command: editCommand(initial.plan!.revision) });
+    await waitForLockWaiters(firstLock.pid, 2);
+    firstLock.release();
+    await firstLock.holder;
+    expect(await mark).toEqual({ id: warmup!.id, done: true, replayed: false });
+    expect(await edit).toMatchObject({ revision: initial.plan!.revision + 1, replayed: false });
+    const afterFirst = await read(coachA1, raced, s1());
+    expect(afterFirst.plan!.blocks.map((block) => [block.id, block.position, block.done])).toEqual([
+      [technique!.id, 1, false],
+      [warmup!.id, 2, true],
+    ]);
+
+    // 2) La edición llega primero y la marca después: la marca espera, encuentra
+    //    el mismo bloque (mismo id, otra posición) y se aplica.
+    const secondLock = await holdPlanLock(a.organizationId, raced);
+    const reorder = saveSessionPlan({
+      actor: ownerA,
+      sessionId: raced,
+      command: { ...editCommand(afterFirst.plan!.revision), blocks: [...editCommand(0).blocks].reverse() },
+    });
+    await waitForLockWaiters(secondLock.pid, 1);
+    const markTechnique = markSessionPlanBlock({
+      actor: coachA1,
+      sessionId: raced,
+      blockId: technique!.id,
+      command: { ...s1(), done: true },
+    });
+    await waitForLockWaiters(secondLock.pid, 2);
+    secondLock.release();
+    await secondLock.holder;
+    await reorder;
+    expect(await markTechnique).toEqual({ id: technique!.id, done: true, replayed: false });
+    const final = await read(coachA1, raced, s1());
+    expect(final.plan!.blocks.map((block) => [block.id, block.position, block.done])).toEqual([
+      [warmup!.id, 1, true],
+      [technique!.id, 2, true],
+    ]);
+    expect(final.plan!.revision).toBe(afterFirst.plan!.revision + 1);
+  }, 60_000);
 
   it("en solo lectura del plan se lee y se repite, pero no se escribe", async () => {
     const clientRequestId = randomUUID();

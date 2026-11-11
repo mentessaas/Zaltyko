@@ -220,7 +220,11 @@ const scopeShape = {
   locationId: z.guid(),
 };
 
-/** URLSearchParams.get() devuelve null cuando falta un parámetro. */
+/**
+ * Consulta del guion y del modelo: academia y sede, ambas obligatorias. Se
+ * valida el objeto de URLSearchParams entero y `.strict()` rechaza cualquier
+ * otro parámetro.
+ */
 export const sessionPlanQuerySchema = z.object(scopeShape).strict();
 export const classPlanTemplateQuerySchema = z.object(scopeShape).strict();
 
@@ -259,7 +263,7 @@ export const saveSessionPlanCommandSchema = z
       context.addIssue({
         code: "custom",
         path: ["source"],
-        message: "La plantilla solo se copia al crear el plan",
+        message: "El modelo de la clase solo se copia al crear el guion",
       });
     }
   });

@@ -30,6 +30,9 @@ create table zaltyko.session_plans (
   location_id uuid not null,
   session_id uuid not null,
   client_request_id uuid not null,
+  -- Petición de la última escritura (alta o edición): repetirla responde como
+  -- reintento en vez de como conflicto de revisión.
+  last_request_id uuid not null,
   focus text,
   note text,
   from_template_revision integer,
@@ -74,7 +77,9 @@ create table zaltyko.session_plan_blocks (
   done_by_member_id uuid,
   created_at timestamptz not null default now(),
   constraint session_plan_blocks_org_id_uq unique (organization_id, id),
-  constraint session_plan_blocks_position_uq unique (organization_id, plan_id, position),
+  -- Diferida: editar el guion reordena los bloques en su sitio (mismo id, misma
+  -- marca de hecho) y las posiciones solo tienen que ser únicas al confirmar.
+  constraint session_plan_blocks_position_uq unique (organization_id, plan_id, position) deferrable initially deferred,
   constraint session_plan_blocks_position_check
     check (position >= 1 and position <= 20),
   constraint session_plan_blocks_kind_check

@@ -19,6 +19,7 @@ export const SESSION_PLAN_TABLES = {
     "focus",
     "from_template_revision",
     "id",
+    "last_request_id",
     "location_id",
     "note",
     "organization_id",
@@ -108,7 +109,7 @@ export async function isSessionPlanStorageAvailable(client: DatabaseClient): Pro
 export function sessionPlanStorageUnavailable(): OperationalError {
   return new OperationalError(
     "FEATURE_NOT_AVAILABLE",
-    "La planificación de sesiones todavía no está activada en esta academia.",
+    "El guion de las sesiones todavía no está activado en esta academia.",
     503,
     { reason: SESSION_PLANS_UNAVAILABLE_REASON }
   );

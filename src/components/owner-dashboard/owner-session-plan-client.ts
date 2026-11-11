@@ -19,7 +19,7 @@ export type PlanFetchResult<T> =
   | { status: "unavailable" }
   | { status: "error"; message: string; code: number };
 
-export const PLAN_UNAVAILABLE_MESSAGE = "La planificación de sesiones todavía no está disponible en tu academia.";
+export const PLAN_UNAVAILABLE_MESSAGE = "El guion de las sesiones todavía no está disponible en tu academia.";
 
 const GENERIC_ERROR = "No se ha podido completar la acción. Comprueba la conexión e inténtalo de nuevo.";
 

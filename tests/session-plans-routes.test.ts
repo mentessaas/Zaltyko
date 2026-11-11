@@ -190,6 +190,20 @@ describe("PUT plan de la sesión", () => {
     });
   });
 
+  it.each([
+    ["40P01", "CONCURRENCY_RETRY"],
+    ["40001", "CONCURRENCY_RETRY"],
+    ["55P03", "CONCURRENCY_RETRY"],
+    ["23505", "IDEMPOTENCY_CONFLICT"],
+  ])("un conflicto de PostgreSQL %s llega como 409 %s, nunca 500", async (pgCode, code) => {
+    mocks.savePlan.mockRejectedValue(Object.assign(new Error("Failed query"), { cause: { code: pgCode } }));
+    const { PUT } = await loadPlan();
+    const response = await PUT(request("PUT", path, planBody), params({ sessionId }));
+    expect(response.status).toBe(409);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(JSON.stringify(await response.json())).toContain(code.toLowerCase().replaceAll("_", "-"));
+  });
+
   it("traduce el solo lectura del plan a 409 sin caché", async () => {
     mocks.savePlan.mockRejectedValue(new OperationalError("PLAN_OVER_CAPACITY", "Solo lectura", 409));
     const { PUT } = await loadPlan();

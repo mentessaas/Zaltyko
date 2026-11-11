@@ -183,7 +183,11 @@ describe("candidato SQL de planificación sobre sesiones", () => {
     expect(body).toContain("constraint session_plans_session_uq unique (organization_id, session_id)");
     expect(body).toContain("constraint session_plans_request_uq unique (organization_id, client_request_id)");
     expect(body).toContain("constraint class_plan_templates_class_uq unique (organization_id, class_template_id)");
-    expect(body).toContain("constraint session_plan_blocks_position_uq unique (organization_id, plan_id, position)");
+    // Diferida: editar reordena los bloques en su sitio sin borrarlos.
+    expect(body).toContain(
+      "constraint session_plan_blocks_position_uq unique (organization_id, plan_id, position) deferrable initially deferred,"
+    );
+    expect(body).toContain("last_request_id uuid not null,");
   });
 
   it("ancla cada tabla a la academia y cada referencia a la misma academia y sede", () => {
@@ -267,7 +271,25 @@ describe("rutas API de planificación", () => {
     expect(helper).toContain('input.surface === "session" ? { surface: "coach_operations" as const } : {}');
   });
 
-  it("el plan no depende de quién está asignado a la sesión (criterio de Pasar lista)", () => {
+  it("lee los objetivos por la fachada de athlete-progress, no por su infraestructura", () => {
+    const dir = "src/modules/session-plans/application/session-plan";
+    for (const file of readdirSync(join(ROOT, dir))) {
+      const source = read(`${dir}/${file}`);
+      expect(source, file).not.toContain("athlete-progress/infrastructure");
+      expect(source, file).not.toMatch(/athleteObjectives\b/);
+    }
+    expect(read(`${dir}/plans.ts`)).toContain('from "@/modules/athlete-progress/application/athlete-progress-service"');
+  });
+
+  it("marcar un bloque y guardar el guion toman el mismo cerrojo por sesión", () => {
+    const plans = read("src/modules/session-plans/application/session-plan/plans.ts");
+    const lockCalls = plans.match(/await lockCommand\(tx, organizationId, planLockKey\(session\.id\)\);/g) ?? [];
+    expect(lockCalls).toHaveLength(2);
+    const mark = plans.slice(plans.indexOf("export async function markSessionPlanBlock"));
+    expect(mark.indexOf("planLockKey(session.id)")).toBeLessThan(mark.indexOf("loadPlan("));
+  });
+
+  it("el guion no depende de quién está asignado a la sesión (criterio de Pasar lista)", () => {
     const dir = "src/modules/session-plans/application/session-plan";
     const files = readdirSync(join(ROOT, dir));
     expect(files.length).toBeGreaterThan(3);

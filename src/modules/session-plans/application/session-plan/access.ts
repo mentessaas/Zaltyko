@@ -49,7 +49,7 @@ export function notFound(message: string): OperationalError {
 export function staleRevision(): OperationalError {
   return new OperationalError(
     "VERSION_CONFLICT",
-    "Alguien ha cambiado el plan mientras lo editabas. Recarga para ver la última versión.",
+    "Alguien ha cambiado el guion mientras lo editabas. Recarga para ver la última versión.",
     409
   );
 }
@@ -172,7 +172,7 @@ export function assertSessionEditable(session: PlannedSession): void {
   if (session.status === "cancelled") {
     throw new OperationalError(
       "INVALID_STATE_TRANSITION",
-      "La sesión está cancelada: su plan es de solo lectura.",
+      "La sesión está cancelada: su guion es de solo lectura.",
       409
     );
   }

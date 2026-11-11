@@ -73,7 +73,7 @@ export async function PUT(request: Request, context: { params: Promise<{ classTe
   const body = saveClassPlanTemplateCommandSchema.safeParse(await request.json().catch(() => null));
   if (!params.success || !body.success) {
     return invalidInput(
-      "Revisa la plantilla: foco de hasta 200 caracteres, nota de hasta 1000 y como mucho 20 bloques.",
+      "Revisa el modelo: foco de hasta 200 caracteres, nota de hasta 1000 y como mucho 20 bloques.",
       "invalid-class-plan-template",
       body.success ? undefined : body.error.flatten()
     );

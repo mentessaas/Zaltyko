@@ -116,14 +116,14 @@ describe("Pasar lista: el plan depende de la disponibilidad que calcula el servi
   ] as const)("con sessionPlansAvailable %s no muestra el plan ni lo pide", async (_label, value) => {
     renderAttendance(value);
     expect(await screen.findByRole("button", { name: "Presente: Lúa Pérez" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Plan de la sesión" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Guion de la sesión" })).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/plan?"))).toBe(false);
   });
 
   it("con sessionPlansAvailable=true muestra el plan de la sesión elegida", async () => {
     renderAttendance(true);
-    expect(await screen.findByRole("heading", { name: "Plan de la sesión" })).toBeInTheDocument();
-    expect(await screen.findByText("Esta sesión todavía no tiene plan.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Guion de la sesión" })).toBeInTheDocument();
+    expect(await screen.findByText("Esta sesión todavía no tiene guion.")).toBeInTheDocument();
     const planCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/plan?"));
     expect(String(planCall?.[0])).toBe(
       `/api/v1/owner/sessions/${SESSION}/plan?organizationId=${ORG}&locationId=${SITE}`
@@ -137,7 +137,7 @@ describe("panel del plan de la sesión", () => {
       json(503, { status: 503, detail: "No activado", errors: { reason: "session_plans_unavailable" } })
     );
     renderPanel();
-    expect(await screen.findByText("La planificación de sesiones todavía no está disponible en tu academia.")).toBeInTheDocument();
+    expect(await screen.findByText("El guion de las sesiones todavía no está disponible en tu academia.")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -153,8 +153,8 @@ describe("panel del plan de la sesión", () => {
     fetchMock.mockResolvedValueOnce(json(201, { ok: true, data: { id: PLAN, revision: 1, replayed: false } }));
     fetchMock.mockResolvedValueOnce(json(200, { ok: true, data: pageView({ plan }) }));
     renderPanel();
-    fireEvent.click(await screen.findByRole("button", { name: "Crear desde la plantilla de la clase" }));
-    expect(await screen.findByText("Plan creado desde la plantilla de la clase.")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Crear desde el modelo de la clase" }));
+    expect(await screen.findByText("Guion creado desde el modelo de la clase.")).toBeInTheDocument();
     const [url, init] = calls("PUT")[0]!;
     expect(url).toBe(`/api/v1/owner/sessions/${SESSION}/plan`);
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({
@@ -176,8 +176,8 @@ describe("panel del plan de la sesión", () => {
     fetchMock.mockResolvedValueOnce(json(201, { ok: true, data: { id: PLAN, revision: 1, replayed: false } }));
     fetchMock.mockResolvedValueOnce(json(200, { ok: true, data: pageView({ plan }) }));
     renderPanel();
-    fireEvent.click(await screen.findByRole("button", { name: "Crear plan" }));
-    expect(screen.queryByRole("button", { name: "Crear desde la plantilla de la clase" })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Crear guion" }));
+    expect(screen.queryByRole("button", { name: "Crear desde el modelo de la clase" })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/Foco del día/), { target: { value: "Rondada" } });
     expect(screen.getByLabelText("Aparato")).toBeDisabled();
@@ -193,13 +193,13 @@ describe("panel del plan de la sesión", () => {
       "Cinta",
     ]);
     fireEvent.change(apparatus, { target: { value: "hoop" } });
-    expect(screen.getByRole("button", { name: "Guardar plan" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Guardar guion" })).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Contenido"), { target: { value: "Lanzamientos" } });
     fireEvent.change(screen.getByLabelText("Minutos aprox."), { target: { value: "20" } });
     fireEvent.click(screen.getByRole("checkbox", { name: "Lúa Pérez: Rueda sin manos" }));
-    fireEvent.click(screen.getByRole("button", { name: "Guardar plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar guion" }));
 
-    expect(await screen.findByText("Plan guardado.")).toBeInTheDocument();
+    expect(await screen.findByText("Guion guardado.")).toBeInTheDocument();
     const body = JSON.parse(String((calls("PUT")[0]![1] as RequestInit).body));
     expect(body).toMatchObject({
       clientRequestId: REQUEST_ID,
@@ -220,12 +220,12 @@ describe("panel del plan de la sesión", () => {
     expect(screen.getByText("2 bloques · unos 30 min")).toBeInTheDocument();
     expect(screen.getByText("Lúa Pérez: Rueda sin manos")).toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /plantilla de la clase/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /modelo de la clase/ })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Editar plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Editar guion" }));
     expect(screen.getAllByLabelText("Contenido")).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Bajar el bloque 1" }));
-    fireEvent.click(screen.getByRole("button", { name: "Guardar plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar guion" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Alguien ha cambiado el plan");
     const body = JSON.parse(String((calls("PUT")[0]![1] as RequestInit).body));
     expect(body.expectedRevision).toBe(3);
@@ -261,8 +261,8 @@ describe("panel del plan de la sesión", () => {
     expect(await screen.findByText("Movilidad")).toBeInTheDocument();
     expect(screen.getByText(/solo lectura/)).toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Editar plan" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /plantilla/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar guion" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /modelo/ })).not.toBeInTheDocument();
   });
 
   it("una sesión cancelada no admite cambios", async () => {
@@ -270,8 +270,8 @@ describe("panel del plan de la sesión", () => {
       json(200, { ok: true, data: pageView({ session: { ...pageView().session, cancelled: true } }) })
     );
     renderPanel();
-    expect(await screen.findByText("La sesión está cancelada: su plan es de solo lectura.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Crear plan" })).not.toBeInTheDocument();
+    expect(await screen.findByText("La sesión está cancelada: su guion es de solo lectura.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Crear guion" })).not.toBeInTheDocument();
   });
 
   it("la dirección guarda el plan como plantilla de la clase", async () => {
@@ -281,13 +281,13 @@ describe("panel del plan de la sesión", () => {
     fetchMock.mockResolvedValueOnce(json(200, { ok: true, data: { id: CLASS, revision: 5, replayed: false } }));
     fetchMock.mockResolvedValueOnce(json(200, { ok: true, data: pageView({ plan, canManageTemplate: true, template: { exists: true, revision: 5 } }) }));
     renderPanel();
-    fireEvent.click(await screen.findByRole("button", { name: "Actualizar la plantilla de la clase" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Actualizar el modelo de la clase" }));
     await waitFor(() => expect(calls("PUT")).toHaveLength(1));
     const [url, init] = calls("PUT")[0]!;
     expect(url).toBe(`/api/v1/owner/classes/${CLASS}/plan-template`);
     const body = JSON.parse(String((init as RequestInit).body));
     expect(body).toMatchObject({ organizationId: ORG, locationId: SITE, expectedRevision: 4, focus: "Rondada" });
     expect(body.blocks[0]).toEqual({ kind: "warmup", discipline: null, apparatus: null, content: "Movilidad", durationMinutes: 10 });
-    expect(await screen.findByText(/Plantilla de la clase guardada/)).toBeInTheDocument();
+    expect(await screen.findByText(/Modelo de la clase guardado/)).toBeInTheDocument();
   });
 });

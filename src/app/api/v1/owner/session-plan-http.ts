@@ -32,7 +32,7 @@ export function unauthenticated(): NextResponse {
     problemResponse({
       status: 401,
       title: "Autenticación requerida",
-      detail: "Inicia sesión para ver la planificación.",
+      detail: "Inicia sesión para ver el guion de la sesión.",
       type: "authentication-required",
     })
   );
@@ -82,7 +82,43 @@ export function writeResponse(result: SessionPlanWriteResult): NextResponse {
   return noStore(result.replayed ? apiSuccess(result) : apiCreated(result));
 }
 
+/**
+ * Conflictos de PostgreSQL que se resuelven reintentando (interbloqueo,
+ * serialización, cerrojo no disponible) y unicidad: 409, nunca 500.
+ * Equivalente local del helper compartido `retryable-db-conflict` de la PR
+ * 276, que todavía no está en main; al entrar, esta función pasa a usarlo.
+ */
+const RETRYABLE_PG_CODES = new Set(["40P01", "40001", "55P03"]);
+
+function postgresCode(error: unknown): string | null {
+  const failure = error as { code?: unknown; cause?: { code?: unknown } } | null;
+  const code = failure?.cause?.code ?? failure?.code;
+  return typeof code === "string" ? code : null;
+}
+
+export function dbConflictError(error: unknown): OperationalError | null {
+  const code = postgresCode(error);
+  if (code && RETRYABLE_PG_CODES.has(code)) {
+    return new OperationalError(
+      "CONCURRENCY_RETRY",
+      "Otra persona estaba guardando a la vez. Vuelve a intentarlo.",
+      409,
+      { retryable: true }
+    );
+  }
+  if (code === "23505") {
+    return new OperationalError(
+      "IDEMPOTENCY_CONFLICT",
+      "Esta petición choca con otra ya guardada. Recarga y vuelve a intentarlo.",
+      409
+    );
+  }
+  return null;
+}
+
 export function planError(error: unknown): NextResponse {
   if (error instanceof OperationalError) return noStore(operationalProblem(error));
+  const conflict = dbConflictError(error);
+  if (conflict) return noStore(operationalProblem(conflict));
   throw error;
 }

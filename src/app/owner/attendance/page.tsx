@@ -118,8 +118,10 @@ export default async function OwnerAttendancePage({
     : null;
 
   // P2 #17: sin el candidato SQL aplicado no se muestran los accesos.
-  const progressAvailable = await isAthleteProgressAvailableForPage(db);
-  const sessionPlansAvailable = await isSessionPlanAvailableForPage(db);
+  const [progressAvailable, sessionPlansAvailable] = await Promise.all([
+    isAthleteProgressAvailableForPage(db),
+    isSessionPlanAvailableForPage(db),
+  ]);
 
   return (
     <OwnerWorkspacePageShell
