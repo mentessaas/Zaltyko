@@ -493,6 +493,14 @@ const coachAllowed = new Set([
   "GET owner/sessions/[sessionId]/attendance/route.ts",
   "POST owner/sessions/[sessionId]/attendance/route.ts",
   "GET owner/operational-policy/route.ts",
+  // P2 #17: objetivos y observaciones. El servicio exige sede asignada y una
+  // gimnasta con inscripción o grupo abierto en ella (tests/athlete-progress-*).
+  "GET owner/athletes/[athleteId]/progress/route.ts",
+  "POST owner/athletes/[athleteId]/objectives/route.ts",
+  "POST owner/athletes/[athleteId]/objectives/[objectiveId]/status/route.ts",
+  "POST owner/athletes/[athleteId]/observations/route.ts",
+  "PATCH owner/athletes/[athleteId]/observations/[observationId]/route.ts",
+  "POST owner/sessions/[sessionId]/observations/route.ts",
 ]);
 
 function routeFiles(directory: string): string[] {
@@ -544,6 +552,8 @@ describe("inventario de /api/v1", () => {
       "src/app/api/v1/owner/operational-policy/route.ts",
       "src/app/owner/page.tsx",
       "src/app/owner/attendance/page.tsx",
+      // P2 #17: única entrada de las rutas de objetivos y observaciones.
+      "src/app/api/v1/owner/athlete-progress-http.ts",
     ]);
     const sourceFiles = (directory: string): string[] =>
       readdirSync(directory).flatMap((entry) => {

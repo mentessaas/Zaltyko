@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ClipboardCheck, UsersRound } from "lucide-react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
+import { OwnerSessionObservationForm } from "./OwnerSessionObservationForm";
 import { ownerUi } from "./owner-ui";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import {
@@ -985,6 +986,16 @@ export function OwnerAttendanceManager({
                           >
                             {rowBusy ? "Guardando…" : "Reintentar guardado"}
                           </button>
+                        ) : null}
+                        {sessionId && !selectedSession?.retryOnly ? (
+                          <OwnerSessionObservationForm
+                            organizationId={organizationId}
+                            locationId={locationId}
+                            sessionId={sessionId}
+                            enrollmentId={attendee.enrollmentId}
+                            athleteName={attendee.athleteName}
+                            disabled={writesBlocked}
+                          />
                         ) : null}
                       </div>
                     </li>

@@ -1,8 +1,9 @@
 "use client";
 
-import type { ComponentProps } from "react";
-import { Check } from "lucide-react";
+import { useId, useState, type ComponentProps } from "react";
+import { Check, Flag } from "lucide-react";
 import { OwnerAthleteProfileEditor } from "./OwnerAthleteProfileEditor";
+import { OwnerAthleteProgressPanel } from "./OwnerAthleteProgressPanel";
 import { OwnerAthleteFamilyAssociationEditor } from "./OwnerAthleteFamilyAssociationEditor";
 import { OwnerAthleteArchiveEditor } from "./OwnerAthleteArchiveEditor";
 import {
@@ -76,10 +77,12 @@ export function OwnerGroupMembershipRow({
   onArchived: ArchiveEditorProps["onArchived"];
   onChangeMembership: (toStatus: "active" | "paused" | "ended") => void;
 }) {
+  // P2 #17: objetivos y observaciones, plegados para no cargar la lista.
+  const progressPanelId = useId();
+  const [progressOpen, setProgressOpen] = useState(false);
   return (
-    <li
-      className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
-    >
+    <li className="grid gap-3 py-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="font-semibold">
           {membership.athleteName}
@@ -186,6 +189,29 @@ export function OwnerGroupMembershipRow({
         >
           Dar de baja
         </button>
+        <button
+          type="button"
+          className={secondaryButtonClassName}
+          aria-expanded={progressOpen}
+          aria-controls={progressPanelId}
+          aria-label={`Objetivos y observaciones de ${membership.athleteName}`}
+          onClick={() => setProgressOpen((open) => !open)}
+        >
+          <Flag className="h-4 w-4" aria-hidden="true" />
+          Objetivos y observaciones
+        </button>
+      </div>
+      </div>
+      <div id={progressPanelId} hidden={!progressOpen}>
+        {progressOpen ? (
+          <OwnerAthleteProgressPanel
+            organizationId={organizationId}
+            locationId={locationId}
+            athleteId={membership.athleteId}
+            athleteName={membership.athleteName}
+            readOnly={writesBlocked}
+          />
+        ) : null}
       </div>
     </li>
   );
