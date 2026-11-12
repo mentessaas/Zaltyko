@@ -98,7 +98,7 @@ export function PullToRefresh({
           transform: `translateY(-${Math.min(pullDistance, threshold)}px)`,
         }}
       >
-        <div className="flex items-center gap-2 text-blue-600">
+        <div className="flex items-center gap-2 text-mat">
           <RefreshCw
             className={cn(
               "w-5 h-5",
@@ -181,7 +181,7 @@ export function SwipeableItem({
       {/* Swipeable content */}
       <div
         ref={itemRef}
-        className="bg-white dark:bg-gray-900 transition-transform touch-none"
+        className="touch-none bg-white transition-transform"
         style={{ transform: `translateX(${translateX}px)` }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

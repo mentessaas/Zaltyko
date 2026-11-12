@@ -550,7 +550,7 @@ export function OwnerStaffManager({
         </p>
       </header>
 
-      {mutationError ? <p role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950 sm:p-5">{mutationError}</p> : null}
+      {mutationError ? <p role="alert" className="mb-5 rounded-xl border border-signal/30 bg-signal-wash p-4 text-sm leading-6 text-signal-ink sm:p-5">{mutationError}</p> : null}
       {notice ? <p role="status" aria-live="polite" className="mb-5 rounded-xl border border-z-brand-100 bg-z-brand-50 p-4 text-sm leading-6 text-z-brand-700 sm:p-5">{notice}</p> : null}
 
       {pendingCommand ? (

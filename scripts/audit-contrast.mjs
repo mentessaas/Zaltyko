@@ -17,16 +17,20 @@ import path from "node:path";
 
 const MAT = { 50: "#F0F3FC", 100: "#E8EDFB", 200: "#CED9F6", 300: "#A9BEF0", 400: "#7C99E6", 500: "#4A6BD3", 600: "#2F51BE", 700: "#1E3FA8", 800: "#14307F", 900: "#0F2463", 950: "#0B1430" };
 const SIGNAL = { 50: "#FDF3F0", 100: "#FDECE7", 200: "#FAD3C9", 300: "#F5AE9D", 400: "#EE806A", 500: "#E5482A", 600: "#C93C20", 700: "#B8331A", 800: "#962A16", 900: "#7A2414", 950: "#431109" };
+const OCHRE = { 50: "#FBF6EA", 100: "#F7ECD2", 200: "#EFD8A6", 300: "#E3BC6E", 400: "#D49F3C", 500: "#C4851A", 600: "#8F600F", 700: "#7A500E", 800: "#5F3F0D", 900: "#4D340E", 950: "#2A1C07" };
 const RAMP = { 50: "#F4F6F2", 100: "#E9ECE6", 200: "#D5DAE3", 300: "#B4BCCB", 400: "#8A93A8", 500: "#5C6782", 600: "#3E4A66", 700: "#27314C", 800: "#162038", 900: "#0B1430", 950: "#070D20" };
 
 const C = { white: "#FFFFFF", black: "#000000", tape: "#FFFFFF" };
 for (const f of ["teal", "emerald", "green", "cyan", "sky", "blue", "indigo", "violet", "purple", "lime"]) for (const [k, v] of Object.entries(MAT)) C[`${f}-${k}`] = v;
-for (const f of ["amber", "yellow", "orange", "red", "rose", "pink", "fuchsia"]) for (const [k, v] of Object.entries(SIGNAL)) C[`${f}-${k}`] = v;
+for (const f of ["red", "rose", "pink", "fuchsia", "signal"]) for (const [k, v] of Object.entries(SIGNAL)) C[`${f}-${k}`] = v;
+for (const f of ["amber", "yellow", "orange", "ochre"]) for (const [k, v] of Object.entries(OCHRE)) C[`${f}-${k}`] = v;
+for (const [k, v] of Object.entries(MAT)) C[`mat-${k}`] = v;
 for (const f of ["gray", "slate", "zinc", "neutral", "stone", "ramp"]) for (const [k, v] of Object.entries(RAMP)) C[`${f}-${k}`] = v;
 Object.assign(C, {
   mat: "#1E3FA8", "mat-deep": "#14307F", "mat-night": "#0B1430", "mat-lane": "#8FB4FF", "mat-light": "#5B7BE0", "mat-wash": "#E8EDFB",
   chalk: "#F4F6F2", "chalk-dust": "#E9ECE6", "chalk-line": "#D5DAE3",
   signal: "#E5482A", "signal-ink": "#B8331A", "signal-light": "#FF8A73", "signal-wash": "#FDECE7",
+  ochre: "#C4851A", "ochre-ink": "#7A500E", "ochre-light": "#F2C46B", "ochre-wash": "#F7ECD2", "ochre-line": "#E3BC6E",
   "zaltyko-navy": "#0B1430", "zaltyko-indigo": "#14307F", "zaltyko-teal": "#1E3FA8", "zaltyko-coral": "#C2391E", "zaltyko-white": "#F4F6F2",
   "zaltyko-warm-white": "#E9ECE6", "zaltyko-mist": "#D5DAE3", "zaltyko-primary": "#1E3FA8", "zaltyko-primary-dark": "#14307F",
   "zaltyko-primary-light": "#5B7BE0", "zaltyko-primary-ultralight": "#E8EDFB", "zaltyko-electric": "#8FB4FF",

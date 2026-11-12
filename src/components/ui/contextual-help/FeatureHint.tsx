@@ -52,15 +52,17 @@ export function FeatureHint({
   }
 
   const variantStyles = {
-    info: "border-blue-200 bg-blue-50/80 text-blue-900",
-    tip: "border-amber-200 bg-amber-50/80 text-amber-900",
-    new: "border-primary/30 bg-primary/10 text-primary",
+    // Información en polvo; un consejo no es un aviso, así que tampoco va en
+    // ocre ni en coral; lo nuevo, en lavado tapiz.
+    info: "border-chalk-line bg-chalk-dust text-mat-night",
+    tip: "border-chalk-line bg-white text-mat-night",
+    new: "border-mat/20 bg-mat-wash text-mat-deep",
   };
 
   return (
     <div
       className={cn(
-        "rounded-lg border p-4 shadow-sm",
+        "rounded-card border p-4",
         variantStyles[variant],
         className
       )}

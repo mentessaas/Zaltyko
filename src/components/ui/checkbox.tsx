@@ -38,11 +38,11 @@ export function Checkbox({ className = "", label, error, id, ...props }: Checkbo
             type="checkbox"
             id={actualId}
             className={cn(
-              "h-4 w-4 rounded border border-zaltyko-border text-zaltyko-primary",
-              "focus:ring-2 focus:ring-zaltyko-primary focus:ring-offset-2",
+              "h-4 w-4 rounded-sm border border-ramp-300 text-mat",
+              "focus:ring-2 focus:ring-mat focus:ring-offset-2",
               "disabled:cursor-not-allowed disabled:opacity-50",
-              "accent-zaltyko-primary",
-              error && "border-red-500 focus:ring-red-500",
+              "accent-mat",
+              error && "border-signal focus:ring-signal/40",
               className
             )}
             aria-invalid={!!error}
@@ -62,7 +62,7 @@ export function Checkbox({ className = "", label, error, id, ...props }: Checkbo
           <label
             htmlFor={actualId}
             className={cn(
-              "text-sm text-zaltyko-text-main cursor-pointer",
+              "text-sm text-mat-night cursor-pointer",
               props.disabled && "opacity-50 cursor-not-allowed"
             )}
           >
@@ -71,7 +71,7 @@ export function Checkbox({ className = "", label, error, id, ...props }: Checkbo
         )}
       </div>
       {error && (
-        <p id={errorId} className="text-xs text-red-600" role="alert">
+        <p id={errorId} className="text-xs font-medium text-signal-ink dark:text-signal-light" role="alert">
           {error}
         </p>
       )}
