@@ -26,7 +26,7 @@ const steps = [
   {
     icon: Users,
     title: "Gestionas la academia",
-    description: "Personal permite mantener perfiles sin acceso; la dirección gestiona clases y asistencia desde el panel de gestión. El acceso propio de entrenadores está en preparación.",
+    description: "Personal permite mantener perfiles sin acceso; la dirección gestiona clases y asistencia desde el panel de gestión. Las entrenadoras entran con su propia cuenta por invitación y pasan lista en sus sedes.",
   },
 ];
 
