@@ -12,20 +12,25 @@ source:
 ## 2026-11-12 — Web pública: lo que ya funciona y lo que está en preparación
 
 **Cambio.**
-- **Portada.** El hero usa la promesa recomendada, adaptada: «ves las sesiones de hoy y pasas lista». No dice «tu equipo» porque el acceso de entrenadoras sigue dormido.
-- **Sección «Lo que ya hace hoy».** Seis funciones activas, cada una con la ruta o PR que la respalda en el catálogo público:
-  - las sesiones de hoy y el pase de lista;
-  - la importación desde Excel o CSV;
-  - la puesta en marcha guiada;
+- **Hero.** Usa la promesa recomendada sin repetir el H1: «ves las sesiones de hoy y pasas lista». No dice «tu equipo» porque el acceso de entrenadoras sigue dormido.
+- **Sección «Lo que ya hace hoy».** Cinco funciones activas que complementan los módulos sin repetirlos, cada una con la ruta o PR que la respalda:
+  - la importación desde Excel o CSV (278);
+  - la puesta en marcha (252);
   - la zona horaria por sede y la moneda EUR/MXN;
   - el historial de grupos;
   - «Nada se duplica».
-- **«En preparación», sin fechas:** acceso de entrenadoras, titular por clase, objetivos y planificación, portal de familias y solicitudes de prueba.
-- **Otros textos:** catálogo, FAQ (importación y acceso de entrenadoras), JSON-LD (`featureList`), `/pricing` (bloque de migración) y `llms-full.txt`.
+- **«En preparación», sin fechas y con los términos del glosario:** acceso de entrenadoras, titular por clase, objetivos, observaciones y guion de la sesión, portal de familias y solicitudes de prueba.
+- **Datos estructurados.** El JSON-LD se genera en `home-structured-data.ts` con nombres descriptivos y sin duplicados.
+- **Otros textos.** Meta descripción de 157 caracteres, FAQ (importación y acceso de entrenadoras), `/pricing` y `llms-full.txt`.
 
 **Decisión.** El rol de entrenadora (PR 255) no se anuncia como disponible. Sin las invitaciones (277, dormidas) ninguna academia puede dar acceso a una entrenadora en producción.
 
-**Pruebas.** `tests/audit/public-implemented-claims.test.ts` (evidencias, funciones dormidas, SEPA, glosario, JSON-LD y precios) y la prueba de FAQ de `public-claims.catalog.test.ts`. No se ejecutó nada en local.
+**Pruebas.** `tests/audit/public-implemented-claims.test.ts` revisa:
+- el catálogo, el texto escrito a mano de las páginas públicas, los metadatos y `llms-full.txt`;
+- el JSON-LD generado;
+- funciones dormidas, fechas vagas, SEPA, glosario y precios.
+
+No se ejecutó nada en local.
 
 ## 2026-11-11 — Vulnerabilidades de dependencias restantes (P0 #2)
 

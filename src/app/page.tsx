@@ -13,18 +13,15 @@ import {
   PlansLine,
 } from "@/app/(site)/mat/HomeSections";
 import { SkipLink } from "@/components/ui/skip-link";
-import {
-  ESSENTIAL_FAQS,
-  ESSENTIAL_FEATURES,
-  IMPLEMENTED_HIGHLIGHTS,
-} from "@/lib/launch/essential-public-catalog";
+import { homeStructuredData } from "@/lib/launch/home-structured-data";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 // Home «Magnesio sobre tapiz». El contenido sale del catálogo público del
 // lanzamiento (ESSENTIAL_FEATURES y ESSENTIAL_FAQS); el visible y los datos
 // estructurados deben decir lo mismo.
 const baseUrl = getPublicSiteUrl();
-const description = "Organiza grupos, clases y asistencia de tu academia de gimnasia artística o rítmica en un solo sitio. Configuración administrativa para España y México, con registro manual de cuotas.";
+const description = "Software de gestión en español para academias de gimnasia: grupos, clases y asistencia en un solo sitio. Para España y México, con registro manual de cuotas.";
+const structuredData = homeStructuredData({ description, url: baseUrl });
 export const metadata: Metadata = {
   title: "Zaltyko – Software para academias de gimnasia",
   description,
@@ -48,22 +45,8 @@ export default function HomePage() {
         <MatClose />
       </main>
       <Footer />
-      <Schema json={{
-        "@context": "https://schema.org", "@type": "SoftwareApplication",
-        name: "Zaltyko", applicationCategory: "BusinessApplication", operatingSystem: "Web",
-        description, url: baseUrl, inLanguage: "es",
-        // Same claims as the visible page: catalog features and active highlights.
-        featureList: [
-          ...ESSENTIAL_FEATURES.flatMap((feature) => feature.features),
-          ...IMPLEMENTED_HIGHLIGHTS.map((item) => item.title),
-        ],
-      }} />
-      <Schema json={{
-        "@context": "https://schema.org", "@type": "FAQPage",
-        mainEntity: ESSENTIAL_FAQS.map(({ question, answer }) => ({
-          "@type": "Question", name: question, acceptedAnswer: { "@type": "Answer", text: answer },
-        })),
-      }} />
+      <Schema json={structuredData.softwareApplication} />
+      <Schema json={structuredData.faqPage} />
     </>
   );
 }

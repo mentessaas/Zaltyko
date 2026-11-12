@@ -341,7 +341,8 @@ describe("L2 — claims de módulos alineados con capacidades verificadas", () =
     expect(faqPage).toContain("ESSENTIAL_FAQS");
     const importFaq = ESSENTIAL_FAQS.find(item => item.question === "¿Puedo traer mis gimnastas desde un Excel?");
     expect(importFaq?.answer).toContain("vista previa");
-    expect(importFaq?.answer).toContain("no se duplican");
+    expect(importFaq?.answer).toContain("coinciden en nombre y fecha de nacimiento");
+    expect(importFaq?.answer).toContain("no se crean de nuevo");
     expect(importFaq?.answer).toContain("propiedad o la administración");
     expect(importFaq?.answer).toContain("Las cuotas, los pagos y el historial no se importan");
     expect(

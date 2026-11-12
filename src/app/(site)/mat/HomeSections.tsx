@@ -199,26 +199,34 @@ export function ModuleRegister() {
 export function ImplementedNow() {
   return (
     <section aria-labelledby="now-title" className="chalk-field border-y border-chalk-line">
-      <div className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-14 lg:py-24">
-        <h2 id="now-title" className="font-display text-[clamp(2rem,4.5vw,3.5rem)] font-black uppercase leading-[0.95] text-mat-night">
-          Lo que ya hace hoy
-        </h2>
-        <ul className="mt-10 grid gap-x-10 border-t-[3px] border-mat-night sm:grid-cols-2 lg:grid-cols-3">
-          {IMPLEMENTED_HIGHLIGHTS.map((item) => (
-            <li key={item.id} className="border-b border-chalk-line py-6">
-              <h3 className="font-display text-xl font-extrabold uppercase leading-tight text-mat">{item.title}</h3>
-              <p className="mt-2 leading-relaxed text-ramp-600">{item.text}</p>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-10 max-w-3xl">
-          <h3 className="floor-label text-mat-night">En preparación</h3>
-          <p className="mt-2 text-sm text-ramp-600">
-            Todavía no están disponibles y no tienen fecha comprometida.
+      <div className="mx-auto grid max-w-7xl gap-12 px-6 py-20 sm:px-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:px-14 lg:py-24">
+        <div>
+          <h2 id="now-title" className="font-display text-[clamp(2rem,4.5vw,3.5rem)] font-black uppercase leading-[0.95] text-mat-night">
+            Lo que ya hace hoy
+          </h2>
+          <p className="mt-6 max-w-md text-lg leading-relaxed text-ramp-600">
+            Además de los módulos, cinco cosas que ya funcionan y ahorran tiempo desde el primer día.
           </p>
-          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ramp-600">
+        </div>
+        <div>
+          <dl className="border-t-[3px] border-mat-night">
+            {IMPLEMENTED_HIGHLIGHTS.map((item) => (
+              <div
+                key={item.id}
+                className="grid gap-1 border-b border-chalk-line py-5 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-6"
+              >
+                <dt className="font-display text-xl font-extrabold uppercase leading-tight text-mat">{item.title}</dt>
+                <dd className="leading-relaxed text-ramp-600">{item.text}</dd>
+              </div>
+            ))}
+          </dl>
+          <h3 className="floor-label mt-10 text-mat-night">En preparación</h3>
+          <p className="mt-2 text-sm text-ramp-600">Todavía no están disponibles y no tienen fecha comprometida.</p>
+          <ul className="mt-4 border-t border-chalk-line">
             {IN_PREPARATION.map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item} className="border-b border-chalk-line py-3 text-ramp-600">
+                {item}
+              </li>
             ))}
           </ul>
         </div>

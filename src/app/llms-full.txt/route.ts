@@ -13,6 +13,8 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const LLMS_FULL = `# Zaltyko — Software para academias de gimnasia
 
+Organiza grupos, clases y asistencia de tu academia de gimnasia en un solo sitio: ves las sesiones de hoy y pasas lista en un toque.
+
 Lanzamiento en español; configuración administrativa para España y México.
 - Registro, consentimiento, confirmación y recuperación de cuenta.
 - Gimnastas, familias y responsables; alta, edición y archivo.
@@ -20,13 +22,13 @@ Lanzamiento en español; configuración administrativa para España y México.
 - Cuotas familiares mensuales y registro manual de pagos.
 - Resumen calculado desde datos persistidos y navegación adaptable.
 - Sesiones de hoy en el Resumen y pase de lista desde el móvil.
-- Importación de gimnastas desde Excel o CSV con vista previa; no duplica gimnastas existentes.
+- Importación de gimnastas desde Excel o CSV con vista previa; avisa de las filas que coinciden en nombre y fecha de nacimiento con una gimnasta existente y no las crea de nuevo.
 - Lista de puesta en marcha para academias nuevas.
 - Zona horaria propia de cada sede; cuotas en la moneda de la academia (EUR o MXN).
-- Historial de grupos conservado al archivar una ficha.
+- Historial de grupos con fechas de entrada y salida, también tras archivar una ficha.
 - Altas, inscripciones, cuotas, pagos y listas protegidos contra el doble envío.
 
-En preparación, sin fecha y no disponibles todavía: acceso para entrenadoras, entrenadora titular por clase y sustituciones, objetivos y planificación de sesiones, portal de familias y solicitudes de prueba desde la web.
+En preparación, sin fecha y no disponibles todavía: acceso para entrenadoras, entrenadora titular por clase y sustituciones, objetivos y observaciones de las gimnastas y guion de cada sesión, portal de familias y solicitudes de prueba de las familias desde el enlace público de la academia.
 
 Zaltyko no inicia cargos automáticos a las familias.
 La suscripción SaaS de la academia es independiente de esas cuotas.
