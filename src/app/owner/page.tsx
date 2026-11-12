@@ -123,6 +123,7 @@ export default async function OwnerDashboardPage({
     <OwnerWorkspacePageShell
       member={scope.member}
       organizationId={scope.organization.id}
+      organizationName={scope.organization.name}
       locationId={scope.selectedLocationId}
     >
       <OwnerEssentialDashboard
@@ -131,6 +132,7 @@ export default async function OwnerDashboardPage({
         todaySessions={todayWithCoaches}
         attentionItems={attentionItems}
         setupProgress={setupProgress}
+        viewerName={typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : null}
       />
       <OwnerProductDiscovery
         organizationId={scope.organization.id}

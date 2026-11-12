@@ -79,7 +79,13 @@ describe("essential Owner launch surface", () => {
   });
   it("preserves academy and location in operational links and the GET form", () => {
     render(<OwnerEssentialDashboard scope={{ ...scope, organization: { ...scope.organization, name: "Club de gimnasia artística y rítmica con actividades complementarias" }, locations: [{ ...scope.locations[0], name: "Sede de entrenamiento y preparación de conjuntos de competición" }], member: { ...scope.member, role: "owner", locationScopeMode: "all" } }} operationalSummary={null} />);
-    expect(screen.getByRole("heading", { level: 1, name: "Resumen" })).toBeInTheDocument();
+    // El hero rotula la academia como h1 (como /app); «Resumen de» queda para lectores de pantalla.
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "Resumen de Club de gimnasia artística y rítmica con actividades complementarias",
+      })
+    ).toBeInTheDocument();
     const navigation = screen.getByRole("navigation", { name: "Operaciones de la academia" });
     for (const label of ["Grupos", "Clases", "Inscripciones", "Asistencia", "Cuotas mensuales", "Cobros manuales"]) {
       const url = new URL(within(navigation).getByRole("link", { name: label }).getAttribute("href")!, "https://example.test");
