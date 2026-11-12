@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ESSENTIAL_FAQS } from "@/lib/launch/essential-public-catalog";
+import { getCommercialLaunchReadiness } from "@/lib/launch/commercial-launch-profile";
+import { COMMERCIAL_MARKET_REGISTRY } from "@/modules/organizations/domain/commercial-market-capabilities";
 
 const REPO = process.cwd();
 const homepage = readFileSync(join(REPO, "src/app/page.tsx"), "utf8");
@@ -17,10 +19,20 @@ describe("international public copy", () => {
     expect(marketFaq?.answer).toContain("no hay conversión automática");
     expect(marketFaq?.answer).toContain("ni emisión de facturas fiscales");
 
-    expect(plansFaq?.answer).toContain("contratación internacional todavía no está habilitada");
+    // La contratación Live exige el registro comercial (solo España la tiene activada) y que el
+    // perfil de lanzamiento esté listo. Mientras no lo esté, los planes de pago no se contratan
+    // en ningún país. Si se abre, esta FAQ deja de ser cierta: actualízala junto con este test.
+    const liveMarkets = Object.values(COMMERCIAL_MARKET_REGISTRY)
+      .filter((market) => market.liveSaasCheckoutEnabled)
+      .map((market) => market.label);
+    expect(liveMarkets).toEqual(["España"]);
+    expect(getCommercialLaunchReadiness().ready).toBe(false);
+    expect(plansFaq?.answer).toContain("los planes de pago todavía no se pueden contratar (se abrirán primero en España)");
+    expect(plansFaq?.answer).toContain("puedes empezar con Free desde cualquier país");
+    expect(plansFaq?.answer).not.toContain("contratación internacional");
     expect(plansFaq?.answer).toContain("19 €/mes o 190 €/año");
     expect(plansFaq?.answer).toContain("49 €/mes o 490 €/año");
-    expect(plansFaq?.answer).toContain("parte de 99 €/mes");
+    expect(plansFaq?.answer).toContain("Network parte de 99 €/mes");
   });
 
   it("el metadata público ya no limita el alcance a España", () => {

@@ -245,8 +245,10 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(homeStructuredData).toContain("mainEntity: ESSENTIAL_FAQS.map");
     expect(readSiteFile("src/app/page.tsx")).toContain("<Schema json={structuredData.faqPage} />");
     for (const copy of [ESSENTIAL_FAQS.map(item => item.answer).join(" ")]) {
-      expect(copy).toContain("Network, para varias sedes, parte de 99 €/mes");
-      expect(copy).toContain("propuesta final");
+      expect(copy).toContain("Network parte de 99 €/mes");
+      expect(copy).toContain("condiciones a medida");
+      // Starter y Growth no limitan sedes: no se dice que varias sedes exijan Network.
+      expect(copy).not.toMatch(/Network[^.]{0,40}varias sedes|varias sedes[^.]{0,60}Network/);
     }
   });
 
