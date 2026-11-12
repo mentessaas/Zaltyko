@@ -210,11 +210,13 @@ describe("L2 — copy pública presente en componentes", () => {
   });
 
   it("Network mantiene el mismo precio base y matiz sales-assisted en las FAQs", () => {
-    const home = readSiteFile("src/app/page.tsx");
+    // The home FAQPage JSON-LD is built from the catalog in home-structured-data.ts.
+    const homeStructuredData = readSiteFile("src/lib/launch/home-structured-data.ts");
     const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
     expect(faqPage).toContain("ESSENTIAL_FAQS");
     expect(faq).toContain("ESSENTIAL_FAQS");
-    expect(home).toContain("ESSENTIAL_FAQS");
+    expect(homeStructuredData).toContain("mainEntity: ESSENTIAL_FAQS.map");
+    expect(readSiteFile("src/app/page.tsx")).toContain("<Schema json={structuredData.faqPage} />");
     for (const copy of [ESSENTIAL_FAQS.map(item => item.answer).join(" ")]) {
       expect(copy).toContain("Network parte de 99€/mes");
       expect(copy).toContain("propuesta final");
@@ -336,10 +338,18 @@ describe("L2 — claims de módulos alineados con capacidades verificadas", () =
     }
   });
 
-  it("la FAQ esencial no promete importaciones sin validar", () => {
+  it("la FAQ esencial solo habla de importación en la pregunta de la importación activa (PR 278)", () => {
     const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
     expect(faqPage).toContain("ESSENTIAL_FAQS");
-    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).not.toMatch(/importa[rn]?|Excel|CSV/i);
+    const importFaq = ESSENTIAL_FAQS.find(item => item.question === "¿Puedo traer mis gimnastas desde un Excel?");
+    expect(importFaq?.answer).toContain("vista previa");
+    expect(importFaq?.answer).toContain("mismo nombre y fecha de nacimiento");
+    expect(importFaq?.answer).toContain("no se crean de nuevo");
+    expect(importFaq?.answer).toContain("propiedad o la administración");
+    expect(importFaq?.answer).toContain("Las cuotas, los pagos y el historial no se importan");
+    expect(
+      ESSENTIAL_FAQS.filter(item => item !== importFaq).map(item => item.answer).join(" ")
+    ).not.toMatch(/importa[rn]?|Excel|CSV/i);
   });
 
   it("describe las exportaciones como apoyo operativo revisable", () => {

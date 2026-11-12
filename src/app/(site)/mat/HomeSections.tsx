@@ -6,7 +6,12 @@ import { DisclosureAccordion } from "@/components/ui/disclosure-accordion";
 import { PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
 import { cn } from "@/lib/utils";
 
-import { ESSENTIAL_FAQS, ESSENTIAL_FEATURES } from "@/lib/launch/essential-public-catalog";
+import {
+  ESSENTIAL_FAQS,
+  ESSENTIAL_FEATURES,
+  IMPLEMENTED_HIGHLIGHTS,
+  IN_PREPARATION,
+} from "@/lib/launch/essential-public-catalog";
 
 /* ─────────────────────────────────────────────────────────────────────────
    La tarde en pista: el panel de dirección contado como una pizarra de
@@ -181,6 +186,50 @@ export function ModuleRegister() {
             </div>
           ))}
         </dl>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Lo que ya hace hoy: funciones activas que la web no contaba, y lo que está
+   en preparación, sin fechas. Todo sale del catálogo público.
+   ───────────────────────────────────────────────────────────────────────── */
+
+export function ImplementedNow() {
+  return (
+    <section aria-labelledby="now-title" className="chalk-field border-y border-chalk-line">
+      <div className="mx-auto grid max-w-7xl gap-12 px-6 py-20 sm:px-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:px-14 lg:py-24">
+        <div>
+          <h2 id="now-title" className="font-display text-[clamp(2rem,4.5vw,3.5rem)] font-black uppercase leading-[0.95] text-mat-night">
+            Lo que ya hace hoy
+          </h2>
+          <p className="mt-6 max-w-md text-lg leading-relaxed text-ramp-600">
+            Además de los módulos, cinco cosas que ya funcionan.
+          </p>
+        </div>
+        <div>
+          <dl className="border-t-[3px] border-mat-night">
+            {IMPLEMENTED_HIGHLIGHTS.map((item) => (
+              <div
+                key={item.id}
+                className="grid gap-1 border-b border-chalk-line py-5 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-6"
+              >
+                <dt className="font-display text-xl font-extrabold uppercase leading-tight text-mat">{item.title}</dt>
+                <dd className="leading-relaxed text-ramp-600">{item.text}</dd>
+              </div>
+            ))}
+          </dl>
+          <h3 className="floor-label mt-10 text-mat-night">En preparación</h3>
+          <p className="mt-2 text-sm text-ramp-600">Todavía no están disponibles y no tienen fecha comprometida.</p>
+          <ul className="mt-4 border-t border-chalk-line">
+            {IN_PREPARATION.map((item) => (
+              <li key={item} className="border-b border-chalk-line py-3 text-ramp-600">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </section>
   );
