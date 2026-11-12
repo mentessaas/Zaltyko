@@ -20,7 +20,7 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 // lanzamiento (ESSENTIAL_FEATURES y ESSENTIAL_FAQS); el visible y los datos
 // estructurados deben decir lo mismo.
 const baseUrl = getPublicSiteUrl();
-const description = "Software de gestión en español para academias de gimnasia de cualquier país: grupos, clases y asistencia. Centrado primero en España y México.";
+const description = "Software de gestión en español para academias de gimnasia: clases, pase de lista y cuotas. Gratis hasta 30 gimnastas. Cualquier país, foco en España y México.";
 const structuredData = homeStructuredData({ description, url: baseUrl });
 export const metadata: Metadata = {
   title: "Zaltyko – Software para academias de gimnasia",
