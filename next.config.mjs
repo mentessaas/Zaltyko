@@ -1,6 +1,7 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { withSentryConfig } from "@sentry/nextjs/config";
+import { LEGACY_PUBLIC_REDIRECTS } from "./src/lib/launch/legacy-public-redirects.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isSandboxPreviewBuild =
@@ -129,28 +130,9 @@ const nextConfig = {
         destination: "https://zaltyko.com/:path*",
         permanent: true,
       },
-      // Alias-URL funnel fixes (2026-09-24 E2E audit P0-1):
-      // /planes, /precios, /contacto, /nosotros redirigían a / sin path.
-      {
-        source: "/planes",
-        destination: "/pricing",
-        permanent: true,
-      },
-      {
-        source: "/precios",
-        destination: "/pricing",
-        permanent: true,
-      },
-      {
-        source: "/contacto",
-        destination: "/contact",
-        permanent: true,
-      },
-      {
-        source: "/nosotros",
-        destination: "/sobre-nosotros",
-        permanent: true,
-      },
+      // Legacy public aliases, all permanent; list and reasons in
+      // src/lib/launch/legacy-public-redirects.mjs (shared with the SEO test).
+      ...LEGACY_PUBLIC_REDIRECTS.map(([source, destination]) => ({ source, destination, permanent: true })),
     ];
   },
 

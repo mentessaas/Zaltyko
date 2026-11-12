@@ -52,9 +52,44 @@ export function isOutsideEssentialLaunch(pathname: string): boolean {
     || /^\/a\/[^/]+\/tienda(?:\/|$)/.test(pathname);
 }
 
+/**
+ * What a visitor (or crawler) gets at a retired marketing URL. Search engines
+ * still list some of these pages, so each one answers with a permanent signal:
+ * a 301 to the closest live page when there is an equivalent, or 410 Gone
+ * when there is none (a soft redirect to an unrelated page reads as a soft
+ * 404 and keeps the old URL in the index longer).
+ */
+export type RetiredMarketingOutcome =
+  | { status: 301; location: string }
+  | { status: 410 };
+
+const RETIRED_MARKETING_RULES: ReadonlyArray<{ pattern: RegExp; outcome: RetiredMarketingOutcome }> = [
+  // Discipline clusters the launch still serves: /features covers artística and rítmica.
+  {
+    pattern: /^\/(?:gimnasia-artistica|gimnasia-ritmica|artistic-gymnastics|rhythmic-gymnastics)(?:\/|$)/,
+    outcome: { status: 301, location: "/features" },
+  },
+  // Disciplines outside the launch focus: the live site says it covers only
+  // artística and rítmica, so no page is an equivalent; sending them to the
+  // home page would be a soft 404.
+  {
+    pattern: /^\/(?:gimnasia-acrobatica|trampolin|acrobatic-gymnastics|trampoline)(?:\/|$)/,
+    outcome: { status: 410 },
+  },
+  // Per-module landings and comparisons are summarised on /features.
+  { pattern: /^\/(?:modules|comparativas)(?:\/|$)/, outcome: { status: 301, location: "/features" } },
+  // The company story page is withdrawn; home is the closest live page.
+  { pattern: /^\/sobre-nosotros(?:\/|$)/, outcome: { status: 301, location: "/" } },
+  // Blog articles have no live equivalent at all.
+  { pattern: /^\/blog(?:\/|$)/, outcome: { status: 410 } },
+];
+
+/** Outcome for a retired marketing URL, or null when the path is not retired. */
+export function retiredMarketingOutcome(pathname: string): RetiredMarketingOutcome | null {
+  const unlocalized = decodedPath(pathname).replace(/^\/(?:es|en)(?=\/)/, "");
+  return RETIRED_MARKETING_RULES.find(({ pattern }) => pattern.test(unlocalized))?.outcome ?? null;
+}
+
 export function isRetiredLaunchMarketing(pathname: string): boolean {
-  pathname = decodedPath(pathname);
-  if (["/modules", "/comparativas", "/blog", "/sobre-nosotros"].some(prefix => atSegment(pathname, prefix))) return true;
-  const unlocalized = pathname.replace(/^\/(?:es|en)(?=\/)/, "");
-  return /^\/(?:gimnasia-artistica|gimnasia-ritmica|gimnasia-acrobatica|trampolin|artistic-gymnastics|rhythmic-gymnastics|acrobatic-gymnastics|trampoline)(?:\/|$)/.test(unlocalized);
+  return retiredMarketingOutcome(pathname) !== null;
 }

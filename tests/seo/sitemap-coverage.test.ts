@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ESSENTIAL_PUBLIC_ROUTES, isOutsideEssentialLaunch, isRetiredLaunchMarketing } from "@/lib/launch/essential-routes";
+import { helpArticles } from "@/lib/help/articles";
 
 vi.mock("@/lib/seo/site-url", () => ({ getPublicSiteUrl: () => "https://zaltyko.com" }));
 import sitemap from "@/app/sitemap";
@@ -8,7 +9,13 @@ describe("essential launch sitemap", () => {
   it("emits the actual finite public route set, with no customer or historical marketing URLs", async () => {
     const entries = await sitemap();
     const paths = entries.map(entry => new URL(entry.url).pathname);
-    expect(paths).toEqual([...ESSENTIAL_PUBLIC_ROUTES, "/llms.txt", "/llms-full.txt"]);
+    expect(paths).toEqual([
+      ...ESSENTIAL_PUBLIC_ROUTES,
+      ...helpArticles.map(article => `/help/${article.slug}`),
+      "/llms.txt",
+      "/llms-full.txt",
+    ]);
+    expect(helpArticles.length).toBeGreaterThan(0);
     expect(new Set(paths).size).toBe(paths.length);
     for (const path of paths) {
       expect(isOutsideEssentialLaunch(path)).toBe(false);
