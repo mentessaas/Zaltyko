@@ -11,7 +11,9 @@ import {
   type SessionCoachesView,
   type SubstitutionReason,
 } from "@/modules/coach-assignment/domain/coach-assignment";
+import type { ScheduleConflict } from "@/modules/schedule-conflicts/domain/schedule-conflicts";
 import { ownerUi } from "./owner-ui";
+import { OwnerScheduleConflictList } from "./OwnerScheduleConflicts";
 import {
   COACH_ASSIGNMENT_UNAVAILABLE_MESSAGE,
   fetchSessionCoaches,
@@ -58,6 +60,8 @@ export function OwnerSessionCoaches({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // O2: choques tras guardar. Solo avisan; la sustitución ya está guardada.
+  const [warnings, setWarnings] = useState<ScheduleConflict[]>([]);
   const pendingRequest = useRef<{ id: string; key: string } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const fieldsetRef = useRef<HTMLFieldSetElement>(null);
@@ -128,6 +132,7 @@ export function OwnerSessionCoaches({
     setSaving(true);
     setError(null);
     setMessage(null);
+    setWarnings([]);
     const result = await putSessionCoaches({
       organizationId,
       locationId,
@@ -158,6 +163,7 @@ export function OwnerSessionCoaches({
     }
     pendingRequest.current = null;
     setDraft(null);
+    setWarnings(result.data.warnings ?? []);
     focusNext.current = "trigger";
     setLoad({ status: "ready", view: result.data });
     setMessage(
@@ -325,6 +331,7 @@ export function OwnerSessionCoaches({
           {message}
         </p>
       ) : null}
+      <OwnerScheduleConflictList conflicts={warnings} variant="saved" />
       {error ? (
         <p ref={errorRef} tabIndex={-1} role="alert" className={ownerUi.noticeError}>
           {error}

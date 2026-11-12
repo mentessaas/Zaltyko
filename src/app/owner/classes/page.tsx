@@ -8,6 +8,8 @@ import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorks
 import { createClient } from "@/lib/supabase/server";
 import { getOwnerClassesPageData } from "@/modules/scheduling/application/class-management-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { getUpcomingScheduleConflicts } from "@/modules/schedule-conflicts/application/schedule-conflicts-service";
+import { OwnerUpcomingConflicts } from "@/components/owner-dashboard/OwnerScheduleConflicts";
 import { db } from "@/db";
 import { logger } from "@/lib/logger";
 import {
@@ -70,19 +72,34 @@ export default async function OwnerClassesPage({
     throw error;
   }
 
-  // O1: titulares por clase, solo con el candidato SQL aplicado. Si la
-  // lectura falla, la ficha de clase se pinta como antes, sin titulares.
-  const coachAssignment = (await isCoachAssignmentAvailableForPage(db))
-    ? await getClassTitularsByClass(db, {
-        organizationId: bundle.organization.id,
-        classTemplateIds: bundle.classes.map((classItem) => classItem.id),
-      })
-        .then((titularsByClass) => ({ titularsByClass }))
-        .catch((error: unknown) => {
-          logger.error("Class titulars failed", error);
-          return null;
-        })
-    : null;
+  // En paralelo:
+  // - O1: titulares por clase, solo con el candidato SQL aplicado. Si la
+  //   lectura falla, la ficha de clase se pinta como antes, sin titulares.
+  // - O2: choques próximos de entrenadora en las sedes de su alcance. Solo
+  //   lectura, 14 días y un presupuesto de 1,5 s; si no llega, no se muestra.
+  const [coachAssignment, upcomingConflicts] = await Promise.all([
+    isCoachAssignmentAvailableForPage(db).then((available) =>
+      available
+        ? getClassTitularsByClass(db, {
+            organizationId: bundle.organization.id,
+            classTemplateIds: bundle.classes.map((classItem) => classItem.id),
+          })
+            .then((titularsByClass) => ({ titularsByClass }))
+            .catch((error: unknown) => {
+              logger.error("Class titulars failed", error);
+              return null;
+            })
+        : null
+    ),
+    getUpcomingScheduleConflicts({
+      organizationId: bundle.organization.id,
+      locationIds: (query.data.locationId
+        ? bundle.locations.filter((location) => location.id === query.data.locationId)
+        : bundle.locations
+      ).map((location) => location.id),
+      viewer: { memberId: bundle.member.id, role: bundle.member.role },
+    }),
+  ]);
 
   const navigationLocationId =
     query.data.locationId ??
@@ -96,6 +113,7 @@ export default async function OwnerClassesPage({
       organizationId={bundle.organization.id}
       locationId={navigationLocationId}
     >
+      <OwnerUpcomingConflicts upcoming={upcomingConflicts} coachMode={false} />
       <OwnerClassesManager
         bundle={bundle}
         navigationLocationId={navigationLocationId}

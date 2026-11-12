@@ -8,6 +8,18 @@ source:
 ---
 
 
+
+## 2026-11-11 — Avisos de choque de entrenadora y pista (O2)
+
+**Cambio.**
+- Módulo `src/modules/schedule-conflicts/` tras la fachada `schedule-conflicts-service.ts` (frontera registrada). Detecta doble asignación de entrenadora (misma sede u otra), falta de tiempo entre sedes (30 min) y pista ocupada.
+- Solo avisa: en O1, los avisos llegan después de guardar y se auditan (`savedWithWarnings`). «Choques próximos» en Clases para dirección y «Tus choques próximos» en el Hoy de la entrenadora.
+- Sin migraciones: solo lee tablas aplicadas, acotado al horizonte, a las sedes de quien mira y a 50 avisos, con 1,5 s de tiempo máximo en las páginas.
+
+**Pruebas.** Dominio, `tests/schedule-conflicts-pg.test.ts` en el job «Postgres integration» y UI. No se ejecutó nada en local: el resultado está en la CI de la PR.
+
+**Sin resolver.** «Decide Elvis» de `docs/producto/avisos-de-choque.md`, empezando por si los avisos deberían llegar a bloquear.
+
 ## 2026-11-11 — Vulnerabilidades de dependencias restantes (P0 #2)
 
 **Cambio.** Dos PR en borrador: web (`pnpm-lock.yaml`) y app móvil (`mobile/`). Solo versiones de parche o menores; ningún salto mayor.
