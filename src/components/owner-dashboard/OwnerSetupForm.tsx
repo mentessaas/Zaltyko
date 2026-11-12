@@ -7,9 +7,25 @@ import { ArrowRight, Building2, MapPin, ShieldCheck } from "lucide-react";
 import { parseOwnerSetupReceipt } from "@/components/owner-dashboard/owner-setup-response";
 import {
   ADMINISTRATIVE_MARKET_REGISTRY,
-  getAdministrativeMarketCapability,
-  type AdministrativeMarketCode,
+  OPERATIONAL_CURRENCIES,
+  OPERATIONAL_CURRENCY_LABELS,
+  isFullAdministrativeMarket,
+  resolveAdministrativeMarket,
+  type OperationalCurrency,
 } from "@/modules/organizations/domain/administrative-market-capabilities";
+import { COUNTRY_OPTIONS } from "@/modules/organizations/domain/country-catalog";
+
+const FULL_MARKET_OPTIONS = Object.values(ADMINISTRATIVE_MARKET_REGISTRY);
+const GENERAL_MARKET_OPTIONS = COUNTRY_OPTIONS.filter(
+  (country) => !isFullAdministrativeMarket(country.code)
+);
+
+function isOperationalCurrency(value: unknown): value is OperationalCurrency {
+  return (
+    typeof value === "string" &&
+    (OPERATIONAL_CURRENCIES as readonly string[]).includes(value)
+  );
+}
 
 type BootstrapRequest = {
   organizationName: string;
@@ -18,8 +34,8 @@ type BootstrapRequest = {
   additionalDisciplines: string[];
   complementaryActivities: string[];
   customActivityName?: string;
-  countryCode: AdministrativeMarketCode;
-  defaultCurrency?: "EUR" | "MXN";
+  countryCode: string;
+  defaultCurrency?: OperationalCurrency;
   timezone?: string;
   contractualAcceptance?: { accepted: true; policyVersion: string };
 };
@@ -83,7 +99,7 @@ function isBootstrapRequest(value: unknown): value is BootstrapRequest {
     (value.customActivityName !== undefined &&
       (typeof value.customActivityName !== "string" ||
         value.customActivityName.length > 80)) ||
-    (value.countryCode !== "ES" && value.countryCode !== "MX")
+    typeof value.countryCode !== "string"
   ) {
     return false;
   }
@@ -104,11 +120,11 @@ function isBootstrapRequest(value: unknown): value is BootstrapRequest {
     return false;
   }
 
-  const market = getAdministrativeMarketCapability(value.countryCode);
+  const market = resolveAdministrativeMarket(value.countryCode);
   if (!market) return false;
   if (value.defaultCurrency !== undefined) {
     if (
-      (value.defaultCurrency !== "EUR" && value.defaultCurrency !== "MXN") ||
+      !isOperationalCurrency(value.defaultCurrency) ||
       !market.currencies.includes(value.defaultCurrency)
     ) {
       return false;
@@ -122,7 +138,7 @@ function isBootstrapRequest(value: unknown): value is BootstrapRequest {
     return false;
   }
   if (
-    value.countryCode === "MX" &&
+    (value.countryCode === "MX" || market.tier === "general") &&
     (!value.defaultCurrency || typeof value.timezone !== "string")
   ) {
     return false;
@@ -201,9 +217,8 @@ export function OwnerSetupForm({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [consentAccepted, setConsentAccepted] = useState(false);
-  const [countryCode, setCountryCode] = useState<AdministrativeMarketCode>(
-    "ES"
-  );
+  const [countryCode, setCountryCode] = useState<string>("ES");
+  const [currency, setCurrency] = useState<OperationalCurrency | "">("");
   const [timezone, setTimezone] = useState<string>(
     ADMINISTRATIVE_MARKET_REGISTRY.ES.defaultTimezone ?? ""
   );
@@ -233,6 +248,7 @@ export function OwnerSetupForm({
     setError(null);
     setConsentAccepted(false);
     setCountryCode("ES");
+    setCurrency("");
     setTimezone(ADMINISTRATIVE_MARKET_REGISTRY.ES.defaultTimezone ?? "");
     setPrimaryDiscipline(null);
     setPersistenceNotice(null);
@@ -264,7 +280,8 @@ export function OwnerSetupForm({
       idempotencyKey.current = restored.key;
       setRetryRequest(restored);
       setCountryCode(restored.body.countryCode);
-      const restoredMarket = getAdministrativeMarketCapability(
+      setCurrency(restored.body.defaultCurrency ?? "");
+      const restoredMarket = resolveAdministrativeMarket(
         restored.body.countryCode
       );
       setTimezone(
@@ -411,14 +428,19 @@ export function OwnerSetupForm({
       );
       return;
     }
-    const market = getAdministrativeMarketCapability(countryCode);
+    const market = resolveAdministrativeMarket(countryCode);
     if (!market) {
-      setError("Selecciona un país disponible para el alta.");
+      setError("Selecciona el país de la academia.");
       return;
     }
     const resolvedTimezone = timezone || market.defaultTimezone;
     if (!resolvedTimezone || !market.timezones.includes(resolvedTimezone)) {
       setError("Selecciona la zona horaria de la primera sede.");
+      return;
+    }
+    const resolvedCurrency = market.defaultCurrency ?? (currency || null);
+    if (!resolvedCurrency || !market.currencies.includes(resolvedCurrency)) {
+      setError("Selecciona la moneda en la que registrarás las cuotas.");
       return;
     }
 
@@ -436,9 +458,9 @@ export function OwnerSetupForm({
       customActivityName:
         String(formData.get("customActivityName") ?? "").trim() || undefined,
       countryCode,
-      ...(countryCode === "MX"
+      ...(countryCode === "MX" || market.tier === "general"
         ? {
-            defaultCurrency: market.defaultCurrency,
+            defaultCurrency: resolvedCurrency,
             timezone: resolvedTimezone,
           }
         : timezone && timezone !== market.defaultTimezone
@@ -460,7 +482,8 @@ export function OwnerSetupForm({
 
   const fieldsLocked =
     restorePending || pending || activeRetryRequest !== null;
-  const selectedMarket = getAdministrativeMarketCapability(countryCode);
+  const selectedMarket = resolveAdministrativeMarket(countryCode);
+  const isGeneralMarket = selectedMarket?.tier === "general";
 
   if (!contractualConsent && !activeRetryRequest && !restorePending) {
     return (
@@ -611,25 +634,34 @@ export function OwnerSetupForm({
               required
               value={countryCode}
               onChange={(event) => {
-                const nextCountry = event.target
-                  .value as AdministrativeMarketCode;
+                const nextCountry = event.target.value;
                 setCountryCode(nextCountry);
+                setCurrency("");
                 setTimezone(
-                  getAdministrativeMarketCapability(nextCountry)
-                    ?.defaultTimezone ?? ""
+                  resolveAdministrativeMarket(nextCountry)?.defaultTimezone ??
+                    ""
                 );
               }}
               className="rounded-[12px] touch-target w-full border border-z-line bg-white px-3 text-z-ink"
             >
-              {Object.values(ADMINISTRATIVE_MARKET_REGISTRY).map((market) => (
-                <option key={market.countryCode} value={market.countryCode}>
-                  {market.label}
-                </option>
-              ))}
+              <optgroup label="Mercados prioritarios">
+                {FULL_MARKET_OPTIONS.map((market) => (
+                  <option key={market.countryCode} value={market.countryCode}>
+                    {market.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Resto de países (funciones generales por ahora)">
+                {GENERAL_MARKET_OPTIONS.map((country) => (
+                  <option key={country.code} value={country.code}>
+                    {country.name}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </label>
             <Link href="/contact?type=market_access" className="inline-flex min-h-11 items-center text-sm font-medium text-z-brand-600 underline underline-offset-4">
-              ¿Tu país no aparece? Solicita acceso asistido
+              ¿Necesitas funciones de tu país? Cuéntanoslo
             </Link>
           </div>
           <label className="grid gap-2 text-sm font-bold text-z-ink">
@@ -669,6 +701,43 @@ export function OwnerSetupForm({
               ))}
             </select>
           </label>
+          {isGeneralMarket && (
+            <div className="grid content-start gap-2">
+            <label className="grid gap-2 text-sm font-bold text-z-ink">
+              Moneda de las cuotas
+              <select
+                name="defaultCurrency"
+                required
+                value={currency}
+                onChange={(event) =>
+                  setCurrency(
+                    isOperationalCurrency(event.target.value)
+                      ? event.target.value
+                      : ""
+                  )
+                }
+                aria-describedby="owner-setup-currency-help"
+                className="rounded-[12px] touch-target w-full border border-z-line bg-white px-3 text-z-ink"
+              >
+                <option value="">Selecciona una moneda</option>
+                {OPERATIONAL_CURRENCIES.map((code) => (
+                  <option key={code} value={code}>
+                    {OPERATIONAL_CURRENCY_LABELS[code]}
+                  </option>
+                ))}
+              </select>
+            </label>
+              <p
+                id="owner-setup-currency-help"
+                className="text-sm leading-6 text-z-soft"
+              >
+                Por ahora las cuotas se registran en euros o en pesos
+                mexicanos. Zaltyko no convierte importes: elige la moneda en la
+                que quieras llevar las cuentas. Otras monedas llegarán más
+                adelante.
+              </p>
+            </div>
+          )}
         </div>
         <div className="flex gap-3 rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-z-canvas p-4 text-sm leading-6 text-z-soft">
           <ShieldCheck
@@ -692,10 +761,22 @@ export function OwnerSetupForm({
                 sistema. {selectedMarket?.sportCoverage.message}
               </>
             )}
+            {isGeneralMarket && (
+              <>
+                Zaltyko funciona en cualquier país. Nos centramos primero en
+                España y México (gimnasia artística y rítmica); las funciones
+                específicas de {selectedMarket?.label} llegarán más adelante.{" "}
+                {selectedMarket?.sportCoverage.message} La contratación de
+                planes de pago para tu país todavía no está disponible: puedes
+                empezar con el plan Free.
+              </>
+            )}
             {" "}
-            Moneda operativa para cuotas: {selectedMarket?.defaultCurrency};
-            independiente de la suscripción a Zaltyko. Zona horaria de la sede:{" "}
-            {timezone || "selecciona una zona horaria"}.
+            Moneda operativa para cuotas:{" "}
+            {selectedMarket?.defaultCurrency ??
+              (currency || "selecciona una moneda")}
+            ; independiente de la suscripción a Zaltyko. Zona horaria de la
+            sede: {timezone || "selecciona una zona horaria"}.
           </p>
         </div>
       </fieldset>

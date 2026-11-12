@@ -10,6 +10,9 @@ import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorks
 import { db } from "@/db";
 import { organizationMembers, organizations } from "@/db/zaltyko-schema";
 import { createClient } from "@/lib/supabase/server";
+import { resolveAdministrativeMarket } from "@/modules/organizations/domain/administrative-market-capabilities";
+import { commercialMarketCheckoutNotice } from "@/modules/organizations/domain/commercial-market-capabilities";
+import { getSaasStripeConfig } from "@/modules/saas-billing/application/saas-billing-config";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +62,7 @@ export default async function OwnerSaasBillingPage({
     .select({
       organizationId: organizationMembers.organizationId,
       organizationName: organizations.name,
+      countryCode: organizations.countryCode,
       role: organizationMembers.role,
       locationScopeMode: organizationMembers.locationScopeMode,
     })
@@ -74,6 +78,18 @@ export default async function OwnerSaasBillingPage({
   const organization = memberships[0];
   if (!organization) notFound();
 
+  // Solo explica el estado: la API vuelve a comprobar el mercado en cada
+  // operación. En el entorno de pruebas de Stripe la contratación sigue
+  // abierta para todos los países y no se muestra el aviso.
+  const marketNotice =
+    getSaasStripeConfig()?.environment === "test"
+      ? null
+      : commercialMarketCheckoutNotice(
+          organization.countryCode,
+          resolveAdministrativeMarket(organization.countryCode)?.label ??
+            organization.countryCode
+        );
+
   return (
     <OwnerWorkspacePageShell
       member={{
@@ -86,6 +102,7 @@ export default async function OwnerSaasBillingPage({
       <OwnerSaasBillingManager
         organizationId={organization.organizationId}
         organizationName={organization.organizationName}
+        marketNotice={marketNotice}
       />
       {organization.role === "owner" &&
       organization.locationScopeMode === "all" ? (

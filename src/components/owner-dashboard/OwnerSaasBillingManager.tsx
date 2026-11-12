@@ -274,9 +274,12 @@ function priceSubtitle(
 export function OwnerSaasBillingManager({
   organizationId,
   organizationName,
+  marketNotice = null,
 }: {
   organizationId: string;
   organizationName: string;
+  /** Aviso del servidor cuando la contratación no está abierta en el país de la academia. */
+  marketNotice?: string | null;
 }) {
   const activeOrganizationIdRef = useRef(organizationId);
   useCommittedLayoutEffect(() => {
@@ -973,6 +976,15 @@ export function OwnerSaasBillingManager({
                 ))}
               </fieldset>
             </div>
+
+            {marketNotice ? (
+              <p
+                role="note"
+                className="mt-5 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-4 text-sm leading-6 text-z-soft"
+              >
+                {marketNotice}
+              </p>
+            ) : null}
 
             {trial?.eligible && currentSnapshot.actions.canStartTrial ? (
               <div className="mt-5 flex flex-col gap-4 rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
