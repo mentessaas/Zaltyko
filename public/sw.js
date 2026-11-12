@@ -41,7 +41,7 @@ self.addEventListener('fetch', (event) => {
 
   // Tenant/user data must always come from the network. Do not call
   // respondWith here: the browser performs the request natively. Wrapping it
-  // in respondWith(fetch(request)) only turned aborted or offline requests
+  // in a pass-through respondWith only turned aborted or offline requests
   // into "FetchEvent ... network error" plus "Uncaught (in promise)" errors.
   if (url.pathname.startsWith('/api/')) {
     return;
