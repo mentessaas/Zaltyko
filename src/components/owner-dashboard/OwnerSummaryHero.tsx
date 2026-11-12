@@ -41,8 +41,9 @@ export function OwnerSummaryHero({
             id="owner-summary-title"
             className="min-w-0 break-words font-display text-[clamp(2rem,4vw,3.25rem)] font-black uppercase leading-[0.92] text-white [overflow-wrap:anywhere] [text-wrap:balance]"
           >
-            <span className="sr-only">Resumen de </span>
-            {organizationName}
+            {/* El espacio va fuera del span: dentro se recorta y el nombre accesible
+                quedaría «Resumen deAcademia». */}
+            <span className="sr-only">Resumen de</span> {organizationName}
           </h1>
           {scopeLabel ? (
             <p className="floor-label mt-2 break-words text-white/85">{scopeLabel}</p>
