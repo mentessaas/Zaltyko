@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { invitations } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import AcceptInvitationForm from "@/components/AcceptInvitationForm";
+import { InvitationPageShell } from "@/components/invitations/InvitationPageShell";
 
 interface AcceptPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -43,24 +44,16 @@ export default async function AcceptInvitationPage({ searchParams }: AcceptPageP
   const isAuthenticated = Boolean(user);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 py-12">
-      <div className="rounded-xl border bg-card/80 p-6 shadow-sm">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Invitación</p>
-        <h1 className="mt-2 text-3xl font-semibold">Únete como {invitation.role === "coach" ? "entrenador" : "miembro"}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Al aceptar tendrás acceso a tus grupos, atletas y calendario asignado. Completa el registro para empezar.
-        </p>
-        <div className="mt-4 rounded-lg border border-dashed p-4 text-sm">
-          <p className="font-semibold">Primeros pasos recomendados:</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-            <li>Estudia los grupos que se te asignaron.</li>
-            <li>Registra asistencia en tu próxima clase.</li>
-            <li>Comparte comentarios técnicos con los atletas.</li>
-          </ul>
-        </div>
-      </div>
-
-      <div className="rounded-xl border bg-card p-6 shadow">
+    <InvitationPageShell
+      eyebrow="Primeros pasos recomendados"
+      title={`Únete como ${invitation.role === "coach" ? "entrenador" : "miembro"}`}
+      description="Al aceptar tendrás acceso a tus grupos, atletas y calendario asignado. Completa el registro para empezar."
+      highlights={[
+        "Estudia los grupos que se te asignaron.",
+        "Registra asistencia en tu próxima clase.",
+        "Comparte comentarios técnicos con los atletas.",
+      ]}
+      form={
         <AcceptInvitationForm
           token={token}
           email={invitation.email}
@@ -69,8 +62,7 @@ export default async function AcceptInvitationPage({ searchParams }: AcceptPageP
           isSameEmail={isSameEmail}
           userEmail={userEmail}
         />
-      </div>
-    </div>
+      }
+    />
   );
 }
-
