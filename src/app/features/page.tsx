@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import Navbar from "@/app/(site)/Navbar";
-import Footer from "@/app/(site)/Footer";
 import FeaturesSection from "@/app/(site)/FeaturesSection";
-import Reveal from "@/components/motion/Reveal";
+import {
+  PublicPageClose,
+  PublicPageHeader,
+  PublicPageShell,
+  tapeButtonClass,
+  tapeOutlineButtonClass,
+} from "@/app/(site)/mat/PublicPage";
 import { Schema } from "@/components/Schema";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
@@ -46,60 +50,31 @@ const featureSchema = {
 
 export default function FeaturesPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-      <main className="flex-1">
-        {/* Hero simple para features */}
-        <section className="pt-32 pb-16 bg-gradient-to-b from-zaltyko-primary/5 to-transparent">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-            <Reveal>
-              <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
-                Funcionalidades
-              </span>
-              <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
-                Funcionalidades para tu academia de gimnasia
-              </h1>
-              <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-                Gimnastas, familias, grupos, clases, asistencia y cuotas manuales para gimnasia artística y rítmica.
-              </p>
-            </Reveal>
-          </div>
-        </section>
-        <FeaturesSection />
+    <PublicPageShell structuredData={<Schema json={featureSchema} />}>
+      <PublicPageHeader
+        titleId="features-title"
+        label="Funcionalidades"
+        title="Funcionalidades para tu academia de gimnasia"
+        lede="Gimnastas, familias, grupos, clases, asistencia y cuotas manuales para gimnasia artística y rítmica."
+      />
+      <FeaturesSection />
 
-        {/* CTA final */}
-        <section className="py-16 bg-white">
-          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
-            <Reveal>
-              <h2 className="font-display text-3xl font-bold tracking-tight text-zaltyko-text-main sm:text-4xl">
-                Prueba Zaltyko con tu academia
-              </h2>
-              <p className="mt-4 text-lg text-zaltyko-text-secondary">
-                Crea tu cuenta gratis, configura tu academia y añade tus gimnastas, grupos y clases.
-              </p>
-              <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
-                <Link
-                  href="/auth/register?role=owner"
-                  className="inline-flex items-center justify-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white hover:bg-zaltyko-primary-dark"
-                >
-                  Crear academia gratis
-                </Link>
-                <Link
-                  href="/pricing"
-                  className="inline-flex items-center justify-center rounded-full border-2 border-zaltyko-primary px-8 py-3 font-semibold text-zaltyko-primary hover:bg-zaltyko-primary/10"
-                >
-                  Ver planes y precios
-                </Link>
-              </div>
-              <p className="mt-4 text-sm text-zaltyko-text-secondary">
-                7 días de Starter sin tarjeta · Sin permanencia
-              </p>
-            </Reveal>
-          </div>
-        </section>
-      </main>
-      <Footer />
-      <Schema json={featureSchema} />
-    </div>
+      <PublicPageClose
+        titleId="features-close-title"
+        title="Prueba Zaltyko con tu academia"
+        text="Crea tu cuenta gratis, configura tu academia y añade tus gimnastas, grupos y clases."
+        actions={
+          <>
+            <Link href="/auth/register?role=owner" className={tapeButtonClass}>
+              Crear academia gratis
+            </Link>
+            <Link href="/pricing" className={tapeOutlineButtonClass}>
+              Ver planes y precios
+            </Link>
+          </>
+        }
+        note="7 días de Starter sin tarjeta · Sin permanencia"
+      />
+    </PublicPageShell>
   );
 }

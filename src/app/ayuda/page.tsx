@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Navbar from "@/app/(site)/Navbar";
-import Footer from "@/app/(site)/Footer";
 import { MessageCircle, Mail, ChevronRight } from "lucide-react";
+
+import {
+  PublicFaqList,
+  PublicPageClose,
+  PublicPageHeader,
+  PublicPageShell,
+  publicContainerClass,
+  tapeButtonClass,
+  tapeOutlineButtonClass,
+} from "@/app/(site)/mat/PublicPage";
 import { helpCategories } from "@/lib/help/articles";
-import Reveal from "@/components/motion/Reveal";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import { cn } from "@/lib/utils";
 
 const baseUrl = getPublicSiteUrl();
 
@@ -59,107 +67,90 @@ const faqSchema = {
 
 export default function HelpPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
+    <PublicPageShell
+      structuredData={
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        />
+      }
+    >
+      <PublicPageHeader
+        titleId="help-title"
+        label="Centro de Ayuda"
+        title="Centro de ayuda de Zaltyko para tu academia"
+        lede="Guías rápidas sobre gimnastas, cuotas manuales, clases y asistencia. Si no encuentras tu respuesta, puedes contactar por email."
+      />
 
-      {/* Hero */}
-      <section className="pt-32 pb-16 bg-gradient-to-b from-zaltyko-primary/5 to-transparent">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-          <Reveal>
-            <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
-              Centro de Ayuda
-            </span>
-            <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
-              Centro de ayuda de Zaltyko para tu academia
-            </h1>
-            <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-              Guías rápidas sobre gimnastas, cuotas manuales, clases y asistencia. Si no encuentras tu respuesta, puedes contactar por email.
-            </p>
-          </Reveal>
+      {/* Categorías: una lista reglada, como los módulos de la portada; cada
+          fila nombra la categoría y lista sus guías. */}
+      <section aria-labelledby="help-categories-title" className="bg-white">
+        <div className={cn(publicContainerClass, "grid gap-12 py-20 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:py-24")}>
+          <h2
+            id="help-categories-title"
+            className="font-display text-[clamp(2rem,4.5vw,3.5rem)] font-black uppercase leading-[0.95] text-mat-night lg:sticky lg:top-28 lg:self-start"
+          >
+            Explorar por categoría
+          </h2>
+          <ul className="border-t-[3px] border-mat-night">
+            {helpCategories.map((category) => (
+              <li
+                key={category.title}
+                className="grid gap-3 border-b border-chalk-line py-6 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-8"
+              >
+                <div>
+                  <h3 className="font-display text-xl font-extrabold uppercase leading-tight text-mat">{category.title}</h3>
+                  <p className="mt-1 text-sm text-ramp-600">{category.description}</p>
+                </div>
+                <ul>
+                  {category.articles.map((article) => (
+                    <li key={article.slug}>
+                      <Link
+                        href={`/help/${article.slug}`}
+                        className="group flex min-h-11 items-center justify-between gap-3 py-1 font-semibold text-mat-night transition-colors hover:text-mat"
+                      >
+                        {article.title}
+                        <ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-ramp-400 transition-colors group-hover:text-mat" />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
-      {/* Categories */}
-      <section className="py-16 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-zaltyko-text-main mb-8">Explorar por categoría</h2>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {helpCategories.map((category, index) => {
-              const Icon = category.icon;
-              return (
-                <Reveal key={index} delay={index * 80}>
-                  <div className="card-hover h-full rounded-xl border border-border p-6">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zaltyko-primary/10 mb-4">
-                      <Icon className="h-5 w-5 text-zaltyko-primary" />
-                    </div>
-                    <h3 className="font-semibold text-zaltyko-text-main">{category.title}</h3>
-                    <p className="mt-1 text-sm text-zaltyko-text-secondary">{category.description}</p>
-                    <ul className="mt-4 space-y-2">
-                      {category.articles.map((article) => (
-                        <li key={article.slug}>
-                          <Link href={`/help/${article.slug}`} className="text-sm text-zaltyko-primary hover:underline flex items-center">
-                            <ChevronRight className="h-3 w-3 mr-1" />
-                            {article.title}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </Reveal>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQs */}
-      <section className="py-16 surface-subtle">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-zaltyko-text-main text-center mb-8">
+      {/* Preguntas: <details> nativo, como en la portada. */}
+      <section aria-labelledby="help-faq-title" className="chalk-field border-y border-chalk-line">
+        <div className={cn(publicContainerClass, "grid gap-10 py-20 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:py-24")}>
+          <h2
+            id="help-faq-title"
+            className="font-display text-[clamp(2rem,4.5vw,3.5rem)] font-black uppercase leading-[0.95] text-mat-night"
+          >
             Preguntas frecuentes
           </h2>
-          <div className="space-y-4">
-            {faqs.map((faq, index) => (
-              <div key={index} className="rounded-lg bg-white p-6 shadow-sm">
-                <h3 className="font-semibold text-zaltyko-text-main">{faq.question}</h3>
-                <p className="mt-2 text-zaltyko-text-secondary">{faq.answer}</p>
-              </div>
-            ))}
-          </div>
+          <PublicFaqList idPrefix="help-faq" items={faqs} />
         </div>
       </section>
 
-      {/* Contact CTA */}
-      <section className="py-16 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl font-bold text-zaltyko-text-main">¿No encontraste lo que buscabas?</h2>
-          <p className="mt-4 text-zaltyko-text-secondary">
-            Describe tu consulta sin incluir contraseñas ni datos sensibles de menores.
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <Link
-              href="/contact"
-              className="inline-flex items-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white hover:bg-zaltyko-primary-dark"
-            >
-              <MessageCircle className="mr-2 h-5 w-5" />
+      <PublicPageClose
+        titleId="help-close-title"
+        title="¿No encontraste lo que buscabas?"
+        text="Describe tu consulta sin incluir contraseñas ni datos sensibles de menores."
+        actions={
+          <>
+            <Link href="/contact" className={tapeButtonClass}>
+              <MessageCircle aria-hidden />
               Contactar soporte
             </Link>
-            <a
-              href="mailto:hola@zaltyko.com"
-              className="inline-flex items-center rounded-full border-2 border-zaltyko-primary px-8 py-3 font-semibold text-zaltyko-primary hover:bg-zaltyko-primary/10"
-            >
-              <Mail className="mr-2 h-5 w-5" />
+            <a href="mailto:hola@zaltyko.com" className={tapeOutlineButtonClass}>
+              <Mail aria-hidden />
               hola@zaltyko.com
             </a>
-          </div>
-        </div>
-      </section>
-
-      <Footer />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+          </>
+        }
       />
-    </div>
+    </PublicPageShell>
   );
 }
