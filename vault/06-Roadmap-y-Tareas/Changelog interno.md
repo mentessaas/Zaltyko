@@ -9,6 +9,27 @@ source:
 
 
 
+## 2026-11-12 — Web pública: acceso de entrenadoras, titulares, guion y seguimiento, y solicitudes de prueba
+
+**Contexto.** Hoy, con autorización de Elvis, se aplicaron en producción las candidatas de acceso de equipo (277), titulares y sustituciones (276), objetivos y observaciones (271), guion de la sesión (279) y solicitudes de prueba (262), y se activó `ZALTYKO_TEAM_ACCESS_ENABLED=true`. También la de inteligencia competitiva, que es un panel interno y no se anuncia.
+
+**Cambio.**
+- **Promesa y hero.** Recuperan la mitad del equipo: «tu equipo ve las sesiones de hoy y pasa lista en un toque». La dirección ve las sesiones de hoy en el Resumen y cada entrenadora invitada, las de sus sedes.
+- **«Lo que ya hace hoy».** Cuatro entradas nuevas, cada una con su ruta, sus ficheros y su candidata aplicada como evidencia:
+  - acceso de entrenadoras por invitación: el enlace se copia y se comparte a mano (no hay correo) y la entrenadora solo llega a Hoy y al pase de lista de sus sedes;
+  - titular por clase y sustituciones por sesión;
+  - guion de la sesión y objetivos y observaciones, que por ahora solo ve el equipo de la academia;
+  - solicitudes de prueba desde el enlace público, sin correo ni reserva de la sesión de prueba.
+- **«En preparación».** Queda solo el portal de familias.
+- **FAQ «¿Pueden entrar mis entrenadoras?».** Ahora «Sí, por invitación», con lo que ve una entrenadora y lo que no.
+- **Otras páginas.** `llms-full.txt`, `/modules/clases-horarios` y la sección retirada `SocialProofSection` dejan de decir que el acceso y la asignación de entrenadoras están en preparación.
+
+**Decisión.** Los avisos de choque (284) leen las titulares y ya funcionan de hecho, pero no se anuncian: son una versión mínima pendiente de validar en entrevistas.
+
+**Pruebas.** `tests/audit/public-implemented-claims.test.ts` separa lo dormido (portal de familias, choques) de lo activado y comprueba que lo activado no vuelve a «En preparación» y que no se promete lo que aún no hace: correo de invitación o de solicitud, observaciones visibles para familias, reserva de la sesión de prueba o lista de espera. `tests/public-team-access-copy-contract.test.ts` fija los nuevos textos.
+
+No se ejecutó nada en local; la validación es la CI remota.
+
 ## 2026-11-12 — Web pública: lo que ya funciona y lo que está en preparación
 
 **Cambio.**

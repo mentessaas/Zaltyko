@@ -37,7 +37,7 @@ El control de asistencia manual es propenso a errores y consume tiempo valioso q
 
 const solutionContent = `El panel de gestión permite a la dirección organizar horarios y gestionar capacidad e inscripciones de cada clase.
 
-La asignación de entrenadores con acceso propio está en preparación.
+Cada clase tiene sus entrenadoras titulares y sus sesiones las heredan. Si un día entrena otra persona, se cambia solo esa sesión y queda marcada como sustitución. Las entrenadoras entran por invitación con su propia cuenta y pasan lista en las sesiones de sus sedes.
 
 La dirección registra la asistencia de cada sesión y consulta las marcas guardadas.`;
 
@@ -45,7 +45,8 @@ const solutionFeatures = [
   "Programación de clases y sesiones",
   "Programación y capacidad gestionadas por la dirección",
   "Inscripciones administradas desde el panel de gestión",
-  "Asignación de entrenadores con acceso propio en preparación",
+  "Entrenadora titular por clase y sustituciones por sesión",
+  "Acceso de entrenadoras por invitación al pase de lista de sus sedes",
   "Registro y consulta de asistencia por sesión",
 ];
 
@@ -67,8 +68,8 @@ const benefits = [
   },
   {
     icon: CheckCircle,
-    title: "Acceso de entrenadores",
-    description: "El acceso y la asignación de entrenadores están en preparación.",
+    title: "Titulares y sustituciones",
+    description: "Asigna las titulares de cada clase y cambia una sesión concreta sin tocar la clase.",
   },
 ];
 
