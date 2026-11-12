@@ -53,6 +53,14 @@
           "reason": "Prueba unitaria de la clasificación pura de filas (duplicados, tutores, grupos y plan) sin base de datos; no escribe ni toma bloqueos."
         }
       ]
+    },
+    {
+      "name": "schedule-conflicts",
+      "dir": "src/modules/schedule-conflicts/application/schedule-conflicts",
+      "facade": "src/modules/schedule-conflicts/application/schedule-conflicts-service.ts",
+      "facadeSpecifier": "@/modules/schedule-conflicts/application/schedule-conflicts-service",
+      "message": "schedule-conflicts/* es interno. Importa desde @/modules/schedule-conflicts/application/schedule-conflicts-service: la acotación al horizonte y a las sedes de quien mira y el tiempo máximo de las consultas solo se garantizan a través de la fachada.",
+      "exceptions": []
     }
   ]
 }

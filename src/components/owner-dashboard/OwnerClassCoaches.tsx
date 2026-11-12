@@ -4,6 +4,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { UserRound } from "lucide-react";
 
 import type { CoachRef } from "@/modules/coach-assignment/domain/coach-assignment";
+import type { ScheduleConflict } from "@/modules/schedule-conflicts/domain/schedule-conflicts";
+import { OwnerScheduleConflictList } from "./OwnerScheduleConflicts";
 import { ownerUi } from "./owner-ui";
 import {
   COACH_ASSIGNMENT_UNAVAILABLE_MESSAGE,
@@ -43,6 +45,8 @@ export function OwnerClassCoaches({
   const [editor, setEditor] = useState<Editor>({ status: "closed" });
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // O2: choques tras guardar. Solo avisan; el cambio ya está guardado.
+  const [warnings, setWarnings] = useState<ScheduleConflict[]>([]);
   // Un reintento de la misma petición reutiliza su id: el servidor la reconoce.
   const pendingRequest = useRef<{ id: string; ids: string } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -83,6 +87,7 @@ export function OwnerClassCoaches({
   async function open() {
     setMessage(null);
     setError(null);
+    setWarnings([]);
     setEditor({ status: "loading" });
     await load();
   }
@@ -138,6 +143,7 @@ export function OwnerClassCoaches({
     }
     pendingRequest.current = null;
     setTitulars(result.data.titulars);
+    setWarnings(result.data.warnings ?? []);
     close();
     const count = result.data.updatedSessionCount;
     setMessage(
@@ -253,6 +259,11 @@ export function OwnerClassCoaches({
         <p role="status" aria-live="polite" className={`mt-3 ${ownerUi.noticeInfo}`}>
           {message}
         </p>
+      ) : null}
+      {warnings.length > 0 ? (
+        <div className="mt-3">
+          <OwnerScheduleConflictList conflicts={warnings} variant="saved" />
+        </div>
       ) : null}
       {error ? (
         <p ref={errorRef} tabIndex={-1} role="alert" className={`mt-3 ${ownerUi.noticeError}`}>

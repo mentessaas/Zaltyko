@@ -18,6 +18,8 @@ import {
   withSessionCoaches,
 } from "@/modules/coach-assignment/application/coach-assignment-service";
 import { OwnerTodaySessionsPanel } from "@/components/owner-dashboard/OwnerTodaySessionsPanel";
+import { OwnerScheduleConflictList } from "@/components/owner-dashboard/OwnerScheduleConflicts";
+import { getUpcomingScheduleConflicts } from "@/modules/schedule-conflicts/application/schedule-conflicts-service";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { logger } from "@/lib/logger";
 import { getOwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
@@ -122,11 +124,20 @@ export default async function OwnerAttendancePage({
     : null;
 
   // P2 #17: sin el candidato SQL aplicado no se muestran los accesos.
-  const [progressAvailable, sessionPlansAvailable, coachAssignmentAvailable] = await Promise.all([
+  const [progressAvailable, sessionPlansAvailable, coachAssignmentAvailable, coachConflicts] = await Promise.all([
     isAthleteProgressAvailableForPage(db),
     isSessionPlanAvailableForPage(db),
     // O1: lo mismo para titulares y sustituciones.
     isCoachAssignmentAvailableForPage(db),
+    // O2: la entrenadora ve sus propios choques próximos, solo en sus sedes
+    // (14 días, presupuesto de 1,5 s; si no llega, no se muestra).
+    coachMode
+      ? getUpcomingScheduleConflicts({
+          organizationId: scope.organization.id,
+          locationIds: scope.locations.map((location) => location.id),
+          viewer: { memberId: scope.member.id, role: scope.member.role },
+        })
+      : Promise.resolve(null),
   ]);
   // O1: Hoy de la entrenadora pone primero sus sesiones asignadas, sin añadir
   // ninguna que no viera ya.
@@ -169,6 +180,14 @@ export default async function OwnerAttendancePage({
               today={coachTodayWithCoaches}
               prioritizeViewerSessions
             />
+            {coachConflicts ? (
+              <OwnerScheduleConflictList
+                conflicts={coachConflicts.conflicts}
+                truncated={coachConflicts.truncated}
+                variant="upcoming"
+                title="Tus choques próximos"
+              />
+            ) : null}
           </div>
         </div>
       ) : null}
