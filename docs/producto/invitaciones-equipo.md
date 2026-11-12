@@ -2,6 +2,8 @@
 
 Fecha: 11 de noviembre de 2026. Plan de mejora `auditorias/2026-11-08/plan-mejora-zaltyko.md`, P1 #8 («correo aislado G4 → invitaciones de equipo → rol entrenador»), y oportunidad O3 de `docs/research/competencia/matriz-competitiva.md` («Activar acceso real de entrenadoras»).
 
+**Estado: activo en producción desde 12-11-2026.** El candidato `docs/deployment/candidates/20261105120000_canonical_team_access_candidate.sql` se aplicó ese día con autorización de Elvis y `ZALTYKO_TEAM_ACCESS_ENABLED=true` está activo en el entorno Production de Vercel; también está instalado en staging (`docs/deployment/staging.md`).
+
 Objetivo: que la dirección de una academia dé acceso a su equipo sin depender del correo transaccional (G4, apagado), y que cada cuenta que entra quede vinculada a su ficha del equipo (`staff_profiles.member_id`). Ese vínculo es el que necesita la asignación de entrenadoras por clase (PR 276, su «Decide Elvis» n.º 1).
 
 **Enlace con O1 (PR 276, ya en main).** La asignación de titulares y sustituciones solo ofrece como asignables las fichas activas con `member_id` cuyo acceso esté activo, tenga el rol Entrenador/a y la sede en su alcance (`eligibleCoaches` en `coach-assignment`). Al aceptar una invitación de Entrenador/a con sus sedes, la ficha queda vinculada y la persona pasa a ser asignable en esas sedes, sin ningún paso más. Esta PR no cambia la elegibilidad de O1.
@@ -80,21 +82,23 @@ Todo se comprueba en el servidor:
 | Escalada de privilegios | No se puede invitar como propietario ni administración. El rol y las sedes salen de la invitación, nunca del cuerpo de la aceptación. Una membresía previa, incluso revocada, nunca se reactiva |
 | Carreras y fallos a medias | Una sola transacción: miembro, sedes, ficha, token, recibo y auditoría. Si falla la auditoría final o vence el plazo mientras se esperaba un bloqueo, se deshace todo |
 
-## Funcionalidad dormida
+## Requisitos de la función
 
-La función necesita dos cosas: `ZALTYKO_TEAM_ACCESS_ENABLED=true` y el candidato `docs/deployment/candidates/20261105120000_canonical_team_access_candidate.sql` instalado exactamente como se revisó. El candidato **requiere autorización de Elvis**. Si falta cualquiera de las dos:
+La función necesita dos cosas: `ZALTYKO_TEAM_ACCESS_ENABLED=true` y el candidato `docs/deployment/candidates/20261105120000_canonical_team_access_candidate.sql` instalado exactamente como se revisó. Hasta el 12-11-2026 el candidato **requería autorización de Elvis**; ese día se aplicó en producción y se activó el flag. En un entorno donde falte cualquiera de las dos:
 - `/owner/staff` muestra solo Personal al propietario y da 404 al resto;
 - la navegación no ofrece Equipo a administración ni a coordinación;
 - las API responden 503 «no disponible», nunca 500.
 
-Esta PR amplía el candidato (aún sin aplicar en ningún entorno) con `staff_profile_id`, `invitee_given_name` e `invitee_family_name`, su clave foránea compuesta y tres CHECK. El comprobador de esquema y la exportación se han actualizado en la misma PR.
+Esta PR amplía el candidato (entonces sin aplicar en ningún entorno) con `staff_profile_id`, `invitee_given_name` e `invitee_family_name`, su clave foránea compuesta y tres CHECK. El comprobador de esquema y la exportación se han actualizado en la misma PR.
 
 ## Casilla de activación (antes de encender el flag)
 
 - [ ] **Elvis:** en el Supabase de producción, confirmar que la confirmación de email es **obligatoria** (sin «autoconfirm») y revisar los proveedores OAuth activos. Solo Google (con `email_verified`) está en la lista permitida; añadir otro exige revisar si garantiza un correo verificado.
 - [ ] Comprobar que el rol con el que conecta la app puede leer `auth.identities` (`SELECT`). Sin ese permiso, la función queda «no disponible»: no se ofrece y no bloquea a nadie a medias.
-- [ ] Autorizar y aplicar `20261105120000_canonical_team_access_candidate.sql` en el destino revisado.
-- [ ] Activar `ZALTYKO_TEAM_ACCESS_ENABLED=true` solo después de lo anterior.
+- [x] Autorizar y aplicar `20261105120000_canonical_team_access_candidate.sql` en el destino revisado. *Hecho el 12-11-2026.*
+- [x] Activar `ZALTYKO_TEAM_ACCESS_ENABLED=true` solo después de lo anterior. *Activo en producción desde el 12-11-2026.*
+
+Las dos primeras casillas no tienen constancia en este documento: confirmar en producción la confirmación de email obligatoria y el `SELECT` sobre `auth.identities`, y marcarlas. En staging la confirmación de email está desactivada a propósito (`docs/deployment/staging.md`), así que no sirve como prueba de esa casilla.
 
 ## Datos personales
 
@@ -110,7 +114,7 @@ Esta PR amplía el candidato (aún sin aplicar en ningún entorno) con `staff_pr
 5. **Sin baja de miembros.** Revocar una invitación no da de baja a quien ya aceptó. La baja y la suspensión de miembros son otra pieza.
 6. **Correo (G4).** Mientras siga apagado, el enlace se comparte a mano. Al activarlo, ¿se envía siempre por correo o se mantiene la opción de copiar el enlace?
 7. **Caducidad.** Se mantienen los 7 días del precedente de la fase 1.
-8. **Aplicar el candidato** y activar `ZALTYKO_TEAM_ACCESS_ENABLED`: solo con autorización expresa y después de la casilla de activación.
+8. **Aplicar el candidato** y activar `ZALTYKO_TEAM_ACCESS_ENABLED`: solo con autorización expresa y después de la casilla de activación. *Resuelto el 12-11-2026: aplicado y activado con autorización de Elvis.*
 9. **Conservación de invitaciones cerradas.** ¿Qué plazo, y quién puede borrarlas?
 10. **Proveedores OAuth permitidos.** Hoy solo Google con `email_verified`.
 

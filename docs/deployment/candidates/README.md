@@ -1,9 +1,47 @@
-# Candidatos SQL pendientes de autorización
+# Candidatos SQL: aplicados y pendientes de autorización
 
 Estos archivos están fuera de `supabase/migrations` deliberadamente. No forman
 parte del historial aplicable, no se recorren automáticamente y no recuperan
 migraciones perdidas. No ejecutar el directorio ni aplicar el snapshot sandbox
 completo sobre una base existente.
+
+## Estado a 12-11-2026
+
+Con autorización expresa de Elvis, el 12-11-2026 se aplicaron en producción
+(Supabase «Zaltyko», PostgreSQL 17.6) las candidatas de esta tabla. También
+están instaladas en staging (`docs/deployment/staging.md`). Los archivos siguen
+en esta carpeta sin edición y con los mismos hashes; no se han movido a
+`supabase/migrations`.
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261110180000_competitive_intelligence_candidate.sql` | `e2d73a30141b8a9a8ebb81003a4afda8ae68e1e188876ec19d76f5511f982686` | Aplicada 12-11-2026 | Instalada |
+| `20261111120000_athlete_progress_candidate.sql` | `39aedb9e2d6c2e95db14fc72ffa0696ffa73b20c67f14eed42331cde39d419a1` | Aplicada 12-11-2026 | Instalada |
+| `20261111200000_session_plans_candidate.sql` | `3aa5286ba3e86f58fea04832f596caabf06e42ee52d5ea7d3954d0cd43970bc8` | Aplicada 12-11-2026 | Instalada |
+| `20261111180000_coach_assignment_candidate.sql` | `67c7c3ce25a907984127cb8c1caefcc58b5a32b1662c0abc4eb815afb0fa9f39` | Aplicada 12-11-2026 | Instalada |
+| `20261110120000_admission_requests_candidate.sql` | `cc3534438ca14a25086f33d14850ad361daf22891ec1d29f1f01e533643f62ea` | Aplicada 12-11-2026 | Instalada |
+| `20261105120000_canonical_team_access_candidate.sql` | `7cf243a8f3070c4068a766f63fa49a27828f3e794481e381ae08a5d09490bbe2` | Aplicada 12-11-2026 | Instalada |
+| `20261104121000_mx_general_identity_candidate.sql` | `3abd3903f65b07cd7b133e60d28d1e283dc2dff0038f680b65b9dc0a819e57e6` | Aplicada 12-11-2026 | Instalada |
+| `20261112120000_general_market_identity_candidate.sql` | `11886ac0b009eeabf5660e332ee7b56b638abe62a25a0b54e319ce0e36352c0e` (según el PR #290) | Aplicada 12-11-2026 | Instalada |
+
+- **Verificación posterior en producción:** las 22 tablas nuevas tienen RLS
+  `ENABLE` y `FORCE` y ningún privilegio para `anon` ni `authenticated`;
+  `session_staff_profile_fk` quedó en `CASCADE`. `ZALTYKO_TEAM_ACCESS_ENABLED=true`
+  en el entorno Production de Vercel.
+- **`20261112120000_general_market_identity_candidate.sql`** y su sección llegan
+  con el PR #290 (alta en cualquier país), abierto cuando se escribe esto. Esa
+  sección dice «No se ha aplicado en ningún entorno»; esta tabla la sustituye.
+- **Semillas de referencia:** no son candidatas, pero la instalación del esquema
+  no sirve sin ellas. El 12-11-2026 se cargaron en producción la versión de
+  términos `v1-2026-10-26` y la semilla
+  `supabase/migrations/20261024223700_seed_owner_bootstrap_sport_profiles.sql`.
+  Ver `docs/qa/owner-signup-reference-seeds-incident-2026-11-12.md`.
+- **Sin cambios en esta revisión:** la sección de la instalación canónica
+  (`20261025202902`, 394 KB) se mantiene como estaba.
+- **Pendiente:** versionar en `supabase/migrations` lo ya aplicado (y pasar los
+  espejos Drizzle a `src/db/schema/`, superando `validate:rls`), en una PR
+  propia. Tampoco cambia que `tests/admission-requests-pg.test.ts` siga fuera de
+  `scripts/ci/verify-sandbox-schema-replay.sh`.
 
 ## Candidato de instalación canónica
 
@@ -31,7 +69,34 @@ productivo propuesto queda bloqueado sin marcadores externos específicos. Esos
 marcadores no prueban por sí solos la identidad de una conexión ni constituyen
 autorización humana. No configurarlos ni ejecutar el modo productivo todavía.
 
+## Candidato de perfiles de identidad de México
+
+`20261104121000_mx_general_identity_candidate.sql` no crea tablas: inserta dos
+filas de referencia en `zaltyko.sport_profiles`, MX `artistic` y MX
+`rhythmic`, con `federation_code = 'unconfigured'`, `profile_version =
+'identity-v1'`, estado `identity_only`, `configuration_schema_version = 1` y
+configuración `{}`. Es la misma forma que las filas de España de
+`supabase/migrations/20261024223700_seed_owner_bootstrap_sport_profiles.sql`.
+Aborta si ya existe una de esas claves con otra forma y no toca las que ya
+tienen la forma esperada. No cambia esquema, políticas ni permisos.
+
+- SHA-256: `3abd3903f65b07cd7b133e60d28d1e283dc2dff0038f680b65b9dc0a819e57e6`.
+- Prueba: `tests/international-bootstrap-pg.test.ts` (lo instala dos veces en
+  PostgreSQL desechable para comprobar que es repetible).
+- Contexto: `docs/qa/mx-general-identity-profile-draft-2026-11-04.md`.
+- Sin estas filas, el alta de una academia mexicana falla cerrada.
+
+**Estado: aplicada en producción el 12-11-2026 con autorización de Elvis.**
+También está instalada en staging (`docs/deployment/staging.md`). El archivo y
+su hash no cambian. Lo que sigue conserva la descripción de la revisión; las
+notas marcadas «hasta el 12-11-2026» describen el estado anterior.
+
 ## Candidato de solicitudes de prueba (P2 #15)
+
+**Estado: aplicada en producción el 12-11-2026 con autorización de Elvis.**
+También está instalada en staging (`docs/deployment/staging.md`). El archivo y
+su hash no cambian. Lo que sigue conserva la descripción de la revisión; las
+notas marcadas «hasta el 12-11-2026» describen el estado anterior.
 
 `20261110120000_admission_requests_candidate.sql` crea solo
 `zaltyko.admission_links` (el enlace público que la academia activa,
@@ -51,11 +116,16 @@ si alguna de las dos relaciones ya existe.
   autorice, con la actualización de esa cadena de procedencia en una PR propia.
 - Mientras no se aplique, `src/modules/admissions/application/admission-storage.ts`
   detecta que falta y el embudo responde «no disponible», sin errores a medias.
-- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+- *Hasta el 12-11-2026:* **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 - Contexto y corte mínimo: `docs/producto/embudo-captacion.md`.
 
 ## Candidato del panel de inteligencia competitiva (super-admin)
+
+**Estado: aplicada en producción el 12-11-2026 con autorización de Elvis.**
+También está instalada en staging (`docs/deployment/staging.md`). El archivo y
+su hash no cambian. Lo que sigue conserva la descripción de la revisión; las
+notas marcadas «hasta el 12-11-2026» describen el estado anterior.
 
 `20261110180000_competitive_intelligence_candidate.sql` crea ocho tablas
 `public.ci_*` para el panel interno `/super-admin/competencia`: competidores,
@@ -82,11 +152,16 @@ alguna relación ya existe, fuerza RLS y deniega cualquier acceso de clientes
 - Mientras no se aplique, `src/lib/competencia/storage.ts`
   (`isCompetitiveIntelligenceAvailable`) detecta que faltan las tablas y el
   panel muestra «no disponible» sin errores a medias.
-- **Requiere autorización de Elvis para aplicarse.** Solo se ha instalado en un
+- *Hasta el 12-11-2026:* **Requiere autorización de Elvis para aplicarse.** Solo se ha instalado en un
   PostgreSQL efímero local para comprobar el panel (10-11-2026); no se ha
   aplicado en sandbox ni en producción.
 
 ## Candidato de objetivos y observaciones por gimnasta (P2 #17)
+
+**Estado: aplicada en producción el 12-11-2026 con autorización de Elvis.**
+También está instalada en staging (`docs/deployment/staging.md`). El archivo y
+su hash no cambian. Lo que sigue conserva la descripción de la revisión; las
+notas marcadas «hasta el 12-11-2026» describen el estado anterior.
 
 `20261111120000_athlete_progress_candidate.sql` crea solo
 `zaltyko.athlete_objectives` (objetivo con aparato GAF/GAM opcional, fecha
@@ -113,11 +188,17 @@ grants y se niega a reinstalarse si alguna de las tres relaciones ya existe.
 - Mientras no se aplique, `src/modules/athlete-progress/application/athlete-progress/storage.ts` (interno; se usa a través de la fachada `athlete-progress-service.ts`)
   detecta que falta y la sección responde «no disponible» (503), sin errores
   a medias.
-- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+- *Hasta el 12-11-2026:* **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 - Producto: `docs/producto/objetivos-y-observaciones.md`.
 
 ## Candidato de titulares por clase y sustituciones (O1)
+
+**Estado: aplicada en producción el 12-11-2026 con autorización de Elvis.**
+También está instalada en staging (`docs/deployment/staging.md`). El archivo y
+su hash no cambian. En producción, `session_staff_profile_fk` quedó en
+`CASCADE`. Lo que sigue conserva la descripción de la revisión; las notas
+marcadas «hasta el 12-11-2026» describen el estado anterior.
 
 `20261111180000_coach_assignment_candidate.sql` crea solo
 `zaltyko.class_template_staff` (titulares de cada clase, con quién las asignó)
@@ -134,7 +215,8 @@ reales: retira a `anon` y `authenticated` el acceso directo y pasa
 aplicada). Ninguna FK bloquea borrados: cascada en las asignaciones y
 `on delete set null (columna)` en quien asignó o sustituyó. **Requiere
 PostgreSQL 15 o superior**: el preflight aborta en versiones anteriores
-(Elvis: confirmar la versión de producción).
+(Elvis: confirmar la versión de producción). *Confirmado el 12-11-2026:
+producción usa PostgreSQL 17.6.*
 
 - Esquema Drizzle espejo: `src/modules/coach-assignment/infrastructure/coach-assignment-schema.ts`.
   **No se exporta** desde `src/db/schema/index.ts` ni desde
@@ -147,11 +229,16 @@ PostgreSQL 15 o superior**: el preflight aborta en versiones anteriores
 - Mientras no se aplique, `coach-assignment/storage.ts` detecta que falta: las
   rutas responden 503 (`coach_assignment_storage_unavailable`), las pantallas
   ocultan titulares y sustituciones, y la generación de sesiones no cambia.
-- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+- *Hasta el 12-11-2026:* **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 - Producto: `docs/producto/entrenadoras-por-clase.md`.
 
 ## Candidato de planificación sobre sesiones (P2 #17, segunda parte)
+
+**Estado: aplicada en producción el 12-11-2026 con autorización de Elvis.**
+También está instalada en staging (`docs/deployment/staging.md`). El archivo y
+su hash no cambian. Lo que sigue conserva la descripción de la revisión; las
+notas marcadas «hasta el 12-11-2026» describen el estado anterior.
 
 `20261111200000_session_plans_candidate.sql` crea solo
 `zaltyko.session_plans` (el «guion de la sesión», uno por sesión: foco del
@@ -180,11 +267,16 @@ reinstalarse si alguna de las cuatro relaciones ya existe.
 - Mientras no se aplique, la detección interna de `session-plan/storage.ts`
   (a través de la fachada `session-plan-service.ts`) responde «no disponible»
   (503) y Pasar lista no muestra el plan.
-- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+- *Hasta el 12-11-2026:* **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 - Producto: `docs/producto/planificacion-sesiones.md`.
 
 ## Candidato de acceso de equipo (fase 1 + O3)
+
+**Estado: aplicada en producción el 12-11-2026 con autorización de Elvis.**
+También está instalada en staging (`docs/deployment/staging.md`). El archivo y
+su hash no cambian. Lo que sigue conserva la descripción de la revisión; las
+notas marcadas «hasta el 12-11-2026» describen el estado anterior.
 
 `20261105120000_canonical_team_access_candidate.sql` crea
 `zaltyko.organization_member_invitations`,
@@ -205,7 +297,7 @@ aceptar, el servidor rellena `staff_profiles.member_id`.
 - Prueba: `tests/canonical-team-access-pg.test.ts` (replay y job «Postgres
   integration»).
 - Producto: `docs/producto/invitaciones-equipo.md`.
-- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+- *Hasta el 12-11-2026:* **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La función sigue además detrás de
   `ZALTYKO_TEAM_ACCESS_ENABLED`.
 
@@ -223,6 +315,15 @@ aceptar, el servidor rellena `staff_profiles.member_id`.
 5. Obtener autorización humana separada sobre el archivo/hash, el destino y
    la instalación de extensión. Solo entonces definir el procedimiento de
    aplicación/versionado y su verificación posterior. No inferirlo de CI verde.
+6. **Staging primero (desde el 12-11-2026).** Toda candidata nueva se instala
+   y se prueba en staging (`docs/deployment/staging.md`) antes de pedir la
+   autorización de producción. Toda candidata nueva requiere autorización de
+   Elvis para aplicarse en producción; staging no la sustituye.
+7. **Semillas de referencia.** Después de instalar esquema, comprobar que las
+   tablas de referencia que la aplicación necesita tienen sus filas (como
+   mínimo `zaltyko.owner_signup_consent_policy` con la versión vigente de los
+   términos y `zaltyko.sport_profiles` de cada país con alta) y cargarlas si
+   faltan. Ver `docs/qa/owner-signup-reference-seeds-incident-2026-11-12.md`.
 
 La prueba de base desechable no acredita una instalación Supabase completa,
 PostgREST, un usuario servidor productivo distinto, migración de datos legacy,
