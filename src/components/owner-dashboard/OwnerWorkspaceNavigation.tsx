@@ -20,6 +20,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { ZaltykoLockup } from "@/components/brand/ZaltykoMark";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { OwnerOperationalPolicy } from "./OwnerOperationalPolicy";
 import { OwnerSignOutButton } from "./OwnerSignOutButton";
 import { OwnerSidebarPlanCard } from "./OwnerSidebarPlanCard";
@@ -359,11 +360,15 @@ export function OwnerWorkspaceNavigation({
               </span>
             ) : null}
           </Link>
-          {preview ? (
-            <span className="shrink-0 rounded-md bg-mat-wash px-3 py-2 text-xs font-semibold text-mat-deep">
-              Vista sintética
-            </span>
-          ) : <OwnerSignOutButton />}
+          <div className="flex shrink-0 items-center gap-2">
+            {/* El tema es global (next-themes): el mismo interruptor que la barra de /app. */}
+            <ThemeToggle className="h-11 w-11" />
+            {preview ? (
+              <span className="shrink-0 rounded-md bg-mat-wash px-3 py-2 text-xs font-semibold text-mat-deep">
+                Vista sintética
+              </span>
+            ) : <OwnerSignOutButton />}
+          </div>
         </div>
       </header>
       {showNavigation ? (

@@ -143,6 +143,13 @@ describe("lateral Magnesio de /owner", () => {
     const active = within(mobile).getByRole("link", { name: "Resumen", hidden: true });
     expect(active).toHaveClass("bg-mat", "text-white", "touch-target", "text-xs");
   });
+
+  it("ofrece el interruptor claro/oscuro de /app en la cabecera, con 44 px", async () => {
+    renderFor("owner", "all");
+    const toggle = await within(screen.getByRole("banner")).findByRole("button", { name: /Cambiar a tema/ });
+    expect(toggle).toHaveClass("h-11", "w-11");
+    expect(within(screen.getByRole("banner")).getByRole("button", { name: "Cerrar sesión" })).toBeInTheDocument();
+  });
 });
 
 describe("OwnerWorkspacePageShell", () => {
