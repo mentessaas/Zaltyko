@@ -161,6 +161,11 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
   - «rutina» o «programa», porque «Programa» es otra cosa en Clases.
 - **Dónde aparece:** `OwnerSessionPlanPanel` (Pasar lista) y `docs/producto/planificacion-sesiones.md` (P2 #17, segunda parte). En código y en la base se llaman `session_plans` y `class_plan_templates`.
 
+### Choque
+- **Elegido:** «choque», el aviso de que una misma entrenadora está en dos sesiones a la vez («Doble asignación»), sin tiempo para cambiar de sede («Sin tiempo entre sedes»), o de que una pista está ocupada por dos sesiones a la vez («Pista ocupada»). La lista se llama «Choques próximos» y, para la entrenadora, «Tus choques próximos». Tras guardar: «Guardado con aviso de choque».
+- **Prohibido:** conflicto o solapamiento en textos visibles; «error» o «bloqueo», porque solo avisa.
+- **Dónde aparece:** `OwnerScheduleConflicts`, Clases, el Hoy de la entrenadora y `docs/producto/avisos-de-choque.md` (O2).
+
 ## Pendientes
 
 - **Archivos en refactor:** `monthly-invoice-service.ts` devuelve mensajes con «factura» («Factura no encontrada», «Ya existe una factura para esta familia y periodo…») y `OwnerMonthlyInvoiceResolutionPanel.tsx` dice «operación de facturación». Pasarán a «cuota» cuando termine el refactor. `ManualPaymentForm.tsx` (líneas 786 y 1087) dice «otra sesión de Owner»; pasará a «otra sesión de la dirección».

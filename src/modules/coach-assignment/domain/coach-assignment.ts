@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { ScheduleConflict } from "@/modules/schedule-conflicts/domain/schedule-conflicts";
+
 /**
  * O1 · Entrenadora titular por clase y sustitución por sesión.
  *
@@ -116,9 +118,16 @@ export type ClassCoachesWriteResult = ClassCoachesView & {
   /** Sesiones sustituidas que ya coinciden con las nuevas titulares y dejan de estarlo. */
   clearedSubstitutionCount: number;
   replayed: boolean;
+  /**
+   * O2: choques de horario de las titulares tras guardar. Solo avisan: el
+   * cambio ya está guardado. null si no se pudieron calcular (el guardado no
+   * falla por eso); [] en un reintento, porque se dieron en la respuesta
+   * original.
+   */
+  warnings: ScheduleConflict[] | null;
 };
 
-export type SessionCoachesWriteResult = SessionCoachesView & { replayed: boolean };
+export type SessionCoachesWriteResult = SessionCoachesView & { replayed: boolean; warnings: ScheduleConflict[] | null };
 
 /** Resumen de una sesión de Hoy: quién está y si hay sustitución. */
 export type SessionCoachSummary = {
