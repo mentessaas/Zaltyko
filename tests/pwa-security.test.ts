@@ -77,19 +77,14 @@ describe("PWA security contracts", () => {
     "/api/v1/owner/billing/monthly-invoices/options",
     "/api/private-image.png",
   ])(
-    "fetches API response without consulting or writing cache: %s",
-    async (path) => {
+    "leaves API requests to the browser without consulting or writing cache: %s",
+    (path) => {
       const worker = workerHarness();
       const request = workerRequest(path);
-      let response: Promise<Response> | undefined;
-      worker.handlers.get("fetch")!({
-        request,
-        respondWith: (work: Promise<Response>) => {
-          response = work;
-        },
-      });
-      await response;
-      expect(worker.fetch).toHaveBeenCalledWith(request);
+      const respondWith = vi.fn();
+      worker.handlers.get("fetch")!({ request, respondWith });
+      expect(respondWith).not.toHaveBeenCalled();
+      expect(worker.fetch).not.toHaveBeenCalled();
       expect(worker.caches.match).not.toHaveBeenCalled();
       expect(worker.caches.open).not.toHaveBeenCalled();
       expect(worker.put).not.toHaveBeenCalled();
@@ -112,22 +107,17 @@ describe("PWA security contracts", () => {
     expect(worker.caches.open).not.toHaveBeenCalled();
   });
 
-  it("continues network pass-through for ordinary dynamic GET requests", async () => {
+  it("leaves ordinary dynamic GET requests to the browser", () => {
     const worker = workerHarness();
     const request = workerRequest(
       "/owner/enrollments?status=pending&organizationId=synthetic"
     );
-    let response: Promise<Response> | undefined;
+    const respondWith = vi.fn();
 
-    worker.handlers.get("fetch")!({
-      request,
-      respondWith: (work: Promise<Response>) => {
-        response = work;
-      },
-    });
+    worker.handlers.get("fetch")!({ request, respondWith });
 
-    await response;
-    expect(worker.fetch).toHaveBeenCalledWith(request);
+    expect(respondWith).not.toHaveBeenCalled();
+    expect(worker.fetch).not.toHaveBeenCalled();
     expect(worker.caches.match).not.toHaveBeenCalled();
     expect(worker.caches.open).not.toHaveBeenCalled();
   });
@@ -203,7 +193,8 @@ describe("PWA security contracts", () => {
     expect(source).not.toContain("pendingOperations");
     expect(source).not.toContain("addEventListener('sync'");
     expect(source).toMatch(/url\.pathname\.startsWith\(["']\/api\/["']\)/);
-    expect(source).toContain("event.respondWith(fetch(request))");
+    // API and dynamic GETs are no longer wrapped: the browser fetches them.
+    expect(source).not.toContain("event.respondWith(fetch(request))");
   });
 
   it("keeps the application-level offline mutation queue disabled", () => {

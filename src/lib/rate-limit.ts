@@ -348,9 +348,10 @@ const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
   "/api/class-sessions": { limit: 30, window: 60 },
   "/api/academies": { limit: 10, window: 60 },
 
-  // Import - very restrictive
-  "/api/athletes/import": { limit: 5, window: 60 },
-  // Each call parses a whole spreadsheet; confirmation also writes it.
+  // Import - restrictive. Each call parses a whole spreadsheet; confirmation
+  // also writes it. Failed previews count against the budget, so the legacy
+  // panel gets the same 10/min as the owner flow to allow fix-and-retry.
+  "/api/athletes/import": { limit: 10, window: 60 },
   "/api/v1/owner/athlete-import": { limit: 10, window: 60 },
 
   // Webhooks - no limits (called by external services)
