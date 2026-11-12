@@ -3,8 +3,10 @@ import tailwindAnimate from "tailwindcss-animate";
 
 // Escalas completas del mundo «Magnesio sobre tapiz». Con ellas se reasignan
 // las familias de Tailwind que usan ~210 pantallas heredadas (Alias Rule a
-// nivel de tema): azules/verdes/violetas → tapiz, rojos/ámbares → señal,
-// grises → rampa. Así el SaaS entero queda en dos tintas sin tocar cada archivo.
+// nivel de tema): azules/verdes/violetas → tapiz, rojos/rosas → señal,
+// ámbares/amarillos/naranjas → ocre (aviso), grises → rampa. Así el SaaS entero
+// queda en el mundo sin tocar cada archivo, y un aviso heredado ya no se pinta
+// con el coral de error.
 const MAT_SCALE = {
   50: "#F0F3FC", 100: "#E8EDFB", 200: "#CED9F6", 300: "#A9BEF0", 400: "#7C99E6",
   500: "#4A6BD3", 600: "#2F51BE", 700: "#1E3FA8", 800: "#14307F", 900: "#0F2463", 950: "#0B1430",
@@ -12,6 +14,17 @@ const MAT_SCALE = {
 const SIGNAL_SCALE = {
   50: "#FDF3F0", 100: "#FDECE7", 200: "#FAD3C9", 300: "#F5AE9D", 400: "#EE806A",
   500: "#E5482A", 600: "#C93C20", 700: "#B8331A", 800: "#962A16", 900: "#7A2414", 950: "#431109",
+};
+// Ocre de aviso (decisión del 2026-11-12): «pendiente de revisar», «caduca
+// pronto», «sin conexión, sigues trabajando». No es error ni deuda: esos siguen
+// en señal. Tinta ocre oscura sobre lavado ocre claro. Contrastes WCAG 2.x:
+// 700 (`ochre-ink`) sobre 100 (`ochre-wash`) 6,0:1 y sobre blanco 7,0:1;
+// 600 sobre blanco 5,5:1 y sobre 100 4,6:1; 500 (`ochre`, punto/relleno) sobre
+// blanco 3,1:1 (objeto gráfico, nunca texto); blanco sobre 700 7,0:1.
+// De noche, `ochre-light` (#F2C46B) sobre el lavado nocturno 8,5:1.
+const OCHRE_SCALE = {
+  50: "#FBF6EA", 100: "#F7ECD2", 200: "#EFD8A6", 300: "#E3BC6E", 400: "#D49F3C",
+  500: "#C4851A", 600: "#8F600F", 700: "#7A500E", 800: "#5F3F0D", 900: "#4D340E", 950: "#2A1C07",
 };
 const RAMP_SCALE = {
   50: "#F4F6F2", 100: "#E9ECE6", 200: "#D5DAE3", 300: "#B4BCCB", 400: "#8A93A8",
@@ -38,11 +51,12 @@ const config = {
         ...Object.fromEntries(
           ["teal", "emerald", "green", "cyan", "sky", "blue", "indigo", "violet", "purple", "lime"].map((k) => [k, MAT_SCALE])
         ),
-        ...Object.fromEntries(
-          ["amber", "yellow", "orange", "red", "rose", "pink", "fuchsia"].map((k) => [k, SIGNAL_SCALE])
-        ),
+        ...Object.fromEntries(["red", "rose", "pink", "fuchsia"].map((k) => [k, SIGNAL_SCALE])),
+        // Avisos heredados (ámbar, amarillo, naranja) → ocre, no coral de error.
+        ...Object.fromEntries(["amber", "yellow", "orange"].map((k) => [k, OCHRE_SCALE])),
         ...Object.fromEntries(["gray", "slate", "zinc", "neutral", "stone"].map((k) => [k, RAMP_SCALE])),
         mat: {
+          ...MAT_SCALE, // escala numérica para hovers y bordes (`mat-200`…)
           DEFAULT: "#1E3FA8", // tapiz de competición: acción y campos de marca
           deep: "#14307F", // zona de seguridad del tapiz: navegación, bandas
           night: "#0B1430", // tinta
@@ -57,10 +71,20 @@ const config = {
         },
         tape: "#FFFFFF", // cinta de límite
         signal: {
-          DEFAULT: "#E5482A", // alertas y deudas, nunca decoración
+          ...SIGNAL_SCALE, // escala numérica para hovers (`signal-200`, `signal-800`)
+          DEFAULT: "#E5482A", // errores, deudas y borrados, nunca decoración
           ink: "#B8331A", // texto de alerta sobre claro (≥4.5:1)
           light: "#FF8A73", // texto de alerta sobre noche (modo oscuro)
           wash: "#FDECE7",
+        },
+        // Aviso: pendiente, caducidad, sin conexión. Nunca error ni deuda.
+        ochre: {
+          ...OCHRE_SCALE,
+          DEFAULT: "#C4851A", // punto y relleno de aviso (≥3:1 sobre blanco), nunca texto
+          ink: "#7A500E", // texto de aviso sobre claro: 6,0:1 sobre `ochre-wash`
+          light: "#F2C46B", // texto de aviso sobre noche (modo oscuro)
+          wash: "#F7ECD2", // fondo del aviso
+          line: "#E3BC6E", // borde de 1 px del aviso
         },
         // Rampa de neutros escalonada (donación de la ficha de exposición):
         // únicos grises permitidos, con un punto de azul.
@@ -96,7 +120,7 @@ const config = {
             DEFAULT: "#14307F",
             teal: "#1E3FA8",
             coral: "#C2391E",
-            amber: "#C2391E",
+            amber: "#7A500E", // aviso heredado → tinta ocre, ya no coral
           },
           "primary-dark": "#14307F",
           bg: {

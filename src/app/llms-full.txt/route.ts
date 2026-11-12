@@ -15,7 +15,7 @@ const LLMS_FULL = `# Zaltyko — Software para academias de gimnasia
 
 Organiza grupos, clases y asistencia de tu academia de gimnasia en un solo sitio: tu equipo ve las sesiones de hoy y pasa lista en un toque.
 
-Lanzamiento en español; configuración administrativa para España y México.
+Lanzamiento en español; alta abierta a academias de cualquier país, con España y México como mercados prioritarios. Las funciones específicas de cada país (federación, competiciones, cobros locales y facturación) llegarán más adelante; el resto de países usa las funciones generales.
 - Registro, consentimiento, confirmación y recuperación de cuenta.
 - Gimnastas, familias y responsables; alta, edición y archivo.
 - Grupos, clases, inscripciones y asistencia por sesión.

@@ -205,17 +205,17 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
             {value.map((uploadedFile) => (
               <li
                 key={uploadedFile.id}
-                className="flex items-center gap-3 p-3 rounded-lg border bg-background"
+                className="flex items-center gap-3 rounded-card border border-chalk-line bg-white p-3"
               >
                 <div className="flex-shrink-0">
                   {uploadedFile.status === "uploading" && (
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
                   )}
                   {uploadedFile.status === "completed" && (
-                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <CheckCircle className="h-5 w-5 text-mat" />
                   )}
                   {uploadedFile.status === "error" && (
-                    <AlertCircle className="h-5 w-5 text-red-500" />
+                    <AlertCircle className="h-5 w-5 text-signal-ink" />
                   )}
                   {uploadedFile.status === "pending" && (
                     <FileIcon className="h-5 w-5 text-muted-foreground" />
@@ -234,7 +234,7 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
                     <Progress value={uploadedFile.progress} className="mt-2 h-1" />
                   )}
                   {uploadedFile.status === "error" && uploadedFile.error && (
-                    <p className="text-xs text-red-500 mt-1" role="alert">
+                    <p className="mt-1 text-xs font-medium text-signal-ink" role="alert">
                       {uploadedFile.error}
                     </p>
                   )}

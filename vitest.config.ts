@@ -64,6 +64,7 @@ export default defineConfig({
                   "tests/canonical-athlete-recovery-pg.test.ts",
                   "tests/product-discovery-pg.test.ts",
                   "tests/international-bootstrap-pg.test.ts",
+                  "tests/general-market-bootstrap-pg.test.ts",
                   "tests/canonical-team-access-pg.test.ts",
                   "tests/market-access-contact-postgres.integration.test.ts",
                   "tests/owner-dashboard-today-attention-pg.test.ts",

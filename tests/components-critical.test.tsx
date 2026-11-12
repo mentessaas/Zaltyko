@@ -171,6 +171,40 @@ describe("ConfirmDialog", () => {
     expect(confirmButton.className).toContain("bg-signal-ink");
   });
 
+  it("con requireReason, Cancelar siempre está habilitado y solo Confirmar espera al motivo", async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    const onConfirm = vi.fn();
+    render(
+      <ConfirmDialog
+        open
+        title="Suspender academia"
+        description="?"
+        confirmText="Suspender"
+        requireReason
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />
+    );
+
+    const cancelButton = screen.getByRole("button", { name: "Cancelar" });
+    const confirmButton = screen.getByRole("button", { name: "Suspender" });
+    expect(cancelButton).toBeEnabled();
+    expect(confirmButton).toBeDisabled();
+
+    const reason = screen.getByLabelText("Motivo de la acción");
+    await user.type(reason, "abc");
+    expect(cancelButton).toBeEnabled();
+    expect(confirmButton).toBeDisabled();
+
+    await user.type(reason, "de");
+    expect(confirmButton).toBeEnabled();
+
+    await user.click(cancelButton);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
   it("muestra estado 'Procesando...' mientras la promesa esta pending", async () => {
     const user = userEvent.setup();
     let resolveConfirm: () => void = () => undefined;

@@ -290,7 +290,7 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">Invita a una persona del equipo para que entre con su propia cuenta en las sedes que elijas. Al aceptar, su cuenta queda vinculada a su ficha del equipo: la que elijas de Equipo o una nueva con el nombre que escribas.</p>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">El enlace es de un solo uso, caduca a los 7 días y solo sirve con el correo invitado. No se envía ningún correo: copia el enlace y compártelo tú. Revocar una invitación no da de baja a quien ya la aceptó.</p>
       </header>
-      {error ? <p role="alert" className="mt-4 border border-amber-700 bg-amber-50 p-4 text-sm leading-6">{error}</p> : null}
+      {error ? <p role="alert" className="mt-4 border border-signal/30 bg-signal-wash p-4 text-sm leading-6 text-signal-ink">{error}</p> : null}
       {message ? <p role="status" className="mt-4 border border-teal-800 bg-teal-50 p-4 text-sm leading-6">{message}</p> : null}
       {pending ? <div className="mt-4 border border-amber-700 p-4">
         <p className="text-sm leading-6">La solicitud se conserva solo en la memoria de esta página. No se reenvía al abrir ni al actualizar la lista. Si cierras esta página perderás la clave de recuperación.</p>

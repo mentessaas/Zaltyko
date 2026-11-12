@@ -3,15 +3,15 @@ import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Variante semántica para StatCard. Cada variante mapea a tokens del
- * Zaltyko Brand Book (teal/indigo/coral/electric/navy) en lugar de los
- * defaults de Tailwind (emerald/blue/purple/amber) que son Vercel/AI template.
+ * Variante semántica para StatCard. Son categorías de dato, no estados, así
+ * que solo usan tonos del tapiz y polvo (The Señal Rule: el coral queda para
+ * errores, deudas y borrados; nunca como acento de una categoría).
  *
- * - attendance: métrica buena (teal/primary) — asistencia, engagement
- * - classes:    contador neutro (indigo/accent) — clases, sesiones
- * - assessments:accent destacado (coral) — evaluaciones, observaciones
- * - fees:       acento financiero (electric) — pagos, cuotas
- * - progress:   neutral sólido (navy) — progreso general
+ * - attendance: lavado tapiz con icono tapiz — asistencia, engagement
+ * - classes:    polvo con icono zona de seguridad — clases, sesiones
+ * - assessments:lavado tapiz con icono zona de seguridad — evaluaciones
+ * - fees:       polvo con icono tapiz — pagos, cuotas
+ * - progress:   polvo con icono noche — progreso general
  */
 export type StatCardVariant =
   | "attendance"
@@ -21,11 +21,11 @@ export type StatCardVariant =
   | "progress";
 
 const variantStyles = {
-  attendance: { bg: "bg-primary/10", text: "text-primary" },
-  classes: { bg: "bg-accent/10", text: "text-accent" },
-  assessments: { bg: "bg-zaltyko-coral/15", text: "text-zaltyko-coral" },
-  fees: { bg: "bg-zaltyko-electric/15", text: "text-zaltyko-electric" },
-  progress: { bg: "bg-zaltyko-navy/10", text: "text-zaltyko-navy" },
+  attendance: { bg: "bg-mat-wash", text: "text-mat" },
+  classes: { bg: "bg-chalk-dust", text: "text-mat-deep" },
+  assessments: { bg: "bg-mat-wash", text: "text-mat-deep" },
+  fees: { bg: "bg-chalk-dust", text: "text-mat" },
+  progress: { bg: "bg-chalk-dust", text: "text-mat-night" },
 } as const;
 
 interface StatCardProps {
@@ -42,8 +42,9 @@ interface StatCardProps {
  * (e.g. MyDashboardPage grid 3-col). Mantiene el layout `icon | label/value`
  * pero reemplaza las clases emerald/blue/purple raw por tokens de marca.
  *
- * Para cards KPI más decorativos con trend arrow, usar `StatsCard`
- * (variants default/success/warning/danger/info).
+ * Para celdas KPI con flecha de tendencia, usar `StatsCard` (variantes
+ * default/success/warning/danger/info). Las dos comparten forma: 12 px de
+ * radio, borde de línea de magnesio, sin sombra y cifra tabular condensada.
  */
 export function StatCard({
   variant,
@@ -57,14 +58,14 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "rounded-[20px] border border-border/80 bg-card p-4 shadow-soft",
+        "rounded-xl border border-chalk-line bg-white p-4 text-mat-night",
         className,
       )}
     >
       <div className="flex items-center gap-3">
         <div
           className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-full",
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-md",
             styles.bg,
             styles.text,
           )}
@@ -72,10 +73,10 @@ export function StatCard({
           {icon}
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-xl font-bold">{value}</p>
+          <p className="text-sm text-ramp-600">{label}</p>
+          <p className="tabular font-display text-xl font-black">{value}</p>
           {footnote ? (
-            <p className="text-xs text-muted-foreground">{footnote}</p>
+            <p className="text-xs text-ramp-500">{footnote}</p>
           ) : null}
         </div>
       </div>

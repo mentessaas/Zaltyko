@@ -5,25 +5,25 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 /**
- * Variante semántica para AccessDenied. Cada variante mapea a tokens del
- * Zaltyko Brand Book (coral/navy) en lugar de los defaults de Tailwind
- * (red/gray) que son Vercel/AI template.
+ * Variante semántica para AccessDenied. Un acceso restringido no es un error
+ * ni una deuda, así que no lleva coral (The Señal Rule): solo tonos del tapiz
+ * y polvo en el cuadro de icono.
  *
- * - billing: acceso financiero (coral) — /billing, /invoices, /payouts
- * - admin:   superficie de admin (navy) — /settings, /super-admin/*
- * - default: cualquier otro surface — fallback neutral coral
+ * - billing: acceso financiero (lavado tapiz) — /billing, /invoices, /payouts
+ * - admin:   superficie de admin (polvo con noche) — /settings, /super-admin/*
+ * - default: cualquier otra superficie (lavado tapiz)
  */
 export type AccessDeniedVariant = "billing" | "admin" | "default";
 
 const variantStyles = {
-  billing: { bg: "bg-zaltyko-coral/10", text: "text-zaltyko-coral" },
-  admin: { bg: "bg-zaltyko-navy/10", text: "text-zaltyko-navy" },
-  default: { bg: "bg-zaltyko-coral/10", text: "text-zaltyko-coral" },
+  billing: { bg: "bg-mat-wash", text: "text-mat-deep" },
+  admin: { bg: "bg-chalk-dust", text: "text-mat-night" },
+  default: { bg: "bg-mat-wash", text: "text-mat-deep" },
 } as const;
 
 interface AccessDeniedProps {
   /**
-   * Variante visual. Default "default" (coral) si no se especifica.
+   * Variante visual. Default "default" (lavado tapiz) si no se especifica.
    */
   variant?: AccessDeniedVariant;
 
@@ -73,30 +73,26 @@ export function AccessDenied({
   return (
     <div
       className={cn(
-        "rounded-[20px] border border-border/80 bg-card p-8 shadow-soft",
+        "rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-8 text-mat-night",
         "flex flex-col items-center text-center",
         className,
       )}
     >
       <div
         className={cn(
-          "flex h-12 w-12 items-center justify-center rounded-full",
+          "flex h-10 w-10 items-center justify-center rounded-md",
           styles.bg,
           styles.text,
         )}
       >
-        <ShieldOff className="h-6 w-6" strokeWidth={1.8} />
+        <ShieldOff className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
       </div>
 
-      <h1 className="mt-4 text-2xl font-bold tracking-tight">{title}</h1>
+      <h1 className="mt-4 font-display text-2xl font-black uppercase leading-none text-mat-night">{title}</h1>
 
-      <p className="mt-2 max-w-md text-sm text-muted-foreground">{description}</p>
+      <p className="mt-2 max-w-md text-sm text-ramp-600">{description}</p>
 
-      <Button
-        asChild
-        variant="outline"
-        className="mt-6 border-zaltyko-teal/30 text-zaltyko-teal hover:bg-zaltyko-teal/5 hover:text-zaltyko-teal"
-      >
+      <Button asChild variant="outline" className="mt-6">
         <Link href={ctaHref}>
           <ArrowLeft className="mr-2 h-4 w-4" strokeWidth={1.8} />
           {ctaLabel}

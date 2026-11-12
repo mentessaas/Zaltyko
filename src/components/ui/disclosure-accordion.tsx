@@ -58,7 +58,7 @@ export function DisclosureAccordion({
     <div
       data-slot="accordion"
       className={cn(
-        "min-w-0 divide-y divide-border overflow-hidden rounded-2xl border border-border",
+        "min-w-0 divide-y divide-border overflow-hidden rounded-xl border border-border",
         className
       )}
       {...rootProps}

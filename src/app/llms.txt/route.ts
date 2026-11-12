@@ -4,7 +4,7 @@ const LLMS_CONTENT = `# Zaltyko — Software para academias de gimnasia
 
 Detalle: /llms-full.txt.
 
-Lanzamiento en España, español y euros.
+Lanzamiento en español; alta abierta a academias de cualquier país, con España y México como mercados prioritarios.
 - Registro, consentimiento, confirmación y recuperación de cuenta.
 - Gimnastas, familias y responsables; alta, edición y archivo.
 - Grupos, clases, inscripciones y asistencia por sesión.

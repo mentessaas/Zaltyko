@@ -22,25 +22,27 @@ export function UpdateBanner() {
 
   return (
     <div className="fixed bottom-20 left-4 right-4 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-      <div className="bg-zaltyko-primary text-white rounded-2xl shadow-lg p-4">
+      {/* Banda de zona de seguridad: aviso de producto sobre tapiz, con CTA de cinta. */}
+      <div className="rounded-xl bg-mat-deep p-4 text-white shadow-medium">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-            <RefreshCw className="h-5 w-5" />
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-white/15">
+            <RefreshCw className="h-5 w-5" aria-hidden="true" />
           </div>
 
-          <div className="flex-1 min-w-0">
-            <p className="font-display font-semibold">Nueva versión disponible</p>
-            <p className="text-sm text-white/80 mt-0.5">
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-lg font-black uppercase leading-none">Nueva versión disponible</p>
+            <p className="mt-1 text-sm text-white/85">
               Actualiza para obtener las últimas funciones
             </p>
           </div>
 
           <button
+            type="button"
             onClick={() => setDismissed(true)}
-            className="p-1 text-white/60 hover:text-white"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-white/70 transition-colors hover:bg-white/10 hover:text-white"
             aria-label="Cerrar"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -49,7 +51,7 @@ export function UpdateBanner() {
             variant="ghost"
             size="sm"
             onClick={() => setDismissed(true)}
-            className="flex-1 text-white hover:bg-white/20"
+            className="flex-1 text-white hover:bg-white/10 hover:text-white"
           >
             Después
           </Button>
@@ -57,7 +59,7 @@ export function UpdateBanner() {
             size="sm"
             onClick={handleUpdate}
             disabled={isActivating}
-            className="flex-1 bg-white text-zaltyko-primary hover:bg-white/90"
+            className="flex-1 bg-white font-extrabold text-mat-deep shadow-none hover:bg-chalk"
           >
             {isActivating ? "Actualizando..." : "Actualizar"}
           </Button>
