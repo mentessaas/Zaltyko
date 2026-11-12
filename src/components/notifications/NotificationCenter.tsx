@@ -102,7 +102,9 @@ const getNotificationIcon = (type: string) => {
 };
 
 const getNotificationColor = (type: string) => {
-  if (type.includes("invoice_pending") || type.includes("invoice_overdue")) return "bg-amber-100 text-amber-600";
+  // Una factura vencida es un atraso (error/deuda → señal); una pendiente, un aviso (ocre).
+  if (type.includes("invoice_overdue")) return "bg-signal-wash text-signal-ink";
+  if (type.includes("invoice_pending")) return "bg-ochre-wash text-ochre-ink";
   if (type.includes("invoice_paid")) return "bg-green-100 text-green-600";
   if (type.includes("class") || type.includes("schedule") || type.includes("reminder")) return "bg-blue-100 text-blue-600";
   if (type.includes("message") || type.includes("contact")) return "bg-red-100 text-red-600";

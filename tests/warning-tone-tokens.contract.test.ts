@@ -250,6 +250,23 @@ describe("components/ui: el aviso nunca va en coral", () => {
   });
 });
 
+describe("errores heredados escritos en ámbar vuelven a la señal", () => {
+  // Con amber → ocre, un error escrito en ámbar saldría como aviso. Estos se
+  // corrigieron en el mismo PR para que nada cambie de sentido al fusionar.
+  it("los errores de equipo y la factura vencida usan señal, no ámbar", () => {
+    const teamAccess = readFileSync("src/components/owner/OwnerTeamAccessPanel.tsx", "utf8");
+    const staff = readFileSync("src/components/owner-dashboard/OwnerStaffManager.tsx", "utf8");
+    const notifications = readFileSync("src/components/notifications/NotificationCenter.tsx", "utf8");
+
+    expect(teamAccess).toMatch(/\{error \? <p role="alert" className="[^"]*bg-signal-wash[^"]*text-signal-ink/);
+    expect(teamAccess).not.toMatch(/role="alert" className="[^"]*amber-/);
+    expect(staff).toMatch(/className="[^"]*bg-signal-wash[^"]*text-signal-ink[^"]*">\{mutationError\}/);
+    expect(staff).not.toMatch(/amber-[^"]*">\{mutationError\}/);
+    expect(notifications).toContain('if (type.includes("invoice_overdue")) return "bg-signal-wash text-signal-ink";');
+    expect(notifications).toContain('if (type.includes("invoice_pending")) return "bg-ochre-wash text-ochre-ink";');
+  });
+});
+
 describe("DESIGN.md documenta los tonos de estado", () => {
   const design = readFileSync("DESIGN.md", "utf8");
 
