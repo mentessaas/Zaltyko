@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -21,8 +21,10 @@ import {
   type GymnasticsDiscipline,
 } from "@/modules/organizations/domain/academy-offerings";
 import {
-  getAdministrativeMarketCapability,
+  OPERATIONAL_CURRENCIES,
+  resolveAdministrativeMarket,
   type AdministrativeMarketCapability,
+  type OperationalCurrency,
 } from "@/modules/organizations/domain/administrative-market-capabilities";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { inspectLegacyAcademySchema } from "@/lib/auth/legacy-academy-access";
@@ -43,7 +45,7 @@ const bootstrapOrganizationRequestFieldsSchema = z.object({
   defaultCurrency: z.preprocess(
     (value) =>
       typeof value === "string" ? value.trim().toUpperCase() : value,
-    z.enum(["EUR", "MXN"]).optional()
+    z.enum(OPERATIONAL_CURRENCIES).optional()
   ),
   timezone: z.preprocess(
     (value) =>
@@ -96,19 +98,30 @@ type ResolvedBootstrapInput = z.infer<typeof bootstrapOrganizationSchema> & {
   defaultCurrency: string;
   timezone: string;
   locationCode: string;
+  marketTier: AdministrativeMarketCapability["tier"];
   sportCoverage: AdministrativeMarketCapability["sportCoverage"];
 };
 
+/**
+ * Función de la migración candidata
+ * `docs/deployment/candidates/20261112120000_general_market_identity_candidate.sql`.
+ * Crea, solo si falta, el perfil de identidad vacío (sin reglas) de un país
+ * del nivel general para una disciplina. Mientras el candidato no esté
+ * aplicado, el alta de esos países responde 422 con un mensaje claro.
+ */
+const GENERAL_IDENTITY_PROVISIONER =
+  "zaltyko_domain_private.ensure_general_identity_sport_profile(text,text)";
+
 function resolveMarketSettings(input: {
   countryCode: string;
-  defaultCurrency?: "EUR" | "MXN";
+  defaultCurrency?: OperationalCurrency;
   timezone?: string;
 }): {
   capability: AdministrativeMarketCapability;
-  defaultCurrency: "EUR" | "MXN";
+  defaultCurrency: OperationalCurrency;
   timezone: string;
 } {
-  const capability = getAdministrativeMarketCapability(input.countryCode);
+  const capability = resolveAdministrativeMarket(input.countryCode);
   if (!capability || !capability.selfServe) {
     throw new OperationalError(
       "INVALID_RELATION",
@@ -118,6 +131,13 @@ function resolveMarketSettings(input: {
   }
 
   const defaultCurrency = input.defaultCurrency ?? capability.defaultCurrency;
+  if (!defaultCurrency) {
+    throw new OperationalError(
+      "INVALID_RELATION",
+      "Selecciona la moneda en la que registrarás las cuotas (EUR o MXN).",
+      422
+    );
+  }
   if (!capability.currencies.includes(defaultCurrency)) {
     throw new OperationalError(
       "INVALID_RELATION",
@@ -144,6 +164,37 @@ function resolveMarketSettings(input: {
   assertValidTimezone(timezone);
 
   return { capability, defaultCurrency, timezone };
+}
+
+/**
+ * Nivel general: asegura un perfil de identidad vacío por disciplina pedida
+ * mediante la función revisada del candidato. Sin el candidato, falla antes de
+ * escribir nada y sin 500.
+ */
+async function provisionGeneralIdentityProfiles(
+  execute: (query: SQL) => Promise<{ rows: unknown[] }>,
+  countryCode: string,
+  disciplines: readonly string[]
+): Promise<void> {
+  const availability = await execute(
+    sql`select to_regprocedure(${GENERAL_IDENTITY_PROVISIONER}) is not null as available`
+  );
+  const available =
+    (availability.rows[0] as { available?: unknown } | undefined)?.available ===
+    true;
+  if (!available) {
+    throw new OperationalError(
+      "FEATURE_NOT_AVAILABLE",
+      "Todavía no podemos completar desde aquí el alta de academias de este país. No se ha creado nada. Escríbenos desde Contacto y te avisaremos en cuanto puedas crearla.",
+      422,
+      { reason: "general-market-onboarding-not-enabled" }
+    );
+  }
+  for (const discipline of disciplines) {
+    await execute(
+      sql`select zaltyko_domain_private.ensure_general_identity_sport_profile(${countryCode}, ${discipline})`
+    );
+  }
 }
 
 function makeBootstrapResult(
@@ -195,6 +246,7 @@ export async function bootstrapOrganization(
     defaultCurrency,
     timezone,
     locationCode: defaultLocationCode(parsed.locationName),
+    marketTier: capability.tier,
     sportCoverage: capability.sportCoverage,
   };
   const hash = requestHash(input);
@@ -280,8 +332,17 @@ export async function bootstrapOrganization(
       input.primaryDiscipline,
       ...input.additionalDisciplines,
     ];
+    const isGeneralMarket = input.marketTier === "general";
+    if (isGeneralMarket) {
+      await provisionGeneralIdentityProfiles(
+        (query) => tx.execute(query),
+        input.countryCode,
+        requestedDisciplines
+      );
+    }
+    // MX y el nivel general solo admiten perfiles de identidad vacíos.
     const hasGeneralIdentityOnly =
-      input.sportCoverage.mode === "general_identity_only";
+      input.sportCoverage.mode !== "discipline_identity";
     const availableProfiles = await tx
       .select({
         id: sportProfiles.id,
@@ -317,13 +378,17 @@ export async function bootstrapOrganization(
     if (!profilesAreAvailable) {
       throw new OperationalError(
         "INVALID_RELATION",
-        hasGeneralIdentityOnly
-          ? "El alta administrativa de México requiere perfiles de identidad disponibles para cada disciplina seleccionada. No se aplicarán reglas federativas automáticamente."
-          : "Aún no hay un perfil deportivo disponible para el país y las disciplinas seleccionadas.",
+        isGeneralMarket
+          ? "No hemos podido preparar las disciplinas elegidas para este país. No se ha creado nada; inténtalo de nuevo o escríbenos desde Contacto."
+          : hasGeneralIdentityOnly
+            ? "El alta administrativa de México requiere perfiles de identidad disponibles para cada disciplina seleccionada. No se aplicarán reglas federativas automáticamente."
+            : "Aún no hay un perfil deportivo disponible para el país y las disciplinas seleccionadas.",
         422,
-        hasGeneralIdentityOnly
-          ? { reason: "mx-discipline-identity-profiles-required" }
-          : undefined
+        isGeneralMarket
+          ? { reason: "general-market-identity-profiles-required" }
+          : hasGeneralIdentityOnly
+            ? { reason: "mx-discipline-identity-profiles-required" }
+            : undefined
       );
     }
 
@@ -459,6 +524,7 @@ export async function bootstrapOrganization(
       after: {
         status: "trial",
         countryCode: input.countryCode,
+        marketTier: input.marketTier,
         defaultCurrency: input.defaultCurrency,
         timezone: input.timezone,
         primaryDiscipline: input.primaryDiscipline,

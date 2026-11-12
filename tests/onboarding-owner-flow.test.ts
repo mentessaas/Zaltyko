@@ -65,7 +65,11 @@ describe("bootstrap owner canónico", () => {
     expect(service).toContain("appendOutboxEvent");
     expect(service).toContain("defaultCurrency: input.defaultCurrency");
     expect(service).toContain(
-      "getAdministrativeMarketCapability(input.countryCode)"
+      "resolveAdministrativeMarket(input.countryCode)"
+    );
+    expect(service).toContain("provisionGeneralIdentityProfiles(");
+    expect(service).toContain(
+      "zaltyko_domain_private.ensure_general_identity_sport_profile(text,text)"
     );
     expect(service).toContain("if (!capability || !capability.selfServe)");
     expect(service).toContain(
@@ -124,14 +128,18 @@ describe("bootstrap owner canónico", () => {
     );
     expect(form).toContain("parsed.ownerUserId !== ownerUserId");
     expect(form).toContain(
-      "const market = getAdministrativeMarketCapability(value.countryCode)"
+      "const market = resolveAdministrativeMarket(value.countryCode)"
     );
+    expect(form).toContain('typeof value.countryCode !== "string"');
     expect(form).toContain(
-      '(value.countryCode !== "ES" && value.countryCode !== "MX")'
+      '(value.countryCode === "MX" || market.tier === "general")'
     );
     expect(form).toContain("!market.currencies.includes(value.defaultCurrency)");
     expect(form).toContain("!market.timezones.includes(value.timezone)");
-    expect(form).toContain("defaultCurrency: market.defaultCurrency");
+    expect(form).toContain("defaultCurrency: resolvedCurrency");
+    expect(form).toContain(
+      "const resolvedCurrency = market.defaultCurrency ?? (currency || null)"
+    );
     expect(form).toContain('formData.get("organizationName")');
     expect(form).toContain('formData.get("locationName")');
     expect(form).not.toContain("locationCode");
