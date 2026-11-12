@@ -64,7 +64,6 @@ export default function FaqPage() {
     >
       <PublicPageHeader
         titleId="faq-page-title"
-        label="FAQ"
         title="Preguntas Frecuentes"
         lede={
           <>

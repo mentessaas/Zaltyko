@@ -111,7 +111,6 @@ export default function TermsOfServicePage() {
         titleId="terms-title"
         size="title"
         back={{ href: "/", label: "Volver al inicio" }}
-        label="Términos y condiciones"
         title="Condiciones de uso de Zaltyko"
       >
         <p className="tabular text-sm font-medium text-white/85">

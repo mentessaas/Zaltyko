@@ -60,7 +60,6 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
     <PublicPageShell>
       <PublicPageHeader
         titleId="contact-title"
-        label="Contacto"
         title="Cuéntanos sobre tu academia"
         lede="Te respondemos por email en horario laboral con una propuesta concreta para tu caso."
       />

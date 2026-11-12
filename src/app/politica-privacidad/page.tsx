@@ -113,7 +113,6 @@ export default function PrivacyPolicy() {
         titleId="privacy-title"
         size="title"
         back={{ href: "/", label: "Volver al inicio" }}
-        label="Política de privacidad"
         title="Protegemos los datos que confías a Zaltyko"
       >
         <p className="tabular text-sm font-medium text-white/85">

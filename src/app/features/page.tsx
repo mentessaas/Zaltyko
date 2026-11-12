@@ -53,7 +53,6 @@ export default function FeaturesPage() {
     <PublicPageShell structuredData={<Schema json={featureSchema} />}>
       <PublicPageHeader
         titleId="features-title"
-        label="Funcionalidades"
         title="Funcionalidades para tu academia de gimnasia"
         lede="Gimnastas, familias, grupos, clases, asistencia y cuotas manuales para gimnasia artística y rítmica."
       />

@@ -77,7 +77,6 @@ export default function HelpPage() {
     >
       <PublicPageHeader
         titleId="help-title"
-        label="Centro de Ayuda"
         title="Centro de ayuda de Zaltyko para tu academia"
         lede="Guías rápidas sobre gimnastas, cuotas manuales, clases y asistencia. Si no encuentras tu respuesta, puedes contactar por email."
       />

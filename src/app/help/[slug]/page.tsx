@@ -48,8 +48,8 @@ export default async function HelpArticlePage({ params }: HelpArticlePageProps) 
         titleId="help-article-title"
         size="title"
         back={{ href: "/help", label: "Volver al centro de ayuda" }}
-        label={article.category}
         title={article.title}
+        meta={article.category}
         lede={article.summary}
       />
 

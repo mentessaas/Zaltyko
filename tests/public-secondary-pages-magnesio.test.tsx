@@ -78,6 +78,8 @@ describe("piezas comunes de la web pública", () => {
       // La barra y el pie llegan por el shell, no se montan a mano.
       expect(source, file).not.toContain('from "@/app/(site)/Navbar"');
       expect(source, file).not.toContain('from "@/app/(site)/Footer"');
+      // Sin antetítulo sobre el h1: The Label Is Data Rule (DESIGN.md).
+      expect(source, file).not.toMatch(/<PublicPageHeader[^>]*\slabel=/);
     }
     const shared = read("src/app/(site)/mat/PublicPage.tsx");
     expect(shared).toContain('import Navbar from "@/app/(site)/Navbar"');
@@ -87,6 +89,9 @@ describe("piezas comunes de la web pública", () => {
     expect(shared).toContain("mat-field relative overflow-hidden pt-16");
     expect(shared).toContain("border-x-[3px] border-t-[3px] border-white/80");
     expect(shared).toContain("font-display max-w-4xl font-black uppercase text-white");
+    // El único rótulo de la banda va debajo del titular, como metadato.
+    expect(shared).not.toContain("floor-label");
+    expect(shared.indexOf("{meta ?")).toBeGreaterThan(shared.indexOf("</h1>"));
   });
 
   it("sin degradados, píldoras, antetítulo espaciado ni alias heredados de texto", () => {
@@ -129,6 +134,8 @@ describe("contenido visible y datos estructurados siguen diciendo lo mismo", () 
     }
     expect(html.match(/<details[^>]*\sopen=""/g)?.length).toBe(entities.length);
     expect(text).toContain("Preguntas Frecuentes");
+    // Sin el antetítulo «FAQ» encima del titular.
+    expect(html).not.toMatch(/>FAQ</);
     expect(text).toContain("Contacta con nosotros");
   });
 
@@ -153,6 +160,8 @@ describe("contenido visible y datos estructurados siguen diciendo lo mismo", () 
     const text = visibleText(html);
     article.steps.forEach((step, index) => expect(text).toContain(`Paso ${index + 1}: ${step}`));
     expect(text).toContain("Volver al centro de ayuda");
+    // La categoría queda como metadato bajo el h1, no como antetítulo.
+    expect(html.indexOf(`>${article.category}<`)).toBeGreaterThan(html.indexOf("</h1>"));
     expect(text).toContain(article.summary);
   });
 
@@ -172,6 +181,7 @@ describe("contenido visible y datos estructurados siguen diciendo lo mismo", () 
     expect(text).toContain("Última actualización: 26 de octubre de 2026");
     expect(text).toContain(title);
     expect(text).toContain("Volver al inicio");
+    expect(html).not.toContain("floor-label");
     // Identificación del titular, con su ancla del pie.
     expect(html).toContain('id="titular"');
     expect(text).toContain("Identificación de Zaltyko");

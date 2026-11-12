@@ -13,7 +13,8 @@ import { cn } from "@/lib/utils";
    contacto, ayuda, guías y legales), con el mismo lenguaje que la portada y
    los precios: barra y pie del mundo, banda de tapiz con marco de cinta para
    la cabecera, listas regladas sobre magnesio y cierre de vuelta al tapiz.
-   Solo presentación: cada página conserva sus textos, su metadata y su JSON-LD.
+   Cada página conserva su metadata y su JSON-LD; el h1 abre la banda sin
+   antetítulo encima (The Label Is Data Rule).
    ───────────────────────────────────────────────────────────────────────── */
 
 /** CTA blanco tipo cinta sobre tapiz (el de la portada). */
@@ -49,8 +50,11 @@ type PublicPageHeaderProps = {
   /** Id del h1, para `aria-labelledby` de la banda. */
   titleId: string;
   title: ReactNode;
-  /** Rótulo de pista: nombra la sección del sitio en la que estás. */
-  label?: ReactNode;
+  /**
+   * Metadato pequeño bajo el titular (p. ej. la categoría de una guía). Nunca
+   * va encima como antetítulo: el h1 abre la banda (The Label Is Data Rule).
+   */
+  meta?: ReactNode;
   lede?: ReactNode;
   /** Enlace de vuelta, en blanco sobre el tapiz. */
   back?: { href: string; label: string };
@@ -68,7 +72,7 @@ type PublicPageHeaderProps = {
 export function PublicPageHeader({
   titleId,
   title,
-  label,
+  meta,
   lede,
   back,
   size = "headline",
@@ -90,12 +94,10 @@ export function PublicPageHeader({
             {back.label}
           </Link>
         ) : null}
-        {label ? <p className="floor-label text-white/85">{label}</p> : null}
         <h1
           id={titleId}
           className={cn(
             "font-display max-w-4xl font-black uppercase text-white",
-            label ? "mt-4" : null,
             size === "title"
               ? "text-[clamp(2rem,3.5vw,3rem)] leading-[0.95]"
               : "text-[clamp(2.25rem,5vw,4rem)] leading-[0.92]"
@@ -103,6 +105,7 @@ export function PublicPageHeader({
         >
           {title}
         </h1>
+        {meta ? <p className="mt-4 text-sm font-semibold text-white/85">{meta}</p> : null}
         {lede ? <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/85">{lede}</p> : null}
         {children ? <div className="mt-6">{children}</div> : null}
       </div>
