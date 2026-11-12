@@ -1,7 +1,8 @@
 /**
  * Lo que la web pública cuenta como disponible debe estar activo, y lo que
  * está dormido solo puede aparecer en el bloque «En preparación», sin fechas
- * (matriz competitiva, apartados 4 y 5). Revisa el catálogo, el texto escrito
+ * (matriz competitiva, apartados 4 y 5). Lo activado el 12-11-2026 se anuncia
+ * sin prometer lo que todavía no hace (correo, portal de familias). Revisa el catálogo, el texto escrito
  * a mano de las páginas públicas, los metadatos, llms-full.txt y el JSON-LD
  * que se genera de verdad. Sin red ni base de datos.
  */
@@ -24,25 +25,45 @@ const REPO = process.cwd();
 const read = (path: string) => readFileSync(join(REPO, path), "utf8");
 
 /**
- * Built but dormant: invitations (277), class coaches (276), objectives and
- * observations (271), session script (279), clash warnings (284), trial
- * request funnel (262), family portal (261).
+ * Built but not announced: family portal (261) and clash warnings (284). The
+ * clash warnings read the class coaches of PR 276, but they are a minimal,
+ * unvalidated version (docs/producto/avisos-de-choque.md) and are not
+ * promised publicly.
  */
 const DORMANT: RegExp[] = [
-  /\binvita(r|ci[oó]n|ciones)\b|invita a tu equipo/i,
-  /tu equipo (ve|entra|pasa lista)|(tus )?entrenadoras? (pasan|pasa) lista/i,
-  /acceso (para|de) (las )?entrenador/i,
-  /entrenadoras? titular|\btitular(es)? por clase|sustituci[oó]n|sustituciones/i,
-  /\bobjetivos?\b|\bobservaci[oó]n(es)?\b/i,
-  /gui[oó]n de (la|cada) sesi[oó]n|modelo de la clase|planificaci[oó]n de (las )?sesiones/i,
   /\bchoques?\b/i,
-  /solicitud(es)? de prueba|\bembudo\b|captaci[oó]n web/i,
   /portal (de|para) (las )?familias|portal familiar|enlace para familias/i,
   // Paraphrases of the same dormant features.
-  /(tus )?entrenadoras? (entran|acceden)/i,
   /familias (consultan|ven) (sus )?cuotas/i,
   /planific/i,
   /(avisa|aviso).{0,30}(solap|choque|coinciden)/i,
+];
+
+/**
+ * Activated in production on 12-11-2026 (candidate migrations applied and
+ * ZALTYKO_TEAM_ACCESS_ENABLED=true): invitations (277), class coaches (276),
+ * objectives and observations (271), session script (279) and trial requests
+ * (262). They must not be shown as «En preparación» any more.
+ */
+const ACTIVATED: RegExp[] = [
+  /\binvita(r|ci[oó]n|ciones)\b|acceso (para|de) (las )?entrenador/i,
+  /entrenadoras? titular|\btitular(es)? por clase|sustituci[oó]n|sustituciones/i,
+  /\bobjetivos?\b|\bobservaci[oó]n(es)?\b/i,
+  /gui[oó]n de (la|cada) sesi[oó]n/i,
+  /solicitud(es)? de prueba/i,
+];
+
+/** What the activated features do not do yet: never claimed as available. */
+const NOT_YET: RegExp[] = [
+  // Invitations and trial requests send no email (G4 is off).
+  /(enviamos|recibir[aá]n?|reciben?|llega) (un |el |su )?(correo|email)/i,
+  /\b(se|te) (env[ií]a|enviar[aá])n? (un |el )?(correo|email)/i,
+  // The family portal shows no observations (FAMILY_PORTAL_SHOWS_OBSERVATIONS).
+  /familias? (ve[nr]?|consulta[rn]?|recibe[nr]?|lee[nr]?) (las |sus )?(observaciones|objetivos)/i,
+  /observaciones.{0,40}(visibles|se muestran|se comparten) (a|con|para) (las )?familias/i,
+  // A trial request does not book a session nor join a waitlist from the inbox.
+  /(?<!no |ni )reserva(r|s|n)? (la |una )?sesi[oó]n de prueba/i,
+  /lista de espera/i,
 ];
 const VAGUE_DATES = [
   /\b(19|20)\d{2}\b/,
@@ -87,14 +108,19 @@ const availableClaims = [
   HERO_LEAD,
   ...ESSENTIAL_FEATURES.flatMap((feature) => [feature.label, feature.title, feature.impact, ...feature.features]),
   ...IMPLEMENTED_HIGHLIGHTS.flatMap((item) => [item.title, item.featureName, item.text]),
-  ...ESSENTIAL_FAQS.filter((item) => item !== coachFaq).flatMap((item) => [item.question, item.answer]),
+  ...ESSENTIAL_FAQS.flatMap((item) => [item.question, item.answer]),
 ];
+const highlight = (id: string) => IMPLEMENTED_HIGHLIGHTS.find((item) => item.id === id)!;
 
 const matching = (text: string, patterns: RegExp[]) => patterns.filter((pattern) => pattern.test(text)).map(String);
 
 describe("lo que se anuncia como disponible está activo", () => {
   it("cada función destacada nombra lo que la respalda y sus ficheros existen", () => {
     expect(IMPLEMENTED_HIGHLIGHTS.map((item) => item.id)).toEqual([
+      "equipo",
+      "titulares",
+      "guion-y-seguimiento",
+      "solicitudes-de-prueba",
       "importacion",
       "puesta-en-marcha",
       "sedes",
@@ -115,6 +141,56 @@ describe("lo que se anuncia como disponible está activo", () => {
     const importText = IMPLEMENTED_HIGHLIGHTS.find((item) => item.id === "importacion")!.text;
     expect(importText).toContain("mismo nombre y fecha de nacimiento");
     expect(importText).not.toMatch(/no se duplican/);
+  });
+
+  it("lo activado el 12-11-2026 se anuncia con sus candidatas aplicadas como evidencia", () => {
+    const candidates: Record<string, string[]> = {
+      equipo: ["20261105120000_canonical_team_access_candidate.sql"],
+      titulares: ["20261111180000_coach_assignment_candidate.sql"],
+      "guion-y-seguimiento": [
+        "20261111120000_athlete_progress_candidate.sql",
+        "20261111200000_session_plans_candidate.sql",
+      ],
+      "solicitudes-de-prueba": ["20261110120000_admission_requests_candidate.sql"],
+    };
+    for (const [id, files] of Object.entries(candidates)) {
+      for (const file of files) {
+        expect(highlight(id).evidence.files, id).toContain(`docs/deployment/candidates/${file}`);
+      }
+      expect(matching(`${highlight(id).featureName} ${highlight(id).text}`, ACTIVATED).length, id).toBeGreaterThan(0);
+    }
+  });
+
+  it("el acceso de entrenadoras se anuncia como es: enlace que se comparte a mano, solo Hoy y el pase de lista de sus sedes", () => {
+    // No email: the invitation link is copied and shared by the academy.
+    expect(read("src/modules/staff/domain/team-access-contract.ts")).toContain('return "manual_link";');
+    // A coach only reaches attendance (with «Hoy») of her sites.
+    expect(read("src/components/owner-dashboard/owner-workspace-capabilities.ts")).toContain(
+      'coachOperationsOnly: member.role === "coach"'
+    );
+    expect(read("src/components/owner-dashboard/OwnerWorkspaceNavigation.tsx").match(/coachAllowed: true/g)).toHaveLength(1);
+    expect(read("src/modules/owner-dashboard/domain/coach-access.ts")).toContain('COACH_HOME_PATH = "/owner/attendance"');
+
+    const team = highlight("equipo").text;
+    expect(team).toContain("no envía el correo");
+    expect(team).toContain("copias el enlace");
+    expect(team).toContain("sesiones de hoy y al pase de lista de sus sedes");
+    expect(coachFaq?.answer).toMatch(/^Sí, por invitación\./);
+    expect(coachFaq?.answer).toContain("no envía el correo");
+    expect(coachFaq?.answer).toContain("sesiones de hoy de sus sedes");
+  });
+
+  it("las observaciones y las solicitudes no prometen lo que todavía no hacen", () => {
+    expect(read("src/modules/athlete-progress/domain/athlete-progress.ts")).toContain(
+      "FAMILY_PORTAL_SHOWS_OBSERVATIONS = false as const"
+    );
+    expect(highlight("guion-y-seguimiento").text).toContain("solo los ve el equipo de la academia");
+    // The trial request inbox sends no email.
+    expect(read("src/modules/admissions/application/admission-requests.ts")).not.toMatch(
+      /from ["'][^"']*(mail|resend|notification)[^"']*["']/i
+    );
+    expect(highlight("solicitudes-de-prueba").text).toContain("no envía correos ni reserva la sesión de prueba");
+    for (const claim of availableClaims) expect(matching(claim, NOT_YET), claim).toEqual([]);
   });
 
   it("«Nada se duplica» solo nombra órdenes que exigen clave de idempotencia", () => {
@@ -139,27 +215,30 @@ describe("lo dormido solo aparece en «En preparación», sin fechas", () => {
     for (const file of HAND_WRITTEN) expect(matching(visibleSource(file), DORMANT), file).toEqual([]);
   });
 
-  it("la única FAQ sobre algo dormido dice que todavía no está disponible", () => {
-    expect(coachFaq?.answer).toMatch(/^Todavía no\./);
-    expect(coachFaq?.answer).toContain("está en preparación");
+  it("ninguna FAQ dice que algo está en preparación", () => {
+    for (const item of ESSENTIAL_FAQS) expect(item.answer, item.question).not.toMatch(/en preparaci[oó]n|^Todavía no\./i);
   });
 
-  it("cada elemento de «En preparación» es una función dormida, sin fechas", () => {
+  it("cada elemento de «En preparación» es una función dormida, sin fechas, y ya no incluye lo activado", () => {
+    expect(IN_PREPARATION).toEqual(["Portal de familias"]);
     for (const item of IN_PREPARATION) {
       expect(matching(item, DORMANT).length, item).toBeGreaterThan(0);
+      expect(matching(item, ACTIVATED), item).toEqual([]);
       expect(matching(item, VAGUE_DATES), item).toEqual([]);
     }
     const home = visibleSource("src/app/(site)/mat/HomeSections.tsx");
     expect(home).toContain("En preparación");
-    expect(home).toContain("no tienen fecha comprometida");
+    expect(home).toContain("sin fecha comprometida");
   });
 
-  it("en llms-full.txt solo la línea «En preparación» nombra funciones dormidas", () => {
+  it("en llms-full.txt solo la línea «En preparación» nombra funciones dormidas, y no las activadas", () => {
     const lines = read("src/app/llms-full.txt/route.ts").split("\n");
-    const preparation = lines.filter((line) => line.startsWith("En preparación, sin fecha y no disponibles todavía:"));
-    expect(preparation).toHaveLength(1);
+    const preparation = lines.filter((line) => line.startsWith("En preparación, sin fecha"));
+    expect(preparation).toEqual(["En preparación, sin fecha y no disponible todavía: portal de familias."]);
+    expect(matching(preparation[0], ACTIVATED)).toEqual([]);
     for (const line of lines.filter((line) => !preparation.includes(line))) {
       expect(matching(line, DORMANT), line).toEqual([]);
+      expect(matching(line, NOT_YET), line).toEqual([]);
     }
   });
 
@@ -183,13 +262,16 @@ describe("lo dormido solo aparece en «En preparación», sin fechas", () => {
     const texts = [
       ...availableClaims,
       ...IN_PREPARATION,
-      ...(coachFaq ? [coachFaq.question, coachFaq.answer] : []),
       ...HAND_WRITTEN.map(visibleSource),
       read("src/app/llms-full.txt/route.ts"),
     ];
     for (const text of texts) expect(matching(text, GLOSSARY_PROHIBITED), text.slice(0, 80)).toEqual([]);
     // «Pasar lista» es el nombre de la acción y de la pantalla; dentro de una frase se dice «el pase de lista».
-    for (const text of [...IN_PREPARATION, ...(coachFaq ? [coachFaq.answer] : [])]) {
+    for (const text of [
+      ...IN_PREPARATION,
+      ...IMPLEMENTED_HIGHLIGHTS.map((item) => item.text),
+      ...ESSENTIAL_FAQS.map((item) => item.answer),
+    ]) {
       expect(text, text).not.toMatch(/\w Pasar lista/);
     }
   });
@@ -211,6 +293,10 @@ describe("la portada dice lo mismo que sus datos estructurados", () => {
     const hero = read("src/app/(site)/mat/MatHero.tsx");
     expect(hero).toContain("{HERO_LEAD}");
     expect(PUBLIC_PROMISE).toContain("Organiza grupos, clases y asistencia de tu academia de gimnasia en un solo sitio");
+    // Con el acceso de entrenadoras activo, la promesa recupera la mitad del equipo.
+    expect(PUBLIC_PROMISE).toContain("tu equipo ve las sesiones de hoy y pasa lista en un toque");
+    expect(HERO_LEAD).toContain("tu equipo ve las sesiones de hoy y pasa lista en un toque");
+    expect(read("src/app/llms-full.txt/route.ts")).toContain(PUBLIC_PROMISE);
     expect(HERO_LEAD).not.toContain("academia de gimnasia");
     expect(page).toContain("<ImplementedNow />");
   });

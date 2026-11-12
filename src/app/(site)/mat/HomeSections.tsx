@@ -205,7 +205,7 @@ export function ImplementedNow() {
             Lo que ya hace hoy
           </h2>
           <p className="mt-6 max-w-md text-lg leading-relaxed text-ramp-600">
-            Además de los módulos, cinco cosas que ya funcionan.
+            Además de los módulos, esto también funciona ya.
           </p>
         </div>
         <div>
@@ -221,7 +221,7 @@ export function ImplementedNow() {
             ))}
           </dl>
           <h3 className="floor-label mt-10 text-mat-night">En preparación</h3>
-          <p className="mt-2 text-sm text-ramp-600">Todavía no están disponibles y no tienen fecha comprometida.</p>
+          <p className="mt-2 text-sm text-ramp-600">Todavía no disponible, sin fecha comprometida.</p>
           <ul className="mt-4 border-t border-chalk-line">
             {IN_PREPARATION.map((item) => (
               <li key={item} className="border-b border-chalk-line py-3 text-ramp-600">
