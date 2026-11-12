@@ -52,9 +52,16 @@ describe("API limits and feature contracts", () => {
       window: 60,
     });
     expect(getLimitForRoute("/api/athletes/import")).toEqual({
-      limit: 5,
+      limit: 10,
       window: 60,
     });
+    expect(getLimitForRoute("/api/athletes/import")).toEqual(
+      getLimitForRoute("/api/v1/owner/athlete-import"),
+    );
+    // La ruta de importación sigue siendo más estricta que el listado general.
+    expect(getLimitForRoute("/api/athletes/import").limit).toBeLessThan(
+      getLimitForRoute("/api/athletes").limit,
+    );
   });
 
   it("keeps webhook capacity separate from user mutations", () => {

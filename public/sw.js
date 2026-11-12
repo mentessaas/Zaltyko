@@ -1,6 +1,6 @@
 // Zaltyko Service Worker - safe static caching + push notifications.
 // Private HTML and API responses are deliberately never cached.
-const CACHE_NAME = 'zaltyko-static-v2';
+const CACHE_NAME = 'zaltyko-static-v3';
 const OFFLINE_URL = '/offline.html';
 
 const STATIC_ASSETS = [
@@ -39,9 +39,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Tenant/user data must always come from the network.
+  // Tenant/user data must always come from the network. Do not call
+  // respondWith here: the browser performs the request natively. Wrapping it
+  // in a pass-through respondWith only turned aborted or offline requests
+  // into "FetchEvent ... network error" plus "Uncaught (in promise)" errors.
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(fetch(request));
     return;
   }
 
@@ -63,22 +65,40 @@ self.addEventListener('fetch', (event) => {
     url.pathname === '/manifest.json' ||
     /\.(?:css|js|png|jpg|jpeg|gif|svg|ico|woff2?)$/.test(url.pathname);
 
+  // Other dynamic GETs (e.g. router fetches of /app/<id>/athletes) are left
+  // to the browser as well; a pass-through adds nothing and rejects on abort.
   if (!isSafeStaticAsset) {
-    event.respondWith(fetch(request));
     return;
   }
 
   event.respondWith(
-    caches.match(request).then(async (cachedResponse) => {
+    (async () => {
+      let cachedResponse;
+      try {
+        cachedResponse = await caches.match(request);
+      } catch {
+        cachedResponse = undefined;
+      }
       if (cachedResponse) return cachedResponse;
 
-      const networkResponse = await fetch(request);
+      let networkResponse;
+      try {
+        networkResponse = await fetch(request);
+      } catch {
+        // Offline or aborted and nothing cached: report a plain network error
+        // instead of leaving a rejected promise unhandled in the worker.
+        return Response.error();
+      }
       if (networkResponse.ok && networkResponse.type === 'basic') {
-        const cache = await caches.open(CACHE_NAME);
-        await cache.put(request, networkResponse.clone());
+        try {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(request, networkResponse.clone());
+        } catch {
+          // A full or unavailable cache must not break the response.
+        }
       }
       return networkResponse;
-    })
+    })()
   );
 });
 
