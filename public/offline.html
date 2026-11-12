@@ -12,6 +12,8 @@
     desde la caché del service worker cuando no hay red, así que no carga
     fuentes ni hojas de estilo. Archivo solo si está instalada; si no, la
     pila del sistema. Valores de las escalas del mundo (DESIGN.md).
+    Sin JavaScript: la CSP con nonce bloquea scripts y manejadores en línea,
+    así que «Reintentar» es un enlace normal a la portada.
   -->
   <style>
     * {
@@ -102,6 +104,7 @@
       padding: 0 28px;
       border: none;
       border-radius: 8px;
+      text-decoration: none;
       cursor: pointer;
       transition: background-color 150ms ease-out;
       box-shadow: 0 8px 20px -10px rgba(11, 20, 48, 0.8);
@@ -120,27 +123,13 @@
       transform: scale(0.99);
     }
 
-    .retry-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
     .retry-btn svg {
       width: 18px;
       height: 18px;
     }
 
-    .retry-btn.loading svg {
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
     @media (prefers-reduced-motion: reduce) {
-      .retry-btn, .retry-btn.loading svg { transition: none; animation: none !important; }
+      .retry-btn { transition: none; }
     }
   </style>
 </head>
@@ -155,41 +144,13 @@
     <h1>Sin conexión</h1>
     <p>No se pudo conectar con el servidor. Verifica tu conexión a internet e intenta de nuevo.</p>
 
-    <button class="retry-btn" onclick="retry()">
+    <a class="retry-btn" href="/">
       <svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
       </svg>
       Reintentar
-    </button>
+    </a>
   </div>
 
-  <script>
-    const btn = document.querySelector('.retry-btn');
-
-    function retry() {
-      if (!navigator.onLine) {
-        return;
-      }
-
-      btn.classList.add('loading');
-      btn.disabled = true;
-      btn.querySelector('svg').style.animation = 'spin 1s linear infinite';
-
-      // Check connection by trying to fetch a small resource
-      fetch('/manifest.json', { method: 'HEAD', cache: 'no-store' })
-        .then(() => {
-          window.location.href = '/';
-        })
-        .catch(() => {
-          btn.classList.remove('loading');
-          btn.disabled = false;
-        });
-    }
-
-    // Listen for online event to auto-reload
-    window.addEventListener('online', () => {
-      window.location.href = '/';
-    });
-  </script>
 </body>
 </html>
