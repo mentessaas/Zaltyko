@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound, permanentRedirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { Locale } from "@/i18n";
 
 const VALID_LOCALES = ["es", "en"] as const;
@@ -27,15 +27,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-// This dynamic segment matches every unknown top-level path. Sending all of
-// them to "/" with a 307 turned typos and retired URLs (/recursos, /mat,
-// /directorio…) into soft 404s that stayed indexed. Only the real locale
-// prefixes redirect (permanently; next.config.mjs answers first); anything
-// else is a genuine 404.
 export default async function LocaleHomePage({ params }: PageProps) {
   const { locale } = await params;
   if (!isValidLocale(locale)) {
-    notFound();
+    redirect("/");
   }
-  permanentRedirect("/");
+  redirect("/");
 }

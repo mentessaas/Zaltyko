@@ -69,11 +69,12 @@ const RETIRED_MARKETING_RULES: ReadonlyArray<{ pattern: RegExp; outcome: Retired
     pattern: /^\/(?:gimnasia-artistica|gimnasia-ritmica|artistic-gymnastics|rhythmic-gymnastics)(?:\/|$)/,
     outcome: { status: 301, location: "/features" },
   },
-  // Disciplines outside the launch focus: no page describes them, so the
-  // general product page (home) is the closest live answer.
+  // Disciplines outside the launch focus: the live site says it covers only
+  // artística and rítmica, so no page is an equivalent; sending them to the
+  // home page would be a soft 404.
   {
     pattern: /^\/(?:gimnasia-acrobatica|trampolin|acrobatic-gymnastics|trampoline)(?:\/|$)/,
-    outcome: { status: 301, location: "/" },
+    outcome: { status: 410 },
   },
   // Per-module landings and comparisons are summarised on /features.
   { pattern: /^\/(?:modules|comparativas)(?:\/|$)/, outcome: { status: 301, location: "/features" } },

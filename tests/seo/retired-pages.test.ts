@@ -17,7 +17,8 @@ const navigation = vi.hoisted(() => ({
 vi.mock("next/navigation", () => navigation);
 
 import sitemap from "@/app/sitemap";
-import LocaleHomePage from "@/app/(site)/[locale]/page";
+import LocaleAyudaPage from "@/app/(site)/[locale]/ayuda/page";
+import LocaleSobreNosotrosPage from "@/app/(site)/[locale]/sobre-nosotros/page";
 
 // URLs that search engines still list (or did) and what each must answer.
 // 301 → closest live page; 410 → nothing replaces it.
@@ -28,11 +29,11 @@ const RETIRED_MARKETING: ReadonlyArray<[path: string, status: 301 | 410, locatio
   ["/gimnasia-artistica", 301, "/features"],
   ["/en/rhythmic-gymnastics", 301, "/features"],
   ["/artistic-gymnastics/spain", 301, "/features"],
-  ["/gimnasia-acrobatica", 301, "/"],
-  ["/trampolin", 301, "/"],
-  ["/es/trampolin/espana", 301, "/"],
-  ["/en/acrobatic-gymnastics/spain", 301, "/"],
-  ["/trampoline", 301, "/"],
+  ["/gimnasia-acrobatica", 410],
+  ["/trampolin", 410],
+  ["/es/trampolin/espana", 410],
+  ["/en/acrobatic-gymnastics/spain", 410],
+  ["/trampoline", 410],
   ["/modules", 301, "/features"],
   ["/modules/pagos-administracion", 301, "/features"],
   ["/comparativas", 301, "/features"],
@@ -97,10 +98,20 @@ describe("legacy public aliases in next.config.mjs", () => {
 
   it("serves every alias as a permanent redirect straight to a live page", () => {
     const redirects = configuredRedirects();
-    expect(LEGACY_PUBLIC_REDIRECTS).toEqual(expect.arrayContaining([
-      ["/about", "/"], ["/nosotros", "/"], ["/help", "/ayuda"], ["/tos", "/terminos"],
-      ["/privacy-policy", "/politica-privacidad"], ["/es", "/"], ["/en", "/"],
-    ]));
+    expect(LEGACY_PUBLIC_REDIRECTS).toEqual([
+      ["/planes", "/pricing"],
+      ["/precios", "/pricing"],
+      ["/contacto", "/contact"],
+      ["/nosotros", "/"],
+      ["/about", "/"],
+      ["/help", "/ayuda"],
+      ["/privacy-policy", "/politica-privacidad"],
+      ["/tos", "/terminos"],
+      ["/es", "/"],
+      ["/en", "/"],
+      ["/es/ayuda", "/ayuda"],
+      ["/en/ayuda", "/ayuda"],
+    ]);
     const aliasSources = new Set(LEGACY_PUBLIC_REDIRECTS.map(([source]) => source));
     for (const [source, destination] of LEGACY_PUBLIC_REDIRECTS) {
       expect(redirects).toContainEqual({ source, destination, permanent: true });
@@ -111,20 +122,26 @@ describe("legacy public aliases in next.config.mjs", () => {
   });
 });
 
-describe("unknown top-level paths", () => {
+describe("locale-prefixed legacy handlers", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("is a real 404 instead of a temporary redirect to the home page", async () => {
-    for (const locale of ["recursos", "mat", "directorio", "pagina-que-no-existe"]) {
-      await expect(LocaleHomePage({ params: Promise.resolve({ locale }) })).rejects.toThrow("NEXT_NOT_FOUND");
-    }
-    expect(navigation.permanentRedirect).not.toHaveBeenCalled();
-  });
-
-  it("permanently redirects the bare locale prefixes", async () => {
+  it.each([
+    ["ayuda", LocaleAyudaPage, "/ayuda"],
+    ["sobre-nosotros", LocaleSobreNosotrosPage, "/"],
+  ] as const)("/{es,en}/%s redirects permanently to %s's live page", async (_name, Page, target) => {
     for (const locale of ["es", "en"]) {
-      await expect(LocaleHomePage({ params: Promise.resolve({ locale }) })).rejects.toThrow("NEXT_PERMANENT_REDIRECT /");
+      await expect(Page({ params: Promise.resolve({ locale }) })).rejects.toThrow(`NEXT_PERMANENT_REDIRECT ${target}`);
     }
     expect(navigation.notFound).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["ayuda", LocaleAyudaPage],
+    ["sobre-nosotros", LocaleSobreNosotrosPage],
+  ] as const)("/<unknown>/%s is a real 404, not a redirect", async (_name, Page) => {
+    for (const locale of ["fr", "recursos", "x"]) {
+      await expect(Page({ params: Promise.resolve({ locale }) })).rejects.toThrow("NEXT_NOT_FOUND");
+    }
+    expect(navigation.permanentRedirect).not.toHaveBeenCalled();
   });
 });

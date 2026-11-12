@@ -5,6 +5,9 @@ import { SubscriptionForm } from "@/components/directory/SubscriptionForm";
 import { flag } from "@/lib/directory/contracts";
 export const metadata = {
   alternates: {canonical: `${getPublicSiteUrl()}/recursos/kit-academias`},
+  // Campaign landing for directory outreach, outside the essential launch
+  // site and its sitemap: reachable by link, kept out of search results.
+  robots: {index: false, follow: true},
   title: "Kit gratuito de organización de academias | Zaltyko",
   description:
     "Plantillas de cuotas y asistencia, checklist de temporada y guía de gestión para academias de gimnasia.",

@@ -3,7 +3,6 @@ import type { NextRequest } from "next/server";
 import crypto from "crypto";
 import { isDevFeaturesEnabled } from "@/lib/dev";
 import { DEV_SESSION_COOKIE, parseDevSessionCookie } from "@/lib/dev-session";
-import { locales, defaultLocale, type Locale } from "@/i18n";
 import { getLocalSupabaseCspConnectSources } from "@/lib/security/local-supabase-csp";
 import { extractAcademySlugFromHost } from "@/lib/subdomains/rewrite";
 import { getExperimentalReleaseFlags, isExperimentalRouteDisabled } from "@/lib/release/experimental-routes";
@@ -16,7 +15,6 @@ const SUPER_ADMIN_ROLE = "super_admin";
 const PRODUCTION_SUPABASE_PROJECT_REF = "jegxfahsvugilbthbked";
 // Clock skew tolerance for JWT iat validation (5 minutes)
 const CLOCK_SKEW_TOLERANCE = 5 * 60;
-const LOCALE_COOKIE_NAME = "zaltyko-locale";
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const RATE_LIMIT_EXCLUDED_PREFIXES = [
@@ -27,23 +25,6 @@ const RATE_LIMIT_EXCLUDED_PREFIXES = [
   "/api/dev",
 ];
 const EXCLUDED_PATH_PREFIXES = ["/_next", "/static", "/favicon.ico"];
-const I18N_SKIP_PREFIXES = ["/api", "/auth", "/login", "/invite"];
-// `/ayuda` and `/sobre-nosotros` are the canonical routes. Their legacy
-// locale-prefixed handlers redirect back to these paths, so localizing the
-// canonical URLs here would create an infinite redirect loop.
-// `/` has its own page handler (src/app/page.tsx, the real marketing home)
-// and must never be redirected into the modality cluster pages.
-const I18N_MODALITY_PREFIXES = [
-  "/gimnasia-artistica",
-  "/gimnasia-ritmica",
-  "/gimnasia-acrobatica",
-  "/trampolin",
-  "/artistic-gymnastics",
-  "/rhythmic-gymnastics",
-  "/acrobatic-gymnastics",
-  "/trampoline",
-];
-
 const STATIC_SECURITY_HEADERS = {
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
   "X-Content-Type-Options": "nosniff",
@@ -302,17 +283,6 @@ function isExcludedPath(pathname: string) {
   return EXCLUDED_PATH_PREFIXES.some((path) => pathname.startsWith(path));
 }
 
-function isI18nSkipped(pathname: string) {
-  if (pathname.includes(".")) return true;
-  return I18N_SKIP_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-}
-
-function shouldRedirectToLocalizedRoute(pathname: string) {
-  return I18N_MODALITY_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-  );
-}
-
 function isAcademyAppPath(pathname: string) {
   return pathname.startsWith("/app/") || pathname.startsWith("/super-admin/");
 }
@@ -372,51 +342,6 @@ function extractRole(payload: Record<string, unknown> | null) {
   );
 }
 
-function getLocaleFromRequest(request: NextRequest): Locale {
-  const cookieLocale = request.cookies.get(LOCALE_COOKIE_NAME)?.value;
-  if (cookieLocale === "es" || cookieLocale === "en") {
-    return cookieLocale;
-  }
-
-  const acceptLanguage = request.headers.get("accept-language");
-  if (acceptLanguage) {
-    const normalized = acceptLanguage.toLowerCase().split("-")[0];
-    if (normalized === "en") return "en";
-    if (normalized === "es") return "es";
-  }
-
-  return defaultLocale;
-}
-
-function i18nRedirectResponse(request: NextRequest): NextResponse | null {
-  const { pathname } = request.nextUrl;
-
-  if (isI18nSkipped(pathname)) return null;
-
-  const pathnameHasLocale = locales.some(
-    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
-  );
-  if (pathnameHasLocale) return null;
-  if (!shouldRedirectToLocalizedRoute(pathname)) return null;
-
-  const locale = getLocaleFromRequest(request);
-  const targetPath = `/${locale}${pathname}`;
-
-  const newUrl = new URL(targetPath, request.url);
-  request.nextUrl.searchParams.forEach((value, key) => {
-    newUrl.searchParams.set(key, value);
-  });
-
-  const response = NextResponse.redirect(newUrl);
-  response.cookies.set(LOCALE_COOKIE_NAME, locale, {
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365,
-    httpOnly: false,
-    sameSite: "lax",
-  });
-  return response;
-}
-
 function launchClosedResponse(status: 404 | 410, nonce: string): NextResponse {
   const response = status === 410
     ? NextResponse.json(
@@ -469,7 +394,7 @@ export async function middleware(req: NextRequest) {
   const slug = extractAcademySlugFromHost(host);
   if (slug) {
     if (isExperimentalRouteDisabled(`/a/${slug}`, experimentalFlags)) {
-      return applySecurityHeaders(new NextResponse(null, { status: 404 }), nonce);
+      return launchClosedResponse(404, nonce);
     }
     const url = req.nextUrl.clone();
     url.pathname = `/a/${slug}${url.pathname === "/" ? "" : url.pathname}`;
@@ -492,7 +417,9 @@ export async function middleware(req: NextRequest) {
   if (isOutsideEssentialLaunch(pathname)) return launchClosedResponse(404, nonce);
   // Retired marketing pages still listed by search engines: a permanent 301
   // to the closest live page, or 410 Gone when nothing replaces them. A 307
-  // here kept the old URLs indexed as if they might come back.
+  // here kept the old URLs indexed as if they might come back. This also
+  // covers every modality cluster the old i18n redirect used to localize
+  // (/gimnasia-ritmica → /es/gimnasia-ritmica), so that redirect is gone.
   const retiredMarketing = retiredMarketingOutcome(pathname);
   if (retiredMarketing?.status === 301) {
     const target = new URL(retiredMarketing.location, req.url);
@@ -500,17 +427,15 @@ export async function middleware(req: NextRequest) {
   }
   if (retiredMarketing?.status === 410) return retiredPageResponse(nonce);
 
+  // Disabled experimental pages (/a, /c, /g, /p, actor sitemap…) are 404 with
+  // noindex, like the launch cut, so crawlers drop any URL they kept.
   if (isExperimentalRouteDisabled(pathname, experimentalFlags)) {
-    return applySecurityHeaders(new NextResponse(null, { status: 404 }), nonce);
+    return launchClosedResponse(404, nonce);
   }
 
   if (isExcludedPath(pathname)) {
     return applySecurityHeaders(NextResponse.next(), nonce);
   }
-
-  // 0. i18n redirect (must run before any other gate)
-  const i18nResponse = i18nRedirectResponse(req);
-  if (i18nResponse) return applySecurityHeaders(i18nResponse, nonce);
 
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-pathname", pathname);

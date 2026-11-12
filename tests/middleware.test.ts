@@ -86,6 +86,15 @@ describe("middleware", () => {
     }
   });
 
+  it.each(["/a/club-test", "/c/club-test", "/g/grupo", "/p/perfil", "/sitemap-actor-pages.xml"])(
+    "answers a disabled experimental page %s with a non-indexable 404", async path => {
+      const response = await middleware(new NextRequest(`https://zaltyko.test${path}`));
+      expect(response.status).toBe(404);
+      expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow, noarchive");
+      expect(response.headers.get("x-middleware-next")).toBeNull();
+    }
+  );
+
   it("hides experimental academy subdomains by default", async () => {
     const response = await middleware(new NextRequest("https://club-test.zaltyko.com/", {
       headers: { host: "club-test.zaltyko.com" },
@@ -173,7 +182,6 @@ describe("middleware", () => {
     ["/modules/comunicacion", "/features"],
     ["/es/gimnasia-ritmica/espana", "/features"],
     ["/en/artistic-gymnastics", "/features"],
-    ["/en/acrobatic-gymnastics/spain", "/"],
   ])("permanently redirects retired marketing %s to %s", async (path, location) => {
     const response = await middleware(new NextRequest(`https://zaltyko.test${path}?next=https://other.invalid`));
     expect(response.status).toBe(301);
@@ -181,8 +189,9 @@ describe("middleware", () => {
     expect(response.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
   });
 
-  it("answers a retired blog article with a readable, non-indexable 410", async () => {
-    const response = await middleware(new NextRequest("https://zaltyko.test/blog/migrar-excel?next=https://other.invalid"));
+  it.each(["/blog/migrar-excel", "/en/acrobatic-gymnastics/spain", "/trampolin"])(
+    "answers retired %s, which has no live equivalent, with a readable, non-indexable 410", async path => {
+    const response = await middleware(new NextRequest(`https://zaltyko.test${path}?next=https://other.invalid`));
     expect(response.status).toBe(410);
     expect(response.headers.get("location")).toBeNull();
     expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow, noarchive");
