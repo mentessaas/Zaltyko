@@ -15,42 +15,46 @@ export const HERO_LEAD =
   "Organiza grupos, clases y asistencia en un solo sitio: tu equipo ve las sesiones de hoy y pasa lista en un toque.";
 export const ESSENTIAL_FEATURES = [
   {
-    id: "gimnastas", label: "Gimnastas y familias", title: "Fichas y vínculos familiares",
-    features: ["Alta y edición de gimnastas", "Asociación de familias y responsables", "Archivo de fichas conservando el historial"],
-    impact: "Consulta la información de tu academia en un solo lugar",
+    id: "gimnastas", label: "Gimnastas y familias", title: "Cada gimnasta, con su familia",
+    features: ["Alta y edición de gimnastas", "Familias y responsables en la ficha de cada gimnasta", "Archivo de fichas conservando el historial"],
+    impact: "Encuentras a cualquier gimnasta y a su familia sin buscar en carpetas ni chats",
   },
   {
-    id: "clases", label: "Grupos y clases", title: "Grupos, horarios e inscripciones",
-    features: ["Organización de grupos por sede", "Clases con horario y capacidad", "Inscripciones y cambios de estado"],
-    impact: "Organiza las plazas y la actividad de cada grupo",
+    id: "clases", label: "Grupos y clases", title: "El horario, una sola vez",
+    features: ["Grupos por sede", "Clases semanales con horario y capacidad que crean sus sesiones", "Inscripciones y cambios de estado"],
+    impact: "Defines el horario de cada clase una vez y sus sesiones se crean solas",
   },
   {
-    id: "asistencia", label: "Asistencia", title: "Asistencia por sesión",
-    features: ["Selección de clase y sesión", "Pase de lista", "Consulta de marcas guardadas"],
-    impact: "Mantén un registro de cada sesión",
+    id: "asistencia", label: "Asistencia", title: "Pase de lista en un toque",
+    features: ["Sesiones del día en «Hoy en el club»", "Pase de lista desde el móvil", "Consulta de la asistencia guardada"],
+    impact: "Pasas lista en la pista y la asistencia de cada sesión queda guardada",
   },
   {
-    id: "billing", label: "Cuotas manuales", title: "Cuotas y pagos registrados",
+    id: "billing", label: "Cuotas", title: "Cuotas al día, sin libreta",
     features: ["Emisión de cuotas mensuales por familia", "Persona pagadora y fecha de vencimiento", "Registro manual de pagos recibidos", "Consulta de cargos pendientes"],
-    impact: "Distingue lo emitido, lo pendiente y lo recibido sin iniciar cargos automáticos",
+    impact: "Ves qué familias tienen la cuota pendiente y cuáles han pagado; Zaltyko no cobra a las familias",
   },
   {
-    id: "resumen", label: "Resumen", title: "Resumen de actividad",
+    id: "resumen", label: "Resumen", title: "Tu academia en cifras",
     features: ["Gimnastas y grupos activos", "Registros de asistencia del periodo", "Cobros manuales registrados por moneda"],
-    impact: "Consulta cifras calculadas desde los datos guardados",
+    impact: "Sabes cómo va la academia sin hacer cuentas a mano",
   },
 ];
 
+/**
+ * Conversion FAQ: the objections an academy owner has before signing up, in
+ * order. Answer first («Sí» / «No»), real figures, one to three sentences.
+ * Every claim must be true in production (tests/audit/*).
+ */
 export const ESSENTIAL_FAQS = [
-  { question: "¿Para qué academias está pensado?", answer: "Para academias de gimnasia artística y rítmica de cualquier país. Zaltyko funciona en cualquier país: puedes crear tu cuenta y usar las funciones generales (gimnastas y familias, grupos, clases, asistencia y cuotas registradas a mano). Nos centramos primero en España y México; las funciones específicas de cada país, como federación, competiciones, cobros locales o facturación, llegarán más adelante, sin fecha comprometida. Las cuotas familiares se registran manualmente en EUR o MXN, según la moneda de la academia; no hay conversión automática ni emisión de facturas fiscales. Si quieres que prioricemos tu país, contáctanos." },
-  { question: "¿Qué planes y precios hay?", answer: "Free incluye hasta 30 gimnastas, 3 grupos y 10 clases activas. Starter cuesta 19 €/mes o 190 €/año hasta 75 gimnastas; Growth, 49 €/mes o 490 €/año hasta 200. Precios sin IVA. Network parte de 99€/mes, sin IVA; su propuesta final se acuerda mediante contacto y puesta en marcha acompañada. Los precios de los planes SaaS se expresan en EUR y la contratación internacional todavía no está habilitada." },
-  { question: "¿Zaltyko cobra automáticamente a las familias?", answer: "Las cuotas familiares se emiten y sus pagos se registran manualmente. El plan de tu academia (Starter o Growth) es una contratación SaaS independiente." },
-  { question: "¿Qué ocurre al cancelar o terminar la prueba?", answer: "Al finalizar el periodo de acceso, la academia vuelve a Free. Si supera sus límites, conserva sus datos y queda en solo lectura hasta archivar el excedente o contratar capacidad suficiente." },
-  { question: "¿Puedo traer mis gimnastas desde un Excel?", answer: "Sí. La propiedad o la administración de la academia puede subir un Excel (.xlsx) o un CSV con sus gimnastas y, si quiere, sus tutores y su grupo, hasta 1.000 filas por fichero. Antes de guardar se ve una vista previa fila a fila con lo que se va a crear y por qué se salta cada fila. Las filas con el mismo nombre y fecha de nacimiento que una gimnasta de la academia se señalan en la vista previa y no se crean de nuevo. Las cuotas, los pagos y el historial no se importan." },
-  { question: "¿Pueden entrar mis entrenadoras?", answer: "Sí, por invitación. Desde Equipo creas una invitación con el rol y las sedes de cada entrenadora y le pasas tú el enlace que aparece en pantalla, porque Zaltyko no envía el correo. Con su propia cuenta ve las sesiones de hoy de sus sedes y pasa lista, con el guion de cada sesión y los objetivos y observaciones de sus gimnastas; no ve cobros, el plan ni la configuración de la academia." },
-  { question: "¿Cómo empiezo?", answer: "Crea tu cuenta, confirma el correo y configura tu academia y sede. Después puedes añadir gimnastas, familias, grupos y clases. Si necesitas varias sedes, contacta para revisar Network." },
-  { question: "¿Cómo se aborda la protección de datos de menores?", answer: "Zaltyko aísla los datos por academia y aplica controles de acceso por rol. La academia debe gestionar los permisos y la información de sus familias conforme a su política de privacidad; estos controles no sustituyen sus obligaciones." },
-  { question: "¿Puedo usarlo desde el móvil?", answer: "Zaltyko es una aplicación web adaptable a móvil, tableta y ordenador. No necesitas instalar una aplicación para acceder desde el navegador." },
+  { question: "¿Cuánto cuesta? ¿Hay un plan gratis?", answer: "Sí: Free es gratis hasta 30 gimnastas, 3 grupos y 10 clases activas, y para crear la cuenta no te pedimos tarjeta. Starter cuesta 19 €/mes o 190 €/año hasta 75 gimnastas, y Growth, 49 €/mes o 490 €/año hasta 200; Network, para varias sedes, parte de 99 €/mes con una propuesta final que se acuerda por contacto. Precios en EUR sin IVA; la contratación internacional todavía no está habilitada." },
+  { question: "¿Sirve para mi academia y mi país?", answer: "Sí, si es de gimnasia artística o rítmica: Zaltyko funciona en cualquier país con sus funciones generales, y las cuotas se registran manualmente en EUR o MXN (no hay conversión automática ni emisión de facturas fiscales). Nos centramos primero en España y México; lo específico de cada país, como federación, competiciones, cobros locales o facturación, llegará más adelante, sin fecha comprometida. Si quieres que prioricemos tu país, contáctanos." },
+  { question: "¿Puedo traer mis gimnastas desde un Excel?", answer: "Sí. Desde la cuenta de la propiedad o la administración subes un Excel o un CSV (hasta 1.000 filas) con tus gimnastas y, si quieres, sus tutores y su grupo, y antes de guardar ves una vista previa fila a fila: las filas con el mismo nombre y fecha de nacimiento que una gimnasta de la academia no se crean de nuevo. Las cuotas, los pagos y el historial no se importan." },
+  { question: "¿Cuánto tardo en empezar?", answer: "Puedes empezar hoy: creas tu cuenta, confirmas el correo y configuras tu academia y su sede en un formulario breve. Después, la lista «Puesta en marcha» del Resumen te guía paso a paso hasta pasar tu primera lista." },
+  { question: "¿Pueden entrar mis entrenadoras?", answer: "Sí, por invitación. Desde Equipo creas su invitación con su rol y sus sedes y le pasas tú el enlace, porque Zaltyko no envía el correo; con su propia cuenta ve las sesiones de hoy de sus sedes y pasa lista desde el móvil, sin instalar nada, con el guion de la sesión y los objetivos y observaciones de sus gimnastas. No ve cobros, el plan ni la configuración de la academia." },
+  { question: "¿Zaltyko cobra a las familias?", answer: "No. Emites las cuotas mensuales de cada familia y registras tú los pagos que recibes (transferencia, efectivo, tarjeta en el local u otro), así ves qué está pendiente y qué está pagado. El plan de tu academia en Zaltyko es aparte y no se mezcla con esas cuotas." },
+  { question: "¿Qué pasa con los datos de los menores?", answer: "Zaltyko aísla los datos por academia y aplica controles de acceso por rol: una entrenadora solo ve las sesiones de sus sedes, sin cobros, y los objetivos y observaciones solo los ve el equipo de la academia. Estos controles no sustituyen las obligaciones de la academia, que gestiona los permisos y la información de sus familias conforme a su política de privacidad." },
+  { question: "¿Qué pasa al terminar la prueba o si cancelo?", answer: "La prueba de Starter dura 7 días, una vez por academia cada 12 meses, y no pide tarjeta ni genera cargos automáticos. Al finalizar el periodo de acceso, la academia vuelve a Free y conserva sus datos; si supera sus límites, queda en solo lectura hasta archivar el excedente o contratar capacidad suficiente." },
 ];
 
 /**
@@ -65,7 +69,7 @@ export const IMPLEMENTED_HIGHLIGHTS = [
     id: "equipo",
     title: "Tus entrenadoras, con su propia cuenta",
     featureName: "Acceso de entrenadoras por invitación, limitado a las sesiones de hoy y al pase de lista de sus sedes",
-    text: "Desde Equipo invitas a cada entrenadora con su rol y sus sedes. Zaltyko no envía el correo: copias el enlace que aparece en pantalla y se lo pasas tú. Es de un solo uso y caduca a los 7 días. Al aceptarlo con su correo entra con su propia cuenta y solo llega a las sesiones de hoy y al pase de lista de sus sedes: no ve cobros, el plan ni la configuración de la academia.",
+    text: "Invitas a cada entrenadora desde Equipo con su rol y sus sedes. Zaltyko no envía el correo: copias el enlace y se lo pasas tú (es de un solo uso y caduca a los 7 días). Entra con su propia cuenta y solo llega a las sesiones de hoy y al pase de lista de sus sedes: no ve cobros, el plan ni la configuración de la academia.",
     evidence: {
       route: "/owner/staff y /staff/accept (PR 277)",
       files: [
@@ -113,7 +117,7 @@ export const IMPLEMENTED_HIGHLIGHTS = [
     id: "solicitudes-de-prueba",
     title: "Solicitudes de prueba",
     featureName: "Solicitudes de prueba desde el enlace público de la academia",
-    text: "Activas un enlace público de tu academia y lo compartes con las familias. Quien quiera probar deja su solicitud sin crear una cuenta, y la ves en Solicitudes y en «Necesita tu atención». Desde ahí la marcas como contactada o descartada, o creas la ficha de la gimnasta y su familia. Zaltyko no envía correos ni reserva la sesión de prueba.",
+    text: "Activas y compartes el enlace público de tu academia, y quien quiera probar deja su solicitud sin crear una cuenta. La ves en Solicitudes y en «Necesita tu atención», y desde ahí la marcas como contactada o descartada, o creas la ficha de la gimnasta y su familia. Zaltyko no envía correos ni reserva la sesión de prueba.",
     evidence: {
       route: "/solicitar-prueba/[token] y /owner/requests (PR 262)",
       files: [

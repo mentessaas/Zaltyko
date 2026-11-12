@@ -8,8 +8,8 @@ const homepage = readFileSync(join(REPO, "src/app/page.tsx"), "utf8");
 
 describe("international public copy", () => {
   it("separa el alcance administrativo y las cuotas manuales de la contratación SaaS", () => {
-    const marketFaq = ESSENTIAL_FAQS.find((item) => item.question === "¿Para qué academias está pensado?");
-    const plansFaq = ESSENTIAL_FAQS.find((item) => item.question === "¿Qué planes y precios hay?");
+    const marketFaq = ESSENTIAL_FAQS.find((item) => item.question === "¿Sirve para mi academia y mi país?");
+    const plansFaq = ESSENTIAL_FAQS.find((item) => item.question === "¿Cuánto cuesta? ¿Hay un plan gratis?");
 
     expect(marketFaq?.answer).toContain("España y México");
     expect(marketFaq?.answer).toContain("EUR o MXN");
@@ -20,7 +20,7 @@ describe("international public copy", () => {
     expect(plansFaq?.answer).toContain("contratación internacional todavía no está habilitada");
     expect(plansFaq?.answer).toContain("19 €/mes o 190 €/año");
     expect(plansFaq?.answer).toContain("49 €/mes o 490 €/año");
-    expect(plansFaq?.answer).toContain("Network parte de 99€/mes");
+    expect(plansFaq?.answer).toContain("parte de 99 €/mes");
   });
 
   it("el metadata público ya no limita el alcance a España", () => {
@@ -32,7 +32,7 @@ describe("international public copy", () => {
   });
 
   it("el alta es abierta a cualquier país y lo específico de cada país llega más adelante, sin fecha", () => {
-    const marketFaq = ESSENTIAL_FAQS.find((item) => item.question === "¿Para qué academias está pensado?");
+    const marketFaq = ESSENTIAL_FAQS.find((item) => item.question === "¿Sirve para mi academia y mi país?");
     const answer = marketFaq?.answer ?? "";
     const hero = readFileSync(join(REPO, "src/app/(site)/mat/MatHero.tsx"), "utf8");
     const llms = readFileSync(join(REPO, "src/app/llms.txt/route.ts"), "utf8");
@@ -40,7 +40,7 @@ describe("international public copy", () => {
 
     expect(answer).toContain("Zaltyko funciona en cualquier país");
     expect(answer).toContain("Nos centramos primero en España y México");
-    expect(answer).toContain("llegarán más adelante, sin fecha comprometida");
+    expect(answer).toContain("llegará más adelante, sin fecha comprometida");
     // Ya no se pide contacto para poder registrarse; el contacto es para priorizar un país.
     expect(answer).not.toContain("consultar el acceso");
     expect(answer).toContain("Si quieres que prioricemos tu país, contáctanos");
