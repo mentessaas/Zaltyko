@@ -167,11 +167,31 @@ describe("middleware", () => {
     } finally { vi.unstubAllEnvs(); }
   });
 
-  it.each(["/comparativas/zaltyko-vs-excel", "/blog/migrar-excel", "/sobre-nosotros", "/modules/comunicacion", "/es/gimnasia-ritmica/espana", "/en/artistic-gymnastics"])("redirects retired marketing %s to current capabilities", async path => {
+  it.each([
+    ["/comparativas/zaltyko-vs-excel", "/features"],
+    ["/sobre-nosotros", "/"],
+    ["/modules/comunicacion", "/features"],
+    ["/es/gimnasia-ritmica/espana", "/features"],
+    ["/en/artistic-gymnastics", "/features"],
+    ["/en/acrobatic-gymnastics/spain", "/"],
+  ])("permanently redirects retired marketing %s to %s", async (path, location) => {
     const response = await middleware(new NextRequest(`https://zaltyko.test${path}?next=https://other.invalid`));
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://zaltyko.test/features");
+    expect(response.status).toBe(301);
+    expect(response.headers.get("location")).toBe(`https://zaltyko.test${location}`);
     expect(response.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+  });
+
+  it("answers a retired blog article with a readable, non-indexable 410", async () => {
+    const response = await middleware(new NextRequest("https://zaltyko.test/blog/migrar-excel?next=https://other.invalid"));
+    expect(response.status).toBe(410);
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow, noarchive");
+    expect(response.headers.get("Content-Type")).toContain("text/html");
+    expect(response.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+    const body = await response.text();
+    expect(body).toContain('<meta name="robots" content="noindex, nofollow">');
+    expect(body).toContain('href="/"');
+    expect(body).not.toContain("other.invalid");
   });
 
   it.each(["/pricing", "/auth/callback", "/owner", "/owner/subscription", "/api/v1/owner/saas/usage", "/marketplaces", "/owner/insights-extra", "/api/productsx", "/api/public/academies"])("keeps essential or distinct segment %s on its existing route", async path => {
@@ -339,8 +359,8 @@ describe("middleware", () => {
       })
     );
 
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://zaltyko.test/features");
+    expect(response.status).toBe(301);
+    expect(response.headers.get("location")).toBe("https://zaltyko.test/");
     expect(response.headers.get("x-middleware-next")).toBeNull();
   });
 
@@ -351,7 +371,7 @@ describe("middleware", () => {
       })
     );
 
-    expect(response.status).toBe(307);
+    expect(response.status).toBe(301);
     expect(response.headers.get("location")).toBe(
       "https://zaltyko.test/features"
     );

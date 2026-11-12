@@ -7,7 +7,7 @@ import { locales, defaultLocale, type Locale } from "@/i18n";
 import { getLocalSupabaseCspConnectSources } from "@/lib/security/local-supabase-csp";
 import { extractAcademySlugFromHost } from "@/lib/subdomains/rewrite";
 import { getExperimentalReleaseFlags, isExperimentalRouteDisabled } from "@/lib/release/experimental-routes";
-import { isOutsideEssentialLaunch, isRetiredLaunchApi, isRetiredLaunchMarketing } from "@/lib/launch/essential-routes";
+import { isOutsideEssentialLaunch, isRetiredLaunchApi, retiredMarketingOutcome } from "@/lib/launch/essential-routes";
 
 // Constants
 const SUPER_ADMIN_PATH = "/super-admin";
@@ -429,6 +429,25 @@ function launchClosedResponse(status: 404 | 410, nonce: string): NextResponse {
   return applySecurityHeaders(response, nonce);
 }
 
+// Human-readable 410 for a retired public page: whoever arrives from a search
+// result sees where to go instead of an empty body or a JSON error.
+function retiredPageResponse(nonce: string): NextResponse {
+  const body = '<!doctype html><html lang="es"><head><meta charset="utf-8">'
+    + '<meta name="robots" content="noindex, nofollow"><meta name="viewport" content="width=device-width, initial-scale=1">'
+    + "<title>Esta página ya no existe | Zaltyko</title></head><body>"
+    + "<main><h1>Esta página ya no existe</h1>"
+    + "<p>El contenido que buscas se ha retirado de Zaltyko.</p>"
+    + '<p><a href="/">Ir a la portada</a> · <a href="/features">Ver qué incluye Zaltyko</a></p>'
+    + "</main></body></html>";
+  const response = new NextResponse(body, {
+    status: 410,
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
+  response.headers.set("Cache-Control", "public, max-age=3600");
+  response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  return applySecurityHeaders(response, nonce);
+}
+
 export async function middleware(req: NextRequest) {
   const nonce = generateNonce();
   if (isPreviewMutationPointingAtProduction(req)) {
@@ -471,10 +490,15 @@ export async function middleware(req: NextRequest) {
   if (isRetiredLaunchApi(pathname)) return launchClosedResponse(410, nonce);
   // Respond before App Router can stream a 200 for a retired page's notFound().
   if (isOutsideEssentialLaunch(pathname)) return launchClosedResponse(404, nonce);
-  if (isRetiredLaunchMarketing(pathname)) {
-    const target = new URL("/features", req.url);
-    return applySecurityHeaders(NextResponse.redirect(target), nonce);
+  // Retired marketing pages still listed by search engines: a permanent 301
+  // to the closest live page, or 410 Gone when nothing replaces them. A 307
+  // here kept the old URLs indexed as if they might come back.
+  const retiredMarketing = retiredMarketingOutcome(pathname);
+  if (retiredMarketing?.status === 301) {
+    const target = new URL(retiredMarketing.location, req.url);
+    return applySecurityHeaders(NextResponse.redirect(target, 301), nonce);
   }
+  if (retiredMarketing?.status === 410) return retiredPageResponse(nonce);
 
   if (isExperimentalRouteDisabled(pathname, experimentalFlags)) {
     return applySecurityHeaders(new NextResponse(null, { status: 404 }), nonce);

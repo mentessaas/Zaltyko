@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { Locale } from "@/i18n";
 
 const VALID_LOCALES = ["es", "en"] as const;
@@ -27,8 +27,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function LocaleAyudaPage({ params }: PageProps) {
   const { locale } = await params;
+  // Only the real locale prefixes are aliases; any other first segment is a
+  // genuine 404 rather than a temporary redirect (SEO, 2026-11-12).
   if (!isValidLocale(locale)) {
-    redirect("/ayuda");
+    notFound();
   }
-  redirect("/ayuda");
+  permanentRedirect("/ayuda");
 }
