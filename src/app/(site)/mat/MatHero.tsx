@@ -89,7 +89,7 @@ export default function MatHero() {
             </Link>
           </div>
           <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-white/80">
-            {["Gratis hasta 30 gimnastas", "7 días de Starter sin tarjeta", "Para España y México"].map((item) => (
+            {["Gratis hasta 30 gimnastas", "7 días de Starter sin tarjeta", "Abierto a cualquier país"].map((item) => (
               <li key={item} className="inline-flex items-center gap-1.5">
                 <Check aria-hidden className="h-4 w-4 text-mat-lane" strokeWidth={2.5} />
                 {item}
