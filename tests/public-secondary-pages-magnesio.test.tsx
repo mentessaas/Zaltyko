@@ -141,6 +141,10 @@ describe("textos de conversión de /faq y /features", () => {
     expect(register).toBeGreaterThan(html.indexOf('id="faq-close-title"'));
     expect(contact).toBeGreaterThan(register);
     expect(text).toContain("Crear academia gratis");
+    // El cierre casa con su CTA principal: crear la academia, y contacto como alternativa.
+    expect(html).toMatch(/<h2 id="faq-close-title"[^>]*>Empieza hoy con tu academia<\/h2>/);
+    expect(text).toContain("Crea tu cuenta gratis en unos minutos, sin tarjeta. Si te queda alguna duda, escríbenos.");
+    expect(text).not.toContain("¿No encontraste lo que buscabas?");
   });
 
   it("/features: subtítulo de beneficio y línea de plan gratis bajo el CTA", () => {

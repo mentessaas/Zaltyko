@@ -101,8 +101,8 @@ export default function FaqPage() {
 
       <PublicPageClose
         titleId="faq-close-title"
-        title="¿No encontraste lo que buscabas?"
-        text="Estamos aquí para resolver cualquier duda que tengas sobre Zaltyko."
+        title="Empieza hoy con tu academia"
+        text="Crea tu cuenta gratis en unos minutos, sin tarjeta. Si te queda alguna duda, escríbenos."
         actions={
           <>
             <Link href="/auth/register?role=owner" className={tapeButtonClass}>
