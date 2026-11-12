@@ -38,6 +38,11 @@ const DORMANT: RegExp[] = [
   /\bchoques?\b/i,
   /solicitud(es)? de prueba|\bembudo\b|captaci[oó]n web/i,
   /portal (de|para) (las )?familias|portal familiar|enlace para familias/i,
+  // Paraphrases of the same dormant features.
+  /(tus )?entrenadoras? (entran|acceden)/i,
+  /familias (consultan|ven) (sus )?cuotas/i,
+  /planific/i,
+  /(avisa|aviso).{0,30}(solap|choque|coinciden)/i,
 ];
 const VAGUE_DATES = [
   /\b(19|20)\d{2}\b/,
@@ -108,7 +113,7 @@ describe("lo que se anuncia como disponible está activo", () => {
     );
     expect(read("src/app/owner/athletes/import/page.tsx")).toContain('scope.member.locationScopeMode !== "all"');
     const importText = IMPLEMENTED_HIGHLIGHTS.find((item) => item.id === "importacion")!.text;
-    expect(importText).toContain("coinciden en nombre y fecha de nacimiento");
+    expect(importText).toContain("mismo nombre y fecha de nacimiento");
     expect(importText).not.toMatch(/no se duplican/);
   });
 

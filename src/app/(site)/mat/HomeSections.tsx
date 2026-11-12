@@ -205,7 +205,7 @@ export function ImplementedNow() {
             Lo que ya hace hoy
           </h2>
           <p className="mt-6 max-w-md text-lg leading-relaxed text-ramp-600">
-            Además de los módulos, cinco cosas que ya funcionan y ahorran tiempo desde el primer día.
+            Además de los módulos, cinco cosas que ya funcionan.
           </p>
         </div>
         <div>

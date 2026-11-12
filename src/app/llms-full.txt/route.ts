@@ -22,7 +22,7 @@ Lanzamiento en español; configuración administrativa para España y México.
 - Cuotas familiares mensuales y registro manual de pagos.
 - Resumen calculado desde datos persistidos y navegación adaptable.
 - Sesiones de hoy en el Resumen y pase de lista desde el móvil.
-- Importación de gimnastas desde Excel o CSV con vista previa; avisa de las filas que coinciden en nombre y fecha de nacimiento con una gimnasta existente y no las crea de nuevo.
+- Importación de gimnastas desde Excel o CSV con vista previa; las filas con el mismo nombre y fecha de nacimiento que una gimnasta existente se señalan y no se crean de nuevo.
 - Lista de puesta en marcha para academias nuevas.
 - Zona horaria propia de cada sede; cuotas en la moneda de la academia (EUR o MXN).
 - Historial de grupos con fechas de entrada y salida, también tras archivar una ficha.
