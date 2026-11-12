@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
-import { parse } from "csv-parse/sync";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -13,7 +12,12 @@ import {
   groupAthletes,
   groups,
 } from "@/db/schema";
-import { athleteStatusOptions } from "@/lib/athletes/constants";
+import {
+  decodeLegacyAthleteCsv,
+  formatLegacyAthleteCsvErrors,
+  parseLegacyAthleteCsv,
+  type LegacyAthleteCsvRow,
+} from "@/lib/athletes/legacy-import-csv";
 import { withTenant } from "@/lib/authz";
 import {
   assertAcademyOperationalWritable,
@@ -34,29 +38,8 @@ import { logger } from "@/lib/logger";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
 import { markChecklistItem } from "@/lib/onboarding";
 
-const optionalUuid = z
-  .string()
-  .trim()
-  .optional()
-  .transform((value) => (value ? value : undefined))
-  .pipe(z.guid().optional());
-
-const CsvRowSchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  academyId: z.guid().optional(),
-  dob: z.string().optional(),
-  level: z.string().optional(),
-  status: z.enum(athleteStatusOptions).optional(),
-  groupId: optionalUuid,
-  groupName: z.string().optional(),
-  sportConfigId: optionalUuid,
-  sportConfigCode: z.string().optional(),
-  programCode: z.string().optional(),
-  levelCode: z.string().optional(),
-  categoryCode: z.string().optional(),
-});
-
-type CsvRow = z.infer<typeof CsvRowSchema>;
+// Máximo de errores por fila devueltos en `details` cuando el CSV no es válido.
+const MAX_CSV_ROW_ERROR_DETAILS = 20;
 
 export const runtime = "nodejs";
 
@@ -72,7 +55,8 @@ const handler = withTenant(async (request, context) => {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const csvText = buffer.toString("utf-8");
+  // Excel puede guardar el CSV en Windows-1252; ver decodeLegacyAthleteCsv.
+  const csvText = decodeLegacyAthleteCsv(buffer);
   const fileHash = createHash("sha256").update(buffer).digest("hex");
   const dryRunValue = (formData as unknown as { get(name: string): unknown }).get("dryRun");
   const dryRun = dryRunValue === "true" || dryRunValue === "1";
@@ -109,39 +93,38 @@ const handler = withTenant(async (request, context) => {
   }
 
   if (!csvText.trim()) {
-    return apiError("EMPTY_FILE", "File is empty", 400);
+    return apiError("EMPTY_FILE", "El archivo está vacío.", 400);
   }
 
-  let records: CsvRow[];
-
-  try {
-    const raw = parse(csvText, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-    }) as Record<string, string>[];
-
-    records = raw.map((row) => {
-      const normalized = {
-        name: row.name ?? row.Name ?? "",
-        academyId: row.academyId ?? row.AcademyId ?? row.academy_id ?? "",
-        dob: row.dob ?? row.DOB ?? row.birthdate ?? undefined,
-        level: row.level ?? row.Level ?? undefined,
-        status: row.status ?? row.Status ?? undefined,
-        groupId: row.groupId ?? row.group_id ?? row.GroupId ?? undefined,
-        groupName: row.groupName ?? row.group_name ?? row.group ?? row.Grupo ?? undefined,
-        sportConfigId: row.sportConfigId ?? row.sport_config_id ?? row.SportConfigId ?? undefined,
-        sportConfigCode: row.sportConfigCode ?? row.sport_config_code ?? row.SportConfigCode ?? undefined,
-        programCode: row.programCode ?? row.program_code ?? row.ProgramCode ?? undefined,
-        levelCode: row.levelCode ?? row.level_code ?? row.LevelCode ?? undefined,
-        categoryCode: row.categoryCode ?? row.category_code ?? row.CategoryCode ?? undefined,
-      };
-      return CsvRowSchema.parse(normalized);
+  // Acepta la plantilla oficial (sin academyId), separador `,`, `;` o
+  // tabulador, BOM UTF-8 y cabeceras en español. Nunca se registra el
+  // contenido de las filas (datos personales de menores): solo recuentos.
+  const parsedCsv = parseLegacyAthleteCsv(csvText);
+  if (parsedCsv.fileError) {
+    logger.warn("Legacy athlete import CSV rejected", {
+      reason: parsedCsv.fileError.code,
     });
-  } catch (error) {
-    logger.error("CSV parse error", error);
-    return apiError("INVALID_CSV", "Invalid CSV format", 400);
+    return apiError(
+      parsedCsv.fileError.code === "MISSING_NAME_COLUMN" ? "INVALID_CSV_COLUMNS" : "INVALID_CSV",
+      parsedCsv.fileError.message,
+      400,
+    );
   }
+  if (parsedCsv.errors.length > 0) {
+    logger.warn("Legacy athlete import CSV has invalid rows", {
+      invalidRows: new Set(parsedCsv.errors.map((error) => error.row)).size,
+      errorCount: parsedCsv.errors.length,
+      validRows: parsedCsv.rows.length,
+    });
+    return apiError(
+      "INVALID_CSV_ROWS",
+      formatLegacyAthleteCsvErrors(parsedCsv.errors),
+      400,
+      parsedCsv.errors.slice(0, MAX_CSV_ROW_ERROR_DETAILS),
+    );
+  }
+
+  let records: LegacyAthleteCsvRow[] = parsedCsv.rows;
 
   const tenantOverride = (formData as unknown as { get(name: string): unknown }).get("tenantId");
   const requestedTenantId = typeof tenantOverride === "string" ? tenantOverride.trim() : "";
@@ -276,11 +259,11 @@ const handler = withTenant(async (request, context) => {
     });
   }
 
-  for (const [index, record] of records.entries()) {
+  for (const record of records) {
     if (!record.academyId) {
       summary.skipped += 1;
       summary.errors.push({
-        row: index + 2,
+        row: record.rowNumber,
         reason:
           "Falta la academia y el tenant tiene más de una: indica la columna academyId.",
       });
@@ -289,7 +272,7 @@ const handler = withTenant(async (request, context) => {
     if (!validAcademyIds.has(record.academyId)) {
       summary.skipped += 1;
       summary.errors.push({
-        row: index + 2,
+        row: record.rowNumber,
         reason: `Academia ${record.academyId} no pertenece al tenant.`,
       });
       continue;
@@ -302,7 +285,7 @@ const handler = withTenant(async (request, context) => {
     if (limitState && limitState.limit !== null && limitState.current >= limitState.limit) {
       summary.skipped += 1;
       summary.errors.push({
-        row: index + 2,
+        row: record.rowNumber,
         reason: "El plan actual ya ha alcanzado el límite de gimnastas de esta academia.",
       });
       continue;
@@ -344,7 +327,7 @@ const handler = withTenant(async (request, context) => {
         if (!groupRow) {
           summary.skipped += 1;
           summary.errors.push({
-            row: index + 2,
+            row: record.rowNumber,
             reason: record.groupId
               ? `Grupo ${record.groupId} no pertenece a la academia.`
               : `Grupo "${record.groupName}" no encontrado en la academia.`,
@@ -375,7 +358,7 @@ const handler = withTenant(async (request, context) => {
       if (record.sportConfigCode && !effectiveSportConfigId) {
         summary.skipped += 1;
         summary.errors.push({
-          row: index + 2,
+          row: record.rowNumber,
           reason: `Configuración deportiva "${record.sportConfigCode}" no activa en la academia.`,
         });
         continue;
@@ -391,7 +374,7 @@ const handler = withTenant(async (request, context) => {
         if (!verifiedConfig) {
           summary.skipped += 1;
           summary.errors.push({
-            row: index + 2,
+            row: record.rowNumber,
             reason: "La configuración deportiva no está activa en esta academia.",
           });
           continue;
@@ -402,7 +385,7 @@ const handler = withTenant(async (request, context) => {
         if (effectiveProgramCode && !selectedConfig?.programs.some((program) => program.code === effectiveProgramCode)) {
           summary.skipped += 1;
           summary.errors.push({
-            row: index + 2,
+            row: record.rowNumber,
             reason: `Programa "${effectiveProgramCode}" no válido para la configuración deportiva.`,
           });
           continue;
@@ -418,7 +401,7 @@ const handler = withTenant(async (request, context) => {
         ) {
           summary.skipped += 1;
           summary.errors.push({
-            row: index + 2,
+            row: record.rowNumber,
             reason: `Nivel "${effectiveLevelCode}" no válido para la configuración deportiva.`,
           });
           continue;
@@ -430,7 +413,7 @@ const handler = withTenant(async (request, context) => {
         ) {
           summary.skipped += 1;
           summary.errors.push({
-            row: index + 2,
+            row: record.rowNumber,
             reason: `Categoría "${effectiveCategoryCode}" no válida para la configuración deportiva.`,
           });
           continue;
@@ -444,7 +427,7 @@ const handler = withTenant(async (request, context) => {
         if (!dateValidation.success) {
           summary.skipped += 1;
           summary.errors.push({
-            row: index + 2,
+            row: record.rowNumber,
             reason: dateValidation.error || "Fecha de nacimiento inválida",
           });
           continue;
@@ -461,7 +444,7 @@ const handler = withTenant(async (request, context) => {
           summary.skipped += 1;
           summary.potentialDuplicates += 1;
           summary.errors.push({
-            row: index + 2,
+            row: record.rowNumber,
             reason:
               "Posible duplicado: ya existe una gimnasta con el mismo nombre y fecha de nacimiento en esta academia. Revisa la fila antes de importarla.",
           });
@@ -530,7 +513,7 @@ const handler = withTenant(async (request, context) => {
       logger.error("Import athlete error", error);
       summary.skipped += 1;
       summary.errors.push({
-        row: index + 2,
+        row: record.rowNumber,
         reason: error instanceof Error ? error.message : "Error desconocido",
       });
     }

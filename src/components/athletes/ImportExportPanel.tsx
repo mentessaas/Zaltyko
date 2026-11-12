@@ -27,10 +27,23 @@ type ImportSummary = {
   rolledBackCount?: number;
 };
 
+type ImportErrorDetail = { row?: number; field?: string; message?: string };
+
+function readImportErrorDetails(details: unknown): string[] {
+  if (!Array.isArray(details)) return [];
+  return details
+    .map((detail: ImportErrorDetail) => {
+      if (!detail || typeof detail.message !== "string") return null;
+      return typeof detail.row === "number" ? `Fila ${detail.row}: ${detail.message}` : detail.message;
+    })
+    .filter((line): line is string => Boolean(line));
+}
+
 export default function ImportExportPanel({ tenantId, academyId, onImported }: ImportExportPanelProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string[]>([]);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [previewHash, setPreviewHash] = useState<string | null>(null);
   const [rollbackArmed, setRollbackArmed] = useState(false);
@@ -63,6 +76,7 @@ export default function ImportExportPanel({ tenantId, academyId, onImported }: I
 
     setIsUploading(true);
     setMessage(null);
+    setErrorDetails([]);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -82,6 +96,7 @@ export default function ImportExportPanel({ tenantId, academyId, onImported }: I
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
+        setErrorDetails(readImportErrorDetails(error?.details));
         throw new Error(error?.message ?? error?.error ?? "No se pudo importar el archivo.");
       }
 
@@ -206,6 +221,7 @@ export default function ImportExportPanel({ tenantId, academyId, onImported }: I
             setPreviewHash(null);
             setRollbackArmed(false);
             setMessage(null);
+            setErrorDetails([]);
           }}
           className="w-full rounded-md border border-dashed border-border px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500/10 file:px-3 file:py-1 file:text-sm file:font-medium file:text-emerald-600"
         />
@@ -312,6 +328,17 @@ export default function ImportExportPanel({ tenantId, academyId, onImported }: I
         <p role="status" aria-live="polite" className="text-sm text-emerald-600 dark:text-emerald-400">
           {message}
         </p>
+      )}
+
+      {errorDetails.length > 0 && (
+        <div className="max-h-40 overflow-y-auto rounded-md border border-dashed border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-300">
+          <p className="font-semibold">Corrige estas filas y vuelve a previsualizar</p>
+          <ul className="list-disc pl-4">
+            {errorDetails.map((detail, index) => (
+              <li key={`${index}-${detail}`}>{detail}</li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {summary && summary.errors.length > 0 && (
