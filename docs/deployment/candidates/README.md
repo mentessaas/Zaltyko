@@ -36,14 +36,24 @@ en esta carpeta sin edición y con los mismos hashes; no se han movido a
   términos `v1-2026-10-26` y la semilla
   `supabase/migrations/20261024223700_seed_owner_bootstrap_sport_profiles.sql`.
   Ver `docs/qa/owner-signup-reference-seeds-incident-2026-11-12.md`.
-- **Sin cambios en esta revisión:** la sección de la instalación canónica
-  (`20261025202902`, 394 KB) se mantiene como estaba.
+- **Instalación canónica** (`20261025202902`, 394 KB): aplicada en producción
+  el 25-10-2026, sin las filas de referencia. Ver su sección.
 - **Pendiente:** versionar en `supabase/migrations` lo ya aplicado (y pasar los
   espejos Drizzle a `src/db/schema/`, superando `validate:rls`), en una PR
   propia. Tampoco cambia que `tests/admission-requests-pg.test.ts` siga fuera de
   `scripts/ci/verify-sandbox-schema-replay.sh`.
 
 ## Candidato de instalación canónica
+
+**Estado: aplicada en producción el 25-10-2026** con autorización expresa
+sobre este archivo y destino (`jegxfahsvugilbthbked`, migración nativa
+`20261025222531_canonical_domain_installation_candidate`). Evidencia:
+`docs/qa/canonical-production-application-2026-10-25.md`. El SQL y su hash no
+cambian. Se aplicó **sin las filas de referencia** (el candidato no incluye
+filas): `zaltyko.owner_signup_consent_policy` y `zaltyko.sport_profiles`
+quedaron vacías y el registro de dueñas falló hasta el 12-11-2026. Ver
+`docs/qa/owner-signup-reference-seeds-incident-2026-11-12.md`. Las frases de
+abajo marcadas «hasta el 25-10-2026» describen el estado anterior.
 
 La CLI Supabase 2.84.2 creó el nombre
 `20261025202902_canonical_domain_installation_candidate.sql` mediante
@@ -54,7 +64,7 @@ sin edición desde el artefacto. No procede de recortes de texto del dump.
 CI40232012970 comprobó la instalación y el rechazo de replay del archivo exacto.
 SHA-256: `00ead5a3869bb335f2f17e58ebaaacac2bdc1ae4504493b473c68393359dab00`.
 Ver `docs/qa/canonical-installation-candidate-proof-2026-10-25.md` para evidencia
-y límites; sigue pendiente de revisión y autorización productiva separada.
+y límites; *hasta el 25-10-2026:* sigue pendiente de revisión y autorización productiva separada.
 
 El alcance propuesto es la extensión `btree_gist`1.7 y los dos namespaces
 canónicos ausentes, con sus objetos, propietarios y permisos revisados. No
@@ -67,7 +77,7 @@ El archivo candidato termina en COMMIT y requiere un modo externo explícito.
 La CI solo permite `ci` con el nombre exacto de la base desechable; el modo
 productivo propuesto queda bloqueado sin marcadores externos específicos. Esos
 marcadores no prueban por sí solos la identidad de una conexión ni constituyen
-autorización humana. No configurarlos ni ejecutar el modo productivo todavía.
+autorización humana. *Hasta el 25-10-2026:* No configurarlos ni ejecutar el modo productivo todavía.
 
 ## Candidato de perfiles de identidad de México
 

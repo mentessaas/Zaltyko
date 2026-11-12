@@ -93,12 +93,12 @@ Esta PR amplía el candidato (entonces sin aplicar en ningún entorno) con `staf
 
 ## Casilla de activación (antes de encender el flag)
 
-- [ ] **Elvis:** en el Supabase de producción, confirmar que la confirmación de email es **obligatoria** (sin «autoconfirm») y revisar los proveedores OAuth activos. Solo Google (con `email_verified`) está en la lista permitida; añadir otro exige revisar si garantiza un correo verificado.
-- [ ] Comprobar que el rol con el que conecta la app puede leer `auth.identities` (`SELECT`). Sin ese permiso, la función queda «no disponible»: no se ofrece y no bloquea a nadie a medias.
+- [x] **Elvis:** en el Supabase de producción, confirmar que la confirmación de email es **obligatoria** (sin «autoconfirm») y revisar los proveedores OAuth activos. Solo Google (con `email_verified`) está en la lista permitida; añadir otro exige revisar si garantiza un correo verificado. *Verificado el 12-11-2026: «Confirm email» está activado en Authentication → Sign In / Providers del proyecto «Zaltyko» (comprobado en el panel).*
+- [x] Comprobar que el rol con el que conecta la app puede leer `auth.identities` (`SELECT`). Sin ese permiso, la función queda «no disponible»: no se ofrece y no bloquea a nadie a medias. *Verificado el 12-11-2026 en producción con una consulta de solo lectura: `has_table_privilege('postgres', 'auth.identities', 'select')` y el mismo permiso sobre `auth.users` devuelven `true`, y `postgres` tiene `BYPASSRLS`.*
 - [x] Autorizar y aplicar `20261105120000_canonical_team_access_candidate.sql` en el destino revisado. *Hecho el 12-11-2026.*
 - [x] Activar `ZALTYKO_TEAM_ACCESS_ENABLED=true` solo después de lo anterior. *Activo en producción desde el 12-11-2026.*
 
-Las dos primeras casillas no tienen constancia en este documento: confirmar en producción la confirmación de email obligatoria y el `SELECT` sobre `auth.identities`, y marcarlas. En staging la confirmación de email está desactivada a propósito (`docs/deployment/staging.md`), así que no sirve como prueba de esa casilla.
+Fuente de las dos primeras casillas: comprobación del 12-11-2026 en el Supabase de producción (panel de Auth y consulta de solo lectura), no en staging, donde la confirmación de email está desactivada a propósito (`docs/deployment/staging.md`).
 
 ## Datos personales
 
