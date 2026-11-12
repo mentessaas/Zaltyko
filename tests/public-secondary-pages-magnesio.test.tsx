@@ -13,7 +13,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/app/(site)/Navbar", () => ({ default: function Navbar() { return null; } }));
 vi.mock("@/app/(site)/Footer", () => ({ default: function Footer() { return null; } }));
 
-import FaqPage from "@/app/(site)/faq/page";
+import FaqPage, { metadata as faqMetadata } from "@/app/(site)/faq/page";
 import HelpPage from "@/app/ayuda/page";
 import HelpArticlePage from "@/app/help/[slug]/page";
 import TermsOfServicePage from "@/app/terminos/page";
@@ -119,6 +119,36 @@ describe("piezas comunes de la web pública", () => {
     const reveal = contact.indexOf("</Reveal>");
     expect(reveal).toBeGreaterThan(0);
     expect(contact.indexOf("<ContactForm")).toBeGreaterThan(reveal);
+  });
+});
+
+describe("textos de conversión de /faq y /features", () => {
+  it("/faq: descripción concreta de 160 caracteres como mucho, igual en OG, y cierre que crea la academia", () => {
+    const description = String(faqMetadata.description);
+    expect(description.length).toBeLessThanOrEqual(160);
+    expect(description).toMatch(/plan gratis sin tarjeta/);
+    expect(description).toMatch(/importación desde Excel/);
+    expect(description).toMatch(/acceso de entrenadoras/);
+    expect(faqMetadata.openGraph?.description).toBe(description);
+    expect(String(faqMetadata.alternates?.canonical)).toMatch(/\/faq$/);
+
+    const html = renderToStaticMarkup(<FaqPage />);
+    const text = visibleText(html);
+    expect(text).toContain("Antes de empezar");
+    expect(text).not.toContain("Uso y contratación");
+    const register = html.indexOf('href="/auth/register?role=owner"');
+    const contact = html.indexOf('href="/contact"', html.indexOf('id="faq-close-title"'));
+    expect(register).toBeGreaterThan(html.indexOf('id="faq-close-title"'));
+    expect(contact).toBeGreaterThan(register);
+    expect(text).toContain("Crear academia gratis");
+  });
+
+  it("/features: subtítulo de beneficio y línea de plan gratis bajo el CTA", () => {
+    const features = read("src/app/features/page.tsx");
+    expect(features).toContain('lede="Gimnastas, clases, asistencia y cuotas en un solo sitio, con tu equipo dentro."');
+    expect(features).toContain('note="Gratis hasta 30 gimnastas · Sin tarjeta"');
+    // La línea dice lo mismo que el JSON-LD del plan Free.
+    expect(features).toContain("Plan Free: hasta 30 gimnastas");
   });
 });
 

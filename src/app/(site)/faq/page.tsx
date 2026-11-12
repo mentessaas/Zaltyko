@@ -9,6 +9,7 @@ import {
   PublicPageShell,
   publicContainerClass,
   tapeButtonClass,
+  tapeOutlineButtonClass,
 } from "@/app/(site)/mat/PublicPage";
 import { ESSENTIAL_FAQS } from "@/lib/launch/essential-public-catalog";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
@@ -19,21 +20,21 @@ const baseUrl = getPublicSiteUrl();
 export const metadata: Metadata = {
   title: "Preguntas frecuentes sobre software para academias de gimnasia",
   description:
-    "Resolvemos las dudas más comunes sobre Zaltyko: precios, planes, acceso, cancelación y operativa diaria para tu academia de gimnasia.",
+    "Precios, plan gratis sin tarjeta, importación desde Excel y acceso de entrenadoras: lo que una academia pregunta antes de empezar con Zaltyko.",
   alternates: {
     canonical: `${baseUrl}/faq`,
   },
   openGraph: {
     title: "Preguntas frecuentes sobre Zaltyko",
     description:
-      "Precios, planes, acceso, cancelación y operativa diaria para tu academia de gimnasia.",
+      "Precios, plan gratis sin tarjeta, importación desde Excel y acceso de entrenadoras: lo que una academia pregunta antes de empezar con Zaltyko.",
     url: `${baseUrl}/faq`,
     type: "website",
   },
 };
 
 const categories = [{
-  title: "Uso y contratación",
+  title: "Antes de empezar",
   questions: ESSENTIAL_FAQS.map(({ question, answer }) => ({ q: question, a: answer })),
 }];
 
@@ -103,10 +104,15 @@ export default function FaqPage() {
         title="¿No encontraste lo que buscabas?"
         text="Estamos aquí para resolver cualquier duda que tengas sobre Zaltyko."
         actions={
-          <Link href="/contact" className={tapeButtonClass}>
-            Contactar
-            <ArrowRight aria-hidden />
-          </Link>
+          <>
+            <Link href="/auth/register?role=owner" className={tapeButtonClass}>
+              Crear academia gratis
+              <ArrowRight aria-hidden />
+            </Link>
+            <Link href="/contact" className={tapeOutlineButtonClass}>
+              Contactar
+            </Link>
+          </>
         }
       />
     </PublicPageShell>

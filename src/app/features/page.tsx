@@ -54,7 +54,7 @@ export default function FeaturesPage() {
       <PublicPageHeader
         titleId="features-title"
         title="Funcionalidades para tu academia de gimnasia"
-        lede="Gimnastas, familias, grupos, clases, asistencia y cuotas manuales para gimnasia artística y rítmica."
+        lede="Gimnastas, clases, asistencia y cuotas en un solo sitio, con tu equipo dentro."
       />
       <FeaturesSection />
 
@@ -72,7 +72,7 @@ export default function FeaturesPage() {
             </Link>
           </>
         }
-        note="7 días de Starter sin tarjeta · Sin permanencia"
+        note="Gratis hasta 30 gimnastas · Sin tarjeta"
       />
     </PublicPageShell>
   );
