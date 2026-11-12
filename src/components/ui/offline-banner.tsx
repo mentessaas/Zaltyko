@@ -10,12 +10,12 @@ export function OfflineBanner() {
     return null;
   }
 
-  // Show offline banner when not online
+  // Sin conexión es un aviso (ocre), no un error: se puede seguir trabajando.
   if (!isOnline) {
     return (
-      <div className="fixed top-0 left-0 right-0 z-50 bg-zaltyko-accent-coral text-white py-2 px-4">
-        <div className="flex items-center justify-center gap-2 text-sm">
-          <WifiOff className="h-4 w-4 flex-shrink-0" />
+      <div className="fixed left-0 right-0 top-0 z-50 border-b border-ochre-line bg-ochre-wash px-4 py-2 text-ochre-ink">
+        <div className="flex items-center justify-center gap-2 text-sm font-semibold">
+          <WifiOff className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
           <span>Sin conexión a internet</span>
         </div>
       </div>
@@ -34,8 +34,8 @@ export function OfflineIndicator() {
   }
 
   return (
-    <div className="inline-flex items-center gap-1.5 text-zaltyko-accent-coral text-sm">
-      <WifiOff className="h-3.5 w-3.5" />
+    <div className="inline-flex items-center gap-1.5 text-sm text-ochre-ink">
+      <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
       <span>Offline</span>
     </div>
   );

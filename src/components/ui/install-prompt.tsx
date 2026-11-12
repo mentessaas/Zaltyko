@@ -50,19 +50,21 @@ export function InstallPrompt() {
 
   return (
     <div className="fixed bottom-20 left-4 right-4 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-      <div className="bg-white border border-zaltyko-border rounded-2xl shadow-lg p-4 dark:bg-slate-900 dark:border-slate-700">
+      <div className="relative rounded-xl border border-chalk-line bg-white p-4 text-mat-night shadow-medium">
         <button
+          type="button"
           onClick={dismissPrompt}
-          className="absolute top-2 right-2 p-1 text-zaltyko-text-muted hover:text-zaltyko-text-main dark:text-slate-400 dark:hover:text-slate-100"
+          className="absolute right-1 top-1 inline-flex h-11 w-11 items-center justify-center rounded-md text-ramp-600 transition-colors hover:bg-chalk hover:text-mat-night"
           aria-label="Cerrar"
         >
-          <X className="h-4 w-4" />
+          <X className="h-4 w-4" aria-hidden="true" />
         </button>
 
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-zaltyko-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-mat-wash">
             <svg
-              className="h-6 w-6 text-zaltyko-primary"
+              aria-hidden="true"
+              className="h-5 w-5 text-mat"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -76,11 +78,11 @@ export function InstallPrompt() {
             </svg>
           </div>
 
-          <div className="flex-1 min-w-0">
-            <p className="font-display font-semibold text-zaltyko-text-main dark:text-slate-50">
+          <div className="min-w-0 flex-1 pr-8">
+            <p className="font-display text-lg font-black uppercase leading-none text-mat-night">
               Instalar Zaltyko
             </p>
-            <p className="text-sm text-zaltyko-text-muted mt-0.5">
+            <p className="mt-1 text-sm text-ramp-600">
               Accede más rápido desde tu pantalla de inicio
             </p>
           </div>

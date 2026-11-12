@@ -88,7 +88,7 @@ export function SyncStatus({ className }: SyncStatusProps) {
       {/* Pending count badge */}
       {pendingOperationsCount > 0 && (
         <div className="flex items-center gap-1.5">
-          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+          <span className="inline-flex items-center rounded-md bg-ochre-wash px-2 py-0.5 text-xs font-semibold text-ochre-ink">
             {pendingOperationsCount} pendiente{pendingOperationsCount !== 1 ? "s" : ""}
           </span>
         </div>
@@ -121,7 +121,7 @@ export function SyncStatus({ className }: SyncStatusProps) {
       {lastSyncResult && (
         <div
           className={`flex items-center gap-1.5 text-xs ${
-            lastSyncResult.success ? "text-green-600" : "text-red-600"
+            lastSyncResult.success ? "text-mat" : "text-signal-ink"
           }`}
         >
           {lastSyncResult.success ? (

@@ -2,6 +2,9 @@
 
 import * as React from "react";
 
+import { fieldControlClassName } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> { }
 
 export interface SelectContextValue {
@@ -20,7 +23,7 @@ export function Select({ value, onValueChange, children, ...props }: SelectProps
 
   return (
     <SelectContext.Provider value={{ value: String(value || ""), onValueChange: onValueChange || (() => { }) }}>
-      <select {...props} value={value} onChange={handleChange} className={`flex h-11 min-h-[44px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${props.className || ""}`}>
+      <select {...props} value={value} onChange={handleChange} className={cn(fieldControlClassName, "h-11 px-4 py-2", props.className)}>
         {children}
       </select>
     </SelectContext.Provider>

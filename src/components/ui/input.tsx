@@ -2,6 +2,19 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Campo «Magnesio sobre tapiz», compartido por `Input`, `Select` y `Textarea`:
+ * cinta blanca, borde de 1 px en línea de magnesio, radio de 10 px (`card`),
+ * 44 px de alto y foco con borde tapiz más anillo de 4 px al 15 %. De noche,
+ * The Night Mat Rule pasa el blanco a la tarjeta nocturna y la tinta a magnesio.
+ */
+export const fieldControlClassName =
+  "flex min-h-[44px] w-full rounded-card border border-chalk-line bg-white text-sm text-mat-night shadow-none transition-[border-color,box-shadow] duration-150 placeholder:text-ramp-500 dark:placeholder:text-ramp-400 focus-visible:border-mat focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-mat/15 dark:focus-visible:border-mat-lane disabled:cursor-not-allowed disabled:opacity-50";
+
+/** Error de campo: línea de señal (no letra) y anillo de señal al 40 %. */
+export const fieldControlErrorClassName =
+  "border-signal focus-visible:border-signal focus-visible:ring-signal/40";
+
 export interface InputProps extends React.ComponentProps<"input"> {
   /** Error message to display */
   error?: string;
@@ -42,12 +55,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           aria-describedby={error ? errorId : helpText ? helpTextId : undefined}
           aria-required={required}
           className={cn(
-            "flex h-11 min-h-[44px] w-full rounded-card border border-zaltyko-mist bg-white text-zaltyko-text-main dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 px-4 py-2 text-sm shadow-none transition-all duration-150",
-            "file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-zaltyko-text-main",
-            "placeholder:text-zaltyko-text-secondary dark:placeholder:text-slate-400",
-            "focus-visible:border-zaltyko-teal focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-zaltyko-teal/15",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            error && "border-zaltyko-coral focus-visible:border-zaltyko-coral focus-visible:ring-zaltyko-coral/15",
+            fieldControlClassName,
+            "h-11 px-4 py-2",
+            "file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-mat-night",
+            error && fieldControlErrorClassName,
             className
           )}
           ref={ref}
@@ -55,12 +66,12 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           {...props}
         />
         {helpText && !error && (
-          <p id={helpTextId} className="text-xs text-zaltyko-text-secondary">
+          <p id={helpTextId} className="text-xs text-ramp-600">
             {helpText}
           </p>
         )}
         {error && (
-          <p id={errorId} className="text-xs text-zaltyko-coral" role="alert">
+          <p id={errorId} className="text-xs font-medium text-signal-ink dark:text-signal-light" role="alert">
             {error}
           </p>
         )}
