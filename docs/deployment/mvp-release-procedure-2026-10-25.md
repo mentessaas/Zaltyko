@@ -51,6 +51,13 @@ que una tarea programada esté desactivada en la plataforma.
    independientemente de GUC/comentarios y revalidar catálogo. Ante divergencia,
    abortar y revisar otro diff. No aplicar el snapshot entero, normalizar ledger,
    mover automáticamente el candidato al historial ni migrar datos legacy.
+   **Semillas de referencia (añadido el 12-11-2026):** una instalación de solo
+   esquema deja vacías las tablas de referencia. Justo después, comprobar y
+   cargar como mínimo `zaltyko.owner_signup_consent_policy` (versión vigente de
+   los términos) y `zaltyko.sport_profiles` (cada país con alta). Su falta dejó
+   el registro roto del 25-10 al 12-11-2026:
+   `docs/qa/owner-signup-reference-seeds-incident-2026-11-12.md`. Desde esa
+   fecha, toda candidata se prueba antes en staging (`docs/deployment/staging.md`).
 4. **Verificar configuración productiva.** Revisar equipo/proyecto Vercel,
    Supabase de producción, CA/TLS verificado, roles del servidor, Auth/callbacks,
    Redis y proveedores. Registrar solo presencia/scope/IDs no sensibles, nunca

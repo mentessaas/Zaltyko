@@ -117,6 +117,18 @@ Nunca guardar secretos reales en Git, documentación, issues o logs.
 - Brevo está implementado, pero producción necesita una API key real y remitente verificado. No usar el placeholder de `.env.example`.
 - Las migraciones de cobros se aplicaron y verificaron mediante el ledger.
 
+## Entornos
+
+| Entorno | URL | Vercel | Supabase |
+|---|---|---|---|
+| Producción | https://zaltyko.com | `zaltyko` | «Zaltyko» (PostgreSQL 17.6) |
+| Staging | https://staging.zaltyko.com (sin indexar) | `zaltyko-staging` | «Zaltyko Staging» |
+
+- Los dos se despliegan a mano: `vercel.json` tiene el despliegue por push desactivado.
+- Toda candidata SQL se prueba primero en staging y solo después, con autorización de Elvis, en producción. Ver [Staging](docs/deployment/staging.md) y [Candidatos SQL](docs/deployment/candidates/README.md).
+- Después de instalar esquema hay que cargar las semillas de referencia: su falta dejó roto el registro de dueñas del 25-10 al 12-11-2026 ([incidente](docs/qa/owner-signup-reference-seeds-incident-2026-11-12.md)).
+- Desde el 12-11-2026 están activos en producción el acceso del equipo, las titulares por clase, los objetivos y observaciones, el guion de la sesión y las solicitudes de prueba (enlaces en «Documentación»).
+
 ## Documentación
 
 - [Cobros y cuotas](docs/COBROS_Y_CUOTAS.md)
@@ -124,6 +136,10 @@ Nunca guardar secretos reales en Git, documentación, issues o logs.
 - [API](docs/API.md)
 - [Deployment](docs/DEPLOYMENT.md)
 - [Guía de desarrollo](docs/development-guide.md)
+- [Staging](docs/deployment/staging.md)
+- [Candidatos SQL y su estado](docs/deployment/candidates/README.md)
+- [Incidente del registro de dueñas (12-11-2026)](docs/qa/owner-signup-reference-seeds-incident-2026-11-12.md)
+- Funciones: [invitaciones al equipo](docs/producto/invitaciones-equipo.md), [entrenadoras por clase](docs/producto/entrenadoras-por-clase.md), [objetivos y observaciones](docs/producto/objetivos-y-observaciones.md), [guion de la sesión](docs/producto/planificacion-sesiones.md) y [embudo de captación](docs/producto/embudo-captacion.md)
 
 ## Licencia
 
