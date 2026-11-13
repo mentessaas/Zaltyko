@@ -976,6 +976,10 @@ describe("contratación en España: sede fiscal, precio con IVA y casilla de ini
     expect(text).toContain("19 € + IVA (21 %)");
     expect(text).toContain("49 € + IVA (21 %)");
     expect(text).not.toContain("Precios sin IVA.");
+    // Starter y Growth no limitan sedes: Network no se presenta como «varias sedes».
+    expect(text).toContain("¿Necesitas acompañamiento o condiciones a medida?");
+    expect(text).toContain("Network se acuerda por contacto.");
+    expect(text).not.toContain("¿Gestionas varias sedes?");
   });
 
   it("no envía la contratación hasta marcar la casilla de inicio inmediato y la incluye en la solicitud", async () => {

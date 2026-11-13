@@ -29,6 +29,13 @@ Live (`tests/saas-checkout-service.test.ts`): ahora usa un vendedor listo para
 España, con el Tax Rate de IVA configurado, la sede en Península/Baleares y la
 casilla de inicio inmediato marcada.
 
+Prueba de punta a punta en staging con Stripe sandbox (13-11-2026): **correcta**.
+Starter mensual cobró 22,99 € = 19,00 € de base + 3,99 € de IVA. Los
+metadatos `zaltyko_plan` y `zaltyko_academy_id` llegaron a la sesión y a la
+suscripción. Stripe recogió NIF, razón social y dirección, y el webhook activó
+el plan Starter. No sustituye las comprobaciones que faltan ni marca ninguna
+bandera por sí sola.
+
 Lo técnico para cobrar en España queda preparado, pero **nada se abre**: el
 perfil conserva NIF y domicilio vacíos y todas las comprobaciones en `false`,
 así que Checkout Live sigue respondiendo 503 `BILLING_CONFIGURATION_UNAVAILABLE`.
@@ -115,7 +122,7 @@ Lo que deja preparado cada Checkout de suscripción con IVA español:
 | Dato | Cómo llega a Stripe |
 | --- | --- |
 | Razón social | `name_collection.business` obligatorio y `customer_update.name: auto` → Customer y facturas de Stripe |
-| NIF/CIF | `tax_id_collection: { enabled: true, required: "if_supported" }`: Stripe lo exige cuando el país de facturación tiene tipo de NIF en Stripe (España: `es_cif`, o `eu_vat` con prefijo ES) |
+| NIF/CIF | `tax_id_collection: { enabled: true, required: "if_supported" }`: Stripe lo exige cuando el país de facturación tiene tipo de NIF en Stripe. Para España, Checkout ofrece por defecto «ES VAT» (`eu_vat`). Finanzas acepta los dos tipos: `eu_vat` con prefijo ES o `es_cif` |
 | Dirección completa | `billing_address_collection: "required"` y `customer_update.address: auto` (línea 1, código postal, ciudad, provincia, país) |
 | Email de facturación | Se usa el Customer existente; si no tiene email, Checkout guarda en él el que escribe el cliente (con `customer` no se puede usar `customer_email`) |
 | IVA | `tax_rates` exclusivo del 21 % en la línea: impuesto separado en la factura de Stripe |
@@ -129,9 +136,11 @@ antes de emitir la ZA:
 - **País = ES:** Checkout no permite limitar el país de la dirección de
   facturación. Si llegara otro país, la factura no debe salir como operación
   interior con IVA español.
-- **Tipo de NIF:** Stripe exige un NIF para ES, pero el cliente puede elegir
-  `es_cif` o `eu_vat`. El servidor de Zaltyko no lo vuelve a validar: el
-  webhook recibe el pago ya hecho y no puede rechazarlo.
+- **Tipo de NIF:** Stripe exige un NIF para ES y el cliente puede elegir
+  `eu_vat` (por defecto, «ES VAT») o `es_cif`. Finanzas acepta cualquiera de
+  los dos; con `eu_vat`, el valor debe llevar el prefijo ES. El servidor de
+  Zaltyko no lo vuelve a validar: el webhook recibe el pago ya hecho y no puede
+  rechazarlo.
 
 Pasos de Elvis en Stripe (primero en test para la prueba de finanzas y después
 en Live):
