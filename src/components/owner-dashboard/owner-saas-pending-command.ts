@@ -34,7 +34,11 @@ export function decodeStoredSaasCommand(value: unknown, organizationId: string):
   if (action === "checkout") {
     if (Object.keys(value).sort().join(",") !== "action,billingInterval,key,organizationId,planCode,serializedBody") return null;
     if ((planCode !== "starter" && planCode !== "growth") || (billingInterval !== "month" && billingInterval !== "year")) return null;
-    if (Object.keys(body).sort().join(",") !== "billingInterval,organizationId,planCode" || body.planCode !== planCode || body.billingInterval !== billingInterval) return null;
+    const bodyKeys = Object.keys(body).sort().join(",");
+    // Academias de España añaden su sede fiscal; solo la cubierta llega a enviarse.
+    const plainBody = bodyKeys === "billingInterval,organizationId,planCode";
+    const taxedBody = bodyKeys === "billingInterval,organizationId,planCode,taxTerritory" && body.taxTerritory === "peninsula_baleares";
+    if ((!plainBody && !taxedBody) || body.planCode !== planCode || body.billingInterval !== billingInterval) return null;
     return { organizationId, action, planCode, billingInterval, key, serializedBody };
   }
   if ((action === "portal" || action === "trial") && Object.keys(value).sort().join(",") === "action,key,organizationId,serializedBody" && planCode === undefined && billingInterval === undefined && Object.keys(body).length === 1) {

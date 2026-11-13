@@ -7,6 +7,11 @@ import { PricingPageTracker } from "@/components/growth/PricingPageTracker";
 import { TrackedPlanLink } from "@/components/growth/TrackedPlanLink";
 import type { CommercialPlanSlug } from "@/lib/growth/contracts";
 import { PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
+import {
+  formatEuroCentsExact,
+  quoteSpanishVat,
+  SPANISH_VAT_GENERAL_RATE_PERCENT,
+} from "@/modules/saas-billing/domain/spanish-vat";
 import { cn } from "@/lib/utils";
 
 /**
@@ -65,7 +70,8 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
               {paidCheckoutOpen
                 ? "Después puedes elegir Starter o Growth con pago mensual o anual."
                 : "Durante la apertura, las academias fundadoras usan Starter o Growth sin coste; la contratación con pago llegará después."}{" "}
-              La prueba no genera cargos automáticos. Precios sin IVA.
+              La prueba no genera cargos automáticos. Precios sin IVA: en Península y Baleares se suma
+              el {SPANISH_VAT_GENERAL_RATE_PERCENT} %; en Canarias, Ceuta y Melilla todavía no hay contratación de pago.
             </p>
 
             <fieldset aria-label="Periodicidad de precios">
@@ -148,7 +154,20 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
                         <span className={cn("ml-1 text-lg font-bold", plan.highlight ? "text-white/80" : "text-ramp-500")}>
                           {plan.priceEurCents === 0 ? "" : yearly ? "/año" : "/mes"}
                         </span>
+                        {plan.priceEurCents === 0 ? null : (
+                          <span className={cn("ml-1.5 text-sm font-bold", plan.highlight ? "text-white/80" : "text-ramp-500")}>
+                            + IVA
+                          </span>
+                        )}
                       </p>
+                      {plan.checkoutMode === "self-serve" ? (
+                        <p className={cn("tabular mt-1.5 text-xs", plan.highlight ? "text-white/80" : "text-ramp-600")}>
+                          {formatEuroCentsExact(
+                            quoteSpanishVat(yearly ? plan.annualPriceEurCents! : plan.priceEurCents).totalCents
+                          )}
+                          {yearly ? "/año" : "/mes"} con IVA ({SPANISH_VAT_GENERAL_RATE_PERCENT} %) en Península y Baleares
+                        </p>
+                      ) : null}
                       <p className={cn("mt-2 text-sm", plan.highlight ? "text-white/85" : "text-ramp-600")}>
                         {yearly
                           ? `${euroExact.format(plan.annualPriceEurCents! / 1200)}/mes equivalente · ahorras ${formatPlanAmount(plan.priceEurCents * 2)}`

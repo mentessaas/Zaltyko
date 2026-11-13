@@ -14,6 +14,7 @@ import {
   hasSameOrigin,
   resolveSaasOwnerScope,
 } from "@/modules/saas-billing/application/owner-access";
+import { SPANISH_TAX_TERRITORIES } from "@/modules/organizations/domain/commercial-market-capabilities";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { saasHttpErrorCode } from "@/modules/saas-billing/application/http-error";
 
@@ -22,6 +23,8 @@ const bodySchema = z
     organizationId: z.string().uuid(),
     planCode: z.enum(["free", "starter", "growth", "network"]),
     billingInterval: z.enum(["month", "year"]),
+    // Academias de España: territorio fiscal declarado para aplicar el IVA.
+    taxTerritory: z.enum(SPANISH_TAX_TERRITORIES).optional(),
   })
   .strict();
 const idempotencySchema = z.string().trim().min(8).max(150);

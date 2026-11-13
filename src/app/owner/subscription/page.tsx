@@ -103,6 +103,7 @@ export default async function OwnerSaasBillingPage({
         organizationId={organization.organizationId}
         organizationName={organization.organizationName}
         marketNotice={marketNotice}
+        taxTerritoryRequired={organization.countryCode === "ES"}
       />
       {organization.role === "owner" &&
       organization.locationScopeMode === "all" ? (

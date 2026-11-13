@@ -18,8 +18,17 @@ import {
   isSaasCheckoutEnabled,
   isSaasCheckoutEnabledForMarket,
 } from "@/lib/launch/commercial-launch-profile";
+import type { SpanishTaxTerritory } from "@/modules/organizations/domain/commercial-market-capabilities";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import type { OwnerSaasBillingSnapshot } from "../domain/owner-saas-contract";
+import {
+  checkoutSessionMatchesSpanishVat,
+  quoteSpanishVat,
+  resolveSaasCheckoutTaxPlan,
+  SPANISH_VAT_GENERAL_RATE_PERCENT,
+  type SaasCheckoutTaxPlan,
+  type SpanishVatQuote,
+} from "../domain/spanish-vat";
 import {
   grantOrganizationEntitlement,
   lockOrganizationForSaasMutation,
@@ -236,7 +245,8 @@ export async function getOwnerSaasBillingSnapshot(input: {
         canCheckoutStarter:
           Boolean(
             config &&
-              isSaasCheckoutEnabledForMarket(config.environment, scope.countryCode)
+              isSaasCheckoutEnabledForMarket(config.environment, scope.countryCode) &&
+              isCheckoutTaxConfigured(config)
           ) &&
           !isPaid &&
           !hasOpenSubscription &&
@@ -244,7 +254,8 @@ export async function getOwnerSaasBillingSnapshot(input: {
         canCheckoutGrowth:
           Boolean(
             config &&
-              isSaasCheckoutEnabledForMarket(config.environment, scope.countryCode)
+              isSaasCheckoutEnabledForMarket(config.environment, scope.countryCode) &&
+              isCheckoutTaxConfigured(config)
           ) &&
           !isPaid &&
           !hasOpenSubscription &&
@@ -331,6 +342,10 @@ export async function recoverOwnerSaasCheckout(input: {
     current.customerReference !== customerReference ||
     current.operation.requestHash !== operation.requestHash ||
     current.operation.sessionExpiresAt?.getTime() !== expiresAt.getTime()) return null;
+  // Live solo entrega un enlace de pago que cobra base + IVA del 21 %.
+  if (config.environment === "live" && !checkoutSessionMatchesSpanishVat(session,
+    quoteSpanishVat(expectedUnitAmount(operation.planCode as SelfServePlanCode,
+      operation.billingInterval as SaasBillingInterval)))) return null;
   return { operationId: operation.id, checkoutUrl: validateCheckoutUrl(session.url),
     expiresAt, status: "pending" as const };
 }
@@ -506,6 +521,8 @@ export async function createOwnerSaasCheckout(input: {
   planCode: SelfServePlanCode;
   billingInterval: SaasBillingInterval;
   idempotencyKey: string;
+  /** Territorio fiscal declarado por la dirección de una academia de España. */
+  taxTerritory?: SpanishTaxTerritory | null;
   at?: Date;
 }): Promise<{
   operationId: string;
@@ -531,6 +548,9 @@ export async function createOwnerSaasCheckout(input: {
   };
   assertShortPaidQaEnvironment(checkoutIdentity);
 
+  // Asignado dentro de la transacción; la aserción evita que TypeScript lo
+  // estreche a { kind: "none" } por la inicialización.
+  let taxPlan = { kind: "none" } as AcceptedCheckoutTaxPlan;
   const reservation = await db.transaction(async (tx) => {
     let scope = await resolveSaasOwnerScope({
       userId: input.userId,
@@ -542,6 +562,9 @@ export async function createOwnerSaasCheckout(input: {
     ) {
       throw saasMarketNotEnabled();
     }
+    // Contrato fiscal antes de bloquear o escribir: Live sin Tax Rate de IVA
+    // (503) o un territorio fuera del IVA (403/422) no dejan rastro.
+    taxPlan = acceptedCheckoutTaxPlan(config, scope, input.taxTerritory);
     await lockOrganizationForSaasMutation(tx, scope.organizationId);
     if (config.environment === "live") {
       scope = await resolveSaasOwnerScope({
@@ -554,6 +577,7 @@ export async function createOwnerSaasCheckout(input: {
       ) {
         throw saasMarketNotEnabled();
       }
+      taxPlan = acceptedCheckoutTaxPlan(config, scope, input.taxTerritory);
     }
     const now = input.at ?? new Date();
     const priceReference = priceForPlan(
@@ -813,6 +837,12 @@ export async function createOwnerSaasCheckout(input: {
     identity: checkoutIdentity, operation,
   });
   const qaEnvelope = getQaEnvelope();
+  // El ensayo QA congelado nunca lleva impuesto: conserva su payload exacto.
+  const vatTaxRate = !qaEnvelope && taxPlan.kind === "es_vat_general"
+    ? taxPlan.taxRateReference : null;
+  const vatQuote = vatTaxRate
+    ? quoteSpanishVat(expectedUnitAmount(input.planCode, input.billingInterval))
+    : null;
   // A Stripe idempotency key must always retain its original request body.
   // Only v3 normal operations opt out of dashboard currency localization;
   // persisted v2 recoveries and the frozen short-paid QA envelope stay exact.
@@ -873,6 +903,7 @@ export async function createOwnerSaasCheckout(input: {
       priceReference: reservation.priceReference,
       requireOpen: false,
       qaEnvelope,
+      vatQuote,
     });
     if (
       session.status === "expired" ||
@@ -924,6 +955,7 @@ export async function createOwnerSaasCheckout(input: {
       input.billingInterval,
       reservation.priceReference
     );
+    if (vatTaxRate) await validateConfiguredSpanishVatRate(stripe, config, vatTaxRate);
 
     const [savedCustomer] = await db
       .select()
@@ -1092,8 +1124,16 @@ export async function createOwnerSaasCheckout(input: {
           {
             price: reservation.priceReference,
             quantity: 1,
+            ...(vatTaxRate ? { tax_rates: [vatTaxRate] } : {}),
           },
         ],
+        // Factura completa (art. 6 RD 1619/2012): nombre, dirección y, si es
+        // empresa o profesional, NIF del destinatario.
+        ...(vatTaxRate ? {
+          billing_address_collection: "required" as const,
+          tax_id_collection: { enabled: true },
+          customer_update: { address: "auto" as const, name: "auto" as const },
+        } : {}),
         success_url: returnUrl,
         cancel_url: cancelUrl,
         integration_identifier: integrationIdentifier,
@@ -1118,6 +1158,7 @@ export async function createOwnerSaasCheckout(input: {
       priceReference: reservation.priceReference,
       requireOpen: true,
       qaEnvelope,
+      vatQuote,
     });
     const checkoutUrl = validateCheckoutUrl(session.url);
 
@@ -1356,6 +1397,67 @@ async function validateConfiguredPrice(
   });
 }
 
+type AcceptedCheckoutTaxPlan = Extract<
+  SaasCheckoutTaxPlan,
+  { kind: "none" } | { kind: "es_vat_general" }
+>;
+
+/** Live necesita el Tax Rate de IVA; test conserva su recorrido sin él. */
+function isCheckoutTaxConfigured(
+  config: NonNullable<ReturnType<typeof getSaasStripeConfig>>
+): boolean {
+  return config.environment === "test" || Boolean(config.taxRates?.esVatGeneral);
+}
+
+/** Convierte el contrato fiscal en un rechazo sin efectos cuando no aplica. */
+function acceptedCheckoutTaxPlan(
+  config: NonNullable<ReturnType<typeof getSaasStripeConfig>>,
+  scope: { organizationId: string; countryCode: string },
+  taxTerritory: SpanishTaxTerritory | null | undefined
+): AcceptedCheckoutTaxPlan {
+  const plan = resolveSaasCheckoutTaxPlan({
+    environment: config.environment,
+    countryCode: scope.countryCode,
+    taxTerritory,
+    taxRateReference: config.taxRates?.esVatGeneral,
+    frozenQaExperiment: isShortPaidQaOrganization(scope.organizationId),
+  });
+  switch (plan.kind) {
+    case "none":
+    case "es_vat_general":
+      return plan;
+    case "configuration_unavailable":
+      throw providerConfigUnavailable();
+    case "market_not_covered":
+      throw saasMarketNotEnabled();
+    case "territory_required":
+      throw saasTaxTerritoryRequired();
+    case "territory_not_covered":
+      throw saasTaxTerritoryNotCovered();
+  }
+}
+
+/** El Tax Rate configurado debe ser el IVA español del 21 % exclusivo. */
+async function validateConfiguredSpanishVatRate(
+  stripe: Stripe,
+  config: NonNullable<ReturnType<typeof getSaasStripeConfig>>,
+  taxRateReference: string
+): Promise<void> {
+  const rate = (await stripe.taxRates.retrieve(taxRateReference)) as unknown as
+    Record<string, unknown>;
+  if (
+    rate.id !== taxRateReference ||
+    rate.active !== true ||
+    rate.livemode !== (config.environment === "live") ||
+    rate.inclusive !== false ||
+    rate.percentage !== SPANISH_VAT_GENERAL_RATE_PERCENT ||
+    rate.country !== "ES" ||
+    rate.tax_type !== "vat"
+  ) {
+    throw providerUnavailable();
+  }
+}
+
 function validateCheckoutSession(
   session: Stripe.Checkout.Session,
   input: {
@@ -1365,6 +1467,8 @@ function validateCheckoutSession(
     priceReference: string;
     requireOpen: boolean;
     qaEnvelope?: ShortPaidCheckoutEnvelope | null;
+    /** Si se aplicó IVA, la sesión debe cobrar exactamente base + cuota. */
+    vatQuote?: SpanishVatQuote | null;
   }
 ): Date {
   const { config, operation, customerReference, priceReference, requireOpen } =
@@ -1412,6 +1516,9 @@ function validateCheckoutSession(
     billingInterval: operation.billingInterval as SaasBillingInterval,
     priceReference,
   });
+  if (input.vatQuote && !checkoutSessionMatchesSpanishVat(session, input.vatQuote)) {
+    throw providerUnavailable();
+  }
   return expiresAt;
 }
 
@@ -1554,6 +1661,24 @@ function providerConfigUnavailable(): OperationalError {
     "La contratación SaaS no está configurada para este entorno",
     503,
     { code: "BILLING_CONFIGURATION_UNAVAILABLE" }
+  );
+}
+
+function saasTaxTerritoryRequired(): OperationalError {
+  return new OperationalError(
+    "FEATURE_NOT_AVAILABLE",
+    "Indica el territorio fiscal de la academia antes de contratar",
+    422,
+    { code: "SAAS_TAX_TERRITORY_REQUIRED" }
+  );
+}
+
+function saasTaxTerritoryNotCovered(): OperationalError {
+  return new OperationalError(
+    "FORBIDDEN",
+    "La contratación de pago no está disponible para academias con sede fiscal en Canarias, Ceuta o Melilla",
+    403,
+    { code: "SAAS_TAX_TERRITORY_NOT_COVERED" }
   );
 }
 
