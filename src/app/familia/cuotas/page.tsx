@@ -1,4 +1,5 @@
 import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell";
+import { ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { getFamilyFees } from "@/modules/family-portal/application/family-portal-reads";
 import {
@@ -66,7 +67,7 @@ export default async function FamilyFeesPage() {
                             className={
                               fee.status === "paid"
                                 ? ownerUi.chipSuccess
-                                : ownerUi.chipAttention
+                                : ownerTone.chipWarning
                             }
                           >
                             {feeStatusLabel(fee.status)}

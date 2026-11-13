@@ -12,6 +12,8 @@ import {
   statusLabel,
   statusTone,
 } from "./owner-enrollment-ui";
+import { ownerTone } from "./owner-tone-ui";
+import { ownerUi } from "./owner-ui";
 import type {
   ChangeableStatus,
   EnrollmentBundle,
@@ -100,7 +102,7 @@ export function OwnerEnrollmentList({
         <div>
           <h2
             id="enrollment-list-heading"
-            className="text-xl font-bold tracking-tight"
+            className={ownerUi.sectionTitle}
           >
             Inscripciones de la academia
           </h2>
@@ -169,10 +171,7 @@ export function OwnerEnrollmentList({
       {(error || notice) && (
         <div
           className={
-            "mt-4 border px-4 py-3 text-sm leading-6 " +
-            (error
-              ? "border-red-300 bg-red-50 text-red-900"
-              : "border-emerald-300 bg-emerald-50 text-emerald-950")
+            "mt-4 " + (error ? ownerTone.noticeError : ownerTone.noticeInfo)
           }
         >
           <p role={error ? "alert" : "status"}>{error || notice}</p>
@@ -180,7 +179,7 @@ export function OwnerEnrollmentList({
       )}
 
       {bundle.enrollments.length === 0 ? (
-        <div className="rounded-[12px] mt-4 border border-dashed border-z-line bg-white px-5 py-8 text-center">
+        <div className="mt-4 rounded-xl border border-dashed border-z-line bg-white px-5 py-8 text-center">
           <h3 className="font-semibold">No hay inscripciones en este filtro</h3>
           <p className="mt-2 text-sm leading-6 text-z-soft">
             No hay resultados con los filtros actuales. Puedes cambiar los filtros
@@ -247,7 +246,7 @@ export function OwnerEnrollmentList({
             return (
               <li
                 key={enrollment.id}
-                className="rounded-[12px] border border-z-line bg-white p-4 sm:p-5"
+                className="rounded-card border border-z-line bg-white p-4 sm:p-5"
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0">
@@ -255,12 +254,7 @@ export function OwnerEnrollmentList({
                       <h3 className="text-base font-bold">
                         {enrollment.athleteName}
                       </h3>
-                      <span
-                        className={
-                          "inline-flex min-h-7 items-center border px-2.5 text-xs font-bold " +
-                          statusTone(enrollment.status)
-                        }
-                      >
+                      <span className={statusTone(enrollment.status)}>
                         {statusLabel(enrollment.status)}
                       </span>
                     </div>
@@ -279,7 +273,7 @@ export function OwnerEnrollmentList({
                         : ""}
                     </p>
                     {pendingStartsInFuture && (
-                      <p className="mt-2 text-sm text-amber-900">
+                      <p className={"mt-2 " + ownerTone.inlineWarning}>
                         Empieza el {formatDate(enrollment.startsOn)}. Podrás
                         activarla ese día.
                       </p>
@@ -331,7 +325,7 @@ export function OwnerEnrollmentList({
                           if (button) focusTargetsRef.current.cancelTrigger.set(enrollment.id, button);
                           else focusTargetsRef.current.cancelTrigger.delete(enrollment.id);
                         }}
-                        className="rounded-[12px] touch-target inline-flex min-h-11 items-center border border-z-line px-3 py-2 text-sm font-semibold text-z-soft hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500"
+                        className={secondaryButtonClassName}
                         disabled={busyId === enrollment.id || writesBlocked}
                         aria-label={`Dar de baja inscripción de ${actionContext}`}
                         onClick={() => onConfirmCancel(enrollment.id)}
@@ -343,9 +337,9 @@ export function OwnerEnrollmentList({
                       <div
                         role="group"
                         aria-label={`Confirmar baja de ${actionContext}`}
-                        className="rounded-[12px] flex flex-wrap items-center gap-2 border border-red-300 bg-red-50 p-2"
+                        className="flex flex-wrap items-center gap-2 rounded-md border border-signal/30 bg-signal-wash p-2"
                       >
-                        <span className="px-1 text-sm font-medium text-red-950">
+                        <span className="px-1 text-sm font-semibold text-signal-ink">
                           ¿Dar de baja la inscripción de {actionContext}?
                         </span>
                         <button
@@ -354,7 +348,7 @@ export function OwnerEnrollmentList({
                             if (button) focusTargetsRef.current.cancelConfirm.set(enrollment.id, button);
                             else focusTargetsRef.current.cancelConfirm.delete(enrollment.id);
                           }}
-                          className="touch-target min-h-11 bg-red-800 px-3 text-sm font-bold text-white hover:bg-red-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-800"
+                          className={ownerTone.dangerButton}
                           disabled={busyId === enrollment.id || writesBlocked}
                           aria-label={`Confirmar baja de ${actionContext}`}
                           onClick={() => onChangeStatus(enrollment, "cancelled")}
@@ -363,7 +357,7 @@ export function OwnerEnrollmentList({
                         </button>
                         <button
                           type="button"
-                          className="touch-target min-h-11 px-3 text-sm font-semibold text-red-950 underline underline-offset-4"
+                          className={ownerTone.quietButton}
                           disabled={busyId === enrollment.id}
                           aria-label={`Volver sin dar de baja a ${actionContext}`}
                           onClick={() => onConfirmCancel("")}
@@ -376,7 +370,7 @@ export function OwnerEnrollmentList({
                       <div
                         role="group"
                         aria-label={`Confirmar finalización de ${actionContext}`}
-                        className="rounded-[12px] flex flex-wrap items-center gap-2 border border-z-line bg-z-canvas p-2"
+                        className="flex flex-wrap items-center gap-2 rounded-md border border-z-line bg-z-canvas p-2"
                       >
                         <span className="px-1 text-sm font-medium text-z-ink">
                           ¿Finalizar la inscripción de {actionContext}?
@@ -396,7 +390,7 @@ export function OwnerEnrollmentList({
                         </button>
                         <button
                           type="button"
-                          className="touch-target min-h-11 px-3 text-sm font-semibold text-z-ink underline underline-offset-4"
+                          className={ownerTone.quietButton}
                           disabled={busyId === enrollment.id}
                           aria-label={`Volver sin finalizar la inscripción de ${actionContext}`}
                           onClick={() => onConfirmComplete("")}

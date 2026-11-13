@@ -2,6 +2,12 @@
 
 import Link from "next/link";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
+import { ownerTone } from "./owner-tone-ui";
+
+// Comprobando: polvo (información). Sin poder comprobar o en solo lectura:
+// aviso en ocre, porque piden atención pero no son un error ni una deuda.
+const CHECKING_CLASS = `mt-5 ${ownerTone.noticeNeutral}`;
+const WARNING_CLASS = `mt-5 ${ownerTone.noticeWarning}`;
 
 export function OwnerOperationalReadOnlyNotice({
   organizationId,
@@ -19,7 +25,7 @@ export function OwnerOperationalReadOnlyNotice({
     return (
       <p
         role="status"
-        className="rounded-[12px] mt-5 border border-z-line bg-z-canvas p-4 text-sm leading-6 text-z-ink"
+        className={CHECKING_CLASS}
       >
         Comprobando los límites del plan. Las escrituras nuevas están pausadas
         hasta confirmar que la academia puede operar. {" "}
@@ -38,7 +44,7 @@ export function OwnerOperationalReadOnlyNotice({
     return (
       <div
         role="status"
-        className="rounded-[12px] mt-5 border border-amber-600 bg-amber-50 p-4 text-sm leading-6 text-z-ink"
+        className={WARNING_CLASS}
       >
         <p>
           No se pudieron comprobar los límites del plan. Vuelve a consultar el
@@ -69,7 +75,7 @@ export function OwnerOperationalReadOnlyNotice({
   return (
     <p
       role="status"
-      className="rounded-[12px] mt-5 border border-amber-600 bg-amber-50 p-4 text-sm leading-6 text-z-ink"
+      className={WARNING_CLASS}
     >
       La academia está en solo lectura porque supera los límites del plan. Los
       datos y el historial se conservan. Para volver a operar, archiva el
@@ -95,7 +101,7 @@ function StaffReadOnlyNotice({
     return (
       <p
         role="status"
-        className="rounded-[12px] mt-5 border border-z-line bg-z-canvas p-4 text-sm leading-6 text-z-ink"
+        className={CHECKING_CLASS}
       >
         Comprobando si la academia puede registrar cambios. Podrás pasar lista
         en cuanto termine la comprobación.
@@ -107,7 +113,7 @@ function StaffReadOnlyNotice({
     return (
       <div
         role="status"
-        className="rounded-[12px] mt-5 border border-amber-600 bg-amber-50 p-4 text-sm leading-6 text-z-ink"
+        className={WARNING_CLASS}
       >
         <p>
           No se pudo comprobar si la academia puede registrar cambios. Vuelve a
@@ -132,7 +138,7 @@ function StaffReadOnlyNotice({
   return (
     <p
       role="status"
-      className="rounded-[12px] mt-5 border border-amber-600 bg-amber-50 p-4 text-sm leading-6 text-z-ink"
+      className={WARNING_CLASS}
     >
       La academia está en solo lectura: puedes consultar las listas, pero no
       pasar lista. Los datos se conservan. Avisa a la persona

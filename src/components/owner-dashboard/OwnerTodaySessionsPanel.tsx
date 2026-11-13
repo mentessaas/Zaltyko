@@ -4,6 +4,7 @@ import { CalendarDays, Check, ClipboardCheck, Repeat2 } from "lucide-react";
 import { partitionAssignedFirst } from "@/modules/coach-assignment/domain/coach-assignment";
 import type { OwnerTodaySession, OwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
 import { ownerDisciplineOf, ownerDisciplineStyle, ownerUi } from "./owner-ui";
+import { ownerTone } from "./owner-tone-ui";
 
 function formatTime(value: string, timezone: string) {
   return new Intl.DateTimeFormat("es-ES", {
@@ -59,7 +60,7 @@ export function OwnerTodaySessionsPanel({
     return (
       <li
         key={session.id}
-        className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 ${live ? "bg-z-chalk-50/50" : ""}`}
+        className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 ${live ? "bg-mat-wash/60" : ""}`}
       >
         <div className="w-14 shrink-0 text-right">
           <div className="font-display text-sm font-bold tabular-nums text-z-ink">
@@ -69,15 +70,16 @@ export function OwnerTodaySessionsPanel({
             {formatTime(session.endsAt, session.timezone)}
           </div>
         </div>
-        <span aria-hidden="true" className={`h-10 w-1 shrink-0 rounded-full ${discipline.bar}`} />
+        <span aria-hidden="true" className={`h-10 w-1 shrink-0 ${discipline.bar}`} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className={`break-words font-semibold text-z-ink ${cancelled ? "line-through" : ""}`}>
               {session.className}
             </span>
             {live ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-z-chalk-600 px-2 py-0.5 text-[11px] font-bold uppercase text-white">
-                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-white" />
+              // En curso: lavado tapiz, no coral (el coral es solo para errores).
+              <span className={ownerTone.chipLive}>
+                <span aria-hidden="true" className={ownerTone.dotLive} />
                 Ahora
               </span>
             ) : null}
@@ -91,7 +93,7 @@ export function OwnerTodaySessionsPanel({
             <div className="mt-0.5 flex flex-wrap items-center gap-2 break-words text-xs text-z-ink">
               <span>{coachLine(session)}</span>
               {session.substitution ? (
-                <span className={`${ownerUi.chipAttention} gap-1`}>
+                <span className={ownerTone.chipWarning}>
                   <Repeat2 aria-hidden="true" className="h-3 w-3" />
                   Sustitución
                 </span>
@@ -161,7 +163,7 @@ export function OwnerTodaySessionsPanel({
       ) : (
         prioritizeViewerSessions && assignedFirst && assignedFirst.assigned.length > 0 ? (
           <>
-            <h3 className="border-b border-z-line bg-z-canvas px-5 py-2 text-xs font-semibold text-z-ink">
+            <h3 className="floor-label border-b border-z-line bg-z-canvas px-5 py-2 text-ramp-600">
               Tus sesiones
             </h3>
             <ul aria-label="Tus sesiones" className="divide-y divide-z-line">
@@ -169,7 +171,7 @@ export function OwnerTodaySessionsPanel({
             </ul>
             {assignedFirst.others.length > 0 ? (
               <>
-                <h3 className="border-y border-z-line bg-z-canvas px-5 py-2 text-xs font-semibold text-z-ink">
+                <h3 className="floor-label border-y border-z-line bg-z-canvas px-5 py-2 text-ramp-600">
                   Resto de la sede
                 </h3>
                 <ul aria-label="Resto de la sede" className="divide-y divide-z-line">

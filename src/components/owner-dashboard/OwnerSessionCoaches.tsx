@@ -13,6 +13,7 @@ import {
 } from "@/modules/coach-assignment/domain/coach-assignment";
 import type { ScheduleConflict } from "@/modules/schedule-conflicts/domain/schedule-conflicts";
 import { ownerUi } from "./owner-ui";
+import { ownerTone } from "./owner-tone-ui";
 import { OwnerScheduleConflictList } from "./OwnerScheduleConflicts";
 import {
   COACH_ASSIGNMENT_UNAVAILABLE_MESSAGE,
@@ -181,7 +182,7 @@ export function OwnerSessionCoaches({
           Quién entrena
         </h3>
         {view.substitution ? (
-          <span className={`${ownerUi.chipAttention} gap-1`}>
+          <span className={ownerTone.chipWarning}>
             <Repeat2 aria-hidden="true" className="h-3.5 w-3.5" />
             Sustitución
           </span>
@@ -238,13 +239,15 @@ export function OwnerSessionCoaches({
 
       {canEdit && draft ? (
         <fieldset ref={fieldsetRef} className="grid gap-3" aria-describedby={`${formId}-help`}>
-          <legend className={ownerUi.label}>Quién entrena en esta sesión</legend>
+          {/* El título «Quién entrena» ya está encima: la leyenda solo nombra el
+              grupo para los lectores de pantalla y no se repite en pantalla. */}
+          <legend className="sr-only">Quién entrena en esta sesión</legend>
           <p id={`${formId}-help`} className={ownerUi.help}>
             Solo cambia esta sesión; la clase mantiene sus titulares. Aparecen las personas del equipo con rol
             Entrenador/a y acceso a esta sede.
           </p>
           {options.length === 0 ? (
-            <p className={ownerUi.noticeWarning}>
+            <p className={ownerTone.noticeWarning}>
               Nadie del equipo con rol Entrenador/a tiene acceso a esta sede todavía. Dale acceso desde Equipo.
             </p>
           ) : (
@@ -255,12 +258,12 @@ export function OwnerSessionCoaches({
                   <li key={coach.staffProfileId}>
                     <label
                       htmlFor={inputId}
-                      className="flex min-h-12 min-w-0 cursor-pointer items-center gap-3 rounded-lg border border-z-line bg-white px-3 py-2 text-sm"
+                      className="flex min-h-12 min-w-0 cursor-pointer items-center gap-3 rounded-lg border border-z-line bg-white px-3 py-2 text-sm transition-colors hover:border-mat has-[:checked]:border-mat has-[:checked]:bg-mat-wash"
                     >
                       <input
                         id={inputId}
                         type="checkbox"
-                        className="h-5 w-5 shrink-0"
+                        className="h-5 w-5 shrink-0 accent-mat"
                         checked={draft.selected.includes(coach.staffProfileId)}
                         disabled={saving}
                         onChange={(event) =>

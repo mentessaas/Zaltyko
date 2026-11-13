@@ -9,6 +9,8 @@ import {
   formatDate,
   primaryButtonClassName,
 } from "./owner-enrollment-ui";
+import { ownerTone } from "./owner-tone-ui";
+import { ownerUi } from "./owner-ui";
 import { isEnrollmentStartDateAllowed } from "./owner-enrollment-date";
 import type { Candidate, EnrollmentBundle, PricePlanOption } from "./owner-enrollment-types";
 
@@ -152,12 +154,12 @@ export function OwnerEnrollmentCreateForm({
     <section
       id="new-enrollment-form"
       aria-labelledby="new-enrollment-heading"
-      className="rounded-[12px] mt-6 border border-z-line bg-white p-5 sm:p-6"
+      className={"mt-6 " + ownerUi.card}
     >
       <div>
         <h2
           id="new-enrollment-heading"
-          className="text-xl font-bold tracking-tight"
+          className={ownerUi.sectionTitle}
         >
           Añadir a una clase
         </h2>
@@ -168,7 +170,7 @@ export function OwnerEnrollmentCreateForm({
       </div>
 
       {classes.length === 0 ? (
-        <div className="rounded-[12px] mt-5 border border-dashed border-z-line bg-z-canvas p-4">
+        <div className="mt-5 rounded-card border border-dashed border-z-line bg-z-canvas p-4">
           <p className="text-sm leading-6 text-z-ink">
             Primero crea una clase recurrente para poder asignar plazas.
           </p>
@@ -269,7 +271,7 @@ export function OwnerEnrollmentCreateForm({
               <label htmlFor="enrollment-athlete-search" className="mb-1 block text-sm font-semibold">{participantLabel}</label>
             )}
             {selectedCandidate ? (
-              <div role="group" aria-labelledby="enrollment-athlete-label" className="rounded-[12px] flex min-h-11 items-center justify-between gap-3 border border-z-brand-100 bg-z-brand-50 px-3 py-2">
+              <div role="group" aria-labelledby="enrollment-athlete-label" className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-mat/30 bg-mat-wash px-3 py-2">
                 <span className="font-semibold text-z-brand-700">
                   {selectedCandidate.name}
                 </span>
@@ -334,7 +336,7 @@ export function OwnerEnrollmentCreateForm({
             )}
             {candidateError && (
               <div className="mt-2">
-                <p id="enrollment-search-error" role="alert" className="text-sm text-red-800">{candidateError}</p>
+                <p id="enrollment-search-error" role="alert" className={ownerTone.inlineError}>{candidateError}</p>
                 <button type="button" className="min-h-11 text-sm font-semibold text-z-brand-700 underline" disabled={busyCreate || previewMode || candidateLoading || !classTemplateId || candidateQuery.trim().length < 2} onClick={onRetryCandidates}>Volver a buscar</button>
               </div>
             )}
@@ -357,7 +359,7 @@ export function OwnerEnrollmentCreateForm({
             {candidates.length > 0 && !selectedCandidate && (
               <ul
                 aria-label="Resultados de búsqueda"
-                className="mt-2 divide-y divide-z-line border border-z-line bg-white"
+                className="mt-2 divide-y divide-z-line overflow-hidden rounded-lg border border-z-line bg-white"
               >
                 {candidates.map((candidate) => (
                   <li key={candidate.id}>
@@ -414,7 +416,7 @@ export function OwnerEnrollmentCreateForm({
               <p
                 id="enrollment-starts-on-error"
                 role="alert"
-                className="mt-1 text-sm text-red-800"
+                className={"mt-1 " + ownerTone.inlineError}
               >
                 La fecha debe estar dentro del periodo de la clase seleccionada.
               </p>
@@ -460,12 +462,12 @@ export function OwnerEnrollmentCreateForm({
             )}
             {pricePlansError && (
               <div className="mt-1">
-                <p id="enrollment-price-plan-error" role="alert" className="text-sm text-red-800">{pricePlansError}</p>
+                <p id="enrollment-price-plan-error" role="alert" className={ownerTone.inlineError}>{pricePlansError}</p>
                 <button type="button" className="min-h-11 text-sm font-semibold text-z-brand-700 underline" disabled={busyCreate || previewMode || pricePlansLoading || !createLocationId} onClick={onRetryPricePlans}>Volver a consultar las tarifas</button>
               </div>
             )}
             {pricePlanUnavailable && (
-              <p id="enrollment-price-plan-unavailable" role="alert" className="mt-1 text-sm text-red-800">
+              <p id="enrollment-price-plan-unavailable" role="alert" className={"mt-1 " + ownerTone.inlineError}>
                 La tarifa seleccionada ya no está disponible en esta sede. Elige otra o «Sin tarifa asignada» antes de registrar la inscripción.
               </p>
             )}

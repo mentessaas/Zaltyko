@@ -21,6 +21,7 @@ import {
   type PendingEnrollmentIntent,
 } from "./owner-enrollment-command-response";
 import { monthlyInvoicesHref, primaryButtonClassName, statusHref } from "./owner-enrollment-ui";
+import { ownerTone } from "./owner-tone-ui";
 import {
   constrainEnrollmentStartDate,
   isEnrollmentStartDateAllowed,
@@ -555,22 +556,22 @@ export function OwnerEnrollmentsManager({
         ) : (
           <Link
             href={"/owner?organizationId=" + organizationId}
-            className="touch-target inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-z-brand-700 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
+            className={ownerUi.backLink}
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Volver al resumen
           </Link>
         )}
 
-        <header className="mt-6 flex flex-col gap-4 border-b border-z-line pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-z-brand-700">
+        <header className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <p className={ownerUi.eyebrow}>
               Operaciones de la academia
             </p>
             <h1 className={ownerUi.pageTitle}>
               Inscripciones
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-z-soft">
+            <p className={ownerUi.pageLead}>
               Asigna una gimnasta o participante a una clase y controla su
               estado desde un solo lugar.
             </p>
@@ -591,7 +592,7 @@ export function OwnerEnrollmentsManager({
         </header>
 
         {previewMode && (
-          <p className="mt-5 rounded-md border border-z-line border-t-[3px] border-t-amber-600 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+          <p className={"mt-5 " + ownerTone.noticeNeutral}>
             Datos ficticios para revisar la pantalla. No se consulta ni modifica
             ninguna academia.
           </p>
@@ -601,7 +602,7 @@ export function OwnerEnrollmentsManager({
           <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
         ) : null}
 
-        <p className="mt-5 rounded-md border border-z-line border-t-[3px] border-t-z-brand-100 bg-z-brand-50 px-4 py-3 text-sm leading-6 text-z-brand-700">
+        <p className={"mt-5 " + ownerTone.noticeInfo}>
           La inscripción queda pendiente y reserva una plaza. No crea una cuota ni
           inicia cobros; los pagos se gestionan aparte.
         </p>
@@ -615,7 +616,7 @@ export function OwnerEnrollmentsManager({
                   organizationId,
                   bundle.filterLocationId ?? bundle.selectedLocationId
                 )}
-                className="font-semibold text-z-brand-700 underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
+                className={ownerUi.textLink + " underline underline-offset-2"}
               >
                 Completa la familia y la persona pagadora en Cuotas mensuales
               </Link>
@@ -624,7 +625,7 @@ export function OwnerEnrollmentsManager({
           )}
 
         {pendingStorageError ? (
-          <section className="rounded-[12px] mt-5 border border-rose-700 bg-rose-50 p-4 text-sm text-rose-950" aria-label="Almacenamiento de operación pendiente">
+          <section className={"mt-5 " + ownerTone.noticeError} aria-label="Almacenamiento de operación pendiente">
             <p role="alert">{pendingStorageError}</p>
             {pendingStorageFailureKind && (
               <button type="button" className={primaryButtonClassName + " mt-3"} onClick={recoverPendingStorage}>
@@ -635,7 +636,7 @@ export function OwnerEnrollmentsManager({
         ) : null}
 
         {pendingIntent ? (
-          <section className="rounded-[12px] mt-5 border border-amber-600 bg-amber-50 p-4" aria-label="Operación de inscripción pendiente" aria-busy={busyCreate || busyId !== ""}>
+          <section className={"mt-5 " + ownerTone.noticeWarning} aria-label="Operación de inscripción pendiente" aria-busy={busyCreate || busyId !== ""}>
             <p role="status">{pendingIntent.organizationId === organizationId ? <>{pendingIntent.description}. {busyCreate || busyId ? "Enviando la solicitud…" : "Resultado sin confirmar. La solicitud original está guardada en esta sesión; al volver solo podrás reintentar exactamente el mismo cuerpo y clave."}</> : "Hay una operación de inscripción pendiente en otra academia."}</p>
             {pendingIntent.organizationId === organizationId ? <button ref={retryButtonRef} type="button" className={primaryButtonClassName + " mt-3"} disabled={busyCreate || busyId !== ""} onClick={() => void sendIntent(pendingIntent)}>Reintentar la misma operación</button> : <p>Vuelve a la academia de esa operación antes de iniciar otra.</p>}
           </section>
@@ -715,22 +716,19 @@ export function OwnerEnrollmentsManager({
           className="mt-6 grid gap-3 sm:grid-cols-3"
         >
           {[
-            { label: "Activas", total: activeTotal, tone: "text-emerald-800" },
+            // Activas en tapiz, pendientes en tinta ocre (aviso) y en pausa en
+            // rampa (reposo), con el marcador reglado de /owner.
+            { label: "Activas", total: activeTotal, tone: "text-mat" },
             {
               label: "Pendientes",
               total: pendingTotal,
-              tone: "text-amber-900",
+              tone: "text-ochre-ink",
             },
-            { label: "En pausa", total: pausedTotal, tone: "text-orange-900" },
+            { label: "En pausa", total: pausedTotal, tone: "text-ramp-600" },
           ].map((item) => (
-            <div
-              key={item.label}
-              className="rounded-[12px] border border-z-line bg-white p-4"
-            >
-              <p className="text-sm font-semibold text-z-soft">
-                {item.label}
-              </p>
-              <p className={"mt-2 text-3xl font-bold " + item.tone}>
+            <div key={item.label} className={ownerUi.metricCard}>
+              <p className={ownerUi.metricLabel}>{item.label}</p>
+              <p className={"mt-2 font-display text-3xl font-black leading-none tabular-nums sm:text-4xl " + item.tone}>
                 {item.total}
               </p>
             </div>

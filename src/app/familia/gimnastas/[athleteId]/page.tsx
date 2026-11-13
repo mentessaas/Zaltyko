@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell";
+import { ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import {
   FAMILY_SCHEDULE_DAYS,
@@ -79,7 +80,7 @@ export default async function FamilyAthletePage({
                     <p className="font-semibold text-z-ink">{item.className}</p>
                     <span
                       className={
-                        item.status === "paused" ? ownerUi.chipAttention : ownerUi.chip
+                        item.status === "paused" ? ownerTone.chipRest : ownerTone.chipActive
                       }
                     >
                       {enrollmentStatusLabel(item.status)}
@@ -107,7 +108,7 @@ export default async function FamilyAthletePage({
             </ul>
           )}
 
-          <h3 className="mt-6 text-sm font-semibold text-z-ink">
+          <h3 className="floor-label mt-6 text-ramp-600">
             Próximas sesiones ({FAMILY_SCHEDULE_DAYS} días)
           </h3>
           {schedule.upcomingSessions.length === 0 ? (
@@ -126,7 +127,7 @@ export default async function FamilyAthletePage({
                     · {session.className} · {session.locationName}
                   </span>
                   {session.status === "cancelled" ? (
-                    <span className={ownerUi.chipAttention}>
+                    <span className={ownerTone.chipWarning}>
                       {sessionStatusLabel(session.status)}
                     </span>
                   ) : null}
@@ -159,7 +160,7 @@ export default async function FamilyAthletePage({
                   </span>
                   <span
                     className={
-                      entry.status === "absent" ? ownerUi.chipAttention : ownerUi.chip
+                      entry.status === "absent" ? ownerTone.chipWarning : ownerTone.chipRest
                     }
                   >
                     {attendanceStatusLabel(entry.status)}
