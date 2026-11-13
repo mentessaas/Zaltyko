@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { OwnerEssentialDashboard } from "@/components/owner-dashboard/OwnerEssentialDashboard";
@@ -52,39 +52,72 @@ function renderPanel(progress: OwnerSetupProgress, locationName?: string) {
 }
 
 describe("OwnerSetupChecklistPanel", () => {
-  it("lists the four steps in order inside a labelled region", () => {
-    const region = renderPanel(empty);
+  // Formato Magnesio de /app: número gigante del paso actual, «Paso N de M ·
+  // X% completado», barra de progreso, acción del paso y pendientes plegados.
+  it("muestra el paso actual en grande con su porcentaje y su barra", () => {
+    const region = renderPanel(empty)!;
     expect(region).not.toBeNull();
-    const items = within(region!).getAllByRole("listitem");
+    expect(within(region).getByText("Paso 1 de 4 · 0% completado")).toBeInTheDocument();
+    const meter = within(region).getByRole("progressbar", { name: "Progreso de la puesta en marcha" });
+    expect(meter).toHaveAttribute("aria-valuenow", "0");
+    expect(meter).toHaveAttribute("aria-valuetext", "0 de 4 pasos hechos");
+    expect(region.querySelector('[aria-current="step"]')).toHaveTextContent("Crea una sede");
+    // La sede no tiene pantalla propia: sin acción inventada.
+    expect(within(region).queryByRole("link")).toBeNull();
+  });
+
+  it("despliega los pendientes en orden y marca el actual", () => {
+    const region = renderPanel(empty)!;
+    expect(within(region).queryByRole("list", { name: "Pasos pendientes" })).toBeNull();
+    const toggle = within(region).getByRole("button", { name: "Ver 4 pendientes" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveTextContent("Ocultar pasos");
+    const list = within(region).getByRole("list", { name: "Pasos pendientes" });
+    expect(toggle).toHaveAttribute("aria-controls", list.id);
+    const items = within(list).getAllByRole("listitem");
     expect(items.map((item) => item.querySelector("p > span")?.textContent)).toEqual([
       "Crea una sede",
       "Crea una clase con horario",
       "Da de alta a tus gimnastas",
       "Pasa la primera lista",
     ]);
-    expect(within(region!).getByText("0 de 4 hechos")).toBeInTheDocument();
     expect(items[0]).toHaveAttribute("aria-current", "step");
+    expect(within(items[0]).getByText("Siguiente paso")).toBeInTheDocument();
   });
 
-  it("marks done steps without links and links each pending step to its screen", () => {
+  it("enlaza el paso actual como acción principal y deja fuera los hechos", () => {
     const region = renderPanel(partial)!;
-    const items = within(region).getAllByRole("listitem");
-    expect(within(region).getByText("2 de 4 hechos")).toBeInTheDocument();
-    for (const done of items.slice(0, 2)) {
-      expect(within(done).getByText("Hecho")).toBeInTheDocument();
-      expect(within(done).queryByRole("link")).toBeNull();
-    }
-    expect(items[2]).toHaveAttribute("aria-current", "step");
-    expect(within(items[2]).getByText("Siguiente paso")).toBeInTheDocument();
-    expect(within(items[2]).getByRole("link", { name: "Dar de alta" })).toHaveAttribute(
+    expect(within(region).getByText("Paso 3 de 4 · 50% completado")).toBeInTheDocument();
+    expect(within(region).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "50");
+    expect(within(region).getAllByRole("link")).toHaveLength(1);
+    expect(within(region).getByRole("link", { name: "Dar de alta" })).toHaveAttribute(
       "href",
       `/owner/athletes?organizationId=${organizationId}`
     );
-    expect(items[3]).not.toHaveAttribute("aria-current");
-    expect(within(items[3]).getByRole("link", { name: "Pasar lista" })).toHaveAttribute(
+
+    fireEvent.click(within(region).getByRole("button", { name: "Ver 2 pendientes" }));
+    const items = within(within(region).getByRole("list", { name: "Pasos pendientes" })).getAllByRole("listitem");
+    expect(items.map((item) => item.querySelector("p > span")?.textContent)).toEqual([
+      "Da de alta a tus gimnastas",
+      "Pasa la primera lista",
+    ]);
+    expect(items[0]).toHaveAttribute("aria-current", "step");
+    // La acción del actual ya está arriba; no se duplica en la fila.
+    expect(within(items[0]).queryByRole("link")).toBeNull();
+    expect(items[1]).not.toHaveAttribute("aria-current");
+    expect(within(items[1]).getByRole("link", { name: "Pasar lista" })).toHaveAttribute(
       "href",
       `/owner/attendance?organizationId=${organizationId}`
     );
+  });
+
+  it("no ofrece desplegar cuando solo queda el paso actual", () => {
+    const region = renderPanel({ ...full, hasAttendance: false })!;
+    expect(within(region).getByText("Paso 4 de 4 · 75% completado")).toBeInTheDocument();
+    expect(within(region).queryByRole("button")).toBeNull();
+    expect(within(region).getByRole("link", { name: "Pasar lista" })).toBeInTheDocument();
   });
 
   it("names the selected site in the lead", () => {
@@ -147,6 +180,7 @@ describe("Resumen integration", () => {
       />
     );
     const region = screen.getByRole("region", { name: "Puesta en marcha" });
+    fireEvent.click(within(region).getByRole("button", { name: "Ver 2 pendientes" }));
     expect(within(region).getByRole("link", { name: "Pasar lista" })).toHaveAttribute(
       "href",
       `/owner/attendance?organizationId=${organizationId}&locationId=${locationId}`

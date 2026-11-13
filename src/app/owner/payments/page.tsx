@@ -92,6 +92,7 @@ export default async function OwnerPaymentsPage({
     <OwnerWorkspacePageShell
       member={scope.member}
       organizationId={scope.organization.id}
+      organizationName={scope.organization.name}
       locationId={scope.selectedLocationId}
     >
       <main className="min-h-screen bg-z-canvas px-5 py-6 text-z-ink sm:py-10">

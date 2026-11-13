@@ -2,6 +2,8 @@
 
 Fecha: 11 de noviembre de 2026. Plan de mejora `auditorias/2026-11-08/plan-mejora-zaltyko.md`, P2 #17: «Especialización: objetivos y observaciones por gimnasta, luego planificación sobre sesiones; biblioteca GAF/GAM después». La primera parte está en `docs/producto/objetivos-y-observaciones.md`; esta cubre la planificación de las sesiones. La biblioteca GAF/GAM queda para después.
 
+**Estado: activo en producción desde 12-11-2026.** El candidato `docs/deployment/candidates/20261111200000_session_plans_candidate.sql` se aplicó ese día con autorización de Elvis, después del de objetivos (`20261111120000_athlete_progress_candidate.sql`), del que depende; también está instalado en staging (`docs/deployment/staging.md`).
+
 **Vocabulario** (`docs/producto/glosario.md`). En la interfaz se habla de **guion de la sesión** y de **modelo de la clase**. «Plan» queda reservado al plan de Zaltyko y «plantilla» está vetada. En código y en la base se llaman `session_plans` y `class_plan_templates`.
 
 Objetivo: que quien da la clase sepa qué toca hoy (foco y bloques), que lo pueda preparar antes y que, al terminar, marque qué se hizo y deje observaciones de las gimnastas. Sin abrir datos entre academias ni entre sedes.
@@ -82,14 +84,14 @@ La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que 
 
 Todas las respuestas llevan `cache-control: private, no-store`, y las mutaciones exigen el mismo origen.
 
-## Solo lectura y funcionalidad dormida
+## Solo lectura y entornos sin la migración
 
 - **Plan de Zaltyko en solo lectura:**
   - se puede consultar todo;
   - crear, editar, marcar un bloque o cambiar el modelo responde 409 `PLAN_OVER_CAPACITY`;
   - repetir un alta ya guardada, o marcar un bloque en el estado que ya tiene, devuelve el resultado sin escribir;
   - la interfaz oculta los botones y lo explica.
-- **Migración sin aplicar:** las tablas están en el candidato `docs/deployment/candidates/20261111200000_session_plans_candidate.sql`, que **requiere autorización de Elvis** y depende del candidato de objetivos (`20261111120000_athlete_progress_candidate.sql`). Mientras no se apliquen:
+- **Migración:** las tablas están en el candidato `docs/deployment/candidates/20261111200000_session_plans_candidate.sql`, que depende del candidato de objetivos (`20261111120000_athlete_progress_candidate.sql`). Hasta el 12-11-2026 **requerían autorización de Elvis** y no estaban aplicados; ese día se aplicaron los dos en producción. En un entorno donde falte alguno:
   - Pasar lista no muestra el panel; la página decide con `isSessionPlanAvailableForPage`;
   - la API responde 503 con el motivo `session_plans_unavailable`, nunca 500;
   - el cliente solo trata como «no disponible» ese 503 concreto.

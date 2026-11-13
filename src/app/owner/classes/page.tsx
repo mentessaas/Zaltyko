@@ -111,6 +111,7 @@ export default async function OwnerClassesPage({
     <OwnerWorkspacePageShell
       member={bundle.member}
       organizationId={bundle.organization.id}
+      organizationName={bundle.organization.name}
       locationId={navigationLocationId}
     >
       <OwnerUpcomingConflicts upcoming={upcomingConflicts} coachMode={false} />

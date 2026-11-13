@@ -585,6 +585,13 @@ Decisión del 2026-11-09: una sola identidad en toda la plataforma. La direcció
   - Chips de cinta de 6 px. Hoy `noticeWarning` y `noticeError` van los dos en lavado de señal; `noticeWarning` pasa al tono de aviso (ocre) en el PR-R, junto con el resto de `owner-ui.ts`.
 - **Pantallas:** las franjas laterales (`border-l-2`, `border-l-4`) pasan a una regla superior de 3 px en el mismo color. Los radios arbitrarios de 14 a 24 px quedan en 12 px. Los colores literales se cambian por valores del mundo.
 - **La fila de grupo seleccionada** usa lavado de tapiz, sin pestaña lateral.
+- **Shell con el aspecto de `/app` (2026-11-12):** el área de dirección se ve como la app clásica sin cambiar su navegación ni sus permisos.
+  - **Lateral:** 248 px de zona de seguridad con fibra (`mat-field-deep`). Arriba, el nombre de la academia en titular condensado sobre una regla blanca de 3 px y debajo el plan en rótulo de pista azul calle (con aviso de solo lectura y «Ver planes» si el rol gestiona el plan). Botón de cinta «Añadir gimnasta» solo con la capacidad de gestionar gimnastas. Secciones «Día a día», «Personas» y «Club» en rótulo de pista azul calle; ítems de 44 px al 80 % de blanco, activo en cinta blanca con texto zona de seguridad y foco en anillo blanco. Sin nombre de academia, el lateral rotula la marca. No lleva buscador: la lista de gimnastas de `/owner` no admite búsqueda por URL.
+  - **Cabecera:** blanca con línea de magnesio; marca Z en tapiz y, solo donde no hay lateral, la academia tras una regla vertical de 3 px. A la derecha, el interruptor claro/oscuro de `/app` (`ThemeToggle`, 44 px) y «Cerrar sesión».
+  - **Título de pantalla (`ownerUi.pageTitle`):** apoyado en una regla de cinta de 3 px en noche, como `PageHeader` de `/app`. Lo heredan todas las pantallas que usan `owner-ui.ts`, también el portal de familias.
+  - **Navegación inferior móvil:** las mismas celdas y «Más»; activo relleno tapiz con texto blanco, etiquetas a 0,75 rem.
+  - **Hero del Resumen:** banda de tapiz con marco de cinta, la academia como `h1` (con «Resumen de» solo para lectores de pantalla), la sede o «Todas las sedes» en rótulo de pista, el saludo con el siguiente paso real (puesta en marcha, listas sin pasar o sesiones de hoy) y su acción en cinta blanca, el reloj de pista a la derecha y, al pie, la franja del plan: nombre y estado de la política operativa y, solo para la titular, el uso real (gimnastas, clases y grupos frente a su límite) con barra y «Mejorar plan».
+  - **Puesta en marcha:** mismo formato que en `/app`: paso actual en numeral de 6 rem, «Paso N de M · X% completado», barra de 6 px, acción del paso y «Ver N pendientes» con la lista reglada de pendientes.
 
 ### Huecos conocidos (no son reglas del sistema)
 Estado registrado tras la tercera ronda de pulido (2026-11-08), comprobado en código. Nada de esta lista debe copiarse como patrón.
@@ -596,7 +603,7 @@ Estado registrado tras la tercera ronda de pulido (2026-11-08), comprobado en c�
 
 **Pendientes dentro del producto:**
 - **Modo oscuro revisado** en `/app` (panel, gimnastas, grupos, entrenamientos, ajustes), home, precios y login. No se ha revisado de noche en `/owner` (pide una sesión real de Supabase), `/super-admin` ni en las páginas públicas secundarias.
-- **`/owner` sin revisión visual:** pide una sesión real de Supabase que el entorno local no tiene y redirige al login. Está verificado solo en código (`tsc`, eslint).
+- **`/owner` sin revisión visual:** pide una sesión real de Supabase que el entorno local no tiene y redirige al login. Está verificado solo en código (`tsc`, eslint) y en tests de render; el shell y el hero de 2026-11-12 tampoco tienen capturas.
 - **Disciplinas del panel del club:** pizarra y noche se distinguen menos que los tintes violeta, rosa y verde anteriores.
 - **Rótulo de entrenadoras en género único:** la página y la navegación ya coinciden («Entrenadoras», del registro de especialización), pero el rótulo no cambia cuando el equipo es mixto, y la cabecera de la tabla de clases dice «Entrenadores/as». «Equipo técnico», que ya usa Asistencia, valdría para todos los casos; es una decisión de terminología del producto, no de diseño.
 - **Aparatos repetidos en clases:** «Suelo y barra», «Suelo» y «Barra de equilibrio» aparecen juntos. Viene de los datos de la configuración deportiva, no de la interfaz.

@@ -110,6 +110,7 @@ export default async function OwnerMonthlyInvoicesPage({
       <OwnerWorkspacePageShell
         member={scope.member}
         organizationId={scope.organization.id}
+        organizationName={scope.organization.name}
         locationId={scope.selectedLocationId}
       >
         <p
@@ -127,6 +128,7 @@ export default async function OwnerMonthlyInvoicesPage({
     <OwnerWorkspacePageShell
       member={scope.member}
       organizationId={scope.organization.id}
+      organizationName={scope.organization.name}
       locationId={scope.selectedLocationId}
     >
       <OwnerMonthlyInvoicesManager
