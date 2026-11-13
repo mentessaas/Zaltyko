@@ -24,7 +24,7 @@ const footerLinks: { title: string; links: { label: string; href: string }[] }[]
       { label: "Identificación del titular", href: "/terminos#titular" },
       { label: "Términos del servicio", href: "/terminos" },
       { label: "Política de privacidad", href: "/politica-privacidad" },
-      { label: "Cookies", href: "/politica-privacidad#cookies" },
+      { label: "Cookies", href: "/politica-privacidad" },
     ],
   },
 ];

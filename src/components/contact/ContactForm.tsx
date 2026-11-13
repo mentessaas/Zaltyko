@@ -9,6 +9,8 @@ import {
   capturePublicGrowthEvent,
   getPublicAttribution,
 } from "@/lib/growth/client";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const reasons = [
   { value: "demo", label: "Solicitar demo" },
@@ -35,6 +37,15 @@ interface ContactFormProps {
 
 const publicPlans = new Set<CommercialPlanSlug>(["free", "starter", "growth", "network"]);
 const CONTACT_REQUEST_TIMEOUT_MS = 20_000;
+
+/**
+ * Campo del sistema: 44 px, blanco, borde de rampa, 10 px de radio y foco en
+ * azul tapiz con anillo de 4 px al 15 %. 16 px de letra para que iOS no haga
+ * zoom. En oscuro se apoya en las superficies del tema.
+ */
+const FIELD_CLASS =
+  "w-full rounded-card border border-ramp-300 bg-white px-4 text-base font-normal text-mat-night placeholder:text-ramp-500 transition-colors duration-150 focus:border-mat focus:outline-none focus:ring-4 focus:ring-mat/15 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground";
+const LABEL_CLASS = "block text-sm font-semibold text-mat-night";
 
 function captureContactEvent(input: Parameters<typeof capturePublicGrowthEvent>[0]) {
   try {
@@ -216,12 +227,12 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
     >
       <input type="text" name="company" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
       {publicPlans.has(defaultPlan as CommercialPlanSlug) && (
-        <p className="rounded-lg border border-zaltyko-teal/25 bg-zaltyko-teal/10 px-4 py-3 text-sm text-foreground">
+        <p className="rounded-md border border-chalk-line bg-mat-wash px-4 py-3 text-sm text-mat-deep">
           Interés seleccionado: <strong className="capitalize">{defaultPlan}</strong>
         </p>
       )}
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-zaltyko-text-main">
+        <label htmlFor="name" className={LABEL_CLASS}>
           Nombre completo
         </label>
         <input
@@ -230,13 +241,13 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
           name="name"
           required
           autoComplete="name"
-          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-ramp-500 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
+          className={cn(FIELD_CLASS, "mt-1 block h-11")}
           placeholder="Tu nombre"
         />
       </div>
 
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-zaltyko-text-main">
+        <label htmlFor="email" className={LABEL_CLASS}>
           Email
         </label>
         <input
@@ -245,13 +256,13 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
           name="email"
           required
           autoComplete="email"
-          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-ramp-500 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
+          className={cn(FIELD_CLASS, "mt-1 block h-11")}
           placeholder="tu@email.com"
         />
       </div>
 
       <div>
-        <label htmlFor="reason" className="block text-sm font-medium text-zaltyko-text-main">
+        <label htmlFor="reason" className={LABEL_CLASS}>
           Motivo de contacto
         </label>
         <select
@@ -260,7 +271,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
           required
           value={selectedReason}
           onChange={(event) => setSelectedReason(event.target.value)}
-          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground"
+          className={cn(FIELD_CLASS, "mt-1 block h-11")}
         >
           {reasons.map((reason) => (
             <option key={reason.value} value={reason.value}>
@@ -271,36 +282,36 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
       </div>
 
       {selectedReason === "market_access" && (
-        <fieldset className="grid min-w-0 gap-4 rounded-lg border border-border p-4">
-          <legend className="px-1 font-semibold">Acceso asistido para tu club</legend>
-          <p className="text-sm text-zaltyko-text-secondary">
+        <fieldset className="grid min-w-0 gap-4 rounded-card border border-chalk-line bg-chalk p-4">
+          <legend className="px-1 font-semibold text-mat-night">Acceso asistido para tu club</legend>
+          <p className="text-sm text-ramp-600">
             Indica el país real del club. Evaluaremos qué gestión podemos ofrecerte;
             esta solicitud no crea una academia ni contrata un plan. No hay una fecha de apertura comprometida.
           </p>
-          <label className="grid gap-2 text-sm font-medium">
+          <label className="grid gap-2 text-sm font-semibold text-mat-night">
             País del club
             <input name="countryName" required minLength={2} maxLength={80} autoComplete="country-name"
-              placeholder="Por ejemplo, Argentina" className="touch-target min-w-0 w-full rounded-lg border border-gray-300 bg-background px-3" />
+              placeholder="Por ejemplo, Argentina" className={cn(FIELD_CLASS, "touch-target min-w-0")} />
           </label>
-          <label className="grid gap-2 text-sm font-medium">
+          <label className="grid gap-2 text-sm font-semibold text-mat-night">
             Tu función en el club
             <select name="marketRole" required defaultValue=""
-              className="touch-target min-w-0 w-full rounded-lg border border-gray-300 bg-background px-3">
+              className={cn(FIELD_CLASS, "touch-target min-w-0")}>
               <option value="" disabled>Selecciona tu función</option>
               {MARKET_ACCESS_ROLES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
           </label>
           <fieldset className="grid min-w-0 gap-2" aria-describedby="market-disciplines-help">
-            <legend className="mb-2 text-sm font-medium">Disciplinas o actividades del club</legend>
-            <p id="market-disciplines-help" className="text-sm text-zaltyko-text-secondary">Elige al menos una opción.</p>
+            <legend className="mb-2 text-sm font-semibold text-mat-night">Disciplinas o actividades del club</legend>
+            <p id="market-disciplines-help" className="text-sm text-ramp-600">Elige al menos una opción.</p>
             {MARKET_ACCESS_DISCIPLINES.map((item) => (
-              <label key={item.value} className="flex min-h-11 items-center gap-3 text-sm">
-                <input type="checkbox" name="marketDisciplines" value={item.value} />
+              <label key={item.value} className="flex min-h-11 items-center gap-3 text-sm text-mat-night">
+                <input type="checkbox" name="marketDisciplines" value={item.value} className="h-4 w-4 accent-mat" />
                 {item.label}
               </label>
             ))}
           </fieldset>
-          <p className="text-sm text-zaltyko-text-secondary">
+          <p className="text-sm text-ramp-600">
             Usa tus datos profesionales de contacto. No incluyas datos de gimnastas menores.
             Enviaremos solo la respuesta a esta solicitud; no te suscribes a campañas.
           </p>
@@ -308,7 +319,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
       )}
 
       <div>
-        <label htmlFor="academy" className="block text-sm font-medium text-zaltyko-text-main">
+        <label htmlFor="academy" className={LABEL_CLASS}>
           Nombre de tu academia (opcional)
         </label>
         <input
@@ -316,13 +327,13 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
           id="academy"
           name="academy"
           autoComplete="organization"
-          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-ramp-500 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
+          className={cn(FIELD_CLASS, "mt-1 block h-11")}
           placeholder="Ej: Club Gimnasia Centro"
         />
       </div>
 
       <div>
-        <label htmlFor="message" className="block text-sm font-medium text-zaltyko-text-main">
+        <label htmlFor="message" className={LABEL_CLASS}>
           Mensaje
         </label>
         <textarea
@@ -332,7 +343,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
           required
           minLength={10}
           maxLength={selectedReason === "market_access" ? 1_600 : 2_000}
-          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-zaltyko-text-main placeholder:text-ramp-500 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 dark:border-border dark:bg-card dark:text-foreground dark:placeholder:text-muted-foreground"
+          className={cn(FIELD_CLASS, "mt-1 block py-2.5")}
           placeholder={selectedReason === "market_access"
             ? "Describe la gestión que necesitas, sin nombres ni datos de gimnastas."
             : "Cuéntanos qué necesitas resolver."}
@@ -344,11 +355,11 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
           role={state.status === "error" ? "alert" : "status"}
           className={
             state.status === "success"
-              ? "rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-              : "rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+              ? "rounded-md border border-chalk-line bg-mat-wash px-4 py-3 text-sm font-medium text-mat-deep"
+              : "rounded-md border border-signal/30 bg-signal-wash px-4 py-3 text-sm font-medium text-signal-ink"
           }
         >
-          {state.status === "success" && <CheckCircle2 className="mr-2 inline h-4 w-4" />}
+          {state.status === "success" && <CheckCircle2 aria-hidden className="mr-2 inline h-4 w-4" />}
           {state.message}
         </div>
       )}
@@ -356,15 +367,15 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
       <button
         type="submit"
         disabled={submitting || !isHydrated}
-        className="inline-flex w-full items-center justify-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white transition-colors hover:bg-zaltyko-primary-dark disabled:cursor-not-allowed disabled:opacity-70"
+        className={cn(buttonVariants({ size: "lg" }), "w-full")}
       >
-        {submitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}
+        {submitting ? <Loader2 aria-hidden className="animate-spin" /> : <Send aria-hidden />}
         {!isHydrated ? "Preparando formulario..." : submitting ? "Enviando..." : "Enviar mensaje"}
       </button>
 
-      <p className="text-center text-xs text-muted-foreground">
+      <p className="text-center text-xs text-ramp-500">
         Al enviar este formulario, aceptas nuestra{" "}
-        <Link href="/politica-privacidad" className="underline hover:text-zaltyko-primary">
+        <Link href="/politica-privacidad" className="underline hover:text-mat">
           política de privacidad
         </Link>
         .
