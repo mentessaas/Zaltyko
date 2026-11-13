@@ -21,6 +21,7 @@ describe("live contracting requires verified seller and tax readiness", () => {
     taxTreatmentReviewed: true,
     checkoutTaxVerified: true,
     legalTextsApproved: true,
+    invoicingIntegrationReady: true,
     liveReleaseApproved: true,
   };
 
@@ -28,12 +29,14 @@ describe("live contracting requires verified seller and tax readiness", () => {
     expect(commercialLaunchProfile.registrationStatus).toBe("pending");
     expect(commercialLaunchProfile.taxId).toBeNull();
     expect(commercialLaunchProfile.professionalAddress).toBeNull();
-    expect(commercialLaunchProfile.registrationVerifiedOn).toBeNull();
+    // Alta en Hacienda y RETA confirmada por documento; sigue pending sin NIF/domicilio.
+    expect(commercialLaunchProfile.registrationVerifiedOn).toBe("2026-11-05");
     // Ninguna bandera de verificación se marca en este cambio.
     expect(commercialLaunchProfile).toMatchObject({
       supportMailboxVerified: false, taxTreatmentReviewed: false, checkoutTaxVerified: false,
-      legalTextsApproved: false, liveReleaseApproved: false,
+      legalTextsApproved: false, invoicingIntegrationReady: false, liveReleaseApproved: false,
     });
+    expect(getCommercialLaunchReadiness().missing).toContain("invoicing_integration");
     expect(isSaasCheckoutEnabled("live")).toBe(false);
     expect(isSaasCheckoutEnabled("test")).toBe(true);
   });
@@ -46,6 +49,7 @@ describe("live contracting requires verified seller and tax readiness", () => {
     ["supportEmail", " "],
     ["supportMailboxVerified", false], ["taxTreatmentReviewed", false],
     ["checkoutTaxVerified", false], ["legalTextsApproved", false], ["liveReleaseApproved", false],
+    ["invoicingIntegrationReady", false],
   ] as const)("fails closed when %s is incomplete (%s)", (field, value) => {
     const result = getCommercialLaunchReadiness({ ...complete, [field]: value });
     expect(result.ready).toBe(false);
@@ -68,6 +72,19 @@ describe("live contracting requires verified seller and tax readiness", () => {
     expect(result).toEqual({ ready: false, missing: [code] });
   });
 
+  it("only accepts verified registration together with tax ID and address", () => {
+    for (const field of ["taxId", "professionalAddress"] as const) {
+      const result = getCommercialLaunchReadiness({ ...complete, [field]: null });
+      expect(result.ready).toBe(false);
+      expect(result.missing).toContain("registration_incomplete");
+    }
+  });
+
+  it("keeps Live closed until every charge produces a ZA invoice outside Stripe", () => {
+    expect(getCommercialLaunchReadiness({ ...complete, invoicingIntegrationReady: false }))
+      .toEqual({ ready: false, missing: ["invoicing_integration"] });
+  });
+
   it("accepts a NIE and an address in the Balearic Islands", () => {
     expect(getCommercialLaunchReadiness({
       ...complete, taxId: "X1234567L", professionalAddress: "Calle Sintética 1, 07001 Palma (Illes Balears)",
@@ -81,7 +98,7 @@ describe("live contracting requires verified seller and tax readiness", () => {
     expect(result.missing).not.toContain("seller_tax_id");
     expect(result.missing).not.toContain("seller_address");
     expect(result.ready).toBe(false);
-    expect(result.missing).toEqual(expect.arrayContaining(["registration", "checkout_tax", "tax_treatment", "legal_texts", "live_release"]));
+    expect(result.missing).toEqual(expect.arrayContaining(["registration", "checkout_tax", "tax_treatment", "legal_texts", "invoicing_integration", "live_release"]));
     expect(getCommercialLaunchReadiness(complete)).toEqual({ ready: true, missing: [] });
   });
 

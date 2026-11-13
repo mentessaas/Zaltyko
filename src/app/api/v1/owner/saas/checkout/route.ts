@@ -25,6 +25,8 @@ const bodySchema = z
     billingInterval: z.enum(["month", "year"]),
     // Academias de España: territorio fiscal declarado para aplicar el IVA.
     taxTerritory: z.enum(SPANISH_TAX_TERRITORIES).optional(),
+    // Casilla obligatoria de inicio inmediato y pérdida del desistimiento.
+    immediateStartConsent: z.literal(true).optional(),
   })
   .strict();
 const idempotencySchema = z.string().trim().min(8).max(150);

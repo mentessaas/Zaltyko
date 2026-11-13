@@ -18,6 +18,7 @@ export function isDefinitiveSaasCommandRejection(
     TRIAL_NOT_ELIGIBLE: [409], SUBSCRIPTION_ALREADY_EXISTS: [409],
     CHECKOUT_EXPIRED: [409, 410], RATE_LIMITED: [429],
     SAAS_TAX_TERRITORY_REQUIRED: [422], SAAS_TAX_TERRITORY_NOT_COVERED: [403],
+    SAAS_IMMEDIATE_START_CONSENT_REQUIRED: [422],
   };
   return allowed[data.code]?.includes(response.status) ?? false;
 }

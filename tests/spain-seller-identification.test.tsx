@@ -34,6 +34,7 @@ describe("identificación del prestador (LSSI art. 10) en Términos y Privacidad
       taxTreatmentReviewed: true,
       checkoutTaxVerified: true,
       legalTextsApproved: true,
+      invoicingIntegrationReady: true,
       liveReleaseApproved: true,
     };
     const html = text(renderToStaticMarkup(createElement(SellerIdentification, { profile: complete })));
@@ -57,12 +58,21 @@ describe("operación de contratación pendiente guardada en el navegador", () =>
     serializedBody: JSON.stringify({ organizationId, planCode: "starter", billingInterval: "month", ...body }),
   });
 
-  it("acepta la sede fiscal cubierta y rechaza cualquier otra", () => {
+  it("acepta la sede fiscal cubierta y la casilla marcada, y rechaza cualquier otra cosa", () => {
     expect(decodeStoredSaasCommand(stored({}), organizationId)).not.toBeNull();
     expect(decodeStoredSaasCommand(stored({ taxTerritory: "peninsula_baleares" }), organizationId)).not.toBeNull();
+    expect(decodeStoredSaasCommand(stored({
+      taxTerritory: "peninsula_baleares", immediateStartConsent: true,
+    }), organizationId)).not.toBeNull();
     for (const taxTerritory of ["canarias", "ceuta", "melilla", "otra", null]) {
       expect(decodeStoredSaasCommand(stored({ taxTerritory }), organizationId), String(taxTerritory)).toBeNull();
     }
+    for (const immediateStartConsent of [false, "true", 1]) {
+      expect(decodeStoredSaasCommand(stored({
+        taxTerritory: "peninsula_baleares", immediateStartConsent,
+      }), organizationId), String(immediateStartConsent)).toBeNull();
+    }
     expect(decodeStoredSaasCommand(stored({ coupon: "x" }), organizationId)).toBeNull();
+    expect(decodeStoredSaasCommand(stored({ constructor: "x" }), organizationId)).toBeNull();
   });
 });

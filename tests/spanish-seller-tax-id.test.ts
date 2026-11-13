@@ -78,10 +78,10 @@ describe("perfil real del vendedor", () => {
 
   it("solo pasa a verified con NIF, domicilio y fecha de alta", () => {
     const profile = commercialLaunchProfile;
-    if (profile.registrationStatus !== "verified") {
-      expect(profile.registrationVerifiedOn).toBeNull();
-      return;
+    if (profile.registrationVerifiedOn !== null) {
+      expect(profile.registrationVerifiedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
+    if (profile.registrationStatus !== "verified") return;
     expect(profile.taxId).not.toBeNull();
     expect(profile.professionalAddress).not.toBeNull();
     expect(profile.registrationVerifiedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);

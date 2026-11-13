@@ -950,3 +950,62 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     expect(posts()).toHaveLength(1);
   });
 });
+
+describe("contratación en España: sede fiscal, precio con IVA y casilla de inicio inmediato", () => {
+  function checkoutFixture() {
+    const data = fixture();
+    data.entitlement.planCode = "free"; data.entitlement.source = "bootstrap";
+    data.subscription = null;
+    data.trial.eligible = false;
+    data.actions = { canStartTrial: false, canCheckoutStarter: true, canCheckoutGrowth: true, canOpenPortal: false };
+    return data;
+  }
+  const checkoutResult = {
+    operationId: "operation-synthetic", checkoutUrl: "https://checkout.stripe.com/c/pay/synthetic",
+    expiresAt: "2026-11-01T00:00:00.000Z", status: "pending",
+  };
+  function posts() { return fetchMock.mock.calls.filter(([, options]) => options.method === "POST"); }
+
+  it("muestra el precio final con IVA y la base como secundaria", async () => {
+    fetchMock.mockResolvedValue(response(checkoutFixture()));
+    render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" taxTerritoryRequired />);
+    expect(await screen.findAllByRole("button", { name: "Indica la sede fiscal" })).toHaveLength(2);
+    const text = document.body.textContent!.replace(/\s/gu, " ");
+    expect(text).toContain("22,99 €");
+    expect(text).toContain("59,29 €");
+    expect(text).toContain("19 € + IVA (21 %)");
+    expect(text).toContain("49 € + IVA (21 %)");
+    expect(text).not.toContain("Precios sin IVA.");
+  });
+
+  it("no envía la contratación hasta marcar la casilla de inicio inmediato y la incluye en la solicitud", async () => {
+    fetchMock.mockImplementation(async (_url, options) => response(options.method === "POST" ? checkoutResult : checkoutFixture()));
+    render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" taxTerritoryRequired />);
+    fireEvent.click(await screen.findByLabelText("Península o Islas Baleares"));
+    const blocked = screen.getAllByRole("button", { name: "Marca la casilla para contratar" });
+    expect(blocked).toHaveLength(2);
+    for (const button of blocked) expect(button).toBeDisabled();
+    const consent = screen.getByRole("checkbox", { name: /pierdo el derecho de desistimiento de 14 días/ });
+    expect(consent).toBeRequired();
+    expect(consent).not.toBeChecked();
+    expect(posts()).toHaveLength(0);
+
+    fireEvent.click(consent);
+    fireEvent.click(await screen.findByRole("button", { name: "Contratar Growth" }));
+    await waitFor(() => expect(posts()).toHaveLength(1));
+    expect(JSON.parse(posts()[0][1].body)).toEqual({
+      organizationId: org, planCode: "growth", billingInterval: "month",
+      taxTerritory: "peninsula_baleares", immediateStartConsent: true,
+    });
+  });
+
+  it.each(["Islas Canarias", "Ceuta", "Melilla"])("con sede en %s explica que no hay contratación y no permite pagar", async (label) => {
+    fetchMock.mockResolvedValue(response(checkoutFixture()));
+    render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" taxTerritoryRequired />);
+    fireEvent.click(await screen.findByLabelText(label));
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(screen.getByText(/todavía no está disponible: allí no se aplica el IVA/)).toBeVisible();
+    for (const button of screen.getAllByRole("button", { name: "No disponible ahora" })) expect(button).toBeDisabled();
+    expect(posts()).toHaveLength(0);
+  });
+});

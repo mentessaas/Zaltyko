@@ -6,6 +6,7 @@ import PricingSection from "@/app/(site)/pricing";
 import { isSaasCheckoutEnabled } from "@/lib/launch/commercial-launch-profile";
 import { Schema } from "@/components/Schema";
 import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
+import { quoteSpanishVat } from "@/modules/saas-billing/domain/spanish-vat";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const baseUrl = getPublicSiteUrl();
@@ -37,7 +38,7 @@ const pricingSchema = {
   "@context": "https://schema.org",
   "@type": "Product",
   name: "Planes Zaltyko",
-  description: "Software para gestión de academias de gimnasia. Precios base sin IVA.",
+  description: "Software para gestión de academias de gimnasia. Precios finales con IVA (21 %) para España peninsular y Baleares.",
   offerCatalog: {
     "@type": "OfferCatalog",
     name: "Planes disponibles",
@@ -50,40 +51,40 @@ const pricingSchema = {
         priceSpecification: {
           "@type": "UnitPriceSpecification",
           priceCurrency: "EUR",
-          valueAddedTaxIncluded: false,
+          valueAddedTaxIncluded: true,
         },
       },
       {
         "@type": "Offer",
         name: "Starter",
-        price: String(PRODUCT_PLAN_BY_CODE.pro.priceEurCents / 100),
+        price: String(quoteSpanishVat(PRODUCT_PLAN_BY_CODE.pro.priceEurCents).totalCents / 100),
         priceCurrency: "EUR",
         priceSpecification: {
           "@type": "UnitPriceSpecification",
           priceCurrency: "EUR",
-          valueAddedTaxIncluded: false,
+          valueAddedTaxIncluded: true,
         },
       },
       {
         "@type": "Offer",
         name: "Growth",
-        price: String(PRODUCT_PLAN_BY_CODE.premium.priceEurCents / 100),
+        price: String(quoteSpanishVat(PRODUCT_PLAN_BY_CODE.premium.priceEurCents).totalCents / 100),
         priceCurrency: "EUR",
         priceSpecification: {
           "@type": "UnitPriceSpecification",
           priceCurrency: "EUR",
-          valueAddedTaxIncluded: false,
+          valueAddedTaxIncluded: true,
         },
       },
       {
         "@type": "Offer",
         name: "Network",
-        price: String(PRODUCT_PLAN_BY_CODE.network.priceEurCents / 100),
+        price: String(quoteSpanishVat(PRODUCT_PLAN_BY_CODE.network.priceEurCents).totalCents / 100),
         priceCurrency: "EUR",
         priceSpecification: {
           "@type": "UnitPriceSpecification",
           priceCurrency: "EUR",
-          valueAddedTaxIncluded: false,
+          valueAddedTaxIncluded: true,
         },
       },
     ],

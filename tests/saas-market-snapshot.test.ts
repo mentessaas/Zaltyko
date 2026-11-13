@@ -33,6 +33,7 @@ vi.mock("@/lib/launch/commercial-launch-profile", async (importOriginal) => {
     taxTreatmentReviewed: true,
     checkoutTaxVerified: true,
     legalTextsApproved: true,
+    invoicingIntegrationReady: true,
     liveReleaseApproved: true,
   };
 

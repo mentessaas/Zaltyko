@@ -21,6 +21,7 @@ import {
 import type { SpanishTaxTerritory } from "@/modules/organizations/domain/commercial-market-capabilities";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import type { OwnerSaasBillingSnapshot } from "../domain/owner-saas-contract";
+import { IMMEDIATE_START_CONSENT_VERSION } from "../domain/immediate-start-consent";
 import {
   checkoutSessionMatchesSpanishVat,
   quoteSpanishVat,
@@ -523,6 +524,8 @@ export async function createOwnerSaasCheckout(input: {
   idempotencyKey: string;
   /** Territorio fiscal declarado por la dirección de una academia de España. */
   taxTerritory?: SpanishTaxTerritory | null;
+  /** Casilla obligatoria: inicio inmediato y pérdida del desistimiento. */
+  immediateStartConsent?: boolean;
   at?: Date;
 }): Promise<{
   operationId: string;
@@ -565,6 +568,7 @@ export async function createOwnerSaasCheckout(input: {
     // Contrato fiscal antes de bloquear o escribir: Live sin Tax Rate de IVA
     // (503) o un territorio fuera del IVA (403/422) no dejan rastro.
     taxPlan = acceptedCheckoutTaxPlan(config, scope, input.taxTerritory);
+    assertImmediateStartConsent(taxPlan, input.immediateStartConsent);
     await lockOrganizationForSaasMutation(tx, scope.organizationId);
     if (config.environment === "live") {
       scope = await resolveSaasOwnerScope({
@@ -1108,6 +1112,7 @@ export async function createOwnerSaasCheckout(input: {
       billing_interval: input.billingInterval,
       provider_account_reference: config.providerAccountReference,
       environment: config.environment,
+      ...(vatTaxRate ? { immediate_start_consent: IMMEDIATE_START_CONSENT_VERSION } : {}),
     };
     const integrationIdentifier = stableIntegrationIdentifier(operation.id);
     const returnUrl = checkoutReturnUrl(operation.organizationId, "confirming");
@@ -1127,11 +1132,13 @@ export async function createOwnerSaasCheckout(input: {
             ...(vatTaxRate ? { tax_rates: [vatTaxRate] } : {}),
           },
         ],
-        // Factura completa (art. 6 RD 1619/2012): nombre, dirección y, si es
-        // empresa o profesional, NIF del destinatario.
+        // Siempre factura completa (art. 6 RD 1619/2012), emitida fuera de
+        // Stripe en FacturaDirecta (serie ZA): razón social, NIF/CIF y
+        // domicilio del destinatario son obligatorios en el pago.
         ...(vatTaxRate ? {
           billing_address_collection: "required" as const,
-          tax_id_collection: { enabled: true },
+          tax_id_collection: { enabled: true, required: "if_supported" as const },
+          name_collection: { business: { enabled: true, optional: false } },
           customer_update: { address: "auto" as const, name: "auto" as const },
         } : {}),
         success_url: returnUrl,
@@ -1434,6 +1441,21 @@ function acceptedCheckoutTaxPlan(
       throw saasTaxTerritoryRequired();
     case "territory_not_covered":
       throw saasTaxTerritoryNotCovered();
+  }
+}
+
+/** Toda contratación con IVA español exige la casilla de inicio inmediato. */
+function assertImmediateStartConsent(
+  plan: AcceptedCheckoutTaxPlan,
+  consent: boolean | undefined
+): void {
+  if (plan.kind === "es_vat_general" && consent !== true) {
+    throw new OperationalError(
+      "FEATURE_NOT_AVAILABLE",
+      "Marca la casilla de inicio inmediato del servicio antes de contratar",
+      422,
+      { code: "SAAS_IMMEDIATE_START_CONSENT_REQUIRED" }
+    );
   }
 }
 

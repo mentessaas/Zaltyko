@@ -142,7 +142,7 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       .mockResolvedValueOnce({ organizationId, countryCode: "ES" })
       .mockResolvedValueOnce({ organizationId, countryCode: "MX" });
 
-    await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares" })).rejects.toMatchObject({
+    await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares", immediateStartConsent: true })).rejects.toMatchObject({
       status: 403,
       details: { code: "SAAS_MARKET_NOT_ENABLED" },
     });
@@ -222,10 +222,28 @@ describe("Checkout reservation guards with isolated dependencies", () => {
     expect(mocks.provider).not.toHaveBeenCalled();
     expect(mocks.dbUpdate).not.toHaveBeenCalled();
   });
+  it.each([undefined, false])("requires the immediate-start consent (%s) before locking or writing", async (immediateStartConsent) => {
+    mocks.liveReady = true;
+    mocks.config.mockReturnValue({
+      environment: "live",
+      providerAccountReference: "acct_synthetic_live",
+      taxRates: { esVatGeneral: "txr_synthetic_live" },
+    });
+    await expect(createOwnerSaasCheckout({
+      ...input, taxTerritory: "peninsula_baleares", immediateStartConsent,
+    })).rejects.toMatchObject({
+      status: 422, details: { code: "SAAS_IMMEDIATE_START_CONSENT_REQUIRED" },
+    });
+    expect(mocks.lock).not.toHaveBeenCalled();
+    expect(limit).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+    expect(mocks.provider).not.toHaveBeenCalled();
+    expect(mocks.dbUpdate).not.toHaveBeenCalled();
+  });
   it("keeps Spanish Live checkout closed without the VAT Tax Rate even when seller setup is ready", async () => {
     mocks.liveReady = true;
     mocks.config.mockReturnValue({ environment: "live", providerAccountReference: "acct_synthetic_live" });
-    await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares" })).rejects.toMatchObject({
+    await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares", immediateStartConsent: true })).rejects.toMatchObject({
       status: 503, details: { code: "BILLING_CONFIGURATION_UNAVAILABLE" },
     });
     expect(mocks.lock).not.toHaveBeenCalled();
@@ -272,7 +290,7 @@ describe("Checkout reservation guards with isolated dependencies", () => {
     }
     it("adds the 21 % Tax Rate and invoice data collection, and checks the session total", async () => {
       arrange();
-      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares" }))
+      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares", immediateStartConsent: true }))
         .resolves.toMatchObject({ operationId: "operation", checkoutUrl: "https://checkout.stripe.com/c/pay/synthetic" });
       expect(mocks.provider).toHaveBeenCalledWith("txr_synthetic");
       const creations = mocks.provider.mock.calls.filter(([arg]) => typeof arg === "object");
@@ -280,9 +298,14 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       expect(creations[0][0]).toMatchObject({
         line_items: [{ price: "price_synthetic", quantity: 1, tax_rates: ["txr_synthetic"] }],
         billing_address_collection: "required",
-        tax_id_collection: { enabled: true },
+        tax_id_collection: { enabled: true, required: "if_supported" },
+        name_collection: { business: { enabled: true, optional: false } },
         customer_update: { address: "auto", name: "auto" },
+        metadata: { immediate_start_consent: "desistimiento-14d-v1" },
+        subscription_data: { metadata: { immediate_start_consent: "desistimiento-14d-v1" } },
       });
+      // Las facturas se emiten en FacturaDirecta (serie ZA), no en Stripe.
+      expect(creations[0][0]).not.toHaveProperty("invoice_creation");
       expect(creations[0][0]).not.toHaveProperty("automatic_tax");
       expect(creations[0][1]).toEqual({ idempotencyKey: "stable-checkout-key" });
     });
@@ -291,7 +314,7 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       ["a session with another tax amount", { amount_total: 2280, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 380 } }],
     ])("does not hand over %s", async (_label, sessionOverride) => {
       arrange({ session: sessionOverride });
-      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares" }))
+      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares", immediateStartConsent: true }))
         .rejects.toMatchObject({ status: 503 });
     });
     it.each([
@@ -302,7 +325,7 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       ["live mode", { livemode: true }],
     ])("refuses a misconfigured Tax Rate (%s) before creating a session", async (_label, taxRateOverride) => {
       arrange({ taxRate: taxRateOverride });
-      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares" }))
+      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares", immediateStartConsent: true }))
         .rejects.toMatchObject({ status: 503 });
       expect(mocks.provider.mock.calls.filter(([arg]) => typeof arg === "object")).toHaveLength(0);
     });
