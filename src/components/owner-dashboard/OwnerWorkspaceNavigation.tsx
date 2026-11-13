@@ -12,12 +12,15 @@ import {
   Inbox,
   LayoutDashboard,
   MoreHorizontal,
+  Plus,
   Sparkles,
   UserPlus,
   Users,
   UsersRound,
   Wallet,
 } from "lucide-react";
+import { ZaltykoLockup } from "@/components/brand/ZaltykoMark";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { OwnerOperationalPolicy } from "./OwnerOperationalPolicy";
 import { OwnerSignOutButton } from "./OwnerSignOutButton";
 import { OwnerSidebarPlanCard } from "./OwnerSidebarPlanCard";
@@ -58,6 +61,9 @@ const MOBILE_PRIMARY_LABELS = ["Resumen", "Asistencia", "Clases", "Grupos"] as c
 
 const FOCUS_RING =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500";
+/** Sobre el tapiz el anillo de foco es blanco (DESIGN.md, botones). */
+const SIDEBAR_FOCUS_RING =
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
 function ItemIcon({ label, className }: { label: string; className: string }) {
   const Icon = ITEM_ICONS[label];
@@ -74,11 +80,14 @@ export function OwnerWorkspaceNavigation({
   capabilities,
   organizationId: validatedOrganizationId,
   locationId: validatedLocationId,
+  organizationName,
   previewMode = false,
 }: {
   capabilities?: OwnerWorkspaceCapabilities;
   organizationId?: string | null;
   locationId?: string | null;
+  /** Nombre de la academia ya autorizada por la página; solo se rotula. */
+  organizationName?: string | null;
   previewMode?: boolean;
 }) {
   const mobileMoreRef = useRef<HTMLDetailsElement>(null);
@@ -221,45 +230,69 @@ export function OwnerWorkspaceNavigation({
     ],
   })).filter((section) => section.items.length > 0);
 
-  const brand = (
-    <Link
-      href={dashboardHref}
-      className={`touch-target inline-flex shrink-0 items-center gap-2.5 rounded-xl text-z-ink ${FOCUS_RING}`}
-    >
-      <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-z-ink font-display text-sm font-bold text-white">
-        Z
-      </span>
-      <span>
-        <span className="block font-display text-[17px] font-bold leading-none tracking-tight">
-          Zaltyko
-        </span>
-        <span className="mt-1 block text-xs font-medium text-z-soft">
-          Tu club
-        </span>
-      </span>
-    </Link>
+  const organizationLabel = organizationName?.trim() ? organizationName.trim() : null;
+  const canAddAthlete =
+    !preview && !coachOnly && capabilities?.canManageOrganizationAthletes === true;
+  const addAthleteHref = `/owner/athletes${organizationQuery}#new-athlete-heading`;
+
+  // Lateral «Magnesio sobre tapiz» (como AcademySidebar de /app): la academia
+  // rotulada sobre una regla de cinta blanca, su plan, la acción principal y
+  // las secciones con rótulo de pista. El activo es un tramo de cinta blanca.
+  const sidebarHeader = (
+    <div className="border-b-[3px] border-white px-2 pb-4">
+      <Link
+        href={dashboardHref}
+        className={`block rounded-md text-white ${SIDEBAR_FOCUS_RING}`}
+      >
+        {organizationLabel ? (
+          <span className="line-clamp-3 break-words font-display text-2xl font-black uppercase leading-[0.95] [overflow-wrap:anywhere]">
+            {organizationLabel}
+          </span>
+        ) : (
+          <ZaltykoLockup markClassName="h-7 w-7" />
+        )}
+      </Link>
+      {organizationId && !preview && !coachOnly ? (
+        <OwnerSidebarPlanCard
+          organizationId={organizationId}
+          subscriptionHref={capabilities?.canManageSubscription ? `/owner/subscription${organizationQuery}` : null}
+        />
+      ) : null}
+    </div>
   );
+
+  const sidebarItemClass = (active: boolean) =>
+    `touch-target flex items-center gap-3 rounded-md px-2.5 text-sm font-semibold transition-colors ${SIDEBAR_FOCUS_RING} ${active ? "bg-white text-mat-deep" : "text-white/80 hover:bg-white/10 hover:text-white"}`;
 
   return (
     <>
       <a
         href="#owner-workspace-content"
-        className={`fixed left-4 top-3 z-50 -translate-y-24 rounded-xl bg-z-ink px-4 py-3 text-sm font-semibold text-white transition-transform focus:translate-y-0 ${FOCUS_RING}`}
+        className={`fixed left-4 top-3 z-50 -translate-y-24 rounded-md bg-mat-night px-4 py-3 text-sm font-semibold text-white transition-transform focus:translate-y-0 ${FOCUS_RING}`}
       >
         Saltar al contenido
       </a>
       {showNavigation ? (
         <aside
           data-owner-sidebar=""
-          className="peer fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col overflow-y-auto border-r border-z-line bg-white xl:flex"
+          className="peer mat-field-deep fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col overflow-y-auto px-4 py-5 text-white xl:flex"
         >
-          <div className="px-5 pb-5 pt-5">{brand}</div>
-          <nav aria-label="Principal" className="flex flex-1 flex-col gap-0.5 px-3 pb-6">
+          {sidebarHeader}
+          {canAddAthlete ? (
+            <Link
+              href={addAthleteHref}
+              className={`touch-target mt-4 inline-flex items-center justify-center gap-1.5 rounded-md bg-white px-3 text-sm font-bold text-mat-deep transition-colors hover:bg-chalk ${SIDEBAR_FOCUS_RING}`}
+            >
+              <Plus aria-hidden="true" className="h-4 w-4" />
+              Añadir gimnasta
+            </Link>
+          ) : null}
+          <nav aria-label="Principal" className="mt-6 flex flex-1 flex-col gap-0.5 pb-2">
             {desktopSections.map((section, sectionIndex) => [
               <p
                 key={`section-${section.title}`}
                 aria-hidden="true"
-                className={`px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-z-soft ${sectionIndex === 0 ? "" : "pt-5"}`}
+                className={`floor-label px-2 pb-1.5 text-mat-lane ${sectionIndex === 0 ? "" : "pt-5"}`}
               >
                 {section.title}
               </p>,
@@ -268,9 +301,9 @@ export function OwnerWorkspaceNavigation({
                   key={item.label}
                   href={item.href}
                   aria-current={item.active ? "page" : undefined}
-                  className={`touch-target flex items-center gap-3 rounded-lg px-3 text-sm transition-colors ${FOCUS_RING} ${item.active ? "bg-z-brand-50 font-semibold text-z-brand-700" : "font-medium text-z-ink/80 hover:bg-z-canvas hover:text-z-ink"}`}
+                  className={sidebarItemClass(item.active)}
                 >
-                  <ItemIcon label={item.label} className="h-4 w-4 shrink-0" />
+                  <ItemIcon label={item.label} className="h-[1.1rem] w-[1.1rem] shrink-0" />
                   {item.label}
                 </Link>
               )),
@@ -280,9 +313,9 @@ export function OwnerWorkspaceNavigation({
                 <summary
                   ref={desktopMoreSummaryRef}
                   aria-label={activeDesktopMoreItem ? `Más opciones. Página actual: ${activeDesktopMoreItem.label}` : "Más opciones"}
-                  className={`touch-target flex cursor-pointer list-none items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors ${FOCUS_RING} [&::-webkit-details-marker]:hidden ${activeDesktopMoreItem ? "text-z-brand-700" : "text-z-ink/80 hover:bg-z-canvas hover:text-z-ink"}`}
+                  className={`touch-target flex cursor-pointer list-none items-center gap-3 rounded-md px-2.5 text-sm font-semibold transition-colors ${SIDEBAR_FOCUS_RING} [&::-webkit-details-marker]:hidden ${activeDesktopMoreItem ? "bg-white/10 text-white" : "text-white/80 hover:bg-white/10 hover:text-white"}`}
                 >
-                  <MoreHorizontal className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <MoreHorizontal className="h-[1.1rem] w-[1.1rem] shrink-0" aria-hidden="true" />
                   <span>Más</span>
                   <ChevronDown className="ml-auto h-3.5 w-3.5" aria-hidden="true" />
                 </summary>
@@ -296,9 +329,9 @@ export function OwnerWorkspaceNavigation({
                           desktopMoreSummaryRef.current?.focus({ preventScroll: true });
                         }}
                         aria-current={item.active ? "page" : undefined}
-                        className={`touch-target flex items-center gap-3 rounded-lg px-3 text-sm transition-colors ${FOCUS_RING} ${item.active ? "bg-z-brand-50 font-semibold text-z-brand-700" : "font-medium text-z-ink/80 hover:bg-z-canvas hover:text-z-ink"}`}
+                        className={sidebarItemClass(item.active)}
                       >
-                        <ItemIcon label={item.label} className="h-4 w-4 shrink-0" />
+                        <ItemIcon label={item.label} className="h-[1.1rem] w-[1.1rem] shrink-0" />
                         {item.label}
                       </Link>
                     </li>
@@ -307,28 +340,41 @@ export function OwnerWorkspaceNavigation({
               </details>
             ) : null}
           </nav>
-          {organizationId && !preview && !coachOnly ? (
-            <OwnerSidebarPlanCard
-              organizationId={organizationId}
-              subscriptionHref={capabilities?.canManageSubscription ? `/owner/subscription${organizationQuery}` : null}
-            />
-          ) : null}
         </aside>
       ) : null}
-      <header className="relative z-20 border-b border-z-line bg-white xl:sticky xl:top-0 xl:bg-white/90 xl:backdrop-blur xl:peer-data-[owner-sidebar]:pl-[248px]">
+      <header className="relative z-20 border-b border-chalk-line bg-white xl:sticky xl:top-0 xl:peer-data-[owner-sidebar]:pl-[248px]">
         <div className="mx-auto flex max-w-[92rem] items-center justify-between gap-4 px-5 py-3 lg:px-10">
-          <div className={showNavigation ? "xl:invisible" : undefined}>{brand}</div>
-          {preview ? (
-            <span className="shrink-0 rounded-full border border-z-brand-100 bg-z-brand-50 px-3 py-2 text-xs font-semibold text-z-brand-700">
-              Vista sintética
-            </span>
-          ) : <OwnerSignOutButton />}
+          <Link
+            href={dashboardHref}
+            className={`touch-target inline-flex min-w-0 items-center gap-3 rounded-md text-mat-night ${FOCUS_RING}`}
+          >
+            <ZaltykoLockup className="shrink-0" markClassName="h-7 w-7 text-mat" />
+            {organizationLabel ? (
+              // En escritorio la academia ya rotula el lateral; aquí solo
+              // cuando el lateral no está (móvil y tableta).
+              <span
+                className={`min-w-0 items-center gap-3 ${showNavigation ? "flex xl:hidden" : "flex"}`}
+              >
+                <span aria-hidden="true" className="h-6 w-[3px] shrink-0 bg-current" />
+                <span className="truncate text-sm font-semibold">{organizationLabel}</span>
+              </span>
+            ) : null}
+          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* El tema es global (next-themes): el mismo interruptor que la barra de /app. */}
+            <ThemeToggle className="h-11 w-11" />
+            {preview ? (
+              <span className="shrink-0 rounded-md bg-mat-wash px-3 py-2 text-xs font-semibold text-mat-deep">
+                Vista sintética
+              </span>
+            ) : <OwnerSignOutButton />}
+          </div>
         </div>
       </header>
       {showNavigation ? (
         <nav
           aria-label="Navegación móvil"
-          className="fixed inset-x-0 bottom-0 z-30 grid gap-1 border-t border-z-line bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur xl:hidden"
+          className="fixed inset-x-0 bottom-0 z-30 grid gap-1 border-t border-chalk-line bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_1px_2px_rgba(11,20,48,0.06),0_2px_6px_-2px_rgba(11,20,48,0.08)] backdrop-blur xl:hidden"
           style={{ gridTemplateColumns: `repeat(${mobileItems.length + (secondaryMobileItems.length > 0 ? 1 : 0)}, minmax(0, 1fr))` }}
         >
           {mobileItems.map((item) => (
@@ -336,9 +382,9 @@ export function OwnerWorkspaceNavigation({
               key={item.label}
               href={item.href}
               aria-current={item.active ? "page" : undefined}
-              className={`touch-target flex min-w-0 flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl px-1 py-1.5 text-center text-[11px] font-semibold leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-z-brand-500 ${item.active ? "bg-z-brand-50 text-z-brand-700" : "text-z-soft hover:bg-z-canvas hover:text-z-ink"}`}
+              className={`touch-target flex min-w-0 flex-col items-center justify-center gap-1 whitespace-nowrap rounded-md px-1 py-1.5 text-center text-xs font-semibold leading-tight transition-colors ${FOCUS_RING} ${item.active ? "bg-mat text-white" : "text-z-soft hover:bg-z-canvas hover:text-z-ink"}`}
             >
-              <ItemIcon label={item.label} className="h-[18px] w-[18px] shrink-0" />
+              <ItemIcon label={item.label} className="h-5 w-5 shrink-0" />
               {item.label}
             </Link>
           ))}
@@ -347,12 +393,12 @@ export function OwnerWorkspaceNavigation({
               <summary
                 ref={mobileMoreSummaryRef}
                 aria-label={activeSecondaryMobileItem ? `Más opciones. Página actual: ${activeSecondaryMobileItem.label}` : "Más opciones"}
-                className={`touch-target flex w-full cursor-pointer list-none flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl px-1 py-1.5 text-center text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-z-brand-500 [&::-webkit-details-marker]:hidden ${activeSecondaryMobileItem ? "bg-z-brand-50 text-z-brand-700" : "text-z-soft hover:bg-z-canvas hover:text-z-ink"}`}
+                className={`touch-target flex w-full cursor-pointer list-none flex-col items-center justify-center gap-1 whitespace-nowrap rounded-md px-1 py-1.5 text-center text-xs font-semibold transition-colors ${FOCUS_RING} [&::-webkit-details-marker]:hidden ${activeSecondaryMobileItem ? "bg-mat text-white" : "text-z-soft hover:bg-z-canvas hover:text-z-ink"}`}
               >
-                <MoreHorizontal className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
+                <MoreHorizontal className="h-5 w-5 shrink-0" aria-hidden="true" />
                 <span>Más</span>
               </summary>
-              <ul className="absolute bottom-full right-0 z-30 mb-2 min-w-48 rounded-2xl border border-z-line bg-white p-2 shadow-lg shadow-slate-900/10">
+              <ul className="absolute bottom-full right-0 z-30 mb-2 min-w-48 rounded-xl border border-chalk-line bg-white p-2 shadow-[0_6px_20px_-6px_rgba(11,20,48,0.18)]">
                 {secondaryMobileItems.map((item) => (
                   <li key={item.label}>
                     <Link
@@ -362,7 +408,7 @@ export function OwnerWorkspaceNavigation({
                         mobileMoreSummaryRef.current?.focus({ preventScroll: true });
                       }}
                       aria-current={item.active ? "page" : undefined}
-                      className={`touch-target flex items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${FOCUS_RING} ${item.active ? "bg-z-brand-50 text-z-brand-700" : "text-z-ink/80 hover:bg-z-canvas hover:text-z-ink"}`}
+                      className={`touch-target flex items-center gap-3 rounded-md px-3 text-sm font-semibold transition-colors ${FOCUS_RING} ${item.active ? "bg-mat-wash text-mat-deep" : "text-z-ink/80 hover:bg-z-canvas hover:text-z-ink"}`}
                     >
                       <ItemIcon label={item.label} className="h-4 w-4 shrink-0" />
                       {item.label}

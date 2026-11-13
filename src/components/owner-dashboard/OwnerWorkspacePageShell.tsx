@@ -28,6 +28,7 @@ type NavigationProps = {
   capabilities?: ReturnType<typeof ownerWorkspaceCapabilitiesFor>;
   organizationId?: string | null;
   locationId?: string | null;
+  organizationName?: string | null;
   previewMode: boolean;
 };
 
@@ -49,12 +50,15 @@ export function OwnerWorkspacePageShell({
   member,
   organizationId,
   locationId,
+  organizationName,
   previewMode = false,
 }: {
   children: ReactNode;
   member?: MemberCapabilities | null;
   organizationId?: string | null;
   locationId?: string | null;
+  /** Nombre de la academia que la página ya autorizó; solo rotula el lateral. */
+  organizationName?: string | null;
   previewMode?: boolean;
 }) {
   const checkTeamAccess = !previewMode && Boolean(member) && process.env.ZALTYKO_TEAM_ACCESS_ENABLED === "true"
@@ -68,12 +72,13 @@ export function OwnerWorkspacePageShell({
   return (
     <div className="min-h-screen bg-z-canvas text-z-ink">
       {checkTeamAccess ? (
-        <TeamAwareNavigation member={member!} organizationId={organizationId} locationId={locationId} previewMode={previewMode} />
+        <TeamAwareNavigation member={member!} organizationId={organizationId} locationId={locationId} organizationName={organizationName} previewMode={previewMode} />
       ) : (
         <OwnerWorkspaceNavigation
           capabilities={capabilities}
           organizationId={organizationId}
           locationId={locationId}
+          organizationName={organizationName}
           previewMode={previewMode}
         />
       )}

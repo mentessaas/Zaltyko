@@ -97,6 +97,7 @@ export default async function OwnerSaasBillingPage({
         locationScopeMode: organization.locationScopeMode,
       }}
       organizationId={organization.organizationId}
+      organizationName={organization.organizationName}
       locationId={null}
     >
       <OwnerSaasBillingManager
