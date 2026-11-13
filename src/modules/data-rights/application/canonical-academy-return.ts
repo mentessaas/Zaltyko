@@ -11,7 +11,9 @@ import {
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   EXCLUDED_CANONICAL_SOURCES,
   EXCLUDED_CANONICAL_TABLES,
+  exportOmissionsFor,
   OPTIONAL_EXPORT_MODULE_GROUPS,
+  OPTIONAL_INCLUDED_EXPORT_MODULES,
   type CanonicalExportTableSpec,
 } from "./catalog";
 
@@ -179,7 +181,17 @@ async function verifyCatalog(tx: TransactionClient) {
   for (const table of optionalModules) {
     if (!exactSetMatches(actualColumns.get(table.table) ?? [], table.columns)) throw failClosed();
   }
-  const requiredColumns = [...actualColumns.keys()].filter(name => !optionalModules.some(table => table.table === name));
+  // Activated academy modules: all of a module's tables or none. A partial
+  // module or an unclassified column fails closed before any tenant read.
+  const optionalIncludedTables = OPTIONAL_INCLUDED_EXPORT_MODULES.flatMap(module => {
+    const present = module.tables.filter(table => actualColumns.has(table.name));
+    if (present.length !== 0 && present.length !== module.tables.length) throw failClosed();
+    return present;
+  });
+  const requiredColumns = [...actualColumns.keys()].filter(name =>
+    !optionalModules.some(table => table.table === name) &&
+    !optionalIncludedTables.some(table => table.name === name)
+  );
   if (
     !exactSetMatches(
       requiredColumns,
@@ -189,13 +201,14 @@ async function verifyCatalog(tx: TransactionClient) {
     throw failClosed();
   }
 
-  for (const table of CANONICAL_EXPORT_TABLES) {
+  const includedTables = [...CANONICAL_EXPORT_TABLES, ...optionalIncludedTables];
+  for (const table of includedTables) {
     const observedColumns = actualColumns.get(table.name);
     if (!observedColumns || !exactSetMatches(observedColumns, table.expectedColumns)) {
       throw failClosed();
     }
   }
-  return { optionalModules, dateColumnsByTable };
+  return { optionalModules, includedTables, dateColumnsByTable };
 }
 
 async function verifyOwnerMembership(
@@ -265,9 +278,10 @@ async function loadSnapshotTime(tx: TransactionClient): Promise<string> {
 
 function buildSizePreflightQuery(
   organizationId: string,
+  includedTables: readonly CanonicalExportTableSpec[],
   dateColumnsByTable: ReadonlyMap<string, ReadonlySet<string>>
 ) {
-  const tableQueries = CANONICAL_EXPORT_TABLES.map((table) => {
+  const tableQueries = includedTables.map((table) => {
     const relation = sql.raw(`zaltyko.${quoteIdentifier(table.name)}`);
     const organizationColumn = sql.raw(
       quoteIdentifier(table.organizationColumn)
@@ -395,7 +409,7 @@ export async function exportCanonicalAcademyData(input: {
 
     await verifyOwnerMembership(tx, input);
     assertWithinDuration(startedAt);
-    const { optionalModules, dateColumnsByTable } = await verifyCatalog(tx);
+    const { optionalModules, includedTables, dateColumnsByTable } = await verifyCatalog(tx);
     const excludedScopedTables = [...EXCLUDED_CANONICAL_SCOPED_TABLES, ...optionalModules.map(table => table.table)];
     assertWithinDuration(startedAt);
     const snapshotAt = await loadSnapshotTime(tx);
@@ -420,11 +434,11 @@ export async function exportCanonicalAcademyData(input: {
     }
 
     const preflightResult = await tx.execute(
-      buildSizePreflightQuery(input.organizationId, dateColumnsByTable)
+      buildSizePreflightQuery(input.organizationId, includedTables, dateColumnsByTable)
     );
     assertWithinDuration(startedAt);
     const sizeRows = preflightResult.rows as unknown as TableSizeRow[];
-    if (sizeRows.length !== CANONICAL_EXPORT_TABLES.length) throw failClosed();
+    if (sizeRows.length !== includedTables.length) throw failClosed();
 
     const sizeByTable = new Map(
       sizeRows.map((row) => [
@@ -435,11 +449,11 @@ export async function exportCanonicalAcademyData(input: {
         },
       ])
     );
-    if (sizeByTable.size !== CANONICAL_EXPORT_TABLES.length) throw failClosed();
+    if (sizeByTable.size !== includedTables.length) throw failClosed();
 
     let totalRows = 0;
     let estimatedSourceBytes = 0;
-    for (const table of CANONICAL_EXPORT_TABLES) {
+    for (const table of includedTables) {
       const size = sizeByTable.get(table.name);
       if (!size) throw failClosed();
       if (size.rowCount > MAX_EXPORT_ROWS) throw tooLarge();
@@ -456,7 +470,7 @@ export async function exportCanonicalAcademyData(input: {
     const data: Record<string, ExportRow[]> = {};
     const tableManifest: TableManifestEntry[] = [];
 
-    for (const table of CANONICAL_EXPORT_TABLES) {
+    for (const table of includedTables) {
       assertWithinDuration(startedAt);
       const expected = sizeByTable.get(table.name);
       if (!expected) throw failClosed();
@@ -485,6 +499,7 @@ export async function exportCanonicalAcademyData(input: {
       tableManifest,
       excludedCountByTable,
       optionalModules,
+      optionalIncludedTables: includedTables.slice(CANONICAL_EXPORT_TABLES.length),
     };
   });
 
@@ -519,7 +534,10 @@ export async function exportCanonicalAcademyData(input: {
           : null,
         valuesExported: false,
       })),
-      excludedColumns: CANONICAL_EXPORT_OMISSIONS,
+      excludedColumns: [
+        ...CANONICAL_EXPORT_OMISSIONS,
+        ...exportOmissionsFor(exportResult.optionalIncludedTables),
+      ],
       excludedSources: EXCLUDED_CANONICAL_SOURCES,
     },
     data: exportResult.data,

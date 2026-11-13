@@ -111,6 +111,20 @@ const omittedColumnReasons: Record<string, string> = {
     "This internal source watermark is implementation metadata; the reconciled totals and period are included.",
   "financial_reconciliation_runs.idempotency_key":
     "This server-side command key is operational metadata and is not needed to interpret the reconciliation.",
+  "athlete_objectives.client_request_id":
+    "This client retry key is operational metadata and is not needed to interpret the objective.",
+  "athlete_observations.client_request_id":
+    "This client retry key is operational metadata and is not needed to interpret the observation.",
+  "session_plans.client_request_id":
+    "This client retry key is operational metadata and is not needed to interpret the session plan.",
+  "session_plans.last_request_id":
+    "This client retry key is operational metadata and is not needed to interpret the session plan.",
+  "class_plan_templates.blocks":
+    "This is JSON validated only by the application and is excluded until every nested field has an explicit privacy classification.",
+  "admission_links.token":
+    "The public link token is a live access credential; the link's site, state and dates are included.",
+  "admission_requests.submission_id":
+    "This client retry key is operational metadata and is not needed to interpret the request.",
 };
 
 function includedTable(input: {
@@ -417,8 +431,10 @@ export const CANONICAL_EXPORT_TABLES: readonly CanonicalExportTableSpec[] = [
   }),
 ];
 
-export const CANONICAL_EXPORT_OMISSIONS: readonly CanonicalExportOmission[] =
-  CANONICAL_EXPORT_TABLES.flatMap((table) =>
+export function exportOmissionsFor(
+  tables: readonly CanonicalExportTableSpec[]
+): CanonicalExportOmission[] {
+  return tables.flatMap((table) =>
     table.expectedColumns
       .filter((column) => !table.exportColumns.includes(column))
       .map((column) => ({
@@ -427,6 +443,113 @@ export const CANONICAL_EXPORT_OMISSIONS: readonly CanonicalExportOmission[] =
         reason: omittedColumnReasons[`${table.name}.${column}`],
       }))
   );
+}
+
+export const CANONICAL_EXPORT_OMISSIONS: readonly CanonicalExportOmission[] =
+  exportOmissionsFor(CANONICAL_EXPORT_TABLES);
+
+/**
+ * Academy operating modules installed from reviewed candidates (activated in
+ * production on 2026-11-12). Each module is absent or fully installed, never
+ * partially known: when present its rows are exported with values, checksums
+ * and the same fail-closed column check as the core tables; when absent the
+ * package is byte-identical to one generated before the module existed.
+ * Sources: docs/deployment/candidates/20261111120000_athlete_progress_candidate.sql,
+ * 20261111180000_coach_assignment_candidate.sql,
+ * 20261111200000_session_plans_candidate.sql and
+ * 20261110120000_admission_requests_candidate.sql.
+ */
+export interface OptionalIncludedExportModule {
+  module: "athlete_progress" | "coach_assignment" | "session_plans" | "admissions";
+  tables: readonly CanonicalExportTableSpec[];
+}
+
+export const OPTIONAL_INCLUDED_EXPORT_MODULES: readonly OptionalIncludedExportModule[] = [
+  {
+    module: "athlete_progress",
+    tables: [
+      includedTable({
+        name: "athlete_objectives",
+        expectedColumns:
+          "id organization_id athlete_id location_id client_request_id title discipline apparatus target_date status created_by_member_id created_at status_changed_by_member_id status_changed_at revision updated_at",
+        omit: ["client_request_id"],
+      }),
+      includedTable({
+        name: "athlete_objective_status_history",
+        expectedColumns:
+          "id organization_id objective_id revision from_status to_status changed_by_member_id changed_at",
+      }),
+      includedTable({
+        name: "athlete_observations",
+        expectedColumns:
+          "id organization_id athlete_id location_id client_request_id body visibility observed_on session_id objective_id author_member_id created_at updated_by_member_id updated_at revision",
+        omit: ["client_request_id"],
+      }),
+    ],
+  },
+  {
+    module: "coach_assignment",
+    tables: [
+      includedTable({
+        name: "class_template_staff",
+        expectedColumns:
+          "id organization_id class_template_id staff_profile_id assigned_by_member_id assigned_at",
+      }),
+      includedTable({
+        name: "session_staff_overrides",
+        expectedColumns:
+          "id organization_id session_id reason changed_by_member_id changed_at",
+      }),
+    ],
+  },
+  {
+    module: "session_plans",
+    tables: [
+      includedTable({
+        name: "session_plans",
+        expectedColumns:
+          "id organization_id location_id session_id client_request_id last_request_id focus note from_template_revision revision created_by_member_id created_at updated_by_member_id updated_at",
+        omit: ["client_request_id", "last_request_id"],
+      }),
+      includedTable({
+        name: "session_plan_blocks",
+        expectedColumns:
+          "id organization_id plan_id position kind discipline apparatus content duration_minutes done_at done_by_member_id created_at",
+      }),
+      includedTable({
+        name: "session_plan_objectives",
+        expectedColumns: "organization_id plan_id athlete_id objective_id created_at",
+        orderBy: ["plan_id", "objective_id"],
+      }),
+      includedTable({
+        name: "class_plan_templates",
+        expectedColumns:
+          "id organization_id location_id class_template_id focus note blocks revision updated_by_member_id updated_at",
+        omit: ["blocks"],
+      }),
+    ],
+  },
+  {
+    module: "admissions",
+    tables: [
+      includedTable({
+        name: "admission_links",
+        expectedColumns:
+          "id organization_id location_id token enabled created_by_member_id created_at revoked_at",
+        omit: ["token"],
+      }),
+      includedTable({
+        name: "admission_requests",
+        expectedColumns:
+          "id organization_id location_id link_id submission_id status contact_name contact_email contact_phone athlete_given_name athlete_birth_year message privacy_consent_version privacy_consent_at converted_athlete_id waitlist_entry_id handled_by_member_id handled_at anonymized_at revision created_at updated_at",
+        omit: ["submission_id"],
+      }),
+    ],
+  },
+];
+
+export const OPTIONAL_INCLUDED_EXPORT_TABLES: readonly CanonicalExportTableSpec[] =
+  OPTIONAL_INCLUDED_EXPORT_MODULES.flatMap((module) => module.tables);
 
 export const EXCLUDED_CANONICAL_TABLES: readonly CanonicalExportExcludedTable[] = [
   {
@@ -717,12 +840,41 @@ export const EXCLUDED_CANONICAL_SCOPED_TABLES = [
   "organization_saas_webhook_reconciliation_decisions",
 ] as const;
 
+/**
+ * Internal super-admin market catalog in the public schema
+ * (docs/deployment/candidates/20261110180000_competitive_intelligence_candidate.sql).
+ * Public information about software companies only: no academy, family,
+ * minor or member data (only public.profiles references to the super-admin
+ * who edited a record). Outside the zaltyko schema and the academy package;
+ * no academy or athlete erasure touches it.
+ */
+export const INTERNAL_NON_CUSTOMER_TABLES = [
+  "ci_competitors",
+  "ci_sources",
+  "ci_competitor_sections",
+  "ci_flows",
+  "ci_competitor_flows",
+  "ci_pricing_plans",
+  "ci_opportunities",
+  "ci_change_events",
+].map((table) => ({
+  schema: "public" as const,
+  table,
+  category: "internal_market_catalog" as const,
+  reason:
+    "Internal super-admin catalog of public market information; it holds no academy, family, minor or member data, only references to the internal staff profile that edited it.",
+}));
+
 export const ALL_KNOWN_CANONICAL_TABLE_NAMES: readonly string[] = [
   ...CANONICAL_EXPORT_TABLES.map((table) => table.name),
   ...EXCLUDED_CANONICAL_TABLES.map((table) => table.table),
 ];
 
-const duplicateNames = ALL_KNOWN_CANONICAL_TABLE_NAMES.filter(
+const duplicateNames = [
+  ...ALL_KNOWN_CANONICAL_TABLE_NAMES,
+  ...OPTIONAL_EXPORT_MODULE_GROUPS.flat().map((table) => table.table),
+  ...OPTIONAL_INCLUDED_EXPORT_TABLES.map((table) => table.name),
+].filter(
   (name, index, names) => names.indexOf(name) !== index
 );
 if (duplicateNames.length > 0) {

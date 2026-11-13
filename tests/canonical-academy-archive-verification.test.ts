@@ -33,8 +33,10 @@ import {
   CANONICAL_EXPORT_TABLES,
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   OPTIONAL_DISCOVERY_EXPORT_TABLES,
+  OPTIONAL_INCLUDED_EXPORT_TABLES,
   OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
+import { activatedCatalogRows, activatedRowsByTable } from "./helpers/activated-module-rows";
 
 const organizationId = "10000000-0000-4000-8000-000000000001";
 const otherOrganizationId = "90000000-0000-4000-8000-000000000009";
@@ -272,6 +274,34 @@ async function generateBundleBody(
     organizationId,
   });
   return result.body;
+}
+
+/** Same generator flow with every activated module installed and one row per table. */
+async function generateActivatedBundleBody(): Promise<string> {
+  const activatedRows = activatedRowsByTable(organizationId);
+  for (let index = 0; index < 4; index += 1) {
+    mocks.execute.mockResolvedValueOnce({ rows: [] });
+  }
+  mocks.execute
+    .mockResolvedValueOnce({
+      rows: [{ organization_status: "active", member_status: "active", role: "owner", location_scope_mode: "all" }],
+    })
+    .mockResolvedValueOnce({ rows: [...catalogRows(), ...activatedCatalogRows()] })
+    .mockResolvedValueOnce({ rows: [{ snapshot_at: snapshotAt }] })
+    .mockResolvedValueOnce({
+      rows: EXCLUDED_CANONICAL_SCOPED_TABLES.map((table_name) => ({ table_name, row_count: 0 })),
+    })
+    .mockResolvedValueOnce({
+      rows: [
+        ...CANONICAL_EXPORT_TABLES.map((table) => ({ table_name: table.name, row_count: table.name === "organizations" ? 1 : 0, estimated_bytes: 128 })),
+        ...OPTIONAL_INCLUDED_EXPORT_TABLES.map((table) => ({ table_name: table.name, row_count: 1, estimated_bytes: 256 })),
+      ],
+    })
+    .mockResolvedValueOnce({ rows: [organizationRow()] });
+  for (const table of OPTIONAL_INCLUDED_EXPORT_TABLES) {
+    mocks.execute.mockResolvedValueOnce({ rows: activatedRows[table.name] });
+  }
+  return (await exportCanonicalAcademyData({ userId: actorId, organizationId })).body;
 }
 
 function parseArchive(body: string): ArchiveBundle {
@@ -874,6 +904,48 @@ describe("canonical academy archive verification", () => {
       exclusions.push({ table: table.table, category: table.category, reason: table.reason, rowCount: 0, countScope: "organization_id", valuesExported: false });
     }
     expectRejectedWithoutDisclosure(sealArchive(archive));
+  });
+
+  it("accepts activated modules exported with values and their declared omissions", async () => {
+    const body = await generateActivatedBundleBody();
+    const result = expectAccepted(body);
+    expect(result.tableChecksums.map((entry) => entry.table)).toEqual(
+      [...CANONICAL_EXPORT_TABLES, ...OPTIONAL_INCLUDED_EXPORT_TABLES].map((table) => table.name)
+    );
+    expect(result.includedRowCount).toBe(1 + OPTIONAL_INCLUDED_EXPORT_TABLES.length);
+  });
+
+  it.each([
+    ["one table of a module removed", (archive: ArchiveBundle) => {
+      delete archive.data.class_plan_templates;
+      archive.coverage.includedTables = archive.coverage.includedTables.filter((entry) => entry.table !== "class_plan_templates");
+      archive.coverage.includedRowCount -= 1;
+      archive.coverage.excludedColumns = (archive.coverage.excludedColumns as Array<Record<string, unknown>>)
+        .filter((entry) => entry.table !== "class_plan_templates");
+    }],
+    ["an omitted credential added back", (archive: ArchiveBundle) => {
+      archive.data.admission_links[0]!.token = "0123456789abcdef0123456789abcdef";
+    }],
+    ["the omission manifest stripped", (archive: ArchiveBundle) => {
+      archive.coverage.excludedColumns = (archive.coverage.excludedColumns as Array<Record<string, unknown>>)
+        .filter((entry) => entry.table !== "admission_links");
+    }],
+    ["a non-boolean link state", (archive: ArchiveBundle) => {
+      archive.data.admission_links[0]!.enabled = "yes";
+    }],
+    ["an impossible objective date", (archive: ArchiveBundle) => {
+      archive.data.athlete_objectives[0]!.target_date = "2026-02-30";
+    }],
+    ["a fractional block position", (archive: ArchiveBundle) => {
+      archive.data.session_plan_blocks[0]!.position = 1.5;
+    }],
+    ["a row from another academy", (archive: ArchiveBundle) => {
+      archive.data.admission_requests[0]!.organization_id = otherOrganizationId;
+    }],
+  ])("rejects activated module archives with %s after hashes are recomputed", async (_case, change) => {
+    const archive = parseArchive(await generateActivatedBundleBody());
+    change(archive);
+    expectRejectedWithoutDisclosure(sealArchive(archive, { refreshTableChecksums: true }));
   });
 
   it("rejects a partial optional discovery installation with a refreshed bundle hash", async () => {

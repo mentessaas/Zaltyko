@@ -5,6 +5,7 @@ import {
   EXCLUDED_CANONICAL_SOURCES,
   EXCLUDED_CANONICAL_TABLES,
   OPTIONAL_EXPORT_MODULE_GROUPS,
+  OPTIONAL_INCLUDED_EXPORT_MODULES,
 } from "./catalog";
 
 /** Reviewed inventory boundary, NOT a retention policy or delete allowlist. */
@@ -66,6 +67,14 @@ export const REVIEWED_DISPOSITION_OPTIONAL_GROUPS: readonly (readonly ExcludedPo
   [e("organization_member_invitations", "team_access_credentials"), e("organization_member_invitation_scopes", "pending_team_access_scopes"), e("organization_team_command_receipts", "internal_team_access_commands")],
 ];
 
+/** Activated academy modules whose rows are projected when installed (2026-11-12). */
+export const REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES: readonly (readonly string[])[] = [
+  ["athlete_objectives", "athlete_objective_status_history", "athlete_observations"],
+  ["class_template_staff", "session_staff_overrides"],
+  ["session_plans", "session_plan_blocks", "session_plan_objectives", "class_plan_templates"],
+  ["admission_links", "admission_requests"],
+];
+
 const sourceNames = ["Supabase Auth identities and credentials", "Supabase Storage objects and metadata", "Legacy public schema"];
 const financialTables = new Set("family_collection_preferences price_plans price_plan_class_template_coverage enrollment_price_assignments invoices invoice_lines invoice_line_enrollments charges payments payment_allocations refunds financial_reconciliation_runs".split(" "));
 const financialCategories = new Set(["payment_provider_configuration", "payment_authorizations", "payment_provider_events", "payment_provider_attempts", "saas_billing_and_provider_data"]);
@@ -82,7 +91,10 @@ export function assertCanonicalDispositionPolicy(): void {
       !same(REVIEWED_DISPOSITION_EXCLUSIONS.map((entry) => entry.table), EXCLUDED_CANONICAL_TABLES.map((entry) => entry.table)) ||
       !same(REVIEWED_DISPOSITION_EXCLUSIONS.filter((entry) => entry.scoped).map((entry) => entry.table), EXCLUDED_CANONICAL_SCOPED_TABLES) ||
       REVIEWED_DISPOSITION_EXCLUSIONS.some((policy) => EXCLUDED_CANONICAL_TABLES.find((entry) => entry.table === policy.table)?.category !== policy.category) ||
-      OPTIONAL_EXPORT_MODULE_GROUPS.length !== REVIEWED_DISPOSITION_OPTIONAL_GROUPS.length) {
+      OPTIONAL_EXPORT_MODULE_GROUPS.length !== REVIEWED_DISPOSITION_OPTIONAL_GROUPS.length ||
+      OPTIONAL_INCLUDED_EXPORT_MODULES.length !== REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES.length ||
+      OPTIONAL_INCLUDED_EXPORT_MODULES.some((module, index) =>
+        !same(REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES[index]!, module.tables.map((table) => table.name)))) {
     throw new CanonicalDispositionPlanError();
   }
   REVIEWED_DISPOSITION_OPTIONAL_GROUPS.forEach((group, index) => {
