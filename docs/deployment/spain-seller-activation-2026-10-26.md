@@ -8,6 +8,15 @@ como autónomo en España** y que venderá como persona física con ese nombre
 sigue siendo el correo oficial. Los precios aprobados son base sin IVA:
 Starter 19 €/mes o 190 €/año y Growth 49 €/mes o 490 €/año.
 
+Confirmación del 13-11-2026: Elvis declara que su domicilio profesional está en
+la Península o Baleares (no en Canarias, Ceuta ni Melilla), así que aplica el
+contrato de IVA general del 21 %. Es una declaración humana: el domicilio
+concreto lo escribe él en el perfil y CI lo vuelve a comprobar por código
+postal (`seller_tax_territory_review` si cayera fuera del territorio del IVA).
+Ese mismo día se corrigió en el PR #300 la prueba de recomprobación del país en
+Live (`tests/saas-checkout-service.test.ts`): ahora usa un vendedor listo para
+España, con el Tax Rate de IVA configurado y la sede en Península/Baleares.
+
 Lo técnico para cobrar en España queda preparado, pero **nada se abre**: el
 perfil conserva NIF y domicilio vacíos y todas las comprobaciones en `false`,
 así que Checkout Live sigue respondiendo 503 `BILLING_CONFIGURATION_UNAVAILABLE`.
