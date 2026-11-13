@@ -2,6 +2,8 @@
 
 Fecha: 10 de noviembre de 2026. Plan de mejora, P2 #15. Base: `origin/main` en `5a807f49`.
 
+**Estado: activo en producción desde 12-11-2026.** El candidato `docs/deployment/candidates/20261110120000_admission_requests_candidate.sql` se aplicó ese día con autorización de Elvis; también está instalado en staging (`docs/deployment/staging.md`).
+
 Esta nota describe qué hay hoy en el repositorio, qué falta para enlazar las cuatro etapas sin duplicar datos y el corte mínimo que se puede publicar. No incluye datos de mercado: ningún dato de esta nota procede de fuera del repositorio.
 
 ## Hallazgos
@@ -80,14 +82,14 @@ Esta nota describe qué hay hoy en el repositorio, qué falta para enlazar las c
    - ofrecer plaza (`sendWaitlistOffer`) y la aceptación por la familia;
    - copiar al tutor y sus contactos a `guardians`/`guardian_contacts` con consentimiento;
    - avisos por correo;
-   - retención automática (hoy la supresión es manual);
+   - retención automática (hoy la supresión es manual; ver «Derechos de datos»);
    - el vínculo verificado con el directorio.
 
 ## Corte mínimo publicable (implementado en esta PR)
 
 | Pieza | Qué hace | Archivo |
 |---|---|---|
-| Tablas candidatas | `zaltyko.admission_links`: enlace por academia (general o de una sede), con un token de 128 bits, activado o desactivado, quién lo creó y la fecha de revocación. `zaltyko.admission_requests`: academia, sede, enlace, persona adulta, email, teléfono opcional, solo el nombre de pila de la gimnasta, año de nacimiento opcional, comentario corto, versión y fecha del consentimiento, estado, enlaces a gimnasta y lista de espera, fecha de supresión y revisión. Las dos con RLS forzada y sin permisos para `anon`/`authenticated`. **Requieren autorización de Elvis para aplicarse**; no se aplican en ningún entorno. | `docs/deployment/candidates/20261110120000_admission_requests_candidate.sql` |
+| Tablas candidatas | `zaltyko.admission_links`: enlace por academia (general o de una sede), con un token de 128 bits, activado o desactivado, quién lo creó y la fecha de revocación. `zaltyko.admission_requests`: academia, sede, enlace, persona adulta, email, teléfono opcional, solo el nombre de pila de la gimnasta, año de nacimiento opcional, comentario corto, versión y fecha del consentimiento, estado, enlaces a gimnasta y lista de espera, fecha de supresión y revisión. Las dos con RLS forzada y sin permisos para `anon`/`authenticated`. Hasta el 12-11-2026 **requerían autorización de Elvis** y no estaban aplicadas; ese día se aplicaron en producción. | `docs/deployment/candidates/20261110120000_admission_requests_candidate.sql` |
 | Detección en ejecución | Si alguna tabla no existe o no tiene RLS forzada, la página pública responde 404, la API responde 503 y la bandeja muestra «Pendiente de activar». | `src/modules/admissions/application/admission-storage.ts` |
 | Página pública | `/solicitar-prueba/[token]`, sin indexar. Solo muestra el nombre de la academia y las sedes activas del enlace. Un token desconocido, desactivado o revocado da el mismo 404. | `src/app/solicitar-prueba/[token]/page.tsx` |
 | API pública | `POST /api/public/trial-requests` con `linkToken`: mismo origen, Zod estricto, honeypot, consentimiento obligatorio, envío idempotente por `submissionId`. Límites por IP, por email (hash) y por enlace (`trial-requests:link:<id>`, 30 por hora; si alguien agota el cupo, regenerar el enlace da uno limpio). Un token que no resuelve o unos datos inválidos no gastan cupo del enlace. Responde igual a un token desconocido, desactivado o revocado. | `src/app/api/public/trial-requests/route.ts` |
@@ -104,6 +106,13 @@ Reglas del corte:
   - Toda lectura y escritura filtra por `organization_id` y `location_id` en SQL, no solo en la interfaz. Cada cambio queda en `audit_log`.
 - **Datos de menores.** Solo el nombre de pila y, si se quiere, el año de nacimiento. No se piden apellidos, fecha completa, salud ni foto. Los apellidos los pone la academia al convertir. El comentario avisa de que no se incluyan datos de salud.
 - **Supresión.** «Eliminar datos personales» sustituye nombres y email, borra teléfono, año y comentario, y conserva el registro (fecha, sede, estado y auditoría). Solo en solicitudes descartadas; no se puede reabrir después.
+- **Derechos de datos (13-11-2026, tablas activadas el 12-11-2026).**
+  - Exportación de la academia: incluye las dos tablas con sus valores, también el contacto de la familia y el nombre y año de la gimnasta, porque los datos son de la academia (responsable). Omite el token del enlace (credencial viva) y `submission_id`.
+  - Borrar la academia: todo se va en cascada.
+  - Borrar la ficha de una gimnasta convertida desde una solicitud: falla (NO ACTION) hasta decidir antes qué se hace con la solicitud; una solicitud convertida no se puede anonimizar. Problema y propuesta: `docs/privacy/borrado-de-cuentas-y-fichas.md`.
+  - Borrar una integrante del equipo o su cuenta: falla mientras figure como quien creó el enlace o gestionó la solicitud.
+  - Conservación: las descartadas se anonimizan a mano (`anonymized_at`, con el CHECK de la tabla). No hay plazo automático: la propuesta de 90 días sigue pendiente de decisión legal.
+  - Política: `src/modules/data-rights/application/activated-modules-erasure-policy.ts`; `tests/data-rights-activated-modules-contract.test.ts` comprueba el CHECK, las claves foráneas y la sentencia de anonimización.
 - **Correo.** No se envía nada. El punto de enganche queda documentado en `admission-requests.ts` (después de la inserción, evento `admission_request.received`) y desactivado.
 - **Sin cobros.** Ni Stripe ni Connect. Al convertir no se crea inscripción ni cuota: solo la ficha y la familia.
 - **Pruebas PostgreSQL.** `tests/admission-requests-pg.test.ts` no se ejecuta en ningún CI todavía. No se ha añadido a `scripts/ci/verify-sandbox-schema-replay.sh`, porque ese script y `supabase/schema-snapshot-manifest.json` son un contrato protegido. Queda pendiente de ejecutar en schema-replay cuando Elvis lo autorice.
@@ -116,12 +125,12 @@ Es la pieza que convierte Zaltyko en algo que trae familias a la academia, no so
 - no duplica gimnastas, esperas ni inscripciones;
 - no cambia la base de datos sin autorización.
 
-Mientras Elvis no apruebe el candidato, el código queda inactivo y lo dice en pantalla.
+Mientras Elvis no aprobó el candidato, el código quedó inactivo y lo decía en pantalla. Desde el 12-11-2026 está activo en producción.
 
 ## Siguiente paso
 
-1. Elvis revisa y, si procede, autoriza el candidato `20261110120000_admission_requests_candidate.sql` (hash en la PR) y el destino. También autoriza ejecutar las pruebas PostgreSQL en el replay de esquema. La CI verde no equivale a autorización.
-2. Tras aplicarlo, prueba manual en un entorno de ensayo:
+1. Elvis revisa y, si procede, autoriza el candidato `20261110120000_admission_requests_candidate.sql` (hash en la PR) y el destino. También autoriza ejecutar las pruebas PostgreSQL en el replay de esquema. La CI verde no equivale a autorización. *12-11-2026: candidato autorizado y aplicado en producción. Las pruebas PostgreSQL siguen fuera del replay de esquema.*
+2. Tras aplicarlo, prueba manual en un entorno de ensayo. *12-11-2026: en staging se probaron las solicitudes; este documento no detalla qué pasos de la lista se recorrieron.*
    - compartir el enlace;
    - enviar una solicitud;
    - verla en «Necesita tu atención»;
@@ -134,4 +143,4 @@ Mientras Elvis no apruebe el candidato, el código queda inactivo y lo dice en p
    - el aviso por correo a la academia, con autorización de envíos;
    - la copia del tutor a `guardians` con su consentimiento;
    - la vista de lista de espera en `/owner`, para volver a ofrecer ese destino;
-   - la retención automática (propuesta: suprimir los datos de las descartadas a los 90 días, pendiente de decisión legal).
+   - la retención automática (propuesta: suprimir los datos de las descartadas a los 90 días, pendiente de decisión legal; la política de `data-rights` ya la declara pendiente, sin plazo aplicado).

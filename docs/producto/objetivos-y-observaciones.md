@@ -2,6 +2,8 @@
 
 Fecha: 11 de noviembre de 2026. Plan de mejora `auditorias/2026-11-08/plan-mejora-zaltyko.md`, P2 #17: «Especialización: objetivos y observaciones por gimnasta, luego planificación sobre sesiones; biblioteca GAF/GAM después». Este documento cubre solo la primera parte.
 
+**Estado: activo en producción desde 12-11-2026.** El candidato `docs/deployment/candidates/20261111120000_athlete_progress_candidate.sql` se aplicó ese día con autorización de Elvis; también está instalado en staging (`docs/deployment/staging.md`).
+
 Objetivo: que el equipo técnico deje constancia, en la ficha de cada gimnasta, de qué está trabajando (objetivos) y de lo que ve en el día a día (observaciones), sin abrir datos entre academias ni entre sedes y sin mostrar nada a las familias todavía.
 
 ## Qué hay
@@ -36,10 +38,10 @@ Todo se comprueba en el servidor, dentro de la transacción de cada operación. 
 
 La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que aísla. RLS (ENABLE + FORCE) y los REVOKE a `anon` y `authenticated` son defensa en profundidad frente a clientes directos.
 
-## Solo lectura y funcionalidad dormida
+## Solo lectura y entornos sin la migración
 
 - **Plan en solo lectura:** se puede consultar todo, pero crear, cambiar estado o editar responde 409 `PLAN_OVER_CAPACITY`, igual que el resto de `/owner`. Repetir una creación ya guardada (mismo identificador de petición) devuelve el registro sin escribir. La interfaz desactiva los formularios y lo explica.
-- **Migración sin aplicar:** las tablas están en el candidato `docs/deployment/candidates/20261111120000_athlete_progress_candidate.sql`, que **requiere autorización de Elvis**. Mientras no se aplique:
+- **Migración:** las tablas están en el candidato `docs/deployment/candidates/20261111120000_athlete_progress_candidate.sql`. Hasta el 12-11-2026 **requería autorización de Elvis** y no estaba aplicado; ese día se aplicó en producción. En un entorno donde no esté instalado:
   - Las páginas no muestran los accesos.
   - Las API responden 503 con el motivo `athlete_progress_unavailable`, sin errores 500 ni escrituras a medias.
   - La interfaz solo trata como «no disponible» ese 503 concreto; cualquier otro 503 se muestra como error.
@@ -60,9 +62,9 @@ Todas las restricciones tienen nombre de menos de 63 caracteres, y el espejo Dri
 4. **Coordinación con sedes seleccionadas.** El encargo dice «toda la organización» para `manager`; se aplica el mismo alcance por sede que en el resto de `/owner`, que es lo más restrictivo.
 5. **Visibilidad entre sedes.** Un registro solo lo ve quien tiene la sede donde se creó (o todas). Si una gimnasta entrena en dos sedes, el entrenador de una no ve las notas de la otra.
 6. **Gimnasta archivada.** El entrenador deja de verla; la dirección conserva la lectura del historial, sin escritura.
-7. **Exportación de datos.** La exportación canónica de la academia no incluye todavía estas tablas; habrá que añadirlas al aplicar el candidato.
+7. **Exportación y supresión de datos.** Resuelto (13-11-2026). La exportación de la academia incluye las tres tablas con sus valores cuando están instaladas; solo omite el identificador de petición (`client_request_id`). Al borrar la ficha de una gimnasta, sus objetivos, el historial y las observaciones se borran en cascada. La autoría (NO ACTION) impide borrar a una integrante del equipo o su cuenta mientras tenga registros: no se borra historial a medias (ver `docs/privacy/borrado-de-cuentas-y-fichas.md`). Al borrar la academia, todo se va en cascada. No hay plazo propio de conservación. Política: `src/modules/data-rights/application/activated-modules-erasure-policy.ts`; `tests/data-rights-activated-modules-contract.test.ts` la comprueba contra las claves foráneas del candidato.
 8. **Lectura del entrenador.** Resuelta con «Ver objetivos» en Pasar lista: ve objetivos y las 5 últimas observaciones de cada gimnasta de la sesión, y puede cambiar el estado de lo que creó. No tiene acceso a la ficha completa de Grupos, que sigue siendo de la dirección.
-9. **Espejo Drizzle fuera de `src/db/schema/`.** Está en `src/modules/athlete-progress/infrastructure/` para que `validate:rls`, que solo valida el historial aplicado, no lo trate como migración. Al aplicar el candidato hay que moverlo a `src/db/schema/`, sin exportarlo a drizzle-kit, y la migración debe superar `validate:rls`.
+9. **Espejo Drizzle fuera de `src/db/schema/`.** Se queda en `src/modules/athlete-progress/infrastructure/` tras la activación del 12-11-2026. data-rights lee `information_schema` y no necesita el espejo. En `src/db/schema/`, `validate:rls` le exigiría RLS y al menos una política en `supabase/migrations`, y el candidato se aplicó fuera de ese historial y no tiene políticas (deniega todo a los clientes), así que fallaría. Pasará a `src/db/schema/` cuando el candidato se promueva a `supabase/migrations` en una PR propia, con su cadena de replay.
 
 ## Pruebas
 

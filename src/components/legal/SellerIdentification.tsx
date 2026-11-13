@@ -1,6 +1,7 @@
 import {
   commercialLaunchProfile,
   getCommercialLaunchReadiness,
+  type CommercialLaunchProfile,
 } from "@/lib/launch/commercial-launch-profile";
 
 // Panel reglado (cinta blanca, borde de magnesio y regla de 3 px en noche) con
@@ -8,9 +9,16 @@ import {
 // derecha. El aviso de «en preparación» va en polvo, no en coral: no es error.
 const ROW = "grid gap-1 border-t border-chalk-line px-5 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4";
 
-export function SellerIdentification() {
-  const seller = commercialLaunchProfile;
-  const { ready } = getCommercialLaunchReadiness();
+/**
+ * Identificación del prestador (LSSI art. 10) en Términos y Privacidad: lee
+ * siempre el perfil único, así el NIF y el domicilio aparecen en cuanto se
+ * completan en src/lib/launch/commercial-launch-profile.ts.
+ */
+export function SellerIdentification({
+  profile = commercialLaunchProfile,
+}: { profile?: Readonly<CommercialLaunchProfile> } = {}) {
+  const seller = profile;
+  const { ready } = getCommercialLaunchReadiness(profile);
   return (
     <section
       id="titular"

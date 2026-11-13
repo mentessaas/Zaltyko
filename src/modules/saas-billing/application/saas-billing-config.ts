@@ -11,6 +11,12 @@ export interface SaasStripeConfig {
   providerAccountReference: string;
   portalEnabled: boolean;
   prices: Record<SelfServePlanCode, Record<SaasBillingInterval, string>>;
+  /**
+   * Tax Rate de Stripe (txr_…) del IVA general español, 21 % exclusivo.
+   * Opcional para no cerrar el recorrido de test existente; Checkout Live
+   * no se abre sin él (ver resolveSaasCheckoutTaxPlan).
+   */
+  taxRates?: { esVatGeneral: string | null };
 }
 
 export interface SaasStripeWebhookVerificationConfig {
@@ -89,7 +95,16 @@ export function getSaasStripeConfig(
     portalEnabled:
       env[`${prefix}_PORTAL_ENABLED`]?.trim().toLowerCase() === "true",
     prices: prices as SaasStripeConfig["prices"],
+    taxRates: {
+      esVatGeneral: stripeTaxRateReference(env[`${prefix}_TAX_RATE_ES_IVA21`]),
+    },
   };
+}
+
+/** Un valor mal escrito se trata como ausente: Live queda cerrado, no sin IVA. */
+function stripeTaxRateReference(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed && /^txr_[A-Za-z0-9]+$/u.test(trimmed) ? trimmed : null;
 }
 
 export function createSaasStripeClient(config: SaasStripeConfig): Stripe {

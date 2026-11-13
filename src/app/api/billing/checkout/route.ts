@@ -110,6 +110,16 @@ const handler = withTenant(async (request, context) => {
       );
     }
 
+    // Esta ruta heredada no aplica el contrato de IVA español: en Live la
+    // contratación solo se abre desde la pantalla del plan (/owner/subscription).
+    if (!isTestCredential) {
+      return apiError(
+        "BILLING_CONFIGURATION_UNAVAILABLE",
+        "La contratación se realiza desde la pantalla del plan de tu academia.",
+        503
+      );
+    }
+
     const [existingSubscription] = await db
       .select({
         stripeCustomerId: subscriptions.stripeCustomerId,

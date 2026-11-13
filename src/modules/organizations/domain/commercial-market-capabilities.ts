@@ -50,3 +50,49 @@ export function commercialMarketCheckoutNotice(
   if (isCommercialMarketLiveCheckoutEnabled(countryCode)) return null;
   return `La contratación de planes de pago para academias de ${countryName} todavía no está disponible; llegará más adelante. Mientras tanto, tu academia puede seguir usando Zaltyko con el plan Free y sus límites. Si necesitas más capacidad, escríbenos desde Contacto.`;
 }
+
+/**
+ * Territorio fiscal de una academia de España. Solo Península y Baleares
+ * están dentro del territorio de aplicación del IVA; Canarias (IGIC), Ceuta y
+ * Melilla (IPSI) necesitan una fiscalidad que todavía no está preparada.
+ */
+export const SPANISH_TAX_TERRITORIES = [
+  "peninsula_baleares",
+  "canarias",
+  "ceuta",
+  "melilla",
+] as const;
+export type SpanishTaxTerritory = (typeof SPANISH_TAX_TERRITORIES)[number];
+
+export const SPANISH_TAX_TERRITORY_LABELS: Record<SpanishTaxTerritory, string> = {
+  peninsula_baleares: "Península o Islas Baleares",
+  canarias: "Islas Canarias",
+  ceuta: "Ceuta",
+  melilla: "Melilla",
+};
+
+export function isSpanishTaxTerritory(value: unknown): value is SpanishTaxTerritory {
+  return (
+    typeof value === "string" &&
+    (SPANISH_TAX_TERRITORIES as readonly string[]).includes(value)
+  );
+}
+
+/** Únicos territorios con contratación de pago: dentro del IVA español. */
+export function isSpanishTaxTerritoryCheckoutCovered(
+  territory: SpanishTaxTerritory
+): boolean {
+  return territory === "peninsula_baleares";
+}
+
+/**
+ * Aviso para la pantalla del plan cuando la sede fiscal de una academia de
+ * España queda fuera del IVA. Igual que el aviso de país: no habilita ningún
+ * cobro y recuerda que Free sigue activo.
+ */
+export function spanishTaxTerritoryCheckoutNotice(
+  territory: SpanishTaxTerritory
+): string | null {
+  if (isSpanishTaxTerritoryCheckoutCovered(territory)) return null;
+  return `La contratación de planes de pago para academias con sede fiscal en ${SPANISH_TAX_TERRITORY_LABELS[territory]} todavía no está disponible: allí no se aplica el IVA y su fiscalidad aún no está preparada. Mientras tanto, tu academia puede seguir usando Zaltyko con el plan Free y sus límites. Si necesitas más capacidad, escríbenos desde Contacto.`;
+}
