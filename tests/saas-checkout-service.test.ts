@@ -132,15 +132,17 @@ describe("Checkout reservation guards with isolated dependencies", () => {
   );
   it("rechecks the Live country after locking before reserving a Checkout", async () => {
     mocks.liveReady = true;
+    // Seller ready for Spain: VAT Tax Rate configured and a covered territory.
     mocks.config.mockReturnValue({
       environment: "live",
       providerAccountReference: "acct_synthetic_live",
+      taxRates: { esVatGeneral: "txr_synthetic_live" },
     });
     mocks.scope
       .mockResolvedValueOnce({ organizationId, countryCode: "ES" })
       .mockResolvedValueOnce({ organizationId, countryCode: "MX" });
 
-    await expect(createOwnerSaasCheckout(input)).rejects.toMatchObject({
+    await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares" })).rejects.toMatchObject({
       status: 403,
       details: { code: "SAAS_MARKET_NOT_ENABLED" },
     });
