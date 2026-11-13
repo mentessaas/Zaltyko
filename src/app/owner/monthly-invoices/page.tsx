@@ -115,7 +115,7 @@ export default async function OwnerMonthlyInvoicesPage({
       >
         <p
           role="alert"
-          className="mt-6 border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950"
+          className="mx-5 mt-6 rounded-md border border-ochre-line bg-ochre-wash p-4 text-sm leading-6 text-ochre-ink lg:mx-10"
         >
           No se puede determinar el mes actual para la sede seleccionada. La
           sede no tiene una zona horaria válida. Configura una zona horaria

@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Building2, MapPin, ShieldCheck } from "lucide-react";
 import { parseOwnerSetupReceipt } from "@/components/owner-dashboard/owner-setup-response";
+import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { ownerField } from "@/components/owner-dashboard/owner-form-tones";
+import { cn } from "@/lib/utils";
 import {
   ADMINISTRATIVE_MARKET_REGISTRY,
   OPERATIONAL_CURRENCIES,
@@ -19,6 +22,12 @@ const FULL_MARKET_OPTIONS = Object.values(ADMINISTRATIVE_MARKET_REGISTRY);
 const GENERAL_MARKET_OPTIONS = COUNTRY_OPTIONS.filter(
   (country) => !isFullAdministrativeMarket(country.code)
 );
+
+// Campos y opciones del alta con la forma del sistema: radio de campo de 10 px,
+// borde de línea de magnesio y selección en lavado tapiz, sin radios sueltos.
+const SETUP_ICON_FIELD = cn(ownerField, "pl-10");
+const SETUP_OPTION =
+  "touch-target flex cursor-pointer items-center gap-3 rounded-card border border-chalk-line bg-white px-4 py-3 text-sm text-z-ink transition-colors hover:border-mat/40";
 
 function isOperationalCurrency(value: unknown): value is OperationalCurrency {
   return (
@@ -489,7 +498,7 @@ export function OwnerSetupForm({
     return (
       <p
         role="alert"
-        className="rounded-[12px] mt-8 border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950"
+        className={cn(ownerUi.noticeError, "mt-8")}
       >
         No pudimos comprobar los términos vigentes de tu cuenta. Recarga la
         página para volver a intentarlo.
@@ -502,7 +511,7 @@ export function OwnerSetupForm({
       key={(ownerUserId ?? "anonymous") + ":" + formGeneration}
       onSubmit={submit}
       aria-busy={pending || restorePending}
-      className="mt-8 grid gap-6"
+      className="mt-8 grid gap-6 border-t-[3px] border-z-ink pt-8"
     >
       <fieldset disabled={fieldsLocked} className="grid gap-6 border-0 p-0">
         <label className="grid gap-2 text-sm font-bold text-z-ink">
@@ -519,7 +528,7 @@ export function OwnerSetupForm({
               minLength={2}
               maxLength={120}
               autoComplete="organization"
-              className="touch-target w-full border border-z-line bg-white pl-10 pr-3 text-z-ink"
+              className={SETUP_ICON_FIELD}
             />
           </span>
         </label>
@@ -528,7 +537,7 @@ export function OwnerSetupForm({
             ¿Cuál es la especialidad principal de tu academia?
           </legend>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="rounded-[12px] touch-target flex cursor-pointer items-center gap-3 border border-z-line bg-white px-4 py-3 text-sm font-semibold text-z-ink has-[:checked]:border-z-ink has-[:checked]:bg-z-brand-50">
+            <label className={cn(SETUP_OPTION, "font-semibold has-[:checked]:border-mat has-[:checked]:bg-mat-wash")}>
               <input
                 type="radio"
                 name="primaryDiscipline"
@@ -542,7 +551,7 @@ export function OwnerSetupForm({
               />
               Gimnasia artística
             </label>
-            <label className="rounded-[12px] touch-target flex cursor-pointer items-center gap-3 border border-z-line bg-white px-4 py-3 text-sm font-semibold text-z-ink has-[:checked]:border-z-ink has-[:checked]:bg-z-brand-50">
+            <label className={cn(SETUP_OPTION, "font-semibold has-[:checked]:border-mat has-[:checked]:bg-mat-wash")}>
               <input
                 type="radio"
                 name="primaryDiscipline"
@@ -558,7 +567,7 @@ export function OwnerSetupForm({
             </label>
           </div>
         </fieldset>
-        <details className="border border-z-line bg-white">
+        <details className="rounded-card border border-chalk-line bg-white">
           <summary className="touch-target cursor-pointer px-4 py-3 text-sm font-semibold text-z-ink">
             Añadir otras disciplinas o actividades (opcional)
           </summary>
@@ -567,7 +576,7 @@ export function OwnerSetupForm({
               Puedes añadirlas ahora o más adelante.
             </legend>
             {primaryDiscipline && (
-              <label className="rounded-[12px] touch-target flex cursor-pointer items-start gap-3 border border-z-line bg-white px-4 py-3 text-sm text-z-ink">
+              <label className={cn(SETUP_OPTION, "items-start")}>
                 <input
                   type="checkbox"
                   name="additionalDisciplines"
@@ -594,7 +603,7 @@ export function OwnerSetupForm({
               ].map(([value, label]) => (
                 <label
                   key={value}
-                  className="rounded-[12px] touch-target flex cursor-pointer items-center gap-3 border border-z-line bg-white px-4 py-3 text-sm text-z-ink"
+                  className={SETUP_OPTION}
                 >
                   <input
                     type="checkbox"
@@ -616,7 +625,7 @@ export function OwnerSetupForm({
                 defaultValue={activeRetryRequest?.body.customActivityName}
                 maxLength={80}
                 placeholder="Por ejemplo, acrobacia"
-                className="rounded-[12px] touch-target w-full border border-z-line bg-white px-3 text-z-ink"
+                className={ownerField}
               />
             </label>
             <p className="text-sm leading-6 text-z-soft">
@@ -642,7 +651,7 @@ export function OwnerSetupForm({
                     ""
                 );
               }}
-              className="rounded-[12px] touch-target w-full border border-z-line bg-white px-3 text-z-ink"
+              className={ownerField}
             >
               <optgroup label="Mercados prioritarios">
                 {FULL_MARKET_OPTIONS.map((market) => (
@@ -678,7 +687,7 @@ export function OwnerSetupForm({
                 minLength={2}
                 maxLength={120}
                 placeholder="Sede principal"
-                className="touch-target w-full border border-z-line bg-white pl-10 pr-3 text-z-ink"
+                className={SETUP_ICON_FIELD}
               />
             </span>
           </label>
@@ -689,7 +698,7 @@ export function OwnerSetupForm({
               required={selectedMarket?.timezoneRequired ?? true}
               value={timezone}
               onChange={(event) => setTimezone(event.target.value)}
-              className="rounded-[12px] touch-target w-full border border-z-line bg-white px-3 text-z-ink"
+              className={ownerField}
             >
               {!timezone && (
                 <option value="">Selecciona una zona horaria</option>
@@ -717,7 +726,7 @@ export function OwnerSetupForm({
                   )
                 }
                 aria-describedby="owner-setup-currency-help"
-                className="rounded-[12px] touch-target w-full border border-z-line bg-white px-3 text-z-ink"
+                className={ownerField}
               >
                 <option value="">Selecciona una moneda</option>
                 {OPERATIONAL_CURRENCIES.map((code) => (
@@ -781,7 +790,7 @@ export function OwnerSetupForm({
         </div>
       </fieldset>
       {!activeRetryRequest && contractualConsent?.requiresAcceptance && (
-        <label className="flex items-start gap-3 rounded-lg border border-z-line bg-white px-3 py-3 text-sm leading-relaxed text-z-ink">
+        <label className="flex items-start gap-3 rounded-card border border-chalk-line bg-white px-3 py-3 text-sm leading-relaxed text-z-ink">
           <input
             type="checkbox"
             name="contractualAcceptance"
@@ -817,7 +826,7 @@ export function OwnerSetupForm({
       {error && (
         <p
           role="alert"
-          className="rounded-[12px] border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+          className={ownerUi.noticeError}
         >
           {error}
         </p>
@@ -828,14 +837,14 @@ export function OwnerSetupForm({
         </p>
       )}
       {persistenceNotice && (
-        <p role="status" className="text-sm text-amber-900">
+        <p role="status" className="text-sm leading-6 text-ochre-ink">
           {persistenceNotice}
         </p>
       )}
       <button
         type="submit"
         disabled={previewOnly || pending || restorePending}
-        className="touch-target inline-flex items-center justify-center gap-2 bg-z-ink px-5 py-3 text-sm font-bold text-white hover:bg-black disabled:bg-slate-500"
+        className={ownerUi.primaryButton}
       >
         {pending
           ? "Creando espacio…"
