@@ -1,5 +1,6 @@
 "use client";
 
+import { ownerTone } from "./owner-tone-ui";
 import { ownerUi } from "./owner-ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -701,7 +702,7 @@ export function OwnerGroupsManager({
             <h1 className={ownerUi.pageTitle}>
               Grupos y equipos
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-z-soft">
+            <p className={ownerUi.pageLead}>
               Organiza cada actividad por sede. Una gimnasta puede pertenecer a
               varios grupos.
             </p>
@@ -805,7 +806,7 @@ export function OwnerGroupsManager({
         {error && (
           <p
             role="alert"
-            className="rounded-[12px] mt-5 border border-red-700 bg-red-50 p-3 text-sm text-red-950"
+            className={`mt-5 ${ownerTone.noticeError}`}
           >
             {error}
           </p>
@@ -813,7 +814,7 @@ export function OwnerGroupsManager({
         {groupCreateValidationSummary && (
           <p
             role="alert"
-            className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-3 text-sm text-amber-950"
+            className={`mt-5 ${ownerTone.noticeError}`}
           >
             {groupCreateValidationSummary}
           </p>
@@ -821,7 +822,7 @@ export function OwnerGroupsManager({
         {notice && (
           <p
             role="status"
-            className="rounded-[12px] mt-5 border border-z-brand-100 bg-white p-3 text-sm text-z-ink"
+            className={`mt-5 ${ownerTone.noticeInfo}`}
           >
             {notice}
           </p>
@@ -883,16 +884,15 @@ export function OwnerGroupsManager({
 
           <section
             aria-labelledby="selected-group-title"
-            className="rounded-[12px] min-w-0 border border-z-line bg-white p-4 sm:p-6"
+            className={`min-w-0 ${ownerUi.card}`}
           >
             {!selectedGroup ? (
-              <div className="py-8 text-center">
-                <UsersRound
-                  className="mx-auto h-8 w-8 text-z-soft"
-                  aria-hidden="true"
-                />
-                <h2 className="mt-3 text-lg font-bold">Aún no hay grupos</h2>
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-z-soft">
+              <div className={ownerUi.emptyState}>
+                <span className={ownerUi.emptyIcon}>
+                  <UsersRound className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <h2 className={ownerUi.sectionTitle}>Aún no hay grupos</h2>
+                <p className={`mx-auto mt-2 max-w-md ${ownerUi.muted}`}>
                   Crea el primero para organizar las actividades de tu academia.
                 </p>
               </div>
@@ -902,23 +902,23 @@ export function OwnerGroupsManager({
                   <div>
                     <h2
                       id="selected-group-title"
-                      className="text-2xl font-bold"
+                      className={ownerUi.cardTitle}
                     >
                       {selectedGroup.name}
                     </h2>
-                    <p className="mt-1 text-sm text-z-soft">
+                    <p className={`mt-2 ${ownerUi.muted}`}>
                       {selectedGroup.programName ?? "Actividad sin clasificar"}{" "}
                       · {selectedGroup.locationName}
                     </p>
                   </div>
-                  <span className="rounded-[12px] inline-flex min-h-9 items-center border border-z-line px-3 text-sm font-semibold">
+                  <span className={`${ownerTone.chipOutline} shrink-0 self-start tabular-nums`}>
                     {selectedGroup.memberCount} de{" "}
                     {selectedGroup.capacity ?? "∞"} plazas
                   </span>
                 </div>
 
                 {selectedGroup.status !== "active" ? (
-                  <p className="rounded-[12px] mt-4 border border-amber-500 bg-amber-50 p-3 text-sm text-amber-950">
+                  <p className={`mt-4 ${ownerTone.noticeWarning}`}>
                     Este grupo no está activo. Puedes consultar sus
                     pertenencias, pero no añadir gimnastas.
                   </p>
@@ -952,15 +952,15 @@ export function OwnerGroupsManager({
                 )}
 
                 <div className="mt-7">
-                  <h3 className="text-lg font-bold">Pertenencias actuales</h3>
+                  <h3 className="font-display text-lg font-black uppercase leading-none text-z-ink">Pertenencias actuales</h3>
                   {bundle.memberships.length === 0 ? (
-                    <p className="rounded-[12px] mt-3 border border-z-line bg-z-canvas p-4 text-sm text-z-soft">
+                    <p className={`mt-3 ${ownerUi.emptyState} text-sm text-z-soft`}>
                       {selectedGroup.status === "active"
                         ? "Este grupo todavía no tiene gimnastas. Puedes añadir una ficha activa desde el buscador."
                         : "Este grupo no tiene pertenencias actuales. Está inactivo y no admite nuevas gimnastas."}
                     </p>
                   ) : (
-                    <ul className="mt-3 divide-y divide-z-line border-y border-z-line">
+                    <ul className="mt-3 divide-y divide-z-line border-y border-z-line border-t-[3px] border-t-z-ink">
                       {bundle.memberships.map((membership) => {
                         const profileEditorKey = `${organizationId}:${selectedGroup.locationId}:${selectedGroup.id}:${membership.athleteId}`;
                         const profileCommandMatches = pendingOwnerAthleteProfileMatches(pendingAthleteProfile, {

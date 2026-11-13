@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ownerTone } from "./owner-tone-ui";
+import { ownerUi } from "./owner-ui";
 
 export const PENDING_OWNER_ATHLETE_PROFILE_STORAGE_KEY =
   "zaltyko:pending-owner-athlete-profile:v1";
@@ -179,12 +181,9 @@ function problemMessage(payload: unknown): string {
   return "No se pudo guardar la ficha. Comprueba los datos y vuelve a intentarlo.";
 }
 
-const fieldClassName =
-  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas";
-const secondaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
-const primaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
+const fieldClassName = ownerUi.field;
+const secondaryButtonClassName = ownerUi.secondaryButton;
+const primaryButtonClassName = ownerUi.primaryButton;
 
 export function pendingOwnerAthleteProfileMatches(
   command: PendingOwnerAthleteProfileUpdate | null,
@@ -464,12 +463,12 @@ export function OwnerAthleteProfileEditor({
         </button>
       )}
 
-      {!isOpen && completedNotice && <p role="status" className="rounded-[12px] basis-full border border-z-brand-100 bg-z-brand-50 p-3 text-sm text-z-ink">{completedNotice}</p>}
+      {!isOpen && completedNotice && <p role="status" className={`basis-full ${ownerTone.noticeInfo}`}>{completedNotice}</p>}
 
       {isOpen && (
         <section
           aria-labelledby={`athlete-profile-title-${athleteId}`}
-          className="rounded-[12px] mt-3 w-full border border-z-line bg-white p-4 sm:col-span-2"
+          className={`mt-3 w-full sm:col-span-2 ${ownerTone.innerPanel}`}
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -485,13 +484,13 @@ export function OwnerAthleteProfileEditor({
 
           {loading && <p role="status" className="mt-3 text-sm text-z-soft">Cargando ficha…</p>}
           {message && (
-            <p role={messageKind === "error" ? "alert" : "status"} className="rounded-[12px] mt-3 border border-z-line bg-z-canvas p-3 text-sm">
+            <p role={messageKind === "error" ? "alert" : "status"} className={`mt-3 ${messageKind === "error" ? ownerTone.noticeError : ownerTone.noticeNeutral}`}>
               {message}
             </p>
           )}
 
           {activePending ? (
-            <p className="mt-3 text-sm text-amber-900">Los campos quedan bloqueados mientras se comprueba la operación original.</p>
+            <p className={`mt-3 ${ownerTone.warningText}`}>Los campos quedan bloqueados mientras se comprueba la operación original.</p>
           ) : loadedProfile ? (
             <form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={(event) => void submit(event)}>
               <label className="block text-sm font-semibold" htmlFor={`athlete-given-name-${athleteId}`}>

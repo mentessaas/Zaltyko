@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { GroupsBundle } from "./owner-groups-manager-model";
+import { ownerUi } from "./owner-ui";
 
 /** "Grupos de la academia" navigation. Links are inert while a command is unresolved. */
 export function OwnerGroupsSidebar({
@@ -18,9 +19,9 @@ export function OwnerGroupsSidebar({
   return (
     <nav
       aria-label="Grupos de la academia"
-      className="rounded-[12px] border border-z-line bg-white p-4"
+      className={`${ownerUi.card} sm:p-5`}
     >
-      <h2 className="mb-3 text-sm font-bold">Grupos de la academia</h2>
+      <h2 className="floor-label mb-3 text-z-soft">Grupos de la academia</h2>
       {groups.length === 0 ? (
         <p className="text-sm leading-6 text-z-soft">
           Todavía no hay grupos. Crea uno y asígnalo a una actividad y a
