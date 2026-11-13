@@ -57,9 +57,9 @@ export function SkipLink({ href, children, className }: SkipLinkProps) {
       onBlur={handleBlur}
       className={cn(
         // Base styles - visually hidden by default
-        "fixed left-4 top-4 z-[100] translate-y-[-100vh] rounded-lg bg-zaltyko-primary px-4 py-2 text-sm font-medium text-white shadow-lg transition-transform duration-200",
+        "fixed left-4 top-4 z-[100] translate-y-[-100vh] rounded-md bg-mat px-4 py-2 text-sm font-medium text-white shadow-lg transition-transform duration-200",
         // Show when focused
-        "focus:translate-y-4 focus:outline-none focus:ring-2 focus:ring-zaltyko-primary focus:ring-offset-2",
+        "focus:translate-y-4 focus:outline-none focus:ring-2 focus:ring-mat focus:ring-offset-2",
         // Always show when keyboard is being used
         "peer-focus:translate-y-4",
         className

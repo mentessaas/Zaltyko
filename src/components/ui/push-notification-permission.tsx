@@ -147,9 +147,9 @@ export function PushNotificationPermission({
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
           {permissionStatus === "granted" ? (
-            <Bell className="w-5 h-5 text-green-500" />
+            <Bell className="w-5 h-5 text-mat" aria-hidden="true" />
           ) : (
-            <BellOff className="w-5 h-5 text-gray-400" />
+            <BellOff className="w-5 h-5 text-ramp-400" aria-hidden="true" />
           )}
           Notificaciones Push
         </CardTitle>
@@ -176,7 +176,7 @@ export function PushNotificationPermission({
 
         {permissionStatus === "granted" && (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+            <div className="flex items-center gap-2 text-mat">
               <Check className="w-5 h-5" />
               <span className="text-sm font-medium">Notificaciones activas</span>
             </div>
@@ -199,11 +199,11 @@ export function PushNotificationPermission({
 
         {permissionStatus === "denied" && (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-red-500">
+            <div className="flex items-center gap-2 text-ochre-ink">
               <X className="w-5 h-5" />
               <span className="text-sm font-medium">Notificaciones bloqueadas</span>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-ramp-500">
               Para activar las notificaciones, cambia la configuración en tu
               navegador.
             </p>

@@ -6,7 +6,8 @@ import { TeamInvitationAcceptance } from "./TeamInvitationAcceptance";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Invitación de equipo | Zaltyko",
+  // La plantilla del layout raíz ya añade «| Zaltyko».
+  title: "Invitación de equipo",
   description: "Revisa una invitación antes de aceptar el acceso a una academia.",
   robots: { index: false, follow: false },
   referrer: "no-referrer",

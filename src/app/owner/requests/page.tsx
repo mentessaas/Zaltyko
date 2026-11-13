@@ -66,6 +66,7 @@ export default async function OwnerTrialRequestsPage({
     <OwnerWorkspacePageShell
       member={scope.member}
       organizationId={scope.organization.id}
+      organizationName={scope.organization.name}
       locationId={scope.selectedLocationId}
     >
       <OwnerTrialRequestsWorkspace

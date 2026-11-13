@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
 
-import Navbar from "@/app/(site)/Navbar";
-import Footer from "@/app/(site)/Footer";
+import {
+  PublicPageHeader,
+  PublicPageShell,
+  publicContainerClass,
+} from "@/app/(site)/mat/PublicPage";
+import { buttonVariants } from "@/components/ui/button";
 import { getHelpArticle, helpArticles } from "@/lib/help/articles";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import { cn } from "@/lib/utils";
 
 interface HelpArticlePageProps {
   params: Promise<{ slug: string }>;
@@ -39,52 +43,57 @@ export default async function HelpArticlePage({ params }: HelpArticlePageProps) 
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-      <main className="flex-1 pt-32 pb-16">
-        <article className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <Link href="/help" className="inline-flex items-center text-sm font-medium text-zaltyko-primary hover:underline">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver al centro de ayuda
-          </Link>
+    <PublicPageShell>
+      <PublicPageHeader
+        titleId="help-article-title"
+        size="title"
+        back={{ href: "/help", label: "Volver al centro de ayuda" }}
+        title={article.title}
+        meta={article.category}
+        lede={article.summary}
+      />
 
-          <p className="mt-8 text-sm font-semibold uppercase tracking-[0.18em] text-zaltyko-primary">
-            {article.category}
-          </p>
-          <h1 className="mt-3 text-3xl font-bold text-zaltyko-text-main sm:text-4xl">
-            {article.title}
-          </h1>
-          <p className="mt-4 text-lg text-zaltyko-text-secondary">{article.summary}</p>
-
-          <section className="mt-10 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-zaltyko-text-main">Pasos recomendados</h2>
-            <ol className="mt-6 space-y-4">
-              {article.steps.map((step, index) => (
-                <li key={step} className="flex gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-zaltyko-primary" />
-                  <span className="text-zaltyko-text-secondary">
-                    <strong className="text-zaltyko-text-main">Paso {index + 1}:</strong> {step}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          <div className="mt-10 rounded-2xl bg-zaltyko-primary/5 p-6">
-            <h2 className="text-lg font-semibold text-zaltyko-text-main">¿Necesitas ayuda directa?</h2>
-            <p className="mt-2 text-sm text-zaltyko-text-secondary">
-              Escríbenos con el contexto de tu academia y te indicaremos el siguiente paso.
-            </p>
-            <Link
-              href="/contact?type=support"
-              className="mt-4 inline-flex rounded-full bg-zaltyko-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-zaltyko-primary-dark"
+      <article aria-labelledby="help-article-title" className="chalk-field border-b border-chalk-line">
+        <div className={cn(publicContainerClass, "py-16 lg:py-20")}>
+          <div className="max-w-3xl">
+            {/* Pasos en panel reglado: regla de 3 px y filas separadas por
+                línea de magnesio, sin tarjetas ni iconos de tick. */}
+            <section
+              aria-labelledby="help-steps-title"
+              className="rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white"
             >
-              Contactar soporte
-            </Link>
+              <h2
+                id="help-steps-title"
+                className="font-display px-5 pb-4 pt-5 text-2xl font-black uppercase leading-none text-mat-night"
+              >
+                Pasos recomendados
+              </h2>
+              <ol>
+                {article.steps.map((step, index) => (
+                  <li key={step} className="border-t border-chalk-line px-5 py-4 leading-relaxed text-ramp-600">
+                    <strong className="text-mat-night">Paso {index + 1}:</strong> {step}
+                  </li>
+                ))}
+              </ol>
+            </section>
+
+            <section aria-labelledby="help-direct-title" className="mt-12 border-t-[3px] border-mat-night pt-6">
+              <h2
+                id="help-direct-title"
+                className="font-display text-2xl font-black uppercase leading-none text-mat-night"
+              >
+                ¿Necesitas ayuda directa?
+              </h2>
+              <p className="mt-3 text-ramp-600">
+                Escríbenos con el contexto de tu academia y te indicaremos el siguiente paso.
+              </p>
+              <Link href="/contact?type=support" className={cn(buttonVariants(), "mt-5")}>
+                Contactar soporte
+              </Link>
+            </section>
           </div>
-        </article>
-      </main>
-      <Footer />
-    </div>
+        </div>
+      </article>
+    </PublicPageShell>
   );
 }

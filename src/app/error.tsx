@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { logger, redactError, redactSensitive } from "@/lib/logger";
+import { SystemStatusPage, systemPageUi } from "@/components/system/SystemStatusPage";
 
 export default function Error({
   error,
@@ -32,33 +33,30 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-4 text-center">
-        <h1 className="text-2xl font-bold">Algo salió mal</h1>
-        <p className="text-muted-foreground">
-          Ha ocurrido un error inesperado. Por favor, intenta recargar la página.
-        </p>
-        {process.env.NODE_ENV === "development" && error.message && (
-          <div className="rounded-lg border border-red-500/50 bg-red-50 p-4 text-left">
-            <p className="text-sm font-semibold text-red-800">Error:</p>
-            <p className="text-xs text-red-600 mt-1">{error.message}</p>
-          </div>
-        )}
-        <div className="flex gap-2 justify-center">
-          <button
-            onClick={reset}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-          >
+    <SystemStatusPage
+      title="Algo salió mal"
+      description={<p>Ha ocurrido un error inesperado. Por favor, intenta recargar la página.</p>}
+      actions={
+        <>
+          <button type="button" onClick={reset} className={systemPageUi.primary}>
             Intentar de nuevo
           </button>
           <button
+            type="button"
             onClick={() => (window.location.href = "/")}
-            className="rounded-md border border-border px-4 py-2 text-sm font-semibold hover:bg-muted"
+            className={systemPageUi.outline}
           >
             Ir al inicio
           </button>
+        </>
+      }
+    >
+      {process.env.NODE_ENV === "development" && error.message && (
+        <div className="mt-6 rounded-[10px] border border-signal/30 bg-signal-wash p-4 text-left">
+          <p className="text-sm font-semibold text-signal-ink">Error:</p>
+          <p className="mt-1 text-xs text-signal-ink">{error.message}</p>
         </div>
-      </div>
-    </div>
+      )}
+    </SystemStatusPage>
   );
 }

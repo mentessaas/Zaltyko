@@ -55,12 +55,10 @@ export default function AcceptInvitationForm({
   if (isAuthenticated && isSameEmail) {
     if (completed) {
       return (
-        <div className="space-y-3 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zaltyko-primary/12">
-            <CheckCircle2 className="h-8 w-8 text-zaltyko-primary" />
-          </div>
-          <h2 className="text-2xl font-semibold text-foreground">Invitación aceptada</h2>
-          <p className="text-sm text-muted-foreground">
+        <div role="status" className="space-y-3 rounded-[10px] border border-mat/30 bg-mat-wash p-5">
+          <CheckCircle2 aria-hidden className="h-6 w-6 text-mat" />
+          <h2 className="font-display text-2xl font-black uppercase leading-none text-mat-night">Invitación aceptada</h2>
+          <p className="text-sm leading-6 text-ramp-600">
             Bienvenido/a. Serás redirigido/a a tu dashboard en unos segundos.
           </p>
         </div>
@@ -69,12 +67,12 @@ export default function AcceptInvitationForm({
 
     return (
       <div className="space-y-4">
-        <div className="rounded-md border border-zaltyko-primary/20 bg-zaltyko-primary/5 p-4">
+        <div className="rounded-[10px] border border-mat/20 bg-mat-wash p-4">
           <div className="flex items-start gap-3">
-            <UserPlus className="mt-0.5 h-5 w-5 shrink-0 text-zaltyko-primary" />
+            <UserPlus aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-mat" />
             <div className="space-y-1.5">
-              <p className="font-medium text-foreground">Ya estás dentro con la cuenta correcta</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="font-semibold text-mat-night">Ya estás dentro con la cuenta correcta</p>
+              <p className="text-sm text-ramp-600">
                 Te están invitando como <strong>{getRoleLabel(role)}</strong> usando <strong>{email}</strong>.
               </p>
             </div>
@@ -92,12 +90,13 @@ export default function AcceptInvitationForm({
   if (isAuthenticated && !isSameEmail) {
     return (
       <div className="space-y-4">
-        <div className="rounded-md border border-amber-300/70 bg-amber-50 p-4">
+        {/* Aviso, no error: polvo de magnesio en lugar del ámbar heredado, que se pintaba en coral. */}
+        <div className="rounded-[10px] border border-chalk-line bg-chalk-dust p-4">
           <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <ShieldAlert aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-mat-deep" />
             <div className="space-y-1.5">
-              <p className="font-medium text-amber-900">Estás usando una cuenta diferente</p>
-              <p className="text-sm text-amber-800">
+              <p className="font-semibold text-mat-night">Estás usando una cuenta diferente</p>
+              <p className="text-sm text-ramp-600">
                 La invitación es para <strong>{email}</strong>, pero ahora mismo estás dentro como{" "}
                 <strong>{userEmail}</strong>.
               </p>
@@ -120,12 +119,10 @@ export default function AcceptInvitationForm({
   // Usuario no autenticado → formulario de registro completo
   if (completed) {
     return (
-      <div className="space-y-3 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zaltyko-primary/12">
-          <CheckCircle2 className="h-8 w-8 text-zaltyko-primary" />
-        </div>
-        <h2 className="text-2xl font-semibold text-foreground">Cuenta creada</h2>
-        <p className="text-sm text-muted-foreground">
+      <div role="status" className="space-y-3 rounded-[10px] border border-mat/30 bg-mat-wash p-5">
+        <CheckCircle2 aria-hidden className="h-6 w-6 text-mat" />
+        <h2 className="font-display text-2xl font-black uppercase leading-none text-mat-night">Cuenta creada</h2>
+        <p className="text-sm leading-6 text-ramp-600">
           Tu cuenta ha sido creada y la invitación aceptada. Serás redirigido al inicio de sesión.
         </p>
       </div>
@@ -259,8 +256,8 @@ export default function AcceptInvitationForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="rounded-md border border-border bg-muted/40 p-4">
-        <p className="text-sm text-foreground">
+      <div className="rounded-[10px] border border-chalk-line bg-white p-4">
+        <p className="text-sm text-mat-night">
           <strong>Rol:</strong> {getRoleLabel(role)} &nbsp;|&nbsp; <strong>Email:</strong> {email}
         </p>
       </div>
@@ -282,7 +279,7 @@ export default function AcceptInvitationForm({
           disabled={pending}
         />
         <div className="space-y-1">
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Rol asignado</Label>
+          <Label>Rol asignado</Label>
           <Input value={getRoleLabel(role)} disabled />
         </div>
       </div>
@@ -324,9 +321,9 @@ export default function AcceptInvitationForm({
         {pending ? "Creando cuenta..." : "Crear cuenta y aceptar invitación"}
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-sm text-ramp-600">
         ¿Ya tienes cuenta?{" "}
-        <Link href="/auth/login" className="font-medium text-primary hover:underline">
+        <Link href="/auth/login" className="font-semibold text-mat underline decoration-2 underline-offset-[6px] hover:decoration-[3px]">
           Inicia sesión
         </Link>
       </p>

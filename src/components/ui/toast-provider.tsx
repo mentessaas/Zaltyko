@@ -28,34 +28,42 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
+/**
+ * Tonos de estado del sistema (DESIGN.md, «Tonos de estado»):
+ * - success: lavado tapiz con texto zona de seguridad.
+ * - info: polvo de magnesio con texto noche e icono tapiz.
+ * - warning: aviso en ocre (tinta ocre oscura sobre lavado ocre claro).
+ * - error: lavado señal con `signal-ink`. Solo error, deuda o borrado.
+ * Los lavados y tintas se adaptan de noche por The Night Mat Rule.
+ */
 const variantConfig = {
   success: {
     icon: CheckCircle2,
-    borderColor: "border-zaltyko-primary",
-    bgColor: "bg-zaltyko-primary/10 dark:bg-zaltyko-primary/20",
-    textColor: "text-zaltyko-primary dark:text-zaltyko-primary-light",
-    iconColor: "text-zaltyko-primary dark:text-zaltyko-primary-light",
+    borderColor: "border-mat/25",
+    bgColor: "bg-mat-wash",
+    textColor: "text-mat-deep",
+    iconColor: "text-mat dark:text-mat-lane",
   },
   error: {
     icon: XCircle,
-    borderColor: "border-red-500",
-    bgColor: "bg-red-50 dark:bg-red-950/20",
-    textColor: "text-red-800 dark:text-red-200",
-    iconColor: "text-red-600 dark:text-red-400",
+    borderColor: "border-signal/30",
+    bgColor: "bg-signal-wash",
+    textColor: "text-signal-ink",
+    iconColor: "text-signal-ink",
   },
   warning: {
     icon: AlertTriangle,
-    borderColor: "border-amber-500",
-    bgColor: "bg-amber-50 dark:bg-amber-950/20",
-    textColor: "text-amber-800 dark:text-amber-200",
-    iconColor: "text-amber-600 dark:text-amber-400",
+    borderColor: "border-ochre-line",
+    bgColor: "bg-ochre-wash",
+    textColor: "text-ochre-ink",
+    iconColor: "text-ochre-ink",
   },
   info: {
     icon: Info,
-    borderColor: "border-sky-500",
-    bgColor: "bg-sky-50 dark:bg-sky-950/20",
-    textColor: "text-sky-800 dark:text-sky-200",
-    iconColor: "text-sky-600 dark:text-sky-400",
+    borderColor: "border-chalk-line",
+    bgColor: "bg-chalk-dust",
+    textColor: "text-mat-night",
+    iconColor: "text-mat dark:text-mat-lane",
   },
 };
 
@@ -152,7 +160,7 @@ function ToastItem({ toast, onDismiss }: { toast: ToastDefinition; onDismiss: (i
   return (
     <div
       className={cn(
-        "pointer-events-auto animate-in slide-in-from-right-full overflow-hidden rounded-lg border shadow-lg transition-all duration-300",
+        "pointer-events-auto animate-in slide-in-from-right-full overflow-hidden rounded-card border shadow-medium transition-colors duration-300",
         config.borderColor,
         config.bgColor
       )}
@@ -162,7 +170,7 @@ function ToastItem({ toast, onDismiss }: { toast: ToastDefinition; onDismiss: (i
         <div className="flex-1 min-w-0">
           <p className={cn("text-sm font-semibold", config.textColor)}>{toast.title}</p>
           {toast.description && (
-            <p className={cn("mt-1 text-sm", config.textColor, "opacity-80")}>
+            <p className={cn("mt-1 text-sm", config.textColor)}>
               {toast.description}
             </p>
           )}
@@ -171,9 +179,9 @@ function ToastItem({ toast, onDismiss }: { toast: ToastDefinition; onDismiss: (i
           type="button"
           onClick={() => onDismiss(toast.id)}
           className={cn(
-            "shrink-0 rounded p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5",
+            "-mr-2 -mt-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-mat-night/5 dark:hover:bg-white/10",
             config.textColor,
-            "opacity-60 hover:opacity-100"
+            "opacity-70 hover:opacity-100"
           )}
           aria-label="Cerrar aviso"
         >

@@ -16,6 +16,11 @@ colors:
   signal-ink: "#B8331A"
   signal-dark: "#C2391E"
   signal-wash: "#FDECE7"
+  ochre: "#C4851A"
+  ochre-ink: "#7A500E"
+  ochre-light: "#F2C46B"
+  ochre-wash: "#F7ECD2"
+  ochre-line: "#E3BC6E"
   ramp-300: "#B4BCCB"
   ramp-400: "#8A93A8"
   ramp-500: "#5C6782"
@@ -176,6 +181,16 @@ components:
     textColor: "{colors.signal-ink}"
     rounded: "{rounded.md}"
     padding: "2px 10px"
+  badge-warning:
+    backgroundColor: "{colors.ochre-wash}"
+    textColor: "{colors.ochre-ink}"
+    rounded: "{rounded.md}"
+    padding: "2px 10px"
+  notice-warning:
+    backgroundColor: "{colors.ochre-wash}"
+    textColor: "{colors.ochre-ink}"
+    rounded: "{rounded.card}"
+    padding: "12px 16px"
   state-chip-live:
     backgroundColor: "{colors.mat}"
     textColor: "{colors.tape}"
@@ -204,7 +219,7 @@ components:
 ## Contrato de dirección
 
 - **Tesis:** la academia vista desde la pista. Rechaza el SaaS blanco con captura de panel: el producto se demuestra contando la tarde con marcas de magnesio.
-- **Mundo propio:** tapiz azul de competición (#1E3FA8, #14307F, noche #0B1430), blanco magnesio (#F4F6F2), cinta de límite blanca de 5 cm como estructura, coral señal (#E5482A) solo para alertas. Archivo condensada en mayúsculas para rótulos, Archivo normal para trabajar, cifras tabulares.
+- **Mundo propio:** tapiz azul de competición (#1E3FA8, #14307F, noche #0B1430), blanco magnesio (#F4F6F2), cinta de límite blanca de 5 cm como estructura, coral señal (#E5482A) solo para errores, deudas y borrados, y ocre (#7A500E sobre #F7ECD2) solo para avisos. Archivo condensada en mayúsculas para rótulos, Archivo normal para trabajar, cifras tabulares.
 - **Historia:** la directora entiende que Zaltyko habla de grupos, niveles y sesiones; ve la tarde contada en palotes; crea su academia.
 - **Primera pantalla:** tapiz azul a sangre con marco de cinta; titular condensado blanco a la izquierda a 5-6rem; a la derecha la sesión de hoy donde tocar a una gimnasta añade un palote de magnesio; CTA blanco tipo cinta bajo el titular.
 - **Forma:** Magnesio sobre tapiz, candidata 7 de 7, seed 709cef6f.
@@ -222,7 +237,7 @@ La firma es el **palote de magnesio**: cuatro trazos y el quinto cruzado, dibuja
 
 **Key Characteristics:**
 - Una sola familia variable (Archivo) en dos anchuras: condensada en mayúsculas para rótulos y cifras, normal para trabajar.
-- Azul tapiz como estructura y acción; coral señal reservado a alertas y deudas.
+- Azul tapiz como estructura y acción; coral señal reservado a errores, deudas y borrados; ocre reservado a avisos que no son error.
 - Reglas de cinta (3 px) en lugar de tarjetas anidadas; listas y tablas antes que rejillas de tarjetas.
 - Cifras tabulares grandes como protagonistas (horas, asistencia, precios, KPIs).
 - Palotes de magnesio como única ilustración, siempre ligados a un dato.
@@ -230,7 +245,7 @@ La firma es el **palote de magnesio**: cuatro trazos y el quinto cruzado, dibuja
 
 ## Colors
 
-Un azul de competición en tres profundidades, un blanco magnesio cálido y una sola señal coral partida en relleno y tinta; los grises son una rampa con un punto de azul.
+Un azul de competición en tres profundidades, un blanco magnesio cálido, una señal coral partida en relleno y tinta para los errores y un ocre de aviso para lo pendiente; los grises son una rampa con un punto de azul.
 
 ### Primary
 - **Azul Tapiz** (`mat`): el color del suelo. Fondo de los campos de marca (con su fibra), relleno del botón principal, enlaces y nombres de módulo, regla de cabecera de los paneles («Sesiones de hoy», «Hoy en pista»), chip «En pista», anillo de foco y selección de texto.
@@ -249,6 +264,27 @@ El coral está partido en dos papeles: un relleno vivo para puntos y superficies
 - **Coral Oscuro** (`signal-dark`): señal oscura para texto (≈5,4:1 sobre blanco, ≈5:1 sobre magnesio). Es el valor del alias heredado `zaltyko-coral` y de `--destructive` (`10 73% 44%`), así que la llevan `text-destructive` (por ejemplo, la variación negativa del pulso operativo) y las pantallas antiguas. Los mensajes de error de formulario ya no la usan: van en `signal-ink`.
 - **Lavado Señal** (`signal-wash`): fondo de badge de error, de la alerta grave, del chip «Sin conexión» del pulso operativo y del icono de acción destructiva.
 
+### Aviso (ocre)
+Decisión del 2026-11-12 (Elvis, delegada en Claude): el aviso tiene tono propio y deja de confundirse con el error. Es para lo que pide atención pero no ha fallado: «pendiente de revisar», «caduca pronto», «sin conexión, puedes seguir trabajando», «notificaciones bloqueadas». Tinta ocre oscura sobre lavado ocre claro, con el mismo reparto de papeles que la señal.
+- **Ocre** (`ochre`, `#C4851A`): punto y relleno de aviso (≈3,1:1 sobre blanco, válido para objetos gráficos). Nunca texto.
+- **Tinta Ocre** (`ochre-ink`, `#7A500E`): texto e iconos de aviso sobre claro. 6,0:1 sobre `ochre-wash`, 7,0:1 sobre blanco y 6,5:1 sobre magnesio. Con texto blanco encima da 7,0:1, así que también vale como relleno de un botón de aviso.
+- **Lavado Ocre** (`ochre-wash`, `#F7ECD2`): fondo del aviso (toast, alerta, badge, banda de sin conexión).
+- **Línea Ocre** (`ochre-line`, `#E3BC6E`): borde de 1 px del aviso. No es texto.
+- **Ocre Claro** (`ochre-light`, `#F2C46B`): tinta de aviso de noche. 8,5:1 sobre el lavado nocturno (ocre al 16 % sobre la tarjeta nocturna).
+- **Escala:** `OCHRE_SCALE` (de `#FBF6EA` a `#2A1C07`, con `ochre-wash` en el 100, `ochre` en el 500 y `ochre-ink` en el 700). El 600 (`#8F600F`) da 5,5:1 sobre blanco y 4,6:1 sobre el 100, así que los `text-amber-600` heredados siguen siendo legibles.
+
+### Tonos de estado
+Cuatro tonos, cada uno con un lavado de fondo y una tinta de texto con contraste AA (≥4,5:1) de día y de noche. El color nunca va solo: el estado se nombra también en el texto o en el icono.
+
+| Tono | Cuándo | Fondo | Tinta (texto e icono) | Borde | De noche |
+|---|---|---|---|---|---|
+| **Éxito** | hecho, activo, en curso | `mat-wash` | `mat-deep` (icono `mat`) | `mat` al 20–25 % | lavado de calle al 12 % con tinta magnesio |
+| **Información** | dato neutro, consejo, sin acción | `chalk-dust` (o cinta blanca) | `mat-night` (icono `mat`) | `chalk-line` | `--muted` con tinta magnesio |
+| **Aviso** | pendiente, caduca, sin conexión, revisar | `ochre-wash` | `ochre-ink` | `ochre-line` | ocre al 16 % con tinta `ochre-light` |
+| **Error** | error, deuda, borrado, fallo | `signal-wash` | `signal-ink` | `signal` al 30 % | señal al 16 % con tinta `signal-light` |
+
+Los componentes compartidos ya lo aplican: `Toast` (`success`, `info`, `warning`, `error`), `Alert` (`success`, `default`, `warning`, `destructive`), `Badge` (`success`/`active`/`default`, `pending` en polvo para «en reposo» o «programado», `warning`, `error`), `StatsCard` (cuadro de icono por variante), `OfflineState` y `OfflineBanner` (aviso) y `ErrorState` (error).
+
 ### Neutral
 - **Magnesio** (`chalk`): fondo de trabajo (`--background`), con grano de tiza en las secciones públicas y en la entrada. Hover del CTA blanco.
 - **Polvo** (`chalk-dust`): `--muted` y el estado en reposo. Chip «Lista pasada», chip «Serie actual / Sin datos» del pulso operativo, alerta de gravedad media, columnas de estado apagado del kanban (inactivo, pausado, archivado) y superficie a la que apunta el alias heredado `zaltyko-warm-white`.
@@ -257,7 +293,9 @@ El coral está partido en dos papeles: un relleno vivo para puntos y superficies
 - **Rampa** (`ramp-300` … `ramp-800`): únicos grises. `ramp-300` para bordes de control y el `--input` (≈1,9:1, nunca texto); `ramp-400` para flechas e iconos de fila en reposo (≈3,1:1); `ramp-500` para texto terciario (≈6:1 sobre blanco, 5,5:1 sobre magnesio); `ramp-600` para párrafos secundarios y ledes; `ramp-700`/`ramp-800` para borde y superficie de tarjeta en oscuro.
 
 ### Named Rules
-**The Señal Rule.** El coral solo aparece cuando algo pide atención (deuda, error, borrado). Como texto o como fondo con texto blanco se usa una tinta oscura (`signal-ink` en código nuevo, `signal-dark` por alias y `--destructive`); `signal` puro es relleno o punto, nunca letra ni fondo de botón.
+**The Señal Rule.** El coral solo aparece cuando algo ha fallado o se debe (deuda, error, borrado). Como texto o como fondo con texto blanco se usa una tinta oscura (`signal-ink` en código nuevo, `signal-dark` por alias y `--destructive`); `signal` puro es relleno o punto, nunca letra ni fondo de botón.
+
+**The Aviso Rule.** Lo que pide atención sin haber fallado («pendiente», «caduca», «sin conexión», «revisa antes de seguir») va en ocre, nunca en coral. Si el mismo bloque mezcla un aviso y un error, cada uno lleva su tono. El ocre tampoco es decoración ni acento de marca: un consejo o una novedad son información (polvo o tapiz).
 
 **The Lane Rule.** `mat-lane` como texto pequeño solo va sobre `mat-deep` o `mat-night` (≈5,8:1). Sobre `mat` (≈4,3:1) solo se admite a tamaño grande (≥24 px o ≥18,7 px en negrita) o como icono. Los rótulos pequeños sobre la banda `mat` del panel van en blanco al 85 %.
 
@@ -265,9 +303,9 @@ El coral está partido en dos papeles: un relleno vivo para puntos y superficies
 
 **The Alias Rule.** El mundo se hereda por alias a nivel de tema, sin editar archivo por archivo. Hay dos capas:
 - **Alias de marca:** los nombres heredados `zaltyko-*` apuntan al mundo (teal → tapiz, indigo → zona de seguridad, navy → noche, coral → coral oscuro `signal-dark`, mist → línea de magnesio, warm-white → polvo, electric → calle, primary-light → tapiz claro).
-- **Familias de Tailwind reasignadas:** `tailwind.config.mjs` define tres escalas completas (50–950) y sustituye con ellas las familias de Tailwind. `MAT_SCALE` (de `#F0F3FC` a `#0B1430`, con `mat-wash` en el 100, `mat` en el 700 y `mat-deep` en el 800) sustituye a teal, emerald, green, cyan, sky, blue, indigo, violet, purple y lime. `SIGNAL_SCALE` (de `#FDF3F0` a `#431109`, con `signal-wash` en el 100, `signal` en el 500 y `signal-ink` en el 700) sustituye a amber, yellow, orange, red, rose, pink y fuchsia. `RAMP_SCALE` (la rampa de `#F4F6F2` a `#0B1430`, más un 950 `#070D20`) sustituye a gray, slate, zinc, neutral y stone. Así, cualquier `bg-emerald-50` o `text-amber-700` heredado se pinta en dos tintas.
+- **Familias de Tailwind reasignadas:** `tailwind.config.mjs` define cuatro escalas completas (50–950) y sustituye con ellas las familias de Tailwind. `MAT_SCALE` (de `#F0F3FC` a `#0B1430`, con `mat-wash` en el 100, `mat` en el 700 y `mat-deep` en el 800) sustituye a teal, emerald, green, cyan, sky, blue, indigo, violet, purple y lime. `SIGNAL_SCALE` (de `#FDF3F0` a `#431109`, con `signal-wash` en el 100, `signal` en el 500 y `signal-ink` en el 700) sustituye a red, rose, pink y fuchsia. `OCHRE_SCALE` (de `#FBF6EA` a `#2A1C07`, con `ochre-wash` en el 100, `ochre` en el 500 y `ochre-ink` en el 700) sustituye a amber, yellow y orange desde el 2026-11-12; antes iban a la señal. `RAMP_SCALE` (la rampa de `#F4F6F2` a `#0B1430`, más un 950 `#070D20`) sustituye a gray, slate, zinc, neutral y stone. Así, cualquier `bg-emerald-50` heredado se pinta en tapiz y cualquier `text-amber-700`, en tinta de aviso. Las escalas también existen con nombre propio (`mat-200`, `signal-800`, `ochre-200`…) para hovers y bordes sin hexadecimales sueltos.
 
-Los alias existen para que las pantallas antiguas hereden el mundo, no para escribir con ellos. El código nuevo escribe los tokens semánticos `mat`, `chalk`, `tape`, `signal` y `ramp`, nunca `teal-*`, `amber-*`, `gray-*` ni `zaltyko-*`. Efecto a vigilar: un aviso heredado en ámbar o amarillo se pinta ahora en coral, con el mismo tono que un error. Un aviso que no sea deuda, error ni borrado se reescribe con los tokens del mundo; el alias no lo arregla.
+Los alias existen para que las pantallas antiguas hereden el mundo, no para escribir con ellos. El código nuevo escribe los tokens semánticos `mat`, `chalk`, `tape`, `signal`, `ochre` y `ramp`, nunca `teal-*`, `amber-*`, `gray-*` ni `zaltyko-*`. Efecto a vigilar desde el 2026-11-12: un error heredado escrito en ámbar se pintaría en ocre de aviso. Los conocidos ya pasaron a `signal-wash`/`signal-ink` en el mismo cambio (errores de `OwnerTeamAccessPanel` y `OwnerStaffManager`, factura vencida de `NotificationCenter`); el de `/staff/accept` lo corrige su propio PR. Cualquier otro error escrito en ámbar se corrige igual, en su pantalla; el alias no lo arregla.
 
 ## Typography
 
@@ -339,15 +377,22 @@ El **marco de cinta** es la forma recurrente: un borde blanco de 3 px al 80 % de
 
 ## Components
 
+### Una sola familia de componentes
+Decisión del 2026-11-12 (PR-0 de la auditoría de coherencia visual): la plataforma tiene **una sola familia de componentes**, `src/components/ui`, escrita con los tokens del mundo. `ownerUi` (`owner-ui.ts`), los `ci*` de competencia y las constantes `BUTTON`/`INPUT` locales no definen formas propias: componen las de `components/ui` o copian sus clases sin cambiarlas, y se irán retirando pantalla a pantalla. Un mismo botón principal tiene una sola forma en toda la plataforma.
+
+**Una sola cabecera de pantalla.** `PageHeader` es la cabecera de `/app`, `/owner`, `/familia` y superadmin: migas en rótulo de pista, título en voz *title* sobre la regla de 3 px y acciones a la derecha, sin antetítulo decorativo encima. `ownerUi.pageTitle` se alinea con ella en el PR-R.
+
+**Alcance pendiente de decisión (H8).** El cuerpo de `/super-admin` y las plantillas de correo siguen fuera de alcance hasta que Elvis decida reabrirlos; los editores de marca de la academia siguen fuera porque allí el color es contenido.
+
 ### Buttons
 Tactiles y directos: altura generosa, peso semibold–extrabold, sin degradados.
-- **Shape:** esquinas cortas (8 px); 44 px de alto por defecto, 36 px en `sm`, 48 px en `lg`; los CTA públicos sobre tapiz suben a 48–56 px.
+- **Shape:** una sola forma Magnesio para principal, secundario, contorno, fantasma y peligro: esquinas cortas (8 px); 44 px de alto por defecto, 36 px en `sm`, 48 px en `lg`; los CTA públicos sobre tapiz suben a 48–56 px. Nada de píldoras, de botones negros ni de botones cuadrados en noche.
 - **Primary:** relleno azul tapiz, texto blanco, canto inferior de 1 px; hover a zona de seguridad.
 - **Outline:** blanco con borde `ramp-300` y texto noche; hover a borde y texto azul tapiz.
 - **Secondary:** lavado tapiz con texto zona de seguridad.
-- **Destructive:** relleno coral tinta (`signal-ink`) con texto blanco (≈6:1); hover a `#9A2914`. Nunca relleno `signal` puro.
+- **Destructive (peligro):** relleno coral tinta (`signal-ink`) con texto blanco (≈6:1); hover a `signal-800` (`#962A16`). Nunca relleno `signal` puro.
 - **Tape (CTA sobre azul):** blanco cinta con texto zona de seguridad en extrabold; hover a magnesio. Su pareja es el contorno blanco de 2 px al 60 % que se aclara al pasar.
-- **Ghost / Link:** texto con hover de lavado; los enlaces de sección van subrayados con 2 px y 6 px de separación, que crece a 3 px al pasar.
+- **Ghost (fantasma) / Link:** texto noche con hover de lavado tapiz y texto tapiz; los enlaces de sección van subrayados con 2 px y 6 px de separación, que crece a 3 px al pasar.
 - **Hover / Focus:** transición de 150 ms ease-out en color y fondo; `active` escala a 0,99; foco con anillo de 2 px en azul tapiz y 2 px de separación (blanco sobre tapiz).
 
 ### Chips
@@ -355,7 +400,7 @@ Tactiles y directos: altura generosa, peso semibold–extrabold, sin degradados.
 - **Estado de datos (pulso operativo):** rectángulo de 6 px, 0,75 rem semibold, con punto de 6 px delante. Listo: polvo con texto `ramp-600` y punto tapiz («Serie actual», o «Sin datos» si la serie es toda cero); error: lavado señal con `signal-ink` y punto `signal` («Sin conexión»); cargando: lavado tapiz con texto zona de seguridad y punto `mat-light` pulsante («Cargando datos»).
 - **Distintivo de área (`floor-tag`):** rótulo de pista (0,75 rem, 700, 0,08em, mayúsculas, anchura 80 %) en blanco sobre noche, rectángulo de 6 px. Lo lleva «Super Admin» en la barra global; no es una píldora.
 - **Presente / Marcar (sobre tapiz):** 32 px de alto, blanco con texto zona de seguridad cuando está marcado; contorno blanco de 2 px al 45 % cuando no.
-- **Badge:** lavado tapiz con texto zona de seguridad; error en lavado señal con `signal-ink`.
+- **Badge:** chip de cinta de 6–8 px. Lavado tapiz con texto zona de seguridad (`default`, `active`, `success`); `pending` en polvo con `ramp-600` (en reposo, programado, en curso); `warning` en lavado ocre con `ochre-ink`; `error` en lavado señal con `signal-ink`. Los hover salen de las escalas (`mat-200`, `ochre-200`, `signal-200`), sin hexadecimales.
 - **Etiqueta de grupo:** rectángulo de 6 px con borde `chalk-line`, nombre del grupo en texto de interfaz (semibold noche o medium) y delante un punto de 6–8 px pintado con `groupInk()`. El nombre siempre acompaña al punto. Es la misma forma en la ficha, en las tablas de gimnastas y de clases, en asistencia, en entrenadores, en el panel de la entrenadora y en el diálogo de asistencia.
 - **Chip de cinta (neutro):** rectángulo de 6 px (`rounded-md`) a 0,75 rem, en una de tres variantes: polvo/`muted` con texto apagado, blanco con borde `chalk-line` o lavado tapiz con zona de seguridad (clases asignadas en entrenadores, «Principal»). Sustituye a las píldoras en `GroupCard`, el kanban de gimnastas, la ficha de gimnasta, la tabla de clases y asistencia.
 
@@ -367,10 +412,24 @@ Tactiles y directos: altura generosa, peso semibold–extrabold, sin degradados.
 - **Internal Padding:** 24 px en tarjeta; 20 px en panel reglado y en sus filas.
 
 ### Inputs / Fields
-- **Style:** 44 px de alto, blanco, borde 1 px línea de magnesio, radio 10 px, 16 px de relleno lateral.
+- **Style:** 44 px de alto, blanco, borde 1 px línea de magnesio, radio 10 px, 16 px de relleno lateral. `Input`, `Select` (nativo) y `Textarea` comparten la misma clase base (`fieldControlClassName` en `src/components/ui/input.tsx`); el `Textarea` solo añade altura mínima. Placeholder en `ramp-500`.
 - **Focus:** borde azul tapiz más anillo de 4 px de tapiz al 15 %.
 - **Sobre tapiz (búsqueda del lateral):** 40 px, fondo noche al 35 %, borde blanco al 15 %, foco a borde blanco.
-- **Error / Disabled:** borde en `signal` y anillo de foco en `signal` al 40 % (línea, no letra); icono de alerta y mensaje de 0,75 rem medium bajo el campo en `signal-ink` (≈6:1). Los errores de la pantalla de entrada usan la misma tinta a 0,875 rem. Deshabilitado al 50 % de opacidad.
+- **Checkbox y switch:** borde `ramp-300`, marcado en tapiz; el switch es una cinta de 6 px con mando cuadrado de 6 px, no una píldora.
+- **Error / Disabled:** borde en `signal` y anillo de foco en `signal` al 40 % (línea, no letra); icono de alerta y mensaje de 0,75 rem medium bajo el campo en `signal-ink` (≈6:1) y `signal-light` de noche. Los errores de la pantalla de entrada usan la misma tinta a 0,875 rem. Deshabilitado al 50 % de opacidad.
+
+### Avisos y estados del sistema
+- **Toast:** 10 px de radio, borde de 1 px y sombra de overlay, con el fondo y la tinta del tono (ver «Tonos de estado»). Los avisos y errores van en una región `aria-live="assertive"`; éxito e información, en `polite`. Botón de cerrar de 44 px. La descripción va en la misma tinta que el título, sin opacidad, para no bajar de 4,5:1.
+- **Alert:** 10 px de radio y borde completo de 1 px del tono, sin pestaña lateral.
+- **`ErrorState`:** cuadro de icono de 40 px a 6 px de radio en lavado señal con `signal-ink`, título en voz *panel title* y texto `ramp-600`. `EmptyState` y `LoadingState` usan polvo y tapiz.
+- **Sin conexión (`OfflineState`, `OfflineBanner`, `.offline-banner`):** banda de aviso en ocre (`ochre-wash`, borde `ochre-line`, texto `ochre-ink`), no en coral.
+
+### Diálogos
+`Dialog`, `AlertDialog`, `ConfirmDialog` y `Modal` comparten forma: cinta blanca, borde de línea de magnesio, radio de modal (16 px), sombra de overlay y capa de noche al 55 %. El título va en voz *panel title* (mayúsculas, negra, condensada). `ConfirmDialog` y `Modal` llevan además la regla superior de 3 px en noche, como un panel reglado; en el `ConfirmDialog` destructivo la regla pasa a `signal-ink` y el cuadro de icono es lavado señal. Botón de cerrar de 44 px.
+
+### Pestañas y tablas
+- **`Tabs`:** fila de polvo de 44 px, sin sombra. La activa es cinta blanca con texto noche y anillo de 1 px `chalk-line`; el reposo va en `ramp-600`.
+- **`Table`:** cabecera en rótulo de pista `ramp-500` sobre magnesio; filas de 56 px separadas por `chalk-line`, hover y selección en lavado tapiz.
 
 ### Navigation
 - **Barra pública:** banda de 64 px en zona de seguridad con fibra; lockup Z + «ZALTYKO» en blanco; enlaces semibold al 75 % que pasan a blanco. El activo lleva debajo un tramo de cinta blanca de 3 px que se despliega en horizontal (200 ms). CTA blanco tipo cinta a la derecha. En móvil, panel a pantalla en la misma zona de seguridad con enlaces en titular condensado de 1,5 rem separados por líneas blancas al 10 %.
@@ -466,24 +525,25 @@ Hora en cifras tabulares negras de 3 rem y el día debajo en rótulo de pista. S
 - **Do** construir los bloques del panel como paneles reglados (12 px, borde `chalk-line`, regla superior de 3 px en `mat-night`, sin sombra) con filas regladas dentro.
 - **Do** condicionar cada consejo de arranque a un recuento real y retirarlo en cuanto deja de ser cierto (gimnastas < 5, grupos = 0).
 - **Do** mostrar «—» o «Sin datos» cuando un cero significa que aún no hay datos (asistencia sin gimnastas, serie toda a cero).
-- **Do** marcar estados con las tres familias del mundo: tapiz (`mat-wash`/`mat-deep`) para en curso o activo, polvo (`chalk-dust`/`ramp-600`) para reposo o listo, señal (`signal-wash`/`signal-ink`) para error o deuda.
+- **Do** marcar estados con los cuatro tonos del mundo: tapiz (`mat-wash`/`mat-deep`) para éxito, en curso o activo; polvo (`chalk-dust`/`ramp-600` o `mat-night`) para información, reposo o listo; ocre (`ochre-wash`/`ochre-ink`) para aviso o pendiente; señal (`signal-wash`/`signal-ink`) para error, deuda o borrado.
 - **Do** usar etiquetas de una palabra en la navegación inferior móvil y llevar el nombre completo en `aria-label`.
 - **Do** mantener objetivos táctiles de 44 px, 0,75 rem como tamaño mínimo de texto y el anillo de foco de 2 px (blanco sobre tapiz).
-- **Do** escribir con los tokens del mundo (`mat`, `chalk`, `tape`, `signal`, `ramp`) en código nuevo, aunque las familias de Tailwind ya se pinten en dos tintas por alias.
+- **Do** escribir con los tokens del mundo (`mat`, `chalk`, `tape`, `signal`, `ochre`, `ramp`) en código nuevo, aunque las familias de Tailwind ya se pinten en el mundo por alias.
 - **Do** usar chips de cinta (rectángulo de 6 px) para estados y etiquetas, con el color de grupo solo en el punto.
 - **Do** mostrar horas en HH:MM y fechas en formato corto español, y traducir cualquier código técnico (aparatos, estados) a una etiqueta en español.
 - **Do** dejar una sola acción principal por vista; el resto, de contorno.
 
 ### Don't:
 - **Don't** usar texto degradado, halos de color ni fondos con ondas: el énfasis es peso, anchura y tamaño.
-- **Don't** usar el coral como decoración, acento de marca o color de icono neutro, ni poner texto blanco sobre `signal` puro.
+- **Don't** usar el coral como decoración, acento de marca, color de icono neutro ni tono de aviso, ni poner texto blanco sobre `signal` puro.
+- **Don't** pintar un aviso, un «pendiente» o un «sin conexión» en coral, ni un error en ocre.
 - **Don't** pintar el color de grupo elegido por la academia tal cual, ni usarlo como fondo, borde o texto.
 - **Don't** construir rejillas de tarjetas con icono cuando una lista reglada dice lo mismo, ni anidar tarjetas dentro de un panel reglado.
 - **Don't** marcar filas o alertas con pestañas laterales de color (`border-l-4`), ni subrayar paneles redondeados con una línea gruesa de acento (`border-b-2`); el estado va en el fondo de la fila y los bordes son de 1 px.
 - **Don't** usar tamaños de texto sueltos por debajo de 0,75 rem (`text-[10px]`, `text-[11px]`).
 - **Don't** levantar tarjetas al pasar el ratón (`hover:-translate-y-*`) ni animar con rebote; el tapiz frena en seco.
 - **Don't** introducir grises fuera de la rampa ni una segunda familia tipográfica.
-- **Don't** escribir familias de Tailwind (`amber-*`, `red-*`, `teal-*`, `emerald-*`, `gray-*`, `slate-*`…) ni alias `zaltyko-*` en código nuevo: se pintan en el mundo solo por compatibilidad, y un ámbar heredado sale en coral de error.
+- **Don't** escribir familias de Tailwind (`amber-*`, `red-*`, `teal-*`, `emerald-*`, `gray-*`, `slate-*`…) ni alias `zaltyko-*` en código nuevo: se pintan en el mundo solo por compatibilidad, y un error heredado escrito en ámbar sale en ocre de aviso.
 - **Don't** escribir colores hexadecimales sueltos en componentes de interfaz; si un gráfico o un estilo en línea necesita un literal, ha de ser un valor de las escalas del mundo o una variable CSS del tema.
 - **Don't** poner `mat-lane` como texto pequeño sobre `mat`.
 - **Don't** fabricar testimonios, logos ni métricas para rellenar superficies de marca.
@@ -495,12 +555,13 @@ El modo oscuro se activa con el interruptor de la barra global (`next-themes`, c
   - magnesio (`bg-chalk`, `chalk-field`, `bg-z-canvas`) → fondo `hsl(var(--background))`;
   - polvo → `hsl(var(--muted))`;
   - bloque noche (`bg-mat-night`) → tarjeta nocturna, para que el pie y los avisos de cierre se despeguen del fondo.
-- **Lavados:** el lavado de tapiz pasa a azul de calle al 12 % y el de señal, a señal al 16 %.
+- **Lavados:** el lavado de tapiz pasa a azul de calle al 12 %, el de señal a señal al 16 % y el de aviso a ocre al 16 %.
 - **Tinta:**
   - noche (`text-mat-night`, `text-z-ink`, `text-mat-deep`, `text-zaltyko-navy`) → `hsl(var(--foreground))`;
   - rampa (`text-ramp-500`/`600`, `text-z-soft`) → `hsl(var(--muted-foreground))`;
   - azul tapiz como texto (`text-mat`, `text-zaltyko-teal`, `text-z-brand-*`) → azul de calle `#8FB4FF`;
-  - tinta de señal → `#FF8A73`.
+  - tinta de señal → `#FF8A73`;
+  - tinta de aviso (`text-ochre-ink`) → `#F2C46B`, y la línea ocre a ocre al 45 %.
 - **Líneas:** la línea de magnesio pasa a `hsl(var(--border))`. La regla de 3 px en noche pasa a cinta blanca `#E9ECE6`, la misma metáfora de la cinta sobre el tapiz.
 - **Restauración sobre tapiz:** dentro de `mat-field`, `mat-field-deep`, `bg-mat`, `bg-mat-deep` o `bg-mat-night`, `bg-white` sigue siendo blanco, y la tinta de tapiz sobre esas piezas conserva `#14307F`. Así los botones de cinta, la píldora del selector y el ítem activo del lateral no cambian.
 - **Disciplinas del panel del club de noche:** artística en azul de calle, rítmica en `#B4BCCB` y complementarias en cinta blanca.
@@ -521,9 +582,16 @@ Decisión del 2026-11-09: una sola identidad en toda la plataforma. La direcció
   - Títulos de página y de tarjeta: condensados en mayúsculas.
   - Rótulos: `floor-label`. La cifra de métrica es *figure* de 3 rem.
   - Botón principal: azul tapiz con canto de 1 px, que pasa a noche al pasar el ratón.
-  - Chips de cinta de 6 px. Avisos de aviso y error en lavado de señal.
+  - Chips de cinta de 6 px. Hoy `noticeWarning` y `noticeError` van los dos en lavado de señal; `noticeWarning` pasa al tono de aviso (ocre) en el PR-R, junto con el resto de `owner-ui.ts`.
 - **Pantallas:** las franjas laterales (`border-l-2`, `border-l-4`) pasan a una regla superior de 3 px en el mismo color. Los radios arbitrarios de 14 a 24 px quedan en 12 px. Los colores literales se cambian por valores del mundo.
 - **La fila de grupo seleccionada** usa lavado de tapiz, sin pestaña lateral.
+- **Shell con el aspecto de `/app` (2026-11-12):** el área de dirección se ve como la app clásica sin cambiar su navegación ni sus permisos.
+  - **Lateral:** 248 px de zona de seguridad con fibra (`mat-field-deep`). Arriba, el nombre de la academia en titular condensado sobre una regla blanca de 3 px y debajo el plan en rótulo de pista azul calle (con aviso de solo lectura y «Ver planes» si el rol gestiona el plan). Botón de cinta «Añadir gimnasta» solo con la capacidad de gestionar gimnastas. Secciones «Día a día», «Personas» y «Club» en rótulo de pista azul calle; ítems de 44 px al 80 % de blanco, activo en cinta blanca con texto zona de seguridad y foco en anillo blanco. Sin nombre de academia, el lateral rotula la marca. No lleva buscador: la lista de gimnastas de `/owner` no admite búsqueda por URL.
+  - **Cabecera:** blanca con línea de magnesio; marca Z en tapiz y, solo donde no hay lateral, la academia tras una regla vertical de 3 px. A la derecha, el interruptor claro/oscuro de `/app` (`ThemeToggle`, 44 px) y «Cerrar sesión».
+  - **Título de pantalla (`ownerUi.pageTitle`):** apoyado en una regla de cinta de 3 px en noche, como `PageHeader` de `/app`. Lo heredan todas las pantallas que usan `owner-ui.ts`, también el portal de familias.
+  - **Navegación inferior móvil:** las mismas celdas y «Más»; activo relleno tapiz con texto blanco, etiquetas a 0,75 rem.
+  - **Hero del Resumen:** banda de tapiz con marco de cinta, la academia como `h1` (con «Resumen de» solo para lectores de pantalla), la sede o «Todas las sedes» en rótulo de pista, el saludo con el siguiente paso real (puesta en marcha, listas sin pasar o sesiones de hoy) y su acción en cinta blanca, el reloj de pista a la derecha y, al pie, la franja del plan: nombre y estado de la política operativa y, solo para la titular, el uso real (gimnastas, clases y grupos frente a su límite) con barra y «Mejorar plan».
+  - **Puesta en marcha:** mismo formato que en `/app`: paso actual en numeral de 6 rem, «Paso N de M · X% completado», barra de 6 px, acción del paso y «Ver N pendientes» con la lista reglada de pendientes.
 
 ### Huecos conocidos (no son reglas del sistema)
 Estado registrado tras la tercera ronda de pulido (2026-11-08), comprobado en código. Nada de esta lista debe copiarse como patrón.
@@ -535,7 +603,7 @@ Estado registrado tras la tercera ronda de pulido (2026-11-08), comprobado en c�
 
 **Pendientes dentro del producto:**
 - **Modo oscuro revisado** en `/app` (panel, gimnastas, grupos, entrenamientos, ajustes), home, precios y login. No se ha revisado de noche en `/owner` (pide una sesión real de Supabase), `/super-admin` ni en las páginas públicas secundarias.
-- **`/owner` sin revisión visual:** pide una sesión real de Supabase que el entorno local no tiene y redirige al login. Está verificado solo en código (`tsc`, eslint).
+- **`/owner` sin revisión visual:** pide una sesión real de Supabase que el entorno local no tiene y redirige al login. Está verificado solo en código (`tsc`, eslint) y en tests de render; el shell y el hero de 2026-11-12 tampoco tienen capturas.
 - **Disciplinas del panel del club:** pizarra y noche se distinguen menos que los tintes violeta, rosa y verde anteriores.
 - **Rótulo de entrenadoras en género único:** la página y la navegación ya coinciden («Entrenadoras», del registro de especialización), pero el rótulo no cambia cuando el equipo es mixto, y la cabecera de la tabla de clases dice «Entrenadores/as». «Equipo técnico», que ya usa Asistencia, valdría para todos los casos; es una decisión de terminología del producto, no de diseño.
 - **Aparatos repetidos en clases:** «Suelo y barra», «Suelo» y «Barra de equilibrio» aparecen juntos. Viene de los datos de la configuración deportiva, no de la interfaz.
@@ -543,4 +611,4 @@ Estado registrado tras la tercera ronda de pulido (2026-11-08), comprobado en c�
 - **Sin revisión visual:** el aviso de inicio de sesión fallido (un toast) no llegó a pintarse en la captura porque el Supabase local no respondía; los errores de validación por campo y los rótulos de la navegación global para usuarios que no son super admin están verificados solo en código. Sí se revisaron el aviso de servicio del registro y los estados hover del lateral, de las filas de tabla y del botón principal.
 - **Hexadecimales fuera del mundo:** solo quedan en `/super-admin` y en `BrandingEditor`, ambos fuera de alcance. El modo oscuro del error de campo usa el token `signal.light` (`#FF8A73`).
 - **`AthleteProfileHeader` sin uso:** no se monta en ninguna ruta y conserva banda noche, avatar con sombra y tarjetas de 14 px con `shadow-soft`. No sirve de referencia.
-- **Familias de Tailwind por nombre:** unos 264 archivos de `src` aún escriben `amber`, `red`, `green`, `teal`, `gray`, `slate`… Gracias a The Alias Rule se pintan en dos tintas, pero no se diseñaron una a una: conservan radios de 16 px y avisos ámbar que ahora salen en coral de error. Sus sombras ya son de contacto porque el tema redefine `shadow-sm` … `shadow-2xl`.
+- **Familias de Tailwind por nombre:** unos 264 archivos de `src` aún escriben `amber`, `red`, `green`, `teal`, `gray`, `slate`… Gracias a The Alias Rule se pintan en el mundo, pero no se diseñaron una a una: conservan radios de 16 px. Desde el 2026-11-12 sus avisos ámbar salen en ocre de aviso y no en coral; los pocos errores escritos en ámbar salen en ocre hasta que su pantalla pase a `signal-ink`. Sus sombras ya son de contacto porque el tema redefine `shadow-sm` … `shadow-2xl`.

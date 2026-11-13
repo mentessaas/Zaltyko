@@ -87,6 +87,7 @@ export default async function OwnerEnrollmentsPage({
     <OwnerWorkspacePageShell
       member={bundle.member}
       organizationId={bundle.organization.id}
+      organizationName={bundle.organization.name}
       locationId={query.data.locationId ?? (bundle.member.locationScopeMode === "all" ? null : bundle.selectedLocationId)}
     >
       <OwnerEnrollmentsManager
