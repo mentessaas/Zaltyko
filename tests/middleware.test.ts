@@ -201,6 +201,12 @@ describe("middleware", () => {
     expect(body).toContain('<meta name="robots" content="noindex, nofollow">');
     expect(body).toContain('href="/"');
     expect(body).not.toContain("other.invalid");
+    // Página mínima «Magnesio sobre tapiz» para personas: CSS en línea con
+    // valores del mundo y sin recursos externos (fuentes, scripts, enlaces).
+    expect(body).toContain("<style>");
+    expect(body).toContain("#1E3FA8");
+    expect(body).toContain("#F4F6F2");
+    expect(body).not.toMatch(/<script|<link|https?:\/\//);
   });
 
   it.each(["/pricing", "/auth/callback", "/owner", "/owner/subscription", "/api/v1/owner/saas/usage", "/marketplaces", "/owner/insights-extra", "/api/productsx", "/api/public/academies"])("keeps essential or distinct segment %s on its existing route", async path => {

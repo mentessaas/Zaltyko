@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { OwnerEssentialDashboard } from "@/components/owner-dashboard/OwnerEssentialDashboard";
+import { OwnerMarketCoverageNotice } from "@/components/owner-dashboard/OwnerMarketCoverageNotice";
 import { OwnerProductDiscovery } from "@/components/owner-dashboard/OwnerProductDiscovery";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { findLegacyAcademyMemberships } from "@/lib/auth/legacy-academy-access";
@@ -139,6 +140,8 @@ export default async function OwnerDashboardPage({
         locationId={scope.selectedLocationId}
         role={scope.member.role}
       />
+      {/* Solo academias fuera de ES y MX: lo específico de su país llega más adelante. */}
+      <OwnerMarketCoverageNotice organizationId={scope.organization.id} />
     </OwnerWorkspacePageShell>
   );
 }

@@ -51,7 +51,7 @@ export function Switch({
   const LabelComponent = (
     <span
       className={cn(
-        "text-sm text-zaltyko-text-main",
+        "text-sm text-mat-night",
         props.disabled && "opacity-50 cursor-not-allowed"
       )}
     >
@@ -76,12 +76,12 @@ export function Switch({
         <label
           htmlFor={actualId}
           className={cn(
-            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-            "focus-within:outline-none focus-within:ring-2 focus-within:ring-zaltyko-primary focus-within:ring-offset-2",
-            checked ? "bg-zaltyko-primary" : "bg-zaltyko-border",
+            "relative inline-flex h-6 w-11 items-center rounded-control transition-colors",
+            "focus-within:outline-none focus-within:ring-2 focus-within:ring-mat focus-within:ring-offset-2",
+            checked ? "bg-mat" : "bg-ramp-300 dark:bg-ramp-600",
             props.disabled && "opacity-50 cursor-not-allowed",
             !props.disabled && "cursor-pointer",
-            error && "!bg-red-500",
+            error && "ring-2 ring-signal ring-offset-2",
             className
           )}
         >
@@ -99,7 +99,7 @@ export function Switch({
           />
           <span
             className={cn(
-              "inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform",
+              "inline-block h-4 w-4 transform rounded-sm bg-white shadow-sm transition-transform dark:bg-chalk",
               checked ? "translate-x-6" : "translate-x-1"
             )}
             aria-hidden="true"
@@ -107,7 +107,7 @@ export function Switch({
         </label>
       </div>
       {error && (
-        <p id={errorId} className="text-xs text-red-600" role="alert">
+        <p id={errorId} className="text-xs font-medium text-signal-ink dark:text-signal-light" role="alert">
           {error}
         </p>
       )}

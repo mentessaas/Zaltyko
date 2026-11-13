@@ -40,8 +40,10 @@ describe("brand asset contract", () => {
       theme_color: string;
       icons: Array<{ src: string }>;
     };
-    expect(manifest.background_color).toBe("#0F172A");
-    expect(manifest.theme_color).toBe("#0F172A");
+    // «Magnesio sobre tapiz»: zona de seguridad como theme-color (la misma que
+    // `viewport.themeColor` del layout raíz) y magnesio como fondo de arranque.
+    expect(manifest.background_color).toBe("#F4F6F2");
+    expect(manifest.theme_color).toBe("#14307F");
     for (const icon of manifest.icons) {
       expect(statSync(`${root}public${icon.src}`)).toBeTruthy();
     }

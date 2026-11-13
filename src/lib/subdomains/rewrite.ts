@@ -18,6 +18,35 @@ const LOCAL_DEV_HOSTS = new Set([
   "127.0.0.1:3001",
 ]);
 
+/**
+ * Subdominios de zaltyko.com que pertenecen a la plataforma y nunca son una
+ * academia: entornos (staging), proyectos aparte (waitlist), correo (mail,
+ * img.mail, r.mail, autodiscover, autoconfig) y nombres de sistema. Sin esta
+ * lista, staging.zaltyko.com se reescribía a /a/staging y respondía 404.
+ */
+export const RESERVED_PLATFORM_SUBDOMAINS: ReadonlySet<string> = new Set([
+  "www",
+  "staging",
+  "preview",
+  "dev",
+  "test",
+  "qa",
+  "sandbox",
+  "waitlist",
+  "app",
+  "api",
+  "admin",
+  "auth",
+  "status",
+  "docs",
+  "help",
+  "blog",
+  "mail",
+  "smtp",
+  "autodiscover",
+  "autoconfig",
+]);
+
 export function extractAcademySlugFromHost(host: string | null): string | null {
   if (!host) return null;
   if (LOCAL_DEV_HOSTS.has(host)) return null;
@@ -27,6 +56,7 @@ export function extractAcademySlugFromHost(host: string | null): string | null {
   const slug = hostname.slice(0, -(ROOT_DOMAIN.length + 1));
   if (!slug || slug.includes(".")) return null;
   if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug)) return null;
+  if (RESERVED_PLATFORM_SUBDOMAINS.has(slug)) return null;
   return slug;
 }
 

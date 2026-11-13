@@ -32,7 +32,7 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
           "Las invitaciones deben abrirse desde el enlace original recibido por correo.",
           "Si el enlace se cortó o expiró, tu academia puede enviarte uno nuevo.",
         ]}
-        form={<p className="text-sm leading-6 text-muted-foreground">No pudimos validar esta invitación.</p>}
+        form={<p className="text-sm leading-6 text-ramp-600">No pudimos validar esta invitación.</p>}
       />
     );
   }
@@ -61,7 +61,7 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
           "Cada invitación está asociada a un correo y a un tiempo de validez.",
           "Si el enlace ya fue usado, tendrás que entrar con la cuenta ya creada.",
         ]}
-        form={<p className="text-sm leading-6 text-muted-foreground">No encontramos una invitación activa con ese enlace.</p>}
+        form={<p className="text-sm leading-6 text-ramp-600">No encontramos una invitación activa con ese enlace.</p>}
       />
     );
   }
@@ -76,7 +76,7 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
           "La cuenta ya debería existir con el correo invitado.",
           "Puedes volver a entrar desde el acceso principal.",
         ]}
-        form={<p className="text-sm leading-6 text-muted-foreground">Esta invitación ya no puede volver a aceptarse.</p>}
+        form={<p className="text-sm leading-6 text-ramp-600">Esta invitación ya no puede volver a aceptarse.</p>}
       />
     );
   }
@@ -91,7 +91,7 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
           "Las invitaciones tienen vencimiento para evitar accesos huérfanos o enlaces viejos.",
           "Tu academia puede reenviarte una nueva en segundos.",
         ]}
-        form={<p className="text-sm leading-6 text-muted-foreground">Este enlace ya caducó y no puede reutilizarse.</p>}
+        form={<p className="text-sm leading-6 text-ramp-600">Este enlace ya caducó y no puede reutilizarse.</p>}
       />
     );
   }

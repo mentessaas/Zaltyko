@@ -158,7 +158,9 @@ describe("extractAcademySlugFromHost", () => {
 
   it("ignora dominio raíz", () => {
     expect(extractAcademySlugFromHost("zaltyko.com")).toBe(null);
-    expect(extractAcademySlugFromHost("www.zaltyko.com")).toBe("www"); // www es un subdominio válido (no es la raíz); se rechazará luego en RLS/DB si no es una academia real
+    // www y los demás subdominios de la plataforma están reservados: nunca son
+    // una academia (ver RESERVED_PLATFORM_SUBDOMAINS).
+    expect(extractAcademySlugFromHost("www.zaltyko.com")).toBe(null);
   });
 
   it("ignora hosts de desarrollo", () => {

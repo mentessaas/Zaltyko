@@ -14,7 +14,8 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-10 items-center justify-center rounded-xl border border-zaltyko-mist/70 bg-white p-1 text-zaltyko-text-secondary shadow-soft dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300",
+      // Pestañas planas «Magnesio sobre tapiz»: fila de polvo de 44 px, sin sombra.
+      "inline-flex min-h-11 items-center justify-center rounded-md bg-chalk-dust p-1 text-ramp-600",
       className
     )}
     {...props}
@@ -29,7 +30,9 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex min-h-8 items-center justify-center whitespace-nowrap rounded-lg px-3 py-1 text-sm font-medium ring-offset-background transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-zaltyko-teal data-[state=active]:text-white data-[state=active]:shadow-soft",
+      // Activa: cinta blanca con texto noche y anillo de 1 px de línea de
+      // magnesio, sin sombra; en reposo, `ramp-600` con hover a noche.
+      "inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-semibold ring-offset-background transition-colors duration-150 hover:text-mat-night focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-mat-night data-[state=active]:ring-1 data-[state=active]:ring-chalk-line dark:hover:text-chalk dark:data-[state=active]:bg-card dark:data-[state=active]:text-foreground dark:data-[state=active]:ring-border",
       className
     )}
     {...props}

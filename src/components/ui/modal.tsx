@@ -58,29 +58,31 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-zaltyko-navy/55 px-4 py-4 backdrop-blur-sm sm:py-8"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-mat-night/55 px-4 py-4 backdrop-blur-sm sm:py-8"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
       aria-describedby={description ? "modal-description" : undefined}
       onClick={onClose}
     >
+      {/* Panel reglado de diálogo: cinta blanca, borde de línea de magnesio, regla
+          superior de 3 px en noche, radio de modal (16 px) y sombra de overlay. */}
       <div
         ref={modalRef}
         tabIndex={-1}
-        className={`flex max-h-[calc(100dvh-2rem)] min-h-0 flex-col overflow-hidden rounded-2xl border border-zaltyko-mist bg-zaltyko-warm-white text-zaltyko-text-main shadow-soft dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 sm:max-h-[calc(100dvh-4rem)] ${widthClassName}`}
+        className={`flex max-h-[calc(100dvh-2rem)] min-h-0 flex-col overflow-hidden rounded-modal border border-chalk-line border-t-[3px] border-t-mat-night bg-white text-mat-night shadow-medium sm:max-h-[calc(100dvh-4rem)] ${widthClassName}`}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="border-b border-zaltyko-mist px-6 py-4">
-          <h2 id="modal-title" className="font-display text-xl font-semibold text-zaltyko-navy dark:text-slate-50">{title}</h2>
+        <div className="border-b border-chalk-line px-6 py-4">
+          <h2 id="modal-title" className="font-display text-2xl font-black uppercase leading-none text-mat-night">{title}</h2>
           {description && (
-            <p id="modal-description" className="mt-1 text-sm text-zaltyko-text-secondary dark:text-slate-300">
+            <p id="modal-description" className="mt-2 text-sm text-ramp-600">
               {description}
             </p>
           )}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">{children}</div>
-        {footer && <div className="shrink-0 border-t border-zaltyko-mist dark:border-slate-700 px-6 py-4">{footer}</div>}
+        {footer && <div className="shrink-0 border-t border-chalk-line px-6 py-4">{footer}</div>}
       </div>
     </div>
   );

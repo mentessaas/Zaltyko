@@ -21,15 +21,17 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center rounded-2xl border border-zaltyko-mist bg-white p-12 text-center shadow-soft dark:border-slate-700 dark:bg-slate-900",
+        // Estado vacío de lista: cinta blanca con borde discontinuo de 2 px en
+        // `ramp-300`, 12 px de radio y 48 px de relleno, sin sombra.
+        "flex flex-col items-center rounded-xl border-2 border-dashed border-ramp-300 bg-white p-12 text-center",
         className
       )}
     >
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-zaltyko-teal/10">
-        <Icon className="h-8 w-8 text-zaltyko-teal" aria-hidden />
+      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-mat-wash">
+        <Icon className="h-5 w-5 text-mat" aria-hidden />
       </div>
-      <p className="mb-2 text-sm font-medium text-foreground">{title}</p>
-      <p className="mb-6 max-w-sm text-sm text-muted-foreground">{description}</p>
+      <p className="mb-2 text-base font-semibold text-mat-night">{title}</p>
+      <p className="mb-6 max-w-sm text-sm text-ramp-600">{description}</p>
       {(action || secondaryAction) && (
         <div className="flex flex-col gap-2 sm:flex-row">
           {action}

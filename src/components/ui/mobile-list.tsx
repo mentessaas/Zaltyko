@@ -101,7 +101,7 @@ export function InfiniteList<T>({
 
       {/* End of list */}
       {!hasMore && items.length > 0 && (
-        <p className="text-center text-gray-400 text-sm py-4">
+        <p className="py-4 text-center text-sm text-ramp-500">
           No hay más elementos
         </p>
       )}
@@ -159,8 +159,8 @@ function PullToRefreshSimple({ onRefresh }: { onRefresh: () => Promise<void> }) 
         isRefreshing ? "opacity-100" : "opacity-0"
       )}
     >
-      <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-      <span className="ml-2 text-sm text-gray-500">Actualizando...</span>
+      <Loader2 className="h-5 w-5 animate-spin text-mat" aria-hidden="true" />
+      <span className="ml-2 text-sm text-ramp-600">Actualizando...</span>
     </div>
   );
 }
@@ -168,11 +168,11 @@ function PullToRefreshSimple({ onRefresh }: { onRefresh: () => Promise<void> }) 
 // Skeleton row component
 function SkeletonRow() {
   return (
-    <div className="flex items-center space-x-4 p-4 bg-muted/50 rounded-lg animate-pulse">
-      <div className="h-10 w-10 bg-gray-200 dark:bg-gray-700 rounded-full" />
+    <div className="flex animate-pulse items-center space-x-4 rounded-card bg-chalk-dust p-4">
+      <div className="h-10 w-10 rounded-md bg-ramp-200 dark:bg-ramp-700" />
       <div className="flex-1 space-y-2">
-        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
-        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+        <div className="h-4 w-3/4 rounded-sm bg-ramp-200 dark:bg-ramp-700" />
+        <div className="h-3 w-1/2 rounded-sm bg-ramp-200 dark:bg-ramp-700" />
       </div>
     </div>
   );
@@ -196,9 +196,9 @@ export function MobileCard({
     <div
       onClick={onClick}
       className={cn(
-        "bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4",
-        onClick && "cursor-pointer active:scale-[0.98] transition-transform",
-        active && "border-blue-500 bg-blue-50 dark:bg-blue-950/30",
+        "rounded-card border border-chalk-line bg-white p-4 text-mat-night",
+        onClick && "cursor-pointer transition-colors hover:border-mat active:scale-[0.99]",
+        active && "border-mat bg-mat-wash",
         className
       )}
     >
@@ -271,7 +271,7 @@ export function SwipeableListItem({
       {leftAction && (
         <div
           className={cn(
-            "absolute inset-y-0 left-0 flex items-center justify-center px-4 bg-red-500 text-white",
+            "absolute inset-y-0 left-0 flex items-center justify-center bg-signal-ink px-4 text-white",
             translateX < 0 ? "opacity-100" : "opacity-0"
           )}
         >
@@ -288,7 +288,7 @@ export function SwipeableListItem({
       {rightAction && (
         <div
           className={cn(
-            "absolute inset-y-0 right-0 flex items-center justify-center px-4 bg-green-500 text-white",
+            "absolute inset-y-0 right-0 flex items-center justify-center bg-mat px-4 text-white",
             translateX > 0 ? "opacity-100" : "opacity-0"
           )}
         >
@@ -305,7 +305,7 @@ export function SwipeableListItem({
       {/* Main content */}
       <div
         ref={itemRef}
-        className="bg-white dark:bg-gray-900 touch-none"
+        className="touch-none bg-white"
         style={{ transform: `translateX(${translateX}px)` }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

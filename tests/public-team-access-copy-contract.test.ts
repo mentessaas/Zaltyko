@@ -13,10 +13,11 @@ const classesCopy = readFileSync(
 );
 
 describe("public team access copy", () => {
-  it("does not promise that coaches already receive role-based access", () => {
+  it("describes coach access by invitation (active since 12-11-2026) without promising family access", () => {
     expect(homeCopy).toContain(
-      "El acceso propio de entrenadores está en preparación."
+      "Las entrenadoras entran con su propia cuenta por invitación y pasan lista en sus sedes."
     );
+    expect(homeCopy).not.toContain("en preparación");
     expect(homeCopy).not.toContain(
       "Coaches y familias entran con acceso según su rol"
     );
@@ -30,13 +31,13 @@ describe("public team access copy", () => {
 
   it("keeps coach assignment and attendance attributed honestly", () => {
     expect(classesCopy).toContain(
-      "La asignación de entrenadores con acceso propio está en preparación."
+      "Cada clase tiene sus entrenadoras titulares y sus sesiones las heredan."
     );
+    expect(classesCopy).toContain("queda marcada como sustitución");
+    expect(classesCopy).toContain("Entrenadora titular por clase y sustituciones por sesión");
+    expect(classesCopy).not.toContain("en preparación");
     expect(classesCopy).toContain(
       "La dirección registra la asistencia de cada sesión y consulta las marcas guardadas."
-    );
-    expect(classesCopy).toContain(
-      "El acceso y la asignación de entrenadores están en preparación."
     );
     expect(classesCopy).not.toContain("Los entrenadores marcan presencias");
     expect(classesCopy).not.toContain("Consulta tu programación diaria");

@@ -483,9 +483,9 @@ body {
   transition: background-color 0.2s, border-color 0.2s, color 0.2s;
 }
 
-/* Offline indicator */
+/* Offline indicator: sin conexión es un aviso (ocre), no un error. */
 .offline-banner {
-  @apply fixed top-0 left-0 right-0 z-50 bg-zaltyko-coral text-white text-center py-2 text-sm;
+  @apply fixed top-0 left-0 right-0 z-50 border-b border-ochre-line bg-ochre-wash text-ochre-ink text-center py-2 text-sm;
 }
 
 /* PWA install banner (if not installed) */
@@ -530,7 +530,8 @@ body {
    El tapiz no cambia de noche: sigue siendo azul. Lo que cambia es el papel:
    las superficies blancas pasan a la tarjeta nocturna, el magnesio al fondo,
    la tinta noche a texto magnesio, el azul tapiz como texto a azul de calle
-   (#8FB4FF) y la regla de 3 px en noche a cinta blanca. Se aplica a las
+   (#8FB4FF), la tinta de señal a #FF8A73, la de aviso (ocre) a #F2C46B y la
+   regla de 3 px en noche a cinta blanca. Se aplica a las
    clases literales del mundo en `.dark`, en la capa de componentes, para que
    una variante `dark:` explícita en un componente siga mandando. Dentro de una
    superficie de tapiz (mat-field, bg-mat…) se restaura el valor de día: un
@@ -559,6 +560,19 @@ body {
   .dark .bg-signal-wash,
   .dark .bg-z-chalk-50 {
     background-color: rgba(229, 72, 42, 0.16);
+  }
+  /* Aviso (ocre): lavado ocre al 16 % sobre la noche; la tinta pasa a
+     `ochre-light` #F2C46B (8,5:1 sobre ese lavado) y el borde, a ocre al 45 %. */
+  .dark .bg-ochre-wash,
+  .dark .hover\:bg-ochre-wash:hover {
+    background-color: rgba(196, 133, 26, 0.16);
+  }
+  .dark .text-ochre-ink {
+    color: #F2C46B;
+  }
+  .dark .border-ochre-line,
+  .dark .border-ochre\/40 {
+    border-color: rgba(196, 133, 26, 0.45);
   }
   .dark .bg-z-ink {
     background-color: #1E3FA8;

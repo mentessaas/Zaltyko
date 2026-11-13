@@ -39,6 +39,8 @@ const { fixture, testTables } = vi.hoisted(() => {
       executeCalls: [] as string[],
       hasLegacyMembership: false,
       legacySchemaState: "absent" as "absent" | "present" | "partial" | "error",
+      generalProvisionerInstalled: false,
+      provisionCalls: [] as Array<{ countryCode: unknown; discipline: unknown }>,
     },
     testTables,
   };
@@ -107,6 +109,37 @@ function makeTx() {
           : [];
       const sqlText = parts.join("");
       fixture.executeCalls.push(sqlText);
+      if (sqlText.includes("to_regprocedure")) {
+        return { rows: [{ available: fixture.generalProvisionerInstalled }] };
+      }
+      if (sqlText.includes("ensure_general_identity_sport_profile")) {
+        // Simula la función del candidato: crea el perfil vacío solo si falta.
+        const [countryCode, discipline] = (
+          statement as { values: unknown[] }
+        ).values;
+        fixture.provisionCalls.push({ countryCode, discipline });
+        const profiles = (fixture.rows.sportProfiles ??= []);
+        const existing = profiles.find(
+          (row) =>
+            row.countryCode === countryCode &&
+            row.disciplineKey === discipline &&
+            row.federationCode === "unconfigured" &&
+            row.profileVersion === "identity-v1"
+        );
+        if (!existing) {
+          profiles.push({
+            id: `general-${String(countryCode)}-${String(discipline)}`,
+            countryCode,
+            disciplineKey: discipline,
+            federationCode: "unconfigured",
+            profileVersion: "identity-v1",
+            status: "identity_only",
+            configurationSchemaVersion: 1,
+            configuration: {},
+          });
+        }
+        return { rows: [{ id: existing?.id ?? `general-${String(countryCode)}-${String(discipline)}` }] };
+      }
       if (sqlText.includes("to_regclass")) {
         if (fixture.legacySchemaState === "error") {
           throw new Error("catalog permission denied");
@@ -239,6 +272,8 @@ describe("organization bootstrap canonical sport profiles", () => {
     fixture.executeCalls = [];
     fixture.hasLegacyMembership = false;
     fixture.legacySchemaState = "absent";
+    fixture.generalProvisionerInstalled = false;
+    fixture.provisionCalls = [];
     fixture.tx = makeTx();
   });
 
@@ -377,14 +412,226 @@ describe("organization bootstrap canonical sport profiles", () => {
     expect(fixture.inserts).toEqual([]);
   });
 
-  it("mantiene asistidos los países fuera del registry antes de abrir transacción", async () => {
-    await expect(
-      bootstrapOrganization({ ...command, countryCode: "FR" })
-    ).rejects.toMatchObject({ code: "INVALID_RELATION", status: 422 });
+  it("rechaza códigos fuera del catálogo ISO antes de abrir transacción", async () => {
+    for (const countryCode of ["ZZ", "AQ", "XX"]) {
+      await expect(
+        bootstrapOrganization({
+          ...command,
+          countryCode,
+          defaultCurrency: "EUR",
+          timezone: "Europe/Paris",
+        })
+      ).rejects.toMatchObject({ code: "INVALID_RELATION", status: 422 });
+    }
 
     expect(fixture.executeCalls).toEqual([]);
     expect(fixture.selectCalls).toEqual([]);
     expect(fixture.inserts).toEqual([]);
+  });
+
+  describe("países del nivel general", () => {
+    const franceCommand = {
+      ...command,
+      countryCode: "FR",
+      defaultCurrency: "EUR" as const,
+      timezone: "Europe/Paris",
+      idempotencyKey: "bootstrap-general-market-001",
+    };
+
+    it("exige elegir moneda soportada y una zona del país antes de abrir transacción", async () => {
+      await expect(
+        bootstrapOrganization({ ...franceCommand, defaultCurrency: undefined })
+      ).rejects.toMatchObject({ code: "INVALID_RELATION", status: 422 });
+      await expect(
+        bootstrapOrganization({
+          ...franceCommand,
+          countryCode: "AR",
+          timezone: undefined,
+        })
+      ).rejects.toMatchObject({ code: "INVALID_RELATION", status: 422 });
+      await expect(
+        bootstrapOrganization({
+          ...franceCommand,
+          countryCode: "AR",
+          timezone: "Europe/Madrid",
+        })
+      ).rejects.toMatchObject({ code: "INVALID_RELATION", status: 422 });
+      await expect(
+        bootstrapOrganization({
+          ...franceCommand,
+          defaultCurrency: "USD" as never,
+        })
+      ).rejects.toBeDefined();
+
+      expect(fixture.executeCalls).toEqual([]);
+      expect(fixture.inserts).toEqual([]);
+    });
+
+    it("sin el candidato aplicado responde 422 claro y no escribe nada", async () => {
+      await expect(bootstrapOrganization(franceCommand)).rejects.toMatchObject({
+        code: "FEATURE_NOT_AVAILABLE",
+        status: 422,
+        details: { reason: "general-market-onboarding-not-enabled" },
+      });
+      expect(fixture.inserts).toEqual([]);
+      expect(fixture.provisionCalls).toEqual([]);
+    });
+
+    it("prepara un perfil de identidad vacío por disciplina y da de alta la academia en su país", async () => {
+      fixture.generalProvisionerInstalled = true;
+      fixture.rows.sportProfiles = [
+        {
+          id: "es-artistic-profile",
+          countryCode: "ES",
+          disciplineKey: "artistic",
+          federationCode: "unconfigured",
+          profileVersion: "identity-v1",
+          status: "identity_only",
+          configurationSchemaVersion: 1,
+          configuration: {},
+        },
+      ];
+
+      const result = await bootstrapOrganization(franceCommand);
+
+      expect(fixture.provisionCalls).toEqual([
+        { countryCode: "FR", discipline: "artistic" },
+        { countryCode: "FR", discipline: "rhythmic" },
+      ]);
+      expect(result.administrativeMarket).toEqual({
+        countryCode: "FR",
+        defaultCurrency: "EUR",
+        timezone: "Europe/Paris",
+      });
+      expect(result.sportCoverage.mode).toBe("general_country_identity");
+      expect(result.sportCoverage.message).toContain(
+        "llegarán más adelante"
+      );
+      expect(
+        fixture.inserts.find((insert) => insert.table === "organizations")
+          ?.values
+      ).toMatchObject({ countryCode: "FR", defaultCurrency: "EUR" });
+      expect(
+        fixture.inserts.find((insert) => insert.table === "organizationSports")
+          ?.values
+      ).toEqual([
+        {
+          organizationId: "organization-created",
+          countryCode: "FR",
+          sportProfileId: "general-FR-artistic",
+          role: "primary",
+          status: "active",
+        },
+        {
+          organizationId: "organization-created",
+          countryCode: "FR",
+          sportProfileId: "general-FR-rhythmic",
+          role: "additional",
+          status: "active",
+        },
+      ]);
+    });
+
+    it("acepta MXN en un país del nivel general y no reutiliza perfiles de ES ni MX", async () => {
+      fixture.generalProvisionerInstalled = true;
+      fixture.rows.sportProfiles = [
+        {
+          id: "mx-artistic-identity-profile",
+          countryCode: "MX",
+          disciplineKey: "artistic",
+          federationCode: "unconfigured",
+          profileVersion: "identity-v1",
+          status: "identity_only",
+          configurationSchemaVersion: 1,
+          configuration: {},
+        },
+      ];
+
+      const result = await bootstrapOrganization({
+        ...franceCommand,
+        countryCode: "CO",
+        defaultCurrency: "MXN",
+        timezone: "America/Bogota",
+        additionalDisciplines: [],
+      });
+
+      expect(result.administrativeMarket).toEqual({
+        countryCode: "CO",
+        defaultCurrency: "MXN",
+        timezone: "America/Bogota",
+      });
+      expect(
+        fixture.inserts.find((insert) => insert.table === "organizationSports")
+          ?.values
+      ).toEqual([
+        {
+          organizationId: "organization-created",
+          countryCode: "CO",
+          sportProfileId: "general-CO-artistic",
+          role: "primary",
+          status: "active",
+        },
+      ]);
+    });
+
+    it("falla sin escrituras si el perfil del país no tiene la forma de identidad vacía", async () => {
+      fixture.generalProvisionerInstalled = true;
+      fixture.rows.sportProfiles = [
+        {
+          id: "fr-artistic-with-rules",
+          countryCode: "FR",
+          disciplineKey: "artistic",
+          federationCode: "unconfigured",
+          profileVersion: "identity-v1",
+          status: "identity_only",
+          configurationSchemaVersion: 1,
+          configuration: { rules: ["unexpected"] },
+        },
+      ];
+
+      await expect(
+        bootstrapOrganization({ ...franceCommand, additionalDisciplines: [] })
+      ).rejects.toMatchObject({
+        code: "INVALID_RELATION",
+        status: 422,
+        details: { reason: "general-market-identity-profiles-required" },
+      });
+      expect(fixture.inserts).toEqual([]);
+    });
+
+    it("España y México no pasan por el aprovisionamiento general", async () => {
+      fixture.generalProvisionerInstalled = true;
+      fixture.rows.sportProfiles = [
+        {
+          id: "canonical-artistic-profile",
+          countryCode: "ES",
+          disciplineKey: "artistic",
+          federationCode: "unconfigured",
+          profileVersion: "identity-v1",
+          status: "identity_only",
+        },
+        {
+          id: "canonical-rhythmic-profile",
+          countryCode: "ES",
+          disciplineKey: "rhythmic",
+          federationCode: "unconfigured",
+          profileVersion: "identity-v1",
+          status: "identity_only",
+        },
+      ];
+
+      await bootstrapOrganization(command);
+      await expect(bootstrapOrganization(mexicoCommand)).rejects.toMatchObject({
+        details: { reason: "mx-discipline-identity-profiles-required" },
+      });
+
+      expect(fixture.provisionCalls).toEqual([]);
+      expect(
+        fixture.executeCalls.some((sqlText) =>
+          sqlText.includes("to_regprocedure")
+        )
+      ).toBe(false);
+    });
   });
 
   it("usa un perfil de identidad MX por disciplina y conserva cobertura sin reglas", async () => {
