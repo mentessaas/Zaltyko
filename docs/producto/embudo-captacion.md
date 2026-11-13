@@ -107,7 +107,7 @@ Reglas del corte:
 - **Derechos de datos (13-11-2026, tablas activadas el 12-11-2026).**
   - Exportación de la academia: incluye las dos tablas con sus valores, también el contacto de la familia y el nombre y año de la gimnasta, porque los datos son de la academia (responsable). Omite el token del enlace (credencial viva) y `submission_id`.
   - Borrar la academia: todo se va en cascada.
-  - Borrar la ficha de una gimnasta convertida desde una solicitud: falla (NO ACTION) hasta decidir antes qué se hace con la solicitud; una solicitud convertida no se puede anonimizar.
+  - Borrar la ficha de una gimnasta convertida desde una solicitud: falla (NO ACTION) hasta decidir antes qué se hace con la solicitud; una solicitud convertida no se puede anonimizar. Problema y propuesta: `docs/privacy/borrado-de-cuentas-y-fichas.md`.
   - Borrar una integrante del equipo o su cuenta: falla mientras figure como quien creó el enlace o gestionó la solicitud.
   - Conservación: las descartadas se anonimizan a mano (`anonymized_at`, con el CHECK de la tabla). No hay plazo automático: la propuesta de 90 días sigue pendiente de decisión legal.
   - Política: `src/modules/data-rights/application/activated-modules-erasure-policy.ts`; `tests/data-rights-activated-modules-contract.test.ts` comprueba el CHECK, las claves foráneas y la sentencia de anonimización.

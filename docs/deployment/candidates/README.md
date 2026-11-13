@@ -24,8 +24,10 @@ cuanto existían esas tablas, porque las trataba como desconocidas. Ahora
     con la misma comprobación exacta de columnas.
   - Cada función está instalada entera o no está: si falta una tabla o aparece
     una columna sin clasificar, la exportación falla cerrada.
-  - Se omiten las claves de reintento, el token del enlace público y los
-    bloques `jsonb` del modelo de la clase.
+  - Se omiten las claves de reintento y el token del enlace público. Los
+    bloques `jsonb` del modelo de la clase se exportan solo con sus campos
+    clasificados (`kind`, `discipline`, `apparatus`, `content`,
+    `durationMinutes`); el verificador rechaza cualquier otra clave.
   - El acceso de equipo sigue dando solo recuentos.
   - Sin las tablas, el paquete es idéntico al anterior.
 - **Verificación, recuperación y disposición.** El verificador de archivos y
@@ -40,7 +42,16 @@ cuanto existían esas tablas, porque las trataba como desconocidas. Ahora
     automático: la propuesta de 90 días sigue pendiente de decisión legal.
 - **Panel de competencia.** Las tablas `public.ci_*` constan como catálogo
   interno sin datos de clientes (`INTERNAL_NON_CUSTOMER_TABLES`), fuera del
-  paquete de academia.
+  paquete de academia. La semilla (`semilla-2026-11.json`) marca ya solicitud
+  de prueba, titulares y acceso de entrenadoras como `completo`, y progreso
+  técnico como `parcial`. Pero solo inserta lo que falta: si la base de
+  producción ya tenía cargados esos flujos, hay que cambiar su estado a mano
+  en `/super-admin/competencia`.
+- **Pendiente, en una PR propia.** Borrar una cuenta falla en cuanto la
+  persona tiene autoría en la academia, o si invitó o aceptó una invitación.
+  La ficha de una gimnasta que vino de una solicitud tampoco se puede borrar.
+  Detalle y propuesta de seudonimización:
+  `docs/privacy/borrado-de-cuentas-y-fichas.md`.
 - **Contrato.** `tests/data-rights-activated-modules-contract.test.ts` lee
   todo el SQL y falla si una tabla `zaltyko.*` queda sin clasificar, si las
   columnas exportadas no coinciden con el candidato o si la política de
