@@ -5,6 +5,57 @@ parte del historial aplicable, no se recorren automáticamente y no recuperan
 migraciones perdidas. No ejecutar el directorio ni aplicar el snapshot sandbox
 completo sobre una base existente.
 
+## Activación del 12-11-2026 y derechos de datos
+
+Según Elvis, el 12-11-2026 se crearon en producción, con RLS forzado, las
+tablas de seis candidatos: solicitudes de prueba, panel de competencia,
+objetivos y observaciones, titulares y sustituciones, guion de sesión y acceso
+de equipo. Siguen fuera de `supabase/migrations`. Las notas
+«No se ha aplicado en ningún entorno» de cada candidato describen el estado
+anterior a esa fecha.
+
+Hasta el 13-11-2026, la exportación de academia fallaba cerrada (503) en
+cuanto existían esas tablas, porque las trataba como desconocidas. Ahora
+`src/modules/data-rights/` las cubre así:
+
+- **Exportación de academia** (`catalog.ts`, `OPTIONAL_INCLUDED_EXPORT_MODULES`).
+  - Objetivos y observaciones, titulares y sustituciones, guion de sesión y
+    solicitudes de prueba se exportan con sus valores, igual que el núcleo,
+    con la misma comprobación exacta de columnas.
+  - Cada función está instalada entera o no está: si falta una tabla o aparece
+    una columna sin clasificar, la exportación falla cerrada.
+  - Se omiten las claves de reintento, el token del enlace público y los
+    bloques `jsonb` del modelo de la clase.
+  - El acceso de equipo sigue dando solo recuentos.
+  - Sin las tablas, el paquete es idéntico al anterior.
+- **Verificación, recuperación y disposición.** El verificador de archivos y
+  el plan de disposición aceptan las mismas funciones, todas o ninguna.
+  El preflight de recuperación aún no diagnostica sus relaciones y sigue
+  bloqueado.
+- **Supresión y conservación** (`activated-modules-erasure-policy.ts`).
+  - Declara, por tabla, qué pasa al borrar una gimnasta, una integrante, una
+    cuenta de Auth o la academia. Son las claves foráneas instaladas, no un
+    procedimiento de borrado.
+  - Declara la anonimización manual de las solicitudes descartadas, sin plazo
+    automático: la propuesta de 90 días sigue pendiente de decisión legal.
+- **Panel de competencia.** Las tablas `public.ci_*` constan como catálogo
+  interno sin datos de clientes (`INTERNAL_NON_CUSTOMER_TABLES`), fuera del
+  paquete de academia.
+- **Contrato.** `tests/data-rights-activated-modules-contract.test.ts` lee
+  todo el SQL y falla si una tabla `zaltyko.*` queda sin clasificar, si las
+  columnas exportadas no coinciden con el candidato o si la política de
+  supresión no coincide con sus claves foráneas.
+
+**Los espejos Drizzle siguen fuera de `src/db/schema/`.** data-rights lee
+`information_schema` y no los necesita. `drizzle.config.ts` solo lee tres
+archivos concretos, así que moverlos no expondría las tablas a drizzle-kit.
+Pero `pnpm validate:rls` recorre todo `src/db/schema/` y exige a cada tabla
+con academia RLS y al menos una política en `supabase/migrations`. Estos
+candidatos no están en ese historial y no tienen políticas (deniegan todo a
+los clientes), así que fallaría. Los contratos de cada función también exigen
+que el espejo no viva ahí. Pasarán a `src/db/schema/` cuando cada candidato
+se promueva a `supabase/migrations` en una PR propia con su cadena de replay.
+
 ## Candidato de instalación canónica
 
 La CLI Supabase 2.84.2 creó el nombre

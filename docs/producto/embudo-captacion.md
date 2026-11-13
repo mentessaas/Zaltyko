@@ -80,7 +80,7 @@ Esta nota describe qué hay hoy en el repositorio, qué falta para enlazar las c
    - ofrecer plaza (`sendWaitlistOffer`) y la aceptación por la familia;
    - copiar al tutor y sus contactos a `guardians`/`guardian_contacts` con consentimiento;
    - avisos por correo;
-   - retención automática (hoy la supresión es manual);
+   - retención automática (hoy la supresión es manual; ver «Derechos de datos»);
    - el vínculo verificado con el directorio.
 
 ## Corte mínimo publicable (implementado en esta PR)
@@ -104,6 +104,13 @@ Reglas del corte:
   - Toda lectura y escritura filtra por `organization_id` y `location_id` en SQL, no solo en la interfaz. Cada cambio queda en `audit_log`.
 - **Datos de menores.** Solo el nombre de pila y, si se quiere, el año de nacimiento. No se piden apellidos, fecha completa, salud ni foto. Los apellidos los pone la academia al convertir. El comentario avisa de que no se incluyan datos de salud.
 - **Supresión.** «Eliminar datos personales» sustituye nombres y email, borra teléfono, año y comentario, y conserva el registro (fecha, sede, estado y auditoría). Solo en solicitudes descartadas; no se puede reabrir después.
+- **Derechos de datos (13-11-2026, tablas activadas el 12-11-2026).**
+  - Exportación de la academia: incluye las dos tablas con sus valores, también el contacto de la familia y el nombre y año de la gimnasta, porque los datos son de la academia (responsable). Omite el token del enlace (credencial viva) y `submission_id`.
+  - Borrar la academia: todo se va en cascada.
+  - Borrar la ficha de una gimnasta convertida desde una solicitud: falla (NO ACTION) hasta decidir antes qué se hace con la solicitud; una solicitud convertida no se puede anonimizar.
+  - Borrar una integrante del equipo o su cuenta: falla mientras figure como quien creó el enlace o gestionó la solicitud.
+  - Conservación: las descartadas se anonimizan a mano (`anonymized_at`, con el CHECK de la tabla). No hay plazo automático: la propuesta de 90 días sigue pendiente de decisión legal.
+  - Política: `src/modules/data-rights/application/activated-modules-erasure-policy.ts`; `tests/data-rights-activated-modules-contract.test.ts` comprueba el CHECK, las claves foráneas y la sentencia de anonimización.
 - **Correo.** No se envía nada. El punto de enganche queda documentado en `admission-requests.ts` (después de la inserción, evento `admission_request.received`) y desactivado.
 - **Sin cobros.** Ni Stripe ni Connect. Al convertir no se crea inscripción ni cuota: solo la ficha y la familia.
 - **Pruebas PostgreSQL.** `tests/admission-requests-pg.test.ts` no se ejecuta en ningún CI todavía. No se ha añadido a `scripts/ci/verify-sandbox-schema-replay.sh`, porque ese script y `supabase/schema-snapshot-manifest.json` son un contrato protegido. Queda pendiente de ejecutar en schema-replay cuando Elvis lo autorice.
@@ -134,4 +141,4 @@ Mientras Elvis no apruebe el candidato, el código queda inactivo y lo dice en p
    - el aviso por correo a la academia, con autorización de envíos;
    - la copia del tutor a `guardians` con su consentimiento;
    - la vista de lista de espera en `/owner`, para volver a ofrecer ese destino;
-   - la retención automática (propuesta: suprimir los datos de las descartadas a los 90 días, pendiente de decisión legal).
+   - la retención automática (propuesta: suprimir los datos de las descartadas a los 90 días, pendiente de decisión legal; la política de `data-rights` ya la declara pendiente, sin plazo aplicado).
