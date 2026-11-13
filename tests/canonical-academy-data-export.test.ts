@@ -145,12 +145,16 @@ describe("canonical export failure boundaries (database mocked)", () => {
     expect(bundle.data.admission_requests[0].contact_email).toBe("family@example.invalid");
     expect(bundle.coverage.excludedColumns).toEqual(expect.arrayContaining([
       expect.objectContaining({ table: "admission_links", column: "token" }),
-      expect.objectContaining({ table: "class_plan_templates", column: "blocks" }),
       expect.objectContaining({ table: "session_plans", column: "last_request_id" }),
     ]));
+    expect(bundle.coverage.excludedColumns).not.toContainEqual(expect.objectContaining({ table: "class_plan_templates", column: "blocks" }));
+    expect(bundle.data.class_plan_templates[0].blocks).toHaveLength(2);
     const loads = mocks.execute.mock.calls.slice(-OPTIONAL_INCLUDED_EXPORT_TABLES.length).map(call => dialect.sqlToQuery(call[0]).sql).join("\n");
     expect(loads).toContain('"target_date"::text');
-    for (const hidden of ['"token"', '"blocks"', '"client_request_id"', '"last_request_id"', '"submission_id"']) {
+    // Los bloques salen por la proyección revisada, campo a campo, nunca en crudo.
+    expect(loads).toContain("jsonb_array_elements");
+    expect(loads).not.toMatch(/, "blocks"(,| from)/);
+    for (const hidden of ['"token"', '"client_request_id"', '"last_request_id"', '"submission_id"']) {
       expect(loads).not.toContain(hidden);
     }
     expect(validateCanonicalAcademyArchive({ body: result.body, organizationId: actor.organizationId })).toMatchObject({

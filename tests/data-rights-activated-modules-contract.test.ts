@@ -10,6 +10,7 @@ import {
 } from "@/modules/data-rights/application/activated-modules-erasure-policy";
 import {
   ALL_KNOWN_CANONICAL_TABLE_NAMES,
+  CLASS_PLAN_TEMPLATE_BLOCK_FIELDS,
   INTERNAL_NON_CUSTOMER_TABLES,
   OPTIONAL_EXPORT_MODULE_GROUPS,
   OPTIONAL_INCLUDED_EXPORT_MODULES,
@@ -17,6 +18,7 @@ import {
   OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
 import { REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES } from "@/modules/data-rights/application/canonical-disposition-policy";
+import { normalizeTemplateBlock } from "@/modules/session-plans/domain/session-plan";
 
 /**
  * Contrato de derechos de datos de las funciones activadas el 12-11-2026.
@@ -215,15 +217,28 @@ describe("inventario de derechos de datos frente al SQL", () => {
     );
   });
 
-  it("no exporta claves de reintento, el token del enlace público ni JSON sin clasificar", () => {
+  it("no exporta claves de reintento ni el token del enlace público", () => {
     const exported = OPTIONAL_INCLUDED_EXPORT_TABLES.flatMap((table) => table.exportColumns.map((column) => `${table.name}.${column}`));
     for (const hidden of [
       "athlete_objectives.client_request_id", "athlete_observations.client_request_id",
       "session_plans.client_request_id", "session_plans.last_request_id",
-      "class_plan_templates.blocks", "admission_links.token", "admission_requests.submission_id",
+      "admission_links.token", "admission_requests.submission_id",
     ]) {
       expect(exported).not.toContain(hidden);
     }
+  });
+
+  it("exporta los bloques del modelo de la clase solo con los campos clasificados", () => {
+    const template = OPTIONAL_INCLUDED_EXPORT_TABLES.find((table) => table.name === "class_plan_templates")!;
+    expect(template.exportColumns).toContain("blocks");
+    // Los campos clasificados son exactamente los que escribe el servidor.
+    expect([...CLASS_PLAN_TEMPLATE_BLOCK_FIELDS].sort())
+      .toEqual(Object.keys(normalizeTemplateBlock({ kind: "warmup", content: "x" })).sort());
+    const projection = template.projections?.blocks ?? "";
+    for (const field of CLASS_PLAN_TEMPLATE_BLOCK_FIELDS) expect(projection).toContain(`'${field}'`);
+    expect(projection.match(/'[a-zA-Z]+', (?:element\.value|case when)/g)).toHaveLength(CLASS_PLAN_TEMPLATE_BLOCK_FIELDS.length);
+    // Ninguna otra tabla proyecta columnas a mano.
+    expect(OPTIONAL_INCLUDED_EXPORT_TABLES.filter((table) => table.projections).map((table) => table.name)).toEqual(["class_plan_templates"]);
   });
 
   it("marca las tablas ci_* como catálogo interno sin datos de clientes", () => {

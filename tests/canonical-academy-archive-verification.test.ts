@@ -939,6 +939,25 @@ describe("canonical academy archive verification", () => {
     ["a fractional block position", (archive: ArchiveBundle) => {
       archive.data.session_plan_blocks[0]!.position = 1.5;
     }],
+    ["an unclassified key inside a template block", (archive: ArchiveBundle) => {
+      const blocks = archive.data.class_plan_templates[0]!.blocks as Array<Record<string, unknown>>;
+      blocks[0]!.privateNote = "unclassified";
+    }],
+    ["a template block missing a classified field", (archive: ArchiveBundle) => {
+      const blocks = archive.data.class_plan_templates[0]!.blocks as Array<Record<string, unknown>>;
+      delete blocks[0]!.durationMinutes;
+    }],
+    ["template blocks serialized as text", (archive: ArchiveBundle) => {
+      archive.data.class_plan_templates[0]!.blocks = JSON.stringify(archive.data.class_plan_templates[0]!.blocks);
+    }],
+    ["a non-text block content", (archive: ArchiveBundle) => {
+      const blocks = archive.data.class_plan_templates[0]!.blocks as Array<Record<string, unknown>>;
+      blocks[1]!.content = { nested: true };
+    }],
+    ["more than 20 template blocks", (archive: ArchiveBundle) => {
+      const blocks = archive.data.class_plan_templates[0]!.blocks as Array<Record<string, unknown>>;
+      archive.data.class_plan_templates[0]!.blocks = Array.from({ length: 21 }, () => ({ ...blocks[0]! }));
+    }],
     ["a row from another academy", (archive: ArchiveBundle) => {
       archive.data.admission_requests[0]!.organization_id = otherOrganizationId;
     }],

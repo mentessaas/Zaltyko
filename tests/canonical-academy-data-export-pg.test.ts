@@ -879,7 +879,11 @@ async function seedActivatedModules(organizationId: string, marker: string) {
   await db.execute(sql`
     insert into zaltyko.class_plan_templates (organization_id, location_id, class_template_id, focus, blocks, updated_by_member_id)
     values (${organizationId}::uuid, ${locationId}::uuid, ${classTemplateId}::uuid, ${`${marker}_TEMPLATE`},
-      jsonb_build_array(jsonb_build_object('content', ${`${marker}_TEMPLATE_BLOCK_JSON`}::text)), ${memberId}::uuid)
+      jsonb_build_array(
+        jsonb_build_object('kind', 'warmup', 'content', ${`${marker}_TEMPLATE_BLOCK`}::text, 'durationMinutes', 15,
+          'privateNote', ${`${marker}_UNCLASSIFIED_KEY`}::text),
+        jsonb_build_object('kind', 'technique', 'discipline', 'gaf', 'apparatus', 'beam', 'content', 'Paloma')
+      ), ${memberId}::uuid)
   `);
   const token = randomUUID().replaceAll("-", "");
   await db.execute(sql`
@@ -896,7 +900,7 @@ async function seedActivatedModules(organizationId: string, marker: string) {
       '2026-11-10', now()
     )
   `);
-  return { token, jsonMarker: `${marker}_TEMPLATE_BLOCK_JSON` };
+  return { token, blockMarker: `${marker}_TEMPLATE_BLOCK`, unclassifiedMarker: `${marker}_UNCLASSIFIED_KEY` };
 }
 
 describeDisposablePg("academy export with the modules activated on 2026-11-12", () => {
@@ -960,11 +964,16 @@ describeDisposablePg("academy export with the modules activated on 2026-11-12", 
     expect(exported.data.admission_requests[0]!.athlete_birth_year).toBe(2016);
     expect(exported.coverage.excludedColumns).toEqual(expect.arrayContaining([
       { table: "admission_links", column: "token", reason: expect.any(String) },
-      { table: "class_plan_templates", column: "blocks", reason: expect.any(String) },
     ]));
+    expect(exported.coverage.excludedColumns.some(entry => entry.table === "class_plan_templates")).toBe(false);
+    // Los bloques salen con los campos clasificados, en su orden, sin claves ajenas.
+    expect(exported.data.class_plan_templates[0]!.blocks).toEqual([
+      { kind: "warmup", discipline: null, apparatus: null, content: secrets.a.blockMarker, durationMinutes: 15 },
+      { kind: "technique", discipline: "gaf", apparatus: "beam", content: "Paloma", durationMinutes: null },
+    ]);
     // Booleanos: un fallo nunca imprime el valor filtrado en el log de CI.
     expect([markerA, `${markerA.toLowerCase()}@example.invalid`].every(value => body.includes(value))).toBe(true);
-    expect([markerB, secrets.a.token, secrets.b.token, secrets.a.jsonMarker].some(value => body.includes(value))).toBe(false);
+    expect([markerB, secrets.a.token, secrets.b.token, secrets.a.unclassifiedMarker, "privateNote"].some(value => body.includes(value))).toBe(false);
     expect(preflightCanonicalAcademyRecovery({ body, organizationId: fixture.organizationAId }).status).toBe("blocked");
   });
 

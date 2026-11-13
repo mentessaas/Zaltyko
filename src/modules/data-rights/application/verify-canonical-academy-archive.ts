@@ -5,6 +5,7 @@ import {
   ALL_KNOWN_CANONICAL_TABLE_NAMES,
   CANONICAL_EXPORT_OMISSIONS,
   CANONICAL_EXPORT_TABLES,
+  CLASS_PLAN_TEMPLATE_BLOCK_FIELDS,
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   EXCLUDED_CANONICAL_SOURCES,
   EXCLUDED_CANONICAL_TABLES,
@@ -478,11 +479,48 @@ function hasMappedColumn(
   return mapping[table]?.includes(column) ?? false;
 }
 
+const MAX_CLASS_PLAN_TEMPLATE_BLOCKS = 20;
+
+/** class_plan_templates.blocks: only the classified fields of each block. */
+function validateClassPlanTemplateBlocks(value: unknown): void {
+  if (!Array.isArray(value) || value.length > MAX_CLASS_PLAN_TEMPLATE_BLOCKS) {
+    rejectArchive();
+  }
+  for (const block of value) {
+    if (!isRecord(block)) rejectArchive();
+    const keys = Object.keys(block);
+    if (
+      keys.length !== CLASS_PLAN_TEMPLATE_BLOCK_FIELDS.length ||
+      CLASS_PLAN_TEMPLATE_BLOCK_FIELDS.some(
+        (field) => !Object.prototype.hasOwnProperty.call(block, field)
+      )
+    ) {
+      rejectArchive();
+    }
+    for (const field of ["kind", "discipline", "apparatus", "content"] as const) {
+      if (block[field] !== null && typeof block[field] !== "string") rejectArchive();
+    }
+    const duration = block.durationMinutes;
+    if (duration !== null && (typeof duration !== "number" || !Number.isFinite(duration))) {
+      rejectArchive();
+    }
+  }
+}
+
+const STRUCTURED_JSON_COLUMNS: Readonly<Record<string, (value: unknown) => void>> = {
+  "class_plan_templates.blocks": validateClassPlanTemplateBlocks,
+};
+
 function validateColumnValue(
   table: CanonicalExportTableSpec,
   column: string,
   value: unknown
 ): void {
+  const structured = STRUCTURED_JSON_COLUMNS[`${table.name}.${column}`];
+  if (structured) {
+    structured(value);
+    return;
+  }
   const uuidColumn = column === "id" || column.endsWith("_id");
 
   if (value === null) {
@@ -626,7 +664,18 @@ function assertCatalogIsUniqueAndSafe(): void {
   assertColumnMapMatchesCatalog(INT4_COLUMNS_BY_TABLE, false);
   assertColumnMapMatchesCatalog(INT8_DECIMAL_STRING_COLUMNS_BY_TABLE, false);
 
-  for (const table of [...CANONICAL_EXPORT_TABLES, ...OPTIONAL_INCLUDED_EXPORT_TABLES]) {
+  const allIncluded = [...CANONICAL_EXPORT_TABLES, ...OPTIONAL_INCLUDED_EXPORT_TABLES];
+  // Every reviewed SQL projection has a structured validator, and vice versa.
+  const projected = allIncluded.flatMap((table) =>
+    Object.keys(table.projections ?? {}).map((column) => `${table.name}.${column}`)
+  );
+  if (
+    projected.length !== Object.keys(STRUCTURED_JSON_COLUMNS).length ||
+    projected.some((key) => !STRUCTURED_JSON_COLUMNS[key])
+  ) {
+    rejectArchive();
+  }
+  for (const table of allIncluded) {
     const nullableColumns = new Set(NULLABLE_COLUMNS_BY_TABLE[table.name]);
     const int4Columns = new Set(INT4_COLUMNS_BY_TABLE[table.name] ?? []);
     const int8Columns = new Set(

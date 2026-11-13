@@ -136,6 +136,9 @@ function tableProjection(
   const dateColumns = dateColumnsByTable.get(table.name);
   const projection = table.exportColumns.map((column) => {
     const identifier = quoteIdentifier(column);
+    // Reviewed catalog constant, never caller input (see catalog projections).
+    const reviewed = table.projections?.[column];
+    if (reviewed) return `${reviewed} as ${identifier}`;
     return dateColumns?.has(column)
       ? `${identifier}::text as ${identifier}`
       : identifier;

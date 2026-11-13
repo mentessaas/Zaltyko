@@ -41,7 +41,14 @@ const VALUES: Record<string, Record<string, unknown>> = {
     content: "Synthetic block", duration_minutes: 10, done_at: null, done_by_member_id: null,
   },
   session_plan_objectives: { plan_id: ACTIVATED_IDS.plan, objective_id: ACTIVATED_IDS.objective },
-  class_plan_templates: { id: id(25), focus: null, note: "Synthetic template note", revision: 2 },
+  class_plan_templates: {
+    id: id(25), focus: null, note: "Synthetic template note", revision: 2,
+    // Orden de claves de jsonb (longitud y bytes), como lo devuelve PostgreSQL.
+    blocks: [
+      { kind: "warmup", content: "Synthetic warm-up", apparatus: null, discipline: null, durationMinutes: 15 },
+      { kind: "technique", content: "Synthetic beam", apparatus: "beam", discipline: "gaf", durationMinutes: null },
+    ],
+  },
   admission_links: { id: ACTIVATED_IDS.link, enabled: true, revoked_at: null },
   admission_requests: {
     id: id(26), link_id: ACTIVATED_IDS.link, status: "new", contact_name: "Synthetic family",

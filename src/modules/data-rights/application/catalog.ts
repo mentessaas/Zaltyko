@@ -4,6 +4,13 @@ export interface CanonicalExportTableSpec {
   expectedColumns: readonly string[];
   exportColumns: readonly string[];
   orderBy: readonly string[];
+  /**
+   * Reviewed SQL expressions that replace a plain column read. Used only for
+   * structured JSON whose nested fields have an explicit classification: the
+   * expression projects exactly those fields, so an unclassified nested key
+   * never reaches the package.
+   */
+  projections?: Readonly<Record<string, string>>;
 }
 
 export interface CanonicalExportOmission {
@@ -119,8 +126,6 @@ const omittedColumnReasons: Record<string, string> = {
     "This client retry key is operational metadata and is not needed to interpret the session plan.",
   "session_plans.last_request_id":
     "This client retry key is operational metadata and is not needed to interpret the session plan.",
-  "class_plan_templates.blocks":
-    "This is JSON validated only by the application and is excluded until every nested field has an explicit privacy classification.",
   "admission_links.token":
     "The public link token is a live access credential; the link's site, state and dates are included.",
   "admission_requests.submission_id":
@@ -133,6 +138,7 @@ function includedTable(input: {
   expectedColumns: string;
   omit?: readonly string[];
   orderBy?: readonly string[];
+  projections?: Readonly<Record<string, string>>;
 }): CanonicalExportTableSpec {
   const expectedColumns = columns(input.expectedColumns);
   const omitted = new Set(input.omit ?? []);
@@ -159,6 +165,11 @@ function includedTable(input: {
   if (exportColumns.length === 0) {
     throw new Error(`Canonical export table ${input.name} has no columns`);
   }
+  for (const column of Object.keys(input.projections ?? {})) {
+    if (!exportColumns.includes(column) || column === organizationColumn || orderBy.includes(column)) {
+      throw new Error(`Invalid projected export column ${input.name}.${column}`);
+    }
+  }
 
   return {
     name: input.name,
@@ -166,6 +177,7 @@ function includedTable(input: {
     expectedColumns,
     exportColumns,
     orderBy,
+    ...(input.projections ? { projections: input.projections } : {}),
   };
 }
 
@@ -449,6 +461,40 @@ export const CANONICAL_EXPORT_OMISSIONS: readonly CanonicalExportOmission[] =
   exportOmissionsFor(CANONICAL_EXPORT_TABLES);
 
 /**
+ * Fields of each block of a class plan template, classified as academy
+ * training content (the same fields as zaltyko.session_plan_blocks, written
+ * through templateBlockSchema): kind, discipline, apparatus, free content up
+ * to 300 characters and duration in minutes. No personal data.
+ */
+export const CLASS_PLAN_TEMPLATE_BLOCK_FIELDS = [
+  "kind",
+  "discipline",
+  "apparatus",
+  "content",
+  "durationMinutes",
+] as const;
+
+/**
+ * Exports the jsonb array with exactly the classified fields of each object
+ * element, in stored order. Any other nested key is dropped in SQL, before
+ * the value leaves the database. Text fields become JSON strings or null;
+ * durationMinutes is kept only when it is a JSON number.
+ */
+const CLASS_PLAN_TEMPLATE_BLOCKS_PROJECTION = `coalesce((
+  select jsonb_agg(jsonb_build_object(
+    'kind', element.value ->> 'kind',
+    'discipline', element.value ->> 'discipline',
+    'apparatus', element.value ->> 'apparatus',
+    'content', element.value ->> 'content',
+    'durationMinutes', case when jsonb_typeof(element.value -> 'durationMinutes') = 'number'
+      then element.value -> 'durationMinutes' end
+  ) order by element.ordinality)
+  from jsonb_array_elements(case when jsonb_typeof("blocks") = 'array' then "blocks" else '[]'::jsonb end)
+    with ordinality as element(value, ordinality)
+  where jsonb_typeof(element.value) = 'object'
+), '[]'::jsonb)`;
+
+/**
  * Academy operating modules installed from reviewed candidates (activated in
  * production on 2026-11-12). Each module is absent or fully installed, never
  * partially known: when present its rows are exported with values, checksums
@@ -525,7 +571,7 @@ export const OPTIONAL_INCLUDED_EXPORT_MODULES: readonly OptionalIncludedExportMo
         name: "class_plan_templates",
         expectedColumns:
           "id organization_id location_id class_template_id focus note blocks revision updated_by_member_id updated_at",
-        omit: ["blocks"],
+        projections: { blocks: CLASS_PLAN_TEMPLATE_BLOCKS_PROJECTION },
       }),
     ],
   },
