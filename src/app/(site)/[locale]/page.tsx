@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { Locale } from "@/i18n";
 
 const VALID_LOCALES = ["es", "en"] as const;
@@ -29,8 +29,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function LocaleHomePage({ params }: PageProps) {
   const { locale } = await params;
+  // Solo /es y /en son alias de la portada. Cualquier otro primer segmento
+  // (p. ej. /no-existe) es una ruta inexistente: 404 real, no un 307 a la
+  // portada (soft 404 para buscadores y la página de error nunca se veía).
   if (!isValidLocale(locale)) {
-    redirect("/");
+    notFound();
   }
-  redirect("/");
+  permanentRedirect("/");
 }

@@ -1,18 +1,29 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
+import { cn } from "@/lib/utils";
+
+/**
+ * Alerta «Magnesio sobre tapiz»: fondo por tono y borde completo de 1 px,
+ * sin pestaña lateral. Tonos (DESIGN.md, «Tonos de estado»):
+ * - default: cinta blanca con borde de línea de magnesio.
+ * - success: lavado tapiz con texto zona de seguridad.
+ * - warning: aviso en ocre (`ochre-wash` / `ochre-ink`), nunca coral.
+ * - destructive: error en lavado señal con `signal-ink`.
+ */
+
 const alertVariants = cva(
-  "relative w-full rounded-lg border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground [&>svg~*]:pl-7",
+  "relative w-full rounded-card border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground [&>svg~*]:pl-7",
   {
     variants: {
       variant: {
-        default: "bg-background text-foreground",
+        default: "border-chalk-line bg-white text-mat-night",
         destructive:
-          "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+          "border-signal/30 bg-signal-wash text-signal-ink [&>svg]:text-signal-ink dark:[&>svg]:text-signal-light",
         success:
-          "border-green-500/50 text-green-700 dark:text-green-400 dark:border-green-500/50 [&>svg]:text-green-600 dark:[&>svg]:text-green-400 bg-green-50 dark:bg-green-950/30",
+          "border-mat/20 bg-mat-wash text-mat-deep [&>svg]:text-mat dark:[&>svg]:text-mat-lane",
         warning:
-          "border-yellow-500/50 text-yellow-700 dark:text-yellow-400 dark:border-yellow-500/50 [&>svg]:text-yellow-600 dark:[&>svg]:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30",
+          "border-ochre-line bg-ochre-wash text-ochre-ink [&>svg]:text-ochre-ink dark:[&>svg]:text-ochre-light",
       },
     },
     defaultVariants: {
@@ -28,7 +39,7 @@ const Alert = React.forwardRef<
   <div
     ref={ref}
     role="alert"
-    className={alertVariants({ variant }) + " " + className}
+    className={cn(alertVariants({ variant }), className)}
     {...props}
   />
 ));
@@ -40,7 +51,7 @@ const AlertTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <h5
     ref={ref}
-    className={"mb-1 font-medium leading-none tracking-tight " + className}
+    className={cn("mb-1 font-semibold leading-none", className)}
     {...props}
   />
 ));
@@ -52,7 +63,7 @@ const AlertDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={"text-sm [&_p]:leading-relaxed " + className}
+    className={cn("text-sm [&_p]:leading-relaxed", className)}
     {...props}
   />
 ));

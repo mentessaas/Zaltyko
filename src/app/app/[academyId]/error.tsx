@@ -29,13 +29,13 @@ export default function AcademySectionError({
   return (
     <main
       role="alert"
-      className="mx-auto flex max-w-3xl flex-col gap-4 p-4 sm:p-6"
+      className="mx-auto flex max-w-3xl flex-col gap-5 p-4 sm:p-6"
       data-testid="academy-section-error"
     >
-      <h1 className="text-xl font-semibold text-foreground dark:text-slate-50">
+      <h1 className="border-b-[3px] border-mat-night pb-5 font-display text-[clamp(2rem,3.5vw,3rem)] font-black uppercase leading-[0.95] text-mat-night dark:border-chalk-dust dark:text-chalk">
         No pudimos cargar esta sección
       </h1>
-      <p className="text-sm text-muted-foreground dark:text-slate-300">
+      <p className="max-w-2xl text-sm leading-relaxed text-ramp-600 dark:text-ramp-300">
         Tus datos están a salvo; la consulta falló de forma puntual. Puedes
         reintentar la carga o volver al panel principal. Si el problema
         continúa, escríbenos desde soporte.
@@ -44,19 +44,19 @@ export default function AcademySectionError({
         <button
           type="button"
           onClick={reset}
-          className="rounded-md bg-sky-700 px-4 py-2 font-medium text-white shadow-sm hover:bg-sky-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+          className="inline-flex min-h-11 items-center rounded-md bg-mat px-6 py-2.5 font-semibold text-white shadow-[0_1px_0_rgba(11,20,48,0.25)] transition-colors hover:bg-mat-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-mat focus-visible:ring-offset-2"
         >
           Reintentar
         </button>
         <Link
           href="../dashboard"
-          className="rounded-md border border-border px-4 py-2 font-medium text-foreground hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+          className="inline-flex min-h-11 items-center rounded-md border border-ramp-300 bg-white px-6 py-2.5 font-semibold text-mat-night transition-colors hover:border-mat hover:text-mat focus:outline-none focus-visible:ring-2 focus-visible:ring-mat focus-visible:ring-offset-2 dark:border-border dark:bg-card dark:text-foreground"
         >
           Volver al panel
         </Link>
         <Link
           href="../support"
-          className="rounded-md border border-border px-4 py-2 font-medium text-foreground hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+          className="inline-flex min-h-11 items-center rounded-md border border-ramp-300 bg-white px-6 py-2.5 font-semibold text-mat-night transition-colors hover:border-mat hover:text-mat focus:outline-none focus-visible:ring-2 focus-visible:ring-mat focus-visible:ring-offset-2 dark:border-border dark:bg-card dark:text-foreground"
         >
           Contactar soporte
         </Link>

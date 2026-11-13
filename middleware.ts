@@ -355,14 +355,35 @@ function launchClosedResponse(status: 404 | 410, nonce: string): NextResponse {
 }
 
 // Human-readable 410 for a retired public page: whoever arrives from a search
-// result sees where to go instead of an empty body or a JSON error.
+// result sees where to go instead of an empty body or a JSON error. Minimal
+// «Magnesio sobre tapiz» styling in a plain <style> block (the CSP allows
+// inline styles; no nonce, fonts or external assets needed).
+const RETIRED_PAGE_STYLE = "body{margin:0;min-height:100vh;display:flex;flex-direction:column;"
+  + "font-family:Archivo,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;"
+  + "background:#F4F6F2;color:#0B1430}"
+  + "header{background:#14307F;height:4rem;display:flex;align-items:center;padding:0 1.25rem}"
+  + "header a{color:#fff;font-weight:900;font-stretch:72%;letter-spacing:.02em;font-size:1.125rem;text-decoration:none}"
+  + "main{flex:1;width:100%;max-width:42rem;box-sizing:border-box;margin:0 auto;padding:4rem 1.5rem;"
+  + "display:flex;flex-direction:column;justify-content:center}"
+  + "h1{margin:0;font-size:clamp(2.25rem,5vw,4rem);font-weight:900;font-stretch:72%;line-height:.92;text-transform:uppercase}"
+  + "p{margin:0;color:#3E4A66;line-height:1.75}"
+  + ".lede{margin-top:1.5rem;padding-top:1.25rem;border-top:3px solid #0B1430}"
+  + ".actions{margin-top:2rem;display:flex;flex-wrap:wrap;gap:.75rem}"
+  + ".actions a{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box;padding:0 1.5rem;"
+  + "border-radius:8px;font-size:.875rem;font-weight:600;text-decoration:none}"
+  + ".primary{background:#1E3FA8;color:#fff;box-shadow:0 1px 0 rgba(11,20,48,.25)}.primary:hover{background:#14307F}"
+  + ".outline{background:#fff;color:#0B1430;border:1px solid #B4BCCB}.outline:hover{border-color:#1E3FA8;color:#1E3FA8}"
+  + "a:focus-visible{outline:2px solid #1E3FA8;outline-offset:2px}header a:focus-visible{outline-color:#fff}";
+
 function retiredPageResponse(nonce: string): NextResponse {
   const body = '<!doctype html><html lang="es"><head><meta charset="utf-8">'
     + '<meta name="robots" content="noindex, nofollow"><meta name="viewport" content="width=device-width, initial-scale=1">'
-    + "<title>Esta página ya no existe | Zaltyko</title></head><body>"
+    + '<meta name="theme-color" content="#14307F">'
+    + `<title>Esta página ya no existe | Zaltyko</title><style>${RETIRED_PAGE_STYLE}</style></head><body>`
+    + '<header><a href="/" aria-label="Zaltyko, inicio">ZALTYKO</a></header>'
     + "<main><h1>Esta página ya no existe</h1>"
-    + "<p>El contenido que buscas se ha retirado de Zaltyko.</p>"
-    + '<p><a href="/">Ir a la portada</a> · <a href="/features">Ver qué incluye Zaltyko</a></p>'
+    + '<p class="lede">El contenido que buscas se ha retirado de Zaltyko.</p>'
+    + '<p class="actions"><a class="primary" href="/">Ir a la portada</a><a class="outline" href="/features">Ver qué incluye Zaltyko</a></p>'
     + "</main></body></html>";
   const response = new NextResponse(body, {
     status: 410,
