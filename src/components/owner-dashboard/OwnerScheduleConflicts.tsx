@@ -5,7 +5,7 @@ import {
   describeConflict,
   type ScheduleConflict,
 } from "@/modules/schedule-conflicts/domain/schedule-conflicts";
-import { ownerUi } from "./owner-ui";
+import { ownerTone } from "./owner-tone-ui";
 
 /**
  * Avisos de choque (O2). Solo informan: nada aquí bloquea ni cambia datos.
@@ -29,14 +29,14 @@ export function OwnerScheduleConflictList({
   return (
     <section
       aria-label={heading}
-      className={`grid gap-2 ${ownerUi.noticeWarning}`}
+      className={`grid gap-2 ${ownerTone.noticeWarning}`}
     >
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-z-ink">
+      <h3 className="flex items-center gap-2 text-sm font-semibold">
         <AlertTriangle aria-hidden="true" className="h-4 w-4 shrink-0" />
         {heading}
       </h3>
       {variant === "saved" ? (
-        <p className="text-xs leading-5 text-z-soft">
+        <p className="text-xs leading-5">
           El cambio se ha guardado. Revisa estos choques si no son intencionados.
         </p>
       ) : null}
@@ -46,13 +46,13 @@ export function OwnerScheduleConflictList({
             key={`${conflict.kind}:${conflict.subjectId}:${conflict.first.sessionId}:${conflict.second.sessionId}`}
             className="min-w-0 break-words text-sm leading-6"
           >
-            <span className={`${ownerUi.chipAttention} mr-2`}>{CONFLICT_KIND_LABELS[conflict.kind]}</span>
+            <span className={`${ownerTone.chipOutline} mr-2`}>{CONFLICT_KIND_LABELS[conflict.kind]}</span>
             {describeConflict(conflict)}
           </li>
         ))}
       </ul>
       {truncated ? (
-        <p className="text-xs leading-5 text-z-soft">Hay más choques; mostramos los primeros.</p>
+        <p className="text-xs leading-5">Hay más choques; mostramos los primeros.</p>
       ) : null}
     </section>
   );

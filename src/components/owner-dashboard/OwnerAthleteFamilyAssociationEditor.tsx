@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ownerTone } from "./owner-tone-ui";
+import { ownerUi } from "./owner-ui";
 import { OwnerGuardianContactsEditor } from "@/components/owner-dashboard/OwnerGuardianContactsEditor";
 
 export const PENDING_OWNER_ATHLETE_FAMILY_ASSOCIATION_STORAGE_KEY =
@@ -306,12 +308,9 @@ function problemMessage(payload: unknown): string {
     : "No se pudo completar la asociación. Comprueba la conexión e inténtalo de nuevo.";
 }
 
-const fieldClassName =
-  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas";
-const primaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-z-ink bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
-const secondaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
+const fieldClassName = ownerUi.field;
+const primaryButtonClassName = ownerUi.primaryButton;
+const secondaryButtonClassName = ownerUi.secondaryButton;
 
 export function OwnerAthleteFamilyAssociationEditor({
   organizationId,
@@ -734,11 +733,11 @@ export function OwnerAthleteFamilyAssociationEditor({
       )}
 
       {!isOpen && completedNotice && (
-        <p role="status" className="rounded-[12px] basis-full border border-z-brand-100 bg-z-brand-50 p-3 text-sm text-z-ink">{completedNotice}</p>
+        <p role="status" className={`basis-full ${ownerTone.noticeInfo}`}>{completedNotice}</p>
       )}
 
       {isOpen && (
-        <section aria-labelledby={titleId} className="rounded-[12px] mt-3 w-full border border-z-line bg-white p-4 sm:col-span-2">
+        <section aria-labelledby={titleId} className={`mt-3 w-full sm:col-span-2 ${ownerTone.innerPanel}`}>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h4 id={titleId} className="font-bold">Asociar familia</h4>
@@ -751,10 +750,10 @@ export function OwnerAthleteFamilyAssociationEditor({
             )}
           </div>
 
-          {message && <p role={messageKind === "error" ? "alert" : "status"} className="rounded-[12px] mt-3 border border-z-line bg-z-canvas p-3 text-sm">{message}</p>}
+          {message && <p role={messageKind === "error" ? "alert" : "status"} className={`mt-3 ${messageKind === "error" ? ownerTone.noticeError : ownerTone.noticeNeutral}`}>{message}</p>}
 
           {activePending ? (
-            <p className="mt-3 text-sm text-amber-900">Los datos quedan bloqueados mientras se confirma exactamente la operación original.</p>
+            <p className={`mt-3 ${ownerTone.warningText}`}>Los datos quedan bloqueados mientras se confirma exactamente la operación original.</p>
           ) : (
             <>
               {loadingOptions && <p role="status" className="mt-3 text-sm text-z-soft">Cargando familias disponibles…</p>}
@@ -767,7 +766,7 @@ export function OwnerAthleteFamilyAssociationEditor({
                 <p className="mt-3 text-sm text-z-soft">No hay familias activas con una persona pagadora disponible en esta sede. Si esta gimnasta tiene una familia incompleta, complétala; crea una nueva solo si todavía no tiene vínculo familiar.</p>
               )}
               {!allowExistingFamilies && (
-                <p className="rounded-[12px] mt-3 border border-sky-300 bg-sky-50 p-3 text-sm text-z-ink">Tu acceso está limitado a una sede. Puedes crear una familia nueva aquí; la selección de familias existentes requiere acceso a todas las sedes porque el pagador es un dato compartido.</p>
+                <p className={`mt-3 ${ownerTone.noticeNeutral}`}>Tu acceso está limitado a una sede. Puedes crear una familia nueva aquí; la selección de familias existentes requiere acceso a todas las sedes porque el pagador es un dato compartido.</p>
               )}
 
               <form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={(event) => void submit(event)}>
@@ -775,17 +774,17 @@ export function OwnerAthleteFamilyAssociationEditor({
                   <fieldset className="grid gap-2 sm:col-span-2" disabled={loadingOptions || disabled || readOnly || contactCommandPending || Boolean(activePending)}>
                     <legend className="text-sm font-semibold">¿Cómo quieres asociar la familia?</legend>
                     <label className="flex min-h-11 items-center gap-2 text-sm">
-                      <input type="radio" name={`${idPrefix}-mode`} value="create" checked={mode === "create"} onChange={() => changeMode("create")} />
+                      <input type="radio" className="accent-mat" name={`${idPrefix}-mode`} value="create" checked={mode === "create"} onChange={() => changeMode("create")} />
                       Crear una familia nueva
                     </label>
                     {incompleteFamily && (
                       <label className="flex min-h-11 items-center gap-2 text-sm">
-                        <input type="radio" name={`${idPrefix}-mode`} value="complete" checked={mode === "complete"} onChange={() => changeMode("complete")} />
+                        <input type="radio" className="accent-mat" name={`${idPrefix}-mode`} value="complete" checked={mode === "complete"} onChange={() => changeMode("complete")} />
                         Completar la familia actual de esta gimnasta
                       </label>
                     )}
                     <label className="flex min-h-11 items-center gap-2 text-sm">
-                      <input type="radio" name={`${idPrefix}-mode`} value="existing" checked={mode === "existing"} onChange={() => changeMode("existing")} />
+                      <input type="radio" className="accent-mat" name={`${idPrefix}-mode`} value="existing" checked={mode === "existing"} onChange={() => changeMode("existing")} />
                       Elegir una familia existente
                     </label>
                   </fieldset>
@@ -816,8 +815,8 @@ export function OwnerAthleteFamilyAssociationEditor({
                       </select>
                     </label>
                     {selectedPayerWillBePromoted && (
-                      <label className="rounded-[12px] flex items-start gap-2 border border-amber-400 bg-amber-50 p-3 text-sm text-z-ink sm:col-span-2">
-                        <input type="checkbox" className="mt-1 min-h-6 min-w-6" checked={confirmPrimaryPayerChange} onChange={(event) => setConfirmPrimaryPayerChange(event.target.checked)} disabled={disabled || readOnly || saving || contactCommandPending || Boolean(activePending)} />
+                      <label className={`flex items-start gap-2 sm:col-span-2 ${ownerTone.noticeWarning}`}>
+                        <input type="checkbox" className="mt-1 min-h-6 min-w-6 accent-mat" checked={confirmPrimaryPayerChange} onChange={(event) => setConfirmPrimaryPayerChange(event.target.checked)} disabled={disabled || readOnly || saving || contactCommandPending || Boolean(activePending)} />
                         Confirmo que esta persona pasará a ser el pagador principal de toda la familia.
                       </label>
                     )}
@@ -850,7 +849,7 @@ export function OwnerAthleteFamilyAssociationEditor({
                   Fecha de inicio de la asociación
                   <input id={`${idPrefix}-effective-from`} type="date" className={`${fieldClassName} mt-2`} value={effectiveDate} onChange={(event) => setEffectiveDate(event.target.value)} disabled={disabled || readOnly || saving || contactCommandPending || Boolean(activePending)} required />
                 </label>
-                {!validEffectiveDate && <p role="alert" className="text-sm text-red-900 sm:col-span-2">No se ha podido determinar una fecha válida para la sede.</p>}
+                {!validEffectiveDate && <p role="alert" className={`sm:col-span-2 ${ownerTone.errorText}`}>No se ha podido determinar una fecha válida para la sede.</p>}
                 <div className="flex flex-wrap gap-2 sm:col-span-2">
                   <button type="submit" className={primaryButtonClassName} disabled={disabled || readOnly || saving || contactCommandPending || Boolean(activePending) || !validEffectiveDate || (mode === "complete" && !incompleteFamily) || (mode === "existing" && (!optionsLoaded || !selectedFamily || !selectedPayer || (selectedPayerWillBePromoted && !confirmPrimaryPayerChange)))}>
                     {saving ? "Guardando…" : "Asociar familia"}

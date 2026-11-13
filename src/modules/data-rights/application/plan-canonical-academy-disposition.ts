@@ -5,7 +5,7 @@ import {
   type CanonicalDispositionSource,
   type CanonicalDispositionTable,
 } from "../domain/canonical-disposition-contract";
-import { CANONICAL_EXPORT_OMISSIONS, CANONICAL_EXPORT_TABLES } from "./catalog";
+import { CANONICAL_EXPORT_OMISSIONS, CANONICAL_EXPORT_TABLES, exportOmissionsFor, OPTIONAL_INCLUDED_EXPORT_TABLES } from "./catalog";
 import { assertCanonicalDispositionPolicy, dispositionMissingDecisions, REVIEWED_DISPOSITION_EXCLUSIONS, REVIEWED_DISPOSITION_OPTIONAL_GROUPS } from "./canonical-disposition-policy";
 import { preflightCanonicalAcademyRecovery } from "./preflight-canonical-academy-recovery";
 import { validateCanonicalAcademyArchive } from "./verify-canonical-academy-archive";
@@ -49,6 +49,20 @@ export function planCanonicalAcademyDisposition(input: CanonicalDispositionInput
         missingDecisions: dispositionMissingDecisions(spec.name, "operational_projection", omittedColumns),
       };
     });
+    // Activated modules: projected when the archive carries them, otherwise
+    // reported as not present in this archive (never as zero rows).
+    for (const spec of OPTIONAL_INCLUDED_EXPORT_TABLES) {
+      const omittedColumns = exportOmissionsFor([spec]).map((entry) => entry.column);
+      const checksum = verified.tableChecksums.find((entry) => entry.table === spec.name);
+      tables.push({
+        table: spec.name, category: "operational_projection",
+        coverage: checksum ? "projected_values" : "optional_not_reported",
+        rowCount: checksum ? checksum.rowCount : null,
+        countEvidence: checksum ? "projected_archive_rows" : "optional_not_reported",
+        omittedColumns, decision: "pending", eligibleForDeletion: false, retention: "unknown", hold: "unknown",
+        missingDecisions: dispositionMissingDecisions(spec.name, "operational_projection", omittedColumns),
+      });
+    }
     for (const policy of [...REVIEWED_DISPOSITION_EXCLUSIONS, ...REVIEWED_DISPOSITION_OPTIONAL_GROUPS.flat()]) {
       const reported = exclusions.has(policy.table);
       const rowCount = reported ? exclusions.get(policy.table)! : null;

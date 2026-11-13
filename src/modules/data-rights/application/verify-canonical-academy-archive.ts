@@ -5,10 +5,14 @@ import {
   ALL_KNOWN_CANONICAL_TABLE_NAMES,
   CANONICAL_EXPORT_OMISSIONS,
   CANONICAL_EXPORT_TABLES,
+  CLASS_PLAN_TEMPLATE_BLOCK_FIELDS,
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   EXCLUDED_CANONICAL_SOURCES,
   EXCLUDED_CANONICAL_TABLES,
+  exportOmissionsFor,
   OPTIONAL_EXPORT_MODULE_GROUPS,
+  OPTIONAL_INCLUDED_EXPORT_MODULES,
+  OPTIONAL_INCLUDED_EXPORT_TABLES,
   type CanonicalExportTableSpec,
 } from "./catalog";
 
@@ -146,6 +150,33 @@ const NULLABLE_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
   payment_allocations: [],
   refunds: [],
   financial_reconciliation_runs: [],
+  // Activated academy modules (catalog OPTIONAL_INCLUDED_EXPORT_MODULES).
+  athlete_objectives: ["discipline", "apparatus", "target_date"],
+  athlete_objective_status_history: ["from_status"],
+  athlete_observations: ["session_id", "objective_id"],
+  class_template_staff: ["assigned_by_member_id"],
+  session_staff_overrides: ["reason", "changed_by_member_id"],
+  session_plans: ["focus", "note", "from_template_revision"],
+  session_plan_blocks: [
+    "discipline",
+    "apparatus",
+    "duration_minutes",
+    "done_at",
+    "done_by_member_id",
+  ],
+  session_plan_objectives: [],
+  class_plan_templates: ["focus", "note"],
+  admission_links: ["location_id", "revoked_at"],
+  admission_requests: [
+    "contact_phone",
+    "athlete_birth_year",
+    "message",
+    "converted_athlete_id",
+    "waitlist_entry_id",
+    "handled_by_member_id",
+    "handled_at",
+    "anonymized_at",
+  ],
 };
 
 // `tx.execute(sql)` returns node-postgres raw rows. int4 is a JS number;
@@ -167,6 +198,13 @@ const INT4_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
   charges: ["version"],
   payments: ["version"],
   financial_reconciliation_runs: ["formula_version"],
+  athlete_objectives: ["revision"],
+  athlete_objective_status_history: ["revision"],
+  athlete_observations: ["revision"],
+  session_plans: ["from_template_revision", "revision"],
+  session_plan_blocks: ["position", "duration_minutes"],
+  class_plan_templates: ["revision"],
+  admission_requests: ["athlete_birth_year", "revision"],
 };
 
 const INT8_DECIMAL_STRING_COLUMNS_BY_TABLE: Readonly<
@@ -414,7 +452,8 @@ function isBooleanColumn(column: string): boolean {
     column.startsWith("is_") ||
     column.startsWith("can_") ||
     column === "contactable" ||
-    column === "pilot"
+    column === "pilot" ||
+    column === "enabled"
   );
 }
 
@@ -427,7 +466,8 @@ function isDateColumn(column: string): boolean {
     column === "period_start" ||
     column === "period_end" ||
     column === "service_period_start" ||
-    column === "service_period_end"
+    column === "service_period_end" ||
+    column === "target_date"
   );
 }
 
@@ -439,11 +479,48 @@ function hasMappedColumn(
   return mapping[table]?.includes(column) ?? false;
 }
 
+const MAX_CLASS_PLAN_TEMPLATE_BLOCKS = 20;
+
+/** class_plan_templates.blocks: only the classified fields of each block. */
+function validateClassPlanTemplateBlocks(value: unknown): void {
+  if (!Array.isArray(value) || value.length > MAX_CLASS_PLAN_TEMPLATE_BLOCKS) {
+    rejectArchive();
+  }
+  for (const block of value) {
+    if (!isRecord(block)) rejectArchive();
+    const keys = Object.keys(block);
+    if (
+      keys.length !== CLASS_PLAN_TEMPLATE_BLOCK_FIELDS.length ||
+      CLASS_PLAN_TEMPLATE_BLOCK_FIELDS.some(
+        (field) => !Object.prototype.hasOwnProperty.call(block, field)
+      )
+    ) {
+      rejectArchive();
+    }
+    for (const field of ["kind", "discipline", "apparatus", "content"] as const) {
+      if (block[field] !== null && typeof block[field] !== "string") rejectArchive();
+    }
+    const duration = block.durationMinutes;
+    if (duration !== null && (typeof duration !== "number" || !Number.isFinite(duration))) {
+      rejectArchive();
+    }
+  }
+}
+
+const STRUCTURED_JSON_COLUMNS: Readonly<Record<string, (value: unknown) => void>> = {
+  "class_plan_templates.blocks": validateClassPlanTemplateBlocks,
+};
+
 function validateColumnValue(
   table: CanonicalExportTableSpec,
   column: string,
   value: unknown
 ): void {
+  const structured = STRUCTURED_JSON_COLUMNS[`${table.name}.${column}`];
+  if (structured) {
+    structured(value);
+    return;
+  }
   const uuidColumn = column === "id" || column.endsWith("_id");
 
   if (value === null) {
@@ -526,7 +603,7 @@ function assertColumnMapMatchesCatalog(
   requireEveryTable: boolean
 ): void {
   const includedByName = new Map<string, CanonicalExportTableSpec>(
-    CANONICAL_EXPORT_TABLES.map(
+    [...CANONICAL_EXPORT_TABLES, ...OPTIONAL_INCLUDED_EXPORT_TABLES].map(
       (table): [string, CanonicalExportTableSpec] => [table.name, table]
     )
   );
@@ -550,7 +627,7 @@ function assertColumnMapMatchesCatalog(
 
   if (
     requireEveryTable &&
-    CANONICAL_EXPORT_TABLES.some(
+    [...CANONICAL_EXPORT_TABLES, ...OPTIONAL_INCLUDED_EXPORT_TABLES].some(
       (table) => !Object.prototype.hasOwnProperty.call(mapping, table.name)
     )
   ) {
@@ -564,7 +641,15 @@ function assertCatalogIsUniqueAndSafe(): void {
   const optionalNames = OPTIONAL_EXPORT_MODULE_GROUPS.flat().map(
     (table) => table.table
   );
-  const allNames = [...includedNames, ...excludedNames, ...optionalNames];
+  const optionalIncludedNames = OPTIONAL_INCLUDED_EXPORT_TABLES.map(
+    (table) => table.name
+  );
+  const allNames = [
+    ...includedNames,
+    ...excludedNames,
+    ...optionalNames,
+    ...optionalIncludedNames,
+  ];
   if (new Set(allNames).size !== allNames.length) rejectArchive();
 
   const knownNames = [...includedNames, ...excludedNames];
@@ -579,7 +664,18 @@ function assertCatalogIsUniqueAndSafe(): void {
   assertColumnMapMatchesCatalog(INT4_COLUMNS_BY_TABLE, false);
   assertColumnMapMatchesCatalog(INT8_DECIMAL_STRING_COLUMNS_BY_TABLE, false);
 
-  for (const table of CANONICAL_EXPORT_TABLES) {
+  const allIncluded = [...CANONICAL_EXPORT_TABLES, ...OPTIONAL_INCLUDED_EXPORT_TABLES];
+  // Every reviewed SQL projection has a structured validator, and vice versa.
+  const projected = allIncluded.flatMap((table) =>
+    Object.keys(table.projections ?? {}).map((column) => `${table.name}.${column}`)
+  );
+  if (
+    projected.length !== Object.keys(STRUCTURED_JSON_COLUMNS).length ||
+    projected.some((key) => !STRUCTURED_JSON_COLUMNS[key])
+  ) {
+    rejectArchive();
+  }
+  for (const table of allIncluded) {
     const nullableColumns = new Set(NULLABLE_COLUMNS_BY_TABLE[table.name]);
     const int4Columns = new Set(INT4_COLUMNS_BY_TABLE[table.name] ?? []);
     const int8Columns = new Set(
@@ -652,15 +748,30 @@ function validateExcludedTables(value: unknown): number {
   return value.length;
 }
 
+/** Activated modules are declared by their data keys: all tables of a module or none. */
+function presentOptionalIncludedTables(data: unknown): CanonicalExportTableSpec[] {
+  if (!isRecord(data)) rejectArchive();
+  return OPTIONAL_INCLUDED_EXPORT_MODULES.flatMap((module) => {
+    const present = module.tables.filter((table) =>
+      Object.prototype.hasOwnProperty.call(data, table.name)
+    );
+    if (present.length !== 0 && present.length !== module.tables.length) {
+      rejectArchive();
+    }
+    return present;
+  });
+}
+
 function validateManifestAndRows(
   coverage: JsonRecord,
   data: unknown,
-  expectedOrganizationId: string
+  expectedOrganizationId: string,
+  includedTables: readonly CanonicalExportTableSpec[]
 ): Array<{ table: string; rowCount: number; checksumSha256: string }> {
   if (!Array.isArray(coverage.includedTables)) rejectArchive();
   const manifest = coverage.includedTables;
-  if (manifest.length !== CANONICAL_EXPORT_TABLES.length) rejectArchive();
-  if (!hasExactKeys(data, CANONICAL_EXPORT_TABLES.map((table) => table.name))) {
+  if (manifest.length !== includedTables.length) rejectArchive();
+  if (!hasExactKeys(data, includedTables.map((table) => table.name))) {
     rejectArchive();
   }
 
@@ -674,10 +785,10 @@ function validateManifestAndRows(
 
   for (
     let tableIndex = 0;
-    tableIndex < CANONICAL_EXPORT_TABLES.length;
+    tableIndex < includedTables.length;
     tableIndex += 1
   ) {
-    const table = CANONICAL_EXPORT_TABLES[tableIndex]!;
+    const table = includedTables[tableIndex]!;
     const manifestEntry = manifest[tableIndex];
     const rowsValue = data[table.name];
     if (!hasExactKeys(manifestEntry, MANIFEST_KEYS)) rejectArchive();
@@ -819,9 +930,13 @@ function validateEnvelope(input: {
     rejectArchive();
   }
 
+  const optionalIncludedTables = presentOptionalIncludedTables(envelope.data);
   if (
     JSON.stringify(coverage.excludedColumns) !==
-      JSON.stringify(CANONICAL_EXPORT_OMISSIONS) ||
+      JSON.stringify([
+        ...CANONICAL_EXPORT_OMISSIONS,
+        ...exportOmissionsFor(optionalIncludedTables),
+      ]) ||
     JSON.stringify(coverage.excludedSources) !==
       JSON.stringify(EXCLUDED_CANONICAL_SOURCES)
   ) {
@@ -831,7 +946,8 @@ function validateEnvelope(input: {
   const tableChecksums = validateManifestAndRows(
     coverage,
     envelope.data,
-    input.organizationId
+    input.organizationId,
+    [...CANONICAL_EXPORT_TABLES, ...optionalIncludedTables]
   );
 
   const declaredBundleChecksum = integrity.bundleChecksumSha256;

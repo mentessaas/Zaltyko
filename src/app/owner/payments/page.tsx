@@ -1,10 +1,13 @@
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { z } from "zod";
 
 import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentForm";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
+import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { getManualPaymentOptions } from "@/modules/billing/application/manual-payments";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
@@ -95,30 +98,31 @@ export default async function OwnerPaymentsPage({
       organizationName={scope.organization.name}
       locationId={scope.selectedLocationId}
     >
-      <main className="min-h-screen bg-z-canvas px-5 py-6 text-z-ink sm:py-10">
+      <main className={ownerUi.page}>
         <div className="mx-auto grid max-w-4xl gap-8">
           <div className="grid gap-5">
             <Link
               href={`/owner?${dashboardQuery.toString()}`}
-              className="min-h-11 w-fit content-center rounded-full border border-z-line bg-white px-4 text-sm font-semibold text-z-soft hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
+              className={cn(ownerUi.backLink, "w-fit")}
             >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               Volver al resumen
             </Link>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-600">
+            <header>
+              <p className={ownerUi.eyebrow}>
                 {options.organization.name}
               </p>
-              <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+              <h1 className={ownerUi.pageTitle}>
                 Registrar un pago recibido
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-z-soft sm:text-base">
+              <p className={cn(ownerUi.pageLead, "mt-3 sm:text-base")}>
                 Anota una transferencia, efectivo o pago en el local. Al guardar,
                 Zaltyko lo vincula al cargo y actualiza el saldo pendiente.
               </p>
-            </div>
+            </header>
             <Link
               href={`/owner/monthly-invoices?${monthlyInvoiceQuery.toString()}`}
-              className="min-h-11 w-fit content-center rounded-[10px] border border-z-ink bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
+              className={cn(ownerUi.secondaryButton, "w-fit")}
             >
               Emitir cuota mensual
             </Link>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ownerTone } from "./owner-tone-ui";
+import { ownerUi } from "./owner-ui";
 
 export const PENDING_OWNER_GUARDIAN_PROFILE_STORAGE_KEY =
   "zaltyko:pending-owner-guardian-profile:v1";
@@ -45,12 +47,9 @@ type ProfileScope = Readonly<{
   guardianId: string;
 }>;
 
-const fieldClassName =
-  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas";
-const primaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-z-ink bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
-const secondaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
+const fieldClassName = ownerUi.field;
+const primaryButtonClassName = ownerUi.primaryButton;
+const secondaryButtonClassName = ownerUi.secondaryButton;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -507,7 +506,7 @@ export function OwnerGuardianProfileEditor({
 
   const operationLocked = Boolean(pending || pendingBlocked || saving);
   return (
-    <section className="rounded-[12px] mt-3 w-full border border-z-line bg-white p-4" aria-label="Perfil del tutor">
+    <section className={`mt-3 w-full ${ownerTone.innerPanel}`} aria-label="Perfil del tutor">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h4 className="font-bold">Nombre del tutor</h4>
@@ -517,12 +516,12 @@ export function OwnerGuardianProfileEditor({
       </div>
 
       {loading && <p role="status" className="mt-3 text-sm text-z-soft">Cargando perfil…</p>}
-      {error && <p role="alert" className="rounded-[12px] mt-3 border border-red-300 bg-red-50 p-3 text-sm text-red-950">{error}</p>}
-      {status && <p role="status" className="rounded-[12px] mt-3 border border-z-brand-100 bg-z-brand-50 p-3 text-sm text-z-ink">{status}</p>}
+      {error && <p role="alert" className={`mt-3 ${ownerTone.noticeError}`}>{error}</p>}
+      {status && <p role="status" className={`mt-3 ${ownerTone.noticeInfo}`}>{status}</p>}
 
       {pending ? (
-        <div className="rounded-[12px] mt-4 border border-amber-400 bg-amber-50 p-3">
-          <p className="text-sm text-amber-950">Hay un cambio pendiente. Antes de cada intento se volverán a leer los nombres y la versión actuales; el formulario no enviará nada automáticamente al abrirse.</p>
+        <div className={`mt-4 ${ownerTone.noticeWarning}`}>
+          <p>Hay un cambio pendiente. Antes de cada intento se volverán a leer los nombres y la versión actuales; el formulario no enviará nada automáticamente al abrirse.</p>
           <button type="button" className={`${secondaryButtonClassName} mt-2`} onClick={() => void sendCommand(pending, true)} disabled={saving || pendingBlocked || loading}>
             {saving ? "Comprobando y guardando…" : "Comprobar y reintentar el mismo cambio"}
           </button>
