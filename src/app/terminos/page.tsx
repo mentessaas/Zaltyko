@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import Navbar from "@/app/(site)/Navbar";
-import Footer from "@/app/(site)/Footer";
+import {
+  PublicLegalSections,
+  PublicPageHeader,
+  PublicPageShell,
+  PublicReadingColumn,
+} from "@/app/(site)/mat/PublicPage";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 import { SellerIdentification } from "@/components/legal/SellerIdentification";
 
@@ -103,46 +106,23 @@ export const metadata: Metadata = {
 
 export default function TermsOfServicePage() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-      <main className="flex-1 pt-32 pb-16">
-        <div className="mx-auto max-w-3xl px-6">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-zaltyko-primary hover:text-zaltyko-primary-dark transition-colors"
-          >
-            <span aria-hidden>←</span> Volver al inicio
-          </Link>
+    <PublicPageShell>
+      <PublicPageHeader
+        titleId="terms-title"
+        size="title"
+        back={{ href: "/", label: "Volver al inicio" }}
+        title="Condiciones de uso de Zaltyko"
+      >
+        <p className="tabular text-sm font-medium text-white/85">
+          Última actualización: {updatedAt}
+        </p>
+      </PublicPageHeader>
 
-          <header className="mt-8 space-y-3">
-            <p className="text-xs uppercase tracking-[0.35em] text-zaltyko-primary font-semibold">
-              Términos y condiciones
-            </p>
-            <h1 className="text-3xl font-bold text-zaltyko-text-main sm:text-4xl">
-              Condiciones de uso de Zaltyko
-            </h1>
-            <p className="text-sm text-zaltyko-text-secondary">
-              Última actualización: {updatedAt}
-            </p>
-          </header>
+      <PublicReadingColumn>
+        <SellerIdentification />
 
-          <SellerIdentification />
-
-          <section className="mt-10 space-y-10">
-            {sections.map((section) => (
-              <article key={section.title} className="space-y-4">
-                <h2 className="text-xl font-semibold text-zaltyko-text-main">{section.title}</h2>
-                <div className="space-y-3 text-sm leading-relaxed text-zaltyko-text-secondary">
-                  {section.paragraphs.map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </section>
-        </div>
-      </main>
-      <Footer />
-    </div>
+        <PublicLegalSections sections={sections} />
+      </PublicReadingColumn>
+    </PublicPageShell>
   );
 }

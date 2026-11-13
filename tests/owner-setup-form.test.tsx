@@ -74,11 +74,120 @@ async function completeRequiredFields(
 }
 
 describe("alta owner greenfield", () => {
-  it("ofrece acceso asistido a otro país sin enviar un alta ni elegir un país ficticio", () => {
+  it("lista cualquier país y deja el contacto para pedir funciones del propio país", () => {
     renderFreshSignupForm();
-    expect(screen.getByRole("link", { name: /Tu país no aparece/ })).toHaveAttribute("href", "/contact?type=market_access");
+    expect(screen.getByRole("link", { name: /funciones de tu país/ })).toHaveAttribute("href", "/contact?type=market_access");
+    const country = screen.getByLabelText("País de la academia");
+    expect(country).toHaveValue("ES");
+    expect(screen.getByRole("option", { name: "Argentina" })).toHaveValue("AR");
+    expect(screen.getByRole("option", { name: "Japón" })).toHaveValue("JP");
+    expect(screen.getAllByRole("option", { name: "España" })).toHaveLength(1);
+    expect(screen.queryByLabelText("Moneda de las cuotas")).not.toBeInTheDocument();
     expect(mockFetch).not.toHaveBeenCalled();
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("da de alta una academia de otro país con moneda elegida y aviso honesto", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => setupReceipt,
+    });
+
+    renderFreshSignupForm();
+    await user.selectOptions(screen.getByLabelText("País de la academia"), "AR");
+    expect(
+      screen.getByText(/Zaltyko funciona en cualquier país/)
+    ).toHaveTextContent(/las funciones específicas de Argentina llegarán más adelante/);
+    expect(
+      screen.getByText(/La contratación de planes de pago para tu país todavía no está disponible/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Zaltyko no convierte importes/)).toBeInTheDocument();
+    const timezone = screen.getByLabelText("Zona horaria de la primera sede");
+    expect(timezone).toHaveValue("");
+    expect(
+      screen.getByRole("option", { name: "America/Argentina/Cordoba" })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Europe/Madrid" })
+    ).not.toBeInTheDocument();
+
+    await completeRequiredFields(user);
+    await user.selectOptions(timezone, "America/Argentina/Cordoba");
+    // Sin moneda no se envía nada.
+    await user.click(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+
+    await user.selectOptions(screen.getByLabelText("Moneda de las cuotas"), "EUR");
+    await user.click(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    );
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledOnce());
+    expect(JSON.parse(String(mockFetch.mock.calls[0]?.[1]?.body))).toMatchObject({
+      countryCode: "AR",
+      defaultCurrency: "EUR",
+      timezone: "America/Argentina/Cordoba",
+    });
+  });
+
+  it("preselecciona la única zona horaria de un país y exige la moneda", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => setupReceipt,
+    });
+
+    renderFreshSignupForm();
+    await user.selectOptions(screen.getByLabelText("País de la academia"), "FR");
+    expect(screen.getByLabelText("Zona horaria de la primera sede")).toHaveValue(
+      "Europe/Paris"
+    );
+    expect(screen.getByLabelText("Moneda de las cuotas")).toHaveValue("");
+    await user.selectOptions(screen.getByLabelText("Moneda de las cuotas"), "MXN");
+    await completeRequiredFields(user);
+    await user.click(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    );
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledOnce());
+    expect(JSON.parse(String(mockFetch.mock.calls[0]?.[1]?.body))).toMatchObject({
+      countryCode: "FR",
+      defaultCurrency: "MXN",
+      timezone: "Europe/Paris",
+    });
+  });
+
+  it("muestra el aviso del servidor si el alta de otros países aún no está activa", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 422,
+      json: async () => ({
+        detail:
+          "Todavía no podemos completar desde aquí el alta de academias de este país. No se ha creado nada.",
+      }),
+    });
+
+    renderFreshSignupForm();
+    await user.selectOptions(screen.getByLabelText("País de la academia"), "FR");
+    await user.selectOptions(screen.getByLabelText("Moneda de las cuotas"), "EUR");
+    await completeRequiredFields(user);
+    await user.click(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Todavía no podemos completar desde aquí el alta de academias de este país"
+    );
+    expect(sessionStorage.getItem(retryStorageKey(ownerUserId))).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Crear espacio de dirección" })
+    ).toBeEnabled();
   });
 
   it("reintenta el mismo payload y mantiene bloqueados los campos tras resultado incierto", async () => {

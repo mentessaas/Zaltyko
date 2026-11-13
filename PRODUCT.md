@@ -71,8 +71,8 @@ Constraints:
 ## Brand Commitments
 
 - Name: Zaltyko. Domain: zaltyko.com.
-- Logo + paleta: existing palette in `docs/styleguide.md` (zaltyko-primary, zaltyko-accent-teal, neutral slate-900 #0F172A base).
-- Fonts: Manrope (body, `font-sans`) + Space_Grotesk (headings, `font-display`). Content-addressed `.p.woff2` URLs hardcoded as `<link rel="preload">` for LCP (R6 shipped 2026-09-08).
+- Logo + paleta: «Magnesio sobre tapiz» en `DESIGN.md` (tapiz `#1E3FA8`, magnesio `#F4F6F2`, noche `#0B1430`, coral señal para errores y ocre para avisos). `docs/styleguide.md` describe la paleta anterior y no manda.
+- Fonts: Archivo variable en dos anchuras (condensada para titulares y rótulos, normal para trabajar), cargada desde `src/app/layout.tsx`. Las variables CSS conservan los nombres heredados `--font-inter` (`font-sans`) y `--font-space-grotesk` (`font-display`), pero las dos contienen Archivo. Manrope y Space Grotesk ya no se usan.
 - Language: Spanish (es_ES).
 - Voice: **flexible** — no binding constraints on tone from the user. Existing copy reads as a colleague dueña, not as corporate SaaS, but this is observation not policy.
 - Visual identity for badges, icons, illustration lives in `src/app/(site)/branding/` and `public/branding/zaltyko/`.

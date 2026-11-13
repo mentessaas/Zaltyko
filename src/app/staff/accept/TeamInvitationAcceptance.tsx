@@ -3,13 +3,23 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { InvitationPageShell } from "@/components/invitations/InvitationPageShell";
 import { captureTeamInvitationFragment, takeTeamInvitationToken } from "@/lib/auth/team-invitation-fragment";
 import type {
   TeamInvitationAcceptance as TeamInvitationAcceptanceResult,
   TeamInvitationInspection,
 } from "@/modules/staff/domain/team-access-contract";
 
-const BUTTON = "inline-flex min-h-11 items-center justify-center border border-slate-950 bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-55";
+// «Magnesio sobre tapiz»: principal en azul tapiz con canto de 1 px (hover a
+// zona de seguridad), contorno blanco con borde de rampa, avisos en polvo de
+// magnesio y solo los errores en coral tinta. Antes: botones cuadrados en
+// noche y avisos en ámbar, que el tema pinta con el mismo coral que un error.
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mat";
+const BUTTON = `inline-flex min-h-11 items-center justify-center rounded-md bg-mat px-6 py-2.5 text-sm font-semibold text-white shadow-[0_1px_0_rgba(11,20,48,0.25)] transition-colors hover:bg-mat-deep ${FOCUS} disabled:cursor-not-allowed disabled:opacity-50`;
+const OUTLINE_BUTTON = `inline-flex min-h-11 items-center justify-center rounded-md border border-ramp-300 bg-white px-6 py-2.5 text-sm font-semibold text-mat-night transition-colors hover:border-mat hover:text-mat ${FOCUS} disabled:cursor-not-allowed disabled:opacity-50`;
+const NOTICE = "rounded-[10px] border border-chalk-line bg-chalk-dust p-4 text-sm leading-6 text-mat-night";
+const ERROR = "rounded-[10px] border border-signal/30 bg-signal-wash p-4 text-sm leading-6 text-signal-ink";
+const PANEL_TITLE = "font-display text-2xl font-black uppercase leading-none text-mat-night";
 const GENERIC_ERROR = "No se pudo verificar esta invitación con tu sesión. Comprueba que has iniciado sesión y confirmado el correo al que te invitaron. Si el enlace ya no es válido, pide a la dirección de la academia que lo reemita.";
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -136,38 +146,40 @@ export function TeamInvitationAcceptance() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-5 py-10 text-slate-950 [overflow-wrap:anywhere] sm:py-16">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-900">Zaltyko · Equipo</p>
-      <h1 className="mt-3 font-display text-3xl font-bold">Invitación a una academia</h1>
-      <p className="mt-3 text-sm leading-6 text-slate-700">Revisa la academia, el rol y las sedes antes de aceptar. Abrir este enlace no concede acceso.</p>
-      {phase === "checking" ? <p role="status" className="mt-6 text-sm">Comprobando invitación…</p> : null}
-      {phase === "missing" ? <p role="status" className="mt-6 border border-amber-700 bg-amber-50 p-4 text-sm leading-6">Abre el enlace original de la invitación. Si acabas de iniciar sesión, vuelve a abrir ese enlace para revisarla. Si ya no lo tienes, pide a la dirección de la academia que lo reemita.</p> : null}
-      {phase === "login" ? <section className="mt-6 border border-slate-300 p-5" aria-labelledby="invitation-login-title">
-        <h2 id="invitation-login-title" className="text-lg font-bold">Inicia sesión para revisarla</h2>
-        <p className="mt-2 text-sm leading-6">Usa la cuenta con el correo al que te invitaron y confirma ese correo. Después de iniciar sesión, vuelve a abrir el enlace original. La invitación no se acepta automáticamente.</p>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <Link href="/auth/login" prefetch={false} className={BUTTON}>Iniciar sesión</Link>
-          <Link href="/auth/register" prefetch={false} className={BUTTON}>Crear una cuenta con ese correo</Link>
-        </div>
-      </section> : null}
-      {error ? <p role="alert" className="mt-6 border border-amber-700 bg-amber-50 p-4 text-sm leading-6">{error}</p> : null}
-      {phase === "invalid" ? <button type="button" className={`${BUTTON} mt-4`} onClick={() => setInspectionAttempt(current => current + 1)}>Volver a comprobar invitación</button> : null}
-      {inspected && (phase === "ready" || phase === "uncertain") ? <section className="mt-6 border border-slate-300 bg-white p-5" aria-labelledby="invitation-summary-title">
-        <h2 id="invitation-summary-title" className="text-xl font-bold">Revisa el acceso solicitado</h2>
-        <dl className="mt-4 space-y-4 text-sm">
-          <div><dt className="font-semibold">Academia</dt><dd className="mt-1">{inspected.organization.name}</dd></div>
-          <div><dt className="font-semibold">Rol</dt><dd className="mt-1">{inspected.role === "coach" ? "Entrenador/a" : "Coordinador/a"}</dd></div>
-          <div><dt className="font-semibold">Sedes</dt><dd className="mt-1"><ul className="list-inside list-disc">{inspected.locations.map(location => <li key={location.id}>{location.name}</li>)}</ul></dd></div>
-        </dl>
-        <p className="mt-4 text-sm leading-6 text-slate-700">Al aceptar se crea tu acceso a estas sedes y tu cuenta queda vinculada a tu ficha del equipo de la academia. El enlace solo sirve una vez.</p>
-        {inspected.joinable === false ? <p role="alert" className="mt-4 border border-amber-700 bg-amber-50 p-4 text-sm leading-6">La academia no puede incorporar a nadie al equipo ahora mismo. Consulta a la dirección de la academia antes de aceptar; el enlace seguirá siendo válido hasta que caduque.</p> : null}
-        <button type="button" className={`${BUTTON} mt-5 w-full sm:w-auto`} disabled={busy || inspected.joinable === false} onClick={() => void accept()}>{busy ? "Confirmando…" : phase === "uncertain" ? "Reintentar la misma aceptación" : "Aceptar invitación"}</button>
-      </section> : null}
-      {phase === "accepted" ? <section role="status" className="mt-6 border border-teal-800 bg-teal-50 p-5">
-        <h2 className="text-xl font-bold">Invitación aceptada</h2>
-        <p className="mt-2 text-sm leading-6">Ya formas parte del equipo de {inspected?.organization.name} en las sedes revisadas, con tu ficha del equipo vinculada. Las clases que te asigne la dirección aparecerán en tu panel.</p>
-        <Link href="/owner" prefetch={false} className={`${BUTTON} mt-4`}>Ir a mi panel</Link>
-      </section> : null}
-    </main>
+    <InvitationPageShell
+      eyebrow="Invitación de equipo"
+      title="Invitación a una academia"
+      description="Revisa la academia, el rol y las sedes antes de aceptar. Abrir este enlace no concede acceso."
+      form={<>
+        {phase === "checking" ? <p role="status" className="text-sm text-ramp-600">Comprobando invitación…</p> : null}
+        {phase === "missing" ? <p role="status" className={NOTICE}>Abre el enlace original de la invitación. Si acabas de iniciar sesión, vuelve a abrir ese enlace para revisarla. Si ya no lo tienes, pide a la dirección de la academia que lo reemita.</p> : null}
+        {phase === "login" ? <section aria-labelledby="invitation-login-title">
+          <h2 id="invitation-login-title" className={PANEL_TITLE}>Inicia sesión para revisarla</h2>
+          <p className="mt-3 text-sm leading-6 text-ramp-600">Usa la cuenta con el correo al que te invitaron y confirma ese correo. Después de iniciar sesión, vuelve a abrir el enlace original. La invitación no se acepta automáticamente.</p>
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <Link href="/auth/login" prefetch={false} className={BUTTON}>Iniciar sesión</Link>
+            <Link href="/auth/register" prefetch={false} className={OUTLINE_BUTTON}>Crear una cuenta con ese correo</Link>
+          </div>
+        </section> : null}
+        {error ? <p role="alert" className={ERROR}>{error}</p> : null}
+        {phase === "invalid" ? <button type="button" className={`${BUTTON} mt-4`} onClick={() => setInspectionAttempt(current => current + 1)}>Volver a comprobar invitación</button> : null}
+        {inspected && (phase === "ready" || phase === "uncertain") ? <section className={error ? "mt-6" : ""} aria-labelledby="invitation-summary-title">
+          <h2 id="invitation-summary-title" className={PANEL_TITLE}>Revisa el acceso solicitado</h2>
+          <dl className="mt-4 border-t-[3px] border-mat-night text-sm">
+            <div className="flex flex-col gap-1 border-b border-chalk-line py-4 sm:flex-row sm:gap-6"><dt className="floor-label w-24 shrink-0 pt-0.5 text-ramp-500">Academia</dt><dd className="font-semibold text-mat-night">{inspected.organization.name}</dd></div>
+            <div className="flex flex-col gap-1 border-b border-chalk-line py-4 sm:flex-row sm:gap-6"><dt className="floor-label w-24 shrink-0 pt-0.5 text-ramp-500">Rol</dt><dd className="font-semibold text-mat-night">{inspected.role === "coach" ? "Entrenador/a" : "Coordinador/a"}</dd></div>
+            <div className="flex flex-col gap-1 border-b border-chalk-line py-4 sm:flex-row sm:gap-6"><dt className="floor-label w-24 shrink-0 pt-0.5 text-ramp-500">Sedes</dt><dd className="font-semibold text-mat-night"><ul className="space-y-1">{inspected.locations.map(location => <li key={location.id}>{location.name}</li>)}</ul></dd></div>
+          </dl>
+          <p className="mt-4 text-sm leading-6 text-ramp-600">Al aceptar se crea tu acceso a estas sedes y tu cuenta queda vinculada a tu ficha del equipo de la academia. El enlace solo sirve una vez.</p>
+          {inspected.joinable === false ? <p role="alert" className={`${NOTICE} mt-4`}>La academia no puede incorporar a nadie al equipo ahora mismo. Consulta a la dirección de la academia antes de aceptar; el enlace seguirá siendo válido hasta que caduque.</p> : null}
+          <button type="button" className={`${BUTTON} mt-5 w-full sm:w-auto`} disabled={busy || inspected.joinable === false} onClick={() => void accept()}>{busy ? "Confirmando…" : phase === "uncertain" ? "Reintentar la misma aceptación" : "Aceptar invitación"}</button>
+        </section> : null}
+        {phase === "accepted" ? <section role="status" className="rounded-[10px] border border-mat/30 bg-mat-wash p-5">
+          <h2 className={PANEL_TITLE}>Invitación aceptada</h2>
+          <p className="mt-3 text-sm leading-6 text-mat-night">Ya formas parte del equipo de {inspected?.organization.name} en las sedes revisadas, con tu ficha del equipo vinculada. Las clases que te asigne la dirección aparecerán en tu panel.</p>
+          <Link href="/owner" prefetch={false} className={`${BUTTON} mt-4`}>Ir a mi panel</Link>
+        </section> : null}
+      </>}
+    />
   );
 }

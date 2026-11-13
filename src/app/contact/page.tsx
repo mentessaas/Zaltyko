@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Navbar from "@/app/(site)/Navbar";
-import Footer from "@/app/(site)/Footer";
 import { Mail, Clock, MessageCircle } from "lucide-react";
+
+import {
+  PublicPageClose,
+  PublicPageHeader,
+  PublicPageShell,
+  publicContainerClass,
+  tapeOutlineButtonClass,
+} from "@/app/(site)/mat/PublicPage";
 import { ContactForm } from "@/components/contact/ContactForm";
 import Reveal from "@/components/motion/Reveal";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+import { cn } from "@/lib/utils";
 
 const baseUrl = getPublicSiteUrl();
 
@@ -50,57 +57,47 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
   const selectedPlan = plan ?? (type === "network" ? "network" : undefined);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-
-      {/* Hero */}
-      <section className="pt-32 pb-16 bg-gradient-to-b from-zaltyko-primary/5 to-transparent">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-          <Reveal>
-            <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
-              Contacto
-            </span>
-            <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
-              Cuéntanos sobre tu academia
-            </h1>
-            <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-              Te respondemos por email en horario laboral con una propuesta concreta para tu caso.
-            </p>
-          </Reveal>
-        </div>
-      </section>
+    <PublicPageShell>
+      <PublicPageHeader
+        titleId="contact-title"
+        title="Cuéntanos sobre tu academia"
+        lede="Te respondemos por email en horario laboral con una propuesta concreta para tu caso."
+      />
 
       {/* Contact Info & Form */}
-      <section className="bg-white py-16 dark:bg-background">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-12 lg:grid-cols-2">
+      <section className="chalk-field border-b border-chalk-line">
+        <div className={cn(publicContainerClass, "py-16 lg:py-24")}>
+          <div className="grid gap-12 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-16">
             {/* Contact Info. Solo esta columna se revela con movimiento: el
                 formulario no se desplaza nunca, porque la entrada de Reveal
                 (translateY de 26px durante 0,6 s al hidratar) movía las casillas
                 bajo el puntero y un clic podía caer en la opción de al lado. */}
             <Reveal>
             <div>
-              <h2 className="text-2xl font-bold text-zaltyko-text-main mb-6">Cómo contactarnos</h2>
-              <div className="space-y-6">
+              <h2 className="font-display text-[clamp(2rem,4.5vw,3.5rem)] font-black uppercase leading-[0.95] text-mat-night">
+                Cómo contactarnos
+              </h2>
+              {/* Lista reglada: regla de 3 px y filas con su cuadro de icono. */}
+              <div className="mt-8 border-t-[3px] border-mat-night">
                 {contactInfo.map((info, index) => {
                   const Icon = info.icon;
                   return (
-                    <div key={index} className="flex items-start">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zaltyko-primary/10">
-                        <Icon className="h-5 w-5 text-zaltyko-primary" />
+                    <div key={index} className="flex items-start gap-4 border-b border-chalk-line py-5">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-mat-wash">
+                        <Icon aria-hidden className="h-5 w-5 text-mat" />
                       </div>
-                      <div className="ml-4">
-                        <h3 className="font-semibold text-zaltyko-text-main">{info.title}</h3>
-                        <p className="text-sm text-zaltyko-text-secondary">{info.description}</p>
+                      <div>
+                        <h3 className="font-semibold text-mat-night">{info.title}</h3>
+                        <p className="text-sm text-ramp-600">{info.description}</p>
                         {info.href ? (
                           <a
                             href={info.href}
-                            className="text-sm font-medium text-zaltyko-primary hover:underline"
+                            className="mt-1 inline-flex text-sm font-semibold text-mat underline decoration-2 underline-offset-4 hover:decoration-[3px]"
                           >
                             {info.value}
                           </a>
                         ) : (
-                          <p className="text-sm font-medium text-zaltyko-text-main">{info.value}</p>
+                          <p className="tabular mt-1 text-sm font-semibold text-mat-night">{info.value}</p>
                         )}
                       </div>
                     </div>
@@ -108,9 +105,9 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
                 })}
               </div>
 
-              <div className="mt-8 rounded-xl surface-subtle p-6">
-                <h3 className="font-semibold text-zaltyko-text-main">Cómo trabajamos</h3>
-                <p className="mt-2 text-sm text-zaltyko-text-secondary">
+              <div className="mt-10 border-t-[3px] border-mat-night pt-5">
+                <h3 className="font-display text-2xl font-black uppercase leading-none text-mat-night">Cómo trabajamos</h3>
+                <p className="mt-3 text-ramp-600">
                   Leemos cada mensaje y respondemos por email en horario laboral. Si tu caso encaja con una demo, te la agendamos para ver Zaltyko aplicado a tu academia, sin guion genérico.
                 </p>
               </div>
@@ -118,9 +115,9 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
 
             </Reveal>
 
-            {/* Contact Form: sin Reveal (ver arriba). */}
-            <div>
-              <h2 className="text-2xl font-bold text-zaltyko-text-main mb-6">Cuéntanos qué necesitas</h2>
+            {/* Contact Form: sin Reveal (ver arriba). Panel reglado blanco. */}
+            <div className="rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-5 sm:p-6">
+              <h2 className="font-display mb-6 text-2xl font-black uppercase leading-none text-mat-night">Cuéntanos qué necesitas</h2>
               <ContactForm defaultReason={type} defaultPlan={selectedPlan} directoryEntryId={directoryEntryId} />
             </div>
           </div>
@@ -128,24 +125,16 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
       </section>
 
       {/* FAQ Link */}
-      <section className="py-16 surface-subtle">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl font-bold text-zaltyko-text-main">
-            ¿Prefieres resolverlo tú mismo?
-          </h2>
-          <p className="mt-4 text-zaltyko-text-secondary">
-            Consulta nuestro centro de ayuda con guías y tutoriales.
-          </p>
-          <Link
-            href="/ayuda"
-            className="mt-6 inline-block rounded-full border-2 border-zaltyko-primary px-8 py-3 font-semibold text-zaltyko-primary hover:bg-zaltyko-primary/10"
-          >
+      <PublicPageClose
+        titleId="contact-close-title"
+        title="¿Prefieres resolverlo tú mismo?"
+        text="Consulta nuestro centro de ayuda con guías y tutoriales."
+        actions={
+          <Link href="/ayuda" className={tapeOutlineButtonClass}>
             Ver preguntas frecuentes
           </Link>
-        </div>
-      </section>
-
-      <Footer />
-    </div>
+        }
+      />
+    </PublicPageShell>
   );
 }

@@ -43,7 +43,7 @@ export function VisuallyHidden({
         "[clip:rect(0,0,0,0)]",
         // When focusable, show on focus
         focusable
-          ? "peer-focus:static peer-focus:w-auto peer-focus:h-auto peer-focus:p-2 peer-focus:m-0 peer-focus:overflow-visible peer-focus:[clip:auto] peer-focus:whitespace-normal peer-focus:border peer-focus:bg-red-50 peer-focus:text-red-600 peer-focus:text-sm peer-focus:z-50"
+          ? "peer-focus:static peer-focus:w-auto peer-focus:h-auto peer-focus:p-2 peer-focus:m-0 peer-focus:overflow-visible peer-focus:[clip:auto] peer-focus:whitespace-normal peer-focus:rounded-md peer-focus:border peer-focus:border-mat peer-focus:bg-white peer-focus:text-mat-night peer-focus:text-sm peer-focus:z-50"
           : // Always hidden from sight but available to screen readers
             "",
         className

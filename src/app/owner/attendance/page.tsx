@@ -152,6 +152,7 @@ export default async function OwnerAttendancePage({
     <OwnerWorkspacePageShell
       member={scope.member}
       organizationId={scope.organization.id}
+      organizationName={scope.organization.name}
       locationId={scope.selectedLocationId}
     >
       {coachMode ? (

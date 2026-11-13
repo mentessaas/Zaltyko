@@ -20,37 +20,16 @@ interface StatsCardProps {
   className?: string;
 }
 
+// Celda de marcador «Magnesio sobre tapiz»: panel reglado (cinta blanca,
+// borde de línea de magnesio, regla superior de 3 px en noche, 12 px de radio,
+// sin sombra). La variante solo tiñe el cuadro de icono con su tono de estado:
+// éxito en tapiz, aviso en ocre, peligro en señal, información y reposo en polvo.
 const variantStyles = {
-  default: {
-    bg: "bg-white dark:bg-slate-900",
-    border: "border-zaltyko-mist/80",
-    icon: "bg-zaltyko-white text-zaltyko-indigo",
-    value: "text-foreground",
-  },
-  success: {
-    bg: "bg-white dark:bg-slate-900",
-    border: "border-zaltyko-teal/30",
-    icon: "bg-zaltyko-teal/12 text-zaltyko-teal",
-    value: "text-foreground",
-  },
-  warning: {
-    bg: "bg-white dark:bg-slate-900",
-    border: "border-zaltyko-coral/30",
-    icon: "bg-zaltyko-coral/12 text-zaltyko-coral",
-    value: "text-foreground",
-  },
-  danger: {
-    bg: "bg-white dark:bg-slate-900",
-    border: "border-zaltyko-coral/40",
-    icon: "bg-zaltyko-coral/12 text-zaltyko-coral",
-    value: "text-foreground",
-  },
-  info: {
-    bg: "bg-white dark:bg-slate-900",
-    border: "border-zaltyko-indigo/25",
-    icon: "bg-zaltyko-indigo/10 text-zaltyko-indigo",
-    value: "text-foreground",
-  },
+  default: { icon: "bg-chalk-dust text-mat-deep" },
+  success: { icon: "bg-mat-wash text-mat" },
+  warning: { icon: "bg-ochre-wash text-ochre-ink" },
+  danger: { icon: "bg-signal-wash text-signal-ink" },
+  info: { icon: "bg-chalk-dust text-mat" },
 } as const;
 
 export function StatsCard({
@@ -68,40 +47,39 @@ export function StatsCard({
   const cardContent = (
     <div
       className={cn(
-        "rounded-2xl border p-6 shadow-soft transition-all duration-150 hover:border-zaltyko-teal/40",
-        styles.bg,
-        styles.border,
+        "rounded-xl border border-chalk-line border-t-[3px] border-t-mat-night bg-white p-6 transition-colors duration-150",
+        href && "hover:border-mat",
         className
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-[0.05em] text-slate-400">{title}</p>
-          <p className={cn("font-display text-3xl font-bold tracking-normal", styles.value)}>{value}</p>
-          {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
+          <p className="floor-label text-ramp-500">{title}</p>
+          <p className="tabular font-display text-3xl font-black text-mat-night">{value}</p>
+          {subtitle ? <p className="text-xs text-ramp-500">{subtitle}</p> : null}
           {trend ? (
             <div className="flex items-center gap-1 pt-1">
               {trend.value >= 0 ? (
-                <TrendingUp className="h-3 w-3 text-zaltyko-teal" />
+                <TrendingUp className="h-3 w-3 text-mat" aria-hidden="true" />
               ) : (
-                <TrendingDown className="h-3 w-3 text-zaltyko-coral" />
+                <TrendingDown className="h-3 w-3 text-signal-ink" aria-hidden="true" />
               )}
               <span
                 className={cn(
-                  "text-xs font-medium",
-                trend.value >= 0 ? "text-zaltyko-teal" : "text-zaltyko-coral"
+                  "tabular text-xs font-semibold",
+                  trend.value >= 0 ? "text-mat" : "text-signal-ink"
                 )}
               >
                 {trend.value > 0 ? "+" : ""}
                 {trend.value}%
               </span>
-              {trend.label ? <span className="text-xs text-muted-foreground">{trend.label}</span> : null}
+              {trend.label ? <span className="text-xs text-ramp-500">{trend.label}</span> : null}
             </div>
           ) : null}
         </div>
 
         {icon ? (
-          <div className={cn("flex h-12 w-12 items-center justify-center rounded-xl", styles.icon)}>
+          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-md", styles.icon)}>
             {icon}
           </div>
         ) : null}

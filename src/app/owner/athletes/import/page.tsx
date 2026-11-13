@@ -59,6 +59,7 @@ export default async function OwnerAthleteImportPage({
     <OwnerWorkspacePageShell
       member={scope.member}
       organizationId={scope.organization.id}
+      organizationName={scope.organization.name}
       locationId={scope.selectedLocationId}
     >
       <OwnerAthleteImportWorkspace

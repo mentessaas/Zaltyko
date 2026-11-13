@@ -20,7 +20,7 @@ const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn("bg-zaltyko-white dark:bg-slate-900 [&_tr]:border-b", className)} {...props} />
+  <thead ref={ref} className={cn("bg-chalk [&_tr]:border-b", className)} {...props} />
 ))
 TableHeader.displayName = "TableHeader"
 
@@ -43,7 +43,7 @@ const TableFooter = React.forwardRef<
   <tfoot
     ref={ref}
     className={cn(
-      "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
+      "border-t border-chalk-line bg-chalk-dust font-medium [&>tr]:last:border-b-0",
       className
     )}
     {...props}
@@ -58,7 +58,7 @@ const TableRow = React.forwardRef<
   <tr
     ref={ref}
     className={cn(
-      "h-14 border-b border-slate-100 bg-white transition-colors hover:bg-zaltyko-white/80 data-[state=selected]:bg-zaltyko-teal/10 dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900",
+      "h-14 border-b border-chalk-line bg-white transition-colors hover:bg-mat-wash data-[state=selected]:bg-mat-wash",
       className
     )}
     {...props}
@@ -74,7 +74,8 @@ const TableHead = React.forwardRef<
     ref={ref}
     scope="col"
     className={cn(
-      "h-12 px-4 text-left align-middle text-xs font-medium uppercase tracking-[0.05em] text-slate-400 [&:has([role=checkbox])]:pr-0",
+      // Cabecera de tabla en rótulo de pista.
+      "floor-label h-12 px-4 text-left align-middle text-ramp-500 [&:has([role=checkbox])]:pr-0",
       className
     )}
     {...props}
@@ -88,7 +89,7 @@ const TableCell = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <td
     ref={ref}
-    className={cn("p-4 align-middle text-zaltyko-text-main dark:text-slate-100 [&:has([role=checkbox])]:pr-0", className)}
+    className={cn("p-4 align-middle text-mat-night [&:has([role=checkbox])]:pr-0", className)}
     {...props}
   />
 ))
@@ -100,7 +101,7 @@ const TableCaption = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <caption
     ref={ref}
-    className={cn("mt-4 text-sm text-muted-foreground", className)}
+    className={cn("mt-4 text-sm text-ramp-500", className)}
     {...props}
   />
 ))

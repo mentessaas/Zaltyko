@@ -4,7 +4,7 @@ const LLMS_CONTENT = `# Zaltyko — Software para academias de gimnasia
 
 Detalle: /llms-full.txt.
 
-Lanzamiento en España, español y euros.
+Lanzamiento en español; alta abierta a academias de cualquier país, con España y México como mercados prioritarios.
 - Registro, consentimiento, confirmación y recuperación de cuenta.
 - Gimnastas, familias y responsables; alta, edición y archivo.
 - Grupos, clases, inscripciones y asistencia por sesión.
@@ -15,7 +15,7 @@ Zaltyko no inicia cargos automáticos a las familias.
 La suscripción SaaS de la academia es independiente de esas cuotas.
 Health Score, retención, IA, marketplace y funciones avanzadas no forman parte de esta versión.
 
-Free: 30 gimnastas, 3 grupos y 10 clases activas.
+Free: 30 gimnastas, 3 grupos y 10 clases activas; el alta no pide tarjeta.
 Starter: 19 €/mes o 190 €/año, hasta 75 gimnastas.
 Growth: 49 €/mes o 490 €/año, hasta 200 gimnastas.
 Precios sin IVA. Network desde 99 €/mes, contratación acompañada.

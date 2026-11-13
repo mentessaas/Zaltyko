@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { OwnerEssentialDashboard } from "@/components/owner-dashboard/OwnerEssentialDashboard";
+import { OwnerMarketCoverageNotice } from "@/components/owner-dashboard/OwnerMarketCoverageNotice";
 import { OwnerProductDiscovery } from "@/components/owner-dashboard/OwnerProductDiscovery";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { findLegacyAcademyMemberships } from "@/lib/auth/legacy-academy-access";
@@ -123,6 +124,7 @@ export default async function OwnerDashboardPage({
     <OwnerWorkspacePageShell
       member={scope.member}
       organizationId={scope.organization.id}
+      organizationName={scope.organization.name}
       locationId={scope.selectedLocationId}
     >
       <OwnerEssentialDashboard
@@ -131,12 +133,15 @@ export default async function OwnerDashboardPage({
         todaySessions={todayWithCoaches}
         attentionItems={attentionItems}
         setupProgress={setupProgress}
+        viewerName={typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : null}
       />
       <OwnerProductDiscovery
         organizationId={scope.organization.id}
         locationId={scope.selectedLocationId}
         role={scope.member.role}
       />
+      {/* Solo academias fuera de ES y MX: lo específico de su país llega más adelante. */}
+      <OwnerMarketCoverageNotice organizationId={scope.organization.id} />
     </OwnerWorkspacePageShell>
   );
 }

@@ -30,8 +30,8 @@ export function AthleteMagicLinkCompleteForm(props: Props) {
   if (props.emailMismatch) {
     return (
       <div className="space-y-3">
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          <p className="font-medium">El email autenticado no coincide con la invitación.</p>
+        <div className="rounded-[10px] border border-signal/30 bg-signal-wash p-4 text-sm text-signal-ink">
+          <p className="font-semibold">El email autenticado no coincide con la invitación.</p>
           <p className="mt-2 text-xs">
             Esta invitación se envió a <strong>{props.expectedEmail}</strong>, pero
             tu sesión está con <strong>{props.authenticatedEmail ?? "otro email"}</strong>.
@@ -45,9 +45,10 @@ export function AthleteMagicLinkCompleteForm(props: Props) {
   if (props.expired) {
     return (
       <div className="space-y-3">
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <p className="font-medium">La invitación ha expirado.</p>
-          <p className="mt-2 text-xs">
+        {/* Aviso, no error: polvo de magnesio en lugar del ámbar heredado, que se pintaba en coral. */}
+        <div className="rounded-[10px] border border-chalk-line bg-chalk-dust p-4 text-sm text-mat-night">
+          <p className="font-semibold">La invitación ha expirado.</p>
+          <p className="mt-2 text-xs text-ramp-600">
             Pide al staff de tu academia que te envíe una nueva invitación.
           </p>
         </div>
@@ -98,10 +99,8 @@ export function AthleteMagicLinkCompleteForm(props: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {props.customMessage && (
-        <div className="rounded-md border border-border bg-muted/50 p-3 text-sm text-foreground">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Mensaje del club
-          </p>
+        <div className="rounded-[10px] border border-chalk-line bg-white p-4 text-sm text-mat-night">
+          <p className="floor-label text-ramp-500">Mensaje del club</p>
           <p className="mt-1 whitespace-pre-wrap">{props.customMessage}</p>
         </div>
       )}
@@ -190,7 +189,7 @@ export function AthleteMagicLinkCompleteForm(props: Props) {
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        <div role="alert" className="rounded-[10px] border border-signal/30 bg-signal-wash p-3 text-sm text-signal-ink">
           {error}
         </div>
       )}

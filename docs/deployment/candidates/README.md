@@ -311,6 +311,44 @@ aceptar, el servidor rellena `staff_profiles.member_id`.
   ningún entorno. La función sigue además detrás de
   `ZALTYKO_TEAM_ACCESS_ENABLED`.
 
+## Candidato de alta abierta a cualquier país
+
+`20261112120000_general_market_identity_candidate.sql` crea solo la función
+`zaltyko_domain_private.ensure_general_identity_sport_profile(text, text)`.
+Decisión de producto de Elvis (12-11-2026): cualquier academia puede
+registrarse desde cualquier país; España y México siguen siendo los mercados
+completos y lo específico de cada país (federación, competiciones, cobros
+locales y facturación) llegará más adelante.
+
+- Por qué una función y no un perfil genérico: `organization_sports` exige el
+  mismo `country_code` en la organización y en el perfil deportivo
+  (`organization_sports_country_fk` y `organization_sports_profile_fk`). Un
+  país reservado común no encaja sin cambiar esas claves, y sembrar ~250
+  países por adelantado se descartó. La función crea, solo si falta, el perfil
+  de identidad vacío del país y la disciplina pedidos, con la misma forma que
+  los de ES y MX (`unconfigured`, `identity-v1`, `identity_only`, versión 1,
+  configuración `{}`). Si ya existe un perfil con otra forma no lo toca y
+  devuelve null: el alta falla cerrada con 422.
+- Se niega a tocar ES y MX (datos revisados), solo admite `artistic` y
+  `rhythmic` y códigos `^[A-Z]{2}$`. `SECURITY INVOKER` con `search_path`
+  vacío; `REVOKE` a `public`, `anon` y `authenticated`; `EXECUTE` solo para
+  `service_role` (y el propietario). No cambia tablas, filas existentes, RLS,
+  roles ni objetos legacy. El preflight aborta si la función ya existe.
+- SHA-256: `11886ac0b009eeabf5660e332ee7b56b638abe62a25a0b54e319ce0e36352c0e`.
+- Prueba: `tests/general-market-bootstrap-pg.test.ts`, en el job «Postgres
+  integration». Instala el candidato solo en el PostgreSQL desechable de
+  GitHub y retira la función al terminar.
+- Mientras no se aplique, `bootstrap-organization.ts` detecta que falta
+  (`to_regprocedure`) y el alta de países fuera de ES y MX responde 422
+  `FEATURE_NOT_AVAILABLE` («Todavía no podemos completar desde aquí el alta de
+  academias de este país. No se ha creado nada…»), sin escrituras ni 500.
+  ES y MX no pasan por la función.
+- Orden recomendado: aplicar el candidato antes (o a la vez) que desplegar el
+  código, porque la web pública ya dirá que el alta es abierta. Aplicarlo antes
+  es inocuo: nada lo llama hasta que el código nuevo esté en producción.
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+  ningún entorno. La CI verde no equivale a autorización.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.
