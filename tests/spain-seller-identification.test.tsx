@@ -5,15 +5,18 @@ import { describe, expect, it } from "vitest";
 import { SellerIdentification } from "@/components/legal/SellerIdentification";
 import { decodeStoredSaasCommand } from "@/components/owner-dashboard/owner-saas-pending-command";
 import {
-  commercialLaunchProfile,
+  getCommercialLaunchProfile,
   type CommercialLaunchProfile,
 } from "@/lib/launch/commercial-launch-profile";
+
+// El perfil real lee NIF y domicilio del entorno del servidor; aquí, sin variables.
+const commercialLaunchProfile = getCommercialLaunchProfile({});
 
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
 describe("identificación del prestador (LSSI art. 10) en Términos y Privacidad", () => {
   it("muestra los datos pendientes del perfil actual sin inventarlos", () => {
-    const html = text(renderToStaticMarkup(createElement(SellerIdentification)));
+    const html = text(renderToStaticMarkup(createElement(SellerIdentification, { profile: commercialLaunchProfile })));
     expect(html).toContain(commercialLaunchProfile.legalName);
     expect(html).toContain(commercialLaunchProfile.supportEmail);
     if (commercialLaunchProfile.taxId === null) expect(html).toContain("NIF Pendiente de completar");

@@ -46,7 +46,7 @@ vi.mock("@/lib/launch/commercial-launch-profile", async (importOriginal) => {
       actual.isSaasCheckoutEnabledForMarket(
         environment,
         countryCode,
-        mocks.liveReadinessOpen ? readyProfile : actual.commercialLaunchProfile
+        mocks.liveReadinessOpen ? readyProfile : actual.getCommercialLaunchProfile({})
       ),
   };
 });

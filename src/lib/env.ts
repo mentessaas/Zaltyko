@@ -79,6 +79,13 @@ const serverEnvSchema = z.object({
   STRIPE_SAAS_TEST_TAX_RATE_ES_IVA21: z.string().optional(),
   STRIPE_SAAS_LIVE_TAX_RATE_ES_IVA21: z.string().optional(),
 
+  // Identidad fiscal pública del vendedor (perfil de lanzamiento comercial).
+  // Solo servidor y solo en Vercel: el repositorio es público, nunca en el
+  // código ni en .env versionados. Ausente o vacía = pendiente; el formato lo
+  // valida getCommercialLaunchReadiness, no este esquema.
+  ZALTYKO_SELLER_TAX_ID: z.string().optional(),
+  ZALTYKO_SELLER_PROFESSIONAL_ADDRESS: z.string().optional(),
+
   // App
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
   NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
