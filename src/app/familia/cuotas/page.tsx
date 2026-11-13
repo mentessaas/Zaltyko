@@ -21,7 +21,6 @@ export default async function FamilyFeesPage() {
   return (
     <FamilyPortalShell active="fees">
       <header className={ownerUi.pageHeader}>
-        <p className={ownerUi.eyebrow}>Portal de familias</p>
         <h1 className={ownerUi.pageTitle}>Cuotas</h1>
         <p className={ownerUi.pageLead}>Estado de las cuotas emitidas por tu academia.</p>
       </header>

@@ -43,4 +43,21 @@ describe("salida de la sesión Owner", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(mocks.signOut).toHaveBeenCalledTimes(2);
   });
+
+  it("sobre la banda de tapiz del portal el error usa la tinta de señal clara (AA sobre azul)", async () => {
+    mocks.signOut.mockResolvedValueOnce({ error: new Error("unavailable") });
+    render(<OwnerSignOutButton surface="mat" />);
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar sesión" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("No se pudo cerrar la sesión");
+    expect(alert).toHaveClass("text-signal-light");
+    expect(alert).not.toHaveClass("text-z-chalk-600");
+  });
+
+  it("fuera de la banda conserva la tinta oscura de señal", async () => {
+    mocks.signOut.mockResolvedValueOnce({ error: new Error("unavailable") });
+    render(<OwnerSignOutButton />);
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar sesión" }));
+    expect(await screen.findByRole("alert")).toHaveClass("text-z-chalk-600");
+  });
 });

@@ -17,7 +17,9 @@ import { describe, expect, it } from "vitest";
  * - el negro, los alias `zaltyko-*`, los hexadecimales y el `letter-spacing`
  *   negativo (The Stretch Rule);
  * - los avisos en coral de `ownerUi.noticeWarning`/`chipAttention`: el aviso
- *   va en ocre (`ownerTone`), el coral queda para errores y deudas.
+ *   va en ocre (`ownerTone`), el coral queda para errores y deudas;
+ * - los antetítulos decorativos (`ownerUi.eyebrow`) encima del título, como
+ *   en la web (The Label Is Data Rule).
  */
 const FILES = [
   "src/app/owner/attendance/page.tsx",
@@ -38,6 +40,7 @@ const FILES = [
   "src/components/owner-dashboard/OwnerOperationalReadOnlyNotice.tsx",
   "src/components/owner-dashboard/OwnerStaffManager.tsx",
   "src/components/owner-dashboard/owner-tone-ui.ts",
+  "src/components/owner-dashboard/OwnerPlanCheckNote.tsx",
   "src/components/owner/OwnerTeamAccessPanel.tsx",
   "src/components/family-portal/FamilyPortalShell.tsx",
   "src/components/family-portal/FamilyNoAccess.tsx",
@@ -66,6 +69,7 @@ const FORBIDDEN: Array<[string, RegExp]> = [
   ["hexadecimal suelto", /#[0-9A-Fa-f]{6}\b/],
   ["letter-spacing negativo", /\btracking-(?:tight|tighter|\[-)/],
   ["aviso en coral de ownerUi", /\bownerUi\.(?:noticeWarning|chipAttention)\b/],
+  ["antetítulo decorativo", /\bownerUi\.eyebrow\b/],
 ];
 
 describe("asistencia, inscripciones, solicitudes, equipo y familias en Magnesio", () => {
@@ -159,5 +163,22 @@ describe("Quién entrena no repite su título en pantalla", () => {
     const coaches = readFileSync("src/components/owner-dashboard/OwnerSessionCoaches.tsx", "utf8");
     expect(coaches).toContain('<legend className="sr-only">Quién entrena en esta sesión</legend>');
     expect(coaches.match(/>\s*Quién entrena\s*</g)).toHaveLength(1);
+  });
+});
+
+describe("cerrar sesión sobre la banda de tapiz del portal", () => {
+  it("el portal pide la variante sobre tapiz y el error usa la tinta de señal clara", () => {
+    const shell = readFileSync("src/components/family-portal/FamilyPortalShell.tsx", "utf8");
+    const button = readFileSync("src/components/owner-dashboard/OwnerSignOutButton.tsx", "utf8");
+    expect(shell).toContain('<OwnerSignOutButton surface="mat" />');
+    expect(button).toMatch(/surface === "mat"\s*\?\s*"[^"]*text-signal-light/);
+  });
+});
+
+describe("«Solo lectura» solo cuando el plan lo confirma", () => {
+  it("Pasar lista pasa el estado de la comprobación a «Quién entrena» y al guion", () => {
+    const manager = readFileSync("src/components/owner-dashboard/OwnerAttendanceManager.tsx", "utf8");
+    expect(manager).toContain("const planCheck = ownerPlanCheckOf(planPolicy);");
+    expect(manager.match(/planCheck=\{planCheck\}/g)).toHaveLength(2);
   });
 });

@@ -10,6 +10,7 @@ import { OwnerSessionPlanPanel } from "./OwnerSessionPlanPanel";
 import { OwnerSessionObservationForm } from "./OwnerSessionObservationForm";
 import { ownerUi } from "./owner-ui";
 import { ownerTone } from "./owner-tone-ui";
+import { ownerPlanCheckOf } from "./OwnerPlanCheckNote";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import {
   clearAttendanceRetry,
@@ -242,6 +243,7 @@ export function OwnerAttendanceManager({
 }) {
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
+  const planCheck = ownerPlanCheckOf(planPolicy);
   const initialSessionOptions = useMemo(
     () =>
       requestedSession &&
@@ -683,7 +685,6 @@ export function OwnerAttendanceManager({
             </Link>
           )}
           <div>
-            <p className={ownerUi.eyebrow}>Pase de lista</p>
             <h1 className={ownerUi.pageTitle}>Asistencia de la sesión</h1>
             <p className={ownerUi.pageLead}>
               Marca la asistencia de las gimnastas inscritas. Los cambios se
@@ -841,6 +842,7 @@ export function OwnerAttendanceManager({
                 sessionId={selectedSession.id}
                 coachMode={coachMode}
                 writesBlocked={writesBlocked}
+                planCheck={planCheck}
               />
             ) : null}
             {sessionPlansAvailable && sessionId && !selectedSession?.retryOnly ? (
@@ -850,6 +852,7 @@ export function OwnerAttendanceManager({
                 locationId={locationId}
                 sessionId={sessionId}
                 readOnly={writesBlocked}
+                planCheck={planCheck}
               />
             ) : null}
             {selectedSession?.retryOnly && (

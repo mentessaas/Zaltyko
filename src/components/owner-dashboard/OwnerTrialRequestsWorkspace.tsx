@@ -211,7 +211,6 @@ export function OwnerTrialRequestsWorkspace({
   return (
     <main className={ownerUi.page}>
       <header className={ownerUi.pageHeader}>
-        <p className={ownerUi.eyebrow}>Personas</p>
         <h1 className={ownerUi.pageTitle}>Solicitudes</h1>
         <p className={ownerUi.pageLead}>
           Familias que piden una clase de prueba en {organizationName}. Respóndeles y, cuando os pongáis de

@@ -17,7 +17,6 @@ export default async function FamilyPortalHomePage() {
   return (
     <FamilyPortalShell active="athletes">
       <header className={ownerUi.pageHeader}>
-        <p className={ownerUi.eyebrow}>Portal de familias</p>
         <h1 className={ownerUi.pageTitle}>Tu familia</h1>
         <p className={ownerUi.pageLead}>
           Consulta el horario, la asistencia y las cuotas de tus gimnastas.

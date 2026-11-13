@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import { ownerTone } from "./owner-tone-ui";
 
-// Comprobando: polvo (información). Sin poder comprobar o en solo lectura:
-// aviso en ocre, porque piden atención pero no son un error ni una deuda.
+// Comprobando: polvo (información). Comprobación fallida: error recuperable en
+// señal. Solo lectura confirmada por el plan: aviso en ocre (no es un fallo).
 const CHECKING_CLASS = `mt-5 ${ownerTone.noticeNeutral}`;
+const ERROR_CLASS = `mt-5 ${ownerTone.noticeError}`;
 const WARNING_CLASS = `mt-5 ${ownerTone.noticeWarning}`;
 
 export function OwnerOperationalReadOnlyNotice({
@@ -44,7 +45,7 @@ export function OwnerOperationalReadOnlyNotice({
     return (
       <div
         role="status"
-        className={WARNING_CLASS}
+        className={ERROR_CLASS}
       >
         <p>
           No se pudieron comprobar los límites del plan. Vuelve a consultar el
@@ -113,7 +114,7 @@ function StaffReadOnlyNotice({
     return (
       <div
         role="status"
-        className={WARNING_CLASS}
+        className={ERROR_CLASS}
       >
         <p>
           No se pudo comprobar si la academia puede registrar cambios. Vuelve a

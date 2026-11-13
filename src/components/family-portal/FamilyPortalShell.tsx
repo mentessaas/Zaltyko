@@ -58,7 +58,7 @@ export function FamilyPortalShell({
               );
             })}
           </nav>
-          <OwnerSignOutButton />
+          <OwnerSignOutButton surface="mat" />
         </div>
       </header>
       <main id="family-portal-content" className={ownerUi.page}>

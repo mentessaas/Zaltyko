@@ -40,10 +40,11 @@ export default async function TrialRequestPage({
       </header>
       <main className="px-4 py-8 sm:py-12">
         <div className="mx-auto w-full max-w-xl">
-          <p className="floor-label text-z-soft">Clase de prueba</p>
-          <h1 className="mt-2 break-words border-b-[3px] border-z-ink pb-3 font-display text-3xl font-black uppercase leading-[0.95] [overflow-wrap:anywhere] [text-wrap:balance] sm:text-4xl">
+          <h1 className="break-words border-b-[3px] border-z-ink pb-3 font-display text-3xl font-black uppercase leading-[0.95] [overflow-wrap:anywhere] [text-wrap:balance] sm:text-4xl">
             {target.organizationName}
           </h1>
+          {/* Qué se pide, como rótulo del bloque bajo el título, no antetítulo. */}
+          <p className="floor-label mt-2 text-ramp-600">Clase de prueba</p>
           <p className="mt-3 text-base leading-7 text-z-soft">
             Déjanos tus datos y la academia se pondrá en contacto contigo para
             proponerte un día. No hace falta crear una cuenta.

@@ -55,8 +55,9 @@ export default async function FamilyAthletePage({
         ← Volver a tu familia
       </Link>
       <header className={`${ownerUi.pageHeader} mt-3`}>
-        <p className={ownerUi.eyebrow}>{schedule.organizationName}</p>
         <h1 className={ownerUi.pageTitle}>{schedule.athlete.displayName}</h1>
+        {/* La academia es un dato del bloque, debajo del título, no un antetítulo. */}
+        <p className="floor-label mt-2 break-words text-ramp-600 [overflow-wrap:anywhere]">{schedule.organizationName}</p>
         <p className={ownerUi.pageLead}>
           Datos desde el {formatCalendarDate(schedule.athlete.visibleSince)}, fecha en
           que la gimnasta se vinculó a tu familia.

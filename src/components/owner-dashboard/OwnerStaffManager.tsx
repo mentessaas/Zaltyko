@@ -544,8 +544,9 @@ export function OwnerStaffManager({
   return (
     <main className={ownerUi.page}>
       <header className={ownerUi.pageHeader}>
-        <p className={ownerUi.eyebrow}>{organizationName}</p>
         <h1 className={ownerUi.pageTitle}>Equipo</h1>
+        {/* La academia es un dato del bloque, debajo del título, no un antetítulo. */}
+        <p className="floor-label mt-2 break-words text-ramp-600 [overflow-wrap:anywhere]">{organizationName}</p>
         <p className={ownerUi.pageLead}>
           Las personas que hacen posible el día a día de tu club.
         </p>

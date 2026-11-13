@@ -14,6 +14,7 @@ import {
 import type { ScheduleConflict } from "@/modules/schedule-conflicts/domain/schedule-conflicts";
 import { ownerUi } from "./owner-ui";
 import { ownerTone } from "./owner-tone-ui";
+import { OwnerPlanCheckNote, type OwnerPlanCheck } from "./OwnerPlanCheckNote";
 import { OwnerScheduleConflictList } from "./OwnerScheduleConflicts";
 import {
   COACH_ASSIGNMENT_UNAVAILABLE_MESSAGE,
@@ -48,12 +49,18 @@ export function OwnerSessionCoaches({
   sessionId,
   coachMode,
   writesBlocked,
+  planCheck,
 }: {
   organizationId: string;
   locationId: string;
   sessionId: string;
   coachMode: boolean;
   writesBlocked: boolean;
+  /**
+   * Por qué no se puede escribir: comprobando el plan, comprobación fallida o
+   * solo lectura confirmada. Sin él, `writesBlocked` se lee como solo lectura.
+   */
+  planCheck?: OwnerPlanCheck;
 }) {
   const formId = useId();
   const [load, setLoad] = useState<Load>({ status: "loading" });
@@ -234,7 +241,10 @@ export function OwnerSessionCoaches({
         </div>
       ) : null}
       {canEdit && writesBlocked ? (
-        <p className={ownerUi.help}>Solo lectura: se puede consultar quién entrena, no cambiarlo.</p>
+        <OwnerPlanCheckNote
+          check={planCheck && planCheck !== "ok" ? planCheck : "read_only"}
+          readOnlyText="Solo lectura: se puede consultar quién entrena, no cambiarlo."
+        />
       ) : null}
 
       {canEdit && draft ? (

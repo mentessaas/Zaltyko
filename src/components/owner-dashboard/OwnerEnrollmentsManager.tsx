@@ -565,9 +565,6 @@ export function OwnerEnrollmentsManager({
 
         <header className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <p className={ownerUi.eyebrow}>
-              Operaciones de la academia
-            </p>
             <h1 className={ownerUi.pageTitle}>
               Inscripciones
             </h1>

@@ -30,6 +30,7 @@ import {
   type BlockDraft,
 } from "./owner-session-plan-client";
 import { ownerUi } from "./owner-ui";
+import { OwnerPlanCheckNote, type OwnerPlanCheck } from "./OwnerPlanCheckNote";
 
 /**
  * Plan de la sesión en Pasar lista (P2 #17, segunda parte). Componente aislado:
@@ -97,12 +98,18 @@ export function OwnerSessionPlanPanel({
   locationId,
   sessionId,
   readOnly,
+  planCheck,
 }: {
   organizationId: string;
   locationId: string;
   sessionId: string;
   /** Plan de la academia en solo lectura: se ve el plan, no se cambia. */
   readOnly: boolean;
+  /**
+   * Por qué no se puede escribir: comprobando el plan, comprobación fallida o
+   * solo lectura confirmada. Sin él, `readOnly` se lee como solo lectura.
+   */
+  planCheck?: OwnerPlanCheck;
 }) {
   const titleId = useId();
   const scope = useMemo(() => ({ organizationId, locationId }), [organizationId, locationId]);
@@ -181,6 +188,7 @@ export function OwnerSessionPlanPanel({
           draft={draft}
           busy={busy}
           readOnly={readOnly}
+          planCheck={planCheck}
           onEdit={() => setDraft(draftFrom(state.view))}
           onCancel={() => setDraft(null)}
           onDraftChange={setDraft}
@@ -262,6 +270,7 @@ function ReadyPlan({
   draft,
   busy,
   readOnly,
+  planCheck,
   onEdit,
   onCancel,
   onDraftChange,
@@ -274,6 +283,7 @@ function ReadyPlan({
   draft: Draft | null;
   busy: boolean;
   readOnly: boolean;
+  planCheck?: OwnerPlanCheck;
   onEdit: () => void;
   onCancel: () => void;
   onDraftChange: (draft: Draft) => void;
@@ -298,8 +308,13 @@ function ReadyPlan({
   }
 
   const plan = view.plan;
+  // Solo se dice «solo lectura» cuando el plan lo confirma; mientras se
+  // comprueba, estado neutro, y si la comprobación falla, error con reintento.
   const readOnlyNotice = readOnly ? (
-    <p className={ownerUi.help}>La academia está en solo lectura: puedes ver el guion, pero no cambiarlo.</p>
+    <OwnerPlanCheckNote
+      check={planCheck && planCheck !== "ok" ? planCheck : "read_only"}
+      readOnlyText="La academia está en solo lectura: puedes ver el guion, pero no cambiarlo."
+    />
   ) : view.session.cancelled ? (
     <p className={ownerUi.help}>La sesión está cancelada: su guion es de solo lectura.</p>
   ) : null;
