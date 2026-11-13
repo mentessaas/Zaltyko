@@ -1,3 +1,4 @@
+import { ownerUi } from "./owner-ui";
 import type { GroupMembershipCommand } from "./owner-pending-group-membership";
 import type {
   GroupAthleteReceipt,
@@ -158,12 +159,9 @@ export function readPendingGroupCreate(
   }
 }
 
-export const fieldClassName =
-  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500";
-export const primaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center gap-2 bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
-export const secondaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center gap-2 border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
+export const fieldClassName = `${ownerUi.field} aria-[invalid=true]:border-signal`;
+export const primaryButtonClassName = ownerUi.primaryButton;
+export const secondaryButtonClassName = ownerUi.secondaryButton;
 
 export function statusLabel(status: string): string {
   if (status === "pending") return "Pendiente";

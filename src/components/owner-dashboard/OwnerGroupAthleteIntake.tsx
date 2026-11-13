@@ -11,6 +11,7 @@ import {
   type Candidate,
   type CreateAthleteRecoveryState,
 } from "./owner-groups-manager-model";
+import { ownerTone } from "./owner-tone-ui";
 
 /** "Añadir una gimnasta": search active athletes of the academy and add one to the group. */
 export function OwnerGroupAthleteSearchForm({
@@ -66,7 +67,7 @@ export function OwnerGroupAthleteSearchForm({
         </button>
       </div>
       {candidates.length > 0 && (
-        <ul className="mt-3 divide-y divide-z-line border-y border-z-line">
+        <ul className="mt-3 divide-y divide-z-line border-y border-z-line border-t-[3px] border-t-z-ink">
           {candidates.map((candidate) => (
             <li
               key={candidate.id}
@@ -133,17 +134,17 @@ export function OwnerGroupAthleteCreateDetails({
         cobro.
       </p>
       {recovery?.status === "checking" && (
-        <p role="status" className="rounded-[12px] mt-3 border border-amber-700 bg-amber-50 p-3 text-sm">
+        <p role="status" className={`mt-3 ${ownerTone.noticeWarning}`}>
           Comprobando el recibo del alta pendiente. No se enviará otra operación mientras se valida.
         </p>
       )}
       {recovery?.status === "needs-input" && (
-        <p role="status" className="rounded-[12px] mt-3 border border-amber-700 bg-amber-50 p-3 text-sm">
+        <p role="status" className={`mt-3 ${ownerTone.noticeWarning}`}>
           No aparece ningún recibo para la clave pendiente. Reintroduce exactamente el mismo nombre y apellidos para reintentar; se conservará la misma clave y no se creará otra.
         </p>
       )}
       {recovery?.status === "complete" && recovery.receipt && (
-        <div role="status" className="rounded-[12px] mt-3 border border-z-brand-100 bg-z-brand-50 p-3 text-sm">
+        <div role="status" className={`mt-3 ${ownerTone.noticeInfo}`}>
           <p>El recibo confirma el alta y la pertenencia al grupo. Estado actual: {statusLabel(recovery.receipt.status)}.</p>
           <button type="button" disabled={commandsLocked} className={`${secondaryButtonClassName} mt-3`} onClick={onConfirmRecoveredReceipt}>
             Confirmar resultado y limpiar clave pendiente
@@ -151,7 +152,7 @@ export function OwnerGroupAthleteCreateDetails({
         </div>
       )}
       {recovery?.status === "blocked" && (
-        <div role="alert" className="rounded-[12px] mt-3 border border-amber-700 bg-amber-50 p-3 text-sm">
+        <div role="alert" className={`mt-3 ${ownerTone.noticeWarning}`}>
           <p>{recovery.detail ?? "No se pudo validar el alta anterior. No se enviará otra operación."}</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <button type="button" disabled={commandsLocked} className={secondaryButtonClassName} onClick={onRetryRecoveryCheck}>Reintentar comprobación</button>

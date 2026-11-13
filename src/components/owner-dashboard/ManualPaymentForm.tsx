@@ -38,6 +38,8 @@ import {
   ManualPaymentRetryScopeNotice,
 } from "./ManualPaymentNotices";
 import { ManualPaymentChargeField, ManualPaymentDetailsFields } from "./ManualPaymentFormFields";
+import { ownerUi } from "./owner-ui";
+import { cn } from "@/lib/utils";
 
 import type { OpenManualPaymentCharge } from "@/modules/billing/application/manual-payments";
 import {
@@ -599,9 +601,9 @@ export function ManualPaymentForm({
   return (
     <form
       onSubmit={submit}
-      className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-6 rounded-3xl border border-z-line bg-white p-5 shadow-sm sm:p-8"
+      className={cn(ownerUi.card, "grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-6 sm:p-8")}
     >
-      <div className="rounded-2xl border border-z-brand-100/15 bg-z-brand-50 px-4 py-3 text-sm leading-6 text-z-brand-700">
+      <div className={ownerUi.noticeInfo}>
         Registra solo dinero que ya has recibido. Zaltyko no iniciará ningún
         cobro.
       </div>
@@ -611,7 +613,7 @@ export function ManualPaymentForm({
       {retryStorageError && (
         <p
           role="alert"
-          className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+          className={ownerUi.noticeError}
         >
           {retryStorageError}
         </p>
@@ -620,7 +622,7 @@ export function ManualPaymentForm({
       {dateInterpretationError && (
         <p
           role="alert"
-          className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+          className={ownerUi.noticeError}
         >
           {dateInterpretationError === "timezone"
             ? "No se pudo interpretar la zona horaria de esta sede. No se puede registrar el pago."
@@ -699,7 +701,7 @@ export function ManualPaymentForm({
       {error && (
         <p
           role="alert"
-          className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+          className={ownerUi.noticeError}
         >
           {error}
         </p>
@@ -707,7 +709,7 @@ export function ManualPaymentForm({
       {saved && (
         <p
           role="status"
-          className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950"
+          className={cn(ownerUi.noticeInfo, "font-semibold")}
         >
           Pago guardado y asignado al cargo.
         </p>
@@ -730,7 +732,7 @@ export function ManualPaymentForm({
                 !selectedCharge ||
                 !effectiveReceivedOn)
           }
-          className="min-h-12 rounded-full bg-black px-6 text-sm font-bold text-white hover:bg-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-60"
+          className={ownerUi.primaryButton}
         >
           {busy
             ? "Guardando…"

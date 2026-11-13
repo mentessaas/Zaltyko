@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, CalendarDays, CalendarPlus, Clock, Info, Plus, Settings2, UsersRound, X } from "lucide-react";
 import { ownerDisciplineOf, ownerDisciplineStyle, ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
 import { useOrganizationDraftField } from "@/components/owner-dashboard/use-organization-draft-field";
 import {
   clearPendingOwnerClassCreate,
@@ -433,13 +434,13 @@ export function OwnerClassesManager({
       )}
 
       {retryRequest && !pendingForCurrentOrganization && (
-        <p role="status" className={`mb-5 ${ownerUi.noticeWarning}`}>
+        <p role="status" className={`mb-5 ${ownerTone.noticeWarning}`}>
           Hay una creación pendiente en otra academia. Vuelve a esa academia para resolverla antes de iniciar otra.
         </p>
       )}
 
       {pendingForCurrentOrganization?.blocked && (
-        <section className={`mb-5 ${ownerUi.noticeWarning}`} aria-label="Creación bloqueada por conflicto">
+        <section className={`mb-5 ${ownerTone.noticeWarning}`} aria-label="Creación bloqueada por conflicto">
           <p role="status">
             {blockedMarkerPersistenceFailed
               ? "No volveremos a enviar esta creación en esta pantalla. No se pudo guardar la marca de bloqueo; no recargues ni cierres esta pestaña y no inicies otra clase hasta que soporte revise el resultado. Este bloqueo podría no conservarse al recargar."
@@ -715,7 +716,7 @@ export function OwnerClassesManager({
               </label>
             </div>
 
-            <p className="flex items-start gap-2.5 rounded-[12px] bg-z-canvas px-4 py-3 text-sm leading-6 text-z-soft">
+            <p className="flex items-start gap-2.5 rounded-md bg-z-canvas px-4 py-3 text-sm leading-6 text-z-soft">
               <Info className="mt-1 h-4 w-4 shrink-0 text-z-brand-600" aria-hidden="true" />
               <span>
                 Al guardar se crean la clase recurrente y sus sesiones de hasta
@@ -763,14 +764,14 @@ export function OwnerClassesManager({
                 </p>
               </div>
             ) : (
-              <ul className="mt-5 grid gap-3">
+              <ul className="mt-5 divide-y divide-z-line border-y border-z-line border-t-[3px] border-t-z-ink">
                 {bundle.classes.map((classItem) => (
-                  <li key={classItem.id} className={ownerUi.listItem}>
+                  <li key={classItem.id} className="py-4 sm:py-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-3">
                         <span
                           aria-hidden="true"
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${ownerDisciplineStyle[ownerDisciplineOf(classItem.programName)].tile}`}
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${ownerDisciplineStyle[ownerDisciplineOf(classItem.programName)].tile}`}
                         >
                           <CalendarDays className="h-4 w-4" />
                         </span>

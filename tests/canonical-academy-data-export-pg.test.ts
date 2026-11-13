@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -7,6 +9,7 @@ import {
   ALL_KNOWN_CANONICAL_TABLE_NAMES,
   CANONICAL_EXPORT_TABLES,
   EXCLUDED_CANONICAL_TABLES,
+  OPTIONAL_INCLUDED_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
 import {
   validateCanonicalAcademyArchive,
@@ -775,5 +778,213 @@ describeDisposablePg("canonical Owner academy data export in disposable PostgreS
     expect(body.length).toBeLessThan(4_500);
     expect(body).not.toContain(oversizedMarker);
     expect(await snapshot([fixture.organizationBId], fixture.userIds, [fixture.metricKey])).toEqual(before);
+  });
+});
+
+// Funciones activadas en producción el 12-11-2026: instala sus candidatos solo
+// en esta base desechable, exporta con filas reales y deja la base como estaba.
+const ACTIVATED_CANDIDATES = [
+  "20261111120000_athlete_progress_candidate.sql",
+  "20261111200000_session_plans_candidate.sql",
+  "20261111180000_coach_assignment_candidate.sql",
+  "20261110120000_admission_requests_candidate.sql",
+] as const;
+const activatedCandidate = (name: string) =>
+  readFileSync(resolve(process.cwd(), `docs/deployment/candidates/${name}`), "utf8");
+
+async function seedActivatedModules(organizationId: string, marker: string) {
+  const one = async (query: ReturnType<typeof sql>) => {
+    const result = await db.execute(query);
+    return String((result.rows[0] as { id: string }).id);
+  };
+  const memberId = await one(sql`
+    select id::text as id from zaltyko.organization_members
+    where organization_id = ${organizationId}::uuid and role = 'owner' and status = 'active' and location_scope_mode = 'all'
+    order by id limit 1
+  `);
+  const athleteId = await one(sql`select id::text as id from zaltyko.athletes where organization_id = ${organizationId}::uuid order by id limit 1`);
+  const locationId = await one(sql`select id::text as id from zaltyko.locations where organization_id = ${organizationId}::uuid order by id limit 1`);
+  const staffPersonId = randomUUID();
+  const staffProfileId = randomUUID();
+  const classTemplateId = randomUUID();
+  const sessionId = randomUUID();
+  const objectiveId = randomUUID();
+  const planId = randomUUID();
+  const linkId = randomUUID();
+  await db.execute(sql`
+    insert into zaltyko.people (id, organization_id, given_name, family_name)
+    values (${staffPersonId}::uuid, ${organizationId}::uuid, ${`${marker}_STAFF`}, 'Synthetic')
+  `);
+  await db.execute(sql`
+    insert into zaltyko.staff_profiles (id, organization_id, person_id, member_id, is_active)
+    values (${staffProfileId}::uuid, ${organizationId}::uuid, ${staffPersonId}::uuid, null, true)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.class_templates (id, organization_id, location_id, name, capacity, status, effective_from)
+    values (${classTemplateId}::uuid, ${organizationId}::uuid, ${locationId}::uuid, ${`${marker}_CLASS`}, 12, 'active', '2026-09-01')
+  `);
+  await db.execute(sql`
+    insert into zaltyko.sessions (id, organization_id, location_id, class_template_id, status, starts_at, ends_at)
+    values (${sessionId}::uuid, ${organizationId}::uuid, ${locationId}::uuid, ${classTemplateId}::uuid, 'completed',
+      '2026-11-10T16:30:00Z'::timestamptz, '2026-11-10T18:00:00Z'::timestamptz)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.athlete_objectives (
+      id, organization_id, athlete_id, location_id, client_request_id, title, discipline, apparatus,
+      target_date, created_by_member_id, status_changed_by_member_id
+    ) values (
+      ${objectiveId}::uuid, ${organizationId}::uuid, ${athleteId}::uuid, ${locationId}::uuid, ${randomUUID()}::uuid,
+      ${`${marker}_OBJECTIVE`}, 'gaf', 'beam', '2026-12-15', ${memberId}::uuid, ${memberId}::uuid
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.athlete_objective_status_history (
+      organization_id, objective_id, revision, from_status, to_status, changed_by_member_id
+    ) values (${organizationId}::uuid, ${objectiveId}::uuid, 1, null, 'in_progress', ${memberId}::uuid)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.athlete_observations (
+      organization_id, athlete_id, location_id, client_request_id, body, observed_on, session_id,
+      objective_id, author_member_id, updated_by_member_id
+    ) values (
+      ${organizationId}::uuid, ${athleteId}::uuid, ${locationId}::uuid, ${randomUUID()}::uuid, ${`${marker}_OBSERVATION`},
+      '2026-11-10', ${sessionId}::uuid, ${objectiveId}::uuid, ${memberId}::uuid, ${memberId}::uuid
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.class_template_staff (organization_id, class_template_id, staff_profile_id, assigned_by_member_id)
+    values (${organizationId}::uuid, ${classTemplateId}::uuid, ${staffProfileId}::uuid, ${memberId}::uuid)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.session_staff_overrides (organization_id, session_id, reason, changed_by_member_id)
+    values (${organizationId}::uuid, ${sessionId}::uuid, 'absence', ${memberId}::uuid)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.session_plans (
+      id, organization_id, location_id, session_id, client_request_id, last_request_id, focus,
+      created_by_member_id, updated_by_member_id
+    ) values (
+      ${planId}::uuid, ${organizationId}::uuid, ${locationId}::uuid, ${sessionId}::uuid, ${randomUUID()}::uuid,
+      ${randomUUID()}::uuid, ${`${marker}_FOCUS`}, ${memberId}::uuid, ${memberId}::uuid
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.session_plan_blocks (organization_id, plan_id, position, kind, discipline, apparatus, content, duration_minutes)
+    values (${organizationId}::uuid, ${planId}::uuid, 1, 'technique', 'gaf', 'beam', ${`${marker}_BLOCK`}, 30)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.session_plan_objectives (organization_id, plan_id, athlete_id, objective_id)
+    values (${organizationId}::uuid, ${planId}::uuid, ${athleteId}::uuid, ${objectiveId}::uuid)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.class_plan_templates (organization_id, location_id, class_template_id, focus, blocks, updated_by_member_id)
+    values (${organizationId}::uuid, ${locationId}::uuid, ${classTemplateId}::uuid, ${`${marker}_TEMPLATE`},
+      jsonb_build_array(
+        jsonb_build_object('kind', 'warmup', 'content', ${`${marker}_TEMPLATE_BLOCK`}::text, 'durationMinutes', 15,
+          'privateNote', ${`${marker}_UNCLASSIFIED_KEY`}::text),
+        jsonb_build_object('kind', 'technique', 'discipline', 'gaf', 'apparatus', 'beam', 'content', 'Paloma')
+      ), ${memberId}::uuid)
+  `);
+  const token = randomUUID().replaceAll("-", "");
+  await db.execute(sql`
+    insert into zaltyko.admission_links (id, organization_id, location_id, token, created_by_member_id)
+    values (${linkId}::uuid, ${organizationId}::uuid, ${locationId}::uuid, ${token}, ${memberId}::uuid)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.admission_requests (
+      organization_id, location_id, link_id, submission_id, contact_name, contact_email, contact_phone,
+      athlete_given_name, athlete_birth_year, message, privacy_consent_version, privacy_consent_at
+    ) values (
+      ${organizationId}::uuid, ${locationId}::uuid, ${linkId}::uuid, ${randomUUID()}::uuid, ${`${marker}_FAMILY`},
+      ${`${marker.toLowerCase()}@example.invalid`}, '600000000', ${`${marker}_CHILD`}, 2016, ${`${marker}_MESSAGE`},
+      '2026-11-10', now()
+    )
+  `);
+  return { token, blockMarker: `${marker}_TEMPLATE_BLOCK`, unclassifiedMarker: `${marker}_UNCLASSIFIED_KEY` };
+}
+
+describeDisposablePg("academy export with the modules activated on 2026-11-12", () => {
+  let fixture: Awaited<ReturnType<typeof seedFixture>>;
+  let secrets: { a: Awaited<ReturnType<typeof seedActivatedModules>>; b: Awaited<ReturnType<typeof seedActivatedModules>> };
+  const markerA = `ACTIVATED_A_${randomUUID().slice(0, 8).toUpperCase()}`;
+  const markerB = `ACTIVATED_B_${randomUUID().slice(0, 8).toUpperCase()}`;
+
+  beforeAll(async () => {
+    assertDisposableTarget();
+    fixture = await seedFixture();
+    for (const name of ACTIVATED_CANDIDATES) await db.execute(sql.raw(activatedCandidate(name)));
+    secrets = {
+      a: await seedActivatedModules(fixture.organizationAId, markerA),
+      b: await seedActivatedModules(fixture.organizationBId, markerB),
+    };
+  }, 90_000);
+
+  afterAll(async () => {
+    if (process.env.ZALTYKO_PG_INTEGRATION !== "1") return;
+    // Deja la base compartida como estaba (mismo orden que las suites de cada candidato).
+    await db.transaction(async (tx) => {
+      for (const table of [
+        "admission_requests", "admission_links",
+        "session_plan_objectives", "session_plan_blocks", "session_plans", "class_plan_templates",
+        "athlete_observations", "athlete_objective_status_history", "athlete_objectives",
+        "session_staff_overrides", "class_template_staff",
+      ]) {
+        await tx.execute(sql.raw(`drop table if exists zaltyko.${table}`));
+      }
+      await tx.execute(sql`grant select on table zaltyko.session_staff to authenticated`);
+      await tx.execute(sql`alter table zaltyko.session_staff drop constraint if exists session_staff_profile_fk`);
+      await tx.execute(sql`
+        alter table zaltyko.session_staff add constraint session_staff_profile_fk
+          foreign key (organization_id, staff_profile_id) references zaltyko.staff_profiles (organization_id, id) on delete restrict
+      `);
+    });
+  });
+
+  it("exports every activated table of academy A with values and nothing from academy B", async () => {
+    const response = await requestExportAs(fixture.ownerAUserId, fixture.organizationAId);
+    expect(response.status).toBe(200);
+    const body = await response.text();
+    expect(validateCanonicalAcademyArchive({ body, organizationId: fixture.organizationAId })).toMatchObject({
+      valid: true,
+      includedTableCount: CANONICAL_EXPORT_TABLES.length + OPTIONAL_INCLUDED_EXPORT_TABLES.length,
+    });
+    const exported = JSON.parse(body) as {
+      coverage: { excludedColumns: Array<{ table: string; column: string }> };
+      data: Record<string, Record<string, unknown>[]>;
+    };
+    for (const table of OPTIONAL_INCLUDED_EXPORT_TABLES) {
+      const rows = exported.data[table.name];
+      expect(rows, table.name).toHaveLength(1);
+      expect(Object.keys(rows[0]!), table.name).toEqual([...table.exportColumns]);
+      expect(rows[0]!.organization_id).toBe(fixture.organizationAId);
+    }
+    expect(exported.data.athlete_objectives[0]!.target_date).toBe("2026-12-15");
+    expect(exported.data.athlete_observations[0]!.observed_on).toBe("2026-11-10");
+    expect(exported.data.admission_links[0]!.enabled).toBe(true);
+    expect(exported.data.admission_requests[0]!.athlete_birth_year).toBe(2016);
+    expect(exported.coverage.excludedColumns).toEqual(expect.arrayContaining([
+      { table: "admission_links", column: "token", reason: expect.any(String) },
+    ]));
+    expect(exported.coverage.excludedColumns.some(entry => entry.table === "class_plan_templates")).toBe(false);
+    // Los bloques salen con los campos clasificados, en su orden, sin claves ajenas.
+    expect(exported.data.class_plan_templates[0]!.blocks).toEqual([
+      { kind: "warmup", discipline: null, apparatus: null, content: secrets.a.blockMarker, durationMinutes: 15 },
+      { kind: "technique", discipline: "gaf", apparatus: "beam", content: "Paloma", durationMinutes: null },
+    ]);
+    // Booleanos: un fallo nunca imprime el valor filtrado en el log de CI.
+    expect([markerA, `${markerA.toLowerCase()}@example.invalid`].every(value => body.includes(value))).toBe(true);
+    expect([markerB, secrets.a.token, secrets.b.token, secrets.a.unclassifiedMarker, "privateNote"].some(value => body.includes(value))).toBe(false);
+    expect(preflightCanonicalAcademyRecovery({ body, organizationId: fixture.organizationAId }).status).toBe("blocked");
+  });
+
+  it("fails closed while one activated module is only partially installed", async () => {
+    // Fuera de transacción: la exportación usa su propia conexión y debe ver el cambio.
+    await db.execute(sql`alter table zaltyko.session_plan_objectives set schema public`);
+    try {
+      const response = await requestExportAs(fixture.ownerAUserId, fixture.organizationAId);
+      expect(response.status).toBe(503);
+    } finally {
+      await db.execute(sql`alter table public.session_plan_objectives set schema zaltyko`);
+    }
   });
 });

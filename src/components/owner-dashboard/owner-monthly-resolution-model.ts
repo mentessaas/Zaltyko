@@ -1,5 +1,8 @@
 /** Types and pure helpers of OwnerMonthlyInvoiceResolutionPanel. */
 
+import { ownerField } from "./owner-form-tones";
+import { ownerUi } from "./owner-ui";
+
 export type ResolutionAction =
   | { kind: "tariff"; enrollmentId: string; athleteName: string | null }
   | {
@@ -164,12 +167,11 @@ export function isClassTemplateOption(value: unknown): value is ClassTemplateOpt
   );
 }
 
-export const fieldClassName =
-  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500";
-export const primaryButtonClassName =
-  "touch-target min-h-11 border border-z-ink bg-z-ink px-4 py-2 text-sm font-bold text-white disabled:opacity-50";
-export const secondaryButtonClassName =
-  "touch-target min-h-11 border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink disabled:opacity-50";
+// Campos y botones del panel con la forma del sistema (`components/ui` y
+// `ownerUi`): sin botones cuadrados en noche ni campos sin radio.
+export const fieldClassName = ownerField;
+export const primaryButtonClassName = ownerUi.primaryButton;
+export const secondaryButtonClassName = ownerUi.secondaryButton;
 
 /** Relationship of a new adult payer with the athlete. */
 export type PayerRelationship =

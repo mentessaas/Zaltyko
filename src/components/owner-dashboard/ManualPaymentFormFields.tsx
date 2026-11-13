@@ -3,6 +3,9 @@
 import type { OpenManualPaymentCharge } from "@/modules/billing/application/manual-payments";
 import { formatPaymentDueDate } from "./owner-payment-date";
 import { formatMoney, type ManualPaymentMethod } from "./manual-payment-form-model";
+import { ownerField } from "./owner-form-tones";
+import { ownerUi } from "./owner-ui";
+import { cn } from "@/lib/utils";
 
 /** "Cargo pendiente" select, "Cargar más cargos" and the due date of the selected charge. */
 export function ManualPaymentChargeField({
@@ -49,7 +52,7 @@ export function ManualPaymentChargeField({
         onChange={(event) => onChooseCharge(event.target.value)}
         disabled={formLocked}
         aria-describedby={formCharge ? chargeHelpId : undefined}
-        className="min-h-12 w-full min-w-0 max-w-full rounded-xl border border-z-line bg-white px-3 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
+        className={cn(ownerField, "min-w-0 max-w-full")}
       >
         {missingRetryChargeId !== null && (
           <option value={missingRetryChargeId}>
@@ -70,12 +73,12 @@ export function ManualPaymentChargeField({
             type="button"
             onClick={onLoadMore}
             disabled={loadMoreDisabled}
-            className="min-h-11 rounded-full border border-z-line bg-white px-4 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className={ownerUi.secondaryButton}
           >
             {loadingMore ? "Cargando cargos…" : "Cargar más cargos"}
           </button>
           {loadMoreError && (
-            <p role="alert" className="text-sm text-rose-800">
+            <p role="alert" className="text-sm font-medium text-signal-ink">
               No se pudieron cargar más cargos. Reintenta sin cambiar el pago seleccionado.
             </p>
           )}
@@ -160,7 +163,7 @@ export function ManualPaymentDetailsFields({
             required
             aria-invalid={amountInvalid}
             aria-describedby={amountHelpId}
-            className="min-h-12 w-full rounded-xl border border-z-line px-3 pr-16 text-base text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
+            className={cn(ownerField, "pr-16")}
           />
           <span
             aria-hidden="true"
@@ -191,7 +194,7 @@ export function ManualPaymentDetailsFields({
             onMethodChange(event.target.value as ManualPaymentMethod)
           }
           disabled={formLocked}
-          className="min-h-12 rounded-xl border border-z-line bg-white px-3 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
+          className={ownerField}
         >
           <option value="bank_transfer">Transferencia</option>
           <option value="cash">Efectivo</option>
@@ -213,7 +216,7 @@ export function ManualPaymentDetailsFields({
           onChange={(event) => onReceivedOnChange(event.target.value)}
           disabled={formLocked}
           required
-          className="min-h-12 rounded-xl border border-z-line px-3 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
+          className={ownerField}
         />
       </label>
 
@@ -229,7 +232,7 @@ export function ManualPaymentDetailsFields({
           onChange={(event) => onReferenceChange(event.target.value)}
           disabled={referenceDisabled}
           placeholder="Por ejemplo, concepto de la transferencia"
-          className="min-h-12 rounded-xl border border-z-line px-3 text-sm text-z-ink placeholder:text-z-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas"
+          className={ownerField}
         />
         <span className="text-xs text-z-soft">
           No incluyas números completos de cuenta ni datos sensibles.

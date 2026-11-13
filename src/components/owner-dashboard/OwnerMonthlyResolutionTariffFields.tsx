@@ -187,7 +187,7 @@ export function MonthlyPricePlanCreateForm({
       </div>
       <fieldset
         aria-describedby="monthly-price-plan-coverage-help"
-        className="rounded-[12px] grid gap-3 border border-z-line p-4"
+        className="grid gap-3 rounded-card border border-chalk-line p-4"
       >
         <legend className="px-1 text-sm font-bold">
           Clases cubiertas
@@ -213,7 +213,7 @@ export function MonthlyPricePlanCreateForm({
                 <li key={classTemplate.id}>
                   <label
                     htmlFor={checkboxId}
-                    className="rounded-[12px] flex min-h-11 items-center gap-3 border border-z-line px-3 py-2 text-sm font-medium text-z-ink focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-z-brand-500"
+                    className="flex min-h-11 items-center gap-3 rounded-card border border-chalk-line px-3 py-2 text-sm font-medium text-z-ink focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-z-brand-500 has-[:checked]:border-mat has-[:checked]:bg-mat-wash"
                   >
                     <input
                       id={checkboxId}
@@ -246,7 +246,7 @@ export function MonthlyPricePlanCreateForm({
           </ul>
         )}
         {classTemplatesPartial && (
-          <p role="status" className="text-sm text-amber-900">
+          <p role="status" className="text-sm leading-6 text-ochre-ink">
             Hay más de 100 clases activas. La lista es parcial; solo se
             cubrirán las clases que marques aquí.
           </p>

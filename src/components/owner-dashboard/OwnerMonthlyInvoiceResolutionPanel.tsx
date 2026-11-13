@@ -38,6 +38,8 @@ import {
   MonthlyPricePlanSelector,
 } from "./OwnerMonthlyResolutionTariffFields";
 import { MonthlyResolutionFamilyFields } from "./OwnerMonthlyResolutionFamilyFields";
+import { ownerUi } from "./owner-ui";
+import { cn } from "@/lib/utils";
 
 export type { ResolutionAction } from "./owner-monthly-resolution-model";
 export { PENDING_OWNER_MONTHLY_RESOLUTION_STORAGE_KEY } from "./owner-monthly-resolution-pending-storage";
@@ -611,10 +613,10 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   return (
     <section
       aria-labelledby="owner-monthly-resolution-heading"
-      className="rounded-[12px] mx-auto mt-6 grid max-w-4xl gap-4 border border-z-line bg-white p-5 sm:p-7"
+      className={cn(ownerUi.card, "mx-auto mt-6 grid max-w-4xl gap-4 sm:p-7")}
     >
       <div>
-        <h2 id="owner-monthly-resolution-heading" className="text-xl font-bold">
+        <h2 id="owner-monthly-resolution-heading" className={ownerUi.sectionTitle}>
           {action.kind === "tariff"
             ? `Asignar tarifa a ${displayName(action.athleteName, "la gimnasta")}`
             : action.kind === "family"
@@ -642,7 +644,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       )}
 
       {pendingStorageError && (
-        <p role="alert" className="rounded-[12px] border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+        <p role="alert" className={ownerUi.noticeError}>
           {pendingStorageError}
         </p>
       )}
@@ -758,7 +760,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       {error && (
         <p
           role="alert"
-          className="rounded-[12px] border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+          className={ownerUi.noticeError}
         >
           {error}
         </p>

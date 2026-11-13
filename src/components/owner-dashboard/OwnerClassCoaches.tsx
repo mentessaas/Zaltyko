@@ -6,6 +6,7 @@ import { UserRound } from "lucide-react";
 import type { CoachRef } from "@/modules/coach-assignment/domain/coach-assignment";
 import type { ScheduleConflict } from "@/modules/schedule-conflicts/domain/schedule-conflicts";
 import { OwnerScheduleConflictList } from "./OwnerScheduleConflicts";
+import { ownerTone } from "./owner-tone-ui";
 import { ownerUi } from "./owner-ui";
 import {
   COACH_ASSIGNMENT_UNAVAILABLE_MESSAGE,
@@ -206,7 +207,7 @@ export function OwnerClassCoaches({
             sustitución pasan a los titulares que guardes.
           </p>
           {options.length === 0 ? (
-            <p className={`mt-3 ${ownerUi.noticeWarning}`}>
+            <p className={`mt-3 ${ownerTone.noticeWarning}`}>
               Nadie del equipo con rol Entrenador/a tiene acceso a esta sede todavía. Dale acceso desde Equipo.
             </p>
           ) : (
@@ -222,7 +223,7 @@ export function OwnerClassCoaches({
                       <input
                         id={inputId}
                         type="checkbox"
-                        className="h-5 w-5 shrink-0"
+                        className="h-5 w-5 shrink-0 accent-mat"
                         checked={editor.selected.includes(coach.staffProfileId)}
                         disabled={editor.saving}
                         onChange={(event) => toggle(coach.staffProfileId, event.target.checked)}

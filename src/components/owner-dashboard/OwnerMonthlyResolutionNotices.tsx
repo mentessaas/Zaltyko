@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { primaryButtonClassName } from "./owner-monthly-resolution-model";
+import { ownerNoticeAviso } from "./owner-form-tones";
+import { ownerUi } from "./owner-ui";
+import { cn } from "@/lib/utils";
 import type { PendingResolutionCommand } from "./owner-monthly-resolution-pending-storage";
 
 /**
@@ -22,7 +25,7 @@ export function MonthlyResolutionPendingNotice({
   return (
     <div
       role="status"
-      className="rounded-[12px] grid gap-3 border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
+      className={cn(ownerNoticeAviso, "grid gap-3")}
     >
       <p>
         Hay una operación de facturación cuyo resultado sigue sin
@@ -66,7 +69,7 @@ export function MonthlyResolutionReceiptNotice({
   };
 }) {
   return (
-    <div role="status" className="rounded-[12px] grid gap-2 border border-z-brand-100 bg-z-brand-50 p-4 text-sm text-z-brand-700">
+    <div role="status" className={cn(ownerUi.noticeInfo, "grid gap-2")}>
       <p>{commandReceipt.message} No hemos cambiado el catálogo de la vista actual.</p>
       <Link
         className="min-h-11 w-fit content-center font-bold underline underline-offset-2"

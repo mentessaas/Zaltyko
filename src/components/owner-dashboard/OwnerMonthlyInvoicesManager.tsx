@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
+import { ownerField, ownerNoticeAviso } from "./owner-form-tones";
+import { ownerUi } from "./owner-ui";
+import { cn } from "@/lib/utils";
 
 import {
   OwnerMonthlyInvoiceWorkspace,
@@ -576,12 +580,13 @@ export function OwnerMonthlyInvoicesManager({
             organizationId,
             locationId,
           }).toString()}`}
-          className="min-h-11 w-fit content-center rounded-full border border-z-line bg-white px-4 text-sm font-semibold text-z-soft hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
+          className={cn(ownerUi.backLink, "w-fit")}
         >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Volver al resumen
         </Link>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-700">
+          <p className={ownerUi.eyebrow}>
             {organizationName}
           </p>
         </div>
@@ -607,7 +612,7 @@ export function OwnerMonthlyInvoicesManager({
                 setIssueError("");
                 setSuccessMessage("");
               }}
-              className="rounded-[12px] min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500"
+              className={ownerField}
             >
               {locations.map((location) => (
                 <option key={location.id} value={location.id}>
@@ -637,7 +642,7 @@ export function OwnerMonthlyInvoicesManager({
               setQuoteNeedsReview(false);
               setState(isServicePeriod(nextPeriod) ? "loading" : "empty");
             }}
-            className="rounded-[12px] min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500"
+            className={ownerField}
             aria-describedby="monthly-invoice-period-help"
           />
           <span
@@ -653,7 +658,7 @@ export function OwnerMonthlyInvoicesManager({
         <p
           role="alert"
           aria-live="assertive"
-          className="rounded-[12px] mx-auto max-w-4xl border border-rose-400 bg-rose-50 p-4 text-sm text-rose-950"
+          className={cn(ownerUi.noticeError, "mx-auto max-w-4xl")}
         >
           {retryStorageError}
         </p>
@@ -661,7 +666,7 @@ export function OwnerMonthlyInvoicesManager({
       {issueRetry && (
         <div
           role="status"
-          className="rounded-[12px] mx-auto grid max-w-4xl gap-3 border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
+          className={cn(ownerNoticeAviso, "mx-auto grid max-w-4xl gap-3")}
         >
           <p>
             Hay una emisión cuyo resultado sigue sin confirmar. Conservamos su
@@ -672,7 +677,7 @@ export function OwnerMonthlyInvoicesManager({
               type="button"
               disabled={busy}
               onClick={replayPendingInvoice}
-              className="rounded-[12px] min-h-11 w-fit border border-amber-800 px-4 py-2 font-bold underline underline-offset-2 disabled:opacity-50"
+              className={cn(ownerUi.secondaryButton, "w-fit")}
             >
               Reintentar la emisión pendiente
             </button>
@@ -691,7 +696,7 @@ export function OwnerMonthlyInvoicesManager({
         </div>
       )}
       {issueReceipt && (
-        <div role="status" className="rounded-[12px] mx-auto grid max-w-4xl gap-2 border border-z-brand-100 bg-z-brand-50 p-4 text-sm text-z-brand-700">
+        <div role="status" className={cn(ownerUi.noticeInfo, "mx-auto grid max-w-4xl gap-2")}>
           <p>{issueReceipt.message} La pantalla actual no se ha actualizado.</p>
           <Link
             className="min-h-11 w-fit content-center font-bold underline underline-offset-2"
@@ -777,7 +782,7 @@ export function OwnerMonthlyInvoicesManager({
         <p
           role="status"
           aria-live="polite"
-          className="rounded-[12px] mx-auto mt-6 max-w-4xl border border-z-brand-100 bg-z-brand-50 p-4 text-sm text-z-brand-700"
+          className={cn(ownerUi.noticeInfo, "mx-auto mt-6 max-w-4xl")}
         >
           {resolutionNotice}
         </p>
@@ -804,7 +809,7 @@ export function OwnerMonthlyInvoicesManager({
       {issueError && (
         <div
           role="alert"
-          className="mx-auto -mt-4 max-w-4xl px-5 text-sm text-red-900"
+          className="mx-auto -mt-4 max-w-4xl px-5 text-sm font-medium text-signal-ink"
         >
           {issueError}
         </div>

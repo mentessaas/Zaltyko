@@ -2,7 +2,10 @@ import { z } from "zod";
 
 /** Availability is independent of billing, operational capacity and permissions. */
 export type FeatureAvailability = "available" | "beta" | "planned" | "hidden";
-export const FEATURE_CATALOG_VERSION = "2026-11-04-v1";
+// v2 (13-11-2026): «De la web a la inscripción» y «Planificación y progreso
+// deportivo» pasan a disponibles (activadas el 12-11-2026) y dejan de
+// mostrarse como propuestas. Las señales nuevas se cuentan por versión.
+export const FEATURE_CATALOG_VERSION = "2026-11-13-v2";
 export const featureIdSchema = z.enum(["club-events", "club-acquisition", "sport-progression"]);
 export type DiscoveryFeatureId = z.infer<typeof featureIdSchema>;
 
@@ -17,6 +20,9 @@ export interface DiscoveryFeature {
 }
 
 // No dates, paid-tier promises or executable operational links for planned work.
+// Only "planned" entries are shown as proposals (discoverableFeatures). An
+// activated feature becomes "available" and leaves the proposals; its id stays
+// because recorded interests and signals still reference it.
 export const FEATURE_CATALOG: readonly DiscoveryFeature[] = [
   {
     id: "club-events", title: "Competiciones y conexión entre clubes",
@@ -26,14 +32,14 @@ export const FEATURE_CATALOG: readonly DiscoveryFeature[] = [
   },
   {
     id: "club-acquisition", title: "De la web a la inscripción",
-    summary: "Propuesta para conectar solicitudes, clases de prueba y oferta de plazas. Este recorrido todavía no está disponible.",
-    status: "planned", statusLabel: "En preparación", roles: ["owner", "admin"],
+    summary: "Enlace público de solicitud de prueba y bandeja de solicitudes, con paso a inscripción o a lista de espera.",
+    status: "available", statusLabel: "Disponible", roles: ["owner", "admin"],
     intents: [{ id: "capture", label: "Recibir solicitudes" }, { id: "convert", label: "Convertir pruebas en inscripciones" }],
   },
   {
     id: "sport-progression", title: "Planificación y progreso deportivo",
-    summary: "Propuesta para conectar objetivos y progreso con las sesiones del club, comenzando por artística femenina y masculina. Todavía no ofrece evaluaciones ni cálculos reglamentarios.",
-    status: "planned", statusLabel: "En preparación", roles: ["owner", "admin", "manager"],
+    summary: "Objetivos y observaciones por gimnasta y guion de cada sesión, en artística femenina y masculina. No ofrece evaluaciones ni cálculos reglamentarios.",
+    status: "available", statusLabel: "Disponible", roles: ["owner", "admin", "manager"],
     intents: [{ id: "plan", label: "Preparar el trabajo de las sesiones" }, { id: "track", label: "Seguir los objetivos deportivos" }],
   },
 ];

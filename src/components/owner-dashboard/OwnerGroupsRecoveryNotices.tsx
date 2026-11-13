@@ -10,6 +10,7 @@ import {
   secondaryButtonClassName,
   type PendingMembershipCommand,
 } from "./owner-groups-manager-model";
+import { ownerTone } from "./owner-tone-ui";
 
 type ArchiveEditorProps = ComponentProps<typeof OwnerAthleteArchiveEditor>;
 
@@ -31,7 +32,7 @@ export function OwnerGroupsRecoveryAlert({
   onRetry: () => void;
 }) {
   return (
-    <section role="alert" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink">
+    <section role="alert" className={`mt-5 ${ownerTone.noticeWarning}`}>
       <p>{message}</p>
       <button type="button" className={`${secondaryButtonClassName} mt-3`} onClick={onRetry}>
         {retryLabel}
@@ -48,11 +49,11 @@ export function OwnerGroupsPendingArchiveNotice({
   isForeign: boolean;
 }) {
   return (
-    <section role="status" aria-labelledby="pending-athlete-archive-title" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink">
+    <section role="status" aria-labelledby="pending-athlete-archive-title" className={`mt-5 ${ownerTone.noticeWarning}`}>
       <h2 id="pending-athlete-archive-title" className="font-bold">Archivo de ficha pendiente de confirmar</h2>
-      <p className="mt-2 leading-6">Conservamos la solicitud original y su clave. No iniciaremos otras escrituras hasta confirmar el resultado. El reintento solo se hará al pulsar el botón de la ficha original.</p>
+      <p className="mt-2">Conservamos la solicitud original y su clave. No iniciaremos otras escrituras hasta confirmar el resultado. El reintento solo se hará al pulsar el botón de la ficha original.</p>
       {isForeign && (
-        <Link className="mt-2 inline-flex min-h-11 items-center font-semibold underline" href={pendingArchiveHref(pendingAthleteArchive)}>
+        <Link className="mt-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-2" href={pendingArchiveHref(pendingAthleteArchive)}>
           Volver al grupo original para resolver el archivo
         </Link>
       )}
@@ -75,8 +76,8 @@ export function OwnerGroupsDetachedArchiveResolver({
   onArchived: ArchiveEditorProps["onArchived"];
 }) {
   return (
-    <section role="region" aria-label="Resolver archivo de ficha pendiente" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4">
-      <p className="mb-3 text-sm leading-6 text-z-ink">La ficha ya no aparece en las pertenencias actuales. Puedes comprobar la operación original con su misma clave, sin crear otro archivo.</p>
+    <section role="region" aria-label="Resolver archivo de ficha pendiente" className={`mt-5 ${ownerTone.noticeWarning}`}>
+      <p className="mb-3">La ficha ya no aparece en las pertenencias actuales. Puedes comprobar la operación original con su misma clave, sin crear otro archivo.</p>
       <OwnerAthleteArchiveEditor
         key={`archive-detached:${pendingAthleteArchive.idempotencyKey}`}
         organizationId={pendingAthleteArchive.organizationId}
@@ -102,11 +103,11 @@ export function OwnerGroupsPendingFamilyAssociationNotice({
   visibleHere: boolean;
 }) {
   return (
-    <section role="status" aria-labelledby="pending-family-association-title" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink">
+    <section role="status" aria-labelledby="pending-family-association-title" className={`mt-5 ${ownerTone.noticeWarning}`}>
       <h2 id="pending-family-association-title" className="font-bold">Asociación familiar pendiente de confirmar</h2>
-      <p className="mt-2 leading-6">Conservamos el cuerpo y la clave de la solicitud original. No iniciaremos otras escrituras hasta confirmar el resultado. Reintenta solo desde el botón de esta gimnasta; nunca enviaremos la operación automáticamente.</p>
+      <p className="mt-2">Conservamos el cuerpo y la clave de la solicitud original. No iniciaremos otras escrituras hasta confirmar el resultado. Reintenta solo desde el botón de esta gimnasta; nunca enviaremos la operación automáticamente.</p>
       {!visibleHere && (
-        <Link className="mt-2 inline-flex min-h-11 items-center font-semibold underline" href={`/owner/groups?organizationId=${encodeURIComponent(pendingAthleteFamilyAssociation.organizationId)}&locationId=${encodeURIComponent(pendingAthleteFamilyAssociation.locationId)}&groupId=${encodeURIComponent(pendingAthleteFamilyAssociation.groupId)}`}>
+        <Link className="mt-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-2" href={`/owner/groups?organizationId=${encodeURIComponent(pendingAthleteFamilyAssociation.organizationId)}&locationId=${encodeURIComponent(pendingAthleteFamilyAssociation.locationId)}&groupId=${encodeURIComponent(pendingAthleteFamilyAssociation.groupId)}`}>
           Volver al grupo original para reintentar
         </Link>
       )}
@@ -120,9 +121,9 @@ export function OwnerGroupsForeignProfileNotice({
   pendingAthleteProfile: PendingOwnerAthleteProfileUpdate;
 }) {
   return (
-    <p role="status" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink">
+    <p role="status" className={`mt-5 ${ownerTone.noticeWarning}`}>
       Hay una edición de ficha pendiente en otra academia, sede, grupo o gimnasta. No iniciaremos otras escrituras hasta comprobar la solicitud original. {" "}
-      <Link className="font-bold underline" href={`/owner/groups?organizationId=${encodeURIComponent(pendingAthleteProfile.organizationId)}&locationId=${encodeURIComponent(pendingAthleteProfile.locationId)}&groupId=${encodeURIComponent(pendingAthleteProfile.groupId)}`}>
+      <Link className="font-bold underline underline-offset-2" href={`/owner/groups?organizationId=${encodeURIComponent(pendingAthleteProfile.organizationId)}&locationId=${encodeURIComponent(pendingAthleteProfile.locationId)}&groupId=${encodeURIComponent(pendingAthleteProfile.groupId)}`}>
         Volver al grupo original
       </Link>
     </p>
@@ -135,9 +136,9 @@ export function OwnerGroupsForeignMembershipNotice({
   foreignMembershipScope: { organizationId: string; groupId: string };
 }) {
   return (
-    <p role="status" className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink">
+    <p role="status" className={`mt-5 ${ownerTone.noticeWarning}`}>
       Hay un cambio de pertenencia pendiente en otra academia o grupo. No iniciaremos otra escritura hasta resolverlo.{" "}
-      <Link className="font-bold underline" href={`/owner/groups?organizationId=${encodeURIComponent(foreignMembershipScope.organizationId)}&groupId=${encodeURIComponent(foreignMembershipScope.groupId)}`}>
+      <Link className="font-bold underline underline-offset-2" href={`/owner/groups?organizationId=${encodeURIComponent(foreignMembershipScope.organizationId)}&groupId=${encodeURIComponent(foreignMembershipScope.groupId)}`}>
         Volver al grupo original
       </Link>
     </p>
@@ -161,17 +162,17 @@ export function OwnerGroupsPendingMembershipNotice({
     <section
       role="status"
       aria-labelledby="pending-membership-title"
-      className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink"
+      className={`mt-5 ${ownerTone.noticeWarning}`}
     >
       <h2 id="pending-membership-title" className="font-bold">Operación pendiente de confirmar</h2>
-      <p className="mt-2 leading-6">
+      <p className="mt-2">
         {pendingMembership.kind === "create"
           ? "Conservamos la solicitud original y su clave en esta pantalla para comprobar el resultado sin crear otra operación. No cierres ni recargues la página mientras esté pendiente."
           : "Conservamos los IDs, el estado, la fecha y la clave de la solicitud original en esta sesión. Si recargas, se restaurará sin reenviarse; pulsa reintentar para comprobar el resultado."}
         {!canRetryMembership && " Vuelve a la academia y al grupo originales para reintentar; no enviaremos nada desde otro contexto."}
       </p>
       {!canRetryMembership && (
-        <Link className="mt-2 inline-flex min-h-11 items-center font-semibold underline" href={`/owner/groups?organizationId=${encodeURIComponent(pendingMembership.organizationId)}&groupId=${encodeURIComponent(pendingMembership.groupId)}`}>
+        <Link className="mt-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-2" href={`/owner/groups?organizationId=${encodeURIComponent(pendingMembership.organizationId)}&groupId=${encodeURIComponent(pendingMembership.groupId)}`}>
           Volver al grupo original
         </Link>
       )}
