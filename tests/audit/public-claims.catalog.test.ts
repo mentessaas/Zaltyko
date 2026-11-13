@@ -260,7 +260,8 @@ describe("L2 — copy pública presente en componentes", () => {
 
   it("PricingSection comunica prueba explícita y comparación mensual/anual", () => {
     const copy = pricing.replace(/\s+/g, " ");
-    expect(copy).toContain("Precios sin IVA");
+    expect(copy).toContain("Precios finales con IVA");
+    expect(copy).toContain("+ IVA");
     expect(copy).toContain("7 días de Starter sin tarjeta");
     expect(copy).toContain("una activación por academia cada 12 meses");
     expect(copy).toContain("Empieza gratis y configura tu academia");
