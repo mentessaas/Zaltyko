@@ -14,9 +14,11 @@ vi.mock("@/lib/launch/commercial-launch-profile", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/launch/commercial-launch-profile")>();
   const readyProfile = {
     ...actual.commercialLaunchProfile,
-    taxId: "synthetic-tax-id",
-    professionalAddress: "synthetic-address",
+    // Valores sintéticos con formato válido; no son datos del vendedor.
+    taxId: "12345678Z",
+    professionalAddress: "Calle Sintética 1, 28001 Madrid",
     registrationStatus: "verified" as const,
+    registrationVerifiedOn: "2026-11-01",
     supportMailboxVerified: true,
     taxTreatmentReviewed: true,
     checkoutTaxVerified: true,
@@ -136,4 +138,27 @@ describe("legacy Checkout respects the real commercial launch gate", () => {
     }
   );
 
+  it("never opens Live from this legacy route, which lacks the Spanish VAT contract", async () => {
+    mocks.liveReady.mockReturnValue(true);
+    mocks.env.mockReturnValue("sk_live_synthetic");
+    mocks.access.mockResolvedValue({
+      id: "10000000-0000-4000-8000-000000000001",
+      ownerUserId: "synthetic-owner",
+      countryCode: "ES",
+    });
+    const response = await POST(request({
+      academyId: "10000000-0000-4000-8000-000000000001",
+      planCode: "pro",
+    }));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      code: "BILLING_CONFIGURATION_UNAVAILABLE",
+    });
+    expect(mocks.access).toHaveBeenCalledOnce();
+    expect(mocks.select).not.toHaveBeenCalled();
+    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.customer).not.toHaveBeenCalled();
+    expect(mocks.session).not.toHaveBeenCalled();
+  });
 });

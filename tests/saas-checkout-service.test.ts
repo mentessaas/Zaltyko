@@ -34,6 +34,7 @@ vi.mock("@/modules/saas-billing/application/saas-billing-config", () => ({
   getSaasStripeConfig: mocks.config,
   createSaasStripeClient: () => ({
     prices: { retrieve: mocks.provider },
+    taxRates: { retrieve: mocks.provider },
     customers: { create: mocks.provider },
     checkout: {
       sessions: { create: mocks.provider, retrieve: mocks.provider },
@@ -196,6 +197,113 @@ describe("Checkout reservation guards with isolated dependencies", () => {
     }
     expect(creations[0][1]).toEqual({ idempotencyKey: "stable-checkout-key" });
     expect(insert).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["canarias", 403, "SAAS_TAX_TERRITORY_NOT_COVERED"],
+    ["ceuta", 403, "SAAS_TAX_TERRITORY_NOT_COVERED"],
+    ["melilla", 403, "SAAS_TAX_TERRITORY_NOT_COVERED"],
+    [undefined, 422, "SAAS_TAX_TERRITORY_REQUIRED"],
+  ] as const)("rejects Spanish Live checkout for territory %s before locking or writing", async (taxTerritory, status, code) => {
+    mocks.liveReady = true;
+    mocks.config.mockReturnValue({
+      environment: "live",
+      providerAccountReference: "acct_synthetic_live",
+      taxRates: { esVatGeneral: "txr_synthetic_live" },
+    });
+    await expect(createOwnerSaasCheckout({ ...input, taxTerritory })).rejects.toMatchObject({
+      status, details: { code },
+    });
+    expect(mocks.lock).not.toHaveBeenCalled();
+    expect(limit).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(mocks.provider).not.toHaveBeenCalled();
+    expect(mocks.dbUpdate).not.toHaveBeenCalled();
+  });
+  it("keeps Spanish Live checkout closed without the VAT Tax Rate even when seller setup is ready", async () => {
+    mocks.liveReady = true;
+    mocks.config.mockReturnValue({ environment: "live", providerAccountReference: "acct_synthetic_live" });
+    await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares" })).rejects.toMatchObject({
+      status: 503, details: { code: "BILLING_CONFIGURATION_UNAVAILABLE" },
+    });
+    expect(mocks.lock).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+    expect(mocks.provider).not.toHaveBeenCalled();
+  });
+  describe("Spanish VAT on a new Checkout session", () => {
+    const v3Hash = createHash("sha256").update(JSON.stringify({
+      organizationId, planCode: "starter", billingInterval: "month", environment: "test",
+      providerAccountReference: "acct_synthetic", priceReference: "price_synthetic", requestVersion: 3,
+    })).digest("hex");
+    const operation = { id: "operation", organizationId, planCode: "starter", billingInterval: "month", requestHash: v3Hash,
+      status: "recovery_required", checkoutSessionReference: null, createdAt: new Date(at.getTime() - 60000),
+      stripeIdempotencyKey: "stable-checkout-key", leaseToken: "lease", fencingVersion: 2 };
+    const price = { id: "price_synthetic", active: true, livemode: false, currency: "eur", type: "recurring", recurring: { interval: "month", interval_count: 1 }, unit_amount: 1900 };
+    const taxRate = { id: "txr_synthetic", active: true, livemode: false, inclusive: false, percentage: 21, country: "ES", tax_type: "vat" };
+    const session = { id: "cs_taxed", mode: "subscription", status: "open", customer: "cus_saved", livemode: false,
+      expires_at: 4070908800, url: "https://checkout.stripe.com/c/pay/synthetic",
+      amount_subtotal: 1900, amount_total: 2299, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 399 },
+      metadata: { zaltyko_saas: "true", organization_saas_checkout_operation_id: "operation", organization_id: organizationId,
+        plan_code: "starter", billing_interval: "month", provider_account_reference: "acct_synthetic", environment: "test" },
+      line_items: { data: [{ quantity: 1, price }] } };
+    function arrange(overrides: { session?: Record<string, unknown>; taxRate?: Record<string, unknown> } = {}) {
+      mocks.config.mockReturnValue({
+        environment: "test", providerAccountReference: "acct_synthetic",
+        taxRates: { esVatGeneral: "txr_synthetic" },
+      });
+      limit.mockResolvedValue([operation]);
+      update.mockReturnValue({ set: () => ({ where: () => ({ returning: async () => [operation] }) }) });
+      const customerKey = `zaltyko-saas-customer-${organizationId}-test-${createHash("sha256").update("acct_synthetic").digest("hex").slice(0, 8)}`;
+      const customerHash = createHash("sha256").update(JSON.stringify({ organizationId, environment: "test", providerAccountReference: "acct_synthetic" })).digest("hex");
+      mocks.select.mockReturnValue({ from: () => ({ where: () => ({ limit: async () => [{
+        id: "customer-row", status: "ready", customerReference: "cus_saved",
+        creationIdempotencyKey: customerKey, creationRequestHash: customerHash,
+      }] }) }) });
+      mocks.provider.mockImplementation(async (arg) => typeof arg === "string"
+        ? arg === "price_synthetic" ? price
+          : arg === "txr_synthetic" ? { ...taxRate, ...overrides.taxRate }
+            : { ...session, ...overrides.session }
+        : { id: session.id });
+      mocks.dbUpdate.mockReturnValue({ set: (data: { status: string }) => ({ where: () => data.status === "open"
+        ? { returning: async () => [{ id: operation.id }] }
+        : Promise.resolve() }) });
+    }
+    it("adds the 21 % Tax Rate and invoice data collection, and checks the session total", async () => {
+      arrange();
+      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares" }))
+        .resolves.toMatchObject({ operationId: "operation", checkoutUrl: "https://checkout.stripe.com/c/pay/synthetic" });
+      expect(mocks.provider).toHaveBeenCalledWith("txr_synthetic");
+      const creations = mocks.provider.mock.calls.filter(([arg]) => typeof arg === "object");
+      expect(creations).toHaveLength(1);
+      expect(creations[0][0]).toMatchObject({
+        line_items: [{ price: "price_synthetic", quantity: 1, tax_rates: ["txr_synthetic"] }],
+        billing_address_collection: "required",
+        tax_id_collection: { enabled: true },
+        customer_update: { address: "auto", name: "auto" },
+      });
+      expect(creations[0][0]).not.toHaveProperty("automatic_tax");
+      expect(creations[0][1]).toEqual({ idempotencyKey: "stable-checkout-key" });
+    });
+    it.each([
+      ["a session without tax", { amount_total: 1900, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 0 } }],
+      ["a session with another tax amount", { amount_total: 2280, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 380 } }],
+    ])("does not hand over %s", async (_label, sessionOverride) => {
+      arrange({ session: sessionOverride });
+      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares" }))
+        .rejects.toMatchObject({ status: 503 });
+    });
+    it.each([
+      ["inclusive", { inclusive: true }],
+      ["10 %", { percentage: 10 }],
+      ["another country", { country: "PT" }],
+      ["archived", { active: false }],
+      ["live mode", { livemode: true }],
+    ])("refuses a misconfigured Tax Rate (%s) before creating a session", async (_label, taxRateOverride) => {
+      arrange({ taxRate: taxRateOverride });
+      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares" }))
+        .rejects.toMatchObject({ status: 503 });
+      expect(mocks.provider.mock.calls.filter(([arg]) => typeof arg === "object")).toHaveLength(0);
+    });
   });
   it("reuses the validated open session without creating another operation", async () => {
     const expiresAt = new Date("2099-01-01T00:00:00Z");

@@ -90,6 +90,29 @@ describe("SaaS Stripe environment configuration", () => {
     });
   });
 
+  it.each(["test", "live"] as const)(
+    "reads the Spanish VAT Tax Rate only from the %s prefix and ignores malformed values",
+    (environment) => {
+      const prefix = `STRIPE_SAAS_${environment.toUpperCase()}`;
+      const other = environment === "test" ? "LIVE" : "TEST";
+      expect(getSaasStripeConfig(env(environment))?.taxRates).toEqual({ esVatGeneral: null });
+      expect(getSaasStripeConfig(env(environment, {
+        [`${prefix}_TAX_RATE_ES_IVA21`]: " txr_synthetic ",
+      }))?.taxRates).toEqual({ esVatGeneral: "txr_synthetic" });
+      expect(getSaasStripeConfig(env(environment, {
+        [`STRIPE_SAAS_${other}_TAX_RATE_ES_IVA21`]: "txr_other_mode",
+      }))?.taxRates).toEqual({ esVatGeneral: null });
+      for (const malformed of ["", "price_synthetic", "txr_bad-value", "21"]) {
+        const config = getSaasStripeConfig(env(environment, {
+          [`${prefix}_TAX_RATE_ES_IVA21`]: malformed,
+        }));
+        // The rest of billing (Portal, webhooks) keeps working; only Checkout tax is absent.
+        expect(config).not.toBeNull();
+        expect(config?.taxRates).toEqual({ esVatGeneral: null });
+      }
+    }
+  );
+
   it("enables the Portal only for the explicit true value", () => {
     expect(getSaasStripeConfig(env("test", {
       STRIPE_SAAS_TEST_PORTAL_ENABLED: "TRUE",

@@ -23,10 +23,12 @@ vi.mock("@/lib/launch/commercial-launch-profile", async (importOriginal) => {
   const readyProfile = {
     legalName: "Synthetic Seller",
     countryCode: "ES",
-    taxId: "SYNTHETIC-TAX-ID",
-    professionalAddress: "1 Test Street, Madrid",
+    // Valores sintéticos con formato válido; no son datos del vendedor.
+    taxId: "12345678Z",
+    professionalAddress: "Calle Sintética 1, 28001 Madrid",
     supportEmail: "billing@example.invalid",
     registrationStatus: "verified" as const,
+    registrationVerifiedOn: "2026-11-01",
     supportMailboxVerified: true,
     taxTreatmentReviewed: true,
     checkoutTaxVerified: true,
@@ -229,6 +231,36 @@ describe("owner SaaS billing snapshot market actions", () => {
       canOpenPortal: true,
     });
     expect(mocks.select).toHaveBeenCalledTimes(6);
+    expectNoExternalOrWriteEffects();
+  });
+
+  it("offers Live checkout to a Spanish Free academy only with the VAT Tax Rate configured", async () => {
+    mocks.scope.mockResolvedValue({
+      organizationId,
+      organizationName: "Synthetic Academy",
+      memberId: "synthetic-member",
+      userId,
+      countryCode: "ES",
+    });
+    queueSnapshotSelects([], [], [], [], []);
+    const withoutTaxRate = await getOwnerSaasBillingSnapshot({ userId, organizationId, at });
+    expect(withoutTaxRate.actions).toMatchObject({
+      canCheckoutStarter: false,
+      canCheckoutGrowth: false,
+    });
+
+    mocks.config.mockReturnValue({
+      environment: "live",
+      providerAccountReference: "acct_synthetic",
+      portalEnabled: true,
+      taxRates: { esVatGeneral: "txr_synthetic_live" },
+    });
+    queueSnapshotSelects([], [], [], [], []);
+    const withTaxRate = await getOwnerSaasBillingSnapshot({ userId, organizationId, at });
+    expect(withTaxRate.actions).toMatchObject({
+      canCheckoutStarter: true,
+      canCheckoutGrowth: true,
+    });
     expectNoExternalOrWriteEffects();
   });
 
