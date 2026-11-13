@@ -151,9 +151,9 @@ test.describe("L6 — JSON-LD / sitemap accuracy", () => {
     expect(entities.length).toBe(8);
 
     const names = entities.map((e) => e.name);
-    expect(names).toContain("¿Para qué modalidades sirve Zaltyko?");
-    expect(names).toContain("¿Cumple con la normativa de protección de datos de menores?");
-    expect(names).toContain("¿Puedo cancelar en cualquier momento?");
+    expect(names).toContain("¿Sirve para mi academia y mi país?");
+    expect(names).toContain("¿Qué pasa con los datos de los menores?");
+    expect(names).toContain("¿Qué pasa al terminar la prueba o si cancelo?");
   });
 
   test("Pricing cards renderizan precios formateados", async ({ page }) => {
