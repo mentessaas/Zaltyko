@@ -2,6 +2,8 @@
 
 Fecha: 10 de noviembre de 2026. Plan de mejora, P2 #15. Base: `origin/main` en `5a807f49`.
 
+**Estado: activo en producción desde 12-11-2026.** El candidato `docs/deployment/candidates/20261110120000_admission_requests_candidate.sql` se aplicó ese día con autorización de Elvis; también está instalado en staging (`docs/deployment/staging.md`).
+
 Esta nota describe qué hay hoy en el repositorio, qué falta para enlazar las cuatro etapas sin duplicar datos y el corte mínimo que se puede publicar. No incluye datos de mercado: ningún dato de esta nota procede de fuera del repositorio.
 
 ## Hallazgos
@@ -87,7 +89,7 @@ Esta nota describe qué hay hoy en el repositorio, qué falta para enlazar las c
 
 | Pieza | Qué hace | Archivo |
 |---|---|---|
-| Tablas candidatas | `zaltyko.admission_links`: enlace por academia (general o de una sede), con un token de 128 bits, activado o desactivado, quién lo creó y la fecha de revocación. `zaltyko.admission_requests`: academia, sede, enlace, persona adulta, email, teléfono opcional, solo el nombre de pila de la gimnasta, año de nacimiento opcional, comentario corto, versión y fecha del consentimiento, estado, enlaces a gimnasta y lista de espera, fecha de supresión y revisión. Las dos con RLS forzada y sin permisos para `anon`/`authenticated`. **Requieren autorización de Elvis para aplicarse**; no se aplican en ningún entorno. | `docs/deployment/candidates/20261110120000_admission_requests_candidate.sql` |
+| Tablas candidatas | `zaltyko.admission_links`: enlace por academia (general o de una sede), con un token de 128 bits, activado o desactivado, quién lo creó y la fecha de revocación. `zaltyko.admission_requests`: academia, sede, enlace, persona adulta, email, teléfono opcional, solo el nombre de pila de la gimnasta, año de nacimiento opcional, comentario corto, versión y fecha del consentimiento, estado, enlaces a gimnasta y lista de espera, fecha de supresión y revisión. Las dos con RLS forzada y sin permisos para `anon`/`authenticated`. Hasta el 12-11-2026 **requerían autorización de Elvis** y no estaban aplicadas; ese día se aplicaron en producción. | `docs/deployment/candidates/20261110120000_admission_requests_candidate.sql` |
 | Detección en ejecución | Si alguna tabla no existe o no tiene RLS forzada, la página pública responde 404, la API responde 503 y la bandeja muestra «Pendiente de activar». | `src/modules/admissions/application/admission-storage.ts` |
 | Página pública | `/solicitar-prueba/[token]`, sin indexar. Solo muestra el nombre de la academia y las sedes activas del enlace. Un token desconocido, desactivado o revocado da el mismo 404. | `src/app/solicitar-prueba/[token]/page.tsx` |
 | API pública | `POST /api/public/trial-requests` con `linkToken`: mismo origen, Zod estricto, honeypot, consentimiento obligatorio, envío idempotente por `submissionId`. Límites por IP, por email (hash) y por enlace (`trial-requests:link:<id>`, 30 por hora; si alguien agota el cupo, regenerar el enlace da uno limpio). Un token que no resuelve o unos datos inválidos no gastan cupo del enlace. Responde igual a un token desconocido, desactivado o revocado. | `src/app/api/public/trial-requests/route.ts` |
@@ -123,12 +125,12 @@ Es la pieza que convierte Zaltyko en algo que trae familias a la academia, no so
 - no duplica gimnastas, esperas ni inscripciones;
 - no cambia la base de datos sin autorización.
 
-Mientras Elvis no apruebe el candidato, el código queda inactivo y lo dice en pantalla.
+Mientras Elvis no aprobó el candidato, el código quedó inactivo y lo decía en pantalla. Desde el 12-11-2026 está activo en producción.
 
 ## Siguiente paso
 
-1. Elvis revisa y, si procede, autoriza el candidato `20261110120000_admission_requests_candidate.sql` (hash en la PR) y el destino. También autoriza ejecutar las pruebas PostgreSQL en el replay de esquema. La CI verde no equivale a autorización.
-2. Tras aplicarlo, prueba manual en un entorno de ensayo:
+1. Elvis revisa y, si procede, autoriza el candidato `20261110120000_admission_requests_candidate.sql` (hash en la PR) y el destino. También autoriza ejecutar las pruebas PostgreSQL en el replay de esquema. La CI verde no equivale a autorización. *12-11-2026: candidato autorizado y aplicado en producción. Las pruebas PostgreSQL siguen fuera del replay de esquema.*
+2. Tras aplicarlo, prueba manual en un entorno de ensayo. *12-11-2026: en staging se probaron las solicitudes; este documento no detalla qué pasos de la lista se recorrieron.*
    - compartir el enlace;
    - enviar una solicitud;
    - verla en «Necesita tu atención»;

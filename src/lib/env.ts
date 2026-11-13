@@ -75,6 +75,9 @@ const serverEnvSchema = z.object({
   STRIPE_SAAS_LIVE_PRICE_STARTER_YEAR: z.string().optional(),
   STRIPE_SAAS_LIVE_PRICE_GROWTH_MONTH: z.string().optional(),
   STRIPE_SAAS_LIVE_PRICE_GROWTH_YEAR: z.string().optional(),
+  // Tax Rate de Stripe (txr_…) del IVA general español 21 % exclusivo.
+  STRIPE_SAAS_TEST_TAX_RATE_ES_IVA21: z.string().optional(),
+  STRIPE_SAAS_LIVE_TAX_RATE_ES_IVA21: z.string().optional(),
 
   // App
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),

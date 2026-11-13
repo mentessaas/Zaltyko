@@ -64,6 +64,7 @@ export default async function OwnerStaffPage({
     <OwnerWorkspacePageShell
       member={scope.member}
       organizationId={scope.organization.id}
+      organizationName={scope.organization.name}
     >
       {ownerAll && teamAccessAvailable ? (
         <>

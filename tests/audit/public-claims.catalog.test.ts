@@ -202,11 +202,38 @@ describe("L2 — copy pública presente en componentes", () => {
   });
 
   it("FaqSection contiene respuesta RGPD sobre menores", () => {
-    expect(ESSENTIAL_FAQS.map(item => `${item.question} ${item.answer}`).join(" ")).toContain("protección de datos de menores");
-    expect(ESSENTIAL_FAQS.map(item => `${item.question} ${item.answer}`).join(" ")).toContain("aísla los datos por academia");
-    expect(ESSENTIAL_FAQS.map(item => `${item.question} ${item.answer}`).join(" ")).toContain("controles de acceso por rol");
+    const minors = ESSENTIAL_FAQS.find(item => item.question === "¿Qué pasa con los datos de los menores?");
+    expect(minors?.answer).toContain("aísla los datos por academia");
+    expect(minors?.answer).toContain("controles de acceso por rol");
+    // Sin prometer cumplimiento normativo: los controles no sustituyen las obligaciones de la academia.
+    expect(minors?.answer).toContain("no sustituyen las obligaciones de la academia");
     expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).toContain("hasta archivar el excedente o contratar capacidad suficiente");
-    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).toContain("web adaptable a móvil");
+    // El uso desde el móvil se cuenta donde importa: el pase de lista de las entrenadoras.
+    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).toContain("pasa lista desde el móvil, sin instalar nada");
+  });
+
+  it("la FAQ es corta y orientada a las objeciones antes de registrarse", () => {
+    expect(ESSENTIAL_FAQS.length).toBeLessThanOrEqual(8);
+    expect(ESSENTIAL_FAQS.map(item => item.question)).toEqual([
+      "¿Cuánto cuesta? ¿Hay un plan gratis?",
+      "¿Sirve para mi academia y mi país?",
+      "¿Puedo traer mis gimnastas desde un Excel?",
+      "¿Cuánto tardo en empezar?",
+      "¿Pueden entrar mis entrenadoras?",
+      "¿Zaltyko cobra a las familias?",
+      "¿Qué pasa con los datos de los menores?",
+      "¿Qué pasa al terminar la prueba o si cancelo?",
+    ]);
+    for (const item of ESSENTIAL_FAQS) {
+      // De una a tres frases, sin jerga interna.
+      expect(item.answer.split(/[.!?](?:\s|$)/).filter(Boolean).length, item.question).toBeLessThanOrEqual(3);
+      expect(item.answer, item.question).not.toMatch(/\bSaaS\b|\bonboarding\b|\bowner\b/i);
+    }
+    // El alta de la dirección no pide tarjeta: el formulario solo pide nombre, correo, contraseña y aceptación.
+    expect(readSiteFile("src/components/RegisterForm.tsx")).not.toMatch(/cardNumber|CardElement|PaymentElement|@stripe/i);
+    expect(ESSENTIAL_FAQS[0].answer).toContain("no te pedimos tarjeta");
+    // Las cuotas a las familias nunca se cobran solas.
+    expect(ESSENTIAL_FAQS.find(item => item.question === "¿Zaltyko cobra a las familias?")?.answer).toMatch(/^No\./);
   });
 
   it("Network mantiene el mismo precio base y matiz sales-assisted en las FAQs", () => {
@@ -218,8 +245,10 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(homeStructuredData).toContain("mainEntity: ESSENTIAL_FAQS.map");
     expect(readSiteFile("src/app/page.tsx")).toContain("<Schema json={structuredData.faqPage} />");
     for (const copy of [ESSENTIAL_FAQS.map(item => item.answer).join(" ")]) {
-      expect(copy).toContain("Network parte de 99€/mes");
-      expect(copy).toContain("propuesta final");
+      expect(copy).toContain("Network parte de 99 €/mes");
+      expect(copy).toContain("condiciones a medida");
+      // Starter y Growth no limitan sedes: no se dice que varias sedes exijan Network.
+      expect(copy).not.toMatch(/Network[^.]{0,40}varias sedes|varias sedes[^.]{0,60}Network/);
     }
   });
 
@@ -231,7 +260,8 @@ describe("L2 — copy pública presente en componentes", () => {
 
   it("PricingSection comunica prueba explícita y comparación mensual/anual", () => {
     const copy = pricing.replace(/\s+/g, " ");
-    expect(copy).toContain("Precios sin IVA");
+    expect(copy).toContain("Precios finales con IVA");
+    expect(copy).toContain("+ IVA");
     expect(copy).toContain("7 días de Starter sin tarjeta");
     expect(copy).toContain("una activación por academia cada 12 meses");
     expect(copy).toContain("Empieza gratis y configura tu academia");

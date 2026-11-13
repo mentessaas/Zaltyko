@@ -77,6 +77,7 @@ export default async function OwnerGroupsPage({
     <OwnerWorkspacePageShell
       member={data.member}
       organizationId={data.organization.id}
+      organizationName={data.organization.name}
       locationId={data.selectedLocationId}
     >
       <OwnerGroupsManager

@@ -60,6 +60,7 @@ export default async function OwnerAthletesPage({
     <OwnerWorkspacePageShell
       member={scope.member}
       organizationId={scope.organization.id}
+      organizationName={scope.organization.name}
       locationId={scope.selectedLocationId}
     >
       <div className="mx-auto w-full max-w-6xl px-5 pt-5 lg:px-10">

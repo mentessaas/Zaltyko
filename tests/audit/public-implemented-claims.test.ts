@@ -325,8 +325,8 @@ describe("la portada dice lo mismo que sus datos estructurados", () => {
   });
 
   it("los precios no cambian", () => {
-    const plans = ESSENTIAL_FAQS.find((item) => item.question === "¿Qué planes y precios hay?")!.answer;
-    expect(plans).toContain("Free incluye hasta 30 gimnastas, 3 grupos y 10 clases activas");
+    const plans = ESSENTIAL_FAQS.find((item) => item.question === "¿Cuánto cuesta? ¿Hay un plan gratis?")!.answer;
+    expect(plans).toContain("Free es gratis hasta 30 gimnastas, 3 grupos y 10 clases activas");
     expect(plans).toContain("19 €/mes o 190 €/año");
     expect(plans).toContain("49 €/mes o 490 €/año");
   });

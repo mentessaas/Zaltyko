@@ -9,7 +9,8 @@ export const ownerUi = {
   pageWide: "w-full px-5 pb-16 pt-7 sm:pt-9 lg:px-10",
   pageHeader: "mb-7 sm:mb-8",
   eyebrow: "floor-label break-words text-z-soft",
-  pageTitle: "mt-1 min-w-0 break-words font-display text-[28px] font-black uppercase leading-[0.95] text-z-ink [overflow-wrap:anywhere] [text-wrap:balance] lg:text-[40px]",
+  // Título apoyado en una regla de cinta de 3 px en noche, como PageHeader de /app.
+  pageTitle: "mt-1 min-w-0 break-words border-b-[3px] border-z-ink pb-3 font-display text-[28px] font-black uppercase leading-[0.95] text-z-ink [overflow-wrap:anywhere] [text-wrap:balance] lg:text-[40px]",
   pageLead: "mt-1.5 max-w-2xl text-sm leading-6 text-z-soft",
   backLink: `touch-target inline-flex items-center gap-1.5 rounded-lg text-sm font-semibold text-z-soft hover:text-z-ink ${FOCUS_RING}`,
 

@@ -24,6 +24,8 @@ import {
   type OwnerSetupProgress,
 } from "@/modules/owner-dashboard/application/setup-checklist-steps";
 import { OwnerSetupChecklistPanel } from "./OwnerSetupChecklistPanel";
+import { OwnerSummaryHero } from "./OwnerSummaryHero";
+import { ownerGreetingName, ownerSummaryNextStep } from "./owner-summary-next-step";
 import { ownerWorkspaceCapabilitiesFor } from "./owner-workspace-capabilities";
 import { ownerUi } from "./owner-ui";
 
@@ -44,7 +46,7 @@ export function OwnerEssentialDashboard({
   todaySessions,
   attentionItems,
   setupProgress,
-  now = new Date(),
+  viewerName,
 }: {
   scope: OwnerScope;
   operationalSummary: OwnerOperationalSummary | null;
@@ -52,18 +54,13 @@ export function OwnerEssentialDashboard({
   attentionItems?: OwnerAttentionItems | null;
   /** Launch checklist facts; null/undefined (query failed or role excluded) hides it. */
   setupProgress?: OwnerSetupProgress | null;
-  now?: Date;
+  /** Nombre declarado al crear la cuenta; solo para el saludo del hero. */
+  viewerName?: string | null;
 }) {
   const dayTimezone =
     scope.locations.find((location) => location.id === scope.selectedLocationId)?.timezone ??
     scope.locations[0]?.timezone ??
     "Europe/Madrid";
-  const todayLabel = new Intl.DateTimeFormat("es-ES", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: dayTimezone,
-  }).format(now);
   const params = new URLSearchParams({ organizationId: scope.organization.id });
   if (scope.selectedLocationId) params.set("locationId", scope.selectedLocationId);
   const capabilities = ownerWorkspaceCapabilitiesFor(scope.member);
@@ -74,6 +71,15 @@ export function OwnerEssentialDashboard({
         canManageOrganizationAthletes: capabilities.canManageOrganizationAthletes,
       })
     : null;
+  const selectedLocationName =
+    scope.locations.find((location) => location.id === scope.selectedLocationId)?.name ?? null;
+  const nextStep = ownerSummaryNextStep({
+    organizationId: scope.organization.id,
+    scopeQuery: params.toString(),
+    setupChecklist,
+    todaySessions,
+    attentionItems,
+  });
   const links: Array<[string, string]> = [];
   if (capabilities.canManageOrganizationAthletes) {
     links.push(["Gimnastas", `/owner/athletes?organizationId=${scope.organization.id}`]);
@@ -92,15 +98,20 @@ export function OwnerEssentialDashboard({
   }
   return (
     <main className={ownerUi.page}>
-      <header className="mb-2 flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0">
-          <p className={ownerUi.eyebrow}>
-            {scope.organization.name}
-            <span className="font-medium"> · <span className="first-letter:uppercase inline-block">{todayLabel}</span></span>
-          </p>
-          <h1 className={ownerUi.pageTitle}>Resumen</h1>
-          <p className={ownerUi.pageLead}>La actividad de tu club, a mano para organizar el día.</p>
-        </div>
+      <OwnerSummaryHero
+        organizationId={scope.organization.id}
+        organizationName={scope.organization.name}
+        scopeLabel={selectedLocationName ?? (scope.canViewOrganizationAggregate ? "Todas las sedes" : null)}
+        greetingName={ownerGreetingName(viewerName)}
+        nextStep={nextStep}
+        timeZone={dayTimezone}
+        subscriptionHref={
+          capabilities.canManageSubscription
+            ? `/owner/subscription?${new URLSearchParams({ organizationId: scope.organization.id })}`
+            : null
+        }
+      />
+      <div className="mt-4 flex min-w-0 justify-end">
         <form action="/owner" method="get" className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
           <input type="hidden" name="organizationId" value={scope.organization.id} />
           <label className="grid min-w-0 max-w-full gap-1.5 text-xs font-semibold text-z-soft sm:w-64">
@@ -115,11 +126,11 @@ export function OwnerEssentialDashboard({
           </label>
           <button type="submit" className={ownerUi.secondaryButton}>Ver resumen</button>
         </form>
-      </header>
+      </div>
       {setupChecklist ? (
         <OwnerSetupChecklistPanel
           checklist={setupChecklist}
-          locationName={scope.locations.find((location) => location.id === scope.selectedLocationId)?.name ?? null}
+          locationName={selectedLocationName}
         />
       ) : null}
       <OwnerOperationalSummaryPanel summary={operationalSummary} />

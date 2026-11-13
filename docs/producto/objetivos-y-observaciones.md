@@ -2,6 +2,8 @@
 
 Fecha: 11 de noviembre de 2026. Plan de mejora `auditorias/2026-11-08/plan-mejora-zaltyko.md`, P2 #17: «Especialización: objetivos y observaciones por gimnasta, luego planificación sobre sesiones; biblioteca GAF/GAM después». Este documento cubre solo la primera parte.
 
+**Estado: activo en producción desde 12-11-2026.** El candidato `docs/deployment/candidates/20261111120000_athlete_progress_candidate.sql` se aplicó ese día con autorización de Elvis; también está instalado en staging (`docs/deployment/staging.md`).
+
 Objetivo: que el equipo técnico deje constancia, en la ficha de cada gimnasta, de qué está trabajando (objetivos) y de lo que ve en el día a día (observaciones), sin abrir datos entre academias ni entre sedes y sin mostrar nada a las familias todavía.
 
 ## Qué hay
@@ -36,10 +38,10 @@ Todo se comprueba en el servidor, dentro de la transacción de cada operación. 
 
 La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que aísla. RLS (ENABLE + FORCE) y los REVOKE a `anon` y `authenticated` son defensa en profundidad frente a clientes directos.
 
-## Solo lectura y funcionalidad dormida
+## Solo lectura y entornos sin la migración
 
 - **Plan en solo lectura:** se puede consultar todo, pero crear, cambiar estado o editar responde 409 `PLAN_OVER_CAPACITY`, igual que el resto de `/owner`. Repetir una creación ya guardada (mismo identificador de petición) devuelve el registro sin escribir. La interfaz desactiva los formularios y lo explica.
-- **Migración sin aplicar:** las tablas están en el candidato `docs/deployment/candidates/20261111120000_athlete_progress_candidate.sql`, que **requiere autorización de Elvis**. Mientras no se aplique:
+- **Migración:** las tablas están en el candidato `docs/deployment/candidates/20261111120000_athlete_progress_candidate.sql`. Hasta el 12-11-2026 **requería autorización de Elvis** y no estaba aplicado; ese día se aplicó en producción. En un entorno donde no esté instalado:
   - Las páginas no muestran los accesos.
   - Las API responden 503 con el motivo `athlete_progress_unavailable`, sin errores 500 ni escrituras a medias.
   - La interfaz solo trata como «no disponible» ese 503 concreto; cualquier otro 503 se muestra como error.
