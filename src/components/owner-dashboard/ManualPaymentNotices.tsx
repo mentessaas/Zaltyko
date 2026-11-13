@@ -8,6 +8,9 @@ import {
   formatMoney,
   type PendingPaymentRequest,
 } from "./manual-payment-form-model";
+import { ownerField, ownerNoticeAviso } from "./owner-form-tones";
+import { ownerUi } from "./owner-ui";
+import { cn } from "@/lib/utils";
 
 /** A pending submission belongs to another academy: resolve it there first. */
 export function ManualPaymentRetryScopeNotice({
@@ -20,7 +23,7 @@ export function ManualPaymentRetryScopeNotice({
   return retryRequest && !retryBelongsToCurrentOrganization ? (
     <div
       role="alert"
-      className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
+      className={ownerNoticeAviso}
     >
       <p>
         Hay un envío de pago pendiente de confirmar en otra academia. Para
@@ -29,7 +32,7 @@ export function ManualPaymentRetryScopeNotice({
       </p>
       <Link
         href={`/owner/payments?organizationId=${encodeURIComponent(retryRequest.body.organizationId)}`}
-        className="mt-2 inline-block font-bold underline underline-offset-2"
+        className="mt-2 inline-flex min-h-11 items-center font-bold underline underline-offset-2"
       >
         Volver a los pagos de la academia del envío pendiente
       </Link>
@@ -46,7 +49,7 @@ export function ManualPaymentOtherActorNotice({
   return otherActorPending ? (
     <div
       role="alert"
-      className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
+      className={ownerNoticeAviso}
     >
       Hay un envío pendiente en otra sesión de Owner. Vuelve a la cuenta que lo
       inició para reintentar ese mismo registro antes de crear otro pago.
@@ -71,7 +74,7 @@ export function ManualPaymentLegacyRecoveryNotice({
   return legacyRecoveryRequired ? (
     <div
       role="alert"
-      className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
+      className={ownerNoticeAviso}
     >
       <p>
         Hay un envío antiguo que no conserva qué usuario lo inició. Si lo
@@ -89,7 +92,7 @@ export function ManualPaymentLegacyRecoveryNotice({
         type="button"
         disabled={disabled}
         onClick={onRecover}
-        className="mt-3 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
+        className={cn(ownerUi.primaryButton, "mt-3")}
       >
         {legacyRecoveryBusy
           ? "Recuperando…"
@@ -131,8 +134,8 @@ export function ManualPaymentEmptyState({
   saved: boolean;
 }) {
   return (
-    <div className="rounded-3xl border border-z-line bg-white p-6 sm:p-8">
-      <h2 className="font-display text-xl font-bold text-z-ink">
+    <div className={ownerUi.card}>
+      <h2 className={ownerUi.cardTitle}>
         No hay cargos pendientes
       </h2>
       <p className="mt-2 max-w-xl text-sm leading-6 text-z-soft">
@@ -141,17 +144,17 @@ export function ManualPaymentEmptyState({
       </p>
       {notices}
       {retryStorageError && (
-        <p role="alert" className="mt-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+        <p role="alert" className={cn(ownerUi.noticeError, "mt-4")}>
           {retryStorageError}
         </p>
       )}
       {retryForCurrentOrganization && (
-        <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+        <div className={cn(ownerNoticeAviso, "mt-4")}>
           <p>
             Hay un envío anterior cuyo resultado no se pudo confirmar. Puedes
             consultar el mismo envío sin crear otro registro.
           </p>
-          <dl className="mt-3 grid gap-2 rounded-lg bg-white/70 p-3 sm:grid-cols-2">
+          <dl className="mt-3 grid gap-2 rounded-md bg-white p-3 text-z-ink sm:grid-cols-2">
             <div>
               <dt className="font-semibold">Importe original</dt>
               <dd>
@@ -192,7 +195,7 @@ export function ManualPaymentEmptyState({
                 value={reference}
                 onChange={(event) => onReferenceChange(event.target.value)}
                 disabled={busy}
-                className="min-h-11 rounded-xl border border-amber-400 bg-white px-3 text-sm text-z-ink"
+                className={ownerField}
               />
             </label>
           )}
@@ -202,7 +205,7 @@ export function ManualPaymentEmptyState({
               busy || !retryStorageReady || retryStorageError !== null
             }
             onClick={onRetry}
-            className="mt-2 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
+            className={cn(ownerUi.primaryButton, "mt-3")}
           >
             {busy ? "Comprobando…" : "Reintentar el mismo registro"}
           </button>
@@ -211,7 +214,7 @@ export function ManualPaymentEmptyState({
       {error && (
         <p
           role="alert"
-          className="mt-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+          className={cn(ownerUi.noticeError, "mt-4")}
         >
           {error}
         </p>
@@ -219,7 +222,7 @@ export function ManualPaymentEmptyState({
       {saved && (
         <p
           role="status"
-          className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950"
+          className={cn(ownerUi.noticeInfo, "mt-4 font-semibold")}
         >
           Pago guardado y asignado al cargo.
         </p>

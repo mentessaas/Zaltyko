@@ -7,6 +7,8 @@ import {
   type PayerRelationship,
   type ResolutionAction,
 } from "./owner-monthly-resolution-model";
+import { ownerNoticeAviso } from "./owner-form-tones";
+import { cn } from "@/lib/utils";
 
 type FamilyPayer = FamilyAssociationOption["payers"][number];
 
@@ -188,7 +190,7 @@ export function MonthlyResolutionFamilyFields({
       )}
 
       {primaryPayerWillChange && (
-        <label className="rounded-[12px] flex min-h-11 items-start gap-3 border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950">
+        <label className={cn(ownerNoticeAviso, "flex min-h-11 items-start gap-3 p-3")}>
           <input
             type="checkbox"
             checked={primaryPayerChangeConfirmed}

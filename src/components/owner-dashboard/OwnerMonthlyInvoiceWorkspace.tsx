@@ -1,6 +1,8 @@
 "use client";
 
+import { ownerNoticeAviso, ownerField } from "./owner-form-tones";
 import { ownerUi } from "./owner-ui";
+import { cn } from "@/lib/utils";
 import { useState } from "react";
 
 export type MonthlyInvoiceOptionsResponse = {
@@ -88,12 +90,11 @@ type IssueCommand = {
   quoteHash: string;
 };
 
-const fieldClassName =
-  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas";
-const buttonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-z-ink bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
-const secondaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500";
+// Campos, botones y avisos del sistema: forma compartida de `components/ui`
+// y `ownerUi`, avisos en ocre y errores en señal (DESIGN.md, «Tonos de estado»).
+const fieldClassName = ownerField;
+const buttonClassName = ownerUi.primaryButton;
+const secondaryButtonClassName = ownerUi.secondaryButton;
 
 function formatMoney(cents: number, currency: string): string {
   try {
@@ -267,13 +268,13 @@ export function OwnerMonthlyInvoiceWorkspace({
     <main className={ownerUi.page}>
       <div className="mx-auto grid max-w-4xl gap-8">
         <header>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-z-brand-700">
+          <p className={ownerUi.eyebrow}>
             Cuotas mensuales
           </p>
           <h1 className={ownerUi.pageTitle}>
             Emitir cuota mensual
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-z-soft sm:text-base">
+          <p className={cn(ownerUi.pageLead, "mt-3 sm:text-base")}>
             Revisa la cuota completa de la familia. Al emitirla queda pendiente
             de pago; no se registra ni se inicia ningún pago.
           </p>
@@ -292,7 +293,7 @@ export function OwnerMonthlyInvoiceWorkspace({
         {state === "error" && (
           <div
             role="alert"
-            className="rounded-[12px] grid gap-3 border border-red-300 bg-red-50 p-4 text-sm text-red-900"
+            className={cn(ownerUi.noticeError, "grid gap-3")}
           >
             <p>{errorMessage ?? "No se han podido cargar las cuotas."}</p>
             <button
@@ -309,7 +310,7 @@ export function OwnerMonthlyInvoiceWorkspace({
           (!options ||
             (options.families.length === 0 &&
               options.unassignedEnrollments.length === 0)) && (
-            <p className="rounded-[12px] border border-z-line bg-white p-5 text-sm leading-6 text-z-soft">
+            <p className="rounded-xl border border-z-line bg-white p-5 text-sm leading-6 text-z-soft">
               No hay familias con inscripciones mensuales que generen cuota en
               este periodo.
             </p>
@@ -320,11 +321,11 @@ export function OwnerMonthlyInvoiceWorkspace({
           options && (
             <section
               aria-labelledby="monthly-invoice-options-heading"
-              className="rounded-[12px] grid gap-6 border border-z-line bg-white p-5 sm:p-7"
+              className={cn(ownerUi.card, "grid gap-6 sm:p-7")}
             >
               <h2
                 id="monthly-invoice-options-heading"
-                className="text-xl font-bold"
+                className={ownerUi.sectionTitle}
               >
                 Revisa la cuota
               </h2>
@@ -431,7 +432,7 @@ export function OwnerMonthlyInvoiceWorkspace({
               {!selectedFamily && (
                 <p
                   role="alert"
-                  className="rounded-[12px] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+                  className={ownerNoticeAviso}
                 >
                   Selecciona una familia para revisar sus inscripciones
                   mensuales.
@@ -439,7 +440,7 @@ export function OwnerMonthlyInvoiceWorkspace({
               )}
 
               {selectedFamily && selectedFamily.payers.length === 0 && (
-                <div className="rounded-[12px] grid gap-3 border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+                <div className={cn(ownerNoticeAviso, "grid gap-3")}>
                   <p>
                     Esta familia todavía no tiene un pagador adulto asignado. La
                     cuota no se puede emitir hasta vincularlo explícitamente.
@@ -458,17 +459,17 @@ export function OwnerMonthlyInvoiceWorkspace({
               {selectedFamily?.blockingReasons.length ? (
                 <section
                   aria-labelledby="monthly-invoice-blockers-heading"
-                  className="rounded-[12px] grid gap-3 border border-amber-300 bg-amber-50 p-4"
+                  className={cn(ownerNoticeAviso, "grid gap-3")}
                 >
                   <h3
                     id="monthly-invoice-blockers-heading"
-                    className="font-bold text-amber-950"
+                    className="font-bold"
                   >
                     Revisa el estado de la cuota
                   </h3>
                   <ul className="grid gap-2">
                     {selectedFamily.blockingReasons.map((reason) => (
-                      <li key={reason} className="text-sm text-amber-950">
+                      <li key={reason} className="text-sm">
                         {reasonLabel(reason)}
                       </li>
                     ))}
@@ -480,11 +481,11 @@ export function OwnerMonthlyInvoiceWorkspace({
                 <section
                   role="alert"
                   aria-labelledby="monthly-invoice-conflicts-heading"
-                  className="rounded-[12px] grid gap-3 border border-amber-300 bg-amber-50 p-4"
+                  className={cn(ownerNoticeAviso, "grid gap-3")}
                 >
                   <h3
                     id="monthly-invoice-conflicts-heading"
-                    className="font-bold text-amber-950"
+                    className="font-bold"
                   >
                     Resuelve los conflictos de tarifa antes de emitir
                   </h3>
@@ -499,7 +500,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                       return (
                         <li
                           key={`${conflict.athleteId}:${conflict.code}`}
-                          className="text-sm text-amber-950"
+                          className="text-sm"
                         >
                           <span className="font-semibold">
                             {athleteLabel(athleteName)}:{" "}
@@ -519,11 +520,11 @@ export function OwnerMonthlyInvoiceWorkspace({
                 ) && (
                   <section
                     aria-labelledby="monthly-invoice-enrollment-issues-heading"
-                    className="rounded-[12px] grid gap-3 border border-amber-300 bg-amber-50 p-4"
+                    className={cn(ownerNoticeAviso, "grid gap-3")}
                   >
                     <h3
                       id="monthly-invoice-enrollment-issues-heading"
-                      className="font-bold text-amber-950"
+                      className="font-bold"
                     >
                       Inscripciones que requieren atención
                     </h3>
@@ -537,10 +538,10 @@ export function OwnerMonthlyInvoiceWorkspace({
                         .map((enrollment) => (
                           <li
                             key={enrollment.enrollmentId}
-                            className="grid gap-3 border-t border-amber-200 pt-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
+                            className="grid gap-3 border-t border-ochre-line pt-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
                           >
                             <div className="grid min-w-0 gap-1">
-                              <span className="break-words text-sm font-semibold text-amber-950">
+                              <span className="break-words text-sm font-semibold">
                                 {athleteLabel(enrollment.athleteName)}
                               </span>
                               {enrollment.blockingReasons.length > 0 && (
@@ -548,7 +549,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                                   {enrollment.blockingReasons.map((reason) => (
                                     <span
                                       key={reason}
-                                      className="break-words text-sm text-amber-950"
+                                      className="break-words text-sm"
                                     >
                                       {reasonLabel(reason)}
                                     </span>
@@ -602,7 +603,7 @@ export function OwnerMonthlyInvoiceWorkspace({
               {selectedFamily?.existingInvoiceId && (
                 <p
                   role="alert"
-                  className="rounded-[12px] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+                  className={ownerNoticeAviso}
                 >
                   Ya existe una cuota para esta familia y periodo. No se puede
                   emitir otra desde esta pantalla.
@@ -612,7 +613,7 @@ export function OwnerMonthlyInvoiceWorkspace({
               {options.unassignedEnrollments.length > 0 && (
                 <section
                   aria-labelledby="monthly-invoice-unassigned-heading"
-                  className="rounded-[12px] grid gap-3 border border-z-line bg-z-canvas p-4"
+                  className="grid gap-3 rounded-md border border-z-line bg-z-canvas p-4"
                 >
                   <h3
                     id="monthly-invoice-unassigned-heading"
@@ -651,7 +652,7 @@ export function OwnerMonthlyInvoiceWorkspace({
               {quoteNeedsReview && (
                 <p
                   role="alert"
-                  className="rounded-[12px] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+                  className={ownerNoticeAviso}
                 >
                   La cuota ha cambiado. El desglose se ha actualizado; revísalo
                   antes de emitir.
@@ -726,7 +727,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                 <p
                   role="status"
                   aria-live="polite"
-                  className="rounded-[12px] border border-z-brand-100 bg-z-brand-50 p-4 text-sm text-z-brand-700"
+                  className={ownerUi.noticeInfo}
                 >
                   {successMessage}
                 </p>
