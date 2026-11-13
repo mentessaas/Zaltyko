@@ -300,10 +300,21 @@ describe("Checkout reservation guards with isolated dependencies", () => {
         billing_address_collection: "required",
         tax_id_collection: { enabled: true, required: "if_supported" },
         name_collection: { business: { enabled: true, optional: false } },
+        customer: "cus_saved",
         customer_update: { address: "auto", name: "auto" },
-        metadata: { immediate_start_consent: "desistimiento-14d-v1" },
-        subscription_data: { metadata: { immediate_start_consent: "desistimiento-14d-v1" } },
+        metadata: {
+          zaltyko_plan: "starter", zaltyko_academy_id: organizationId,
+          immediate_start_consent: "desistimiento-14d-v1",
+        },
+        subscription_data: { metadata: {
+          zaltyko_plan: "starter", zaltyko_academy_id: organizationId,
+          immediate_start_consent: "desistimiento-14d-v1",
+        } },
       });
+      // Con `customer` no se puede usar customer_email: Checkout fija el email en el Customer.
+      expect(creations[0][0]).not.toHaveProperty("customer_email");
+      // Moneda fija: sin conversión local de Checkout y precio validado en EUR.
+      expect(creations[0][0]).toHaveProperty("adaptive_pricing", { enabled: false });
       // Las facturas se emiten en FacturaDirecta (serie ZA), no en Stripe.
       expect(creations[0][0]).not.toHaveProperty("invoice_creation");
       expect(creations[0][0]).not.toHaveProperty("automatic_tax");
@@ -316,6 +327,31 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       arrange({ session: sessionOverride });
       await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares", immediateStartConsent: true }))
         .rejects.toMatchObject({ status: 503 });
+    });
+    it("refuses a non-EUR price before creating a taxed session", async () => {
+      arrange();
+      const usd = { ...price, currency: "usd" };
+      const base = mocks.provider.getMockImplementation()!;
+      mocks.provider.mockImplementation(async (arg) => arg === "price_synthetic" ? usd : base(arg));
+      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares", immediateStartConsent: true }))
+        .rejects.toMatchObject({ status: 503 });
+      expect(mocks.provider.mock.calls.filter(([arg]) => typeof arg === "object")).toHaveLength(0);
+    });
+    it("keeps untaxed test sessions free of tax and invoicing parameters", async () => {
+      arrange();
+      mocks.config.mockReturnValue({ environment: "test", providerAccountReference: "acct_synthetic" });
+      mocks.provider.mockImplementation(async (arg) => typeof arg === "string"
+        ? arg === "price_synthetic" ? price
+          : { ...session, amount_subtotal: 1900, amount_total: 1900, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 0 } }
+        : { id: session.id });
+      await expect(createOwnerSaasCheckout(input)).resolves.toMatchObject({ operationId: "operation" });
+      const creations = mocks.provider.mock.calls.filter(([arg]) => typeof arg === "object");
+      expect(creations).toHaveLength(1);
+      for (const key of ["zaltyko_plan", "zaltyko_academy_id", "immediate_start_consent"]) {
+        expect(creations[0][0].metadata).not.toHaveProperty(key);
+      }
+      expect(creations[0][0]).not.toHaveProperty("tax_id_collection");
+      expect(creations[0][0].line_items[0]).not.toHaveProperty("tax_rates");
     });
     it.each([
       ["inclusive", { inclusive: true }],

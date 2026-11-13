@@ -56,7 +56,7 @@ documentos de identidad, contraseñas o claves en ese archivo ni en este informe
 | taxTreatmentReviewed | false | Elvis: el gestor ya confirmó el tratamiento del 13-11; la marca Elvis cuando lo dé por cerrado |
 | checkoutTaxVerified | false | Claude, tras la prueba en Stripe test en staging y la revisión de la sesión y el recibo |
 | legalTextsApproved | false | Elvis, tras la revisión legal pendiente (ver más abajo) |
-| invoicingIntegrationReady | false | Elvis/Claude: cuando cada cobro genere su factura ZA en FacturaDirecta |
+| invoicingIntegrationReady | false | Se marca cuando finanzas confirme la prueba de punta a punta en modo test (Stripe test → n8n → borrador ZA en FacturaDirecta → aprobación por Telegram) |
 | liveReleaseApproved | false | Elvis, la última, con Stripe Live y Vercel configurados y CI verde |
 
 Completar NIF y domicilio no basta para abrir cobros: `getCommercialLaunchReadiness`
@@ -99,12 +99,53 @@ exige cada comprobación por separado. CI valida el formato, no el alta.
   deben llegar al cliente como factura**. Una sesión de Checkout no puede
   desactivarlo, así que lo configura Elvis en el Dashboard de Stripe Live (ver
   pasos). El recibo de pago de Stripe sí se mantiene.
-- Cada cobro debe generar su factura de la serie «ZA» en FacturaDirecta. Esa
-  integración todavía no existe: la bandera `invoicingIntegrationReady` mantiene
-  Live cerrado mientras sea `false`. Al principio puede ser un **paso manual**
-  documentado (por ejemplo, emitir la factura ZA al recibir el aviso de pago de
-  Stripe), pero tiene que existir y estar probado **antes del primer cliente
-  real**.
+- Cada cobro debe generar su factura de la serie «ZA» en FacturaDirecta. La
+  bandera `invoicingIntegrationReady` mantiene Live cerrado mientras sea
+  `false`. Puede empezar con pasos manuales, pero tiene que existir y estar
+  probado **antes del primer cliente real**.
+
+### Integración con n8n (finanzas; Zaltyko no envía nada)
+
+n8n lee los eventos de Stripe y emite la factura ZA en FacturaDirecta. Zaltyko
+no llama a n8n ni a FacturaDirecta y no recibe el número ZA (de momento no se
+devuelve).
+
+Lo que deja preparado cada Checkout de suscripción con IVA español:
+
+| Dato | Cómo llega a Stripe |
+| --- | --- |
+| Razón social | `name_collection.business` obligatorio y `customer_update.name: auto` → Customer y facturas de Stripe |
+| NIF/CIF | `tax_id_collection: { enabled: true, required: "if_supported" }`: Stripe lo exige cuando el país de facturación tiene tipo de NIF en Stripe (España: `es_cif`, o `eu_vat` con prefijo ES) |
+| Dirección completa | `billing_address_collection: "required"` y `customer_update.address: auto` (línea 1, código postal, ciudad, provincia, país) |
+| Email de facturación | Se usa el Customer existente; si no tiene email, Checkout guarda en él el que escribe el cliente (con `customer` no se puede usar `customer_email`) |
+| IVA | `tax_rates` exclusivo del 21 % en la línea: impuesto separado en la factura de Stripe |
+| Periodo y modalidad | Stripe pone inicio y fin del periodo en la línea de suscripción; el nombre del producto y el intervalo («/ month», «/ year») indican la modalidad. Elvis puede poner además el apodo del precio («Starter mensual», «Starter anual»…) |
+| Moneda | EUR: el servidor rechaza un precio que no sea EUR y desactiva la conversión local de Checkout |
+| Metadatos | `zaltyko_plan` (`starter`/`growth`), `zaltyko_academy_id` (id de la organización) e `immediate_start_consent`, en la sesión y en `subscription_data.metadata` |
+
+Lo que Stripe **no garantiza** y debe revisar n8n o la aprobación por Telegram
+antes de emitir la ZA:
+
+- **País = ES:** Checkout no permite limitar el país de la dirección de
+  facturación. Si llegara otro país, la factura no debe salir como operación
+  interior con IVA español.
+- **Tipo de NIF:** Stripe exige un NIF para ES, pero el cliente puede elegir
+  `es_cif` o `eu_vat`. El servidor de Zaltyko no lo vuelve a validar: el
+  webhook recibe el pago ya hecho y no puede rechazarlo.
+
+Pasos de Elvis en Stripe (primero en test para la prueba de finanzas y después
+en Live):
+
+1. Crear un **endpoint de webhook** hacia la URL de n8n que le dé finanzas, con
+   los eventos `invoice.paid`, `charge.refunded` e `invoice.payment_failed`.
+   Es distinto del webhook de Zaltyko y no lo sustituye.
+2. Crear una **clave restringida de solo lectura** (permisos de lectura de
+   Invoices y Customers) y guardarla solo en n8n. No pegarla en el repositorio,
+   en el PR ni en el chat.
+
+Flujo de finanzas: la factura ZA se crea como **borrador** en FacturaDirecta y
+se aprueba por Telegram. `invoicingIntegrationReady` se marca cuando finanzas
+confirme la prueba de punta a punta en modo test.
 
 ## Consumidores (TRLGDCU)
 
@@ -183,10 +224,15 @@ Elvis:
    - Desactivar el envío de facturas al cliente (correos de facturas
      finalizadas) y el historial de facturas del portal de cliente. Mantener
      activo el recibo de pagos correctos.
+   - Endpoint de webhook hacia n8n (`invoice.paid`, `charge.refunded`,
+     `invoice.payment_failed`) y clave restringida de solo lectura (Invoices,
+     Customers) guardada en n8n. Hacerlo antes en Stripe test para la prueba
+     de finanzas.
 4. En Vercel (Production): `STRIPE_SAAS_LIVE_TAX_RATE_ES_IVA21` y las variables
    `STRIPE_SAAS_LIVE_*` de clave, webhook, cuenta y los cuatro precios.
-5. Definir el procedimiento de factura ZA en FacturaDirecta por cada cobro
-   (manual al principio) y marcar `invoicingIntegrationReady`.
+5. Con finanzas: prueba de punta a punta en modo test (Stripe test → n8n →
+   borrador ZA → aprobación por Telegram). Cuando finanzas la confirme, se
+   marca `invoicingIntegrationReady`.
 6. Cerrar la revisión legal pendiente y el DPA; marcar `taxTreatmentReviewed`
    y `legalTextsApproved`; `liveReleaseApproved`, la última.
 

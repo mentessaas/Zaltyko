@@ -1112,7 +1112,13 @@ export async function createOwnerSaasCheckout(input: {
       billing_interval: input.billingInterval,
       provider_account_reference: config.providerAccountReference,
       environment: config.environment,
-      ...(vatTaxRate ? { immediate_start_consent: IMMEDIATE_START_CONSENT_VERSION } : {}),
+      // Contratación con IVA español: datos que lee n8n en `invoice.paid` para
+      // emitir la factura ZA en FacturaDirecta, y constancia del consentimiento.
+      ...(vatTaxRate ? {
+        zaltyko_plan: input.planCode,
+        zaltyko_academy_id: operation.organizationId,
+        immediate_start_consent: IMMEDIATE_START_CONSENT_VERSION,
+      } : {}),
     };
     const integrationIdentifier = stableIntegrationIdentifier(operation.id);
     const returnUrl = checkoutReturnUrl(operation.organizationId, "confirming");
@@ -1133,8 +1139,11 @@ export async function createOwnerSaasCheckout(input: {
           },
         ],
         // Siempre factura completa (art. 6 RD 1619/2012), emitida fuera de
-        // Stripe en FacturaDirecta (serie ZA): razón social, NIF/CIF y
-        // domicilio del destinatario son obligatorios en el pago.
+        // Stripe en FacturaDirecta (serie ZA) a partir de `invoice.paid`:
+        // razón social, NIF/CIF (obligatorio para países con tipo de NIF en
+        // Stripe, como ES) y dirección completa pasan al Customer
+        // (customer_update). El email lo fija Checkout en el Customer si no
+        // tiene uno. La moneda (EUR) la garantiza la validación del precio.
         ...(vatTaxRate ? {
           billing_address_collection: "required" as const,
           tax_id_collection: { enabled: true, required: "if_supported" as const },
