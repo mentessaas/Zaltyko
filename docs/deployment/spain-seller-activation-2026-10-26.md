@@ -63,7 +63,7 @@ documentos de identidad, contraseñas o claves en ese archivo ni en este informe
 | taxTreatmentReviewed | false | Elvis: el gestor ya confirmó el tratamiento del 13-11; la marca Elvis cuando lo dé por cerrado |
 | checkoutTaxVerified | false | Claude, tras la prueba en Stripe test en staging y la revisión de la sesión y el recibo |
 | legalTextsApproved | false | Elvis, tras la revisión legal pendiente (ver más abajo) |
-| invoicingIntegrationReady | false | Se marca cuando finanzas confirme la prueba de punta a punta en modo test (Stripe test → n8n → borrador ZA en FacturaDirecta → aprobación por Telegram) |
+| invoicingIntegrationReady | false | Prueba de punta a punta en modo test confirmada por finanzas el 13-11. Se marca cuando la clave restringida y el webhook hacia n8n existan también en la cuenta Live de Stripe |
 | liveReleaseApproved | false | Elvis, la última, con Stripe Live y Vercel configurados y CI verde |
 
 Completar NIF y domicilio no basta para abrir cobros: `getCommercialLaunchReadiness`
@@ -153,8 +153,23 @@ en Live):
    en el PR ni en el chat.
 
 Flujo de finanzas: la factura ZA se crea como **borrador** en FacturaDirecta y
-se aprueba por Telegram. `invoicingIntegrationReady` se marca cuando finanzas
-confirme la prueba de punta a punta en modo test.
+se aprueba por Telegram.
+
+Prueba de punta a punta en modo test, confirmada por finanzas el 13-11-2026
+(Stripe sandbox → n8n → FacturaDirecta), con la factura de test
+`in_1UbIdKDA0PFJp7KMxJhQWSx9`:
+
+- se creó el cliente en FacturaDirecta;
+- se generó el borrador «ZA PRUEBA» de 22,99 € con el concepto «Zaltyko Starter
+  — suscripción mensual, del 13/11/2026 al 12/12/2026»;
+- n8n es idempotente: reenviar el evento no duplica el borrador;
+- la clave restringida solo lee Invoices y Customers.
+
+**Condición de `invoicingIntegrationReady`:** sigue en `false` en el código.
+Esa bandera abre los cobros reales, así que se marca cuando la clave
+restringida de solo lectura y el webhook hacia n8n (`invoice.paid`,
+`charge.refunded`, `invoice.payment_failed`) existan también en la **cuenta
+Live** de Stripe. La prueba en test no basta.
 
 ## Consumidores (TRLGDCU)
 
@@ -239,9 +254,10 @@ Elvis:
      de finanzas.
 4. En Vercel (Production): `STRIPE_SAAS_LIVE_TAX_RATE_ES_IVA21` y las variables
    `STRIPE_SAAS_LIVE_*` de clave, webhook, cuenta y los cuatro precios.
-5. Con finanzas: prueba de punta a punta en modo test (Stripe test → n8n →
-   borrador ZA → aprobación por Telegram). Cuando finanzas la confirme, se
-   marca `invoicingIntegrationReady`.
+5. La prueba en modo test (Stripe test → n8n → borrador ZA) ya está confirmada
+   por finanzas (13-11). Cuando el webhook hacia n8n y la clave restringida de
+   solo lectura existan también en la cuenta Live, se marca
+   `invoicingIntegrationReady`.
 6. Cerrar la revisión legal pendiente y el DPA; marcar `taxTreatmentReviewed`
    y `legalTextsApproved`; `liveReleaseApproved`, la última.
 

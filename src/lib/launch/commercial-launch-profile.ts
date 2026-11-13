@@ -70,8 +70,9 @@ export const commercialLaunchProfile: Readonly<CommercialLaunchProfile> = {
   checkoutTaxVerified: false,
   // Elvis: true tras aprobar Términos, Privacidad y encargo de tratamiento.
   legalTextsApproved: false,
-  // Elvis/Claude: true cuando cada cobro genere su factura ZA en FacturaDirecta
-  // (aunque al principio sea un procedimiento manual documentado y probado).
+  // Prueba en modo test (Stripe → n8n → borrador ZA) confirmada el 13-11-2026.
+  // true solo cuando el webhook hacia n8n y la clave restringida de solo
+  // lectura existan también en la cuenta Live de Stripe.
   invoicingIntegrationReady: false,
   // Elvis: true en el último paso, con Stripe Live y Vercel configurados.
   liveReleaseApproved: false,
