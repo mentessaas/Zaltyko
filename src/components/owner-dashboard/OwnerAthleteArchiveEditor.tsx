@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ownerTone } from "./owner-tone-ui";
+import { ownerUi } from "./owner-ui";
 
 export const PENDING_OWNER_ATHLETE_ARCHIVE_STORAGE_KEY =
   "zaltyko:pending-owner-athlete-archive:v1";
@@ -149,10 +151,8 @@ function problemMessage(payload: unknown): string {
   return "No se pudo archivar la ficha. Comprueba la conexión e inténtalo de nuevo.";
 }
 
-const buttonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
-const dangerButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center bg-red-800 px-4 py-2 text-sm font-bold text-white hover:bg-red-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-800 disabled:cursor-not-allowed disabled:opacity-50";
+const buttonClassName = ownerUi.secondaryButton;
+const dangerButtonClassName = ownerTone.dangerButton;
 
 export function OwnerAthleteArchiveEditor({
   organizationId,
@@ -389,16 +389,16 @@ export function OwnerAthleteArchiveEditor({
       <button type="button" className={buttonClassName} disabled={disabled || storageBlocked || completedKey !== null} onClick={openConfirmation}>
         {triggerLabel}
       </button>
-      {!confirmationOpen && storageRead.kind === "invalid" && <p role="alert">Hay una operación de archivo no válida en el almacenamiento. No se iniciará otra.</p>}
-      {!confirmationOpen && storageRead.kind === "unavailable" && <p role="alert">No se puede comprobar el almacenamiento seguro de esta operación. No se ha enviado nada.</p>}
-      {(foreignStoragePending || foreignExternalPending) && <p role="alert">Hay un archivo pendiente de otra ficha o sede. Resuélvelo antes de iniciar otra operación.</p>}
+      {!confirmationOpen && storageRead.kind === "invalid" && <p role="alert" className={ownerTone.errorText}>Hay una operación de archivo no válida en el almacenamiento. No se iniciará otra.</p>}
+      {!confirmationOpen && storageRead.kind === "unavailable" && <p role="alert" className={ownerTone.errorText}>No se puede comprobar el almacenamiento seguro de esta operación. No se ha enviado nada.</p>}
+      {(foreignStoragePending || foreignExternalPending) && <p role="alert" className={ownerTone.warningText}>Hay un archivo pendiente de otra ficha o sede. Resuélvelo antes de iniciar otra operación.</p>}
       {confirmationOpen && (
-        <div role="group" className="space-y-3 rounded border border-red-300 bg-red-50 p-4" aria-label="Confirmación de archivo">
+        <div role="group" className="space-y-3 rounded-md border border-signal/30 border-t-[3px] border-t-signal-ink bg-white p-4" aria-label="Confirmación de archivo">
           <p className="text-sm text-z-ink">
             Archivar no borra la ficha. Termina sus pertenencias a grupos y clases futuras, y conserva su historial y las cuotas pendientes.
           </p>
-          {activePending && <p role="status">Hay una respuesta pendiente de confirmar. El reintento usará exactamente el mismo cuerpo y la misma clave; no se enviará automáticamente.</p>}
-          {message && <p role={messageKind === "error" ? "alert" : "status"}>{message}</p>}
+          {activePending && <p role="status" className={ownerTone.warningText}>Hay una respuesta pendiente de confirmar. El reintento usará exactamente el mismo cuerpo y la misma clave; no se enviará automáticamente.</p>}
+          {message && <p role={messageKind === "error" ? "alert" : "status"} className={messageKind === "error" ? ownerTone.errorText : "text-sm text-z-ink"}>{message}</p>}
           <div className="flex flex-wrap gap-2">
             <button type="button" className={dangerButtonClassName} disabled={disabled || saving || storageBlocked} onClick={() => void confirmArchive()}>
               {saving ? "Comprobando archivo…" : activePending ? "Reintentar archivo" : "Confirmar archivo"}
@@ -407,7 +407,7 @@ export function OwnerAthleteArchiveEditor({
           </div>
         </div>
       )}
-      {!confirmationOpen && message && <p role={messageKind === "error" ? "alert" : "status"}>{message}</p>}
+      {!confirmationOpen && message && <p role={messageKind === "error" ? "alert" : "status"} className={messageKind === "error" ? ownerTone.errorText : "text-sm text-z-ink"}>{message}</p>}
     </section>
   );
 }
