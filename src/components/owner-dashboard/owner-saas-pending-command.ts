@@ -34,7 +34,17 @@ export function decodeStoredSaasCommand(value: unknown, organizationId: string):
   if (action === "checkout") {
     if (Object.keys(value).sort().join(",") !== "action,billingInterval,key,organizationId,planCode,serializedBody") return null;
     if ((planCode !== "starter" && planCode !== "growth") || (billingInterval !== "month" && billingInterval !== "year")) return null;
-    if (Object.keys(body).sort().join(",") !== "billingInterval,organizationId,planCode" || body.planCode !== planCode || body.billingInterval !== billingInterval) return null;
+    // Academias de España añaden su sede fiscal (solo la cubierta llega a
+    // enviarse) y la casilla de inicio inmediato marcada.
+    const optionalBodyFields: Record<string, unknown> = {
+      taxTerritory: "peninsula_baleares",
+      immediateStartConsent: true,
+    };
+    const baseBodyFields = ["billingInterval", "organizationId", "planCode"];
+    const validExtras = Object.keys(body).filter((field) => !baseBodyFields.includes(field))
+      .every((field) => Object.prototype.hasOwnProperty.call(optionalBodyFields, field) && body[field] === optionalBodyFields[field]);
+    if (!baseBodyFields.every((field) => field in body) || !validExtras ||
+      body.planCode !== planCode || body.billingInterval !== billingInterval) return null;
     return { organizationId, action, planCode, billingInterval, key, serializedBody };
   }
   if ((action === "portal" || action === "trial") && Object.keys(value).sort().join(",") === "action,key,organizationId,serializedBody" && planCode === undefined && billingInterval === undefined && Object.keys(body).length === 1) {

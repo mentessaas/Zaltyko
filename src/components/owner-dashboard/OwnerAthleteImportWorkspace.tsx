@@ -14,6 +14,7 @@ import {
 } from "@/modules/athlete-import/domain/athlete-import-rows";
 
 import { athleteImportTemplateXlsx } from "./athlete-import-template";
+import { ownerTone } from "./owner-tone-ui";
 import { ownerUi } from "./owner-ui";
 
 const PREVIEW_ENDPOINT = "/api/v1/owner/athlete-import/preview";
@@ -74,10 +75,10 @@ const STATUS_LABELS: Record<RowStatus, string> = {
 };
 
 const STATUS_CLASSES: Record<RowStatus, string> = {
-  create: "bg-emerald-50 text-emerald-900",
-  error: "bg-rose-50 text-rose-900",
-  duplicate: "bg-amber-50 text-amber-950",
-  skipped: "bg-amber-50 text-amber-950",
+  create: ownerTone.chipSuccess,
+  error: ownerTone.chipError,
+  duplicate: ownerTone.chipWarning,
+  skipped: ownerTone.chipWarning,
 };
 
 async function readProblem(response: Response, fallback: string): Promise<string> {
@@ -283,7 +284,7 @@ export function OwnerAthleteImportWorkspace({
       </section>
 
       {error ? (
-        <p role="alert" className="mt-5 rounded-lg border border-rose-300 bg-rose-50 p-4 text-sm text-rose-950">
+        <p role="alert" className={`mt-5 ${ownerTone.noticeError}`}>
           {error}
         </p>
       ) : null}
@@ -317,7 +318,7 @@ export function OwnerAthleteImportWorkspace({
             ))}
           </div>
           {preview.mappingProblems.length > 0 ? (
-            <ul role="alert" className="grid gap-1 rounded-lg border border-rose-300 bg-rose-50 p-4 text-sm text-rose-950">
+            <ul role="alert" className={`grid gap-1 ${ownerTone.noticeError}`}>
               {preview.mappingProblems.map((problem) => (
                 <li key={problem}>{problem}</li>
               ))}
@@ -357,7 +358,7 @@ export function OwnerAthleteImportWorkspace({
             </p>
           ) : null}
           {preview.hiddenRows.length > 0 ? (
-            <p role="note" className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950">
+            <p role="note" className={ownerTone.noticeWarning}>
               Las filas ocultas o filtradas del Excel no se importan ({preview.hiddenRows.length}):{" "}
               {preview.hiddenRows.slice(0, 20).join(", ")}
               {preview.hiddenRows.length > 20 ? "…" : ""}. Muéstralas en el Excel si quieres importarlas.
@@ -400,7 +401,7 @@ export function OwnerAthleteImportWorkspace({
             </dl>
           </details>
           {preview.plan.readOnly ? (
-            <p role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950">
+            <p role="alert" className={ownerTone.noticeWarning}>
               La academia está en solo lectura porque supera los límites del plan. No se puede importar hasta
               regularizarla desde Plan.
             </p>
@@ -428,41 +429,41 @@ export function OwnerAthleteImportWorkspace({
             </div>
           ) : null}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className={`${ownerTone.table} min-w-[720px]`}>
               <caption className="sr-only">Filas del fichero y lo que se hará con cada una</caption>
               <thead>
-                <tr className="border-b border-z-line text-z-soft">
-                  <th scope="col" className="py-2 pr-3">Fila</th>
-                  <th scope="col" className="py-2 pr-3">Gimnasta</th>
-                  <th scope="col" className="py-2 pr-3">Nacimiento</th>
-                  <th scope="col" className="py-2 pr-3">Grupo</th>
-                  <th scope="col" className="py-2 pr-3">Tutor</th>
-                  <th scope="col" className="py-2 pr-3">Resultado</th>
-                  <th scope="col" className="py-2">Detalle</th>
+                <tr className={ownerTone.tableHeadRow}>
+                  <th scope="col" className={ownerTone.tableHeadCell}>Fila</th>
+                  <th scope="col" className={ownerTone.tableHeadCell}>Gimnasta</th>
+                  <th scope="col" className={ownerTone.tableHeadCell}>Nacimiento</th>
+                  <th scope="col" className={ownerTone.tableHeadCell}>Grupo</th>
+                  <th scope="col" className={ownerTone.tableHeadCell}>Tutor</th>
+                  <th scope="col" className={ownerTone.tableHeadCell}>Resultado</th>
+                  <th scope="col" className={ownerTone.tableHeadCell}>Detalle</th>
                 </tr>
               </thead>
               <tbody>
                 {preview.rows.map((row) => (
-                  <tr key={row.row} className="border-b border-z-line align-top">
-                    <td className="py-2 pr-3 tabular-nums">{row.row}</td>
-                    <td className="py-2 pr-3">
+                  <tr key={row.row} className={ownerTone.tableRow}>
+                    <td className={`${ownerTone.tableCell} tabular-nums`}>{row.row}</td>
+                    <td className={ownerTone.tableCell}>
                       {row.values.givenName} {row.values.familyName}
                     </td>
-                    <td className="py-2 pr-3">{row.values.dateOfBirth ?? "—"}</td>
-                    <td className="py-2 pr-3">{row.values.group ?? "—"}</td>
-                    <td className="py-2 pr-3">{row.values.guardianName ?? "—"}</td>
-                    <td className="py-2 pr-3">
-                      <span className={`rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CLASSES[row.status]}`}>
+                    <td className={ownerTone.tableCell}>{row.values.dateOfBirth ?? "—"}</td>
+                    <td className={ownerTone.tableCell}>{row.values.group ?? "—"}</td>
+                    <td className={ownerTone.tableCell}>{row.values.guardianName ?? "—"}</td>
+                    <td className={ownerTone.tableCell}>
+                      <span className={STATUS_CLASSES[row.status]}>
                         {STATUS_LABELS[row.status]}
                       </span>
                     </td>
-                    <td className="py-2">
+                    <td className={ownerTone.tableCell}>
                       {row.issues.length > 0 ? (
                         <ul className="grid gap-1">
                           {row.issues.map((item) => (
                             <li
                               key={`${item.code}-${item.field ?? ""}`}
-                              className={item.severity === "error" ? "text-rose-900" : "text-amber-900"}
+                              className={item.severity === "error" ? ownerTone.errorText : ownerTone.warningText}
                             >
                               {item.severity === "error" ? "Error: " : "Aviso: "}
                               {item.message}
@@ -483,7 +484,7 @@ export function OwnerAthleteImportWorkspace({
               <label className="flex w-full items-start gap-2 text-sm text-z-ink">
                 <input
                   type="checkbox"
-                  className="mt-1 h-4 w-4"
+                  className="mt-1 h-4 w-4 accent-mat"
                   checked={legalConfirmed}
                   onChange={(event) => setLegalConfirmed(event.target.checked)}
                 />

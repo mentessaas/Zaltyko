@@ -2,6 +2,8 @@
 
 Fecha: 11 de noviembre de 2026. Plan de mejora `auditorias/2026-11-08/plan-mejora-zaltyko.md`, P2 #17: «Especialización: objetivos y observaciones por gimnasta, luego planificación sobre sesiones; biblioteca GAF/GAM después». La primera parte está en `docs/producto/objetivos-y-observaciones.md`; esta cubre la planificación de las sesiones. La biblioteca GAF/GAM queda para después.
 
+**Estado: activo en producción desde 12-11-2026.** El candidato `docs/deployment/candidates/20261111200000_session_plans_candidate.sql` se aplicó ese día con autorización de Elvis, después del de objetivos (`20261111120000_athlete_progress_candidate.sql`), del que depende; también está instalado en staging (`docs/deployment/staging.md`).
+
 **Vocabulario** (`docs/producto/glosario.md`). En la interfaz se habla de **guion de la sesión** y de **modelo de la clase**. «Plan» queda reservado al plan de Zaltyko y «plantilla» está vetada. En código y en la base se llaman `session_plans` y `class_plan_templates`.
 
 Objetivo: que quien da la clase sepa qué toca hoy (foco y bloques), que lo pueda preparar antes y que, al terminar, marque qué se hizo y deje observaciones de las gimnastas. Sin abrir datos entre academias ni entre sedes.
@@ -82,14 +84,14 @@ La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que 
 
 Todas las respuestas llevan `cache-control: private, no-store`, y las mutaciones exigen el mismo origen.
 
-## Solo lectura y funcionalidad dormida
+## Solo lectura y entornos sin la migración
 
 - **Plan de Zaltyko en solo lectura:**
   - se puede consultar todo;
   - crear, editar, marcar un bloque o cambiar el modelo responde 409 `PLAN_OVER_CAPACITY`;
   - repetir un alta ya guardada, o marcar un bloque en el estado que ya tiene, devuelve el resultado sin escribir;
   - la interfaz oculta los botones y lo explica.
-- **Migración sin aplicar:** las tablas están en el candidato `docs/deployment/candidates/20261111200000_session_plans_candidate.sql`, que **requiere autorización de Elvis** y depende del candidato de objetivos (`20261111120000_athlete_progress_candidate.sql`). Mientras no se apliquen:
+- **Migración:** las tablas están en el candidato `docs/deployment/candidates/20261111200000_session_plans_candidate.sql`, que depende del candidato de objetivos (`20261111120000_athlete_progress_candidate.sql`). Hasta el 12-11-2026 **requerían autorización de Elvis** y no estaban aplicados; ese día se aplicaron los dos en producción. En un entorno donde falte alguno:
   - Pasar lista no muestra el panel; la página decide con `isSessionPlanAvailableForPage`;
   - la API responde 503 con el motivo `session_plans_unavailable`, nunca 500;
   - el cliente solo trata como «no disponible» ese 503 concreto.
@@ -110,6 +112,8 @@ Todas las respuestas llevan `cache-control: private, no-store`, y las mutaciones
   - foco, nota, bloques en `jsonb` (array de hasta 20, validado con Zod al escribir y al leer) y revisión.
 
 Cada escritura deja una entrada de auditoría sin texto libre: solo revisiones y recuentos.
+
+**Derechos de datos (13-11-2026).** La exportación de la academia incluye las cuatro tablas con sus valores. Omite `client_request_id` y `last_request_id`. Los bloques `jsonb` del modelo de la clase sí se exportan, porque son contenido creado por la academia. Salen como un array con solo los campos clasificados de cada bloque: `kind`, `discipline`, `apparatus`, `content` y `durationMinutes`, los mismos que escribe `normalizeTemplateBlock`. Cualquier otra clave se descarta en SQL, y el verificador de archivos rechaza bloques con claves o tipos distintos. Al borrar una gimnasta solo se borran en cascada sus vínculos (`session_plan_objectives`); el guion y los bloques son de la sesión. La autoría (NO ACTION) impide borrar a una integrante o su cuenta mientras tenga guiones (ver `docs/privacy/borrado-de-cuentas-y-fichas.md`). Al borrar la academia, todo se va en cascada. Política: `src/modules/data-rights/application/activated-modules-erasure-policy.ts`. El espejo Drizzle sigue fuera de `src/db/schema/`: data-rights lee `information_schema` y no necesita el espejo. En `src/db/schema/`, `validate:rls` le exigiría RLS y al menos una política en `supabase/migrations`, y el candidato se aplicó fuera de ese historial y no tiene políticas (deniega todo a los clientes), así que fallaría. Pasará a `src/db/schema/` cuando el candidato se promueva a `supabase/migrations` en una PR propia, con su cadena de replay.
 
 ## Decide Elvis
 

@@ -35,6 +35,7 @@ import {
   PROGRESS_UNAVAILABLE_MESSAGE,
   type ProgressScope,
 } from "./owner-athlete-progress-client";
+import { ownerTone } from "./owner-tone-ui";
 import { ownerUi } from "./owner-ui";
 
 /** En Pasar lista solo se muestran las últimas observaciones. */
@@ -134,7 +135,7 @@ export function OwnerAthleteProgressPanel({
           Cargando objetivos y observaciones…
         </p>
       ) : null}
-      {state.status === "unavailable" ? <p className={ownerUi.noticeWarning}>{PROGRESS_UNAVAILABLE_MESSAGE}</p> : null}
+      {state.status === "unavailable" ? <p className={ownerTone.noticeWarning}>{PROGRESS_UNAVAILABLE_MESSAGE}</p> : null}
       {state.status === "error" ? (
         <div className={`${ownerUi.noticeError} grid gap-3`}>
           <p role="alert">{state.message}</p>
@@ -178,10 +179,10 @@ function ProgressContent({
   return (
     <div className="grid gap-5">
       {data.athlete.archived ? (
-        <p className={ownerUi.noticeWarning}>Ficha archivada: los objetivos y observaciones son de solo lectura.</p>
+        <p className={ownerTone.noticeWarning}>Ficha archivada: los objetivos y observaciones son de solo lectura.</p>
       ) : null}
       {readOnly && !data.athlete.archived ? (
-        <p className={ownerUi.noticeWarning}>
+        <p className={ownerTone.noticeWarning}>
           La academia está en solo lectura: puedes consultar, pero no añadir ni cambiar objetivos u observaciones.
         </p>
       ) : null}
@@ -652,7 +653,7 @@ function ObservationItem({
           {observation.sessionId ? " · en una sesión" : ""}
           {objective ? ` · objetivo «${objective.title}»` : ""}
         </p>
-        <span className={observation.visibility === "family" ? ownerUi.chipAttention : ownerUi.chip}>
+        <span className={observation.visibility === "family" ? ownerTone.chipOutline : ownerUi.chip}>
           {observationVisibilityLabels[observation.visibility]}
         </span>
       </div>

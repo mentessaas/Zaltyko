@@ -11,6 +11,7 @@ import {
   statusLabel,
   type GroupsBundle,
 } from "./owner-groups-manager-model";
+import { ownerTone } from "./owner-tone-ui";
 
 type ProfileEditorProps = ComponentProps<typeof OwnerAthleteProfileEditor>;
 type FamilyEditorProps = ComponentProps<typeof OwnerAthleteFamilyAssociationEditor>;
@@ -183,7 +184,7 @@ export function OwnerGroupMembershipRow({
         )}
         <button
           type="button"
-          className="rounded-[12px] touch-target inline-flex min-h-11 items-center justify-center border border-red-700 bg-white px-3 py-2 text-sm font-semibold text-red-900 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-800 disabled:opacity-50"
+          className={ownerTone.dangerOutlineButton}
           aria-label={`Dar de baja a ${membership.athleteName}`}
           disabled={commandsLocked || writesBlocked}
           onClick={() =>

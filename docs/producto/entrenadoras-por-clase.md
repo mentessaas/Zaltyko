@@ -2,6 +2,8 @@
 
 Fecha: 11 de noviembre de 2026. Origen: oportunidad O1 de `docs/research/competencia/matriz-competitiva.md` («asignar entrenadoras a clases y sustituir por sesión», para igualar a ScoreGym y RG Manager). Es la primera de una cola: invitaciones de entrenadoras (O3), importación desde Excel (O4) y avisos de choque de entrenadora y pista (O2), que se apoyarán en esto.
 
+**Estado: activo en producción desde 12-11-2026.** El candidato `docs/deployment/candidates/20261111180000_coach_assignment_candidate.sql` se aplicó ese día con autorización de Elvis (`session_staff_profile_fk` quedó en `CASCADE`); también está instalado en staging (`docs/deployment/staging.md`).
+
 Objetivo: que la dirección diga quién da cada clase de forma habitual, que cada sesión sepa quién entrena ese día y que un cambio puntual no toque la clase.
 
 ## Qué hay
@@ -48,10 +50,10 @@ La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que 
 - `GET /api/v1/owner/sessions/{sessionId}/coaches?organizationId=…&locationId=…`: quién entrena, titulares, sustitución y, solo para la dirección, personas asignables.
 - `PUT /api/v1/owner/sessions/{sessionId}/coaches`: `{ organizationId, locationId, clientRequestId, staffProfileIds, expectedStaffProfileIds, reason? }`.
 
-## Solo lectura y funcionalidad dormida
+## Solo lectura y entornos sin la migración
 
 - **Plan en solo lectura:** se puede consultar todo y repetir una orden ya guardada, pero asignar o sustituir responde 409 `PLAN_OVER_CAPACITY`, como el resto de `/owner`. La interfaz desactiva los botones y lo explica.
-- **Candidato sin aplicar:** las titulares y la marca de sustitución están en `docs/deployment/candidates/20261111180000_coach_assignment_candidate.sql`, que **requiere autorización de Elvis**. Mientras no se aplique:
+- **Candidato:** las titulares y la marca de sustitución están en `docs/deployment/candidates/20261111180000_coach_assignment_candidate.sql`. Hasta el 12-11-2026 **requería autorización de Elvis** y no estaba aplicado; ese día se aplicó en producción. En un entorno donde no esté instalado:
   - Clases y Pasar lista no muestran titulares ni quién entrena, y Hoy se pinta como antes.
   - Las cuatro rutas responden 503 con el motivo `coach_assignment_storage_unavailable`, nunca 500.
   - La generación de sesiones no cambia y nada escribe en `session_staff`.
@@ -78,10 +80,10 @@ La app conecta como `postgres` con `BYPASSRLS`, así que este control es el que 
 6. **Sesiones pasadas.** Se pueden corregir para dejar constancia de quién dio la clase; las canceladas, no. ¿Se bloquean las pasadas?
 7. **Quien pierde el acceso.** Sigue asignada hasta que alguien la quite. Se puede quitar, pero no volver a añadir. ¿Se retira sola de las sesiones futuras?
 8. **Tope.** Seis personas por clase y por sesión.
-9. **Al aplicar el candidato:** añadir las dos tablas a la exportación y a las políticas de `data-rights`, y mover el espejo a `src/db/schema/` con `validate:rls`. La regla de aviso `session_without_coach` empezará a tener datos reales.
+9. **Tras la activación (12-11-2026).** Exportación y `data-rights`, resuelto (13-11-2026): la exportación de la academia incluye las dos tablas con sus valores. Borrar una gimnasta no las toca. Al borrar una integrante o su cuenta, quien asignó o sustituyó queda vacío (`set null`). Al borrar la academia, se van en cascada. Política: `src/modules/data-rights/application/activated-modules-erasure-policy.ts`. El espejo sigue en `src/modules/coach-assignment/infrastructure/`: data-rights lee `information_schema` y no necesita el espejo. En `src/db/schema/`, `validate:rls` le exigiría RLS y al menos una política en `supabase/migrations`, y el candidato se aplicó fuera de ese historial y no tiene políticas (deniega todo a los clientes), así que fallaría. Pasará a `src/db/schema/` cuando el candidato se promueva a `supabase/migrations` en una PR propia, con su cadena de replay. La regla de aviso `session_without_coach` ya tiene datos reales.
 10. **Motivo visible para la entrenadora.** Hoy solo lo ve la dirección; la entrenadora ve que hay sustitución, quién y cuándo, pero no por qué. ¿Se le muestra?
 11. **`session_staff_profile_fk` a CASCADE.** Modifica una tabla ya aplicada para que borrar una ficha de equipo no quede bloqueado por sus sesiones. Consecuencia: al borrar la ficha se borra también el histórico de sus asignaciones por sesión, que solo queda en `audit_log` como identificadores. La alternativa es archivar fichas en vez de borrarlas.
-12. **Versión de PostgreSQL de producción.** Confirmar que es 15 o superior.
+12. **Versión de PostgreSQL de producción.** Confirmar que es 15 o superior. *Resuelto el 12-11-2026: PostgreSQL 17.6.*
 
 ## Seguimiento separado
 

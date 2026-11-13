@@ -20,6 +20,19 @@ import {
   PRODUCT_PLAN_BY_CODE,
   getProductPlanPublicName,
 } from "@/lib/plans/catalog";
+import {
+  isSpanishTaxTerritoryCheckoutCovered,
+  SPANISH_TAX_TERRITORIES,
+  SPANISH_TAX_TERRITORY_LABELS,
+  spanishTaxTerritoryCheckoutNotice,
+  type SpanishTaxTerritory,
+} from "@/modules/organizations/domain/commercial-market-capabilities";
+import {
+  formatEuroCentsExact,
+  quoteSpanishVat,
+  SPANISH_VAT_GENERAL_RATE_PERCENT,
+} from "@/modules/saas-billing/domain/spanish-vat";
+import { IMMEDIATE_START_CONSENT_TEXT } from "@/modules/saas-billing/domain/immediate-start-consent";
 
 import type {
   OwnerSaasBillingInterval,
@@ -103,6 +116,9 @@ function apiErrorMessage(payload: unknown, fallback: string): string {
     TRIAL_NOT_ELIGIBLE: "Esta academia no puede iniciar otro periodo de prueba.",
     PLAN_NOT_SELF_SERVE: "Este plan requiere acompañamiento de Zaltyko.",
     BILLING_CONFIGURATION_UNAVAILABLE: "La contratación no está disponible ahora. El plan actual no ha cambiado.",
+    SAAS_TAX_TERRITORY_REQUIRED: "Indica la sede fiscal de la academia antes de contratar. El plan actual no ha cambiado.",
+    SAAS_TAX_TERRITORY_NOT_COVERED: "La contratación de pago no está disponible para academias con sede fiscal en Canarias, Ceuta o Melilla. El plan actual no ha cambiado.",
+    SAAS_IMMEDIATE_START_CONSENT_REQUIRED: "Marca la casilla de inicio inmediato del servicio antes de contratar. El plan actual no ha cambiado.",
     BILLING_PROVIDER_UNAVAILABLE: "No hemos podido conectar con el proveedor de pagos. El plan actual no ha cambiado.",
     RATE_LIMITED: "Has realizado varias solicitudes seguidas. Espera un momento y vuelve a intentarlo.",
     RATE_LIMIT_EXCEEDED: "Has realizado varias solicitudes seguidas. Espera un momento y vuelve a intentarlo.",
@@ -262,6 +278,16 @@ function formatPrice(code: "starter" | "growth", interval: OwnerSaasBillingInter
   return cents === undefined ? null : formatPlanAmount(cents);
 }
 
+/** Total con el IVA general (21 %) para Península y Baleares. */
+function formatPriceWithVat(code: "starter" | "growth", interval: OwnerSaasBillingInterval) {
+  const product = PRODUCT_PLAN_BY_CODE[code === "starter" ? "pro" : "premium"];
+  const cents =
+    interval === "year" ? product.annualPriceEurCents : product.priceEurCents;
+  return cents === undefined
+    ? null
+    : formatEuroCentsExact(quoteSpanishVat(cents).totalCents);
+}
+
 function priceSubtitle(
   code: "starter" | "growth",
   interval: OwnerSaasBillingInterval
@@ -275,11 +301,17 @@ export function OwnerSaasBillingManager({
   organizationId,
   organizationName,
   marketNotice = null,
+  taxTerritoryRequired = false,
 }: {
   organizationId: string;
   organizationName: string;
   /** Aviso del servidor cuando la contratación no está abierta en el país de la academia. */
   marketNotice?: string | null;
+  /**
+   * Academia de España: se pide la sede fiscal y se muestran los importes con
+   * IVA. Solo Península y Baleares pueden contratar (IVA general del 21 %).
+   */
+  taxTerritoryRequired?: boolean;
 }) {
   const activeOrganizationIdRef = useRef(organizationId);
   useCommittedLayoutEffect(() => {
@@ -292,6 +324,8 @@ export function OwnerSaasBillingManager({
   });
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [interval, setInterval] = useState<OwnerSaasBillingInterval>("month");
+  const [taxTerritory, setTaxTerritory] = useState<SpanishTaxTerritory | null>(null);
+  const [immediateStartConsent, setImmediateStartConsent] = useState(false);
   const [busyActionState, setBusyActionState] = useState<{ organizationId: string; action: string } | null>(null);
   const busyAction = busyActionState?.action ?? null;
   const displayedBusyAction = busyActionState?.organizationId === organizationId ? busyAction : null;
@@ -518,7 +552,13 @@ export function OwnerSaasBillingManager({
     setBusyAction(`checkout:${planCode}`);
     let intent: RequestIntent | null = null;
     try {
-      const body = { organizationId, planCode, billingInterval: interval };
+      const body = {
+        organizationId,
+        planCode,
+        billingInterval: interval,
+        ...(taxTerritoryRequired && taxTerritory ? { taxTerritory } : {}),
+        ...(taxTerritoryRequired && immediateStartConsent ? { immediateStartConsent: true } : {}),
+      };
       intent = retryIntent ?? getIntent(body);
       if (!persistCommand("checkout", intent, planCode)) throw new Error("No se pudo guardar la operación antes de enviarla. No se ha enviado ninguna solicitud.");
       rememberCommand("checkout", intent, planCode);
@@ -668,12 +708,23 @@ export function OwnerSaasBillingManager({
   const paymentNotice = subscription ? saasPaymentNotice(subscription.status) : null;
   const planCode = currentSnapshot?.entitlement.planCode;
   const trial = currentSnapshot?.trial ?? null;
+  const taxTerritoryReady =
+    !taxTerritoryRequired ||
+    (taxTerritory !== null &&
+      isSpanishTaxTerritoryCheckoutCovered(taxTerritory) &&
+      immediateStartConsent);
+  const taxTerritoryNotice =
+    taxTerritoryRequired && taxTerritory
+      ? spanishTaxTerritoryCheckoutNotice(taxTerritory)
+      : null;
   const canCheckoutStarter =
+    taxTerritoryReady &&
     canStartOperation &&
     !pendingCheckout &&
     trialConfirmed !== organizationId &&
     currentSnapshot?.actions.canCheckoutStarter === true;
   const canCheckoutGrowth =
+    taxTerritoryReady &&
     canStartOperation &&
     !pendingCheckout &&
     currentSnapshot?.actions.canCheckoutGrowth === true;
@@ -986,6 +1037,57 @@ export function OwnerSaasBillingManager({
               </p>
             ) : null}
 
+            {taxTerritoryRequired && !marketNotice ? (
+              <fieldset
+                className="mt-5 rounded-md border border-z-line bg-white p-4 sm:p-5"
+                disabled={pendingCommand !== null || busyAction !== null}
+              >
+                <legend className="px-1 text-sm font-bold">
+                  Sede fiscal de la academia
+                </legend>
+                <p className="text-sm leading-6 text-z-soft">
+                  La usamos para aplicar el IVA en la contratación. Debe coincidir
+                  con la dirección de facturación que indiques en el pago.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {SPANISH_TAX_TERRITORIES.map((value) => (
+                    <label
+                      key={value}
+                      className={`touch-target inline-flex cursor-pointer items-center gap-2 rounded-full border px-4 text-sm font-semibold has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-z-ink ${taxTerritory === value ? "border-z-ink bg-z-ink text-white" : "border-z-line text-z-soft hover:bg-z-canvas"}`}
+                    >
+                      <input
+                        type="radio"
+                        name={`tax-territory-${organizationId}`}
+                        value={value}
+                        checked={taxTerritory === value}
+                        onChange={() => { if (!pendingCommandRef.current && !actionInFlight.current) setTaxTerritory(value); }}
+                        className="sr-only"
+                      />
+                      {SPANISH_TAX_TERRITORY_LABELS[value]}
+                    </label>
+                  ))}
+                </div>
+                {taxTerritoryNotice ? (
+                  <p
+                    role="note"
+                    className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-4 text-sm leading-6 text-z-soft"
+                  >
+                    {taxTerritoryNotice}
+                  </p>
+                ) : null}
+                <label className="mt-4 flex cursor-pointer items-start gap-3 border-t border-z-line pt-4 text-sm leading-6">
+                  <input
+                    type="checkbox"
+                    required
+                    className="mt-1 h-4 w-4 shrink-0 accent-z-ink"
+                    checked={immediateStartConsent}
+                    onChange={(event) => { if (!pendingCommandRef.current && !actionInFlight.current) setImmediateStartConsent(event.target.checked); }}
+                  />
+                  <span>{IMMEDIATE_START_CONSENT_TEXT}</span>
+                </label>
+              </fieldset>
+            ) : null}
+
             {trial?.eligible && currentSnapshot.actions.canStartTrial ? (
               <div className="mt-5 flex flex-col gap-4 rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <div>
@@ -1030,6 +1132,16 @@ export function OwnerSaasBillingManager({
                   if (!syncIsReady) {
                     return syncPresentation?.actionLabel ?? "Revisión necesaria";
                   }
+                  if (taxTerritoryRequired && !taxTerritory) {
+                    return "Indica la sede fiscal";
+                  }
+                  if (
+                    taxTerritoryRequired &&
+                    isSpanishTaxTerritoryCheckoutCovered(taxTerritory!) &&
+                    !immediateStartConsent
+                  ) {
+                    return "Marca la casilla para contratar";
+                  }
                   return available
                     ? `Contratar ${planLabel(code)}`
                     : "No disponible ahora";
@@ -1054,13 +1166,30 @@ export function OwnerSaasBillingManager({
                         </span>
                       ) : null}
                     </div>
-                    <p className="mt-5 font-display text-3xl font-bold">
-                      {formatPrice(code, interval) ?? "Consultar"}
-                      <span className="ml-2 text-sm font-semibold text-z-soft">
-                        {priceSubtitle(code, interval)}
-                      </span>
-                    </p>
-                    <p className="mt-1 text-sm text-z-soft">Precios sin IVA.</p>
+                    {taxTerritoryRequired && formatPriceWithVat(code, interval) ? (
+                      <>
+                        {/* Precio final para consumidores (art. 20 TRLGDCU): IVA incluido. */}
+                        <p className="mt-5 font-display text-3xl font-bold">
+                          {formatPriceWithVat(code, interval)}
+                          <span className="ml-2 text-sm font-semibold text-z-soft">
+                            {priceSubtitle(code, interval)}, IVA incluido
+                          </span>
+                        </p>
+                        <p className="mt-1 text-sm text-z-soft">
+                          {formatPrice(code, interval)} + IVA ({SPANISH_VAT_GENERAL_RATE_PERCENT} %). Península y Baleares.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="mt-5 font-display text-3xl font-bold">
+                          {formatPrice(code, interval) ?? "Consultar"}
+                          <span className="ml-2 text-sm font-semibold text-z-soft">
+                            {priceSubtitle(code, interval)}
+                          </span>
+                        </p>
+                        <p className="mt-1 text-sm text-z-soft">Precios sin IVA.</p>
+                      </>
+                    )}
                     {interval === "year" ? (
                       <p className="mt-1 text-sm text-z-soft">
                         Pago anual por adelantado.
@@ -1100,10 +1229,10 @@ export function OwnerSaasBillingManager({
 
             <aside className="rounded-[12px] mt-5 border border-z-line bg-z-canvas p-5">
               <h3 className="font-display text-lg font-bold">
-                ¿Gestionas varias sedes?
+                ¿Necesitas acompañamiento o condiciones a medida?
               </h3>
               <p className="mt-1 text-sm leading-6 text-z-soft">
-                Network requiere una conversación y un onboarding acompañado.
+                Network se acuerda por contacto.
               </p>
               <Link
                 className="touch-target mt-3 inline-flex items-center text-sm font-bold text-z-brand-700 underline underline-offset-4"
