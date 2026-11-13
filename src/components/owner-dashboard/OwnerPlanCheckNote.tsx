@@ -15,8 +15,7 @@ import { ownerUi } from "./owner-ui";
 export type OwnerPlanCheck = "checking" | "unverified" | "read_only" | "ok";
 
 export function ownerPlanCheckOf(policy: OwnerPlanPolicy): OwnerPlanCheck {
-  if (policy.status === "loading") return "checking";
-  if (policy.status === "error") return "unverified";
+  if (policy.status !== "ready") return policy.status === "loading" ? "checking" : "unverified";
   return policy.readOnly ? "read_only" : "ok";
 }
 
