@@ -174,6 +174,12 @@ describe("registro manual de pagos con política de solo lectura", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("Importe recibido")).toHaveValue("25.00")
     );
+    // El cargo pagado ya salió de la lista: la fecha de la sede se recalcula al
+    // elegir el siguiente cargo y hay que esperarla antes de enviar.
+    await waitFor(() => {
+      expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
+    });
+    await waitForRegisterEnabled();
     fireEvent.submit(form!);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
@@ -573,7 +579,7 @@ describe("registro manual de pagos con política de solo lectura", () => {
       return { ok: true, status: 201, json: async () => ({ ok: true, data: request }) };
     });
 
-    render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
+    const paidTab = render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
     await waitFor(() => {
       expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
     });
@@ -583,7 +589,14 @@ describe("registro manual de pagos con política de solo lectura", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
     await screen.findByText("Pago guardado y asignado al cargo.");
+    paidTab.unmount();
 
+    // Otra pestaña que aún trae el saldo antiguo del mismo cargo.
+    render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
+    await waitFor(() => {
+      expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
+    });
+    await waitForRegisterEnabled();
     fireEvent.change(screen.getByLabelText("Importe recibido"), {
       target: { value: "5.00" },
     });
