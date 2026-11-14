@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+
 /**
  * Contrato de coherencia visual del alta de academia (`/owner/setup`, PR-5) y
  * de los cobros de `/owner` (`/owner/payments`, `/owner/monthly-invoices`,
@@ -27,7 +29,7 @@ const FILES = [
   "src/components/owner-dashboard/OwnerMonthlyResolutionNotices.tsx",
   "src/components/owner-dashboard/FamilyCollectionModeCard.tsx",
   "src/components/owner-dashboard/owner-monthly-resolution-model.ts",
-  "src/components/owner-dashboard/owner-form-tones.ts",
+  "src/components/owner-dashboard/owner-ui.ts",
 ] as const;
 
 const read = (path: string) => readFileSync(path, "utf8");
@@ -68,21 +70,21 @@ describe("alta de academia y cobros de /owner: familia de componentes Magnesio",
     expect(offenders).toEqual([]);
   });
 
-  it.each(FILES)("%s no pinta avisos con el tono de error heredado de ownerUi", (path) => {
-    // `ownerUi.noticeWarning` y los `z-chalk-*` siguen en lavado de señal
-    // hasta el PR-R: aquí un aviso va en ocre (`ownerNoticeAviso`).
-    const source = read(path);
-    expect(source).not.toContain("ownerUi.noticeWarning");
-    expect(source).not.toMatch(/\bz-chalk-/);
+  it.each(FILES)("%s no usa el alias heredado z-chalk-* (coral) para pintar tonos", (path) => {
+    // `z-chalk-*` es coral por alias: un aviso escrito así saldría como error.
+    expect(read(path)).not.toMatch(/\bz-chalk-/);
   });
 
-  it("el aviso es ocre y el campo es el de components/ui", () => {
-    const tones = read("src/components/owner-dashboard/owner-form-tones.ts");
+  it("el aviso de ownerUi es ocre, el error es señal y el campo es el de components/ui", () => {
+    const tones = read("src/components/owner-dashboard/owner-ui.ts");
     expect(tones).toContain('import { fieldControlClassName } from "@/components/ui/input"');
-    expect(tones).toMatch(
-      /ownerNoticeAviso =\s*"[^"]*border-ochre-line[^"]*bg-ochre-wash[^"]*text-ochre-ink[^"]*"/
-    );
-    expect(tones).not.toMatch(/signal|z-chalk/);
+    expect(tones).toMatch(/ownerField = cn\(fieldControlClassName,/);
+    const warning = ownerUi.noticeWarning.split(/\s+/);
+    expect(warning).toEqual(expect.arrayContaining(["border-ochre-line", "bg-ochre-wash", "text-ochre-ink"]));
+    expect(ownerUi.noticeWarning).not.toMatch(/signal|z-chalk|amber/);
+    const error = ownerUi.noticeError.split(/\s+/);
+    expect(error).toEqual(expect.arrayContaining(["bg-signal-wash", "text-signal-ink"]));
+    expect(ownerUi.noticeError).not.toMatch(/ochre|amber/);
   });
 
   it("los botones principales de cobros y alta usan ownerUi en tapiz", () => {
@@ -101,7 +103,7 @@ describe("alta de academia y cobros de /owner: familia de componentes Magnesio",
 
   it("los errores de cobros y alta van en señal y los pendientes en ocre", () => {
     const notices = read("src/components/owner-dashboard/ManualPaymentNotices.tsx");
-    expect(notices).toContain("className={ownerNoticeAviso}");
+    expect(notices).toContain("className={ownerUi.noticeWarning}");
     expect(notices).toContain("ownerUi.noticeError");
     const setupForm = read("src/components/owner-dashboard/OwnerSetupForm.tsx");
     expect(setupForm).toContain("className={ownerUi.noticeError}");
@@ -111,9 +113,12 @@ describe("alta de academia y cobros de /owner: familia de componentes Magnesio",
   it("el alta continúa el registro: titular display en mayúsculas y regla de 3 px", () => {
     for (const path of ["src/app/owner/setup/page.tsx", "src/app/owner/setup/preview/page.tsx"]) {
       const source = read(path);
-      expect(source).toMatch(/font-display[^"]*font-black uppercase/);
+      // Cabecera compartida (título display en mayúsculas), sin antetítulo.
+      expect(source).toContain("<PageHeader");
+      expect(source).not.toContain("<h1");
       expect(source).not.toContain("tracking-[-0.04em]");
     }
+    expect(read("src/components/ui/page-header.tsx")).toMatch(/<h1 className="[^"]*font-display[^"]*font-black uppercase/);
     expect(read("src/components/owner-dashboard/OwnerSetupForm.tsx")).toContain(
       "border-t-[3px] border-z-ink pt-8"
     );

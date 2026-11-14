@@ -25,7 +25,7 @@ export function OwnerOperationalSummaryPanel({
       >
         <h2
           id="operational-summary-unavailable-title"
-          className="font-display text-lg font-bold text-amber-950"
+          className="font-display text-lg font-bold text-ochre-ink"
         >
           Resumen operativo no disponible
         </h2>

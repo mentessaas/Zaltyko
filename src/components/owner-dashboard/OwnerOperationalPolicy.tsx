@@ -52,5 +52,5 @@ export function OwnerOperationalPolicy({ organizationId, locationId }: { organiz
   }, []);
   if (policy.status === "error") return <div className="px-5 py-2 text-sm"><p role="status">No se ha podido comprobar el estado operativo del plan.</p><button type="button" className="min-h-11 px-4 font-semibold underline" onClick={() => setRefresh(value => value + 1)}>Volver a consultar el uso</button></div>;
   if (policy.status !== "ready" || !policy.readOnly) return null;
-  return <aside role="status" className="border-b border-amber-600 bg-amber-50 px-5 py-4 text-sm text-z-ink"><strong>Academia en solo lectura.</strong> Los datos se conservan. La dirección de la academia debe regularizar la capacidad del plan.</aside>;
+  return <aside role="status" className="border-b border-ochre-line bg-ochre-wash px-5 py-4 text-sm text-ochre-ink"><strong>Academia en solo lectura.</strong> Los datos se conservan. La dirección de la academia debe regularizar la capacidad del plan.</aside>;
 }

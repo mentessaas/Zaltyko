@@ -318,7 +318,7 @@ function InsightCard({
       {error && (
         <div
           role="alert"
-          className="rounded-[12px] mt-4 border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+          className="rounded-[12px] mt-4 border border-signal/30 bg-signal-wash p-3 text-sm text-signal-ink"
         >
           <p>{error}</p>
           {retryAvailable && pendingMutationRef.current && (
@@ -326,7 +326,7 @@ function InsightCard({
               type="button"
               disabled={pending !== null || writesBlocked}
               onClick={retryPendingMutation}
-              className="rounded-[12px] touch-target mt-2 border border-red-800 px-3 py-2 font-bold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-[12px] touch-target mt-2 border border-signal-ink px-3 py-2 font-bold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Reintentar el mismo envío
             </button>

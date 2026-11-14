@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ownerTone } from "./owner-tone-ui";
-import { ownerUi } from "./owner-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
 
 export const PENDING_OWNER_GUARDIAN_PROFILE_STORAGE_KEY =
   "zaltyko:pending-owner-guardian-profile:v1";
