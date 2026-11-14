@@ -7,7 +7,7 @@ import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 const handler = withTenant(async () =>
   apiError(
     "DEPRECATED_BILLING_FLOW",
-    "Los cobros de suscripción se crean únicamente mediante Stripe Checkout.",
+    "La suscripción solo se contrata desde la página de pago seguro de Stripe.",
     410,
   ),
 );

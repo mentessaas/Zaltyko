@@ -102,7 +102,7 @@ export async function assertSystemOperationalScope(
     )
     .limit(1);
   if (!organization) {
-    throw new OperationalError("NOT_FOUND", "Organización no disponible", 404);
+    throw new OperationalError("NOT_FOUND", "Academia no disponible", 404);
   }
 
   const [location] = await tx

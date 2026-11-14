@@ -298,7 +298,7 @@ export function OwnerOnboardingForm({
       if (typeof redirectUrl !== "string" || !redirectUrl.startsWith("/")) {
         toast.pushToast({
           title: "Academia creada",
-          description: "No pudimos abrir el acceso directo; te llevamos al dashboard.",
+          description: "No pudimos abrir el acceso directo; te llevamos a tu panel.",
           variant: "warning",
         });
         router.push("/dashboard");
@@ -631,7 +631,7 @@ export function OwnerOnboardingForm({
             <Label>Plantilla inicial de clases (opcional)</Label>
             <p className="text-xs text-muted-foreground">
               Si mantienes la estructura inicial, estos entrenamientos se crearán automáticamente.
-              Si prefieres configurarlos después, desmarca todos los grupos: podrás retomar tu primera clase desde el dashboard.
+              Si prefieres configurarlos después, desmarca todos los grupos: podrás retomar tu primera clase desde tu panel.
             </p>
           </div>
           <div className="grid gap-3">

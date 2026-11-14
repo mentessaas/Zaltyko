@@ -132,7 +132,7 @@ export function ownerClassCreateRejection(
       typeof problem.detail === "string" && problem.detail.trim()) {
       return {
         status: "blocked",
-        message: "El servidor detectó un conflicto con esta clave. No volveremos a enviar la operación. Comprueba la lista actualizada de clases; si la clase no aparece o el resultado no está claro, contacta con soporte antes de iniciar otra creación.",
+        message: "Esta clase ya se había enviado y no la enviaremos otra vez. Mira la lista de clases. Si no aparece o no estás segura, escribe a soporte antes de crear otra.",
       };
     }
   }

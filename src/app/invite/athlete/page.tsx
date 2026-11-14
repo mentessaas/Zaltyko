@@ -49,8 +49,8 @@ export default async function AthleteInvitationPage({ searchParams }: AthleteInv
 
   return (
     <InvitationPageShell
-      eyebrow="Invitación para atletas"
-      title="Bienvenido a tu espacio de atleta"
+      eyebrow="Invitación para gimnastas"
+      title="Bienvenida a tu espacio de gimnasta"
       description="Tu academia te ha invitado a unirte a Zaltyko para acceder a tu perfil, calendario de clases y seguimiento de tu progreso."
       highlights={[
         "Tendrás a mano tu perfil, categoría y calendario de entrenamientos.",

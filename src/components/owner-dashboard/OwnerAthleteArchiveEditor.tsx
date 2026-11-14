@@ -322,7 +322,7 @@ export function OwnerAthleteArchiveEditor({
       if (receipt && sameScope) {
         if (!clearPendingArchive(command)) {
           uncertainRef.current = true;
-          setMessage("El servidor confirmó el archivo, pero no se pudo limpiar el reintento. Conservamos la misma operación para volver a comprobarla.");
+          setMessage("Se archivó, pero falta terminar. Vuelve a comprobarlo: no se repetirá el cambio.");
           setMessageKind("error");
           return;
         }
@@ -348,7 +348,7 @@ export function OwnerAthleteArchiveEditor({
       if (!uncertainRef.current && isDefinitiveClientProblem(response.status, payload)) {
         if (!clearPendingArchive(command)) {
           uncertainRef.current = true;
-          setMessage("El servidor rechazó el archivo, pero no se pudo verificar la limpieza del reintento. Conservamos la misma operación.");
+          setMessage("No se archivó y queda un intento sin terminar. Vuelve a intentarlo con la misma operación.");
           setMessageKind("error");
           return;
         }
@@ -394,7 +394,7 @@ export function OwnerAthleteArchiveEditor({
       {confirmationOpen && (
         <div role="group" className="space-y-3 rounded-md border border-signal/30 border-t-[3px] border-t-signal-ink bg-white p-4" aria-label="Confirmación de archivo">
           <p className="text-sm text-z-ink">
-            Archivar no borra la ficha. Termina sus pertenencias a grupos y clases futuras, y conserva su historial y las cuotas pendientes.
+            Archivar no borra la ficha. La saca de sus grupos y de las clases futuras, y conserva su historial y las cuotas pendientes.
           </p>
           {activePending && <p role="status" className={ownerTone.warningText}>Hay una respuesta pendiente de confirmar. El reintento usará exactamente el mismo cuerpo y la misma clave; no se enviará automáticamente.</p>}
           {message && <p role={messageKind === "error" ? "alert" : "status"} className={messageKind === "error" ? ownerTone.errorText : "text-sm text-z-ink"}>{message}</p>}

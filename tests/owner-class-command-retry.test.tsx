@@ -263,7 +263,7 @@ describe("reintento de creación de clases", () => {
 
     expect(await screen.findByRole("button", { name: "Crear clase y sesiones" })).toBeDisabled();
     expect(screen.getByText(/La academia está en solo lectura/)).toBeVisible();
-    expect(screen.getByRole("link", { name: "Uso y regularización" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
+    expect(screen.getByRole("link", { name: "Uso del plan" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
     expect(screen.getByRole("heading", { name: "Clases de tu academia" })).toBeVisible();
     expect(screen.getByLabelText("Nombre de la clase")).toBeDisabled();
     expect(writes()).toHaveLength(0);

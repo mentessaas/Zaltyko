@@ -80,7 +80,7 @@ export default async function AthleteMagicLinkPage({ searchParams }: MagicPagePr
       title={`Completa tu perfil para ${invitation.academyName}`}
       description="Estás a un paso de acceder a tu calendario, evaluaciones y avisos del club. Estos datos sólo los verá tu academia."
       highlights={[
-        "Tu nombre y fecha de nacimiento aparecen en los listados del staff.",
+        "Tu nombre y fecha de nacimiento aparecen en los listados del equipo.",
         "Tu nivel y aparato principal se usan para ubicarte en los grupos correctos.",
         "Tu email ya quedó verificado al abrir este enlace.",
       ]}

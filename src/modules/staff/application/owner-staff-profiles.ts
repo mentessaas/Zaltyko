@@ -128,7 +128,7 @@ async function assertOwnerAllAccess(
   if (member.locationScopeMode !== "all") {
     throw new OperationalError(
       "LOCATION_SCOPE_DENIED",
-      "Solo un Owner con acceso a toda la organización puede gestionar estos perfiles",
+      "Solo la dirección con acceso a toda la academia puede gestionar estas fichas",
       403
     );
   }

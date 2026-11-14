@@ -176,7 +176,7 @@ export function OwnerPlanUsage({ organizationId, compact = false }: { organizati
       if (outcome.status === "uncertain") { uncertainArchiveRef.current = true; setArchiveFeedback({ organizationId: intent.organizationId, error: outcome.message, notice: "" }); return; }
       if (!clearStoredArchiveIntent(window.sessionStorage, intent)) {
         uncertainArchiveRef.current = true;
-        setArchiveFeedback({ organizationId: intent.organizationId, error: "El servidor respondió, pero no se pudo cerrar la recuperación guardada. Reintenta exactamente el mismo archivo; no iniciaremos otro.", notice: "" });
+        setArchiveFeedback({ organizationId: intent.organizationId, error: "Hubo respuesta, pero falta terminar. Vuelve a archivar la misma ficha; no empezaremos otra.", notice: "" });
         return;
       }
       pendingArchiveRef.current = null;
@@ -186,7 +186,7 @@ export function OwnerPlanUsage({ organizationId, compact = false }: { organizati
         setConfirmed(false);
         if (outcome.code === "NOT_FOUND" || outcome.code === "RESOURCE_NOT_OVER_LIMIT") {
           setSelected(null);
-          setArchiveFeedback({ organizationId: intent.organizationId, error: "", notice: "El servidor indica que la ficha o el excedente ya cambió. Comprueba de nuevo el uso y la lista antes de elegir otra ficha." });
+          setArchiveFeedback({ organizationId: intent.organizationId, error: "", notice: "La ficha o lo que te sobra ya cambió. Mira de nuevo el uso y la lista antes de elegir otra ficha." });
           window.dispatchEvent(new Event("zaltyko:plan-usage-changed"));
           return;
         }
@@ -229,18 +229,18 @@ export function OwnerPlanUsage({ organizationId, compact = false }: { organizati
     </aside>
   ) : error ? <div className="px-5 py-2 text-sm"><p role="status">{error}</p><button type="button" className="min-h-11 px-4 font-semibold underline" onClick={() => setRefresh(value => value + 1)}>Volver a consultar el uso</button></div> : null;
 
-  return <section id="regularizar" className="rounded-[12px] mt-6 border border-z-line bg-white p-5 sm:p-6" aria-label="Uso y regularización del plan">
-    <h2 className="font-display text-xl font-bold">Uso y regularización</h2>
+  return <section id="regularizar" className="rounded-[12px] mt-6 border border-z-line bg-white p-5 sm:p-6" aria-label="Uso del plan">
+    <h2 className="font-display text-xl font-bold">Uso del plan</h2>
       {usage ? <>
-      <p className="mt-3" role="status">{usage.readOnly ? "Tus datos están guardados. La academia está en solo lectura: archiva el excedente o contrata un plan suficiente. La consulta y la gestión de la suscripción siguen disponibles." : "La academia está dentro de los límites del plan."}</p>
+      <p className="mt-3" role="status">{usage.readOnly ? "Tus datos están guardados. La academia está en solo lectura: archiva lo que te sobra o elige un plan mayor. La consulta y la gestión de la suscripción siguen disponibles." : "Tu academia cabe en el plan."}</p>
       <ul className="my-4 grid gap-2 sm:grid-cols-3">{usage.resources.map(item => <li key={item.resource}>{labels[item.resource]}: <strong>{item.current} / {item.limit ?? "sin límite"}</strong>{resourceCapacityLabel(item.current, item.limit, item.excess) ? ` · ${resourceCapacityLabel(item.current, item.limit, item.excess)}` : ""}</li>)}</ul>
-      <p className="text-sm text-z-soft">Archivar no borra fichas, cuotas ni asistencia histórica. Cierra las pertenencias e inscripciones abiertas del recurso y, si es una clase, cancela sus sesiones futuras. Las fichas archivadas no pueden seguir operando. No se hacen cargos ni devoluciones.</p>
-      <label className="mt-4 block font-semibold">Tipo de ficha<select className="ml-3 min-h-11 rounded border p-2" value={selectedResourceHasExcess ? resource : ""} disabled={archiveLocked || resourcesWithExcess.length === 0} onChange={event => { setResource(event.target.value as Resource); setAfter(null); setSelected(null); setConfirmed(false); clearArchiveNotice(); }}>
-        {resourcesWithExcess.length === 0 ? <option value="">No hay tipos con excedente</option> : resourcesWithExcess.map(item => <option key={item.resource} value={item.resource}>{labels[item.resource]} · excedente {item.excess}</option>)}
+      <p className="text-sm text-z-soft">Archivar no borra fichas, cuotas ni asistencia histórica. La saca de sus grupos e inscripciones abiertas y, si es una clase, cancela sus sesiones futuras. Las fichas archivadas dejan de estar activas. No se hacen cargos ni devoluciones.</p>
+      <label className="mt-4 block font-semibold">Qué quieres archivar<select className="ml-3 min-h-11 rounded border p-2" value={selectedResourceHasExcess ? resource : ""} disabled={archiveLocked || resourcesWithExcess.length === 0} onChange={event => { setResource(event.target.value as Resource); setAfter(null); setSelected(null); setConfirmed(false); clearArchiveNotice(); }}>
+        {resourcesWithExcess.length === 0 ? <option value="">No hay nada que archivar</option> : resourcesWithExcess.map(item => <option key={item.resource} value={item.resource}>{labels[item.resource]} · te sobran {item.excess}</option>)}
       </select></label>
       {selectedResourceHasExcess ? usage.items.length > 0 ? (
         <ul className="mt-4 max-h-80 overflow-auto divide-y">{usage.items.map(item => <li key={item.id} className="flex items-center justify-between gap-3 py-2"><span>{item.name}</span><button type="button" className="min-h-11 rounded border px-4 font-semibold" aria-label={`Elegir para archivar: ${item.name}`} disabled={archiveLocked} onClick={event => { archiveTriggerRef.current = event.currentTarget; setSelected(item); setConfirmed(false); clearArchiveNotice(); }}>Elegir para archivar</button></li>)}</ul>
-      ) : <p className="mt-4" role="status">No hay fichas activas disponibles para este excedente.</p> : <p className="mt-4" role="status">No hay excedente que archivar en esta academia. Las fichas y su historial se conservan; puedes consultar el uso, revisar la suscripción o contratar un plan suficiente.</p>}
+      ) : <p className="mt-4" role="status">No hay fichas activas que archivar.</p> : <p className="mt-4" role="status">No te sobra nada en esta academia. Las fichas y su historial se conservan; puedes consultar el uso, revisar la suscripción o contratar un plan suficiente.</p>}
       {usage.next ? <button type="button" className="min-h-11 px-4 underline" disabled={archiveLocked} onClick={() => setAfter(usage.next)}>Siguientes fichas</button> : null}
       {after ? <button type="button" className="min-h-11 px-4 underline" disabled={archiveLocked} onClick={() => setAfter(null)}>Volver al principio</button> : null}
     </> : !error ? <p className="mt-3" role="status">Consultando el uso…</p> : null}

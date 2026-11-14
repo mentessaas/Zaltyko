@@ -254,7 +254,7 @@ export const DELETE = withTenant(async (request, context) => {
     if (!membership || membership.role !== "owner") {
       return apiError(
         "FORBIDDEN",
-        "Solo el owner puede eliminar anuncios",
+        "Solo la dirección de la academia puede eliminar anuncios",
         403
       );
     }

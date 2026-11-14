@@ -123,7 +123,7 @@ export async function createAcademy(
       return {
         error: apiError(
           "ACADEMY_LIMIT_REACHED",
-          `Has alcanzado el límite de academias de tu plan actual (${error.payload?.limit ?? 1} academia). Para operar varias sedes, habla con Zaltyko y activaremos Network con onboarding acompañado.`,
+          `Has alcanzado el límite de academias de tu plan actual (${error.payload?.limit ?? 1} academia). Para llevar varias sedes, escríbenos y activamos el plan Network contigo paso a paso.`,
           402,
           {
             ...error.payload,

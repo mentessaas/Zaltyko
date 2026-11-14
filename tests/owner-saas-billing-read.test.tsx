@@ -203,7 +203,7 @@ describe("panel de facturación: lecturas simuladas sin comandos", () => {
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia actual" />);
     fireEvent.click(await screen.findByRole("button", { name: "Volver a consultar" }));
     expect(await screen.findByText("75 gimnastas")).toBeVisible();
-    expect(screen.getByText("Revisión de acceso: 2")).toBeVisible();
+    expect(screen.getByText("Acceso n.º 2")).toBeVisible();
     expect(screen.getByText("Suscripción Pago pendiente de resolver")).toBeVisible();
     expect(screen.getByRole("button", { name: "Gestionar suscripción" })).toBeEnabled();
     expect(screen.queryByRole("link", { name: "Abrir portal seguro" })).not.toBeInTheDocument();
@@ -335,7 +335,7 @@ describe("mensajes de comandos simulados ligados a su academia", () => {
 
     expect(screen.getByText("Academia B confirmada")).toBeVisible();
     expect(screen.getByText("75 gimnastas")).toBeVisible();
-    expect(screen.queryByText(/El servidor confirma la prueba Starter/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tu prueba Starter dura hasta/)).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.filter(([, options]) => !options.method)).toHaveLength(2);
     expect(postCalls()).toHaveLength(1);
   });
@@ -376,7 +376,7 @@ describe("mensajes de comandos simulados ligados a su academia", () => {
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia A" />);
     fireEvent.click(await screen.findByRole("button", { name: "Activar prueba" }));
 
-    const confirmedNotice = await screen.findByText(/El servidor confirma la prueba Starter/);
+    const confirmedNotice = await screen.findByText(/Tu prueba Starter dura hasta/);
     expect(confirmedNotice).toHaveTextContent("hasta el");
     expect(confirmedNotice).toHaveTextContent(/30/);
     expect(confirmedNotice).toHaveTextContent("No se ha solicitado ningún cobro.");
@@ -400,7 +400,7 @@ describe("mensajes de comandos simulados ligados a su academia", () => {
     expect(screen.queryByText(/No podemos confirmar el resultado/)).not.toBeInTheDocument();
     expect(screen.queryByText("Fallo sintético del Portal de A")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Gestionar suscripción" })).toBeDisabled();
-    expect(screen.getByText(/Hay una operación de facturación pendiente en otra academia/)).toBeVisible();
+    expect(screen.getByText(/Hay un cambio de plan pendiente en otra academia/)).toBeVisible();
     expect(postCalls()).toHaveLength(1);
     view.rerender(<OwnerSaasBillingManager organizationId={org} organizationName="Academia A" />);
     expect(await screen.findByRole("alert")).toHaveTextContent("No podemos confirmar el resultado");
@@ -818,7 +818,7 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     expect(screen.getByRole("button", { name: "Anual" })).toHaveAttribute("aria-pressed", "false");
     changed = true;
     fireEvent.click(screen.getByRole("button", { name: "Actualizar estado" }));
-    expect(await screen.findByText("Revisión de acceso: 5")).toBeVisible();
+    expect(await screen.findByText("Acceso n.º 5")).toBeVisible();
     expect(posts()).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Reintentar la operación pendiente" }));
     await waitFor(() => expect(posts()).toHaveLength(2));
@@ -866,7 +866,7 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" />);
     fireEvent.click(await screen.findByRole("button", { name: "Contratar Growth" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("No se ha podido validar");
-    expect(screen.queryByRole("region", { name: "Operación de facturación pendiente" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Cambio de plan pendiente" })).not.toBeInTheDocument();
     expect(posts()).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Anual" }));
     fireEvent.click(screen.getByRole("button", { name: "Contratar Growth" }));
@@ -909,9 +909,9 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" />);
     fireEvent.click(await screen.findByRole("button", { name: "Activar prueba" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("No podemos confirmar el resultado");
-    expect(screen.queryByText(/El servidor confirma la prueba Starter/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tu prueba Starter dura hasta/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Reintentar la operación pendiente" }));
-    expect(await screen.findByText(/El servidor confirma la prueba Starter/)).toBeVisible();
+    expect(await screen.findByText(/Tu prueba Starter dura hasta/)).toBeVisible();
     expect(posts()[1]).toEqual(posts()[0]);
   });
 
@@ -929,11 +929,11 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Activar prueba" }));
     const retry = await screen.findByRole("button", { name: "Reintentar la operación pendiente" });
     await waitFor(() => expect(retry).toBeEnabled());
-    expect(screen.queryByText(/El servidor confirma la prueba Starter/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tu prueba Starter dura hasta/)).not.toBeInTheDocument();
     expect(leavingPageIsPrevented()).toBe(true);
     expect(posts()).toHaveLength(1);
     fireEvent.click(retry);
-    expect(await screen.findByText(/El servidor confirma la prueba Starter/)).toBeVisible();
+    expect(await screen.findByText(/Tu prueba Starter dura hasta/)).toBeVisible();
     expect(posts()[1]).toEqual(posts()[0]);
     expect(leavingPageIsPrevented()).toBe(false);
   });
@@ -946,7 +946,7 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
       ? response({ ...actionResult("trial"), ...fields }) : response(actionFixture("trial")));
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" />);
     fireEvent.click(await screen.findByRole("button", { name: "Activar prueba" }));
-    expect(await screen.findByText(/El servidor confirma la prueba Starter/)).toBeVisible();
+    expect(await screen.findByText(/Tu prueba Starter dura hasta/)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Reintentar la operación pendiente" })).not.toBeInTheDocument();
     expect(posts()).toHaveLength(1);
   });

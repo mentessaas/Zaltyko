@@ -233,7 +233,7 @@ function assertJoinReplayMatchesStoredCommand(
   ) {
     throw new OperationalError(
       "IDEMPOTENCY_CONFLICT",
-      "La clave de idempotencia ya fue usada con otros parámetros",
+      "Este envío ya se hizo con otros datos. Vuelve a empezar.",
       409
     );
   }
@@ -394,7 +394,7 @@ export async function joinWaitlistInTx(
     if (!athlete) {
       throw new OperationalError(
         "NOT_FOUND",
-        "Atleta activo no encontrado",
+        "No encontramos a la gimnasta activa",
         404
       );
     }
@@ -415,7 +415,7 @@ export async function joinWaitlistInTx(
       if (!template) {
         throw new OperationalError(
           "NOT_FOUND",
-          "Plantilla activa no encontrada en la sede",
+          "No encontramos la clase activa en la sede",
           404
         );
       }

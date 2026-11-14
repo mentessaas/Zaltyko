@@ -27,7 +27,7 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
       <InvitationPageShell
         eyebrow="Invitación"
         title="Invitación no válida"
-        description="Falta el token de invitación. Revisa el enlace que recibiste o solicita uno nuevo."
+        description="Falta el código de la invitación. Revisa el enlace que recibiste o pide uno nuevo."
         highlights={[
           "Las invitaciones deben abrirse desde el enlace original recibido por correo.",
           "Si el enlace se cortó o expiró, tu academia puede enviarte uno nuevo.",

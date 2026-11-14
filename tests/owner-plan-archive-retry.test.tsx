@@ -106,9 +106,9 @@ describe("archivo explícito con resultado incierto, solo solicitudes simuladas"
     render(<OwnerPlanUsage organizationId={organizationId} />);
     await selectAndConfirm();
 
-    const notice = await screen.findByText("El servidor indica que la ficha o el excedente ya cambió. Comprueba de nuevo el uso y la lista antes de elegir otra ficha.");
+    const notice = await screen.findByText("La ficha o lo que te sobra ya cambió. Mira de nuevo el uso y la lista antes de elegir otra ficha.");
     expect(notice).toHaveAttribute("role", "status");
-    expect(await screen.findByText(/No hay excedente que archivar en esta academia/)).toBeVisible();
+    expect(await screen.findByText(/No te sobra nada en esta academia/)).toBeVisible();
     expect(screen.queryByRole("button", { name: /Elegir para archivar/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Confirmar archivo de Ficha A" })).not.toBeInTheDocument();
     expect(posts()).toHaveLength(1);
@@ -124,9 +124,9 @@ describe("archivo explícito con resultado incierto, solo solicitudes simuladas"
     render(<OwnerPlanUsage organizationId={organizationId} />);
     await selectAndConfirm();
     await waitFor(() => expect(screen.queryByRole("group", { name: "Confirmar archivo de Ficha A" })).not.toBeInTheDocument());
-    expect(await screen.findByText(/No hay excedente que archivar en esta academia/)).toBeVisible();
+    expect(await screen.findByText(/No te sobra nada en esta academia/)).toBeVisible();
     expect(screen.queryByRole("button", { name: /Elegir para archivar/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Tipo de ficha" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Qué quieres archivar" })).toBeDisabled();
     expect(posts()).toHaveLength(1);
   });
 
@@ -196,7 +196,7 @@ describe("archivo explícito con resultado incierto, solo solicitudes simuladas"
     await selectAndConfirm();
     expect(await screen.findByRole("alert")).toHaveTextContent("No podemos confirmar");
     expect(screen.getByRole("button", { name: "Cancelar selección" })).toBeDisabled();
-    expect(screen.getByRole("combobox", { name: "Tipo de ficha" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Qué quieres archivar" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Elegir para archivar: Ficha B" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Siguientes fichas" })).toBeDisabled();
     expect(screen.getByRole("checkbox")).toBeDisabled();
@@ -240,7 +240,7 @@ describe("archivo explícito con resultado incierto, solo solicitudes simuladas"
     render(<OwnerPlanUsage organizationId={organizationId} />);
     await selectAndConfirm();
     const changedNotice = await screen.findByText(
-      "El servidor indica que la ficha o el excedente ya cambió. Comprueba de nuevo el uso y la lista antes de elegir otra ficha."
+      "La ficha o lo que te sobra ya cambió. Mira de nuevo el uso y la lista antes de elegir otra ficha."
     );
     expect(changedNotice).toHaveAttribute("role", "status");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -281,7 +281,7 @@ describe("archivo explícito con resultado incierto, solo solicitudes simuladas"
     firstView.unmount();
     render(<OwnerPlanUsage organizationId={organizationId} />);
     expect(await screen.findByRole("group", { name: "Confirmar archivo de Gimnasta seleccionada antes de recargar" })).toBeVisible();
-    expect(await screen.findByText(/No hay excedente que archivar en esta academia/)).toBeVisible();
+    expect(await screen.findByText(/No te sobra nada en esta academia/)).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Reintentar el mismo archivo" }));
     await waitFor(() => expect(screen.queryByRole("group")).not.toBeInTheDocument());
     expect(posts()).toHaveLength(2);

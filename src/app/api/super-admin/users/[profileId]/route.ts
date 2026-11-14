@@ -336,7 +336,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
                   </p>
                 </div>
               `,
-              text: `Tu plan ha sido cambiado a ${getProductPlanPublicName(plan.code)}. Algunos recursos exceden los límites. Visita tu panel para ajustar.`,
+              text: `Tu plan ahora es ${getProductPlanPublicName(plan.code)}. Algo supera los límites del plan nuevo. Entra en tu panel para revisarlo.`,
               replyTo: config.brevo.supportEmail,
               template: "super-admin-plan-limit-warning",
               tenantId: existing.tenantId,

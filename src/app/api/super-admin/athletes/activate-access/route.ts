@@ -87,7 +87,7 @@ async function activateAthleteAccess(
       
       emailSent = await sendEmailWithLogging({
         to: targetEmail,
-        subject: "Activa tu cuenta de atleta - Zaltyko",
+        subject: "Activa tu cuenta de gimnasta - Zaltyko",
         html: `
           <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">¡Bienvenido a Zaltyko!</h2>
@@ -107,7 +107,7 @@ async function activateAthleteAccess(
             </p>
           </div>
         `,
-        text: `Tu cuenta de atleta ha sido activada. Visita ${resetLink} para establecer tu contraseña.`,
+        text: `Tu cuenta de gimnasta está activada. Entra en ${resetLink} para elegir tu contraseña.`,
         replyTo: config.brevo.supportEmail,
         template: "athlete-access-activation",
         tenantId: profile.tenantId,
@@ -153,7 +153,7 @@ export const POST = withSuperAdmin(async (request) => {
       message:
         result.emailSent === false
           ? "Acceso activado, pero el correo para crear la contraseña no se ha enviado"
-          : "Acceso de atleta activado correctamente",
+          : "Acceso de gimnasta activado",
       userId: result.userId,
       email: result.email,
       emailSent: result.emailSent ?? null,

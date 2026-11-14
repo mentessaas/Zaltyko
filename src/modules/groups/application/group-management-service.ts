@@ -63,7 +63,7 @@ export async function createOperationalGroup(command: CreateGroupCommand) {
       if (typeof groupId !== "string") {
         throw new OperationalError(
           "IDEMPOTENCY_CONFLICT",
-          "La clave de idempotencia no contiene el grupo esperado",
+          "Este envío no coincide con el grupo. Vuelve a empezar.",
           409
         );
       }
@@ -88,7 +88,7 @@ export async function createOperationalGroup(command: CreateGroupCommand) {
       ) {
         throw new OperationalError(
           "IDEMPOTENCY_CONFLICT",
-          "La clave de idempotencia ya fue usada con otros parámetros",
+          "Este envío ya se hizo con otros datos. Vuelve a empezar.",
           409
         );
       }
@@ -115,7 +115,7 @@ export async function createOperationalGroup(command: CreateGroupCommand) {
     if (!location) {
       throw new OperationalError(
         "LOCATION_SCOPE_DENIED",
-        "La sede no está disponible en esta organización",
+        "La sede no está disponible en esta academia",
         404
       );
     }

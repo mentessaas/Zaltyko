@@ -465,7 +465,7 @@ export function OwnerGuardianContactsEditor({
           uncertain = true;
           setPending(command);
           setPendingBlocked(false);
-          setMessage("El servidor confirmó el cambio, pero no se pudo limpiar el marcador guardado. Conservamos la misma operación para comprobarla otra vez.");
+          setMessage("Se hizo el cambio, pero falta terminar. Vuelve a comprobarlo: no se repetirá.");
           return;
         }
         setPending(null);
@@ -519,7 +519,7 @@ export function OwnerGuardianContactsEditor({
           uncertain = true;
           setPending(command);
           setPendingBlocked(false);
-          setMessage("El servidor rechazó la solicitud, pero no se pudo limpiar el marcador guardado. No iniciaremos otra operación.");
+          setMessage("No se hizo el cambio y queda un intento sin terminar. Resuélvelo antes de empezar otro.");
           notifyPending(true, requestScope);
         }
         return;

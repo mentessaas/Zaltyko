@@ -124,7 +124,7 @@ async function loadMembership(
   if (!membership) {
     throw new OperationalError(
       options.priorResult ? "IDEMPOTENCY_CONFLICT" : "NOT_FOUND",
-      options.priorResult ? "No se puede recuperar el resultado de la operación anterior" : "Pertenencia al grupo no encontrada",
+      options.priorResult ? "No se puede recuperar el resultado de la operación anterior" : "No encontramos a la gimnasta en este grupo",
       options.priorResult ? 409 : 404
     );
   }
@@ -227,7 +227,7 @@ export async function addGroupMembership(
       ) {
         throw new OperationalError(
           "IDEMPOTENCY_CONFLICT",
-          "La clave de idempotencia ya pertenece a otra persona o grupo",
+          "Este envío ya se hizo con otra persona o grupo. Vuelve a empezar.",
           409
         );
       }
@@ -264,7 +264,7 @@ export async function addGroupMembership(
       )
       .limit(1);
     if (!eligibleAthlete) {
-      throw new OperationalError("NOT_FOUND", "Atleta activo no encontrado", 404);
+      throw new OperationalError("NOT_FOUND", "No encontramos a la gimnasta activa", 404);
     }
 
     await lockGroupCapacity(tx, input.organizationId, group.id);
@@ -446,7 +446,7 @@ export async function createAthleteForGroup(
       ) {
         throw new OperationalError(
           "IDEMPOTENCY_CONFLICT",
-          "La clave de idempotencia ya fue usada con otros datos",
+          "Este envío ya se hizo con otros datos. Vuelve a empezar.",
           409
         );
       }
@@ -463,7 +463,7 @@ export async function createAthleteForGroup(
       ) {
         throw new OperationalError(
           "IDEMPOTENCY_CONFLICT",
-          "La clave de idempotencia pertenece a otra pertenencia",
+          "Este envío ya se hizo con otra gimnasta. Vuelve a empezar.",
           409
         );
       }
@@ -478,7 +478,7 @@ export async function createAthleteForGroup(
     if (priorMembershipEvent) {
       throw new OperationalError(
         "IDEMPOTENCY_CONFLICT",
-        "La clave de idempotencia ya pertenece a otra operación",
+        "Este envío ya se hizo con otra operación. Vuelve a empezar.",
         409
       );
     }
@@ -833,7 +833,7 @@ export async function transitionGroupMembership(
       input.membershipId
     );
     if (input.groupId && current.groupId !== input.groupId) {
-      throw new OperationalError("NOT_FOUND", "Pertenencia no encontrada", 404);
+      throw new OperationalError("NOT_FOUND", "No encontramos a la gimnasta en este grupo", 404);
     }
     const group = await assertGroupAccess(tx, {
       organizationId: input.organizationId,
@@ -863,21 +863,21 @@ export async function transitionGroupMembership(
     if (current.status !== input.expectedStatus) {
       throw new OperationalError(
         "VERSION_CONFLICT",
-        "La pertenencia al grupo cambió desde la última lectura",
+        "El grupo ha cambiado. Actualiza la página y vuelve a intentarlo.",
         409
       );
     }
     if (!canTransition(current.status, input.toStatus)) {
       throw new OperationalError(
         "INVALID_STATE_TRANSITION",
-        "No se permite este cambio de estado de pertenencia",
+        "No se permite este cambio en el grupo",
         409
       );
     }
     if (input.toStatus === "active" && group.status !== "active") {
       throw new OperationalError(
         "INVALID_STATE_TRANSITION",
-        "No se puede reactivar una pertenencia en un grupo inactivo",
+        "No se puede volver a añadir a la gimnasta a un grupo inactivo",
         409
       );
     }
@@ -908,7 +908,7 @@ export async function transitionGroupMembership(
     if (!updated) {
       throw new OperationalError(
         "VERSION_CONFLICT",
-        "La pertenencia al grupo cambió desde la última lectura",
+        "El grupo ha cambiado. Actualiza la página y vuelve a intentarlo.",
         409
       );
     }
