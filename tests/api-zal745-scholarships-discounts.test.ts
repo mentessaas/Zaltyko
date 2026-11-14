@@ -116,14 +116,6 @@ const discount = {
   isActive: true,
 };
 
-describe("ZAL-745: scholarships PUT/DELETE", () => {
-  beforeEach(reset);
-
-
-
-
-});
-
 describe("ZAL-745: discounts apply/PUT/DELETE", () => {
   beforeEach(reset);
 
