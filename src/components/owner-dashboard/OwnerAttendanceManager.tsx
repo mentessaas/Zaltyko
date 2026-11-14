@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ClipboardCheck, UsersRound } from "lucide-react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
 import { OwnerSessionCoaches } from "./OwnerSessionCoaches";
@@ -9,6 +9,7 @@ import { OwnerSessionAthleteProgress } from "./OwnerSessionAthleteProgress";
 import { OwnerSessionPlanPanel } from "./OwnerSessionPlanPanel";
 import { OwnerSessionObservationForm } from "./OwnerSessionObservationForm";
 import { ownerTone, ownerUi } from "./owner-ui";
+import { DrawnCheck, OwnerListSkeleton } from "./OwnerFeedback";
 import { PageHeader } from "@/components/ui/page-header";
 import { ownerPlanCheckOf } from "./OwnerPlanCheckNote";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
@@ -219,6 +220,7 @@ export function OwnerAttendanceManager({
   progressAvailable = false,
   coachAssignmentAvailable = false,
   sessionPlansAvailable = false,
+  insight = null,
 }: {
   organizationId: string;
   locationId: string;
@@ -240,6 +242,8 @@ export function OwnerAttendanceManager({
   coachAssignmentAvailable?: boolean;
   /** P2 #17 (segunda parte): el servidor comprobó que existe la planificación. */
   sessionPlansAvailable?: boolean;
+  /** Gráfica de asistencia de las últimas semanas (solo dirección). */
+  insight?: ReactNode;
 }) {
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
@@ -690,6 +694,8 @@ export function OwnerAttendanceManager({
           />
         </header>
 
+        {insight}
+
         <OwnerOperationalReadOnlyNotice
           organizationId={organizationId}
           subscriptionLinks={!coachMode}
@@ -812,7 +818,14 @@ export function OwnerAttendanceManager({
                       <span className="font-semibold text-z-ink">
                         {recordedCount} de {attendees.length} marcadas
                       </span>
-                      <UsersRound className="h-4 w-4 shrink-0 text-z-soft" aria-hidden="true" />
+                      {recordedCount === attendees.length ? (
+                        <span className={`zk-settle ${ownerTone.chipActive}`}>
+                          <DrawnCheck className="h-3.5 w-3.5" />
+                          Lista completa
+                        </span>
+                      ) : (
+                        <UsersRound className="h-4 w-4 shrink-0 text-z-soft" aria-hidden="true" />
+                      )}
                     </div>
                     <div
                       className={`mt-1.5 ${ownerUi.meterTrack} bg-white`}
@@ -823,7 +836,7 @@ export function OwnerAttendanceManager({
                       aria-valuenow={recordedCount}
                     >
                       <div
-                        className="h-1.5 bg-mat transition-[width]"
+                        className="h-1.5 bg-mat transition-[width] duration-500 ease-out motion-reduce:transition-none"
                         style={{ width: `${Math.round((recordedCount / attendees.length) * 100)}%` }}
                       />
                     </div>
@@ -859,15 +872,7 @@ export function OwnerAttendanceManager({
               </p>
             )}
 
-            {loading && (
-              <p
-                role="status"
-                aria-live="polite"
-                className="text-sm text-z-soft"
-              >
-                Cargando lista…
-              </p>
-            )}
+            {loading && <OwnerListSkeleton label="Cargando lista…" rows={4} />}
             {loadError && (
               <div
                 role="alert"
@@ -998,7 +1003,7 @@ export function OwnerAttendanceManager({
                                     status: option.value,
                                   });
                                 }}
-                                className={`touch-target inline-flex min-h-12 min-w-0 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50 ${saved ? statusButtonPressed[option.value] : "border-z-line bg-white text-z-ink hover:border-mat hover:bg-mat-wash"}`}
+                                className={`touch-target inline-flex min-h-12 min-w-0 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.98] motion-reduce:active:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50 ${saved ? `${statusButtonPressed[option.value]} zk-stamp` : "border-z-line bg-white text-z-ink hover:border-mat hover:bg-mat-wash"}`}
                                 aria-label={
                                   sending
                                     ? `Guardando asistencia de ${attendee.athleteName}`

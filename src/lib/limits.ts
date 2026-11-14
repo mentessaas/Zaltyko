@@ -645,6 +645,6 @@ export function getUpgradeInfo(planCode: PlanCode): {
   return {
     nextPlan: "network",
     price: "99€/mes",
-    benefits: ["Multi-sede con onboarding acompañado", "Límites amplios", "Soporte prioritario"],
+    benefits: ["Gimnastas, grupos y clases sin límite", "Condiciones acordadas por contacto"],
   };
 }

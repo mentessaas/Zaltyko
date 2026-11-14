@@ -23,6 +23,12 @@ import {
 } from "@/modules/payment-reminders/application/storage";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import {
+  getOwnerMonthlyFeesChart,
+  resolveOwnerChartScope,
+} from "@/modules/owner-dashboard/application/summary-charts";
+import { OwnerMonthlyFeesPanel } from "@/components/owner-dashboard/charts/OwnerChartPanels";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -118,6 +124,18 @@ export default async function OwnerPaymentsPage({
     }
   }
 
+  // Cuotas del mes en curso de esta sede (o de todas): lo que ya se cobró y lo
+  // que falta. Tras guardar un pago, el refresco de la página lo actualiza.
+  const monthlyFees = await resolveOwnerChartScope({
+    scope,
+    locationId: options.selectedLocationId,
+  })
+    .then((chartScope) => getOwnerMonthlyFeesChart(chartScope, true))
+    .catch((error: unknown) => {
+      logger.error("Owner monthly fees chart failed", error);
+      return null;
+    });
+
   return (
     <OwnerWorkspacePageShell
       member={scope.member}
@@ -148,6 +166,14 @@ export default async function OwnerPaymentsPage({
               }
             />
           </div>
+
+          {monthlyFees ? (
+            <OwnerMonthlyFeesPanel
+              chart={monthlyFees}
+              links={{ "monthly-invoices": `/owner/monthly-invoices?${monthlyInvoiceQuery.toString()}` }}
+              headingLevel="h2"
+            />
+          ) : null}
 
           <ManualPaymentForm
             actorId={user.id}

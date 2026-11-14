@@ -146,6 +146,7 @@ describe("rechazo definitivo conocido frente a resultado incierto", () => {
     [401, "UNAUTHENTICATED"], [403, "FORBIDDEN"], [404, "ORGANIZATION_NOT_FOUND"],
     [400, "VALIDATION_ERROR"], [422, "PLAN_NOT_SELF_SERVE"],
     [409, "TRIAL_NOT_ELIGIBLE"], [409, "SUBSCRIPTION_ALREADY_EXISTS"], [410, "CHECKOUT_EXPIRED"],
+    [422, "SAAS_BILLING_TAX_ID_INVALID"], [422, "SAAS_BILLING_LEGAL_NAME_REQUIRED"],
   ])("acepta solo el rechazo canónico %s/%s", (status, code) => {
     expect(isDefinitiveSaasCommandRejection({ status: Number(status) }, { ok: false, error: code, code, message: "Rejected" })).toBe(true);
     expect(isDefinitiveSaasCommandRejection({ status: Number(status) }, { ok: false, error: code, code, message: "Rejected" }, { previouslyUncertain: true })).toBe(false);
@@ -978,14 +979,49 @@ describe("contratación en España: sede fiscal, precio con IVA y casilla de ini
     expect(text).not.toContain("Precios sin IVA.");
     // Starter y Growth no limitan sedes: Network no se presenta como «varias sedes».
     expect(text).toContain("¿Necesitas acompañamiento o condiciones a medida?");
-    expect(text).toContain("Network se acuerda por contacto.");
+    expect(text).toContain("escríbenos y vemos tu caso.");
+    expect(text).not.toContain("Network");
     expect(text).not.toContain("¿Gestionas varias sedes?");
+  });
+
+  // CIF sintético generado con el algoritmo de control, no pertenece a nadie conocido.
+  function fillBillingDetails(taxId = "B12345674") {
+    fireEvent.change(screen.getByLabelText("Razón social o nombre del titular"), { target: { value: "  Club   Sintético  " } });
+    fireEvent.change(screen.getByLabelText("NIF, NIE o CIF"), { target: { value: taxId } });
+  }
+
+  it("no deja contratar con un NIF/CIF con el control incorrecto y envía el valor canónico", async () => {
+    fetchMock.mockImplementation(async (_url, options) => response(options.method === "POST" ? checkoutResult : checkoutFixture()));
+    render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" taxTerritoryRequired />);
+    fireEvent.click(await screen.findByLabelText("Península o Islas Baleares"));
+    fireEvent.click(screen.getByRole("checkbox", { name: /pierdo el derecho de desistimiento de 14 días/ }));
+    const incomplete = screen.getAllByRole("button", { name: "Completa los datos de factura" });
+    expect(incomplete).toHaveLength(2);
+    for (const button of incomplete) expect(button).toBeDisabled();
+
+    fillBillingDetails("B12345675");
+    fireEvent.blur(screen.getByLabelText("NIF, NIE o CIF"));
+    expect(screen.getByText(/la letra o el dígito de control no coincide/)).toBeVisible();
+    expect(screen.getByLabelText("NIF, NIE o CIF")).toHaveAttribute("aria-invalid", "true");
+    for (const button of screen.getAllByRole("button", { name: "Completa los datos de factura" })) expect(button).toBeDisabled();
+    expect(posts()).toHaveLength(0);
+
+    fireEvent.change(screen.getByLabelText("NIF, NIE o CIF"), { target: { value: "b-1234567.4" } });
+    expect(screen.queryByText(/la letra o el dígito de control no coincide/)).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Contratar Starter" }));
+    await waitFor(() => expect(posts()).toHaveLength(1));
+    expect(JSON.parse(posts()[0][1].body)).toEqual({
+      organizationId: org, planCode: "starter", billingInterval: "month",
+      taxTerritory: "peninsula_baleares", immediateStartConsent: true,
+      billingDetails: { legalName: "Club Sintético", taxId: "B12345674" },
+    });
   });
 
   it("no envía la contratación hasta marcar la casilla de inicio inmediato y la incluye en la solicitud", async () => {
     fetchMock.mockImplementation(async (_url, options) => response(options.method === "POST" ? checkoutResult : checkoutFixture()));
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" taxTerritoryRequired />);
     fireEvent.click(await screen.findByLabelText("Península o Islas Baleares"));
+    fillBillingDetails();
     const blocked = screen.getAllByRole("button", { name: "Marca la casilla para contratar" });
     expect(blocked).toHaveLength(2);
     for (const button of blocked) expect(button).toBeDisabled();
@@ -1000,6 +1036,7 @@ describe("contratación en España: sede fiscal, precio con IVA y casilla de ini
     expect(JSON.parse(posts()[0][1].body)).toEqual({
       organizationId: org, planCode: "growth", billingInterval: "month",
       taxTerritory: "peninsula_baleares", immediateStartConsent: true,
+      billingDetails: { legalName: "Club Sintético", taxId: "B12345674" },
     });
   });
 
