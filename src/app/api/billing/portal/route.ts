@@ -68,7 +68,7 @@ const portalHandler = withTenant(async (request, context) => {
     return apiError("NO_STRIPE_CUSTOMER", "No existe un cliente de Stripe asociado a esta cuenta. Parece que no has completado el proceso de suscripción.", 400);
   }
 
-  const returnUrl = `${getAppUrl()}/owner/payments`;
+  const returnUrl = `${getAppUrl()}/billing?academy=${body.academyId}`;
 
   try {
     const session = await stripe.billingPortal.sessions.create({

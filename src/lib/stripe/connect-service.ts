@@ -154,9 +154,11 @@ export async function createOnboardingLink(
   const baseUrl = getAppUrl();
   const link = await stripe.accountLinks.create({
     account: stripeAccountId,
-    // StripeConnectCard vive en la pestaña "Cobros" de Ajustes, no en /billing.
-    refresh_url: `${baseUrl}/owner?connect=refresh`,
-    return_url: `${baseUrl}/owner?connect=return`,
+    // El panel /app (y su pestaña «Cobros» de Ajustes) se retiró. Stripe Connect
+    // está cerrado en el lanzamiento (/api/academy/stripe-connect responde 410),
+    // así que nadie lee estos parámetros; se vuelve a /billing, donde se leería.
+    refresh_url: `${baseUrl}/billing?academy=${academyId}&connect=refresh`,
+    return_url: `${baseUrl}/billing?academy=${academyId}&connect=return`,
     type: "account_onboarding",
   });
   return link.url;

@@ -129,6 +129,19 @@ describe("Owner page operational summary boundary", () => {
     expect(mocks.redirect).not.toHaveBeenCalledWith(expect.stringContaining("/app/"));
     expect(mocks.summary).toHaveBeenCalled();
   });
+  it("un padre con vínculo legacy va a /familia y no a /owner/setup", async () => {
+    mocks.legacyMemberships.mockResolvedValue([
+      { academyId: "synthetic-legacy-academy" },
+    ]);
+    mocks.resolveUserHome.mockResolvedValue({
+      destination: "academy_workspace",
+      redirectUrl: "/familia",
+    });
+    await expect(
+      OwnerDashboardPage({ searchParams: Promise.resolve({}) })
+    ).rejects.toThrow("REDIRECT:/familia");
+    expect(mocks.summary).not.toHaveBeenCalled();
+  });
   it("no ofrece alta alternativa a una cuenta legacy bloqueada", async () => {
     mocks.legacyMemberships.mockResolvedValue([
       { academyId: "synthetic-legacy-academy" },

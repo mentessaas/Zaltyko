@@ -126,3 +126,21 @@ parte se aplicó ni se consultó en ningún entorno.
   `/app`: es registro histórico, no fuente vigente.
 - `src/db/seeds` y `src/types/athletes.ts` conservan `medical_certificate` hasta
   aplicar la candidata.
+
+## Revisión del coordinador (14-11-2026)
+
+- **Stripe:** el retorno de checkout y portal vuelve a `/billing?academy=<id>`
+  (que `/billing` ya lee), no a `/owner/payments`. Los enlaces de Connect también
+  apuntan a `/billing?academy=<id>&connect=…`; Connect está cerrado (410), así que
+  nadie los lee hoy.
+- **Consentimientos de páginas públicas (`/g/[slug]`):** el panel que los revocaba
+  (`/app/:id/privacy`) se retiró. `ENABLE_ACTOR_PAGES` está apagado en el
+  lanzamiento, de modo que `/g/*` y `/api/actor-consents` responden 404 y no hay
+  página pública que mantenga un consentimiento. Si se reactivaran, la revocación es
+  `DELETE /api/actor-consents` (autenticado); habría que reponer una pantalla antes.
+- **Super-admin:** se quitó el botón «Ver academia», que mandaba al propio
+  `/owner` del super-admin.
+- **Candidata SQL:** exige respaldo cifrado verificado de `athlete_documents` antes
+  del `DROP` (ver README de candidatas).
+- Se restauraron las pruebas que también cubrían rutas vivas, recortando solo las
+  aserciones sobre archivos borrados.

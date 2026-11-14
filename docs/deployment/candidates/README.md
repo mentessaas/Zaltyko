@@ -455,3 +455,11 @@ solo usaba el panel `/app`, retirado en la rama `limpieza/retirar-app`. **No
 aplicada en ningún entorno.** Es destructiva e irreversible; aborta salvo
 `set local zaltyko.retire_health_data = 'confirmado'`. Los pasos previos (recuento,
 borrado de Storage, cambios del esquema Drizzle) están en la cabecera del archivo.
+
+**Paso obligatorio antes del `DROP`: respaldo cifrado de `athlete_documents`.** Quien autorice la
+candidata debe exportar `public.athlete_documents` (filas) y los archivos de Storage del
+prefijo `…/athletes/<id>/documents/` a un archivo **cifrado** (p. ej. `age`/GPG con clave
+de Elvis), guardado fuera del repositorio y de iCloud, comprobar que se descifra y que el
+recuento coincide, y anotar solo el recuento y la ubicación en el informe (nunca los datos).
+Sin ese respaldo verificado no se aplica la candidata; si se decide que no hace falta
+conservarlos, debe quedar escrito por Elvis.

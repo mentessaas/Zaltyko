@@ -44,9 +44,12 @@ export default async function OwnerDashboardPage({
       email: user.email,
     });
     if (legacyHome.destination === "blocked") redirect(legacyHome.redirectUrl);
-    // El panel /app se retiró: una academia antigua verificada ya no tiene
-    // destino propio y sigue por el flujo canónico de /owner.
     if (legacyHome.destination !== "academy_workspace") redirect("/owner/setup");
+    // El panel /app se retiró: un propietario con academia antigua verificada
+    // sigue por el flujo canónico de /owner, pero quien tiene otro destino
+    // propio (familia → /familia, entrenadora → /owner/attendance) va a él en
+    // lugar de caer en /owner/setup.
+    if (legacyHome.redirectUrl !== "/owner") redirect(legacyHome.redirectUrl);
   }
 
   const raw = await searchParams;

@@ -19,6 +19,10 @@
 -- (c) borrar los archivos de Storage (ver nota final). No hay clientes reales
 -- en producción a 14-11-2026, pero eso se verifica, no se supone.
 --
+-- PASO OBLIGATORIO PREVIO: respaldo cifrado de public.athlete_documents (filas y
+-- archivos de Storage) verificado por quien autorice la aplicación; ver el README
+-- de esta carpeta. Sin él, no aplicar.
+--
 -- Orden en la PR que la aplique, para no romper el esquema Drizzle:
 --   1. Aplicar este SQL.
 --   2. En la misma PR, quitar de src/db/schema: athlete-documents.ts, la

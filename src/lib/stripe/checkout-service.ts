@@ -173,8 +173,8 @@ export async function createCheckoutSession(
   const customerId = await getOrCreateStripeCustomer(owner.userId);
 
   // Crear sesión de checkout
-  const successUrl = `${getAppUrl()}/owner/payments?checkout=success`;
-  const cancelUrl = `${getAppUrl()}/owner/payments?checkout=cancelled`;
+  const successUrl = `${getAppUrl()}/billing?academy=${params.academyId}&checkout=success`;
+  const cancelUrl = `${getAppUrl()}/billing?academy=${params.academyId}&checkout=cancelled`;
 
   const session = await stripe.checkout.sessions.create(
     {
