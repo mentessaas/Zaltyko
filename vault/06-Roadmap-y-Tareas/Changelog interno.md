@@ -35,6 +35,14 @@ source:
 
 **Sin migraciones ni candidata.** Solo lecturas sobre tablas existentes. Índices revisados: `enrollments_class_status_idx (organization_id, class_template_id, status)` cubre las subconsultas de inscritas; `attendance_records`, `session_staff` y `class_template_groups` se leen por el prefijo de sus únicos (`organization_id, session_id…`/`class_template_id…`); `sessions_location_start_idx` cubre el rango; `staff_profiles` por academia es pequeña (se resuelve una vez por petición de entrenadora). Si en una academia grande el mes se ralentiza, la candidata sería un índice `enrollments (organization_id, location_id, class_template_id)`; no se necesita hoy. No se ejecutó nada en local; la validación es la CI remota y, después, staging.
 
+## 2026-11-14 — Uso habitual: avisos a entrenadoras, resumen semanal y medición (apagado)
+
+**Contexto.** Bandera de producto de Elvis: cada persona debe tener un motivo útil para volver. Todo va detrás de banderas apagadas (`ZALTYKO_HABITUAL_USE_ENABLED` y una por función); nada se envía ni se registra hasta que Elvis las encienda.
+
+**Cambio.** Aviso a quien entrena ~15 min antes de cada sesión y un único recordatorio si falta la lista (hora de la sede, sin envíos de madrugada, sin duplicados, punto de extensión para push); resumen semanal de dirección el lunes por la mañana, solo con lo accionable y sin envío si no hay nada; desactivación con enlace firmado por tipo de aviso; consultas filtradas en SQL y paginadas, sin tope por envío; «Gimnastas sin venir» abre `/owner/athletes/sin-venir`; eventos de uso sin datos de personas, vista `/super-admin/uso` (sesiones con lista por semana como métrica principal) y aviso a Elvis de academias en riesgo (7 días sin actividad). Docs: `docs/producto/uso-habitual.md`.
+
+**No ejecutado / pendiente.** Candidata `docs/deployment/candidates/20261114130000_habitual_use_candidate.sql` (`public.usage_events` y dos índices en `zaltyko.sessions`, con vuelta atrás documentada) sin aplicar: requiere autorización de Elvis. Los tres crons no están en `vercel.json`. Verificación solo en la CI de la PR (no se ejecutó nada en el Mac).
+
 ## 2026-11-14 — Demo pública sin registro (`/demo`)
 
 **Contexto.** El análisis de competencia (A15) recomienda una demo pública sin registro para captar academias; ScoreGym la tiene.

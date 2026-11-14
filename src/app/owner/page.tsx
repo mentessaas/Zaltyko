@@ -22,6 +22,7 @@ import { getOwnerSetupProgress } from "@/modules/owner-dashboard/application/set
 import { getOwnerSummaryCharts } from "@/modules/owner-dashboard/application/summary-charts";
 import { canSeeOwnerSetupChecklist } from "@/modules/owner-dashboard/application/setup-checklist-steps";
 import { ownerWorkspaceCapabilitiesFor } from "@/components/owner-dashboard/owner-workspace-capabilities";
+import { recordStaffVisit } from "@/modules/habitual-use/application/usage-events";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { coachHomeHref, coachWithoutLocationsOrganizationId, isCoachRole } from "@/modules/owner-dashboard/domain/coach-access";
 
@@ -81,6 +82,8 @@ export default async function OwnerDashboardPage({
   }
   // P1 #8: a coach only has Hoy + Pasar lista; both live on the attendance page.
   if (isCoachRole(scope.member.role)) redirect(coachHomeHref({ organizationId: scope.organization.id, locationId: scope.selectedLocationId }));
+  // Uso habitual: cuenta una visita del equipo (sin persona; apagado por defecto).
+  await recordStaffVisit({ organizationId: scope.organization.id, role: scope.member.role });
 
   let operationalSummary: Awaited<ReturnType<typeof getOwnerOperationalSummary>> | null = null;
   try {
