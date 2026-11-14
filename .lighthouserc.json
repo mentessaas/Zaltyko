@@ -8,8 +8,8 @@
         "http://localhost:3000/",
         "http://localhost:3000/pricing",
         "http://localhost:3000/features",
-        "http://localhost:3000/blog/migrar-excel-software-academia-gimnasia",
-        "http://localhost:3000/es/gimnasia-artistica/espana"
+        "http://localhost:3000/faq",
+        "http://localhost:3000/ayuda"
       ],
       "numberOfRuns": 3,
       "settings": {
