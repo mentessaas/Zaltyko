@@ -12,8 +12,8 @@ describe("contratos de activación y navegación de onboarding", () => {
 
     expect(checklist).toContain('href: () => "/owner/payments"');
     expect(checklist).toContain('href: () => "/owner"');
-    expect(upgradeModal).toContain('"/owner/payments"');
-    expect(academyStep).toContain('"/owner/payments"');
+    expect(upgradeModal).toContain("/owner/payments");
+    expect(academyStep).toContain("/owner/payments");
     expect(`${checklist}${upgradeModal}${academyStep}`).not.toMatch(/\/app\/\$\{/);
   });
 
