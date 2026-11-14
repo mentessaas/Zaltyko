@@ -63,6 +63,7 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
             Un plan por etapa de academia
           </h1>
           <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div>
             <p className="max-w-2xl text-lg leading-relaxed text-white/85">
               Organiza gimnastas, grupos, asistencia y cuotas con registro manual de pagos para gimnasia
               artística y rítmica. Empieza gratis y configura tu academia. Desde Facturación puedes activar
@@ -73,6 +74,16 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
               La prueba no genera cargos automáticos. Precios finales con IVA ({SPANISH_VAT_GENERAL_RATE_PERCENT} %) para
               Península y Baleares, con la base sin IVA debajo; en Canarias, Ceuta y Melilla todavía no hay contratación de pago.
             </p>
+            <p className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-base text-white/85">
+              ¿Prefieres verlo antes de elegir?
+              <Link
+                href="/demo?origen=precios"
+                className="inline-flex min-h-11 items-center rounded-md font-bold text-white underline decoration-2 underline-offset-4 hover:decoration-white/70 focus-visible:ring-white focus-visible:ring-offset-mat"
+              >
+                Ver demo
+              </Link>
+            </p>
+            </div>
 
             <fieldset aria-label="Periodicidad de precios">
               <legend className="sr-only">Periodicidad de precios</legend>

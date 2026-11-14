@@ -52,6 +52,7 @@ export function OwnerWorkspacePageShell({
   locationId,
   organizationName,
   previewMode = false,
+  demo = false,
 }: {
   children: ReactNode;
   member?: MemberCapabilities | null;
@@ -60,10 +61,13 @@ export function OwnerWorkspacePageShell({
   /** Nombre de la academia que la página ya autorizó; solo rotula el lateral. */
   organizationName?: string | null;
   previewMode?: boolean;
+  /** Demo pública (/demo): implica vista previa y navegación hacia /demo. */
+  demo?: boolean;
 }) {
-  const checkTeamAccess = !previewMode && Boolean(member) && process.env.ZALTYKO_TEAM_ACCESS_ENABLED === "true"
+  const preview = previewMode || demo;
+  const checkTeamAccess = !preview && Boolean(member) && process.env.ZALTYKO_TEAM_ACCESS_ENABLED === "true"
     && mayManageTeamAccess(member!);
-  const capabilities = previewMode
+  const capabilities = preview
     ? previewCapabilities
     : member
       ? ownerWorkspaceCapabilitiesFor(member)
@@ -79,7 +83,8 @@ export function OwnerWorkspacePageShell({
           organizationId={organizationId}
           locationId={locationId}
           organizationName={organizationName}
-          previewMode={previewMode}
+          previewMode={preview}
+          demo={demo}
         />
       )}
       <div
