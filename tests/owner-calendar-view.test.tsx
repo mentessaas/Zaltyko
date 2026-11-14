@@ -277,8 +277,10 @@ describe("OwnerCalendarView · entrenadora", () => {
       initialData: data([saturday]),
     });
 
-    expect(screen.getByText("Pre-equipo")).toBeInTheDocument();
-    expect(screen.queryByText(/Sede Centro/)).toBeNull();
+    // El grupo va solo, sin «· Sede Centro» (la sede también sale en el filtro).
+    const sat = screen.getByRole("region", { name: "Sábado, 14 de noviembre" });
+    expect(within(sat).getByText("Pre-equipo")).toBeInTheDocument();
+    expect(within(sat).queryByText(/Sede Centro/)).toBeNull();
   });
 });
 
