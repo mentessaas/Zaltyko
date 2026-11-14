@@ -34,6 +34,7 @@ import { ownerWorkspaceCapabilitiesFor } from "@/components/owner-dashboard/owne
 const organizationId = "a0000000-0000-4000-8000-000000000001";
 const locationId = "a0000000-0000-4000-8000-000000000011";
 const ALL_LABELS = [
+  "Ajustes",
   "Resumen",
   "Grupos",
   "Gimnastas",
@@ -130,7 +131,7 @@ describe("navegación del coach", () => {
 });
 
 describe("owner/admin/manager sin cambios", () => {
-  it("el owner con todas las sedes sigue viendo los 10 destinos y la tarjeta de plan", () => {
+  it("el owner con todas las sedes sigue viendo los 11 destinos y la tarjeta de plan", () => {
     renderFor("owner", "all");
 
     expect([...linkLabels("Principal")].sort()).toEqual([...ALL_LABELS].sort());
