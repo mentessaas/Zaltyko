@@ -132,6 +132,10 @@ async function payer(a: Academy, givenName: string, email: string | null) {
     `);
   }
   await db.execute(sql`
+    insert into zaltyko.family_guardians (organization_id, family_id, guardian_id, relationship)
+    values (${a.organizationId}::uuid, ${familyId}::uuid, ${guardianId}::uuid, 'parent')
+  `);
+  await db.execute(sql`
     insert into zaltyko.family_payers (id, organization_id, family_id, guardian_id, is_primary, starts_on)
     values (${payerId}::uuid, ${a.organizationId}::uuid, ${familyId}::uuid, ${guardianId}::uuid, true, '2026-01-01')
   `);

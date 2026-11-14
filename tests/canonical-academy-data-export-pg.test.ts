@@ -788,6 +788,7 @@ const ACTIVATED_CANDIDATES = [
   "20261111200000_session_plans_candidate.sql",
   "20261111180000_coach_assignment_candidate.sql",
   "20261110120000_admission_requests_candidate.sql",
+  "20261114120000_payment_reminders_candidate.sql",
 ] as const;
 const activatedCandidate = (name: string) =>
   readFileSync(resolve(process.cwd(), `docs/deployment/candidates/${name}`), "utf8");
@@ -900,6 +901,49 @@ async function seedActivatedModules(organizationId: string, marker: string) {
       '2026-11-10', now()
     )
   `);
+  // Recordatorios de impago: una cuota abierta sin tutor pagador y su registro.
+  const familyId = await one(sql`select id::text as id from zaltyko.families where organization_id = ${organizationId}::uuid order by id limit 1`);
+  const invoiceId = randomUUID();
+  const lineId = randomUUID();
+  const chargeId = randomUUID();
+  await db.execute(sql`
+    insert into zaltyko.invoices (
+      id, organization_id, location_id, family_id, reference, status, currency, total_amount_cents,
+      issued_at, due_at, idempotency_key
+    ) values (
+      ${invoiceId}::uuid, ${organizationId}::uuid, ${locationId}::uuid, ${familyId}::uuid, ${`REM-${invoiceId.slice(0, 8)}`},
+      'issued', 'EUR', 4500, '2026-11-01T08:00:00Z', '2026-11-05T23:00:00Z', ${`ci-export-rem-inv-${invoiceId}`}
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.invoice_lines (
+      id, organization_id, invoice_id, location_id, line_type, quantity, unit_amount_cents, amount_cents,
+      currency, service_period_start, service_period_end
+    ) values (
+      ${lineId}::uuid, ${organizationId}::uuid, ${invoiceId}::uuid, ${locationId}::uuid, 'ci_reminder_fee', 1, 4500, 4500,
+      'EUR', '2026-11-01', '2026-11-28'
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.charges (
+      id, organization_id, location_id, invoice_id, invoice_line_id, family_id, status, amount_cents, currency,
+      due_at, service_period_start, service_period_end, idempotency_key
+    ) values (
+      ${chargeId}::uuid, ${organizationId}::uuid, ${locationId}::uuid, ${invoiceId}::uuid, ${lineId}::uuid,
+      ${familyId}::uuid, 'due', 4500, 'EUR', '2026-11-05T23:00:00Z', '2026-11-01', '2026-11-28', ${`ci-export-rem-charge-${chargeId}`}
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.payment_reminder_settings (organization_id, body_template, payment_instructions, updated_by_member_id)
+    values (${organizationId}::uuid, ${`${marker}_REMINDER_BODY`}, 'Bizum de prueba', ${memberId}::uuid)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.payment_reminders (
+      organization_id, charge_id, email_group_id, origin, status, outstanding_cents, currency, requested_by_member_id, sent_at
+    ) values (
+      ${organizationId}::uuid, ${chargeId}::uuid, ${randomUUID()}::uuid, 'manual', 'sent', 4500, 'EUR', ${memberId}::uuid, now()
+    )
+  `);
   return { token, blockMarker: `${marker}_TEMPLATE_BLOCK`, unclassifiedMarker: `${marker}_UNCLASSIFIED_KEY` };
 }
 
@@ -924,6 +968,7 @@ describeDisposablePg("academy export with the modules activated on 2026-11-12", 
     // Deja la base compartida como estaba (mismo orden que las suites de cada candidato).
     await db.transaction(async (tx) => {
       for (const table of [
+        "payment_reminders", "payment_reminder_settings",
         "admission_requests", "admission_links",
         "session_plan_objectives", "session_plan_blocks", "session_plans", "class_plan_templates",
         "athlete_observations", "athlete_objective_status_history", "athlete_objectives",
