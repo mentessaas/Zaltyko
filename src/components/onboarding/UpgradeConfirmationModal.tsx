@@ -129,7 +129,7 @@ export function UpgradeConfirmationModal({
             {isNavigating
               ? "Redirigiendo..."
               : targetPlan === "network"
-                ? "Solicitar onboarding"
+                ? "Hablar con Zaltyko"
                 : "Continuar a suscripción"}
             <ArrowUpRight className="h-4 w-4" />
           </Link>
