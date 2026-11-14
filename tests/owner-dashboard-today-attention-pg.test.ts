@@ -308,6 +308,62 @@ describe("Owner today sessions and attention items on disposable PostgreSQL", ()
     expect(unknownGroup.sessions).toEqual([]);
   });
 
+  it("shows a coach only the sessions assigned to her, in her one site", async () => {
+    assertDisposableTarget();
+    const fixture = await seedFixture();
+    const coach = async (assigned: boolean) => {
+      const userId = randomUUID();
+      const memberId = randomUUID();
+      await db.execute(sql`
+        insert into auth.users (id, email)
+        values (${userId}::uuid, ${`ci-calendar-coach-${userId}@example.invalid`})
+      `);
+      await db.execute(sql`
+        insert into zaltyko.organization_members (
+          id, organization_id, user_id, role, status, location_scope_mode
+        ) values (
+          ${memberId}::uuid, ${fixture.organizationId}::uuid, ${userId}::uuid, 'coach', 'active', 'selected'
+        )
+      `);
+      await db.execute(sql`
+        insert into zaltyko.member_location_scopes (organization_id, member_id, location_id)
+        values (${fixture.organizationId}::uuid, ${memberId}::uuid, ${fixture.madridId}::uuid)
+      `);
+      if (assigned) {
+        const personId = randomUUID();
+        const profileId = randomUUID();
+        await db.execute(sql`
+          insert into zaltyko.people (id, organization_id, given_name, family_name)
+          values (${personId}::uuid, ${fixture.organizationId}::uuid, 'CI', 'Coach')
+        `);
+        await db.execute(sql`
+          insert into zaltyko.staff_profiles (id, organization_id, person_id, member_id, is_active)
+          values (${profileId}::uuid, ${fixture.organizationId}::uuid, ${personId}::uuid, ${memberId}::uuid, true)
+        `);
+        await db.execute(sql`
+          insert into zaltyko.session_staff (organization_id, session_id, staff_profile_id)
+          values (${fixture.organizationId}::uuid, ${fixture.ids.morning}::uuid, ${profileId}::uuid)
+        `);
+      }
+      return resolveOwnerScope({
+        userId,
+        organizationId: fixture.organizationId,
+        surface: "coach_operations",
+      });
+    };
+    const madridToday = todayIn(MADRID);
+    const wide = { from: addDays(madridToday, -3), to: addDays(madridToday, 3) };
+
+    const assigned = await getOwnerCalendar({ scope: await coach(true), ...wide });
+    expect(assigned.assignedOnly).toBe(true);
+    expect(assigned.sessions.map((session) => session.id)).toEqual([fixture.ids.morning]);
+    expect(assigned.locations.map((location) => location.id)).toEqual([fixture.madridId]);
+
+    // Sin perfil de equipo enlazado no hay nada que ver, aunque la sede tenga sesiones.
+    const unlinked = await getOwnerCalendar({ scope: await coach(false), ...wide });
+    expect(unlinked.sessions).toEqual([]);
+  });
+
   it("counts attention items within scope and only exposes invoices to finance roles", async () => {
     assertDisposableTarget();
     const fixture = await seedFixture();

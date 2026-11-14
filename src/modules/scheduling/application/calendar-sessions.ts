@@ -42,6 +42,8 @@ export interface OwnerCalendarData {
   groups: Array<{ id: string; name: string; locationId: string }>;
   /** Falso si las entrenadoras no se pudieron leer (candidato sin aplicar o fallo). */
   coachesAvailable: boolean;
+  /** Entrenadora: solo sus sesiones (titular o sustituta) y de una sede. */
+  assignedOnly: boolean;
 }
 
 const fallbackTimeZone = "Europe/Madrid";
@@ -51,6 +53,11 @@ const fallbackTimeZone = "Europe/Madrid";
  * limitadas a las sedes del alcance ya resuelto: el propietario ve todas las
  * suyas y quien tenga alcance por sedes, solo esas. Con `locationId` se
  * restringe a una sola sede (que `resolveOwnerScope` ya validó).
+ *
+ * Una entrenadora ve solo las sesiones en las que está asignada (titular por
+ * la clase o sustituta por la sesión: `session_staff` ya recoge ambas), de una
+ * sede cada vez, igual que Hoy y Pasar lista. Sin perfil de equipo enlazado no
+ * ve ninguna.
  */
 export async function getOwnerCalendar(input: {
   scope: OwnerScope;
@@ -67,11 +74,35 @@ export async function getOwnerCalendar(input: {
     name: location.name,
     timezone: location.timezone || fallbackTimeZone,
   }));
-  const locationIds = input.locationId
-    ? allowedLocations.filter((location) => location.id === input.locationId).map((location) => location.id)
-    : allowedLocations.map((location) => location.id);
-  if (locationIds.length === 0) {
-    return { range, sessions: [], truncated: false, locations: allowedLocations, groups: [], coachesAvailable: false };
+  const assignedOnly = scope.member.role === "coach";
+  const locationIds = assignedOnly
+    ? allowedLocations
+        .filter((location) => location.id === (input.locationId ?? scope.selectedLocationId))
+        .map((location) => location.id)
+    : input.locationId
+      ? allowedLocations.filter((location) => location.id === input.locationId).map((location) => location.id)
+      : allowedLocations.map((location) => location.id);
+  const empty: OwnerCalendarData = {
+    range,
+    sessions: [],
+    truncated: false,
+    locations: allowedLocations,
+    groups: [],
+    coachesAvailable: false,
+    assignedOnly,
+  };
+  if (locationIds.length === 0) return empty;
+
+  let ownProfileIds: string[] = [];
+  if (assignedOnly) {
+    const profiles = await db.execute(sql`
+      select id::text as id
+      from zaltyko.staff_profiles
+      where organization_id = ${organizationId}::uuid
+        and member_id = ${scope.member.id}::uuid
+    `);
+    ownProfileIds = (profiles.rows as Array<{ id: string }>).map((row) => row.id);
+    if (ownProfileIds.length === 0) return empty;
   }
 
   const [sessionResult, groupResult] = await Promise.all([
@@ -137,6 +168,16 @@ export async function getOwnerCalendar(input: {
         and s.starts_at < ${input.to}::date::timestamptz + interval '3 days'
         and (s.starts_at at time zone l.timezone)::date between ${input.from}::date and ${input.to}::date
         ${
+          assignedOnly
+            ? sql`and exists (
+                select 1 from zaltyko.session_staff mine
+                where mine.organization_id = s.organization_id
+                  and mine.session_id = s.id
+                  and mine.staff_profile_id = any(${sqlUuidArray(ownProfileIds)})
+              )`
+            : sql``
+        }
+        ${
           input.groupId
             ? sql`and exists (
                 select 1 from zaltyko.class_template_groups filter_group
@@ -153,7 +194,7 @@ export async function getOwnerCalendar(input: {
       select g.id, g.name, g.location_id
       from zaltyko.groups g
       where g.organization_id = ${organizationId}::uuid
-        and g.location_id = any(${sqlUuidArray(allowedLocations.map((location) => location.id))})
+        and g.location_id = any(${sqlUuidArray(assignedOnly ? locationIds : allowedLocations.map((location) => location.id))})
       order by g.name asc, g.id asc
       limit ${groupOptionsLimit}
     `),
@@ -227,5 +268,6 @@ export async function getOwnerCalendar(input: {
       (row) => ({ id: row.id, name: row.name, locationId: row.location_id })
     ),
     coachesAvailable,
+    assignedOnly,
   };
 }

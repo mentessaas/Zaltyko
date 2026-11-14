@@ -130,13 +130,14 @@ export function OwnerWorkspaceNavigation({
       href: dashboardHref,
       active: isRouteActive(pathname, dashboardPath),
     },
-    // El calendario pide la superficie de gestión (el coach no la tiene) y no
-    // existe en la vista sintética de /owner/preview.
+    // La entrenadora también lo ve, solo con sus sesiones asignadas. No existe
+    // en la vista sintética de /owner/preview.
     ...(!previewMode
       ? [{
           label: "Calendario",
           href: `/owner/calendar${scopedQuery}`,
           active: isRouteActive(pathname, "/owner/calendar"),
+          coachAllowed: true,
         }]
       : []),
     {

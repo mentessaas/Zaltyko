@@ -60,6 +60,11 @@ export interface OwnerCalendarViewProps {
   todayLocal: string;
   /** Datos del primer rango, leídos en el servidor; null si la lectura falló. */
   initialData: OwnerCalendarData | null;
+  /**
+   * Entrenadora: ve solo las sesiones que tiene asignadas (titular o
+   * sustituta) y de una sede cada vez; no gestiona clases.
+   */
+  assignedOnly?: boolean;
 }
 
 function formatDay(day: string, options: Intl.DateTimeFormatOptions): string {
@@ -186,7 +191,6 @@ function SessionItem({
     <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${discipline.bar} ${cancelled ? "opacity-40" : ""}`} />
   );
   const body = <SessionBody session={session} showLocation={showLocation} />;
-  const time = localTimeOf(session.startsAt, session.timezone);
 
   if (cancelled) {
     return (
@@ -199,10 +203,10 @@ function SessionItem({
   return (
     <Link
       href={sessionAttendanceHref(organizationId, session)}
-      aria-label={`Abrir la asistencia de ${session.className} a las ${time}`}
       className={`${base}${interactive}`}
     >
       {bar}
+      <span className="sr-only">Abrir asistencia. </span>
       {body}
     </Link>
   );
@@ -226,6 +230,7 @@ export function OwnerCalendarView({
   referenceTimeZone,
   todayLocal,
   initialData,
+  assignedOnly = false,
 }: OwnerCalendarViewProps) {
   const reduceMotion = useReducedMotion();
   const [state, setState] = useState<OwnerCalendarState>(initialState);
@@ -321,7 +326,17 @@ export function OwnerCalendarView({
   const byDay = useMemo(() => groupSessionsByLocalDate(sessions), [sessions]);
   const days = useMemo(() => daysInRange(range), [range]);
   const loading = status === "loading";
-  const showLocation = !state.locationId && locations.length > 1;
+  const failed = status === "error";
+  const known = status === "ready";
+  // Con un error de carga no se afirma que no haya sesiones: no se sabe.
+  const emptyDayMessage = loading
+    ? "Cargando sesiones…"
+    : failed
+      ? "No se pudieron cargar las sesiones."
+      : assignedOnly
+        ? "No tienes sesiones asignadas este día."
+        : "No hay sesiones este día.";
+  const showLocation = !assignedOnly && !state.locationId && locations.length > 1;
   const groupsForLocation = groupOptions.filter(
     (group) => !state.locationId || group.locationId === state.locationId
   );
@@ -384,7 +399,7 @@ export function OwnerCalendarView({
   if (state.view === "day") {
     body = (
       <section aria-label={dayHeading(state.date)} className={ownerUi.cardFlush}>
-        {dayList(state.date, loading ? "Cargando sesiones…" : "No hay sesiones este día.")}
+        {dayList(state.date, emptyDayMessage)}
       </section>
     );
   } else if (state.view === "week") {
@@ -413,7 +428,7 @@ export function OwnerCalendarView({
               </h3>
               <div className="grid gap-2 p-2">
                 {daySessions.length === 0 ? (
-                  <p className="px-1 py-1.5 text-xs text-z-soft">{loading ? "Cargando…" : "Sin sesiones"}</p>
+                  <p className="px-1 py-1.5 text-xs text-z-soft">{loading ? "Cargando…" : failed ? "No disponible" : "Sin sesiones"}</p>
                 ) : (
                   renderCards(daySessions)
                 )}
@@ -448,7 +463,11 @@ export function OwnerCalendarView({
                     <button
                       type="button"
                       aria-pressed={selected}
-                      aria-label={`${dayHeading(day)}: ${daySessions.length === 0 ? "sin sesiones" : `${daySessions.length} ${daySessions.length === 1 ? "sesión" : "sesiones"}`}`}
+                      aria-label={
+                        known
+                          ? `${dayHeading(day)}: ${daySessions.length === 0 ? "sin sesiones" : `${daySessions.length} ${daySessions.length === 1 ? "sesión" : "sesiones"}`}`
+                          : dayHeading(day)
+                      }
                       onClick={() => setSelectedDay(day)}
                       className={`flex min-h-[4.25rem] w-full min-w-0 flex-col items-center gap-1 px-1 py-1.5 text-left transition-colors sm:min-h-[6.5rem] sm:items-stretch sm:px-2 ${selected ? "bg-mat-wash" : "hover:bg-z-brand-50"} focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-z-brand-500`}
                     >
@@ -509,7 +528,7 @@ export function OwnerCalendarView({
               Ver el día
             </button>
           </div>
-          {dayList(selectedDay, loading ? "Cargando sesiones…" : "No hay sesiones este día.")}
+          {dayList(selectedDay, emptyDayMessage)}
         </section>
       </div>
     );
@@ -527,11 +546,17 @@ export function OwnerCalendarView({
     <main className={ownerUi.page}>
       <PageHeader
         title="Calendario"
-        description="Las clases que tocan, por día, semana o mes. Toca una sesión para pasar lista."
+        description={
+          assignedOnly
+            ? "Las sesiones que tienes asignadas, por día, semana o mes. Toca una para pasar lista."
+            : "Las clases que tocan, por día, semana o mes. Toca una sesión para pasar lista."
+        }
         actions={
-          <Link href={`/owner/classes?${new URLSearchParams({ organizationId })}`} className={ownerUi.secondaryButton}>
-            Gestionar clases
-          </Link>
+          assignedOnly ? undefined : (
+            <Link href={`/owner/classes?${new URLSearchParams({ organizationId })}`} className={ownerUi.secondaryButton}>
+              Gestionar clases
+            </Link>
+          )
         }
       />
 
@@ -559,7 +584,7 @@ export function OwnerCalendarView({
                   onChange={(event) => changeLocation(event.target.value)}
                   className={ownerUi.field}
                 >
-                  <option value="">Todas las sedes</option>
+                  {assignedOnly ? null : <option value="">Todas las sedes</option>}
                   {locations.map((location) => (
                     <option key={location.id} value={location.id}>
                       {location.name}
@@ -636,7 +661,7 @@ export function OwnerCalendarView({
         ) : null}
         {truncated ? (
           <p className={ownerTone.noticeWarning}>
-            Hay más sesiones de las que mostramos en este rango. Filtra por sede o grupo, o cambia a una vista más corta.
+            Hay más sesiones de las que mostramos en estas fechas. Filtra por sede o grupo, o cambia a una vista más corta.
           </p>
         ) : null}
 
@@ -658,7 +683,9 @@ export function OwnerCalendarView({
 
         {status === "ready" && totalInRange === 0 && state.view !== "day" ? (
           <p className="text-sm leading-6 text-z-soft">
-            No hay sesiones en este periodo con los filtros actuales. Las sesiones se generan desde tus clases recurrentes.
+            {assignedOnly
+              ? "No tienes sesiones asignadas en estas fechas con los filtros actuales."
+              : "No hay sesiones en estas fechas con los filtros actuales. Aquí salen las clases con horario semanal."}
           </p>
         ) : null}
       </div>

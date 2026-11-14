@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   roster: vi.fn(),
   record: vi.fn(),
   usage: vi.fn(),
+  calendar: vi.fn(),
 }));
 
 vi.mock("@/db", () => ({
@@ -58,6 +59,9 @@ vi.mock(
     recordAttendance: mocks.record,
   })
 );
+vi.mock("@/modules/scheduling/application/calendar-sessions", () => ({
+  getOwnerCalendar: mocks.calendar,
+}));
 vi.mock(
   "@/modules/saas-billing/application/organization-usage",
   async (importOriginal) => ({
@@ -108,6 +112,15 @@ beforeEach(() => {
     status: command.status,
     recordedAt: new Date("2026-11-09T17:05:00.000Z"),
   }));
+  mocks.calendar.mockReset().mockResolvedValue({
+    range: { from: "2026-11-09", to: "2026-11-09" },
+    sessions: [],
+    truncated: false,
+    locations: [],
+    groups: [],
+    coachesAvailable: false,
+    assignedOnly: true,
+  });
   mocks.usage.mockReset().mockResolvedValue({
     readOnly: false,
     planCode: "growth",
@@ -186,8 +199,6 @@ const deniedCases: DeniedCase[] = [
   { route: "owner/classes/[classTemplateId]/coaches/route.ts", method: "GET", area: "clases", load: () => import("@/app/api/v1/owner/classes/[classTemplateId]/coaches/route"), params: { classTemplateId: e }, path: (t) => `/api/v1/owner/classes/${e}/coaches${query({ organizationId: t.organizationId, locationId: t.locationId })}` },
   { route: "owner/classes/[classTemplateId]/coaches/route.ts", method: "PUT", area: "clases", load: () => import("@/app/api/v1/owner/classes/[classTemplateId]/coaches/route"), params: { classTemplateId: e }, path: () => `/api/v1/owner/classes/${e}/coaches`, body: (t) => ({ organizationId: t.organizationId, locationId: t.locationId, clientRequestId: e, staffProfileIds: [], expectedStaffProfileIds: [] }) },
   { route: "owner/sessions/[sessionId]/coaches/route.ts", method: "PUT", area: "clases", load: () => import("@/app/api/v1/owner/sessions/[sessionId]/coaches/route"), params: { sessionId: e }, path: () => `/api/v1/owner/sessions/${e}/coaches`, body: (t) => ({ organizationId: t.organizationId, locationId: t.locationId, clientRequestId: e, staffProfileIds: [], expectedStaffProfileIds: [], reason: null }) },
-  // Calendario: lectura por rango de las sesiones de todas las sedes; solo dirección.
-  { route: "owner/calendar/route.ts", method: "GET", area: "clases", load: () => import("@/app/api/v1/owner/calendar/route"), path: (t) => `/api/v1/owner/calendar${query({ organizationId: t.organizationId, locationId: t.locationId, from: day, to: day })}` },
   { route: "owner/classes/route.ts", method: "GET", area: "clases", load: () => import("@/app/api/v1/owner/classes/route"), path: (t) => `/api/v1/owner/classes${query({ organizationId: t.organizationId, locationId: t.locationId })}` },
   // P2 #17: la plantilla de plan de una clase es solo de la dirección.
   { route: "owner/classes/[classTemplateId]/plan-template/route.ts", method: "GET", area: "clases", load: () => import("@/app/api/v1/owner/classes/[classTemplateId]/plan-template/route"), params: { classTemplateId: e }, path: (t) => `/api/v1/owner/classes/${e}/plan-template${query({ organizationId: t.organizationId, locationId: t.locationId })}` },
@@ -277,6 +288,7 @@ const loadSessions = () => import("@/app/api/v1/owner/attendance/sessions/route"
 const loadSessionAttendance = () =>
   import("@/app/api/v1/owner/sessions/[sessionId]/attendance/route");
 const loadPolicy = () => import("@/app/api/v1/owner/operational-policy/route");
+const loadCalendar = () => import("@/app/api/v1/owner/calendar/route");
 
 describe("coach permitido solo en su sede", () => {
   it("lista sesiones para pasar lista en su sede", async () => {
@@ -306,6 +318,74 @@ describe("coach permitido solo en su sede", () => {
 
     expect(response.status).toBe(403);
     expect(state.domainReads).toEqual([]);
+  });
+
+  it("lee su calendario en su sede, como entrenadora y sin acceso a más sedes", async () => {
+    const range = { from: day, to: day };
+    const response = await call(
+      loadCalendar,
+      "GET",
+      `/api/v1/owner/calendar${query({ ...ownSite, ...range })}`
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(mocks.calendar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: expect.objectContaining({
+          member: expect.objectContaining({ role: "coach" }),
+          selectedLocationId: ids.siteAssigned,
+          canViewOrganizationAggregate: false,
+        }),
+        locationId: ids.siteAssigned,
+        ...range,
+      })
+    );
+    // La sede pedida sale del alcance de la entrenadora: ninguna otra.
+    const scope = mocks.calendar.mock.calls[0][0].scope;
+    expect(scope.locations.map((location: { id: string }) => location.id)).toEqual([ids.siteAssigned]);
+  });
+
+  it("sin sede pedida, el calendario usa la sede asignada y nunca el agregado", async () => {
+    const response = await call(
+      loadCalendar,
+      "GET",
+      `/api/v1/owner/calendar${query({ organizationId: ids.orgA, from: day, to: day })}`
+    );
+
+    expect(response.status).toBe(200);
+    const { scope } = mocks.calendar.mock.calls[0][0];
+    expect(scope.canViewOrganizationAggregate).toBe(false);
+    expect(scope.selectedLocationId).toBe(ids.siteAssigned);
+  });
+
+  it.each([
+    ["otra sede de su club", { organizationId: ids.orgA, locationId: ids.siteOther }],
+    ["una sede de otro club", { organizationId: ids.orgA, locationId: ids.siteForeign }],
+    ["otro club", foreignClub],
+  ])("deniega el calendario de %s sin leer sesiones", async (_label, target) => {
+    const response = await call(
+      loadCalendar,
+      "GET",
+      `/api/v1/owner/calendar${query({ ...target, from: day, to: day })}`
+    );
+
+    expect(response.status).toBe(403);
+    expect(mocks.calendar).not.toHaveBeenCalled();
+    expect(state.domainReads).toEqual([]);
+  });
+
+  it("un coach sin sedes no lee el calendario", async () => {
+    holder.userId = ids.coachNoSites;
+
+    const response = await call(
+      loadCalendar,
+      "GET",
+      `/api/v1/owner/calendar${query({ ...ownSite, from: day, to: day })}`
+    );
+
+    expect(response.status).toBe(403);
+    expect(mocks.calendar).not.toHaveBeenCalled();
   });
 
   it("lee y registra la asistencia de una sesión de su sede", async () => {
@@ -506,6 +586,9 @@ const coachAllowed = new Set([
   "GET owner/sessions/[sessionId]/attendance/route.ts",
   "POST owner/sessions/[sessionId]/attendance/route.ts",
   "GET owner/operational-policy/route.ts",
+  // Calendario: la entrenadora lee solo sus sesiones asignadas, de una sede
+  // de su alcance (el servicio filtra por session_staff).
+  "GET owner/calendar/route.ts",
   // P2 #17: objetivos y observaciones. El servicio exige sede asignada y una
   // gimnasta con inscripción o grupo abierto en ella (tests/athlete-progress-*).
   "GET owner/athletes/[athleteId]/progress/route.ts",
@@ -571,6 +654,9 @@ describe("inventario de /api/v1", () => {
       "src/modules/owner-dashboard/application/owner-scope.ts",
       "src/modules/attendance/application/owner-attendance-sessions.ts",
       "src/app/api/v1/owner/attendance/sessions/route.ts",
+      // Calendario: lectura de las sesiones asignadas a la entrenadora.
+      "src/app/api/v1/owner/calendar/route.ts",
+      "src/app/owner/calendar/page.tsx",
       "src/app/api/v1/owner/operational-policy/route.ts",
       "src/app/owner/page.tsx",
       "src/app/owner/attendance/page.tsx",

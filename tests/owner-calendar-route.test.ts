@@ -102,11 +102,12 @@ describe("GET /api/v1/owner/calendar", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    // Superficie de gestión: sin «coach_operations», así que el coach no entra.
+    // Superficie de operación: owner, admin, manager y la entrenadora de la sede.
     expect(mocks.resolveOwnerScope).toHaveBeenCalledWith({
       userId,
       organizationId,
       locationId,
+      surface: "coach_operations",
     });
     expect(mocks.rateLimit).toHaveBeenCalledWith(
       expect.objectContaining({ identifier: `verified:${organizationId}` })
@@ -132,6 +133,7 @@ describe("GET /api/v1/owner/calendar", () => {
       userId,
       organizationId,
       locationId: undefined,
+      surface: "coach_operations",
     });
     expect(mocks.getCalendar).toHaveBeenCalledWith(
       expect.objectContaining({ scope, locationId: undefined, groupId: undefined })

@@ -116,15 +116,15 @@ describe("lateral Magnesio de /owner", () => {
     expect(within(sidebar()).queryByRole("link", { name: "Añadir gimnasta", hidden: true })).toBeNull();
   });
 
-  it("una entrenadora solo ve Asistencia, con la academia rotulada y sin plan ni acción", () => {
+  it("una entrenadora solo ve Calendario y Asistencia, con la academia rotulada y sin plan ni acción", () => {
     act(() => {
       publishOwnerPlanUsage(organizationId, { readOnly: false, planCode: "free" });
     });
     renderFor("coach", "selected");
     const aside = sidebar();
-    expect(principalLabels()).toEqual(["Asistencia"]);
+    expect(principalLabels()).toEqual(["Calendario", "Asistencia"]);
     expect(within(screen.getByRole("navigation", { name: "Navegación móvil", hidden: true })).getAllByRole("link", { hidden: true })
-      .map((link) => link.textContent?.trim())).toEqual(["Asistencia"]);
+      .map((link) => link.textContent?.trim())).toEqual(["Calendario", "Asistencia"]);
     expect(within(aside).getByRole("link", { name: academyName, hidden: true })).toBeInTheDocument();
     expect(within(aside).queryByText(/Plan /)).toBeNull();
     expect(within(aside).queryByRole("link", { name: "Añadir gimnasta", hidden: true })).toBeNull();

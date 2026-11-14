@@ -94,11 +94,20 @@ describe("capacidad coachOperationsOnly", () => {
 });
 
 describe("navegación del coach", () => {
-  it("mantiene los landmarks y ofrece solo Asistencia con su sede", () => {
+  it("mantiene los landmarks y ofrece solo Calendario y Asistencia con su sede", () => {
     renderFor("coach");
 
     for (const name of ["Principal", "Navegación móvil"]) {
-      expect(linkLabels(name)).toEqual(["Asistencia"]);
+      expect(linkLabels(name)).toEqual(["Calendario", "Asistencia"]);
+      expect(
+        within(screen.getByRole("navigation", { name, hidden: true })).getByRole("link", {
+          name: "Calendario",
+          hidden: true,
+        })
+      ).toHaveAttribute(
+        "href",
+        `/owner/calendar?organizationId=${organizationId}&locationId=${locationId}`
+      );
       expect(
         within(screen.getByRole("navigation", { name, hidden: true })).getByRole("link", {
           name: "Asistencia",
@@ -119,7 +128,7 @@ describe("navegación del coach", () => {
     expect(screen.getByText("operational-policy-probe")).toBeInTheDocument();
   });
 
-  it.each(["Resumen", "Calendario", "Grupos", "Gimnastas", "Equipo", "Clases", "Inscripciones", "Solicitudes", "Cobros", "Plan"])(
+  it.each(["Resumen", "Grupos", "Gimnastas", "Equipo", "Clases", "Inscripciones", "Solicitudes", "Cobros", "Plan"])(
     "no enlaza %s ni en escritorio ni en móvil",
     (label) => {
       renderFor("coach", "all");

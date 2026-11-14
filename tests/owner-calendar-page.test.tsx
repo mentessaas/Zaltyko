@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ scope: vi.fn(), calendar: vi.fn() }));
+const coachHome = vi.hoisted(() => ({ withoutLocations: "coach_without_locations" }));
 vi.mock("next/headers", () => ({ cookies: async () => ({}) }));
 vi.mock("next/navigation", () => ({
   redirect: (path: string) => {
@@ -86,7 +87,12 @@ describe("página /owner/calendar", () => {
       { id: locationA, name: "Norte", timezone: "Europe/Madrid" },
       { id: locationB, name: "Sur", timezone: "America/Mexico_City" },
     ]);
-    expect(mocks.scope).toHaveBeenCalledWith({ userId: "synthetic-user", organizationId });
+    expect(mocks.scope).toHaveBeenCalledWith({
+      userId: "synthetic-user",
+      organizationId,
+      surface: "coach_operations",
+    });
+    expect(view.props.assignedOnly).toBe(false);
     expect(mocks.calendar).toHaveBeenCalledWith({
       scope: expect.objectContaining({ organization: expect.objectContaining({ id: organizationId }) }),
       from: "2026-11-09",
@@ -116,7 +122,12 @@ describe("página /owner/calendar", () => {
     mocks.scope.mockResolvedValue(scope("owner", "all", locationB));
     const { shell, view } = await render({ organizationId, locationId: locationB });
 
-    expect(mocks.scope).toHaveBeenCalledWith({ userId: "synthetic-user", organizationId, locationId: locationB });
+    expect(mocks.scope).toHaveBeenCalledWith({
+      userId: "synthetic-user",
+      organizationId,
+      locationId: locationB,
+      surface: "coach_operations",
+    });
     expect(shell.props.locationId).toBe(locationB);
     expect(view.props.referenceTimeZone).toBe("America/Mexico_City");
     expect(view.props.initialState.locationId).toBe(locationB);
@@ -131,6 +142,33 @@ describe("página /owner/calendar", () => {
     expect(shell.props.member).toMatchObject({ role: "manager", locationScopeMode: "selected" });
     expect(view.props.initialState.locationId).toBe("");
     expect(mocks.calendar).toHaveBeenCalledWith(expect.objectContaining({ locationId: null }));
+  });
+
+  it("una entrenadora abre su sede asignada, solo con sus sesiones, y navega con esa sede", async () => {
+    mocks.scope.mockResolvedValue({
+      ...scope("coach", "selected", locationB),
+      locations: [{ id: locationB, name: "Sur", timezone: "America/Mexico_City" }],
+    });
+    const { shell, view } = await render();
+
+    expect(shell.props.locationId).toBe(locationB);
+    expect(view.props.assignedOnly).toBe(true);
+    expect(view.props.initialState.locationId).toBe(locationB);
+    expect(view.props.referenceTimeZone).toBe("America/Mexico_City");
+    expect(view.props.locations).toEqual([{ id: locationB, name: "Sur", timezone: "America/Mexico_City" }]);
+    expect(mocks.calendar).toHaveBeenCalledWith(expect.objectContaining({ locationId: locationB }));
+  });
+
+  it("una entrenadora sin sedes asignadas vuelve a Asistencia, que se lo explica", async () => {
+    mocks.scope.mockRejectedValueOnce(
+      new OperationalError("LOCATION_SCOPE_DENIED", "Sin sedes asignadas", 403, {
+        reason: coachHome.withoutLocations,
+        organizationId,
+      })
+    );
+
+    await expect(render()).rejects.toThrow(`REDIRECT:/owner/attendance?organizationId=${organizationId}`);
+    expect(mocks.calendar).not.toHaveBeenCalled();
   });
 
   it("si la primera lectura falla, pinta la pantalla igual y deja que ella reintente", async () => {

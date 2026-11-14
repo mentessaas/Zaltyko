@@ -11,6 +11,11 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { getOwnerCalendar } from "@/modules/scheduling/application/calendar-sessions";
 import { calendarRange, todayIn } from "@/modules/scheduling/domain/calendar";
+import {
+  coachHomeHref,
+  coachWithoutLocationsOrganizationId,
+  isCoachRole,
+} from "@/modules/owner-dashboard/domain/coach-access";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export const dynamic = "force-dynamic";
@@ -50,12 +55,21 @@ export default async function OwnerCalendarPage({
   });
   if (!query.success) notFound();
 
-  // Superficie de gestión: owner, admin y manager (con sus sedes); el coach
-  // queda fuera, como en Clases.
+  // Owner, admin y manager ven todas las sedes de su alcance; una entrenadora,
+  // solo las sesiones que tiene asignadas y de una sede cada vez.
   let scope: Awaited<ReturnType<typeof resolveOwnerScope>>;
   try {
-    scope = await resolveOwnerScope({ userId: user.id, ...query.data });
+    scope = await resolveOwnerScope({
+      userId: user.id,
+      ...query.data,
+      surface: "coach_operations",
+    });
   } catch (error) {
+    // Una entrenadora sin sedes asignadas ve el aviso de Asistencia.
+    const coachOrganizationId = coachWithoutLocationsOrganizationId(error);
+    if (coachOrganizationId) {
+      redirect(coachHomeHref({ organizationId: coachOrganizationId }));
+    }
     if (error instanceof OperationalError) {
       if (error.code === "FORBIDDEN" && !query.data.organizationId) {
         redirect("/owner/setup");
@@ -76,17 +90,20 @@ export default async function OwnerCalendarPage({
     name: location.name,
     timezone: location.timezone || fallbackTimeZone,
   }));
+  const coachMode = isCoachRole(scope.member.role);
+  // Una sede que no sea del alcance se ignora en lugar de romper la página. La
+  // entrenadora siempre mira una sede: la pedida o la primera que tiene.
+  const requestedLocationId = locations.some((location) => location.id === query.data.locationId)
+    ? (query.data.locationId ?? "")
+    : "";
+  const initialLocationId = requestedLocationId || (coachMode ? (scope.selectedLocationId ?? "") : "");
   // «Hoy» se decide en la zona de la sede elegida o, sin ella, en la primera.
   const referenceTimeZone =
-    locations.find((location) => location.id === query.data.locationId)?.timezone ??
+    locations.find((location) => location.id === initialLocationId)?.timezone ??
     locations[0]?.timezone ??
     fallbackTimeZone;
   const today = todayIn(referenceTimeZone);
   const initialState = parseCalendarSearch(raw, today);
-  // Una sede o grupo que no sea del alcance se ignora en lugar de romper la página.
-  const initialLocationId = locations.some((location) => location.id === query.data.locationId)
-    ? (query.data.locationId ?? "")
-    : "";
   const state = {
     ...initialState,
     locationId: initialLocationId,
@@ -107,9 +124,10 @@ export default async function OwnerCalendarPage({
     return null;
   });
 
-  const navigationLocationId =
-    query.data.locationId ??
-    (scope.member.locationScopeMode === "all" ? null : scope.selectedLocationId);
+  const navigationLocationId = coachMode
+    ? initialLocationId || null
+    : (query.data.locationId ??
+      (scope.member.locationScopeMode === "all" ? null : scope.selectedLocationId));
 
   return (
     <OwnerWorkspacePageShell
@@ -125,6 +143,7 @@ export default async function OwnerCalendarPage({
         referenceTimeZone={referenceTimeZone}
         todayLocal={today}
         initialData={initialData}
+        assignedOnly={coachMode}
       />
     </OwnerWorkspacePageShell>
   );

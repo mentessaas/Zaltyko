@@ -159,7 +159,12 @@ describe("OwnerCalendarView · semana", () => {
     expect(within(sat).getByText("12/15 inscritas")).toBeInTheDocument();
     expect(within(sat).getByText("12 inscritas de 15 plazas")).toBeInTheDocument();
 
-    const open = within(sat).getByRole("link", { name: "Abrir la asistencia de Artística base a las 17:00" });
+    // El nombre accesible es el contenido de la tarjeta, con «Abrir asistencia»
+    // delante solo para lectores de pantalla.
+    const open = within(sat).getByRole("link");
+    expect(open).toHaveAccessibleName(/^Abrir asistencia\..*17:00.*Artística base.*Ana Pérez/);
+    expect(within(open).getByText(/Abrir asistencia/)).toHaveClass("sr-only");
+    expect(screen.getByRole("link", { name: "Gestionar clases" })).toBeInTheDocument();
     expect(open).toHaveAttribute(
       "href",
       `/owner/attendance?organizationId=${organizationId}&locationId=${madrid}&sessionId=${saturday.id}`
@@ -209,12 +214,71 @@ describe("OwnerCalendarView · semana", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Demasiadas peticiones.");
     expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+    // Con un error no se afirma que no haya sesiones: no se sabe.
+    expect(screen.queryByText("Sin sesiones")).toBeNull();
+    expect(screen.queryByText(/No hay sesiones/)).toBeNull();
+    expect(screen.getAllByText("No disponible")).toHaveLength(7);
     expect(String(fetchMock.mock.calls[0][0])).toContain("/api/v1/owner/calendar?");
 
     respondWith(data([saturday]));
     fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
     expect(await screen.findByText("Artística base")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("OwnerCalendarView · errores de carga en día y mes", () => {
+  const failing = { ok: false, status: 500, json: async () => ({ detail: "Fallo del servidor." }) };
+
+  it("el día no dice «No hay sesiones» cuando falla la carga", async () => {
+    fetchMock.mockResolvedValue(failing);
+    renderView({ initialState: { view: "day", date: TODAY, locationId: "", groupId: "" }, initialData: null });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Fallo del servidor.");
+    expect(screen.getByText("No se pudieron cargar las sesiones.")).toBeInTheDocument();
+    expect(screen.queryByText(/No hay sesiones/)).toBeNull();
+  });
+
+  it("el mes no cuenta «sin sesiones» por día mientras falla ni mientras carga", async () => {
+    fetchMock.mockResolvedValue(failing);
+    renderView({ initialState: { view: "month", date: TODAY, locationId: "", groupId: "" }, initialData: null });
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Martes, 10 de noviembre" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /sin sesiones/ })).toBeNull();
+    expect(screen.queryByText(/No hay sesiones/)).toBeNull();
+    expect(screen.getByText("No se pudieron cargar las sesiones.")).toBeInTheDocument();
+  });
+});
+
+describe("OwnerCalendarView · entrenadora", () => {
+  it("ve solo su sede, sin «Todas las sedes» ni «Gestionar clases», y lo explica", () => {
+    renderView({
+      assignedOnly: true,
+      initialState: { view: "week", date: TODAY, locationId: madrid, groupId: "" },
+      initialData: data([]),
+    });
+
+    expect(screen.getByText(/Las sesiones que tienes asignadas/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Gestionar clases" })).toBeNull();
+    const select = screen.getByLabelText("Sede");
+    expect(within(select).queryByRole("option", { name: "Todas las sedes" })).toBeNull();
+    expect(select).toHaveValue(madrid);
+    expect(
+      screen.getByText("No tienes sesiones asignadas en estas fechas con los filtros actuales.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Aquí salen las clases/)).toBeNull();
+  });
+
+  it("no rotula la sede en cada sesión (siempre es una)", () => {
+    renderView({
+      assignedOnly: true,
+      initialState: { view: "week", date: TODAY, locationId: madrid, groupId: "" },
+      initialData: data([saturday]),
+    });
+
+    expect(screen.getByText("Pre-equipo")).toBeInTheDocument();
+    expect(screen.queryByText(/Sede Centro/)).toBeNull();
   });
 });
 

@@ -19,7 +19,7 @@ function withPrivateNoStore(response: NextResponse): NextResponse {
   return response;
 }
 
-// @auth-flexible route-guard-reason: getCurrentUser resolves the verified actor before the query is validated; resolveOwnerScope (management surface, coaches excluded) verifies the active owner/admin/manager membership and, when a site is requested, that it belongs to the member's scope, and getOwnerCalendar only reads the sites of that already-resolved scope. Read-only: no body, no actor from the client.
+// @auth-flexible route-guard-reason: getCurrentUser resolves the verified actor before the query is validated; resolveOwnerScope (coach_operations surface) verifies the active owner/admin/manager/coach membership and, when a site is requested, that it belongs to the member's scope, and getOwnerCalendar only reads the sites of that already-resolved scope and, for a coach, only sessions assigned to them. Read-only: no body, no actor from the client.
 export async function GET(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) {
@@ -50,6 +50,7 @@ export async function GET(request: Request) {
       userId: user.id,
       organizationId: query.data.organizationId,
       locationId: query.data.locationId,
+      surface: "coach_operations",
     });
     const limit = await rateLimit({
       identifier: getVerifiedTenantRateLimitIdentifier(
