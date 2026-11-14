@@ -1,7 +1,6 @@
 /** Types and pure helpers of OwnerMonthlyInvoiceResolutionPanel. */
 
-import { ownerField } from "./owner-form-tones";
-import { ownerUi } from "./owner-ui";
+import { ownerField, ownerUi } from "./owner-ui";
 
 export type ResolutionAction =
   | { kind: "tariff"; enrollmentId: string; athleteName: string | null }

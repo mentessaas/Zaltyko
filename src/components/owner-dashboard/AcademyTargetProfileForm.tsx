@@ -381,7 +381,7 @@ export function AcademyTargetProfileForm({
           </div>
         </section>
       ))}
-      <aside className="flex gap-3 rounded-md border border-z-line border-t-[3px] border-t-amber-600 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+      <aside className="flex gap-3 rounded-md border border-z-line border-t-[3px] border-t-ochre bg-ochre-wash p-4 text-sm leading-6 text-ochre-ink">
         <RotateCcw className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
         <p>
           Son metas internas que defines para tu academia. No son promedios del
@@ -392,7 +392,7 @@ export function AcademyTargetProfileForm({
       {error && (
         <p
           role="alert"
-          className="rounded-[12px] border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+          className="rounded-[12px] border border-signal/30 bg-signal-wash p-3 text-sm text-signal-ink"
         >
           {error}
           {retryRequired &&
@@ -402,7 +402,7 @@ export function AcademyTargetProfileForm({
       {storageIssue && (
         <p
           role="alert"
-          className="rounded-[12px] border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+          className="rounded-[12px] border border-signal/30 bg-signal-wash p-3 text-sm text-signal-ink"
         >
           {storageIssue}
         </p>

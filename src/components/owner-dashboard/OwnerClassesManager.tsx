@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, CalendarDays, CalendarPlus, Clock, Info, Plus, Settings2, UsersRound, X } from "lucide-react";
-import { ownerDisciplineOf, ownerDisciplineStyle, ownerUi } from "@/components/owner-dashboard/owner-ui";
-import { ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
+import { ownerDisciplineOf, ownerDisciplineStyle, ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import { useOrganizationDraftField } from "@/components/owner-dashboard/use-organization-draft-field";
 import {
   clearPendingOwnerClassCreate,
@@ -371,39 +371,35 @@ export function OwnerClassesManager({
 
   return (
     <main className={ownerUi.page}>
-      <header className={`${ownerUi.pageHeader} flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between`}>
-        <div className="min-w-0">
+      <Link
+        href={ownerDashboardScopeHref(
+          "/owner",
+          bundle.organization.id,
+          navigationLocationId
+        )}
+        className={ownerUi.backLink}
+      >
+        <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <span>Volver al resumen</span>
+      </Link>
+      <PageHeader
+        title="Clases recurrentes"
+        description="Indica el horario y las plazas una sola vez. Zaltyko prepara el calendario de sesiones por ti."
+        className={`${ownerUi.pageHeader} mt-3`}
+        actions={
           <Link
             href={ownerDashboardScopeHref(
-              "/owner",
+              "/owner/groups",
               bundle.organization.id,
               navigationLocationId
             )}
-            className={ownerUi.backLink}
+            className={ownerUi.secondaryButton}
           >
-            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>Volver al resumen</span>
+            <UsersRound className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Grupos <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
           </Link>
-          <h1 className={ownerUi.pageTitle}>
-            Clases recurrentes
-          </h1>
-          <p className={ownerUi.pageLead}>
-            Indica el horario y las plazas una sola vez. Zaltyko prepara el
-            calendario de sesiones por ti.
-          </p>
-        </div>
-        <Link
-          href={ownerDashboardScopeHref(
-            "/owner/groups",
-            bundle.organization.id,
-            navigationLocationId
-          )}
-          className={`${ownerUi.secondaryButton} shrink-0 self-start sm:self-auto`}
-        >
-          <UsersRound className="h-4 w-4 shrink-0" aria-hidden="true" />
-          Grupos <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
-        </Link>
-      </header>
+        }
+      />
 
       <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
 
