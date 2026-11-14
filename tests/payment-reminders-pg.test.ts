@@ -539,6 +539,12 @@ describeDisposablePg("recordatorios de impago contra PostgreSQL desechable", () 
     const suspended = await academy("S", "suspended");
     const familia = await payer(suspended, "Suspendida", "suspendida@example.invalid");
     const cSuspendida = await charge(suspended, familia);
+    // Con correo de respuesta configurado, lo único que impide enviar es el estado de la academia.
+    await updatePaymentReminderSettings({
+      userId: suspended.ownerUserId,
+      organizationId: suspended.organizationId,
+      settings: { minIntervalDays: 7, autoEnabled: false, autoAfterDays: 3, replyToEmail: "club@example.invalid" },
+    });
     sendMock.mockReset();
     await expect(
       sendPaymentReminders({ userId: suspended.ownerUserId, organizationId: suspended.organizationId, selection: { kind: "overdue" } })
