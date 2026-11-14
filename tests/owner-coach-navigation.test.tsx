@@ -35,6 +35,7 @@ const organizationId = "a0000000-0000-4000-8000-000000000001";
 const locationId = "a0000000-0000-4000-8000-000000000011";
 const ALL_LABELS = [
   "Resumen",
+  "Calendario",
   "Grupos",
   "Gimnastas",
   "Equipo",
@@ -93,11 +94,20 @@ describe("capacidad coachOperationsOnly", () => {
 });
 
 describe("navegación del coach", () => {
-  it("mantiene los landmarks y ofrece solo Asistencia con su sede", () => {
+  it("mantiene los landmarks y ofrece solo Calendario y Asistencia con su sede", () => {
     renderFor("coach");
 
     for (const name of ["Principal", "Navegación móvil"]) {
-      expect(linkLabels(name)).toEqual(["Asistencia"]);
+      expect(linkLabels(name)).toEqual(["Calendario", "Asistencia"]);
+      expect(
+        within(screen.getByRole("navigation", { name, hidden: true })).getByRole("link", {
+          name: "Calendario",
+          hidden: true,
+        })
+      ).toHaveAttribute(
+        "href",
+        `/owner/calendar?organizationId=${organizationId}&locationId=${locationId}`
+      );
       expect(
         within(screen.getByRole("navigation", { name, hidden: true })).getByRole("link", {
           name: "Asistencia",
@@ -130,23 +140,23 @@ describe("navegación del coach", () => {
 });
 
 describe("owner/admin/manager sin cambios", () => {
-  it("el owner con todas las sedes sigue viendo los 10 destinos y la tarjeta de plan", () => {
+  it("el owner con todas las sedes sigue viendo los 11 destinos y la tarjeta de plan", () => {
     renderFor("owner", "all");
 
     expect([...linkLabels("Principal")].sort()).toEqual([...ALL_LABELS].sort());
     expect(screen.getByText("sidebar-plan-card")).toBeInTheDocument();
     expect(linkLabels("Navegación móvil").slice(0, 4)).toEqual([
       "Resumen",
+      "Calendario",
       "Asistencia",
       "Clases",
-      "Grupos",
     ]);
   });
 
   it("admin y manager conservan Resumen, Clases y Grupos", () => {
     for (const role of ["admin", "manager"]) {
       const { unmount } = renderFor(role, "selected");
-      for (const label of ["Resumen", "Asistencia", "Clases", "Grupos", "Inscripciones"]) {
+      for (const label of ["Resumen", "Calendario", "Asistencia", "Clases", "Grupos", "Inscripciones"]) {
         expect(linkLabels("Principal")).toContain(label);
       }
       unmount();

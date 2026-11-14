@@ -1,13 +1,39 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-25
+last_reviewed: 2026-11-14
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-14 — Niveles y progresión por aparato (A6), apagado
 
+**Contexto.** Brecha A6 del análisis de competencia: progresión por niveles y aparatos con informe para la familia y diploma. Se continúa lo de objetivos y observaciones (271).
+
+**Cambio.**
+- Módulo `src/modules/skill-levels` (dominio puro con los cálculos, servicio con autorización por rol, sede y gimnasta, espejo Drizzle fuera de `src/db/schema/`).
+- Candidato `docs/deployment/candidates/20261114121000_skill_levels_candidate.sql`: cinco tablas con RLS forzado. **Sin aplicar en ningún entorno.**
+- Bandera `ZALTYKO_SKILL_LEVELS_ENABLED=false` por defecto: sin ella y sin el candidato no hay páginas (404), las API responden 503 y `/familia` no muestra nada.
+- `/owner/skills` (plantillas y grupos), evaluación rápida de varias gimnastas a la vez por grupo o por sesión, hoja de la gimnasta, diploma imprimible y sección de solo lectura en `/familia/gimnastas/[id]`. Enlaces desde Grupos y Asistencia solo con la función disponible.
+- Exportación, verificación, disposición y supresión de datos ya incluyen el módulo `skill_levels`.
+
+**Pruebas.** `tests/skill-levels-*` (dominio y cálculos, contrato del candidato, rutas, interfaz y PostgreSQL desechable) y los contratos de derechos de datos y de la matriz del entrenador.
+
+
+## 2026-11-14 — /owner/calendar: calendario de clases por día, semana y mes
+
+**Contexto.** Elvis pidió ver en un calendario las clases que tocan. Hasta hoy solo había clases recurrentes (`/owner/classes`), «Hoy» y la asistencia.
+
+**Cambio.**
+- **Pantalla `/owner/calendar`** (`src/app/owner/calendar/page.tsx`, `OwnerCalendarView.tsx`): vistas Día, Semana y Mes, con anterior/siguiente, «Hoy» y filtros por sede y por grupo. Cada sesión muestra hora en la zona de su sede, clase, grupo, entrenadora, inscritas/capacidad y estado (cancelada, sustitución, lista pasada); un clic lleva a su asistencia. En móvil la semana es una lista por días y el mes, una rejilla compacta con el día elegido debajo. La vista (vista, fecha, sede, grupo) queda en la URL.
+- **Navegación.** «Calendario» es pestaña principal en móvil (sustituye a «Grupos», que pasa a «Más») y entra en «Día a día» del lateral; la entrenadora lo ve junto a Asistencia (sin «Gestionar clases»). No sale en la vista sintética. Con un error de carga no se afirma «sin sesiones».
+- **Lectura por rango** `GET /api/v1/owner/calendar` (`calendar-sessions.ts`, `calendar-query.ts`): rango de hasta 42 días, superficie de operación: owner/admin/manager ven todas las sedes de su alcance (o solo las suyas si tienen alcance por sedes) y **la entrenadora ve el calendario con solo las sesiones que tiene asignadas** (titular por la clase o sustituta por la sesión, vía `session_staff`) y de una sede cada vez, como Hoy y Pasar lista; sin perfil de equipo enlazado no ve ninguna. 60 peticiones/min por academia. Reutiliza `getSessionCoachSummaries` para entrenadoras y sustituciones; si el candidato de titulares no está aplicado, el calendario se pinta sin ellas y no afirma que no haya nadie.
+- **Reglas.** Una sesión es del día en que empieza en la zona de SU sede (`calendar.ts`); la semana empieza en lunes. Las canceladas se ven pero no enlazan. Sin dependencias nuevas: `framer-motion` ya estaba y se respeta `prefers-reduced-motion`.
+
+**Pruebas.** `tests/scheduling-calendar-domain.test.ts` (rangos, mes en rejilla, desplazamiento, día local por zona y verano, agrupado), `tests/owner-calendar-route.test.ts` (orden auth → validación → alcance → cuota), `tests/owner-calendar-view.test.tsx` (pantalla, filtros, navegación, movimiento reducido), `tests/owner-calendar-sessions-service.test.ts` (SQL de dirección y de entrenadora), la matriz de coach (`tests/owner-coach-route-matrix.test.ts`: la entrenadora lee solo su sede) y un caso en `tests/owner-dashboard-today-attention-pg.test.ts` que ejecuta la consulta sobre PostgreSQL desechable (zonas Madrid/CDMX, grupo, filtros).
+
+**Sin migraciones ni candidata.** Solo lecturas sobre tablas existentes. Índices revisados: `enrollments_class_status_idx (organization_id, class_template_id, status)` cubre las subconsultas de inscritas; `attendance_records`, `session_staff` y `class_template_groups` se leen por el prefijo de sus únicos (`organization_id, session_id…`/`class_template_id…`); `sessions_location_start_idx` cubre el rango; `staff_profiles` por academia es pequeña (se resuelve una vez por petición de entrenadora). Si en una academia grande el mes se ralentiza, la candidata sería un índice `enrollments (organization_id, location_id, class_template_id)`; no se necesita hoy. No se ejecutó nada en local; la validación es la CI remota y, después, staging.
 
 ## 2026-11-14 — Uso habitual: avisos a entrenadoras, resumen semanal y medición (apagado)
 
