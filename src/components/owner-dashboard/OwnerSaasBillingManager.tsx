@@ -1232,7 +1232,7 @@ export function OwnerSaasBillingManager({
                 ¿Necesitas acompañamiento o condiciones a medida?
               </h3>
               <p className="mt-1 text-sm leading-6 text-z-soft">
-                Network se acuerda por contacto.
+                Si gestionas varias academias o necesitas más capacidad que Growth, escríbenos y vemos tu caso.
               </p>
               <Link
                 className="touch-target mt-3 inline-flex items-center text-sm font-bold text-z-brand-700 underline underline-offset-4"

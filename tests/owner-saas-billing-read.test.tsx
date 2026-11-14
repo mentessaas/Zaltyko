@@ -978,7 +978,8 @@ describe("contratación en España: sede fiscal, precio con IVA y casilla de ini
     expect(text).not.toContain("Precios sin IVA.");
     // Starter y Growth no limitan sedes: Network no se presenta como «varias sedes».
     expect(text).toContain("¿Necesitas acompañamiento o condiciones a medida?");
-    expect(text).toContain("Network se acuerda por contacto.");
+    expect(text).toContain("escríbenos y vemos tu caso.");
+    expect(text).not.toContain("Network");
     expect(text).not.toContain("¿Gestionas varias sedes?");
   });
 
