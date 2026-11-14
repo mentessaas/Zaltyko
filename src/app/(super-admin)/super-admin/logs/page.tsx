@@ -23,7 +23,7 @@ export default async function SuperAdminLogsPage() {
   const profile = await getCurrentProfile(user.id);
 
   if (!profile || profile.role !== "super_admin") {
-    redirect("/app");
+    redirect("/owner");
   }
 
   const logs = await getSuperAdminLogs(200);

@@ -6,7 +6,7 @@ describe("session to technical progress navigation", () => {
     const form = readFileSync("src/components/sessions/SessionAttendanceForm.tsx", "utf8");
     const page = readFileSync("src/app/dashboard/sessions/[sessionId]/page.tsx", "utf8");
     expect(form).toContain("Ver dominio técnico");
-    expect(form).toContain("/progress");
+    expect(form).toContain("/owner/athletes");
     expect(page).toContain("academyId={sessionRow.academyId}");
   });
 });

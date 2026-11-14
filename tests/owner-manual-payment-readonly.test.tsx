@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
 
@@ -174,6 +174,12 @@ describe("registro manual de pagos con política de solo lectura", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("Importe recibido")).toHaveValue("25.00")
     );
+    // El cargo pagado ya salió de la lista: la fecha de la sede se recalcula al
+    // elegir el siguiente cargo y hay que esperarla antes de enviar.
+    await waitFor(() => {
+      expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
+    });
+    await waitForRegisterEnabled();
     fireEvent.submit(form!);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
@@ -573,22 +579,35 @@ describe("registro manual de pagos con política de solo lectura", () => {
       return { ok: true, status: 201, json: async () => ({ ok: true, data: request }) };
     });
 
-    render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
+    // La pestaña B se abrió antes del pago y conserva el saldo antiguo del cargo.
+    const staleTab = render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
+    const paidTab = render(<ManualPaymentForm actorId={actorId} organizationId={organizationId} charges={charges} />);
+    const stale = within(staleTab.container);
+    const paid = within(paidTab.container);
     await waitFor(() => {
-      expect(screen.getByLabelText("Fecha de recepción")).not.toHaveValue("");
+      expect(paid.getByLabelText("Fecha de recepción")).not.toHaveValue("");
+      expect(stale.getByLabelText("Fecha de recepción")).not.toHaveValue("");
     });
-    await waitForRegisterEnabled();
-    fireEvent.change(screen.getByLabelText("Importe recibido"), {
+    await waitFor(() => {
+      expect(paid.getByRole("button", { name: "Guardar pago recibido" })).toBeEnabled();
+    });
+    fireEvent.change(paid.getByLabelText("Importe recibido"), {
       target: { value: "10.00" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
-    await screen.findByText("Pago guardado y asignado al cargo.");
+    fireEvent.click(paid.getByRole("button", { name: "Guardar pago recibido" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await paid.findByText("Pago guardado y asignado al cargo.");
 
-    fireEvent.change(screen.getByLabelText("Importe recibido"), {
+    await waitFor(() => {
+      expect(stale.getByRole("button", { name: "Guardar pago recibido" })).toBeEnabled();
+    });
+    fireEvent.change(stale.getByLabelText("Importe recibido"), {
       target: { value: "5.00" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar pago recibido" }));
-    await screen.findByText(/saldo de este cargo cambió en otra pestaña/i);
+    fireEvent.click(stale.getByRole("button", { name: "Guardar pago recibido" }));
+    expect(
+      (await screen.findAllByText(/saldo de este cargo cambió en otra pestaña/i)).length
+    ).toBeGreaterThan(0);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

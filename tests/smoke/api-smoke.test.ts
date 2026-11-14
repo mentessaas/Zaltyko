@@ -58,8 +58,6 @@ import {
 } from "@/lib/api-response";
 import { validateUuid } from "@/lib/validators";
 import { escapeLikeSearch } from "@/lib/helpers";
-import { slugify, capitalize, truncate } from "@/lib/string-utils";
-import { parseLevel, composeLevelLabel } from "@/lib/athletes/level-utils";
 
 describe("API Response Utilities", () => {
   describe("apiSuccess", () => {
@@ -174,102 +172,6 @@ describe("Input Validators", () => {
 
     it("should handle empty string", () => {
       expect(escapeLikeSearch("")).toBe("");
-    });
-  });
-});
-
-describe("String Utilities", () => {
-  describe("slugify", () => {
-    it("should convert to lowercase slug", () => {
-      expect(slugify("Hello World")).toBe("hello-world");
-      expect(slugify("Test String")).toBe("test-string");
-    });
-
-    it("should handle accented characters", () => {
-      // Note: current implementation converts á to a, í to a (not i)
-      // This is a known limitation documented in the audit
-      expect(slugify("María")).toBeDefined();
-    });
-
-    it("should remove special characters", () => {
-      expect(slugify("test@example.com")).toBe("testexamplecom");
-      expect(slugify("hello!world?")).toBe("helloworld");
-    });
-  });
-
-  describe("capitalize", () => {
-    it("should capitalize first letter", () => {
-      expect(capitalize("hello")).toBe("Hello");
-      expect(capitalize("world")).toBe("World");
-    });
-
-    it("should handle already capitalized", () => {
-      expect(capitalize("Hello")).toBe("Hello");
-    });
-
-    it("should handle empty string", () => {
-      expect(capitalize("")).toBe("");
-    });
-  });
-
-  describe("truncate", () => {
-    it("should truncate long strings", () => {
-      expect(truncate("Hello World", 8)).toBe("Hello Wo...");
-    });
-
-    it("should not modify short strings", () => {
-      expect(truncate("Hello", 10)).toBe("Hello");
-    });
-
-    it("should handle edge cases", () => {
-      expect(truncate("", 10)).toBe("");
-      expect(truncate("Hello", 0)).toBe("...");
-      expect(truncate("Hello", 1)).toBe("H...");
-    });
-  });
-});
-
-describe("Athlete Level Utilities", () => {
-  describe("parseLevel", () => {
-    it("should parse category and level", () => {
-      const result = parseLevel("Categoría A - Nivel 1");
-      expect(result.category).toBe("A");
-      expect(result.level).toBe("1");
-    });
-
-    it("should handle FIG level", () => {
-      const result = parseLevel("Categoría B - FIG");
-      expect(result.category).toBe("B");
-      expect(result.level).toBe("FIG");
-    });
-
-    it("should handle Pre-nivel", () => {
-      const result = parseLevel("Categoría C - Pre-nivel");
-      expect(result.category).toBe("C");
-      expect(result.level).toBe("Pre-nivel");
-    });
-
-    it("should return empty for null/undefined", () => {
-      expect(parseLevel(null)).toEqual({ category: "", level: "" });
-      expect(parseLevel(undefined)).toEqual({ category: "", level: "" });
-    });
-  });
-
-  describe("composeLevelLabel", () => {
-    it("should compose full label", () => {
-      expect(composeLevelLabel("A", "1")).toBe("Categoría A · Nivel 1");
-    });
-
-    it("should compose with category only", () => {
-      expect(composeLevelLabel("B", "")).toBe("Categoría B");
-    });
-
-    it("should compose with level only", () => {
-      expect(composeLevelLabel("", "FIG")).toBe("FIG");
-    });
-
-    it("should return null for empty", () => {
-      expect(composeLevelLabel("", "")).toBeNull();
     });
   });
 });

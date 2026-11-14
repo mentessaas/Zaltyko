@@ -205,8 +205,8 @@ describe("components/ui: el aviso nunca va en coral", () => {
       }
     }
     expect(offenders).toEqual([]);
-    // toast-provider, alert, badge y stats-card.
-    expect(warningVariants).toBeGreaterThanOrEqual(4);
+    // toast-provider, badge y stats-card (alert se retiró con /app).
+    expect(warningVariants).toBeGreaterThanOrEqual(3);
   });
 
   it("ningún «pending» ni «tip» se pinta en coral", () => {

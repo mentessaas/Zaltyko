@@ -37,5 +37,5 @@ export default async function AthleteDetailPage({ params }: AthletePageProps) {
     notFound();
   }
 
-  redirect(`/app/${athlete.academyId}/athletes/${athlete.id}`);
+  redirect(`/owner/athletes`);
 }

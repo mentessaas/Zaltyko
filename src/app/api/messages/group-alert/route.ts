@@ -302,7 +302,7 @@ const groupAlertHandler = withTenant(async (request, context) => {
     return { conversationId, message };
   });
 
-  const messageUrl = `/app/${academyId}/messages?c=${result.conversationId}`;
+  const messageUrl = `/owner?c=${result.conversationId}`;
   for (const recipientId of recipientIds) {
     try {
       await createNotification({

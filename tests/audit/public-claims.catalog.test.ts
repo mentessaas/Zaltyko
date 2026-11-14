@@ -404,8 +404,7 @@ describe("L2 — claims de módulos alineados con capacidades verificadas", () =
 
   it("las pantallas de planes no prometen un portal familiar fuera del lanzamiento", () => {
     for (const file of [
-      "src/app/dashboard/account-form.tsx", "src/components/billing/BillingPanel.tsx",
-      "src/components/billing/BillingSummary.tsx", "src/components/profiles/OptimizedOwnerProfile.tsx",
+      "src/app/dashboard/account-form.tsx", "src/components/billing/BillingSummary.tsx", "src/components/profiles/OptimizedOwnerProfile.tsx",
       "src/lib/limits.ts", "src/lib/plans/catalog.ts",
     ]) {
       const copy = readSiteFile(file).toLowerCase();

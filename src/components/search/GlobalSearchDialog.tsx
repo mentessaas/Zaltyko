@@ -158,19 +158,19 @@ export function GlobalSearchDialog({ academyId, open, onOpenChange }: GlobalSear
   const handleActionSelect = useCallback(
     (action: string) => {
       const actions: Record<string, string> = {
-        "create-athlete": `/app/${academyId}/athletes/new`,
-        "create-class": `/app/${academyId}/classes`,
-        "create-coach": `/app/${academyId}/coaches`,
-        "create-group": `/app/${academyId}/groups`,
-        "create-event": `/app/${academyId}/events`,
-        "go-dashboard": `/app/${academyId}/dashboard`,
-        "go-athletes": `/app/${academyId}/athletes`,
-        "go-classes": `/app/${academyId}/classes`,
-        "go-coaches": `/app/${academyId}/coaches`,
-        "go-groups": `/app/${academyId}/groups`,
-        "go-events": `/app/${academyId}/events`,
-        "go-assessments": `/app/${academyId}/assessments`,
-        "go-messages": `/app/${academyId}/messages`,
+        "create-athlete": `/owner/athletes`,
+        "create-class": `/owner/classes`,
+        "create-coach": `/owner/staff`,
+        "create-group": `/owner/groups`,
+        "create-event": `/owner`,
+        "go-dashboard": `/owner`,
+        "go-athletes": `/owner/athletes`,
+        "go-classes": `/owner/classes`,
+        "go-coaches": `/owner/staff`,
+        "go-groups": `/owner/groups`,
+        "go-events": `/owner`,
+        "go-assessments": `/owner`,
+        "go-messages": `/owner`,
       };
 
       const url = actions[action];

@@ -35,6 +35,19 @@ source:
 
 **Sin migraciones ni candidata.** Solo lecturas sobre tablas existentes. Índices revisados: `enrollments_class_status_idx (organization_id, class_template_id, status)` cubre las subconsultas de inscritas; `attendance_records`, `session_staff` y `class_template_groups` se leen por el prefijo de sus únicos (`organization_id, session_id…`/`class_template_id…`); `sessions_location_start_idx` cubre el rango; `staff_profiles` por academia es pequeña (se resuelve una vez por petición de entrenadora). Si en una academia grande el mes se ralentiza, la candidata sería un índice `enrollments (organization_id, location_id, class_template_id)`; no se necesita hoy. No se ejecutó nada en local; la validación es la CI remota y, después, staging.
 
+## 2026-11-14 — Retirada del panel antiguo /app
+
+**Contexto.** `/app` (esquema legacy `@/db/schema`) seguía vivo junto a `/owner` y guardaba datos de salud de gimnastas (documentos y certificado médico) que no queremos tratar. No hay clientes reales.
+
+**Cambio.**
+- Borrado `src/app/app/**` (150 archivos de ruta), 241 módulos que solo él usaba (208 componentes, librerías, hooks y tipos) y 89 APIs sin otro consumidor, empezando por `/api/athletes/[athleteId]/documents` y `/api/licenses`.
+- `/app` y subrutas: redirect permanente (308) en `next.config.mjs` a `/owner`, `/owner/<módulo>` o `/familia` (`src/lib/launch/legacy-app-redirects.mjs`). No se reutiliza el `academyId`.
+- Enlaces internos, redirecciones tras el login (`resolveUserHome`), onboarding, correo de bienvenida, URLs de Stripe y navegación apuntan a `/owner` o `/familia`.
+- Candidata SQL **sin aplicar** `docs/deployment/candidates/20261114120000_retire_legacy_health_data_candidate.sql`: elimina `athlete_documents` y las columnas de certificado médico.
+- Gate `orphan-app-route`: con `src/app/app` retirado, la raíz por defecto cuenta como vacía.
+
+**Pendiente / no verificado en el Mac.** Nada se ejecutó localmente (regla del proyecto): la verificación es la CI de la PR. Sin equivalente en `/owner`: ver `docs/qa/retiro-panel-app-2026-11-14.md`. La candidata SQL y el borrado de los archivos de Storage requieren autorización de Elvis.
+
 ## 2026-11-14 — Demo pública sin registro (`/demo`)
 
 **Contexto.** El análisis de competencia (A15) recomienda una demo pública sin registro para captar academias; ScoreGym la tiene.

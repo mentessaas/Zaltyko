@@ -25,7 +25,7 @@ export default async function SuperAdminPublicAcademiesPage() {
   const profile = await getCurrentProfile(user.id);
 
   if (!profile || profile.role !== "super_admin") {
-    redirect("/app");
+    redirect("/owner");
   }
 
   // Obtener todas las academias con su estado de visibilidad

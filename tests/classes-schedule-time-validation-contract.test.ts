@@ -14,8 +14,4 @@ describe("class schedule time validation contract", () => {
     expect(updateRoute).toContain('"INVALID_TIME_RANGE"');
   });
 
-  it("does not render a contradictory legacy range in operator views", () => {
-    expect(read("src/components/dashboard/UpcomingClasses.tsx")).toContain("Horario por revisar");
-    expect(read("src/components/classes/ClassDetailView.tsx")).toContain("formatClassTimeRange");
-  });
 });

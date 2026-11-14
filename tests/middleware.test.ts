@@ -116,8 +116,6 @@ describe("middleware", () => {
   it.each([
     "/owner/insights", "/owner/health-score/setup", "/owner/health-score/setup/preview",
     "/marketplace", "/marketplace/nuevo", "/dashboard/marketplace/mis-productos",
-    "/app/academy-id/marketplace", "/app/academy-id/store", "/app/academy-id/store/onboarding",
-    "/app/academy-id/subdomain",
     "/a/club-test/tienda", "/a/club-test/tienda/success",
     "/academias", "/coaches", "/events", "/empleo", "/%6darketplace",
     "/integraciones", "/integrations", "/docs",
@@ -347,7 +345,7 @@ describe("middleware", () => {
   it("does not localize application or commercial routes without localized handlers", async () => {
     const pricingResponse = await middleware(new NextRequest("https://zaltyko.test/pricing"));
     const academyResponse = await middleware(
-      new NextRequest("https://zaltyko.test/app/academy-1/dashboard")
+      new NextRequest("https://zaltyko.test/owner")
     );
 
     expect(pricingResponse.headers.get("location")).toBeNull();

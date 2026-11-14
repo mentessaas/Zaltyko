@@ -96,7 +96,7 @@ describe("resolveUserHome: Owner legacy", () => {
 
     expect(result).toMatchObject({
       destination: "academy_workspace",
-      redirectUrl: "/app/academy-1/dashboard",
+      redirectUrl: "/owner",
       reason: "legacy-owner-membership",
       profileRole: "owner",
       activeAcademyId: "academy-1",
@@ -116,7 +116,7 @@ describe("resolveUserHome: Owner legacy", () => {
 
     const result = await resolveUserHome({ userId: "user-1" });
 
-    expect(result.redirectUrl).toBe("/app/academy-1/dashboard");
+    expect(result.redirectUrl).toBe("/owner");
   });
 
   it("no acepta una membresía de academia de otro tenant", async () => {
@@ -137,7 +137,7 @@ describe("resolveUserHome: Owner legacy", () => {
 
     const result = await resolveUserHome({ userId: "user-1" });
 
-    expect(result.redirectUrl).toBe("/app/academy-2/dashboard");
+    expect(result.redirectUrl).toBe("/owner");
     expect(result.activeAcademyId).toBe("academy-2");
   });
 

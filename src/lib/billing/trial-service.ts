@@ -288,7 +288,7 @@ export async function notifyTrialOwner(params: {
     type: isReminder ? "trial_ending" : "trial_expired",
     title,
     message,
-    data: { academyId: params.academyId, href: `/app/${params.academyId}/billing` },
+    data: { academyId: params.academyId, href: `/owner/payments` },
   });
 
   const eligibility = await isAcademyBlockedFromSending(params.academyId);
@@ -316,7 +316,7 @@ export async function notifyTrialOwner(params: {
       to: email,
       subject: `${title} · Zaltyko`,
       text: message,
-      html: `<p>${safeMessage}</p><p><a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com"}/app/${params.academyId}/billing">Ver planes</a></p>`,
+      html: `<p>${safeMessage}</p><p><a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com"}/owner/payments">Ver planes</a></p>`,
       replyTo: process.env.BREVO_REPLY_TO ?? "admin@zaltyko.com",
       template: `trial-${params.kind}`,
       tenantId: params.tenantId,

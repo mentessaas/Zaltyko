@@ -247,8 +247,8 @@ export async function createExtraClassAction(input: z.infer<typeof createExtraCl
     });
 
     // 9. Revalidar páginas
-    revalidatePath(`/app/${body.academyId}/athletes/${body.athleteId}`);
-    revalidatePath(`/app/${body.academyId}/classes`);
+    revalidatePath(`/owner/athletes`);
+    revalidatePath(`/owner/classes`);
     revalidatePath(`/dashboard/calendar`);
 
     return { ok: true, classId };

@@ -31,16 +31,16 @@ describe("onboarding/next-step-urls (ZAL-324 Gap 2)", () => {
 
   it("resolveNextStepUrl devuelve URL absoluta limpia sin params", () => {
     const url = resolveNextStepUrl("enable_payments", appUrl);
-    expect(url).toBe("https://zaltyko.com/app/settings/billing");
+    expect(url).toBe("https://zaltyko.com/owner/payments");
   });
 
   it("resolveNextStepUrl agrega queryParams codificados", () => {
     const url = resolveNextStepUrl("login_again", appUrl, {
-      redirect: "/app/athletes",
+      redirect: "/owner/athletes",
       utm_source: "d7",
     });
     expect(url).toContain("/auth/sign-in?");
-    expect(url).toContain("redirect=%2Fapp%2Fathletes");
+    expect(url).toContain("redirect=%2Fowner%2Fathletes");
     expect(url).toContain("utm_source=d7");
   });
 

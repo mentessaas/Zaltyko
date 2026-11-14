@@ -80,9 +80,6 @@ assert.deepEqual(
 );
 
 for (const legacyRoute of [
-  "src/app/app/[academyId]/dashboard/page.tsx",
-  "src/app/app/[academyId]/dashboard/at-a-glance/page.tsx",
-  "src/app/app/[academyId]/dashboard/analytics/page.tsx",
   "src/app/onboarding/owner/page.tsx",
 ]) {
   const source = readFileSync(join(root, legacyRoute), "utf8");
@@ -92,6 +89,23 @@ for (const legacyRoute of [
   );
   assert(!source.includes("@/db/schema"), `${legacyRoute} aún consulta legacy`);
 }
+
+// El panel antiguo /app se retiró: su árbol no existe y todas sus URLs son
+// redirects permanentes a /owner (next.config.mjs).
+assert(!existsSync(join(root, "src/app/app")), "src/app/app (panel antiguo) sigue existiendo");
+const legacyAppRedirects = readFileSync(
+  join(root, "src/lib/launch/legacy-app-redirects.mjs"),
+  "utf8"
+);
+assert(
+  legacyAppRedirects.includes('["/app/:path*", LEGACY_APP_FALLBACK]') &&
+    legacyAppRedirects.includes('LEGACY_APP_FALLBACK = "/owner"'),
+  "/app y subrutas no redirigen a /owner"
+);
+assert(
+  readFileSync(join(root, "next.config.mjs"), "utf8").includes("LEGACY_APP_REDIRECTS"),
+  "next.config.mjs no aplica LEGACY_APP_REDIRECTS"
+);
 
 console.log(
   JSON.stringify({

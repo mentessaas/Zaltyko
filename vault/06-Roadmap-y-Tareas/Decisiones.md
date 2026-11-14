@@ -9,6 +9,14 @@ source:
 # Decisiones
 
 
+## 2026-11-14 — Retirar /app entero (no solo el dashboard) y no tratar datos de salud
+
+**Hallazgo/fuente:** `docs/qa/retiro-panel-app-2026-11-14.md`; ADR-0007. `/app` era el único consumidor de `athlete_documents` y del certificado médico.
+
+**Decisión/importancia:** se borra el panel en lugar de dejarlo en cuarentena, porque no hay clientes que lo usen y mantenerlo conservaba tratamiento de datos de salud de menores. `/app/**` redirige a `/owner`. Las APIs de cobros con pruebas propias (recordatorio de cuota, mensualidades, registrar pago, recibo familiar) se conservan sin consumidor web hasta decidir su sustituto en `/owner`.
+
+**Siguiente paso:** Elvis decide si autoriza la candidata SQL (`20261114120000_retire_legacy_health_data_candidate.sql`) y el borrado de Storage.
+
 ## 2026-11-14 — Niveles y progresión por aparato (A6): plantillas orientativas, apagado hasta autorización de Elvis
 
 **Hallazgo/fuente:** análisis de competencia del 14-11-2026, punto A6 (progresión por niveles y aparatos con informe y diploma; el seguimiento de habilidades de iClassPro como referencia); `docs/producto/niveles-y-progresion.md`.

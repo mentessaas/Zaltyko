@@ -581,6 +581,24 @@ se afirma equivalencia del propietario de cada objeto de extensión con el
 bootstrap productivo. PostgreSQL ejecuta los scripts trusted como bootstrap,
 aunque la extensión pertenezca al llamador: [documentación PostgreSQL17](https://www.postgresql.org/docs/17/sql-createextension.html).
 
+## Candidata pendiente: retirar datos de salud del esquema legacy (14-11-2026)
+
+`20261114120000_retire_legacy_health_data_candidate.sql` elimina
+`public.athlete_documents`, `federative_licenses.medical_certificate_expiry` y
+las dos columnas `medical_certificate_*` de `template_license_config`: datos que
+solo usaba el panel `/app`, retirado en la rama `limpieza/retirar-app`. **No
+aplicada en ningún entorno.** Es destructiva e irreversible; aborta salvo
+`set local zaltyko.retire_health_data = 'confirmado'`. Los pasos previos (recuento,
+borrado de Storage, cambios del esquema Drizzle) están en la cabecera del archivo.
+
+**Paso obligatorio antes del `DROP`: respaldo cifrado de `athlete_documents`.** Quien autorice la
+candidata debe exportar `public.athlete_documents` (filas) y los archivos de Storage del
+prefijo `…/athletes/<id>/documents/` a un archivo **cifrado** (p. ej. `age`/GPG con clave
+de Elvis), guardado fuera del repositorio y de iCloud, comprobar que se descifra y que el
+recuento coincide, y anotar solo el recuento y la ubicación en el informe (nunca los datos).
+Sin ese respaldo verificado no se aplica la candidata; si se decide que no hace falta
+conservarlos, debe quedar escrito por Elvis.
+
 ## Comprobar los hashes
 
 Antes de aplicar una candidata, comprueba que el SHA-256 del `.sql` coincide con el documentado aquí:
