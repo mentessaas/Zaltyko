@@ -72,7 +72,8 @@ describe("prepareAccountErasure", () => {
       status: 409,
     });
     expect(statements).toHaveLength(4);
-    expect(statements.some((statement) => /\bupdate\b/i.test(statement))).toBe(false);
+    // Solo lecturas (el «for update» del select no es una escritura).
+    expect(statements.some((statement) => /^(update|insert|delete)\b/i.test(statement))).toBe(false);
   });
 
   it("rechaza (409) dejar una academia sin dueña activa con cuenta", async () => {
