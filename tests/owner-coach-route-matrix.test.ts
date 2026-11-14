@@ -466,6 +466,12 @@ const staticallyGuarded: Record<string, { guard: string; via?: string }> = {
   "PATCH owner/athletes/[athleteId]/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/billing/monthly-invoices/issue/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/billing/price-plans/route.ts": { guard: "resolveOwnerScope" },
+  // Recordatorios de impago: el servicio exige además propiedad o administración (requireReminderRole).
+  "GET owner/billing/payment-reminders/route.ts": { guard: "resolveOwnerScope", via: "src/modules/payment-reminders/application/service.ts" },
+  "POST owner/billing/payment-reminders/route.ts": { guard: "resolveOwnerScope" },
+  "POST owner/billing/payment-reminders/preview/route.ts": { guard: "resolveOwnerScope" },
+  "GET owner/billing/payment-reminders/settings/route.ts": { guard: "resolveOwnerScope", via: "src/modules/payment-reminders/application/settings.ts" },
+  "PUT owner/billing/payment-reminders/settings/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/classes/route.ts": { guard: "resolveOwnerScope" },
   "PUT owner/dashboard-layout/route.ts": { guard: "resolveOwnerScope", via: "src/modules/owner-dashboard/application/dashboard-layout.ts" },
   "POST owner/enrollments/route.ts": { guard: "resolveOwnerScope" },

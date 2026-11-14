@@ -88,7 +88,7 @@ export async function readSettings(client: DatabaseClient, organizationId: strin
       from zaltyko.payment_reminder_settings
      where organization_id = ${organizationId}::uuid
   `);
-  const row = result.rows[0] as SettingsRow | undefined;
+  const row = result.rows[0] as unknown as SettingsRow | undefined;
   if (!row) return { ...DEFAULT_SETTINGS };
   return {
     subjectTemplate: row.subject_template,

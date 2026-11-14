@@ -300,7 +300,7 @@ describe("rutas API de recordatorios de cuotas", () => {
   it("el cron del recordatorio automático exige el secreto y no está programado en vercel.json", () => {
     const cron = read("src/app/api/cron/family-payment-reminders/route.ts");
     expect(cron).toContain("requireCronAuth(request)");
-    expect(cron.indexOf("requireCronAuth(request)")).toBeLessThan(cron.indexOf("runAutomaticPaymentReminders"));
+    expect(cron.indexOf("requireCronAuth(request)")).toBeLessThan(cron.indexOf("runCronWithLease("));
     expect(read("vercel.json")).not.toContain("family-payment-reminders");
   });
 });
