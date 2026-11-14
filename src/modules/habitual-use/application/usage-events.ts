@@ -9,6 +9,7 @@ import {
   familyWeekPseudonym,
   isUsageActorRole,
   isUsageEventName,
+  USAGE_PSEUDONYM_SECRET_VARIABLE,
   type UsageActorRole,
   type UsageEventName,
 } from "../domain/usage";
@@ -20,7 +21,7 @@ export const USAGE_TIMEZONE = "Europe/Madrid";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function pseudonymSecret(): string | null {
-  return process.env.UNSUBSCRIBE_HMAC_SECRET ?? process.env.INTERNAL_AUTH_SECRET ?? null;
+  return process.env[USAGE_PSEUDONYM_SECRET_VARIABLE] ?? null;
 }
 
 export interface UsageEventInput {
@@ -56,7 +57,7 @@ export async function recordUsageEvent(input: UsageEventInput): Promise<boolean>
         weekKey: isoWeekKey(now, USAGE_TIMEZONE),
         secret: pseudonymSecret(),
       });
-      // Sin secreto no hay seudónimo seguro: mejor no medir que medir con la cuenta.
+      // Sin su secreto propio no hay seudónimo: mejor no medir que medir con la cuenta.
       if (!pseudonym) return false;
       actorRef = pseudonym;
     } else if (input.actorRole === "family") {

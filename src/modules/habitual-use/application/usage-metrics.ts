@@ -27,7 +27,7 @@ export interface UsageWeek {
   sessionsWithAttendance: number;
   /** Sesiones de la semana ya terminadas y no canceladas. */
   sessionsHeld: number;
-  /** Entradas de familias al portal (como mucho una por familia, academia y día). */
+  /** Entradas de familias al portal: cada vez que se abre su portada, una por academia con datos. */
   familyPortalVisits: number;
   /** Cuentas de familia distintas que entraron (seudónimo semanal). */
   familyAccounts: number;

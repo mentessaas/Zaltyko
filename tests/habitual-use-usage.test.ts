@@ -89,6 +89,10 @@ describe("seudónimo de familia", () => {
     expect(familyWeekPseudonym({ userId: "user-1", weekKey: "2026-W48", secret })).not.toBe(a);
     expect(familyWeekPseudonym({ userId: "user-2", weekKey: "2026-W47", secret })).not.toBe(a);
   });
+  it("depende del secreto: otro secreto da otro seudónimo", () => {
+    const base = { userId: "user-1", weekKey: "2026-W47" };
+    expect(familyWeekPseudonym({ ...base, secret })).not.toBe(familyWeekPseudonym({ ...base, secret: "t".repeat(32) }));
+  });
   it("sin secreto suficiente no se registra nada", () => {
     expect(familyWeekPseudonym({ userId: "u", weekKey: "2026-W47", secret: null })).toBeNull();
     expect(familyWeekPseudonym({ userId: "u", weekKey: "2026-W47", secret: "corto" })).toBeNull();
@@ -139,8 +143,10 @@ describe("registro de eventos de uso", () => {
   it("las familias no se registran sin secreto de seudónimo", async () => {
     process.env.ZALTYKO_HABITUAL_USE_ENABLED = "true";
     process.env.ZALTYKO_USAGE_METRICS_ENABLED = "true";
-    delete process.env.UNSUBSCRIBE_HMAC_SECRET;
-    delete process.env.INTERNAL_AUTH_SECRET;
+    delete process.env.ZALTYKO_USAGE_PSEUDONYM_SECRET;
+    // Los secretos de los enlaces de baja no sirven para el seudónimo.
+    process.env.UNSUBSCRIBE_HMAC_SECRET = "s".repeat(32);
+    process.env.INTERNAL_AUTH_SECRET = "s".repeat(32);
     expect(await recordFamilyPortalView({ organizationId: ORG, userId: "u" })).toBe(false);
     expect(mocks.execute).not.toHaveBeenCalled();
   });

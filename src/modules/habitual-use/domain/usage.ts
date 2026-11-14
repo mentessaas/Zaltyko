@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 
 import { escapeHtml } from "@/lib/email/escape-html";
 
@@ -7,9 +7,9 @@ import { escapeHtml } from "@/lib/email/escape-html";
  *
  * Los eventos son contadores por academia, tipo de evento, rol y día. NO llevan
  * identificador de persona, de gimnasta ni de menor. La única excepción es la
- * referencia de familia del portal: un seudónimo HMAC que rota cada semana, para
- * contar familias distintas sin poder reconocer a ninguna ni seguirla de una
- * semana a otra.
+ * referencia de familia del portal: un seudónimo HMAC con secreto propio que rota
+ * cada semana, para contar familias distintas sin poder seguirlas de una semana a
+ * otra (es un seudónimo, no un dato anónimo).
  */
 
 export const USAGE_EVENT_NAMES = ["staff_visit", "family_portal_view"] as const;
@@ -31,9 +31,16 @@ export const AT_RISK_INACTIVE_DAYS = 7;
 /** Una academia recién creada no se marca en riesgo antes de este tiempo. */
 export const AT_RISK_MIN_AGE_DAYS = 7;
 
+/** Secreto propio del seudónimo de familias. No se reutiliza el de los enlaces de baja. */
+export const USAGE_PSEUDONYM_SECRET_VARIABLE = "ZALTYKO_USAGE_PSEUDONYM_SECRET";
+
 /**
- * Seudónimo de una familia para una semana concreta: 16 hex de HMAC-SHA256 sobre
- * «cuenta|semana». Sin secreto no se registra nada (devuelve null).
+ * Seudónimo de una familia para una semana concreta: 16 hex de un HMAC-SHA256 con
+ * un secreto propio sobre «cuenta|semana». Es un SEUDÓNIMO, no un dato anónimo:
+ * quien tenga el secreto puede recalcularlo para una cuenta conocida. Sirve para
+ * contar cuentas distintas en una semana; sin el secreto no se puede reconocer a
+ * nadie, y al rotar cada semana no se puede seguir a una familia de una a otra.
+ * Sin secreto no se registra nada (devuelve null).
  */
 export function familyWeekPseudonym(input: {
   userId: string;
@@ -42,10 +49,7 @@ export function familyWeekPseudonym(input: {
 }): string | null {
   const secret = input.secret?.trim();
   if (!secret || secret.length < 16) return null;
-  return createHash("sha256")
-    .update(`${secret}|${input.userId}|${input.weekKey}`)
-    .digest("hex")
-    .slice(0, 16);
+  return createHmac("sha256", secret).update(`${input.userId}|${input.weekKey}`).digest("hex").slice(0, 16);
 }
 
 export interface AcademyActivitySnapshot {

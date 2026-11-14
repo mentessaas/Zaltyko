@@ -82,6 +82,8 @@ describe("selección de avisos a entrenadoras", () => {
     expect(planCoachReminders([candidate({ status: "cancelled" })], now)).toEqual([]);
     const before = new Date(START.getTime() - minutes(10));
     expect(planCoachReminders([candidate({ status: "cancelled" })], before)).toEqual([]);
+    // Una clase sin gimnastas esperadas tampoco avisa antes de empezar.
+    expect(planCoachReminders([candidate({ expectedAthletes: 0 })], before)).toEqual([]);
   });
 
   it("de madrugada en la sede no manda el recordatorio de lista; el aviso previo sí", () => {

@@ -79,7 +79,7 @@ export function buildDigestLinks(
     attendance: `${base}/owner/attendance?${query}`,
     invoices: `${base}/owner/monthly-invoices?${query}`,
     requests: `${base}/owner/requests?${query}`,
-    athletes: `${base}/owner/athletes?${query}`,
+    athletes: `${base}/owner/athletes/sin-venir?${query}`,
   };
 }
 
@@ -91,7 +91,7 @@ export function buildOwnerDigestItems(metrics: OwnerDigestMetrics, links: Digest
     items.push({
       key: "unrecorded_sessions",
       title: plural(metrics.unrecordedSessions, "sesión sin lista", "sesiones sin lista"),
-      detail: "Terminaron esta semana y nadie pasó lista.",
+      detail: "Terminaron en los últimos 7 días y nadie pasó lista.",
       href: links.attendance,
       action: "Completar listas",
     });
@@ -126,7 +126,7 @@ export function buildOwnerDigestItems(metrics: OwnerDigestMetrics, links: Digest
         "gimnasta lleva 2 semanas o más sin venir",
         "gimnastas llevan 2 semanas o más sin venir"
       ),
-      detail: "Con inscripción activa y sin ninguna asistencia en 14 días.",
+      detail: "Con inscripción activa y sin ninguna asistencia en las últimas 2 semanas.",
       href: links.athletes,
       action: "Ver gimnastas",
     });
@@ -150,10 +150,10 @@ function describeAttendanceDrop(attendance: OwnerDigestMetrics["attendance"]):
   | { title: string; detail: string }
   | null {
   const { current, previous } = attendance;
-  // La semana anterior hubo listas y esta no: lo accionable es pasar lista.
+  // La semana anterior a la pasada hubo listas y la pasada no: lo accionable es pasar lista.
   if (previous.sessionsWithAttendance > 0 && current.sessionsWithAttendance === 0) {
     return {
-      title: "Esta semana no se pasó lista en ninguna sesión",
+      title: "La semana pasada no se pasó lista en ninguna sesión",
       detail: `La semana anterior sí: ${plural(previous.sessionsWithAttendance, "sesión", "sesiones")} con lista.`,
     };
   }
@@ -164,8 +164,8 @@ function describeAttendanceDrop(attendance: OwnerDigestMetrics["attendance"]):
   const drop = previousRate - currentRate;
   if (drop < ATTENDANCE_DROP_MIN_POINTS) return null;
   return {
-    title: `La asistencia bajó ${drop} puntos`,
-    detail: `${currentRate} % esta semana frente a ${previousRate} % la anterior.`,
+    title: `La asistencia bajó del ${previousRate} % al ${currentRate} %`,
+    detail: `${drop} puntos menos la semana pasada que la anterior.`,
   };
 }
 

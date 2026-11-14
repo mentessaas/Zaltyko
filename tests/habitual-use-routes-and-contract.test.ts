@@ -159,6 +159,13 @@ describe("contrato de la candidata y de la configuración", () => {
     expect(executable).toContain("references zaltyko.organizations(id) on delete cascade");
   });
 
+  it("crea los dos índices por hora y documenta la vuelta atrás", () => {
+    expect(executable).toContain("create index sessions_starts_at_idx on zaltyko.sessions(starts_at)");
+    expect(executable).toContain("create index sessions_ends_at_idx on zaltyko.sessions(ends_at)");
+    expect(candidate).toMatch(/Vuelta atrás[\s\S]*drop table if exists public\.usage_events/);
+    expect(read("docs/deployment/candidates/README.md")).toContain("Vuelta atrás");
+  });
+
   it("activa y fuerza RLS y no da permisos a clientes directos", () => {
     expect(executable).toContain("alter table public.usage_events enable row level security");
     expect(executable).toContain("alter table public.usage_events force row level security");
@@ -185,6 +192,7 @@ describe("contrato de la candidata y de la configuración", () => {
       expect(env, name).toContain(`\n${name}=false\n`);
     }
     expect(env).toMatch(/\nZALTYKO_AT_RISK_ALERT_EMAIL=\n/);
+    expect(env).toMatch(/\nZALTYKO_USAGE_PSEUDONYM_SECRET=\n/);
   });
 
   it("los crons no están programados en vercel.json", () => {

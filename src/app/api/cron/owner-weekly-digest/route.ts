@@ -5,6 +5,8 @@ import { logger } from "@/lib/logger";
 import { runOwnerWeeklyDigest } from "@/modules/habitual-use/application/owner-weekly-digest";
 
 export const dynamic = "force-dynamic";
+// Recorre por páginas hasta agotar lo pendiente: se fija el máximo de la plataforma para no cortarlo.
+export const maxDuration = 300;
 
 /**
  * Resumen semanal de dirección: el lunes por la mañana (hora de la sede), solo

@@ -5,6 +5,8 @@ import { logger } from "@/lib/logger";
 import { runAtRiskAlert } from "@/modules/habitual-use/application/at-risk-alert";
 
 export const dynamic = "force-dynamic";
+// Recorre por páginas hasta agotar lo pendiente: se fija el máximo de la plataforma para no cortarlo.
+export const maxDuration = 300;
 
 /**
  * Aviso a Elvis de academias que entran en riesgo (7 días o más sin actividad del

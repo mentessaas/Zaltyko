@@ -19,7 +19,7 @@ import {
   isoWeekKey,
   isOwnerDigestWindow,
   localDate,
-  resolveDigestTimezone,
+  safeTimezone,
 } from "../domain/local-time";
 import {
   buildDigestLinks,
@@ -29,13 +29,14 @@ import {
   type AttendanceWeekTotals,
   type OwnerDigestMetrics,
 } from "../domain/owner-weekly-digest";
+import { countInactiveAthletes } from "./inactive-athletes";
 import { buildHabitualUsePreferencesUrl, isHabitualUseEnabledFor } from "./preferences";
 
 export const OWNER_DIGEST_TEMPLATE = "owner-weekly-digest";
-/** Una semana sin asistencia de gimnastas activas: el umbral de «sin venir». */
-export const INACTIVE_ATHLETE_DAYS = 14;
-/** Tope de personas por disparo; el cron corre cada hora el lunes por la mañana. */
-export const OWNER_DIGEST_MAX_RECIPIENTS = 2000;
+/** Personas por consulta. Se recorre por páginas hasta agotar quien toca: no hay tope total. */
+export const OWNER_DIGEST_PAGE_SIZE = 200;
+/** Cinturón de seguridad contra un bucle: 200 × 100 = 20.000 personas por disparo. */
+export const OWNER_DIGEST_MAX_PAGES = 100;
 
 export interface DigestRecipient {
   memberId: string;
@@ -55,75 +56,116 @@ interface RecipientRow {
   email: string;
   organization_id: string;
   organization_name: string;
-  default_timezone: string | null;
-  timezones: string[] | string | null;
+  timezone: string | null;
 }
 
-function toStringArray(value: string[] | string | null): string[] {
-  if (Array.isArray(value)) return value;
-  if (typeof value === "string") {
-    return value
-      .replace(/^\{|\}$/g, "")
-      .split(",")
-      .map((part) => part.replace(/^"|"$/g, "").trim())
-      .filter(Boolean);
-  }
-  return [];
+export interface DigestRecipientCursor {
+  organizationId: string;
+  memberId: string;
 }
+
+const START_OF_RECIPIENTS: DigestRecipientCursor = {
+  organizationId: "00000000-0000-0000-0000-000000000000",
+  memberId: "00000000-0000-0000-0000-000000000000",
+};
 
 /**
- * Dirección con membresía activa en academias activas o en prueba, junto con las
- * zonas horarias de las sedes que ve. La autorización definitiva (alcance de
- * sedes y rol) la repite `resolveOwnerScope` antes de calcular nada.
+ * Una página de la dirección a la que le toca el resumen AHORA: membresía activa
+ * en una academia activa o en prueba, es lunes entre las 08:00 y las 11:59 en su
+ * zona (la de sus sedes si coinciden, y si no la de la academia) y todavía no tiene
+ * enviado ni en curso el de esta semana. Todo se filtra en SQL, así que el resto
+ * de la semana no se lee a nadie. La autorización definitiva (alcance de sedes y
+ * rol) la repite `resolveOwnerScope` antes de calcular nada. Se pagina por
+ * (academia, persona).
  */
-export async function loadDigestRecipients(): Promise<DigestRecipient[]> {
+export async function loadDigestRecipientPage(input: {
+  now: Date;
+  after?: DigestRecipientCursor;
+  pageSize?: number;
+}): Promise<{ recipients: DigestRecipient[]; next: DigestRecipientCursor | null }> {
+  const at = input.now.toISOString();
+  const after = input.after ?? START_OF_RECIPIENTS;
+  const pageSize = input.pageSize ?? OWNER_DIGEST_PAGE_SIZE;
   const result = await db.execute(sql`
-    select
-      m.id as member_id,
-      m.user_id,
-      m.role::text as role,
-      u.email,
-      o.id as organization_id,
-      o.name as organization_name,
-      o.default_timezone,
-      coalesce((
-        select array_agg(distinct l.timezone)
-        from zaltyko.locations l
-        where l.organization_id = m.organization_id
-          and l.is_active
-          and (
-            m.location_scope_mode = 'all'
-            or exists (
-              select 1 from zaltyko.member_location_scopes mls
-              where mls.organization_id = m.organization_id
-                and mls.member_id = m.id
-                and mls.location_id = l.id
+    with members as (
+      select
+        m.id as member_id,
+        m.user_id,
+        m.role::text as role,
+        u.email,
+        o.id as organization_id,
+        o.name as organization_name,
+        coalesce((
+          select case when count(distinct l.timezone) = 1 then min(l.timezone) end
+          from zaltyko.locations l
+          where l.organization_id = m.organization_id
+            and l.is_active
+            and (
+              m.location_scope_mode = 'all'
+              or exists (
+                select 1 from zaltyko.member_location_scopes mls
+                where mls.organization_id = m.organization_id
+                  and mls.member_id = m.id
+                  and mls.location_id = l.id
+              )
             )
-          )
-      ), '{}') as timezones
-    from zaltyko.organization_members m
-    join zaltyko.organizations o
-      on o.id = m.organization_id and o.status in ('trial', 'active')
-    join auth.users u on u.id = m.user_id
-    where m.status = 'active'
-      and m.role in ('owner', 'admin', 'manager')
-      and u.email is not null
-    order by o.id, m.id
-    limit ${OWNER_DIGEST_MAX_RECIPIENTS}
+        ), o.default_timezone, 'Europe/Madrid') as timezone
+      from zaltyko.organization_members m
+      join zaltyko.organizations o
+        on o.id = m.organization_id and o.status in ('trial', 'active')
+      join auth.users u on u.id = m.user_id
+      where m.status = 'active'
+        and m.role in ('owner', 'admin', 'manager')
+        and u.email is not null
+        and (m.organization_id, m.id) > (${after.organizationId}::uuid, ${after.memberId}::uuid)
+    )
+    select *
+    from members c
+    where extract(isodow from (${at}::timestamptz at time zone c.timezone)) = 1
+      and extract(hour from (${at}::timestamptz at time zone c.timezone)) between 8 and 11
+      and not exists (
+        select 1 from public.email_logs el
+        where el.idempotency_key =
+              'email:owner-weekly-digest:' || c.organization_id::text || ':' || c.member_id::text || ':'
+              || to_char(${at}::timestamptz at time zone c.timezone, 'IYYY-"W"IW')
+          and (el.status = 'sent' or el.created_at > now() - interval '1 hour')
+      )
+    order by c.organization_id, c.member_id
+    limit ${pageSize}::int
   `);
   const rows = result.rows as unknown as RecipientRow[];
-  if (rows.length >= OWNER_DIGEST_MAX_RECIPIENTS) {
-    logger.warn("habitual_use.owner_digest_recipients_truncated", { limit: OWNER_DIGEST_MAX_RECIPIENTS });
-  }
-  return rows.map((row) => ({
+  const recipients = rows.map((row) => ({
     memberId: row.member_id,
     userId: row.user_id,
     role: row.role,
     email: row.email,
     organizationId: row.organization_id,
     organizationName: row.organization_name,
-    timezone: resolveDigestTimezone(row.default_timezone, toStringArray(row.timezones)),
+    timezone: safeTimezone(row.timezone),
   }));
+  const last = rows[rows.length - 1];
+  return {
+    recipients,
+    next: last && rows.length >= pageSize ? { organizationId: last.organization_id, memberId: last.member_id } : null,
+  };
+}
+
+/** Todas las páginas de quien toca ahora (pruebas y diagnóstico). */
+export async function loadDigestRecipients(now: Date): Promise<DigestRecipient[]> {
+  const all: DigestRecipient[] = [];
+  for await (const page of digestRecipientPages(now)) all.push(...page);
+  return all;
+}
+
+export async function* digestRecipientPages(now: Date): AsyncGenerator<DigestRecipient[]> {
+  let after: DigestRecipientCursor | undefined;
+  for (let page = 0; page < OWNER_DIGEST_MAX_PAGES; page += 1) {
+    const { recipients, next } = await loadDigestRecipientPage({ now, after });
+    if (recipients.length > 0) yield recipients;
+    if (!next) return;
+    after = next;
+  }
+  logger.warn("habitual_use.owner_digest_page_limit", { pages: OWNER_DIGEST_MAX_PAGES });
 }
 
 async function wasAlreadySent(dedupeKey: string): Promise<boolean> {
@@ -196,55 +238,6 @@ async function loadAttendanceWeeks(input: {
     };
   }
   return totals;
-}
-
-/**
- * Gimnastas con inscripción activa (con al menos 14 días de antigüedad) cuya clase
- * ha tenido sesiones con lista en los últimos 14 días y que no figuran presentes
- * ni con retraso en ninguna. Cuenta personas; no devuelve nombres.
- */
-async function countInactiveAthletes(input: {
-  organizationId: string;
-  locationIds: string[];
-  now: Date;
-  today: string;
-}): Promise<number> {
-  const at = input.now.toISOString();
-  const result = await db.execute(sql`
-    select count(distinct e.athlete_id)::int as count
-    from zaltyko.enrollments e
-    join zaltyko.athletes athlete
-      on athlete.organization_id = e.organization_id
-     and athlete.id = e.athlete_id
-     and athlete.is_active
-    where e.organization_id = ${input.organizationId}::uuid
-      and e.location_id = any(${sqlUuidArray(input.locationIds)})
-      and e.status = 'active'
-      and e.starts_on <= ${input.today}::date - ${INACTIVE_ATHLETE_DAYS}::int
-      and (e.ends_on is null or e.ends_on > ${input.today}::date)
-      and exists (
-        select 1
-        from zaltyko.sessions s
-        where s.organization_id = e.organization_id
-          and s.class_template_id = e.class_template_id
-          and s.status <> 'cancelled'
-          and s.starts_at >= ${at}::timestamptz - make_interval(days => ${INACTIVE_ATHLETE_DAYS})
-          and s.starts_at < ${at}::timestamptz
-          and exists (
-            select 1 from zaltyko.attendance_records r
-            where r.organization_id = s.organization_id and r.session_id = s.id
-          )
-      )
-      and not exists (
-        select 1
-        from zaltyko.attendance_records p
-        where p.organization_id = e.organization_id
-          and p.athlete_id = e.athlete_id
-          and p.status in ('present', 'late')
-          and p.recorded_at >= ${at}::timestamptz - make_interval(days => ${INACTIVE_ATHLETE_DAYS})
-      )
-  `);
-  return Number((result.rows[0] as { count?: number | string } | undefined)?.count ?? 0);
 }
 
 /**
@@ -346,7 +339,8 @@ export async function runOwnerWeeklyDigest(
   options: {
     now?: Date;
     appUrl?: string;
-    loadRecipients?: () => Promise<DigestRecipient[]>;
+    /** Sustituye la carga paginada por un único lote (pruebas). */
+    loadRecipients?: (now: Date) => Promise<DigestRecipient[]>;
     resolveScope?: (recipient: DigestRecipient) => Promise<OwnerScope>;
     loadMetrics?: (input: { scope: OwnerScope; now: Date; timezone: string }) => Promise<OwnerDigestMetrics>;
   } = {}
@@ -354,10 +348,16 @@ export async function runOwnerWeeklyDigest(
   if (!isOwnerWeeklyDigestEnabled()) return { ...EMPTY };
   const now = options.now ?? new Date();
   const appUrl = options.appUrl ?? getAppUrl();
-  const recipients = await (options.loadRecipients ?? loadDigestRecipients)();
-  const summary: OwnerDigestSummary = { ...EMPTY, enabled: true, recipients: recipients.length };
+  const pages: AsyncIterable<DigestRecipient[]> = options.loadRecipients
+    ? (async function* () {
+        yield await options.loadRecipients!(now);
+      })()
+    : digestRecipientPages(now);
+  const summary: OwnerDigestSummary = { ...EMPTY, enabled: true };
 
-  for (const recipient of recipients) {
+  for await (const recipients of pages) {
+    summary.recipients += recipients.length;
+    for (const recipient of recipients) {
     try {
       if (!isOwnerDigestWindow(now, recipient.timezone)) continue;
       summary.inWindow += 1;
@@ -438,6 +438,7 @@ export async function runOwnerWeeklyDigest(
         memberId: recipient.memberId,
       });
     }
+  }
   }
   return summary;
 }

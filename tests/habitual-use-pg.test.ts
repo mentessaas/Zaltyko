@@ -9,7 +9,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/email/email-service", () => ({ sendEmailWithLogging: vi.fn() }));
 
 import { db } from "@/db";
-import { loadCoachSessionCandidates } from "@/modules/habitual-use/application/coach-reminders";
+import {
+  loadCoachSessionCandidatePage,
+  loadCoachSessionCandidates,
+  type CandidateCursor,
+} from "@/modules/habitual-use/application/coach-reminders";
+import { listInactiveAthletes } from "@/modules/habitual-use/application/inactive-athletes";
+import { localDate, localParts } from "@/modules/habitual-use/domain/local-time";
 import { loadOwnerDigestMetrics } from "@/modules/habitual-use/application/owner-weekly-digest";
 import { isUsageStorageAvailable, resetUsageStorageCache } from "@/modules/habitual-use/application/storage";
 import { recordFamilyPortalView, recordStaffVisit } from "@/modules/habitual-use/application/usage-events";
@@ -175,18 +181,25 @@ async function seed(): Promise<Fixture> {
   return { organizationId, madridId, mexicoId, ownerUserId, coachMemberId, coachEmail, scopedCoachMemberId, sessions };
 }
 
+// Vuelta atrás documentada en el propio candidato.
+async function dropCandidate() {
+  await db.execute(sql`drop index if exists zaltyko.sessions_starts_at_idx`);
+  await db.execute(sql`drop index if exists zaltyko.sessions_ends_at_idx`);
+  await db.execute(sql`drop table if exists public.usage_events`);
+}
+
 describeDisposablePg("uso habitual sobre PostgreSQL desechable", () => {
   let fixture: Fixture;
 
   beforeAll(async () => {
     assertDisposableTarget();
-    await db.execute(sql`drop table if exists public.usage_events`);
+    await dropCandidate();
     await db.execute(sql.raw(candidate()));
     fixture = await seed();
   });
 
   afterAll(async () => {
-    await db.execute(sql`drop table if exists public.usage_events`);
+    await dropCandidate();
   });
 
   it("detecta el almacenamiento instalado tal como lo define el candidato", async () => {
@@ -198,25 +211,72 @@ describeDisposablePg("uso habitual sobre PostgreSQL desechable", () => {
   });
 
   it("elige sesiones con equipo asignado y sede en su alcance, con la zona de la sede", async () => {
-    const rows = (await loadCoachSessionCandidates(new Date())).filter(
-      (row) => row.organizationId === fixture.organizationId
-    );
-    const key = (row: (typeof rows)[number]) => `${row.sessionId}:${row.recipientMemberId}`;
-    const keys = rows.map(key).sort();
-    // La titular con todas las sedes recibe las tres de Madrid (una ya con lista: el plan la descarta);
-    // la entrenadora con alcance solo en México recibe la de México y NO la de Madrid donde también figura.
+    const now = new Date();
+    const rows = (await loadCoachSessionCandidates(now)).filter((row) => row.organizationId === fixture.organizationId);
+    const keys = rows.map((row) => `${row.sessionId}:${row.recipientMemberId}`).sort();
+    // El recordatorio de lista no se manda de madrugada en la sede (22:00-07:00): la sesión terminada
+    // hace 2 h solo sale si ahora es hora de día en Madrid. La que ya tiene lista no sale nunca.
+    const madridHour = localParts(now, MADRID).hour;
+    const endedExpected = madridHour >= 7 && madridHour <= 21;
+    // La entrenadora con alcance solo en México recibe la de México y NO la de Madrid donde también figura.
     expect(keys).toEqual(
       [
         `${fixture.sessions.soon}:${fixture.coachMemberId}`,
-        `${fixture.sessions.ended}:${fixture.coachMemberId}`,
-        `${fixture.sessions.recorded}:${fixture.coachMemberId}`,
         `${fixture.sessions.otherSite}:${fixture.scopedCoachMemberId}`,
+        ...(endedExpected ? [`${fixture.sessions.ended}:${fixture.coachMemberId}`] : []),
       ].sort()
     );
-    const ended = rows.find((row) => row.sessionId === fixture.sessions.ended)!;
-    expect(ended).toMatchObject({ timezone: MADRID, hasAttendance: false, expectedAthletes: 2, recipientEmail: fixture.coachEmail });
     expect(rows.find((row) => row.sessionId === fixture.sessions.otherSite)?.timezone).toBe(MEXICO);
-    expect(rows.find((row) => row.sessionId === fixture.sessions.recorded)?.hasAttendance).toBe(true);
+    expect(rows.find((row) => row.sessionId === fixture.sessions.soon)).toMatchObject({
+      timezone: MADRID,
+      hasAttendance: false,
+      expectedAthletes: 2,
+      recipientEmail: fixture.coachEmail,
+    });
+  });
+
+  it("pagina por clave sin saltarse ni repetir avisos", async () => {
+    const now = new Date();
+    const seen: string[] = [];
+    let after: CandidateCursor | undefined;
+    for (let page = 0; page < 20; page += 1) {
+      const { candidates, next } = await loadCoachSessionCandidatePage({ kind: "soon", now, after, pageSize: 1 });
+      seen.push(...candidates.filter((row) => row.organizationId === fixture.organizationId).map((row) => `${row.sessionId}:${row.recipientMemberId}`));
+      if (!next) break;
+      after = next;
+    }
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen).toContain(`${fixture.sessions.soon}:${fixture.coachMemberId}`);
+    expect(seen).toContain(`${fixture.sessions.otherSite}:${fixture.scopedCoachMemberId}`);
+  });
+
+  it("no vuelve a elegir un aviso que ya salió", async () => {
+    const now = new Date();
+    const key = `coach-session-soon:${fixture.sessions.soon}:${fixture.coachMemberId}`;
+    await db.execute(sql`
+      insert into public.email_logs (to_email, subject, template, status, idempotency_key, sent_at)
+      values (${fixture.coachEmail}, 'ci', 'coach-session-soon', 'sent', ${`email:${key}`}, now())
+    `);
+    const rows = (await loadCoachSessionCandidates(now)).filter((row) => row.organizationId === fixture.organizationId);
+    expect(rows.some((row) => row.sessionId === fixture.sessions.soon && row.recipientMemberId === fixture.coachMemberId)).toBe(false);
+  });
+
+  it("crea los índices por hora y la vuelta atrás los retira sin tocar sesiones", async () => {
+    const present = async () =>
+      (
+        await db.execute(sql`
+          select count(*)::int as n from pg_indexes
+          where schemaname = 'zaltyko' and indexname in ('sessions_starts_at_idx', 'sessions_ends_at_idx')
+        `)
+      ).rows[0] as { n: number };
+    expect((await present()).n).toBe(2);
+    await dropCandidate();
+    expect((await present()).n).toBe(0);
+    const sessions = await db.execute(sql`select count(*)::int as n from zaltyko.sessions where organization_id = ${fixture.organizationId}::uuid`);
+    expect((sessions.rows[0] as { n: number }).n).toBe(4);
+    await db.execute(sql.raw(candidate()));
+    expect((await present()).n).toBe(2);
+    expect(await isUsageStorageAvailable(db)).toBe(true);
   });
 
   it("calcula las cifras del resumen con el alcance real de sedes", async () => {
@@ -227,12 +287,30 @@ describeDisposablePg("uso habitual sobre PostgreSQL desechable", () => {
     expect(metrics.overdueInvoices).toBe(0);
     // Una gimnasta figuró ausente en la sesión con lista y no tiene ninguna asistencia en 14 días.
     expect(metrics.inactiveAthletes).toBe(1);
+    // La lista a la que enlaza el resumen es la misma regla, con nombre y última asistencia.
+    const list = await listInactiveAthletes({
+      organizationId: fixture.organizationId,
+      locationIds: scope.locations.map((location) => location.id),
+      now: new Date(),
+      today: localDate(new Date(), MADRID),
+    });
+    expect(list.total).toBe(1);
+    expect(list.rows).toHaveLength(1);
+    expect(list.rows[0]?.displayName).toBe("CI Persona 1");
+    // Solo la sede de Madrid: la gimnasta ausente tiene su inscripción allí.
+    const mexicoOnly = await listInactiveAthletes({
+      organizationId: fixture.organizationId,
+      locationIds: [fixture.mexicoId],
+      now: new Date(),
+      today: localDate(new Date(), MEXICO),
+    });
+    expect(mexicoOnly.total).toBe(0);
   });
 
   it("registra eventos sin datos personales y los cuenta en la vista de uso", async () => {
     process.env.ZALTYKO_HABITUAL_USE_ENABLED = "true";
     process.env.ZALTYKO_USAGE_METRICS_ENABLED = "true";
-    process.env.UNSUBSCRIBE_HMAC_SECRET = "s".repeat(32);
+    process.env.ZALTYKO_USAGE_PSEUDONYM_SECRET = "s".repeat(32);
     resetUsageStorageCache();
     try {
       expect(await recordStaffVisit({ organizationId: fixture.organizationId, role: "coach" })).toBe(true);
@@ -263,7 +341,7 @@ describeDisposablePg("uso habitual sobre PostgreSQL desechable", () => {
     } finally {
       delete process.env.ZALTYKO_HABITUAL_USE_ENABLED;
       delete process.env.ZALTYKO_USAGE_METRICS_ENABLED;
-      delete process.env.UNSUBSCRIBE_HMAC_SECRET;
+      delete process.env.ZALTYKO_USAGE_PSEUDONYM_SECRET;
       resetUsageStorageCache();
     }
   });

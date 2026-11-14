@@ -58,7 +58,13 @@ const MINUTE = 60_000;
 function classify(candidate: CoachSessionCandidate, now: Date): CoachReminderKind | null {
   if (candidate.status === "cancelled") return null;
   const untilStart = (candidate.startsAt.getTime() - now.getTime()) / MINUTE;
-  if (untilStart > 0 && untilStart <= COACH_SOON_MAX_MINUTES && candidate.status === "scheduled") {
+  // Sin gimnastas esperadas no hay lista que pasar: tampoco se avisa antes.
+  if (
+    untilStart > 0 &&
+    untilStart <= COACH_SOON_MAX_MINUTES &&
+    candidate.status === "scheduled" &&
+    candidate.expectedAthletes > 0
+  ) {
     return "soon";
   }
   const sinceEnd = (now.getTime() - candidate.endsAt.getTime()) / MINUTE;

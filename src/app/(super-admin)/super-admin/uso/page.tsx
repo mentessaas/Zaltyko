@@ -99,7 +99,7 @@ export default async function SuperAdminUsagePage() {
             <p className="text-xs uppercase tracking-[0.16em] text-white/50">Familias en el portal</p>
             <p className="mt-4 font-display text-3xl font-semibold text-white">{latest.familyAccounts}</p>
             <p className="mt-2 text-xs text-white/50">
-              Cuentas distintas · {latest.familyPortalVisits} entradas en {latest.academiesWithFamilyVisits} academias
+              Cuentas distintas (seudónimo semanal) · {latest.familyPortalVisits} entradas (cada apertura de la portada) en {latest.academiesWithFamilyVisits} academias
             </p>
           </article>
           <article className={card}>

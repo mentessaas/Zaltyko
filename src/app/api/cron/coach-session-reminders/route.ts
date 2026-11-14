@@ -5,6 +5,8 @@ import { logger } from "@/lib/logger";
 import { runCoachSessionReminders } from "@/modules/habitual-use/application/coach-reminders";
 
 export const dynamic = "force-dynamic";
+// Recorre por páginas hasta agotar lo pendiente: se fija el máximo de la plataforma para no cortarlo.
+export const maxDuration = 300;
 
 /**
  * Avisos a quien entrena: unos 15 minutos antes de cada sesión y un único

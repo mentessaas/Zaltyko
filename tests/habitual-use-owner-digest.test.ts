@@ -65,6 +65,9 @@ describe("puntos del resumen semanal", () => {
     expect(items.find((item) => item.key === "overdue_invoices")?.href).toContain("/owner/monthly-invoices?");
     expect(items.find((item) => item.key === "trial_requests")?.href).toContain("/owner/requests?");
     expect(items.find((item) => item.key === "unrecorded_sessions")?.title).toBe("4 sesiones sin lista");
+    expect(items.find((item) => item.key === "unrecorded_sessions")?.detail).toContain("últimos 7 días");
+    // «Gimnastas sin venir» abre la lista filtrada de esas gimnastas, no la bandeja general.
+    expect(items.find((item) => item.key === "inactive_athletes")?.href).toContain("/owner/athletes/sin-venir?");
     expect(items.find((item) => item.key === "trial_requests")?.title).toBe("1 solicitud de prueba sin responder");
   });
 
@@ -81,9 +84,10 @@ describe("puntos del resumen semanal", () => {
     expect(attendanceRate(week(1, 40, 30))).toBe(75);
     expect(attendanceRate(week(0, 0, 0))).toBeNull();
     expect(drop(week(10, 100, 85), week(10, 100, 92))).toHaveLength(1); // -7 puntos
+    expect(drop(week(10, 100, 78), week(10, 100, 85))[0]?.title).toBe("La asistencia bajó del 85 % al 78 %");
     expect(drop(week(10, 100, 88), week(10, 100, 92))).toHaveLength(0); // -4 puntos
     expect(drop(week(2, 6, 1), week(2, 6, 6))).toHaveLength(0); // pocos registros
-    expect(drop(week(0, 0, 0), week(5, 50, 45))[0]?.title).toBe("Esta semana no se pasó lista en ninguna sesión");
+    expect(drop(week(0, 0, 0), week(5, 50, 45))[0]?.title).toBe("La semana pasada no se pasó lista en ninguna sesión");
     expect(drop(week(0, 0, 0), week(0, 0, 0))).toHaveLength(0);
   });
 
