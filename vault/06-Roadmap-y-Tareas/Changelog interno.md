@@ -1,13 +1,27 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-25
+last_reviewed: 2026-11-14
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
 
+
+## 2026-11-14 — /owner/calendar: calendario de clases por día, semana y mes
+
+**Contexto.** Elvis pidió ver en un calendario las clases que tocan. Hasta hoy solo había clases recurrentes (`/owner/classes`), «Hoy» y la asistencia.
+
+**Cambio.**
+- **Pantalla `/owner/calendar`** (`src/app/owner/calendar/page.tsx`, `OwnerCalendarView.tsx`): vistas Día, Semana y Mes, con anterior/siguiente, «Hoy» y filtros por sede y por grupo. Cada sesión muestra hora en la zona de su sede, clase, grupo, entrenadora, inscritas/capacidad y estado (cancelada, sustitución, lista pasada); un clic lleva a su asistencia. En móvil la semana es una lista por días y el mes, una rejilla compacta con el día elegido debajo. La vista (vista, fecha, sede, grupo) queda en la URL.
+- **Navegación.** «Calendario» es pestaña principal en móvil (sustituye a «Grupos», que pasa a «Más») y entra en «Día a día» del lateral. No sale en la vista sintética.
+- **Lectura por rango** `GET /api/v1/owner/calendar` (`calendar-sessions.ts`, `calendar-query.ts`): rango de hasta 42 días, superficie de gestión (owner/admin/manager con sus sedes; el coach queda fuera, como en Clases), 60 peticiones/min por academia. Reutiliza `getSessionCoachSummaries` para entrenadoras y sustituciones; si el candidato de titulares no está aplicado, el calendario se pinta sin ellas y no afirma que no haya nadie.
+- **Reglas.** Una sesión es del día en que empieza en la zona de SU sede (`calendar.ts`); la semana empieza en lunes. Las canceladas se ven pero no enlazan. Sin dependencias nuevas: `framer-motion` ya estaba y se respeta `prefers-reduced-motion`.
+
+**Pruebas.** `tests/scheduling-calendar-domain.test.ts` (rangos, mes en rejilla, desplazamiento, día local por zona y verano, agrupado), `tests/owner-calendar-route.test.ts` (orden auth → validación → alcance → cuota), `tests/owner-calendar-view.test.tsx` (pantalla, filtros, navegación, movimiento reducido), la matriz de coach (`tests/owner-coach-route-matrix.test.ts`) y un caso en `tests/owner-dashboard-today-attention-pg.test.ts` que ejecuta la consulta sobre PostgreSQL desechable (zonas Madrid/CDMX, grupo, filtros).
+
+**Sin migraciones.** Solo lecturas sobre tablas existentes. No se ejecutó nada en local; la validación es la CI remota y, después, staging.
 
 ## 2026-11-12 — Web pública: acceso de entrenadoras, titulares, guion y seguimiento, y solicitudes de prueba
 

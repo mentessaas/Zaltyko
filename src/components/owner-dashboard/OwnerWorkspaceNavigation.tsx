@@ -6,6 +6,7 @@ import { useRef } from "react";
 import {
   type LucideIcon,
   CalendarDays,
+  CalendarRange,
   ChevronDown,
   ClipboardCheck,
   CreditCard,
@@ -40,6 +41,7 @@ type NavigationItem = {
 
 const ITEM_ICONS: Record<string, LucideIcon> = {
   Resumen: LayoutDashboard,
+  Calendario: CalendarRange,
   Asistencia: ClipboardCheck,
   Clases: CalendarDays,
   Gimnastas: Sparkles,
@@ -52,12 +54,12 @@ const ITEM_ICONS: Record<string, LucideIcon> = {
 };
 
 const DESKTOP_SECTIONS: ReadonlyArray<{ title: string; labels: readonly string[] }> = [
-  { title: "Día a día", labels: ["Resumen", "Asistencia", "Clases"] },
+  { title: "Día a día", labels: ["Resumen", "Calendario", "Asistencia", "Clases"] },
   { title: "Personas", labels: ["Solicitudes", "Gimnastas", "Grupos", "Inscripciones"] },
   { title: "Club", labels: ["Cobros"] },
 ];
 
-const MOBILE_PRIMARY_LABELS = ["Resumen", "Asistencia", "Clases", "Grupos"] as const;
+const MOBILE_PRIMARY_LABELS = ["Resumen", "Calendario", "Asistencia", "Clases"] as const;
 
 const FOCUS_RING =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500";
@@ -128,6 +130,15 @@ export function OwnerWorkspaceNavigation({
       href: dashboardHref,
       active: isRouteActive(pathname, dashboardPath),
     },
+    // El calendario pide la superficie de gestión (el coach no la tiene) y no
+    // existe en la vista sintética de /owner/preview.
+    ...(!previewMode
+      ? [{
+          label: "Calendario",
+          href: `/owner/calendar${scopedQuery}`,
+          active: isRouteActive(pathname, "/owner/calendar"),
+        }]
+      : []),
     {
       label: "Grupos",
       href: `/owner/groups${scopedQuery}`,

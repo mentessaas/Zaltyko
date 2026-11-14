@@ -6,6 +6,13 @@ import { db } from "@/db";
 import { getOwnerAttentionItems } from "@/modules/owner-dashboard/application/attention-items";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { getOwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
+import { getOwnerCalendar } from "@/modules/scheduling/application/calendar-sessions";
+import {
+  addDays,
+  groupSessionsByLocalDate,
+  localDateOf,
+  todayIn,
+} from "@/modules/scheduling/domain/calendar";
 
 function assertDisposableTarget() {
   if (
@@ -190,7 +197,7 @@ async function seedFixture() {
        now() + interval '5 days', ${`ci-today-${organizationId}-3`})
   `);
 
-  return { organizationId, userId, madridId, mexicoId, ids };
+  return { organizationId, userId, madridId, mexicoId, fullTemplateId, ids };
 }
 
 describe("Owner today sessions and attention items on disposable PostgreSQL", () => {
@@ -223,6 +230,82 @@ describe("Owner today sessions and attention items on disposable PostgreSQL", ()
     });
     const mexicoOnly = await getOwnerTodaySessions({ scope: mexicoScope, locationId: fixture.mexicoId });
     expect(mexicoOnly.sessions.map((session) => session.id)).toEqual([fixture.ids.mexico]);
+  });
+
+  it("reads the calendar by local day per location, with groups, occupancy and location/group filters", async () => {
+    assertDisposableTarget();
+    const fixture = await seedFixture();
+    const groupId = randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.groups (id, organization_id, location_id, name)
+      values (${groupId}::uuid, ${fixture.organizationId}::uuid, ${fixture.madridId}::uuid, 'CI grupo competición')
+    `);
+    await db.execute(sql`
+      insert into zaltyko.class_template_groups (organization_id, class_template_id, group_id)
+      values (${fixture.organizationId}::uuid, ${fixture.fullTemplateId}::uuid, ${groupId}::uuid)
+    `);
+    const scope = await resolveOwnerScope({ userId: fixture.userId, organizationId: fixture.organizationId });
+    const madridToday = todayIn(MADRID);
+    const wide = { from: addDays(madridToday, -3), to: addDays(madridToday, 3) };
+
+    const calendar = await getOwnerCalendar({ scope, ...wide });
+    const byId = new Map(calendar.sessions.map((session) => [session.id, session]));
+    // Dentro del rango: hoy en ambas sedes y ayer; fuera: la de hace 10 días.
+    expect([...byId.keys()].sort()).toEqual(
+      [fixture.ids.morning, fixture.ids.cancelled, fixture.ids.override, fixture.ids.mexico, fixture.ids.yesterday].sort()
+    );
+    expect(calendar.truncated).toBe(false);
+    expect(calendar.locations.map((location) => location.timezone).sort()).toEqual([MEXICO, MADRID].sort());
+    expect(calendar.groups).toEqual([{ id: groupId, name: "CI grupo competición", locationId: fixture.madridId }]);
+    expect(byId.get(fixture.ids.morning)).toMatchObject({
+      status: "scheduled",
+      capacity: 2,
+      expectedAthletes: 2,
+      recordedAttendance: 1,
+      timezone: MADRID,
+      className: "CI full class",
+      groups: [{ id: groupId, name: "CI grupo competición" }],
+    });
+    expect(byId.get(fixture.ids.cancelled)).toMatchObject({ status: "cancelled" });
+    expect(byId.get(fixture.ids.override)).toMatchObject({ capacity: 3, expectedAthletes: 1, groups: [] });
+    expect(byId.get(fixture.ids.mexico)).toMatchObject({ timezone: MEXICO, groups: [] });
+
+    // Cada sesión cae en el día local de SU sede, no en el del servidor.
+    const grouped = groupSessionsByLocalDate(calendar.sessions);
+    expect(grouped.get(todayIn(MEXICO))?.map((session) => session.id)).toContain(fixture.ids.mexico);
+    expect(grouped.get(madridToday)?.map((session) => session.id)).toEqual(
+      expect.arrayContaining([fixture.ids.morning, fixture.ids.cancelled, fixture.ids.override])
+    );
+    for (const session of calendar.sessions) {
+      const day = localDateOf(session.startsAt, session.timezone);
+      expect(day >= wide.from && day <= wide.to).toBe(true);
+    }
+
+    // Un solo día: el filtro exacto usa el día local de cada sede.
+    const oneDay = await getOwnerCalendar({ scope, from: madridToday, to: madridToday });
+    expect(oneDay.sessions.map((session) => session.id).sort()).toEqual(
+      [
+        fixture.ids.morning,
+        fixture.ids.cancelled,
+        fixture.ids.override,
+        ...(todayIn(MEXICO) === madridToday ? [fixture.ids.mexico] : []),
+      ].sort()
+    );
+
+    const mexicoScope = await resolveOwnerScope({
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+      locationId: fixture.mexicoId,
+    });
+    const mexicoOnly = await getOwnerCalendar({ scope: mexicoScope, ...wide, locationId: fixture.mexicoId });
+    expect(mexicoOnly.sessions.map((session) => session.id)).toEqual([fixture.ids.mexico]);
+
+    const groupOnly = await getOwnerCalendar({ scope, ...wide, groupId });
+    expect(groupOnly.sessions.map((session) => session.id).sort()).toEqual(
+      [fixture.ids.morning, fixture.ids.cancelled, fixture.ids.yesterday].sort()
+    );
+    const unknownGroup = await getOwnerCalendar({ scope, ...wide, groupId: randomUUID() });
+    expect(unknownGroup.sessions).toEqual([]);
   });
 
   it("counts attention items within scope and only exposes invoices to finance roles", async () => {

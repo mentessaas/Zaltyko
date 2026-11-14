@@ -72,7 +72,7 @@ describe("lateral Magnesio de /owner", () => {
     const addAthlete = within(aside).getByRole("link", { name: "Añadir gimnasta", hidden: true });
     expect(addAthlete).toHaveAttribute("href", `/owner/athletes?organizationId=${organizationId}#new-athlete-heading`);
     expect(addAthlete).toHaveClass("bg-white", "text-mat-deep", "touch-target");
-    // La acción vive fuera de la navegación: los 10 destinos no cambian.
+    // La acción vive fuera de la navegación: los 11 destinos no cambian.
     expect(screen.getByRole("navigation", { name: "Principal", hidden: true }).contains(addAthlete)).toBe(false);
 
     for (const title of ["Día a día", "Personas", "Club"]) {
@@ -94,17 +94,17 @@ describe("lateral Magnesio de /owner", () => {
     }
   });
 
-  it("dirección (owner con todas las sedes) ve los 10 destinos", () => {
+  it("dirección (owner con todas las sedes) ve los 11 destinos", () => {
     renderFor("owner", "all");
     expect([...principalLabels()].sort()).toEqual(
-      ["Resumen", "Grupos", "Gimnastas", "Equipo", "Clases", "Inscripciones", "Solicitudes", "Asistencia", "Cobros", "Plan"].sort()
+      ["Resumen", "Calendario", "Grupos", "Gimnastas", "Equipo", "Clases", "Inscripciones", "Solicitudes", "Asistencia", "Cobros", "Plan"].sort()
     );
   });
 
   it("admin con sedes limitadas: sin Gimnastas, Plan ni «Añadir gimnasta»", () => {
     renderFor("admin", "selected");
     const labels = principalLabels();
-    expect(labels).toEqual(expect.arrayContaining(["Resumen", "Grupos", "Clases", "Inscripciones", "Asistencia", "Cobros"]));
+    expect(labels).toEqual(expect.arrayContaining(["Resumen", "Calendario", "Grupos", "Clases", "Inscripciones", "Asistencia", "Cobros"]));
     for (const hidden of ["Gimnastas", "Plan", "Equipo"]) expect(labels).not.toContain(hidden);
     expect(within(sidebar()).queryByRole("link", { name: "Añadir gimnasta", hidden: true })).toBeNull();
   });
