@@ -266,15 +266,47 @@ Live** de Stripe. La prueba en test no basta.
   (`HomeSections`), la FAQ de planes, `llms.txt`/`llms-full.txt` y la cláusula 3
   de Términos.
 
+## Correo de confirmación de la contratación (LSSI art. 28)
+
+- **Cuándo**: tras el commit del primer `invoice.paid` de la suscripción
+  (`billing_reason = subscription_create`), el mismo evento que concede el plan.
+  No se usa `checkout.session.completed` porque puede llegar con el pago aún
+  pendiente y no concede nada. Renovaciones y cambios de plan no lo repiten.
+- **Qué**: plan y periodicidad, precio sin IVA, IVA (21 %) y total tal como los
+  cobró Stripe en esa factura, fecha de inicio y de próxima renovación, cómo
+  cancelar desde el panel (Suscripción), el texto de la casilla de inicio
+  inmediato si se marcó, aviso de que **no es una factura** (la ZA llega aparte
+  desde FacturaDirecta), enlaces a `/terminos` y `/politica-privacidad` y el
+  contacto hola@zaltyko.com. En Stripe test el asunto lleva «[Modo prueba]».
+- **A quién**: al email de la cuenta del Owner que inició el Checkout
+  (`requested_by_member_id` → `auth.users`); si ya no existe, al email que dejó
+  en Checkout.
+- **Idempotencia**: el webhook no reprocesa un evento ya `processed`, y el
+  envío usa `dedupeKey = saas-contract-confirmation:<entorno>:<suscripción>`
+  sobre `email_logs` (índice único en `idempotency_key`).
+- **Fallos**: se registran (log y `email_logs.status = failed`, plantilla
+  `saas-contract-confirmation`) y el webhook responde igual; no hay reintento
+  automático. Las organizaciones del ensayo QA congelado no reciben correo.
+- **Baja de marketing**: no impide este correo. Se envía con
+  `legallyRequired: true` (`SendEmailOptions` en `src/lib/email/email-service.ts`),
+  que solo salta `hasMarketingOptOut`; preferencias de notificación,
+  elegibilidad de la academia y dedupe siguen aplicando, y no tiene efecto con
+  `purpose: "marketing"`. Hoy solo la usa la confirmación de la contratación
+  (lo vigila `tests/email-legally-required-optout.test.ts`).
+- **Limitación conocida**: un `invoice.paid` cuarentenado y aplicado después
+  por la conciliación no envía el correo.
+- Código: `src/modules/saas-billing/application/contract-confirmation-email.ts`.
+
 ## Revisión legal pendiente (no se ha inventado texto jurídico)
 
 - **LSSI art. 27** (información previa): Términos no explican los pasos para
   contratar, si el contrato se archiva y es accesible, el idioma del contrato ni
   los medios para identificar y corregir errores antes de pagar.
-- **LSSI art. 28** (confirmación): tras pagar, el cliente vuelve a la pantalla
-  del plan, que muestra el estado de la sesión, y puede recibir el recibo de
-  Stripe si ese correo está activo. No hay una confirmación propia de Zaltyko
-  por correo con el contrato aceptado.
+- **LSSI art. 28** (confirmación): Zaltyko ya envía su correo de confirmación
+  (ver «Correo de confirmación de la contratación»). Queda pendiente de la
+  revisión legal: incluir la versión fechada de los Términos aceptados (hoy
+  solo se enlaza la versión vigente) y la sección «Confirmación» propuesta en
+  `docs/legal/borradores/terminos-cambios-propuestos.md` (T5).
 - **Desistimiento**: Términos no informan del derecho de desistimiento ni de su
   pérdida por inicio inmediato. La casilla está en la pantalla del plan, pero el
   texto legal debe recogerlo.

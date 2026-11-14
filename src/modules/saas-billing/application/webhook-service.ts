@@ -18,6 +18,11 @@ import { logger } from "@/lib/logger";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { auditInvoiceCustomerTaxIds } from "../domain/customer-billing-details";
 import {
+  saasContractConfirmationFromPaidInvoice,
+  sendSaasContractConfirmationEmail,
+  type SaasContractConfirmation,
+} from "./contract-confirmation-email";
+import {
   grantOrganizationEntitlement,
   lockOrganizationForSaasMutation,
 } from "./entitlement-service";
@@ -42,6 +47,8 @@ type EventProcessingResult = {
   outcome: ProcessingOutcome;
   organizationId?: string;
   quarantineReason?: "ambiguous_event_order" | "missing_order_evidence";
+  /** Primera factura pagada de una suscripción: se confirma tras el commit. */
+  contractConfirmation?: SaasContractConfirmation;
 };
 
 /** Strong routing hint written only by the server into Stripe metadata. */
@@ -232,9 +239,13 @@ export async function processSaasBillingWebhook(input: {
   }
   const fencingVersion = Number(claim.fencingVersion);
 
+  let committed: {
+    response: { duplicate: boolean; ignored?: boolean; quarantined?: boolean };
+    contractConfirmation?: SaasContractConfirmation;
+  };
   try {
     const prepared = await prepareCanonicalEvent(event, config);
-    return await db.transaction(async (tx) => {
+    committed = await db.transaction(async (tx) => {
       const [activeLease] = await tx
         .select({ id: organizationSaasWebhookEvents.id })
         .from(organizationSaasWebhookEvents)
@@ -280,9 +291,13 @@ export async function processSaasBillingWebhook(input: {
         .returning({ id: organizationSaasWebhookEvents.id });
       if (!finished) throw webhookLeaseBusy();
       return {
-        duplicate: false,
-        ignored: result.outcome === "ignored",
-        quarantined: result.outcome === "quarantined",
+        response: {
+          duplicate: false,
+          ignored: result.outcome === "ignored",
+          quarantined: result.outcome === "quarantined",
+        },
+        contractConfirmation:
+          result.outcome === "processed" ? result.contractConfirmation : undefined,
       };
     });
   } catch (error) {
@@ -306,6 +321,22 @@ export async function processSaasBillingWebhook(input: {
       );
     throw error;
   }
+
+  // Después del commit: el evento ya consta como processed, así que una
+  // reentrega de Stripe vuelve como duplicate y no llega aquí. Un fallo del
+  // correo se registra y no hace fallar el webhook (no habría reintento útil:
+  // el plan ya está concedido). email_logs deduplica por suscripción.
+  if (committed.contractConfirmation) {
+    try {
+      await sendSaasContractConfirmationEmail(committed.contractConfirmation);
+    } catch (error) {
+      logger.error("saas_billing.contract_confirmation_failed", error, {
+        eventId: event.id,
+        organizationId: committed.contractConfirmation.organizationId,
+      });
+    }
+  }
+  return committed.response;
 }
 
 async function prepareCanonicalEvent(
@@ -1063,7 +1094,25 @@ async function processPaidInvoice(input: {
         .where(eq(organizationSaasCheckoutOperations.id, currentOperation.id));
     }
   }
-  return { outcome: "processed", organizationId };
+  // LSSI art. 28: la primera factura pagada (subscription_create) confirma la
+  // contratación. Renovaciones y cambios de plan no envían este correo.
+  const contractConfirmation = saasContractConfirmationFromPaidInvoice({
+    environment: config.environment,
+    organizationId,
+    requestedByMemberId: lockedOperation.requestedByMemberId,
+    planCode: mappedPrice.planCode,
+    billingInterval,
+    subscriptionReference,
+    invoice,
+    subscriptionMetadata,
+    periodStartedAt,
+    periodEndsAt,
+  });
+  return {
+    outcome: "processed",
+    organizationId,
+    ...(contractConfirmation ? { contractConfirmation } : {}),
+  };
 }
 
 async function syncSubscriptionStatus(input: {
