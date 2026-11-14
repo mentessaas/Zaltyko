@@ -100,7 +100,7 @@ describe("Owner page operational summary boundary", () => {
     mocks.legacyMemberships.mockResolvedValue([]);
     mocks.resolveUserHome.mockResolvedValue({
       destination: "academy_workspace",
-      redirectUrl: "/app/synthetic-legacy-academy/dashboard",
+      redirectUrl: "/owner",
     });
     mocks.scope.mockResolvedValue({
       organization: { id: organizationId, name: "QA", defaultCurrency: "EUR" },
@@ -117,19 +117,17 @@ describe("Owner page operational summary boundary", () => {
       throw new Error("NOT_FOUND");
     });
   });
-  it("mantiene la academia legacy antes de consultar un dashboard canónico solicitado", async () => {
+  it("una academia legacy verificada ya no redirige a /app: sigue por el flujo canónico", async () => {
     mocks.legacyMemberships.mockResolvedValue([
       { academyId: "synthetic-legacy-academy" },
     ]);
-    await expect(
-      OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) })
-    ).rejects.toThrow("REDIRECT:/app/synthetic-legacy-academy/dashboard");
+    await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
     expect(mocks.resolveUserHome).toHaveBeenCalledWith({
       userId: "synthetic-user",
       email: undefined,
     });
-    expect(mocks.dashboard).not.toHaveBeenCalled();
-    expect(mocks.summary).not.toHaveBeenCalled();
+    expect(mocks.redirect).not.toHaveBeenCalledWith(expect.stringContaining("/app/"));
+    expect(mocks.summary).toHaveBeenCalled();
   });
   it("no ofrece alta alternativa a una cuenta legacy bloqueada", async () => {
     mocks.legacyMemberships.mockResolvedValue([

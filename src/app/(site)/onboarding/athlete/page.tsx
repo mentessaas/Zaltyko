@@ -72,7 +72,7 @@ export default function AthleteOnboardingPage() {
       setStep("done");
       setTimeout(() => {
         if (academies.length > 0) {
-          router.push(`/app/${academies[0].id}/dashboard`);
+          router.push(`/owner`);
         } else {
           router.push("/dashboard");
         }

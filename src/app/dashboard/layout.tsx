@@ -14,6 +14,7 @@ import { ChatWidgetWrapper } from "@/components/chat/ChatWidgetWrapper";
 import { GlobalTopNav } from "@/components/navigation/GlobalTopNav";
 import { LegacyWorkspaceRedirect } from "@/components/navigation/LegacyWorkspaceRedirect";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
+import { ownerPathForLegacyAppSegment } from "@/lib/launch/legacy-app-redirects.mjs";
 
 const LEGACY_WORKSPACE_SUFFIXES: Record<string, string> = {
   "/dashboard/athletes": "athletes",
@@ -125,7 +126,7 @@ export default async function DashboardLayout({
     const home = await resolveUserHome({ userId: user.id, email: user.email });
     const targetUrl =
       legacySuffix && home.destination === "academy_workspace" && home.activeAcademyId
-        ? `/app/${home.activeAcademyId}/${legacySuffix}`
+        ? ownerPathForLegacyAppSegment(legacySuffix)
         : home.redirectUrl;
 
     if (targetUrl !== pathname) {

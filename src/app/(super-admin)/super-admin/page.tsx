@@ -23,7 +23,7 @@ export default async function SuperAdminHome() {
   const effectiveProfile = profile ?? (devSession ? { role: "super_admin" } : null);
 
   if (!effectiveProfile || effectiveProfile.role !== "super_admin") {
-    redirect("/app");
+    redirect("/owner");
   }
 
   redirect("/super-admin/dashboard");

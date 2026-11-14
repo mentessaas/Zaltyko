@@ -2,6 +2,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { withSentryConfig } from "@sentry/nextjs/config";
 import { LEGACY_PUBLIC_REDIRECTS } from "./src/lib/launch/legacy-public-redirects.mjs";
+import { LEGACY_APP_REDIRECTS } from "./src/lib/launch/legacy-app-redirects.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isSandboxPreviewBuild =
@@ -133,6 +134,8 @@ const nextConfig = {
       // Legacy public aliases, all permanent; list and reasons in
       // src/lib/launch/legacy-public-redirects.mjs (shared with the SEO test).
       ...LEGACY_PUBLIC_REDIRECTS.map(([source, destination]) => ({ source, destination, permanent: true })),
+      // Panel antiguo /app retirado: redirect permanente a /owner (src/lib/launch/legacy-app-redirects.mjs).
+      ...LEGACY_APP_REDIRECTS.map(([source, destination]) => ({ source, destination, permanent: true })),
     ];
   },
 

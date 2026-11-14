@@ -243,7 +243,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
               variant="outline"
               size="sm"
               className="border-zaltyko-primary/40 bg-zaltyko-primary/10 text-mat-lane hover:border-zaltyko-primary-light hover:bg-zaltyko-primary-light/20"
-              onClick={() => router.push(`/app/${academy.id}/dashboard`)}
+              onClick={() => router.push(`/owner`)}
               disabled={academy.isSuspended}
             >
               <ExternalLink className="mr-2 h-4 w-4" strokeWidth={1.8} />

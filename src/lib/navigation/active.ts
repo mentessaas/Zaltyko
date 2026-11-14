@@ -36,7 +36,8 @@ export function isAcademyNavigationActive(
   href: string,
   academyId: string
 ): boolean {
-  const dashboardHref = `/app/${academyId}/dashboard`;
+  void academyId;
+  const dashboardHref = "/owner";
   if (href === dashboardHref) {
     return matchPath(pathname, href, { exact: true });
   }

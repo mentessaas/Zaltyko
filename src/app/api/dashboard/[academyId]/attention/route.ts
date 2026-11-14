@@ -3,8 +3,8 @@
  *
  * Devuelve el bundle de atención del académico bajo el contrato ZAL-619 §3.2
  * y §6.2 (`dashboard.get`). Sirve al dashboard operativo del dueño
- * (`/app/[academyId]/dashboard/at-a-glance`) y al modo simple del coach
- * (`/app/[academyId]/coach/today-simple`). El mismo endpoint es consumido
+ * (antes `/app/[academyId]/dashboard/at-a-glance`, retirado) y al modo simple del coach
+ * (antes `/app/[academyId]/coach/today-simple`, retirado). El mismo endpoint es consumido
  * por Mobile para no duplicar la forma del payload.
  *
  * Auth: `withTenant` resuelve `tenantId`/`academyId`/`profile`. Adicional:

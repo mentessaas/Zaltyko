@@ -254,7 +254,7 @@ export const POST = withTenant(async (request, context) => {
 
     if (shouldNotify) {
       const messageUrl = academyId
-        ? `/app/${academyId}/messages?c=${conversationId}`
+        ? `/owner?c=${conversationId}`
         : `/dashboard/messages/${conversationId}`;
 
       // In-app notification

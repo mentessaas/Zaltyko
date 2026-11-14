@@ -15,27 +15,27 @@ export const ITEM_ROUTES: Record<
   }
 > = {
   create_first_group: {
-    href: (academyId) => `/app/${academyId}/groups`,
+    href: () => "/owner/groups",
     cta: "Crear grupo",
   },
   add_5_athletes: {
-    href: (academyId) => `/app/${academyId}/athletes`,
+    href: () => "/owner/athletes",
     cta: "Añadir atletas",
   },
   invite_first_coach: {
-    href: (academyId) => `/app/${academyId}/coaches`,
+    href: () => "/owner/staff",
     cta: "Invitar entrenador",
   },
   setup_weekly_schedule: {
-    href: (academyId) => `/app/${academyId}/classes`,
+    href: () => "/owner/classes",
     cta: "Configurar calendario",
   },
   enable_payments: {
-    href: (academyId) => `/app/${academyId}/billing`,
+    href: () => "/owner/payments",
     cta: "Activar pagos",
   },
   send_first_communication: {
-    href: (academyId) => `/app/${academyId}/announcements`,
+    href: () => "/owner",
     cta: "Enviar comunicación",
     allowManualCompletion: true,
   },

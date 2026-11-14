@@ -35,5 +35,5 @@ export default async function AnnouncementDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  redirect(`/app/${announcement.academyId}/announcements/${announcement.id}`);
+  redirect(`/owner`);
 }

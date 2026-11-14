@@ -17,7 +17,7 @@
 
 | Elemento heredado                     | Decisión                        | Regla válida conservada                         | Siguiente paso                                           |
 | ------------------------------------- | ------------------------------- | ----------------------------------------------- | -------------------------------------------------------- |
-| `/app/:academyId/dashboard`           | Sustituido; redirige a `/owner` | autorización server-side                        | eliminar UI/lib cuando no tenga consumidores             |
+| `/app/:academyId/dashboard`           | **Retirado** (14-11-2026); `/app/**` redirige 308 a `/owner` | autorización server-side | hecho: ver `docs/qa/retiro-panel-app-2026-11-14.md` |
 | `/dashboard/at-a-glance`              | Sustituido; redirige a `/owner` | zona horaria, fallo parcial, acción prioritaria | convertir necesidades restantes en reglas P0 agregadas   |
 | `/dashboard/analytics`                | Sustituido; redirige a `#score` | tendencias con período explícito                | retirar al cerrar E2E canónico                           |
 | `DashboardPage` + `lib/dashboard.ts`  | Cuarentena                      | no asumir que ausencia = cero                   | no añadir funciones; retirar tras eliminar API base      |
@@ -41,3 +41,14 @@
 
 Sí. Ningún código nuevo de owner puede importar `@/db/schema`; el gate de
 cutover comprueba que los módulos canónicos solo usen `@/db/zaltyko-schema`.
+
+## Actualización 14-11-2026: retirada completa de `/app`
+
+El árbol `src/app/app/**` (150 archivos de ruta) se eliminó entero, con los
+componentes y APIs que solo él consumía. Todas sus URLs responden un redirect
+permanente (308) desde `next.config.mjs` a `/owner`, `/owner/<módulo>` o
+`/familia`; el mapa vive en `src/lib/launch/legacy-app-redirects.mjs`. El
+`academyId` de la URL antigua no se reutiliza. Lo que queda y lo que no tuvo
+equivalente está en `docs/qa/retiro-panel-app-2026-11-14.md`. Las filas de
+cuarentena de arriba (`DashboardPage`, widgets, `attention-bundle` owner) quedan
+cerradas salvo `attention-bundle`, que coach y móvil siguen usando.

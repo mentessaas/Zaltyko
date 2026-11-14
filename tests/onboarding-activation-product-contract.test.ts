@@ -10,10 +10,11 @@ describe("contratos de activación y navegación de onboarding", () => {
     const upgradeModal = read("src/components/onboarding/UpgradeConfirmationModal.tsx");
     const academyStep = read("src/components/onboarding/steps/AcademyStep.tsx");
 
-    expect(checklist).toContain("href: (academyId) => `/app/${academyId}/billing`");
-    expect(checklist).toContain("href: (academyId) => `/app/${academyId}/announcements`");
-    expect(upgradeModal).toContain("`/app/${academyId}/billing`");
-    expect(academyStep).toContain("`/app/${existingAcademies[0].id}/billing`");
+    expect(checklist).toContain('href: () => "/owner/payments"');
+    expect(checklist).toContain('href: () => "/owner"');
+    expect(upgradeModal).toContain('"/owner/payments"');
+    expect(academyStep).toContain('"/owner/payments"');
+    expect(`${checklist}${upgradeModal}${academyStep}`).not.toMatch(/\/app\/\$\{/);
   });
 
   it("instrumenta los tres hitos de valor de la academia", () => {

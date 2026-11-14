@@ -477,7 +477,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
               className: classRow.name,
               academyName: classRow.academyName,
               coachName: null,
-              targetUrl: canOpenSessionDetails ? `/app/${classRow.academyId}/classes/${classRow.id}` : undefined,
+              targetUrl: canOpenSessionDetails ? `/owner/classes` : undefined,
               isPlaceholder: true,
             });
             currentDate = addDays(currentDate, 7);

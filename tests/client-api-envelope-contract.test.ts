@@ -38,14 +38,11 @@ describe("client API envelope contract", () => {
     expect(source("components/whatsapp/WhatsAppSender.tsx")).toContain("payload?.data ?? payload");
     expect(source("app/(site)/onboarding/athlete/page.tsx")).toContain("payload?.data ?? payload");
     expect(source("app/(site)/onboarding/coach/page.tsx")).toContain("payload?.data ?? payload");
-    expect(source("app/app/[academyId]/events/[eventId]/invitations/page.tsx")).toContain("payload?.data ?? payload");
-    expect(source("app/app/[academyId]/my-events/page.tsx")).toContain("payload?.data ?? payload");
   });
 
   it("unwraps skills, guardians and event registration responses", () => {
     expect(source("components/assessments/AssessmentForm.tsx")).toContain("payload?.data ?? payload");
     expect(source("components/athletes/guardians/GuardiansPage.tsx")).toContain("payload?.data ?? payload");
-    expect(source("app/app/[academyId]/events/[eventId]/register/page.tsx")).toContain("payload?.data ?? payload");
   });
 
   it("keeps the legacy enrollment manager on the canonical class APIs", () => {

@@ -45,3 +45,10 @@ consumidor, no antes.
   convertir un identificador controlado por URL en autoridad.
 - Borrado masivo inmediato: rompería reglas aún usadas por coach/mobile antes de
   tener reemplazo verificable.
+
+## Actualización 14-11-2026
+
+El panel `/app` se retiró por completo (no solo el dashboard). `/app` y sus
+subrutas redirigen de forma permanente a `/owner`, `/owner/<módulo>` o
+`/familia`, sin reutilizar el `academyId`. Detalle y pendientes en
+`docs/qa/retiro-panel-app-2026-11-14.md`.

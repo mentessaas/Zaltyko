@@ -115,7 +115,7 @@ export function AthleteClassesSection({ athleteId, academyId }: AthleteClassesSe
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <Link
-                    href={`/app/${academyId}/classes/${classInfo.id}`}
+                    href={`/owner/classes`}
                     className="font-semibold text-primary hover:underline"
                   >
                     {classInfo.name}

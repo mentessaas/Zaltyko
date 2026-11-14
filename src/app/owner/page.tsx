@@ -4,9 +4,9 @@ import { notFound, redirect } from "next/navigation";
 import { OwnerEssentialDashboard } from "@/components/owner-dashboard/OwnerEssentialDashboard";
 import { OwnerMarketCoverageNotice } from "@/components/owner-dashboard/OwnerMarketCoverageNotice";
 import { OwnerProductDiscovery } from "@/components/owner-dashboard/OwnerProductDiscovery";
-import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { findLegacyAcademyMemberships } from "@/lib/auth/legacy-academy-access";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
+import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 import {
@@ -43,11 +43,10 @@ export default async function OwnerDashboardPage({
       userId: user.id,
       email: user.email,
     });
-    if (legacyHome.destination === "academy_workspace") {
-      redirect(legacyHome.redirectUrl);
-    }
     if (legacyHome.destination === "blocked") redirect(legacyHome.redirectUrl);
-    redirect("/owner/setup");
+    // El panel /app se retiró: una academia antigua verificada ya no tiene
+    // destino propio y sigue por el flujo canónico de /owner.
+    if (legacyHome.destination !== "academy_workspace") redirect("/owner/setup");
   }
 
   const raw = await searchParams;

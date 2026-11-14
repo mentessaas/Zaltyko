@@ -32,7 +32,7 @@ export function GroupsOverview({ groups, academyId }: GroupsOverviewProps) {
           </p>
         </div>
         <Link
-          href={`/app/${academyId}/groups`}
+          href={`/owner/groups`}
           className="text-xs font-semibold text-primary transition hover:underline"
         >
           Gestionar grupos

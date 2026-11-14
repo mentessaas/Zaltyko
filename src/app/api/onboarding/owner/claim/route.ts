@@ -22,5 +22,5 @@ export async function POST(request: Request) {
       eq(profiles.isSuspended, false), eq(profiles.canLogin, true),
       eq(academies.isSuspended, false))).limit(1);
   if (!owned) return apiError("MANUAL_REVIEW_REQUIRED", "Solicita gestionar la ficha desde el directorio. Un correo coincidente no acredita la propiedad.", 403);
-  return apiSuccess({ academyId: owned.id, redirectUrl: `/app/${owned.id}/dashboard` });
+  return apiSuccess({ academyId: owned.id, redirectUrl: `/owner` });
 }

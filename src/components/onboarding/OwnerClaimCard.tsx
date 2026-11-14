@@ -45,7 +45,7 @@ export function OwnerClaimCard({ academyId, academyName }: OwnerClaimCardProps) 
         );
       }
 
-      const redirectUrl = payload?.data?.redirectUrl ?? `/app/${academyId}/dashboard`;
+      const redirectUrl = payload?.data?.redirectUrl ?? `/owner`;
 
       toast.pushToast({
         title: "Academia vinculada",

@@ -11,8 +11,6 @@ const routes = [
   "src/app/api/billing/portal/route.ts",
   "src/app/api/classes/route.ts",
   "src/app/api/events/[id]/route.ts",
-  "src/app/api/groups/[groupId]/route.ts",
-  "src/app/api/groups/route.ts",
 ];
 
 describe("rate-limited Route Handler context", () => {

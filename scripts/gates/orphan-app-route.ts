@@ -270,6 +270,10 @@ function main() {
   const findings: Finding[] = [];
   for (const root of roots) {
     if (!fs.existsSync(root)) {
+      // The legacy /app tree was retired (permanent redirects to /owner live in
+      // next.config.mjs). With no pages under the default root there is nothing
+      // to scan; an explicit --root that does not exist is still an error.
+      if (root === APP_ROOT) continue;
       process.stderr.write(`[orphan-app-route] root does not exist: ${root}\n`);
       process.exitCode = 1;
       return;

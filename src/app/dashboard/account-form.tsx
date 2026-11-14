@@ -184,12 +184,12 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
     {
       title: planCopy.cta,
       description: planCopy.description,
-      href: activeAcademy ? `/app/${activeAcademy.id}/billing` : "/app",
+      href: activeAcademy ? `/owner/payments` : "/owner",
     },
     {
       title: "Ir al panel",
       description: "Accede al dashboard operativo de tu academia.",
-      href: activeAcademy ? `/app/${activeAcademy.id}/dashboard` : "/app",
+      href: activeAcademy ? `/owner` : "/owner",
     },
   ];
 
@@ -322,7 +322,7 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
                     <p className="text-base font-semibold text-foreground">{planCopy.label}</p>
                   </div>
                   <Button size="sm" asChild>
-                    <Link href={`/app/${activeAcademy.id}/billing`}>{planCopy.cta}</Link>
+                    <Link href={`/owner/payments`}>{planCopy.cta}</Link>
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">{planCopy.description}</p>

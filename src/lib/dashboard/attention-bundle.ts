@@ -163,7 +163,7 @@ async function loadTodaySessions(
           startsAt,
           groupName: null,
           attendanceRecorded: (recordedMap.get(r.sessionId) ?? 0) > 0,
-          href: `/app/${academyId}/attendance/today/${r.sessionId}`,
+          href: `/owner/attendance`,
         };
       }),
     };
@@ -201,7 +201,7 @@ async function loadAttendancePending(
   academyId: string,
   date: string
 ): Promise<AttendanceAttention> {
-  const href = `/app/${academyId}/attendance?status=pending`;
+  const href = `/owner/attendance?status=pending`;
   const source = `attendance_records.status='pending' AND class_sessions.sessionDate='${date}'`;
   try {
     const result = await db
@@ -233,7 +233,7 @@ async function loadMessagesPending(
   academyId: string,
   tenantId: string
 ): Promise<MessagesAttention> {
-  const href = `/app/${academyId}/comms?status=failed`;
+  const href = `/owner?status=failed`;
   const source = "scheduled_notifications.status IN ('failed')";
   try {
     // failed = estado de envío fallido (ZAL-619 §5: "failed" expone reintento).
@@ -295,7 +295,7 @@ async function loadChargesOverdue(
   academyId: string,
   tenantId: string
 ): Promise<ChargesAttention> {
-  const href = `/app/${academyId}/billing?status=overdue`;
+  const href = `/owner/payments?status=overdue`;
   const source =
     "charges.status IN ('overdue','failed') AND charges.tenantId=ctx.tenantId";
   try {
@@ -368,7 +368,7 @@ async function loadChargesOverdue(
 }
 
 async function loadProgressDrafts(academyId: string): Promise<ProgressAttention> {
-  const href = `/app/${academyId}/evaluations?status=draft`;
+  const href = `/owner?status=draft`;
   // ZAL-fix: athlete_assessments no tiene columna `status` (ver schema
   // src/db/schema/athlete-assessments.ts). La tabla no modela estados
   // draft/published todavía, así que la fuente no está disponible y el
@@ -424,7 +424,7 @@ async function loadImportActive(
       skippedCount: batch.skippedCount,
       createdAt: batch.createdAt ? new Date(batch.createdAt).toISOString() : null,
       source: `athlete_import_batches.status='${batch.status}'`,
-      href: `/app/${academyId}/athletes?importBatchId=${batch.id}`,
+      href: `/owner/athletes?importBatchId=${batch.id}`,
     };
   } catch (error) {
     // La migración puede no existir en una instalación antigua; el resto del
