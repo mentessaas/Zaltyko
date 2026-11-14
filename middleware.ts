@@ -284,8 +284,7 @@ function isExcludedPath(pathname: string) {
 }
 
 function isAcademyAppPath(pathname: string) {
-  // /app se retiró (redirect permanente en next.config.mjs); solo queda el super-admin.
-  return pathname.startsWith("/super-admin/");
+  return pathname.startsWith("/app/") || pathname.startsWith("/super-admin/");
 }
 
 /** Read-only family portal (P2 #16): data about minors, never cached. */
