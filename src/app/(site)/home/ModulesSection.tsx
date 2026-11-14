@@ -59,10 +59,10 @@ const modules = [
     features: ["Export multi-formato", "Panel de dirección", "Métricas de ocupación y cobros", "Datos para decidir"],
   },
   {
-    title: "Multi-Sede",
-    description: "Gestión multi-sede para Network con diagnóstico y puesta en marcha acompañada, además de aislamiento por academia y control de acceso por rol.",
+    title: "Acceso y datos",
+    description: "Aislamiento de datos por academia y acceso por rol: cada entrenadora solo ve las sesiones de sus sedes.",
     icon: Shield,
-    features: ["Varias sedes", "Roles por usuario", "Panel de director", "Datos aislados"],
+    features: ["Roles por usuario", "Acceso por sede", "Datos aislados"],
   },
 ];
 
