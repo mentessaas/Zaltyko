@@ -6,7 +6,7 @@ import Link from "next/link";
 import { PricingPageTracker } from "@/components/growth/PricingPageTracker";
 import { TrackedPlanLink } from "@/components/growth/TrackedPlanLink";
 import type { CommercialPlanSlug } from "@/lib/growth/contracts";
-import { PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
+import { PUBLIC_PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
 import {
   formatEuroCentsExact,
   quoteSpanishVat,
@@ -16,12 +16,12 @@ import { cn } from "@/lib/utils";
 
 /**
  * Precios «Magnesio sobre tapiz»: cabecera en tapiz, y debajo una tabla
- * reglada de cuatro columnas sobre magnesio, como una hoja de inscripción.
+ * reglada de tres columnas sobre magnesio, como una hoja de inscripción.
  * El plan destacado lleva el campo azul; el resto, solo línea. Todas las
  * cifras salen del catálogo; nada se escribe a mano.
  */
 
-const plans = PRODUCT_PLANS.map((plan) => ({
+const plans = PUBLIC_PRODUCT_PLANS.map((plan) => ({
   ...plan,
   planCode: (plan.code === "pro" ? "starter" : plan.code === "premium" ? "growth" : plan.code) as CommercialPlanSlug,
 }));
@@ -37,7 +37,7 @@ const LIMIT_ROWS: { label: string; get: (p: (typeof plans)[number]) => string }[
   { label: "Gimnastas", get: (p) => (p.athleteLimit === null ? "Ilimitadas" : `Hasta ${p.athleteLimit}`) },
   { label: "Grupos", get: (p) => (p.groupLimit === null ? "Ilimitados" : String(p.groupLimit)) },
   { label: "Clases activas", get: (p) => (p.classLimit === null ? "Ilimitadas" : String(p.classLimit)) },
-  { label: "Academias", get: (p) => (p.academyLimit === null ? "Multi-sede" : String(p.academyLimit)) },
+  { label: "Academias", get: (p) => (p.academyLimit === null ? "Sin límite" : String(p.academyLimit)) },
 ];
 
 const PROMISES = [
@@ -127,7 +127,7 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
 
       <section aria-label="Planes" className="chalk-field">
         <div className="mx-auto max-w-7xl px-6 py-14 sm:px-10 lg:px-14 lg:py-20">
-          <ul className="grid overflow-hidden rounded-lg border border-chalk-line bg-white md:grid-cols-2 xl:grid-cols-4">
+          <ul className="grid overflow-hidden rounded-lg border border-chalk-line bg-white md:grid-cols-3">
             {plans.map((plan, i) => {
               const yearly = interval === "year" && plan.annualPriceEurCents;
               return (
@@ -135,10 +135,7 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
                   key={plan.code}
                   className={cn(
                     "flex flex-col border-chalk-line",
-                    i > 0 && "border-t md:border-t-0",
-                    i % 2 === 1 && "md:border-l",
-                    i >= 2 && "md:border-t xl:border-t-0",
-                    i > 0 && "xl:border-l",
+                    i > 0 && "border-t md:border-l md:border-t-0",
                     plan.highlight && "mat-field text-white"
                   )}
                 >
@@ -156,9 +153,6 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
                       {/* Precio final con IVA como cifra principal (art. 20 TRLGDCU): un club o
                           asociación puede ser consumidor. La base sin IVA va debajo. */}
                       <p className={cn("font-display tabular text-4xl font-black leading-none", plan.highlight ? "text-white" : "text-mat")}>
-                        {plan.code === "network" && !yearly ? (
-                          <span className={cn("mr-1.5 text-lg font-bold", plan.highlight ? "text-white/80" : "text-ramp-500")}>desde</span>
-                        ) : null}
                         {plan.priceEurCents === 0
                           ? "0 €"
                           : formatEuroCentsExact(
@@ -176,9 +170,7 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
                       <p className={cn("mt-2 text-sm", plan.highlight ? "text-white/85" : "text-ramp-600")}>
                         {yearly
                           ? `${euroExact.format(quoteSpanishVat(plan.annualPriceEurCents!).totalCents / 1200)}/mes equivalente · ahorras ${formatEuroCentsExact(quoteSpanishVat(plan.priceEurCents).totalCents * 2)}`
-                          : interval === "year" && plan.code === "network"
-                            ? "Periodicidad a confirmar en la propuesta multi-sede."
-                            : plan.description}
+                          : plan.description}
                       </p>
                     </div>
 

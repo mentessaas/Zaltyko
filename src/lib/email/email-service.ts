@@ -31,6 +31,16 @@ export interface SendEmailOptions {
   classReminderTiming?: ClassReminderTiming;
   metadata?: Record<string, unknown>;
   dedupeKey?: string;
+  /**
+   * Comunicación transaccional que la ley obliga a enviar (p. ej. la
+   * confirmación de la contratación, LSSI art. 28). Solo salta el gate de baja
+   * de marketing (`hasMarketingOptOut`): una baja de comunicaciones comerciales
+   * no puede impedir una confirmación legal. Siguen aplicando las preferencias
+   * de notificación, la elegibilidad de la academia y la dedupe. No tiene
+   * efecto con `purpose: "marketing"`. Usarla solo en envíos con obligación
+   * legal revisada (hoy: contract-confirmation-email.ts).
+   */
+  legallyRequired?: true;
 }
 
 /** True means explicit API acceptance. False also covers gated, duplicate,
@@ -73,7 +83,10 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<b
 
   // La baja firmada se persiste en email_logs. Aplicar el gate aquí, en el
   // emisor común, evita que un cron o un nuevo caller pueda saltársela.
-  if (await hasMarketingOptOut(normalizedRecipient)) {
+  // Excepción explícita: un correo transaccional legalmente obligatorio.
+  const legallyRequired =
+    options.legallyRequired === true && options.purpose !== "marketing";
+  if (!legallyRequired && (await hasMarketingOptOut(normalizedRecipient))) {
     logger.info("Email omitido: destinatario dado de baja", { template: template ?? "transactional" });
     return false;
   }

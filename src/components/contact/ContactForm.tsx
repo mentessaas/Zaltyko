@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 const reasons = [
   { value: "demo", label: "Solicitar demo" },
-  { value: "network", label: "Plan Network / multi-sede" },
+  { value: "network", label: "Varias sedes o academias" },
   { value: "sales", label: "Información de ventas" },
   { value: "migracion", label: "Migrar datos o coordinar varias sedes" },
   { value: "support", label: "Soporte técnico" },

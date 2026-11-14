@@ -6,6 +6,9 @@ import { cn } from "@/lib/utils";
 // reglados (regla de 3 px en noche), rotulado condensado en mayúsculas, chips
 // de cinta de 6 px y botón principal en azul tapiz.
 //
+// Respuesta al pulsar (DESIGN.md, «Hover / Focus»): los botones se hunden a
+// 0,99 al pulsarlos, en 150 ms y sin rebote; con movimiento reducido, no.
+//
 // Tonos de estado (DESIGN.md, «Tonos de estado» y The Señal Rule):
 // - aviso (pendiente, bloqueado mientras se confirma, revisar): ocre;
 // - error, deuda o borrado: señal (coral), nunca para avisos.
@@ -52,11 +55,11 @@ export const ownerUi = {
   help: "text-xs leading-5 text-z-soft",
   field: `min-h-12 min-w-0 w-full rounded-lg border border-z-line bg-white px-3 text-base text-z-ink transition-colors hover:border-z-soft/40 sm:text-sm ${FOCUS_RING} disabled:cursor-not-allowed disabled:bg-z-canvas disabled:opacity-70`,
 
-  primaryButton: `touch-target inline-flex min-h-12 max-w-full items-center justify-center gap-2 rounded-lg bg-z-brand-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_1px_0_rgba(11,20,48,0.25)] transition-colors hover:bg-z-ink ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
-  brandButton: `touch-target inline-flex min-h-12 max-w-full items-center justify-center gap-2 rounded-lg bg-z-brand-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_1px_0_rgba(11,20,48,0.25)] transition-colors hover:bg-z-ink ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
-  secondaryButton: `touch-target inline-flex min-h-12 max-w-full items-center justify-center gap-2 rounded-lg border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink transition-colors hover:border-z-brand-500 hover:bg-z-brand-50 ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
+  primaryButton: `touch-target inline-flex min-h-12 max-w-full items-center justify-center gap-2 rounded-lg bg-z-brand-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_1px_0_rgba(11,20,48,0.25)] transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.99] motion-reduce:active:scale-100 hover:bg-z-ink ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
+  brandButton: `touch-target inline-flex min-h-12 max-w-full items-center justify-center gap-2 rounded-lg bg-z-brand-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_1px_0_rgba(11,20,48,0.25)] transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.99] motion-reduce:active:scale-100 hover:bg-z-ink ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
+  secondaryButton: `touch-target inline-flex min-h-12 max-w-full items-center justify-center gap-2 rounded-lg border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.99] motion-reduce:active:scale-100 hover:border-z-brand-500 hover:bg-z-brand-50 ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
   // Botón de icono (quitar, borrar): al pasar el ratón anuncia el borrado en señal.
-  iconButton: `touch-target inline-flex min-h-12 min-w-12 items-center justify-center rounded-lg border border-z-line bg-white text-z-soft transition-colors hover:border-signal/30 hover:bg-signal-wash hover:text-signal-ink ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
+  iconButton: `touch-target inline-flex min-h-12 min-w-12 items-center justify-center rounded-lg border border-z-line bg-white text-z-soft transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.99] motion-reduce:active:scale-100 hover:border-signal/30 hover:bg-signal-wash hover:text-signal-ink ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
   textLink: `rounded-md text-sm font-semibold text-z-brand-600 hover:text-z-brand-700 ${FOCUS_RING}`,
 
   // Información o éxito sin acción.
@@ -96,9 +99,9 @@ export const ownerTone = {
   chipOutline: "inline-flex items-center rounded-md border border-z-line bg-white px-2.5 py-1 text-xs font-semibold text-z-ink",
 
   // Peligro: tinta de señal con texto blanco, hover a `signal-800`; nunca `signal` puro.
-  dangerButton: `touch-target inline-flex min-h-12 max-w-full items-center justify-center gap-2 rounded-lg bg-signal-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-signal-800 ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
+  dangerButton: `touch-target inline-flex min-h-12 max-w-full items-center justify-center gap-2 rounded-lg bg-signal-ink px-4 py-2 text-sm font-semibold text-white transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.99] motion-reduce:active:scale-100 hover:bg-signal-800 ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
   // Acción destructiva secundaria (quitar de un grupo): contorno con tinta de señal.
-  dangerOutlineButton: `touch-target inline-flex min-h-12 max-w-full items-center justify-center gap-2 rounded-lg border border-signal/30 bg-white px-4 py-2 text-sm font-semibold text-signal-ink transition-colors hover:bg-signal-wash ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
+  dangerOutlineButton: `touch-target inline-flex min-h-12 max-w-full items-center justify-center gap-2 rounded-lg border border-signal/30 bg-white px-4 py-2 text-sm font-semibold text-signal-ink transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.99] motion-reduce:active:scale-100 hover:bg-signal-wash ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-50`,
 
   // Bloque interior de un panel reglado: no se anidan paneles reglados.
   innerPanel: "rounded-md border border-z-line bg-white p-4",

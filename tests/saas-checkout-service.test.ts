@@ -12,6 +12,11 @@ const mocks = vi.hoisted(() => ({
   provider: vi.fn(),
   select: vi.fn(),
   dbUpdate: vi.fn(),
+  customerUpdate: vi.fn(),
+  listTaxIds: vi.fn(),
+  createTaxId: vi.fn(),
+  deleteTaxId: vi.fn(),
+  ownerEmail: vi.fn(),
 }));
 vi.mock("@/db", () => ({ db: { transaction: mocks.transaction, select: mocks.select, update: mocks.dbUpdate } }));
 vi.mock("@/lib/env", () => ({ getAppUrl: () => "https://example.invalid" }));
@@ -25,6 +30,7 @@ vi.mock("@/lib/launch/commercial-launch-profile", () => ({
 }));
 vi.mock("@/modules/saas-billing/application/owner-access", () => ({
   resolveSaasOwnerScope: mocks.scope,
+  resolveOwnerAccountEmail: mocks.ownerEmail,
 }));
 vi.mock("@/modules/saas-billing/application/entitlement-service", () => ({
   resolveEffectiveOrganizationEntitlement: mocks.effective,
@@ -35,7 +41,13 @@ vi.mock("@/modules/saas-billing/application/saas-billing-config", () => ({
   createSaasStripeClient: () => ({
     prices: { retrieve: mocks.provider },
     taxRates: { retrieve: mocks.provider },
-    customers: { create: mocks.provider },
+    customers: {
+      create: mocks.provider,
+      update: mocks.customerUpdate,
+      listTaxIds: mocks.listTaxIds,
+      createTaxId: mocks.createTaxId,
+      deleteTaxId: mocks.deleteTaxId,
+    },
     checkout: {
       sessions: { create: mocks.provider, retrieve: mocks.provider },
     },
@@ -54,6 +66,9 @@ const input = {
   billingInterval: "month" as const,
   at,
 };
+// Datos de factura sintéticos: CIF generado con el algoritmo de control.
+const billingDetails = { legalName: "  Club   Sintético ", taxId: "b-1234567.4" };
+const spanishInput = { ...input, taxTerritory: "peninsula_baleares" as const, immediateStartConsent: true, billingDetails };
 const requestHash = createHash("sha256")
   .update(
     JSON.stringify({
@@ -91,6 +106,11 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ planCode: "free", source: "free" });
   mocks.lock.mockReset().mockResolvedValue(undefined);
+  mocks.customerUpdate.mockReset().mockResolvedValue({ id: "cus_saved" });
+  mocks.listTaxIds.mockReset().mockResolvedValue({ data: [] });
+  mocks.createTaxId.mockReset().mockResolvedValue({ id: "txi_synthetic" });
+  mocks.deleteTaxId.mockReset().mockResolvedValue({ id: "txi_old", deleted: true });
+  mocks.ownerEmail.mockReset().mockResolvedValue("owner.sintetico@example.invalid");
 });
 
 describe("Checkout reservation guards with isolated dependencies", () => {
@@ -142,7 +162,7 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       .mockResolvedValueOnce({ organizationId, countryCode: "ES" })
       .mockResolvedValueOnce({ organizationId, countryCode: "MX" });
 
-    await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares", immediateStartConsent: true })).rejects.toMatchObject({
+    await expect(createOwnerSaasCheckout(spanishInput)).rejects.toMatchObject({
       status: 403,
       details: { code: "SAAS_MARKET_NOT_ENABLED" },
     });
@@ -240,10 +260,43 @@ describe("Checkout reservation guards with isolated dependencies", () => {
     expect(mocks.provider).not.toHaveBeenCalled();
     expect(mocks.dbUpdate).not.toHaveBeenCalled();
   });
+  it.each([
+    ["missing billing details", undefined, "SAAS_BILLING_DETAILS_REQUIRED"],
+    ["an empty legal name", { legalName: " ", taxId: "B12345674" }, "SAAS_BILLING_LEGAL_NAME_REQUIRED"],
+    ["an empty tax ID", { legalName: "Club Sintético", taxId: "" }, "SAAS_BILLING_TAX_ID_REQUIRED"],
+    ["a CIF with a wrong control digit", { legalName: "Club Sintético", taxId: "B12345675" }, "SAAS_BILLING_TAX_ID_INVALID"],
+    ["a CIF letter that requires a control letter", { legalName: "Club Sintético", taxId: "P12345674" }, "SAAS_BILLING_TAX_ID_INVALID"],
+    ["a DNI with a wrong letter", { legalName: "Club Sintético", taxId: "12345678A" }, "SAAS_BILLING_TAX_ID_INVALID"],
+    ["a non-Spanish tax ID", { legalName: "Club Sintético", taxId: "FR12345678901" }, "SAAS_BILLING_TAX_ID_INVALID"],
+  ] as const)("rejects Spanish VAT checkout with %s before locking, writing or calling Stripe", async (_label, details, code) => {
+    mocks.liveReady = true;
+    mocks.config.mockReturnValue({
+      environment: "live",
+      providerAccountReference: "acct_synthetic_live",
+      taxRates: { esVatGeneral: "txr_synthetic_live" },
+    });
+    await expect(createOwnerSaasCheckout({ ...spanishInput, billingDetails: details })).rejects.toMatchObject({
+      status: 422, details: { code },
+    });
+    expect(mocks.lock).not.toHaveBeenCalled();
+    expect(limit).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+    expect(mocks.provider).not.toHaveBeenCalled();
+    expect(mocks.customerUpdate).not.toHaveBeenCalled();
+    expect(mocks.createTaxId).not.toHaveBeenCalled();
+    expect(mocks.dbUpdate).not.toHaveBeenCalled();
+  });
+  it("rejects an invalid tax ID even when Stripe test has no VAT Tax Rate", async () => {
+    await expect(createOwnerSaasCheckout({
+      ...input, billingDetails: { legalName: "Club Sintético", taxId: "B12345675" },
+    })).rejects.toMatchObject({ status: 422, details: { code: "SAAS_BILLING_TAX_ID_INVALID" } });
+    expect(mocks.lock).not.toHaveBeenCalled();
+    expect(mocks.provider).not.toHaveBeenCalled();
+  });
   it("keeps Spanish Live checkout closed without the VAT Tax Rate even when seller setup is ready", async () => {
     mocks.liveReady = true;
     mocks.config.mockReturnValue({ environment: "live", providerAccountReference: "acct_synthetic_live" });
-    await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares", immediateStartConsent: true })).rejects.toMatchObject({
+    await expect(createOwnerSaasCheckout(spanishInput)).rejects.toMatchObject({
       status: 503, details: { code: "BILLING_CONFIGURATION_UNAVAILABLE" },
     });
     expect(mocks.lock).not.toHaveBeenCalled();
@@ -251,10 +304,12 @@ describe("Checkout reservation guards with isolated dependencies", () => {
     expect(mocks.provider).not.toHaveBeenCalled();
   });
   describe("Spanish VAT on a new Checkout session", () => {
-    const v3Hash = createHash("sha256").update(JSON.stringify({
+    const versionHash = (requestVersion: number) => createHash("sha256").update(JSON.stringify({
       organizationId, planCode: "starter", billingInterval: "month", environment: "test",
-      providerAccountReference: "acct_synthetic", priceReference: "price_synthetic", requestVersion: 3,
+      providerAccountReference: "acct_synthetic", priceReference: "price_synthetic", requestVersion,
     })).digest("hex");
+    const v3Hash = versionHash(3);
+    const v4Hash = versionHash(4);
     const operation = { id: "operation", organizationId, planCode: "starter", billingInterval: "month", requestHash: v3Hash,
       status: "recovery_required", checkoutSessionReference: null, createdAt: new Date(at.getTime() - 60000),
       stripeIdempotencyKey: "stable-checkout-key", leaseToken: "lease", fencingVersion: 2 };
@@ -266,13 +321,16 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       metadata: { zaltyko_saas: "true", organization_saas_checkout_operation_id: "operation", organization_id: organizationId,
         plan_code: "starter", billing_interval: "month", provider_account_reference: "acct_synthetic", environment: "test" },
       line_items: { data: [{ quantity: 1, price }] } };
-    function arrange(overrides: { session?: Record<string, unknown>; taxRate?: Record<string, unknown> } = {}) {
+    function arrange(overrides: {
+      session?: Record<string, unknown>; taxRate?: Record<string, unknown>; requestHash?: string;
+    } = {}) {
       mocks.config.mockReturnValue({
         environment: "test", providerAccountReference: "acct_synthetic",
         taxRates: { esVatGeneral: "txr_synthetic" },
       });
-      limit.mockResolvedValue([operation]);
-      update.mockReturnValue({ set: () => ({ where: () => ({ returning: async () => [operation] }) }) });
+      const arranged = { ...operation, requestHash: overrides.requestHash ?? operation.requestHash };
+      limit.mockResolvedValue([arranged]);
+      update.mockReturnValue({ set: () => ({ where: () => ({ returning: async () => [arranged] }) }) });
       const customerKey = `zaltyko-saas-customer-${organizationId}-test-${createHash("sha256").update("acct_synthetic").digest("hex").slice(0, 8)}`;
       const customerHash = createHash("sha256").update(JSON.stringify({ organizationId, environment: "test", providerAccountReference: "acct_synthetic" })).digest("hex");
       mocks.select.mockReturnValue({ from: () => ({ where: () => ({ limit: async () => [{
@@ -288,9 +346,66 @@ describe("Checkout reservation guards with isolated dependencies", () => {
         ? { returning: async () => [{ id: operation.id }] }
         : Promise.resolve() }) });
     }
-    it("adds the 21 % Tax Rate and invoice data collection, and checks the session total", async () => {
+    it("validates the tax ID on the Customer and lets Checkout ask only for the address (v4)", async () => {
+      arrange({ requestHash: v4Hash });
+      // Un NIF que Checkout guardó antes sin validar se borra; la factura copia todos.
+      mocks.listTaxIds.mockResolvedValue({ data: [{ id: "txi_old", type: "eu_vat", value: "ESB12345675" }] });
+      await expect(createOwnerSaasCheckout(spanishInput))
+        .resolves.toMatchObject({ operationId: "operation", checkoutUrl: "https://checkout.stripe.com/c/pay/synthetic" });
+      // Email de la cuenta del Owner que contrata: Checkout lo muestra prellenado.
+      expect(mocks.ownerEmail).toHaveBeenCalledExactlyOnceWith("synthetic-owner");
+      expect(mocks.customerUpdate).toHaveBeenCalledExactlyOnceWith("cus_saved", {
+        name: "Club Sintético", email: "owner.sintetico@example.invalid",
+      });
+      expect(mocks.deleteTaxId).toHaveBeenCalledExactlyOnceWith("cus_saved", "txi_old");
+      expect(mocks.createTaxId).toHaveBeenCalledExactlyOnceWith("cus_saved", { type: "es_cif", value: "B12345674" });
+      const creationIndex = mocks.provider.mock.calls.findIndex(([arg]) => typeof arg === "object");
+      expect(mocks.createTaxId.mock.invocationCallOrder[0])
+        .toBeLessThan(mocks.provider.mock.invocationCallOrder[creationIndex]!);
+      const creations = mocks.provider.mock.calls.filter(([arg]) => typeof arg === "object");
+      expect(creations).toHaveLength(1);
+      expect(creations[0][0]).toMatchObject({
+        line_items: [{ price: "price_synthetic", quantity: 1, tax_rates: ["txr_synthetic"] }],
+        billing_address_collection: "required",
+        customer: "cus_saved",
+        customer_update: { address: "auto" },
+        adaptive_pricing: { enabled: false },
+        metadata: { zaltyko_plan: "starter", zaltyko_academy_id: organizationId },
+      });
+      // Checkout no vuelve a pedir NIF ni razón social: no puede cambiarlos por otros sin validar.
+      expect(creations[0][0]).not.toHaveProperty("tax_id_collection");
+      expect(creations[0][0]).not.toHaveProperty("name_collection");
+      expect(creations[0][0].customer_update).not.toHaveProperty("name");
+      // El NIF no viaja en metadatos.
+      expect(JSON.stringify(creations[0][0])).not.toContain("B12345674");
+      expect(creations[0][1]).toEqual({ idempotencyKey: "stable-checkout-key" });
+    });
+    it.each([
+      ["no account email", async () => null],
+      ["an implausible account email", async () => "sin-arroba"],
+      ["an unreadable account email", async () => { throw new Error("synthetic read failure"); }],
+    ])("still opens Checkout without a Customer email when there is %s", async (_label, read) => {
+      arrange({ requestHash: v4Hash });
+      mocks.ownerEmail.mockImplementation(read);
+      await expect(createOwnerSaasCheckout(spanishInput)).resolves.toMatchObject({ operationId: "operation" });
+      expect(mocks.customerUpdate).toHaveBeenCalledExactlyOnceWith("cus_saved", { name: "Club Sintético" });
+    });
+    it("keeps the Customer tax ID when it already matches", async () => {
+      arrange({ requestHash: v4Hash });
+      mocks.listTaxIds.mockResolvedValue({ data: [{ id: "txi_same", type: "es_cif", value: "B12345674" }] });
+      await expect(createOwnerSaasCheckout(spanishInput)).resolves.toMatchObject({ operationId: "operation" });
+      expect(mocks.deleteTaxId).not.toHaveBeenCalled();
+      expect(mocks.createTaxId).not.toHaveBeenCalled();
+    });
+    it("does not hand over a session when Stripe refuses the Customer tax ID", async () => {
+      arrange({ requestHash: v4Hash });
+      mocks.createTaxId.mockRejectedValue(new Error("synthetic Stripe refusal"));
+      await expect(createOwnerSaasCheckout(spanishInput)).rejects.toMatchObject({ status: 503 });
+      expect(mocks.provider.mock.calls.filter(([arg]) => typeof arg === "object")).toHaveLength(0);
+    });
+    it("keeps the exact v3 body (21 % Tax Rate and Checkout invoice data) while setting the validated tax ID", async () => {
       arrange();
-      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares", immediateStartConsent: true }))
+      await expect(createOwnerSaasCheckout(spanishInput))
         .resolves.toMatchObject({ operationId: "operation", checkoutUrl: "https://checkout.stripe.com/c/pay/synthetic" });
       expect(mocks.provider).toHaveBeenCalledWith("txr_synthetic");
       const creations = mocks.provider.mock.calls.filter(([arg]) => typeof arg === "object");
@@ -319,13 +434,15 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       expect(creations[0][0]).not.toHaveProperty("invoice_creation");
       expect(creations[0][0]).not.toHaveProperty("automatic_tax");
       expect(creations[0][1]).toEqual({ idempotencyKey: "stable-checkout-key" });
+      // Con un NIF ya guardado, Checkout no muestra su campo aunque tax_id_collection siga activo.
+      expect(mocks.createTaxId).toHaveBeenCalledExactlyOnceWith("cus_saved", { type: "es_cif", value: "B12345674" });
     });
     it.each([
       ["a session without tax", { amount_total: 1900, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 0 } }],
       ["a session with another tax amount", { amount_total: 2280, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 380 } }],
     ])("does not hand over %s", async (_label, sessionOverride) => {
       arrange({ session: sessionOverride });
-      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares", immediateStartConsent: true }))
+      await expect(createOwnerSaasCheckout(spanishInput))
         .rejects.toMatchObject({ status: 503 });
     });
     it("refuses a non-EUR price before creating a taxed session", async () => {
@@ -333,7 +450,7 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       const usd = { ...price, currency: "usd" };
       const base = mocks.provider.getMockImplementation()!;
       mocks.provider.mockImplementation(async (arg) => arg === "price_synthetic" ? usd : base(arg));
-      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares", immediateStartConsent: true }))
+      await expect(createOwnerSaasCheckout(spanishInput))
         .rejects.toMatchObject({ status: 503 });
       expect(mocks.provider.mock.calls.filter(([arg]) => typeof arg === "object")).toHaveLength(0);
     });
@@ -352,6 +469,9 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       }
       expect(creations[0][0]).not.toHaveProperty("tax_id_collection");
       expect(creations[0][0].line_items[0]).not.toHaveProperty("tax_rates");
+      expect(mocks.customerUpdate).not.toHaveBeenCalled();
+      expect(mocks.createTaxId).not.toHaveBeenCalled();
+      expect(mocks.ownerEmail).not.toHaveBeenCalled();
     });
     it.each([
       ["inclusive", { inclusive: true }],
@@ -361,7 +481,7 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       ["live mode", { livemode: true }],
     ])("refuses a misconfigured Tax Rate (%s) before creating a session", async (_label, taxRateOverride) => {
       arrange({ taxRate: taxRateOverride });
-      await expect(createOwnerSaasCheckout({ ...input, taxTerritory: "peninsula_baleares", immediateStartConsent: true }))
+      await expect(createOwnerSaasCheckout(spanishInput))
         .rejects.toMatchObject({ status: 503 });
       expect(mocks.provider.mock.calls.filter(([arg]) => typeof arg === "object")).toHaveLength(0);
     });
