@@ -1,6 +1,7 @@
 "use client";
 
-import { ownerUi } from "./owner-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -21,7 +22,6 @@ import {
   type PendingEnrollmentIntent,
 } from "./owner-enrollment-command-response";
 import { monthlyInvoicesHref, primaryButtonClassName, statusHref } from "./owner-enrollment-ui";
-import { ownerTone } from "./owner-tone-ui";
 import {
   constrainEnrollmentStartDate,
   isEnrollmentStartDateAllowed,
@@ -563,30 +563,26 @@ export function OwnerEnrollmentsManager({
           </Link>
         )}
 
-        <header className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            <h1 className={ownerUi.pageTitle}>
-              Inscripciones
-            </h1>
-            <p className={ownerUi.pageLead}>
-              Asigna una gimnasta o participante a una clase y controla su
-              estado desde un solo lugar.
-            </p>
-          </div>
-          {!previewMode && (
-            <button
-              type="button"
-              disabled={commandsLocked || (writesBlocked && !createOpen)}
-              onClick={toggleCreateForm}
-              className={primaryButtonClassName}
-              aria-expanded={createOpen}
-              aria-controls={createOpen ? "new-enrollment-form" : undefined}
-            >
-              <UserPlus className="h-4 w-4" aria-hidden="true" />
-              {createOpen ? "Cerrar formulario" : "Nueva inscripción"}
-            </button>
-          )}
-        </header>
+        <PageHeader
+          title="Inscripciones"
+          description="Asigna una gimnasta o participante a una clase y controla su estado desde un solo lugar."
+          className="mt-6"
+          actions={
+            previewMode ? undefined : (
+              <button
+                type="button"
+                disabled={commandsLocked || (writesBlocked && !createOpen)}
+                onClick={toggleCreateForm}
+                className={primaryButtonClassName}
+                aria-expanded={createOpen}
+                aria-controls={createOpen ? "new-enrollment-form" : undefined}
+              >
+                <UserPlus className="h-4 w-4" aria-hidden="true" />
+                {createOpen ? "Cerrar formulario" : "Nueva inscripción"}
+              </button>
+            )
+          }
+        />
 
         {previewMode && (
           <p className={"mt-5 " + ownerTone.noticeNeutral}>

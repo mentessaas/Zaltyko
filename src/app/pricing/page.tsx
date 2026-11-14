@@ -14,14 +14,14 @@ const baseUrl = getPublicSiteUrl();
 export const metadata: Metadata = {
   title: "Planes y Precios para Academias de Gimnasia",
   description:
-    "Compara los planes Free, Starter, Growth y Network para tu academia de gimnasia artística o rítmica. Prueba 7 días Starter sin tarjeta y sin compromiso.",
+    "Compara los planes Free, Starter y Growth para tu academia de gimnasia artística o rítmica. Prueba 7 días Starter sin tarjeta y sin compromiso.",
   alternates: {
     canonical: `${baseUrl}/pricing`,
   },
   openGraph: {
     title: "Precios",
     description:
-      "Compara planes Free, Starter, Growth y Network para academias de gimnasia artística y rítmica. 7 días Starter sin tarjeta.",
+      "Compara planes Free, Starter y Growth para academias de gimnasia artística y rítmica. 7 días Starter sin tarjeta.",
     url: `${baseUrl}/pricing`,
     siteName: "Zaltyko",
     type: "website",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Planes para Academias de Gimnasia",
     description:
-      "Planes Zaltyko por etapa y tamaño de academia. Free, Starter, Growth y Network.",
+      "Planes Zaltyko por etapa y tamaño de academia. Free, Starter y Growth.",
   },
 };
 
@@ -69,17 +69,6 @@ const pricingSchema = {
         "@type": "Offer",
         name: "Growth",
         price: String(quoteSpanishVat(PRODUCT_PLAN_BY_CODE.premium.priceEurCents).totalCents / 100),
-        priceCurrency: "EUR",
-        priceSpecification: {
-          "@type": "UnitPriceSpecification",
-          priceCurrency: "EUR",
-          valueAddedTaxIncluded: true,
-        },
-      },
-      {
-        "@type": "Offer",
-        name: "Network",
-        price: String(quoteSpanishVat(PRODUCT_PLAN_BY_CODE.network.priceEurCents).totalCents / 100),
         priceCurrency: "EUR",
         priceSpecification: {
           "@type": "UnitPriceSpecification",

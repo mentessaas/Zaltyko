@@ -25,7 +25,7 @@ export function OwnerOperationalSummaryPanel({
       >
         <h2
           id="operational-summary-unavailable-title"
-          className="font-display text-lg font-bold text-amber-950"
+          className="font-display text-lg font-bold text-ochre-ink"
         >
           Resumen operativo no disponible
         </h2>
@@ -63,7 +63,7 @@ export function OwnerOperationalSummaryPanel({
                 Gimnastas activos hoy
                 <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
               </dt>
-              <dd className={`break-words ${ownerUi.metricValue}`}>
+              <dd className={`zk-settle break-words ${ownerUi.metricValue}`}>
                 {metrics.activeAthletes}
               </dd>
               <p className="mt-1 text-xs text-z-soft">
@@ -75,7 +75,7 @@ export function OwnerOperationalSummaryPanel({
                 Grupos activos hoy
                 <UsersRound className="h-4 w-4 shrink-0" aria-hidden="true" />
               </dt>
-              <dd className={`break-words ${ownerUi.metricValue}`}>
+              <dd className={`zk-settle break-words ${ownerUi.metricValue}`}>
                 {metrics.activeGroups}
               </dd>
             </div>
@@ -100,7 +100,7 @@ export function OwnerOperationalSummaryPanel({
               <dt className="mt-1 text-xs text-z-soft">
                 Registros de asistencia
               </dt>
-              <dd className={`break-words ${ownerUi.metricValue}`}>
+              <dd className={`zk-settle break-words ${ownerUi.metricValue}`}>
                 {metrics.attendanceRecords}
               </dd>
             </div>
@@ -131,7 +131,7 @@ export function OwnerOperationalSummaryPanel({
               <dl className="mt-1 grid min-w-0 gap-x-8 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]">
                 <div>
                   <dt className="text-xs text-z-soft">Cobros</dt>
-                  <dd className={`break-words ${ownerUi.metricValue}`}>
+                  <dd className={`zk-settle break-words ${ownerUi.metricValue}`}>
                     {payments.count}
                   </dd>
                 </div>
@@ -140,7 +140,7 @@ export function OwnerOperationalSummaryPanel({
                     <dt className="text-xs text-z-soft">
                       Total bruto en {currency}
                     </dt>
-                    <dd className={`break-words ${ownerUi.metricValue}`}>
+                    <dd className={`zk-settle break-words ${ownerUi.metricValue}`}>
                       {new Intl.NumberFormat("es-ES", {
                         style: "currency",
                         currency,

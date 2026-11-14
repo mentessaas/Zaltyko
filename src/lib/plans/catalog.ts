@@ -99,9 +99,14 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     publicName: "Network",
     internalName: "Network",
     priceEurCents: 9900,
+    // Network no es una oferta pública: no tiene checkout ni producto propio
+    // (no hay panel multi-sede ni resumen consolidado entre academias). Se
+    // conserva el código porque existe en la base de datos y en Stripe; los
+    // textos describen solo lo que hace el catálogo (límites sin tope) y la web
+    // pública usa PUBLIC_PRODUCT_PLANS, que lo excluye.
     description:
-      "Para academias multi-sede con límites amplios y puesta en marcha acompañada.",
-    shortDescription: "Multi-sede con onboarding acompañado",
+      "Condiciones acordadas por contacto, sin límites de gimnastas, grupos ni clases.",
+    shortDescription: "Condiciones acordadas por contacto",
     athleteLimit: null,
     groupLimit: null,
     classLimit: null,
@@ -111,9 +116,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     checkoutMode: "sales-assisted",
     features: [
       "Gimnastas ilimitadas",
-      "Multi-sede con onboarding acompañado",
       "Grupos y clases ilimitados",
-      "Operativa y resumen por sede",
       "Alcance y puesta en marcha acordados por contacto",
     ],
   },
@@ -162,6 +165,15 @@ export function getProductPlanPublicName(
 
 export const BILLABLE_PRODUCT_PLANS = PRODUCT_PLANS.filter(
   (plan): plan is ProductPlan & { code: PlanCode } => plan.code !== "network"
+);
+
+/**
+ * Planes que la web pública ofrece: los que se pueden empezar o contratar por
+ * cuenta propia. Network queda fuera porque no es contratable ni tiene producto
+ * multi-sede propio; las consultas de varias sedes van por contacto.
+ */
+export const PUBLIC_PRODUCT_PLANS = PRODUCT_PLANS.filter(
+  (plan) => plan.checkoutMode !== "sales-assisted"
 );
 
 export function formatPlanAmount(priceEurCents: number) {

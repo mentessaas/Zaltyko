@@ -3,6 +3,7 @@ import Link from "next/link";
 import { FamilyNoAccess } from "@/components/family-portal/FamilyNoAccess";
 import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
 import { hasFamilyPortalData } from "@/modules/family-portal/domain/family-portal-access";
 
@@ -16,12 +17,11 @@ export default async function FamilyPortalHomePage() {
 
   return (
     <FamilyPortalShell active="athletes">
-      <header className={ownerUi.pageHeader}>
-        <h1 className={ownerUi.pageTitle}>Tu familia</h1>
-        <p className={ownerUi.pageLead}>
-          Consulta el horario, la asistencia y las cuotas de tus gimnastas.
-        </p>
-      </header>
+      <PageHeader
+        title="Tu familia"
+        description="Consulta el horario, la asistencia y las cuotas de tus gimnastas."
+        className={ownerUi.pageHeader}
+      />
 
       {!hasFamilyPortalData(access) ? (
         <FamilyNoAccess />

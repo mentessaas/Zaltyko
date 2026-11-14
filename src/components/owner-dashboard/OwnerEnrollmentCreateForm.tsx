@@ -9,8 +9,7 @@ import {
   formatDate,
   primaryButtonClassName,
 } from "./owner-enrollment-ui";
-import { ownerTone } from "./owner-tone-ui";
-import { ownerUi } from "./owner-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
 import { isEnrollmentStartDateAllowed } from "./owner-enrollment-date";
 import type { Candidate, EnrollmentBundle, PricePlanOption } from "./owner-enrollment-types";
 

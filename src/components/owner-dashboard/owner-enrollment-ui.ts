@@ -1,6 +1,5 @@
 import type { EnrollmentBundle, StatusFilter } from "./owner-enrollment-types";
-import { ownerTone } from "./owner-tone-ui";
-import { ownerUi } from "./owner-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
 
 // Inscripciones comparte la base de /owner: campos, botón principal en tapiz
 // y secundario de cinta blanca, sin la variante cuadrada slate/teal anterior.

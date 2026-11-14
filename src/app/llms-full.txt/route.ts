@@ -41,7 +41,7 @@ Health Score, retención, IA, marketplace y funciones avanzadas no forman parte 
 Free: 30 gimnastas, 3 grupos y 10 clases activas; el alta no pide tarjeta.
 Starter: 19 €/mes o 190 €/año, hasta 75 gimnastas.
 Growth: 49 €/mes o 490 €/año, hasta 200 gimnastas.
-Precios sin IVA. Network desde 99 €/mes, contratación acompañada.
+Precios sin IVA. ¿Varias sedes o academias? Escríbenos y vemos tu caso.
 Prueba de Starter de 7 días sin tarjeta, una por academia cada 12 meses.
 Al terminar el acceso se aplican límites Free: si hay excedente, solo lectura hasta archivar o contratar capacidad.
 

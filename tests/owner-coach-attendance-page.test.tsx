@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   withSessionCoaches: vi.fn(),
   upcomingConflicts: vi.fn(),
   sessionPlansAvailable: vi.fn(),
+  chartScope: vi.fn(),
+  attendanceWeeks: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error("NOT_FOUND");
   }),
@@ -52,6 +54,11 @@ vi.mock("@/modules/coach-assignment/application/coach-assignment-service", () =>
 }));
 vi.mock("@/modules/session-plans/application/session-plan-service", () => ({
   isSessionPlanAvailableForPage: mocks.sessionPlansAvailable,
+}));
+
+vi.mock("@/modules/owner-dashboard/application/summary-charts", () => ({
+  resolveOwnerChartScope: mocks.chartScope,
+  getOwnerAttendanceWeeksChart: mocks.attendanceWeeks,
 }));
 
 import OwnerAttendancePage from "@/app/owner/attendance/page";
@@ -119,6 +126,8 @@ beforeEach(() => {
   mocks.coachAssignmentAvailable.mockResolvedValue(false);
   mocks.withSessionCoaches.mockImplementation(async (_client: unknown, today: unknown) => today);
   mocks.upcomingConflicts.mockResolvedValue(null);
+  mocks.chartScope.mockResolvedValue({ synthetic: "chart-scope" });
+  mocks.attendanceWeeks.mockResolvedValue(null);
 });
 
 describe("Tus choques próximos en el Hoy de la entrenadora (O2)", () => {
@@ -142,6 +151,31 @@ describe("Tus choques próximos en el Hoy de la entrenadora (O2)", () => {
     mocks.scope.mockResolvedValue(scopeFor("owner"));
     await OwnerAttendancePage({ searchParams: Promise.resolve({ organizationId }) });
     expect(mocks.upcomingConflicts).not.toHaveBeenCalled();
+  });
+});
+
+describe("Asistencia por semana en Pasar lista", () => {
+  it("dirección la ve para la sede de la lista; si falla, no se muestra", async () => {
+    const chart = { state: "empty", weeks: [] };
+    mocks.attendanceWeeks.mockResolvedValue(chart);
+    mocks.scope.mockResolvedValue(scopeFor("owner"));
+    const page = await OwnerAttendancePage({ searchParams: Promise.resolve({ organizationId }) });
+    const scope = await mocks.scope.mock.results[0]?.value;
+    expect(mocks.chartScope).toHaveBeenCalledWith({ scope, locationId: siteNorth });
+    const [manager] = findAll(page, OwnerAttendanceManager);
+    const insight = manager.props.insight as ReactElement<{ chart: unknown; headingLevel: string }>;
+    expect(insight.props).toMatchObject({ chart, headingLevel: "h2" });
+
+    mocks.attendanceWeeks.mockRejectedValue(new Error("Synthetic chart failure"));
+    const failed = await OwnerAttendancePage({ searchParams: Promise.resolve({ organizationId }) });
+    expect(findAll(failed, OwnerAttendanceManager)[0].props.insight).toBeNull();
+  });
+
+  it("la entrenadora no la pide: su pantalla es Hoy y Pasar lista", async () => {
+    mocks.scope.mockResolvedValue(scopeFor("coach"));
+    const page = await OwnerAttendancePage({ searchParams: Promise.resolve({ organizationId }) });
+    expect(mocks.chartScope).not.toHaveBeenCalled();
+    expect(findAll(page, OwnerAttendanceManager)[0].props.insight).toBeNull();
   });
 });
 

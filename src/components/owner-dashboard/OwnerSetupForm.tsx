@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Building2, MapPin, ShieldCheck } from "lucide-react";
 import { parseOwnerSetupReceipt } from "@/components/owner-dashboard/owner-setup-response";
-import { ownerUi } from "@/components/owner-dashboard/owner-ui";
-import { ownerField } from "@/components/owner-dashboard/owner-form-tones";
+import { ownerField, ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { cn } from "@/lib/utils";
 import {
   ADMINISTRATIVE_MARKET_REGISTRY,

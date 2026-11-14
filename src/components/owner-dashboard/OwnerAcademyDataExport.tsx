@@ -236,7 +236,7 @@ export function OwnerAcademyDataExport({
           </p>
         ) : null}
         {currentState.status === "error" ? (
-          <p role="alert" className="text-sm font-medium text-red-800">
+          <p role="alert" className="text-sm font-medium text-signal-ink">
             {currentState.message}
           </p>
         ) : null}

@@ -32,7 +32,7 @@ describe("international public copy", () => {
     expect(plansFaq?.answer).not.toContain("contratación internacional");
     expect(plansFaq?.answer).toContain("19 €/mes o 190 €/año");
     expect(plansFaq?.answer).toContain("49 €/mes o 490 €/año");
-    expect(plansFaq?.answer).toContain("Network parte de 99 €/mes");
+    expect(plansFaq?.answer).not.toContain("Network");
   });
 
   it("el metadata público ya no limita el alcance a España", () => {
