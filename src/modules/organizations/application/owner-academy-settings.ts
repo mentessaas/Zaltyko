@@ -61,7 +61,7 @@ const visibleText = (min: number, max: number) =>
     .trim()
     .min(min)
     .max(max)
-    .refine((value) => !/[\u0000-\u001f\u007f]/u.test(value))
+    .refine((value) => !/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/u.test(value))
     .transform(normalizeAcademyText);
 
 /** Mismos límites que el alta (`bootstrapOrganization`). */
@@ -185,6 +185,16 @@ async function assertOwnerSettingsAccess(
   if (!member || member.role !== "owner" || member.locationScopeMode !== "all") {
     throw forbidden();
   }
+}
+
+/**
+ * Comprobación previa sin bloqueo: un miembro sin permiso recibe su 403 sin
+ * llegar a retener el bloqueo de la organización. Se repite con el bloqueo.
+ */
+async function precheckOwnerAccess(input: z.infer<typeof scopeSchema>): Promise<void> {
+  await db.transaction(async (tx) => {
+    await assertOwnerSettingsAccess(tx, input);
+  });
 }
 
 async function loadOrganization(
@@ -314,7 +324,7 @@ export async function getOwnerAcademySettings(
     );
     const usage = await getOrganizationUsage(tx, scope.organizationId);
     const activeLocations = await countActiveLocations(tx, scope.organizationId);
-    const locationLimit = entitlement.limits.academyLimit;
+    const locationLimit = entitlement.limits.locationLimit;
     const blockedReason = locationLimitReached(activeLocations, locationLimit)
       ? "plan_limit"
       : usage.readOnly
@@ -364,6 +374,7 @@ export async function updateOwnerAcademyProfile(
     legalName: command.legalName,
   });
 
+  await precheckOwnerAccess(command);
   return db.transaction(async (tx) => {
     await lockCommand(tx, command.organizationId, command.idempotencyKey);
     await assertOwnerSettingsAccess(tx, command);
@@ -479,6 +490,7 @@ export async function createOwnerLocation(
     timezone: command.timezone,
   });
 
+  await precheckOwnerAccess(command);
   return db.transaction(async (tx) => {
     await lockCommand(tx, command.organizationId, command.idempotencyKey);
     await assertOwnerSettingsAccess(tx, command);
@@ -536,7 +548,7 @@ export async function createOwnerLocation(
       command.organizationId
     );
     const activeLocations = await countActiveLocations(tx, command.organizationId);
-    const locationLimit = entitlement.limits.academyLimit;
+    const locationLimit = entitlement.limits.locationLimit;
     if (locationLimit !== null && locationLimitReached(activeLocations, locationLimit)) {
       throw new OperationalError(
         "CAPACITY_FULL",

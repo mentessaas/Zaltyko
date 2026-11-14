@@ -12,6 +12,9 @@ describe("ajustes de la academia: piezas puras", () => {
     expect(academyNameSchema.parse("  Club   Gimnasia ")).toBe("Club Gimnasia");
     expect(academyNameSchema.safeParse("a").success).toBe(false);
     expect(academyNameSchema.safeParse("Club\u0000").success).toBe(false);
+    for (const hidden of ["\u200b", "\u200f", "\u202e", "\u2066", "\u2069", "\ufeff"]) {
+      expect(academyNameSchema.safeParse(`Club${hidden}Uno`).success, hidden).toBe(false);
+    }
   });
 
   it("asigna el primer código libre sin pasar de 32 caracteres", () => {

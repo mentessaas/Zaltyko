@@ -15,7 +15,8 @@ function assertDisposableTarget() {
   if (!["127.0.0.1", "localhost", "::1"].includes(target.hostname) || target.pathname !== "/postgres" || target.search !== "?sslmode=disable") throw new Error("Unexpected PostgreSQL target refused");
 }
 
-const free = randomUUID(), network = randomUUID(), other = randomUUID();
+const free = randomUUID(), network = randomUUID(), other = randomUUID(), empty = randomUUID();
+const ownerEmpty = randomUUID(), memberEmpty = randomUUID();
 const ownerFree = randomUUID(), ownerNetwork = randomUUID(), ownerOther = randomUUID(), admin = randomUUID();
 const memberFree = randomUUID(), memberNetwork = randomUUID(), memberOther = randomUUID(), memberAdmin = randomUUID();
 const actor = (userId: string, memberId: string) => ({ userId, memberId });
@@ -23,16 +24,17 @@ const actor = (userId: string, memberId: string) => ({ userId, memberId });
 describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("ajustes y sedes en Postgres desechable", () => {
   beforeAll(async () => {
     assertDisposableTarget();
-    for (const id of [ownerFree, ownerNetwork, ownerOther, admin]) {
+    for (const id of [ownerFree, ownerNetwork, ownerOther, admin, ownerEmpty]) {
       await db.execute(sql`insert into auth.users(id,email) values (${id}::uuid,${`ci-settings-${id}@example.invalid`})`);
     }
-    await db.execute(sql`insert into zaltyko.organizations(id,name) values (${free}::uuid,'Settings Free'),(${network}::uuid,'Settings Network'),(${other}::uuid,'Settings Other')`);
+    await db.execute(sql`insert into zaltyko.organizations(id,name) values (${free}::uuid,'Settings Free'),(${network}::uuid,'Settings Network'),(${other}::uuid,'Settings Other'),(${empty}::uuid,'Settings Empty')`);
     await db.execute(sql`insert into zaltyko.locations(organization_id,code,name,timezone) values (${free}::uuid,'principal','Principal','Europe/Madrid'),(${network}::uuid,'principal','Principal','Europe/Madrid'),(${other}::uuid,'principal','Principal','Europe/Madrid')`);
     await db.execute(sql`insert into zaltyko.organization_members(id,organization_id,user_id,role,status,location_scope_mode) values
       (${memberFree}::uuid,${free}::uuid,${ownerFree}::uuid,'owner','active','all'),
       (${memberNetwork}::uuid,${network}::uuid,${ownerNetwork}::uuid,'owner','active','all'),
       (${memberOther}::uuid,${other}::uuid,${ownerOther}::uuid,'owner','active','all'),
-      (${memberAdmin}::uuid,${free}::uuid,${admin}::uuid,'admin','active','all')`);
+      (${memberAdmin}::uuid,${free}::uuid,${admin}::uuid,'admin','active','all'),
+      (${memberEmpty}::uuid,${empty}::uuid,${ownerEmpty}::uuid,'owner','active','all')`);
     await db.execute(sql`update zaltyko.organization_entitlements
       set plan_code = 'network', source = 'contract', source_reference = ${`contract:${network}`}
       where organization_id = ${network}::uuid`);
@@ -70,6 +72,19 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("ajustes y sedes en 
     await expect(updateOwnerAcademyProfile({ ...input, name: "Otro", idempotencyKey: "pg-settings-name-2" })).rejects.toMatchObject({ code: "VERSION_CONFLICT", status: 409 });
     const unchanged = await updateOwnerAcademyProfile({ ...input, expectedUpdatedAt: saved.updatedAt, idempotencyKey: "pg-settings-name-3" });
     expect(unchanged.changed).toBe(false);
+  });
+
+  it("dos altas simultáneas en Free con una plaza libre: una crea y la otra recibe 409", async () => {
+    const base = { organizationId: empty, actor: actor(ownerEmpty, memberEmpty), timezone: "Europe/Madrid" };
+    const results = await Promise.allSettled([
+      createOwnerLocation({ ...base, name: "Sede A", idempotencyKey: "pg-settings-race-1" }),
+      createOwnerLocation({ ...base, name: "Sede B", idempotencyKey: "pg-settings-race-2" }),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const rejected = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].reason).toMatchObject({ code: "CAPACITY_FULL", status: 409 });
+    expect(await getOrganizationLocations(empty)).toBe(1);
   });
 
   it("niega a otro rol y a otra academia sin escribir", async () => {

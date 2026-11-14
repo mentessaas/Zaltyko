@@ -9,11 +9,14 @@ import { ownerUi } from "./owner-ui";
 
 const SETTINGS_ENDPOINT = "/api/v1/owner/academy-settings";
 
-type ProblemBody = { detail?: unknown };
+type ProblemBody = { detail?: unknown; type?: unknown };
 
-async function problemMessage(response: Response, fallback: string): Promise<string> {
+async function problemOf(response: Response, fallback: string): Promise<{ text: string; versionConflict: boolean }> {
   const body = (await response.json().catch(() => null)) as ProblemBody | null;
-  return typeof body?.detail === "string" && body.detail ? body.detail : fallback;
+  return {
+    text: typeof body?.detail === "string" && body.detail ? body.detail : fallback,
+    versionConflict: typeof body?.type === "string" && body.type.endsWith("/version-conflict"),
+  };
 }
 
 function newKey(): string {
@@ -26,24 +29,26 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
   const [name, setName] = useState("");
   const [legalName, setLegalName] = useState("");
   const [profileBusy, setProfileBusy] = useState(false);
-  const [profileMessage, setProfileMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [profileMessage, setProfileMessage] = useState<{ ok: boolean; text: string; versionConflict?: boolean } | null>(null);
   const [locationName, setLocationName] = useState("");
   const [timezone, setTimezone] = useState("");
   const [locationBusy, setLocationBusy] = useState(false);
   const [locationMessage, setLocationMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (keepDraft = false) => {
     setLoadError(null);
     try {
       const response = await fetch(`${SETTINGS_ENDPOINT}?organizationId=${organizationId}`, { cache: "no-store" });
       if (!response.ok) {
-        setLoadError(await problemMessage(response, "No hemos podido cargar los ajustes."));
+        setLoadError((await problemOf(response, "No hemos podido cargar los ajustes.")).text);
         return;
       }
       const body = (await response.json()) as { data: OwnerAcademySettings };
       setSettings(body.data);
-      setName(body.data.organization.name);
-      setLegalName(body.data.organization.legalName ?? "");
+      if (!keepDraft) {
+        setName(body.data.organization.name);
+        setLegalName(body.data.organization.legalName ?? "");
+      }
       setTimezone((current) => current || body.data.timezoneOptions[0] || "");
     } catch {
       setLoadError("No hemos podido cargar los ajustes. Comprueba la conexión e inténtalo de nuevo.");
@@ -71,11 +76,12 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
         }),
       });
       if (!response.ok) {
-        setProfileMessage({ ok: false, text: await problemMessage(response, "No hemos podido guardar los cambios.") });
+        const problem = await problemOf(response, "No hemos podido guardar los cambios.");
+        setProfileMessage({ ok: false, text: problem.text, versionConflict: problem.versionConflict });
         return;
       }
       setProfileMessage({ ok: true, text: "Cambios guardados." });
-      await load();
+      await load(true);
     } catch {
       setProfileMessage({ ok: false, text: "No hemos podido guardar. Comprueba la conexión e inténtalo de nuevo." });
     } finally {
@@ -95,13 +101,13 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
         body: JSON.stringify({ organizationId, name: locationName, timezone }),
       });
       if (!response.ok) {
-        setLocationMessage({ ok: false, text: await problemMessage(response, "No hemos podido añadir la sede.") });
-        await load();
+        setLocationMessage({ ok: false, text: (await problemOf(response, "No hemos podido añadir la sede.")).text });
+        await load(true);
         return;
       }
       setLocationName("");
       setLocationMessage({ ok: true, text: "Sede añadida." });
-      await load();
+      await load(true);
     } catch {
       setLocationMessage({ ok: false, text: "No hemos podido añadir la sede. Comprueba la conexión e inténtalo de nuevo." });
     } finally {
@@ -123,6 +129,8 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
 
   const { organization, locationCapacity: capacity } = settings;
   const planName = ownerPlanPublicName(capacity.planCode) ?? "tu plan";
+  const profileError = profileMessage !== null && !profileMessage.ok;
+  const locationError = locationMessage !== null && !locationMessage.ok;
   const dirty = name !== organization.name || (legalName.trim() || null) !== organization.legalName;
   const subscriptionHref = `/owner/subscription?organizationId=${organizationId}`;
 
@@ -134,11 +142,11 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
           <div className="grid gap-5 md:grid-cols-2">
             <div className="min-w-0">
               <label htmlFor="academy-name" className={ownerUi.label}>Nombre de la academia</label>
-              <input id="academy-name" className={`mt-2 ${ownerUi.field}`} value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={120} disabled={profileBusy} />
+              <input id="academy-name" className={`mt-2 ${ownerUi.field}`} value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={120} disabled={profileBusy} aria-invalid={profileError ? true : undefined} aria-describedby={profileError ? "profile-message" : undefined} />
             </div>
             <div className="min-w-0">
               <label htmlFor="academy-legal-name" className={ownerUi.label}>Razón social (opcional)</label>
-              <input id="academy-legal-name" className={`mt-2 ${ownerUi.field}`} value={legalName} onChange={(e) => setLegalName(e.target.value)} maxLength={180} disabled={profileBusy} />
+              <input id="academy-legal-name" className={`mt-2 ${ownerUi.field}`} value={legalName} onChange={(e) => setLegalName(e.target.value)} maxLength={180} disabled={profileBusy} aria-invalid={profileError ? true : undefined} aria-describedby={profileError ? "profile-message" : undefined} />
               <p className={`mt-1 ${ownerUi.help}`}>El nombre legal de la entidad, si es distinto del nombre comercial.</p>
             </div>
           </div>
@@ -159,7 +167,14 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
             </div>
           ) : null}
           {profileMessage ? (
-            <p role={profileMessage.ok ? "status" : "alert"} className={profileMessage.ok ? ownerUi.noticeInfo : ownerUi.noticeError}>{profileMessage.text}</p>
+            <div id="profile-message" role={profileMessage.ok ? "status" : "alert"} className={profileMessage.ok ? ownerUi.noticeInfo : ownerUi.noticeError}>
+              <p>{profileMessage.text}</p>
+              {profileMessage.versionConflict ? (
+                <button type="button" className={`${ownerUi.secondaryButton} mt-3`} onClick={() => { setProfileMessage(null); void load(true); }}>
+                  Recargar datos
+                </button>
+              ) : null}
+            </div>
           ) : null}
           <div>
             <button type="submit" className={ownerUi.primaryButton} disabled={!dirty || profileBusy}>
@@ -194,7 +209,7 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
             <div className="grid gap-4 md:grid-cols-2">
               <div className="min-w-0">
                 <label htmlFor="location-name" className={ownerUi.label}>Nombre de la nueva sede</label>
-                <input id="location-name" className={`mt-2 ${ownerUi.field}`} value={locationName} onChange={(e) => setLocationName(e.target.value)} required minLength={2} maxLength={120} disabled={locationBusy} />
+                <input id="location-name" className={`mt-2 ${ownerUi.field}`} value={locationName} onChange={(e) => setLocationName(e.target.value)} required minLength={2} maxLength={120} disabled={locationBusy} aria-invalid={locationError ? true : undefined} aria-describedby={locationError ? "location-message" : undefined} />
               </div>
               <div className="min-w-0">
                 <label htmlFor="location-timezone" className={ownerUi.label}>Zona horaria</label>
@@ -224,7 +239,7 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
           </div>
         )}
         {locationMessage ? (
-          <p role={locationMessage.ok ? "status" : "alert"} className={`mt-4 ${locationMessage.ok ? ownerUi.noticeInfo : ownerUi.noticeError}`}>{locationMessage.text}</p>
+          <p id="location-message" role={locationMessage.ok ? "status" : "alert"} className={`mt-4 ${locationMessage.ok ? ownerUi.noticeInfo : ownerUi.noticeError}`}>{locationMessage.text}</p>
         ) : null}
       </section>
     </div>
