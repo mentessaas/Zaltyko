@@ -44,7 +44,7 @@ function PreferencesInner() {
   useEffect(() => {
     if (!token) {
       setStatus("error");
-      setErrorMessage("Falta el token en la URL.");
+      setErrorMessage("Falta el enlace. Ábrelo desde el correo.");
       return;
     }
     let cancelled = false;

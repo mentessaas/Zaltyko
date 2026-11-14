@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       logger.error('Error fetching attendance:', error);
-      return NextResponse.json({ error: "INTERNAL_ERROR", message: "Error interno del servidor" }, { status: 500 });
+      return NextResponse.json({ error: "INTERNAL_ERROR", message: "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos." }, { status: 500 });
     }
 
     // Get total count

@@ -85,7 +85,7 @@ export const ConversationList = memo(function ConversationList({
               </button>
             ) : (
               <p className="mt-2 text-xs text-muted-foreground">
-                {emptyStateHint ?? "Las nuevas conversaciones se habilitan desde la academia o por invitación del staff."}
+                {emptyStateHint ?? "Las nuevas conversaciones se habilitan desde la academia o por invitación del equipo."}
               </p>
             )}
           </div>

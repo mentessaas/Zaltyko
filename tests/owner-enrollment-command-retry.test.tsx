@@ -57,7 +57,7 @@ describe("intención de inscripción inmutable en la página abierta", () => {
     render(<OwnerEnrollmentsManager bundle={bundle} selectedStatus="all" previewCreateForm />);
 
     expect(screen.getByText(/La academia está en solo lectura/)).toBeVisible();
-    expect(screen.getByRole("link", { name: "Uso y regularización" })).toHaveAttribute("href", `/owner/subscription?organizationId=${org}#regularizar`);
+    expect(screen.getByRole("link", { name: "Uso del plan" })).toHaveAttribute("href", `/owner/subscription?organizationId=${org}#regularizar`);
     expect(screen.getByText("Clase sintética")).toBeVisible();
     const closeForm = screen.getByRole("button", { name: "Cerrar formulario" });
     await waitFor(() => expect(closeForm).toBeEnabled());

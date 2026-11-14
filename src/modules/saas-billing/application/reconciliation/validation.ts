@@ -46,7 +46,7 @@ export function validateConfirmationInput(input: ConfirmSaasReconciliationInput)
     input.idempotencyKey.trim().length < 8 ||
     input.idempotencyKey.trim().length > 150
   ) {
-    throw fail("VERSION_CONFLICT", "Idempotency-Key no válido", 400);
+    throw fail("VERSION_CONFLICT", "La clave del envío no es válida", 400);
   }
   return normalizeSaasReconciliationReason(input.reason);
 }

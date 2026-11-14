@@ -78,6 +78,7 @@ export default defineConfig({
                   "tests/saas-reconciliation-service-pg.test.ts",
                   "tests/monthly-invoice-service-pg.test.ts",
                   "tests/habitual-use-pg.test.ts",
+                  "tests/owner-academy-settings-pg.test.ts",
                   "tests/owner-summary-charts-pg.test.ts",
                 ]),
             ...(!runSandboxReadonlyPostgresSuites

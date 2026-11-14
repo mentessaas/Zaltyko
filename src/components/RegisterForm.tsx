@@ -419,7 +419,7 @@ export function RegisterForm({
             "Podrás organizar gimnastas, clases y cuotas con pagos manuales.",
           ]
         : [
-            "Padres, atletas, entrenadores y proveedores pueden tener cuenta propia.",
+            "Familias, gimnastas, entrenadoras y proveedores pueden tener cuenta propia.",
             "Las academias se vinculan por invitación o solicitud aceptada.",
             "Si sales de una academia, conservas tu cuenta global.",
           ]}

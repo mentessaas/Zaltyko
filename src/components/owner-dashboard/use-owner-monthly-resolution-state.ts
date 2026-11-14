@@ -155,7 +155,7 @@ export function useMonthlyResolutionPendingCommand({
       allowAmbiguousUpgrade: true,
     })) {
       setPendingStorageError(
-        "No pudimos persistir la incertidumbre de la operación. No se permitirá reenviarla desde este panel."
+        "No pudimos guardar el estado de este cambio. No se podrá reenviar desde este panel."
       );
     }
   }

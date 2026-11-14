@@ -108,8 +108,8 @@ export const POST = withTenant(async (request, context) => {
     if (conflict.hasConflict && conflict.conflictingClass) {
       const conflictMessage =
         conflict.conflictingClass.startTime && conflict.conflictingClass.endTime
-          ? `Conflicto de horario: este atleta ya está en la clase "${conflict.conflictingClass.name}" de ${conflict.conflictingClass.startTime}-${conflict.conflictingClass.endTime} el mismo día. No puede estar en dos clases a la vez.`
-          : `Conflicto de horario: este atleta ya está en la clase "${conflict.conflictingClass.name}" el mismo día. No puede estar en dos clases a la vez.`;
+          ? `Choque de horario: esta gimnasta ya está en la clase "${conflict.conflictingClass.name}" de ${conflict.conflictingClass.startTime}-${conflict.conflictingClass.endTime} el mismo día. No puede estar en dos clases a la vez.`
+          : `Choque de horario: esta gimnasta ya está en la clase "${conflict.conflictingClass.name}" el mismo día. No puede estar en dos clases a la vez.`;
 
       return apiError("SCHEDULE_CONFLICT", conflictMessage, 409, {
         conflictingClass: conflict.conflictingClass,
@@ -144,7 +144,7 @@ export const POST = withTenant(async (request, context) => {
     ) {
       return apiError(
         "ATHLETE_SPORT_CONFIG_MISMATCH",
-        "El atleta pertenece a otra modalidad/rama y no puede añadirse a esta clase.",
+        "La gimnasta es de otra modalidad y no puede entrar en esta clase.",
         400
       );
     }
@@ -250,7 +250,7 @@ export const POST = withTenant(async (request, context) => {
     if (enrollmentResult.kind === "exists") {
       return apiError(
         "ENROLLMENT_EXISTS",
-        "El atleta ya está inscrito en esta clase como extra.",
+        "La gimnasta ya está inscrita en esta clase como extra.",
         409
       );
     }

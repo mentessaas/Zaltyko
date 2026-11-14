@@ -183,7 +183,7 @@ describe("entrada de la importación de gimnastas", () => {
     const { stream, state } = watchedBody();
     const response = await confirmPost(request("confirm", { body: stream }));
     expect(response.status).toBe(400);
-    expect((await response.json()).detail).toContain("Idempotency-Key");
+    expect((await response.json()).detail).toContain("clave de este envío");
     expect(state.pulled).toBe(false);
     expect(mocks.confirm).not.toHaveBeenCalled();
   });

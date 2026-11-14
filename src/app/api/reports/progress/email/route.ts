@@ -46,7 +46,7 @@ export const POST = withTenant(async (request, context) => {
       .from(athletes)
       .where(and(eq(athletes.id, input.athleteId), eq(athletes.academyId, input.academyId), eq(athletes.tenantId, context.tenantId)))
       .limit(1);
-    if (!athlete) return apiError("ATHLETE_NOT_FOUND", "Atleta no encontrado", 404);
+    if (!athlete) return apiError("ATHLETE_NOT_FOUND", "No encontramos a la gimnasta", 404);
 
     const report = await analyzeAthleteProgress({
       academyId: input.academyId,
@@ -57,7 +57,7 @@ export const POST = withTenant(async (request, context) => {
       skillId: input.skillId,
       sportConfigId: input.sportConfigId,
     });
-    if (!report) return apiError("NO_ASSESSMENTS_FOUND", "No hay evaluaciones para este atleta", 404);
+    if (!report) return apiError("NO_ASSESSMENTS_FOUND", "Esta gimnasta no tiene evaluaciones", 404);
     const period = [input.startDate, input.endDate].filter(Boolean).join(" – ") || "Todo el periodo";
     const sent = await sendReportEmail({
       to: input.email,

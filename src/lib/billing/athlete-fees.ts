@@ -42,7 +42,7 @@ export async function getMonthlyFeeForAthlete(
     .limit(1);
 
   if (!athlete) {
-    throw new Error(`Atleta no encontrado: ${athleteId}`);
+    throw new Error(`No encontramos a la gimnasta: ${athleteId}`);
   }
 
   const targetGroupId = groupId || athlete.currentGroupId;

@@ -36,7 +36,7 @@ function operationalTitle(error: OperationalError): string {
   return error.status === 403
     ? "Acceso denegado"
     : error.status === 404
-      ? "Recurso no encontrado"
+      ? "No lo encontramos"
       : error.status === 409
         ? "Conflicto de versión o estado"
         : "Solicitud no procesable";

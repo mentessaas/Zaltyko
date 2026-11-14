@@ -28,8 +28,7 @@ export function OwnerOperationalReadOnlyNotice({
         role="status"
         className={CHECKING_CLASS}
       >
-        Comprobando los límites del plan. Las escrituras nuevas están pausadas
-        hasta confirmar que la academia puede operar. {" "}
+        Estamos comprobando los límites de tu plan. Los cambios nuevos esperan hasta confirmarlo. {" "}
         <Link
           className="font-bold underline underline-offset-2"
           href={`/owner/subscription?organizationId=${encodeURIComponent(organizationId)}#regularizar`}
@@ -48,13 +47,12 @@ export function OwnerOperationalReadOnlyNotice({
         className={ERROR_CLASS}
       >
         <p>
-          No se pudieron comprobar los límites del plan. Vuelve a consultar el
-          uso antes de realizar cambios. {" "}
+          No pudimos comprobar los límites de tu plan. Mira el uso antes de hacer cambios. {" "}
           <Link
             className="font-bold underline underline-offset-2"
             href={`/owner/subscription?organizationId=${encodeURIComponent(organizationId)}#regularizar`}
           >
-            Consultar uso y regularizar
+            Ver uso y ajustar
           </Link>
           .
         </p>
@@ -85,7 +83,7 @@ export function OwnerOperationalReadOnlyNotice({
         className="font-bold underline underline-offset-2"
         href={`/owner/subscription?organizationId=${encodeURIComponent(organizationId)}#regularizar`}
       >
-        Uso y regularización
+        Uso del plan
       </Link>
       .
     </p>

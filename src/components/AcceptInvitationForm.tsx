@@ -59,7 +59,7 @@ export default function AcceptInvitationForm({
           <CheckCircle2 aria-hidden className="h-6 w-6 text-mat" />
           <h2 className="font-display text-2xl font-black uppercase leading-none text-mat-night">Invitación aceptada</h2>
           <p className="text-sm leading-6 text-ramp-600">
-            Bienvenido/a. Serás redirigido/a a tu dashboard en unos segundos.
+            Te damos la bienvenida. En unos segundos te llevamos a tu panel.
           </p>
         </div>
       );
@@ -148,7 +148,7 @@ export default function AcceptInvitationForm({
 
       toast.pushToast({
         title: "Invitación aceptada",
-        description: "Redirigiendo a tu dashboard...",
+        description: "Te llevamos a tu panel...",
         variant: "success",
       });
 
