@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ownerTone } from "./owner-tone-ui";
+import { ownerUi } from "./owner-ui";
 import {
   OwnerGuardianProfileEditor,
   readPendingOwnerGuardianProfile,
@@ -50,12 +52,9 @@ type SessionStorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 export type OwnerGuardianContactScope = Readonly<{ organizationId: string; locationId: string; guardianId: string }>;
 type ContactsReceipt = Readonly<{ contacts: OwnerGuardianContacts; replayed: boolean }>;
 
-const fieldClassName =
-  "min-h-11 w-full border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:bg-z-canvas";
-const primaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-z-ink bg-z-ink px-4 py-2 text-sm font-bold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
-const secondaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center border border-z-line bg-white px-4 py-2 text-sm font-semibold text-z-ink hover:bg-z-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50";
+const fieldClassName = ownerUi.field;
+const primaryButtonClassName = ownerUi.primaryButton;
+const secondaryButtonClassName = ownerUi.secondaryButton;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -612,7 +611,7 @@ export function OwnerGuardianContactsEditor({
   const editingValue = editingKind === "email" ? emailValue : phoneValue;
 
   return (
-    <section aria-label={`Contactos de ${profileDisplayName}`} className="rounded-[12px] mt-4 w-full border border-z-line bg-z-canvas p-4 sm:col-span-2">
+    <section aria-label={`Contactos de ${profileDisplayName}`} className={`mt-4 w-full sm:col-span-2 ${ownerUi.subtlePanel}`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h4 className="font-bold">Contactos del pagador</h4>
@@ -652,12 +651,12 @@ export function OwnerGuardianContactsEditor({
 
       {loading && <p role="status" className="mt-3 text-sm text-z-soft">Cargando contactos…</p>}
       {loadError && (
-        <div className="rounded-[12px] mt-3 border border-red-300 bg-white p-3">
-          <p role="alert" className="text-sm text-red-900">{loadError}</p>
+        <div className={`mt-3 ${ownerTone.noticeError}`}>
+          <p role="alert">{loadError}</p>
           <button type="button" className={`${secondaryButtonClassName} mt-2`} onClick={() => setLoadRevision((revision) => revision + 1)} disabled={operationLocked}>Volver a cargar</button>
         </div>
       )}
-      {message && <p role={messageKind === "error" ? "alert" : "status"} className="rounded-[12px] mt-3 border border-z-line bg-white p-3 text-sm">{message}</p>}
+      {message && <p role={messageKind === "error" ? "alert" : "status"} className={`mt-3 ${messageKind === "error" ? ownerTone.noticeError : ownerTone.noticeNeutral}`}>{message}</p>}
 
       {contacts && !loading && !loadError && (
         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -667,7 +666,7 @@ export function OwnerGuardianContactsEditor({
             const label = kind === "email" ? "Correo electrónico" : "Teléfono";
             const inputId = `guardian-contact-${kind}-${guardianId}`;
             return (
-              <div key={kind} className="rounded-[12px] border border-z-line bg-white p-3">
+              <div key={kind} className={ownerTone.innerPanel}>
                 <h5 className="font-semibold">{label}</h5>
                 <p className="mt-1 break-all text-sm text-z-ink">{current?.value ?? "Sin dato guardado"}</p>
                 <p className="mt-1 text-xs text-z-soft">{current?.verifiedAt ? "Verificado por el sistema" : "No verificado"}</p>
@@ -706,8 +705,8 @@ export function OwnerGuardianContactsEditor({
       )}
 
       {pending && (
-        <div className="rounded-[12px] mt-4 border border-amber-400 bg-amber-50 p-3">
-          <p className="text-sm text-amber-950">La operación de {pending.kind === "email" ? "correo" : "teléfono"} sigue pendiente. No se volverá a enviar automáticamente.</p>
+        <div className={`mt-4 ${ownerTone.noticeWarning}`}>
+          <p>La operación de {pending.kind === "email" ? "correo" : "teléfono"} sigue pendiente. No se volverá a enviar automáticamente.</p>
           <button type="button" className={`${secondaryButtonClassName} mt-2`} onClick={retryPending} disabled={disabled || saving || pendingBlocked}>
             {saving ? "Comprobando contacto…" : "Reintentar la misma operación"}
           </button>

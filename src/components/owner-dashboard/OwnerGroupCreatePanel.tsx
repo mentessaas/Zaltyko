@@ -14,6 +14,8 @@ import {
   type PendingGroupCreate,
   type PendingGroupCreateState,
 } from "./owner-groups-manager-model";
+import { ownerTone } from "./owner-tone-ui";
+import { ownerUi } from "./owner-ui";
 
 /** Group create command awaiting its result, or a stored draft that cannot be replayed safely. */
 export function OwnerGroupCreatePendingNotice({
@@ -38,7 +40,7 @@ export function OwnerGroupCreatePendingNotice({
   return (
     <section
       aria-labelledby="pending-group-create-title"
-      className="rounded-[12px] mt-5 border border-amber-700 bg-amber-50 p-4 text-sm text-z-ink"
+      className={`mt-5 ${ownerTone.noticeWarning}`}
       role="status"
     >
       <h2 id="pending-group-create-title" className="font-bold">
@@ -150,13 +152,13 @@ export function OwnerGroupCreateForm({
   return (
     <section
       aria-labelledby="create-group-title"
-      className="rounded-[12px] mt-6 border border-z-line bg-white p-5 sm:p-6"
+      className={`mt-6 ${ownerUi.card}`}
     >
-      <h2 id="create-group-title" className="text-xl font-bold">
+      <h2 id="create-group-title" className={ownerUi.sectionTitle}>
         Crear un grupo
       </h2>
       {programs.length === 0 || locations.length === 0 ? (
-        <p className="mt-3 text-sm text-z-soft">
+        <p className={`mt-3 ${ownerUi.muted}`}>
           Para crear un grupo hace falta al menos una actividad y una sede
           activa en la academia.
         </p>

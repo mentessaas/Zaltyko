@@ -1,8 +1,12 @@
 import {
-  commercialLaunchProfile,
+  getCommercialLaunchProfile,
   getCommercialLaunchReadiness,
   type CommercialLaunchProfile,
 } from "@/lib/launch/commercial-launch-profile";
+import {
+  isCanonicalSpanishPersonalTaxId,
+  isPublishableSpanishPostalAddress,
+} from "@/lib/launch/spanish-tax-id";
 
 // Panel reglado (cinta blanca, borde de magnesio y regla de 3 px en noche) con
 // los datos del titular en filas regladas: rótulo a la izquierda, dato a la
@@ -10,15 +14,23 @@ import {
 const ROW = "grid gap-1 border-t border-chalk-line px-5 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4";
 
 /**
- * Identificación del prestador (LSSI art. 10) en Términos y Privacidad: lee
- * siempre el perfil único, así el NIF y el domicilio aparecen en cuanto se
- * completan en src/lib/launch/commercial-launch-profile.ts.
+ * Identificación del prestador (LSSI art. 10) en Términos y Privacidad.
+ * Componente de servidor: lee el perfil único, cuyo NIF y domicilio vienen de
+ * las variables de entorno del servidor ZALTYKO_SELLER_TAX_ID y
+ * ZALTYKO_SELLER_PROFESSIONAL_ADDRESS (configuradas en Vercel, nunca en el
+ * repositorio). Solo publica un valor con formato válido; si falta o está mal
+ * escrito, muestra «Pendiente de completar» y la readiness lo señala.
  */
 export function SellerIdentification({
-  profile = commercialLaunchProfile,
+  profile = getCommercialLaunchProfile(),
 }: { profile?: Readonly<CommercialLaunchProfile> } = {}) {
   const seller = profile;
   const { ready } = getCommercialLaunchReadiness(profile);
+  const taxId = seller.taxId && isCanonicalSpanishPersonalTaxId(seller.taxId) ? seller.taxId : null;
+  const professionalAddress =
+    seller.professionalAddress && isPublishableSpanishPostalAddress(seller.professionalAddress)
+      ? seller.professionalAddress
+      : null;
   return (
     <section
       id="titular"
@@ -39,8 +51,8 @@ export function SellerIdentification({
       <dl>
         <div className={ROW}><dt className="font-semibold text-mat-night">{seller.registrationStatus === "verified" ? "Titular" : "Promotor y futuro titular"}</dt><dd className="text-ramp-600">{seller.legalName}</dd></div>
         <div className={ROW}><dt className="font-semibold text-mat-night">País</dt><dd className="text-ramp-600">España</dd></div>
-        <div className={ROW}><dt className="font-semibold text-mat-night">NIF</dt><dd className="text-ramp-600">{seller.taxId ?? "Pendiente de completar"}</dd></div>
-        <div className={ROW}><dt className="font-semibold text-mat-night">Domicilio profesional</dt><dd className="text-ramp-600">{seller.professionalAddress ?? "Pendiente de completar"}</dd></div>
+        <div className={ROW}><dt className="font-semibold text-mat-night">NIF</dt><dd className="text-ramp-600">{taxId ?? "Pendiente de completar"}</dd></div>
+        <div className={ROW}><dt className="font-semibold text-mat-night">Domicilio profesional</dt><dd className="text-ramp-600">{professionalAddress ?? "Pendiente de completar"}</dd></div>
         <div className={ROW}><dt className="font-semibold text-mat-night">Contacto oficial</dt><dd><a className="font-semibold text-mat underline decoration-2 underline-offset-4" href={`mailto:${seller.supportEmail}`}>{seller.supportEmail}</a></dd></div>
       </dl>
     </section>

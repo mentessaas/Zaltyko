@@ -9,8 +9,9 @@ vi.mock("@/db", () => ({ db: { transaction: mocks.transaction } }));
 import { exportCanonicalAcademyData } from "@/modules/data-rights/application/canonical-academy-return";
 import {
   ALL_KNOWN_CANONICAL_TABLE_NAMES, CANONICAL_EXPORT_TABLES, EXCLUDED_CANONICAL_SCOPED_TABLES,
-  EXCLUDED_CANONICAL_TABLES, OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
+  EXCLUDED_CANONICAL_TABLES, OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_INCLUDED_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
+import { activatedCatalogRows, activatedRowsByTable } from "./helpers/activated-module-rows";
 import { planCanonicalAcademyDisposition } from "@/modules/data-rights/application/plan-canonical-academy-disposition";
 import { validateCanonicalAcademyArchive } from "@/modules/data-rights/application/verify-canonical-academy-archive";
 import { CanonicalDispositionPlanError, type CanonicalDispositionInput } from "@/modules/data-rights/domain/canonical-disposition-contract";
@@ -32,8 +33,9 @@ function fixture(): Rows {
   };
 }
 
-async function archive(options: { discovery?: boolean; team?: boolean; counts?: Record<string, number | string> } = {}): Promise<string> {
-  const rows = fixture();
+async function archive(options: { discovery?: boolean; team?: boolean; activated?: boolean; counts?: Record<string, number | string> } = {}): Promise<string> {
+  const rows: Rows = { ...fixture(), ...(options.activated ? activatedRowsByTable(organizationId) : {}) };
+  const included = [...CANONICAL_EXPORT_TABLES, ...(options.activated ? OPTIONAL_INCLUDED_EXPORT_TABLES : [])];
   const optional = [...(options.discovery ? OPTIONAL_DISCOVERY_EXPORT_TABLES : []), ...(options.team ? OPTIONAL_TEAM_ACCESS_EXPORT_TABLES : [])];
   for (let i = 0; i < 4; i++) mocks.execute.mockResolvedValueOnce({ rows: [] });
   mocks.execute
@@ -44,11 +46,12 @@ async function archive(options: { discovery?: boolean; team?: boolean; counts?: 
         return (spec?.expectedColumns ?? ["id"]).map((column_name) => ({ table_name, column_name, data_type: "text" }));
       }),
       ...optional.flatMap((table) => table.columns.map((column_name) => ({ table_name: table.table, column_name, data_type: "text" }))),
+      ...(options.activated ? activatedCatalogRows() : []),
     ] })
     .mockResolvedValueOnce({ rows: [{ snapshot_at: "2026-11-06T12:00:00.000Z" }] })
     .mockResolvedValueOnce({ rows: [...EXCLUDED_CANONICAL_SCOPED_TABLES, ...optional.map((table) => table.table)].map((table_name) => ({ table_name, row_count: options.counts?.[table_name] ?? 0 })) })
-    .mockResolvedValueOnce({ rows: CANONICAL_EXPORT_TABLES.map((table) => ({ table_name: table.name, row_count: (rows[table.name] ?? []).length, estimated_bytes: (rows[table.name] ?? []).length * 128 })) });
-  for (const table of CANONICAL_EXPORT_TABLES) {
+    .mockResolvedValueOnce({ rows: included.map((table) => ({ table_name: table.name, row_count: (rows[table.name] ?? []).length, estimated_bytes: (rows[table.name] ?? []).length * 128 })) });
+  for (const table of included) {
     if (rows[table.name]?.length) mocks.execute.mockResolvedValueOnce({ rows: rows[table.name] });
   }
   return (await exportCanonicalAcademyData({ userId: id(2), organizationId })).body;
@@ -146,6 +149,23 @@ describe("pure canonical disposition review plan", () => {
         expect(result.tables.find((entry) => entry.table === table.table)).toMatchObject({ rowCount: present ? 0 : null, countEvidence: present ? "declared_organization_count" : "optional_not_reported", eligibleForDeletion: false });
       }
     }
+  });
+
+  it("projects activated modules when the archive carries them and never reports them as zero otherwise", async () => {
+    const absent = plan(await archive());
+    for (const table of OPTIONAL_INCLUDED_EXPORT_TABLES) {
+      expect(absent.tables.find((entry) => entry.table === table.name)).toMatchObject({ rowCount: null, coverage: "optional_not_reported", countEvidence: "optional_not_reported", eligibleForDeletion: false });
+    }
+    const present = plan(await archive({ activated: true }));
+    expect(present.tables.filter((table) => table.coverage === "projected_values")).toHaveLength(46 + OPTIONAL_INCLUDED_EXPORT_TABLES.length);
+    for (const table of OPTIONAL_INCLUDED_EXPORT_TABLES) {
+      expect(present.tables.find((entry) => entry.table === table.name)).toMatchObject({ rowCount: 1, coverage: "projected_values", countEvidence: "projected_archive_rows", decision: "pending", eligibleForDeletion: false, retention: "unknown" });
+    }
+    expect(present.tables.find((entry) => entry.table === "admission_links")?.omittedColumns).toEqual(["token"]);
+    expect(present.tables.find((entry) => entry.table === "admission_links")?.missingDecisions).toContain("excluded_values_and_delivery_channel");
+    const serialized = JSON.stringify(present);
+    expect(serialized).not.toContain("family@example.invalid");
+    expect(serialized).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
   });
 
   it("preserves exact excluded int8 counts without Number conversion", async () => {

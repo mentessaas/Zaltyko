@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  commercialLaunchProfile,
+  getCommercialLaunchProfile,
   getCommercialLaunchReadiness,
   isSaasCheckoutEnabled,
   isSaasCheckoutEnabledForMarket,
@@ -8,6 +8,16 @@ import {
 } from "@/lib/launch/commercial-launch-profile";
 
 describe("live contracting requires verified seller and tax readiness", () => {
+  // El perfil real lee NIF y domicilio del entorno: en estas pruebas faltan.
+  beforeEach(() => {
+    vi.stubEnv("ZALTYKO_SELLER_TAX_ID", undefined);
+    vi.stubEnv("ZALTYKO_SELLER_PROFESSIONAL_ADDRESS", undefined);
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+  const commercialLaunchProfile = getCommercialLaunchProfile({});
+
   const complete: CommercialLaunchProfile = {
     legalName: "Vendedor sintético",
     countryCode: "ES",
@@ -26,17 +36,24 @@ describe("live contracting requires verified seller and tax readiness", () => {
   };
 
   it("keeps real charges closed while test checkout remains available", () => {
-    expect(commercialLaunchProfile.registrationStatus).toBe("pending");
+    // Alta en Hacienda y RETA verificada con el modelo 036 (13-11-2026).
+    expect(commercialLaunchProfile.registrationStatus).toBe("verified");
+    expect(commercialLaunchProfile.registrationVerifiedOn).toBe("2026-11-05");
+    // Sin variables de entorno no hay NIF ni domicilio.
     expect(commercialLaunchProfile.taxId).toBeNull();
     expect(commercialLaunchProfile.professionalAddress).toBeNull();
-    // Alta en Hacienda y RETA confirmada por documento; sigue pending sin NIF/domicilio.
-    expect(commercialLaunchProfile.registrationVerifiedOn).toBe("2026-11-05");
-    // Ninguna bandera de verificación se marca en este cambio.
+    // Tratamiento fiscal de España revisado con el gestor; el resto sigue sin marcar.
     expect(commercialLaunchProfile).toMatchObject({
-      supportMailboxVerified: false, taxTreatmentReviewed: false, checkoutTaxVerified: false,
+      taxTreatmentReviewed: true,
+      supportMailboxVerified: false, checkoutTaxVerified: false,
       legalTextsApproved: false, invoicingIntegrationReady: false, liveReleaseApproved: false,
     });
-    expect(getCommercialLaunchReadiness().missing).toContain("invoicing_integration");
+    const { missing } = getCommercialLaunchReadiness();
+    expect(missing).toEqual(expect.arrayContaining([
+      "seller_tax_id", "seller_address", "registration_incomplete", "invoicing_integration",
+    ]));
+    expect(missing).not.toContain("registration");
+    expect(missing).not.toContain("tax_treatment");
     expect(isSaasCheckoutEnabled("live")).toBe(false);
     expect(isSaasCheckoutEnabled("test")).toBe(true);
   });
@@ -97,8 +114,11 @@ describe("live contracting requires verified seller and tax readiness", () => {
     });
     expect(result.missing).not.toContain("seller_tax_id");
     expect(result.missing).not.toContain("seller_address");
+    expect(result.missing).not.toContain("registration_incomplete");
     expect(result.ready).toBe(false);
-    expect(result.missing).toEqual(expect.arrayContaining(["registration", "checkout_tax", "tax_treatment", "legal_texts", "invoicing_integration", "live_release"]));
+    expect(result.missing).toEqual(expect.arrayContaining(["support_mailbox", "checkout_tax", "legal_texts", "invoicing_integration", "live_release"]));
+    expect(getCommercialLaunchReadiness({ ...complete, taxTreatmentReviewed: false }).missing)
+      .toEqual(["tax_treatment"]);
     expect(getCommercialLaunchReadiness(complete)).toEqual({ ready: true, missing: [] });
   });
 

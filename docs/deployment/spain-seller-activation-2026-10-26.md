@@ -9,18 +9,21 @@ sin IVA: Starter 19 €/mes o 190 €/año y Growth 49 €/mes o 490 €/año.
 
 Confirmaciones del 13-11-2026 (sesión de finanzas de Elvis con su gestor):
 
-- Alta en Hacienda y en el RETA el **05-11-2026**, confirmada por documento.
-  Se anota en `registrationVerifiedOn`. `registrationStatus` sigue en `pending`
-  hasta que el perfil tenga NIF y domicilio: la readiness rechaza un `verified`
-  sin ellos (`registration_incomplete`).
+- Alta en Hacienda y en el RETA el **05-11-2026**, verificada con el modelo
+  036. Se anota en `registrationVerifiedOn` y `registrationStatus` pasa a
+  `"verified"`. Mientras falten las variables de NIF o domicilio, la readiness
+  sigue rechazando con `seller_tax_id` / `seller_address` y
+  `registration_incomplete`.
 - Domicilio profesional en la Península o Baleares (no en Canarias, Ceuta ni
   Melilla), así que aplica el contrato de IVA general del 21 %. El domicilio
-  concreto lo escribe Elvis en el perfil y CI lo vuelve a comprobar por código
-  postal (`seller_tax_territory_review` si cayera fuera del territorio del IVA).
+  concreto va en una variable de entorno de Vercel (ver «NIF y domicilio por
+  variables de entorno») y la readiness lo vuelve a comprobar por código postal
+  (`seller_tax_territory_review` si cayera fuera del territorio del IVA).
 - Actividad: IAE 844 (sección empresarial), régimen general de IVA al 21 %, sin
   recargo de equivalencia ni criterio de caja y **sin retención de IRPF** en las
   facturas. Los clubes y asociaciones sin ánimo de lucro **no están exentos**:
-  también pagan el 21 %. Esto queda en `sellerTaxProfile` como dato informativo.
+  también pagan el 21 %. Esto queda en `sellerTaxProfile` como dato informativo
+  y `taxTreatmentReviewed` pasa a `true` **solo para España** (ver la tabla).
 - Facturación: las facturas **no se emiten en Stripe**. Elvis factura todo en
   FacturaDirecta, serie «ZA», con numeración única que recibe su gestor.
 
@@ -36,9 +39,11 @@ suscripción. Stripe recogió NIF, razón social y dirección, y el webhook acti
 el plan Starter. No sustituye las comprobaciones que faltan ni marca ninguna
 bandera por sí sola.
 
-Lo técnico para cobrar en España queda preparado, pero **nada se abre**: el
-perfil conserva NIF y domicilio vacíos y todas las comprobaciones en `false`,
-así que Checkout Live sigue respondiendo 503 `BILLING_CONFIGURATION_UNAVAILABLE`.
+Lo técnico para cobrar en España queda preparado, pero **nada se abre**: sin
+las variables de NIF y domicilio en Vercel y con `supportMailboxVerified`,
+`checkoutTaxVerified`, `legalTextsApproved`, `invoicingIntegrationReady` y
+`liveReleaseApproved` en `false`, Checkout Live sigue respondiendo 503
+`BILLING_CONFIGURATION_UNAVAILABLE`.
 
 Historial: el 26-10-2026 Elvis declaró que preveía darse de alta; ese día se
 preparó el perfil único y se bloqueó Live.
@@ -47,27 +52,61 @@ preparó el perfil único y se bloqueó Live.
 
 `src/lib/launch/commercial-launch-profile.ts` contiene el perfil único consumido
 por Términos, Privacidad (bloque «Identificación de Zaltyko», enlazado en el
-pie como «Identificación del titular») y el control de Checkout SaaS. No guardar
+pie como «Identificación del titular») y el control de Checkout SaaS
+(`getCommercialLaunchProfile()`, evaluado solo en servidor). No guardar
 documentos de identidad, contraseñas o claves en ese archivo ni en este informe.
+
+**El repositorio es público**: el NIF y el domicilio **no se escriben en el
+código** (quedarían para siempre en el historial de git). Se leen de variables
+de entorno del servidor; ver la sección siguiente. Un test de CI
+(`tests/seller-identity-environment.test.ts`) falla si alguien vuelve a escribir
+un NIF o un código postal literal en el perfil.
 
 | Campo | Estado 13-11 | Quién y cómo se completa |
 | --- | --- | --- |
 | legalName | Elvis Valdes Inerarte | Contrastar grafía con el documento fiscal |
 | countryCode | ES | Sin cambios |
-| taxId | null, marcado «ELVIS: escribe aquí tu NIF» | Elvis, en el PR: NIF/NIE en mayúsculas sin espacios. CI comprueba la letra de control |
-| professionalAddress | null, marcado «ELVIS: domicilio profesional publicable» | Elvis, en el PR: «Vía y número, piso/puerta, CP Localidad (Provincia)». CI exige coma y CP español |
-| registrationVerifiedOn | 2026-11-05 | Alta en Hacienda y RETA confirmada por documento |
-| registrationStatus | pending | Elvis, en el mismo commit en el que escribe NIF y domicilio: `"verified"` |
+| taxId | Variable `ZALTYKO_SELLER_TAX_ID` en Vercel; hoy sin configurar | Elvis (o finanzas con su visto bueno), en Vercel. Nunca en el repositorio |
+| professionalAddress | Variable `ZALTYKO_SELLER_PROFESSIONAL_ADDRESS` en Vercel; hoy sin configurar | Elvis (o finanzas con su visto bueno), en Vercel. Nunca en el repositorio |
+| registrationVerifiedOn | 2026-11-05 | Alta en Hacienda y RETA verificada con el modelo 036 |
+| registrationStatus | **verified** (13-11) | Confirmado por la sesión de finanzas con el gestor. Sin las dos variables, la readiness sigue en `registration_incomplete` |
 | supportEmail | hola@zaltyko.com | Sin cambios |
 | supportMailboxVerified | false | Claude envía un correo real a hola@zaltyko.com; Elvis lo responde desde el buzón; se marca `true` en un PR |
-| taxTreatmentReviewed | false | Elvis: el gestor ya confirmó el tratamiento del 13-11; la marca Elvis cuando lo dé por cerrado |
+| taxTreatmentReviewed | **true** (13-11), solo España | Confirmado por la sesión de finanzas con el gestor: IAE 844, IVA 21 %, sin retención. No abre otros mercados: Live por país lo decide `COMMERCIAL_MARKET_REGISTRY` (solo ES) y el territorio fiscal (solo Península/Baleares). UE (empresa o particular) y México necesitan su propia revisión |
 | checkoutTaxVerified | false | Claude, tras la prueba en Stripe test en staging y la revisión de la sesión y el recibo |
 | legalTextsApproved | false | Elvis, tras la revisión legal pendiente (ver más abajo) |
 | invoicingIntegrationReady | false | Prueba de punta a punta en modo test confirmada por finanzas el 13-11. Se marca cuando la clave restringida y el webhook hacia n8n existan también en la cuenta Live de Stripe |
 | liveReleaseApproved | false | Elvis, la última, con Stripe Live y Vercel configurados y CI verde |
 
 Completar NIF y domicilio no basta para abrir cobros: `getCommercialLaunchReadiness`
-exige cada comprobación por separado. CI valida el formato, no el alta.
+exige cada comprobación por separado. La readiness valida el formato, no el alta.
+
+## NIF y domicilio por variables de entorno (nunca en el repositorio)
+
+Elvis, o la sesión de finanzas con su visto bueno:
+
+1. Vercel → proyecto `zaltyko` → Settings → Environment Variables. Añadir en
+   **Production** (no hace falta en Preview; staging puede quedarse sin ellas o
+   usar valores sintéticos):
+   - `ZALTYKO_SELLER_TAX_ID`: NIF/NIE en mayúsculas, sin espacios, puntos,
+     guiones ni comillas. DNI: 8 cifras + letra de control; NIE: X, Y o Z +
+     7 cifras + letra de control.
+   - `ZALTYKO_SELLER_PROFESSIONAL_ADDRESS`: domicilio profesional publicable,
+     sin comillas, con esta forma: «Vía y número, piso/puerta, CP Localidad
+     (Provincia)». Debe llevar al menos una coma y un código postal español de
+     5 cifras de la Península o Baleares.
+   - No usar el prefijo `NEXT_PUBLIC_`: son variables de servidor.
+2. **Redesplegar** Production: las variables nuevas solo llegan a un despliegue
+   nuevo, y Términos, Privacidad y /pricing pueden quedar prerenderizadas en
+   el build.
+3. Comprobar en zaltyko.com/terminos#titular que aparecen NIF y domicilio. Si
+   un valor está mal escrito, la página muestra «Pendiente de completar» y la
+   readiness lo señala con `seller_tax_id_format`, `seller_address_format` o
+   `seller_tax_territory_review`; Live sigue cerrado.
+
+No pegar estos valores en el repositorio, en un PR, en un issue ni en
+`.env.example` (allí van vacíos). `.env.local` en la máquina de Elvis está
+ignorado por git, pero no hace falta para producción.
 
 ## Contrato fiscal de Checkout (implementado, sin activar)
 
@@ -237,9 +276,9 @@ Baleares. Para abrir otros mercados:
 ## Siguiente paso
 
 Elvis:
-1. En el PR, desde el editor web de GitHub, escribir NIF y domicilio en
-   `src/lib/launch/commercial-launch-profile.ts` y, en el mismo commit,
-   `registrationStatus: "verified"`.
+1. En Vercel (Production), añadir `ZALTYKO_SELLER_TAX_ID` y
+   `ZALTYKO_SELLER_PROFESSIONAL_ADDRESS` y redesplegar (ver «NIF y domicilio
+   por variables de entorno»). Nunca en el repositorio.
 2. Confirmar que recibe y responde correos en hola@zaltyko.com.
 3. En Stripe **Live** (cuenta propia):
    - Crear el Tax Rate «IVA» 21 %, exclusivo, país España, tipo VAT.
@@ -258,8 +297,9 @@ Elvis:
    por finanzas (13-11). Cuando el webhook hacia n8n y la clave restringida de
    solo lectura existan también en la cuenta Live, se marca
    `invoicingIntegrationReady`.
-6. Cerrar la revisión legal pendiente y el DPA; marcar `taxTreatmentReviewed`
-   y `legalTextsApproved`; `liveReleaseApproved`, la última.
+6. Cerrar la revisión legal pendiente y el DPA; marcar `legalTextsApproved`;
+   `liveReleaseApproved`, la última. (`registrationStatus: "verified"` y
+   `taxTreatmentReviewed` para España ya están marcados desde el 13-11.)
 
 Claude (cuando Elvis lo autorice para staging):
 1. Crear en Stripe **test** el mismo Tax Rate y poner

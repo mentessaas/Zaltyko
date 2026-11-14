@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
+import { ownerNoticeAviso } from "./owner-form-tones";
+import { ownerUi } from "./owner-ui";
+import { cn } from "@/lib/utils";
 import {
   clearPendingFamilyCollectionPreference,
   familyCollectionCommandFromSnapshot,
@@ -356,7 +359,7 @@ export function FamilyCollectionModeCard({
 
   if (!canManage) {
     return (
-      <p className="rounded-xl bg-z-canvas px-4 py-3 text-sm leading-5 text-z-soft">
+      <p className={cn(ownerUi.subtlePanel, "text-sm leading-5 text-z-soft")}>
         La modalidad se configura por familia y requiere acceso a todas las
         sedes de la academia.
       </p>
@@ -373,7 +376,7 @@ export function FamilyCollectionModeCard({
   return (
     <section
       aria-labelledby="family-collection-mode-title"
-      className="rounded-2xl border border-z-line bg-z-canvas p-4"
+      className="rounded-xl border border-z-line bg-z-canvas p-4"
     >
       <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
       <div>
@@ -391,7 +394,7 @@ export function FamilyCollectionModeCard({
 
       {pendingCommand && !pendingCommandMatchesScope ? (
         <p
-          className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm leading-5 text-amber-950"
+          className={cn(ownerNoticeAviso, "mt-3 px-3 py-2")}
           role="alert"
         >
           Hay una solicitud pendiente para otra familia o academia. Vuelve a su
@@ -400,14 +403,14 @@ export function FamilyCollectionModeCard({
       ) : null}
       {pendingRecoveryMessage ? (
         <p
-          className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm leading-5 text-red-900"
+          className={cn(ownerUi.noticeError, "mt-3 px-3 py-2")}
           role="alert"
         >
           {pendingRecoveryMessage}
         </p>
       ) : null}
       {pendingCommand && pendingCommandMatchesScope ? (
-        <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-sm leading-5 text-amber-950">
+        <div className={cn(ownerNoticeAviso, "mt-3 px-3 py-3")}>
           <p>
             No se pudo confirmar la solicitud anterior. Puedes reintentarla con
             la misma clave y el mismo contenido.
@@ -418,7 +421,7 @@ export function FamilyCollectionModeCard({
               saving || writesBlocked || pendingRecoveryStatus !== "ready"
             }
             onClick={() => void sendPreference(pendingCommand)}
-            className="mt-2 min-h-11 rounded-full bg-amber-900 px-4 text-sm font-bold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className={cn(ownerUi.primaryButton, "mt-2")}
           >
             {saving ? "Reintentando…" : "Reintentar solicitud pendiente"}
           </button>
@@ -430,7 +433,7 @@ export function FamilyCollectionModeCard({
           Cargando preferencia…
         </p>
       ) : errorMessage && !preference ? (
-        <p className="mt-3 text-sm text-red-800" role="alert">
+        <p className="mt-3 text-sm font-medium text-signal-ink" role="alert">
           {errorMessage}
         </p>
       ) : (
@@ -446,7 +449,7 @@ export function FamilyCollectionModeCard({
             }
           >
             <legend className="sr-only">Preferencia de cobro</legend>
-            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-z-line bg-white px-3 py-2">
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-card border border-chalk-line bg-white px-3 py-2 has-[:checked]:border-mat has-[:checked]:bg-mat-wash">
               <input
                 checked={selectedMode === "manual"}
                 className="size-4 accent-z-brand-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500"
@@ -460,10 +463,10 @@ export function FamilyCollectionModeCard({
               </span>
             </label>
             <label
-              className={`flex min-h-12 items-center gap-3 rounded-xl border bg-white px-3 py-2 ${
+              className={`flex min-h-12 items-center gap-3 rounded-card border bg-white px-3 py-2 has-[:checked]:border-mat has-[:checked]:bg-mat-wash ${
                 preference?.automaticPreferenceAvailable
-                  ? "cursor-pointer border-z-line"
-                  : "cursor-not-allowed border-z-line opacity-70"
+                  ? "cursor-pointer border-chalk-line"
+                  : "cursor-not-allowed border-chalk-line opacity-70"
               }`}
             >
               <input
@@ -482,7 +485,7 @@ export function FamilyCollectionModeCard({
           </fieldset>
 
           {preference?.requiresConfirmation ? (
-            <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm leading-5 text-amber-950">
+            <p className={cn(ownerNoticeAviso, "mt-3 px-3 py-2")}>
               {preference.automaticPreferenceAvailable
                 ? "La solicitud automática anterior dejó de ser válida al cambiar el plan. La familia sigue en modo manual; vuelve a solicitarla si quieres conservar esa preferencia futura."
                 : "La solicitud automática anterior dejó de ser válida al cambiar el plan. La familia queda en modo manual; podrás volver a solicitarla con un plan de pago vigente."}
@@ -494,7 +497,7 @@ export function FamilyCollectionModeCard({
               vigente.
             </p>
           ) : null}
-          <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950">
+          <p className={cn(ownerNoticeAviso, "mt-3 px-3 py-2 text-xs leading-5")}>
             La solicitud no autoriza al pagador ni inicia cobros. Activar esta
             modalidad requiere consentimiento, habilitar el procesamiento y
             completar sus pruebas de seguridad.
@@ -508,7 +511,7 @@ export function FamilyCollectionModeCard({
           <span className="text-z-brand-700">{savedMessage}</span>
         ) : null}
         {!saving && errorMessage && preference ? (
-          <span className="text-red-700" role="alert">
+          <span className="font-medium text-signal-ink" role="alert">
             {errorMessage}
           </span>
         ) : null}
