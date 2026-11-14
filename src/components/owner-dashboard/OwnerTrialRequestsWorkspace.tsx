@@ -11,6 +11,7 @@ import {
 } from "@/modules/admissions/domain/trial-request";
 
 import { ownerUi } from "./owner-ui";
+import { ownerTab, ownerTone } from "./owner-tone-ui";
 
 const ENDPOINT = "/api/v1/owner/trial-requests";
 const PAGE_SIZE = 25;
@@ -70,9 +71,11 @@ async function problemDetail(response: Response, fallback: string): Promise<stri
 }
 
 function statusChip(status: TrialRequestStatus): string {
-  if (status === "new") return ownerUi.chipAttention;
-  if (status === "contacted") return ownerUi.chipAccent;
-  return ownerUi.chip;
+  // Nueva: pendiente de responder (aviso en ocre); contactada: en curso (tapiz);
+  // cerrada: en reposo (polvo).
+  if (status === "new") return ownerTone.chipWarning;
+  if (status === "contacted") return ownerTone.chipActive;
+  return ownerTone.chipRest;
 }
 
 export function OwnerTrialRequestsWorkspace({
@@ -208,7 +211,6 @@ export function OwnerTrialRequestsWorkspace({
   return (
     <main className={ownerUi.page}>
       <header className={ownerUi.pageHeader}>
-        <p className={ownerUi.eyebrow}>Personas</p>
         <h1 className={ownerUi.pageTitle}>Solicitudes</h1>
         <p className={ownerUi.pageLead}>
           Familias que piden una clase de prueba en {organizationName}. Respóndeles y, cuando os pongáis de
@@ -217,7 +219,7 @@ export function OwnerTrialRequestsWorkspace({
       </header>
 
       {data && !data.available ? (
-        <p role="status" className={`${ownerUi.noticeWarning} mb-6`}>
+        <p role="status" className={`${ownerTone.noticeWarning} mb-6`}>
           <strong>Pendiente de activar.</strong> Las solicitudes en línea se activarán cuando se instale su
           almacenamiento. Hasta entonces no se puede crear el enlace para familias.
         </p>
@@ -295,14 +297,14 @@ export function OwnerTrialRequestsWorkspace({
       ) : null}
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div role="tablist" aria-label="Estado de las solicitudes" className="flex gap-2">
+        <div role="tablist" aria-label="Estado de las solicitudes" className={ownerTone.tabList}>
           {(["open", "closed"] as const).map((option) => (
             <button
               key={option}
               type="button"
               role="tab"
               aria-selected={view === option}
-              className={view === option ? ownerUi.primaryButton : ownerUi.secondaryButton}
+              className={ownerTab(view === option)}
               onClick={() => {
                 setView(option);
                 setPage(1);

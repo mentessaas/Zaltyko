@@ -21,6 +21,7 @@ import { OwnerTodaySessionsPanel } from "@/components/owner-dashboard/OwnerToday
 import { OwnerScheduleConflictList } from "@/components/owner-dashboard/OwnerScheduleConflicts";
 import { getUpcomingScheduleConflicts } from "@/modules/schedule-conflicts/application/schedule-conflicts-service";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { ownerTab, ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
 import { logger } from "@/lib/logger";
 import { getOwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
 import {
@@ -159,7 +160,8 @@ export default async function OwnerAttendancePage({
         <div className="mx-auto w-full max-w-6xl px-5 pt-7 sm:pt-9 lg:px-10">
           <div className="mx-auto grid max-w-4xl gap-4">
             {scope.locations.length > 1 ? (
-              <nav aria-label="Sedes asignadas" className="flex flex-wrap gap-2">
+              // Pestañas planas con cinta bajo la sede activa, no botones.
+              <nav aria-label="Sedes asignadas" className={ownerTone.tabList}>
                 {scope.locations.map((location) => (
                   <Link
                     key={location.id}
@@ -168,7 +170,7 @@ export default async function OwnerAttendancePage({
                       locationId: location.id,
                     })}
                     aria-current={location.id === data.locationId ? "page" : undefined}
-                    className={location.id === data.locationId ? ownerUi.primaryButton : ownerUi.secondaryButton}
+                    className={ownerTab(location.id === data.locationId)}
                   >
                     {location.name}
                   </Link>

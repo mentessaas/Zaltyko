@@ -146,7 +146,7 @@ export function PublicTrialRequestForm({
       ) : null}
 
       <fieldset className="grid min-w-0 gap-4">
-        <legend className="mb-1 text-sm font-black uppercase tracking-wide text-z-ink">
+        <legend className="floor-label mb-1 text-z-ink">
           Persona adulta responsable
         </legend>
         <label className={labelClassName}>
@@ -189,7 +189,7 @@ export function PublicTrialRequestForm({
       </fieldset>
 
       <fieldset className="grid min-w-0 gap-4">
-        <legend className="mb-1 text-sm font-black uppercase tracking-wide text-z-ink">
+        <legend className="floor-label mb-1 text-z-ink">
           Gimnasta
         </legend>
         <label className={labelClassName}>
@@ -257,7 +257,7 @@ export function PublicTrialRequestForm({
         <span>
           Acepto que {organizationName} use estos datos para responder a esta solicitud.
           Zaltyko los trata por cuenta de la academia. Consulta la{" "}
-          <Link href="/politica-privacidad" className="font-semibold text-z-brand-700 underline">
+          <Link href="/politica-privacidad" className="font-semibold text-mat underline underline-offset-2">
             política de privacidad
           </Link>
           .
@@ -265,7 +265,7 @@ export function PublicTrialRequestForm({
       </label>
 
       {state.kind === "error" ? (
-        <p role="alert" className="rounded-md border border-z-chalk-500/40 bg-z-chalk-50 p-3 text-sm font-semibold leading-6 text-z-chalk-600">
+        <p role="alert" className="rounded-md border border-signal/30 bg-signal-wash p-3 text-sm font-semibold leading-6 text-signal-ink">
           {state.message}
         </p>
       ) : null}

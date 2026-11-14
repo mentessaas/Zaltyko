@@ -28,6 +28,7 @@ import {
 } from "./owner-staff-command-journal";
 import { usePendingCommandExitWarning } from "./use-pending-command-exit-warning";
 import { ownerUi } from "./owner-ui";
+import { ownerTone } from "./owner-tone-ui";
 
 const STAFF_ENDPOINT = "/api/v1/owner/staff";
 const PAGE_SIZE = 25;
@@ -543,20 +544,21 @@ export function OwnerStaffManager({
   return (
     <main className={ownerUi.page}>
       <header className={ownerUi.pageHeader}>
-        <p className={ownerUi.eyebrow}>{organizationName}</p>
         <h1 className={ownerUi.pageTitle}>Equipo</h1>
+        {/* La academia es un dato del bloque, debajo del título, no un antetítulo. */}
+        <p className="floor-label mt-2 break-words text-ramp-600 [overflow-wrap:anywhere]">{organizationName}</p>
         <p className={ownerUi.pageLead}>
           Las personas que hacen posible el día a día de tu club.
         </p>
       </header>
 
-      {mutationError ? <p role="alert" className="mb-5 rounded-xl border border-signal/30 bg-signal-wash p-4 text-sm leading-6 text-signal-ink sm:p-5">{mutationError}</p> : null}
-      {notice ? <p role="status" aria-live="polite" className="mb-5 rounded-xl border border-z-brand-100 bg-z-brand-50 p-4 text-sm leading-6 text-z-brand-700 sm:p-5">{notice}</p> : null}
+      {mutationError ? <p role="alert" className="mb-5 rounded-md border border-signal/30 bg-signal-wash p-4 text-sm font-semibold leading-6 text-signal-ink sm:p-5">{mutationError}</p> : null}
+      {notice ? <p role="status" aria-live="polite" className={`mb-5 ${ownerTone.noticeInfo}`}>{notice}</p> : null}
 
       {pendingCommand ? (
-        <section aria-labelledby="owner-staff-pending-title" className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5 sm:p-6">
-          <h2 id="owner-staff-pending-title" className="font-display text-lg font-bold text-z-ink">Operación pendiente</h2>
-          <p className="mt-2 text-sm leading-6 text-z-ink">
+        <section aria-labelledby="owner-staff-pending-title" className={`mb-6 ${ownerTone.noticeWarning} sm:p-5`}>
+          <h2 id="owner-staff-pending-title" className="font-display text-lg font-black uppercase leading-none">Operación pendiente</h2>
+          <p className="mt-2 text-sm leading-6">
             Sigue pendiente la acción de {operationLabel(pendingCommand.operation)}. Se ha guardado en este navegador para que puedas reintentar exactamente la misma acción desde una pestaña con acceso. No se envía automáticamente al abrir o actualizar la página.
           </p>
           <button type="button" className={`${BUTTON_CLASS} mt-4`} disabled={busy || journalState !== "ready"} onClick={() => void retryPendingCommand()}>
@@ -565,20 +567,20 @@ export function OwnerStaffManager({
         </section>
       ) : null}
 
-      <section aria-labelledby="owner-staff-create-title" className="rounded-xl border border-z-line bg-white p-5 sm:p-7">
+      <section aria-labelledby="owner-staff-create-title" className={ownerUi.card}>
         <div className="flex items-start gap-3 sm:gap-4">
-          <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-z-brand-50 text-z-brand-600">
+          <span aria-hidden="true" className={ownerUi.iconTile}>
             <UserRound className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <h2 id="owner-staff-create-title" className="font-display text-xl font-bold tracking-tight text-z-ink">Añadir al equipo</h2>
+            <h2 id="owner-staff-create-title" className={ownerUi.sectionTitle}>Añadir al equipo</h2>
             <p className="mt-1 text-sm leading-6 text-z-soft">Guarda su nombre para tenerlo en la lista del equipo.</p>
           </div>
         </div>
         <form className="mt-7 space-y-6" onSubmit={submitCreate}>
           <NameFields prefix="owner-staff-create" draft={createDraft} disabled={!canWrite} onChange={updateCreateDraft} />
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <p className="flex max-w-xl items-start gap-2.5 rounded-xl bg-z-canvas px-4 py-3 text-sm leading-6 text-z-soft">
+            <p className="flex max-w-xl items-start gap-2.5 rounded-md bg-z-canvas px-4 py-3 text-sm leading-6 text-z-soft">
               <LockKeyhole aria-hidden="true" className="mt-1 h-4 w-4 shrink-0 text-z-brand-600" />
               <span>Esta persona no podrá iniciar sesión. No se crea una cuenta ni se envía una invitación.</span>
             </p>
@@ -591,8 +593,8 @@ export function OwnerStaffManager({
       </section>
 
       {receipt ? (
-        <section aria-labelledby="owner-staff-receipt-title" className="mt-6 rounded-xl border border-z-brand-100 bg-z-brand-50 p-5 sm:p-6">
-          <h2 id="owner-staff-receipt-title" className="font-display text-lg font-bold text-z-ink">Recibo original de la operación</h2>
+        <section aria-labelledby="owner-staff-receipt-title" className={`mt-6 ${ownerTone.noticeInfo} sm:p-5`}>
+          <h2 id="owner-staff-receipt-title" className="font-display text-lg font-black uppercase leading-none text-z-ink">Recibo original de la operación</h2>
           <p className="mt-2 text-sm text-z-ink [overflow-wrap:anywhere]">Perfil {receipt.staffProfileId} · versión {receipt.version} · {receipt.isActive ? "activo en el recibo" : "archivado en el recibo"}{receipt.replayed ? " · respuesta recuperada" : ""}</p>
           <p className="mt-1 text-xs leading-5 text-z-soft">Esta es la confirmación de aquella operación. Debajo puedes consultar la lista actual del equipo, que puede incluir cambios posteriores.</p>
         </section>
@@ -601,7 +603,7 @@ export function OwnerStaffManager({
       <section aria-labelledby="owner-staff-list-title" className="mt-10 sm:mt-12">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 id="owner-staff-list-title" className="font-display text-2xl font-bold tracking-tight text-z-ink">Personas del equipo</h2>
+            <h2 id="owner-staff-list-title" className={ownerUi.sectionTitle}>Personas del equipo</h2>
             <p className="mt-1 text-sm leading-6 text-z-soft">Consulta la lista actual o revisa las personas archivadas.</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -622,14 +624,14 @@ export function OwnerStaffManager({
 
         {listState === "loading" ? <p role="status" aria-live="polite" className="py-8 text-sm text-z-soft">Cargando equipo…</p> : null}
         {listState === "error" ? (
-          <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-5">
-            <p role="alert" className="text-sm leading-6 text-z-ink">{listError}</p>
+          <div className="mt-5 rounded-md border border-signal/30 bg-signal-wash p-4 sm:p-5">
+            <p role="alert" className="text-sm font-semibold leading-6 text-signal-ink">{listError}</p>
             <button type="button" className={`${SECONDARY_BUTTON_CLASS} mt-3`} onClick={() => setRefreshKey((value) => value + 1)}>Volver a cargar</button>
           </div>
         ) : null}
         {listState === "ready" && items.length === 0 ? (
-          <div className="mt-5 flex flex-col items-center rounded-xl bg-z-canvas px-6 py-10 text-center sm:py-12">
-            <span aria-hidden="true" className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white text-z-brand-600">
+          <div className={`mt-5 ${ownerUi.emptyState}`}>
+            <span aria-hidden="true" className={ownerUi.emptyIcon}>
               <UsersRound className="h-6 w-6" />
             </span>
             <p className="max-w-md text-sm leading-6 text-z-soft">Todavía no hay personas en esta vista. Puedes añadir a alguien al equipo desde el formulario de arriba.</p>
@@ -638,24 +640,24 @@ export function OwnerStaffManager({
         {listState === "ready" && items.length > 0 ? (
           <ul className="mt-5 grid gap-3">
             {items.map((profile) => (
-              <li key={profile.id} className="rounded-xl border border-z-line bg-white p-5 sm:p-6">
+              <li key={profile.id} className={ownerUi.listItem}>
                 <article aria-labelledby={`owner-staff-${profile.id}-name`} className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
-                    <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-z-brand-50 font-display text-sm font-bold text-z-brand-600">
+                    <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-mat-wash font-display text-sm font-black text-mat-deep">
                       {profile.givenName.slice(0, 1)}{profile.familyName.slice(0, 1)}
                     </span>
                     <div className="min-w-0">
                       <h3 id={`owner-staff-${profile.id}-name`} className="break-words font-semibold text-z-ink">{displayName(profile)}</h3>
                       {profile.preferredName ? <p className="mt-1 break-words text-sm text-z-soft">En el club: {profile.preferredName}</p> : null}
-                      <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${profile.isActive ? "bg-z-brand-50 text-z-brand-600" : "bg-z-canvas text-z-soft"}`}>
-                        <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${profile.isActive ? "bg-z-comp-600" : "bg-z-soft"}`} />
+                      <p className={`mt-2 ${profile.isActive ? ownerTone.chipActive : ownerTone.chipRest}`}>
+                        <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-sm ${profile.isActive ? "bg-mat" : "bg-ramp-400"}`} />
                         {profile.isActive ? "Activo" : "Archivado"}
                       </p>
                     </div>
                   </div>
                   {editDraft?.staffProfileId === profile.id ? (
-                    <form className="w-full min-w-0 space-y-5 rounded-xl bg-z-canvas p-4 sm:p-5 lg:max-w-3xl" onSubmit={(event) => submitEdit(event, profile)}>
-                      <h4 className="font-display text-base font-bold text-z-ink">Editar datos</h4>
+                    <form className="w-full min-w-0 space-y-5 rounded-card border border-z-line bg-z-canvas p-4 sm:p-5 lg:max-w-3xl" onSubmit={(event) => submitEdit(event, profile)}>
+                      <h4 className="font-display text-base font-black uppercase leading-none text-z-ink">Editar datos</h4>
                       <NameFields prefix={`owner-staff-edit-${profile.id}`} draft={editDraft} disabled={!canWrite} onChange={updateEditDraft} />
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <button type="submit" className={BUTTON_CLASS} disabled={!canWrite}>Guardar cambios</button>
@@ -679,7 +681,7 @@ export function OwnerStaffManager({
             ))}
           </ul>
         ) : null}
-        {listError && listState === "ready" ? <p role="alert" className="mt-3 text-sm text-rose-800">{listError}</p> : null}
+        {listError && listState === "ready" ? <p role="alert" className={`mt-3 ${ownerTone.inlineError}`}>{listError}</p> : null}
         {listState === "ready" && nextCursor ? (
           <button type="button" className={`${SECONDARY_BUTTON_CLASS} mt-4`} disabled={loadingMore} onClick={() => void loadMore()}>
             {loadingMore ? "Cargando…" : "Cargar más personas"}

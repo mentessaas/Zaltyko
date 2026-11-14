@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell";
+import { ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import {
   FAMILY_SCHEDULE_DAYS,
@@ -54,8 +55,9 @@ export default async function FamilyAthletePage({
         ← Volver a tu familia
       </Link>
       <header className={`${ownerUi.pageHeader} mt-3`}>
-        <p className={ownerUi.eyebrow}>{schedule.organizationName}</p>
         <h1 className={ownerUi.pageTitle}>{schedule.athlete.displayName}</h1>
+        {/* La academia es un dato del bloque, debajo del título, no un antetítulo. */}
+        <p className="floor-label mt-2 break-words text-ramp-600 [overflow-wrap:anywhere]">{schedule.organizationName}</p>
         <p className={ownerUi.pageLead}>
           Datos desde el {formatCalendarDate(schedule.athlete.visibleSince)}, fecha en
           que la gimnasta se vinculó a tu familia.
@@ -79,7 +81,7 @@ export default async function FamilyAthletePage({
                     <p className="font-semibold text-z-ink">{item.className}</p>
                     <span
                       className={
-                        item.status === "paused" ? ownerUi.chipAttention : ownerUi.chip
+                        item.status === "paused" ? ownerTone.chipRest : ownerTone.chipActive
                       }
                     >
                       {enrollmentStatusLabel(item.status)}
@@ -107,7 +109,7 @@ export default async function FamilyAthletePage({
             </ul>
           )}
 
-          <h3 className="mt-6 text-sm font-semibold text-z-ink">
+          <h3 className="floor-label mt-6 text-ramp-600">
             Próximas sesiones ({FAMILY_SCHEDULE_DAYS} días)
           </h3>
           {schedule.upcomingSessions.length === 0 ? (
@@ -126,7 +128,7 @@ export default async function FamilyAthletePage({
                     · {session.className} · {session.locationName}
                   </span>
                   {session.status === "cancelled" ? (
-                    <span className={ownerUi.chipAttention}>
+                    <span className={ownerTone.chipWarning}>
                       {sessionStatusLabel(session.status)}
                     </span>
                   ) : null}
@@ -159,7 +161,7 @@ export default async function FamilyAthletePage({
                   </span>
                   <span
                     className={
-                      entry.status === "absent" ? ownerUi.chipAttention : ownerUi.chip
+                      entry.status === "absent" ? ownerTone.chipWarning : ownerTone.chipRest
                     }
                   >
                     {attendanceStatusLabel(entry.status)}

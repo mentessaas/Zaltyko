@@ -1,7 +1,8 @@
 import { ownerUi } from "./owner-ui";
 
 // Tonos de estado del mundo (DESIGN.md, «Tonos de estado» y The Aviso Rule)
-// para las pantallas de gimnastas, grupos y clases de /owner.
+// para las pantallas de /owner (gimnastas, grupos, clases, asistencia,
+// inscripciones, solicitudes, equipo) y el portal de familias.
 //
 // En `owner-ui.ts`, el aviso (`noticeWarning`) y el chip de atención
 // (`chipAttention`) siguen hoy en lavado de señal (coral) hasta que el PR-R lo
@@ -11,6 +12,11 @@ import { ownerUi } from "./owner-ui";
 // puede pasar a reutilizarlo.
 const FOCUS_RING =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500";
+
+const FOCUS_RING_MAT =
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mat";
+
+const CHIP = "inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold";
 
 export const ownerTone = {
   // Aviso: pendiente, bloqueado mientras se confirma, revisar antes de seguir.
@@ -46,4 +52,26 @@ export const ownerTone = {
   tableHeadCell: "floor-label px-3 py-2.5 text-z-soft",
   tableRow: "border-b border-z-line align-top transition-colors hover:bg-z-brand-50",
   tableCell: "px-3 py-3",
+
+  // --- Asistencia, inscripciones, solicitudes, equipo y portal de familias ---
+  // Texto suelto de aviso o error junto a un campo o una fila.
+  inlineWarning: "text-sm leading-6 text-ochre-ink",
+  inlineError: "text-sm font-semibold leading-6 text-signal-ink",
+  // Chips de estado: activo/en curso en tapiz, reposo en polvo.
+  chipActive: `${CHIP} bg-mat-wash text-mat-deep`,
+  chipRest: `${CHIP} bg-chalk-dust text-ramp-600`,
+  // «Ahora»: en curso, rótulo de pista en lavado tapiz con punto pulsante.
+  chipLive: "inline-flex items-center gap-1.5 rounded-md bg-mat-wash px-2 py-0.5 text-[11px] font-bold uppercase text-mat-deep",
+  dotLive: "h-1.5 w-1.5 rounded-sm bg-mat-light motion-safe:animate-pulse",
+  // Acción secundaria silenciosa (texto subrayado de 44 px).
+  quietButton: `touch-target inline-flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-mat-night underline underline-offset-4 hover:text-mat ${FOCUS_RING_MAT} disabled:cursor-not-allowed disabled:opacity-50`,
+  // Pestañas planas con un tramo de cinta de 3 px bajo la activa.
+  tabList: "flex min-w-0 flex-wrap items-stretch gap-1 border-b border-chalk-line",
+  tab: `relative inline-flex min-h-11 items-center px-3 text-sm font-semibold transition-colors after:absolute after:inset-x-3 after:-bottom-px after:h-[3px] after:origin-center after:bg-mat after:transition-transform after:duration-200 ${FOCUS_RING_MAT}`,
+  tabActive: "text-mat after:scale-x-100",
+  tabIdle: "text-ramp-600 after:scale-x-0 hover:text-mat-night",
 } as const;
+
+export function ownerTab(active: boolean): string {
+  return `${ownerTone.tab} ${active ? ownerTone.tabActive : ownerTone.tabIdle}`;
+}

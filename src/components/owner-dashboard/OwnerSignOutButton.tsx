@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useHydrated } from "@/lib/auth/use-hydrated";
 
-export function OwnerSignOutButton() {
+/**
+ * `surface="mat"`: el botón va sobre una banda de tapiz (portal de familias),
+ * así que el error de cierre usa la tinta de señal clara (≈5,2:1 sobre
+ * `mat-deep`) en lugar de la tinta oscura, que sobre azul no llega a AA.
+ */
+export function OwnerSignOutButton({ surface = "light" }: { surface?: "light" | "mat" } = {}) {
   const router = useRouter();
   const hydrated = useHydrated();
   const pending = useRef(false);
@@ -42,7 +47,14 @@ export function OwnerSignOutButton() {
         {busy ? "Cerrando sesión…" : "Cerrar sesión"}
       </button>
       {failed ? (
-        <p role="alert" className="mt-2 max-w-48 text-xs text-z-chalk-600">
+        <p
+          role="alert"
+          className={
+            surface === "mat"
+              ? "mt-2 max-w-48 text-xs font-semibold text-signal-light"
+              : "mt-2 max-w-48 text-xs text-z-chalk-600"
+          }
+        >
           No se pudo cerrar la sesión. Inténtalo de nuevo.
         </p>
       ) : null}

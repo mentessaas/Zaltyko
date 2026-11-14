@@ -10,10 +10,17 @@ import type {
   TeamInvitationRole,
   TeamLocation,
 } from "@/modules/staff/domain/team-access-contract";
+import { ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
+import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 
 const ENDPOINT = "/api/v1/owner/staff";
-const BUTTON = "inline-flex min-h-11 items-center justify-center border border-slate-400 bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-55";
-const INPUT = "mt-1 min-h-11 w-full border border-slate-400 bg-white px-3 text-base text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800";
+// Misma base que el resto de /owner: secundario de cinta blanca, principal en
+// tapiz y campos de la mesa, sin la variante cuadrada slate/teal anterior.
+const BUTTON = ownerUi.secondaryButton;
+const PRIMARY_BUTTON = ownerUi.primaryButton;
+const INPUT = `mt-1 ${ownerUi.field} font-normal`;
+const SUBTITLE = "font-display text-xl font-black uppercase leading-none text-z-ink";
+const BODY = "text-sm leading-6 text-ramp-600";
 
 type Command = {
   operation: "create" | "reissue" | "revoke";
@@ -285,19 +292,19 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
 
   return (
     <section aria-labelledby="team-access-title" className="mx-auto max-w-6xl px-5 pb-12 lg:px-10 [overflow-wrap:anywhere]">
-      <header className="border-t border-slate-300 pt-7">
-        <h2 id="team-access-title" className="font-display text-2xl font-bold text-slate-950">Invitaciones al equipo</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">Invita a una persona del equipo para que entre con su propia cuenta en las sedes que elijas. Al aceptar, su cuenta queda vinculada a su ficha del equipo: la que elijas de Equipo o una nueva con el nombre que escribas.</p>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">El enlace es de un solo uso, caduca a los 7 días y solo sirve con el correo invitado. No se envía ningún correo: copia el enlace y compártelo tú. Revocar una invitación no da de baja a quien ya la aceptó.</p>
+      <header className="border-t border-z-line pt-7">
+        <h2 id="team-access-title" className={ownerUi.sectionTitle}>Invitaciones al equipo</h2>
+        <p className={`mt-2 max-w-3xl ${BODY}`}>Invita a una persona del equipo para que entre con su propia cuenta en las sedes que elijas. Al aceptar, su cuenta queda vinculada a su ficha del equipo: la que elijas de Equipo o una nueva con el nombre que escribas.</p>
+        <p className={`mt-2 max-w-3xl ${BODY}`}>El enlace es de un solo uso, caduca a los 7 días y solo sirve con el correo invitado. No se envía ningún correo: copia el enlace y compártelo tú. Revocar una invitación no da de baja a quien ya la aceptó.</p>
       </header>
-      {error ? <p role="alert" className="mt-4 border border-signal/30 bg-signal-wash p-4 text-sm leading-6 text-signal-ink">{error}</p> : null}
-      {message ? <p role="status" className="mt-4 border border-teal-800 bg-teal-50 p-4 text-sm leading-6">{message}</p> : null}
-      {pending ? <div className="mt-4 border border-amber-700 p-4">
-        <p className="text-sm leading-6">La solicitud se conserva solo en la memoria de esta página. No se reenvía al abrir ni al actualizar la lista. Si cierras esta página perderás la clave de recuperación.</p>
+      {error ? <p role="alert" className="mt-4 rounded-md border border-signal/30 bg-signal-wash p-4 text-sm font-semibold leading-6 text-signal-ink">{error}</p> : null}
+      {message ? <p role="status" className={`mt-4 ${ownerTone.noticeInfo}`}>{message}</p> : null}
+      {pending ? <div className={`mt-4 ${ownerTone.noticeWarning}`}>
+        <p>La solicitud se conserva solo en la memoria de esta página. No se reenvía al abrir ni al actualizar la lista. Si cierras esta página perderás la clave de recuperación.</p>
         <button type="button" className={`${BUTTON} mt-3`} disabled={busy} onClick={() => void run(pending)}>Recuperar la misma solicitud</button>
       </div> : null}
-      {revealedLink ? <div className="mt-4 border border-teal-800 bg-teal-50 p-4">
-        <label htmlFor="team-invitation-link" className="block text-sm font-semibold">Enlace privado para compartir una vez</label>
+      {revealedLink ? <div className="mt-4 rounded-md border border-mat/30 bg-mat-wash p-4">
+        <label htmlFor="team-invitation-link" className="block text-sm font-semibold text-mat-deep">Enlace privado para compartir una vez</label>
         <textarea id="team-invitation-link" className={`${INPUT} min-h-24 py-3 [overflow-wrap:anywhere]`} value={revealedLink} readOnly spellCheck={false} autoComplete="off" />
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <button type="button" className={BUTTON} onClick={() => {
@@ -311,13 +318,13 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
         </div>
       </div> : null}
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="font-display text-xl font-bold">Estado actual</h3>
+        <h3 className={SUBTITLE}>Estado actual</h3>
         <button type="button" className={BUTTON} disabled={loading || busy} onClick={() => void reload()}>Actualizar accesos</button>
       </div>
-      {loading ? <p role="status" className="mt-4 text-sm">Cargando accesos…</p> : null}
-      {listError ? <p role="alert" className="mt-4 border border-rose-700 bg-rose-50 p-4 text-sm leading-6">{listError}</p> : null}
-      <form className="mt-5 space-y-5 border border-slate-300 bg-white p-4 sm:p-6" onSubmit={submit}>
-        <h3 className="font-display text-xl font-bold">Crear invitación</h3>
+      {loading ? <p role="status" className="mt-4 text-sm text-z-soft">Cargando accesos…</p> : null}
+      {listError ? <p role="alert" className="mt-4 rounded-md border border-signal/30 bg-signal-wash p-4 text-sm font-semibold leading-6 text-signal-ink">{listError}</p> : null}
+      <form className={`mt-5 space-y-5 ${ownerUi.card}`} onSubmit={submit}>
+        <h3 className={SUBTITLE}>Crear invitación</h3>
         <div className="grid min-w-0 gap-4 sm:grid-cols-2">
           <label className="min-w-0 text-sm font-semibold" htmlFor="team-email">Correo de la persona invitada
             <input id="team-email" type="email" autoComplete="off" maxLength={254} required disabled={disabled} value={email} onChange={event => setEmail(event.target.value)} className={INPUT} />
@@ -332,11 +339,11 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
           <legend className="text-sm font-semibold">Persona del equipo</legend>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <label className="flex min-h-11 items-center gap-3 text-sm">
-              <input type="radio" name="team-person" value="new" checked={personChoice === "new"} onChange={() => setPersonChoice("new")} className="h-5 w-5 accent-teal-800" />
+              <input type="radio" name="team-person" value="new" checked={personChoice === "new"} onChange={() => setPersonChoice("new")} className="h-5 w-5 accent-mat" />
               Nueva ficha
             </label>
             <label className="flex min-h-11 items-center gap-3 text-sm">
-              <input type="radio" name="team-person" value="existing" checked={personChoice === "existing"} disabled={!data?.linkableStaffProfiles.length} onChange={() => setPersonChoice("existing")} className="h-5 w-5 accent-teal-800" />
+              <input type="radio" name="team-person" value="existing" checked={personChoice === "existing"} disabled={!data?.linkableStaffProfiles.length} onChange={() => setPersonChoice("existing")} className="h-5 w-5 accent-mat" />
               Ficha que ya está en Equipo
             </label>
           </div>
@@ -357,34 +364,34 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
               </label>
             </div>
           )}
-          {data && data.linkableStaffProfiles.length === 0 ? <p className="mt-2 text-xs text-slate-600">No hay fichas de Equipo sin cuenta vinculada.</p> : null}
+          {data && data.linkableStaffProfiles.length === 0 ? <p className={`mt-2 ${ownerUi.help}`}>No hay fichas de Equipo sin cuenta vinculada.</p> : null}
         </fieldset>
         <fieldset disabled={disabled}>
           <legend className="text-sm font-semibold">Sedes solicitadas · selecciona al menos una</legend>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            {data?.activeLocations.map(location => <label key={location.id} className="flex min-h-11 min-w-0 items-center gap-3 border border-slate-300 px-3 py-2 text-sm">
-              <input type="checkbox" checked={locationIds.includes(location.id)} onChange={event => setLocationIds(current => event.target.checked ? [...current, location.id] : current.filter(id => id !== location.id))} className="h-5 w-5 shrink-0 accent-teal-800" />
+            {data?.activeLocations.map(location => <label key={location.id} className="flex min-h-12 min-w-0 cursor-pointer items-center gap-3 rounded-lg border border-z-line bg-white px-3 py-2 text-sm transition-colors hover:border-mat has-[:checked]:border-mat has-[:checked]:bg-mat-wash">
+              <input type="checkbox" checked={locationIds.includes(location.id)} onChange={event => setLocationIds(current => event.target.checked ? [...current, location.id] : current.filter(id => id !== location.id))} className="h-5 w-5 shrink-0 accent-mat" />
               <span className="min-w-0">{location.name}</span>
             </label>)}
           </div>
           {data?.activeLocations.length === 0 ? <p className="mt-2 text-sm">No hay sedes activas para invitar.</p> : null}
         </fieldset>
-        <p className="text-sm leading-6 text-slate-700">Solicitado, todavía sin acceso: {roleLabel(role)} · {data?.activeLocations.filter(location => locationIds.includes(location.id)).map(location => location.name).join(", ") || "sin sedes seleccionadas"}. No se envía correo automático.</p>
-        <button type="submit" className={BUTTON} disabled={disabled || locationIds.length === 0}>Crear invitación y mostrar enlace</button>
+        <p className={BODY}>Solicitado, todavía sin acceso: {roleLabel(role)} · {data?.activeLocations.filter(location => locationIds.includes(location.id)).map(location => location.name).join(", ") || "sin sedes seleccionadas"}. No se envía correo automático.</p>
+        <button type="submit" className={PRIMARY_BUTTON} disabled={disabled || locationIds.length === 0}>Crear invitación y mostrar enlace</button>
       </form>
       {data ? <>
         <section className="mt-7" aria-labelledby="team-invitations-title">
-          <h3 id="team-invitations-title" className="font-display text-xl font-bold">Invitaciones</h3>
-          {data.invitations.length === 0 ? <p className="mt-3 text-sm text-slate-700">No hay invitaciones registradas.</p> : <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
+          <h3 id="team-invitations-title" className={SUBTITLE}>Invitaciones</h3>
+          {data.invitations.length === 0 ? <p className={`mt-3 ${BODY}`}>No hay invitaciones registradas.</p> : <ul className="mt-3 divide-y divide-z-line border-y border-z-line">
             {data.invitations.map(item => <li key={item.id} className="py-4">
               <article aria-label={`Invitación para ${item.email}`} className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
-                  <h4 className="font-semibold">{item.email}</h4>
+                  <h4 className="font-semibold text-z-ink">{item.email}</h4>
                   <p className="mt-1 text-sm">{roleLabel(item.role)} · {invitationStatus(item)}</p>
-                  <p className="mt-1 text-sm text-slate-700">Ficha del equipo: {item.person.name || "sin nombre"}{item.person.kind === "new" ? " (se creará al aceptar)" : ""}.</p>
-                  <p className="mt-2 text-sm text-slate-700">Sedes solicitadas: {item.requestedLocations.map(location => location.name).join(", ") || "sin sedes confirmadas"}.</p>
-                  <p className="mt-1 text-sm text-slate-700">{item.status === "pending" ? "Todavía sin acceso por esta invitación." : "Consulta los miembros para comprobar el acceso actual."}</p>
-                  <p className="mt-1 text-xs text-slate-600">Caduca: <time dateTime={item.expiresAt}>{formatExpiry(item.expiresAt)}</time> · revisión {item.revision}</p>
+                  <p className={`mt-1 ${BODY}`}>Ficha del equipo: {item.person.name || "sin nombre"}{item.person.kind === "new" ? " (se creará al aceptar)" : ""}.</p>
+                  <p className={`mt-2 ${BODY}`}>Sedes solicitadas: {item.requestedLocations.map(location => location.name).join(", ") || "sin sedes confirmadas"}.</p>
+                  <p className={`mt-1 ${BODY}`}>{item.status === "pending" ? "Todavía sin acceso por esta invitación." : "Consulta los miembros para comprobar el acceso actual."}</p>
+                  <p className={`mt-1 ${ownerUi.help}`}>Caduca: <time dateTime={item.expiresAt}>{formatExpiry(item.expiresAt)}</time> · revisión {item.revision}</p>
                 </div>
                 {item.status === "pending" ? <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <button type="button" className={BUTTON} disabled={disabled} onClick={() => start("reissue", item)}>Reemitir enlace</button>
@@ -393,15 +400,15 @@ export function OwnerTeamAccessPanel({ organizationId }: { organizationId: strin
               </article>
             </li>)}
           </ul>}
-          <p className="mt-3 text-sm leading-6 text-slate-700">Reemitir invalida el enlace anterior y revela uno nuevo una sola vez. Revocar una invitación pendiente, incluso expirada, impide aceptarla; no da de baja a un miembro.</p>
+          <p className={`mt-3 ${BODY}`}>Reemitir invalida el enlace anterior y revela uno nuevo una sola vez. Revocar una invitación pendiente, incluso expirada, impide aceptarla; no da de baja a un miembro.</p>
         </section>
         <section className="mt-7" aria-labelledby="team-members-title">
-          <h3 id="team-members-title" className="font-display text-xl font-bold">Miembros</h3>
-          {data.members.length === 0 ? <p className="mt-3 text-sm text-slate-700">No hay miembros en la lectura actual.</p> : <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
+          <h3 id="team-members-title" className={SUBTITLE}>Miembros</h3>
+          {data.members.length === 0 ? <p className={`mt-3 ${BODY}`}>No hay miembros en la lectura actual.</p> : <ul className="mt-3 divide-y divide-z-line border-y border-z-line">
             {data.members.map((member, index) => <li key={member.id} className="py-4">
-              <h4 className="font-semibold">{member.staffProfile?.name ?? `Miembro ${index + 1}`} · {roleLabel(member.role)}</h4>
+              <h4 className="font-semibold text-z-ink">{member.staffProfile?.name ?? `Miembro ${index + 1}`} · {roleLabel(member.role)}</h4>
               <p className="mt-1 text-sm">{memberStatus(member.status)}{member.staffProfile ? "" : " · sin ficha del equipo vinculada"}</p>
-              <p className="mt-2 text-sm text-slate-700">{member.status === "active"
+              <p className={`mt-2 ${BODY}`}>{member.status === "active"
                 ? `Sedes con acceso efectivo: ${member.effectiveLocations.map(location => location.name).join(", ") || "ninguna confirmada"}.`
                 : "Sin acceso activo confirmado."}</p>
             </li>)}

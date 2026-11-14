@@ -9,6 +9,8 @@ import { OwnerSessionAthleteProgress } from "./OwnerSessionAthleteProgress";
 import { OwnerSessionPlanPanel } from "./OwnerSessionPlanPanel";
 import { OwnerSessionObservationForm } from "./OwnerSessionObservationForm";
 import { ownerUi } from "./owner-ui";
+import { ownerTone } from "./owner-tone-ui";
+import { ownerPlanCheckOf } from "./OwnerPlanCheckNote";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import {
   clearAttendanceRetry,
@@ -105,11 +107,13 @@ const statusButtonLabel: Record<AttendanceStatus, string> = {
   late: "Tarde",
 };
 
+// Mismos tonos que la hoja de asistencia de /app: presente en tapiz, ausente
+// en tinta de señal, tarde en noche y justificada en línea de magnesio.
 const statusButtonPressed: Record<AttendanceStatus, string> = {
-  present: "border-z-comp-600 bg-z-comp-600 text-white",
-  absent: "border-z-chalk-600 bg-z-chalk-600 text-white",
-  excused: "border-z-brand-600 bg-z-brand-600 text-white",
-  late: "border-amber-700 bg-amber-700 text-white",
+  present: "border-mat bg-mat text-white",
+  absent: "border-signal-ink bg-signal-ink text-white",
+  excused: "border-ramp-300 bg-chalk-line text-mat-night",
+  late: "border-mat-night bg-mat-night text-white",
 };
 
 function initialsOf(name: string) {
@@ -239,6 +243,7 @@ export function OwnerAttendanceManager({
 }) {
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesBlocked = planPolicy.status !== "ready" || planPolicy.readOnly;
+  const planCheck = ownerPlanCheckOf(planPolicy);
   const initialSessionOptions = useMemo(
     () =>
       requestedSession &&
@@ -680,7 +685,6 @@ export function OwnerAttendanceManager({
             </Link>
           )}
           <div>
-            <p className={ownerUi.eyebrow}>Pase de lista</p>
             <h1 className={ownerUi.pageTitle}>Asistencia de la sesión</h1>
             <p className={ownerUi.pageLead}>
               Marca la asistencia de las gimnastas inscritas. Los cambios se
@@ -706,7 +710,7 @@ export function OwnerAttendanceManager({
               <p
                 key={retryRequestKey(retry)}
                 role="status"
-                className={ownerUi.noticeWarning}
+                className={ownerTone.noticeWarning}
               >
                 Hay una asistencia cuyo resultado sigue sin confirmar en otra
                 sesión. Conservamos la solicitud original; vuelve a su ámbito
@@ -791,14 +795,14 @@ export function OwnerAttendanceManager({
               </button>
             )}
             {requestedSessionUnavailable && (
-              <p role="status" className={ownerUi.noticeWarning}>
+              <p role="status" className={ownerTone.noticeWarning}>
                 La sesión solicitada no está disponible en esta sede. No hemos
                 seleccionado otra sesión automáticamente.
               </p>
             )}
             {selectedSession && (
-              <div className="grid gap-3 rounded-xl bg-z-canvas p-4 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-center">
-                <p className="min-w-0 break-words font-display text-lg font-bold tracking-tight text-z-ink">
+              <div className="grid gap-3 rounded-card border border-z-line bg-z-canvas p-4 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-center">
+                <p className="min-w-0 break-words font-display text-lg font-black uppercase leading-none text-z-ink [overflow-wrap:anywhere]">
                   {selectedSession.className} ·{" "}
                   {formatSessionDate(
                     selectedSession.startsAt,
@@ -822,7 +826,7 @@ export function OwnerAttendanceManager({
                       aria-valuenow={recordedCount}
                     >
                       <div
-                        className="h-1.5 rounded-full bg-z-comp-600 transition-[width]"
+                        className="h-1.5 bg-mat transition-[width]"
                         style={{ width: `${Math.round((recordedCount / attendees.length) * 100)}%` }}
                       />
                     </div>
@@ -838,6 +842,7 @@ export function OwnerAttendanceManager({
                 sessionId={selectedSession.id}
                 coachMode={coachMode}
                 writesBlocked={writesBlocked}
+                planCheck={planCheck}
               />
             ) : null}
             {sessionPlansAvailable && sessionId && !selectedSession?.retryOnly ? (
@@ -847,10 +852,11 @@ export function OwnerAttendanceManager({
                 locationId={locationId}
                 sessionId={sessionId}
                 readOnly={writesBlocked}
+                planCheck={planCheck}
               />
             ) : null}
             {selectedSession?.retryOnly && (
-              <p role="status" className={ownerUi.noticeWarning}>
+              <p role="status" className={ownerTone.noticeWarning}>
                 Esta sesión solo permite recuperar una asistencia que ya se
                 había enviado. No se pueden registrar cambios nuevos aquí.
               </p>
@@ -914,7 +920,7 @@ export function OwnerAttendanceManager({
             )}
 
             {sessionId && !loading && !loadError && attendees.length === 0 ? (
-              <p className="rounded-[12px] border border-z-line bg-z-canvas p-4 text-sm leading-6 text-z-soft">
+              <p className="rounded-card border border-z-line bg-z-canvas p-4 text-sm leading-6 text-z-soft">
                 No hay gimnastas con inscripción vigente en esta sesión.
               </p>
             ) : sessionId && !loadError ? (
@@ -938,12 +944,12 @@ export function OwnerAttendanceManager({
                   return (
                     <li
                       key={attendee.enrollmentId}
-                      className="grid gap-3 rounded-xl border border-z-line bg-white p-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-4"
+                      className="grid gap-3 rounded-card border border-z-line bg-white p-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-4"
                     >
                       <div className="flex min-w-0 items-center gap-3">
                         <span
                           aria-hidden="true"
-                          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-z-brand-50 text-sm font-bold text-z-brand-700"
+                          className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-mat-wash font-display text-sm font-black text-mat-deep"
                         >
                           {initialsOf(attendee.athleteName)}
                         </span>
@@ -995,7 +1001,7 @@ export function OwnerAttendanceManager({
                                     status: option.value,
                                   });
                                 }}
-                                className={`touch-target inline-flex min-h-12 min-w-0 items-center justify-center rounded-[10px] border px-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50 ${saved ? statusButtonPressed[option.value] : "border-z-line bg-white text-z-ink hover:bg-z-canvas"}`}
+                                className={`touch-target inline-flex min-h-12 min-w-0 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500 disabled:cursor-not-allowed disabled:opacity-50 ${saved ? statusButtonPressed[option.value] : "border-z-line bg-white text-z-ink hover:border-mat hover:bg-mat-wash"}`}
                                 aria-label={
                                   sending
                                     ? `Guardando asistencia de ${attendee.athleteName}`
@@ -1059,9 +1065,9 @@ export function OwnerAttendanceManager({
               return (
                 <div
                   key={retryRequestKey(retry)}
-                  className="rounded-[12px] grid gap-3 border border-amber-300 bg-amber-50 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                  className="grid gap-3 rounded-md border border-ochre-line bg-ochre-wash p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                 >
-                  <p className="text-sm leading-6 text-amber-950">
+                  <p className="text-sm leading-6 text-ochre-ink">
                     Hay una asistencia pendiente para una inscripción que ya no
                     aparece en la lista. Solo reenviaremos la solicitud original.
                   </p>

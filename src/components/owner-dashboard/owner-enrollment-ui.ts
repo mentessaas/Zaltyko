@@ -1,13 +1,14 @@
 import type { EnrollmentBundle, StatusFilter } from "./owner-enrollment-types";
+import { ownerTone } from "./owner-tone-ui";
+import { ownerUi } from "./owner-ui";
 
-export const fieldClassName =
-  "min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-sm text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:bg-slate-100";
+// Inscripciones comparte la base de /owner: campos, botón principal en tapiz
+// y secundario de cinta blanca, sin la variante cuadrada slate/teal anterior.
+export const fieldClassName = ownerUi.field;
 
-export const primaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center gap-2 bg-teal-800 px-4 py-2 text-sm font-bold text-white hover:bg-teal-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+export const primaryButtonClassName = ownerUi.primaryButton;
 
-export const secondaryButtonClassName =
-  "touch-target inline-flex min-h-11 items-center justify-center gap-2 border border-slate-400 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 disabled:cursor-not-allowed disabled:opacity-50";
+export const secondaryButtonClassName = ownerUi.secondaryButton;
 
 export function statusLabel(status: string): string {
   const labels: Record<string, string> = {
@@ -21,14 +22,13 @@ export function statusLabel(status: string): string {
   return labels[status] ?? "Estado desconocido";
 }
 
+// Chip de cinta por estado: activa en tapiz, pendiente en ocre de aviso, en
+// pausa en polvo (reposo) y el resto (prueba, baja, finalizada) en blanco.
 export function statusTone(status: string): string {
-  if (status === "active")
-    return "border-emerald-300 bg-emerald-50 text-emerald-900";
-  if (status === "pending")
-    return "border-amber-300 bg-amber-50 text-amber-950";
-  if (status === "paused")
-    return "border-orange-300 bg-orange-50 text-orange-950";
-  return "border-slate-300 bg-slate-100 text-slate-800";
+  if (status === "active") return ownerTone.chipActive;
+  if (status === "pending") return ownerTone.chipWarning;
+  if (status === "paused") return ownerTone.chipRest;
+  return ownerTone.chipOutline;
 }
 
 export function formatDate(value: string): string {
