@@ -16,12 +16,12 @@ describe("presentación SaaS sin decidir derechos", () => {
     expect(formatSaasAccessDate("2026-10-22T21:01:00+02:00")).toContain("21:01");
   });
   it("no presenta el primer impago como cancelación terminal", () => {
-    expect(saasPaymentNotice("past_due")).toContain("no confirma por sí solo la cancelación");
+    expect(saasPaymentNotice("past_due")).toContain("no cancela tu plan por sí solo");
     expect(saasPaymentNotice("past_due")).toContain("acceso efectivo");
     expect(saasPaymentNotice("past_due")).not.toContain("renovación");
   });
   it("no resuelve unpaid iniciando otra contratación", () => {
-    expect(saasPaymentNotice("unpaid")).toContain("no repitas una contratación");
+    expect(saasPaymentNotice("unpaid")).toContain("No contrates el plan otra vez");
   });
   it.each(["active", "canceled", "trialing", "unknown"])("no inventa impago para %s", status => {
     expect(saasPaymentNotice(status)).toBeNull();

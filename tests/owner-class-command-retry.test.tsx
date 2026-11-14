@@ -282,7 +282,7 @@ describe("reintento de creación de clases", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("No sabemos si se guardó");
     expect(name).toHaveValue("Artística iniciación");
     act(() => markOwnerPlanUsageUnavailable(organizationId));
-    expect(screen.getByText(/No se pudieron comprobar los límites del plan/)).toBeVisible();
+    expect(screen.getByText(/No pudimos comprobar los límites de tu plan/)).toBeVisible();
     expect(screen.getByRole("button", { name: "Reintentar el mismo envío" })).toBeEnabled();
     expect(mocks.refresh).not.toHaveBeenCalled();
     expect(beforeUnloadIsPrevented()).toBe(true);
@@ -394,7 +394,7 @@ describe("reintento de creación de clases", () => {
 
     await user.click(screen.getByRole("button", { name: "Reintentar el mismo envío" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("No volveremos a enviar la operación");
+    expect(await screen.findByRole("alert")).toHaveTextContent("no la enviaremos otra vez");
     expect(writes()).toHaveLength(2);
     expect(writes()[1][1]).toEqual(firstRequest);
     expect(name).toBeDisabled();
@@ -442,7 +442,7 @@ describe("reintento de creación de clases", () => {
 
     await user.click(screen.getByRole("button", { name: "Reintentar el mismo envío" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("No volveremos a enviar la operación");
+    expect(await screen.findByRole("alert")).toHaveTextContent("no la enviaremos otra vez");
     expect(screen.getByRole("status")).toHaveTextContent("No se pudo guardar la marca de bloqueo");
     expect(screen.getByRole("status")).toHaveTextContent("no recargues ni cierres esta pestaña");
     expect(screen.getByRole("status")).toHaveTextContent("podría no conservarse al recargar");

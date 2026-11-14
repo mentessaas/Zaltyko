@@ -118,12 +118,12 @@ describe("gestión de grupos owner", () => {
     render(<OwnerGroupsManager bundle={groupBundle} />);
 
     await waitFor(() => expect(screen.queryByText(/Comprobando si hay una creación pendiente/)).not.toBeInTheDocument());
-    expect(screen.getByText(/Comprobando los límites del plan/)).toBeVisible();
+    expect(screen.getByText(/Estamos comprobando los límites de tu plan/)).toBeVisible();
     expect(screen.getByRole("button", { name: "Crear grupo" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Buscar" })).toBeEnabled();
 
     act(() => markOwnerPlanUsageUnavailable(organizationId, usageRead));
-    expect(screen.getByText(/No se pudieron comprobar los límites del plan/)).toBeVisible();
+    expect(screen.getByText(/No pudimos comprobar los límites de tu plan/)).toBeVisible();
     expect(screen.getByRole("link", { name: "Ver uso y ajustar" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
     const dispatch = vi.spyOn(window, "dispatchEvent");
     await user.click(screen.getByRole("button", { name: "Volver a comprobar límites" }));
