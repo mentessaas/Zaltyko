@@ -90,7 +90,7 @@ export async function globalSearch(
         id: a.id,
         name: a.name || "Sin nombre",
         description: a.level || a.status || undefined,
-        url: `/app/${academyId}/athletes/${a.id}`,
+        url: `/owner/athletes`,
         metadata: { level: a.level, status: a.status, groupId: a.groupId },
       }))
     );
@@ -123,7 +123,7 @@ export async function globalSearch(
         id: c.id,
         name: c.name || "Sin nombre",
         description: c.weekday !== null ? `Día: ${c.weekday}, Horario: ${c.startTime}-${c.endTime}` : undefined,
-        url: `/app/${academyId}/classes/${c.id}`,
+        url: `/owner/classes`,
         metadata: { weekday: c.weekday, startTime: c.startTime, endTime: c.endTime, capacity: c.capacity },
       }))
     );
@@ -159,7 +159,7 @@ export async function globalSearch(
         id: c.id,
         name: c.name || "Sin nombre",
         description: c.bio || c.email || undefined,
-        url: `/app/${academyId}/coaches/${c.id}`,
+        url: `/owner/staff`,
         metadata: { specialties: c.specialties },
       }))
     );
@@ -194,7 +194,7 @@ export async function globalSearch(
         id: g.id,
         name: g.name || "Sin nombre",
         description: g.discipline || g.level || undefined,
-        url: `/app/${academyId}/groups/${g.id}`,
+        url: `/owner/groups`,
         metadata: { discipline: g.discipline, level: g.level, color: g.color },
       }))
     );
@@ -229,7 +229,7 @@ export async function globalSearch(
         id: e.id,
         name: e.title || "Sin título",
         description: e.description || undefined,
-        url: `/app/${academyId}/events/${e.id}`,
+        url: `/owner`,
         metadata: { startDate: e.startDate, eventType: e.eventType },
       }))
     );
@@ -261,7 +261,7 @@ export async function globalSearch(
         id: a.id,
         name: a.name || "Sin nombre",
         description: a.address || undefined,
-        url: `/app/${a.id}/dashboard`,
+        url: `/owner`,
       }))
     );
   }

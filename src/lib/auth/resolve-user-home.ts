@@ -189,7 +189,7 @@ export async function resolveUserHome(args: {
   ) {
     return {
       destination: "academy_workspace",
-      redirectUrl: `/app/${academyId}/coach`,
+      redirectUrl: "/owner/attendance",
       reason: "coach-academy-access",
       profileRole: profile.role,
       membershipRole,
@@ -208,7 +208,7 @@ export async function resolveUserHome(args: {
   ) {
     return {
       destination: "academy_workspace",
-      redirectUrl: `/app/${academyId}/dashboard`,
+      redirectUrl: "/owner",
       reason: "legacy-owner-membership",
       profileRole: profile.role,
       membershipRole,
@@ -219,7 +219,7 @@ export async function resolveUserHome(args: {
   if (academyId && canAccessAcademyWorkspace(profile.role, membershipRole)) {
     return {
       destination: "academy_workspace",
-      redirectUrl: `/app/${academyId}/dashboard`,
+      redirectUrl: "/owner",
       reason: "academy-access",
       profileRole: profile.role,
       membershipRole,
@@ -234,7 +234,7 @@ export async function resolveUserHome(args: {
   ) {
     return {
       destination: "academy_workspace",
-      redirectUrl: `/app/${academyId}/my-dashboard`,
+      redirectUrl: "/familia",
       reason: "limited-academy-access",
       profileRole: profile.role,
       membershipRole,

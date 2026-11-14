@@ -20,6 +20,8 @@ export function InstallPrompt() {
   const [visible, setVisible] = useState(false);
   const isAuthRoute = pathname === "/login" || pathname?.startsWith("/auth/");
   const isAuthenticatedAppRoute =
+    pathname?.startsWith("/owner") ||
+    pathname?.startsWith("/familia") ||
     pathname?.startsWith("/app/") ||
     pathname?.startsWith("/dashboard") ||
     pathname?.startsWith("/super-admin");

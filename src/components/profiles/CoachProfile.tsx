@@ -106,7 +106,7 @@ export function CoachProfile({ user, profile, coachData, targetProfileId }: Coac
           </CardContent>
           <CardHeader className="p-4 pt-0">
             <Button variant="outline" size="sm" className="w-full" asChild>
-              <Link href={`/app/${coachData.academyId}/classes`}>Ver mis clases</Link>
+              <Link href={`/owner/classes`}>Ver mis clases</Link>
             </Button>
           </CardHeader>
         </Card>
@@ -143,7 +143,7 @@ export function CoachProfile({ user, profile, coachData, targetProfileId }: Coac
           </CardContent>
           <CardHeader className="p-4 pt-0">
             <Button variant="outline" size="sm" className="w-full" asChild>
-              <Link href={`/app/${coachData.academyId}/athletes`}>Ver atletas</Link>
+              <Link href={`/owner/athletes`}>Ver atletas</Link>
             </Button>
           </CardHeader>
         </Card>
@@ -237,7 +237,7 @@ export function CoachProfile({ user, profile, coachData, targetProfileId }: Coac
             </Link>
           </Button>
           <Button variant="outline" className="justify-start" asChild>
-            <Link href={`/app/${coachData.academyId}/classes`}>
+            <Link href={`/owner/classes`}>
               <Users className="mr-2 h-4 w-4" />
               Ver mis clases
             </Link>

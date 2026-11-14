@@ -62,7 +62,7 @@ function pickFailedChargesAction(charges: ChargesAttention, academyId: string): 
   return {
     kind: "review_failed_charges",
     label: `Revisar cargos fallidos (${charges.failed})`,
-    href: `/app/${academyId}/billing?status=failed`,
+    href: `/owner/payments?status=failed`,
     source: charges.source,
   };
 }
@@ -71,7 +71,7 @@ function pickOverdueChargesAction(charges: ChargesAttention, academyId: string):
   return {
     kind: "review_overdue_charges",
     label: `Cobrar cargos vencidos (${charges.overdue})`,
-    href: `/app/${academyId}/billing?status=overdue`,
+    href: `/owner/payments?status=overdue`,
     source: charges.source,
   };
 }
@@ -89,7 +89,7 @@ function pickFailedMessagesAction(messages: MessagesAttention, academyId: string
   return {
     kind: "review_failed_messages",
     label: `Revisar mensajes fallidos (${messages.failed})`,
-    href: messages.href ?? `/app/${academyId}/comms?status=failed`,
+    href: messages.href ?? `/owner?status=failed`,
     source: messages.source,
   };
 }
@@ -101,7 +101,7 @@ function pickDraftsAction(bundle: OwnerAttentionBundle): PriorityAction | null {
       label: `Publicar evaluaciones pendientes (${bundle.progressDrafts.count})`,
       href:
         bundle.progressDrafts.href ??
-        `/app/${bundle.academyId}/evaluations?status=draft`,
+        `/owner?status=draft`,
       source: bundle.progressDrafts.source,
     };
   }

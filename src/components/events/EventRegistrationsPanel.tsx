@@ -79,10 +79,10 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
   const confirmedCount = registrations.filter((r) => r.status === "confirmed").length;
   const pendingCount = registrations.filter((r) => r.status === "pending").length;
   const eventDetailHref = event.academyId
-    ? `/app/${event.academyId}/events/${event.id}`
+    ? `/owner`
     : `/dashboard/events/${event.id}`;
   const registrationHref = event.academyId
-    ? `/app/${event.academyId}/events/${event.id}/register`
+    ? `/owner`
     : eventDetailHref;
 
   return (

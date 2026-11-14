@@ -26,7 +26,7 @@ export default async function SuperAdminDashboardPage() {
   const effectiveProfile = profile ?? (devSession ? { role: "super_admin" } : null);
 
   if (!effectiveProfile || effectiveProfile.role !== "super_admin") {
-    redirect("/app");
+    redirect("/owner");
   }
 
   const [metrics, recentEvents] = await Promise.all([

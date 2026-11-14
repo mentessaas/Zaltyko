@@ -35,5 +35,5 @@ export default async function EditClassPage({ params }: EditClassPageProps) {
     notFound();
   }
 
-  redirect(`/app/${classRow.academyId}/classes/${classRow.id}`);
+  redirect(`/owner/classes`);
 }

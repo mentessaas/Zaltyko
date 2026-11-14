@@ -33,7 +33,7 @@ export default async function SuperAdminLayout({ children }: { children: ReactNo
     : null);
 
   if (!effectiveProfile || effectiveProfile.role !== "super_admin") {
-    redirect("/app");
+    redirect("/owner");
   }
 
   return (

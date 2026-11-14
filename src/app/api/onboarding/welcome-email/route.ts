@@ -132,7 +132,7 @@ export async function POST(request: Request) {
             </div>
 
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${config.appUrl}/app/${academyId}/dashboard"
+              <a href="${config.appUrl}/owner"
                  style="display: inline-block; background: #0D47A1; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
                 Ir a mi panel
               </a>
@@ -176,7 +176,7 @@ Próximos pasos recomendados:
 - Invita a tus entrenadores
 - Prepara las tarifas de tus cuotas mensuales
 
-Accede a tu panel: ${config.appUrl}/app/${academyId}/dashboard
+Accede a tu panel: ${config.appUrl}/owner
 
 Si tienes alguna pregunta, contacta a ${config.brevo.supportEmail}
 

@@ -46,10 +46,9 @@ export function isOutsideEssentialLaunch(pathname: string): boolean {
     // is closed; /docs published the whole API contract to any visitor.
     "/integraciones", "/integrations", "/docs",
   ].some(prefix => atSegment(pathname, prefix))) return true;
-  // /app/*/subdomain only drives the retired /api/academy/subdomain; without
-  // this cut, ENABLE_ACTOR_PAGES would render a toggle that always gets 410.
-  return /^\/app\/[^/]+\/(?:marketplace|store|subdomain)(?:\/|$)/.test(pathname)
-    || /^\/a\/[^/]+\/tienda(?:\/|$)/.test(pathname);
+  // The old /app/*/(marketplace|store|subdomain) pages were removed together
+  // with the whole /app panel (permanent redirect in next.config.mjs).
+  return /^\/a\/[^/]+\/tienda(?:\/|$)/.test(pathname);
 }
 
 /**

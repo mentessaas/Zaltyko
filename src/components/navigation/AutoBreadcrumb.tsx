@@ -123,7 +123,7 @@ export function AutoBreadcrumb() {
   const homeHref = isSuperAdmin
     ? "/super-admin/dashboard"
     : academyContext
-      ? `/app/${academyContext.academyId}/dashboard`
+      ? `/owner`
       : "/dashboard";
   
   return (
