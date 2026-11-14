@@ -105,7 +105,7 @@ describe("Owner dashboard navigation", () => {
     const mobileNavigation = screen.getByRole("navigation", {
       name: "Navegación móvil",
     });
-    for (const label of ["Resumen", "Asistencia", "Clases", "Grupos"]) {
+    for (const label of ["Resumen", "Calendario", "Asistencia", "Clases"]) {
       expect(
         within(mobileNavigation).getByRole("link", { name: label })
       ).toBeInTheDocument();
@@ -115,9 +115,21 @@ describe("Owner dashboard navigation", () => {
         .getAllByRole("link")
         .slice(0, 4)
         .map((link) => link.textContent?.trim())
-    ).toEqual(["Resumen", "Asistencia", "Clases", "Grupos"]);
+    ).toEqual(["Resumen", "Calendario", "Asistencia", "Clases"]);
 
     fireEvent.click(within(mobileNavigation).getByText("Más"));
+    expect(
+      within(mobileNavigation).getByRole("link", { name: "Grupos" })
+    ).toHaveAttribute(
+      "href",
+      `/owner/groups?organizationId=${organizationId}&locationId=${locationId}`
+    );
+    expect(
+      within(mobileNavigation).getByRole("link", { name: "Calendario" })
+    ).toHaveAttribute(
+      "href",
+      `/owner/calendar?organizationId=${organizationId}&locationId=${locationId}`
+    );
     expect(
       within(mobileNavigation).getByRole("link", { name: "Gimnastas" })
     ).toHaveAttribute(
