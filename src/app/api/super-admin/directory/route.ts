@@ -86,7 +86,7 @@ export const GET = withSuperAdmin(async (request) => {
           )
         : section === "claims"
         ? await rows(
-            sql`SELECT c.*,d.data->>'name' AS name,u.email AS requester_email FROM directory_claims c JOIN directory_entries d ON d.id=c.entry_id JOIN auth.users u ON u.id=c.user_id ORDER BY c.created_at DESC LIMIT 50 OFFSET ${(page - 1) * 50}`
+            sql`SELECT c.*,d.data->>'name' AS name,u.email AS requester_email FROM directory_claims c JOIN directory_entries d ON d.id=c.entry_id LEFT JOIN auth.users u ON u.id=c.user_id ORDER BY c.created_at DESC LIMIT 50 OFFSET ${(page - 1) * 50}`
           )
         : section === "revisions"
           ? await rows(
