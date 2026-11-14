@@ -23,6 +23,15 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 import type { OwnerSaasBillingSnapshot } from "../domain/owner-saas-contract";
 import { IMMEDIATE_START_CONSENT_VERSION } from "../domain/immediate-start-consent";
 import {
+  parseSaasCustomerBillingDetails,
+  SAAS_BILLING_DETAILS_ERROR_CODES,
+  SAAS_BILLING_DETAILS_MESSAGES,
+  SPANISH_STRIPE_TAX_ID_TYPE,
+  type SaasBillingDetailsRejection,
+  type SaasCustomerBillingDetails,
+  type SaasCustomerBillingDetailsInput,
+} from "../domain/customer-billing-details";
+import {
   checkoutSessionMatchesSpanishVat,
   quoteSpanishVat,
   resolveSaasCheckoutTaxPlan,
@@ -526,6 +535,12 @@ export async function createOwnerSaasCheckout(input: {
   taxTerritory?: SpanishTaxTerritory | null;
   /** Casilla obligatoria: inicio inmediato y pérdida del desistimiento. */
   immediateStartConsent?: boolean;
+  /**
+   * Razón social y NIF/NIE/CIF de la factura. Obligatorios con IVA español;
+   * se validan (carácter de control incluido) antes de bloquear o escribir y
+   * se guardan en el Customer de Stripe, nunca en la base de datos.
+   */
+  billingDetails?: SaasCustomerBillingDetailsInput | null;
   at?: Date;
 }): Promise<{
   operationId: string;
@@ -554,6 +569,7 @@ export async function createOwnerSaasCheckout(input: {
   // Asignado dentro de la transacción; la aserción evita que TypeScript lo
   // estreche a { kind: "none" } por la inicialización.
   let taxPlan = { kind: "none" } as AcceptedCheckoutTaxPlan;
+  let billingDetails = null as SaasCustomerBillingDetails | null;
   const reservation = await db.transaction(async (tx) => {
     let scope = await resolveSaasOwnerScope({
       userId: input.userId,
@@ -569,6 +585,8 @@ export async function createOwnerSaasCheckout(input: {
     // (503) o un territorio fuera del IVA (403/422) no dejan rastro.
     taxPlan = acceptedCheckoutTaxPlan(config, scope, input.taxTerritory);
     assertImmediateStartConsent(taxPlan, input.immediateStartConsent);
+    // Un NIF con el control incorrecto no llega a reservar ni a Stripe.
+    billingDetails = acceptedBillingDetails(taxPlan, input.billingDetails);
     await lockOrganizationForSaasMutation(tx, scope.organizationId);
     if (config.environment === "live") {
       scope = await resolveSaasOwnerScope({
@@ -597,8 +615,12 @@ export async function createOwnerSaasCheckout(input: {
       providerAccountReference: config.providerAccountReference,
       priceReference,
     };
-    const requestHash = checkoutRequestHash(checkoutIdentityPayload, 3);
-    const legacyRequestHash = checkoutRequestHash(checkoutIdentityPayload, 2);
+    // v4: los datos de factura los recoge Zaltyko (validados) y Checkout ya no
+    // pide NIF ni razón social. v3 y v2 siguen aceptándose para recuperar
+    // operaciones anteriores con su cuerpo exacto.
+    const requestHash = checkoutRequestHash(checkoutIdentityPayload, billingDetails ? 4 : 3);
+    const acceptedHashes = [4, 3, 2].map((version) =>
+      checkoutRequestHash(checkoutIdentityPayload, version as CheckoutRequestVersion));
 
     const [existing] = await tx
       .select()
@@ -627,7 +649,7 @@ export async function createOwnerSaasCheckout(input: {
       });
       const matchesRequest = qaEnvelope
         ? existing.requestHash === qaEnvelope.requestHash
-        : existing.requestHash === requestHash || existing.requestHash === legacyRequestHash;
+        : acceptedHashes.includes(existing.requestHash);
       if (!matchesRequest) {
         throw new OperationalError(
           "IDEMPOTENCY_CONFLICT",
@@ -848,16 +870,20 @@ export async function createOwnerSaasCheckout(input: {
     ? quoteSpanishVat(expectedUnitAmount(input.planCode, input.billingInterval))
     : null;
   // A Stripe idempotency key must always retain its original request body.
-  // Only v3 normal operations opt out of dashboard currency localization;
+  // Only v3/v4 normal operations opt out of dashboard currency localization;
   // persisted v2 recoveries and the frozen short-paid QA envelope stay exact.
-  const fixedCurrency = !qaEnvelope && operation.requestHash === checkoutRequestHash({
+  const operationIdentity = {
     organizationId: operation.organizationId,
     planCode: input.planCode,
     billingInterval: input.billingInterval,
     environment: config.environment,
     providerAccountReference: config.providerAccountReference,
     priceReference: reservation.priceReference,
-  }, 3);
+  };
+  const zaltykoBillingDetails = !qaEnvelope &&
+    operation.requestHash === checkoutRequestHash(operationIdentity, 4);
+  const fixedCurrency = !qaEnvelope && (zaltykoBillingDetails ||
+    operation.requestHash === checkoutRequestHash(operationIdentity, 3));
   const assertQaCreationAllowed = () => assertShortPaidCheckoutCreationAllowed(getQaEnvelope());
   const customerKey = `zaltyko-saas-customer-${operation.organizationId}-${config.environment}-${createHash("sha256").update(config.providerAccountReference).digest("hex").slice(0, 8)}`;
   const customerHash = hashPayload({
@@ -1076,6 +1102,14 @@ export async function createOwnerSaasCheckout(input: {
 
     if (!customerReference || !customerId) throw providerUnavailable();
 
+    // Razón social y un único NIF español validado en el Customer antes de la
+    // sesión: cada factura los copia y Checkout ya no muestra el campo de NIF
+    // (tampoco con la carga v2/v3, porque el Customer ya tiene uno guardado).
+    // El ensayo QA congelado no se toca.
+    if (billingDetails && !qaEnvelope) {
+      await applyCustomerBillingDetails(stripe, customerReference, billingDetails);
+    }
+
     const leaseResult = await db.transaction(async (tx) => {
       return tx
         .update(organizationSaasCheckoutOperations)
@@ -1139,12 +1173,16 @@ export async function createOwnerSaasCheckout(input: {
           },
         ],
         // Siempre factura completa (art. 6 RD 1619/2012), emitida fuera de
-        // Stripe en FacturaDirecta (serie ZA) a partir de `invoice.paid`:
-        // razón social, NIF/CIF (obligatorio para países con tipo de NIF en
-        // Stripe, como ES) y dirección completa pasan al Customer
-        // (customer_update). El email lo fija Checkout en el Customer si no
-        // tiene uno. La moneda (EUR) la garantiza la validación del precio.
-        ...(vatTaxRate ? {
+        // Stripe en FacturaDirecta (serie ZA) a partir de `invoice.paid`.
+        // v4: razón social y NIF ya están validados en el Customer, así que
+        // Checkout solo pide la dirección completa (customer_update). Las
+        // operaciones v2/v3 conservan su cuerpo exacto (clave idempotente).
+        // El email lo fija Checkout en el Customer si no tiene uno. La moneda
+        // (EUR) la garantiza la validación del precio.
+        ...(vatTaxRate && zaltykoBillingDetails ? {
+          billing_address_collection: "required" as const,
+          customer_update: { address: "auto" as const },
+        } : vatTaxRate ? {
           billing_address_collection: "required" as const,
           tax_id_collection: { enabled: true, required: "if_supported" as const },
           name_collection: { business: { enabled: true, optional: false } },
@@ -1356,6 +1394,8 @@ function addUtcCalendarMonthsClamped(date: Date, months: number): Date {
   return result;
 }
 
+type CheckoutRequestVersion = 2 | 3 | 4;
+
 function checkoutRequestHash(input: {
   organizationId: string;
   planCode: SelfServePlanCode;
@@ -1363,7 +1403,7 @@ function checkoutRequestHash(input: {
   environment: "test" | "live";
   providerAccountReference: string;
   priceReference: string;
-}, requestVersion: 2 | 3): string {
+}, requestVersion: CheckoutRequestVersion): string {
   return hashPayload({ ...input, requestVersion });
 }
 
@@ -1465,6 +1505,49 @@ function assertImmediateStartConsent(
       422,
       { code: "SAAS_IMMEDIATE_START_CONSENT_REQUIRED" }
     );
+  }
+}
+
+/**
+ * Con IVA español los datos de factura son obligatorios; sin él se aceptan
+ * opcionalmente (Stripe test), pero un NIF enviado siempre debe ser válido.
+ */
+function acceptedBillingDetails(
+  plan: AcceptedCheckoutTaxPlan,
+  input: SaasCustomerBillingDetailsInput | null | undefined
+): SaasCustomerBillingDetails | null {
+  if (!input && plan.kind !== "es_vat_general") return null;
+  const parsed = parseSaasCustomerBillingDetails(input);
+  if (!parsed.ok) throw billingDetailsRejected(parsed.reason);
+  return parsed.details;
+}
+
+/**
+ * Deja en el Customer la razón social y exactamente un NIF `es_cif` con el
+ * valor validado. Borra cualquier otro (por ejemplo, uno sin validar que
+ * Checkout recogiera antes), porque la factura copia todos los del Customer.
+ * Es repetible: si ya está, no crea otro.
+ */
+async function applyCustomerBillingDetails(
+  stripe: Stripe,
+  customerReference: string,
+  details: SaasCustomerBillingDetails
+): Promise<void> {
+  await stripe.customers.update(customerReference, { name: details.legalName });
+  const existing = await stripe.customers.listTaxIds(customerReference, { limit: 100 });
+  let kept = false;
+  for (const taxId of existing.data) {
+    if (!kept && taxId.type === SPANISH_STRIPE_TAX_ID_TYPE && taxId.value === details.taxId) {
+      kept = true;
+      continue;
+    }
+    await stripe.customers.deleteTaxId(customerReference, taxId.id);
+  }
+  if (!kept) {
+    await stripe.customers.createTaxId(customerReference, {
+      type: SPANISH_STRIPE_TAX_ID_TYPE,
+      value: details.taxId,
+    });
   }
 }
 
@@ -1692,6 +1775,15 @@ function providerConfigUnavailable(): OperationalError {
     "La contratación SaaS no está configurada para este entorno",
     503,
     { code: "BILLING_CONFIGURATION_UNAVAILABLE" }
+  );
+}
+
+function billingDetailsRejected(reason: SaasBillingDetailsRejection): OperationalError {
+  return new OperationalError(
+    "FEATURE_NOT_AVAILABLE",
+    SAAS_BILLING_DETAILS_MESSAGES[reason],
+    422,
+    { code: SAAS_BILLING_DETAILS_ERROR_CODES[reason] }
   );
 }
 
