@@ -15,6 +15,8 @@ import {
 import type { OwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import type { OwnerOperationalSummary } from "@/modules/owner-dashboard/application/operational-summary";
 import type { OwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
+import type { OwnerSummaryCharts as OwnerSummaryChartsData } from "@/modules/owner-dashboard/application/summary-charts";
+import { OwnerSummaryCharts, type OwnerChartLinks } from "./charts/OwnerChartPanels";
 import { OwnerOperationalSummaryPanel } from "./OwnerOperationalSummaryPanel";
 import { OwnerTodaySessionsPanel } from "./OwnerTodaySessionsPanel";
 import { OwnerAttentionPanel } from "./OwnerAttentionPanel";
@@ -46,6 +48,7 @@ export function OwnerEssentialDashboard({
   todaySessions,
   attentionItems,
   setupProgress,
+  summaryCharts,
   viewerName,
 }: {
   scope: OwnerScope;
@@ -54,6 +57,11 @@ export function OwnerEssentialDashboard({
   attentionItems?: OwnerAttentionItems | null;
   /** Launch checklist facts; null/undefined (query failed or role excluded) hides it. */
   setupProgress?: OwnerSetupProgress | null;
+  /**
+   * Gráficas de «Cómo va la academia». undefined no pinta la sección; null
+   * (la consulta falló) pinta un aviso en su lugar.
+   */
+  summaryCharts?: OwnerSummaryChartsData | null;
   /** Nombre declarado al crear la cuenta; solo para el saludo del hero. */
   viewerName?: string | null;
 }) {
@@ -95,6 +103,17 @@ export function OwnerEssentialDashboard({
       ["Cuotas mensuales", `/owner/monthly-invoices?${params}`],
       ["Cobros manuales", `/owner/payments?${params}`]
     );
+  }
+  const chartLinks: OwnerChartLinks = {
+    attendance: `/owner/attendance?${params}`,
+    classes: `/owner/classes?${params}`,
+    enrollments: `/owner/enrollments?${params}`,
+  };
+  if (capabilities.canManageFinancials) {
+    chartLinks["monthly-invoices"] = `/owner/monthly-invoices?${params}`;
+  }
+  if (capabilities.canManageOrganizationAthletes) {
+    chartLinks.athletes = `/owner/athletes?organizationId=${scope.organization.id}`;
   }
   return (
     <main className={ownerUi.page}>
@@ -152,17 +171,25 @@ export function OwnerEssentialDashboard({
           ) : null}
         </div>
       ) : null}
+      {summaryCharts !== undefined ? (
+        <OwnerSummaryCharts
+          charts={summaryCharts}
+          links={chartLinks}
+          registerPaymentHref={capabilities.canManageFinancials ? `/owner/payments?${params}` : null}
+          canManageAthletes={capabilities.canManageOrganizationAthletes}
+        />
+      ) : null}
       <h2 className={`mt-9 ${ownerUi.sectionTitle}`}>Accesos rápidos</h2>
       <nav aria-label="Operaciones de la academia" className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {links.map(([label, href]) => {
           const Icon = QUICK_LINK_ICONS[label] ?? ArrowUpRight;
           return (
-            <Link key={label} href={href} className="touch-target group flex min-h-16 min-w-0 items-center gap-3 rounded-xl border border-z-line bg-white px-4 py-3 text-sm font-semibold text-z-ink transition-colors hover:border-z-brand-100 hover:bg-z-brand-50/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500">
+            <Link key={label} href={href} className="touch-target group flex min-h-16 min-w-0 items-center gap-3 rounded-xl border border-z-line bg-white px-4 py-3 text-sm font-semibold text-z-ink transition-[color,background-color,border-color,transform] duration-150 hover:border-mat hover:bg-z-brand-50/60 active:scale-[0.99] motion-reduce:active:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-brand-500">
               <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-z-canvas text-z-brand-600 transition-colors group-hover:bg-white">
                 <Icon className="h-4 w-4" />
               </span>
               <span className="min-w-0 flex-1 break-words">{label}</span>
-              <ArrowUpRight aria-hidden="true" className="h-4 w-4 shrink-0 text-z-soft transition-colors group-hover:text-z-brand-600" />
+              <ArrowUpRight aria-hidden="true" className="h-4 w-4 shrink-0 text-z-soft transition-[color,transform] duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-z-brand-600 motion-reduce:transform-none" />
             </Link>
           );
         })}

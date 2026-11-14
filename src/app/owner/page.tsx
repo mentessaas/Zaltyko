@@ -19,6 +19,7 @@ import { getOwnerTodaySessions } from "@/modules/owner-dashboard/application/tod
 import { withSessionCoaches } from "@/modules/coach-assignment/application/coach-assignment-service";
 import { getOwnerAttentionItems } from "@/modules/owner-dashboard/application/attention-items";
 import { getOwnerSetupProgress } from "@/modules/owner-dashboard/application/setup-checklist";
+import { getOwnerSummaryCharts } from "@/modules/owner-dashboard/application/summary-charts";
 import { canSeeOwnerSetupChecklist } from "@/modules/owner-dashboard/application/setup-checklist-steps";
 import { ownerWorkspaceCapabilitiesFor } from "@/components/owner-dashboard/owner-workspace-capabilities";
 import { recordStaffVisit } from "@/modules/habitual-use/application/usage-events";
@@ -97,7 +98,8 @@ export default async function OwnerDashboardPage({
     if (error instanceof OperationalError && ["FORBIDDEN", "LOCATION_SCOPE_DENIED"].includes(error.code)) notFound();
     logger.error("Owner operational summary failed", error);
   }
-  const [todaySessions, attentionItems, setupProgress] = await Promise.all([
+  const includeFinancials = ownerWorkspaceCapabilitiesFor(scope.member).canManageFinancials;
+  const [todaySessions, attentionItems, setupProgress, summaryCharts] = await Promise.all([
     getOwnerTodaySessions({ scope, locationId: query.data.locationId }).catch((error: unknown) => {
       logger.error("Owner today sessions failed", error);
       return null;
@@ -105,7 +107,7 @@ export default async function OwnerDashboardPage({
     getOwnerAttentionItems({
       scope,
       locationId: query.data.locationId,
-      includeFinancials: ownerWorkspaceCapabilitiesFor(scope.member).canManageFinancials,
+      includeFinancials,
     }).catch((error: unknown) => {
       logger.error("Owner attention items failed", error);
       return null;
@@ -116,6 +118,16 @@ export default async function OwnerDashboardPage({
           return null;
         })
       : Promise.resolve(null),
+    // Gráficas de «Cómo va la academia» sobre datos ya registrados. Si fallan,
+    // el Resumen se pinta igual con un aviso en su lugar.
+    getOwnerSummaryCharts({
+      scope,
+      locationId: query.data.locationId,
+      includeFinancials,
+    }).catch((error: unknown) => {
+      logger.error("Owner summary charts failed", error);
+      return null;
+    }),
   ]);
   // O1: quién entrena en cada sesión de Hoy. Sin el candidato aplicado, o si
   // la consulta falla, Hoy se pinta igual que antes.
@@ -136,6 +148,7 @@ export default async function OwnerDashboardPage({
         todaySessions={todayWithCoaches}
         attentionItems={attentionItems}
         setupProgress={setupProgress}
+        summaryCharts={summaryCharts}
         viewerName={typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : null}
       />
       <OwnerProductDiscovery

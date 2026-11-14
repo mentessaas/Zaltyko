@@ -79,8 +79,11 @@ export async function initAnalytics() {
   if (initPromise) return initPromise;
 
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  // Región UE por defecto: un proyecto PostHog vive en una sola región, así que
+  // la variable NEXT_PUBLIC_POSTHOG_HOST debe coincidir con la del proyecto.
+  // Ver docs/privacy/regiones-de-datos.md.
   const host =
-    process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com";
+    process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://eu.i.posthog.com";
 
   if (!key) {
     if (!isProduction()) {
