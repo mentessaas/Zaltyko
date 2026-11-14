@@ -543,6 +543,59 @@ repetible.
   borrado del perfil legacy, triggers de autor y bloqueos), dentro de una
   transacción que se deshace; `tests/account-erasure.test.ts` y el contrato
   `tests/data-rights-activated-modules-contract.test.ts`.
+
+## Candidato de recordatorios de impago (cobros, A3)
+
+`20261114120500_payment_reminders_candidate.sql` crea dos relaciones nuevas en
+`zaltyko`, sin tocar filas ni tablas existentes: `payment_reminder_settings`
+(plantilla, datos de pago en texto libre, correo de respuesta, días mínimos
+entre recordatorios y recordatorio automático apagado) y `payment_reminders`
+(un registro por cuota y envío: `pending`, `sent` o `failed`). Producto y
+flujo: `docs/producto/recordatorios-de-impago.md`.
+
+- Zaltyko no cobra a las familias: el recordatorio es un aviso por correo al
+  **tutor pagador** de la cuota (`family_payer_id`), con los datos de pago que
+  la academia escribe. El registro no guarda correo, nombre ni texto del
+  mensaje, solo `guardian_id` (pasa a null si se borra esa ficha).
+- Ambas tablas: RLS `ENABLE` y `FORCE`, `REVOKE ALL` a `public`, `anon` y
+  `authenticated`, sin políticas ni grants. Borrados sin bloqueos: la cuota y
+  la academia en cascada; quien editó o pidió el aviso, y el tutor, pasan a
+  null (PostgreSQL 15+, `on delete set null (columna)`). El preflight aborta
+  si ya existe alguna de las dos o si faltan `charges`, `guardians` u
+  `organization_members`.
+- Bandera apagada por defecto: `ZALTYKO_PAYMENT_REMINDERS_ENABLED`. El
+  recordatorio automático tiene su propia bandera
+  (`ZALTYKO_PAYMENT_REMINDERS_AUTO_ENABLED`) y el ajuste de cada academia, y su
+  cron (`/api/cron/family-payment-reminders`) **no está programado** en
+  `vercel.json`. Mientras no se apliquen las tablas la función responde
+  «no disponible» (503) y la sección no aparece en `/owner/payments`.
+- Derechos de datos: la exportación de academia incluye las dos tablas cuando
+  están instaladas (módulo `payment_reminders` del catálogo) y la política de
+  supresión las clasifica; `tests/data-rights-activated-modules-contract.test.ts`
+  lo comprueba contra este SQL.
+- SHA-256: `15e657f762d7576385b8f4c9070fee3066ff70408c464505ff4a32722b9be668`.
+- Pruebas: `tests/payment-reminders-contract.test.ts` (candidato, espejo
+  Drizzle y detección de almacenamiento) y `tests/payment-reminders-pg.test.ts`,
+  en el job «Postgres integration». Instala el candidato solo en el PostgreSQL
+  desechable de GitHub y retira las tablas al terminar.
+- Índices en `guardian_id`, `requested_by_member_id` y `updated_by_member_id`:
+  las tres claves que pasan a null al borrar a una persona no recorren la tabla.
+- La marca de tiempo es `20261114120500` (no choca con la PR 321).
+- **Rollback.** Apagar antes `ZALTYKO_PAYMENT_REMINDERS_ENABLED` (la detección de
+  almacenamiento ya devuelve «no disponible» sin cambios de código). Las dos
+  tablas no tienen dependientes: ninguna otra relación las referencia. Borrarlas
+  descarta la plantilla y el historial de avisos; exportarlos antes si importan.
+
+  ```sql
+  begin;
+  drop table if exists zaltyko.payment_reminders;
+  drop table if exists zaltyko.payment_reminder_settings;
+  commit;
+  ```
+
+  `tests/payment-reminders-pg.test.ts` ejecuta exactamente estos dos `drop` al
+  terminar. Comprobación posterior: `to_regclass('zaltyko.payment_reminders')` es
+  null y `/owner/payments` ya no muestra la sección.
 - **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 
