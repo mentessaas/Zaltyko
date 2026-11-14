@@ -1,7 +1,8 @@
 /**
  * Política revisada de supresión y conservación de las tablas activadas en
  * producción el 12-11-2026 (objetivos y observaciones, titulares y
- * sustituciones, guion de sesión, solicitudes de prueba y acceso de equipo).
+ * sustituciones, guion de sesión, solicitudes de prueba y acceso de equipo) y,
+ * todavía sin aplicar en ningún entorno, las de niveles y progresión.
  *
  * Describe lo que hace PostgreSQL con las claves foráneas ya instaladas al
  * borrar una gimnasta, una cuenta o una academia. No es un procedimiento de
@@ -25,6 +26,7 @@ export type ActivatedModule =
   | "athlete_progress"
   | "coach_assignment"
   | "session_plans"
+  | "skill_levels"
   | "admissions"
   | "team_access"
   | "payment_reminders";
@@ -106,6 +108,16 @@ export const ACTIVATED_MODULES_ERASURE_POLICY: readonly ActivatedTableErasurePol
   policy("session_plan_blocks", "session_plans", "values", "not_linked", "blocks", "blocks"),
   policy("session_plan_objectives", "session_plans", "values", "cascade_delete", "not_linked", "not_linked"),
   policy("class_plan_templates", "session_plans", "values", "not_linked", "blocks", "blocks"),
+  // Niveles y progresión: el progreso y los pasos de nivel se borran con la
+  // gimnasta. La autoría de una integrante del equipo (y la sede) es
+  // `on delete set null`: dar de baja a una entrenadora no bloquea ni borra el
+  // historial, que queda sin autoría. Las plantillas, niveles y elementos son
+  // de la academia y no cuelgan de ninguna gimnasta.
+  policy("skill_templates", "skill_levels", "values", "not_linked", "set_null", "set_null"),
+  policy("skill_levels", "skill_levels", "values", "not_linked", "not_linked", "not_linked"),
+  policy("skill_elements", "skill_levels", "values", "not_linked", "not_linked", "not_linked"),
+  policy("athlete_skill_progress", "skill_levels", "values", "cascade_delete", "set_null", "set_null"),
+  policy("athlete_level_passes", "skill_levels", "values", "cascade_delete", "set_null", "set_null"),
   // Solicitudes de prueba: datos de contacto de familias y nombre/año de
   // nacimiento de menores. Una solicitud convertida sigue apuntando a la
   // gimnasta (NO ACTION): borrar esa ficha exige decidir antes qué hacer con

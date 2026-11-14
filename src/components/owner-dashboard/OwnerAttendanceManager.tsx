@@ -220,6 +220,7 @@ export function OwnerAttendanceManager({
   progressAvailable = false,
   coachAssignmentAvailable = false,
   sessionPlansAvailable = false,
+  skillLevelsAvailable = false,
   insight = null,
 }: {
   organizationId: string;
@@ -242,6 +243,8 @@ export function OwnerAttendanceManager({
   coachAssignmentAvailable?: boolean;
   /** P2 #17 (segunda parte): el servidor comprobó que existe la planificación. */
   sessionPlansAvailable?: boolean;
+  /** Niveles y progresión: bandera encendida y candidato SQL instalado. */
+  skillLevelsAvailable?: boolean;
   /** Gráfica de asistencia de las últimas semanas (solo dirección). */
   insight?: ReactNode;
 }) {
@@ -864,6 +867,16 @@ export function OwnerAttendanceManager({
                 readOnly={writesBlocked}
                 planCheck={planCheck}
               />
+            ) : null}
+            {skillLevelsAvailable && sessionId && !selectedSession?.retryOnly ? (
+              <div>
+                <Link
+                  href={`/owner/skills/evaluate?${new URLSearchParams({ organizationId, locationId, sessionId }).toString()}`}
+                  className={ownerUi.secondaryButton}
+                >
+                  Evaluar niveles
+                </Link>
+              </div>
             ) : null}
             {selectedSession?.retryOnly && (
               <p role="status" className={ownerTone.noticeWarning}>

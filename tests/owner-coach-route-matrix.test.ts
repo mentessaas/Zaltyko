@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   roster: vi.fn(),
   record: vi.fn(),
   usage: vi.fn(),
+  calendar: vi.fn(),
 }));
 
 vi.mock("@/db", () => ({
@@ -58,6 +59,9 @@ vi.mock(
     recordAttendance: mocks.record,
   })
 );
+vi.mock("@/modules/scheduling/application/calendar-sessions", () => ({
+  getOwnerCalendar: mocks.calendar,
+}));
 vi.mock(
   "@/modules/saas-billing/application/organization-usage",
   async (importOriginal) => ({
@@ -108,6 +112,15 @@ beforeEach(() => {
     status: command.status,
     recordedAt: new Date("2026-11-09T17:05:00.000Z"),
   }));
+  mocks.calendar.mockReset().mockResolvedValue({
+    range: { from: "2026-11-09", to: "2026-11-09" },
+    sessions: [],
+    truncated: false,
+    locations: [],
+    groups: [],
+    coachesAvailable: false,
+    assignedOnly: true,
+  });
   mocks.usage.mockReset().mockResolvedValue({
     readOnly: false,
     planCode: "growth",
@@ -275,6 +288,7 @@ const loadSessions = () => import("@/app/api/v1/owner/attendance/sessions/route"
 const loadSessionAttendance = () =>
   import("@/app/api/v1/owner/sessions/[sessionId]/attendance/route");
 const loadPolicy = () => import("@/app/api/v1/owner/operational-policy/route");
+const loadCalendar = () => import("@/app/api/v1/owner/calendar/route");
 
 describe("coach permitido solo en su sede", () => {
   it("lista sesiones para pasar lista en su sede", async () => {
@@ -304,6 +318,74 @@ describe("coach permitido solo en su sede", () => {
 
     expect(response.status).toBe(403);
     expect(state.domainReads).toEqual([]);
+  });
+
+  it("lee su calendario en su sede, como entrenadora y sin acceso a más sedes", async () => {
+    const range = { from: day, to: day };
+    const response = await call(
+      loadCalendar,
+      "GET",
+      `/api/v1/owner/calendar${query({ ...ownSite, ...range })}`
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(mocks.calendar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: expect.objectContaining({
+          member: expect.objectContaining({ role: "coach" }),
+          selectedLocationId: ids.siteAssigned,
+          canViewOrganizationAggregate: false,
+        }),
+        locationId: ids.siteAssigned,
+        ...range,
+      })
+    );
+    // La sede pedida sale del alcance de la entrenadora: ninguna otra.
+    const scope = mocks.calendar.mock.calls[0][0].scope;
+    expect(scope.locations.map((location: { id: string }) => location.id)).toEqual([ids.siteAssigned]);
+  });
+
+  it("sin sede pedida, el calendario usa la sede asignada y nunca el agregado", async () => {
+    const response = await call(
+      loadCalendar,
+      "GET",
+      `/api/v1/owner/calendar${query({ organizationId: ids.orgA, from: day, to: day })}`
+    );
+
+    expect(response.status).toBe(200);
+    const { scope } = mocks.calendar.mock.calls[0][0];
+    expect(scope.canViewOrganizationAggregate).toBe(false);
+    expect(scope.selectedLocationId).toBe(ids.siteAssigned);
+  });
+
+  it.each([
+    ["otra sede de su club", { organizationId: ids.orgA, locationId: ids.siteOther }],
+    ["una sede de otro club", { organizationId: ids.orgA, locationId: ids.siteForeign }],
+    ["otro club", foreignClub],
+  ])("deniega el calendario de %s sin leer sesiones", async (_label, target) => {
+    const response = await call(
+      loadCalendar,
+      "GET",
+      `/api/v1/owner/calendar${query({ ...target, from: day, to: day })}`
+    );
+
+    expect(response.status).toBe(403);
+    expect(mocks.calendar).not.toHaveBeenCalled();
+    expect(state.domainReads).toEqual([]);
+  });
+
+  it("un coach sin sedes no lee el calendario", async () => {
+    holder.userId = ids.coachNoSites;
+
+    const response = await call(
+      loadCalendar,
+      "GET",
+      `/api/v1/owner/calendar${query({ ...ownSite, from: day, to: day })}`
+    );
+
+    expect(response.status).toBe(403);
+    expect(mocks.calendar).not.toHaveBeenCalled();
   });
 
   it("lee y registra la asistencia de una sesión de su sede", async () => {
@@ -510,6 +592,9 @@ const coachAllowed = new Set([
   "GET owner/sessions/[sessionId]/attendance/route.ts",
   "POST owner/sessions/[sessionId]/attendance/route.ts",
   "GET owner/operational-policy/route.ts",
+  // Calendario: la entrenadora lee solo sus sesiones asignadas, de una sede
+  // de su alcance (el servicio filtra por session_staff).
+  "GET owner/calendar/route.ts",
   // P2 #17: objetivos y observaciones. El servicio exige sede asignada y una
   // gimnasta con inscripción o grupo abierto en ella (tests/athlete-progress-*).
   "GET owner/athletes/[athleteId]/progress/route.ts",
@@ -527,6 +612,19 @@ const coachAllowed = new Set([
   "GET owner/sessions/[sessionId]/plan/route.ts",
   "PUT owner/sessions/[sessionId]/plan/route.ts",
   "PUT owner/sessions/[sessionId]/plan/blocks/[blockId]/route.ts",
+  // Niveles y progresión (A6): el equipo técnico lee plantillas y evalúa con el
+  // criterio de Pasar lista (sede asignada, gimnasta con inscripción o grupo
+  // abierto). Crear y editar plantillas lo deniega el servicio a los
+  // entrenadores (tests/skill-levels-*). Todo responde 503 con la bandera apagada.
+  "GET owner/skill-templates/route.ts",
+  "POST owner/skill-templates/route.ts",
+  "GET owner/skill-templates/[templateId]/route.ts",
+  "PUT owner/skill-templates/[templateId]/route.ts",
+  "POST owner/skill-evaluations/route.ts",
+  "GET owner/athletes/[athleteId]/skills/route.ts",
+  "POST owner/athletes/[athleteId]/skills/level-passes/route.ts",
+  "GET owner/groups/[groupId]/skills/route.ts",
+  "GET owner/sessions/[sessionId]/skills/route.ts",
 ]);
 
 function routeFiles(directory: string): string[] {
@@ -575,6 +673,9 @@ describe("inventario de /api/v1", () => {
       "src/modules/owner-dashboard/application/owner-scope.ts",
       "src/modules/attendance/application/owner-attendance-sessions.ts",
       "src/app/api/v1/owner/attendance/sessions/route.ts",
+      // Calendario: lectura de las sesiones asignadas a la entrenadora.
+      "src/app/api/v1/owner/calendar/route.ts",
+      "src/app/owner/calendar/page.tsx",
       "src/app/api/v1/owner/operational-policy/route.ts",
       "src/app/owner/page.tsx",
       "src/app/owner/attendance/page.tsx",
@@ -582,6 +683,9 @@ describe("inventario de /api/v1", () => {
       "src/app/api/v1/owner/athlete-progress-http.ts",
       // P2 #17 (segunda parte): única entrada de las rutas del plan de sesión.
       "src/app/api/v1/owner/session-plan-http.ts",
+      // Niveles y progresión: única entrada de sus páginas (las rutas API
+      // reutilizan la resolución de athlete-progress-http.ts).
+      "src/app/owner/skills/_lib/skills-scope.ts",
     ]);
     const sourceFiles = (directory: string): string[] =>
       readdirSync(directory).flatMap((entry) => {
