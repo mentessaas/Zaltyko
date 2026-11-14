@@ -24,7 +24,7 @@ import {
  * Niveles y progresión por aparato.
  *
  * Espejo del candidato SQL
- * docs/deployment/candidates/20261114120000_skill_levels_candidate.sql, que
+ * docs/deployment/candidates/20261114121000_skill_levels_candidate.sql, que
  * requiere autorización de Elvis y no está aplicado en ningún entorno.
  *
  * Igual que el precedente de objetivos y observaciones, NO se exporta desde
@@ -33,6 +33,9 @@ import {
  * sin RLS ni REVOKE. Vive fuera de `src/db/schema/` porque `pnpm validate:rls`
  * solo valida el historial aplicado (`supabase/migrations`). Al promover el
  * candidato a una migración real, este archivo pasa a `src/db/schema/`.
+ * Las claves foráneas a miembros del equipo y a sedes son `on delete set null
+ * (columna)` en el SQL (Drizzle no expresa la lista de columnas): el espejo
+ * solo las declara, y por eso esas columnas son opcionales.
  * tests/skill-levels-contract.test.ts comprueba que el candidato, este archivo
  * y la detección de almacenamiento describen las mismas tablas y columnas.
  */
@@ -58,15 +61,17 @@ export const skillTemplates = zaltyko.table(
     starterKey: text("starter_key"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     revision: integer("revision").notNull().default(1),
-    createdByMemberId: uuid("created_by_member_id").notNull(),
+    createdByMemberId: uuid("created_by_member_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedByMemberId: uuid("updated_by_member_id").notNull(),
+    updatedByMemberId: uuid("updated_by_member_id"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     unique("skill_templates_org_id_uq").on(table.organizationId, table.id),
     unique("skill_templates_request_uq").on(table.organizationId, table.clientRequestId),
     index("skill_templates_org_idx").on(table.organizationId, table.discipline, table.archivedAt),
+    index("skill_templates_created_by_idx").on(table.organizationId, table.createdByMemberId),
+    index("skill_templates_updated_by_idx").on(table.organizationId, table.updatedByMemberId),
     check("skill_templates_name_check", raw("length(btrim(name)) between 2 and 80 and name !~ '[[:cntrl:]]'")),
     check(
       "skill_templates_description_check",
@@ -178,10 +183,10 @@ export const athleteSkillProgress = zaltyko.table(
     athleteId: uuid("athlete_id").notNull(),
     templateId: uuid("template_id").notNull(),
     elementId: uuid("element_id").notNull(),
-    locationId: uuid("location_id").notNull(),
+    locationId: uuid("location_id"),
     status: text("status").notNull().default("not_started"),
     achievedOn: date("achieved_on"),
-    evaluatedByMemberId: uuid("evaluated_by_member_id").notNull(),
+    evaluatedByMemberId: uuid("evaluated_by_member_id"),
     evaluatedAt: timestamp("evaluated_at", { withTimezone: true }).notNull().defaultNow(),
     revision: integer("revision").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -191,6 +196,8 @@ export const athleteSkillProgress = zaltyko.table(
     unique("athlete_skill_progress_org_id_uq").on(table.organizationId, table.id),
     unique("athlete_skill_progress_element_uq").on(table.organizationId, table.athleteId, table.elementId),
     index("athlete_skill_progress_athlete_idx").on(table.organizationId, table.athleteId, table.templateId),
+    index("athlete_skill_progress_location_idx").on(table.organizationId, table.locationId),
+    index("athlete_skill_progress_evaluator_idx").on(table.organizationId, table.evaluatedByMemberId),
     check(
       "athlete_skill_progress_status_check",
       raw("status in ('not_started', 'in_progress', 'achieved')")
@@ -229,10 +236,10 @@ export const athleteLevelPasses = zaltyko.table(
     athleteId: uuid("athlete_id").notNull(),
     templateId: uuid("template_id").notNull(),
     levelId: uuid("level_id").notNull(),
-    locationId: uuid("location_id").notNull(),
+    locationId: uuid("location_id"),
     clientRequestId: uuid("client_request_id").notNull(),
     passedOn: date("passed_on").notNull(),
-    passedByMemberId: uuid("passed_by_member_id").notNull(),
+    passedByMemberId: uuid("passed_by_member_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -240,6 +247,8 @@ export const athleteLevelPasses = zaltyko.table(
     unique("athlete_level_passes_request_uq").on(table.organizationId, table.clientRequestId),
     unique("athlete_level_passes_level_uq").on(table.organizationId, table.athleteId, table.levelId),
     index("athlete_level_passes_athlete_idx").on(table.organizationId, table.athleteId, table.templateId),
+    index("athlete_level_passes_location_idx").on(table.organizationId, table.locationId),
+    index("athlete_level_passes_passer_idx").on(table.organizationId, table.passedByMemberId),
     foreignKey({
       columns: [table.organizationId, table.athleteId],
       foreignColumns: [athletes.organizationId, athletes.id],

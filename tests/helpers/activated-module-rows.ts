@@ -49,7 +49,7 @@ const VALUES: Record<string, Record<string, unknown>> = {
       { kind: "technique", content: "Synthetic beam", apparatus: "beam", discipline: "gaf", durationMinutes: null },
     ],
   },
-  // Niveles y progresión (candidato 20261114120000, aún sin aplicar en ningún entorno).
+  // Niveles y progresión (candidato 20261114121000, aún sin aplicar en ningún entorno).
   skill_templates: {
     id: id(30), discipline: "artistic_female", name: "Synthetic template", description: null,
     source: "blank", starter_key: null, revision: 1,

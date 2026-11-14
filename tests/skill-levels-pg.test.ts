@@ -77,7 +77,7 @@ function assertDisposableTarget() {
 }
 
 const candidate = () =>
-  readFileSync(resolve(process.cwd(), "docs/deployment/candidates/20261114120000_skill_levels_candidate.sql"), "utf8");
+  readFileSync(resolve(process.cwd(), "docs/deployment/candidates/20261114121000_skill_levels_candidate.sql"), "utf8");
 
 const TABLES = ["skill_templates", "skill_levels", "skill_elements", "athlete_skill_progress", "athlete_level_passes"];
 
@@ -778,5 +778,67 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
     expect(await getFamilySkills({ userId: userF, athleteId: ana })).toBeNull();
     expect(await getFamilyDiploma({ userId: userF, athleteId: ana, passId })).toBeNull();
     setFlag(true);
+  });
+
+  it("repetir una petición con otros datos es un conflicto, no una repetición", async () => {
+    const [element] = levelElements(template, 1);
+    const clientRequestId = randomUUID();
+    await evaluate(ownerA, s1(), [ana], [element!], "in_progress", { clientRequestId });
+    await expect(
+      evaluate(ownerA, s1(), [ana], [element!], "achieved", { clientRequestId })
+    ).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT", status: 409 });
+    await expect(
+      evaluate(ownerA, s1(), [ana, dani], [element!], "in_progress", { clientRequestId })
+    ).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
+    // Los mismos datos, sí: es una repetición.
+    expect(await evaluate(ownerA, s1(), [ana], [element!], "in_progress", { clientRequestId })).toMatchObject({ replayed: true });
+  });
+
+  it("dos evaluaciones distintas de la misma gimnasta a la vez no fallan con un error de base de datos", async () => {
+    const [element] = levelElements(template, 1).slice(-1);
+    const results = await Promise.allSettled([
+      evaluate(coachA1, s1(), [dani], [element!], "in_progress"),
+      evaluate(ownerA, s1(), [dani], [element!], "achieved"),
+      evaluate(managerA1, s1(), [dani], [element!], "in_progress"),
+    ]);
+    // Se serializan: todas terminan bien, o la perdedora recibe un 409 limpio.
+    for (const result of results) {
+      if (result.status === "rejected") expect(result.reason).toMatchObject({ code: "VERSION_CONFLICT", status: 409 });
+    }
+    expect(results.some((result) => result.status === "fulfilled")).toBe(true);
+    const stored = await db.execute(sql`
+      select count(*)::int as total, min(status) as status, max(revision)::int as revision
+      from zaltyko.athlete_skill_progress
+      where organization_id = ${a.organizationId}::uuid and athlete_id = ${dani}::uuid and element_id = ${element}::uuid
+    `);
+    expect(stored.rows[0]).toMatchObject({ total: 1 });
+    expect(["in_progress", "achieved"]).toContain((stored.rows[0] as { status: string }).status);
+  });
+
+  it("dos pasos de nivel distintos de la misma gimnasta a la vez: uno se registra y el otro recibe «ya superado»", async () => {
+    const [l1] = template.levels;
+    await evaluate(ownerA, s1(), [dani], levelElements(template, 0), "achieved", { achievedOn: "2026-11-10" });
+    const before = await count("athlete_level_passes", a.organizationId);
+    const results = await Promise.allSettled([pass(coachA1, dani, l1!.id), pass(ownerA, dani, l1!.id)]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const rejected = results.find((result) => result.status === "rejected") as PromiseRejectedResult;
+    expect(rejected.reason).toMatchObject({ code: "INVALID_STATE_TRANSITION", status: 409 });
+    expect(await count("athlete_level_passes", a.organizationId)).toBe(before + 1);
+  });
+
+  it("dar de baja a la evaluadora no bloquea ni borra el historial: queda sin autoría", async () => {
+    const leaver = await member(a.organizationId, "coach", "selected", [a.locationIds[0]!], "leaver");
+    const element = levelElements(template, 1).at(-1)!;
+    await evaluate(leaver, s1(), [ana], [element], "in_progress");
+    await db.execute(sql`delete from zaltyko.member_location_scopes where organization_id = ${a.organizationId}::uuid and member_id = ${leaver.memberId}::uuid`);
+    await db.execute(sql`delete from zaltyko.organization_members where organization_id = ${a.organizationId}::uuid and id = ${leaver.memberId}::uuid`);
+    const stored = await db.execute(sql`
+      select evaluated_by_member_id from zaltyko.athlete_skill_progress
+      where organization_id = ${a.organizationId}::uuid and athlete_id = ${ana}::uuid and element_id = ${element}::uuid
+    `);
+    expect((stored.rows[0] as { evaluated_by_member_id: string | null }).evaluated_by_member_id).toBeNull();
+    const view = await getAthleteSkills({ actor: ownerA, athleteId: ana, query: { ...s1(), templateId: template.id } });
+    const shown = view.templates[0]!.levels[1]!.elements.find((entry) => entry.id === element)!;
+    expect(shown.state).toMatchObject({ status: "in_progress", evaluatedByName: null });
   });
 });

@@ -788,7 +788,7 @@ const ACTIVATED_CANDIDATES = [
   "20261111200000_session_plans_candidate.sql",
   "20261111180000_coach_assignment_candidate.sql",
   "20261110120000_admission_requests_candidate.sql",
-  "20261114120000_skill_levels_candidate.sql",
+  "20261114121000_skill_levels_candidate.sql",
 ] as const;
 const activatedCandidate = (name: string) =>
   readFileSync(resolve(process.cwd(), `docs/deployment/candidates/${name}`), "utf8");
@@ -886,7 +886,7 @@ async function seedActivatedModules(organizationId: string, marker: string) {
         jsonb_build_object('kind', 'technique', 'discipline', 'gaf', 'apparatus', 'beam', 'content', 'Paloma')
       ), ${memberId}::uuid)
   `);
-  // Niveles y progresión (candidato 20261114120000).
+  // Niveles y progresión (candidato 20261114121000).
   const skillTemplateId = randomUUID();
   const skillLevelId = randomUUID();
   const skillElementId = randomUUID();

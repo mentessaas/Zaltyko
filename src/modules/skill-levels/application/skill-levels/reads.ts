@@ -133,8 +133,8 @@ async function readAthleteTemplates(
 
   const names = input.includeNames
     ? await memberNames(tx, input.organizationId, [
-        ...progressRows.map((row) => row.evaluatedByMemberId),
-        ...passRows.map((row) => row.passedByMemberId),
+        ...progressRows.flatMap((row) => (row.evaluatedByMemberId ? [row.evaluatedByMemberId] : [])),
+        ...passRows.flatMap((row) => (row.passedByMemberId ? [row.passedByMemberId] : [])),
       ])
     : new Map<string, string>();
 
@@ -147,7 +147,9 @@ async function readAthleteTemplates(
       progress.set(row.elementId, {
         status: row.status as ElementStatus,
         achievedOn: row.achievedOn,
-        evaluatedByName: input.includeNames ? (names.get(row.evaluatedByMemberId) ?? "Equipo") : null,
+        // Sin autoría (la persona ya no está en la academia): sin nombre.
+        evaluatedByName:
+          input.includeNames && row.evaluatedByMemberId ? (names.get(row.evaluatedByMemberId) ?? "Equipo") : null,
         evaluatedAt: input.includeNames ? iso(row.evaluatedAt) : null,
       });
     }
@@ -159,7 +161,8 @@ async function readAthleteTemplates(
         levelName: row.levelName,
         levelPosition: row.levelPosition,
         passedOn: row.passedOn,
-        passedByName: input.includeNames ? (names.get(row.passedByMemberId) ?? "Equipo") : null,
+        passedByName:
+          input.includeNames && row.passedByMemberId ? (names.get(row.passedByMemberId) ?? "Equipo") : null,
       }));
     result.push(
       buildTemplateProgress({

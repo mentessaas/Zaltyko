@@ -24,6 +24,10 @@ $skill_levels_candidate_preflight$;
 -- (source = 'copy') y la edita. Archivar no borra: el progreso se conserva.
 -- Todas las restricciones llevan nombre (< 63 caracteres) y el espejo Drizzle
 -- las repite: lo comprueba tests/skill-levels-contract.test.ts.
+-- La autoría (miembros del equipo) y las sedes de las marcas son opcionales con
+-- `on delete set null (columna)` (PostgreSQL 15+): dar de baja a una entrenadora
+-- o una sede no se bloquea por su historial, que se conserva sin autoría. Cada
+-- una de esas columnas tiene su índice.
 create table zaltyko.skill_templates (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references zaltyko.organizations(id) on delete cascade,
@@ -35,9 +39,9 @@ create table zaltyko.skill_templates (
   starter_key text,
   archived_at timestamptz,
   revision integer not null default 1,
-  created_by_member_id uuid not null,
+  created_by_member_id uuid,
   created_at timestamptz not null default now(),
-  updated_by_member_id uuid not null,
+  updated_by_member_id uuid,
   updated_at timestamptz not null default now(),
   constraint skill_templates_org_id_uq unique (organization_id, id),
   constraint skill_templates_request_uq unique (organization_id, client_request_id),
@@ -53,12 +57,16 @@ create table zaltyko.skill_templates (
     check ((source = 'starter') = (starter_key is not null)),
   constraint skill_templates_revision_check
     check (revision > 0),
-  foreign key (organization_id, created_by_member_id) references zaltyko.organization_members(organization_id, id),
-  foreign key (organization_id, updated_by_member_id) references zaltyko.organization_members(organization_id, id)
+  foreign key (organization_id, created_by_member_id) references zaltyko.organization_members(organization_id, id) on delete set null (created_by_member_id),
+  foreign key (organization_id, updated_by_member_id) references zaltyko.organization_members(organization_id, id) on delete set null (updated_by_member_id)
 );
 
 create index skill_templates_org_idx
   on zaltyko.skill_templates(organization_id, discipline, archived_at);
+create index skill_templates_created_by_idx
+  on zaltyko.skill_templates(organization_id, created_by_member_id);
+create index skill_templates_updated_by_idx
+  on zaltyko.skill_templates(organization_id, updated_by_member_id);
 
 -- Nivel de una plantilla, en orden (position). Los niveles quitados en una
 -- edición se archivan, no se borran, para conservar los pasos de nivel.
@@ -129,10 +137,10 @@ create table zaltyko.athlete_skill_progress (
   athlete_id uuid not null,
   template_id uuid not null,
   element_id uuid not null,
-  location_id uuid not null,
+  location_id uuid,
   status text not null default 'not_started',
   achieved_on date,
-  evaluated_by_member_id uuid not null,
+  evaluated_by_member_id uuid,
   evaluated_at timestamptz not null default now(),
   revision integer not null default 1,
   created_at timestamptz not null default now(),
@@ -148,12 +156,16 @@ create table zaltyko.athlete_skill_progress (
   foreign key (organization_id, athlete_id) references zaltyko.athletes(organization_id, id) on delete cascade,
   -- El elemento es de la plantilla indicada.
   foreign key (organization_id, template_id, element_id) references zaltyko.skill_elements(organization_id, template_id, id) on delete cascade,
-  foreign key (organization_id, location_id) references zaltyko.locations(organization_id, id),
-  foreign key (organization_id, evaluated_by_member_id) references zaltyko.organization_members(organization_id, id)
+  foreign key (organization_id, location_id) references zaltyko.locations(organization_id, id) on delete set null (location_id),
+  foreign key (organization_id, evaluated_by_member_id) references zaltyko.organization_members(organization_id, id) on delete set null (evaluated_by_member_id)
 );
 
 create index athlete_skill_progress_athlete_idx
   on zaltyko.athlete_skill_progress(organization_id, athlete_id, template_id);
+create index athlete_skill_progress_location_idx
+  on zaltyko.athlete_skill_progress(organization_id, location_id);
+create index athlete_skill_progress_evaluator_idx
+  on zaltyko.athlete_skill_progress(organization_id, evaluated_by_member_id);
 
 -- Paso de nivel de una gimnasta: un hecho con fecha y responsable, que es
 -- también el origen del diploma (el identificador de la fila). Solo se
@@ -164,10 +176,10 @@ create table zaltyko.athlete_level_passes (
   athlete_id uuid not null,
   template_id uuid not null,
   level_id uuid not null,
-  location_id uuid not null,
+  location_id uuid,
   client_request_id uuid not null,
   passed_on date not null,
-  passed_by_member_id uuid not null,
+  passed_by_member_id uuid,
   created_at timestamptz not null default now(),
   constraint athlete_level_passes_org_id_uq unique (organization_id, id),
   constraint athlete_level_passes_request_uq unique (organization_id, client_request_id),
@@ -175,12 +187,16 @@ create table zaltyko.athlete_level_passes (
   foreign key (organization_id, athlete_id) references zaltyko.athletes(organization_id, id) on delete cascade,
   -- El nivel es de la plantilla indicada.
   foreign key (organization_id, template_id, level_id) references zaltyko.skill_levels(organization_id, template_id, id) on delete cascade,
-  foreign key (organization_id, location_id) references zaltyko.locations(organization_id, id),
-  foreign key (organization_id, passed_by_member_id) references zaltyko.organization_members(organization_id, id)
+  foreign key (organization_id, location_id) references zaltyko.locations(organization_id, id) on delete set null (location_id),
+  foreign key (organization_id, passed_by_member_id) references zaltyko.organization_members(organization_id, id) on delete set null (passed_by_member_id)
 );
 
 create index athlete_level_passes_athlete_idx
   on zaltyko.athlete_level_passes(organization_id, athlete_id, template_id);
+create index athlete_level_passes_location_idx
+  on zaltyko.athlete_level_passes(organization_id, location_id);
+create index athlete_level_passes_passer_idx
+  on zaltyko.athlete_level_passes(organization_id, passed_by_member_id);
 
 alter table zaltyko.skill_templates enable row level security;
 alter table zaltyko.skill_templates force row level security;

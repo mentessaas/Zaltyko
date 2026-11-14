@@ -25,7 +25,7 @@ import {
 const ROOT = process.cwd();
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
-const CANDIDATE_FILE = "20261114120000_skill_levels_candidate.sql";
+const CANDIDATE_FILE = "20261114121000_skill_levels_candidate.sql";
 const CANDIDATE = `docs/deployment/candidates/${CANDIDATE_FILE}`;
 const SCHEMA = "src/modules/skill-levels/infrastructure/skill-levels-schema.ts";
 const TABLES = Object.keys(SKILL_LEVELS_TABLES).sort();
@@ -214,9 +214,21 @@ describe("candidato SQL de niveles y progresión", () => {
     expect(body).toContain(
       "foreign key (organization_id, template_id, element_id) references zaltyko.skill_elements(organization_id, template_id, id) on delete cascade"
     );
-    // Lo de una gimnasta se borra con ella; la autoría del equipo no se borra a medias.
+    // Lo de una gimnasta se borra con ella; la autoría del equipo y la sede
+    // son opcionales y quedan en blanco al darlas de baja (no bloquean nada).
     expect(body).toContain("foreign key (organization_id, athlete_id) references zaltyko.athletes(organization_id, id) on delete cascade");
-    expect(body).toMatch(/foreign key \(organization_id, passed_by_member_id\) references zaltyko\.organization_members\(organization_id, id\)\n/);
+    for (const column of [
+      "created_by_member_id",
+      "updated_by_member_id",
+      "evaluated_by_member_id",
+      "passed_by_member_id",
+    ]) {
+      expect(body, column).toContain(
+        `foreign key (organization_id, ${column}) references zaltyko.organization_members(organization_id, id) on delete set null (${column})`
+      );
+    }
+    expect(body.match(/references zaltyko\.locations\(organization_id, id\) on delete set null \(location_id\)/g)).toHaveLength(2);
+    expect(body).not.toMatch(/\b(?:created_by_member_id|updated_by_member_id|evaluated_by_member_id|passed_by_member_id) uuid not null/);
   });
 });
 

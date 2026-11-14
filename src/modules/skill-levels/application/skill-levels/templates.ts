@@ -338,7 +338,15 @@ export async function createSkillTemplate(input: ActorInput & { command: unknown
       )
       .limit(1);
     if (prior) {
-      if (prior.source !== command.source) throw idempotencyConflict();
+      // Repetir con otros datos (otro origen, nombre, disciplina o ejemplo) es un conflicto.
+      const same =
+        prior.source === command.source &&
+        (command.source === "blank"
+          ? prior.discipline === command.discipline && prior.name === command.name
+          : command.source === "starter"
+            ? prior.starterKey === command.starterKey && (!command.name || prior.name === command.name)
+            : prior.name === command.name);
+      if (!same) throw idempotencyConflict();
       return { id: prior.id, revision: prior.revision, replayed: true };
     }
 

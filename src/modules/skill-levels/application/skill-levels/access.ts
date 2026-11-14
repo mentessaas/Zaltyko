@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import {
   athletes,
@@ -63,7 +63,7 @@ export function notFound(message = "No encontrado"): OperationalError {
 export function idempotencyConflict(): OperationalError {
   return new OperationalError(
     "IDEMPOTENCY_CONFLICT",
-    "Esta petición ya se usó con otros datos. Recarga y vuelve a intentarlo.",
+    "Este cambio ya se guardó; recarga la página.",
     409
   );
 }
@@ -95,6 +95,28 @@ export async function authorizeMember(
     .limit(1);
   if (!location) throw notFound("Sede no encontrada");
   return { member, role: member.role as SkillMemberRole, location };
+}
+
+/**
+ * Bloquea las filas de las gimnastas (en orden de id, para no cruzar bloqueos)
+ * antes de escribir su progreso o su paso de nivel. FOR NO KEY UPDATE choca
+ * con otra escritura sobre la misma gimnasta, pero no con las claves foráneas
+ * que otras operaciones comprueban sobre ella.
+ */
+export async function lockAthleteRows(
+  tx: TransactionClient,
+  organizationId: string,
+  athleteIds: readonly string[]
+): Promise<void> {
+  const ids = [...new Set(athleteIds)].sort();
+  if (ids.length === 0) return;
+  // unbounded-read-ok: acotada por los ids recibidos (como mucho 60 gimnastas).
+  await tx
+    .select({ id: athletes.id })
+    .from(athletes)
+    .where(and(eq(athletes.organizationId, organizationId), inArray(athletes.id, ids)))
+    .orderBy(asc(athletes.id))
+    .for("no key update");
 }
 
 /** Solo dirección, administración y coordinación gestionan plantillas. */

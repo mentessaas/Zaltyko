@@ -108,14 +108,15 @@ export const ACTIVATED_MODULES_ERASURE_POLICY: readonly ActivatedTableErasurePol
   policy("session_plan_objectives", "session_plans", "values", "cascade_delete", "not_linked", "not_linked"),
   policy("class_plan_templates", "session_plans", "values", "not_linked", "blocks", "blocks"),
   // Niveles y progresión: el progreso y los pasos de nivel se borran con la
-  // gimnasta; la autoría de una integrante del equipo es NO ACTION (no se
-  // borra historial a medias). Las plantillas, niveles y elementos son de la
-  // academia y no cuelgan de ninguna gimnasta.
-  policy("skill_templates", "skill_levels", "values", "not_linked", "blocks", "blocks"),
+  // gimnasta. La autoría de una integrante del equipo (y la sede) es
+  // `on delete set null`: dar de baja a una entrenadora no bloquea ni borra el
+  // historial, que queda sin autoría. Las plantillas, niveles y elementos son
+  // de la academia y no cuelgan de ninguna gimnasta.
+  policy("skill_templates", "skill_levels", "values", "not_linked", "set_null", "set_null"),
   policy("skill_levels", "skill_levels", "values", "not_linked", "not_linked", "not_linked"),
   policy("skill_elements", "skill_levels", "values", "not_linked", "not_linked", "not_linked"),
-  policy("athlete_skill_progress", "skill_levels", "values", "cascade_delete", "blocks", "blocks"),
-  policy("athlete_level_passes", "skill_levels", "values", "cascade_delete", "blocks", "blocks"),
+  policy("athlete_skill_progress", "skill_levels", "values", "cascade_delete", "set_null", "set_null"),
+  policy("athlete_level_passes", "skill_levels", "values", "cascade_delete", "set_null", "set_null"),
   // Solicitudes de prueba: datos de contacto de familias y nombre/año de
   // nacimiento de menores. Una solicitud convertida sigue apuntando a la
   // gimnasta (NO ACTION): borrar esa ficha exige decidir antes qué hacer con

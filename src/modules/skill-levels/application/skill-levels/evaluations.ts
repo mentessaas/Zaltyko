@@ -1,4 +1,6 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { createHash } from "node:crypto";
+
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { auditLog } from "@/db/zaltyko-schema";
@@ -26,6 +28,7 @@ import {
   authorizeAthlete,
   authorizeMember,
   idempotencyConflict,
+  lockAthleteRows,
   notFound,
   type ActorInput,
 } from "./access";
@@ -54,6 +57,42 @@ function resolveDate(requested: string | null | undefined, today: string): strin
   return value;
 }
 
+/**
+ * Huella del cuerpo de una evaluación: repetir una petición con otros datos
+ * (otro estado, otras gimnastas, otros elementos o otra fecha) no es una
+ * repetición, es un conflicto.
+ */
+function evaluationHash(command: {
+  locationId: string;
+  templateId: string;
+  athleteIds: string[];
+  elementIds: string[];
+  status: string;
+  achievedOn?: string | null;
+}): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        l: command.locationId,
+        t: command.templateId,
+        a: [...command.athleteIds].sort(),
+        e: [...command.elementIds].sort(),
+        s: command.status,
+        d: command.achievedOn ?? null,
+      })
+    )
+    .digest("hex");
+}
+
+function alreadyPassed(): OperationalError {
+  return new OperationalError(
+    "INVALID_STATE_TRANSITION",
+    passLevelRefusalMessages.already_passed,
+    409,
+    { reason: "already_passed" }
+  );
+}
+
 export async function evaluateSkills(input: ActorInput & { command: unknown }): Promise<EvaluationResult> {
   const command = evaluateSkillsCommandSchema.parse(input.command);
   return db.transaction(async (tx) => {
@@ -62,12 +101,16 @@ export async function evaluateSkills(input: ActorInput & { command: unknown }): 
 
     // Repetir la misma petición no vuelve a escribir.
     const auditKey = `skill-levels:evaluated:${command.clientRequestId}`;
+    const requestHash = evaluationHash(command);
     const [prior] = await tx
-      .select({ id: auditLog.id })
+      .select({ id: auditLog.id, metadata: auditLog.metadata })
       .from(auditLog)
       .where(and(eq(auditLog.organizationId, command.organizationId), eq(auditLog.idempotencyKey, auditKey)))
       .limit(1);
-    if (prior) return { id: command.clientRequestId, revision: 1, replayed: true, changed: 0, unchanged: 0 };
+    if (prior) {
+      if ((prior.metadata as { requestHash?: unknown } | null)?.requestHash !== requestHash) throw idempotencyConflict();
+      return { id: command.clientRequestId, revision: 1, replayed: true, changed: 0, unchanged: 0 };
+    }
 
     const template = await loadTemplateRow(tx, command.organizationId, command.templateId);
     if (template.archivedAt) throw archivedTemplate();
@@ -100,6 +143,10 @@ export async function evaluateSkills(input: ActorInput & { command: unknown }): 
         intent: "write",
       });
     }
+
+    // Dos evaluaciones distintas de la misma gimnasta se serializan aquí: sin esta
+    // fila bloqueada, ambas leerían «no existe» y la segunda chocaría con el único.
+    await lockAthleteRows(tx, command.organizationId, command.athleteIds);
 
     // unbounded-read-ok: acotada por los ids recibidos (60 gimnastas x 40 elementos como mucho).
     const existingRows = await tx
@@ -150,7 +197,7 @@ export async function evaluateSkills(input: ActorInput & { command: unknown }): 
           unchanged += 1;
           continue;
         }
-        await tx
+        const updated = await tx
           .update(athleteSkillProgress)
           .set({
             status,
@@ -167,11 +214,37 @@ export async function evaluateSkills(input: ActorInput & { command: unknown }): 
               eq(athleteSkillProgress.id, row.id),
               eq(athleteSkillProgress.revision, row.revision)
             )
+          )
+          .returning({ id: athleteSkillProgress.id });
+        if (updated.length !== 1) {
+          throw new OperationalError(
+            "VERSION_CONFLICT",
+            "Otra persona ha cambiado este progreso. Recarga para ver su estado actual.",
+            409
           );
+        }
         changed += 1;
       }
     }
-    if (toInsert.length > 0) await tx.insert(athleteSkillProgress).values(toInsert);
+    if (toInsert.length > 0) {
+      // Con las gimnastas bloqueadas no debería haber choque; si lo hubiera, se
+      // actualiza la fila (con su revisión) en vez de fallar con un 500.
+      await tx
+        .insert(athleteSkillProgress)
+        .values(toInsert)
+        .onConflictDoUpdate({
+          target: [athleteSkillProgress.organizationId, athleteSkillProgress.athleteId, athleteSkillProgress.elementId],
+          set: {
+            status: sql`excluded.status`,
+            achievedOn: sql`excluded.achieved_on`,
+            locationId: sql`excluded.location_id`,
+            evaluatedByMemberId: sql`excluded.evaluated_by_member_id`,
+            evaluatedAt: sql`excluded.evaluated_at`,
+            revision: sql`${athleteSkillProgress.revision} + 1`,
+            updatedAt: sql`now()`,
+          },
+        });
+    }
 
     await appendAuditEntry(tx, {
       organizationId: command.organizationId,
@@ -183,6 +256,7 @@ export async function evaluateSkills(input: ActorInput & { command: unknown }): 
       idempotencyKey: auditKey,
       after: { status: command.status },
       metadata: {
+        requestHash,
         athletes: command.athleteIds.length,
         elements: command.elementIds.length,
         changed,
@@ -239,6 +313,9 @@ export async function passSkillLevel(
       intent: "write",
     });
     await lockCommand(tx, command.organizationId, `skill-pass:${command.clientRequestId}`);
+    // Dos pasos de nivel distintos de la misma gimnasta se serializan: el segundo
+    // ve el nivel ya superado y recibe un 409, no un error del único.
+    await lockAthleteRows(tx, command.organizationId, [input.athleteId]);
 
     const [prior] = await tx
       .select()
@@ -311,8 +388,12 @@ export async function passSkillLevel(
         passedOn,
         passedByMemberId: access.member.id,
       })
+      .onConflictDoNothing({
+        target: [athleteLevelPasses.organizationId, athleteLevelPasses.athleteId, athleteLevelPasses.levelId],
+      })
       .returning({ id: athleteLevelPasses.id });
-    if (!created) throw new OperationalError("FEATURE_NOT_AVAILABLE", "No se pudo registrar el paso de nivel", 503);
+    // Si otro paso ganó la carrera (no debería con la gimnasta bloqueada), no se inserta nada.
+    if (!created) throw alreadyPassed();
     await appendAuditEntry(tx, {
       organizationId: command.organizationId,
       locationId: command.locationId,

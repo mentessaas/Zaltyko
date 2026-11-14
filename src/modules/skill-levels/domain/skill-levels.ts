@@ -80,7 +80,7 @@ export const skillApparatusLabels: Record<SkillApparatus, string> = {
   ball: "Pelota",
   clubs: "Mazas",
   ribbon: "Cinta",
-  body: "Sin aparato (cuerpo)",
+  body: "Manos libres",
 };
 
 export const GENERAL_APPARATUS_LABEL = "General";

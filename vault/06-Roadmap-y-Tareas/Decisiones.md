@@ -18,7 +18,8 @@ source:
 - **Nivel actual = primero sin paso de nivel; se pasa en orden y con todos los obligatorios conseguidos.** El paso de nivel es un hecho con fecha (sin anulación en esta versión) y origen del diploma.
 - **Diploma por impresión del navegador (A4 apaisado, también PDF).** Sin dependencia nueva. La marca de la academia es su nombre: aún no hay logotipo ni color por academia.
 - **Familias: solo lectura en `/familia/gimnastas/[id]`**, sin nombres del equipo y con el diploma.
-- **Dos llaves:** candidato `20261114120000_skill_levels_candidate.sql` (sin aplicar) y `ZALTYKO_SKILL_LEVELS_ENABLED` (apagada). Derechos de datos cableados desde el primer día.
+- **Entrenadoras.** Evalúan a cualquier gimnasta de su sede (inscripción o grupo abierto) y pueden registrar el paso de nivel: decidido el 14-11-2026 en la revisión. Las repeticiones idempotentes con otros datos son un 409.
+- **Dos llaves:** candidato `20261114121000_skill_levels_candidate.sql` (sin aplicar) y `ZALTYKO_SKILL_LEVELS_ENABLED` (apagada). Derechos de datos cableados desde el primer día.
 
 **Siguiente paso:** Elvis decide los nueve puntos «Decide Elvis» del documento de producto y autoriza aplicar el candidato primero en staging.
 

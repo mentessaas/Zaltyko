@@ -11,7 +11,7 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
  * Niveles y progresión: dos condiciones para que exista.
  * 1. La bandera ZALTYKO_SKILL_LEVELS_ENABLED=true (apagada por defecto).
  * 2. Las cinco tablas del candidato SQL instaladas exactamente como se
- *    revisaron (docs/deployment/candidates/20261114120000_skill_levels_candidate.sql),
+ *    revisaron (docs/deployment/candidates/20261114121000_skill_levels_candidate.sql),
  *    que requiere autorización de Elvis.
  * Mientras falte cualquiera, todo responde «no disponible» (503) en vez de
  * fallar a mitad de una lectura o escritura. Solo lee el catálogo: nunca crea,

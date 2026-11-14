@@ -30,7 +30,7 @@ Fuente: `docs/research/competencia/plan-validacion-30-dias.md`. No construir nad
 
 ## A6 — Niveles y progresión por aparato, pendientes (2026-11-14)
 
-- Aplicar el candidato `20261114120000_skill_levels_candidate.sql` en staging y activar `ZALTYKO_SKILL_LEVELS_ENABLED` (necesita autorización de Elvis); después, producción.
+- Aplicar el candidato `20261114121000_skill_levels_candidate.sql` en staging y activar `ZALTYKO_SKILL_LEVELS_ENABLED` (necesita autorización de Elvis); después, producción.
 - Marca de la academia en el diploma (logotipo y color por academia) y anulación de un paso de nivel: decisiones abiertas.
 - Plantillas basadas en el programa de una federación (RFEG, FMG): exige citar la fuente pública y revisar la licencia.
 - Aviso a la familia al pasar de nivel (depende de la sesión de avisos).
