@@ -84,5 +84,38 @@ describe("API /api/super-admin/users/[profileId]", () => {
     const data = await response.json();
     expect(data.error).toBe("IMMUTABLE_SUPER_ADMIN");
   });
+
+  it("DELETE no borra un perfil dueño de academias legacy (409) ni toca su cuenta", async () => {
+    vi.doMock("@/lib/authz", () => ({
+      withSuperAdmin: (handler: any) => handler,
+    }));
+    const deleteAuthUserIfPresent = vi.fn();
+    vi.doMock("@/lib/supabase/admin-operations", () => ({
+      getAuthUserEmail: vi.fn(),
+      updateAuthUserEmail: vi.fn(),
+      deleteAuthUserIfPresent,
+    }));
+    const ownedAcademies: any = {
+      from: vi.fn(() => ownedAcademies),
+      where: vi.fn(() => Promise.resolve([{ value: 1 }])),
+    };
+    selectQueue = [createSelectChain([{ id: "test-id", userId: "user-1", role: "owner" }]), ownedAcademies];
+
+    const { DELETE } = await import("@/app/api/super-admin/users/[profileId]/route");
+    const request = new NextRequest("http://localhost/api/super-admin/users/test-id", {
+      method: "DELETE",
+      body: JSON.stringify({ reason: "Solicitud de supresión" }),
+    });
+    const response = await DELETE(request, {
+      params: Promise.resolve({ profileId: "test-id" }),
+      profile: { id: "profile-1", role: "super_admin", tenantId: "tenant-123" },
+      userId: "admin-user",
+    });
+
+    expect(response.status).toBe(409);
+    const data = await response.json();
+    expect(data.code).toBe("ACCOUNT_ERASURE_OWNS_LEGACY_ACADEMIES");
+    expect(deleteAuthUserIfPresent).not.toHaveBeenCalled();
+  });
 });
 

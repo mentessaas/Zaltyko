@@ -85,10 +85,11 @@ cuanto existían esas tablas, porque las trataba como desconocidas. Ahora
   técnico como `parcial`. Pero solo inserta lo que falta: si la base de
   producción ya tenía cargados esos flujos, hay que cambiar su estado a mano
   en `/super-admin/competencia`.
-- **Pendiente, en una PR propia.** Borrar una cuenta falla en cuanto la
-  persona tiene autoría en la academia, o si invitó o aceptó una invitación.
-  La ficha de una gimnasta que vino de una solicitud tampoco se puede borrar.
-  Detalle y propuesta de seudonimización:
+- **Supresión de cuentas (14-11-2026).** Borrar una cuenta fallaba en cuanto
+  la persona tenía autoría en la academia. Lo resuelve la candidata
+  `20261114120000_account_erasure_candidate.sql` (sección propia, abajo), aún
+  sin aplicar. **Pendiente, en una PR propia:** la ficha de una gimnasta que
+  vino de una solicitud sigue sin poder borrarse. Detalle:
   `docs/privacy/borrado-de-cuentas-y-fichas.md`.
 - **Contrato.** `tests/data-rights-activated-modules-contract.test.ts` lee
   todo el SQL y falla si una tabla `zaltyko.*` queda sin clasificar, si las
@@ -408,6 +409,79 @@ locales y facturación) llegará más adelante.
 - Orden recomendado: aplicar el candidato antes (o a la vez) que desplegar el
   código, porque la web pública ya dirá que el alta es abierta. Aplicarlo antes
   es inocuo: nada lo llama hasta que el código nuevo esté en producción.
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+  ningún entorno. La CI verde no equivale a autorización.
+
+## Candidato de supresión de cuentas (RGPD art. 17)
+
+`20261114120000_account_erasure_candidate.sql` hace posible suprimir una cuenta
+de Supabase Auth sin perder los registros que cada academia debe conservar.
+La pertenencia (`zaltyko.organization_members`) deja de borrarse en cascada: el
+servidor la revoca y, al borrar la cuenta, `user_id` pasa a null. Cambia, sobre
+tablas ya aplicadas:
+
+- `organization_members.user_id`: CASCADE → SET NULL, sin NOT NULL, con el
+  CHECK `organization_members_erased_account_revoked_ck` (sin cuenta ⇒
+  revocada). Un borrado directo de `auth.users` falla entero si la cuenta sigue
+  activa en alguna academia.
+- `payments.recorded_by_user_id` e `insight_actions.actor_user_id`: RESTRICT →
+  SET NULL (sin NOT NULL en el segundo). `payments_source_fields_valid` deja de
+  exigir quién anotó un pago manual; el resto del CHECK no cambia.
+- `organization_member_invitations.accepted_by_user_id`: NO ACTION → SET NULL,
+  y el CHECK de estado (mismo nombre) ya no exige la cuenta en «aceptada»;
+  sigue exigiendo `accepted_member_id`. `organization_team_command_receipts.actor_user_id`:
+  NO ACTION → CASCADE.
+- `zaltyko_domain_private.reject_audit_mutation()` y
+  `reject_insight_history_mutation()`: siguen rechazando UPDATE y DELETE,
+  salvo el vaciado de `actor_user_id` que hace la propia clave al borrar la
+  cuenta (solo esa columna, y solo si la cuenta ya no existe). Mismos triggers.
+- Directorio público, si existe: `directory_grants.user_id` → CASCADE; el resto
+  de claves a `auth.users` → SET NULL (`directory_grants.approved_by` y
+  `directory_claims.user_id` sin NOT NULL).
+- Sin cambios y a propósito: `organization_saas_webhook_reconciliation_decisions.actor_user_id`
+  sigue en RESTRICT (evidencia fiscal de solo inserción); las autorías hacia
+  `organization_members` no se tocan.
+
+No crea tablas ni cambia filas, roles, RLS ni permisos. El preflight comprueba
+la forma exacta de cada clave, columna, CHECK y función, y aborta antes de tocar
+nada si algo difiere, si se reaplica o si existe otra clave de `zaltyko` o
+`public` hacia `auth.users` que pueda bloquear y no esté revisada. Toma
+bloqueos exclusivos breves sobre esas tablas: aplicar en un momento tranquilo.
+
+| Archivo | SHA-256 |
+|---|---|
+| `20261114120000_account_erasure_candidate.sql` | `67f3303bd840fb94f29647eb37eeba43a82df072984acd2c71e1ea8d5a090549` |
+| `20261114120000_account_erasure_verify.sql` (solo lectura) | `f2a926ad76bf996b46197f7a36b51f2307145eb59f8ac270e87942f4c2d281bc` |
+| `20261114120000_account_erasure_rollback.sql` | `f09bca92143de06d203363b9c75ae8b63db369db9b85a193a0bfa05e034096f8` |
+
+- **Aplicar** (staging primero), en una sola transacción, y verificar:
+
+  ```bash
+  shasum -a 256 docs/deployment/candidates/20261114120000_account_erasure_*.sql
+  psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -c "select current_database(), version();"
+  psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f docs/deployment/candidates/20261114120000_account_erasure_candidate.sql
+  psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -f docs/deployment/candidates/20261114120000_account_erasure_verify.sql
+  ```
+
+  La verificación imprime una fila por comprobación y termina con
+  `Account erasure verification passed`; si algo no cuadra, falla con la lista.
+  La prueba funcional con cuentas de staging está en
+  `docs/privacy/borrado-de-cuentas-y-fichas.md`, «Verificar en staging».
+- **Vuelta atrás:** `20261114120000_account_erasure_rollback.sql`, también con
+  `-1`. Restaura las definiciones exactas. Solo funciona mientras no se haya
+  suprimido ninguna cuenta: si ya hay filas con la referencia vacía, aborta sin
+  tocar nada (nunca se rellenan con otra cuenta).
+- **Código:** `src/modules/data-rights/application/account-erasure.ts` y
+  `DELETE /api/super-admin/users/[profileId]`. Sin la candidata, la supresión
+  responde 503 y no borra nada. El guardia del acceso de equipo
+  (`canonical-team-access-schema.ts`) acepta la forma anterior o la posterior a
+  esta candidata, nunca una mezcla: aplicar la candidata no apaga el acceso de
+  equipo.
+- **Pruebas:** `tests/account-erasure-pg.test.ts` en el job «Postgres
+  integration» (instalación, verificación, rechazo de reinstalar, vuelta atrás
+  idéntica, supresión real con autoría en cada tipo de registro y bloqueos),
+  dentro de una transacción que se deshace; `tests/account-erasure.test.ts` y el
+  contrato `tests/data-rights-activated-modules-contract.test.ts`.
 - **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 

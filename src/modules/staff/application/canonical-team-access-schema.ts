@@ -108,14 +108,21 @@ const enumSet = (column: string, values: string[], type = "text") => `${column} 
 
 /**
  * Exact reviewed candidate (phase one plus the O3 team-profile link); any
- * structural addition needs review.
+ * structural addition needs review. `accountErasure` is the same schema after
+ * docs/deployment/candidates/20261114120000_account_erasure_candidate.sql:
+ * accepted_by_user_id ON DELETE SET NULL (an accepted invitation keeps
+ * accepted_member_id but no longer requires the erased account) and receipts
+ * deleted with their actor's account. Either form is accepted, never a mix.
  */
-const manifest = [
+const acceptedInvitationCheck = (accountErasure: boolean) =>
+  `(status='pending' AND accepted_by_user_id IS NULL AND accepted_member_id IS NULL AND accepted_at IS NULL AND revoked_by_member_id IS NULL AND revoked_at IS NULL) OR (status='accepted' AND ${accountErasure ? "" : "accepted_by_user_id IS NOT NULL AND "}accepted_member_id IS NOT NULL AND accepted_at IS NOT NULL AND revoked_by_member_id IS NULL AND revoked_at IS NULL) OR (status='revoked' AND accepted_by_user_id IS NULL AND accepted_member_id IS NULL AND accepted_at IS NULL AND revoked_by_member_id IS NOT NULL AND revoked_at IS NOT NULL)`;
+
+const teamAccessManifest = (accountErasure: boolean) => [
   {
     name: invitation,
     columns: [id(), uuid("organization_id"), col("normalized_email", "text"), col("role", "member_role"), col("status", "text", true, "'pending'::text"), uuid("invited_by_member_id"), col("token_sha256", "text"), timestamp("expires_at"), col("revision", "int4", true, "1"), uuid("staff_profile_id", false), col("invitee_given_name", "text", false), col("invitee_family_name", "text", false), uuid("accepted_by_user_id", false), uuid("accepted_member_id", false), timestamp("accepted_at", false), uuid("revoked_by_member_id", false), timestamp("revoked_at", false), timestamp("created_at", true, true), timestamp("updated_at", true, true)],
     constraints: [key("p", ["id"]), key("u", ["token_sha256"]), key("u", ["organization_id", "id"]),
-      foreign(["organization_id"], "organizations", ["id"], "c"), foreign(["accepted_by_user_id"], "users", ["id"], "a", "auth"),
+      foreign(["organization_id"], "organizations", ["id"], "c"), foreign(["accepted_by_user_id"], "users", ["id"], accountErasure ? "n" : "a", "auth"),
       foreign(["organization_id", "invited_by_member_id"], "organization_members", ["organization_id", "id"]), foreign(["organization_id", "accepted_member_id"], "organization_members", ["organization_id", "id"]), foreign(["organization_id", "revoked_by_member_id"], "organization_members", ["organization_id", "id"]),
       foreign(["organization_id", "staff_profile_id"], "staff_profiles", ["organization_id", "id"]),
       check("(staff_profile_id IS NOT NULL AND invitee_given_name IS NULL AND invitee_family_name IS NULL) OR (staff_profile_id IS NULL AND invitee_given_name IS NOT NULL AND invitee_family_name IS NOT NULL)"),
@@ -123,7 +130,7 @@ const manifest = [
       check("invitee_family_name IS NULL OR (length(btrim(invitee_family_name)) >= 1 AND length(btrim(invitee_family_name)) <= 100)"),
       check("normalized_email = lower(btrim(normalized_email)) AND length(normalized_email) >= 3 AND length(normalized_email) <= 254 AND strpos(normalized_email,'@'::text) > 1"),
       check(enumSet("role", ["manager", "coach"], "zaltyko.member_role")), check(enumSet("status", ["pending", "accepted", "revoked"])), check("token_sha256 ~ '^[0-9a-f]{64}$'::text"), check("revision > 0"),
-      check("(status='pending' AND accepted_by_user_id IS NULL AND accepted_member_id IS NULL AND accepted_at IS NULL AND revoked_by_member_id IS NULL AND revoked_at IS NULL) OR (status='accepted' AND accepted_by_user_id IS NOT NULL AND accepted_member_id IS NOT NULL AND accepted_at IS NOT NULL AND revoked_by_member_id IS NULL AND revoked_at IS NULL) OR (status='revoked' AND accepted_by_user_id IS NULL AND accepted_member_id IS NULL AND accepted_at IS NULL AND revoked_by_member_id IS NOT NULL AND revoked_at IS NOT NULL)")],
+      check(acceptedInvitationCheck(accountErasure))],
     indexes: [index(["id"], true, true), index(["token_sha256"], true), index(["organization_id", "id"], true), index(["organization_id", "normalized_email"], true, false, "status='pending'::text"), index(["organization_id", "staff_profile_id"], true, false, "status='pending'::text AND staff_profile_id IS NOT NULL"), index(["organization_id", "id"], false)],
   },
   {
@@ -135,10 +142,12 @@ const manifest = [
   {
     name: receipts,
     columns: [id(), uuid("organization_id"), uuid("actor_user_id"), col("idempotency_key", "text"), col("operation", "text"), col("request_hash", "text"), uuid("invitation_id"), col("invitation_status", "text"), col("invitation_revision", "int4"), timestamp("invitation_expires_at"), uuid("member_id", false), timestamp("created_at", true, true)],
-    constraints: [key("p", ["id"]), key("u", ["organization_id", "actor_user_id", "idempotency_key"]), foreign(["organization_id"], "organizations", ["id"], "c"), foreign(["actor_user_id"], "users", ["id"], "a", "auth"), foreign(["organization_id", "invitation_id"], invitation, ["organization_id", "id"]), foreign(["organization_id", "member_id"], "organization_members", ["organization_id", "id"]), check("idempotency_key ~ '^[0-9a-f]{64}$'::text"), check(enumSet("operation", ["invite", "reissue", "revoke", "accept"])), check("request_hash ~ '^[0-9a-f]{64}$'::text"), check(enumSet("invitation_status", ["pending", "accepted", "revoked"])), check("invitation_revision > 0"), check("(operation='accept' AND invitation_status='accepted' AND member_id IS NOT NULL) OR (operation = ANY (ARRAY['invite'::text,'reissue'::text]) AND invitation_status='pending' AND member_id IS NULL) OR (operation='revoke' AND invitation_status='revoked' AND member_id IS NULL)")],
+    constraints: [key("p", ["id"]), key("u", ["organization_id", "actor_user_id", "idempotency_key"]), foreign(["organization_id"], "organizations", ["id"], "c"), foreign(["actor_user_id"], "users", ["id"], accountErasure ? "c" : "a", "auth"), foreign(["organization_id", "invitation_id"], invitation, ["organization_id", "id"]), foreign(["organization_id", "member_id"], "organization_members", ["organization_id", "id"]), check("idempotency_key ~ '^[0-9a-f]{64}$'::text"), check(enumSet("operation", ["invite", "reissue", "revoke", "accept"])), check("request_hash ~ '^[0-9a-f]{64}$'::text"), check(enumSet("invitation_status", ["pending", "accepted", "revoked"])), check("invitation_revision > 0"), check("(operation='accept' AND invitation_status='accepted' AND member_id IS NOT NULL) OR (operation = ANY (ARRAY['invite'::text,'reissue'::text]) AND invitation_status='pending' AND member_id IS NULL) OR (operation='revoke' AND invitation_status='revoked' AND member_id IS NULL)")],
     indexes: [index(["id"], true, true), index(["organization_id", "actor_user_id", "idempotency_key"], true)],
   },
 ];
+
+const manifests = [teamAccessManifest(false), teamAccessManifest(true)];
 
 function canonicalJson(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalJson);
@@ -148,6 +157,18 @@ function canonicalJson(value: unknown): unknown {
 const stable = (values: unknown[]) => values.map(value => JSON.stringify(canonicalJson(value))).sort().join("\n");
 function normalizeConstraint(value: Constraint): Constraint {
   return { ...value, columns: value.kind === "c" ? [] : value.columns, expression: value.expression === null ? null : canonicalTeamSchemaExpression(value.expression) };
+}
+
+function matchesManifest(tables: Table[], manifest: ReturnType<typeof teamAccessManifest>): boolean {
+  if (tables.length !== manifest.length) return false;
+  for (const expected of manifest) {
+    const actual = tables.find(table => table.name === expected.name);
+    if (!actual || actual.kind !== "r" || !actual.rls || !actual.forceRls || actual.policies !== 0 || actual.unsafeAcl || actual.unsafeEnforcement) return false;
+    const normalizeColumns = (columns: Column[]) => columns.map(column => ({ ...column, defaultExpression: column.defaultExpression === null ? null : canonicalTeamSchemaExpression(column.defaultExpression) }));
+    const normalizeIndexes = (indexes: Index[]) => indexes.map(item => ({ ...item, predicate: item.predicate === null ? null : canonicalTeamSchemaExpression(item.predicate) }));
+    if (stable(normalizeColumns(actual.columns)) !== stable(normalizeColumns(expected.columns)) || stable(actual.constraints.map(normalizeConstraint)) !== stable(expected.constraints.map(normalizeConstraint)) || stable(normalizeIndexes(actual.indexes)) !== stable(normalizeIndexes(expected.indexes))) return false;
+  }
+  return true;
 }
 
 /** Read-only catalog guard. No repairs, grants, cross-tenant reads or writes. */
@@ -179,13 +200,6 @@ export async function assertCanonicalTeamAccessSchema(tx: TransactionClient): Pr
        from pg_index i join pg_class ic on ic.oid=i.indexrelid join pg_am am on am.oid=ic.relam where i.indrelid=c.oid) as indexes
       from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='zaltyko' and c.relname in (${invitation},${scopes},${receipts})`);
     const tables = result.rows as unknown as Table[];
-    if (tables.length !== manifest.length) throw unavailable();
-    for (const expected of manifest) {
-      const actual = tables.find(table => table.name === expected.name);
-      if (!actual || actual.kind !== "r" || !actual.rls || !actual.forceRls || actual.policies !== 0 || actual.unsafeAcl || actual.unsafeEnforcement) throw unavailable();
-      const normalizeColumns = (columns: Column[]) => columns.map(column => ({ ...column, defaultExpression: column.defaultExpression === null ? null : canonicalTeamSchemaExpression(column.defaultExpression) }));
-      const normalizeIndexes = (indexes: Index[]) => indexes.map(item => ({ ...item, predicate: item.predicate === null ? null : canonicalTeamSchemaExpression(item.predicate) }));
-      if (stable(normalizeColumns(actual.columns)) !== stable(normalizeColumns(expected.columns)) || stable(actual.constraints.map(normalizeConstraint)) !== stable(expected.constraints.map(normalizeConstraint)) || stable(normalizeIndexes(actual.indexes)) !== stable(normalizeIndexes(expected.indexes))) throw unavailable();
-    }
+    if (!manifests.some(manifest => matchesManifest(tables, manifest))) throw unavailable();
   } catch { throw unavailable(); }
 }

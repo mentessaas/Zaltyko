@@ -1,15 +1,25 @@
-# Borrado de cuentas y de fichas que vinieron de una solicitud (pendiente)
+# Borrado de cuentas y de fichas que vinieron de una solicitud
 
-Estado al 13-11-2026. Este documento describe un problema y propone una
-solución para una PR propia. **No hay cambios de esquema ni de código aquí.**
-La política de supresión vigente está en
-`src/modules/data-rights/application/activated-modules-erasure-policy.ts`.
+Estado al 14-11-2026.
+
+- **Supresión de cuentas (sección 1): resuelta en código y preparada como
+  candidata SQL** (`docs/deployment/candidates/20261114120000_account_erasure_candidate.sql`),
+  **sin aplicar en ningún entorno**. Mientras no se aplique, suprimir una cuenta
+  desde super-admin responde 503 y no borra nada.
+- **Fichas de gimnasta que vinieron de una solicitud (sección 2): pendiente.**
+
+La política declarada por tabla está en
+`src/modules/data-rights/application/activated-modules-erasure-policy.ts`;
 `tests/data-rights-activated-modules-contract.test.ts` la deduce de las claves
-foráneas.
+foráneas, incluidas las que cambia la candidata.
 
-## 1. Borrar una cuenta falla en cuanto la persona ha trabajado en una academia
+## 1. Supresión de cuentas
 
-### Qué ocurre
+### Problema (antes de la candidata)
+
+Borrar una cuenta fallaba en cuanto la persona había trabajado en una academia.
+
+#### Qué ocurre
 
 `deleteAuthUser` (`src/lib/supabase/admin-operations.ts`) borra la cuenta en
 `auth.users`. La usan dos rutas de super-admin:
@@ -23,7 +33,7 @@ tiene `on delete cascade`). Después, PostgreSQL comprueba quién apunta a esas
 filas. Si alguna referencia es RESTRICT o NO ACTION (sin `on delete`), la
 sentencia entera falla. No se borra nada: ni la cuenta ni sus pertenencias.
 
-### Referencias directas a `auth.users` que bloquean
+#### Referencias directas a `auth.users` que bloquean
 
 | Tabla | Columna | Acción | Origen |
 |---|---|---|---|
@@ -33,11 +43,24 @@ sentencia entera falla. No se borra nada: ni la cuenta ni sus pertenencias.
 | `zaltyko.insight_actions` | `actor_user_id` | RESTRICT | `20261006113000` |
 | `zaltyko.organization_saas_webhook_reconciliation_decisions` | `actor_user_id` | RESTRICT | candidato de instalación canónica |
 
+Revisión del 14-11-2026: además, `zaltyko.audit_log` y
+`zaltyko.insight_status_history` ya tenían `on delete set null`, pero sus
+triggers de solo inserción (`audit_log_immutable`,
+`insight_status_history_immutable`) rechazan cualquier UPDATE, también el que
+hace la clave foránea. Toda persona que haya firmado una entrada de auditoría
+(prácticamente toda dueña) era imposible de borrar. Y el directorio público
+(`public.directory_grants`, `directory_claims`, `directory_revisions`,
+`directory_subscriptions`, `directory_audit`) apunta a `auth.users` sin
+`on delete`. `public.profiles` no tiene clave a `auth.users`, y las claves
+hacia `public.profiles` ya son CASCADE o SET NULL; pero borrar un perfil
+borraba en cascada sus academias legacy (`public.academies.owner_id`), con
+sus cobros y facturas.
+
 `accepted_by_user_id` no admite `set null`: el CHECK de estado exige
 `accepted_by_user_id is not null` en las invitaciones aceptadas.
 `actor_user_id` de los recibos es NOT NULL.
 
-### Referencias a `organization_members` que bloquean (autoría)
+#### Referencias a `organization_members` que bloquean (autoría)
 
 **Funciones activadas el 12-11-2026 (NO ACTION):**
 
@@ -70,43 +93,119 @@ Solo `class_template_staff.assigned_by_member_id` y
 `session_staff_overrides.changed_by_member_id` usan
 `on delete set null (columna)`: no bloquean.
 
-### Consecuencia
+#### Consecuencia
 
 Una entrenadora que pasó lista una vez, o una directora que invitó a alguien,
 no puede borrarse desde super-admin: la ruta devuelve error y la cuenta sigue
 intacta. Es coherente, porque nada se borra a medias. Pero el derecho de
 supresión de esa persona no tiene hoy un camino que funcione.
 
-### Propuesta: seudonimizar la pertenencia, no borrarla
+### Decisión: seudonimizar la pertenencia, no borrarla
 
-1. **No borrar `organization_members`.** La fila es la autoría de registros
-   de la academia (asistencia, cambios de estado, observaciones), que la
-   academia debe conservar como responsable. Se marca como retirada:
-   - `status = 'removed'`, o un estado nuevo como `erased`;
-   - `user_id` pasa a null o a una identidad técnica «cuenta eliminada».
-   `user_id` es hoy NOT NULL con cascada: el cambio necesita una migración.
-2. **Ficha del equipo.** Si tiene `staff_profiles` y `people`, se sustituyen
-   nombre y apellidos por «Persona eliminada» y se desvincula `member_id`.
-   Antes hay que decidir si la ficha se conserva para el histórico de clases.
-3. **Referencias directas a `auth.users`.**
-   - En los recibos de acceso de equipo, `actor_user_id` pasa a null con
-     `on delete set null`, quitando el NOT NULL. Su valor de idempotencia
-     caduca con la invitación.
-   - En las invitaciones aceptadas, el CHECK debe admitir
-     `accepted_by_user_id` null cuando la cuenta se suprime. Se mantiene
-     `accepted_member_id`, que apunta a la pertenencia seudonimizada.
-   - En `payments`, `insight_actions` y las decisiones de conciliación SaaS,
-     mismo tratamiento (`set null`), revisado con el ledger.
-4. **Orden del procedimiento.** En una transacción: seudonimizar las
-   pertenencias en todas las academias, ajustar las referencias directas y,
-   por último, borrar `auth.users`. Así la cascada ya no encuentra filas que
-   bloqueen.
-5. **Alcance.** Una cuenta puede pertenecer a varias academias. La supresión
-   de la cuenta las afecta a todas; la baja en una academia sola es otra
-   operación (retirar la pertenencia sin tocar la cuenta).
-6. **Pruebas.** Una prueba PostgreSQL que cree autoría en cada tabla de la
-   lista y compruebe que el procedimiento termina, que no quedan datos de
-   identidad y que los registros de la academia se conservan.
+La pertenencia (`zaltyko.organization_members`) es la autoría de registros que
+la academia debe conservar como responsable del tratamiento (asistencia,
+cambios de estado, observaciones, cobros). No se borra: se revoca y pierde la
+cuenta. Los registros conservan la autoría apuntando a una pertenencia sin
+persona. Lo que solo pertenecía a la cuenta se borra con ella. Lo que es
+evidencia fiscal de Zaltyko se conserva y bloquea la supresión.
+
+| Tabla.columna → `auth.users` | Antes | Después | Por qué |
+|---|---|---|---|
+| `zaltyko.organization_members.user_id` | CASCADE, NOT NULL | **SET NULL** + CHECK `user_id is not null or status = 'revoked'` | Autoría de la academia; el CHECK impide borrar la cuenta sin revocar antes |
+| `zaltyko.payments.recorded_by_user_id` | RESTRICT | **SET NULL** (el CHECK ya no exige quién anotó un pago manual) | Cobro: obligación contable de conservarlo |
+| `zaltyko.insight_actions.actor_user_id` | RESTRICT, NOT NULL | **SET NULL** | Se conserva con `actor_member_id` |
+| `zaltyko.audit_log.actor_user_id` | SET NULL (bloqueado por el trigger) | SET NULL; el trigger admite **solo** ese vaciado y solo si la cuenta ya no existe | Auditoría de la academia |
+| `zaltyko.insight_status_history.actor_user_id` | igual | igual | Historial de avisos |
+| `zaltyko.organization_member_invitations.accepted_by_user_id` | NO ACTION | **SET NULL**; el CHECK de «aceptada» exige `accepted_member_id`, no la cuenta | Evidencia de acceso de la academia |
+| `zaltyko.organization_team_command_receipts.actor_user_id` | NO ACTION | **CASCADE** | Recibos de reintento: solo sirven a la cuenta |
+| `zaltyko.guardians.auth_user_id` | SET NULL | sin cambios | La ficha del tutor es de la academia |
+| `zaltyko.organization_bootstrap_commands`, `owner_dashboard_layouts`, `owner_signup_consents` | CASCADE | sin cambios | Solo de la cuenta. La auditoría de consentimientos (`owner_signup_consent_audits`) no tiene clave a la cuenta y se conserva como prueba del consentimiento (art. 17.3.e) |
+| `zaltyko.organization_saas_webhook_reconciliation_decisions.actor_user_id` | RESTRICT | **RESTRICT justificado** | Decisiones de conciliación de cobros SaaS de Zaltyko, de solo inserción, firmadas por el equipo interno: evidencia fiscal. La supresión responde 409 con el motivo |
+| `public.directory_grants.user_id` | NO ACTION | **CASCADE** | Derecho de la cuenta a gestionar una ficha del directorio |
+| `public.directory_grants.approved_by`, `directory_claims.decided_by`, `directory_audit.actor_id` | NO ACTION | **SET NULL** | Historial del directorio |
+| `public.directory_claims.user_id` | NO ACTION, NOT NULL | **SET NULL**; las pendientes se retiran antes | La prueba adjunta sigue la purga de 30 días (`src/lib/directory/maintenance.ts`), salvo que se retenga por una disputa |
+| `public.directory_revisions.user_id`, `directory_subscriptions.user_id` | NO ACTION | **SET NULL** | La ficha y la suscripción por email existen sin cuenta; darse de baja de una suscripción es otra solicitud |
+| `public.directory_favorites.user_id` | CASCADE | sin cambios | Solo de la cuenta |
+
+Las claves de autoría hacia `organization_members` (lista de arriba) **no
+cambian**: la pertenencia ya no se borra. Borrar una pertenencia a mano sigue
+bloqueado, a propósito.
+
+**Ficha del equipo.** `staff_profiles` (nombre y apellidos en `people`) sigue
+enlazada a la pertenencia revocada. Es un dato de la academia como empleadora y
+responsable: Zaltyko, como encargado, no lo borra por su cuenta. Si la persona
+pide a la academia que lo suprima, la academia decide (archivar la ficha o, en
+el futuro, anonimizarla). Elvis puede cambiar esta decisión.
+
+### Procedimiento (`src/modules/data-rights/application/account-erasure.ts`)
+
+Ruta: `DELETE /api/super-admin/users/[profileId]` (motivo obligatorio).
+
+1. Si el perfil legacy es dueño de academias (`public.academies.owner_id`),
+   **409** `ACCOUNT_ERASURE_OWNS_LEGACY_ACADEMIES`: borrarlo eliminaría esas
+   academias con sus cobros y facturas. Antes se borraban en silencio.
+2. En una transacción (`prepareAccountErasure`):
+   - sin la candidata instalada, **503** `ACCOUNT_ERASURE_NOT_AVAILABLE`;
+   - bloquea las pertenencias de la cuenta y las de dueña de esas academias;
+   - si firmó decisiones de conciliación SaaS, **409**
+     `ACCOUNT_ERASURE_RETAINED_BILLING_EVIDENCE`;
+   - si es la única dueña activa (con cuenta) de una academia, **409**
+     `ACCOUNT_ERASURE_LAST_OWNER`: hay que transferir la titularidad o cerrar
+     la academia antes;
+   - revoca sus pertenencias en todas las academias y deja en el
+     `audit_log` de cada una `member.account_erased` (pertenencia, estado
+     anterior y motivo; sin datos de la persona);
+   - retira sus reclamaciones pendientes del directorio.
+3. Borra la cuenta en Supabase Auth. Las claves hacen el resto (tabla de
+   arriba). Si Auth falla, **502** `ACCOUNT_ERASURE_AUTH_FAILED`: el acceso ya
+   está retirado y reintentar es seguro (una cuenta ya borrada no es error).
+   Antes, el fallo de Auth se registraba y la ruta respondía «ok».
+4. Borra el perfil legacy (`public.profiles`).
+
+Un borrado directo de `auth.users` (por ejemplo, desde el panel de Supabase)
+sin este procedimiento falla entero si la cuenta sigue activa en alguna
+academia: lo impide el CHECK de la pertenencia.
+
+**Alcance.** La supresión de la cuenta afecta a todas sus academias. La baja en
+una sola academia es otra operación (revocar la pertenencia sin tocar la
+cuenta).
+
+**Pruebas.** `tests/account-erasure-pg.test.ts` (job «Postgres integration»)
+instala la candidata en el PostgreSQL desechable dentro de una transacción que
+se deshace: crea autoría en cada tipo de registro, suprime la cuenta y
+comprueba qué se conserva, qué se vacía y qué se borra; también la verificación,
+la vuelta atrás y los bloqueos. `tests/account-erasure.test.ts` cubre el orden
+y los 409/502/503 sin base de datos.
+
+### Verificar en staging
+
+1. Aplicar la candidata en staging en una sola transacción y verificarla
+   (`docs/deployment/candidates/README.md`, «Candidato de supresión de
+   cuentas»):
+
+   ```bash
+   psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f docs/deployment/candidates/20261114120000_account_erasure_candidate.sql
+   psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -f docs/deployment/candidates/20261114120000_account_erasure_verify.sql
+   ```
+
+   La verificación lista cada comprobación con `ok = t` y termina con
+   `Account erasure verification passed`.
+2. Desplegar en staging el código de esta rama.
+3. Con cuentas de prueba de staging: una dueña invita a una entrenadora, la
+   entrenadora acepta, pasa lista y anota un cobro manual. Desde
+   `/super-admin`, eliminar a la entrenadora con un motivo. Esperado: «Usuario
+   eliminado»; la cuenta ya no puede entrar; en la academia, la asistencia y el
+   cobro siguen ahí; el equipo ya no la muestra como activa.
+4. Comprobar en la base (solo lectura), con el id de la pertenencia:
+
+   ```sql
+   select user_id, status from zaltyko.organization_members where id = '<member_id>';
+   -- user_id vacío, status = revoked
+   select action, before, after from zaltyko.audit_log where target_id = '<member_id>' order by created_at desc limit 1;
+   -- member.account_erased, {"status": "active"} -> {"status": "revoked"}
+   ```
+5. Intentar eliminar a la única dueña de una academia: debe responder 409
+   («Esta cuenta es la única dueña activa…») sin cambiar nada.
 
 ## 2. La ficha de una gimnasta que vino de una solicitud no se puede borrar
 
@@ -146,6 +245,8 @@ contacto de la familia y el año de nacimiento.
 
 ## Siguiente paso
 
-Una PR propia con la migración, el procedimiento en `src/modules/data-rights`
-y sus pruebas PostgreSQL. Necesita la decisión de Elvis sobre qué se conserva
-de la ficha del equipo y sobre el estado final de una solicitud convertida.
+- Supresión de cuentas: Elvis autoriza la candidata para staging; se verifica
+  como arriba y, después, se pide la autorización de producción.
+- Fichas de gimnasta que vinieron de una solicitud (sección 2): PR propia;
+  necesita la decisión de Elvis sobre el estado final de una solicitud
+  convertida.

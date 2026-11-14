@@ -6,7 +6,13 @@ import { db } from "@/db";
 import { profiles, memberships, academies, subscriptions, plans, athletes, coaches, classes } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
-import { getAuthUserEmail, updateAuthUserEmail, deleteAuthUser } from "@/lib/supabase/admin-operations";
+import { getAuthUserEmail, updateAuthUserEmail, deleteAuthUserIfPresent } from "@/lib/supabase/admin-operations";
+import { withTransaction } from "@/lib/db-transactions";
+import {
+  AccountErasureError,
+  eraseUserAccount,
+  type AccountErasurePreparation,
+} from "@/modules/data-rights/application/account-erasure";
 import { getAppUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { config } from "@/config";
@@ -382,8 +388,11 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   return apiSuccess(updated);
 });
 
-// DELETE /api/super-admin/users/[profileId] — borra el perfil y la cuenta de Auth.
-// Ojo: por CASCADE, si el usuario es dueño de una academia, esa academia se elimina también.
+// DELETE /api/super-admin/users/[profileId] — suprime la cuenta (RGPD art. 17).
+// Revoca sus pertenencias en todas las academias, borra la cuenta de Auth y el
+// perfil legacy. Las academias conservan sus registros con la autoría
+// seudonimizada (docs/privacy/borrado-de-cuentas-y-fichas.md). Se niega si el
+// perfil es dueño de academias legacy o la única dueña activa de una academia.
 export const DELETE = withSuperAdmin(async (request, context) => {
   if (!context?.profile) {
     return apiError("UNAUTHORIZED", "Unauthorized", 401);
@@ -425,14 +434,35 @@ export const DELETE = withSuperAdmin(async (request, context) => {
     }
   }
 
-  await db.delete(profiles).where(eq(profiles.id, profileId));
+  let erasureSummary: AccountErasurePreparation | undefined;
 
-  if (target.userId) {
-    try {
-      await deleteAuthUser(target.userId);
-    } catch (error) {
-      logger.error("No se pudo borrar la cuenta de Auth", error, { profileId });
+  try {
+    const erasure = await eraseUserAccount(
+      {
+        transaction: withTransaction,
+        countLegacyOwnedAcademies: async (ownerProfileId) => {
+          const [{ value }] = await db
+            .select({ value: count() })
+            .from(academies)
+            .where(eq(academies.ownerId, ownerProfileId));
+          return Number(value);
+        },
+        deleteAuthAccount: deleteAuthUserIfPresent,
+        deleteLegacyProfile: async (deletedProfileId) => {
+          await db.delete(profiles).where(eq(profiles.id, deletedProfileId));
+        },
+      },
+      { profileId, userId: target.userId ?? null, actorUserId: context.userId }
+    );
+    erasureSummary = erasure;
+  } catch (error) {
+    if (error instanceof AccountErasureError) {
+      if (error.code === "ACCOUNT_ERASURE_AUTH_FAILED") {
+        logger.error("No se pudo borrar la cuenta de Auth", error.underlying, { profileId });
+      }
+      return apiError(error.code, error.message, error.status, error.details);
     }
+    throw error;
   }
 
   await logAdminAction({
@@ -442,7 +472,7 @@ export const DELETE = withSuperAdmin(async (request, context) => {
     resourceType: "profile",
     resourceId: profileId,
     description: `Super Admin eliminó el usuario ${profileId}`,
-    meta: { profileId, role: target.role, reason: reason.data },
+    meta: { profileId, role: target.role, reason: reason.data, ...erasureSummary },
   });
 
   return apiSuccess({ ok: true });
