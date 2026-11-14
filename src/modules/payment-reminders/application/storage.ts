@@ -5,7 +5,7 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 /**
  * Los recordatorios de impago son un candidato pendiente de autorización de
- * Elvis (docs/deployment/candidates/20261114120000_payment_reminders_candidate.sql)
+ * Elvis (docs/deployment/candidates/20261114120500_payment_reminders_candidate.sql)
  * y van detrás de ZALTYKO_PAYMENT_REMINDERS_ENABLED (apagada por defecto).
  * Con la bandera apagada, o mientras las tablas no existan tal como las define
  * el candidato, toda la función responde «no disponible» y sus accesos se

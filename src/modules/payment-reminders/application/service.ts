@@ -197,58 +197,86 @@ export interface AutomaticRunResult {
   organizations: number;
   sent: number;
   failed: number;
+  /** false si se agotó el tiempo antes de recorrer todas las academias. */
+  complete: boolean;
 }
 
-const AUTOMATIC_ORGANIZATION_LIMIT = 200;
+const AUTOMATIC_PAGE_SIZE = 200;
+/** Margen bajo el límite de 300 s de las rutas cron; lo que falte sigue en la siguiente pasada. */
+const AUTOMATIC_DEADLINE_MS = 240_000;
 
 /**
- * Recordatorio automático: solo si hay bandera global, la academia lo activó y
- * la cuota lleva `autoAfterDays` días vencida sin haber recibido ningún
- * recordatorio. Apagado por defecto en los dos niveles.
+ * Recordatorio automático: solo si hay bandera global, la academia lo activó,
+ * tiene correo de respuesta y la cuota lleva `autoAfterDays` días vencida sin
+ * haber recibido ningún recordatorio. Apagado por defecto en los dos niveles.
+ * Recorre todas las academias con el automático activado, de 200 en 200 por
+ * orden de id; si se agota el tiempo marca `complete: false` y la siguiente
+ * pasada continúa (las ya avisadas no se repiten).
  */
-export async function runAutomaticPaymentReminders(now: Date = new Date()): Promise<AutomaticRunResult> {
-  if (!isAutomaticPaymentRemindersFlagEnabled()) return { enabled: false, organizations: 0, sent: 0, failed: 0 };
+export async function runAutomaticPaymentReminders(
+  now: Date = new Date(),
+  options: { deadlineMs?: number; pageSize?: number } = {}
+): Promise<AutomaticRunResult> {
+  if (!isAutomaticPaymentRemindersFlagEnabled()) {
+    return { enabled: false, organizations: 0, sent: 0, failed: 0, complete: true };
+  }
   await assertPaymentRemindersAvailable(db);
 
-  const organizations = await db.execute(sql`
-    select s.organization_id::text as "organizationId"
-      from zaltyko.payment_reminder_settings s
-      inner join zaltyko.organizations o on o.id = s.organization_id
-     where s.is_auto_enabled and o.status in ('trial', 'active')
-     order by s.organization_id
-     limit ${AUTOMATIC_ORGANIZATION_LIMIT}
-  `);
-
+  const pageSize = options.pageSize ?? AUTOMATIC_PAGE_SIZE;
+  const deadline = Date.now() + (options.deadlineMs ?? AUTOMATIC_DEADLINE_MS);
   let sent = 0;
   let failed = 0;
   let processed = 0;
-  for (const row of organizations.rows as Array<{ organizationId: string }>) {
-    try {
-      const settings = await readSettings(db, row.organizationId);
-      if (!settings.autoEnabled) continue;
-      const locations = await db.execute(sql`
-        select id::text as id from zaltyko.locations
-         where organization_id = ${row.organizationId}::uuid and is_active
-      `);
-      const locationIds = (locations.rows as Array<{ id: string }>).map((location) => location.id);
-      const result = await dispatchReminders({
-        organizationId: row.organizationId,
-        locationIds,
-        selection: { kind: "automatic" },
-        origin: "automatic",
-        actor: null,
-        settings,
-        now,
-      });
-      processed += 1;
-      sent += result.sent;
-      failed += result.failed;
-    } catch (error) {
-      // Una academia con problemas no frena a las demás.
-      logger.error("Falló el recordatorio automático de una academia", error, {
-        organizationId: row.organizationId,
-      });
+  let cursor: string | null = null;
+  let complete = true;
+
+  for (;;) {
+    const page = await db.execute(sql`
+      select s.organization_id::text as "organizationId"
+        from zaltyko.payment_reminder_settings s
+        inner join zaltyko.organizations o on o.id = s.organization_id
+       where s.is_auto_enabled and o.status in ('trial', 'active')
+         and (${cursor}::uuid is null or s.organization_id > ${cursor}::uuid)
+       order by s.organization_id
+       limit ${pageSize}
+    `);
+    const rows = page.rows as Array<{ organizationId: string }>;
+    for (const row of rows) {
+      if (Date.now() > deadline) {
+        complete = false;
+        break;
+      }
+      cursor = row.organizationId;
+      try {
+        const settings = await readSettings(db, row.organizationId);
+        // Sin correo de respuesta no se envía nada (las respuestas deben llegar a la academia).
+        if (!settings.autoEnabled || !settings.replyToEmail) continue;
+        const locations = await db.execute(sql`
+          select id::text as id from zaltyko.locations
+           where organization_id = ${row.organizationId}::uuid and is_active
+        `);
+        const locationIds = (locations.rows as Array<{ id: string }>).map((location) => location.id);
+        const result = await dispatchReminders({
+          organizationId: row.organizationId,
+          locationIds,
+          selection: { kind: "automatic" },
+          origin: "automatic",
+          actor: null,
+          settings,
+          now,
+        });
+        processed += 1;
+        sent += result.sent;
+        failed += result.failed;
+      } catch (error) {
+        // Una academia con problemas no frena a las demás.
+        logger.error("Falló el recordatorio automático de una academia", error, {
+          organizationId: row.organizationId,
+        });
+      }
     }
+    if (!complete || rows.length < pageSize) break;
+    cursor = rows[rows.length - 1]!.organizationId;
   }
-  return { enabled: true, organizations: processed, sent, failed };
+  return { enabled: true, organizations: processed, sent, failed, complete };
 }

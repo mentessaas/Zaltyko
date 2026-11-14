@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -19,7 +20,7 @@ import { paymentReminderSettings, paymentReminders } from "@/modules/payment-rem
 const ROOT = process.cwd();
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
-const CANDIDATE_FILE = "20261114120000_payment_reminders_candidate.sql";
+const CANDIDATE_FILE = "20261114120500_payment_reminders_candidate.sql";
 const CANDIDATE = `docs/deployment/candidates/${CANDIDATE_FILE}`;
 const SCHEMA = "src/modules/payment-reminders/infrastructure/payment-reminders-schema.ts";
 const TABLES = Object.keys(PAYMENT_REMINDERS_TABLES).sort();
@@ -104,6 +105,22 @@ describe("candidato SQL de recordatorios de impago", () => {
     const readme = read("docs/deployment/candidates/README.md");
     expect(readme).toContain(CANDIDATE_FILE);
     expect(readme.toLowerCase()).toContain("requiere autorización de elvis");
+  });
+
+  it("el README documenta el SHA-256 exacto del archivo y el rollback", () => {
+    const readme = read("docs/deployment/candidates/README.md");
+    const sha = createHash("sha256").update(readFileSync(join(ROOT, CANDIDATE))).digest("hex");
+    expect(readme).toContain(`SHA-256: \`${sha}\``);
+    expect(readme).toContain("drop table if exists zaltyko.payment_reminders;");
+    expect(readme).toContain("drop table if exists zaltyko.payment_reminder_settings;");
+    // Marca de tiempo posterior a la de la PR 321 (20261114120000).
+    expect(CANDIDATE_FILE.startsWith("20261114120500_")).toBe(true);
+  });
+
+  it("indexa las tres columnas que pasan a null al borrar a una persona", () => {
+    for (const name of ["payment_reminders_guardian_idx", "payment_reminders_member_idx", "payment_reminder_settings_member_idx"]) {
+      expect(body).toContain(`create index ${name}\n  on zaltyko.`);
+    }
   });
 
   it("crea exactamente las dos tablas y exige PostgreSQL 15+ antes de crear nada", () => {

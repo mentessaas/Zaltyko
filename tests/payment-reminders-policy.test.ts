@@ -5,6 +5,7 @@ import { MAX_CHARGES_PER_BATCH, planReminders } from "@/modules/payment-reminder
 import {
   evaluateReminder,
   nextEligibleAt,
+  reminderDedupeKey,
   type ReminderCandidateState,
 } from "@/modules/payment-reminders/domain/reminder-policy";
 
@@ -94,6 +95,7 @@ function candidate(overrides: Partial<ReminderCandidate> = {}): ReminderCandidat
     payerEmail: "maria@example.invalid",
     lastSentAt: null,
     sentCount: 0,
+    failedCount: 0,
     hasPendingReservation: false,
     ...overrides,
   };
@@ -171,5 +173,31 @@ describe("plan de envío", () => {
     );
     expect(result.groups.flatMap((group) => group.candidates.map((item) => item.chargeId))).toEqual(["00000000-0000-4000-8000-000000000001"]);
     expect(result.skipped.map((skip) => skip.reason).sort()).toEqual(["already_reminded", "not_overdue_yet"]);
+  });
+});
+
+describe("clave estable del correo", () => {
+  const sha = (value: string) => Buffer.from(value).toString("hex").padEnd(40, "0");
+
+  it("es la misma para la misma cuota en el mismo periodo, sin importar el orden", () => {
+    const now = new Date("2026-11-20T10:00:00Z");
+    const a = reminderDedupeKey(["b", "a"], 7, now, 0, sha);
+    expect(reminderDedupeKey(["a", "b"], 7, new Date(now.getTime() + 60_000), 0, sha)).toBe(a);
+  });
+
+  it("cambia con el periodo del límite, con otras cuotas y tras un fallo confirmado", () => {
+    const now = new Date("2026-11-20T10:00:00Z");
+    const base = reminderDedupeKey(["a"], 7, now, 0, sha);
+    expect(reminderDedupeKey(["a"], 7, new Date(now.getTime() + 7 * DAY), 0, sha)).not.toBe(base);
+    expect(reminderDedupeKey(["a", "c"], 7, now, 0, sha)).not.toBe(base);
+    expect(reminderDedupeKey(["a"], 7, now, 1, sha)).not.toBe(base);
+  });
+
+  it("el siguiente envío permitido por el límite cae siempre en otro periodo (no choca con el anterior)", () => {
+    for (const hours of [0, 5, 71, 100, 167]) {
+      const sentAt = new Date(Date.UTC(2026, 10, 1) + hours * 3_600_000);
+      const next = new Date(sentAt.getTime() + 7 * DAY);
+      expect(reminderDedupeKey(["a"], 7, next, 0, sha)).not.toBe(reminderDedupeKey(["a"], 7, sentAt, 0, sha));
+    }
   });
 });

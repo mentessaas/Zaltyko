@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 
 import type { PaymentReminderSettings } from "@/modules/payment-reminders/application/settings";
 import type { ReminderPreview } from "@/modules/payment-reminders/application/dispatch";
@@ -14,10 +14,20 @@ import {
   DEFAULT_SUBJECT,
   PAYMENT_INSTRUCTIONS_MAX_LENGTH,
   SUBJECT_MAX_LENGTH,
-  TEMPLATE_VARIABLES,
+  type TemplateVariable,
 } from "@/modules/payment-reminders/domain/reminder-template";
 
 import { ownerField, ownerTone, ownerUi } from "./owner-ui";
+
+/** Datos que el mensaje rellena solo, con el nombre que ve la academia. */
+const AUTOFILL_FIELDS: ReadonlyArray<{ variable: TemplateVariable; label: string }> = [
+  { variable: "nombre", label: "Nombre de quien paga" },
+  { variable: "importe", label: "Importe pendiente" },
+  { variable: "concepto", label: "Mes de la cuota" },
+  { variable: "vencimiento", label: "Fecha de vencimiento" },
+  { variable: "academia", label: "Nombre de la academia" },
+  { variable: "datos_de_pago", label: "Datos de pago" },
+];
 
 type Selection = { kind: "charges"; chargeIds: string[] } | { kind: "overdue" };
 
@@ -36,6 +46,7 @@ export function PaymentReminderSettingsForm({
   locationId,
   settings,
   automaticAvailable,
+  suggestedReplyTo,
   previewSelection,
   onSaved,
 }: {
@@ -43,6 +54,8 @@ export function PaymentReminderSettingsForm({
   locationId: string | null;
   settings: PaymentReminderSettings;
   automaticAvailable: boolean;
+  /** Correo de la cuenta de quien administra, para proponerlo la primera vez. */
+  suggestedReplyTo: string | null;
   previewSelection: Selection;
   onSaved: (settings: PaymentReminderSettings) => void;
 }) {
@@ -50,13 +63,33 @@ export function PaymentReminderSettingsForm({
   const [subject, setSubject] = useState(settings.subjectTemplate ?? "");
   const [body, setBody] = useState(settings.bodyTemplate ?? "");
   const [instructions, setInstructions] = useState(settings.paymentInstructions ?? "");
-  const [replyTo, setReplyTo] = useState(settings.replyToEmail ?? "");
+  const [replyTo, setReplyTo] = useState(settings.replyToEmail ?? suggestedReplyTo ?? "");
   const [interval, setInterval] = useState(String(settings.minIntervalDays));
   const [auto, setAuto] = useState(settings.autoEnabled);
   const [autoAfter, setAutoAfter] = useState(String(settings.autoAfterDays));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [sample, setSample] = useState<ReminderPreview["samples"][number] | null | "none">(null);
+
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const [target, setTarget] = useState<"subject" | "body">("body");
+
+  /** Inserta un dato que se rellena solo donde está el cursor del asunto o del mensaje. */
+  function insertField(variable: TemplateVariable) {
+    const token = `{{${variable}}}`;
+    const element = target === "subject" ? subjectRef.current : bodyRef.current;
+    const current = target === "subject" ? subject : body;
+    const start = element?.selectionStart ?? current.length;
+    const end = element?.selectionEnd ?? current.length;
+    const next = `${current.slice(0, start)}${token}${current.slice(end)}`;
+    if (target === "subject") setSubject(next);
+    else setBody(next);
+    requestAnimationFrame(() => {
+      element?.focus();
+      element?.setSelectionRange(start + token.length, start + token.length);
+    });
+  }
 
   const draft = { subject: subject || null, body: body || null, paymentInstructions: instructions || null };
 
@@ -134,8 +167,10 @@ export function PaymentReminderSettingsForm({
           <input
             id={`${ids}-subject`}
             className={ownerField}
+            ref={subjectRef}
             value={subject}
             maxLength={SUBJECT_MAX_LENGTH}
+            onFocus={() => setTarget("subject")}
             placeholder={DEFAULT_SUBJECT}
             onChange={(event) => setSubject(event.target.value)}
           />
@@ -148,17 +183,39 @@ export function PaymentReminderSettingsForm({
           <textarea
             id={`${ids}-body`}
             className={`${ownerField} min-h-48 py-2 leading-6`}
+            ref={bodyRef}
             value={body}
             maxLength={BODY_MAX_LENGTH}
+            onFocus={() => setTarget("body")}
             placeholder={DEFAULT_BODY}
             onChange={(event) => setBody(event.target.value)}
           />
           <p className={ownerUi.help}>
-            Variables que se rellenan solas: {TEMPLATE_VARIABLES.map((name) => `{{${name}}}`).join(", ")}. Déjalo vacío para
-            usar el texto por defecto. Escribe con cercanía: no se admiten expresiones de recobro como «moroso» o «acciones
-            legales».
+            Déjalo vacío para usar el texto por defecto. Escribe con cercanía: no se admiten expresiones de reclamación
+            amenazante, como «moroso» o «acciones legales».
           </p>
         </div>
+
+        <fieldset className="grid gap-2">
+          <legend className={ownerUi.label}>Datos que se rellenan solos</legend>
+          <p className={ownerUi.help}>
+            Pulsa uno para ponerlo donde está el cursor, en el asunto o en el mensaje. En cada correo se sustituye por el dato
+            real de esa familia.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {AUTOFILL_FIELDS.map((field) => (
+              <button
+                key={field.variable}
+                type="button"
+                className={ownerUi.secondaryButton}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => insertField(field.variable)}
+              >
+                {field.label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
 
         <div className="grid gap-1.5">
           <label htmlFor={`${ids}-instructions`} className={ownerUi.label}>
@@ -173,25 +230,26 @@ export function PaymentReminderSettingsForm({
             onChange={(event) => setInstructions(event.target.value)}
           />
           <p className={ownerUi.help}>
-            Se inserta donde pongas {"{{datos_de_pago}}"}. Escribe aquí solo los datos de tu academia (IBAN, Bizum, horario de
-            caja); nunca datos de otras personas.
+            Aparecen en el mensaje donde insertes «Datos de pago». Escribe aquí solo los datos de tu academia (IBAN, Bizum,
+            horario de caja); nunca datos de otras personas.
           </p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5">
             <label htmlFor={`${ids}-replyto`} className={ownerUi.label}>
-              Correo de la academia para respuestas
+              Correo de la academia para las respuestas
             </label>
             <input
               id={`${ids}-replyto`}
               type="email"
+              required
               className={ownerField}
               value={replyTo}
               maxLength={254}
               onChange={(event) => setReplyTo(event.target.value)}
             />
-            <p className={ownerUi.help}>Si lo dejas vacío, las respuestas llegan al soporte de Zaltyko.</p>
+            <p className={ownerUi.help}>Las familias responderán a este correo. Sin él no se puede enviar ningún recordatorio.</p>
           </div>
           <div className="grid gap-1.5">
             <label htmlFor={`${ids}-interval`} className={ownerUi.label}>

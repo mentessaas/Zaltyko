@@ -19,8 +19,8 @@ export function sameOriginProblem(request: Request): NextResponse | null {
   return withPrivateNoStore(
     problemResponse({
       status: 403,
-      title: "Origen no válido",
-      detail: "La solicitud debe proceder de la misma web.",
+      title: "Solicitud no válida",
+      detail: "Esta acción solo se puede hacer desde la página de Zaltyko. Recarga la página e inténtalo de nuevo.",
       type: "invalid-origin",
     }) as NextResponse
   );

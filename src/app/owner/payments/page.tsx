@@ -163,6 +163,7 @@ export default async function OwnerPaymentsPage({
               locationId={options.selectedLocationId}
               overview={reminderOverview}
               automaticAvailable={isAutomaticPaymentRemindersFlagEnabled()}
+              suggestedReplyTo={user.email ?? null}
             />
           ) : null}
         </div>

@@ -18,7 +18,7 @@ import { charges } from "@/db/schema/zaltyko-ledger";
  * Recordatorios de impago de cuotas de familias.
  *
  * Espejo del candidato SQL
- * docs/deployment/candidates/20261114120000_payment_reminders_candidate.sql,
+ * docs/deployment/candidates/20261114120500_payment_reminders_candidate.sql,
  * que requiere autorización de Elvis y no está aplicado en ningún entorno.
  *
  * Igual que los precedentes de coach-assignment y session-plans, NO se exporta
@@ -74,6 +74,7 @@ export const paymentReminderSettings = zaltyko.table(
     ),
     check("payment_reminder_settings_reply_to_check", sql.raw(PAYMENT_REMINDER_SETTINGS_REPLY_TO_CHECK)),
     check("payment_reminder_settings_version_check", sql`version > 0`),
+    index("payment_reminder_settings_member_idx").on(table.organizationId, table.updatedByMemberId),
     foreignKey({
       name: "payment_reminder_settings_member_fk",
       columns: [table.organizationId, table.updatedByMemberId],
@@ -104,6 +105,8 @@ export const paymentReminders = zaltyko.table(
   },
   (table) => [
     index("payment_reminders_charge_idx").on(table.organizationId, table.chargeId, table.createdAt.desc()),
+    index("payment_reminders_guardian_idx").on(table.organizationId, table.guardianId),
+    index("payment_reminders_member_idx").on(table.organizationId, table.requestedByMemberId),
     check("payment_reminders_origin_check", sql`origin in ('manual', 'automatic')`),
     check("payment_reminders_status_check", sql`status in ('pending', 'sent', 'failed')`),
     check("payment_reminders_outstanding_check", sql`outstanding_cents >= 0`),

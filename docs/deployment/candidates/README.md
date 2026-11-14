@@ -413,7 +413,7 @@ locales y facturación) llegará más adelante.
 
 ## Candidato de recordatorios de impago (cobros, A3)
 
-`20261114120000_payment_reminders_candidate.sql` crea dos relaciones nuevas en
+`20261114120500_payment_reminders_candidate.sql` crea dos relaciones nuevas en
 `zaltyko`, sin tocar filas ni tablas existentes: `payment_reminder_settings`
 (plantilla, datos de pago en texto libre, correo de respuesta, días mínimos
 entre recordatorios y recordatorio automático apagado) y `payment_reminders`
@@ -440,11 +440,29 @@ flujo: `docs/producto/recordatorios-de-impago.md`.
   están instaladas (módulo `payment_reminders` del catálogo) y la política de
   supresión las clasifica; `tests/data-rights-activated-modules-contract.test.ts`
   lo comprueba contra este SQL.
-- SHA-256: `388c52c6b9a0263f87a2d0d55e36d83558de985f39101f65326168e33ef67bc9`.
+- SHA-256: `15e657f762d7576385b8f4c9070fee3066ff70408c464505ff4a32722b9be668`.
 - Pruebas: `tests/payment-reminders-contract.test.ts` (candidato, espejo
   Drizzle y detección de almacenamiento) y `tests/payment-reminders-pg.test.ts`,
   en el job «Postgres integration». Instala el candidato solo en el PostgreSQL
   desechable de GitHub y retira las tablas al terminar.
+- Índices en `guardian_id`, `requested_by_member_id` y `updated_by_member_id`:
+  las tres claves que pasan a null al borrar a una persona no recorren la tabla.
+- La marca de tiempo es `20261114120500` (no choca con la PR 321).
+- **Rollback.** Apagar antes `ZALTYKO_PAYMENT_REMINDERS_ENABLED` (la detección de
+  almacenamiento ya devuelve «no disponible» sin cambios de código). Las dos
+  tablas no tienen dependientes: ninguna otra relación las referencia. Borrarlas
+  descarta la plantilla y el historial de avisos; exportarlos antes si importan.
+
+  ```sql
+  begin;
+  drop table if exists zaltyko.payment_reminders;
+  drop table if exists zaltyko.payment_reminder_settings;
+  commit;
+  ```
+
+  `tests/payment-reminders-pg.test.ts` ejecuta exactamente estos dos `drop` al
+  terminar. Comprobación posterior: `to_regclass('zaltyko.payment_reminders')` es
+  null y `/owner/payments` ya no muestra la sección.
 - **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 

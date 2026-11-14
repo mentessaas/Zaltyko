@@ -117,6 +117,17 @@ create table zaltyko.payment_reminders (
 create index payment_reminders_charge_idx
   on zaltyko.payment_reminders(organization_id, charge_id, created_at desc);
 
+-- Las tres claves foráneas que pasan a null al borrar a una persona necesitan
+-- índice: sin él, borrar un tutor o un miembro recorre toda la tabla.
+create index payment_reminders_guardian_idx
+  on zaltyko.payment_reminders(organization_id, guardian_id);
+
+create index payment_reminders_member_idx
+  on zaltyko.payment_reminders(organization_id, requested_by_member_id);
+
+create index payment_reminder_settings_member_idx
+  on zaltyko.payment_reminder_settings(organization_id, updated_by_member_id);
+
 alter table zaltyko.payment_reminder_settings enable row level security;
 alter table zaltyko.payment_reminder_settings force row level security;
 alter table zaltyko.payment_reminders enable row level security;

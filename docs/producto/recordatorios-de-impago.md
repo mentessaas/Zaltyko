@@ -2,7 +2,7 @@
 
 Fecha: 14 de noviembre de 2026. Origen: punto A3 del análisis de competencia (`documentacion/Zaltyko/auditoria-2026-11-14/brechas-competencia.md`): recordatorios de impago dentro del registro manual de pagos. Las remesas SEPA quedan fuera hasta que Elvis decida.
 
-**Estado: dormida.** Va detrás de `ZALTYKO_PAYMENT_REMINDERS_ENABLED` (apagada por defecto) y necesita el candidato `docs/deployment/candidates/20261114120000_payment_reminders_candidate.sql`, **sin aplicar en ningún entorno**. Mientras falte cualquiera de los dos, la sección no aparece y la API responde 503 `FEATURE_NOT_AVAILABLE`.
+**Estado: dormida.** Va detrás de `ZALTYKO_PAYMENT_REMINDERS_ENABLED` (apagada por defecto) y necesita el candidato `docs/deployment/candidates/20261114120500_payment_reminders_candidate.sql`, **sin aplicar en ningún entorno**. Mientras falte cualquiera de los dos, la sección no aparece y la API responde 503 `FEATURE_NOT_AVAILABLE`.
 
 Zaltyko no cobra a las familias: la academia emite cuotas y anota los pagos a mano (`/owner/payments`). Esto añade el aviso amable cuando una cuota sigue abierta; no cobra ni mueve dinero.
 
@@ -14,16 +14,16 @@ En `/owner/payments`, bajo «Registrar un pago recibido», aparece «Recordatori
 2. **Recordar** (una cuota), **Recordar a las seleccionadas** o **Recordar a todas las vencidas**.
 3. **Vista previa antes de enviar**: el texto exacto con importe, concepto, vencimiento y datos de pago, el número de correos y de cuotas, y los destinatarios enmascarados (`m***@dominio.com`). Nada se reserva ni se envía hasta confirmar.
 4. Al confirmar se envía un correo por tutor pagador y moneda (dos cuotas del mismo tutor van en un solo mensaje, con el importe total) y se registra cada cuota recordada.
-5. «Plantilla, datos de pago y límites» (plegable): asunto, mensaje, datos de pago en texto libre (IBAN, Bizum, efectivo), correo de la academia para respuestas, días mínimos entre recordatorios (por defecto 7, de 1 a 90) y el recordatorio automático. «Ver ejemplo con estos cambios» renderiza el borrador sin guardarlo.
+5. «Plantilla, datos de pago y límites» (plegable): asunto, mensaje, datos de pago en texto libre (IBAN, Bizum, efectivo), correo de la academia para las respuestas (**obligatorio**: sin él no se envía nada y la pantalla lo avisa; la primera vez se propone el correo de la cuenta de quien administra), días mínimos entre recordatorios (por defecto 7, de 1 a 90) y el recordatorio automático. «Ver ejemplo con estos cambios» renderiza el borrador sin guardarlo.
 
 ## Reglas
 
-- **Límite:** como máximo un recordatorio por cuota cada N días (`min_interval_days`, por defecto 7). Cuentan los envíos aceptados y las reservas de menos de 15 minutos; un envío fallido **no** cuenta y se puede reintentar. El servidor bloquea las filas de las cuotas (`FOR UPDATE`) y reserva antes de enviar: dos pestañas o un doble clic mandan un solo correo.
+- **Límite:** como máximo un recordatorio por cuota cada N días (`min_interval_days`, por defecto 7). Cuentan los envíos aceptados, las reservas de menos de 15 minutos (envío en curso) y las reservas que caducaron sin resolverse, que se tratan como enviadas porque el correo pudo salir; solo un envío marcado como fallido **no** cuenta y se puede reintentar. El servidor bloquea las filas de las cuotas (`FOR UPDATE`) y reserva antes de enviar: dos pestañas o un doble clic mandan un solo correo.
 - **Tope por envío:** 100 cuotas. Lo que queda se informa y se repite después.
-- **Dedupe del correo:** `dedupeKey` `payment-reminder:<grupo>` en el emisor común (`sendEmailWithLogging`), que además respeta bajas y preferencias. El emisor liga `academyId` a la tabla antigua `academies`; aquí se pasa la organización como `tenantId` y la elegibilidad se comprueba en el servicio (una academia `suspended` o `closed` no envía).
-- **Automático (opcional, apagado):** un único recordatorio por cuota, N días tras el vencimiento (`auto_after_days`, por defecto 3), solo si la cuota nunca recibió otro aviso. Necesita `ZALTYKO_PAYMENT_REMINDERS_AUTO_ENABLED`, que la academia lo active y que alguien programe `/api/cron/family-payment-reminders` (con `CRON_SECRET`); `vercel.json` no lo programa. No confundir con `/api/cron/payment-reminders`, que es el cron antiguo del modelo `academies`.
+- **Dedupe del correo:** `dedupeKey` estable `payment-reminder:<huella de las cuotas>:<periodo del límite>:<intentos fallidos>` en el emisor común (la misma cuota en el mismo periodo nunca produce dos correos; tras un fallo confirmado la clave se renueva para poder reintentar) (`sendEmailWithLogging`), que además respeta bajas y preferencias. El emisor liga `academyId` a la tabla antigua `academies`; aquí se pasa la organización como `tenantId` y la elegibilidad se comprueba en el servicio (una academia `suspended` o `closed` no envía).
+- **Automático (opcional, apagado):** un único recordatorio por cuota, N días tras el vencimiento (`auto_after_days`, por defecto 3), solo si la cuota nunca recibió otro aviso. Recorre todas las academias con el automático activado, de 200 en 200 por orden de id, con un margen de tiempo bajo el límite de la ruta (si se agota, la siguiente pasada continúa y las ya avisadas no se repiten); salta las que no tienen correo de respuesta. Necesita `ZALTYKO_PAYMENT_REMINDERS_AUTO_ENABLED`, que la academia lo active y que alguien programe `/api/cron/family-payment-reminders` (con `CRON_SECRET`); `vercel.json` no lo programa. No confundir con `/api/cron/payment-reminders`, que es el cron antiguo del modelo `academies`.
 - **Tono:** la plantilla por defecto es un aviso cercano («si ya lo has pagado, ignora este mensaje… responde a este correo y lo vemos con calma»). Al guardar o previsualizar se rechazan variables desconocidas y expresiones de recobro agresivo («moroso», «embargo», «acciones legales», «última advertencia», «recargo», «abogado», «ASNEF»…).
-- **Variables:** `{{nombre}}`, `{{importe}}`, `{{concepto}}`, `{{vencimiento}}`, `{{academia}}`, `{{datos_de_pago}}`. Importe y fecha salen con el formato de España o México según el país de la academia.
+- **Variables:** `{{nombre}}`, `{{importe}}`, `{{concepto}}`, `{{vencimiento}}`, `{{academia}}`, `{{datos_de_pago}}`. Importe y fecha salen con el formato de España o México según el país de la academia. En la pantalla se llaman «Datos que se rellenan solos» y se insertan con botones donde está el cursor.
 
 ## RGPD
 
@@ -34,7 +34,7 @@ En `/owner/payments`, bajo «Registrar un pago recibido», aparece «Recordatori
 
 ## Autorización y seguridad
 
-Solo `owner` y `admin` (como registrar un pago), con alcance de sedes; la plantilla y los límites exigen acceso a todas las sedes. Las rutas (`/api/v1/owner/billing/payment-reminders`, `/preview`, `/settings`) autentican antes de validar, comprueban mismo origen en las mutaciones y aplican el límite de peticiones por academia. Una cuota de otra academia responde `not_found` en el resultado, sin enviar nada.
+Solo `owner` y `admin`, **por decisión de coordinación** (la misma frontera que registrar un pago): coordinación (`manager`) y entrenadoras no ven la sección y la API responde 403; `tests/payment-reminders-service.test.ts`, `tests/payment-reminders-pg.test.ts` y la matriz de rutas lo comprueban. Con alcance de sedes; la plantilla y los límites exigen acceso a todas las sedes. Las rutas (`/api/v1/owner/billing/payment-reminders`, `/preview`, `/settings`) autentican antes de validar, comprueban mismo origen en las mutaciones y aplican el límite de peticiones por academia. Una cuota de otra academia responde `not_found` en el resultado, sin enviar nada.
 
 ## Cómo probarlo en staging
 

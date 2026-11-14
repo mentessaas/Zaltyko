@@ -5,8 +5,10 @@
  * - Solo se escribe al tutor pagador de la cuota (RGPD, minimización): sin
  *   tutor pagador o sin correo del tutor no se envía a nadie más.
  * - Como máximo un recordatorio por cuota cada `minIntervalDays` días. Cuentan
- *   los enviados y los reservados hace menos de PENDING_WINDOW_MINUTES; un
- *   envío fallido no cuenta y se puede reintentar.
+ *   los enviados, las reservas de menos de PENDING_WINDOW_MINUTES (bloquean
+ *   mientras el envío está en curso) y también las reservas que caducaron sin
+ *   resolverse, que se tratan como enviadas porque el correo pudo salir. Solo
+ *   un envío marcado como fallido no cuenta y se puede reintentar.
  * - El recordatorio automático es opcional, llega `autoAfterDays` días después
  *   del vencimiento y es único: nunca se envía si la cuota ya recibió alguno.
  */
@@ -15,7 +17,10 @@ export const DEFAULT_MIN_INTERVAL_DAYS = 7;
 export const MIN_INTERVAL_DAYS_RANGE = { min: 1, max: 90 } as const;
 export const DEFAULT_AUTO_AFTER_DAYS = 3;
 export const AUTO_AFTER_DAYS_RANGE = { min: 1, max: 60 } as const;
-/** Una reserva sin respuesta del proveedor deja de bloquear pasado este tiempo. */
+/**
+ * Una reserva sin respuesta del proveedor deja de bloquear «en curso» pasado
+ * este tiempo y pasa a contar como enviada para el límite de días.
+ */
 export const PENDING_WINDOW_MINUTES = 15;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -33,8 +38,8 @@ export type ReminderSkipReason =
 
 export const SKIP_REASON_LABELS: Record<ReminderSkipReason, string> = {
   settled: "Ya no tiene saldo pendiente",
-  no_payer: "La cuota no tiene tutor pagador",
-  no_email: "El tutor pagador no tiene correo",
+  no_payer: "Falta la persona que paga",
+  no_email: "A la persona que paga le falta el correo",
   recently_reminded: "Ya se recordó hace poco",
   in_progress: "Hay un envío en curso",
   not_overdue_yet: "Todavía no ha vencido",
@@ -82,6 +87,28 @@ export function evaluateReminder(state: ReminderCandidateState): ReminderDecisio
   const next = nextEligibleAt(state.lastSentAt, state.minIntervalDays);
   if (next && state.now.getTime() < next.getTime()) return { eligible: false, reason: "recently_reminded" };
   return { eligible: true };
+}
+
+/**
+ * Clave estable del correo para el emisor común: la misma cuota (o conjunto de
+ * cuotas) en el mismo periodo del límite produce siempre la misma clave, así
+ * que un reintento tras un corte o una carrera no duplica el correo aunque la
+ * reserva se haya perdido. El periodo es la ventana de `minIntervalDays` días
+ * en la que cae `now`. Como el emisor común no reutiliza una clave ya usada
+ * (ni siquiera la de un intento fallido), `failedAttempts` la renueva tras cada
+ * fallo confirmado y permite reintentar. `sha256` lo aporta el llamador (el
+ * dominio no importa node).
+ */
+export function reminderDedupeKey(
+  chargeIds: readonly string[],
+  minIntervalDays: number,
+  now: Date,
+  failedAttempts: number,
+  sha256: (value: string) => string
+): string {
+  const window = Math.floor(now.getTime() / (minIntervalDays * DAY_MS));
+  const digest = sha256([...chargeIds].sort().join(","));
+  return `payment-reminder:${digest.slice(0, 40)}:${window}:${failedAttempts}`;
 }
 
 export function clampInterval(value: number): number {

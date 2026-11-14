@@ -788,7 +788,7 @@ const ACTIVATED_CANDIDATES = [
   "20261111200000_session_plans_candidate.sql",
   "20261111180000_coach_assignment_candidate.sql",
   "20261110120000_admission_requests_candidate.sql",
-  "20261114120000_payment_reminders_candidate.sql",
+  "20261114120500_payment_reminders_candidate.sql",
 ] as const;
 const activatedCandidate = (name: string) =>
   readFileSync(resolve(process.cwd(), `docs/deployment/candidates/${name}`), "utf8");

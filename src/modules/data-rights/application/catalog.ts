@@ -504,7 +504,7 @@ const CLASS_PLAN_TEMPLATE_BLOCKS_PROJECTION = `coalesce((
  * 20261111180000_coach_assignment_candidate.sql,
  * 20261111200000_session_plans_candidate.sql and
  * 20261110120000_admission_requests_candidate.sql, plus (pending Elvis'
- * authorization, 2026-11-14) 20261114120000_payment_reminders_candidate.sql.
+ * authorization, 2026-11-14) 20261114120500_payment_reminders_candidate.sql.
  */
 export interface OptionalIncludedExportModule {
   module: "athlete_progress" | "coach_assignment" | "session_plans" | "admissions" | "payment_reminders";

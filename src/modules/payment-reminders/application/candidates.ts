@@ -26,6 +26,8 @@ export interface ReminderCandidate {
   payerEmail: string | null;
   lastSentAt: Date | null;
   sentCount: number;
+  /** Intentos que el proveedor no confirmó; entran en la clave del correo para poder reintentar. */
+  failedCount: number;
   hasPendingReservation: boolean;
 }
 
@@ -54,6 +56,7 @@ interface CandidateRow {
   payerEmail: string | null;
   lastSentAt: string | null;
   sentCount: string | number;
+  failedCount: string | number;
   hasPendingReservation: boolean | null;
 }
 
@@ -100,6 +103,7 @@ export async function loadReminderCandidates(
         contact.value as "payerEmail",
         to_char(rem.last_sent_at at time zone 'UTC', ${sql.raw(ISO)}) as "lastSentAt",
         coalesce(rem.sent_count, 0) as "sentCount",
+        coalesce(rem.failed_count, 0) as "failedCount",
         coalesce(rem.has_pending, false) as "hasPendingReservation",
         i.reference as sort_reference
       from zaltyko.charges c
@@ -125,8 +129,18 @@ export async function loadReminderCandidates(
          limit 1
       ) contact on true
       left join lateral (
-        select max(r.sent_at) filter (where r.status = 'sent') as last_sent_at,
-               count(*) filter (where r.status = 'sent') as sent_count,
+        -- Una reserva que caducó sin resolverse (el proceso murió después de
+        -- enviar o antes de anotar el resultado) cuenta como enviada: ante la
+        -- duda, el límite de días protege a la familia de un segundo aviso.
+        select max(coalesce(r.sent_at, r.created_at)) filter (
+                 where r.status = 'sent'
+                    or (r.status = 'pending' and r.created_at <= now() - make_interval(mins => ${PENDING_WINDOW_MINUTES}))
+               ) as last_sent_at,
+               count(*) filter (
+                 where r.status = 'sent'
+                    or (r.status = 'pending' and r.created_at <= now() - make_interval(mins => ${PENDING_WINDOW_MINUTES}))
+               ) as sent_count,
+               count(*) filter (where r.status = 'failed') as failed_count,
                bool_or(
                  r.status = 'pending'
                  and r.created_at > now() - make_interval(mins => ${PENDING_WINDOW_MINUTES})
@@ -162,6 +176,7 @@ export async function loadReminderCandidates(
     payerEmail: row.payerEmail,
     lastSentAt: row.lastSentAt ? new Date(row.lastSentAt) : null,
     sentCount: Number(row.sentCount),
+    failedCount: Number(row.failedCount),
     hasPendingReservation: row.hasPendingReservation === true,
   }));
 }

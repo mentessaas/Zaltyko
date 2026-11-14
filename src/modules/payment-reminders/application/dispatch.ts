@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -20,7 +20,7 @@ import {
   type ReminderSkip,
 } from "@/modules/payment-reminders/application/plan";
 import type { PaymentReminderSettings } from "@/modules/payment-reminders/application/settings";
-import type { ReminderOrigin } from "@/modules/payment-reminders/domain/reminder-policy";
+import { reminderDedupeKey, type ReminderOrigin } from "@/modules/payment-reminders/domain/reminder-policy";
 import {
   maskEmail,
   renderReminder,
@@ -121,6 +121,24 @@ function settingsDraft(settings: PaymentReminderSettings): TemplateDraft {
   };
 }
 
+/**
+ * Las respuestas de las familias deben llegar a la academia, no al soporte de
+ * Zaltyko: sin correo de respuesta configurado no se envía nada.
+ */
+export const REPLY_TO_REQUIRED_REASON = "reply_to_required";
+
+export function assertReplyToConfigured(settings: PaymentReminderSettings): string {
+  if (!settings.replyToEmail) {
+    throw new OperationalError(
+      "INVALID_STATE_TRANSITION",
+      "Antes de enviar, indica el correo de la academia al que deben responder las familias.",
+      409,
+      { reason: REPLY_TO_REQUIRED_REASON }
+    );
+  }
+  return settings.replyToEmail;
+}
+
 function assertOrganizationCanSend(organization: OrganizationProfile | null): OrganizationProfile {
   if (!organization || organization.status === "suspended" || organization.status === "closed") {
     throw new OperationalError(
@@ -183,6 +201,7 @@ export async function previewReminders(
  */
 export async function dispatchReminders(input: DispatchInput): Promise<DispatchResult> {
   const now = input.now ?? new Date();
+  const replyTo = assertReplyToConfigured(input.settings);
   const organization = assertOrganizationCanSend(await loadOrganizationProfile(db, input.organizationId));
   const filter = loadFilter(input, now);
 
@@ -234,13 +253,19 @@ export async function dispatchReminders(input: DispatchInput): Promise<DispatchR
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
-        replyTo: input.settings.replyToEmail ?? undefined,
+        replyTo,
         template: "payment-reminder",
         // El emisor común enlaza academyId con la tabla antigua `academies`; la
         // organización canónica va como tenant, que no tiene clave foránea.
         tenantId: input.organizationId,
         metadata: { kind: "payment_reminder", origin: input.origin, chargeCount: group.candidates.length },
-        dedupeKey: `payment-reminder:${emailGroupId}`,
+        dedupeKey: reminderDedupeKey(
+          group.candidates.map((candidate) => candidate.chargeId),
+          input.settings.minIntervalDays,
+          now,
+          Math.max(...group.candidates.map((candidate) => candidate.failedCount)),
+          (value) => createHash("sha256").update(value).digest("hex")
+        ),
       });
     } catch (error) {
       logger.error("No se pudo enviar un recordatorio de cuota", error, {

@@ -96,6 +96,7 @@ function candidate(overrides: Partial<ReminderCandidate> = {}): ReminderCandidat
     payerEmail: "maria@example.invalid",
     lastSentAt: null,
     sentCount: 0,
+    failedCount: 0,
     hasPendingReservation: false,
     ...overrides,
   };
@@ -188,7 +189,7 @@ describe("envío manual", () => {
     });
     // El emisor común liga academyId a la tabla antigua: no se le pasa.
     expect(first).not.toHaveProperty("academyId");
-    expect(first.dedupeKey).toMatch(/^payment-reminder:[0-9a-f-]{36}$/);
+    expect(first.dedupeKey).toMatch(/^payment-reminder:[0-9a-f]{40}:\d+:0$/);
     expect(first.text).toContain("Bizum al 600 000 000");
     expect(first.text).toContain("Cuota de octubre de 2026 y Cuota de noviembre de 2026");
     expect(first.text).not.toContain("luis");
@@ -273,6 +274,33 @@ describe("envío manual", () => {
   });
 });
 
+describe("correo de respuesta y clave estable del correo", () => {
+  it("sin correo de respuesta de la academia no se envía ni se reserva nada", async () => {
+    mocks.dbExecute.mockResolvedValue({ rows: [settingsRow({ reply_to_email: null })] });
+    mocks.loadCandidates.mockResolvedValue([candidate()]);
+    await expect(sendPaymentReminders(manualAll)).rejects.toMatchObject({
+      code: "INVALID_STATE_TRANSITION",
+      details: { reason: "reply_to_required" },
+    });
+    expect(mocks.send).not.toHaveBeenCalled();
+    expect(mocks.txExecute).not.toHaveBeenCalled();
+  });
+
+  it("la clave del correo es estable por cuota y periodo, y cambia tras un intento fallido", async () => {
+    const charge = candidate();
+    mocks.loadCandidates.mockResolvedValue([charge]);
+    await sendPaymentReminders(manualAll);
+    await sendPaymentReminders(manualAll);
+    mocks.loadCandidates.mockResolvedValue([{ ...charge, failedCount: 1 }]);
+    await sendPaymentReminders(manualAll);
+    const keys = mocks.send.mock.calls.map(([options]) => options.dedupeKey as string);
+    expect(keys).toHaveLength(3);
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[2]).not.toBe(keys[0]);
+    expect(keys[2]!.endsWith(":1")).toBe(true);
+  });
+});
+
 describe("vista previa", () => {
   it("muestra el texto exacto con el destinatario enmascarado y no reserva ni envía nada", async () => {
     mocks.loadCandidates.mockResolvedValue([candidate()]);
@@ -335,7 +363,7 @@ describe("recordatorio automático", () => {
   it("apagado por defecto: sin bandera no consulta nada ni envía", async () => {
     vi.stubEnv("ZALTYKO_PAYMENT_REMINDERS_ENABLED", "true");
     vi.stubEnv("ZALTYKO_PAYMENT_REMINDERS_AUTO_ENABLED", "");
-    await expect(runAutomaticPaymentReminders(NOW)).resolves.toEqual({ enabled: false, organizations: 0, sent: 0, failed: 0 });
+    await expect(runAutomaticPaymentReminders(NOW)).resolves.toEqual({ enabled: false, organizations: 0, sent: 0, failed: 0, complete: true });
     expect(mocks.dbExecute).not.toHaveBeenCalled();
     expect(mocks.send).not.toHaveBeenCalled();
     vi.unstubAllEnvs();
@@ -357,12 +385,57 @@ describe("recordatorio automático", () => {
 
     const result = await runAutomaticPaymentReminders(NOW);
 
-    expect(result).toEqual({ enabled: true, organizations: 1, sent: 1, failed: 0 });
+    expect(result).toEqual({ enabled: true, organizations: 1, sent: 1, failed: 0, complete: true });
     expect(mocks.send).toHaveBeenCalledTimes(1);
     expect(mocks.send.mock.calls[0]![0].metadata).toMatchObject({ origin: "automatic" });
     const insert = mocks.txExecute.mock.calls.map(queryOf).find((query) => query.sql.includes("insert into zaltyko.payment_reminders"))!;
     expect(insert.params).toContain("automatic");
     expect(insert.params).not.toContain(MEMBER);
+    vi.unstubAllEnvs();
+  });
+
+  it("no envía en academias sin correo de respuesta", async () => {
+    vi.stubEnv("ZALTYKO_PAYMENT_REMINDERS_ENABLED", "true");
+    vi.stubEnv("ZALTYKO_PAYMENT_REMINDERS_AUTO_ENABLED", "true");
+    mocks.dbExecute
+      .mockResolvedValueOnce({ rows: [{ organizationId: ORG }] })
+      .mockResolvedValueOnce({ rows: [settingsRow({ is_auto_enabled: true, reply_to_email: null })] });
+    mocks.loadCandidates.mockResolvedValue([candidate({ dueAt: new Date(NOW.getTime() - 4 * DAY) })]);
+    await expect(runAutomaticPaymentReminders(NOW)).resolves.toMatchObject({ organizations: 0, sent: 0 });
+    expect(mocks.send).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+
+  it("recorre todas las academias por páginas, no solo las primeras", async () => {
+    vi.stubEnv("ZALTYKO_PAYMENT_REMINDERS_ENABLED", "true");
+    vi.stubEnv("ZALTYKO_PAYMENT_REMINDERS_AUTO_ENABLED", "true");
+    const orgIds = Array.from({ length: 5 }, (_, index) => `a0000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`);
+    const pages = [orgIds.slice(0, 2), orgIds.slice(2, 4), orgIds.slice(4)];
+    const cursors: Array<unknown> = [];
+    mocks.dbExecute.mockImplementation(async (query: Parameters<PgDialect["sqlToQuery"]>[0]) => {
+      const { sql: text, params } = dialect.sqlToQuery(query);
+      if (text.includes("from zaltyko.payment_reminder_settings s")) {
+        cursors.push(params[0]);
+        const page = pages.shift() ?? [];
+        return { rows: page.map((organizationId) => ({ organizationId })) };
+      }
+      if (text.includes("from zaltyko.payment_reminder_settings")) return { rows: [settingsRow({ is_auto_enabled: true })] };
+      return { rows: [{ id: "d0000000-0000-4000-8000-000000000001" }] };
+    });
+    mocks.loadCandidates.mockResolvedValue([]);
+    const result = await runAutomaticPaymentReminders(NOW, { pageSize: 2 });
+    expect(result).toMatchObject({ enabled: true, organizations: 5, complete: true });
+    // Cada página arranca tras la última academia de la anterior.
+    expect(cursors).toEqual([null, orgIds[1], orgIds[3]]);
+    vi.unstubAllEnvs();
+  });
+
+  it("si se agota el tiempo lo indica y no marca la pasada como completa", async () => {
+    vi.stubEnv("ZALTYKO_PAYMENT_REMINDERS_ENABLED", "true");
+    vi.stubEnv("ZALTYKO_PAYMENT_REMINDERS_AUTO_ENABLED", "true");
+    mocks.dbExecute.mockResolvedValueOnce({ rows: [{ organizationId: ORG }] });
+    const result = await runAutomaticPaymentReminders(NOW, { deadlineMs: -1 });
+    expect(result).toMatchObject({ organizations: 0, complete: false });
     vi.unstubAllEnvs();
   });
 

@@ -73,7 +73,7 @@ function assertDisposableTarget() {
 }
 
 const candidate = () =>
-  readFileSync(resolve(process.cwd(), "docs/deployment/candidates/20261114120000_payment_reminders_candidate.sql"), "utf8");
+  readFileSync(resolve(process.cwd(), "docs/deployment/candidates/20261114120500_payment_reminders_candidate.sql"), "utf8");
 
 const DAY = 86_400_000;
 const daysAgo = (days: number) => new Date(Date.now() - days * DAY).toISOString();
@@ -267,6 +267,22 @@ describeDisposablePg("recordatorios de impago contra PostgreSQL desechable", () 
     cOtraAcademia = await charge(b, otra);
   }, 120_000);
 
+  it("sin correo de respuesta de la academia no se envía ni se reserva nada", async () => {
+    sendMock.mockReset();
+    await expect(sendPaymentReminders(overdueAll(a))).rejects.toMatchObject({
+      code: "INVALID_STATE_TRANSITION",
+      details: { reason: "reply_to_required" },
+    });
+    expect(sendMock).not.toHaveBeenCalled();
+    expect(await reminderRows(cMaria1)).toEqual([]);
+    // La academia lo configura una vez y ya puede enviar.
+    await updatePaymentReminderSettings({
+      userId: a.ownerUserId,
+      organizationId: a.organizationId,
+      settings: { minIntervalDays: 7, autoEnabled: false, autoAfterDays: 3, replyToEmail: "club@example.invalid" },
+    });
+  });
+
   afterAll(async () => {
     vi.unstubAllEnvs();
     if (!disposablePgEnabled) return;
@@ -394,6 +410,24 @@ describeDisposablePg("recordatorios de impago contra PostgreSQL desechable", () 
     expect(item.nextEligibleAt).not.toBeNull();
   });
 
+  it("una reserva caducada sin resolver cuenta como enviada para el límite", async () => {
+    const familia = await payer(a, "Caducada", "caducada@example.invalid");
+    const cCaducada = await charge(a, familia, { dueDaysAgo: 6 });
+    await db.execute(sql`
+      insert into zaltyko.payment_reminders (organization_id, charge_id, email_group_id, origin, status, outstanding_cents, currency, created_at)
+      values (${a.organizationId}::uuid, ${cCaducada}::uuid, ${randomUUID()}::uuid, 'manual', 'pending', 4500, 'EUR', now() - interval '20 minutes')
+    `);
+    sendMock.mockReset();
+    sendMock.mockResolvedValue(true);
+    const result = await sendPaymentReminders({
+      userId: a.ownerUserId,
+      organizationId: a.organizationId,
+      selection: { kind: "charges", chargeIds: [cCaducada] },
+    });
+    expect(result.outcomes).toEqual([{ chargeId: cCaducada, outcome: "skipped", reason: "recently_reminded" }]);
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
   it("con el intervalo cumplido vuelve a poder recordarse, y un intervalo mayor lo impide", async () => {
     await db.execute(sql`
       update zaltyko.payment_reminders
@@ -404,7 +438,7 @@ describeDisposablePg("recordatorios de impago contra PostgreSQL desechable", () 
     await updatePaymentReminderSettings({
       userId: a.ownerUserId,
       organizationId: a.organizationId,
-      settings: { minIntervalDays: 14, autoEnabled: false, autoAfterDays: 3 },
+      settings: { minIntervalDays: 14, autoEnabled: false, autoAfterDays: 3, replyToEmail: "club@example.invalid" },
     });
     sendMock.mockClear();
     expect(await sendPaymentReminders({ ...overdueAll(a), selection: { kind: "charges", chargeIds: [cMaria1] } })).toMatchObject({ sent: 0 });
@@ -479,7 +513,7 @@ describeDisposablePg("recordatorios de impago contra PostgreSQL desechable", () 
     await updatePaymentReminderSettings({
       userId: a.ownerUserId,
       organizationId: a.organizationId,
-      settings: { minIntervalDays: 7, autoEnabled: true, autoAfterDays: 3 },
+      settings: { minIntervalDays: 7, autoEnabled: true, autoAfterDays: 3, replyToEmail: "club@example.invalid" },
     });
 
     const run = await runAutomaticPaymentReminders();

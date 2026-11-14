@@ -51,12 +51,14 @@ export function PaymentRemindersPanel({
   locationId,
   overview,
   automaticAvailable,
+  suggestedReplyTo,
 }: {
   organizationId: string;
   locationId: string | null;
   overview: ReminderOverview;
   /** La bandera global del recordatorio automático está encendida. */
   automaticAvailable: boolean;
+  suggestedReplyTo: string | null;
 }) {
   const router = useRouter();
   const headingId = useId();
@@ -69,6 +71,8 @@ export function PaymentRemindersPanel({
   const [settings, setSettings] = useState<PaymentReminderSettings>(overview.settings);
 
   const { items } = overview;
+  // Las respuestas de las familias deben llegar a la academia: sin su correo no se envía.
+  const needsReplyTo = !settings.replyToEmail;
   const remindable = useMemo(() => items.filter((item) => item.canRemind), [items]);
   const selectedRemindable = remindable.filter((item) => selected.has(item.chargeId));
 
@@ -151,6 +155,13 @@ export function PaymentRemindersPanel({
         </p>
       </div>
 
+      {needsReplyTo ? (
+        <div role="status" className={ownerUi.noticeWarning}>
+          Antes de enviar, indica el correo de la academia en «Plantilla, datos de pago y límites». Las familias responderán
+          a ese correo.
+        </div>
+      ) : null}
+
       {error ? (
         <div role="alert" className={ownerUi.noticeError}>
           {error}
@@ -207,8 +218,8 @@ export function PaymentRemindersPanel({
           ) : null}
           {preview.skipped.length > 0 ? (
             <p className={ownerUi.help}>
-              {preview.skipped.length} {preview.skipped.length === 1 ? "cuota se omite" : "cuotas se omiten"} (sin tutor
-              pagador con correo, ya recordadas hace poco o ya saldadas).
+              {preview.skipped.length} {preview.skipped.length === 1 ? "cuota se omite" : "cuotas se omiten"} (falta la
+              persona que paga o su correo, ya se recordaron hace poco o ya están saldadas).
             </p>
           ) : null}
           <div className="flex flex-wrap gap-3">
@@ -235,7 +246,7 @@ export function PaymentRemindersPanel({
             <button
               type="button"
               className={ownerUi.primaryButton}
-              disabled={busy || overview.remindableOverdueCount === 0}
+              disabled={busy || needsReplyTo || overview.remindableOverdueCount === 0}
               onClick={() => openPreview({ kind: "overdue" })}
             >
               Recordar a todas las vencidas ({overview.remindableOverdueCount})
@@ -243,7 +254,7 @@ export function PaymentRemindersPanel({
             <button
               type="button"
               className={ownerUi.secondaryButton}
-              disabled={busy || selectedRemindable.length === 0}
+              disabled={busy || needsReplyTo || selectedRemindable.length === 0}
               onClick={() =>
                 openPreview({ kind: "charges", chargeIds: selectedRemindable.map((item) => item.chargeId) })
               }
@@ -271,7 +282,7 @@ export function PaymentRemindersPanel({
                     {periodLabel(item.servicePeriodStart)} · {formatMoney(item.outstandingCents, item.currency)}
                   </p>
                   <p className={ownerUi.muted}>
-                    {item.payerFirstName ?? "Sin tutor pagador"}
+                    {item.payerFirstName ?? "Falta la persona que paga"}
                     {item.payerEmailMasked ? ` · ${item.payerEmailMasked}` : ""} · {item.locationName} · {item.invoiceReference}
                   </p>
                   <p className="flex flex-wrap items-center gap-2 text-sm text-z-ink">
@@ -291,7 +302,7 @@ export function PaymentRemindersPanel({
                 <button
                   type="button"
                   className={ownerUi.secondaryButton}
-                  disabled={!item.canRemind || busy}
+                  disabled={!item.canRemind || busy || needsReplyTo}
                   onClick={() => openPreview({ kind: "charges", chargeIds: [item.chargeId] })}
                 >
                   Recordar
@@ -311,6 +322,7 @@ export function PaymentRemindersPanel({
         organizationId={organizationId}
         settings={settings}
         automaticAvailable={automaticAvailable}
+        suggestedReplyTo={suggestedReplyTo}
         previewSelection={
           selectedRemindable.length > 0
             ? { kind: "charges", chargeIds: selectedRemindable.map((item) => item.chargeId) }
