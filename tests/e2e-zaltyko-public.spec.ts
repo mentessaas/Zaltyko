@@ -102,8 +102,19 @@ test.describe("Zaltyko public site smoke", () => {
     const sitemap = await request.get("/sitemap.xml");
     expect(sitemap.ok()).toBeTruthy();
     const sitemapText = await sitemap.text();
-    expect(sitemapText).toContain("/es/trampolin/espana");
-    expect(sitemapText).toContain("/en/acrobatic-gymnastics/spain");
+    // Superficie pública viva del lanzamiento: páginas esenciales y guías
+    // del centro de ayuda (el índice vive en /ayuda y las guías en /help/*).
+    expect(sitemapText).toContain("/features");
+    expect(sitemapText).toContain("/pricing");
+    expect(sitemapText).toContain("/faq");
+    expect(sitemapText).toContain("/help/crear-cuenta");
+    // El sitemap no debe anunciar superficies retiradas: el blog y las
+    // disciplinas fuera de foco responden 410, y los clústeres de artística
+    // y rítmica redirigen permanente a /features.
+    expect(sitemapText).not.toContain("/blog");
+    expect(sitemapText).not.toContain("/es/trampolin/espana");
+    expect(sitemapText).not.toContain("/en/acrobatic-gymnastics/spain");
+    expect(sitemapText).not.toContain("/es/gimnasia-artistica/espana");
     expect(sitemapText).not.toContain("2026-03-26");
 
     const robots = await request.get("/robots.txt");
@@ -114,12 +125,15 @@ test.describe("Zaltyko public site smoke", () => {
   test("priority public pages expose a description and self-canonical URL", async ({
     page,
   }) => {
+    // Solo páginas vivas del sitemap: /blog se retiró con 410 y los clústeres
+    // por disciplina redirigen a /features, así que aquí solo entran páginas
+    // 200 con descripción y canonical propios.
     const paths = [
       "/",
       "/features",
       "/pricing",
-      "/blog",
-      "/es/gimnasia-artistica/espana",
+      "/faq",
+      "/ayuda",
     ];
 
     for (const path of paths) {
@@ -262,31 +276,60 @@ test.describe("Zaltyko public site smoke", () => {
 
   test("features tabs switch visible content", async ({ page }) => {
     await gotoPublic(page, "/features");
-    const billingTab = page.getByRole("tab", { name: "Cobros" });
+    // El catálogo público del lanzamiento renombró la pestaña «Cobros» a
+    // «Cuotas»; su panel abre con el título «Cuotas al día, sin libreta».
+    const billingTab = page.getByRole("tab", { name: "Cuotas" });
     await expectReactHydrated(billingTab);
     await billingTab.click();
     await expect(billingTab).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("tabpanel")).toContainText(
-      "Cobros claros para academias"
+      "Cuotas al día, sin libreta"
     );
   });
 
-  test("cluster routes render Spanish and English generated content", async ({
-    page,
+  test("retired cluster and blog routes answer 410 or redirect to /features", async ({
+    request,
   }) => {
-    await gotoPublic(page, "/es/trampolin/espana");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      /trampol/i
-    );
+    // Contrato de retirada del lanzamiento (src/lib/launch/essential-routes.ts):
+    // el blog y las disciplinas fuera de foco (trampolín, acrobática) no tienen
+    // página equivalente y responden 410 Gone; los clústeres que /features sí
+    // cubre (artística, rítmica) redirigen permanente a esa página.
+    const goneRoutes = [
+      "/blog",
+      "/blog/migrar-excel-software-academia-gimnasia",
+      "/es/trampolin/espana",
+      "/en/acrobatic-gymnastics/spain",
+    ];
+    for (const path of goneRoutes) {
+      const response = await request.get(path);
+      expect(response.status(), `${path} should answer 410 Gone`).toBe(410);
+    }
 
-    await gotoPublic(page, "/en/acrobatic-gymnastics/spain");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      /acrobatic/i
-    );
+    const movedRoutes: Array<[string, string]> = [
+      ["/es/gimnasia-artistica/espana", "/features"],
+      ["/es/gimnasia-ritmica/espana", "/features"],
+    ];
+    for (const [path, livePath] of movedRoutes) {
+      const response = await request.get(path);
+      expect(response.ok(), `${path} should land on ${livePath}`).toBe(true);
+      expect(
+        new URL(response.url()).pathname,
+        `${path} final destination`
+      ).toBe(livePath);
+    }
   });
 
-  test("help center links resolve to real guide pages", async ({ page }) => {
-    await gotoPublic(page, "/help");
+  test("help center links resolve to real guide pages", async ({
+    page,
+    request,
+  }) => {
+    // /help es un alias legado que ahora redirige permanente a /ayuda; el
+    // centro de ayuda vivo es /ayuda y las guías siguen en /help/*.
+    const legacyHelp = await request.get("/help");
+    expect(legacyHelp.ok()).toBeTruthy();
+    expect(new URL(legacyHelp.url()).pathname).toBe("/ayuda");
+
+    await gotoPublic(page, "/ayuda");
     const emptyLinks = await page.locator('a[href="#"]').count();
     expect(emptyLinks).toBe(0);
 
@@ -319,7 +362,9 @@ test.describe("Zaltyko public site smoke", () => {
     page,
   }) => {
     await gotoPublic(page, "/pricing");
-    const starter = page.getByRole("article").filter({
+    // La tabla de planes pinta cada plan como <li> con su <h2>; antes eran
+    // tarjetas <article>. El CTA del catálogo es «Crear academia gratis».
+    const starter = page.getByRole("listitem").filter({
       has: page.getByRole("heading", { name: "Starter", exact: true }),
     });
     await expect(
@@ -331,9 +376,12 @@ test.describe("Zaltyko public site smoke", () => {
     page,
   }) => {
     await gotoPublic(page, "/");
+    // El hero actual («Magnesio sobre tapiz») usa «Crear academia gratis»
+    // como CTA principal (antes «Crear cuenta y configurar academia»);
+    // sigue llevando al alta de owner.
     await expect(
       page
-        .getByRole("link", { name: "Crear cuenta y configurar academia" })
+        .getByRole("link", { name: "Crear academia gratis" })
         .first()
     ).toHaveAttribute("href", "/auth/register?role=owner");
 
@@ -357,17 +405,17 @@ test.describe("Zaltyko public site smoke", () => {
     await expect(page.getByText("Pagos", { exact: true })).toHaveCount(0);
   });
 
-  test("demo dynamic public detail pages do not depend on remote seed data", async ({
-    page,
-  }) => {
-    await gotoPublic(page, "/marketplace/demo-marketplace");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "Pack demo"
-    );
-
-    await gotoPublic(page, "/empleo/demo-empleo");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "Entrenador/a de gimnasia"
-    );
+  test("retired demo detail pages stay closed", async ({ request }) => {
+    // Las páginas demo de marketplace y empleo quedaron fuera del alcance
+    // público del lanzamiento: deben seguir respondiendo 404 real, sin
+    // depender de datos de siembra remotos.
+    const retiredRoutes = [
+      "/marketplace/demo-marketplace",
+      "/empleo/demo-empleo",
+    ];
+    for (const path of retiredRoutes) {
+      const response = await request.get(path);
+      expect(response.status(), `${path} should stay closed`).toBe(404);
+    }
   });
 });

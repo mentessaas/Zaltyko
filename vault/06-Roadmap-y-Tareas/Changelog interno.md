@@ -7,6 +7,21 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-14 — Smoke público y Lighthouse alineados con la superficie viva
+
+**Contexto.** Los jobs «Smoke Tests» y «Lighthouse SEO/Perf Budget» de `main` fallaban en cada push porque probaban páginas retiradas de zaltyko.com: `/blog/*` responde 410, los clústeres de gimnasia artística y rítmica redirigen 301 a `/features`, los de trampolín y acrobática responden 410, `/help` redirige 308 a `/ayuda` y las páginas demo de empleo y marketplace responden 404. Además, el copy vivo cambió desde que se escribió el spec: la pestaña de cobros de `/features` ahora se llama «Cuotas», las tarjetas de plan de `/pricing` son `<li>` (ya no `<article>`) y el CTA del hero de portada es «Crear academia gratis».
+
+**Cambio.** Solo `tests/e2e-zaltyko-public.spec.ts` y `.lighthouserc.json`; nada en `src/` ni en workflows.
+- Sitemap: comprueba rutas vivas (`/features`, `/pricing`, `/faq`, guía `/help/crear-cuenta`) y que ya no anuncia `/blog` ni los clústeres por disciplina; sigue sin aceptar la fecha congelada `2026-03-26`.
+- Páginas prioritarias: `/blog` y `/es/gimnasia-artistica/espana` sustituidos por `/faq` y `/ayuda` (200 del sitemap, con descripción y canonical propios verificados).
+- Prueba nueva de rutas retiradas: `/blog`, un slug de blog, `/es/trampolin/espana` y `/en/acrobatic-gymnastics/spain` deben responder 410; `/es/gimnasia-artistica/espana` y `/es/gimnasia-ritmica/espana` deben aterrizar en `/features` (siguiendo la redirección).
+- Centro de ayuda: el índice se comprueba en `/ayuda` y se verifica que el alias `/help` redirige ahí; las guías siguen en `/help/*`.
+- Páginas demo de marketplace/empleo: la prueba de contenido se sustituye por una aserción de 404 real (el contrato actual del middleware).
+- Copy vivo: pestaña «Cuotas» con panel «Cuotas al día, sin libreta» (catálogo público); tarjeta Starter localizada por `listitem`; CTA de portada «Crear academia gratis» → `/auth/register?role=owner`.
+- `.lighthouserc.json`: `/blog/migrar-excel-software-academia-gimnasia` (410) y `/es/gimnasia-artistica/espana` (301) sustituidos por `/faq` y `/ayuda`; 5 URLs y aserciones intactas.
+
+**Pruebas.** Ninguna ejecutada en local (prohibido en esta máquina). Cada ruta se verificó con GET de `curl` contra zaltyko.com (200/410/301/308/404 según el contrato de `src/lib/launch/essential-routes.ts`) y el copy se cotejó con el HTML servido y con `essential-public-catalog.ts` y `plans/catalog.ts`. La validación real la hace la CI en el próximo push a `main`. La permanencia de las redirecciones de clústeres (301) ya la cubre `tests/seo/retired-pages.test.ts` a nivel de configuración; el smoke comprueba el comportamiento HTTP. Si alguna superficie retirada vuelve a publicarse, estas aserciones (410/404/redirect y las negativas del sitemap) deben actualizarse a la vez que `essential-routes.ts`.
+
 ## 2026-11-14 — Niveles y progresión por aparato (A6), apagado
 
 **Contexto.** Brecha A6 del análisis de competencia: progresión por niveles y aparatos con informe para la familia y diploma. Se continúa lo de objetivos y observaciones (271).
