@@ -59,9 +59,42 @@ export const OPTIONAL_TEAM_ACCESS_EXPORT_TABLES = [
   },
 ] as const;
 
+/** Family portal access and session notices (candidate 20261114120000, not
+ * applied). Until a reviewed decision exports their values, only this
+ * academy's counts are included: invitations hold invited emails and token
+ * hashes, notices and receipts are communications with families. Absent or
+ * fully installed, never partially known.
+ */
+export const OPTIONAL_FAMILY_ACCESS_EXPORT_TABLES = [
+  {
+    table: "guardian_access_invitations",
+    category: "family_access_credentials",
+    reason: "Family portal invitation identities, credential hashes and acceptance evidence require a separate protected access-data return; only this academy's count is included.",
+    columns: ["id", "organization_id", "guardian_id", "normalized_email", "status", "grant_view_athletes", "invited_by_member_id", "token_sha256", "expires_at", "revision", "last_sent_at", "accepted_by_user_id", "accepted_at", "revoked_by_member_id", "revoked_at", "created_at", "updated_at"],
+  },
+  {
+    table: "family_notices",
+    category: "family_communications",
+    reason: "Notices the academy sent to families; values are pending a reviewed export decision, so only this academy's count is included.",
+    columns: ["id", "organization_id", "location_id", "kind", "session_id", "class_template_id", "group_id", "title", "body", "dedupe_key", "created_by_member_id", "created_at"],
+  },
+  {
+    table: "family_notice_recipients",
+    category: "family_communications",
+    reason: "Per-guardian read receipts and email outcomes of family notices; only this academy's count is included.",
+    columns: ["id", "organization_id", "notice_id", "guardian_id", "email_status", "email_attempted_at", "read_at", "created_at"],
+  },
+  {
+    table: "guardian_notification_preferences",
+    category: "user_preferences",
+    reason: "Email preferences a family set in the portal; only this academy's count is included.",
+    columns: ["organization_id", "guardian_id", "email_session_changes", "email_manual_notices", "updated_at"],
+  },
+] as const;
+
 export const OPTIONAL_EXPORT_MODULE_GROUPS: readonly (readonly (CanonicalExportExcludedTable & {
   columns: readonly string[];
-})[])[] = [OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES];
+})[])[] = [OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES, OPTIONAL_FAMILY_ACCESS_EXPORT_TABLES];
 
 function columns(value: string): string[] {
   return value.split(/\s+/).filter(Boolean);

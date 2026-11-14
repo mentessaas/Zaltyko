@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getSessionCoaches, setSessionCoaches } from "@/modules/coach-assignment/application/coach-assignment-service";
+import { notifySessionSubstitution } from "@/modules/family-access/application/family-notices";
 import {
   sessionCoachesQuerySchema,
   setSessionCoachesCommandSchema,
@@ -76,9 +77,18 @@ export async function PUT(request: Request, context: { params: Promise<{ session
       locationId: body.data.locationId,
     });
     if ("response" in resolved) return resolved.response;
-    return readResponse(
-      await setSessionCoaches({ actor: resolved.actor, sessionId: params.data.sessionId, command: body.data })
-    );
+    const result = await setSessionCoaches({ actor: resolved.actor, sessionId: params.data.sessionId, command: body.data });
+    // Avisos a familias: tras guardar una sustitución, aviso en el portal y por
+    // correo. Sin la función activa no hace nada y nunca falla la sustitución.
+    if (!result.replayed && result.substitution) {
+      await notifySessionSubstitution({
+        actor: resolved.actor,
+        organizationId: body.data.organizationId,
+        sessionId: result.sessionId,
+        staffProfileIds: result.coaches.map((coach) => coach.staffProfileId),
+      });
+    }
+    return readResponse(result);
   } catch (error) {
     return coachAssignmentError(error);
   }

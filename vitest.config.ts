@@ -76,6 +76,7 @@ export default defineConfig({
                   "tests/schedule-conflicts-pg.test.ts",
                   "tests/saas-reconciliation-service-pg.test.ts",
                   "tests/monthly-invoice-service-pg.test.ts",
+                  "tests/family-access-pg.test.ts",
                 ]),
             ...(!runSandboxReadonlyPostgresSuites
               ? [

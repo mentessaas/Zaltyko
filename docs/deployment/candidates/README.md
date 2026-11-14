@@ -373,6 +373,91 @@ aceptar, el servidor rellena `staff_profiles.member_id`.
   ningún entorno. La función sigue además detrás de
   `ZALTYKO_TEAM_ACCESS_ENABLED`.
 
+## Candidato del acceso de familias y los avisos de sesión
+
+**Estado: requiere autorización de Elvis para aplicarse.** No se ha aplicado
+en ningún entorno (ni staging ni producción). La CI verde no equivale a
+autorización. La función sigue además detrás de
+`ZALTYKO_FAMILY_ACCESS_ENABLED`, apagada por defecto (solo vale el valor
+exacto `true`).
+
+`20261114120000_family_access_notices_candidate.sql` crea solo cuatro
+relaciones:
+
+- `zaltyko.guardian_access_invitations`: invitación de un solo uso al portal
+  de familias, atada a un tutor (`guardian_id`). Guarda el SHA-256 del token
+  (32 bytes aleatorios), nunca el token; el correo normalizado al que se
+  invitó; caducidad (7 días), revisión, último envío, y quién invitó, aceptó o
+  revocó. Una sola pendiente por tutor (índice único parcial).
+- `zaltyko.family_notices`: aviso de la academia (sesión cancelada, cambio de
+  horario, sustitución o aviso manual a una clase o un grupo), con
+  `dedupe_key` única por academia para que el mismo cambio no cree dos avisos.
+- `zaltyko.family_notice_recipients`: un registro por tutor destinatario con
+  la lectura en el portal (`read_at`) y el resultado del correo. No guarda
+  direcciones de correo.
+- `zaltyko.guardian_notification_preferences`: preferencias de correo de cada
+  tutor (cambios de sesión y avisos manuales), por defecto activadas.
+
+No altera tablas existentes, filas, roles ni objetos legacy. Al aceptar una
+invitación, el servidor escribe columnas que ya existen:
+`guardians.auth_user_id` y, si la academia lo confirmó al invitar,
+`family_guardians.can_view_athletes = true`. Fuerza RLS, revoca a `public`,
+`anon` y `authenticated`, no crea políticas ni grants, exige PostgreSQL 15+
+(`on delete set null (columna)`) y se niega a reinstalarse si alguna de las
+cuatro relaciones ya existe.
+
+- SHA-256: `2eba0c51344e083988e14cb12077cc128835972622a9b647b90c943a58f7759b`.
+- Detección: `src/modules/family-access/application/family-access-storage.ts`
+  compara tablas, columnas, RLS forzado y ausencia de privilegios de clientes.
+  Sin el candidato exacto, la función responde 503 y `/owner/familias`,
+  `/familia/avisos` y `/familia/aceptar` no existen (404).
+- FK a `zaltyko.sessions`, `class_templates` y `groups` en NO ACTION: se
+  cancelan o archivan por estado, nunca se borran
+  (`tests/zaltyko-sessions-never-deleted.test.ts`).
+- Derechos de datos: grupo opcional `OPTIONAL_FAMILY_ACCESS_EXPORT_TABLES`
+  (`src/modules/data-rights/application/catalog.ts`), solo recuentos; las
+  cuatro tablas o ninguna.
+- Contrato: `tests/family-access-candidate-contract.test.ts`. Prueba:
+  `tests/family-access-pg.test.ts` en el job «Postgres integration»; instala
+  el candidato solo en el PostgreSQL desechable de GitHub y borra sus tablas al
+  terminar.
+- Producto: `docs/producto/familias-acceso-y-avisos.md`. Privacidad:
+  `docs/privacy/familias-acceso-y-avisos.md`.
+
+### Verificación (después de aplicar, solo lectura)
+
+```sql
+select c.relname, c.relrowsecurity, c.relforcerowsecurity,
+  has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE') as anon_access,
+  has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE') as authenticated_access
+from pg_class c join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'zaltyko'
+  and c.relname in ('guardian_access_invitations', 'family_notices',
+                    'family_notice_recipients', 'guardian_notification_preferences')
+order by c.relname;
+-- Esperado: 4 filas, RLS y FORCE en true, sin acceso de anon ni authenticated.
+```
+
+Después, con `ZALTYKO_FAMILY_ACCESS_ENABLED=true` solo en el entorno que se
+pruebe, `/owner/familias` debe abrirse (si la detección falla, sigue en 404).
+
+### Rollback (solo si no hay datos que conservar)
+
+Apagar primero la bandera (`ZALTYKO_FAMILY_ACCESS_ENABLED` sin valor o
+distinto de `true`): la función queda dormida sin tocar la base. Borrar las
+tablas elimina invitaciones, avisos y lecturas; las cuentas ya vinculadas
+(`guardians.auth_user_id`) y los permisos `can_view_athletes` concedidos se
+conservan, porque son columnas existentes. Requiere autorización de Elvis:
+
+```sql
+begin;
+drop table zaltyko.family_notice_recipients;
+drop table zaltyko.family_notices;
+drop table zaltyko.guardian_notification_preferences;
+drop table zaltyko.guardian_access_invitations;
+commit;
+```
+
 ## Candidato de alta abierta a cualquier país
 
 `20261112120000_general_market_identity_candidate.sql` crea solo la función

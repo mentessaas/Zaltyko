@@ -78,6 +78,11 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
 - **Prohibido:** app de padres, zona de padres, área de clientes. Tampoco «pagar» ni «pago online»: el portal solo informa y repite que «El pago se gestiona directamente con tu academia».
 - **Dónde aparece:** `/familia`, `/familia/gimnastas/[id]`, `/familia/cuotas` y `docs/producto/portal-familias.md` (P2 #16).
 
+### Aviso a familias
+- **Elegido:** aviso, el mensaje de la academia que una familia ve en el portal (`/familia/avisos`) y, si no lo ha desactivado, recibe por correo: sesión cancelada, cambio de horario, cambio de entrenadora o un mensaje a una clase o un grupo. «Invitar al portal» es dar acceso a una familia con un enlace de un solo uso.
+- **Prohibido:** notificación push, chat, mensaje directo, grupo. El aviso va de la academia a las familias y no admite respuesta.
+- **Dónde aparece:** `/owner/familias`, `/familia/avisos`, `/familia/aceptar` y `docs/producto/familias-acceso-y-avisos.md`.
+
 ### Inscripción
 - **Elegido:** inscripción, el vínculo de una gimnasta con una clase o un grupo, con su tarifa y su estado.
 - **Prohibido:** matrícula. Tampoco «alta» para la inscripción: «alta» es crear la ficha de una gimnasta.
