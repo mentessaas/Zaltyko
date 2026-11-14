@@ -411,6 +411,18 @@ locales y facturación) llegará más adelante.
 - **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 
+## Candidato de uso habitual (medición, 14-11-2026)
+
+`20261114130000_habitual_use_candidate.sql` crea una relación nueva, `public.usage_events`, sin tocar filas ni tablas existentes: contadores de uso por academia, tipo de evento (`staff_visit`, `family_portal_view`), rol y día. Producto y flujo: `docs/producto/uso-habitual.md`.
+
+- No guarda identificadores de persona, de cuenta, de gimnasta ni de menor, ni IP ni texto libre. Solo los eventos de familia llevan `actor_ref`: 16 hexadecimales de un HMAC que rota cada semana (para contar cuentas distintas sin reconocerlas).
+- Esquema `public` (como `growth_events`): telemetría interna del producto. Enlaza con `zaltyko.organizations` con `ON DELETE CASCADE`, así que borrar la academia borra su uso. RLS `ENABLE` y `FORCE`, `REVOKE ALL` a `public`, `anon` y `authenticated`, sin políticas.
+- Bandera apagada por defecto: `ZALTYKO_HABITUAL_USE_ENABLED` más `ZALTYKO_USAGE_METRICS_ENABLED`. Mientras la tabla no exista tal como la define el archivo no se registra nada y `/super-admin/uso` responde «no disponible». Los avisos por correo no la usan.
+- El preflight aborta si `public.usage_events` ya existe o falta `zaltyko.organizations`.
+- SHA-256: `be9d0c8015d423c0d20ea80bd5d5352b5341768299612f82a5ef6d0bd23405af`.
+- Pruebas: `tests/habitual-use-routes-and-contract.test.ts` (columnas, RLS, ausencia de datos personales y hash) y `tests/habitual-use-pg.test.ts` en el job «Postgres integration», que instala el candidato solo en el PostgreSQL desechable de GitHub y retira la tabla al terminar.
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en ningún entorno. La CI verde no equivale a autorización.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.

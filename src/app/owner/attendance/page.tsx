@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getOwnerAttendanceSessionOptions } from "@/modules/attendance/application/owner-attendance-sessions";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { recordStaffVisit } from "@/modules/habitual-use/application/usage-events";
 import { db } from "@/db";
 import { isAthleteProgressAvailableForPage } from "@/modules/athlete-progress/application/athlete-progress-service";
 import { isSessionPlanAvailableForPage } from "@/modules/session-plans/application/session-plan-service";
@@ -110,6 +111,9 @@ export default async function OwnerAttendancePage({
     }
     throw error;
   }
+
+  // Uso habitual: cuenta una visita del equipo (sin persona; apagado por defecto).
+  await recordStaffVisit({ organizationId: scope.organization.id, role: scope.member.role });
 
   // P1 #8: /owner sends coaches here, so this page also carries their "Hoy",
   // computed from the same coach scope (one assigned site, no aggregate).

@@ -9,6 +9,14 @@ source:
 
 
 
+## 2026-11-14 — Uso habitual: avisos a entrenadoras, resumen semanal y medición (apagado)
+
+**Contexto.** Bandera de producto de Elvis: cada persona debe tener un motivo útil para volver. Todo va detrás de banderas apagadas (`ZALTYKO_HABITUAL_USE_ENABLED` y una por función); nada se envía ni se registra hasta que Elvis las encienda.
+
+**Cambio.** Aviso a quien entrena ~15 min antes de cada sesión y un único recordatorio si falta la lista (hora de la sede, sin envíos de madrugada, sin duplicados, punto de extensión para push); resumen semanal de dirección el lunes por la mañana, solo con lo accionable y sin envío si no hay nada; desactivación con enlace firmado por tipo de aviso; eventos de uso sin datos de personas, vista `/super-admin/uso` (sesiones con lista por semana como métrica principal) y aviso a Elvis de academias en riesgo (7 días sin actividad). Docs: `docs/producto/uso-habitual.md`.
+
+**No ejecutado / pendiente.** Candidata `docs/deployment/candidates/20261114130000_habitual_use_candidate.sql` (`public.usage_events`) sin aplicar: requiere autorización de Elvis. Los tres crons no están en `vercel.json`. Verificación solo en la CI de la PR (no se ejecutó nada en el Mac).
+
 ## 2026-11-12 — Web pública: acceso de entrenadoras, titulares, guion y seguimiento, y solicitudes de prueba
 
 **Contexto.** Hoy, con autorización de Elvis, se aplicaron en producción las candidatas de acceso de equipo (277), titulares y sustituciones (276), objetivos y observaciones (271), guion de la sesión (279) y solicitudes de prueba (262), y se activó `ZALTYKO_TEAM_ACCESS_ENABLED=true`. También la de inteligencia competitiva, que es un panel interno y no se anuncia.
