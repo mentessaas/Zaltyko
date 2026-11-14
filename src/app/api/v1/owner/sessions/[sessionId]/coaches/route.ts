@@ -86,6 +86,7 @@ export async function PUT(request: Request, context: { params: Promise<{ session
         organizationId: body.data.organizationId,
         sessionId: result.sessionId,
         staffProfileIds: result.coaches.map((coach) => coach.staffProfileId),
+        substitutionChangedAt: result.substitution.changedAt,
       });
     }
     return readResponse(result);

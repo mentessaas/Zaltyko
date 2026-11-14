@@ -65,8 +65,6 @@ export const REVIEWED_DISPOSITION_EXCLUSIONS: readonly ExcludedPolicy[] = [
 export const REVIEWED_DISPOSITION_OPTIONAL_GROUPS: readonly (readonly ExcludedPolicy[])[] = [
   [e("product_discovery_interests", "private_member_preferences"), e("product_discovery_signals", "academy_product_discovery")],
   [e("organization_member_invitations", "team_access_credentials"), e("organization_member_invitation_scopes", "pending_team_access_scopes"), e("organization_team_command_receipts", "internal_team_access_commands")],
-  // Familias: acceso al portal y avisos (candidato 20261114120000, sin aplicar).
-  [e("guardian_access_invitations", "family_access_credentials"), e("family_notices", "family_communications"), e("family_notice_recipients", "family_communications"), e("guardian_notification_preferences", "user_preferences")],
 ];
 
 /** Activated academy modules whose rows are projected when installed (2026-11-12). */
@@ -75,6 +73,8 @@ export const REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES: readonly (readonly 
   ["class_template_staff", "session_staff_overrides"],
   ["session_plans", "session_plan_blocks", "session_plan_objectives", "class_plan_templates"],
   ["admission_links", "admission_requests"],
+  // Familias: acceso al portal y avisos (candidato 20261114120000, sin aplicar).
+  ["guardian_access_invitations", "family_notices", "family_notice_recipients", "guardian_notification_preferences"],
 ];
 
 const sourceNames = ["Supabase Auth identities and credentials", "Supabase Storage objects and metadata", "Legacy public schema"];

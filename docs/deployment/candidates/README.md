@@ -414,9 +414,22 @@ cuatro relaciones ya existe.
 - FK a `zaltyko.sessions`, `class_templates` y `groups` en NO ACTION: se
   cancelan o archivan por estado, nunca se borran
   (`tests/zaltyko-sessions-never-deleted.test.ts`).
-- Derechos de datos: grupo opcional `OPTIONAL_FAMILY_ACCESS_EXPORT_TABLES`
-  (`src/modules/data-rights/application/catalog.ts`), solo recuentos; las
-  cuatro tablas o ninguna.
+- Derechos de datos: módulo `family_access` de
+  `OPTIONAL_INCLUDED_EXPORT_MODULES` (`src/modules/data-rights/application/catalog.ts`),
+  con valores para que la academia atienda el derecho de acceso de un tutor;
+  sin el hash del token, el identificador de Auth ni la instantánea de
+  vínculos. Las cuatro tablas o ninguna. Política de supresión en
+  `activated-modules-erasure-policy.ts`.
+- `grant_links`: vínculos familia-tutor (id y versión) que la academia vio al
+  invitar; al aceptar solo se concede ver gimnastas en esos y si no cambiaron.
+  `email_attempts`: reintentos del correo de un aviso (hasta 3), que hace el
+  cron `POST /api/cron/family-notices` (CRON_SECRET, sin programar todavía).
+- **Retirar acceso con la bandera apagada.** Si se apaga
+  `ZALTYKO_FAMILY_ACCESS_ENABLED` con las tablas instaladas, `/owner/familias`
+  pasa a modo «solo retirar acceso» (dirección o administración con todas las
+  sedes): lista las familias con cuenta vinculada y permite retirarla, con
+  auditoría. Ni invitaciones ni avisos. Si las tablas no existen, ninguna
+  cuenta pudo vincularse por esta vía.
 - Contrato: `tests/family-access-candidate-contract.test.ts`. Prueba:
   `tests/family-access-pg.test.ts` en el job «Postgres integration»; instala
   el candidato solo en el PostgreSQL desechable de GitHub y borra sus tablas al

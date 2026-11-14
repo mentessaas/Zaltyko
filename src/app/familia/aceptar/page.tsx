@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { FamilyInvitationAcceptance } from "@/components/family-portal/FamilyInvitationAcceptance";
-import { isFamilyAccessFlagOn } from "@/modules/family-access/domain/family-access-contract";
+import { isFamilyAccessAvailableForPage } from "@/modules/family-access/application/family-access-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +14,11 @@ export const metadata: Metadata = {
   referrer: "no-referrer",
 };
 
-/** Sin la bandera, la página no existe. El token nunca llega al servidor: va en el fragmento. */
-export default function FamilyInvitationPage() {
-  if (!isFamilyAccessFlagOn()) notFound();
+/**
+ * Sin la bandera y el candidato instalado, la página no existe. El token nunca
+ * llega al servidor: va en el fragmento.
+ */
+export default async function FamilyInvitationPage() {
+  if (!(await isFamilyAccessAvailableForPage())) notFound();
   return <FamilyInvitationAcceptance />;
 }

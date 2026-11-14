@@ -130,7 +130,7 @@ describe("guarda SQL de los avisos del portal", () => {
     expect(text).toContain("fa_o.status in ('trial', 'active')");
     expect(text).toContain("fa_g.organization_id = r.organization_id");
     expect(text).toContain("fa_g.id = r.guardian_id");
-    expect(text).toContain("fa_fg.is_active and fa_f.is_active");
+    expect(text).toContain("fa_fg.is_active and fa_f.is_active and fa_fg.can_view_athletes");
   });
 
   it("las lecturas y escrituras de la familia llevan la guarda en cada consulta", async () => {

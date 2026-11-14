@@ -25,6 +25,7 @@ export function FamilyInvitationAcceptance() {
   const [inspected, setInspected] = useState<Inspection | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     captureFamilyInvitationFragment();
@@ -34,6 +35,8 @@ export function FamilyInvitationAcceptance() {
       setPhase("missing");
       return;
     }
+    setPhase("checking");
+    setError("");
     let active = true;
     void (async () => {
       const result = await familyRequest<Inspection>("/api/v1/family/invitations/inspect", { token });
@@ -52,7 +55,7 @@ export function FamilyInvitationAcceptance() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [attempt]);
 
   async function accept() {
     if (acceptingRef.current || !tokenRef.current || phase !== "ready") return;
@@ -92,12 +95,17 @@ export function FamilyInvitationAcceptance() {
             <section aria-labelledby="family-invitation-login">
               <h2 id="family-invitation-login" className={ownerUi.cardTitle}>Entra con tu cuenta</h2>
               <p className={`${ownerUi.muted} mt-3`}>
-                Usa el mismo correo al que te ha llegado la invitación y confírmalo. Después vuelve a abrir el enlace del correo: la invitación no se acepta sola.
+                Usa el mismo correo al que te ha llegado la invitación y confírmalo. Se abre en otra pestaña: no cierres esta, porque la invitación sigue aquí.
               </p>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <Link href="/auth/login" prefetch={false} className={ownerUi.primaryButton}>Iniciar sesión</Link>
-                <Link href="/auth/register" prefetch={false} className={ownerUi.secondaryButton}>Crear una cuenta con ese correo</Link>
+                <Link href="/auth/login" prefetch={false} target="_blank" rel="noopener noreferrer" className={ownerUi.primaryButton}>Iniciar sesión</Link>
+                <Link href="/auth/register" prefetch={false} target="_blank" rel="noopener noreferrer" className={ownerUi.secondaryButton}>Crear una cuenta con ese correo</Link>
               </div>
+              <p className={`${ownerUi.help} mt-4`}>Cuando hayas entrado en la otra pestaña, vuelve aquí.</p>
+              <button type="button" className={`${ownerUi.secondaryButton} mt-2`} onClick={() => setAttempt((current) => current + 1)}>
+                Ya he entrado: comprobar la invitación
+              </button>
+              <p className={`${ownerUi.help} mt-3`}>Si cierras esta pestaña, vuelve a abrir el enlace del correo.</p>
             </section>
           ) : null}
           {error ? <p role="alert" className={`${ownerUi.noticeError} mt-4`}>{error}</p> : null}

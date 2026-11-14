@@ -17,7 +17,9 @@ type Ref = AnyPgColumn | SQL;
 /**
  * Guarda SQL de los avisos del portal, ligada a la cuenta de la sesión: el
  * tutor `guardianRef` es de esta cuenta, está activo, su academia está en
- * prueba o activa y conserva un vínculo activo con una familia activa. Toda
+ * prueba o activa y conserva un vínculo activo, con permiso de ver gimnastas
+ * vigente, con una familia activa. Si la academia le quita ese permiso, deja
+ * de ver los avisos en la siguiente petición. Toda
  * lectura o escritura de avisos del lado de la familia la lleva, así que una
  * cuenta nunca alcanza avisos, lecturas ni preferencias de otro tutor.
  */
@@ -35,7 +37,7 @@ export function familyOwnsGuardian(input: { userId: string; organizationRef: Ref
         select 1 from zaltyko.family_guardians fa_fg
         join zaltyko.families fa_f on fa_f.organization_id = fa_fg.organization_id and fa_f.id = fa_fg.family_id
         where fa_fg.organization_id = fa_g.organization_id and fa_fg.guardian_id = fa_g.id
-          and fa_fg.is_active and fa_f.is_active
+          and fa_fg.is_active and fa_f.is_active and fa_fg.can_view_athletes
       )
   )`;
 }

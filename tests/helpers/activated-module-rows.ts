@@ -21,6 +21,8 @@ export const ACTIVATED_IDS = {
   staffProfile: id(7),
   plan: id(8),
   link: id(9),
+  guardian: id(10),
+  notice: id(11),
 } as const;
 
 const VALUES: Record<string, Record<string, unknown>> = {
@@ -57,6 +59,16 @@ const VALUES: Record<string, Record<string, unknown>> = {
     converted_athlete_id: null, waitlist_entry_id: null, handled_by_member_id: null,
     handled_at: null, anonymized_at: null, revision: 1,
   },
+  guardian_access_invitations: {
+    id: id(27), guardian_id: ACTIVATED_IDS.guardian, normalized_email: "family@example.invalid", status: "accepted",
+    grant_view_athletes: true, revision: 2, last_sent_at: null, revoked_by_member_id: null, revoked_at: null,
+  },
+  family_notices: {
+    id: ACTIVATED_IDS.notice, kind: "session_cancelled", class_template_id: ACTIVATED_IDS.classTemplate, group_id: null,
+    title: "Sesión cancelada: Base", body: "Se cancela la sesión.",
+  },
+  family_notice_recipients: { id: id(28), notice_id: ACTIVATED_IDS.notice, guardian_id: ACTIVATED_IDS.guardian, email_status: "sent", email_attempts: 1, read_at: null },
+  guardian_notification_preferences: { guardian_id: ACTIVATED_IDS.guardian, email_session_changes: true, email_manual_notices: false },
 };
 
 function defaultValue(column: string, organizationId: string): unknown {

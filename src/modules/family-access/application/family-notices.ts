@@ -150,64 +150,121 @@ async function createNotice(tx: Tx, input: {
   return { noticeId, recipients: count, replayed: false };
 }
 
+const MAX_EMAIL_ATTEMPTS = 3;
+const RETRY_AFTER_MINUTES = 5;
+
+type ClaimedEmail = {
+  recipient_id: string;
+  organization_id: string;
+  notice_id: string;
+  guardian_id: string;
+  email_attempts: number;
+  email: string | null;
+  title: string;
+  body: string;
+  academy: string;
+  kind: FamilyNoticeKind;
+};
+
 /**
- * Envía los correos pendientes de un aviso, después de confirmar la
- * transacción. El correo va a la dirección verificada de la cuenta que aceptó
- * la invitación, nunca a una escrita a mano. La clave de envío evita repetir
- * un correo aunque se reintente.
+ * Reclama un lote de correos pendientes: suma un intento y anota la hora antes
+ * de enviar, con SKIP LOCKED, para que dos procesos (la petición y el cron)
+ * nunca manden el mismo correo a la vez. Un fallo vuelve a intentarse pasados
+ * unos minutos, como mucho tres veces.
  */
-export async function deliverNoticeEmails(input: { organizationId: string; noticeId: string }): Promise<{ sent: number; failed: number }> {
-  const pending = await familyAccessTransaction(async (tx) => rows<{
-    recipient_id: string; guardian_id: string; email: string | null; title: string; body: string; academy: string; kind: FamilyNoticeKind;
-  }>(tx, sql`
-    select r.id::text as recipient_id, r.guardian_id::text, lower(btrim(u.email)) as email, n.title, n.body, o.name as academy, n.kind
-    from zaltyko.family_notice_recipients r
-    join zaltyko.family_notices n on n.organization_id=r.organization_id and n.id=r.notice_id
-    join zaltyko.organizations o on o.id=n.organization_id
-    join zaltyko.guardians g on g.organization_id=r.organization_id and g.id=r.guardian_id and g.is_active
-    left join auth.users u on u.id=g.auth_user_id and u.email_confirmed_at is not null
-    where r.organization_id=${input.organizationId}::uuid and r.notice_id=${input.noticeId}::uuid and r.email_status='pending'
-    order by r.id`));
-  let sent = 0;
-  let failed = 0;
-  const portalUrl = `${getAppUrl()}/familia/avisos`;
-  const queue = [...pending];
-  async function worker() {
-    for (let item = queue.shift(); item; item = queue.shift()) {
-      let status: "sent" | "failed" | "skipped_no_account" = "failed";
-      if (!item.email) {
-        status = "skipped_no_account";
-      } else {
-        try {
-          const message = familyNoticeEmail({ academyName: item.academy, title: item.title, body: item.body, portalUrl });
-          const accepted = await sendEmailWithLogging({
-            to: item.email,
-            subject: message.subject,
-            html: message.html,
-            text: message.text,
-            template: "family_notice",
-            dedupeKey: `family-notice:${input.noticeId}:${item.guardian_id}`,
-            metadata: { noticeId: input.noticeId },
-          });
-          status = accepted ? "sent" : "failed";
-        } catch (error) {
-          logger.error("family_access.notice_email_failed", error instanceof Error ? error : undefined, { noticeId: input.noticeId });
-          status = "failed";
-        }
-      }
-      if (status === "sent") sent += 1;
-      if (status === "failed") failed += 1;
-      try {
-        await db.execute(sql`update zaltyko.family_notice_recipients
-          set email_status=${status}, email_attempted_at=clock_timestamp()
-          where organization_id=${input.organizationId}::uuid and id=${item.recipient_id}::uuid and email_status='pending'`);
-      } catch (error) {
-        logger.error("family_access.notice_status_failed", error instanceof Error ? error : undefined, { noticeId: input.noticeId });
-      }
+async function claimPendingEmails(scope: { organizationId?: string; noticeId?: string }, limit: number): Promise<ClaimedEmail[]> {
+  return familyAccessTransaction(async (tx) => rows<ClaimedEmail>(tx, sql`
+    with picked as (
+      select r.id
+      from zaltyko.family_notice_recipients r
+      join zaltyko.organizations o on o.id=r.organization_id and o.status in ('trial','active')
+      where r.email_status='pending'
+        and (r.email_attempted_at is null or r.email_attempted_at < clock_timestamp() - make_interval(mins => ${RETRY_AFTER_MINUTES}))
+        ${scope.organizationId ? sql`and r.organization_id=${scope.organizationId}::uuid` : sql``}
+        ${scope.noticeId ? sql`and r.notice_id=${scope.noticeId}::uuid` : sql``}
+      order by r.created_at, r.id
+      limit ${limit}
+      for update of r skip locked
+    ), claimed as (
+      update zaltyko.family_notice_recipients r
+        set email_attempts=r.email_attempts+1, email_attempted_at=clock_timestamp()
+      from picked where r.id=picked.id
+      returning r.id, r.organization_id, r.notice_id, r.guardian_id, r.email_attempts
+    )
+    select c.id::text as recipient_id, c.organization_id::text, c.notice_id::text, c.guardian_id::text, c.email_attempts,
+      lower(btrim(u.email)) as email, n.title, n.body, o.name as academy, n.kind
+    from claimed c
+    join zaltyko.family_notices n on n.organization_id=c.organization_id and n.id=c.notice_id
+    join zaltyko.organizations o on o.id=c.organization_id
+    left join zaltyko.guardians g on g.organization_id=c.organization_id and g.id=c.guardian_id and g.is_active
+    left join auth.users u on u.id=g.auth_user_id and u.email_confirmed_at is not null`));
+}
+
+async function sendClaimedEmail(item: ClaimedEmail, portalUrl: string): Promise<"sent" | "retry" | "failed" | "skipped_no_account"> {
+  let outcome: "sent" | "retry" | "failed" | "skipped_no_account";
+  if (!item.email) {
+    outcome = "skipped_no_account";
+  } else {
+    let accepted = false;
+    try {
+      const message = familyNoticeEmail({ academyName: item.academy, kind: item.kind, title: item.title, body: item.body, portalUrl });
+      accepted = await sendEmailWithLogging({
+        to: item.email,
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+        template: "family_notice",
+        dedupeKey: `family-notice:${item.notice_id}:${item.guardian_id}`,
+        metadata: { noticeId: item.notice_id },
+      });
+    } catch (error) {
+      logger.error("family_access.notice_email_failed", error instanceof Error ? error : undefined, { noticeId: item.notice_id });
+    }
+    outcome = accepted ? "sent" : item.email_attempts >= MAX_EMAIL_ATTEMPTS ? "failed" : "retry";
+  }
+  if (outcome !== "retry") {
+    try {
+      await db.execute(sql`update zaltyko.family_notice_recipients set email_status=${outcome}
+        where organization_id=${item.organization_id}::uuid and id=${item.recipient_id}::uuid and email_status='pending'`);
+    } catch (error) {
+      logger.error("family_access.notice_status_failed", error instanceof Error ? error : undefined, { noticeId: item.notice_id });
     }
   }
-  await Promise.all(Array.from({ length: EMAIL_CONCURRENCY }, () => worker()));
-  return { sent, failed };
+  return outcome;
+}
+
+export type NoticeDelivery = { sent: number; failed: number; pending: number };
+
+/**
+ * Envía correos pendientes por lotes pequeños, después de confirmar la
+ * transacción del aviso, hasta agotar la cola o el tiempo. Lo que queda
+ * pendiente (o falló y toca reintentar) lo recoge el cron
+ * /api/cron/family-notices. El correo va a la dirección verificada de la
+ * cuenta que aceptó la invitación, nunca a una escrita a mano.
+ */
+export async function deliverNoticeEmails(
+  scope: { organizationId?: string; noticeId?: string },
+  options: { batchSize?: number; budgetMs?: number } = {}
+): Promise<NoticeDelivery> {
+  const batchSize = options.batchSize ?? 10;
+  const deadline = Date.now() + (options.budgetMs ?? 8_000);
+  const portalUrl = `${getAppUrl()}/familia/avisos`;
+  const result: NoticeDelivery = { sent: 0, failed: 0, pending: 0 };
+  while (Date.now() < deadline) {
+    const batch = await claimPendingEmails(scope, batchSize);
+    if (batch.length === 0) break;
+    const queue = [...batch];
+    const worker = async () => {
+      for (let item = queue.shift(); item; item = queue.shift()) {
+        const outcome = await sendClaimedEmail(item, portalUrl);
+        if (outcome === "sent") result.sent += 1;
+        else if (outcome === "failed") result.failed += 1;
+        else if (outcome === "retry") result.pending += 1;
+      }
+    };
+    await Promise.all(Array.from({ length: EMAIL_CONCURRENCY }, () => worker()));
+  }
+  return result;
 }
 
 async function loadSession(tx: Tx, organizationId: string, sessionId: string, lock: boolean): Promise<SessionRow> {
@@ -230,10 +287,12 @@ function localDate(instant: Date | string, timezone: string): SQL {
 
 export type SessionChangeResult = NoticeCreated & {
   sessionId: string;
+  /** Al cambiar de hora: la sesión original, que queda cancelada. */
+  previousSessionId: string | null;
   status: "cancelled" | "scheduled";
   startsAt: string;
   endsAt: string;
-  emails: { sent: number; failed: number } | null;
+  emails: NoticeDelivery | null;
 };
 
 /**
@@ -275,10 +334,13 @@ export async function changeSessionAndNotify(input: {
 
     const startsAt = new Date(session.starts_at);
     const endsAt = new Date(session.ends_at);
-    const onDate = localDate(startsAt, session.timezone);
+    let onDate = localDate(startsAt, session.timezone);
+    let athleteSet = classAthletes(command.organizationId, session.class_template_id, onDate);
     let kind: "session_cancelled" | "session_rescheduled";
     let dedupeKey: string;
     let next: { startsAt: Date; endsAt: Date } | null = null;
+    let resultSessionId = session.id;
+    let previousSessionId: string | null = null;
     if (command.action === "cancel") {
       kind = "session_cancelled";
       dedupeKey = noticeDedupeKey([session.id, "cancelled"]);
@@ -297,9 +359,36 @@ export async function changeSessionAndNotify(input: {
           and starts_at=${next.startsAt.toISOString()}::timestamptz and id<>${session.id}::uuid`);
       if (clash.length) throw new OperationalError("INVALID_STATE_TRANSITION", "Ya hay otra sesión de esta clase a esa hora.", 409);
       dedupeKey = noticeDedupeKey([session.id, "rescheduled", next.startsAt.toISOString(), next.endsAt.toISOString()]);
-      await tx.execute(sql`update zaltyko.sessions set starts_at=${next.startsAt.toISOString()}::timestamptz,
-          ends_at=${next.endsAt.toISOString()}::timestamptz, updated_at=clock_timestamp()
-        where organization_id=${command.organizationId}::uuid and id=${session.id}::uuid`);
+      if (next.startsAt.getTime() === startsAt.getTime()) {
+        // Solo cambia la hora de fin: la franja de la plantilla es la misma.
+        await tx.execute(sql`update zaltyko.sessions set ends_at=${next.endsAt.toISOString()}::timestamptz, updated_at=clock_timestamp()
+          where organization_id=${command.organizationId}::uuid and id=${session.id}::uuid`);
+      } else {
+        // La original se cancela (y su franja sigue ocupada, así que regenerar
+        // sesiones no la vuelve a crear) y se crea una sesión nueva a la hora
+        // nueva, con las mismas entrenadoras.
+        await tx.execute(sql`update zaltyko.sessions set status='cancelled', cancellation_reason='Cambio de horario',
+            updated_at=clock_timestamp()
+          where organization_id=${command.organizationId}::uuid and id=${session.id}::uuid`);
+        const created = await rows<{ id: string }>(tx, sql`insert into zaltyko.sessions
+            (organization_id, location_id, class_template_id, space_id, status, starts_at, ends_at, capacity_override)
+          select organization_id, location_id, class_template_id, space_id, 'scheduled',
+            ${next.startsAt.toISOString()}::timestamptz, ${next.endsAt.toISOString()}::timestamptz, capacity_override
+          from zaltyko.sessions where organization_id=${command.organizationId}::uuid and id=${session.id}::uuid
+          returning id::text`);
+        const createdId = created[0]?.id;
+        if (!createdId) throw new OperationalError("FEATURE_NOT_AVAILABLE", "No se pudo crear la sesión con el horario nuevo.", 503);
+        await tx.execute(sql`insert into zaltyko.session_staff (organization_id, session_id, staff_profile_id, assignment_role)
+          select organization_id, ${createdId}::uuid, staff_profile_id, assignment_role from zaltyko.session_staff
+          where organization_id=${command.organizationId}::uuid and session_id=${session.id}::uuid`);
+        previousSessionId = session.id;
+        resultSessionId = createdId;
+      }
+      // Familias de las gimnastas inscritas el día original o el nuevo, con la
+      // pertenencia a la familia vigente el día nuevo.
+      const newDate = localDate(next.startsAt, session.timezone);
+      athleteSet = sql`${athleteSet} union ${classAthletes(command.organizationId, session.class_template_id, newDate)}`;
+      onDate = newDate;
     }
     const text = sessionNoticeText({
       kind,
@@ -315,22 +404,19 @@ export async function changeSessionAndNotify(input: {
       organizationId: command.organizationId,
       locationId: session.location_id,
       kind,
-      sessionId: session.id,
+      sessionId: resultSessionId,
       classTemplateId: session.class_template_id,
       groupId: null,
       title: text.title,
       body: text.body,
       dedupeKey,
       memberId: member.id,
-      recipients: recipientGuardians({
-        organizationId: command.organizationId,
-        athleteSet: classAthletes(command.organizationId, session.class_template_id, onDate),
-        onDate,
-      }),
+      recipients: recipientGuardians({ organizationId: command.organizationId, athleteSet, onDate }),
     });
     const stored = {
       ...notice,
-      sessionId: session.id,
+      sessionId: resultSessionId,
+      previousSessionId,
       status: command.action === "cancel" ? ("cancelled" as const) : ("scheduled" as const),
       startsAt: (next?.startsAt ?? startsAt).toISOString(),
       endsAt: (next?.endsAt ?? endsAt).toISOString(),
@@ -344,7 +430,7 @@ export async function changeSessionAndNotify(input: {
       targetId: session.id,
       idempotencyKey: key,
       before: { status: session.status, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() },
-      after: { status: stored.status, startsAt: stored.startsAt, endsAt: stored.endsAt, noticeId: notice.noticeId },
+      after: { status: stored.status, startsAt: stored.startsAt, endsAt: stored.endsAt, noticeId: notice.noticeId, sessionId: resultSessionId },
       metadata: { requestHash, result: { ...stored, replayed: false }, memberId: member.id },
     });
     return stored;
@@ -364,6 +450,8 @@ export async function notifySessionSubstitution(input: {
   organizationId: string;
   sessionId: string;
   staffProfileIds: readonly string[];
+  /** Momento de la sustitución guardada: cada sustitución nueva es otro aviso. */
+  substitutionChangedAt: string;
 }): Promise<NoticeCreated | null> {
   if (!(await isFamilyAccessAvailableForPage())) return null;
   try {
@@ -391,7 +479,7 @@ export async function notifySessionSubstitution(input: {
         groupId: null,
         title: text.title,
         body: text.body,
-        dedupeKey: noticeDedupeKey([session.id, "substitution", ...[...input.staffProfileIds].sort()]),
+        dedupeKey: noticeDedupeKey([session.id, "substitution", input.substitutionChangedAt, ...[...input.staffProfileIds].sort()]),
         memberId: member.id,
         recipients: recipientGuardians({
           organizationId: input.organizationId,
@@ -408,7 +496,7 @@ export async function notifySessionSubstitution(input: {
   }
 }
 
-export type ManualNoticeResult = NoticeCreated & { emails: { sent: number; failed: number } | null };
+export type ManualNoticeResult = NoticeCreated & { emails: NoticeDelivery | null };
 
 /** Aviso manual a una clase o a un grupo. Idempotente por clave del cliente. */
 export async function sendManualNotice(input: {

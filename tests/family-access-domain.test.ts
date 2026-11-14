@@ -182,8 +182,14 @@ describe("correos", () => {
     expect(email.text).toContain(`#token=${token}`);
   });
 
+  it("el aviso manual lleva un asunto genérico: el título libre no queda en el registro de envíos", () => {
+    const email = familyNoticeEmail({ academyName: "Club", kind: "manual", title: "Ana y Bea, uniforme", body: "Traed el maillot.", portalUrl: "https://zaltyko.com/familia/avisos" });
+    expect(email.subject).toBe("Club: tienes un aviso nuevo");
+    expect(email.text.startsWith("Ana y Bea, uniforme")).toBe(true);
+  });
+
   it("el aviso enlaza al portal e incluye cómo desactivar el correo", () => {
-    const email = familyNoticeEmail({ academyName: "Club", title: "Sesión cancelada: Base", body: "Línea 1\nLínea <2>", portalUrl: "https://zaltyko.com/familia/avisos" });
+    const email = familyNoticeEmail({ academyName: "Club", kind: "session_cancelled", title: "Sesión cancelada: Base", body: "Línea 1\nLínea <2>", portalUrl: "https://zaltyko.com/familia/avisos" });
     expect(email.subject).toBe("Club: Sesión cancelada: Base");
     expect(email.html).toContain("Línea &lt;2&gt;");
     expect(email.text).toContain("desactivar estos correos");

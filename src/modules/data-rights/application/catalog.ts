@@ -59,42 +59,9 @@ export const OPTIONAL_TEAM_ACCESS_EXPORT_TABLES = [
   },
 ] as const;
 
-/** Family portal access and session notices (candidate 20261114120000, not
- * applied). Until a reviewed decision exports their values, only this
- * academy's counts are included: invitations hold invited emails and token
- * hashes, notices and receipts are communications with families. Absent or
- * fully installed, never partially known.
- */
-export const OPTIONAL_FAMILY_ACCESS_EXPORT_TABLES = [
-  {
-    table: "guardian_access_invitations",
-    category: "family_access_credentials",
-    reason: "Family portal invitation identities, credential hashes and acceptance evidence require a separate protected access-data return; only this academy's count is included.",
-    columns: ["id", "organization_id", "guardian_id", "normalized_email", "status", "grant_view_athletes", "grant_links", "invited_by_member_id", "token_sha256", "expires_at", "revision", "last_sent_at", "accepted_by_user_id", "accepted_at", "revoked_by_member_id", "revoked_at", "created_at", "updated_at"],
-  },
-  {
-    table: "family_notices",
-    category: "family_communications",
-    reason: "Notices the academy sent to families; values are pending a reviewed export decision, so only this academy's count is included.",
-    columns: ["id", "organization_id", "location_id", "kind", "session_id", "class_template_id", "group_id", "title", "body", "dedupe_key", "created_by_member_id", "created_at"],
-  },
-  {
-    table: "family_notice_recipients",
-    category: "family_communications",
-    reason: "Per-guardian read receipts and email outcomes of family notices; only this academy's count is included.",
-    columns: ["id", "organization_id", "notice_id", "guardian_id", "email_status", "email_attempts", "email_attempted_at", "read_at", "created_at"],
-  },
-  {
-    table: "guardian_notification_preferences",
-    category: "user_preferences",
-    reason: "Email preferences a family set in the portal; only this academy's count is included.",
-    columns: ["organization_id", "guardian_id", "email_session_changes", "email_manual_notices", "updated_at"],
-  },
-] as const;
-
 export const OPTIONAL_EXPORT_MODULE_GROUPS: readonly (readonly (CanonicalExportExcludedTable & {
   columns: readonly string[];
-})[])[] = [OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES, OPTIONAL_FAMILY_ACCESS_EXPORT_TABLES];
+})[])[] = [OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES];
 
 function columns(value: string): string[] {
   return value.split(/\s+/).filter(Boolean);
@@ -163,6 +130,14 @@ const omittedColumnReasons: Record<string, string> = {
     "The public link token is a live access credential; the link's site, state and dates are included.",
   "admission_requests.submission_id":
     "This client retry key is operational metadata and is not needed to interpret the request.",
+  "guardian_access_invitations.token_sha256":
+    "The hash of a family portal invitation link is access-control material; the invitation's guardian, email, state and dates are included.",
+  "guardian_access_invitations.accepted_by_user_id":
+    "Supabase Auth user IDs identify accounts shared across academies and are outside this tenant export; the acceptance date is included.",
+  "guardian_access_invitations.grant_links":
+    "This internal snapshot of family-guardian link versions only guards the permission granted on acceptance; the links themselves are exported in family_guardians.",
+  "family_notices.dedupe_key":
+    "This server-side deduplication key is operational metadata and is not needed to interpret the notice.",
 };
 
 function includedTable(input: {
@@ -539,7 +514,7 @@ const CLASS_PLAN_TEMPLATE_BLOCKS_PROJECTION = `coalesce((
  * 20261110120000_admission_requests_candidate.sql.
  */
 export interface OptionalIncludedExportModule {
-  module: "athlete_progress" | "coach_assignment" | "session_plans" | "admissions";
+  module: "athlete_progress" | "coach_assignment" | "session_plans" | "admissions" | "family_access";
   tables: readonly CanonicalExportTableSpec[];
 }
 
@@ -622,6 +597,36 @@ export const OPTIONAL_INCLUDED_EXPORT_MODULES: readonly OptionalIncludedExportMo
         expectedColumns:
           "id organization_id location_id link_id submission_id status contact_name contact_email contact_phone athlete_given_name athlete_birth_year message privacy_consent_version privacy_consent_at converted_athlete_id waitlist_entry_id handled_by_member_id handled_at anonymized_at revision created_at updated_at",
         omit: ["submission_id"],
+      }),
+    ],
+  },
+  {
+    // Familias: invitaciones al portal y avisos (candidato 20261114120000, sin
+    // aplicar). Con valores para que la academia pueda atender el derecho de
+    // acceso de un tutor: qué se le envió, cuándo lo leyó y sus preferencias.
+    module: "family_access",
+    tables: [
+      includedTable({
+        name: "guardian_access_invitations",
+        expectedColumns:
+          "id organization_id guardian_id normalized_email status grant_view_athletes grant_links invited_by_member_id token_sha256 expires_at revision last_sent_at accepted_by_user_id accepted_at revoked_by_member_id revoked_at created_at updated_at",
+        omit: ["token_sha256", "accepted_by_user_id", "grant_links"],
+      }),
+      includedTable({
+        name: "family_notices",
+        expectedColumns:
+          "id organization_id location_id kind session_id class_template_id group_id title body dedupe_key created_by_member_id created_at",
+        omit: ["dedupe_key"],
+      }),
+      includedTable({
+        name: "family_notice_recipients",
+        expectedColumns:
+          "id organization_id notice_id guardian_id email_status email_attempts email_attempted_at read_at created_at",
+      }),
+      includedTable({
+        name: "guardian_notification_preferences",
+        expectedColumns: "organization_id guardian_id email_session_changes email_manual_notices updated_at",
+        orderBy: ["guardian_id"],
       }),
     ],
   },

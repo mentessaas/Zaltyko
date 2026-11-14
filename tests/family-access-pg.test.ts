@@ -6,9 +6,13 @@ import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 // El correo es lo único simulado: el resto son los servicios y la base reales.
-const mail = vi.hoisted(() => ({ sent: [] as Array<{ to: string; template?: string; dedupeKey?: string; subject: string }> }));
+const mail = vi.hoisted(() => ({ sent: [] as Array<{ to: string; template?: string; dedupeKey?: string; subject: string }>, failNext: 0 }));
 vi.mock("@/lib/email/email-service", () => ({
   sendEmailWithLogging: vi.fn(async (options: { to: string; template?: string; dedupeKey?: string; subject: string }) => {
+    if (mail.failNext > 0) {
+      mail.failNext -= 1;
+      return false;
+    }
     mail.sent.push(options);
     return true;
   }),
@@ -24,6 +28,7 @@ import {
 } from "@/modules/family-access/application/guardian-invitations";
 import {
   changeSessionAndNotify,
+  deliverNoticeEmails,
   getOwnerNoticesBundle,
   notifySessionSubstitution,
   sendManualNotice,
@@ -402,15 +407,28 @@ describe.skipIf(!disposablePgEnabled)("acceso de familias y avisos en PostgreSQL
     const newStart = new Date(s.startsAt.getTime() + 60 * 60 * 1000);
     const newEnd = new Date(newStart.getTime() + 90 * 60 * 1000);
     const moved = await changeSessionAndNotify({ actor: ownerA, sessionId: s.id, idempotencyKey: key(), command: { ...scopeA(), action: "reschedule", startsAt: newStart.toISOString(), endsAt: newEnd.toISOString(), reason: null } });
-    expect(moved).toMatchObject({ status: "scheduled", startsAt: newStart.toISOString(), recipients: 2 });
+    expect(moved).toMatchObject({ status: "scheduled", startsAt: newStart.toISOString(), recipients: 2, previousSessionId: s.id });
+    expect(moved.sessionId).not.toBe(s.id);
+    // La original queda cancelada en su franja: regenerar sesiones de la
+    // plantilla choca con ella (on conflict do nothing) y no la recrea.
+    const original = await db.execute(sql`select status::text, starts_at, cancellation_reason from zaltyko.sessions where id = ${s.id}::uuid`);
+    expect(original.rows[0]).toMatchObject({ status: "cancelled", cancellation_reason: "Cambio de horario" });
+    expect(new Date((original.rows[0] as { starts_at: string }).starts_at).toISOString()).toBe(s.startsAt.toISOString());
+    const replacement = await db.execute(sql`select status::text, class_template_id::text from zaltyko.sessions where id = ${moved.sessionId}::uuid`);
+    expect(replacement.rows[0]).toEqual({ status: "scheduled", class_template_id: classA });
     await expect(changeSessionAndNotify({ actor: ownerA, sessionId: other.id, idempotencyKey: key(), command: { ...scopeA(), action: "reschedule", startsAt: newStart.toISOString(), endsAt: newEnd.toISOString(), reason: null } }))
       .rejects.toMatchObject({ status: 409 });
     const staff = [randomUUID()];
-    const substitution = await notifySessionSubstitution({ actor: ownerA, organizationId: a.organizationId, sessionId: s.id, staffProfileIds: staff });
+    const firstAt = "2026-11-14T10:00:00.000000Z";
+    const substitution = await notifySessionSubstitution({ actor: ownerA, organizationId: a.organizationId, sessionId: moved.sessionId, staffProfileIds: staff, substitutionChangedAt: firstAt });
     expect(substitution).toMatchObject({ recipients: 2, replayed: false });
-    expect(await notifySessionSubstitution({ actor: ownerA, organizationId: a.organizationId, sessionId: s.id, staffProfileIds: staff })).toMatchObject({ noticeId: substitution!.noticeId, replayed: true });
-    const kinds = await db.execute(sql`select kind from zaltyko.family_notices where session_id = ${s.id}::uuid order by created_at`);
-    expect((kinds.rows as Array<{ kind: string }>).map((row) => row.kind)).toEqual(["session_rescheduled", "session_substitution"]);
+    expect(await notifySessionSubstitution({ actor: ownerA, organizationId: a.organizationId, sessionId: moved.sessionId, staffProfileIds: staff, substitutionChangedAt: firstAt })).toMatchObject({ noticeId: substitution!.noticeId, replayed: true });
+    // Volver a las titulares y sustituir otra vez con la misma persona es otro aviso.
+    expect(await notifySessionSubstitution({ actor: ownerA, organizationId: a.organizationId, sessionId: moved.sessionId, staffProfileIds: staff, substitutionChangedAt: "2026-11-14T11:00:00.000000Z" })).toMatchObject({ replayed: false });
+    // Una sesión cancelada no recibe avisos de sustitución.
+    expect(await notifySessionSubstitution({ actor: ownerA, organizationId: a.organizationId, sessionId: s.id, staffProfileIds: staff, substitutionChangedAt: firstAt })).toBeNull();
+    const kinds = await db.execute(sql`select kind from zaltyko.family_notices where session_id = ${moved.sessionId}::uuid order by created_at`);
+    expect((kinds.rows as Array<{ kind: string }>).map((row) => row.kind)).toEqual(["session_rescheduled", "session_substitution", "session_substitution"]);
   });
 
   it("una familia nunca ve, marca ni configura avisos de otra familia o de otra academia", async () => {
@@ -453,6 +471,68 @@ describe.skipIf(!disposablePgEnabled)("acceso de familias y avisos en PostgreSQL
     expect(rows.find((row) => row.guardian_id === bea.guardianId)?.email_status).toBe("sent");
     expect(mail.sent.map((item) => item.to)).toEqual([emailBea]);
     expect((await listFamilyNotices({ userId: userAna }))[0]!.notices.map((notice) => notice.id)).toContain(manual.noticeId);
+  });
+
+  it("un correo fallido queda pendiente y se reintenta, como mucho tres veces", async () => {
+    // Ana desactivó los mensajes en la prueba anterior: solo Bea recibe correo.
+    mail.failNext = 1;
+    const manual = await sendManualNotice({ actor: ownerA, idempotencyKey: key(), command: { ...scopeA(), target: { kind: "class", classTemplateId: classA }, title: "Fotos", body: "Mañana hay fotos de grupo." } });
+    expect(manual.emails).toMatchObject({ sent: 0, pending: 1 });
+    let row = (await db.execute(sql`select email_status, email_attempts from zaltyko.family_notice_recipients where notice_id = ${manual.noticeId}::uuid and guardian_id = ${bea.guardianId}::uuid`)).rows[0];
+    expect(row).toEqual({ email_status: "pending", email_attempts: 1 });
+    // Antes de la espera no se reintenta.
+    expect(await deliverNoticeEmails({ noticeId: manual.noticeId })).toEqual({ sent: 0, failed: 0, pending: 0 });
+    await db.execute(sql`update zaltyko.family_notice_recipients set email_attempted_at = now() - interval '10 minutes' where notice_id = ${manual.noticeId}::uuid and guardian_id = ${bea.guardianId}::uuid`);
+    expect(await deliverNoticeEmails({ noticeId: manual.noticeId })).toMatchObject({ sent: 1 });
+    row = (await db.execute(sql`select email_status, email_attempts from zaltyko.family_notice_recipients where notice_id = ${manual.noticeId}::uuid and guardian_id = ${bea.guardianId}::uuid`)).rows[0];
+    expect(row).toEqual({ email_status: "sent", email_attempts: 2 });
+
+    mail.failNext = 3;
+    const failing = await sendManualNotice({ actor: ownerA, idempotencyKey: key(), command: { ...scopeA(), target: { kind: "class", classTemplateId: classA }, title: "Horario", body: "Cambio de horario del grupo." } });
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await db.execute(sql`update zaltyko.family_notice_recipients set email_attempted_at = now() - interval '10 minutes' where notice_id = ${failing.noticeId}::uuid and guardian_id = ${bea.guardianId}::uuid`);
+      await deliverNoticeEmails({ noticeId: failing.noticeId });
+    }
+    row = (await db.execute(sql`select email_status, email_attempts from zaltyko.family_notice_recipients where notice_id = ${failing.noticeId}::uuid and guardian_id = ${bea.guardianId}::uuid`)).rows[0];
+    expect(row).toEqual({ email_status: "failed", email_attempts: 3 });
+    mail.failNext = 0;
+  });
+
+  it("al quitar el permiso de ver gimnastas, la familia deja de ver los avisos", async () => {
+    await db.execute(sql`update zaltyko.family_guardians set can_view_athletes = false where guardian_id = ${bea.guardianId}::uuid`);
+    expect(await listFamilyNotices({ userId: userBea })).toEqual([]);
+    await db.execute(sql`update zaltyko.family_guardians set can_view_athletes = true where guardian_id = ${bea.guardianId}::uuid`);
+    expect(await listFamilyNotices({ userId: userBea })).toHaveLength(1);
+  });
+
+  it("al aceptar, ver gimnastas solo se concede en los vínculos que no cambiaron desde la invitación", async () => {
+    const emailCarla = `ci-fam-carla-${randomUUID()}@example.invalid`;
+    const carla = await family(a.organizationId, "Carla", "Madre Carla", emailCarla);
+    const userCarla = await authUser(emailCarla);
+    const invited = await runFamilyAccessCommand({ actor: ownerA, idempotencyKey: key(), command: { ...scopeA(), action: "invite", guardianId: carla.guardianId, grantViewAthletes: true } });
+    // La academia registra un cambio en el vínculo (custodia) antes de que se acepte.
+    await db.execute(sql`update zaltyko.family_guardians set updated_at = now() where guardian_id = ${carla.guardianId}::uuid`);
+    await acceptFamilyInvitation({ userId: userCarla, token: tokenOf(invited.link) });
+    const link = await db.execute(sql`select can_view_athletes from zaltyko.family_guardians where guardian_id = ${carla.guardianId}::uuid`);
+    expect(link.rows).toEqual([{ can_view_athletes: false }]);
+    const audit = await db.execute(sql`select after from zaltyko.audit_log where target_id = ${invited.invitationId}::uuid and action = 'family_access.invitation_accept'`);
+    expect((audit.rows[0] as { after: { grantedLinks: number } }).after.grantedLinks).toBe(0);
+  });
+
+  it("retirar el acceso funciona con la bandera apagada; lo demás no", async () => {
+    delete process.env.ZALTYKO_FAMILY_ACCESS_ENABLED;
+    try {
+      const list = await listOwnerFamilyAccess({ ...scopeA(), actor: ownerA, removeOnly: true });
+      expect(list.guardians.every((row) => row.status === "linked" && row.actions.removeAccess && !row.actions.invite)).toBe(true);
+      expect(list.guardians.some((row) => row.guardianId === bea.guardianId)).toBe(true);
+      await expect(runFamilyAccessCommand({ actor: ownerA, idempotencyKey: key(), command: { ...scopeA(), action: "invite_all", grantViewAthletes: true } }))
+        .rejects.toMatchObject({ status: 503 });
+      await runFamilyAccessCommand({ actor: ownerA, idempotencyKey: key(), command: { ...scopeA(), action: "remove_access", guardianId: bea.guardianId } });
+      const linked = await db.execute(sql`select auth_user_id from zaltyko.guardians where id = ${bea.guardianId}::uuid`);
+      expect(linked.rows).toEqual([{ auth_user_id: null }]);
+    } finally {
+      process.env.ZALTYKO_FAMILY_ACCESS_ENABLED = "true";
+    }
   });
 
   it("retirar el acceso corta la lectura en la siguiente petición", async () => {

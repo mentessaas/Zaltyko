@@ -26,7 +26,8 @@ export type ActivatedModule =
   | "coach_assignment"
   | "session_plans"
   | "admissions"
-  | "team_access";
+  | "team_access"
+  | "family_access";
 
 export interface ActivatedTableErasurePolicy {
   table: string;
@@ -124,6 +125,14 @@ export const ACTIVATED_MODULES_ERASURE_POLICY: readonly ActivatedTableErasurePol
   policy("organization_member_invitations", "team_access", "count_only", "not_linked", "blocks", "blocks"),
   policy("organization_member_invitation_scopes", "team_access", "count_only", "not_linked", "not_linked", "not_linked"),
   policy("organization_team_command_receipts", "team_access", "count_only", "not_linked", "blocks", "blocks"),
+  // Familias: invitaciones al portal y avisos (candidato 20261114120000, sin
+  // aplicar). Quien invitó, revocó o envió queda vacío (set null de una sola
+  // columna); la cuenta que aceptó también. Borrar un tutor o la academia
+  // arrastra sus filas en cascada.
+  policy("guardian_access_invitations", "family_access", "values", "not_linked", "set_null", "set_null"),
+  policy("family_notices", "family_access", "values", "not_linked", "set_null", "set_null"),
+  policy("family_notice_recipients", "family_access", "values", "not_linked", "not_linked", "not_linked"),
+  policy("guardian_notification_preferences", "family_access", "values", "not_linked", "not_linked", "not_linked"),
 ];
 
 const duplicated = ACTIVATED_MODULES_ERASURE_POLICY.map((entry) => entry.table).filter(

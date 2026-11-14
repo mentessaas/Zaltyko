@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { FAMILY_ACCESS_TABLES } from "@/modules/family-access/application/family-access-storage";
-import { OPTIONAL_FAMILY_ACCESS_EXPORT_TABLES } from "@/modules/data-rights/application/catalog";
+import { OPTIONAL_INCLUDED_EXPORT_MODULES } from "@/modules/data-rights/application/catalog";
 
 /**
  * Contrato del candidato SQL del acceso de familias y los avisos. Las tablas
@@ -118,12 +118,19 @@ describe("candidato SQL del acceso de familias y los avisos", () => {
     expect(body).not.toMatch(/references zaltyko\.sessions\(organization_id, id\) on delete/);
   });
 
-  it("derechos de datos clasifica las mismas tablas y columnas, solo con recuentos", () => {
-    expect(OPTIONAL_FAMILY_ACCESS_EXPORT_TABLES.map((table) => table.table).sort()).toEqual(TABLES);
-    for (const table of OPTIONAL_FAMILY_ACCESS_EXPORT_TABLES) {
-      expect([...table.columns].sort(), table.table).toEqual(columnsOf(sql, table.table));
-      expect(table.reason).toContain("count");
+  it("derechos de datos exporta las cuatro tablas con valores, sin credenciales ni identificadores de Auth", () => {
+    const module = OPTIONAL_INCLUDED_EXPORT_MODULES.find((item) => item.module === "family_access")!;
+    expect(module.tables.map((table) => table.name).sort()).toEqual(TABLES);
+    for (const table of module.tables) {
+      expect([...table.expectedColumns].sort(), table.name).toEqual(columnsOf(sql, table.name));
     }
+    const exported = module.tables.flatMap((table) => table.exportColumns.map((column) => `${table.name}.${column}`));
+    for (const hidden of ["guardian_access_invitations.token_sha256", "guardian_access_invitations.accepted_by_user_id",
+      "guardian_access_invitations.grant_links", "family_notices.dedupe_key"]) {
+      expect(exported).not.toContain(hidden);
+    }
+    expect(exported).toContain("family_notice_recipients.read_at");
+    expect(exported).toContain("family_notices.body");
   });
 
   it("el README publica el archivo, la bandera y su SHA-256 exacto", () => {

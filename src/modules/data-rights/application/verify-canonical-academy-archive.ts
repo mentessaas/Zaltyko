@@ -177,6 +177,10 @@ const NULLABLE_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
     "handled_at",
     "anonymized_at",
   ],
+  guardian_access_invitations: ["invited_by_member_id", "last_sent_at", "accepted_at", "revoked_by_member_id", "revoked_at"],
+  family_notices: ["session_id", "class_template_id", "group_id", "created_by_member_id"],
+  family_notice_recipients: ["email_attempted_at", "read_at"],
+  guardian_notification_preferences: [],
 };
 
 // `tx.execute(sql)` returns node-postgres raw rows. int4 is a JS number;
@@ -205,6 +209,8 @@ const INT4_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
   session_plan_blocks: ["position", "duration_minutes"],
   class_plan_templates: ["revision"],
   admission_requests: ["athlete_birth_year", "revision"],
+  guardian_access_invitations: ["revision"],
+  family_notice_recipients: ["email_attempts"],
 };
 
 const INT8_DECIMAL_STRING_COLUMNS_BY_TABLE: Readonly<
@@ -453,7 +459,10 @@ function isBooleanColumn(column: string): boolean {
     column.startsWith("can_") ||
     column === "contactable" ||
     column === "pilot" ||
-    column === "enabled"
+    column === "enabled" ||
+    column === "grant_view_athletes" ||
+    column === "email_session_changes" ||
+    column === "email_manual_notices"
   );
 }
 

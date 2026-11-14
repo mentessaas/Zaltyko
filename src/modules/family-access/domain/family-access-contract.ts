@@ -251,12 +251,17 @@ export function familyInvitationEmail(input: { academyName: string; url: string;
   return { subject, text, html };
 }
 
-/** Correo de aviso. El asunto no lleva datos de menores: queda en el registro de envíos. */
-export function familyNoticeEmail(input: { academyName: string; title: string; body: string; portalUrl: string }) {
-  const subject = `${input.academyName}: ${input.title}`.slice(0, 160);
+/**
+ * Correo de aviso. El asunto queda en el registro de envíos: en los avisos de
+ * sesión lleva el título (clase y tipo de cambio, sin nombres); en los avisos
+ * manuales, un asunto genérico, porque el título lo escribe la academia.
+ */
+export function familyNoticeEmail(input: { academyName: string; kind: FamilyNoticeKind; title: string; body: string; portalUrl: string }) {
+  const subject = (input.kind === "manual" ? `${input.academyName}: tienes un aviso nuevo` : `${input.academyName}: ${input.title}`).slice(0, 160);
+  const heading = input.kind === "manual" ? `<p style="margin:0 0 12px"><strong>${escapeHtml(input.title)}</strong></p>` : "";
   const footer = "Puedes desactivar estos correos en Avisos, dentro del portal de familias.";
-  const text = `${input.body}\n\nVer el aviso en el portal: ${input.portalUrl}\n\n${footer}`;
-  const html = `${paragraphs(input.body)}<p style="margin:0 0 12px"><a href="${escapeHtml(input.portalUrl)}">Ver el aviso en el portal</a></p><p style="margin:0;color:#5b6475;font-size:13px">${escapeHtml(footer)}</p>`;
+  const text = `${input.kind === "manual" ? `${input.title}\n\n` : ""}${input.body}\n\nVer el aviso en el portal: ${input.portalUrl}\n\n${footer}`;
+  const html = `${heading}${paragraphs(input.body)}<p style="margin:0 0 12px"><a href="${escapeHtml(input.portalUrl)}">Ver el aviso en el portal</a></p><p style="margin:0;color:#5b6475;font-size:13px">${escapeHtml(footer)}</p>`;
   return { subject, text, html };
 }
 

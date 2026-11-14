@@ -72,7 +72,12 @@ SQL sin aplicar (`docs/deployment/candidates/20261114120000_family_access_notice
   - Auditoría (`audit_log`) de invitar, reenviar, revocar, aceptar y retirar
     acceso, sin token ni correo.
   - La academia puede retirar el acceso: el portal deja de mostrar datos en la
-    siguiente petición (sin caché).
+    siguiente petición (sin caché). Funciona aunque la función esté apagada.
+  - Al aceptar, el permiso de ver gimnastas solo se concede en los vínculos
+    familia-tutor que la academia vio al invitar y solo si no han cambiado
+    desde entonces (custodia, orden judicial).
+  - Si la academia quita el permiso de ver gimnastas, la familia deja de ver
+    los avisos en la siguiente petición.
 - **Fuente:** `src/modules/family-access/application/guardian-invitations.ts`,
   `src/lib/auth/family-invitation-fragment.ts`, `instrumentation-client.ts`,
   `tests/family-access-pg.test.ts`.
@@ -96,14 +101,16 @@ SQL sin aplicar (`docs/deployment/candidates/20261114120000_family_access_notice
 
 ## 5. Derechos y conservación
 
-- **Hallazgo:** la exportación de la academia incluye solo recuentos de las
-  cuatro tablas (`OPTIONAL_FAMILY_ACCESS_EXPORT_TABLES`), como el acceso de
-  equipo. Al borrar un tutor se borran en cascada sus invitaciones, lecturas y
+- **Hallazgo:** la exportación de la academia incluye las cuatro tablas con
+  sus valores (módulo `family_access`), para que la academia pueda responder
+  al derecho de acceso de un tutor: invitaciones, avisos, a quién se
+  enviaron, cuándo se leyeron y sus preferencias. Se omiten el hash del
+  token, el identificador de la cuenta de Auth, la instantánea de vínculos y
+  la clave interna de avisos. Al borrar un tutor se borran en cascada sus invitaciones, lecturas y
   preferencias; al borrar una academia, todo. Borrar una cuenta de Auth deja
   `accepted_by_user_id` en nulo y conserva la evidencia de la invitación.
   No hay plazo automático de conservación de avisos.
 - **Fuente:** `src/modules/data-rights/application/catalog.ts`, el candidato.
 - **Importancia:** media.
 - **Siguiente paso:** fijar con asesoría el plazo de conservación de avisos y
-  lecturas (propuesta: el curso más uno) y si la exportación debe incluir sus
-  valores.
+  lecturas (propuesta: el curso más uno).
