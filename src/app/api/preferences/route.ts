@@ -54,13 +54,13 @@ export const GET = withRateLimit(
     const url = new URL(request.url);
     const token = url.searchParams.get("token");
     if (!token) {
-      return apiError("TOKEN_REQUIRED", "Token requerido en query string", 400);
+      return apiError("TOKEN_REQUIRED", "Falta el enlace de acceso. Ábrelo desde el correo.", 400);
     }
     const result = verifyEmailLinkToken(token);
     if (!result.ok || !result.payload) {
       return apiError(
         "INVALID_TOKEN",
-        "Token invalido o expirado. Solicita un nuevo enlace desde el ultimo email.",
+        "Este enlace no es válido o ha caducado. Pide uno nuevo desde el último correo.",
         400
       );
     }
@@ -99,14 +99,14 @@ export const POST = withRateLimit(
     if (!result.ok || !result.payload) {
       return apiError(
         "INVALID_TOKEN",
-        "Token invalido o expirado. Solicita un nuevo enlace desde el ultimo email.",
+        "Este enlace no es válido o ha caducado. Pide uno nuevo desde el último correo.",
         400
       );
     }
     if (result.payload.purpose !== "preferences") {
       return apiError(
         "WRONG_PURPOSE",
-        "Este enlace no es de preferencias; usa /api/unsubscribe para baja",
+        "Este enlace es para darse de baja, no para cambiar preferencias.",
         400
       );
     }

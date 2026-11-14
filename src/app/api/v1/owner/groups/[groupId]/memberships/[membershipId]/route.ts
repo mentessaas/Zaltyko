@@ -43,7 +43,7 @@ function unauthenticatedResponse() {
   return problemResponse({
     status: 401,
     title: "Autenticación requerida",
-    detail: "Inicia sesión para actualizar la pertenencia al grupo.",
+    detail: "Inicia sesión para cambiar el grupo de la gimnasta.",
     type: "authentication-required",
   });
 }

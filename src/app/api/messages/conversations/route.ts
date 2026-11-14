@@ -355,7 +355,7 @@ export const POST = withTenant(async (request, context) => {
     });
 
     if (created.kind === "forbidden") {
-      return apiError("FORBIDDEN", "La academia o la pertenencia de los destinatarios ha cambiado", 403);
+      return apiError("FORBIDDEN", "La academia o los destinatarios han cambiado", 403);
     }
     return apiSuccess({ id: created.conversationId, ...(created.messageId ? { messageId: created.messageId } : {}) });
   } catch (error) {

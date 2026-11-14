@@ -51,7 +51,7 @@ export const GET = withTenant(async (_request, context) => {
   const pdfBuffer = await generateReceiptPDF({
     receiptId: receipt.id,
     academyName: receipt.academyName || "Academia",
-    athleteName: receipt.athleteName || "Atleta",
+    athleteName: receipt.athleteName || "Gimnasta",
     amount: Number(receipt.amount) / 100,
     currency: receipt.currency,
     period,

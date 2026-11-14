@@ -316,7 +316,7 @@ describe("asistencia Owner en solo lectura", () => {
     expect(await screen.findByText("Ana Sintética")).toBeVisible();
     await waitFor(() => expect(screen.queryByText("Cargando lista…")).not.toBeInTheDocument());
     expect(screen.getByText(/La academia está en solo lectura/)).toBeVisible();
-    expect(screen.getByRole("link", { name: "Uso y regularización" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Uso del plan" })).toHaveAttribute(
       "href",
       `/owner/subscription?organizationId=${organizationId}#regularizar`
     );

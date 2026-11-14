@@ -21,7 +21,7 @@ function unauthenticatedResponse() {
   return problemResponse({
     status: 401,
     title: "Autenticación requerida",
-    detail: "Inicia sesión para guardar la organización y el panel.",
+    detail: "Inicia sesión para guardar tu academia y tu panel.",
     type: "authentication-required",
   });
 }

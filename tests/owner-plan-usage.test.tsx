@@ -109,7 +109,7 @@ describe("consulta del uso sin operaciones de negocio", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("No se ha podido comprobar el uso");
     expect(screen.queryByText("Consultando el uso…")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Volver a consultar el uso" }));
-    expect(await screen.findByText("La academia está dentro de los límites del plan.")).toBeVisible();
+    expect(await screen.findByText("Tu academia cabe en el plan.")).toBeVisible();
     expect(screen.getAllByText(/Límite alcanzado/)).toHaveLength(3);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     for (const [url, options] of fetchMock.mock.calls) {
@@ -158,19 +158,19 @@ describe("consulta del uso sin operaciones de negocio", () => {
     });
     render(<OwnerPlanUsage organizationId={org} />);
     expect(await screen.findByRole("button", { name: "Elegir para archivar: Grupo excedente" })).toBeEnabled();
-    const selector = screen.getByRole("combobox", { name: "Tipo de ficha" });
+    const selector = screen.getByRole("combobox", { name: "Qué quieres archivar" });
     expect(selector).toHaveValue("groups");
-    expect(screen.getByRole("option", { name: "Grupos · excedente 1" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Grupos · te sobran 1" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /Gimnastas/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /Clases/ })).not.toBeInTheDocument();
   });
   it("no muestra candidatos ni habilita tipos cuando ningún recurso excede el límite", async () => {
     fetchMock.mockResolvedValueOnce(success({ ...usage, items: [{ id: "synthetic-hidden", name: "No archivable" }] }));
     render(<OwnerPlanUsage organizationId={org} />);
-    expect(await screen.findByText(/No hay excedente que archivar en esta academia/)).toBeVisible();
+    expect(await screen.findByText(/No te sobra nada en esta academia/)).toBeVisible();
     expect(screen.queryByRole("button", { name: /Elegir para archivar/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Tipo de ficha" })).toBeDisabled();
-    expect(screen.getByRole("option", { name: "No hay tipos con excedente" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Qué quieres archivar" })).toBeDisabled();
+    expect(screen.getByRole("option", { name: "No hay nada que archivar" })).toBeInTheDocument();
   });
   it("avisa a las demás vistas y refresca el uso si el servidor rechaza un archivo obsoleto", async () => {
     const athleteId = "20000000-0000-4000-8000-000000000011";
@@ -201,9 +201,9 @@ describe("consulta del uso sin operaciones de negocio", () => {
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar archivo" }));
 
-    expect(await screen.findByText(/la ficha o el excedente ya cambió/)).toBeVisible();
+    expect(await screen.findByText(/ficha o lo que te sobra ya cambió/)).toBeVisible();
     await waitFor(() => expect(usageReads).toBe(2));
-    expect(await screen.findByText("La academia está dentro de los límites del plan.")).toBeVisible();
+    expect(await screen.findByText("Tu academia cabe en el plan.")).toBeVisible();
     expect(onPolicyChanged).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls.filter(([, options]) => options.method === "POST")).toHaveLength(1);
     window.removeEventListener("zaltyko:plan-usage-changed", onPolicyChanged);
@@ -212,8 +212,8 @@ describe("consulta del uso sin operaciones de negocio", () => {
     fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ ok: false }) });
     render(<OwnerPlanUsage organizationId={org} />);
     expect(await screen.findByRole("alert")).toBeVisible();
-    expect(screen.queryByText("La academia está dentro de los límites del plan.")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Tipo de ficha")).not.toBeInTheDocument();
+    expect(screen.queryByText("Tu academia cabe en el plan.")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Qué quieres archivar")).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -375,7 +375,7 @@ describe("consulta del uso sin operaciones de negocio", () => {
     render(<OwnerPlanUsage organizationId={org} />);
     expect(await screen.findByRole("alert")).toHaveTextContent("No se ha podido comprobar el uso");
     expect(screen.queryByRole("button", { name: /Elegir para archivar/ })).not.toBeInTheDocument();
-    expect(screen.queryByText("La academia está dentro de los límites del plan.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Tu academia cabe en el plan.")).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

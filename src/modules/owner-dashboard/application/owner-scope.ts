@@ -106,7 +106,7 @@ export async function resolveOwnerScope(input: {
     });
     throw new OperationalError(
       "FORBIDDEN",
-      "Sin acceso a la superficie Owner",
+      "Sin acceso a esta zona de la dirección",
       403
     );
   }

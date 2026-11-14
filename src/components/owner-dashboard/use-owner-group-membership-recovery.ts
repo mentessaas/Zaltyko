@@ -61,7 +61,7 @@ export function useOwnerGroupMembershipRecovery({
       setMembershipRecoveryFailure({
         scope: membershipScope,
         message: result.status === "invalid"
-          ? "Hay una operación de pertenencia local dañada. No se permitirán cambios hasta recuperar su estado."
+          ? "Hay un cambio de grupo sin terminar en este navegador. No se harán más cambios hasta resolverlo."
           : "No se pudo consultar el almacenamiento de esta sesión. No se permitirán cambios hasta poder verificar la operación pendiente.",
       });
       setForeignMembershipScope(null);
@@ -195,7 +195,7 @@ export function useOwnerGroupAthleteCreateRecovery({
       setCreateAthleteRecovery({
         scope: membershipScope,
         status: "blocked",
-        detail: "El servidor confirmó que no se creó la ficha, pero no se pudo limpiar su clave pendiente. No generaremos otra clave.",
+        detail: "La ficha no se creó, pero queda un intento sin terminar. No empezaremos otro.",
       });
     }
     return false;

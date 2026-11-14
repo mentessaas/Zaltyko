@@ -397,7 +397,7 @@ export function OwnerSetupForm({
       setPersistenceNotice(
         storedRetryCleared
           ? null
-          : "No pudimos borrar el recibo local. Si se restaura, repetirá la misma clave y el servidor devolverá el mismo resultado."
+          : "No pudimos borrar un dato guardado en este navegador. Si vuelve, se repetirá el mismo envío sin duplicar nada."
       );
       router.replace(`/owner?organizationId=${result.organizationId}`);
       router.refresh();
