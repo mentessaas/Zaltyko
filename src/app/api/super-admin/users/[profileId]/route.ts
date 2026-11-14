@@ -391,8 +391,9 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 // DELETE /api/super-admin/users/[profileId] — suprime la cuenta (RGPD art. 17).
 // Revoca sus pertenencias en todas las academias, borra la cuenta de Auth y el
 // perfil legacy. Las academias conservan sus registros con la autoría
-// seudonimizada (docs/privacy/borrado-de-cuentas-y-fichas.md). Se niega si el
-// perfil es dueño de academias legacy o la única dueña activa de una academia.
+// seudonimizada (docs/privacy/borrado-de-cuentas-y-fichas.md). Se niega (409)
+// si el perfil es dueño de academias legacy, si es la única dueña activa de una
+// academia o si otro registro impide borrar la cuenta.
 export const DELETE = withSuperAdmin(async (request, context) => {
   if (!context?.profile) {
     return apiError("UNAUTHORIZED", "Unauthorized", 401);
@@ -440,13 +441,6 @@ export const DELETE = withSuperAdmin(async (request, context) => {
     const erasure = await eraseUserAccount(
       {
         transaction: withTransaction,
-        countLegacyOwnedAcademies: async (ownerProfileId) => {
-          const [{ value }] = await db
-            .select({ value: count() })
-            .from(academies)
-            .where(eq(academies.ownerId, ownerProfileId));
-          return Number(value);
-        },
         deleteAuthAccount: deleteAuthUserIfPresent,
         deleteLegacyProfile: async (deletedProfileId) => {
           await db.delete(profiles).where(eq(profiles.id, deletedProfileId));

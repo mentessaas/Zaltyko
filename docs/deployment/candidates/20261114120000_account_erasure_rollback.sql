@@ -2,10 +2,14 @@
 -- autorización de Elvis, como el candidato. Aplicar en una sola transacción:
 --   psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f 20261114120000_account_erasure_rollback.sql
 -- Restaura las claves, las columnas NOT NULL, los CHECK y las funciones de
--- solo inserción tal como estaban. No borra ni inventa datos: si ya se ha
--- suprimido alguna cuenta (hay filas con la referencia vacía que el esquema
--- anterior no admite), aborta antes de tocar nada. En ese caso no hay vuelta
+-- solo inserción tal como estaban, y retira los triggers de autor obligatorio.
+-- Vale también si el paso de validación no llegó a ejecutarse. No borra ni
+-- inventa datos: si ya se ha suprimido alguna cuenta (hay filas con la
+-- referencia vacía que el esquema anterior no admite), aborta antes de tocar
+-- nada. En ese caso no hay vuelta
 -- atrás sin decidir qué hacer con esas filas; nunca se rellenan con otra cuenta.
+set local lock_timeout = '3s';
+
 do $account_erasure_rollback_preflight$
 begin
   if not exists (
@@ -23,10 +27,14 @@ begin
      or exists (select 1 from zaltyko.organization_member_invitations where status = 'accepted' and accepted_by_user_id is null) then
     raise exception 'Account erasure rollback refused: accounts were already erased (rows with an emptied account reference exist)';
   end if;
-  if to_regclass('public.directory_grants') is not null and (
-    exists (select 1 from public.directory_grants where approved_by is null)
-    or exists (select 1 from public.directory_claims where user_id is null)
-  ) then
+  if exists (select 1 from public.directory_grants where approved_by is null)
+     or exists (select 1 from public.directory_claims where user_id is null)
+     or exists (select 1 from public.announcements where author_id is null)
+     or exists (select 1 from public.conversation_messages where sender_id is null)
+     or exists (select 1 from public.invitations where invited_by is null)
+     or exists (select 1 from public.event_registrations where profile_id is null)
+     or exists (select 1 from public.ticket_responses where user_id is null)
+     or exists (select 1 from public.ticket_attachments where uploaded_by is null) then
     raise exception 'Account erasure rollback refused: accounts were already erased (rows with an emptied account reference exist)';
   end if;
 end;
@@ -95,31 +103,67 @@ begin
 end
 $$;
 
-do $account_erasure_rollback_directory$
-begin
-  if to_regclass('public.directory_grants') is null then
-    return;
-  end if;
-  alter table public.directory_grants
-    drop constraint directory_grants_user_id_fkey,
-    add constraint directory_grants_user_id_fkey foreign key (user_id) references auth.users(id),
-    drop constraint directory_grants_approved_by_fkey,
-    add constraint directory_grants_approved_by_fkey foreign key (approved_by) references auth.users(id);
-  alter table public.directory_grants alter column approved_by set not null;
-  alter table public.directory_claims
-    drop constraint directory_claims_user_id_fkey,
-    add constraint directory_claims_user_id_fkey foreign key (user_id) references auth.users(id),
-    drop constraint directory_claims_decided_by_fkey,
-    add constraint directory_claims_decided_by_fkey foreign key (decided_by) references auth.users(id);
-  alter table public.directory_claims alter column user_id set not null;
-  alter table public.directory_revisions
-    drop constraint directory_revisions_user_id_fkey,
-    add constraint directory_revisions_user_id_fkey foreign key (user_id) references auth.users(id);
-  alter table public.directory_subscriptions
-    drop constraint directory_subscriptions_user_id_fkey,
-    add constraint directory_subscriptions_user_id_fkey foreign key (user_id) references auth.users(id);
-  alter table public.directory_audit
-    drop constraint directory_audit_actor_id_fkey,
-    add constraint directory_audit_actor_id_fkey foreign key (actor_id) references auth.users(id);
-end;
-$account_erasure_rollback_directory$;
+drop trigger organization_members_user_id_required_on_insert on zaltyko.organization_members;
+drop trigger insight_actions_actor_user_id_required_on_insert on zaltyko.insight_actions;
+drop trigger directory_grants_approved_by_required_on_insert on public.directory_grants;
+drop trigger directory_claims_user_id_required_on_insert on public.directory_claims;
+drop trigger announcements_author_id_required_on_insert on public.announcements;
+drop trigger conversation_messages_sender_id_required_on_insert on public.conversation_messages;
+drop trigger invitations_invited_by_required_on_insert on public.invitations;
+drop trigger event_registrations_profile_id_required_on_insert on public.event_registrations;
+drop trigger ticket_responses_user_id_required_on_insert on public.ticket_responses;
+drop trigger ticket_attachments_uploaded_by_required_on_insert on public.ticket_attachments;
+drop function zaltyko_domain_private.require_column_on_insert();
+
+alter table public.directory_grants
+  drop constraint directory_grants_user_id_fkey,
+  add constraint directory_grants_user_id_fkey foreign key (user_id) references auth.users(id),
+  drop constraint directory_grants_approved_by_fkey,
+  add constraint directory_grants_approved_by_fkey foreign key (approved_by) references auth.users(id);
+alter table public.directory_grants alter column approved_by set not null;
+alter table public.directory_claims
+  drop constraint directory_claims_user_id_fkey,
+  add constraint directory_claims_user_id_fkey foreign key (user_id) references auth.users(id),
+  drop constraint directory_claims_decided_by_fkey,
+  add constraint directory_claims_decided_by_fkey foreign key (decided_by) references auth.users(id);
+alter table public.directory_claims alter column user_id set not null;
+alter table public.directory_revisions
+  drop constraint directory_revisions_user_id_fkey,
+  add constraint directory_revisions_user_id_fkey foreign key (user_id) references auth.users(id);
+alter table public.directory_subscriptions
+  drop constraint directory_subscriptions_user_id_fkey,
+  add constraint directory_subscriptions_user_id_fkey foreign key (user_id) references auth.users(id);
+alter table public.directory_audit
+  drop constraint directory_audit_actor_id_fkey,
+  add constraint directory_audit_actor_id_fkey foreign key (actor_id) references auth.users(id);
+
+alter table public.academies
+  drop constraint academies_owner_id_profiles_id_fk,
+  add constraint academies_owner_id_profiles_id_fk foreign key (owner_id) references public.profiles(id) on delete cascade;
+alter table public.coaches
+  drop constraint coaches_profile_id_profiles_id_fk,
+  add constraint coaches_profile_id_profiles_id_fk foreign key (profile_id) references public.profiles(id) on delete cascade;
+alter table public.announcements
+  drop constraint announcements_author_id_profiles_id_fk,
+  add constraint announcements_author_id_profiles_id_fk foreign key (author_id) references public.profiles(id) on delete cascade;
+alter table public.announcements alter column author_id set not null;
+alter table public.conversation_messages
+  drop constraint conversation_messages_sender_id_profiles_id_fk,
+  add constraint conversation_messages_sender_id_profiles_id_fk foreign key (sender_id) references public.profiles(id) on delete cascade;
+alter table public.conversation_messages alter column sender_id set not null;
+alter table public.invitations
+  drop constraint invitations_invited_by_profiles_user_id_fk,
+  add constraint invitations_invited_by_profiles_user_id_fk foreign key (invited_by) references public.profiles(user_id) on delete cascade;
+alter table public.invitations alter column invited_by set not null;
+alter table public.event_registrations
+  drop constraint event_registrations_profile_id_profiles_id_fk,
+  add constraint event_registrations_profile_id_profiles_id_fk foreign key (profile_id) references public.profiles(id) on delete cascade;
+alter table public.event_registrations alter column profile_id set not null;
+alter table public.ticket_responses
+  drop constraint ticket_responses_user_id_profiles_id_fk,
+  add constraint ticket_responses_user_id_profiles_id_fk foreign key (user_id) references public.profiles(id) on delete cascade;
+alter table public.ticket_responses alter column user_id set not null;
+alter table public.ticket_attachments
+  drop constraint ticket_attachments_uploaded_by_profiles_id_fk,
+  add constraint ticket_attachments_uploaded_by_profiles_id_fk foreign key (uploaded_by) references public.profiles(id) on delete cascade;
+alter table public.ticket_attachments alter column uploaded_by set not null;

@@ -3,7 +3,8 @@
 Estado al 14-11-2026.
 
 - **Supresión de cuentas (sección 1): resuelta en código y preparada como
-  candidata SQL** (`docs/deployment/candidates/20261114120000_account_erasure_candidate.sql`),
+  candidata SQL** (`docs/deployment/candidates/20261114120000_account_erasure_candidate.sql`,
+  con su paso de validación),
   **sin aplicar en ningún entorno**. Mientras no se aplique, suprimir una cuenta
   desde super-admin responde 503 y no borra nada.
 - **Fichas de gimnasta que vinieron de una solicitud (sección 2): pendiente.**
@@ -127,6 +128,31 @@ evidencia fiscal de Zaltyko se conserva y bloquea la supresión.
 | `public.directory_revisions.user_id`, `directory_subscriptions.user_id` | NO ACTION | **SET NULL** | La ficha y la suscripción por email existen sin cuenta; darse de baja de una suscripción es otra solicitud |
 | `public.directory_favorites.user_id` | CASCADE | sin cambios | Solo de la cuenta |
 
+Hacia el perfil legacy (`public.profiles`), que la ruta borra después de la
+cuenta:
+
+| Tabla.columna → `public.profiles` | Antes | Después | Por qué |
+|---|---|---|---|
+| `public.academies.owner_id` | CASCADE (borraba la academia legacy entera, con cobros y facturas) | **RESTRICT justificado** | Una academia nunca se borra como efecto lateral; la supresión responde 409 y hay que transferirla o cerrarla |
+| `public.coaches.profile_id` | CASCADE (arrastraba `class_coach_assignments`, `coach_compensation`, `coach_sport_configs`) | **SET NULL** | Ficha de entrenador de la academia, con sus clases y pagos |
+| `public.announcements.author_id` | CASCADE, NOT NULL | **SET NULL** | Avisos que leen las familias |
+| `public.conversation_messages.sender_id` | CASCADE, NOT NULL | **SET NULL** | Mensajes que otras personas recibieron (y sus recibos de lectura) |
+| `public.invitations.invited_by` | CASCADE, NOT NULL | **SET NULL** | Invitaciones de la academia a otras personas |
+| `public.event_registrations.profile_id` | CASCADE, NOT NULL (arrastraba `event_payments`) | **SET NULL** | Inscripción con sus pagos: obligación contable |
+| `public.ticket_responses.user_id`, `ticket_attachments.uploaded_by` | CASCADE, NOT NULL | **SET NULL** | Respuestas de soporte en tickets de otras personas |
+| `memberships`, `notifications`, `user_preferences`, `push_*`, `announcement_read_status`, `message_read_receipts` (propios), `conversation_participants`, `tickets.created_by`, `event_waitlist`, `empleo_applications`, `academy_link_requests`, `owner_consent`, `family_stripe_customers`, `subscriptions` | CASCADE | sin cambios | Solo de la cuenta. Las facturas de Zaltyko viven en FacturaDirecta, no aquí; el cliente de Stripe no se borra desde Zaltyko |
+| `marketplace_ratings.reviewer_id` y `seller_id` | CASCADE | sin cambios | Valoraciones que escribió la persona y que hablan de ella: sin obligación de conservarlas |
+
+**Filas nuevas.** Donde la candidata quita NOT NULL (pertenencia,
+`insight_actions`, directorio y las columnas de autor legacy de arriba), un
+trigger `BEFORE INSERT` (`zaltyko_domain_private.require_column_on_insert`)
+sigue exigiendo el valor al insertar. Solo la clave foránea lo deja vacío.
+
+**Invitación aceptada.** Se conserva con `accepted_member_id` como evidencia de
+acceso de la academia, pero el servidor sustituye antes su email
+(`cuenta-suprimida+<id>@zaltyko.invalid`) y, si los tenía, el nombre
+(«Cuenta suprimida»).
+
 Las claves de autoría hacia `organization_members` (lista de arriba) **no
 cambian**: la pertenencia ya no se borra. Borrar una pertenencia a mano sigue
 bloqueado, a propósito.
@@ -141,26 +167,38 @@ el futuro, anonimizarla). Elvis puede cambiar esta decisión.
 
 Ruta: `DELETE /api/super-admin/users/[profileId]` (motivo obligatorio).
 
-1. Si el perfil legacy es dueño de academias (`public.academies.owner_id`),
-   **409** `ACCOUNT_ERASURE_OWNS_LEGACY_ACADEMIES`: borrarlo eliminaría esas
-   academias con sus cobros y facturas. Antes se borraban en silencio.
-2. En una transacción (`prepareAccountErasure`):
+1. En una transacción (`prepareAccountErasure`, con `lock_timeout` de 5 s):
    - sin la candidata instalada, **503** `ACCOUNT_ERASURE_NOT_AVAILABLE`;
-   - bloquea las pertenencias de la cuenta y las de dueña de esas academias;
-   - si firmó decisiones de conciliación SaaS, **409**
-     `ACCOUNT_ERASURE_RETAINED_BILLING_EVIDENCE`;
+   - bloquea el perfil legacy, las pertenencias de la cuenta y las de dueña de
+     esas academias;
+   - busca en el catálogo toda clave NO ACTION/RESTRICT hacia `auth.users` o
+     `public.profiles`, en cualquier esquema salvo `auth` (también `storage`),
+     y cuenta las filas de esta persona. Si firmó decisiones de conciliación
+     SaaS, **409** `ACCOUNT_ERASURE_RETAINED_BILLING_EVIDENCE`; si su perfil es
+     dueño de academias legacy, **409** `ACCOUNT_ERASURE_OWNS_LEGACY_ACADEMIES`;
+     cualquier otra, **409** `ACCOUNT_ERASURE_BLOCKED_REFERENCE` con la tabla.
+     Así nada se revoca para fallar después en Auth. Antes, borrar el perfil
+     de una dueña legacy borraba en silencio su academia;
    - si es la única dueña activa (con cuenta) de una academia, **409**
      `ACCOUNT_ERASURE_LAST_OWNER`: hay que transferir la titularidad o cerrar
      la academia antes;
    - revoca sus pertenencias en todas las academias y deja en el
      `audit_log` de cada una `member.account_erased` (pertenencia, estado
      anterior y motivo; sin datos de la persona);
+   - sustituye email y nombre de las invitaciones que aceptó;
    - retira sus reclamaciones pendientes del directorio.
-3. Borra la cuenta en Supabase Auth. Las claves hacen el resto (tabla de
+
+   Si dos supresiones se bloquean entre sí (por ejemplo, dos co-dueñas a la
+   vez: 40P01) o se agota el `lock_timeout` (55P03), **409**
+   `ACCOUNT_ERASURE_CONCURRENT` sin cambios: se puede reintentar.
+2. Borra la cuenta en Supabase Auth. Las claves hacen el resto (tabla de
    arriba). Si Auth falla, **502** `ACCOUNT_ERASURE_AUTH_FAILED`: el acceso ya
    está retirado y reintentar es seguro (una cuenta ya borrada no es error).
    Antes, el fallo de Auth se registraba y la ruta respondía «ok».
-4. Borra el perfil legacy (`public.profiles`).
+3. Borra el perfil legacy (`public.profiles`). Si entretanto alguien lo
+   enlazó como dueño de una academia, la clave RESTRICT lo impide y la ruta
+   responde **409** `ACCOUNT_ERASURE_PROFILE_BLOCKED` (la cuenta ya está
+   suprimida; el perfil se queda hasta resolverlo).
 
 Un borrado directo de `auth.users` (por ejemplo, desde el panel de Supabase)
 sin este procedimiento falla entero si la cuenta sigue activa en alguna
@@ -171,11 +209,14 @@ una sola academia es otra operación (revocar la pertenencia sin tocar la
 cuenta).
 
 **Pruebas.** `tests/account-erasure-pg.test.ts` (job «Postgres integration»)
-instala la candidata en el PostgreSQL desechable dentro de una transacción que
-se deshace: crea autoría en cada tipo de registro, suprime la cuenta y
-comprueba qué se conserva, qué se vacía y qué se borra; también la verificación,
-la vuelta atrás y los bloqueos. `tests/account-erasure.test.ts` cubre el orden
-y los 409/502/503 sin base de datos.
+instala la candidata y su validación en el PostgreSQL desechable dentro de una
+transacción que se deshace: crea autoría en cada tipo de registro (también en
+la academia legacy: ficha de entrenador, aviso, mensaje e invitación), suprime
+la cuenta y borra el perfil, y comprueba qué se conserva, qué se vacía y qué se
+borra; también la verificación, la vuelta atrás idéntica, los triggers de
+autor obligatorio y los bloqueos (última dueña, dueña legacy).
+`tests/account-erasure.test.ts` cubre el orden, los 409/502/503, 40P01/55P03,
+23503 y los errores de Auth sin base de datos.
 
 ### Verificar en staging
 
@@ -185,10 +226,11 @@ y los 409/502/503 sin base de datos.
 
    ```bash
    psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f docs/deployment/candidates/20261114120000_account_erasure_candidate.sql
-   psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -f docs/deployment/candidates/20261114120000_account_erasure_verify.sql
+   psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f docs/deployment/candidates/20261114120000_account_erasure_validate.sql
+   PGOPTIONS='-c default_transaction_read_only=on' psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -f docs/deployment/candidates/20261114120000_account_erasure_verify.sql
    ```
 
-   La verificación lista cada comprobación con `ok = t` y termina con
+   La verificación escribe una línea `ok` por comprobación y termina con
    `Account erasure verification passed`.
 2. Desplegar en staging el código de esta rama.
 3. Con cuentas de prueba de staging: una dueña invita a una entrenadora, la
@@ -205,7 +247,13 @@ y los 409/502/503 sin base de datos.
    -- member.account_erased, {"status": "active"} -> {"status": "revoked"}
    ```
 5. Intentar eliminar a la única dueña de una academia: debe responder 409
-   («Esta cuenta es la única dueña activa…») sin cambiar nada.
+   («Esta cuenta es la única dueña activa…») sin cambiar nada. Lo mismo con un
+   perfil dueño de una academia legacy («Este perfil es dueño de academias…»).
+6. Si la entrenadora tenía ficha de entrenador legacy, avisos o mensajes,
+   siguen visibles en la academia sin autor (`public.coaches.profile_id`,
+   `public.announcements.author_id` y `public.conversation_messages.sender_id`
+   vacíos). Las pantallas que unen esas filas con el perfil por `inner join`
+   dejarán de mostrarlas; los datos siguen ahí.
 
 ## 2. La ficha de una gimnasta que vino de una solicitud no se puede borrar
 

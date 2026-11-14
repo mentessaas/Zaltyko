@@ -9,6 +9,9 @@ import { db } from "@/db";
 import type { TransactionClient } from "@/lib/db-transactions";
 import {
   ACCOUNT_ERASURE_AUDIT_ACTION,
+  ERASED_INVITEE_FAMILY_NAME,
+  ERASED_INVITEE_GIVEN_NAME,
+  erasedInvitationEmail,
   isAccountErasureSchemaInstalled,
   prepareAccountErasure,
 } from "@/modules/data-rights/application/account-erasure";
@@ -67,6 +70,7 @@ function assertDisposableTarget() {
 const file = (name: string) => readFileSync(resolve(process.cwd(), "docs/deployment/candidates", name), "utf8");
 const CANDIDATE = "20261114120000_account_erasure_candidate.sql";
 const VERIFY = "20261114120000_account_erasure_verify.sql";
+const VALIDATE = "20261114120000_account_erasure_validate.sql";
 const ROLLBACK = "20261114120000_account_erasure_rollback.sql";
 const TEAM_ACCESS = "20261105120000_canonical_team_access_candidate.sql";
 
@@ -112,20 +116,27 @@ async function catalogFingerprint(tx: TransactionClient): Promise<string> {
           'zaltyko.organization_members'::regclass, 'zaltyko.payments'::regclass, 'zaltyko.insight_actions'::regclass,
           'zaltyko.organization_member_invitations'::regclass, 'zaltyko.organization_team_command_receipts'::regclass,
           'public.directory_grants'::regclass, 'public.directory_claims'::regclass, 'public.directory_revisions'::regclass,
-          'public.directory_subscriptions'::regclass, 'public.directory_audit'::regclass
+          'public.directory_subscriptions'::regclass, 'public.directory_audit'::regclass,
+          'public.academies'::regclass, 'public.coaches'::regclass, 'public.announcements'::regclass,
+          'public.conversation_messages'::regclass, 'public.invitations'::regclass, 'public.event_registrations'::regclass,
+          'public.ticket_responses'::regclass, 'public.ticket_attachments'::regclass
         )
       ),
+      'triggers', (
+        select coalesce(jsonb_agg(tgrelid::regclass::text || '.' || tgname order by tgrelid::regclass::text, tgname), '[]'::jsonb)
+        from pg_trigger where not tgisinternal and tgname like '%required_on_insert'
+      ),
+      'require_function', to_regprocedure('zaltyko_domain_private.require_column_on_insert()') is not null,
       'not_null', (
         select jsonb_agg(attrelid::regclass::text || '.' || attname || '=' || attnotnull order by attrelid::regclass::text, attname)
         from pg_attribute
         where attrelid in (
             'zaltyko.organization_members'::regclass, 'zaltyko.insight_actions'::regclass,
-            'public.directory_grants'::regclass, 'public.directory_claims'::regclass
+            'public.directory_grants'::regclass, 'public.directory_claims'::regclass,
+            'public.announcements'::regclass, 'public.conversation_messages'::regclass, 'public.invitations'::regclass,
+            'public.event_registrations'::regclass, 'public.ticket_responses'::regclass, 'public.ticket_attachments'::regclass
           )
-          and attrelid::regclass::text || '.' || attname in (
-            'zaltyko.organization_members.user_id', 'zaltyko.insight_actions.actor_user_id',
-            'public.directory_grants.approved_by', 'public.directory_claims.user_id'
-          )
+          and attname in ('user_id', 'actor_user_id', 'approved_by', 'author_id', 'sender_id', 'invited_by', 'profile_id', 'uploaded_by')
       ),
       'functions', (
         select jsonb_agg(jsonb_build_object('name', proname, 'source', prosrc, 'definer', prosecdef, 'config', proconfig, 'owner', proowner::regrole::text)
@@ -249,6 +260,19 @@ async function fixture(tx: TransactionClient): Promise<Fixture> {
   };
 }
 
+/** Candidato y su paso de validación, como en staging. */
+async function install(tx: TransactionClient) {
+  await tx.execute(sql.raw(file(CANDIDATE)));
+  await tx.execute(sql.raw(file(VALIDATE)));
+}
+
+/** Perfil legacy (public.profiles) de una cuenta. */
+async function legacyProfile(tx: TransactionClient, userId: string): Promise<string> {
+  const id = randomUUID();
+  await tx.execute(sql`insert into public.profiles (id, user_id, tenant_id, name, role) values (${id}::uuid, ${userId}::uuid, ${randomUUID()}::uuid, 'Persona CI', 'coach')`);
+  return id;
+}
+
 async function ensureTeamAccess(tx: TransactionClient) {
   const present = await one<{ present: boolean }>(tx, sql`select to_regclass('zaltyko.organization_member_invitations') is not null as present`);
   if (!present.present) await tx.execute(sql.raw(file(TEAM_ACCESS)));
@@ -267,6 +291,10 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("supresión de cuent
       const before = await catalogFingerprint(tx);
       await tx.execute(sql.raw(file(CANDIDATE)));
       expect(await isAccountErasureSchemaInstalled(tx)).toBe(true);
+      // Claves y CHECK nacen NOT VALID: la verificación exige el paso de validación.
+      expect((await failure(tx, (sp) => sp.execute(sql.raw(file(VERIFY))))).message).toMatch(/Account erasure verification failed: .*validad/);
+      await tx.execute(sql.raw(file(VALIDATE)));
+      await tx.execute(sql.raw(file(VALIDATE)));
       await tx.execute(sql.raw(file(VERIFY)));
       expect(await catalogFingerprint(tx)).not.toBe(before);
       await expect(assertCanonicalTeamAccessSchema(tx)).resolves.toBeUndefined();
@@ -286,7 +314,7 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("supresión de cuent
     await inRolledBackTransaction(async (tx) => {
       await ensureTeamAccess(tx);
       const f = await fixture(tx);
-      await expect(prepareAccountErasure(tx, { userId: f.coach.userId, actorUserId: f.superAdmin })).rejects.toMatchObject({
+      await expect(prepareAccountErasure(tx, { userId: f.coach.userId, profileId: null, actorUserId: f.superAdmin })).rejects.toMatchObject({
         code: "ACCOUNT_ERASURE_NOT_AVAILABLE",
         status: 503,
       });
@@ -300,7 +328,7 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("supresión de cuent
   it("suprime la cuenta, seudonimiza la autoría y conserva los registros de la academia", async () => {
     await inRolledBackTransaction(async (tx) => {
       await ensureTeamAccess(tx);
-      await tx.execute(sql.raw(file(CANDIDATE)));
+      await install(tx);
       const f = await fixture(tx);
 
       // Sin el procedimiento, borrar la cuenta falla entero: la pertenencia
@@ -308,8 +336,8 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("supresión de cuent
       const direct = await failure(tx, (sp) => sp.execute(sql`delete from auth.users where id = ${f.coach.userId}::uuid`));
       expect(direct.code).toBe("23514");
 
-      const preparation = await prepareAccountErasure(tx, { userId: f.coach.userId, actorUserId: f.superAdmin });
-      expect(preparation).toEqual({ revokedMemberships: 1, organizations: 1, withdrawnDirectoryClaims: 1 });
+      const preparation = await prepareAccountErasure(tx, { userId: f.coach.userId, profileId: null, actorUserId: f.superAdmin });
+      expect(preparation).toEqual({ revokedMemberships: 1, organizations: 1, pseudonymizedInvitations: 1, withdrawnDirectoryClaims: 1 });
       // Lo que hace Supabase Auth al borrar la cuenta.
       await tx.execute(sql`delete from auth.users where id = ${f.coach.userId}::uuid`);
 
@@ -331,9 +359,17 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("supresión de cuent
         select recorded_by_user_id::text, amount_cents::text, source::text from zaltyko.payments where id = ${f.paymentId}::uuid`);
       expect(payment).toEqual({ recorded_by_user_id: null, amount_cents: "4500", source: "manual" });
 
-      const invitation = await one<{ status: string; accepted_by_user_id: string | null; accepted_member_id: string }>(tx, sql`
-        select status, accepted_by_user_id::text, accepted_member_id::text from zaltyko.organization_member_invitations where id = ${f.invitationId}::uuid`);
-      expect(invitation).toEqual({ status: "accepted", accepted_by_user_id: null, accepted_member_id: f.coach.memberId });
+      const invitation = await one<Record<string, string | null>>(tx, sql`
+        select status, accepted_by_user_id::text, accepted_member_id::text, normalized_email, invitee_given_name, invitee_family_name
+        from zaltyko.organization_member_invitations where id = ${f.invitationId}::uuid`);
+      expect(invitation).toEqual({
+        status: "accepted",
+        accepted_by_user_id: null,
+        accepted_member_id: f.coach.memberId,
+        normalized_email: erasedInvitationEmail(f.invitationId),
+        invitee_given_name: ERASED_INVITEE_GIVEN_NAME,
+        invitee_family_name: ERASED_INVITEE_FAMILY_NAME,
+      });
       const receipts = await one<{ count: number }>(tx, sql`
         select count(*)::int as count from zaltyko.organization_team_command_receipts where invitation_id = ${f.invitationId}::uuid`);
       expect(receipts.count).toBe(0);
@@ -357,8 +393,8 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("supresión de cuent
       await expect(assertCanonicalTeamAccessSchema(tx)).resolves.toBeUndefined();
 
       // Reintentar es seguro: no hay nada que revocar.
-      expect(await prepareAccountErasure(tx, { userId: f.coach.userId, actorUserId: f.superAdmin }))
-        .toEqual({ revokedMemberships: 0, organizations: 0, withdrawnDirectoryClaims: 0 });
+      expect(await prepareAccountErasure(tx, { userId: f.coach.userId, profileId: null, actorUserId: f.superAdmin }))
+        .toEqual({ revokedMemberships: 0, organizations: 0, pseudonymizedInvitations: 0, withdrawnDirectoryClaims: 0 });
 
       // Ya no hay vuelta atrás sin decidir qué hacer con estas filas.
       expect((await failure(tx, (sp) => sp.execute(sql.raw(file(ROLLBACK))))).message).toMatch(/accounts were already erased/);
@@ -368,10 +404,10 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("supresión de cuent
   it("no deja una academia sin dueña activa", async () => {
     await inRolledBackTransaction(async (tx) => {
       await ensureTeamAccess(tx);
-      await tx.execute(sql.raw(file(CANDIDATE)));
+      await install(tx);
       const f = await fixture(tx);
 
-      await expect(prepareAccountErasure(tx, { userId: f.owner.userId, actorUserId: f.superAdmin })).rejects.toMatchObject({
+      await expect(prepareAccountErasure(tx, { userId: f.owner.userId, profileId: null, actorUserId: f.superAdmin })).rejects.toMatchObject({
         code: "ACCOUNT_ERASURE_LAST_OWNER",
         status: 409,
         details: { organizations: 1 },
@@ -381,12 +417,104 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("supresión de cuent
 
       // Con otra dueña activa, la supresión sigue adelante.
       await member(tx, f.organizationId, "owner", "second-owner");
-      const preparation = await prepareAccountErasure(tx, { userId: f.owner.userId, actorUserId: f.superAdmin });
+      const preparation = await prepareAccountErasure(tx, { userId: f.owner.userId, profileId: null, actorUserId: f.superAdmin });
       expect(preparation.revokedMemberships).toBe(1);
       await tx.execute(sql`delete from auth.users where id = ${f.owner.userId}::uuid`);
       const invitation = await one<{ invited_by_member_id: string }>(tx, sql`
         select invited_by_member_id::text from zaltyko.organization_member_invitations where id = ${f.invitationId}::uuid`);
       expect(invitation.invited_by_member_id).toBe(f.owner.memberId);
+    });
+  }, 60_000);
+
+  it("exige autor en filas nuevas aunque la columna admita null", async () => {
+    await inRolledBackTransaction(async (tx) => {
+      await ensureTeamAccess(tx);
+      await install(tx);
+      const f = await fixture(tx);
+      const member = await failure(tx, (sp) => sp.execute(sql`
+        insert into zaltyko.organization_members (organization_id, user_id, role, status, location_scope_mode)
+        values (${f.organizationId}::uuid, null, 'coach', 'revoked', 'all')`));
+      expect(member.code).toBe("23502");
+      const ownerProfile = await legacyProfile(tx, f.owner.userId);
+      const academyId = randomUUID();
+      await tx.execute(sql`insert into public.academies (id, tenant_id, name, owner_id) values (${academyId}::uuid, ${randomUUID()}::uuid, 'Academia CI', ${ownerProfile}::uuid)`);
+      const announcement = await failure(tx, (sp) => sp.execute(sql`
+        insert into public.announcements (academy_id, author_id, title, content) values (${academyId}::uuid, null, 'Aviso', 'Texto')`));
+      expect(announcement.code).toBe("23502");
+    });
+  }, 60_000);
+
+  it("borrar el perfil legacy conserva la academia y lo que leen otras personas", async () => {
+    await inRolledBackTransaction(async (tx) => {
+      await ensureTeamAccess(tx);
+      await install(tx);
+      const f = await fixture(tx);
+      const ownerProfile = await legacyProfile(tx, f.owner.userId);
+      const coachProfile = await legacyProfile(tx, f.coach.userId);
+      const tenantId = randomUUID();
+      const academyId = randomUUID();
+      await tx.execute(sql`insert into public.academies (id, tenant_id, name, owner_id) values (${academyId}::uuid, ${tenantId}::uuid, 'Academia CI', ${ownerProfile}::uuid)`);
+
+      // La dueña legacy no se puede suprimir: su academia (con cobros y facturas) no se borra.
+      await expect(prepareAccountErasure(tx, { userId: f.owner.userId, profileId: ownerProfile, actorUserId: f.superAdmin })).rejects.toMatchObject({
+        code: "ACCOUNT_ERASURE_OWNS_LEGACY_ACADEMIES",
+        status: 409,
+        details: { academies: 1 },
+      });
+      expect((await failure(tx, (sp) => sp.execute(sql`delete from public.profiles where id = ${ownerProfile}::uuid`))).code).toBe("23503");
+
+      // Lo que escribió la entrenadora en la academia legacy.
+      const coachId = randomUUID();
+      const announcementId = randomUUID();
+      const conversationId = randomUUID();
+      const messageId = randomUUID();
+      const invitationId = randomUUID();
+      await tx.execute(sql`insert into public.coaches (id, tenant_id, academy_id, name, profile_id) values (${coachId}::uuid, ${tenantId}::uuid, ${academyId}::uuid, 'Carla Pons', ${coachProfile}::uuid)`);
+      await tx.execute(sql`insert into public.announcements (id, academy_id, author_id, title, content) values (${announcementId}::uuid, ${academyId}::uuid, ${coachProfile}::uuid, 'Horario', 'Cambia el horario')`);
+      await tx.execute(sql`insert into public.conversations (id, tenant_id, academy_id) values (${conversationId}::uuid, ${tenantId}::uuid, ${academyId}::uuid)`);
+      await tx.execute(sql`insert into public.conversation_messages (id, conversation_id, sender_id, content) values (${messageId}::uuid, ${conversationId}::uuid, ${coachProfile}::uuid, 'Hola')`);
+      await tx.execute(sql`
+        insert into public.invitations (id, tenant_id, email, role, token, invited_by, expires_at)
+        values (${invitationId}::uuid, ${tenantId}::uuid, ${`ci-invitee-${invitationId}@example.invalid`}, 'coach', ${hex()}, ${f.coach.userId}::uuid, now() + interval '7 days')`);
+      await tx.execute(sql`insert into public.memberships (user_id, academy_id) values (${f.coach.userId}::uuid, ${academyId}::uuid)`);
+      await tx.execute(sql`insert into public.notifications (tenant_id, user_id, type, title) values (${tenantId}::uuid, ${coachProfile}::uuid, 'info', 'Aviso')`);
+
+      const preparation = await prepareAccountErasure(tx, { userId: f.coach.userId, profileId: coachProfile, actorUserId: f.superAdmin });
+      expect(preparation.revokedMemberships).toBe(1);
+      // Lo que harían Supabase Auth y la ruta, en el mismo orden.
+      await tx.execute(sql`delete from auth.users where id = ${f.coach.userId}::uuid`);
+      await tx.execute(sql`delete from public.profiles where id = ${coachProfile}::uuid`);
+
+      const kept = await one<Record<string, string | null>>(tx, sql`
+        select
+          (select profile_id::text from public.coaches where id = ${coachId}::uuid) as coach_profile,
+          (select name from public.coaches where id = ${coachId}::uuid) as coach_name,
+          (select author_id::text from public.announcements where id = ${announcementId}::uuid) as announcement_author,
+          (select title from public.announcements where id = ${announcementId}::uuid) as announcement_title,
+          (select sender_id::text from public.conversation_messages where id = ${messageId}::uuid) as message_sender,
+          (select content from public.conversation_messages where id = ${messageId}::uuid) as message_content,
+          (select invited_by::text from public.invitations where id = ${invitationId}::uuid) as invitation_inviter,
+          (select status from public.invitations where id = ${invitationId}::uuid) as invitation_status,
+          (select owner_id::text from public.academies where id = ${academyId}::uuid) as academy_owner
+      `);
+      expect(kept).toEqual({
+        coach_profile: null,
+        coach_name: "Carla Pons",
+        announcement_author: null,
+        announcement_title: "Horario",
+        message_sender: null,
+        message_content: "Hola",
+        invitation_inviter: null,
+        invitation_status: "pending",
+        academy_owner: ownerProfile,
+      });
+      // Lo que solo era de la cuenta se borra con ella.
+      const own = await one<{ memberships: number; notifications: number }>(tx, sql`
+        select
+          (select count(*)::int from public.memberships where user_id = ${f.coach.userId}::uuid) as memberships,
+          (select count(*)::int from public.notifications where user_id = ${coachProfile}::uuid) as notifications
+      `);
+      expect(own).toEqual({ memberships: 0, notifications: 0 });
     });
   }, 60_000);
 });
