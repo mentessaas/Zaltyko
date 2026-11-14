@@ -20,8 +20,7 @@ import {
 import { OwnerTodaySessionsPanel } from "@/components/owner-dashboard/OwnerTodaySessionsPanel";
 import { OwnerScheduleConflictList } from "@/components/owner-dashboard/OwnerScheduleConflicts";
 import { getUpcomingScheduleConflicts } from "@/modules/schedule-conflicts/application/schedule-conflicts-service";
-import { ownerUi } from "@/components/owner-dashboard/owner-ui";
-import { ownerTab, ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
+import { ownerTab, ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { logger } from "@/lib/logger";
 import { getOwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
 import {

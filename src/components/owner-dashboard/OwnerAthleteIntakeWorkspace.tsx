@@ -1,7 +1,7 @@
 "use client";
 
-import { ownerTone } from "./owner-tone-ui";
-import { ownerUi } from "./owner-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { decodeOwnerUsage } from "@/components/owner-dashboard/owner-plan-usage-response";
@@ -330,7 +330,16 @@ function assignIntentFromForm(input: AssignBody, athleteId: string): AssignInten
   }
 }
 
-export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }: { organizationId: string; organizationName: string }) {
+export function OwnerAthleteIntakeWorkspace({
+  organizationId,
+  organizationName,
+  importHref,
+}: {
+  organizationId: string;
+  organizationName: string;
+  /** Acción de la cabecera: importar gimnastas desde Excel o CSV. */
+  importHref?: string;
+}) {
   const [page, setPage] = useState(1);
   const [refresh, setRefresh] = useState(0);
   const [data, setData] = useState<IntakePage | null>(null);
@@ -669,13 +678,15 @@ export function OwnerAthleteIntakeWorkspace({ organizationId, organizationName }
   return (
     <main className={ownerUi.page}>
       <div className="mx-auto grid max-w-5xl gap-6">
-        <header>
-          <p className={ownerUi.eyebrow}>{organizationName}</p>
-          <h1 className={ownerUi.pageTitle}>Gimnastas</h1>
-          <p className={ownerUi.pageLead}>
-            Bandeja de la dirección para fichas activas que todavía no tienen asignación operativa. Las sedes y grupos se cargan desde la academia; no se aceptan identificadores escritos a mano.
-          </p>
-        </header>
+        <PageHeader
+          title="Gimnastas"
+          description={`Bandeja de la dirección de ${organizationName} para fichas activas que todavía no tienen asignación operativa. Las sedes y grupos se cargan desde la academia; no se aceptan identificadores escritos a mano.`}
+          actions={importHref ? (
+            <Link href={importHref} className={ownerUi.secondaryButton}>
+              Importar desde Excel o CSV
+            </Link>
+          ) : undefined}
+        />
 
         {usageState === "ready" && readOnly ? (
           <aside role="status" className={ownerTone.noticeWarning}>

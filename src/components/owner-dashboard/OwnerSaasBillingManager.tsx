@@ -1,6 +1,7 @@
 "use client";
 
 import { ownerUi } from "./owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePendingCommandExitWarning } from "./use-pending-command-exit-warning";
@@ -741,26 +742,20 @@ export function OwnerSaasBillingManager({
   return (
     <main className={ownerUi.page}>
       <div className="mx-auto max-w-5xl">
-        <header className="rounded-xl border border-z-line bg-white p-6 sm:p-8">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
-            Gestión del plan
-          </p>
-          <h1 className={ownerUi.pageTitle}>
-            Plan y facturación de Zaltyko
-          </h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-z-soft">
-            Consulta el acceso de tu academia y gestiona su suscripción. Esto es
-            independiente de los cobros y cuotas de las familias.
-          </p>
-          <div className="mt-6 rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-white p-4">
-            <span className="block text-xs font-bold uppercase tracking-wide text-z-soft">
-              Academia
-            </span>
-            <span className="mt-1 block font-display text-lg font-bold">
-              {currentSnapshot?.organization.name ?? organizationName}
-            </span>
-          </div>
-        </header>
+        <PageHeader
+          title="Plan y facturación de Zaltyko"
+          description="Consulta el acceso de tu academia y gestiona su suscripción. Esto es independiente de los cobros y cuotas de las familias."
+        />
+        {/* La academia es un dato del bloque, debajo de la cabecera: es la que
+            confirma el servidor, no la de la URL. */}
+        <div className="mt-6 rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-white p-4">
+          <span className="floor-label block text-z-soft">
+            Academia
+          </span>
+          <span className="mt-1 block font-display text-lg font-bold">
+            {currentSnapshot?.organization.name ?? organizationName}
+          </span>
+        </div>
 
         <OwnerPlanUsage organizationId={organizationId} />
 
@@ -772,7 +767,7 @@ export function OwnerSaasBillingManager({
 
         {currentLoadError ? (
           <section
-            className="mt-6 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-5"
+            className="mt-6 rounded-md border border-z-line border-t-[3px] border-t-signal-ink bg-white p-5"
             role="alert"
           >
             <h2 className="font-display text-xl font-bold">
@@ -845,14 +840,14 @@ export function OwnerSaasBillingManager({
                         : ""}
                     </p>
                     {subscription.cancelAtPeriodEnd ? (
-                      <p className="mt-2 text-sm font-semibold text-amber-900">
+                      <p className="mt-2 text-sm font-semibold text-ochre-ink">
                         La renovación está desactivada y la cancelación está
                         programada al final del periodo indicado. El acceso
                         efectivo es el que confirma el servidor.
                       </p>
                     ) : null}
                     {paymentNotice ? (
-                      <p className="mt-2 max-w-2xl text-sm text-amber-900" role="status">
+                      <p className="mt-2 max-w-2xl text-sm text-ochre-ink" role="status">
                         {paymentNotice}
                       </p>
                     ) : null}
@@ -888,7 +883,7 @@ export function OwnerSaasBillingManager({
 
             {!syncIsReady ? (
               <section
-                className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-5"
+                className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-ochre bg-white p-5"
                 role="status"
               >
                 <p className="font-semibold">
@@ -932,7 +927,7 @@ export function OwnerSaasBillingManager({
           </div>
         ) : null}
         {pendingCommand ? (
-          <section className="rounded-[12px] mt-4 border border-amber-700 bg-white p-5" aria-label="Operación de facturación pendiente" aria-busy={busyAction !== null}>
+          <section className="rounded-[12px] mt-4 border border-ochre-line bg-ochre-wash p-5" aria-label="Operación de facturación pendiente" aria-busy={busyAction !== null}>
             {pendingCommand.organizationId === organizationId ? <>
               <p className="font-semibold">{pendingCommand.action === "checkout" ? `Contratación de ${pendingCommand.planCode === "growth" ? "Growth" : "Starter"} · ${pendingCommand.intent.body.billingInterval === "year" ? "pago anual" : "mensual"}` : pendingCommand.action === "portal" ? "Preparación del Portal" : "Activación de la prueba"}: pendiente de confirmar.</p>
               <p className="mt-2 text-sm">No cierres ni recargues esta página. El reintento conserva la operación, el cuerpo y la clave originales; no inicia otra contratación.</p>
@@ -949,7 +944,7 @@ export function OwnerSaasBillingManager({
           </div>
         ) : null}
         {pendingReadState.organizationId === organizationId && pendingReadState.status === "blocked" ? (
-          <div className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-4" role="alert">
+          <div className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-signal-ink bg-white p-4" role="alert">
             <p className="text-sm leading-6 text-z-ink">{pendingReadState.message}</p>
             <button type="button" className="touch-target mt-2 rounded-full border px-4 text-sm font-bold" onClick={() => setPendingReadAttempt((value) => value + 1)}>Volver a comprobar la operación guardada</button>
           </div>
@@ -1031,7 +1026,7 @@ export function OwnerSaasBillingManager({
             {marketNotice ? (
               <p
                 role="note"
-                className="mt-5 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-4 text-sm leading-6 text-z-soft"
+                className="mt-5 rounded-md border border-z-line border-t-[3px] border-t-ochre bg-white p-4 text-sm leading-6 text-z-soft"
               >
                 {marketNotice}
               </p>
@@ -1070,7 +1065,7 @@ export function OwnerSaasBillingManager({
                 {taxTerritoryNotice ? (
                   <p
                     role="note"
-                    className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-4 text-sm leading-6 text-z-soft"
+                    className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-ochre bg-white p-4 text-sm leading-6 text-z-soft"
                   >
                     {taxTerritoryNotice}
                   </p>

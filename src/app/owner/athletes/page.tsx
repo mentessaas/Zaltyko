@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { OwnerAthleteIntakeWorkspace } from "@/components/owner-dashboard/OwnerAthleteIntakeWorkspace";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
-import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { createClient } from "@/lib/supabase/server";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -64,17 +62,10 @@ export default async function OwnerAthletesPage({
       organizationName={scope.organization.name}
       locationId={scope.selectedLocationId}
     >
-      <div className="mx-auto w-full max-w-6xl px-5 pt-5 lg:px-10">
-        <Link
-          href={`/owner/athletes/import?organizationId=${encodeURIComponent(scope.organization.id)}`}
-          className={ownerUi.secondaryButton}
-        >
-          Importar desde Excel o CSV
-        </Link>
-      </div>
       <OwnerAthleteIntakeWorkspace
         organizationId={scope.organization.id}
         organizationName={scope.organization.name}
+        importHref={`/owner/athletes/import?organizationId=${encodeURIComponent(scope.organization.id)}`}
       />
     </OwnerWorkspacePageShell>
   );

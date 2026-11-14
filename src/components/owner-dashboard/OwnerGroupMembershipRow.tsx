@@ -11,7 +11,7 @@ import {
   statusLabel,
   type GroupsBundle,
 } from "./owner-groups-manager-model";
-import { ownerTone } from "./owner-tone-ui";
+import { ownerTone } from "./owner-ui";
 
 type ProfileEditorProps = ComponentProps<typeof OwnerAthleteProfileEditor>;
 type FamilyEditorProps = ComponentProps<typeof OwnerAthleteFamilyAssociationEditor>;

@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import { logger } from "@/lib/logger";
 
 export default function OwnerDashboardError({
@@ -17,19 +19,16 @@ export default function OwnerDashboardError({
 
   return (
     <main className="grid min-h-screen place-items-center bg-z-canvas px-5 py-16 text-z-ink">
-      <section className="max-w-xl rounded-md border border-z-line border-t-[3px] border-t-zaltyko-coral bg-white p-8 shadow-soft">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-chalk-600">
-          Panel no disponible
-        </p>
-        <h1 className="mt-3 text-3xl">No hemos podido cargar este cierre</h1>
-        <p className="mt-4 text-z-soft">
-          No sustituimos el fallo por ceros ni por una vista vacía. Puedes
-          volver a intentarlo sin perder el filtro actual.
-        </p>
+      <section className="max-w-xl rounded-md border border-z-line border-t-[3px] border-t-signal-ink bg-white p-8">
+        <PageHeader
+          title="No hemos podido cargar este cierre"
+          description="No sustituimos el fallo por ceros ni por una vista vacía. Puedes volver a intentarlo sin perder el filtro actual."
+          className="border-b-0 pb-0"
+        />
         <button
           type="button"
           onClick={reset}
-          className="touch-target mt-7 bg-z-ink px-5 py-3 text-sm font-bold text-white"
+          className={`${ownerUi.primaryButton} mt-7`}
         >
           Reintentar
         </button>

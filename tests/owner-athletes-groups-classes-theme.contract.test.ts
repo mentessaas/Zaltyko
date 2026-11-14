@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
+import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
 
 /**
  * Contrato de coherencia visual de gimnastas, grupos y clases de /owner
@@ -15,14 +15,14 @@ import { ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
  *   sistema;
  * - sin botones negros: principal en azul tapiz y peligro en tinta de señal;
  * - el aviso (pendiente, bloqueado, revisar) en ocre y el error en señal,
- *   nunca el aviso en coral.
+ *   nunca el aviso en coral, tanto en `ownerTone` como en `ownerUi`.
  */
 const FILES = [
   "src/app/owner/athletes/page.tsx",
   "src/app/owner/athletes/import/page.tsx",
   "src/app/owner/groups/page.tsx",
   "src/app/owner/classes/page.tsx",
-  "src/components/owner-dashboard/owner-tone-ui.ts",
+  "src/components/owner-dashboard/owner-ui.ts",
   "src/components/owner-dashboard/owner-groups-manager-model.ts",
   "src/components/owner-dashboard/OwnerAthleteIntakeWorkspace.tsx",
   "src/components/owner-dashboard/OwnerAthleteImportWorkspace.tsx",
@@ -117,10 +117,16 @@ describe("gimnastas, grupos y clases de /owner: tonos de estado", () => {
     }
   });
 
-  it("no usa las claves de ownerUi que hoy pintan el aviso en coral", () => {
-    // `ownerUi.noticeWarning` y `ownerUi.chipAttention` siguen en lavado de
-    // señal hasta el PR-R; aquí el aviso va siempre por `ownerTone`.
-    expect(offenders(/ownerUi\.(?:noticeWarning|chipAttention)\b/g)).toEqual([]);
+  it("ownerUi pinta el aviso y la atención en el mismo ocre que ownerTone", () => {
+    // Único origen (`owner-ui.ts`): no hay un aviso en coral por otra clave.
+    for (const tone of [ownerUi.noticeWarning, ownerUi.chipAttention]) {
+      expect(tone.split(/\s+/)).toEqual(expect.arrayContaining(["bg-ochre-wash", "text-ochre-ink"]));
+      expect(tone).not.toMatch(/signal|z-chalk|amber/);
+    }
+    expect(ownerTone.noticeWarning).toBe(ownerUi.noticeWarning);
+    expect(ownerTone.chipWarning).toBe(ownerUi.chipAttention);
+    expect(ownerTone.noticeError).toBe(ownerUi.noticeError);
+    expect(ownerUi.noticeError.split(/\s+/)).toEqual(expect.arrayContaining(["bg-signal-wash", "text-signal-ink"]));
   });
 
   it("los avisos de recuperación de grupos usan el tono de aviso", () => {

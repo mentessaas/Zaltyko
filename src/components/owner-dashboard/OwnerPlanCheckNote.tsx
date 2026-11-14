@@ -1,8 +1,7 @@
 "use client";
 
 import type { OwnerPlanPolicy } from "./owner-plan-usage-store";
-import { ownerTone } from "./owner-tone-ui";
-import { ownerUi } from "./owner-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
 
 /**
  * Estado de la comprobación del plan visto desde un panel que escribe:

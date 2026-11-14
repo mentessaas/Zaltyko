@@ -6,8 +6,7 @@ import { UserRound } from "lucide-react";
 import type { CoachRef } from "@/modules/coach-assignment/domain/coach-assignment";
 import type { ScheduleConflict } from "@/modules/schedule-conflicts/domain/schedule-conflicts";
 import { OwnerScheduleConflictList } from "./OwnerScheduleConflicts";
-import { ownerTone } from "./owner-tone-ui";
-import { ownerUi } from "./owner-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
 import {
   COACH_ASSIGNMENT_UNAVAILABLE_MESSAGE,
   fetchClassCoaches,
