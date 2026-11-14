@@ -15,6 +15,8 @@ export interface EffectiveOrganizationEntitlement {
     groupLimit: number | null;
     classLimit: number | null;
     academyLimit: number | null;
+    /** Sedes activas por organización; independiente de `academyLimit`. */
+    locationLimit: number | null;
   };
   source: EffectiveEntitlementSource;
   revision: number;
@@ -26,19 +28,21 @@ const PLAN_LIMITS: Record<
   EffectiveSaasPlanCode,
   EffectiveOrganizationEntitlement["limits"]
 > = {
-  free: { athleteLimit: 30, groupLimit: 3, classLimit: 10, academyLimit: 1 },
-  starter: { athleteLimit: 75, groupLimit: 5, classLimit: 20, academyLimit: 1 },
+  free: { athleteLimit: 30, groupLimit: 3, classLimit: 10, academyLimit: 1, locationLimit: 1 },
+  starter: { athleteLimit: 75, groupLimit: 5, classLimit: 20, academyLimit: 1, locationLimit: 1 },
   growth: {
     athleteLimit: 200,
     groupLimit: 10,
     classLimit: 40,
     academyLimit: 1,
+    locationLimit: 1,
   },
   network: {
     athleteLimit: null,
     groupLimit: null,
     classLimit: null,
     academyLimit: null,
+    locationLimit: null,
   },
 };
 
