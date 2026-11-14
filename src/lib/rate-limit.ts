@@ -344,6 +344,7 @@ const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
   "/api/v1/staff/invitations": { limit: 10, window: 60 },
   "/api/v1/owner/operational-policy": { limit: 30, window: 60 },
   "/api/v1/owner/classes": { limit: 30, window: 60 },
+  "/api/v1/owner/academy-settings": { limit: 30, window: 60 },
   "/api/attendance": { limit: 60, window: 60 },
   "/api/class-sessions": { limit: 30, window: 60 },
   "/api/academies": { limit: 10, window: 60 },

@@ -94,10 +94,10 @@ describe("lateral Magnesio de /owner", () => {
     }
   });
 
-  it("dirección (owner con todas las sedes) ve los 10 destinos", () => {
+  it("dirección (owner con todas las sedes) ve los 11 destinos", () => {
     renderFor("owner", "all");
     expect([...principalLabels()].sort()).toEqual(
-      ["Resumen", "Grupos", "Gimnastas", "Equipo", "Clases", "Inscripciones", "Solicitudes", "Asistencia", "Cobros", "Plan"].sort()
+      ["Resumen", "Grupos", "Gimnastas", "Equipo", "Clases", "Inscripciones", "Solicitudes", "Asistencia", "Cobros", "Plan", "Ajustes"].sort()
     );
   });
 

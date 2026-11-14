@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   MoreHorizontal,
   Plus,
+  Settings,
   Sparkles,
   UserPlus,
   Users,
@@ -49,6 +50,7 @@ const ITEM_ICONS: Record<string, LucideIcon> = {
   Equipo: Users,
   Cobros: Wallet,
   Plan: CreditCard,
+  Ajustes: Settings,
 };
 
 const DESKTOP_SECTIONS: ReadonlyArray<{ title: string; labels: readonly string[] }> = [
@@ -182,6 +184,15 @@ export function OwnerWorkspaceNavigation({
       active: isRouteActive(pathname, "/owner/payments"),
       capability: "canManageFinancials",
     },
+    ...(!previewMode
+      ? [{
+          label: "Ajustes",
+          href: `/owner/settings${organizationQuery}`,
+          active: isRouteActive(pathname, "/owner/settings"),
+          desktopOverflow: true,
+          capability: "canManageStaffProfiles" as const,
+        }]
+      : []),
     ...(!isDashboardPreview
       ? [
           {
