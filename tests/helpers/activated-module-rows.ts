@@ -50,6 +50,15 @@ const VALUES: Record<string, Record<string, unknown>> = {
     ],
   },
   admission_links: { id: ACTIVATED_IDS.link, enabled: true, revoked_at: null },
+  payment_reminder_settings: {
+    subject_template: null, body_template: "Synthetic reminder body", payment_instructions: "Synthetic payment instructions",
+    reply_to_email: "club@example.invalid", min_interval_days: 7, is_auto_enabled: false, auto_after_days: 3, version: 1,
+    updated_by_member_id: null,
+  },
+  payment_reminders: {
+    id: id(27), charge_id: id(28), guardian_id: id(29), email_group_id: id(30), origin: "manual", status: "sent",
+    outstanding_cents: "4500", currency: "EUR", requested_by_member_id: null,
+  },
   admission_requests: {
     id: id(26), link_id: ACTIVATED_IDS.link, status: "new", contact_name: "Synthetic family",
     contact_email: "family@example.invalid", contact_phone: null, athlete_given_name: "Synthetic",

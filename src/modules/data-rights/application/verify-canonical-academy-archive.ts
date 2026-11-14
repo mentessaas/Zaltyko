@@ -177,6 +177,14 @@ const NULLABLE_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
     "handled_at",
     "anonymized_at",
   ],
+  payment_reminder_settings: [
+    "subject_template",
+    "body_template",
+    "payment_instructions",
+    "reply_to_email",
+    "updated_by_member_id",
+  ],
+  payment_reminders: ["guardian_id", "requested_by_member_id", "sent_at"],
 };
 
 // `tx.execute(sql)` returns node-postgres raw rows. int4 is a JS number;
@@ -205,6 +213,7 @@ const INT4_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
   session_plan_blocks: ["position", "duration_minutes"],
   class_plan_templates: ["revision"],
   admission_requests: ["athlete_birth_year", "revision"],
+  payment_reminder_settings: ["min_interval_days", "auto_after_days", "version"],
 };
 
 const INT8_DECIMAL_STRING_COLUMNS_BY_TABLE: Readonly<
@@ -224,6 +233,7 @@ const INT8_DECIMAL_STRING_COLUMNS_BY_TABLE: Readonly<
     "net_collected_cents",
     "outstanding_cents",
   ],
+  payment_reminders: ["outstanding_cents"],
 };
 
 const POSTGRES_BIGINT_MIN = BigInt("-9223372036854775808");

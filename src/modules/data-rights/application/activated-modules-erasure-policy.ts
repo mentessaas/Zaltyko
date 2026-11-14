@@ -26,7 +26,8 @@ export type ActivatedModule =
   | "coach_assignment"
   | "session_plans"
   | "admissions"
-  | "team_access";
+  | "team_access"
+  | "payment_reminders";
 
 export interface ActivatedTableErasurePolicy {
   table: string;
@@ -109,6 +110,11 @@ export const ACTIVATED_MODULES_ERASURE_POLICY: readonly ActivatedTableErasurePol
   // nacimiento de menores. Una solicitud convertida sigue apuntando a la
   // gimnasta (NO ACTION): borrar esa ficha exige decidir antes qué hacer con
   // la solicitud. Las descartadas se pueden anonimizar.
+  // Recordatorios de impago: la plantilla y el registro cuelgan de la academia
+  // y de la cuota. Quien editó o pidió el aviso queda vacío (set null); el
+  // tutor pagador (guardian_id) también, y no se guarda su correo ni su nombre.
+  policy("payment_reminder_settings", "payment_reminders", "values", "not_linked", "set_null", "set_null"),
+  policy("payment_reminders", "payment_reminders", "values", "not_linked", "set_null", "set_null"),
   policy("admission_links", "admissions", "values", "not_linked", "blocks", "blocks"),
   policy("admission_requests", "admissions", "values", "blocks", "blocks", "blocks", {
     kind: "manual_anonymization_of_declined",

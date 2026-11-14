@@ -5,12 +5,22 @@ import { ArrowLeft } from "lucide-react";
 import { z } from "zod";
 
 import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentForm";
+import { PaymentRemindersPanel } from "@/components/owner-dashboard/PaymentRemindersPanel";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { db } from "@/db";
 import { getManualPaymentOptions } from "@/modules/billing/application/manual-payments";
+import {
+  getPaymentReminderOverview,
+  type ReminderOverview,
+} from "@/modules/payment-reminders/application/service";
+import {
+  arePaymentRemindersAvailable,
+  isAutomaticPaymentRemindersFlagEnabled,
+} from "@/modules/payment-reminders/application/storage";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -92,6 +102,22 @@ export default async function OwnerPaymentsPage({
     throw error;
   }
 
+  // Recordatorios de cuotas: detrás de ZALTYKO_PAYMENT_REMINDERS_ENABLED y de
+  // las tablas candidatas. Si no están, la sección no aparece. Un fallo al
+  // leerla nunca debe impedir registrar un pago.
+  let reminderOverview: ReminderOverview | null = null;
+  if (await arePaymentRemindersAvailable(db)) {
+    try {
+      reminderOverview = await getPaymentReminderOverview({
+        userId: user.id,
+        organizationId: scope.organization.id,
+        locationId: scope.selectedLocationId ?? undefined,
+      });
+    } catch {
+      reminderOverview = null;
+    }
+  }
+
   return (
     <OwnerWorkspacePageShell
       member={scope.member}
@@ -130,6 +156,15 @@ export default async function OwnerPaymentsPage({
             charges={options.charges}
             nextCursor={options.nextCursor}
           />
+
+          {reminderOverview ? (
+            <PaymentRemindersPanel
+              organizationId={options.organization.id}
+              locationId={options.selectedLocationId}
+              overview={reminderOverview}
+              automaticAvailable={isAutomaticPaymentRemindersFlagEnabled()}
+            />
+          ) : null}
         </div>
       </main>
     </OwnerWorkspacePageShell>
