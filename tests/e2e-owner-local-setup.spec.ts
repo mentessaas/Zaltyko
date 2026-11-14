@@ -1568,6 +1568,13 @@ test.describe("Isolated local Supabase Owner setup", () => {
     };
     page.on("response", (r) => dbgLine("resp", r.request().method(), r.url(), String(r.status())));
     page.on("requestfailed", (r) => dbgLine("fail", r.method(), r.url(), r.failure()?.errorText ?? ""));
+    page.on("response", async (r) => {
+      const u = new URL(r.url());
+      if (u.pathname !== "/owner/payments" || !u.searchParams.has("_rsc")) return;
+      const body = await r.text().catch(() => "");
+      const h = r.headers();
+      console.log(`DBG rsc-body +${Date.now() - dbgStart}ms len=${body.length} sinCargos=${body.includes("No hay cargos pendientes")} conMensual=${body.includes("MENSUAL-")} cache=${h["cache-control"] ?? ""} age=${h["age"] ?? ""} fromCache=${(r as unknown as { fromServiceWorker(): boolean }).fromServiceWorker()}`);
+    });
     page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") console.log(`DBG console-${m.type()} +${Date.now() - dbgStart}ms ${m.text().slice(0, 300)}`); });
     page.on("pageerror", (e) => console.log(`DBG pageerror +${Date.now() - dbgStart}ms ${String(e.stack ?? e.message).slice(0, 600)}`));
     page.on("framenavigated", (f) => { if (f === page.mainFrame()) dbgLine("nav", "GET", f.url(), ""); });
