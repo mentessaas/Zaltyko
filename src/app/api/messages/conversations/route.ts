@@ -129,7 +129,9 @@ export const GET = withTenant(async (request, context) => {
           .where(
             and(
               eq(conversationMessages.conversationId, conv.id),
-              sql`${conversationMessages.senderId} != ${profile.id}`,
+              // Un mensaje cuyo remitente suprimió su cuenta (sender_id vacío)
+              // también cuenta como no leído.
+              sql`${conversationMessages.senderId} is distinct from ${profile.id}`,
               sql`${conversationMessages.createdAt} > COALESCE(${conv.userLastReadAt}, '1970-01-01')`
             )
           );
