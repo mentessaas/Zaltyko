@@ -48,6 +48,28 @@ source:
 
 **Pendiente / no verificado en el Mac.** Nada se ejecutó localmente (regla del proyecto): la verificación es la CI de la PR. Sin equivalente en `/owner`: ver `docs/qa/retiro-panel-app-2026-11-14.md`. La candidata SQL y el borrado de los archivos de Storage requieren autorización de Elvis.
 
+## 2026-11-14 — Demo pública sin registro (`/demo`)
+
+**Contexto.** El análisis de competencia (A15) recomienda una demo pública sin registro para captar academias; ScoreGym la tiene.
+
+**Cambio.**
+- `/demo`: recorrido de seis pasos (Resumen, Clases, Asistencia, Gimnastas, Cobros y portal de familia) por una academia ficticia, con los componentes reales de `/owner` y `/familia` y datos estáticos (`src/modules/demo`). Banner fijo «Estás viendo una demo» con CTA al registro.
+- Sin escrituras: una guarda de `fetch` contesta las lecturas con datos de ejemplo, rechaza toda escritura, bloquea Supabase y no pide ni precarga nunca el panel real (`/owner`, `/familia`: 404 sin red); solo deja pasar el POST de la medición pública; los formularios no se envían y avisan «En la demo no se guarda nada».
+- `OwnerWorkspacePageShell`/`OwnerWorkspaceNavigation` y `FamilyPortalShell` ganan un prop `demo`; las vistas del portal de familia se extraen a `FamilyHomeView`, `FamilyFeesView` y `FamilyAthleteView` (las páginas de `/familia` no cambian de comportamiento).
+- «Ver demo» como CTA secundario en la home (hero) y en `/pricing`.
+- Medición: `demo_viewed`, `demo_signup_clicked` y `demo_action_blocked` por el canal público de `/pricing`, sin datos personales.
+
+**Revisión (coordinación).** Apellidos de prueba (Ejemplo, Muestra…) en lugar de nombres de aparato, sin siglas («Base 3 artística»); `seccion` de la medición limitada a las claves de los pasos u «otra».
+
+**Decisión.** Toda la demo va `noindex, follow` y fuera del sitemap: contenido fino, repite `/features` y `/pricing`. Ver `docs/demo-publica.md`.
+
+**Sin resolver.**
+- `capturePublicGrowthEvent` está deshabilitado a propósito (sin receptor con consentimiento verificado): los eventos de la demo no registran nada hasta que se reabra ese canal.
+- La web pública dice que el portal de familias está «En preparación»; la demo lo enseña con un aviso que lo dice. Si se activa el portal, quitar el aviso (`DemoFamilyNote`).
+- Migraciones: ninguna.
+
+**Pruebas.** `tests/demo-guard.test.ts` (no llama a la API ni a Supabase, las escrituras se rechazan y las pantallas las tratan como definitivas), `tests/demo-no-database.contract.test.ts` (importaciones permitidas), `tests/demo-fixtures.test.ts` (datos válidos cualquier día de la semana), `tests/demo-routes.test.ts`, `tests/demo-measurement-and-links.test.ts`.
+
 ## 2026-11-12 — Web pública: acceso de entrenadoras, titulares, guion y seguimiento, y solicitudes de prueba
 
 **Contexto.** Hoy, con autorización de Elvis, se aplicaron en producción las candidatas de acceso de equipo (277), titulares y sustituciones (276), objetivos y observaciones (271), guion de la sesión (279) y solicitudes de prueba (262), y se activó `ZALTYKO_TEAM_ACCESS_ENABLED=true`. También la de inteligencia competitiva, que es un panel interno y no se anuncia.
