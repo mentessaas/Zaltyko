@@ -1,7 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
-import { attendanceRecords, auditLogs } from "@/db/schema";
-
 let POST: typeof import("@/app/api/attendance/route").POST;
 let GET: typeof import("@/app/api/attendance/route").GET;
 
@@ -179,43 +177,48 @@ describe("API /api/attendance", () => {
         {} as any
       );
 
-    const rowsFor = (table: unknown) => insertCalls.filter((call) => call.table === table);
+    // El esquema se importa después de vi.resetModules() para que las tablas
+    // sean las mismas instancias que usa la ruta.
+    const rowsFor = async (name: "attendanceRecords" | "auditLogs") => {
+      const schema = await import("@/db/schema");
+      return insertCalls.filter((call) => call.table === schema[name]);
+    };
 
     it("guarda la hora real de la marca, no la de llegada", async () => {
       pushSession();
       selectQueue.push(createSelectChain("limit", []));
-      const response = await post({ status: "absent", markedAt: "2026-11-14T17:00:00.000Z", opId: OP });
+      const response = await post({ status: "absent", markedAt: "2026-11-13T17:00:00.000Z", opId: OP });
       expect(response.status).toBe(200);
-      const [row] = rowsFor(attendanceRecords);
-      expect((row.payload as any).recordedAt.toISOString()).toBe("2026-11-14T17:00:00.000Z");
+      const [row] = await rowsFor("attendanceRecords");
+      expect((row.payload as any).recordedAt.toISOString()).toBe("2026-11-13T17:00:00.000Z");
     });
 
     it("reenviar la misma marca no escribe nada (idempotente)", async () => {
       pushSession();
       selectQueue.push(
         createSelectChain("limit", [
-          { athleteId: A1, status: "absent", notes: null, recordedAt: new Date("2026-11-14T17:00:00.000Z") },
+          { athleteId: A1, status: "absent", notes: null, recordedAt: new Date("2026-11-13T17:00:00.000Z") },
         ])
       );
-      const response = await post({ status: "absent", markedAt: "2026-11-14T17:00:00.000Z", opId: OP });
+      const response = await post({ status: "absent", markedAt: "2026-11-13T17:00:00.000Z", opId: OP });
       const body = await response.json();
       expect(body.data.results).toEqual([{ athleteId: A1, outcome: "duplicate" }]);
-      expect(rowsFor(attendanceRecords)).toHaveLength(0);
-      expect(rowsFor(auditLogs)).toHaveLength(0);
+      expect(await rowsFor("attendanceRecords")).toHaveLength(0);
+      expect(await rowsFor("auditLogs")).toHaveLength(0);
     });
 
     it("una marca más antigua que la del servidor se descarta y queda registrada", async () => {
       pushSession();
       selectQueue.push(
         createSelectChain("limit", [
-          { athleteId: A1, status: "present", notes: null, recordedAt: new Date("2026-11-14T17:30:00.000Z") },
+          { athleteId: A1, status: "present", notes: null, recordedAt: new Date("2026-11-13T17:30:00.000Z") },
         ])
       );
-      const response = await post({ status: "absent", markedAt: "2026-11-14T17:00:00.000Z", opId: OP });
+      const response = await post({ status: "absent", markedAt: "2026-11-13T17:00:00.000Z", opId: OP });
       const body = await response.json();
       expect(body.data.results).toEqual([{ athleteId: A1, outcome: "superseded" }]);
-      expect(rowsFor(attendanceRecords)).toHaveLength(0);
-      const [log] = rowsFor(auditLogs);
+      expect(await rowsFor("attendanceRecords")).toHaveLength(0);
+      const [log] = await rowsFor("auditLogs");
       expect((log.payload as any).action).toBe("attendance.offline_conflict");
       expect((log.payload as any).meta.conflicts[0]).toMatchObject({ athleteId: A1, opId: OP, outcome: "superseded" });
     });
@@ -224,14 +227,14 @@ describe("API /api/attendance", () => {
       pushSession();
       selectQueue.push(
         createSelectChain("limit", [
-          { athleteId: A1, status: "present", notes: null, recordedAt: new Date("2026-11-14T17:00:00.000Z") },
+          { athleteId: A1, status: "present", notes: null, recordedAt: new Date("2026-11-13T17:00:00.000Z") },
         ])
       );
-      const response = await post({ status: "late", markedAt: "2026-11-14T17:10:00.000Z", opId: OP });
+      const response = await post({ status: "late", markedAt: "2026-11-13T17:10:00.000Z", opId: OP });
       const body = await response.json();
       expect(body.data.results).toEqual([{ athleteId: A1, outcome: "applied" }]);
-      expect(rowsFor(attendanceRecords)).toHaveLength(1);
-      const [log] = rowsFor(auditLogs);
+      expect(await rowsFor("attendanceRecords")).toHaveLength(1);
+      const [log] = await rowsFor("auditLogs");
       expect((log.payload as any).meta.conflicts[0].existing.status).toBe("present");
     });
 
@@ -239,13 +242,13 @@ describe("API /api/attendance", () => {
       pushSession();
       selectQueue.push(
         createSelectChain("limit", [
-          { athleteId: A1, status: "present", notes: null, recordedAt: new Date("2026-11-14T17:00:00.000Z") },
+          { athleteId: A1, status: "present", notes: null, recordedAt: new Date("2026-11-13T17:00:00.000Z") },
         ])
       );
       const response = await post({ status: "absent" });
       expect(response.status).toBe(200);
-      expect(rowsFor(attendanceRecords)).toHaveLength(1);
-      expect(rowsFor(auditLogs)).toHaveLength(0);
+      expect(await rowsFor("attendanceRecords")).toHaveLength(1);
+      expect(await rowsFor("auditLogs")).toHaveLength(0);
     });
 
     it("rechaza una fecha de marca mal formada", async () => {

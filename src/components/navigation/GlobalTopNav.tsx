@@ -1,5 +1,5 @@
 "use client";
-import { clearOfflineAttendanceOnSignOut } from "@/lib/offline-attendance/sign-out";
+import { clearOfflineAttendanceOnSignOut, hasOfflineAttendanceData } from "@/lib/offline-attendance/sign-out";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -117,7 +117,8 @@ export function GlobalTopNav({
     if (loading) return;
     setLoading(true);
     try {
-      await clearOfflineAttendanceOnSignOut();
+      // Sin await si no hay nada guardado: el cierre de sesión no se retrasa.
+      if (hasOfflineAttendanceData()) await clearOfflineAttendanceOnSignOut();
       await supabase.auth.signOut();
       router.push("/auth/login");
     } finally {
