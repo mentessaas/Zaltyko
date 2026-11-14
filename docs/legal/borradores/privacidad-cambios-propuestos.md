@@ -471,6 +471,11 @@ los Términos, y mantener el aviso por correo a las cuentas propietarias.
 
 ## Otros módulos a revisar antes de publicar
 
+- **Portal de familias y avisos (dormido):** cuando se active, la política de
+  la academia y este borrador (P2, P3 y P4) deben cubrir la cuenta de la
+  familia invitada, los avisos del portal y por correo y sus preferencias.
+  Detalle técnico: `docs/privacy/familias-acceso-y-avisos.md`.
+
 El código contiene módulos públicos en los que Zaltyko actuaría como
 responsable y que la política actual no menciona: directorio público de
 academias con importaciones y comunicaciones (`DIRECTORY_*` en `.env.example`,

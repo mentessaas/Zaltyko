@@ -545,6 +545,12 @@ const staticallyGuarded: Record<string, { guard: string; via?: string }> = {
   "POST owner/athlete-import/preview/route.ts": { guard: "resolveOwnerScope", via: "src/app/api/v1/owner/athlete-import/import-request.ts" },
   "POST owner/athlete-intake/[athleteId]/assign/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/athlete-intake/route.ts": { guard: "resolveOwnerScope" },
+  // Familias y avisos: las tres rutas comparten withFamilyManager, que resuelve
+  // al miembro con resolveOwnerScope (gestión, sin coach) tras autenticar; el
+  // servicio repite rol y sede dentro de la transacción.
+  "POST owner/family-access/route.ts": { guard: "resolveOwnerScope", via: "src/app/api/v1/family-access-route-helpers.ts" },
+  "POST owner/family-notices/route.ts": { guard: "resolveOwnerScope", via: "src/app/api/v1/family-access-route-helpers.ts" },
+  "POST owner/sessions/[sessionId]/change/route.ts": { guard: "resolveOwnerScope", via: "src/app/api/v1/family-access-route-helpers.ts" },
   "PATCH owner/athletes/[athleteId]/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/billing/monthly-invoices/issue/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/billing/price-plans/route.ts": { guard: "resolveOwnerScope" },
@@ -581,6 +587,10 @@ const outsideOwnerSurface: Record<string, string> = {
   "POST organizations/bootstrap/route.ts": "alta de la propia academia",
   "POST staff/invitations/accept/route.ts": "la persona invitada acepta su invitación",
   "POST staff/invitations/inspect/route.ts": "la persona invitada consulta su invitación",
+  "POST family/invitations/accept/route.ts": "la familia invitada acepta su invitación al portal",
+  "POST family/invitations/inspect/route.ts": "la familia invitada consulta su invitación al portal",
+  "POST family/notices/read/route.ts": "la familia marca como leídos sus propios avisos",
+  "PUT family/notification-preferences/route.ts": "la familia elige sus correos de avisos",
 };
 
 /** Rutas que admiten al coach por diseño (P1 #8). */

@@ -4,6 +4,8 @@ Fecha: 10 de noviembre de 2026. Plan de mejora `auditorias/2026-11-08/plan-mejor
 
 Objetivo: que una familia consulte el horario, la asistencia y las cuotas de sus gimnastas sobre el modelo canónico `zaltyko.*`, sin pagar nada desde Zaltyko y sin ver datos de otras familias.
 
+> **Actualización 14-11-2026:** el alta por invitación, el permiso de ver gimnastas al aceptar y los avisos de sesión están en `docs/producto/familias-acceso-y-avisos.md` (dormidos tras `ZALTYKO_FAMILY_ACCESS_ENABLED` y su candidata). Responden a las preguntas a), d) y f) de abajo, a falta de la decisión de Elvis.
+
 Resumen de la decisión: el modelo canónico ya tiene una identidad de tutor (`zaltyko.guardians.auth_user_id`), pero ningún flujo la rellena todavía, y los vínculos que crea `/owner` nacen sin permiso para ver gimnastas. Esta PR entrega la capa de lectura con su autorización doble (en el dominio y dentro de cada consulta SQL), las tres vistas de `/familia` y las pruebas de aislamiento, también contra PostgreSQL. El alta del acceso (invitación de la academia, enlace mágico y vínculo verificado) y quién marca el permiso de ver gimnastas quedan para decidir con Elvis. Hasta entonces, nadie ve datos en `/familia`: cualquier cuenta sin vínculo recibe un aviso neutro.
 
 ## Hallazgos

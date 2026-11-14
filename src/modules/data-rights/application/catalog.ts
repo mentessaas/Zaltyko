@@ -134,6 +134,14 @@ const omittedColumnReasons: Record<string, string> = {
     "The public link token is a live access credential; the link's site, state and dates are included.",
   "admission_requests.submission_id":
     "This client retry key is operational metadata and is not needed to interpret the request.",
+  "guardian_access_invitations.token_sha256":
+    "The hash of a family portal invitation link is access-control material; the invitation's guardian, email, state and dates are included.",
+  "guardian_access_invitations.accepted_by_user_id":
+    "Supabase Auth user IDs identify accounts shared across academies and are outside this tenant export; the acceptance date is included.",
+  "guardian_access_invitations.grant_links":
+    "This internal snapshot of family-guardian link versions only guards the permission granted on acceptance; the links themselves are exported in family_guardians.",
+  "family_notices.dedupe_key":
+    "This server-side deduplication key is operational metadata and is not needed to interpret the notice.",
 };
 
 function includedTable(input: {
@@ -511,7 +519,7 @@ const CLASS_PLAN_TEMPLATE_BLOCKS_PROJECTION = `coalesce((
  * 20261114121000_skill_levels_candidate.sql (not applied anywhere yet).
  */
 export interface OptionalIncludedExportModule {
-  module: "athlete_progress" | "coach_assignment" | "session_plans" | "admissions" | "skill_levels";
+  module: "athlete_progress" | "coach_assignment" | "session_plans" | "admissions" | "skill_levels" | "family_access";
   tables: readonly CanonicalExportTableSpec[];
 }
 
@@ -625,6 +633,36 @@ export const OPTIONAL_INCLUDED_EXPORT_MODULES: readonly OptionalIncludedExportMo
         expectedColumns:
           "id organization_id athlete_id template_id level_id location_id client_request_id passed_on passed_by_member_id created_at",
         omit: ["client_request_id"],
+      }),
+    ],
+  },
+  {
+    // Familias: invitaciones al portal y avisos (candidato 20261114120000, sin
+    // aplicar). Con valores para que la academia pueda atender el derecho de
+    // acceso de un tutor: qué se le envió, cuándo lo leyó y sus preferencias.
+    module: "family_access",
+    tables: [
+      includedTable({
+        name: "guardian_access_invitations",
+        expectedColumns:
+          "id organization_id guardian_id normalized_email status grant_view_athletes grant_links invited_by_member_id token_sha256 expires_at revision last_sent_at accepted_by_user_id accepted_at revoked_by_member_id revoked_at created_at updated_at",
+        omit: ["token_sha256", "accepted_by_user_id", "grant_links"],
+      }),
+      includedTable({
+        name: "family_notices",
+        expectedColumns:
+          "id organization_id location_id kind session_id class_template_id group_id title body dedupe_key created_by_member_id created_at",
+        omit: ["dedupe_key"],
+      }),
+      includedTable({
+        name: "family_notice_recipients",
+        expectedColumns:
+          "id organization_id notice_id guardian_id email_status email_attempts email_attempted_at read_at created_at",
+      }),
+      includedTable({
+        name: "guardian_notification_preferences",
+        expectedColumns: "organization_id guardian_id email_session_changes email_manual_notices updated_at",
+        orderBy: ["guardian_id"],
       }),
     ],
   },

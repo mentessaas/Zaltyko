@@ -789,6 +789,8 @@ const ACTIVATED_CANDIDATES = [
   "20261111180000_coach_assignment_candidate.sql",
   "20261110120000_admission_requests_candidate.sql",
   "20261114121000_skill_levels_candidate.sql",
+  // Familias: invitaciones y avisos (sin aplicar todavía; se exporta con valores).
+  "20261114120000_family_access_notices_candidate.sql",
 ] as const;
 const activatedCandidate = (name: string) =>
   readFileSync(resolve(process.cwd(), `docs/deployment/candidates/${name}`), "utf8");
@@ -928,7 +930,50 @@ async function seedActivatedModules(organizationId: string, marker: string) {
       '2026-11-10', now()
     )
   `);
-  return { token, blockMarker: `${marker}_TEMPLATE_BLOCK`, unclassifiedMarker: `${marker}_UNCLASSIFIED_KEY` };
+  const guardianPersonId = randomUUID();
+  const guardianId = randomUUID();
+  const noticeId = randomUUID();
+  const invitationHash = `${randomUUID().replaceAll("-", "")}${randomUUID().replaceAll("-", "")}`;
+  const noticeKey = `${randomUUID().replaceAll("-", "")}${randomUUID().replaceAll("-", "")}`;
+  await db.execute(sql`
+    insert into zaltyko.people (id, organization_id, given_name, family_name)
+    values (${guardianPersonId}::uuid, ${organizationId}::uuid, ${`${marker}_GUARDIAN`}, 'Synthetic')
+  `);
+  await db.execute(sql`
+    insert into zaltyko.guardians (id, organization_id, person_id, is_active)
+    values (${guardianId}::uuid, ${organizationId}::uuid, ${guardianPersonId}::uuid, true)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.guardian_access_invitations (
+      organization_id, guardian_id, normalized_email, grant_view_athletes, invited_by_member_id, token_sha256, expires_at
+    ) values (
+      ${organizationId}::uuid, ${guardianId}::uuid, ${`${marker.toLowerCase()}-guardian@example.invalid`}, true,
+      ${memberId}::uuid, ${invitationHash}, now() + interval '7 days'
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.family_notices (
+      id, organization_id, location_id, kind, class_template_id, title, body, dedupe_key, created_by_member_id
+    ) values (
+      ${noticeId}::uuid, ${organizationId}::uuid, ${locationId}::uuid, 'manual', ${classTemplateId}::uuid,
+      ${`${marker}_NOTICE`}, ${`${marker}_NOTICE_BODY`}, ${noticeKey}, ${memberId}::uuid
+    )
+  `);
+  await db.execute(sql`
+    insert into zaltyko.family_notice_recipients (organization_id, notice_id, guardian_id, email_status, email_attempts)
+    values (${organizationId}::uuid, ${noticeId}::uuid, ${guardianId}::uuid, 'sent', 1)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.guardian_notification_preferences (organization_id, guardian_id, email_manual_notices)
+    values (${organizationId}::uuid, ${guardianId}::uuid, false)
+  `);
+  return {
+    token,
+    invitationHash,
+    noticeKey,
+    blockMarker: `${marker}_TEMPLATE_BLOCK`,
+    unclassifiedMarker: `${marker}_UNCLASSIFIED_KEY`,
+  };
 }
 
 describeDisposablePg("academy export with the modules activated on 2026-11-12", () => {
@@ -953,6 +998,7 @@ describeDisposablePg("academy export with the modules activated on 2026-11-12", 
     await db.transaction(async (tx) => {
       for (const table of [
         "athlete_level_passes", "athlete_skill_progress", "skill_elements", "skill_levels", "skill_templates",
+        "family_notice_recipients", "family_notices", "guardian_notification_preferences", "guardian_access_invitations",
         "admission_requests", "admission_links",
         "session_plan_objectives", "session_plan_blocks", "session_plans", "class_plan_templates",
         "athlete_observations", "athlete_objective_status_history", "athlete_objectives",
@@ -993,6 +1039,11 @@ describeDisposablePg("academy export with the modules activated on 2026-11-12", 
     expect(exported.data.athlete_level_passes[0]!.passed_on).toBe("2026-11-12");
     expect(exported.data.admission_links[0]!.enabled).toBe(true);
     expect(exported.data.admission_requests[0]!.athlete_birth_year).toBe(2016);
+    // Familias: avisos y lecturas con valores; nunca el hash del enlace ni la clave interna.
+    expect(exported.data.family_notice_recipients[0]!.email_attempts).toBe(1);
+    expect(exported.data.guardian_notification_preferences[0]!.email_manual_notices).toBe(false);
+    expect(exported.data.guardian_access_invitations[0]!.grant_view_athletes).toBe(true);
+    expect(body.includes(secrets.a.invitationHash) || body.includes(secrets.a.noticeKey)).toBe(false);
     expect(exported.coverage.excludedColumns).toEqual(expect.arrayContaining([
       { table: "admission_links", column: "token", reason: expect.any(String) },
     ]));
