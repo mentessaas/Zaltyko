@@ -471,3 +471,13 @@ instalación trusted sin conceder SUPERUSER al propietario del candidato. No
 se afirma equivalencia del propietario de cada objeto de extensión con el
 bootstrap productivo. PostgreSQL ejecuta los scripts trusted como bootstrap,
 aunque la extensión pertenezca al llamador: [documentación PostgreSQL17](https://www.postgresql.org/docs/17/sql-createextension.html).
+
+## Comprobar los hashes
+
+Antes de aplicar una candidata, comprueba que el SHA-256 del `.sql` coincide con el documentado aquí:
+
+```bash
+node scripts/candidates/verify-candidate-hashes.mjs
+```
+
+`OK`: el hash del archivo figura en este README. `FALTA EN README`: el archivo no coincide con ningún hash documentado; no aplicarlo sin revisar qué cambió. `HASH SIN ARCHIVO`: hash del README sin archivo correspondiente; solo avisa, porque aquí se conservan hashes históricos. El comando termina con código de salida 1 si hay algún `FALTA EN README`.
