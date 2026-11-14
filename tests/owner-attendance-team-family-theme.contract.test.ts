@@ -103,7 +103,9 @@ describe("tonos de estado de estas pantallas", () => {
 
   it("el error sigue en señal y lo activo en tapiz", () => {
     expect(entry("noticeError")).toBe("ownerUi.noticeError,");
-    expect(entry("chipError")).toMatch(/bg-signal-wash text-signal-ink/);
+    // Las clases pueden ir en cualquier orden (el módulo de tonos es común con #302).
+    expect(entry("chipError")).toMatch(/\bbg-signal-wash\b/);
+    expect(entry("chipError")).toMatch(/\btext-signal-ink\b/);
     expect(entry("inlineError")).toMatch(/text-signal-ink/);
     expect(entry("dangerButton")).toMatch(/bg-signal-ink/);
     expect(entry("dangerButton")).not.toMatch(/bg-signal\s/);
