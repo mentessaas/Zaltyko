@@ -44,7 +44,7 @@ import {
   lockOrganizationForSaasMutation,
   resolveEffectiveOrganizationEntitlement,
 } from "./entitlement-service";
-import { resolveSaasOwnerScope } from "./owner-access";
+import { resolveOwnerAccountEmail, resolveSaasOwnerScope } from "./owner-access";
 import {
   createSaasStripeClient,
   getSaasStripeConfig,
@@ -1106,8 +1106,15 @@ export async function createOwnerSaasCheckout(input: {
     // sesión: cada factura los copia y Checkout ya no muestra el campo de NIF
     // (tampoco con la carga v2/v3, porque el Customer ya tiene uno guardado).
     // El ensayo QA congelado no se toca.
+    // También el email de la cuenta del Owner, para que Checkout muestre el
+    // contacto prellenado en lugar de pedirlo vacío.
     if (billingDetails && !qaEnvelope) {
-      await applyCustomerBillingDetails(stripe, customerReference, billingDetails);
+      await applyCustomerBillingDetails(
+        stripe,
+        customerReference,
+        billingDetails,
+        await ownerCheckoutEmail(input.userId)
+      );
     }
 
     const leaseResult = await db.transaction(async (tx) => {
@@ -1531,9 +1538,13 @@ function acceptedBillingDetails(
 async function applyCustomerBillingDetails(
   stripe: Stripe,
   customerReference: string,
-  details: SaasCustomerBillingDetails
+  details: SaasCustomerBillingDetails,
+  email: string | null
 ): Promise<void> {
-  await stripe.customers.update(customerReference, { name: details.legalName });
+  await stripe.customers.update(customerReference, {
+    name: details.legalName,
+    ...(email ? { email } : {}),
+  });
   const existing = await stripe.customers.listTaxIds(customerReference, { limit: 100 });
   let kept = false;
   for (const taxId of existing.data) {
@@ -1548,6 +1559,21 @@ async function applyCustomerBillingDetails(
       type: SPANISH_STRIPE_TAX_ID_TYPE,
       value: details.taxId,
     });
+  }
+}
+
+/**
+ * Email de la cuenta del Owner para el Customer. Si no se puede leer o no
+ * parece un email, se omite: Checkout lo pedirá, pero no se bloquea el pago.
+ */
+async function ownerCheckoutEmail(userId: string): Promise<string | null> {
+  try {
+    const email = await resolveOwnerAccountEmail(userId);
+    return email && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email)
+      ? email
+      : null;
+  } catch {
+    return null;
   }
 }
 

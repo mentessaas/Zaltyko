@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   listTaxIds: vi.fn(),
   createTaxId: vi.fn(),
   deleteTaxId: vi.fn(),
+  ownerEmail: vi.fn(),
 }));
 vi.mock("@/db", () => ({ db: { transaction: mocks.transaction, select: mocks.select, update: mocks.dbUpdate } }));
 vi.mock("@/lib/env", () => ({ getAppUrl: () => "https://example.invalid" }));
@@ -29,6 +30,7 @@ vi.mock("@/lib/launch/commercial-launch-profile", () => ({
 }));
 vi.mock("@/modules/saas-billing/application/owner-access", () => ({
   resolveSaasOwnerScope: mocks.scope,
+  resolveOwnerAccountEmail: mocks.ownerEmail,
 }));
 vi.mock("@/modules/saas-billing/application/entitlement-service", () => ({
   resolveEffectiveOrganizationEntitlement: mocks.effective,
@@ -108,6 +110,7 @@ beforeEach(() => {
   mocks.listTaxIds.mockReset().mockResolvedValue({ data: [] });
   mocks.createTaxId.mockReset().mockResolvedValue({ id: "txi_synthetic" });
   mocks.deleteTaxId.mockReset().mockResolvedValue({ id: "txi_old", deleted: true });
+  mocks.ownerEmail.mockReset().mockResolvedValue("owner.sintetico@example.invalid");
 });
 
 describe("Checkout reservation guards with isolated dependencies", () => {
@@ -349,7 +352,11 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       mocks.listTaxIds.mockResolvedValue({ data: [{ id: "txi_old", type: "eu_vat", value: "ESB12345675" }] });
       await expect(createOwnerSaasCheckout(spanishInput))
         .resolves.toMatchObject({ operationId: "operation", checkoutUrl: "https://checkout.stripe.com/c/pay/synthetic" });
-      expect(mocks.customerUpdate).toHaveBeenCalledExactlyOnceWith("cus_saved", { name: "Club Sintético" });
+      // Email de la cuenta del Owner que contrata: Checkout lo muestra prellenado.
+      expect(mocks.ownerEmail).toHaveBeenCalledExactlyOnceWith("synthetic-owner");
+      expect(mocks.customerUpdate).toHaveBeenCalledExactlyOnceWith("cus_saved", {
+        name: "Club Sintético", email: "owner.sintetico@example.invalid",
+      });
       expect(mocks.deleteTaxId).toHaveBeenCalledExactlyOnceWith("cus_saved", "txi_old");
       expect(mocks.createTaxId).toHaveBeenCalledExactlyOnceWith("cus_saved", { type: "es_cif", value: "B12345674" });
       const creationIndex = mocks.provider.mock.calls.findIndex(([arg]) => typeof arg === "object");
@@ -372,6 +379,16 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       // El NIF no viaja en metadatos.
       expect(JSON.stringify(creations[0][0])).not.toContain("B12345674");
       expect(creations[0][1]).toEqual({ idempotencyKey: "stable-checkout-key" });
+    });
+    it.each([
+      ["no account email", async () => null],
+      ["an implausible account email", async () => "sin-arroba"],
+      ["an unreadable account email", async () => { throw new Error("synthetic read failure"); }],
+    ])("still opens Checkout without a Customer email when there is %s", async (_label, read) => {
+      arrange({ requestHash: v4Hash });
+      mocks.ownerEmail.mockImplementation(read);
+      await expect(createOwnerSaasCheckout(spanishInput)).resolves.toMatchObject({ operationId: "operation" });
+      expect(mocks.customerUpdate).toHaveBeenCalledExactlyOnceWith("cus_saved", { name: "Club Sintético" });
     });
     it("keeps the Customer tax ID when it already matches", async () => {
       arrange({ requestHash: v4Hash });
@@ -454,6 +471,7 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       expect(creations[0][0].line_items[0]).not.toHaveProperty("tax_rates");
       expect(mocks.customerUpdate).not.toHaveBeenCalled();
       expect(mocks.createTaxId).not.toHaveBeenCalled();
+      expect(mocks.ownerEmail).not.toHaveBeenCalled();
     });
     it.each([
       ["inclusive", { inclusive: true }],

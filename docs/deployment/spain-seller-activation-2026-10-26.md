@@ -164,7 +164,7 @@ Lo que deja preparado cada Checkout de suscripción con IVA español:
 | Razón social | Formulario del panel del plan → `name` del Customer antes de la sesión → `customer_name` de la factura |
 | NIF/NIE/CIF | Formulario del panel del plan, validado en servidor → un único tax ID `es_cif` (sin prefijo ES) en el Customer antes de la sesión → `customer_tax_ids` de la factura. Checkout ya no lo pide (sin `tax_id_collection` ni `name_collection`) |
 | Dirección completa | `billing_address_collection: "required"` y `customer_update.address: auto` (línea 1, código postal, ciudad, provincia, país) |
-| Email de facturación | Se usa el Customer existente; si no tiene email, Checkout guarda en él el que escribe el cliente (con `customer` no se puede usar `customer_email`) |
+| Email de facturación | Email de la cuenta del Owner que contrata, puesto en el Customer antes de la sesión (Checkout lo muestra prellenado). Si no se puede leer, Checkout lo pide y lo guarda en el Customer (con `customer` no se puede usar `customer_email`) |
 | IVA | `tax_rates` exclusivo del 21 % en la línea: impuesto separado en la factura de Stripe |
 | Periodo y modalidad | Stripe pone inicio y fin del periodo en la línea de suscripción; el nombre del producto y el intervalo («/ month», «/ year») indican la modalidad. Elvis puede poner además el apodo del precio («Starter mensual», «Starter anual»…) |
 | Moneda | EUR: el servidor rechaza un precio que no sea EUR y desactiva la conversión local de Checkout |
@@ -201,9 +201,11 @@ solo comprueba el formato, así que Zaltyko lo valida antes de cobrar:
    código: `SAAS_BILLING_DETAILS_REQUIRED`, `SAAS_BILLING_LEGAL_NAME_REQUIRED`,
    `SAAS_BILLING_LEGAL_NAME_INVALID`, `SAAS_BILLING_TAX_ID_REQUIRED` o
    `SAAS_BILLING_TAX_ID_INVALID`.
-3. **Customer de Stripe.** Antes de crear la sesión se pone el `name` y se deja
-   exactamente un tax ID `es_cif` con el valor canónico (se borra cualquier
-   otro). No se guarda en la base de datos de Zaltyko ni en metadatos. Si
+3. **Customer de Stripe.** Antes de crear la sesión se pone el `name`, el
+   `email` de la cuenta del Owner que contrata (de `auth.users`, para que
+   Checkout lo muestre prellenado; si no se puede leer, Checkout lo pide) y se
+   deja exactamente un tax ID `es_cif` con el valor canónico (se borra
+   cualquier otro). No se guarda en la base de datos de Zaltyko ni en metadatos. Si
    Stripe lo rechaza, no se entrega la sesión (503 reintentable).
 4. **Checkout (operaciones v4).** Solo pide la dirección
    (`billing_address_collection: required`, `customer_update.address: auto`).
