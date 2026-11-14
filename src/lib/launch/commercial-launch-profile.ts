@@ -7,17 +7,34 @@ import {
   spanishPostalCodeOf,
 } from "./spanish-tax-id";
 
-/** Public seller information. Never put credentials or identity documents here. */
+/**
+ * Public seller information. Never put credentials or identity documents here.
+ *
+ * Se evalúa solo en servidor: lo consumen el control de Checkout (rutas y
+ * servicio de cobros) y componentes de servidor de páginas legales. NIF y
+ * domicilio salen de variables de entorno del servidor (sin NEXT_PUBLIC_), que
+ * Next.js nunca incrusta en los bundles de cliente.
+ */
 export interface CommercialLaunchProfile {
   legalName: string;
   countryCode: string;
+  /** Lectura de ZALTYKO_SELLER_TAX_ID en servidor; null si falta o está vacía. */
   taxId: string | null;
+  /** Lectura de ZALTYKO_SELLER_PROFESSIONAL_ADDRESS en servidor; null si falta o está vacía. */
   professionalAddress: string | null;
   supportEmail: string;
   registrationStatus: "pending" | "verified";
   /** Fecha de alta censal (AAAA-MM-DD) que figura en el modelo 036/037. */
   registrationVerifiedOn: string | null;
   supportMailboxVerified: boolean;
+  /**
+   * Tratamiento fiscal revisado SOLO para ventas en España (Península y
+   * Baleares): IAE 844, IVA general del 21 %, sin retención de IRPF. No abre
+   * ningún otro mercado: la contratación Live por país la decide
+   * COMMERCIAL_MARKET_REGISTRY (hoy solo ES) y el territorio fiscal de la
+   * academia (solo Península/Baleares). UE (B2B con ROI/VIES o B2C con OSS) y
+   * México necesitan su propia revisión antes de habilitarse en el registro.
+   */
   taxTreatmentReviewed: boolean;
   checkoutTaxVerified: boolean;
   legalTextsApproved: boolean;
@@ -31,40 +48,67 @@ export interface CommercialLaunchProfile {
   liveReleaseApproved: boolean;
 }
 
+/** Variables de entorno (solo servidor) con la identidad fiscal del vendedor. */
+export const SELLER_TAX_ID_ENV = "ZALTYKO_SELLER_TAX_ID";
+export const SELLER_PROFESSIONAL_ADDRESS_ENV = "ZALTYKO_SELLER_PROFESSIONAL_ADDRESS";
+
+export type SellerIdentityEnvironment = Readonly<
+  Partial<Record<typeof SELLER_TAX_ID_ENV | typeof SELLER_PROFESSIONAL_ADDRESS_ENV, string | undefined>>
+>;
+
+function optionalServerValue(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+/**
+ * NIF y domicilio profesional del vendedor. El repositorio es público, así que
+ * NO se escriben en el código: se configuran en Vercel → proyecto `zaltyko` →
+ * Settings → Environment Variables (Production) y se aplican al redesplegar.
+ * Se recortan los espacios; una variable ausente o vacía cuenta como null y la
+ * readiness la rechaza (`seller_tax_id`, `seller_address`). El formato lo
+ * valida getCommercialLaunchReadiness (`seller_tax_id_format`,
+ * `seller_address_format`, `seller_tax_territory_review`).
+ */
+export function readSellerIdentityFromEnvironment(
+  environment: SellerIdentityEnvironment = {
+    ZALTYKO_SELLER_TAX_ID: process.env.ZALTYKO_SELLER_TAX_ID,
+    ZALTYKO_SELLER_PROFESSIONAL_ADDRESS: process.env.ZALTYKO_SELLER_PROFESSIONAL_ADDRESS,
+  }
+): Pick<CommercialLaunchProfile, "taxId" | "professionalAddress"> {
+  return {
+    taxId: optionalServerValue(environment[SELLER_TAX_ID_ENV]),
+    professionalAddress: optionalServerValue(environment[SELLER_PROFESSIONAL_ADDRESS_ENV]),
+  };
+}
+
 // Declaración humana, 26-10-2026: futuro autónomo en España.
 // Actualización 12-11-2026: Elvis confirma que ya está dado de alta como
 // autónomo en España y vende como persona física con este nombre.
 // Actualización 13-11-2026 (sesión de finanzas con su gestor): alta en
-// Hacienda y RETA el 05-11-2026, confirmada por documento; domicilio
-// profesional en Península o Baleares.
-// Rellenar los datos de identidad no abre cobros ni acredita la fiscalidad:
-// cada bandera booleana se marca por separado (ver
-// docs/deployment/spain-seller-activation-2026-10-26.md).
-export const commercialLaunchProfile: Readonly<CommercialLaunchProfile> = {
+// Hacienda y RETA el 05-11-2026, verificada con el modelo 036; domicilio
+// profesional en Península o Baleares; tratamiento fiscal para España
+// confirmado (IAE 844, IVA 21 %, sin retención).
+// NIF y domicilio no van aquí (repositorio público): ver
+// readSellerIdentityFromEnvironment. Cada bandera booleana se marca por
+// separado (ver docs/deployment/spain-seller-activation-2026-10-26.md).
+const declaredCommercialLaunchProfile: Readonly<
+  Omit<CommercialLaunchProfile, "taxId" | "professionalAddress">
+> = {
   legalName: "Elvis Valdes Inerarte",
   countryCode: "ES",
-  // ELVIS: escribe aquí tu NIF. Sustituye null por el NIF entre comillas,
-  // en mayúsculas y sin espacios, puntos ni guiones: 8 cifras + letra
-  // (DNI) o X/Y/Z + 7 cifras + letra (NIE). Forma: taxId: "NNNNNNNNL",
-  // CI comprueba la letra de control y falla si está mal escrita.
-  taxId: null,
-  // ELVIS: domicilio profesional publicable. Sustituye null por la dirección
-  // postal completa entre comillas, con esta forma:
-  // professionalAddress: "Vía y número, piso/puerta, CP Localidad (Provincia)",
-  // CI exige al menos una coma y un código postal español de 5 cifras.
-  professionalAddress: null,
   supportEmail: "hola@zaltyko.com",
-  // Pasa a "verified" solo en el mismo cambio en el que Elvis completa NIF y
-  // domicilio; antes, la readiness lo marca como registration_incomplete.
-  registrationStatus: "pending",
-  // Alta censal en Hacienda y RETA confirmada por documento (13-11-2026).
+  // Alta en Hacienda y RETA verificada con el modelo 036 (13-11-2026). Mientras
+  // falten las variables de NIF o domicilio, la readiness sigue rechazando con
+  // seller_tax_id / seller_address y registration_incomplete.
+  registrationStatus: "verified",
   registrationVerifiedOn: "2026-11-05",
   // Claude/Elvis: true tras enviar un correo real a hola@zaltyko.com y
   // responderlo desde ese buzón.
   supportMailboxVerified: false,
-  // Elvis (o su asesoría): true tras confirmar el tipo general del 21 % para
-  // clientes de Península y Baleares y las reglas de factura.
-  taxTreatmentReviewed: false,
+  // Confirmado por la sesión de finanzas con el gestor (13-11-2026) solo para
+  // España: IAE 844, IVA 21 %, sin retención. No abre otros mercados.
+  taxTreatmentReviewed: true,
   // Claude: true solo tras probar Checkout en Stripe test (staging) con el
   // tax rate de IVA y revisar la factura generada (base, 21 %, total, datos).
   checkoutTaxVerified: false,
@@ -78,8 +122,18 @@ export const commercialLaunchProfile: Readonly<CommercialLaunchProfile> = {
   liveReleaseApproved: false,
 };
 
+/** Perfil único del vendedor, con NIF y domicilio leídos del entorno del servidor. */
+export function getCommercialLaunchProfile(
+  environment?: SellerIdentityEnvironment
+): Readonly<CommercialLaunchProfile> {
+  return Object.freeze({
+    ...declaredCommercialLaunchProfile,
+    ...readSellerIdentityFromEnvironment(environment),
+  });
+}
+
 export function getCommercialLaunchReadiness(
-  profile: Readonly<CommercialLaunchProfile> = commercialLaunchProfile
+  profile: Readonly<CommercialLaunchProfile> = getCommercialLaunchProfile()
 ): { ready: boolean; missing: string[] } {
   const missing: string[] = [];
   if (!profile.legalName.trim()) missing.push("seller_name");
@@ -108,8 +162,9 @@ export function getCommercialLaunchReadiness(
 }
 
 /**
- * Tratamiento fiscal confirmado con la gestoría (13-11-2026). Informativo: no
- * abre nada y no sustituye a la bandera taxTreatmentReviewed.
+ * Tratamiento fiscal confirmado con la gestoría (13-11-2026) para ventas en
+ * España. Informativo: no abre nada y no sustituye a la bandera
+ * taxTreatmentReviewed.
  */
 export const sellerTaxProfile = {
   /** IAE 844 (sección empresarial). */
@@ -141,7 +196,7 @@ export function isSaasCheckoutEnabled(environment: "test" | "live"): boolean {
 export function isSaasCheckoutEnabledForMarket(
   environment: "test" | "live",
   countryCode: string,
-  profile: Readonly<CommercialLaunchProfile> = commercialLaunchProfile
+  profile: Readonly<CommercialLaunchProfile> = getCommercialLaunchProfile()
 ): boolean {
   if (environment === "test") return true;
   return (

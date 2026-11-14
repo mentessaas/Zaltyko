@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/launch/commercial-launch-profile", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/launch/commercial-launch-profile")>();
   const readyProfile = {
-    ...actual.commercialLaunchProfile,
+    ...actual.getCommercialLaunchProfile({}),
     // Valores sintéticos con formato válido; no son datos del vendedor.
     taxId: "12345678Z",
     professionalAddress: "Calle Sintética 1, 28001 Madrid",
@@ -34,7 +34,7 @@ vi.mock("@/lib/launch/commercial-launch-profile", async (importOriginal) => {
       actual.isSaasCheckoutEnabledForMarket(
         environment,
         countryCode,
-        mocks.liveReady() ? readyProfile : actual.commercialLaunchProfile
+        mocks.liveReady() ? readyProfile : actual.getCommercialLaunchProfile({})
       ),
   };
 });
