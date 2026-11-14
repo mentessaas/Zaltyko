@@ -74,6 +74,7 @@ const cancelled = session({
   programName: "Gimnasia rítmica",
   status: "cancelled",
   groups: [],
+  coachNames: ["Marta Ruiz"],
 });
 const monday = session({
   id: "40000000-0000-4000-8000-0000000000a3",
