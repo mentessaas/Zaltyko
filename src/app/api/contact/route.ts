@@ -64,7 +64,7 @@ export const POST = withRateLimit(
 
       const reasonLabels: Record<string, string> = {
         demo: "Solicitar demo",
-        network: "Plan Network / multi-sede",
+        network: "Varias sedes o academias",
         sales: "Información de ventas",
         migracion: "Migrar datos o coordinar varias sedes",
         support: "Soporte técnico",

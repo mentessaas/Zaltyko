@@ -3,8 +3,7 @@ import { CalendarDays, Check, ClipboardCheck, Repeat2 } from "lucide-react";
 
 import { partitionAssignedFirst } from "@/modules/coach-assignment/domain/coach-assignment";
 import type { OwnerTodaySession, OwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
-import { ownerDisciplineOf, ownerDisciplineStyle, ownerUi } from "./owner-ui";
-import { ownerTone } from "./owner-tone-ui";
+import { ownerDisciplineOf, ownerDisciplineStyle, ownerTone, ownerUi } from "./owner-ui";
 
 function formatTime(value: string, timezone: string) {
   return new Intl.DateTimeFormat("es-ES", {

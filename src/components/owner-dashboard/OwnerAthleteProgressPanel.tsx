@@ -35,8 +35,7 @@ import {
   PROGRESS_UNAVAILABLE_MESSAGE,
   type ProgressScope,
 } from "./owner-athlete-progress-client";
-import { ownerTone } from "./owner-tone-ui";
-import { ownerUi } from "./owner-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
 
 /** En Pasar lista solo se muestran las últimas observaciones. */
 const COMPACT_OBSERVATIONS = 5;

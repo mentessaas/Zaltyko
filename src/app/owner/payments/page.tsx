@@ -7,11 +7,18 @@ import { z } from "zod";
 import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentForm";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { getManualPaymentOptions } from "@/modules/billing/application/manual-payments";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import {
+  getOwnerMonthlyFeesChart,
+  resolveOwnerChartScope,
+} from "@/modules/owner-dashboard/application/summary-charts";
+import { OwnerMonthlyFeesPanel } from "@/components/owner-dashboard/charts/OwnerChartPanels";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +98,18 @@ export default async function OwnerPaymentsPage({
     throw error;
   }
 
+  // Cuotas del mes en curso de esta sede (o de todas): lo que ya se cobró y lo
+  // que falta. Tras guardar un pago, el refresco de la página lo actualiza.
+  const monthlyFees = await resolveOwnerChartScope({
+    scope,
+    locationId: options.selectedLocationId,
+  })
+    .then((chartScope) => getOwnerMonthlyFeesChart(chartScope, true))
+    .catch((error: unknown) => {
+      logger.error("Owner monthly fees chart failed", error);
+      return null;
+    });
+
   return (
     <OwnerWorkspacePageShell
       member={scope.member}
@@ -108,25 +127,27 @@ export default async function OwnerPaymentsPage({
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               Volver al resumen
             </Link>
-            <header>
-              <p className={ownerUi.eyebrow}>
-                {options.organization.name}
-              </p>
-              <h1 className={ownerUi.pageTitle}>
-                Registrar un pago recibido
-              </h1>
-              <p className={cn(ownerUi.pageLead, "mt-3 sm:text-base")}>
-                Anota una transferencia, efectivo o pago en el local. Al guardar,
-                Zaltyko lo vincula al cargo y actualiza el saldo pendiente.
-              </p>
-            </header>
-            <Link
-              href={`/owner/monthly-invoices?${monthlyInvoiceQuery.toString()}`}
-              className={cn(ownerUi.secondaryButton, "w-fit")}
-            >
-              Emitir cuota mensual
-            </Link>
+            <PageHeader
+              title="Registrar un pago recibido"
+              description="Anota una transferencia, efectivo o pago en el local. Al guardar, Zaltyko lo vincula al cargo y actualiza el saldo pendiente."
+              actions={
+                <Link
+                  href={`/owner/monthly-invoices?${monthlyInvoiceQuery.toString()}`}
+                  className={ownerUi.secondaryButton}
+                >
+                  Emitir cuota mensual
+                </Link>
+              }
+            />
           </div>
+
+          {monthlyFees ? (
+            <OwnerMonthlyFeesPanel
+              chart={monthlyFees}
+              links={{ "monthly-invoices": `/owner/monthly-invoices?${monthlyInvoiceQuery.toString()}` }}
+              headingLevel="h2"
+            />
+          ) : null}
 
           <ManualPaymentForm
             actorId={user.id}

@@ -24,6 +24,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
+/**
+ * Razón social y NIF de la factura tal como se enviaron (los valida el
+ * servidor). Solo viven en sessionStorage mientras la solicitud está pendiente.
+ */
+function isStoredBillingDetails(value: unknown): boolean {
+  if (!isRecord(value) || Object.keys(value).sort().join(",") !== "legalName,taxId") return false;
+  const { legalName, taxId } = value;
+  return typeof legalName === "string" && legalName.length <= 300 &&
+    typeof taxId === "string" && taxId.length <= 40;
+}
+
 export function decodeStoredSaasCommand(value: unknown, organizationId: string): StoredSaasCommand | null {
   if (!isRecord(value)) return null;
   const { organizationId: storedOrg, action, planCode, billingInterval, key, serializedBody } = value;
@@ -42,7 +53,9 @@ export function decodeStoredSaasCommand(value: unknown, organizationId: string):
     };
     const baseBodyFields = ["billingInterval", "organizationId", "planCode"];
     const validExtras = Object.keys(body).filter((field) => !baseBodyFields.includes(field))
-      .every((field) => Object.prototype.hasOwnProperty.call(optionalBodyFields, field) && body[field] === optionalBodyFields[field]);
+      .every((field) => field === "billingDetails"
+        ? isStoredBillingDetails(body[field])
+        : Object.prototype.hasOwnProperty.call(optionalBodyFields, field) && body[field] === optionalBodyFields[field]);
     if (!baseBodyFields.every((field) => field in body) || !validExtras ||
       body.planCode !== planCode || body.billingInterval !== billingInterval) return null;
     return { organizationId, action, planCode, billingInterval, key, serializedBody };

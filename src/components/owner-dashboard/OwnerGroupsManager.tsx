@@ -1,7 +1,7 @@
 "use client";
 
-import { ownerTone } from "./owner-tone-ui";
-import { ownerUi } from "./owner-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -697,26 +697,22 @@ export function OwnerGroupsManager({
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Volver al resumen
         </Link>
-        <header className="mt-5 flex flex-col gap-4 border-b border-z-line pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className={ownerUi.pageTitle}>
-              Grupos y equipos
-            </h1>
-            <p className={ownerUi.pageLead}>
-              Organiza cada actividad por sede. Una gimnasta puede pertenecer a
-              varios grupos.
-            </p>
-          </div>
-          <button
-            type="button"
-            className={primaryButtonClassName}
-            disabled={(!writesAllowed && !createOpen) || busy || !groupCreateScopeLoaded || !membershipRecoveryReady || membershipRecoveryError !== "" || currentPendingGroupCreate !== null || pendingMembership !== null || foreignMembershipScope !== null || profileRecoveryBlocked || familyRecoveryBlocked || archiveRecoveryBlocked}
-            onClick={toggleGroupCreateForm}
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            {createOpen ? "Cerrar formulario" : "Crear grupo"}
-          </button>
-        </header>
+        <PageHeader
+          title="Grupos y equipos"
+          description="Organiza cada actividad por sede. Una gimnasta puede pertenecer a varios grupos."
+          className="mt-5"
+          actions={
+            <button
+              type="button"
+              className={primaryButtonClassName}
+              disabled={(!writesAllowed && !createOpen) || busy || !groupCreateScopeLoaded || !membershipRecoveryReady || membershipRecoveryError !== "" || currentPendingGroupCreate !== null || pendingMembership !== null || foreignMembershipScope !== null || profileRecoveryBlocked || familyRecoveryBlocked || archiveRecoveryBlocked}
+              onClick={toggleGroupCreateForm}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {createOpen ? "Cerrar formulario" : "Crear grupo"}
+            </button>
+          }
+        />
 
         <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
 

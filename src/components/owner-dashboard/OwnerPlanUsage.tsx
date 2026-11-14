@@ -224,7 +224,7 @@ export function OwnerPlanUsage({ organizationId, compact = false }: { organizati
   }, []);
 
   if (compact) return usage?.readOnly ? (
-    <aside role="status" className="border-b border-amber-600 bg-amber-50 px-5 py-4 text-sm text-z-ink">
+    <aside role="status" className="border-b border-ochre-line bg-ochre-wash px-5 py-4 text-sm text-ochre-ink">
       <strong>Academia en solo lectura.</strong> Superas los límites de {usage.planCode}. Los datos se conservan. <Link className="underline font-bold" href={`/owner/subscription?organizationId=${organizationId}#regularizar`}>Archivar excedente o contratar un plan suficiente</Link>.
     </aside>
   ) : error ? <div className="px-5 py-2 text-sm"><p role="status">{error}</p><button type="button" className="min-h-11 px-4 font-semibold underline" onClick={() => setRefresh(value => value + 1)}>Volver a consultar el uso</button></div> : null;
@@ -249,7 +249,7 @@ export function OwnerPlanUsage({ organizationId, compact = false }: { organizati
       {archiveRecovery.organizationId !== organizationId || archiveRecovery.status === "loading" ? <p className="mt-3" role="status">Comprobando si quedó un archivo pendiente antes de permitir otro…</p> : null}
       {archiveSelection ? (
         <fieldset
-          className="rounded-[12px] mt-4 border border-amber-600 p-4"
+          className="rounded-[12px] mt-4 border border-ochre-line p-4"
           disabled={busy}
           aria-busy={busy}
           onKeyDown={event => {

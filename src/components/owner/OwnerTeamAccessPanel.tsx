@@ -10,8 +10,7 @@ import type {
   TeamInvitationRole,
   TeamLocation,
 } from "@/modules/staff/domain/team-access-contract";
-import { ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
-import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
 
 const ENDPOINT = "/api/v1/owner/staff";
 // Misma base que el resto de /owner: secundario de cinta blanca, principal en

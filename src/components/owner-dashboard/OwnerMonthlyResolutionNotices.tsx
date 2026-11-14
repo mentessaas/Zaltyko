@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { primaryButtonClassName } from "./owner-monthly-resolution-model";
-import { ownerNoticeAviso } from "./owner-form-tones";
 import { ownerUi } from "./owner-ui";
 import { cn } from "@/lib/utils";
 import type { PendingResolutionCommand } from "./owner-monthly-resolution-pending-storage";
@@ -25,7 +24,7 @@ export function MonthlyResolutionPendingNotice({
   return (
     <div
       role="status"
-      className={cn(ownerNoticeAviso, "grid gap-3")}
+      className={cn(ownerUi.noticeWarning, "grid gap-3")}
     >
       <p>
         Hay una operación de facturación cuyo resultado sigue sin
