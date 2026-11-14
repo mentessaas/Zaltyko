@@ -10,8 +10,8 @@ import {
   type TrialRequestStatus,
 } from "@/modules/admissions/domain/trial-request";
 
-import { ownerUi } from "./owner-ui";
-import { ownerTab, ownerTone } from "./owner-tone-ui";
+import { ownerTab, ownerTone, ownerUi } from "./owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 
 const ENDPOINT = "/api/v1/owner/trial-requests";
 const PAGE_SIZE = 25;
@@ -210,13 +210,11 @@ export function OwnerTrialRequestsWorkspace({
 
   return (
     <main className={ownerUi.page}>
-      <header className={ownerUi.pageHeader}>
-        <h1 className={ownerUi.pageTitle}>Solicitudes</h1>
-        <p className={ownerUi.pageLead}>
-          Familias que piden una clase de prueba en {organizationName}. Respóndeles y, cuando os pongáis de
-          acuerdo, pásalas a inscripción sin volver a escribir sus datos.
-        </p>
-      </header>
+      <PageHeader
+        title="Solicitudes"
+        description={`Familias que piden una clase de prueba en ${organizationName}. Respóndeles y, cuando os pongáis de acuerdo, pásalas a inscripción sin volver a escribir sus datos.`}
+        className={ownerUi.pageHeader}
+      />
 
       {data && !data.available ? (
         <p role="status" className={`${ownerTone.noticeWarning} mb-6`}>

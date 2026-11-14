@@ -14,7 +14,14 @@ import {
   organizationSaasWebhookPayloadConflicts,
 } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
+import { logger } from "@/lib/logger";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { auditInvoiceCustomerTaxIds } from "../domain/customer-billing-details";
+import {
+  saasContractConfirmationFromPaidInvoice,
+  sendSaasContractConfirmationEmail,
+  type SaasContractConfirmation,
+} from "./contract-confirmation-email";
 import {
   grantOrganizationEntitlement,
   lockOrganizationForSaasMutation,
@@ -40,6 +47,8 @@ type EventProcessingResult = {
   outcome: ProcessingOutcome;
   organizationId?: string;
   quarantineReason?: "ambiguous_event_order" | "missing_order_evidence";
+  /** Primera factura pagada de una suscripción: se confirma tras el commit. */
+  contractConfirmation?: SaasContractConfirmation;
 };
 
 /** Strong routing hint written only by the server into Stripe metadata. */
@@ -230,9 +239,13 @@ export async function processSaasBillingWebhook(input: {
   }
   const fencingVersion = Number(claim.fencingVersion);
 
+  let committed: {
+    response: { duplicate: boolean; ignored?: boolean; quarantined?: boolean };
+    contractConfirmation?: SaasContractConfirmation;
+  };
   try {
     const prepared = await prepareCanonicalEvent(event, config);
-    return await db.transaction(async (tx) => {
+    committed = await db.transaction(async (tx) => {
       const [activeLease] = await tx
         .select({ id: organizationSaasWebhookEvents.id })
         .from(organizationSaasWebhookEvents)
@@ -278,9 +291,13 @@ export async function processSaasBillingWebhook(input: {
         .returning({ id: organizationSaasWebhookEvents.id });
       if (!finished) throw webhookLeaseBusy();
       return {
-        duplicate: false,
-        ignored: result.outcome === "ignored",
-        quarantined: result.outcome === "quarantined",
+        response: {
+          duplicate: false,
+          ignored: result.outcome === "ignored",
+          quarantined: result.outcome === "quarantined",
+        },
+        contractConfirmation:
+          result.outcome === "processed" ? result.contractConfirmation : undefined,
       };
     });
   } catch (error) {
@@ -304,6 +321,22 @@ export async function processSaasBillingWebhook(input: {
       );
     throw error;
   }
+
+  // Después del commit: el evento ya consta como processed, así que una
+  // reentrega de Stripe vuelve como duplicate y no llega aquí. Un fallo del
+  // correo se registra y no hace fallar el webhook (no habría reintento útil:
+  // el plan ya está concedido). email_logs deduplica por suscripción.
+  if (committed.contractConfirmation) {
+    try {
+      await sendSaasContractConfirmationEmail(committed.contractConfirmation);
+    } catch (error) {
+      logger.error("saas_billing.contract_confirmation_failed", error, {
+        eventId: event.id,
+        organizationId: committed.contractConfirmation.organizationId,
+      });
+    }
+  }
+  return committed.response;
 }
 
 async function prepareCanonicalEvent(
@@ -562,13 +595,21 @@ async function processCanonicalEvent(input: {
     if (!prepared.invoice) return { outcome: "quarantined" };
     if (prepared.invoice.status !== "paid") return { outcome: "ignored" };
     if (!prepared.subscription) return { outcome: "quarantined" };
-    return processPaidInvoice({
+    const result = await processPaidInvoice({
       tx,
       event,
       config,
       invoice: prepared.invoice,
       subscription: prepared.subscription,
     });
+    reportInvoiceCustomerTaxIdIssue({
+      event,
+      config,
+      invoice: prepared.invoice,
+      subscription: prepared.subscription,
+      result,
+    });
+    return result;
   }
 
   if (
@@ -587,6 +628,49 @@ async function processCanonicalEvent(input: {
   }
 
   return { outcome: "ignored" };
+}
+
+/**
+ * Defensa adicional: el pago ya está hecho y se procesa igual, pero si la
+ * factura de una contratación con IVA español (`zaltyko_plan`, la que n8n
+ * convierte en factura ZA de FacturaDirecta) no lleva exactamente un NIF
+ * español válido, queda una alerta (consola y Sentry en producción) para
+ * corregirlo antes de facturar. Nunca registra el valor del NIF y nunca
+ * lanza: una alerta no puede bloquear ni reintentar el webhook.
+ */
+export function reportInvoiceCustomerTaxIdIssue(input: {
+  event: Stripe.Event;
+  config: SaasStripeConfig;
+  invoice: Record<string, unknown>;
+  subscription: Record<string, unknown>;
+  result: EventProcessingResult;
+}): void {
+  try {
+    const { event, config, invoice, subscription, result } = input;
+    if (invoice.status !== "paid") return;
+    const spanishInvoicing =
+      Boolean(metadataFrom(subscription).zaltyko_plan) ||
+      Boolean(subscriptionMetadataFromInvoice(invoice).zaltyko_plan);
+    if (!spanishInvoicing) return;
+    const issue = auditInvoiceCustomerTaxIds(invoice);
+    if (!issue) return;
+    logger.error(
+      "Factura SaaS pagada sin NIF español válido: revisar antes de emitir la factura ZA",
+      undefined,
+      {
+        alert: "saas_invoice_customer_tax_id",
+        issue,
+        providerEventId: event.id,
+        invoiceReference: stringId(invoice.id),
+        organizationId:
+          result.organizationId ?? metadataFrom(subscription).organization_id ?? null,
+        outcome: result.outcome,
+        environment: config.environment,
+      }
+    );
+  } catch {
+    // La alerta es auxiliar: el procesamiento del pago no depende de ella.
+  }
 }
 
 async function processPaidInvoice(input: {
@@ -1010,7 +1094,25 @@ async function processPaidInvoice(input: {
         .where(eq(organizationSaasCheckoutOperations.id, currentOperation.id));
     }
   }
-  return { outcome: "processed", organizationId };
+  // LSSI art. 28: la primera factura pagada (subscription_create) confirma la
+  // contratación. Renovaciones y cambios de plan no envían este correo.
+  const contractConfirmation = saasContractConfirmationFromPaidInvoice({
+    environment: config.environment,
+    organizationId,
+    requestedByMemberId: lockedOperation.requestedByMemberId,
+    planCode: mappedPrice.planCode,
+    billingInterval,
+    subscriptionReference,
+    invoice,
+    subscriptionMetadata,
+    periodStartedAt,
+    periodEndsAt,
+  });
+  return {
+    outcome: "processed",
+    organizationId,
+    ...(contractConfirmation ? { contractConfirmation } : {}),
+  };
 }
 
 async function syncSubscriptionStatus(input: {

@@ -380,7 +380,7 @@ El **marco de cinta** es la forma recurrente: un borde blanco de 3 px al 80 % de
 ### Una sola familia de componentes
 Decisión del 2026-11-12 (PR-0 de la auditoría de coherencia visual): la plataforma tiene **una sola familia de componentes**, `src/components/ui`, escrita con los tokens del mundo. `ownerUi` (`owner-ui.ts`), los `ci*` de competencia y las constantes `BUTTON`/`INPUT` locales no definen formas propias: componen las de `components/ui` o copian sus clases sin cambiarlas, y se irán retirando pantalla a pantalla. Un mismo botón principal tiene una sola forma en toda la plataforma.
 
-**Una sola cabecera de pantalla.** `PageHeader` es la cabecera de `/app`, `/owner`, `/familia` y superadmin: migas en rótulo de pista, título en voz *title* sobre la regla de 3 px y acciones a la derecha, sin antetítulo decorativo encima. `ownerUi.pageTitle` se alinea con ella en el PR-R.
+**Una sola cabecera de pantalla.** `PageHeader` es la cabecera de `/app`, `/owner`, `/familia` y superadmin: migas en rótulo de pista, título en voz *title* sobre la regla de 3 px y acciones a la derecha, sin antetítulo decorativo encima. Desde el 2026-11-14 todas las pantallas de `/owner` y `/familia` la usan directamente; `ownerUi` ya no tiene título ni antetítulo propios.
 
 **Alcance pendiente de decisión (H8).** El cuerpo de `/super-admin` y las plantillas de correo siguen fuera de alcance hasta que Elvis decida reabrirlos; los editores de marca de la academia siguen fuera porque allí el color es contenido.
 
@@ -582,10 +582,11 @@ Decisión del 2026-11-09: una sola identidad en toda la plataforma. La direcció
   - Títulos de página y de tarjeta: condensados en mayúsculas.
   - Rótulos: `floor-label`. La cifra de métrica es *figure* de 3 rem.
   - Botón principal: azul tapiz con canto de 1 px, que pasa a noche al pasar el ratón.
-  - Chips de cinta de 6 px. Hoy `noticeWarning` y `noticeError` van los dos en lavado de señal; `noticeWarning` pasa al tono de aviso (ocre) en el PR-R, junto con el resto de `owner-ui.ts`.
+  - Chips de cinta de 6 px. `noticeWarning` y `chipAttention` van en ocre (aviso) y `noticeError` en señal (error), como en «Tonos de estado».
+  - Único origen: `owner-ui.ts` exporta `ownerUi`, `ownerTone`, `ownerTab` y `ownerField`; los antiguos `owner-tone-ui.ts` y `owner-form-tones.ts` se retiraron el 2026-11-14.
 - **Pantallas:** las franjas laterales (`border-l-2`, `border-l-4`) pasan a una regla superior de 3 px en el mismo color. Los radios arbitrarios de 14 a 24 px quedan en 12 px. Los colores literales se cambian por valores del mundo.
 - **La fila de grupo seleccionada** usa lavado de tapiz, sin pestaña lateral.
-- **Gimnastas, grupos y clases (2026-11-13, PR-8 y PR-9):** bandeja de gimnastas, importación Excel/CSV, ficha (edición, familia, contactos, archivo, objetivos y observaciones), grupos y clases escritos solo con `ownerUi` y `ownerTone` (`owner-tone-ui.ts`).
+- **Gimnastas, grupos y clases (2026-11-13, PR-8 y PR-9):** bandeja de gimnastas, importación Excel/CSV, ficha (edición, familia, contactos, archivo, objetivos y observaciones), grupos y clases escritos solo con `ownerUi` y `ownerTone` (`owner-ui.ts`).
   - Avisos de recuperación, operaciones pendientes, solo lectura y choques de horario en ocre (`ownerTone.noticeWarning`); errores y rechazos en señal; confirmaciones en lavado tapiz.
   - Botones del sistema: principal en azul tapiz (fuera los botones negros), secundario de contorno, «Dar de baja» en contorno de tinta de señal y «Confirmar archivo» en tinta de señal sobre un bloque blanco con regla de 3 px en `signal-ink`.
   - La vista previa de importación es una tabla reglada (regla de 3 px, cabecera en rótulo de pista sobre magnesio) con el resultado de cada fila en chip de cinta: «Se crea» en tapiz, «Error» en señal, «Duplicada» y «No se importa» en ocre.
@@ -594,7 +595,7 @@ Decisión del 2026-11-09: una sola identidad en toda la plataforma. La direcció
 - **Shell con el aspecto de `/app` (2026-11-12):** el área de dirección se ve como la app clásica sin cambiar su navegación ni sus permisos.
   - **Lateral:** 248 px de zona de seguridad con fibra (`mat-field-deep`). Arriba, el nombre de la academia en titular condensado sobre una regla blanca de 3 px y debajo el plan en rótulo de pista azul calle (con aviso de solo lectura y «Ver planes» si el rol gestiona el plan). Botón de cinta «Añadir gimnasta» solo con la capacidad de gestionar gimnastas. Secciones «Día a día», «Personas» y «Club» en rótulo de pista azul calle; ítems de 44 px al 80 % de blanco, activo en cinta blanca con texto zona de seguridad y foco en anillo blanco. Sin nombre de academia, el lateral rotula la marca. No lleva buscador: la lista de gimnastas de `/owner` no admite búsqueda por URL.
   - **Cabecera:** blanca con línea de magnesio; marca Z en tapiz y, solo donde no hay lateral, la academia tras una regla vertical de 3 px. A la derecha, el interruptor claro/oscuro de `/app` (`ThemeToggle`, 44 px) y «Cerrar sesión».
-  - **Título de pantalla (`ownerUi.pageTitle`):** apoyado en una regla de cinta de 3 px en noche, como `PageHeader` de `/app`. Lo heredan todas las pantallas que usan `owner-ui.ts`, también el portal de familias.
+  - **Cabecera de pantalla (`PageHeader`):** la misma de `/app` (título sobre la regla de cinta de 3 px en noche, descripción opcional y acciones a la derecha), sin antetítulo ni nombre del club encima del título. La usan todas las pantallas de `/owner` y el portal de familias; el Resumen conserva su hero.
   - **Navegación inferior móvil:** las mismas celdas y «Más»; activo relleno tapiz con texto blanco, etiquetas a 0,75 rem.
   - **Hero del Resumen:** banda de tapiz con marco de cinta, la academia como `h1` (con «Resumen de» solo para lectores de pantalla), la sede o «Todas las sedes» en rótulo de pista, el saludo con el siguiente paso real (puesta en marcha, listas sin pasar o sesiones de hoy) y su acción en cinta blanca, el reloj de pista a la derecha y, al pie, la franja del plan: nombre y estado de la política operativa y, solo para la titular, el uso real (gimnastas, clases y grupos frente a su límite) con barra y «Mejorar plan».
   - **Puesta en marcha:** mismo formato que en `/app`: paso actual en numeral de 6 rem, «Paso N de M · X% completado», barra de 6 px, acción del paso y «Ver N pendientes» con la lista reglada de pendientes.

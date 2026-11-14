@@ -8,8 +8,8 @@ import { OwnerSessionCoaches } from "./OwnerSessionCoaches";
 import { OwnerSessionAthleteProgress } from "./OwnerSessionAthleteProgress";
 import { OwnerSessionPlanPanel } from "./OwnerSessionPlanPanel";
 import { OwnerSessionObservationForm } from "./OwnerSessionObservationForm";
-import { ownerUi } from "./owner-ui";
-import { ownerTone } from "./owner-tone-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import { ownerPlanCheckOf } from "./OwnerPlanCheckNote";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import {
@@ -684,13 +684,10 @@ export function OwnerAttendanceManager({
               Volver al resumen
             </Link>
           )}
-          <div>
-            <h1 className={ownerUi.pageTitle}>Asistencia de la sesión</h1>
-            <p className={ownerUi.pageLead}>
-              Marca la asistencia de las gimnastas inscritas. Los cambios se
-              guardan individualmente.
-            </p>
-          </div>
+          <PageHeader
+            title="Asistencia de la sesión"
+            description="Marca la asistencia de las gimnastas inscritas. Los cambios se guardan individualmente."
+          />
         </header>
 
         <OwnerOperationalReadOnlyNotice

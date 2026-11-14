@@ -11,7 +11,14 @@ type AttentionRow = {
   detail: string;
   href: string;
   action: string;
-  tone: "attention" | "brand";
+  // Atención (pendiente) en ocre; deuda en señal; dato en tapiz.
+  tone: "attention" | "debt" | "brand";
+};
+
+const ATTENTION_ICON_TONE: Record<AttentionRow["tone"], string> = {
+  attention: "text-ochre-ink",
+  debt: "text-signal-ink",
+  brand: "text-z-brand-600",
 };
 
 function plural(count: number, one: string, many: string) {
@@ -62,7 +69,7 @@ export function OwnerAttentionPanel({
       detail: "Emitidas y sin cobrar del todo",
       href: `/owner/monthly-invoices?${scopeQuery}`,
       action: "Revisar",
-      tone: "attention",
+      tone: "debt",
     });
   }
   if (items && items.fullClasses > 0) {
@@ -105,7 +112,7 @@ export function OwnerAttentionPanel({
             <li key={row.key} className="flex items-center gap-3 rounded-[12px] bg-z-canvas p-3.5">
               <span
                 aria-hidden="true"
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-white ${row.tone === "attention" ? "text-z-chalk-600" : "text-z-brand-600"}`}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-white ${ATTENTION_ICON_TONE[row.tone]}`}
               >
                 <row.icon className="h-4 w-4" />
               </span>

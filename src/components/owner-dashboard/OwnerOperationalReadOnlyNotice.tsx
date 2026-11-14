@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
-import { ownerTone } from "./owner-tone-ui";
+import { ownerTone } from "./owner-ui";
 
 // Comprobando: polvo (información). Comprobación fallida: error recuperable en
 // señal. Solo lectura confirmada por el plan: aviso en ocre (no es un fallo).

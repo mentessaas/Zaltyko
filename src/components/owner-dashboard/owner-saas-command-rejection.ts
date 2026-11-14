@@ -19,6 +19,10 @@ export function isDefinitiveSaasCommandRejection(
     CHECKOUT_EXPIRED: [409, 410], RATE_LIMITED: [429],
     SAAS_TAX_TERRITORY_REQUIRED: [422], SAAS_TAX_TERRITORY_NOT_COVERED: [403],
     SAAS_IMMEDIATE_START_CONSENT_REQUIRED: [422],
+    // Datos de factura rechazados antes de reservar nada: se corrigen y se envía otra solicitud.
+    SAAS_BILLING_DETAILS_REQUIRED: [422], SAAS_BILLING_LEGAL_NAME_REQUIRED: [422],
+    SAAS_BILLING_LEGAL_NAME_INVALID: [422], SAAS_BILLING_TAX_ID_REQUIRED: [422],
+    SAAS_BILLING_TAX_ID_INVALID: [422],
   };
   return allowed[data.code]?.includes(response.status) ?? false;
 }

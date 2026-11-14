@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell";
-import { ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
-import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   FAMILY_SCHEDULE_DAYS,
   getFamilyAthleteOverview,
@@ -54,15 +54,12 @@ export default async function FamilyAthletePage({
       <Link href="/familia" className={ownerUi.backLink}>
         ← Volver a tu familia
       </Link>
-      <header className={`${ownerUi.pageHeader} mt-3`}>
-        <h1 className={ownerUi.pageTitle}>{schedule.athlete.displayName}</h1>
-        {/* La academia es un dato del bloque, debajo del título, no un antetítulo. */}
-        <p className="floor-label mt-2 break-words text-ramp-600 [overflow-wrap:anywhere]">{schedule.organizationName}</p>
-        <p className={ownerUi.pageLead}>
-          Datos desde el {formatCalendarDate(schedule.athlete.visibleSince)}, fecha en
-          que la gimnasta se vinculó a tu familia.
-        </p>
-      </header>
+      {/* La academia va en la descripción, no como antetítulo. */}
+      <PageHeader
+        title={schedule.athlete.displayName}
+        description={`${schedule.organizationName}. Datos desde el ${formatCalendarDate(schedule.athlete.visibleSince)}, fecha en que la gimnasta se vinculó a tu familia.`}
+        className={`${ownerUi.pageHeader} mt-3`}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className={ownerUi.card} aria-labelledby="family-schedule-title">
