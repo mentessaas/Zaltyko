@@ -106,6 +106,32 @@ los clientes), así que fallaría. Los contratos de cada función también exige
 que el espejo no viva ahí. Pasarán a `src/db/schema/` cuando cada candidato
 se promueva a `supabase/migrations` en una PR propia con su cadena de replay.
 
+## Niveles y progresión por aparato (candidata nueva, sin aplicar)
+
+**Estado: `20261114121000_skill_levels_candidate.sql` no está aplicada en ningún entorno y requiere autorización de Elvis.** No consta en la tabla de arriba: esa tabla recoge lo aplicado el 12-11-2026.
+
+- **Qué crea.** Cinco relaciones nuevas en `zaltyko` (`skill_templates`, `skill_levels`, `skill_elements`, `athlete_skill_progress`, `athlete_level_passes`), aditivas, con RLS `ENABLE` + `FORCE` y `REVOKE` a `anon` y `authenticated`. Reinstalar aborta antes de tocar nada si alguna ya existe.
+- **Bandera.** Además de las tablas hace falta `ZALTYKO_SKILL_LEVELS_ENABLED=true` (apagada por defecto). Con una de las dos cosas sin hacer, la función no existe (404 en páginas, 503 en API, nada en `/familia`).
+- **Derechos de datos.** Ya constan en la exportación de academia, el verificador, el plan de disposición y la política de supresión (módulo `skill_levels`), de modo que aplicarla no rompe la exportación.
+- **SHA-256:** `d6492c9d9fdaf0ebc8280b3370c9553237e6c9ef2037844c09d6dd5e93117d02`. Si el archivo cambia, este hash debe cambiar con él.
+- **Autoría y sede opcionales.** Las claves foráneas a miembros del equipo y a sedes son `on delete set null (columna)` y tienen su índice: dar de baja a una entrenadora o una sede no se bloquea por su historial, que queda sin autoría.
+- **Marca de tiempo.** `20261114121000`, para no chocar con la PR 319.
+- **Reversión (rollback).** La candidata solo crea cinco tablas nuevas, así que se deshace borrándolas, en este orden y solo si se confirma que no hay datos que conservar (borrarlas destruye el progreso y los pasos de nivel):
+
+```sql
+begin;
+drop table if exists zaltyko.athlete_level_passes;
+drop table if exists zaltyko.athlete_skill_progress;
+drop table if exists zaltyko.skill_elements;
+drop table if exists zaltyko.skill_levels;
+drop table if exists zaltyko.skill_templates;
+commit;
+```
+
+  Antes, apagar `ZALTYKO_SKILL_LEVELS_ENABLED`: sin la bandera la función deja de existir sin tocar datos. Tras el borrado, la exportación de la academia vuelve al paquete anterior (el módulo está ausente entero).
+- **Espejo Drizzle** fuera de `src/db/schema/`, como los demás candidatos.
+- **Producto y prueba en staging:** `docs/producto/niveles-y-progresion.md`.
+
 ## Candidato de instalación canónica
 
 **Estado: aplicada en producción el 25-10-2026** con autorización expresa

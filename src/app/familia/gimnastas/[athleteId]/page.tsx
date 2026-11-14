@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell";
-import { ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
-import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { FamilySkillsSection } from "@/components/family-portal/FamilySkillsSection";
+import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   FAMILY_SCHEDULE_DAYS,
   getFamilyAthleteOverview,
@@ -20,6 +21,7 @@ import {
 } from "@/modules/family-portal/domain/family-portal-presentation";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
+import { loadFamilySkills } from "../../_lib/family-skills";
 import { requireFamilyUser } from "../../_lib/family-user";
 
 export const dynamic = "force-dynamic";
@@ -49,20 +51,20 @@ export default async function FamilyAthletePage({
     throw error;
   }
 
+  // Niveles y progresión: null con la bandera apagada o sin el candidato SQL.
+  const skills = await loadFamilySkills(user.id, athleteId);
+
   return (
     <FamilyPortalShell active={null}>
       <Link href="/familia" className={ownerUi.backLink}>
         ← Volver a tu familia
       </Link>
-      <header className={`${ownerUi.pageHeader} mt-3`}>
-        <h1 className={ownerUi.pageTitle}>{schedule.athlete.displayName}</h1>
-        {/* La academia es un dato del bloque, debajo del título, no un antetítulo. */}
-        <p className="floor-label mt-2 break-words text-ramp-600 [overflow-wrap:anywhere]">{schedule.organizationName}</p>
-        <p className={ownerUi.pageLead}>
-          Datos desde el {formatCalendarDate(schedule.athlete.visibleSince)}, fecha en
-          que la gimnasta se vinculó a tu familia.
-        </p>
-      </header>
+      {/* La academia va en la descripción, no como antetítulo. */}
+      <PageHeader
+        title={schedule.athlete.displayName}
+        description={`${schedule.organizationName}. Datos desde el ${formatCalendarDate(schedule.athlete.visibleSince)}, fecha en que la gimnasta se vinculó a tu familia.`}
+        className={`${ownerUi.pageHeader} mt-3`}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className={ownerUi.card} aria-labelledby="family-schedule-title">
@@ -172,6 +174,9 @@ export default async function FamilyAthletePage({
           )}
         </section>
       </div>
+
+      {/* Niveles y progresión: solo lectura; no aparece sin la bandera ni el candidato SQL. */}
+      <FamilySkillsSection view={skills} athleteId={athleteId} />
     </FamilyPortalShell>
   );
 }

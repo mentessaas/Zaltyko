@@ -180,7 +180,7 @@ function OperationalEvidence({
         {!capacity ? (
           <p
             role="status"
-            className="rounded-[12px] mt-5 border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+            className="rounded-[12px] mt-5 border border-ochre-line bg-ochre-wash p-4 text-sm text-ochre-ink"
           >
             No se pudo actualizar este resumen. El resto del panel sigue
             disponible.
@@ -299,14 +299,14 @@ function OperationalEvidence({
         {!cohorts ? (
           <p
             role="status"
-            className="rounded-[12px] mt-5 border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+            className="rounded-[12px] mt-5 border border-ochre-line bg-ochre-wash p-4 text-sm text-ochre-ink"
           >
             No se pudo actualizar este resumen. El resto del panel sigue
             disponible.
           </p>
         ) : (
           <>
-            <p className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-amber-500 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+            <p className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-ochre bg-ochre-wash p-3 text-xs leading-5 text-ochre-ink">
               {cohorts.pauseGrace.reason} La fecha de cohorte usa el primer
               estado activo registrado; si falta historial, usa el inicio de la
               inscripción.
@@ -498,7 +498,7 @@ function PipelineFreshnessNotice({
     freshness.pendingEventCount + freshness.processingEventCount;
   const className =
     freshness.status === "failed" || freshness.status === "stale"
-      ? "border-amber-400 bg-amber-50 text-amber-950"
+      ? "border-ochre-line bg-ochre-wash text-ochre-ink"
       : "border-sky-300 bg-sky-50 text-sky-950";
   return (
     <div role={role} className={`mt-4 border p-4 text-sm ${className}`}>
@@ -734,7 +734,7 @@ export function OwnerDashboardView({
           <div
             role="status"
             id="data-status"
-            className="rounded-[12px] mt-5 flex gap-3 border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950"
+            className="rounded-[12px] mt-5 flex gap-3 border border-ochre-line bg-ochre-wash p-4 text-sm text-ochre-ink"
           >
             <Clock3 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
             <div>

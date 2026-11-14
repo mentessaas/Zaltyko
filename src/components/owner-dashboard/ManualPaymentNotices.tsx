@@ -8,8 +8,7 @@ import {
   formatMoney,
   type PendingPaymentRequest,
 } from "./manual-payment-form-model";
-import { ownerField, ownerNoticeAviso } from "./owner-form-tones";
-import { ownerUi } from "./owner-ui";
+import { ownerField, ownerUi } from "./owner-ui";
 import { cn } from "@/lib/utils";
 
 /** A pending submission belongs to another academy: resolve it there first. */
@@ -23,7 +22,7 @@ export function ManualPaymentRetryScopeNotice({
   return retryRequest && !retryBelongsToCurrentOrganization ? (
     <div
       role="alert"
-      className={ownerNoticeAviso}
+      className={ownerUi.noticeWarning}
     >
       <p>
         Hay un envío de pago pendiente de confirmar en otra academia. Para
@@ -49,7 +48,7 @@ export function ManualPaymentOtherActorNotice({
   return otherActorPending ? (
     <div
       role="alert"
-      className={ownerNoticeAviso}
+      className={ownerUi.noticeWarning}
     >
       Hay un envío pendiente en otra sesión de Owner. Vuelve a la cuenta que lo
       inició para reintentar ese mismo registro antes de crear otro pago.
@@ -74,7 +73,7 @@ export function ManualPaymentLegacyRecoveryNotice({
   return legacyRecoveryRequired ? (
     <div
       role="alert"
-      className={ownerNoticeAviso}
+      className={ownerUi.noticeWarning}
     >
       <p>
         Hay un envío antiguo que no conserva qué usuario lo inició. Si lo
@@ -149,7 +148,7 @@ export function ManualPaymentEmptyState({
         </p>
       )}
       {retryForCurrentOrganization && (
-        <div className={cn(ownerNoticeAviso, "mt-4")}>
+        <div className={cn(ownerUi.noticeWarning, "mt-4")}>
           <p>
             Hay un envío anterior cuyo resultado no se pudo confirmar. Puedes
             consultar el mismo envío sin crear otro registro.

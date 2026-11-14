@@ -10,7 +10,7 @@ import {
   secondaryButtonClassName,
   type PendingMembershipCommand,
 } from "./owner-groups-manager-model";
-import { ownerTone } from "./owner-tone-ui";
+import { ownerTone } from "./owner-ui";
 
 type ArchiveEditorProps = ComponentProps<typeof OwnerAthleteArchiveEditor>;
 

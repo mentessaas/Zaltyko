@@ -1,6 +1,6 @@
 import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell";
-import { ownerTone } from "@/components/owner-dashboard/owner-tone-ui";
-import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import { getFamilyFees } from "@/modules/family-portal/application/family-portal-reads";
 import {
   FAMILY_PAYMENT_NOTICE,
@@ -20,10 +20,11 @@ export default async function FamilyFeesPage() {
 
   return (
     <FamilyPortalShell active="fees">
-      <header className={ownerUi.pageHeader}>
-        <h1 className={ownerUi.pageTitle}>Cuotas</h1>
-        <p className={ownerUi.pageLead}>Estado de las cuotas emitidas por tu academia.</p>
-      </header>
+      <PageHeader
+        title="Cuotas"
+        description="Estado de las cuotas emitidas por tu academia."
+        className={ownerUi.pageHeader}
+      />
 
       <p className={`${ownerUi.noticeInfo} mb-6`} role="note">
         {FAMILY_PAYMENT_NOTICE}
