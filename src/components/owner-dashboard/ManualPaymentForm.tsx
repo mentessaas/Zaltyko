@@ -39,6 +39,7 @@ import {
 } from "./ManualPaymentNotices";
 import { ManualPaymentChargeField, ManualPaymentDetailsFields } from "./ManualPaymentFormFields";
 import { ownerUi } from "./owner-ui";
+import { OwnerSuccessNotice } from "./OwnerFeedback";
 import { cn } from "@/lib/utils";
 
 import type { OpenManualPaymentCharge } from "@/modules/billing/application/manual-payments";
@@ -706,14 +707,7 @@ export function ManualPaymentForm({
           {error}
         </p>
       )}
-      {saved && (
-        <p
-          role="status"
-          className={cn(ownerUi.noticeInfo, "font-semibold")}
-        >
-          Pago guardado y asignado al cargo.
-        </p>
-      )}
+      {saved && <OwnerSuccessNotice>Pago guardado y asignado al cargo.</OwnerSuccessNotice>}
 
       <div className="flex flex-wrap items-center gap-4">
         <button

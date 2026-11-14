@@ -7,6 +7,18 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-14 — Niveles y progresión por aparato (A6), apagado
+
+**Contexto.** Brecha A6 del análisis de competencia: progresión por niveles y aparatos con informe para la familia y diploma. Se continúa lo de objetivos y observaciones (271).
+
+**Cambio.**
+- Módulo `src/modules/skill-levels` (dominio puro con los cálculos, servicio con autorización por rol, sede y gimnasta, espejo Drizzle fuera de `src/db/schema/`).
+- Candidato `docs/deployment/candidates/20261114121000_skill_levels_candidate.sql`: cinco tablas con RLS forzado. **Sin aplicar en ningún entorno.**
+- Bandera `ZALTYKO_SKILL_LEVELS_ENABLED=false` por defecto: sin ella y sin el candidato no hay páginas (404), las API responden 503 y `/familia` no muestra nada.
+- `/owner/skills` (plantillas y grupos), evaluación rápida de varias gimnastas a la vez por grupo o por sesión, hoja de la gimnasta, diploma imprimible y sección de solo lectura en `/familia/gimnastas/[id]`. Enlaces desde Grupos y Asistencia solo con la función disponible.
+- Exportación, verificación, disposición y supresión de datos ya incluyen el módulo `skill_levels`.
+
+**Pruebas.** `tests/skill-levels-*` (dominio y cálculos, contrato del candidato, rutas, interfaz y PostgreSQL desechable) y los contratos de derechos de datos y de la matriz del entrenador.
 
 
 ## 2026-11-14 — /owner/calendar: calendario de clases por día, semana y mes
