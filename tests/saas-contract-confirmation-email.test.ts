@@ -279,6 +279,7 @@ describe("envío idempotente y tolerante a fallos", () => {
     const options = mocks.send.mock.calls[0]![0];
     expect(options).toMatchObject({
       purpose: "transactional",
+      legallyRequired: true,
       to: "owner@example.invalid",
       replyTo: "hola@zaltyko.com",
       template: SAAS_CONTRACT_CONFIRMATION_TEMPLATE,

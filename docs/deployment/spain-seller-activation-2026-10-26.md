@@ -246,11 +246,14 @@ Live** de Stripe. La prueba en test no basta.
 - **Fallos**: se registran (log y `email_logs.status = failed`, plantilla
   `saas-contract-confirmation`) y el webhook responde igual; no hay reintento
   automático. Las organizaciones del ensayo QA congelado no reciben correo.
-- **Limitación conocida**: el emisor común (`sendEmailWithLogging`) omite
-  cualquier correo, también este, a direcciones dadas de baja de marketing
-  (`hasMarketingOptOut`); queda solo en el log
-  (`saas_billing.contract_confirmation_not_sent`). Un `invoice.paid`
-  cuarentenado y aplicado después por la conciliación tampoco lo envía.
+- **Baja de marketing**: no impide este correo. Se envía con
+  `legallyRequired: true` (`SendEmailOptions` en `src/lib/email/email-service.ts`),
+  que solo salta `hasMarketingOptOut`; preferencias de notificación,
+  elegibilidad de la academia y dedupe siguen aplicando, y no tiene efecto con
+  `purpose: "marketing"`. Hoy solo la usa la confirmación de la contratación
+  (lo vigila `tests/email-legally-required-optout.test.ts`).
+- **Limitación conocida**: un `invoice.paid` cuarentenado y aplicado después
+  por la conciliación no envía el correo.
 - Código: `src/modules/saas-billing/application/contract-confirmation-email.ts`.
 
 ## Revisión legal pendiente (no se ha inventado texto jurídico)

@@ -339,6 +339,8 @@ export async function sendSaasContractConfirmationEmail(
     });
     const accepted = await sendEmailWithLogging({
       purpose: "transactional",
+      // LSSI art. 28: una baja de marketing no puede impedir la confirmación.
+      legallyRequired: true,
       to: recipient,
       subject: content.subject,
       html: content.html,
