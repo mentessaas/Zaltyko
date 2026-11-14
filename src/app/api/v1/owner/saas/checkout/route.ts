@@ -27,6 +27,15 @@ const bodySchema = z
     taxTerritory: z.enum(SPANISH_TAX_TERRITORIES).optional(),
     // Casilla obligatoria de inicio inmediato y pérdida del desistimiento.
     immediateStartConsent: z.literal(true).optional(),
+    // Datos de la factura (obligatorios con IVA español). Aquí solo se acota la
+    // forma; el servicio valida el NIF/NIE/CIF y responde 422 con un mensaje claro.
+    billingDetails: z
+      .object({
+        legalName: z.string().max(300),
+        taxId: z.string().max(40),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 const idempotencySchema = z.string().trim().min(8).max(150);

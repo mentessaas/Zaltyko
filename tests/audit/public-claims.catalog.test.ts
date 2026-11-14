@@ -15,6 +15,7 @@ import { join } from "node:path";
 
 import {
   BILLABLE_PRODUCT_PLANS,
+  PUBLIC_PRODUCT_PLANS,
   PRODUCT_PLAN_BY_CODE,
   PRODUCT_PLANS,
 } from "@/lib/plans/catalog";
@@ -101,6 +102,14 @@ describe("L2 — plans catalog matches published copy", () => {
   it("BILLABLE_PRODUCT_PLANS excluye network (sin Stripe self-checkout)", () => {
     expect(BILLABLE_PRODUCT_PLANS.map((p) => p.code)).not.toContain("network");
     expect(BILLABLE_PRODUCT_PLANS.length).toBe(PRODUCT_PLANS.length - 1);
+  });
+
+  it("PUBLIC_PRODUCT_PLANS no ofrece Network ni promete multi-sede en la web", () => {
+    expect(PUBLIC_PRODUCT_PLANS.map((p) => p.code)).toEqual(["free", "pro", "premium"]);
+    expect(readSiteFile("src/app/(site)/pricing.tsx")).toContain("PUBLIC_PRODUCT_PLANS.map");
+    expect(readSiteFile("src/app/(site)/mat/HomeSections.tsx")).toContain("PUBLIC_PRODUCT_PLANS.map");
+    const network = PRODUCT_PLAN_BY_CODE.network;
+    expect([network.description, network.shortDescription, ...network.features].join(" ")).not.toMatch(/multi-?sede|por sede/i);
   });
 });
 
@@ -236,7 +245,7 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(ESSENTIAL_FAQS.find(item => item.question === "¿Zaltyko cobra a las familias?")?.answer).toMatch(/^No\./);
   });
 
-  it("Network mantiene el mismo precio base y matiz sales-assisted en las FAQs", () => {
+  it("las FAQs no ofrecen Network: no es contratable ni tiene producto multi-sede", () => {
     // The home FAQPage JSON-LD is built from the catalog in home-structured-data.ts.
     const homeStructuredData = readSiteFile("src/lib/launch/home-structured-data.ts");
     const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
@@ -245,10 +254,9 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(homeStructuredData).toContain("mainEntity: ESSENTIAL_FAQS.map");
     expect(readSiteFile("src/app/page.tsx")).toContain("<Schema json={structuredData.faqPage} />");
     for (const copy of [ESSENTIAL_FAQS.map(item => item.answer).join(" ")]) {
-      expect(copy).toContain("Network parte de 99 €/mes");
-      expect(copy).toContain("condiciones a medida");
-      // Starter y Growth no limitan sedes: no se dice que varias sedes exijan Network.
-      expect(copy).not.toMatch(/Network[^.]{0,40}varias sedes|varias sedes[^.]{0,60}Network/);
+      expect(copy).not.toContain("Network");
+      expect(copy).not.toContain("99 €/mes");
+      expect(copy).not.toMatch(/multi-?sede/i);
     }
   });
 
