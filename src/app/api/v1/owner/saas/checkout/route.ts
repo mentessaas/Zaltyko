@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     return noStore(
       apiError(
         "VALIDATION_ERROR",
-        "La solicitud de Checkout no es válida.",
+        "La solicitud de pago no es válida.",
         400
       )
     );
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     return noStore(
       apiError(
         "PLAN_NOT_SELF_SERVE",
-        "Este plan no se puede contratar desde Checkout.",
+        "Este plan no se puede contratar desde aquí.",
         422
       )
     );
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     return noStore(
       apiError(
         "BILLING_PROVIDER_UNAVAILABLE",
-        "No se pudo iniciar Checkout.",
+        "No se pudo abrir el pago. Inténtalo de nuevo.",
         503
       )
     );
@@ -138,7 +138,7 @@ export async function GET(request: Request) {
   const parsed = z.object({ organizationId: z.string().uuid() }).strict()
     .safeParse(Object.fromEntries(params));
   if (!parsed.success || params.getAll("organizationId").length !== 1)
-    return noStore(apiError("VALIDATION_ERROR", "Indica una organización válida.", 400));
+    return noStore(apiError("VALIDATION_ERROR", "Indica una academia válida.", 400));
   try {
     const scope = await resolveSaasOwnerScope({ userId: user.id, organizationId: parsed.data.organizationId });
     const limit = await rateLimit({ identifier: getVerifiedTenantRateLimitIdentifier(request, scope.organizationId),
@@ -149,6 +149,6 @@ export async function GET(request: Request) {
   } catch (error) {
     if (error instanceof OperationalError)
       return noStore(apiError(saasHttpErrorCode(error), error.message, error.status, error.details));
-    return noStore(apiError("BILLING_PROVIDER_UNAVAILABLE", "No se pudo recuperar la sesión de pago.", 503));
+    return noStore(apiError("BILLING_PROVIDER_UNAVAILABLE", "No se pudo recuperar el pago pendiente.", 503));
   }
 }

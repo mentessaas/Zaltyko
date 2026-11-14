@@ -118,13 +118,13 @@ describe("gestión de grupos owner", () => {
     render(<OwnerGroupsManager bundle={groupBundle} />);
 
     await waitFor(() => expect(screen.queryByText(/Comprobando si hay una creación pendiente/)).not.toBeInTheDocument());
-    expect(screen.getByText(/Comprobando los límites del plan/)).toBeVisible();
+    expect(screen.getByText(/Estamos comprobando los límites de tu plan/)).toBeVisible();
     expect(screen.getByRole("button", { name: "Crear grupo" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Buscar" })).toBeEnabled();
 
     act(() => markOwnerPlanUsageUnavailable(organizationId, usageRead));
-    expect(screen.getByText(/No se pudieron comprobar los límites del plan/)).toBeVisible();
-    expect(screen.getByRole("link", { name: "Consultar uso y regularizar" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
+    expect(screen.getByText(/No pudimos comprobar los límites de tu plan/)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Ver uso y ajustar" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
     const dispatch = vi.spyOn(window, "dispatchEvent");
     await user.click(screen.getByRole("button", { name: "Volver a comprobar límites" }));
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: "zaltyko:plan-usage-changed" }));
@@ -314,7 +314,7 @@ describe("gestión de grupos owner", () => {
     render(<OwnerGroupsManager bundle={bundleWithHistory} />);
 
     expect(screen.getByText(/La academia está en solo lectura/)).toBeVisible();
-    expect(screen.getByRole("link", { name: "Uso y regularización" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
+    expect(screen.getByRole("link", { name: "Uso del plan" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
     expect(screen.getByText("Ana Sintética")).toBeVisible();
     expect(screen.getByRole("button", { name: "Reactivar a Ana Sintética" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Crear grupo" })).toBeDisabled();

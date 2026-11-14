@@ -478,7 +478,7 @@ export async function startOwnerSaasTrial(input: {
     if (latestTrial && latestTrial.cooldownEndsAt.getTime() > now.getTime()) {
       throw new OperationalError(
         "INVALID_STATE_TRANSITION",
-        "La organización aún no puede activar otro trial",
+        "La academia aún no puede activar otra prueba",
         409,
         {
           code: "TRIAL_NOT_ELIGIBLE",
@@ -1361,7 +1361,7 @@ export async function createOwnerSaasPortal(input: {
   if (!portalTarget) {
     throw new OperationalError(
       "INVALID_STATE_TRANSITION",
-      "La organización aún no tiene una suscripción SaaS gestionable",
+      "La academia aún no tiene una suscripción que se pueda gestionar",
       409
     );
   }
@@ -1753,7 +1753,7 @@ function validateCheckoutUrl(url: string | null): string {
 function checkoutExpired(operationId: string): OperationalError {
   return new OperationalError(
     "INVALID_STATE_TRANSITION",
-    "La sesión de Checkout ha caducado; inicia una nueva solicitud",
+    "El pago ha caducado; empieza de nuevo",
     409,
     { operationId, code: "CHECKOUT_EXPIRED" }
   );
@@ -1762,7 +1762,7 @@ function checkoutExpired(operationId: string): OperationalError {
 function checkoutInProgress(operationId: string): OperationalError {
   return new OperationalError(
     "INVALID_STATE_TRANSITION",
-    "Ya hay una operación de Checkout en curso",
+    "Ya hay un pago en curso",
     409,
     { operationId, code: "CHECKOUT_IN_PROGRESS" }
   );
@@ -1771,7 +1771,7 @@ function checkoutInProgress(operationId: string): OperationalError {
 function checkoutFailed(operationId: string): OperationalError {
   return new OperationalError(
     "INVALID_STATE_TRANSITION",
-    "El intento anterior de Checkout terminó sin completar el pago",
+    "El intento anterior terminó sin completar el pago",
     409,
     { operationId, code: "CHECKOUT_FAILED" }
   );
@@ -1780,7 +1780,7 @@ function checkoutFailed(operationId: string): OperationalError {
 function checkoutRecoveryRequired(operationId: string): OperationalError {
   return new OperationalError(
     "INVALID_STATE_TRANSITION",
-    "No se puede reintentar Checkout automáticamente; la operación necesita reconciliación",
+    "No se puede reintentar el pago automáticamente; hace falta revisarlo",
     409,
     { operationId, code: "CHECKOUT_RECOVERY_REQUIRED" }
   );
@@ -1789,7 +1789,7 @@ function checkoutRecoveryRequired(operationId: string): OperationalError {
 function subscriptionAlreadyExists(): OperationalError {
   return new OperationalError(
     "INVALID_STATE_TRANSITION",
-    "La organización ya tiene una suscripción o un plan de pago",
+    "La academia ya tiene una suscripción o un plan de pago",
     409,
     { code: "SUBSCRIPTION_ALREADY_EXISTS" }
   );

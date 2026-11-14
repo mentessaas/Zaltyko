@@ -49,7 +49,7 @@ function unauthenticatedResponse() {
   return problemResponse({
     status: 401,
     title: "Autenticación requerida",
-    detail: "Inicia sesión para gestionar las pertenencias del grupo.",
+    detail: "Inicia sesión para gestionar las gimnastas del grupo.",
     type: "authentication-required",
   });
 }
@@ -122,7 +122,7 @@ export async function POST(
   if (!params.success || !parsedBody.success || !idempotencyKey.success) {
     return problemResponse({
       status: 400,
-      title: "Datos de la pertenencia incompletos",
+      title: "Faltan datos del grupo de la gimnasta",
       detail:
         "Elige una ficha existente o indica el nombre y los apellidos de la nueva gimnasta.",
       type: "invalid-group-membership-command",

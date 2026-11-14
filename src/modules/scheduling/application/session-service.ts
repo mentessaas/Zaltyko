@@ -172,7 +172,7 @@ export async function materializeSessions(
     if (!template || template.status !== "active") {
       throw new OperationalError(
         "NOT_FOUND",
-        "Plantilla activa no encontrada",
+        "No encontramos la clase activa",
         404
       );
     }
@@ -249,7 +249,7 @@ export async function materializeSessions(
     if (Number(schedule?.count ?? 0) === 0) {
       throw new OperationalError(
         "NO_SCHEDULE",
-        "La plantilla no tiene horario semanal",
+        "La clase no tiene horario semanal",
         409
       );
     }

@@ -142,7 +142,7 @@ export function OwnerAcademyDataExport({
         setState({
           organizationId,
           status: "error",
-          message: "El servidor no devolvió un archivo JSON válido. Inténtalo más tarde.",
+          message: "No pudimos preparar el archivo. Inténtalo más tarde.",
         });
         return;
       }
@@ -155,7 +155,7 @@ export function OwnerAcademyDataExport({
         setState({
           organizationId,
           status: "error",
-          message: "El servidor devolvió un archivo JSON vacío. Inténtalo más tarde.",
+          message: "El archivo salió vacío. Inténtalo más tarde.",
         });
         return;
       }

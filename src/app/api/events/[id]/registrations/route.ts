@@ -126,7 +126,7 @@ export const POST = withTenant(async (request, context) => {
       .where(and(eq(profiles.id, body.profileId), eq(profiles.tenantId, context.tenantId)))
       .limit(1);
     if (!profile) {
-      return apiError("PROFILE_NOT_FOUND", "El participante no pertenece a tu organización", 404);
+      return apiError("PROFILE_NOT_FOUND", "Esta persona no es de tu academia", 404);
     }
 
     // Check capacity

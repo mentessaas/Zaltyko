@@ -10,6 +10,12 @@ export const PUBLIC_GROWTH_EVENT_NAMES = [
   "contact_started",
   "contact_submit_attempted",
   "contact_submit_failed",
+  // Demo pública (/demo): entrada, intento de guardar y clic hacia el registro.
+  // Solo llevan «origen», «colocacion» y «seccion», de listas cerradas; nada
+  // personal. Salen por el mismo canal que los de precios.
+  "demo_viewed",
+  "demo_action_blocked",
+  "demo_signup_clicked",
 ] as const;
 
 export const COMMERCIAL_PLAN_SLUGS = [
