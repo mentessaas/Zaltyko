@@ -122,6 +122,10 @@ const omittedColumnReasons: Record<string, string> = {
     "This client retry key is operational metadata and is not needed to interpret the objective.",
   "athlete_observations.client_request_id":
     "This client retry key is operational metadata and is not needed to interpret the observation.",
+  "skill_templates.client_request_id":
+    "This client retry key is operational metadata and is not needed to interpret the level template.",
+  "athlete_level_passes.client_request_id":
+    "This client retry key is operational metadata and is not needed to interpret the level pass.",
   "session_plans.client_request_id":
     "This client retry key is operational metadata and is not needed to interpret the session plan.",
   "session_plans.last_request_id":
@@ -510,11 +514,12 @@ const CLASS_PLAN_TEMPLATE_BLOCKS_PROJECTION = `coalesce((
  * package is byte-identical to one generated before the module existed.
  * Sources: docs/deployment/candidates/20261111120000_athlete_progress_candidate.sql,
  * 20261111180000_coach_assignment_candidate.sql,
- * 20261111200000_session_plans_candidate.sql and
- * 20261110120000_admission_requests_candidate.sql.
+ * 20261111200000_session_plans_candidate.sql,
+ * 20261110120000_admission_requests_candidate.sql and
+ * 20261114121000_skill_levels_candidate.sql (not applied anywhere yet).
  */
 export interface OptionalIncludedExportModule {
-  module: "athlete_progress" | "coach_assignment" | "session_plans" | "admissions" | "family_access";
+  module: "athlete_progress" | "coach_assignment" | "session_plans" | "admissions" | "skill_levels" | "family_access";
   tables: readonly CanonicalExportTableSpec[];
 }
 
@@ -597,6 +602,37 @@ export const OPTIONAL_INCLUDED_EXPORT_MODULES: readonly OptionalIncludedExportMo
         expectedColumns:
           "id organization_id location_id link_id submission_id status contact_name contact_email contact_phone athlete_given_name athlete_birth_year message privacy_consent_version privacy_consent_at converted_athlete_id waitlist_entry_id handled_by_member_id handled_at anonymized_at revision created_at updated_at",
         omit: ["submission_id"],
+      }),
+    ],
+  },
+  {
+    module: "skill_levels",
+    tables: [
+      includedTable({
+        name: "skill_templates",
+        expectedColumns:
+          "id organization_id client_request_id discipline name description source starter_key archived_at revision created_by_member_id created_at updated_by_member_id updated_at",
+        omit: ["client_request_id"],
+      }),
+      includedTable({
+        name: "skill_levels",
+        expectedColumns: "id organization_id template_id position name description archived_at created_at updated_at",
+      }),
+      includedTable({
+        name: "skill_elements",
+        expectedColumns:
+          "id organization_id template_id level_id position apparatus name description is_required archived_at created_at updated_at",
+      }),
+      includedTable({
+        name: "athlete_skill_progress",
+        expectedColumns:
+          "id organization_id athlete_id template_id element_id location_id status achieved_on evaluated_by_member_id evaluated_at revision created_at updated_at",
+      }),
+      includedTable({
+        name: "athlete_level_passes",
+        expectedColumns:
+          "id organization_id athlete_id template_id level_id location_id client_request_id passed_on passed_by_member_id created_at",
+        omit: ["client_request_id"],
       }),
     ],
   },

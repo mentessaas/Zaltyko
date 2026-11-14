@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell";
+import { FamilySkillsSection } from "@/components/family-portal/FamilySkillsSection";
 import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { PageHeader } from "@/components/ui/page-header";
 import {
@@ -20,6 +21,7 @@ import {
 } from "@/modules/family-portal/domain/family-portal-presentation";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
+import { loadFamilySkills } from "../../_lib/family-skills";
 import { requireFamilyUser } from "../../_lib/family-user";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +50,9 @@ export default async function FamilyAthletePage({
     }
     throw error;
   }
+
+  // Niveles y progresión: null con la bandera apagada o sin el candidato SQL.
+  const skills = await loadFamilySkills(user.id, athleteId);
 
   return (
     <FamilyPortalShell active={null}>
@@ -169,6 +174,9 @@ export default async function FamilyAthletePage({
           )}
         </section>
       </div>
+
+      {/* Niveles y progresión: solo lectura; no aparece sin la bandera ni el candidato SQL. */}
+      <FamilySkillsSection view={skills} athleteId={athleteId} />
     </FamilyPortalShell>
   );
 }

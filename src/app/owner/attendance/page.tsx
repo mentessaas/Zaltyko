@@ -13,6 +13,7 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { db } from "@/db";
 import { isAthleteProgressAvailableForPage } from "@/modules/athlete-progress/application/athlete-progress-service";
 import { isSessionPlanAvailableForPage } from "@/modules/session-plans/application/session-plan-service";
+import { isSkillLevelsAvailableForPage } from "@/modules/skill-levels/application/skill-level-service";
 import {
   isCoachAssignmentAvailableForPage,
   withSessionCoaches,
@@ -129,9 +130,11 @@ export default async function OwnerAttendancePage({
     : null;
 
   // P2 #17: sin el candidato SQL aplicado no se muestran los accesos.
-  const [progressAvailable, sessionPlansAvailable, coachAssignmentAvailable, coachConflicts, attendanceWeeks] = await Promise.all([
+  const [progressAvailable, sessionPlansAvailable, skillLevelsAvailable, coachAssignmentAvailable, coachConflicts, attendanceWeeks] = await Promise.all([
     isAthleteProgressAvailableForPage(db),
     isSessionPlanAvailableForPage(db),
+    // Niveles y progresión: bandera apagada o sin el candidato SQL, sin acceso.
+    isSkillLevelsAvailableForPage(db),
     // O1: lo mismo para titulares y sustituciones.
     isCoachAssignmentAvailableForPage(db),
     // O2: la entrenadora ve sus propios choques próximos, solo en sus sedes
@@ -219,6 +222,7 @@ export default async function OwnerAttendancePage({
         progressAvailable={progressAvailable}
         coachAssignmentAvailable={coachAssignmentAvailable}
         sessionPlansAvailable={sessionPlansAvailable}
+        skillLevelsAvailable={skillLevelsAvailable}
         insight={
           attendanceWeeks ? (
             <OwnerAttendanceWeeksPanel chart={attendanceWeeks} links={{}} headingLevel="h2" />

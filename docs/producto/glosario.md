@@ -166,6 +166,15 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
   - «rutina» o «programa», porque «Programa» es otra cosa en Clases.
 - **Dónde aparece:** `OwnerSessionPlanPanel` (Pasar lista) y `docs/producto/planificacion-sesiones.md` (P2 #17, segunda parte). En código y en la base se llaman `session_plans` y `class_plan_templates`.
 
+### Nivel, elemento y paso de nivel
+- **Elegido:**
+  - «plantilla de niveles» (o «plantilla»), la lista de niveles de una disciplina que define la academia; se «crea», se «copia» y se «edita». En este contexto «plantilla» sí vale: no se confunde con el modelo de la clase.
+  - «nivel», cada etapa de la plantilla; «elemento», cada habilidad de un nivel en un aparato; «obligatorio», el elemento que cuenta para pasar de nivel.
+  - estados del elemento: «No iniciado», «En progreso» y «Conseguido».
+  - «paso de nivel», el registro de que una gimnasta supera un nivel; «Pasar de nivel» es su acción; «diploma», lo que se imprime. En la vista de familias, «Niveles y progreso».
+- **Prohibido:** «skill» o «habilidad» como título de pantalla; «grado», «cinturón» o «categoría» por nivel (la categoría es de competición); «examen» o «aprobar» por el paso de nivel; «certificado» por diploma; «reglamento», «programa oficial» o el nombre de una federación en las plantillas de ejemplo, que son orientativas.
+- **Dónde aparece:** `SkillTemplatesManager`, `SkillRosterEvaluator`, `SkillAthletePanel`, `SkillDiploma`, `FamilySkillsSection` y `docs/producto/niveles-y-progresion.md` (A6). En código y en la base se llaman `skill_templates`, `skill_levels`, `skill_elements`, `athlete_skill_progress` y `athlete_level_passes`.
+
 ### Choque
 - **Elegido:** «choque», el aviso de que una misma entrenadora está en dos sesiones a la vez («Doble asignación»), sin tiempo para cambiar de sede («Sin tiempo entre sedes»), o de que una pista está ocupada por dos sesiones a la vez («Pista ocupada»). La lista se llama «Choques próximos» y, para la entrenadora, «Tus choques próximos». Tras guardar: «Guardado con aviso de choque».
 - **Prohibido:** conflicto o solapamiento en textos visibles; «error» o «bloqueo», porque solo avisa.

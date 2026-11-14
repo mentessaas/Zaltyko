@@ -73,6 +73,7 @@ export const REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES: readonly (readonly 
   ["class_template_staff", "session_staff_overrides"],
   ["session_plans", "session_plan_blocks", "session_plan_objectives", "class_plan_templates"],
   ["admission_links", "admission_requests"],
+  ["skill_templates", "skill_levels", "skill_elements", "athlete_skill_progress", "athlete_level_passes"],
   // Familias: acceso al portal y avisos (candidato 20261114120000, sin aplicar).
   ["guardian_access_invitations", "family_notices", "family_notice_recipients", "guardian_notification_preferences"],
 ];
