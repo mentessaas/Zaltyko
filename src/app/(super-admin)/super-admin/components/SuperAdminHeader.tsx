@@ -7,6 +7,7 @@ import { LogOut, Menu, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { clearOfflineAttendanceOnSignOut, hasOfflineAttendanceData } from "@/lib/offline-attendance/sign-out";
 import { isSuperAdminNavigationActive } from "@/lib/navigation/active";
 import { cn } from "@/lib/utils";
 import { SUPER_ADMIN_NAV_ITEMS } from "./nav-items";
@@ -27,6 +28,8 @@ export function SuperAdminHeader({ userName, userEmail }: SuperAdminHeaderProps)
     if (loading) return;
     setLoading(true);
     try {
+      // Sin await si no hay nada guardado: el cierre de sesión no se retrasa.
+      if (hasOfflineAttendanceData() && !(await clearOfflineAttendanceOnSignOut())) return;
       await supabase.auth.signOut();
       router.push("/auth/login");
     } finally {
