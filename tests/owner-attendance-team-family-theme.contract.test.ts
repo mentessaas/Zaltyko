@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { ownerTab, ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
+
 /**
  * Coherencia visual «Magnesio sobre tapiz» (PR-10a, PR-10b y PR-11 de la
  * auditoría del 2026-11-12): asistencia (también la home de la entrenadora),
@@ -16,10 +18,10 @@ import { describe, expect, it } from "vitest";
  *   `rounded-[12px]`…): chips de cinta de 6 px y radios del sistema;
  * - el negro, los alias `zaltyko-*`, los hexadecimales y el `letter-spacing`
  *   negativo (The Stretch Rule);
- * - los avisos en coral de `ownerUi.noticeWarning`/`chipAttention`: el aviso
- *   va en ocre (`ownerTone`), el coral queda para errores y deudas;
- * - los antetítulos decorativos (`ownerUi.eyebrow`) encima del título, como
- *   en la web (The Label Is Data Rule).
+ * - los avisos en coral: el aviso va en ocre (`ownerUi`/`ownerTone`, un único
+ *   origen en `owner-ui.ts`) y el coral queda para errores y deudas;
+ * - los antetítulos decorativos encima del título, como en la web (The Label
+ *   Is Data Rule): la cabecera es `PageHeader`.
  */
 const FILES = [
   "src/app/owner/attendance/page.tsx",
@@ -39,7 +41,7 @@ const FILES = [
   "src/components/owner-dashboard/OwnerTrialRequestsWorkspace.tsx",
   "src/components/owner-dashboard/OwnerOperationalReadOnlyNotice.tsx",
   "src/components/owner-dashboard/OwnerStaffManager.tsx",
-  "src/components/owner-dashboard/owner-tone-ui.ts",
+  "src/components/owner-dashboard/owner-ui.ts",
   "src/components/owner-dashboard/OwnerPlanCheckNote.tsx",
   "src/components/owner/OwnerTeamAccessPanel.tsx",
   "src/components/family-portal/FamilyPortalShell.tsx",
@@ -68,7 +70,7 @@ const FORBIDDEN: Array<[string, RegExp]> = [
   ["alias zaltyko-*", /\b(?:bg|text|border|ring|outline)-zaltyko-/],
   ["hexadecimal suelto", /#[0-9A-Fa-f]{6}\b/],
   ["letter-spacing negativo", /\btracking-(?:tight|tighter|\[-)/],
-  ["aviso en coral de ownerUi", /\bownerUi\.(?:noticeWarning|chipAttention)\b/],
+  ["alias coral z-chalk-*", /\bz-chalk-/],
   ["antetítulo decorativo", /\bownerUi\.eyebrow\b/],
 ];
 
@@ -91,33 +93,40 @@ describe("asistencia, inscripciones, solicitudes, equipo y familias en Magnesio"
 });
 
 describe("tonos de estado de estas pantallas", () => {
-  const tone = readFileSync("src/components/owner-dashboard/owner-tone-ui.ts", "utf8");
-  const entry = (name: string) => tone.match(new RegExp(`\\b${name}:\\s*([^\\n]+)`))?.[1] ?? "";
+  // Se comprueban los valores resueltos del único módulo (`owner-ui.ts`): las
+  // clases pueden ir en cualquier orden.
+  const classes = (value: string) => value.split(/\s+/);
 
   it("el aviso va en ocre, nunca en coral", () => {
-    for (const name of ["noticeWarning", "chipWarning", "inlineWarning"]) {
-      expect(entry(name), name).toMatch(/ochre/);
-      expect(entry(name), name).not.toMatch(/signal|chalk-\d|coral/);
+    for (const [name, value] of Object.entries({
+      "ownerTone.noticeWarning": ownerTone.noticeWarning,
+      "ownerTone.chipWarning": ownerTone.chipWarning,
+      "ownerTone.inlineWarning": ownerTone.inlineWarning,
+      "ownerUi.noticeWarning": ownerUi.noticeWarning,
+      "ownerUi.chipAttention": ownerUi.chipAttention,
+    })) {
+      expect(value, name).toMatch(/ochre/);
+      expect(value, name).not.toMatch(/signal|chalk-\d|coral/);
     }
   });
 
   it("el error sigue en señal y lo activo en tapiz", () => {
-    expect(entry("noticeError")).toBe("ownerUi.noticeError,");
-    // Las clases pueden ir en cualquier orden (el módulo de tonos es común con #302).
-    expect(entry("chipError")).toMatch(/\bbg-signal-wash\b/);
-    expect(entry("chipError")).toMatch(/\btext-signal-ink\b/);
-    expect(entry("inlineError")).toMatch(/text-signal-ink/);
-    expect(entry("dangerButton")).toMatch(/bg-signal-ink/);
-    expect(entry("dangerButton")).not.toMatch(/bg-signal\s/);
-    expect(entry("chipActive")).toMatch(/bg-mat-wash text-mat-deep/);
-    expect(entry("chipLive")).toMatch(/bg-mat-wash/);
+    expect(ownerTone.noticeError).toBe(ownerUi.noticeError);
+    expect(classes(ownerUi.noticeError)).toEqual(expect.arrayContaining(["bg-signal-wash", "text-signal-ink"]));
+    expect(classes(ownerTone.chipError)).toEqual(expect.arrayContaining(["bg-signal-wash", "text-signal-ink"]));
+    expect(classes(ownerTone.inlineError)).toContain("text-signal-ink");
+    expect(classes(ownerTone.dangerButton)).toContain("bg-signal-ink");
+    expect(classes(ownerTone.dangerButton)).not.toContain("bg-signal");
+    expect(classes(ownerTone.chipActive)).toEqual(expect.arrayContaining(["bg-mat-wash", "text-mat-deep"]));
+    expect(classes(ownerTone.chipLive)).toContain("bg-mat-wash");
   });
 
   it("los chips son de cinta (6 px), no píldoras", () => {
-    for (const name of ["chipActive", "chipWarning", "chipError", "chipRest", "chipOutline", "chipLive"]) {
-      expect(entry(name), name).toMatch(/rounded-md|\$\{CHIP\}/);
+    for (const name of ["chipActive", "chipWarning", "chipError", "chipRest", "chipOutline", "chipLive"] as const) {
+      expect(classes(ownerTone[name]), name).toContain("rounded-md");
+      expect(classes(ownerTone[name]), name).not.toContain("rounded-full");
     }
-    expect(tone).toMatch(/const CHIP = "[^"]*rounded-md[^"]*"/);
+    expect(classes(ownerUi.chipAttention)).toContain("rounded-md");
   });
 });
 
@@ -138,8 +147,9 @@ describe("pestañas planas en lugar de botones principal/secundario", () => {
   });
 
   it("la cinta de la pestaña activa es de 3 px en tapiz", () => {
-    const tone = readFileSync("src/components/owner-dashboard/owner-tone-ui.ts", "utf8");
-    expect(tone).toMatch(/tab: `[^`]*after:h-\[3px\][^`]*after:bg-mat/);
+    expect(ownerTone.tab.split(/\s+/)).toEqual(expect.arrayContaining(["after:h-[3px]", "after:bg-mat"]));
+    expect(ownerTab(true).split(/\s+/)).toContain("after:scale-x-100");
+    expect(ownerTab(false).split(/\s+/)).toContain("after:scale-x-0");
   });
 });
 

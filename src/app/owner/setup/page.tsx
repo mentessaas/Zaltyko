@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { organizationMembers } from "@/db/zaltyko-schema";
 import { OwnerSetupForm } from "@/components/owner-dashboard/OwnerSetupForm";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
-import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import { isMissingCanonicalOwnerSchema } from "@/lib/auth/canonical-owner-schema";
 import { findLegacyAcademyMemberships } from "@/lib/auth/legacy-academy-access";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
@@ -15,11 +15,6 @@ import { createClient } from "@/lib/supabase/server";
 import { coachHomeHref } from "@/modules/owner-dashboard/domain/coach-access";
 
 export const dynamic = "force-dynamic";
-
-// Mismo titular que el registro (`AuthPageShell`): display condensado en
-// mayúsculas, sin tracking negativo, para que el alta continúe la entrada.
-const SETUP_TITLE =
-  "mt-3 font-display text-[clamp(2.25rem,6vw,3.25rem)] font-black uppercase leading-[0.92] text-z-ink [text-wrap:balance]";
 
 export default async function OwnerSetupPage() {
   const supabase = await createClient(await cookies());
@@ -48,12 +43,9 @@ export default async function OwnerSetupPage() {
       >
         <main className="grid min-h-screen place-items-center bg-z-canvas px-5 py-12 text-z-ink">
           <section className="w-full max-w-2xl rounded-xl border border-ochre-line border-t-[3px] border-t-ochre bg-white p-7 sm:p-10">
-            <p className="floor-label text-ochre-ink">
-              Cuenta vinculada
-            </p>
-            <h1 className={SETUP_TITLE}>
-              No crearemos otra academia
-            </h1>
+            {/* Cabecera compartida sin antetítulo; la regla de 3 px no se repite
+                dentro de la tarjeta. */}
+            <PageHeader title="No crearemos otra academia" className="border-b-0 pb-0" />
             <p className="mt-4 max-w-xl leading-7 text-z-soft" role="alert">
               Esta cuenta ya tiene una relación con una academia anterior. Para
               conservar sus datos, solicita la vinculación o revisión de esa
@@ -120,14 +112,12 @@ export default async function OwnerSetupPage() {
     >
       <main className="grid min-h-screen place-items-center bg-z-canvas px-5 py-12 text-z-ink">
         <section className="w-full max-w-2xl rounded-xl border border-z-line bg-white p-7 sm:p-10">
-          <p className={ownerUi.eyebrow}>
-            Tu academia
-          </p>
-          <h1 className={SETUP_TITLE}>Crea tu academia</h1>
-          <p className="mt-4 max-w-xl leading-7 text-z-soft">
-            Indica el nombre, la sede y las actividades. Después podrás añadir
-            gimnastas, clases y cuotas.
-          </p>
+          {/* La regla de 3 px que abre el formulario cierra la cabecera. */}
+          <PageHeader
+            title="Crea tu academia"
+            description="Indica el nombre, la sede y las actividades. Después podrás añadir gimnastas, clases y cuotas."
+            className="border-b-0 pb-0"
+          />
           <OwnerSetupForm contractualConsent={contractualConsent} ownerUserId={user.id} />
         </section>
       </main>

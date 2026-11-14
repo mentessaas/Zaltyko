@@ -11,7 +11,7 @@ import {
   type Candidate,
   type CreateAthleteRecoveryState,
 } from "./owner-groups-manager-model";
-import { ownerTone } from "./owner-tone-ui";
+import { ownerTone } from "./owner-ui";
 
 /** "Añadir una gimnasta": search active athletes of the academy and add one to the group. */
 export function OwnerGroupAthleteSearchForm({

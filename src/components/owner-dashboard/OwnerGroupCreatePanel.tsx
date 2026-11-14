@@ -14,8 +14,7 @@ import {
   type PendingGroupCreate,
   type PendingGroupCreateState,
 } from "./owner-groups-manager-model";
-import { ownerTone } from "./owner-tone-ui";
-import { ownerUi } from "./owner-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
 
 /** Group create command awaiting its result, or a stored draft that cannot be replayed safely. */
 export function OwnerGroupCreatePendingNotice({

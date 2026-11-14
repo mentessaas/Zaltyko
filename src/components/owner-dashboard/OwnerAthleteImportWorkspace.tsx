@@ -14,8 +14,8 @@ import {
 } from "@/modules/athlete-import/domain/athlete-import-rows";
 
 import { athleteImportTemplateXlsx } from "./athlete-import-template";
-import { ownerTone } from "./owner-tone-ui";
-import { ownerUi } from "./owner-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 
 const PREVIEW_ENDPOINT = "/api/v1/owner/athlete-import/preview";
 const CONFIRM_ENDPOINT = "/api/v1/owner/athlete-import/confirm";
@@ -201,17 +201,14 @@ export function OwnerAthleteImportWorkspace({
 
   return (
     <main className={ownerUi.page}>
-      <header className={ownerUi.pageHeader}>
-        <Link href={`/owner/athletes?organizationId=${encodeURIComponent(organizationId)}`} className={ownerUi.backLink}>
-          ← Gimnastas
-        </Link>
-        <p className={ownerUi.eyebrow}>{organizationName}</p>
-        <h1 className={ownerUi.pageTitle}>Importar gimnastas</h1>
-        <p className={ownerUi.pageLead}>
-          Sube tu Excel o CSV con las gimnastas y, si quieres, sus tutores y su grupo. Verás una vista previa
-          con lo que se va a crear antes de guardar nada.
-        </p>
-      </header>
+      <Link href={`/owner/athletes?organizationId=${encodeURIComponent(organizationId)}`} className={ownerUi.backLink}>
+        ← Gimnastas
+      </Link>
+      <PageHeader
+        title="Importar gimnastas"
+        description={`Sube tu Excel o CSV con las gimnastas de ${organizationName} y, si quieres, sus tutores y su grupo. Verás una vista previa con lo que se va a crear antes de guardar nada.`}
+        className={`${ownerUi.pageHeader} mt-3`}
+      />
 
       <section className={`${ownerUi.card} grid gap-4`} aria-labelledby="athlete-import-file">
         <h2 id="athlete-import-file" className={ownerUi.sectionTitle}>

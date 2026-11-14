@@ -1,7 +1,7 @@
 "use client";
 
-import { ownerNoticeAviso, ownerField } from "./owner-form-tones";
-import { ownerUi } from "./owner-ui";
+import { ownerField, ownerUi } from "./owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -267,18 +267,10 @@ export function OwnerMonthlyInvoiceWorkspace({
   return (
     <main className={ownerUi.page}>
       <div className="mx-auto grid max-w-4xl gap-8">
-        <header>
-          <p className={ownerUi.eyebrow}>
-            Cuotas mensuales
-          </p>
-          <h1 className={ownerUi.pageTitle}>
-            Emitir cuota mensual
-          </h1>
-          <p className={cn(ownerUi.pageLead, "mt-3 sm:text-base")}>
-            Revisa la cuota completa de la familia. Al emitirla queda pendiente
-            de pago; no se registra ni se inicia ningún pago.
-          </p>
-        </header>
+        <PageHeader
+          title="Emitir cuota mensual"
+          description="Revisa la cuota completa de la familia. Al emitirla queda pendiente de pago; no se registra ni se inicia ningún pago."
+        />
 
         {state === "loading" && (
           <p
@@ -432,7 +424,7 @@ export function OwnerMonthlyInvoiceWorkspace({
               {!selectedFamily && (
                 <p
                   role="alert"
-                  className={ownerNoticeAviso}
+                  className={ownerUi.noticeWarning}
                 >
                   Selecciona una familia para revisar sus inscripciones
                   mensuales.
@@ -440,7 +432,7 @@ export function OwnerMonthlyInvoiceWorkspace({
               )}
 
               {selectedFamily && selectedFamily.payers.length === 0 && (
-                <div className={cn(ownerNoticeAviso, "grid gap-3")}>
+                <div className={cn(ownerUi.noticeWarning, "grid gap-3")}>
                   <p>
                     Esta familia todavía no tiene un pagador adulto asignado. La
                     cuota no se puede emitir hasta vincularlo explícitamente.
@@ -459,7 +451,7 @@ export function OwnerMonthlyInvoiceWorkspace({
               {selectedFamily?.blockingReasons.length ? (
                 <section
                   aria-labelledby="monthly-invoice-blockers-heading"
-                  className={cn(ownerNoticeAviso, "grid gap-3")}
+                  className={cn(ownerUi.noticeWarning, "grid gap-3")}
                 >
                   <h3
                     id="monthly-invoice-blockers-heading"
@@ -481,7 +473,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                 <section
                   role="alert"
                   aria-labelledby="monthly-invoice-conflicts-heading"
-                  className={cn(ownerNoticeAviso, "grid gap-3")}
+                  className={cn(ownerUi.noticeWarning, "grid gap-3")}
                 >
                   <h3
                     id="monthly-invoice-conflicts-heading"
@@ -520,7 +512,7 @@ export function OwnerMonthlyInvoiceWorkspace({
                 ) && (
                   <section
                     aria-labelledby="monthly-invoice-enrollment-issues-heading"
-                    className={cn(ownerNoticeAviso, "grid gap-3")}
+                    className={cn(ownerUi.noticeWarning, "grid gap-3")}
                   >
                     <h3
                       id="monthly-invoice-enrollment-issues-heading"
@@ -603,7 +595,7 @@ export function OwnerMonthlyInvoiceWorkspace({
               {selectedFamily?.existingInvoiceId && (
                 <p
                   role="alert"
-                  className={ownerNoticeAviso}
+                  className={ownerUi.noticeWarning}
                 >
                   Ya existe una cuota para esta familia y periodo. No se puede
                   emitir otra desde esta pantalla.
@@ -652,7 +644,7 @@ export function OwnerMonthlyInvoiceWorkspace({
               {quoteNeedsReview && (
                 <p
                   role="alert"
-                  className={ownerNoticeAviso}
+                  className={ownerUi.noticeWarning}
                 >
                   La cuota ha cambiado. El desglose se ha actualizado; revísalo
                   antes de emitir.

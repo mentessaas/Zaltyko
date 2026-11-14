@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
-import { ownerNoticeAviso } from "./owner-form-tones";
 import { ownerUi } from "./owner-ui";
 import { cn } from "@/lib/utils";
 import {
@@ -394,7 +393,7 @@ export function FamilyCollectionModeCard({
 
       {pendingCommand && !pendingCommandMatchesScope ? (
         <p
-          className={cn(ownerNoticeAviso, "mt-3 px-3 py-2")}
+          className={cn(ownerUi.noticeWarning, "mt-3 px-3 py-2")}
           role="alert"
         >
           Hay una solicitud pendiente para otra familia o academia. Vuelve a su
@@ -410,7 +409,7 @@ export function FamilyCollectionModeCard({
         </p>
       ) : null}
       {pendingCommand && pendingCommandMatchesScope ? (
-        <div className={cn(ownerNoticeAviso, "mt-3 px-3 py-3")}>
+        <div className={cn(ownerUi.noticeWarning, "mt-3 px-3 py-3")}>
           <p>
             No se pudo confirmar la solicitud anterior. Puedes reintentarla con
             la misma clave y el mismo contenido.
@@ -485,7 +484,7 @@ export function FamilyCollectionModeCard({
           </fieldset>
 
           {preference?.requiresConfirmation ? (
-            <p className={cn(ownerNoticeAviso, "mt-3 px-3 py-2")}>
+            <p className={cn(ownerUi.noticeWarning, "mt-3 px-3 py-2")}>
               {preference.automaticPreferenceAvailable
                 ? "La solicitud automática anterior dejó de ser válida al cambiar el plan. La familia sigue en modo manual; vuelve a solicitarla si quieres conservar esa preferencia futura."
                 : "La solicitud automática anterior dejó de ser válida al cambiar el plan. La familia queda en modo manual; podrás volver a solicitarla con un plan de pago vigente."}
@@ -497,7 +496,7 @@ export function FamilyCollectionModeCard({
               vigente.
             </p>
           ) : null}
-          <p className={cn(ownerNoticeAviso, "mt-3 px-3 py-2 text-xs leading-5")}>
+          <p className={cn(ownerUi.noticeWarning, "mt-3 px-3 py-2 text-xs leading-5")}>
             La solicitud no autoriza al pagador ni inicia cobros. Activar esta
             modalidad requiere consentimiento, habilitar el procesamiento y
             completar sus pruebas de seguridad.

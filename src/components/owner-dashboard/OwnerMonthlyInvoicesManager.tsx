@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
-import { ownerField, ownerNoticeAviso } from "./owner-form-tones";
-import { ownerUi } from "./owner-ui";
+import { ownerField, ownerUi } from "./owner-ui";
 import { cn } from "@/lib/utils";
 
 import {
@@ -99,13 +98,13 @@ function isUuid(value: unknown): value is string {
 
 export function OwnerMonthlyInvoicesManager({
   organizationId,
-  organizationName,
   defaultCurrency,
   locations,
   initialLocationId,
   initialServicePeriod,
 }: {
   organizationId: string;
+  /** Se conserva en la API; la academia ya se nombra en la barra lateral. */
   organizationName: string;
   defaultCurrency: string;
   locations: Array<{ id: string; name: string }>;
@@ -585,11 +584,6 @@ export function OwnerMonthlyInvoicesManager({
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Volver al resumen
         </Link>
-        <div>
-          <p className={ownerUi.eyebrow}>
-            {organizationName}
-          </p>
-        </div>
         <OwnerOperationalReadOnlyNotice organizationId={organizationId} />
         {locations.length > 1 && (
           <label className="grid max-w-md gap-2">
@@ -666,7 +660,7 @@ export function OwnerMonthlyInvoicesManager({
       {issueRetry && (
         <div
           role="status"
-          className={cn(ownerNoticeAviso, "mx-auto grid max-w-4xl gap-3")}
+          className={cn(ownerUi.noticeWarning, "mx-auto grid max-w-4xl gap-3")}
         >
           <p>
             Hay una emisión cuyo resultado sigue sin confirmar. Conservamos su
