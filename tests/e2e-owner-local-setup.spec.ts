@@ -1560,6 +1560,15 @@ test.describe("Isolated local Supabase Owner setup", () => {
       expect(manualPaymentPostCount).toBe(0);
     }
 
+    // SONDEO TEMPORAL (retirar): trazas de red tras guardar el pago manual.
+    const dbgStart = Date.now();
+    const dbgLine = (kind: string, method: string, rawUrl: string, extra: string) => {
+      const u = new URL(rawUrl);
+      console.log(`DBG ${kind} +${Date.now() - dbgStart}ms ${method} ${u.pathname}${u.searchParams.has("_rsc") ? " [rsc]" : ""} ${extra}`);
+    };
+    page.on("response", (r) => dbgLine("resp", r.request().method(), r.url(), String(r.status())));
+    page.on("requestfailed", (r) => dbgLine("fail", r.method(), r.url(), r.failure()?.errorText ?? ""));
+    page.on("framenavigated", (f) => { if (f === page.mainFrame()) dbgLine("nav", "GET", f.url(), ""); });
     await paymentMethod.selectOption({ label: "Transferencia" });
     expect(manualPaymentPostCount).toBe(0);
     const paymentResponse = page.waitForResponse(
