@@ -123,7 +123,7 @@ export async function createAcademy(
       return {
         error: apiError(
           "ACADEMY_LIMIT_REACHED",
-          `Has alcanzado el límite de academias de tu plan actual (${error.payload?.limit ?? 1} academia). Para llevar varias sedes, escríbenos y activamos el plan Network contigo paso a paso.`,
+          `Has alcanzado el límite de academias de tu plan actual (${error.payload?.limit ?? 1} academia). Si gestionas más de una academia, escríbenos y vemos tu caso.`,
           402,
           {
             ...error.payload,
@@ -131,9 +131,8 @@ export async function createAcademy(
               plan: "premium",
               price: "99€/mes",
               benefits: [
-                "Multi-sede con onboarding acompañado",
-                "Reportes de dirección",
-                "Soporte prioritario",
+                "Gimnastas, grupos y clases sin límite",
+                "Condiciones acordadas por contacto",
               ],
             },
           }

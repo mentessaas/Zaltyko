@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
@@ -7,9 +8,11 @@ import { OwnerGroupsManager } from "@/components/owner-dashboard/OwnerGroupsMana
 import { db } from "@/db";
 import { isAthleteProgressAvailableForPage } from "@/modules/athlete-progress/application/athlete-progress-service";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
+import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { createClient } from "@/lib/supabase/server";
 import { getOwnerGroupsPageData } from "@/modules/groups/application/group-management-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { isSkillLevelsAvailableForPage } from "@/modules/skill-levels/application/skill-level-service";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +76,12 @@ export default async function OwnerGroupsPage({
   }
   // P2 #17: sin el candidato SQL aplicado no se muestran los accesos.
   const progressAvailable = await isAthleteProgressAvailableForPage(db);
+  // Niveles y progresión: con la bandera apagada o sin el candidato SQL no hay acceso.
+  const skillLevelsAvailable = await isSkillLevelsAvailableForPage(db);
+  const skillsQuery = new URLSearchParams({
+    organizationId: data.organization.id,
+    ...(data.selectedLocationId ? { locationId: data.selectedLocationId } : {}),
+  }).toString();
   return (
     <OwnerWorkspacePageShell
       member={data.member}
@@ -80,6 +89,13 @@ export default async function OwnerGroupsPage({
       organizationName={data.organization.name}
       locationId={data.selectedLocationId}
     >
+      {skillLevelsAvailable ? (
+        <div className="mx-auto w-full max-w-6xl px-5 pt-7 sm:pt-9 lg:px-10">
+          <Link href={`/owner/skills?${skillsQuery}`} className={ownerUi.secondaryButton}>
+            Niveles y progresión
+          </Link>
+        </div>
+      ) : null}
       <OwnerGroupsManager
         key={data.selectedGroupId ?? "none"}
         bundle={data}

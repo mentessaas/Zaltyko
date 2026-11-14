@@ -139,8 +139,8 @@ test.describe("L6 — JSON-LD / sitemap accuracy", () => {
     expect(map.Starter?.priceCurrency).toBe("EUR");
     expect(map.Growth?.price).toBe("49");
     expect(map.Growth?.priceCurrency).toBe("EUR");
-    expect(map.Network?.price).toBe("99");
-    expect(map.Network?.priceCurrency).toBe("EUR");
+    // Network no es una oferta pública (sin checkout ni producto multi-sede).
+    expect(map.Network).toBeUndefined();
   });
 
   test("JSON-LD FAQPage de la home lista 8 preguntas", async ({ page }) => {

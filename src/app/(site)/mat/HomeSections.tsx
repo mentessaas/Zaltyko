@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 
 import { ChalkTally } from "@/components/mat/ChalkTally";
 import { DisclosureAccordion } from "@/components/ui/disclosure-accordion";
-import { PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
+import { PUBLIC_PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
 import { cn } from "@/lib/utils";
 
 import {
@@ -294,19 +294,18 @@ export function PlansLine() {
             <ArrowRight aria-hidden className="h-4 w-4" />
           </Link>
         </div>
-        <ul className="mt-10 grid border-t-[3px] border-mat-night sm:grid-cols-2 lg:grid-cols-4">
-          {PRODUCT_PLANS.map((plan, i) => (
+        <ul className="mt-10 grid border-t-[3px] border-mat-night sm:grid-cols-3">
+          {PUBLIC_PRODUCT_PLANS.map((plan, i) => (
             <li
               key={plan.code}
               className={cn(
-                "border-b border-chalk-line py-6 sm:px-6 sm:first:pl-0 lg:border-b-0",
-                i > 0 && "lg:border-l",
+                "border-b border-chalk-line py-6 sm:border-b-0 sm:px-6 sm:first:pl-0",
+                i > 0 && "sm:border-l",
                 plan.highlight && "lg:bg-mat-wash"
               )}
             >
               <p className="font-display text-2xl font-extrabold uppercase text-mat-night">{plan.publicName}</p>
               <p className="font-display tabular mt-2 text-4xl font-black text-mat">
-                {plan.code === "network" ? <span className="mr-1 text-base font-bold text-ramp-500">desde</span> : null}
                 {plan.priceEurCents === 0 ? "0 €" : formatPlanAmount(plan.priceEurCents)}
                 <span className="text-base font-bold text-ramp-500">{plan.priceEurCents === 0 ? "" : "/mes"}</span>
               </p>

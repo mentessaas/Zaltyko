@@ -26,7 +26,7 @@ interface ContactRequestPage {
 
 const reasonLabels: Record<ContactRequestReason, string> = {
   demo: "Solicitar demo",
-  network: "Plan multi-sede",
+  network: "Varias sedes o academias",
   sales: "Información comercial",
   migracion: "Migración",
   support: "Soporte técnico",

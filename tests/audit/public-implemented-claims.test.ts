@@ -164,11 +164,12 @@ describe("lo que se anuncia como disponible está activo", () => {
   it("el acceso de entrenadoras se anuncia como es: enlace que se comparte a mano, solo Hoy y el pase de lista de sus sedes", () => {
     // No email: the invitation link is copied and shared by the academy.
     expect(read("src/modules/staff/domain/team-access-contract.ts")).toContain('return "manual_link";');
-    // A coach only reaches attendance (with «Hoy») of her sites.
+    // A coach only reaches attendance (with «Hoy») and the calendar of her
+    // sites; the calendar shows only the sessions assigned to her.
     expect(read("src/components/owner-dashboard/owner-workspace-capabilities.ts")).toContain(
       'coachOperationsOnly: member.role === "coach"'
     );
-    expect(read("src/components/owner-dashboard/OwnerWorkspaceNavigation.tsx").match(/coachAllowed: true/g)).toHaveLength(1);
+    expect(read("src/components/owner-dashboard/OwnerWorkspaceNavigation.tsx").match(/coachAllowed: true/g)).toHaveLength(2);
     expect(read("src/modules/owner-dashboard/domain/coach-access.ts")).toContain('COACH_HOME_PATH = "/owner/attendance"');
 
     const team = highlight("equipo").text;

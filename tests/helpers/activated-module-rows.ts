@@ -49,6 +49,20 @@ const VALUES: Record<string, Record<string, unknown>> = {
       { kind: "technique", content: "Synthetic beam", apparatus: "beam", discipline: "gaf", durationMinutes: null },
     ],
   },
+  // Niveles y progresión (candidato 20261114121000, aún sin aplicar en ningún entorno).
+  skill_templates: {
+    id: id(30), discipline: "artistic_female", name: "Synthetic template", description: null,
+    source: "blank", starter_key: null, revision: 1,
+  },
+  skill_levels: { id: id(31), template_id: id(30), position: 1, name: "Synthetic level", description: null },
+  skill_elements: {
+    id: id(32), template_id: id(30), level_id: id(31), position: 1, apparatus: "beam",
+    name: "Synthetic element", description: null, is_required: true,
+  },
+  athlete_skill_progress: {
+    id: id(33), template_id: id(30), element_id: id(32), status: "achieved", achieved_on: "2026-11-12", revision: 1,
+  },
+  athlete_level_passes: { id: id(34), template_id: id(30), level_id: id(31), passed_on: "2026-11-12" },
   admission_links: { id: ACTIVATED_IDS.link, enabled: true, revoked_at: null },
   admission_requests: {
     id: id(26), link_id: ACTIVATED_IDS.link, status: "new", contact_name: "Synthetic family",
@@ -92,6 +106,6 @@ export function activatedCatalogRows(
   return modules.flatMap((module) => module.tables.flatMap((table) => table.expectedColumns.map((column_name) => ({
     table_name: table.name,
     column_name,
-    data_type: column_name === "target_date" || column_name === "observed_on" ? "date" : "text",
+    data_type: ["target_date", "observed_on", "achieved_on", "passed_on"].includes(column_name) ? "date" : "text",
   }))));
 }

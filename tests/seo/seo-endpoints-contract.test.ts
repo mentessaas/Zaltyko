@@ -66,7 +66,7 @@ describe("llms contract", () => {
     expect(content).toContain("llms-full.txt");
   });
 
-  it("llms-full.txt menciona los 4 planes v3.0 con precios correctos", async () => {
+  it("llms-full.txt menciona los planes contratables con precios correctos", async () => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
     const content = await fs.readFile(
@@ -76,10 +76,11 @@ describe("llms contract", () => {
     expect(content).toContain("Free");
     expect(content).toContain("Starter");
     expect(content).toContain("Growth");
-    expect(content).toContain("Network");
+    // Network no es contratable ni tiene producto multi-sede: no se ofrece.
+    expect(content).not.toContain("Network");
     expect(content).toContain("19 €/mes");
     expect(content).toContain("49 €/mes");
-    expect(content).toContain("99 €/mes");
+    expect(content).not.toContain("99 €/mes");
   });
 
   it("llms-full.txt no promete academias ilimitadas en Starter o Growth", async () => {
@@ -95,8 +96,8 @@ describe("llms contract", () => {
     // nunca "ilimitado" para esos dos planes.
     expect(content).not.toMatch(/Starter[^\n]*ilimitad[ao]/i);
     expect(content).not.toMatch(/Growth[^\n]*ilimitad[ao]/i);
-    // Network sí es multi-sede; permitimos "ilimitado" allí.
-    expect(content).toMatch(/Network[^\n]*contratación acompañada/i);
+    // Las consultas de varias sedes o academias van por contacto, sin plan propio.
+    expect(content).toContain("¿Varias sedes o academias? Escríbenos");
   });
 
   it("llms-full.txt documenta explícitamente la lista de claims prohibidos", async () => {
