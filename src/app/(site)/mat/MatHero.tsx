@@ -87,6 +87,12 @@ export default function MatHero() {
             >
               Ver planes
             </Link>
+            <Link
+              href="/demo?origen=inicio"
+              className="inline-flex min-h-14 items-center justify-center rounded-md px-3 text-base font-bold text-white underline decoration-2 underline-offset-4 transition-colors hover:bg-white/10 focus-visible:ring-white focus-visible:ring-offset-mat"
+            >
+              Ver demo
+            </Link>
           </div>
           <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-white/80">
             {["Gratis hasta 30 gimnastas", "Sin tarjeta", "Abierto a cualquier país"].map((item) => (
