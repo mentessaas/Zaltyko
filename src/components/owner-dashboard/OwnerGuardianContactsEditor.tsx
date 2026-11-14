@@ -465,7 +465,7 @@ export function OwnerGuardianContactsEditor({
           uncertain = true;
           setPending(command);
           setPendingBlocked(false);
-          setMessage("Se hizo el cambio, pero falta terminar. Vuelve a comprobarlo: no se repetirá.");
+          setMessage("Se hizo el cambio, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
           return;
         }
         setPending(null);
@@ -519,7 +519,7 @@ export function OwnerGuardianContactsEditor({
           uncertain = true;
           setPending(command);
           setPendingBlocked(false);
-          setMessage("No se hizo el cambio y queda un intento sin terminar. Resuélvelo antes de empezar otro.");
+          setMessage("No se hizo el cambio y queda un intento sin confirmar. Pulsa el botón de reintentar antes de hacer otro cambio.");
           notifyPending(true, requestScope);
         }
         return;

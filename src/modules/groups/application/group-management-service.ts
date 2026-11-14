@@ -63,7 +63,7 @@ export async function createOperationalGroup(command: CreateGroupCommand) {
       if (typeof groupId !== "string") {
         throw new OperationalError(
           "IDEMPOTENCY_CONFLICT",
-          "Este envío no coincide con el grupo. Vuelve a empezar.",
+          "Este envío ya se hizo con otros datos. Mira la lista antes de volver a intentarlo.",
           409
         );
       }
@@ -88,7 +88,7 @@ export async function createOperationalGroup(command: CreateGroupCommand) {
       ) {
         throw new OperationalError(
           "IDEMPOTENCY_CONFLICT",
-          "Este envío ya se hizo con otros datos. Vuelve a empezar.",
+          "Este envío ya se hizo con otros datos. Mira la lista antes de volver a intentarlo.",
           409
         );
       }

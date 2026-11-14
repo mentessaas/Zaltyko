@@ -342,7 +342,7 @@ export function OwnerAthleteProfileEditor({
           uncertain = true;
           setLocalPending(command);
           onPendingCommandChange?.(command);
-          setMessage("La ficha se guardó, pero falta terminar. Vuelve a comprobarlo: no se repetirá el cambio.");
+          setMessage("La ficha se guardó, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
           return;
         }
         setLocalPending(null);
@@ -364,7 +364,7 @@ export function OwnerAthleteProfileEditor({
           uncertain = true;
           setLocalPending(command);
           onPendingCommandChange?.(command);
-          setMessage("El cambio no se guardó y queda un intento sin terminar. Resuélvelo antes de empezar otro.");
+          setMessage("El cambio no se guardó y queda un intento sin confirmar. Pulsa el botón de reintentar antes de hacer otro cambio.");
           return;
         }
         setLocalPending(null);

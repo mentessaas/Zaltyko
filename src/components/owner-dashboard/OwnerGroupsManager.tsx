@@ -539,7 +539,7 @@ export function OwnerGroupsManager({
       }
       if (!pendingCleared) {
         membershipUncertainRef.current = true;
-        setError("Hubo respuesta, pero falta terminar. Vuelve a comprobarlo: no se repetirá el cambio.");
+        setError("Se guardó, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
         return;
       }
       if (pendingMembershipRef.current === activeCommand) {

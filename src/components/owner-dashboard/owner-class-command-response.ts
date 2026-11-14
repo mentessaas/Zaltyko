@@ -132,7 +132,7 @@ export function ownerClassCreateRejection(
       typeof problem.detail === "string" && problem.detail.trim()) {
       return {
         status: "blocked",
-        message: "Esta clase ya se había enviado y no la enviaremos otra vez. Mira la lista de clases. Si no aparece o no estás segura, escribe a soporte antes de crear otra.",
+        message: "Esta clase ya se había enviado y no la enviaremos otra vez. Mira la lista de clases. Si no aparece o tienes dudas, escribe a soporte antes de crear otra.",
       };
     }
   }

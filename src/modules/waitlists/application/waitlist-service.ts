@@ -233,7 +233,7 @@ function assertJoinReplayMatchesStoredCommand(
   ) {
     throw new OperationalError(
       "IDEMPOTENCY_CONFLICT",
-      "Este envío ya se hizo con otros datos. Vuelve a empezar.",
+      "Este envío ya se hizo con otros datos. Mira la lista antes de volver a intentarlo.",
       409
     );
   }

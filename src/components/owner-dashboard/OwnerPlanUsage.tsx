@@ -176,7 +176,7 @@ export function OwnerPlanUsage({ organizationId, compact = false }: { organizati
       if (outcome.status === "uncertain") { uncertainArchiveRef.current = true; setArchiveFeedback({ organizationId: intent.organizationId, error: outcome.message, notice: "" }); return; }
       if (!clearStoredArchiveIntent(window.sessionStorage, intent)) {
         uncertainArchiveRef.current = true;
-        setArchiveFeedback({ organizationId: intent.organizationId, error: "Hubo respuesta, pero falta terminar. Vuelve a archivar la misma ficha; no empezaremos otra.", notice: "" });
+        setArchiveFeedback({ organizationId: intent.organizationId, error: "Se archivó, pero no pudimos confirmar el último paso en este navegador. Vuelve a archivar la misma ficha: no se archivará dos veces.", notice: "" });
         return;
       }
       pendingArchiveRef.current = null;

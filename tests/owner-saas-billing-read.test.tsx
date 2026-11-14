@@ -203,7 +203,7 @@ describe("panel de facturación: lecturas simuladas sin comandos", () => {
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia actual" />);
     fireEvent.click(await screen.findByRole("button", { name: "Volver a consultar" }));
     expect(await screen.findByText("75 gimnastas")).toBeVisible();
-    expect(screen.getByText("Acceso n.º 2")).toBeVisible();
+    expect(screen.getByText("Versión del plan: 2")).toBeVisible();
     expect(screen.getByText("Suscripción Pago pendiente de resolver")).toBeVisible();
     expect(screen.getByRole("button", { name: "Gestionar suscripción" })).toBeEnabled();
     expect(screen.queryByRole("link", { name: "Abrir portal seguro" })).not.toBeInTheDocument();
@@ -818,7 +818,7 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     expect(screen.getByRole("button", { name: "Anual" })).toHaveAttribute("aria-pressed", "false");
     changed = true;
     fireEvent.click(screen.getByRole("button", { name: "Actualizar estado" }));
-    expect(await screen.findByText("Acceso n.º 5")).toBeVisible();
+    expect(await screen.findByText("Versión del plan: 5")).toBeVisible();
     expect(posts()).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Reintentar la operación pendiente" }));
     await waitFor(() => expect(posts()).toHaveLength(2));

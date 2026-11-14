@@ -389,7 +389,7 @@ export function OwnerGuardianProfileEditor({
           keepPending = true;
           setPending(command);
           setPendingBlocked(false);
-          setError("Se guardó el perfil, pero falta terminar. Vuelve a comprobarlo: no se repetirá el cambio.");
+          setError("Se guardó el perfil, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
           return;
         }
         setPending(null);
@@ -436,7 +436,7 @@ export function OwnerGuardianProfileEditor({
         } else {
           keepPending = true;
           setPending(command);
-          setError("No se guardó el cambio y queda un intento sin terminar. Resuélvelo antes de empezar otro.");
+          setError("No se guardó el cambio y queda un intento sin confirmar. Pulsa el botón de reintentar antes de hacer otro cambio.");
         }
         return;
       }

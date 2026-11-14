@@ -322,7 +322,7 @@ export function OwnerAthleteArchiveEditor({
       if (receipt && sameScope) {
         if (!clearPendingArchive(command)) {
           uncertainRef.current = true;
-          setMessage("Se archivó, pero falta terminar. Vuelve a comprobarlo: no se repetirá el cambio.");
+          setMessage("Se archivó, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
           setMessageKind("error");
           return;
         }
@@ -348,7 +348,7 @@ export function OwnerAthleteArchiveEditor({
       if (!uncertainRef.current && isDefinitiveClientProblem(response.status, payload)) {
         if (!clearPendingArchive(command)) {
           uncertainRef.current = true;
-          setMessage("No se archivó y queda un intento sin terminar. Vuelve a intentarlo con la misma operación.");
+          setMessage("No se archivó y queda un intento sin confirmar. Vuelve a intentarlo: no se duplicará.");
           setMessageKind("error");
           return;
         }
@@ -390,7 +390,7 @@ export function OwnerAthleteArchiveEditor({
       </button>
       {!confirmationOpen && storageRead.kind === "invalid" && <p role="alert" className={ownerTone.errorText}>Hay una operación de archivo no válida en el almacenamiento. No se iniciará otra.</p>}
       {!confirmationOpen && storageRead.kind === "unavailable" && <p role="alert" className={ownerTone.errorText}>No se puede comprobar el almacenamiento seguro de esta operación. No se ha enviado nada.</p>}
-      {(foreignStoragePending || foreignExternalPending) && <p role="alert" className={ownerTone.warningText}>Hay un archivo pendiente de otra ficha o sede. Resuélvelo antes de iniciar otra operación.</p>}
+      {(foreignStoragePending || foreignExternalPending) && <p role="alert" className={ownerTone.warningText}>Hay un archivo pendiente de otra ficha o sede. Pulsa el botón de reintentar de esa ficha antes de hacer otro cambio.</p>}
       {confirmationOpen && (
         <div role="group" className="space-y-3 rounded-md border border-signal/30 border-t-[3px] border-t-signal-ink bg-white p-4" aria-label="Confirmación de archivo">
           <p className="text-sm text-z-ink">

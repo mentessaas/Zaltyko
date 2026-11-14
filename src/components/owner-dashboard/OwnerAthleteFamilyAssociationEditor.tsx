@@ -574,7 +574,7 @@ export function OwnerAthleteFamilyAssociationEditor({
           uncertain = true;
           setLocalPending(command);
           onPendingCommandChange?.(command);
-          setMessage("Se asoció la familia, pero falta terminar. Vuelve a comprobarlo: no se repetirá el cambio.");
+          setMessage("Se asoció la familia, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
           return;
         }
         setLocalPending(null);
@@ -597,7 +597,7 @@ export function OwnerAthleteFamilyAssociationEditor({
           uncertain = true;
           setLocalPending(command);
           onPendingCommandChange?.(command);
-          setMessage("No se asoció la familia y queda un intento sin terminar. Resuélvelo antes de empezar otro.");
+          setMessage("No se asoció la familia y queda un intento sin confirmar. Pulsa el botón de reintentar antes de hacer otro cambio.");
           return;
         }
         setLocalPending(null);

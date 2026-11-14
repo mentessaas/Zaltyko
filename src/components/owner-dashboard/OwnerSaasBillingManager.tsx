@@ -847,7 +847,7 @@ export function OwnerSaasBillingManager({
                     : `${currentSnapshot.limits.maxAthletes} gimnastas`}
                 </p>
                 <p className="mt-1 text-sm text-z-soft">
-                  Acceso n.º {currentSnapshot.entitlement.revision}
+                  Versión del plan: {currentSnapshot.entitlement.revision}
                 </p>
               </div>
               {subscription ? (

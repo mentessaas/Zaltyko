@@ -260,7 +260,7 @@ export function AcademyTargetProfileForm({
           if (ownsCurrentCommand()) {
             setRetryRequired(true);
             setError(
-              "Se guardó, pero falta terminar. Vuelve a enviar los mismos datos para cerrarlo."
+              "Se guardó, pero no pudimos confirmar el último paso en este navegador. Vuelve a enviar los mismos datos para cerrarlo."
             );
           }
           return;

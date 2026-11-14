@@ -345,7 +345,7 @@ export function OwnerStaffManager({
         } else {
           setPendingCommand(attemptedCommand);
           setJournalState("ready");
-          setMutationError("Se hizo, pero falta terminar. Vuelve a comprobarlo: no se repetirá el cambio.");
+          setMutationError("Se hizo, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
         }
         setRefreshKey((value) => value + 1);
         return;

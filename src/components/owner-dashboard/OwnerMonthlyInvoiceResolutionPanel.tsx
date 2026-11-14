@@ -504,7 +504,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       if (!clearPendingCommand(command)) {
         markPendingCommandAmbiguous(command);
         setError(
-          "Se guardó la tarifa, pero falta terminar. Vuelve a comprobarlo: no se repetirá el cambio."
+          "Se guardó la tarifa, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá."
         );
         return;
       }
@@ -553,7 +553,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       if (!clearPendingCommand(command)) {
         markPendingCommandAmbiguous(command);
         setError(
-          "Se hizo la asignación, pero falta terminar. Vuelve a comprobarlo: no se repetirá el cambio."
+          "Se hizo la asignación, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá."
         );
         return;
       }
@@ -579,7 +579,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     if (!clearPendingCommand(command)) {
       markPendingCommandAmbiguous(command);
       setError(
-        "Se hizo el vínculo, pero falta terminar. Vuelve a comprobarlo: no se repetirá el cambio."
+        "Se hizo el vínculo, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá."
       );
       return;
     }

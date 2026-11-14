@@ -227,7 +227,7 @@ export async function addGroupMembership(
       ) {
         throw new OperationalError(
           "IDEMPOTENCY_CONFLICT",
-          "Este envío ya se hizo con otra persona o grupo. Vuelve a empezar.",
+          "Este envío ya se hizo con otros datos. Mira la lista antes de volver a intentarlo.",
           409
         );
       }
@@ -446,7 +446,7 @@ export async function createAthleteForGroup(
       ) {
         throw new OperationalError(
           "IDEMPOTENCY_CONFLICT",
-          "Este envío ya se hizo con otros datos. Vuelve a empezar.",
+          "Este envío ya se hizo con otros datos. Mira la lista antes de volver a intentarlo.",
           409
         );
       }
@@ -463,7 +463,7 @@ export async function createAthleteForGroup(
       ) {
         throw new OperationalError(
           "IDEMPOTENCY_CONFLICT",
-          "Este envío ya se hizo con otra gimnasta. Vuelve a empezar.",
+          "Este envío ya se hizo con otros datos. Mira la lista antes de volver a intentarlo.",
           409
         );
       }
@@ -478,7 +478,7 @@ export async function createAthleteForGroup(
     if (priorMembershipEvent) {
       throw new OperationalError(
         "IDEMPOTENCY_CONFLICT",
-        "Este envío ya se hizo con otra operación. Vuelve a empezar.",
+        "Este envío ya se hizo con otros datos. Mira la lista antes de volver a intentarlo.",
         409
       );
     }

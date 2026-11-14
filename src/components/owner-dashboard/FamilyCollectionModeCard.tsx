@@ -303,7 +303,7 @@ export function FamilyCollectionModeCard({
           );
         } else {
           setErrorMessage(
-            "La preferencia se guardó, pero falta terminar. Vuelve a intentarlo: no se repetirá el cambio."
+            "La preferencia se guardó, pero no pudimos confirmar el último paso en este navegador. Vuelve a intentarlo: el cambio no se repetirá."
           );
         }
       }

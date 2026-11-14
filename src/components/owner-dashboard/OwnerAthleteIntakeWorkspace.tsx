@@ -471,7 +471,7 @@ export function OwnerAthleteIntakeWorkspace({
           if (!clearIntent(command)) {
             setIntent(command);
             setIntentBlocked(false);
-            setError("Se hizo, pero falta terminar. Vuelve a comprobarlo: no se repetirá el cambio.");
+            setError("Se hizo, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
             return;
           }
           setIntent(null);
@@ -491,7 +491,7 @@ export function OwnerAthleteIntakeWorkspace({
           if (!clearIntent(command)) {
             setIntent(command);
             setIntentBlocked(false);
-            setError("Se hizo, pero falta terminar. Vuelve a comprobarlo: no se repetirá el cambio.");
+            setError("Se hizo, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
             return;
           }
           setIntent(null);
@@ -749,7 +749,7 @@ export function OwnerAthleteIntakeWorkspace({
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 id="unassigned-heading" className={ownerUi.sectionTitle}>Fichas sin asignación operativa</h2>
-              <p className={`mt-2 ${ownerUi.muted}`}>{data ? `${data.total} fichas en total · página ${data.page}` : "La lista está al día."}</p>
+              <p className={`mt-2 ${ownerUi.muted}`}>{data ? `${data.total} fichas en total · página ${data.page}` : "Pulsa Actualizar lista para verla."}</p>
             </div>
             <button type="button" className={secondaryButtonClassName} onClick={reload} disabled={listState === "loading"}>Actualizar lista</button>
           </div>
