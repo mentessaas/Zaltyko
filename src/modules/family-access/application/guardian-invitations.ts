@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { sql } from "drizzle-orm";
 
+import { db } from "@/db";
 import { getAppUrl } from "@/lib/env";
 import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { logger } from "@/lib/logger";
@@ -75,7 +76,7 @@ export type FamilyAccessCommandResult = {
   link: string | null;
   emailSent: boolean | null;
   invitationId: string | null;
-  counts?: { invited: number; emailed: number; skippedNoEmail: number; skippedExisting: number };
+  counts?: { invited: number; emailed: number; skippedNoEmail: number; skippedExisting: number; remaining: number };
 };
 
 type GuardianRow = {
@@ -189,6 +190,8 @@ export async function listOwnerFamilyAccess(input: {
   organizationId: string;
   locationId: string;
   actor: OperationalActor;
+  /** Con la bandera apagada, solo para retirar el acceso a cuentas vinculadas. */
+  removeOnly?: boolean;
 }): Promise<OwnerFamilyAccessList> {
   return familyAccessTransaction(async (tx) => {
     await assertFamilyManager(tx, { ...input, allSites: true });
@@ -198,8 +201,15 @@ export async function listOwnerFamilyAccess(input: {
     const kept = guardians.slice(0, MAX_GUARDIANS);
     const latest = await latestInvitations(tx, input.organizationId, kept.map((row) => row.guardian_id));
     const now = new Date();
-    return { guardians: kept.map((row) => accessRow(row, latest.get(row.guardian_id), now)), truncated };
-  });
+    const list = kept.map((row) => accessRow(row, latest.get(row.guardian_id), now));
+    if (!input.removeOnly) return { guardians: list, truncated };
+    return {
+      guardians: list
+        .filter((row) => row.status === "linked")
+        .map((row) => ({ ...row, actions: { invite: false, resend: false, revoke: false, removeAccess: true } })),
+      truncated,
+    };
+  }, { allowWhenFlagOff: input.removeOnly === true });
 }
 
 type PendingEmail = { email: string; token: string; expiresAt: Date; invitationId: string };
@@ -225,6 +235,45 @@ async function readInvitation(tx: Tx, organizationId: string, invitationId: stri
   return row;
 }
 
+/**
+ * Vínculos familia-tutor activos que la academia ve al invitar, con su
+ * versión (updated_at). Al aceptar solo se concede ver gimnastas en estos
+ * vínculos, y solo si no han cambiado: un cambio de custodia o una orden
+ * judicial registrados entre medias nunca se pisan.
+ */
+function grantLinksSnapshot(organizationId: string, guardianId: string, grant: boolean) {
+  if (!grant) return sql`'[]'::jsonb`;
+  return sql`(select coalesce(jsonb_agg(jsonb_build_object('id', fg.id, 'updated_at', fg.updated_at) order by fg.id), '[]'::jsonb)
+    from zaltyko.family_guardians fg
+    join zaltyko.families f on f.organization_id=fg.organization_id and f.id=fg.family_id and f.is_active
+    where fg.organization_id=${organizationId}::uuid and fg.guardian_id=${guardianId}::uuid and fg.is_active)`;
+}
+
+/**
+ * Espera por tutor entre dos envíos aceptados, también tras revocar e invitar
+ * de nuevo: nadie puede inundar un buzón desde /owner.
+ */
+async function assertGuardianCooldown(tx: Tx, organizationId: string, guardianId: string): Promise<void> {
+  const recent = await rows<{ recent: boolean }>(tx, sql`select exists (
+      select 1 from zaltyko.guardian_access_invitations
+      where organization_id=${organizationId}::uuid and guardian_id=${guardianId}::uuid
+        and last_sent_at > clock_timestamp() - make_interval(mins => ${FAMILY_INVITATION_RESEND_COOLDOWN_MINUTES})
+    ) as recent`);
+  if (recent[0]?.recent) {
+    throw new OperationalError("INVALID_STATE_TRANSITION", `Acabamos de enviar una invitación a esta familia. Espera ${FAMILY_INVITATION_RESEND_COOLDOWN_MINUTES} minutos antes de enviar otra.`, 429);
+  }
+}
+
+async function guardianInCooldown(tx: Tx, organizationId: string, guardianId: string): Promise<boolean> {
+  try {
+    await assertGuardianCooldown(tx, organizationId, guardianId);
+    return false;
+  } catch (error) {
+    if (error instanceof OperationalError && error.status === 429) return true;
+    throw error;
+  }
+}
+
 async function createInvitation(tx: Tx, input: {
   organizationId: string;
   guardian: GuardianRow;
@@ -236,11 +285,14 @@ async function createInvitation(tx: Tx, input: {
   const pending = await rows<{ id: string }>(tx, sql`select id::text from zaltyko.guardian_access_invitations
     where organization_id=${input.organizationId}::uuid and guardian_id=${input.guardian.guardian_id}::uuid and status='pending'`);
   if (pending.length) throw conflict("Ya hay una invitación pendiente para este tutor. Reenvíala o revócala.");
+  await assertGuardianCooldown(tx, input.organizationId, input.guardian.guardian_id);
   const token = randomBytes(32).toString("base64url");
+  // last_sent_at queda vacío hasta que el proveedor acepte el correo.
   const inserted = await rows<{ id: string; expires_at: string | Date }>(tx, sql`insert into zaltyko.guardian_access_invitations
-      (organization_id, guardian_id, normalized_email, grant_view_athletes, invited_by_member_id, token_sha256, expires_at, last_sent_at)
+      (organization_id, guardian_id, normalized_email, grant_view_athletes, grant_links, invited_by_member_id, token_sha256, expires_at)
     values (${input.organizationId}::uuid, ${input.guardian.guardian_id}::uuid, ${input.guardian.email}, ${input.grantViewAthletes},
-      ${input.actor.memberId}::uuid, ${sha256Hex(token)}, clock_timestamp() + make_interval(days => ${FAMILY_INVITATION_TTL_DAYS}), clock_timestamp())
+      ${grantLinksSnapshot(input.organizationId, input.guardian.guardian_id, input.grantViewAthletes)},
+      ${input.actor.memberId}::uuid, ${sha256Hex(token)}, clock_timestamp() + make_interval(days => ${FAMILY_INVITATION_TTL_DAYS}))
     returning id::text, expires_at`);
   const row = inserted[0];
   if (!row) throw new OperationalError("FEATURE_NOT_AVAILABLE", "No se pudo crear la invitación.", 503);
@@ -274,8 +326,9 @@ async function audit(tx: Tx, input: {
 async function deliverInvitation(organizationName: string, mail: PendingEmail): Promise<boolean> {
   const url = familyInvitationUrl(getAppUrl(), mail.token);
   const message = familyInvitationEmail({ academyName: organizationName, url, expiresAt: mail.expiresAt });
+  let accepted = false;
   try {
-    return await sendEmailWithLogging({
+    accepted = await sendEmailWithLogging({
       to: mail.email,
       subject: message.subject,
       html: message.html,
@@ -289,6 +342,16 @@ async function deliverInvitation(organizationName: string, mail: PendingEmail): 
     logger.error("family_access.invitation_email_failed", error instanceof Error ? error : undefined, { invitationId: mail.invitationId });
     return false;
   }
+  if (!accepted) return false;
+  // Solo un envío aceptado cuenta para la espera entre envíos. Si el token
+  // rotó entretanto, no se toca la fila.
+  try {
+    await db.execute(sql`update zaltyko.guardian_access_invitations set last_sent_at=clock_timestamp()
+      where id=${mail.invitationId}::uuid and token_sha256=${sha256Hex(mail.token)}`);
+  } catch (error) {
+    logger.error("family_access.invitation_sent_mark_failed", error instanceof Error ? error : undefined, { invitationId: mail.invitationId });
+  }
+  return true;
 }
 
 /**
@@ -308,6 +371,8 @@ export async function runFamilyAccessCommand(input: {
   const mails: PendingEmail[] = [];
   let organizationName = "";
 
+  // Retirar acceso funciona aunque la bandera esté apagada (si las tablas
+  // existen): apagar la función nunca debe dejar una cuenta viendo datos.
   const result = await familyAccessTransaction(async (tx): Promise<FamilyAccessCommandResult> => {
     await lockCommand(tx, command.organizationId, `${input.actor.userId}:family-access:${clientKey}`);
     const reducesAccess = command.action === "revoke" || command.action === "remove_access";
@@ -343,15 +408,18 @@ export async function runFamilyAccessCommand(input: {
       const latest = await latestInvitations(tx, command.organizationId, guardians.map((row) => row.guardian_id));
       let skippedNoEmail = 0;
       let skippedExisting = 0;
+      let remaining = 0;
       for (const guardian of guardians) {
         if (!guardian.email) { skippedNoEmail += 1; continue; }
         const last = latest.get(guardian.guardian_id);
         if (guardian.auth_user_id || last?.status === "pending") { skippedExisting += 1; continue; }
-        if (mails.length >= FAMILY_BULK_INVITATION_LIMIT) { skippedExisting += 1; continue; }
+        // Lotes pequeños: el resto se invita en la siguiente llamada.
+        if (mails.length >= FAMILY_BULK_INVITATION_LIMIT) { remaining += 1; continue; }
         await tx.execute(sql`select id from zaltyko.guardians where organization_id=${command.organizationId}::uuid and id=${guardian.guardian_id}::uuid for update`);
+        if (await guardianInCooldown(tx, command.organizationId, guardian.guardian_id)) { skippedExisting += 1; continue; }
         mails.push(await createInvitation(tx, { organizationId: command.organizationId, guardian, actor: input.actor, grantViewAthletes: command.grantViewAthletes }));
       }
-      const counts = { invited: mails.length, emailed: 0, skippedNoEmail, skippedExisting };
+      const counts = { invited: mails.length, emailed: 0, skippedNoEmail, skippedExisting, remaining };
       const stored = { action: command.action, invitationId: null, emailSent: null, counts };
       await audit(tx, { organizationId: command.organizationId, actor: input.actor, action: "family_access.invitation_invite_all", targetType: "organization", targetId: command.organizationId, key, requestHash, result: stored, after: { grantViewAthletes: command.grantViewAthletes, invited: mails.length } });
       return { ...stored, replayed: false, link: null };
@@ -364,15 +432,15 @@ export async function runFamilyAccessCommand(input: {
       const guardian = await readGuardian(tx, command.organizationId, invitation.guardian_id, true);
       if (guardian.auth_user_id) throw conflict("Este tutor ya tiene acceso al portal.");
       if (!guardian.email) throw conflict("El tutor ya no tiene un correo principal. Añádelo antes de reenviar.");
-      const recent = await rows<{ recent: boolean }>(tx, sql`select (last_sent_at is not null and last_sent_at > clock_timestamp() - make_interval(mins => ${FAMILY_INVITATION_RESEND_COOLDOWN_MINUTES})) as recent
-        from zaltyko.guardian_access_invitations where organization_id=${command.organizationId}::uuid and id=${invitation.id}::uuid`);
-      if (recent[0]?.recent) throw new OperationalError("INVALID_STATE_TRANSITION", `Espera ${FAMILY_INVITATION_RESEND_COOLDOWN_MINUTES} minutos entre dos envíos de la misma invitación.`, 429);
+      await assertGuardianCooldown(tx, command.organizationId, guardian.guardian_id);
       const token = randomBytes(32).toString("base64url");
       // Reenviar rota el token (el enlace anterior deja de valer), renueva la
-      // caducidad y toma el correo principal actual del tutor.
+      // caducidad, toma el correo principal actual del tutor y vuelve a fijar
+      // los vínculos que la academia ve ahora.
       const updated = await rows<{ expires_at: string | Date }>(tx, sql`update zaltyko.guardian_access_invitations
         set token_sha256=${sha256Hex(token)}, normalized_email=${guardian.email}, invited_by_member_id=${input.actor.memberId}::uuid,
-          expires_at=clock_timestamp() + make_interval(days => ${FAMILY_INVITATION_TTL_DAYS}), last_sent_at=clock_timestamp(),
+          grant_links=${grantLinksSnapshot(command.organizationId, guardian.guardian_id, invitation.grant_view_athletes)},
+          expires_at=clock_timestamp() + make_interval(days => ${FAMILY_INVITATION_TTL_DAYS}),
           revision=revision+1, updated_at=clock_timestamp()
         where organization_id=${command.organizationId}::uuid and id=${invitation.id}::uuid returning expires_at`);
       const mail = { email: guardian.email, token, expiresAt: new Date(updated[0]!.expires_at), invitationId: invitation.id };
@@ -407,7 +475,7 @@ export async function runFamilyAccessCommand(input: {
     const stored = { action: command.action, invitationId: null, emailSent: null };
     await audit(tx, { organizationId: command.organizationId, actor: input.actor, action: "family_access.access_removed", targetType: "guardian", targetId: command.guardianId, key, requestHash, result: stored });
     return { ...stored, replayed: false, link: null };
-  });
+  }, { allowWhenFlagOff: command.action === "remove_access" });
 
   if (result.replayed || mails.length === 0) return result;
   let emailed = 0;
@@ -527,11 +595,17 @@ export async function acceptFamilyInvitation(input: { userId: string; token: str
 
     await tx.execute(sql`update zaltyko.guardians set auth_user_id=${input.userId}::uuid, updated_at=clock_timestamp()
       where organization_id=${row.organization_id}::uuid and id=${row.guardian_id}::uuid and auth_user_id is null`);
-    if (row.grant_view_athletes) {
-      // La academia lo confirmó al invitar: el tutor ve horario, asistencia y avisos.
-      await tx.execute(sql`update zaltyko.family_guardians set can_view_athletes=true, updated_at=clock_timestamp()
-        where organization_id=${row.organization_id}::uuid and guardian_id=${row.guardian_id}::uuid and is_active and not can_view_athletes`);
-    }
+    // La academia lo confirmó al invitar: el tutor ve horario, asistencia y
+    // avisos, solo en los vínculos concretos que vio entonces y solo si no han
+    // cambiado desde la invitación (custodia, orden judicial, baja).
+    const granted = row.grant_view_athletes ? await rows<{ id: string }>(tx, sql`update zaltyko.family_guardians fg
+        set can_view_athletes=true, updated_at=clock_timestamp()
+      from zaltyko.guardian_access_invitations i
+      cross join lateral jsonb_to_recordset(i.grant_links) as g(id uuid, updated_at timestamptz)
+      where i.organization_id=${row.organization_id}::uuid and i.id=${row.id}::uuid
+        and fg.organization_id=i.organization_id and fg.guardian_id=i.guardian_id
+        and fg.id=g.id and fg.updated_at=g.updated_at and fg.is_active and not fg.can_view_athletes
+      returning fg.id::text`) : [];
     const consumed = await rows<{ id: string }>(tx, sql`update zaltyko.guardian_access_invitations
       set status='accepted', accepted_by_user_id=${input.userId}::uuid, accepted_at=clock_timestamp(),
         revision=revision+1, updated_at=clock_timestamp()
@@ -547,7 +621,7 @@ export async function acceptFamilyInvitation(input: { userId: string; token: str
       targetType: "guardian_access_invitation",
       targetId: row.id,
       idempotencyKey: `family_access_accept_${row.id}`,
-      after: { guardianId: row.guardian_id, grantViewAthletes: row.grant_view_athletes },
+      after: { guardianId: row.guardian_id, grantViewAthletes: row.grant_view_athletes, grantedLinks: granted.length },
       metadata: {},
     });
     return { academyName: organization.name, replayed: false };

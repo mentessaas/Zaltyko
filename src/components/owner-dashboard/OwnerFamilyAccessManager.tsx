@@ -25,7 +25,7 @@ export type OwnerFamilyAccessGuardian = {
 type CommandResult = {
   link: string | null;
   emailSent: boolean | null;
-  counts?: { invited: number; emailed: number; skippedNoEmail: number; skippedExisting: number };
+  counts?: { invited: number; emailed: number; skippedNoEmail: number; skippedExisting: number; remaining: number };
 };
 
 const STATUS_CHIP: Record<GuardianPortalStatus, string> = {
@@ -49,11 +49,14 @@ export function OwnerFamilyAccessManager({
   locationId,
   guardians,
   truncated,
+  removeOnly = false,
 }: {
   organizationId: string;
   locationId: string;
   guardians: OwnerFamilyAccessGuardian[];
   truncated: boolean;
+  /** Bandera apagada: solo se puede retirar el acceso a cuentas vinculadas. */
+  removeOnly?: boolean;
 }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -71,19 +74,34 @@ export function OwnerFamilyAccessManager({
     setMessage(null);
     setOneTimeLink(null);
     setCopied(false);
-    const result = await familyRequest<CommandResult>("/api/v1/owner/family-access", { organizationId, locationId, ...body });
+    let result = await familyRequest<CommandResult>("/api/v1/owner/family-access", { organizationId, locationId, ...body });
+    // La invitación masiva va por lotes de 20: se repite mientras quede gente.
+    const total = { invited: 0, emailed: 0, skippedNoEmail: 0, skippedExisting: 0 };
+    for (let round = 0; round < 15; round += 1) {
+      if (!result.ok || !result.data.counts) break;
+      const counts = result.data.counts;
+      total.invited += counts.invited;
+      total.emailed += counts.emailed;
+      total.skippedNoEmail = counts.skippedNoEmail;
+      total.skippedExisting = counts.skippedExisting;
+      if (!counts.remaining || counts.invited === 0) break;
+      setMessage({ tone: "info", text: `Enviando invitaciones… ${total.invited} hasta ahora.` });
+      result = await familyRequest<CommandResult>("/api/v1/owner/family-access", { organizationId, locationId, ...body });
+    }
     setBusy(false);
     setConfirming(null);
     if (!result.ok) {
-      setMessage({ tone: "error", text: result.message });
+      setMessage({ tone: "error", text: total.invited ? `Se enviaron ${total.invited} invitaciones y después falló: ${result.message}` : result.message });
+      router.refresh();
       return;
     }
     const data = result.data;
     if (data.counts) {
-      const { invited, emailed, skippedNoEmail, skippedExisting } = data.counts;
+      const { invited, emailed, skippedNoEmail } = total;
+      const pending = data.counts.remaining;
       setMessage({
         tone: "info",
-        text: `Invitaciones creadas: ${invited}. Correos enviados: ${emailed}. Sin correo: ${skippedNoEmail}. Con acceso o invitación pendiente: ${skippedExisting}.`,
+        text: `Invitaciones creadas: ${invited}. Correos enviados: ${emailed}. Sin correo: ${skippedNoEmail}.${pending ? ` Quedan ${pending}: vuelve a pulsar «Invitar a todas».` : ""}`,
       });
     } else if (body.action === "invite" || body.action === "resend") {
       setMessage({
@@ -118,7 +136,7 @@ export function OwnerFamilyAccessManager({
             Cada familia entra con su propia cuenta y solo ve a sus gimnastas. El enlace sirve una vez y caduca a los 7 días; solo lo puede aceptar una cuenta con el mismo correo, ya verificado.
           </p>
         </div>
-        {invitable.length > 0 ? (
+        {invitable.length > 0 && !removeOnly ? (
           <button type="button" className={ownerUi.secondaryButton} disabled={busy} onClick={() => setConfirming("__all__")}>
             Invitar a todas ({invitable.length})
           </button>

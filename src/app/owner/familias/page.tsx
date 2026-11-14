@@ -9,7 +9,10 @@ import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorks
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
-import { isFamilyAccessAvailableForPage } from "@/modules/family-access/application/family-access-storage";
+import {
+  isFamilyAccessAvailableForPage,
+  isFamilyAccessStorageInstalledForPage,
+} from "@/modules/family-access/application/family-access-storage";
 import { getOwnerNoticesBundle } from "@/modules/family-access/application/family-notices";
 import { listOwnerFamilyAccess } from "@/modules/family-access/application/guardian-invitations";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
@@ -35,7 +38,10 @@ export default async function OwnerFamiliesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!(await isFamilyAccessAvailableForPage())) notFound();
+  // Con la bandera apagada y el candidato instalado, la página solo permite
+  // retirar el acceso a las cuentas ya vinculadas.
+  const fullMode = await isFamilyAccessAvailableForPage();
+  if (!fullMode && !(await isFamilyAccessStorageInstalledForPage())) notFound();
   const supabase = await createClient(await cookies());
   const {
     data: { user },
@@ -64,9 +70,10 @@ export default async function OwnerFamiliesPage({
   const input = { organizationId: scope.organization.id, locationId, actor };
   const allSites = scope.member.locationScopeMode === "all";
 
+  if (!fullMode && !allSites) notFound();
   const [access, notices] = await Promise.all([
-    allSites ? listOwnerFamilyAccess(input) : Promise.resolve(null),
-    getOwnerNoticesBundle(input),
+    allSites ? listOwnerFamilyAccess({ ...input, removeOnly: !fullMode }) : Promise.resolve(null),
+    fullMode ? getOwnerNoticesBundle(input) : Promise.resolve(null),
   ]);
 
   return (
@@ -83,19 +90,25 @@ export default async function OwnerFamiliesPage({
           className={ownerUi.pageHeader}
         />
         <div className="space-y-8">
+          {!fullMode ? (
+            <p className={ownerUi.noticeWarning}>
+              Las invitaciones y los avisos están desactivados. Desde aquí solo puedes retirar el acceso al portal a las familias que ya lo tienen.
+            </p>
+          ) : null}
           {access ? (
             <OwnerFamilyAccessManager
               organizationId={scope.organization.id}
               locationId={locationId}
               guardians={access.guardians}
               truncated={access.truncated}
+              removeOnly={!fullMode}
             />
           ) : (
             <p className={ownerUi.noticeInfo}>
               El acceso de las familias al portal lo gestiona quien tiene acceso a todas las sedes de la academia.
             </p>
           )}
-          <OwnerFamilyNoticesPanel organizationId={scope.organization.id} bundle={notices} />
+          {notices ? <OwnerFamilyNoticesPanel organizationId={scope.organization.id} bundle={notices} /> : null}
         </div>
       </div>
     </OwnerWorkspacePageShell>

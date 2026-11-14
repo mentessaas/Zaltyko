@@ -355,6 +355,10 @@ describe.skipIf(!disposablePgEnabled)("acceso de familias y avisos en PostgreSQL
     await runFamilyAccessCommand({ actor: ownerA, idempotencyKey: key(), command: { ...scopeA(), action: "revoke", invitationId: first.invitationId!, revision: 2 } });
     await expect(acceptFamilyInvitation({ userId: userBea, token: t2 })).rejects.toMatchObject({ status: 404 });
 
+    // Espera por tutor entre envíos aceptados, también tras revocar.
+    await expect(runFamilyAccessCommand({ actor: ownerA, idempotencyKey: key(), command: { ...scopeA(), action: "invite", guardianId: bea.guardianId, grantViewAthletes: true } }))
+      .rejects.toMatchObject({ status: 429 });
+    await db.execute(sql`update zaltyko.guardian_access_invitations set last_sent_at = now() - interval '1 hour' where guardian_id = ${bea.guardianId}::uuid`);
     // Nueva invitación y, antes de aceptarla, la academia corrige el correo.
     const third = await runFamilyAccessCommand({ actor: ownerA, idempotencyKey: key(), command: { ...scopeA(), action: "invite", guardianId: bea.guardianId, grantViewAthletes: true } });
     const t3 = tokenOf(third.link);

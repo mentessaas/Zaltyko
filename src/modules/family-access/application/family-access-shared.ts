@@ -26,8 +26,13 @@ export const iso = (value: Date | string) => new Date(value).toISOString();
  * exacto dentro. Un fallo inesperado responde «no disponible», nunca el
  * detalle de la base de datos.
  */
-export async function familyAccessTransaction<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
-  assertFamilyAccessFlag();
+export async function familyAccessTransaction<T>(
+  work: (tx: Tx) => Promise<T>,
+  options: { allowWhenFlagOff?: boolean } = {}
+): Promise<T> {
+  // Solo quitar acceso (retirar la cuenta vinculada) funciona con la bandera
+  // apagada; sigue exigiendo el candidato instalado.
+  if (!options.allowWhenFlagOff) assertFamilyAccessFlag();
   try {
     return await db.transaction(async (tx) => {
       await assertFamilyAccessStorage(tx);

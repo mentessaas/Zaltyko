@@ -19,6 +19,7 @@ export const FAMILY_ACCESS_TABLES = {
     "accepted_by_user_id",
     "created_at",
     "expires_at",
+    "grant_links",
     "grant_view_athletes",
     "guardian_id",
     "id",
@@ -50,6 +51,7 @@ export const FAMILY_ACCESS_TABLES = {
   family_notice_recipients: [
     "created_at",
     "email_attempted_at",
+    "email_attempts",
     "email_status",
     "guardian_id",
     "id",
@@ -139,6 +141,18 @@ export async function assertFamilyAccessStorage(client: DatabaseClient): Promise
  */
 export async function isFamilyAccessAvailableForPage(client: DatabaseClient = db): Promise<boolean> {
   if (!isFamilyAccessFlagOn()) return false;
+  try {
+    return await isFamilyAccessStorageAvailable(client);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Para la página de la academia con la bandera apagada: si el candidato está
+ * instalado, todavía se puede retirar el acceso a las cuentas ya vinculadas.
+ */
+export async function isFamilyAccessStorageInstalledForPage(client: DatabaseClient = db): Promise<boolean> {
   try {
     return await isFamilyAccessStorageAvailable(client);
   } catch {

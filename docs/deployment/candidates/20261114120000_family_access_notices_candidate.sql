@@ -36,6 +36,10 @@ create table zaltyko.guardian_access_invitations (
   normalized_email text not null check (normalized_email = lower(btrim(normalized_email)) and length(normalized_email) >= 3 and length(normalized_email) <= 254 and strpos(normalized_email,'@') > 1),
   status text not null default 'pending' check (status in ('pending', 'accepted', 'revoked')),
   grant_view_athletes boolean not null default false,
+  -- Vínculos familia-tutor concretos (id y updated_at) que la academia vio al
+  -- invitar. Al aceptar solo se concede ver gimnastas en esos vínculos y solo
+  -- si no han cambiado desde entonces (custodia, orden judicial).
+  grant_links jsonb not null default '[]'::jsonb check (jsonb_typeof(grant_links) = 'array' and jsonb_array_length(grant_links) <= 50),
   invited_by_member_id uuid,
   token_sha256 text not null unique check (token_sha256 ~ '^[0-9a-f]{64}$'),
   expires_at timestamptz not null,
@@ -107,6 +111,9 @@ create table zaltyko.family_notice_recipients (
   notice_id uuid not null,
   guardian_id uuid not null,
   email_status text not null default 'pending' check (email_status in ('pending', 'sent', 'failed', 'skipped_preference', 'skipped_no_account')),
+  -- Intentos de envío: un correo fallido vuelve a intentarse (lotes y cron)
+  -- hasta 3 veces antes de quedar en 'failed'.
+  email_attempts integer not null default 0 check (email_attempts >= 0 and email_attempts <= 20),
   email_attempted_at timestamptz,
   read_at timestamptz,
   created_at timestamptz not null default now(),
@@ -116,6 +123,9 @@ create table zaltyko.family_notice_recipients (
 );
 create index family_notice_recipients_guardian_idx
   on zaltyko.family_notice_recipients(organization_id, guardian_id, created_at desc);
+-- Cola de correos pendientes (lotes de la petición y cron de reintento).
+create index family_notice_recipients_pending_idx
+  on zaltyko.family_notice_recipients(created_at, id) where email_status = 'pending';
 
 -- Email preferences a family sets in the portal. A missing row means the
 -- defaults (both true). The portal notice is always recorded.

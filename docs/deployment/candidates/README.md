@@ -406,7 +406,7 @@ invitación, el servidor escribe columnas que ya existen:
 (`on delete set null (columna)`) y se niega a reinstalarse si alguna de las
 cuatro relaciones ya existe.
 
-- SHA-256: `2eba0c51344e083988e14cb12077cc128835972622a9b647b90c943a58f7759b`.
+- SHA-256: `4143ebef55bdd0f0c97585dcda1259ed8912c0db2fe01400286a5febe0e02811`.
 - Detección: `src/modules/family-access/application/family-access-storage.ts`
   compara tablas, columnas, RLS forzado y ausencia de privilegios de clientes.
   Sin el candidato exacto, la función responde 503 y `/owner/familias`,

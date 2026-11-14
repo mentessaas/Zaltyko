@@ -70,7 +70,7 @@ export const OPTIONAL_FAMILY_ACCESS_EXPORT_TABLES = [
     table: "guardian_access_invitations",
     category: "family_access_credentials",
     reason: "Family portal invitation identities, credential hashes and acceptance evidence require a separate protected access-data return; only this academy's count is included.",
-    columns: ["id", "organization_id", "guardian_id", "normalized_email", "status", "grant_view_athletes", "invited_by_member_id", "token_sha256", "expires_at", "revision", "last_sent_at", "accepted_by_user_id", "accepted_at", "revoked_by_member_id", "revoked_at", "created_at", "updated_at"],
+    columns: ["id", "organization_id", "guardian_id", "normalized_email", "status", "grant_view_athletes", "grant_links", "invited_by_member_id", "token_sha256", "expires_at", "revision", "last_sent_at", "accepted_by_user_id", "accepted_at", "revoked_by_member_id", "revoked_at", "created_at", "updated_at"],
   },
   {
     table: "family_notices",
@@ -82,7 +82,7 @@ export const OPTIONAL_FAMILY_ACCESS_EXPORT_TABLES = [
     table: "family_notice_recipients",
     category: "family_communications",
     reason: "Per-guardian read receipts and email outcomes of family notices; only this academy's count is included.",
-    columns: ["id", "organization_id", "notice_id", "guardian_id", "email_status", "email_attempted_at", "read_at", "created_at"],
+    columns: ["id", "organization_id", "notice_id", "guardian_id", "email_status", "email_attempts", "email_attempted_at", "read_at", "created_at"],
   },
   {
     table: "guardian_notification_preferences",

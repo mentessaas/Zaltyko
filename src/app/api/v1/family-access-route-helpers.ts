@@ -48,6 +48,11 @@ type Options = {
   mutation?: boolean;
   limit: { limit: number; window: number };
   invitationLink?: boolean;
+  /**
+   * Deja pasar la petición con la bandera apagada; la ruta decide después,
+   * sin tocar la base, si la acción concreta lo admite (retirar acceso).
+   */
+  allowWhenFlagOff?: boolean;
 };
 
 export async function withFamilyUser(
@@ -56,7 +61,7 @@ export async function withFamilyUser(
   work: (userId: string) => Promise<NextResponse>
 ): Promise<NextResponse> {
   const off = familyFeatureOff();
-  if (off) return off;
+  if (off && !options.allowWhenFlagOff) return off;
   try {
     if (options.mutation && !hasSameOrigin(request)) {
       return familyNoStore(apiError("INVALID_ORIGIN", "La petición debe proceder de la misma web.", 403));
@@ -91,6 +96,10 @@ export async function withFamilyManager(
 ): Promise<NextResponse> {
   return withFamilyUser(request, options, async (userId) => {
     const body = await readJson(request);
+    // Con la bandera apagada solo pasa «retirar acceso», antes de tocar la base.
+    if (!isFamilyAccessFlagOn() && body?.action !== "remove_access") {
+      throw new OperationalError("FEATURE_NOT_AVAILABLE", "El acceso de familias y los avisos todavía no están activados.", 503);
+    }
     if (!body || typeof body.organizationId !== "string") {
       throw new OperationalError("INVALID_RELATION", "Falta la academia.", 400);
     }
