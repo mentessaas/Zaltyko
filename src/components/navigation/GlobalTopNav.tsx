@@ -1,4 +1,5 @@
 "use client";
+import { clearOfflineAttendanceOnSignOut } from "@/lib/offline-attendance/sign-out";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -116,6 +117,7 @@ export function GlobalTopNav({
     if (loading) return;
     setLoading(true);
     try {
+      await clearOfflineAttendanceOnSignOut();
       await supabase.auth.signOut();
       router.push("/auth/login");
     } finally {

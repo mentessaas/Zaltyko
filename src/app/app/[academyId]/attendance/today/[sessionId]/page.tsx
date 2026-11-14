@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { attendanceRecords, classSessions, classes } from "@/db/schema";
 import { getClassAthletes } from "@/lib/classes/get-class-athletes";
 import { AttendanceSheet } from "@/components/attendance/AttendanceSheet";
+import { TodaySnapshotSaver } from "@/components/attendance/TodaySnapshotSaver";
 
 interface PageProps {
   params: Promise<{ academyId: string; sessionId: string }>;
@@ -46,6 +47,7 @@ export default async function AttendanceTodaySessionPage({ params }: PageProps) 
 
   return (
     <div className="px-4 py-4 sm:px-6 sm:py-6">
+      <TodaySnapshotSaver academyId={academyId} />
       <AttendanceSheet
         academyId={academyId}
         sessionId={session.id}

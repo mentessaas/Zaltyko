@@ -9,6 +9,20 @@ source:
 
 
 
+## 2026-11-14 — Pasar lista sin conexión, instalar Zaltyko en el móvil y plan de la app nativa
+
+**Cambio.** Las entrenadoras pueden pasar lista en el tapiz sin cobertura. La lista de las sesiones de hoy se guarda en el móvil (IndexedDB) al abrir «Pasar lista» con red; las marcas hechas sin red van a una cola local y se envían al volver la conexión. Cada gimnasta muestra «Guardado» o «Pendiente de enviar». Se añade una invitación discreta «Añade Zaltyko a tu pantalla de inicio» para entrenadoras y dirección (Android, y pasos de Safari en iPhone/iPad), manifiesto con iconos separados `any` / `maskable` y un acceso directo «Pasar lista». Plan de la app nativa en `docs/producto/plan-app-movil-nativa.md` (recomendación: PWA ahora; Expo/React Native reutilizando `mobile/` cuando haya señal; no Capacitor).
+
+**Servidor.** `POST /api/attendance` acepta `markedAt` y `opId` por marca y devuelve `results` por gimnasta (`applied`, `duplicate`, `superseded`). «La última marca gana» según la hora real de la marca; reenviar la misma marca no cambia nada; el conflicto (la marca que se pierde) queda en `audit_logs` con acción `attendance.offline_conflict`. Nuevo `GET /api/attendance/today?academyId=` (solo las clases que la entrenadora tiene asignadas). Sin migración: `recordedAt` pasa a ser el momento de la marca.
+
+**Privacidad.** En el dispositivo solo se guarda identificador, nombre y grupo de cada gimnasta y las marcas; nunca salud, fecha de nacimiento ni datos de familia. Las listas caducan a las 36 horas. Al cerrar sesión (botones y evento de Supabase) se envía lo pendiente (hasta 4 s) y se borra todo. Marcas de otra persona que usó el móvil se descartan, no se envían.
+
+**Service worker.** Guarda una pantalla pública y sin datos (`/pasar-lista-sin-conexion`) y sus archivos; sin red, `/app/<academia>/attendance/today[/<sesión>]` redirige a ella. El HTML privado de `/app/*` sigue sin guardarse nunca.
+
+**Probado.** Pruebas unitarias nuevas (cola, sincronización, idempotencia, decisión de conflictos, invitación de instalación, service worker) y ampliadas (`api-attendance`, `pwa-security`, que ahora permite el acceso directo «Pasar lista»). **No se ha probado en un móvil real ni en staging**: falta comprobar en staging que la pantalla sin conexión se abre en modo avión.
+
+**Sin resolver.** (1) Si se cierra sesión con marcas que no se pudieron enviar tras el intento de 4 s, se pierden. (2) Las notas de una marca se vuelven a dejar vacías si la marca viene del móvil sin notas, igual que antes en línea. (3) La invitación para iPhone no se puede probar en simulador de escritorio.
+
 ## 2026-11-12 — Web pública: acceso de entrenadoras, titulares, guion y seguimiento, y solicitudes de prueba
 
 **Contexto.** Hoy, con autorización de Elvis, se aplicaron en producción las candidatas de acceso de equipo (277), titulares y sustituciones (276), objetivos y observaciones (271), guion de la sesión (279) y solicitudes de prueba (262), y se activó `ZALTYKO_TEAM_ACCESS_ENABLED=true`. También la de inteligencia competitiva, que es un panel interno y no se anuncia.

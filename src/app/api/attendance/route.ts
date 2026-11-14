@@ -1,8 +1,8 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { attendanceRecords, classSessions, classes } from "@/db/schema";
+import { attendanceRecords, auditLogs, classSessions, classes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
@@ -12,11 +12,16 @@ import { verifyAttendanceWriteAccess } from "@/lib/attendance/service";
 import { markAcademyActivationIfReady } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
+import { decideMark, resolveMarkedAt, type SyncOutcome } from "@/lib/attendance/offline-sync";
+import { logger } from "@/lib/logger";
 
 const entrySchema = z.object({
   athleteId: z.guid(),
   status: z.enum(["present", "absent", "late", "excused"]).optional(),
   notes: z.string().optional(),
+  // Marcas hechas sin conexión: momento real de la marca y operación del móvil.
+  markedAt: z.string().datetime({ offset: true }).optional(),
+  opId: z.guid().optional(),
 });
 
 const upsertBodySchema = z.object({
@@ -100,14 +105,61 @@ export const POST = withTenant(async (request, context) => {
 
     const now = new Date();
 
-    // Usar transacción para garantizar atomicidad
+    // «Última marca gana» e idempotencia (ver lib/attendance/offline-sync):
+    // se compara el momento de cada marca con lo que ya hay guardado.
+    const results: Array<{ athleteId: string; outcome: SyncOutcome }> = [];
+    const conflicts: Array<Record<string, unknown>> = [];
+
     await withTransaction(async (tx) => {
       await lockAcademyOperationalWrites(tx, sessionRow.academyId);
       await assertAcademyOperationalWritable(context.tenantId!, sessionRow.academyId, tx);
 
+      const existingRows = await tx
+        .select({
+          athleteId: attendanceRecords.athleteId,
+          status: attendanceRecords.status,
+          notes: attendanceRecords.notes,
+          recordedAt: attendanceRecords.recordedAt,
+        })
+        .from(attendanceRecords)
+        .where(
+          and(
+            eq(attendanceRecords.tenantId, context.tenantId!),
+            eq(attendanceRecords.sessionId, body.sessionId),
+            inArray(
+              attendanceRecords.athleteId,
+              body.entries.map((entry) => entry.athleteId)
+            )
+          )
+        )
+        .limit(1000);
+      const existingByAthlete = new Map(existingRows.map((row) => [row.athleteId, row]));
+
       for (const entry of body.entries) {
         const status = entry.status ?? "present";
         const notes = entry.notes ?? null;
+        const markedAt = resolveMarkedAt(entry.markedAt, now);
+        const existing = existingByAthlete.get(entry.athleteId);
+        const decision = decideMark(existing, { status, notes, markedAt });
+
+        results.push({ athleteId: entry.athleteId, outcome: decision.outcome });
+
+        // Solo las marcas de la cola sin conexión (traen opId) dejan registro
+        // de conflicto; el guardado normal en línea no genera ruido.
+        if (decision.conflict && entry.opId) {
+          conflicts.push({
+            athleteId: entry.athleteId,
+            opId: entry.opId,
+            outcome: decision.outcome,
+            incoming: { status, markedAt: markedAt.toISOString() },
+            existing: {
+              status: existing?.status ?? null,
+              recordedAt: existing?.recordedAt ? existing.recordedAt.toISOString() : null,
+            },
+          });
+        }
+
+        if (decision.outcome !== "applied") continue;
 
         await tx
           .insert(attendanceRecords)
@@ -118,18 +170,43 @@ export const POST = withTenant(async (request, context) => {
             athleteId: entry.athleteId,
             status,
             notes,
-            recordedAt: now,
+            recordedAt: markedAt,
           })
           .onConflictDoUpdate({
             target: [attendanceRecords.sessionId, attendanceRecords.athleteId],
             set: {
               status,
               notes,
-              recordedAt: now,
+              recordedAt: markedAt,
             },
           });
       }
     });
+
+    // Registro de conflictos (best effort, nunca rompe el guardado): quién,
+    // qué sesión y qué valor se perdió, para poder explicarlo a la entrenadora.
+    if (conflicts.length > 0) {
+      try {
+        await db.insert(auditLogs).values({
+          tenantId: context.tenantId,
+          userId: context.userId ?? null,
+          action: "attendance.offline_conflict",
+          module: "classes",
+          resourceType: "attendance_session",
+          resourceId: body.sessionId,
+          description: "Marca de asistencia hecha sin conexión que coincidió con otra más reciente o más antigua",
+          meta: { conflicts },
+          status: "warning",
+        });
+      } catch (error) {
+        logger.error("No se pudo registrar el conflicto de asistencia", error);
+      }
+    }
+
+    // Reenviar marcas ya aplicadas no cuenta como actividad nueva.
+    if (results.every((result) => result.outcome === "duplicate")) {
+      return apiSuccess({ ok: true, results });
+    }
 
     // La primera asistencia es el momento en que la academia obtiene valor
     // operativo real. La clave por academia hace el hito idempotente aunque
@@ -141,7 +218,7 @@ export const POST = withTenant(async (request, context) => {
     });
     await markAcademyActivationIfReady(sessionRow.academyId, context.tenantId);
 
-    return apiSuccess({ ok: true });
+    return apiSuccess({ ok: true, results });
   } catch (error) {
     return handleApiError(error);
   }

@@ -1,4 +1,5 @@
 "use client";
+import { clearOfflineAttendanceOnSignOut } from "@/lib/offline-attendance/sign-out";
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -23,6 +24,7 @@ export function OwnerSignOutButton({ surface = "light" }: { surface?: "light" | 
     setBusy(true);
     setFailed(false);
     try {
+      await clearOfflineAttendanceOnSignOut();
       // End this browser session without revoking the user's other sessions.
       const { error } = await createClient().auth.signOut({ scope: "local" });
       if (error) throw error;

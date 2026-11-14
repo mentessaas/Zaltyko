@@ -1,4 +1,5 @@
 "use client";
+import { clearOfflineAttendanceOnSignOut } from "@/lib/offline-attendance/sign-out";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -42,6 +43,7 @@ export function Sidebar({ user }: SidebarProps) {
 
   const handleLogout = async () => {
     const supabase = createClient();
+    await clearOfflineAttendanceOnSignOut();
     await supabase.auth.signOut();
     window.location.href = "/auth/login";
   };
