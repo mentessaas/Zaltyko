@@ -125,7 +125,7 @@ evidencia fiscal de Zaltyko se conserva y bloquea la supresión.
 | `public.directory_grants.user_id` | NO ACTION | **CASCADE** | Derecho de la cuenta a gestionar una ficha del directorio |
 | `public.directory_grants.approved_by`, `directory_claims.decided_by`, `directory_audit.actor_id` | NO ACTION | **SET NULL** | Historial del directorio |
 | `public.directory_claims.user_id` | NO ACTION, NOT NULL | **SET NULL**; las pendientes se retiran antes | La prueba adjunta sigue la purga de 30 días (`src/lib/directory/maintenance.ts`), salvo que se retenga por una disputa |
-| `public.directory_revisions.user_id`, `directory_subscriptions.user_id` | NO ACTION | **SET NULL** | La ficha y la suscripción por email existen sin cuenta; darse de baja de una suscripción es otra solicitud |
+| `public.directory_revisions.user_id`, `directory_subscriptions.user_id` | NO ACTION | **SET NULL** | La ficha se conserva. Las suscripciones de la persona (por cuenta o por el email de la cuenta) se dan de baja antes (`withdrawn_at`): la fila queda como prueba de la baja y no recibe más correos |
 | `public.directory_favorites.user_id` | CASCADE | sin cambios | Solo de la cuenta |
 
 Hacia el perfil legacy (`public.profiles`), que la ruta borra después de la
@@ -146,7 +146,16 @@ cuenta:
 **Filas nuevas.** Donde la candidata quita NOT NULL (pertenencia,
 `insight_actions`, directorio y las columnas de autor legacy de arriba), un
 trigger `BEFORE INSERT` (`zaltyko_domain_private.require_column_on_insert`)
-sigue exigiendo el valor al insertar. Solo la clave foránea lo deja vacío.
+sigue exigiendo el valor al insertar. Igual donde relaja un CHECK: un pago
+manual nuevo sigue necesitando quién lo anotó
+(`payments_manual_recorder_required`) y una invitación que pasa a «aceptada»
+sigue necesitando la cuenta que la acepta
+(`organization_member_invitations_acceptor_required`). Solo la clave foránea,
+al suprimir la cuenta, vacía esas columnas en registros existentes.
+
+**Mensajes.** Un mensaje cuyo remitente suprimió su cuenta (`sender_id`
+vacío) sigue contando como no leído para el resto
+(`src/app/api/messages/conversations/route.ts`).
 
 **Invitación aceptada.** Se conserva con `accepted_member_id` como evidencia de
 acceso de la academia, pero el servidor sustituye antes su email
@@ -186,7 +195,8 @@ Ruta: `DELETE /api/super-admin/users/[profileId]` (motivo obligatorio).
      `audit_log` de cada una `member.account_erased` (pertenencia, estado
      anterior y motivo; sin datos de la persona);
    - sustituye email y nombre de las invitaciones que aceptó;
-   - retira sus reclamaciones pendientes del directorio.
+   - retira sus reclamaciones pendientes del directorio y da de baja sus
+     suscripciones de correo del directorio (por cuenta o por su email).
 
    Si dos supresiones se bloquean entre sí (por ejemplo, dos co-dueñas a la
    vez: 40P01) o se agota el `lock_timeout` (55P03), **409**

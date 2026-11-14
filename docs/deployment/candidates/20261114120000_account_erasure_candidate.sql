@@ -58,7 +58,8 @@
 --     dueña; hay que transferirla o cerrarla antes.
 --
 -- Filas nuevas: donde se quita NOT NULL, un trigger BEFORE INSERT sigue exigiendo
--- el autor; solo la clave foránea puede dejarlo vacío después.
+-- el autor; solo la clave foránea puede dejarlo vacío después. Igual con quien
+-- anota un pago manual nuevo y con quien acepta una invitación.
 --
 -- No crea tablas ni cambia filas, roles, RLS ni permisos. Las autorías por
 -- pertenencia (organization_members) no cambian: la pertenencia ya no se borra.
@@ -134,6 +135,10 @@ begin
   end if;
   if exists (select 1 from pg_constraint where conrelid = 'zaltyko.organization_members'::regclass and conname = 'organization_members_erased_account_revoked_ck')
      or to_regprocedure('zaltyko_domain_private.require_column_on_insert()') is not null
+     or to_regprocedure('zaltyko_domain_private.require_manual_payment_recorder()') is not null
+     or to_regprocedure('zaltyko_domain_private.require_invitation_acceptor()') is not null
+     or exists (select 1 from pg_trigger where not tgisinternal and tgname in (
+       'payments_manual_recorder_required', 'organization_member_invitations_acceptor_required'))
      or exists (select 1 from pg_trigger where not tgisinternal and tgname like '%\_required\_on\_insert') then
     raise exception 'Account erasure candidate requires its CHECK, trigger function and insert triggers absent; inspect existing schema before promotion';
   end if;
@@ -360,3 +365,41 @@ create trigger ticket_responses_user_id_required_on_insert before insert on publ
   for each row execute function zaltyko_domain_private.require_column_on_insert('user_id');
 create trigger ticket_attachments_uploaded_by_required_on_insert before insert on public.ticket_attachments
   for each row execute function zaltyko_domain_private.require_column_on_insert('uploaded_by');
+
+-- 9. Lo que los CHECK relajados ya no exigen en registros nuevos: un pago
+-- manual nuevo sigue necesitando quién lo anotó, y una invitación que pasa a
+-- «aceptada» sigue necesitando la cuenta que la acepta. Solo la clave foránea
+-- (al suprimir la cuenta) vacía esas columnas en registros existentes.
+create function zaltyko_domain_private.require_manual_payment_recorder() returns trigger
+  language plpgsql set search_path to '' as $$
+begin
+  if new.source = 'manual' and new.recorded_by_user_id is null then
+    raise exception 'a new manual payment requires recorded_by_user_id' using errcode = '23514';
+  end if;
+  return new;
+end
+$$;
+revoke all on function zaltyko_domain_private.require_manual_payment_recorder() from public, anon, authenticated;
+create trigger payments_manual_recorder_required before insert on zaltyko.payments
+  for each row execute function zaltyko_domain_private.require_manual_payment_recorder();
+
+create function zaltyko_domain_private.require_invitation_acceptor() returns trigger
+  language plpgsql set search_path to '' as $$
+begin
+  if new.status = 'accepted' and new.accepted_by_user_id is null then
+    if tg_op = 'INSERT' then
+      raise exception 'an accepted invitation requires accepted_by_user_id' using errcode = '23514';
+    end if;
+    if old.status is distinct from 'accepted' then
+      raise exception 'an accepted invitation requires accepted_by_user_id' using errcode = '23514';
+    end if;
+  end if;
+  return new;
+end
+$$;
+revoke all on function zaltyko_domain_private.require_invitation_acceptor() from public, anon, authenticated;
+-- El guardia del acceso de equipo (canonical-team-access-schema.ts) admite
+-- exactamente este trigger (nombre, función, tipo y estado) en la forma
+-- posterior a esta candidata.
+create trigger organization_member_invitations_acceptor_required before insert or update on zaltyko.organization_member_invitations
+  for each row execute function zaltyko_domain_private.require_invitation_acceptor();

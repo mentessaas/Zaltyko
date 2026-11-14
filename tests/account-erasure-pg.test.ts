@@ -162,14 +162,26 @@ interface Fixture {
   coachAuditId: string;
   ownerAuditId: string;
   paymentId: string;
+  familyId: string;
   invitationId: string;
   directoryEntryId: string;
   claimId: string;
 }
 
+const authEmail = (label: string, id: string) => `ci-erasure-${label}-${id}@example.invalid`;
+
 async function authUser(tx: TransactionClient, label: string): Promise<string> {
   const id = randomUUID();
-  await tx.execute(sql`insert into auth.users (id, email) values (${id}::uuid, ${`ci-erasure-${label}-${id}@example.invalid`})`);
+  await tx.execute(sql`insert into auth.users (id, email) values (${id}::uuid, ${authEmail(label, id)})`);
+  return id;
+}
+
+async function directorySubscription(tx: TransactionClient, userId: string | null, email: string, purpose: string): Promise<string> {
+  const id = randomUUID();
+  await tx.execute(sql`
+    insert into public.directory_subscriptions (id, user_id, email, purpose, policy_version, source, token_hash, token_expires_at, confirmed_at)
+    values (${id}::uuid, ${userId}::uuid, ${email}, ${purpose}, 'ci-v1', 'ci', ${hex()}, now() + interval '1 day', now())
+  `);
   return id;
 }
 
@@ -256,7 +268,7 @@ async function fixture(tx: TransactionClient): Promise<Fixture> {
 
   return {
     organizationId, locationId, superAdmin, owner, coach, staffProfileId, coachAuditId, ownerAuditId,
-    paymentId, invitationId, directoryEntryId, claimId,
+    paymentId, familyId, invitationId, directoryEntryId, claimId,
   };
 }
 
@@ -291,6 +303,13 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("supresión de cuent
       const before = await catalogFingerprint(tx);
       await tx.execute(sql.raw(file(CANDIDATE)));
       expect(await isAccountErasureSchemaInstalled(tx)).toBe(true);
+      // Entre la candidata y su validación, el acceso de equipo sigue disponible.
+      const pendingValidation = await one<{ count: number }>(tx, sql`
+        select count(*)::int as count from pg_constraint
+        where conrelid in ('zaltyko.organization_member_invitations'::regclass, 'zaltyko.organization_team_command_receipts'::regclass)
+          and not convalidated`);
+      expect(pendingValidation.count).toBe(3);
+      await expect(assertCanonicalTeamAccessSchema(tx)).resolves.toBeUndefined();
       // Claves y CHECK nacen NOT VALID: la verificación exige el paso de validación.
       expect((await failure(tx, (sp) => sp.execute(sql.raw(file(VERIFY))))).message).toMatch(/Account erasure verification failed: .*validad/);
       await tx.execute(sql.raw(file(VALIDATE)));
@@ -330,6 +349,9 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("supresión de cuent
       await ensureTeamAccess(tx);
       await install(tx);
       const f = await fixture(tx);
+      const byAccount = await directorySubscription(tx, f.coach.userId, "otra-direccion@example.invalid", "calendar");
+      const byEmail = await directorySubscription(tx, null, authEmail("coach", f.coach.userId).toUpperCase(), "marketing");
+      const someoneElse = await directorySubscription(tx, null, "otra-persona@example.invalid", "marketing");
 
       // Sin el procedimiento, borrar la cuenta falla entero: la pertenencia
       // activa no puede quedarse sin cuenta (CHECK).
@@ -337,7 +359,18 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("supresión de cuent
       expect(direct.code).toBe("23514");
 
       const preparation = await prepareAccountErasure(tx, { userId: f.coach.userId, profileId: null, actorUserId: f.superAdmin });
-      expect(preparation).toEqual({ revokedMemberships: 1, organizations: 1, pseudonymizedInvitations: 1, withdrawnDirectoryClaims: 1 });
+      expect(preparation).toEqual({
+        revokedMemberships: 1,
+        organizations: 1,
+        pseudonymizedInvitations: 1,
+        withdrawnDirectoryClaims: 1,
+        withdrawnDirectorySubscriptions: 2,
+      });
+      const subscriptions = await tx.execute(sql`
+        select id::text, withdrawn_at is not null as withdrawn from public.directory_subscriptions
+        where id in (${byAccount}::uuid, ${byEmail}::uuid, ${someoneElse}::uuid)`);
+      expect(Object.fromEntries((subscriptions.rows as { id: string; withdrawn: boolean }[]).map((row) => [row.id, row.withdrawn])))
+        .toEqual({ [byAccount]: true, [byEmail]: true, [someoneElse]: false });
       // Lo que hace Supabase Auth al borrar la cuenta.
       await tx.execute(sql`delete from auth.users where id = ${f.coach.userId}::uuid`);
 
@@ -394,7 +427,7 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("supresión de cuent
 
       // Reintentar es seguro: no hay nada que revocar.
       expect(await prepareAccountErasure(tx, { userId: f.coach.userId, profileId: null, actorUserId: f.superAdmin }))
-        .toEqual({ revokedMemberships: 0, organizations: 0, pseudonymizedInvitations: 0, withdrawnDirectoryClaims: 0 });
+        .toEqual({ revokedMemberships: 0, organizations: 0, pseudonymizedInvitations: 0, withdrawnDirectoryClaims: 0, withdrawnDirectorySubscriptions: 0 });
 
       // Ya no hay vuelta atrás sin decidir qué hacer con estas filas.
       expect((await failure(tx, (sp) => sp.execute(sql.raw(file(ROLLBACK))))).message).toMatch(/accounts were already erased/);
@@ -441,6 +474,29 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("supresión de cuent
       const announcement = await failure(tx, (sp) => sp.execute(sql`
         insert into public.announcements (academy_id, author_id, title, content) values (${academyId}::uuid, null, 'Aviso', 'Texto')`));
       expect(announcement.code).toBe("23502");
+
+      // Un pago manual nuevo sigue necesitando quién lo anotó.
+      const payment = await failure(tx, (sp) => sp.execute(sql`
+        insert into zaltyko.payments (organization_id, family_id, source, status, amount_cents, currency, manual_method, recorded_by_user_id, received_at, idempotency_key)
+        values (${f.organizationId}::uuid, ${f.familyId}::uuid, 'manual', 'succeeded', 1000, 'EUR', 'cash', null, now(), ${`ci-erasure-${randomUUID()}`})`));
+      expect(payment.code).toBe("23514");
+
+      // Una invitación que pasa a «aceptada» sigue necesitando la cuenta.
+      const pendingId = randomUUID();
+      await tx.execute(sql`
+        insert into zaltyko.organization_member_invitations
+          (id, organization_id, normalized_email, role, invited_by_member_id, token_sha256, expires_at, invitee_given_name, invitee_family_name)
+        values (${pendingId}::uuid, ${f.organizationId}::uuid, ${`ci-erasure-${pendingId}@example.invalid`}, 'coach',
+          ${f.owner.memberId}::uuid, ${hex()}, now() + interval '7 days', 'Bea', 'Gil')`);
+      const acceptance = await failure(tx, (sp) => sp.execute(sql`
+        update zaltyko.organization_member_invitations
+        set status = 'accepted', accepted_member_id = ${f.coach.memberId}::uuid, accepted_at = now()
+        where id = ${pendingId}::uuid`));
+      expect(acceptance.code).toBe("23514");
+      await tx.execute(sql`
+        update zaltyko.organization_member_invitations
+        set status = 'accepted', accepted_by_user_id = ${f.coach.userId}::uuid, accepted_member_id = ${f.coach.memberId}::uuid, accepted_at = now()
+        where id = ${pendingId}::uuid`);
     });
   }, 60_000);
 

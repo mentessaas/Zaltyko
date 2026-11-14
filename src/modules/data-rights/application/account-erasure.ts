@@ -61,6 +61,8 @@ export interface AccountErasurePreparation {
   pseudonymizedInvitations: number;
   /** Reclamaciones pendientes del directorio retiradas. */
   withdrawnDirectoryClaims: number;
+  /** Suscripciones de correo del directorio dadas de baja (por cuenta o por su email). */
+  withdrawnDirectorySubscriptions: number;
 }
 
 const EMPTY_PREPARATION: AccountErasurePreparation = {
@@ -68,6 +70,7 @@ const EMPTY_PREPARATION: AccountErasurePreparation = {
   organizations: 0,
   pseudonymizedInvitations: 0,
   withdrawnDirectoryClaims: 0,
+  withdrawnDirectorySubscriptions: 0,
 };
 
 type Row = Record<string, unknown>;
@@ -291,7 +294,27 @@ export async function prepareAccountErasure(
     returning id
   `)).length;
 
-  return { revokedMemberships: revoked.length, organizations, pseudonymizedInvitations, withdrawnDirectoryClaims };
+  // Deja de recibir correos del directorio: sus suscripciones, por cuenta o por
+  // el email de la cuenta, quedan dadas de baja (la fila se conserva como
+  // prueba de la baja).
+  const withdrawnDirectorySubscriptions = rows(await tx.execute(sql`
+    update public.directory_subscriptions
+    set withdrawn_at = now()
+    where withdrawn_at is null
+      and (
+        user_id = ${input.userId}::uuid
+        or lower(email) = (select lower(email) from auth.users where id = ${input.userId}::uuid)
+      )
+    returning id
+  `)).length;
+
+  return {
+    revokedMemberships: revoked.length,
+    organizations,
+    pseudonymizedInvitations,
+    withdrawnDirectoryClaims,
+    withdrawnDirectorySubscriptions,
+  };
 }
 
 export interface AccountErasureDependencies {

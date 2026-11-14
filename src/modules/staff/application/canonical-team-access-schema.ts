@@ -10,7 +10,9 @@ const unavailable = () => new OperationalError("FEATURE_NOT_AVAILABLE", "El acce
 type Column = { name: string; typeSchema: string; typeName: string; notNull: boolean; typeModifier: number; defaultExpression: string | null };
 type Constraint = { kind: string; columns: string[]; validated: boolean; deferrable: boolean; deferred: boolean; expression: string | null; foreignSchema: string | null; foreignTable: string | null; foreignColumns: string[]; updateAction: string; deleteAction: string; match: string };
 type Index = { columns: string[]; unique: boolean; primary: boolean; valid: boolean; ready: boolean; immediate: boolean; live: boolean; nullsNotDistinct: boolean; method: string; predicate: string | null; expression: string | null; keyCount: number; columnCount: number; options: number[]; operatorClasses: string[] };
-type Table = { name: string; kind: string; rls: boolean; forceRls: boolean; policies: number; unsafeAcl: boolean; unsafeEnforcement: boolean; columns: Column[]; constraints: Constraint[]; indexes: Index[] };
+type Table = { name: string; kind: string; rls: boolean; forceRls: boolean; policies: number; unsafeAcl: boolean; unsafeEnforcement: boolean; reviewedTriggers: string[] | null; columns: Column[]; constraints: Constraint[]; indexes: Index[] };
+/** Manifest constraint that the account erasure candidate creates NOT VALID until its validation step. */
+type ExpectedConstraint = Constraint & { pendingValidation?: true };
 
 /**
  * Parse the small SQL expression grammar used by the reviewed candidate. This
@@ -103,6 +105,10 @@ const baseConstraint = { validated: true, deferrable: false, deferred: false, ex
 const key = (kind: "p" | "u", columns: string[]): Constraint => ({ ...baseConstraint, kind, columns });
 const check = (expression: string): Constraint => ({ ...baseConstraint, kind: "c", columns: [], expression });
 const foreign = (columns: string[], foreignTable: string, foreignColumns: string[], deleteAction = "a", foreignSchema = "zaltyko"): Constraint => ({ ...baseConstraint, kind: "f", columns, foreignSchema, foreignTable, foreignColumns, updateAction: "a", deleteAction, match: "s" });
+/** Between the account erasure candidate and its validation step these may still be NOT VALID. */
+const pending = (constraint: Constraint, accountErasure: boolean): ExpectedConstraint => (accountErasure ? { ...constraint, pendingValidation: true } : constraint);
+/** The only non-internal trigger allowed, and only in the account erasure form. */
+const ACCEPTOR_TRIGGER = "organization_member_invitations_acceptor_required";
 const index = (columns: string[], unique: boolean, primary = false, predicate: string | null = null): Index => ({ columns, unique, primary, predicate, valid: true, ready: true, immediate: true, live: true, nullsNotDistinct: false, method: "btree", expression: null, keyCount: columns.length, columnCount: columns.length, options: columns.map(() => 0), operatorClasses: columns.map(column => `pg_catalog.${["normalized_email", "idempotency_key", "token_sha256"].includes(column) ? "text_ops" : "uuid_ops"}`) });
 const enumSet = (column: string, values: string[], type = "text") => `${column} = ANY (ARRAY[${values.map(value => `'${value}'::${type}`).join(",")}])`;
 
@@ -112,7 +118,11 @@ const enumSet = (column: string, values: string[], type = "text") => `${column} 
  * docs/deployment/candidates/20261114120000_account_erasure_candidate.sql:
  * accepted_by_user_id ON DELETE SET NULL (an accepted invitation keeps
  * accepted_member_id but no longer requires the erased account) and receipts
- * deleted with their actor's account. Either form is accepted, never a mix.
+ * deleted with their actor's account. That form also adds one reviewed trigger
+ * (an invitation that becomes accepted still needs its account), and its three
+ * changed constraints may be NOT VALID until
+ * 20261114120000_account_erasure_validate.sql runs. Either form is accepted,
+ * never a mix.
  */
 const acceptedInvitationCheck = (accountErasure: boolean) =>
   `(status='pending' AND accepted_by_user_id IS NULL AND accepted_member_id IS NULL AND accepted_at IS NULL AND revoked_by_member_id IS NULL AND revoked_at IS NULL) OR (status='accepted' AND ${accountErasure ? "" : "accepted_by_user_id IS NOT NULL AND "}accepted_member_id IS NOT NULL AND accepted_at IS NOT NULL AND revoked_by_member_id IS NULL AND revoked_at IS NULL) OR (status='revoked' AND accepted_by_user_id IS NULL AND accepted_member_id IS NULL AND accepted_at IS NULL AND revoked_by_member_id IS NOT NULL AND revoked_at IS NOT NULL)`;
@@ -122,7 +132,7 @@ const teamAccessManifest = (accountErasure: boolean) => [
     name: invitation,
     columns: [id(), uuid("organization_id"), col("normalized_email", "text"), col("role", "member_role"), col("status", "text", true, "'pending'::text"), uuid("invited_by_member_id"), col("token_sha256", "text"), timestamp("expires_at"), col("revision", "int4", true, "1"), uuid("staff_profile_id", false), col("invitee_given_name", "text", false), col("invitee_family_name", "text", false), uuid("accepted_by_user_id", false), uuid("accepted_member_id", false), timestamp("accepted_at", false), uuid("revoked_by_member_id", false), timestamp("revoked_at", false), timestamp("created_at", true, true), timestamp("updated_at", true, true)],
     constraints: [key("p", ["id"]), key("u", ["token_sha256"]), key("u", ["organization_id", "id"]),
-      foreign(["organization_id"], "organizations", ["id"], "c"), foreign(["accepted_by_user_id"], "users", ["id"], accountErasure ? "n" : "a", "auth"),
+      foreign(["organization_id"], "organizations", ["id"], "c"), pending(foreign(["accepted_by_user_id"], "users", ["id"], accountErasure ? "n" : "a", "auth"), accountErasure),
       foreign(["organization_id", "invited_by_member_id"], "organization_members", ["organization_id", "id"]), foreign(["organization_id", "accepted_member_id"], "organization_members", ["organization_id", "id"]), foreign(["organization_id", "revoked_by_member_id"], "organization_members", ["organization_id", "id"]),
       foreign(["organization_id", "staff_profile_id"], "staff_profiles", ["organization_id", "id"]),
       check("(staff_profile_id IS NOT NULL AND invitee_given_name IS NULL AND invitee_family_name IS NULL) OR (staff_profile_id IS NULL AND invitee_given_name IS NOT NULL AND invitee_family_name IS NOT NULL)"),
@@ -130,19 +140,22 @@ const teamAccessManifest = (accountErasure: boolean) => [
       check("invitee_family_name IS NULL OR (length(btrim(invitee_family_name)) >= 1 AND length(btrim(invitee_family_name)) <= 100)"),
       check("normalized_email = lower(btrim(normalized_email)) AND length(normalized_email) >= 3 AND length(normalized_email) <= 254 AND strpos(normalized_email,'@'::text) > 1"),
       check(enumSet("role", ["manager", "coach"], "zaltyko.member_role")), check(enumSet("status", ["pending", "accepted", "revoked"])), check("token_sha256 ~ '^[0-9a-f]{64}$'::text"), check("revision > 0"),
-      check(acceptedInvitationCheck(accountErasure))],
+      pending(check(acceptedInvitationCheck(accountErasure)), accountErasure)] as ExpectedConstraint[],
+    triggers: accountErasure ? [ACCEPTOR_TRIGGER] : [],
     indexes: [index(["id"], true, true), index(["token_sha256"], true), index(["organization_id", "id"], true), index(["organization_id", "normalized_email"], true, false, "status='pending'::text"), index(["organization_id", "staff_profile_id"], true, false, "status='pending'::text AND staff_profile_id IS NOT NULL"), index(["organization_id", "id"], false)],
   },
   {
     name: scopes,
     columns: [id(), uuid("organization_id"), uuid("invitation_id"), uuid("location_id"), timestamp("created_at", true, true)],
-    constraints: [key("p", ["id"]), key("u", ["organization_id", "invitation_id", "location_id"]), foreign(["organization_id"], "organizations", ["id"], "c"), foreign(["organization_id", "invitation_id"], invitation, ["organization_id", "id"], "c"), foreign(["organization_id", "location_id"], "locations", ["organization_id", "id"])],
+    constraints: [key("p", ["id"]), key("u", ["organization_id", "invitation_id", "location_id"]), foreign(["organization_id"], "organizations", ["id"], "c"), foreign(["organization_id", "invitation_id"], invitation, ["organization_id", "id"], "c"), foreign(["organization_id", "location_id"], "locations", ["organization_id", "id"])] as ExpectedConstraint[],
+    triggers: [] as string[],
     indexes: [index(["id"], true, true), index(["organization_id", "invitation_id", "location_id"], true)],
   },
   {
     name: receipts,
     columns: [id(), uuid("organization_id"), uuid("actor_user_id"), col("idempotency_key", "text"), col("operation", "text"), col("request_hash", "text"), uuid("invitation_id"), col("invitation_status", "text"), col("invitation_revision", "int4"), timestamp("invitation_expires_at"), uuid("member_id", false), timestamp("created_at", true, true)],
-    constraints: [key("p", ["id"]), key("u", ["organization_id", "actor_user_id", "idempotency_key"]), foreign(["organization_id"], "organizations", ["id"], "c"), foreign(["actor_user_id"], "users", ["id"], accountErasure ? "c" : "a", "auth"), foreign(["organization_id", "invitation_id"], invitation, ["organization_id", "id"]), foreign(["organization_id", "member_id"], "organization_members", ["organization_id", "id"]), check("idempotency_key ~ '^[0-9a-f]{64}$'::text"), check(enumSet("operation", ["invite", "reissue", "revoke", "accept"])), check("request_hash ~ '^[0-9a-f]{64}$'::text"), check(enumSet("invitation_status", ["pending", "accepted", "revoked"])), check("invitation_revision > 0"), check("(operation='accept' AND invitation_status='accepted' AND member_id IS NOT NULL) OR (operation = ANY (ARRAY['invite'::text,'reissue'::text]) AND invitation_status='pending' AND member_id IS NULL) OR (operation='revoke' AND invitation_status='revoked' AND member_id IS NULL)")],
+    constraints: [key("p", ["id"]), key("u", ["organization_id", "actor_user_id", "idempotency_key"]), foreign(["organization_id"], "organizations", ["id"], "c"), pending(foreign(["actor_user_id"], "users", ["id"], accountErasure ? "c" : "a", "auth"), accountErasure), foreign(["organization_id", "invitation_id"], invitation, ["organization_id", "id"]), foreign(["organization_id", "member_id"], "organization_members", ["organization_id", "id"]), check("idempotency_key ~ '^[0-9a-f]{64}$'::text"), check(enumSet("operation", ["invite", "reissue", "revoke", "accept"])), check("request_hash ~ '^[0-9a-f]{64}$'::text"), check(enumSet("invitation_status", ["pending", "accepted", "revoked"])), check("invitation_revision > 0"), check("(operation='accept' AND invitation_status='accepted' AND member_id IS NOT NULL) OR (operation = ANY (ARRAY['invite'::text,'reissue'::text]) AND invitation_status='pending' AND member_id IS NULL) OR (operation='revoke' AND invitation_status='revoked' AND member_id IS NULL)")] as ExpectedConstraint[],
+    triggers: [] as string[],
     indexes: [index(["id"], true, true), index(["organization_id", "actor_user_id", "idempotency_key"], true)],
   },
 ];
@@ -159,14 +172,27 @@ function normalizeConstraint(value: Constraint): Constraint {
   return { ...value, columns: value.kind === "c" ? [] : value.columns, expression: value.expression === null ? null : canonicalTeamSchemaExpression(value.expression) };
 }
 
+function withoutFlag(constraint: ExpectedConstraint): Constraint {
+  const copy: ExpectedConstraint = { ...constraint };
+  delete copy.pendingValidation;
+  return copy;
+}
+
 function matchesManifest(tables: Table[], manifest: ReturnType<typeof teamAccessManifest>): boolean {
   if (tables.length !== manifest.length) return false;
   for (const expected of manifest) {
     const actual = tables.find(table => table.name === expected.name);
     if (!actual || actual.kind !== "r" || !actual.rls || !actual.forceRls || actual.policies !== 0 || actual.unsafeAcl || actual.unsafeEnforcement) return false;
+    if (stable(actual.reviewedTriggers ?? []) !== stable(expected.triggers)) return false;
+    // A constraint the manifest marks as pending validation matches whether or
+    // not it has been validated; every other one must be validated.
+    const pendingSignatures = new Set(expected.constraints.filter(item => item.pendingValidation).map(item => stable([normalizeConstraint(withoutFlag(item))])));
+    const actualConstraints = actual.constraints.map(normalizeConstraint).map(item =>
+      !item.validated && pendingSignatures.has(stable([{ ...item, validated: true }])) ? { ...item, validated: true } : item);
+    const expectedConstraints = expected.constraints.map(item => normalizeConstraint(withoutFlag(item)));
     const normalizeColumns = (columns: Column[]) => columns.map(column => ({ ...column, defaultExpression: column.defaultExpression === null ? null : canonicalTeamSchemaExpression(column.defaultExpression) }));
     const normalizeIndexes = (indexes: Index[]) => indexes.map(item => ({ ...item, predicate: item.predicate === null ? null : canonicalTeamSchemaExpression(item.predicate) }));
-    if (stable(normalizeColumns(actual.columns)) !== stable(normalizeColumns(expected.columns)) || stable(actual.constraints.map(normalizeConstraint)) !== stable(expected.constraints.map(normalizeConstraint)) || stable(normalizeIndexes(actual.indexes)) !== stable(normalizeIndexes(expected.indexes))) return false;
+    if (stable(normalizeColumns(actual.columns)) !== stable(normalizeColumns(expected.columns)) || stable(actualConstraints) !== stable(expectedConstraints) || stable(normalizeIndexes(actual.indexes)) !== stable(normalizeIndexes(expected.indexes))) return false;
   }
   return true;
 }
@@ -179,8 +205,10 @@ export async function assertCanonicalTeamAccessSchema(tx: TransactionClient): Pr
     for (const name of [invitation, scopes, receipts]) await tx.execute(sql`select id from ${sql.identifier("zaltyko")}.${sql.identifier(name)} where false`);
     const result = await tx.execute(sql`select c.relname as name,c.relkind as kind,c.relrowsecurity as rls,c.relforcerowsecurity as "forceRls",
       (select count(*)::int from pg_policy p where p.polrelid=c.oid) as policies,
+      (select jsonb_agg(t.tgname order by t.tgname) from pg_trigger t where t.tgrelid=c.oid and not t.tgisinternal) as "reviewedTriggers",
       (current_setting('session_replication_role')<>'origin'
-       or exists(select 1 from pg_trigger t where t.tgrelid=c.oid and not t.tgisinternal)
+       or exists(select 1 from pg_trigger t where t.tgrelid=c.oid and not t.tgisinternal and not (t.tgname=${ACCEPTOR_TRIGGER} and c.relname=${invitation}
+         and t.tgfoid=to_regprocedure('zaltyko_domain_private.require_invitation_acceptor()') and t.tgenabled='O' and t.tgtype=23))
        or exists(select 1 from pg_constraint k where k.conrelid=c.oid and k.contype='f' and
          ((select count(*) from pg_trigger t where t.tgconstraint=k.oid and t.tgisinternal)<>4
           or exists(select 1 from pg_trigger t where t.tgconstraint=k.oid and (not t.tgisinternal or t.tgenabled not in ('O','A')))))) as "unsafeEnforcement",

@@ -71,6 +71,7 @@ function scenario(options: Scenario) {
     }
     if (statement.startsWith("update zaltyko.organization_member_invitations")) return [{ id: "i1" }];
     if (statement.startsWith("update public.directory_claims")) return [{ id: "c1" }];
+    if (statement.startsWith("update public.directory_subscriptions")) return [{ id: "s1" }, { id: "s2" }];
     return [];
   };
 }
@@ -178,7 +179,11 @@ describe("prepareAccountErasure", () => {
       organizations: 2,
       pseudonymizedInvitations: 1,
       withdrawnDirectoryClaims: 1,
+      withdrawnDirectorySubscriptions: 2,
     });
+    const subscriptions = statements.find((statement) => statement.startsWith("update public.directory_subscriptions"))!;
+    expect(subscriptions).toContain("set withdrawn_at = now() where withdrawn_at is null");
+    expect(subscriptions).toContain("lower(email) = (select lower(email) from auth.users where id = ?::uuid)");
     expect(statements.filter((statement) => statement.startsWith("insert into zaltyko.audit_log"))).toHaveLength(2);
     const invitation = statements.find((statement) => statement.startsWith("update zaltyko.organization_member_invitations"))!;
     expect(invitation).toContain("normalized_email = 'cuenta-suprimida+' || id::text || '@zaltyko.invalid'");
@@ -193,7 +198,7 @@ function dependencies(overrides: Partial<AccountErasureDependencies> = {}) {
   const deps: AccountErasureDependencies = {
     transaction: async () => {
       calls.push("transaction");
-      return { revokedMemberships: 1, organizations: 1, pseudonymizedInvitations: 0, withdrawnDirectoryClaims: 0 } as never;
+      return { revokedMemberships: 1, organizations: 1, pseudonymizedInvitations: 0, withdrawnDirectoryClaims: 0, withdrawnDirectorySubscriptions: 0 } as never;
     },
     deleteAuthAccount: async () => {
       calls.push("auth");

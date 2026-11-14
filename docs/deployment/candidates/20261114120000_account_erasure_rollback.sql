@@ -114,6 +114,10 @@ drop trigger event_registrations_profile_id_required_on_insert on public.event_r
 drop trigger ticket_responses_user_id_required_on_insert on public.ticket_responses;
 drop trigger ticket_attachments_uploaded_by_required_on_insert on public.ticket_attachments;
 drop function zaltyko_domain_private.require_column_on_insert();
+drop trigger payments_manual_recorder_required on zaltyko.payments;
+drop function zaltyko_domain_private.require_manual_payment_recorder();
+drop trigger organization_member_invitations_acceptor_required on zaltyko.organization_member_invitations;
+drop function zaltyko_domain_private.require_invitation_acceptor();
 
 alter table public.directory_grants
   drop constraint directory_grants_user_id_fkey,

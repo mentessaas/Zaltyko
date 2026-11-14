@@ -447,7 +447,11 @@ pasa a null. Cambia, sobre tablas ya aplicadas (decisión por tabla en
   `ticket_attachments.uploaded_by`: CASCADE → SET NULL.
 - Donde quita NOT NULL, un trigger `BEFORE INSERT`
   (`zaltyko_domain_private.require_column_on_insert`, sin EXECUTE para
-  `anon`/`authenticated`) sigue exigiendo el valor en filas nuevas.
+  `anon`/`authenticated`) sigue exigiendo el valor en filas nuevas. Donde
+  relaja un CHECK, otros dos lo mantienen para registros nuevos:
+  `payments_manual_recorder_required` (un pago manual nuevo necesita quién lo
+  anotó) y `organization_member_invitations_acceptor_required` (una invitación
+  que pasa a «aceptada» necesita su cuenta).
 - Sin cambios y a propósito: `organization_saas_webhook_reconciliation_decisions.actor_user_id`
   sigue en RESTRICT (evidencia fiscal de solo inserción); las autorías hacia
   `organization_members` no se tocan.
@@ -469,10 +473,10 @@ repetible.
 
 | Archivo | SHA-256 |
 |---|---|
-| `20261114120000_account_erasure_candidate.sql` | `d4f45157068df5665e737fc3e9987bde0567bb03962bafc0ef7119787efb7013` |
+| `20261114120000_account_erasure_candidate.sql` | `713f96217777d0da34925b043add602e4cde12202290e17043554747cc1abe65` |
 | `20261114120000_account_erasure_validate.sql` (segundo paso) | `db7ff76c7f9a28ad1db186d567ca6430717c0d03595cc6a41a184a3b0cb87fa9` |
-| `20261114120000_account_erasure_verify.sql` (solo lectura) | `d1dc29798e0783fd6f069145ae7a1b5c3852f61fcfd6c3e2805591013b44e4ab` |
-| `20261114120000_account_erasure_rollback.sql` | `3ea0f87df6b9a8b65ee030c2870d9efb347f32df85603128ae84c1411eaed5b9` |
+| `20261114120000_account_erasure_verify.sql` (solo lectura) | `6e1f31a8bdf4bdae967c4e8a65cf16930ee13bdfad08f1b6258a554ceeaced62` |
+| `20261114120000_account_erasure_rollback.sql` | `6f0344c75f479fda3f0f9d0772230eb68dfaf830d27a99d6e7bd7e27a977a9ec` |
 
 - **Aplicar** (staging primero) y verificar:
 
@@ -500,8 +504,9 @@ repetible.
   clave NO ACTION/RESTRICT hacia la cuenta o el perfil y responde 409 si alguna
   tiene filas de esta persona. El guardia del acceso de equipo
   (`canonical-team-access-schema.ts`) acepta la forma anterior o la posterior a
-  esta candidata, nunca una mezcla: aplicar la candidata no apaga el acceso de
-  equipo.
+  esta candidata, nunca una mezcla. La posterior incluye su trigger revisado y
+  admite sus tres restricciones aún `NOT VALID`: el acceso de equipo sigue
+  disponible entre la candidata y el paso de validación, y después.
 - **Espejos Drizzle legacy** (`src/db/schema/`): siguen declarando NOT NULL en
   las columnas de autor legacy que la candidata vacía al suprimir. Se ajustarán
   cuando el historial se versione; mientras, una consulta que una esas filas

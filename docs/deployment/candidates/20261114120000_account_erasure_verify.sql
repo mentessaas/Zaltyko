@@ -121,6 +121,19 @@ begin
       ('zaltyko.insight_status_history', 'insight_status_history_immutable', 'zaltyko_domain_private.reject_insight_history_mutation()')
     ) as t(relation, trigger_name, function_name)
     union all
+    select 'trigger ' || t.relation || '.' || t.trigger_name || ' (pago manual y aceptación siguen exigiendo cuenta)',
+      exists (
+        select 1 from pg_trigger g
+        where g.tgrelid = to_regclass(t.relation) and g.tgname = t.trigger_name and not g.tgisinternal
+          and g.tgfoid = to_regprocedure(t.function_name) and g.tgenabled = 'O' and g.tgtype = t.trigger_type
+      )
+      and not has_function_privilege('anon', t.function_name, 'EXECUTE')
+      and not has_function_privilege('authenticated', t.function_name, 'EXECUTE')
+    from (values
+      ('zaltyko.payments', 'payments_manual_recorder_required', 'zaltyko_domain_private.require_manual_payment_recorder()', 7::smallint),
+      ('zaltyko.organization_member_invitations', 'organization_member_invitations_acceptor_required', 'zaltyko_domain_private.require_invitation_acceptor()', 23::smallint)
+    ) as t(relation, trigger_name, function_name, trigger_type)
+    union all
     select 'función de autor obligatorio sin ejecución para anon ni authenticated',
       to_regprocedure('zaltyko_domain_private.require_column_on_insert()') is not null
       and not has_function_privilege('anon', 'zaltyko_domain_private.require_column_on_insert()', 'EXECUTE')
