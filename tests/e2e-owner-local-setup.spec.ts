@@ -1560,24 +1560,6 @@ test.describe("Isolated local Supabase Owner setup", () => {
       expect(manualPaymentPostCount).toBe(0);
     }
 
-    // SONDEO TEMPORAL (retirar): trazas de red tras guardar el pago manual.
-    const dbgStart = Date.now();
-    const dbgLine = (kind: string, method: string, rawUrl: string, extra: string) => {
-      const u = new URL(rawUrl);
-      console.log(`DBG ${kind} +${Date.now() - dbgStart}ms ${method} ${u.pathname}${u.searchParams.has("_rsc") ? " [rsc]" : ""} ${extra}`);
-    };
-    page.on("response", (r) => dbgLine("resp", r.request().method(), r.url(), String(r.status())));
-    page.on("requestfailed", (r) => dbgLine("fail", r.method(), r.url(), r.failure()?.errorText ?? ""));
-    page.on("response", async (r) => {
-      const u = new URL(r.url());
-      if (u.pathname !== "/owner/payments" || !u.searchParams.has("_rsc")) return;
-      const body = await r.text().catch(() => "");
-      const h = r.headers();
-      console.log(`DBG rsc-body +${Date.now() - dbgStart}ms len=${body.length} sinCargos=${body.includes("No hay cargos pendientes")} conMensual=${body.includes("MENSUAL-")} cache=${h["cache-control"] ?? ""} age=${h["age"] ?? ""} fromCache=${(r as unknown as { fromServiceWorker(): boolean }).fromServiceWorker()}`);
-    });
-    page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") console.log(`DBG console-${m.type()} +${Date.now() - dbgStart}ms ${m.text().slice(0, 300)}`); });
-    page.on("pageerror", (e) => console.log(`DBG pageerror +${Date.now() - dbgStart}ms ${String(e.stack ?? e.message).slice(0, 600)}`));
-    page.on("framenavigated", (f) => { if (f === page.mainFrame()) dbgLine("nav", "GET", f.url(), ""); });
     await paymentMethod.selectOption({ label: "Transferencia" });
     expect(manualPaymentPostCount).toBe(0);
     const paymentResponse = page.waitForResponse(
