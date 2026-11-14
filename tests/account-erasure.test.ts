@@ -188,8 +188,8 @@ describe("prepareAccountErasure", () => {
     const invitation = statements.find((statement) => statement.startsWith("update zaltyko.organization_member_invitations"))!;
     expect(invitation).toContain("normalized_email = 'cuenta-suprimida+' || id::text || '@zaltyko.invalid'");
     expect(invitation).toContain("where accepted_by_user_id = ?::uuid and status = 'accepted'");
-    // Nunca borra pertenencias ni toca la cuenta de Auth.
-    expect(statements.some((statement) => /^delete\b/i.test(statement) || statement.includes("auth.users where"))).toBe(false);
+    // Nunca borra pertenencias ni escribe en la cuenta de Auth (solo lee su email).
+    expect(statements.some((statement) => /^delete\b/i.test(statement) || /\b(?:delete from|update|insert into) auth\.users\b/i.test(statement))).toBe(false);
   });
 });
 
