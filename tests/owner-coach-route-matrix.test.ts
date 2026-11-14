@@ -521,6 +521,19 @@ const coachAllowed = new Set([
   "GET owner/sessions/[sessionId]/plan/route.ts",
   "PUT owner/sessions/[sessionId]/plan/route.ts",
   "PUT owner/sessions/[sessionId]/plan/blocks/[blockId]/route.ts",
+  // Niveles y progresión (A6): el equipo técnico lee plantillas y evalúa con el
+  // criterio de Pasar lista (sede asignada, gimnasta con inscripción o grupo
+  // abierto). Crear y editar plantillas lo deniega el servicio a los
+  // entrenadores (tests/skill-levels-*). Todo responde 503 con la bandera apagada.
+  "GET owner/skill-templates/route.ts",
+  "POST owner/skill-templates/route.ts",
+  "GET owner/skill-templates/[templateId]/route.ts",
+  "PUT owner/skill-templates/[templateId]/route.ts",
+  "POST owner/skill-evaluations/route.ts",
+  "GET owner/athletes/[athleteId]/skills/route.ts",
+  "POST owner/athletes/[athleteId]/skills/level-passes/route.ts",
+  "GET owner/groups/[groupId]/skills/route.ts",
+  "GET owner/sessions/[sessionId]/skills/route.ts",
 ]);
 
 function routeFiles(directory: string): string[] {
@@ -576,6 +589,9 @@ describe("inventario de /api/v1", () => {
       "src/app/api/v1/owner/athlete-progress-http.ts",
       // P2 #17 (segunda parte): única entrada de las rutas del plan de sesión.
       "src/app/api/v1/owner/session-plan-http.ts",
+      // Niveles y progresión: única entrada de sus páginas (las rutas API
+      // reutilizan la resolución de athlete-progress-http.ts).
+      "src/app/owner/skills/_lib/skills-scope.ts",
     ]);
     const sourceFiles = (directory: string): string[] =>
       readdirSync(directory).flatMap((entry) => {

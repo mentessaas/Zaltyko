@@ -40,6 +40,7 @@ const CANDIDATES = {
   athlete_progress: "docs/deployment/candidates/20261111120000_athlete_progress_candidate.sql",
   coach_assignment: "docs/deployment/candidates/20261111180000_coach_assignment_candidate.sql",
   session_plans: "docs/deployment/candidates/20261111200000_session_plans_candidate.sql",
+  skill_levels: "docs/deployment/candidates/20261114120000_skill_levels_candidate.sql",
   admissions: "docs/deployment/candidates/20261110120000_admission_requests_candidate.sql",
   team_access: "docs/deployment/candidates/20261105120000_canonical_team_access_candidate.sql",
 } as const;
@@ -222,6 +223,7 @@ describe("inventario de derechos de datos frente al SQL", () => {
     for (const hidden of [
       "athlete_objectives.client_request_id", "athlete_observations.client_request_id",
       "session_plans.client_request_id", "session_plans.last_request_id",
+      "skill_templates.client_request_id", "athlete_level_passes.client_request_id",
       "admission_links.token", "admission_requests.submission_id",
     ]) {
       expect(exported).not.toContain(hidden);

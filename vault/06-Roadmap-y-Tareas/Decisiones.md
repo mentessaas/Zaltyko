@@ -9,6 +9,19 @@ source:
 # Decisiones
 
 
+## 2026-11-14 — Niveles y progresión por aparato (A6): plantillas orientativas, apagado hasta autorización de Elvis
+
+**Hallazgo/fuente:** análisis de competencia del 14-11-2026, punto A6 (progresión por niveles y aparatos con informe y diploma; el seguimiento de habilidades de iClassPro como referencia); `docs/producto/niveles-y-progresion.md`.
+
+**Decisión/importancia (provisional):**
+- **Plantillas por disciplina y de la academia.** GAF, GAM y rítmica (`artistic_female`, `artistic_male`, `rhythmic`). La academia crea, copia y edita; lo que quita se archiva y el progreso se conserva. Tres ejemplos de Zaltyko, **orientativos y sin citar ninguna federación**: ni RFEG ni FMG, porque no se ha revisado su fuente ni su licencia.
+- **Nivel actual = primero sin paso de nivel; se pasa en orden y con todos los obligatorios conseguidos.** El paso de nivel es un hecho con fecha (sin anulación en esta versión) y origen del diploma.
+- **Diploma por impresión del navegador (A4 apaisado, también PDF).** Sin dependencia nueva. La marca de la academia es su nombre: aún no hay logotipo ni color por academia.
+- **Familias: solo lectura en `/familia/gimnastas/[id]`**, sin nombres del equipo y con el diploma.
+- **Dos llaves:** candidato `20261114120000_skill_levels_candidate.sql` (sin aplicar) y `ZALTYKO_SKILL_LEVELS_ENABLED` (apagada). Derechos de datos cableados desde el primer día.
+
+**Siguiente paso:** Elvis decide los nueve puntos «Decide Elvis» del documento de producto y autoriza aplicar el candidato primero en staging.
+
 ## 2026-11-11 — Importación desde Excel/CSV (O4): criterio de duplicados conservador
 
 **Hallazgo/fuente:** matriz competitiva (O4); `docs/producto/importacion-excel.md`. RG Manager, OneClub, Clybo y FlipBiz anuncian importación; el canónico `/owner` no tenía ninguna.
