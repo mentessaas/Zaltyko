@@ -525,6 +525,104 @@ body {
   }
 }
 
+/* ===== Gráficas y respuestas del panel del club (/owner) ===== */
+/* Las barras se levantan desde la línea del suelo como un aterrizaje clavado:
+   salida rápida, frenada seca y sin rebote (cubic-bezier(0.16, 1, 0.3, 1)).
+   El escalonado lo pone cada barra con --zk-delay. Con movimiento reducido
+   todo aparece en su sitio desde el principio. */
+@keyframes zk-bar-rise {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes zk-bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes zk-settle {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes zk-stamp {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes zk-check {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.zk-bar-rise {
+  transform-origin: bottom;
+  animation: zk-bar-rise 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--zk-delay, 0ms);
+}
+
+.zk-bar-grow {
+  transform-origin: left;
+  animation: zk-bar-grow 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--zk-delay, 0ms);
+}
+
+.zk-settle {
+  animation: zk-settle 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--zk-delay, 0ms);
+}
+
+/* Respuesta al guardar: el botón marcado se asienta como un sello. */
+.zk-stamp {
+  animation: zk-stamp 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.zk-check-draw {
+  stroke-dasharray: 24;
+  animation: zk-check 360ms cubic-bezier(0.16, 1, 0.3, 1) 80ms both;
+}
+
+/* Barra en espera: la gráfica todavía no ha entrado en pantalla. */
+.zk-bar-wait {
+  transform: scale(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zk-bar-rise,
+  .zk-bar-grow,
+  .zk-settle,
+  .zk-stamp,
+  .zk-check-draw {
+    animation: none;
+    stroke-dasharray: none;
+  }
+  .zk-bar-wait {
+    transform: none;
+  }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    «Magnesio sobre tapiz» de noche (The Night Mat Rule).
    El tapiz no cambia de noche: sigue siendo azul. Lo que cambia es el papel:

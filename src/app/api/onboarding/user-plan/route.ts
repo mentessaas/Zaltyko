@@ -53,8 +53,8 @@ export async function GET() {
     // Determinar plan de upgrade sugerido
     let upgradeTo: "network" | undefined = undefined;
     if (!canCreateMore) {
-      // Los tres planes autoservicio tienen una academia. La ampliación de
-      // sedes pertenece a Network y requiere onboarding acompañado.
+      // Los tres planes autoservicio tienen una academia. Más academias no se
+      // contratan por cuenta propia: el enlace lleva al formulario de contacto.
       upgradeTo = "network";
     }
 

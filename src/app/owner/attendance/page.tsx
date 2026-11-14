@@ -25,6 +25,11 @@ import { ownerTab, ownerTone, ownerUi } from "@/components/owner-dashboard/owner
 import { logger } from "@/lib/logger";
 import { getOwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
 import {
+  getOwnerAttendanceWeeksChart,
+  resolveOwnerChartScope,
+} from "@/modules/owner-dashboard/application/summary-charts";
+import { OwnerAttendanceWeeksPanel } from "@/components/owner-dashboard/charts/OwnerChartPanels";
+import {
   coachHomeHref,
   coachWithoutLocationsOrganizationId,
   isCoachRole,
@@ -125,7 +130,7 @@ export default async function OwnerAttendancePage({
     : null;
 
   // P2 #17: sin el candidato SQL aplicado no se muestran los accesos.
-  const [progressAvailable, sessionPlansAvailable, skillLevelsAvailable, coachAssignmentAvailable, coachConflicts] = await Promise.all([
+  const [progressAvailable, sessionPlansAvailable, skillLevelsAvailable, coachAssignmentAvailable, coachConflicts, attendanceWeeks] = await Promise.all([
     isAthleteProgressAvailableForPage(db),
     isSessionPlanAvailableForPage(db),
     // Niveles y progresión: bandera apagada o sin el candidato SQL, sin acceso.
@@ -141,6 +146,16 @@ export default async function OwnerAttendancePage({
           viewer: { memberId: scope.member.id, role: scope.member.role },
         })
       : Promise.resolve(null),
+    // Dirección ve cómo va la asistencia de la sede en las últimas 8 semanas.
+    // La entrenadora no: su pantalla es Hoy y Pasar lista. Si falla, no se muestra.
+    coachMode
+      ? Promise.resolve(null)
+      : resolveOwnerChartScope({ scope, locationId: data.locationId })
+          .then(getOwnerAttendanceWeeksChart)
+          .catch((error: unknown) => {
+            logger.error("Owner attendance weeks chart failed", error);
+            return null;
+          }),
   ]);
   // O1: Hoy de la entrenadora pone primero sus sesiones asignadas, sin añadir
   // ninguna que no viera ya.
@@ -208,6 +223,11 @@ export default async function OwnerAttendancePage({
         coachAssignmentAvailable={coachAssignmentAvailable}
         sessionPlansAvailable={sessionPlansAvailable}
         skillLevelsAvailable={skillLevelsAvailable}
+        insight={
+          attendanceWeeks ? (
+            <OwnerAttendanceWeeksPanel chart={attendanceWeeks} links={{}} headingLevel="h2" />
+          ) : null
+        }
       />
     </OwnerWorkspacePageShell>
   );

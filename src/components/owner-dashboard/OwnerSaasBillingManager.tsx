@@ -34,6 +34,12 @@ import {
   SPANISH_VAT_GENERAL_RATE_PERCENT,
 } from "@/modules/saas-billing/domain/spanish-vat";
 import { IMMEDIATE_START_CONSENT_TEXT } from "@/modules/saas-billing/domain/immediate-start-consent";
+import {
+  checkBillingLegalName,
+  checkBillingTaxId,
+  SAAS_BILLING_DETAILS_MESSAGES,
+  SAAS_BILLING_LEGAL_NAME_MAX_LENGTH,
+} from "@/modules/saas-billing/domain/customer-billing-details";
 
 import type {
   OwnerSaasBillingInterval,
@@ -327,6 +333,21 @@ export function OwnerSaasBillingManager({
   const [interval, setInterval] = useState<OwnerSaasBillingInterval>("month");
   const [taxTerritory, setTaxTerritory] = useState<SpanishTaxTerritory | null>(null);
   const [immediateStartConsent, setImmediateStartConsent] = useState(false);
+  // Datos de la factura (academias de España): se validan aquí para avisar
+  // pronto y otra vez en el servidor antes de abrir Checkout.
+  const [billingLegalName, setBillingLegalName] = useState("");
+  const [billingTaxId, setBillingTaxId] = useState("");
+  const [billingTouched, setBillingTouched] = useState({ legalName: false, taxId: false });
+  const billingLegalNameCheck = checkBillingLegalName(billingLegalName);
+  const billingTaxIdCheck = checkBillingTaxId(billingTaxId);
+  const billingLegalNameError =
+    taxTerritoryRequired && billingTouched.legalName && !billingLegalNameCheck.ok
+      ? SAAS_BILLING_DETAILS_MESSAGES[billingLegalNameCheck.reason]
+      : null;
+  const billingTaxIdError =
+    taxTerritoryRequired && billingTouched.taxId && !billingTaxIdCheck.ok
+      ? SAAS_BILLING_DETAILS_MESSAGES[billingTaxIdCheck.reason]
+      : null;
   const [busyActionState, setBusyActionState] = useState<{ organizationId: string; action: string } | null>(null);
   const busyAction = busyActionState?.action ?? null;
   const displayedBusyAction = busyActionState?.organizationId === organizationId ? busyAction : null;
@@ -559,6 +580,9 @@ export function OwnerSaasBillingManager({
         billingInterval: interval,
         ...(taxTerritoryRequired && taxTerritory ? { taxTerritory } : {}),
         ...(taxTerritoryRequired && immediateStartConsent ? { immediateStartConsent: true } : {}),
+        ...(taxTerritoryRequired && billingLegalNameCheck.ok && billingTaxIdCheck.ok
+          ? { billingDetails: { legalName: billingLegalNameCheck.legalName, taxId: billingTaxIdCheck.taxId } }
+          : {}),
       };
       intent = retryIntent ?? getIntent(body);
       if (!persistCommand("checkout", intent, planCode)) throw new Error("No se pudo guardar la operación antes de enviarla. No se ha enviado ninguna solicitud.");
@@ -709,10 +733,13 @@ export function OwnerSaasBillingManager({
   const paymentNotice = subscription ? saasPaymentNotice(subscription.status) : null;
   const planCode = currentSnapshot?.entitlement.planCode;
   const trial = currentSnapshot?.trial ?? null;
+  const billingDetailsReady =
+    !taxTerritoryRequired || (billingLegalNameCheck.ok && billingTaxIdCheck.ok);
   const taxTerritoryReady =
     !taxTerritoryRequired ||
     (taxTerritory !== null &&
       isSpanishTaxTerritoryCheckoutCovered(taxTerritory) &&
+      billingDetailsReady &&
       immediateStartConsent);
   const taxTerritoryNotice =
     taxTerritoryRequired && taxTerritory
@@ -1070,6 +1097,63 @@ export function OwnerSaasBillingManager({
                     {taxTerritoryNotice}
                   </p>
                 ) : null}
+                <div className="mt-4 border-t border-z-line pt-4">
+                  <p className="text-sm font-bold">Datos de la factura</p>
+                  <p className="mt-1 text-sm leading-6 text-z-soft">
+                    Emitimos factura completa con estos datos. Comprobamos que el
+                    NIF, NIE o CIF sea válido antes de pasar al pago.
+                  </p>
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor={`billing-legal-name-${organizationId}`} className={ownerUi.label}>
+                        Razón social o nombre del titular
+                      </label>
+                      <input
+                        id={`billing-legal-name-${organizationId}`}
+                        type="text"
+                        autoComplete="organization"
+                        required
+                        maxLength={SAAS_BILLING_LEGAL_NAME_MAX_LENGTH}
+                        className={`mt-1 ${ownerUi.field}`}
+                        value={billingLegalName}
+                        aria-invalid={billingLegalNameError ? true : undefined}
+                        aria-describedby={billingLegalNameError ? `billing-legal-name-error-${organizationId}` : undefined}
+                        onChange={(event) => { if (!pendingCommandRef.current && !actionInFlight.current) setBillingLegalName(event.target.value); }}
+                        onBlur={() => setBillingTouched((touched) => ({ ...touched, legalName: true }))}
+                      />
+                      {billingLegalNameError ? (
+                        <p id={`billing-legal-name-error-${organizationId}`} role="alert" className="mt-1 text-sm leading-6 text-rose-700">
+                          {billingLegalNameError}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div>
+                      <label htmlFor={`billing-tax-id-${organizationId}`} className={ownerUi.label}>
+                        NIF, NIE o CIF
+                      </label>
+                      <input
+                        id={`billing-tax-id-${organizationId}`}
+                        type="text"
+                        autoComplete="off"
+                        autoCapitalize="characters"
+                        spellCheck={false}
+                        required
+                        maxLength={20}
+                        className={`mt-1 ${ownerUi.field}`}
+                        value={billingTaxId}
+                        aria-invalid={billingTaxIdError ? true : undefined}
+                        aria-describedby={billingTaxIdError ? `billing-tax-id-error-${organizationId}` : undefined}
+                        onChange={(event) => { if (!pendingCommandRef.current && !actionInFlight.current) setBillingTaxId(event.target.value); }}
+                        onBlur={() => setBillingTouched((touched) => ({ ...touched, taxId: true }))}
+                      />
+                      {billingTaxIdError ? (
+                        <p id={`billing-tax-id-error-${organizationId}`} role="alert" className="mt-1 text-sm leading-6 text-rose-700">
+                          {billingTaxIdError}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
                 <label className="mt-4 flex cursor-pointer items-start gap-3 border-t border-z-line pt-4 text-sm leading-6">
                   <input
                     type="checkbox"
@@ -1129,6 +1213,13 @@ export function OwnerSaasBillingManager({
                   }
                   if (taxTerritoryRequired && !taxTerritory) {
                     return "Indica la sede fiscal";
+                  }
+                  if (
+                    taxTerritoryRequired &&
+                    isSpanishTaxTerritoryCheckoutCovered(taxTerritory!) &&
+                    !billingDetailsReady
+                  ) {
+                    return "Completa los datos de factura";
                   }
                   if (
                     taxTerritoryRequired &&
@@ -1227,7 +1318,7 @@ export function OwnerSaasBillingManager({
                 ¿Necesitas acompañamiento o condiciones a medida?
               </h3>
               <p className="mt-1 text-sm leading-6 text-z-soft">
-                Network se acuerda por contacto.
+                Si gestionas varias academias o necesitas más capacidad que Growth, escríbenos y vemos tu caso.
               </p>
               <Link
                 className="touch-target mt-3 inline-flex items-center text-sm font-bold text-z-brand-700 underline underline-offset-4"
