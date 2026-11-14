@@ -33,8 +33,7 @@ import {
   sessionAttendanceHref,
   type OwnerCalendarState,
 } from "./owner-calendar-ui";
-import { ownerDisciplineOf, ownerDisciplineStyle, ownerUi } from "./owner-ui";
-import { ownerTab, ownerTone } from "./owner-tone-ui";
+import { ownerDisciplineOf, ownerDisciplineStyle, ownerTab, ownerTone, ownerUi } from "./owner-ui";
 
 const VIEW_LABELS: Record<CalendarView, string> = { day: "Día", week: "Semana", month: "Mes" };
 const PREVIOUS_LABELS: Record<CalendarView, string> = {
@@ -594,7 +593,7 @@ export function OwnerCalendarView({
             type="button"
             onClick={() => goTo(-1)}
             aria-label={PREVIOUS_LABELS[state.view]}
-            className={ownerUi.iconButton}
+            className={`${ownerUi.secondaryButton} px-3`}
           >
             <ChevronLeft aria-hidden="true" className="h-5 w-5" />
           </button>
@@ -602,7 +601,7 @@ export function OwnerCalendarView({
             type="button"
             onClick={() => goTo(1)}
             aria-label={NEXT_LABELS[state.view]}
-            className={ownerUi.iconButton}
+            className={`${ownerUi.secondaryButton} px-3`}
           >
             <ChevronRight aria-hidden="true" className="h-5 w-5" />
           </button>

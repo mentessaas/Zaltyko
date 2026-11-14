@@ -41,6 +41,7 @@ const PAGE_HEADER_SCREENS = [
   "src/components/owner-dashboard/OwnerAthleteIntakeWorkspace.tsx",
   "src/components/owner-dashboard/OwnerAthleteImportWorkspace.tsx",
   "src/components/owner-dashboard/OwnerAttendanceManager.tsx",
+  "src/components/owner-dashboard/OwnerCalendarView.tsx",
   "src/components/owner-dashboard/OwnerClassesManager.tsx",
   "src/components/owner-dashboard/OwnerEnrollmentsManager.tsx",
   "src/components/owner-dashboard/OwnerGroupsManager.tsx",
