@@ -21,6 +21,7 @@ import {
   demoApiResponders,
 } from "@/modules/demo/demo-fixtures";
 import { demoHrefFor } from "@/modules/demo/demo-routes";
+import { demoSectionOf } from "@/modules/demo/demo-steps";
 
 const SIGNUP_HREF = "/auth/register?role=owner";
 const KNOWN_ORIGINS = new Set(["inicio", "precios"]);
@@ -95,7 +96,7 @@ export function DemoSandbox({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const rootRef = useRef<HTMLDivElement>(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
-  const section = pathname.split("/")[2] ?? "resumen";
+  const section = demoSectionOf(pathname);
 
   ensureGuard();
 
@@ -105,7 +106,7 @@ export function DemoSandbox({ children }: { children: ReactNode }) {
       eventName: "demo_action_blocked",
       planCode: null,
       source: "public_demo",
-      properties: { seccion: section.slice(0, 40) },
+      properties: { seccion: section },
     });
   }, [section]);
 
@@ -168,7 +169,7 @@ export function DemoSandbox({ children }: { children: ReactNode }) {
         eventName: "demo_signup_clicked",
         planCode: null,
         source: "public_demo",
-        properties: { colocacion: (signup ?? "enlace").slice(0, 40), seccion: section.slice(0, 40) },
+        properties: { colocacion: (signup ?? "enlace").slice(0, 40), seccion: section },
       });
     }
 

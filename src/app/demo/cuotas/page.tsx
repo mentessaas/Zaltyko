@@ -36,7 +36,7 @@ export default function DemoPaymentsPage() {
             </Link>
             <PageHeader
               title="Registrar un pago recibido"
-              description="Anota una transferencia, efectivo o pago en el local. Al guardar, Zaltyko lo vincula al cargo y actualiza el saldo pendiente."
+              description="Anota una transferencia, efectivo o pago en el local. Al guardar, Zaltyko lo apunta en su cuota y resta lo que falta."
             />
           </div>
 

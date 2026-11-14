@@ -15,10 +15,12 @@ source:
 
 **Cambio.**
 - `/demo`: recorrido de seis pasos (Resumen, Clases, Asistencia, Gimnastas, Cobros y portal de familia) por una academia ficticia, con los componentes reales de `/owner` y `/familia` y datos estáticos (`src/modules/demo`). Banner fijo «Estás viendo una demo» con CTA al registro.
-- Sin escrituras: una guarda de `fetch` contesta las lecturas con datos de ejemplo, rechaza toda escritura y bloquea Supabase; los formularios no se envían y avisan «En la demo no se guarda nada».
+- Sin escrituras: una guarda de `fetch` contesta las lecturas con datos de ejemplo, rechaza toda escritura, bloquea Supabase y no pide ni precarga nunca el panel real (`/owner`, `/familia`: 404 sin red); solo deja pasar el POST de la medición pública; los formularios no se envían y avisan «En la demo no se guarda nada».
 - `OwnerWorkspacePageShell`/`OwnerWorkspaceNavigation` y `FamilyPortalShell` ganan un prop `demo`; las vistas del portal de familia se extraen a `FamilyHomeView`, `FamilyFeesView` y `FamilyAthleteView` (las páginas de `/familia` no cambian de comportamiento).
 - «Ver demo» como CTA secundario en la home (hero) y en `/pricing`.
 - Medición: `demo_viewed`, `demo_signup_clicked` y `demo_action_blocked` por el canal público de `/pricing`, sin datos personales.
+
+**Revisión (coordinación).** Apellidos de prueba (Ejemplo, Muestra…) en lugar de nombres de aparato, sin siglas («Base 3 artística»); `seccion` de la medición limitada a las claves de los pasos u «otra».
 
 **Decisión.** Toda la demo va `noindex, follow` y fuera del sitemap: contenido fino, repite `/features` y `/pricing`. Ver `docs/demo-publica.md`.
 

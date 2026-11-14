@@ -10,6 +10,7 @@ import {
   demoFamilyFees,
   demoOpenCharges,
   demoOperationalSummary,
+  demoApiResponders,
   demoOwnerScope,
   demoTodaySessions,
   isDemoFamilyAthlete,
@@ -17,7 +18,10 @@ import {
 
 /** Los componentes reales validan estos formatos: la demo debe cumplirlos cualquier día. */
 const COMPONENT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const APPARATUS_SURNAMES = ["Cinta", "Aro", "Mazas", "Tapiz", "Salto", "Barra", "Potro", "Cuerda", "Pelota", "Suelo", "Magnesio", "Viga"];
+/** Apellidos que son palabras de prueba: no existen como apellido de nadie. */
+const FICTIONAL_SURNAMES = ["Ejemplo", "Muestra", "Prueba", "Ensayo", "Boceto", "Maqueta", "Modelo", "Esbozo", "Borrador", "Simulacro", "Ficticia", "Tanteo"];
+/** Apellidos reales que una versión anterior usaba y que no deben volver. */
+const REAL_SURNAMES = ["Salto", "Barra", "Viga", "Cuerda", "Aro", "Potro", "Mazas", "Tapiz", "Pelota", "Suelo"];
 
 function daysFrom(start: string, count: number): Date[] {
   return Array.from({ length: count }, (_, index) => new Date(new Date(start).getTime() + index * 86_400_000));
@@ -68,11 +72,16 @@ describe("datos de la demo", () => {
     for (const value of ids) expect(value, value).toMatch(COMPONENT_UUID);
   });
 
-  it("todo es ficticio: apellidos de aparato, sin correos, teléfonos ni direcciones web", () => {
+  it("todo es ficticio: apellidos de prueba, sin siglas, sin correos, teléfonos ni direcciones web", () => {
     const now = new Date("2026-11-14T10:00:00Z");
     const view = demoAttendanceView(now);
     expect(view.initialSessionId).not.toBeNull();
+    const intake = demoApiResponders
+      .map((responder) => responder({ pathname: "/api/v1/owner/athlete-intake", searchParams: new URLSearchParams("page=1") }))
+      .find((body) => body !== undefined);
+    expect(intake).toBeDefined();
     const everything = JSON.stringify([
+      intake,
       demoOwnerScope(),
       demoOperationalSummary(now),
       demoTodaySessions(now),
@@ -86,13 +95,21 @@ describe("datos de la demo", () => {
     ]).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "");
     expect(everything).not.toMatch(/@|https?:|www\./i);
     expect(everything).not.toMatch(/\+?\d{9,}/);
+    // Sin apellidos reales (aunque sean nombres de aparato) y sin siglas en lo que se ve.
+    expect(everything).not.toMatch(/\bGAF\b|\bGAM\b|\bGR\b/);
+    for (const surname of REAL_SURNAMES) expect(everything, surname).not.toMatch(new RegExp(`\\b${surname}\\b`));
+    // Todos los apellidos de las gimnastas que se ven en la asistencia salen de la lista de prueba.
+    const rosterSurnames = new Set(
+      (demoFamilyAcademy().athletes.map((athlete) => athlete.displayName.split(" ")[1]))
+    );
+    for (const surname of rosterSurnames) expect(FICTIONAL_SURNAMES).toContain(surname);
     for (const academy of [demoFamilyAcademy()]) {
       for (const athlete of academy.athletes) {
-        expect(APPARATUS_SURNAMES).toContain(athlete.displayName.split(" ")[1]);
+        expect(FICTIONAL_SURNAMES).toContain(athlete.displayName.split(" ")[1]);
       }
     }
     for (const charge of demoOpenCharges(now)) {
-      expect(APPARATUS_SURNAMES.map((name) => `Familia ${name}`)).toContain(charge.payerName);
+      expect(FICTIONAL_SURNAMES.map((name) => `Familia ${name}`)).toContain(charge.payerName);
     }
   });
 

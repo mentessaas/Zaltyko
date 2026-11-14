@@ -2,17 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
-
-export const DEMO_STEPS = [
-  { key: "resumen", label: "Resumen", href: "/demo", hint: "El día de la academia de un vistazo." },
-  { key: "clases", label: "Clases", href: "/demo/clases", hint: "Horarios semanales y plazas." },
-  { key: "asistencia", label: "Asistencia", href: "/demo/asistencia", hint: "Pasar lista en un toque." },
-  { key: "gimnastas", label: "Gimnastas", href: "/demo/gimnastas", hint: "Fichas y familias por asignar." },
-  { key: "cuotas", label: "Cobros", href: "/demo/cuotas", hint: "Registrar un pago recibido." },
-  { key: "familia", label: "Portal de familia", href: "/demo/familia", hint: "Lo que ve cada familia." },
-] as const;
-
-export type DemoStepKey = (typeof DEMO_STEPS)[number]["key"];
+import { DEMO_STEPS, type DemoStepKey } from "@/modules/demo/demo-steps";
 
 /**
  * Pie del recorrido: en qué paso estás y a dónde ir. El último paso cierra con

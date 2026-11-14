@@ -4,6 +4,7 @@ import { decodeOwnerUsage } from "@/components/owner-dashboard/owner-plan-usage-
 import { isDefinitiveAttendanceRejection } from "@/components/owner-dashboard/owner-attendance-command";
 import { ownerClassCreateRejection } from "@/components/owner-dashboard/owner-class-command-response";
 import {
+  DEMO_ANALYTICS_PATH,
   DEMO_NOTICE,
   DEMO_NOTICE_DETAIL,
   createDemoFetch,
@@ -107,6 +108,45 @@ describe("las acciones de la demo no escriben", () => {
     expect(isDefinitiveAttendanceRejection(403, payload, false)).toBe(true);
     expect(ownerClassCreateRejection({ ok: false, status: 403 }, payload, false).status).toBe("rejected");
     expect(ownerClassCreateRejection({ ok: false, status: 403 }, payload, false).message).toBe(DEMO_NOTICE_DETAIL);
+  });
+});
+
+describe("el panel real nunca se pide ni se precarga", () => {
+  it.each(["/owner", "/owner/classes?organizationId=x&_rsc=1", "/owner/attendance", "/familia", "/familia/gimnastas/abc"])(
+    "GET %s (navegación o precarga de Next) no sale a la red ni avisa",
+    async (path) => {
+      const { baseFetch, onWriteBlocked, demoFetch, outcomes } = setup();
+      const response = await demoFetch(path, { headers: { RSC: "1", "Next-Router-Prefetch": "1" } });
+      expect(response.status).toBe(404);
+      expect(baseFetch).not.toHaveBeenCalled();
+      expect(onWriteBlocked).not.toHaveBeenCalled();
+      expect(outcomes[0]?.outcome).toBe("panel-blocked");
+    }
+  );
+
+  it("una ruta que solo empieza igual (/ownership) no se confunde con el panel", async () => {
+    const { baseFetch, demoFetch } = setup();
+    await demoFetch("/ownership");
+    expect(baseFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("la medición pública no dispara su propio aviso", () => {
+  it("el envío de eventos pasa sin avisar, para que no haya bucle de «acción bloqueada»", async () => {
+    const { baseFetch, onWriteBlocked, demoFetch, outcomes } = setup();
+    const response = await demoFetch(DEMO_ANALYTICS_PATH, { method: "POST", body: "{}" });
+    expect(response.status).toBe(200);
+    expect(baseFetch).toHaveBeenCalledTimes(1);
+    expect(onWriteBlocked).not.toHaveBeenCalled();
+    expect(outcomes[0]?.outcome).toBe("analytics");
+  });
+
+  it("solo esa dirección exacta y solo POST: lo demás de /api/growth sigue bloqueado", async () => {
+    const { baseFetch, onWriteBlocked, demoFetch } = setup();
+    expect((await demoFetch(`${DEMO_ANALYTICS_PATH}/otra`, { method: "POST" })).status).toBe(403);
+    expect((await demoFetch(DEMO_ANALYTICS_PATH, { method: "DELETE" })).status).toBe(403);
+    expect(onWriteBlocked).toHaveBeenCalledTimes(2);
+    expect(baseFetch).not.toHaveBeenCalled();
   });
 });
 

@@ -1,9 +1,9 @@
 /**
  * Datos de la demo pública: una academia de gimnasia inventada.
  *
- * Todo es ficticio. La academia, las sedes, las gimnastas y las familias llevan
- * nombres de aparatos y material (Cinta, Aro, Mazas, Tapiz…) para que nadie
- * confunda un nombre con una persona real. No hay fotos ni datos de contacto.
+ * Todo es ficticio. Las gimnastas y las familias llevan apellidos que son
+ * palabras de prueba (Ejemplo, Muestra, Prueba, Ensayo…) y no apellidos reales,
+ * para que nadie confunda un nombre con una persona. No hay fotos ni datos de contacto.
  *
  * Los datos son estáticos: se calculan en memoria a partir de la fecha de hoy
  * (para que «Hoy» siempre tenga sesiones) y no salen de ninguna tabla. Este
@@ -89,14 +89,14 @@ function localToIso(date: string, time: string): string {
 /* ───────────────────────────── Gimnastas y clases ───────────────────────── */
 
 const ATHLETE_NAMES: ReadonlyArray<readonly [string, string]> = [
-  ["Lucía", "Cinta"], ["Martina", "Aro"], ["Vera", "Mazas"], ["Noa", "Tapiz"],
-  ["Irene", "Salto"], ["Carla", "Barra"], ["Alba", "Potro"], ["Sofía", "Cuerda"],
-  ["Paula", "Pelota"], ["Emma", "Suelo"], ["Julia", "Magnesio"], ["Marta", "Viga"],
-  ["Aitana", "Cinta"], ["Nora", "Aro"], ["Elena", "Mazas"], ["Claudia", "Tapiz"],
-  ["Valeria", "Salto"], ["Lola", "Barra"], ["Inés", "Potro"], ["Mía", "Cuerda"],
-  ["Triana", "Pelota"], ["Abril", "Suelo"], ["Daniela", "Magnesio"], ["Candela", "Viga"],
+  ["Lucía", "Ejemplo"], ["Martina", "Muestra"], ["Vera", "Prueba"], ["Noa", "Ensayo"],
+  ["Irene", "Boceto"], ["Carla", "Maqueta"], ["Alba", "Modelo"], ["Sofía", "Esbozo"],
+  ["Paula", "Borrador"], ["Emma", "Simulacro"], ["Julia", "Ficticia"], ["Marta", "Tanteo"],
+  ["Aitana", "Ejemplo"], ["Nora", "Muestra"], ["Elena", "Prueba"], ["Claudia", "Ensayo"],
+  ["Valeria", "Boceto"], ["Lola", "Maqueta"], ["Inés", "Modelo"], ["Mía", "Esbozo"],
+  ["Triana", "Borrador"], ["Abril", "Simulacro"], ["Daniela", "Ficticia"], ["Candela", "Tanteo"],
 ];
-const SURNAMES = ["Cinta", "Aro", "Mazas", "Tapiz", "Salto", "Barra", "Potro", "Cuerda", "Pelota", "Suelo", "Magnesio", "Viga"];
+const SURNAMES = ["Ejemplo", "Muestra", "Prueba", "Ensayo", "Boceto", "Maqueta", "Modelo", "Esbozo", "Borrador", "Simulacro", "Ficticia", "Tanteo"];
 
 const athleteId = (index: number) => id(300 + index);
 const familyId = (surname: string) => id(500 + SURNAMES.indexOf(surname));
@@ -117,7 +117,7 @@ const range = (from: number, to: number) => Array.from({ length: to - from + 1 }
 
 const CLASSES: readonly DemoClass[] = [
   { n: 1, name: "Iniciación artística", place: "centro", program: "artistica", capacity: 14, slots: [[1, "17:00", "18:30"], [3, "17:00", "18:30"]], roster: range(0, 9) },
-  { n: 2, name: "Base 3 GAF", place: "centro", program: "artistica", capacity: 12, slots: [[2, "17:30", "19:00"], [4, "17:30", "19:00"]], roster: range(4, 15) },
+  { n: 2, name: "Base 3 artística", place: "centro", program: "artistica", capacity: 12, slots: [[2, "17:30", "19:00"], [4, "17:30", "19:00"]], roster: range(4, 15) },
   { n: 3, name: "Tecnificación competición", place: "centro", program: "artistica", capacity: 12, slots: [[1, "18:30", "20:30"], [3, "18:30", "20:30"], [5, "18:00", "20:00"], [7, "10:00", "12:00"]], roster: range(10, 19) },
   { n: 4, name: "Rítmica iniciación", place: "norte", program: "ritmica", capacity: 14, slots: [[2, "17:00", "18:00"], [4, "17:00", "18:00"]], roster: range(12, 21) },
   { n: 5, name: "Rítmica base", place: "norte", program: "ritmica", capacity: 12, slots: [[1, "18:00", "19:30"], [3, "18:00", "19:30"]], roster: [...range(16, 23), 0, 1] },
@@ -272,7 +272,7 @@ export function demoTodaySessions(now = new Date()): OwnerTodaySessions {
 
 export function demoAttentionItems(): OwnerAttentionItems {
   return {
-    unrecordedSessions: { count: 1, latest: { id: sessionId(2, 1), locationId: LOCATION.centro, className: "Base 3 GAF" } },
+    unrecordedSessions: { count: 1, latest: { id: sessionId(2, 1), locationId: LOCATION.centro, className: "Base 3 artística" } },
     fullClasses: 1,
     overdueInvoices: 3,
     newTrialRequests: 2,
@@ -344,11 +344,11 @@ export function demoAttendanceView(now = new Date()) {
 
 const FAMILY_STARTS_ON = "2026-09-14";
 const UNASSIGNED: ReadonlyArray<{ givenName: string; familyName: string; incomplete: boolean }> = [
-  { givenName: "Gala", familyName: "Cinta", incomplete: false },
-  { givenName: "Leyre", familyName: "Aro", incomplete: false },
-  { givenName: "Olivia", familyName: "Mazas", incomplete: false },
-  { givenName: "Zoe", familyName: "Tapiz", incomplete: true },
-  { givenName: "Bianca", familyName: "Salto", incomplete: true },
+  { givenName: "Gala", familyName: "Ejemplo", incomplete: false },
+  { givenName: "Leyre", familyName: "Muestra", incomplete: false },
+  { givenName: "Olivia", familyName: "Prueba", incomplete: false },
+  { givenName: "Zoe", familyName: "Ensayo", incomplete: true },
+  { givenName: "Bianca", familyName: "Boceto", incomplete: true },
 ];
 
 function intakePage(page: number) {
@@ -364,7 +364,7 @@ function intakePage(page: number) {
     })),
     eligibleGroups: [
       { groupId: id(201), groupName: "Iniciación artística · tarde", locationId: LOCATION.centro, locationName: LOCATION_NAME.centro, capacity: 14, occupancy: 10, availablePlaces: 4 },
-      { groupId: id(202), groupName: "Base 3 GAF · tarde", locationId: LOCATION.centro, locationName: LOCATION_NAME.centro, capacity: 12, occupancy: 12, availablePlaces: 0 },
+      { groupId: id(202), groupName: "Base 3 artística · tarde", locationId: LOCATION.centro, locationName: LOCATION_NAME.centro, capacity: 12, occupancy: 12, availablePlaces: 0 },
       { groupId: id(203), groupName: "Rítmica iniciación · tarde", locationId: LOCATION.norte, locationName: LOCATION_NAME.norte, capacity: 14, occupancy: 10, availablePlaces: 4 },
     ],
     total: UNASSIGNED.length,
@@ -379,12 +379,12 @@ function intakePage(page: number) {
 export function demoOpenCharges(now = new Date()): OpenManualPaymentCharge[] {
   const today = demoLocalDate(now);
   const rows: Array<{ n: number; surname: string; place: keyof typeof LOCATION; due: number; total: number; allocated: number }> = [
-    { n: 1, surname: "Cinta", place: "centro", due: -18, total: 9_000, allocated: 0 },
-    { n: 2, surname: "Aro", place: "norte", due: -12, total: 4_500, allocated: 0 },
-    { n: 3, surname: "Mazas", place: "norte", due: -6, total: 4_500, allocated: 2_000 },
-    { n: 4, surname: "Tapiz", place: "centro", due: 3, total: 5_500, allocated: 0 },
-    { n: 5, surname: "Salto", place: "centro", due: 5, total: 4_500, allocated: 0 },
-    { n: 6, surname: "Barra", place: "centro", due: 9, total: 9_000, allocated: 4_500 },
+    { n: 1, surname: "Ejemplo", place: "centro", due: -18, total: 9_000, allocated: 0 },
+    { n: 2, surname: "Muestra", place: "norte", due: -12, total: 4_500, allocated: 0 },
+    { n: 3, surname: "Prueba", place: "norte", due: -6, total: 4_500, allocated: 2_000 },
+    { n: 4, surname: "Ensayo", place: "centro", due: 3, total: 5_500, allocated: 0 },
+    { n: 5, surname: "Boceto", place: "centro", due: 5, total: 4_500, allocated: 0 },
+    { n: 6, surname: "Maqueta", place: "centro", due: 9, total: 9_000, allocated: 4_500 },
   ];
   const month = today.slice(0, 7);
   return rows.map((row) => ({
@@ -406,7 +406,7 @@ export function demoOpenCharges(now = new Date()): OpenManualPaymentCharge[] {
 /* ────────────────────────── Portal de la familia ────────────────────────── */
 
 /** La demo del portal enseña a la «Familia Cinta»: Lucía y Aitana. */
-const FAMILY_SURNAME = "Cinta";
+const FAMILY_SURNAME = "Ejemplo";
 const FAMILY_ATHLETES = [0, 12] as const;
 
 export function demoFamilyAcademy(): FamilyPortalAcademy {
