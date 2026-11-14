@@ -788,6 +788,7 @@ const ACTIVATED_CANDIDATES = [
   "20261111200000_session_plans_candidate.sql",
   "20261111180000_coach_assignment_candidate.sql",
   "20261110120000_admission_requests_candidate.sql",
+  "20261114120000_skill_levels_candidate.sql",
 ] as const;
 const activatedCandidate = (name: string) =>
   readFileSync(resolve(process.cwd(), `docs/deployment/candidates/${name}`), "utf8");
@@ -885,6 +886,33 @@ async function seedActivatedModules(organizationId: string, marker: string) {
         jsonb_build_object('kind', 'technique', 'discipline', 'gaf', 'apparatus', 'beam', 'content', 'Paloma')
       ), ${memberId}::uuid)
   `);
+  // Niveles y progresión (candidato 20261114120000).
+  const skillTemplateId = randomUUID();
+  const skillLevelId = randomUUID();
+  const skillElementId = randomUUID();
+  await db.execute(sql`
+    insert into zaltyko.skill_templates (id, organization_id, client_request_id, discipline, name, created_by_member_id, updated_by_member_id)
+    values (${skillTemplateId}::uuid, ${organizationId}::uuid, ${randomUUID()}::uuid, 'artistic_female', ${`${marker}_SKILL_TEMPLATE`},
+      ${memberId}::uuid, ${memberId}::uuid)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.skill_levels (id, organization_id, template_id, position, name)
+    values (${skillLevelId}::uuid, ${organizationId}::uuid, ${skillTemplateId}::uuid, 1, ${`${marker}_SKILL_LEVEL`})
+  `);
+  await db.execute(sql`
+    insert into zaltyko.skill_elements (id, organization_id, template_id, level_id, position, apparatus, name)
+    values (${skillElementId}::uuid, ${organizationId}::uuid, ${skillTemplateId}::uuid, ${skillLevelId}::uuid, 1, 'beam', ${`${marker}_SKILL_ELEMENT`})
+  `);
+  await db.execute(sql`
+    insert into zaltyko.athlete_skill_progress (organization_id, athlete_id, template_id, element_id, location_id, status, achieved_on, evaluated_by_member_id)
+    values (${organizationId}::uuid, ${athleteId}::uuid, ${skillTemplateId}::uuid, ${skillElementId}::uuid, ${locationId}::uuid,
+      'achieved', '2026-11-11', ${memberId}::uuid)
+  `);
+  await db.execute(sql`
+    insert into zaltyko.athlete_level_passes (organization_id, athlete_id, template_id, level_id, location_id, client_request_id, passed_on, passed_by_member_id)
+    values (${organizationId}::uuid, ${athleteId}::uuid, ${skillTemplateId}::uuid, ${skillLevelId}::uuid, ${locationId}::uuid,
+      ${randomUUID()}::uuid, '2026-11-12', ${memberId}::uuid)
+  `);
   const token = randomUUID().replaceAll("-", "");
   await db.execute(sql`
     insert into zaltyko.admission_links (id, organization_id, location_id, token, created_by_member_id)
@@ -924,6 +952,7 @@ describeDisposablePg("academy export with the modules activated on 2026-11-12", 
     // Deja la base compartida como estaba (mismo orden que las suites de cada candidato).
     await db.transaction(async (tx) => {
       for (const table of [
+        "athlete_level_passes", "athlete_skill_progress", "skill_elements", "skill_levels", "skill_templates",
         "admission_requests", "admission_links",
         "session_plan_objectives", "session_plan_blocks", "session_plans", "class_plan_templates",
         "athlete_observations", "athlete_objective_status_history", "athlete_objectives",
@@ -960,6 +989,8 @@ describeDisposablePg("academy export with the modules activated on 2026-11-12", 
     }
     expect(exported.data.athlete_objectives[0]!.target_date).toBe("2026-12-15");
     expect(exported.data.athlete_observations[0]!.observed_on).toBe("2026-11-10");
+    expect(exported.data.athlete_skill_progress[0]!.achieved_on).toBe("2026-11-11");
+    expect(exported.data.athlete_level_passes[0]!.passed_on).toBe("2026-11-12");
     expect(exported.data.admission_links[0]!.enabled).toBe(true);
     expect(exported.data.admission_requests[0]!.athlete_birth_year).toBe(2016);
     expect(exported.coverage.excludedColumns).toEqual(expect.arrayContaining([
