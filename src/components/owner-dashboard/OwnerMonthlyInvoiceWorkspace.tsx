@@ -1,6 +1,7 @@
 "use client";
 
 import { ownerField, ownerUi } from "./owner-ui";
+import { OwnerListSkeleton } from "./OwnerFeedback";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -272,15 +273,7 @@ export function OwnerMonthlyInvoiceWorkspace({
           description="Revisa la cuota completa de la familia. Al emitirla queda pendiente de pago; no se registra ni se inicia ningún pago."
         />
 
-        {state === "loading" && (
-          <p
-            role="status"
-            aria-live="polite"
-            className="text-sm text-z-soft"
-          >
-            Cargando cuotas mensuales…
-          </p>
-        )}
+        {state === "loading" && <OwnerListSkeleton label="Cargando cuotas mensuales…" rows={3} />}
 
         {state === "error" && (
           <div

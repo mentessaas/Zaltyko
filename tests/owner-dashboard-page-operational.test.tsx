@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   today: vi.fn(),
   attention: vi.fn(),
   setup: vi.fn(),
+  charts: vi.fn(),
   notFound: vi.fn(),
   error: vi.fn(),
   getUser: vi.fn(),
@@ -58,6 +59,9 @@ vi.mock("@/modules/owner-dashboard/application/today-sessions", () => ({
 }));
 vi.mock("@/modules/owner-dashboard/application/attention-items", () => ({
   getOwnerAttentionItems: mocks.attention,
+}));
+vi.mock("@/modules/owner-dashboard/application/summary-charts", () => ({
+  getOwnerSummaryCharts: mocks.charts,
 }));
 vi.mock("@/modules/owner-dashboard/application/setup-checklist", () => ({
   getOwnerSetupProgress: mocks.setup,
@@ -113,6 +117,7 @@ describe("Owner page operational summary boundary", () => {
     mocks.today.mockResolvedValue({ sessions: [], truncated: false });
     mocks.attention.mockResolvedValue({ unrecordedSessions: { count: 0, latest: null }, fullClasses: 0, overdueInvoices: 0 });
     mocks.setup.mockResolvedValue({ synthetic: "setup" });
+    mocks.charts.mockResolvedValue({ synthetic: "charts" });
     mocks.notFound.mockImplementation(() => {
       throw new Error("NOT_FOUND");
     });
@@ -288,6 +293,36 @@ describe("Owner page operational summary boundary", () => {
     });
     await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
     expect(mocks.attention).toHaveBeenLastCalledWith(expect.objectContaining({ includeFinancials: false }));
+  });
+  it("loads the summary charts with the same scope, site and financial access", async () => {
+    const page = await OwnerDashboardPage({
+      searchParams: Promise.resolve({ organizationId, locationId }),
+    });
+    const scope = await mocks.scope.mock.results[0]?.value;
+    expect(mocks.charts).toHaveBeenCalledWith({ scope, locationId, includeFinancials: true });
+    const dashboard = Children.toArray(page.props.children)[0];
+    expect(isValidElement<{ summaryCharts: unknown }>(dashboard) && dashboard.props.summaryCharts).toEqual({ synthetic: "charts" });
+
+    mocks.scope.mockResolvedValueOnce({
+      organization: { id: organizationId, name: "QA", defaultCurrency: "EUR" },
+      member: { id: "manager-member", role: "manager", locationScopeMode: "selected" },
+      locations: [{ id: locationId, name: "Sede QA" }],
+      selectedLocationId: locationId,
+      canViewOrganizationAggregate: false,
+    });
+    await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
+    expect(mocks.charts).toHaveBeenLastCalledWith(expect.objectContaining({ includeFinancials: false }));
+  });
+  it("replaces failed charts with a notice without blocking the rest of the Resumen", async () => {
+    mocks.charts.mockRejectedValue(new Error("Synthetic charts failure"));
+    const page = await OwnerDashboardPage({ searchParams: Promise.resolve({ organizationId }) });
+    const dashboard = Children.toArray(page.props.children)[0];
+    expect(isValidElement<{ summaryCharts: unknown; todaySessions: unknown }>(dashboard) && dashboard.props).toMatchObject({
+      summaryCharts: null,
+      todaySessions: { sessions: [], truncated: false },
+    });
+    expect(operationalSummaryFromPage(page)).toEqual({ synthetic: "summary" });
+    expect(mocks.error).toHaveBeenCalledOnce();
   });
   it("shows attention items as unavailable when their query fails", async () => {
     mocks.attention.mockRejectedValue(new Error("Synthetic attention failure"));

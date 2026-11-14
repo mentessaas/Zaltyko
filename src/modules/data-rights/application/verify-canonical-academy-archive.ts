@@ -166,6 +166,11 @@ const NULLABLE_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
   ],
   session_plan_objectives: [],
   class_plan_templates: ["focus", "note"],
+  skill_templates: ["description", "starter_key", "archived_at", "created_by_member_id", "updated_by_member_id"],
+  skill_levels: ["description", "archived_at"],
+  skill_elements: ["apparatus", "description", "archived_at"],
+  athlete_skill_progress: ["achieved_on", "location_id", "evaluated_by_member_id"],
+  athlete_level_passes: ["location_id", "passed_by_member_id"],
   admission_links: ["location_id", "revoked_at"],
   admission_requests: [
     "contact_phone",
@@ -204,6 +209,10 @@ const INT4_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
   session_plans: ["from_template_revision", "revision"],
   session_plan_blocks: ["position", "duration_minutes"],
   class_plan_templates: ["revision"],
+  skill_templates: ["revision"],
+  skill_levels: ["position"],
+  skill_elements: ["position"],
+  athlete_skill_progress: ["revision"],
   admission_requests: ["athlete_birth_year", "revision"],
 };
 
