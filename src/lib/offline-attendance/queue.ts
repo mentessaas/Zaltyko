@@ -29,6 +29,8 @@ export interface RecordMarkInput {
   status: AttendanceStatus;
   now?: Date;
   opId?: string;
+  /** `recordedAt` que se veía en pantalla al marcar (null: no había marca). */
+  seenRecordedAt?: string | null;
 }
 
 /**
@@ -36,8 +38,14 @@ export interface RecordMarkInput {
  * gimnasta y sesión, la sustituye: la última marca gana.
  */
 export async function recordMark(store: OfflineStore, input: RecordMarkInput): Promise<QueuedMark> {
+  const key = queueKey(input.sessionId, input.athleteId, input.userId);
+  // Si ya había una marca pendiente, lo que la entrenadora «vio» sigue siendo
+  // lo que había en el servidor antes de sus cambios sin red.
+  const previous = await store.getQueued(key);
+  const seen = previous ? previous.seenRecordedAt : input.seenRecordedAt ?? null;
+
   const mark: QueuedMark = {
-    key: queueKey(input.sessionId, input.athleteId),
+    key,
     opId: input.opId ?? newOpId(),
     userId: input.userId,
     academyId: input.academyId,
@@ -45,6 +53,7 @@ export async function recordMark(store: OfflineStore, input: RecordMarkInput): P
     athleteId: input.athleteId,
     status: input.status,
     markedAt: (input.now ?? new Date()).toISOString(),
+    seenRecordedAt: seen,
     state: "pending",
     attempts: 0,
   };
@@ -57,6 +66,7 @@ export interface BatchEntry {
   status: AttendanceStatus;
   markedAt: string;
   opId: string;
+  seenRecordedAt: string | null;
 }
 
 export interface Batch {
@@ -79,6 +89,9 @@ export type SendBatch = (batch: Batch) => Promise<SendResult>;
 
 export type StopReason = "offline" | "unauthorized";
 
+/** Marca confirmada, con lo que quedó guardado en el servidor. */
+export type ConfirmedMark = QueuedMark & { serverRecordedAt?: string };
+
 export interface FlushSummary {
   /** Marcas confirmadas por el servidor (aplicadas o ya estaban). */
   sent: number;
@@ -91,7 +104,7 @@ export interface FlushSummary {
   /** Marcas que siguen pendientes de enviar. */
   remaining: number;
   /** Las marcas confirmadas (aplicadas o ya existentes), para refrescar la pantalla. */
-  confirmed: QueuedMark[];
+  confirmed: ConfirmedMark[];
   /** Las marcas descartadas por haber otra más reciente en el servidor. */
   supersededMarks: QueuedMark[];
   stoppedBecause?: StopReason;
@@ -137,12 +150,9 @@ async function doFlush(store: OfflineStore, send: SendBatch, userId: string): Pr
 
   const queued = await store.listQueued();
 
-  // Marcas de otra persona que usó este dispositivo: no se envían nunca con
-  // esta sesión (se atribuirían a quien no las hizo). Se descartan.
-  for (const mark of queued) {
-    if (mark.userId !== userId) await store.deleteQueued(mark.key);
-  }
-
+  // Las marcas de otra persona que usó este dispositivo no se envían nunca
+  // con esta sesión (se atribuirían a quien no las hizo) ni se borran: se
+  // conservan hasta que esa persona vuelva a entrar o caduquen.
   const mine = queued.filter((m) => m.userId === userId && m.state === "pending");
   mine.sort((a, b) => a.markedAt.localeCompare(b.markedAt));
 
@@ -169,6 +179,7 @@ async function doFlush(store: OfflineStore, send: SendBatch, userId: string): Pr
         status: m.status,
         markedAt: m.markedAt,
         opId: m.opId,
+        seenRecordedAt: m.seenRecordedAt ?? null,
       })),
     };
 
@@ -210,11 +221,12 @@ async function doFlush(store: OfflineStore, send: SendBatch, userId: string): Pr
       return true;
     }
 
-    const outcomes = new Map(result.results.map((r) => [r.athleteId, r.outcome]));
+    const outcomes = new Map(result.results.map((r) => [r.athleteId, r]));
     for (const sent of chunk) {
-      const outcome = outcomes.get(sent.athleteId);
+      const entry = outcomes.get(sent.athleteId);
       // Si el servidor no confirmó a esta gimnasta, la marca sigue pendiente.
-      if (!outcome) continue;
+      if (!entry) continue;
+      const outcome = entry.outcome;
       const current = await store.getQueued(sent.key);
       if (current && current.opId === sent.opId) {
         await store.deleteQueued(sent.key);
@@ -224,7 +236,7 @@ async function doFlush(store: OfflineStore, send: SendBatch, userId: string): Pr
         summary.supersededMarks.push(sent);
       } else {
         summary.sent += 1;
-        summary.confirmed.push(sent);
+        summary.confirmed.push({ ...sent, serverRecordedAt: entry.recordedAt });
         if (outcome === "duplicate") summary.duplicates += 1;
       }
     }
@@ -251,4 +263,27 @@ export async function discardFailed(store: OfflineStore, userId: string): Promis
   const failed = await listFailed(store, userId);
   for (const mark of failed) await store.deleteQueued(mark.key);
   return failed.length;
+}
+
+/** Cuánto se guarda una marca sin enviar antes de darla por perdida. */
+export const QUEUE_PENDING_MAX_AGE_DAYS = 7;
+/** Las rechazadas por el servidor no se reintentan: se guardan menos. */
+export const QUEUE_FAILED_MAX_AGE_DAYS = 3;
+
+/**
+ * Borra las marcas de la cola que ya no tiene sentido guardar: pendientes de
+ * hace más de 7 días y rechazadas de hace más de 3. Vale para cualquier
+ * persona que usara el móvil. Devuelve cuántas borró.
+ */
+export async function purgeExpiredQueue(store: OfflineStore, now: Date = new Date()): Promise<number> {
+  let removed = 0;
+  for (const mark of await store.listQueued()) {
+    const markedAt = Date.parse(mark.markedAt);
+    const maxDays = mark.state === "failed" ? QUEUE_FAILED_MAX_AGE_DAYS : QUEUE_PENDING_MAX_AGE_DAYS;
+    if (Number.isNaN(markedAt) || now.getTime() - markedAt > maxDays * 86_400_000) {
+      await store.deleteQueued(mark.key);
+      removed += 1;
+    }
+  }
+  return removed;
 }

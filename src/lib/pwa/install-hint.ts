@@ -97,3 +97,37 @@ export function shouldShowHint(state: HintState, context: HintContext): boolean 
       return false;
   }
 }
+
+export type InstallOutcome = "accepted" | "dismissed";
+
+/**
+ * Cerrar el aviso del propio navegador cuenta como descartar la invitación
+ * (si no, volvería a aparecer enseguida); aceptarlo la apaga para siempre.
+ */
+export function recordInstallOutcome(state: HintState, outcome: InstallOutcome | null, now: Date): HintState {
+  if (outcome === "accepted") return { ...state, installed: true };
+  if (outcome === "dismissed") return recordDismissal(state, now);
+  return state;
+}
+
+/** Pantallas de pasar lista: ahí no se interrumpe a la entrenadora con invitaciones. */
+export function isAttendanceRoute(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  return /\/attendance\/today(?:\/|$)/.test(pathname) || pathname.startsWith("/pasar-lista-sin-conexion");
+}
+
+/**
+ * Rutas donde la invitación general («Instalar Zaltyko», solo web pública)
+ * no se muestra: acceso, zona privada y pantalla de pasar lista sin conexión.
+ */
+export function isInstallPromptSuppressedRoute(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  return (
+    pathname === "/login" ||
+    pathname.startsWith("/auth/") ||
+    pathname.startsWith("/app/") ||
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/super-admin") ||
+    pathname.startsWith("/pasar-lista-sin-conexion")
+  );
+}

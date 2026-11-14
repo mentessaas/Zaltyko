@@ -51,11 +51,15 @@ export function useAttendanceMarks({ academyId, sessionId, serverMarks }: Option
   const [needsLogin, setNeedsLogin] = useState(false);
   const [supersededNotice, setSupersededNotice] = useState(0);
   const mounted = useRef(true);
+  const serverRef = useRef(server);
+  serverRef.current = server;
 
   const reloadQueue = useCallback(async () => {
     try {
+      const userId = await resolveUserId();
       const all = await getOfflineStore().listQueued();
-      if (mounted.current) setQueued(all.filter((m) => m.sessionId === sessionId));
+      // Solo las marcas de esta sesión y de esta usuaria.
+      if (mounted.current) setQueued(all.filter((m) => m.sessionId === sessionId && m.userId === userId));
     } catch {
       // Sin almacén local no hay cola; la pantalla sigue con lo del servidor.
     }
@@ -98,7 +102,9 @@ export function useAttendanceMarks({ academyId, sessionId, serverMarks }: Option
           const now = new Date().toISOString();
           setServer((current) => {
             const next = { ...current };
-            for (const mark of confirmed) next[mark.athleteId] = { status: mark.status, recordedAt: now };
+            for (const mark of confirmed) {
+              next[mark.athleteId] = { status: mark.status, recordedAt: mark.serverRecordedAt ?? now };
+            }
             return next;
           });
         }
@@ -137,7 +143,15 @@ export function useAttendanceMarks({ academyId, sessionId, serverMarks }: Option
       const store = getOfflineStore();
       try {
         for (const athleteId of athleteIds) {
-          await recordMark(store, { userId, academyId, sessionId, athleteId, status });
+          await recordMark(store, {
+            userId,
+            academyId,
+            sessionId,
+            athleteId,
+            status,
+            // Lo que se veía en pantalla: el servidor decide con ello si hubo conflicto.
+            seenRecordedAt: serverRef.current[athleteId]?.recordedAt ?? null,
+          });
         }
       } catch {
         return false;

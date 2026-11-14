@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 const source = readFileSync(fileURLToPath(new URL("../public/sw.js", import.meta.url)), "utf8");
 const ORIGIN = "https://synthetic.test";
 
-function load(cachedPaths: string[] = []) {
+function load(cachedPaths: string[] = [], indexedDB?: unknown) {
   const handlers = new Map<string, (event: Record<string, unknown>) => void>();
   const store = new Map<string, Response>();
   const put = vi.fn(async (req: string | { url: string }, res: Response) => {
@@ -36,7 +36,7 @@ function load(cachedPaths: string[] = []) {
     skipWaiting: vi.fn(),
     clients: { claim: vi.fn() },
   };
-  runInNewContext(source, { self, caches, fetch, URL, Response });
+  runInNewContext(source, { self, caches, fetch, URL, Response, ...(indexedDB ? { indexedDB } : {}) });
   return { handlers, caches, fetch, put, offline, shell, store };
 }
 
@@ -111,5 +111,72 @@ describe("service worker: pasar lista sin conexión", () => {
     let work: Promise<unknown> | undefined;
     worker.handlers.get("message")!({ data: { type: "CACHE_OFFLINE_SHELL" }, waitUntil: (w: Promise<unknown>) => (work = w) });
     await expect(work).resolves.toBeUndefined();
+  });
+
+  describe("caducidad al activarse el worker", () => {
+    function fakeIndexedDb(snapshots: Array<Record<string, unknown>>, queue: Array<Record<string, unknown>>) {
+      const deleted: string[] = [];
+      const store = (rows: Array<Record<string, unknown>>) => ({
+        openCursor: () => {
+          const request: { result: unknown; onsuccess?: () => void } = { result: null };
+          let i = 0;
+          const step = () => {
+            request.result = i < rows.length
+              ? { value: rows[i], delete: () => deleted.push(String(rows[i].key)), continue: () => { i += 1; queueMicrotask(step); } }
+              : null;
+            request.onsuccess?.();
+          };
+          queueMicrotask(step);
+          return request;
+        },
+      });
+      const tx: { oncomplete?: () => void; objectStore: (n: string) => unknown } = {
+        objectStore: (name: string) => store(name === "snapshots" ? snapshots : queue),
+      };
+      const db = {
+        objectStoreNames: { contains: () => true },
+        transaction: () => {
+          setTimeout(() => tx.oncomplete?.(), 5);
+          return tx;
+        },
+        close: vi.fn(),
+      };
+      const open = () => {
+        const request: { result: unknown; onsuccess?: () => void } = { result: db };
+        queueMicrotask(() => request.onsuccess?.());
+        return request;
+      };
+      return { indexedDB: { open }, deleted, db };
+    }
+
+    it("borra listas de más de 36 h y marcas de más de 7 días (3 si fueron rechazadas)", async () => {
+      const now = Date.now();
+      const iso = (hoursAgo: number) => new Date(now - hoursAgo * 3_600_000).toISOString();
+      const fake = fakeIndexedDb(
+        [
+          { key: "lista-vieja", savedAt: iso(40) },
+          { key: "lista-de-hoy", savedAt: iso(2) },
+        ],
+        [
+          { key: "pendiente-8d", markedAt: iso(8 * 24), state: "pending" },
+          { key: "pendiente-2d", markedAt: iso(2 * 24), state: "pending" },
+          { key: "rechazada-4d", markedAt: iso(4 * 24), state: "failed" },
+          { key: "rechazada-1d", markedAt: iso(24), state: "failed" },
+        ]
+      );
+      const worker = load([], fake.indexedDB);
+      // activate registra dos tareas: la limpieza de cachés y la de caducidad
+      const tasks: Array<Promise<unknown>> = [];
+      worker.handlers.get("activate")!({ waitUntil: (w: Promise<unknown>) => tasks.push(w) });
+      await Promise.all(tasks);
+      expect(fake.deleted.sort()).toEqual(["lista-vieja", "pendiente-8d", "rechazada-4d"].sort());
+    });
+
+    it("sin IndexedDB (o sin base creada) activar el worker no falla", async () => {
+      const worker = load();
+      const tasks: Array<Promise<unknown>> = [];
+      worker.handlers.get("activate")!({ waitUntil: (w: Promise<unknown>) => tasks.push(w) });
+      await expect(Promise.all(tasks)).resolves.toBeDefined();
+    });
   });
 });

@@ -95,6 +95,18 @@ describe("interpretación de la respuesta del servidor", () => {
     expect(result).toEqual({ kind: "ok", results: [{ athleteId: "a1", outcome: "duplicate" }] });
   });
 
+  it("recoge lo que quedó guardado en el servidor para cada gimnasta", () => {
+    const result = interpretSyncResponse(
+      200,
+      { ok: true, data: { results: [{ athleteId: "a1", outcome: "applied", recordedAt: "2026-11-14T17:00:00.000Z" }] } },
+      ["a1"]
+    );
+    expect(result).toEqual({
+      kind: "ok",
+      results: [{ athleteId: "a1", outcome: "applied", recordedAt: "2026-11-14T17:00:00.000Z" }],
+    });
+  });
+
   it("un servidor sin resultados (versión antigua) da todo por aplicado", () => {
     expect(interpretSyncResponse(200, { ok: true, data: { ok: true } }, ["a1", "a2"])).toEqual({
       kind: "ok",

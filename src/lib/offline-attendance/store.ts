@@ -16,7 +16,9 @@ export interface OfflineStore {
   listQueued(): Promise<QueuedMark[]>;
   deleteQueued(key: string): Promise<void>;
 
-  /** Borra todo: listas y cola. Se usa al cerrar sesión. */
+  /** Borra todas las listas guardadas (con nombres), no la cola. */
+  clearSnapshots(): Promise<void>;
+  /** Borra todo: listas y cola. */
   clearAll(): Promise<void>;
 }
 
@@ -52,6 +54,9 @@ export function createMemoryStore(): OfflineStore {
     },
     async deleteQueued(key) {
       queue.delete(key);
+    },
+    async clearSnapshots() {
+      snapshots.clear();
     },
     async clearAll() {
       snapshots.clear();
@@ -136,6 +141,9 @@ export function createIndexedDbStore(factory: IDBFactory = indexedDB): OfflineSt
     listQueued: () => run<QueuedMark[]>(QUEUE, "readonly", (s) => s.getAll()),
     deleteQueued: async (key) => {
       await run(QUEUE, "readwrite", (s) => s.delete(key));
+    },
+    clearSnapshots: async () => {
+      await run(SNAPSHOTS, "readwrite", (s) => s.clear());
     },
     clearAll: async () => {
       const db = await open();

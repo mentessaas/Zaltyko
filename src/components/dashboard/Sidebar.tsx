@@ -43,7 +43,7 @@ export function Sidebar({ user }: SidebarProps) {
 
   const handleLogout = async () => {
     const supabase = createClient();
-    if (hasOfflineAttendanceData()) await clearOfflineAttendanceOnSignOut();
+    if (hasOfflineAttendanceData() && !(await clearOfflineAttendanceOnSignOut())) return;
     await supabase.auth.signOut();
     window.location.href = "/auth/login";
   };

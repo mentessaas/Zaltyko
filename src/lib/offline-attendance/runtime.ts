@@ -9,7 +9,8 @@
 import { createClient } from "@/lib/supabase/client";
 import { createIndexedDbStore, createMemoryStore, type OfflineStore } from "./store";
 import { countPending, flushQueue, type Batch, type FlushSummary, type SendResult } from "./queue";
-import { purgeExpiredSnapshots, saveSnapshot, type TodayPayload } from "./snapshot";
+import { clearForSignOut, expireOfflineData, pendingBeforeSignOut } from "./lifecycle";
+import { saveSnapshot, type TodayPayload } from "./snapshot";
 import { isAttendanceStatus, type SyncOutcome, type SyncResultEntry, type TodaySnapshot } from "./types";
 
 /** Evento del navegador: la cola o las listas han cambiado. */
@@ -61,23 +62,41 @@ function forgetUser(): void {
   }
 }
 
-/**
- * Quién está usando el dispositivo. Con red se lee de la sesión; sin red y con
- * la sesión caducada se usa la última persona conocida, que se borra al
- * cerrar sesión.
- */
-export async function resolveUserId(): Promise<string | null> {
+/** Usuaria de la sesión actual, solo si hay sesión (sin recurrir a la última conocida). */
+export async function getSessionUserId(): Promise<string | null> {
   try {
     const { data } = await createClient().auth.getSession();
     const id = data.session?.user?.id ?? null;
-    if (id) {
-      rememberUser(id);
-      return id;
-    }
+    if (id) rememberUser(id);
+    return id;
   } catch {
-    // sin sesión legible: se prueba con la última conocida
+    return null;
   }
-  return recallUser();
+}
+
+/**
+ * Quién está usando el dispositivo. Con sesión se lee de ella; sin red y con
+ * la sesión caducada se usa la última persona conocida.
+ */
+export async function resolveUserId(): Promise<string | null> {
+  return (await getSessionUserId()) ?? recallUser();
+}
+
+/**
+ * ¿Hay conexión de verdad y sesión iniciada? `true` / `false` si el servidor
+ * contestó, `null` si no se pudo llegar (sin red o con cobertura inútil).
+ * `navigator.onLine` solo dice que hay una red, no que Zaltyko responda.
+ */
+export async function probeAuthenticated(): Promise<boolean | null> {
+  try {
+    const response = await fetch("/api/auth/check", { cache: "no-store", headers: { Accept: "application/json" } });
+    if (!response.ok) return null;
+    const body: unknown = await response.json();
+    const data = isPlainObject(body) && isPlainObject(body.data) ? body.data : null;
+    return data && typeof data.authenticated === "boolean" ? data.authenticated : null;
+  } catch {
+    return null;
+  }
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -110,7 +129,11 @@ export function interpretSyncResponse(status: number, body: unknown, sentAthlete
       typeof item.athleteId === "string" &&
       (item.outcome === "applied" || item.outcome === "duplicate" || item.outcome === "superseded")
     ) {
-      results.push({ athleteId: item.athleteId, outcome: item.outcome });
+      results.push({
+        athleteId: item.athleteId,
+        outcome: item.outcome,
+        recordedAt: typeof item.recordedAt === "string" ? item.recordedAt : undefined,
+      });
     }
   }
   return { kind: "ok", results };
@@ -123,11 +146,14 @@ async function sendBatch(batch: Batch): Promise<SendResult> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sessionId: batch.sessionId,
+        // Hora de este móvil al enviar: el servidor compensa un reloj mal puesto.
+        sentAt: new Date().toISOString(),
         entries: batch.entries.map((e) => ({
           athleteId: e.athleteId,
           status: e.status,
           markedAt: e.markedAt,
           opId: e.opId,
+          seenRecordedAt: e.seenRecordedAt,
         })),
       }),
     });
@@ -189,7 +215,7 @@ export async function refreshTodaySnapshot(academyId: string): Promise<TodaySnap
     };
 
     const store = getOfflineStore();
-    await purgeExpiredSnapshots(store);
+    await expireOfflineData(store);
     rememberUser(safe.userId);
     const snapshot = await saveSnapshot(store, safe);
     notifyOfflineAttendanceChanged();
@@ -199,22 +225,45 @@ export async function refreshTodaySnapshot(academyId: string): Promise<TodaySnap
   }
 }
 
-/** Borra del dispositivo listas, cola y recuerdo de la usuaria. */
-export async function clearOfflineAttendanceData(): Promise<void> {
-  forgetUser();
+/**
+ * Borra del dispositivo las listas (nombres de gimnastas). Con `keepQueue`
+ * (por defecto) conserva las marcas sin enviar de cada usuaria, con caducidad:
+ * una sesión caducada o un cierre desde otra pantalla no debe hacer perder lo
+ * marcado en el tapiz. Si no queda nada guardado, olvida a la última usuaria.
+ */
+export async function clearOfflineAttendanceData(
+  options: { keepQueue?: boolean; userId?: string | null } = {}
+): Promise<void> {
+  const keepQueue = options.keepQueue ?? true;
   try {
-    await getOfflineStore().clearAll();
+    const left = await clearForSignOut(getOfflineStore(), {
+      userId: options.userId ?? recallUser(),
+      keepQueue,
+    });
+    if (left === 0) forgetUser();
   } catch {
     // Si IndexedDB falla no hay nada más que borrar desde aquí.
   }
   notifyOfflineAttendanceChanged();
 }
 
+/** Borra lo caducado (listas de más de 36 h, marcas de más de 7 días). */
+export async function expireStoredAttendance(): Promise<void> {
+  try {
+    await expireOfflineData(getOfflineStore());
+  } catch {
+    // sin almacén no hay nada que caducar
+  }
+}
+
 /**
- * Antes de cerrar sesión: intenta enviar lo pendiente (hasta 4 s) y borra los
- * datos locales. Se llama desde los botones de «Cerrar sesión».
+ * Antes de cerrar sesión desde un botón: intenta enviar lo pendiente (hasta
+ * 4 s). Si aún quedan marcas sin enviar, pregunta («Tienes N marcas sin
+ * enviar»). Devuelve `false` si la persona prefiere no cerrar sesión todavía.
+ * Si cierra, se borran las listas y se conservan esas marcas (con caducidad)
+ * hasta que vuelva a entrar con la misma cuenta.
  */
-export async function prepareOfflineSignOut(): Promise<void> {
+export async function prepareOfflineSignOut(): Promise<boolean> {
   try {
     await Promise.race([
       syncPendingAttendance(),
@@ -223,5 +272,17 @@ export async function prepareOfflineSignOut(): Promise<void> {
   } catch {
     // el cierre de sesión no debe bloquearse por esto
   }
-  await clearOfflineAttendanceData();
+
+  const userId = await resolveUserId();
+  const pending = userId ? await pendingBeforeSignOut(getOfflineStore(), userId) : 0;
+  if (pending > 0 && typeof window !== "undefined") {
+    const proceed = window.confirm(
+      `Tienes ${pending} marca${pending === 1 ? "" : "s"} sin enviar. ` +
+        "Si cierras sesión ahora, se guardan en este móvil y se enviarán cuando vuelvas a entrar con esta cuenta " +
+        "(durante 7 días). ¿Cerrar sesión?"
+    );
+    if (!proceed) return false;
+  }
+  await clearOfflineAttendanceData({ keepQueue: pending > 0, userId });
+  return true;
 }

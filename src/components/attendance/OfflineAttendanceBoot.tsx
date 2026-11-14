@@ -10,8 +10,8 @@ const RETRY_MS = 45_000;
  * Se queda vigilando en segundo plano, pero solo si en este móvil se guardó
  * algo de pasar lista (no pesa en las páginas públicas):
  *  - envía lo pendiente al volver la red o al volver a la app;
- *  - borra listas y cola si se cierra la sesión (en cualquier pantalla);
- *  - borra las listas caducadas.
+ *  - al cerrar la sesión borra las listas y conserva las marcas sin enviar;
+ *  - borra lo caducado (listas y marcas) al arrancar.
  */
 export function OfflineAttendanceBoot() {
   useEffect(() => {
@@ -23,12 +23,12 @@ export function OfflineAttendanceBoot() {
 
     void (async () => {
       const runtime = await import("@/lib/offline-attendance/runtime");
-      const snapshot = await import("@/lib/offline-attendance/snapshot");
       const { createClient } = await import("@/lib/supabase/client");
       if (cancelled) return;
 
       const sync = () => void runtime.syncPendingAttendance();
-      await snapshot.purgeExpiredSnapshots(runtime.getOfflineStore());
+      // Caducidad al arrancar la app: no depende de abrir «Pasar lista».
+      await runtime.expireStoredAttendance();
       sync();
 
       window.addEventListener("online", sync);
@@ -47,7 +47,10 @@ export function OfflineAttendanceBoot() {
 
       try {
         const { data } = createClient().auth.onAuthStateChange((event) => {
-          if (event === "SIGNED_OUT") void runtime.clearOfflineAttendanceData();
+          // Sesión caducada u otro cierre: se borran las listas (nombres) pero
+          // se conservan las marcas sin enviar de esa usuaria hasta que vuelva
+          // a entrar. Los botones de «Cerrar sesión» ya avisaron antes.
+          if (event === "SIGNED_OUT") void runtime.clearOfflineAttendanceData({ keepQueue: true });
         });
         unsubscribe = () => data.subscription.unsubscribe();
       } catch {

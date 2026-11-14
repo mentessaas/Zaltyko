@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { flushQueue, recordMark, countPending, listFailed, type Batch, type SendResult } from "@/lib/offline-attendance/queue";
+import { flushQueue, recordMark, countPending, listFailed, purgeExpiredQueue, type Batch, type SendResult } from "@/lib/offline-attendance/queue";
 import { createMemoryStore } from "@/lib/offline-attendance/store";
 import { queueKey } from "@/lib/offline-attendance/types";
 
@@ -140,21 +140,88 @@ describe("cola local de asistencia", () => {
     const summary = await flushQueue(store, send, { userId: USER });
 
     expect(summary.sent).toBe(1);
-    const left = await store.getQueued(queueKey(SESSION, A1));
+    const left = await store.getQueued(queueKey(SESSION, A1, USER));
     expect(left?.status).toBe("absent");
     expect(summary.remaining).toBe(1);
   });
 
-  it("descarta marcas de otra persona que usó el móvil", async () => {
+  it("conserva sin enviar las marcas de otra persona que usó el móvil", async () => {
     const store = createMemoryStore();
-    await recordMark(store, { ...mark(A1, "present", "2026-11-14T17:00:00.000Z"), userId: "99999999-9999-4999-8999-999999999999" });
+    const OTHER = "99999999-9999-4999-8999-999999999999";
+    await recordMark(store, { ...mark(A1, "present", "2026-11-14T17:00:00.000Z"), userId: OTHER });
     const send = okAll();
     const summary = await flushQueue(store, send, { userId: USER });
     expect(send).not.toHaveBeenCalled();
     expect(summary.remaining).toBe(0);
-    expect(await store.listQueued()).toHaveLength(0);
+    // siguen ahí, para cuando esa persona vuelva a entrar
+    expect(await countPending(store, OTHER)).toBe(1);
+    expect(await store.listQueued()).toHaveLength(1);
   });
 
+  it("dos usuarias que marcan a la misma gimnasta no se pisan la cola", async () => {
+    const store = createMemoryStore();
+    const OTHER = "99999999-9999-4999-8999-999999999999";
+    await recordMark(store, mark(A1, "present", "2026-11-14T17:00:00.000Z"));
+    await recordMark(store, { ...mark(A1, "absent", "2026-11-14T17:01:00.000Z"), userId: OTHER });
+    expect(await store.listQueued()).toHaveLength(2);
+    const send = okAll();
+    await flushQueue(store, send, { userId: USER });
+    expect(send.mock.calls[0][0].entries).toHaveLength(1);
+    expect(send.mock.calls[0][0].entries[0].status).toBe("present");
+    expect(await countPending(store, OTHER)).toBe(1);
+  });
+
+  it("manda lo que la entrenadora veía al marcar y lo conserva al corregir sin red", async () => {
+    const store = createMemoryStore();
+    await recordMark(store, { ...mark(A1, "present", "2026-11-14T17:00:00.000Z"), seenRecordedAt: "2026-11-14T16:00:00.000Z" });
+    // segunda marca sin red sobre la misma gimnasta: lo «visto» sigue siendo lo del servidor
+    await recordMark(store, { ...mark(A1, "late", "2026-11-14T17:02:00.000Z"), seenRecordedAt: "2026-11-14T17:00:00.000Z" });
+    const send = okAll();
+    await flushQueue(store, send, { userId: USER });
+    expect(send.mock.calls[0][0].entries[0]).toMatchObject({
+      status: "late",
+      seenRecordedAt: "2026-11-14T16:00:00.000Z",
+    });
+  });
+
+  it("sin marca previa manda seenRecordedAt null", async () => {
+    const store = createMemoryStore();
+    await recordMark(store, mark(A1, "present", "2026-11-14T17:00:00.000Z"));
+    const send = okAll();
+    await flushQueue(store, send, { userId: USER });
+    expect(send.mock.calls[0][0].entries[0].seenRecordedAt).toBeNull();
+  });
+
+  it("devuelve lo que quedó guardado en el servidor para cada marca confirmada", async () => {
+    const store = createMemoryStore();
+    await recordMark(store, mark(A1, "present", "2026-11-14T17:00:00.000Z"));
+    const summary = await flushQueue(
+      store,
+      async () => ({ kind: "ok", results: [{ athleteId: A1, outcome: "applied", recordedAt: "2026-11-14T17:00:01.000Z" }] }),
+      { userId: USER }
+    );
+    expect(summary.confirmed[0].serverRecordedAt).toBe("2026-11-14T17:00:01.000Z");
+  });
+
+  describe("caducidad de la cola", () => {
+    const now = new Date("2026-11-20T12:00:00.000Z");
+
+    it("borra pendientes de más de 7 días y rechazadas de más de 3, de cualquier usuaria", async () => {
+      const store = createMemoryStore();
+      const OTHER = "99999999-9999-4999-8999-999999999999";
+      const old = await recordMark(store, mark(A1, "present", "2026-11-12T12:00:00.000Z")); // 8 días
+      const recent = await recordMark(store, mark(A2, "present", "2026-11-18T12:00:00.000Z")); // 2 días
+      const failedOld = await recordMark(store, { ...mark(A2, "late", "2026-11-16T12:00:00.000Z"), userId: OTHER }); // 4 días
+      await store.putQueued({ ...failedOld, state: "failed", lastError: "http-400" });
+      const failedRecent = await recordMark(store, { ...mark(A1, "late", "2026-11-19T12:00:00.000Z"), userId: OTHER });
+      await store.putQueued({ ...failedRecent, state: "failed", lastError: "http-400" });
+
+      expect(await purgeExpiredQueue(store, now)).toBe(2);
+      const left = (await store.listQueued()).map((m) => m.key).sort();
+      expect(left).toEqual([recent.key, failedRecent.key].sort());
+      expect(left).not.toContain(old.key);
+    });
+  });
   it("dos envíos a la vez comparten un solo envío", async () => {
     const store = createMemoryStore();
     await recordMark(store, mark(A1, "present", "2026-11-14T17:00:00.000Z"));

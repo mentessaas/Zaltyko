@@ -21,6 +21,8 @@ interface AttendanceSheetProps {
   className: string;
   athletes: AttendanceAthlete[];
   initialStatuses: Record<string, AttendanceStatus | undefined>;
+  /** Cuándo se guardó cada marca inicial (ISO). */
+  initialRecordedAt?: Record<string, string | null>;
   /** Enlace de vuelta (pantalla normal). */
   backHref?: string;
   /** Vuelta sin navegar (pantalla sin conexión). */
@@ -48,6 +50,7 @@ export const AttendanceSheet = memo(function AttendanceSheet({
   className,
   athletes,
   initialStatuses,
+  initialRecordedAt,
   backHref,
   onBack,
 }: AttendanceSheetProps) {
@@ -56,7 +59,7 @@ export const AttendanceSheet = memo(function AttendanceSheet({
     Object.fromEntries(
       Object.entries(initialStatuses)
         .filter((entry): entry is [string, AttendanceStatus] => Boolean(entry[1]))
-        .map(([athleteId, status]) => [athleteId, { status, recordedAt: null }])
+        .map(([athleteId, status]) => [athleteId, { status, recordedAt: initialRecordedAt?.[athleteId] ?? null }])
     )
   );
   const {

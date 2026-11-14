@@ -50,7 +50,7 @@ Costes y plazos de las tiendas cambian: **confirmar los importes y requisitos vi
 | | Apple (App Store) | Google (Play) |
 |---|---|---|
 | Cuenta | Apple Developer Program, cuota anual. Como organización pide un número D-U-N-S, lo que alarga el alta | Cuenta de desarrollador, pago único. Las cuentas personales nuevas pueden exigir una prueba cerrada con testers antes de publicar |
-| A nombre de quién | Conviene la entidad que factura Zaltyko (ver nota fiscal del proyecto), no una cuenta personal | Igual |
+| A nombre de quién | Hoy Zaltyko factura como autónomo, así que la cuenta sería **individual, a nombre personal del titular (autónomo)**: su nombre y datos personales aparecen como vendedor en la ficha. Si se prefiere que no figuren, habría que plantear una sociedad antes (con su D-U-N-S, su trámite y sus costes); es una decisión de negocio, no técnica | Igual: cuenta personal del titular, con la exigencia de prueba cerrada para cuentas personales nuevas; o cuenta de organización si hay sociedad |
 | Revisión | Revisión manual en cada versión; desde un día a varios | Revisión automática y manual; suele ser más rápida |
 | Material | Capturas por tamaño de pantalla, descripción en español, URL de privacidad y de soporte, cuenta de prueba para el revisor | Ficha de la tienda, capturas, URL de privacidad, cuenta de prueba |
 | Binario | Subida con EAS (`submit:ios`) a TestFlight y luego a revisión | Subida con EAS (`submit:android`) a pruebas internas y luego a producción |
@@ -97,7 +97,7 @@ Los umbrales concretos se fijan tras la fase 1; no se inventan aquí.
 - **Mantener dos clientes.** Mitigación: la lógica de negocio sigue en el servidor y la app nativa solo la consume.
 - **`mobile/` está parado.** Última actividad real: parches de dependencias; el propio README dice que aún no hay un binario probado en un dispositivo. Hay que contar la fase 2.
 - **Rechazo en revisión por privacidad de menores.** Mitigación: declarar público adulto, borrar cuenta dentro de la app y política de privacidad cerrada antes de enviar.
-- **Cuentas de tienda personales.** Mitigación: crearlas a nombre de la entidad que factura, no antes de decidir.
+- **Cuentas de tienda a nombre de una persona.** Como autónomo, las cuentas de Apple y Google serían individuales y con el nombre del titular visible en las fichas. Mitigación: decidir antes del alta si se acepta o se monta una sociedad; no crear las cuentas antes de decidirlo.
 
 ## Fuentes dentro del repo
 

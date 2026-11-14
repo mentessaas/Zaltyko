@@ -7,12 +7,14 @@ import { CloudOff, ChevronRight } from "lucide-react";
 import { AttendanceSheet } from "@/components/attendance/AttendanceSheet";
 import {
   OFFLINE_ATTENDANCE_EVENT,
+  expireStoredAttendance,
   getOfflineStore,
+  probeAuthenticated,
   refreshTodaySnapshot,
   resolveUserId,
   syncPendingAttendance,
 } from "@/lib/offline-attendance/runtime";
-import { getFreshSnapshots, mergeMarks, purgeExpiredSnapshots } from "@/lib/offline-attendance/snapshot";
+import { getFreshSnapshots, mergeMarks } from "@/lib/offline-attendance/snapshot";
 import type { AttendanceStatus, QueuedMark, TodaySnapshot } from "@/lib/offline-attendance/types";
 
 function timeLabel(iso: string): string {
@@ -37,10 +39,11 @@ export function OfflineAttendanceShell() {
   const load = useCallback(async () => {
     try {
       const store = getOfflineStore();
-      await purgeExpiredSnapshots(store);
+      await expireStoredAttendance();
       const userId = await resolveUserId();
       setSnapshots(userId ? await getFreshSnapshots(store, userId) : []);
-      setQueued(await store.listQueued());
+      // Solo las marcas de esta usuaria: el móvil puede haberlo usado otra persona.
+      setQueued(userId ? (await store.listQueued()).filter((m) => m.userId === userId) : []);
     } catch {
       setSnapshots([]);
     } finally {
@@ -51,6 +54,12 @@ export function OfflineAttendanceShell() {
   useEffect(() => {
     setIsOnline(navigator.onLine);
     void load();
+
+    // Con conexión de verdad y sin sesión, esta pantalla no sirve: hay que
+    // entrar. Sin conexión (o con cobertura inútil) se sigue con lo guardado.
+    void probeAuthenticated().then((authenticated) => {
+      if (authenticated === false) window.location.replace("/auth/login");
+    });
 
     const wanted = new URLSearchParams(window.location.search).get("sesion");
     const onOnline = () => {
@@ -113,6 +122,9 @@ export function OfflineAttendanceShell() {
               className={session.className}
               athletes={session.athletes}
               initialStatuses={statuses}
+              initialRecordedAt={Object.fromEntries(
+                Object.entries(session.marks).map(([id, mark]) => [id, mark.recordedAt])
+              )}
               onBack={back}
             />
           </div>

@@ -12,7 +12,7 @@ import { verifyAttendanceWriteAccess } from "@/lib/attendance/service";
 import { markAcademyActivationIfReady } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
-import { decideMark, resolveMarkedAt, type SyncOutcome } from "@/lib/attendance/offline-sync";
+import { clockOffsetMs, decideMark, resolveMarkedAt, type SyncOutcome } from "@/lib/attendance/offline-sync";
 import { logger } from "@/lib/logger";
 
 const entrySchema = z.object({
@@ -22,10 +22,14 @@ const entrySchema = z.object({
   // Marcas hechas sin conexión: momento real de la marca y operación del móvil.
   markedAt: z.string().datetime({ offset: true }).optional(),
   opId: z.guid().optional(),
+  // `recordedAt` que el móvil vio al marcar (null si no había marca).
+  seenRecordedAt: z.string().datetime({ offset: true }).nullable().optional(),
 });
 
 const upsertBodySchema = z.object({
   sessionId: z.guid(),
+  // Hora del móvil al enviar: sirve para compensar un reloj mal puesto.
+  sentAt: z.string().datetime({ offset: true }).optional(),
   entries: z.array(entrySchema).min(1).max(500).superRefine((entries, ctx) => {
     const seen = new Set<string>();
     entries.forEach((entry, index) => {
@@ -107,7 +111,8 @@ export const POST = withTenant(async (request, context) => {
 
     // «Última marca gana» e idempotencia (ver lib/attendance/offline-sync):
     // se compara el momento de cada marca con lo que ya hay guardado.
-    const results: Array<{ athleteId: string; outcome: SyncOutcome }> = [];
+    const results: Array<{ athleteId: string; outcome: SyncOutcome; recordedAt: string }> = [];
+    const offsetMs = clockOffsetMs(body.sentAt, now);
     const conflicts: Array<Record<string, unknown>> = [];
 
     await withTransaction(async (tx) => {
@@ -138,11 +143,23 @@ export const POST = withTenant(async (request, context) => {
       for (const entry of body.entries) {
         const status = entry.status ?? "present";
         const notes = entry.notes ?? null;
-        const markedAt = resolveMarkedAt(entry.markedAt, now);
+        const markedAt = resolveMarkedAt(entry.markedAt, now, offsetMs);
         const existing = existingByAthlete.get(entry.athleteId);
-        const decision = decideMark(existing, { status, notes, markedAt });
+        const seenRecordedAt =
+          entry.seenRecordedAt === undefined
+            ? undefined
+            : entry.seenRecordedAt === null
+              ? null
+              : new Date(entry.seenRecordedAt);
+        const decision = decideMark(existing, { status, notes, markedAt, seenRecordedAt });
 
-        results.push({ athleteId: entry.athleteId, outcome: decision.outcome });
+        results.push({
+          athleteId: entry.athleteId,
+          outcome: decision.outcome,
+          // Lo que queda guardado tras esta decisión: el móvil lo usa como
+          // «lo que vi» en su siguiente marca.
+          recordedAt: (decision.outcome === "applied" ? markedAt : existing?.recordedAt ?? markedAt).toISOString(),
+        });
 
         // Solo las marcas de la cola sin conexión (traen opId) dejan registro
         // de conflicto; el guardado normal en línea no genera ruido.

@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   EMPTY_HINT_STATE,
   detectPlatform,
+  isAttendanceRoute,
+  isInstallPromptSuppressedRoute,
   parseHintState,
+  recordInstallOutcome,
   recordDismissal,
   recordVisit,
   shouldShowHint,
@@ -70,5 +73,38 @@ describe("estado guardado", () => {
     expect(parseHintState("{{no json")).toEqual(EMPTY_HINT_STATE);
     expect(parseHintState(null)).toEqual(EMPTY_HINT_STATE);
     expect(parseHintState('{"visitDays":[1,"2026-11-14"],"dismissals":"x"}').visitDays).toEqual(["2026-11-14"]);
+  });
+});
+
+describe("aviso del navegador", () => {
+  it("cerrarlo cuenta como descartar la invitación", () => {
+    const next = recordInstallOutcome(twoDays, "dismissed", now);
+    expect(next.dismissals).toBe(1);
+    expect(shouldShowHint(next, { platform: "android", standalone: false, canPromptInstall: true, now })).toBe(false);
+  });
+  it("aceptarlo la apaga para siempre", () => {
+    const next = recordInstallOutcome(twoDays, "accepted", now);
+    expect(next.installed).toBe(true);
+    expect(shouldShowHint(next, { platform: "android", standalone: false, canPromptInstall: true, now: new Date("2027-06-01") })).toBe(false);
+  });
+  it("sin aviso no cambia nada", () => {
+    expect(recordInstallOutcome(twoDays, null, now)).toBe(twoDays);
+  });
+});
+
+describe("rutas", () => {
+  it("no se interrumpe en las pantallas de pasar lista", () => {
+    expect(isAttendanceRoute("/app/abc/attendance/today")).toBe(true);
+    expect(isAttendanceRoute("/app/abc/attendance/today/sesion-1")).toBe(true);
+    expect(isAttendanceRoute("/pasar-lista-sin-conexion")).toBe(true);
+    expect(isAttendanceRoute("/app/abc/attendance")).toBe(false);
+    expect(isAttendanceRoute("/app/abc/dashboard")).toBe(false);
+    expect(isAttendanceRoute(null)).toBe(false);
+  });
+  it("la invitación general excluye también la pantalla sin conexión", () => {
+    expect(isInstallPromptSuppressedRoute("/pasar-lista-sin-conexion")).toBe(true);
+    expect(isInstallPromptSuppressedRoute("/app/x/classes")).toBe(true);
+    expect(isInstallPromptSuppressedRoute("/auth/login")).toBe(true);
+    expect(isInstallPromptSuppressedRoute("/pricing")).toBe(false);
   });
 });

@@ -64,7 +64,7 @@ export type QueuedMarkState = "pending" | "failed";
  * anterior («la última marca de la entrenadora gana»).
  */
 export interface QueuedMark {
-  /** Clave de la cola: `${sessionId}:${athleteId}`. */
+  /** Clave de la cola: `${userId}:${sessionId}:${athleteId}`. */
   key: string;
   /** Identificador de la operación; el servidor lo anota si hay conflicto. */
   opId: string;
@@ -75,14 +75,21 @@ export interface QueuedMark {
   status: AttendanceStatus;
   /** Momento real en que la entrenadora tocó el botón (ISO). */
   markedAt: string;
+  /**
+   * `recordedAt` que la entrenadora vio en pantalla al marcar (null si no
+   * había marca). El servidor lo compara con lo guardado para saber si
+   * alguien cambió esa marca mientras tanto.
+   */
+  seenRecordedAt: string | null;
   state: QueuedMarkState;
   attempts: number;
   /** Código corto del último rechazo definitivo del servidor. */
   lastError?: string;
 }
 
-export function queueKey(sessionId: string, athleteId: string): string {
-  return `${sessionId}:${athleteId}`;
+/** Cada usuaria tiene su propia cola: nadie pisa las marcas de otra. */
+export function queueKey(sessionId: string, athleteId: string, userId: string): string {
+  return `${userId}:${sessionId}:${athleteId}`;
 }
 
 export function snapshotKey(userId: string, academyId: string): string {
@@ -95,4 +102,6 @@ export type SyncOutcome = "applied" | "duplicate" | "superseded";
 export interface SyncResultEntry {
   athleteId: string;
   outcome: SyncOutcome;
+  /** Lo que queda guardado en el servidor para esa gimnasta (ISO). */
+  recordedAt?: string;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Share, SquarePlus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,8 +9,10 @@ import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import {
   HINT_STORAGE_KEY,
   detectPlatform,
+  isAttendanceRoute,
   parseHintState,
   recordDismissal,
+  recordInstallOutcome,
   recordVisit,
   shouldShowHint,
   type HintState,
@@ -38,6 +41,7 @@ function writeState(state: HintState) {
  * en iPhone/iPad explica los pasos de Safari (allí no hay botón de instalar).
  */
 export function AddToHomeScreenHint() {
+  const pathname = usePathname();
   const { installPrompt, isInstalled, promptInstall } = useInstallPrompt();
   const [platform, setPlatform] = useState<InstallPlatform>("other");
   const [state, setState] = useState<HintState | null>(null);
@@ -59,13 +63,18 @@ export function AddToHomeScreenHint() {
 
   const install = useCallback(async () => {
     if (platform === "android") {
-      await promptInstall();
+      // Cerrar el aviso del navegador cuenta como descartar la invitación.
+      const outcome = await promptInstall();
+      const next = recordInstallOutcome(readState(), outcome, new Date());
+      writeState(next);
+      setState(next);
       return;
     }
     setShowSteps(true);
   }, [platform, promptInstall]);
 
-  if (!state) return null;
+  // En las pantallas de pasar lista no se interrumpe a la entrenadora.
+  if (!state || isAttendanceRoute(pathname)) return null;
   const visible = shouldShowHint(state, {
     platform,
     standalone: isInstalled,

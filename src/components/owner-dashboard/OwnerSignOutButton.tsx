@@ -25,7 +25,12 @@ export function OwnerSignOutButton({ surface = "light" }: { surface?: "light" | 
     setFailed(false);
     try {
       // Sin await si no hay nada guardado: el cierre de sesión no se retrasa.
-      if (hasOfflineAttendanceData()) await clearOfflineAttendanceOnSignOut();
+      if (hasOfflineAttendanceData() && !(await clearOfflineAttendanceOnSignOut())) {
+        // La persona prefiere no cerrar sesión: aún tiene marcas sin enviar.
+        pending.current = false;
+        setBusy(false);
+        return;
+      }
       // End this browser session without revoking the user's other sessions.
       const { error } = await createClient().auth.signOut({ scope: "local" });
       if (error) throw error;

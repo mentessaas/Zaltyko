@@ -29,6 +29,9 @@ self.addEventListener('activate', (event) => {
       Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
     )
   );
+  // Caducidad de las listas y marcas guardadas en el móvil, sin esperar a que
+  // alguien abra «Pasar lista».
+  event.waitUntil(purgeExpiredOfflineData());
   self.clients.claim();
 });
 
@@ -254,4 +257,68 @@ async function cacheAttendanceShell() {
   } catch {
     // sin red o sin espacio: se reintenta más tarde
   }
+}
+
+// Caducidad de lo guardado para pasar lista (mismos plazos que la app, ver
+// src/lib/offline-attendance): listas con nombres de gimnastas a las 36 h,
+// marcas sin enviar a los 7 días y rechazadas a los 3. Se ejecuta al activar el
+// worker; no crea nada si la base de datos aún no existe.
+const OFFLINE_DB_NAME = 'zaltyko-pasar-lista';
+const SNAPSHOT_MAX_AGE_MS = 36 * 3600 * 1000;
+const QUEUE_PENDING_MAX_AGE_MS = 7 * 86400 * 1000;
+const QUEUE_FAILED_MAX_AGE_MS = 3 * 86400 * 1000;
+
+function sweepStore(store, isExpired) {
+  const cursorRequest = store.openCursor();
+  cursorRequest.onsuccess = () => {
+    const cursor = cursorRequest.result;
+    if (!cursor) return;
+    if (isExpired(cursor.value)) cursor.delete();
+    cursor.continue();
+  };
+}
+
+function purgeExpiredOfflineData() {
+  if (typeof indexedDB === 'undefined') return Promise.resolve();
+  return new Promise((resolve) => {
+    try {
+      const request = indexedDB.open(OFFLINE_DB_NAME, 1);
+      // Misma estructura que la app: si el worker llega primero, no la rompe.
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains('snapshots')) db.createObjectStore('snapshots', { keyPath: 'key' });
+        if (!db.objectStoreNames.contains('queue')) db.createObjectStore('queue', { keyPath: 'key' });
+      };
+      request.onerror = () => resolve();
+      request.onblocked = () => resolve();
+      request.onsuccess = () => {
+        const db = request.result;
+        try {
+          const tx = db.transaction(['snapshots', 'queue'], 'readwrite');
+          const now = Date.now();
+          sweepStore(tx.objectStore('snapshots'), (snapshot) => {
+            const saved = Date.parse(snapshot.savedAt);
+            return Number.isNaN(saved) || now - saved > SNAPSHOT_MAX_AGE_MS;
+          });
+          sweepStore(tx.objectStore('queue'), (mark) => {
+            const marked = Date.parse(mark.markedAt);
+            const max = mark.state === 'failed' ? QUEUE_FAILED_MAX_AGE_MS : QUEUE_PENDING_MAX_AGE_MS;
+            return Number.isNaN(marked) || now - marked > max;
+          });
+          const done = () => {
+            db.close();
+            resolve();
+          };
+          tx.oncomplete = done;
+          tx.onerror = done;
+          tx.onabort = done;
+        } catch {
+          db.close();
+          resolve();
+        }
+      };
+    } catch {
+      resolve();
+    }
+  });
 }

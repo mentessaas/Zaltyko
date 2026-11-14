@@ -15,7 +15,8 @@ export interface InstallPromptState {
   installPrompt: BeforeInstallPromptEvent | null;
   isInstallable: boolean;
   isInstalled: boolean;
-  promptInstall: () => Promise<void>;
+  /** Qué eligió la persona en el aviso del navegador (`null` si no hubo aviso). */
+  promptInstall: () => Promise<"accepted" | "dismissed" | null>;
   dismissPrompt: () => void;
   isDismissed: boolean;
 }
@@ -69,7 +70,7 @@ export function useInstallPrompt(): InstallPromptState {
   }, []);
 
   const promptInstall = useCallback(async () => {
-    if (!installPrompt) return;
+    if (!installPrompt) return null;
 
     await installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
@@ -81,6 +82,7 @@ export function useInstallPrompt(): InstallPromptState {
       setIsDismissed(true);
       localStorage.setItem("pwa-install-dismissed", "true");
     }
+    return outcome;
   }, [installPrompt]);
 
   const dismissPrompt = useCallback(() => {

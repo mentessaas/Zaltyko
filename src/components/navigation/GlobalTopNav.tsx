@@ -118,7 +118,7 @@ export function GlobalTopNav({
     setLoading(true);
     try {
       // Sin await si no hay nada guardado: el cierre de sesión no se retrasa.
-      if (hasOfflineAttendanceData()) await clearOfflineAttendanceOnSignOut();
+      if (hasOfflineAttendanceData() && !(await clearOfflineAttendanceOnSignOut())) return;
       await supabase.auth.signOut();
       router.push("/auth/login");
     } finally {

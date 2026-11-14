@@ -143,10 +143,11 @@ describe("API /api/attendance", () => {
     // idempotente `first_attendance_recorded`.
     expect(insertCalls.length).toBeGreaterThanOrEqual(2);
     const body = await response.json();
-    expect(body.data.results).toEqual([
+    expect(body.data.results).toMatchObject([
       { athleteId: "22222222-2222-4222-8222-222222222222", outcome: "applied" },
       { athleteId: "33333333-3333-4333-8333-333333333333", outcome: "applied" },
     ]);
+    expect(typeof body.data.results[0].recordedAt).toBe("string");
   });
 
   describe("marcas de la cola sin conexión", () => {
@@ -167,11 +168,11 @@ describe("API /api/attendance", () => {
         ])
       );
 
-    const post = (entry: Record<string, unknown>) =>
+    const post = (entry: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
       POST(
         new Request("http://localhost/api/attendance", {
           method: "POST",
-          body: JSON.stringify({ sessionId: SESSION, entries: [{ athleteId: A1, ...entry }] }),
+          body: JSON.stringify({ sessionId: SESSION, ...extra, entries: [{ athleteId: A1, ...entry }] }),
           headers: { "Content-Type": "application/json" },
         }),
         {} as any
@@ -202,7 +203,9 @@ describe("API /api/attendance", () => {
       );
       const response = await post({ status: "absent", markedAt: "2026-11-13T17:00:00.000Z", opId: OP });
       const body = await response.json();
-      expect(body.data.results).toEqual([{ athleteId: A1, outcome: "duplicate" }]);
+      expect(body.data.results).toEqual([
+        { athleteId: A1, outcome: "duplicate", recordedAt: "2026-11-13T17:00:00.000Z" },
+      ]);
       expect(await rowsFor("attendanceRecords")).toHaveLength(0);
       expect(await rowsFor("auditLogs")).toHaveLength(0);
     });
@@ -216,7 +219,9 @@ describe("API /api/attendance", () => {
       );
       const response = await post({ status: "absent", markedAt: "2026-11-13T17:00:00.000Z", opId: OP });
       const body = await response.json();
-      expect(body.data.results).toEqual([{ athleteId: A1, outcome: "superseded" }]);
+      expect(body.data.results).toEqual([
+        { athleteId: A1, outcome: "superseded", recordedAt: "2026-11-13T17:30:00.000Z" },
+      ]);
       expect(await rowsFor("attendanceRecords")).toHaveLength(0);
       const [log] = await rowsFor("auditLogs");
       expect((log.payload as any).action).toBe("attendance.offline_conflict");
@@ -232,7 +237,9 @@ describe("API /api/attendance", () => {
       );
       const response = await post({ status: "late", markedAt: "2026-11-13T17:10:00.000Z", opId: OP });
       const body = await response.json();
-      expect(body.data.results).toEqual([{ athleteId: A1, outcome: "applied" }]);
+      expect(body.data.results).toEqual([
+        { athleteId: A1, outcome: "applied", recordedAt: "2026-11-13T17:10:00.000Z" },
+      ]);
       expect(await rowsFor("attendanceRecords")).toHaveLength(1);
       const [log] = await rowsFor("auditLogs");
       expect((log.payload as any).meta.conflicts[0].existing.status).toBe("present");
@@ -249,6 +256,61 @@ describe("API /api/attendance", () => {
       expect(response.status).toBe(200);
       expect(await rowsFor("attendanceRecords")).toHaveLength(1);
       expect(await rowsFor("auditLogs")).toHaveLength(0);
+    });
+
+    it("corregir lo propio (el guardado sigue igual que lo visto) no deja registro de conflicto", async () => {
+      pushSession();
+      selectQueue.push(
+        createSelectChain("limit", [
+          { athleteId: A1, status: "present", notes: null, recordedAt: new Date("2026-11-13T17:00:00.000Z") },
+        ])
+      );
+      const response = await post({
+        status: "absent",
+        markedAt: "2026-11-13T17:10:00.000Z",
+        opId: OP,
+        seenRecordedAt: "2026-11-13T17:00:00.000Z",
+      });
+      expect(response.status).toBe(200);
+      expect(await rowsFor("attendanceRecords")).toHaveLength(1);
+      expect(await rowsFor("auditLogs")).toHaveLength(0);
+    });
+
+    it("si alguien cambió la marca después de lo que la entrenadora veía, queda registrado", async () => {
+      pushSession();
+      selectQueue.push(
+        createSelectChain("limit", [
+          { athleteId: A1, status: "present", notes: null, recordedAt: new Date("2026-11-13T17:05:00.000Z") },
+        ])
+      );
+      await post({
+        status: "absent",
+        markedAt: "2026-11-13T17:10:00.000Z",
+        opId: OP,
+        seenRecordedAt: "2026-11-13T17:00:00.000Z",
+      });
+      expect(await rowsFor("attendanceRecords")).toHaveLength(1);
+      expect(await rowsFor("auditLogs")).toHaveLength(1);
+    });
+
+    it("compensa un móvil con el reloj atrasado usando la hora de envío", async () => {
+      pushSession();
+      selectQueue.push(createSelectChain("limit", []));
+      // El móvil va 10 minutos atrasado: su «ahora» es 10 minutos antes que el del servidor.
+      const sentAt = new Date(Date.now() - 10 * 60_000).toISOString();
+      const markedAt = "2026-11-13T17:00:00.000Z";
+      await post({ status: "absent", markedAt, opId: OP }, { sentAt });
+      const [row] = await rowsFor("attendanceRecords");
+      const shift = (row.payload as any).recordedAt.getTime() - Date.parse(markedAt);
+      expect(Math.abs(shift - 10 * 60_000)).toBeLessThan(5_000);
+    });
+
+    it("sin hora de envío no corrige el reloj", async () => {
+      pushSession();
+      selectQueue.push(createSelectChain("limit", []));
+      await post({ status: "absent", markedAt: "2026-11-13T17:00:00.000Z", opId: OP });
+      const [row] = await rowsFor("attendanceRecords");
+      expect((row.payload as any).recordedAt.toISOString()).toBe("2026-11-13T17:00:00.000Z");
     });
 
     it("rechaza una fecha de marca mal formada", async () => {

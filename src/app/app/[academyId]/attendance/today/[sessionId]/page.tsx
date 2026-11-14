@@ -36,13 +36,23 @@ export default async function AttendanceTodaySessionPage({ params }: PageProps) 
     athleteIds.length === 0
       ? []
       : await db
-          .select({ athleteId: attendanceRecords.athleteId, status: attendanceRecords.status })
+          .select({
+            athleteId: attendanceRecords.athleteId,
+            status: attendanceRecords.status,
+            recordedAt: attendanceRecords.recordedAt,
+          })
           .from(attendanceRecords)
           .where(and(eq(attendanceRecords.sessionId, sessionId), inArray(attendanceRecords.athleteId, athleteIds)))
           .limit(1000);
 
   const initialStatuses = Object.fromEntries(
     existingRecords.map((record) => [record.athleteId, record.status as "present" | "absent" | "late" | "excused"])
+  );
+
+  // Cuándo se guardó cada marca: el móvil lo manda de vuelta para que el
+  // servidor sepa si alguien la cambió mientras no había red.
+  const initialRecordedAt = Object.fromEntries(
+    existingRecords.map((record) => [record.athleteId, record.recordedAt ? new Date(record.recordedAt).toISOString() : null])
   );
 
   return (
@@ -58,6 +68,7 @@ export default async function AttendanceTodaySessionPage({ params }: PageProps) 
           groupName: athlete.groupName,
         }))}
         initialStatuses={initialStatuses}
+        initialRecordedAt={initialRecordedAt}
         backHref={`/app/${academyId}/attendance/today`}
       />
     </div>
