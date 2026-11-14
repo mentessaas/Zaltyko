@@ -5,7 +5,7 @@ import {
   describeConflict,
   type ScheduleConflict,
 } from "@/modules/schedule-conflicts/domain/schedule-conflicts";
-import { ownerTone } from "./owner-tone-ui";
+import { ownerTone } from "./owner-ui";
 
 /**
  * Avisos de choque (O2). Solo informan: nada aquí bloquea ni cambia datos.

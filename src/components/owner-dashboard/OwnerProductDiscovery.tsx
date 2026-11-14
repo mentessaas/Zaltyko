@@ -339,7 +339,7 @@ export function OwnerProductDiscovery({
       )}
 
       {loadError && (
-        <div role="alert" className="grid gap-2 text-sm text-red-900">
+        <div role="alert" className="grid gap-2 text-sm text-signal-ink">
           <p>{loadError}</p>
           <button
             type="button"
@@ -353,7 +353,7 @@ export function OwnerProductDiscovery({
       )}
 
       {signalError && (
-        <p role="alert" className="text-sm text-red-900">
+        <p role="alert" className="text-sm text-signal-ink">
           {signalError}
         </p>
       )}
@@ -384,7 +384,7 @@ export function OwnerProductDiscovery({
               <h3 className="text-base font-bold text-z-ink">
                 {feature.title}
               </h3>
-              <span className="rounded-[12px] border border-amber-700 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-950">
+              <span className="rounded-[12px] border border-ochre-line bg-ochre-wash px-2 py-1 text-xs font-bold text-ochre-ink">
                 {feature.statusLabel}
               </span>
             </div>

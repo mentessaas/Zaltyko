@@ -136,10 +136,11 @@ relativo a la seguridad de la plataforma.]
 > Los datos que la academia introduce en la plataforma (sección 2) los tratamos
 > como encargados y no se enumeran aquí.
 
-**Motivo**: los datos fiscales los recoge el Checkout (`billing_address_collection`,
-`tax_id_collection`, `name_collection` en
-`src/modules/saas-billing/application/saas-billing-service.ts`) y no se
-mencionan hoy. La aceptación se guarda en `zaltyko.owner_signup_consents`.
+**Motivo**: los datos fiscales no se mencionan hoy. La razón social y el
+NIF/NIE/CIF los pide el panel del plan, se validan y se guardan solo en el
+Customer de Stripe (no en la base de datos de Zaltyko); la dirección la recoge
+Checkout (`billing_address_collection` en
+`src/modules/saas-billing/application/saas-billing-service.ts`). La aceptación se guarda en `zaltyko.owner_signup_consents`.
 
 ---
 

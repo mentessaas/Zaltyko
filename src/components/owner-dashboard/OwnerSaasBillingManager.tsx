@@ -1,6 +1,7 @@
 "use client";
 
 import { ownerUi } from "./owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePendingCommandExitWarning } from "./use-pending-command-exit-warning";
@@ -33,6 +34,12 @@ import {
   SPANISH_VAT_GENERAL_RATE_PERCENT,
 } from "@/modules/saas-billing/domain/spanish-vat";
 import { IMMEDIATE_START_CONSENT_TEXT } from "@/modules/saas-billing/domain/immediate-start-consent";
+import {
+  checkBillingLegalName,
+  checkBillingTaxId,
+  SAAS_BILLING_DETAILS_MESSAGES,
+  SAAS_BILLING_LEGAL_NAME_MAX_LENGTH,
+} from "@/modules/saas-billing/domain/customer-billing-details";
 
 import type {
   OwnerSaasBillingInterval,
@@ -326,6 +333,21 @@ export function OwnerSaasBillingManager({
   const [interval, setInterval] = useState<OwnerSaasBillingInterval>("month");
   const [taxTerritory, setTaxTerritory] = useState<SpanishTaxTerritory | null>(null);
   const [immediateStartConsent, setImmediateStartConsent] = useState(false);
+  // Datos de la factura (academias de España): se validan aquí para avisar
+  // pronto y otra vez en el servidor antes de abrir Checkout.
+  const [billingLegalName, setBillingLegalName] = useState("");
+  const [billingTaxId, setBillingTaxId] = useState("");
+  const [billingTouched, setBillingTouched] = useState({ legalName: false, taxId: false });
+  const billingLegalNameCheck = checkBillingLegalName(billingLegalName);
+  const billingTaxIdCheck = checkBillingTaxId(billingTaxId);
+  const billingLegalNameError =
+    taxTerritoryRequired && billingTouched.legalName && !billingLegalNameCheck.ok
+      ? SAAS_BILLING_DETAILS_MESSAGES[billingLegalNameCheck.reason]
+      : null;
+  const billingTaxIdError =
+    taxTerritoryRequired && billingTouched.taxId && !billingTaxIdCheck.ok
+      ? SAAS_BILLING_DETAILS_MESSAGES[billingTaxIdCheck.reason]
+      : null;
   const [busyActionState, setBusyActionState] = useState<{ organizationId: string; action: string } | null>(null);
   const busyAction = busyActionState?.action ?? null;
   const displayedBusyAction = busyActionState?.organizationId === organizationId ? busyAction : null;
@@ -558,6 +580,9 @@ export function OwnerSaasBillingManager({
         billingInterval: interval,
         ...(taxTerritoryRequired && taxTerritory ? { taxTerritory } : {}),
         ...(taxTerritoryRequired && immediateStartConsent ? { immediateStartConsent: true } : {}),
+        ...(taxTerritoryRequired && billingLegalNameCheck.ok && billingTaxIdCheck.ok
+          ? { billingDetails: { legalName: billingLegalNameCheck.legalName, taxId: billingTaxIdCheck.taxId } }
+          : {}),
       };
       intent = retryIntent ?? getIntent(body);
       if (!persistCommand("checkout", intent, planCode)) throw new Error("No se pudo guardar la operación antes de enviarla. No se ha enviado ninguna solicitud.");
@@ -708,10 +733,13 @@ export function OwnerSaasBillingManager({
   const paymentNotice = subscription ? saasPaymentNotice(subscription.status) : null;
   const planCode = currentSnapshot?.entitlement.planCode;
   const trial = currentSnapshot?.trial ?? null;
+  const billingDetailsReady =
+    !taxTerritoryRequired || (billingLegalNameCheck.ok && billingTaxIdCheck.ok);
   const taxTerritoryReady =
     !taxTerritoryRequired ||
     (taxTerritory !== null &&
       isSpanishTaxTerritoryCheckoutCovered(taxTerritory) &&
+      billingDetailsReady &&
       immediateStartConsent);
   const taxTerritoryNotice =
     taxTerritoryRequired && taxTerritory
@@ -741,26 +769,20 @@ export function OwnerSaasBillingManager({
   return (
     <main className={ownerUi.page}>
       <div className="mx-auto max-w-5xl">
-        <header className="rounded-xl border border-z-line bg-white p-6 sm:p-8">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-z-brand-600">
-            Gestión del plan
-          </p>
-          <h1 className={ownerUi.pageTitle}>
-            Plan y facturación de Zaltyko
-          </h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-z-soft">
-            Consulta el acceso de tu academia y gestiona su suscripción. Esto es
-            independiente de los cobros y cuotas de las familias.
-          </p>
-          <div className="mt-6 rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-white p-4">
-            <span className="block text-xs font-bold uppercase tracking-wide text-z-soft">
-              Academia
-            </span>
-            <span className="mt-1 block font-display text-lg font-bold">
-              {currentSnapshot?.organization.name ?? organizationName}
-            </span>
-          </div>
-        </header>
+        <PageHeader
+          title="Plan y facturación de Zaltyko"
+          description="Consulta el acceso de tu academia y gestiona su suscripción. Esto es independiente de los cobros y cuotas de las familias."
+        />
+        {/* La academia es un dato del bloque, debajo de la cabecera: es la que
+            confirma el servidor, no la de la URL. */}
+        <div className="mt-6 rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-white p-4">
+          <span className="floor-label block text-z-soft">
+            Academia
+          </span>
+          <span className="mt-1 block font-display text-lg font-bold">
+            {currentSnapshot?.organization.name ?? organizationName}
+          </span>
+        </div>
 
         <OwnerPlanUsage organizationId={organizationId} />
 
@@ -772,7 +794,7 @@ export function OwnerSaasBillingManager({
 
         {currentLoadError ? (
           <section
-            className="mt-6 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-5"
+            className="mt-6 rounded-md border border-z-line border-t-[3px] border-t-signal-ink bg-white p-5"
             role="alert"
           >
             <h2 className="font-display text-xl font-bold">
@@ -845,14 +867,14 @@ export function OwnerSaasBillingManager({
                         : ""}
                     </p>
                     {subscription.cancelAtPeriodEnd ? (
-                      <p className="mt-2 text-sm font-semibold text-amber-900">
+                      <p className="mt-2 text-sm font-semibold text-ochre-ink">
                         La renovación está desactivada y la cancelación está
                         programada al final del periodo indicado. El acceso
                         efectivo es el que confirma el servidor.
                       </p>
                     ) : null}
                     {paymentNotice ? (
-                      <p className="mt-2 max-w-2xl text-sm text-amber-900" role="status">
+                      <p className="mt-2 max-w-2xl text-sm text-ochre-ink" role="status">
                         {paymentNotice}
                       </p>
                     ) : null}
@@ -888,7 +910,7 @@ export function OwnerSaasBillingManager({
 
             {!syncIsReady ? (
               <section
-                className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-5"
+                className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-ochre bg-white p-5"
                 role="status"
               >
                 <p className="font-semibold">
@@ -932,7 +954,7 @@ export function OwnerSaasBillingManager({
           </div>
         ) : null}
         {pendingCommand ? (
-          <section className="rounded-[12px] mt-4 border border-amber-700 bg-white p-5" aria-label="Operación de facturación pendiente" aria-busy={busyAction !== null}>
+          <section className="rounded-[12px] mt-4 border border-ochre-line bg-ochre-wash p-5" aria-label="Operación de facturación pendiente" aria-busy={busyAction !== null}>
             {pendingCommand.organizationId === organizationId ? <>
               <p className="font-semibold">{pendingCommand.action === "checkout" ? `Contratación de ${pendingCommand.planCode === "growth" ? "Growth" : "Starter"} · ${pendingCommand.intent.body.billingInterval === "year" ? "pago anual" : "mensual"}` : pendingCommand.action === "portal" ? "Preparación del Portal" : "Activación de la prueba"}: pendiente de confirmar.</p>
               <p className="mt-2 text-sm">No cierres ni recargues esta página. El reintento conserva la operación, el cuerpo y la clave originales; no inicia otra contratación.</p>
@@ -949,7 +971,7 @@ export function OwnerSaasBillingManager({
           </div>
         ) : null}
         {pendingReadState.organizationId === organizationId && pendingReadState.status === "blocked" ? (
-          <div className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-4" role="alert">
+          <div className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-signal-ink bg-white p-4" role="alert">
             <p className="text-sm leading-6 text-z-ink">{pendingReadState.message}</p>
             <button type="button" className="touch-target mt-2 rounded-full border px-4 text-sm font-bold" onClick={() => setPendingReadAttempt((value) => value + 1)}>Volver a comprobar la operación guardada</button>
           </div>
@@ -1031,7 +1053,7 @@ export function OwnerSaasBillingManager({
             {marketNotice ? (
               <p
                 role="note"
-                className="mt-5 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-4 text-sm leading-6 text-z-soft"
+                className="mt-5 rounded-md border border-z-line border-t-[3px] border-t-ochre bg-white p-4 text-sm leading-6 text-z-soft"
               >
                 {marketNotice}
               </p>
@@ -1070,11 +1092,68 @@ export function OwnerSaasBillingManager({
                 {taxTerritoryNotice ? (
                   <p
                     role="note"
-                    className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-amber-700 bg-white p-4 text-sm leading-6 text-z-soft"
+                    className="mt-4 rounded-md border border-z-line border-t-[3px] border-t-ochre bg-white p-4 text-sm leading-6 text-z-soft"
                   >
                     {taxTerritoryNotice}
                   </p>
                 ) : null}
+                <div className="mt-4 border-t border-z-line pt-4">
+                  <p className="text-sm font-bold">Datos de la factura</p>
+                  <p className="mt-1 text-sm leading-6 text-z-soft">
+                    Emitimos factura completa con estos datos. Comprobamos que el
+                    NIF, NIE o CIF sea válido antes de pasar al pago.
+                  </p>
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor={`billing-legal-name-${organizationId}`} className={ownerUi.label}>
+                        Razón social o nombre del titular
+                      </label>
+                      <input
+                        id={`billing-legal-name-${organizationId}`}
+                        type="text"
+                        autoComplete="organization"
+                        required
+                        maxLength={SAAS_BILLING_LEGAL_NAME_MAX_LENGTH}
+                        className={`mt-1 ${ownerUi.field}`}
+                        value={billingLegalName}
+                        aria-invalid={billingLegalNameError ? true : undefined}
+                        aria-describedby={billingLegalNameError ? `billing-legal-name-error-${organizationId}` : undefined}
+                        onChange={(event) => { if (!pendingCommandRef.current && !actionInFlight.current) setBillingLegalName(event.target.value); }}
+                        onBlur={() => setBillingTouched((touched) => ({ ...touched, legalName: true }))}
+                      />
+                      {billingLegalNameError ? (
+                        <p id={`billing-legal-name-error-${organizationId}`} role="alert" className="mt-1 text-sm leading-6 text-rose-700">
+                          {billingLegalNameError}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div>
+                      <label htmlFor={`billing-tax-id-${organizationId}`} className={ownerUi.label}>
+                        NIF, NIE o CIF
+                      </label>
+                      <input
+                        id={`billing-tax-id-${organizationId}`}
+                        type="text"
+                        autoComplete="off"
+                        autoCapitalize="characters"
+                        spellCheck={false}
+                        required
+                        maxLength={20}
+                        className={`mt-1 ${ownerUi.field}`}
+                        value={billingTaxId}
+                        aria-invalid={billingTaxIdError ? true : undefined}
+                        aria-describedby={billingTaxIdError ? `billing-tax-id-error-${organizationId}` : undefined}
+                        onChange={(event) => { if (!pendingCommandRef.current && !actionInFlight.current) setBillingTaxId(event.target.value); }}
+                        onBlur={() => setBillingTouched((touched) => ({ ...touched, taxId: true }))}
+                      />
+                      {billingTaxIdError ? (
+                        <p id={`billing-tax-id-error-${organizationId}`} role="alert" className="mt-1 text-sm leading-6 text-rose-700">
+                          {billingTaxIdError}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
                 <label className="mt-4 flex cursor-pointer items-start gap-3 border-t border-z-line pt-4 text-sm leading-6">
                   <input
                     type="checkbox"
@@ -1134,6 +1213,13 @@ export function OwnerSaasBillingManager({
                   }
                   if (taxTerritoryRequired && !taxTerritory) {
                     return "Indica la sede fiscal";
+                  }
+                  if (
+                    taxTerritoryRequired &&
+                    isSpanishTaxTerritoryCheckoutCovered(taxTerritory!) &&
+                    !billingDetailsReady
+                  ) {
+                    return "Completa los datos de factura";
                   }
                   if (
                     taxTerritoryRequired &&

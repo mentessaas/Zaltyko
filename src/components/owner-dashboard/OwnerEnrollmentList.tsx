@@ -12,8 +12,7 @@ import {
   statusLabel,
   statusTone,
 } from "./owner-enrollment-ui";
-import { ownerTone } from "./owner-tone-ui";
-import { ownerUi } from "./owner-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
 import type {
   ChangeableStatus,
   EnrollmentBundle,

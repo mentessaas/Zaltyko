@@ -12,8 +12,7 @@ import {
   type SubstitutionReason,
 } from "@/modules/coach-assignment/domain/coach-assignment";
 import type { ScheduleConflict } from "@/modules/schedule-conflicts/domain/schedule-conflicts";
-import { ownerUi } from "./owner-ui";
-import { ownerTone } from "./owner-tone-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
 import { OwnerPlanCheckNote, type OwnerPlanCheck } from "./OwnerPlanCheckNote";
 import { OwnerScheduleConflictList } from "./OwnerScheduleConflicts";
 import {

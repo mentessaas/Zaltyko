@@ -16,6 +16,7 @@ import {
 import type { TransactionClient } from "@/lib/db-transactions";
 import { logger } from "@/lib/logger";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { auditInvoiceCustomerTaxIds } from "../domain/customer-billing-details";
 import {
   saasContractConfirmationFromPaidInvoice,
   sendSaasContractConfirmationEmail,
@@ -594,13 +595,21 @@ async function processCanonicalEvent(input: {
     if (!prepared.invoice) return { outcome: "quarantined" };
     if (prepared.invoice.status !== "paid") return { outcome: "ignored" };
     if (!prepared.subscription) return { outcome: "quarantined" };
-    return processPaidInvoice({
+    const result = await processPaidInvoice({
       tx,
       event,
       config,
       invoice: prepared.invoice,
       subscription: prepared.subscription,
     });
+    reportInvoiceCustomerTaxIdIssue({
+      event,
+      config,
+      invoice: prepared.invoice,
+      subscription: prepared.subscription,
+      result,
+    });
+    return result;
   }
 
   if (
@@ -619,6 +628,49 @@ async function processCanonicalEvent(input: {
   }
 
   return { outcome: "ignored" };
+}
+
+/**
+ * Defensa adicional: el pago ya está hecho y se procesa igual, pero si la
+ * factura de una contratación con IVA español (`zaltyko_plan`, la que n8n
+ * convierte en factura ZA de FacturaDirecta) no lleva exactamente un NIF
+ * español válido, queda una alerta (consola y Sentry en producción) para
+ * corregirlo antes de facturar. Nunca registra el valor del NIF y nunca
+ * lanza: una alerta no puede bloquear ni reintentar el webhook.
+ */
+export function reportInvoiceCustomerTaxIdIssue(input: {
+  event: Stripe.Event;
+  config: SaasStripeConfig;
+  invoice: Record<string, unknown>;
+  subscription: Record<string, unknown>;
+  result: EventProcessingResult;
+}): void {
+  try {
+    const { event, config, invoice, subscription, result } = input;
+    if (invoice.status !== "paid") return;
+    const spanishInvoicing =
+      Boolean(metadataFrom(subscription).zaltyko_plan) ||
+      Boolean(subscriptionMetadataFromInvoice(invoice).zaltyko_plan);
+    if (!spanishInvoicing) return;
+    const issue = auditInvoiceCustomerTaxIds(invoice);
+    if (!issue) return;
+    logger.error(
+      "Factura SaaS pagada sin NIF español válido: revisar antes de emitir la factura ZA",
+      undefined,
+      {
+        alert: "saas_invoice_customer_tax_id",
+        issue,
+        providerEventId: event.id,
+        invoiceReference: stringId(invoice.id),
+        organizationId:
+          result.organizationId ?? metadataFrom(subscription).organization_id ?? null,
+        outcome: result.outcome,
+        environment: config.environment,
+      }
+    );
+  } catch {
+    // La alerta es auxiliar: el procesamiento del pago no depende de ella.
+  }
 }
 
 async function processPaidInvoice(input: {

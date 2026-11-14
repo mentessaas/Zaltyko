@@ -27,8 +27,8 @@ import {
   type OwnerStaffOperation,
 } from "./owner-staff-command-journal";
 import { usePendingCommandExitWarning } from "./use-pending-command-exit-warning";
-import { ownerUi } from "./owner-ui";
-import { ownerTone } from "./owner-tone-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
+import { PageHeader } from "@/components/ui/page-header";
 
 const STAFF_ENDPOINT = "/api/v1/owner/staff";
 const PAGE_SIZE = 25;
@@ -543,14 +543,11 @@ export function OwnerStaffManager({
 
   return (
     <main className={ownerUi.page}>
-      <header className={ownerUi.pageHeader}>
-        <h1 className={ownerUi.pageTitle}>Equipo</h1>
-        {/* La academia es un dato del bloque, debajo del título, no un antetítulo. */}
-        <p className="floor-label mt-2 break-words text-ramp-600 [overflow-wrap:anywhere]">{organizationName}</p>
-        <p className={ownerUi.pageLead}>
-          Las personas que hacen posible el día a día de tu club.
-        </p>
-      </header>
+      <PageHeader
+        title="Equipo"
+        description={`Las personas que hacen posible el día a día de ${organizationName}.`}
+        className={ownerUi.pageHeader}
+      />
 
       {mutationError ? <p role="alert" className="mb-5 rounded-md border border-signal/30 bg-signal-wash p-4 text-sm font-semibold leading-6 text-signal-ink sm:p-5">{mutationError}</p> : null}
       {notice ? <p role="status" aria-live="polite" className={`mb-5 ${ownerTone.noticeInfo}`}>{notice}</p> : null}
