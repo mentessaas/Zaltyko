@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { commercialLaunchProfile } from "@/lib/launch/commercial-launch-profile";
+import {
+  getCommercialLaunchProfile,
+  getCommercialLaunchReadiness,
+} from "@/lib/launch/commercial-launch-profile";
 import {
   isCanonicalSpanishPersonalTaxId,
   isPublishableSpanishPostalAddress,
@@ -62,28 +65,21 @@ describe("domicilio profesional publicable", () => {
 });
 
 describe("perfil real del vendedor", () => {
-  // Esta comprobación protege el cambio de Elvis en el editor web: un NIF con
-  // la letra mal escrita o un domicilio incompleto no pasan CI.
-  it("tiene NIF vacío o un NIF/NIE canónico con letra de control correcta", () => {
-    const { taxId } = commercialLaunchProfile;
-    if (taxId !== null) expect(isCanonicalSpanishPersonalTaxId(taxId), "taxId").toBe(true);
+  // NIF y domicilio ya no están en el código (repositorio público): llegan de
+  // ZALTYKO_SELLER_TAX_ID y ZALTYKO_SELLER_PROFESSIONAL_ADDRESS en Vercel. Sin
+  // ellas, el perfil los deja en null y la readiness lo rechaza.
+  const profile = getCommercialLaunchProfile({});
+
+  it("no lleva NIF ni domicilio en el código", () => {
+    expect(profile.taxId).toBeNull();
+    expect(profile.professionalAddress).toBeNull();
   });
 
-  it("tiene domicilio vacío o una dirección postal completa dentro del territorio IVA", () => {
-    const { professionalAddress } = commercialLaunchProfile;
-    if (professionalAddress === null) return;
-    expect(isPublishableSpanishPostalAddress(professionalAddress), "professionalAddress").toBe(true);
-    expect(isSpanishPostalCodeOutsideVatTerritory(spanishPostalCodeOf(professionalAddress)!)).toBe(false);
-  });
-
-  it("solo pasa a verified con NIF, domicilio y fecha de alta", () => {
-    const profile = commercialLaunchProfile;
-    if (profile.registrationVerifiedOn !== null) {
-      expect(profile.registrationVerifiedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    }
-    if (profile.registrationStatus !== "verified") return;
-    expect(profile.taxId).not.toBeNull();
-    expect(profile.professionalAddress).not.toBeNull();
+  it("tiene fecha de alta válida y, con verified pero sin variables, sigue bloqueado", () => {
     expect(profile.registrationVerifiedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    if (profile.registrationStatus !== "verified") return;
+    const { ready, missing } = getCommercialLaunchReadiness(profile);
+    expect(ready).toBe(false);
+    expect(missing).toEqual(expect.arrayContaining(["seller_tax_id", "seller_address", "registration_incomplete"]));
   });
 });
