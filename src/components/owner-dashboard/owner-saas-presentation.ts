@@ -12,7 +12,7 @@ export function formatSaasAccessDate(value: string | null | undefined): string |
 
 export function saasPaymentNotice(status: string): string | null {
   if (status === "past_due") {
-    return "Hay un pago de tu suscripción sin resolver. Revisa el método de pago y las facturas en el portal. Un pago rechazado no cancela tu plan por sí solo.";
+    return "Hay un pago de tu suscripción sin resolver. Revisa el método de pago y las facturas en el portal. Un pago rechazado no cancela tu plan por sí solo: tu acceso es el que confirma Zaltyko.";
   }
   if (status === "unpaid") {
     return "El pago de tu suscripción sigue sin resolverse. Mira las facturas en el portal. No contrates el plan otra vez para resolverlo.";

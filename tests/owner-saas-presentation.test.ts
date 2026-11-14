@@ -17,7 +17,7 @@ describe("presentación SaaS sin decidir derechos", () => {
   });
   it("no presenta el primer impago como cancelación terminal", () => {
     expect(saasPaymentNotice("past_due")).toContain("no cancela tu plan por sí solo");
-    expect(saasPaymentNotice("past_due")).toContain("acceso efectivo");
+    expect(saasPaymentNotice("past_due")).toContain("tu acceso es el que confirma");
     expect(saasPaymentNotice("past_due")).not.toContain("renovación");
   });
   it("no resuelve unpaid iniciando otra contratación", () => {
