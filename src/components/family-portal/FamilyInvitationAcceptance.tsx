@@ -12,7 +12,7 @@ type Inspection = { academyName: string; grantViewAthletes: boolean };
 type Phase = "checking" | "missing" | "login" | "invalid" | "ready" | "accepted";
 
 const GENERIC_ERROR =
-  "No se pudo verificar esta invitación con tu sesión. Comprueba que has entrado con la cuenta del correo al que te invitaron y que ese correo está confirmado. Si el enlace ya no es válido, pide uno nuevo a tu academia.";
+  "No se pudo verificar esta invitación con tu cuenta. Comprueba que has entrado con la cuenta del correo al que te invitaron y que ese correo está confirmado. Si el enlace ya no es válido, pide uno nuevo a tu academia.";
 
 /**
  * Aceptación de la invitación al portal. Abrir el enlace no concede nada: se

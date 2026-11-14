@@ -88,7 +88,7 @@ export function ownerStaffErrorCode(payload: unknown): string | null {
 }
 
 export function ownerStaffErrorMessage(status: number, code: string | null): string {
-  if (code === "IDEMPOTENCY_CONFLICT") return "El servidor detectó un conflicto con la clave de esta solicitud. Se conserva el comando original para revisión.";
+  if (code === "IDEMPOTENCY_CONFLICT") return "Esta solicitud ya se había enviado. Se conserva la original.";
   if (code === "STAFF_PROFILE_VERSION_CONFLICT" || status === 409) return "El perfil cambió desde que cargaste la lista. Actualiza los perfiles y revisa los datos antes de volver a guardar.";
   if (status === 401) return "Tu sesión ha caducado. Inicia sesión y vuelve a cargar los perfiles.";
   if (status === 403) return "Tu cuenta no tiene permiso para gestionar estos perfiles.";

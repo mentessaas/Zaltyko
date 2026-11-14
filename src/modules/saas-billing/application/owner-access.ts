@@ -46,7 +46,7 @@ export async function resolveSaasOwnerScope(input: {
   if (!membership) {
     throw new OperationalError(
       "NOT_FOUND",
-      "Organización no encontrada",
+      "Academia no encontrada",
       404
     );
   }

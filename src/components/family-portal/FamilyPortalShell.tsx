@@ -24,10 +24,14 @@ const NAV_ITEMS = [
 export function FamilyPortalShell({
   active,
   children,
+  demo = false,
 }: {
   active: (typeof NAV_ITEMS)[number]["key"] | null;
   children: ReactNode;
+  /** Demo pública: enlaces hacia /demo/familia y sin cierre de sesión. */
+  demo?: boolean;
 }) {
+  const base = demo ? "/demo/familia" : "/familia";
   return (
     <div className="min-h-screen bg-z-canvas text-z-ink">
       <header className="mat-field-deep border-b border-white/10 text-white">
@@ -45,7 +49,7 @@ export function FamilyPortalShell({
               return (
                 <Link
                   key={item.key}
-                  href={item.href}
+                  href={demo ? item.href.replace("/familia", base) : item.href}
                   aria-current={current ? "page" : undefined}
                   className={`relative inline-flex min-h-12 flex-1 items-center justify-center px-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white sm:min-h-14 sm:flex-none ${
                     current ? "text-white" : "text-white/75 hover:text-white"
@@ -62,7 +66,11 @@ export function FamilyPortalShell({
               );
             })}
           </nav>
-          <OwnerSignOutButton surface="mat" />
+          {demo ? (
+            <span className="floor-label text-white/80">Demo</span>
+          ) : (
+            <OwnerSignOutButton surface="mat" />
+          )}
         </div>
       </header>
       <main id="family-portal-content" className={ownerUi.page}>

@@ -46,7 +46,7 @@ function assertRouteOwnerScope(scope: Awaited<ReturnType<typeof resolveOwnerScop
   if (!(["owner", "admin"] as string[]).includes(scope.member.role)) {
     throw new OperationalError(
       "FORBIDDEN",
-      "La bandeja organizativa requiere un Owner o Admin activo",
+      "Esta bandeja es solo para la dirección de la academia",
       403
     );
   }
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
       problemResponse({
         status: 400,
         title: "Filtro inválido",
-        detail: "Indica la organización y una página válida.",
+        detail: "Indica la academia y una página válida.",
         type: "invalid-athlete-intake-query",
         errors: query.error.flatten(),
       })

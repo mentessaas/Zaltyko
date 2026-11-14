@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     if (!coach) {
         return {
-            title: "Coach no encontrado",
+            title: "No encontramos a la entrenadora",
         };
     }
 

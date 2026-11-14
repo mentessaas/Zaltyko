@@ -84,5 +84,43 @@ describe("API /api/super-admin/users/[profileId]", () => {
     const data = await response.json();
     expect(data.error).toBe("IMMUTABLE_SUPER_ADMIN");
   });
+
+  it("DELETE traduce un bloqueo de la supresión a 409 y no registra la eliminación", async () => {
+    vi.doMock("@/lib/authz", () => ({
+      withSuperAdmin: (handler: any) => handler,
+    }));
+    const logAdminAction = vi.fn();
+    vi.doMock("@/lib/admin-logs", () => ({ logAdminAction }));
+    const eraseUserAccount = vi.fn();
+    vi.doMock("@/modules/data-rights/application/account-erasure", async (importOriginal) => {
+      const original = await importOriginal<typeof import("@/modules/data-rights/application/account-erasure")>();
+      eraseUserAccount.mockRejectedValue(
+        new original.AccountErasureError("ACCOUNT_ERASURE_OWNS_LEGACY_ACADEMIES", "Este perfil es dueño de academias.", 409, { academies: 1 })
+      );
+      return { ...original, eraseUserAccount };
+    });
+    selectQueue = [createSelectChain([{ id: "test-id", userId: "user-1", role: "owner" }])];
+
+    const { DELETE } = await import("@/app/api/super-admin/users/[profileId]/route");
+    const request = new NextRequest("http://localhost/api/super-admin/users/test-id", {
+      method: "DELETE",
+      body: JSON.stringify({ reason: "Solicitud de supresión" }),
+    });
+    const response = await DELETE(request, {
+      params: Promise.resolve({ profileId: "test-id" }),
+      profile: { id: "profile-1", role: "super_admin", tenantId: "tenant-123" },
+      userId: "admin-user",
+    });
+
+    expect(response.status).toBe(409);
+    const data = await response.json();
+    expect(data.code).toBe("ACCOUNT_ERASURE_OWNS_LEGACY_ACADEMIES");
+    expect(data.details).toEqual({ academies: 1 });
+    expect(eraseUserAccount).toHaveBeenCalledWith(
+      expect.anything(),
+      { profileId: "test-id", userId: "user-1", actorUserId: "admin-user" }
+    );
+    expect(logAdminAction).not.toHaveBeenCalled();
+  });
 });
 
