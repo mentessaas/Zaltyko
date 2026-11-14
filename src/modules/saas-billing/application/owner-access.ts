@@ -67,6 +67,27 @@ export async function resolveSaasOwnerScope(input: {
   };
 }
 
+/**
+ * Email de la cuenta (auth.users) del Owner que contrata. Solo sirve para
+ * prellenar el contacto del Customer de Stripe: nunca llega del navegador.
+ */
+export async function resolveOwnerAccountEmail(
+  userId: string,
+  tx?: DatabaseClient
+): Promise<string | null> {
+  const client = tx ?? db;
+  const result = await client.execute(sql`
+    select btrim(email) as email
+    from auth.users
+    where id = ${userId}::uuid
+      and email is not null
+      and btrim(email) <> ''
+    limit 1
+  `);
+  const row = result.rows[0] as { email?: unknown } | undefined;
+  return typeof row?.email === "string" ? row.email : null;
+}
+
 export function hasSameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
   if (!origin) return false;

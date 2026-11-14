@@ -137,10 +137,11 @@ ignorado por git, pero no hace falta para producción.
 
 ## Facturación fuera de Stripe
 
-- Siempre se emite **factura completa** (RD 1619/2012, art. 6). Por eso Checkout
-  exige razón social (`name_collection.business`), NIF/CIF
-  (`tax_id_collection`, obligatorio cuando Stripe lo admite para el país) y
-  dirección de facturación (`billing_address_collection: required`).
+- Siempre se emite **factura completa** (RD 1619/2012, art. 6). La razón social
+  y el NIF/NIE/CIF los pide Zaltyko **antes** de abrir Checkout y los valida
+  con su carácter de control (ver «Validación del NIF/CIF antes de cobrar»);
+  Checkout exige la dirección de facturación
+  (`billing_address_collection: required`).
 - Stripe sigue generando internamente sus documentos de suscripción, pero **no
   deben llegar al cliente como factura**. Una sesión de Checkout no puede
   desactivarlo, así que lo configura Elvis en el Dashboard de Stripe Live (ver
@@ -160,10 +161,10 @@ Lo que deja preparado cada Checkout de suscripción con IVA español:
 
 | Dato | Cómo llega a Stripe |
 | --- | --- |
-| Razón social | `name_collection.business` obligatorio y `customer_update.name: auto` → Customer y facturas de Stripe |
-| NIF/CIF | `tax_id_collection: { enabled: true, required: "if_supported" }`: Stripe lo exige cuando el país de facturación tiene tipo de NIF en Stripe. Para España, Checkout ofrece por defecto «ES VAT» (`eu_vat`). Finanzas acepta los dos tipos: `eu_vat` con prefijo ES o `es_cif` |
+| Razón social | Formulario del panel del plan → `name` del Customer antes de la sesión → `customer_name` de la factura |
+| NIF/NIE/CIF | Formulario del panel del plan, validado en servidor → un único tax ID `es_cif` (sin prefijo ES) en el Customer antes de la sesión → `customer_tax_ids` de la factura. Checkout ya no lo pide (sin `tax_id_collection` ni `name_collection`) |
 | Dirección completa | `billing_address_collection: "required"` y `customer_update.address: auto` (línea 1, código postal, ciudad, provincia, país) |
-| Email de facturación | Se usa el Customer existente; si no tiene email, Checkout guarda en él el que escribe el cliente (con `customer` no se puede usar `customer_email`) |
+| Email de facturación | Email de la cuenta del Owner que contrata, puesto en el Customer antes de la sesión (Checkout lo muestra prellenado). Si no se puede leer, Checkout lo pide y lo guarda en el Customer (con `customer` no se puede usar `customer_email`) |
 | IVA | `tax_rates` exclusivo del 21 % en la línea: impuesto separado en la factura de Stripe |
 | Periodo y modalidad | Stripe pone inicio y fin del periodo en la línea de suscripción; el nombre del producto y el intervalo («/ month», «/ year») indican la modalidad. Elvis puede poner además el apodo del precio («Starter mensual», «Starter anual»…) |
 | Moneda | EUR: el servidor rechaza un precio que no sea EUR y desactiva la conversión local de Checkout |
@@ -175,11 +176,51 @@ antes de emitir la ZA:
 - **País = ES:** Checkout no permite limitar el país de la dirección de
   facturación. Si llegara otro país, la factura no debe salir como operación
   interior con IVA español.
-- **Tipo de NIF:** Stripe exige un NIF para ES y el cliente puede elegir
-  `eu_vat` (por defecto, «ES VAT») o `es_cif`. Finanzas acepta cualquiera de
-  los dos; con `eu_vat`, el valor debe llevar el prefijo ES. El servidor de
-  Zaltyko no lo vuelve a validar: el webhook recibe el pago ya hecho y no puede
-  rechazarlo.
+- **Tipo de NIF:** las contrataciones nuevas llevan `es_cif` validado por
+  Zaltyko. Una sesión anterior a este cambio que se recupere conserva su cuerpo
+  exacto (con `tax_id_collection`), pero Checkout no muestra el campo porque el
+  Customer ya tiene el NIF validado. Finanzas sigue aceptando `eu_vat` con
+  prefijo ES por si alguien lo cambia a mano o desde el portal de Stripe.
+
+### Validación del NIF/CIF antes de cobrar
+
+FacturaDirecta rechaza un NIF con el carácter de control incorrecto y Stripe
+solo comprueba el formato, así que Zaltyko lo valida antes de cobrar:
+
+1. **Panel del plan (`/owner/subscription`, academias de España).** Junto a la
+   sede fiscal y la casilla de inicio inmediato, el owner escribe la razón
+   social (o nombre y apellidos) y el NIF, NIE o CIF. El botón «Contratar» no
+   se activa hasta que ambos son válidos y el campo explica el error.
+2. **Servidor (`POST /api/v1/owner/saas/checkout`, campo `billingDetails`).**
+   Con IVA español son obligatorios. Se validan antes de bloquear, escribir o
+   llamar a Stripe (`src/lib/launch/spanish-tax-id.ts`, `checkSpanishTaxId`):
+   DNI, NIE (X/Y/Z), NIF K/L/M y NIF de entidad (letra + 7 cifras + control;
+   P, Q, R, S, W y N exigen letra; A, B, E y H exigen cifra; C, D, F, G, J, U
+   y V admiten ambas). Se aceptan espacios, puntos, guiones, minúsculas y el
+   prefijo ES. Un rechazo es 422 sin efectos, con un mensaje en español y un
+   código: `SAAS_BILLING_DETAILS_REQUIRED`, `SAAS_BILLING_LEGAL_NAME_REQUIRED`,
+   `SAAS_BILLING_LEGAL_NAME_INVALID`, `SAAS_BILLING_TAX_ID_REQUIRED` o
+   `SAAS_BILLING_TAX_ID_INVALID`.
+3. **Customer de Stripe.** Antes de crear la sesión se pone el `name`, el
+   `email` de la cuenta del Owner que contrata (de `auth.users`, para que
+   Checkout lo muestre prellenado; si no se puede leer, Checkout lo pide) y se
+   deja exactamente un tax ID `es_cif` con el valor canónico (se borra
+   cualquier otro). No se guarda en la base de datos de Zaltyko ni en metadatos. Si
+   Stripe lo rechaza, no se entrega la sesión (503 reintentable).
+4. **Checkout (operaciones v4).** Solo pide la dirección
+   (`billing_address_collection: required`, `customer_update.address: auto`).
+   No muestra NIF ni razón social, así que no se pueden cambiar por otros sin
+   validar.
+5. **Webhook `invoice.paid` (defensa adicional).** Si una factura con
+   `zaltyko_plan` llega sin NIF, con varios, con uno español con el control
+   incorrecto o con uno extranjero, el pago se procesa igual y se registra el
+   error «Factura SaaS pagada sin NIF español válido» (consola y Sentry en
+   producción; `alert: saas_invoice_customer_tax_id`, sin el valor del NIF)
+   para revisarlo antes de aprobar la ZA.
+
+Queda fuera: el portal de Stripe podría permitir editar el NIF si su
+configuración lo admite. Conviene no permitir la edición de tax IDs en el
+portal; si se cambia, lo detecta la alerta del webhook.
 
 Pasos de Elvis en Stripe (primero en test para la prueba de finanzas y después
 en Live):

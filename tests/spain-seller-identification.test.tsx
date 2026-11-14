@@ -78,4 +78,18 @@ describe("operación de contratación pendiente guardada en el navegador", () =>
     expect(decodeStoredSaasCommand(stored({ coupon: "x" }), organizationId)).toBeNull();
     expect(decodeStoredSaasCommand(stored({ constructor: "x" }), organizationId)).toBeNull();
   });
+
+  it("conserva los datos de factura enviados y rechaza formas inesperadas", () => {
+    // CIF sintético generado con el algoritmo de control.
+    const billingDetails = { legalName: "Club Sintético", taxId: "B12345674" };
+    expect(decodeStoredSaasCommand(stored({
+      taxTerritory: "peninsula_baleares", immediateStartConsent: true, billingDetails,
+    }), organizationId)).not.toBeNull();
+    for (const invalid of [
+      null, "B12345674", { legalName: "Club Sintético" }, { ...billingDetails, extra: "x" },
+      { legalName: 1, taxId: "B12345674" }, { legalName: "Club Sintético", taxId: "B".repeat(41) },
+    ]) {
+      expect(decodeStoredSaasCommand(stored({ billingDetails: invalid }), organizationId), JSON.stringify(invalid)).toBeNull();
+    }
+  });
 });
