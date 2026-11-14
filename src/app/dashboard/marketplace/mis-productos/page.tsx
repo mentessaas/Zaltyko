@@ -234,7 +234,7 @@ export default function MisProductosPage() {
         ) : (
           <ErrorState
             title="No pudimos cargar tus anuncios"
-            message="Hubo un problema al conectar con el servidor. Vuelve a intentarlo en unos segundos."
+            message="No hay conexión con Zaltyko. Vuelve a intentarlo en unos segundos."
             onRetry={fetchListings}
           />
         )

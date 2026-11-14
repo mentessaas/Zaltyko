@@ -340,12 +340,12 @@ export function OwnerStaffManager({
           if (attemptedCommand.operation === "create") setCreateDraft({ givenName: "", familyName: "", preferredName: "" });
           if (attemptedCommand.operation === "update") setEditDraft(null);
           setNotice(decodedReceipt.replayed
-            ? "El servidor devolvió el recibo original de esta operación. La lista actual se carga por separado."
+            ? "Esta operación ya estaba hecha. La lista actual se muestra aparte."
             : "Operación confirmada. La lista actual se carga por separado del recibo.");
         } else {
           setPendingCommand(attemptedCommand);
           setJournalState("ready");
-          setMutationError("El servidor confirmó la operación, pero no se pudo quitar el comando del registro compartido. Conservamos la misma clave para volver a comprobarlo.");
+          setMutationError("Se hizo, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
         }
         setRefreshKey((value) => value + 1);
         return;

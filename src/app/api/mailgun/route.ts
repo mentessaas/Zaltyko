@@ -92,6 +92,6 @@ export async function POST(req: NextRequest) {
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Error desconocido";
     logger.error(msg);
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+    return NextResponse.json({ error: "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos." }, { status: 500 });
   }
 }

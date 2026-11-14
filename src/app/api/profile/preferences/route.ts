@@ -77,7 +77,7 @@ export async function PATCH(request: Request) {
       return apiError("INVALID_INPUT", "Entrada inválida", 400);
     }
     logger.error("Error updating preferences:", error);
-    return apiError("INTERNAL_ERROR", "Error interno del servidor", 500);
+    return apiError("INTERNAL_ERROR", "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos.", 500);
   }
 }
 
@@ -107,6 +107,6 @@ export async function GET() {
     return apiSuccess(preferences || null);
   } catch (error: unknown) {
     logger.error("Error fetching preferences:", error);
-    return apiError("INTERNAL_ERROR", "Error interno del servidor", 500);
+    return apiError("INTERNAL_ERROR", "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos.", 500);
   }
 }

@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     return problemResponse({
       status: 401,
       title: "Autenticación requerida",
-      detail: "Debes iniciar sesión para crear una organización.",
+      detail: "Debes iniciar sesión para crear tu academia.",
       type: "authentication-required",
     });
   }
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       return problemResponse({
         status: 401,
         title: "Autenticación requerida",
-        detail: "Debes iniciar sesión para crear una organización.",
+        detail: "Debes iniciar sesión para crear tu academia.",
         type: "authentication-required",
       });
     }
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       status: 409,
       title: "La cuenta ya pertenece a una academia",
       detail:
-        "Solicita la vinculación o revisión de tu academia existente. No se creará otra organización para esta cuenta.",
+        "Solicita la vinculación o revisión de tu academia existente. No se creará otra academia para esta cuenta.",
       type: "legacy-academy-link-required",
     });
   }
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
           : "Consentimiento requerido",
         detail: rejected
           ? "Vuelve a iniciar el registro y acepta los términos vigentes."
-          : "Acepta los términos vigentes para crear la organización.",
+          : "Acepta los términos vigentes para crear la academia.",
         type: rejected ? "consent-rejected" : "consent-required",
       });
     }

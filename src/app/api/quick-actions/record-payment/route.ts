@@ -28,7 +28,7 @@ export const POST = withTenant(async (req, context) => {
         const { tenantId } = context;
         const parsed = RecordPaymentSchema.safeParse(await req.json());
         if (!parsed.success) {
-            return apiError("VALIDATION_ERROR", "Payload de pago no válido", 400, parsed.error.flatten());
+            return apiError("VALIDATION_ERROR", "Los datos del pago no son válidos", 400, parsed.error.flatten());
         }
         const { chargeId, academyId, amountCents, paymentMethod } = parsed.data;
         const idempotencyKey = req.headers.get("Idempotency-Key")?.trim() || parsed.data.idempotencyKey;

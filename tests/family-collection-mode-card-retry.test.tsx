@@ -186,7 +186,7 @@ describe("preferencia de cobro familiar", () => {
     );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "solicitud local dañada"
+      "cambio sin terminar en este navegador"
     );
     expect(screen.getByRole("radio", { name: "Manual" })).toBeDisabled();
     expect(mocks.fetch.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(

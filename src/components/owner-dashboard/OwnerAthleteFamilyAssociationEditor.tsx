@@ -574,7 +574,7 @@ export function OwnerAthleteFamilyAssociationEditor({
           uncertain = true;
           setLocalPending(command);
           onPendingCommandChange?.(command);
-          setMessage("El servidor confirmó la asociación, pero no se pudo limpiar el marcador de esta sesión. Conservamos la misma operación para comprobarla otra vez.");
+          setMessage("Se asoció la familia, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
           return;
         }
         setLocalPending(null);
@@ -597,7 +597,7 @@ export function OwnerAthleteFamilyAssociationEditor({
           uncertain = true;
           setLocalPending(command);
           onPendingCommandChange?.(command);
-          setMessage("El servidor rechazó la solicitud, pero no se pudo limpiar su marcador. No iniciaremos otra asociación.");
+          setMessage("No se asoció la familia y queda un intento sin confirmar. Pulsa el botón de reintentar antes de hacer otro cambio.");
           return;
         }
         setLocalPending(null);

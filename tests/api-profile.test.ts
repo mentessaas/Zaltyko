@@ -28,8 +28,8 @@ describe("profile API P0 contract", () => {
   it("consume el envelope de tutores al crear y editar", () => {
     const source = readFileSync(new URL("../src/components/athletes/GuardianManager.tsx", import.meta.url), "utf8");
     expect(source).toMatch(/payload\?\.data\?\.item \?\? payload\?\.item/);
-    expect(source).toMatch(/tutor creado/);
-    expect(source).toMatch(/tutor actualizado/);
+    expect(source).toMatch(/guardar el tutor/);
+    expect(source).toMatch(/actualizar el tutor/);
   });
 
   it("consume el envelope al subir videos de evaluaciones", () => {
