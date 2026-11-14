@@ -261,14 +261,14 @@ async function assertTemplateCapacity(
   if (!template || template.status !== "active" || !template.locationIsActive) {
     throw new OperationalError(
       "NOT_FOUND",
-      "Plantilla de clase activa no encontrada",
+      "No encontramos la clase activa",
       404
     );
   }
   if (template.locationId !== input.locationId) {
     throw new OperationalError(
       "INVALID_RELATION",
-      "La plantilla no pertenece a la sede indicada",
+      "La clase no es de la sede indicada",
       409
     );
   }
@@ -299,7 +299,7 @@ async function assertTemplateCapacity(
   if (existing) {
     throw new OperationalError(
       "DUPLICATE_OPEN_ENROLLMENT",
-      "El atleta ya tiene una inscripción abierta en esta clase",
+      "La gimnasta ya tiene una inscripción abierta en esta clase",
       409
     );
   }
@@ -395,7 +395,7 @@ export async function createEnrollmentInTransaction(
   if (!athlete) {
     throw new OperationalError(
       "NOT_FOUND",
-      "Atleta activo no encontrado en esta sede",
+      "No encontramos a la gimnasta activa en esta sede",
       404
     );
   }

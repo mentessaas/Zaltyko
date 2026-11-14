@@ -147,6 +147,38 @@ for (const path of Object.values(CANDIDATES)) {
   for (const [name, table] of parseCreateTables(path, "zaltyko")) activated.set(name, table);
 }
 
+const ACCOUNT_ERASURE = "docs/deployment/candidates/20261114120000_account_erasure_candidate.sql";
+
+/**
+ * Claves a auth.users que cambia el candidato de supresión de cuentas, leídas
+ * de su SQL: `tabla.columna` -> acción nueva.
+ */
+function accountErasureOverrides(): Map<string, FkAction> {
+  const overrides = new Map<string, FkAction>();
+  const statements = /alter\s+table\s+([a-z_]+\.[a-z_]+)\s([^;]*);/g;
+  const foreignKey = /add\s+constraint\s+\S+\s+foreign\s+key\s*\(([a-z_]+)\)\s*references\s+auth\.users\s*\(id\)\s*on\s+delete\s+(cascade|set\s+null)/g;
+  for (const statement of clean(read(ACCOUNT_ERASURE)).matchAll(statements)) {
+    for (const match of statement[2]!.matchAll(foreignKey)) {
+      overrides.set(`${statement[1]}.${match[1]}`, parseAction(match[2]!.replace(/\s+/g, " ")));
+    }
+  }
+  return overrides;
+}
+const erasureOverrides = accountErasureOverrides();
+
+/** Lo mismo que `activated`, con las claves a auth.users del candidato de supresión. */
+const afterAccountErasure = new Map<string, ParsedTable>(
+  [...activated].map(([name, table]) => [name, {
+    ...table,
+    foreignKeys: table.foreignKeys.map((fk) => {
+      const override = fk.target === "auth.users" && fk.columns.length === 1
+        ? erasureOverrides.get(`zaltyko.${name}.${fk.columns[0]}`)
+        : undefined;
+      return override ? { ...fk, action: override } : fk;
+    }),
+  }])
+);
+
 const RANK: Record<ErasureEffect, number> = { not_linked: 0, set_null: 1, cascade_delete: 2, blocks: 3 };
 const worst = (effects: ErasureEffect[]): ErasureEffect =>
   effects.reduce<ErasureEffect>((left, right) => (RANK[right] > RANK[left] ? right : left), "not_linked");
@@ -159,8 +191,13 @@ const fromAction = (action: FkAction): ErasureEffect =>
  * rows are themselves deleted in cascade. Rows that block or survive do not
  * propagate further.
  */
-function effectOf(table: string, root: string, seen: readonly string[] = []): ErasureEffect {
-  const parsed = activated.get(table);
+function effectOf(
+  table: string,
+  root: string,
+  seen: readonly string[] = [],
+  tables: ReadonlyMap<string, ParsedTable> = activated
+): ErasureEffect {
+  const parsed = tables.get(table);
   if (!parsed) throw new Error(`Unknown activated table ${table}`);
   const effects: ErasureEffect[] = [];
   for (const fk of parsed.foreignKeys) {
@@ -169,8 +206,8 @@ function effectOf(table: string, root: string, seen: readonly string[] = []): Er
       continue;
     }
     const [schema, parent] = fk.target.split(".");
-    if (schema === "zaltyko" && activated.has(parent!) && !seen.includes(parent!) &&
-        effectOf(parent!, root, [...seen, table]) === "cascade_delete") {
+    if (schema === "zaltyko" && tables.has(parent!) && !seen.includes(parent!) &&
+        effectOf(parent!, root, [...seen, table], tables) === "cascade_delete") {
       effects.push(fromAction(fk.action));
     }
   }
@@ -270,8 +307,9 @@ describe("política de supresión de las funciones activadas", () => {
       expect(entry.onAthleteErasure, "gimnasta").toBe(effectOf(table, "zaltyko.athletes"));
       const member = effectOf(table, "zaltyko.organization_members");
       expect(entry.onMemberErasure, "integrante").toBe(member);
-      // auth.users borra en cascada sus organization_members.
-      expect(entry.onAuthAccountErasure, "cuenta").toBe(worst([effectOf(table, "auth.users"), member]));
+      // Con el candidato de supresión, la pertenencia no se borra (SET NULL):
+      // solo cuentan las claves directas a auth.users, ya cambiadas.
+      expect(entry.onAuthAccountErasure, "cuenta").toBe(effectOf(table, "auth.users", [], afterAccountErasure));
       // La academia arrastra todas sus tablas; ninguna usa RESTRICT.
       const parsed = activated.get(table)!;
       expect(parsed.foreignKeys).toContainEqual({ columns: ["organization_id"], target: "zaltyko.organizations", action: "cascade" });
@@ -279,6 +317,35 @@ describe("política de supresión de las funciones activadas", () => {
       expect(entry.onAcademyErasure).toBe("cascade_delete");
     }
   );
+
+  it("el candidato de supresión conserva la pertenencia y solo cambia las claves revisadas", () => {
+    const candidate = clean(read(ACCOUNT_ERASURE));
+    // La pertenencia deja de borrarse en cascada y exige estar revocada sin cuenta.
+    expect(erasureOverrides.get("zaltyko.organization_members.user_id")).toBe("set_null");
+    expect(candidate).toMatch(/check \(user_id is not null or status = 'revoked'\)/);
+    expect([...erasureOverrides.entries()].sort()).toEqual([
+      ["public.directory_audit.actor_id", "set_null"],
+      ["public.directory_claims.decided_by", "set_null"],
+      ["public.directory_claims.user_id", "set_null"],
+      ["public.directory_grants.approved_by", "set_null"],
+      ["public.directory_grants.user_id", "cascade"],
+      ["public.directory_revisions.user_id", "set_null"],
+      ["public.directory_subscriptions.user_id", "set_null"],
+      ["zaltyko.insight_actions.actor_user_id", "set_null"],
+      ["zaltyko.organization_member_invitations.accepted_by_user_id", "set_null"],
+      ["zaltyko.organization_members.user_id", "set_null"],
+      ["zaltyko.organization_team_command_receipts.actor_user_id", "cascade"],
+      ["zaltyko.payments.recorded_by_user_id", "set_null"],
+    ]);
+    // Ninguna clave a auth.users de las tablas activadas queda bloqueando.
+    for (const [name, table] of afterAccountErasure) {
+      for (const fk of table.foreignKeys.filter((item) => item.target === "auth.users")) {
+        expect(["set_null", "cascade"], `${name}.${fk.columns.join(",")}`).toContain(fk.action);
+      }
+    }
+    // La evidencia fiscal de conciliación SaaS sigue en RESTRICT (no se toca).
+    expect(candidate).not.toMatch(/alter table zaltyko\.organization_saas_webhook_reconciliation_decisions/);
+  });
 
   it("conserva las solicitudes descartadas anonimizadas según el CHECK y el servidor", () => {
     const entry = ACTIVATED_MODULES_ERASURE_POLICY.find((item) => item.table === "admission_requests")!;

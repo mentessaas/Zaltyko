@@ -290,7 +290,7 @@ describe("GET /api/v1/owner/trial-requests", () => {
   });
 
   it("resuelve el alcance con resolveOwnerScope y no lista si lo deniega", async () => {
-    mocks.ownerScope.mockRejectedValue(new OperationalError("FORBIDDEN", "Sin acceso a la superficie Owner", 403));
+    mocks.ownerScope.mockRejectedValue(new OperationalError("FORBIDDEN", "Sin acceso a esta zona de la dirección", 403));
     const response = await listRoute(request(`/api/v1/owner/trial-requests?organizationId=${ORG_B}`, "GET"));
     expect(response.status).toBe(403);
     expect(mocks.ownerScope).toHaveBeenCalledWith({ userId: USER, organizationId: ORG_B });

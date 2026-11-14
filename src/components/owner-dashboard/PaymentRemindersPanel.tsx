@@ -219,7 +219,7 @@ export function PaymentRemindersPanel({
           {preview.skipped.length > 0 ? (
             <p className={ownerUi.help}>
               {preview.skipped.length} {preview.skipped.length === 1 ? "cuota se omite" : "cuotas se omiten"} (falta la
-              persona que paga o su correo, ya se recordaron hace poco o ya están saldadas).
+              persona pagadora o su correo, ya se recordaron hace poco o ya están saldadas).
             </p>
           ) : null}
           <div className="flex flex-wrap gap-3">
@@ -282,7 +282,7 @@ export function PaymentRemindersPanel({
                     {periodLabel(item.servicePeriodStart)} · {formatMoney(item.outstandingCents, item.currency)}
                   </p>
                   <p className={ownerUi.muted}>
-                    {item.payerFirstName ?? "Falta la persona que paga"}
+                    {item.payerFirstName ?? "Falta la persona pagadora"}
                     {item.payerEmailMasked ? ` · ${item.payerEmailMasked}` : ""} · {item.locationName} · {item.invoiceReference}
                   </p>
                   <p className="flex flex-wrap items-center gap-2 text-sm text-z-ink">

@@ -469,7 +469,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
   async function resolvePendingCommand(command: PendingResolutionCommand) {
     const result = await sendPendingCommand(
       command,
-      "No se pudo confirmar la operación de facturación."
+      "No se pudo confirmar el cambio de la cuota."
     );
     if (!result) return;
     const data = responseData<Record<string, unknown>>(result.payload);
@@ -504,7 +504,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       if (!clearPendingCommand(command)) {
         markPendingCommandAmbiguous(command);
         setError(
-          "El servidor confirmó la tarifa, pero no pudimos limpiar el marcador. Conservamos la operación para comprobarla con la misma clave."
+          "Se guardó la tarifa, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá."
         );
         return;
       }
@@ -553,7 +553,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
       if (!clearPendingCommand(command)) {
         markPendingCommandAmbiguous(command);
         setError(
-          "El servidor confirmó la asignación, pero no pudimos limpiar el marcador. Conservamos la operación para comprobarla con la misma clave."
+          "Se hizo la asignación, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá."
         );
         return;
       }
@@ -579,7 +579,7 @@ export function OwnerMonthlyInvoiceResolutionPanel({
     if (!clearPendingCommand(command)) {
       markPendingCommandAmbiguous(command);
       setError(
-        "El servidor confirmó el vínculo, pero no pudimos limpiar el marcador. Conservamos la operación para comprobarla con la misma clave."
+        "Se hizo el vínculo, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá."
       );
       return;
     }

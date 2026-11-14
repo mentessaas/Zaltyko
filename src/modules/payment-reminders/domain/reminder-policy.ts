@@ -38,8 +38,8 @@ export type ReminderSkipReason =
 
 export const SKIP_REASON_LABELS: Record<ReminderSkipReason, string> = {
   settled: "Ya no tiene saldo pendiente",
-  no_payer: "Falta la persona que paga",
-  no_email: "A la persona que paga le falta el correo",
+  no_payer: "Falta la persona pagadora",
+  no_email: "A la persona pagadora le falta el correo",
   recently_reminded: "Ya se recordó hace poco",
   in_progress: "Hay un envío en curso",
   not_overdue_yet: "Todavía no ha vencido",

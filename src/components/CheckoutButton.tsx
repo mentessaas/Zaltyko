@@ -33,12 +33,12 @@ export default function CheckoutButton({ academyId, planCode }: CheckoutButtonPr
         | null;
       const checkoutUrl = payload?.ok === true ? payload.data?.checkoutUrl : undefined;
       if (!response.ok || !checkoutUrl) {
-        throw new Error(payload?.message || "No se pudo iniciar el checkout");
+        throw new Error(payload?.message || "No se pudo abrir el pago. Inténtalo de nuevo.");
       }
 
       window.location.assign(checkoutUrl);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "No se pudo iniciar el checkout";
+      const message = error instanceof Error ? error.message : "No se pudo abrir el pago. Inténtalo de nuevo.";
       setError(message);
       logger.error("Error iniciando checkout:", error);
     } finally {

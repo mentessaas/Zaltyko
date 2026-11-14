@@ -156,7 +156,7 @@ export function withSuperAdmin<Ctx extends Record<string, unknown>>(
       return NextResponse.json(
         {
           error: "INTERNAL_ERROR",
-          message: "Error interno del servidor",
+          message: "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos.",
         },
         { status: 500 }
       );
@@ -451,7 +451,7 @@ export function withAuthenticatedNoTenant<Ctx extends Record<string, unknown>>(
       return NextResponse.json(
         {
           error: "INTERNAL_ERROR",
-          message: "Error interno del servidor",
+          message: "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos.",
         },
         { status: 500 }
       );
@@ -609,7 +609,7 @@ export function withBearerTenant<Ctx extends Record<string, unknown>>(
       return NextResponse.json(
         {
           error: "INTERNAL_ERROR",
-          message: "Error interno del servidor",
+          message: "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos.",
         },
         { status: 500 }
       );

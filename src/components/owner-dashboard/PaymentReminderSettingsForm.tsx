@@ -21,7 +21,7 @@ import { ownerField, ownerTone, ownerUi } from "./owner-ui";
 
 /** Datos que el mensaje rellena solo, con el nombre que ve la academia. */
 const AUTOFILL_FIELDS: ReadonlyArray<{ variable: TemplateVariable; label: string }> = [
-  { variable: "nombre", label: "Nombre de quien paga" },
+  { variable: "nombre", label: "Nombre de la persona pagadora" },
   { variable: "importe", label: "Importe pendiente" },
   { variable: "concepto", label: "Mes de la cuota" },
   { variable: "vencimiento", label: "Fecha de vencimiento" },

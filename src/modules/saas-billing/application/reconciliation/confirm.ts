@@ -90,7 +90,7 @@ export async function assertLockedBaseline(
     for update
   `);
   if (organization.rows.length !== 1) {
-    throw fail("NOT_FOUND", "Organización del evento no encontrada", 404);
+    throw fail("NOT_FOUND", "Academia del evento no encontrada", 404);
   }
   const result = await tx.execute(sql`
     select
@@ -127,7 +127,7 @@ export async function assertLockedBaseline(
     for update of s, e
   `);
   const row = objectRows<Record<string, unknown>>(result)[0];
-  if (!row) throw fail("VERSION_CONFLICT", "La suscripción o el entitlement ya no existen", 409);
+  if (!row) throw fail("VERSION_CONFLICT", "La suscripción o el plan ya no existen", 409);
   const current: BaselineRecord = {
     subscription: {
       id: String(row.subscription_id),
@@ -160,7 +160,7 @@ export async function assertLockedBaseline(
     },
   };
   if (!compareBaseline(current, claims.baseline)) {
-    throw fail("VERSION_CONFLICT", "La suscripción o el entitlement cambió desde el preview", 409);
+    throw fail("VERSION_CONFLICT", "La suscripción o el plan cambió desde la vista previa", 409);
   }
 }
 

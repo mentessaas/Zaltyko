@@ -95,7 +95,7 @@ export function ProfileEditForm({ user, profile, onUpdated, onCancel }: ProfileE
       const payload = await response.json();
       const url = payload?.data?.url ?? payload?.url;
       if (!url) {
-        throw new Error("El servidor no devolvió la URL de la imagen");
+        throw new Error("No se pudo subir la imagen. Inténtalo de nuevo.");
       }
       setPhotoUrl(url);
       setPhotoUploadSuccess(true);

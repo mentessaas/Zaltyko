@@ -88,7 +88,7 @@ export const POST = withTenant(async (request, context) => {
         (template.tenantId && template.tenantId !== context.tenantId) ||
         (template.academyId && template.academyId !== validated.academyId)
       ) {
-        return apiError("FORBIDDEN", "La plantilla no pertenece al tenant activo", 403);
+        return apiError("FORBIDDEN", "Esa plantilla no es de tu academia", 403);
       }
     }
 

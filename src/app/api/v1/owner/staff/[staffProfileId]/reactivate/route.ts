@@ -32,7 +32,7 @@ export async function POST(request: Request, context: RouteContext) {
     request.headers.get("idempotency-key") ?? ""
   );
   if (!parsedBody.success || !idempotencyKey.success) {
-    return invalidStaffInput("Indica la versión actual y una clave de idempotencia válida.", {
+    return invalidStaffInput("Recarga la página y vuelve a intentarlo.", {
       ...(parsedBody.success ? {} : { body: parsedBody.error.flatten() }),
       ...(idempotencyKey.success ? {} : { idempotencyKey: "La clave no es válida." }),
     });

@@ -86,7 +86,7 @@ export function ParentProfile({ user, profile, children, labels, targetProfileId
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold">Mi perfil - Tutor</h1>
             <p className="text-sm text-muted-foreground">
-              Gestiona la información de tus hijos atletas y sus actividades.
+              Consulta la información de tus gimnastas y sus actividades.
             </p>
           </div>
         </div>
@@ -125,14 +125,14 @@ export function ParentProfile({ user, profile, children, labels, targetProfileId
             Mis hijos {athletePlural.toLowerCase()}
           </CardTitle>
           <CardDescription>
-            Información sobre los atletas que tienes a cargo.
+            Información sobre las gimnastas a tu cargo.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 pt-0">
           {children.length === 0 ? (
             <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 p-8 text-center">
               <p className="text-sm text-muted-foreground">
-                Aún no tienes atletas asociados a tu cuenta. Contacta con tu academia para asociar a tus hijos.
+                Aún no tienes gimnastas en tu cuenta. Pide a tu academia que las asocie.
               </p>
             </div>
           ) : (

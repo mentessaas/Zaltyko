@@ -127,7 +127,7 @@ describe("titulares de una clase", () => {
   });
 
   it("un entrenador recibe 403 del alcance de gestión y el servicio no se llama", async () => {
-    mocks.scope.mockRejectedValue(new OperationalError("FORBIDDEN", "Sin acceso a la superficie Owner", 403));
+    mocks.scope.mockRejectedValue(new OperationalError("FORBIDDEN", "Sin acceso a esta zona de la dirección", 403));
     const { PUT } = await loadClass();
     const response = await PUT(request("PUT", `/api/v1/owner/classes/${classTemplateId}/coaches`, classBody), params({ classTemplateId }));
     expect(response.status).toBe(403);
@@ -223,7 +223,7 @@ describe("entrenadoras de una sesión", () => {
   });
 
   it("un entrenador no puede sustituir", async () => {
-    mocks.scope.mockRejectedValue(new OperationalError("FORBIDDEN", "Sin acceso a la superficie Owner", 403));
+    mocks.scope.mockRejectedValue(new OperationalError("FORBIDDEN", "Sin acceso a esta zona de la dirección", 403));
     const { PUT } = await loadSession();
     const response = await PUT(request("PUT", `/api/v1/owner/sessions/${sessionId}/coaches`, sessionBody), params({ sessionId }));
     expect(response.status).toBe(403);
