@@ -292,7 +292,12 @@ jobs:
 
   e2e-local-owner:
     name: Local Synthetic Owner E2E (${{ matrix.project }})
-    runs-on: ubuntu-latest
+    # ubuntu-latest pasó a ubuntu-26.04 (nov 2026): su Docker usa el almacén de
+    # imágenes de containerd y `docker image inspect` ya no devuelve el digest
+    # de configuración en .Id, así que la verificación de las imágenes fijadas de
+    # Supabase (scripts/lib/local-e2e-digest-fallback.ts) las rechaza. Se fija el
+    # runner en 24.04 hasta adaptar esa verificación al almacén de containerd.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
