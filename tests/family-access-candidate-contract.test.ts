@@ -18,7 +18,7 @@ import { OPTIONAL_INCLUDED_EXPORT_MODULES } from "@/modules/data-rights/applicat
 
 const ROOT = process.cwd();
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
-const CANDIDATE_FILE = "20261114120000_family_access_notices_candidate.sql";
+const CANDIDATE_FILE = "20261114121500_family_access_notices_candidate.sql";
 const CANDIDATE = `docs/deployment/candidates/${CANDIDATE_FILE}`;
 const TABLES = Object.keys(FAMILY_ACCESS_TABLES).sort();
 const stripComments = (sql: string) => sql.replace(/--[^\n]*/g, "");

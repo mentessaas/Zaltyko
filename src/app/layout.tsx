@@ -13,6 +13,7 @@ import { InstallPrompt } from "@/components/ui/install-prompt";
 import { OptionalTelemetryBoundary } from "@/components/OptionalTelemetryBoundary";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { UtmCapture } from "@/components/growth/UtmCapture";
+import { OfflineAttendanceBoot } from "@/components/attendance/OfflineAttendanceBoot";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 // «Magnesio sobre tapiz»: una sola familia, Archivo (OFL, variable en peso y
@@ -119,8 +120,7 @@ export const metadata: Metadata = {
       { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
   },
 };
@@ -185,6 +185,7 @@ export default async function RootLayout({
             </PostHogProvider>
           </AppProviders>
           <ServiceWorkerRegister />
+          <OfflineAttendanceBoot />
         </OptionalTelemetryBoundary>
       </body>
     </html>

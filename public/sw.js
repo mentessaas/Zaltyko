@@ -3,6 +3,13 @@
 const CACHE_NAME = 'zaltyko-static-v3';
 const OFFLINE_URL = '/offline.html';
 
+// Pasar lista sin cobertura. La pantalla «/pasar-lista-sin-conexion» es una
+// página pública sin ningún dato de nadie: dibuja la lista que la entrenadora
+// ya tiene guardada en el dispositivo (IndexedDB). Es lo único de HTML que este
+// worker guarda; el HTML privado de /app/* sigue sin guardarse nunca.
+const ATTENDANCE_SHELL_PATH = '/pasar-lista-sin-conexion';
+const ATTENDANCE_TODAY_PATH = /^\/app\/[^/]+\/attendance\/today(?:\/([^/]+))?\/?$/;
+
 const STATIC_ASSETS = [
   '/manifest.json',
   '/icons/icon-192.png',
@@ -22,6 +29,9 @@ self.addEventListener('activate', (event) => {
       Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
     )
   );
+  // Caducidad de las listas y marcas guardadas en el móvil, sin esperar a que
+  // alguien abra «Pasar lista».
+  event.waitUntil(purgeExpiredOfflineData());
   self.clients.claim();
 });
 
@@ -52,6 +62,21 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
       fetch(request).catch(async () => {
+        const attendance = ATTENDANCE_TODAY_PATH.exec(url.pathname);
+        if (attendance) {
+          // Sin red en «Pasar lista»: se lleva a la pantalla local, que
+          // trabaja con la lista guardada en el dispositivo.
+          const shell = await caches.match(ATTENDANCE_SHELL_PATH, { ignoreSearch: true });
+          if (shell) {
+            const target = new URL(ATTENDANCE_SHELL_PATH, self.location.origin);
+            if (attendance[1]) target.searchParams.set('sesion', attendance[1]);
+            return Response.redirect(target.href, 302);
+          }
+        }
+        if (url.pathname === ATTENDANCE_SHELL_PATH) {
+          const shell = await caches.match(ATTENDANCE_SHELL_PATH, { ignoreSearch: true });
+          if (shell) return shell;
+        }
         const offlineResponse = await caches.match(OFFLINE_URL);
         return offlineResponse ?? new Response('Sin conexión', { status: 503 });
       })
@@ -163,6 +188,11 @@ self.addEventListener('message', (event) => {
     return;
   }
 
+  if (event.data.type === 'CACHE_OFFLINE_SHELL') {
+    event.waitUntil(cacheAttendanceShell());
+    return;
+  }
+
   if (event.data.type === 'CLEAR_CACHE') {
     event.waitUntil(
       caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
@@ -175,3 +205,120 @@ self.addEventListener('message', (event) => {
     target?.postMessage({ version: CACHE_NAME });
   }
 });
+
+// Guarda la pantalla de pasar lista sin conexión y los archivos que necesita
+// (scripts, estilos y tipografías de /_next/static/). No guarda datos de nadie:
+// la página es la misma para todas las academias. Cualquier fallo se ignora; la
+// próxima vez con red se vuelve a intentar.
+const SHELL_ASSET_PATTERN = /\/_next\/static\/[^"'\\\s<>)]+/g;
+const SHELL_RSC_ASSET_PATTERN = /["'](static\/(?:chunks|css|media)\/[^"'\\\s]+)\\*["']/g;
+
+function collectShellAssets(text) {
+  const found = new Set(text.match(SHELL_ASSET_PATTERN) || []);
+  let match;
+  SHELL_RSC_ASSET_PATTERN.lastIndex = 0;
+  while ((match = SHELL_RSC_ASSET_PATTERN.exec(text)) !== null) {
+    found.add('/_next/' + match[1]);
+  }
+  return found;
+}
+
+async function cacheShellAsset(cache, asset) {
+  try {
+    if (await cache.match(asset)) return null;
+    const response = await fetch(asset);
+    if (!response.ok || response.type !== 'basic') return null;
+    await cache.put(asset, response.clone());
+    return response;
+  } catch {
+    return null;
+  }
+}
+
+async function cacheAttendanceShell() {
+  try {
+    const response = await fetch(ATTENDANCE_SHELL_PATH, { credentials: 'same-origin' });
+    if (!response.ok || response.type !== 'basic') return;
+    const cache = await caches.open(CACHE_NAME);
+    const html = await response.clone().text();
+    await cache.put(ATTENDANCE_SHELL_PATH, response);
+
+    const assets = collectShellAssets(html);
+    const fetched = await Promise.all(Array.from(assets, (asset) => cacheShellAsset(cache, asset)));
+
+    // Las tipografías se piden desde el CSS: se buscan ahí.
+    const stylesheets = Array.from(assets).filter((asset) => /\.css(?:\?|$)/.test(asset));
+    for (const asset of stylesheets) {
+      const cached = (await cache.match(asset)) || fetched[Array.from(assets).indexOf(asset)];
+      if (!cached) continue;
+      const css = await cached.clone().text();
+      await Promise.all(Array.from(collectShellAssets(css), (media) => cacheShellAsset(cache, media)));
+    }
+  } catch {
+    // sin red o sin espacio: se reintenta más tarde
+  }
+}
+
+// Caducidad de lo guardado para pasar lista (mismos plazos que la app, ver
+// src/lib/offline-attendance): listas con nombres de gimnastas a las 36 h,
+// marcas sin enviar a los 7 días y rechazadas a los 3. Se ejecuta al activar el
+// worker; no crea nada si la base de datos aún no existe.
+const OFFLINE_DB_NAME = 'zaltyko-pasar-lista';
+const SNAPSHOT_MAX_AGE_MS = 36 * 3600 * 1000;
+const QUEUE_PENDING_MAX_AGE_MS = 7 * 86400 * 1000;
+const QUEUE_FAILED_MAX_AGE_MS = 3 * 86400 * 1000;
+
+function sweepStore(store, isExpired) {
+  const cursorRequest = store.openCursor();
+  cursorRequest.onsuccess = () => {
+    const cursor = cursorRequest.result;
+    if (!cursor) return;
+    if (isExpired(cursor.value)) cursor.delete();
+    cursor.continue();
+  };
+}
+
+function purgeExpiredOfflineData() {
+  if (typeof indexedDB === 'undefined') return Promise.resolve();
+  return new Promise((resolve) => {
+    try {
+      const request = indexedDB.open(OFFLINE_DB_NAME, 1);
+      // Misma estructura que la app: si el worker llega primero, no la rompe.
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains('snapshots')) db.createObjectStore('snapshots', { keyPath: 'key' });
+        if (!db.objectStoreNames.contains('queue')) db.createObjectStore('queue', { keyPath: 'key' });
+      };
+      request.onerror = () => resolve();
+      request.onblocked = () => resolve();
+      request.onsuccess = () => {
+        const db = request.result;
+        try {
+          const tx = db.transaction(['snapshots', 'queue'], 'readwrite');
+          const now = Date.now();
+          sweepStore(tx.objectStore('snapshots'), (snapshot) => {
+            const saved = Date.parse(snapshot.savedAt);
+            return Number.isNaN(saved) || now - saved > SNAPSHOT_MAX_AGE_MS;
+          });
+          sweepStore(tx.objectStore('queue'), (mark) => {
+            const marked = Date.parse(mark.markedAt);
+            const max = mark.state === 'failed' ? QUEUE_FAILED_MAX_AGE_MS : QUEUE_PENDING_MAX_AGE_MS;
+            return Number.isNaN(marked) || now - marked > max;
+          });
+          const done = () => {
+            db.close();
+            resolve();
+          };
+          tx.oncomplete = done;
+          tx.onerror = done;
+          tx.onabort = done;
+        } catch {
+          db.close();
+          resolve();
+        }
+      };
+    } catch {
+      resolve();
+    }
+  });
+}

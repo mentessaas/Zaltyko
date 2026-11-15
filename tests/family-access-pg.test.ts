@@ -86,7 +86,7 @@ function assertDisposableTarget() {
 
 const TABLES = ["family_notice_recipients", "family_notices", "guardian_notification_preferences", "guardian_access_invitations"] as const;
 const candidate = () =>
-  readFileSync(resolve(process.cwd(), "docs/deployment/candidates/20261114120000_family_access_notices_candidate.sql"), "utf8");
+  readFileSync(resolve(process.cwd(), "docs/deployment/candidates/20261114121500_family_access_notices_candidate.sql"), "utf8");
 const sha = (value: string) => createHash("sha256").update(value).digest("hex");
 const key = () => `family-ci-${randomUUID()}`;
 

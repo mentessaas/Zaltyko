@@ -182,6 +182,14 @@ const NULLABLE_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
     "handled_at",
     "anonymized_at",
   ],
+  payment_reminder_settings: [
+    "subject_template",
+    "body_template",
+    "payment_instructions",
+    "reply_to_email",
+    "updated_by_member_id",
+  ],
+  payment_reminders: ["guardian_id", "requested_by_member_id", "sent_at"],
   guardian_access_invitations: ["invited_by_member_id", "last_sent_at", "accepted_at", "revoked_by_member_id", "revoked_at"],
   family_notices: ["session_id", "class_template_id", "group_id", "created_by_member_id"],
   family_notice_recipients: ["email_attempted_at", "read_at"],
@@ -218,6 +226,7 @@ const INT4_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
   skill_elements: ["position"],
   athlete_skill_progress: ["revision"],
   admission_requests: ["athlete_birth_year", "revision"],
+  payment_reminder_settings: ["min_interval_days", "auto_after_days", "version"],
   guardian_access_invitations: ["revision"],
   family_notice_recipients: ["email_attempts"],
 };
@@ -239,6 +248,7 @@ const INT8_DECIMAL_STRING_COLUMNS_BY_TABLE: Readonly<
     "net_collected_cents",
     "outstanding_cents",
   ],
+  payment_reminders: ["outstanding_cents"],
 };
 
 const POSTGRES_BIGINT_MIN = BigInt("-9223372036854775808");

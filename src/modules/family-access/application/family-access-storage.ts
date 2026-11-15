@@ -8,7 +8,7 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 /**
  * El alta de familias y los avisos dependen de un candidato pendiente de
  * autorización de Elvis
- * (docs/deployment/candidates/20261114120000_family_access_notices_candidate.sql)
+ * (docs/deployment/candidates/20261114121500_family_access_notices_candidate.sql)
  * y de la bandera ZALTYKO_FAMILY_ACCESS_ENABLED, apagada por defecto.
  * Sin las dos cosas, toda la función responde «no disponible» (503) y sus
  * accesos se ocultan. Solo lee el catálogo: nunca crea, repara ni concede nada.

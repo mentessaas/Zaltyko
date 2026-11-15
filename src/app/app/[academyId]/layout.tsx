@@ -21,6 +21,7 @@ import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { AccessDenied } from "@/components/ui/access-denied";
 import { getActiveSubscription } from "@/lib/limits";
 import { ChatWidgetWrapper } from "@/components/chat/ChatWidgetWrapper";
+import { AddToHomeScreenHint } from "@/components/pwa/AddToHomeScreenHint";
 
 import { logger } from "@/lib/logger";
 
@@ -308,6 +309,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
               as well as in the legacy dashboard so users do not lose the
               support entry point after the workspace redirect. */}
           <ChatWidgetWrapper academyId={academy.id} />
+          {!showGeneralDenied && (isAdmin || isOwner || profile.role === "coach") && <AddToHomeScreenHint />}
         </div>
       </ToastProvider>
     </AcademyProvider>

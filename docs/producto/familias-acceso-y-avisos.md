@@ -8,7 +8,7 @@ forma de dar acceso a las familias.
 
 Estado: **dormido**. Detrás de `ZALTYKO_FAMILY_ACCESS_ENABLED` (apagada, solo
 vale `true`) y de la candidata
-`docs/deployment/candidates/20261114120000_family_access_notices_candidate.sql`,
+`docs/deployment/candidates/20261114121500_family_access_notices_candidate.sql`,
 que requiere autorización de Elvis. Sin las dos cosas, `/owner/familias`,
 `/familia/avisos` y `/familia/aceptar` responden 404, las rutas 503, el menú del
 portal no muestra «Avisos» y guardar una sustitución no avisa a nadie.

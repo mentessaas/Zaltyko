@@ -66,6 +66,15 @@ const VALUES: Record<string, Record<string, unknown>> = {
   },
   athlete_level_passes: { id: id(34), template_id: id(30), level_id: id(31), passed_on: "2026-11-12" },
   admission_links: { id: ACTIVATED_IDS.link, enabled: true, revoked_at: null },
+  payment_reminder_settings: {
+    subject_template: null, body_template: "Synthetic reminder body", payment_instructions: "Synthetic payment instructions",
+    reply_to_email: "club@example.invalid", min_interval_days: 7, is_auto_enabled: false, auto_after_days: 3, version: 1,
+    updated_by_member_id: null,
+  },
+  payment_reminders: {
+    id: id(27), charge_id: id(28), guardian_id: id(29), email_group_id: id(30), origin: "manual", status: "sent",
+    outstanding_cents: "4500", currency: "EUR", requested_by_member_id: null,
+  },
   admission_requests: {
     id: id(26), link_id: ACTIVATED_IDS.link, status: "new", contact_name: "Synthetic family",
     contact_email: "family@example.invalid", contact_phone: null, athlete_given_name: "Synthetic",
@@ -74,14 +83,14 @@ const VALUES: Record<string, Record<string, unknown>> = {
     handled_at: null, anonymized_at: null, revision: 1,
   },
   guardian_access_invitations: {
-    id: id(27), guardian_id: ACTIVATED_IDS.guardian, normalized_email: "family@example.invalid", status: "accepted",
+    id: id(40), guardian_id: ACTIVATED_IDS.guardian, normalized_email: "family@example.invalid", status: "accepted",
     grant_view_athletes: true, revision: 2, last_sent_at: null, revoked_by_member_id: null, revoked_at: null,
   },
   family_notices: {
     id: ACTIVATED_IDS.notice, kind: "session_cancelled", class_template_id: ACTIVATED_IDS.classTemplate, group_id: null,
     title: "Sesión cancelada: Base", body: "Se cancela la sesión.",
   },
-  family_notice_recipients: { id: id(28), notice_id: ACTIVATED_IDS.notice, guardian_id: ACTIVATED_IDS.guardian, email_status: "sent", email_attempts: 1, read_at: null },
+  family_notice_recipients: { id: id(41), notice_id: ACTIVATED_IDS.notice, guardian_id: ACTIVATED_IDS.guardian, email_status: "sent", email_attempts: 1, read_at: null },
   guardian_notification_preferences: { guardian_id: ACTIVATED_IDS.guardian, email_session_changes: true, email_manual_notices: false },
 };
 

@@ -6,7 +6,7 @@ jurídico. Completa `docs/privacy/zaltyko-rgpd-assessment.md` y el borrador
 familias invitadas). Producto: `docs/producto/familias-acceso-y-avisos.md`.
 
 Estado: detrás de `ZALTYKO_FAMILY_ACCESS_ENABLED` (apagada) y de una candidata
-SQL sin aplicar (`docs/deployment/candidates/20261114120000_family_access_notices_candidate.sql`).
+SQL sin aplicar (`docs/deployment/candidates/20261114121500_family_access_notices_candidate.sql`).
 
 ## 1. Qué datos nuevos se tratan
 

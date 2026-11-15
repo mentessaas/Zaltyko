@@ -5,6 +5,7 @@ import { Button } from "./button";
 import { X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { isInstallPromptSuppressedRoute } from "@/lib/pwa/install-hint";
 
 export function InstallPrompt() {
   const pathname = usePathname();
@@ -18,12 +19,7 @@ export function InstallPrompt() {
   } = useInstallPrompt();
 
   const [visible, setVisible] = useState(false);
-  const isAuthRoute = pathname === "/login" || pathname?.startsWith("/auth/");
-  const isAuthenticatedAppRoute =
-    pathname?.startsWith("/app/") ||
-    pathname?.startsWith("/dashboard") ||
-    pathname?.startsWith("/super-admin");
-  const isSuppressedRoute = isAuthRoute || isAuthenticatedAppRoute;
+  const isSuppressedRoute = isInstallPromptSuppressedRoute(pathname);
 
   useEffect(() => {
     if (isSuppressedRoute) {
