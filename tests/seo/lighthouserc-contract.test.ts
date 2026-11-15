@@ -36,12 +36,10 @@ describe(".lighthouserc.json contract", () => {
     expect(urls).toContain("http://localhost:3000/");
     expect(urls).toContain("http://localhost:3000/pricing");
     expect(urls).toContain("http://localhost:3000/features");
-    expect(urls).toContain(
-      "http://localhost:3000/blog/migrar-excel-software-academia-gimnasia",
-    );
-    expect(urls).toContain(
-      "http://localhost:3000/es/gimnasia-artistica/espana",
-    );
+    // /blog (410) y /es/gimnasia-artistica/espana (301) se retiraron:
+    // se auditan las páginas públicas vivas del sitemap.
+    expect(urls).toContain("http://localhost:3000/faq");
+    expect(urls).toContain("http://localhost:3000/ayuda");
     expect(urls.length).toBe(5);
   });
 
