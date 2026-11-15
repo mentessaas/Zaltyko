@@ -450,8 +450,8 @@ cuatro relaciones ya existe.
 - `grant_links`: vínculos familia-tutor (id y versión) que la academia vio al
   invitar; al aceptar solo se concede ver gimnastas en esos y si no cambiaron.
   `email_attempts`: reintentos del correo de un aviso (hasta 3), que hace el
-  cron `/api/cron/family-notices` (CRON_SECRET; programado una vez al día
-  desde el 15-11-2026, ADR-0016).
+  cron `/api/cron/family-notices` (CRON_SECRET; lo lanza pg_cron cada 10
+  minutos desde el 15-11-2026, `docs/deployment/scheduler/`).
 - **Retirar acceso con la bandera apagada.** Si se apaga
   `ZALTYKO_FAMILY_ACCESS_ENABLED` con las tablas instaladas, `/owner/familias`
   pasa a modo «solo retirar acceso» (dirección o administración con todas las
@@ -679,8 +679,8 @@ flujo: `docs/producto/recordatorios-de-impago.md`.
 - Bandera apagada por defecto: `ZALTYKO_PAYMENT_REMINDERS_ENABLED`. El
   recordatorio automático tiene su propia bandera
   (`ZALTYKO_PAYMENT_REMINDERS_AUTO_ENABLED`) y el ajuste de cada academia, y su
-  cron (`/api/cron/family-payment-reminders`) está programado una vez al día
-  en `vercel.json` desde el 15-11-2026 (ADR-0016). Mientras no se apliquen las tablas la función responde
+  cron (`/api/cron/family-payment-reminders`) lo lanza pg_cron una vez al día
+  desde el 15-11-2026 (`docs/deployment/scheduler/`). Mientras no se apliquen las tablas la función responde
   «no disponible» (503) y la sección no aparece en `/owner/payments`.
 - Derechos de datos: la exportación de academia incluye las dos tablas cuando
   están instaladas (módulo `payment_reminders` del catálogo) y la política de

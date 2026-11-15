@@ -6,28 +6,7 @@
   "regions": [
     "arn1"
   ],
-  "crons": [
-    {
-      "path": "/api/cron/usage-at-risk",
-      "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron/owner-weekly-digest",
-      "schedule": "0 8 * * 1"
-    },
-    {
-      "path": "/api/cron/owner-weekly-digest",
-      "schedule": "0 16 * * 1"
-    },
-    {
-      "path": "/api/cron/family-payment-reminders",
-      "schedule": "0 16 * * *"
-    },
-    {
-      "path": "/api/cron/family-notices",
-      "schedule": "0 17 * * *"
-    }
-  ],
+  "crons": [],
   "env": {
     "NODE_ENV": "production",
     "NODE_OPTIONS": "--max-old-space-size=6144",

@@ -314,16 +314,10 @@ describe("rutas API de recordatorios de cuotas", () => {
     expect(service).toContain("requireReminderRole(scope.member.role)");
   });
 
-  it("el cron del recordatorio automático exige el secreto y corre una vez al día en vercel.json", () => {
+  it("el cron del recordatorio automático exige el secreto y no está programado en vercel.json", () => {
     const cron = read("src/app/api/cron/family-payment-reminders/route.ts");
     expect(cron).toContain("requireCronAuth(request)");
     expect(cron.indexOf("requireCronAuth(request)")).toBeLessThan(cron.indexOf("runCronWithLease("));
-    expect(cron).toContain("export const GET = POST;");
-    // 16:00 UTC: 17:00/18:00 en Madrid y 10:00 en Ciudad de México (ADR-0016). El
-    // servicio no limita horas: la hora de envío la fija solo esta programación.
-    const scheduled = JSON.parse(read("vercel.json")).crons.filter((entry: { path: string }) =>
-      entry.path.includes("family-payment-reminders")
-    );
-    expect(scheduled).toEqual([{ path: "/api/cron/family-payment-reminders", schedule: "0 16 * * *" }]);
+    expect(read("vercel.json")).not.toContain("family-payment-reminders");
   });
 });

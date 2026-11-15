@@ -195,16 +195,11 @@ describe("contrato de la candidata y de la configuración", () => {
     expect(env).toMatch(/\nZALTYKO_USAGE_PSEUDONYM_SECRET=\n/);
   });
 
-  it("programación en vercel.json: riesgo a diario, resumen dos veces el lunes, avisos de clase sin programar", () => {
-    const crons = JSON.parse(read("vercel.json")).crons as Array<{ path: string; schedule: string }>;
-    const forPath = (name: string) => crons.filter((entry) => entry.path.includes(name));
-    expect(forPath("usage-at-risk")).toEqual([{ path: "/api/cron/usage-at-risk", schedule: "0 7 * * *" }]);
-    expect(forPath("owner-weekly-digest")).toEqual([
-      { path: "/api/cron/owner-weekly-digest", schedule: "0 8 * * 1" },
-      { path: "/api/cron/owner-weekly-digest", schedule: "0 16 * * 1" },
-    ]);
-    // Necesita cada 5 minutos; el plan Hobby solo permite un disparo diario (ADR-0016).
-    expect(forPath("coach-session-reminders")).toEqual([]);
+  it("los crons no están programados en vercel.json", () => {
+    const vercel = read("vercel.json");
+    for (const path of ["coach-session-reminders", "owner-weekly-digest", "usage-at-risk"]) {
+      expect(vercel).not.toContain(path);
+    }
   });
 
   it("el módulo no importa el esquema legacy ni escribe en la base desde la vista", () => {

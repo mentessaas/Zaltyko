@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ execute: vi.fn(), send: vi.fn() }));
@@ -19,7 +17,6 @@ import {
   ownerDigestDedupeKey,
   type OwnerDigestMetrics,
 } from "@/modules/habitual-use/domain/owner-weekly-digest";
-import { isOwnerDigestWindow } from "@/modules/habitual-use/domain/local-time";
 import type { OwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -230,7 +227,7 @@ describe("disparo del resumen semanal (cron)", () => {
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
-  it("con los dos disparos del lunes (España y México), repetidos, cada persona recibe un solo resumen", async () => {
+  it("con el disparo de cada hora (pg_cron, minuto 7) y alguno repetido, cada persona recibe un solo resumen", async () => {
     // Registro de correos simulado: la consulta de «ya enviado» lleva la clave como parámetro.
     const logged = new Set<string>();
     mocks.execute.mockImplementation(async (query: { queryChunks?: unknown[] }) => {
@@ -251,16 +248,12 @@ describe("disparo del resumen semanal (cron)", () => {
         timezone: "America/Mexico_City",
       }),
     ];
-    // Hobby dispara en cualquier minuto de la hora y puede entregar el mismo disparo dos veces.
-    for (const at of [
-      "2026-11-16T08:00:00Z",
-      "2026-11-16T08:59:00Z",
-      "2026-11-16T08:30:00Z",
-      "2026-11-16T16:00:00Z",
-      "2026-11-16T16:59:00Z",
-      "2026-11-16T16:30:00Z",
-    ]) {
-      await run({ recipients, now: new Date(at) });
+    // Todo el lunes UTC, a las HH:07, y cada disparo dos veces (un reintento manual o una
+    // ejecución solapada): Madrid entra de 07 a 10 UTC y Ciudad de México de 14 a 17 UTC.
+    for (let hour = 0; hour < 24; hour += 1) {
+      const at = new Date(`2026-11-16T${String(hour).padStart(2, "0")}:07:00Z`);
+      await run({ recipients, now: at });
+      await run({ recipients, now: at });
     }
     expect(mocks.send).toHaveBeenCalledTimes(2);
     expect(mocks.send.mock.calls.map((call) => call[0].to).sort()).toEqual([
@@ -274,41 +267,5 @@ describe("disparo del resumen semanal (cron)", () => {
     mocks.send.mockRejectedValueOnce(new Error("BREVO_API_ERROR: 500")).mockResolvedValueOnce(true);
     const summary = await run({ recipients: [recipient(), other] });
     expect(summary).toMatchObject({ inWindow: 2, failed: 1, sent: 1 });
-  });
-});
-
-describe("programación del resumen en vercel.json (plan Hobby)", () => {
-  const schedules = (JSON.parse(readFileSync("vercel.json", "utf8")).crons as Array<{ path: string; schedule: string }>)
-    .filter((entry) => entry.path.startsWith("/api/cron/owner-weekly-digest"))
-    .map((entry) => entry.schedule);
-  // Hobby solo garantiza la hora: el disparo llega en cualquier minuto de 00 a 59.
-  const firesAt = (monday: string, schedule: string) => {
-    const hour = Number(schedule.split(/\s+/)[1]);
-    return Array.from({ length: 60 }, (_, minute) => new Date(`${monday}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00Z`));
-  };
-  const zones = [
-    "Europe/Madrid",
-    "Atlantic/Canary",
-    "America/Mexico_City",
-    "America/Monterrey",
-    "America/Cancun",
-    "America/Mazatlan",
-    "America/Chihuahua",
-    "America/Hermosillo",
-    "America/Tijuana",
-  ];
-
-  it("son dos disparos semanales, solo los lunes", () => {
-    expect(schedules).toEqual(["0 8 * * 1", "0 16 * * 1"]);
-  });
-
-  // Lunes de invierno y de verano: cambian Madrid, Canarias y Tijuana.
-  it.each(["2026-11-16", "2027-06-07"])("el lunes %s cada zona de España y México cae en un solo disparo, entero", (monday) => {
-    for (const zone of zones) {
-      const covering = schedules.filter((schedule) => firesAt(monday, schedule).every((at) => isOwnerDigestWindow(at, zone)));
-      const touching = schedules.filter((schedule) => firesAt(monday, schedule).some((at) => isOwnerDigestWindow(at, zone)));
-      expect(covering, zone).toHaveLength(1);
-      expect(touching, zone).toEqual(covering);
-    }
   });
 });

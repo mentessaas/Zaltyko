@@ -331,8 +331,8 @@ const EMPTY: OwnerDigestSummary = {
 };
 
 /**
- * Un disparo del cron (dos cada lunes: España y México). Solo actúa sobre quien
- * está en la mañana del lunes de su sede y no ha recibido ya el resumen de esa semana. Con la bandera
+ * Un disparo del cron (cada hora). Solo actúa sobre quien está en la mañana del
+ * lunes de su sede y no ha recibido ya el resumen de esa semana. Con la bandera
  * apagada no toca la base de datos.
  */
 export async function runOwnerWeeklyDigest(

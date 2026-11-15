@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
  * Recordatorio automático de cuotas vencidas. Apagado por defecto: hace falta
  * ZALTYKO_PAYMENT_REMINDERS_ENABLED y ZALTYKO_PAYMENT_REMINDERS_AUTO_ENABLED, y
  * además que la academia lo active en su configuración. Con la bandera apagada
- * responde «enabled: false» sin tocar nada. Programado una vez al día en
- * vercel.json a las 16:00 UTC (tarde en España, mañana en México; ADR-0016).
+ * responde «enabled: false» sin tocar nada. Lo lanza pg_cron en Supabase una vez
+ * al día (16:00 UTC; docs/deployment/scheduler, ADR-0016).
  */
 export async function POST(request: Request) {
   const authError = requireCronAuth(request);

@@ -13,8 +13,8 @@ export const runtime = "nodejs";
  * Reintento de los correos de avisos a familias que quedaron pendientes (cola
  * agotada por tiempo en la petición o fallo del proveedor). Con la bandera
  * apagada o sin el candidato no hace nada. Protegido por CRON_SECRET antes de
- * cualquier trabajo y con lease para no solaparse. Programado una vez al día en
- * vercel.json (plan Hobby; ADR-0016).
+ * cualquier trabajo y con lease para no solaparse. Lo lanza pg_cron en Supabase
+ * cada 10 minutos (docs/deployment/scheduler, ADR-0016).
  */
 export async function POST(request: Request) {
   const authError = requireCronAuth(request);
@@ -37,6 +37,6 @@ export async function POST(request: Request) {
   }
 }
 
-// Vercel Cron invoca los paths configurados mediante GET. Mantener POST permite
-// disparos operativos explícitos con el mismo contrato de autenticación.
+// pg_cron llama por POST; GET queda para disparos manuales con el mismo contrato
+// de autenticación (y por si algún día vuelve a llamar Vercel Cron, que usa GET).
 export const GET = POST;
