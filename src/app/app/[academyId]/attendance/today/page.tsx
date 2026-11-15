@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { formatDateToISOString, formatTimeForCountry } from "@/lib/date-utils";
 import { academies, attendanceRecords, classSessions, classes, coaches } from "@/db/schema";
 import { EmptyState } from "@/components/ui/empty-state";
+import { TodaySnapshotSaver } from "@/components/attendance/TodaySnapshotSaver";
 
 interface PageProps {
   params: Promise<{ academyId: string }>;
@@ -89,6 +90,7 @@ export default async function AttendanceTodayPage({ params }: PageProps) {
       <header className="space-y-1 py-4">
         <h1 className="font-display text-2xl font-bold text-foreground">Pasar lista</h1>
         <p className="text-sm text-muted-foreground">Sesiones de hoy · {todayStr}</p>
+        <TodaySnapshotSaver academyId={academyId} />
       </header>
 
       {isEmpty ? (
