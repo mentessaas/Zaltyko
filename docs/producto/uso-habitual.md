@@ -55,9 +55,19 @@ Cada correo lleva un enlace «Desactívalos aquí». Abre una página con un bot
 
 `20261114130000_habitual_use_candidate.sql` crea una tabla, `public.usage_events`, y dos índices por hora de inicio y de fin en las sesiones (aceleran los avisos a entrenadoras), sin tocar filas existentes. Lleva su **vuelta atrás** documentada (`docs/deployment/candidates/README.md`). RLS activada y forzada, sin permisos para clientes directos; se borra con la academia. Mientras no exista tal como la define el archivo, no se registra nada y la vista dice que no está disponible. **No está aplicada en ningún entorno.**
 
-## Los avisos no se programan solos
+## Cuándo se envían (programación en Vercel)
 
-Hay tres rutas de cron, **sin programar** en `vercel.json` (programarlas es decisión de Elvis): `/api/cron/coach-session-reminders` (cada 5 minutos), `/api/cron/owner-weekly-digest` (cada hora; el aviso solo sale el lunes por la mañana de la sede y una vez por semana) y `/api/cron/usage-at-risk` (una vez al día). Las tres exigen el secreto de cron y un solo disparo a la vez.
+Programado el 15 de noviembre de 2026 con autorización de Elvis, dentro del plan **Hobby** de Vercel: como mucho un disparo al día por entrada, y llega en cualquier minuto de la hora indicada (detalle y fuentes en `docs/architecture/adr/0016-scheduler-de-frescura-y-limites-de-plataforma.md`). Las tres rutas exigen el secreto de cron y un solo disparo a la vez; cada envío sigue dependiendo de su bandera.
+
+| Aviso | Ruta | Cuándo (UTC) | España (Madrid) | México (Ciudad de México) |
+|---|---|---|---|---|
+| Academias en riesgo (a Elvis) | `/api/cron/usage-at-risk` | cada día, 07:00–07:59 | 08:00–08:59 en invierno, 09:00–09:59 en verano | 01:00–01:59 |
+| Resumen semanal, España | `/api/cron/owner-weekly-digest` | lunes, 08:00–08:59 | 09:00–09:59 en invierno, 10:00–10:59 en verano | (fuera de su mañana) |
+| Resumen semanal, México | `/api/cron/owner-weekly-digest` | lunes, 16:00–16:59 | (fuera de su mañana) | 10:00–10:59 |
+| Aviso a quien entrena | `/api/cron/coach-session-reminders` | **sin programar** | — | — |
+
+- **Resumen semanal: dos disparos los lunes, uno por país.** Solo se envía el lunes de 08:00 a 11:59 en la sede, así que los demás días no hace falta disparar. Canarias cae en el disparo de España, y todas las zonas de México (también Cancún, Mazatlán, Hermosillo y Tijuana, con o sin horario de verano) en el de México. Nadie lo recibe dos veces: antes de enviar se comprueba la clave de la persona y la semana, y el registro de correos no admite la misma clave dos veces aunque Vercel repita un disparo. Academias de otros países: si su lunes por la mañana no coincide con ninguno de los dos disparos, no reciben el resumen hasta añadir otro disparo.
+- **Aviso a quien entrena: necesita el plan Pro de Vercel (o un planificador externo).** Tiene que correr cada 5 minutos: avisa unos 15 minutos antes de cada clase y, si la clase termina sin lista, manda un único recordatorio. Hobby solo permite un disparo al día, y con eso el aviso llegaría horas antes o después de cada clase (o nunca para las de la tarde), así que no serviría. Con el plan Pro (mínimo un minuto) o un planificador externo que llame a la ruta con el mismo `CRON_SECRET`, se programa `*/5 * * * *` sin tocar el código. Mientras tanto, aunque la bandera esté encendida, no se envía nada.
 
 ## Cómo probarlo en staging
 
@@ -72,11 +82,12 @@ Hay tres rutas de cron, **sin programar** en `vercel.json` (programarlas es deci
 
 - Las familias se cuentan como cuentas distintas por semana, no personas ni gimnastas.
 - «Academias activas» mira lista pasada o visita del equipo; no distingue entre una visita rápida y un día de trabajo.
-- El resumen y los avisos recorren por páginas todo lo pendiente; el cron tiene el máximo de la plataforma (5 minutos). Con muchas academias convendrá medir el tiempo en staging antes de programar.
+- El resumen y los avisos recorren por páginas todo lo pendiente; el cron tiene el máximo de la plataforma (5 minutos). Con muchas academias convendrá medir el tiempo de cada disparo.
+- Vercel no reintenta un disparo perdido: si se pierde el del lunes, ese resumen no sale esa semana.
 - Las academias con sesiones sin nadie asignado no reciben avisos de clase hasta que asignen entrenadoras (O1).
 
 ## Decide Elvis
 
 - Aplicar la candidata (medición) y cuándo.
-- Programar los tres envíos en `vercel.json` y encender las banderas.
+- Pasar al plan Pro de Vercel (o usar un planificador externo) para programar el aviso a quien entrena cada 5 minutos.
 - A qué correo llega el aviso de academias en riesgo.

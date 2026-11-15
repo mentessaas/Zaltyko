@@ -13,8 +13,9 @@ export const maxDuration = 300;
  * recordatorio si la sesión terminó sin lista. Apagado por defecto: hace falta
  * ZALTYKO_HABITUAL_USE_ENABLED y ZALTYKO_COACH_REMINDERS_ENABLED; con cualquiera
  * apagada responde «enabled: false» sin tocar la base de datos. Pensado para
- * correr cada 5 minutos. No está programado en vercel.json: programarlo es una
- * decisión de Elvis.
+ * correr cada 5 minutos. No está programado en vercel.json: el plan Hobby de
+ * Vercel solo admite un disparo diario y eso no sirve para avisar 15 minutos
+ * antes de cada clase. Necesita el plan Pro o un planificador externo (ADR-0016).
  */
 export async function POST(request: Request) {
   const authError = requireCronAuth(request);

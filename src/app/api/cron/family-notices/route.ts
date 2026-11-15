@@ -1,4 +1,5 @@
 import { apiError, apiSuccess } from "@/lib/api-response";
+import { requireCronAuth } from "@/lib/cron-auth";
 import { runCronWithLease } from "@/lib/cron-lease";
 import { withCronSystemActor } from "@/lib/cron-system-actor";
 import { logger } from "@/lib/logger";
@@ -11,10 +12,14 @@ export const runtime = "nodejs";
 /**
  * Reintento de los correos de avisos a familias que quedaron pendientes (cola
  * agotada por tiempo en la petición o fallo del proveedor). Con la bandera
- * apagada o sin el candidato no hace nada. Protegido por CRON_SECRET y con
- * lease para no solaparse. Programarlo es decisión de Elvis.
+ * apagada o sin el candidato no hace nada. Protegido por CRON_SECRET antes de
+ * cualquier trabajo y con lease para no solaparse. Programado una vez al día en
+ * vercel.json (plan Hobby; ADR-0016).
  */
 export async function POST(request: Request) {
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
+
   try {
     const cron = await withCronSystemActor(request, () =>
       runCronWithLease("cron:family-notices", async () => {
@@ -31,3 +36,7 @@ export async function POST(request: Request) {
     return apiError("FAMILY_NOTICES_WORKER_FAILED", "No se pudieron procesar los avisos pendientes", 500);
   }
 }
+
+// Vercel Cron invoca los paths configurados mediante GET. Mantener POST permite
+// disparos operativos explícitos con el mismo contrato de autenticación.
+export const GET = POST;

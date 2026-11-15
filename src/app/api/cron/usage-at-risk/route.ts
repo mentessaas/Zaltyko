@@ -12,8 +12,8 @@ export const maxDuration = 300;
  * Aviso a Elvis de academias que entran en riesgo (7 días o más sin actividad del
  * equipo). Apagado por defecto: hace falta ZALTYKO_HABITUAL_USE_ENABLED,
  * ZALTYKO_USAGE_METRICS_ENABLED, ZALTYKO_AT_RISK_ALERTS_ENABLED y un destinatario
- * en ZALTYKO_AT_RISK_ALERT_EMAIL. Pensado para correr una vez al día. No está
- * programado en vercel.json: programarlo es una decisión de Elvis.
+ * en ZALTYKO_AT_RISK_ALERT_EMAIL. Programado una vez al día en vercel.json a
+ * las 07:00 UTC (ADR-0016).
  */
 export async function POST(request: Request) {
   const authError = requireCronAuth(request);

@@ -60,9 +60,13 @@ marca `can_view_athletes` en sus vínculos activos. Desde ese momento ve en
   manda otro correo. El mismo cambio sobre la misma sesión tampoco; una
   sustitución nueva (aunque sea con la misma entrenadora) sí avisa.
 - Correos por lotes pequeños al guardar. Lo que no da tiempo o falla queda
-  pendiente y lo reintenta el cron `POST /api/cron/family-notices` (hasta 3
-  intentos, cada 5 minutos como mínimo). Programar ese cron es decisión de
-  Elvis (pregunta h).
+  pendiente y lo reintenta el cron `/api/cron/family-notices` (`GET` o `POST`
+  con `CRON_SECRET`; hasta 3 intentos, cada 5 minutos como mínimo). Está
+  programado una vez al día en `vercel.json`, `0 17 * * *` en UTC (plan Hobby:
+  llega entre las 17:00 y las 17:59 UTC; 18:00–18:59 en Madrid en invierno y
+  19:00–19:59 en verano, 11:00–11:59 en Ciudad de México). Un correo que falló
+  se reintenta al día siguiente; el aviso se ve en el portal desde el primer
+  momento (ADR-0016).
 - Invitar a todas va en lotes de 20; la pantalla repite hasta terminar. Entre
   dos envíos a la misma familia hay 10 minutos de espera, también tras
   revocar.
@@ -168,5 +172,5 @@ el portal.
   valores (hoy solo recuentos).
 - **g) Menú:** entrada «Familias» en `/owner` y botón en la ficha de la
   gimnasta (pendiente de las ramas en curso).
-- **h) Cron de reintento:** programar `POST /api/cron/family-notices` (por
-  ejemplo, cada 10 minutos) con el mismo mecanismo que el resto de crons.
+- **h) Cron de reintento:** resuelta el 15-11-2026: una vez al día por el
+  plan Hobby de Vercel (ver arriba). Con el plan Pro podría ir cada 10 minutos.

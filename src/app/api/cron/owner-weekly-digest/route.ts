@@ -11,9 +11,10 @@ export const maxDuration = 300;
 /**
  * Resumen semanal de dirección: el lunes por la mañana (hora de la sede), solo
  * con lo accionable y nada si no hay nada. Apagado por defecto: hace falta
- * ZALTYKO_HABITUAL_USE_ENABLED y ZALTYKO_OWNER_WEEKLY_DIGEST_ENABLED. Pensado
- * para correr cada hora; la deduplicación por semana evita repetir el envío. No
- * está programado en vercel.json: programarlo es una decisión de Elvis.
+ * ZALTYKO_HABITUAL_USE_ENABLED y ZALTYKO_OWNER_WEEKLY_DIGEST_ENABLED. Programado
+ * en vercel.json dos veces cada lunes (08:00 UTC para España y 16:00 UTC para
+ * México; ADR-0016); la deduplicación por persona y semana evita repetir el
+ * envío aunque se dispare más de una vez.
  */
 export async function POST(request: Request) {
   const authError = requireCronAuth(request);
