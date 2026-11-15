@@ -507,11 +507,12 @@ const CLASS_PLAN_TEMPLATE_BLOCKS_PROJECTION = `coalesce((
  * Sources: docs/deployment/candidates/20261111120000_athlete_progress_candidate.sql,
  * 20261111180000_coach_assignment_candidate.sql,
  * 20261111200000_session_plans_candidate.sql,
- * 20261110120000_admission_requests_candidate.sql and
- * 20261114121000_skill_levels_candidate.sql (not applied anywhere yet).
+ * 20261110120000_admission_requests_candidate.sql,
+ * 20261114121000_skill_levels_candidate.sql (not applied anywhere yet) and
+ * 20261114120500_payment_reminders_candidate.sql (pending Elvis' authorization).
  */
 export interface OptionalIncludedExportModule {
-  module: "athlete_progress" | "coach_assignment" | "session_plans" | "admissions" | "skill_levels";
+  module: "athlete_progress" | "coach_assignment" | "session_plans" | "admissions" | "skill_levels" | "payment_reminders";
   tables: readonly CanonicalExportTableSpec[];
 }
 
@@ -625,6 +626,24 @@ export const OPTIONAL_INCLUDED_EXPORT_MODULES: readonly OptionalIncludedExportMo
         expectedColumns:
           "id organization_id athlete_id template_id level_id location_id client_request_id passed_on passed_by_member_id created_at",
         omit: ["client_request_id"],
+      }),
+    ],
+  },
+  {
+    module: "payment_reminders",
+    tables: [
+      // Una fila por academia: la clave es organization_id, sin columna id.
+      includedTable({
+        name: "payment_reminder_settings",
+        expectedColumns:
+          "organization_id subject_template body_template payment_instructions reply_to_email min_interval_days is_auto_enabled auto_after_days version updated_by_member_id created_at updated_at",
+        orderBy: ["organization_id"],
+      }),
+      // Sin correo ni nombre del destinatario: solo el id del tutor pagador.
+      includedTable({
+        name: "payment_reminders",
+        expectedColumns:
+          "id organization_id charge_id guardian_id email_group_id origin status outstanding_cents currency requested_by_member_id created_at sent_at",
       }),
     ],
   },
