@@ -90,3 +90,12 @@ Configured in `next.config.js` with manifest generation.
 ## More Info
 
 - [Hooks](../10-HOOKS/index.md) - All custom hooks
+
+
+## Pasar lista sin conexión (14 nov 2026)
+
+- La lista de las sesiones de hoy se guarda en IndexedDB (`src/lib/offline-attendance/`) al abrir «Pasar lista» con red; caduca a las 36 h y se borra al cerrar sesión.
+- Las marcas sin red entran en una cola local (una por gimnasta y sesión; la última gana) y se envían a `POST /api/attendance` con `markedAt` y `opId`. El servidor es idempotente y deja registro de los conflictos (`audit_logs`, `attendance.offline_conflict`).
+- `public/sw.js` guarda la pantalla pública `/pasar-lista-sin-conexion` (sin datos) y redirige a ella cuando no hay red en `/app/<academia>/attendance/today`. El HTML privado nunca se guarda.
+- Invitación de instalación: `src/components/pwa/AddToHomeScreenHint.tsx` (a partir de la segunda visita, un mes de espera si se descarta, tres descartes y no vuelve).
+- Plan nativo: `docs/producto/plan-app-movil-nativa.md`.

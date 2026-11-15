@@ -17,6 +17,10 @@ describe("pilot CI reliability without reducing gates", () => {
     expect(job["timeout-minutes"]).toBe(30);
   });
 
+  it("pins the local Owner E2E runner whose Docker image store the image verification supports", () => {
+    expect(workflow.jobs["e2e-local-owner"]["runs-on"]).toBe("ubuntu-24.04");
+  });
+
   it("installs real mobile dependencies before the combined required unit suite", () => {
     const steps = workflow.jobs.test.steps;
     const nodeSetup = steps.find(

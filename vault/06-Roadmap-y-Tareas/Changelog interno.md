@@ -7,6 +7,21 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-14 — Smoke público y Lighthouse alineados con la superficie viva
+
+**Contexto.** Los jobs «Smoke Tests» y «Lighthouse SEO/Perf Budget» de `main` fallaban en cada push porque probaban páginas retiradas de zaltyko.com: `/blog/*` responde 410, los clústeres de gimnasia artística y rítmica redirigen 301 a `/features`, los de trampolín y acrobática responden 410, `/help` redirige 308 a `/ayuda` y las páginas demo de empleo y marketplace responden 404. Además, el copy vivo cambió desde que se escribió el spec: la pestaña de cobros de `/features` ahora se llama «Cuotas», las tarjetas de plan de `/pricing` son `<li>` (ya no `<article>`) y el CTA del hero de portada es «Crear academia gratis».
+
+**Cambio.** Solo `tests/e2e-zaltyko-public.spec.ts` y `.lighthouserc.json`; nada en `src/` ni en workflows.
+- Sitemap: comprueba rutas vivas (`/features`, `/pricing`, `/faq`, guía `/help/crear-cuenta`) y que ya no anuncia `/blog` ni los clústeres por disciplina; sigue sin aceptar la fecha congelada `2026-03-26`.
+- Páginas prioritarias: `/blog` y `/es/gimnasia-artistica/espana` sustituidos por `/faq` y `/ayuda` (200 del sitemap, con descripción y canonical propios verificados).
+- Prueba nueva de rutas retiradas: `/blog`, un slug de blog, `/es/trampolin/espana` y `/en/acrobatic-gymnastics/spain` deben responder 410; `/es/gimnasia-artistica/espana` y `/es/gimnasia-ritmica/espana` deben aterrizar en `/features` (siguiendo la redirección).
+- Centro de ayuda: el índice se comprueba en `/ayuda` y se verifica que el alias `/help` redirige ahí; las guías siguen en `/help/*`.
+- Páginas demo de marketplace/empleo: la prueba de contenido se sustituye por una aserción de 404 real (el contrato actual del middleware).
+- Copy vivo: pestaña «Cuotas» con panel «Cuotas al día, sin libreta» (catálogo público); tarjeta Starter localizada por `listitem`; CTA de portada «Crear academia gratis» → `/auth/register?role=owner`.
+- `.lighthouserc.json`: `/blog/migrar-excel-software-academia-gimnasia` (410) y `/es/gimnasia-artistica/espana` (301) sustituidos por `/faq` y `/ayuda`; 5 URLs y aserciones intactas.
+
+**Pruebas.** Ninguna ejecutada en local (prohibido en esta máquina). Cada ruta se verificó con GET de `curl` contra zaltyko.com (200/410/301/308/404 según el contrato de `src/lib/launch/essential-routes.ts`) y el copy se cotejó con el HTML servido y con `essential-public-catalog.ts` y `plans/catalog.ts`. La validación real la hace la CI en el próximo push a `main`. La permanencia de las redirecciones de clústeres (301) ya la cubre `tests/seo/retired-pages.test.ts` a nivel de configuración; el smoke comprueba el comportamiento HTTP. Si alguna superficie retirada vuelve a publicarse, estas aserciones (410/404/redirect y las negativas del sitemap) deben actualizarse a la vez que `essential-routes.ts`.
+
 ## 2026-11-14 — Niveles y progresión por aparato (A6), apagado
 
 **Contexto.** Brecha A6 del análisis de competencia: progresión por niveles y aparatos con informe para la familia y diploma. Se continúa lo de objetivos y observaciones (271).
@@ -42,6 +57,20 @@ source:
 **Cambio.** Aviso a quien entrena ~15 min antes de cada sesión y un único recordatorio si falta la lista (hora de la sede, sin envíos de madrugada, sin duplicados, punto de extensión para push); resumen semanal de dirección el lunes por la mañana, solo con lo accionable y sin envío si no hay nada; desactivación con enlace firmado por tipo de aviso; consultas filtradas en SQL y paginadas, sin tope por envío; «Gimnastas sin venir» abre `/owner/athletes/sin-venir`; eventos de uso sin datos de personas, vista `/super-admin/uso` (sesiones con lista por semana como métrica principal) y aviso a Elvis de academias en riesgo (7 días sin actividad). Docs: `docs/producto/uso-habitual.md`.
 
 **No ejecutado / pendiente.** Candidata `docs/deployment/candidates/20261114130000_habitual_use_candidate.sql` (`public.usage_events` y dos índices en `zaltyko.sessions`, con vuelta atrás documentada) sin aplicar: requiere autorización de Elvis. Los tres crons no están en `vercel.json`. Verificación solo en la CI de la PR (no se ejecutó nada en el Mac).
+
+## 2026-11-14 — Pasar lista sin conexión, instalar Zaltyko en el móvil y plan de la app nativa
+
+**Cambio.** Las entrenadoras pueden pasar lista en el tapiz sin cobertura. La lista de las sesiones de hoy se guarda en el móvil (IndexedDB) al abrir «Pasar lista» con red; las marcas hechas sin red van a una cola local y se envían al volver la conexión. Cada gimnasta muestra «Guardado» o «Pendiente de enviar». Se añade una invitación discreta «Añade Zaltyko a tu pantalla de inicio» para entrenadoras y dirección (Android, y pasos de Safari en iPhone/iPad), manifiesto con iconos separados `any` / `maskable` y un acceso directo «Pasar lista». Plan de la app nativa en `docs/producto/plan-app-movil-nativa.md` (recomendación: PWA ahora; Expo/React Native reutilizando `mobile/` cuando haya señal; no Capacitor).
+
+**Servidor.** `POST /api/attendance` acepta `markedAt` y `opId` por marca y devuelve `results` por gimnasta (`applied`, `duplicate`, `superseded`). «La última marca gana» según la hora real de la marca; reenviar la misma marca no cambia nada; solo es conflicto si el guardado difiere de lo que la entrenadora veía (`seenRecordedAt`), y queda en `audit_logs` con acción `attendance.offline_conflict`. El móvil manda también su hora de envío (`sentAt`) y el servidor compensa un reloj adelantado o atrasado. Nuevo `GET /api/attendance/today?academyId=` (solo las clases que la entrenadora tiene asignadas). Sin migración: `recordedAt` pasa a ser el momento de la marca.
+
+**Privacidad.** En el dispositivo solo se guarda identificador, nombre y grupo de cada gimnasta y las marcas; nunca salud, fecha de nacimiento ni datos de familia. Las listas caducan a las 36 horas. Las marcas sin enviar se guardan por usuaria (cola propia) y caducan a los 7 días (3 las rechazadas); listas a las 36 h, también al arrancar la app o activarse el service worker. Al cerrar sesión desde un botón se intenta enviar lo pendiente (4 s) y, si quedan marcas, avisa «Tienes N marcas sin enviar» y las conserva hasta que vuelva a entrar con esa cuenta; con sesión caducada o cierre desde otra pantalla se borran las listas pero no las marcas. Las marcas de otra persona que usó el móvil no se envían con otra cuenta ni se borran.
+
+**Service worker.** Guarda una pantalla pública y sin datos (`/pasar-lista-sin-conexion`) y sus archivos; sin red, `/app/<academia>/attendance/today[/<sesión>]` redirige a ella. El HTML privado de `/app/*` sigue sin guardarse nunca.
+
+**Probado.** Pruebas unitarias nuevas (cola, sincronización, idempotencia, decisión de conflictos, invitación de instalación, service worker) y ampliadas (`api-attendance`, `pwa-security`, que ahora permite el acceso directo «Pasar lista»). **No se ha probado en un móvil real ni en staging**: falta comprobar en staging que la pantalla sin conexión se abre en modo avión.
+
+**Sin resolver.** (1) Las marcas que no se envían en 7 días caducan y se pierden. (2) Las notas de una marca se vuelven a dejar vacías si la marca viene del móvil sin notas, igual que antes en línea. (3) La invitación para iPhone no se puede probar en simulador de escritorio.
 
 ## 2026-11-14 — Demo pública sin registro (`/demo`)
 

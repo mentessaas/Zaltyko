@@ -207,13 +207,36 @@ describe("PWA security contracts", () => {
     expect(source).toContain("Offline mutations are disabled");
   });
 
-  it("does not advertise legacy shortcuts or a missing share endpoint", () => {
+  it("only advertises shortcuts that point at live routes and no missing share endpoint", () => {
     const manifestPath = fileURLToPath(
       new URL("../public/manifest.json", import.meta.url)
     );
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 
-    expect(manifest.shortcuts).toEqual([]);
+    // «Pasar lista» abre la pantalla local que dibuja la lista guardada.
+    expect(manifest.shortcuts.map((s: { url: string }) => s.url)).toEqual([
+      "/pasar-lista-sin-conexion",
+    ]);
+    expect(
+      readFileSync(
+        fileURLToPath(
+          new URL("../src/app/pasar-lista-sin-conexion/page.tsx", import.meta.url)
+        ),
+        "utf8"
+      )
+    ).toContain("OfflineAttendanceShell");
     expect(manifest.share_target).toBeUndefined();
+  });
+
+  it("declares maskable icons separately from regular icons", () => {
+    const manifest = JSON.parse(
+      readFileSync(fileURLToPath(new URL("../public/manifest.json", import.meta.url)), "utf8")
+    );
+    for (const icon of manifest.icons as Array<{ purpose: string }>) {
+      expect(["any", "maskable"]).toContain(icon.purpose);
+    }
+    const maskable = manifest.icons.filter((i: { purpose: string }) => i.purpose === "maskable");
+    expect(maskable.map((i: { sizes: string }) => i.sizes).sort()).toEqual(["192x192", "512x512"]);
+    expect(manifest.id).toBe("/");
   });
 });
