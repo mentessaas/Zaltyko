@@ -86,7 +86,7 @@ export function PlanSelector({
       <div className="grid gap-4 md:grid-cols-3">
         {plans.length === 0 && !loading && (
           <p className="text-sm text-muted-foreground">
-            No hay planes disponibles. Comprueba la sincronización con Stripe.
+            No hay planes disponibles. Vuelve a intentarlo en unos minutos.
           </p>
         )}
         {plans.map((plan) => {

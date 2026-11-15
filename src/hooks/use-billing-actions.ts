@@ -41,7 +41,7 @@ export function useBillingActions(
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error ?? "No se pudo iniciar el checkout");
+        throw new Error(data?.error ?? "No se pudo abrir el pago. Inténtalo de nuevo.");
       }
 
       if (data.data?.checkoutUrl) {

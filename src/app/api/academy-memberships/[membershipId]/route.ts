@@ -75,7 +75,7 @@ export const DELETE = withTenant(async (_request, context) => {
     if (otherOwners.length === 0) {
       return apiError(
         "LAST_OWNER_REQUIRED",
-        "La academia debe conservar al menos un owner vinculado",
+        "La academia debe tener al menos una persona titular",
         400
       );
     }

@@ -84,7 +84,7 @@ export default function RegisterForm() {
     } else {
       toast.pushToast({
         title: "Cuenta creada",
-        description: "Redirigiendo al dashboard...",
+        description: "Te llevamos a tu panel...",
         variant: "success",
       });
       router.push("/dashboard");

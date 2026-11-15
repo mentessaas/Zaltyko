@@ -85,10 +85,11 @@ cuanto existían esas tablas, porque las trataba como desconocidas. Ahora
   técnico como `parcial`. Pero solo inserta lo que falta: si la base de
   producción ya tenía cargados esos flujos, hay que cambiar su estado a mano
   en `/super-admin/competencia`.
-- **Pendiente, en una PR propia.** Borrar una cuenta falla en cuanto la
-  persona tiene autoría en la academia, o si invitó o aceptó una invitación.
-  La ficha de una gimnasta que vino de una solicitud tampoco se puede borrar.
-  Detalle y propuesta de seudonimización:
+- **Supresión de cuentas (14-11-2026).** Borrar una cuenta fallaba en cuanto
+  la persona tenía autoría en la academia. Lo resuelve la candidata
+  `20261114120000_account_erasure_candidate.sql` (sección propia, abajo), aún
+  sin aplicar. **Pendiente, en una PR propia:** la ficha de una gimnasta que
+  vino de una solicitud sigue sin poder borrarse. Detalle:
   `docs/privacy/borrado-de-cuentas-y-fichas.md`.
 - **Contrato.** `tests/data-rights-activated-modules-contract.test.ts` lee
   todo el SQL y falla si una tabla `zaltyko.*` queda sin clasificar, si las
@@ -437,6 +438,114 @@ locales y facturación) llegará más adelante.
 - **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 
+## Candidato de supresión de cuentas (RGPD art. 17)
+
+`20261114120000_account_erasure_candidate.sql` hace posible suprimir una cuenta
+de Supabase Auth y su perfil legacy sin perder los registros que cada academia
+debe conservar. La pertenencia (`zaltyko.organization_members`) deja de
+borrarse en cascada: el servidor la revoca y, al borrar la cuenta, `user_id`
+pasa a null. Cambia, sobre tablas ya aplicadas (decisión por tabla en
+`docs/privacy/borrado-de-cuentas-y-fichas.md`):
+
+- `organization_members.user_id`: CASCADE → SET NULL, sin NOT NULL, con el
+  CHECK `organization_members_erased_account_revoked_ck` (sin cuenta ⇒
+  revocada). Un borrado directo de `auth.users` falla entero si la cuenta sigue
+  activa en alguna academia.
+- `payments.recorded_by_user_id` e `insight_actions.actor_user_id`: RESTRICT →
+  SET NULL (sin NOT NULL en el segundo). `payments_source_fields_valid` deja de
+  exigir quién anotó un pago manual; el resto del CHECK no cambia.
+- `organization_member_invitations.accepted_by_user_id`: NO ACTION → SET NULL,
+  y el CHECK de estado (mismo nombre) ya no exige la cuenta en «aceptada»;
+  sigue exigiendo `accepted_member_id`. El servidor sustituye antes su email y
+  nombre. `organization_team_command_receipts.actor_user_id`: NO ACTION →
+  CASCADE.
+- `zaltyko_domain_private.reject_audit_mutation()` y
+  `reject_insight_history_mutation()`: siguen rechazando UPDATE y DELETE,
+  salvo el vaciado de `actor_user_id` que hace la propia clave al borrar la
+  cuenta (solo esa columna, y solo si la cuenta ya no existe). Mismos triggers.
+- Directorio público: `directory_grants.user_id` → CASCADE; el resto de claves
+  a `auth.users` → SET NULL.
+- Perfil legacy (`public.profiles`): `academies.owner_id` CASCADE → **RESTRICT**
+  (antes, borrar a la dueña borraba la academia legacy con cobros y facturas);
+  `coaches.profile_id`, `announcements.author_id`,
+  `conversation_messages.sender_id`, `invitations.invited_by`,
+  `event_registrations.profile_id`, `ticket_responses.user_id` y
+  `ticket_attachments.uploaded_by`: CASCADE → SET NULL.
+- Donde quita NOT NULL, un trigger `BEFORE INSERT`
+  (`zaltyko_domain_private.require_column_on_insert`, sin EXECUTE para
+  `anon`/`authenticated`) sigue exigiendo el valor en filas nuevas. Donde
+  relaja un CHECK, otros dos lo mantienen para registros nuevos:
+  `payments_manual_recorder_required` (un pago manual nuevo necesita quién lo
+  anotó) y `organization_member_invitations_acceptor_required` (una invitación
+  que pasa a «aceptada» necesita su cuenta).
+- Sin cambios y a propósito: `organization_saas_webhook_reconciliation_decisions.actor_user_id`
+  sigue en RESTRICT (evidencia fiscal de solo inserción); las autorías hacia
+  `organization_members` no se tocan.
+
+No crea tablas ni cambia filas, roles, RLS ni permisos. El preflight comprueba
+la forma exacta de cada clave, columna, CHECK y función, y aborta antes de tocar
+nada si algo difiere, si se reaplica o si existe otra clave hacia `auth.users`
+en cualquier esquema salvo `auth` (por ejemplo `storage`) que pueda bloquear y
+no esté revisada. Exige el directorio público y las tablas legacy: si un entorno
+no las tiene, aborta y hace falta otra candidata.
+
+**Bloqueos.** `set local lock_timeout = '3s'`: si otra sesión retiene una de las
+tablas, aborta sin efectos y se reintenta. Las claves y CHECK nuevos se crean
+`NOT VALID` (sin recorrer las tablas con bloqueo exclusivo; ya se aplican a
+filas nuevas y sus acciones `ON DELETE` funcionan). El segundo paso,
+`20261114120000_account_erasure_validate.sql`, los valida con `VALIDATE
+CONSTRAINT` (SHARE UPDATE EXCLUSIVE: no bloquea lecturas ni escrituras); es
+repetible.
+
+| Archivo | SHA-256 |
+|---|---|
+| `20261114120000_account_erasure_candidate.sql` | `713f96217777d0da34925b043add602e4cde12202290e17043554747cc1abe65` |
+| `20261114120000_account_erasure_validate.sql` (segundo paso) | `db7ff76c7f9a28ad1db186d567ca6430717c0d03595cc6a41a184a3b0cb87fa9` |
+| `20261114120000_account_erasure_verify.sql` (solo lectura) | `6e1f31a8bdf4bdae967c4e8a65cf16930ee13bdfad08f1b6258a554ceeaced62` |
+| `20261114120000_account_erasure_rollback.sql` | `6f0344c75f479fda3f0f9d0772230eb68dfaf830d27a99d6e7bd7e27a977a9ec` |
+
+- **Aplicar** (staging primero) y verificar:
+
+  ```bash
+  shasum -a 256 docs/deployment/candidates/20261114120000_account_erasure_*.sql
+  psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -c "select current_database(), version();"
+  psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f docs/deployment/candidates/20261114120000_account_erasure_candidate.sql
+  psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f docs/deployment/candidates/20261114120000_account_erasure_validate.sql
+  PGOPTIONS='-c default_transaction_read_only=on' psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -f docs/deployment/candidates/20261114120000_account_erasure_verify.sql
+  ```
+
+  La verificación es un único bloque que solo lee el catálogo (la sesión en
+  solo lectura lo garantiza). Escribe una línea `ok` por comprobación y termina
+  con `Account erasure verification passed`; si algo no cuadra, falla con la
+  lista. La prueba funcional con cuentas de staging está en
+  `docs/privacy/borrado-de-cuentas-y-fichas.md`, «Verificar en staging».
+- **Vuelta atrás:** `20261114120000_account_erasure_rollback.sql`, también con
+  `-1`. Restaura las definiciones exactas y retira triggers y función, con o
+  sin el paso de validación. Solo funciona mientras no se haya suprimido
+  ninguna cuenta: si ya hay filas con la referencia vacía, aborta sin tocar
+  nada (nunca se rellenan con otra cuenta).
+- **Código:** `src/modules/data-rights/application/account-erasure.ts` y
+  `DELETE /api/super-admin/users/[profileId]`. Sin la candidata, la supresión
+  responde 503 y no borra nada. Antes de revocar, busca en el catálogo toda
+  clave NO ACTION/RESTRICT hacia la cuenta o el perfil y responde 409 si alguna
+  tiene filas de esta persona. El guardia del acceso de equipo
+  (`canonical-team-access-schema.ts`) acepta la forma anterior o la posterior a
+  esta candidata, nunca una mezcla. La posterior incluye su trigger revisado y
+  admite sus tres restricciones aún `NOT VALID`: el acceso de equipo sigue
+  disponible entre la candidata y el paso de validación, y después.
+- **Espejos Drizzle legacy** (`src/db/schema/`): siguen declarando NOT NULL en
+  las columnas de autor legacy que la candidata vacía al suprimir. Se ajustarán
+  cuando el historial se versione; mientras, una consulta que una esas filas
+  con el perfil por `inner join` no las mostrará.
+- **Pruebas:** `tests/account-erasure-pg.test.ts` en el job «Postgres
+  integration» (instalación, validación, verificación, rechazo de reinstalar,
+  vuelta atrás idéntica, supresión real con autoría en cada tipo de registro,
+  borrado del perfil legacy, triggers de autor y bloqueos), dentro de una
+  transacción que se deshace; `tests/account-erasure.test.ts` y el contrato
+  `tests/data-rights-activated-modules-contract.test.ts`.
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+  ningún entorno. La CI verde no equivale a autorización.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.
@@ -471,3 +580,13 @@ instalación trusted sin conceder SUPERUSER al propietario del candidato. No
 se afirma equivalencia del propietario de cada objeto de extensión con el
 bootstrap productivo. PostgreSQL ejecuta los scripts trusted como bootstrap,
 aunque la extensión pertenezca al llamador: [documentación PostgreSQL17](https://www.postgresql.org/docs/17/sql-createextension.html).
+
+## Comprobar los hashes
+
+Antes de aplicar una candidata, comprueba que el SHA-256 del `.sql` coincide con el documentado aquí:
+
+```bash
+node scripts/candidates/verify-candidate-hashes.mjs
+```
+
+`OK`: el hash del archivo figura en este README. `FALTA EN README`: el archivo no coincide con ningún hash documentado; no aplicarlo sin revisar qué cambió. `HASH SIN ARCHIVO`: hash del README sin archivo correspondiente; solo avisa, porque aquí se conservan hashes históricos. El comando termina con código de salida 1 si hay algún `FALTA EN README`.

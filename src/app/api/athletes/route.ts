@@ -117,7 +117,7 @@ const createAthleteHandler = withTenant(async (request, context) => {
           {
             ok: false,
             error: "LIMIT_REACHED",
-            message: `Has alcanzado el límite de atletas de tu plan actual. Actualiza a ${getProductPlanPublicName(upgradeTo)} (${upgradeInfo.price}) para agregar más atletas.`,
+            message: `Has llegado al límite de gimnastas de tu plan. Actualiza a ${getProductPlanPublicName(upgradeTo)} (${upgradeInfo.price}) para añadir más gimnastas.`,
             details: {
               ...error.payload,
               upgradeInfo: {

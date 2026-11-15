@@ -77,7 +77,7 @@ export async function readBaseline(
     throw fail("VERSION_CONFLICT", "No hay una suscripción canónica única para el evento", 409);
   }
   if (row.organization_id !== event.organization_id) {
-    throw fail("VERSION_CONFLICT", "La suscripción no pertenece a la organización del evento", 409);
+    throw fail("VERSION_CONFLICT", "La suscripción no es de la academia del evento", 409);
   }
   return {
     subscription: {

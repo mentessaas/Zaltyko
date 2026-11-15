@@ -46,10 +46,10 @@ const handler = withTenant(async (req: Request, context) => {
       profile: context.profile,
     });
     if (snapshot.status === "not_found") {
-      return apiError("ATHLETE_NOT_FOUND", "No se encontró el atleta en esta academia", 404);
+      return apiError("ATHLETE_NOT_FOUND", "No encontramos a la gimnasta en esta academia", 404);
     }
     if (snapshot.status === "forbidden") {
-      return apiError("ATHLETE_ACCESS_DENIED", "No tienes permiso para consultar este atleta", 403);
+      return apiError("ATHLETE_ACCESS_DENIED", "No tienes permiso para ver a esta gimnasta", 403);
     }
     if (recentAssessments.length === 0) {
       return apiSuccess({

@@ -7,7 +7,7 @@ import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 const handler = withTenant(async () =>
   apiError(
     "DEPRECATED_BILLING_FLOW",
-    "Este flujo fue retirado. Usa Checkout para contratar o el portal de facturación para cambiar de plan.",
+    "Esta opción ya no existe. Contrata desde la página de pago seguro o cambia de plan en el portal de facturación.",
     410,
   ),
 );

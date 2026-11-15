@@ -28,7 +28,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     priceEurCents: 0,
     description:
       "Para academias que están empezando a digitalizar su gestión diaria.",
-    shortDescription: "Hasta 30 gimnastas · 1 academia",
+    shortDescription: "Hasta 30 gimnastas · 1 sede",
     athleteLimit: 30,
     groupLimit: 3,
     classLimit: 10,
@@ -38,7 +38,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     checkoutMode: "included",
     features: [
       "Hasta 30 gimnastas",
-      "1 academia",
+      "1 sede",
       "3 grupos",
       "10 clases activas",
       "Asistencia y cobros básicos con registro manual",
@@ -53,7 +53,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     annualPriceEurCents: 19000,
     description:
       "Para academias pequeñas que quieren ordenar grupos, asistencia y cobros.",
-    shortDescription: "Hasta 75 gimnastas · 1 academia",
+    shortDescription: "Hasta 75 gimnastas · 1 sede",
     athleteLimit: 75,
     groupLimit: 5,
     classLimit: 20,
@@ -62,7 +62,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     ctaHref: "/auth/register?role=owner",
     checkoutMode: "self-serve",
     features: [
-      "Hasta 75 gimnastas · 1 academia",
+      "Hasta 75 gimnastas · 1 sede",
       "Familias, grupos, clases e inscripciones",
       "Asistencia y cuotas mensuales con registro manual de pagos",
       "Resumen de actividad y cobros registrados",
@@ -78,7 +78,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     annualPriceEurCents: 49000,
     description:
       "Para academias en crecimiento que necesitan más capacidad y seguimiento diario.",
-    shortDescription: "Hasta 200 gimnastas · 1 academia",
+    shortDescription: "Hasta 200 gimnastas · 1 sede",
     athleteLimit: 200,
     groupLimit: 10,
     classLimit: 40,
@@ -88,7 +88,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     ctaHref: "/auth/register?role=owner",
     checkoutMode: "self-serve",
     features: [
-      "Hasta 200 gimnastas · 1 academia",
+      "Hasta 200 gimnastas · 1 sede",
       "Todo lo de Starter",
       "10 grupos y 40 clases activas",
       "Cuotas y pagos familiares con registro manual",

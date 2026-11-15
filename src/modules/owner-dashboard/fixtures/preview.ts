@@ -84,7 +84,7 @@ export const ownerDashboardPreviewBundle: OwnerDashboardBundle = {
   metrics: [
     {
       key: "active_athletes_count",
-      name: "Atletas activos al cierre",
+      name: "Gimnastas activos al cierre",
       unit: "count",
       value: 84,
       currency: null,

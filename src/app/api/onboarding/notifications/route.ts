@@ -102,6 +102,6 @@ export async function POST(request: Request) {
     return apiSuccess({ ok: true });
   } catch (error) {
     logger.error("Error saving onboarding notifications", error);
-    return apiError("SERVER_ERROR", "Error del servidor", 500);
+    return apiError("SERVER_ERROR", "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos.", 500);
   }
 }

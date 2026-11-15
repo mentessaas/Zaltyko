@@ -19,6 +19,10 @@ source:
 - No usar `drizzle-kit push` contra staging o producción. `pnpm db:migrate` queda bloqueado por
   código cuando `DATABASE_URL` no apunta a loopback; aplicar SQL versionado y revisado con
   `pnpm db:migrate:reviewed supabase/migrations/<archivo>.sql`.
+- Comprobar los SHA-256 de las candidatas de `docs/deployment/candidates/` con
+  `node scripts/candidates/verify-candidate-hashes.mjs`: contrasta el hash de cada `.sql` con
+  su README y avisa de los hashes históricos sin archivo. No sustituye la autorización humana
+  por archivo y destino.
 
 ## Estado a 2026-07-16
 

@@ -80,7 +80,7 @@ export function TicketForm({ academyId, onSubmit }: TicketFormProps) {
 
         const payload = await response.json();
         if (!payload.ok || !payload.data?.id) {
-          throw new Error(payload.error || "Respuesta inválida del servidor");
+          throw new Error(payload.error || "No pudimos leer la respuesta. Inténtalo de nuevo.");
         }
         router.push(`/app/${academyId}/support/${payload.data.id}`);
       }

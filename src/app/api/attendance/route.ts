@@ -81,7 +81,7 @@ export const POST = withTenant(async (request, context) => {
       if (!athlete) {
         return apiError(
           "ATHLETE_NOT_IN_CLASS",
-          "Uno o más atletas no pertenecen a esta clase o sesión",
+          "Alguna gimnasta no está en esta clase o sesión",
           400,
           { athleteId: entry.athleteId }
         );

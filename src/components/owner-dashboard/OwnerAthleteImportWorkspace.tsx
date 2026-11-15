@@ -152,7 +152,7 @@ export function OwnerAthleteImportWorkspace({
       setMapping(payload.data.mapping);
       setMappingDirty(false);
     } catch {
-      setError("No se pudo contactar con el servidor. Inténtalo de nuevo.");
+      setError("No hay conexión con Zaltyko. Inténtalo de nuevo.");
     } finally {
       setBusy(false);
     }

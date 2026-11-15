@@ -90,7 +90,7 @@ export function AthleteProfileHeader({
   if (error || !athlete) {
     return (
       <div className="rounded-2xl border border-zaltyko-coral/25 bg-zaltyko-coral/10 p-6 shadow-soft">
-        <p className="text-sm text-zaltyko-coral">{error ?? "Atleta no encontrado."}</p>
+        <p className="text-sm text-zaltyko-coral">{error ?? "No encontramos a la gimnasta."}</p>
       </div>
     );
   }

@@ -61,7 +61,7 @@ export async function GET(request: Request) {
     return problemResponse({
       status: 400,
       title: "Filtro inválido",
-      detail: "Selecciona una organización, sede o grupo válido.",
+      detail: "Selecciona una academia, sede o grupo válido.",
       type: "invalid-group-filter",
       errors: query.error.flatten(),
     });

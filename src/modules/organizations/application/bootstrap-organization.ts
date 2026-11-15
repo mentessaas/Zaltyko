@@ -302,7 +302,7 @@ export async function bootstrapOrganization(
       if (legacyMembership.rows.length > 0) {
         throw new OperationalError(
           "INVALID_STATE_TRANSITION",
-          "La cuenta ya tiene una relación con una academia existente. Solicita su vinculación antes de crear otra organización.",
+          "La cuenta ya tiene una relación con una academia existente. Pide que la vinculen antes de crear otra academia.",
           409,
           { reason: "legacy-academy-link-required" }
         );
@@ -323,7 +323,7 @@ export async function bootstrapOrganization(
     if (existing) {
       throw new OperationalError(
         "INVALID_STATE_TRANSITION",
-        "La cuenta ya tiene una organización activa",
+        "La cuenta ya tiene una academia activa",
         409
       );
     }

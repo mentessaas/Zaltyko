@@ -64,7 +64,7 @@ export function handleApiError(
   if (error instanceof Error) {
     logger.apiError(context?.endpoint ?? "unknown", context?.method ?? "unknown", error, context);
 
-    return standardizedApiError("INTERNAL_ERROR", "Error interno del servidor", 500);
+    return standardizedApiError("INTERNAL_ERROR", "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos.", 500);
   }
 
   logger.error("Unknown API error", error, context);

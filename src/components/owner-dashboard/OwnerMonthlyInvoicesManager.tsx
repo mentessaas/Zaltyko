@@ -643,8 +643,7 @@ export function OwnerMonthlyInvoicesManager({
             id="monthly-invoice-period-help"
             className="text-xs text-z-soft"
           >
-            El total y el desglose llegan calculados por el servidor para este
-            periodo.
+            El total y el desglose se calculan para este periodo.
           </span>
         </label>
       </div>

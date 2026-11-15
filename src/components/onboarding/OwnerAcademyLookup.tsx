@@ -207,7 +207,7 @@ export function OwnerAcademyLookup({
           </ul>
           <p>
             Si es otra sede o entidad, puedes continuar. Una coincidencia exacta
-            se revisará también en el servidor para evitar duplicados.
+            lo revisaremos también al guardar para evitar duplicados.
           </p>
           <button
             type="button"

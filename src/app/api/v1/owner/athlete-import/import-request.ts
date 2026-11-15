@@ -139,7 +139,7 @@ export async function readImportRequest(
     if (!key.success) {
       return refuse(
         400,
-        "Falta la clave de la operación (Idempotency-Key, de 8 a 150 caracteres).",
+        "Falta la clave de este envío. Recarga la página y vuelve a intentarlo.",
         "invalid-athlete-import-request"
       );
     }

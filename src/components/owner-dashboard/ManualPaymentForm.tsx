@@ -279,7 +279,7 @@ export function ManualPaymentForm({
             setError(
               pendingSnapshots.length > 0
                 ? "Hay otro envío pendiente en una pestaña. Reintenta ese mismo registro antes de crear uno nuevo."
-                : "Hay un envío pendiente en otra sesión de Owner. Vuelve a la cuenta que lo inició para resolverlo antes de registrar otro pago."
+                : "Hay un pago sin confirmar iniciado con otra cuenta. Entra con esa cuenta y termínalo antes de registrar otro."
             );
             return;
           }

@@ -389,7 +389,7 @@ export function OwnerGuardianProfileEditor({
           keepPending = true;
           setPending(command);
           setPendingBlocked(false);
-          setError("El servidor confirmó el perfil, pero no se pudo limpiar el marcador. Conservamos la misma operación para comprobarla otra vez.");
+          setError("Se guardó el perfil, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
           return;
         }
         setPending(null);
@@ -436,7 +436,7 @@ export function OwnerGuardianProfileEditor({
         } else {
           keepPending = true;
           setPending(command);
-          setError("El servidor rechazó el cambio, pero el marcador no se pudo limpiar. No prepararemos otra operación.");
+          setError("No se guardó el cambio y queda un intento sin confirmar. Pulsa el botón de reintentar antes de hacer otro cambio.");
         }
         return;
       }

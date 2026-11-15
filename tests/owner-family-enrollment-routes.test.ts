@@ -290,7 +290,7 @@ describe("Owner enrollment POST site eligibility boundary", () => {
       if (!openRelationshipLocationIds.includes(command.locationId)) {
         throw new OperationalError(
           "NOT_FOUND",
-          "Atleta activo no encontrado en esta sede",
+          "No encontramos a la gimnasta activa en esta sede",
           404
         );
       }

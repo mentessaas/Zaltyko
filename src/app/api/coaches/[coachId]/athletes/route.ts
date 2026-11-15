@@ -35,7 +35,7 @@ export const GET = withTenant(async (_request, context) => {
     .limit(1);
 
   if (!coach) {
-    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+    return apiError("COACH_NOT_FOUND", "No encontramos a la entrenadora", 404);
   }
 
   const scope = await authorizeAcademyCapability({
@@ -46,7 +46,7 @@ export const GET = withTenant(async (_request, context) => {
   });
 
   if (!scope.allowed) {
-    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+    return apiError("COACH_NOT_FOUND", "No encontramos a la entrenadora", 404);
   }
 
   // Obtener clases asignadas al coach

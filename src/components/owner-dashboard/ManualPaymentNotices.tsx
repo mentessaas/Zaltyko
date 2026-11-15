@@ -50,8 +50,7 @@ export function ManualPaymentOtherActorNotice({
       role="alert"
       className={ownerUi.noticeWarning}
     >
-      Hay un envío pendiente en otra sesión de Owner. Vuelve a la cuenta que lo
-      inició para reintentar ese mismo registro antes de crear otro pago.
+      Hay un envío sin terminar con otra cuenta de la dirección. Entra con esa cuenta para repetir ese registro antes de crear otro pago.
     </div>
   ) : null;
 }
@@ -76,9 +75,7 @@ export function ManualPaymentLegacyRecoveryNotice({
       className={ownerUi.noticeWarning}
     >
       <p>
-        Hay un envío antiguo que no conserva qué usuario lo inició. Si lo
-        recuperas, quedará vinculado a la sesión autenticada actual. El servidor
-        volverá a comprobar los permisos y no se enviará hasta que pulses
+        Hay un envío antiguo y no sabemos quién lo inició. Si lo recuperas, quedará con tu cuenta actual. Se comprobarán de nuevo los permisos y no se enviará hasta que pulses
         «Reintentar el mismo registro».
       </p>
       {otherSubmissionPending && (

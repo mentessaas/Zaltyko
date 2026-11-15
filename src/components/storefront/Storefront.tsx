@@ -117,7 +117,7 @@ export function Storefront({
         if (url) {
           window.location.href = url;
         } else {
-          setError("No se recibió URL de checkout");
+          setError("No se pudo abrir el pago. Inténtalo de nuevo.");
         }
       } else {
         const detail = await res.json().catch(() => ({}));

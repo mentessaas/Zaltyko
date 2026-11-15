@@ -149,7 +149,7 @@ export function QuickPaymentModal({ academyId, isOpen, onClose, onSuccess }: Qui
                                         <RadioGroupItem value={charge.id} />
                                         <div className="flex-1">
                                             <p className="font-medium text-sm">
-                                                {charge.athleteName || "Atleta"}
+                                                {charge.athleteName || "Gimnasta"}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
                                                 Vencido: {formatShortDateForCountry(charge.dueDate, academyCountry)}

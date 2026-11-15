@@ -47,7 +47,7 @@ export function WaitingListDialog({
 
       const payload = await response.json();
       if (!payload.ok || !payload.data?.items) {
-        throw new Error(payload.error || "Respuesta inválida del servidor");
+        throw new Error(payload.error || "No pudimos leer la respuesta. Inténtalo de nuevo.");
       }
       setItems(payload.data.items);
     } catch (err: unknown) {

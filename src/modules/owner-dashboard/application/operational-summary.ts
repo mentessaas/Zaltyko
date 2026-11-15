@@ -157,7 +157,7 @@ export async function getOwnerOperationalSummary(
   if (!organizationTimezone) {
     throw new OperationalError(
       "INVALID_RELATION",
-      "No se pudo resolver la zona horaria de la organización",
+      "No se pudo saber la zona horaria de la academia",
       500
     );
   }

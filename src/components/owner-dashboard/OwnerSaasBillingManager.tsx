@@ -116,9 +116,9 @@ function apiErrorMessage(payload: unknown, fallback: string): string {
     FORBIDDEN: "Tu cuenta no tiene permiso para gestionar el plan de esta academia.",
     ORGANIZATION_NOT_FOUND: "No hemos encontrado esta academia o no tienes acceso.",
     VALIDATION_ERROR: "No se ha podido validar la solicitud. Actualiza la página y vuelve a intentarlo.",
-    IDEMPOTENCY_CONFLICT: "La solicitud anterior sigue asociada a esta operación. Actualiza el estado antes de iniciar otra.",
+    IDEMPOTENCY_CONFLICT: "Tu solicitud anterior sigue en marcha. Actualiza antes de empezar otra.",
     SUBSCRIPTION_ALREADY_EXISTS: "La academia ya tiene una suscripción. Actualiza el estado o abre el portal de facturación.",
-    CHECKOUT_IN_PROGRESS: "Hay un pago pendiente. Actualiza el estado antes de iniciar otro.",
+    CHECKOUT_IN_PROGRESS: "Hay un pago pendiente. Actualiza antes de empezar otro.",
     CHECKOUT_EXPIRED: "El enlace de pago ha caducado. Actualiza el estado antes de iniciar otro intento.",
     TRIAL_NOT_ELIGIBLE: "Esta academia no puede iniciar otro periodo de prueba.",
     PLAN_NOT_SELF_SERVE: "Este plan requiere acompañamiento de Zaltyko.",
@@ -206,7 +206,7 @@ function syncStatusPresentation(status: string): {
 } {
   const normalized = status.trim().toLowerCase();
   const accessCopy =
-    "Se conserva el acceso vigente que devuelve ahora el servidor. El plan solicitado no se considera activo hasta que el servidor lo confirme.";
+    "Sigues con tu plan actual. El plan nuevo se activa cuando se confirme el pago.";
   const presentations: Record<
     string,
     { title: string; message: string; actionLabel: string }
@@ -222,13 +222,13 @@ function syncStatusPresentation(status: string): {
       actionLabel: "Preparando facturación",
     },
     creating_session: {
-      title: "Preparando la sesión de pago",
-      message: `Estamos creando la sesión de pago. ${accessCopy}`,
+      title: "Preparando el pago",
+      message: `Estamos preparando el pago. ${accessCopy}`,
       actionLabel: "Preparando pago",
     },
     open: {
-      title: "Sesión de pago pendiente",
-      message: `Hay una sesión de pago abierta sin confirmación. ${accessCopy} Actualiza el estado antes de iniciar otra operación.`,
+      title: "Pago pendiente",
+      message: `Hay un pago abierto sin confirmar. ${accessCopy} Actualiza antes de empezar otro.`,
       actionLabel: "Pago pendiente",
     },
     recovery_required: {
@@ -243,7 +243,7 @@ function syncStatusPresentation(status: string): {
     },
     unavailable: {
       title: "Facturación no disponible",
-      message: "La gestión del plan no está disponible ahora. Este estado no indica que haya un pago pendiente. Se conserva el acceso vigente que devuelve el servidor; no hay un plan nuevo confirmado.",
+      message: "Ahora no podemos gestionar tu plan. Esto no significa que haya un pago pendiente. Sigues con tu plan actual.",
       actionLabel: "No disponible ahora",
     },
   };
@@ -266,7 +266,7 @@ function syncStatusPresentation(status: string): {
   }
   if (normalized.includes("fail") || normalized.includes("error")) {
     return {
-      title: "No se pudo confirmar la sincronización",
+      title: "No pudimos confirmar tu plan",
       message: `No se ha podido confirmar el último cambio. ${accessCopy}`,
       actionLabel: "Revisión necesaria",
     };
@@ -554,7 +554,7 @@ export function OwnerSaasBillingManager({
     }
     if (error instanceof SaasCommandError && error.definitive) {
       if (!clearCommand(intent)) {
-        setActionError("El servidor rechazó la operación, pero no hemos podido limpiar su registro local. No inicies otra operación hasta recuperar el almacenamiento.");
+        setActionError("No se hizo y queda un intento sin terminar en este navegador. No empieces otro hasta resolverlo.");
         return;
       }
       setActionError(error.message);
@@ -599,7 +599,7 @@ export function OwnerSaasBillingManager({
       if (!clearCommand(intent)) throw new Error("La respuesta se ha validado, pero no hemos podido limpiar el registro local. Reintenta la misma operación.");
       setPendingCheckout({ ...result, organizationId });
       setNotice(
-        "La sesión de pago está pendiente. El plan y los límites solo cambiarán cuando el servidor confirme el pago."
+        "El pago está pendiente. Tu plan y sus límites cambiarán cuando se confirme."
       );
       setLoadState({ organizationId, status: "loading" });
       setRefreshVersion((value) => value + 1);
@@ -633,7 +633,7 @@ export function OwnerSaasBillingManager({
           "No se ha podido recuperar un enlace de pago vigente. Actualiza el estado antes de continuar; no se ha creado otra contratación."));
       }
       setPendingCheckout({ ...result, organizationId });
-      setNotice("Se ha recuperado la sesión de pago existente. El plan actual no cambia hasta que el servidor confirme el pago.");
+      setNotice("Hemos recuperado tu pago pendiente. Tu plan no cambia hasta que se confirme.");
     } catch (error) {
       if (activeOrganizationIdRef.current !== organizationId) return;
       setActionError(error instanceof Error ? error.message : "No se ha podido recuperar el enlace de pago. No se ha creado otra contratación.");
@@ -670,7 +670,7 @@ export function OwnerSaasBillingManager({
       }
       if (!clearCommand(intent)) throw new Error("La respuesta se ha validado, pero no hemos podido limpiar el registro local. Reintenta la misma operación.");
       setPendingPortal({ ...result, organizationId });
-      setNotice("El portal de facturación está listo. El estado de tu plan se mantiene hasta que el servidor confirme cualquier cambio.");
+      setNotice("El portal de facturación está listo. Tu plan no cambia hasta que se confirme cada cambio.");
     } catch (error) {
       commandFailure(error, intent, "No se ha podido preparar el portal. No se ha enviado ninguna solicitud.");
     } finally {
@@ -706,7 +706,7 @@ export function OwnerSaasBillingManager({
       if (!clearCommand(intent)) throw new Error("La respuesta se ha validado, pero no hemos podido limpiar el registro local. Reintenta la misma operación.");
       setTrialConfirmed(organizationId);
       setNotice(
-        `El servidor confirma la prueba Starter hasta el ${formatDate(result.endsAt) ?? "final de su periodo"}. No se ha solicitado ningún cobro.`
+        `Tu prueba Starter dura hasta el ${formatDate(result.endsAt) ?? "final de su periodo"}. No se ha solicitado ningún cobro.`
       );
       if (activeOrganizationIdRef.current === organizationId) {
         setSnapshot(null);
@@ -847,7 +847,7 @@ export function OwnerSaasBillingManager({
                     : `${currentSnapshot.limits.maxAthletes} gimnastas`}
                 </p>
                 <p className="mt-1 text-sm text-z-soft">
-                  Revisión de acceso: {currentSnapshot.entitlement.revision}
+                  Versión del plan: {currentSnapshot.entitlement.revision}
                 </p>
               </div>
               {subscription ? (
@@ -868,9 +868,7 @@ export function OwnerSaasBillingManager({
                     </p>
                     {subscription.cancelAtPeriodEnd ? (
                       <p className="mt-2 text-sm font-semibold text-ochre-ink">
-                        La renovación está desactivada y la cancelación está
-                        programada al final del periodo indicado. El acceso
-                        efectivo es el que confirma el servidor.
+                        No se renovará. El plan termina al final del periodo y tienes acceso hasta entonces.
                       </p>
                     ) : null}
                     {paymentNotice ? (
@@ -902,7 +900,7 @@ export function OwnerSaasBillingManager({
                   <p className="mt-1 text-sm text-z-soft">
                     {trial?.endsAt
                       ? `Finaliza el ${formatDate(trial.endsAt) ?? "fecha por confirmar"}. No se hará ningún cobro automático al terminar.`
-                      : "El servidor no ha indicado todavía la fecha de fin."}
+                      : "Todavía no tenemos la fecha de fin."}
                   </p>
                 </div>
               ) : null}
@@ -918,7 +916,7 @@ export function OwnerSaasBillingManager({
                 </p>
                 <p className="mt-1 text-sm leading-6 text-z-soft">
                   {syncPresentation?.message ??
-                    "Se conserva el acceso vigente que devuelve el servidor. No se activa el plan solicitado hasta confirmación."}
+                    "Sigues con tu plan actual. El plan nuevo se activa cuando se confirme."}
                 </p>
                 <button
                   type="button"
@@ -954,12 +952,12 @@ export function OwnerSaasBillingManager({
           </div>
         ) : null}
         {pendingCommand ? (
-          <section className="rounded-[12px] mt-4 border border-ochre-line bg-ochre-wash p-5" aria-label="Operación de facturación pendiente" aria-busy={busyAction !== null}>
+          <section className="rounded-[12px] mt-4 border border-ochre-line bg-ochre-wash p-5" aria-label="Cambio de plan pendiente" aria-busy={busyAction !== null}>
             {pendingCommand.organizationId === organizationId ? <>
               <p className="font-semibold">{pendingCommand.action === "checkout" ? `Contratación de ${pendingCommand.planCode === "growth" ? "Growth" : "Starter"} · ${pendingCommand.intent.body.billingInterval === "year" ? "pago anual" : "mensual"}` : pendingCommand.action === "portal" ? "Preparación del Portal" : "Activación de la prueba"}: pendiente de confirmar.</p>
               <p className="mt-2 text-sm">No cierres ni recargues esta página. El reintento conserva la operación, el cuerpo y la clave originales; no inicia otra contratación.</p>
               <button type="button" className="touch-target mt-3 rounded-full border px-5 text-sm font-bold disabled:opacity-50" disabled={busyAction !== null} onClick={retryPendingCommand}>Reintentar la operación pendiente</button>
-            </> : <p>Hay una operación de facturación pendiente en otra academia. Vuelve a ella para resolverla antes de iniciar otra operación.</p>}
+            </> : <p>Hay un cambio de plan pendiente en otra academia. Vuelve a ella para terminarlo antes de empezar otro.</p>}
           </section>
         ) : null}
         {actionError ? (
@@ -983,8 +981,7 @@ export function OwnerSaasBillingManager({
               Pago pendiente de confirmación
             </h2>
             <p className="mt-2 text-sm leading-6 text-z-soft">
-              La sesión se ha creado, pero el plan actual sigue vigente hasta
-              que el servidor confirme el pago.
+              El pago está preparado. Tu plan actual sigue igual hasta que se confirme.
             </p>
             <a
               className="touch-target mt-4 inline-flex rounded-full bg-z-ink px-5 text-sm font-bold text-white hover:bg-black"
@@ -995,8 +992,7 @@ export function OwnerSaasBillingManager({
               Continuar al pago seguro
             </a>
             <p className="mt-3 text-xs leading-5 text-z-soft">
-              Si vuelves aquí, actualiza el estado antes de iniciar otra
-              operación.
+              Si vuelves aquí, actualiza antes de empezar otro pago.
             </p>
           </section>
         ) : null}
@@ -1007,7 +1003,7 @@ export function OwnerSaasBillingManager({
               Portal de facturación listo
             </h2>
             <p className="mt-2 text-sm leading-6 text-z-soft">
-              Los cambios se reflejarán cuando el servidor los confirme.
+              Los cambios se verán cuando se confirmen.
             </p>
             <a
               className="touch-target mt-4 inline-flex rounded-full border border-z-line px-5 text-sm font-bold text-z-ink hover:bg-z-canvas"
@@ -1309,7 +1305,7 @@ export function OwnerSaasBillingManager({
 
             {trial?.eligible === false && trial.nextEligibleAt ? (
               <p className="mt-4 text-sm text-z-soft">
-                La prueba podrá volver a solicitarse desde {formatDate(trial.nextEligibleAt) ?? "la fecha indicada por el servidor"}.
+                La prueba podrá volver a solicitarse desde {formatDate(trial.nextEligibleAt) ?? "la fecha indicada"}.
               </p>
             ) : null}
 
@@ -1333,7 +1329,7 @@ export function OwnerSaasBillingManager({
         {currentSnapshot && currentLoadState.status === "ready" ? (
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-z-line pt-4">
             <p className="text-xs text-z-soft">
-              Estado leído del servidor. No se muestran datos de tarjetas.
+              Datos al día. Aquí no se ven datos de tarjeta.
             </p>
             <button
               type="button"

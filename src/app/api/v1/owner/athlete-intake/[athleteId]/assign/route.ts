@@ -88,7 +88,7 @@ export async function POST(
     ) {
       throw new OperationalError(
         scope.member.locationScopeMode === "all" ? "FORBIDDEN" : "LOCATION_SCOPE_DENIED",
-        "La primera asignación requiere un Owner o Admin con acceso a todas las sedes",
+        "La primera asignación la hace la dirección de la academia, con acceso a todas las sedes",
         403
       );
     }

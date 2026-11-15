@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   const parsed = querySchema.safeParse(Object.fromEntries(url.searchParams));
   if (!parsed.success || organizationIds.length !== 1) {
     return noStore(
-      apiError("VALIDATION_ERROR", "Indica una organización válida.", 400)
+      apiError("VALIDATION_ERROR", "Indica una academia válida.", 400)
     );
   }
 

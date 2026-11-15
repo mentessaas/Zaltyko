@@ -283,7 +283,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
 
       if (!res.ok) {
         // Mostrar mensaje más descriptivo según el error
-        const errorMessage = body?.message || body?.error || "No se pudo iniciar el checkout";
+        const errorMessage = body?.message || body?.error || "No se pudo abrir el pago. Inténtalo de nuevo.";
         if (body?.error === "STRIPE_NOT_CONFIGURED") {
           throw new Error("Stripe no está configurado. Los pagos no están disponibles en este momento. Contacta con soporte.");
         }
@@ -293,10 +293,10 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
       if (body.data?.checkoutUrl) {
         window.location.href = body.data.checkoutUrl;
       } else {
-        throw new Error("No se recibió una URL de checkout válida");
+        throw new Error("No se pudo abrir el pago. Inténtalo de nuevo.");
       }
     } catch (err: unknown) {
-      setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido al iniciar el checkout");
+      setError((err instanceof Error ? err.message : "Error desconocido") ?? "No se pudo abrir el pago. Inténtalo de nuevo.");
     } finally {
       setLoadingAction(null);
     }
@@ -485,7 +485,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         <div className="grid gap-4 md:grid-cols-3">
           {plans.length === 0 && !loadingPlans && (
             <p className="text-sm text-muted-foreground">
-              No disponible temporalmente. Comprueba la sincronización con Stripe.
+              No disponible temporalmente. Vuelve a intentarlo en unos minutos.
             </p>
           )}
           {plans.map((plan) => {

@@ -45,7 +45,7 @@ export const PATCH = withTenant(async (request, context) => {
   const coach = await getCoach(coachId);
 
   if (!coach) {
-    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+    return apiError("COACH_NOT_FOUND", "No encontramos a la entrenadora", 404);
   }
 
   const scope = await authorizeAcademyCapability({
@@ -56,7 +56,7 @@ export const PATCH = withTenant(async (request, context) => {
   });
 
   if (!scope.allowed) {
-    return apiError("FORBIDDEN", "No tienes permisos para actualizar este coach", 403);
+    return apiError("FORBIDDEN", "No tienes permiso para cambiar a esta entrenadora", 403);
   }
 
   const body = UpdateSchema.parse(await request.json());
@@ -106,7 +106,7 @@ export const DELETE = withTenant(async (_request, context) => {
   const coach = await getCoach(coachId);
 
   if (!coach) {
-    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+    return apiError("COACH_NOT_FOUND", "No encontramos a la entrenadora", 404);
   }
 
   const scope = await authorizeAcademyCapability({
@@ -117,7 +117,7 @@ export const DELETE = withTenant(async (_request, context) => {
   });
 
   if (!scope.allowed) {
-    return apiError("FORBIDDEN", "No tienes permisos para eliminar este coach", 403);
+    return apiError("FORBIDDEN", "No tienes permiso para quitar a esta entrenadora", 403);
   }
 
   // Use transaction to ensure atomicity: delete assignments first, then coach

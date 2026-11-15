@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     Object.fromEntries(new URL(request.url).searchParams.entries())
   );
   if (!parsed.success) {
-    return invalidStaffInput("Selecciona una organización y filtros válidos.", parsed.error.flatten());
+    return invalidStaffInput("Selecciona una academia y filtros válidos.", parsed.error.flatten());
   }
 
   try {
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     request.headers.get("idempotency-key") ?? ""
   );
   if (!parsedBody.success || !idempotencyKey.success) {
-    return invalidStaffInput("Indica nombre y apellidos y una clave de idempotencia válida.", {
+    return invalidStaffInput("Indica nombre y apellidos.", {
       ...(parsedBody.success ? {} : { body: parsedBody.error.flatten() }),
       ...(idempotencyKey.success ? {} : { idempotencyKey: "La clave no es válida." }),
     });

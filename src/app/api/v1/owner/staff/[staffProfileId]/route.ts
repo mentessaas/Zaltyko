@@ -34,7 +34,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     request.headers.get("idempotency-key") ?? ""
   );
   if (!parsedBody.success || !idempotencyKey.success) {
-    return invalidStaffInput("Indica los nombres, la versión actual y una clave de idempotencia válida.", {
+    return invalidStaffInput("Indica el nombre y los apellidos. Si sigue fallando, recarga la página.", {
       ...(parsedBody.success ? {} : { body: parsedBody.error.flatten() }),
       ...(idempotencyKey.success ? {} : { idempotencyKey: "La clave no es válida." }),
     });

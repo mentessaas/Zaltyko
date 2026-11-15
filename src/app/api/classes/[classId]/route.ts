@@ -484,7 +484,7 @@ export const PUT = withTenant(async (request, context) => {
           });
           return apiError(
             "SCHEDULE_CONFLICT",
-            `No se puede guardar este horario porque hay ${conflicts.length} atleta${conflicts.length !== 1 ? "s" : ""} que ya tienen otra clase en esa misma franja. Ajusta la hora o revisa los grupos/asignaciones.`,
+            `No se puede guardar este horario porque hay ${conflicts.length} gimnasta${conflicts.length !== 1 ? "s" : ""} que ya tienen otra clase a esa hora. Cambia la hora o revisa los grupos.`,
             409,
             { conflictsCount: conflicts.length }
           );

@@ -47,11 +47,11 @@ export default async function AcceptInvitationPage({ searchParams }: AcceptPageP
     <InvitationPageShell
       eyebrow="Primeros pasos recomendados"
       title={`Únete como ${invitation.role === "coach" ? "entrenador" : "miembro"}`}
-      description="Al aceptar tendrás acceso a tus grupos, atletas y calendario asignado. Completa el registro para empezar."
+      description="Al aceptar tendrás acceso a tus grupos, gimnastas y calendario. Completa el registro para empezar."
       highlights={[
         "Estudia los grupos que se te asignaron.",
         "Registra asistencia en tu próxima clase.",
-        "Comparte comentarios técnicos con los atletas.",
+        "Comparte comentarios técnicos con las gimnastas.",
       ]}
       form={
         <AcceptInvitationForm

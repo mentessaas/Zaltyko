@@ -110,7 +110,7 @@ export const POST = withTenant(async (request, context) => {
     // el conflicto en una respuesta accionable en vez de exponer un 500.
     const message = error instanceof Error ? error.message : String(error);
     if (message.toLowerCase().includes("invitations_pending_email_tenant") || message.toLowerCase().includes("duplicate key")) {
-      return apiError("INVITATION_ALREADY_PENDING", "Ya existe una invitación pendiente para este email en tu organización", 409);
+      return apiError("INVITATION_ALREADY_PENDING", "Ya hay una invitación pendiente para este correo en tu academia", 409);
     }
     throw error;
   }

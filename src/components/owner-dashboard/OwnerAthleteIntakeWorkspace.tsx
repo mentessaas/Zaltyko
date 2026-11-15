@@ -294,7 +294,7 @@ function errorCode(status: number, payload: unknown): string | null {
 
 function errorMessage(code: string | null): string {
   switch (code) {
-    case "CAPACITY_FULL": return "La academia ha alcanzado el límite de gimnastas. Revisa el plan o regulariza el excedente antes de iniciar otra alta.";
+    case "CAPACITY_FULL": return "La academia ha alcanzado el límite de gimnastas. Revisa tu plan o archiva las gimnastas que te sobran antes de dar de alta a otra.";
     case "PLAN_OVER_CAPACITY": return "La academia está en solo lectura por superar los límites del plan. Puedes consultar los datos, pero no iniciar una alta ni una asignación.";
     case "GROUP_CAPACITY_FULL": return "El grupo ya no tiene plazas disponibles. Actualiza la lista antes de elegir otro grupo.";
     case "DUPLICATE_OPEN_GROUP_MEMBERSHIP": return "La ficha ya pertenece a ese grupo; vuelve a consultar la lista.";
@@ -471,7 +471,7 @@ export function OwnerAthleteIntakeWorkspace({
           if (!clearIntent(command)) {
             setIntent(command);
             setIntentBlocked(false);
-            setError("El servidor confirmó la operación, pero no se pudo limpiar su marcador local. Conservamos la misma clave para comprobarla otra vez.");
+            setError("Se hizo, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
             return;
           }
           setIntent(null);
@@ -480,8 +480,8 @@ export function OwnerAthleteIntakeWorkspace({
           setFamilyName("");
           setFamilyStartsOn("");
           setNotice(receipt.incompleteFamily
-            ? `Ficha creada${receipt.replayed ? " (el servidor confirmó el alta anterior)" : ""}. La familia queda incompleta: aún falta asociar un tutor/pagador. No se creó una cuenta ni se enviaron mensajes.`
-            : `Ficha creada${receipt.replayed ? " (el servidor confirmó el alta anterior)" : ""}.`);
+            ? `Ficha creada${receipt.replayed ? " (el alta ya estaba hecha)" : ""}. La familia queda incompleta: aún falta asociar un tutor o una persona pagadora. No se creó una cuenta ni se enviaron mensajes.`
+            : `Ficha creada${receipt.replayed ? " (el alta ya estaba hecha)" : ""}.`);
           setRefresh((value) => value + 1);
           return;
         }
@@ -491,13 +491,13 @@ export function OwnerAthleteIntakeWorkspace({
           if (!clearIntent(command)) {
             setIntent(command);
             setIntentBlocked(false);
-            setError("El servidor confirmó la operación, pero no se pudo limpiar su marcador local. Conservamos la misma clave para comprobarla otra vez.");
+            setError("Se hizo, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
             return;
           }
           setIntent(null);
           setIntentBlocked(false);
           setAssignment(null);
-          setNotice(`Gimnasta asignada al grupo${receipt.replayed ? " (el servidor confirmó la asignación anterior)" : ""}.`);
+          setNotice(`Gimnasta asignada al grupo${receipt.replayed ? " (la asignación ya estaba hecha)" : ""}.`);
           setRefresh((value) => value + 1);
           return;
         }
@@ -648,7 +648,7 @@ export function OwnerAthleteIntakeWorkspace({
       return;
     }
     if (!data?.eligibleGroups.some((group) => group.groupId === body.groupId)) {
-      setError("El grupo ya no está disponible en la lista del servidor. Actualiza antes de continuar.");
+      setError("El grupo ya no está en la lista. Actualiza antes de continuar.");
       return;
     }
     if (!claimNewCommand()) return;
@@ -749,7 +749,7 @@ export function OwnerAthleteIntakeWorkspace({
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 id="unassigned-heading" className={ownerUi.sectionTitle}>Fichas sin asignación operativa</h2>
-              <p className={`mt-2 ${ownerUi.muted}`}>{data ? `${data.total} fichas en total · página ${data.page}` : "La lista se obtiene del servidor."}</p>
+              <p className={`mt-2 ${ownerUi.muted}`}>{data ? `${data.total} fichas en total · página ${data.page}` : "Pulsa Actualizar lista para verla."}</p>
             </div>
             <button type="button" className={secondaryButtonClassName} onClick={reload} disabled={listState === "loading"}>Actualizar lista</button>
           </div>

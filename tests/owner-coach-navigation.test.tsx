@@ -34,6 +34,7 @@ import { ownerWorkspaceCapabilitiesFor } from "@/components/owner-dashboard/owne
 const organizationId = "a0000000-0000-4000-8000-000000000001";
 const locationId = "a0000000-0000-4000-8000-000000000011";
 const ALL_LABELS = [
+  "Ajustes",
   "Resumen",
   "Calendario",
   "Grupos",

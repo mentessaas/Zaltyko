@@ -52,7 +52,7 @@ export const POST = withTenant(async (request, context) => {
     profileRole: context.profile.role,
   });
   if (!academy) {
-    return apiError("BILLING_FORBIDDEN", "Solo la persona propietaria puede sincronizar la suscripción", 403);
+    return apiError("BILLING_FORBIDDEN", "Solo la dirección de la academia puede actualizar la suscripción", 403);
   }
 
   const [subscription] = await db
@@ -147,6 +147,6 @@ export const POST = withTenant(async (request, context) => {
     return apiSuccess({ synced, updated, errors, total: invoices.data.length });
   } catch (error: unknown) {
     logger.error("Error syncing invoices", error);
-    return apiError("SYNC_FAILED", "Error al sincronizar recibos", 500);
+    return apiError("SYNC_FAILED", "No se pudieron actualizar los recibos", 500);
   }
 });

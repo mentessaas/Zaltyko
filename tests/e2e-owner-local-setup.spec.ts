@@ -2375,7 +2375,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
     });
     await expect(archiveConfirmation).toBeVisible();
     await expect(archiveConfirmation).toContainText(
-      "Archivar no borra la ficha. Termina sus pertenencias a grupos y clases futuras, y conserva su historial y las cuotas pendientes."
+      "Archivar no borra la ficha. La saca de sus grupos y de las clases futuras, y conserva su historial y las cuotas pendientes."
     );
     const archiveRequestPromise = page.waitForRequest(
       (request) =>

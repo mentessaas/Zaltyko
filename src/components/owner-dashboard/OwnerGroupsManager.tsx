@@ -475,7 +475,7 @@ export function OwnerGroupsManager({
           scope: membershipScope,
           message: "No se pudo guardar y verificar la intención pendiente. No se ha enviado el cambio; restaura el acceso al almacenamiento y vuelve a comprobarlo.",
         });
-        setError("No se pudo guardar la clave idempotente. No se ha enviado el cambio.");
+        setError("No se pudo preparar el cambio. No se ha enviado nada.");
         return;
       }
       activeCommand = canonicalCommand;
@@ -539,7 +539,7 @@ export function OwnerGroupsManager({
       }
       if (!pendingCleared) {
         membershipUncertainRef.current = true;
-        setError("El servidor respondió, pero no se pudo verificar la limpieza del reintento. Conservamos la misma operación para volver a comprobarla.");
+        setError("Se guardó, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
         return;
       }
       if (pendingMembershipRef.current === activeCommand) {
@@ -565,7 +565,7 @@ export function OwnerGroupsManager({
             scope: membershipScope,
             status: "blocked",
             intent: createIntent ?? undefined,
-            detail: "El servidor confirmó el alta, pero el recibo no pudo validarse. No se enviará otra solicitud.",
+            detail: "Se hizo el alta, pero no pudimos comprobarla. No se enviará otra vez.",
           });
         }
       } else if (activeCommand.kind === "add") {
@@ -915,8 +915,7 @@ export function OwnerGroupsManager({
 
                 {selectedGroup.status !== "active" ? (
                   <p className={`mt-4 ${ownerTone.noticeWarning}`}>
-                    Este grupo no está activo. Puedes consultar sus
-                    pertenencias, pero no añadir gimnastas.
+                    Este grupo no está activo. Puedes ver sus gimnastas, pero no añadir más.
                   </p>
                 ) : (
                   <>
@@ -953,7 +952,7 @@ export function OwnerGroupsManager({
                     <p className={`mt-3 ${ownerUi.emptyState} text-sm text-z-soft`}>
                       {selectedGroup.status === "active"
                         ? "Este grupo todavía no tiene gimnastas. Puedes añadir una ficha activa desde el buscador."
-                        : "Este grupo no tiene pertenencias actuales. Está inactivo y no admite nuevas gimnastas."}
+                        : "Este grupo no tiene gimnastas ahora. Está inactivo y no admite nuevas gimnastas."}
                     </p>
                   ) : (
                     <ul className="mt-3 divide-y divide-z-line border-y border-z-line border-t-[3px] border-t-z-ink">

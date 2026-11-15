@@ -200,7 +200,7 @@ describe("intención inmutable en grupos", () => {
       endpoint: "https://example.invalid/collect", athleteName: "No persistir",
     }));
     render(<OwnerGroupsManager bundle={bundle} />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("operación de pertenencia local dañada");
+    expect(await screen.findByRole("alert")).toHaveTextContent("cambio de grupo sin terminar en este navegador");
     expect(screen.getByRole("button", { name: "Crear grupo" })).toBeDisabled();
     expect(writes()).toHaveLength(0);
   });

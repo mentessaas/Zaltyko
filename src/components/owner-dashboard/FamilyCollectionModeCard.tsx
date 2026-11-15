@@ -123,7 +123,7 @@ export function FamilyCollectionModeCard({
     if (stored.status === "invalid") {
       setPendingRecoveryStatus("invalid");
       setPendingRecoveryMessage(
-        "Hay una solicitud local dañada. No se generarán cambios nuevos hasta recuperar su estado."
+        "Hay un cambio sin terminar en este navegador. No se harán cambios nuevos hasta resolverlo."
       );
       return;
     }
@@ -303,7 +303,7 @@ export function FamilyCollectionModeCard({
           );
         } else {
           setErrorMessage(
-            "La preferencia se guardó, pero no se pudo limpiar la solicitud local. Reintenta la misma solicitud; no se enviará una clave nueva."
+            "La preferencia se guardó, pero no pudimos confirmar el último paso en este navegador. Vuelve a intentarlo: el cambio no se repetirá."
           );
         }
       }

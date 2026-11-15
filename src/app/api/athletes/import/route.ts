@@ -615,7 +615,7 @@ const handlerWithPayloadCheck = async (request: NextRequest) => {
       {
         ok: false,
         error: "PAYLOAD_TOO_LARGE",
-        message: `El payload es demasiado grande (${sizeMB}MB). Tamaño máximo permitido: ${maxSizeMB}MB`,
+        message: `El archivo es demasiado grande (${sizeMB}MB). Tamaño máximo permitido: ${maxSizeMB}MB`,
         size: validation.size,
         maxSize: validation.maxSize,
       },

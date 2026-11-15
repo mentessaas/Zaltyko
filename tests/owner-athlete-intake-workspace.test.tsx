@@ -212,7 +212,7 @@ describe("bandeja Owner de gimnastas sin asignación", () => {
     expect(screen.getByRole("button", { name: "Crear ficha y familia" })).toBeDisabled();
 
     fireEvent.click(retry);
-    expect(await screen.findByText(/el servidor confirmó el alta anterior/u)).toBeInTheDocument();
+    expect(await screen.findByText(/el alta ya estaba hecha/u)).toBeInTheDocument();
     expect(window.sessionStorage.getItem(storageKey())).toBeNull();
   });
 

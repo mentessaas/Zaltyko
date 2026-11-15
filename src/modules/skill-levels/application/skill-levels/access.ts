@@ -215,7 +215,7 @@ export async function authorizeAthlete(
     locationId: access.location.id,
     openOnly: isCoach,
   });
-  if (!linked) throw notFound("La gimnasta no está vinculada a esta sede");
+  if (!linked) throw notFound("La gimnasta no es de esta sede");
   return {
     ...access,
     athlete: {

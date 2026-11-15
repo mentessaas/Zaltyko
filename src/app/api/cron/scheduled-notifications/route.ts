@@ -226,7 +226,7 @@ export async function POST(request: Request) {
     return apiSuccess(execution.value);
   } catch (error) {
     logger.error("Error processing scheduled notifications:", error);
-    return apiError("INTERNAL_ERROR", "Error interno del servidor", 500);
+    return apiError("INTERNAL_ERROR", "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos.", 500);
   }
 }
 

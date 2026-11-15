@@ -175,9 +175,43 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
 - **Prohibido:** conflicto o solapamiento en textos visibles; «error» o «bloqueo», porque solo avisa.
 - **Dónde aparece:** `OwnerScheduleConflicts`, Clases, el Hoy de la entrenadora y `docs/producto/avisos-de-choque.md` (O2).
 
+## Lenguaje de pantalla: palabras que no se usan
+
+Fecha: 14 de noviembre de 2026. Plan de mejora: lenguaje de gimnasia, sin jerga.
+
+Quien dirige una academia o entrena no es técnica, tiene poco tiempo y solo conoce el mundo de la gimnasia. Todo texto visible (pantallas, errores de la API que llegan a pantalla y correos) cumple cuatro reglas:
+
+1. Beneficio o resultado primero, y una sola acción clara.
+2. Frases cortas: unas 14 palabras como máximo.
+3. Voz activa y segunda persona («Archiva lo que te sobra»), sin pasivas («es conservado»).
+4. Un error dice qué pasó y qué hacer: «No se guardó. Vuelve a enviar los mismos datos».
+
+| No se usa en pantalla | Se dice | Notas |
+|---|---|---|
+| servidor, «estado leído del servidor» | (no se nombra) o «Zaltyko» | «No hay conexión con Zaltyko» si falla la red. Nunca «el servidor confirmó» |
+| sesión de pago, Checkout | pago, página de pago seguro | «Pago pendiente», «Continuar al pago seguro» |
+| sesión (de usuario) | cuenta, «otra cuenta de la dirección» | «Sesión» sigue siendo la clase de una fecha (ver Sesión) |
+| owner, admin, coach, staff | la dirección, entrenadora, equipo | Ya fijado en Equipo y roles |
+| organización | academia | Ya fijado en Academia |
+| recurso | la cosa concreta: ficha, grupo, clase | «Qué quieres archivar», no «Tipo de ficha» |
+| pertenencia | gimnastas del grupo, «está en el grupo» | «La saca de sus grupos», no «termina sus pertenencias» |
+| regularizar, regularización, excedente | archivar lo que te sobra, «Uso del plan» | Es lo que supera el plan contratado |
+| entitlement, revisión de acceso | plan, «Acceso n.º 2» | Un número de versión, sin explicarlo |
+| sincronizar, sincronización | actualizar, «poner al día» | |
+| solicitud local, marcador, recibo local, clave de idempotencia | «cambio sin terminar en este navegador», «este envío» | El texto dice qué hacer: «Vuelve a comprobarlo; no se repetirá el cambio» |
+| operación de facturación | cambio de plan, cambio de cuotas | Según de qué hablemos |
+| dashboard | panel (el área) o Resumen (la página de inicio) | Ya fijado en Resumen |
+| token | enlace, código | «Falta el enlace de acceso. Ábrelo desde el correo» |
+| payload, endpoint, query string, tenant | no se muestran | |
+| atleta | gimnasta | Ya fijado en Gimnasta |
+| conflicto de horario | choque de horario | Ya fijado en Choque |
+
+Las notas de código, los nombres de funciones y los registros de errores (`logger`) conservan su vocabulario técnico. Solo cambia lo que ve una persona.
+
 ## Pendientes
 
-- **Archivos en refactor:** `monthly-invoice-service.ts` devuelve mensajes con «factura» («Factura no encontrada», «Ya existe una factura para esta familia y periodo…») y `OwnerMonthlyInvoiceResolutionPanel.tsx` dice «operación de facturación». Pasarán a «cuota» cuando termine el refactor. `ManualPaymentForm.tsx` (líneas 786 y 1087) dice «otra sesión de Owner»; pasará a «otra sesión de la dirección».
+- **Archivos en refactor:** `monthly-invoice-service.ts` devuelve mensajes con «factura» («Factura no encontrada», «Ya existe una factura para esta familia y periodo…») y `OwnerMonthlyInvoiceResolutionPanel.tsx` dice «operación de facturación». Pasarán a «cuota» cuando termine el refactor. `ManualPaymentForm.tsx`: el aviso de «otra sesión de Owner» ya dice «otra cuenta» (14 de noviembre de 2026); queda revisar el resto del archivo cuando termine su refactor.
 - **«Recibo» técnico:** `OwnerGroupsManager`, `OwnerStaffManager`, `OwnerSetupForm` y otros llaman «recibo» al comprobante de una operación idempotente. No es dinero, pero choca con el sentido habitual. Falta decidir si pasa a «comprobante de la operación».
 - **Rutas retiradas del lanzamiento:** `/modules`, `/comparativas`, `/blog`, `/sobre-nosotros` y los clústeres por modalidad redirigen a `/features`, y `/coaches` responde 404 (`middleware.ts` con `src/lib/launch/essential-routes.ts`). Conservan «atleta», «padres», «staff» y «dashboard»; se unificarán si vuelven a servirse.
 - **`/app` antiguo:** mantiene su vocabulario hasta la migración P2 #18. Por ejemplo, `src/lib/classes/promote-waiting-list.ts` avisa con «El atleta ha sido inscrito en…» (lista de espera, fuera del lanzamiento). En cambio, los recordatorios por correo de `src/lib/email/triggers.ts` y `src/app/api/notifications/send/route.ts` ya usan «tu gimnasta», porque comparten plantillas con los avisos que llegan a las familias.
+- **Pendiente del lenguaje de pantalla (14 de noviembre de 2026):** `/app` antiguo, `/dashboard`, super-admin y las rutas retiradas del lanzamiento conservan «atleta», «staff», «dashboard» y «checkout». Los textos legales (Términos y Privacidad) usan «owner», «organización» y «metadatos»: solo se señalan, no se cambian aquí. En `/owner` quedan «marcador» y «recibo» en algunos avisos de recuperación. Las pantallas de las PR 313, 314, 316, 317, 319, 320 y 321 no se tocaron.

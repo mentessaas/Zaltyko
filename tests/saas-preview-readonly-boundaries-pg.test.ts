@@ -298,8 +298,8 @@ describe("sandbox read-only PostgreSQL boundaries (not HTTP / not last-slot cons
         expect(result.revision).toBe(3);
         expect(result.planCode).toBe(delta < 0 ? "growth" : "free");
         expect(result.limits).toEqual(delta < 0
-          ? { athleteLimit: 200, groupLimit: 10, classLimit: 40, academyLimit: 1 }
-          : { athleteLimit: 30, groupLimit: 3, classLimit: 10, academyLimit: 1 });
+          ? { athleteLimit: 200, groupLimit: 10, classLimit: 40, academyLimit: 1, locationLimit: 1 }
+          : { athleteLimit: 30, groupLimit: 3, classLimit: 10, academyLimit: 1, locationLimit: 1 });
         expect(result.source).toBe(delta < 0 ? "stripe_subscription" : "bootstrap");
         expect(result.effectiveUntil?.getTime() ?? null).toBe(delta < 0 ? end.getTime() : null);
         expect(result.effectiveFrom.getTime()).toBe(delta < 0 ? start.getTime() : at.getTime());

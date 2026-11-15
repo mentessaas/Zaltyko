@@ -6,7 +6,7 @@ const source = readFileSync(new URL("../src/components/billing/UpgradeModal.tsx"
 describe("upgrade modal error contract", () => {
   it("does not open an empty payment step when initialization fails", () => {
     expect(source).toContain("if (!response.ok)");
-    expect(source).toContain("No se recibió una sesión de pago válida.");
+    expect(source).toContain("No se pudo preparar el pago. Inténtalo de nuevo.");
     expect(source).toContain("setError");
   });
 

@@ -18,10 +18,10 @@ export function actualEntitlement(entitlement: EntitlementBaseline | null): {
   revision: number;
   sourceReference: string;
 } {
-  if (!entitlement) throw fail("VERSION_CONFLICT", "El entitlement ya no existe", 409);
+  if (!entitlement) throw fail("VERSION_CONFLICT", "El plan ya no existe", 409);
   const revision = Number(entitlement.revision);
   if (!Number.isSafeInteger(revision) || revision < 1) {
-    throw fail("FEATURE_NOT_AVAILABLE", "Revisión de entitlement inválida", 503);
+    throw fail("FEATURE_NOT_AVAILABLE", "Versión del plan no válida", 503);
   }
   return { revision, sourceReference: entitlement.source_reference };
 }

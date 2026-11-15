@@ -59,7 +59,7 @@ describe("metas Owner durante solo lectura", () => {
     );
 
     expect(screen.getByText(/La academia está en solo lectura/)).toBeVisible();
-    expect(screen.getByRole("link", { name: "Uso y regularización" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
+    expect(screen.getByRole("link", { name: "Uso del plan" })).toHaveAttribute("href", `/owner/subscription?organizationId=${organizationId}#regularizar`);
     expect(screen.getByLabelText(/Ocupación de plazas/)).toBeDisabled();
     expect(screen.getByLabelText(/Retención de inscripciones/)).toBeDisabled();
     expect(screen.getByRole("button", { name: /Guardar versión 2/ })).toBeDisabled();

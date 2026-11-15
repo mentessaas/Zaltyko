@@ -171,7 +171,7 @@ describe("Owner staff HTTP guards with mocked session and scope", () => {
 
   it("keeps a foreign-organization lookup hidden and never reaches the read service", async () => {
     mocks.resolveOwnerScope.mockRejectedValueOnce(
-      new OperationalError("NOT_FOUND", "Organización no disponible", 404)
+      new OperationalError("NOT_FOUND", "Academia no disponible", 404)
     );
     const response = await listStaff(
       jsonRequest(`https://synthetic.invalid/api/v1/owner/staff?organizationId=${organizationId}`, "GET")

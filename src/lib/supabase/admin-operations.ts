@@ -59,6 +59,20 @@ export async function deleteAuthUser(userId: string): Promise<void> {
   }
 }
 
+/**
+ * Igual que deleteAuthUser, pero una cuenta que ya no existe no es error: la
+ * supresión de cuentas puede reintentarse después de un fallo parcial.
+ */
+export async function deleteAuthUserIfPresent(userId: string): Promise<void> {
+  const adminClient = getSupabaseAdminClient();
+  const { error } = await adminClient.auth.admin.deleteUser(userId);
+  if (!error) return;
+  const missing = error.status === 404 || (error as { code?: string }).code === "user_not_found";
+  if (!missing) {
+    throw new Error(error.message);
+  }
+}
+
 export async function getAuthUserEmail(userId: string): Promise<string | null> {
   const adminClient = getSupabaseAdminClient();
   const { data } = await adminClient.auth.admin.getUserById(userId);

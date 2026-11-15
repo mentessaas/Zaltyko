@@ -109,7 +109,7 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
             }
             const secret = payload?.data?.clientSecret ?? payload?.clientSecret;
             if (typeof secret !== "string" || !secret) {
-                throw new Error("No se recibió una sesión de pago válida.");
+                throw new Error("No se pudo preparar el pago. Inténtalo de nuevo.");
             }
             setClientSecret(secret);
             setStep("payment");

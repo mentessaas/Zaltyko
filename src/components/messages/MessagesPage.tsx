@@ -64,7 +64,7 @@ export function MessagesPage({
   const canStartConversation = false;
   const emptyStateHint =
     currentUserRole === "parent" || currentUserRole === "athlete"
-      ? "Las nuevas conversaciones se habilitan desde la academia o por invitación del staff."
+      ? "Las nuevas conversaciones se habilitan desde la academia o por invitación del equipo."
       : "La creación manual de conversaciones desde este panel se habilitará cuando esté lista la selección guiada de destinatarios.";
 
   // Fetch conversations

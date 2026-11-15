@@ -218,7 +218,7 @@ export function AcademyTargetProfileForm({
               if (commandWasCurrent) {
                 setRetryRequired(true);
                 setError(
-                  "El servidor rechazó el guardado, pero no se pudo cerrar de forma segura la solicitud local. Reintenta el mismo envío."
+                  "No se guardó. Vuelve a enviar los mismos datos."
                 );
               }
               return;
@@ -260,7 +260,7 @@ export function AcademyTargetProfileForm({
           if (ownsCurrentCommand()) {
             setRetryRequired(true);
             setError(
-              "El servidor confirmó el guardado, pero no se pudo cerrar de forma segura la solicitud local. Reintenta el mismo envío para confirmar y cerrar el estado pendiente."
+              "Se guardó, pero no pudimos confirmar el último paso en este navegador. Vuelve a enviar los mismos datos para cerrarlo."
             );
           }
           return;

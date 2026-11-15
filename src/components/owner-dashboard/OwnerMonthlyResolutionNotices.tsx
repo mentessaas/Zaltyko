@@ -27,9 +27,7 @@ export function MonthlyResolutionPendingNotice({
       className={cn(ownerUi.noticeWarning, "grid gap-3")}
     >
       <p>
-        Hay una operación de facturación cuyo resultado sigue sin
-        confirmar. Conservamos su academia, sede, periodo, endpoint, body y
-        clave originales. No iniciaremos otra operación desde este panel.
+        Hay un cambio de cuotas sin confirmar. Conservamos su academia, sede y periodo. No se hará otro desde este panel hasta resolverlo.
       </p>
       {matchesCurrentScope ? (
         <button

@@ -61,7 +61,7 @@ export function PhotoGallery({ photos, onChange, academyId }: PhotoGalleryProps)
 
       const payload = await response.json();
       const url = payload?.data?.url ?? payload?.url;
-      if (!url) throw new Error("El servidor no devolvió la URL de la imagen");
+      if (!url) throw new Error("No se pudo subir la imagen. Inténtalo de nuevo.");
       onChange([...photos, url]);
     } catch (error) {
       logger.error("Error uploading photo:", error);

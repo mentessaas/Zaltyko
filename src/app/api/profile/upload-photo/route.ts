@@ -126,6 +126,6 @@ export async function POST(request: Request) {
     });
   } catch (error: unknown) {
     logger.error("Error uploading photo:", error);
-    return apiError("INTERNAL_ERROR", "Error interno del servidor", 500);
+    return apiError("INTERNAL_ERROR", "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos.", 500);
   }
 }

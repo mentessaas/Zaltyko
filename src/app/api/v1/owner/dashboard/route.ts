@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     return problemResponse({
       status: 401,
       title: "Autenticación requerida",
-      detail: "Debes iniciar sesión para consultar el dashboard.",
+      detail: "Debes iniciar sesión para ver tu resumen.",
       type: "authentication-required",
     });
   }

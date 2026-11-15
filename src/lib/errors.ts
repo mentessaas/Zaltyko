@@ -40,7 +40,7 @@ export class AuthorizationError extends AppError {
 }
 
 export class NotFoundError extends AppError {
-  constructor(message = "Recurso no encontrado", details?: Record<string, unknown>) {
+  constructor(message = "No lo encontramos", details?: Record<string, unknown>) {
     super(message, "NOT_FOUND", 404, details);
     this.name = "NotFoundError";
     Object.setPrototypeOf(this, NotFoundError.prototype);
@@ -72,7 +72,7 @@ export class PayloadTooLargeError extends AppError {
 }
 
 export class InternalServerError extends AppError {
-  constructor(message = "Error interno del servidor", details?: Record<string, unknown>) {
+  constructor(message = "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos.", details?: Record<string, unknown>) {
     super(message, "INTERNAL_ERROR", 500, details);
     this.name = "InternalServerError";
     Object.setPrototypeOf(this, InternalServerError.prototype);

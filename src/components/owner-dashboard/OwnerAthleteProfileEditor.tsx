@@ -342,7 +342,7 @@ export function OwnerAthleteProfileEditor({
           uncertain = true;
           setLocalPending(command);
           onPendingCommandChange?.(command);
-          setMessage("El servidor confirmó la ficha, pero no se pudo limpiar el marcador de esta sesión. Conservamos la misma operación para comprobarla otra vez.");
+          setMessage("La ficha se guardó, pero no pudimos confirmar el último paso en este navegador. Vuelve a comprobarlo: el cambio no se repetirá.");
           return;
         }
         setLocalPending(null);
@@ -364,7 +364,7 @@ export function OwnerAthleteProfileEditor({
           uncertain = true;
           setLocalPending(command);
           onPendingCommandChange?.(command);
-          setMessage("El servidor rechazó el cambio, pero no se pudo limpiar el marcador de esta sesión. No iniciaremos otra operación.");
+          setMessage("El cambio no se guardó y queda un intento sin confirmar. Pulsa el botón de reintentar antes de hacer otro cambio.");
           return;
         }
         setLocalPending(null);

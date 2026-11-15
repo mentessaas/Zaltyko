@@ -217,7 +217,7 @@ async function assertOwnerAdminAllSites(
   if (!row || !ownerRoles.includes(row.role as (typeof ownerRoles)[number])) {
     throw new OperationalError(
       "FORBIDDEN",
-      "La bandeja organizativa requiere un Owner o Admin activo",
+      "Esta bandeja es solo para la dirección de la academia",
       403
     );
   }

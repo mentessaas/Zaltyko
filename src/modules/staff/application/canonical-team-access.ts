@@ -119,7 +119,7 @@ async function organization(tx: Tx, organizationId: string) {
   const result = await query<{ id: string; name: string; status: string }>(tx, sql`
     select id::text,name,status::text from zaltyko.organizations where id=${organizationId}::uuid`);
   const row = result.rows[0];
-  if (!row) throw new OperationalError("NOT_FOUND", "Organización no disponible", 404);
+  if (!row) throw new OperationalError("NOT_FOUND", "Academia no disponible", 404);
   return row;
 }
 

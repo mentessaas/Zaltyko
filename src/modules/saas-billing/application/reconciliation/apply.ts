@@ -251,7 +251,7 @@ export async function applyPaidInvoiceWithinTransaction(
       effective_until::text as effective_until
   `);
   const changed = objectRows<Record<string, unknown>>(updated)[0];
-  if (!changed) throw fail("FEATURE_NOT_AVAILABLE", "No se pudo conceder el entitlement pagado", 503);
+  if (!changed) throw fail("FEATURE_NOT_AVAILABLE", "No se pudo activar el plan pagado", 503);
   const entitlementAfter: EntitlementBaseline = {
     revision: Number(changed.revision),
     plan_code: String(changed.plan_code),

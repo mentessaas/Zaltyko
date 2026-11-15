@@ -20,7 +20,7 @@ export function unauthenticatedResponse(): NextResponse {
   return noStore(problemResponse({
     status: 401,
     title: "Autenticación requerida",
-    detail: "Inicia sesión para gestionar los perfiles de staff.",
+    detail: "Inicia sesión para gestionar las fichas del equipo.",
     type: "authentication-required",
   }));
 }
@@ -34,7 +34,7 @@ export async function requireOwnerAllScope(userId: string, organizationId: strin
   if (scope.member.role !== "owner" || scope.member.locationScopeMode !== "all") {
     throw new OperationalError(
       "FORBIDDEN",
-      "Solo un Owner con acceso a toda la organización puede gestionar estos perfiles",
+      "Solo la dirección con acceso a toda la academia puede gestionar estas fichas",
       403
     );
   }

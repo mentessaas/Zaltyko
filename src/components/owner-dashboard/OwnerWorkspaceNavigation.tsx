@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   MoreHorizontal,
   Plus,
+  Settings,
   Sparkles,
   UserPlus,
   Users,
@@ -26,6 +27,7 @@ import { OwnerOperationalPolicy } from "./OwnerOperationalPolicy";
 import { OwnerSignOutButton } from "./OwnerSignOutButton";
 import { OwnerSidebarPlanCard } from "./OwnerSidebarPlanCard";
 import type { OwnerWorkspaceCapabilities } from "./owner-workspace-capabilities";
+import { demoHrefFor, realPathForDemoPath } from "@/modules/demo/demo-routes";
 
 type NavigationItem = {
   label: string;
@@ -51,6 +53,7 @@ const ITEM_ICONS: Record<string, LucideIcon> = {
   Equipo: Users,
   Cobros: Wallet,
   Plan: CreditCard,
+  Ajustes: Settings,
 };
 
 const DESKTOP_SECTIONS: ReadonlyArray<{ title: string; labels: readonly string[] }> = [
@@ -58,6 +61,9 @@ const DESKTOP_SECTIONS: ReadonlyArray<{ title: string; labels: readonly string[]
   { title: "Personas", labels: ["Solicitudes", "Gimnastas", "Grupos", "Inscripciones"] },
   { title: "Club", labels: ["Cobros"] },
 ];
+
+/** Apartados que la demo pública no incluye; el resto de la navegación es la real. */
+const DEMO_HIDDEN_LABELS: ReadonlySet<string> = new Set(["Calendario", "Grupos", "Inscripciones", "Plan"]);
 
 const MOBILE_PRIMARY_LABELS = ["Resumen", "Calendario", "Asistencia", "Clases"] as const;
 
@@ -84,6 +90,7 @@ export function OwnerWorkspaceNavigation({
   locationId: validatedLocationId,
   organizationName,
   previewMode = false,
+  demo = false,
 }: {
   capabilities?: OwnerWorkspaceCapabilities;
   organizationId?: string | null;
@@ -91,12 +98,16 @@ export function OwnerWorkspaceNavigation({
   /** Nombre de la academia ya autorizada por la página; solo se rotula. */
   organizationName?: string | null;
   previewMode?: boolean;
+  /** Demo pública (/demo): rutas de /demo y solo los apartados que incluye. */
+  demo?: boolean;
 }) {
   const mobileMoreRef = useRef<HTMLDetailsElement>(null);
   const mobileMoreSummaryRef = useRef<HTMLElement>(null);
   const desktopMoreRef = useRef<HTMLDetailsElement>(null);
   const desktopMoreSummaryRef = useRef<HTMLElement>(null);
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  // En la demo el apartado activo se decide contra las rutas reales equivalentes.
+  const pathname = demo ? realPathForDemoPath(rawPathname) : rawPathname;
   const searchParams = useSearchParams();
   const organizationId =
     validatedOrganizationId !== undefined
@@ -119,7 +130,7 @@ export function OwnerWorkspaceNavigation({
     ? `?${new URLSearchParams({ organizationId }).toString()}`
     : "";
   const dashboardPath = pathname === "/owner/preview" ? pathname : "/owner";
-  const dashboardHref = `${dashboardPath}${scopedQuery}`;
+  const dashboardHref = demo ? "/demo" : `${dashboardPath}${scopedQuery}`;
   const isDashboardPreview = previewMode && pathname === "/owner/preview";
   const showNavigation = !(pathname === "/owner/setup" && !organizationId);
   const preview = previewMode;
@@ -194,6 +205,15 @@ export function OwnerWorkspaceNavigation({
       active: isRouteActive(pathname, "/owner/payments"),
       capability: "canManageFinancials",
     },
+    ...(!previewMode
+      ? [{
+          label: "Ajustes",
+          href: `/owner/settings${organizationQuery}`,
+          active: isRouteActive(pathname, "/owner/settings"),
+          desktopOverflow: true,
+          capability: "canManageStaffProfiles" as const,
+        }]
+      : []),
     ...(!isDashboardPreview
       ? [
           {
@@ -209,15 +229,18 @@ export function OwnerWorkspaceNavigation({
   // Production pages pass capabilities from their validated server scope.
   // Missing capabilities fail closed; route guards remain authoritative.
   const coachOnly = !previewMode && capabilities?.coachOperationsOnly === true;
-  const visibleNavigationItems = navigationItems.filter((item) =>
-    coachOnly
-      ? item.coachAllowed === true
-      : previewMode ||
-        !item.capability ||
-        capabilities?.[item.capability] === true ||
-        (item.alternativeCapability !== undefined &&
-          capabilities?.[item.alternativeCapability] === true)
-  );
+  const visibleNavigationItems = navigationItems
+    .filter((item) =>
+      coachOnly
+        ? item.coachAllowed === true
+        : previewMode ||
+          !item.capability ||
+          capabilities?.[item.capability] === true ||
+          (item.alternativeCapability !== undefined &&
+            capabilities?.[item.alternativeCapability] === true)
+    )
+    .filter((item) => !demo || !DEMO_HIDDEN_LABELS.has(item.label))
+    .map((item) => (demo ? { ...item, href: demoHrefFor(item.href) ?? item.href } : item));
   const desktopPrimaryItems = visibleNavigationItems.filter((item) => !item.desktopOverflow);
   const desktopMoreItems = visibleNavigationItems.filter((item) => item.desktopOverflow);
   const activeDesktopMoreItem = desktopMoreItems.find((item) => item.active);
@@ -377,7 +400,7 @@ export function OwnerWorkspaceNavigation({
             <ThemeToggle className="h-11 w-11" />
             {preview ? (
               <span className="shrink-0 rounded-md bg-mat-wash px-3 py-2 text-xs font-semibold text-mat-deep">
-                Vista sintética
+                {demo ? "Demo" : "Vista sintética"}
               </span>
             ) : <OwnerSignOutButton />}
           </div>

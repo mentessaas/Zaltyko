@@ -49,7 +49,7 @@ export function AthleteMagicLinkCompleteForm(props: Props) {
         <div className="rounded-[10px] border border-chalk-line bg-chalk-dust p-4 text-sm text-mat-night">
           <p className="font-semibold">La invitación ha expirado.</p>
           <p className="mt-2 text-xs text-ramp-600">
-            Pide al staff de tu academia que te envíe una nueva invitación.
+            Pide al equipo de tu academia que te envíe una nueva invitación.
           </p>
         </div>
       </div>

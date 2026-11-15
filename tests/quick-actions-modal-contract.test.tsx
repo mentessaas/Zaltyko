@@ -219,7 +219,7 @@ describe("QuickPaymentModal — contrato de respuesta (ZAL-804)", () => {
             jsonResponse(500, {
                 ok: false,
                 error: "INTERNAL_ERROR",
-                message: "Error interno del servidor",
+                message: "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos.",
             })
         );
 
@@ -227,7 +227,7 @@ describe("QuickPaymentModal — contrato de respuesta (ZAL-804)", () => {
 
         const errorEl = await screen.findByTestId("quick-payment-error");
         expect(errorEl).toHaveAttribute("aria-live", "assertive");
-        expect(errorEl).toHaveTextContent("Error interno del servidor");
+        expect(errorEl).toHaveTextContent("Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos.");
         expect(onSuccess).not.toHaveBeenCalled();
     });
 

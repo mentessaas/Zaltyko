@@ -15,7 +15,7 @@ export function teamNoStore<T extends NextResponse>(response: T): T {
 
 export function invalidTeamInput(): NextResponse {
   // Never reflect the input, Zod diagnostics, token or email into a response.
-  return teamNoStore(apiError("INVALID_TEAM_COMMAND", "Revisa los datos, la revisión y la clave de idempotencia.", 400));
+  return teamNoStore(apiError("INVALID_TEAM_COMMAND", "Revisa los datos y recarga la página.", 400));
 }
 
 export function teamFeatureUnavailableResponse(): NextResponse | null {

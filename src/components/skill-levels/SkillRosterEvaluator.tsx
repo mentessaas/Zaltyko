@@ -268,7 +268,7 @@ function RosterContent({
         <p className={ownerTone.noticeWarning}>Hay más gimnastas de las que se muestran: se ven las primeras {athletes.length}.</p>
       ) : null}
 
-      {athletes.length === 0 ? <p className={ownerUi.muted}>No hay gimnastas con inscripción o pertenencia vigente.</p> : null}
+      {athletes.length === 0 ? <p className={ownerUi.muted}>No hay gimnastas inscritas ni en un grupo activo.</p> : null}
 
       {athletes.length > 0 && level ? (
         <div className="grid gap-5">

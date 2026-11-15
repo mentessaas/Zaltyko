@@ -140,9 +140,9 @@ describe("OwnerAcademyDataExport", () => {
     [
       "text/html",
       new Blob(["<html>login</html>"], { type: "text/html" }),
-      "no devolvió un archivo JSON válido",
+      "No pudimos preparar el archivo",
     ],
-    ["application/json", new Blob([]), "archivo JSON vacío"],
+    ["application/json", new Blob([]), "El archivo salió vacío"],
   ])("rechaza contenido %s o un cuerpo vacío sin guardarlo", async (contentType, blob, message) => {
     fetchMock.mockResolvedValueOnce(
       successfulResponse(blob as Blob, { contentType: String(contentType) })
