@@ -74,8 +74,12 @@ function renderAttendance() {
   );
 }
 
+/** Como el navegador: cambia `navigator.onLine` y avisa con el evento. */
 function setOnline(online: boolean) {
   Object.defineProperty(window.navigator, "onLine", { configurable: true, get: () => online });
+  act(() => {
+    window.dispatchEvent(new Event(online ? "online" : "offline"));
+  });
 }
 
 function queuedMark(overrides: Record<string, unknown> = {}) {

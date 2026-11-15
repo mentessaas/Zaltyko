@@ -115,7 +115,7 @@ export function isAttendanceRoute(pathname: string | null | undefined): boolean 
   if (!pathname) return false;
   return (
     /\/attendance\/today(?:\/|$)/.test(pathname) ||
-    /^\/owner\/attendance(?:\/|$)/.test(pathname) ||
+    /^\/owner\/attendance(?:[/?#]|$)/.test(pathname) ||
     pathname.startsWith("/pasar-lista-sin-conexion")
   );
 }

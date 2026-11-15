@@ -225,6 +225,14 @@ export async function sendBatch(batch: Batch): Promise<SendResult> {
 /** Envía las marcas pendientes. Devuelve `null` si no se sabe quién es la usuaria. */
 export async function syncPendingAttendance(): Promise<FlushSummary | null> {
   if (typeof navigator !== "undefined" && navigator.onLine === false) return null;
+  // Sin marcas pendientes no hay nada que enviar: ni se lee la sesión ni se
+  // hace ninguna petición (esto corre en segundo plano en cada página).
+  try {
+    const queued = await getOfflineStore().listQueued();
+    if (!queued.some((m) => m.state === "pending")) return null;
+  } catch {
+    return null;
+  }
   const userId = await resolveUserId();
   if (!userId) return null;
   const summary = await flushQueue(getOfflineStore(), sendBatch, { userId });
