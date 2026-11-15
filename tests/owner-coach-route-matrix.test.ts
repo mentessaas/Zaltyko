@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   record: vi.fn(),
   usage: vi.fn(),
   calendar: vi.fn(),
+  today: vi.fn(),
 }));
 
 vi.mock("@/db", () => ({
@@ -61,6 +62,9 @@ vi.mock(
 );
 vi.mock("@/modules/scheduling/application/calendar-sessions", () => ({
   getOwnerCalendar: mocks.calendar,
+}));
+vi.mock("@/modules/attendance/application/owner-today-attendance", () => ({
+  getOwnerTodayAttendance: mocks.today,
 }));
 vi.mock(
   "@/modules/saas-billing/application/organization-usage",
@@ -120,6 +124,15 @@ beforeEach(() => {
     groups: [],
     coachesAvailable: false,
     assignedOnly: true,
+  });
+  mocks.today.mockReset().mockResolvedValue({
+    source: "owner",
+    academyId: ids.orgA,
+    academyName: null,
+    userId: ids.coach,
+    date: "2026-11-09",
+    generatedAt: "2026-11-09T08:00:00.000Z",
+    sessions: [],
   });
   mocks.usage.mockReset().mockResolvedValue({
     readOnly: false,
@@ -289,6 +302,7 @@ const loadSessionAttendance = () =>
   import("@/app/api/v1/owner/sessions/[sessionId]/attendance/route");
 const loadPolicy = () => import("@/app/api/v1/owner/operational-policy/route");
 const loadCalendar = () => import("@/app/api/v1/owner/calendar/route");
+const loadToday = () => import("@/app/api/v1/owner/attendance/today/route");
 
 describe("coach permitido solo en su sede", () => {
   it("lista sesiones para pasar lista en su sede", async () => {
@@ -344,6 +358,47 @@ describe("coach permitido solo en su sede", () => {
     // La sede pedida sale del alcance de la entrenadora: ninguna otra.
     const scope = mocks.calendar.mock.calls[0][0].scope;
     expect(scope.locations.map((location: { id: string }) => location.id)).toEqual([ids.siteAssigned]);
+  });
+
+  it("guarda la lista de hoy solo de sus sedes asignadas (pasar lista sin conexión)", async () => {
+    const response = await call(
+      loadToday,
+      "GET",
+      `/api/v1/owner/attendance/today${query({ organizationId: ids.orgA })}`
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const { scope, userId } = mocks.today.mock.calls[0][0];
+    expect(userId).toBe(ids.coach);
+    expect(scope.member.role).toBe("coach");
+    expect(scope.canViewOrganizationAggregate).toBe(false);
+    expect(scope.locations.map((location: { id: string }) => location.id)).toEqual([ids.siteAssigned]);
+  });
+
+  it("la lista de hoy de otro club responde 404 sin leer nada", async () => {
+    const response = await call(
+      loadToday,
+      "GET",
+      `/api/v1/owner/attendance/today${query({ organizationId: foreignClub.organizationId })}`
+    );
+
+    expect(response.status).toBe(404);
+    expect(mocks.today).not.toHaveBeenCalled();
+    expect(state.domainReads).toEqual([]);
+  });
+
+  it("un coach sin sedes no guarda ninguna lista de hoy", async () => {
+    holder.userId = ids.coachNoSites;
+
+    const response = await call(
+      loadToday,
+      "GET",
+      `/api/v1/owner/attendance/today${query({ organizationId: ids.orgA })}`
+    );
+
+    expect(response.status).toBe(403);
+    expect(mocks.today).not.toHaveBeenCalled();
   });
 
   it("sin sede pedida, el calendario usa la sede asignada y nunca el agregado", async () => {
@@ -545,6 +600,12 @@ const staticallyGuarded: Record<string, { guard: string; via?: string }> = {
   "POST owner/athlete-import/preview/route.ts": { guard: "resolveOwnerScope", via: "src/app/api/v1/owner/athlete-import/import-request.ts" },
   "POST owner/athlete-intake/[athleteId]/assign/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/athlete-intake/route.ts": { guard: "resolveOwnerScope" },
+  // Familias y avisos: las tres rutas comparten withFamilyManager, que resuelve
+  // al miembro con resolveOwnerScope (gestión, sin coach) tras autenticar; el
+  // servicio repite rol y sede dentro de la transacción.
+  "POST owner/family-access/route.ts": { guard: "resolveOwnerScope", via: "src/app/api/v1/family-access-route-helpers.ts" },
+  "POST owner/family-notices/route.ts": { guard: "resolveOwnerScope", via: "src/app/api/v1/family-access-route-helpers.ts" },
+  "POST owner/sessions/[sessionId]/change/route.ts": { guard: "resolveOwnerScope", via: "src/app/api/v1/family-access-route-helpers.ts" },
   "PATCH owner/athletes/[athleteId]/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/billing/monthly-invoices/issue/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/billing/price-plans/route.ts": { guard: "resolveOwnerScope" },
@@ -587,6 +648,10 @@ const outsideOwnerSurface: Record<string, string> = {
   "POST organizations/bootstrap/route.ts": "alta de la propia academia",
   "POST staff/invitations/accept/route.ts": "la persona invitada acepta su invitación",
   "POST staff/invitations/inspect/route.ts": "la persona invitada consulta su invitación",
+  "POST family/invitations/accept/route.ts": "la familia invitada acepta su invitación al portal",
+  "POST family/invitations/inspect/route.ts": "la familia invitada consulta su invitación al portal",
+  "POST family/notices/read/route.ts": "la familia marca como leídos sus propios avisos",
+  "PUT family/notification-preferences/route.ts": "la familia elige sus correos de avisos",
 };
 
 /** Rutas que admiten al coach por diseño (P1 #8). */
@@ -594,6 +659,11 @@ const coachAllowed = new Set([
   "GET owner/attendance/sessions/route.ts",
   "GET owner/sessions/[sessionId]/attendance/route.ts",
   "POST owner/sessions/[sessionId]/attendance/route.ts",
+  // Pasar lista sin conexión: la lista de hoy de sus sedes (ejecutada arriba) y
+  // el envío por lotes de la cola, con el mismo acceso por sede que la marca en
+  // línea (resolveSessionAttendanceAccess; tests/owner-attendance-sync-route).
+  "GET owner/attendance/today/route.ts",
+  "POST owner/attendance/sync/route.ts",
   "GET owner/operational-policy/route.ts",
   // Calendario: la entrenadora lee solo sus sesiones asignadas, de una sede
   // de su alcance (el servicio filtra por session_staff).
@@ -676,6 +746,8 @@ describe("inventario de /api/v1", () => {
       "src/modules/owner-dashboard/application/owner-scope.ts",
       "src/modules/attendance/application/owner-attendance-sessions.ts",
       "src/app/api/v1/owner/attendance/sessions/route.ts",
+      // Pasar lista sin conexión: la lista de hoy de las sedes de la persona.
+      "src/app/api/v1/owner/attendance/today/route.ts",
       // Calendario: lectura de las sesiones asignadas a la entrenadora.
       "src/app/api/v1/owner/calendar/route.ts",
       "src/app/owner/calendar/page.tsx",

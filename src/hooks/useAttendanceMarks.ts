@@ -7,6 +7,7 @@ import {
   OFFLINE_ATTENDANCE_EVENT,
   getOfflineStore,
   notifyOfflineAttendanceChanged,
+  refreshTodaySnapshot,
   resolveUserId,
   syncPendingAttendance,
   type OfflineAttendanceChange,
@@ -15,11 +16,14 @@ import { mergeMarks, type DisplayedMark } from "@/lib/offline-attendance/snapsho
 import {
   isAttendanceStatus,
   type AttendanceStatus,
+  type OfflineAttendanceSource,
   type QueuedMark,
   type SnapshotMark,
 } from "@/lib/offline-attendance/types";
 
 interface Options {
+  /** Modelo de datos de la lista: sin valor, el panel antiguo; `"owner"`, /owner. */
+  source?: OfflineAttendanceSource;
   academyId: string;
   sessionId: string;
   /** Lo que el servidor (o la lista guardada) ya tenía marcado. */
@@ -43,7 +47,7 @@ export interface AttendanceMarksState {
   retry: () => Promise<void>;
 }
 
-export function useAttendanceMarks({ academyId, sessionId, serverMarks }: Options): AttendanceMarksState {
+export function useAttendanceMarks({ academyId, sessionId, serverMarks, source }: Options): AttendanceMarksState {
   const [server, setServer] = useState<Record<string, SnapshotMark>>(serverMarks);
   const [queued, setQueued] = useState<QueuedMark[]>([]);
   const [isOnline, setIsOnline] = useState(true);
@@ -67,6 +71,14 @@ export function useAttendanceMarks({ academyId, sessionId, serverMarks }: Option
 
   const reloadServerMarks = useCallback(async () => {
     try {
+      if (source === "owner") {
+        // En /owner la lista de hoy ya trae lo marcado y cuándo: se vuelve a
+        // descargar (y se guarda de nuevo en el móvil).
+        const snapshot = await refreshTodaySnapshot(academyId, "owner");
+        const session = snapshot?.sessions.find((s) => s.id === sessionId);
+        if (session && mounted.current) setServer(session.marks);
+        return;
+      }
       const response = await fetch(`/api/attendance?sessionId=${encodeURIComponent(sessionId)}`, {
         cache: "no-store",
       });
@@ -84,7 +96,7 @@ export function useAttendanceMarks({ academyId, sessionId, serverMarks }: Option
     } catch {
       // Sin red: se queda lo que había.
     }
-  }, [sessionId]);
+  }, [academyId, sessionId, source]);
 
   useEffect(() => {
     mounted.current = true;
@@ -144,6 +156,7 @@ export function useAttendanceMarks({ academyId, sessionId, serverMarks }: Option
       try {
         for (const athleteId of athleteIds) {
           await recordMark(store, {
+            ...(source ? { source } : {}),
             userId,
             academyId,
             sessionId,
@@ -160,7 +173,7 @@ export function useAttendanceMarks({ academyId, sessionId, serverMarks }: Option
       void runSync();
       return true;
     },
-    [academyId, sessionId, runSync]
+    [academyId, sessionId, source, runSync]
   );
 
   const mark = useCallback(

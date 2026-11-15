@@ -349,6 +349,10 @@ const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
   "/api/v1/owner/academy-settings/locations": { limit: 10, window: 60 },
   // Calendario de sesiones: lectura por rango; cada cambio de vista o de mes es una consulta.
   "/api/v1/owner/calendar": { limit: 60, window: 60 },
+  // Pasar lista sin conexión: la lista de hoy se descarga al abrir la pantalla
+  // y la cola se envía por lotes al volver la red.
+  "/api/v1/owner/attendance/today": { limit: 30, window: 60 },
+  "/api/v1/owner/attendance/sync": { limit: 60, window: 60 },
   "/api/attendance": { limit: 60, window: 60 },
   "/api/class-sessions": { limit: 30, window: 60 },
   "/api/academies": { limit: 10, window: 60 },

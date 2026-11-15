@@ -400,6 +400,104 @@ aceptar, el servidor rellena `staff_profiles.member_id`.
   ningún entorno. La función sigue además detrás de
   `ZALTYKO_TEAM_ACCESS_ENABLED`.
 
+## Candidato del acceso de familias y los avisos de sesión
+
+**Estado: requiere autorización de Elvis para aplicarse.** No se ha aplicado
+en ningún entorno (ni staging ni producción). La CI verde no equivale a
+autorización. La función sigue además detrás de
+`ZALTYKO_FAMILY_ACCESS_ENABLED`, apagada por defecto (solo vale el valor
+exacto `true`).
+
+`20261114121500_family_access_notices_candidate.sql` crea solo cuatro
+relaciones:
+
+- `zaltyko.guardian_access_invitations`: invitación de un solo uso al portal
+  de familias, atada a un tutor (`guardian_id`). Guarda el SHA-256 del token
+  (32 bytes aleatorios), nunca el token; el correo normalizado al que se
+  invitó; caducidad (7 días), revisión, último envío, y quién invitó, aceptó o
+  revocó. Una sola pendiente por tutor (índice único parcial).
+- `zaltyko.family_notices`: aviso de la academia (sesión cancelada, cambio de
+  horario, sustitución o aviso manual a una clase o un grupo), con
+  `dedupe_key` única por academia para que el mismo cambio no cree dos avisos.
+- `zaltyko.family_notice_recipients`: un registro por tutor destinatario con
+  la lectura en el portal (`read_at`) y el resultado del correo. No guarda
+  direcciones de correo.
+- `zaltyko.guardian_notification_preferences`: preferencias de correo de cada
+  tutor (cambios de sesión y avisos manuales), por defecto activadas.
+
+No altera tablas existentes, filas, roles ni objetos legacy. Al aceptar una
+invitación, el servidor escribe columnas que ya existen:
+`guardians.auth_user_id` y, si la academia lo confirmó al invitar,
+`family_guardians.can_view_athletes = true`. Fuerza RLS, revoca a `public`,
+`anon` y `authenticated`, no crea políticas ni grants, exige PostgreSQL 15+
+(`on delete set null (columna)`) y se niega a reinstalarse si alguna de las
+cuatro relaciones ya existe.
+
+- SHA-256: `4143ebef55bdd0f0c97585dcda1259ed8912c0db2fe01400286a5febe0e02811`.
+- Detección: `src/modules/family-access/application/family-access-storage.ts`
+  compara tablas, columnas, RLS forzado y ausencia de privilegios de clientes.
+  Sin el candidato exacto, la función responde 503 y `/owner/familias`,
+  `/familia/avisos` y `/familia/aceptar` no existen (404).
+- FK a `zaltyko.sessions`, `class_templates` y `groups` en NO ACTION: se
+  cancelan o archivan por estado, nunca se borran
+  (`tests/zaltyko-sessions-never-deleted.test.ts`).
+- Derechos de datos: módulo `family_access` de
+  `OPTIONAL_INCLUDED_EXPORT_MODULES` (`src/modules/data-rights/application/catalog.ts`),
+  con valores para que la academia atienda el derecho de acceso de un tutor;
+  sin el hash del token, el identificador de Auth ni la instantánea de
+  vínculos. Las cuatro tablas o ninguna. Política de supresión en
+  `activated-modules-erasure-policy.ts`.
+- `grant_links`: vínculos familia-tutor (id y versión) que la academia vio al
+  invitar; al aceptar solo se concede ver gimnastas en esos y si no cambiaron.
+  `email_attempts`: reintentos del correo de un aviso (hasta 3), que hace el
+  cron `POST /api/cron/family-notices` (CRON_SECRET, sin programar todavía).
+- **Retirar acceso con la bandera apagada.** Si se apaga
+  `ZALTYKO_FAMILY_ACCESS_ENABLED` con las tablas instaladas, `/owner/familias`
+  pasa a modo «solo retirar acceso» (dirección o administración con todas las
+  sedes): lista las familias con cuenta vinculada y permite retirarla, con
+  auditoría. Ni invitaciones ni avisos. Si las tablas no existen, ninguna
+  cuenta pudo vincularse por esta vía.
+- Contrato: `tests/family-access-candidate-contract.test.ts`. Prueba:
+  `tests/family-access-pg.test.ts` en el job «Postgres integration»; instala
+  el candidato solo en el PostgreSQL desechable de GitHub y borra sus tablas al
+  terminar.
+- Producto: `docs/producto/familias-acceso-y-avisos.md`. Privacidad:
+  `docs/privacy/familias-acceso-y-avisos.md`.
+
+### Verificación (después de aplicar, solo lectura)
+
+```sql
+select c.relname, c.relrowsecurity, c.relforcerowsecurity,
+  has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE') as anon_access,
+  has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE') as authenticated_access
+from pg_class c join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'zaltyko'
+  and c.relname in ('guardian_access_invitations', 'family_notices',
+                    'family_notice_recipients', 'guardian_notification_preferences')
+order by c.relname;
+-- Esperado: 4 filas, RLS y FORCE en true, sin acceso de anon ni authenticated.
+```
+
+Después, con `ZALTYKO_FAMILY_ACCESS_ENABLED=true` solo en el entorno que se
+pruebe, `/owner/familias` debe abrirse (si la detección falla, sigue en 404).
+
+### Rollback (solo si no hay datos que conservar)
+
+Apagar primero la bandera (`ZALTYKO_FAMILY_ACCESS_ENABLED` sin valor o
+distinto de `true`): la función queda dormida sin tocar la base. Borrar las
+tablas elimina invitaciones, avisos y lecturas; las cuentas ya vinculadas
+(`guardians.auth_user_id`) y los permisos `can_view_athletes` concedidos se
+conservan, porque son columnas existentes. Requiere autorización de Elvis:
+
+```sql
+begin;
+drop table zaltyko.family_notice_recipients;
+drop table zaltyko.family_notices;
+drop table zaltyko.guardian_notification_preferences;
+drop table zaltyko.guardian_access_invitations;
+commit;
+```
+
 ## Candidato de alta abierta a cualquier país
 
 `20261112120000_general_market_identity_candidate.sql` crea solo la función
@@ -437,6 +535,20 @@ locales y facturación) llegará más adelante.
   es inocuo: nada lo llama hasta que el código nuevo esté en producción.
 - **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
+
+## Candidato de uso habitual (medición, 14-11-2026)
+
+`20261114130000_habitual_use_candidate.sql` crea una relación nueva, `public.usage_events`, y dos índices sobre `zaltyko.sessions` (`sessions_starts_at_idx`, `sessions_ends_at_idx`), sin cambiar filas ni columnas existentes: contadores de uso por academia, tipo de evento (`staff_visit`, `family_portal_view`), rol y día. Producto y flujo: `docs/producto/uso-habitual.md`.
+
+- No guarda identificadores de persona, de cuenta, de gimnasta ni de menor, ni IP ni texto libre. Solo los eventos de familia llevan `actor_ref`: 16 hexadecimales de un HMAC con un secreto propio (`ZALTYKO_USAGE_PSEUDONYM_SECRET`) que rota cada semana. **Es un seudónimo, no un dato anónimo**: quien tenga el secreto puede recalcularlo para una cuenta conocida. Sirve para contar cuentas distintas en una semana, no para seguir a una familia entre semanas.
+- Esquema `public` (como `growth_events`): telemetría interna del producto. Enlaza con `zaltyko.organizations` con `ON DELETE CASCADE`, así que borrar la academia borra su uso. RLS `ENABLE` y `FORCE`, `REVOKE ALL` a `public`, `anon` y `authenticated`, sin políticas.
+- Los dos índices de `sessions` aceleran las búsquedas por hora de los avisos a entrenadoras, que miran todas las academias a la vez. Sin ellos los avisos funcionan, más despacio.
+- Bandera apagada por defecto: `ZALTYKO_HABITUAL_USE_ENABLED` más `ZALTYKO_USAGE_METRICS_ENABLED`. Mientras la tabla no exista tal como la define el archivo no se registra nada y `/super-admin/uso` responde «no disponible». Los avisos por correo no usan la tabla.
+- El preflight aborta si `public.usage_events` o alguno de los índices ya existe, o si faltan `zaltyko.organizations` o `zaltyko.sessions`.
+- **Vuelta atrás documentada** (al final del propio archivo; no forma parte de la instalación): `drop index if exists zaltyko.sessions_starts_at_idx; drop index if exists zaltyko.sessions_ends_at_idx; drop table if exists public.usage_events;`. Solo se pierden los contadores de uso: ningún dato de la academia depende de ellos, y con las banderas apagadas la aplicación vuelve sola a «no disponible». `tests/habitual-use-pg.test.ts` ejecuta esa vuelta atrás y reinstala.
+- SHA-256: `716ee8543fb8f2cdf57dd939814eb72a4195f2342fa19efea94b635f98c04b68`.
+- Pruebas: `tests/habitual-use-routes-and-contract.test.ts` (columnas, índices, RLS, ausencia de datos personales y hash) y `tests/habitual-use-pg.test.ts` en el job «Postgres integration», que instala el candidato solo en el PostgreSQL desechable de GitHub y retira lo creado al terminar.
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en ningún entorno. La CI verde no equivale a autorización.
 
 ## Candidato de supresión de cuentas (RGPD art. 17)
 

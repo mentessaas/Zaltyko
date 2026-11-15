@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { AddToHomeScreenHint } from "@/components/pwa/AddToHomeScreenHint";
+
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -13,5 +15,12 @@ export default function OwnerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      {children}
+      {/* Invitación discreta a añadir Zaltyko a la pantalla de inicio: solo
+          en móvil, tras unas visitas y nunca en las pantallas de pasar lista. */}
+      <AddToHomeScreenHint />
+    </>
+  );
 }

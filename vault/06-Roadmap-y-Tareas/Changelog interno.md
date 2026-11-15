@@ -7,6 +7,37 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-15 — Pasar lista sin conexión también en /owner
+
+**Contexto.** La lista sin conexión de la #324 solo se guardaba desde el panel antiguo `/app`; quien usa `/owner` no tenía ninguna lista guardada y `/pasar-lista-sin-conexion` quedaba vacío. La retirada de `/app` (#314) esperaba a esto.
+
+**Cambio.**
+- `GET /api/v1/owner/attendance/today`: lista de hoy con el modelo de /owner (sesiones del día local de cada sede, inscripciones vigentes, marcas). Mismo reparto por rol que pasar lista: dirección y administración, las sedes de su alcance; entrenadora, solo las suyas. Academia ajena: 404.
+- `POST /api/v1/owner/attendance/sync`: la cola envía por lotes a `recordOfflineAttendance`, la misma transacción que la marca en línea con idempotencia por `opId`, «la última marca gana» por hora real, conflicto según lo que la entrenadora veía y compensación del reloj del móvil. Conflictos en `audit_log` (`attendance.offline_conflict`).
+- `/owner/attendance` guarda la lista de hoy al abrirse con red (`TodaySnapshotSaver`), muestra «Guardado» / «Pendiente de enviar» en cada fila y, sin red, guarda la marca en el móvil. El service worker lleva `/owner/attendance` a la pantalla sin conexión.
+- La invitación «Añade Zaltyko a tu pantalla de inicio» también se muestra en /owner.
+
+**Decisión.** La entrenadora recibe las sesiones de las sedes que tiene asignadas, no solo las que le asignaron por sesión: es lo que ya permite pasar lista en línea (decisión del 9 nov, opción A). Si se pasa a «solo sus sesiones asignadas», se cambia en `owner-today-attendance.ts` y en el acceso de `resolveSessionAttendanceAccess` a la vez.
+
+**Sin migraciones.** Los datos antiguos (`/app`) siguen su camino y no se tocan.
+
+**Probado.** Pruebas unitarias nuevas (servicio, rutas, cola, pantalla en línea y sin red, página, service worker) y una prueba con PostgreSQL desechable de la lista de hoy por rol. **Sin probar en un móvil real**; la comprobación en modo avión queda para staging.
+
+## 2026-11-15 — Acceso de familias al portal y avisos de sesión (A1, A2), apagado
+
+**Contexto.** Brechas A1 y A2 del análisis de competencia: sustituir el grupo de WhatsApp sin perder el control. Continúa el portal de familias de solo lectura (P2 #16), que no tenía forma de dar acceso.
+
+**Cambio.**
+- Módulo `src/modules/family-access`: invitación con enlace de un solo uso (caduca a los 7 días, solo se guarda su SHA-256), correo verificado, límites, auditoría, reenviar, revocar, retirar acceso e invitar a todas en lotes de 20.
+- Avisos de cancelación, cambio de horario, sustitución y aviso manual a una clase o grupo; portal y correo según la preferencia de la familia; «Leído por X de Y» para la academia; idempotentes. Correos por lotes con reintento (cron `POST /api/cron/family-notices`, sin programar).
+- Candidato `docs/deployment/candidates/20261114121500_family_access_notices_candidate.sql`: cuatro tablas con RLS forzado. **Sin aplicar en ningún entorno.**
+- Bandera `ZALTYKO_FAMILY_ACCESS_ENABLED=false` por defecto: sin ella y sin el candidato, `/owner/familias`, `/familia/avisos` y `/familia/aceptar` responden 404 y las API 503. Con las tablas instaladas y la bandera apagada solo se puede retirar el acceso.
+- Exportación, verificación, disposición y supresión de datos incluyen el módulo `family_access`.
+
+**Pruebas.** `tests/family-access-*` (dominio, contrato del candidato, rutas y PostgreSQL desechable: una familia nunca ve, marca ni configura avisos de otra) y los contratos de derechos de datos y de la matriz del entrenador. Ninguna en local; la valida la CI.
+
+**Pendiente.** Decisiones de Elvis en `docs/producto/familias-acceso-y-avisos.md` (a–h), entre ellas la entrada «Familias» del menú y programar el cron.
+
 ## 2026-11-14 — Smoke público y Lighthouse alineados con la superficie viva
 
 **Contexto.** Los jobs «Smoke Tests» y «Lighthouse SEO/Perf Budget» de `main` fallaban en cada push porque probaban páginas retiradas de zaltyko.com: `/blog/*` responde 410, los clústeres de gimnasia artística y rítmica redirigen 301 a `/features`, los de trampolín y acrobática responden 410, `/help` redirige 308 a `/ayuda` y las páginas demo de empleo y marketplace responden 404. Además, el copy vivo cambió desde que se escribió el spec: la pestaña de cobros de `/features` ahora se llama «Cuotas», las tarjetas de plan de `/pricing` son `<li>` (ya no `<article>`) y el CTA del hero de portada es «Crear academia gratis».
@@ -62,6 +93,14 @@ source:
 - Gate `orphan-app-route`: con `src/app/app` retirado, la raíz por defecto cuenta como vacía.
 
 **Pendiente / no verificado en el Mac.** Nada se ejecutó localmente (regla del proyecto): la verificación es la CI de la PR. Sin equivalente en `/owner`: ver `docs/qa/retiro-panel-app-2026-11-14.md`. La candidata SQL y el borrado de los archivos de Storage requieren autorización de Elvis.
+
+## 2026-11-14 — Uso habitual: avisos a entrenadoras, resumen semanal y medición (apagado)
+
+**Contexto.** Bandera de producto de Elvis: cada persona debe tener un motivo útil para volver. Todo va detrás de banderas apagadas (`ZALTYKO_HABITUAL_USE_ENABLED` y una por función); nada se envía ni se registra hasta que Elvis las encienda.
+
+**Cambio.** Aviso a quien entrena ~15 min antes de cada sesión y un único recordatorio si falta la lista (hora de la sede, sin envíos de madrugada, sin duplicados, punto de extensión para push); resumen semanal de dirección el lunes por la mañana, solo con lo accionable y sin envío si no hay nada; desactivación con enlace firmado por tipo de aviso; consultas filtradas en SQL y paginadas, sin tope por envío; «Gimnastas sin venir» abre `/owner/athletes/sin-venir`; eventos de uso sin datos de personas, vista `/super-admin/uso` (sesiones con lista por semana como métrica principal) y aviso a Elvis de academias en riesgo (7 días sin actividad). Docs: `docs/producto/uso-habitual.md`.
+
+**No ejecutado / pendiente.** Candidata `docs/deployment/candidates/20261114130000_habitual_use_candidate.sql` (`public.usage_events` y dos índices en `zaltyko.sessions`, con vuelta atrás documentada) sin aplicar: requiere autorización de Elvis. Los tres crons no están en `vercel.json`. Verificación solo en la CI de la PR (no se ejecutó nada en el Mac).
 
 ## 2026-11-14 — Pasar lista sin conexión, instalar Zaltyko en el móvil y plan de la app nativa
 

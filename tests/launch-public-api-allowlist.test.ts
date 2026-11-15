@@ -19,6 +19,8 @@ const PUBLIC_API_ALLOWLIST: Record<string, string> = {
   "POST /api/growth/events": "First-party measurement behind consent, rate limited.",
   "GET /api/preferences": "Email preferences behind a signed link token.",
   "POST /api/preferences": "Email preferences behind a signed link token.",
+  "GET /api/habitual-use/preferences": "Habitual-use notice preferences behind a signed link token; reading changes nothing.",
+  "POST /api/habitual-use/preferences": "Habitual-use notice preferences behind a signed link token.",
   "GET /api/unsubscribe": "One-click unsubscribe behind a signed link token.",
   "POST /api/unsubscribe": "One-click unsubscribe behind a signed link token.",
   "GET /api/athletes/invite/state/[stateToken]": "Opaque invitation token is the authorization.",

@@ -11,6 +11,7 @@ import { OwnerSessionObservationForm } from "./OwnerSessionObservationForm";
 import { ownerTone, ownerUi } from "./owner-ui";
 import { DrawnCheck, OwnerListSkeleton } from "./OwnerFeedback";
 import { PageHeader } from "@/components/ui/page-header";
+import { useOwnerOfflineMarks } from "@/hooks/useOwnerOfflineMarks";
 import { ownerPlanCheckOf } from "./OwnerPlanCheckNote";
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import {
@@ -39,6 +40,8 @@ type AttendanceItem = {
   enrollmentId: string;
   athleteName: string;
   attendanceStatus: AttendanceStatus | null;
+  /** Momento de la marca guardada (ISO); null si aún no hay. */
+  recordedAt?: string | null;
 };
 type SessionOption = {
   id: string;
@@ -379,6 +382,33 @@ export function OwnerAttendanceManager({
   const notice =
     saveFeedback.scopeKey === currentScopeKey ? saveFeedback.notice : "";
   const [refreshKey, setRefreshKey] = useState(0);
+  // Pasar lista sin conexión: las marcas hechas sin red esperan en el móvil
+  // («Pendiente de enviar») y esta pantalla se actualiza cuando salen.
+  const offlineMarks = useOwnerOfflineMarks({
+    organizationId,
+    sessionId,
+    onConfirmed: (confirmed) =>
+      setRosterState((current) =>
+        current && current.scopeKey === currentScopeKey
+          ? {
+              ...current,
+              items: current.items.map((item) => {
+                const sent = confirmed.find(
+                  (mark) => mark.enrollmentId === item.enrollmentId
+                );
+                return sent
+                  ? {
+                      ...item,
+                      attendanceStatus: sent.status,
+                      recordedAt: sent.recordedAt ?? new Date().toISOString(),
+                    }
+                  : item;
+              }),
+            }
+          : current
+      ),
+    onSuperseded: () => setRefreshKey((current) => current + 1),
+  });
   const requestSequence = useRef(0);
 
   async function loadMoreSessions() {
@@ -549,6 +579,23 @@ export function OwnerAttendanceManager({
       uncertain: false,
     };
     if (retry && retryScopeKey(retry) !== currentScopeKey) return;
+    if (!retry && typeof navigator !== "undefined" && navigator.onLine === false) {
+      // Sin red no se intenta enviar: la marca se guarda en el móvil y sale
+      // sola al volver la conexión (con «la última marca gana»).
+      const seen =
+        attendees.find((item) => item.enrollmentId === enrollmentId)?.recordedAt ?? null;
+      const saved = await offlineMarks.enqueue(enrollmentId, command.status, seen);
+      setSaveFeedback({
+        scopeKey: currentScopeKey,
+        error: saved
+          ? ""
+          : "No se pudo guardar la marca en este móvil. Vuelve a tocar.",
+        notice: saved
+          ? "Sin conexión: marca guardada en este móvil. Se enviará sola cuando vuelva la conexión."
+          : "",
+      });
+      return;
+    }
     const requestScopeKey = retryScopeKey(request);
     if (savingByScopeRef.current[requestScopeKey]) return;
     const requestKey = retryRequestKey(request);
@@ -934,6 +981,31 @@ export function OwnerAttendanceManager({
               </p>
             )}
 
+            {sessionId &&
+            (!offlineMarks.isOnline ||
+              offlineMarks.pendingCount > 0 ||
+              offlineMarks.failedCount > 0) ? (
+              <p
+                aria-live="polite"
+                data-testid="offline-attendance-state"
+                className="text-sm leading-6 text-z-soft"
+              >
+                {!offlineMarks.isOnline
+                  ? "Sin conexión · lo que marques se guarda en este móvil."
+                  : "Con conexión."}
+                {offlineMarks.pendingCount > 0
+                  ? offlineMarks.pendingCount === 1
+                    ? " 1 marca pendiente de enviar."
+                    : ` ${offlineMarks.pendingCount} marcas pendientes de enviar.`
+                  : ""}
+                {offlineMarks.failedCount > 0
+                  ? offlineMarks.failedCount === 1
+                    ? " 1 marca no se pudo enviar: vuelve a marcarla."
+                    : ` ${offlineMarks.failedCount} marcas no se pudieron enviar: vuelve a marcarlas.`
+                  : ""}
+              </p>
+            ) : null}
+
             {sessionId && !loading && !loadError && attendees.length === 0 ? (
               <p className="rounded-card border border-z-line bg-z-canvas p-4 text-sm leading-6 text-z-soft">
                 No hay gimnastas con inscripción vigente en esta sesión.
@@ -949,6 +1021,16 @@ export function OwnerAttendanceManager({
                       candidate.body.enrollmentId === attendee.enrollmentId
                   );
                   const status = selectedStatuses[attendee.enrollmentId] ?? "";
+                  // Una marca hecha sin conexión manda sobre lo guardado.
+                  const offlineMark = offlineMarks.byEnrollment[attendee.enrollmentId];
+                  const shownStatus = offlineMark?.status ?? attendee.attendanceStatus;
+                  const saveLabel = offlineMark
+                    ? offlineMark.state === "failed"
+                      ? "No se pudo enviar"
+                      : "Pendiente de enviar"
+                    : attendee.attendanceStatus
+                      ? "Guardado"
+                      : null;
                   const rowBusy =
                     savingForCurrentScope?.enrollmentId === attendee.enrollmentId;
                   const saveAction = rowBusy
@@ -981,7 +1063,7 @@ export function OwnerAttendanceManager({
                           className="grid grid-cols-2 gap-1.5 sm:grid-cols-4"
                         >
                           {attendanceStatuses.map((option) => {
-                            const saved = attendee.attendanceStatus === option.value;
+                            const saved = shownStatus === option.value;
                             const sending = rowBusy && !retry && status === option.value;
                             return (
                               <button
@@ -1028,6 +1110,18 @@ export function OwnerAttendanceManager({
                             );
                           })}
                         </div>
+                        {saveLabel ? (
+                          <p
+                            data-testid="attendance-save-label"
+                            className={
+                              offlineMark?.state === "failed"
+                                ? "text-xs font-semibold text-z-ink"
+                                : "text-xs text-z-soft"
+                            }
+                          >
+                            {saveLabel}
+                          </p>
+                        ) : null}
                         {retry ? (
                           <button
                             type="button"

@@ -94,16 +94,22 @@ describe("aviso del navegador", () => {
 
 describe("rutas", () => {
   it("no se interrumpe en las pantallas de pasar lista", () => {
-    expect(isAttendanceRoute("/owner/attendance")).toBe(true);
-    expect(isAttendanceRoute("/owner/attendance/")).toBe(true);
+    expect(isAttendanceRoute("/app/abc/attendance/today")).toBe(true);
+    expect(isAttendanceRoute("/app/abc/attendance/today/sesion-1")).toBe(true);
     expect(isAttendanceRoute("/pasar-lista-sin-conexion")).toBe(true);
-    expect(isAttendanceRoute("/owner/attendance/otra")).toBe(false);
-    expect(isAttendanceRoute("/owner/payments")).toBe(false);
+    expect(isAttendanceRoute("/owner/attendance")).toBe(true);
+    expect(isAttendanceRoute("/owner/attendance?sessionId=s1")).toBe(true);
+    expect(isAttendanceRoute("/owner")).toBe(false);
+    expect(isAttendanceRoute("/owner/classes")).toBe(false);
+    expect(isAttendanceRoute("/app/abc/attendance")).toBe(false);
+    expect(isAttendanceRoute("/app/abc/dashboard")).toBe(false);
     expect(isAttendanceRoute(null)).toBe(false);
   });
   it("la invitación general excluye también la pantalla sin conexión", () => {
     expect(isInstallPromptSuppressedRoute("/pasar-lista-sin-conexion")).toBe(true);
     expect(isInstallPromptSuppressedRoute("/owner/classes")).toBe(true);
+    expect(isInstallPromptSuppressedRoute("/owner")).toBe(true);
+    expect(isInstallPromptSuppressedRoute("/owner/attendance")).toBe(true);
     expect(isInstallPromptSuppressedRoute("/auth/login")).toBe(true);
     expect(isInstallPromptSuppressedRoute("/pricing")).toBe(false);
   });

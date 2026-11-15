@@ -62,6 +62,7 @@ vi.mock("@/modules/owner-dashboard/application/summary-charts", () => ({
 }));
 
 import OwnerAttendancePage from "@/app/owner/attendance/page";
+import { TodaySnapshotSaver } from "@/components/attendance/TodaySnapshotSaver";
 import { OwnerAttendanceManager } from "@/components/owner-dashboard/OwnerAttendanceManager";
 import { OwnerTodaySessionsPanel } from "@/components/owner-dashboard/OwnerTodaySessionsPanel";
 import { OwnerScheduleConflictList } from "@/components/owner-dashboard/OwnerScheduleConflicts";
@@ -176,6 +177,43 @@ describe("Asistencia por semana en Pasar lista", () => {
     const page = await OwnerAttendancePage({ searchParams: Promise.resolve({ organizationId }) });
     expect(mocks.chartScope).not.toHaveBeenCalled();
     expect(findAll(page, OwnerAttendanceManager)[0].props.insight).toBeNull();
+  });
+});
+
+describe("Pasar lista sin conexión en /owner", () => {
+  // Si el guardado deja de montarse aquí, /owner no guarda ninguna lista en el
+  // móvil y /pasar-lista-sin-conexion se queda vacío sin que nada avise.
+  it.each(["owner", "admin", "manager", "coach"])(
+    "%s: se guarda la lista de hoy de su academia con el modelo de /owner",
+    async (role) => {
+      mocks.scope.mockResolvedValue(scopeFor(role));
+      const page = await OwnerAttendancePage({ searchParams: Promise.resolve({ organizationId }) });
+      const savers = findAll(page, TodaySnapshotSaver);
+      expect(savers).toHaveLength(1);
+      expect(savers[0].props).toMatchObject({ academyId: organizationId, source: "owner" });
+    }
+  );
+
+  it("se monta aunque la lista de sesiones venga vacía, antes de la pantalla de asistencia", async () => {
+    mocks.scope.mockResolvedValue(scopeFor("owner"));
+    const page = await OwnerAttendancePage({ searchParams: Promise.resolve({ organizationId }) });
+    const shell = findAll(page, OwnerWorkspacePageShell)[0];
+    const children = Children.toArray((shell.props as { children?: ReactNode }).children);
+    const saverIndex = children.findIndex((child) => isValidElement(child) && child.type === TodaySnapshotSaver);
+    const managerIndex = children.findIndex((child) => isValidElement(child) && child.type === OwnerAttendanceManager);
+    expect(saverIndex).toBeGreaterThanOrEqual(0);
+    expect(saverIndex).toBeLessThan(managerIndex);
+  });
+
+  it("una entrenadora sin sedes no guarda nada (no hay lista que guardar)", async () => {
+    mocks.options.mockRejectedValue(
+      new OperationalError("LOCATION_SCOPE_DENIED", "Sin sedes asignadas", 403, {
+        reason: "coach_without_locations",
+        organizationId,
+      })
+    );
+    const page = await OwnerAttendancePage({ searchParams: Promise.resolve({ organizationId }) });
+    expect(findAll(page, TodaySnapshotSaver)).toEqual([]);
   });
 });
 

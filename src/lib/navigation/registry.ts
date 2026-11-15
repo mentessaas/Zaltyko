@@ -308,6 +308,13 @@ const SUPER_ADMIN_NAV: NavigationDefinition[] = [
     roles: ["super_admin"],
   },
   {
+    key: "usage",
+    label: "Uso",
+    icon: BarChart3,
+    href: "/super-admin/uso",
+    roles: ["super_admin"],
+  },
+  {
     key: "founder-plans",
     label: "Fundadores",
     icon: CreditCard,

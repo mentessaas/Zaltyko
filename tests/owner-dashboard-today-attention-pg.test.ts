@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { getOwnerTodayAttendance } from "@/modules/attendance/application/owner-today-attendance";
 import { getOwnerAttentionItems } from "@/modules/owner-dashboard/application/attention-items";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { getOwnerTodaySessions } from "@/modules/owner-dashboard/application/today-sessions";
@@ -197,7 +198,7 @@ async function seedFixture() {
        now() + interval '5 days', ${`ci-today-${organizationId}-3`})
   `);
 
-  return { organizationId, userId, madridId, mexicoId, fullTemplateId, ids };
+  return { organizationId, userId, madridId, mexicoId, fullTemplateId, ids, enrollmentIds };
 }
 
 describe("Owner today sessions and attention items on disposable PostgreSQL", () => {
@@ -395,5 +396,71 @@ describe("Owner today sessions and attention items on disposable PostgreSQL", ()
     expect(withoutFinances.overdueInvoices).toBeNull();
     // UUID-isolated fixtures remain until the runner destroys the whole
     // disposable database.
+  });
+
+  it("prepares today's list for the phone: today's sessions only, enrolled athletes and marks, per role", async () => {
+    assertDisposableTarget();
+    const fixture = await seedFixture();
+
+    const owner = await getOwnerTodayAttendance({
+      userId: fixture.userId,
+      scope: await resolveOwnerScope({
+        userId: fixture.userId,
+        organizationId: fixture.organizationId,
+        surface: "coach_operations",
+      }),
+    });
+    expect(owner.source).toBe("owner");
+    expect(owner.academyId).toBe(fixture.organizationId);
+    // Hoy en ambas sedes; sin la cancelada, la de ayer ni la de hace 10 días.
+    expect(owner.sessions.map((session) => session.id).sort()).toEqual(
+      [fixture.ids.morning, fixture.ids.override, fixture.ids.mexico].sort()
+    );
+    const morning = owner.sessions.find((session) => session.id === fixture.ids.morning)!;
+    expect(morning.className).toBe("CI full class");
+    expect(morning.startTime).toMatch(/^\d{2}:\d{2}$/);
+    // Inscripción activa y de prueba; no la de la gimnasta inactiva ni la ya terminada.
+    expect(morning.athletes).toEqual([
+      { id: fixture.enrollmentIds[0], name: "CI Athlete 0", groupName: null },
+      { id: fixture.enrollmentIds[1], name: "CI Athlete 1", groupName: null },
+    ]);
+    expect(Object.keys(morning.marks)).toEqual([fixture.enrollmentIds[0]]);
+    expect(morning.marks[fixture.enrollmentIds[0]]).toMatchObject({ status: "present" });
+    expect(Date.parse(morning.marks[fixture.enrollmentIds[0]].recordedAt ?? "")).not.toBeNaN();
+    // Solo identificador, nombre y grupo: nada más viaja al móvil.
+    expect(Object.keys(morning.athletes[0]).sort()).toEqual(["groupName", "id", "name"]);
+    expect(
+      owner.sessions.find((session) => session.id === fixture.ids.override)!.athletes.map((a) => a.id)
+    ).toEqual([fixture.enrollmentIds[4]]);
+    expect(owner.sessions.find((session) => session.id === fixture.ids.mexico)!.athletes).toEqual([]);
+
+    // Una entrenadora solo recibe las sedes que tiene asignadas.
+    const coachUserId = randomUUID();
+    const coachMemberId = randomUUID();
+    await db.execute(sql`
+      insert into auth.users (id, email)
+      values (${coachUserId}::uuid, ${`ci-coach-today-${coachUserId}@example.invalid`})
+    `);
+    await db.execute(sql`
+      insert into zaltyko.organization_members (
+        id, organization_id, user_id, role, status, location_scope_mode
+      ) values (
+        ${coachMemberId}::uuid, ${fixture.organizationId}::uuid, ${coachUserId}::uuid,
+        'coach', 'active', 'selected'
+      )
+    `);
+    await db.execute(sql`
+      insert into zaltyko.member_location_scopes (organization_id, member_id, location_id)
+      values (${fixture.organizationId}::uuid, ${coachMemberId}::uuid, ${fixture.mexicoId}::uuid)
+    `);
+    const coach = await getOwnerTodayAttendance({
+      userId: coachUserId,
+      scope: await resolveOwnerScope({
+        userId: coachUserId,
+        organizationId: fixture.organizationId,
+        surface: "coach_operations",
+      }),
+    });
+    expect(coach.sessions.map((session) => session.id)).toEqual([fixture.ids.mexico]);
   });
 });

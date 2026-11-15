@@ -4,12 +4,14 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
+import { TodaySnapshotSaver } from "@/components/attendance/TodaySnapshotSaver";
 import { OwnerAttendanceManager } from "@/components/owner-dashboard/OwnerAttendanceManager";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { createClient } from "@/lib/supabase/server";
 import { getOwnerAttendanceSessionOptions } from "@/modules/attendance/application/owner-attendance-sessions";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { recordStaffVisit } from "@/modules/habitual-use/application/usage-events";
 import { db } from "@/db";
 import { isAthleteProgressAvailableForPage } from "@/modules/athlete-progress/application/athlete-progress-service";
 import { isSessionPlanAvailableForPage } from "@/modules/session-plans/application/session-plan-service";
@@ -117,6 +119,9 @@ export default async function OwnerAttendancePage({
     throw error;
   }
 
+  // Uso habitual: cuenta una visita del equipo (sin persona; apagado por defecto).
+  await recordStaffVisit({ organizationId: scope.organization.id, role: scope.member.role });
+
   // P1 #8: /owner sends coaches here, so this page also carries their "Hoy",
   // computed from the same coach scope (one assigned site, no aggregate).
   const coachMode = isCoachRole(scope.member.role);
@@ -211,6 +216,14 @@ export default async function OwnerAttendancePage({
           </div>
         </div>
       ) : null}
+      {/* Pasar lista sin conexión: al abrir esta pantalla con red se guarda en
+          el móvil la lista de hoy de esta academia (modelo de /owner) y se
+          envía lo que haya quedado pendiente. */}
+      <TodaySnapshotSaver
+        academyId={scope.organization.id}
+        source="owner"
+        className="mx-auto flex w-full max-w-4xl items-center gap-1 px-5 pt-4 text-xs text-z-soft lg:px-10"
+      />
       <OwnerAttendanceManager
         coachMode={coachMode}
         organizationId={data.organization.id}

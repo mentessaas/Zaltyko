@@ -99,3 +99,17 @@ Configured in `next.config.js` with manifest generation.
 - `public/sw.js` guarda la pantalla pública `/pasar-lista-sin-conexion` (sin datos) y redirige a ella cuando no hay red en `/app/<academia>/attendance/today`. El HTML privado nunca se guarda.
 - Invitación de instalación: `src/components/pwa/AddToHomeScreenHint.tsx` (a partir de la segunda visita, un mes de espera si se descarta, tres descartes y no vuelve).
 - Plan nativo: `docs/producto/plan-app-movil-nativa.md`.
+
+### Pasar lista sin conexión en /owner (15 nov 2026)
+
+Mismo comportamiento, ahora sobre el modelo de /owner (organizaciones, sedes, sesiones e inscripciones). Los datos guardados en el móvil llevan `source: "owner"`; sin él son del panel antiguo `/app`, que sigue funcionando hasta que se retire.
+
+- **Lista de hoy:** `GET /api/v1/owner/attendance/today?organizationId=` (`src/modules/attendance/application/owner-today-attendance.ts`). Sesiones de hoy (día local de cada sede, sin canceladas) con las gimnastas de inscripción vigente y lo ya marcado. La «gimnasta» de cada fila es su **inscripción** (`enrollmentId`), que es lo que se marca. Dirección y administración ven las sedes de su alcance; la entrenadora, solo las sedes que tiene asignadas (como pasar lista en línea). Academia ajena: 404. Límite: 30 por minuto y academia. En el móvil solo se guarda identificador, nombre y grupo.
+- **Envío:** `POST /api/v1/owner/attendance/sync` (lote de hasta 100 marcas). Usa `recordOfflineAttendance` (`attendance-service.ts`), la misma transacción y las mismas comprobaciones que la marca en línea (acceso por sede y rol, plan, sesión no cancelada, inscripción vigente) más:
+  - Idempotencia por `opId` (clave `offline:<opId>`): reenviar una marca ya guardada devuelve `duplicate` aunque otra más reciente la haya sustituido.
+  - «La última marca gana» según `markedAt` (hora real de la marca, corregida con `sentAt` y acotada a «ahora»). Una más antigua que el guardado se descarta (`superseded`).
+  - Conflicto solo si el guardado difiere de lo que la entrenadora veía (`seenRecordedAt`); queda en `audit_log` como `attendance.offline_conflict` (clave `offline-conflict:<opId>`, sin duplicar si se reenvía).
+  - Sin migración: `recordedAt` pasa a ser la hora de la marca.
+- **Pantalla en línea:** `OwnerAttendanceManager` sigue enviando cada marca con su clave de idempotencia. Sin red guarda la marca en la cola local (`useOwnerOfflineMarks`) y la fila dice «Pendiente de enviar»; cuando sale pasa a «Guardado». `TodaySnapshotSaver` (con `source="owner"`) está montado en `src/app/owner/attendance/page.tsx`; lo vigila `tests/owner-coach-attendance-page.test.tsx`.
+- **Sin conexión:** `public/sw.js` redirige `/owner/attendance` (con `?sessionId=`) a `/pasar-lista-sin-conexion`, que lista las sesiones guardadas de ambos modelos.
+- **Invitación de instalación:** también montada en `src/app/owner/layout.tsx` (no se muestra en las pantallas de pasar lista).

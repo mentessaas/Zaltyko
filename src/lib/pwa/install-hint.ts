@@ -113,7 +113,11 @@ export function recordInstallOutcome(state: HintState, outcome: InstallOutcome |
 /** Pantallas de pasar lista: ahí no se interrumpe a la entrenadora con invitaciones. */
 export function isAttendanceRoute(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
-  return /^\/owner\/attendance\/?$/.test(pathname) || pathname.startsWith("/pasar-lista-sin-conexion");
+  return (
+    /\/attendance\/today(?:\/|$)/.test(pathname) ||
+    /^\/owner\/attendance(?:[/?#]|$)/.test(pathname) ||
+    pathname.startsWith("/pasar-lista-sin-conexion")
+  );
 }
 
 /**
@@ -126,7 +130,6 @@ export function isInstallPromptSuppressedRoute(pathname: string | null | undefin
     pathname === "/login" ||
     pathname.startsWith("/auth/") ||
     pathname.startsWith("/owner") ||
-    pathname.startsWith("/familia") ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/super-admin") ||
     pathname.startsWith("/pasar-lista-sin-conexion")

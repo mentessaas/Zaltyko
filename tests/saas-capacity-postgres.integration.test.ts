@@ -910,6 +910,7 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
         enrollmentId: fixture.enrollmentId,
         athleteName: "Enrollment athlete 1 Synthetic",
         attendanceStatus: "present",
+        recordedAt: expect.any(String),
       },
     ]);
     expect(await snapshot(fixture.organizationId)).toEqual(beforeRosterRead);
@@ -925,6 +926,7 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
         enrollmentId: fixture.enrollmentId,
         athleteName: "Enrollment athlete 1 Synthetic",
         attendanceStatus: "present",
+        recordedAt: expect.any(String),
       },
     ]);
     expect(await snapshot(fixture.organizationId)).toEqual(beforeCoachRead);
@@ -942,6 +944,7 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
         enrollmentId: fixture.enrollmentId,
         athleteName: "Enrollment athlete 1 Synthetic",
         attendanceStatus: "present",
+        recordedAt: expect.any(String),
       },
     ]);
     expect(await snapshot(fixture.organizationId)).toEqual(beforeSubstituteCoachRead);

@@ -8,7 +8,9 @@ const OFFLINE_URL = '/offline.html';
 // ya tiene guardada en el dispositivo (IndexedDB). Es lo único de HTML que este
 // worker guarda; el HTML privado de /owner/* sigue sin guardarse nunca.
 const ATTENDANCE_SHELL_PATH = '/pasar-lista-sin-conexion';
-const ATTENDANCE_TODAY_PATH = /^\/owner\/attendance\/?$/;
+const ATTENDANCE_TODAY_PATH = /^\/app\/[^/]+\/attendance\/today(?:\/([^/]+))?\/?$/;
+// Asistencia del panel nuevo (/owner): la sesión elegida va en ?sessionId=.
+const OWNER_ATTENDANCE_PATH = /^\/owner\/attendance\/?$/;
 
 const STATIC_ASSETS = [
   '/manifest.json',
@@ -62,13 +64,15 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
       fetch(request).catch(async () => {
-        if (ATTENDANCE_TODAY_PATH.test(url.pathname)) {
+        const attendance = ATTENDANCE_TODAY_PATH.exec(url.pathname);
+        const ownerAttendance = OWNER_ATTENDANCE_PATH.test(url.pathname);
+        if (attendance || ownerAttendance) {
           // Sin red en «Pasar lista»: se lleva a la pantalla local, que
           // trabaja con la lista guardada en el dispositivo.
           const shell = await caches.match(ATTENDANCE_SHELL_PATH, { ignoreSearch: true });
           if (shell) {
             const target = new URL(ATTENDANCE_SHELL_PATH, self.location.origin);
-            const sessionId = url.searchParams.get('sessionId');
+            const sessionId = attendance ? attendance[1] : url.searchParams.get('sessionId');
             if (sessionId) target.searchParams.set('sesion', sessionId);
             return Response.redirect(target.href, 302);
           }
