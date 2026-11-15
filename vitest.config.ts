@@ -79,6 +79,7 @@ export default defineConfig({
                   "tests/monthly-invoice-service-pg.test.ts",
                   "tests/habitual-use-pg.test.ts",
                   "tests/payment-reminders-pg.test.ts",
+                  "tests/family-access-pg.test.ts",
                   "tests/owner-academy-settings-pg.test.ts",
                   "tests/owner-summary-charts-pg.test.ts",
                 ]),

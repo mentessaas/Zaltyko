@@ -190,6 +190,10 @@ const NULLABLE_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
     "updated_by_member_id",
   ],
   payment_reminders: ["guardian_id", "requested_by_member_id", "sent_at"],
+  guardian_access_invitations: ["invited_by_member_id", "last_sent_at", "accepted_at", "revoked_by_member_id", "revoked_at"],
+  family_notices: ["session_id", "class_template_id", "group_id", "created_by_member_id"],
+  family_notice_recipients: ["email_attempted_at", "read_at"],
+  guardian_notification_preferences: [],
 };
 
 // `tx.execute(sql)` returns node-postgres raw rows. int4 is a JS number;
@@ -223,6 +227,8 @@ const INT4_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
   athlete_skill_progress: ["revision"],
   admission_requests: ["athlete_birth_year", "revision"],
   payment_reminder_settings: ["min_interval_days", "auto_after_days", "version"],
+  guardian_access_invitations: ["revision"],
+  family_notice_recipients: ["email_attempts"],
 };
 
 const INT8_DECIMAL_STRING_COLUMNS_BY_TABLE: Readonly<
@@ -472,7 +478,10 @@ function isBooleanColumn(column: string): boolean {
     column.startsWith("can_") ||
     column === "contactable" ||
     column === "pilot" ||
-    column === "enabled"
+    column === "enabled" ||
+    column === "grant_view_athletes" ||
+    column === "email_session_changes" ||
+    column === "email_manual_notices"
   );
 }
 

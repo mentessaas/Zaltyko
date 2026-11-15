@@ -1,10 +1,17 @@
 import { sentryPrivacyOptions } from "./src/lib/monitoring/sentry-privacy";
 import * as Sentry from "@sentry/nextjs";
 import { captureTeamInvitationFragment, discardTeamInvitationToken } from "./src/lib/auth/team-invitation-fragment";
+import {
+  FAMILY_INVITATION_PATH,
+  captureFamilyInvitationFragment,
+  discardFamilyInvitationToken,
+} from "./src/lib/auth/family-invitation-fragment";
 
 // The fragment is never sent in the HTTP request. Remove it before initializing
 // a browser SDK; this acceptance document does not initialize Sentry at all.
 const teamInvitationDocument = captureTeamInvitationFragment();
+// Lo mismo para la invitación al portal de familias.
+const familyInvitationDocument = captureFamilyInvitationFragment();
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
@@ -20,7 +27,7 @@ function tracesSampler(samplingContext: {
   return 0.1;
 }
 
-if (!teamInvitationDocument) Sentry.init({
+if (!teamInvitationDocument && !familyInvitationDocument) Sentry.init({
   dsn: SENTRY_DSN,
   tracesSampler,
   debug: false,
@@ -54,18 +61,24 @@ export const onRouterTransitionStart: typeof Sentry.captureRouterTransitionStart
   // A new navigation cannot reuse a credential left by an unmounted/failed page.
   // The document bootstrap-to-page handoff still works without navigation.
   discardTeamInvitationToken();
+  discardFamilyInvitationToken();
   // Next may announce the destination before updating window.location. Never
   // forward an invitation destination (which may include its fragment) to SDKs.
   try {
-    if (new URL(args[0], "https://zaltyko.invalid").pathname === "/staff/accept") {
+    const destination = new URL(args[0], "https://zaltyko.invalid").pathname;
+    if (destination === "/staff/accept") {
       captureTeamInvitationFragment();
+      return;
+    }
+    if (destination === FAMILY_INVITATION_PATH) {
+      captureFamilyInvitationFragment();
       return;
     }
   } catch {
     return;
   }
   // Never recapture an abandoned source fragment while leaving the page.
-  if (typeof window !== "undefined" && window.location.pathname === "/staff/accept") return;
+  if (typeof window !== "undefined" && (window.location.pathname === "/staff/accept" || window.location.pathname === FAMILY_INVITATION_PATH)) return;
   return Sentry.captureRouterTransitionStart(...args);
 };
 
