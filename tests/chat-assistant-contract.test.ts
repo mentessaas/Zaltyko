@@ -31,9 +31,4 @@ describe("chat assistant product contract", () => {
     expect(source).toContain("AI provider unavailable; returning conversational fallback");
   });
 
-  it("mantiene el asistente visible en el workspace moderno tras el redirect", () => {
-    const source = read("src/app/app/[academyId]/layout.tsx");
-    expect(source).toContain('import { ChatWidgetWrapper } from "@/components/chat/ChatWidgetWrapper"');
-    expect(source).toContain("<ChatWidgetWrapper academyId={academy.id} />");
-  });
 });

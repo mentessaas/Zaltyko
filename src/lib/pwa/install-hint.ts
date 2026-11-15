@@ -129,7 +129,6 @@ export function isInstallPromptSuppressedRoute(pathname: string | null | undefin
   return (
     pathname === "/login" ||
     pathname.startsWith("/auth/") ||
-    pathname.startsWith("/app/") ||
     pathname.startsWith("/owner") ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/super-admin") ||

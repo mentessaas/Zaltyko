@@ -66,29 +66,14 @@ const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
 const PAGE_SIZE = 20;
 
 function getNotificationDestination(notification: Notification): string | null {
+  // El panel /app se retiró: los avisos internos abren /owner. Un `data.url`
+  // antiguo (/app/...) también se admite; el redirect permanente lo resuelve.
   const data = notification.data ?? {};
   const academyId = typeof data.academyId === "string" ? data.academyId : undefined;
-
-  if (notification.type === "contact_message" && academyId) {
-    return `/app/${academyId}/contact-messages`;
-  }
-  if (notification.type === "new_message" && academyId) {
-    const conversationId = typeof data.conversationId === "string" ? data.conversationId : undefined;
-    return `/app/${academyId}/messages${conversationId ? `?c=${conversationId}` : ""}`;
-  }
-  if (notification.type === "announcement" && academyId) {
-    const announcementId = typeof data.announcementId === "string" ? data.announcementId : undefined;
-    return announcementId
-      ? `/app/${academyId}/announcements/${announcementId}`
-      : `/app/${academyId}/announcements`;
-  }
-  if (notification.type === "skill_progress" && academyId) {
-    const athleteId = typeof data.athleteId === "string" ? data.athleteId : undefined;
-    return athleteId ? `/app/${academyId}/athletes/${athleteId}/progress` : `/app/${academyId}/dashboard`;
-  }
+  if (academyId) return "/owner";
 
   const url = typeof data.url === "string" ? data.url : null;
-  return url?.startsWith("/app/") ? url : null;
+  return url?.startsWith("/app/") || url?.startsWith("/owner") ? url : null;
 }
 
 const getNotificationIcon = (type: string) => {

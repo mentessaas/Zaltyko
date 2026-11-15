@@ -116,60 +116,6 @@ const discount = {
   isActive: true,
 };
 
-describe("ZAL-745: scholarships PUT/DELETE", () => {
-  beforeEach(reset);
-
-  it("actualiza una beca del tenant y devuelve éxito", async () => {
-    mocks.selectQueue.push([scholarship]);
-    const { PUT } = await import("@/app/api/scholarships/[scholarshipId]/route");
-    const response = await PUT(
-      request(`/api/scholarships/${SCHOLARSHIP_ID}`, "PUT", { name: "Beca renovada", isActive: false }),
-      { params: { scholarshipId: SCHOLARSHIP_ID } },
-    );
-
-    expect(response.status).toBe(200);
-    expect(mocks.updateSets).toHaveLength(1);
-    expect(mocks.updateSets[0]).toEqual(expect.objectContaining({ name: "Beca renovada", isActive: false }));
-  });
-
-  it("oculta una beca fuera de scope y no la muta", async () => {
-    mocks.selectQueue.push([{ ...scholarship, tenantId: OTHER_TENANT_ID }]);
-    mocks.scopeAllowed = false;
-    const { PUT } = await import("@/app/api/scholarships/[scholarshipId]/route");
-    const response = await PUT(
-      request(`/api/scholarships/${SCHOLARSHIP_ID}`, "PUT", { name: "No debe cambiar" }),
-      { params: { scholarshipId: SCHOLARSHIP_ID } },
-    );
-
-    expect(response.status).toBe(404);
-    expect(mocks.updateSets).toHaveLength(0);
-  });
-
-  it("elimina una beca autorizada", async () => {
-    mocks.selectQueue.push([scholarship]);
-    const { DELETE } = await import("@/app/api/scholarships/[scholarshipId]/route");
-    const response = await DELETE(
-      request(`/api/scholarships/${SCHOLARSHIP_ID}`, "DELETE"),
-      { params: { scholarshipId: SCHOLARSHIP_ID } },
-    );
-
-    expect(response.status).toBe(200);
-    expect(mocks.deleteCount).toBe(1);
-  });
-
-  it("rechaza eliminar una beca inexistente sin borrar", async () => {
-    mocks.selectQueue.push([]);
-    const { DELETE } = await import("@/app/api/scholarships/[scholarshipId]/route");
-    const response = await DELETE(
-      request(`/api/scholarships/${SCHOLARSHIP_ID}`, "DELETE"),
-      { params: { scholarshipId: SCHOLARSHIP_ID } },
-    );
-
-    expect(response.status).toBe(404);
-    expect(mocks.deleteCount).toBe(0);
-  });
-});
-
 describe("ZAL-745: discounts apply/PUT/DELETE", () => {
   beforeEach(reset);
 

@@ -200,8 +200,8 @@ const handler = withTenant(async (request, context) => {
       customerId = latest?.stripeCustomerId ?? customerId;
     }
 
-    const successUrl = `${getAppUrl()}/app/${body.academyId}/billing?checkout=success`;
-    const cancelUrl = `${getAppUrl()}/app/${body.academyId}/billing?checkout=cancelled`;
+    const successUrl = `${getAppUrl()}/billing?academy=${body.academyId}&checkout=success`;
+    const cancelUrl = `${getAppUrl()}/billing?academy=${body.academyId}&checkout=cancelled`;
     const requestedIdempotencyKey = request.headers
       .get("idempotency-key")
       ?.trim();

@@ -123,7 +123,7 @@ export function AcademyStep({
                     userPlanInfo.upgradeTo === "network"
                       ? "/contact?type=network"
                       : existingAcademies[0]?.id
-                        ? `/app/${existingAcademies[0].id}/billing`
+                        ? `/owner/payments`
                         : "/billing"
                   }
                   className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90"

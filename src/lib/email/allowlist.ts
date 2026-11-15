@@ -6,13 +6,13 @@ import {
 const ZALTYKO_HOST = /(^|\.)zaltyko\.com$/i;
 
 const ACADEMY_STEP_PATHS: Partial<Record<NextStepKey, string>> = {
-  add_5_athletes: "/athletes/new",
-  create_first_group: "/groups",
-  setup_weekly_schedule: "/classes",
-  invite_first_coach: "/coaches",
-  enable_payments: "/settings?tab=billing",
-  send_first_communication: "/comms",
-  login_again: "/dashboard",
+  add_5_athletes: "/owner/athletes",
+  create_first_group: "/owner/groups",
+  setup_weekly_schedule: "/owner/classes",
+  invite_first_coach: "/owner/staff",
+  enable_payments: "/owner/payments",
+  send_first_communication: "/owner",
+  login_again: "/owner",
 };
 
 function getBaseUrl(): URL | null {
@@ -48,7 +48,7 @@ export interface AllowlistedUrlResult {
   reason?: "INVALID_STEP_KEY" | "INVALID_ACADEMY_ID" | "HTTPS_REQUIRED";
 }
 
-/** Construye el CTA contra las rutas modernas `/app/[academyId]/*`. */
+/** Construye el CTA contra las rutas de /owner (el panel /app se retiró). */
 export function buildNextStepUrl({
   stepKey,
   academyId,
@@ -66,9 +66,7 @@ export function buildNextStepUrl({
   if (!base) return { ok: false, url: null, reason: "HTTPS_REQUIRED" };
 
   const relative = ACADEMY_STEP_PATHS[stepKey as NextStepKey];
-  const path = relative
-    ? `/app/${academyId}${relative}`
-    : NEXT_STEP_URLS[stepKey as NextStepKey];
+  const path = relative ?? NEXT_STEP_URLS[stepKey as NextStepKey];
   const url = new URL(path, base);
   if (url.protocol !== "https:" || !ZALTYKO_HOST.test(url.hostname)) {
     return { ok: false, url: null, reason: "HTTPS_REQUIRED" };

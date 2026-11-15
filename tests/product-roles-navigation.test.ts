@@ -37,31 +37,13 @@ describe("product roles and navigation", () => {
     expect(canAccessAcademyWorkspace("parent", "viewer")).toBe(false);
   });
 
-  it("allows only limited academy paths for athlete and parent portal roles", () => {
-    expect(
-      isLimitedAcademyWorkspacePath("/app/academy-1/my-dashboard", "academy-1")
-    ).toBe(true);
-    expect(
-      isLimitedAcademyWorkspacePath("/app/academy-1/messages", "academy-1")
-    ).toBe(true);
-    expect(
-      isLimitedAcademyWorkspacePath("/app/academy-1/notifications", "academy-1")
-    ).toBe(true);
-    expect(
-      isLimitedAcademyWorkspacePath("/app/academy-1/athletes", "academy-1")
-    ).toBe(false);
-    expect(
-      isLimitedAcademyWorkspacePath("/app/academy-1/billing", "academy-1")
-    ).toBe(false);
-    expect(
-      isLimitedAcademyWorkspacePath("/app/academy-1/settings", "academy-1")
-    ).toBe(false);
-    expect(
-      isLimitedAcademyWorkspacePath("/app/academy-1/reports", "academy-1")
-    ).toBe(false);
-    expect(
-      isLimitedAcademyWorkspacePath("/app/academy-2/my-dashboard", "academy-1")
-    ).toBe(false);
+  it("allows only /familia for athlete and parent portal roles", () => {
+    expect(isLimitedAcademyWorkspacePath("/familia", "academy-1")).toBe(true);
+    expect(isLimitedAcademyWorkspacePath("/familia/cuotas", "academy-1")).toBe(true);
+    expect(isLimitedAcademyWorkspacePath("/owner", "academy-1")).toBe(false);
+    expect(isLimitedAcademyWorkspacePath("/owner/payments", "academy-1")).toBe(false);
+    expect(isLimitedAcademyWorkspacePath("/familiares", "academy-1")).toBe(false);
+    expect(isLimitedAcademyWorkspacePath("/app/academy-1/my-dashboard", "academy-1")).toBe(false);
   });
 
   it("builds role-aware global navigation", () => {
@@ -96,14 +78,13 @@ describe("product roles and navigation", () => {
       membershipRole: "coach",
     });
 
-    expect(ownerNav).toContain("/app/academy-1/billing");
-    expect(ownerNav).toContain("/app/academy-1/settings");
+    expect(ownerNav).toContain("/owner/payments");
     expect(ownerNav).toContain("/owner");
     expect(coachMobileNav).not.toContain("reports");
     expect(coachNav.map((item) => item.key)).not.toContain("reports");
     expect(coachMobileNav).not.toContain("billing");
     expect(coachNav.find((item) => item.key === "coach-dashboard")?.href).toBe(
-      "/app/academy-1/coach"
+      "/owner/attendance"
     );
   });
 
@@ -159,7 +140,7 @@ describe("product roles and navigation", () => {
         membershipRole: "coach",
         academyId: "academy-1",
       })
-    ).toBe("/app/academy-1/coach");
+    ).toBe("/owner/attendance");
 
     expect(
       getPreferredHomePath({
@@ -167,6 +148,6 @@ describe("product roles and navigation", () => {
         membershipRole: "viewer",
         academyId: "academy-1",
       })
-    ).toBe("/app/academy-1/my-dashboard");
+    ).toBe("/familia");
   });
 });

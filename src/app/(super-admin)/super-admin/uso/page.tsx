@@ -41,7 +41,7 @@ export default async function SuperAdminUsagePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
   const profile = await getCurrentProfile(user.id);
-  if (!profile || profile.role !== "super_admin") redirect("/app");
+  if (!profile || profile.role !== "super_admin") redirect("/owner");
 
   const overview = await getUsageOverview();
 

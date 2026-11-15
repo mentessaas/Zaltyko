@@ -35,5 +35,5 @@ export default async function EventDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  redirect(`/app/${eventRow.academyId}/events/${eventRow.id}`);
+  redirect(`/owner`);
 }

@@ -1,3 +1,4 @@
+import { ownerPathForLegacyAppSegment } from "@/lib/launch/legacy-app-redirects.mjs";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
 
 export async function resolveAcademyWorkspaceUrl(args: {
@@ -15,6 +16,7 @@ export async function resolveAcademyWorkspaceUrl(args: {
     return args.fallbackPath ?? home.redirectUrl;
   }
 
-  const trimmedSuffix = args.suffix?.replace(/^\/+/, "") ?? "dashboard";
-  return `/app/${home.activeAcademyId}/${trimmedSuffix}`;
+  // El panel /app se retiró: el sufijo antiguo se traduce a su equivalente en /owner.
+  const firstSegment = args.suffix?.replace(/^\/+/, "").split("/")[0];
+  return ownerPathForLegacyAppSegment(firstSegment);
 }

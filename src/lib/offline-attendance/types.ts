@@ -21,7 +21,7 @@ export function isAttendanceStatus(value: unknown): value is AttendanceStatus {
 
 /**
  * De qué modelo de datos viene una lista o una marca. Sin valor es el panel
- * antiguo (`/app`); `"owner"` es /owner: ahí la «gimnasta» de cada fila es su
+ * antiguo (la ruta legada «app»); `"owner"` es /owner: ahí la «gimnasta» de cada fila es su
  * inscripción (lo que se marca) y las marcas viajan a `/api/v1/owner/attendance`.
  */
 export type OfflineAttendanceSource = "owner";

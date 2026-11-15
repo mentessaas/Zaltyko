@@ -172,13 +172,9 @@ export function isLimitedAcademyWorkspacePath(
     return false;
   }
 
-  const basePath = `/app/${academyId}`;
-  const allowedPaths = [
-    `${basePath}/my-dashboard`,
-    `${basePath}/my-events`,
-    `${basePath}/messages`,
-    `${basePath}/notifications`,
-  ];
+  // El panel /app se retiró: el espacio limitado de familias y gimnastas es /familia.
+  void academyId;
+  const allowedPaths = ["/familia"];
 
   return allowedPaths.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
@@ -217,7 +213,7 @@ export function getPreferredHomePath(args: {
     profileRole === "coach" &&
     canAccessAcademyWorkspace(profileRole, membershipRole)
   ) {
-    return `/app/${academyId}/coach`;
+    return "/owner/attendance";
   }
 
   if (
@@ -229,11 +225,11 @@ export function getPreferredHomePath(args: {
   }
 
   if (academyId && canAccessAcademyWorkspace(profileRole, membershipRole)) {
-    return `/app/${academyId}/dashboard`;
+    return "/owner";
   }
 
   if (academyId && (profileRole === "athlete" || profileRole === "parent")) {
-    return `/app/${academyId}/my-dashboard`;
+    return "/familia";
   }
 
   return getDefaultDashboardPath(profileRole);

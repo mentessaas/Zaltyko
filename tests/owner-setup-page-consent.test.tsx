@@ -122,22 +122,6 @@ describe("lectura de aceptación contractual antes del setup Owner", () => {
     expect(getConsentRequirement).not.toHaveBeenCalled();
   });
 
-  it("redirige al dashboard legacy antes de consultar organizaciones canónicas", async () => {
-    findLegacyAcademyMemberships.mockResolvedValue([
-      { academyId: "legacy-academy-1", membershipRole: "owner" },
-    ]);
-    resolveUserHome.mockResolvedValue({
-      destination: "academy_workspace",
-      redirectUrl: "/app/legacy-academy-1/dashboard",
-    });
-
-    await expect(OwnerSetupPage()).rejects.toThrow(
-      "NEXT_REDIRECT:/app/legacy-academy-1/dashboard"
-    );
-    expect(dbLimit).not.toHaveBeenCalled();
-    expect(getConsentRequirement).not.toHaveBeenCalled();
-  });
-
   it("no muestra el formulario si existe una academia legacy sin acceso activo", async () => {
     findLegacyAcademyMemberships.mockResolvedValue([
       { academyId: "legacy-academy-suspended", membershipRole: "owner" },

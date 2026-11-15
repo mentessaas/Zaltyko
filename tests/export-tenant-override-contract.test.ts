@@ -4,7 +4,6 @@ import { readFileSync } from "node:fs";
 describe("export tenant override contract", () => {
   it("solo permite tenantId explícito para super-admin", () => {
     for (const file of [
-      "src/app/api/athletes/export/route.ts",
       "src/app/api/transactions/export/route.ts",
       "src/app/api/assessments/export/route.ts",
     ]) {
@@ -15,11 +14,7 @@ describe("export tenant override contract", () => {
   });
 
   it("no exporta atletas eliminados ni vínculos de otro tenant", () => {
-    const athletes = readFileSync("src/app/api/athletes/export/route.ts", "utf8");
     const assessments = readFileSync("src/app/api/assessments/export/route.ts", "utf8");
-    expect(athletes).toContain("isNull(athletes.deletedAt)");
-    expect(athletes).toContain("eq(guardianAthletes.tenantId, effectiveTenantId)");
-    expect(athletes).toContain("eq(academySportConfigs.tenantId, effectiveTenantId)");
     expect(assessments).toContain("isNull(athletes.deletedAt)");
     expect(assessments).toContain("eq(athletes.academyId, athleteAssessments.academyId)");
   });

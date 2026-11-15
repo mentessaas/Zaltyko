@@ -119,7 +119,7 @@ export function LoginForm() {
             }
 
             if (targetAcademyId) {
-              router.push(`/app/${targetAcademyId}/dashboard`);
+              router.push(`/owner`);
               return;
             }
 

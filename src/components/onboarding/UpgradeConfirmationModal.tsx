@@ -120,7 +120,7 @@ export function UpgradeConfirmationModal({
               targetPlan === "network"
                 ? "/contact?type=network"
                 : academyId
-                  ? `/app/${academyId}/billing`
+                  ? `/owner/payments`
                   : "/billing"
             }
             onClick={handleConfirm}

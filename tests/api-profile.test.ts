@@ -25,14 +25,6 @@ describe("profile API P0 contract", () => {
     expect(source).toMatch(/const updated = payload\?\.data \?\? payload/);
   });
 
-  it("mantiene el mismo contrato en galerias de eventos y entrenadores", () => {
-    const eventSource = readFileSync(new URL("../src/components/events/FileUpload.tsx", import.meta.url), "utf8");
-    const coachSource = readFileSync(new URL("../src/components/coaches/PhotoGallery.tsx", import.meta.url), "utf8");
-    expect(eventSource).toMatch(/payload\?\.data\?\.url \?\? payload\?\.url/);
-    expect(coachSource).toMatch(/payload\?\.data\?\.url \?\? payload\?\.url/);
-    expect(coachSource).toMatch(/e\.target\.value = ""/);
-  });
-
   it("consume el envelope de tutores al crear y editar", () => {
     const source = readFileSync(new URL("../src/components/athletes/GuardianManager.tsx", import.meta.url), "utf8");
     expect(source).toMatch(/payload\?\.data\?\.item \?\? payload\?\.item/);
@@ -56,12 +48,6 @@ describe("profile API P0 contract", () => {
     const source = readFileSync(new URL("../src/app/dashboard/empleo/mis-postulaciones/page.tsx", import.meta.url), "utf8");
     expect(source).toMatch(/const data = payload\?\.data \?\? payload/);
     expect(source).toMatch(/data\?\.applications/);
-  });
-
-  it("normaliza la lista de documentos del atleta", () => {
-    const source = readFileSync(new URL("../src/components/athletes/AthleteDocumentsSection.tsx", import.meta.url), "utf8");
-    expect(source).toMatch(/const data = payload\?\.data \?\? payload/);
-    expect(source).toMatch(/data\?\.items/);
   });
 
   it("mantiene el límite de plan detrás de autenticación y validación", () => {

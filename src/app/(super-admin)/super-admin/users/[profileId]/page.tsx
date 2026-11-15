@@ -28,7 +28,7 @@ export default async function SuperAdminUserDetailPage({
   const profile = await getCurrentProfile(user.id);
 
   if (!profile || profile.role !== "super_admin") {
-    redirect("/app");
+    redirect("/owner");
   }
 
   const { profileId } = await params;

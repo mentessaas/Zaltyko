@@ -69,7 +69,7 @@ export function NotificationBell() {
 
   const handleOpenNotifications = () => {
     if (academyId) {
-      router.push(`/app/${academyId}/notifications`);
+      router.push(`/owner`);
     } else {
       setIsOpen(true);
     }
@@ -101,7 +101,7 @@ export function NotificationBell() {
           asChild
           title="Configurar notificaciones"
         >
-          <a href={`/app/${academyId}/notifications`}>
+          <a href={`/owner`}>
             <Settings className="h-5 w-5" />
           </a>
         </Button>

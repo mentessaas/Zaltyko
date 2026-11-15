@@ -143,7 +143,7 @@ export function SubdomainToggle({
 
       <p style={{ marginTop: 16 }}>
         <a
-          href={`/app/${academyId}/settings`}
+          href={`/owner`}
           style={{ color: "#5C6782", fontSize: 13 }}
         >
           ← Volver a ajustes

@@ -31,7 +31,8 @@ describe("ZAL-908 — contrato d0/d2/d7 integrado", () => {
       const url = new URL(result.url!);
       expect(url.protocol).toBe("https:");
       expect(url.hostname).toBe("sandbox.zaltyko.com");
-      expect(url.pathname).toContain(`/app/${ACADEMY_ID}`);
+      expect(url.pathname).toMatch(/^\/owner(?:\/|$)/);
+      expect(url.pathname).not.toContain(ACADEMY_ID);
     }
   });
 

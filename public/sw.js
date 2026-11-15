@@ -6,9 +6,8 @@ const OFFLINE_URL = '/offline.html';
 // Pasar lista sin cobertura. La pantalla «/pasar-lista-sin-conexion» es una
 // página pública sin ningún dato de nadie: dibuja la lista que la entrenadora
 // ya tiene guardada en el dispositivo (IndexedDB). Es lo único de HTML que este
-// worker guarda; el HTML privado de /app/* sigue sin guardarse nunca.
+// worker guarda; el HTML privado de /owner/* sigue sin guardarse nunca.
 const ATTENDANCE_SHELL_PATH = '/pasar-lista-sin-conexion';
-const ATTENDANCE_TODAY_PATH = /^\/app\/[^/]+\/attendance\/today(?:\/([^/]+))?\/?$/;
 // Asistencia del panel nuevo (/owner): la sesión elegida va en ?sessionId=.
 const OWNER_ATTENDANCE_PATH = /^\/owner\/attendance\/?$/;
 
@@ -64,15 +63,13 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
       fetch(request).catch(async () => {
-        const attendance = ATTENDANCE_TODAY_PATH.exec(url.pathname);
-        const ownerAttendance = OWNER_ATTENDANCE_PATH.test(url.pathname);
-        if (attendance || ownerAttendance) {
+        if (OWNER_ATTENDANCE_PATH.test(url.pathname)) {
           // Sin red en «Pasar lista»: se lleva a la pantalla local, que
           // trabaja con la lista guardada en el dispositivo.
           const shell = await caches.match(ATTENDANCE_SHELL_PATH, { ignoreSearch: true });
           if (shell) {
             const target = new URL(ATTENDANCE_SHELL_PATH, self.location.origin);
-            const sessionId = attendance ? attendance[1] : url.searchParams.get('sessionId');
+            const sessionId = url.searchParams.get('sessionId');
             if (sessionId) target.searchParams.set('sesion', sessionId);
             return Response.redirect(target.href, 302);
           }
@@ -94,7 +91,7 @@ self.addEventListener('fetch', (event) => {
     url.pathname === '/manifest.json' ||
     /\.(?:css|js|png|jpg|jpeg|gif|svg|ico|woff2?)$/.test(url.pathname);
 
-  // Other dynamic GETs (e.g. router fetches of /app/<id>/athletes) are left
+  // Other dynamic GETs (e.g. router fetches of /owner/athletes) are left
   // to the browser as well; a pass-through adds nothing and rejects on abort.
   if (!isSafeStaticAsset) {
     return;

@@ -15,12 +15,4 @@ describe("WhatsApp retry safety contract", () => {
     expect(route).toContain('eq(messageHistory.status, "failed")');
   });
 
-  it("connects the failed-history action to the real send endpoint", () => {
-    const history = read("src/components/whatsapp/WhatsAppHistory.tsx");
-    const page = read("src/app/app/[academyId]/whatsapp/WhatsAppPage.tsx");
-    expect(history).toContain("onRetry?: (message: WhatsAppMessage) => Promise<boolean>");
-    expect(history).toContain("Reintentar envío");
-    expect(page).toContain('historyId: message.id');
-    expect(page).toContain("onRetry={handleRetryMessage}");
-  });
 });

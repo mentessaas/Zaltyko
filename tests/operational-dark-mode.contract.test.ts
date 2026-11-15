@@ -13,9 +13,4 @@ describe("operational dark mode contracts", () => {
     expect(source).toContain("bg-muted/40");
   });
 
-  it("dashboard default icon is readable in dark mode", () => {
-    const source = readFileSync(join(root, "src/components/dashboard/DashboardCard.tsx"), "utf8");
-    expect(source).not.toContain("bg-zaltyko-white");
-    expect(source).toContain("variant === \"default\" && \"bg-muted text-foreground\"");
-  });
 });

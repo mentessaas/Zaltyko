@@ -167,7 +167,7 @@ export default function SessionAttendanceForm({
                         <span className="font-medium">{athlete.name ?? "Sin nombre"}</span>
                         {academyId && (
                           <Link
-                            href={`/app/${academyId}/athletes/${athlete.id}/progress`}
+                            href={`/owner/athletes`}
                             className="text-xs text-primary hover:underline"
                           >
                             Ver dominio técnico →

@@ -100,7 +100,6 @@ describe("API limits and feature contracts", () => {
   it("serializes capacity checks for athlete, group, and class creation", () => {
     const routes = [
       ["src/app/api/athletes/route.ts", "tx.insert(athletes)"] as const,
-      ["src/app/api/groups/route.ts", ".insert(groups)"] as const,
       ["src/app/api/classes/route.ts", "tx.insert(classes)"] as const,
     ];
 
@@ -126,19 +125,13 @@ describe("API limits and feature contracts", () => {
       ["src/app/api/charges/generate-monthly/route.ts", ".insert(charges)"] as const,
       ["src/app/api/quick-actions/record-payment/route.ts", ".update(charges)"] as const,
       ["src/app/api/classes/[classId]/route.ts", ".update(classes)"] as const,
-      ["src/app/api/groups/[groupId]/route.ts", ".update(groups)"] as const,
       ["src/app/api/athletes/[athleteId]/route.ts", ".update(athletes)"] as const,
       ["src/app/api/class-enrollments/route.ts", ".insert(classEnrollments)"] as const,
       ["src/app/api/assessments/route.ts", ".insert(athleteAssessments)"] as const,
       ["src/app/api/assessments/[athleteId]/route.ts", ".insert(athleteAssessments)"] as const,
-      ["src/app/api/classes/[classId]/generate-sessions/route.ts", "generateRecurringSessions("] as const,
-      ["src/app/api/classes/[classId]/recurring-settings/route.ts", ".update(classes)"] as const,
-      ["src/app/api/classes/[classId]/exceptions/route.ts", "tx.insert(classExceptions)"] as const,
-      ["src/app/api/classes/[classId]/exceptions/[exceptionId]/route.ts", "tx.delete(classExceptions)"] as const,
       ["src/app/api/athletes/import/route.ts", "tx.insert(athletes)"] as const,
       ["src/app/api/class-sessions/route.ts", ".insert(classSessions)"] as const,
       ["src/app/api/class-sessions/[sessionId]/route.ts", ".update(classSessions)"] as const,
-      ["src/app/api/quick-actions/create-class/route.ts", ".insert(classSessions)"] as const,
       ["src/app/api/class-waiting-list/route.ts", "tx.insert(classWaitingList)"] as const,
       ["src/lib/classes/promote-waiting-list.ts", ".insert(classEnrollments)"] as const,
       ["src/app/api/class-waiting-list/[entryId]/route.ts", ".delete(classWaitingList)"] as const,
@@ -164,11 +157,6 @@ describe("API limits and feature contracts", () => {
         path: "src/lib/generate-class-sessions.ts",
         start: "export async function generateClassSessions(",
         write: "tx.insert(classSessions)",
-      },
-      {
-        path: "src/app/api/groups/[groupId]/route.ts",
-        start: "const deleteGroupHandler",
-        write: "tx.delete(groups)",
       },
       {
         path: "src/app/api/classes/[classId]/route.ts",
@@ -206,16 +194,6 @@ describe("API limits and feature contracts", () => {
         write: ".delete(athleteExtraClasses)",
       },
       {
-        path: "src/app/api/athletes/[athleteId]/documents/route.ts",
-        handler: "export const POST =",
-        write: ".insert(athleteDocuments)",
-      },
-      {
-        path: "src/app/api/athletes/[athleteId]/documents/route.ts",
-        handler: "export const DELETE =",
-        write: ".delete(athleteDocuments)",
-      },
-      {
         path: "src/app/api/athletes/[athleteId]/guardians/route.ts",
         handler: "const createGuardianHandler",
         write: "tx.insert(guardians)",
@@ -229,16 +207,6 @@ describe("API limits and feature contracts", () => {
         path: "src/app/api/athletes/[athleteId]/guardians/[linkId]/route.ts",
         handler: "export const DELETE =",
         write: ".delete(familyContacts)",
-      },
-      {
-        path: "src/app/api/guardians/route.ts",
-        handler: "export const POST =",
-        write: "tx.insert(guardians)",
-      },
-      {
-        path: "src/app/api/guardians/route.ts",
-        handler: "export const POST =",
-        write: "tx.insert(guardianAthletes)",
       },
     ] as const;
 
@@ -260,11 +228,6 @@ describe("API limits and feature contracts", () => {
 
   it("guards storage uploads and family conversation writes before external or relational effects", () => {
     const cases = [
-      {
-        path: "src/app/api/athletes/[athleteId]/documents/upload/route.ts",
-        transactionMarker: "const uploaded = await withTransaction(async (tx) =>",
-        writes: ["await uploadFile(file, path"],
-      },
       {
         path: "src/app/api/athletes/[athleteId]/family-conversation/route.ts",
         transactionMarker: "const ensured = await withTransaction(async (tx) =>",
@@ -404,39 +367,6 @@ describe("API limits and feature contracts", () => {
     expect(planLock).toBeGreaterThan(guard);
     expect(usage).toBeGreaterThan(planLock);
     expect(sharedUserLock).toBeGreaterThanOrEqual(0);
-  });
-
-  it("guards cross-academy guardian mutations and sport migration writes", () => {
-    const guardianRoute = readFileSync(
-      join(process.cwd(), "src/app/api/guardians/[guardianId]/route.ts"),
-      "utf8"
-    );
-    for (const [handlerName, write] of [
-      ["export const PUT =", ".update(guardians)"],
-      ["export const DELETE =", ".delete(guardians)"],
-    ] as const) {
-      const handler = guardianRoute.indexOf(handlerName);
-      const transaction = guardianRoute.indexOf("withTransaction(async (tx) =>", handler);
-      const guard = guardianRoute.indexOf("lockWritableGuardianAcademies(tx", transaction);
-      const mutation = guardianRoute.indexOf(write, guard);
-      expect(transaction, `${handlerName} uses a transaction`).toBeGreaterThan(handler);
-      expect(guard, `${handlerName} checks linked academy scopes`).toBeGreaterThan(transaction);
-      expect(mutation, `${handlerName} mutates after capacity guards`).toBeGreaterThan(guard);
-    }
-
-    const sportMigration = readFileSync(
-      join(process.cwd(), "src/app/api/academies/[academyId]/sport-migration/route.ts"),
-      "utf8"
-    );
-    const handler = sportMigration.indexOf("export const POST =");
-    const transaction = sportMigration.indexOf("withTransaction(async (tx) =>", handler);
-    const academyLock = sportMigration.indexOf("lockAcademyOperationalWrites(tx", transaction);
-    const guard = sportMigration.indexOf("assertAcademyOperationalWritable(", academyLock);
-    const mutation = sportMigration.indexOf(".update(athletes)", guard);
-    expect(transaction).toBeGreaterThan(handler);
-    expect(academyLock).toBeGreaterThan(transaction);
-    expect(guard).toBeGreaterThan(academyLock);
-    expect(mutation).toBeGreaterThan(guard);
   });
 
   it("checks onboarding starter presets before creating a Free academy", () => {

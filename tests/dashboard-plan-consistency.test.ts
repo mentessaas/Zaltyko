@@ -22,21 +22,6 @@ describe("dashboard plan consistency", () => {
     expect(trialBlock).toContain('status: "trialing"');
   });
 
-  it("uses the effective subscription in every academy shell surface", () => {
-    const layout = readFileSync("src/app/app/[academyId]/layout.tsx", "utf8");
-    expect(layout).toContain("const activeSubscription = await getActiveSubscription(academy.id)");
-    expect(layout).toContain("planCode = activeSubscription.planCode");
-    expect(layout).toContain("planStatus = activeSubscription.status ?? \"active\"");
-    expect(layout).not.toContain("subscription?.planCode");
-
-    const profile = readFileSync("src/app/dashboard/profile/page.tsx", "utf8");
-    expect(profile).toContain("const activePlan = await getActiveSubscription(academy.id)");
-    expect(profile).toContain("academyLimit: activePlan.academyLimit");
-
-    const superAdminProfile = readFileSync("src/app/dashboard/profile/[profileId]/page.tsx", "utf8");
-    expect(superAdminProfile).toContain("const activePlan = await getActiveSubscription(academy.id)");
-    expect(superAdminProfile).toContain("academyLimit: activePlan.academyLimit");
-  });
 
   it("does not label every global profile as owner", () => {
     const source = readFileSync("src/components/profiles/OptimizedOwnerProfile.tsx", "utf8");

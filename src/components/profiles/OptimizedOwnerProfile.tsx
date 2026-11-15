@@ -327,7 +327,7 @@ export function OptimizedOwnerProfile({
                 </Link>
               </Button>
               <Button size="sm" asChild>
-                <Link href={activeAcademy ? `/app/${activeAcademy.id}/dashboard` : "/dashboard"}>
+                <Link href={activeAcademy ? `/owner` : "/dashboard"}>
                   <Sparkles className="h-4 w-4 mr-2" />
                   Ir al panel
                 </Link>
@@ -377,7 +377,7 @@ export function OptimizedOwnerProfile({
           </CardContent>
           <CardFooter className="pt-3">
             <Button variant="ghost" size="sm" className="w-full" asChild>
-              <Link href={activeAcademy ? `/app/${activeAcademy.id}/billing` : "/billing"}>
+              <Link href={activeAcademy ? `/owner/payments` : "/billing"}>
                 {planCopy.cta}
               </Link>
             </Button>
@@ -534,7 +534,7 @@ export function OptimizedOwnerProfile({
                       <p className="text-base font-semibold text-foreground">{planCopy.label}</p>
                     </div>
                     <Button size="sm" asChild>
-                      <Link href={`/app/${activeAcademy.id}/dashboard`}>Ir al panel</Link>
+                      <Link href={`/owner`}>Ir al panel</Link>
                     </Button>
                   </div>
                   <Separator />

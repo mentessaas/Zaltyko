@@ -72,7 +72,7 @@ export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage =
         <CardContent className="flex flex-col items-center justify-center py-12">
           <p className="text-muted-foreground">{emptyMessage}</p>
           {!isAdmin && (
-            <Link href={academyId ? `/app/${academyId}/support/new` : "/support/new"}>
+            <Link href={academyId ? `/owner` : "/support/new"}>
               <Button className="mt-4">Crear primer ticket</Button>
             </Link>
           )}
@@ -93,7 +93,7 @@ export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage =
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <Link href={isAdmin ? `/super-admin/support/${ticket.id}` : academyId ? `/app/${academyId}/support/${ticket.id}` : `/support/${ticket.id}`}>
+                  <Link href={isAdmin ? `/super-admin/support/${ticket.id}` : academyId ? `/owner` : `/support/${ticket.id}`}>
                     <CardTitle className="text-base hover:text-primary transition-colors truncate">
                       {ticket.title}
                     </CardTitle>

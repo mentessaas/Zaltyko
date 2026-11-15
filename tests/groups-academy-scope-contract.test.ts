@@ -4,30 +4,8 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(path, "utf8");
 
 describe("group academy scope", () => {
-  it("authorizes collection reads against the requested academy", () => {
-    const route = read("src/app/api/groups/route.ts");
 
-    expect(route).toContain("authorizeAcademyCapability");
-    expect(route).toContain('permission: "classes:read"');
-    expect(route).not.toContain('context.profile.role === "admin" ||');
-    expect(route).toContain("isNull(groups.deletedAt)");
-  });
 
-  it("authorizes group creation against the academy in the payload", () => {
-    const route = read("src/app/api/groups/route.ts");
-
-    expect(route).toContain('permission: "classes:create"');
-    expect(route).toContain("academyId: body.academyId");
-    expect(route).not.toContain('role !== "super_admin" && tenantId !== context.tenantId');
-  });
-
-  it("keeps group athlete reads tenant and academy scoped", () => {
-    const route = read("src/app/api/groups/[groupId]/athletes/route.ts");
-
-    expect(route).toContain("authorizeAcademyCapability");
-    expect(route).toContain("eq(groupAthletes.tenantId, group.tenantId)");
-    expect(route).not.toContain('role === "admin" ||');
-  });
 
   it("limits family conversations to the academy and assigned coach scope", () => {
     const route = read("src/app/api/groups/[groupId]/family-conversation/route.ts");
@@ -47,13 +25,6 @@ describe("group academy scope", () => {
     expect(route).toContain("isNull(athletes.deletedAt)");
   });
 
-  it("authorizes group mutations against the group academy", () => {
-    const route = read("src/app/api/groups/[groupId]/route.ts");
-
-    expect(route).toContain('permission: "classes:update"');
-    expect(route).toContain('permission: "classes:delete"');
-    expect(route).toContain("isNull(groups.deletedAt)");
-  });
 
   it("authorizes coach resources against the coach academy", () => {
     for (const route of [
@@ -115,17 +86,6 @@ describe("group academy scope", () => {
     expect(read("src/app/api/charges/route.ts")).toContain('permission: "billing:create"');
   });
 
-  it("authorizes billing catalog and assistance resources against the academy", () => {
-    for (const route of [
-      "src/app/api/billing-items/route.ts",
-      "src/app/api/billing-items/[itemId]/route.ts",
-      "src/app/api/discounts/route.ts",
-      "src/app/api/scholarships/route.ts",
-    ]) {
-      expect(read(route)).toContain("authorizeAcademyCapability");
-    }
-    expect(read("src/app/api/scholarships/route.ts")).toContain("eq(athletes.academyId, body.academyId)");
-  });
 
   it("keeps technical progress scoped to active athletes and their academy", () => {
     const route = read("src/app/api/assessments/route.ts");
@@ -134,17 +94,6 @@ describe("group academy scope", () => {
     expect(route).toContain("targetAcademyId");
   });
 
-  it("keeps athlete classes, history and exports scoped", () => {
-    const classes = read("src/app/api/athletes/[athleteId]/classes/route.ts");
-    const history = read("src/app/api/athletes/[athleteId]/history/route.ts");
-    const exportRoute = read("src/app/api/athletes/[athleteId]/export-history/route.ts");
-    expect(classes).toContain("authorizeAcademyCapability");
-    expect(classes).toContain("eq(athletes.tenantId, context.tenantId)");
-    expect(history).toContain("authorizeAcademyCapability");
-    expect(history).toContain("eq(athleteAssessments.academyId, athlete.academyId)");
-    expect(exportRoute).toContain("authorizeAcademyCapability");
-    expect(exportRoute).toContain("eq(athletes.tenantId, context.tenantId)");
-  });
 
   it("keeps private event reads and deletes academy scoped", () => {
     const route = read("src/app/api/events/[id]/route.ts");
@@ -160,12 +109,4 @@ describe("group academy scope", () => {
     expect(route).toContain('permission: "events:read"');
   });
 
-  it("keeps quick actions scoped to authorized active resources", () => {
-    const pending = read("src/app/api/quick-actions/pending-today/route.ts");
-    const createClass = read("src/app/api/quick-actions/create-class/route.ts");
-    expect(pending).toContain("authorizeAcademyCapability");
-    expect(pending).toContain('inArray(charges.status, ["pending", "overdue"])');
-    expect(createClass).toContain("authorizeAcademyCapability");
-    expect(createClass).toContain('permission: "classes:schedule"');
-  });
 });

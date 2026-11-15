@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as rootNotFound from "@/app/not-found";
 import * as dashboardNotFound from "@/app/dashboard/not-found";
-import * as academyNotFound from "@/app/app/[academyId]/not-found";
 
 // 404 pages deben ser noindex/nofollow y nunca aparecer en SERP. Estos tests
 // verifican que cada not-found.tsx expone el metadata con robots noindex
@@ -39,18 +38,8 @@ describe("404 pages robots contract", () => {
     });
   });
 
-  it("/app/[academyId]/not-found.tsx emite robots noindex + nocache", () => {
-    const meta = academyNotFound.metadata;
-    expect(meta).toBeDefined();
-    expect(meta.robots).toMatchObject({
-      index: false,
-      follow: false,
-      nocache: true,
-    });
-  });
-
   it("ningun 404 emite index=true (no se cuela un falso positivo)", () => {
-    const all = [rootNotFound.metadata, dashboardNotFound.metadata, academyNotFound.metadata];
+    const all = [rootNotFound.metadata, dashboardNotFound.metadata];
     for (const m of all) {
       expect(m).toBeDefined();
       const robots = m!.robots as { index?: boolean };

@@ -138,10 +138,10 @@ export default async function EventsPage({
           <PublicPageHeader
             title="Eventos y Competiciones"
             publishHref="/dashboard/events/new"
-            publishHrefTemplate="/app/{academyId}/events"
+            publishHrefTemplate="/owner"
             publishLabel="Crear evento"
             dashboardHref="/dashboard/events"
-            dashboardHrefTemplate="/app/{academyId}/events"
+            dashboardHrefTemplate="/owner"
             dashboardLabel="Mis eventos"
           />
         </div>

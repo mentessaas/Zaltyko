@@ -68,31 +68,31 @@ export function useDashboardShortcuts(
   const shortcuts: KeyboardShortcut[] = [
     {
       key: "n",
-      action: () => router.push(`/app/${academyId}/athletes/new`),
+      action: () => router.push(`/owner/athletes`),
       description: "Nuevo atleta",
     },
     {
       key: "k",
       ctrl: true,
-      action: () => router.push(`/app/${academyId}/calendar`),
+      action: () => router.push(`/owner`),
       description: "Ir al calendario",
     },
     {
       key: "b",
       ctrl: true,
-      action: () => router.push(`/app/${academyId}/billing`),
+      action: () => router.push(`/owner/payments`),
       description: "Ir a cobros",
     },
     {
       key: "d",
       ctrl: true,
-      action: () => router.push(`/app/${academyId}/dashboard`),
+      action: () => router.push(`/owner`),
       description: "Ir al dashboard",
     },
     {
       key: "a",
       ctrl: true,
-      action: () => router.push(`/app/${academyId}/athletes`),
+      action: () => router.push(`/owner/athletes`),
       description: "Ir a atletas",
     },
     {

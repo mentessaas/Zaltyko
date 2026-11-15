@@ -306,7 +306,7 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
       if (!p.enabled || p.muted) continue;
 
       const messageUrl = currentConversation.academyId
-        ? `/app/${currentConversation.academyId}/messages`
+        ? `/owner`
         : `/dashboard/messages/${conversationId}`;
 
       try {

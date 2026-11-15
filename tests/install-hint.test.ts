@@ -107,7 +107,7 @@ describe("rutas", () => {
   });
   it("la invitación general excluye también la pantalla sin conexión", () => {
     expect(isInstallPromptSuppressedRoute("/pasar-lista-sin-conexion")).toBe(true);
-    expect(isInstallPromptSuppressedRoute("/app/x/classes")).toBe(true);
+    expect(isInstallPromptSuppressedRoute("/owner/classes")).toBe(true);
     expect(isInstallPromptSuppressedRoute("/owner")).toBe(true);
     expect(isInstallPromptSuppressedRoute("/owner/attendance")).toBe(true);
     expect(isInstallPromptSuppressedRoute("/auth/login")).toBe(true);

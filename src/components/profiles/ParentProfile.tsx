@@ -176,7 +176,7 @@ export function ParentProfile({ user, profile, children, labels, targetProfileId
                       </Link>
                     </Button>
                     <Button variant="default" size="sm" className="mt-2 w-full" asChild>
-                      <Link href={`/app/${child.academyId}/athletes/${child.id}/progress`}>
+                      <Link href={`/owner/athletes`}>
                         Ver progreso técnico
                       </Link>
                     </Button>

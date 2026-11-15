@@ -74,7 +74,7 @@ export function EventCard({
     new Date(event.registrationEndDate) >= now;
 
   const detailHref = event.academyId
-    ? `/app/${event.academyId}/events/${event.id}`
+    ? `/owner`
     : `/dashboard/events/${event.id}`;
 
   return (

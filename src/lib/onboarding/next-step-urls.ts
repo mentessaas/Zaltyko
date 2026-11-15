@@ -47,20 +47,20 @@ export const NEXT_STEP_URLS: Readonly<Record<NextStepKey, string>> = Object.free
   activation: "/onboarding/activation",
 
   // Checklist items (next incomplete item)
-  add_5_athletes: "/app/athletes/new",
-  create_first_group: "/app/groups/new",
-  setup_weekly_schedule: "/app/classes/new",
-  invite_first_coach: "/app/coaches/invite",
-  enable_payments: "/app/settings/billing",
-  send_first_communication: "/app/communications/new",
+  add_5_athletes: "/owner/athletes",
+  create_first_group: "/owner/groups",
+  setup_weekly_schedule: "/owner/classes",
+  invite_first_coach: "/owner/staff",
+  enable_payments: "/owner/payments",
+  send_first_communication: "/owner",
   login_again: "/auth/sign-in",
 
   // Communication aliases referenced by the attachment
-  billing_setup: "/app/settings/billing",
-  first_communication: "/app/communications/new",
+  billing_setup: "/owner/payments",
+  first_communication: "/owner",
 
   // Generic destinations
-  academy_overview: "/app",
+  academy_overview: "/owner",
   support: "/contact",
 
   // Compliance footer (RGPD, ver ZAL-313)

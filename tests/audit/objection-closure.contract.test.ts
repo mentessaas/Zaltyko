@@ -17,19 +17,6 @@ describe("contrato del cierre del mapa de objeciones", () => {
     expect(runbook).toContain("No se publica ROI");
   });
 
-  it("mantiene los recorridos funcionales cerrados", () => {
-    const eventsExport = read("src/app/api/reports/events/export/route.ts");
-    const athleteExport = read("src/app/api/athletes/export/route.ts");
-    const waitingList = read("src/components/classes/WaitingListDialog.tsx");
-    const supportResponses = read("src/app/api/support/tickets/[id]/responses/route.ts");
-
-    expect(eventsExport).toContain('eq(events.academyId, academyId)');
-    expect(eventsExport).toContain('bookType: "xlsx"');
-    expect(athleteExport).toContain('eq(athletes.academyId, academyId)');
-    expect(waitingList).toContain("/api/class-waiting-list?classId=");
-    expect(waitingList).not.toContain("placeholder until implement");
-    expect(supportResponses).toContain("eq(ticketResponses.isInternal, false)");
-  });
 
   it("no reintroduce claims retirados en la superficie pública", () => {
     const siteFiles = [

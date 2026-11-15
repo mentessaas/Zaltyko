@@ -30,9 +30,8 @@ export default async function OwnerSetupPage() {
       userId: user.id,
       email: user.email,
     });
-    if (legacyHome.destination === "academy_workspace") {
-      redirect(legacyHome.redirectUrl);
-    }
+    // /app se retiró: una cuenta con academia antigua no tiene panel al que
+    // volver, así que se queda aquí con el aviso (redirigir a /owner crearía un bucle).
     if (legacyHome.destination === "blocked") redirect(legacyHome.redirectUrl);
 
     return (

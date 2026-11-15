@@ -6,7 +6,6 @@ vi.mock("@/components/directory/SubscriptionForm", () => ({ SubscriptionForm: ()
 vi.mock("@/lib/directory/contracts", () => ({ flag: () => false }));
 vi.mock("@/lib/seo/site-url", () => ({ getPublicSiteUrl: () => "https://zaltyko.com" }));
 
-import { metadata as appMetadata } from "@/app/app/layout";
 import { metadata as preferencesMetadata } from "@/app/preferences/layout";
 import { metadata as unsubscribeMetadata } from "@/app/unsubscribe/layout";
 import { metadata as kitMetadata } from "@/app/recursos/kit-academias/page";
@@ -15,7 +14,6 @@ import { metadata as kitMetadata } from "@/app/recursos/kit-academias/page";
 // of these directives must fail this test.
 describe("non-indexable public pages", () => {
   it.each([
-    ["/app", appMetadata],
     ["/preferences", preferencesMetadata],
     ["/unsubscribe", unsubscribeMetadata],
   ])("%s is noindex, nofollow", (_path, metadata) => {

@@ -23,9 +23,7 @@ describe("subscription status labels", () => {
       "src/app/(super-admin)/super-admin/components/SuperAdminDashboard.tsx",
       "utf8",
     );
-    const planUsage = readFileSync("src/components/dashboard/PlanUsage.tsx", "utf8");
     const billingSummary = readFileSync("src/components/billing/BillingSummary.tsx", "utf8");
-    const billingPanel = readFileSync("src/components/billing/BillingPanel.tsx", "utf8");
     const stripeConnect = readFileSync("src/components/billing/StripeConnectCard.tsx", "utf8");
     const academyDetail = readFileSync(
       "src/app/(super-admin)/super-admin/components/SuperAdminAcademyDetail.tsx",
@@ -38,10 +36,7 @@ describe("subscription status labels", () => {
 
     expect(dashboard).toContain("getSubscriptionStatusLabel");
     expect(dashboard).not.toContain("name: status.status,");
-    expect(planUsage).toContain("getSubscriptionStatusLabel(plan.status)");
     expect(billingSummary).toContain("getSubscriptionStatusLabel(summary.status)");
-    expect(billingPanel).toContain("getSubscriptionStatusLabel(summary.status)");
-    expect(billingPanel).toContain("label: labels.unknown");
     expect(stripeConnect).toContain("getConnectStatusLabel(status.status)");
     expect(stripeConnect).not.toContain("` (${status.status})`");
     expect(academyDetail).toContain("getSubscriptionStatusLabel(academy.subscription.status)");

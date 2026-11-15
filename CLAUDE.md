@@ -19,7 +19,7 @@ Before any relevant code, product, pricing, migration, security, roadmap, or doc
 ```
 src/
 ├── app/
-│   ├── app/[academyId]/     # Academy dashboard routes
+│   ├── owner/               # Panel de la academia (el antiguo /app se retiró el 14-11-2026; redirige a /owner)
 │   ├── api/                 # API routes (tenant routes use withTenant; others per-context)
 │   ├── (site)/             # Public landing pages
 │   └── (super-admin)/      # Super admin panel

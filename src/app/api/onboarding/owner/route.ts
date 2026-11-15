@@ -213,7 +213,7 @@ export async function POST(request: Request) {
     if (ownerAcademy) {
       return apiCreated({
         academyId: ownerAcademy,
-        redirectUrl: `/app/${ownerAcademy}/dashboard`,
+        redirectUrl: `/owner`,
       });
     }
   }
@@ -645,7 +645,7 @@ export async function POST(request: Request) {
   if ("existingAcademyId" in setup) {
     return apiCreated({
       academyId: setup.existingAcademyId,
-      redirectUrl: `/app/${setup.existingAcademyId}/dashboard`,
+      redirectUrl: `/owner`,
     });
   }
 
@@ -708,7 +708,7 @@ export async function POST(request: Request) {
   if(directoryId) await recordGrowthEvent({eventName:"directory_saas_activated",source:"directory",academyId:setup.result.id,idempotencyKey:`directory:activation:${directoryId}`,properties:{entry_id:directoryId,audience:"representative"}});
   return apiCreated({
     academyId: setup.result.id,
-    redirectUrl: `/app/${setup.result.id}/dashboard`,
+    redirectUrl: `/owner`,
     tenantId: setup.result.tenantId,
     sportConfigFallback: setup.usesGenericFallback,
   });

@@ -213,13 +213,13 @@ export default async function AcademiesPage() {
           {primaryAcademyId ? (
             <>
               <Button asChild variant="outline">
-                <Link href={`/app/${primaryAcademyId}/athletes`}>Ver atletas</Link>
+                <Link href={`/owner/athletes`}>Ver atletas</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href={`/app/${primaryAcademyId}/coaches`}>Ver entrenadores</Link>
+                <Link href={`/owner/staff`}>Ver entrenadores</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href={`/app/${primaryAcademyId}/events`}>Ver eventos</Link>
+                <Link href={`/owner`}>Ver eventos</Link>
               </Button>
             </>
           ) : null}
@@ -314,7 +314,7 @@ export default async function AcademiesPage() {
                 </CardContent>
                 <CardFooter>
                   <Button asChild variant={isActive ? "default" : "secondary"} className="w-full">
-                    <Link href={`/app/${academy.id}/dashboard`}>Entrar al panel</Link>
+                    <Link href={`/owner`}>Entrar al panel</Link>
                   </Button>
                 </CardFooter>
               </Card>

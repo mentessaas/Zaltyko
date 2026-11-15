@@ -26,7 +26,7 @@ export default async function ClassesCalendarPage() {
     .limit(1);
 
   if (profile?.activeAcademyId) {
-    redirect(`/app/${profile.activeAcademyId}/classes`);
+    redirect(`/owner/classes`);
   }
 
   const [membership] = await db
@@ -37,5 +37,5 @@ export default async function ClassesCalendarPage() {
     .where(eq(memberships.userId, user.id))
     .limit(1);
 
-  redirect(membership?.academyId ? `/app/${membership.academyId}/classes` : "/dashboard/academies");
+  redirect(membership?.academyId ? `/owner/classes` : "/dashboard/academies");
 }

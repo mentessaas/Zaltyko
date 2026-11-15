@@ -10,18 +10,14 @@ import {
   parseLegacyAthleteCsv,
 } from "@/lib/athletes/legacy-import-csv";
 
-// La plantilla se lee del propio panel para que el test falle si alguien la
-// cambia sin mantener la importación compatible.
+// Plantilla oficial de la importación clásica. El panel que la ofrecía (/app)
+// se retiró; se conserva aquí para que la importación siga aceptándola.
 function officialTemplateCsv() {
-  const panel = readFileSync(
-    new URL("../src/components/athletes/ImportExportPanel.tsx", import.meta.url),
-    "utf8",
-  );
-  const block = /const templateCsv = \[([\s\S]*?)\]/.exec(panel)?.[1];
-  expect(block, "ImportExportPanel define templateCsv").toBeTruthy();
-  const lines = Array.from(block!.matchAll(/"([^"]*)"/g), (match) => match[1]);
-  expect(lines.length).toBeGreaterThanOrEqual(2);
-  return lines.join("\n");
+  return [
+    "name,dob,level,status,groupId,groupName,sportConfigCode,programCode,levelCode,categoryCode",
+    "Lucía Márquez,2010-05-14,Base 3,active,,Artística Femenina Base 3,ES:artistic_female,base,base_3,infantil",
+    "Martín Ortega,2011-09-02,Iniciación,active,,Artística Masculina Iniciación,ES:artistic_male,recreativo,,alevin",
+  ].join("\n");
 }
 
 const ACADEMY_ID = "6f9619ff-8b86-4d11-b42d-00c04fc964ff";

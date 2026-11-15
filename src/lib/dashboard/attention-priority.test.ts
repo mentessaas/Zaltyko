@@ -36,7 +36,7 @@ function makeCharges(overrides: Partial<ChargesAttention> = {}): ChargesAttentio
     failed: 0,
     items: [],
     sourceAvailable: true,
-    href: `/app/${ACADEMY_ID}/billing`,
+    href: `/owner/payments`,
     source: "charges.status='overdue'|'failed'",
     ...overrides,
   };
@@ -48,7 +48,7 @@ function makeMessages(overrides: Partial<MessagesAttention> = {}): MessagesAtten
     failed: 0,
     unread: 0,
     sourceAvailable: true,
-    href: `/app/${ACADEMY_ID}/comms`,
+    href: `/owner`,
     source: "scheduled_notifications.status",
     ...overrides,
   };
@@ -110,7 +110,7 @@ describe("deriveOwnerPriorityAction", () => {
     expect(action?.kind).toBe("review_failed_charges");
     expect(action?.label).toContain("fallidos");
     expect(action?.label).toContain("(1)");
-    expect(action?.href).toBe(`/app/${ACADEMY_ID}/billing?status=failed`);
+    expect(action?.href).toBe(`/owner/payments?status=failed`);
   });
 
   it("cae a cargos vencidos cuando no hay fallidos", () => {
@@ -146,14 +146,14 @@ describe("deriveOwnerPriorityAction", () => {
           startsAt: inOneHour,
           groupName: "Pre-benjamín",
           attendanceRecorded: false,
-          href: `/app/${ACADEMY_ID}/attendance/today/s1`,
+          href: `/owner/attendance`,
         },
       ],
     });
     const action = deriveOwnerPriorityAction(bundle);
     expect(action?.kind).toBe("take_attendance");
     expect(action?.label).toContain("Iniciación 1");
-    expect(action?.href).toBe(`/app/${ACADEMY_ID}/attendance/today/s1`);
+    expect(action?.href).toBe(`/owner/attendance`);
   });
 
   it("no elige take_attendance si la sesión ya pasó hace más de 1h", () => {
@@ -167,7 +167,7 @@ describe("deriveOwnerPriorityAction", () => {
           startsAt: threeHoursAgo,
           groupName: null,
           attendanceRecorded: false,
-          href: `/app/${ACADEMY_ID}/attendance/today/s1`,
+          href: `/owner/attendance`,
         },
       ],
     });
@@ -186,7 +186,7 @@ describe("deriveOwnerPriorityAction", () => {
           startsAt: inFiveHours,
           groupName: null,
           attendanceRecorded: false,
-          href: `/app/${ACADEMY_ID}/attendance/today/s1`,
+          href: `/owner/attendance`,
         },
       ],
     });
@@ -219,7 +219,7 @@ describe("deriveOwnerPriorityAction", () => {
         state: "failed",
         filename: "atletas.csv",
         source: "athlete_import_jobs",
-        href: `/app/${ACADEMY_ID}/athletes/import?jobId=j1`,
+        href: `/owner/athletes`,
       },
     });
     const action = deriveOwnerPriorityAction(bundle);
@@ -234,7 +234,7 @@ describe("deriveOwnerPriorityAction", () => {
         state: "mapping_required",
         filename: "atletas.csv",
         source: "athlete_import_jobs",
-        href: `/app/${ACADEMY_ID}/athletes/import?jobId=j1`,
+        href: `/owner/athletes`,
       },
     });
     const action = deriveOwnerPriorityAction(bundle);
@@ -248,7 +248,7 @@ describe("deriveOwnerPriorityAction", () => {
         state: "preview_ready",
         filename: "atletas.csv",
         source: "athlete_import_jobs",
-        href: `/app/${ACADEMY_ID}/athletes/import?jobId=j1`,
+        href: `/owner/athletes`,
       },
     });
     const action = deriveOwnerPriorityAction(bundle);
@@ -302,7 +302,7 @@ describe("deriveCoachPriorityAction", () => {
           startsAt: in30Min,
           groupName: null,
           attendanceRecorded: false,
-          href: `/app/${ACADEMY_ID}/attendance/today/s1`,
+          href: `/owner/attendance`,
         },
       ],
     });
