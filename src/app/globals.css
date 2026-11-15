@@ -286,6 +286,13 @@ body {
   }
 }
 
+/* Aviso de versión nueva: reserva su altura (más la barra inferior) para no tapar botones. */
+@media (max-width: 1279px) {
+  body[data-update-banner] {
+    padding-bottom: calc(var(--update-banner-height, 0px) + 5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* PWA Mobile Optimizations */
 @layer utilities {
   /* Safe area padding for notched phones */
