@@ -326,6 +326,41 @@ describe("registro manual de pagos en el dashboard owner", () => {
     );
   });
 
+  it("saca el cargo pagado de la lista al guardar aunque el refresco no llegue o llegue con datos antiguos", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockImplementationOnce(async (_url, init) =>
+      successfulResponseForBody(String((init as RequestInit).body))
+    );
+    const props = {
+      actorId,
+      organizationId,
+      charges: [charge],
+      canManageFamilyCollectionPreferences: false,
+    };
+    const { rerender } = render(<ManualPaymentForm {...props} />);
+
+    const saveButton = await screen.findByRole("button", {
+      name: "Guardar pago recibido",
+    });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    await user.click(saveButton);
+
+    // Sin ningún `rerender`: el refresco está simulado y no cambia las props.
+    expect(
+      await screen.findByRole("heading", { name: "No hay cargos pendientes" })
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("combobox", { name: "Cargo pendiente" })
+    ).not.toBeInTheDocument();
+    expect(mockRefresh).toHaveBeenCalledOnce();
+
+    // Un refresco tardío con el cargo todavía con su saldo antiguo no lo resucita.
+    rerender(<ManualPaymentForm {...props} charges={[{ ...charge }]} />);
+    expect(
+      screen.getByRole("heading", { name: "No hay cargos pendientes" })
+    ).toBeVisible();
+  });
+
   it("reintenta el mismo registro con la misma clave para evitar duplicar el pago", async () => {
     const user = userEvent.setup();
     mockFetch

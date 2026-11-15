@@ -64,6 +64,28 @@ describe("service worker: pasar lista sin conexión", () => {
     expect(res.headers.get("location")).toBe(`${ORIGIN}/pasar-lista-sin-conexion?sesion=sesion-9`);
   });
 
+  it("la asistencia de /owner sin red también abre la pantalla local", async () => {
+    const worker = load(["/pasar-lista-sin-conexion"]);
+    const res = await run(worker, "/owner/attendance");
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(`${ORIGIN}/pasar-lista-sin-conexion`);
+  });
+
+  it("de /owner conserva la sesión pedida (?sessionId=) como ?sesion=", async () => {
+    const worker = load(["/pasar-lista-sin-conexion"]);
+    const res = await run(
+      worker,
+      "/owner/attendance?organizationId=org-1&locationId=sede-1&sessionId=sesion-7"
+    );
+    expect(res.headers.get("location")).toBe(`${ORIGIN}/pasar-lista-sin-conexion?sesion=sesion-7`);
+  });
+
+  it("el resto de /owner no se redirige: cae a la página sin conexión", async () => {
+    const worker = load(["/pasar-lista-sin-conexion"]);
+    expect(await run(worker, "/owner/attendance/otra")).toBe(worker.offline);
+    expect(await run(worker, "/owner/athletes")).toBe(worker.offline);
+  });
+
   it("sin la pantalla guardada cae a la página sin conexión de siempre", async () => {
     const worker = load([]);
     expect(await run(worker, "/app/academia-1/attendance/today")).toBe(worker.offline);

@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
+import { TodaySnapshotSaver } from "@/components/attendance/TodaySnapshotSaver";
 import { OwnerAttendanceManager } from "@/components/owner-dashboard/OwnerAttendanceManager";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { createClient } from "@/lib/supabase/server";
@@ -215,6 +216,14 @@ export default async function OwnerAttendancePage({
           </div>
         </div>
       ) : null}
+      {/* Pasar lista sin conexión: al abrir esta pantalla con red se guarda en
+          el móvil la lista de hoy de esta academia (modelo de /owner) y se
+          envía lo que haya quedado pendiente. */}
+      <TodaySnapshotSaver
+        academyId={scope.organization.id}
+        source="owner"
+        className="mx-auto flex w-full max-w-4xl items-center gap-1 px-5 pt-4 text-xs text-z-soft lg:px-10"
+      />
       <OwnerAttendanceManager
         coachMode={coachMode}
         organizationId={data.organization.id}

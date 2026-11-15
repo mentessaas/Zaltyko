@@ -4,12 +4,23 @@ import { useEffect, useState } from "react";
 import { CloudOff } from "lucide-react";
 
 import { requestOfflineShellCache } from "@/lib/offline-attendance/shell";
+import type { OfflineAttendanceSource } from "@/lib/offline-attendance/types";
 
 /**
  * Guarda en este móvil la lista de las sesiones de hoy (y la pantalla sin
  * conexión) cada vez que se abre «Pasar lista» con red.
  */
-export function TodaySnapshotSaver({ academyId }: { academyId: string }) {
+export function TodaySnapshotSaver({
+  academyId,
+  source,
+  className,
+}: {
+  /** Clases del párrafo, para encajarlo en cada pantalla. */
+  className?: string;
+  academyId: string;
+  /** Modelo de datos: sin valor, el panel antiguo; `"owner"`, /owner (aquí `academyId` es la academia de /owner). */
+  source?: OfflineAttendanceSource;
+}) {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -19,7 +30,7 @@ export function TodaySnapshotSaver({ academyId }: { academyId: string }) {
         const runtime = await import("@/lib/offline-attendance/runtime");
         // Primero lo pendiente, para que la lista guardada ya lo incluya.
         await runtime.syncPendingAttendance();
-        const snapshot = await runtime.refreshTodaySnapshot(academyId);
+        const snapshot = await runtime.refreshTodaySnapshot(academyId, source);
         if (snapshot && !cancelled) {
           setSaved(true);
           await requestOfflineShellCache();
@@ -31,11 +42,14 @@ export function TodaySnapshotSaver({ academyId }: { academyId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [academyId]);
+  }, [academyId, source]);
 
   if (!saved) return null;
   return (
-    <p className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="offline-list-saved">
+    <p
+      className={className ?? "flex items-center gap-1 text-xs text-muted-foreground"}
+      data-testid="offline-list-saved"
+    >
       <CloudOff className="h-3.5 w-3.5" aria-hidden="true" />
       Lista de hoy guardada en este móvil para pasar lista sin cobertura.
     </p>

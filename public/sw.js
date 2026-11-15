@@ -9,6 +9,8 @@ const OFFLINE_URL = '/offline.html';
 // worker guarda; el HTML privado de /app/* sigue sin guardarse nunca.
 const ATTENDANCE_SHELL_PATH = '/pasar-lista-sin-conexion';
 const ATTENDANCE_TODAY_PATH = /^\/app\/[^/]+\/attendance\/today(?:\/([^/]+))?\/?$/;
+// Asistencia del panel nuevo (/owner): la sesión elegida va en ?sessionId=.
+const OWNER_ATTENDANCE_PATH = /^\/owner\/attendance\/?$/;
 
 const STATIC_ASSETS = [
   '/manifest.json',
@@ -63,13 +65,15 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request).catch(async () => {
         const attendance = ATTENDANCE_TODAY_PATH.exec(url.pathname);
-        if (attendance) {
+        const ownerAttendance = OWNER_ATTENDANCE_PATH.test(url.pathname);
+        if (attendance || ownerAttendance) {
           // Sin red en «Pasar lista»: se lleva a la pantalla local, que
           // trabaja con la lista guardada en el dispositivo.
           const shell = await caches.match(ATTENDANCE_SHELL_PATH, { ignoreSearch: true });
           if (shell) {
             const target = new URL(ATTENDANCE_SHELL_PATH, self.location.origin);
-            if (attendance[1]) target.searchParams.set('sesion', attendance[1]);
+            const sessionId = attendance ? attendance[1] : url.searchParams.get('sessionId');
+            if (sessionId) target.searchParams.set('sesion', sessionId);
             return Response.redirect(target.href, 302);
           }
         }

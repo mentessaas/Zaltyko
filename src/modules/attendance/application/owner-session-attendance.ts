@@ -31,6 +31,12 @@ export type OwnerSessionAttendanceItem = {
   enrollmentId: string;
   athleteName: string;
   attendanceStatus: "present" | "absent" | "excused" | "late" | null;
+  /**
+   * Momento de la marca guardada (ISO), o null si no hay. La pantalla lo manda
+   * al enviar una marca sin conexión para saber si alguien la cambió mientras
+   * tanto.
+   */
+  recordedAt: string | null;
 };
 
 /**
@@ -229,6 +235,7 @@ export async function loadOwnerSessionAttendanceRoster(
       givenName: people.givenName,
       familyName: people.familyName,
       attendanceStatus: attendanceRecords.status,
+      recordedAt: attendanceRecords.recordedAt,
     })
     .from(enrollments)
     .innerJoin(
@@ -282,5 +289,9 @@ export async function loadOwnerSessionAttendanceRoster(
     enrollmentId: row.enrollmentId,
     athleteName: `${row.givenName} ${row.familyName}`.trim(),
     attendanceStatus: row.attendanceStatus ?? null,
+    recordedAt:
+      row.attendanceStatus && row.recordedAt
+        ? row.recordedAt.toISOString()
+        : null,
   }));
 }

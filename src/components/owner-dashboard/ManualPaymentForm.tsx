@@ -103,7 +103,7 @@ export function ManualPaymentForm({
     retryStorageError !== null;
   const {
     pageMatchesCurrentProps,
-    loadedCharges,
+    loadedCharges: serverCharges,
     pageCursor,
     loadingMore,
     loadMoreError,
@@ -115,6 +115,40 @@ export function ManualPaymentForm({
     nextCursor,
     formLocked,
   });
+  // Saldo que el servidor ya confirmó tras un pago guardado en esta pantalla:
+  // el cargo pagado sale de la lista al instante y no vuelve a un estado
+  // antiguo si el refresco de la página llega tarde, se aborta o se solapa con
+  // otro. Solo puede bajar el saldo; en cuanto el servidor lo alcanza, se olvida.
+  const [settledOutstanding, setSettledOutstanding] = useState<
+    Record<string, number>
+  >({});
+  const loadedCharges = useMemo(
+    () =>
+      serverCharges.flatMap((charge) => {
+        const settled = settledOutstanding[charge.chargeId];
+        const outstandingCents =
+          settled === undefined
+            ? charge.outstandingCents
+            : Math.min(charge.outstandingCents, settled);
+        return outstandingCents > 0 ? [{ ...charge, outstandingCents }] : [];
+      }),
+    [serverCharges, settledOutstanding]
+  );
+  useEffect(() => {
+    setSettledOutstanding((current) => {
+      let changed = false;
+      const next: Record<string, number> = {};
+      for (const [chargeId, settled] of Object.entries(current)) {
+        const server = serverCharges.find((charge) => charge.chargeId === chargeId);
+        if (server && server.outstandingCents > settled) {
+          next[chargeId] = settled;
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [serverCharges]);
   const firstCharge = loadedCharges[0];
   const [chargeId, setChargeId] = useOrganizationDraftField(
     organizationId,
@@ -439,6 +473,18 @@ export function ManualPaymentForm({
             "El pago está confirmado, pero no se pudo verificar si quedan otros envíos pendientes. Actualiza la página antes de continuar."
           );
           return;
+        }
+        const paidCharge = loadedCharges.find(
+          (charge) => charge.chargeId === body.chargeId
+        );
+        if (paidCharge) {
+          setSettledOutstanding((current) => ({
+            ...current,
+            [body.chargeId]: Math.max(
+              0,
+              paidCharge.outstandingCents - body.amountCents
+            ),
+          }));
         }
         setSaved(true);
         setAmount("");

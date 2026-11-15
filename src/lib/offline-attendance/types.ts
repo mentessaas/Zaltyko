@@ -19,6 +19,13 @@ export function isAttendanceStatus(value: unknown): value is AttendanceStatus {
   return typeof value === "string" && (ATTENDANCE_STATUSES as readonly string[]).includes(value);
 }
 
+/**
+ * De qué modelo de datos viene una lista o una marca. Sin valor es el panel
+ * antiguo (`/app`); `"owner"` es /owner: ahí la «gimnasta» de cada fila es su
+ * inscripción (lo que se marca) y las marcas viajan a `/api/v1/owner/attendance`.
+ */
+export type OfflineAttendanceSource = "owner";
+
 export interface SnapshotAthlete {
   id: string;
   name: string;
@@ -46,6 +53,7 @@ export interface SnapshotSession {
 export interface TodaySnapshot {
   /** `${userId}:${academyId}` */
   key: string;
+  source?: OfflineAttendanceSource;
   userId: string;
   academyId: string;
   academyName: string | null;
@@ -66,6 +74,7 @@ export type QueuedMarkState = "pending" | "failed";
 export interface QueuedMark {
   /** Clave de la cola: `${userId}:${sessionId}:${athleteId}`. */
   key: string;
+  source?: OfflineAttendanceSource;
   /** Identificador de la operación; el servidor lo anota si hay conflicto. */
   opId: string;
   userId: string;

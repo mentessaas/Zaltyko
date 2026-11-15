@@ -2,6 +2,7 @@ import type { OfflineStore } from "./store";
 import {
   snapshotKey,
   type AttendanceStatus,
+  type OfflineAttendanceSource,
   type QueuedMark,
   type SnapshotSession,
   type TodaySnapshot,
@@ -9,6 +10,7 @@ import {
 
 /** Lo que devuelve `GET /api/attendance/today`. */
 export interface TodayPayload {
+  source?: OfflineAttendanceSource;
   academyId: string;
   academyName?: string | null;
   userId: string;
@@ -23,6 +25,7 @@ export const SNAPSHOT_MAX_AGE_HOURS = 36;
 export async function saveSnapshot(store: OfflineStore, payload: TodayPayload): Promise<TodaySnapshot> {
   const snapshot: TodaySnapshot = {
     key: snapshotKey(payload.userId, payload.academyId),
+    ...(payload.source ? { source: payload.source } : {}),
     userId: payload.userId,
     academyId: payload.academyId,
     academyName: payload.academyName ?? null,
