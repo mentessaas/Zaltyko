@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { OwnerOperationalPolicy } from "@/components/owner-dashboard/OwnerOperationalPolicy";
 import { useOwnerPlanPolicy } from "@/components/owner-dashboard/owner-plan-usage-store";
@@ -25,4 +25,19 @@ it("fails closed and can recover without commercial access", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Volver a consultar el uso" }));
   await waitFor(() => expect(screen.getByTestId("policy")).toHaveTextContent("blocked"));
   expect(screen.getByRole("status")).toHaveTextContent("La dirección de la academia");
+});
+it("keeps writes available while it rechecks the plan after the window regains focus", async () => {
+  let resolveRecheck!: (value: unknown) => void;
+  fetchMock
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, data: { readOnly: false, planCode: "free" } }) })
+    .mockReturnValueOnce(new Promise((resolve) => { resolveRecheck = resolve; }));
+  render(<><OwnerOperationalPolicy organizationId={org} /><Probe /></>);
+  await waitFor(() => expect(screen.getByTestId("policy")).toHaveTextContent("writable"));
+
+  act(() => { window.dispatchEvent(new Event("focus")); });
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  expect(screen.getByTestId("policy")).toHaveTextContent("writable");
+
+  await act(async () => { resolveRecheck({ ok: true, json: async () => ({ ok: true, data: { readOnly: true, planCode: "free" } }) }); });
+  await waitFor(() => expect(screen.getByTestId("policy")).toHaveTextContent("blocked"));
 });

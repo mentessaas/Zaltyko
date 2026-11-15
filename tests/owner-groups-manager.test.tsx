@@ -112,6 +112,38 @@ describe("gestión de grupos owner", () => {
     );
   });
 
+  it("si la búsqueda no encuentra a nadie, explica que una ficha nueva se asigna primero desde Gimnastas", async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true, data: { items: [] } }) });
+    const user = userEvent.setup();
+    render(<OwnerGroupsManager bundle={ownerGroupBundleWithAthlete} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Buscar" })).toBeEnabled());
+    await user.type(screen.getByLabelText("Añadir una gimnasta"), " Lucía ");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    const empty = await screen.findByText(/No encontramos a «Lucía» en esta sede/);
+    expect(empty.closest("[role=status]")).toHaveTextContent("¿Es una gimnasta nueva? Asígnala primero desde Gimnastas");
+    expect(screen.getByRole("link", { name: "Gimnastas" })).toHaveAttribute("href", `/owner/athletes?organizationId=${organizationId}`);
+    expect(mockFetch.mock.calls.map(([url]) => String(url))).toContain(`/api/v1/owner/groups/${groupId}/memberships?organizationId=${organizationId}&q=Luc%C3%ADa`);
+
+    mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true, data: { items: [{ id: athleteId, name: "Lucía Sintética" }] } }) });
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+    expect(await screen.findByText("Lucía Sintética")).toBeVisible();
+    expect(screen.queryByText(/No encontramos a/)).not.toBeInTheDocument();
+  });
+
+  it("sin acceso a Gimnastas, el aviso de búsqueda vacía pide a la dirección que asigne la ficha", async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true, data: { items: [] } }) });
+    const user = userEvent.setup();
+    render(<OwnerGroupsManager bundle={groupBundle} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Buscar" })).toBeEnabled());
+    await user.type(screen.getByLabelText("Añadir una gimnasta"), "Lucía");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    const empty = await screen.findByText(/No encontramos a «Lucía» en esta sede/);
+    expect(empty.closest("[role=status]")).toHaveTextContent("Pide a la dirección de la academia que la asigne a este grupo desde Gimnastas");
+    expect(screen.queryByRole("link", { name: "Gimnastas" })).not.toBeInTheDocument();
+  });
+
   it("bloquea nuevas escrituras mientras el uso es desconocido y ofrece volver a consultarlo", async () => {
     const usageRead = beginOwnerPlanUsageRead(organizationId);
     const user = userEvent.setup();

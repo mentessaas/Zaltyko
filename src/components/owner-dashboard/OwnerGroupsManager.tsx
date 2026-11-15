@@ -77,6 +77,7 @@ export function OwnerGroupsManager({
   const membershipScope = `${organizationId}:${bundle.selectedGroupId ?? "none"}`;
   const [candidateQuery, setCandidateQuery] = useOrganizationDraftField(membershipScope, "");
   const [candidates, setCandidates] = useOrganizationDraftField<Candidate[]>(membershipScope, []);
+  const [emptySearchQuery, setEmptySearchQuery] = useOrganizationDraftField(membershipScope, "");
   const [newAthleteGivenName, setNewAthleteGivenName] = useOrganizationDraftField(membershipScope, "");
   const [newAthleteFamilyName, setNewAthleteFamilyName] = useOrganizationDraftField(membershipScope, "");
   const [busy, setBusy] = useState(false);
@@ -415,6 +416,7 @@ export function OwnerGroupsManager({
     if (commandsLocked || pendingMembershipRef.current || membershipSendingRef.current || groupCreateRequestRef.current || athleteArchiveMutationBlocked() || profilePendingRef.current || activeAthleteProfileKeyRef.current || !profileRecoveryReady || profileRecoveryIssue !== null || pendingAthleteProfile !== null || familyPendingRef.current || activeAthleteFamilyAssociationKeyRef.current || !familyRecoveryReady || familyRecoveryIssue !== null || pendingAthleteFamilyAssociation !== null) return;
     setError("");
     setNotice("");
+    setEmptySearchQuery("");
     if (!selectedGroup || candidateQuery.trim().length < 2) {
       setError("Escribe al menos dos letras para buscar.");
       return;
@@ -437,9 +439,10 @@ export function OwnerGroupsManager({
         return;
       }
       setCandidates(data.items);
-      if (data.items.length === 0) {
-        setNotice("No hay coincidencias disponibles para añadir a este grupo.");
-      }
+      // La búsqueda solo muestra fichas que ya tienen relación con la sede del
+      // grupo (regla de sede, también exigida al añadir). Una ficha recién
+      // creada no aparece: el aviso explica dónde asignarla.
+      if (data.items.length === 0) setEmptySearchQuery(candidateQuery.trim());
     } catch {
       setError(
         "No se pudo buscar. Comprueba la conexión e inténtalo de nuevo."
@@ -922,6 +925,8 @@ export function OwnerGroupsManager({
                     <OwnerGroupAthleteSearchForm
                       candidateQuery={candidateQuery}
                       candidates={candidates}
+                      emptySearchQuery={emptySearchQuery}
+                      athletesHref={canManageAthleteArchive ? `/owner/athletes?organizationId=${encodeURIComponent(organizationId)}` : null}
                       commandsLocked={commandsLocked}
                       writesBlocked={writesBlocked}
                       onSubmit={searchAthletes}

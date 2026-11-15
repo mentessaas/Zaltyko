@@ -62,6 +62,13 @@ export type OwnerGuardianAccessRow = {
   invitation: { id: string; revision: number; expiresAt: string; lastSentAt: string | null; grantViewAthletes: boolean } | null;
   linkedSince: string | null;
   canViewAthletes: boolean;
+  /**
+   * Solo si falta el correo principal: sede desde la que la dirección puede
+   * añadirlo con /api/v1/owner/guardians/[guardianId]/contacts (la misma
+   * comprobación por sede). Null si tiene correo o si ninguna gimnasta de su
+   * familia está hoy inscrita o en un grupo activo de alguna sede.
+   */
+  contactLocationId: string | null;
 };
 
 export type OwnerFamilyAccessList = {
@@ -159,7 +166,49 @@ async function latestInvitations(tx: Tx, organizationId: string, guardianIds: st
   return new Map(list.map((row): [string, InvitationRow] => [row.guardian_id, row]));
 }
 
-function accessRow(guardian: GuardianRow, invitation: InvitationRow | undefined, now: Date): OwnerGuardianAccessRow {
+/**
+ * Para cada tutor sin correo, una sede activa en la que alguna gimnasta de su
+ * familia está hoy inscrita (pendiente o activa) o en un grupo activo. Es la
+ * misma condición que exige la API de contactos del tutor
+ * (activeAnchorGuardianQuery en owner-guardian-contacts), así que editar el
+ * correo desde /owner/familias pasa por la misma autorización por sede.
+ * Se prefiere la sede elegida en la página.
+ */
+async function contactLocations(tx: Tx, organizationId: string, preferredLocationId: string, guardianIds: string[]): Promise<Map<string, string>> {
+  if (guardianIds.length === 0) return new Map();
+  const list = await rows<{ guardian_id: string; location_id: string }>(tx, sql`
+    select distinct on (fg.guardian_id) fg.guardian_id::text as guardian_id, anchor.id::text as location_id
+    from zaltyko.family_guardians fg
+    join zaltyko.families f on f.organization_id=fg.organization_id and f.id=fg.family_id and f.is_active
+    join zaltyko.family_members fm on fm.organization_id=fg.organization_id and fm.family_id=f.id
+    join zaltyko.athletes a on a.organization_id=fm.organization_id and a.id=fm.athlete_id and a.is_active
+    join zaltyko.locations anchor on anchor.organization_id=fg.organization_id and anchor.is_active
+    where fg.organization_id=${organizationId}::uuid and fg.is_active
+      and fg.guardian_id in (${sql.join(guardianIds.map((id) => sql`${id}::uuid`), sql`,`)})
+      and fm.starts_on <= (now() at time zone anchor.timezone)::date
+      and (fm.ends_on is null or fm.ends_on >= (now() at time zone anchor.timezone)::date)
+      and (
+        exists (
+          select 1 from zaltyko.enrollments e
+          where e.organization_id=fg.organization_id and e.athlete_id=a.id and e.location_id=anchor.id
+            and e.status in ('pending', 'active')
+            and e.starts_on <= (now() at time zone anchor.timezone)::date
+            and (e.ends_on is null or e.ends_on >= (now() at time zone anchor.timezone)::date)
+        )
+        or exists (
+          select 1 from zaltyko.group_memberships gm
+          join zaltyko.groups g on g.organization_id=gm.organization_id and g.id=gm.group_id
+            and g.location_id=anchor.id and g.status='active'
+          where gm.organization_id=fg.organization_id and gm.athlete_id=a.id and gm.status='active'
+            and gm.starts_on <= (now() at time zone anchor.timezone)::date
+            and (gm.ends_on is null or gm.ends_on >= (now() at time zone anchor.timezone)::date)
+        )
+      )
+    order by fg.guardian_id, (anchor.id = ${preferredLocationId}::uuid) desc, anchor.id`);
+  return new Map(list.map((row): [string, string] => [row.guardian_id, row.location_id]));
+}
+
+function accessRow(guardian: GuardianRow, invitation: InvitationRow | undefined, now: Date, contactLocationId: string | null = null): OwnerGuardianAccessRow {
   const status = guardianPortalStatus({
     hasLinkedAccount: guardian.auth_user_id !== null,
     latestInvitation: invitation ? { status: invitation.status, expiresAt: iso(invitation.expires_at) } : null,
@@ -183,6 +232,7 @@ function accessRow(guardian: GuardianRow, invitation: InvitationRow | undefined,
       : null,
     linkedSince: guardian.auth_user_id !== null && invitation?.status === "accepted" && invitation.accepted_at ? iso(invitation.accepted_at) : null,
     canViewAthletes: guardian.can_view,
+    contactLocationId: guardian.email === null ? contactLocationId : null,
   };
 }
 
@@ -201,12 +251,19 @@ export async function listOwnerFamilyAccess(input: {
     const kept = guardians.slice(0, MAX_GUARDIANS);
     const latest = await latestInvitations(tx, input.organizationId, kept.map((row) => row.guardian_id));
     const now = new Date();
-    const list = kept.map((row) => accessRow(row, latest.get(row.guardian_id), now));
-    if (!input.removeOnly) return { guardians: list, truncated };
+    if (input.removeOnly) {
+      return {
+        guardians: kept
+          .map((row) => accessRow(row, latest.get(row.guardian_id), now))
+          .filter((row) => row.status === "linked")
+          .map((row) => ({ ...row, actions: { invite: false, resend: false, revoke: false, removeAccess: true } })),
+        truncated,
+      };
+    }
+    const anchors = await contactLocations(tx, input.organizationId, input.locationId,
+      kept.filter((row) => row.email === null).map((row) => row.guardian_id));
     return {
-      guardians: list
-        .filter((row) => row.status === "linked")
-        .map((row) => ({ ...row, actions: { invite: false, resend: false, revoke: false, removeAccess: true } })),
+      guardians: kept.map((row) => accessRow(row, latest.get(row.guardian_id), now, anchors.get(row.guardian_id) ?? null)),
       truncated,
     };
   }, { allowWhenFlagOff: input.removeOnly === true });

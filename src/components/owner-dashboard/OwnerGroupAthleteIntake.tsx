@@ -17,6 +17,8 @@ import { ownerTone } from "./owner-ui";
 export function OwnerGroupAthleteSearchForm({
   candidateQuery,
   candidates,
+  emptySearchQuery = "",
+  athletesHref = null,
   commandsLocked,
   writesBlocked,
   onSubmit,
@@ -25,6 +27,10 @@ export function OwnerGroupAthleteSearchForm({
 }: {
   candidateQuery: string;
   candidates: Candidate[];
+  /** Texto de la última búsqueda que no encontró a nadie; vacío si no aplica. */
+  emptySearchQuery?: string;
+  /** Enlace a Gimnastas; solo para quien puede asignar fichas nuevas allí. */
+  athletesHref?: string | null;
   commandsLocked: boolean;
   writesBlocked: boolean;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -40,8 +46,8 @@ export function OwnerGroupAthleteSearchForm({
         Añadir una gimnasta
       </label>
       <p className="mt-1 text-xs text-z-soft">
-        Busca por nombre. Solo se muestran fichas activas de
-        esta academia.
+        Busca por nombre. Aparecen las gimnastas que ya entrenan en
+        esta sede, en otro grupo o en una clase.
       </p>
       <div className="mt-2 flex flex-col gap-2 sm:flex-row">
         <input
@@ -66,6 +72,26 @@ export function OwnerGroupAthleteSearchForm({
           Buscar
         </button>
       </div>
+      {emptySearchQuery && candidates.length === 0 && (
+        <div role="status" className={`mt-3 ${ownerTone.noticeInfo}`}>
+          <p>
+            No encontramos a «{emptySearchQuery}» en esta sede.
+          </p>
+          {athletesHref ? (
+            <p className="mt-1">
+              ¿Es una gimnasta nueva? Asígnala primero desde{" "}
+              <Link href={athletesHref} className="font-bold underline underline-offset-2">
+                Gimnastas
+              </Link>
+              , en «Fichas sin asignación operativa»: allí puedes ponerla en este grupo.
+            </p>
+          ) : (
+            <p className="mt-1">
+              ¿Es una gimnasta nueva? Pide a la dirección de la academia que la asigne a este grupo desde Gimnastas.
+            </p>
+          )}
+        </div>
+      )}
       {candidates.length > 0 && (
         <ul className="mt-3 divide-y divide-z-line border-y border-z-line border-t-[3px] border-t-z-ink">
           {candidates.map((candidate) => (
