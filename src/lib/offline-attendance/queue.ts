@@ -2,6 +2,7 @@ import type { OfflineStore } from "./store";
 import {
   queueKey,
   type AttendanceStatus,
+  type OfflineAttendanceSource,
   type QueuedMark,
   type SyncResultEntry,
 } from "./types";
@@ -31,6 +32,8 @@ export interface RecordMarkInput {
   opId?: string;
   /** `recordedAt` que se veía en pantalla al marcar (null: no había marca). */
   seenRecordedAt?: string | null;
+  /** Modelo de datos de la marca (sin valor: panel antiguo). */
+  source?: OfflineAttendanceSource;
 }
 
 /**
@@ -46,6 +49,7 @@ export async function recordMark(store: OfflineStore, input: RecordMarkInput): P
 
   const mark: QueuedMark = {
     key,
+    ...(input.source ? { source: input.source } : {}),
     opId: input.opId ?? newOpId(),
     userId: input.userId,
     academyId: input.academyId,
@@ -70,6 +74,7 @@ export interface BatchEntry {
 }
 
 export interface Batch {
+  source?: OfflineAttendanceSource;
   academyId: string;
   sessionId: string;
   entries: BatchEntry[];
@@ -158,7 +163,7 @@ async function doFlush(store: OfflineStore, send: SendBatch, userId: string): Pr
 
   const groups = new Map<string, QueuedMark[]>();
   for (const mark of mine) {
-    const groupKey = `${mark.academyId}|${mark.sessionId}`;
+    const groupKey = `${mark.source ?? "legacy"}|${mark.academyId}|${mark.sessionId}`;
     const list = groups.get(groupKey) ?? [];
     list.push(mark);
     groups.set(groupKey, list);
@@ -172,6 +177,7 @@ async function doFlush(store: OfflineStore, send: SendBatch, userId: string): Pr
    */
   const sendChunk = async (chunk: QueuedMark[]): Promise<boolean> => {
     const batch: Batch = {
+      ...(chunk[0].source ? { source: chunk[0].source } : {}),
       academyId: chunk[0].academyId,
       sessionId: chunk[0].sessionId,
       entries: chunk.map((m) => ({

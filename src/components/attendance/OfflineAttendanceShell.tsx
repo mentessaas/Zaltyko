@@ -69,7 +69,7 @@ export function OfflineAttendanceShell() {
         const userId = await resolveUserId();
         if (userId) {
           for (const snap of await getFreshSnapshots(getOfflineStore(), userId)) {
-            await refreshTodaySnapshot(snap.academyId);
+            await refreshTodaySnapshot(snap.academyId, snap.source);
           }
         }
         await load();
@@ -117,6 +117,7 @@ export function OfflineAttendanceShell() {
         return (
           <div className="px-4 py-4 sm:px-6 sm:py-6">
             <AttendanceSheet
+              source={snap.source}
               academyId={snap.academyId}
               sessionId={session.id}
               className={session.className}
@@ -147,11 +148,11 @@ export function OfflineAttendanceShell() {
         <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
           <p className="font-semibold text-foreground">Todavía no hay ninguna lista guardada en este móvil</p>
           <p className="text-sm text-muted-foreground">
-            Abre «Pasar lista» una vez con conexión y Zaltyko guardará las clases de hoy para que puedas
+            Abre «Asistencia» una vez con conexión y Zaltyko guardará las clases de hoy para que puedas
             usarlas sin cobertura.
           </p>
           <Link
-            href="/dashboard"
+            href="/owner/attendance"
             className="inline-flex min-h-11 items-center rounded-xl bg-zaltyko-teal px-4 text-sm font-semibold text-white"
           >
             Ir a Zaltyko

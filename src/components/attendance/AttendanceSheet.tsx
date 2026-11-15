@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast-provider";
 import { useAttendanceMarks } from "@/hooks/useAttendanceMarks";
-import type { AttendanceStatus, SnapshotMark } from "@/lib/offline-attendance/types";
+import type { AttendanceStatus, OfflineAttendanceSource, SnapshotMark } from "@/lib/offline-attendance/types";
 
 interface AttendanceAthlete {
   id: string;
@@ -16,6 +16,8 @@ interface AttendanceAthlete {
 }
 
 interface AttendanceSheetProps {
+  /** Modelo de datos: sin valor, el panel antiguo; `"owner"`, /owner. */
+  source?: OfflineAttendanceSource;
   academyId: string;
   sessionId: string;
   className: string;
@@ -45,6 +47,7 @@ const BACK_CLASS =
  * gimnasta muestra si su marca está «Guardada» o «Pendiente de enviar».
  */
 export const AttendanceSheet = memo(function AttendanceSheet({
+  source,
   academyId,
   sessionId,
   className,
@@ -73,7 +76,7 @@ export const AttendanceSheet = memo(function AttendanceSheet({
     mark,
     markMany,
     retry,
-  } = useAttendanceMarks({ academyId, sessionId, serverMarks });
+  } = useAttendanceMarks({ academyId, sessionId, serverMarks, source });
 
   const markOne = useCallback(
     async (athleteId: string, status: AttendanceStatus) => {

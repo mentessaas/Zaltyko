@@ -7,6 +7,22 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-15 — Pasar lista sin conexión también en /owner
+
+**Contexto.** La lista sin conexión de la #324 solo se guardaba desde el panel antiguo `/app`; quien usa `/owner` no tenía ninguna lista guardada y `/pasar-lista-sin-conexion` quedaba vacío. La retirada de `/app` (#314) esperaba a esto.
+
+**Cambio.**
+- `GET /api/v1/owner/attendance/today`: lista de hoy con el modelo de /owner (sesiones del día local de cada sede, inscripciones vigentes, marcas). Mismo reparto por rol que pasar lista: dirección y administración, las sedes de su alcance; entrenadora, solo las suyas. Academia ajena: 404.
+- `POST /api/v1/owner/attendance/sync`: la cola envía por lotes a `recordOfflineAttendance`, la misma transacción que la marca en línea con idempotencia por `opId`, «la última marca gana» por hora real, conflicto según lo que la entrenadora veía y compensación del reloj del móvil. Conflictos en `audit_log` (`attendance.offline_conflict`).
+- `/owner/attendance` guarda la lista de hoy al abrirse con red (`TodaySnapshotSaver`), muestra «Guardado» / «Pendiente de enviar» en cada fila y, sin red, guarda la marca en el móvil. El service worker lleva `/owner/attendance` a la pantalla sin conexión.
+- La invitación «Añade Zaltyko a tu pantalla de inicio» también se muestra en /owner.
+
+**Decisión.** La entrenadora recibe las sesiones de las sedes que tiene asignadas, no solo las que le asignaron por sesión: es lo que ya permite pasar lista en línea (decisión del 9 nov, opción A). Si se pasa a «solo sus sesiones asignadas», se cambia en `owner-today-attendance.ts` y en el acceso de `resolveSessionAttendanceAccess` a la vez.
+
+**Sin migraciones.** Los datos antiguos (`/app`) siguen su camino y no se tocan.
+
+**Probado.** Pruebas unitarias nuevas (servicio, rutas, cola, pantalla en línea y sin red, página, service worker) y una prueba con PostgreSQL desechable de la lista de hoy por rol. **Sin probar en un móvil real**; la comprobación en modo avión queda para staging.
+
 ## 2026-11-14 — Smoke público y Lighthouse alineados con la superficie viva
 
 **Contexto.** Los jobs «Smoke Tests» y «Lighthouse SEO/Perf Budget» de `main` fallaban en cada push porque probaban páginas retiradas de zaltyko.com: `/blog/*` responde 410, los clústeres de gimnasia artística y rítmica redirigen 301 a `/features`, los de trampolín y acrobática responden 410, `/help` redirige 308 a `/ayuda` y las páginas demo de empleo y marketplace responden 404. Además, el copy vivo cambió desde que se escribió el spec: la pestaña de cobros de `/features` ahora se llama «Cuotas», las tarjetas de plan de `/pricing` son `<li>` (ya no `<article>`) y el CTA del hero de portada es «Crear academia gratis».

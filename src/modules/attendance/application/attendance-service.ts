@@ -4,10 +4,12 @@ import { z } from "zod";
 import { db } from "@/db";
 import {
   attendanceRecords,
+  auditLog,
   enrollments,
   sessions,
   type AttendanceRecord,
 } from "@/db/zaltyko-schema";
+import { decideMark, type SyncOutcome } from "@/lib/attendance/offline-sync";
 import { operationalActorSchema } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
@@ -32,6 +34,31 @@ const recordAttendanceSchema = z.object({
 
 export type RecordAttendanceCommand = z.infer<typeof recordAttendanceSchema>;
 
+/**
+ * Marca hecha en el tapiz sin cobertura y enviada después. `markedAt` es la
+ * hora real de la marca (ya corregida con el reloj del móvil y acotada a
+ * «ahora»); `seenRecordedAt` es lo que la entrenadora veía en pantalla.
+ */
+const offlineMarkSchema = z.object({
+  opId: z.guid(),
+  markedAt: z.date(),
+  seenRecordedAt: z.date().nullable().optional(),
+});
+
+const recordOfflineAttendanceSchema = recordAttendanceSchema.extend({
+  offline: offlineMarkSchema,
+});
+
+export type RecordOfflineAttendanceCommand = z.infer<
+  typeof recordOfflineAttendanceSchema
+>;
+
+export type RecordAttendanceResult = {
+  attendance: AttendanceRecord;
+  /** `applied` si se guardó; `duplicate`/`superseded` si no cambió nada. */
+  outcome: SyncOutcome;
+};
+
 async function loadAttendance(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   organizationId: string,
@@ -54,6 +81,26 @@ export async function recordAttendance(
   command: RecordAttendanceCommand
 ): Promise<AttendanceRecord> {
   const input = recordAttendanceSchema.parse(command);
+  return (await runRecordAttendance(input)).attendance;
+}
+
+/**
+ * Misma operación que `recordAttendance` para una marca que llega de la cola
+ * sin conexión: idempotente por `opId`, «la última marca gana» según la hora
+ * real de la marca y conflicto anotado si alguien cambió esa marca mientras
+ * la entrenadora estaba sin red.
+ */
+export async function recordOfflineAttendance(
+  command: RecordOfflineAttendanceCommand
+): Promise<RecordAttendanceResult> {
+  const input = recordOfflineAttendanceSchema.parse(command);
+  return runRecordAttendance(input, input.offline);
+}
+
+async function runRecordAttendance(
+  input: RecordAttendanceCommand,
+  offline?: z.infer<typeof offlineMarkSchema>
+): Promise<RecordAttendanceResult> {
   const eventName = "attendance.recorded";
 
   return db.transaction(async (tx) => {
@@ -102,6 +149,29 @@ export async function recordAttendance(
       eventName,
       idempotencyKey: input.idempotencyKey,
     });
+    if (priorEvent && offline) {
+      // Reenvío de una marca ya guardada: no se compara con lo de hoy (otra
+      // marca más reciente pudo sustituirla). Se devuelve lo que hay.
+      const [current] = await tx
+        .select()
+        .from(attendanceRecords)
+        .where(
+          and(
+            eq(attendanceRecords.organizationId, input.organizationId),
+            eq(attendanceRecords.sessionId, input.sessionId),
+            eq(attendanceRecords.enrollmentId, input.enrollmentId)
+          )
+        )
+        .limit(1);
+      if (!current) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "El registro previo no identifica una asistencia coherente",
+          409
+        );
+      }
+      return { attendance: current, outcome: "duplicate" as const };
+    }
     if (priorEvent) {
       assertIdempotencyPayload(priorEvent.payload, {
         sessionId: input.sessionId,
@@ -137,7 +207,7 @@ export async function recordAttendance(
           409
         );
       }
-      return prior;
+      return { attendance: prior, outcome: "duplicate" as const };
     }
 
     // A replay only recovers an already committed record; enforce the plan's
@@ -220,7 +290,53 @@ export async function recordAttendance(
       )
       .limit(1);
 
-    const now = new Date();
+    if (offline) {
+      const decision = decideMark(
+        existing
+          ? { status: existing.status, notes: null, recordedAt: existing.recordedAt }
+          : undefined,
+        {
+          status: input.status,
+          notes: null,
+          markedAt: offline.markedAt,
+          seenRecordedAt: offline.seenRecordedAt,
+        }
+      );
+      if (decision.conflict && existing) {
+        // Un valor distinto se pierde: queda en el registro. Si el mismo
+        // reenvío vuelve a llegar, no se duplica la anotación.
+        await tx
+          .insert(auditLog)
+          .values({
+            organizationId: input.organizationId,
+            locationId: session.locationId,
+            actorUserId: input.actor.userId,
+            action: "attendance.offline_conflict",
+            targetType: "attendance",
+            targetId: existing.id,
+            idempotencyKey: `offline-conflict:${offline.opId}`,
+            before: { status: existing.status },
+            after: { status: input.status },
+            metadata: {
+              opId: offline.opId,
+              outcome: decision.outcome,
+              sessionId: input.sessionId,
+              enrollmentId: input.enrollmentId,
+              markedAt: offline.markedAt.toISOString(),
+              storedRecordedAt: existing.recordedAt.toISOString(),
+              seenRecordedAt: offline.seenRecordedAt
+                ? offline.seenRecordedAt.toISOString()
+                : null,
+            },
+          })
+          .onConflictDoNothing();
+      }
+      if (decision.outcome !== "applied" && existing) {
+        return { attendance: existing, outcome: decision.outcome };
+      }
+    }
+
+    const now = offline ? offline.markedAt : new Date();
     const [attendance] = existing
       ? await tx
           .update(attendanceRecords)
@@ -277,6 +393,6 @@ export async function recordAttendance(
       },
     });
 
-    return attendance;
+    return { attendance, outcome: "applied" as const };
   });
 }

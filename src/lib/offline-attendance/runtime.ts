@@ -7,14 +7,21 @@
  */
 
 import { createClient } from "@/lib/supabase/client";
+import { OFFLINE_ATTENDANCE_EVENT } from "./events";
 import { createIndexedDbStore, createMemoryStore, type OfflineStore } from "./store";
 import { countPending, flushQueue, type Batch, type FlushSummary, type SendResult } from "./queue";
 import { clearForSignOut, expireOfflineData, pendingBeforeSignOut } from "./lifecycle";
 import { saveSnapshot, type TodayPayload } from "./snapshot";
-import { isAttendanceStatus, type SyncOutcome, type SyncResultEntry, type TodaySnapshot } from "./types";
+import {
+  isAttendanceStatus,
+  type OfflineAttendanceSource,
+  type SyncOutcome,
+  type SyncResultEntry,
+  type TodaySnapshot,
+} from "./types";
 
 /** Evento del navegador: la cola o las listas han cambiado. */
-export const OFFLINE_ATTENDANCE_EVENT = "zaltyko:offline-attendance-changed";
+export { OFFLINE_ATTENDANCE_EVENT };
 
 export interface OfflineAttendanceChange {
   /** Resultado del último envío, si el cambio viene de enviar la cola. */
@@ -103,8 +110,18 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Convierte la respuesta HTTP de `POST /api/attendance` en un `SendResult`. */
-export function interpretSyncResponse(status: number, body: unknown, sentAthleteIds: string[]): SendResult {
+/**
+ * Convierte la respuesta HTTP de `POST /api/attendance` (o, con
+ * `idKey: "enrollmentId"`, la de `POST /api/v1/owner/attendance/sync`) en un
+ * `SendResult`. En /owner cada resultado trae la inscripción, que en la cola
+ * hace de «gimnasta».
+ */
+export function interpretSyncResponse(
+  status: number,
+  body: unknown,
+  sentAthleteIds: string[],
+  idKey: "athleteId" | "enrollmentId" = "athleteId"
+): SendResult {
   if (status === 401) return { kind: "unauthorized" };
   if (status === 408 || status === 429 || status >= 500) return { kind: "retry" };
   if (status >= 400) {
@@ -124,13 +141,14 @@ export function interpretSyncResponse(status: number, body: unknown, sentAthlete
   }
   const results: SyncResultEntry[] = [];
   for (const item of rawResults) {
+    const id = isPlainObject(item) ? item[idKey] : undefined;
     if (
       isPlainObject(item) &&
-      typeof item.athleteId === "string" &&
+      typeof id === "string" &&
       (item.outcome === "applied" || item.outcome === "duplicate" || item.outcome === "superseded")
     ) {
       results.push({
-        athleteId: item.athleteId,
+        athleteId: id,
         outcome: item.outcome,
         recordedAt: typeof item.recordedAt === "string" ? item.recordedAt : undefined,
       });
@@ -139,23 +157,52 @@ export function interpretSyncResponse(status: number, body: unknown, sentAthlete
   return { kind: "ok", results };
 }
 
-async function sendBatch(batch: Batch): Promise<SendResult> {
-  try {
-    const response = await fetch("/api/attendance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: batch.sessionId,
-        // Hora de este móvil al enviar: el servidor compensa un reloj mal puesto.
-        sentAt: new Date().toISOString(),
+/** Cuerpo de cada modelo de datos: el panel antiguo o /owner. */
+function batchRequest(batch: Batch): { url: string; body: unknown; idKey: "athleteId" | "enrollmentId" } {
+  // Hora de este móvil al enviar: el servidor compensa un reloj mal puesto.
+  const sentAt = new Date().toISOString();
+  if (batch.source === "owner") {
+    return {
+      url: "/api/v1/owner/attendance/sync",
+      idKey: "enrollmentId",
+      body: {
+        organizationId: batch.academyId,
+        sentAt,
         entries: batch.entries.map((e) => ({
-          athleteId: e.athleteId,
+          opId: e.opId,
+          sessionId: batch.sessionId,
+          enrollmentId: e.athleteId,
           status: e.status,
           markedAt: e.markedAt,
-          opId: e.opId,
           seenRecordedAt: e.seenRecordedAt,
         })),
-      }),
+      },
+    };
+  }
+  return {
+    url: "/api/attendance",
+    idKey: "athleteId",
+    body: {
+      sessionId: batch.sessionId,
+      sentAt,
+      entries: batch.entries.map((e) => ({
+        athleteId: e.athleteId,
+        status: e.status,
+        markedAt: e.markedAt,
+        opId: e.opId,
+        seenRecordedAt: e.seenRecordedAt,
+      })),
+    },
+  };
+}
+
+export async function sendBatch(batch: Batch): Promise<SendResult> {
+  try {
+    const request = batchRequest(batch);
+    const response = await fetch(request.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request.body),
     });
     let body: unknown = null;
     try {
@@ -167,7 +214,8 @@ async function sendBatch(batch: Batch): Promise<SendResult> {
     return interpretSyncResponse(
       response.status,
       body,
-      batch.entries.map((e) => e.athleteId)
+      batch.entries.map((e) => e.athleteId),
+      request.idKey
     );
   } catch {
     return { kind: "retry" };
@@ -190,11 +238,22 @@ export async function pendingAttendanceCount(): Promise<number> {
   return countPending(getOfflineStore(), userId);
 }
 
-/** Descarga y guarda la lista de las sesiones de hoy de una academia. */
-export async function refreshTodaySnapshot(academyId: string): Promise<TodaySnapshot | null> {
+/**
+ * Descarga y guarda la lista de las sesiones de hoy de una academia
+ * (`source: "owner"`: de una academia de /owner, que se identifica por su
+ * `organizationId`).
+ */
+export async function refreshTodaySnapshot(
+  academyId: string,
+  source?: OfflineAttendanceSource
+): Promise<TodaySnapshot | null> {
   if (typeof navigator !== "undefined" && navigator.onLine === false) return null;
   try {
-    const response = await fetch(`/api/attendance/today?academyId=${encodeURIComponent(academyId)}`, {
+    const url =
+      source === "owner"
+        ? `/api/v1/owner/attendance/today?organizationId=${encodeURIComponent(academyId)}`
+        : `/api/attendance/today?academyId=${encodeURIComponent(academyId)}`;
+    const response = await fetch(url, {
       headers: { Accept: "application/json" },
       cache: "no-store",
     });
@@ -206,6 +265,9 @@ export async function refreshTodaySnapshot(academyId: string): Promise<TodaySnap
     // Se descartan sesiones o estados con forma inesperada antes de guardarlos.
     const safe: TodayPayload = {
       ...payload,
+      // Lo que se guarda lo decide quien pide, no lo que diga la respuesta.
+      academyId,
+      ...(source ? { source } : {}),
       sessions: payload.sessions.map((session) => ({
         ...session,
         marks: Object.fromEntries(
