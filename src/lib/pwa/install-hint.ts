@@ -113,7 +113,7 @@ export function recordInstallOutcome(state: HintState, outcome: InstallOutcome |
 /** Pantallas de pasar lista: ahí no se interrumpe a la entrenadora con invitaciones. */
 export function isAttendanceRoute(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
-  return /\/attendance\/today(?:\/|$)/.test(pathname) || pathname.startsWith("/pasar-lista-sin-conexion");
+  return /^\/owner\/attendance\/?$/.test(pathname) || pathname.startsWith("/pasar-lista-sin-conexion");
 }
 
 /**

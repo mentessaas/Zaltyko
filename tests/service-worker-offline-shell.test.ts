@@ -53,20 +53,20 @@ async function run(worker: ReturnType<typeof load>, path: string) {
 describe("service worker: pasar lista sin conexión", () => {
   it("sin red en la lista de hoy redirige a la pantalla local si está guardada", async () => {
     const worker = load(["/pasar-lista-sin-conexion"]);
-    const res = await run(worker, "/app/academia-1/attendance/today");
+    const res = await run(worker, "/owner/attendance");
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe(`${ORIGIN}/pasar-lista-sin-conexion`);
   });
 
   it("conserva la sesión pedida en la redirección", async () => {
     const worker = load(["/pasar-lista-sin-conexion"]);
-    const res = await run(worker, "/app/academia-1/attendance/today/sesion-9");
+    const res = await run(worker, "/owner/attendance?sessionId=sesion-9");
     expect(res.headers.get("location")).toBe(`${ORIGIN}/pasar-lista-sin-conexion?sesion=sesion-9`);
   });
 
   it("sin la pantalla guardada cae a la página sin conexión de siempre", async () => {
     const worker = load([]);
-    expect(await run(worker, "/app/academia-1/attendance/today")).toBe(worker.offline);
+    expect(await run(worker, "/owner/attendance")).toBe(worker.offline);
   });
 
   it("sirve la pantalla guardada cuando se pide directamente sin red", async () => {
@@ -77,7 +77,7 @@ describe("service worker: pasar lista sin conexión", () => {
 
   it("otras pantallas privadas no se redirigen ni se guardan", async () => {
     const worker = load(["/pasar-lista-sin-conexion"]);
-    expect(await run(worker, "/app/academia-1/athletes")).toBe(worker.offline);
+    expect(await run(worker, "/owner/athletes")).toBe(worker.offline);
     expect(worker.put).not.toHaveBeenCalled();
   });
 
@@ -103,7 +103,7 @@ describe("service worker: pasar lista sin conexión", () => {
     expect(cached).toContain("/_next/static/css/app.css");
     expect(cached).toContain("/_next/static/media/archivo.woff2");
     expect(cached.every((k) => k === "/pasar-lista-sin-conexion" || k.startsWith("/_next/static/"))).toBe(true);
-    expect(cached.some((k) => k.startsWith("/api/") || k.startsWith("/app/"))).toBe(false);
+    expect(cached.some((k) => k.startsWith("/api/") || k.startsWith("/owner/"))).toBe(false);
   });
 
   it("si no hay red al guardar la pantalla no lanza error", async () => {
