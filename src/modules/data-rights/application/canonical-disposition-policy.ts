@@ -75,6 +75,8 @@ export const REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES: readonly (readonly 
   ["admission_links", "admission_requests"],
   ["skill_templates", "skill_levels", "skill_elements", "athlete_skill_progress", "athlete_level_passes"],
   ["payment_reminder_settings", "payment_reminders"],
+  // Familias: acceso al portal y avisos (candidato 20261114121500, sin aplicar).
+  ["guardian_access_invitations", "family_notices", "family_notice_recipients", "guardian_notification_preferences"],
 ];
 
 const sourceNames = ["Supabase Auth identities and credentials", "Supabase Storage objects and metadata", "Legacy public schema"];

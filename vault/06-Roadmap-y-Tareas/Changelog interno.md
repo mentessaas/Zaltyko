@@ -23,6 +23,21 @@ source:
 
 **Probado.** Pruebas unitarias nuevas (servicio, rutas, cola, pantalla en línea y sin red, página, service worker) y una prueba con PostgreSQL desechable de la lista de hoy por rol. **Sin probar en un móvil real**; la comprobación en modo avión queda para staging.
 
+## 2026-11-15 — Acceso de familias al portal y avisos de sesión (A1, A2), apagado
+
+**Contexto.** Brechas A1 y A2 del análisis de competencia: sustituir el grupo de WhatsApp sin perder el control. Continúa el portal de familias de solo lectura (P2 #16), que no tenía forma de dar acceso.
+
+**Cambio.**
+- Módulo `src/modules/family-access`: invitación con enlace de un solo uso (caduca a los 7 días, solo se guarda su SHA-256), correo verificado, límites, auditoría, reenviar, revocar, retirar acceso e invitar a todas en lotes de 20.
+- Avisos de cancelación, cambio de horario, sustitución y aviso manual a una clase o grupo; portal y correo según la preferencia de la familia; «Leído por X de Y» para la academia; idempotentes. Correos por lotes con reintento (cron `POST /api/cron/family-notices`, sin programar).
+- Candidato `docs/deployment/candidates/20261114121500_family_access_notices_candidate.sql`: cuatro tablas con RLS forzado. **Sin aplicar en ningún entorno.**
+- Bandera `ZALTYKO_FAMILY_ACCESS_ENABLED=false` por defecto: sin ella y sin el candidato, `/owner/familias`, `/familia/avisos` y `/familia/aceptar` responden 404 y las API 503. Con las tablas instaladas y la bandera apagada solo se puede retirar el acceso.
+- Exportación, verificación, disposición y supresión de datos incluyen el módulo `family_access`.
+
+**Pruebas.** `tests/family-access-*` (dominio, contrato del candidato, rutas y PostgreSQL desechable: una familia nunca ve, marca ni configura avisos de otra) y los contratos de derechos de datos y de la matriz del entrenador. Ninguna en local; la valida la CI.
+
+**Pendiente.** Decisiones de Elvis en `docs/producto/familias-acceso-y-avisos.md` (a–h), entre ellas la entrada «Familias» del menú y programar el cron.
+
 ## 2026-11-14 — Smoke público y Lighthouse alineados con la superficie viva
 
 **Contexto.** Los jobs «Smoke Tests» y «Lighthouse SEO/Perf Budget» de `main` fallaban en cada push porque probaban páginas retiradas de zaltyko.com: `/blog/*` responde 410, los clústeres de gimnasia artística y rítmica redirigen 301 a `/features`, los de trampolín y acrobática responden 410, `/help` redirige 308 a `/ayuda` y las páginas demo de empleo y marketplace responden 404. Además, el copy vivo cambió desde que se escribió el spec: la pestaña de cobros de `/features` ahora se llama «Cuotas», las tarjetas de plan de `/pricing` son `<li>` (ya no `<article>`) y el CTA del hero de portada es «Crear academia gratis».

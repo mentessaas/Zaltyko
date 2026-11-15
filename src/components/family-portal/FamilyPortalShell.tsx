@@ -4,14 +4,18 @@ import type { ReactNode } from "react";
 import { ZaltykoLockup } from "@/components/brand/ZaltykoMark";
 import { OwnerSignOutButton } from "@/components/owner-dashboard/OwnerSignOutButton";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { isFamilyAccessFlagOn } from "@/modules/family-access/domain/family-access-contract";
 
 const NAV_ITEMS = [
   { href: "/familia", label: "Gimnastas", key: "athletes" },
   { href: "/familia/cuotas", label: "Cuotas", key: "fees" },
+  // Solo con ZALTYKO_FAMILY_ACCESS_ENABLED; la página comprueba además el candidato.
+  { href: "/familia/avisos", label: "Avisos", key: "notices" },
 ] as const;
 
 /**
- * Read-only family portal frame: brand, two sections and sign out.
+ * Family portal frame: brand, sections (Avisos only with the family access
+ * flag) and sign out.
  *
  * «Magnesio sobre tapiz», como la barra pública: banda de tapiz profundo con
  * el lockup de Zaltyko y pestañas en blanco con un tramo de cinta de 3 px bajo
@@ -40,7 +44,7 @@ export function FamilyPortalShell({
             aria-label="Portal de familias"
             className="order-last flex w-full items-stretch gap-1 border-t border-white/10 sm:order-none sm:w-auto sm:border-t-0"
           >
-            {NAV_ITEMS.map((item) => {
+            {NAV_ITEMS.filter((item) => item.key !== "notices" || isFamilyAccessFlagOn()).map((item) => {
               const current = active === item.key;
               return (
                 <Link
