@@ -7,6 +7,17 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-15 — Familias: correo del tutor a mano, «Vincular familia» al primer clic y buscador de Grupos
+
+**Contexto.** Prueba del portal de familias en staging: invitar a una familia exigía un camino que una dueña no técnica no encontraría.
+
+**Cambio.**
+- `/owner/familias`: cada tutor «Sin correo principal» tiene «Añadir correo», con `OwnerGuardianContactsEditor` y su API de contactos. `listOwnerFamilyAccess` devuelve `contactLocationId`: una sede donde alguna gimnasta de la familia está hoy inscrita o en un grupo activo, la misma condición que comprueba esa API (se prefiere la sede elegida). Al guardar aparece «Invitar al portal» sin recargar.
+- «Vincular familia a X» necesitaba dos clics. Causa: el primer clic en la página devuelve el foco a la ventana; `OwnerOperationalPolicy` (y `OwnerPlanUsage`) vuelven a consultar el plan al recibir el foco y el almacén pasaba a «loading», que deshabilita los botones de escritura entre el mousedown y el click: el navegador descartaba el clic. Ahora esa revalidación por foco conserva la política ya confirmada mientras consulta; una lectura normal sigue bloqueando, y un fallo real o un plan en solo lectura se aplican al llegar. Afecta a todos los botones de /owner que dependen del plan, no solo a este.
+- Buscador «Añadir una gimnasta» de Grupos: la regla de sede es intencionada (la misma que exige el alta en el grupo), así que no se cambia. Si no encuentra a nadie, explica que una ficha nueva se asigna primero desde Gimnastas, con enlace para dirección y administración con todas las sedes.
+
+**Sin migraciones.** Verificación en la CI remota de la PR.
+
 ## 2026-11-15 — Pasar lista sin conexión también en /owner
 
 **Contexto.** La lista sin conexión de la #324 solo se guardaba desde el panel antiguo `/app`; quien usa `/owner` no tenía ninguna lista guardada y `/pasar-lista-sin-conexion` quedaba vacío. La retirada de `/app` (#314) esperaba a esto.

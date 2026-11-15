@@ -265,7 +265,10 @@ export function OwnerGuardianContactsEditor({
   guardianId,
   displayName,
   disabled = false,
+  heading = "Contactos del pagador",
+  startEditing,
   onPendingChange,
+  onSaved,
   onClose,
 }: {
   organizationId: string;
@@ -273,7 +276,13 @@ export function OwnerGuardianContactsEditor({
   guardianId: string;
   displayName: string;
   disabled?: boolean;
+  /** Título del panel; por defecto, el del flujo de asociar familia. */
+  heading?: string;
+  /** Abre directamente la edición de este dato si todavía no está guardado. */
+  startEditing?: OwnerGuardianContactKind;
   onPendingChange?: (scopeKey: string, active: boolean) => void;
+  /** Se llama con los contactos confirmados por el servidor tras guardar. */
+  onSaved?: (contacts: OwnerGuardianContacts) => void;
   onClose?: () => void;
 }) {
   const scope: OwnerGuardianContactScope = { organizationId, locationId, guardianId };
@@ -289,6 +298,10 @@ export function OwnerGuardianContactsEditor({
   const requestRef = useRef<AbortController | null>(null);
   const callbackRef = useRef(onPendingChange);
   callbackRef.current = onPendingChange;
+  const savedCallbackRef = useRef(onSaved);
+  savedCallbackRef.current = onSaved;
+  const startEditingRef = useRef(startEditing);
+  startEditingRef.current = startEditing;
   const refreshNoticeRef = useRef<string | null>(null);
   const [contacts, setContacts] = useState<OwnerGuardianContacts | null>(null);
   const contactsRef = useRef<OwnerGuardianContacts | null>(null);
@@ -399,6 +412,8 @@ export function OwnerGuardianContactsEditor({
         }
         setCurrentContacts(data);
         setLoadError("");
+        const kindToStart = startEditingRef.current;
+        if (kindToStart && !data[kindToStart]) setEditingKind(kindToStart);
         const refreshNotice = refreshNoticeRef.current;
         if (refreshNotice) {
           setMessage(refreshNotice);
@@ -477,6 +492,7 @@ export function OwnerGuardianContactsEditor({
           : "Contacto actualizado. No se ha enviado correo ni verificado la dirección o el teléfono.");
         setEditingKind(null);
         notifyPending(false, requestScope);
+        savedCallbackRef.current?.(receipt.contacts);
         return;
       }
 
@@ -613,7 +629,7 @@ export function OwnerGuardianContactsEditor({
     <section aria-label={`Contactos de ${profileDisplayName}`} className={`mt-4 w-full sm:col-span-2 ${ownerUi.subtlePanel}`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h4 className="font-bold">Contactos del pagador</h4>
+          <h4 className="font-bold">{heading}</h4>
           <p className="mt-1 text-sm text-z-soft">Editar estos datos no crea una cuenta, no envía mensajes y no verifica el contacto.</p>
         </div>
         <div className="flex flex-wrap gap-2">

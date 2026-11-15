@@ -7,10 +7,14 @@ import { beginOwnerPlanUsageRead, markOwnerPlanUsageUnavailable, publishOwnerPla
 export function OwnerOperationalPolicy({ organizationId, locationId }: { organizationId: string; locationId?: string | null }) {
   const [refresh, setRefresh] = useState(0);
   const lastForeground = useRef<number | null>(null);
+  // A read caused by focusing the window keeps the confirmed policy visible.
+  const revalidateNext = useRef(false);
   const policy = useOwnerPlanPolicy(organizationId);
   useEffect(() => {
     const controller = new AbortController();
-    const ticket = beginOwnerPlanUsageRead(organizationId);
+    const revalidate = revalidateNext.current;
+    revalidateNext.current = false;
+    const ticket = beginOwnerPlanUsageRead(organizationId, { revalidate });
     let settled = false;
     const params = new URLSearchParams({ organizationId });
     if (locationId) params.set("locationId", locationId);
@@ -39,6 +43,7 @@ export function OwnerOperationalPolicy({ organizationId, locationId }: { organiz
       const now = Date.now();
       if (lastForeground.current !== null && now - lastForeground.current < 750) return;
       lastForeground.current = now;
+      revalidateNext.current = true;
       update();
     };
     window.addEventListener("zaltyko:plan-usage-changed", update);

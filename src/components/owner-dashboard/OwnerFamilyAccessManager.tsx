@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { familyRequest } from "@/components/family-portal/family-access-fetch";
+import { OwnerGuardianContactsEditor } from "@/components/owner-dashboard/OwnerGuardianContactsEditor";
 import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
 import {
   GUARDIAN_PORTAL_STATUS_LABELS,
+  guardianPortalActions,
   type GuardianPortalStatus,
 } from "@/modules/family-access/domain/family-access-contract";
 
@@ -20,6 +22,8 @@ export type OwnerFamilyAccessGuardian = {
   invitation: { id: string; revision: number; expiresAt: string; lastSentAt: string | null; grantViewAthletes: boolean } | null;
   linkedSince: string | null;
   canViewAthletes: boolean;
+  /** Sede desde la que se puede añadir el correo que falta; null si no se puede. */
+  contactLocationId: string | null;
 };
 
 type CommandResult = {
@@ -47,7 +51,7 @@ const dateFormat = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "sh
 export function OwnerFamilyAccessManager({
   organizationId,
   locationId,
-  guardians,
+  guardians: serverGuardians,
   truncated,
   removeOnly = false,
 }: {
@@ -65,9 +69,39 @@ export function OwnerFamilyAccessManager({
   const [message, setMessage] = useState<{ tone: "info" | "error"; text: string } | null>(null);
   const [oneTimeLink, setOneTimeLink] = useState<{ name: string; link: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  // Correo añadido aquí mismo: se muestra al momento (con «Invitar al portal»)
+  // mientras router.refresh() trae la lista del servidor.
+  const [savedEmails, setSavedEmails] = useState<Record<string, string>>({});
+  const [contactsOpenFor, setContactsOpenFor] = useState<string | null>(null);
+  const [contactsLocked, setContactsLocked] = useState(false);
+
+  const guardians = useMemo(() => serverGuardians.map((guardian) => {
+    const savedEmail = savedEmails[guardian.guardianId];
+    if (guardian.email || !savedEmail) return guardian;
+    return {
+      ...guardian,
+      email: savedEmail,
+      actions: removeOnly ? guardian.actions : guardianPortalActions(guardian.status, true),
+      contactLocationId: null,
+    };
+  }), [serverGuardians, savedEmails, removeOnly]);
 
   const invitable = useMemo(() => guardians.filter((guardian) => guardian.actions.invite), [guardians]);
   const withoutEmail = useMemo(() => guardians.filter((guardian) => !guardian.email).length, [guardians]);
+
+  function toggleContacts(guardianId: string) {
+    if (contactsLocked) return;
+    setContactsOpenFor((current) => current === guardianId ? null : guardianId);
+  }
+
+  function emailSaved(guardian: OwnerFamilyAccessGuardian, email: string) {
+    setSavedEmails((current) => ({ ...current, [guardian.guardianId]: email }));
+    setContactsLocked(false);
+    setContactsOpenFor(null);
+    setOneTimeLink(null);
+    setMessage({ tone: "info", text: `Correo guardado. Ya puedes invitar a ${guardian.name} al portal.` });
+    router.refresh();
+  }
 
   async function run(body: Record<string, unknown>, guardianName: string | null) {
     setBusy(true);
@@ -178,7 +212,7 @@ export function OwnerFamilyAccessManager({
       {truncated ? <p className={`${ownerTone.warningText} mt-3`}>Se muestran los primeros 1.000 tutores.</p> : null}
       {withoutEmail > 0 ? (
         <p className={`${ownerUi.help} mt-3`}>
-          {withoutEmail} {withoutEmail === 1 ? "tutor no tiene" : "tutores no tienen"} correo principal: añádelo desde la ficha de la gimnasta, en Contactos, para poder invitar.
+          {withoutEmail} {withoutEmail === 1 ? "tutor no tiene" : "tutores no tienen"} correo principal. Pulsa «Añadir correo» junto a su nombre para poder invitar.
         </p>
       ) : null}
 
@@ -196,6 +230,11 @@ export function OwnerFamilyAccessManager({
                     {" · "}
                     {guardian.email ?? "Sin correo principal"}
                   </p>
+                  {!guardian.email && !guardian.contactLocationId && !removeOnly ? (
+                    <p className={`${ownerUi.help} mt-1`}>
+                      Para añadir su correo, su gimnasta tiene que estar en un grupo o apuntada a una clase.
+                    </p>
+                  ) : null}
                   <p className="mt-2 flex flex-wrap items-center gap-2">
                     <span className={STATUS_CHIP[guardian.status]}>{GUARDIAN_PORTAL_STATUS_LABELS[guardian.status]}</span>
                     {guardian.status === "linked" && guardian.linkedSince ? (
@@ -212,6 +251,15 @@ export function OwnerFamilyAccessManager({
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {!guardian.email && guardian.contactLocationId && !removeOnly ? (
+                    <button type="button" className={ownerUi.secondaryButton}
+                      aria-expanded={contactsOpenFor === guardian.guardianId}
+                      aria-label={contactsOpenFor === guardian.guardianId ? `Cerrar el correo de ${guardian.name}` : `Añadir correo de ${guardian.name}`}
+                      disabled={busy || contactsLocked}
+                      onClick={() => toggleContacts(guardian.guardianId)}>
+                      {contactsOpenFor === guardian.guardianId ? "Cerrar" : "Añadir correo"}
+                    </button>
+                  ) : null}
                   {guardian.actions.invite ? (
                     <button type="button" className={ownerUi.secondaryButton} disabled={busy} onClick={() => { setGrant(true); setConfirming(guardian.guardianId); }}>
                       Invitar al portal
@@ -241,6 +289,23 @@ export function OwnerFamilyAccessManager({
                   ) : null}
                 </div>
               </div>
+              {contactsOpenFor === guardian.guardianId && !guardian.email && guardian.contactLocationId ? (
+                <OwnerGuardianContactsEditor
+                  key={`${organizationId}:${guardian.contactLocationId}:${guardian.guardianId}`}
+                  organizationId={organizationId}
+                  locationId={guardian.contactLocationId}
+                  guardianId={guardian.guardianId}
+                  displayName={guardian.name}
+                  heading={`Correo de ${guardian.name}`}
+                  startEditing="email"
+                  disabled={busy}
+                  onPendingChange={(_, active) => setContactsLocked(active)}
+                  onSaved={(contacts) => {
+                    if (contacts.email) emailSaved(guardian, contacts.email.value);
+                  }}
+                  onClose={() => { if (!contactsLocked) setContactsOpenFor(null); }}
+                />
+              ) : null}
               {confirming === guardian.guardianId && guardian.email ? (
                 <div className={`${ownerUi.subtlePanel} mt-3`} role="group" aria-label={`Confirmar invitación de ${guardian.name}`}>
                   <p className="text-sm text-z-ink">
