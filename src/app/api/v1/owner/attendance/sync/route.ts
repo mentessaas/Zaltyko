@@ -74,6 +74,16 @@ export async function POST(request: Request) {
     });
   }
 
+  // El límite va antes de tocar la base de datos: un lote de 100 sesiones
+  // distintas haría hasta 200 consultas de acceso antes de poder frenarlo. Se
+  // cuenta por persona verificada, no por la academia del cuerpo (aún sin
+  // comprobar): cambiarla en cada petición no daría un cupo nuevo.
+  const limit = await rateLimit({
+    identifier: getVerifiedTenantRateLimitIdentifier(request, user.id),
+    ...getLimitForRoute(new URL(request.url).pathname),
+  });
+  if (!limit.success) return rateLimitExceededResponse(limit);
+
   try {
     // Primero el acceso a cada sesión del lote: una sesión ajena o de otra
     // sede responde como si no existiera y no se guarda nada del lote.
@@ -106,15 +116,6 @@ export async function POST(request: Request) {
         })
       );
     }
-
-    const limit = await rateLimit({
-      identifier: getVerifiedTenantRateLimitIdentifier(
-        request,
-        body.data.organizationId
-      ),
-      ...getLimitForRoute(new URL(request.url).pathname),
-    });
-    if (!limit.success) return rateLimitExceededResponse(limit);
 
     const now = new Date();
     const offset = clockOffsetMs(body.data.sentAt, now);

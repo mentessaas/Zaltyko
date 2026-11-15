@@ -189,11 +189,25 @@ describe("POST /api/v1/owner/attendance/sync", () => {
     expect(mocks.access).toHaveBeenCalledWith({ userId, organizationId, locationId, sessionId });
   });
 
-  it("aplica el límite por academia antes de escribir", async () => {
+  it("aplica el límite antes de tocar la base de datos, por persona verificada", async () => {
     mocks.rateLimit.mockResolvedValue({ success: false });
-    const response = await post({ organizationId, entries: [entry()] });
+    const response = await post({
+      organizationId,
+      entries: [entry(), entry({ opId: opB, sessionId: otherSessionId })],
+    });
     expect(response.status).toBe(429);
+    expect(mocks.sessionRows).not.toHaveBeenCalled();
+    expect(mocks.access).not.toHaveBeenCalled();
     expect(mocks.record).not.toHaveBeenCalled();
+    // La academia del cuerpo aún no está comprobada: no entra en la clave.
+    expect(mocks.rateLimit).toHaveBeenCalledWith(
+      expect.objectContaining({ identifier: `verified:${userId}`, limit: 60 })
+    );
+  });
+
+  it("un cuerpo inválido no gasta cupo ni consulta nada", async () => {
+    await post({ organizationId, entries: [] });
+    expect(mocks.rateLimit).not.toHaveBeenCalled();
   });
 
   it("un rechazo del servicio (inscripción que ya no está) llega como 4xx para que la cola lo aísle", async () => {

@@ -150,8 +150,13 @@ async function runRecordAttendance(
       idempotencyKey: input.idempotencyKey,
     });
     if (priorEvent && offline) {
-      // Reenvío de una marca ya guardada: no se compara con lo de hoy (otra
-      // marca más reciente pudo sustituirla). Se devuelve lo que hay.
+      // Reenvío de una marca ya guardada. La clave debe ser de esta misma
+      // sesión e inscripción; el estado no se compara, porque otra marca más
+      // reciente pudo sustituirlo. Se devuelve lo que hay.
+      assertIdempotencyPayload(priorEvent.payload, {
+        sessionId: input.sessionId,
+        enrollmentId: input.enrollmentId,
+      });
       const [current] = await tx
         .select()
         .from(attendanceRecords)

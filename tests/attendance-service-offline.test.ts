@@ -183,6 +183,22 @@ describe("recordOfflineAttendance (cola sin conexión de /owner)", () => {
     expect(mocks.appendOutbox).not.toHaveBeenCalled();
   });
 
+  it("rechaza con 409 una clave usada antes para otra sesión o inscripción", async () => {
+    existing = storedMark("present", stored);
+    for (const payload of [
+      { attendanceId, sessionId: "10000000-0000-4000-8000-0000000000aa", enrollmentId, status: "present" },
+      { attendanceId, sessionId, enrollmentId: "10000000-0000-4000-8000-0000000000bb", status: "present" },
+    ]) {
+      mocks.findEvent.mockResolvedValue({ aggregateType: "attendance", aggregateId: attendanceId, payload });
+      await expect(send({ status: "present", markedAt: later })).rejects.toMatchObject({
+        code: "IDEMPOTENCY_CONFLICT",
+        status: 409,
+      });
+    }
+    expect(inserted).toHaveLength(0);
+    expect(updated).toHaveLength(0);
+  });
+
   it("si el guardado es más reciente y distinto, gana el guardado y queda anotado el conflicto", async () => {
     existing = storedMark("absent", stored);
     const result = await send({ status: "present", markedAt: earlier, seenRecordedAt: null });
