@@ -44,6 +44,7 @@ const CANDIDATES = {
   admissions: "docs/deployment/candidates/20261110120000_admission_requests_candidate.sql",
   team_access: "docs/deployment/candidates/20261105120000_canonical_team_access_candidate.sql",
   payment_reminders: "docs/deployment/candidates/20261114120500_payment_reminders_candidate.sql",
+  family_access: "docs/deployment/candidates/20261114121500_family_access_notices_candidate.sql",
 } as const;
 const COMPETITIVE_INTELLIGENCE =
   "docs/deployment/candidates/20261110180000_competitive_intelligence_candidate.sql";
