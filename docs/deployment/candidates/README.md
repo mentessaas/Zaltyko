@@ -789,6 +789,83 @@ crear tablas ni tocar permisos (la tabla ya es solo de `service_role`, con RLS
   aplicada el 16-11-2026 con su autorización. Producción: sin aplicar. La CI
   verde no equivale a autorización.
 
+## Candidata de método de pago de la familia (cobro automático, Fase 2)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261116180000_family_payment_methods_candidate.sql` | `72c7edcc74a84f78418fc4ea7ce207fed50795911f88f02f003d04b7fc40b572` | No aplicada | No aplicada |
+
+**Estado: no aplicada en ningún entorno.** Staging y producción necesitan cada
+uno una autorización expresa de Elvis; la de la Fase 1 no la cubre. Requiere
+antes la candidata de la Fase 1 (`20261116120000_connect_onboarding_candidate.sql`).
+
+La persona pagadora de una familia guarda una tarjeta o una domiciliación
+bancaria en la cuenta Stripe conectada de su academia. Decisión:
+`docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md`.
+
+- **Tabla nueva `zaltyko.family_payment_setup_attempts`.** Cada intento de
+  guardar un método: Customer (`cus_…`) y preparación (`seti_…`) en la cuenta
+  conectada, tipo (`card` o `sepa_debit`), persona pagadora y tutor, y la
+  evidencia recortada del consentimiento (versión, fecha, IP `/24` o `/48`,
+  agente hasta 120 caracteres y SHA-256 del texto aceptado). Estado `open`,
+  `completed` (con su autorización, y solo entonces) o `abandoned`. Claves
+  foráneas a pagador, tutor, cuenta conectada y autorización en `restrict`;
+  la academia borra en cascada. RLS `ENABLE` y `FORCE`; solo `service_role`
+  con `select`, `insert` y `update`, igual que `family_payment_authorizations`.
+- **Columna nueva `family_payment_authorizations.payment_method_kind`**
+  (`card` o `sepa_debit`, null en las filas existentes). Una autorización
+  `active` exige el tipo, y una domiciliación `active` exige su
+  `mandate_reference`. Cambia el comentario de la tabla: deja de ser «not
+  operational».
+- **Nunca** número de tarjeta, IBAN, marca, últimos dígitos, nombre del
+  titular ni correo: esos datos los guarda Stripe.
+- **Preflight.** Aborta si faltan las tablas canónicas o las dos columnas de la
+  Fase 1, o si ya existen la tabla o la columna nuevas: reinstalar no toca nada.
+- **Transacción propia.** A diferencia de la Fase 1, el archivo abre y cierra
+  su transacción (`begin; … commit;`) con `set local lock_timeout = '5s'`: se
+  ejecuta su texto exacto, sin envoltorio. Si salta el `lock_timeout`
+  (`alter table` sobre `family_payment_authorizations` pide un bloqueo
+  `ACCESS EXCLUSIVE` breve), no se ha cambiado nada y se reintenta en otro
+  momento. Añadir la columna sin valor por defecto no reescribe la tabla; los
+  checks nuevos se comprueban sobre sus filas (ninguna activa mientras la
+  función no exista).
+- **Espejo Drizzle.** La columna, en `src/db/schema/zaltyko-core.ts` (la tabla
+  ya está en `supabase/migrations`). La tabla nueva, en
+  `src/modules/family-payment-methods/infrastructure/family-payment-methods-schema.ts`,
+  fuera de `src/db/schema/` como los demás candidatos (`validate:rls`). Hasta
+  aplicarla, ningún código debe leer o insertar en `family_payment_authorizations`
+  con Drizzle sin columnas explícitas.
+- **Bandera** apagada por defecto: `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED`.
+  Mientras la tabla o la columna no existan,
+  `isFamilyPaymentMethodsStorageAvailable()`
+  (`src/modules/family-payment-methods/application/storage.ts`, solo lee
+  `information_schema.columns`) devuelve `false` y la función responde «no
+  disponible».
+- **Derechos de datos (pendiente).** La tabla nueva debe entrar en el catálogo
+  de `src/modules/data-rights/` (excluida, como `payment_authorizations`)
+  antes de aplicarla en producción.
+- **Pruebas:** `tests/family-payment-methods-pg.test.ts`, en el job «Postgres
+  integration». Instala la candidata (y antes la de la Fase 1 si falta) solo
+  en el PostgreSQL desechable de GitHub y retira al terminar lo que instaló.
+- **Rollback.** Apagar antes `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED`. Borrar
+  la tabla descarta los intentos y su evidencia de consentimiento, y borrar la
+  columna descarta el tipo de cada autorización: exportarlos antes si importan.
+  Los checks nuevos se van con su columna.
+
+  ```sql
+  begin;
+  set local lock_timeout = '5s';
+  drop table if exists zaltyko.family_payment_setup_attempts;
+  alter table zaltyko.family_payment_authorizations
+    drop column if exists payment_method_kind;
+  comment on table zaltyko.family_payment_authorizations is
+    'Reserved server-only model bound to one organization payment account and verifiable payer consent; not operational in this release.';
+  commit;
+  ```
+
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+  ningún entorno. La CI verde no equivale a autorización.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.

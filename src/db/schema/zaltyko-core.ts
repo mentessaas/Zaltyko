@@ -1033,6 +1033,12 @@ export const familyPaymentAuthorizations = zaltyko.table(
     consentedByGuardianId: uuid("consented_by_guardian_id"),
     validUntil: timestamp("valid_until", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    // Candidata docs/deployment/candidates/20261116180000_family_payment_methods_candidate.sql:
+    // SIN aplicar en ningún entorno. Este espejo declara una columna (y sus
+    // tres checks, abajo) que todavía no existe en la base: consultarla solo
+    // tras isFamilyPaymentMethodsStorageAvailable() y con columnas
+    // explícitas, nunca con un select o insert de Drizzle de la tabla entera.
+    paymentMethodKind: text("payment_method_kind"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -1085,6 +1091,22 @@ export const familyPaymentAuthorizations = zaltyko.table(
     check(
       "family_payment_authorizations_revocation_valid",
       sql`(${table.status} = 'revoked' and ${table.revokedAt} is not null) or (${table.status} <> 'revoked' and ${table.revokedAt} is null)`
+    ),
+    check(
+      "family_payment_authorizations_method_kind_check",
+      sql.raw(
+        "payment_method_kind is null or payment_method_kind in ('card', 'sepa_debit')"
+      )
+    ),
+    check(
+      "family_payment_authorizations_active_method_kind_required",
+      sql.raw("status <> 'active' or payment_method_kind is not null")
+    ),
+    check(
+      "family_payment_authorizations_active_sepa_mandate_required",
+      sql.raw(
+        "status <> 'active' or payment_method_kind <> 'sepa_debit' or mandate_reference is not null"
+      )
     ),
     foreignKey({
       name: "family_payment_authorizations_payer_fk",
