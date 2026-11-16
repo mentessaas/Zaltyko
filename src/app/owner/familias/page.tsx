@@ -5,9 +5,14 @@ import { z } from "zod";
 
 import { OwnerFamilyAccessManager } from "@/components/owner-dashboard/OwnerFamilyAccessManager";
 import { OwnerFamilyNoticesPanel } from "@/components/owner-dashboard/OwnerFamilyNoticesPanel";
+import {
+  OwnerFamilyPaymentMethodsPanel,
+  type OwnerFamilyPaymentMethod,
+} from "@/components/owner-dashboard/OwnerFamilyPaymentMethodsPanel";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { PageHeader } from "@/components/ui/page-header";
+import { logger } from "@/lib/logger";
 import { createClient } from "@/lib/supabase/server";
 import {
   isFamilyAccessAvailableForPage,
@@ -15,6 +20,13 @@ import {
 } from "@/modules/family-access/application/family-access-storage";
 import { getOwnerNoticesBundle } from "@/modules/family-access/application/family-notices";
 import { listOwnerFamilyAccess } from "@/modules/family-access/application/guardian-invitations";
+import {
+  isFamilyPaymentMethodsFlagEnabled,
+  isProductionDatabase,
+  resolveConnectEnvironment,
+} from "@/modules/family-payment-methods/application/config";
+import { listOwnerFamilyPaymentMethods } from "@/modules/family-payment-methods/application/family-payment-methods-service";
+import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -27,6 +39,30 @@ export const metadata: Metadata = {
 };
 
 const querySchema = z.object({ organizationId: z.guid().optional() }).strict();
+
+/**
+ * Pago automático de las familias (cobro automático, Fase 2). Solo con la
+ * bandera de esta fase, Stripe de pruebas, base que no es la de producción y
+ * el almacén instalado; si falta algo o la lectura falla (por ejemplo, un
+ * administrador sin permiso), el panel no se muestra y la página sigue.
+ */
+async function loadFamilyPaymentMethods(
+  userId: string,
+  organizationId: string
+): Promise<OwnerFamilyPaymentMethod[] | null> {
+  if (!isFamilyPaymentMethodsFlagEnabled()) return null;
+  if (resolveConnectEnvironment() !== "test" || isProductionDatabase()) return null;
+  try {
+    if (!(await isFamilyPaymentMethodsStorageAvailable())) return null;
+    return await listOwnerFamilyPaymentMethods({ userId, organizationId });
+  } catch (error) {
+    if (!(error instanceof OperationalError)) {
+      // Solo ids en el log, nunca el error completo.
+      logger.warn("Pago automático de las familias: no se pudo leer la lista de la academia", { organizationId });
+    }
+    return null;
+  }
+}
 
 /**
  * Familias y avisos: acceso al portal por invitación y avisos de sesión.
@@ -71,9 +107,10 @@ export default async function OwnerFamiliesPage({
   const allSites = scope.member.locationScopeMode === "all";
 
   if (!fullMode && !allSites) notFound();
-  const [access, notices] = await Promise.all([
+  const [access, notices, paymentMethods] = await Promise.all([
     allSites ? listOwnerFamilyAccess({ ...input, removeOnly: !fullMode }) : Promise.resolve(null),
     fullMode ? getOwnerNoticesBundle(input) : Promise.resolve(null),
+    allSites ? loadFamilyPaymentMethods(user.id, scope.organization.id) : Promise.resolve(null),
   ]);
 
   return (
@@ -108,6 +145,9 @@ export default async function OwnerFamiliesPage({
               El acceso de las familias al portal lo gestiona quien tiene acceso a todas las sedes de la academia.
             </p>
           )}
+          {paymentMethods ? (
+            <OwnerFamilyPaymentMethodsPanel organizationId={scope.organization.id} methods={paymentMethods} />
+          ) : null}
           {notices ? <OwnerFamilyNoticesPanel organizationId={scope.organization.id} bundle={notices} /> : null}
         </div>
       </div>
