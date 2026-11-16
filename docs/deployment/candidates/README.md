@@ -836,7 +836,9 @@ bancaria en la cuenta Stripe conectada de su academia. Decisión:
   aplicarla, ningún código debe leer o insertar en `family_payment_authorizations`
   con Drizzle sin columnas explícitas.
 - **Bandera** apagada por defecto: `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED`.
-  Mientras la tabla o la columna no existan,
+  Con ella apagada no se guarda ni cambia ningún método, pero quien ya tenía
+  uno puede revocarlo (y la academia también). Mientras la tabla o la columna
+  no existan,
   `isFamilyPaymentMethodsStorageAvailable()`
   (`src/modules/family-payment-methods/application/storage.ts`, solo lee
   `information_schema.columns`) devuelve `false` y la función responde «no
@@ -859,7 +861,11 @@ bancaria en la cuenta Stripe conectada de su academia. Decisión:
 - **Pruebas:** `tests/family-payment-methods-pg.test.ts`, en el job «Postgres
   integration». Instala la candidata (y antes la de la Fase 1 si falta) solo
   en el PostgreSQL desechable de GitHub y retira al terminar lo que instaló.
-- **Rollback.** Apagar antes `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED`. Borrar
+- **Rollback.** Apagar antes `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED` (revocar
+  sigue funcionando con la bandera apagada). Después, **revocar y desligar en
+  Stripe las autorizaciones activas antes de retirar** (desde `/owner/familias`
+  o con el mismo servicio): sin la tabla y la columna nadie podría revocarlas
+  desde Zaltyko y los métodos seguirían vivos en Stripe. Borrar
   la tabla descarta los intentos y su evidencia de consentimiento, y borrar la
   columna descarta el tipo de cada autorización: exportarlos antes si importan.
   Los checks nuevos se van con su columna. Si también hay que retirar la

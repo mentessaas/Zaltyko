@@ -403,9 +403,13 @@ de Elvis):**
     impedirá cobrar en la Fase 3, así que se guarda antes, en su
     transacción. Después se desliga el método en Stripe. Si Stripe falla,
     queda un `logger.error` con ids opacos y la revocación se mantiene: el
-    método sigue vivo en Stripe hasta un reintento manual. Revocar solo exige
-    que la función esté abierta, no que la academia siga lista ni que tenga
-    plan: dejar de pagar siempre debe poder hacerse.
+    método sigue vivo en Stripe hasta un reintento manual. Revocar **no**
+    exige la bandera de esta fase, ni que la academia siga lista, ni que tenga
+    plan: dejar de pagar siempre debe poder hacerse. Sí exige la clave de
+    prueba, la base que no es la de producción (R11) y el almacenamiento de
+    las Fases 1 y 2. Con la bandera apagada, la familia solo ve el método que
+    ya tenía (sin poder cambiarlo) y la academia ve y retira los activos;
+    guardar o cambiar un método sigue cerrado.
 14. **Una sola autorización activa por pagador y cuenta conectada.** Ya lo
     garantiza `family_payment_authorizations_active_method_uq`. Cambiar de
     método revoca la anterior en la misma transacción que activa la nueva, y
@@ -492,6 +496,20 @@ resuelta antes de que una academia real conecte su Stripe en producción.
     `acct_…` para reconciliarla a mano. En la Fase 2 se buscará la cuenta por
     `metadata.zaltyko_organization_id` antes de crear una nueva; en la Fase 1
     no se implementa esa búsqueda.
+  - **deuda (Fase 2): la persona deja de ser la pagadora.** Si se cierra su
+    fila de `family_payers` o el tutor se desactiva, su autorización sigue
+    `active`: ese tutor ya no la ve en `/familia`, y puede haber dos
+    autorizaciones activas para la misma familia con pagadores distintos (el
+    índice único es por pagador y cuenta). La academia sí puede revocarla
+    desde `/owner/familias`. **Requisito para la Fase 3:** solo se cobra la
+    autorización del pagador vigente con tutor activo. Pendiente decidir si
+    quien consintió conserva una vía para revocarla.
+  - **deuda (Fase 2): método huérfano en Stripe si «completar» se rechaza.**
+    Si la preparación ya terminó bien en Stripe pero Zaltyko no la activa
+    (la academia dejó de estar lista, el método ya no se ofrece o la
+    comprobación no cuadra), el `pm_…` queda unido al Customer en Stripe sin
+    autorización en Zaltyko. No se puede cobrar (la Fase 3 solo cobra
+    autorizaciones `active`); se limpiará con la Fase 4 o a mano.
 
 ## Fuentes
 

@@ -25,7 +25,9 @@ source:
 
 **Sin probar.** Nada en staging. Antes hacen falta, con autorización de Elvis: aplicar el candidato en Supabase staging, encender la bandera en Vercel staging, comprobar que la clave publicable es de prueba y tener la cuenta sandbox de la academia en «Lista para cobrar» (pendiente desde la Fase 1).
 
-**Deuda.** Sin respaldo por evento si la familia cierra el navegador tras la verificación del banco (Fase 4, `setup_intent.succeeded`); texto de autorización en borrador hasta L3; Customer v1 sobre cuenta v2 por verificar en staging; método vivo en Stripe si falla el desligado; fecha del panel en hora de Madrid; la búsqueda de la cuenta huérfana de la Fase 1 sigue sin hacer.
+**Deuda.** Sin respaldo por evento si la familia cierra el navegador tras la verificación del banco (Fase 4, `setup_intent.succeeded`); texto de autorización en borrador hasta L3; Customer v1 sobre cuenta v2 por verificar en staging; método vivo en Stripe si falla el desligado; método huérfano en Stripe si «completar» se rechaza tras una preparación terminada; autorización que sigue activa si la persona deja de ser la pagadora (requisito para la Fase 3: cobrar solo la del pagador vigente); fecha del panel en hora de Madrid; la búsqueda de la cuenta huérfana de la Fase 1 sigue sin hacer.
+
+**Revisión final (misma rama).** Revocar funciona con la bandera de la Fase 2 apagada (familia y academia), con los dos cerrojos y el almacén; código propio `FAMILY_PAYMENT_REVOKE_FAILED`; la verificación del banco rechazada ya no se trata como pendiente; aviso si el formulario de Stripe no carga; el panel de la academia no enseña un vacío engañoso; la falta de consentimiento responde 400 en el servicio.
 
 Vault: actualizados este `Changelog interno.md` y `Decisiones.md` (decisiones de la Fase 2); no cambian `Pricing.md` ni `Mensajes aprobados.md`.
 
