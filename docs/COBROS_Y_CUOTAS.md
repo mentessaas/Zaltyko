@@ -66,6 +66,12 @@ Código en `src/modules/payments-connect/`, separado de `src/lib/stripe/*`.
 | `ZALTYKO_CONNECT_ONBOARDING_ENABLED` | Enciende la función. Apagada por defecto. |
 | `STRIPE_CONNECT_ACCOUNTS_WEBHOOK_SECRET` | Firma del webhook de eventos v2 de cuentas conectadas. Distinto de `STRIPE_CONNECT_WEBHOOK_SECRET` (webhook v1 antiguo). |
 
+**Destino de eventos en Stripe.** Comprobado en el sandbox el 16-11-2026.
+- Los eventos v2 de cuentas conectadas (`v2.core.account…`) se emiten en la **propia plataforma**: su `context` es la cuenta de Zaltyko.
+- Por eso el destino se crea con `events_from: ["@self"]`, no con `@accounts`.
+- Configuración: carga *thin*. Tipos: `v2.core.account[requirements].updated`, `v2.core.account[configuration.merchant].capability_status_updated`, `v2.core.account.updated` y `v2.core.account.closed`.
+- Stripe no permite cambiar el origen de los eventos de un destino ya creado: si está mal, hay que crear otro y cambiar el secreto.
+
 ### Datos
 
 Zaltyko guarda solo códigos de estado en
