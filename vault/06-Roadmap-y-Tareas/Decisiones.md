@@ -9,6 +9,29 @@ source:
 # Decisiones
 
 
+## 2026-11-16 — Cobro automático de cuotas, Fase 2: cómo guarda la familia su método de pago (ADR-0028)
+
+**Hallazgo/fuente:**
+- `docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md`, «Decisiones mías», 10–14.
+- `docs/COBROS_Y_CUOTAS.md`, «Pago automático de la familia (Fase 2)».
+- El esquema reservado `family_payment_authorizations` exige el método (`pm_…`) desde el primer momento y no tiene sitio para el Customer ni para la evidencia del consentimiento.
+
+**Decisión/importancia:** decisiones de diseño de Claude dentro del ADR aceptado por Elvis; corregibles.
+
+- Tabla nueva de intentos (`family_payment_setup_attempts`) como evidencia del consentimiento; la autorización `active` solo nace cuando Stripe confirma. Un Customer por pagador y cuenta conectada, reutilizado del último intento.
+- Texto de autorización en borrador (`borrador-2026-11-16`) sin valor legal hasta L3. Para la domiciliación, el texto de la orden lo pone Stripe, con la academia como acreedora.
+- Sin respaldo por evento en esta fase: si la familia cierra tras la verificación del banco, repite. Lo cubre la Fase 4.
+- Revocar marca primero `revoked` y desliga después en Stripe; si Stripe falla, la revocación se mantiene. Revocar no exige la bandera de la Fase 2, ni plan, ni academia lista; sí clave de prueba, base que no es la de producción y almacén de las Fases 1 y 2. Con la bandera apagada la familia solo ve el método que ya tenía (sin poder cambiarlo) y la academia ve y retira los activos (decisión del coordinador en la revisión final).
+- Una sola autorización activa por pagador y cuenta; cambiar de método revoca la anterior en la misma transacción.
+- Verificación del banco rechazada (3DS fallido): no es «pendiente»; el intento se abandona y la familia vuelve a guardarlo. Solo se guarda que hubo error, nunca su contenido.
+- Panel de la academia con fechas en hora de Madrid: la Fase 2 solo es para España.
+- Deuda abierta: si la persona deja de ser la pagadora (fila de `family_payers` cerrada o tutor inactivo), su autorización sigue activa y puede haber dos activas en la misma familia. Requisito para la Fase 3: solo se cobra la del pagador vigente con tutor activo. Pendiente decidir si quien consintió conserva la vía de revocación.
+
+**Siguiente paso:**
+- CI verde de la PR y revisión del coordinador.
+- Con autorización de Elvis: candidato en Supabase staging, bandera en Vercel staging y recorrido con tarjetas y domiciliación de prueba.
+- Respuesta del abogado a L3 (texto definitivo) antes de cualquier familia real.
+
 ## 2026-11-16 — Cobro automático de cuotas: se levanta la línea roja solo para cuotas (ADR-0028)
 
 **Hallazgo/fuente:**

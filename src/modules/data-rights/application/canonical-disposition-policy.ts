@@ -65,6 +65,8 @@ export const REVIEWED_DISPOSITION_EXCLUSIONS: readonly ExcludedPolicy[] = [
 export const REVIEWED_DISPOSITION_OPTIONAL_GROUPS: readonly (readonly ExcludedPolicy[])[] = [
   [e("product_discovery_interests", "private_member_preferences"), e("product_discovery_signals", "academy_product_discovery")],
   [e("organization_member_invitations", "team_access_credentials"), e("organization_member_invitation_scopes", "pending_team_access_scopes"), e("organization_team_command_receipts", "internal_team_access_commands")],
+  // Cobro automático, Fase 2 (candidato 20261116180000, sin aplicar).
+  [e("family_payment_setup_attempts", "payment_authorizations")],
 ];
 
 /** Activated academy modules whose rows are projected when installed (2026-11-12). */

@@ -5,9 +5,14 @@ import { z } from "zod";
 
 import { OwnerFamilyAccessManager } from "@/components/owner-dashboard/OwnerFamilyAccessManager";
 import { OwnerFamilyNoticesPanel } from "@/components/owner-dashboard/OwnerFamilyNoticesPanel";
+import {
+  OwnerFamilyPaymentMethodsPanel,
+  type OwnerFamilyPaymentMethod,
+} from "@/components/owner-dashboard/OwnerFamilyPaymentMethodsPanel";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { PageHeader } from "@/components/ui/page-header";
+import { logger } from "@/lib/logger";
 import { createClient } from "@/lib/supabase/server";
 import {
   isFamilyAccessAvailableForPage,
@@ -15,6 +20,11 @@ import {
 } from "@/modules/family-access/application/family-access-storage";
 import { getOwnerNoticesBundle } from "@/modules/family-access/application/family-notices";
 import { listOwnerFamilyAccess } from "@/modules/family-access/application/guardian-invitations";
+import {
+  isProductionDatabase,
+  resolveConnectEnvironment,
+} from "@/modules/family-payment-methods/application/config";
+import { getOwnerFamilyPaymentMethodsView } from "@/modules/family-payment-methods/application/family-payment-methods-service";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -27,6 +37,36 @@ export const metadata: Metadata = {
 };
 
 const querySchema = z.object({ organizationId: z.guid().optional() }).strict();
+
+/**
+ * Pago automático de las familias (cobro automático, Fase 2). Decide el
+ * servicio: con autorizaciones activas el panel se muestra siempre (también
+ * con la bandera apagada, para poder revocarlas); vacío solo si la academia
+ * puede ofrecer el pago automático ahora. Con Stripe Live, la base de
+ * producción o sin almacén no se muestra. Si la lectura falla (por ejemplo,
+ * un administrador sin permiso), el panel no se muestra y la página sigue.
+ * Devuelve `null` cuando no hay que pintar el panel.
+ */
+async function loadFamilyPaymentMethods(
+  userId: string,
+  organizationId: string
+): Promise<OwnerFamilyPaymentMethod[] | null> {
+  // Los dos cerrojos se leen del entorno, sin base. El servicio los repite.
+  if (resolveConnectEnvironment() !== "test" || isProductionDatabase()) return null;
+  try {
+    const view = await getOwnerFamilyPaymentMethodsView({ userId, organizationId });
+    return view.visible ? view.methods : null;
+  } catch (error) {
+    if (!(error instanceof OperationalError)) {
+      // Solo ids y el tipo de error en el log, nunca el error completo.
+      logger.warn("Pago automático de las familias: no se pudo leer la lista de la academia", {
+        organizationId,
+        errorName: error instanceof Error ? error.name : "unknown",
+      });
+    }
+    return null;
+  }
+}
 
 /**
  * Familias y avisos: acceso al portal por invitación y avisos de sesión.
@@ -71,9 +111,10 @@ export default async function OwnerFamiliesPage({
   const allSites = scope.member.locationScopeMode === "all";
 
   if (!fullMode && !allSites) notFound();
-  const [access, notices] = await Promise.all([
+  const [access, notices, paymentMethods] = await Promise.all([
     allSites ? listOwnerFamilyAccess({ ...input, removeOnly: !fullMode }) : Promise.resolve(null),
     fullMode ? getOwnerNoticesBundle(input) : Promise.resolve(null),
+    allSites ? loadFamilyPaymentMethods(user.id, scope.organization.id) : Promise.resolve(null),
   ]);
 
   return (
@@ -108,6 +149,9 @@ export default async function OwnerFamiliesPage({
               El acceso de las familias al portal lo gestiona quien tiene acceso a todas las sedes de la academia.
             </p>
           )}
+          {paymentMethods ? (
+            <OwnerFamilyPaymentMethodsPanel organizationId={scope.organization.id} methods={paymentMethods} />
+          ) : null}
           {notices ? <OwnerFamilyNoticesPanel organizationId={scope.organization.id} bundle={notices} /> : null}
         </div>
       </div>

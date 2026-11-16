@@ -10,6 +10,7 @@ import {
   CANONICAL_EXPORT_TABLES,
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   OPTIONAL_DISCOVERY_EXPORT_TABLES,
+  OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES,
   OPTIONAL_INCLUDED_EXPORT_MODULES,
   OPTIONAL_INCLUDED_EXPORT_TABLES,
   OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
@@ -72,6 +73,31 @@ describe("canonical export failure boundaries (database mocked)", () => {
     const sqlText = mocks.execute.mock.calls.map(call => dialect.sqlToQuery(call[0]).sql).join("\n");
     expect(sqlText).not.toContain("token_sha256");
     expect(sqlText).not.toContain("normalized_email");
+  });
+  it.each([false, true])("keeps family payment setup attempts count-only with team access installed=%s", async includeTeam => {
+    const optionalTables = [...(includeTeam ? OPTIONAL_TEAM_ACCESS_EXPORT_TABLES : []), ...OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES];
+    prepareThroughMembership();
+    mocks.execute.mockResolvedValueOnce({ rows: [...catalogRows(), ...optionalTables.flatMap(table => table.columns.map(column_name => ({ table_name: table.table, column_name })))] });
+    mocks.execute.mockResolvedValueOnce({ rows: [{ snapshot_at: new Date("2026-11-16T00:00:00Z") }] });
+    mocks.execute.mockResolvedValueOnce({ rows: [...EXCLUDED_CANONICAL_SCOPED_TABLES, ...optionalTables.map(table => table.table)].map(table_name => ({ table_name, row_count: table_name === "family_payment_setup_attempts" ? 3 : 0 })) });
+    mocks.execute.mockResolvedValueOnce({ rows: CANONICAL_EXPORT_TABLES.map(table => ({ table_name: table.name, row_count: 0, estimated_bytes: 0 })) });
+    const bundle = JSON.parse((await exportCanonicalAcademyData(actor)).body);
+    expect(bundle.coverage.complete).toBe(false);
+    expect(bundle.data).not.toHaveProperty("family_payment_setup_attempts");
+    expect(bundle.coverage.excludedTables).toContainEqual(expect.objectContaining({
+      table: "family_payment_setup_attempts", category: "payment_authorizations", rowCount: 3, valuesExported: false, countScope: "organization_id",
+    }));
+    const sqlText = mocks.execute.mock.calls.map(call => dialect.sqlToQuery(call[0]).sql).join("\n");
+    expect(sqlText).not.toContain("provider_customer_reference");
+    expect(sqlText).not.toContain("consent_text_sha256");
+    expect(sqlText).not.toContain("client_ip_prefix");
+  });
+  it("fails closed for an unclassified family payment setup column", async () => {
+    prepareThroughMembership();
+    const rows = [...catalogRows(), ...OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES.flatMap(table => table.columns.map(column_name => ({ table_name: table.table, column_name })))];
+    mocks.execute.mockResolvedValueOnce({ rows: [...rows, { table_name: "family_payment_setup_attempts", column_name: "card_last4" }] });
+    await expect(exportCanonicalAcademyData(actor)).rejects.toMatchObject({ status: 503, problemType: "canonical-export-schema-unavailable" });
+    expect(mocks.execute).toHaveBeenCalledTimes(6);
   });
   it.each(["partial discovery module", "unclassified discovery column"])("fails closed for %s", async kind => {
     prepareThroughMembership();

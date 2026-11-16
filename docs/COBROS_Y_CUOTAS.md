@@ -7,7 +7,8 @@ El ledger `charges` es la fuente operativa de verdad. Stripe procesa tarjetas y 
 > **Aviso (16-11-2026).** El cobro automático de cuotas se rehace con
 > Stripe Connect y cuentas Accounts v2, según ADR-0028
 > (`docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md`). Lo
-> nuevo está en «Conectar Stripe (Fase 1)». El resto de esta guía describe el
+> nuevo está en «Conectar Stripe (Fase 1)» y en «Pago automático de la
+> familia (Fase 2)». El resto de esta guía describe el
 > modelo Stripe Connect Standard v1 (`stripe_accounts`), que nunca se abrió a
 > academias reales y ya no es la dirección del producto.
 
@@ -103,8 +104,9 @@ enum no se usa: la fila nace en `onboarding`.
 - **R11, dos cerrojos para Live y producción.** Conectar Stripe responde «no
   disponible» (`live_not_released`) con una clave de Stripe que no sea de
   prueba **o** si la base del despliegue es la Supabase de producción
-  (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_URL` o `DATABASE_URL*` contienen su
-  ref, en `src/lib/launch/production-supabase.ts`). El webhook ignora los
+  (`NEXT_PUBLIC_SUPABASE_URL`, `DATABASE_URL`, `DATABASE_URL_POOL` o
+  `DATABASE_URL_DIRECT` contienen su ref, en
+  `src/lib/launch/production-supabase.ts`). El webhook ignora los
   eventos en ese caso. No se mira `VERCEL_ENV`: staging es un despliegue
   «production» de su propio proyecto. En la Fase 1 no hay ninguna vía para
   abrir Live ni producción.
@@ -124,6 +126,238 @@ enum no se usa: la fila nace en `onboarding`.
   `logger.error` «cuenta creada en Stripe sin guardar» deja el `acct_…` para
   reconciliarla a mano. En la Fase 2 se buscará la cuenta por
   `metadata.zaltyko_organization_id` antes de crear una nueva.
+
+## Pago automático de la familia (Fase 2)
+
+La persona que paga las cuotas de una familia guarda una tarjeta o domicilia
+el pago en la cuenta Stripe conectada de su academia, y puede dejar de pagar
+automáticamente. La academia ve esos métodos y también puede retirarlos.
+**En esta fase no se cobra nada**: el cobro llega en la Fase 3 del ADR-0028.
+
+### Quién puede usarlo
+
+Todas estas condiciones a la vez (el primer motivo que falla es el que se
+devuelve, en este orden):
+
+- Bandera `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED=true` (texto exacto).
+  **Apagada por defecto.** Las rutas de la familia exigen además
+  `ZALTYKO_FAMILY_ACCESS_ENABLED` (acceso de familias).
+- Clave `STRIPE_SECRET_KEY` de prueba y base que no sea la de producción (los
+  mismos dos cerrojos que la Fase 1, abajo).
+- Base de datos con la tabla y la columna del candidato de la Fase 2 **y**
+  las dos columnas del de la Fase 1. Sin ellas la función responde «no
+  disponible» en vez de fallar.
+- Solo la persona pagadora: la cuenta con sesión es un tutor activo,
+  vinculado de forma activa a una familia activa, y es la persona pagadora de
+  esa familia hoy (según el calendario de la academia). La misma cadena que
+  usa `/familia` para enseñar las cuotas. Otro tutor de la misma familia no ve
+  nada.
+- Academia lista para cobrar: cuenta conectada del entorno `active`, con la
+  tarjeta `active`, y plan de pago vigente (Starter o Growth; la prueba no
+  cuenta). La domiciliación solo se ofrece si la de la cuenta también está
+  `active`.
+
+Si la academia deja de estar lista y la familia ya tenía un método guardado,
+la familia lo sigue viendo y puede dejar de pagar automáticamente, pero no
+cambiarlo.
+
+**Revocar no necesita la bandera.** Con la bandera apagada, quien ya tenía un
+método lo sigue viendo y puede dejar de pagar automáticamente (sin poder
+cambiarlo), y la academia sigue viendo y retirando los métodos activos.
+Guardar o cambiar un método sigue cerrado. Revocar sí exige la clave de
+prueba, la base que no es la de producción y los almacenes de las Fases 1 y 2.
+
+En la academia, ver y retirar métodos: dueña, o administración con acceso a
+todas las sedes.
+
+### Pantalla
+
+- **Familia:** tarjeta «Pago automático» dentro de la sección de cada
+  academia en `/familia/cuotas` (`FamilyAutomaticPaymentCard.tsx`; la demo
+  pública no la recibe):
+  - Sin método: «Guarda una tarjeta o domicilia el pago para que las cuotas se
+    cobren solas. Todavía no se cobrará nada.» Elige «Tarjeta» o
+    «Domiciliación bancaria» (solo las que ofrece la academia), lee el texto
+    de autorización y marca «Acepto». «Continuar» abre el formulario de Stripe
+    (en español, en la cuenta de la academia) y «Guardar» lo confirma. Para la
+    domiciliación, el texto de la orden lo pone el propio formulario de
+    Stripe, con la academia como acreedora.
+  - Con método: «Pagas automáticamente con tarjeta» o «… con domiciliación
+    bancaria», «desde el {fecha}», y los botones «Cambiar método» y «Dejar de
+    pagar automáticamente» (con confirmación en la misma tarjeta).
+  - Al guardar: «Tarjeta guardada» o «Domiciliación guardada».
+  - Vuelta de la verificación del banco: la página termina sola el proceso. Si
+    el banco aún no ha respondido: «Tu banco todavía lo está confirmando. Si
+    en unos minutos no aparece como guardado, vuelve a guardarlo.» Si el banco
+    rechazó la verificación: «Tu banco no ha aceptado este método de pago.
+    Prueba con otro o habla con tu banco.» (no se comprueba nada más).
+  - Con la función cerrada la tarjeta no aparece, salvo que la familia ya
+    tuviera un método: entonces lo ve y solo puede dejar de pagar
+    automáticamente. «El pago automático no está disponible ahora mismo» solo
+    sale si falta la clave publicable de Stripe o si el formulario de Stripe
+    no carga. Para quien no es la persona pagadora no aparece nada.
+- **Academia:** panel «Pago automático de las familias» en `/owner/familias`
+  (`OwnerFamilyPaymentMethodsPanel.tsx`). Una fila por método activo: nombre
+  del tutor pagador (nombre y primer apellido), «Tarjeta» o «Domiciliación
+  bancaria», «desde el {fecha}» y el botón «Dejar de cobrar automáticamente»,
+  con confirmación en línea. Ayuda: «Revocar no anula los cobros ya
+  enviados.» Sin métodos: «Ninguna familia ha guardado todavía un método de
+  pago.» Muestra como mucho 200. Con métodos activos el panel aparece
+  siempre, también con la bandera apagada, para poder retirarlos. Vacío solo
+  aparece si la academia puede ofrecer el pago automático ahora (bandera
+  encendida, cuenta lista y plan de pago). No aparece con clave Live, contra
+  la base de producción, sin candidato ni para quien no tiene todas las
+  sedes; nunca rompe la página.
+
+### Rutas
+
+| Ruta | Uso |
+|---|---|
+| `POST /api/v1/family/payment-methods` con `action: "setup"` | La persona pagadora elige método y acepta el texto (`consentVersion`, `consentAccepted: true`). Crea o reutiliza el Customer del pagador y prepara el método en la cuenta de la academia. Devuelve solo lo que necesita el formulario de Stripe. |
+| `POST /api/v1/family/payment-methods` con `action: "complete"` | Tras el formulario (o al volver del banco). Vuelve a leer en Stripe la preparación **guardada** en el intento y la comprueba contra la familia, la persona y la academia; si ha terminado bien, activa el método. Responde `active` o `pending`. Una referencia ajena responde 404 sin escribir nada. |
+| `POST /api/v1/family/payment-methods` con `action: "revoke"` | La familia deja de pagar automáticamente. |
+| `POST /api/v1/owner/payments/family-methods` | La academia retira el método de una familia (`organizationId`, `authorizationId`). |
+
+- Las dos rutas comprueban el mismo origen y responden con
+  `cache-control: private, no-store`. Con la bandera de esta fase apagada, la
+  ruta de la familia solo acepta `revoke` (`setup` y `complete` responden 503
+  sin tocar la base ni Stripe) y la de la academia revoca igual. Los cerrojos
+  de clave, base y almacén los aplica el servicio.
+- Límites: 10 peticiones por minuto y cuenta en la ruta de la familia, y 20
+  por minuto y academia verificada en la de la academia.
+- Un error inesperado nunca se refleja tal cual: la familia ve «No se pudo
+  guardar el método de pago. Vuelve a intentarlo.» (502) o «No se pudo dejar
+  de pagar automáticamente…» (503, código `FAMILY_PAYMENT_REVOKE_FAILED`; en
+  la ruta de la academia, problema `family-payment-revoke-failed`).
+- Las rutas antiguas `/api/family/payment-method*` siguen en 410.
+- Código en `src/modules/family-payment-methods/` (dominio, aplicación e
+  infraestructura), separado de `src/lib/stripe/*`.
+
+### Variables
+
+| Variable | Uso |
+|---|---|
+| `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED` | Enciende guardar y cambiar métodos. Apagada por defecto. Revocar no la necesita. |
+| `ZALTYKO_FAMILY_ACCESS_ENABLED` | Acceso de familias; ya existía. Sin ella, la ruta de la familia no responde. |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Clave publicable para el formulario de Stripe; ya existía. Debe ser de prueba (`pk_test_`) del mismo entorno que `STRIPE_SECRET_KEY`. |
+
+No hay secreto nuevo ni webhook nuevo en esta fase.
+
+### Datos
+
+- **Tabla nueva `zaltyko.family_payment_setup_attempts`.** Cada intento de
+  guardar un método: Customer (`cus_…`), preparación (`seti_…`), tipo
+  (`card` o `sepa_debit`), pagador y tutor, y la evidencia recortada del
+  consentimiento: versión, fecha, IP recortada (IPv4 a `/24`, IPv6 a `/48`),
+  agente de navegador de 120 caracteres como máximo y sin caracteres de
+  control, y SHA-256 del texto exacto aceptado. Estados `open`, `completed`
+  (con su autorización) y `abandoned`.
+- **Columna nueva `family_payment_authorizations.payment_method_kind`.** La
+  autorización `active` guarda el método (`pm_…`), su tipo y, si es
+  domiciliación, la orden (`mandate_…`). Apunta a su intento con
+  `consent_evidence_reference = "family_payment_setup_attempts:<id>"`.
+- **Nunca** número de tarjeta, IBAN, marca, últimos dígitos, nombre del
+  titular ni correo: esos los pide y los guarda Stripe en su formulario. El
+  Customer se crea sin correo ni nombre, y la metadata en Stripe solo lleva
+  ids de Zaltyko (`zaltyko_organization_id`, `zaltyko_family_payer_id`,
+  `zaltyko_setup_attempt_id`).
+- Cada paso deja auditoría y evento (`family_payment_methods.setup_started`,
+  `.authorization_activated`, `.authorization_revoked`) solo con ids, tipo,
+  versión y quién lo hizo (`family` u `owner`). Ni IP ni agente.
+- **Derechos de datos: hecho.** La tabla nueva está en el catálogo
+  (`src/modules/data-rights/application/catalog.ts`) como grupo opcional
+  excluido `OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES`, categoría
+  `payment_authorizations`. La exportación de la academia solo incluye su
+  recuento, nunca los valores; sin la tabla, el paquete no cambia.
+
+### Estado
+
+- Candidata `docs/deployment/candidates/20261116180000_family_payment_methods_candidate.sql`:
+  **no aplicada en ningún entorno.** Staging y producción necesitan cada uno
+  una autorización expresa de Elvis; la de la Fase 1 no la cubre. Requiere
+  antes la candidata de la Fase 1 (detalle y rollback en
+  `docs/deployment/candidates/README.md`).
+- Pruebas automáticas (`tests/family-payment-methods-*`, incluida la de
+  PostgreSQL desechable, `tests/api-family-payment-methods-routes.test.ts`,
+  `tests/owner-family-payment-methods-panel.test.tsx` y
+  `tests/family-automatic-payment-card.test.tsx`): ninguna en local; las
+  ejecuta la CI remota de la PR.
+- Sin probar en staging. Antes hacen falta, con autorización de Elvis:
+  aplicar la candidata en Supabase staging, encender la bandera en Vercel
+  staging, comprobar la clave publicable de prueba y tener la cuenta sandbox
+  de la academia en «Lista para cobrar» (pendiente desde la Fase 1).
+- En producción no cambia nada: la bandera está apagada y, aunque se
+  encendiera, la función queda cerrada contra Live y contra la base de
+  producción.
+
+### Cerrojos y límites
+
+- **Los dos cerrojos de la Fase 1 (R11).** Responde «no disponible»
+  (`live_not_released`) si la clave de Stripe no es de prueba **o** si la
+  base del despliegue es la Supabase de producción. No hay ninguna vía para
+  abrir Live ni producción en esta fase.
+- **Solo la persona pagadora.** Todo lo que no lo es (otro tutor de la
+  familia, otra familia, otra academia) recibe 404 en las escrituras, sin
+  decir si la familia existe; en la lectura no se muestra nada.
+- **Una sola autorización activa por pagador y cuenta conectada** (índice
+  único). Cambiar de método revoca la anterior en la misma transacción que
+  activa la nueva; el método anterior se desliga en Stripe después.
+- **Doble clic o dos pestañas.** El intento se bloquea al completarlo: queda
+  una sola autorización activa y la segunda petición recibe la misma.
+- **La academia deja de estar lista entre los dos pasos** (plan caducado,
+  cuenta restringida, domiciliación ya no activa): completar vuelve a
+  comprobarlo todo y no activa nada.
+- **Revocar** marca primero `revoked` (eso es lo que impedirá cobrar) y
+  después desliga en Stripe. Si Stripe falla, queda un `logger.error` con ids
+  opacos y la revocación se mantiene. Revocar no exige la bandera de esta
+  fase, ni que la academia siga lista, ni que tenga plan; sí la clave de
+  prueba, la base que no es la de producción y el almacén. Los cobros ya
+  enviados siguen su curso.
+- **Verificación del banco rechazada.** Si Stripe vuelve a pedir el método
+  con un error del último intento (por ejemplo, 3DS fallido), completar no lo
+  trata como pendiente: marca el intento como abandonado y la familia tiene
+  que volver a guardarlo. Zaltyko solo guarda que hubo error, nunca su
+  contenido.
+- **Las llamadas a Stripe nunca van dentro de una transacción abierta.** Sin
+  `application_fee`: no cambia ningún precio.
+
+### Deuda conocida
+
+- **Sin respaldo por evento hasta la Fase 4.** Si la familia cierra el
+  navegador justo después de la verificación del banco, el método queda
+  guardado en Stripe pero no activo en Zaltyko, y la familia tiene que
+  repetirlo. La Fase 4 lo cubrirá con el evento `setup_intent.succeeded`.
+- **Texto de autorización en borrador** (`borrador-2026-11-16`), sin valor
+  legal hasta que el abogado responda L3 del ADR-0028. Cambiarlo exige otra
+  versión.
+- **Customer v1 sobre una cuenta conectada v2, por verificar en staging.** El
+  Customer y la preparación se crean con la API v1 en una cuenta creada con
+  Accounts v2; no se ha comprobado todavía en el sandbox.
+- **Método vivo en Stripe tras un fallo al desligar.** La revocación se
+  mantiene en Zaltyko, pero el método sigue en Stripe hasta reintentarlo a
+  mano con los ids del `logger.error`.
+- **Fecha del panel de la academia en hora de Madrid.** Si se abre México,
+  usar la zona de la academia.
+- **Borrar una academia con intentos podría fallar** por las claves
+  `restrict` (como ya pasa con `family_payment_authorizations`). Hoy ninguna
+  academia se borra: se archivan.
+- **Sigue pendiente la búsqueda de la cuenta huérfana** de la Fase 1 por
+  `metadata.zaltyko_organization_id`: esta fase no la implementa.
+- **La persona deja de ser la pagadora.** Si se cierra su fila de
+  `family_payers` o el tutor se desactiva, su autorización sigue activa: ese
+  tutor ya no la ve en `/familia` y puede haber dos activas para la misma
+  familia con pagadores distintos. La academia sí puede revocarla desde
+  Familias. Requisito para la Fase 3: solo se cobra la autorización del
+  pagador vigente con tutor activo. Pendiente decidir si quien consintió
+  conserva la vía de revocación.
+- **Método huérfano en Stripe si «completar» se rechaza.** Si la preparación
+  ya terminó bien en Stripe pero Zaltyko no la activa (la academia dejó de
+  estar lista, el método ya no se ofrece o la comprobación no cuadra), el
+  método queda unido al Customer en Stripe sin autorización en Zaltyko. No se
+  puede cobrar; se limpiará con la Fase 4 o a mano.
+- **Retirar la candidata con autorizaciones activas.** Antes de deshacerla
+  hay que revocar y desligar en Stripe las autorizaciones activas (detalle en
+  `docs/deployment/candidates/README.md`).
 
 ## Alcance
 

@@ -7,6 +7,10 @@
 export const FAMILY_PAYMENT_NOTICE =
   "El pago se gestiona directamente con tu academia. Desde aquí solo puedes consultar tus cuotas.";
 
+/** Solo cuando la academia ofrece el pago automático a esta familia (nunca en la demo). */
+export const FAMILY_AUTOMATIC_PAYMENT_NOTICE =
+  "El pago se gestiona directamente con tu academia. Desde aquí puedes consultar tus cuotas y, si quieres, activar el pago automático.";
+
 export const FAMILY_NO_ACCESS_TITLE = "Aún no hay datos que mostrar";
 export const FAMILY_NO_ACCESS_BODY =
   "Tu academia todavía no ha vinculado esta cuenta a tu familia. Si crees que es un error, habla con tu academia.";

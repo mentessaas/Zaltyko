@@ -368,6 +368,9 @@ const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
   // El prefijo cubre también `/link`. Las rutas lo aplican además por
   // academia verificada, también en los GET.
   "/api/v1/owner/payments/connect": { limit: 10, window: 60 },
+  // Pago automático de las familias (Fase 2): la academia revoca el método
+  // de una familia (desliga el método en Stripe). Por academia verificada.
+  "/api/v1/owner/payments/family-methods": { limit: 20, window: 60 },
 
   // Webhooks - no limits (called by external services)
   "/api/stripe/webhook": { limit: 1000, window: 60 },
