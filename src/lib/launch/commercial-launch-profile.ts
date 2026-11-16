@@ -103,9 +103,9 @@ const declaredCommercialLaunchProfile: Readonly<
   // seller_tax_id / seller_address y registration_incomplete.
   registrationStatus: "verified",
   registrationVerifiedOn: "2026-11-05",
-  // Claude/Elvis: true tras enviar un correo real a hola@zaltyko.com y
-  // responderlo desde ese buzón.
-  supportMailboxVerified: false,
+  // Verificado el 16-11-2026: Claude envió un correo real a hola@zaltyko.com y
+  // Elvis lo respondió desde ese buzón.
+  supportMailboxVerified: true,
   // Confirmado por la sesión de finanzas con el gestor (13-11-2026) solo para
   // España: IAE 844, IVA 21 %, sin retención. No abre otros mercados.
   taxTreatmentReviewed: true,

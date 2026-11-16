@@ -106,7 +106,6 @@ describe("readiness según las variables del vendedor", () => {
     stubSellerEnvironment(SYNTHETIC_TAX_ID, SYNTHETIC_ADDRESS);
     const { ready, missing } = getCommercialLaunchReadiness();
     expect(missing).toEqual([
-      "support_mailbox",
       "legal_texts",
       "invoicing_integration",
       "live_release",
