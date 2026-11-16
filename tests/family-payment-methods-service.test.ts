@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { db } from "@/db";
+import { PRODUCTION_SUPABASE_PROJECT_REF } from "@/lib/launch/production-supabase";
 import { logger } from "@/lib/logger";
 import { loadOrganizationPlanState } from "@/modules/billing/application/plan-state";
 import type { EntitlementSnapshot } from "@/modules/billing/domain/plan-eligibility";
 import {
   completeFamilyPaymentSetup,
   getFamilyPaymentMethodState,
+  getOwnerFamilyPaymentMethodsView,
   listOwnerFamilyPaymentMethods,
   revokeFamilyPaymentMethod,
   revokeFamilyPaymentMethodByOwner,
@@ -262,13 +264,70 @@ describe("servicio de pago automático de la familia", () => {
     vi.unstubAllEnvs();
   });
 
-  describe("getFamilyPaymentMethodState", () => {
-    it("con la bandera apagada no toca la base", async () => {
+  describe("getFamilyPaymentMethodState con la bandera apagada", () => {
+    beforeEach(() => {
       vi.stubEnv("ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED", "false");
+    });
+
+    it("con clave Live responde flag_off sin tocar la base", async () => {
+      vi.stubEnv("STRIPE_SECRET_KEY", "sk_live_synthetic");
       expect(await getFamilyPaymentMethodState(family)).toEqual({ kind: "unavailable", reason: "flag_off" });
       expect(isFamilyPaymentMethodsStorageAvailable).not.toHaveBeenCalled();
       expect(resolveFamilyPayer).not.toHaveBeenCalled();
     });
+
+    it("contra la base de producción responde flag_off sin tocar la base", async () => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", `https://${PRODUCTION_SUPABASE_PROJECT_REF}.supabase.co`);
+      expect(await getFamilyPaymentMethodState(family)).toEqual({ kind: "unavailable", reason: "flag_off" });
+      expect(isFamilyPaymentMethodsStorageAvailable).not.toHaveBeenCalled();
+      expect(resolveFamilyPayer).not.toHaveBeenCalled();
+    });
+
+    it("sin almacenamiento responde flag_off sin leer a la persona pagadora", async () => {
+      vi.mocked(isFamilyPaymentMethodsStorageAvailable).mockResolvedValue(false);
+      expect(await getFamilyPaymentMethodState(family)).toEqual({ kind: "unavailable", reason: "flag_off" });
+      expect(resolveFamilyPayer).not.toHaveBeenCalled();
+    });
+
+    it("quien no es la pagadora ve flag_off", async () => {
+      vi.mocked(resolveFamilyPayer).mockResolvedValue(null);
+      expect(await getFamilyPaymentMethodState(family)).toEqual({ kind: "unavailable", reason: "flag_off" });
+      expect(findConnectAccountForOrganization).not.toHaveBeenCalled();
+    });
+
+    it("sin método guardado responde flag_off: nunca ofrece guardar uno", async () => {
+      expect(await getFamilyPaymentMethodState(family)).toEqual({ kind: "unavailable", reason: "flag_off" });
+      expect(findActiveAuthorization).toHaveBeenCalledWith(expect.anything(), { organizationId, accountRowId, familyPayerId });
+      expect(loadOrganizationPlanState).not.toHaveBeenCalled();
+    });
+
+    it("sin cuenta conectada responde flag_off", async () => {
+      vi.mocked(findConnectAccountForOrganization).mockResolvedValue(null);
+      expect(await getFamilyPaymentMethodState(family)).toEqual({ kind: "unavailable", reason: "flag_off" });
+      expect(findActiveAuthorization).not.toHaveBeenCalled();
+    });
+
+    it("con método guardado lo enseña sin métodos para cambiar (solo se puede revocar)", async () => {
+      // Ni la cuenta lista ni el plan de pago importan para enseñarlo.
+      vi.mocked(findConnectAccountForOrganization).mockResolvedValue(account({ status: "restricted" }));
+      vi.mocked(loadOrganizationPlanState).mockResolvedValue({ entitlement: entitlement("free"), subscription: null });
+      vi.mocked(findActiveAuthorization).mockResolvedValue(authorization({ paymentMethodKind: "sepa_debit" }));
+      expect(await getFamilyPaymentMethodState(family)).toEqual({
+        kind: "active",
+        method: "sepa_debit",
+        since: "2026-11-16T11:55:00.000Z",
+        kinds: [],
+        academyName,
+        consentVersion: FAMILY_PAYMENT_CONSENT_VERSION,
+        consentTexts: {},
+      });
+      expect(resolveFamilyPayer).toHaveBeenCalledWith(expect.anything(), { userId, organizationId, familyId, now });
+      expect(findConnectAccountForOrganization).toHaveBeenCalledWith(expect.anything(), organizationId, "test");
+      expect(loadOrganizationPlanState).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getFamilyPaymentMethodState", () => {
 
     it("con clave Live responde live_not_released sin tocar la base", async () => {
       vi.stubEnv("STRIPE_SECRET_KEY", "sk_live_synthetic");
@@ -714,6 +773,39 @@ describe("servicio de pago automático de la familia", () => {
       vi.mocked(lockActiveAuthorization).mockResolvedValue(authorization());
       expect(await revokeFamilyPaymentMethod(family, { gateway: fakeGateway() })).toEqual({ outcome: "revoked" });
     });
+
+    it("con la bandera apagada se puede dejar de pagar automáticamente", async () => {
+      vi.stubEnv("ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED", "false");
+      vi.mocked(lockActiveAuthorization).mockResolvedValue(authorization());
+      const gateway = fakeGateway();
+      expect(await revokeFamilyPaymentMethod(family, { gateway })).toEqual({ outcome: "revoked" });
+      expect(revokeAuthorization).toHaveBeenCalledWith(tx, { organizationId, authorizationId, now });
+      expect(gateway.detachPaymentMethod).toHaveBeenCalledWith({ connectedAccount, paymentMethod: "pm_SyntheticNew" });
+    });
+
+    it.each([
+      ["clave Live", "live_not_released", () => vi.stubEnv("STRIPE_SECRET_KEY", "sk_live_synthetic")],
+      [
+        "base de producción",
+        "live_not_released",
+        () => vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", `https://${PRODUCTION_SUPABASE_PROJECT_REF}.supabase.co`),
+      ],
+      ["sin clave de Stripe", "environment_unknown", () => vi.stubEnv("STRIPE_SECRET_KEY", "")],
+      ["sin almacenamiento de la Fase 2", "storage_missing", () => vi.mocked(isFamilyPaymentMethodsStorageAvailable).mockResolvedValue(false)],
+      ["sin almacenamiento de la Fase 1", "storage_missing", () => vi.mocked(isConnectOnboardingStorageAvailable).mockResolvedValue(false)],
+    ])("con la bandera apagada y %s: 503 sin leer a la persona pagadora", async (_label, reason, arrange) => {
+      vi.stubEnv("ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED", "false");
+      arrange();
+      const gateway = fakeGateway();
+      await expect(revokeFamilyPaymentMethod(family, { gateway })).rejects.toMatchObject({
+        code: "FEATURE_NOT_AVAILABLE",
+        status: 503,
+        details: { reason },
+      });
+      expect(resolveFamilyPayer).not.toHaveBeenCalled();
+      expect(gateway.detachPaymentMethod).not.toHaveBeenCalled();
+      expectNoWrites();
+    });
   });
 
   describe("academia", () => {
@@ -751,10 +843,56 @@ describe("servicio de pago automático de la familia", () => {
       });
     });
 
-    it("con la función cerrada la lista está vacía", async () => {
+    it("con la bandera apagada lista las activas (para poder revocarlas)", async () => {
       vi.stubEnv("ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED", "false");
+      vi.mocked(listActiveAuthorizationsForOrganization).mockResolvedValue([
+        { authorizationId, familyId, givenName: "Lucía", familyName: "García", method: "card", since: new Date("2026-11-16T11:55:00.000Z") },
+      ]);
+      expect(await listOwnerFamilyPaymentMethods({ userId, organizationId })).toEqual([
+        { authorizationId, familyId, payerName: "Lucía García", method: "card", since: "2026-11-16T11:55:00.000Z" },
+      ]);
+    });
+
+    it.each([
+      ["clave Live", () => vi.stubEnv("STRIPE_SECRET_KEY", "sk_live_synthetic")],
+      ["base de producción", () => vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", `https://${PRODUCTION_SUPABASE_PROJECT_REF}.supabase.co`)],
+      ["sin almacenamiento", () => vi.mocked(isFamilyPaymentMethodsStorageAvailable).mockResolvedValue(false)],
+    ])("con %s la lista está vacía y no se mira ni el rol ni la base", async (_label, arrange) => {
+      arrange();
       expect(await listOwnerFamilyPaymentMethods({ userId, organizationId })).toEqual([]);
+      expect(resolveOwnerScope).not.toHaveBeenCalled();
+      expect(findConnectAccountForOrganization).not.toHaveBeenCalled();
       expect(listActiveAuthorizationsForOrganization).not.toHaveBeenCalled();
+    });
+
+    it("con la bandera apagada la academia revoca igual", async () => {
+      vi.stubEnv("ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED", "false");
+      vi.mocked(lockActiveAuthorizationById).mockResolvedValue(authorization());
+      const gateway = fakeGateway();
+      expect(
+        await revokeFamilyPaymentMethodByOwner({ userId, organizationId, authorizationId, now }, { gateway })
+      ).toEqual({ outcome: "revoked" });
+      expect(gateway.detachPaymentMethod).toHaveBeenCalledWith({ connectedAccount, paymentMethod: "pm_SyntheticNew" });
+    });
+
+    it.each([
+      ["clave Live", "live_not_released", () => vi.stubEnv("STRIPE_SECRET_KEY", "sk_live_synthetic")],
+      [
+        "base de producción",
+        "live_not_released",
+        () => vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", `https://${PRODUCTION_SUPABASE_PROJECT_REF}.supabase.co`),
+      ],
+      ["sin almacenamiento", "storage_missing", () => vi.mocked(isConnectOnboardingStorageAvailable).mockResolvedValue(false)],
+    ])("la academia con %s recibe 503 sin escribir", async (_label, reason, arrange) => {
+      vi.stubEnv("ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED", "false");
+      arrange();
+      const gateway = fakeGateway();
+      await expect(
+        revokeFamilyPaymentMethodByOwner({ userId, organizationId, authorizationId, now }, { gateway })
+      ).rejects.toMatchObject({ code: "FEATURE_NOT_AVAILABLE", status: 503, details: { reason } });
+      expect(findConnectAccountForOrganization).not.toHaveBeenCalled();
+      expect(gateway.detachPaymentMethod).not.toHaveBeenCalled();
+      expectNoWrites();
     });
 
     it("revoca por id dentro de su academia y cuenta, con actor owner, y desliga después", async () => {
@@ -778,6 +916,68 @@ describe("servicio de pago automático de la familia", () => {
         await revokeFamilyPaymentMethodByOwner({ userId, organizationId, authorizationId, now }, { gateway })
       ).toEqual({ outcome: "none" });
       expect(gateway.detachPaymentMethod).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getOwnerFamilyPaymentMethodsView (panel de Familias)", () => {
+    const activeRow = {
+      authorizationId,
+      familyId,
+      givenName: "Lucía",
+      familyName: "García",
+      method: "card" as const,
+      since: new Date("2026-11-16T11:55:00.000Z"),
+    };
+    const listed = { authorizationId, familyId, payerName: "Lucía García", method: "card", since: "2026-11-16T11:55:00.000Z" };
+
+    beforeEach(() => {
+      vi.mocked(listActiveAuthorizationsForOrganization).mockResolvedValue([]);
+    });
+
+    it("con activas se enseña aunque la bandera esté apagada", async () => {
+      vi.stubEnv("ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED", "false");
+      vi.mocked(listActiveAuthorizationsForOrganization).mockResolvedValue([activeRow]);
+      expect(await getOwnerFamilyPaymentMethodsView({ userId, organizationId, now })).toEqual({
+        visible: true,
+        methods: [listed],
+      });
+      expect(loadOrganizationPlanState).not.toHaveBeenCalled();
+    });
+
+    it("vacía y con la bandera apagada no se enseña", async () => {
+      vi.stubEnv("ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED", "false");
+      expect(await getOwnerFamilyPaymentMethodsView({ userId, organizationId, now })).toEqual({ visible: false });
+      expect(loadOrganizationPlanState).not.toHaveBeenCalled();
+    });
+
+    it("vacía, con la bandera encendida y la academia lista: se enseña vacía", async () => {
+      expect(await getOwnerFamilyPaymentMethodsView({ userId, organizationId, now })).toEqual({ visible: true, methods: [] });
+    });
+
+    it.each([
+      ["sin cuenta conectada", () => vi.mocked(findConnectAccountForOrganization).mockResolvedValue(null)],
+      ["con la cuenta restringida", () => vi.mocked(findConnectAccountForOrganization).mockResolvedValue(account({ status: "restricted" }))],
+      [
+        "con plan Free",
+        () => vi.mocked(loadOrganizationPlanState).mockResolvedValue({ entitlement: entitlement("free"), subscription: null }),
+      ],
+    ])("vacía, con la bandera encendida y la academia %s: no se enseña un vacío engañoso", async (_label, arrange) => {
+      arrange();
+      expect(await getOwnerFamilyPaymentMethodsView({ userId, organizationId, now })).toEqual({ visible: false });
+    });
+
+    it("con clave Live no se enseña y no se mira el rol", async () => {
+      vi.stubEnv("STRIPE_SECRET_KEY", "sk_live_synthetic");
+      expect(await getOwnerFamilyPaymentMethodsView({ userId, organizationId, now })).toEqual({ visible: false });
+      expect(resolveOwnerScope).not.toHaveBeenCalled();
+    });
+
+    it("sin permiso lanza FORBIDDEN (la página lo convierte en «sin panel»)", async () => {
+      vi.mocked(resolveOwnerScope).mockResolvedValue(ownerScope("manager"));
+      await expect(getOwnerFamilyPaymentMethodsView({ userId, organizationId, now })).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        status: 403,
+      });
     });
   });
 });

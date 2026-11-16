@@ -31,6 +31,8 @@ import {
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
 import {
   evaluateFamilyPaymentMethodAvailability,
+  evaluateFamilyPaymentRevocationAvailability,
+  type FamilyPaymentRevocationUnavailableReason,
   type FamilyPaymentUnavailableReason,
 } from "@/modules/family-payment-methods/domain/availability";
 import {
@@ -199,6 +201,15 @@ interface GateInputs {
 
 type Gate = { open: true; inputs: GateInputs } | { open: false; reason: FamilyPaymentUnavailableReason };
 
+/** La tabla de intentos (Fase 2) y las columnas de la cuenta conectada (Fase 1). */
+async function loadStorageAvailable(): Promise<boolean> {
+  const [family, connect] = await Promise.all([
+    isFamilyPaymentMethodsStorageAvailable(),
+    isConnectOnboardingStorageAvailable(),
+  ]);
+  return family && connect;
+}
+
 /**
  * Bandera, entorno, base y almacenamiento. Sin bandera, fuera de `test` o
  * contra la base de producción no se consulta la base.
@@ -209,12 +220,7 @@ async function loadGate(organizationId: string, now: Date): Promise<Gate> {
   const productionDatabase = isProductionDatabase();
   let storageAvailable = false;
   if (flagEnabled && environment === ENVIRONMENT && !productionDatabase) {
-    // La tabla de intentos y las columnas de la cuenta conectada (Fase 1).
-    const [family, connect] = await Promise.all([
-      isFamilyPaymentMethodsStorageAvailable(),
-      isConnectOnboardingStorageAvailable(),
-    ]);
-    storageAvailable = family && connect;
+    storageAvailable = await loadStorageAvailable();
   }
   const inputs = { flagEnabled, environment, productionDatabase, storageAvailable };
   const result = evaluateFamilyPaymentMethodAvailability({
@@ -230,6 +236,30 @@ async function loadGate(organizationId: string, now: Date): Promise<Gate> {
   }
   return { open: true, inputs };
 }
+
+type RevocationGate = { open: true } | { open: false; reason: FamilyPaymentRevocationUnavailableReason };
+
+/**
+ * Puerta para revocar (y para ver un método ya guardado): no mira la bandera
+ * de esta fase, sí la clave de test, la base que no es de producción y el
+ * almacenamiento. Fuera de `test` o contra producción no se consulta la base.
+ */
+async function loadRevocationGate(): Promise<RevocationGate> {
+  const environment = resolveConnectEnvironment();
+  const productionDatabase = isProductionDatabase();
+  const storageAvailable =
+    environment === ENVIRONMENT && !productionDatabase ? await loadStorageAvailable() : false;
+  const result = evaluateFamilyPaymentRevocationAvailability({ environment, productionDatabase, storageAvailable });
+  return result.available ? { open: true } : { open: false, reason: result.reason };
+}
+
+/** Lo que el resto de comprobaciones necesita cuando la puerta de revocar está abierta y la bandera encendida. */
+const OPEN_GATE_INPUTS: GateInputs = {
+  flagEnabled: true,
+  environment: ENVIRONMENT,
+  productionDatabase: false,
+  storageAvailable: true,
+};
 
 interface AcademyContext {
   account: StoredConnectAccount | null;
@@ -375,6 +405,41 @@ async function revokeLockedAuthorization(
   });
 }
 
+/**
+ * Con la bandera apagada solo se enseña un método ya guardado, para que la
+ * persona pagadora pueda dejar de pagar automáticamente; nunca se ofrece
+ * guardar ni cambiar (`kinds` vacío). Cualquier otra cosa es `flag_off`.
+ */
+async function getActiveStateWithFlagOff(
+  input: { userId: string; organizationId: string; familyId: string },
+  now: Date
+): Promise<FamilyPaymentMethodState> {
+  const off: FamilyPaymentMethodState = { kind: "unavailable", reason: "flag_off" };
+  const gate = await loadRevocationGate();
+  if (!gate.open) return off;
+  const payer = await resolveFamilyPayer(db, { ...input, now });
+  if (!payer) return off;
+  const account = await findConnectAccountForOrganization(db, input.organizationId, ENVIRONMENT);
+  if (!account) return off;
+  const active = await findActiveAuthorization(db, {
+    organizationId: input.organizationId,
+    accountRowId: account.id,
+    familyPayerId: payer.familyPayerId,
+  });
+  if (!active) return off;
+  const academyName = await loadOrganizationName(db, input.organizationId);
+  if (academyName === null) throw new Error("Family payment methods: academy row missing");
+  return {
+    kind: "active",
+    method: active.paymentMethodKind,
+    since: active.consentedAt.toISOString(),
+    kinds: [],
+    academyName,
+    consentVersion: FAMILY_PAYMENT_CONSENT_VERSION,
+    consentTexts: {},
+  };
+}
+
 /** Estado del pago automático de una familia para el portal. */
 export async function getFamilyPaymentMethodState(
   input: { userId: string; organizationId: string; familyId: string; now?: Date },
@@ -383,6 +448,7 @@ export async function getFamilyPaymentMethodState(
 ): Promise<FamilyPaymentMethodState> {
   const parsed = familyInputSchema.parse(input);
   const now = input.now ?? new Date();
+  if (!isFamilyPaymentMethodsFlagEnabled()) return getActiveStateWithFlagOff(parsed, now);
   const gate = await loadGate(parsed.organizationId, now);
   if (!gate.open) return { kind: "unavailable", reason: gate.reason };
 
@@ -730,23 +796,24 @@ export async function completeFamilyPaymentSetup(
 }
 
 /**
- * Revocar no exige que la academia siga lista ni el plan de pago: dejar de
- * pagar automáticamente debe poder hacerse siempre que la función exista.
+ * Revocar no exige la bandera de esta fase, ni que la academia siga lista, ni
+ * el plan de pago: dejar de pagar automáticamente debe poder hacerse siempre
+ * que exista el almacenamiento, con clave de test y fuera de producción.
  */
-async function requireRevocationAccount(organizationId: string, now: Date): Promise<StoredConnectAccount | null> {
-  const gate = await loadGate(organizationId, now);
+async function requireRevocationAccount(organizationId: string): Promise<StoredConnectAccount | null> {
+  const gate = await loadRevocationGate();
   if (!gate.open) throw unavailableError(gate.reason);
   return findConnectAccountForOrganization(db, organizationId, ENVIRONMENT);
 }
 
-/** La persona pagadora deja de pagar automáticamente. */
+/** La persona pagadora deja de pagar automáticamente (también con la bandera apagada). */
 export async function revokeFamilyPaymentMethod(
   input: { userId: string; organizationId: string; familyId: string; now?: Date },
   deps?: FamilyPaymentMethodsDeps
 ): Promise<{ outcome: "revoked" | "none" }> {
   const parsed = familyInputSchema.parse(input);
   const now = input.now ?? new Date();
-  const gate = await loadGate(parsed.organizationId, now);
+  const gate = await loadRevocationGate();
   if (!gate.open) throw unavailableError(gate.reason);
   const payer = await resolveFamilyPayer(db, { ...parsed, now });
   if (!payer) throw notFoundError();
@@ -798,32 +865,82 @@ function payerDisplayName(givenName: string, familyName: string): string {
   return `${givenName.trim()} ${firstSurname}`.trim();
 }
 
-/** Familias de la academia que pagan automáticamente (panel de la academia). */
-export async function listOwnerFamilyPaymentMethods(input: {
+export interface OwnerFamilyPaymentMethodRow {
+  authorizationId: string;
+  familyId: string;
+  payerName: string;
+  method: PaymentMethodKind;
+  since: string;
+}
+
+/**
+ * Orden: puerta de revocar (sin bandera) → rol → base. Con la puerta cerrada
+ * no se consulta nada de la academia.
+ */
+async function readOwnerFamilyPaymentMethods(input: {
   userId: string;
   organizationId: string;
-}): Promise<
-  Array<{ authorizationId: string; familyId: string; payerName: string; method: PaymentMethodKind; since: string }>
-> {
-  const parsed = ownerInputSchema.parse(input);
-  await requireOwnerOrFullAdmin(parsed.userId, parsed.organizationId);
-  const gate = await loadGate(parsed.organizationId, new Date());
-  if (!gate.open) return [];
-  const account = await findConnectAccountForOrganization(db, parsed.organizationId, ENVIRONMENT);
-  if (!account) return [];
+}): Promise<{ open: false } | { open: true; methods: OwnerFamilyPaymentMethodRow[] }> {
+  const gate = await loadRevocationGate();
+  if (!gate.open) return { open: false };
+  await requireOwnerOrFullAdmin(input.userId, input.organizationId);
+  const account = await findConnectAccountForOrganization(db, input.organizationId, ENVIRONMENT);
+  if (!account) return { open: true, methods: [] };
 
   const rows = await listActiveAuthorizationsForOrganization(db, {
-    organizationId: parsed.organizationId,
+    organizationId: input.organizationId,
     accountRowId: account.id,
     limit: OWNER_LIST_LIMIT,
   });
-  return rows.map((row) => ({
-    authorizationId: row.authorizationId,
-    familyId: row.familyId,
-    payerName: payerDisplayName(row.givenName, row.familyName),
-    method: row.method,
-    since: row.since.toISOString(),
-  }));
+  return {
+    open: true,
+    methods: rows.map((row) => ({
+      authorizationId: row.authorizationId,
+      familyId: row.familyId,
+      payerName: payerDisplayName(row.givenName, row.familyName),
+      method: row.method,
+      since: row.since.toISOString(),
+    })),
+  };
+}
+
+/**
+ * Familias de la academia que pagan automáticamente. También con la bandera
+ * apagada, para que la academia pueda revocar lo que ya está guardado.
+ */
+export async function listOwnerFamilyPaymentMethods(input: {
+  userId: string;
+  organizationId: string;
+}): Promise<OwnerFamilyPaymentMethodRow[]> {
+  const parsed = ownerInputSchema.parse(input);
+  const read = await readOwnerFamilyPaymentMethods(parsed);
+  return read.open ? read.methods : [];
+}
+
+export type OwnerFamilyPaymentMethodsView =
+  | { visible: false }
+  | { visible: true; methods: OwnerFamilyPaymentMethodRow[] };
+
+/**
+ * Panel de la academia en Familias. Con autorizaciones activas se enseña
+ * siempre (para poder revocarlas). Vacío solo se enseña si la academia puede
+ * ofrecer el pago automático ahora (bandera encendida, cuenta lista y plan de
+ * pago); si no, un «ninguna familia todavía» sería engañoso y no se pinta.
+ */
+export async function getOwnerFamilyPaymentMethodsView(input: {
+  userId: string;
+  organizationId: string;
+  now?: Date;
+}): Promise<OwnerFamilyPaymentMethodsView> {
+  const parsed = ownerInputSchema.parse(input);
+  const now = input.now ?? new Date();
+  const read = await readOwnerFamilyPaymentMethods(parsed);
+  if (!read.open) return { visible: false };
+  if (read.methods.length > 0) return { visible: true, methods: read.methods };
+  if (!isFamilyPaymentMethodsFlagEnabled()) return { visible: false };
+  // La puerta de revocar ya comprobó entorno, base y almacenamiento.
+  const context = await loadAcademyContext(OPEN_GATE_INPUTS, parsed.organizationId, true, now);
+  return context.kinds === null ? { visible: false } : { visible: true, methods: [] };
 }
 
 /** La academia deja sin efecto el pago automático de una familia. */
@@ -834,7 +951,7 @@ export async function revokeFamilyPaymentMethodByOwner(
   const parsed = ownerRevokeInputSchema.parse(input);
   const now = input.now ?? new Date();
   await requireOwnerOrFullAdmin(parsed.userId, parsed.organizationId);
-  const account = await requireRevocationAccount(parsed.organizationId, now);
+  const account = await requireRevocationAccount(parsed.organizationId);
   if (!account) return { outcome: "none" };
 
   const revoked = await db.transaction(async (tx) => {

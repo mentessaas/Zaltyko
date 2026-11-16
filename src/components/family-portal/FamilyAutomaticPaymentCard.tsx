@@ -45,6 +45,8 @@ const TEXT = {
     "Las cuotas dejarán de cobrarse solas y tendrás que pagarlas directamente a tu academia. ¿Quieres dejar de pagar automáticamente?",
   saveFailed: "No se pudo guardar el método de pago. Vuelve a intentarlo.",
   revokeFailed: "No se pudo dejar de pagar automáticamente. Vuelve a intentarlo en un momento.",
+  revokeUnavailable:
+    "Ahora mismo no se puede dejar de pagar automáticamente desde aquí. Habla con tu academia.",
   notOffered: "Tu academia no acepta ahora mismo este método de pago.",
   notFound: "No encontramos este pago automático. Recarga la página.",
   consentRequired: "Recarga la página, lee el texto y vuelve a aceptarlo.",
@@ -108,8 +110,10 @@ function failureMessage(result: { status: number; code: string | null }, action:
       return TEXT.notFound;
     case "FAMILY_PAYMENT_CONSENT_REQUIRED":
       return TEXT.consentRequired;
+    case "FAMILY_PAYMENT_REVOKE_FAILED":
+      return TEXT.revokeFailed;
     case "FEATURE_NOT_AVAILABLE":
-      return action === "revoke" ? TEXT.revokeFailed : `${TEXT.unavailable}.`;
+      return action === "revoke" ? TEXT.revokeUnavailable : `${TEXT.unavailable}.`;
     default:
       return action === "revoke" ? TEXT.revokeFailed : TEXT.saveFailed;
   }

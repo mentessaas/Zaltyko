@@ -4,12 +4,13 @@
  *
  * POST { organizationId, authorizationId } → { outcome: "revoked" | "none" }
  *
- * Mismo patrón que Conectar Stripe (Fase 1): sesión y mismo origen aquí; la
- * bandera de esta fase antes de leer el cuerpo; límite por academia
- * verificada (ROUTE_LIMITS, 20/min) después de resolver el alcance; el
- * servicio repite `resolveOwnerScope` (propiedad, o administración con todas
- * las sedes) y los cerrojos de entorno y base antes de revocar. Revocar no
- * anula los cobros ya enviados.
+ * Mismo patrón que Conectar Stripe (Fase 1): sesión y mismo origen aquí;
+ * límite por academia verificada (ROUTE_LIMITS, 20/min) después de resolver
+ * el alcance; el servicio repite `resolveOwnerScope` (propiedad, o
+ * administración con todas las sedes) y los cerrojos de entorno, base y
+ * almacenamiento antes de revocar. No exige la bandera de esta fase: con la
+ * función cerrada, la academia tiene que poder revocar lo ya guardado.
+ * Revocar no anula los cobros ya enviados.
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -22,7 +23,6 @@ import {
   getVerifiedTenantRateLimitIdentifier,
   rateLimit,
 } from "@/lib/rate-limit";
-import { isFamilyPaymentMethodsFlagEnabled } from "@/modules/family-payment-methods/application/config";
 import { revokeFamilyPaymentMethodByOwner } from "@/modules/family-payment-methods/application/family-payment-methods-service";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { hasSameOrigin } from "@/modules/saas-billing/application/owner-access";
@@ -65,7 +65,7 @@ async function revokeRateLimitProblem(
   return response;
 }
 
-// @auth-flexible route-guard-reason: verified session and same-origin check (hasSameOrigin, against CSRF) here, this phase's flag before reading the body, then a per-verified-tenant rate limit after resolveOwnerScope; the family-payment-methods service resolves the owner or full-scope admin with resolveOwnerScope and the test-environment and non-production-database locks before revoking an authorization of that academy's connected account.
+// @auth-flexible route-guard-reason: verified session and same-origin check (hasSameOrigin, against CSRF) here, then a per-verified-tenant rate limit after resolveOwnerScope (revoking works with this phase's flag off); the family-payment-methods service resolves the owner or full-scope admin with resolveOwnerScope and the test-environment and non-production-database locks before revoking an authorization of that academy's connected account.
 export async function POST(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) {
@@ -82,14 +82,6 @@ export async function POST(request: Request) {
       title: "Origen no válido",
       detail: "La petición debe hacerse desde la misma web.",
       type: "invalid-origin",
-    });
-  }
-  if (!isFamilyPaymentMethodsFlagEnabled()) {
-    return problemResponse({
-      status: 503,
-      title: "No disponible",
-      detail: "El pago automático no está disponible ahora mismo.",
-      type: "feature-not-available",
     });
   }
 
@@ -125,7 +117,8 @@ export async function POST(request: Request) {
       status: 503,
       title: "No se pudo completar",
       detail: "No se pudo dejar de cobrar automáticamente. Vuelve a intentarlo en un momento.",
-      type: "family-payment-method-revoke-failed",
+      // Mismo tipo que OperationalError FAMILY_PAYMENT_REVOKE_FAILED.
+      type: "family-payment-revoke-failed",
     });
   }
 }

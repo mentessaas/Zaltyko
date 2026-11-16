@@ -150,19 +150,56 @@ describe("POST /api/v1/family/payment-methods: acceso", () => {
     noServiceCalled();
   });
 
-  it("con la bandera de esta fase apagada responde 503 antes de leer el cuerpo", async () => {
+  it.each([
+    ["setup", setupBody],
+    ["complete", completeBody],
+    ["una acción desconocida", { ...revokeBody, action: "charge" }],
+    ["un cuerpo sin acción", { organizationId, familyId }],
+  ])("con la bandera de esta fase apagada, %s responde 503 sin llamar al servicio", async (_label, body) => {
     delete process.env[PHASE_FLAG];
-    const request = post(familyUrl, setupBody);
-    const readBody = vi.spyOn(request, "json");
 
-    const response = await FAMILY_POST(request);
+    const response = await FAMILY_POST(post(familyUrl, body));
 
     expect(response.status).toBe(503);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     const payload = await response.json();
     expect(payload.code).toBe("FEATURE_NOT_AVAILABLE");
     expect(payload.message).toBe("El pago automático no está disponible ahora mismo.");
-    expect(readBody).not.toHaveBeenCalled();
+    noServiceCalled();
+  });
+
+  it("con la bandera de esta fase apagada, revoke sí llega al servicio", async () => {
+    delete process.env[PHASE_FLAG];
+    vi.mocked(revokeFamilyPaymentMethod).mockResolvedValue({ outcome: "revoked" });
+
+    const response = await FAMILY_POST(post(familyUrl, revokeBody));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(revokeFamilyPaymentMethod).toHaveBeenCalledWith({ userId, organizationId, familyId });
+    expect(startFamilyPaymentSetup).not.toHaveBeenCalled();
+    expect(completeFamilyPaymentSetup).not.toHaveBeenCalled();
+    expect(await response.json()).toEqual({ ok: true, data: { outcome: "revoked" } });
+  });
+
+  it("con la bandera de esta fase apagada, revoke con un campo extra responde 400 sin llamar al servicio", async () => {
+    delete process.env[PHASE_FLAG];
+
+    const response = await FAMILY_POST(post(familyUrl, { ...revokeBody, userId }));
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe("INVALID_FAMILY_ACCESS_COMMAND");
+    noServiceCalled();
+  });
+
+  it("con las dos banderas apagadas, revoke responde 503 sin leer la sesión", async () => {
+    delete process.env[PHASE_FLAG];
+    delete process.env[FAMILY_FLAG];
+
+    const response = await FAMILY_POST(post(familyUrl, revokeBody));
+
+    expect(response.status).toBe(503);
+    expect(getCurrentUser).not.toHaveBeenCalled();
     noServiceCalled();
   });
 
@@ -361,14 +398,18 @@ describe("POST /api/v1/family/payment-methods: acciones", () => {
     });
   });
 
-  it("un error inesperado al revocar responde 503 sin detalles", async () => {
+  it("un error inesperado al revocar responde 503 con su código propio y sin detalles", async () => {
     vi.spyOn(logger, "warn").mockImplementation(() => undefined);
     vi.mocked(revokeFamilyPaymentMethod).mockRejectedValue(new Error("detalle interno"));
 
     const response = await FAMILY_POST(post(familyUrl, revokeBody));
 
     expect(response.status).toBe(503);
-    expect(await response.text()).not.toContain("detalle interno");
+    const text = await response.text();
+    expect(text).not.toContain("detalle interno");
+    const payload = JSON.parse(text);
+    expect(payload.code).toBe("FAMILY_PAYMENT_REVOKE_FAILED");
+    expect(payload.message).toBe("No se pudo dejar de pagar automáticamente. Vuelve a intentarlo en un momento.");
   });
 });
 
@@ -401,18 +442,16 @@ describe("POST /api/v1/owner/payments/family-methods", () => {
     noServiceCalled();
   });
 
-  it("con la bandera de esta fase apagada responde 503 antes de leer el cuerpo", async () => {
+  it("con la bandera de esta fase apagada revoca igual (los cerrojos los pone el servicio)", async () => {
     delete process.env[PHASE_FLAG];
-    const request = post(ownerUrl, ownerBody);
-    const readBody = vi.spyOn(request, "json");
+    vi.mocked(revokeFamilyPaymentMethodByOwner).mockResolvedValue({ outcome: "revoked" });
 
-    const response = await OWNER_POST(request);
+    const response = await OWNER_POST(post(ownerUrl, ownerBody));
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(readBody).not.toHaveBeenCalled();
-    expect(resolveOwnerScope).not.toHaveBeenCalled();
-    noServiceCalled();
+    expect(await response.json()).toEqual({ outcome: "revoked" });
+    expect(revokeFamilyPaymentMethodByOwner).toHaveBeenCalledWith({ userId, organizationId, authorizationId });
   });
 
   it.each([
@@ -499,7 +538,10 @@ describe("POST /api/v1/owner/payments/family-methods", () => {
     const response = await OWNER_POST(post(ownerUrl, ownerBody));
 
     expect(response.status).toBe(503);
-    expect(await response.text()).not.toContain("detalle interno");
+    expect(response.headers.get("content-type")).toContain("application/problem+json");
+    const text = await response.text();
+    expect(text).not.toContain("detalle interno");
+    expect(JSON.parse(text).type).toBe("https://zaltyko.com/problems/family-payment-revoke-failed");
     expect(warn).toHaveBeenCalledWith(expect.any(String), {
       organizationId,
       authorizationId,

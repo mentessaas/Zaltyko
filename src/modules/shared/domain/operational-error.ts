@@ -47,7 +47,8 @@ export type OperationalErrorCode =
   | "CONNECT_UNAVAILABLE"
   | "FAMILY_PAYMENT_CONSENT_REQUIRED"
   | "FAMILY_PAYMENT_METHOD_NOT_OFFERED"
-  | "FAMILY_PAYMENT_SETUP_FAILED";
+  | "FAMILY_PAYMENT_SETUP_FAILED"
+  | "FAMILY_PAYMENT_REVOKE_FAILED";
 
 export class OperationalError extends Error {
   constructor(

@@ -12,6 +12,7 @@ import {
 } from "@/modules/family-payment-methods/application/config";
 import {
   evaluateFamilyPaymentMethodAvailability,
+  evaluateFamilyPaymentRevocationAvailability,
   type FamilyPaymentPlanState,
 } from "@/modules/family-payment-methods/domain/availability";
 import {
@@ -384,6 +385,38 @@ describe("evaluateFamilyPaymentMethodAvailability", () => {
           })
         )
       ).toEqual({ available: false, reason: "paid_plan_required" });
+    });
+  });
+});
+
+describe("evaluateFamilyPaymentRevocationAvailability", () => {
+  const ready = { environment: "test" as const, productionDatabase: false, storageAvailable: true };
+
+  it("no mira la bandera: con test, base que no es de producción y almacenamiento se puede revocar", () => {
+    expect(evaluateFamilyPaymentRevocationAvailability(ready)).toEqual({ available: true });
+  });
+
+  it("1. entorno desconocido → environment_unknown", () => {
+    expect(
+      evaluateFamilyPaymentRevocationAvailability({ ...ready, environment: null, productionDatabase: true, storageAvailable: false })
+    ).toEqual({ available: false, reason: "environment_unknown" });
+  });
+
+  it("2. Live o base de producción → live_not_released", () => {
+    expect(evaluateFamilyPaymentRevocationAvailability({ ...ready, environment: "live" })).toEqual({
+      available: false,
+      reason: "live_not_released",
+    });
+    expect(evaluateFamilyPaymentRevocationAvailability({ ...ready, productionDatabase: true, storageAvailable: false })).toEqual({
+      available: false,
+      reason: "live_not_released",
+    });
+  });
+
+  it("3. sin almacenamiento → storage_missing", () => {
+    expect(evaluateFamilyPaymentRevocationAvailability({ ...ready, storageAvailable: false })).toEqual({
+      available: false,
+      reason: "storage_missing",
     });
   });
 });

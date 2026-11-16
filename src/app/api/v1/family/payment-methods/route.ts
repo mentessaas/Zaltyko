@@ -10,8 +10,10 @@
  * POST { action: "revoke", organizationId, familyId } → { outcome: "revoked" | "none" }
  *
  * withFamilyUser comprueba la bandera del acceso de familias, el mismo origen,
- * la sesión y un límite por cuenta; la bandera de esta fase se mira antes de
- * leer el cuerpo. El servicio resuelve la cadena de la persona pagadora y los
+ * la sesión y un límite por cuenta. Con la bandera de esta fase apagada solo
+ * pasa «revoke» (quien ya guardó un método tiene que poder dejar de pagar
+ * automáticamente); «setup» y «complete» responden 503 sin tocar la base ni
+ * Stripe. El servicio resuelve la cadena de la persona pagadora y los
  * cerrojos de entorno y base, y recorta la IP y el agente antes de guardarlos.
  * Nunca se refleja la entrada ni un error del proveedor en la respuesta.
  */
@@ -114,7 +116,7 @@ function unexpectedError(body: Body, error: unknown): OperationalError {
   });
   if (body.action === "revoke") {
     return new OperationalError(
-      "FEATURE_NOT_AVAILABLE",
+      "FAMILY_PAYMENT_REVOKE_FAILED",
       "No se pudo dejar de pagar automáticamente. Vuelve a intentarlo en un momento.",
       503
     );
@@ -126,11 +128,13 @@ function unexpectedError(body: Body, error: unknown): OperationalError {
   );
 }
 
-// @auth-flexible route-guard-reason: withFamilyUser checks the family-access flag, same origin, the session user (getCurrentUser) and a per-account limit; this phase's flag is checked before reading the body, and the family-payment-methods service only acts for the session user as the open payer of that family in that academy (guardian → family → family_payers), behind the test-environment and non-production-database locks.
+// @auth-flexible route-guard-reason: withFamilyUser checks the family-access flag, same origin, the session user (getCurrentUser) and a per-account limit; with this phase's flag off only the revoke action passes (setup and complete get 503 before any database or Stripe call), and the family-payment-methods service only acts for the session user as the open payer of that family in that academy (guardian → family → family_payers), behind the test-environment and non-production-database locks.
 export async function POST(request: Request) {
   return withFamilyUser(request, { mutation: true, limit: FAMILY_PAYMENT_METHODS_LIMIT }, async (userId) => {
-    if (!isFamilyPaymentMethodsFlagEnabled()) throw featureOff();
-    const body = bodySchema.parse(await readJson(request));
+    const raw = await readJson(request);
+    // Con la bandera apagada solo se puede dejar de pagar automáticamente.
+    if (!isFamilyPaymentMethodsFlagEnabled() && raw?.action !== "revoke") throw featureOff();
+    const body = bodySchema.parse(raw);
     try {
       return await run(request, userId, body);
     } catch (error) {

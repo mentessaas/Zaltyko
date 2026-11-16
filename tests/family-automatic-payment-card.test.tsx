@@ -329,7 +329,7 @@ describe("FamilyAutomaticPaymentCard", () => {
   });
 
   it("si no se puede dejar de pagar automáticamente, lo dice y mantiene el método", async () => {
-    stubFetch(() => failure(503, "FEATURE_NOT_AVAILABLE"));
+    stubFetch(() => failure(503, "FAMILY_PAYMENT_REVOKE_FAILED"));
     renderCard(activeState("card"));
 
     fireEvent.click(screen.getByRole("button", { name: "Dejar de pagar automáticamente" }));
@@ -338,7 +338,41 @@ describe("FamilyAutomaticPaymentCard", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "No se pudo dejar de pagar automáticamente. Vuelve a intentarlo en un momento."
     );
+    expect(document.body.innerHTML).not.toContain("FAMILY_PAYMENT_REVOKE_FAILED");
     expect(screen.getByText(/^Pagas automáticamente con tarjeta/)).toBeInTheDocument();
+  });
+
+  it("si la función no está disponible al revocar, manda a hablar con la academia", async () => {
+    stubFetch(() => failure(503, "FEATURE_NOT_AVAILABLE"));
+    renderCard(activeState("card"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Dejar de pagar automáticamente" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, dejar de pagar automáticamente" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Ahora mismo no se puede dejar de pagar automáticamente desde aquí. Habla con tu academia."
+    );
+    expect(document.body.innerHTML).not.toContain("FEATURE_NOT_AVAILABLE");
+    expect(screen.getByText(/^Pagas automáticamente con tarjeta/)).toBeInTheDocument();
+  });
+
+  it("con la función cerrada (sin métodos que ofrecer) solo deja revocar, no cambiar", async () => {
+    stubFetch(() => success({ outcome: "revoked" }));
+    renderCard({ ...activeState("card"), kinds: [], consentTexts: {} } as FamilyPaymentMethodState);
+
+    expect(screen.getByText("Pagas automáticamente con tarjeta desde el 10 de noviembre de 2026.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cambiar método" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Dejar de pagar automáticamente" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, dejar de pagar automáticamente" }));
+
+    expect(await screen.findByText("Ya no pagas automáticamente.")).toBeInTheDocument();
+    expect(calls.map((call) => call.body)).toEqual([
+      { action: "revoke", organizationId: ORGANIZATION_ID, familyId: FAMILY_ID },
+    ]);
+    // Sin métodos que ofrecer, después no aparece el formulario para guardar otro.
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Continuar" })).toBeNull();
   });
 
   it("a la vuelta del banco comprueba una sola vez y limpia la dirección", async () => {

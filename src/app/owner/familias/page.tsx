@@ -21,12 +21,10 @@ import {
 import { getOwnerNoticesBundle } from "@/modules/family-access/application/family-notices";
 import { listOwnerFamilyAccess } from "@/modules/family-access/application/guardian-invitations";
 import {
-  isFamilyPaymentMethodsFlagEnabled,
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/family-payment-methods/application/config";
-import { listOwnerFamilyPaymentMethods } from "@/modules/family-payment-methods/application/family-payment-methods-service";
-import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
+import { getOwnerFamilyPaymentMethodsView } from "@/modules/family-payment-methods/application/family-payment-methods-service";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -41,24 +39,30 @@ export const metadata: Metadata = {
 const querySchema = z.object({ organizationId: z.guid().optional() }).strict();
 
 /**
- * Pago automático de las familias (cobro automático, Fase 2). Solo con la
- * bandera de esta fase, Stripe de pruebas, base que no es la de producción y
- * el almacén instalado; si falta algo o la lectura falla (por ejemplo, un
- * administrador sin permiso), el panel no se muestra y la página sigue.
+ * Pago automático de las familias (cobro automático, Fase 2). Decide el
+ * servicio: con autorizaciones activas el panel se muestra siempre (también
+ * con la bandera apagada, para poder revocarlas); vacío solo si la academia
+ * puede ofrecer el pago automático ahora. Con Stripe Live, la base de
+ * producción o sin almacén no se muestra. Si la lectura falla (por ejemplo,
+ * un administrador sin permiso), el panel no se muestra y la página sigue.
+ * Devuelve `null` cuando no hay que pintar el panel.
  */
 async function loadFamilyPaymentMethods(
   userId: string,
   organizationId: string
 ): Promise<OwnerFamilyPaymentMethod[] | null> {
-  if (!isFamilyPaymentMethodsFlagEnabled()) return null;
+  // Los dos cerrojos se leen del entorno, sin base. El servicio los repite.
   if (resolveConnectEnvironment() !== "test" || isProductionDatabase()) return null;
   try {
-    if (!(await isFamilyPaymentMethodsStorageAvailable())) return null;
-    return await listOwnerFamilyPaymentMethods({ userId, organizationId });
+    const view = await getOwnerFamilyPaymentMethodsView({ userId, organizationId });
+    return view.visible ? view.methods : null;
   } catch (error) {
     if (!(error instanceof OperationalError)) {
-      // Solo ids en el log, nunca el error completo.
-      logger.warn("Pago automático de las familias: no se pudo leer la lista de la academia", { organizationId });
+      // Solo ids y el tipo de error en el log, nunca el error completo.
+      logger.warn("Pago automático de las familias: no se pudo leer la lista de la academia", {
+        organizationId,
+        errorName: error instanceof Error ? error.name : "unknown",
+      });
     }
     return null;
   }

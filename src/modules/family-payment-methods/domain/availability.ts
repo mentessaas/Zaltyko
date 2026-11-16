@@ -50,6 +50,43 @@ function isAccountReady(account: FamilyPaymentConnectedAccount | null): boolean 
   return account.status === "active" && account.cardPaymentsCapabilityStatus === "active";
 }
 
+export type FamilyPaymentRevocationUnavailableReason = Extract<
+  FamilyPaymentUnavailableReason,
+  "environment_unknown" | "live_not_released" | "storage_missing"
+>;
+
+export type FamilyPaymentRevocationAvailability =
+  | { available: true }
+  | { available: false; reason: FamilyPaymentRevocationUnavailableReason };
+
+/**
+ * ¿Se puede dejar de pagar automáticamente (o ver y revocar desde la
+ * academia) ahora? No mira la bandera de esta fase: con la función cerrada,
+ * quien ya guardó un método tiene que poder revocarlo. Sí mantiene los dos
+ * cerrojos (clave de test y base que no es la de producción) y exige el
+ * almacenamiento de la Fase 2 y de la Fase 1.
+ */
+export function evaluateFamilyPaymentRevocationAvailability(input: {
+  environment: "test" | "live" | null;
+  /** La base de este despliegue es la Supabase de producción. */
+  productionDatabase: boolean;
+  storageAvailable: boolean;
+}): FamilyPaymentRevocationAvailability {
+  if (input.environment === null) {
+    return { available: false, reason: "environment_unknown" };
+  }
+  // Live y producción cerrados por código en esta fase, aunque la bandera
+  // esté encendida: clave de Live, o una clave de test con la base de
+  // producción (segundo cerrojo, independiente del prefijo de la clave).
+  if (input.environment !== "test" || input.productionDatabase) {
+    return { available: false, reason: "live_not_released" };
+  }
+  if (!input.storageAvailable) {
+    return { available: false, reason: "storage_missing" };
+  }
+  return { available: true };
+}
+
 export function evaluateFamilyPaymentMethodAvailability(input: {
   flagEnabled: boolean;
   environment: "test" | "live" | null;
@@ -64,18 +101,8 @@ export function evaluateFamilyPaymentMethodAvailability(input: {
   now?: Date;
 }): FamilyPaymentMethodAvailability {
   if (!input.flagEnabled) return { available: false, reason: "flag_off" };
-  if (input.environment === null) {
-    return { available: false, reason: "environment_unknown" };
-  }
-  // Live y producción cerrados por código en esta fase, aunque la bandera
-  // esté encendida: clave de Live, o una clave de test con la base de
-  // producción (segundo cerrojo, independiente del prefijo de la clave).
-  if (input.environment !== "test" || input.productionDatabase) {
-    return { available: false, reason: "live_not_released" };
-  }
-  if (!input.storageAvailable) {
-    return { available: false, reason: "storage_missing" };
-  }
+  const revocation = evaluateFamilyPaymentRevocationAvailability(input);
+  if (!revocation.available) return revocation;
   // Solo la persona pagadora de la familia guarda el método de pago.
   if (!input.isPayer) return { available: false, reason: "not_payer" };
   if (!isAccountReady(input.account)) {
