@@ -121,7 +121,11 @@ export const familyCollectionAttempts = zaltyko.table(
       sql.raw("payment_method_kind is null or payment_method_kind in ('card', 'sepa_debit')")
     ),
     check("family_collection_attempts_amount_check", sql.raw("amount_cents > 0")),
-    check("family_collection_attempts_currency_check", sql.raw("currency = 'EUR'")),
+    // Solo un canceled sin cobro en Stripe puede llevar otra moneda (la de su factura).
+    check(
+      "family_collection_attempts_currency_check",
+      sql.raw("currency = 'EUR' or (status = 'canceled' and provider_payment_intent_reference is null)")
+    ),
     check(
       "family_collection_attempts_status_check",
       sql.raw("status in ('claimed', 'created', 'processing', 'succeeded', 'failed', 'canceled')")

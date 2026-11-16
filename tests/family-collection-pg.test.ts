@@ -144,6 +144,60 @@ describeDisposablePg("family collection candidate schema", () => {
   let savedAuthorizationsComment: string | null = null;
   let phase1Failure: PgFailure = null;
   let phase2Failure: PgFailure = null;
+  const createdOrganizations: string[] = [];
+  const createdUsers: string[] = [];
+
+  /**
+   * Borra las filas de las academias de prueba en orden de claves foráneas.
+   * Las academias en sí no se pueden borrar: su historial de plan
+   * (organization_entitlement_changes) es solo de añadir, como en las demás
+   * suites; quedan vacías y sin miembros.
+   */
+  async function deleteFixtureRows() {
+    for (const organizationId of createdOrganizations) {
+      for (const table of [
+        "payments",
+        "charges",
+        "invoice_lines",
+        "invoices",
+        "family_payment_authorizations",
+        "organization_payment_provider_accounts",
+        "family_payers",
+        "family_guardians",
+        "guardians",
+        "people",
+        "families",
+        "organization_members",
+        "locations",
+      ]) {
+        await db.execute(sql`delete from ${sql.identifier("zaltyko")}.${sql.identifier(table)} where organization_id = ${organizationId}::uuid`);
+      }
+    }
+    for (const userId of createdUsers) {
+      await db.execute(sql`delete from auth.users where id = ${userId}::uuid`);
+    }
+  }
+
+  /** Filas que quedan de las academias de prueba (todas deben ser cero). */
+  async function remainingFixtureRows() {
+    // Listas como texto: Drizzle expandiría un array en una lista de parámetros.
+    const organizations = createdOrganizations.join(",");
+    const users = createdUsers.join(",");
+    const result = await db.execute(sql`
+      select
+        (select count(*)::int from zaltyko.payments where organization_id = any(string_to_array(${organizations}, ',')::uuid[])) as payments,
+        (select count(*)::int from zaltyko.charges where organization_id = any(string_to_array(${organizations}, ',')::uuid[])) as charges,
+        (select count(*)::int from zaltyko.invoices where organization_id = any(string_to_array(${organizations}, ',')::uuid[])) as invoices,
+        (select count(*)::int from zaltyko.family_payment_authorizations where organization_id = any(string_to_array(${organizations}, ',')::uuid[])) as authorizations,
+        (select count(*)::int from zaltyko.organization_payment_provider_accounts where organization_id = any(string_to_array(${organizations}, ',')::uuid[])) as accounts,
+        (select count(*)::int from zaltyko.families where organization_id = any(string_to_array(${organizations}, ',')::uuid[])) as families,
+        (select count(*)::int from zaltyko.people where organization_id = any(string_to_array(${organizations}, ',')::uuid[])) as people,
+        (select count(*)::int from zaltyko.organization_members where organization_id = any(string_to_array(${organizations}, ',')::uuid[])) as members,
+        (select count(*)::int from zaltyko.locations where organization_id = any(string_to_array(${organizations}, ',')::uuid[])) as locations,
+        (select count(*)::int from auth.users where id = any(string_to_array(${users}, ',')::uuid[])) as users
+    `);
+    return result.rows[0];
+  }
 
   /** Retira solo lo que instaló este archivo, en orden inverso. */
   async function removeInstalled() {
@@ -171,6 +225,8 @@ describeDisposablePg("family collection candidate schema", () => {
           drop column if exists requirements_state
       `);
     }
+    // Después del esquema: las tablas retiradas ya no apuntan a estas filas.
+    await deleteFixtureRows();
   }
 
   beforeAll(async () => {
@@ -490,10 +546,11 @@ describeDisposablePg("family collection candidate schema", () => {
     for (const day of [null, 1, 29, 31]) await expectOnlyForeignKey(insertSettings(day));
   });
 
-  /** Academia con sede, familia, pagador, cuenta conectada, autorización y factura con una cuota. */
-  async function createCollectableInvoice() {
+  /** Academia con dos sedes, familia, pagador, cuenta conectada, autorización y factura con una cuota. */
+  async function createCollectableInvoice(currency = "EUR") {
     const organizationId = randomUUID();
     const locationId = randomUUID();
+    const secondLocationId = randomUUID();
     const familyId = randomUUID();
     const guardianId = randomUUID();
     const payerId = randomUUID();
@@ -509,11 +566,14 @@ describeDisposablePg("family collection candidate schema", () => {
       insert into zaltyko.organizations (id, name, status, default_timezone, default_currency)
       values (${organizationId}::uuid, ${`CI Cobro automático ${short}`}, 'active'::zaltyko.organization_status, 'Europe/Madrid', 'EUR')
     `);
+    createdOrganizations.push(organizationId);
     await db.execute(sql`
       insert into zaltyko.locations (id, organization_id, code, name, timezone)
-      values (${locationId}::uuid, ${organizationId}::uuid, ${`fc-${short}`}, 'Sede CI', 'Europe/Madrid')
+      values (${locationId}::uuid, ${organizationId}::uuid, ${`fc-${short}`}, 'Sede CI', 'Europe/Madrid'),
+             (${secondLocationId}::uuid, ${organizationId}::uuid, ${`fc2-${short}`}, 'Sede CI 2', 'Europe/Madrid')
     `);
     await db.execute(sql`insert into auth.users (id, email) values (${userId}::uuid, ${`ci-family-collection-${userId}@example.invalid`})`);
+    createdUsers.push(userId);
     await db.execute(sql`
       insert into zaltyko.organization_members (id, organization_id, user_id, role, status, location_scope_mode)
       values (${memberId}::uuid, ${organizationId}::uuid, ${userId}::uuid, 'owner', 'active', 'all')
@@ -559,7 +619,7 @@ describeDisposablePg("family collection candidate schema", () => {
         currency, total_amount_cents, issued_at, due_at, idempotency_key
       ) values (
         ${invoiceId}::uuid, ${organizationId}::uuid, ${locationId}::uuid, ${familyId}::uuid, ${payerId}::uuid,
-        ${`CI-FC-${short}`}, 'issued', 'EUR', 4500, now(), now(), ${`ci-fc-inv-${invoiceId}`}
+        ${`CI-FC-${short}`}, 'issued', ${currency}, 4500, now(), now(), ${`ci-fc-inv-${invoiceId}`}
       )
     `);
     await db.execute(sql`
@@ -568,7 +628,7 @@ describeDisposablePg("family collection candidate schema", () => {
         unit_amount_cents, amount_cents, currency, service_period_start, service_period_end
       ) values (
         ${lineId}::uuid, ${organizationId}::uuid, ${invoiceId}::uuid, ${locationId}::uuid,
-        'ci_collection_fee', 1, 4500, 4500, 'EUR', '2026-11-01'::date, '2026-11-28'::date
+        'ci_collection_fee', 1, 4500, 4500, ${currency}, '2026-11-01'::date, '2026-11-28'::date
       )
     `);
     await db.execute(sql`
@@ -578,10 +638,10 @@ describeDisposablePg("family collection candidate schema", () => {
       ) values (
         ${chargeId}::uuid, ${organizationId}::uuid, ${locationId}::uuid, ${invoiceId}::uuid, ${lineId}::uuid,
         ${familyId}::uuid, ${payerId}::uuid, 'due'::zaltyko.charge_status,
-        4500, 'EUR', now(), '2026-11-01'::date, '2026-11-28'::date, ${`ci-fc-charge-${chargeId}`}
+        4500, ${currency}, now(), '2026-11-01'::date, '2026-11-28'::date, ${`ci-fc-charge-${chargeId}`}
       )
     `);
-    return { organizationId, locationId, familyId, payerId, accountId, authorizationId, invoiceId, chargeId, memberId };
+    return { organizationId, locationId, secondLocationId, familyId, payerId, accountId, authorizationId, invoiceId, chargeId, memberId, currency };
   }
 
   type Invoice = Awaited<ReturnType<typeof createCollectableInvoice>>;
@@ -722,17 +782,67 @@ describeDisposablePg("family collection candidate schema", () => {
       "family_collection_attempts_payment_uq"
     );
 
-    // El intento debe ser de la sede y la moneda de su factura.
-    await expectOnlyForeignKey(
+    // El intento debe ser de la sede de su factura: otra sede de la misma
+    // academia existe, así que solo puede fallar la clave (academia, sede, factura).
+    const wrongLocation = await failureOf(
       db.execute(sql`
         insert into zaltyko.family_collection_attempts (
           organization_id, location_id, invoice_id, family_id, attempt_number, amount_cents, currency, status,
           failure_code, completed_at
         ) values (
-          ${invoice.organizationId}::uuid, ${other.locationId}::uuid, ${invoice.invoiceId}::uuid, ${invoice.familyId}::uuid,
+          ${invoice.organizationId}::uuid, ${invoice.secondLocationId}::uuid, ${invoice.invoiceId}::uuid, ${invoice.familyId}::uuid,
           4, 4500, 'EUR', 'canceled', 'payer_missing', now()
         )
       `)
+    );
+    expect(wrongLocation?.code).toBe("23503");
+    expect(wrongLocation?.message).toContain("family_collection_attempts_invoice_fk");
+    // Y de su moneda: un canceled en otra moneda que la de la factura no cabe.
+    const wrongCurrency = await failureOf(
+      db.execute(sql`
+        insert into zaltyko.family_collection_attempts (
+          organization_id, location_id, invoice_id, family_id, attempt_number, amount_cents, currency, status,
+          failure_code, completed_at
+        ) values (
+          ${invoice.organizationId}::uuid, ${invoice.locationId}::uuid, ${invoice.invoiceId}::uuid, ${invoice.familyId}::uuid,
+          4, 4500, 'MXN', 'canceled', 'currency_not_supported', now()
+        )
+      `)
+    );
+    expect(wrongCurrency?.code).toBe("23503");
+    expect(wrongCurrency?.message).toContain("family_collection_attempts_invoice_currency_fk");
+  });
+
+  it("la puerta puede cancelar una factura que no es en EUR, pero nada más se intenta en otra moneda", async () => {
+    const invoice = await createCollectableInvoice("MXN");
+    const insertMxn = (status: "canceled" | "claimed", intent: string | null) =>
+      db.execute(sql`
+        insert into zaltyko.family_collection_attempts (
+          organization_id, location_id, invoice_id, family_id, family_payer_id, authorization_id,
+          payment_provider_account_id, attempt_number, payment_method_kind, amount_cents, currency, status,
+          provider_payment_intent_reference, failure_code, completed_at
+        ) values (
+          ${invoice.organizationId}::uuid, ${invoice.locationId}::uuid, ${invoice.invoiceId}::uuid, ${invoice.familyId}::uuid,
+          ${invoice.payerId}::uuid, ${invoice.authorizationId}::uuid, ${invoice.accountId}::uuid, 1, 'card',
+          4500, 'MXN', ${status}, ${intent},
+          ${status === "canceled" ? "currency_not_supported" : null},
+          ${status === "canceled" ? new Date().toISOString() : null}::timestamptz
+        )
+      `);
+    // Un intento abierto en otra moneda se rechaza, y también un canceled que llegó a Stripe.
+    await expectCheck(insertMxn("claimed", null), "family_collection_attempts_currency_check");
+    await expectCheck(insertMxn("canceled", `pi_CI${invoice.invoiceId.slice(0, 8)}mxn`), "family_collection_attempts_currency_check");
+    // El canceled de la puerta, sin cobro en Stripe, se guarda con la moneda de la factura.
+    await insertMxn("canceled", null);
+    const rows = await db.execute(sql`
+      select status, currency, failure_code as "failure"
+        from zaltyko.family_collection_attempts
+       where invoice_id = ${invoice.invoiceId}::uuid
+    `);
+    expect(rows.rows).toEqual([{ status: "canceled", currency: "MXN", failure: "currency_not_supported" }]);
+    // Sin pagador ni autorización, por ids nuevos: los checks lo admiten y lo para la clave foránea.
+    await expectOnlyForeignKey(
+      insertAttempt({ status: "canceled", currency: "USD", failure: "currency_not_supported", completed: true, references: false })
     );
   });
 
@@ -767,10 +877,16 @@ describeDisposablePg("family collection candidate schema", () => {
     expect(await isFamilyCollectionStorageAvailable()).toBe(true);
   });
 
-  it("al retirar lo instalado la base queda como estaba", async () => {
+  it("al retirar lo instalado la base queda como estaba, en esquema y en filas", async () => {
+    expect(createdOrganizations.length).toBeGreaterThan(0);
     await removeInstalled();
     expect(await isFamilyCollectionStorageAvailable()).toBe(false);
     expect(await schemaFingerprint()).toEqual(before);
+    // Y sin las filas de prueba (salvo las academias, cuyo historial de plan no se borra).
+    expect(await remainingFixtureRows()).toEqual({
+      payments: 0, charges: 0, invoices: 0, authorizations: 0, accounts: 0,
+      families: 0, people: 0, members: 0, locations: 0, users: 0,
+    });
     if (familyPaymentMethodsInstalledHere) expect(await authorizationsComment()).toBe(savedAuthorizationsComment);
   });
 });

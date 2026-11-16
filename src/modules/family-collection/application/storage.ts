@@ -9,8 +9,10 @@ import type { DatabaseClient } from "@/lib/db-transactions";
  * sin aplicar en ningún entorno; requiere autorización de Elvis):
  * zaltyko.family_collection_attempts, zaltyko.family_collection_attempt_charges
  * y zaltyko.organization_collection_settings. Mientras no existan tal como las
- * define el candidato (mismas columnas, tipos y nulos, y el índice que impide
- * dos cobros a la vez de una factura), el cobro no se ejecuta y la función
+ * define el candidato (mismas columnas, tipos y nulos; el índice único parcial
+ * que impide dos cobros a la vez de una factura, con sus columnas y su
+ * predicado; y los únicos de número de intento y de pi_), el cobro no se
+ * ejecuta y la función
  * responde «no disponible» en vez de fallar a mitad de una lectura o escritura.
  * Solo lee el catálogo: nunca crea, repara ni concede nada.
  */
@@ -66,6 +68,21 @@ export const FAMILY_COLLECTION_TABLES = {
 
 /** Índice que impide dos intentos no terminales de la misma factura. */
 export const FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX = "family_collection_attempts_open_uq";
+/** Columnas del índice, en orden. */
+export const FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX_COLUMNS = ["organization_id", "invoice_id"] as const;
+/**
+ * Predicado del índice tal como lo devuelve pg_get_expr(indpred, indrelid)
+ * para `where status in ('claimed', 'created', 'processing')`. Se acepta con o
+ * sin paréntesis exteriores.
+ */
+export const FAMILY_COLLECTION_OPEN_ATTEMPT_PREDICATE =
+  "status = ANY (ARRAY['claimed'::text, 'created'::text, 'processing'::text])";
+
+/** Restricciones únicas de las que depende no cobrar dos veces, con sus columnas en orden. */
+export const FAMILY_COLLECTION_UNIQUE_CONSTRAINTS = {
+  family_collection_attempts_number_uq: ["organization_id", "invoice_id", "attempt_number"],
+  family_collection_attempts_intent_uq: ["organization_id", "provider_payment_intent_reference"],
+} as const satisfies Record<string, readonly string[]>;
 
 const tableNames = Object.keys(FAMILY_COLLECTION_TABLES) as Array<keyof typeof FAMILY_COLLECTION_TABLES>;
 
@@ -94,19 +111,51 @@ const allColumnsMatch = sql.join(
   sql` and `
 );
 
+/** Columnas de una restricción única de family_collection_attempts, en orden. */
+function uniqueConstraintMatches(name: string, columns: readonly string[]) {
+  return sql`coalesce((
+      select array_agg(a.attname::text order by k.ord)
+        from pg_constraint c
+        cross join lateral unnest(c.conkey) with ordinality as k(attnum, ord)
+        join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum
+       where c.conrelid = to_regclass('zaltyko.family_collection_attempts')
+         and c.conname = ${name}
+         and c.contype = 'u'
+    ) = ${sql.raw(textArrayLiteral(columns))}, false)`;
+}
+
+const uniqueConstraintsMatch = sql.join(
+  Object.entries(FAMILY_COLLECTION_UNIQUE_CONSTRAINTS).map(([name, columns]) => uniqueConstraintMatches(name, columns)),
+  sql` and `
+);
+
+/** El índice parcial existe, es único y válido, y tiene las columnas y el predicado esperados. */
+const openAttemptIndexMatches = sql`exists (
+    select 1
+      from pg_index i
+     where i.indexrelid = to_regclass(${`zaltyko.${FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX}`})
+       and i.indrelid = to_regclass('zaltyko.family_collection_attempts')
+       and i.indisunique
+       and i.indisvalid
+       and pg_get_expr(i.indpred, i.indrelid) in (
+         ${FAMILY_COLLECTION_OPEN_ATTEMPT_PREDICATE},
+         ${`(${FAMILY_COLLECTION_OPEN_ATTEMPT_PREDICATE})`}
+       )
+       and (
+         select array_agg(a.attname::text order by k.ord)
+           from unnest(i.indkey::int2[]) with ordinality as k(attnum, ord)
+           join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum
+       ) = ${sql.raw(textArrayLiteral(FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX_COLUMNS))}
+  )`;
+
 export async function isFamilyCollectionStorageAvailable(
   executor: Pick<DatabaseClient, "execute"> = db
 ): Promise<boolean> {
   const result = await executor.execute(sql`
     select (
       ${allColumnsMatch}
-      and exists (
-        select 1
-          from pg_indexes
-         where schemaname = 'zaltyko'
-           and tablename = 'family_collection_attempts'
-           and indexname = ${FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX}
-      )
+      and ${uniqueConstraintsMatch}
+      and ${openAttemptIndexMatches}
     ) as available
   `);
   return (result.rows[0] as { available?: boolean } | undefined)?.available === true;

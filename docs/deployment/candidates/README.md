@@ -890,7 +890,7 @@ bancaria en la cuenta Stripe conectada de su academia. Decisión:
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261117120000_family_collection_candidate.sql` | `ada712e8d00214e6811e4a11172d8798f8347475523b14cb7095c2f507e462bd` | No aplicada | No aplicada |
+| `20261117120000_family_collection_candidate.sql` | `1dcd25a875dc2400855c8e44beed1d99c9c9fdb352278cb11ec6a69d55d45050` | No aplicada | No aplicada |
 
 **Estado: no aplicada en ningún entorno.** Staging y producción necesitan cada
 uno una autorización expresa de Elvis; las de las Fases 1 y 2 no la cubren.
@@ -925,8 +925,10 @@ familia guardó, en la cuenta Stripe conectada de su academia. Decisión:
     salvo en `canceled`: la puerta escribe un `canceled` también cuando ya no
     hay pagador, autorización o cuenta, para que ninguna cuota quede sin
     intento terminal ni recordatorios;
-  - moneda `EUR` e importe positivo; la sede y la moneda deben ser las de la
-    factura (claves foráneas compuestas).
+  - importe positivo; la sede y la moneda deben ser las de la factura (claves
+    foráneas compuestas). Todo intento es en `EUR` salvo un `canceled` sin
+    cobro en Stripe, que puede llevar la moneda de una factura en otra moneda
+    para que la puerta también la cierre y vuelva a manual.
   Claves foráneas a sede, factura, familia, pagador, autorización, cuenta
   conectada y pago en `restrict`; la academia borra en cascada.
 - **Tabla nueva `zaltyko.family_collection_attempt_charges`.** Reparto del
@@ -957,8 +959,10 @@ familia guardó, en la cuenta Stripe conectada de su academia. Decisión:
   fuera de `src/db/schema/` como los demás candidatos (`validate:rls`).
   `isFamilyCollectionStorageAvailable()`
   (`src/modules/family-collection/application/storage.ts`, solo lee el
-  catálogo) exige las tres tablas con sus columnas, tipos y nulos exactos y el
-  índice de un intento abierto por factura; si no, el cobro no se ejecuta.
+  catálogo) exige las tres tablas con sus columnas, tipos y nulos exactos, el
+  índice de un intento abierto por factura (único, válido, con sus columnas y
+  su predicado) y los únicos de número de intento y de `pi_`; si no, el cobro
+  no se ejecuta.
 - **Bandera** apagada por defecto: `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED`.
 - **Derechos de datos.** Las tres tablas forman un grupo opcional excluido
   (`OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES`): intentos y reparto en
@@ -974,8 +978,9 @@ familia guardó, en la cuenta Stripe conectada de su academia. Decisión:
   disposición sigue bloqueado.
 - **Pruebas:** `tests/family-collection-pg.test.ts` (job «Postgres
   integration»: instala antes las Fases 1 y 2 si faltan, solo en el PostgreSQL
-  desechable de GitHub, y retira al terminar lo que instaló dejando la base
-  igual, comprobado) y `tests/family-collection-contract.test.ts` (candidata,
+  desechable de GitHub, y retira al terminar lo que instaló y las filas de
+  prueba, dejando el esquema igual, comprobado; las academias de prueba quedan
+  vacías porque su historial de plan es solo de añadir) y `tests/family-collection-contract.test.ts` (candidata,
   espejo y detección de almacenamiento coinciden).
 - **Rollback.** Apagar antes `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED` y
   esperar a que no quede ningún intento `claimed`, `created` ni `processing`

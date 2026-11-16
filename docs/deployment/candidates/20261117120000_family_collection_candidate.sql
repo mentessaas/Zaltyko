@@ -94,7 +94,10 @@ $family_collection_candidate_preflight$;
 
 -- payer, autorización, cuenta y tipo pueden faltar solo en un intento canceled:
 -- la puerta lo escribe también cuando ya no hay pagador, autorización o cuenta
--- (ninguna cuota se queda sin intento terminal ni recordatorios).
+-- (ninguna cuota se queda sin intento terminal ni recordatorios). Por lo mismo,
+-- un canceled sin cobro en Stripe puede llevar una moneda distinta de EUR: la
+-- de su factura (clave foránea), para que la puerta cierre también esa factura;
+-- cualquier otro intento es en EUR.
 create table zaltyko.family_collection_attempts (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references zaltyko.organizations(id) on delete cascade,
@@ -127,7 +130,7 @@ create table zaltyko.family_collection_attempts (
   constraint family_collection_attempts_attempt_number_check check (attempt_number between 1 and 5),
   constraint family_collection_attempts_method_kind_check check (payment_method_kind is null or payment_method_kind in ('card', 'sepa_debit')),
   constraint family_collection_attempts_amount_check check (amount_cents > 0),
-  constraint family_collection_attempts_currency_check check (currency = 'EUR'),
+  constraint family_collection_attempts_currency_check check (currency = 'EUR' or (status = 'canceled' and provider_payment_intent_reference is null)),
   constraint family_collection_attempts_status_check check (status in ('claimed', 'created', 'processing', 'succeeded', 'failed', 'canceled')),
   constraint family_collection_attempts_allocation_status_check check (allocation_status is null or allocation_status in ('pending', 'allocated', 'needs_review')),
   constraint family_collection_attempts_resume_count_check check (resume_count between 0 and 3),

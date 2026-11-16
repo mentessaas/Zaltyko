@@ -10,7 +10,10 @@ vi.mock("@/db", () => ({ db: { execute: vi.fn() } }));
 
 import {
   FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX,
+  FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX_COLUMNS,
+  FAMILY_COLLECTION_OPEN_ATTEMPT_PREDICATE,
   FAMILY_COLLECTION_TABLES,
+  FAMILY_COLLECTION_UNIQUE_CONSTRAINTS,
   isFamilyCollectionStorageAvailable,
 } from "@/modules/family-collection/application/storage";
 import {
@@ -227,7 +230,13 @@ describe("candidata SQL del cobro automático (Fase 3)", () => {
     const checks = candidateChecks(blocks.get("family_collection_attempts")!);
     expect(checks.get("family_collection_attempts_attempt_number_check")).toBe("attempt_number between 1 and 5");
     expect(checks.get("family_collection_attempts_resume_count_check")).toBe("resume_count between 0 and 3");
-    expect(checks.get("family_collection_attempts_currency_check")).toBe("currency = 'eur'");
+    // Solo un canceled sin cobro en Stripe puede llevar la moneda (no EUR) de su factura.
+    expect(checks.get("family_collection_attempts_currency_check")).toBe(
+      "currency = 'eur' or (status = 'canceled' and provider_payment_intent_reference is null)"
+    );
+    expect(body).toContain(
+      "foreign key (organization_id, invoice_id, currency)\n    references zaltyko.invoices (organization_id, id, currency) on delete restrict"
+    );
     expect(checks.get("family_collection_attempts_amount_check")).toBe("amount_cents > 0");
     expect(candidateChecks(blocks.get("organization_collection_settings")!).get("organization_collection_settings_day_check")).toBe(
       "collection_day_of_month is null or collection_day_of_month between 1 and 31"
@@ -263,6 +272,20 @@ const specOf = (table: (typeof TABLES)[number]) => FAMILY_COLLECTION_TABLES[tabl
 describe("detección del almacenamiento del cobro automático", () => {
   const dialect = new PgDialect();
 
+  it("los únicos y el índice que exige coinciden con la candidata", () => {
+    const block = stripSqlComments(read(CANDIDATE)).toLowerCase();
+    for (const [name, columns] of Object.entries(FAMILY_COLLECTION_UNIQUE_CONSTRAINTS)) {
+      expect(block, name).toContain(`constraint ${name} unique (${columns.join(", ")}),`);
+    }
+    expect(block).toContain(
+      `create unique index ${FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX}\n  on zaltyko.family_collection_attempts (${FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX_COLUMNS.join(", ")})\n  where status in ('claimed', 'created', 'processing');`
+    );
+    for (const status of ["claimed", "created", "processing"]) {
+      expect(FAMILY_COLLECTION_OPEN_ATTEMPT_PREDICATE).toContain(`'${status}'::text`);
+    }
+    expect(FAMILY_COLLECTION_OPEN_ATTEMPT_PREDICATE).not.toMatch(/succeeded|failed|canceled/);
+  });
+
   it("exige cada tabla con sus columnas, tipos y nulos exactos y el índice de un intento abierto", async () => {
     const execute = vi.fn(async (_query: SQL) => ({ rows: [{ available: true }] }));
     expect(await isFamilyCollectionStorageAvailable({ execute } as never)).toBe(true);
@@ -274,9 +297,21 @@ describe("detección del almacenamiento del cobro automático", () => {
         expect(query.sql).toContain(`'${column}|${type}|${nullable}'`);
       }
     }
-    expect(query.params).toContain(FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX);
+    // Índice parcial: único, válido, con sus columnas y su predicado.
+    expect(query.params).toContain(`zaltyko.${FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX}`);
+    expect(query.params).toContain(FAMILY_COLLECTION_OPEN_ATTEMPT_PREDICATE);
+    expect(query.params).toContain(`(${FAMILY_COLLECTION_OPEN_ATTEMPT_PREDICATE})`);
+    expect(query.sql).toContain("i.indisunique");
+    expect(query.sql).toContain("i.indisvalid");
+    expect(query.sql).toContain("pg_get_expr(i.indpred, i.indrelid)");
+    expect(query.sql).toContain(`array['${FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX_COLUMNS.join("', '")}']::text[]`);
+    // Únicos de número de intento y de pi_, con sus columnas.
+    for (const [name, columns] of Object.entries(FAMILY_COLLECTION_UNIQUE_CONSTRAINTS)) {
+      expect(query.params, name).toContain(name);
+      expect(query.sql, name).toContain(`array['${columns.join("', '")}']::text[]`);
+    }
+    expect(query.sql).toContain("c.contype = 'u'");
     expect(query.sql).toContain("information_schema.columns");
-    expect(query.sql).toContain("pg_indexes");
     // Solo lee el catálogo.
     expect(query.sql).not.toMatch(/\b(create|alter|insert|update|delete|grant)\b/i);
   });
