@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **Estado: SOLO PLAN.** No se construye nada hasta que Elvis autorice empezar. Elvis respondió P1–P3 el 16-11-2026 (abajo). Revisado una vez contra el código (859b160); esta versión incorpora esa revisión y las respuestas.
+> **Estado:** Elvis respondió P1–P3 el 16-11-2026 (abajo) y el coordinador dio paso a construirla en una PR en borrador, solo hasta CI verde: nada en staging ni en producción, ninguna migración aplicada. Revisado una vez contra el código (859b160); esta versión incorpora esa revisión y las respuestas.
 
 **Goal:** Cada día, las cuotas mensuales de una academia que cobra en automático se cobran solas con la tarjeta o la domiciliación que la familia guardó en la Fase 2, en la cuenta Stripe de la academia. Nunca se cobra dos veces, nunca se cobra a quien ya no paga, todo cobro hecho en Stripe queda registrado, y ninguna cuota se queda sin cobrar y sin recordatorio.
 
@@ -17,7 +17,7 @@
 | | Pregunta | Respuesta | Cómo la aplica el plan |
 |---|---|---|---|
 | **P1** | ¿Un cobro por gimnasta o uno por familia, sede y mes? | **Uno por familia, sede y mes** (la factura mensual). | Importe = saldo de las cuotas automáticas de la factura. Inconvenientes conocidos: una devolución del banco afecta a todas las cuotas del cobro, y con un pago parcial a mano el cobro no coincide con el total de la factura. |
-| **P2** | ¿Qué día se cobra? | **La academia elige**: el día de vencimiento de la cuota (por defecto) o un día fijo del mes. | Ajuste por academia «Día de cobro» (Tareas 1, 2, 4 y 8). *Mi propuesta, a confirmar:* día fijo entre 1 y 28, y **nunca antes del vencimiento** (si el día fijo cae antes, se cobra el día del vencimiento). Para SEPA, el aviso previo depende de L4. |
+| **P2** | ¿Qué día se cobra? | **La academia elige**: el día de vencimiento de la cuota (por defecto) o un día fijo del mes. | Ajuste por academia «Día de cobro» (Tareas 1, 2, 4 y 8). Día fijo del 1 al 31; en los meses sin ese día (29–31), el último día del mes; fechas en la hora local de la sede. *Mi propuesta, a confirmar:* **nunca antes del vencimiento** (si el día fijo cae antes, se cobra el día del vencimiento). Para SEPA, el aviso previo depende de L4. |
 | **P3** | ¿Reintentos? | **Tarjeta rechazada: un reintento a los 3 días. SEPA: ninguno. Después, cobro manual con recordatorios.** | *Mi propuesta, a confirmar:* no se reintenta cuando el rechazo dice que la tarjeta está perdida, robada o es fraude (repetir no sirve y puede alertar al banco), ni cuando el banco pide autenticación. |
 
 Sin respuesta, con propuesta: **¿se avisa antes a la familia?** No en esta fase. El portal muestra «Se cobrará automáticamente el {fecha}» y, en SEPA, Stripe envía el aviso previo del adeudo; un correo de Zaltyko el día antes encaja en la Fase 4, con el recibo.
@@ -94,7 +94,7 @@ Tabla `zaltyko.family_collection_attempts` (un intento de cobrar una factura):
 
 - Índice único parcial «un intento no terminal por factura» (`claimed`, `created`, `processing`); índices `(organization_id, status, next_retry_at)` y `(status, claimed_at)` para reanudar.
 - Tabla `zaltyko.family_collection_attempt_charges`: `attempt_id`, `organization_id`, `charge_id`, `amount_cents > 0`; PK `(attempt_id, charge_id)`.
-- Tabla `zaltyko.organization_collection_settings` (P2): `organization_id` PK (FK cascade), `collection_day_of_month smallint` (null = día de vencimiento; si no, `1..28`), `version int`, `updated_by_member_id`, `updated_at`. Sin fila = día de vencimiento.
+- Tabla `zaltyko.organization_collection_settings` (P2): `organization_id` PK (FK cascade), `collection_day_of_month smallint` (null = día de vencimiento; si no, `1..31`), `version int`, `updated_by_member_id`, `updated_at`. Sin fila = día de vencimiento.
 - RLS `enable` + `force`, solo `service_role` (select, insert, update).
 - Derechos de datos: grupo opcional excluido nuevo (solo recuento), como `OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES`, con su test de columnas.
 - No se reutiliza `zaltyko.payment_attempts`: exige `provider_attempt_id` antes de Stripe, no enlaza cargos y usa `sandbox|live`. Queda documentado en la candidata.
@@ -107,14 +107,14 @@ Tabla `zaltyko.family_collection_attempts` (un intento de cobrar una factura):
 
 **Produces:**
 
-- `collectionDate({ dueDateLocal, collectionDayOfMonth })` → fecha local de cobro (P2): sin día fijo, el día de vencimiento; con día fijo `D`, el día `D` del mes del vencimiento, salvo que sea anterior al vencimiento, en cuyo caso el día de vencimiento.
+- `collectionDate({ dueDateLocal, collectionDayOfMonth })` → fecha local de cobro (P2): sin día fijo, el día de vencimiento; con día fijo `D`, el día `min(D, último día del mes)` del mes del vencimiento, salvo que sea anterior al vencimiento, en cuyo caso el día de vencimiento.
 - `planInvoiceCollection({ invoice, charges, todayLocal, collectionDayOfMonth })` → `{ collect: true; amountCents; allocations: { chargeId; amountCents }[] } | { collect: false; reason }`. Solo factura mensual `issued`/`partially_paid`, cargos `automatic` `due`/`partially_paid` con saldo, cuya **fecha de cobro local** (`collectionDate` sobre el `due_at` en la zona de la sede; `due_at` es las 23:59:59.999 del día de vencimiento, `calendar-due-date.ts:18`) sea ≤ hoy local. Importe = suma de saldos (P1). Razones: `not_monthly`, `invoice_closed`, `nothing_due`, `not_due_yet`, `mixed_currency`.
 - `evaluateFamilyCollectionGate(input)`: `flag_off`, `environment_unknown`, `live_not_released`, `storage_missing`; después **`evaluateCollectionEligibility` para cada cargo del reparto** (todos con el `familyPayerId` de la factura); después `payer_missing`, `payer_not_current`, `payment_method_unknown`, `sepa_not_active`, `account_stale`. Clasifica cada motivo como `transient` (no escribe) o `final` (intento `canceled`). Son `transient`: `account_stale`, `flag_off`, `environment_unknown`, `live_not_released`, `storage_missing` y los de plan de la academia. El resto es `final`.
 - `nextRetry({ kind, attemptNumber, code, declineCode, now })` → `Date | null` (P3a): solo tarjeta, `attemptNumber === 1` y rechazo blando (`insufficient_funds`, `processing_error`, `try_again_later`, `approve_with_id`…, lista exportada y testeada). Nunca en `lost_card`, `stolen_card`, `fraudulent`, `do_not_try_again`, `pickup_card`, SEPA ni `authentication_required`.
 - `mapPaymentIntent(snapshot | error)` → `succeeded` | `processing` | `requires_confirmation` (creado y sin confirmar) | `{ failed: { code; declineCode } }` | `transient` | `idempotency_conflict`. `authentication_required` → `failed` terminal en esta fase (la Fase 4 la hará recuperable).
 - `config.ts`: `isFamilyAutomaticCollectionFlagEnabled()` (texto exacto `"true"`), reexporta los cerrojos de payments-connect.
 
-- [ ] Tests de cada rama: día fijo antes, igual y después del vencimiento, y sin día fijo; pago parcial previo, cuota manual mezclada, límite de día en Madrid y en Ciudad de México, cada motivo y su clase, cada código de rechazo de la lista. Implementar. Run. Commit.
+- [ ] Tests de cada rama: día fijo antes, igual y después del vencimiento, y sin día fijo; día 31 en febrero (bisiesto y no), abril y diciembre; pago parcial previo, cuota manual mezclada, límite de día en Madrid y en Ciudad de México, cada motivo y su clase, cada código de rechazo de la lista. Implementar. Run. Commit.
 
 ### Task 3: Adaptador Stripe del cobro
 
@@ -217,7 +217,7 @@ export interface FamilyCollectionGateway {
 
 - **Familia (`/familia/cuotas`):** en cada cuota automática, «Se cobrará automáticamente el {fecha}», «Cobro en curso», «Cobrada automáticamente el {fecha}» o «No se pudo cobrar automáticamente; tu academia te dirá cómo pagarla». Sin códigos de Stripe.
 - **Academia:**
-  - en la tarjeta «Cobro automático de cuotas» de `/owner/settings` (Fase 1), el ajuste «Día de cobro»: «El día que vence cada cuota» (por defecto) o «Un día fijo del mes» con un selector 1–28 y la nota «Si ese día cae antes del vencimiento, se cobra el día del vencimiento»;
+  - en la tarjeta «Cobro automático de cuotas» de `/owner/settings` (Fase 1), el ajuste «Día de cobro»: «El día que vence cada cuota» (por defecto) o «Un día fijo del mes» con un selector 1–31 y las notas «En los meses que no tienen ese día, se cobra el último día del mes» y «Si ese día cae antes del vencimiento, se cobra el día del vencimiento»;
   - en «Pago automático de las familias» (Fase 2), un interruptor por familia «Cobrar automáticamente» (guarda la preferencia de la Tarea 4; solo con método activo);
   - en `/owner/payments`, los cobros automáticos del mes con su estado, el motivo en palabras sencillas si falló o se canceló, los que necesitan revisión, y «Cancelar el cobro automático» donde se pueda;
   - el formulario de pago manual explica por qué una cuota está bloqueada.

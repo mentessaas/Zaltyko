@@ -308,12 +308,14 @@ de Elvis):**
   - se vuelve a cargar todo y se pasa por `evaluateCollectionEligibility`
     justo antes de cobrar;
   - se crea un PaymentIntent *off-session* en la cuenta conectada, con clave
-    de idempotencia derivada del cargo y su número de intento;
+    de idempotencia derivada de la factura y su número de intento (un cobro
+    por familia, sede y mes; ver P1);
   - se registra el intento en una tabla nueva de intentos de cobro (migración
     candidata).
 - Bloqueo de carreras: un cargo con intento en curso no admite pago manual sin
   cancelar antes el intento, y viceversa.
-- Reintentos: número y espaciado limitados, a decidir en esa fase.
+- Día de cobro y reintentos: según las respuestas P2 y P3 (abajo).
+- Plan detallado: `docs/superpowers/plans/2026-11-16-cobro-automatico-fase3-cobro-de-cuotas.md`.
 
 ### Fase 4 — Webhook Connect sobre el libro de cuotas
 
@@ -415,18 +417,31 @@ de Elvis):**
     método revoca la anterior en la misma transacción que activa la nueva, y
     el método anterior se desliga en Stripe después del commit.
 
-## Preguntas abiertas para fases posteriores (no bloquean la Fase 1)
+## Respuestas de Elvis para la Fase 3 (16-11-2026)
 
-- **P1 (Fase 3) — ¿un adeudo por gimnasta o uno por familia y mes?**
-  - El encargo dice un PaymentIntent por cargo, y hoy hay un cargo por
-    gimnasta (ADR-0026).
-  - Con dos hermanas, serían dos adeudos al mes.
-  - Uno por factura (familia, sede y mes) es más claro para la familia y
-    cuesta menos comisiones SEPA, pero complica las devoluciones parciales.
-- **P2 (Fase 3) — Día del cobro.** ¿En la fecha de vencimiento de la cuota, o
-  un día fijo que elija la academia?
-- **P3 (Fase 3) — Reintentos tras un fallo.** Cuántos, y si avisamos antes a
-  la familia.
+Antes eran las preguntas abiertas P1–P3.
+
+- **P1 — Un cobro por familia, sede y mes** («Uno por familia»). Se cobra la
+  factura mensual de la familia en la sede, no cada cuota por separado.
+  - El importe es el saldo pendiente de sus cuotas automáticas.
+  - Una devolución del banco afecta a todas las cuotas de ese cobro.
+- **P2 — Día de cobro a elegir por la academia** («las dos opciones a
+  elegir»):
+  - el día de vencimiento de cada cuota (por defecto);
+  - o un día fijo del mes, del 1 al 31. En los meses que no tienen ese día
+    (29–31) se cobra el último día del mes.
+  - Las fechas se calculan en la hora local de la sede.
+  - *Mi propuesta, a confirmar:* nunca se cobra antes del vencimiento; si el
+    día fijo cae antes, se cobra el día del vencimiento.
+- **P3 — Reintentos** («1 reintento tarjeta»):
+  - tarjeta rechazada: un reintento a los 3 días;
+  - domiciliación SEPA: ninguno;
+  - después, la cuota vuelve al cobro manual con sus recordatorios.
+  - *Mi propuesta, a confirmar:* no se reintenta una tarjeta perdida, robada
+    o marcada como fraude, ni cuando el banco pide autenticación.
+- **Aviso previo a la familia** (sin respuesta; propuesta): no en la Fase 3.
+  El portal muestra la fecha de cobro y, en SEPA, Stripe envía su aviso
+  previo. Un correo de Zaltyko encaja en la Fase 4, con el recibo.
 
 ## Preguntas legales y fiscales (para Elvis, el abogado y la sesión «Elvis Finanzas»)
 
