@@ -1,7 +1,10 @@
 # ADR-0028 — Cobro automático de cuotas con Stripe Connect (tarjeta y SEPA)
 
 - Estado: **aceptada** por Elvis el 16-11-2026 (decisiones D1–D4 y documento
-  completo). Ninguna fase está construida todavía; el cobro sigue cerrado.
+  completo). La Fase 1 (conectar Stripe) está construida en la PR #347,
+  detrás de la bandera `ZALTYKO_CONNECT_ONBOARDING_ENABLED` (apagada). La
+  migración candidata está aplicada en staging el 16-11-2026 con autorización
+  de Elvis y sin aplicar en producción. El cobro sigue cerrado.
 - Autorizado por Elvis para la Fase 1, solo en staging:
   - destino de eventos en Stripe sandbox;
   - secreto y bandera en Vercel staging;
@@ -204,11 +207,18 @@ como candidatas, con autorización por entorno.
      `last_provider_event_reference`).
 4. Mapa de estados. El estado de la cuenta depende solo de la tarjeta; SEPA
    se sigue en su propia columna.
-   - `pending`: fila creada, sin enlace usado.
-   - `onboarding`: faltan requisitos (*currently due*) y aún no tiene
-     requisitos vencidos.
-   - `restricted`: tiene requisitos vencidos, o `card_payments` no está
-     `active` después de haber enviado los datos.
+   - `pending` (valor del enum de base): no se usa. La fila nace en
+     `onboarding` al crear la cuenta, antes de usar el enlace.
+   - `onboarding`: hay requisitos exigibles (*currently due*) o vencidos
+     (*past due*). Los de la academia (`user_action`, o `past_due` si están
+     vencidos) se ven como «Stripe necesita más datos de tu academia» con
+     «Seguir en Stripe»; los que esperan a Stripe (`stripe_review`), como «En
+     revisión». Una cuenta v2 recién creada trae todos sus requisitos vencidos
+     y la tarjeta `restricted`: es «Pendiente de datos», no un problema
+     (regla R10, comprobado en el sandbox).
+   - `restricted`: sin requisitos exigibles ni vencidos (nada que la academia
+     pueda rellenar), la tarjeta está `restricted` o `unsupported`. Es el
+     único caso «Con problemas».
    - `active`: no hay requisitos vencidos ni pendientes y `card_payments` está
      `active`, aunque SEPA siga pendiente. Así la tarjeta no queda bloqueada
      esperando a la domiciliación.
@@ -345,6 +355,13 @@ de Elvis):**
 8. **El entorno lo decide la clave de Stripe del despliegue** (test en staging,
    live en producción). Nunca se cruza una cuenta de un entorno con otro: ya lo
    impiden las FK y la puerta.
+9. **R11, segundo cerrojo independiente de la clave.** Aunque la clave sea de
+   prueba, la Fase 1 queda cerrada (`live_not_released`) si la base del
+   despliegue es la Supabase de producción (su ref está en
+   `src/lib/launch/production-supabase.ts`, compartida con el middleware), y
+   el webhook ignora los eventos. No se usa `VERCEL_ENV`: staging es un
+   despliegue «production» del proyecto zaltyko-staging. En la Fase 1 no
+   existe ninguna bandera para abrir Live ni producción.
 
 ## Preguntas abiertas para fases posteriores (no bloquean la Fase 1)
 
@@ -419,7 +436,14 @@ resuelta antes de que una academia real conecte su Stripe en producción.
 - Riesgos:
   - Accounts v2 en Live no está verificado;
   - la frescura de la proyección de cuenta depende de los eventos v2;
-  - SEPA introduce impagos tardíos que el libro de cuotas debe poder revertir.
+  - SEPA introduce impagos tardíos que el libro de cuotas debe poder revertir;
+  - **deuda: cuenta huérfana por un reintento tardío.** Si Stripe crea la
+    cuenta y falla la escritura en la base, un reintento dentro de las 24 h de
+    la clave de idempotencia recibe la misma cuenta, pero uno posterior crea
+    otra. El `logger.error` «cuenta creada en Stripe sin guardar» deja el
+    `acct_…` para reconciliarla a mano. En la Fase 2 se buscará la cuenta por
+    `metadata.zaltyko_organization_id` antes de crear una nueva; en la Fase 1
+    no se implementa esa búsqueda.
 
 ## Fuentes
 

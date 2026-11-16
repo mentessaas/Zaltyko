@@ -712,6 +712,83 @@ flujo: `docs/producto/recordatorios-de-impago.md`.
 - **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 
+## Candidata de Conectar Stripe (cobro automático, Fase 1)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261116120000_connect_onboarding_candidate.sql` | `e07a8129b2e935ede4b0755e33b731a6613c76b2ac8e616f239949665735eb0a` | No aplicada | Aplicada 16-11-2026 (autorizado por Elvis) |
+
+**Staging, 16-11-2026.**
+- Aplicada en «Zaltyko Staging» (`oucxnnrtfmjjlnffldfc`) con el MCP de Supabase, con el texto exacto del archivo (SHA comprobado).
+- Comprobado después en el catálogo:
+  - las dos columnas son `text not null`, con sus valores por defecto;
+  - existen los dos checks con su nombre;
+  - RLS sigue en `ENABLE` y `FORCE`;
+  - la tabla tenía 0 filas.
+- **Producción: sin aplicar.** Necesita otra autorización expresa.
+
+Añade dos columnas a `zaltyko.organization_payment_provider_accounts`, sin
+crear tablas ni tocar permisos (la tabla ya es solo de `service_role`, con RLS
+`ENABLE` y `FORCE`). Decisión: `docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md`.
+
+- `sepa_debit_payments_capability_status text not null default 'pending'`,
+  con `btrim(...) <> ''`. Informativa en la Fase 1: el estado de la cuenta
+  depende solo de la tarjeta.
+- `requirements_state text not null default 'user_action'`, con check
+  `in ('none', 'user_action', 'stripe_review', 'past_due')`. Solo un código,
+  nunca datos personales ni la lista de requisitos de Stripe.
+- El preflight aborta si falta la tabla o si ya existe alguna de las dos
+  columnas: reinstalar no toca nada.
+- Espejo Drizzle en `src/db/schema/zaltyko-core.ts` (la tabla ya está en
+  `supabase/migrations`, así que `validate:rls` no cambia). Hasta aplicarla,
+  ningún código debe leer o insertar en la tabla con Drizzle sin columnas
+  explícitas: las dos columnas no existen en la base.
+- Bandera apagada por defecto: `ZALTYKO_CONNECT_ONBOARDING_ENABLED`. Mientras
+  las columnas no existan, `isConnectOnboardingStorageAvailable()`
+  (`src/modules/payments-connect/application/storage.ts`, solo lee
+  `information_schema.columns`) devuelve `false` y la función responde «no
+  disponible» (`connect_onboarding_unavailable`).
+- Pruebas: `tests/payments-connect-pg.test.ts`, en el job «Postgres
+  integration». Instala la candidata solo en el PostgreSQL desechable de
+  GitHub y retira las dos columnas al terminar.
+- **Aplicación en producción.** El archivo no se cambia (su SHA es el aplicado
+  en staging). Se ejecuta su texto exacto dentro de una transacción con
+  `lock_timeout`, para que no espere detrás de otra sesión con la tabla
+  bloqueada:
+
+  ```sql
+  begin;
+  set local lock_timeout = '5s';
+  -- texto exacto de 20261116120000_connect_onboarding_candidate.sql
+  commit;
+  ```
+
+  El archivo no abre su propia transacción, así que el envoltorio hace atómicos
+  el preflight, el `alter table` y los comentarios. `alter table … add column`
+  con un valor por defecto constante no reescribe la tabla, pero pide un
+  bloqueo `ACCESS EXCLUSIVE` breve (y comprueba los dos checks sobre las filas
+  existentes, pocas). Si salta el `lock_timeout`, no se ha cambiado nada: se
+  reintenta en otro momento. La cabecera del archivo («No aplicado en ningún
+  entorno») es histórica y forma parte del SHA; el estado vigente es esta
+  sección.
+- **Rollback.** Apagar antes `ZALTYKO_CONNECT_ONBOARDING_ENABLED`. Borrar las
+  columnas descarta el estado SEPA y de requisitos sincronizado; se recupera
+  volviendo a leer las cuentas en Stripe. Válido mientras no exista la Fase 2:
+  después, otras piezas leerán estas columnas.
+
+  ```sql
+  begin;
+  set local lock_timeout = '5s';
+  alter table zaltyko.organization_payment_provider_accounts
+    drop column if exists sepa_debit_payments_capability_status,
+    drop column if exists requirements_state;
+  commit;
+  ```
+
+- **Requiere autorización de Elvis para aplicarse en producción.** Staging:
+  aplicada el 16-11-2026 con su autorización. Producción: sin aplicar. La CI
+  verde no equivale a autorización.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.

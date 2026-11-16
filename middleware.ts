@@ -7,12 +7,12 @@ import { getLocalSupabaseCspConnectSources } from "@/lib/security/local-supabase
 import { extractAcademySlugFromHost } from "@/lib/subdomains/rewrite";
 import { getExperimentalReleaseFlags, isExperimentalRouteDisabled } from "@/lib/release/experimental-routes";
 import { isOutsideEssentialLaunch, isRetiredLaunchApi, retiredMarketingOutcome } from "@/lib/launch/essential-routes";
+import { pointsAtProductionSupabase } from "@/lib/launch/production-supabase";
 
 // Constants
 const SUPER_ADMIN_PATH = "/super-admin";
 const LOGIN_PATH = "/auth/login";
 const SUPER_ADMIN_ROLE = "super_admin";
-const PRODUCTION_SUPABASE_PROJECT_REF = "jegxfahsvugilbthbked";
 // Clock skew tolerance for JWT iat validation (5 minutes)
 const CLOCK_SKEW_TOLERANCE = 5 * 60;
 
@@ -259,16 +259,7 @@ function isPreviewMutationPointingAtProduction(req: NextRequest) {
     process.env.DATABASE_URL,
     process.env.DATABASE_URL_POOL,
     process.env.DATABASE_URL_DIRECT,
-  ].some((value) => {
-    if (!value) return false;
-    try {
-      const target = new URL(value);
-      const identity = `${target.hostname} ${decodeURIComponent(target.username)} ${target.pathname}`;
-      return identity.includes(PRODUCTION_SUPABASE_PROJECT_REF);
-    } catch {
-      return false;
-    }
-  });
+  ].some(pointsAtProductionSupabase);
 }
 
 function isMutation(method: string) {

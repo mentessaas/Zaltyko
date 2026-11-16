@@ -7,8 +7,14 @@ export const ESSENTIAL_PUBLIC_ROUTES = [
 /**
  * Historical APIs closed for the whole launch with 410 Gone. Unlike the
  * experimental flags, no environment variable can reopen them: they include a
- * public Stripe Connect checkout and family-facing commerce, which contradict
- * the launch red line (no Connect, no charging families through Zaltyko).
+ * public Stripe Connect checkout and family-facing commerce.
+ *
+ * The launch red line (no Connect, no charging families through Zaltyko) was
+ * lifted on 2026-11-16 by ADR-0028, and only for academy fees collected on the
+ * academy's own Stripe account through the new module
+ * src/modules/payments-connect (/api/v1/owner/payments/connect and
+ * /api/stripe/connect/accounts-webhook). It does not reopen anything below:
+ * these prefixes stay retired exactly as before.
  */
 export const RETIRED_LAUNCH_API_PREFIXES = [
   "/api/marketplace",

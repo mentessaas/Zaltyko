@@ -4,11 +4,13 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { OwnerAcademySettingsManager } from "@/components/owner-dashboard/OwnerAcademySettingsManager";
+import { OwnerStripeConnectCard } from "@/components/owner-dashboard/OwnerStripeConnectCard";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
+import { isConnectOnboardingFlagEnabled } from "@/modules/payments-connect/application/config";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export const dynamic = "force-dynamic";
@@ -64,6 +66,11 @@ export default async function OwnerSettingsPage({
           className={ownerUi.pageHeader}
         />
         <OwnerAcademySettingsManager key={scope.organization.id} organizationId={scope.organization.id} />
+        {isConnectOnboardingFlagEnabled() ? (
+          <div className="mt-6">
+            <OwnerStripeConnectCard key={scope.organization.id} organizationId={scope.organization.id} />
+          </div>
+        ) : null}
       </main>
     </OwnerWorkspacePageShell>
   );

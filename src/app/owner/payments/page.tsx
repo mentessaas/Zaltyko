@@ -22,6 +22,8 @@ import {
   isAutomaticPaymentRemindersFlagEnabled,
 } from "@/modules/payment-reminders/application/storage";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
+import { isConnectOnboardingFlagEnabled } from "@/modules/payments-connect/application/config";
+import { getConnectStatus } from "@/modules/payments-connect/application/connect-onboarding-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import {
   getOwnerMonthlyFeesChart,
@@ -124,6 +126,38 @@ export default async function OwnerPaymentsPage({
     }
   }
 
+  // Cobro automático de cuotas: con la bandera encendida y sin cuenta de Stripe
+  // conectada, un enlace lleva a Ajustes (solo dueños con todas las sedes, como
+  // esa pantalla). Sin llamar a Stripe; un fallo al leer el estado lo oculta.
+  let showAutomaticCollectionLink = false;
+  if (
+    isConnectOnboardingFlagEnabled() &&
+    scope.member.role === "owner" &&
+    scope.member.locationScopeMode === "all"
+  ) {
+    try {
+      const connectState = await getConnectStatus({
+        userId: user.id,
+        organizationId: scope.organization.id,
+        refresh: false,
+      });
+      showAutomaticCollectionLink =
+        connectState.kind === "not_connected" ||
+        (connectState.kind === "unavailable" && connectState.reason === "paid_plan_required");
+    } catch (error) {
+      // El acceso a Conectar Stripe no debe tumbar Pagos: se oculta el enlace.
+      // Solo el id de la academia y el nombre del error, nunca su contenido.
+      logger.warn("Pagos: no se pudo leer el estado de Conectar Stripe", {
+        organizationId: scope.organization.id,
+        errorName: error instanceof Error ? error.name : "unknown",
+      });
+      showAutomaticCollectionLink = false;
+    }
+  }
+  const automaticCollectionHref = `/owner/settings?${new URLSearchParams({
+    organizationId: scope.organization.id,
+  }).toString()}#cobro-automatico`;
+
   // Cuotas del mes en curso de esta sede (o de todas): lo que ya se cobró y lo
   // que falta. Tras guardar un pago, el refresco de la página lo actualiza.
   const monthlyFees = await resolveOwnerChartScope({
@@ -165,6 +199,11 @@ export default async function OwnerPaymentsPage({
                 </Link>
               }
             />
+            {showAutomaticCollectionLink ? (
+              <Link href={automaticCollectionHref} className={cn(ownerUi.textLink, "w-fit")}>
+                Cobrar las cuotas automáticamente
+              </Link>
+            ) : null}
           </div>
 
           {monthlyFees ? (

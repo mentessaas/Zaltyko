@@ -919,6 +919,20 @@ export const organizationPaymentProviderAccounts = zaltyko.table(
     cardPaymentsCapabilityStatus: text("card_payments_capability_status")
       .notNull()
       .default("pending"),
+    // Candidata docs/deployment/candidates/20261116120000_connect_onboarding_candidate.sql:
+    // aplicada en staging (16-11-2026), SIN aplicar en producción. Este espejo
+    // declara dos columnas (y sus dos checks, abajo) que todavía no existen en
+    // la base de producción: consultarlas solo tras
+    // isConnectOnboardingStorageAvailable() y con columnas explícitas, nunca
+    // con un select o insert de Drizzle de la tabla entera.
+    sepaDebitPaymentsCapabilityStatus: text(
+      "sepa_debit_payments_capability_status"
+    )
+      .notNull()
+      .default("pending"),
+    requirementsState: text("requirements_state")
+      .notNull()
+      .default("user_action"),
     revision: integer("revision").notNull().default(1),
     lastProviderEventReference: text("last_provider_event_reference"),
     lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
@@ -976,6 +990,16 @@ export const organizationPaymentProviderAccounts = zaltyko.table(
     check(
       "organization_payment_provider_accounts_capability_status_not_blank",
       sql.raw("btrim(card_payments_capability_status) <> ''")
+    ),
+    check(
+      "organization_payment_provider_accounts_sepa_status_not_blank",
+      sql.raw("btrim(sepa_debit_payments_capability_status) <> ''")
+    ),
+    check(
+      "organization_payment_provider_accounts_requirements_state_check",
+      sql.raw(
+        "requirements_state in ('none', 'user_action', 'stripe_review', 'past_due')"
+      )
     ),
     check(
       "organization_payment_provider_accounts_revision_positive",
