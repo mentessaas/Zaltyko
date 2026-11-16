@@ -16,6 +16,7 @@ import {
   readPendingOwnerAthleteFamilyAssociation,
 } from "@/components/owner-dashboard/OwnerAthleteFamilyAssociationEditor";
 import { OwnerGroupsManager } from "@/components/owner-dashboard/OwnerGroupsManager";
+import { OwnerOperationalPolicy } from "@/components/owner-dashboard/OwnerOperationalPolicy";
 import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
 const organizationId = "40000000-0000-4000-8000-000000000001";
@@ -453,6 +454,42 @@ describe("asociación familiar desde una pertenencia Owner", () => {
     await user.click(screen.getByRole("button", { name: "Asociar familia" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("La fecha efectiva se solapa");
     expect(readPendingOwnerAthleteFamilyAssociation(window.sessionStorage).kind).toBe("none");
+  });
+
+  it("abre «Asociar familia» con el primer clic aunque ese clic devuelva el foco a la ventana", async () => {
+    // Staging, 15-11-2026: el primer clic tras cargar /owner/groups no abría
+    // el panel. Ese clic devuelve el foco a la ventana, la política del plan se
+    // vuelve a consultar y, si eso deshabilita el botón entre mousedown y
+    // click, el navegador descarta el clic.
+    const recheck = deferred<ReturnType<typeof response>>();
+    let policyReads = 0;
+    mocks.fetch.mockImplementation((url: string) => {
+      if (url.startsWith("/api/v1/owner/operational-policy")) {
+        policyReads += 1;
+        return policyReads === 1
+          ? Promise.resolve(response(200, { ok: true, data: { readOnly: false, planCode: "growth" } }))
+          : recheck.promise;
+      }
+      if (url.startsWith("/api/v1/owner/families/options")) return Promise.resolve(response(200, familyOptionsPayload));
+      return Promise.reject(new Error(`unexpected ${url}`));
+    });
+    const user = userEvent.setup();
+    render(<><OwnerOperationalPolicy organizationId={organizationId} locationId={locationId} /><OwnerGroupsManager bundle={managerBundle} /></>);
+    const open = await screen.findByRole("button", { name: "Vincular familia a Ana García" });
+    await waitFor(() => expect(open).toBeEnabled());
+
+    act(() => { window.dispatchEvent(new Event("focus")); });
+    await waitFor(() => expect(policyReads).toBe(2));
+    expect(open).toBeEnabled();
+    await user.click(open);
+
+    expect(await screen.findByRole("region", { name: "Asociar familia" })).toBeVisible();
+    expect(open).toHaveAttribute("aria-expanded", "true");
+    await act(async () => {
+      recheck.resolve(response(200, { ok: true, data: { readOnly: false, planCode: "growth" } }));
+      await recheck.promise;
+    });
+    expect(screen.getByRole("region", { name: "Asociar familia" })).toBeVisible();
   });
 
   it("frena las escrituras de pertenencia mientras la asociación familiar está abierta", async () => {

@@ -15,6 +15,11 @@ type SettledRead = { status: "ready"; usage: UsagePolicy } | { status: "error" |
 type ReadBatch = {
   active: Set<number>;
   settled: Map<number, SettledRead>;
+  /**
+   * Confirmed policy kept visible while a background revalidation runs. Null
+   * as soon as any regular read joins the batch.
+   */
+  revalidating: Extract<OwnerPlanPolicy, { status: "ready" }> | null;
 };
 const readBatches = new Map<string, ReadBatch>();
 
@@ -66,22 +71,44 @@ function publishSettledBatch(organizationId: string, batch: ReadBatch) {
     .find(([, result]) => result.status !== "cancelled");
   if (latestMeaningfulRead?.[1].status === "ready") {
     publishPolicy(organizationId, { status: "ready", ...latestMeaningfulRead[1].usage });
+  } else if (!latestMeaningfulRead && batch.revalidating) {
+    // Every background revalidation was cancelled (navigation, a newer
+    // focus): nothing new was learned, so the confirmed policy stays.
+    publishPolicy(organizationId, batch.revalidating);
   } else {
     // A real failure in a newer read must not be replaced by older data.
     publishPolicy(organizationId, { status: "error" });
   }
 }
 
-export function beginOwnerPlanUsageRead(organizationId: string): OwnerPlanUsageReadTicket {
+/**
+ * Starts a read of the plan policy. A regular read blocks writes ("loading")
+ * until it settles. A background revalidation (`revalidate: true`, used when
+ * the tab or window regains focus) keeps an already confirmed policy visible
+ * meanwhile: otherwise the first click after focusing the window lands on a
+ * button that was disabled between mousedown and click, and does nothing.
+ * The server still checks plan writability on every write.
+ */
+export function beginOwnerPlanUsageRead(
+  organizationId: string,
+  options: { revalidate?: boolean } = {}
+): OwnerPlanUsageReadTicket {
   const ticket = (readSequences.get(organizationId) ?? 0) + 1;
   readSequences.set(organizationId, ticket);
-  const batch = readBatches.get(organizationId) ?? {
+  const current = policies.get(organizationId);
+  const existing = readBatches.get(organizationId);
+  const keep: Extract<OwnerPlanPolicy, { status: "ready" }> | null = options.revalidate === true && current?.status === "ready" && (!existing || existing.revalidating)
+    ? current
+    : null;
+  const batch: ReadBatch = existing ?? {
     active: new Set<number>(),
     settled: new Map<number, SettledRead>(),
+    revalidating: keep,
   };
+  batch.revalidating = keep;
   batch.active.add(ticket);
   readBatches.set(organizationId, batch);
-  publishPolicy(organizationId, { status: "loading" });
+  if (!keep) publishPolicy(organizationId, { status: "loading" });
   return ticket;
 }
 

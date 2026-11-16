@@ -38,6 +38,7 @@ import {
   markFamilyNoticesRead,
   setFamilyNotificationPreferences,
 } from "@/modules/family-access/application/family-notice-reads";
+import { updateOwnerGuardianContact } from "@/modules/families/application/owner-guardian-contacts";
 
 /**
  * Familias: alta por invitación y avisos de sesión sobre PostgreSQL desechable
@@ -329,11 +330,39 @@ describe.skipIf(!disposablePgEnabled)("acceso de familias y avisos en PostgreSQL
     expect(linked.rows).toEqual([{ auth_user_id: userAna, can_view_athletes: true }]);
     const list = await listOwnerFamilyAccess({ ...scopeA(), actor: ownerA });
     expect(list.guardians.find((row) => row.guardianId === ana.guardianId)).toMatchObject({ status: "linked", canViewAthletes: true, athletes: ["Ana Prueba"] });
-    expect(list.guardians.find((row) => row.guardianId === noMailGuardian)).toMatchObject({ status: "not_invited", email: null, actions: { invite: false } });
+    expect(list.guardians.find((row) => row.guardianId === noMailGuardian)).toMatchObject({ status: "not_invited", email: null, actions: { invite: false }, contactLocationId: a.locationId });
+    expect(list.guardians.find((row) => row.guardianId === ana.guardianId)?.contactLocationId).toBeNull();
     expect(list.guardians.some((row) => row.guardianId === zoe.guardianId)).toBe(false);
     const audit = await db.execute(sql`select action from zaltyko.audit_log where organization_id = ${a.organizationId}::uuid
       and action like 'family_access.%' order by created_at`);
     expect((audit.rows as Array<{ action: string }>).map((row) => row.action)).toEqual(["family_access.invitation_invite", "family_access.invitation_accept"]);
+  });
+
+  it("el correo que falta se añade desde la sede de la gimnasta, con la misma comprobación que en Grupos", async () => {
+    const c = await academy("C");
+    const ownerC = await member(c.organizationId, "owner", "all");
+    const otherLocationId = randomUUID();
+    await db.execute(sql`insert into zaltyko.locations (id, organization_id, code, name, timezone, is_active)
+      values (${otherLocationId}::uuid, ${c.organizationId}::uuid, ${`ci-fam-c2-${otherLocationId.slice(0, 8)}`}, 'Sede C2', 'Europe/Madrid', true)`);
+    const lia = await family(c.organizationId, "Lia", "Padre Lia", null);
+    const scopeC = { organizationId: c.organizationId, locationId: c.locationId };
+    const row = async () => (await listOwnerFamilyAccess({ ...scopeC, actor: ownerC })).guardians.find((item) => item.guardianId === lia.guardianId);
+
+    // Sin grupo ni clase en ninguna sede, la API de contactos no lo aceptaría.
+    expect(await row()).toMatchObject({ email: null, contactLocationId: null });
+
+    // Inscrita solo en la otra sede: esa es la sede desde la que se edita.
+    const classC2 = await classTemplate(c.organizationId, otherLocationId, "CI Base C2");
+    await enroll(c.organizationId, otherLocationId, classC2, lia.athleteId);
+    expect(await row()).toMatchObject({ email: null, contactLocationId: otherLocationId, actions: { invite: false } });
+
+    const email = `ci-fam-lia-${randomUUID()}@example.invalid`;
+    const contact = { guardianId: lia.guardianId, actor: ownerC, kind: "email" as const,
+      expectedContactId: null, expectedValue: null, expectedUpdatedAt: null, value: email };
+    await expect(updateOwnerGuardianContact({ ...contact, ...scopeC, idempotencyKey: key() }))
+      .rejects.toMatchObject({ code: "NOT_FOUND" });
+    await updateOwnerGuardianContact({ ...contact, organizationId: c.organizationId, locationId: otherLocationId, idempotencyKey: key() });
+    expect(await row()).toMatchObject({ email, contactLocationId: null, status: "not_invited", actions: { invite: true } });
   });
 
   it("caducidad, reenvío con espera, revocación y correo cambiado invalidan el enlace", async () => {

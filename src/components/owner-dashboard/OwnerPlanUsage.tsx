@@ -36,6 +36,8 @@ export function OwnerPlanUsage({ organizationId, compact = false }: { organizati
   const [archiveFeedback, setArchiveFeedback] = useState<{ organizationId: string; error: string; notice: string }>({ organizationId: "", error: "", notice: "" });
   const [refresh, setRefresh] = useState(0);
   const lastForegroundRefreshAtRef = useRef<number | null>(null);
+  // A read caused by focusing the window keeps the confirmed policy visible.
+  const revalidateNextRef = useRef(false);
   const usageKey = JSON.stringify([organizationId, compact, resource, after, refresh]);
   const [renderedUsageKey, setRenderedUsageKey] = useState(usageKey);
   // Reset only query-local state before committing another context. Keep the
@@ -121,7 +123,9 @@ export function OwnerPlanUsage({ organizationId, compact = false }: { organizati
   };
   useEffect(() => {
     const controller = new AbortController();
-    const ticket = beginOwnerPlanUsageRead(organizationId);
+    const revalidate = revalidateNextRef.current;
+    revalidateNextRef.current = false;
+    const ticket = beginOwnerPlanUsageRead(organizationId, { revalidate });
     let settled = false;
     const params = new URLSearchParams({ organizationId });
     if (!compact) { params.set("resource", resource); if (after) params.set("after", after); }
@@ -211,6 +215,7 @@ export function OwnerPlanUsage({ organizationId, compact = false }: { organizati
       // that pair as one read; this is a focus refresh, not periodic polling.
       if (lastForegroundRefreshAtRef.current !== null && now - lastForegroundRefreshAtRef.current < 750) return;
       lastForegroundRefreshAtRef.current = now;
+      revalidateNextRef.current = true;
       update();
     };
     window.addEventListener("zaltyko:plan-usage-changed", update);

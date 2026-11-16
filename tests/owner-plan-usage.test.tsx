@@ -42,6 +42,47 @@ describe("consulta del uso sin operaciones de negocio", () => {
     expect(screen.getByTestId("operational-policy")).toHaveTextContent("read-only");
   });
 
+  it("mantiene la política confirmada mientras se revalida al volver a la ventana", () => {
+    render(<PolicyProbe />);
+    let background!: number;
+    act(() => { background = beginOwnerPlanUsageRead(org, { revalidate: true }); });
+    expect(screen.getByTestId("operational-policy")).toHaveTextContent("editable");
+    act(() => { expect(publishOwnerPlanUsage(org, { readOnly: true, planCode: "free" }, background)).toBe(true); });
+    expect(screen.getByTestId("operational-policy")).toHaveTextContent("read-only");
+  });
+
+  it("una revalidación cancelada conserva la política confirmada y un fallo real la bloquea", () => {
+    render(<PolicyProbe />);
+    let cancelled!: number;
+    act(() => { cancelled = beginOwnerPlanUsageRead(org, { revalidate: true }); });
+    act(() => { expect(markOwnerPlanUsageUnavailable(org, cancelled, "cancelled")).toBe(true); });
+    expect(screen.getByTestId("operational-policy")).toHaveTextContent("editable");
+    let failed!: number;
+    act(() => { failed = beginOwnerPlanUsageRead(org, { revalidate: true }); });
+    act(() => { expect(markOwnerPlanUsageUnavailable(org, failed, "error")).toBe(true); });
+    expect(screen.getByTestId("operational-policy")).toHaveTextContent("error");
+  });
+
+  it("una lectura normal sigue bloqueando aunque haya una revalidación en curso", () => {
+    render(<PolicyProbe />);
+    act(() => { beginOwnerPlanUsageRead(org, { revalidate: true }); });
+    expect(screen.getByTestId("operational-policy")).toHaveTextContent("editable");
+    act(() => { beginOwnerPlanUsageRead(org); });
+    expect(screen.getByTestId("operational-policy")).toHaveTextContent("loading");
+    act(() => { beginOwnerPlanUsageRead(org, { revalidate: true }); });
+    expect(screen.getByTestId("operational-policy")).toHaveTextContent("loading");
+  });
+
+  it("sin política confirmada, la revalidación también bloquea hasta saber el estado", () => {
+    render(<PolicyProbe />);
+    let first!: number;
+    act(() => { first = beginOwnerPlanUsageRead(org); });
+    act(() => { expect(markOwnerPlanUsageUnavailable(org, first, "error")).toBe(true); });
+    expect(screen.getByTestId("operational-policy")).toHaveTextContent("error");
+    act(() => { beginOwnerPlanUsageRead(org, { revalidate: true }); });
+    expect(screen.getByTestId("operational-policy")).toHaveTextContent("loading");
+  });
+
   it("no convierte en error global el aborto más reciente mientras siga viva otra lectura", () => {
     render(<PolicyProbe />);
     let stale!: number;

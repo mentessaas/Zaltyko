@@ -20,6 +20,13 @@ portal no muestra «Avisos» y guardar una sustitución no avisa a nadie.
 - La lista muestra cada tutor con una familia activa: nombre, gimnastas,
   correo principal y estado (sin invitar, invitación pendiente, caducada,
   revocada, con acceso, acceso retirado).
+- **Añadir correo**: si un tutor no tiene correo principal, se añade ahí mismo,
+  junto a su nombre, con el mismo editor y la misma API de contactos que en
+  Grupos (`/api/v1/owner/guardians/[guardianId]/contacts`). La lista indica la
+  sede desde la que se edita: una en la que alguna gimnasta de su familia está
+  hoy inscrita o en un grupo activo (la elegida, si vale), que es lo que exige
+  esa API. Al guardar aparece «Invitar al portal» sin recargar. Si la gimnasta
+  no está en ningún grupo ni clase, la lista lo dice en vez de ofrecer el botón.
 - **Invitar al portal**: la academia confirma el correo y decide, en el mismo
   paso, si el tutor verá el horario, la asistencia y los avisos de sus
   gimnastas (casilla marcada por defecto). Se envía un correo con un enlace de
