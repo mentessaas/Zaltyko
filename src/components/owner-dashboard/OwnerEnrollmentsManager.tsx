@@ -4,7 +4,7 @@ import { ownerTone, ownerUi } from "./owner-ui";
 import { PageHeader } from "@/components/ui/page-header";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { usePendingCommandExitWarning } from "./use-pending-command-exit-warning";
 import { useOrganizationDraftField } from "./use-organization-draft-field";
 import { OwnerOperationalReadOnlyNotice } from "./OwnerOperationalReadOnlyNotice";
@@ -21,6 +21,11 @@ import {
   readPendingEnrollmentIntent,
   type PendingEnrollmentIntent,
 } from "./owner-enrollment-command-response";
+import {
+  confirmedEnrollmentState,
+  withConfirmedEnrollmentStates,
+  type ConfirmedEnrollmentState,
+} from "./owner-enrollment-confirmed-state";
 import { monthlyInvoicesHref, primaryButtonClassName, statusHref } from "./owner-enrollment-ui";
 import {
   constrainEnrollmentStartDate,
@@ -35,7 +40,7 @@ import type {
 } from "./owner-enrollment-types";
 
 export function OwnerEnrollmentsManager({
-  bundle,
+  bundle: serverBundle,
   selectedStatus,
   previewMode = false,
   previewCreateForm = false,
@@ -46,6 +51,13 @@ export function OwnerEnrollmentsManager({
   previewCreateForm?: boolean;
 }) {
   const router = useRouter();
+  // Acuses confirmados en esta página: el listado los muestra aunque el
+  // refresco del servidor llegue tarde o con una versión anterior.
+  const [confirmedStates, setConfirmedStates] = useState<Record<string, ConfirmedEnrollmentState>>({});
+  const bundle = useMemo(
+    () => withConfirmedEnrollmentStates(serverBundle, confirmedStates, selectedStatus),
+    [serverBundle, confirmedStates, selectedStatus]
+  );
   const organizationId = bundle.organization.id;
   const planPolicy = useOwnerPlanPolicy(organizationId, !previewMode);
   const writesAllowed = planPolicy.status === "ready" && !planPolicy.readOnly;
@@ -427,6 +439,15 @@ export function OwnerEnrollmentsManager({
       }
       operationConfirmed = true;
       if (currentIntent) {
+        const confirmedState = intent.kind === "transition" && intent.enrollmentId
+          ? confirmedEnrollmentState(payload, intent.enrollmentId)
+          : null;
+        if (confirmedState) {
+          setConfirmedStates(current =>
+            (current[confirmedState.id]?.version ?? 0) >= confirmedState.version
+              ? current
+              : { ...current, [confirmedState.id]: confirmedState });
+        }
         setConfirmingCancelId(""); setConfirmingCompleteId("");
         if (intent.kind === "create") {
           setSelectedCandidate(null); setCandidateQuery(""); setCandidates([]);

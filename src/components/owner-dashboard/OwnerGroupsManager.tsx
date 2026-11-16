@@ -4,7 +4,7 @@ import { ownerTone, ownerUi } from "./owner-ui";
 import { PageHeader } from "@/components/ui/page-header";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, Plus, UsersRound } from "lucide-react";
 import { groupCommandOutcome, uncertainGroupCommandMessage } from "./owner-group-command-response";
 import { useOrganizationDraftField } from "./use-organization-draft-field";
@@ -60,9 +60,16 @@ import { OwnerGroupCreateForm, OwnerGroupCreatePendingNotice } from "./OwnerGrou
 import { OwnerGroupsSidebar } from "./OwnerGroupsSidebar";
 import { OwnerGroupAthleteCreateDetails, OwnerGroupAthleteSearchForm } from "./OwnerGroupAthleteIntake";
 import { OwnerGroupMembershipRow } from "./OwnerGroupMembershipRow";
+import {
+  confirmedGroupMembership,
+  createdAthleteName,
+  pruneConfirmedGroupMemberships,
+  withConfirmedGroupMemberships,
+  type ConfirmedGroupMembership,
+} from "./owner-group-confirmed-memberships";
 
 export function OwnerGroupsManager({
-  bundle,
+  bundle: serverBundle,
   progressAvailable = false,
 }: {
   bundle: GroupsBundle;
@@ -70,6 +77,17 @@ export function OwnerGroupsManager({
   progressAvailable?: boolean;
 }) {
   const router = useRouter();
+  // Altas confirmadas en esta página: se muestran aunque el refresco del
+  // servidor llegue tarde o con un listado anterior al acuse.
+  const [confirmedMemberships, setConfirmedMemberships] = useState<readonly ConfirmedGroupMembership[]>([]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setConfirmedMemberships((current) => pruneConfirmedGroupMemberships(current, serverBundle));
+  }, [serverBundle]);
+  const bundle = useMemo(
+    () => withConfirmedGroupMemberships(serverBundle, confirmedMemberships),
+    [serverBundle, confirmedMemberships]
+  );
   const organizationId = bundle.organization.id;
   const planPolicy = useOwnerPlanPolicy(organizationId);
   const writesAllowed = planPolicy.status === "ready" && !planPolicy.readOnly;
@@ -556,6 +574,21 @@ export function OwnerGroupsManager({
         return;
       }
       confirmed = true;
+      // El acuse manda en el listado hasta que el refresco del servidor la
+      // incluya: un refresco tardío o anterior no puede ocultarla.
+      const addedAthleteId = activeCommand.kind === "add" ? activeCommand.athleteId : undefined;
+      const confirmedAthleteName = activeCommand.kind === "create"
+        ? createdAthleteName(activeCommand.body)
+        : candidates.find((candidate) => candidate.id === addedAthleteId)?.name ?? "";
+      const confirmedMembership = activeCommand.kind !== "transition"
+        ? confirmedGroupMembership(payload, { groupId: activeCommand.groupId, athleteName: confirmedAthleteName })
+        : null;
+      if (confirmedMembership && scopeVersionRef.current === scopeVersion) {
+        setConfirmedMemberships((current) =>
+          current.some((membership) => membership.id === confirmedMembership.id)
+            ? current
+            : [...current, confirmedMembership]);
+      }
       if (activeCommand.kind === "create") {
         setNewAthleteGivenName("");
         setNewAthleteFamilyName("");
