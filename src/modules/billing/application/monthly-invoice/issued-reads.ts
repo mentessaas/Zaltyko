@@ -29,7 +29,8 @@ export type MonthlyChargeStatus = "due" | "partially_paid" | "paid" | "void";
 /** Parte de la firma pública: lo reexporta monthly-invoice-service.ts. */
 export type MonthlyChargeState = {
   chargeStatus: MonthlyChargeStatus | "mixed";
-  collectionMode: "manual";
+  /** Todas las cuotas de una factura mensual nacen con el mismo modo. */
+  collectionMode: "manual" | "automatic";
   charges: Array<{
     id: string;
     status: MonthlyChargeStatus;
@@ -212,7 +213,15 @@ export type IssuedMonthlyLines = Awaited<ReturnType<typeof loadIssuedLines>>;
 export async function loadMonthlyChargeState(
   tx: TransactionClient,
   organizationId: string,
-  invoiceId: string
+  invoiceId: string,
+  options: {
+    /**
+     * Solo en una emisión nueva: el modo con el que se pidió al libro. Un
+     * replay acepta el modo guardado (también `automatic` emitido antes de
+     * apagar la bandera).
+     */
+    expectedCollectionMode?: "manual" | "automatic";
+  } = {}
 ): Promise<MonthlyChargeState> {
   // Payment commands lock one charge. Lock each ordered page so a charge
   // cannot change after it has been included in the aggregate response.
@@ -241,20 +250,24 @@ export async function loadMonthlyChargeState(
         .for("update");
     },
   });
+  const collectionMode = rows[0]?.collectionMode;
   if (
     rows.length === 0 ||
-    rows.some((row) => row.collectionMode !== "manual")
+    collectionMode === undefined ||
+    rows.some((row) => row.collectionMode !== collectionMode) ||
+    (options.expectedCollectionMode !== undefined &&
+      collectionMode !== options.expectedCollectionMode)
   ) {
     throw new OperationalError(
       "MONTHLY_INVOICE_BLOCKED",
-      "El estado del cargo mensual no coincide con la emisión manual esperada.",
+      "El estado del cargo mensual no coincide con la emisión esperada.",
       500
     );
   }
   const statuses = [...new Set(rows.map((row) => row.status))];
   return {
     chargeStatus: statuses.length === 1 ? statuses[0] : "mixed",
-    collectionMode: "manual",
+    collectionMode,
     charges: rows.map(({ id, status }) => ({ id, status })),
   };
 }

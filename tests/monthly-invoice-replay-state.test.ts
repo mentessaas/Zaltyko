@@ -431,6 +431,47 @@ describe("monthly invoice replay state", () => {
     expect(harness.lockCalls).toEqual(["update", "update"]);
   });
 
+  // Cobro automático (Fase 3): una cuota mensual puede nacer en automático y
+  // su replay debe leerse también con la bandera apagada (vuelta atrás).
+  it("returns the stored automatic mode of an automatic monthly invoice", async () => {
+    const harness = createReaderTx({
+      chargeRows: [
+        { id: "charge-001", status: "due", collectionMode: "automatic" },
+        { id: "charge-002", status: "due", collectionMode: "automatic" },
+      ],
+    });
+
+    const result = await loadMonthlyChargeState(harness.tx, "org-1", "invoice-1");
+
+    expect(result.collectionMode).toBe("automatic");
+    expect(result.chargeStatus).toBe("due");
+  });
+
+  it("rejects charges of one invoice with different modes", async () => {
+    const harness = createReaderTx({
+      chargeRows: [
+        { id: "charge-001", status: "due", collectionMode: "automatic" },
+        { id: "charge-002", status: "due", collectionMode: "manual" },
+      ],
+    });
+
+    await expect(
+      loadMonthlyChargeState(harness.tx, "org-1", "invoice-1")
+    ).rejects.toMatchObject({ code: "MONTHLY_INVOICE_BLOCKED", status: 500 });
+  });
+
+  it("rejects a new issuance whose charges do not have the requested mode", async () => {
+    const harness = createReaderTx({
+      chargeRows: [{ id: "charge-001", status: "due", collectionMode: "manual" }],
+    });
+
+    await expect(
+      loadMonthlyChargeState(harness.tx, "org-1", "invoice-1", {
+        expectedCollectionMode: "automatic",
+      })
+    ).rejects.toMatchObject({ code: "MONTHLY_INVOICE_BLOCKED", status: 500 });
+  });
+
   it("re-reads invoice status after charge locks settle", async () => {
     const harness = createReplayTx();
     const replay = loadMonthlyReplayState(harness.tx, "org-1", "invoice-1");

@@ -30,7 +30,7 @@ function unauthenticatedResponse() {
   });
 }
 
-// @auth-flexible route-guard-reason: billing service resolves the active organization member, owner/admin role, full-organization location scope, and charge visibility before accessing a family preference.
+// @auth-flexible route-guard-reason: billing service resolves the active organization member, owner/admin role, full-organization location scope, and family visibility (open charges while automatic collection is closed; an active family of the academy once it is open) before accessing a family preference.
 export async function GET(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) return unauthenticatedResponse();
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
   }
 }
 
-// @auth-flexible route-guard-reason: validates a fresh human session and the active Owner/admin scope before accepting a manual-only preference; writes retain CAS, audit, and outbox.
+// @auth-flexible route-guard-reason: validates a fresh human session and the active Owner/admin scope before accepting a preference; automatic is accepted only with this phase's flag on, the test-environment and non-production-database locks open and a paid plan (otherwise 409); writes retain CAS, audit, and outbox.
 export async function PUT(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) return unauthenticatedResponse();

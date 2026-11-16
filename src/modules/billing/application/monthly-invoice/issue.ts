@@ -7,6 +7,7 @@
 import { z } from "zod";
 
 import { db } from "@/db";
+import { getChargeCollectionModeSnapshot } from "@/modules/billing/application/charge-collection-mode";
 import { issueInvoiceInTransaction } from "@/modules/billing/application/ledger-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
@@ -150,6 +151,17 @@ export async function issueMonthlyInvoice(
       allowedRoles: financialRoles,
     });
 
+    // Cobro automático (Fase 3): las cuotas nacen en automático solo si la
+    // familia lo pidió, tiene método de pago activo y la bandera está
+    // encendida. Con la bandera apagada no consulta nada y es `manual`.
+    const collectionMode = await getChargeCollectionModeSnapshot({
+      executor: tx,
+      organizationId: input.organizationId,
+      familyId: input.familyId,
+      familyPayerId: input.familyPayerId,
+      invoiceKind: "monthly",
+    });
+
     const reference = monthlyInvoiceReference({
       servicePeriod: input.servicePeriod,
       familyId: input.familyId,
@@ -178,7 +190,9 @@ export async function issueMonthlyInvoice(
           servicePeriodEnd: bounds.end,
         })),
       },
-      { collectionMode: "manual" }
+      collectionMode === "automatic"
+        ? { collectionMode: "automatic", monthlyInvoice: true }
+        : { collectionMode: "manual" }
     ).catch((error: unknown) => {
       // A concurrent invoice outside these locks (for example a manual one) can
       // still take the reference after the quote. The transaction is already
@@ -229,14 +243,16 @@ export async function issueMonthlyInvoice(
         servicePeriod: input.servicePeriod,
         totalAmountCents: family.totalAmountCents,
         currency: family.currency,
-        collectionMode: "manual",
+        collectionMode,
       },
     });
     return {
       invoice,
       replayed: false,
       lines: await loadIssuedLines(tx, input.organizationId, invoice.id),
-      ...(await loadMonthlyChargeState(tx, input.organizationId, invoice.id)),
+      ...(await loadMonthlyChargeState(tx, input.organizationId, invoice.id, {
+        expectedCollectionMode: collectionMode,
+      })),
     };
   });
 
