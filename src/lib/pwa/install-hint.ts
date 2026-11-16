@@ -120,18 +120,3 @@ export function isAttendanceRoute(pathname: string | null | undefined): boolean 
   );
 }
 
-/**
- * Rutas donde la invitación general («Instalar Zaltyko», solo web pública)
- * no se muestra: acceso, zona privada y pantalla de pasar lista sin conexión.
- */
-export function isInstallPromptSuppressedRoute(pathname: string | null | undefined): boolean {
-  if (!pathname) return false;
-  return (
-    pathname === "/login" ||
-    pathname.startsWith("/auth/") ||
-    pathname.startsWith("/owner") ||
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/super-admin") ||
-    pathname.startsWith("/pasar-lista-sin-conexion")
-  );
-}

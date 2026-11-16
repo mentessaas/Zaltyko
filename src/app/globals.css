@@ -495,19 +495,6 @@ body {
   @apply fixed top-0 left-0 right-0 z-50 border-b border-ochre-line bg-ochre-wash text-ochre-ink text-center py-2 text-sm;
 }
 
-/* PWA install banner (if not installed) */
-@media (display-mode: browser) {
-  .pwa-install-prompt {
-    @apply block;
-  }
-}
-
-@media (display-mode: standalone) {
-  .pwa-install-prompt {
-    @apply hidden;
-  }
-}
-
 /* ===== Motion del dashboard (Ox Alpha) ===== */
 /* Dibujado de línea para gráficos SVG (Pulso operativo). El dasharray se
    anima con longitud genérica grande; reduced-motion lo muestra directo. */
