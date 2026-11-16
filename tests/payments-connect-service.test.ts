@@ -6,6 +6,7 @@ import type { EntitlementSnapshot } from "@/modules/billing/domain/plan-eligibil
 import { resolveOwnerScope, type OwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import {
   getConnectStatus,
+  renewConnectOnboardingLink,
   startConnectOnboarding,
   syncConnectAccountFromEvent,
 } from "@/modules/payments-connect/application/connect-onboarding-service";
@@ -389,6 +390,59 @@ describe("servicio de Conectar Stripe", () => {
       expect(gateway.createOnboardingLink).toHaveBeenCalledWith(
         expect.objectContaining({ accountId: "acct_SyntheticA1" })
       );
+    });
+  });
+
+  describe("renewConnectOnboardingLink", () => {
+    it("sin fila lanza NOT_FOUND y no crea la cuenta, ni el enlace, ni escribe", async () => {
+      const gateway = fakeGateway();
+      await expect(renewConnectOnboardingLink({ userId, organizationId }, { gateway, now })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        status: 404,
+      });
+      expect(gateway.createAccount).not.toHaveBeenCalled();
+      expect(gateway.createOnboardingLink).not.toHaveBeenCalled();
+      expect(insertConnectAccountIfAbsent).not.toHaveBeenCalled();
+      expect(db.transaction).not.toHaveBeenCalled();
+      expect(appendAuditEntry).not.toHaveBeenCalled();
+      expect(appendOutboxEvent).not.toHaveBeenCalled();
+    });
+
+    it("con fila solo pide un enlace nuevo para la cuenta guardada", async () => {
+      vi.mocked(findConnectAccountForOrganization).mockResolvedValue(storedAccount());
+      const gateway = fakeGateway();
+
+      const result = await renewConnectOnboardingLink({ userId, organizationId }, { gateway, now });
+
+      expect(result).toEqual({ url: "https://connect.stripe.test/setup/synthetic" });
+      expect(resolveOwnerScope).toHaveBeenCalledWith({ userId, organizationId });
+      expect(gateway.createAccount).not.toHaveBeenCalled();
+      expect(gateway.retrieveAccount).not.toHaveBeenCalled();
+      expect(db.transaction).not.toHaveBeenCalled();
+      expect(gateway.createOnboardingLink).toHaveBeenCalledWith({
+        accountId: "acct_SyntheticA1",
+        returnUrl: `https://zaltyko.test/owner/settings?organizationId=${organizationId}&stripe=vuelta#cobro-automatico`,
+        refreshUrl: `https://zaltyko.test/api/v1/owner/payments/connect/link?organizationId=${organizationId}`,
+      });
+    });
+
+    it("sin disponibilidad lanza CONNECT_UNAVAILABLE sin buscar la cuenta ni llamar a Stripe", async () => {
+      vi.stubEnv("ZALTYKO_CONNECT_ONBOARDING_ENABLED", "false");
+      const gateway = fakeGateway();
+      await expect(renewConnectOnboardingLink({ userId, organizationId }, { gateway, now })).rejects.toMatchObject({
+        code: "CONNECT_UNAVAILABLE",
+        status: 409,
+        details: { reason: "flag_off" },
+      });
+      expect(findConnectAccountForOrganization).not.toHaveBeenCalled();
+      expect(gateway.createOnboardingLink).not.toHaveBeenCalled();
+    });
+
+    it("el error de alcance de resolveOwnerScope se propaga sin llamar a Stripe", async () => {
+      vi.mocked(resolveOwnerScope).mockRejectedValue(new Error("sin acceso"));
+      const gateway = fakeGateway();
+      await expect(renewConnectOnboardingLink({ userId, organizationId }, { gateway, now })).rejects.toThrow("sin acceso");
+      expect(gateway.createOnboardingLink).not.toHaveBeenCalled();
     });
   });
 

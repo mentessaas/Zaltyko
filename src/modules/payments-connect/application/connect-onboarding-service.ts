@@ -433,13 +433,63 @@ export async function startConnectOnboarding(
     }
   }
 
+  return createOnboardingLinkFor(gateway, organizationId, account.providerAccountReference);
+}
+
+/** Enlace de alta de Stripe con las URLs de vuelta y de enlace caducado. */
+function createOnboardingLinkFor(
+  gateway: ConnectAccountsGateway,
+  organizationId: string,
+  accountReference: string
+): Promise<{ url: string }> {
   const appUrl = getAppUrl();
   const organizationQuery = `organizationId=${encodeURIComponent(organizationId)}`;
   return gateway.createOnboardingLink({
-    accountId: account.providerAccountReference,
+    accountId: accountReference,
     returnUrl: `${appUrl}${CONNECT_RETURN_PATH}?${organizationQuery}&stripe=vuelta#cobro-automatico`,
     refreshUrl: `${appUrl}${CONNECT_LINK_ROUTE}?${organizationQuery}`,
   });
+}
+
+/**
+ * Enlace nuevo para una cuenta conectada que ya existe (refresh_url de
+ * Stripe, una navegación GET). Mismo alcance y disponibilidad que
+ * `startConnectOnboarding`, pero nunca crea la cuenta ni escribe en la base:
+ * sin fila lanza NOT_FOUND. Así un enlace de terceros abierto con la sesión
+ * de la academia no puede crear una cuenta en su nombre.
+ */
+export async function renewConnectOnboardingLink(
+  input: { userId: string; organizationId: string },
+  deps?: ConnectServiceDeps
+): Promise<{ url: string }> {
+  const parsed = ownerInputSchema.parse(input);
+  const now = deps?.now ?? new Date();
+  const scope = await resolveOwnerScope({
+    userId: parsed.userId,
+    organizationId: parsed.organizationId,
+  });
+  const organizationId = scope.organization.id;
+
+  const availability = await loadAvailability(scope, now);
+  if (!availability.available) {
+    throw new OperationalError(
+      "CONNECT_UNAVAILABLE",
+      "Conectar Stripe no está disponible para esta academia ahora mismo.",
+      409,
+      { reason: availability.reason }
+    );
+  }
+
+  const account = await findConnectAccountForOrganization(db, organizationId, availability.environment);
+  if (!account) {
+    throw new OperationalError(
+      "NOT_FOUND",
+      "Esta academia todavía no ha conectado Stripe.",
+      404
+    );
+  }
+
+  return createOnboardingLinkFor(gatewayFrom(deps), organizationId, account.providerAccountReference);
 }
 
 /**

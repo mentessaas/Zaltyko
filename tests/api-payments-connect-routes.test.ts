@@ -5,6 +5,7 @@
 import { getCurrentUser } from "@/lib/auth/current-user";
 import {
   getConnectStatus,
+  renewConnectOnboardingLink,
   startConnectOnboarding,
 } from "@/modules/payments-connect/application/connect-onboarding-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -17,6 +18,7 @@ vi.mock("@/modules/payments-connect/application/connect-onboarding-service", () 
   CONNECT_LINK_ROUTE: "/api/v1/owner/payments/connect/link",
   getConnectStatus: vi.fn(),
   startConnectOnboarding: vi.fn(),
+  renewConnectOnboardingLink: vi.fn(),
 }));
 
 const userId = "10000000-0000-4000-8000-000000000101";
@@ -155,22 +157,25 @@ describe("POST /api/v1/owner/payments/connect", () => {
 describe("GET /api/v1/owner/payments/connect/link", () => {
   const linkUrl = `${base}/link?organizationId=${organizationId}`;
 
-  it("con sesión pide un enlace nuevo y redirige 303 a Stripe", async () => {
-    vi.mocked(startConnectOnboarding).mockResolvedValue({ url: stripeUrl });
+  it("con sesión renueva el enlace y redirige 303 a Stripe, sin pasar por el alta", async () => {
+    vi.mocked(renewConnectOnboardingLink).mockResolvedValue({ url: stripeUrl });
 
     const response = await GET_LINK(new Request(linkUrl));
 
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(stripeUrl);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(startConnectOnboarding).toHaveBeenCalledWith({ userId, organizationId });
+    expect(renewConnectOnboardingLink).toHaveBeenCalledWith({ userId, organizationId });
+    // El GET nunca usa el camino que puede crear la cuenta conectada.
+    expect(startConnectOnboarding).not.toHaveBeenCalled();
   });
 
   it.each([
     ["el servicio no está disponible", unavailable("flag_off")],
+    ["la academia aún no tiene cuenta conectada (NOT_FOUND)", new OperationalError("NOT_FOUND", "Esta academia todavía no ha conectado Stripe.", 404)],
     ["Stripe falla", new Error("stripe caído")],
   ])("si %s redirige 303 a ajustes con stripe=error", async (_label, error) => {
-    vi.mocked(startConnectOnboarding).mockRejectedValue(error);
+    vi.mocked(renewConnectOnboardingLink).mockRejectedValue(error);
 
     const response = await GET_LINK(new Request(linkUrl));
 
@@ -180,6 +185,7 @@ describe("GET /api/v1/owner/payments/connect/link", () => {
     expect(location.searchParams.get("organizationId")).toBe(organizationId);
     expect(location.searchParams.get("stripe")).toBe("error");
     expect(location.hash).toBe("#cobro-automatico");
+    expect(startConnectOnboarding).not.toHaveBeenCalled();
   });
 
   it("con un organizationId no válido vuelve a ajustes con stripe=error y sin repetirlo", async () => {
@@ -190,7 +196,7 @@ describe("GET /api/v1/owner/payments/connect/link", () => {
     expect(location.pathname).toBe("/owner/settings");
     expect(location.searchParams.get("organizationId")).toBeNull();
     expect(location.searchParams.get("stripe")).toBe("error");
-    expect(startConnectOnboarding).not.toHaveBeenCalled();
+    expect(renewConnectOnboardingLink).not.toHaveBeenCalled();
   });
 
   it("sin sesión vuelve a ajustes (que pide iniciar sesión) sin llamar al servicio", async () => {
@@ -203,6 +209,6 @@ describe("GET /api/v1/owner/payments/connect/link", () => {
     expect(location.pathname).toBe("/owner/settings");
     expect(location.searchParams.get("organizationId")).toBe(organizationId);
     expect(location.searchParams.get("stripe")).toBeNull();
-    expect(startConnectOnboarding).not.toHaveBeenCalled();
+    expect(renewConnectOnboardingLink).not.toHaveBeenCalled();
   });
 });
