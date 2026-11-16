@@ -45,6 +45,15 @@ las variables de NIF y domicilio en Vercel y con `supportMailboxVerified`,
 `liveReleaseApproved` en `false`, Checkout Live sigue respondiendo 503
 `BILLING_CONFIGURATION_UNAVAILABLE`.
 
+Estado del 16-11-2026: `checkoutTaxVerified` pasa a `true` tras revisar en
+Stripe test las facturas de staging con el recorrido actual (CIF validado por
+Zaltyko como `es_cif`). En la cuenta Live ya existen los cuatro precios en EUR
+(19, 190, 49 y 490 €) y el webhook de zaltyko.com, que ahora incluye los
+eventos `checkout.session.*`. En Vercel Production ya están la referencia de
+cuenta Live y los cuatro precios (ids, no secretos). Faltan: Tax Rate Live,
+clave secreta y secreto del webhook Live, NIF y domicilio, buzón verificado,
+facturación ZA en Live, revisión legal y aprobación final.
+
 Historial: el 26-10-2026 Elvis declaró que preveía darse de alta; ese día se
 preparó el perfil único y se bloqueó Live.
 
@@ -73,7 +82,7 @@ un NIF o un código postal literal en el perfil.
 | supportEmail | hola@zaltyko.com | Sin cambios |
 | supportMailboxVerified | false | Claude envía un correo real a hola@zaltyko.com; Elvis lo responde desde el buzón; se marca `true` en un PR |
 | taxTreatmentReviewed | **true** (13-11), solo España | Confirmado por la sesión de finanzas con el gestor: IAE 844, IVA 21 %, sin retención. No abre otros mercados: Live por país lo decide `COMMERCIAL_MARKET_REGISTRY` (solo ES) y el territorio fiscal (solo Península/Baleares). UE (empresa o particular) y México necesitan su propia revisión |
-| checkoutTaxVerified | false | Claude, tras la prueba en Stripe test en staging y la revisión de la sesión y el recibo |
+| checkoutTaxVerified | **true** (16-11) | Comprobado por Claude en Stripe test (staging): Starter mensual 19,00 + 3,99 = 22,99 € con CIF `es_cif` validado, razón social, dirección y consentimiento (`in_1UbcEHDA0PFJp7KMDStDPewd`); Growth anual 490,00 + 102,90 = 592,90 € (`in_1UbIouDA0PFJp7KM6McQgdwB`). El envío de facturas de Stripe al cliente se desactiva en Live (paso de Elvis) |
 | legalTextsApproved | false | Elvis, tras la revisión legal pendiente (ver más abajo) |
 | invoicingIntegrationReady | false | Prueba de punta a punta en modo test confirmada por finanzas el 13-11. Se marca cuando la clave restringida y el webhook hacia n8n existan también en la cuenta Live de Stripe |
 | liveReleaseApproved | false | Elvis, la última, con Stripe Live y Vercel configurados y CI verde |

@@ -107,7 +107,6 @@ describe("readiness según las variables del vendedor", () => {
     const { ready, missing } = getCommercialLaunchReadiness();
     expect(missing).toEqual([
       "support_mailbox",
-      "checkout_tax",
       "legal_texts",
       "invoicing_integration",
       "live_release",
