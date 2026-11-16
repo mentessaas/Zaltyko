@@ -371,6 +371,8 @@ const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
   // Pago automático de las familias (Fase 2): la academia revoca el método
   // de una familia (desliga el método en Stripe). Por academia verificada.
   "/api/v1/owner/payments/family-methods": { limit: 20, window: 60 },
+  // Día de cobro de la academia (cobro automático, Fase 3). Por academia verificada.
+  "/api/v1/owner/payments/collection-settings": { limit: 20, window: 60 },
 
   // Webhooks - no limits (called by external services)
   "/api/stripe/webhook": { limit: 1000, window: 60 },
