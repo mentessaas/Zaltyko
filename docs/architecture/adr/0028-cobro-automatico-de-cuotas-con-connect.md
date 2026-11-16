@@ -1,7 +1,9 @@
 # ADR-0028 — Cobro automático de cuotas con Stripe Connect (tarjeta y SEPA)
 
 - Estado: **aceptada** por Elvis el 16-11-2026 (decisiones D1–D4 y documento
-  completo). Ninguna fase está construida todavía; el cobro sigue cerrado.
+  completo). La Fase 1 (conectar Stripe) está construida en la PR #347,
+  detrás de la bandera `ZALTYKO_CONNECT_ONBOARDING_ENABLED` (apagada) y sin
+  aplicar la migración candidata; el cobro sigue cerrado.
 - Autorizado por Elvis para la Fase 1, solo en staging:
   - destino de eventos en Stripe sandbox;
   - secreto y bandera en Vercel staging;
