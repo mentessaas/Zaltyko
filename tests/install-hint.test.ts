@@ -4,7 +4,6 @@ import {
   EMPTY_HINT_STATE,
   detectPlatform,
   isAttendanceRoute,
-  isInstallPromptSuppressedRoute,
   parseHintState,
   recordInstallOutcome,
   recordDismissal,
@@ -104,13 +103,5 @@ describe("rutas", () => {
     expect(isAttendanceRoute("/app/abc/attendance")).toBe(false);
     expect(isAttendanceRoute("/app/abc/dashboard")).toBe(false);
     expect(isAttendanceRoute(null)).toBe(false);
-  });
-  it("la invitación general excluye también la pantalla sin conexión", () => {
-    expect(isInstallPromptSuppressedRoute("/pasar-lista-sin-conexion")).toBe(true);
-    expect(isInstallPromptSuppressedRoute("/owner/classes")).toBe(true);
-    expect(isInstallPromptSuppressedRoute("/owner")).toBe(true);
-    expect(isInstallPromptSuppressedRoute("/owner/attendance")).toBe(true);
-    expect(isInstallPromptSuppressedRoute("/auth/login")).toBe(true);
-    expect(isInstallPromptSuppressedRoute("/pricing")).toBe(false);
   });
 });

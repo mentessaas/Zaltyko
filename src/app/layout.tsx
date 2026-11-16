@@ -9,7 +9,6 @@ import { BottomNav } from "@/components/navigation/BottomNav";
 import { AppProviders } from "./providers";
 import { OfflineBanner } from "@/components/ui/offline-banner";
 import { UpdateBanner } from "@/components/ui/update-banner";
-import { InstallPrompt } from "@/components/ui/install-prompt";
 import { OptionalTelemetryBoundary } from "@/components/OptionalTelemetryBoundary";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { UtmCapture } from "@/components/growth/UtmCapture";
@@ -177,7 +176,6 @@ export default async function RootLayout({
           <UtmCapture />
           <OfflineBanner />
           <UpdateBanner />
-          <InstallPrompt />
           <AppProviders nonce={nonce}>
             <PostHogProvider>
               {children}
