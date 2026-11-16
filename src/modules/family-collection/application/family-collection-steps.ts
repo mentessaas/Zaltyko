@@ -42,11 +42,13 @@ import { nextRetry } from "@/modules/family-collection/domain/retry-policy";
 import type {
   AttemptOutcome,
   AttemptStripeRefs,
+  CollectionAllocationRow,
   CollectionAttempt,
   CollectionChargeRow,
   CollectionInvoiceRow,
   FamilyCollectionStore,
   InvoiceCollectionContext,
+  OrganizationScope,
 } from "@/modules/family-collection/infrastructure/family-collection-store";
 import {
   FAMILY_COLLECTION_MAX_RESUMES,
@@ -121,6 +123,8 @@ export interface RunState {
   flagEnabled: boolean;
   store: FamilyCollectionStore;
   gateway: FamilyCollectionGateway;
+  /** Academias a recorrer; `null` = todas (producción). Solo los tests lo limitan. */
+  scope: OrganizationScope;
   refreshAccount: (accountRowId: string) => Promise<unknown>;
   /** Academias cuya cuenta ya se releyó en esta ejecución (una vez por academia). */
   refreshedOrganizations: Set<string>;
@@ -135,14 +139,32 @@ export function countSkip(state: RunState, reason: string): void {
   state.result.skipped[reason] = (state.result.skipped[reason] ?? 0) + 1;
 }
 
+/** Motivo final cuando las cuotas no tienen un periodo con el que describir el cobro. */
+export const INVALID_SERVICE_PERIOD_CODE = "invalid_service_period";
+
+const SERVICE_PERIOD_PATTERN = /^(\d{4})-(\d{2})-\d{2}$/;
+
+/** ¿Se puede describir el cobro con este primer día del periodo (YYYY-MM-DD)? */
+export function isValidServicePeriod(value: string | null | undefined): value is string {
+  if (typeof value !== "string") return false;
+  const match = SERVICE_PERIOD_PATTERN.exec(value);
+  const month = match ? Number(match[2]) : NaN;
+  return match !== null && month >= 1 && month <= 12;
+}
+
 /** «Cuota noviembre 2026» a partir del primer día del periodo (YYYY-MM-DD). */
 export function collectionDescription(servicePeriodStart: string): string {
-  const match = /^(\d{4})-(\d{2})-\d{2}$/.exec(servicePeriodStart);
-  const month = match ? Number(match[2]) : NaN;
-  if (!match || month < 1 || month > 12) {
+  const match = SERVICE_PERIOD_PATTERN.exec(servicePeriodStart);
+  if (!match || !isValidServicePeriod(servicePeriodStart)) {
     throw new RangeError("El periodo de la cuota no es una fecha válida.");
   }
-  return `Cuota ${MONTHS_ES[month - 1]} ${match[1]}`;
+  return `Cuota ${MONTHS_ES[Number(match[2]) - 1]} ${match[1]}`;
+}
+
+/** Primer día del periodo más antiguo de unas cuotas, o null. */
+export function earliestServicePeriod(charges: readonly CollectionChargeRow[]): string | null {
+  const periods = charges.map((charge) => charge.servicePeriodStart).sort();
+  return periods[0] ?? null;
 }
 
 function errorName(error: unknown): string {
@@ -272,6 +294,31 @@ export function buildGateInput(
   };
 }
 
+/**
+ * ¿Sigue debiéndose exactamente el reparto de un intento? Devuelve el motivo
+ * si no: factura cerrada, cuota anulada, cuota pagada (o con menos saldo) o
+ * reparto que ya no coincide.
+ */
+export function staleAllocationReason(
+  context: InvoiceCollectionContext,
+  allocations: readonly CollectionAllocationRow[]
+): string | null {
+  if (context.invoice.status !== "issued" && context.invoice.status !== "partially_paid") {
+    return "invoice_closed";
+  }
+  const charges = new Map(context.charges.map((charge) => [charge.id, charge]));
+  for (const allocation of allocations) {
+    const charge = charges.get(allocation.chargeId);
+    if (!charge) return "charge_scope_mismatch";
+    if (charge.status === "void") return "charge_void";
+    if (charge.status === "paid" || charge.outstandingCents < allocation.amountCents) return "charge_settled";
+    if (charge.collectionMode !== "automatic" || charge.outstandingCents !== allocation.amountCents) {
+      return "plan_changed";
+    }
+  }
+  return null;
+}
+
 type RecheckResult =
   | { allowed: true }
   | { allowed: false; reason: string; classification: FamilyCollectionGateClassification };
@@ -293,6 +340,10 @@ async function recheckGate(
   if (charges.length === 0 || charges.length !== chargeIds.size) {
     return { allowed: false, reason: "charge_scope_mismatch", classification: "final" };
   }
+  // Antes de mover dinero: el reparto del intento debe seguir siendo lo que
+  // se debe (nada pagado a mano, anulado ni cerrado desde que se reclamó).
+  const stale = staleAllocationReason(context, refs.allocations);
+  if (stale) return { allowed: false, reason: stale, classification: "final" };
   const todayLocal = localCalendarDate(state.now, context.invoice.timezone);
   const gate = evaluateFamilyCollectionGate(buildGateInput(state, context, charges, todayLocal));
   if (!gate.allowed) return gate;
@@ -406,8 +457,7 @@ async function cancelThenClose(
   state: RunState,
   attempt: CollectionAttempt,
   refs: AttemptStripeRefs,
-  close: Close,
-  lastChance: boolean
+  close: Close
 ): Promise<FamilyCollectionAttemptStatus | null> {
   const paymentIntentId = attempt.paymentIntentId;
   if (!paymentIntentId) throw new Error("FAMILY_COLLECTION_INTENT_REQUIRED");
@@ -416,7 +466,6 @@ async function cancelThenClose(
     canceled = await state.gateway.cancelPayment({ connectedAccount: refs.connectedAccount, paymentIntentId });
   } catch {
     countSkip(state, "transient");
-    if (lastChance) await notifyReview(state, attempt, "resume_exhausted");
     return null;
   }
   if (canceled === "canceled") {
@@ -433,7 +482,6 @@ async function cancelThenClose(
     snapshot = await state.gateway.retrievePayment({ connectedAccount: refs.connectedAccount, paymentIntentId });
   } catch {
     countSkip(state, "transient");
-    if (lastChance) await notifyReview(state, attempt, "resume_exhausted");
     return null;
   }
   const outcome = mapPaymentIntent(snapshot);
@@ -441,7 +489,6 @@ async function cancelThenClose(
     return settleOutcome(state, attempt, refs, outcome, snapshot, { lastChance: false, allowCancel: false });
   }
   countSkip(state, "transient");
-  if (lastChance) await notifyReview(state, attempt, "resume_exhausted");
   return null;
 }
 
@@ -484,7 +531,25 @@ export async function settleOutcome(
   if (isFailedOutcome(outcome)) {
     const failure = outcome.failed;
     const awaitingAction = snapshot?.status === "requires_action";
-    if (awaitingAction || isAuthenticationRequiredFailure(failure)) {
+    const nextRetryAt =
+      attempt.paymentMethodKind === null
+        ? null
+        : nextRetry({
+            kind: attempt.paymentMethodKind,
+            attemptNumber: attempt.attemptNumber,
+            code: failure.code,
+            declineCode: failure.declineCode,
+            now: state.now,
+            timezone: refs.timezone,
+          });
+    // Se cancela en Stripe antes de registrar el fallo cuando el banco pidió
+    // autenticación (para que no pueda completarse después) y cuando habrá
+    // reintento (el intento siguiente crea otro cobro: el de este no debe
+    // poder confirmarse nunca). Un cobro ya cancelado no se toca.
+    const shouldCancel =
+      snapshot?.status !== "canceled" &&
+      (awaitingAction || isAuthenticationRequiredFailure(failure) || nextRetryAt !== null);
+    if (shouldCancel) {
       if (!options.allowCancel) {
         // Ya se intentó cancelar y Stripe lo dejó esperando: no se da por fallido.
         if (awaitingAction) {
@@ -519,17 +584,6 @@ export async function settleOutcome(
         }
       }
     }
-    const nextRetryAt =
-      attempt.paymentMethodKind === null
-        ? null
-        : nextRetry({
-            kind: attempt.paymentMethodKind,
-            attemptNumber: attempt.attemptNumber,
-            code: failure.code,
-            declineCode: failure.declineCode,
-            now: state.now,
-            timezone: refs.timezone,
-          });
     return apply(state, attempt, {
       kind: "failed",
       paymentIntentId,
@@ -541,13 +595,7 @@ export async function settleOutcome(
 
   // `transient` o `requires_confirmation` después de confirmar: sin resultado.
   if (options.lastChance) {
-    return cancelThenClose(
-      state,
-      attempt,
-      refs,
-      { kind: "failed", code: TRANSIENT_EXHAUSTED_CODE, declineCode: null },
-      true
-    );
+    return cancelThenClose(state, attempt, refs, { kind: "failed", code: TRANSIENT_EXHAUSTED_CODE, declineCode: null });
   }
   countSkip(state, "transient");
   return null;
@@ -570,9 +618,29 @@ export async function advanceAttempt(
   initial: CollectionAttempt,
   options: { phase: "collect" | "resume" }
 ): Promise<FamilyCollectionAttemptStatus | null> {
+  const lastChance = options.phase === "resume" && initial.resumeCount >= FAMILY_COLLECTION_MAX_RESUMES;
+  if (!lastChance) return advanceAttemptSteps(state, initial, options.phase, false);
+  // Última reanudación: nunca vuelve a tomarse. Si no queda cerrado (o en
+  // curso, que relee la Fase A), la academia recibe el aviso para revisarlo.
+  let status: FamilyCollectionAttemptStatus | null = null;
+  try {
+    status = await advanceAttemptSteps(state, initial, options.phase, true);
+    return status;
+  } finally {
+    if (status === null) {
+      await notifyReview(state, initial, "resume_exhausted").catch(() => undefined);
+    }
+  }
+}
+
+async function advanceAttemptSteps(
+  state: RunState,
+  initial: CollectionAttempt,
+  phase: "collect" | "resume",
+  lastChance: boolean
+): Promise<FamilyCollectionAttemptStatus | null> {
   let attempt = initial;
-  const resuming = options.phase === "resume";
-  const lastChance = resuming && attempt.resumeCount >= FAMILY_COLLECTION_MAX_RESUMES;
+  const resuming = phase === "resume";
   let gateChecked = !resuming;
 
   const refs = await state.store.loadAttemptRefs(attempt);
@@ -651,7 +719,11 @@ export async function advanceAttempt(
       gateChecked = true;
     }
     const kind = attempt.paymentMethodKind;
-    if (!kind || !refs.customer || !refs.paymentMethod || !refs.servicePeriodStart) {
+    const servicePeriodStart = refs.servicePeriodStart;
+    if (!isValidServicePeriod(servicePeriodStart)) {
+      return apply(state, attempt, { kind: "canceled", paymentIntentId: null, reason: INVALID_SERVICE_PERIOD_CODE });
+    }
+    if (!kind || !refs.customer || !refs.paymentMethod) {
       return apply(state, attempt, { kind: "canceled", paymentIntentId: null, reason: "payment_method_unknown" });
     }
     try {
@@ -664,7 +736,7 @@ export async function advanceAttempt(
         paymentMethod: refs.paymentMethod,
         kind,
         organizationId: attempt.organizationId,
-        description: collectionDescription(refs.servicePeriodStart),
+        description: collectionDescription(servicePeriodStart),
       });
     } catch (error) {
       if (mapUnknownPaymentError(error) === "idempotency_conflict") {
@@ -702,16 +774,14 @@ export async function advanceAttempt(
       const check = await recheckGate(state, attempt, refs);
       if (!check.allowed) {
         if (check.classification === "final") {
-          return cancelThenClose(state, attempt, refs, { kind: "canceled", reason: check.reason }, lastChance);
+          return cancelThenClose(state, attempt, refs, { kind: "canceled", reason: check.reason });
         }
         if (lastChance) {
-          return cancelThenClose(
-            state,
-            attempt,
-            refs,
-            { kind: "failed", code: TRANSIENT_EXHAUSTED_CODE, declineCode: null },
-            true
-          );
+          return cancelThenClose(state, attempt, refs, {
+            kind: "failed",
+            code: TRANSIENT_EXHAUSTED_CODE,
+            declineCode: null,
+          });
         }
         countSkip(state, check.reason);
         return null;

@@ -15,7 +15,10 @@ import {
   advanceAttempt,
   buildGateInput,
   countSkip,
+  earliestServicePeriod,
+  INVALID_SERVICE_PERIOD_CODE,
   isExpired,
+  isValidServicePeriod,
   logStepFailure,
   loadFreshContext,
   notifyStepError,
@@ -126,6 +129,23 @@ export function decideClaim(
   };
 }
 
+/** Aviso único de la factura que ya no admite más intentos; la cuota se cobra a mano. */
+async function notifyAttemptsExhausted(
+  state: RunState,
+  invoice: { id: string; organizationId: string; locationId: string }
+): Promise<void> {
+  countSkip(state, "attempts_exhausted");
+  const written = await state.store.recordNotice({
+    organizationId: invoice.organizationId,
+    locationId: invoice.locationId,
+    attemptId: null,
+    invoiceId: invoice.id,
+    reason: "attempts_exhausted",
+    now: state.now,
+  });
+  if (written) state.result.needsReview += 1;
+}
+
 async function collectInvoice(state: RunState, ref: DueInvoiceRef): Promise<void> {
   const context = await loadFreshContext(state, ref.organizationId, ref.invoiceId);
   if (!context) {
@@ -137,6 +157,12 @@ async function collectInvoice(state: RunState, ref: DueInvoiceRef): Promise<void
   const blocked = historyBlock(context.history, invoice.timezone, todayLocal);
   if (blocked) {
     countSkip(state, blocked);
+    return;
+  }
+  // Sin más números de intento (hoy inalcanzable: un solo reintento). Nunca
+  // en silencio: la academia recibe un aviso de la factura, una sola vez.
+  if ((context.history.last?.attemptNumber ?? 0) >= FAMILY_COLLECTION_MAX_ATTEMPTS_PER_INVOICE) {
+    await notifyAttemptsExhausted(state, invoice);
     return;
   }
   const plan = planFor(invoice, context.charges, todayLocal, context.collectionDayOfMonth);
@@ -161,20 +187,26 @@ async function collectInvoice(state: RunState, ref: DueInvoiceRef): Promise<void
     return;
   }
 
-  const claim = gate.allowed
-    ? {
-        action: "claimed" as const,
-        authorizationId: context.authorization?.id ?? null,
-        paymentProviderAccountId: context.account?.id ?? null,
-        paymentMethodKind: gate.paymentMethodKind,
-      }
-    : {
-        action: "canceled" as const,
-        reason: gate.reason,
-        authorizationId: null,
-        paymentProviderAccountId: null,
-        paymentMethodKind: null,
-      };
+  // Sin un periodo válido no hay con qué describir el cobro: se cierra con
+  // un motivo propio, antes de reclamar y sin gastar reanudaciones.
+  const periodValid = isValidServicePeriod(
+    earliestServicePeriod(context.charges.filter((charge) => planned.has(charge.id)))
+  );
+  const claim =
+    gate.allowed && periodValid
+      ? {
+          action: "claimed" as const,
+          authorizationId: context.authorization?.id ?? null,
+          paymentProviderAccountId: context.account?.id ?? null,
+          paymentMethodKind: gate.paymentMethodKind,
+        }
+      : {
+          action: "canceled" as const,
+          reason: gate.allowed ? INVALID_SERVICE_PERIOD_CODE : gate.reason,
+          authorizationId: null,
+          paymentProviderAccountId: null,
+          paymentMethodKind: null,
+        };
   const result = await state.store.claimOrCancel(
     {
       organizationId: invoice.organizationId,
@@ -198,6 +230,10 @@ async function collectInvoice(state: RunState, ref: DueInvoiceRef): Promise<void
   );
 
   if (result.outcome === "skipped") {
+    if (result.reason === "attempts_exhausted") {
+      await notifyAttemptsExhausted(state, invoice);
+      return;
+    }
     countSkip(state, result.reason);
     return;
   }
@@ -233,7 +269,12 @@ export async function collectDueInvoices(state: RunState): Promise<void> {
       state.result.complete = false;
       return;
     }
-    const page = await state.store.listDueInvoices({ after: cursor, limit: state.batchSize, horizon });
+    const page = await state.store.listDueInvoices({
+      after: cursor,
+      limit: state.batchSize,
+      horizon,
+      scope: state.scope,
+    });
     for (const ref of page) {
       if (isExpired(state)) {
         state.result.complete = false;

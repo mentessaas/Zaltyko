@@ -19,10 +19,11 @@
  *
  * Las decisiones de negocio (plan, puerta, reintentos) viven en el servicio.
  */
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import type { DatabaseClient, TransactionClient } from "@/lib/db-transactions";
+import { logger } from "@/lib/logger";
 import {
   allocateProviderCollectionPayment,
   recordProviderCollectionPayment,
@@ -41,9 +42,10 @@ import type {
 } from "@/modules/family-collection/domain/collection-gate";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
 import { findCollectionSettings } from "@/modules/family-collection/infrastructure/collection-settings-store";
-import type {
-  FamilyCollectionAllocationStatus,
-  FamilyCollectionAttemptStatus,
+import {
+  FAMILY_COLLECTION_MAX_RESUMES,
+  type FamilyCollectionAllocationStatus,
+  type FamilyCollectionAttemptStatus,
 } from "@/modules/family-collection/infrastructure/family-collection-schema";
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
 import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
@@ -66,6 +68,34 @@ const SYSTEM_AUDIT_METADATA = {
   actor_type: "system",
   job_key: FAMILY_COLLECTION_JOB_KEY,
 } as const;
+
+/** Evento del outbox con el que la academia recibe un aviso para revisar un cobro. */
+export const NEEDS_REVIEW_EVENT = "family_collection.needs_review";
+
+/**
+ * Clave de un aviso de revisión: una por intento (o por factura, si no hay
+ * intento) y motivo. La comparten applyOutcome, recordNotice y la red de
+ * seguridad de la Fase A.
+ */
+export function needsReviewKey(input: { attemptId: string | null; invoiceId: string; reason: string }): string {
+  return input.attemptId
+    ? `family-collection:${input.attemptId}:needs_review:${input.reason}`
+    : `family-collection:invoice:${input.invoiceId}:needs_review:${input.reason}`;
+}
+
+/**
+ * Academias a las que se limita un recorrido; `null` = todas. Solo lo usan
+ * los tests de PostgreSQL para no tocar datos de otras suites: el código de
+ * producción nunca lo pasa.
+ */
+export type OrganizationScope = readonly string[] | null;
+
+/** Condición SQL «la academia está en el alcance» (sin alcance, siempre cierta). */
+function inScope(column: SQL, scope: OrganizationScope): SQL {
+  if (scope === null) return sql`true`;
+  // Lista como texto: Drizzle expandiría un array en una lista de parámetros.
+  return sql`${column} = any(string_to_array(${scope.join(",")}, ',')::uuid[])`;
+}
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -244,7 +274,12 @@ export interface FamilyCollectionStore {
    * intento abierto y cuyo último intento falló con reintento antes de
    * `horizon`, o sin intentos. Por orden de id, después de `after`.
    */
-  listDueInvoices(input: { after: string | null; limit: number; horizon: Date }): Promise<DueInvoiceRef[]>;
+  listDueInvoices(input: {
+    after: string | null;
+    limit: number;
+    horizon: Date;
+    scope: OrganizationScope;
+  }): Promise<DueInvoiceRef[]>;
   loadInvoiceContext(input: {
     organizationId: string;
     invoiceId: string;
@@ -272,16 +307,35 @@ export interface FamilyCollectionStore {
   }): Promise<ApplyOutcomeResult>;
   /**
    * Toma de forma atómica los intentos `claimed`/`created` reclamados antes de
-   * `staleBefore` con menos de 3 reanudaciones, y les suma una.
+   * `staleBefore` con menos de FAMILY_COLLECTION_MAX_RESUMES reanudaciones,
+   * y les suma una.
    */
-  claimResumable(input: { staleBefore: Date; after: string | null; limit: number; now: Date }): Promise<CollectionAttempt[]>;
-  listProcessing(input: { after: string | null; limit: number }): Promise<CollectionAttempt[]>;
+  claimResumable(input: {
+    staleBefore: Date;
+    after: string | null;
+    limit: number;
+    now: Date;
+    scope: OrganizationScope;
+  }): Promise<CollectionAttempt[]>;
+  listProcessing(input: { after: string | null; limit: number; scope: OrganizationScope }): Promise<CollectionAttempt[]>;
+  /**
+   * Red de seguridad: intentos `claimed`/`created` que ya agotaron sus
+   * reanudaciones y todavía no tienen el aviso `resume_exhausted`.
+   */
+  listExhaustedWithoutNotice(input: {
+    after: string | null;
+    limit: number;
+    scope: OrganizationScope;
+  }): Promise<CollectionAttempt[]>;
   loadAttemptRefs(attempt: CollectionAttempt): Promise<AttemptStripeRefs | null>;
-  /** Aviso a la academia para revisar un intento (una vez por intento y motivo). */
+  /**
+   * Aviso a la academia para revisar un intento, o una factura si no hay
+   * intento (una vez por intento o factura y motivo). `true` si lo escribió.
+   */
   recordNotice(input: {
     organizationId: string;
     locationId: string;
-    attemptId: string;
+    attemptId: string | null;
     invoiceId: string;
     reason: string;
     now: Date;
@@ -308,6 +362,12 @@ function toCents(value: unknown): number {
   const cents = Number(value);
   if (!Number.isSafeInteger(cents)) throw new Error("FAMILY_COLLECTION_INVALID_AMOUNT");
   return cents;
+}
+
+/** Código de un error para el registro (OperationalError o PostgreSQL), nunca su mensaje. */
+function errorCodeOf(error: unknown): string | null {
+  const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : null;
+  return typeof code === "string" && /^[A-Za-z0-9_]{1,64}$/.test(code) ? code : null;
 }
 
 /** Los códigos se guardan como los define la base: minúsculas, dígitos y guion bajo. */
@@ -767,7 +827,11 @@ async function recordTransition(
     audit?: boolean;
   }
 ): Promise<void> {
-  const idempotencyKey = `family-collection:${attempt.id}:${input.event}`;
+  const reviewReason = input.event === "needs_review" ? input.payload.reason : undefined;
+  const idempotencyKey =
+    typeof reviewReason === "string"
+      ? needsReviewKey({ attemptId: attempt.id, invoiceId: attempt.invoiceId, reason: reviewReason })
+      : `family-collection:${attempt.id}:${input.event}`;
   const eventName = `family_collection.${input.event}`;
   const payload = { attemptId: attempt.id, invoiceId: attempt.invoiceId, ...input.payload };
   if (!(await findOutboxEvent(tx, { organizationId: attempt.organizationId, eventName, idempotencyKey }))) {
@@ -825,6 +889,7 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
              limit 1
           ) as last on true
          where i.status in ('issued', 'partially_paid')
+           and ${inScope(sql.raw("i.organization_id"), input.scope)}
            and (${input.after}::uuid is null or i.id > ${input.after}::uuid)
            and exists (
              select 1 from zaltyko.charges c
@@ -1074,7 +1139,16 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
                   allocatedAt: input.now,
                 })
               );
-            } catch {
+            } catch (error) {
+              // Solo ids y el nombre o código del error: nunca SQL ni mensajes.
+              logger.error("Cobro automático: falló el reparto de un cobro registrado", undefined, {
+                organizationId: attempt.organizationId,
+                invoiceId: attempt.invoiceId,
+                attemptId: attempt.id,
+                paymentId: payment.id,
+                errorName: error instanceof Error ? error.name : "unknown",
+                errorCode: errorCodeOf(error),
+              });
               allocation = { status: "needs_review", reviewReasons: ["allocation_error"] };
             }
           }
@@ -1195,14 +1269,15 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
              from zaltyko.family_collection_attempts
             where status in ('claimed', 'created')
               and claimed_at < ${input.staleBefore.toISOString()}::timestamptz
-              and resume_count < 3
+              and resume_count < ${FAMILY_COLLECTION_MAX_RESUMES}
+              and ${inScope(sql.raw("organization_id"), input.scope)}
               and (${input.after}::uuid is null or id > ${input.after}::uuid)
             order by id
             limit ${input.limit}
             for update skip locked
          )
            and status in ('claimed', 'created')
-           and resume_count < 3
+           and resume_count < ${FAMILY_COLLECTION_MAX_RESUMES}
         returning ${attemptColumns}
       `);
       return (result.rows as Array<Record<string, unknown>>)
@@ -1215,8 +1290,29 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
         select ${attemptColumns}
           from zaltyko.family_collection_attempts
          where status = 'processing'
+           and ${inScope(sql.raw("organization_id"), input.scope)}
            and (${input.after}::uuid is null or id > ${input.after}::uuid)
          order by id
+         limit ${input.limit}
+      `);
+      return (result.rows as Array<Record<string, unknown>>).map(toAttempt);
+    },
+
+    async listExhaustedWithoutNotice(input) {
+      const result = await db.execute(sql`
+        select ${attemptColumns}
+          from zaltyko.family_collection_attempts a
+         where a.status in ('claimed', 'created')
+           and a.resume_count >= ${FAMILY_COLLECTION_MAX_RESUMES}
+           and ${inScope(sql.raw("a.organization_id"), input.scope)}
+           and (${input.after}::uuid is null or a.id > ${input.after}::uuid)
+           and not exists (
+             select 1 from zaltyko.outbox_events e
+              where e.organization_id = a.organization_id
+                and e.event_name = ${NEEDS_REVIEW_EVENT}
+                and e.idempotency_key = 'family-collection:' || a.id::text || ':needs_review:resume_exhausted'
+           )
+         order by a.id
          limit ${input.limit}
       `);
       return (result.rows as Array<Record<string, unknown>>).map(toAttempt);
@@ -1281,8 +1377,8 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
 
     async recordNotice(input) {
       return db.transaction(async (tx) => {
-        const eventName = "family_collection.needs_review";
-        const idempotencyKey = `family-collection:${input.attemptId}:needs_review:${input.reason}`;
+        const eventName = NEEDS_REVIEW_EVENT;
+        const idempotencyKey = needsReviewKey(input);
         if (await findOutboxEvent(tx, { organizationId: input.organizationId, eventName, idempotencyKey })) {
           return false;
         }
@@ -1290,8 +1386,8 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
           organizationId: input.organizationId,
           locationId: input.locationId,
           eventName,
-          aggregateType: "family_collection_attempt",
-          aggregateId: input.attemptId,
+          aggregateType: input.attemptId ? "family_collection_attempt" : "invoice",
+          aggregateId: input.attemptId ?? input.invoiceId,
           idempotencyKey,
           payload: { attemptId: input.attemptId, invoiceId: input.invoiceId, reason: input.reason },
           occurredAt: input.now,

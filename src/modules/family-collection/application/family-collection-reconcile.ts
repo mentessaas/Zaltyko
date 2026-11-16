@@ -7,7 +7,10 @@
  *    tres). Se usa el `pi_…` guardado o se busca por el id del intento antes
  *    de crear: nunca un segundo cobro, aunque Stripe ya haya olvidado la
  *    clave de idempotencia (24 h).
- * 2. Releer en Stripe los intentos `processing` (domiciliación o tarjeta
+ * 2. Red de seguridad: un intento `claimed`/`created` que ya agotó sus
+ *    reanudaciones y no tiene el aviso `resume_exhausted` lo recibe (una sola
+ *    vez). Ningún intento queda abierto para siempre sin que la academia lo sepa.
+ * 3. Releer en Stripe los intentos `processing` (domiciliación o tarjeta
  *    pendiente) y aplicar su estado final. La Fase 4 lo hará por eventos.
  */
 import { mapPaymentIntent, type PaymentIntentSnapshot } from "@/modules/family-collection/domain/payment-outcome";
@@ -86,6 +89,7 @@ export async function reconcilePendingAttempts(state: RunState): Promise<void> {
       after: cursor,
       limit: state.batchSize,
       now: state.now,
+      scope: state.scope,
     });
     // Los intentos tomados se procesan todos: su reanudación ya se contó.
     for (const attempt of batch) {
@@ -96,14 +100,42 @@ export async function reconcilePendingAttempts(state: RunState): Promise<void> {
     if (batch.length < state.batchSize) break;
   }
 
-  // 2. Releer los que están en curso.
+  // 2. Red de seguridad de los que agotaron sus reanudaciones.
   cursor = null;
   for (;;) {
     if (isExpired(state)) {
       state.result.complete = false;
       return;
     }
-    const batch = await state.store.listProcessing({ after: cursor, limit: state.batchSize });
+    const batch = await state.store.listExhaustedWithoutNotice({
+      after: cursor,
+      limit: state.batchSize,
+      scope: state.scope,
+    });
+    for (const attempt of batch) {
+      cursor = attempt.id;
+      try {
+        await notifyReview(state, attempt, "resume_exhausted");
+      } catch (error) {
+        logStepFailure("Cobro automático: no se pudo avisar de un intento agotado", error, {
+          organizationId: attempt.organizationId,
+          invoiceId: attempt.invoiceId,
+          attemptId: attempt.id,
+        });
+        countSkip(state, "error");
+      }
+    }
+    if (batch.length < state.batchSize) break;
+  }
+
+  // 3. Releer los que están en curso.
+  cursor = null;
+  for (;;) {
+    if (isExpired(state)) {
+      state.result.complete = false;
+      return;
+    }
+    const batch = await state.store.listProcessing({ after: cursor, limit: state.batchSize, scope: state.scope });
     for (const attempt of batch) {
       if (isExpired(state)) {
         state.result.complete = false;

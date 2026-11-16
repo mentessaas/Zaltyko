@@ -24,9 +24,12 @@ import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/
  * GitHub, con Stripe simulado: bloqueos, índice de un intento abierto por
  * factura, libro real (pago `provider` y reparto) y reanudación tras una
  * caída. Instala las candidatas que falten (Fases 1, 2 y 3) y al terminar
- * retira solo lo que instaló y las filas que cuelgan de ellas; las academias
- * quedan, como en las demás suites (su historial de plan es solo de añadir).
- * Nunca en un proyecto enlazado ni con credenciales externas.
+ * borra todas las filas que creó (en orden de claves foráneas) y retira solo
+ * lo que instaló. Quedan las academias y sus sedes, como en las demás suites:
+ * el historial de plan y la auditoría son solo de añadir y apuntan a ellas.
+ * Cada ejecución se limita a las academias de esta suite (`organizationIds`,
+ * opción solo para tests). Nunca en un proyecto enlazado ni con credenciales
+ * externas.
  */
 const disposablePgEnabled =
   process.env.ZALTYKO_PG_INTEGRATION === "1" &&
@@ -140,9 +143,19 @@ function fakeStripe(
 
 describeDisposablePg("proceso diario del cobro automático en Postgres desechable", () => {
   const createdOrganizations: string[] = [];
+  const createdUsers: string[] = [];
   let connectOnboardingInstalledHere = false;
   let familyPaymentMethodsInstalledHere = false;
   let candidateInstalledHere = false;
+
+  /** `delete` de una tabla de zaltyko acotado a las academias de la suite. */
+  function deleteScoped(table: string) {
+    // Lista como texto: Drizzle expandiría un array en una lista de parámetros.
+    return db.execute(sql`
+      delete from ${sql.identifier("zaltyko")}.${sql.identifier(table)}
+       where organization_id = any(string_to_array(${createdOrganizations.join(",")}, ',')::uuid[])
+    `);
+  }
 
   beforeAll(async () => {
     assertDisposableTarget();
@@ -164,16 +177,41 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
   afterAll(async () => {
     vi.unstubAllEnvs();
     if (!disposablePgEnabled) return;
-    // Primero lo que apunta a autorizaciones y cuentas; después las tablas instaladas aquí.
-    for (const organizationId of createdOrganizations) {
+    // Todas las filas de la suite, en orden de claves foráneas. La auditoría
+    // es solo de añadir (y apunta a las sedes), así que sedes y academias quedan.
+    if (createdOrganizations.length > 0) {
       if (await isFamilyCollectionStorageAvailable()) {
-        await db.execute(sql`delete from zaltyko.family_collection_attempt_charges where organization_id = ${organizationId}::uuid`);
-        await db.execute(sql`delete from zaltyko.family_collection_attempts where organization_id = ${organizationId}::uuid`);
-        await db.execute(sql`delete from zaltyko.organization_collection_settings where organization_id = ${organizationId}::uuid`);
+        for (const table of [
+          "family_collection_attempt_charges",
+          "family_collection_attempts",
+          "organization_collection_settings",
+        ]) {
+          await deleteScoped(table);
+        }
       }
-      await db.execute(sql`delete from zaltyko.family_payment_setup_attempts where organization_id = ${organizationId}::uuid`);
-      await db.execute(sql`delete from zaltyko.family_payment_authorizations where organization_id = ${organizationId}::uuid`);
-      await db.execute(sql`delete from zaltyko.organization_payment_provider_accounts where organization_id = ${organizationId}::uuid`);
+      for (const table of [
+        "payment_allocations",
+        "payments",
+        "charges",
+        "invoice_lines",
+        "invoices",
+        "family_collection_preferences",
+        "family_payment_setup_attempts",
+        "family_payment_authorizations",
+        "organization_payment_provider_accounts",
+        "outbox_events",
+        "family_payers",
+        "family_guardians",
+        "guardians",
+        "people",
+        "families",
+        "organization_members",
+      ]) {
+        await deleteScoped(table);
+      }
+    }
+    for (const userId of createdUsers) {
+      await db.execute(sql`delete from auth.users where id = ${userId}::uuid`);
     }
     if (candidateInstalledHere) {
       await db.execute(sql`drop table if exists zaltyko.family_collection_attempt_charges`);
@@ -229,6 +267,7 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
       values (${locationId}::uuid, ${organizationId}::uuid, ${`cd-${short}`}, 'Sede CI', 'Europe/Madrid')
     `);
     await db.execute(sql`insert into auth.users (id, email) values (${userId}::uuid, ${`ci-collection-run-${userId}@example.invalid`})`);
+    createdUsers.push(userId);
     await db.execute(sql`
       insert into zaltyko.organization_members (id, organization_id, user_id, role, status, location_scope_mode)
       values (${memberId}::uuid, ${organizationId}::uuid, ${userId}::uuid, 'owner', 'active', 'all')
@@ -366,7 +405,8 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     store: FamilyCollectionStore = createFamilyCollectionStore(),
     refreshAccount: (accountRowId: string) => Promise<unknown> = refresher(now)
   ) {
-    return runFamilyCollection({ now }, { store, gateway, refreshAccount });
+    // Solo las academias de esta suite: nunca datos de otras.
+    return runFamilyCollection({ now, organizationIds: [...createdOrganizations] }, { store, gateway, refreshAccount });
   }
 
   /** Pago a mano de una cuota, como lo deja el libro (pago, reparto y estados). */
@@ -702,5 +742,39 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
       invoice: "paid",
       providerPayments: [{ amount: 4500, environment: "sandbox", intent: processing.intent, allocated: 4500 }],
     });
+  });
+  it("red de seguridad: un intento abierto con las reanudaciones agotadas recibe un solo aviso", async () => {
+    const fixture = await createCollectableInvoice();
+    const inserted = await db.execute(sql`
+      insert into zaltyko.family_collection_attempts (
+        organization_id, location_id, invoice_id, family_id, family_payer_id, authorization_id,
+        payment_provider_account_id, attempt_number, payment_method_kind, amount_cents, currency, status,
+        resume_count, claimed_at
+      ) values (
+        ${fixture.organizationId}::uuid, ${fixture.locationId}::uuid, ${fixture.invoiceId}::uuid, ${fixture.familyId}::uuid,
+        ${fixture.payerId}::uuid, ${fixture.authorizationId}::uuid, ${fixture.accountRowId}::uuid, 1, 'card',
+        ${fixture.total}, 'EUR', 'claimed', 3, ${new Date(Date.now() - 2 * DAY).toISOString()}::timestamptz
+      )
+      returning id::text as id
+    `);
+    const attemptId = (inserted.rows[0] as { id: string }).id;
+    await db.execute(sql`
+      insert into zaltyko.family_collection_attempt_charges (attempt_id, organization_id, charge_id, amount_cents)
+      values (${attemptId}::uuid, ${fixture.organizationId}::uuid, ${fixture.chargeIds[0]}::uuid, ${fixture.total})
+    `);
+    const { gateway } = fakeStripe();
+
+    await run(new Date(), gateway);
+    await run(new Date(), gateway);
+
+    // Ni se reanuda (agotado) ni se cobra otra vez (intento abierto), pero la academia lo sabe.
+    expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(0);
+    expect(gateway.findPaymentByAttempt).not.toHaveBeenCalled();
+    expect(await attempts(fixture)).toEqual([expect.objectContaining({ status: "claimed", resumes: 3 })]);
+    const notices = await db.execute(sql`
+      select idempotency_key as "key" from zaltyko.outbox_events
+       where organization_id = ${fixture.organizationId}::uuid and event_name = 'family_collection.needs_review'
+    `);
+    expect(notices.rows).toEqual([{ key: `family-collection:${attemptId}:needs_review:resume_exhausted` }]);
   });
 });

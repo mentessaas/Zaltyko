@@ -51,8 +51,20 @@ export interface FamilyCollectionDeps {
   refreshAccount?: (accountRowId: string) => Promise<unknown>;
 }
 
+export interface FamilyCollectionRunOptions {
+  now?: Date;
+  deadlineMs?: number;
+  batchSize?: number;
+  /**
+   * SOLO TESTS de PostgreSQL: limita el recorrido a estas academias para no
+   * tocar datos de otras suites. La ruta cron y cualquier código de
+   * producción llaman sin él (todas las academias).
+   */
+  organizationIds?: readonly string[];
+}
+
 export async function runFamilyCollection(
-  options: { now?: Date; deadlineMs?: number; batchSize?: number } = {},
+  options: FamilyCollectionRunOptions = {},
   deps: FamilyCollectionDeps = {}
 ): Promise<FamilyCollectionRunResult> {
   const now = options.now ?? new Date();
@@ -65,6 +77,7 @@ export async function runFamilyCollection(
   if (!(await store.isStorageAvailable())) return emptyRunResult(false);
 
   const batchSize = options.batchSize ?? FAMILY_COLLECTION_BATCH_SIZE;
+  if (options.organizationIds && options.organizationIds.length === 0) return emptyRunResult(flagEnabled);
   if (!Number.isInteger(batchSize) || batchSize < 1) {
     throw new RangeError("El tamaño de página del cobro debe ser un entero positivo.");
   }
@@ -78,6 +91,7 @@ export async function runFamilyCollection(
     flagEnabled,
     store,
     gateway: deps.gateway ?? createStripeCollectionGateway(),
+    scope: options.organizationIds ? [...options.organizationIds] : null,
     refreshAccount: deps.refreshAccount ?? ((accountRowId) => refreshConnectAccountForCollection(accountRowId)),
     refreshedOrganizations: new Set(),
     result: emptyRunResult(flagEnabled),

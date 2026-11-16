@@ -218,6 +218,7 @@ function makeWorld() {
     due: [{ invoiceId, organizationId }],
     resumable: [] as CollectionAttempt[],
     processing: [] as CollectionAttempt[],
+    exhausted: [] as CollectionAttempt[],
     locked: undefined as Partial<LockedInvoiceSnapshot> | undefined,
     decisions: [] as ClaimDecision[],
     applied: [] as AttemptOutcome[],
@@ -308,6 +309,9 @@ function makeWorld() {
       return batch;
     }),
     listProcessing: vi.fn<FamilyCollectionStore["listProcessing"]>(async (input) => (input.after === null ? world.processing : [])),
+    listExhaustedWithoutNotice: vi.fn<FamilyCollectionStore["listExhaustedWithoutNotice"]>(async (input) =>
+      input.after === null ? world.exhausted : []
+    ),
     loadAttemptRefs: vi.fn<FamilyCollectionStore["loadAttemptRefs"]>(async () => world.refs),
     recordNotice: vi.fn<FamilyCollectionStore["recordNotice"]>(async (input) => {
       world.calls.push(`notice:${input.reason}`);
@@ -658,12 +662,51 @@ describe("Fase B: cobrar lo que vence hoy", () => {
       },
     ]);
     expect(result.failed).toBe(1);
+    // Antes de programar el intento 2, el cobro de este se cancela en Stripe.
+    expect(world.calls.slice(-2)).toEqual(["stripe:cancel", "apply:failed"]);
+  });
+
+  it("si Stripe no deja cancelar el cobro rechazado, el reintento se programa igual (mejor esfuerzo)", async () => {
+    const { world, run } = setup({
+      confirmPayment: async () => cardDeclined("insufficient_funds"),
+      cancelPayment: async () => {
+        throw networkError();
+      },
+    });
+    await run();
+    expect(world.applied[0]).toMatchObject({ kind: "failed", nextRetryAt: new Date("2026-11-19T23:00:00.000Z") });
+  });
+
+  it("periodo de la cuota no válido: canceled invalid_service_period antes de reclamar, sin Stripe", async () => {
+    const { world, gateway, run } = setup();
+    world.context!.charges[0].servicePeriodStart = "";
+    const result = await run();
+    expect(world.decisions[0]).toMatchObject({ action: "canceled", reason: "invalid_service_period" });
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(result.canceled).toBe(1);
+  });
+
+  it("sin más números de intento: aviso único de la factura, sin reclamar", async () => {
+    const { world, store, run } = setup();
+    world.context!.history = {
+      openExists: false,
+      last: { attemptNumber: 5, status: "failed", nextRetryAt: new Date("2026-11-16T23:00:00.000Z") },
+    };
+    const result = await run();
+    expect(store.claimOrCancel).not.toHaveBeenCalled();
+    expect(vi.mocked(store.recordNotice).mock.calls[0][0]).toMatchObject({
+      attemptId: null,
+      invoiceId,
+      reason: "attempts_exhausted",
+    });
+    expect(result).toMatchObject({ needsReview: 1, skipped: { attempts_exhausted: 1 } });
   });
 
   it("tarjeta robada: fallo final sin reintento", async () => {
-    const { world, run } = setup({ confirmPayment: async () => cardDeclined("stolen_card") });
+    const { world, gateway, run } = setup({ confirmPayment: async () => cardDeclined("stolen_card") });
     await run();
     expect(world.applied[0]).toMatchObject({ kind: "failed", declineCode: "stolen_card", nextRetryAt: null });
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
   });
 
   it("autenticación pedida: cancela el cobro en Stripe antes de registrar el fallo", async () => {
@@ -885,8 +928,85 @@ describe("Fase A: reanudar lo que quedó a medias", () => {
     const result = await run();
     expect(store.applyOutcome).not.toHaveBeenCalled();
     expect(gateway.createPayment).not.toHaveBeenCalled();
-    expect(world.notices).toEqual(["multiple_payments"]);
+    // En su última reanudación, además, el aviso de intento agotado.
+    expect(world.notices).toEqual(["multiple_payments", "resume_exhausted"]);
+    expect(result).toMatchObject({ needsReview: 2, failed: 0 });
+  });
+
+  it("última reanudación y la búsqueda en Stripe no responde: aviso resume_exhausted, sin crear ni cerrar", async () => {
+    const item = attempt({ resumeCount: 3 });
+    const { world, gateway, store, run } = resumeSetup(item, {
+      findPaymentByAttempt: async () => {
+        throw networkError();
+      },
+    });
+    const result = await run();
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(store.applyOutcome).not.toHaveBeenCalled();
+    expect(world.notices).toEqual(["resume_exhausted"]);
     expect(result).toMatchObject({ needsReview: 1, failed: 0 });
+  });
+
+  it("última reanudación y el almacén falla: aviso resume_exhausted igualmente", async () => {
+    const item = attempt({ status: "created", paymentIntentId: intentId, resumeCount: 3 });
+    const { world, store, run } = resumeSetup(item);
+    vi.mocked(store.applyOutcome).mockRejectedValueOnce(new Error("caída"));
+    const result = await run();
+    expect(world.notices).toEqual(["resume_exhausted"]);
+    expect(result.skipped).toMatchObject({ error: 1 });
+  });
+
+  it("al reanudar, si la cuota ya se pagó a mano antes de crear el cobro, se cierra sin cobrar", async () => {
+    const item = attempt({ resumeCount: 1 });
+    const { world, gateway, run } = resumeSetup(item);
+    world.context!.charges[0].status = "paid";
+    world.context!.charges[0].outstandingCents = 0;
+    const result = await run();
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: null, reason: "charge_settled" }]);
+    expect(result.canceled).toBe(1);
+  });
+
+  it("al reanudar un cobro sin confirmar, si la cuota se anuló, se cancela en Stripe y se cierra", async () => {
+    const item = attempt({ status: "created", paymentIntentId: intentId, resumeCount: 1 });
+    const { world, gateway, run } = resumeSetup(item, {
+      retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_confirmation"),
+    });
+    world.context!.charges[0].status = "void";
+    await run();
+    expect(gateway.confirmPayment).not.toHaveBeenCalled();
+    expect(world.calls).toEqual(["stripe:retrieve", "load", "stripe:cancel", "apply:canceled"]);
+    expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: intentId, reason: "charge_void" }]);
+  });
+
+  it("al reanudar, una factura ya pagada o un saldo distinto tampoco se cobran", async () => {
+    for (const [change, reason] of [
+      [(context: InvoiceCollectionContext) => (context.invoice.status = "paid"), "invoice_closed"],
+      [(context: InvoiceCollectionContext) => (context.charges[0].outstandingCents = 6000), "plan_changed"],
+    ] as const) {
+      const { world, gateway, run } = resumeSetup(attempt({ resumeCount: 1 }));
+      change(world.context!);
+      await run();
+      expect(gateway.createPayment, reason).not.toHaveBeenCalled();
+      expect(world.applied, reason).toEqual([{ kind: "canceled", paymentIntentId: null, reason }]);
+    }
+  });
+
+  it("al reanudar sin periodo válido: canceled invalid_service_period, sin Stripe", async () => {
+    const { world, gateway, run } = resumeSetup(attempt({ resumeCount: 1 }));
+    world.refs!.servicePeriodStart = null;
+    await run();
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: null, reason: "invalid_service_period" }]);
+  });
+
+  it("red de seguridad: un intento abierto con las reanudaciones agotadas recibe el aviso", async () => {
+    const { world, run } = setup();
+    world.due = [];
+    world.exhausted = [attempt({ status: "created", paymentIntentId: intentId, resumeCount: 3 })];
+    const result = await run();
+    expect(world.notices).toEqual(["resume_exhausted"]);
+    expect(result.needsReview).toBe(1);
   });
 
   it("el cobro ya estaba registrado para otro intento: revisión, ni cobrado ni fallido", async () => {
