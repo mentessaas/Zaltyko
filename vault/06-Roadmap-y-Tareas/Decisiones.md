@@ -1,13 +1,35 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-25
+last_reviewed: 2026-11-16
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
 
+
+## 2026-11-16 — Cobro automático de cuotas: se levanta la línea roja solo para cuotas (ADR-0028)
+
+**Hallazgo/fuente:**
+- `docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md`.
+- Auditoría del 16-11-2026: ninguna academia puede cobrar de forma automática. El código Stripe para familias es Standard v1, está cerrado con 410 y escribe en el modelo antiguo.
+- Comprobado en Stripe sandbox, solo lectura: Accounts v2 responde.
+
+**Decisión/importancia:** Elvis decidió el 16-11-2026 y aprobó el ADR.
+
+- Se levanta la línea roja de lanzamiento solo para cobrar cuotas del libro canónico a la cuenta Stripe de la propia academia. El resto de lo retirado sigue en 410.
+- Modelo Connect Accounts v2: cargo directo, panel completo; comisiones y pérdidas a cargo de Stripe.
+- Sin comisión de Zaltyko.
+- Tarjeta y domiciliación SEPA.
+- Fase 1 solo para España, con plan de pago vigente.
+- Cada fase va detrás de su bandera por entorno.
+- Autorizado en staging: destino de eventos en Stripe sandbox, secreto y bandera en Vercel staging, y migración candidata en Supabase staging.
+
+**Siguiente paso:**
+- Fase 1 «Conectar Stripe» en `/owner`.
+- Resolver con el abogado y con «Elvis Finanzas» las preguntas L1–L7 antes de cobrar a familias reales.
+- Producción y Stripe Live solo con autorización expresa.
 
 ## 2026-11-14 — Retirar /app entero (no solo el dashboard) y no tratar datos de salud
 
