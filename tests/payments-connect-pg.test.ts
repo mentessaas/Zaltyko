@@ -433,7 +433,8 @@ describeDisposablePg("servicio de Conectar Stripe en Postgres desechable", () =>
     const gateway = singleGateway(referenceA, activeSnapshot(referenceA));
     const eventId = `evt_ci_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
     expect(await syncConnectAccountFromEvent({ eventId, accountId: referenceA, livemode: false }, { gateway })).toBe("synced");
-    // El mismo estado otra vez no cambia nada más que la hora de sincronización.
+    // El mismo estado otra vez no cambia la proyección: solo la hora de la
+    // lectura y el evento que la comprobó.
     expect(
       await syncConnectAccountFromEvent({ eventId: `${eventId}_bis`, accountId: referenceA, livemode: false }, { gateway })
     ).toBe("unchanged");
@@ -441,7 +442,19 @@ describeDisposablePg("servicio de Conectar Stripe en Postgres desechable", () =>
     expect(gateway.retrieveAccount).toHaveBeenCalledWith(referenceA);
 
     expect(await accountRows(academyA.organizationId)).toEqual([
-      { reference: referenceA, status: "active", revision: 2, requirementsState: "none", eventReference: eventId },
+      { reference: referenceA, status: "active", revision: 2, requirementsState: "none", eventReference: `${eventId}_bis` },
+    ]);
+
+    // Una lectura tomada antes de la última guardada se descarta sin escribir.
+    const stale = singleGateway(referenceA, freshSnapshot(referenceA));
+    expect(
+      await syncConnectAccountFromEvent(
+        { eventId: `${eventId}_old`, accountId: referenceA, livemode: false },
+        { gateway: stale, now: new Date(Date.now() - 10 * 60_000) }
+      )
+    ).toBe("unchanged");
+    expect(await accountRows(academyA.organizationId)).toEqual([
+      { reference: referenceA, status: "active", revision: 2, requirementsState: "none", eventReference: `${eventId}_bis` },
     ]);
     expect(await accountRows(academyB.organizationId)).toEqual([
       { reference: referenceB, status: "onboarding", revision: 1, requirementsState: "user_action", eventReference: null },

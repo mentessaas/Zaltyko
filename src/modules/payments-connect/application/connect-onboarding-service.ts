@@ -213,22 +213,36 @@ function projectionRecord(projection: ConnectAccountProjection): Record<string, 
  * Guarda una proyección recién leída de Stripe. Transacción corta, sin Stripe
  * dentro: bloquea la fila, compara con lo guardado y, solo si cambia, sube
  * `revision` y deja auditoría y evento. Si no cambia, solo anota
- * `last_synced_at`. Devuelve `null` si la fila ya no existe.
+ * `last_synced_at` (y el evento, si lo hay). Devuelve `null` si la fila ya no
+ * existe.
+ *
+ * `fetchedAt` es el momento en que se pidió la cuenta a Stripe. Si la fila ya
+ * guarda una lectura posterior (un webhook y un refresco a la vez), esta
+ * lectura es vieja: no se escribe nada y se responde «unchanged».
  */
 async function persistProjection(input: {
   accountRowId: string;
   projection: ConnectAccountProjection;
   actorUserId: string | null;
   providerEventReference: string | null;
+  fetchedAt: Date;
   now: Date;
 }): Promise<{ outcome: "synced" | "unchanged"; account: StoredConnectAccount } | null> {
   return db.transaction(async (tx) => {
     const current = await lockConnectAccount(tx, input.accountRowId);
     if (!current) return null;
 
+    if (current.lastSyncedAt && current.lastSyncedAt.getTime() > input.fetchedAt.getTime()) {
+      return { outcome: "unchanged" as const, account: current };
+    }
+
     const before = storedProjection(current);
     if (!projectionChanged(before, input.projection)) {
-      const touched = await touchConnectAccountSyncedAt(tx, current.id);
+      const touched = await touchConnectAccountSyncedAt(tx, {
+        accountRowId: current.id,
+        providerEventReference: input.providerEventReference,
+        syncedAt: input.fetchedAt,
+      });
       return { outcome: "unchanged" as const, account: touched };
     }
 
@@ -236,6 +250,7 @@ async function persistProjection(input: {
       accountRowId: current.id,
       projection: input.projection,
       providerEventReference: input.providerEventReference,
+      syncedAt: input.fetchedAt,
     });
     const idempotencyKey = `payments-connect:account-synced:${updated.id}:${updated.revision}`;
     await appendAuditEntry(tx, {
@@ -309,6 +324,8 @@ export async function getConnectStatus(
   }
 
   let snapshot: ConnectAccountSnapshot;
+  // Momento de la lectura, tomado justo antes de pedirla (ver persistProjection).
+  const fetchedAt = deps?.now ?? new Date();
   try {
     snapshot = await gatewayFrom(deps).retrieveAccount(account.providerAccountReference);
   } catch (error) {
@@ -327,6 +344,7 @@ export async function getConnectStatus(
     projection: projectConnectAccount(snapshot),
     actorUserId: parsed.userId,
     providerEventReference: null,
+    fetchedAt,
     now,
   });
   return toScreenState(persisted?.account ?? account);
@@ -539,12 +557,15 @@ export async function syncConnectAccountFromEvent(
   const account = await findConnectAccountByReference(db, environment, parsed.accountId);
   if (!account) return "ignored";
 
+  // Momento de la lectura, tomado justo antes de pedirla (ver persistProjection).
+  const fetchedAt = deps?.now ?? new Date();
   const snapshot = await gatewayFrom(deps).retrieveAccount(account.providerAccountReference);
   const persisted = await persistProjection({
     accountRowId: account.id,
     projection: projectConnectAccount(snapshot),
     actorUserId: null,
     providerEventReference: parsed.eventId,
+    fetchedAt,
     now,
   });
   return persisted?.outcome ?? "ignored";

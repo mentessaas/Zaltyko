@@ -185,18 +185,27 @@ export async function insertConnectAccountIfAbsent(
   return toStoredAccount(result.rows[0] as Record<string, unknown> | undefined);
 }
 
-/** Aplica una proyección distinta: sube `revision` y marca la sincronización. */
+/** Referencia del evento si la hay; si no, se conserva la guardada. */
+function eventReferenceOrCurrent(providerEventReference: string | null) {
+  return providerEventReference
+    ? sql`${providerEventReference}`
+    : sql`last_provider_event_reference`;
+}
+
+/**
+ * Aplica una proyección distinta: sube `revision` y marca la sincronización.
+ * `syncedAt` es el momento en que se leyó Stripe (no `now()` de la base): así
+ * una lectura más vieja que llegue después puede reconocerse y descartarse.
+ */
 export async function updateConnectAccountProjection(
   tx: Executor,
   input: {
     accountRowId: string;
     projection: ConnectAccountProjection;
     providerEventReference: string | null;
+    syncedAt: Date;
   }
 ): Promise<StoredConnectAccount> {
-  const eventReference = input.providerEventReference
-    ? sql`${input.providerEventReference}`
-    : sql`last_provider_event_reference`;
   const result = await tx.execute(sql`
     update zaltyko.organization_payment_provider_accounts
        set status = ${input.projection.status}::zaltyko.organization_payment_account_status,
@@ -204,8 +213,8 @@ export async function updateConnectAccountProjection(
            sepa_debit_payments_capability_status = ${input.projection.sepaDebitPaymentsCapabilityStatus},
            requirements_state = ${input.projection.requirementsState},
            revision = revision + 1,
-           last_synced_at = now(),
-           last_provider_event_reference = ${eventReference},
+           last_synced_at = ${input.syncedAt.toISOString()}::timestamptz,
+           last_provider_event_reference = ${eventReferenceOrCurrent(input.providerEventReference)},
            updated_at = now()
      where id = ${input.accountRowId}::uuid
     returning ${accountColumns}
@@ -215,15 +224,23 @@ export async function updateConnectAccountProjection(
   return updated;
 }
 
-/** Sin cambios en la proyección: solo se anota cuándo se comprobó. */
+/**
+ * Sin cambios en la proyección: solo se anota cuándo se leyó Stripe y, si
+ * viene de un evento, qué evento lo comprobó.
+ */
 export async function touchConnectAccountSyncedAt(
   tx: Executor,
-  accountRowId: string
+  input: {
+    accountRowId: string;
+    providerEventReference: string | null;
+    syncedAt: Date;
+  }
 ): Promise<StoredConnectAccount> {
   const result = await tx.execute(sql`
     update zaltyko.organization_payment_provider_accounts
-       set last_synced_at = now()
-     where id = ${accountRowId}::uuid
+       set last_synced_at = ${input.syncedAt.toISOString()}::timestamptz,
+           last_provider_event_reference = ${eventReferenceOrCurrent(input.providerEventReference)}
+     where id = ${input.accountRowId}::uuid
     returning ${accountColumns}
   `);
   const updated = toStoredAccount(result.rows[0] as Record<string, unknown> | undefined);

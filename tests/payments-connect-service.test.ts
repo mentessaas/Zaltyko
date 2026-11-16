@@ -303,7 +303,11 @@ describe("servicio de Conectar Stripe", () => {
       const state = await getConnectStatus({ userId, organizationId, refresh: true }, { gateway, now });
 
       expect(gateway.retrieveAccount).toHaveBeenCalledWith("acct_SyntheticA1");
-      expect(touchConnectAccountSyncedAt).toHaveBeenCalledWith(tx, accountRowId);
+      expect(touchConnectAccountSyncedAt).toHaveBeenCalledWith(tx, {
+        accountRowId,
+        providerEventReference: null,
+        syncedAt: now,
+      });
       expect(updateConnectAccountProjection).not.toHaveBeenCalled();
       expect(appendAuditEntry).not.toHaveBeenCalled();
       expect(appendOutboxEvent).not.toHaveBeenCalled();
@@ -337,6 +341,8 @@ describe("servicio de Conectar Stripe", () => {
           requirementsState: "none",
         },
         providerEventReference: null,
+        // last_synced_at recibe el momento de la lectura, no now() de la base.
+        syncedAt: now,
       });
       expect(appendAuditEntry).toHaveBeenCalledWith(
         tx,
@@ -351,6 +357,32 @@ describe("servicio de Conectar Stripe", () => {
         tx,
         expect.objectContaining({ eventName: "payments_connect.account_synced", aggregateId: accountRowId })
       );
+    });
+
+    it("una lectura vieja (anterior a last_synced_at guardado) no escribe ni audita", async () => {
+      const row = storedAccount();
+      vi.mocked(findConnectAccountForOrganization).mockResolvedValue(row);
+      // Mientras se leía Stripe, otra lectura más nueva ya guardó su resultado.
+      const newer = storedAccount({
+        status: "active",
+        cardPaymentsCapabilityStatus: "active",
+        sepaDebitPaymentsCapabilityStatus: "active",
+        requirementsState: "none",
+        revision: 2,
+        lastSyncedAt: new Date(now.getTime() + 1_000),
+      });
+      vi.mocked(lockConnectAccount).mockResolvedValue(newer);
+      const gateway = fakeGateway(freshSnapshot());
+
+      const state = await getConnectStatus({ userId, organizationId, refresh: true }, { gateway, now });
+
+      expect(gateway.retrieveAccount).toHaveBeenCalledWith("acct_SyntheticA1");
+      expect(updateConnectAccountProjection).not.toHaveBeenCalled();
+      expect(touchConnectAccountSyncedAt).not.toHaveBeenCalled();
+      expect(appendAuditEntry).not.toHaveBeenCalled();
+      expect(appendOutboxEvent).not.toHaveBeenCalled();
+      // Se muestra lo más nuevo, no la lectura descartada.
+      expect(state).toEqual({ kind: "ready", card: "active", sepa: "active", disabled: false });
     });
   });
 
@@ -614,12 +646,53 @@ describe("servicio de Conectar Stripe", () => {
       expect(gateway.retrieveAccount).toHaveBeenCalledWith("acct_SyntheticA1");
       expect(updateConnectAccountProjection).toHaveBeenCalledWith(
         tx,
-        expect.objectContaining({ accountRowId, providerEventReference: "evt_synthetic_4" })
+        expect.objectContaining({ accountRowId, providerEventReference: "evt_synthetic_4", syncedAt: now })
       );
       expect(appendAuditEntry).toHaveBeenCalledWith(
         tx,
         expect.objectContaining({ action: "payments_connect.account_synced", actorUserId: null })
       );
+    });
+
+    it("un evento sin cambios guarda el eventId y la hora de la lectura, sin auditar", async () => {
+      const row = storedAccount();
+      vi.mocked(findConnectAccountByReference).mockResolvedValue(row);
+      vi.mocked(lockConnectAccount).mockResolvedValue(row);
+      vi.mocked(touchConnectAccountSyncedAt).mockResolvedValue({ ...row, lastSyncedAt: now });
+      const gateway = fakeGateway(freshSnapshot());
+
+      const outcome = await syncConnectAccountFromEvent(
+        { eventId: "evt_synthetic_5", accountId: "acct_SyntheticA1", livemode: false },
+        { gateway, now }
+      );
+
+      expect(outcome).toBe("unchanged");
+      expect(touchConnectAccountSyncedAt).toHaveBeenCalledWith(tx, {
+        accountRowId,
+        providerEventReference: "evt_synthetic_5",
+        syncedAt: now,
+      });
+      expect(updateConnectAccountProjection).not.toHaveBeenCalled();
+      expect(appendAuditEntry).not.toHaveBeenCalled();
+      expect(appendOutboxEvent).not.toHaveBeenCalled();
+    });
+
+    it("un evento cuya lectura es más vieja que la guardada se descarta sin escribir", async () => {
+      const row = storedAccount();
+      vi.mocked(findConnectAccountByReference).mockResolvedValue(row);
+      vi.mocked(lockConnectAccount).mockResolvedValue({ ...row, lastSyncedAt: new Date(now.getTime() + 1) });
+      const gateway = fakeGateway(activeSnapshot());
+
+      const outcome = await syncConnectAccountFromEvent(
+        { eventId: "evt_synthetic_6", accountId: "acct_SyntheticA1", livemode: false },
+        { gateway, now }
+      );
+
+      expect(outcome).toBe("unchanged");
+      expect(updateConnectAccountProjection).not.toHaveBeenCalled();
+      expect(touchConnectAccountSyncedAt).not.toHaveBeenCalled();
+      expect(appendAuditEntry).not.toHaveBeenCalled();
+      expect(appendOutboxEvent).not.toHaveBeenCalled();
     });
   });
 });
