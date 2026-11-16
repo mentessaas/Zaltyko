@@ -109,7 +109,6 @@ describe("retirada del panel antiguo /app", () => {
   it("ningún archivo de src enlaza a /app (salvo compatibilidad documentada)", () => {
     const allowed = new Set([
       "src/components/notifications/NotificationCenter.tsx", // data.url antiguo, lo resuelve el redirect
-      "src/components/ui/install-prompt.tsx",
       "src/app/robots.ts", // Disallow: /app para que los buscadores lo olviden
       "src/lib/launch/legacy-app-redirects.mjs",
       "src/lib/athletes/legacy-import-csv.ts", // comentario histórico
