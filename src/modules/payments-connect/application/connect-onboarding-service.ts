@@ -10,7 +10,8 @@
  * - Ninguna llamada a Stripe dentro de `db.transaction`: primero se lee o crea
  *   en Stripe y después se escribe en una transacción corta.
  * - La tabla solo se toca después de comprobar el almacenamiento (dos columnas
- *   vienen de un candidato sin aplicar) y siempre con columnas explícitas.
+ *   vienen de un candidato que no está aplicado en todos los entornos) y
+ *   siempre con columnas explícitas.
  * - En los logs solo van ids (`acct_…`, academia); nunca el cuerpo de la
  *   cuenta ni correos.
  */

@@ -2,8 +2,9 @@
 
 - Estado: **aceptada** por Elvis el 16-11-2026 (decisiones D1–D4 y documento
   completo). La Fase 1 (conectar Stripe) está construida en la PR #347,
-  detrás de la bandera `ZALTYKO_CONNECT_ONBOARDING_ENABLED` (apagada) y sin
-  aplicar la migración candidata; el cobro sigue cerrado.
+  detrás de la bandera `ZALTYKO_CONNECT_ONBOARDING_ENABLED` (apagada). La
+  migración candidata está aplicada en staging el 16-11-2026 con autorización
+  de Elvis y sin aplicar en producción. El cobro sigue cerrado.
 - Autorizado por Elvis para la Fase 1, solo en staging:
   - destino de eventos en Stripe sandbox;
   - secreto y bandera en Vercel staging;
@@ -354,6 +355,13 @@ de Elvis):**
 8. **El entorno lo decide la clave de Stripe del despliegue** (test en staging,
    live en producción). Nunca se cruza una cuenta de un entorno con otro: ya lo
    impiden las FK y la puerta.
+9. **R11, segundo cerrojo independiente de la clave.** Aunque la clave sea de
+   prueba, la Fase 1 queda cerrada (`live_not_released`) si la base del
+   despliegue es la Supabase de producción (su ref está en
+   `src/lib/launch/production-supabase.ts`, compartida con el middleware), y
+   el webhook ignora los eventos. No se usa `VERCEL_ENV`: staging es un
+   despliegue «production» del proyecto zaltyko-staging. En la Fase 1 no
+   existe ninguna bandera para abrir Live ni producción.
 
 ## Preguntas abiertas para fases posteriores (no bloquean la Fase 1)
 
@@ -428,7 +436,14 @@ resuelta antes de que una academia real conecte su Stripe en producción.
 - Riesgos:
   - Accounts v2 en Live no está verificado;
   - la frescura de la proyección de cuenta depende de los eventos v2;
-  - SEPA introduce impagos tardíos que el libro de cuotas debe poder revertir.
+  - SEPA introduce impagos tardíos que el libro de cuotas debe poder revertir;
+  - **deuda: cuenta huérfana por un reintento tardío.** Si Stripe crea la
+    cuenta y falla la escritura en la base, un reintento dentro de las 24 h de
+    la clave de idempotencia recibe la misma cuenta, pero uno posterior crea
+    otra. El `logger.error` «cuenta creada en Stripe sin guardar» deja el
+    `acct_…` para reconciliarla a mano. En la Fase 2 se buscará la cuenta por
+    `metadata.zaltyko_organization_id` antes de crear una nueva; en la Fase 1
+    no se implementa esa búsqueda.
 
 ## Fuentes
 

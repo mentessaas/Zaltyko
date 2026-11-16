@@ -5,9 +5,9 @@ import type { DatabaseClient } from "@/lib/db-transactions";
 
 /**
  * Conectar Stripe (cobro automático de cuotas, Fase 1) necesita dos columnas
- * de un candidato pendiente de autorización de Elvis
- * (docs/deployment/candidates/20261116120000_connect_onboarding_candidate.sql)
- * en zaltyko.organization_payment_provider_accounts. Mientras no existan tal
+ * de un candidato (docs/deployment/candidates/20261116120000_connect_onboarding_candidate.sql,
+ * aplicado en staging el 16-11-2026; producción necesita otra autorización de
+ * Elvis) en zaltyko.organization_payment_provider_accounts. Mientras no existan tal
  * como las define el candidato, la función responde «no disponible» en vez de
  * fallar a mitad de una lectura o escritura.
  * Solo lee el catálogo: nunca crea, repara ni concede nada.

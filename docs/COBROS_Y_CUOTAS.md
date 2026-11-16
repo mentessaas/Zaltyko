@@ -85,15 +85,45 @@ enum no se usa: la fila nace en `onboarding`.
 ### Estado
 
 - Candidata `docs/deployment/candidates/20261116120000_connect_onboarding_candidate.sql`:
-  **sin aplicar en ningún entorno** (ni staging ni producción). Cada
-  aplicación necesita autorización de Elvis.
+  **aplicada en staging el 16-11-2026 con autorización de Elvis; sin aplicar
+  en producción**, que necesita otra autorización expresa (detalle en
+  `docs/deployment/candidates/README.md`).
 - Pruebas automáticas (`tests/payments-connect-*`, `tests/api-payments-connect-routes.test.ts`,
   `tests/api-connect-accounts-webhook.test.ts`, `tests/owner-stripe-connect-card.test.tsx`):
-  ninguna en local; las ejecuta la CI remota de la PR. **Sin probar en staging**
-  todavía: falta el destino de eventos v2 en Stripe sandbox, las variables en
-  Vercel staging y la candidata en Supabase staging (ver ADR-0028, «Preparación
-  de staging»).
-- En producción no cambia nada: la bandera está apagada.
+  ninguna en local; las ejecuta la CI remota de la PR. El recorrido completo en
+  staging (conectar una cuenta sandbox y recibir sus eventos v2) necesita
+  además el destino de eventos en Stripe sandbox y las variables en Vercel
+  staging (ver ADR-0028, «Preparación de staging»).
+- En producción no cambia nada: la bandera está apagada y, aunque se
+  encendiera, la función queda cerrada contra la base de producción (R11,
+  abajo).
+
+### Cerrojos y límites
+
+- **R11, dos cerrojos para Live y producción.** Conectar Stripe responde «no
+  disponible» (`live_not_released`) con una clave de Stripe que no sea de
+  prueba **o** si la base del despliegue es la Supabase de producción
+  (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_URL` o `DATABASE_URL*` contienen su
+  ref, en `src/lib/launch/production-supabase.ts`). El webhook ignora los
+  eventos en ese caso. No se mira `VERCEL_ENV`: staging es un despliegue
+  «production» de su propio proyecto. En la Fase 1 no hay ninguna vía para
+  abrir Live ni producción.
+- **Límite de frecuencia.** 10 peticiones por minuto en
+  `/api/v1/owner/payments/connect` (y `/link`), por academia verificada,
+  también en los GET que llaman a Stripe. La clave de Stripe se comparte con
+  la facturación SaaS.
+- **Lecturas desordenadas.** Cada lectura de la cuenta anota cuándo se pidió a
+  Stripe; si la fila ya guarda una lectura posterior, la más vieja se descarta
+  sin escribir.
+
+### Deuda conocida
+
+- **Cuenta huérfana por un reintento tardío.** Si Stripe crea la cuenta y
+  falla la escritura en la base, un reintento antes de 24 horas recibe la
+  misma cuenta (clave de idempotencia), pero uno posterior crea otra. El
+  `logger.error` «cuenta creada en Stripe sin guardar» deja el `acct_…` para
+  reconciliarla a mano. En la Fase 2 se buscará la cuenta por
+  `metadata.zaltyko_organization_id` antes de crear una nueva.
 
 ## Alcance
 

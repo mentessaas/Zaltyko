@@ -450,7 +450,7 @@ No es código. Cada escritura en un proveedor se anota en el Changelog y en la P
 - [ ] **Step 1: Supabase staging (`oucxnnrtfmjjlnffldfc`).**
   - Aplicar la candidata con el MCP de Supabase (`apply_migration`). Comprobar antes que el SHA-256 coincide con el README.
   - Verificar en el catálogo las dos columnas y sus checks.
-- [ ] **Step 2: Stripe sandbox «Entorno de prueba de Zaltyko» (`acct_1STR6uDA0PFJp7KM`, livemode false).**
+- [ ] **Step 2: Stripe sandbox «Entorno de prueba de Zaltyko» (la cuenta sandbox de la plataforma, livemode false).**
   - Confirmar que SEPA está activado en la plataforma.
   - Crear un destino de eventos v2 *thin*:
     - origen: cuentas conectadas;

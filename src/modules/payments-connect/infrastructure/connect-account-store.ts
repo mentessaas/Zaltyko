@@ -4,9 +4,10 @@
  * conectada de la academia.
  *
  * Dos columnas (`sepa_debit_payments_capability_status`, `requirements_state`)
- * vienen de un candidato aún sin aplicar en staging ni producción. Por eso
- * todo va en SQL con listas de columnas explícitas y solo debe llamarse
- * después de que isConnectOnboardingStorageAvailable() haya respondido `true`.
+ * vienen de un candidato aplicado en staging (16-11-2026) y aún sin aplicar en
+ * producción. Por eso todo va en SQL con listas de columnas explícitas y solo
+ * debe llamarse después de que isConnectOnboardingStorageAvailable() haya
+ * respondido `true`.
  * Sin llamadas a Stripe ni decisiones de negocio: eso vive en el servicio.
  */
 import { sql } from "drizzle-orm";

@@ -919,9 +919,12 @@ export const organizationPaymentProviderAccounts = zaltyko.table(
     cardPaymentsCapabilityStatus: text("card_payments_capability_status")
       .notNull()
       .default("pending"),
-    // Candidata sin aplicar: docs/deployment/candidates/20261116120000_connect_onboarding_candidate.sql.
-    // Hasta que se aplique, consultar estas columnas solo tras
-    // isConnectOnboardingStorageAvailable() y con columnas explícitas.
+    // Candidata docs/deployment/candidates/20261116120000_connect_onboarding_candidate.sql:
+    // aplicada en staging (16-11-2026), SIN aplicar en producción. Este espejo
+    // declara dos columnas (y sus dos checks, abajo) que todavía no existen en
+    // la base de producción: consultarlas solo tras
+    // isConnectOnboardingStorageAvailable() y con columnas explícitas, nunca
+    // con un select o insert de Drizzle de la tabla entera.
     sepaDebitPaymentsCapabilityStatus: text(
       "sepa_debit_payments_capability_status"
     )

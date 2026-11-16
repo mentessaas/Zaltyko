@@ -16,13 +16,19 @@ source:
 - Rutas: `GET/POST /api/v1/owner/payments/connect` (estado y enlace de alta), `GET /api/v1/owner/payments/connect/link` (enlace caducado: solo renueva el de una cuenta que ya existe, nunca la crea) y `POST /api/stripe/connect/accounts-webhook` (eventos *thin* v2 con su propio secreto, `STRIPE_CONNECT_ACCOUNTS_WEBHOOK_SECRET`).
 - Tarjeta «Cobro automático de cuotas» en `/owner/settings` (`#cobro-automatico`) y enlace desde `/owner/payments`.
 - Solo dueña o administración con todas las sedes, academias de España y con plan de pago vigente (Starter o Growth; la prueba no cuenta). Live cerrado por código: solo funciona con clave de prueba de Stripe.
-- Candidato `docs/deployment/candidates/20261116120000_connect_onboarding_candidate.sql`: dos columnas en `organization_payment_provider_accounts` (estado de la domiciliación y resumen cerrado de requisitos). **Sin aplicar en ningún entorno: ni staging ni producción.** Sin esas columnas la función responde «no disponible».
+- Candidato `docs/deployment/candidates/20261116120000_connect_onboarding_candidate.sql`: dos columnas en `organization_payment_provider_accounts` (estado de la domiciliación y resumen cerrado de requisitos). **Aplicado en staging el 16-11-2026 con autorización de Elvis; sin aplicar en producción.** Sin esas columnas la función responde «no disponible».
 - Bandera `ZALTYKO_CONNECT_ONBOARDING_ENABLED=false` por defecto: sin ella la tarjeta y el enlace no aparecen, las rutas responden «no disponible» y el webhook ignora los eventos. **En producción no cambia nada.**
 - Documentación: `docs/COBROS_Y_CUOTAS.md` (sección «Conectar Stripe (Fase 1)»; el «Estado verificado» antiguo queda marcado como del modelo Standard v1 retirado), aviso en `docs/qa/legacy-surface-closure-2026-11-09.md` sin reescribir la evidencia, comentario de `RETIRED_LAUNCH_API_PREFIXES` (la lista no cambia: esas API siguen en 410) y ADR-0028 (el estado `pending` no se usa; la fila nace en `onboarding`).
 
+**Arreglos de la revisión del coordinador (PR #347).**
+- Una lectura vieja de Stripe ya no pisa una más nueva: `last_synced_at` guarda el momento de la lectura y, si la fila ya tiene una posterior, no se escribe nada. Un evento sin cambios deja también su id.
+- Límite de 10 peticiones por minuto en `/api/v1/owner/payments/connect` (y `/link`) por academia verificada, también en los GET que llaman a Stripe.
+- R11: segundo cerrojo. Aunque la clave sea de prueba, la función queda cerrada y el webhook ignora los eventos si la base es la Supabase de producción (ref compartida con el middleware en `src/lib/launch/production-supabase.ts`).
+- Documentado: deuda de la cuenta huérfana por un reintento tardío (ADR-0028 y `docs/COBROS_Y_CUOTAS.md`), aplicación en producción con `lock_timeout` y rollback de la candidata.
+
 **Pruebas.** `tests/payments-connect-*` (proyección, disponibilidad, configuración, adaptador, servicio y PostgreSQL desechable), `tests/api-payments-connect-routes.test.ts`, `tests/api-connect-accounts-webhook.test.ts` y `tests/owner-stripe-connect-card.test.tsx`. Ninguna en local; las valida la CI remota de la PR.
 
-**Sin probar.** Nada en staging todavía: ni la conexión de una cuenta sandbox de principio a fin, ni los eventos v2 reales de Stripe. Antes hacen falta, cada paso con autorización de Elvis: el destino de eventos v2 en Stripe sandbox, `STRIPE_CONNECT_ACCOUNTS_WEBHOOK_SECRET` y la bandera en Vercel staging, y el candidato en Supabase staging.
+**Sin probar.** Nada en staging todavía: ni la conexión de una cuenta sandbox de principio a fin, ni los eventos v2 reales de Stripe. Antes hacen falta, cada paso con autorización de Elvis: el destino de eventos v2 en Stripe sandbox, `STRIPE_CONNECT_ACCOUNTS_WEBHOOK_SECRET` y la bandera en Vercel staging (el candidato ya está aplicado en Supabase staging).
 
 Vault: actualizado este `Changelog interno.md`; no cambian `Decisiones.md` (la decisión del ADR-0028 ya se anotó al aceptarlo), `Pricing.md` ni `Mensajes aprobados.md`.
 
