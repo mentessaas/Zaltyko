@@ -88,3 +88,77 @@ export async function loadOrganizationPlanState(
       : null;
   return { entitlement, subscription };
 }
+
+/**
+ * Cobro automático (Fase 3): revisión del último cambio REAL del plan de la
+ * academia, derivada del historial append-only
+ * zaltyko.organization_entitlement_changes (una fila por revisión, escrita por
+ * el trigger record_entitlement_revision).
+ *
+ * Identidad del plan de cada revisión: código de plan, tipo de origen,
+ * suscripción y prueba; y, fuera de Stripe, la referencia de origen (en un
+ * contrato o plan fundador la referencia ES el contrato). Una renovación de
+ * Stripe solo cambia la referencia (`stripe-invoice:…`) y el periodo con la
+ * misma suscripción y el mismo plan: no es un cambio real.
+ *
+ * Devuelve la primera revisión de la racha final con la identidad vigente:
+ * una preferencia guardada en esa revisión o después sigue valiendo. Si el
+ * historial no tiene todas las revisiones de la racha (o falta la vigente),
+ * devuelve la revisión vigente: se exige la exacta, como antes. `null` si la
+ * academia no tiene derecho de plan.
+ */
+export async function loadPlanChangeRevision(
+  executor: Pick<typeof db, "execute">,
+  organizationId: string
+): Promise<number | null> {
+  const result = await executor.execute(sql`
+    select
+      e.revision as "currentRevision",
+      run.start_revision as "runStart",
+      (
+        select count(*)
+          from zaltyko.organization_entitlement_changes h
+         where h.organization_id = e.organization_id
+           and h.revision between run.start_revision and e.revision
+           and row(h.plan_code, h.source, h.subscription_id, h.trial_id,
+                   case when h.source = 'stripe_subscription' then null else h.source_reference end)
+               is not distinct from
+               row(e.plan_code, e.source, e.subscription_id, e.trial_id,
+                   case when e.source = 'stripe_subscription' then null else e.source_reference end)
+      ) as "runRows"
+    from zaltyko.organization_entitlements e
+    cross join lateral (
+      select coalesce(
+               max(h.revision) + 1,
+               (select min(f.revision)
+                  from zaltyko.organization_entitlement_changes f
+                 where f.organization_id = e.organization_id
+                   and f.revision <= e.revision)
+             ) as start_revision
+        from zaltyko.organization_entitlement_changes h
+       where h.organization_id = e.organization_id
+         and h.revision <= e.revision
+         and row(h.plan_code, h.source, h.subscription_id, h.trial_id,
+                 case when h.source = 'stripe_subscription' then null else h.source_reference end)
+             is distinct from
+             row(e.plan_code, e.source, e.subscription_id, e.trial_id,
+                 case when e.source = 'stripe_subscription' then null else e.source_reference end)
+    ) run
+    where e.organization_id = ${organizationId}::uuid
+    limit 1
+  `);
+  const row = result.rows[0] as
+    | { currentRevision?: unknown; runStart?: unknown; runRows?: unknown }
+    | undefined;
+  if (!row) return null;
+  const current = Number(row.currentRevision);
+  if (!Number.isInteger(current) || current < 1) return null;
+  const start = row.runStart === null || row.runStart === undefined ? NaN : Number(row.runStart);
+  const rows = Number(row.runRows);
+  // La racha debe estar completa: una fila con la identidad vigente por cada
+  // revisión desde su inicio hasta la vigente. Si no, se exige la vigente.
+  if (!Number.isInteger(start) || start < 1 || start > current || rows !== current - start + 1) {
+    return current;
+  }
+  return start;
+}

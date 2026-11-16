@@ -12,7 +12,8 @@
  * - existen las tablas de las fases 1, 2 y 3 (sin ellas nadie cobraría la
  *   cuota: se quedaría sin cobro y sin recordatorio);
  * - la academia tiene un plan de pago vigente y la familia pidió cobro
- *   automático con la revisión de plan vigente;
+ *   automático sin un cambio real del plan después (las renovaciones del
+ *   mismo plan no cuentan: loadPlanChangeRevision);
  * - el pagador de la factura tiene una autorización activa en la cuenta
  *   conectada de la academia.
  *
@@ -25,7 +26,11 @@
 import { sql } from "drizzle-orm";
 
 import type { db } from "@/db";
-import { loadOrganizationPlanState } from "@/modules/billing/application/plan-state";
+import {
+  loadOrganizationPlanState,
+  loadPlanChangeRevision,
+} from "@/modules/billing/application/plan-state";
+import { isPreferenceRevisionCurrent } from "@/modules/billing/domain/collection-eligibility";
 import { evaluateAutomaticCollectionPlanEligibility } from "@/modules/billing/domain/plan-eligibility";
 import {
   isFamilyAutomaticCollectionFlagEnabled,
@@ -101,10 +106,18 @@ export async function getChargeCollectionModeSnapshot(input: {
     | { requestedMode?: unknown; entitlementRevision?: unknown }
     | undefined;
   if (!stored || stored.requestedMode !== "automatic") return "manual";
+  if (stored.entitlementRevision === null || stored.entitlementRevision === undefined) {
+    return "manual";
+  }
+  // Una renovación del mismo plan no invalida la preferencia; un cambio real
+  // del plan después de guardarla, sí (misma regla que la puerta del cobro).
+  const planChangeRevision = await loadPlanChangeRevision(executor, input.organizationId);
   if (
-    stored.entitlementRevision === null ||
-    stored.entitlementRevision === undefined ||
-    Number(stored.entitlementRevision) !== plan.entitlementRevision
+    !isPreferenceRevisionCurrent({
+      preferenceRevision: Number(stored.entitlementRevision),
+      currentRevision: plan.entitlementRevision,
+      planChangeRevision,
+    })
   ) {
     return "manual";
   }

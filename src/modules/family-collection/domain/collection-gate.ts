@@ -151,6 +151,12 @@ export interface FamilyCollectionGateInput {
   entitlement: CollectionEligibilityInput["entitlement"];
   subscription: CollectionEligibilityInput["subscription"];
   preference: CollectionEligibilityInput["preference"];
+  /**
+   * Revisión del último cambio real del plan (loadPlanChangeRevision): una
+   * renovación del mismo plan no invalida la preferencia automática. Con
+   * `null` se exige la revisión vigente exacta.
+   */
+  planChangeRevision: number | null;
   invoice: {
     organizationId: string;
     familyId: string;
@@ -244,6 +250,7 @@ export function evaluateFamilyCollectionGate(
       entitlement: input.entitlement,
       subscription: input.subscription,
       preference: input.preference,
+      planChangeRevision: input.planChangeRevision,
       charge: {
         organizationId: charge.organizationId,
         familyId: charge.familyId,

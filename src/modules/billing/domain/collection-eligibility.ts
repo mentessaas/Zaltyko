@@ -74,6 +74,13 @@ export interface CollectionEligibilityInput {
     validUntil: Date | string | null;
     revokedAt: Date | string | null;
   } | null;
+  /**
+   * Revisión del último cambio real del plan (código de plan, tipo de origen,
+   * suscripción, prueba o contrato distintos), calculada en el servidor con
+   * loadPlanChangeRevision. Las renovaciones del mismo plan no la mueven.
+   * Sin ella (o si no es coherente) se exige la revisión vigente exacta.
+   */
+  planChangeRevision?: number | null;
   runtimeEnabled: boolean;
   now?: Date;
 }
@@ -92,6 +99,33 @@ function isFuture(value: Date | string | null, now: Date): boolean {
   if (value === null) return true;
   const date = value instanceof Date ? value : new Date(value);
   return Number.isFinite(date.getTime()) && date.getTime() > now.getTime();
+}
+
+/**
+ * ¿Sigue valiendo una preferencia de cobro guardada con `preferenceRevision`?
+ * Sí mientras no haya habido un cambio real del plan después de guardarla:
+ * `planChangeRevision <= preferenceRevision <= currentRevision`. Una
+ * renovación (periodo nuevo del mismo plan, origen y suscripción o contrato)
+ * sube la revisión vigente pero no `planChangeRevision`.
+ *
+ * Sin `planChangeRevision`, o si no está entre 1 y la vigente, se exige la
+ * revisión vigente exacta (comportamiento anterior, más estricto).
+ */
+export function isPreferenceRevisionCurrent(input: {
+  preferenceRevision: number | null;
+  currentRevision: number;
+  planChangeRevision?: number | null;
+}): boolean {
+  const preference = input.preferenceRevision;
+  if (preference === null || !Number.isInteger(preference)) return false;
+  const change = input.planChangeRevision;
+  const validChange =
+    typeof change === "number" &&
+    Number.isInteger(change) &&
+    change >= 1 &&
+    change <= input.currentRevision;
+  const since = validChange ? change : input.currentRevision;
+  return preference >= since && preference <= input.currentRevision;
 }
 
 /**
@@ -119,7 +153,13 @@ export function evaluateCollectionEligibility(
   if (input.preference.requestedMode !== "automatic") {
     return { eligible: false, reason: "preference_manual" };
   }
-  if (input.preference.entitlementRevision !== plan.entitlementRevision) {
+  if (
+    !isPreferenceRevisionCurrent({
+      preferenceRevision: input.preference.entitlementRevision,
+      currentRevision: plan.entitlementRevision,
+      planChangeRevision: input.planChangeRevision,
+    })
+  ) {
     return { eligible: false, reason: "preference_entitlement_stale" };
   }
   if (

@@ -22,6 +22,7 @@ vi.mock("@/modules/payments-connect/application/storage", () => ({
 }));
 vi.mock("@/modules/billing/application/plan-state", () => ({
   loadOrganizationPlanState: vi.fn(),
+  loadPlanChangeRevision: vi.fn(),
 }));
 vi.mock("@/modules/payments-connect/infrastructure/connect-account-store", () => ({
   findConnectAccountForOrganization: vi.fn(),
@@ -34,7 +35,10 @@ import {
   getChargeCollectionModeSnapshot,
   isFamilyAutomaticCollectionOpen,
 } from "@/modules/billing/application/charge-collection-mode";
-import { loadOrganizationPlanState } from "@/modules/billing/application/plan-state";
+import {
+  loadOrganizationPlanState,
+  loadPlanChangeRevision,
+} from "@/modules/billing/application/plan-state";
 import type { EntitlementSnapshot } from "@/modules/billing/domain/plan-eligibility";
 import {
   isFamilyAutomaticCollectionFlagEnabled,
@@ -99,6 +103,7 @@ beforeEach(() => {
     entitlement: entitlement("growth"),
     subscription: null,
   });
+  vi.mocked(loadPlanChangeRevision).mockResolvedValue(4);
   vi.mocked(findConnectAccountForOrganization).mockResolvedValue({
     id: accountRowId,
     organizationId,
@@ -202,6 +207,31 @@ describe("getChargeCollectionModeSnapshot", () => {
     ["con preferencia sin revisión", { requestedMode: "automatic", entitlementRevision: null }],
   ])("%s responde manual", async (_label, preference) => {
     await expect(snapshot(executor(preference))).resolves.toBe("manual");
+    expect(findActiveAuthorization).not.toHaveBeenCalled();
+  });
+
+  it("una renovación del plan después de guardar la preferencia no la invalida", async () => {
+    vi.mocked(loadOrganizationPlanState).mockResolvedValue({
+      entitlement: entitlement("growth", 6),
+      subscription: null,
+    });
+    vi.mocked(loadPlanChangeRevision).mockResolvedValue(4);
+    const client = executor({ requestedMode: "automatic", entitlementRevision: 4 });
+
+    await expect(snapshot(client)).resolves.toBe("automatic");
+    expect(loadPlanChangeRevision).toHaveBeenCalledWith(client, organizationId);
+  });
+
+  it("un cambio real del plan después de guardar la preferencia la deja en manual", async () => {
+    vi.mocked(loadOrganizationPlanState).mockResolvedValue({
+      entitlement: entitlement("growth", 6),
+      subscription: null,
+    });
+    vi.mocked(loadPlanChangeRevision).mockResolvedValue(5);
+
+    await expect(snapshot(executor({ requestedMode: "automatic", entitlementRevision: 4 }))).resolves.toBe(
+      "manual"
+    );
     expect(findActiveAuthorization).not.toHaveBeenCalled();
   });
 

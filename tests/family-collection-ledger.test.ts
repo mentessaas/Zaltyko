@@ -45,6 +45,7 @@ import {
   issueInvoiceInTransaction,
   recordProviderCollectionPayment,
 } from "@/modules/billing/application/ledger-service";
+import { loadPlanChangeRevision } from "@/modules/billing/application/plan-state";
 import {
   FAMILY_COLLECTION_JOB_KEY,
   systemActorSchema,
@@ -530,5 +531,34 @@ describe("findAutomaticCollectionInProgress", () => {
     ).resolves.toEqual({ attemptId, invoiceId, status: "processing" });
     expect(executed[0]).toContain("from zaltyko.family_collection_attempts");
     expect(executed[0]).toContain("a.id <>");
+  });
+});
+
+describe("loadPlanChangeRevision (lectura del historial del plan)", () => {
+  function executorWith(rows: Row[]) {
+    return fakeTx({ execute: () => rows });
+  }
+
+  it("lee el historial append-only y devuelve el inicio de la racha con el plan vigente", async () => {
+    const { tx, executed } = executorWith([{ currentRevision: 6, runStart: 4, runRows: "3" }]);
+    await expect(loadPlanChangeRevision(tx, organizationId)).resolves.toBe(4);
+    expect(executed[0]).toContain("from zaltyko.organization_entitlements e");
+    expect(executed[0]).toContain("zaltyko.organization_entitlement_changes");
+    // Solo fuera de Stripe cuenta la referencia (contrato); en Stripe, la suscripción.
+    expect(executed[0]).toContain("case when h.source = 'stripe_subscription' then null else h.source_reference end");
+  });
+
+  it("sin derecho de plan devuelve null", async () => {
+    const { tx } = executorWith([]);
+    await expect(loadPlanChangeRevision(tx, organizationId)).resolves.toBeNull();
+  });
+
+  it.each([
+    ["falta una revisión de la racha", { currentRevision: 6, runStart: 4, runRows: 2 }],
+    ["el historial está vacío", { currentRevision: 6, runStart: null, runRows: 0 }],
+    ["el inicio va después de la vigente", { currentRevision: 6, runStart: 7, runRows: 0 }],
+  ])("si %s exige la revisión vigente", async (_label, row) => {
+    const { tx } = executorWith([row]);
+    await expect(loadPlanChangeRevision(tx, organizationId)).resolves.toBe(6);
   });
 });

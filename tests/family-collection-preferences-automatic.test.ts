@@ -64,6 +64,7 @@ vi.mock("@/modules/owner-dashboard/application/owner-scope", () => ({
 }));
 vi.mock("@/modules/billing/application/plan-state", () => ({
   loadOrganizationPlanState: vi.fn(),
+  loadPlanChangeRevision: vi.fn(),
 }));
 vi.mock("@/modules/saas-billing/application/organization-usage", () => ({
   assertOrganizationOperationalWritable: vi.fn(),
@@ -78,7 +79,10 @@ import {
   getFamilyCollectionPreference,
   saveFamilyCollectionPreference,
 } from "@/modules/billing/application/family-collection-preferences";
-import { loadOrganizationPlanState } from "@/modules/billing/application/plan-state";
+import {
+  loadOrganizationPlanState,
+  loadPlanChangeRevision,
+} from "@/modules/billing/application/plan-state";
 import type { EntitlementSnapshot } from "@/modules/billing/domain/plan-eligibility";
 import {
   isFamilyAutomaticCollectionFlagEnabled,
@@ -142,6 +146,7 @@ beforeEach(() => {
     entitlement: entitlement("growth"),
     subscription: null,
   });
+  vi.mocked(loadPlanChangeRevision).mockResolvedValue(4);
 });
 
 describe("preferencia de cobro con la bandera apagada", () => {
@@ -270,6 +275,50 @@ describe("preferencia de cobro con el cobro automático abierto", () => {
       entitlementRevision: 4,
       preferenceEntitlementRevision: 3,
     });
+  });
+
+  it("una renovación del plan después de guardarla no pide confirmación", async () => {
+    vi.mocked(loadOrganizationPlanState).mockResolvedValue({
+      entitlement: entitlement("growth", 6),
+      subscription: null,
+    });
+    vi.mocked(loadPlanChangeRevision).mockResolvedValue(4);
+    state.rows.set(familyCollectionPreferences, [
+      { requestedMode: "automatic", version: 2, entitlementRevision: 4 },
+    ]);
+
+    await expect(
+      getFamilyCollectionPreference({ userId, organizationId, familyId })
+    ).resolves.toMatchObject({
+      effectiveMode: "automatic",
+      requiresConfirmation: false,
+      entitlementRevision: 6,
+      preferenceEntitlementRevision: 4,
+    });
+  });
+
+  it("un cambio real del plan después de guardarla pide confirmación", async () => {
+    vi.mocked(loadOrganizationPlanState).mockResolvedValue({
+      entitlement: entitlement("growth", 6),
+      subscription: null,
+    });
+    vi.mocked(loadPlanChangeRevision).mockResolvedValue(5);
+    state.rows.set(familyCollectionPreferences, [
+      { requestedMode: "automatic", version: 2, entitlementRevision: 4 },
+    ]);
+
+    await expect(
+      getFamilyCollectionPreference({ userId, organizationId, familyId })
+    ).resolves.toMatchObject({ effectiveMode: "manual", requiresConfirmation: true });
+  });
+
+  it("con la bandera apagada no lee el historial del plan", async () => {
+    setOpen(false);
+    state.rows.set(familyCollectionPreferences, [
+      { requestedMode: "automatic", version: 2, entitlementRevision: 4 },
+    ]);
+    await getFamilyCollectionPreference({ userId, organizationId, familyId });
+    expect(loadPlanChangeRevision).not.toHaveBeenCalled();
   });
 
   it("con plan gratuito la preferencia queda en manual con el motivo del plan", async () => {

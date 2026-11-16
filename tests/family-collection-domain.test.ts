@@ -433,6 +433,8 @@ function gateInput(): FamilyCollectionGateInput {
       requestedMode: "automatic",
       entitlementRevision: 4,
     },
+    // Sin cambios reales del plan desde la revisión 4 (la vigente).
+    planChangeRevision: 4,
     invoice: {
       organizationId: "org-a",
       familyId: "family-a",
@@ -538,6 +540,34 @@ describe("evaluateFamilyCollectionGate", () => {
         input.payer = null;
       })
     ).toMatchObject({ reason: "flag_off" });
+  });
+
+  it("una renovación del plan después de guardar la preferencia no la invalida", () => {
+    expect(
+      gate((input) => {
+        // Renovaciones de Stripe: revisiones 5 y 6 con el mismo plan y suscripción.
+        input.entitlement = paidEntitlement({ revision: 6 });
+        input.planChangeRevision = 4;
+      })
+    ).toEqual({ allowed: true, paymentMethodKind: "card" });
+  });
+
+  it("un cambio real del plan después de guardar la preferencia la invalida (final)", () => {
+    expect(
+      gate((input) => {
+        input.entitlement = paidEntitlement({ revision: 6 });
+        input.planChangeRevision = 5;
+      })
+    ).toEqual({ allowed: false, reason: "preference_entitlement_stale", classification: "final" });
+  });
+
+  it("sin la revisión del último cambio real exige la revisión vigente exacta", () => {
+    expect(
+      gate((input) => {
+        input.entitlement = paidEntitlement({ revision: 6 });
+        input.planChangeRevision = null;
+      })
+    ).toEqual({ allowed: false, reason: "preference_entitlement_stale", classification: "final" });
   });
 
   it("aplica la puerta existente a cada cuota del reparto: la segunda es manual", () => {

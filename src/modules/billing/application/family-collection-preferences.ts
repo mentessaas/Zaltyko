@@ -7,8 +7,12 @@ import {
   familyCollectionPreferences,
 } from "@/db/zaltyko-schema";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
-import { loadOrganizationPlanState } from "@/modules/billing/application/plan-state";
+import {
+  loadOrganizationPlanState,
+  loadPlanChangeRevision,
+} from "@/modules/billing/application/plan-state";
 import { isFamilyAutomaticCollectionOpen } from "@/modules/billing/application/charge-collection-mode";
+import { isPreferenceRevisionCurrent } from "@/modules/billing/domain/collection-eligibility";
 import { evaluateAutomaticCollectionPlanEligibility } from "@/modules/billing/domain/plan-eligibility";
 import {
   appendAuditEntry,
@@ -173,10 +177,16 @@ async function buildPreference(
     subscription: planState.subscription,
   });
   const automatic = input.requestedMode === "automatic";
-  // La preferencia se guardó con otra revisión del plan: hay que volver a
-  // confirmarla antes de que las cuotas nazcan en automático.
+  // Hubo un cambio real del plan después de guardar la preferencia: hay que
+  // volver a confirmarla. Una renovación del mismo plan no cuenta.
   const stale =
-    automatic && plan.eligible && input.preferenceEntitlementRevision !== plan.entitlementRevision;
+    automatic &&
+    plan.eligible &&
+    !isPreferenceRevisionCurrent({
+      preferenceRevision: input.preferenceEntitlementRevision,
+      currentRevision: plan.entitlementRevision,
+      planChangeRevision: await loadPlanChangeRevision(executor, input.organizationId),
+    });
   return {
     organizationId: input.organizationId,
     familyId: input.familyId,
