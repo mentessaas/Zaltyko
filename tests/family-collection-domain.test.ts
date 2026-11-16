@@ -1,0 +1,1157 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { calendarDueDateToUtc } from "@/modules/billing/domain/calendar-due-date";
+import type {
+  EntitlementSnapshot,
+  SaasSubscriptionProjection,
+} from "@/modules/billing/domain/plan-eligibility";
+import {
+  FAMILY_AUTOMATIC_COLLECTION_FLAG_ENV,
+  isFamilyAutomaticCollectionFlagEnabled,
+  isProductionDatabase,
+  resolveConnectEnvironment,
+} from "@/modules/family-collection/application/config";
+import {
+  ACCOUNT_FRESHNESS_MS,
+  classifyGateReason,
+  evaluateFamilyCollectionGate,
+  GATE_REASON_CLASSIFICATION,
+  type FamilyCollectionGateCharge,
+  type FamilyCollectionGateInput,
+  type FamilyCollectionGateReason,
+} from "@/modules/family-collection/domain/collection-gate";
+import {
+  collectionDate,
+  localCalendarDate,
+  planInvoiceCollection,
+  type CollectionPlanCharge,
+  type CollectionPlanInvoice,
+} from "@/modules/family-collection/domain/collection-plan";
+import {
+  isAuthenticationRequiredFailure,
+  mapPaymentIntent,
+  mapUnknownPaymentError,
+  type PaymentIntentSnapshot,
+} from "@/modules/family-collection/domain/payment-outcome";
+import {
+  CARD_RETRY_DELAY_DAYS,
+  NEVER_RETRY_DECLINE_CODES,
+  nextRetry,
+  SOFT_DECLINE_CODES,
+} from "@/modules/family-collection/domain/retry-policy";
+import * as connectConfig from "@/modules/payments-connect/application/config";
+
+/**
+ * Cobro automático de cuotas (Fase 3): dominio puro. Qué se cobra y cuándo
+ * (P1, P2), la puerta completa, los reintentos (P3) y el resultado de Stripe.
+ * Solo datos sintéticos y referencias inventadas.
+ */
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
+const MADRID = "Europe/Madrid";
+const MEXICO = "America/Mexico_City";
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// ---------------------------------------------------------------------------
+// Día de cobro (P2)
+// ---------------------------------------------------------------------------
+
+describe("collectionDate", () => {
+  it.each([
+    ["sin día fijo: el día de vencimiento", "2026-11-10", null, "2026-11-10"],
+    ["día fijo antes del vencimiento: el día de vencimiento", "2026-11-10", 5, "2026-11-10"],
+    ["día fijo igual al vencimiento", "2026-11-10", 10, "2026-11-10"],
+    ["día fijo después del vencimiento", "2026-11-10", 20, "2026-11-20"],
+    ["día 1 con vencimiento el 1", "2026-11-01", 1, "2026-11-01"],
+    ["día 31 en febrero de año bisiesto", "2028-02-01", 31, "2028-02-29"],
+    ["día 31 en febrero de año no bisiesto", "2027-02-01", 31, "2027-02-28"],
+    ["día 29 en febrero de año no bisiesto", "2027-02-10", 29, "2027-02-28"],
+    ["día 30 en febrero de año bisiesto", "2028-02-10", 30, "2028-02-29"],
+    ["día 31 en abril", "2026-04-01", 31, "2026-04-30"],
+    ["día 31 en diciembre", "2026-12-01", 31, "2026-12-31"],
+    ["día 31 con vencimiento el último día de febrero", "2027-02-28", 31, "2027-02-28"],
+  ] as const)("%s", (_label, dueDateLocal, collectionDayOfMonth, expected) => {
+    expect(collectionDate({ dueDateLocal, collectionDayOfMonth })).toBe(expected);
+  });
+
+  it.each([0, 32, 1.5, -1, Number.NaN])("rechaza el día de cobro %s", (day) => {
+    expect(() =>
+      collectionDate({ dueDateLocal: "2026-11-10", collectionDayOfMonth: day })
+    ).toThrow(RangeError);
+  });
+
+  it.each(["2026-02-30", "2026-13-01", "10-11-2026", ""])(
+    "rechaza la fecha de vencimiento %s",
+    (dueDateLocal) => {
+      expect(() => collectionDate({ dueDateLocal, collectionDayOfMonth: 5 })).toThrow(
+        RangeError
+      );
+    }
+  );
+});
+
+describe("localCalendarDate", () => {
+  it("lee el vencimiento guardado como el día local de la sede", () => {
+    // due_at son las 23:59:59.999 locales: en México ya es el día siguiente en UTC.
+    const madridDue = calendarDueDateToUtc("2026-11-05", MADRID);
+    const mexicoDue = calendarDueDateToUtc("2026-11-05", MEXICO);
+    expect(madridDue).toBe("2026-11-05T22:59:59.999Z");
+    expect(mexicoDue).toBe("2026-11-06T05:59:59.999Z");
+    expect(localCalendarDate(madridDue, MADRID)).toBe("2026-11-05");
+    expect(localCalendarDate(mexicoDue, MEXICO)).toBe("2026-11-05");
+    expect(localCalendarDate(new Date(mexicoDue), MEXICO)).toBe("2026-11-05");
+  });
+
+  it("también en horario de verano", () => {
+    const due = calendarDueDateToUtc("2026-07-31", MADRID);
+    expect(due).toBe("2026-07-31T21:59:59.999Z");
+    expect(localCalendarDate(due, MADRID)).toBe("2026-07-31");
+  });
+
+  it("rechaza un instante inválido", () => {
+    expect(() => localCalendarDate("no-es-fecha", MADRID)).toThrow(RangeError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Qué se cobra (P1)
+// ---------------------------------------------------------------------------
+
+function invoice(overrides: Partial<CollectionPlanInvoice> = {}): CollectionPlanInvoice {
+  return {
+    id: "invoice-a",
+    isMonthly: true,
+    status: "issued",
+    currency: "EUR",
+    ...overrides,
+  };
+}
+
+function charge(overrides: Partial<CollectionPlanCharge> = {}): CollectionPlanCharge {
+  return {
+    id: "charge-a",
+    collectionMode: "automatic",
+    status: "due",
+    currency: "EUR",
+    outstandingCents: 4500,
+    dueAt: calendarDueDateToUtc("2026-11-10", MADRID),
+    ...overrides,
+  };
+}
+
+function plan(
+  overrides: Partial<Parameters<typeof planInvoiceCollection>[0]> = {}
+): ReturnType<typeof planInvoiceCollection> {
+  return planInvoiceCollection({
+    invoice: invoice(),
+    charges: [charge()],
+    todayLocal: "2026-11-10",
+    collectionDayOfMonth: null,
+    timezone: MADRID,
+    ...overrides,
+  });
+}
+
+describe("planInvoiceCollection", () => {
+  it("cobra la suma de los saldos de las cuotas automáticas que vencen hoy", () => {
+    expect(
+      plan({
+        charges: [
+          charge({ id: "charge-a", outstandingCents: 4500 }),
+          charge({ id: "charge-b", outstandingCents: 3000 }),
+        ],
+      })
+    ).toEqual({
+      collect: true,
+      amountCents: 7500,
+      allocations: [
+        { chargeId: "charge-a", amountCents: 4500 },
+        { chargeId: "charge-b", amountCents: 3000 },
+      ],
+    });
+  });
+
+  it("antes del día de vencimiento no cobra", () => {
+    expect(plan({ todayLocal: "2026-11-09" })).toEqual({
+      collect: false,
+      reason: "not_due_yet",
+    });
+  });
+
+  it("después del vencimiento sigue cobrando lo pendiente", () => {
+    expect(plan({ todayLocal: "2026-11-25" })).toMatchObject({
+      collect: true,
+      amountCents: 4500,
+    });
+  });
+
+  it("día fijo después del vencimiento: espera a ese día", () => {
+    expect(plan({ collectionDayOfMonth: 20, todayLocal: "2026-11-19" })).toEqual({
+      collect: false,
+      reason: "not_due_yet",
+    });
+    expect(plan({ collectionDayOfMonth: 20, todayLocal: "2026-11-20" })).toMatchObject({
+      collect: true,
+      amountCents: 4500,
+    });
+  });
+
+  it("día fijo antes del vencimiento: nunca antes del vencimiento", () => {
+    expect(plan({ collectionDayOfMonth: 5, todayLocal: "2026-11-05" })).toEqual({
+      collect: false,
+      reason: "not_due_yet",
+    });
+    expect(plan({ collectionDayOfMonth: 5, todayLocal: "2026-11-10" })).toMatchObject({
+      collect: true,
+    });
+  });
+
+  it("día 31 en febrero no bisiesto: el último día del mes", () => {
+    const dueAt = calendarDueDateToUtc("2027-02-05", MADRID);
+    expect(
+      plan({ charges: [charge({ dueAt })], collectionDayOfMonth: 31, todayLocal: "2027-02-27" })
+    ).toEqual({ collect: false, reason: "not_due_yet" });
+    expect(
+      plan({ charges: [charge({ dueAt })], collectionDayOfMonth: 31, todayLocal: "2027-02-28" })
+    ).toMatchObject({ collect: true });
+  });
+
+  it("pago parcial previo: solo el saldo", () => {
+    expect(
+      plan({ charges: [charge({ status: "partially_paid", outstandingCents: 2000 })] })
+    ).toEqual({
+      collect: true,
+      amountCents: 2000,
+      allocations: [{ chargeId: "charge-a", amountCents: 2000 }],
+    });
+  });
+
+  it("cuota manual en la misma factura: no se cobra", () => {
+    expect(
+      plan({
+        charges: [
+          charge({ id: "charge-manual", collectionMode: "manual", outstandingCents: 4000 }),
+          charge({ id: "charge-auto", outstandingCents: 3000 }),
+        ],
+      })
+    ).toEqual({
+      collect: true,
+      amountCents: 3000,
+      allocations: [{ chargeId: "charge-auto", amountCents: 3000 }],
+    });
+  });
+
+  it("solo cuotas manuales: nada que cobrar", () => {
+    expect(plan({ charges: [charge({ collectionMode: "manual" })] })).toEqual({
+      collect: false,
+      reason: "nothing_due",
+    });
+  });
+
+  it.each([
+    ["pagada", { status: "paid" as const }],
+    ["anulada", { status: "void" as const }],
+    ["sin saldo", { outstandingCents: 0 }],
+    ["saldo negativo", { outstandingCents: -100 }],
+    ["saldo no entero", { outstandingCents: 10.5 }],
+  ])("cuota %s: nada que cobrar", (_label, overrides) => {
+    expect(plan({ charges: [charge(overrides)] })).toEqual({
+      collect: false,
+      reason: "nothing_due",
+    });
+  });
+
+  it("sin cuotas: nada que cobrar", () => {
+    expect(plan({ charges: [] })).toEqual({ collect: false, reason: "nothing_due" });
+  });
+
+  it("factura no mensual: nunca se cobra sola", () => {
+    expect(plan({ invoice: invoice({ isMonthly: false }) })).toEqual({
+      collect: false,
+      reason: "not_monthly",
+    });
+  });
+
+  it.each(["draft", "paid", "void"] as const)("factura %s: cerrada", (status) => {
+    expect(plan({ invoice: invoice({ status }) })).toEqual({
+      collect: false,
+      reason: "invoice_closed",
+    });
+  });
+
+  it("factura pagada en parte: se cobra lo que queda", () => {
+    expect(plan({ invoice: invoice({ status: "partially_paid" }) })).toMatchObject({
+      collect: true,
+    });
+  });
+
+  it("moneda distinta de la factura: no se cobra", () => {
+    expect(
+      plan({ charges: [charge({ id: "charge-a" }), charge({ id: "charge-b", currency: "USD" })] })
+    ).toEqual({ collect: false, reason: "mixed_currency" });
+  });
+
+  it("solo entran las cuotas cuya fecha de cobro ya llegó, ordenadas por vencimiento", () => {
+    expect(
+      plan({
+        todayLocal: "2026-11-10",
+        charges: [
+          charge({ id: "charge-late", dueAt: calendarDueDateToUtc("2026-11-15", MADRID) }),
+          charge({ id: "charge-b", outstandingCents: 1000 }),
+          charge({
+            id: "charge-c",
+            outstandingCents: 2000,
+            dueAt: calendarDueDateToUtc("2026-11-01", MADRID),
+          }),
+          charge({ id: "charge-a", outstandingCents: 500 }),
+        ],
+      })
+    ).toEqual({
+      collect: true,
+      amountCents: 3500,
+      allocations: [
+        { chargeId: "charge-c", amountCents: 2000 },
+        { chargeId: "charge-a", amountCents: 500 },
+        { chargeId: "charge-b", amountCents: 1000 },
+      ],
+    });
+  });
+
+  it("límite de día en Madrid: la medianoche local cuenta, no la de UTC", () => {
+    const dueAt = calendarDueDateToUtc("2026-11-05", MADRID);
+    // 23:30 del día 4 en Madrid (22:30 UTC): todavía no.
+    const before = localCalendarDate(new Date("2026-11-04T22:30:00.000Z"), MADRID);
+    // 00:30 del día 5 en Madrid, aunque en UTC aún sea el día 4.
+    const after = localCalendarDate(new Date("2026-11-04T23:30:00.000Z"), MADRID);
+    expect(before).toBe("2026-11-04");
+    expect(after).toBe("2026-11-05");
+    expect(plan({ charges: [charge({ dueAt })], todayLocal: before })).toEqual({
+      collect: false,
+      reason: "not_due_yet",
+    });
+    expect(plan({ charges: [charge({ dueAt })], todayLocal: after })).toMatchObject({
+      collect: true,
+    });
+  });
+
+  it("límite de día en Ciudad de México: el vencimiento se lee en la hora local", () => {
+    // Vence el 5 en México: due_at es el 6 en UTC.
+    const dueAt = calendarDueDateToUtc("2026-11-05", MEXICO);
+    // 23:30 del día 4 en México (05:30 UTC del 5): todavía no.
+    const before = localCalendarDate(new Date("2026-11-05T05:30:00.000Z"), MEXICO);
+    // 23:30 del día 5 en México, aunque en UTC ya sea el día 6.
+    const sameDay = localCalendarDate(new Date("2026-11-06T05:30:00.000Z"), MEXICO);
+    expect(before).toBe("2026-11-04");
+    expect(sameDay).toBe("2026-11-05");
+    const input = { charges: [charge({ dueAt })], timezone: MEXICO };
+    expect(plan({ ...input, todayLocal: before })).toEqual({
+      collect: false,
+      reason: "not_due_yet",
+    });
+    expect(plan({ ...input, todayLocal: sameDay })).toMatchObject({ collect: true });
+    expect(plan({ ...input, todayLocal: sameDay, collectionDayOfMonth: 5 })).toMatchObject({
+      collect: true,
+    });
+  });
+
+  it("rechaza una fecha de hoy inválida", () => {
+    expect(() => plan({ todayLocal: "2026-11-31" })).toThrow(RangeError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Puerta completa
+// ---------------------------------------------------------------------------
+
+const gateNow = new Date("2026-11-10T09:00:00.000Z");
+
+function paidEntitlement(overrides: Partial<EntitlementSnapshot> = {}): EntitlementSnapshot {
+  return {
+    organizationId: "org-a",
+    planCode: "growth",
+    revision: 4,
+    source: "stripe_subscription",
+    sourceReference: "evt_synthetic_004",
+    subscriptionId: "sub-projection-a",
+    effectiveFrom: "2026-11-01T00:00:00.000Z",
+    effectiveUntil: "2026-12-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function paidSubscription(
+  overrides: Partial<SaasSubscriptionProjection> = {}
+): SaasSubscriptionProjection {
+  return {
+    id: "sub-projection-a",
+    organizationId: "org-a",
+    provider: "stripe",
+    environment: "test",
+    providerAccountReference: "acct_synthetic",
+    subscriptionReference: "sub_synthetic",
+    planCode: "growth",
+    providerStatus: "active",
+    currentPeriodStartedAt: "2026-11-01T00:00:00.000Z",
+    currentPeriodEndsAt: "2026-12-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function gateCharge(
+  overrides: Partial<FamilyCollectionGateCharge> = {}
+): FamilyCollectionGateCharge {
+  return {
+    id: "charge-a",
+    organizationId: "org-a",
+    familyId: "family-a",
+    familyPayerId: "payer-a",
+    collectionMode: "automatic",
+    ...overrides,
+  };
+}
+
+function gateInput(): FamilyCollectionGateInput {
+  return {
+    flagEnabled: true,
+    environment: "test",
+    productionDatabase: false,
+    storageAvailable: true,
+    organization: { id: "org-a", status: "active" },
+    entitlement: paidEntitlement(),
+    subscription: paidSubscription(),
+    preference: {
+      organizationId: "org-a",
+      familyId: "family-a",
+      requestedMode: "automatic",
+      entitlementRevision: 4,
+    },
+    invoice: { organizationId: "org-a", familyId: "family-a", familyPayerId: "payer-a" },
+    charges: [gateCharge({ id: "charge-a" }), gateCharge({ id: "charge-b" })],
+    providerAccount: {
+      id: "provider-account-a",
+      organizationId: "org-a",
+      processor: "stripe",
+      environment: "test",
+      accountsApiGeneration: 2,
+      chargeModel: "direct",
+      status: "active",
+      cardPaymentsCapabilityStatus: "active",
+      sepaDebitPaymentsCapabilityStatus: "active",
+      lastSyncedAt: "2026-11-10T08:30:00.000Z",
+    },
+    authorization: {
+      organizationId: "org-a",
+      familyId: "family-a",
+      familyPayerId: "payer-a",
+      paymentProviderAccountId: "provider-account-a",
+      status: "active",
+      consentVersion: "consent-v1",
+      consentEvidenceReference: "synthetic-consent-object-ref",
+      consentEvidenceSha256: "a".repeat(64),
+      consentedAt: "2026-11-01T10:00:00.000Z",
+      consentedByGuardianId: "guardian-a",
+      validUntil: null,
+      revokedAt: null,
+      paymentMethodKind: "card",
+      paymentMethodReference: "pm_synthetic_a",
+      mandateReference: null,
+    },
+    customerReference: "cus_synthetic_a",
+    payer: {
+      id: "payer-a",
+      organizationId: "org-a",
+      familyId: "family-a",
+      startsOn: "2026-09-01",
+      endsOn: null,
+      guardianActive: true,
+      guardianLinkActive: true,
+    },
+    todayLocal: "2026-11-10",
+    now: gateNow,
+  };
+}
+
+function sepaInput(): FamilyCollectionGateInput {
+  const input = gateInput();
+  return {
+    ...input,
+    authorization: {
+      ...input.authorization!,
+      paymentMethodKind: "sepa_debit",
+      paymentMethodReference: "pm_synthetic_sepa",
+      mandateReference: "mandate_synthetic_a",
+    },
+  };
+}
+
+function gate(mutate?: (input: FamilyCollectionGateInput) => void) {
+  const input = gateInput();
+  mutate?.(input);
+  return evaluateFamilyCollectionGate(input);
+}
+
+describe("evaluateFamilyCollectionGate", () => {
+  it("deja cobrar con tarjeta", () => {
+    expect(gate()).toEqual({ allowed: true, paymentMethodKind: "card" });
+  });
+
+  it("deja cobrar con domiciliación", () => {
+    expect(evaluateFamilyCollectionGate(sepaInput())).toEqual({
+      allowed: true,
+      paymentMethodKind: "sepa_debit",
+    });
+  });
+
+  it.each<[string, (input: FamilyCollectionGateInput) => void, FamilyCollectionGateReason]>([
+    ["bandera apagada", (input) => { input.flagEnabled = false; }, "flag_off"],
+    ["clave desconocida", (input) => { input.environment = null; }, "environment_unknown"],
+    ["clave de Live", (input) => { input.environment = "live"; }, "live_not_released"],
+    [
+      "base de producción con clave de test",
+      (input) => { input.productionDatabase = true; },
+      "live_not_released",
+    ],
+    ["sin almacenamiento", (input) => { input.storageAvailable = false; }, "storage_missing"],
+  ])("%s → %s (pasajero)", (_label, mutate, reason) => {
+    expect(gate(mutate)).toEqual({ allowed: false, reason, classification: "transient" });
+  });
+
+  it("la bandera apagada manda sobre cualquier otro motivo", () => {
+    expect(
+      gate((input) => {
+        input.flagEnabled = false;
+        input.environment = "live";
+        input.storageAvailable = false;
+        input.payer = null;
+      })
+    ).toMatchObject({ reason: "flag_off" });
+  });
+
+  it("aplica la puerta existente a cada cuota del reparto: la segunda es manual", () => {
+    expect(
+      gate((input) => {
+        input.charges = [gateCharge({ id: "charge-a" }), gateCharge({ id: "charge-b", collectionMode: "manual" })];
+      })
+    ).toEqual({ allowed: false, reason: "charge_manual", classification: "final" });
+  });
+
+  it("cada cuota debe tener el pagador de la factura", () => {
+    expect(
+      gate((input) => {
+        input.charges = [gateCharge({ id: "charge-a" }), gateCharge({ id: "charge-b", familyPayerId: "payer-b" })];
+      })
+    ).toEqual({ allowed: false, reason: "charge_payer_mismatch", classification: "final" });
+    expect(
+      gate((input) => {
+        input.charges = [gateCharge({ familyPayerId: null })];
+      })
+    ).toMatchObject({ reason: "charge_payer_mismatch" });
+  });
+
+  it("cuota de otra familia", () => {
+    expect(
+      gate((input) => {
+        input.charges = [gateCharge({ id: "charge-a" }), gateCharge({ id: "charge-b", familyId: "family-b" })];
+      })
+    ).toEqual({ allowed: false, reason: "charge_scope_mismatch", classification: "final" });
+  });
+
+  it("factura de otra familia", () => {
+    expect(
+      gate((input) => {
+        input.invoice = { ...input.invoice, familyId: "family-b" };
+      })
+    ).toMatchObject({ reason: "charge_scope_mismatch", classification: "final" });
+  });
+
+  it("factura sin pagador: no hay autorización que valga", () => {
+    expect(
+      gate((input) => {
+        input.invoice = { ...input.invoice, familyPayerId: null };
+        input.charges = [gateCharge({ familyPayerId: null })];
+      })
+    ).toEqual({ allowed: false, reason: "authorization_missing", classification: "final" });
+  });
+
+  it.each<[string, (input: FamilyCollectionGateInput) => void, FamilyCollectionGateReason, "transient" | "final"]>([
+    ["sin plan", (input) => { input.entitlement = null; }, "entitlement_missing", "transient"],
+    [
+      "plan gratuito",
+      (input) => {
+        input.entitlement = paidEntitlement({
+          planCode: "free",
+          source: "bootstrap",
+          subscriptionId: null,
+        });
+      },
+      "paid_plan_required",
+      "transient",
+    ],
+    [
+      "suscripción impagada",
+      (input) => { input.subscription = paidSubscription({ providerStatus: "past_due" }); },
+      "subscription_not_active",
+      "transient",
+    ],
+    [
+      "academia suspendida",
+      (input) => { input.organization = { id: "org-a", status: "suspended" }; },
+      "organization_not_active",
+      "final",
+    ],
+    [
+      "la academia pasó la familia a manual",
+      (input) => { input.preference = { ...input.preference, requestedMode: "manual" }; },
+      "preference_manual",
+      "final",
+    ],
+    [
+      "cuenta sin cobros con tarjeta",
+      (input) => {
+        input.providerAccount = {
+          ...input.providerAccount!,
+          cardPaymentsCapabilityStatus: "inactive",
+        };
+      },
+      "provider_not_ready",
+      "final",
+    ],
+    [
+      "la familia revocó el método",
+      (input) => {
+        input.authorization = {
+          ...input.authorization!,
+          status: "revoked",
+          revokedAt: "2026-11-09T10:00:00.000Z",
+        };
+      },
+      "authorization_inactive",
+      "final",
+    ],
+    [
+      "autorización de otro pagador",
+      (input) => {
+        input.authorization = { ...input.authorization!, familyPayerId: "payer-b" };
+      },
+      "authorization_scope_mismatch",
+      "final",
+    ],
+    ["sin autorización", (input) => { input.authorization = null; }, "authorization_missing", "final"],
+  ])("puerta existente: %s → %s", (_label, mutate, reason, classification) => {
+    expect(gate(mutate)).toEqual({ allowed: false, reason, classification });
+  });
+
+  it("la puerta existente va antes que el pagador", () => {
+    expect(
+      gate((input) => {
+        input.preference = { ...input.preference, requestedMode: "manual" };
+        input.payer = null;
+      })
+    ).toMatchObject({ reason: "preference_manual" });
+  });
+
+  it.each<[string, (input: FamilyCollectionGateInput) => void, FamilyCollectionGateReason]>([
+    ["sin pagador", (input) => { input.payer = null; }, "payer_missing"],
+    [
+      "otro pagador",
+      (input) => { input.payer = { ...input.payer!, id: "payer-b" }; },
+      "payer_missing",
+    ],
+    [
+      "pagador de otra familia",
+      (input) => { input.payer = { ...input.payer!, familyId: "family-b" }; },
+      "payer_missing",
+    ],
+    [
+      "pagador cerrado ayer",
+      (input) => { input.payer = { ...input.payer!, endsOn: "2026-11-09" }; },
+      "payer_not_current",
+    ],
+    [
+      "pagador que empieza mañana",
+      (input) => { input.payer = { ...input.payer!, startsOn: "2026-11-11" }; },
+      "payer_not_current",
+    ],
+    [
+      "tutor inactivo",
+      (input) => { input.payer = { ...input.payer!, guardianActive: false }; },
+      "payer_not_current",
+    ],
+    [
+      "vínculo con la familia inactivo",
+      (input) => { input.payer = { ...input.payer!, guardianLinkActive: false }; },
+      "payer_not_current",
+    ],
+    [
+      "tipo de método desconocido",
+      (input) => {
+        input.authorization = { ...input.authorization!, paymentMethodKind: null };
+      },
+      "payment_method_unknown",
+    ],
+    [
+      "tipo de método no admitido",
+      (input) => {
+        input.authorization = { ...input.authorization!, paymentMethodKind: "paypal" };
+      },
+      "payment_method_unknown",
+    ],
+    [
+      "sin método guardado",
+      (input) => {
+        input.authorization = { ...input.authorization!, paymentMethodReference: " " };
+      },
+      "payment_method_unknown",
+    ],
+    ["sin Customer", (input) => { input.customerReference = null; }, "payment_method_unknown"],
+  ])("%s → %s (final)", (_label, mutate, reason) => {
+    expect(gate(mutate)).toEqual({ allowed: false, reason, classification: "final" });
+  });
+
+  it("el último día del pagador todavía cobra", () => {
+    expect(
+      gate((input) => {
+        input.payer = { ...input.payer!, endsOn: "2026-11-10" };
+      })
+    ).toMatchObject({ allowed: true });
+  });
+
+  it("domiciliación sin orden: método incompleto", () => {
+    const input = sepaInput();
+    input.authorization = { ...input.authorization!, mandateReference: null };
+    expect(evaluateFamilyCollectionGate(input)).toEqual({
+      allowed: false,
+      reason: "payment_method_unknown",
+      classification: "final",
+    });
+  });
+
+  it("domiciliación con la capacidad SEPA inactiva en la cuenta", () => {
+    const input = sepaInput();
+    input.providerAccount = {
+      ...input.providerAccount!,
+      sepaDebitPaymentsCapabilityStatus: "inactive",
+    };
+    expect(evaluateFamilyCollectionGate(input)).toEqual({
+      allowed: false,
+      reason: "sepa_not_active",
+      classification: "final",
+    });
+  });
+
+  it("la tarjeta no necesita la capacidad SEPA", () => {
+    expect(
+      gate((input) => {
+        input.providerAccount = {
+          ...input.providerAccount!,
+          sepaDebitPaymentsCapabilityStatus: "inactive",
+        };
+      })
+    ).toMatchObject({ allowed: true });
+  });
+
+  it.each<[string, Date | string | null]>([
+    ["nunca releída", null],
+    ["releída hace más de una hora", new Date(gateNow.getTime() - ACCOUNT_FRESHNESS_MS - 1)],
+    ["fecha ilegible", "no-es-fecha"],
+  ])("cuenta %s → account_stale (pasajero)", (_label, lastSyncedAt) => {
+    expect(
+      gate((input) => {
+        input.providerAccount = { ...input.providerAccount!, lastSyncedAt };
+      })
+    ).toEqual({ allowed: false, reason: "account_stale", classification: "transient" });
+  });
+
+  it("cuenta releída hace justo una hora: vale", () => {
+    expect(
+      gate((input) => {
+        input.providerAccount = {
+          ...input.providerAccount!,
+          lastSyncedAt: new Date(gateNow.getTime() - ACCOUNT_FRESHNESS_MS),
+        };
+      })
+    ).toMatchObject({ allowed: true });
+  });
+
+  it("sin cuotas en el reparto es un error de quien llama", () => {
+    expect(() =>
+      gate((input) => {
+        input.charges = [];
+      })
+    ).toThrow(RangeError);
+  });
+});
+
+describe("clase de cada motivo de la puerta", () => {
+  const transient = [
+    "account_stale",
+    "automation_not_released",
+    "entitlement_missing",
+    "entitlement_not_effective",
+    "environment_unknown",
+    "flag_off",
+    "live_not_released",
+    "paid_plan_required",
+    "storage_missing",
+    "subscription_mismatch",
+    "subscription_missing",
+    "subscription_not_active",
+    "subscription_period_not_current",
+  ];
+
+  it("son pasajeros exactamente la bandera, el entorno, el almacenamiento, la cuenta y el plan", () => {
+    const actual = Object.entries(GATE_REASON_CLASSIFICATION)
+      .filter(([, classification]) => classification === "transient")
+      .map(([reason]) => reason)
+      .sort();
+    expect(actual).toEqual(transient);
+  });
+
+  it.each(Object.keys(GATE_REASON_CLASSIFICATION) as FamilyCollectionGateReason[])(
+    "%s",
+    (reason) => {
+      expect(classifyGateReason(reason)).toBe(
+        transient.includes(reason) ? "transient" : "final"
+      );
+    }
+  );
+
+  it("los motivos propios de la Fase 3 que no son pasajeros son finales", () => {
+    for (const reason of [
+      "charge_payer_mismatch",
+      "payer_missing",
+      "payer_not_current",
+      "payment_method_unknown",
+      "sepa_not_active",
+      "preference_manual",
+      "authorization_inactive",
+      "organization_not_active",
+    ] as const) {
+      expect(classifyGateReason(reason)).toBe("final");
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reintentos (P3)
+// ---------------------------------------------------------------------------
+
+describe("nextRetry", () => {
+  const now = new Date("2026-11-10T06:00:00.000Z");
+  const inThreeDays = new Date(now.getTime() + 3 * DAY_MS);
+
+  it("un reintento a los 3 días", () => {
+    expect(CARD_RETRY_DELAY_DAYS).toBe(3);
+  });
+
+  it("lista exacta de rechazos blandos", () => {
+    expect([...SOFT_DECLINE_CODES].sort()).toEqual([
+      "approve_with_id",
+      "card_velocity_exceeded",
+      "do_not_honor",
+      "generic_decline",
+      "insufficient_funds",
+      "issuer_not_available",
+      "processing_error",
+      "reenter_transaction",
+      "try_again_later",
+      "withdrawal_count_limit_exceeded",
+    ]);
+  });
+
+  it("los blandos y los que nunca se reintentan no se solapan", () => {
+    expect(SOFT_DECLINE_CODES.filter((code) => NEVER_RETRY_DECLINE_CODES.includes(code))).toEqual(
+      []
+    );
+    expect([...NEVER_RETRY_DECLINE_CODES].sort()).toEqual([
+      "authentication_required",
+      "do_not_try_again",
+      "fraudulent",
+      "lost_card",
+      "pickup_card",
+      "stolen_card",
+    ]);
+  });
+
+  it.each([...SOFT_DECLINE_CODES])("tarjeta rechazada por %s: reintento a los 3 días", (declineCode) => {
+    expect(
+      nextRetry({ kind: "card", attemptNumber: 1, code: "card_declined", declineCode, now })
+    ).toEqual(inThreeDays);
+  });
+
+  it("error de procesamiento sin decline_code: reintento", () => {
+    expect(
+      nextRetry({ kind: "card", attemptNumber: 1, code: "processing_error", declineCode: null, now })
+    ).toEqual(inThreeDays);
+  });
+
+  it.each([...NEVER_RETRY_DECLINE_CODES])("tarjeta rechazada por %s: nunca", (declineCode) => {
+    expect(
+      nextRetry({ kind: "card", attemptNumber: 1, code: "card_declined", declineCode, now })
+    ).toBeNull();
+  });
+
+  it.each([...NEVER_RETRY_DECLINE_CODES])("código %s: nunca, aunque el decline_code sea blando", (code) => {
+    expect(
+      nextRetry({ kind: "card", attemptNumber: 1, code, declineCode: "insufficient_funds", now })
+    ).toBeNull();
+  });
+
+  it("el banco pide autenticación: nunca", () => {
+    expect(
+      nextRetry({
+        kind: "card",
+        attemptNumber: 1,
+        code: "authentication_required",
+        declineCode: null,
+        now,
+      })
+    ).toBeNull();
+  });
+
+  it("domiciliación: nunca", () => {
+    expect(
+      nextRetry({
+        kind: "sepa_debit",
+        attemptNumber: 1,
+        code: "card_declined",
+        declineCode: "insufficient_funds",
+        now,
+      })
+    ).toBeNull();
+  });
+
+  it.each([2, 3, 0])("intento %s: nunca", (attemptNumber) => {
+    expect(
+      nextRetry({
+        kind: "card",
+        attemptNumber,
+        code: "card_declined",
+        declineCode: "insufficient_funds",
+        now,
+      })
+    ).toBeNull();
+  });
+
+  it.each<[string | null, string | null]>([
+    ["expired_card", "expired_card"],
+    ["incorrect_cvc", null],
+    ["card_declined", null],
+    [null, null],
+    ["payment_failed", null],
+  ])("rechazo no previsto (%s, %s): nunca", (code, declineCode) => {
+    expect(nextRetry({ kind: "card", attemptNumber: 1, code, declineCode, now })).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Resultado de Stripe
+// ---------------------------------------------------------------------------
+
+function snapshot(overrides: Partial<PaymentIntentSnapshot> = {}): PaymentIntentSnapshot {
+  return {
+    id: "pi_synthetic_a",
+    status: "succeeded",
+    lastErrorCode: null,
+    lastDeclineCode: null,
+    ...overrides,
+  };
+}
+
+describe("mapPaymentIntent", () => {
+  it.each([
+    ["succeeded", "succeeded"],
+    ["processing", "processing"],
+    ["requires_capture", "processing"],
+    ["requires_confirmation", "requires_confirmation"],
+    ["estado_nuevo_de_stripe", "transient"],
+  ])("cobro en %s → %s", (status, expected) => {
+    expect(mapPaymentIntent(snapshot({ status }))).toBe(expected);
+  });
+
+  it("cobro rechazado: códigos del último error", () => {
+    expect(
+      mapPaymentIntent(
+        snapshot({
+          status: "requires_payment_method",
+          lastErrorCode: "card_declined",
+          lastDeclineCode: "insufficient_funds",
+        })
+      )
+    ).toEqual({ failed: { code: "card_declined", declineCode: "insufficient_funds" } });
+  });
+
+  it("cobro pendiente de autenticación: fallo terminal en esta fase", () => {
+    const outcome = mapPaymentIntent(snapshot({ status: "requires_action" }));
+    expect(outcome).toEqual({ failed: { code: "authentication_required", declineCode: null } });
+  });
+
+  it("cobro cancelado sin código: fallo con código genérico", () => {
+    expect(mapPaymentIntent(snapshot({ status: "canceled" }))).toEqual({
+      failed: { code: "payment_failed", declineCode: null },
+    });
+  });
+
+  it("nunca guarda algo que no sea un código", () => {
+    expect(
+      mapPaymentIntent(
+        snapshot({
+          status: "requires_payment_method",
+          lastErrorCode: "Your card was declined.",
+          lastDeclineCode: "x".repeat(65),
+        })
+      )
+    ).toEqual({ failed: { code: "payment_failed", declineCode: null } });
+  });
+
+  it("error de tarjeta al confirmar: códigos del error", () => {
+    expect(
+      mapPaymentIntent({
+        code: "card_declined",
+        declineCode: "stolen_card",
+        paymentIntent: snapshot({
+          status: "requires_payment_method",
+          lastErrorCode: "card_declined",
+          lastDeclineCode: "stolen_card",
+        }),
+      })
+    ).toEqual({ failed: { code: "card_declined", declineCode: "stolen_card" } });
+  });
+
+  it("el banco pide autenticación al confirmar: fallo terminal", () => {
+    const outcome = mapPaymentIntent({
+      type: "card_error",
+      code: "authentication_required",
+      declineCode: "authentication_required",
+      paymentIntent: snapshot({
+        status: "requires_payment_method",
+        lastErrorCode: "authentication_required",
+      }),
+    });
+    expect(outcome).toEqual({
+      failed: { code: "authentication_required", declineCode: "authentication_required" },
+    });
+    expect(typeof outcome === "object" && isAuthenticationRequiredFailure(outcome.failed)).toBe(
+      true
+    );
+  });
+
+  it("error con el cobro ya cobrado: manda el estado del cobro", () => {
+    expect(
+      mapPaymentIntent({
+        code: "payment_intent_unexpected_state",
+        declineCode: null,
+        paymentIntent: snapshot({ status: "succeeded" }),
+      })
+    ).toBe("succeeded");
+  });
+
+  it("error sin el cobro: nunca se da por fallido", () => {
+    expect(
+      mapPaymentIntent({ code: "card_declined", declineCode: "insufficient_funds", paymentIntent: null })
+    ).toBe("transient");
+  });
+
+  it("clave de idempotencia rechazada: conflicto", () => {
+    expect(
+      mapPaymentIntent({
+        type: "idempotency_error",
+        code: null,
+        declineCode: null,
+        paymentIntent: null,
+      })
+    ).toBe("idempotency_conflict");
+  });
+
+  it("clave de idempotencia en uso por otra petición: pasajero", () => {
+    expect(
+      mapPaymentIntent({
+        type: "idempotency_error",
+        code: "idempotency_key_in_use",
+        declineCode: null,
+        paymentIntent: null,
+      })
+    ).toBe("transient");
+  });
+
+  describe("errores tal como los lanza stripe-node", () => {
+    it("error de tarjeta con su cobro", () => {
+      expect(
+        mapPaymentIntent({
+          type: "StripeCardError",
+          rawType: "card_error",
+          code: "card_declined",
+          decline_code: "",
+          statusCode: 402,
+          payment_intent: {
+            id: "pi_synthetic_b",
+            status: "requires_payment_method",
+            last_payment_error: { code: "card_declined", decline_code: "generic_decline" },
+          },
+        })
+      ).toEqual({ failed: { code: "card_declined", declineCode: "generic_decline" } });
+    });
+
+    it("error de idempotencia", () => {
+      expect(
+        mapPaymentIntent({
+          type: "StripeIdempotencyError",
+          rawType: "idempotency_error",
+          statusCode: 400,
+        })
+      ).toBe("idempotency_conflict");
+      expect(mapPaymentIntent({ rawType: "idempotency_error" })).toBe("idempotency_conflict");
+    });
+
+    it.each([
+      ["conexión", { type: "StripeConnectionError" }],
+      ["límite de peticiones", { type: "StripeRateLimitError", rawType: "invalid_request_error", code: "rate_limit", statusCode: 429 }],
+      ["error interno", { type: "StripeAPIError", rawType: "api_error", statusCode: 500 }],
+      ["permiso", { type: "StripePermissionError", statusCode: 403 }],
+    ])("%s → pasajero", (_label, error) => {
+      expect(mapPaymentIntent(error)).toBe("transient");
+    });
+
+    it("cualquier valor capturado", () => {
+      expect(mapUnknownPaymentError(new Error("sin red"))).toBe("transient");
+      expect(mapUnknownPaymentError("texto")).toBe("transient");
+      expect(mapUnknownPaymentError(null)).toBe("transient");
+      expect(
+        mapUnknownPaymentError({ type: "StripeIdempotencyError", rawType: "idempotency_error" })
+      ).toBe("idempotency_conflict");
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Configuración
+// ---------------------------------------------------------------------------
+
+describe("config del cobro automático", () => {
+  it("la bandera solo se enciende con el texto exacto «true»", () => {
+    expect(FAMILY_AUTOMATIC_COLLECTION_FLAG_ENV).toBe(
+      "ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED"
+    );
+    vi.stubEnv(FAMILY_AUTOMATIC_COLLECTION_FLAG_ENV, "true");
+    expect(isFamilyAutomaticCollectionFlagEnabled()).toBe(true);
+    vi.stubEnv(FAMILY_AUTOMATIC_COLLECTION_FLAG_ENV, "TRUE");
+    expect(isFamilyAutomaticCollectionFlagEnabled()).toBe(false);
+    vi.stubEnv(FAMILY_AUTOMATIC_COLLECTION_FLAG_ENV, "1");
+    expect(isFamilyAutomaticCollectionFlagEnabled()).toBe(false);
+    vi.stubEnv(FAMILY_AUTOMATIC_COLLECTION_FLAG_ENV, "");
+    expect(isFamilyAutomaticCollectionFlagEnabled()).toBe(false);
+  });
+
+  it("apagada si no existe la variable", () => {
+    vi.stubEnv(FAMILY_AUTOMATIC_COLLECTION_FLAG_ENV, undefined);
+    expect(isFamilyAutomaticCollectionFlagEnabled()).toBe(false);
+  });
+
+  it("reexporta los cerrojos de entorno de Conectar Stripe", () => {
+    expect(resolveConnectEnvironment).toBe(connectConfig.resolveConnectEnvironment);
+    expect(isProductionDatabase).toBe(connectConfig.isProductionDatabase);
+  });
+});
