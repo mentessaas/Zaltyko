@@ -227,6 +227,41 @@ describe("disparo del resumen semanal (cron)", () => {
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
+  it("con el disparo de cada hora (pg_cron, minuto 7) y alguno repetido, cada persona recibe un solo resumen", async () => {
+    // Registro de correos simulado: la consulta de «ya enviado» lleva la clave como parámetro.
+    const logged = new Set<string>();
+    mocks.execute.mockImplementation(async (query: { queryChunks?: unknown[] }) => {
+      const key = (query.queryChunks ?? []).find(
+        (chunk): chunk is string => typeof chunk === "string" && chunk.startsWith("email:")
+      );
+      return { rows: key && logged.has(key) ? [{ found: 1 }] : [] };
+    });
+    mocks.send.mockImplementation(async (input: { dedupeKey: string }) => {
+      logged.add(`email:${input.dedupeKey}`);
+      return true;
+    });
+    const recipients = [
+      recipient(),
+      recipient({
+        memberId: "66666666-6666-4666-8666-666666666666",
+        email: "mexico@ejemplo.test",
+        timezone: "America/Mexico_City",
+      }),
+    ];
+    // Todo el lunes UTC, a las HH:07, y cada disparo dos veces (un reintento manual o una
+    // ejecución solapada): Madrid entra de 07 a 10 UTC y Ciudad de México de 14 a 17 UTC.
+    for (let hour = 0; hour < 24; hour += 1) {
+      const at = new Date(`2026-11-16T${String(hour).padStart(2, "0")}:07:00Z`);
+      await run({ recipients, now: at });
+      await run({ recipients, now: at });
+    }
+    expect(mocks.send).toHaveBeenCalledTimes(2);
+    expect(mocks.send.mock.calls.map((call) => call[0].to).sort()).toEqual([
+      "direccion@ejemplo.test",
+      "mexico@ejemplo.test",
+    ]);
+  });
+
   it("cada persona recibe lo suyo y un fallo no frena a las demás", async () => {
     const other = recipient({ memberId: "66666666-6666-4666-8666-666666666666", email: "otra@ejemplo.test" });
     mocks.send.mockRejectedValueOnce(new Error("BREVO_API_ERROR: 500")).mockResolvedValueOnce(true);

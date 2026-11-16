@@ -55,9 +55,17 @@ Cada correo lleva un enlace «Desactívalos aquí». Abre una página con un bot
 
 `20261114130000_habitual_use_candidate.sql` crea una tabla, `public.usage_events`, y dos índices por hora de inicio y de fin en las sesiones (aceleran los avisos a entrenadoras), sin tocar filas existentes. Lleva su **vuelta atrás** documentada (`docs/deployment/candidates/README.md`). RLS activada y forzada, sin permisos para clientes directos; se borra con la academia. Mientras no exista tal como la define el archivo, no se registra nada y la vista dice que no está disponible. **No está aplicada en ningún entorno.**
 
-## Los avisos no se programan solos
+## Cuándo se lanzan
 
-Hay tres rutas de cron, **sin programar** en `vercel.json` (programarlas es decisión de Elvis): `/api/cron/coach-session-reminders` (cada 5 minutos), `/api/cron/owner-weekly-digest` (cada hora; el aviso solo sale el lunes por la mañana de la sede y una vez por semana) y `/api/cron/usage-at-risk` (una vez al día). Las tres exigen el secreto de cron y un solo disparo a la vez.
+Desde el 15 de noviembre de 2026 los lanza **pg_cron en la base de producción de Supabase** (autorizado por Elvis; Vercel Hobby solo permite un cron al día). Detalle, consultas para ver las ejecuciones y cómo pausar un aviso en `docs/deployment/scheduler/README.md`; decisión en el ADR-0016. Las tres rutas exigen el secreto de cron y un solo disparo a la vez, y cada envío depende de su bandera.
+
+| Aviso | Ruta | Cuándo (UTC) | España (Madrid) | México (Ciudad de México) |
+|---|---|---|---|---|
+| Aviso a quien entrena | `/api/cron/coach-session-reminders` | cada 5 minutos | cada 5 minutos | cada 5 minutos |
+| Resumen semanal | `/api/cron/owner-weekly-digest` | cada hora, a y 7 | sale el lunes a las 08:07 | sale el lunes a las 08:07 |
+| Academias en riesgo (a Elvis) | `/api/cron/usage-at-risk` | cada día a las 07:00 | 08:00 en invierno, 09:00 en verano | 01:00 |
+
+El resumen se lanza cada hora pero solo sale el lunes de 08:00 a 11:59 en la sede, una vez por persona y semana, aunque un disparo se repita.
 
 ## Cómo probarlo en staging
 
@@ -72,11 +80,11 @@ Hay tres rutas de cron, **sin programar** en `vercel.json` (programarlas es deci
 
 - Las familias se cuentan como cuentas distintas por semana, no personas ni gimnastas.
 - «Academias activas» mira lista pasada o visita del equipo; no distingue entre una visita rápida y un día de trabajo.
-- El resumen y los avisos recorren por páginas todo lo pendiente; el cron tiene el máximo de la plataforma (5 minutos). Con muchas academias convendrá medir el tiempo en staging antes de programar.
+- El resumen y los avisos recorren por páginas todo lo pendiente; el cron tiene el máximo de la plataforma (5 minutos). Con muchas academias convendrá medir el tiempo de cada disparo (`net._http_response`).
 - Las academias con sesiones sin nadie asignado no reciben avisos de clase hasta que asignen entrenadoras (O1).
 
 ## Decide Elvis
 
 - Aplicar la candidata (medición) y cuándo.
-- Programar los tres envíos en `vercel.json` y encender las banderas.
+- Cuándo pasar a Vercel Pro (con clientes de pago) y si entonces mover la programación desde pg_cron.
 - A qué correo llega el aviso de academias en riesgo.

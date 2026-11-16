@@ -67,9 +67,9 @@ marca `can_view_athletes` en sus vínculos activos. Desde ese momento ve en
   manda otro correo. El mismo cambio sobre la misma sesión tampoco; una
   sustitución nueva (aunque sea con la misma entrenadora) sí avisa.
 - Correos por lotes pequeños al guardar. Lo que no da tiempo o falla queda
-  pendiente y lo reintenta el cron `POST /api/cron/family-notices` (hasta 3
-  intentos, cada 5 minutos como mínimo). Programar ese cron es decisión de
-  Elvis (pregunta h).
+  pendiente y lo reintenta el cron `/api/cron/family-notices` (hasta 3
+  intentos, cada 5 minutos como mínimo). Lo lanza pg_cron en Supabase cada 10
+  minutos desde el 15-11-2026 (ADR-0016, `docs/deployment/scheduler/`).
 - Invitar a todas va en lotes de 20; la pantalla repite hasta terminar. Entre
   dos envíos a la misma familia hay 10 minutos de espera, también tras
   revocar.
@@ -175,5 +175,5 @@ el portal.
   valores (hoy solo recuentos).
 - **g) Menú:** entrada «Familias» en `/owner` y botón en la ficha de la
   gimnasta (pendiente de las ramas en curso).
-- **h) Cron de reintento:** programar `POST /api/cron/family-notices` (por
-  ejemplo, cada 10 minutos) con el mismo mecanismo que el resto de crons.
+- **h) Cron de reintento:** resuelta el 15-11-2026: cada 10 minutos con pg_cron
+  en Supabase, como el resto de avisos.
