@@ -10,12 +10,11 @@
  * la Fase 4 lo hará recuperable). Función pura.
  */
 
+import { addLocalDays, localCalendarDate, startOfLocalDay } from "./collection-plan";
 import { AUTHENTICATION_REQUIRED_CODE } from "./payment-outcome";
 
-/** Días hasta el único reintento de una tarjeta rechazada. */
+/** Días de calendario (locales de la sede) hasta el único reintento de una tarjeta rechazada. */
 export const CARD_RETRY_DELAY_DAYS = 3;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Rechazos blandos de tarjeta que se reintentan una vez. Se compara con el
@@ -48,8 +47,14 @@ const SOFT = new Set(SOFT_DECLINE_CODES);
 const NEVER = new Set(NEVER_RETRY_DECLINE_CODES);
 
 /**
- * Fecha del reintento, o `null` si no hay reintento: solo tarjeta, solo tras
- * el primer intento y solo con un rechazo blando.
+ * Instante del reintento, o `null` si no hay reintento: solo tarjeta, solo
+ * tras el primer intento y solo con un rechazo blando.
+ *
+ * El reintento es el día local de la sede «hoy + 3», no 72 horas después: se
+ * devuelve el primer instante de ese día en `timezone` (las 00:00 locales,
+ * con el cambio de hora resuelto). Como el proceso diario reintenta cuando
+ * `next_retry_at <= now` (Tarea 5), el reintento sale en la ejecución de ese
+ * día local, sea cual sea la hora a la que falló el primer intento.
  */
 export function nextRetry(input: {
   kind: "card" | "sepa_debit";
@@ -57,6 +62,8 @@ export function nextRetry(input: {
   code: string | null;
   declineCode: string | null;
   now: Date;
+  /** Zona horaria de la sede (`locations.timezone`). */
+  timezone: string;
 }): Date | null {
   if (input.kind !== "card") return null;
   if (input.attemptNumber !== 1) return null;
@@ -68,7 +75,7 @@ export function nextRetry(input: {
   }
   const reason = input.declineCode ?? input.code;
   if (reason === null || !SOFT.has(reason)) return null;
-  const now = input.now.getTime();
-  if (!Number.isFinite(now)) return null;
-  return new Date(now + CARD_RETRY_DELAY_DAYS * DAY_MS);
+  if (!Number.isFinite(input.now.getTime())) return null;
+  const today = localCalendarDate(input.now, input.timezone);
+  return startOfLocalDay(addLocalDays(today, CARD_RETRY_DELAY_DAYS), input.timezone);
 }

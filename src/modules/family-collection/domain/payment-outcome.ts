@@ -77,11 +77,16 @@ export const AUTHENTICATION_REQUIRED_CODE = "authentication_required";
 /** Código cuando el cobro falló sin que Stripe diera uno. */
 export const UNKNOWN_FAILURE_CODE = "payment_failed";
 
-/** Igual que el límite de la columna `failure_code`/`decline_code`. */
-const CODE_PATTERN = /^[a-z0-9_]{1,64}$/i;
+/**
+ * Forma de un código de Stripe (`card_declined`, `insufficient_funds`…), con
+ * el límite de las columnas `failure_code`/`decline_code`. Cualquier otra cosa
+ * (un mensaje del banco, por ejemplo) se descarta.
+ */
+export const STRIPE_CODE_PATTERN = /^[a-z0-9_]{1,64}$/i;
 
-function codeOf(value: unknown): string | null {
-  return typeof value === "string" && CODE_PATTERN.test(value) ? value : null;
+/** Solo códigos de Stripe; lo demás, `null`. */
+export function codeOf(value: unknown): string | null {
+  return typeof value === "string" && STRIPE_CODE_PATTERN.test(value) ? value : null;
 }
 
 /** Estados de Stripe en los que el cobro no salió y ya no va a salir solo. */
@@ -162,32 +167,49 @@ function mapCollectionError(error: CollectionError): PaymentOutcome {
   });
 }
 
-function snapshotOfRawPaymentIntent(
-  value: StripeErrorLike["payment_intent"]
-): PaymentIntentSnapshot | null {
+/**
+ * Snapshot de un cobro tal como lo devuelve Stripe (respuesta de la API o el
+ * `payment_intent` de un error): solo id, estado y códigos del último error.
+ * `null` si le falta el id o el estado.
+ */
+export function snapshotOfPaymentIntent(value: unknown): PaymentIntentSnapshot | null {
   if (typeof value !== "object" || value === null) return null;
-  if (typeof value.id !== "string" || value.id.length === 0) return null;
-  if (typeof value.status !== "string" || value.status.length === 0) return null;
+  const candidate = value as {
+    id?: unknown;
+    status?: unknown;
+    last_payment_error?: { code?: unknown; decline_code?: unknown } | null;
+  };
+  if (typeof candidate.id !== "string" || candidate.id.length === 0) return null;
+  if (typeof candidate.status !== "string" || candidate.status.length === 0) return null;
+  const lastError =
+    typeof candidate.last_payment_error === "object" && candidate.last_payment_error !== null
+      ? candidate.last_payment_error
+      : null;
   return {
-    id: value.id,
-    status: value.status,
-    lastErrorCode: codeOf(value.last_payment_error?.code),
-    lastDeclineCode: codeOf(value.last_payment_error?.decline_code),
+    id: candidate.id,
+    status: candidate.status,
+    lastErrorCode: codeOf(lastError?.code),
+    lastDeclineCode: codeOf(lastError?.decline_code),
   };
 }
 
-function collectionErrorOf(error: StripeErrorLike): CollectionError {
-  const rawType = typeof error.rawType === "string" ? error.rawType : null;
-  const type = typeof error.type === "string" ? error.type : null;
+/**
+ * `CollectionError` a partir de un error de stripe-node o del JSON de la API.
+ * El tipo es el de la API (`card_error`) si lo hay; si no, el nombre de la
+ * clase del SDK. Solo códigos: nunca el mensaje.
+ */
+export function collectionErrorOf(error: StripeErrorLike): CollectionError {
+  const type =
+    typeof error.rawType === "string"
+      ? error.rawType
+      : typeof error.type === "string"
+        ? error.type
+        : null;
   return {
-    // Basta con que uno de los dos sea de idempotencia.
-    type:
-      (rawType && IDEMPOTENCY_ERROR_TYPES.has(rawType) ? rawType : null) ??
-      type ??
-      rawType,
+    type,
     code: codeOf(error.code),
     declineCode: codeOf(error.decline_code),
-    paymentIntent: snapshotOfRawPaymentIntent(error.payment_intent),
+    paymentIntent: snapshotOfPaymentIntent(error.payment_intent),
   };
 }
 

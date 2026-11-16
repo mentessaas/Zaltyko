@@ -21,9 +21,13 @@
 import type Stripe from "stripe";
 
 import { getStripeClient } from "@/lib/stripe/client";
-import type {
-  CollectionError,
-  PaymentIntentSnapshot,
+import { SUPPORTED_COLLECTION_CURRENCY } from "@/modules/family-collection/domain/collection-gate";
+import {
+  collectionErrorOf,
+  snapshotOfPaymentIntent,
+  type CollectionError,
+  type PaymentIntentSnapshot,
+  type StripeErrorLike,
 } from "@/modules/family-collection/domain/payment-outcome";
 import type { PaymentMethodKind } from "@/modules/family-payment-methods/domain/consent";
 
@@ -43,6 +47,8 @@ export interface FamilyCollectionGateway {
     connectedAccount: string;
     attempt: { id: string; invoiceId: string; attemptNumber: number };
     amountCents: number;
+    /** Moneda de la factura; solo `EUR` (la puerta ya lo exige). */
+    currency: string;
     customer: string;
     paymentMethod: string;
     kind: PaymentMethodKind;
@@ -106,7 +112,8 @@ export function collectionAttemptSearchQuery(attemptId: string): string {
   return `metadata['${COLLECTION_ATTEMPT_METADATA_KEY}']:'${attemptId.toLowerCase()}'`;
 }
 
-type StripeErrorLike = {
+/** Propiedades de un error del SDK que mira el adaptador, sin fiarse de su tipo. */
+type SdkErrorFields = {
   type?: unknown;
   rawType?: unknown;
   code?: unknown;
@@ -114,8 +121,8 @@ type StripeErrorLike = {
   payment_intent?: unknown;
 };
 
-function asErrorLike(error: unknown): StripeErrorLike | null {
-  return typeof error === "object" && error !== null ? (error as StripeErrorLike) : null;
+function asErrorLike(error: unknown): SdkErrorFields | null {
+  return typeof error === "object" && error !== null ? (error as SdkErrorFields) : null;
 }
 
 /**
@@ -142,42 +149,11 @@ function isCardError(error: unknown): boolean {
   );
 }
 
-const CODE_PATTERN = /^[a-z0-9_]{1,64}$/i;
-
-/** Solo códigos de Stripe (`card_declined`, `insufficient_funds`…); lo demás, `null`. */
-function codeOf(value: unknown): string | null {
-  return typeof value === "string" && CODE_PATTERN.test(value) ? value : null;
-}
-
+/** Snapshot de un cobro devuelto por Stripe; uno sin id o estado es un error. */
 function toSnapshot(paymentIntent: Stripe.PaymentIntent): PaymentIntentSnapshot {
-  const lastError = paymentIntent.last_payment_error;
-  return {
-    id: paymentIntent.id,
-    status: paymentIntent.status,
-    lastErrorCode: codeOf(lastError?.code),
-    lastDeclineCode: codeOf(lastError?.decline_code),
-  };
-}
-
-/** El cobro que trae un error de tarjeta, si lo trae entero. */
-function paymentIntentOfError(value: unknown): PaymentIntentSnapshot | null {
-  if (typeof value !== "object" || value === null) return null;
-  const candidate = value as { id?: unknown; status?: unknown };
-  if (typeof candidate.id !== "string" || candidate.id.length === 0) return null;
-  if (typeof candidate.status !== "string" || candidate.status.length === 0) return null;
-  return toSnapshot(value as Stripe.PaymentIntent);
-}
-
-function toCollectionError(error: StripeErrorLike): CollectionError {
-  // Tipo de la API (`card_error`) si lo hay; si no, el nombre de la clase del SDK.
-  const type =
-    typeof error.rawType === "string" ? error.rawType : typeof error.type === "string" ? error.type : null;
-  return {
-    type,
-    code: codeOf(error.code),
-    declineCode: codeOf(error.decline_code),
-    paymentIntent: paymentIntentOfError(error.payment_intent),
-  };
+  const snapshot = snapshotOfPaymentIntent(paymentIntent);
+  if (!snapshot) throw new Error("FAMILY_COLLECTION_INVALID_PAYMENT_INTENT");
+  return snapshot;
 }
 
 function hasMetadataAttempt(paymentIntent: Stripe.PaymentIntent, attemptId: string): boolean {
@@ -193,6 +169,15 @@ export function createStripeCollectionGateway(stripe?: Stripe): FamilyCollection
     async createPayment(input) {
       if (!Number.isSafeInteger(input.amountCents) || input.amountCents <= 0) {
         throw new Error("FAMILY_COLLECTION_INVALID_AMOUNT");
+      }
+      // Error de programación: la puerta ya deja fuera cualquier otra moneda.
+      if (input.currency !== SUPPORTED_COLLECTION_CURRENCY) {
+        throw new Error("FAMILY_COLLECTION_UNSUPPORTED_CURRENCY");
+      }
+      // El id del intento va en metadata y es lo que busca findPaymentByAttempt:
+      // solo un uuid.
+      if (!UUID_PATTERN.test(input.attempt.id)) {
+        throw new Error("FAMILY_COLLECTION_INVALID_ATTEMPT_ID");
       }
       const params: Stripe.PaymentIntentCreateParams = {
         amount: input.amountCents,
@@ -235,7 +220,7 @@ export function createStripeCollectionGateway(stripe?: Stripe): FamilyCollection
       } catch (error) {
         const candidate = asErrorLike(error);
         if (candidate && isCardError(error)) {
-          return toCollectionError(candidate);
+          return collectionErrorOf(candidate as StripeErrorLike);
         }
         throw error;
       }

@@ -15,22 +15,28 @@ import {
   ACCOUNT_FRESHNESS_MS,
   classifyGateReason,
   evaluateFamilyCollectionGate,
+  SUPPORTED_COLLECTION_CURRENCY,
   GATE_REASON_CLASSIFICATION,
   type FamilyCollectionGateCharge,
   type FamilyCollectionGateInput,
   type FamilyCollectionGateReason,
 } from "@/modules/family-collection/domain/collection-gate";
 import {
+  addLocalDays,
   collectionDate,
   localCalendarDate,
   planInvoiceCollection,
+  startOfLocalDay,
   type CollectionPlanCharge,
   type CollectionPlanInvoice,
 } from "@/modules/family-collection/domain/collection-plan";
 import {
+  codeOf,
+  collectionErrorOf,
   isAuthenticationRequiredFailure,
   mapPaymentIntent,
   mapUnknownPaymentError,
+  snapshotOfPaymentIntent,
   type PaymentIntentSnapshot,
 } from "@/modules/family-collection/domain/payment-outcome";
 import {
@@ -53,7 +59,6 @@ afterEach(() => {
 
 const MADRID = "Europe/Madrid";
 const MEXICO = "America/Mexico_City";
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
 // Día de cobro (P2)
@@ -428,7 +433,12 @@ function gateInput(): FamilyCollectionGateInput {
       requestedMode: "automatic",
       entitlementRevision: 4,
     },
-    invoice: { organizationId: "org-a", familyId: "family-a", familyPayerId: "payer-a" },
+    invoice: {
+      organizationId: "org-a",
+      familyId: "family-a",
+      familyPayerId: "payer-a",
+      currency: "EUR",
+    },
     charges: [gateCharge({ id: "charge-a" }), gateCharge({ id: "charge-b" })],
     providerAccount: {
       id: "provider-account-a",
@@ -765,6 +775,75 @@ describe("evaluateFamilyCollectionGate", () => {
     ).toEqual({ allowed: false, reason: "account_stale", classification: "transient" });
   });
 
+  it("cuenta sin releer con la tarjeta inactiva: pasajero, nunca una cancelación", () => {
+    expect(
+      gate((input) => {
+        input.providerAccount = {
+          ...input.providerAccount!,
+          cardPaymentsCapabilityStatus: "inactive",
+          lastSyncedAt: new Date(gateNow.getTime() - 2 * ACCOUNT_FRESHNESS_MS),
+        };
+      })
+    ).toEqual({ allowed: false, reason: "account_stale", classification: "transient" });
+  });
+
+  it("la cuenta sin releer va antes que la puerta existente, la moneda y la domiciliación", () => {
+    const stale = new Date(gateNow.getTime() - 2 * ACCOUNT_FRESHNESS_MS);
+    expect(
+      gate((input) => {
+        input.providerAccount = { ...input.providerAccount!, lastSyncedAt: stale };
+        input.invoice = { ...input.invoice, currency: "USD" };
+        input.preference = { ...input.preference, requestedMode: "manual" };
+        input.charges = [gateCharge({ familyPayerId: "payer-b" })];
+      })
+    ).toMatchObject({ reason: "account_stale", classification: "transient" });
+    const sepa = sepaInput();
+    sepa.providerAccount = {
+      ...sepa.providerAccount!,
+      sepaDebitPaymentsCapabilityStatus: "inactive",
+      lastSyncedAt: stale,
+    };
+    expect(evaluateFamilyCollectionGate(sepa)).toMatchObject({ reason: "account_stale" });
+  });
+
+  it("los cerrojos y el almacenamiento van antes que la cuenta sin releer", () => {
+    expect(
+      gate((input) => {
+        input.storageAvailable = false;
+        input.providerAccount = { ...input.providerAccount!, lastSyncedAt: null };
+      })
+    ).toMatchObject({ reason: "storage_missing" });
+  });
+
+  it("sin cuenta: lo decide la puerta existente", () => {
+    expect(
+      gate((input) => {
+        input.providerAccount = null;
+      })
+    ).toEqual({ allowed: false, reason: "provider_not_ready", classification: "final" });
+  });
+
+  it("solo se cobra en euros", () => {
+    expect(SUPPORTED_COLLECTION_CURRENCY).toBe("EUR");
+  });
+
+  it.each(["USD", "MXN", "eur", ""])("factura en %s → unsupported_currency (final)", (currency) => {
+    expect(
+      gate((input) => {
+        input.invoice = { ...input.invoice, currency };
+      })
+    ).toEqual({ allowed: false, reason: "unsupported_currency", classification: "final" });
+  });
+
+  it("la moneda va antes que la puerta existente", () => {
+    expect(
+      gate((input) => {
+        input.invoice = { ...input.invoice, currency: "USD" };
+        input.preference = { ...input.preference, requestedMode: "manual" };
+      })
+    ).toMatchObject({ reason: "unsupported_currency" });
+  });
+
   it("cuenta releída hace justo una hora: vale", () => {
     expect(
       gate((input) => {
@@ -821,6 +900,7 @@ describe("clase de cada motivo de la puerta", () => {
 
   it("los motivos propios de la Fase 3 que no son pasajeros son finales", () => {
     for (const reason of [
+      "unsupported_currency",
       "charge_payer_mismatch",
       "payer_missing",
       "payer_not_current",
@@ -840,11 +920,73 @@ describe("clase de cada motivo de la puerta", () => {
 // ---------------------------------------------------------------------------
 
 describe("nextRetry", () => {
+  // 07:00 del 10 en Madrid: el reintento es el día local 13, desde las 00:00.
   const now = new Date("2026-11-10T06:00:00.000Z");
-  const inThreeDays = new Date(now.getTime() + 3 * DAY_MS);
+  const inThreeDays = new Date("2026-11-12T23:00:00.000Z");
 
   it("un reintento a los 3 días", () => {
     expect(CARD_RETRY_DELAY_DAYS).toBe(3);
+  });
+
+  function softRetry(at: string, timezone: string): Date | null {
+    return nextRetry({
+      kind: "card",
+      attemptNumber: 1,
+      code: "card_declined",
+      declineCode: "insufficient_funds",
+      now: new Date(at),
+      timezone,
+    });
+  }
+
+  it("sale en la ejecución del día local +3, no en la del +4", () => {
+    // Falla a las 23:30 del 10 en Madrid: 72 h después sería el 13 a las
+    // 23:30 y el proceso diario (07:00) lo haría el 14.
+    const retry = softRetry("2026-11-10T22:30:00.000Z", MADRID);
+    expect(retry).toEqual(new Date("2026-11-12T23:00:00.000Z"));
+    const jobDay13 = new Date("2026-11-13T06:00:00.000Z");
+    const jobDay12 = new Date("2026-11-12T06:00:00.000Z");
+    // La Tarea 5 reintenta cuando next_retry_at <= now.
+    expect(retry!.getTime() <= jobDay13.getTime()).toBe(true);
+    expect(retry!.getTime() <= jobDay12.getTime()).toBe(false);
+  });
+
+  it("también al principio del día local", () => {
+    // 00:30 del 11 en Madrid (23:30 UTC del 10): día local 11 → 14.
+    expect(softRetry("2026-11-10T23:30:00.000Z", MADRID)).toEqual(
+      new Date("2026-11-13T23:00:00.000Z")
+    );
+  });
+
+  it("Madrid, cambio de hora de primavera: las 00:00 del día +3 ya en horario de verano", () => {
+    // Falla el viernes 26-03-2027 (UTC+1); el domingo 28 cambia la hora; el
+    // lunes 29 empieza a las 22:00 UTC del 28 (UTC+2), no a las 23:00.
+    expect(softRetry("2027-03-26T09:00:00.000Z", MADRID)).toEqual(
+      new Date("2027-03-28T22:00:00.000Z")
+    );
+    // Falla el jueves 25: el reintento es el mismo domingo del cambio, que
+    // empieza a las 23:00 UTC del sábado (aún UTC+1).
+    expect(softRetry("2027-03-25T09:00:00.000Z", MADRID)).toEqual(
+      new Date("2027-03-27T23:00:00.000Z")
+    );
+  });
+
+  it("Ciudad de México: el día local manda aunque en UTC ya sea el siguiente", () => {
+    // 23:30 del 9 en México (05:30 UTC del 10): día local 9 → 12, que empieza
+    // a las 06:00 UTC (UTC-6, sin horario de verano).
+    expect(softRetry("2026-11-10T05:30:00.000Z", MEXICO)).toEqual(
+      new Date("2026-11-12T06:00:00.000Z")
+    );
+    // 00:30 del 10 en México: día local 10 → 13.
+    expect(softRetry("2026-11-10T06:30:00.000Z", MEXICO)).toEqual(
+      new Date("2026-11-13T06:00:00.000Z")
+    );
+  });
+
+  it("cruza el fin de mes y de año", () => {
+    expect(softRetry("2026-12-30T12:00:00.000Z", MADRID)).toEqual(
+      new Date("2027-01-01T23:00:00.000Z")
+    );
   });
 
   it("lista exacta de rechazos blandos", () => {
@@ -878,25 +1020,25 @@ describe("nextRetry", () => {
 
   it.each([...SOFT_DECLINE_CODES])("tarjeta rechazada por %s: reintento a los 3 días", (declineCode) => {
     expect(
-      nextRetry({ kind: "card", attemptNumber: 1, code: "card_declined", declineCode, now })
+      nextRetry({ kind: "card", attemptNumber: 1, code: "card_declined", declineCode, now, timezone: MADRID })
     ).toEqual(inThreeDays);
   });
 
   it("error de procesamiento sin decline_code: reintento", () => {
     expect(
-      nextRetry({ kind: "card", attemptNumber: 1, code: "processing_error", declineCode: null, now })
+      nextRetry({ kind: "card", attemptNumber: 1, code: "processing_error", declineCode: null, now, timezone: MADRID })
     ).toEqual(inThreeDays);
   });
 
   it.each([...NEVER_RETRY_DECLINE_CODES])("tarjeta rechazada por %s: nunca", (declineCode) => {
     expect(
-      nextRetry({ kind: "card", attemptNumber: 1, code: "card_declined", declineCode, now })
+      nextRetry({ kind: "card", attemptNumber: 1, code: "card_declined", declineCode, now, timezone: MADRID })
     ).toBeNull();
   });
 
   it.each([...NEVER_RETRY_DECLINE_CODES])("código %s: nunca, aunque el decline_code sea blando", (code) => {
     expect(
-      nextRetry({ kind: "card", attemptNumber: 1, code, declineCode: "insufficient_funds", now })
+      nextRetry({ kind: "card", attemptNumber: 1, code, declineCode: "insufficient_funds", now, timezone: MADRID })
     ).toBeNull();
   });
 
@@ -908,6 +1050,7 @@ describe("nextRetry", () => {
         code: "authentication_required",
         declineCode: null,
         now,
+        timezone: MADRID,
       })
     ).toBeNull();
   });
@@ -920,6 +1063,7 @@ describe("nextRetry", () => {
         code: "card_declined",
         declineCode: "insufficient_funds",
         now,
+        timezone: MADRID,
       })
     ).toBeNull();
   });
@@ -932,6 +1076,7 @@ describe("nextRetry", () => {
         code: "card_declined",
         declineCode: "insufficient_funds",
         now,
+        timezone: MADRID,
       })
     ).toBeNull();
   });
@@ -943,7 +1088,7 @@ describe("nextRetry", () => {
     [null, null],
     ["payment_failed", null],
   ])("rechazo no previsto (%s, %s): nunca", (code, declineCode) => {
-    expect(nextRetry({ kind: "card", attemptNumber: 1, code, declineCode, now })).toBeNull();
+    expect(nextRetry({ kind: "card", attemptNumber: 1, code, declineCode, now, timezone: MADRID })).toBeNull();
   });
 });
 
@@ -1123,6 +1268,100 @@ describe("mapPaymentIntent", () => {
         mapUnknownPaymentError({ type: "StripeIdempotencyError", rawType: "idempotency_error" })
       ).toBe("idempotency_conflict");
     });
+  });
+});
+
+describe("ayudas compartidas con el adaptador", () => {
+  it("codeOf solo deja pasar códigos", () => {
+    expect(codeOf("card_declined")).toBe("card_declined");
+    expect(codeOf("Your card was declined.")).toBeNull();
+    expect(codeOf("x".repeat(65))).toBeNull();
+    expect(codeOf("")).toBeNull();
+    expect(codeOf(42)).toBeNull();
+    expect(codeOf(undefined)).toBeNull();
+  });
+
+  it("snapshotOfPaymentIntent: solo id, estado y códigos", () => {
+    expect(
+      snapshotOfPaymentIntent({
+        id: "pi_synthetic_c",
+        status: "requires_payment_method",
+        amount: 4500,
+        last_payment_error: {
+          code: "card_declined",
+          decline_code: "lost_card",
+          message: "Mensaje sintético del banco",
+          payment_method: { billing_details: { email: "familia@example.com" } },
+        },
+      })
+    ).toEqual({
+      id: "pi_synthetic_c",
+      status: "requires_payment_method",
+      lastErrorCode: "card_declined",
+      lastDeclineCode: "lost_card",
+    });
+    expect(snapshotOfPaymentIntent({ id: "pi_synthetic_c", status: "succeeded" })).toEqual({
+      id: "pi_synthetic_c",
+      status: "succeeded",
+      lastErrorCode: null,
+      lastDeclineCode: null,
+    });
+  });
+
+  it.each([null, undefined, "pi_synthetic_c", { id: "", status: "succeeded" }, { id: "pi_synthetic_c" }])(
+    "snapshotOfPaymentIntent sin id o estado → null (%s)",
+    (value) => {
+      expect(snapshotOfPaymentIntent(value)).toBeNull();
+    }
+  );
+
+  it("collectionErrorOf prefiere el tipo de la API al nombre de la clase", () => {
+    expect(
+      collectionErrorOf({
+        type: "StripeCardError",
+        rawType: "card_error",
+        code: "card_declined",
+        decline_code: "",
+      })
+    ).toEqual({ type: "card_error", code: "card_declined", declineCode: null, paymentIntent: null });
+    expect(collectionErrorOf({ type: "StripeConnectionError" })).toEqual({
+      type: "StripeConnectionError",
+      code: null,
+      declineCode: null,
+      paymentIntent: null,
+    });
+    expect(collectionErrorOf({})).toEqual({
+      type: null,
+      code: null,
+      declineCode: null,
+      paymentIntent: null,
+    });
+  });
+
+  it("addLocalDays cruza meses, años y febrero bisiesto", () => {
+    expect(addLocalDays("2026-11-10", 3)).toBe("2026-11-13");
+    expect(addLocalDays("2026-11-29", 3)).toBe("2026-12-02");
+    expect(addLocalDays("2026-12-30", 3)).toBe("2027-01-02");
+    expect(addLocalDays("2028-02-27", 3)).toBe("2028-03-01");
+    expect(addLocalDays("2027-02-27", 3)).toBe("2027-03-02");
+    expect(() => addLocalDays("2026-11-31", 3)).toThrow(RangeError);
+    expect(() => addLocalDays("2026-11-10", 1.5)).toThrow(RangeError);
+  });
+
+  it.each([
+    ["Madrid en invierno", "2026-11-13", MADRID, "2026-11-12T23:00:00.000Z"],
+    ["Madrid en verano", "2026-07-01", MADRID, "2026-06-30T22:00:00.000Z"],
+    ["Madrid, día del cambio de primavera", "2027-03-28", MADRID, "2027-03-27T23:00:00.000Z"],
+    ["Madrid, día siguiente al cambio de primavera", "2027-03-29", MADRID, "2027-03-28T22:00:00.000Z"],
+    ["Madrid, día del cambio de otoño", "2026-10-25", MADRID, "2026-10-24T22:00:00.000Z"],
+    ["Ciudad de México", "2026-11-12", MEXICO, "2026-11-12T06:00:00.000Z"],
+  ])("startOfLocalDay: %s", (_label, localDate, timezone, expected) => {
+    const start = startOfLocalDay(localDate, timezone);
+    expect(start.toISOString()).toBe(expected);
+    expect(localCalendarDate(start, timezone)).toBe(localDate);
+    expect(localCalendarDate(new Date(start.getTime() - 1), timezone)).toBe(
+      addLocalDays(localDate, -1)
+    );
   });
 });
 

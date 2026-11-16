@@ -103,6 +103,60 @@ export function localCalendarDate(instant: Date | string, timezone: string): str
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** Suma días de calendario a una fecha local (YYYY-MM-DD). */
+export function addLocalDays(localDate: string, days: number): string {
+  const { year, month, day } = parseLocalDate(localDate);
+  if (!Number.isInteger(days)) throw new RangeError("Los días deben ser un entero.");
+  const next = new Date(Date.UTC(year, month - 1, day + days));
+  return formatLocalDate(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate());
+}
+
+/**
+ * Primer instante del día local `localDate` en la zona de la sede: las 00:00
+ * locales, con el cambio de hora resuelto (mismo método que
+ * billing/domain/calendar-due-date.ts). Si en esa zona las 00:00 no existen
+ * (cambio de hora a medianoche), el primer instante que sí es de ese día.
+ */
+export function startOfLocalDay(localDate: string, timezone: string): Date {
+  const { year, month, day } = parseLocalDate(localDate);
+  const wallClock = Date.UTC(year, month - 1, day, 0, 0, 0, 0);
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  // Hora de pared que muestra la zona en un instante, como si fuera UTC.
+  const represented = (instant: number): number => {
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(instant)).map((part) => [part.type, part.value])
+    );
+    return Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      Number(parts.hour),
+      Number(parts.minute),
+      Number(parts.second)
+    );
+  };
+  let candidate = wallClock;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const next = wallClock - (represented(candidate) - candidate);
+    if (next === candidate) break;
+    candidate = next;
+  }
+  // Medianoche inexistente: el candidato cae aún en el día anterior; se
+  // avanza lo que falta hasta la primera hora del día pedido.
+  const shown = represented(candidate);
+  if (shown < wallClock) candidate += wallClock - shown;
+  return new Date(candidate);
+}
+
 /**
  * Día de cobro local (P2). Sin día fijo, el día de vencimiento. Con día fijo
  * `D`, el día `min(D, último día del mes)` del mes del vencimiento; si cae

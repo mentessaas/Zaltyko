@@ -11,10 +11,13 @@ import {
  *
  * Orden (el primer motivo que falla es el que se devuelve):
  * 1. Bandera, entorno, cerrojos de Live y producción, almacenamiento.
- * 2. La puerta existente (`evaluateCollectionEligibility`) para CADA cuota del
+ * 2. Cuenta conectada releída hace poco (si hay cuenta): con datos viejos de la
+ *    cuenta nunca se decide un motivo final.
+ * 3. Moneda de la factura (solo EUR).
+ * 4. La puerta existente (`evaluateCollectionEligibility`) para CADA cuota del
  *    reparto, y cada cuota con el pagador de la factura.
- * 3. Pagador vigente hoy, método de pago completo, domiciliación activa en la
- *    cuenta y cuenta releída hace poco.
+ * 5. Pagador vigente hoy, método de pago completo y domiciliación activa en la
+ *    cuenta.
  *
  * Cada motivo es `transient` (no se escribe nada; se vuelve a mirar mañana) o
  * `final` (se escribe un intento `canceled` con el motivo y la cuota vuelve a
@@ -26,6 +29,7 @@ export type FamilyCollectionGateReason =
   | "environment_unknown"
   | "live_not_released"
   | "storage_missing"
+  | "unsupported_currency"
   | CollectionEligibilityReason
   | "charge_payer_mismatch"
   | "payer_missing"
@@ -61,6 +65,7 @@ export const GATE_REASON_CLASSIFICATION: Readonly<
   subscription_not_active: "transient",
   subscription_period_not_current: "transient",
   // Finales.
+  unsupported_currency: "final",
   organization_not_active: "final",
   preference_manual: "final",
   preference_entitlement_stale: "final",
@@ -89,6 +94,9 @@ export function classifyGateReason(
 ): FamilyCollectionGateClassification {
   return GATE_REASON_CLASSIFICATION[reason];
 }
+
+/** Única moneda que se cobra sola: el libro guarda `EUR` y Stripe recibe `eur`. */
+export const SUPPORTED_COLLECTION_CURRENCY = "EUR";
 
 /** La cuenta conectada debe haberse releído en Stripe en la última hora. */
 export const ACCOUNT_FRESHNESS_MS = 60 * 60 * 1000;
@@ -147,6 +155,8 @@ export interface FamilyCollectionGateInput {
     organizationId: string;
     familyId: string;
     familyPayerId: string | null;
+    /** `invoices.currency` (ISO en mayúsculas). */
+    currency: string;
   };
   /** Las cuotas del reparto que se va a cobrar (`planInvoiceCollection`). */
   charges: readonly FamilyCollectionGateCharge[];
@@ -204,7 +214,20 @@ export function evaluateFamilyCollectionGate(
   }
   if (!input.storageAvailable) return deny("storage_missing");
 
-  // 2. La puerta existente para cada cuota del reparto. Cada cuota debe tener
+  // 2. Cuenta sin releer: pasajero, antes de cualquier motivo que dependa de
+  // sus datos (capacidades, estado), para que una foto vieja de la cuenta
+  // nunca cancele una cuota. Sin cuenta, la puerta existente da
+  // `provider_not_ready`.
+  if (input.providerAccount !== null && !isAccountFresh(input.providerAccount.lastSyncedAt, input.now)) {
+    return deny("account_stale");
+  }
+
+  // 3. Solo se cobra en euros. Otra moneda es final: la cuota vuelve a manual.
+  if (input.invoice.currency !== SUPPORTED_COLLECTION_CURRENCY) {
+    return deny("unsupported_currency");
+  }
+
+  // 4. La puerta existente para cada cuota del reparto. Cada cuota debe tener
   // el pagador de la factura: la autorización es la de ese pagador.
   if (
     input.invoice.organizationId !== input.organization.id ||
@@ -237,7 +260,7 @@ export function evaluateFamilyCollectionGate(
     if (!eligibility.eligible) return deny(eligibility.reason);
   }
 
-  // 3. Pagador vigente hoy: fila de family_payers abierta, tutor y vínculo activos.
+  // 5. Pagador vigente hoy: fila de family_payers abierta, tutor y vínculo activos.
   const payer = input.payer;
   if (
     payer === null ||
@@ -277,7 +300,6 @@ export function evaluateFamilyCollectionGate(
   if (kind === "sepa_debit" && account.sepaDebitPaymentsCapabilityStatus !== "active") {
     return deny("sepa_not_active");
   }
-  if (!isAccountFresh(account.lastSyncedAt, input.now)) return deny("account_stale");
 
   return { allowed: true, paymentMethodKind: kind };
 }

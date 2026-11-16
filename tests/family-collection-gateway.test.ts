@@ -187,6 +187,7 @@ describe("createStripeCollectionGateway", () => {
           connectedAccount,
           attempt: { id: attemptId, invoiceId, attemptNumber: 1 },
           amountCents: 4500,
+          currency: "EUR",
           customer: customerId,
           paymentMethod: paymentMethodId,
           kind,
@@ -240,6 +241,7 @@ describe("createStripeCollectionGateway", () => {
         connectedAccount,
         attempt: { id: attemptId, invoiceId, attemptNumber: 2 },
         amountCents: 4500,
+        currency: "EUR",
         customer: customerId,
         paymentMethod: paymentMethodId,
         kind: "card",
@@ -264,6 +266,7 @@ describe("createStripeCollectionGateway", () => {
             connectedAccount,
             attempt: { id: attemptId, invoiceId, attemptNumber: 1 },
             amountCents,
+            currency: "EUR",
             customer: customerId,
             paymentMethod: paymentMethodId,
             kind: "card",
@@ -275,6 +278,72 @@ describe("createStripeCollectionGateway", () => {
       }
     );
 
+    it.each([["eur"], ["USD"], [""]])(
+      "no llama a Stripe con una moneda que no es EUR (%s)",
+      async (currency) => {
+        const stripe = fakeStripe();
+        const gateway = createStripeCollectionGateway(stripe.client);
+
+        await expect(
+          gateway.createPayment({
+            connectedAccount,
+            attempt: { id: attemptId, invoiceId, attemptNumber: 1 },
+            amountCents: 4500,
+            currency,
+            customer: customerId,
+            paymentMethod: paymentMethodId,
+            kind: "card",
+            organizationId,
+            description,
+          })
+        ).rejects.toThrow("FAMILY_COLLECTION_UNSUPPORTED_CURRENCY");
+        expect(stripe.create).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each([["no-es-uuid"], [`${attemptId}' OR status:'succeeded`], [""]])(
+      "no llama a Stripe con un id de intento que no es un uuid (%s)",
+      async (id) => {
+        const stripe = fakeStripe();
+        const gateway = createStripeCollectionGateway(stripe.client);
+
+        await expect(
+          gateway.createPayment({
+            connectedAccount,
+            attempt: { id, invoiceId, attemptNumber: 1 },
+            amountCents: 4500,
+            currency: "EUR",
+            customer: customerId,
+            paymentMethod: paymentMethodId,
+            kind: "card",
+            organizationId,
+            description,
+          })
+        ).rejects.toThrow("FAMILY_COLLECTION_INVALID_ATTEMPT_ID");
+        expect(stripe.create).not.toHaveBeenCalled();
+      }
+    );
+
+    it("un cobro devuelto sin id es un error, nunca un snapshot vacío", async () => {
+      const stripe = fakeStripe();
+      stripe.create.mockResolvedValue(paymentIntent({ id: "" }));
+      const gateway = createStripeCollectionGateway(stripe.client);
+
+      await expect(
+        gateway.createPayment({
+          connectedAccount,
+          attempt: { id: attemptId, invoiceId, attemptNumber: 1 },
+          amountCents: 4500,
+          currency: "EUR",
+          customer: customerId,
+          paymentMethod: paymentMethodId,
+          kind: "card",
+          organizationId,
+          description,
+        })
+      ).rejects.toThrow("FAMILY_COLLECTION_INVALID_PAYMENT_INTENT");
+    });
+
     it("propaga el error de Stripe", async () => {
       const stripe = fakeStripe();
       stripe.create.mockRejectedValue(new Error("stripe caído"));
@@ -285,6 +354,7 @@ describe("createStripeCollectionGateway", () => {
           connectedAccount,
           attempt: { id: attemptId, invoiceId, attemptNumber: 1 },
           amountCents: 4500,
+          currency: "EUR",
           customer: customerId,
           paymentMethod: paymentMethodId,
           kind: "card",
