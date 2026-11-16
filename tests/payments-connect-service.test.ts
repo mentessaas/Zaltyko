@@ -228,7 +228,9 @@ describe("servicio de Conectar Stripe", () => {
         [{ status: "onboarding", requirementsState: "user_action" }, "needs_details", false],
         [{ status: "onboarding", requirementsState: "stripe_review" }, "in_review", false],
         [{ status: "active", requirementsState: "none" }, "ready", false],
-        [{ status: "restricted", requirementsState: "past_due" }, "problem", false],
+        // R10: requisitos de la academia vencidos (cuenta recién creada) → faltan datos.
+        [{ status: "onboarding", requirementsState: "past_due" }, "needs_details", false],
+        [{ status: "restricted", requirementsState: "none" }, "problem", false],
         [{ status: "disabled", requirementsState: "none" }, "problem", true],
       ];
       for (const [row, kind, disabled] of cases) {
@@ -236,6 +238,19 @@ describe("servicio de Conectar Stripe", () => {
         const state = await getConnectStatus({ userId, organizationId, refresh: false }, { gateway: fakeGateway(), now });
         expect(state).toEqual({ kind, card: "pending", sepa: "pending", disabled });
       }
+    });
+
+    it("R10: una cuenta recién creada (onboarding + past_due) pide más datos, no un problema", async () => {
+      vi.mocked(findConnectAccountForOrganization).mockResolvedValue(
+        storedAccount({
+          status: "onboarding",
+          requirementsState: "past_due",
+          cardPaymentsCapabilityStatus: "restricted",
+          sepaDebitPaymentsCapabilityStatus: "restricted",
+        })
+      );
+      const state = await getConnectStatus({ userId, organizationId, refresh: false }, { gateway: fakeGateway(), now });
+      expect(state).toEqual({ kind: "needs_details", card: "restricted", sepa: "restricted", disabled: false });
     });
 
     it("un refresco con menos de 60 s desde la última sincronización no llama a Stripe", async () => {
@@ -399,6 +414,36 @@ describe("servicio de Conectar Stripe", () => {
       expect(gateway.createAccount.mock.invocationCallOrder[0]).toBeLessThan(
         vi.mocked(db.transaction).mock.invocationCallOrder[0]
       );
+    });
+
+    it("R10: guarda la cuenta nueva del sandbox (todo past_due de la academia) como onboarding + past_due", async () => {
+      const gateway = fakeGateway({
+        id: "acct_SyntheticA1",
+        closed: false,
+        cardPaymentsStatus: "restricted",
+        sepaDebitPaymentsStatus: "restricted",
+        requirementEntries: [
+          { deadlineStatus: "past_due", awaitingActionFrom: "user" },
+          { deadlineStatus: "past_due", awaitingActionFrom: "user" },
+        ],
+      });
+      vi.mocked(insertConnectAccountIfAbsent).mockResolvedValue(
+        storedAccount({ requirementsState: "past_due", lastSyncedAt: null })
+      );
+
+      await startConnectOnboarding({ userId, organizationId }, { gateway, now });
+
+      expect(insertConnectAccountIfAbsent).toHaveBeenCalledWith(tx, {
+        organizationId,
+        environment: "test",
+        providerAccountReference: "acct_SyntheticA1",
+        projection: {
+          status: "onboarding",
+          cardPaymentsCapabilityStatus: "restricted",
+          sepaDebitPaymentsCapabilityStatus: "restricted",
+          requirementsState: "past_due",
+        },
+      });
     });
 
     it.each<[string, Record<string, unknown>]>([

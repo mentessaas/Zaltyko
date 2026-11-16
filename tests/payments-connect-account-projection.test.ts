@@ -54,8 +54,31 @@ describe("projectConnectAccount", () => {
     {
       name: "una entrada past_due que espera a la academia",
       input: { requirementEntries: [userPastDue] },
-      status: "restricted",
+      status: "onboarding",
       requirementsState: "past_due",
+    },
+    {
+      // R10: forma real de una cuenta v2 recién creada en el sandbox.
+      name: "cuenta nueva: varias past_due de la academia con tarjeta y SEPA restricted",
+      input: {
+        cardPaymentsStatus: "restricted",
+        sepaDebitPaymentsStatus: "restricted",
+        requirementEntries: [userPastDue, userPastDue, userPastDue],
+      },
+      status: "onboarding",
+      requirementsState: "past_due",
+    },
+    {
+      name: "una past_due de la academia va antes que una currently_due de la academia",
+      input: { cardPaymentsStatus: "pending", requirementEntries: [userCurrentlyDue, userPastDue] },
+      status: "onboarding",
+      requirementsState: "past_due",
+    },
+    {
+      name: "una currently_due de la academia va antes que una past_due de Stripe",
+      input: { cardPaymentsStatus: "pending", requirementEntries: [stripePastDue, userCurrentlyDue] },
+      status: "onboarding",
+      requirementsState: "user_action",
     },
     {
       name: "una entrada currently_due de la academia con tarjeta pending",
@@ -111,8 +134,20 @@ describe("projectConnectAccount", () => {
     {
       name: "una entrada past_due que espera a Stripe",
       input: { requirementEntries: [stripePastDue] },
+      status: "onboarding",
+      requirementsState: "stripe_review",
+    },
+    {
+      name: "una past_due de Stripe con tarjeta restricted (Stripe revisando)",
+      input: { cardPaymentsStatus: "restricted", requirementEntries: [stripePastDue] },
+      status: "onboarding",
+      requirementsState: "stripe_review",
+    },
+    {
+      name: "solo eventually_due con tarjeta restricted",
+      input: { cardPaymentsStatus: "restricted", requirementEntries: [userEventuallyDue] },
       status: "restricted",
-      requirementsState: "past_due",
+      requirementsState: "none",
     },
     {
       name: "solo entradas eventually_due con tarjeta active",

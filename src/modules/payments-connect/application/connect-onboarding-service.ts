@@ -189,6 +189,8 @@ function toScreenState(account: StoredConnectAccount): ConnectScreenState {
     case "disabled":
       return { kind: "problem", ...details, disabled: true };
     case "onboarding":
+      // R10: requisitos de la academia exigibles (`user_action`) o vencidos
+      // (`past_due`, p. ej. una cuenta recién creada) → faltan datos.
       return account.requirementsState === "stripe_review"
         ? { kind: "in_review", ...details }
         : { kind: "needs_details", ...details };

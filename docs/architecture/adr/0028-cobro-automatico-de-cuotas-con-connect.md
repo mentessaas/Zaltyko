@@ -208,10 +208,16 @@ como candidatas, con autorización por entorno.
    se sigue en su propia columna.
    - `pending` (valor del enum de base): no se usa. La fila nace en
      `onboarding` al crear la cuenta, antes de usar el enlace.
-   - `onboarding`: faltan requisitos (*currently due*) y aún no tiene
-     requisitos vencidos.
-   - `restricted`: tiene requisitos vencidos, o `card_payments` no está
-     `active` después de haber enviado los datos.
+   - `onboarding`: hay requisitos exigibles (*currently due*) o vencidos
+     (*past due*). Los de la academia (`user_action`, o `past_due` si están
+     vencidos) se ven como «Stripe necesita más datos de tu academia» con
+     «Seguir en Stripe»; los que esperan a Stripe (`stripe_review`), como «En
+     revisión». Una cuenta v2 recién creada trae todos sus requisitos vencidos
+     y la tarjeta `restricted`: es «Pendiente de datos», no un problema
+     (regla R10, comprobado en el sandbox).
+   - `restricted`: sin requisitos exigibles ni vencidos (nada que la academia
+     pueda rellenar), la tarjeta está `restricted` o `unsupported`. Es el
+     único caso «Con problemas».
    - `active`: no hay requisitos vencidos ni pendientes y `card_payments` está
      `active`, aunque SEPA siga pendiente. Así la tarjeta no queda bloqueada
      esperando a la domiciliación.

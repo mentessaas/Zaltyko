@@ -37,11 +37,20 @@ function capabilityOrPending(status: string | null): string {
 }
 
 /**
- * Orden de reglas: cuenta cerrada → algún requisito vencido (`past_due`) →
- * requisitos exigibles ya (`currently_due`, primero los que esperan a la
- * academia y luego los que esperan a Stripe) → estado de la capacidad de
- * tarjeta. Los requisitos `eventually_due` nunca bastan por sí solos para
- * sacar la cuenta de `active`.
+ * Orden de reglas (R10):
+ * 1. Cuenta cerrada → `disabled` / `none`.
+ * 2. Algún requisito de la academia vencido (`past_due`) → `onboarding` /
+ *    `past_due`. Una cuenta v2 recién creada trae todos sus requisitos así y
+ *    la tarjeta `restricted`: no es un problema, faltan los datos.
+ * 3. Algún requisito de la academia exigible ya (`currently_due`) →
+ *    `onboarding` / `user_action`.
+ * 4. Algún requisito que espera a Stripe (`past_due` o `currently_due`) →
+ *    `onboarding` / `stripe_review`.
+ * 5. Tarjeta `active` → `active` / `none`.
+ * 6. Tarjeta `restricted` o `unsupported` → `restricted` / `none`: un problema
+ *    real, sin nada que la academia pueda rellenar.
+ * 7. Si no → `onboarding` / `stripe_review` (Stripe revisando).
+ * Los requisitos `eventually_due` nunca bastan por sí solos.
  */
 export function projectConnectAccount(s: ConnectAccountSnapshot): ConnectAccountProjection {
   const cardPaymentsCapabilityStatus = capabilityOrPending(s.cardPaymentsStatus);
@@ -52,25 +61,24 @@ export function projectConnectAccount(s: ConnectAccountSnapshot): ConnectAccount
     return { status: "disabled", ...capabilities, requirementsState: "none" };
   }
 
-  if (s.requirementEntries.some((entry) => entry.deadlineStatus === "past_due")) {
-    return { status: "restricted", ...capabilities, requirementsState: "past_due" };
-  }
-
-  const currentlyDue = s.requirementEntries.filter(
-    (entry) => entry.deadlineStatus === "currently_due"
+  const blocking = s.requirementEntries.filter(
+    (entry) => entry.deadlineStatus === "past_due" || entry.deadlineStatus === "currently_due"
   );
-  if (currentlyDue.some((entry) => entry.awaitingActionFrom === "user")) {
+  const fromUser = blocking.filter((entry) => entry.awaitingActionFrom === "user");
+
+  if (fromUser.some((entry) => entry.deadlineStatus === "past_due")) {
+    return { status: "onboarding", ...capabilities, requirementsState: "past_due" };
+  }
+  if (fromUser.length > 0) {
     return { status: "onboarding", ...capabilities, requirementsState: "user_action" };
   }
-  if (currentlyDue.length > 0) {
+  if (blocking.some((entry) => entry.awaitingActionFrom === "stripe")) {
     return { status: "onboarding", ...capabilities, requirementsState: "stripe_review" };
   }
 
   if (cardPaymentsCapabilityStatus === "active") {
     return { status: "active", ...capabilities, requirementsState: "none" };
   }
-  // R6: tarjeta limitada o no admitida para esta cuenta, sin requisitos
-  // pendientes → restringida (la academia no puede cobrar con tarjeta).
   if (
     cardPaymentsCapabilityStatus === "restricted" ||
     cardPaymentsCapabilityStatus === "unsupported"
