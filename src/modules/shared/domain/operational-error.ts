@@ -43,7 +43,8 @@ export type OperationalErrorCode =
   | "CURRENCY_MISMATCH"
   | "FAMILY_AUTOMATIC_COLLECTION_DISABLED"
   | "IMPORT_FILE_INVALID"
-  | "IMPORT_PREVIEW_STALE";
+  | "IMPORT_PREVIEW_STALE"
+  | "CONNECT_UNAVAILABLE";
 
 export class OperationalError extends Error {
   constructor(
