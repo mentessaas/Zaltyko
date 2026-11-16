@@ -144,7 +144,13 @@ export default async function OwnerPaymentsPage({
       showAutomaticCollectionLink =
         connectState.kind === "not_connected" ||
         (connectState.kind === "unavailable" && connectState.reason === "paid_plan_required");
-    } catch {
+    } catch (error) {
+      // El acceso a Conectar Stripe no debe tumbar Pagos: se oculta el enlace.
+      // Solo el id de la academia y el nombre del error, nunca su contenido.
+      logger.warn("Pagos: no se pudo leer el estado de Conectar Stripe", {
+        organizationId: scope.organization.id,
+        errorName: error instanceof Error ? error.name : "unknown",
+      });
       showAutomaticCollectionLink = false;
     }
   }

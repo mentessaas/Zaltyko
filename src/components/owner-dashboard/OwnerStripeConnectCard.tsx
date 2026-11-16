@@ -10,7 +10,10 @@ import { ownerUi } from "./owner-ui";
 // de Stripe. En esta fase no hay cobros; la tarjeta solo enseña el estado y
 // abre Stripe para conectar, seguir o resolver.
 
+// Ruta relativa: el fetch es del mismo origen y el navegador añade la
+// cabecera Origin que la API exige en el POST (protección contra CSRF).
 const CONNECT_ENDPOINT = "/api/v1/owner/payments/connect";
+const SUPPORT_EMAIL = "hola@zaltyko.com";
 const STRIPE_DASHBOARD_URL = "https://dashboard.stripe.com/";
 const OPEN_STRIPE_ERROR = "No hemos podido abrir Stripe. Inténtalo de nuevo.";
 
@@ -202,6 +205,7 @@ function CardBody({
           <div>
             <a href={STRIPE_DASHBOARD_URL} target="_blank" rel="noopener noreferrer" className={ownerUi.secondaryButton}>
               Abrir mi panel de Stripe
+              <span className="sr-only"> (se abre en otra pestaña)</span>
             </a>
           </div>
           <p className={ownerUi.help}>El cobro automático de cuotas a las familias llegará en una próxima actualización.</p>
@@ -210,8 +214,13 @@ function CardBody({
     case "problem":
       return state.disabled ? (
         <div className={ownerUi.noticeError} role="alert">
-          <p>Stripe ha encontrado un problema con tu cuenta.</p>
-          <p>Esta cuenta está cerrada. Escríbenos a hola@zaltyko.com.</p>
+          <p>
+            Esta cuenta está cerrada. Escríbenos a{" "}
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold underline">
+              {SUPPORT_EMAIL}
+            </a>
+            .
+          </p>
         </div>
       ) : (
         <>

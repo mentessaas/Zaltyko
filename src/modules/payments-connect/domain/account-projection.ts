@@ -69,7 +69,12 @@ export function projectConnectAccount(s: ConnectAccountSnapshot): ConnectAccount
   if (cardPaymentsCapabilityStatus === "active") {
     return { status: "active", ...capabilities, requirementsState: "none" };
   }
-  if (cardPaymentsCapabilityStatus === "restricted") {
+  // R6: tarjeta limitada o no admitida para esta cuenta, sin requisitos
+  // pendientes → restringida (la academia no puede cobrar con tarjeta).
+  if (
+    cardPaymentsCapabilityStatus === "restricted" ||
+    cardPaymentsCapabilityStatus === "unsupported"
+  ) {
     return { status: "restricted", ...capabilities, requirementsState: "none" };
   }
 

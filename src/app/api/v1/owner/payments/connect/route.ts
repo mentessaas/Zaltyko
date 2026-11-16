@@ -19,6 +19,7 @@ import {
   getConnectStatus,
   startConnectOnboarding,
 } from "@/modules/payments-connect/application/connect-onboarding-service";
+import { hasSameOrigin } from "@/modules/saas-billing/application/owner-access";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 export const dynamic = "force-dynamic";
@@ -77,10 +78,20 @@ export async function GET(request: Request) {
   }
 }
 
-// @auth-flexible route-guard-reason: verified session here; the payments-connect service resolves the owner/admin full-scope member with resolveOwnerScope and requires full availability before creating the connected account or a Stripe link.
+// @auth-flexible route-guard-reason: verified session and same-origin check (hasSameOrigin, against CSRF) here; the payments-connect service resolves the owner/admin full-scope member with resolveOwnerScope and requires full availability before creating the connected account or a Stripe link.
 export async function POST(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) return unauthenticatedResponse();
+  // Contra CSRF: el POST que crea la cuenta conectada solo se acepta desde la
+  // propia web (el navegador pone la cabecera Origin en el fetch de la tarjeta).
+  if (!hasSameOrigin(request)) {
+    return problemResponse({
+      status: 403,
+      title: "Origen no válido",
+      detail: "La conexión debe hacerse desde la misma web.",
+      type: "invalid-origin",
+    });
+  }
 
   const payload = await request.json().catch(() => null);
   const parsed = bodySchema.safeParse(payload);

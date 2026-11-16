@@ -26,10 +26,14 @@ const organizationId = "10000000-0000-4000-8000-000000000001";
 const stripeUrl = "https://connect.stripe.com/setup/synthetic-link";
 const base = "https://zaltyko.test/api/v1/owner/payments/connect";
 
-function postRequest(body: unknown) {
+// El navegador pone Origin en el fetch de la tarjeta: por defecto, el mismo
+// origen que la URL; `origin: null` lo omite.
+function postRequest(body: unknown, origin: string | null = new URL(base).origin) {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (origin !== null) headers.origin = origin;
   return new Request(base, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
 }
@@ -106,6 +110,18 @@ describe("POST /api/v1/owner/payments/connect", () => {
     const response = await POST(postRequest({ organizationId }));
 
     expect(response.status).toBe(401);
+    expect(startConnectOnboarding).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["sin cabecera origin", null],
+    ["con un origin ajeno", "https://evil.example"],
+  ])("%s responde 403 sin llamar al servicio", async (_label, origin) => {
+    const response = await POST(postRequest({ organizationId }, origin));
+
+    expect(response.status).toBe(403);
+    const body = await response.json();
+    expect(body.title).toBe("Origen no válido");
     expect(startConnectOnboarding).not.toHaveBeenCalled();
   });
 

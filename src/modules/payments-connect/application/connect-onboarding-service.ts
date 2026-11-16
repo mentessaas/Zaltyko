@@ -50,6 +50,7 @@ import {
 } from "@/modules/payments-connect/infrastructure/connect-account-store";
 import {
   createStripeConnectGateway,
+  isStripeIdempotencyConflict,
   type ConnectAccountsGateway,
 } from "@/modules/payments-connect/infrastructure/stripe-connect-gateway";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -271,6 +272,7 @@ async function persistProjection(input: {
 }
 
 function isStale(account: StoredConnectAccount, now: Date): boolean {
+  // Sin sincronizar nunca (fila recién creada): hay que leer Stripe.
   if (!account.lastSyncedAt) return true;
   return now.getTime() - account.lastSyncedAt.getTime() > REFRESH_AFTER_MS;
 }
@@ -361,59 +363,80 @@ export async function startConnectOnboarding(
   if (!account) {
     // Fuera de transacción. La clave de idempotencia por academia y entorno
     // hace que dos peticiones a la vez reciban normalmente la misma cuenta.
-    const snapshot = await gateway.createAccount({
-      organizationId,
-      environment,
-      displayName: scope.organization.name,
-      contactEmail: null,
-    });
+    // R8: solo academia y entorno, igual que la clave.
+    let snapshot: ConnectAccountSnapshot;
+    try {
+      snapshot = await gateway.createAccount({ organizationId, environment });
+    } catch (error) {
+      // Otra petición con la misma clave sigue en curso en Stripe: la tarjeta
+      // muestra su aviso de reintento.
+      if (isStripeIdempotencyConflict(error)) {
+        throw new OperationalError(
+          "CONCURRENCY_RETRY",
+          "Stripe todavía está preparando tu cuenta. Vuelve a intentarlo.",
+          409
+        );
+      }
+      throw error;
+    }
     const projection = projectConnectAccount(snapshot);
 
-    const inserted = await db.transaction(async (tx) => {
-      const row = await insertConnectAccountIfAbsent(tx, {
-        organizationId,
-        environment,
-        providerAccountReference: snapshot.id,
-        projection,
-      });
-      if (!row) return null;
-
-      const idempotencyKey = `payments-connect:account-created:${environment}:${organizationId}`;
-      const after = {
-        status: row.status,
-        cardPaymentsCapabilityStatus: row.cardPaymentsCapabilityStatus,
-        sepaDebitPaymentsCapabilityStatus: row.sepaDebitPaymentsCapabilityStatus,
-        requirementsState: row.requirementsState,
-      };
-      await appendAuditEntry(tx, {
-        organizationId,
-        locationId: null,
-        actorUserId: parsed.userId,
-        action: "payments_connect.account_created",
-        targetType: AUDIT_TARGET_TYPE,
-        targetId: row.id,
-        idempotencyKey,
-        before: null,
-        after,
-        metadata: {
+    let inserted: StoredConnectAccount | null;
+    try {
+      inserted = await db.transaction(async (tx) => {
+        const row = await insertConnectAccountIfAbsent(tx, {
+          organizationId,
           environment,
-          memberId: scope.member.id,
-          providerAccountReference: row.providerAccountReference,
-          revision: row.revision,
-        },
+          providerAccountReference: snapshot.id,
+          projection,
+        });
+        if (!row) return null;
+
+        const idempotencyKey = `payments-connect:account-created:${environment}:${organizationId}`;
+        const after = {
+          status: row.status,
+          cardPaymentsCapabilityStatus: row.cardPaymentsCapabilityStatus,
+          sepaDebitPaymentsCapabilityStatus: row.sepaDebitPaymentsCapabilityStatus,
+          requirementsState: row.requirementsState,
+        };
+        await appendAuditEntry(tx, {
+          organizationId,
+          locationId: null,
+          actorUserId: parsed.userId,
+          action: "payments_connect.account_created",
+          targetType: AUDIT_TARGET_TYPE,
+          targetId: row.id,
+          idempotencyKey,
+          before: null,
+          after,
+          metadata: {
+            environment,
+            memberId: scope.member.id,
+            providerAccountReference: row.providerAccountReference,
+            revision: row.revision,
+          },
+        });
+        await appendOutboxEvent(tx, {
+          organizationId,
+          locationId: null,
+          eventName: "payments_connect.account_created",
+          aggregateType: AUDIT_TARGET_TYPE,
+          aggregateId: row.id,
+          idempotencyKey,
+          payload: { environment, revision: row.revision, ...after },
+          occurredAt: now,
+        });
+        return row;
       });
-      await appendOutboxEvent(tx, {
+    } catch (error) {
+      // La cuenta ya existe en Stripe pero no quedó guardada: la clave de
+      // idempotencia devolverá la misma cuenta en el siguiente intento. Solo ids.
+      logger.error("Conectar Stripe: cuenta creada en Stripe sin guardar", error, {
         organizationId,
-        locationId: null,
-        eventName: "payments_connect.account_created",
-        aggregateType: AUDIT_TARGET_TYPE,
-        aggregateId: row.id,
-        idempotencyKey,
-        payload: { environment, revision: row.revision, ...after },
-        occurredAt: now,
+        accountId: snapshot.id,
       });
-      return row;
-    });
+      throw error;
+    }
 
     if (inserted) {
       account = inserted;
@@ -504,9 +527,10 @@ export async function syncConnectAccountFromEvent(
   const now = deps?.now ?? new Date();
 
   const environment = resolveConnectEnvironment();
-  if (environment === null || (parsed.livemode ? "live" : "test") !== environment) {
-    return "ignored";
-  }
+  // Fase 1 solo existe en `test`: con clave Live (o desconocida) no se toca
+  // nada, aunque el evento diga que es Live.
+  if (environment !== "test") return "ignored";
+  if ((parsed.livemode ? "live" : "test") !== environment) return "ignored";
   if (!ACCOUNT_REFERENCE.test(parsed.accountId)) return "ignored";
   if (!(await isConnectOnboardingStorageAvailable())) return "ignored";
 

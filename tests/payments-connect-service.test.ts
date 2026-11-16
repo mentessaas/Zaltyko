@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { db } from "@/db";
+import { logger } from "@/lib/logger";
 import { loadOrganizationPlanState } from "@/modules/billing/application/plan-state";
 import type { EntitlementSnapshot } from "@/modules/billing/domain/plan-eligibility";
 import { resolveOwnerScope, type OwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
@@ -58,7 +59,9 @@ vi.mock("@/modules/shared/infrastructure/transactional-records", () => ({
   appendAuditEntry: vi.fn(),
   appendOutboxEvent: vi.fn(),
 }));
-vi.mock("@/modules/payments-connect/infrastructure/stripe-connect-gateway", () => ({
+vi.mock("@/modules/payments-connect/infrastructure/stripe-connect-gateway", async (importOriginal) => ({
+  // isStripeIdempotencyConflict es puro: se conserva el real.
+  ...(await importOriginal<typeof import("@/modules/payments-connect/infrastructure/stripe-connect-gateway")>()),
   createStripeConnectGateway: vi.fn(() => {
     throw new Error("El adaptador real de Stripe no debe usarse en tests");
   }),
@@ -246,6 +249,28 @@ describe("servicio de Conectar Stripe", () => {
       expect(db.transaction).not.toHaveBeenCalled();
     });
 
+    it("la fila recién creada (last_synced_at null) se refresca aunque no hayan pasado 60 s", async () => {
+      const row = storedAccount({ lastSyncedAt: null });
+      vi.mocked(findConnectAccountForOrganization).mockResolvedValue(row);
+      vi.mocked(lockConnectAccount).mockResolvedValue(row);
+      vi.mocked(updateConnectAccountProjection).mockResolvedValue({
+        ...row,
+        status: "onboarding",
+        requirementsState: "stripe_review",
+        revision: 2,
+        lastSyncedAt: now,
+      });
+      const gateway = fakeGateway({
+        ...freshSnapshot(),
+        requirementEntries: [{ deadlineStatus: "currently_due", awaitingActionFrom: "stripe" }],
+      });
+
+      const state = await getConnectStatus({ userId, organizationId, refresh: true }, { gateway, now });
+
+      expect(gateway.retrieveAccount).toHaveBeenCalledWith("acct_SyntheticA1");
+      expect(state).toMatchObject({ kind: "in_review" });
+    });
+
     it("sin refresh no llama a Stripe aunque la sincronización sea antigua", async () => {
       vi.mocked(findConnectAccountForOrganization).mockResolvedValue(storedAccount());
       const gateway = fakeGateway();
@@ -342,19 +367,14 @@ describe("servicio de Conectar Stripe", () => {
       expect(gateway.createOnboardingLink).not.toHaveBeenCalled();
     });
 
-    it("sin fila crea la cuenta sin correo, la guarda auditada y devuelve el enlace", async () => {
+    it("sin fila crea la cuenta solo con academia y entorno, la guarda auditada y devuelve el enlace", async () => {
       const gateway = fakeGateway();
-      vi.mocked(insertConnectAccountIfAbsent).mockResolvedValue(storedAccount({ lastSyncedAt: now }));
+      vi.mocked(insertConnectAccountIfAbsent).mockResolvedValue(storedAccount({ lastSyncedAt: null }));
 
       const result = await startConnectOnboarding({ userId, organizationId }, { gateway, now });
 
       expect(result).toEqual({ url: "https://connect.stripe.test/setup/synthetic" });
-      expect(gateway.createAccount).toHaveBeenCalledWith({
-        organizationId,
-        environment: "test",
-        displayName: "Club Sintético",
-        contactEmail: null,
-      });
+      expect(gateway.createAccount).toHaveBeenCalledWith({ organizationId, environment: "test" });
       expect(insertConnectAccountIfAbsent).toHaveBeenCalledWith(tx, {
         organizationId,
         environment: "test",
@@ -379,6 +399,46 @@ describe("servicio de Conectar Stripe", () => {
       expect(gateway.createAccount.mock.invocationCallOrder[0]).toBeLessThan(
         vi.mocked(db.transaction).mock.invocationCallOrder[0]
       );
+    });
+
+    it.each<[string, Record<string, unknown>]>([
+      ["la clave de idempotencia está en uso", { type: "StripeInvalidRequestError", code: "idempotency_key_in_use" }],
+      ["Stripe rechaza la clave reutilizada", { type: "StripeIdempotencyError", rawType: "idempotency_error" }],
+    ])("si %s lanza CONCURRENCY_RETRY 409 sin guardar nada", async (_label, stripeError) => {
+      const gateway = fakeGateway();
+      gateway.createAccount.mockRejectedValue(Object.assign(new Error("idempotencia"), stripeError));
+
+      await expect(startConnectOnboarding({ userId, organizationId }, { gateway, now })).rejects.toMatchObject({
+        code: "CONCURRENCY_RETRY",
+        status: 409,
+        message: "Stripe todavía está preparando tu cuenta. Vuelve a intentarlo.",
+      });
+      expect(db.transaction).not.toHaveBeenCalled();
+      expect(insertConnectAccountIfAbsent).not.toHaveBeenCalled();
+      expect(gateway.createOnboardingLink).not.toHaveBeenCalled();
+    });
+
+    it("otro fallo de Stripe al crear la cuenta se propaga tal cual", async () => {
+      const gateway = fakeGateway();
+      const failure = new Error("stripe caído");
+      gateway.createAccount.mockRejectedValue(failure);
+
+      await expect(startConnectOnboarding({ userId, organizationId }, { gateway, now })).rejects.toBe(failure);
+      expect(db.transaction).not.toHaveBeenCalled();
+    });
+
+    it("si la transacción falla tras crear la cuenta registra solo ids y propaga el error", async () => {
+      const gateway = fakeGateway();
+      const failure = new Error("base caída");
+      vi.mocked(db.transaction).mockRejectedValueOnce(failure);
+
+      await expect(startConnectOnboarding({ userId, organizationId }, { gateway, now })).rejects.toBe(failure);
+      expect(logger.error).toHaveBeenCalledWith(
+        "Conectar Stripe: cuenta creada en Stripe sin guardar",
+        failure,
+        { organizationId, accountId: "acct_SyntheticA1" }
+      );
+      expect(gateway.createOnboardingLink).not.toHaveBeenCalled();
     });
 
     it("con fila existente solo pide un enlace nuevo", async () => {
@@ -468,6 +528,19 @@ describe("servicio de Conectar Stripe", () => {
       expect(outcome).toBe("ignored");
       expect(isConnectOnboardingStorageAvailable).not.toHaveBeenCalled();
       expect(findConnectAccountByReference).not.toHaveBeenCalled();
+    });
+
+    it("con clave Live se ignora aunque el evento sea Live, sin leer la base", async () => {
+      vi.stubEnv("STRIPE_SECRET_KEY", "sk_live_synthetic");
+      const gateway = fakeGateway();
+      const outcome = await syncConnectAccountFromEvent(
+        { eventId: "evt_synthetic_live", accountId: "acct_SyntheticA1", livemode: true },
+        { gateway, now }
+      );
+      expect(outcome).toBe("ignored");
+      expect(isConnectOnboardingStorageAvailable).not.toHaveBeenCalled();
+      expect(findConnectAccountByReference).not.toHaveBeenCalled();
+      expect(gateway.retrieveAccount).not.toHaveBeenCalled();
     });
 
     it("sin almacenamiento se ignora", async () => {

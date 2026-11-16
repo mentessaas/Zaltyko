@@ -26,6 +26,7 @@ function snapshot(overrides: Partial<ConnectAccountSnapshot> = {}): ConnectAccou
 }
 
 const userPastDue: Entry = { deadlineStatus: "past_due", awaitingActionFrom: "user" };
+const stripePastDue: Entry = { deadlineStatus: "past_due", awaitingActionFrom: "stripe" };
 const userCurrentlyDue: Entry = { deadlineStatus: "currently_due", awaitingActionFrom: "user" };
 const stripeCurrentlyDue: Entry = {
   deadlineStatus: "currently_due",
@@ -88,6 +89,30 @@ describe("projectConnectAccount", () => {
       input: { cardPaymentsStatus: "restricted" },
       status: "restricted",
       requirementsState: "none",
+    },
+    {
+      name: "sin entradas y tarjeta unsupported",
+      input: { cardPaymentsStatus: "unsupported" },
+      status: "restricted",
+      requirementsState: "none",
+    },
+    {
+      name: "tarjeta active con una entrada currently_due de la academia",
+      input: { cardPaymentsStatus: "active", requirementEntries: [userCurrentlyDue] },
+      status: "onboarding",
+      requirementsState: "user_action",
+    },
+    {
+      name: "tarjeta active con solo entradas currently_due de Stripe",
+      input: { cardPaymentsStatus: "active", requirementEntries: [stripeCurrentlyDue] },
+      status: "onboarding",
+      requirementsState: "stripe_review",
+    },
+    {
+      name: "una entrada past_due que espera a Stripe",
+      input: { requirementEntries: [stripePastDue] },
+      status: "restricted",
+      requirementsState: "past_due",
     },
     {
       name: "solo entradas eventually_due con tarjeta active",

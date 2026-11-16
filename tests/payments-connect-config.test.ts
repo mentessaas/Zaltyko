@@ -25,6 +25,21 @@ describe("resolveConnectEnvironment", () => {
     expect(resolveConnectEnvironment()).toBe("test");
   });
 
+  it("sk_test_ → test", () => {
+    vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_x");
+    expect(resolveConnectEnvironment()).toBe("test");
+  });
+
+  it("rk_live_ → live", () => {
+    vi.stubEnv("STRIPE_SECRET_KEY", "rk_live_x");
+    expect(resolveConnectEnvironment()).toBe("live");
+  });
+
+  it("una clave publicable pk_live_ → null", () => {
+    vi.stubEnv("STRIPE_SECRET_KEY", "pk_live_x");
+    expect(resolveConnectEnvironment()).toBeNull();
+  });
+
   it("sin clave → null", () => {
     vi.stubEnv("STRIPE_SECRET_KEY", undefined);
     expect(resolveConnectEnvironment()).toBeNull();

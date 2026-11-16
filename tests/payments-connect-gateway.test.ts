@@ -12,6 +12,7 @@ vi.mock("@/lib/stripe/client", () => ({
 import {
   connectAccountIdempotencyKey,
   createStripeConnectGateway,
+  isStripeIdempotencyConflict,
 } from "@/modules/payments-connect/infrastructure/stripe-connect-gateway";
 
 /**
@@ -104,6 +105,26 @@ describe("connectAccountIdempotencyKey", () => {
   });
 });
 
+describe("isStripeIdempotencyConflict", () => {
+  it.each<[string, unknown]>([
+    ["StripeIdempotencyError del SDK", { type: "StripeIdempotencyError", rawType: "idempotency_error" }],
+    ["tipo crudo idempotency_error", { type: "idempotency_error" }],
+    ["clave en uso por otra petición", { type: "StripeInvalidRequestError", code: "idempotency_key_in_use" }],
+  ])("es true con %s", (_label, error) => {
+    expect(isStripeIdempotencyConflict(error)).toBe(true);
+  });
+
+  it.each<[string, unknown]>([
+    ["un error de red", { type: "StripeConnectionError" }],
+    ["otro error de petición", { type: "StripeInvalidRequestError", code: "parameter_missing" }],
+    ["un Error sin propiedades de Stripe", new Error("caído")],
+    ["null", null],
+    ["un texto", "idempotency_error"],
+  ])("es false con %s", (_label, error) => {
+    expect(isStripeIdempotencyConflict(error)).toBe(false);
+  });
+});
+
 describe("createStripeConnectGateway", () => {
   describe("createAccount", () => {
     it("crea la cuenta v2 con cargos directos, ES/EUR, tarjeta y domiciliación", async () => {
@@ -111,18 +132,15 @@ describe("createStripeConnectGateway", () => {
       stripe.accountsCreate.mockResolvedValue(v2Account());
       const gateway = createStripeConnectGateway(stripe.client);
 
-      await gateway.createAccount({
-        organizationId,
-        environment: "test",
-        displayName: "Academia Sintética",
-        contactEmail: "owner@example.com",
-      });
+      await gateway.createAccount({ organizationId, environment: "test" });
 
       expect(stripe.accountsCreate).toHaveBeenCalledTimes(1);
       const [params, options] = stripe.accountsCreate.mock.calls[0];
+      // R8: solo academia y entorno; sin nombre ni correo que puedan cambiar
+      // entre dos intentos con la misma clave de idempotencia.
+      expect(params).not.toHaveProperty("display_name");
+      expect(params).not.toHaveProperty("contact_email");
       expect(params).toEqual({
-        display_name: "Academia Sintética",
-        contact_email: "owner@example.com",
         dashboard: "full",
         identity: { country: "es" },
         defaults: {
@@ -157,33 +175,12 @@ describe("createStripeConnectGateway", () => {
       expect(serialized).not.toContain("recipient");
     });
 
-    it("no envía contact_email si la academia no tiene correo", async () => {
-      const stripe = fakeStripe();
-      stripe.accountsCreate.mockResolvedValue(v2Account());
-      const gateway = createStripeConnectGateway(stripe.client);
-
-      await gateway.createAccount({
-        organizationId,
-        environment: "test",
-        displayName: "Academia Sintética",
-        contactEmail: null,
-      });
-
-      const [params] = stripe.accountsCreate.mock.calls[0];
-      expect(params).not.toHaveProperty("contact_email");
-    });
-
     it("devuelve la cuenta creada como snapshot", async () => {
       const stripe = fakeStripe();
       stripe.accountsCreate.mockResolvedValue(v2Account());
       const gateway = createStripeConnectGateway(stripe.client);
 
-      const snapshot = await gateway.createAccount({
-        organizationId,
-        environment: "test",
-        displayName: "Academia Sintética",
-        contactEmail: null,
-      });
+      const snapshot = await gateway.createAccount({ organizationId, environment: "test" });
 
       expect(snapshot.id).toBe(accountId);
       expect(snapshot.cardPaymentsStatus).toBe("pending");

@@ -114,10 +114,9 @@ describe("OwnerStripeConnectCard", () => {
 
     expect(await screen.findByText("Lista para cobrar.")).toBeInTheDocument();
     expect(screen.getByText("Tarjeta: activa · Domiciliación: pendiente")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Abrir mi panel de Stripe" })).toHaveAttribute(
-      "href",
-      "https://dashboard.stripe.com/"
-    );
+    const dashboardLink = screen.getByRole("link", { name: "Abrir mi panel de Stripe (se abre en otra pestaña)" });
+    expect(dashboardLink).toHaveAttribute("href", "https://dashboard.stripe.com/");
+    expect(dashboardLink).toHaveAttribute("target", "_blank");
     expect(
       screen.getByText("El cobro automático de cuotas a las familias llegará en una próxima actualización.")
     ).toBeInTheDocument();
@@ -143,9 +142,10 @@ describe("OwnerStripeConnectCard", () => {
     stubFetch(account("problem", { disabled: true }));
     render(<OwnerStripeConnectCard organizationId={ORGANIZATION_ID} navigate={vi.fn()} />);
 
-    expect(
-      await screen.findByText("Esta cuenta está cerrada. Escríbenos a hola@zaltyko.com.")
-    ).toBeInTheDocument();
+    const contact = await screen.findByRole("link", { name: "hola@zaltyko.com" });
+    expect(contact).toHaveAttribute("href", "mailto:hola@zaltyko.com");
+    expect(screen.getByRole("alert")).toHaveTextContent("Esta cuenta está cerrada. Escríbenos a hola@zaltyko.com.");
+    expect(screen.queryByText("Stripe ha encontrado un problema con tu cuenta.")).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
   });
 
@@ -258,6 +258,18 @@ describe("OwnerStripeConnectCard", () => {
 
   it("si Stripe no responde al conectar, avisa y deja reintentar", async () => {
     stubFetch({ kind: "not_connected" }, () => problem(502, "connect-provider-unavailable"));
+    const navigate = vi.fn();
+    render(<OwnerStripeConnectCard organizationId={ORGANIZATION_ID} navigate={navigate} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Conectar Stripe" }));
+
+    expect(await screen.findByText("No hemos podido abrir Stripe. Inténtalo de nuevo.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Conectar Stripe" })).toBeEnabled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("un 409 CONCURRENCY_RETRY (Stripe aún prepara la cuenta) enseña el aviso de reintento", async () => {
+    stubFetch({ kind: "not_connected" }, () => problem(409, "concurrency-retry"));
     const navigate = vi.fn();
     render(<OwnerStripeConnectCard organizationId={ORGANIZATION_ID} navigate={navigate} />);
 

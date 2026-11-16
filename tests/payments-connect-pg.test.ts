@@ -337,8 +337,9 @@ describeDisposablePg("servicio de Conectar Stripe en Postgres desechable", () =>
     ]);
 
     expect(gateway.createAccount).toHaveBeenCalledTimes(2);
-    for (const call of gateway.createAccount.mock.calls as unknown as Array<[{ contactEmail: string | null }]>) {
-      expect(call[0].contactEmail).toBeNull();
+    // R8: Stripe recibe solo academia y entorno, los mismos datos que la clave.
+    for (const call of gateway.createAccount.mock.calls as unknown as Array<[Record<string, unknown>]>) {
+      expect(call[0]).toEqual({ organizationId: academy.organizationId, environment: "test" });
     }
     expect(results).toEqual([
       { url: `https://connect.stripe.test/setup/${reference}` },
@@ -350,6 +351,13 @@ describeDisposablePg("servicio de Conectar Stripe en Postgres desechable", () =>
     ]);
     expect(await auditCount(academy.organizationId, "payments_connect.account_created")).toBe(1);
     expect(warn).not.toHaveBeenCalled();
+    // La fila nace sin sincronizar: el primer refresco al volver de Stripe la lee.
+    const synced = await db.execute(sql`
+      select last_synced_at is null as "neverSynced"
+        from zaltyko.organization_payment_provider_accounts
+       where organization_id = ${academy.organizationId}::uuid
+    `);
+    expect(synced.rows).toEqual([{ neverSynced: true }]);
   });
 
   it("si Stripe devuelve acct_ distintas queda una fila y un aviso con las dos", async () => {

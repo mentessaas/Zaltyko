@@ -143,6 +143,10 @@ export async function lockConnectAccount(
 /**
  * Inserta la fila de la academia si aún no existe para ese entorno. Devuelve
  * `null` si otra petición la creó antes (no lanza ni sobrescribe).
+ *
+ * `last_synced_at` nace en `null`: la proyección de la creación es la de una
+ * cuenta vacía, así que el primer refresco al volver de Stripe (aunque sea en
+ * menos de 60 s) siempre vuelve a leer la cuenta.
  */
 export async function insertConnectAccountIfAbsent(
   tx: Executor,
@@ -173,7 +177,7 @@ export async function insertConnectAccountIfAbsent(
       ${input.projection.cardPaymentsCapabilityStatus},
       ${input.projection.sepaDebitPaymentsCapabilityStatus},
       ${input.projection.requirementsState},
-      now()
+      null
     )
     on conflict (organization_id, processor, environment) do nothing
     returning ${accountColumns}

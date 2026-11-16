@@ -18,11 +18,14 @@ import { getStripeClient } from "@/lib/stripe/client";
 import type { ConnectAccountSnapshot } from "@/modules/payments-connect/domain/account-projection";
 
 export interface ConnectAccountsGateway {
+  /**
+   * R8: los parámetros dependen solo de la academia y del entorno, igual que
+   * la clave de idempotencia. Si dependieran de algo más (nombre, correo), un
+   * cambio entre dos intentos haría que Stripe rechazara la clave reutilizada.
+   */
   createAccount(input: {
     organizationId: string;
     environment: "test";
-    displayName: string;
-    contactEmail: string | null;
   }): Promise<ConnectAccountSnapshot>;
   retrieveAccount(accountId: string): Promise<ConnectAccountSnapshot>;
   createOnboardingLink(input: {
@@ -46,6 +49,23 @@ export function connectAccountIdempotencyKey(
   environment: "test" | "live"
 ): string {
   return `zaltyko-connect-account:${environment}:${organizationId}`;
+}
+
+/**
+ * `true` si Stripe rechazó la creación por la clave de idempotencia: otra
+ * petición con la misma clave sigue en curso (`idempotency_key_in_use`) o se
+ * reutilizó con otros parámetros (`StripeIdempotencyError`). Se comprueba por
+ * propiedades, sin depender de la clase concreta del SDK.
+ */
+export function isStripeIdempotencyConflict(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const candidate = error as { type?: unknown; rawType?: unknown; code?: unknown };
+  return (
+    candidate.type === "StripeIdempotencyError" ||
+    candidate.type === "idempotency_error" ||
+    candidate.rawType === "idempotency_error" ||
+    candidate.code === "idempotency_key_in_use"
+  );
 }
 
 /** Partes de la cuenta v2 que lee el adaptador (las demás vienen a `null`). */
@@ -95,8 +115,6 @@ export function createStripeConnectGateway(stripe?: Stripe): ConnectAccountsGate
   return {
     async createAccount(input) {
       const params: Stripe.V2.Core.AccountCreateParams = {
-        display_name: input.displayName,
-        ...(input.contactEmail ? { contact_email: input.contactEmail } : {}),
         dashboard: "full",
         identity: { country: "es" },
         defaults: {
