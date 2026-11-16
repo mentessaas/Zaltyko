@@ -1,0 +1,1303 @@
+/**
+ * Cobro automático de cuotas (Fase 3): acceso a la base del proceso diario de
+ * cobro.
+ *
+ * Toca las tablas del candidato
+ * docs/deployment/candidates/20261117120000_family_collection_candidate.sql
+ * (sin aplicar) y columnas de las candidatas de las Fases 1 y 2, así que todo
+ * va en SQL con columnas explícitas y solo debe usarse después de
+ * `isStorageAvailable()`.
+ *
+ * Reglas que cumple cada escritura:
+ * - una sola transacción corta por método, sin llamadas a Stripe dentro (los
+ *   métodos no reciben nada que pueda llamar a Stripe; `claimOrCancel` solo
+ *   recibe una decisión pura);
+ * - orden de bloqueo único: fila de `organizations`
+ *   (lockOrganizationForSaasMutation) → cuotas por id → factura → intento;
+ * - solo ids, referencias opacas (`pi_…`) y códigos de Stripe en la base, la
+ *   auditoría y el outbox.
+ *
+ * Las decisiones de negocio (plan, puerta, reintentos) viven en el servicio.
+ */
+import { sql } from "drizzle-orm";
+
+import { db } from "@/db";
+import type { DatabaseClient, TransactionClient } from "@/lib/db-transactions";
+import {
+  allocateProviderCollectionPayment,
+  recordProviderCollectionPayment,
+  type ProviderCollectionAllocationResult,
+} from "@/modules/billing/application/ledger-service";
+import {
+  loadOrganizationPlanState,
+  loadPlanChangeRevision,
+  type OrganizationPlanState,
+} from "@/modules/billing/application/plan-state";
+import type { CollectionPlanChargeStatus, CollectionPlanInvoiceStatus } from "@/modules/family-collection/domain/collection-plan";
+import type {
+  FamilyCollectionGateAccount,
+  FamilyCollectionGateAuthorization,
+  FamilyCollectionGatePayer,
+} from "@/modules/family-collection/domain/collection-gate";
+import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
+import { findCollectionSettings } from "@/modules/family-collection/infrastructure/collection-settings-store";
+import type {
+  FamilyCollectionAllocationStatus,
+  FamilyCollectionAttemptStatus,
+} from "@/modules/family-collection/infrastructure/family-collection-schema";
+import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
+import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
+import { lockOrganizationForSaasMutation } from "@/modules/saas-billing/application/entitlement-service";
+import { FAMILY_COLLECTION_JOB_KEY } from "@/modules/shared/application/actor";
+import {
+  appendAuditEntry,
+  appendOutboxEvent,
+  findOutboxEvent,
+} from "@/modules/shared/infrastructure/transactional-records";
+
+type Executor = Pick<DatabaseClient, "execute">;
+
+export type CollectionMethodKind = "card" | "sepa_debit";
+
+/** Estados en los que un intento todavía puede avanzar. */
+const OPEN_STATUSES = ["claimed", "created", "processing"] as const;
+
+const SYSTEM_AUDIT_METADATA = {
+  actor_type: "system",
+  job_key: FAMILY_COLLECTION_JOB_KEY,
+} as const;
+
+// ---------------------------------------------------------------------------
+// Tipos
+// ---------------------------------------------------------------------------
+
+export interface CollectionAttempt {
+  id: string;
+  organizationId: string;
+  locationId: string;
+  invoiceId: string;
+  familyId: string;
+  familyPayerId: string | null;
+  authorizationId: string | null;
+  paymentProviderAccountId: string | null;
+  attemptNumber: number;
+  paymentMethodKind: CollectionMethodKind | null;
+  amountCents: number;
+  currency: string;
+  status: FamilyCollectionAttemptStatus;
+  paymentIntentId: string | null;
+  resumeCount: number;
+  claimedAt: Date;
+}
+
+export interface CollectionAllocationRow {
+  chargeId: string;
+  amountCents: number;
+}
+
+/** Lo que necesita Stripe para crear, confirmar o releer el cobro de un intento. */
+export interface AttemptStripeRefs {
+  /** `acct_…` de la cuenta del intento. */
+  connectedAccount: string;
+  /** `cus_…` de la autorización (exactamente un intento de preparación), o null. */
+  customer: string | null;
+  paymentMethod: string | null;
+  /** Orden SEPA de la autorización; null con tarjeta. */
+  mandate: string | null;
+  /** Zona horaria de la sede de la factura. */
+  timezone: string;
+  /** Primer día del periodo de las cuotas del intento (YYYY-MM-DD). */
+  servicePeriodStart: string | null;
+  allocations: CollectionAllocationRow[];
+}
+
+export interface CollectionChargeRow {
+  id: string;
+  organizationId: string;
+  invoiceId: string;
+  familyId: string;
+  familyPayerId: string | null;
+  collectionMode: "manual" | "automatic";
+  status: CollectionPlanChargeStatus;
+  currency: string;
+  amountCents: number;
+  /** Importe menos lo ya repartido a la cuota. */
+  outstandingCents: number;
+  dueAt: Date;
+  servicePeriodStart: string;
+}
+
+export interface CollectionInvoiceRow {
+  id: string;
+  organizationId: string;
+  locationId: string;
+  familyId: string;
+  familyPayerId: string | null;
+  status: CollectionPlanInvoiceStatus;
+  currency: string;
+  /** Todas sus líneas son de cuota mensual (`monthly-invoice/issue.ts`). */
+  isMonthly: boolean;
+  timezone: string;
+}
+
+export interface AttemptHistory {
+  /** Hay un intento `claimed`, `created` o `processing`. */
+  openExists: boolean;
+  /** Último intento (por número), o null si la factura no tiene ninguno. */
+  last: { attemptNumber: number; status: FamilyCollectionAttemptStatus; nextRetryAt: Date | null } | null;
+}
+
+export type CollectionAccountRow = FamilyCollectionGateAccount & { providerAccountReference: string };
+export type CollectionAuthorizationRow = FamilyCollectionGateAuthorization & { id: string };
+
+/** Todo lo que la puerta necesita de una factura, leído sin transacción. */
+export interface InvoiceCollectionContext {
+  invoice: CollectionInvoiceRow;
+  charges: CollectionChargeRow[];
+  organization: { id: string; status: "trial" | "active" | "suspended" | "closed" };
+  plan: OrganizationPlanState;
+  planChangeRevision: number | null;
+  preference: { requestedMode: "manual" | "automatic"; entitlementRevision: number | null } | null;
+  collectionDayOfMonth: number | null;
+  account: CollectionAccountRow | null;
+  authorization: CollectionAuthorizationRow | null;
+  customerReference: string | null;
+  payer: FamilyCollectionGatePayer | null;
+  history: AttemptHistory;
+}
+
+/** Foto bloqueada de la factura dentro de la transacción de reclamar o cancelar. */
+export interface LockedInvoiceSnapshot {
+  invoice: CollectionInvoiceRow;
+  charges: CollectionChargeRow[];
+  history: AttemptHistory;
+  /** La autorización pedida, releída en la transacción (cualquier estado), o null. */
+  authorization: {
+    id: string;
+    organizationId: string;
+    familyId: string;
+    familyPayerId: string;
+    paymentProviderAccountId: string;
+    status: string;
+  } | null;
+}
+
+export type ClaimDecision =
+  | { action: "skip"; reason: string }
+  | {
+      action: "claimed" | "canceled";
+      attemptNumber: number;
+      amountCents: number;
+      allocations: CollectionAllocationRow[];
+      /** Motivo de la puerta; solo en `canceled`. */
+      reason?: string;
+    };
+
+export interface ClaimOrCancelInput {
+  organizationId: string;
+  invoiceId: string;
+  /** Solo en `claimed`: con qué se cobra. En `canceled` se guardan solo si se pasan. */
+  authorizationId: string | null;
+  paymentProviderAccountId: string | null;
+  paymentMethodKind: CollectionMethodKind | null;
+  now: Date;
+}
+
+export type ClaimOrCancelResult =
+  | { outcome: "skipped"; reason: string }
+  | { outcome: "claimed"; attempt: CollectionAttempt; allocations: CollectionAllocationRow[] }
+  | { outcome: "canceled"; attempt: CollectionAttempt };
+
+export type AttemptOutcome =
+  | { kind: "succeeded"; paymentIntentId: string }
+  | { kind: "processing"; paymentIntentId: string }
+  | {
+      kind: "failed";
+      paymentIntentId: string | null;
+      code: string;
+      declineCode: string | null;
+      nextRetryAt: Date | null;
+    }
+  | { kind: "canceled"; paymentIntentId: string | null; reason: string };
+
+export type ApplyOutcomeResult =
+  /** El intento ya no estaba abierto, o (con `review`) necesita que lo revise una persona. */
+  | { applied: false; review?: string }
+  | {
+      applied: true;
+      status: FamilyCollectionAttemptStatus;
+      allocationStatus: FamilyCollectionAllocationStatus | null;
+      reviewReasons: string[];
+    };
+
+export interface DueInvoiceRef {
+  invoiceId: string;
+  organizationId: string;
+}
+
+export interface FamilyCollectionStore {
+  /** Tablas de las Fases 1, 2 y 3 tal como las definen sus candidatas. */
+  isStorageAvailable(): Promise<boolean>;
+  /**
+   * Facturas candidatas a cobrar (filtro grueso; el servicio decide por fecha
+   * local): con cuotas automáticas abiertas que vencen antes de `horizon`, sin
+   * intento abierto y cuyo último intento falló con reintento antes de
+   * `horizon`, o sin intentos. Por orden de id, después de `after`.
+   */
+  listDueInvoices(input: { after: string | null; limit: number; horizon: Date }): Promise<DueInvoiceRef[]>;
+  loadInvoiceContext(input: {
+    organizationId: string;
+    invoiceId: string;
+    environment: "test" | "live";
+    now: Date;
+  }): Promise<InvoiceCollectionContext | null>;
+  /**
+   * Una transacción: bloquea academia → cuotas → factura, relee la factura y
+   * la autorización, pide la decisión (pura) y escribe el intento `claimed`
+   * con su reparto, o el intento `canceled` de la puerta.
+   */
+  claimOrCancel(
+    input: ClaimOrCancelInput,
+    decide: (snapshot: LockedInvoiceSnapshot) => ClaimDecision
+  ): Promise<ClaimOrCancelResult>;
+  /** `claimed` → `created` con su `pi_…`. `false` si el intento ya no estaba `claimed`. */
+  markCreated(input: { organizationId: string; attemptId: string; paymentIntentId: string; now: Date }): Promise<boolean>;
+  /** Aplica el resultado a un intento todavía abierto; si ya no lo está, no hace nada. */
+  applyOutcome(input: {
+    organizationId: string;
+    attemptId: string;
+    outcome: AttemptOutcome;
+    environment: "test" | "live";
+    now: Date;
+  }): Promise<ApplyOutcomeResult>;
+  /**
+   * Toma de forma atómica los intentos `claimed`/`created` reclamados antes de
+   * `staleBefore` con menos de 3 reanudaciones, y les suma una.
+   */
+  claimResumable(input: { staleBefore: Date; after: string | null; limit: number; now: Date }): Promise<CollectionAttempt[]>;
+  listProcessing(input: { after: string | null; limit: number }): Promise<CollectionAttempt[]>;
+  loadAttemptRefs(attempt: CollectionAttempt): Promise<AttemptStripeRefs | null>;
+  /** Aviso a la academia para revisar un intento (una vez por intento y motivo). */
+  recordNotice(input: {
+    organizationId: string;
+    locationId: string;
+    attemptId: string;
+    invoiceId: string;
+    reason: string;
+    now: Date;
+  }): Promise<boolean>;
+}
+
+// ---------------------------------------------------------------------------
+// Conversión de filas
+// ---------------------------------------------------------------------------
+
+function toDate(value: unknown): Date {
+  return value instanceof Date ? value : new Date(String(value));
+}
+
+function toDateOrNull(value: unknown): Date | null {
+  return value === null || value === undefined ? null : toDate(value);
+}
+
+function toStringOrNull(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function toCents(value: unknown): number {
+  const cents = Number(value);
+  if (!Number.isSafeInteger(cents)) throw new Error("FAMILY_COLLECTION_INVALID_AMOUNT");
+  return cents;
+}
+
+/** Los códigos se guardan como los define la base: minúsculas, dígitos y guion bajo. */
+function storedCode(code: string): string {
+  return code.toLowerCase();
+}
+
+function toKind(value: unknown): CollectionMethodKind | null {
+  return value === "card" || value === "sepa_debit" ? value : null;
+}
+
+const attemptColumns = sql`
+  id::text as "id",
+  organization_id::text as "organizationId",
+  location_id::text as "locationId",
+  invoice_id::text as "invoiceId",
+  family_id::text as "familyId",
+  family_payer_id::text as "familyPayerId",
+  authorization_id::text as "authorizationId",
+  payment_provider_account_id::text as "paymentProviderAccountId",
+  attempt_number as "attemptNumber",
+  payment_method_kind as "paymentMethodKind",
+  amount_cents::text as "amountCents",
+  currency as "currency",
+  status as "status",
+  provider_payment_intent_reference as "paymentIntentId",
+  resume_count as "resumeCount",
+  claimed_at as "claimedAt"
+`;
+
+function toAttempt(row: Record<string, unknown>): CollectionAttempt {
+  return {
+    id: String(row.id),
+    organizationId: String(row.organizationId),
+    locationId: String(row.locationId),
+    invoiceId: String(row.invoiceId),
+    familyId: String(row.familyId),
+    familyPayerId: toStringOrNull(row.familyPayerId),
+    authorizationId: toStringOrNull(row.authorizationId),
+    paymentProviderAccountId: toStringOrNull(row.paymentProviderAccountId),
+    attemptNumber: Number(row.attemptNumber),
+    paymentMethodKind: toKind(row.paymentMethodKind),
+    amountCents: toCents(row.amountCents),
+    currency: String(row.currency),
+    status: String(row.status) as FamilyCollectionAttemptStatus,
+    paymentIntentId: toStringOrNull(row.paymentIntentId),
+    resumeCount: Number(row.resumeCount),
+    claimedAt: toDate(row.claimedAt),
+  };
+}
+
+const openStatusList = sql.join(
+  OPEN_STATUSES.map((status) => sql`${status}`),
+  sql`, `
+);
+
+// ---------------------------------------------------------------------------
+// Lecturas (sin transacción o dentro de la de quien llama)
+// ---------------------------------------------------------------------------
+
+async function readInvoice(executor: Executor, organizationId: string, invoiceId: string): Promise<{
+  invoice: CollectionInvoiceRow;
+  organizationStatus: InvoiceCollectionContext["organization"]["status"];
+} | null> {
+  const result = await executor.execute(sql`
+    select i.id::text as "id",
+           i.organization_id::text as "organizationId",
+           i.location_id::text as "locationId",
+           i.family_id::text as "familyId",
+           i.family_payer_id::text as "familyPayerId",
+           i.status::text as "status",
+           i.currency as "currency",
+           l.timezone as "timezone",
+           o.status::text as "organizationStatus",
+           (
+             exists (
+               select 1 from zaltyko.invoice_lines il
+                where il.organization_id = i.organization_id and il.invoice_id = i.id
+             )
+             and not exists (
+               select 1 from zaltyko.invoice_lines il
+                where il.organization_id = i.organization_id and il.invoice_id = i.id
+                  and il.line_type <> 'monthly_fee'
+             )
+           ) as "isMonthly"
+      from zaltyko.invoices i
+      join zaltyko.organizations o on o.id = i.organization_id
+      join zaltyko.locations l on l.organization_id = i.organization_id and l.id = i.location_id
+     where i.organization_id = ${organizationId}::uuid
+       and i.id = ${invoiceId}::uuid
+     limit 1
+  `);
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) return null;
+  return {
+    invoice: {
+      id: String(row.id),
+      organizationId: String(row.organizationId),
+      locationId: String(row.locationId),
+      familyId: String(row.familyId),
+      familyPayerId: toStringOrNull(row.familyPayerId),
+      status: String(row.status) as CollectionPlanInvoiceStatus,
+      currency: String(row.currency),
+      isMonthly: row.isMonthly === true,
+      timezone: String(row.timezone),
+    },
+    organizationStatus: String(row.organizationStatus) as InvoiceCollectionContext["organization"]["status"],
+  };
+}
+
+async function readCharges(executor: Executor, organizationId: string, invoiceId: string): Promise<CollectionChargeRow[]> {
+  const result = await executor.execute(sql`
+    select c.id::text as "id",
+           c.organization_id::text as "organizationId",
+           c.invoice_id::text as "invoiceId",
+           c.family_id::text as "familyId",
+           c.family_payer_id::text as "familyPayerId",
+           c.collection_mode::text as "collectionMode",
+           c.status::text as "status",
+           c.currency as "currency",
+           c.amount_cents::text as "amountCents",
+           (c.amount_cents - coalesce((
+             select sum(pa.amount_cents)
+               from zaltyko.payment_allocations pa
+              where pa.organization_id = c.organization_id and pa.charge_id = c.id
+           ), 0))::text as "outstandingCents",
+           c.due_at as "dueAt",
+           c.service_period_start::text as "servicePeriodStart"
+      from zaltyko.charges c
+     where c.organization_id = ${organizationId}::uuid
+       and c.invoice_id = ${invoiceId}::uuid
+     order by c.id
+  `);
+  return (result.rows as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id),
+    organizationId: String(row.organizationId),
+    invoiceId: String(row.invoiceId),
+    familyId: String(row.familyId),
+    familyPayerId: toStringOrNull(row.familyPayerId),
+    collectionMode: row.collectionMode === "automatic" ? "automatic" : "manual",
+    status: String(row.status) as CollectionPlanChargeStatus,
+    currency: String(row.currency),
+    amountCents: toCents(row.amountCents),
+    outstandingCents: toCents(row.outstandingCents),
+    dueAt: toDate(row.dueAt),
+    servicePeriodStart: String(row.servicePeriodStart),
+  }));
+}
+
+async function readHistory(executor: Executor, organizationId: string, invoiceId: string): Promise<AttemptHistory> {
+  const result = await executor.execute(sql`
+    select exists (
+             select 1 from zaltyko.family_collection_attempts a
+              where a.organization_id = ${organizationId}::uuid
+                and a.invoice_id = ${invoiceId}::uuid
+                and a.status in (${openStatusList})
+           ) as "openExists",
+           last.attempt_number as "attemptNumber",
+           last.status as "status",
+           last.next_retry_at as "nextRetryAt"
+      from (select 1) as one
+      left join lateral (
+        select a.attempt_number, a.status, a.next_retry_at
+          from zaltyko.family_collection_attempts a
+         where a.organization_id = ${organizationId}::uuid
+           and a.invoice_id = ${invoiceId}::uuid
+         order by a.attempt_number desc
+         limit 1
+      ) as last on true
+  `);
+  const row = (result.rows[0] ?? {}) as Record<string, unknown>;
+  return {
+    openExists: row.openExists === true,
+    last:
+      row.attemptNumber === null || row.attemptNumber === undefined
+        ? null
+        : {
+            attemptNumber: Number(row.attemptNumber),
+            status: String(row.status) as FamilyCollectionAttemptStatus,
+            nextRetryAt: toDateOrNull(row.nextRetryAt),
+          },
+  };
+}
+
+async function readAccount(
+  executor: Executor,
+  organizationId: string,
+  environment: "test" | "live"
+): Promise<CollectionAccountRow | null> {
+  const result = await executor.execute(sql`
+    select id::text as "id",
+           organization_id::text as "organizationId",
+           processor as "processor",
+           environment::text as "environment",
+           provider_account_reference as "providerAccountReference",
+           accounts_api_generation as "accountsApiGeneration",
+           charge_model as "chargeModel",
+           status::text as "status",
+           card_payments_capability_status as "cardPaymentsCapabilityStatus",
+           sepa_debit_payments_capability_status as "sepaDebitPaymentsCapabilityStatus",
+           last_synced_at as "lastSyncedAt"
+      from zaltyko.organization_payment_provider_accounts
+     where organization_id = ${organizationId}::uuid
+       and processor = 'stripe'
+       and environment = ${environment}::zaltyko.stripe_environment
+     limit 1
+  `);
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    organizationId: String(row.organizationId),
+    processor: String(row.processor),
+    environment: String(row.environment) as "test" | "live",
+    providerAccountReference: String(row.providerAccountReference),
+    accountsApiGeneration: Number(row.accountsApiGeneration),
+    chargeModel: String(row.chargeModel),
+    status: String(row.status),
+    cardPaymentsCapabilityStatus: String(row.cardPaymentsCapabilityStatus),
+    sepaDebitPaymentsCapabilityStatus: String(row.sepaDebitPaymentsCapabilityStatus),
+    lastSyncedAt: toDateOrNull(row.lastSyncedAt),
+  };
+}
+
+/**
+ * Autorización activa del pagador en la cuenta y su Customer: el de su único
+ * intento de preparación, si ese intento es del mismo pagador y cuenta. Con
+ * cero o varios intentos, el Customer es null (la puerta lo trata como final).
+ */
+async function readActiveAuthorization(
+  executor: Executor,
+  input: { organizationId: string; accountId: string; familyPayerId: string }
+): Promise<{ authorization: CollectionAuthorizationRow; customerReference: string | null } | null> {
+  const result = await executor.execute(sql`
+    select a.id::text as "id",
+           a.organization_id::text as "organizationId",
+           a.family_id::text as "familyId",
+           a.family_payer_id::text as "familyPayerId",
+           a.payment_provider_account_id::text as "paymentProviderAccountId",
+           a.status::text as "status",
+           a.consent_version as "consentVersion",
+           a.consent_evidence_reference as "consentEvidenceReference",
+           a.consent_evidence_sha256 as "consentEvidenceSha256",
+           a.consented_at as "consentedAt",
+           a.consented_by_guardian_id::text as "consentedByGuardianId",
+           a.valid_until as "validUntil",
+           a.revoked_at as "revokedAt",
+           a.payment_method_kind as "paymentMethodKind",
+           a.payment_method_reference as "paymentMethodReference",
+           a.mandate_reference as "mandateReference",
+           (
+             select case
+                      when count(*) = 1
+                       and bool_and(s.family_payer_id = a.family_payer_id
+                                    and s.payment_provider_account_id = a.payment_provider_account_id)
+                      then min(s.provider_customer_reference)
+                    end
+               from zaltyko.family_payment_setup_attempts s
+              where s.organization_id = a.organization_id
+                and s.authorization_id = a.id
+           ) as "customerReference"
+      from zaltyko.family_payment_authorizations a
+     where a.organization_id = ${input.organizationId}::uuid
+       and a.payment_provider_account_id = ${input.accountId}::uuid
+       and a.family_payer_id = ${input.familyPayerId}::uuid
+       and a.status = 'active'::zaltyko.payment_authorization_status
+     order by a.id
+     limit 1
+  `);
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) return null;
+  return {
+    authorization: {
+      id: String(row.id),
+      organizationId: String(row.organizationId),
+      familyId: String(row.familyId),
+      familyPayerId: String(row.familyPayerId),
+      paymentProviderAccountId: String(row.paymentProviderAccountId),
+      status: String(row.status) as CollectionAuthorizationRow["status"],
+      consentVersion: toStringOrNull(row.consentVersion),
+      consentEvidenceReference: toStringOrNull(row.consentEvidenceReference),
+      consentEvidenceSha256: toStringOrNull(row.consentEvidenceSha256),
+      consentedAt: toDateOrNull(row.consentedAt),
+      consentedByGuardianId: toStringOrNull(row.consentedByGuardianId),
+      validUntil: toDateOrNull(row.validUntil),
+      revokedAt: toDateOrNull(row.revokedAt),
+      paymentMethodKind: toStringOrNull(row.paymentMethodKind),
+      paymentMethodReference: String(row.paymentMethodReference ?? ""),
+      mandateReference: toStringOrNull(row.mandateReference),
+    },
+    customerReference: toStringOrNull(row.customerReference),
+  };
+}
+
+/**
+ * Fila de family_payers de la factura con el estado del tutor. El vínculo
+ * cuenta como activo solo si `family_guardians` y la familia están activos.
+ */
+async function readPayer(
+  executor: Executor,
+  organizationId: string,
+  familyPayerId: string
+): Promise<FamilyCollectionGatePayer | null> {
+  const result = await executor.execute(sql`
+    select fp.id::text as "id",
+           fp.organization_id::text as "organizationId",
+           fp.family_id::text as "familyId",
+           fp.starts_on::text as "startsOn",
+           fp.ends_on::text as "endsOn",
+           g.is_active as "guardianActive",
+           coalesce(fg.is_active and f.is_active, false) as "guardianLinkActive"
+      from zaltyko.family_payers fp
+      join zaltyko.guardians g
+        on g.organization_id = fp.organization_id and g.id = fp.guardian_id
+      join zaltyko.families f
+        on f.organization_id = fp.organization_id and f.id = fp.family_id
+      left join zaltyko.family_guardians fg
+        on fg.organization_id = fp.organization_id
+       and fg.family_id = fp.family_id
+       and fg.guardian_id = fp.guardian_id
+     where fp.organization_id = ${organizationId}::uuid
+       and fp.id = ${familyPayerId}::uuid
+     limit 1
+  `);
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    organizationId: String(row.organizationId),
+    familyId: String(row.familyId),
+    startsOn: String(row.startsOn),
+    endsOn: toStringOrNull(row.endsOn),
+    guardianActive: row.guardianActive === true,
+    guardianLinkActive: row.guardianLinkActive === true,
+  };
+}
+
+async function readPreference(
+  executor: Executor,
+  organizationId: string,
+  familyId: string
+): Promise<InvoiceCollectionContext["preference"]> {
+  const result = await executor.execute(sql`
+    select requested_mode::text as "requestedMode",
+           entitlement_revision as "entitlementRevision"
+      from zaltyko.family_collection_preferences
+     where organization_id = ${organizationId}::uuid
+       and family_id = ${familyId}::uuid
+     limit 1
+  `);
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) return null;
+  return {
+    requestedMode: row.requestedMode === "automatic" ? "automatic" : "manual",
+    entitlementRevision:
+      row.entitlementRevision === null || row.entitlementRevision === undefined
+        ? null
+        : Number(row.entitlementRevision),
+  };
+}
+
+async function readAllocations(executor: Executor, attempt: CollectionAttempt): Promise<CollectionAllocationRow[]> {
+  const result = await executor.execute(sql`
+    select charge_id::text as "chargeId", amount_cents::text as "amountCents"
+      from zaltyko.family_collection_attempt_charges
+     where organization_id = ${attempt.organizationId}::uuid
+       and attempt_id = ${attempt.id}::uuid
+     order by charge_id
+  `);
+  return (result.rows as Array<Record<string, unknown>>).map((row) => ({
+    chargeId: String(row.chargeId),
+    amountCents: toCents(row.amountCents),
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Bloqueos (orden único: academia → cuotas por id → factura → intento)
+// ---------------------------------------------------------------------------
+
+async function lockInvoiceCharges(tx: TransactionClient, organizationId: string, invoiceId: string): Promise<void> {
+  await tx.execute(sql`
+    select id from zaltyko.charges
+     where organization_id = ${organizationId}::uuid
+       and invoice_id = ${invoiceId}::uuid
+     order by id
+     for update
+  `);
+}
+
+async function lockAttemptCharges(tx: TransactionClient, organizationId: string, attemptId: string): Promise<void> {
+  await tx.execute(sql`
+    select c.id
+      from zaltyko.charges c
+     where c.organization_id = ${organizationId}::uuid
+       and c.id in (
+         select ac.charge_id from zaltyko.family_collection_attempt_charges ac
+          where ac.organization_id = ${organizationId}::uuid
+            and ac.attempt_id = ${attemptId}::uuid
+       )
+     order by c.id
+     for update of c
+  `);
+}
+
+async function lockInvoice(tx: TransactionClient, organizationId: string, invoiceId: string): Promise<void> {
+  await tx.execute(sql`
+    select id from zaltyko.invoices
+     where organization_id = ${organizationId}::uuid and id = ${invoiceId}::uuid
+     for update
+  `);
+}
+
+/**
+ * Bloquea en el orden único el intento y lo que toca, y lo devuelve solo si
+ * sigue abierto (claimed, created o processing).
+ */
+async function lockOpenAttempt(
+  tx: TransactionClient,
+  organizationId: string,
+  attemptId: string
+): Promise<CollectionAttempt | null> {
+  const found = await tx.execute(sql`
+    select invoice_id::text as "invoiceId"
+      from zaltyko.family_collection_attempts
+     where organization_id = ${organizationId}::uuid and id = ${attemptId}::uuid
+  `);
+  const invoiceId = (found.rows[0] as { invoiceId?: unknown } | undefined)?.invoiceId;
+  if (typeof invoiceId !== "string") return null;
+
+  await lockOrganizationForSaasMutation(tx, organizationId);
+  await lockAttemptCharges(tx, organizationId, attemptId);
+  await lockInvoice(tx, organizationId, invoiceId);
+  const locked = await tx.execute(sql`
+    select ${attemptColumns}
+      from zaltyko.family_collection_attempts
+     where organization_id = ${organizationId}::uuid
+       and id = ${attemptId}::uuid
+       and status in (${openStatusList})
+     for update
+  `);
+  const row = locked.rows[0] as Record<string, unknown> | undefined;
+  return row ? toAttempt(row) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Auditoría y outbox (solo ids y códigos)
+// ---------------------------------------------------------------------------
+
+async function recordTransition(
+  tx: TransactionClient,
+  attempt: CollectionAttempt,
+  input: {
+    event: string;
+    payload: Record<string, unknown>;
+    now: Date;
+    /** Además del outbox, una línea de auditoría. */
+    audit?: boolean;
+  }
+): Promise<void> {
+  const idempotencyKey = `family-collection:${attempt.id}:${input.event}`;
+  const eventName = `family_collection.${input.event}`;
+  const payload = { attemptId: attempt.id, invoiceId: attempt.invoiceId, ...input.payload };
+  if (!(await findOutboxEvent(tx, { organizationId: attempt.organizationId, eventName, idempotencyKey }))) {
+    await appendOutboxEvent(tx, {
+      organizationId: attempt.organizationId,
+      locationId: attempt.locationId,
+      eventName,
+      aggregateType: "family_collection_attempt",
+      aggregateId: attempt.id,
+      idempotencyKey,
+      payload,
+      occurredAt: input.now,
+    });
+  }
+  if (input.audit) {
+    await appendAuditEntry(tx, {
+      organizationId: attempt.organizationId,
+      locationId: attempt.locationId,
+      actorUserId: null,
+      action: eventName,
+      targetType: "family_collection_attempt",
+      targetId: attempt.id,
+      idempotencyKey,
+      after: payload,
+      metadata: SYSTEM_AUDIT_METADATA,
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Implementación
+// ---------------------------------------------------------------------------
+
+export function createFamilyCollectionStore(): FamilyCollectionStore {
+  return {
+    async isStorageAvailable() {
+      const [collection, paymentMethods, connect] = await Promise.all([
+        isFamilyCollectionStorageAvailable(db),
+        isFamilyPaymentMethodsStorageAvailable(db),
+        isConnectOnboardingStorageAvailable(db),
+      ]);
+      return collection && paymentMethods && connect;
+    },
+
+    async listDueInvoices(input) {
+      const result = await db.execute(sql`
+        select i.id::text as "invoiceId", i.organization_id::text as "organizationId"
+          from zaltyko.invoices i
+          left join lateral (
+            select a.status, a.next_retry_at
+              from zaltyko.family_collection_attempts a
+             where a.organization_id = i.organization_id
+               and a.invoice_id = i.id
+             order by a.attempt_number desc
+             limit 1
+          ) as last on true
+         where i.status in ('issued', 'partially_paid')
+           and (${input.after}::uuid is null or i.id > ${input.after}::uuid)
+           and exists (
+             select 1 from zaltyko.charges c
+              where c.organization_id = i.organization_id
+                and c.invoice_id = i.id
+                and c.collection_mode = 'automatic'
+                and c.status in ('due', 'partially_paid')
+                and c.due_at <= ${input.horizon.toISOString()}::timestamptz
+           )
+           and not exists (
+             select 1 from zaltyko.family_collection_attempts a
+              where a.organization_id = i.organization_id
+                and a.invoice_id = i.id
+                and a.status in (${openStatusList})
+           )
+           and (
+             last.status is null
+             or (
+               last.status = 'failed'
+               and last.next_retry_at is not null
+               and last.next_retry_at <= ${input.horizon.toISOString()}::timestamptz
+             )
+           )
+         order by i.id
+         limit ${input.limit}
+      `);
+      return (result.rows as Array<Record<string, unknown>>).map((row) => ({
+        invoiceId: String(row.invoiceId),
+        organizationId: String(row.organizationId),
+      }));
+    },
+
+    async loadInvoiceContext(input) {
+      const found = await readInvoice(db, input.organizationId, input.invoiceId);
+      if (!found) return null;
+      const { invoice } = found;
+      const [charges, plan, planChangeRevision, preference, settings, account, history] = await Promise.all([
+        readCharges(db, invoice.organizationId, invoice.id),
+        loadOrganizationPlanState(db, invoice.organizationId),
+        loadPlanChangeRevision(db, invoice.organizationId),
+        readPreference(db, invoice.organizationId, invoice.familyId),
+        findCollectionSettings(db, invoice.organizationId),
+        readAccount(db, invoice.organizationId, input.environment),
+        readHistory(db, invoice.organizationId, invoice.id),
+      ]);
+      const active =
+        account && invoice.familyPayerId
+          ? await readActiveAuthorization(db, {
+              organizationId: invoice.organizationId,
+              accountId: account.id,
+              familyPayerId: invoice.familyPayerId,
+            })
+          : null;
+      const payer = invoice.familyPayerId ? await readPayer(db, invoice.organizationId, invoice.familyPayerId) : null;
+      return {
+        invoice,
+        charges,
+        organization: { id: invoice.organizationId, status: found.organizationStatus },
+        plan,
+        planChangeRevision,
+        preference,
+        collectionDayOfMonth: settings?.collectionDayOfMonth ?? null,
+        account,
+        authorization: active?.authorization ?? null,
+        customerReference: active?.customerReference ?? null,
+        payer,
+        history,
+      };
+    },
+
+    async claimOrCancel(input, decide) {
+      return db.transaction(async (tx) => {
+        await lockOrganizationForSaasMutation(tx, input.organizationId);
+        await lockInvoiceCharges(tx, input.organizationId, input.invoiceId);
+        await lockInvoice(tx, input.organizationId, input.invoiceId);
+
+        const found = await readInvoice(tx, input.organizationId, input.invoiceId);
+        if (!found) return { outcome: "skipped", reason: "invoice_missing" } as const;
+        const charges = await readCharges(tx, input.organizationId, input.invoiceId);
+        const history = await readHistory(tx, input.organizationId, input.invoiceId);
+        let authorization: LockedInvoiceSnapshot["authorization"] = null;
+        if (input.authorizationId) {
+          // Releída en la transacción y bloqueada para compartir: una baja
+          // concurrente del método espera a que el intento quede escrito.
+          const result = await tx.execute(sql`
+            select id::text as "id",
+                   organization_id::text as "organizationId",
+                   family_id::text as "familyId",
+                   family_payer_id::text as "familyPayerId",
+                   payment_provider_account_id::text as "paymentProviderAccountId",
+                   status::text as "status"
+              from zaltyko.family_payment_authorizations
+             where organization_id = ${input.organizationId}::uuid
+               and id = ${input.authorizationId}::uuid
+             for share
+          `);
+          const row = result.rows[0] as Record<string, unknown> | undefined;
+          authorization = row
+            ? {
+                id: String(row.id),
+                organizationId: String(row.organizationId),
+                familyId: String(row.familyId),
+                familyPayerId: String(row.familyPayerId),
+                paymentProviderAccountId: String(row.paymentProviderAccountId),
+                status: String(row.status),
+              }
+            : null;
+        }
+
+        const decision = decide({ invoice: found.invoice, charges, history, authorization });
+        if (decision.action === "skip") return { outcome: "skipped", reason: decision.reason } as const;
+
+        const invoice = found.invoice;
+        const canceled = decision.action === "canceled";
+        const inserted = await tx.execute(sql`
+          insert into zaltyko.family_collection_attempts (
+            organization_id, location_id, invoice_id, family_id, family_payer_id, authorization_id,
+            payment_provider_account_id, attempt_number, payment_method_kind, amount_cents, currency,
+            status, failure_code, claimed_at, completed_at, created_at, updated_at
+          ) values (
+            ${invoice.organizationId}::uuid,
+            ${invoice.locationId}::uuid,
+            ${invoice.id}::uuid,
+            ${invoice.familyId}::uuid,
+            ${invoice.familyPayerId}::uuid,
+            ${input.authorizationId}::uuid,
+            ${input.paymentProviderAccountId}::uuid,
+            ${decision.attemptNumber},
+            ${input.paymentMethodKind},
+            ${decision.amountCents},
+            ${invoice.currency},
+            ${decision.action},
+            ${canceled ? (decision.reason ?? null) : null},
+            ${input.now.toISOString()}::timestamptz,
+            ${canceled ? input.now.toISOString() : null}::timestamptz,
+            ${input.now.toISOString()}::timestamptz,
+            ${input.now.toISOString()}::timestamptz
+          )
+          on conflict do nothing
+          returning ${attemptColumns}
+        `);
+        const row = inserted.rows[0] as Record<string, unknown> | undefined;
+        // Otro proceso ya tiene un intento abierto (índice parcial) o ese número.
+        if (!row) return { outcome: "skipped", reason: "concurrent" } as const;
+        const attempt = toAttempt(row);
+
+        for (const allocation of decision.allocations) {
+          await tx.execute(sql`
+            insert into zaltyko.family_collection_attempt_charges (attempt_id, organization_id, charge_id, amount_cents)
+            values (${attempt.id}::uuid, ${attempt.organizationId}::uuid, ${allocation.chargeId}::uuid, ${allocation.amountCents})
+          `);
+        }
+
+        if (canceled) {
+          await recordTransition(tx, attempt, {
+            event: "attempt_canceled",
+            payload: { attemptNumber: attempt.attemptNumber, reason: decision.reason ?? null },
+            now: input.now,
+            audit: true,
+          });
+          return { outcome: "canceled", attempt } as const;
+        }
+        await recordTransition(tx, attempt, {
+          event: "attempt_claimed",
+          payload: {
+            attemptNumber: attempt.attemptNumber,
+            amountCents: attempt.amountCents,
+            currency: attempt.currency,
+            paymentMethodKind: attempt.paymentMethodKind,
+            chargeIds: decision.allocations.map((allocation) => allocation.chargeId),
+          },
+          now: input.now,
+          audit: true,
+        });
+        return { outcome: "claimed", attempt, allocations: decision.allocations } as const;
+      });
+    },
+
+    async markCreated(input) {
+      return db.transaction(async (tx) => {
+        const attempt = await lockOpenAttempt(tx, input.organizationId, input.attemptId);
+        if (!attempt || attempt.status !== "claimed") return false;
+        await tx.execute(sql`
+          update zaltyko.family_collection_attempts
+             set status = 'created',
+                 provider_payment_intent_reference = ${input.paymentIntentId},
+                 updated_at = ${input.now.toISOString()}::timestamptz
+           where organization_id = ${input.organizationId}::uuid
+             and id = ${input.attemptId}::uuid
+             and status = 'claimed'
+        `);
+        return true;
+      });
+    },
+
+    async applyOutcome(input) {
+      return db.transaction(async (tx): Promise<ApplyOutcomeResult> => {
+        const attempt = await lockOpenAttempt(tx, input.organizationId, input.attemptId);
+        if (!attempt) return { applied: false };
+        const outcome = input.outcome;
+        const intent = outcome.paymentIntentId;
+        // Un intento nunca cambia de cobro: si ya tiene uno, tiene que ser este.
+        if (intent !== null && attempt.paymentIntentId !== null && attempt.paymentIntentId !== intent) {
+          throw new Error("FAMILY_COLLECTION_INTENT_MISMATCH");
+        }
+        const now = input.now.toISOString();
+
+        if (outcome.kind === "succeeded") {
+          // Paso 1: el pago queda registrado (no puede fallar por saldos).
+          const { payment } = await recordProviderCollectionPayment(tx, {
+            organizationId: attempt.organizationId,
+            attemptId: attempt.id,
+            invoiceId: attempt.invoiceId,
+            paymentIntentId: outcome.paymentIntentId,
+            amountCents: attempt.amountCents,
+            environment: input.environment,
+            receivedAt: input.now,
+          });
+          // El mismo cobro de Stripe ya estaba registrado para otro intento:
+          // ese pago no es de este intento. Nunca se da por cobrado ni por
+          // fallido; se queda como está y la academia lo revisa.
+          if (payment.idempotencyKey !== `family-collection:${attempt.id}:${outcome.paymentIntentId}`) {
+            await recordTransition(tx, attempt, {
+              event: "needs_review",
+              payload: { reason: "payment_recorded_for_other_attempt", paymentId: payment.id },
+              now: input.now,
+            });
+            return { applied: false, review: "payment_recorded_for_other_attempt" };
+          }
+
+          // Paso 2: el reparto entre cuotas, en un punto de guardado. Si algo
+          // inesperado lo rompe, se deshace solo el reparto: el pago sigue
+          // registrado y la academia recibe el aviso para revisarlo.
+          const allocations = await readAllocations(tx, attempt);
+          let allocation: { status: ProviderCollectionAllocationResult["status"]; reviewReasons: string[] };
+          if (allocations.length === 0) {
+            allocation = { status: "needs_review", reviewReasons: ["charge_mismatch"] };
+          } else {
+            try {
+              allocation = await tx.transaction((savepoint) =>
+                allocateProviderCollectionPayment(savepoint, {
+                  organizationId: attempt.organizationId,
+                  attemptId: attempt.id,
+                  invoiceId: attempt.invoiceId,
+                  paymentId: payment.id,
+                  allocations,
+                  allocatedAt: input.now,
+                })
+              );
+            } catch {
+              allocation = { status: "needs_review", reviewReasons: ["allocation_error"] };
+            }
+          }
+          // Paso 3: el intento, ya con su pago y el estado del reparto.
+          await tx.execute(sql`
+            update zaltyko.family_collection_attempts
+               set status = 'succeeded',
+                   provider_payment_intent_reference = ${outcome.paymentIntentId},
+                   payment_id = ${payment.id}::uuid,
+                   allocation_status = ${allocation.status},
+                   failure_code = null,
+                   decline_code = null,
+                   next_retry_at = null,
+                   completed_at = ${now}::timestamptz,
+                   updated_at = ${now}::timestamptz
+             where organization_id = ${attempt.organizationId}::uuid
+               and id = ${attempt.id}::uuid
+          `);
+          await recordTransition(tx, attempt, {
+            event: "attempt_succeeded",
+            payload: { paymentId: payment.id, amountCents: attempt.amountCents, allocationStatus: allocation.status },
+            now: input.now,
+            audit: true,
+          });
+          if (allocation.status === "needs_review") {
+            await recordTransition(tx, attempt, {
+              event: "needs_review",
+              payload: { reason: "allocation", reviewReasons: allocation.reviewReasons, paymentId: payment.id },
+              now: input.now,
+            });
+          }
+          return {
+            applied: true,
+            status: "succeeded",
+            allocationStatus: allocation.status,
+            reviewReasons: allocation.reviewReasons,
+          };
+        }
+
+        if (outcome.kind === "processing") {
+          await tx.execute(sql`
+            update zaltyko.family_collection_attempts
+               set status = 'processing',
+                   provider_payment_intent_reference = ${outcome.paymentIntentId},
+                   updated_at = ${now}::timestamptz
+             where organization_id = ${attempt.organizationId}::uuid
+               and id = ${attempt.id}::uuid
+          `);
+          await recordTransition(tx, attempt, { event: "attempt_processing", payload: {}, now: input.now, audit: true });
+          return { applied: true, status: "processing", allocationStatus: null, reviewReasons: [] };
+        }
+
+        if (outcome.kind === "failed") {
+          await tx.execute(sql`
+            update zaltyko.family_collection_attempts
+               set status = 'failed',
+                   provider_payment_intent_reference = coalesce(provider_payment_intent_reference, ${intent}),
+                   failure_code = ${storedCode(outcome.code)},
+                   decline_code = ${outcome.declineCode === null ? null : storedCode(outcome.declineCode)},
+                   next_retry_at = ${outcome.nextRetryAt ? outcome.nextRetryAt.toISOString() : null}::timestamptz,
+                   completed_at = ${now}::timestamptz,
+                   updated_at = ${now}::timestamptz
+             where organization_id = ${attempt.organizationId}::uuid
+               and id = ${attempt.id}::uuid
+          `);
+          await recordTransition(tx, attempt, {
+            event: "attempt_failed",
+            payload: {
+              code: outcome.code,
+              declineCode: outcome.declineCode,
+              retryScheduled: outcome.nextRetryAt !== null,
+            },
+            now: input.now,
+            audit: true,
+          });
+          if (outcome.nextRetryAt === null) {
+            // Sin reintento: la cuota vuelve a manual y a los recordatorios.
+            await recordTransition(tx, attempt, {
+              event: "final_failure",
+              payload: { code: outcome.code, declineCode: outcome.declineCode },
+              now: input.now,
+            });
+          }
+          return { applied: true, status: "failed", allocationStatus: null, reviewReasons: [] };
+        }
+
+        await tx.execute(sql`
+          update zaltyko.family_collection_attempts
+             set status = 'canceled',
+                 provider_payment_intent_reference = coalesce(provider_payment_intent_reference, ${intent}),
+                 failure_code = ${outcome.reason},
+                 decline_code = null,
+                 next_retry_at = null,
+                 completed_at = ${now}::timestamptz,
+                 updated_at = ${now}::timestamptz
+           where organization_id = ${attempt.organizationId}::uuid
+             and id = ${attempt.id}::uuid
+        `);
+        await recordTransition(tx, attempt, {
+          event: "attempt_canceled",
+          payload: { attemptNumber: attempt.attemptNumber, reason: outcome.reason },
+          now: input.now,
+          audit: true,
+        });
+        return { applied: true, status: "canceled", allocationStatus: null, reviewReasons: [] };
+      });
+    },
+
+    async claimResumable(input) {
+      // Una sola sentencia: toma y cuenta la reanudación a la vez; dos
+      // procesos nunca toman el mismo intento (skip locked).
+      const result = await db.execute(sql`
+        update zaltyko.family_collection_attempts
+           set resume_count = resume_count + 1,
+               updated_at = ${input.now.toISOString()}::timestamptz
+         where id in (
+           select id
+             from zaltyko.family_collection_attempts
+            where status in ('claimed', 'created')
+              and claimed_at < ${input.staleBefore.toISOString()}::timestamptz
+              and resume_count < 3
+              and (${input.after}::uuid is null or id > ${input.after}::uuid)
+            order by id
+            limit ${input.limit}
+            for update skip locked
+         )
+           and status in ('claimed', 'created')
+           and resume_count < 3
+        returning ${attemptColumns}
+      `);
+      return (result.rows as Array<Record<string, unknown>>)
+        .map(toAttempt)
+        .sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
+    },
+
+    async listProcessing(input) {
+      const result = await db.execute(sql`
+        select ${attemptColumns}
+          from zaltyko.family_collection_attempts
+         where status = 'processing'
+           and (${input.after}::uuid is null or id > ${input.after}::uuid)
+         order by id
+         limit ${input.limit}
+      `);
+      return (result.rows as Array<Record<string, unknown>>).map(toAttempt);
+    },
+
+    async loadAttemptRefs(attempt) {
+      if (!attempt.paymentProviderAccountId) return null;
+      const result = await db.execute(sql`
+        select acc.provider_account_reference as "connectedAccount",
+               au.payment_method_reference as "paymentMethod",
+               au.mandate_reference as "mandate",
+               l.timezone as "timezone",
+               (
+                 select min(c.service_period_start)::text
+                   from zaltyko.family_collection_attempt_charges ac
+                   join zaltyko.charges c on c.organization_id = ac.organization_id and c.id = ac.charge_id
+                  where ac.organization_id = a.organization_id and ac.attempt_id = a.id
+               ) as "servicePeriodStart",
+               (
+                 select case
+                          when count(*) = 1
+                           and bool_and(s.family_payer_id = au.family_payer_id
+                                        and s.payment_provider_account_id = au.payment_provider_account_id)
+                          then min(s.provider_customer_reference)
+                        end
+                   from zaltyko.family_payment_setup_attempts s
+                  where s.organization_id = a.organization_id
+                    and s.authorization_id = a.authorization_id
+               ) as "customer",
+               (
+                 au.id is null
+                 or (au.family_id = a.family_id
+                     and au.family_payer_id = a.family_payer_id
+                     and au.payment_provider_account_id = a.payment_provider_account_id)
+               ) as "authorizationMatches"
+          from zaltyko.family_collection_attempts a
+          join zaltyko.organization_payment_provider_accounts acc
+            on acc.organization_id = a.organization_id and acc.id = a.payment_provider_account_id
+          join zaltyko.locations l
+            on l.organization_id = a.organization_id and l.id = a.location_id
+          left join zaltyko.family_payment_authorizations au
+            on au.organization_id = a.organization_id and au.id = a.authorization_id
+         where a.organization_id = ${attempt.organizationId}::uuid
+           and a.id = ${attempt.id}::uuid
+         limit 1
+      `);
+      const row = result.rows[0] as Record<string, unknown> | undefined;
+      if (!row) return null;
+      // La autorización del intento debe ser del pagador, la familia y la cuenta
+      // del intento (ninguna clave foránea lo ata): si no, no hay con qué cobrar.
+      const matches = row.authorizationMatches === true;
+      return {
+        connectedAccount: String(row.connectedAccount),
+        customer: matches ? toStringOrNull(row.customer) : null,
+        paymentMethod: matches ? toStringOrNull(row.paymentMethod) : null,
+        mandate: matches ? toStringOrNull(row.mandate) : null,
+        timezone: String(row.timezone),
+        servicePeriodStart: toStringOrNull(row.servicePeriodStart),
+        allocations: await readAllocations(db, attempt),
+      };
+    },
+
+    async recordNotice(input) {
+      return db.transaction(async (tx) => {
+        const eventName = "family_collection.needs_review";
+        const idempotencyKey = `family-collection:${input.attemptId}:needs_review:${input.reason}`;
+        if (await findOutboxEvent(tx, { organizationId: input.organizationId, eventName, idempotencyKey })) {
+          return false;
+        }
+        await appendOutboxEvent(tx, {
+          organizationId: input.organizationId,
+          locationId: input.locationId,
+          eventName,
+          aggregateType: "family_collection_attempt",
+          aggregateId: input.attemptId,
+          idempotencyKey,
+          payload: { attemptId: input.attemptId, invoiceId: input.invoiceId, reason: input.reason },
+          occurredAt: input.now,
+        });
+        return true;
+      });
+    },
+  };
+}

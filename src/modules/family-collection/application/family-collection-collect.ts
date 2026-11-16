@@ -1,0 +1,256 @@
+/**
+ * Cobro automático de cuotas (Fase 3), Fase B del proceso diario: cobrar lo
+ * que vence hoy.
+ *
+ * Por cada factura candidata: recarga sin transacción (cuenta conectada
+ * releída si hace falta), plan del cobro y puerta completa. Un motivo
+ * pasajero no escribe nada (se vuelve a mirar mañana); uno final escribe un
+ * intento `canceled` y la cuota vuelve a manual y a los recordatorios. Si la
+ * puerta deja pasar, se reclama el intento (transacción corta que repite el
+ * plan con los datos bloqueados) y después se crea y confirma en Stripe.
+ */
+import { localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
+import { evaluateFamilyCollectionGate } from "@/modules/family-collection/domain/collection-gate";
+import {
+  advanceAttempt,
+  buildGateInput,
+  countSkip,
+  isExpired,
+  logStepFailure,
+  loadFreshContext,
+  notifyStepError,
+  planFor,
+  type RunState,
+} from "@/modules/family-collection/application/family-collection-steps";
+import type {
+  AttemptHistory,
+  ClaimDecision,
+  CollectionAllocationRow,
+  CollectionAttempt,
+  DueInvoiceRef,
+  LockedInvoiceSnapshot,
+} from "@/modules/family-collection/infrastructure/family-collection-store";
+import { FAMILY_COLLECTION_MAX_ATTEMPTS_PER_INVOICE } from "@/modules/family-collection/infrastructure/family-collection-schema";
+
+/** Margen del filtro grueso de la base; la fecha local exacta la decide el plan. */
+const SELECTION_HORIZON_MS = 2 * 24 * 60 * 60 * 1000;
+
+/**
+ * ¿Impide el historial un intento nuevo hoy? Solo si no hay intento abierto y
+ * el último no es final, o es un fallo con reintento cuya fecha LOCAL ya llegó
+ * (comparar fechas locales evita perder un día en zonas al oeste de UTC).
+ */
+export function historyBlock(history: AttemptHistory, timezone: string, todayLocal: string): string | null {
+  if (history.openExists) return "concurrent";
+  const last = history.last;
+  if (!last) return null;
+  if (last.status === "failed" && last.nextRetryAt) {
+    return localCalendarDate(last.nextRetryAt, timezone) <= todayLocal ? null : "retry_not_due";
+  }
+  return "already_final";
+}
+
+function sameAllocations(left: readonly CollectionAllocationRow[], right: readonly CollectionAllocationRow[]): boolean {
+  if (left.length !== right.length) return false;
+  const byCharge = new Map(right.map((allocation) => [allocation.chargeId, allocation.amountCents]));
+  return left.every((allocation) => byCharge.get(allocation.chargeId) === allocation.amountCents);
+}
+
+/**
+ * Decisión pura dentro de la transacción de reclamar o cancelar: repite el
+ * historial y el plan con los datos bloqueados, y en `claimed` comprueba que
+ * cada cuota es del pagador de la factura y que la autorización sigue activa
+ * y es de ese pagador, esa familia y esa cuenta.
+ */
+export function decideClaim(
+  snapshot: LockedInvoiceSnapshot,
+  expected: {
+    action: "claimed" | "canceled";
+    reason?: string;
+    lastAttemptNumber: number;
+    allocations: readonly CollectionAllocationRow[];
+    todayLocal: string;
+    collectionDayOfMonth: number | null;
+    authorizationId: string | null;
+    paymentProviderAccountId: string | null;
+  }
+): ClaimDecision {
+  const invoice = snapshot.invoice;
+  // Otro proceso escribió un intento entre la lectura y el bloqueo.
+  if ((snapshot.history.last?.attemptNumber ?? 0) !== expected.lastAttemptNumber) {
+    return { action: "skip", reason: "concurrent" };
+  }
+  const blocked = historyBlock(snapshot.history, invoice.timezone, expected.todayLocal);
+  if (blocked) return { action: "skip", reason: blocked };
+  const attemptNumber = expected.lastAttemptNumber + 1;
+  if (attemptNumber > FAMILY_COLLECTION_MAX_ATTEMPTS_PER_INVOICE) {
+    return { action: "skip", reason: "attempts_exhausted" };
+  }
+  const plan = planFor(invoice, snapshot.charges, expected.todayLocal, expected.collectionDayOfMonth);
+  if (!plan.collect) return { action: "skip", reason: plan.reason };
+  if (!sameAllocations(plan.allocations, expected.allocations)) return { action: "skip", reason: "plan_changed" };
+
+  if (expected.action === "claimed") {
+    const charges = new Map(snapshot.charges.map((charge) => [charge.id, charge]));
+    const foreign = plan.allocations.some((allocation) => {
+      const charge = charges.get(allocation.chargeId);
+      return (
+        !charge ||
+        charge.invoiceId !== invoice.id ||
+        charge.organizationId !== invoice.organizationId ||
+        charge.familyId !== invoice.familyId ||
+        charge.familyPayerId === null ||
+        charge.familyPayerId !== invoice.familyPayerId
+      );
+    });
+    if (foreign) return { action: "skip", reason: "plan_changed" };
+    const authorization = snapshot.authorization;
+    if (
+      !authorization ||
+      authorization.id !== expected.authorizationId ||
+      authorization.status !== "active" ||
+      authorization.organizationId !== invoice.organizationId ||
+      authorization.familyId !== invoice.familyId ||
+      authorization.familyPayerId !== invoice.familyPayerId ||
+      authorization.paymentProviderAccountId !== expected.paymentProviderAccountId
+    ) {
+      return { action: "skip", reason: "authorization_changed" };
+    }
+  }
+  return {
+    action: expected.action,
+    attemptNumber,
+    amountCents: plan.amountCents,
+    allocations: plan.allocations,
+    ...(expected.action === "canceled" ? { reason: expected.reason } : {}),
+  };
+}
+
+async function collectInvoice(state: RunState, ref: DueInvoiceRef): Promise<void> {
+  const context = await loadFreshContext(state, ref.organizationId, ref.invoiceId);
+  if (!context) {
+    countSkip(state, "invoice_missing");
+    return;
+  }
+  const invoice = context.invoice;
+  const todayLocal = localCalendarDate(state.now, invoice.timezone);
+  const blocked = historyBlock(context.history, invoice.timezone, todayLocal);
+  if (blocked) {
+    countSkip(state, blocked);
+    return;
+  }
+  const plan = planFor(invoice, context.charges, todayLocal, context.collectionDayOfMonth);
+  if (!plan.collect) {
+    countSkip(state, plan.reason);
+    return;
+  }
+
+  const allocations = plan.allocations;
+  // La puerta corta antes de reclamar nada.
+  const planned = new Set(allocations.map((allocation) => allocation.chargeId));
+  const gate = evaluateFamilyCollectionGate(
+    buildGateInput(
+      state,
+      context,
+      context.charges.filter((charge) => planned.has(charge.id)),
+      todayLocal
+    )
+  );
+  if (!gate.allowed && gate.classification === "transient") {
+    countSkip(state, gate.reason);
+    return;
+  }
+
+  const claim = gate.allowed
+    ? {
+        action: "claimed" as const,
+        authorizationId: context.authorization?.id ?? null,
+        paymentProviderAccountId: context.account?.id ?? null,
+        paymentMethodKind: gate.paymentMethodKind,
+      }
+    : {
+        action: "canceled" as const,
+        reason: gate.reason,
+        authorizationId: null,
+        paymentProviderAccountId: null,
+        paymentMethodKind: null,
+      };
+  const result = await state.store.claimOrCancel(
+    {
+      organizationId: invoice.organizationId,
+      invoiceId: invoice.id,
+      authorizationId: claim.authorizationId,
+      paymentProviderAccountId: claim.paymentProviderAccountId,
+      paymentMethodKind: claim.paymentMethodKind,
+      now: state.now,
+    },
+    (snapshot) =>
+      decideClaim(snapshot, {
+        action: claim.action,
+        reason: claim.action === "canceled" ? claim.reason : undefined,
+        lastAttemptNumber: context.history.last?.attemptNumber ?? 0,
+        allocations,
+        todayLocal,
+        collectionDayOfMonth: context.collectionDayOfMonth,
+        authorizationId: claim.authorizationId,
+        paymentProviderAccountId: claim.paymentProviderAccountId,
+      })
+  );
+
+  if (result.outcome === "skipped") {
+    countSkip(state, result.reason);
+    return;
+  }
+  if (result.outcome === "canceled") {
+    state.result.canceled += 1;
+    return;
+  }
+  if (result.attempt.attemptNumber > 1) state.result.retried += 1;
+  await advanceClaimed(state, result.attempt);
+}
+
+async function advanceClaimed(state: RunState, attempt: CollectionAttempt): Promise<void> {
+  try {
+    await advanceAttempt(state, attempt, { phase: "collect" });
+  } catch (error) {
+    // El intento se queda reclamado o creado: lo reanuda la Fase A otro día.
+    logStepFailure("Cobro automático: falló un paso del cobro", error, {
+      organizationId: attempt.organizationId,
+      invoiceId: attempt.invoiceId,
+      attemptId: attempt.id,
+    });
+    countSkip(state, "error");
+    await notifyStepError(state, attempt, error).catch(() => undefined);
+  }
+}
+
+/** Recorre las facturas candidatas por orden de id hasta acabar o agotar el plazo. */
+export async function collectDueInvoices(state: RunState): Promise<void> {
+  const horizon = new Date(state.now.getTime() + SELECTION_HORIZON_MS);
+  let cursor: string | null = null;
+  for (;;) {
+    if (isExpired(state)) {
+      state.result.complete = false;
+      return;
+    }
+    const page = await state.store.listDueInvoices({ after: cursor, limit: state.batchSize, horizon });
+    for (const ref of page) {
+      if (isExpired(state)) {
+        state.result.complete = false;
+        return;
+      }
+      cursor = ref.invoiceId;
+      try {
+        await collectInvoice(state, ref);
+      } catch (error) {
+        // Una factura con problemas no frena a las demás.
+        logStepFailure("Cobro automático: falló el cobro de una factura", error, {
+          organizationId: ref.organizationId,
+          invoiceId: ref.invoiceId,
+        });
+        countSkip(state, "error");
+      }
+    }
+    if (page.length < state.batchSize) return;
+  }
+}
