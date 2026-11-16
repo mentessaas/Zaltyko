@@ -1,5 +1,14 @@
 # Cierre de la superficie antigua pública (P0 #1) — 2026-11-09
 
+> **Aviso (16-11-2026).** Superado en parte por ADR-0028
+> (`docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md`). La
+> línea roja «sin Connect, sin cobrar a familias a través de Zaltyko» se levantó
+> solo para las cuotas de la academia, cobradas en su propia cuenta de Stripe con
+> el módulo nuevo `src/modules/payments-connect`. Las API retiradas de este
+> documento siguen respondiendo 410 y la lista `RETIRED_LAUNCH_API_PREFIXES` no
+> cambia; solo se actualizó su comentario. El resto de este documento es la
+> evidencia del 9-11-2026 y no se reescribe.
+
 Base: `f8186491` (head de la PR 234). Rama `claude/legacy-surface-closure-20261109`. Punto 1 del P0 de `auditorias/2026-11-08/plan-mejora-zaltyko.md`.
 
 ## Hallazgos

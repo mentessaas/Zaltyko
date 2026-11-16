@@ -204,7 +204,8 @@ como candidatas, con autorización por entorno.
      `last_provider_event_reference`).
 4. Mapa de estados. El estado de la cuenta depende solo de la tarjeta; SEPA
    se sigue en su propia columna.
-   - `pending`: fila creada, sin enlace usado.
+   - `pending` (valor del enum de base): no se usa. La fila nace en
+     `onboarding` al crear la cuenta, antes de usar el enlace.
    - `onboarding`: faltan requisitos (*currently due*) y aún no tiene
      requisitos vencidos.
    - `restricted`: tiene requisitos vencidos, o `card_payments` no está
