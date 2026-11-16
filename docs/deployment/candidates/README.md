@@ -712,6 +712,52 @@ flujo: `docs/producto/recordatorios-de-impago.md`.
 - **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 
+## Candidata de Conectar Stripe (cobro automático, Fase 1)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261116120000_connect_onboarding_candidate.sql` | `e07a8129b2e935ede4b0755e33b731a6613c76b2ac8e616f239949665735eb0a` | No aplicada | No aplicada |
+
+Añade dos columnas a `zaltyko.organization_payment_provider_accounts`, sin
+crear tablas ni tocar permisos (la tabla ya es solo de `service_role`, con RLS
+`ENABLE` y `FORCE`). Decisión: `docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md`.
+
+- `sepa_debit_payments_capability_status text not null default 'pending'`,
+  con `btrim(...) <> ''`. Informativa en la Fase 1: el estado de la cuenta
+  depende solo de la tarjeta.
+- `requirements_state text not null default 'user_action'`, con check
+  `in ('none', 'user_action', 'stripe_review', 'past_due')`. Solo un código,
+  nunca datos personales ni la lista de requisitos de Stripe.
+- El preflight aborta si falta la tabla o si ya existe alguna de las dos
+  columnas: reinstalar no toca nada.
+- Espejo Drizzle en `src/db/schema/zaltyko-core.ts` (la tabla ya está en
+  `supabase/migrations`, así que `validate:rls` no cambia). Hasta aplicarla,
+  ningún código debe leer o insertar en la tabla con Drizzle sin columnas
+  explícitas: las dos columnas no existen en la base.
+- Bandera apagada por defecto: `ZALTYKO_CONNECT_ONBOARDING_ENABLED`. Mientras
+  las columnas no existan, `isConnectOnboardingStorageAvailable()`
+  (`src/modules/payments-connect/application/storage.ts`, solo lee
+  `information_schema.columns`) devuelve `false` y la función responde «no
+  disponible» (`connect_onboarding_unavailable`).
+- Pruebas: `tests/payments-connect-pg.test.ts`, en el job «Postgres
+  integration». Instala la candidata solo en el PostgreSQL desechable de
+  GitHub y retira las dos columnas al terminar.
+- **Rollback.** Apagar antes `ZALTYKO_CONNECT_ONBOARDING_ENABLED`. Borrar las
+  columnas descarta el estado SEPA y de requisitos sincronizado; se recupera
+  volviendo a leer las cuentas en Stripe.
+
+  ```sql
+  begin;
+  alter table zaltyko.organization_payment_provider_accounts
+    drop column if exists sepa_debit_payments_capability_status,
+    drop column if exists requirements_state;
+  commit;
+  ```
+
+- **Requiere autorización de Elvis para aplicarse**, primero en staging y
+  luego en producción. No se ha aplicado en ningún entorno. La CI verde no
+  equivale a autorización.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.
