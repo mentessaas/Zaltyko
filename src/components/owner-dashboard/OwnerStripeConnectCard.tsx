@@ -204,8 +204,9 @@ function CardBody({
           </div>
           <div>
             <a href={STRIPE_DASHBOARD_URL} target="_blank" rel="noopener noreferrer" className={ownerUi.secondaryButton}>
-              Abrir mi panel de Stripe
-              <span className="sr-only"> (se abre en otra pestaña)</span>
+              Abrir mi panel de Stripe{" "}
+              {/* El espacio va fuera del span: el nombre accesible recorta el texto de cada elemento hijo. */}
+              <span className="sr-only">(se abre en otra pestaña)</span>
             </a>
           </div>
           <p className={ownerUi.help}>El cobro automático de cuotas a las familias llegará en una próxima actualización.</p>
