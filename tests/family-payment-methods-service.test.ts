@@ -209,6 +209,7 @@ function snapshot(overrides: Partial<SetupIntentSnapshot> = {}): SetupIntentSnap
     paymentMethodType: "card",
     mandate: null,
     metadataAttemptId: attemptId,
+    hasLastSetupError: false,
     ...overrides,
   };
 }
@@ -627,6 +628,18 @@ describe("servicio de pago automático de la familia", () => {
       });
       expect(markSetupAttemptAbandoned).toHaveBeenCalledWith(expect.anything(), { organizationId, attemptId, now });
       expect(db.transaction).not.toHaveBeenCalled();
+    });
+
+    it("3DS fallido (pide método otra vez con error) marca el intento abandonado y responde 409", async () => {
+      const gateway = fakeGateway(
+        snapshot({ status: "requires_payment_method", paymentMethod: null, paymentMethodType: null, hasLastSetupError: true })
+      );
+      await expect(completeFamilyPaymentSetup(completeInput, { gateway })).rejects.toMatchObject({
+        code: "FAMILY_PAYMENT_SETUP_FAILED",
+        status: 409,
+      });
+      expect(markSetupAttemptAbandoned).toHaveBeenCalledWith(expect.anything(), { organizationId, attemptId, now });
+      expect(insertActiveAuthorization).not.toHaveBeenCalled();
     });
 
     it("si la academia deja de estar lista antes de completar: 503 sin Stripe ni escrituras", async () => {

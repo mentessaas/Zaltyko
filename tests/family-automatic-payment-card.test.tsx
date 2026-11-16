@@ -39,7 +39,8 @@ const CARD_TEXT = "Autorizo a Club Sintético a cobrar automáticamente en esta 
 const SEPA_TEXT = "Autorizo a Club Sintético a cobrar automáticamente por domiciliación (texto sintético).";
 const INTRO =
   "Guarda una tarjeta o domicilia el pago para que las cuotas se cobren solas. Todavía no se cobrará nada.";
-const PENDING = "Tu banco todavía lo está confirmando. Vuelve a mirar en unos minutos.";
+const PENDING =
+  "Tu banco todavía lo está confirmando. Si en unos minutos no aparece como guardado, vuelve a guardarlo.";
 
 type Kind = "card" | "sepa_debit";
 type Call = { url: string; body: Record<string, unknown> };
@@ -405,6 +406,57 @@ describe("FamilyAutomaticPaymentCard", () => {
     expect(window.location.pathname).toBe("/familia/cuotas");
     expect(window.location.search).toBe("");
     expect(document.body.innerHTML).not.toContain("seti_3Vuelta_secret_x");
+  });
+
+  it("a la vuelta del banco con la confirmación rechazada lo dice y no comprueba", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      `/familia/cuotas?pago=vuelta&organizationId=${ORGANIZATION_ID}&familyId=${FAMILY_ID}` +
+        "&setup_intent=seti_5Rechazo&setup_intent_client_secret=seti_5Rechazo_secret_x&redirect_status=failed"
+    );
+    stubFetch(() => success({ outcome: "pending" }));
+    render(
+      <StrictMode>
+        <FamilyAutomaticPaymentCard
+          organizationId={ORGANIZATION_ID}
+          familyId={FAMILY_ID}
+          timezone="Europe/Madrid"
+          state={noneState()}
+        />
+      </StrictMode>
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Tu banco no ha aceptado este método de pago. Prueba con otro o habla con tu banco."
+    );
+    expect(screen.queryByText(PENDING)).toBeNull();
+    expect(calls).toHaveLength(0);
+    expect(window.location.search).toBe("");
+    expect(document.body.innerHTML).not.toContain("seti_5Rechazo");
+    // Puede volver a intentarlo desde la propia tarjeta.
+    expect(screen.getByRole("button", { name: "Continuar" })).toBeDisabled();
+  });
+
+  it("si Stripe.js no carga, lo dice y no deja el formulario a medias", async () => {
+    stripeMock.loadStripe.mockImplementation(() => Promise.resolve(null));
+    stubFetch(() => success({ clientSecret: CLIENT_SECRET, connectedAccount: "acct_sinStripeJs" }));
+    renderCard(noneState());
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Acepto" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("El pago automático no está disponible ahora mismo.");
+    expect(screen.queryByTestId("payment-element")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Guardar" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Continuar" })).toBeEnabled();
+    expect(document.body.innerHTML).not.toContain(CLIENT_SECRET);
+
+    // El siguiente intento vuelve a probar a cargar Stripe.js.
+    stripeMock.loadStripe.mockImplementation(() => Promise.resolve({}));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(await screen.findByTestId("payment-element")).toBeInTheDocument();
+    expect(stripeMock.loadStripe).toHaveBeenCalledTimes(2);
   });
 
   it("la vuelta de otra familia no la toca", async () => {

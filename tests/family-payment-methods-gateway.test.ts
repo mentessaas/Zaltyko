@@ -226,6 +226,7 @@ describe("createStripeFamilyGateway", () => {
         paymentMethodType: "sepa_debit",
         mandate: mandateId,
         metadataAttemptId: attemptId,
+        hasLastSetupError: false,
       });
       // Nada del método salvo el tipo: ni dígitos, ni banco, ni titular, ni correo.
       const serialized = JSON.stringify(snapshot);
@@ -288,7 +289,45 @@ describe("createStripeFamilyGateway", () => {
         paymentMethodType: null,
         mandate: null,
         metadataAttemptId: null,
+        hasLastSetupError: false,
       });
+    });
+
+    it("con error del último intento solo dice que lo hay, sin copiar códigos ni mensajes", async () => {
+      const stripe = fakeStripe();
+      stripe.setupIntentsRetrieve.mockResolvedValue(
+        setupIntent({
+          status: "requires_payment_method",
+          payment_method: null,
+          mandate: null,
+          last_setup_error: {
+            type: "card_error",
+            code: "setup_intent_authentication_failure",
+            decline_code: "generic_decline",
+            message: "Mensaje sintético del banco",
+          },
+        })
+      );
+      const gateway = createStripeFamilyGateway(stripe.client);
+
+      const snapshot = await gateway.retrieveSetupIntent({ connectedAccount, setupIntentId });
+
+      expect(snapshot.status).toBe("requires_payment_method");
+      expect(snapshot.hasLastSetupError).toBe(true);
+      const serialized = JSON.stringify(snapshot);
+      for (const leaked of ["setup_intent_authentication_failure", "generic_decline", "Mensaje sintético", "card_error"]) {
+        expect(serialized).not.toContain(leaked);
+      }
+    });
+
+    it("last_setup_error null cuenta como sin error", async () => {
+      const stripe = fakeStripe();
+      stripe.setupIntentsRetrieve.mockResolvedValue(setupIntent({ last_setup_error: null }));
+      const gateway = createStripeFamilyGateway(stripe.client);
+
+      const snapshot = await gateway.retrieveSetupIntent({ connectedAccount, setupIntentId });
+
+      expect(snapshot.hasLastSetupError).toBe(false);
     });
 
     it("metadata null también da metadataAttemptId null", async () => {

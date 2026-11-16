@@ -421,6 +421,7 @@ describeDisposablePg("servicio de pago automático en Postgres desechable", () =
           paymentMethodType: setup.kind,
           mandate: setup.kind === "sepa_debit" ? `mandate_${suffix}` : null,
           metadataAttemptId: setup.attemptId,
+          hasLastSetupError: false,
         };
       }),
       detachPaymentMethod: vi.fn(async (): Promise<void> => undefined),

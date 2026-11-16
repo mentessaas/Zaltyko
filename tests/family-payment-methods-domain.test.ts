@@ -438,6 +438,7 @@ function cardIntent(overrides: Partial<SetupIntentSnapshot> = {}): SetupIntentSn
     paymentMethodType: "card",
     mandate: null,
     metadataAttemptId: "20000000-0000-4000-8000-000000000001",
+    hasLastSetupError: false,
     ...overrides,
   };
 }
@@ -490,6 +491,28 @@ describe("verifyCompletedSetupIntent", () => {
     expect(
       verifyCompletedSetupIntent(expectedCard, cardIntent({ status: "canceled" }))
     ).toEqual({ outcome: "failed" });
+  });
+
+  it("requires_payment_method con error del último intento (3DS o banco que rechaza) → failed", () => {
+    expect(
+      verifyCompletedSetupIntent(
+        expectedCard,
+        cardIntent({ status: "requires_payment_method", paymentMethod: null, paymentMethodType: null, hasLastSetupError: true })
+      )
+    ).toEqual({ outcome: "failed" });
+  });
+
+  it("el error del último intento no cambia nada en otros estados", () => {
+    expect(
+      verifyCompletedSetupIntent(expectedSepa, sepaIntent({ status: "processing", mandate: null, hasLastSetupError: true }))
+    ).toEqual({ outcome: "pending" });
+    // Una preparación ajena sigue siendo mismatch aunque tenga error.
+    expect(
+      verifyCompletedSetupIntent(
+        expectedCard,
+        cardIntent({ status: "requires_payment_method", customer: "cus_other", hasLastSetupError: true })
+      )
+    ).toEqual({ outcome: "mismatch" });
   });
 
   describe("mismatch", () => {

@@ -102,6 +102,8 @@ function toSnapshot(setupIntent: Stripe.SetupIntent): SetupIntentSnapshot {
     paymentMethodType: paymentMethodTypeOf(setupIntent.payment_method),
     mandate: idOf(setupIntent.mandate),
     metadataAttemptId: typeof attemptId === "string" && attemptId.length > 0 ? attemptId : null,
+    // Solo si hay error; su contenido (códigos y mensajes del banco) no sale.
+    hasLastSetupError: setupIntent.last_setup_error != null,
   };
 }
 

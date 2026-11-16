@@ -17,6 +17,11 @@ export interface SetupIntentSnapshot {
   mandate: string | null;
   /** metadata.zaltyko_setup_attempt_id del SetupIntent. */
   metadataAttemptId: string | null;
+  /**
+   * Stripe guarda un error del último intento (por ejemplo, el banco rechazó
+   * la confirmación 3DS). Solo si existe; nunca su contenido.
+   */
+  hasLastSetupError: boolean;
 }
 
 export type SetupVerificationOutcome =
@@ -51,9 +56,14 @@ export function verifyCompletedSetupIntent(
     };
   }
   if (setupIntent.status === "canceled") return { outcome: "failed" };
+  // Vuelve a pedir método porque el último intento falló (3DS o banco que
+  // rechaza): no es «pendiente», la familia tiene que volver a guardarlo.
+  if (setupIntent.status === "requires_payment_method" && setupIntent.hasLastSetupError) {
+    return { outcome: "failed" };
+  }
   // processing, requires_action, requires_confirmation y
-  // requires_payment_method: Stripe todavía espera al banco, al 3DS o a la
-  // familia. Un estado nuevo que no conocemos se trata igual: no se escribe
-  // nada y la familia puede volver a intentarlo.
+  // requires_payment_method sin error: Stripe todavía espera al banco, al 3DS
+  // o a la familia. Un estado nuevo que no conocemos se trata igual: no se
+  // escribe nada y la familia puede volver a intentarlo.
   return { outcome: "pending" };
 }

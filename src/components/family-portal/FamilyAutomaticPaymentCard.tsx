@@ -38,7 +38,8 @@ const TEXT = {
   intro:
     "Guarda una tarjeta o domicilia el pago para que las cuotas se cobren solas. Todavía no se cobrará nada.",
   unavailable: "El pago automático no está disponible ahora mismo",
-  pending: "Tu banco todavía lo está confirmando. Vuelve a mirar en unos minutos.",
+  pending:
+    "Tu banco todavía lo está confirmando. Si en unos minutos no aparece como guardado, vuelve a guardarlo.",
   checking: "Estamos comprobando el método de pago…",
   revoked: "Ya no pagas automáticamente.",
   revokeQuestion:
@@ -143,10 +144,13 @@ function stripeForAccount(publishableKey: string, stripeAccount: string): Promis
   const key = `${publishableKey}:${stripeAccount}`;
   let promise = stripePromises.get(key);
   if (!promise) {
-    promise = loadStripe(publishableKey, { stripeAccount }).catch(() => {
-      stripePromises.delete(key);
-      return null;
-    });
+    promise = loadStripe(publishableKey, { stripeAccount })
+      .catch(() => null)
+      .then((stripe) => {
+        // Si no cargó, el siguiente intento vuelve a probar.
+        if (!stripe) stripePromises.delete(key);
+        return stripe;
+      });
     stripePromises.set(key, promise);
   }
   return promise;
@@ -157,20 +161,28 @@ function returnUrlFor(organizationId: string, familyId: string): string {
   return `${window.location.origin}${RETURN_PATH}?${query.toString()}`;
 }
 
+type ReturnVisit = { setupIntentId: string | null; failed: boolean };
+
 /**
  * Vuelta de la confirmación del banco: si la dirección es de esta academia y
- * esta familia, devuelve la referencia y limpia la dirección (una sola vez).
+ * esta familia, devuelve la referencia y si el banco la rechazó
+ * (`redirect_status=failed`), y limpia la dirección (una sola vez).
  */
-function takeReturnSetupIntent(organizationId: string, familyId: string): string | null {
+function takeReturnVisit(organizationId: string, familyId: string): ReturnVisit | null {
   if (typeof window === "undefined") return null;
   const url = new URL(window.location.href);
   const params = url.searchParams;
   if (params.get("pago") !== "vuelta") return null;
   if (params.get("organizationId") !== organizationId || params.get("familyId") !== familyId) return null;
   const setupIntentId = params.get("setup_intent");
+  // Se lee antes de limpiar la dirección.
+  const failed = params.get("redirect_status") === "failed";
   for (const name of RETURN_PARAMS) params.delete(name);
   window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
-  return setupIntentId && /^seti_[A-Za-z0-9]+$/.test(setupIntentId) ? setupIntentId : null;
+  return {
+    setupIntentId: setupIntentId && /^seti_[A-Za-z0-9]+$/.test(setupIntentId) ? setupIntentId : null,
+    failed,
+  };
 }
 
 type Mode = "idle" | "choose" | "form" | "checking" | "pending";
@@ -237,10 +249,15 @@ export function FamilyAutomaticPaymentCard({
 
   useEffect(() => {
     if (returnHandled.current) return;
-    const setupIntentId = takeReturnSetupIntent(organizationId, familyId);
-    if (!setupIntentId) return;
+    const visit = takeReturnVisit(organizationId, familyId);
+    if (!visit) return;
     returnHandled.current = true;
-    void complete(setupIntentId);
+    // El banco no aceptó la confirmación: no es «pendiente» y no se comprueba.
+    if (visit.failed) {
+      setError(TEXT.bankRejected);
+      return;
+    }
+    if (visit.setupIntentId) void complete(visit.setupIntentId);
   }, [organizationId, familyId, complete]);
 
   async function startSetup(kind: PaymentMethodKind) {
@@ -257,9 +274,12 @@ export function FamilyAutomaticPaymentCard({
       consentVersion,
       consentAccepted: true,
     });
-    busyRef.current = false;
-    setBusy(false);
+    const done = () => {
+      busyRef.current = false;
+      setBusy(false);
+    };
     if (!result.ok) {
+      done();
       setError(failureMessage(result, "save"));
       return;
     }
@@ -270,7 +290,15 @@ export function FamilyAutomaticPaymentCard({
       typeof connectedAccount !== "string" ||
       !connectedAccount.startsWith("acct_")
     ) {
+      done();
       setError(TEXT.saveFailed);
+      return;
+    }
+    // Si Stripe.js no carga, se dice aquí en vez de dejar «Guardar» desactivado sin explicación.
+    const stripe = await stripeForAccount(publishableKey, connectedAccount);
+    done();
+    if (!stripe) {
+      setError(`${TEXT.unavailable}.`);
       return;
     }
     setSession({ kind, clientSecret, connectedAccount });
