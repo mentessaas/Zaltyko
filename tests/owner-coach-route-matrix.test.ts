@@ -634,6 +634,9 @@ const staticallyGuarded: Record<string, { guard: string; via?: string }> = {
   "GET owner/payments/connect/route.ts": { guard: "resolveOwnerScope", via: "src/modules/payments-connect/application/connect-onboarding-service.ts" },
   "POST owner/payments/connect/route.ts": { guard: "resolveOwnerScope", via: "src/modules/payments-connect/application/connect-onboarding-service.ts" },
   "GET owner/payments/connect/link/route.ts": { guard: "resolveOwnerScope", via: "src/modules/payments-connect/application/connect-onboarding-service.ts" },
+  // Pago automático de las familias (Fase 2): el servicio exige propiedad o
+  // administración con todas las sedes antes de revocar.
+  "POST owner/payments/family-methods/route.ts": { guard: "resolveOwnerScope", via: "src/modules/family-payment-methods/application/family-payment-methods-service.ts" },
   "POST owner/staff/[staffProfileId]/archive/route.ts": { guard: "requireOwnerAllScope" },
   "POST owner/staff/[staffProfileId]/reactivate/route.ts": { guard: "requireOwnerAllScope" },
   "PATCH owner/staff/[staffProfileId]/route.ts": { guard: "requireOwnerAllScope" },
@@ -657,6 +660,7 @@ const outsideOwnerSurface: Record<string, string> = {
   "POST family/invitations/inspect/route.ts": "la familia invitada consulta su invitación al portal",
   "POST family/notices/read/route.ts": "la familia marca como leídos sus propios avisos",
   "PUT family/notification-preferences/route.ts": "la familia elige sus correos de avisos",
+  "POST family/payment-methods/route.ts": "la persona pagadora guarda o deja de usar su pago automático",
 };
 
 /** Rutas que admiten al coach por diseño (P1 #8). */
