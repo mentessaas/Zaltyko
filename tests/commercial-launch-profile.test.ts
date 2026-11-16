@@ -42,10 +42,11 @@ describe("live contracting requires verified seller and tax readiness", () => {
     // Sin variables de entorno no hay NIF ni domicilio.
     expect(commercialLaunchProfile.taxId).toBeNull();
     expect(commercialLaunchProfile.professionalAddress).toBeNull();
-    // Tratamiento fiscal de España revisado con el gestor; el resto sigue sin marcar.
+    // Tratamiento fiscal de España revisado con el gestor e IVA de Checkout
+    // comprobado en Stripe test; el resto sigue sin marcar.
     expect(commercialLaunchProfile).toMatchObject({
-      taxTreatmentReviewed: true,
-      supportMailboxVerified: false, checkoutTaxVerified: false,
+      taxTreatmentReviewed: true, checkoutTaxVerified: true,
+      supportMailboxVerified: false,
       legalTextsApproved: false, invoicingIntegrationReady: false, liveReleaseApproved: false,
     });
     const { missing } = getCommercialLaunchReadiness();
@@ -54,6 +55,7 @@ describe("live contracting requires verified seller and tax readiness", () => {
     ]));
     expect(missing).not.toContain("registration");
     expect(missing).not.toContain("tax_treatment");
+    expect(missing).not.toContain("checkout_tax");
     expect(isSaasCheckoutEnabled("live")).toBe(false);
     expect(isSaasCheckoutEnabled("test")).toBe(true);
   });
@@ -116,7 +118,8 @@ describe("live contracting requires verified seller and tax readiness", () => {
     expect(result.missing).not.toContain("seller_address");
     expect(result.missing).not.toContain("registration_incomplete");
     expect(result.ready).toBe(false);
-    expect(result.missing).toEqual(expect.arrayContaining(["support_mailbox", "checkout_tax", "legal_texts", "invoicing_integration", "live_release"]));
+    expect(result.missing).toEqual(expect.arrayContaining(["support_mailbox", "legal_texts", "invoicing_integration", "live_release"]));
+    expect(result.missing).not.toContain("checkout_tax");
     expect(getCommercialLaunchReadiness({ ...complete, taxTreatmentReviewed: false }).missing)
       .toEqual(["tax_treatment"]);
     expect(getCommercialLaunchReadiness(complete)).toEqual({ ready: true, missing: [] });
