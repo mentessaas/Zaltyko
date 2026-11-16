@@ -366,6 +366,8 @@ const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
   // Webhooks - no limits (called by external services)
   "/api/stripe/webhook": { limit: 1000, window: 60 },
   "/api/stripe/connect/webhook": { limit: 1000, window: 60 },
+  // Conectar Stripe (Fase 1): eventos v2 de las cuentas conectadas.
+  "/api/stripe/connect/accounts-webhook": { limit: 1000, window: 60 },
 
   // Public forms - restrictive to prevent spam
   "/api/public/academies": { limit: 5, window: 60 },

@@ -629,6 +629,11 @@ const staticallyGuarded: Record<string, { guard: string; via?: string }> = {
   "POST owner/health-score/targets/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/product-discovery/route.ts": { guard: "resolveOwnerScope", via: "src/modules/product-discovery/application/product-discovery.ts" },
   "POST owner/saas/checkout/route.ts": { guard: "resolveSaasOwnerScope" },
+  // Conectar Stripe (Fase 1): las tres rutas entran por el servicio, que
+  // resuelve owner/admin con todas las sedes antes de leer o crear la cuenta.
+  "GET owner/payments/connect/route.ts": { guard: "resolveOwnerScope", via: "src/modules/payments-connect/application/connect-onboarding-service.ts" },
+  "POST owner/payments/connect/route.ts": { guard: "resolveOwnerScope", via: "src/modules/payments-connect/application/connect-onboarding-service.ts" },
+  "GET owner/payments/connect/link/route.ts": { guard: "resolveOwnerScope", via: "src/modules/payments-connect/application/connect-onboarding-service.ts" },
   "POST owner/staff/[staffProfileId]/archive/route.ts": { guard: "requireOwnerAllScope" },
   "POST owner/staff/[staffProfileId]/reactivate/route.ts": { guard: "requireOwnerAllScope" },
   "PATCH owner/staff/[staffProfileId]/route.ts": { guard: "requireOwnerAllScope" },
