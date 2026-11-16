@@ -302,6 +302,33 @@ describe("intención de inscripción inmutable en la página abierta", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("muestra el estado del acuse aunque el refresco del listado llegue tarde o con una versión anterior", async () => {
+    let count = 0;
+    fetchMock.mockImplementation(async (url, options) => options.method !== "PATCH" ? reads(url) : ++count === 1
+      ? ack()
+      : response({ ok: true, data: { id: enrollment.id, status: "active", startsOn: "2026-10-01", endsOn: null, version: 4 } }));
+    const view = render(<OwnerEnrollmentsManager bundle={bundle} selectedStatus="all" />);
+    pause();
+    await waitFor(() => expect(router.refresh).toHaveBeenCalledOnce());
+    expect(await screen.findByRole("button", { name: /^Reanudar inscripción de Ana/ })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /^Pausar inscripción de Ana/ })).not.toBeInTheDocument();
+
+    // Un refresco desordenado con la versión 2 no devuelve la fila a «Activa».
+    view.rerender(<OwnerEnrollmentsManager bundle={{ ...bundle, enrollments: [{ ...enrollment }] }} selectedStatus="all" />);
+    expect(screen.queryByRole("button", { name: /^Pausar inscripción de Ana/ })).not.toBeInTheDocument();
+    const resume = screen.getByRole("button", { name: /^Reanudar inscripción de Ana/ });
+    await waitFor(() => expect(resume).toBeEnabled());
+    fireEvent.click(resume);
+    await waitFor(() => expect(router.refresh).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(mutations()[1][1].body)).toEqual({ organizationId: org, expectedVersion: 3, toStatus: "active", effectiveOn: "2026-10-22" });
+    expect(await screen.findByRole("button", { name: /^Pausar inscripción de Ana/ })).toBeVisible();
+
+    // Un listado con una versión posterior manda sobre los acuses de esta página.
+    view.rerender(<OwnerEnrollmentsManager bundle={{ ...bundle, enrollments: [{ ...enrollment, status: "paused", version: 5 }] }} selectedStatus="all" />);
+    expect(screen.getByRole("button", { name: /^Reanudar inscripción de Ana/ })).toBeVisible();
+    expect(mutations()).toHaveLength(2);
+  });
+
   it("un doble click síncrono no inicia otra escritura", async () => {
     let resolve!: (value: ReturnType<typeof ack>) => void;
     fetchMock.mockImplementation(async (_url, options) => options.method === "PATCH" ? new Promise(done => { resolve = done; }) : ack());
