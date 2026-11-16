@@ -254,6 +254,28 @@ describe("intención inmutable en grupos", () => {
     expect(writes()).toHaveLength(1);
     await act(async () => resolve(response(201, receipt)));
   });
+  it("muestra el alta confirmada aunque el refresco del grupo llegue tarde o sin ella", async () => {
+    mocks.fetch.mockResolvedValueOnce(response(201, receipt));
+    const user = userEvent.setup(); const view = render(<OwnerGroupsManager bundle={bundle} />);
+    await fillAthlete(user); await user.click(screen.getByRole("button", { name: "Crear y añadir al grupo" }));
+    expect(await screen.findByText("Ficha Sintética")).toBeVisible();
+    expect(screen.getByText("1 de 12 plazas")).toBeVisible();
+    expect(mocks.refresh).toHaveBeenCalledOnce();
+
+    // Un listado del servidor anterior al acuse no oculta la pertenencia confirmada.
+    view.rerender(<OwnerGroupsManager bundle={{ ...bundle }} />);
+    expect(screen.getByText("Ficha Sintética")).toBeVisible();
+    expect(screen.getByText("1 de 12 plazas")).toBeVisible();
+
+    // Cuando el servidor ya la lista, no se duplica y su listado vuelve a mandar.
+    const listed = { id: membership, athleteId: athlete, athleteName: "Ficha Sintética", status: "active", startsOn: today, endsOn: null };
+    view.rerender(<OwnerGroupsManager bundle={{ ...baseBundle, groups: [{ ...baseBundle.groups[0], memberCount: 1 }], memberships: [listed] } as unknown as Bundle} />);
+    expect(screen.getAllByText("Ficha Sintética")).toHaveLength(1);
+    expect(screen.getByText("1 de 12 plazas")).toBeVisible();
+    view.rerender(<OwnerGroupsManager bundle={{ ...bundle }} />);
+    await waitFor(() => expect(screen.queryByText("Ficha Sintética")).not.toBeInTheDocument());
+    expect(writes()).toHaveLength(1);
+  });
   it("un acuse 2xx incompleto no elimina la operación pendiente", async () => {
     mocks.fetch.mockResolvedValueOnce(response(201, { ok: true, data: { id: membership } }));
     const user = userEvent.setup(); render(<OwnerGroupsManager bundle={bundle} />);

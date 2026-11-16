@@ -135,7 +135,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       const buttonIds = new WeakMap<Element, number>();
       let nextButtonId = 1;
       const recordInteraction = (type: string, target: Element | null) => {
-        if (!["/owner/groups", "/contact"].includes(location.pathname)) return;
+        if (!["/owner/groups", "/owner/monthly-invoices", "/owner/athletes", "/contact"].includes(location.pathname)) return;
         const button = target?.closest("button") ?? null;
         if (button && !buttonIds.has(button)) buttonIds.set(button, nextButtonId++);
         const events = targetWindow.__zaltykoOwnerInteractions!;
@@ -172,7 +172,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
       });
       for (const type of ["pointerdown", "pointerup", "click", "submit", "invalid"]) {
         document.addEventListener(type, (event) => {
-          if (!["/owner/groups", "/contact"].includes(location.pathname)) return;
+          if (!["/owner/groups", "/owner/monthly-invoices", "/owner/athletes", "/contact"].includes(location.pathname)) return;
           const target = event.target instanceof Element ? event.target : null;
           recordInteraction(event.type, target);
           if (event.type === "click") {
@@ -336,6 +336,25 @@ test.describe("Isolated local Supabase Owner setup", () => {
         profileRequests.push("legacy profile endpoint called");
       }
     });
+    // Next.js turns a router.refresh()/navigation RSC fetch that the browser
+    // cancels into a full-page navigation to that route. Views that apply a
+    // confirmed write locally no longer wait for that refresh, so a document
+    // goto must first let those fetches finish (prefetches never navigate).
+    const pendingRouterFetches = new Set<PlaywrightRequest>();
+    let routerFetchesStarted = 0;
+    page.on("request", (request) => {
+      const headers = request.headers();
+      if (request.method() !== "GET" || headers["rsc"] !== "1" || headers["next-router-prefetch"] !== undefined) return;
+      routerFetchesStarted += 1;
+      pendingRouterFetches.add(request);
+    });
+    page.on("requestfinished", (request) => pendingRouterFetches.delete(request));
+    page.on("requestfailed", (request) => pendingRouterFetches.delete(request));
+    const expectRouterFetchesSettled = async (startedAtLeast: number) => {
+      await expect
+        .poll(() => routerFetchesStarted >= startedAtLeast && pendingRouterFetches.size === 0)
+        .toBe(true);
+    };
     await page.goto("/auth/register?role=owner", {
       waitUntil: "domcontentloaded",
     });
@@ -661,6 +680,8 @@ test.describe("Isolated local Supabase Owner setup", () => {
         const replay = page.waitForResponse(candidate =>
           new URL(candidate.url()).pathname === endpoint && candidate.request().method() === "PATCH"
         );
+        // The replay and the resume each confirm one write and refresh once.
+        const routerFetchesBeforeReplay = routerFetchesStarted;
         await pending.getByRole("button", { name: "Reintentar la misma operación" }).click();
         expect((await replay).status()).toBe(200);
         await expect(pending).toHaveCount(0);
@@ -675,6 +696,9 @@ test.describe("Isolated local Supabase Owner setup", () => {
         await activeEnrollmentRow.getByRole("button", { name: /^Reanudar inscripción/ }).click();
         expect((await resume).status()).toBe(200);
         await expect(activeEnrollmentRow.getByText("Activa", { exact: true })).toBeVisible();
+        // The row shows the PATCH acknowledgement; the next document goto
+        // must not cancel the refreshes still in flight.
+        await expectRouterFetchesSettled(routerFetchesBeforeReplay + 2);
         const restored = await snapshot();
         expect(restored.enrollment.status).toBe("active");
         expect(restored.enrollment.version).toBe(afterLoss.enrollment.version + 1);
@@ -706,6 +730,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
         candidate.url().includes("/memberships") &&
         candidate.request().method() === "POST"
     );
+    const routerFetchesBeforeAthlete = routerFetchesStarted;
     await page.getByRole("button", { name: "Crear y añadir al grupo" }).click();
     const createdAthleteResponse = await athleteResponse;
     expect(createdAthleteResponse.ok()).toBe(true);
@@ -717,6 +742,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
     );
     const athleteId = createdAthletePayload.data.athleteId;
     await expect(page.getByText(athleteName, { exact: true })).toBeVisible();
+    await expectRouterFetchesSettled(routerFetchesBeforeAthlete + 1);
 
     const firstClass = await createClassWithSessions(className, "Lunes");
     const secondClass = await createClassWithSessions(
@@ -1567,6 +1593,7 @@ test.describe("Isolated local Supabase Owner setup", () => {
         candidate.url().endsWith("/api/v1/owner/billing/manual-payments") &&
         candidate.request().method() === "POST"
     );
+    const routerFetchesBeforePayment = routerFetchesStarted;
     await page.getByRole("button", { name: "Guardar pago recibido" }).click();
     const paymentResult = await paymentResponse;
     expect(manualPaymentPostCount).toBe(1);
@@ -1586,6 +1613,10 @@ test.describe("Isolated local Supabase Owner setup", () => {
     await expect(
       page.getByRole("combobox", { name: "Cargo pendiente" })
     ).toHaveCount(0);
+    // The form shows the settled charge before router.refresh() returns. In
+    // WebKit a goto here cancelled that RSC fetch and Next.js answered with a
+    // full navigation back to /owner/payments, interrupting the goto.
+    await expectRouterFetchesSettled(routerFetchesBeforePayment + 1);
 
     const dashboardPeriod = dashboardRange(
       selectedSessionStartsAt,
