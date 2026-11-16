@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   appendOutbox: vi.fn(),
   access: vi.fn(),
   storage: vi.fn(),
+  flag: vi.fn(),
 }));
 
 vi.mock("@/db", () => ({ db: { transaction: vi.fn() } }));
@@ -29,6 +30,11 @@ vi.mock("@/modules/shared/infrastructure/transactional-records", async (importOr
 }));
 vi.mock("@/modules/family-collection/application/storage", () => ({
   isFamilyCollectionStorageAvailable: mocks.storage,
+}));
+vi.mock("@/modules/family-collection/application/config", () => ({
+  isFamilyAutomaticCollectionFlagEnabled: mocks.flag,
+  resolveConnectEnvironment: () => "test",
+  isProductionDatabase: () => false,
 }));
 
 import {
@@ -47,6 +53,7 @@ import {
 } from "@/modules/billing/application/ledger-service";
 import { loadPlanChangeRevision } from "@/modules/billing/application/plan-state";
 import {
+  evaluationActorSchema,
   FAMILY_COLLECTION_JOB_KEY,
   systemActorSchema,
 } from "@/modules/shared/application/actor";
@@ -119,6 +126,10 @@ function fakeTx(options: FakeOptions = {}) {
   const execute = vi.fn(async (statement: Parameters<PgDialect["sqlToQuery"]>[0]) => {
     const text = dialect.sqlToQuery(statement).sql.replace(/\s+/g, " ").trim();
     executed.push(text);
+    // lockOrganizationForSaasMutation: la academia existe.
+    if (/from zaltyko\.organizations where id = .* for update/.test(text)) {
+      return { rows: [{ id: organizationId }] };
+    }
     return { rows: options.execute?.(text) ?? [] };
   });
   const tx = { select, insert, update, execute } as unknown as TransactionClient;
@@ -174,6 +185,7 @@ beforeEach(() => {
   mocks.findEvent.mockResolvedValue(null);
   mocks.access.mockResolvedValue(undefined);
   mocks.storage.mockResolvedValue(false);
+  mocks.flag.mockReturnValue(true);
 });
 
 describe("actor de sistema del cobro automático", () => {
@@ -186,6 +198,17 @@ describe("actor de sistema del cobro automático", () => {
       "zaltyko-outbox"
     );
     expect(systemActorSchema.safeParse({ type: "system", jobKey: "otro", correlationId }).success).toBe(false);
+  });
+
+  it("el proceso del cobro no puede lanzar evaluaciones; el outbox y las personas sí", () => {
+    const correlationId = "10000000-0000-4000-8000-000000000099";
+    expect(
+      evaluationActorSchema.safeParse({ type: "system", jobKey: FAMILY_COLLECTION_JOB_KEY, correlationId }).success
+    ).toBe(false);
+    expect(
+      evaluationActorSchema.safeParse({ type: "system", jobKey: "zaltyko-outbox", correlationId }).success
+    ).toBe(true);
+    expect(evaluationActorSchema.safeParse(actor).success).toBe(true);
   });
 });
 
@@ -236,21 +259,28 @@ describe("issueInvoiceInTransaction y el modo de cobro", () => {
   });
 
   it("sin indicar el modo, una factura nace manual aunque la bandera esté encendida", async () => {
-    vi.stubEnv("ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED", "true");
-    try {
-      const { tx, inserts, executed } = fakeTx({
-        insertReturning: (table, values) =>
-          table === invoices
-            ? [{ id: invoiceId, ...values }]
-            : [{ id: chargeId, ...values }],
-      });
-      await issueInvoiceInTransaction(tx, issueCommand);
-      const charge = inserts.find((entry) => entry.table === charges);
-      expect(charge?.values).toMatchObject({ collectionMode: "manual" });
-      expect(executed.some((text) => text.includes("family_collection_preferences"))).toBe(false);
-    } finally {
-      vi.unstubAllEnvs();
-    }
+    const { tx, inserts, executed } = fakeTx({
+      insertReturning: (table, values) =>
+        table === invoices
+          ? [{ id: invoiceId, ...values }]
+          : [{ id: chargeId, ...values }],
+    });
+    await issueInvoiceInTransaction(tx, issueCommand);
+    const charge = inserts.find((entry) => entry.table === charges);
+    expect(charge?.values).toMatchObject({ collectionMode: "manual" });
+    expect(executed.some((text) => text.includes("family_collection_preferences"))).toBe(false);
+  });
+
+  it("con el cobro automático cerrado, el libro rechaza una factura mensual en automático (409)", async () => {
+    mocks.flag.mockReturnValue(false);
+    const { tx, inserts } = fakeTx();
+    await expect(
+      issueInvoiceInTransaction(tx, issueCommand, {
+        collectionMode: "automatic",
+        monthlyInvoice: true,
+      })
+    ).rejects.toMatchObject({ code: "FAMILY_AUTOMATIC_COLLECTION_DISABLED", status: 409 });
+    expect(inserts).toEqual([]);
   });
 });
 
@@ -292,7 +322,7 @@ describe("recordProviderCollectionPayment", () => {
         providerPaymentId: paymentIntentId,
         manualMethod: null,
         recordedByUserId: null,
-        idempotencyKey: `family-collection:${attemptId}`,
+        idempotencyKey: `family-collection:${attemptId}:${paymentIntentId}`,
       },
     });
     // Nunca toca cuotas ni facturas: no puede fallar por saldos.
@@ -419,12 +449,14 @@ describe("allocateProviderCollectionPayment", () => {
       paymentId,
       chargeId,
       amountCents: 4500,
-      idempotencyKey: `family-collection:${attemptId}:${chargeId}`,
+      idempotencyKey: `family-collection:${paymentId}:${chargeId}`,
     });
-    // Orden de bloqueo: cargos antes que el pago.
+    // Orden de bloqueo: organización, cargos y después el pago.
+    const organizationLock = executed.findIndex((text) => text.includes("from zaltyko.organizations") && text.includes("for update"));
     const chargeLock = executed.findIndex((text) => text.includes("from zaltyko.charges") && text.includes("for update"));
     const paymentLock = executed.findIndex((text) => text.includes("from zaltyko.payments") && text.includes("for update"));
-    expect(chargeLock).toBeGreaterThanOrEqual(0);
+    expect(organizationLock).toBeGreaterThanOrEqual(0);
+    expect(organizationLock).toBeLessThan(chargeLock);
     expect(chargeLock).toBeLessThan(paymentLock);
     expect(mocks.appendAudit).toHaveBeenCalledWith(
       tx,
@@ -477,6 +509,95 @@ describe("allocateProviderCollectionPayment", () => {
     expect(result.reviewReasons).toContain("amount_mismatch");
   });
 
+  it("mismo intento, segundo cobro de Stripe: los dos se registran y el segundo pide revisión", async () => {
+    const secondIntent = "pi_SyntheticCollection2";
+    const record = (intent: string, id: string) => {
+      const harness = fakeTx({
+        rows: new Map<unknown, Row[]>([[invoices, [invoiceRow()]]]),
+        insertReturning: (_table, values) => [{ id, ...values }],
+      });
+      return recordProviderCollectionPayment(harness.tx, {
+        organizationId,
+        attemptId,
+        invoiceId,
+        paymentIntentId: intent,
+        amountCents: 4500,
+        environment: "test",
+      }).then((result) => ({ result, inserts: harness.inserts }));
+    };
+
+    const first = await record(paymentIntentId, "10000000-0000-4000-8000-000000000031");
+    const second = await record(secondIntent, "10000000-0000-4000-8000-000000000032");
+
+    expect(first.result.created).toBe(true);
+    expect(second.result.created).toBe(true);
+    expect(first.inserts[0]?.values.idempotencyKey).toBe(`family-collection:${attemptId}:${paymentIntentId}`);
+    expect(second.inserts[0]?.values.idempotencyKey).toBe(`family-collection:${attemptId}:${secondIntent}`);
+
+    // La cuota ya quedó pagada con el primer cobro: el segundo no cabe.
+    const { tx, inserts } = allocationTx({ charge: chargeRow({ status: "paid" }) });
+    const allocation = await allocateProviderCollectionPayment(tx, input);
+    expect(allocation).toEqual({
+      status: "needs_review",
+      allocatedCents: 0,
+      unallocatedCents: 4500,
+      reviewReasons: ["charge_settled", "unallocated_remainder"],
+    });
+    expect(inserts).toEqual([]);
+  });
+
+  it.each(["refunded", "failed", "partially_refunded", "pending"])(
+    "con el pago %s no reparte y pide revisión sin lanzar",
+    async (status) => {
+      const harness = fakeTx({
+        rows: new Map<unknown, Row[]>([
+          [payments, [paymentRow({ status })]],
+          [charges, [chargeRow()]],
+        ]),
+        execute: (text) => (text.includes("as allocated") ? [{ allocated: 0 }] : []),
+      });
+
+      await expect(allocateProviderCollectionPayment(harness.tx, input)).resolves.toEqual({
+        status: "needs_review",
+        allocatedCents: 0,
+        unallocatedCents: 4500,
+        reviewReasons: ["payment_not_available"],
+      });
+      expect(harness.inserts).toEqual([]);
+      expect(harness.updates).toEqual([]);
+    }
+  );
+
+  it("un reparto anterior que no coincide es una revisión, no una excepción", async () => {
+    const harness = allocationTx({ charge: chargeRow(), paymentAllocatedBefore: 3000 });
+    const prior = {
+      id: "allocation-1",
+      organizationId,
+      paymentId,
+      chargeId,
+      amountCents: 5000,
+      idempotencyKey: `family-collection:${paymentId}:${chargeId}`,
+    };
+    const select = harness.tx.select as unknown as ReturnType<typeof vi.fn>;
+    const original = select.getMockImplementation()!;
+    select.mockImplementation(() => {
+      const query = original() as { from: (table: unknown) => unknown; limit: () => Promise<Row[]> };
+      const from = query.from;
+      query.from = (table: unknown) => {
+        from(table);
+        if (table === paymentAllocations) query.limit = async () => [prior];
+        return query;
+      };
+      return query;
+    });
+
+    const result = await allocateProviderCollectionPayment(harness.tx, input);
+
+    expect(result.status).toBe("needs_review");
+    expect(result.reviewReasons).toContain("allocation_conflict");
+    expect(harness.inserts).toEqual([]);
+  });
+
   it("un reparto ya hecho cuenta como hecho (idempotente)", async () => {
     const harness = allocationTx({ charge: chargeRow(), paymentAllocatedBefore: 4500 });
     const prior = {
@@ -485,7 +606,7 @@ describe("allocateProviderCollectionPayment", () => {
       paymentId,
       chargeId,
       amountCents: 4500,
-      idempotencyKey: `family-collection:${attemptId}:${chargeId}`,
+      idempotencyKey: `family-collection:${paymentId}:${chargeId}`,
     };
     const select = harness.tx.select as unknown as ReturnType<typeof vi.fn>;
     const original = select.getMockImplementation()!;

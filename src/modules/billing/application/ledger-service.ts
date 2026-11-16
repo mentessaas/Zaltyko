@@ -30,7 +30,11 @@ import {
 } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { FAMILY_AUTOMATIC_COLLECTION_DISABLED } from "@/lib/stripe/family-automatic-collection-disabled";
-import { getChargeCollectionModeSnapshot } from "@/modules/billing/application/charge-collection-mode";
+import {
+  getChargeCollectionModeSnapshot,
+  isFamilyAutomaticCollectionOpen,
+} from "@/modules/billing/application/charge-collection-mode";
+import { lockOrganizationForSaasMutation } from "@/modules/saas-billing/application/entitlement-service";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 import {
   appendAuditEntry,
@@ -607,10 +611,13 @@ export async function issueInvoiceInTransaction(
       organizationId: input.organizationId,
       familyId: input.familyId,
     }));
-  // El cobro automático solo existe para facturas mensuales (Fase 3).
+  // El cobro automático solo existe para facturas mensuales (Fase 3) y solo
+  // con la bandera y los cerrojos abiertos: se vuelve a mirar aquí, en el
+  // borde del libro, aunque quien llama ya lo haya decidido.
   if (
     collectionMode === "automatic" &&
-    !("monthlyInvoice" in options && options.monthlyInvoice === true)
+    (!("monthlyInvoice" in options && options.monthlyInvoice === true) ||
+      !isFamilyAutomaticCollectionOpen())
   ) {
     throw new OperationalError(
       FAMILY_AUTOMATIC_COLLECTION_DISABLED,
@@ -1651,11 +1658,13 @@ export type AllocateProviderCollectionPaymentInput = z.input<
 
 /** Por qué un cobro automático necesita que la academia lo revise. */
 export type ProviderCollectionReviewReason =
+  | "allocation_conflict"
   | "amount_mismatch"
   | "charge_mismatch"
   | "charge_void"
   | "charge_settled"
   | "collection_in_progress"
+  | "payment_not_available"
   | "unallocated_remainder";
 
 export interface ProviderCollectionAllocationResult {
@@ -1701,8 +1710,14 @@ async function findProviderPayment(
  *
  * Nunca falla por saldos (no mira ni toca cuotas: eso es
  * allocateProviderCollectionPayment), así que el dinero cobrado siempre queda
- * registrado. Es idempotente por el cobro de Stripe (`payments_provider_uq`):
- * repetirlo devuelve el mismo pago con `created: false`.
+ * registrado. Es idempotente por el cobro de Stripe (`payments_provider_uq`
+ * y la clave `family-collection:{intento}:{pi_…}`): repetirlo devuelve el
+ * mismo pago con `created: false`, y un segundo cobro del mismo intento se
+ * registra como otro pago.
+ *
+ * Bloquea primero la fila de la organización (lockOrganizationForSaasMutation,
+ * idempotente dentro de la transacción), así quien llama no puede romper el
+ * orden de bloqueo único: organización → cargos → factura → intento.
  */
 export async function recordProviderCollectionPayment(
   tx: TransactionClient,
@@ -1710,6 +1725,8 @@ export async function recordProviderCollectionPayment(
 ): Promise<{ payment: Payment; created: boolean }> {
   const input = providerCollectionPaymentSchema.parse(command);
   const environment = ledgerEnvironment(input.environment);
+  // Primer eslabón del orden de bloqueo único (idempotente en la transacción).
+  await lockOrganizationForSaasMutation(tx, input.organizationId);
 
   const prior = await findProviderPayment(tx, environment, input.paymentIntentId);
   if (prior) {
@@ -1728,7 +1745,9 @@ export async function recordProviderCollectionPayment(
 
   const invoice = await loadInvoice(tx, input.organizationId, input.invoiceId);
   const receivedAt = input.receivedAt ?? new Date();
-  const idempotencyKey = `family-collection:${input.attemptId}`;
+  // Por cobro de Stripe, no por intento: si un intento acabara con dos cobros
+  // (p. ej. uno encontrado al reanudar), los dos quedan registrados.
+  const idempotencyKey = `family-collection:${input.attemptId}:${input.paymentIntentId}`;
   const [inserted] = await tx
     .insert(payments)
     .values({
@@ -1864,8 +1883,16 @@ export async function findAutomaticCollectionInProgress(
  *   factura, otro cobro automático la tiene en curso, o el importe no cuadra.
  *   Lo que no cabe queda sin repartir y la academia debe revisarlo.
  *
- * Idempotente: cada reparto lleva la clave `family-collection:{intento}:{cuota}`
- * y un reparto ya hecho cuenta como hecho.
+ * - el pago ya no está `succeeded` (devuelto o fallido): `needs_review` sin
+ *   repartir nada (`payment_not_available`).
+ *
+ * Idempotente: cada reparto lleva la clave `family-collection:{pago}:{cuota}`
+ * y un reparto ya hecho cuenta como hecho; uno que no coincide es
+ * `allocation_conflict` (revisión), nunca una excepción.
+ *
+ * Bloquea primero la organización (lockOrganizationForSaasMutation,
+ * idempotente en la transacción) y después los cargos por id: sigue el orden
+ * de bloqueo único aunque quien llama no lo haya tomado.
  */
 export async function allocateProviderCollectionPayment(
   tx: TransactionClient,
@@ -1878,7 +1905,8 @@ export async function allocateProviderCollectionPayment(
     left.chargeId.localeCompare(right.chargeId)
   );
 
-  // Orden de bloqueo único: cargos por id (la organización la bloqueó quien llama).
+  // Orden de bloqueo único: organización y después cargos por id.
+  await lockOrganizationForSaasMutation(tx, input.organizationId);
   const chargeIds = planned.map((allocation) => allocation.chargeId);
   await tx.execute(sql`
     select id from zaltyko.charges
@@ -1904,6 +1932,27 @@ export async function allocateProviderCollectionPayment(
     );
   }
 
+  const allocatedTotal = async () => {
+    const totals = await tx.execute(sql`
+      select coalesce(sum(amount_cents), 0)::bigint as allocated
+        from zaltyko.payment_allocations
+       where organization_id = ${input.organizationId}::uuid
+         and payment_id = ${payment.id}::uuid
+    `);
+    return numberFrom(totals.rows[0]?.allocated);
+  };
+
+  if (payment.status !== "succeeded") {
+    // Devuelto o fallido: no se reparte nada y la academia lo revisa.
+    const allocatedCents = await allocatedTotal();
+    return {
+      status: "needs_review",
+      allocatedCents,
+      unallocatedCents: Math.max(0, payment.amountCents - allocatedCents),
+      reviewReasons: ["payment_not_available"],
+    };
+  }
+
   const plannedTotal = planned.reduce((total, item) => total + item.amountCents, 0);
   if (plannedTotal !== payment.amountCents) reviewReasons.add("amount_mismatch");
 
@@ -1917,16 +1966,10 @@ export async function allocateProviderCollectionPayment(
     reviewReasons.add("collection_in_progress");
   }
 
-  const paymentAllocatedRows = await tx.execute(sql`
-    select coalesce(sum(amount_cents), 0)::bigint as allocated
-      from zaltyko.payment_allocations
-     where organization_id = ${input.organizationId}::uuid
-       and payment_id = ${payment.id}::uuid
-  `);
-  let available = payment.amountCents - numberFrom(paymentAllocatedRows.rows[0]?.allocated);
+  let available = payment.amountCents - (await allocatedTotal());
 
   for (const item of planned) {
-    const idempotencyKey = `family-collection:${input.attemptId}:${item.chargeId}`;
+    const idempotencyKey = `family-collection:${payment.id}:${item.chargeId}`;
     const [prior] = await tx
       .select()
       .from(paymentAllocations)
@@ -1938,14 +1981,21 @@ export async function allocateProviderCollectionPayment(
       )
       .limit(1);
     if (prior) {
-      if (prior.paymentId !== payment.id || prior.chargeId !== item.chargeId) {
-        throw new OperationalError(
-          "IDEMPOTENCY_CONFLICT",
-          "El reparto del cobro ya se hizo con otros datos",
-          409
+      // Ya repartido antes: cuenta como hecho. Si no coincide con lo que se
+      // pide ahora, se revisa (nunca se lanza).
+      if (
+        prior.paymentId !== payment.id ||
+        prior.chargeId !== item.chargeId ||
+        prior.amountCents !== item.amountCents
+      ) {
+        reviewReasons.add(
+          prior.paymentId === payment.id &&
+            prior.chargeId === item.chargeId &&
+            prior.amountCents < item.amountCents
+            ? "charge_settled"
+            : "allocation_conflict"
         );
       }
-      if (prior.amountCents < item.amountCents) reviewReasons.add("charge_settled");
       continue;
     }
     if (reviewReasons.has("collection_in_progress")) continue;
@@ -2003,13 +2053,7 @@ export async function allocateProviderCollectionPayment(
     available -= amountCents;
   }
 
-  const totals = await tx.execute(sql`
-    select coalesce(sum(amount_cents), 0)::bigint as allocated
-      from zaltyko.payment_allocations
-     where organization_id = ${input.organizationId}::uuid
-       and payment_id = ${payment.id}::uuid
-  `);
-  const allocatedCents = numberFrom(totals.rows[0]?.allocated);
+  const allocatedCents = await allocatedTotal();
   const unallocatedCents = Math.max(0, payment.amountCents - allocatedCents);
   if (unallocatedCents > 0) reviewReasons.add("unallocated_remainder");
 

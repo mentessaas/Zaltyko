@@ -43,7 +43,26 @@ async function setContractPlan(planCode: "free" | "starter" | "growth") {
     .where(eq(organizationEntitlements.organizationId, organizationId));
 }
 
+const isDisabled = (error: unknown) =>
+  error instanceof OperationalError &&
+  error.code === "FAMILY_AUTOMATIC_COLLECTION_DISABLED" &&
+  error.status === 409;
+
+/**
+ * Preferencia de cobro por familia con el cobro automático CERRADO (bandera
+ * ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED apagada, el valor por defecto):
+ * todo sigue en manual y «automático» responde 409, tenga o no plan de pago.
+ *
+ * Actualizado en la Fase 3 (Tarea 4): las comprobaciones anteriores esperaban
+ * un diseño previo (preferencia «disponible» con plan de pago y modo
+ * `automatic` del snapshot sin bandera ni autorización) que ya no existe. Los
+ * casos con el cobro abierto viven en tests/family-collection-preferences-automatic.test.ts,
+ * tests/family-collection-charge-mode.test.ts y la suite pg
+ * tests/family-collection-plan-revision-pg.test.ts.
+ */
 async function main() {
+  delete process.env.ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED;
+
   const [freeBootstrap] = await db
     .select({ planCode: organizationEntitlements.planCode })
     .from(organizationEntitlements)
@@ -57,8 +76,9 @@ async function main() {
   });
   assert.equal(initial.requestedMode, "manual");
   assert.equal(initial.effectiveMode, "manual");
-  assert.equal(initial.automaticPreferenceAvailable, true);
+  assert.equal(initial.automaticPreferenceAvailable, false);
   assert.equal(initial.automaticProcessingEnabled, false);
+  assert.equal(initial.automaticStatus, "not_released");
   assert.equal(initial.version, 0);
 
   const manual = await saveFamilyCollectionPreference({
@@ -78,7 +98,7 @@ async function main() {
         userId: ownerUserId,
         organizationId,
         familyId,
-        mode: "automatic",
+        mode: "manual",
         expectedVersion: 0,
         idempotencyKey: "family-pref-stale-version",
       }),
@@ -86,73 +106,15 @@ async function main() {
       error instanceof OperationalError && error.code === "VERSION_CONFLICT"
   );
 
-  await setContractPlan("free");
-  const freePreference = await getFamilyCollectionPreference({
-    userId: ownerUserId,
-    organizationId,
-    familyId,
-  });
-  assert.equal(freePreference.automaticPreferenceAvailable, false);
-  assert.equal(freePreference.effectiveMode, "manual");
-  await assert.rejects(
-    () =>
-      saveFamilyCollectionPreference({
-        userId: ownerUserId,
-        organizationId,
-        familyId,
-        mode: "automatic",
-        expectedVersion: manual.version,
-        idempotencyKey: "family-pref-auto-free-rejected",
-      }),
-    (error: unknown) =>
-      error instanceof OperationalError &&
-      error.code === "FEATURE_NOT_AVAILABLE"
-  );
-
-  await setContractPlan("growth");
-  const renewedEntitlement = await getFamilyCollectionPreference({
-    userId: ownerUserId,
-    organizationId,
-    familyId,
-  });
-  assert.equal(renewedEntitlement.automaticPreferenceAvailable, true);
-  const saved = await saveFamilyCollectionPreference({
-    userId: ownerUserId,
-    organizationId,
-    familyId,
-    mode: "automatic",
-    expectedVersion: manual.version,
-    idempotencyKey: "family-pref-auto-paid-contract",
-  });
-  assert.equal(saved.requestedMode, "automatic");
-  assert.equal(saved.effectiveMode, "manual");
-  assert.equal(saved.automaticPreferenceAvailable, true);
-  assert.equal(saved.automaticProcessingEnabled, false);
-  assert.equal(saved.requiresConfirmation, false);
-  assert.equal(saved.version, 2);
-
-  const chargeMode = await getChargeCollectionModeSnapshot({
-    executor: db,
-    organizationId,
-    familyId,
-  });
-  assert.equal(chargeMode, "automatic");
-  const [existingCharge] = await db
-    .select({ collectionMode: charges.collectionMode })
-    .from(charges)
-    .where(eq(charges.id, chargeId));
-  assert.equal(existingCharge?.collectionMode, "manual");
-
   const sameKeyReplay = await saveFamilyCollectionPreference({
     userId: ownerUserId,
     organizationId,
     familyId,
-    mode: "automatic",
-    expectedVersion: manual.version,
-    idempotencyKey: "family-pref-auto-paid-contract",
+    mode: "manual",
+    expectedVersion: initial.version,
+    idempotencyKey: "family-pref-manual-initial",
   });
-  assert.equal(sameKeyReplay.requestedMode, "automatic");
-  assert.equal(sameKeyReplay.version, saved.version);
+  assert.equal(sameKeyReplay.version, manual.version);
   await assert.rejects(
     () =>
       saveFamilyCollectionPreference({
@@ -161,49 +123,47 @@ async function main() {
         familyId,
         mode: "manual",
         expectedVersion: manual.version,
-        idempotencyKey: "family-pref-auto-paid-contract",
+        idempotencyKey: "family-pref-manual-initial",
       }),
     (error: unknown) =>
       error instanceof OperationalError && error.code === "IDEMPOTENCY_CONFLICT"
   );
 
-  await setContractPlan("free");
-  const downgraded = await getFamilyCollectionPreference({
-    userId: ownerUserId,
-    organizationId,
-    familyId,
-  });
-  assert.equal(downgraded.requestedMode, "automatic");
-  assert.equal(downgraded.effectiveMode, "manual");
-  assert.equal(downgraded.requiresConfirmation, true);
-  assert.equal(downgraded.automaticPreferenceAvailable, false);
-  assert.equal(
-    await getChargeCollectionModeSnapshot({ executor: db, organizationId, familyId }),
-    "manual"
-  );
+  for (const planCode of ["free", "growth"] as const) {
+    await setContractPlan(planCode);
+    const preference = await getFamilyCollectionPreference({
+      userId: ownerUserId,
+      organizationId,
+      familyId,
+    });
+    assert.equal(preference.automaticPreferenceAvailable, false);
+    assert.equal(preference.effectiveMode, "manual");
+    await assert.rejects(
+      () =>
+        saveFamilyCollectionPreference({
+          userId: ownerUserId,
+          organizationId,
+          familyId,
+          mode: "automatic",
+          expectedVersion: manual.version,
+          idempotencyKey: `family-pref-auto-closed-${planCode}`,
+        }),
+      isDisabled
+    );
+  }
 
-  await setContractPlan("starter");
-  const renewedAgain = await getFamilyCollectionPreference({
-    userId: ownerUserId,
-    organizationId,
-    familyId,
-  });
-  assert.equal(renewedAgain.automaticPreferenceAvailable, true);
-  assert.equal(renewedAgain.requiresConfirmation, true);
-  assert.equal(
-    await getChargeCollectionModeSnapshot({ executor: db, organizationId, familyId }),
-    "manual"
-  );
-  const reaccepted = await saveFamilyCollectionPreference({
-    userId: ownerUserId,
-    organizationId,
-    familyId,
-    mode: "automatic",
-    expectedVersion: saved.version,
-    idempotencyKey: "family-pref-auto-renewed-explicit",
-  });
-  assert.equal(reaccepted.requiresConfirmation, false);
-  assert.equal(reaccepted.version, 3);
+  // Con la bandera apagada las cuotas nacen manuales, también las mensuales.
+  for (const invoiceKind of [undefined, "monthly"] as const) {
+    assert.equal(
+      await getChargeCollectionModeSnapshot({ executor: db, organizationId, familyId, invoiceKind }),
+      "manual"
+    );
+  }
+  const [existingCharge] = await db
+    .select({ collectionMode: charges.collectionMode })
+    .from(charges)
+    .where(eq(charges.id, chargeId));
+  assert.equal(existingCharge?.collectionMode, "manual");
 
   const [audit] = await db
     .select({ actorUserId: auditLog.actorUserId })
@@ -211,10 +171,7 @@ async function main() {
     .where(
       and(
         eq(auditLog.organizationId, organizationId),
-        eq(
-          auditLog.idempotencyKey,
-          "family-collection-preference:family-pref-auto-paid-contract"
-        )
+        eq(auditLog.idempotencyKey, "family-collection-preference:family-pref-manual-initial")
       )
     )
     .limit(1);
@@ -226,10 +183,7 @@ async function main() {
     .where(
       and(
         eq(outboxEvents.organizationId, organizationId),
-        eq(
-          outboxEvents.idempotencyKey,
-          "family-collection-preference:family-pref-auto-paid-contract"
-        )
+        eq(outboxEvents.idempotencyKey, "family-collection-preference:family-pref-manual-initial")
       )
     )
     .limit(1);
@@ -280,11 +234,11 @@ async function main() {
       )
     );
   assert.equal(preference?.familyId, familyId);
-  assert.equal(preference?.requestedMode, "automatic");
+  assert.equal(preference?.requestedMode, "manual");
   assert.ok(preference?.entitlementRevision);
 
   console.log(
-    "Per-family collection preference, paid entitlement, revision invalidation, authorization and audit/outbox: PASS"
+    "Per-family collection preference with automatic collection closed (manual only, 409 for automatic), authorization and audit/outbox: PASS"
   );
 }
 

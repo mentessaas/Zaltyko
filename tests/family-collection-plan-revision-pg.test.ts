@@ -18,6 +18,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/db";
 import { loadPlanChangeRevision } from "@/modules/billing/application/plan-state";
 import { isPreferenceRevisionCurrent } from "@/modules/billing/domain/collection-eligibility";
+import {
+  grantOrganizationEntitlement,
+  lockOrganizationForSaasMutation,
+} from "@/modules/saas-billing/application/entitlement-service";
 
 const describeDisposablePg = describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1");
 
@@ -193,7 +197,22 @@ describeDisposablePg("loadPlanChangeRevision", () => {
     const savedUnder = await currentRevision(organizationId);
     expect(savedUnder).toBe(2);
     await grantStripe(organizationId, subscriptionId, { planCode: "starter", invoice: "in_ci_2", periodIndex: 1 });
-    await grantStripe(organizationId, subscriptionId, { planCode: "starter", invoice: "in_ci_3", periodIndex: 2 });
+    // La tercera renovación entra por el mismo camino que invoice.paid
+    // (webhook-service → grantOrganizationEntitlement), con el bloqueo de la academia.
+    const third = period(2);
+    await db.transaction(async (tx) => {
+      await lockOrganizationForSaasMutation(tx, organizationId);
+      await grantOrganizationEntitlement(tx, {
+        organizationId,
+        planCode: "starter",
+        source: "stripe_subscription",
+        sourceReference: "stripe-invoice:in_ci_3",
+        subscriptionId,
+        trialId: null,
+        effectiveFrom: new Date(third.from),
+        effectiveUntil: new Date(third.until),
+      });
+    });
 
     const current = await currentRevision(organizationId);
     expect(current).toBe(4);

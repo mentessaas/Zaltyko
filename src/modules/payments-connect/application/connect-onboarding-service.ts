@@ -585,8 +585,10 @@ const accountRowIdSchema = z.guid();
 
 /**
  * Cobro automático de cuotas (Fase 3): relee en Stripe la cuenta conectada
- * antes de cobrar, cuando su última lectura tiene más de una hora (la puerta
- * exige una lectura reciente, ADR-0022).
+ * antes de cobrar. Relee siempre que se la llama: decidir cuándo hace falta
+ * (p. ej. última lectura de más de una hora, ADR-0022) es cosa de quien llama,
+ * y la puerta del cobro comprueba después la frescura con lo que quede
+ * guardado.
  *
  * Reutiliza persistProjection con `providerEventReference: null`: no inventa
  * ids de evento y conserva el último que llegó por webhook. Si la fila ya
@@ -594,9 +596,10 @@ const accountRowIdSchema = z.guid();
  *
  * Mismos cerrojos que el resto de la fase (R11): solo con clave de test, nunca
  * contra la base de producción, y solo filas de `test`. Devuelve `null` si no
- * se pudo releer (cerrojo, almacenamiento, fila inexistente o Stripe sin
- * responder): quien llama decide con lo último guardado y la puerta lo
- * tratará como cuenta sin releer (motivo pasajero).
+ * se pudo releer (cerrojo, almacenamiento, fila inexistente, Stripe sin
+ * responder u otra cuenta): no escribe nada, y quien llama sigue con la
+ * última lectura guardada (si es vieja, la puerta da `account_stale`, motivo
+ * pasajero).
  */
 export async function refreshConnectAccountForCollection(
   accountRowId: string,

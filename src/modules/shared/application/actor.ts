@@ -20,8 +20,16 @@ export const systemActorSchema = z.object({
 });
 
 export type SystemActor = z.infer<typeof systemActorSchema>;
+/**
+ * Evaluaciones (insights, health score, métricas): una persona o el trabajo
+ * del outbox. El proceso del cobro automático no puede lanzarlas. El tipo se
+ * deja como SystemActor para no cambiar las firmas; la restricción es de
+ * validación (todas las entradas de evaluación pasan por este esquema).
+ */
 export const evaluationActorSchema = z.union([
   operationalActorSchema,
-  systemActorSchema,
+  systemActorSchema.refine((actor) => actor.jobKey === OUTBOX_JOB_KEY, {
+    message: "Solo el trabajo del outbox puede lanzar evaluaciones",
+  }),
 ]);
 export type EvaluationActor = z.infer<typeof evaluationActorSchema>;
