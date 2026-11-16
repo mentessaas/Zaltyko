@@ -50,8 +50,9 @@ Stripe test las facturas de staging con el recorrido actual (CIF validado por
 Zaltyko como `es_cif`). En la cuenta Live ya existen los cuatro precios en EUR
 (19, 190, 49 y 490 €) y el webhook de zaltyko.com, que ahora incluye los
 eventos `checkout.session.*`. En Vercel Production ya están la referencia de
-cuenta Live y los cuatro precios (ids, no secretos). Faltan: Tax Rate Live,
-clave secreta y secreto del webhook Live, NIF y domicilio, buzón verificado,
+cuenta Live y los cuatro precios (ids, no secretos). El buzón hola@zaltyko.com
+quedó verificado ese mismo día (`supportMailboxVerified: true`). Faltan: Tax Rate Live,
+clave secreta y secreto del webhook Live, NIF y domicilio,
 facturación ZA en Live, revisión legal y aprobación final.
 
 Historial: el 26-10-2026 Elvis declaró que preveía darse de alta; ese día se
@@ -80,7 +81,7 @@ un NIF o un código postal literal en el perfil.
 | registrationVerifiedOn | 2026-11-05 | Alta en Hacienda y RETA verificada con el modelo 036 |
 | registrationStatus | **verified** (13-11) | Confirmado por la sesión de finanzas con el gestor. Sin las dos variables, la readiness sigue en `registration_incomplete` |
 | supportEmail | hola@zaltyko.com | Sin cambios |
-| supportMailboxVerified | false | Claude envía un correo real a hola@zaltyko.com; Elvis lo responde desde el buzón; se marca `true` en un PR |
+| supportMailboxVerified | **true** (16-11) | Claude envió un correo real a hola@zaltyko.com y Elvis lo respondió desde ese buzón el mismo día |
 | taxTreatmentReviewed | **true** (13-11), solo España | Confirmado por la sesión de finanzas con el gestor: IAE 844, IVA 21 %, sin retención. No abre otros mercados: Live por país lo decide `COMMERCIAL_MARKET_REGISTRY` (solo ES) y el territorio fiscal (solo Península/Baleares). UE (empresa o particular) y México necesitan su propia revisión |
 | checkoutTaxVerified | **true** (16-11) | Comprobado por Claude en Stripe test (staging): Starter mensual 19,00 + 3,99 = 22,99 € con CIF `es_cif` validado, razón social, dirección y consentimiento (`in_1UbcEHDA0PFJp7KMDStDPewd`); Growth anual 490,00 + 102,90 = 592,90 € (`in_1UbIouDA0PFJp7KM6McQgdwB`). El envío de facturas de Stripe al cliente se desactiva en Live (paso de Elvis) |
 | legalTextsApproved | false | Elvis, tras la revisión legal pendiente (ver más abajo) |
