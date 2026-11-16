@@ -62,7 +62,6 @@ describe("isConnectOnboardingFlagEnabled", () => {
 describe("isProductionDatabase", () => {
   const databaseVariables = [
     "NEXT_PUBLIC_SUPABASE_URL",
-    "SUPABASE_URL",
     "DATABASE_URL",
     "DATABASE_URL_POOL",
     "DATABASE_URL_DIRECT",

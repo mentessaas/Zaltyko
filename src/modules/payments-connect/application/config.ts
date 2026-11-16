@@ -35,7 +35,6 @@ export function resolveConnectEnvironment(): "test" | "live" | null {
 export function isProductionDatabase(): boolean {
   return [
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_URL,
     process.env.DATABASE_URL,
     process.env.DATABASE_URL_POOL,
     process.env.DATABASE_URL_DIRECT,
