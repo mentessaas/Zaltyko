@@ -1,6 +1,11 @@
+import {
+  FamilyAutomaticPaymentCard,
+  type FamilyAutomaticPaymentCards,
+} from "@/components/family-portal/FamilyAutomaticPaymentCard";
 import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
 import type { FamilyAcademyFees } from "@/modules/family-portal/application/family-portal-reads";
 import {
+  FAMILY_AUTOMATIC_PAYMENT_NOTICE,
   FAMILY_PAYMENT_NOTICE,
   feeStatusLabel,
   formatDueDate,
@@ -10,13 +15,25 @@ import {
 
 /**
  * Cuerpo de «Cuotas»: el aviso de pago y las cuotas emitidas por la academia.
- * Lo comparten /familia/cuotas (datos reales) y la demo pública.
+ * Lo comparten /familia/cuotas (datos reales) y la demo pública. Solo
+ * /familia/cuotas pasa `automaticPayments`: la demo nunca enseña el pago
+ * automático.
  */
-export function FamilyFeesView({ academies }: { academies: FamilyAcademyFees[] }) {
+export function FamilyFeesView({
+  academies,
+  automaticPayments,
+}: {
+  academies: FamilyAcademyFees[];
+  /** Por academia, una tarjeta de pago automático por familia que paga. */
+  automaticPayments?: FamilyAutomaticPaymentCards;
+}) {
+  const offersAutomaticPayment = academies.some(
+    (academy) => (automaticPayments?.[academy.organizationId]?.length ?? 0) > 0
+  );
   return (
     <>
       <p className={`${ownerUi.noticeInfo} mb-6`} role="note">
-        {FAMILY_PAYMENT_NOTICE}
+        {offersAutomaticPayment ? FAMILY_AUTOMATIC_PAYMENT_NOTICE : FAMILY_PAYMENT_NOTICE}
       </p>
 
       {academies.length === 0 ? (
@@ -105,6 +122,16 @@ export function FamilyFeesView({ academies }: { academies: FamilyAcademyFees[] }
                   })}
                 </ul>
               )}
+              {(automaticPayments?.[academy.organizationId] ?? []).map((card) => (
+                <div key={card.familyId} className="mt-6">
+                  <FamilyAutomaticPaymentCard
+                    organizationId={academy.organizationId}
+                    familyId={card.familyId}
+                    timezone={academy.timezone}
+                    state={card.state}
+                  />
+                </div>
+              ))}
             </section>
           ))}
         </div>
