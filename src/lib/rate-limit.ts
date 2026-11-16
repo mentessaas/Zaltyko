@@ -363,6 +363,12 @@ const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
   "/api/athletes/import": { limit: 10, window: 60 },
   "/api/v1/owner/athlete-import": { limit: 10, window: 60 },
 
+  // Conectar Stripe (Fase 1): cada estado con refresh, alta o enlace nuevo
+  // llama a Stripe con la misma STRIPE_SECRET_KEY que la facturación SaaS.
+  // El prefijo cubre también `/link`. Las rutas lo aplican además por
+  // academia verificada, también en los GET.
+  "/api/v1/owner/payments/connect": { limit: 10, window: 60 },
+
   // Webhooks - no limits (called by external services)
   "/api/stripe/webhook": { limit: 1000, window: 60 },
   "/api/stripe/connect/webhook": { limit: 1000, window: 60 },

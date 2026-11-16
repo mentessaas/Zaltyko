@@ -9,12 +9,22 @@
  * Es un GET al que se llega navegando, así que solo renueva el enlace de una
  * cuenta que ya existe (`renewConnectOnboardingLink`): nunca crea la cuenta.
  * Crearla exige el POST de la tarjeta de ajustes.
+ *
+ * Límite de frecuencia por academia verificada (ROUTE_LIMITS, 10/min, tras
+ * resolver el alcance). Si se supera, también se vuelve a ajustes con
+ * `stripe=error`: es una navegación, no un fetch que lea JSON.
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { logger } from "@/lib/logger";
+import {
+  getLimitForRoute,
+  getVerifiedTenantRateLimitIdentifier,
+  rateLimit,
+} from "@/lib/rate-limit";
+import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import {
   CONNECT_RETURN_PATH,
   renewConnectOnboardingLink,
@@ -40,7 +50,7 @@ function redirect303(target: URL | string): NextResponse {
   return response;
 }
 
-// @auth-flexible route-guard-reason: verified session here; the payments-connect service resolves the owner/admin full-scope member with resolveOwnerScope and requires full availability and an existing connected account row before asking Stripe for a new link; it never creates an account.
+// @auth-flexible route-guard-reason: verified session here, then a per-verified-tenant rate limit after resolveOwnerScope; the payments-connect service resolves the owner/admin full-scope member with resolveOwnerScope and requires full availability and an existing connected account row before asking Stripe for a new link; it never creates an account.
 export async function GET(request: Request) {
   const user = await getCurrentUser(request);
 
@@ -56,6 +66,13 @@ export async function GET(request: Request) {
   if (!organizationId) return redirect303(settingsUrl(request, null, true));
 
   try {
+    const scope = await resolveOwnerScope({ userId: user.id, organizationId });
+    const limit = await rateLimit({
+      identifier: getVerifiedTenantRateLimitIdentifier(request, scope.organization.id),
+      ...getLimitForRoute(new URL(request.url).pathname),
+    });
+    if (!limit.success) return redirect303(settingsUrl(request, organizationId, true));
+
     const { url } = await renewConnectOnboardingLink({ userId: user.id, organizationId });
     return redirect303(url);
   } catch (error) {

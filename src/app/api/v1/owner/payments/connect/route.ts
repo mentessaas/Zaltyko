@@ -8,6 +8,11 @@
  * con todas las sedes (`resolveOwnerScope`) y la disponibilidad (bandera,
  * entorno, almacenamiento, país y plan). Un `CONNECT_UNAVAILABLE` llega como
  * 409 con el motivo en `errors.reason`.
+ *
+ * Límite de frecuencia por academia verificada (ROUTE_LIMITS, 10/min) en el
+ * POST y en el GET con refresh, que son los que llaman a Stripe: la clave
+ * se comparte con la facturación SaaS. Se comprueba después de resolver el
+ * alcance, para que la academia no salga del cliente sin verificar.
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -15,6 +20,12 @@ import { z } from "zod";
 import { operationalProblem, problemResponse } from "@/app/api/v1/problem";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { logger } from "@/lib/logger";
+import {
+  getLimitForRoute,
+  getVerifiedTenantRateLimitIdentifier,
+  rateLimit,
+} from "@/lib/rate-limit";
+import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import {
   getConnectStatus,
   startConnectOnboarding,
@@ -54,7 +65,33 @@ function invalidOrganizationResponse() {
   });
 }
 
-// @auth-flexible route-guard-reason: verified session here; the payments-connect service resolves the owner/admin full-scope member with resolveOwnerScope and the availability gates before reading any connected account.
+/**
+ * Límite por academia verificada: primero se resuelve el alcance (lanza
+ * FORBIDDEN si la persona no es de la academia) y solo entonces la academia
+ * entra en la clave. Devuelve la respuesta 429 o `null` si se puede seguir.
+ */
+async function connectRateLimitProblem(
+  request: Request,
+  userId: string,
+  organizationId: string
+): Promise<NextResponse | null> {
+  const scope = await resolveOwnerScope({ userId, organizationId });
+  const limit = await rateLimit({
+    identifier: getVerifiedTenantRateLimitIdentifier(request, scope.organization.id),
+    ...getLimitForRoute(new URL(request.url).pathname),
+  });
+  if (limit.success) return null;
+  const response = problemResponse({
+    status: 429,
+    title: "Demasiados intentos",
+    detail: "Has hecho demasiados intentos seguidos. Espera un minuto y vuelve a probar.",
+    type: "rate-limit-exceeded",
+  });
+  response.headers.set("Retry-After", String(Math.max(0, limit.reset - Math.floor(Date.now() / 1000))));
+  return response;
+}
+
+// @auth-flexible route-guard-reason: verified session here; the payments-connect service resolves the owner/admin full-scope member with resolveOwnerScope and the availability gates before reading any connected account. A refresh (which calls Stripe) is rate-limited per verified tenant after resolveOwnerScope.
 export async function GET(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) return unauthenticatedResponse();
@@ -65,11 +102,17 @@ export async function GET(request: Request) {
   });
   if (!parsed.success) return invalidOrganizationResponse();
 
+  const refresh = params.get("refresh") === "1";
   try {
+    // Sin refresh no se llama a Stripe: solo se lee lo guardado.
+    if (refresh) {
+      const limited = await connectRateLimitProblem(request, user.id, parsed.data.organizationId);
+      if (limited) return limited;
+    }
     const state = await getConnectStatus({
       userId: user.id,
       organizationId: parsed.data.organizationId,
-      refresh: params.get("refresh") === "1",
+      refresh,
     });
     return NextResponse.json(state, { headers: NO_STORE });
   } catch (error) {
@@ -78,7 +121,7 @@ export async function GET(request: Request) {
   }
 }
 
-// @auth-flexible route-guard-reason: verified session and same-origin check (hasSameOrigin, against CSRF) here; the payments-connect service resolves the owner/admin full-scope member with resolveOwnerScope and requires full availability before creating the connected account or a Stripe link.
+// @auth-flexible route-guard-reason: verified session and same-origin check (hasSameOrigin, against CSRF) here, then a per-verified-tenant rate limit after resolveOwnerScope; the payments-connect service resolves the owner/admin full-scope member with resolveOwnerScope and requires full availability before creating the connected account or a Stripe link.
 export async function POST(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) return unauthenticatedResponse();
@@ -98,6 +141,8 @@ export async function POST(request: Request) {
   if (!parsed.success) return invalidOrganizationResponse();
 
   try {
+    const limited = await connectRateLimitProblem(request, user.id, parsed.data.organizationId);
+    if (limited) return limited;
     const { url } = await startConnectOnboarding({
       userId: user.id,
       organizationId: parsed.data.organizationId,
