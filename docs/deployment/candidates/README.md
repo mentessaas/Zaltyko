@@ -862,7 +862,9 @@ bancaria en la cuenta Stripe conectada de su academia. Decisión:
 - **Rollback.** Apagar antes `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED`. Borrar
   la tabla descarta los intentos y su evidencia de consentimiento, y borrar la
   columna descarta el tipo de cada autorización: exportarlos antes si importan.
-  Los checks nuevos se van con su columna.
+  Los checks nuevos se van con su columna. Si también hay que retirar la
+  Fase 1, retirar antes esta: su preflight y su servicio leen las columnas de
+  la Fase 1.
 
   ```sql
   begin;

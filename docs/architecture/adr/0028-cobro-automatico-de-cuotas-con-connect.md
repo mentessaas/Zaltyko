@@ -5,6 +5,12 @@
   detrás de la bandera `ZALTYKO_CONNECT_ONBOARDING_ENABLED` (apagada). La
   migración candidata está aplicada en staging el 16-11-2026 con autorización
   de Elvis y sin aplicar en producción. El cobro sigue cerrado.
+- La Fase 2 (la familia guarda tarjeta o domiciliación) está construida en
+  esta PR, detrás de la bandera `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED`
+  (apagada). Su migración candidata
+  (`20261116180000_family_payment_methods_candidate.sql`) **no está aplicada
+  en ningún entorno**: staging y producción necesitan cada uno otra
+  autorización de Elvis (la de la Fase 1 no la cubre). Tampoco se cobra nada.
 - Autorizado por Elvis para la Fase 1, solo en staging:
   - destino de eventos en Stripe sandbox;
   - secreto y bandera en Vercel staging;
@@ -362,6 +368,48 @@ de Elvis):**
    el webhook ignora los eventos. No se usa `VERCEL_ENV`: staging es un
    despliegue «production» del proyecto zaltyko-staging. En la Fase 1 no
    existe ninguna bandera para abrir Live ni producción.
+
+### Fase 2
+
+10. **Tabla nueva de intentos como evidencia, y Customer reutilizado.**
+    - `family_payment_authorizations` exige `payment_method_reference`
+      (`pm_…`) desde que nace la fila, y no tiene sitio para el Customer ni
+      para la evidencia del consentimiento. Por eso cada intento de guardar
+      un método va a `zaltyko.family_payment_setup_attempts`: Customer
+      (`cus_…`), preparación (`seti_…`), pagador, tutor, tipo y evidencia
+      recortada (versión, fecha, IP `/24` o `/48`, agente de 120 caracteres
+      como máximo y SHA-256 del texto exacto).
+    - La autorización `active` solo se crea cuando Stripe confirma que la
+      preparación ha terminado bien. Apunta a su intento con
+      `consent_evidence_reference = "family_payment_setup_attempts:<id>"`.
+    - El Customer es uno por pagador y cuenta conectada. Se reutiliza el del
+      último intento de ese pagador en esa cuenta; si no hay ninguno, se crea
+      sin correo ni nombre, con una clave de idempotencia por cuenta y
+      pagador.
+    - Si este esquema resultara incorrecto, se corrige con otra candidata.
+11. **Texto de consentimiento en borrador**, versión `borrador-2026-11-16`,
+    sin valor legal hasta que el abogado responda L3. Staging necesita un
+    texto para probar; en producción la función sigue cerrada por la bandera
+    y por R11. Cambiar el texto exige cambiar la versión. Para la
+    domiciliación, el texto de la orden lo muestra el propio formulario de
+    Stripe, con la academia como acreedora: Zaltyko no lo redacta.
+12. **Sin respaldo por evento hasta la Fase 4.** La autorización se activa
+    cuando la página de la familia avisa al servidor (también al volver de la
+    verificación del banco). Si la familia cierra el navegador justo después,
+    el método queda guardado en Stripe pero no activo en Zaltyko, y tiene que
+    repetir el proceso. Menos superficie ahora; la Fase 4 lo cubrirá con el
+    evento `setup_intent.succeeded`.
+13. **Revocar marca primero y desliga después.** La marca `revoked` es lo que
+    impedirá cobrar en la Fase 3, así que se guarda antes, en su
+    transacción. Después se desliga el método en Stripe. Si Stripe falla,
+    queda un `logger.error` con ids opacos y la revocación se mantiene: el
+    método sigue vivo en Stripe hasta un reintento manual. Revocar solo exige
+    que la función esté abierta, no que la academia siga lista ni que tenga
+    plan: dejar de pagar siempre debe poder hacerse.
+14. **Una sola autorización activa por pagador y cuenta conectada.** Ya lo
+    garantiza `family_payment_authorizations_active_method_uq`. Cambiar de
+    método revoca la anterior en la misma transacción que activa la nueva, y
+    el método anterior se desliga en Stripe después del commit.
 
 ## Preguntas abiertas para fases posteriores (no bloquean la Fase 1)
 

@@ -7,6 +7,28 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-16 — Cobro automático de cuotas, Fase 2: la familia guarda tarjeta o domiciliación, apagado
+
+**Contexto.** Segunda fase del ADR-0028. La persona pagadora de una familia guarda una tarjeta o domicilia el pago en la cuenta Stripe conectada de su academia, y puede dejar de pagar automáticamente. **No se cobra nada** (eso es la Fase 3). Rama `cobros/fase2-metodo-pago-familia`.
+
+**Cambio.**
+- Módulo `src/modules/family-payment-methods` (texto de autorización versionado y su SHA-256, disponibilidad, recorte de IP y agente, comprobación de la preparación terminada, adaptador Stripe sobre la cuenta de la academia, almacén y servicio), separado de `src/lib/stripe/*`.
+- Rutas: `POST /api/v1/family/payment-methods` (`setup`, `complete`, `revoke`; solo la persona pagadora, 10 por minuto y cuenta) y `POST /api/v1/owner/payments/family-methods` (la academia retira un método; dueña o administración con todas las sedes, 20 por minuto y academia).
+- Familia: tarjeta «Pago automático» en `/familia/cuotas` (`FamilyAutomaticPaymentCard.tsx`). Academia: panel «Pago automático de las familias» en `/owner/familias` con «Dejar de cobrar automáticamente».
+- Candidato `docs/deployment/candidates/20261116180000_family_payment_methods_candidate.sql`: tabla nueva `zaltyko.family_payment_setup_attempts` (intentos con Customer, preparación y evidencia recortada del consentimiento) y columna `payment_method_kind` en `family_payment_authorizations`. **No aplicado en ningún entorno**: staging y producción necesitan cada uno autorización de Elvis. Sin él la función responde «no disponible».
+- Derechos de datos: la tabla nueva ya está en el catálogo como grupo opcional excluido (`OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES`, `payment_authorizations`): solo se exporta el recuento.
+- Bandera `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED=false` por defecto (en `.env.example`), con los mismos dos cerrojos que la Fase 1: clave de prueba de Stripe y base que no sea la de producción. **En producción no cambia nada.**
+- Zaltyko solo guarda referencias opacas (`cus_…`, `seti_…`, `pm_…`, `mandate_…`); nunca tarjeta, IBAN, marca, últimos dígitos, titular ni correo.
+- Documentación: `docs/COBROS_Y_CUOTAS.md` (sección «Pago automático de la familia (Fase 2)»; corregida la frase de R11 de la Fase 1, que citaba `SUPABASE_URL`: el código mira `NEXT_PUBLIC_SUPABASE_URL`, `DATABASE_URL`, `DATABASE_URL_POOL` y `DATABASE_URL_DIRECT`), ADR-0028 (estado y decisiones 10–14) y README de candidatas.
+
+**Pruebas.** `tests/family-payment-methods-*` (dominio, adaptador, servicio y PostgreSQL desechable), `tests/api-family-payment-methods-routes.test.ts`, `tests/owner-family-payment-methods-panel.test.tsx` y `tests/family-automatic-payment-card.test.tsx`. Ninguna en local; las valida la CI remota de la PR.
+
+**Sin probar.** Nada en staging. Antes hacen falta, con autorización de Elvis: aplicar el candidato en Supabase staging, encender la bandera en Vercel staging, comprobar que la clave publicable es de prueba y tener la cuenta sandbox de la academia en «Lista para cobrar» (pendiente desde la Fase 1).
+
+**Deuda.** Sin respaldo por evento si la familia cierra el navegador tras la verificación del banco (Fase 4, `setup_intent.succeeded`); texto de autorización en borrador hasta L3; Customer v1 sobre cuenta v2 por verificar en staging; método vivo en Stripe si falla el desligado; fecha del panel en hora de Madrid; la búsqueda de la cuenta huérfana de la Fase 1 sigue sin hacer.
+
+Vault: actualizados este `Changelog interno.md` y `Decisiones.md` (decisiones de la Fase 2); no cambian `Pricing.md` ni `Mensajes aprobados.md`.
+
 ## 2026-11-16 — Cobro automático de cuotas, Fase 1: «Conectar Stripe», apagado
 
 **Contexto.** ADR-0028 (aceptado por Elvis el 16 nov) levanta la línea roja del lanzamiento solo para las cuotas: cada academia cobra en su propia cuenta de Stripe (Connect, Accounts v2). La Fase 1 es solo conectar la cuenta; **no hay ningún cobro**.
