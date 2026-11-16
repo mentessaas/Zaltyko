@@ -127,9 +127,10 @@ const familyInputSchema = z.object({
 
 const startInputSchema = familyInputSchema.extend({
   kind: z.enum(["card", "sepa_debit"]),
-  // Se comprueban a mano para responder 400 con un código propio.
-  consentVersion: z.unknown(),
-  consentAccepted: z.unknown(),
+  // Se comprueban a mano, antes de validar el resto, para responder 400 con
+  // un código propio también cuando faltan.
+  consentVersion: z.unknown().optional(),
+  consentAccepted: z.unknown().optional(),
   clientIp: z.string().nullable(),
   userAgent: z.string().nullable(),
 });
@@ -448,15 +449,18 @@ export async function startFamilyPaymentSetup(
   },
   deps?: FamilyPaymentMethodsDeps
 ): Promise<{ clientSecret: string; connectedAccount: string; setupIntentId: string }> {
-  const parsed = startInputSchema.parse(input);
-  const now = input.now ?? new Date();
-  if (parsed.consentAccepted !== true || parsed.consentVersion !== FAMILY_PAYMENT_CONSENT_VERSION) {
+  // El consentimiento se mira antes que la forma del resto: si falta o no es
+  // el texto vigente, 400 con código propio sin tocar la base ni Stripe.
+  const consent = input as { consentAccepted?: unknown; consentVersion?: unknown };
+  if (consent.consentAccepted !== true || consent.consentVersion !== FAMILY_PAYMENT_CONSENT_VERSION) {
     throw new OperationalError(
       "FAMILY_PAYMENT_CONSENT_REQUIRED",
       "Lee y acepta el texto del pago automático para continuar.",
       400
     );
   }
+  const parsed = startInputSchema.parse(input);
+  const now = input.now ?? new Date();
 
   const context = await requireWritableContext(parsed, now);
   if (!context.kinds.includes(parsed.kind)) throw notOfferedError();
