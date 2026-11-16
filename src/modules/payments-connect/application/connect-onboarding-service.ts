@@ -23,6 +23,7 @@ import { loadOrganizationPlanState } from "@/modules/billing/application/plan-st
 import { resolveOwnerScope, type OwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import {
   isConnectOnboardingFlagEnabled,
+  isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/payments-connect/application/config";
 import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
@@ -118,13 +119,15 @@ function gatewayFrom(deps: ConnectServiceDeps | undefined): ConnectAccountsGatew
 }
 
 /**
- * Disponibilidad para esta persona y academia. Sin bandera o fuera de `test`
- * no se consulta la base: esos motivos van antes en la prioridad de
- * evaluateConnectAvailability y el resultado no depende del resto.
+ * Disponibilidad para esta persona y academia. Sin bandera, fuera de `test` o
+ * contra la base de producción no se consulta la base: esos motivos van antes
+ * en la prioridad de evaluateConnectAvailability y el resultado no depende
+ * del resto.
  */
 async function loadAvailability(scope: OwnerScope, now: Date): Promise<ConnectAvailability> {
   const flagEnabled = isConnectOnboardingFlagEnabled();
   const environment = resolveConnectEnvironment();
+  const productionDatabase = isProductionDatabase();
   const member = {
     role: scope.member.role,
     locationScopeMode: scope.member.locationScopeMode,
@@ -136,10 +139,11 @@ async function loadAvailability(scope: OwnerScope, now: Date): Promise<ConnectAv
     planState: { entitlement: null, subscription: null },
   };
 
-  if (!flagEnabled || environment !== "test") {
+  if (!flagEnabled || environment !== "test" || productionDatabase) {
     return evaluateConnectAvailability({
       flagEnabled,
       environment,
+      productionDatabase,
       member,
       organizationId,
       now,
@@ -152,6 +156,7 @@ async function loadAvailability(scope: OwnerScope, now: Date): Promise<ConnectAv
     return evaluateConnectAvailability({
       flagEnabled,
       environment,
+      productionDatabase,
       member,
       organizationId,
       now,
@@ -166,6 +171,7 @@ async function loadAvailability(scope: OwnerScope, now: Date): Promise<ConnectAv
   return evaluateConnectAvailability({
     flagEnabled,
     environment,
+    productionDatabase,
     storageAvailable,
     member,
     countryCode,
@@ -550,6 +556,8 @@ export async function syncConnectAccountFromEvent(
   // Fase 1 solo existe en `test`: con clave Live (o desconocida) no se toca
   // nada, aunque el evento diga que es Live.
   if (environment !== "test") return "ignored";
+  // Segundo cerrojo: contra la base de producción tampoco, sea cual sea la clave.
+  if (isProductionDatabase()) return "ignored";
   if ((parsed.livemode ? "live" : "test") !== environment) return "ignored";
   if (!ACCOUNT_REFERENCE.test(parsed.accountId)) return "ignored";
   if (!(await isConnectOnboardingStorageAvailable())) return "ignored";

@@ -59,6 +59,7 @@ function eligibleInput(overrides: Partial<AvailabilityInput> = {}): Availability
   return {
     flagEnabled: true,
     environment: "test",
+    productionDatabase: false,
     storageAvailable: true,
     member: { role: "owner", locationScopeMode: "all" },
     countryCode: "ES",
@@ -108,6 +109,27 @@ describe("evaluateConnectAvailability", () => {
         eligibleInput({ environment: "live", storageAvailable: false })
       )
     ).toEqual({ available: false, reason: "live_not_released" });
+  });
+
+  it("3b. clave de test con la base de producción → live_not_released (segundo cerrojo)", () => {
+    expect(
+      evaluateConnectAvailability(eligibleInput({ productionDatabase: true }))
+    ).toEqual({ available: false, reason: "live_not_released" });
+    // Va antes que almacenamiento, rol, país y plan.
+    expect(
+      evaluateConnectAvailability(
+        eligibleInput({
+          productionDatabase: true,
+          storageAvailable: false,
+          member: { role: "coach", locationScopeMode: "selected" },
+          countryCode: "MX",
+        })
+      )
+    ).toEqual({ available: false, reason: "live_not_released" });
+    // La bandera apagada sigue teniendo prioridad.
+    expect(
+      evaluateConnectAvailability(eligibleInput({ productionDatabase: true, flagEnabled: false }))
+    ).toEqual({ available: false, reason: "flag_off" });
   });
 
   it("4. sin almacenamiento → storage_missing", () => {

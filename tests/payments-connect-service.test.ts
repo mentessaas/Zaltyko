@@ -208,6 +208,23 @@ describe("servicio de Conectar Stripe", () => {
       expect(findConnectAccountForOrganization).not.toHaveBeenCalled();
     });
 
+    it("R11: con sk_test_ y la base de producción responde live_not_released sin leer la base", async () => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://jegxfahsvugilbthbked.supabase.co");
+      vi.mocked(findConnectAccountForOrganization).mockResolvedValue(storedAccount());
+      const gateway = fakeGateway();
+      const state = await getConnectStatus({ userId, organizationId, refresh: true }, { gateway, now });
+      expect(state).toEqual({ kind: "unavailable", reason: "live_not_released" });
+      expect(isConnectOnboardingStorageAvailable).not.toHaveBeenCalled();
+      expect(findConnectAccountForOrganization).not.toHaveBeenCalled();
+      expect(gateway.retrieveAccount).not.toHaveBeenCalled();
+    });
+
+    it("R11: con sk_test_ y la base de staging sigue disponible", async () => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://stagingsynthetic01.supabase.co");
+      const state = await getConnectStatus({ userId, organizationId, refresh: false }, { gateway: fakeGateway(), now });
+      expect(state).toEqual({ kind: "not_connected" });
+    });
+
     it("sin el candidato aplicado responde storage_missing sin leer la tabla", async () => {
       vi.mocked(isConnectOnboardingStorageAvailable).mockResolvedValue(false);
       const state = await getConnectStatus({ userId, organizationId, refresh: true }, { gateway: fakeGateway(), now });
@@ -400,6 +417,17 @@ describe("servicio de Conectar Stripe", () => {
       });
       expect(gateway.createAccount).not.toHaveBeenCalled();
       expect(gateway.createOnboardingLink).not.toHaveBeenCalled();
+      expect(db.transaction).not.toHaveBeenCalled();
+    });
+
+    it("R11: con sk_test_ y la base de producción lanza live_not_released y no crea la cuenta", async () => {
+      vi.stubEnv("DATABASE_URL", "postgresql://postgres:placeholder@db.jegxfahsvugilbthbked.supabase.co:5432/postgres");
+      const gateway = fakeGateway();
+      await expect(startConnectOnboarding({ userId, organizationId }, { gateway, now })).rejects.toMatchObject({
+        code: "CONNECT_UNAVAILABLE",
+        details: { reason: "live_not_released" },
+      });
+      expect(gateway.createAccount).not.toHaveBeenCalled();
       expect(db.transaction).not.toHaveBeenCalled();
     });
 
@@ -612,6 +640,19 @@ describe("servicio de Conectar Stripe", () => {
       const gateway = fakeGateway();
       const outcome = await syncConnectAccountFromEvent(
         { eventId: "evt_synthetic_live", accountId: "acct_SyntheticA1", livemode: true },
+        { gateway, now }
+      );
+      expect(outcome).toBe("ignored");
+      expect(isConnectOnboardingStorageAvailable).not.toHaveBeenCalled();
+      expect(findConnectAccountByReference).not.toHaveBeenCalled();
+      expect(gateway.retrieveAccount).not.toHaveBeenCalled();
+    });
+
+    it("R11: contra la base de producción se ignora sin leer la base ni Stripe", async () => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://jegxfahsvugilbthbked.supabase.co");
+      const gateway = fakeGateway();
+      const outcome = await syncConnectAccountFromEvent(
+        { eventId: "evt_synthetic_prod", accountId: "acct_SyntheticA1", livemode: false },
         { gateway, now }
       );
       expect(outcome).toBe("ignored");

@@ -17,7 +17,10 @@
 import { NextResponse } from "next/server";
 
 import { logger } from "@/lib/logger";
-import { isConnectOnboardingFlagEnabled } from "@/modules/payments-connect/application/config";
+import {
+  isConnectOnboardingFlagEnabled,
+  isProductionDatabase,
+} from "@/modules/payments-connect/application/config";
 import { syncConnectAccountFromEvent } from "@/modules/payments-connect/application/connect-onboarding-service";
 import {
   createStripeConnectGateway,
@@ -46,6 +49,9 @@ function json(body: Record<string, unknown>, status = 200) {
 export async function POST(request: Request) {
   // Con la bandera apagada no se procesa nada (ni se exige el secreto).
   if (!isConnectOnboardingFlagEnabled()) return json({ ignored: true });
+  // Fase 1: contra la base de producción no se procesa nada (segundo cerrojo,
+  // independiente del prefijo de la clave de Stripe).
+  if (isProductionDatabase()) return json({ ignored: true });
 
   const secret = process.env.STRIPE_CONNECT_ACCOUNTS_WEBHOOK_SECRET;
   if (!secret) {

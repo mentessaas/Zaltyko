@@ -88,6 +88,24 @@ describe("POST /api/stripe/connect/accounts-webhook", () => {
     expect(syncConnectAccountFromEvent).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["la URL pública de Supabase", "NEXT_PUBLIC_SUPABASE_URL", "https://jegxfahsvugilbthbked.supabase.co"],
+    [
+      "la conexión del pooler",
+      "DATABASE_URL_POOL",
+      "postgresql://postgres.jegxfahsvugilbthbked:placeholder@aws-0-eu-north-1.pooler.supabase.com:6543/postgres",
+    ],
+  ])("R11: si %s apunta a producción responde 200 { ignored: true } sin verificar ni procesar", async (_label, name, value) => {
+    vi.stubEnv(name, value);
+
+    const response = await POST(webhookRequest());
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ignored: true });
+    expect(mocks.parseAccountEvent).not.toHaveBeenCalled();
+    expect(syncConnectAccountFromEvent).not.toHaveBeenCalled();
+  });
+
   it("sin STRIPE_CONNECT_ACCOUNTS_WEBHOOK_SECRET responde 503", async () => {
     vi.stubEnv("STRIPE_CONNECT_ACCOUNTS_WEBHOOK_SECRET", "");
 

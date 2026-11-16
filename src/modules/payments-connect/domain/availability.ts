@@ -46,6 +46,8 @@ function isRoleAllowed(member: { role: string; locationScopeMode: string }): boo
 export function evaluateConnectAvailability(input: {
   flagEnabled: boolean;
   environment: "test" | "live" | null;
+  /** La base de este despliegue es la Supabase de producción. */
+  productionDatabase: boolean;
   storageAvailable: boolean;
   member: { role: string; locationScopeMode: string };
   countryCode: string;
@@ -57,8 +59,10 @@ export function evaluateConnectAvailability(input: {
   if (input.environment === null) {
     return { available: false, reason: "environment_unknown" };
   }
-  // Live cerrado por código en esta fase, aunque la bandera esté encendida.
-  if (input.environment !== "test") {
+  // Live y producción cerrados por código en esta fase, aunque la bandera
+  // esté encendida: clave de Live, o una clave de test con la base de
+  // producción (segundo cerrojo, independiente del prefijo de la clave).
+  if (input.environment !== "test" || input.productionDatabase) {
     return { available: false, reason: "live_not_released" };
   }
   if (!input.storageAvailable) {
