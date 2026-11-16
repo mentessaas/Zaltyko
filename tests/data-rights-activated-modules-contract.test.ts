@@ -13,6 +13,7 @@ import {
   CLASS_PLAN_TEMPLATE_BLOCK_FIELDS,
   INTERNAL_NON_CUSTOMER_TABLES,
   OPTIONAL_EXPORT_MODULE_GROUPS,
+  OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES,
   OPTIONAL_INCLUDED_EXPORT_MODULES,
   OPTIONAL_INCLUDED_EXPORT_TABLES,
   OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
@@ -46,6 +47,12 @@ const CANDIDATES = {
   payment_reminders: "docs/deployment/candidates/20261114120500_payment_reminders_candidate.sql",
   family_access: "docs/deployment/candidates/20261114121500_family_access_notices_candidate.sql",
 } as const;
+/**
+ * Cobro automático, Fase 2 (sin aplicar). No es una función activada: su tabla
+ * se clasifica como grupo opcional excluido (solo recuento) y no entra en la
+ * política de supresión de las funciones activadas.
+ */
+const FAMILY_PAYMENT_METHODS = "docs/deployment/candidates/20261116180000_family_payment_methods_candidate.sql";
 const COMPETITIVE_INTELLIGENCE =
   "docs/deployment/candidates/20261110180000_competitive_intelligence_candidate.sql";
 
@@ -249,6 +256,24 @@ describe("inventario de derechos de datos frente al SQL", () => {
     for (const table of OPTIONAL_TEAM_ACCESS_EXPORT_TABLES) {
       expect([...table.columns].sort(), table.table).toEqual([...activated.get(table.table)!.columns].sort());
     }
+  });
+
+  it("declara el recuento de los intentos de método de pago con exactamente las columnas del candidato", () => {
+    const candidate = parseCreateTables(FAMILY_PAYMENT_METHODS, "zaltyko");
+    expect([...candidate.keys()]).toEqual(["family_payment_setup_attempts"]);
+    expect(OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES.map((table) => table.table)).toEqual(["family_payment_setup_attempts"]);
+    for (const table of OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES) {
+      expect([...table.columns].sort(), table.table).toEqual([...candidate.get(table.table)!.columns].sort());
+      expect(table.category).toBe("payment_authorizations");
+      // La academia arrastra sus intentos; el recuento usa organization_id.
+      expect(candidate.get(table.table)!.foreignKeys).toContainEqual(
+        { columns: ["organization_id"], target: "zaltyko.organizations", action: "cascade" }
+      );
+    }
+    expect(OPTIONAL_EXPORT_MODULE_GROUPS).toContain(OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES);
+    // No es una función activada: no se exporta con valores.
+    expect(OPTIONAL_INCLUDED_EXPORT_TABLES.some((table) => table.name === "family_payment_setup_attempts")).toBe(false);
+    expect(ACTIVATED_MODULES_ERASURE_POLICY.some((entry) => entry.table === "family_payment_setup_attempts")).toBe(false);
   });
 
   it("revisa en el plan de disposición los mismos módulos activados que exporta", () => {

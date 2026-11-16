@@ -9,7 +9,7 @@ vi.mock("@/db", () => ({ db: { transaction: mocks.transaction } }));
 import { exportCanonicalAcademyData } from "@/modules/data-rights/application/canonical-academy-return";
 import {
   ALL_KNOWN_CANONICAL_TABLE_NAMES, CANONICAL_EXPORT_TABLES, EXCLUDED_CANONICAL_SCOPED_TABLES,
-  EXCLUDED_CANONICAL_TABLES, OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_INCLUDED_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
+  EXCLUDED_CANONICAL_TABLES, OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES, OPTIONAL_INCLUDED_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
 import { activatedCatalogRows, activatedRowsByTable } from "./helpers/activated-module-rows";
 import { planCanonicalAcademyDisposition } from "@/modules/data-rights/application/plan-canonical-academy-disposition";
@@ -33,10 +33,14 @@ function fixture(): Rows {
   };
 }
 
-async function archive(options: { discovery?: boolean; team?: boolean; activated?: boolean; counts?: Record<string, number | string> } = {}): Promise<string> {
+async function archive(options: { discovery?: boolean; team?: boolean; familyPaymentSetup?: boolean; activated?: boolean; counts?: Record<string, number | string> } = {}): Promise<string> {
   const rows: Rows = { ...fixture(), ...(options.activated ? activatedRowsByTable(organizationId) : {}) };
   const included = [...CANONICAL_EXPORT_TABLES, ...(options.activated ? OPTIONAL_INCLUDED_EXPORT_TABLES : [])];
-  const optional = [...(options.discovery ? OPTIONAL_DISCOVERY_EXPORT_TABLES : []), ...(options.team ? OPTIONAL_TEAM_ACCESS_EXPORT_TABLES : [])];
+  const optional = [
+    ...(options.discovery ? OPTIONAL_DISCOVERY_EXPORT_TABLES : []),
+    ...(options.team ? OPTIONAL_TEAM_ACCESS_EXPORT_TABLES : []),
+    ...(options.familyPaymentSetup ? OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES : []),
+  ];
   for (let i = 0; i < 4; i++) mocks.execute.mockResolvedValueOnce({ rows: [] });
   mocks.execute
     .mockResolvedValueOnce({ rows: [{ organization_status: "active", member_status: "active", role: "owner", location_scope_mode: "all" }] })
@@ -133,7 +137,7 @@ describe("pure canonical disposition review plan", () => {
     const result = plan(await archive());
     expect(result.tables.find((table) => table.table === "organization_entitlement_changes")).toMatchObject({ rowCount: 0, coverage: "excluded_values", countEvidence: "declared_organization_count", eligibleForDeletion: false, hold: "unknown" });
     expect(result.tables.find((table) => table.table === "owner_signup_consents")).toMatchObject({ rowCount: null, countEvidence: "unknown" });
-    for (const optional of [...OPTIONAL_DISCOVERY_EXPORT_TABLES, ...OPTIONAL_TEAM_ACCESS_EXPORT_TABLES]) {
+    for (const optional of [...OPTIONAL_DISCOVERY_EXPORT_TABLES, ...OPTIONAL_TEAM_ACCESS_EXPORT_TABLES, ...OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES]) {
       expect(result.tables.find((table) => table.table === optional.table)).toMatchObject({ rowCount: null, coverage: "optional_not_reported", countEvidence: "optional_not_reported" });
     }
     expect(result.sources).toHaveLength(6);
@@ -142,9 +146,16 @@ describe("pure canonical disposition review plan", () => {
     expect(result.blockers).toContain("retention_and_holds_unresolved");
   });
 
-  it.each([[true, false], [false, true], [true, true]] as const)("handles independently reported discovery=%s/team=%s without changing eligibility", async (discovery, team) => {
-    const result = plan(await archive({ discovery, team }));
-    for (const [group, present] of [[OPTIONAL_DISCOVERY_EXPORT_TABLES, discovery], [OPTIONAL_TEAM_ACCESS_EXPORT_TABLES, team]] as const) {
+  it.each([
+    [true, false, false], [false, true, false], [true, true, false],
+    [false, false, true], [true, false, true], [false, true, true], [true, true, true],
+  ] as const)("handles independently reported discovery=%s/team=%s/familyPaymentSetup=%s without changing eligibility", async (discovery, team, familyPaymentSetup) => {
+    const result = plan(await archive({ discovery, team, familyPaymentSetup }));
+    for (const [group, present] of [
+      [OPTIONAL_DISCOVERY_EXPORT_TABLES, discovery],
+      [OPTIONAL_TEAM_ACCESS_EXPORT_TABLES, team],
+      [OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES, familyPaymentSetup],
+    ] as const) {
       for (const table of group) {
         expect(result.tables.find((entry) => entry.table === table.table)).toMatchObject({ rowCount: present ? 0 : null, countEvidence: present ? "declared_organization_count" : "optional_not_reported", eligibleForDeletion: false });
       }
@@ -166,6 +177,14 @@ describe("pure canonical disposition review plan", () => {
     const serialized = JSON.stringify(present);
     expect(serialized).not.toContain("family@example.invalid");
     expect(serialized).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  });
+
+  it("reviews family payment setup attempts as provider-linked financial evidence, never deletable", async () => {
+    const result = plan(await archive({ familyPaymentSetup: true, counts: { family_payment_setup_attempts: 2 } }));
+    const entry = result.tables.find((table) => table.table === "family_payment_setup_attempts");
+    expect(entry).toMatchObject({ category: "payment_authorizations", rowCount: 2, coverage: "excluded_values", countEvidence: "declared_organization_count", eligibleForDeletion: false, decision: "pending" });
+    expect(entry?.missingDecisions).toContain("financial_history_and_provider_effects");
+    expect(entry?.missingDecisions).toContain("source_ownership_and_scope");
   });
 
   it("preserves exact excluded int8 counts without Number conversion", async () => {

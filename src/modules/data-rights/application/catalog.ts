@@ -59,9 +59,23 @@ export const OPTIONAL_TEAM_ACCESS_EXPORT_TABLES = [
   },
 ] as const;
 
+/** Family payment-method setup attempts (cobro automático, Fase 2;
+ * docs/deployment/candidates/20261116180000_family_payment_methods_candidate.sql,
+ * not applied in any environment). Like family_payment_authorizations, values
+ * stay out of the bundle; only this academy's count is included.
+ */
+export const OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES = [
+  {
+    table: "family_payment_setup_attempts",
+    category: "payment_authorizations",
+    reason: "Payment provider references and truncated consent evidence are excluded; only this academy's count is included.",
+    columns: ["id", "organization_id", "family_id", "family_payer_id", "guardian_id", "payment_provider_account_id", "payment_method_kind", "provider_customer_reference", "provider_setup_reference", "consent_version", "consent_text_sha256", "consented_at", "client_ip_prefix", "user_agent_excerpt", "status", "authorization_id", "created_at", "updated_at"],
+  },
+] as const;
+
 export const OPTIONAL_EXPORT_MODULE_GROUPS: readonly (readonly (CanonicalExportExcludedTable & {
   columns: readonly string[];
-})[])[] = [OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES];
+})[])[] = [OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES, OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES];
 
 function columns(value: string): string[] {
   return value.split(/\s+/).filter(Boolean);

@@ -33,6 +33,7 @@ import {
   CANONICAL_EXPORT_TABLES,
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   OPTIONAL_DISCOVERY_EXPORT_TABLES,
+  OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES,
   OPTIONAL_INCLUDED_EXPORT_TABLES,
   OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
@@ -901,6 +902,36 @@ describe("canonical academy archive verification", () => {
     const archive = parseArchive(await generateBundleBody());
     const exclusions = archive.coverage.excludedTables as Array<Record<string, unknown>>;
     for (const table of OPTIONAL_TEAM_ACCESS_EXPORT_TABLES.slice(0, count)) {
+      exclusions.push({ table: table.table, category: table.category, reason: table.reason, rowCount: 0, countScope: "organization_id", valuesExported: false });
+    }
+    expectRejectedWithoutDisclosure(sealArchive(archive));
+  });
+
+  it.each([false, true])("verifies the family payment setup exclusion after team access=%s", async team => {
+    const archive = parseArchive(await generateBundleBody());
+    const exclusions = archive.coverage.excludedTables as Array<Record<string, unknown>>;
+    for (const table of [...(team ? OPTIONAL_TEAM_ACCESS_EXPORT_TABLES : []), ...OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES]) {
+      exclusions.push({ table: table.table, category: table.category, reason: table.reason, rowCount: 1, countScope: "organization_id", valuesExported: false });
+    }
+    expectAccepted(sealArchive(archive));
+  });
+
+  it.each([
+    ["exported values", { valuesExported: true }],
+    ["another category", { category: "operational_projection" }],
+    ["an unscoped count", { countScope: "unknown", rowCount: null }],
+  ] as const)("rejects a family payment setup exclusion with %s", async (_label, change) => {
+    const archive = parseArchive(await generateBundleBody());
+    const exclusions = archive.coverage.excludedTables as Array<Record<string, unknown>>;
+    const [table] = OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES;
+    exclusions.push({ table: table.table, category: table.category, reason: table.reason, rowCount: 0, countScope: "organization_id", valuesExported: false, ...change });
+    expectRejectedWithoutDisclosure(sealArchive(archive));
+  });
+
+  it("rejects the family payment setup exclusion out of the reviewed group order", async () => {
+    const archive = parseArchive(await generateBundleBody());
+    const exclusions = archive.coverage.excludedTables as Array<Record<string, unknown>>;
+    for (const table of [...OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES, ...OPTIONAL_TEAM_ACCESS_EXPORT_TABLES]) {
       exclusions.push({ table: table.table, category: table.category, reason: table.reason, rowCount: 0, countScope: "organization_id", valuesExported: false });
     }
     expectRejectedWithoutDisclosure(sealArchive(archive));

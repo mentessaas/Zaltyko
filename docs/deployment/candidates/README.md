@@ -841,9 +841,21 @@ bancaria en la cuenta Stripe conectada de su academia. Decisión:
   (`src/modules/family-payment-methods/application/storage.ts`, solo lee
   `information_schema.columns`) devuelve `false` y la función responde «no
   disponible».
-- **Derechos de datos (pendiente).** La tabla nueva debe entrar en el catálogo
-  de `src/modules/data-rights/` (excluida, como `payment_authorizations`)
-  antes de aplicarla en producción.
+- **Derechos de datos.** La tabla nueva consta en el catálogo de
+  `src/modules/data-rights/` como grupo opcional excluido
+  (`OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES`, categoría
+  `payment_authorizations`): solo el recuento de la academia, nunca sus
+  valores, con la comprobación exacta de columnas. Todo o nada: sin la tabla, el
+  paquete de exportación es idéntico al anterior; con una columna sin
+  clasificar, la exportación falla cerrada. El plan de disposición la revisa
+  igual (`REVIEWED_DISPOSITION_OPTIONAL_GROUPS`). No entra en la política de
+  supresión de las funciones activadas: no es una función activada.
+- **Borrado de la academia.** Como en `family_payment_authorizations`, las
+  claves a pagador, tutor, cuenta conectada y autorización son `restrict`,
+  y la academia borra en cascada. Con intentos guardados, borrar la academia
+  podría fallar por esas claves antes de que la cascada llegue a los intentos.
+  Ningún flujo de Zaltyko borra academias (se archivan) y el plan de
+  disposición sigue bloqueado; revisarlo antes de cualquier borrado real.
 - **Pruebas:** `tests/family-payment-methods-pg.test.ts`, en el job «Postgres
   integration». Instala la candidata (y antes la de la Fase 1 si falta) solo
   en el PostgreSQL desechable de GitHub y retira al terminar lo que instaló.
