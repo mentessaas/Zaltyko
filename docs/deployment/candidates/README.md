@@ -716,7 +716,16 @@ flujo: `docs/producto/recordatorios-de-impago.md`.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261116120000_connect_onboarding_candidate.sql` | `e07a8129b2e935ede4b0755e33b731a6613c76b2ac8e616f239949665735eb0a` | No aplicada | No aplicada |
+| `20261116120000_connect_onboarding_candidate.sql` | `e07a8129b2e935ede4b0755e33b731a6613c76b2ac8e616f239949665735eb0a` | No aplicada | Aplicada 16-11-2026 (autorizado por Elvis) |
+
+**Staging, 16-11-2026.**
+- Aplicada en «Zaltyko Staging» (`oucxnnrtfmjjlnffldfc`) con el MCP de Supabase, con el texto exacto del archivo (SHA comprobado).
+- Comprobado después en el catálogo:
+  - las dos columnas son `text not null`, con sus valores por defecto;
+  - existen los dos checks con su nombre;
+  - RLS sigue en `ENABLE` y `FORCE`;
+  - la tabla tenía 0 filas.
+- **Producción: sin aplicar.** Necesita otra autorización expresa.
 
 Añade dos columnas a `zaltyko.organization_payment_provider_accounts`, sin
 crear tablas ni tocar permisos (la tabla ya es solo de `service_role`, con RLS
