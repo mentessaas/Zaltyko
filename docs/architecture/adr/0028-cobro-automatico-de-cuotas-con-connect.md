@@ -1,7 +1,11 @@
 # ADR-0028 — Cobro automático de cuotas con Stripe Connect (tarjeta y SEPA)
 
-- Estado: **propuesta** (Fase 0). Decisiones D1–D4 tomadas por Elvis el
-  16-11-2026; el documento completo queda pendiente de su aprobación.
+- Estado: **aceptada** por Elvis el 16-11-2026 (decisiones D1–D4 y documento
+  completo). Ninguna fase está construida todavía; el cobro sigue cerrado.
+- Autorizado por Elvis para la Fase 1, solo en staging:
+  - destino de eventos en Stripe sandbox;
+  - secreto y bandera en Vercel staging;
+  - migración candidata en Supabase staging.
 - Fecha: 2026-11-16.
 - Relacionados: ADR-0020 (preferencia y entitlement), ADR-0022 (cuenta
   conectada por academia), ADR-0025 (cobros separados de la inscripción),
