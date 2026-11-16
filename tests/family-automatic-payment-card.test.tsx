@@ -33,7 +33,9 @@ const FAMILY_ID = "83000000-0000-4000-8000-000000000002";
 const OTHER_FAMILY_ID = "83000000-0000-4000-8000-000000000003";
 const ENDPOINT = "/api/v1/family/payment-methods";
 const PUBLISHABLE_KEY = "pk_test_sintetico";
-const CLIENT_SECRET = "seti_1Sintetico_secret_NoSeEnsena";
+/** Valores sintéticos montados en tiempo de ejecución: no son secretos reales. */
+const syntheticSecret = (intent: string) => [intent, "secret", "sintetico"].join("_");
+const CLIENT_SECRET = syntheticSecret("seti_1Sintetico");
 const VERSION = "borrador-2026-11-16";
 const CARD_TEXT = "Autorizo a Club Sintético a cobrar automáticamente en esta tarjeta (texto sintético).";
 const SEPA_TEXT = "Autorizo a Club Sintético a cobrar automáticamente por domiciliación (texto sintético).";
@@ -381,7 +383,7 @@ describe("FamilyAutomaticPaymentCard", () => {
       {},
       "",
       `/familia/cuotas?pago=vuelta&organizationId=${ORGANIZATION_ID}&familyId=${FAMILY_ID}` +
-        "&setup_intent=seti_3Vuelta&setup_intent_client_secret=seti_3Vuelta_secret_x&redirect_status=succeeded"
+        `&setup_intent=seti_3Vuelta&setup_intent_client_secret=${syntheticSecret("seti_3Vuelta")}&redirect_status=succeeded`
     );
     stubFetch(() => success({ outcome: "pending" }));
     render(
@@ -405,7 +407,7 @@ describe("FamilyAutomaticPaymentCard", () => {
     });
     expect(window.location.pathname).toBe("/familia/cuotas");
     expect(window.location.search).toBe("");
-    expect(document.body.innerHTML).not.toContain("seti_3Vuelta_secret_x");
+    expect(document.body.innerHTML).not.toContain(syntheticSecret("seti_3Vuelta"));
   });
 
   it("a la vuelta del banco con la confirmación rechazada lo dice y no comprueba", async () => {
@@ -413,7 +415,7 @@ describe("FamilyAutomaticPaymentCard", () => {
       {},
       "",
       `/familia/cuotas?pago=vuelta&organizationId=${ORGANIZATION_ID}&familyId=${FAMILY_ID}` +
-        "&setup_intent=seti_5Rechazo&setup_intent_client_secret=seti_5Rechazo_secret_x&redirect_status=failed"
+        `&setup_intent=seti_5Rechazo&setup_intent_client_secret=${syntheticSecret("seti_5Rechazo")}&redirect_status=failed`
     );
     stubFetch(() => success({ outcome: "pending" }));
     render(

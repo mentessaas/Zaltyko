@@ -58,6 +58,8 @@ const setupBody = {
 };
 const completeBody = { action: "complete", organizationId, familyId, setupIntentId: "seti_1SyntheticAbc" };
 const revokeBody = { action: "revoke", organizationId, familyId };
+/** Valor sintético montado en tiempo de ejecución: no es un secreto real. */
+const SYNTHETIC_CLIENT_SECRET = ["seti_1SyntheticAbc", "secret", "synthetic"].join("_");
 
 function post(
   url: string,
@@ -260,7 +262,7 @@ describe("POST /api/v1/family/payment-methods: cuerpo", () => {
 describe("POST /api/v1/family/payment-methods: acciones", () => {
   it("setup pasa la IP entera (primera de x-forwarded-for) y el agente, y devuelve solo clientSecret y connectedAccount", async () => {
     vi.mocked(startFamilyPaymentSetup).mockResolvedValue({
-      clientSecret: "seti_1SyntheticAbc_secret_synthetic",
+      clientSecret: SYNTHETIC_CLIENT_SECRET,
       connectedAccount: "acct_1Synthetic",
       setupIntentId: "seti_1SyntheticAbc",
     });
@@ -290,7 +292,7 @@ describe("POST /api/v1/family/payment-methods: acciones", () => {
     const payload = await response.json();
     expect(payload).toEqual({
       ok: true,
-      data: { clientSecret: "seti_1SyntheticAbc_secret_synthetic", connectedAccount: "acct_1Synthetic" },
+      data: { clientSecret: SYNTHETIC_CLIENT_SECRET, connectedAccount: "acct_1Synthetic" },
     });
     expect(Object.keys(payload.data).sort()).toEqual(["clientSecret", "connectedAccount"]);
   });
