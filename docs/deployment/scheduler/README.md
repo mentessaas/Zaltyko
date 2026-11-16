@@ -55,8 +55,9 @@ select vault.create_secret('<valor de CRON_SECRET>', 'zaltyko_cron_secret', 'CRO
 Requisitos previos: extensiones `pg_cron` y `pg_net` activadas (Database →
 Extensions). Después se ejecuta `20261115_pg_cron_avisos.sql`.
 
-Para staging habría que cambiar la URL de `call_cron` (`https://staging.zaltyko.com`)
-y usar el `CRON_SECRET` de staging; este archivo describe producción.
+Este archivo describe producción: `call_cron` tiene la URL de zaltyko.com
+fija. Para staging no se toca `call_cron`; se usa una función propia (ver
+«Cobro automático de cuotas» más abajo).
 
 ## Ver las ejecuciones
 
@@ -133,3 +134,91 @@ no vale hasta republicar.
 Entre los pasos 3 y 4 las llamadas reciben 401 y no hacen nada; los avisos se
 recuperan en el siguiente disparo (los de clase pueden perder alguno de esos
 minutos). Hacer los dos cambios seguidos y fuera de la hora punta de clases.
+
+## Cobro automático de cuotas (Fase 3, sin aplicar)
+
+`candidates/collect-family-fees.sql` programa el trabajo
+`zaltyko-collect-family-fees`, que llama a `/api/cron/collect-family-fees`.
+**No está aplicado en ningún entorno.** Aplicarlo, en producción o en staging,
+necesita la autorización expresa de Elvis, igual que la candidata de la base
+de la Fase 3 y la bandera `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED`.
+
+| Trabajo (`cron.job.jobname`) | Expresión (UTC) | España (Madrid) | México (Ciudad de México) |
+|---|---|---|---|
+| `zaltyko-collect-family-fees` | `0 6 * * *` | 07:00 (invierno) · 08:00 (verano) | 00:00 |
+
+Corre antes de los recordatorios de cuotas (16:00 UTC), así que el
+recordatorio del día ya ve el resultado del cobro. La ruta exige el secreto,
+toma el lease `cron:collect-family-fees` y responde solo contadores. Qué hace
+según el entorno:
+
+- clave de Stripe que no es de test, o base de producción: nada (cerrojos de la
+  fase, en el código);
+- sin las tablas del cobro: nada (`enabled: false`);
+- bandera apagada: solo pone al día los cobros que quedaron a medias, para que
+  lo que ya salió en Stripe quede registrado; nunca cobra nada nuevo
+  (`enabled: false`);
+- bandera encendida: además cobra lo que vence hoy.
+
+La forma más suave de parar los cobros nuevos es apagar la bandera en Vercel.
+Para parar también la puesta al día, quitar el trabajo:
+`select cron.unschedule('zaltyko-collect-family-fees');`.
+
+### Producción
+
+`candidates/collect-family-fees.sql` usa `zaltyko_scheduler.call_cron`, que
+tiene fija la URL de producción (`20261115_pg_cron_avisos.sql`, línea 23:
+`'https://zaltyko.com/api/cron/' || route`). Antes de programar comprueba que
+la función existe. Ese archivo es solo para la base de producción.
+
+### Staging
+
+Staging es otro proyecto de Supabase, con su propio Vault y su propio
+`CRON_SECRET`. No se reutiliza `call_cron` ni se cambia su URL: si en la base
+de staging existiera una copia de `20261115_pg_cron_avisos.sql`, llamaría a
+zaltyko.com. Se crea, **solo en la base de staging**, una función propia con
+la URL de staging fija y se programa con ella. Nada de esto toca producción.
+
+```sql
+-- SOLO en la base de staging y con la autorización de Elvis.
+-- Antes: vault.create_secret con el CRON_SECRET de staging (nunca el de
+-- producción) con el nombre zaltyko_cron_secret.
+begin;
+create schema if not exists zaltyko_scheduler;
+revoke all on schema zaltyko_scheduler from public, anon, authenticated;
+create or replace function zaltyko_scheduler.call_cron_staging(route text)
+returns bigint
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $fn$
+declare
+  secret text;
+begin
+  if route !~ '^[a-z-]+$' then
+    raise exception 'ruta de aviso no válida: %', route;
+  end if;
+  select decrypted_secret into secret from vault.decrypted_secrets where name = 'zaltyko_cron_secret';
+  if secret is null then
+    raise exception 'falta el secreto zaltyko_cron_secret en Vault';
+  end if;
+  return net.http_post(
+    url := 'https://staging.zaltyko.com/api/cron/' || route,
+    body := '{}'::jsonb,
+    headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer ' || secret),
+    timeout_milliseconds := 300000
+  );
+end;
+$fn$;
+revoke all on function zaltyko_scheduler.call_cron_staging(text) from public, anon, authenticated;
+select cron.schedule('zaltyko-collect-family-fees', '0 6 * * *', $$select zaltyko_scheduler.call_cron_staging('collect-family-fees')$$);
+commit;
+```
+
+Para una prueba puntual en staging no hace falta programar nada: basta con
+`select zaltyko_scheduler.call_cron_staging('collect-family-fees');` y mirar
+la respuesta en `net._http_response`. Un 401 puede ser un secreto distinto en
+Vault y en Vercel, o la protección de despliegues de Vercel delante de
+staging. Vuelta atrás en staging:
+`select cron.unschedule('zaltyko-collect-family-fees');` y
+`drop function if exists zaltyko_scheduler.call_cron_staging(text);`.
