@@ -29,6 +29,7 @@ import {
   type PaymentIntentSnapshot,
   type StripeErrorLike,
 } from "@/modules/family-collection/domain/payment-outcome";
+import { TOO_MANY_PAYMENTS_FOR_ATTEMPT_ERROR } from "@/modules/family-collection/domain/stripe-read-error";
 import type { PaymentMethodKind } from "@/modules/family-payment-methods/domain/consent";
 
 /** Moneda de las cuotas: `EUR` en la base, en minúsculas solo aquí. */
@@ -290,7 +291,7 @@ export async function listCollectionPaymentsByAttempt(
     { query: collectionAttemptSearchQuery(input.attemptId), limit: MAX_PAYMENTS_PER_ATTEMPT_SEARCH },
     { stripeAccount: input.connectedAccount }
   );
-  if (result.has_more) throw new Error("FAMILY_COLLECTION_TOO_MANY_PAYMENTS_FOR_ATTEMPT");
+  if (result.has_more) throw new Error(TOO_MANY_PAYMENTS_FOR_ATTEMPT_ERROR);
   return result.data
     .filter((paymentIntent) => hasMetadataAttempt(paymentIntent, input.attemptId))
     .map((paymentIntent) => toSnapshot(paymentIntent));

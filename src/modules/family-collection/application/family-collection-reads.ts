@@ -55,6 +55,7 @@ import {
   COLLECTION_WINDOW_EXPIRED_CODE,
   FAMILY_COLLECTION_MAX_RESUMES,
   FAMILY_COLLECTION_OPEN_STATUSES,
+  isLongProcessingAttempt,
 } from "@/modules/family-collection/infrastructure/family-collection-schema";
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
 import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
@@ -657,7 +658,12 @@ export interface OwnerCollectionRow {
 
 
 /**
- * Un cobro de la lista de la academia, o `null` si no es de este mes. Pura.
+ * Un cobro de la lista de la academia, o `null` si no va en la lista. Pura.
+ * Sin intento, sale la cuota cuyo día de cobro cae en el mes de la lista, la
+ * que todavía está en su espera (aunque sea del mes anterior) y la que aún no
+ * ha llegado en el mes en curso de la sede (la sede puede ir por detrás de la
+ * academia cerca de medianoche). Con intento, sale siempre (la consulta ya
+ * elige los del mes, los abiertos y los que tienen reintento).
  * Las acciones siguen las reglas de family-collection-academy-actions.ts: el
  * servidor las vuelve a comprobar al pulsar.
  */
@@ -680,11 +686,17 @@ export function ownerAutomaticCollectionItemOf(
       const planned = plannedCollectionDate(row);
       if (!planned) return null;
       const expected = expectedCharge(planned, today);
-      // Sale si es del mes de la lista o del mes en curso en la sede (la sede
-      // puede ir por detrás de la academia cerca de medianoche), y también si
-      // es del mes anterior pero aún dentro de su espera: se sigue cobrando.
+      // Sale si es del mes de la lista, si aún está dentro de su espera (se
+      // sigue cobrando, aunque sea del mes anterior) o si es del mes en curso
+      // en la sede y todavía no ha llegado (la sede puede ir por detrás de la
+      // academia cerca de medianoche). Una cuota ya pasada de ese mes de la
+      // sede no se cuela: es de un mes que la academia ya cerró.
       const plannedMonth = planned.slice(0, 7);
-      if (plannedMonth !== month && plannedMonth !== today.slice(0, 7) && expected !== "due") return null;
+      const listed =
+        plannedMonth === month ||
+        expected === "due" ||
+        (plannedMonth === today.slice(0, 7) && expected === "scheduled");
+      if (!listed) return null;
       const state: OwnerAutomaticCollectionState = blockerText
         ? "manual"
         : expected === "scheduled"
@@ -706,7 +718,16 @@ export function ownerAutomaticCollectionItemOf(
     }
 
     const open = OPEN_STATUSES.has(attempt.status);
-    const canMarkReviewed = academyCanMarkReviewed(attempt, now);
+    // Una domiciliación en el banco sin aviso ni reanudaciones agotadas no se
+    // ofrece para revisar aunque pasen 15 días: el proceso diario la puede
+    // leer (si no, ya habría dejado el aviso `processing_unreadable`) y sigue
+    // en curso, así que «Marcar como revisado» respondería que no se puede
+    // cancelar. La acción mantiene su propia regla y vuelve a leer Stripe.
+    const stillInBank =
+      attempt.status === "processing" &&
+      !attempt.hasReviewNotice &&
+      attempt.resumeCount < FAMILY_COLLECTION_MAX_RESUMES;
+    const canMarkReviewed = !stillInBank && academyCanMarkReviewed(attempt, now);
     const allocationReview = attempt.status === "succeeded" && attempt.allocationStatus === "needs_review";
     // Aviso de la factura: ya no admite más intentos automáticos (se cobra a mano).
     const exhausted = row.attemptsExhausted && !open;
@@ -720,9 +741,7 @@ export function ownerAutomaticCollectionItemOf(
                 ? null
                 : attempt.resumeCount >= FAMILY_COLLECTION_MAX_RESUMES
                   ? "resume_exhausted"
-                  : attempt.status === "processing"
-                    ? "processing_unreadable"
-                    : "stale_open")
+                  : "stale_open")
           )
         : null;
     const failureText = exhausted
@@ -740,7 +759,11 @@ export function ownerAutomaticCollectionItemOf(
         break;
       case "processing":
         state = "processing";
-        reason = reviewText ?? "La domiciliación está en el banco; tarda unos días.";
+        reason =
+          reviewText ??
+          (isLongProcessingAttempt(attempt, now)
+            ? "La domiciliación sigue en el banco."
+            : "La domiciliación está en el banco; tarda unos días.");
         break;
       case "claimed":
       case "created":
@@ -794,11 +817,22 @@ export function ownerAutomaticCollectionItemOf(
 export const OWNER_AUTOMATIC_COLLECTIONS_LIMIT = 100;
 
 /**
+ * Filas que se piden a la base como mucho antes de elegir las que salen en la
+ * lista. Más que OWNER_AUTOMATIC_COLLECTIONS_LIMIT: la ventana incluye el mes
+ * anterior, y sus cuotas ya pasadas (que no salen) no deben quitar sitio a
+ * las que sí importan, como un cobro antiguo que sigue en curso.
+ */
+export const OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT = 500;
+
+/**
  * Cobros automáticos del mes de la academia: los intentados este mes, los
  * que siguen abiertos o con reintento pendiente (aunque empezaran antes) y
- * las cuotas automáticas cuyo día de cobro cae en este mes y aún no tienen
- * intento. Solo propiedad, o administración con todas las sedes (las mismas
- * personas que pueden cancelar o marcar como revisado); para el resto, `null`.
+ * las cuotas automáticas sin intento que van en la lista según
+ * ownerAutomaticCollectionItemOf: su día de cobro cae en este mes, siguen en
+ * su espera (aunque sean del mes anterior) o aún no han llegado en el mes en
+ * curso de su sede. Solo propiedad, o administración con todas las sedes (las
+ * mismas personas que pueden cancelar o marcar como revisado); para el resto,
+ * `null`.
  *
  * La consulta parte de un conjunto acotado de facturas candidatas (intentos
  * de la academia en la ventana del mes, abiertos o con reintento, y cuotas
@@ -963,12 +997,14 @@ export async function getOwnerAutomaticCollections(input: {
         or (la.id is null and i.status::text in ('issued', 'partially_paid'))
       )
     order by coalesce(la.claimed_at, i.due_at) desc, i.reference asc
-    limit ${OWNER_AUTOMATIC_COLLECTIONS_LIMIT + 1}
+    limit ${OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT + 1}
   `);
 
   const rows = result.rows as Array<Record<string, unknown>>;
   const plan = rows.length > 0 ? await loadPlan(organizationId, now) : null;
-  const items = rows.slice(0, OWNER_AUTOMATIC_COLLECTIONS_LIMIT).flatMap((row) => {
+  // Primero se eligen las filas que van en la lista y después se corta: el
+  // corte nunca deja fuera una fila que sale por otra que no sale.
+  const listed = rows.slice(0, OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT).flatMap((row) => {
     const attemptStatus = textOrNull(row.attemptStatus);
     const item = ownerAutomaticCollectionItemOf(
       {
@@ -1005,7 +1041,11 @@ export async function getOwnerAutomaticCollections(input: {
     );
     return item ? [item] : [];
   });
-  return { month, items, truncated: rows.length > OWNER_AUTOMATIC_COLLECTIONS_LIMIT };
+  return {
+    month,
+    items: listed.slice(0, OWNER_AUTOMATIC_COLLECTIONS_LIMIT),
+    truncated: listed.length > OWNER_AUTOMATIC_COLLECTIONS_LIMIT || rows.length > OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT,
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -17,7 +17,8 @@
  *    Stripe no deja leerlo, se registra el nombre y el código del error
  *    (permanente o pasajero) y se sigue con el resto; si además el intento se
  *    reclamó hace más de 15 días, la academia recibe el aviso
- *    `processing_unreadable` (una sola vez).
+ *    `processing_unreadable` (una sola vez). Un error permanente va como
+ *    error al registro hasta que existe ese aviso; después, como advertencia.
  */
 import { logger } from "@/lib/logger";
 import { mapPaymentIntent, type PaymentIntentSnapshot } from "@/modules/family-collection/domain/payment-outcome";
@@ -99,19 +100,37 @@ async function rereadProcessing(
       errorCode: failure.errorCode,
       permanent: failure.permanent,
     };
+    // El intento sigue en curso (su dinero pudo moverse); pasados 15 días la
+    // academia lo sabe y puede «Marcar como revisado». El aviso va antes del
+    // registro para saber si ya existía; si falla, se registra igual el error
+    // de Stripe y después el del aviso.
+    let noticeAlreadyRecorded = false;
+    let noticeFailure: { error: unknown } | null = null;
+    if (isLongProcessingAttempt(attempt, state.now)) {
+      try {
+        noticeAlreadyRecorded = !(await notifyReview(state, attempt, PROCESSING_UNREADABLE_REASON));
+      } catch (noticeError) {
+        noticeFailure = { error: noticeError };
+      }
+    }
     if (failure.permanent) {
-      // Cobro inexistente, cuenta sin permiso o ya no válida: reintentar no lo arregla.
-      logger.error("Cobro automático: Stripe no deja releer un cobro en curso", undefined, fields);
+      // Cobro inexistente, cuenta sin permiso o ya no válida: reintentar no lo
+      // arregla. Con el aviso ya registrado en otra ejecución, la academia ya
+      // lo sabe: queda como advertencia y no como error en cada ejecución diaria.
+      if (noticeAlreadyRecorded) {
+        logger.warn(
+          "Cobro automático: Stripe sigue sin dejar releer un cobro en curso; la academia ya tiene el aviso",
+          fields
+        );
+      } else {
+        logger.error("Cobro automático: Stripe no deja releer un cobro en curso", undefined, fields);
+      }
       countSkip(state, "stripe_unreadable");
     } else {
       logger.warn("Cobro automático: no se pudo releer un cobro en curso; se vuelve a mirar otro día", fields);
       countSkip(state, "transient");
     }
-    // El intento sigue en curso (su dinero pudo moverse); pasados 15 días la
-    // academia lo sabe y puede «Marcar como revisado».
-    if (isLongProcessingAttempt(attempt, state.now)) {
-      await notifyReview(state, attempt, PROCESSING_UNREADABLE_REASON);
-    }
+    if (noticeFailure) throw noticeFailure.error;
     return null;
   }
   return settleOutcome(state, attempt, refs, mapPaymentIntent(snapshot), snapshot, {

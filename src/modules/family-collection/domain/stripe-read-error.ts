@@ -19,6 +19,17 @@
  * su mensaje (puede llevar datos del banco o de la cuenta).
  */
 
+/**
+ * Error propio del adaptador: la búsqueda de los cobros de un intento tiene
+ * más de una página. Siempre saldrá igual (no es pasajero): lo resuelve soporte.
+ */
+export const TOO_MANY_PAYMENTS_FOR_ATTEMPT_ERROR = "FAMILY_COLLECTION_TOO_MANY_PAYMENTS_FOR_ATTEMPT";
+
+/** ¿Es el error de «demasiados cobros para un intento» (TOO_MANY_PAYMENTS_FOR_ATTEMPT_ERROR)? */
+export function isTooManyPaymentsError(error: unknown): boolean {
+  return error instanceof Error && error.message === TOO_MANY_PAYMENTS_FOR_ATTEMPT_ERROR;
+}
+
 const PERMANENT_CODES: ReadonlySet<string> = new Set(["resource_missing", "account_invalid"]);
 const PERMANENT_TYPES: ReadonlySet<string> = new Set(["StripePermissionError", "permission_error"]);
 

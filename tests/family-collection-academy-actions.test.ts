@@ -662,14 +662,32 @@ describe("marcar como revisado", () => {
     expect(store.closeAttempt).not.toHaveBeenCalled();
   });
 
-  it("si la búsqueda en Stripe falla, 503 y no se cierra", async () => {
+  it("si la búsqueda en Stripe falla de forma pasajera, 503 y no se cierra", async () => {
+    const store = fakeStore(attempt({ status: "claimed", paymentIntentId: null, hasReviewNotice: true }));
+    const gateway = fakeGateway();
+    gateway.listPaymentsByAttempt.mockRejectedValue(
+      Object.assign(new Error("connection reset"), { type: "StripeConnectionError" })
+    );
+
+    await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
+      code: "AUTOMATIC_COLLECTION_UNVERIFIED",
+      status: 503,
+    });
+    expect(store.closeAttempt).not.toHaveBeenCalled();
+  });
+
+  it("demasiados cobros en Stripe para el intento (siempre igual): 409 para soporte y no se cierra", async () => {
     const store = fakeStore(attempt({ status: "claimed", paymentIntentId: null, hasReviewNotice: true }));
     const gateway = fakeGateway();
     gateway.listPaymentsByAttempt.mockRejectedValue(new Error("FAMILY_COLLECTION_TOO_MANY_PAYMENTS_FOR_ATTEMPT"));
 
     await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
-      code: "AUTOMATIC_COLLECTION_UNVERIFIED",
+      code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
+      status: 409,
+      message:
+        "Hay demasiados cobros en Stripe para esta cuota. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
     });
+    expect(gateway.retrievePayment).not.toHaveBeenCalled();
     expect(store.closeAttempt).not.toHaveBeenCalled();
   });
 

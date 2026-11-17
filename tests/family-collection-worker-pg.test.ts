@@ -847,6 +847,22 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     return result.rows[0] as { resumes: number; untouched: boolean };
   }
 
+  /**
+   * Quita un intento escrito a mano (y su reparto) al terminar un test: un
+   * intento abierto que se quedara en la base lo reanudaría el test siguiente,
+   * y los tests dependerían del orden.
+   */
+  async function removeAttempt(fixture: Fixture, attemptId: string): Promise<void> {
+    await db.execute(sql`
+      delete from zaltyko.family_collection_attempt_charges
+       where organization_id = ${fixture.organizationId}::uuid and attempt_id = ${attemptId}::uuid
+    `);
+    await db.execute(sql`
+      delete from zaltyko.family_collection_attempts
+       where organization_id = ${fixture.organizationId}::uuid and id = ${attemptId}::uuid
+    `);
+  }
+
   it("reanudación devuelta: una toma sin procesar recupera su reanudación y su updated_at exacto, una sola vez", async () => {
     const fixture = await createCollectableInvoice();
     // Con microsegundos: la devolución no debe redondearlos.
@@ -868,28 +884,34 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
         scope: [fixture.organizationId],
       });
 
-    const taken = await claim();
-    expect(taken).toEqual([
-      expect.objectContaining({ id: attemptId, status: "created", resumeCount: 2, resumeClaim: expect.objectContaining({ takenAt: now }) }),
-    ]);
-    expect(await resumeState(attemptId, previous)).toEqual({ resumes: 2, untouched: false });
+    try {
+      const taken = await claim();
+      expect(taken).toEqual([
+        expect.objectContaining({ id: attemptId, status: "created", resumeCount: 2, resumeClaim: expect.objectContaining({ takenAt: now }) }),
+      ]);
+      expect(await resumeState(attemptId, previous)).toEqual({ resumes: 2, untouched: false });
 
-    expect(await store.releaseResume(taken[0])).toBe(true);
-    expect(await resumeState(attemptId, previous)).toEqual({ resumes: 1, untouched: true });
-    // Devolverla otra vez no resta nada.
-    expect(await store.releaseResume(taken[0])).toBe(false);
-    expect(await resumeState(attemptId, previous)).toEqual({ resumes: 1, untouched: true });
+      expect(await store.releaseResume(taken[0])).toBe(true);
+      expect(await resumeState(attemptId, previous)).toEqual({ resumes: 1, untouched: true });
+      // Devolverla otra vez no resta nada.
+      expect(await store.releaseResume(taken[0])).toBe(false);
+      expect(await resumeState(attemptId, previous)).toEqual({ resumes: 1, untouched: true });
 
-    // Si otro proceso lo tocó después de la toma, no se devuelve nada.
-    const again = await claim();
-    expect(again).toHaveLength(1);
-    await db.execute(sql`
-      update zaltyko.family_collection_attempts
-         set updated_at = ${new Date(now.getTime() + 60_000).toISOString()}::timestamptz
-       where id = ${attemptId}::uuid
-    `);
-    expect(await store.releaseResume(again[0])).toBe(false);
-    expect((await resumeState(attemptId, previous)).resumes).toBe(2);
+      // Si otro proceso lo tocó después de la toma, no se devuelve nada.
+      const again = await claim();
+      expect(again).toHaveLength(1);
+      await db.execute(sql`
+        update zaltyko.family_collection_attempts
+           set updated_at = ${new Date(now.getTime() + 60_000).toISOString()}::timestamptz
+         where id = ${attemptId}::uuid
+      `);
+      expect(await store.releaseResume(again[0])).toBe(false);
+      expect((await resumeState(attemptId, previous)).resumes).toBe(2);
+    } finally {
+      // El intento sigue `created`: se quita para que ninguna otra ejecución lo reanude.
+      await removeAttempt(fixture, attemptId);
+    }
+    expect(await attempts(fixture)).toEqual([]);
   });
 
   it("en curso hace más de 15 días y Stripe no deja leerlo: un solo aviso processing_unreadable y el intento sigue en curso", async () => {

@@ -1375,6 +1375,37 @@ describe("Fase A: releer lo que está en curso", () => {
     expect(JSON.stringify(vi.mocked(logger.error).mock.calls)).not.toContain("mensaje de Stripe");
   });
 
+  it("error permanente y el aviso processing_unreadable ya registrado: advertencia, no error", async () => {
+    vi.mocked(logger.warn).mockClear();
+    const { world, store, run } = processingSetup({
+      retrievePayment: async () => {
+        throw accountInvalid();
+      },
+    });
+    world.processing = [processingAt(20)];
+    // El aviso ya lo dejó una ejecución anterior: recordNotice no escribe nada.
+    vi.mocked(store.recordNotice).mockResolvedValueOnce(false);
+
+    const result = await run();
+
+    expect(store.recordNotice).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ needsReview: 0, reconciled: 0 });
+    expect(result.skipped).toEqual({ stripe_unreadable: 1 });
+    expect(logger.error).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Cobro automático: Stripe sigue sin dejar releer un cobro en curso; la academia ya tiene el aviso",
+      {
+        organizationId,
+        invoiceId,
+        attemptId,
+        errorName: "StripePermissionError",
+        errorCode: "account_invalid",
+        permanent: true,
+      }
+    );
+    expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain("mensaje de Stripe");
+  });
+
   it("error pasajero con más de 15 días en curso: también avisa, y lo registra como pasajero", async () => {
     vi.mocked(logger.warn).mockClear();
     const { world, run } = processingSetup({

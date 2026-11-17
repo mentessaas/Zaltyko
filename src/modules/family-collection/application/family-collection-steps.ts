@@ -401,7 +401,8 @@ async function apply(
 }
 
 /** Aviso a la academia para revisar el intento (una vez por intento y motivo). */
-export async function notifyReview(state: RunState, attempt: CollectionAttempt, reason: string): Promise<void> {
+/** Deja el aviso de revisión (una sola vez). `true` si se registró ahora; `false` si ya estaba. */
+export async function notifyReview(state: RunState, attempt: CollectionAttempt, reason: string): Promise<boolean> {
   const written = await state.store.recordNotice({
     organizationId: attempt.organizationId,
     locationId: attempt.locationId,
@@ -411,6 +412,7 @@ export async function notifyReview(state: RunState, attempt: CollectionAttempt, 
     now: state.now,
   });
   if (written) state.result.needsReview += 1;
+  return written;
 }
 
 async function reportIdempotencyConflict(state: RunState, attempt: CollectionAttempt): Promise<void> {

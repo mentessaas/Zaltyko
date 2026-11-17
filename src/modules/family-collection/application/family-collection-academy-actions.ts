@@ -38,7 +38,7 @@ import {
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
 import type { PaymentIntentSnapshot } from "@/modules/family-collection/domain/payment-outcome";
-import { isPermanentStripeError } from "@/modules/family-collection/domain/stripe-read-error";
+import { isPermanentStripeError, isTooManyPaymentsError } from "@/modules/family-collection/domain/stripe-read-error";
 import {
   closeAttemptByAcademy,
   createFamilyCollectionStore,
@@ -103,6 +103,8 @@ const TEXT = {
     "Hay varios cobros en Stripe para esta cuota y al menos uno se ha cobrado o está en curso. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
   unreadable:
     "No se puede comprobar en Stripe el cobro de esta cuota. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
+  tooManyPayments:
+    "Hay demasiados cobros en Stripe para esta cuota. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
 } as const;
 
 function defaultGateway(): AcademyCollectionGateway {
@@ -404,6 +406,11 @@ export async function markAutomaticCollectionReviewed(
       });
       paymentIntentIds = found.map((payment) => payment.id);
     } catch (error) {
+      // Más cobros de los que caben en una búsqueda: siempre saldrá igual, así
+      // que reintentar no sirve. Lo resuelve soporte; el intento sigue abierto.
+      if (isTooManyPaymentsError(error)) {
+        throw new OperationalError("AUTOMATIC_COLLECTION_NEEDS_SUPPORT", TEXT.tooManyPayments, 409);
+      }
       throw stripeFailure(error);
     }
   }

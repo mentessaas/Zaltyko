@@ -512,6 +512,27 @@ describe("fila de la academia (pura)", () => {
     ).toMatchObject({ state: "scheduled", date: "2026-11-30" });
   });
 
+  it("sin intento, sede por detrás de la academia y cuota ya pasada de su espera: no se cuela", () => {
+    // 00:30 del 1 dic en Madrid (mes de la lista: diciembre) = 23:30 del 30 nov en Canarias.
+    const now = new Date("2026-11-30T23:30:00.000Z");
+    // Cobro el 20 nov en Canarias: fuera de su espera de tres días.
+    expect(
+      ownerAutomaticCollectionItemOf(
+        ownerRow({ timezone: "Atlantic/Canary", nextDueAt: "2026-11-20T12:00:00.000Z" }),
+        now,
+        "2026-12"
+      )
+    ).toBeNull();
+    // Cobro el 28 nov en Canarias: aún en su espera, sale (se sigue cobrando).
+    expect(
+      ownerAutomaticCollectionItemOf(
+        ownerRow({ timezone: "Atlantic/Canary", nextDueAt: "2026-11-28T12:00:00.000Z" }),
+        now,
+        "2026-12"
+      )
+    ).toMatchObject({ state: "in_progress", date: "2026-11-28" });
+  });
+
   it("sin intento y pasado el margen: no se cobró, se cobra a mano", () => {
     expect(
       ownerAutomaticCollectionItemOf(ownerRow({ nextDueAt: "2026-11-02T22:59:59.999Z" }), NOW, "2026-11")
@@ -685,7 +706,7 @@ describe("fila de la academia (pura)", () => {
     expect(open("processing", "2026-11-10T08:00:00.000Z")).toMatchObject({ canMarkReviewed: false });
   });
 
-  it("en curso más de 15 días desde que se reclamó y sin aviso: se puede marcar como revisado, con su motivo", () => {
+  it("en curso más de 15 días: sin aviso sigue en el banco y sin botón; con el aviso processing_unreadable, se puede revisar", () => {
     const processing = (claimedAt: string, overrides: Partial<NonNullable<OwnerCollectionRow["attempt"]>> = {}) =>
       ownerAutomaticCollectionItemOf(
         ownerRow({
@@ -701,13 +722,29 @@ describe("fila de la academia (pura)", () => {
         NOW,
         "2026-11"
       );
-    // 16 días.
+    // 16 días sin aviso: el proceso diario lo lee y sigue en curso. «Marcar
+    // como revisado» respondería que no se puede cancelar: no se ofrece.
     expect(processing("2026-11-01T09:00:00.000Z")).toMatchObject({
+      state: "processing",
+      needsReview: false,
+      canMarkReviewed: false,
+      canCancel: false,
+      manualPaymentBlocked: true,
+      reason: "La domiciliación sigue en el banco.",
+    });
+    // 16 días y el aviso de que Stripe no deja leerlo: se puede revisar.
+    expect(
+      processing("2026-11-01T09:00:00.000Z", { hasReviewNotice: true, reviewReason: "processing_unreadable" })
+    ).toMatchObject({
       state: "processing",
       needsReview: true,
       canMarkReviewed: true,
-      canCancel: false,
       reason: "El cobro lleva más de 15 días en curso y no podemos ver su resultado. Compruébalo en Stripe.",
+    });
+    // 16 días con las reanudaciones agotadas: se puede revisar, con su motivo.
+    expect(processing("2026-11-01T09:00:00.000Z", { resumeCount: 3 })).toMatchObject({
+      canMarkReviewed: true,
+      reason: "No pudimos confirmar el resultado del cobro. Compruébalo en Stripe.",
     });
     // 14 días: todavía no.
     expect(processing("2026-11-03T09:00:00.000Z")).toMatchObject({
@@ -923,6 +960,75 @@ describe("puertas de las lecturas", () => {
     expect(query.sql).toMatch(/with candidates as/);
     expect(query.sql).toMatch(/from \(select distinct invoice_id from candidates\) k/);
     expect(query.params).toContain("family_collection.needs_review");
+  });
+
+  describe("academia: límite de la lista", () => {
+    /** Fila de la consulta con un intento fallido: siempre sale en la lista. */
+    const shownRow = (index: number) => ({
+      invoiceId: `91000000-0000-4000-8000-${String(100000000000 + index)}`,
+      invoiceReference: `CUO-2026-11-${String(index).padStart(4, "0")}`,
+      invoiceStatus: "issued",
+      currency: "EUR",
+      timezone: TZ,
+      payerName: null,
+      collectionDayOfMonth: null,
+      nextDueAt: null,
+      openAutomaticCents: "0",
+      attemptStatus: "failed",
+      attemptAmountCents: "4500",
+      failureCode: "card_declined",
+      declineCode: "insufficient_funds",
+      nextRetryAt: null,
+      completedAt: "2026-11-05T08:00:00.000Z",
+      resumeCount: 0,
+      allocationStatus: null,
+      reviewReason: null,
+      hasReviewNotice: false,
+    });
+    /** Fila sin intento del mes anterior y fuera de su espera: no sale. */
+    const pastRow = (index: number) => ({
+      ...shownRow(index),
+      nextDueAt: "2026-10-20T12:00:00.000Z",
+      openAutomaticCents: "4500",
+      attemptStatus: null,
+      attemptAmountCents: null,
+      failureCode: null,
+      declineCode: null,
+      completedAt: null,
+    });
+    const range = (from: number, count: number) => Array.from({ length: count }, (_, offset) => from + offset);
+    const read = async (rows: unknown[]) => {
+      holder.execute.mockResolvedValueOnce({ rows: [{ timezone: TZ }] }).mockResolvedValueOnce({ rows });
+      const view = await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
+      const query = dialect.sqlToQuery(holder.execute.mock.calls[1][0] as SQL);
+      return { view, query };
+    };
+
+    it("pide hasta 501 filas a la base", async () => {
+      const { query } = await read([shownRow(1)]);
+      expect(query.sql).toMatch(/limit \$\d+\s*$/);
+      expect(query.params[query.params.length - 1]).toBe(501);
+    });
+
+    it("las filas que no salen no quitan sitio: se filtra antes de cortar a 100", async () => {
+      // 150 cuotas ya pasadas del mes anterior delante de 100 que sí salen.
+      const { view } = await read([...range(1, 150).map(pastRow), ...range(151, 100).map(shownRow)]);
+      expect(view?.items).toHaveLength(100);
+      expect(view?.items[0]).toMatchObject({ invoiceReference: "CUO-2026-11-0151", state: "failed" });
+      expect(view?.truncated).toBe(false);
+    });
+
+    it("con más de 100 que salen, enseña 100 y avisa de que hay más", async () => {
+      const { view } = await read([pastRow(1), ...range(2, 101).map(shownRow)]);
+      expect(view?.items).toHaveLength(100);
+      expect(view?.truncated).toBe(true);
+    });
+
+    it("si la base devuelve más de 500 filas, avisa de que hay más aunque salgan pocas", async () => {
+      const { view } = await read([...range(1, 500).map(pastRow), shownRow(501)]);
+      expect(view?.items).toEqual([]);
+      expect(view?.truncated).toBe(true);
+    });
   });
 
   it("interruptores: solo propiedad o administración con todas las sedes", async () => {
