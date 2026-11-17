@@ -260,18 +260,25 @@ export function OwnerFamilyPaymentMethodsPanel({
         <p className={`${ownerUi.muted} mt-5`}>Ninguna familia ha guardado todavía un método de pago.</p>
       ) : (
         <ul className="mt-5 space-y-3">
-          {methods.map((method, index) => {
+          {methods.map((method) => {
             const since = sinceText(method.since);
-            // Un interruptor por familia: en su primera fila, aunque tenga más de un método.
-            const firstOfFamily = methods.findIndex((item) => item.familyId === method.familyId) === index;
-            const preference = collection && firstOfFamily ? switches[method.familyId] : undefined;
+            // Un interruptor por familia, aunque tenga más de un método: en la
+            // primera fila que se puede cobrar sola (tarjeta, o domiciliación si
+            // está activada), para que su nombre y su mensaje sean los de la
+            // persona a la que se cobra; si ninguna se puede cobrar, en la primera.
+            const familyRows = methods.filter((item) => item.familyId === method.familyId);
+            const collectableRow = familyRows.find(
+              (item) => item.method !== "sepa_debit" || sepaCollectsAutomatically
+            );
+            const switchRow = collectableRow ?? familyRows[0];
+            const preference =
+              collection && switchRow?.authorizationId === method.authorizationId
+                ? switches[method.familyId]
+                : undefined;
             const sepaManual = method.method === "sepa_debit" && !sepaCollectsAutomatically;
             // Sin ningún método que se cobre solo, el interruptor no se puede
             // encender (sí apagar, si ya estaba encendido).
-            const familyCollectable = methods.some(
-              (item) =>
-                item.familyId === method.familyId && (item.method !== "sepa_debit" || sepaCollectsAutomatically)
-            );
+            const familyCollectable = collectableRow !== undefined;
             return (
               <li key={method.authorizationId} className={ownerUi.listItem}>
                 <div className="flex flex-wrap items-start justify-between gap-3">

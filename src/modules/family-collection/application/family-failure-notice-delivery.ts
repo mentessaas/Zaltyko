@@ -120,12 +120,29 @@ function todayOf(now: Date, timezone: string): string | null {
  * es verdad ni se promete un reintento que no va a salir:
  * - `retryScheduled`: el texto puede prometer un reintento. Solo si el
  *   intento lo tiene programado y `retriesEnabled` (el cobro automático está
- *   encendido: sin la bandera la Fase B no corre y el reintento no sale);
+ *   encendido: sin la bandera la Fase B no corre y el reintento no sale) y
+ *   ningún motivo de la puerta ya conocido lo cancelará (retryKnownBlocked:
+ *   recordatorio de pago ya enviado, familia pasada a mano o sin método de
+ *   pago activo);
  * - `retryDateLocal`: el día prometido, solo si todavía no ha llegado. Si ya
  *   llegó (el proceso diario se retrasó o no terminó) pero la ventana de
  *   cobro del reintento sigue abierta, se promete sin fecha; si la ventana ya
  *   pasó, el reintento no saldrá y no se promete nada.
  */
+/**
+ * La puerta del cobro ya sabe que cancelará el reintento: salió un
+ * recordatorio de pago de la factura (`reminder_sent`), la academia pasó la
+ * familia a mano (`preference_manual`) o la persona que paga ya no tiene un
+ * método de pago activo. Lo que no se sabe (sin indicar) no cuenta. Pura.
+ */
+export function retryKnownBlocked(
+  notice: Pick<PendingFamilyFailureNotice, "reminderSent" | "preferenceAutomatic" | "hasActiveAuthorization">
+): boolean {
+  return (
+    notice.reminderSent === true || notice.preferenceAutomatic === false || notice.hasActiveAuthorization === false
+  );
+}
+
 export function decideFamilyFailureNotice(
   notice: PendingFamilyFailureNotice,
   now: Date,
@@ -149,7 +166,7 @@ export function decideFamilyFailureNotice(
   }
   if (!notice.payerEmail) return { action: "close", outcome: "no_email" };
 
-  const retryDate = options.retriesEnabled ? retryDateOf(notice) : null;
+  const retryDate = options.retriesEnabled && !retryKnownBlocked(notice) ? retryDateOf(notice) : null;
   if (retryDate === null) return { action: "send", retryScheduled: false, retryDateLocal: null };
   const today = todayOf(now, notice.timezone);
   if (today === null) return { action: "send", retryScheduled: false, retryDateLocal: null };

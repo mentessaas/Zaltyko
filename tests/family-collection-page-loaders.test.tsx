@@ -34,6 +34,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 // Lecturas de la Fase 3 (solo se cargan con el cobro automático abierto).
 vi.mock("@/modules/family-collection/application/family-collection-reads", () => ({
+  getFamilyAutomaticCollectionModes: vi.fn(),
   getFamilyAutomaticFeeStatuses: vi.fn(),
   getOwnerAutomaticCollections: vi.fn(),
   getOwnerFamilyCollectionSwitches: vi.fn(),
@@ -140,6 +141,7 @@ import { getManualPaymentOptions } from "@/modules/billing/application/manual-pa
 import { getConnectStatus } from "@/modules/payments-connect/application/connect-onboarding-service";
 import { getCollectionSettings } from "@/modules/family-collection/application/collection-settings-service";
 import {
+  getFamilyAutomaticCollectionModes,
   getFamilyAutomaticFeeStatuses,
   getOwnerAutomaticCollections,
   getOwnerFamilyCollectionSwitches,
@@ -269,6 +271,10 @@ beforeEach(() => {
   vi.mocked(getFamilyPaymentMethodState).mockResolvedValue({ kind: "unavailable", reason: "flag_off" } as never);
   vi.mocked(getOwnerFamilyPaymentMethodsView).mockResolvedValue({ visible: true, methods: [listedMethod] });
   vi.mocked(getFamilyAutomaticFeeStatuses).mockResolvedValue({ [INVOICE_ID]: { kind: "in_progress" } });
+  vi.mocked(getFamilyAutomaticCollectionModes).mockResolvedValue({
+    open: true,
+    automaticFamilies: { [ORGANIZATION_ID]: [FAMILY_ID] },
+  });
   vi.mocked(getCollectionSettings).mockResolvedValue({ collectionDayOfMonth: 5, version: 2, isDefault: false });
   vi.mocked(getOwnerFamilyCollectionSwitches).mockResolvedValue(switches);
   vi.mocked(getOwnerAutomaticCollections).mockResolvedValue(automaticView);
@@ -366,6 +372,47 @@ describe("/familia/cuotas: estado del cobro automático", () => {
 
     expect(lastProps<{ automaticCollection: unknown }>(vi.mocked(FamilyFeesView)).automaticCollection).toEqual({});
     expect(logger.warn).toHaveBeenCalledWith("family_portal.automatic_collection_state_failed", { errorName: "TypeError" });
+    expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain("detalle interno");
+  });
+});
+
+describe("/familia/cuotas: la tarjeta «Pago automático» sabe si se cobra sola", () => {
+  type ModesProps = { automaticCollectionModes: unknown };
+
+  it("abierto: pide qué familias se cobran solas y se lo pasa a la vista", async () => {
+    await renderFeesPage();
+
+    expect(getFamilyAutomaticCollectionModes).toHaveBeenCalledWith({ userId: USER_ID });
+    expect(lastProps<ModesProps>(vi.mocked(FamilyFeesView)).automaticCollectionModes).toEqual({
+      open: true,
+      automaticFamilies: { [ORGANIZATION_ID]: [FAMILY_ID] },
+    });
+  });
+
+  it.each(closedCases)("con %s no carga la lectura y pasa «cerrado»", async (_label, arrange) => {
+    arrange();
+
+    await renderFeesPage();
+
+    expect(getFamilyAutomaticCollectionModes).not.toHaveBeenCalled();
+    expect(lastProps<ModesProps>(vi.mocked(FamilyFeesView)).automaticCollectionModes).toEqual({
+      open: false,
+      automaticFamilies: {},
+    });
+  });
+
+  it("si la lectura lanza: abierto sin ninguna familia en automático (ni promete ni niega) y solo el tipo de error", async () => {
+    vi.mocked(getFamilyAutomaticCollectionModes).mockRejectedValue(new TypeError("detalle interno de la base"));
+
+    await expect(renderFeesPage()).resolves.toEqual(expect.any(String));
+
+    expect(lastProps<ModesProps>(vi.mocked(FamilyFeesView)).automaticCollectionModes).toEqual({
+      open: true,
+      automaticFamilies: {},
+    });
+    expect(logger.warn).toHaveBeenCalledWith("family_portal.automatic_collection_modes_failed", {
+      errorName: "TypeError",
+    });
     expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain("detalle interno");
   });
 });

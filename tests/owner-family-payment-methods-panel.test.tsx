@@ -335,6 +335,44 @@ describe("OwnerFamilyPaymentMethodsPanel: domiciliación sin activar (D2, «Prim
     expect(screen.getByRole("switch", { name: "Cobrar automáticamente a Lucía Martín" })).toBeEnabled();
   });
 
+  it("B-M3: con dos pagadores, el interruptor va en la fila de quien tiene la tarjeta, no en la primera", () => {
+    // Marta (misma familia que Lucía) solo tiene domiciliación y sale primero.
+    const sepaOfMarta: OwnerFamilyPaymentMethod = {
+      ...SEPA,
+      authorizationId: "83000000-0000-4000-8000-000000000004",
+      familyId: CARD.familyId,
+      payerName: "Marta Gómez",
+    };
+    stubFetch(() => reply(200, {}));
+    render(
+      <OwnerFamilyPaymentMethodsPanel organizationId={ORGANIZATION_ID} methods={[sepaOfMarta, CARD]} collection={collection} />
+    );
+
+    expect(screen.getAllByRole("switch")).toHaveLength(1);
+    expect(screen.queryByRole("switch", { name: "Cobrar automáticamente a Marta Gómez" })).toBeNull();
+    expect(within(rowOf("Marta Gómez")).queryByRole("switch")).toBeNull();
+    expect(
+      within(rowOf("Lucía Martín")).getByRole("switch", { name: "Cobrar automáticamente a Lucía Martín" })
+    ).toBeEnabled();
+    expect(calls).toHaveLength(0);
+  });
+
+  it("B-M3: si ningún método de la familia se cobra solo, el interruptor sigue en su primera fila", () => {
+    stubFetch(() => reply(200, {}));
+    const otherSepa: OwnerFamilyPaymentMethod = {
+      ...SEPA,
+      authorizationId: "83000000-0000-4000-8000-000000000005",
+      payerName: "Ana Ruiz",
+    };
+    render(
+      <OwnerFamilyPaymentMethodsPanel organizationId={ORGANIZATION_ID} methods={[SEPA, otherSepa]} collection={collection} />
+    );
+
+    expect(screen.getAllByRole("switch")).toHaveLength(1);
+    expect(within(rowOf("Pablo Ruiz")).getByRole("switch", { name: "Cobrar automáticamente a Pablo Ruiz" })).toBeDisabled();
+    expect(within(rowOf("Ana Ruiz")).queryByRole("switch")).toBeNull();
+  });
+
   it("encendida: sin aviso y el interruptor de la domiciliación funciona como hoy", () => {
     stubFetch(() => reply(200, {}));
     render(

@@ -8,7 +8,9 @@ import {
   FAMILY_AUTOMATIC_PAYMENT_NOTICE,
   FAMILY_PAYMENT_NOTICE,
   familyAutomaticFeeText,
+  familyCardCollectionMode,
   feeStatusLabel,
+  type FamilyAutomaticCollectionModes,
   type FamilyAutomaticFeeStatuses,
   formatDueDate,
   formatMoney,
@@ -25,6 +27,7 @@ export function FamilyFeesView({
   academies,
   automaticPayments,
   automaticCollection,
+  automaticCollectionModes,
   sepaCollectsAutomatically = false,
 }: {
   academies: FamilyAcademyFees[];
@@ -32,6 +35,11 @@ export function FamilyFeesView({
   automaticPayments?: FamilyAutomaticPaymentCards;
   /** Por factura, el estado de su cobro automático (Fase 3). */
   automaticCollection?: FamilyAutomaticFeeStatuses;
+  /**
+   * Si el cobro automático está abierto y qué familias se cobran solas. Sin
+   * indicar, cerrado: ninguna tarjeta promete un cobro.
+   */
+  automaticCollectionModes?: FamilyAutomaticCollectionModes;
   /** La domiciliación se cobra sola; sin indicar, no (ninguna promesa de cobro por domiciliación). */
   sepaCollectsAutomatically?: boolean;
 }) {
@@ -149,6 +157,11 @@ export function FamilyFeesView({
                     familyId={card.familyId}
                     timezone={academy.timezone}
                     state={card.state}
+                    automaticCollection={familyCardCollectionMode(
+                      automaticCollectionModes,
+                      academy.organizationId,
+                      card.familyId
+                    )}
                     sepaCollectsAutomatically={sepaCollectsAutomatically}
                   />
                 </div>

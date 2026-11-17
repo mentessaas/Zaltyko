@@ -27,6 +27,7 @@ import { FamilyAutomaticPaymentCard } from "@/components/family-portal/FamilyAut
 import { FamilyFeesView } from "@/components/family-portal/FamilyFeesView";
 import type { FamilyAcademyFees } from "@/modules/family-portal/application/family-portal-reads";
 import type { FamilyPaymentMethodState } from "@/modules/family-payment-methods/application/family-payment-methods-service";
+import type { FamilyCardCollectionMode } from "@/modules/family-portal/domain/family-portal-presentation";
 
 const ORGANIZATION_ID = "83000000-0000-4000-8000-000000000001";
 const FAMILY_ID = "83000000-0000-4000-8000-000000000002";
@@ -85,13 +86,19 @@ function stubFetch(handler: (body: Record<string, unknown>) => Response | Promis
 
 const actions = () => calls.map((call) => call.body.action);
 
-function renderCard(state: FamilyPaymentMethodState, familyId = FAMILY_ID) {
+/** Sin `automaticCollection`, el valor por defecto de la tarjeta (cobro cerrado). */
+function renderCard(
+  state: FamilyPaymentMethodState,
+  familyId = FAMILY_ID,
+  automaticCollection?: FamilyCardCollectionMode
+) {
   return render(
     <FamilyAutomaticPaymentCard
       organizationId={ORGANIZATION_ID}
       familyId={familyId}
       timezone="Europe/Madrid"
       state={state}
+      {...(automaticCollection === undefined ? {} : { automaticCollection })}
     />
   );
 }
@@ -181,7 +188,8 @@ describe("FamilyAutomaticPaymentCard", () => {
       return success({ outcome: "active", method: "card" });
     });
     stripeMock.confirmSetup.mockResolvedValue({ setupIntent: { id: "seti_1Sintetico", status: "succeeded" } });
-    renderCard(noneState());
+    // Cobro abierto y cuotas de la familia en automático (Fase 3).
+    renderCard(noneState(), FAMILY_ID, "automatic");
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Acepto" }));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -314,7 +322,7 @@ describe("FamilyAutomaticPaymentCard", () => {
 
   it("dejar de pagar automáticamente pide confirmación en la propia tarjeta", async () => {
     stubFetch(() => success({ outcome: "revoked" }));
-    renderCard(activeState("card"));
+    renderCard(activeState("card"), FAMILY_ID, "automatic");
 
     expect(
       screen.getByText("Pagas automáticamente con tarjeta desde el 10 de noviembre de 2026.")
@@ -340,7 +348,7 @@ describe("FamilyAutomaticPaymentCard", () => {
 
   it("si no se puede dejar de pagar automáticamente, lo dice y mantiene el método", async () => {
     stubFetch(() => failure(503, "FAMILY_PAYMENT_REVOKE_FAILED"));
-    renderCard(activeState("card"));
+    renderCard(activeState("card"), FAMILY_ID, "automatic");
 
     fireEvent.click(screen.getByRole("button", { name: "Dejar de pagar automáticamente" }));
     fireEvent.click(screen.getByRole("button", { name: "Sí, dejar de pagar automáticamente" }));
@@ -354,7 +362,7 @@ describe("FamilyAutomaticPaymentCard", () => {
 
   it("si la función no está disponible al revocar, manda a hablar con la academia", async () => {
     stubFetch(() => failure(503, "FEATURE_NOT_AVAILABLE"));
-    renderCard(activeState("card"));
+    renderCard(activeState("card"), FAMILY_ID, "automatic");
 
     fireEvent.click(screen.getByRole("button", { name: "Dejar de pagar automáticamente" }));
     fireEvent.click(screen.getByRole("button", { name: "Sí, dejar de pagar automáticamente" }));
@@ -368,7 +376,7 @@ describe("FamilyAutomaticPaymentCard", () => {
 
   it("con la función cerrada (sin métodos que ofrecer) solo deja revocar, no cambiar", async () => {
     stubFetch(() => success({ outcome: "revoked" }));
-    renderCard({ ...activeState("card"), kinds: [], consentTexts: {} } as FamilyPaymentMethodState);
+    renderCard({ ...activeState("card"), kinds: [], consentTexts: {} } as FamilyPaymentMethodState, FAMILY_ID, "automatic");
 
     expect(screen.getByText("Pagas automáticamente con tarjeta desde el 10 de noviembre de 2026.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cambiar método" })).toBeNull();
@@ -520,6 +528,7 @@ describe("FamilyFeesView con pago automático", () => {
 });
 
 describe("FamilyAutomaticPaymentCard: domiciliación sin activar (D2, «Primero solo tarjeta»)", () => {
+  /** Cobro abierto y cuotas de la familia en automático: solo cambia la bandera de la domiciliación. */
   function renderWith(state: FamilyPaymentMethodState, sepaCollectsAutomatically?: boolean) {
     return render(
       <FamilyAutomaticPaymentCard
@@ -527,6 +536,7 @@ describe("FamilyAutomaticPaymentCard: domiciliación sin activar (D2, «Primero 
         familyId={FAMILY_ID}
         timezone="Europe/Madrid"
         state={state}
+        automaticCollection="automatic"
         {...(sepaCollectsAutomatically === undefined ? {} : { sepaCollectsAutomatically })}
       />
     );
@@ -644,10 +654,148 @@ describe("FamilyAutomaticPaymentCard: domiciliación sin activar (D2, «Primero 
     expect(screen.getByText(SEPA_MANUAL)).toBeInTheDocument();
     unmount();
 
-    render(<FamilyFeesView academies={[academy]} automaticPayments={cards} sepaCollectsAutomatically />);
+    render(
+      <FamilyFeesView
+        academies={[academy]}
+        automaticPayments={cards}
+        automaticCollectionModes={{ open: true, automaticFamilies: { [ORGANIZATION_ID]: [FAMILY_ID] } }}
+        sepaCollectsAutomatically
+      />
+    );
     expect(screen.queryByText(SEPA_MANUAL)).toBeNull();
     expect(
       screen.getByText("Pagas automáticamente con domiciliación bancaria desde el 10 de noviembre de 2026.")
     ).toBeInTheDocument();
+  });
+});
+
+describe("FamilyAutomaticPaymentCard: dice lo que de verdad pasa con el cobro automático (Fase 3)", () => {
+  const INTRO_FAMILY_MANUAL =
+    "Guarda una tarjeta o domicilia el pago para que las cuotas se cobren solas. Tu academia te dirá desde cuándo.";
+  const INTRO_AUTOMATIC = "Guarda una tarjeta o domicilia el pago para que las próximas cuotas se cobren solas.";
+  const CARD_SAVED = "Tienes tu tarjeta guardada desde el 10 de noviembre de 2026.";
+  const CARD_ACTIVE = "Pagas automáticamente con tarjeta desde el 10 de noviembre de 2026.";
+
+  it("cobro cerrado (bandera apagada): tarjeta guardada, sin «automáticamente», y quitarla es quitar la tarjeta", async () => {
+    stubFetch(() => success({ outcome: "revoked" }));
+    renderCard(activeState("card"), FAMILY_ID, "closed");
+
+    expect(screen.getByText(CARD_SAVED)).toBeInTheDocument();
+    expect(screen.queryByText(/Pagas automáticamente/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Dejar de pagar automáticamente" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Quitar la tarjeta guardada" }));
+    expect(
+      screen.getByText(
+        "Se borrará la tarjeta que tienes guardada. Las cuotas las sigues pagando como siempre. ¿Quieres quitarla?"
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Las cuotas dejarán de cobrarse solas/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Sí, quitar la tarjeta" }));
+
+    expect(await screen.findByText("Has quitado la tarjeta guardada.")).toBeInTheDocument();
+    expect(screen.queryByText("Ya no pagas automáticamente.")).toBeNull();
+    expect(calls.map((call) => call.body)).toEqual([
+      { action: "revoke", organizationId: ORGANIZATION_ID, familyId: FAMILY_ID },
+    ]);
+    // Cerrado: al volver a elegir, sí dice que todavía no se cobrará nada.
+    expect(screen.getByText(INTRO)).toBeInTheDocument();
+  });
+
+  it("cobro cerrado: si no se puede quitar la tarjeta, lo dice con las mismas palabras", async () => {
+    stubFetch(() => failure(503, "FAMILY_PAYMENT_REVOKE_FAILED"));
+    renderCard(activeState("card"), FAMILY_ID, "closed");
+
+    fireEvent.click(screen.getByRole("button", { name: "Quitar la tarjeta guardada" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, quitar la tarjeta" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudo quitar la tarjeta guardada. Vuelve a intentarlo en un momento."
+    );
+    expect(screen.getByText(CARD_SAVED)).toBeInTheDocument();
+  });
+
+  it("sin indicar, cerrado: no promete el cobro", () => {
+    stubFetch(() => success({}));
+    renderCard(activeState("card"));
+
+    expect(screen.getByText(CARD_SAVED)).toBeInTheDocument();
+    expect(screen.queryByText(/Pagas automáticamente/)).toBeNull();
+  });
+
+  it("cobro abierto con la familia a mano: tarjeta guardada y, al elegir, sin «Todavía no se cobrará nada»", () => {
+    stubFetch(() => success({}));
+    renderCard(activeState("card"), FAMILY_ID, "family_manual");
+
+    expect(screen.getByText(CARD_SAVED)).toBeInTheDocument();
+    expect(screen.queryByText(/Pagas automáticamente/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Quitar la tarjeta guardada" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cambiar método" }));
+    expect(screen.getByText(INTRO_FAMILY_MANUAL)).toBeInTheDocument();
+    expect(screen.queryByText(/Todavía no se cobrará nada/)).toBeNull();
+    expect(calls).toHaveLength(0);
+  });
+
+  it("cobro abierto con la familia en automático: al guardar no dice «Todavía no se cobrará nada»", async () => {
+    stubFetch((body) =>
+      body.action === "setup"
+        ? success({ clientSecret: CLIENT_SECRET, connectedAccount: "acct_sintetico9" })
+        : success({ outcome: "active", method: "card" })
+    );
+    stripeMock.confirmSetup.mockResolvedValue({ setupIntent: { id: "seti_9Sintetico", status: "succeeded" } });
+    renderCard(noneState(["card"]), FAMILY_ID, "automatic");
+
+    expect(screen.getByText(INTRO_AUTOMATIC)).toBeInTheDocument();
+    expect(screen.queryByText(/Todavía no se cobrará nada/)).toBeNull();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Acepto" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Guardar" }));
+
+    expect(await screen.findByText("Tarjeta guardada")).toBeInTheDocument();
+    expect(screen.getByText(/^Pagas automáticamente con tarjeta desde el /)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dejar de pagar automáticamente" })).toBeInTheDocument();
+    expect(screen.queryByText(/Todavía no se cobrará nada/)).toBeNull();
+  });
+
+  it("la vista de cuotas decide por familia: cerrado, abierto a mano y abierto en automático", () => {
+    stubFetch(() => success({}));
+    const academy: FamilyAcademyFees = {
+      organizationId: ORGANIZATION_ID,
+      organizationName: "Club Sintético",
+      timezone: "Europe/Madrid",
+      fees: [],
+    };
+    const cards = { [ORGANIZATION_ID]: [{ familyId: FAMILY_ID, state: activeState("card") }] };
+
+    // Bandera apagada (la página no pasa nada o pasa «cerrado»).
+    const closed = render(<FamilyFeesView academies={[academy]} automaticPayments={cards} />);
+    expect(screen.getByText(CARD_SAVED)).toBeInTheDocument();
+    expect(screen.queryByText(CARD_ACTIVE)).toBeNull();
+    closed.unmount();
+
+    // Bandera encendida, pero la que está en automático es otra familia.
+    const manual = render(
+      <FamilyFeesView
+        academies={[academy]}
+        automaticPayments={cards}
+        automaticCollectionModes={{ open: true, automaticFamilies: { [ORGANIZATION_ID]: [OTHER_FAMILY_ID] } }}
+      />
+    );
+    expect(screen.getByText(CARD_SAVED)).toBeInTheDocument();
+    expect(screen.queryByText(CARD_ACTIVE)).toBeNull();
+    manual.unmount();
+
+    // Bandera encendida y esta familia en automático.
+    render(
+      <FamilyFeesView
+        academies={[academy]}
+        automaticPayments={cards}
+        automaticCollectionModes={{ open: true, automaticFamilies: { [ORGANIZATION_ID]: [FAMILY_ID] } }}
+      />
+    );
+    expect(screen.getByText(CARD_ACTIVE)).toBeInTheDocument();
+    expect(screen.queryByText(CARD_SAVED)).toBeNull();
   });
 });

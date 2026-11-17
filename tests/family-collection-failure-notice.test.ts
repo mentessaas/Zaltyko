@@ -45,6 +45,7 @@ import {
   FAMILY_FAILURE_NOTICE_MAX_AGE_MS,
   decideFamilyFailureNotice,
   deliverFamilyFailureNotices,
+  retryKnownBlocked,
 } from "@/modules/family-collection/application/family-failure-notice-delivery";
 import {
   FAMILY_FAILURE_NOTICE,
@@ -430,6 +431,34 @@ describe("aviso del primer fallo: qué se hace con un aviso pendiente", () => {
     expect(decide(13)).toEqual({ action: "send", retryScheduled: false, retryDateLocal: null });
   });
 
+  it("B-M1: si la puerta ya sabe que cancelará el reintento, no se promete (recordatorio, familia a mano, sin método)", () => {
+    const blockers: Array<Partial<PendingFamilyFailureNotice>> = [
+      { reminderSent: true },
+      { preferenceAutomatic: false },
+      { hasActiveAuthorization: false },
+    ];
+    for (const blocker of blockers) {
+      expect(retryKnownBlocked(pending(blocker)), JSON.stringify(blocker)).toBe(true);
+      // Con fecha futura o ya en su día: nunca «Volveremos a intentarlo».
+      for (const nextRetryAt of [new Date("2026-11-17T23:00:00.000Z"), new Date("2026-11-16T23:00:00.000Z")]) {
+        expect(decideFamilyFailureNotice(pending({ ...blocker, nextRetryAt }), NOW, ON), JSON.stringify(blocker)).toEqual({
+          action: "send",
+          retryScheduled: false,
+          retryDateLocal: null,
+        });
+      }
+    }
+    // Todo en pie (o sin saberlo): el reintento se promete como siempre.
+    const clear = pending({ reminderSent: false, preferenceAutomatic: true, hasActiveAuthorization: true });
+    expect(retryKnownBlocked(clear)).toBe(false);
+    expect(retryKnownBlocked(pending())).toBe(false);
+    expect(decideFamilyFailureNotice(clear, NOW, ON)).toEqual({
+      action: "send",
+      retryScheduled: true,
+      retryDateLocal: "2026-11-18",
+    });
+  });
+
   it("nunca se envía un aviso que ya no es verdad", () => {
     const close = (overrides: Partial<PendingFamilyFailureNotice>) =>
       decideFamilyFailureNotice(pending(overrides), NOW, ON);
@@ -639,6 +668,20 @@ describe("aviso del primer fallo: envío", () => {
     expect(options.text).not.toMatch(/volveremos a intentarlo|reintent/i);
     expect(options.text).toContain("Esta cuota ya no se cobrará sola. Tu academia te dirá cómo pagarla.");
     expect(options.text).toContain(`Revisar mi tarjeta: ${FEES_URL}`);
+  });
+
+  it("B-M1: con un recordatorio de pago ya enviado el correo no promete el reintento", async () => {
+    const { store, results } = memoryStore([pending({ reminderSent: true })]);
+    const sendEmail = sender();
+    const delivery = await deliverFamilyFailureNotices(
+      { now: NOW, appUrl: "https://zaltyko.test" },
+      { store, sendEmail, isStorageAvailable: async () => true }
+    );
+    expect(delivery).toEqual({ sent: 1, notSent: 0, pending: 0 });
+    const options = sendEmail.mock.calls[0]![0];
+    expect(options.text).not.toMatch(/volveremos a intentarlo|reintent/i);
+    expect(options.text).toContain("Esta cuota ya no se cobrará sola. Tu academia te dirá cómo pagarla.");
+    expect(results.get(ATTEMPT_ID)).toBe("sent");
   });
 
   it("M2: con el reintento ya en su día, el correo lo promete sin fecha", async () => {

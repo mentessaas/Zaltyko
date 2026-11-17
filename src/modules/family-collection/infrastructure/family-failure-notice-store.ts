@@ -76,6 +76,21 @@ export interface PendingFamilyFailureNotice {
   payerEmail: string | null;
   /** Correo de respuesta de la academia (ajustes de recordatorios), si lo hay. */
   replyToEmail: string | null;
+  /**
+   * Motivos de la puerta del cobro que ya se conocen al enviar el aviso y que
+   * cancelarán el reintento (el correo no debe prometerlo). Sin indicar, no se
+   * sabe (la tabla no está): no cuenta.
+   * - `reminderSent`: ya salió (o está saliendo) un recordatorio de pago de
+   *   alguna cuota abierta de la factura (`reminder_sent`, misma regla que
+   *   readReminderSent del almacén del cobro);
+   * - `preferenceAutomatic`: la familia sigue en cobro automático (falso si la
+   *   academia la pasó a mano: `preference_manual`);
+   * - `hasActiveAuthorization`: la persona que paga la factura sigue teniendo
+   *   un método de pago activo en la cuenta de test de la academia.
+   */
+  reminderSent?: boolean;
+  preferenceAutomatic?: boolean;
+  hasActiveAuthorization?: boolean;
 }
 
 export interface FamilyFailureNoticeStore {
@@ -112,15 +127,63 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
     async listPending(input) {
       if (input.scope !== null && input.scope.length === 0) return [];
       // El correo de respuesta de la academia vive en los ajustes de los
-      // recordatorios de pago, que pueden no estar instalados.
-      const settings = await db.execute(sql`
-        select to_regclass('zaltyko.payment_reminder_settings') is not null as "present"
+      // recordatorios de pago, que pueden no estar instalados; igual los
+      // recordatorios, y las tablas de la preferencia y de los métodos de pago
+      // se comprueban antes de leerlas.
+      const tables = await db.execute(sql`
+        select to_regclass('zaltyko.payment_reminder_settings') is not null as "replyTo",
+               to_regclass('zaltyko.payment_reminders') is not null as "reminders",
+               to_regclass('zaltyko.family_collection_preferences') is not null as "preferences",
+               (
+                 to_regclass('zaltyko.family_payment_authorizations') is not null
+                 and to_regclass('zaltyko.organization_payment_provider_accounts') is not null
+               ) as "authorizations"
       `);
-      const hasReplyTo = (settings.rows[0] as { present?: unknown } | undefined)?.present === true;
+      const present = (tables.rows[0] ?? {}) as Record<string, unknown>;
+      const hasReplyTo = present.replyTo === true;
       const replyToColumn = hasReplyTo ? sql`prs.reply_to_email` : sql`null::text`;
       const replyToJoin = hasReplyTo
         ? sql`left join zaltyko.payment_reminder_settings prs on prs.organization_id = a.organization_id`
         : sql``;
+      // Sin la tabla de recordatorios no pudo salir ninguno.
+      const reminderSentColumn =
+        present.reminders === true
+          ? sql`exists (
+              select 1
+                from zaltyko.payment_reminders r
+                join zaltyko.charges c
+                  on c.organization_id = r.organization_id and c.id = r.charge_id
+               where r.organization_id = i.organization_id
+                 and c.invoice_id = i.id
+                 and c.status::text in ('due', 'partially_paid')
+                 and r.status::text in ('sent', 'pending')
+            )`
+          : sql`false`;
+      const preferenceColumn =
+        present.preferences === true
+          ? sql`coalesce((
+              select fcp.requested_mode::text = 'automatic'
+                from zaltyko.family_collection_preferences fcp
+               where fcp.organization_id = i.organization_id and fcp.family_id = i.family_id
+               limit 1
+            ), false)`
+          : sql`null::boolean`;
+      const authorizationColumn =
+        present.authorizations === true
+          ? sql`exists (
+              select 1
+                from zaltyko.family_payment_authorizations au
+                join zaltyko.organization_payment_provider_accounts acc
+                  on acc.organization_id = au.organization_id
+                 and acc.id = au.payment_provider_account_id
+               where au.organization_id = i.organization_id
+                 and au.family_id = i.family_id
+                 and au.family_payer_id = i.family_payer_id
+                 and au.status = 'active'::zaltyko.payment_authorization_status
+                 and acc.processor = 'stripe'
+                 and acc.environment = 'test'::zaltyko.stripe_environment
+            )`
+          : sql`null::boolean`;
 
       const result = await db.execute(sql`
         select a.organization_id::text as "organizationId",
@@ -150,7 +213,10 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
                   where ac.organization_id = a.organization_id and ac.attempt_id = a.id
                ) as "servicePeriodStart",
                contact.value as "payerEmail",
-               ${replyToColumn} as "replyToEmail"
+               ${replyToColumn} as "replyToEmail",
+               ${reminderSentColumn} as "reminderSent",
+               ${preferenceColumn} as "preferenceAutomatic",
+               ${authorizationColumn} as "hasActiveAuthorization"
           from zaltyko.family_collection_attempts a
           -- Búsqueda exacta por el único (organización, evento, clave) del outbox.
           join zaltyko.outbox_events e
@@ -216,6 +282,11 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
         servicePeriodStart: textOrNull(row.servicePeriodStart),
         payerEmail: textOrNull(row.payerEmail),
         replyToEmail: textOrNull(row.replyToEmail),
+        reminderSent: row.reminderSent === true,
+        ...(typeof row.preferenceAutomatic === "boolean" ? { preferenceAutomatic: row.preferenceAutomatic } : {}),
+        ...(typeof row.hasActiveAuthorization === "boolean"
+          ? { hasActiveAuthorization: row.hasActiveAuthorization }
+          : {}),
       }));
     },
 

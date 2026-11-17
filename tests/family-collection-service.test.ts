@@ -955,6 +955,29 @@ describe("Fase B: cobrar lo que vence hoy", () => {
     expect(world.notices).toEqual([]);
   });
 
+  it("A-m1: si el error de confirmar trae OTRO cobro (aunque esté cobrado y cuadre), no se usa: sin resultado y se relee", async () => {
+    const { world, gateway, run } = setup({
+      confirmPayment: async () => {
+        throw Object.assign(new Error("Mensaje sintético de Stripe"), {
+          type: "StripeInvalidRequestError",
+          rawType: "invalid_request_error",
+          code: "payment_intent_unexpected_state",
+          statusCode: 400,
+          payment_intent: { id: "pi_SyntheticOtherCollection", status: "succeeded", amount_received: 4500, currency: "eur" },
+        });
+      },
+    });
+    const result = await run();
+    expect(gateway.confirmPayment).toHaveBeenCalledTimes(1);
+    expect(gateway.confirmPayment.mock.calls[0][0]).toMatchObject({ paymentIntentId: intentId });
+    // Nada registrado (ni con el pi_ de este intento ni con el del otro) y ningún aviso.
+    expect(world.applied).toEqual([]);
+    expect(JSON.stringify(world.applied)).not.toContain("pi_SyntheticOtherCollection");
+    expect(world.notices).toEqual([]);
+    expect(result).toMatchObject({ collected: 0, failed: 0, needsReview: 0 });
+    expect(result.skipped).toEqual({ transient: 1 });
+  });
+
   it("periodo de la cuota no válido: canceled invalid_service_period antes de reclamar, sin Stripe", async () => {
     const { world, gateway, run } = setup();
     world.context!.charges[0].servicePeriodStart = "";

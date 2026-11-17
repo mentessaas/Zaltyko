@@ -177,6 +177,39 @@ export type FamilyAutomaticFeeStatus =
 /** Por id de factura (cuota). Solo las cuotas que se cobran solas. */
 export type FamilyAutomaticFeeStatuses = Record<string, FamilyAutomaticFeeStatus>;
 
+/**
+ * Lo que la tarjeta «Pago automático» necesita saber del cobro automático
+ * (Fase 3) para no prometer lo contrario de lo que pasa: si está abierto
+ * (bandera, cerrojos de R11 y tablas) y, por academia, las familias cuyas
+ * cuotas se cobran solas (preferencia automática vigente con plan de pago).
+ */
+export interface FamilyAutomaticCollectionModes {
+  open: boolean;
+  /** Por id de academia, los ids de familia en cobro automático. */
+  automaticFamilies: Record<string, string[]>;
+}
+
+/** Cobro automático cerrado: ninguna familia se cobra sola. */
+export const FAMILY_AUTOMATIC_COLLECTION_CLOSED: FamilyAutomaticCollectionModes = {
+  open: false,
+  automaticFamilies: {},
+};
+
+/**
+ * Para una tarjeta: `closed` (no se cobra nada), `family_manual` (abierto,
+ * pero las cuotas de esta familia se pagan a mano) o `automatic`.
+ */
+export type FamilyCardCollectionMode = "closed" | "family_manual" | "automatic";
+
+export function familyCardCollectionMode(
+  modes: FamilyAutomaticCollectionModes | undefined,
+  organizationId: string,
+  familyId: string
+): FamilyCardCollectionMode {
+  if (!modes?.open) return "closed";
+  return modes.automaticFamilies[organizationId]?.includes(familyId) ? "automatic" : "family_manual";
+}
+
 export function familyAutomaticFeeText(status: FamilyAutomaticFeeStatus): string {
   switch (status.kind) {
     case "scheduled":

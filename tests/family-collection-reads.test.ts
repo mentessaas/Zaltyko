@@ -63,6 +63,7 @@ import {
   failureReasonText,
   familyAutomaticFeeStatusOf,
   familyNoticeStateOf,
+  getFamilyAutomaticCollectionModes,
   getFamilyAutomaticFeeStatuses,
   getOwnerAutomaticCollections,
   getOwnerFamilyCollectionSwitches,
@@ -465,7 +466,7 @@ describe("motivos en palabras sencillas", () => {
       expect(failureReasonText({ status: "canceled", failureCode: code, declineCode: null }), code).toBe(text);
     }
     expect(reviewReasonText("amount_mismatch")).toBe(
-      "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Necesita ayuda de soporte: resuélvelo con el soporte de Stripe."
+      "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Resuélvelo en Stripe con su soporte."
     );
   });
 });
@@ -741,7 +742,7 @@ describe("fila de la academia (pura)", () => {
       canMarkReviewed: false,
       manualPaymentBlocked: true,
       reason:
-        "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Necesita ayuda de soporte: resuélvelo con el soporte de Stripe.",
+        "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Resuélvelo en Stripe con su soporte.",
     });
   });
 
@@ -1600,5 +1601,84 @@ describe("domiciliación sin activar (D2, «Primero solo tarjeta»): ninguna pan
     await expect(
       getFamilyAutomaticFeeStatuses({ userId: USER_ID, invoiceIds: [INVOICE_ID], now: NOW })
     ).resolves.toEqual({ [INVOICE_ID]: { kind: "in_progress" } });
+  });
+});
+
+describe("portal: qué familias se cobran solas (tarjeta «Pago automático»)", () => {
+  const access = (familyIds: string[]) =>
+    ({
+      academies: [{ organizationId: ORGANIZATION_ID, feeFamilyIds: familyIds }],
+    }) as unknown as Awaited<ReturnType<typeof resolveFamilyPortalAccess>>;
+
+  it("con la bandera apagada (o los cerrojos cerrados): cerrado, sin leer nada", async () => {
+    vi.mocked(isFamilyAutomaticCollectionOpen).mockReturnValue(false);
+
+    await expect(getFamilyAutomaticCollectionModes({ userId: USER_ID, now: NOW })).resolves.toEqual({
+      open: false,
+      automaticFamilies: {},
+    });
+    expect(resolveFamilyPortalAccess).not.toHaveBeenCalled();
+    expect(loadOrganizationPlanState).not.toHaveBeenCalled();
+  });
+
+  it("sin las tablas: cerrado", async () => {
+    vi.mocked(isFamilyCollectionStorageAvailable).mockResolvedValue(false);
+
+    await expect(getFamilyAutomaticCollectionModes({ userId: USER_ID, now: NOW })).resolves.toEqual({
+      open: false,
+      automaticFamilies: {},
+    });
+    expect(resolveFamilyPortalAccess).not.toHaveBeenCalled();
+  });
+
+  it("abierto: solo las familias con la preferencia automática vigente; a mano o tras un cambio de plan, no", async () => {
+    vi.mocked(resolveFamilyPortalAccess).mockResolvedValue(access([FAMILY_ID, OTHER_FAMILY_ID]));
+    vi.mocked(loadPlanChangeRevision).mockResolvedValue(4);
+    holder.selectRows = [
+      { familyId: FAMILY_ID, requestedMode: "automatic", entitlementRevision: 4 },
+      // Guardada antes del cambio real de plan: hay que volver a confirmarla.
+      { familyId: OTHER_FAMILY_ID, requestedMode: "automatic", entitlementRevision: 3 },
+    ];
+
+    await expect(getFamilyAutomaticCollectionModes({ userId: USER_ID, now: NOW })).resolves.toEqual({
+      open: true,
+      automaticFamilies: { [ORGANIZATION_ID]: [FAMILY_ID] },
+    });
+    expect(resolveFamilyPortalAccess).toHaveBeenCalledWith({ userId: USER_ID, now: NOW });
+  });
+
+  it("abierto con la familia a mano: abierto, pero ninguna familia en automático", async () => {
+    vi.mocked(resolveFamilyPortalAccess).mockResolvedValue(access([FAMILY_ID]));
+    holder.selectRows = [{ familyId: FAMILY_ID, requestedMode: "manual", entitlementRevision: 5 }];
+
+    await expect(getFamilyAutomaticCollectionModes({ userId: USER_ID, now: NOW })).resolves.toEqual({
+      open: true,
+      automaticFamilies: {},
+    });
+  });
+
+  it("abierto sin plan de pago: ninguna familia en automático y sin leer las preferencias", async () => {
+    vi.mocked(resolveFamilyPortalAccess).mockResolvedValue(access([FAMILY_ID]));
+    vi.mocked(evaluateAutomaticCollectionPlanEligibility).mockReturnValue({
+      eligible: false,
+      reason: "paid_plan_required",
+    });
+    holder.selectRows = [{ familyId: FAMILY_ID, requestedMode: "automatic", entitlementRevision: 5 }];
+
+    await expect(getFamilyAutomaticCollectionModes({ userId: USER_ID, now: NOW })).resolves.toEqual({
+      open: true,
+      automaticFamilies: {},
+    });
+    expect(loadPlanChangeRevision).not.toHaveBeenCalled();
+  });
+
+  it("una fila de una familia que la cuenta no ve nunca cuenta", async () => {
+    vi.mocked(resolveFamilyPortalAccess).mockResolvedValue(access([FAMILY_ID]));
+    holder.selectRows = [{ familyId: OTHER_FAMILY_ID, requestedMode: "automatic", entitlementRevision: 5 }];
+
+    await expect(getFamilyAutomaticCollectionModes({ userId: USER_ID, now: NOW })).resolves.toEqual({
+      open: true,
+      automaticFamilies: {},
+    });
   });
 });

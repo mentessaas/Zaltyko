@@ -180,8 +180,13 @@ todas las sedes.
 - **Familia:** tarjeta «Pago automático» dentro de la sección de cada
   academia en `/familia/cuotas` (`FamilyAutomaticPaymentCard.tsx`; la demo
   pública no la recibe):
-  - Sin método: «Guarda una tarjeta o domicilia el pago para que las cuotas se
-    cobren solas. Todavía no se cobrará nada.» Elige «Tarjeta» o
+  - Sin método: con el cobro automático de cuotas cerrado, «Guarda una tarjeta
+    o domicilia el pago para que las cuotas se cobren solas. Todavía no se
+    cobrará nada.»; con el cobro abierto (Fase 3) nunca dice «Todavía no se
+    cobrará nada»: si las cuotas de la familia están en automático, «Guarda una
+    tarjeta o domicilia el pago para que las próximas cuotas se cobren solas.»,
+    y si la academia las tiene a mano, «… para que las cuotas se cobren solas.
+    Tu academia te dirá desde cuándo.». Elige «Tarjeta» o
     «Domiciliación bancaria» (solo las que ofrece la academia), lee el texto
     de autorización y marca «Acepto». «Continuar» abre el formulario de Stripe
     (en español, en la cuenta de la academia) y «Guardar» lo confirma. Para la
@@ -189,7 +194,13 @@ todas las sedes.
     Stripe, con la academia como acreedora.
   - Con método: «Pagas automáticamente con tarjeta» o «… con domiciliación
     bancaria», «desde el {fecha}», y los botones «Cambiar método» y «Dejar de
-    pagar automáticamente» (con confirmación en la misma tarjeta).
+    pagar automáticamente» (con confirmación en la misma tarjeta). Solo si de
+    verdad se cobra solo: cobro automático abierto (bandera, cerrojos y
+    tablas), cuotas de la familia en automático (preferencia vigente con plan
+    de pago) y, si es domiciliación, la domiciliación activada. Si no: «Tienes
+    tu tarjeta guardada desde el {fecha}» (o «Tienes la domiciliación bancaria
+    guardada…») y «Quitar la tarjeta guardada» / «Quitar la domiciliación
+    guardada», sin prometer ningún cobro.
   - Al guardar: «Tarjeta guardada» o «Domiciliación guardada».
   - Vuelta de la verificación del banco: la página termina sola el proceso. Si
     el banco aún no ha respondido: «Tu banco todavía lo está confirmando. Si

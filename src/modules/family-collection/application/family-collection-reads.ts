@@ -76,6 +76,7 @@ import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment
 import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
 import { familyCanViewFees } from "@/modules/family-portal/application/family-portal-sql";
 import type {
+  FamilyAutomaticCollectionModes,
   FamilyAutomaticFeeStatus,
   FamilyAutomaticFeeStatuses,
 } from "@/modules/family-portal/domain/family-portal-presentation";
@@ -83,7 +84,7 @@ import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-s
 import { withinGrace } from "@/modules/payment-reminders/domain/reminder-policy";
 import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
 
-export type { FamilyAutomaticFeeStatus, FamilyAutomaticFeeStatuses };
+export type { FamilyAutomaticCollectionModes, FamilyAutomaticFeeStatus, FamilyAutomaticFeeStatuses };
 
 const OPEN_STATUSES: ReadonlySet<string> = new Set(FAMILY_COLLECTION_OPEN_STATUSES);
 const ISO = `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'`;
@@ -523,6 +524,61 @@ export async function getFamilyAutomaticFeeStatuses(input: {
   return statuses;
 }
 
+/**
+ * Para la tarjeta «Pago automático» del portal: si el cobro automático está
+ * abierto (bandera, cerrojos de R11 y tablas de las Fases 1, 2 y 3) y, por
+ * academia, qué familias de la cuenta tienen sus cuotas en cobro automático
+ * (misma regla que el interruptor de la academia, getOwnerFamilyCollectionSwitches:
+ * preferencia automática que sigue valiendo y plan de pago vigente). Solo las
+ * familias cuyas cuotas ve la cuenta (`feeFamilyIds` de la sesión). Cerrado
+ * o sin tablas, ninguna: la tarjeta no promete ningún cobro.
+ */
+export async function getFamilyAutomaticCollectionModes(input: {
+  userId: string;
+  now?: Date;
+}): Promise<FamilyAutomaticCollectionModes> {
+  const userId = uuidSchema.parse(input.userId);
+  if (!isFamilyAutomaticCollectionOpen()) return { open: false, automaticFamilies: {} };
+  if (!(await collectionTablesAvailable())) return { open: false, automaticFamilies: {} };
+
+  const now = input.now ?? new Date();
+  const access = await resolveFamilyPortalAccess({ userId, now });
+  const automaticFamilies: Record<string, string[]> = {};
+  for (const academy of access.academies) {
+    const familyIds = validIds(academy.feeFamilyIds);
+    if (familyIds.length === 0) continue;
+    const { plan, planChangeRevision } = await loadPlan(academy.organizationId, now);
+    if (!plan.eligible) continue;
+    const stored = await db
+      .select({
+        familyId: familyCollectionPreferences.familyId,
+        requestedMode: familyCollectionPreferences.requestedMode,
+        entitlementRevision: familyCollectionPreferences.entitlementRevision,
+      })
+      .from(familyCollectionPreferences)
+      .where(
+        and(
+          eq(familyCollectionPreferences.organizationId, academy.organizationId),
+          inArray(familyCollectionPreferences.familyId, familyIds)
+        )
+      );
+    const automatic = stored
+      .filter(
+        (row) =>
+          row.requestedMode === "automatic" &&
+          familyIds.includes(row.familyId) &&
+          isPreferenceRevisionCurrent({
+            preferenceRevision: row.entitlementRevision ?? null,
+            currentRevision: plan.entitlementRevision,
+            planChangeRevision,
+          })
+      )
+      .map((row) => row.familyId);
+    if (automatic.length > 0) automaticFamilies[academy.organizationId] = automatic;
+  }
+  return { open: true, automaticFamilies };
+}
+
 // ---------------------------------------------------------------------------
 // Academia: motivos en palabras sencillas
 // ---------------------------------------------------------------------------
@@ -651,7 +707,7 @@ const REVIEW_TEXT: Record<string, string> = {
   processing_unreadable: `El cobro lleva más de 15 días en curso y no podemos ver su resultado. ${CHECK_IN_STRIPE}`,
   // Sin «Marcar como revisado» (la acción responde siempre 409): lo resuelve soporte.
   amount_mismatch:
-    "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Necesita ayuda de soporte: resuélvelo con el soporte de Stripe.",
+    "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Resuélvelo en Stripe con su soporte.",
 };
 
 const REVIEW_FALLBACK = `El cobro necesita una comprobación. ${CHECK_IN_STRIPE}`;

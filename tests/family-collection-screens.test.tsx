@@ -383,6 +383,32 @@ describe("OwnerFamilyPaymentMethodsPanel: «Cobrar automáticamente»", () => {
     expect(screen.getByRole("switch", { name: "Cobrar automáticamente a Lucía Martín" })).toBeChecked();
   });
 
+  it("B-M3: con dos pagadores, el mensaje nombra a quien tiene la tarjeta, no a la primera fila", async () => {
+    // Marta (familia A) solo tiene domiciliación, que no se cobra sola, y sale primero.
+    const martaSepa: OwnerFamilyPaymentMethod = {
+      ...luciaSepa,
+      authorizationId: "92000000-0000-4000-8000-000000000504",
+      payerName: "Marta Gómez",
+    };
+    stubFetch(() => reply(200, receipt(FAMILY_A, "automatic", 1)));
+    render(
+      <OwnerFamilyPaymentMethodsPanel organizationId={ORGANIZATION_ID} methods={[martaSepa, lucia]} collection={collection} />
+    );
+
+    expect(screen.queryByRole("switch", { name: "Cobrar automáticamente a Marta Gómez" })).toBeNull();
+    fireEvent.click(screen.getByRole("switch", { name: "Cobrar automáticamente a Lucía Martín" }));
+
+    const status = await screen.findByRole("status");
+    expect(status).toHaveTextContent("Las próximas cuotas de Lucía Martín se cobrarán automáticamente.");
+    expect(status).not.toHaveTextContent("Marta Gómez");
+    expect(bodyOf(calls[0])).toEqual({
+      organizationId: ORGANIZATION_ID,
+      familyId: FAMILY_A,
+      mode: "automatic",
+      expectedVersion: 0,
+    });
+  });
+
   it("apagarlo guarda «manual» y lo dice en palabras sencillas", async () => {
     stubFetch(() => reply(200, receipt(FAMILY_B, "manual", 3)));
     render(<OwnerFamilyPaymentMethodsPanel organizationId={ORGANIZATION_ID} methods={[lucia, pablo]} collection={collection} />);
@@ -744,6 +770,31 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     );
     expect(screen.queryByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-4" })).toBeNull();
     expect(rowOf("CUO-4")).toHaveTextContent("Necesita revisión");
+    expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  it("B-M2: cancelar con dinero movido en Stripe: texto propio de cancelar y retira «Cancelar»", async () => {
+    stubFetch(() =>
+      problem(
+        409,
+        "automatic-collection-needs-support",
+        "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado."
+      )
+    );
+    render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, cancelar el cobro" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "No se puede cancelar desde aquí: en Stripe hay dinero que se ha movido o no se puede leer el cobro de esta cuota. Resuélvelo en tu panel de Stripe con su soporte."
+    );
+    expect(alert).not.toHaveTextContent("marcar como revisado");
+    expect(screen.queryByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sí, cancelar el cobro" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-3" })).toBeNull();
+    expect(rowOf("CUO-3")).toHaveTextContent("Necesita revisión");
     expect(mockRefresh).not.toHaveBeenCalled();
   });
 

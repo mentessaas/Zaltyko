@@ -23,9 +23,14 @@ const ACTION_ERROR = "No hemos podido completar la acción. Inténtalo de nuevo.
 const CANCELED_BY_ACADEMY = "Lo canceló la academia.";
 const REVIEWED_BY_ACADEMY = "La academia lo revisó y lo cerró.";
 
-// Rechazos (409) que piden algo concreto a la academia.
-const NEEDS_SUPPORT_TEXT =
-  "No se puede marcar como revisado: en Stripe hay dinero que se ha movido o no se puede leer el cobro de esta cuota. Resuélvelo en tu panel de Stripe con su soporte.";
+// Rechazos (409) que piden algo concreto a la academia. «Necesita soporte»
+// lleva el texto de la acción que se intentó: tras él no se ofrece ninguna.
+const NEEDS_SUPPORT_TEXT: Record<"cancel" | "mark_reviewed", string> = {
+  cancel:
+    "No se puede cancelar desde aquí: en Stripe hay dinero que se ha movido o no se puede leer el cobro de esta cuota. Resuélvelo en tu panel de Stripe con su soporte.",
+  mark_reviewed:
+    "No se puede marcar como revisado: en Stripe hay dinero que se ha movido o no se puede leer el cobro de esta cuota. Resuélvelo en tu panel de Stripe con su soporte.",
+};
 const REVIEW_REQUIRED_TEXT =
   "No se puede cancelar: este cobro ya figura registrado en otro cobro automático. Compruébalo en Stripe y usa «Marcar como revisado».";
 const CHANGED_TEXT =
@@ -143,7 +148,7 @@ export function OwnerAutomaticCollectionsPanel({
         outcome = body.outcome;
       } else if (!response.ok) {
         rejection = problemType(body);
-        if (rejection === "automatic-collection-needs-support") failure = NEEDS_SUPPORT_TEXT;
+        if (rejection === "automatic-collection-needs-support") failure = NEEDS_SUPPORT_TEXT[action];
         else if (rejection === "automatic-collection-review-required") failure = REVIEW_REQUIRED_TEXT;
         else if (rejection === "concurrency-retry") failure = CHANGED_TEXT;
         else if (typeof body?.detail === "string" && body.detail.trim()) failure = body.detail;
@@ -167,13 +172,17 @@ export function OwnerAutomaticCollectionsPanel({
           )
         );
       } else if (rejection === "automatic-collection-needs-support") {
-        // No se puede cerrar desde aquí: se resuelve en Stripe con su soporte.
+        // No se puede cerrar desde aquí, ni cancelándolo ni marcándolo como
+        // revisado: se resuelve en Stripe con su soporte. Se retiran las dos.
+        setConfirmingCancel(null);
         setReviewing(null);
         setCheckedInStripe(false);
         setItems((current) =>
           current.map(
             (entry): OwnerAutomaticCollectionItem =>
-              entry.invoiceId === item.invoiceId ? { ...entry, canMarkReviewed: false, needsReview: true } : entry
+              entry.invoiceId === item.invoiceId
+                ? { ...entry, canCancel: false, canMarkReviewed: false, needsReview: true }
+                : entry
           )
         );
       }

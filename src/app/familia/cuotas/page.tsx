@@ -4,7 +4,10 @@ import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell"
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { PageHeader } from "@/components/ui/page-header";
 import { logger } from "@/lib/logger";
-import { isFamilyAutomaticSepaCollectionFlagEnabled } from "@/modules/family-collection/application/config";
+import {
+  isFamilyAutomaticCollectionFlagEnabled,
+  isFamilyAutomaticSepaCollectionFlagEnabled,
+} from "@/modules/family-collection/application/config";
 import {
   isProductionDatabase,
   resolveConnectEnvironment,
@@ -14,7 +17,11 @@ import {
   getFamilyFees,
   type FamilyAcademyFees,
 } from "@/modules/family-portal/application/family-portal-reads";
-import type { FamilyAutomaticFeeStatuses } from "@/modules/family-portal/domain/family-portal-presentation";
+import {
+  FAMILY_AUTOMATIC_COLLECTION_CLOSED,
+  type FamilyAutomaticCollectionModes,
+  type FamilyAutomaticFeeStatuses,
+} from "@/modules/family-portal/domain/family-portal-presentation";
 
 import { requireFamilyUser } from "../_lib/family-user";
 
@@ -100,12 +107,43 @@ async function loadAutomaticCollection(
   }
 }
 
+/**
+ * Cobro automático de cuotas (Fase 3) para la tarjeta «Pago automático»: si
+ * está abierto y qué familias tienen sus cuotas en automático, para que la
+ * tarjeta no diga «Todavía no se cobrará nada» cuando sí se cobra, ni «Pagas
+ * automáticamente» cuando no. Con la bandera apagada, fuera de la clave de
+ * test o contra la base de producción, cerrado sin cargar el módulo (se lee
+ * del entorno, sin base). Si la lectura falla, abierto pero sin ninguna
+ * familia en automático: la tarjeta no promete ni niega el cobro, y en el
+ * registro solo va el tipo de error.
+ */
+async function loadAutomaticCollectionModes(
+  userId: string,
+  academies: FamilyAcademyFees[]
+): Promise<FamilyAutomaticCollectionModes> {
+  if (academies.length === 0) return FAMILY_AUTOMATIC_COLLECTION_CLOSED;
+  if (!isFamilyAutomaticCollectionFlagEnabled()) return FAMILY_AUTOMATIC_COLLECTION_CLOSED;
+  if (resolveConnectEnvironment() !== "test" || isProductionDatabase()) return FAMILY_AUTOMATIC_COLLECTION_CLOSED;
+  try {
+    const { getFamilyAutomaticCollectionModes } = await import(
+      "@/modules/family-collection/application/family-collection-reads"
+    );
+    return await getFamilyAutomaticCollectionModes({ userId });
+  } catch (error) {
+    logger.warn("family_portal.automatic_collection_modes_failed", {
+      errorName: error instanceof Error ? error.name : "unknown",
+    });
+    return { open: true, automaticFamilies: {} };
+  }
+}
+
 export default async function FamilyFeesPage() {
   const user = await requireFamilyUser("/familia/cuotas");
   const academies = await getFamilyFees({ userId: user.id });
-  const [automaticPayments, automaticCollection] = await Promise.all([
+  const [automaticPayments, automaticCollection, automaticCollectionModes] = await Promise.all([
     loadAutomaticPayments(user.id, academies),
     loadAutomaticCollection(user.id, academies),
+    loadAutomaticCollectionModes(user.id, academies),
   ]);
 
   return (
@@ -120,6 +158,7 @@ export default async function FamilyFeesPage() {
         academies={academies}
         automaticPayments={automaticPayments}
         automaticCollection={automaticCollection}
+        automaticCollectionModes={automaticCollectionModes}
         sepaCollectsAutomatically={isFamilyAutomaticSepaCollectionFlagEnabled()}
       />
     </FamilyPortalShell>

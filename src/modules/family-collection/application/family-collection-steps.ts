@@ -852,23 +852,33 @@ async function advanceAttemptSteps(
         return null;
       }
     }
+    // El cobro de este intento: el único cuyo estado e importe cuentan.
+    const ownPaymentIntentId = snapshot.id;
     try {
       const confirmed = await state.gateway.confirmPayment({
         connectedAccount,
-        paymentIntentId: snapshot.id,
+        paymentIntentId: ownPaymentIntentId,
         attempt: { invoiceId: attempt.invoiceId, attemptNumber: attempt.attemptNumber },
         mandate: attempt.paymentMethodKind === "sepa_debit" ? refs.mandate : null,
       });
       outcome = mapPaymentIntent(confirmed);
       snapshot = "paymentIntent" in confirmed ? (confirmed.paymentIntent ?? snapshot) : confirmed;
     } catch (error) {
-      outcome = mapUnknownPaymentError(error);
       // Si el error trae el cobro (p. ej. ya estaba cobrado), se usa ese: con
       // el de la creación, lo cobrado sería 0 y saldría un aviso falso de
-      // importe que no cuadra.
+      // importe que no cuadra. Solo si es el cobro de este intento (mismo id):
+      // el de otro cobro no dice nada del de este, así que ni su estado ni su
+      // importe cuentan; queda sin resultado (pasajero) y la reanudación vuelve
+      // a leer el cobro de este intento. Nunca se registra con el de otro.
       const attached =
         typeof error === "object" && error !== null ? (error as { payment_intent?: unknown }).payment_intent : null;
-      snapshot = snapshotOfPaymentIntent(attached) ?? snapshot;
+      const adopted = snapshotOfPaymentIntent(attached);
+      if (adopted && adopted.id !== ownPaymentIntentId) {
+        outcome = "transient";
+      } else {
+        outcome = mapUnknownPaymentError(error);
+        snapshot = adopted ?? snapshot;
+      }
     }
   }
 
