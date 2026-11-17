@@ -7,6 +7,18 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-17 — Auditoría de dependencias: excepción temporal para GHSA-fc5q-39xc-vjpf (`picomatch`)
+
+**Contexto.** El advisory GHSA-fc5q-39xc-vjpf (ReDoS en `picomatch <= 4.0.7`, gravedad alta) hace fallar el job no obligatorio «Dependency Security & SBOM» en todas las PR desde el 17-11-2026. No tiene versión corregida (`first_patched_version: null`; la última en npm es la 4.0.7), así que no se puede actualizar ni fijar un override.
+
+**Cambio.** `package.json` añade `pnpm.auditConfig.ignoreGhsas` con solo ese GHSA. Único camino de producción: `@sentry/nextjs > @rollup/plugin-commonjs > picomatch@4.0.7`, usado al compilar con opciones fijas; `src/` no usa matchers de globs. Detalle, fecha de revisión (**2026-12-17**) y pasos de retirada en `docs/security/picomatch-ghsa-fc5q-39xc-vjpf.md`.
+
+**Pendiente.** Quitar la excepción en cuanto salga `picomatch@4.0.8` con el arreglo. No cambia el lockfile ni el comportamiento del producto.
+
+**Pruebas.** Ninguna en local; la valida la CI remota (job «Dependency Security & SBOM»). Los avisos moderados o bajos que ya existían no se tocan aquí.
+
+Vault: actualizado este `Changelog interno.md`; no cambian `Decisiones.md`, `Pricing.md` ni `Mensajes aprobados.md`.
+
 ## 2026-11-17 — Cobro automático de cuotas, Fase 3: decisiones de Elvis y ronda de revisión (PR #349)
 
 **Contexto.** Tras el estudio `documentacion/Zaltyko/auditoria-2026-11-17/cobros-competencia.md` (fuera del repo), Elvis decidió cinco cosas de la Fase 3; además, la revisión independiente del coordinador pidió siete correcciones. Todo en la PR #349, en borrador y con las banderas apagadas.

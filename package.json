@@ -215,6 +215,11 @@
   },
   "homepage": "https://github.com/mentessaas/Zaltyko#readme",
   "pnpm": {
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-fc5q-39xc-vjpf"
+      ]
+    },
     "overrides": {
       "postcss-selector-parser@6": "6.1.5",
       "tmp": "^0.2.4",
