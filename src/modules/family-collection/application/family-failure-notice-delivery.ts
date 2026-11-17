@@ -10,7 +10,8 @@
  * llamada:
  * 1. se leen los avisos de los últimos días sin resultado, de página en
  *    página (FAMILY_FAILURE_NOTICE_BATCH) hasta acabarlos o agotar el plazo;
- * 2. se comprueba que siguen valiendo (academia activa, cuota abierta, fallo
+ * 2. se comprueba que siguen valiendo (academia operativa: en prueba o
+ *    activa, no suspendida ni cerrada; cuota abierta, fallo
  *    del intento 1 y ningún intento posterior que ya cobrara la cuota). Un
  *    reintento ya reclamado NO lo anula: la familia sigue sin saber que el
  *    primer cobro falló;
@@ -58,6 +59,7 @@ import {
   type FamilyFailureNoticeStore,
   type PendingFamilyFailureNotice,
 } from "@/modules/family-collection/infrastructure/family-failure-notice-store";
+import { isOperatingOrganizationStatus } from "@/modules/organizations/domain/organization-status";
 import { withinGrace } from "@/modules/payment-reminders/domain/reminder-policy";
 
 /**
@@ -97,7 +99,6 @@ export interface FamilyFailureNoticeOptions {
 }
 
 const OPEN_INVOICE_STATUSES: ReadonlySet<string> = new Set(["issued", "partially_paid"]);
-const ACTIVE_ORGANIZATION_STATUSES: ReadonlySet<string> = new Set(["trial", "active"]);
 /** Un intento en marcha: el reintento se está cobrando. */
 const OPEN_ATTEMPT_STATUSES: ReadonlySet<string> = new Set(["claimed", "created", "processing"]);
 
@@ -164,7 +165,7 @@ export function decideFamilyFailureNotice(
 ):
   | { action: "send"; retryScheduled: boolean; retryDateLocal: string | null }
   | { action: "close"; outcome: FamilyFailureNoticeOutcome } {
-  if (!ACTIVE_ORGANIZATION_STATUSES.has(notice.organizationStatus)) {
+  if (!isOperatingOrganizationStatus(notice.organizationStatus)) {
     return { action: "close", outcome: "organization_inactive" };
   }
   if (!OPEN_INVOICE_STATUSES.has(notice.invoiceStatus)) return { action: "close", outcome: "invoice_closed" };

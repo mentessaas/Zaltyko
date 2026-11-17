@@ -34,6 +34,7 @@ import {
   type TemplateDraft,
 } from "@/modules/payment-reminders/domain/reminder-template";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
+import { OPERATING_ORGANIZATION_STATUSES } from "@/modules/organizations/domain/organization-status";
 
 const LIST_LIMIT = 300;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -204,6 +205,14 @@ export interface AutomaticRunResult {
 }
 
 const AUTOMATIC_PAGE_SIZE = 200;
+/**
+ * Academia operativa (en prueba o activa), como parámetros: nunca texto
+ * libre. Van después del cursor en la consulta de páginas.
+ */
+const operatingOrganizationStatuses = sql.join(
+  OPERATING_ORGANIZATION_STATUSES.map((status) => sql`${status}`),
+  sql`, `
+);
 /** Margen bajo el límite de 300 s de las rutas cron; lo que falte sigue en la siguiente pasada. */
 const AUTOMATIC_DEADLINE_MS = 240_000;
 
@@ -237,8 +246,9 @@ export async function runAutomaticPaymentReminders(
       select s.organization_id::text as "organizationId"
         from zaltyko.payment_reminder_settings s
         inner join zaltyko.organizations o on o.id = s.organization_id
-       where s.is_auto_enabled and o.status in ('trial', 'active')
+       where s.is_auto_enabled
          and (${cursor}::uuid is null or s.organization_id > ${cursor}::uuid)
+         and o.status::text in (${operatingOrganizationStatuses})
        order by s.organization_id
        limit ${pageSize}
     `);

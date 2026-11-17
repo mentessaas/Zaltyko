@@ -421,6 +421,10 @@ describe("motivos en palabras sencillas", () => {
     expect(failureReasonText({ failureCode: "account_stale", declineCode: null })).toBe(
       "No pudimos comprobar tu cuenta de Stripe a tiempo."
     );
+    // Solo suspendida o cerrada: una academia en prueba sí cobra (17-11-2026).
+    expect(failureReasonText({ failureCode: "organization_not_active", declineCode: null, status: "canceled" })).toBe(
+      "La academia está suspendida o cerrada."
+    );
     expect(reviewReasonText("motivo_nuevo")).toBe("El cobro necesita una comprobación. Compruébalo en Stripe.");
     expect(failureReasonText({ failureCode: "collection_window_expired", declineCode: null })).toBe(
       "No se pudo intentar el cobro a tiempo. Se cobra a mano."
