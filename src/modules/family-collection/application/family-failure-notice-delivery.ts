@@ -41,7 +41,7 @@ import {
   FAMILY_FEES_PATH,
   familyFailureNoticeKey,
   familyFailureNoticeKind,
-  notifiesFamilyOnFailure,
+  familyNoticeApplies,
   renderFamilyFailureNotice,
 } from "@/modules/family-collection/domain/family-failure-notice";
 import {
@@ -115,8 +115,9 @@ function todayOf(now: Date, timezone: string): string | null {
 
 /**
  * Lo que se hace con un aviso pendiente: enviarlo o cerrarlo sin correo. Pura.
- * Nunca se envía un aviso que ya no es verdad ni se promete un reintento que
- * no va a salir:
+ * Solo vale para un intento 1 que falló o que se cerró porque la tarjeta ya
+ * no está en Stripe (familyNoticeApplies). Nunca se envía un aviso que ya no
+ * es verdad ni se promete un reintento que no va a salir:
  * - `retryScheduled`: el texto puede prometer un reintento. Solo si el
  *   intento lo tiene programado y `retriesEnabled` (el cobro automático está
  *   encendido: sin la bandera la Fase B no corre y el reintento no sale);
@@ -137,9 +138,12 @@ export function decideFamilyFailureNotice(
   }
   if (!OPEN_INVOICE_STATUSES.has(notice.invoiceStatus)) return { action: "close", outcome: "invoice_closed" };
   if (
-    notice.attemptStatus !== "failed" ||
     notice.lastAttemptNumber > notice.attemptNumber ||
-    !notifiesFamilyOnFailure({ attemptNumber: notice.attemptNumber, failureCode: notice.failureCode ?? "" })
+    !familyNoticeApplies({
+      attemptNumber: notice.attemptNumber,
+      status: notice.attemptStatus,
+      failureCode: notice.failureCode,
+    })
   ) {
     return { action: "close", outcome: "superseded" };
   }

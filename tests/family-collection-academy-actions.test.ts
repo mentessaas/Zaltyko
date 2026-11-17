@@ -122,6 +122,18 @@ const received = { amountCents: 4500, currency: "EUR" };
  * Stripe simulado: cada cobro con su estado; cancelar lo deja cancelado. Un
  * cobro hecho dice haber cobrado `receivedCents` (por defecto, la cuota entera).
  */
+/** Cobro de Stripe tal como lo devuelve la búsqueda: un cobro hecho dice haber cobrado la cuota (45 €) en euros. */
+function intent(id: string, status: string): PaymentIntentSnapshot {
+  return {
+    id,
+    status,
+    lastErrorCode: null,
+    lastDeclineCode: null,
+    amountReceivedCents: status === "succeeded" ? 4500 : 0,
+    currency: "EUR",
+  };
+}
+
 function fakeGateway(
   statuses: Record<string, string> = {},
   cancelResult: "canceled" | "not_cancelable" = "canceled",
@@ -572,8 +584,8 @@ describe("marcar como revisado", () => {
       const many = fakeStore(attempt({ status: "claimed", paymentIntentId: null, hasReviewNotice: true }));
       const manyGateway = fakeGateway();
       manyGateway.listPaymentsByAttempt.mockResolvedValue([
-        { id: "pi_SyntheticAcademyMany1", status: "canceled", lastErrorCode: null, lastDeclineCode: null },
-        { id: "pi_SyntheticAcademyMany2", status: "canceled", lastErrorCode: null, lastDeclineCode: null },
+        intent("pi_SyntheticAcademyMany1", "canceled"),
+        intent("pi_SyntheticAcademyMany2", "canceled"),
       ]);
       manyGateway.retrievePayment.mockRejectedValue(resourceMissing());
       await expect(markAutomaticCollectionReviewed(reviewInput, { store: many, gateway: manyGateway })).rejects.toMatchObject({
@@ -615,7 +627,6 @@ describe("marcar como revisado", () => {
     });
   });
 
-  const intent = (id: string, status: string) => ({ id, status, lastErrorCode: null, lastDeclineCode: null });
 
   it("reanudaciones agotadas sin cobro guardado: lo busca en Stripe y, si no hay, lo cierra", async () => {
     const store = fakeStore(attempt({ status: "claimed", paymentIntentId: null, resumeCount: 3 }));

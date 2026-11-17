@@ -935,6 +935,26 @@ describe("Fase B: cobrar lo que vence hoy", () => {
     expect(result.skipped).toEqual({ amount_mismatch: 1 });
   });
 
+  it("la confirmación lanza un error que trae el cobro ya cobrado: se registra con lo que dice ese cobro, sin aviso de importe falso", async () => {
+    const { world, run } = setup({
+      confirmPayment: async () => {
+        // P. ej. una carrera: Stripe ya lo había cobrado y responde con el cobro dentro del error.
+        throw Object.assign(new Error("Mensaje sintético de Stripe"), {
+          type: "StripeInvalidRequestError",
+          rawType: "invalid_request_error",
+          code: "payment_intent_unexpected_state",
+          statusCode: 400,
+          payment_intent: { id: intentId, status: "succeeded", amount_received: 4500, currency: "eur" },
+        });
+      },
+    });
+    const result = await run();
+    // Con el cobro de la creación, lo cobrado sería 0 € (aviso amount_mismatch falso).
+    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
+    expect(result).toMatchObject({ collected: 1, needsReview: 0 });
+    expect(world.notices).toEqual([]);
+  });
+
   it("periodo de la cuota no válido: canceled invalid_service_period antes de reclamar, sin Stripe", async () => {
     const { world, gateway, run } = setup();
     world.context!.charges[0].servicePeriodStart = "";
@@ -2010,6 +2030,32 @@ describe("domiciliación sin activar (D2, «Primero solo tarjeta»): nunca un co
       expect(gateway.confirmPayment).not.toHaveBeenCalled();
       expect(gateway.cancelPayment).toHaveBeenCalledTimes(1);
       expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: intentId, reason: "sepa_not_enabled" }]);
+    });
+
+    it("intento con tarjeta y la familia se pasó a domiciliación: se cierra con el motivo de la autorización, no sepa_not_enabled", async () => {
+      const item = attempt({ status: "created", paymentIntentId: intentId, paymentMethodKind: "card", resumeCount: 1 });
+      const { world, gateway, run } = resumeSepa(item, {
+        retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_confirmation"),
+      });
+      // La autorización de hoy es otra (la de la domiciliación), no la del intento.
+      world.context!.authorization!.id = "20000000-0000-4000-8000-000000000097";
+
+      await run();
+
+      expect(gateway.confirmPayment).not.toHaveBeenCalled();
+      expect(gateway.cancelPayment).toHaveBeenCalledTimes(1);
+      expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: intentId, reason: "authorization_inactive" }]);
+    });
+
+    it("sin cobro todavía (claimed) y la familia se pasó a domiciliación: también authorization_inactive", async () => {
+      const item = attempt({ paymentMethodKind: "card", resumeCount: 1 });
+      const { world, gateway, run } = resumeSepa(item);
+      world.context!.authorization!.id = "20000000-0000-4000-8000-000000000097";
+
+      await run();
+
+      expect(gateway.createPayment).not.toHaveBeenCalled();
+      expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: null, reason: "authorization_inactive" }]);
     });
 
     it.each([true, false])(

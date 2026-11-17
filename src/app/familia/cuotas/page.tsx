@@ -4,10 +4,7 @@ import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell"
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { PageHeader } from "@/components/ui/page-header";
 import { logger } from "@/lib/logger";
-import {
-  isFamilyAutomaticCollectionFlagEnabled,
-  isFamilyAutomaticSepaCollectionFlagEnabled,
-} from "@/modules/family-collection/application/config";
+import { isFamilyAutomaticSepaCollectionFlagEnabled } from "@/modules/family-collection/application/config";
 import {
   isProductionDatabase,
   resolveConnectEnvironment,
@@ -76,10 +73,12 @@ async function loadAutomaticPayments(
 
 /**
  * Cobro automático de cuotas (Fase 3): el estado del cobro de cada cuota que
- * se cobra sola. Con la bandera apagada, fuera de la clave de test o contra
- * la base de producción no se carga ni el módulo (se lee del entorno, sin
- * base); sin las tablas de la Fase 3 la lectura devuelve nada. Si falla, las
- * cuotas se ven como siempre y en el registro solo va el tipo de error.
+ * se cobra sola. Fuera de la clave de test o contra la base de producción no
+ * se carga ni el módulo (se lee del entorno, sin base). Con la bandera
+ * apagada sí se lee: una cuota con un cobro ya en marcha debe seguir viéndose
+ * como «Cobro en curso» (la lectura solo devuelve esas). Sin las tablas de la
+ * Fase 3 la lectura devuelve nada. Si falla, las cuotas se ven como siempre y
+ * en el registro solo va el tipo de error.
  */
 async function loadAutomaticCollection(
   userId: string,
@@ -87,13 +86,7 @@ async function loadAutomaticCollection(
 ): Promise<FamilyAutomaticFeeStatuses> {
   const invoiceIds = academies.flatMap((academy) => academy.fees.map((fee) => fee.invoiceId));
   if (invoiceIds.length === 0) return {};
-  if (
-    !isFamilyAutomaticCollectionFlagEnabled() ||
-    resolveConnectEnvironment() !== "test" ||
-    isProductionDatabase()
-  ) {
-    return {};
-  }
+  if (resolveConnectEnvironment() !== "test" || isProductionDatabase()) return {};
   try {
     const { getFamilyAutomaticFeeStatuses } = await import(
       "@/modules/family-collection/application/family-collection-reads"

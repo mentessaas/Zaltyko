@@ -1,8 +1,9 @@
 /**
  * Cobro automático de cuotas (Fase 3): cargadores de las cuatro páginas que
  * enseñan el cobro automático (/familia/cuotas, /owner/settings,
- * /owner/familias y /owner/payments). Con la bandera apagada, en Live o contra
- * producción no se carga ni la lectura; sin tablas (la lectura no devuelve
+ * /owner/familias y /owner/payments). En Live o contra producción no se carga
+ * ni la lectura; con la bandera apagada tampoco, salvo en /familia/cuotas y
+ * /owner/payments, que siguen enseñando los cobros en marcha; sin tablas (la lectura no devuelve
  * nada) no se pinta nada nuevo; si la lectura lanza, la página no falla y en
  * el registro solo van ids y el tipo de error. Solo datos sintéticos.
  */
@@ -293,6 +294,11 @@ const closedCases: Array<[string, () => void]> = [
     () => vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", `https://${PRODUCTION_SUPABASE_PROJECT_REF}.supabase.co`),
   ],
 ];
+/**
+ * Solo los cerrojos de R11: el portal y la lista de la academia siguen
+ * leyendo con la bandera apagada (la lectura solo devuelve lo que está en marcha).
+ */
+const lockedCases = closedCases.filter(([label]) => label !== "bandera apagada");
 
 describe("/familia/cuotas: estado del cobro automático", () => {
   it("abierto: pide el estado de las cuotas visibles y se lo pasa a la vista", async () => {
@@ -304,13 +310,24 @@ describe("/familia/cuotas: estado del cobro automático", () => {
     });
   });
 
-  it.each(closedCases)("con %s no carga la lectura y no hay estados", async (_label, arrange) => {
+  it.each(lockedCases)("con %s no carga la lectura y no hay estados", async (_label, arrange) => {
     arrange();
 
     await renderFeesPage();
 
     expect(getFamilyAutomaticFeeStatuses).not.toHaveBeenCalled();
     expect(lastProps<{ automaticCollection: unknown }>(vi.mocked(FamilyFeesView)).automaticCollection).toEqual({});
+  });
+
+  it("con la bandera apagada sigue leyendo: una cuota con un cobro en marcha se ve como «Cobro en curso»", async () => {
+    vi.stubEnv(PHASE_FLAG, "");
+
+    await renderFeesPage();
+
+    expect(getFamilyAutomaticFeeStatuses).toHaveBeenCalledWith({ userId: USER_ID, invoiceIds: [INVOICE_ID] });
+    expect(lastProps<{ automaticCollection: unknown }>(vi.mocked(FamilyFeesView)).automaticCollection).toEqual({
+      [INVOICE_ID]: { kind: "in_progress" },
+    });
   });
 
   it("D2: pasa a la vista si la domiciliación se cobra sola; sin la bandera, no", async () => {
@@ -485,7 +502,7 @@ describe("/owner/payments: cobros automáticos del mes", () => {
     ).toEqual(["CUO-2026-11-001"]);
   });
 
-  it.each(closedCases)("con %s no carga la lectura ni pinta la lista", async (_label, arrange) => {
+  it.each(lockedCases)("con %s no carga la lectura ni pinta la lista", async (_label, arrange) => {
     arrange();
 
     const html = await renderPaymentsPage();
@@ -493,6 +510,16 @@ describe("/owner/payments: cobros automáticos del mes", () => {
     expect(getOwnerAutomaticCollections).not.toHaveBeenCalled();
     expect(html).not.toContain("cobros-automaticos-del-mes");
     expect(html).toContain("formulario-pago-manual");
+  });
+
+  it("con la bandera apagada sigue leyendo: los cobros en marcha salen en la lista", async () => {
+    vi.stubEnv(PHASE_FLAG, "");
+
+    const html = await renderPaymentsPage();
+
+    expect(getOwnerAutomaticCollections).toHaveBeenCalledWith({ userId: USER_ID, organizationId: ORGANIZATION_ID });
+    expect(html).toContain("cobros-automaticos-del-mes");
+    expect(lastProps<{ view: unknown }>(vi.mocked(OwnerAutomaticCollectionsPanel)).view).toEqual(automaticView);
   });
 
   it("sin tablas o sin permiso (null): sin lista y el formulario sigue", async () => {

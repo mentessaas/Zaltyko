@@ -99,6 +99,15 @@ const SEPA_FLAG = "ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED";
 const compact = () => randomUUID().replace(/-/g, "").slice(0, 20);
 
 /**
+ * Cobro tal como lo escribe una prueba: sin importe ni moneda, el Stripe
+ * simulado pone los de la API (snapshot obligatorio en el código).
+ */
+type FakeSnapshot = Omit<PaymentIntentSnapshot, "amountReceivedCents" | "currency"> &
+  Partial<Pick<PaymentIntentSnapshot, "amountReceivedCents" | "currency">>;
+/** Error de confirmación de una prueba, con su cobro sin importe ni moneda. */
+type FakeConfirmError = Omit<CollectionError, "paymentIntent"> & { paymentIntent: FakeSnapshot | null };
+
+/**
  * Stripe simulado con memoria de los cobros creados. `confirm` decide el
  * resultado de cada confirmación; un `pi_…` que no creó lanza como un error de
  * red (cobros de otras pruebas que la ejecución encuentre de paso). Como la
@@ -107,14 +116,14 @@ const compact = () => randomUUID().replace(/-/g, "").slice(0, 20);
  */
 function fakeStripe(
   options: {
-    confirm?: (paymentIntentId: string, call: number) => PaymentIntentSnapshot | CollectionError;
+    confirm?: (paymentIntentId: string, call: number) => FakeSnapshot | FakeConfirmError;
     onCreate?: () => Promise<void>;
   } = {}
 ) {
-  const intents = new Map<string, PaymentIntentSnapshot>();
+  const intents = new Map<string, FakeSnapshot>();
   /** Importe con el que se creó cada cobro. */
   const amounts = new Map<string, number>();
-  const withAmount = (snapshot: PaymentIntentSnapshot): PaymentIntentSnapshot => ({
+  const withAmount = (snapshot: FakeSnapshot): PaymentIntentSnapshot => ({
     amountReceivedCents: snapshot.status === "succeeded" ? (amounts.get(snapshot.id) ?? null) : 0,
     currency: "EUR",
     ...snapshot,
@@ -124,7 +133,7 @@ function fakeStripe(
   const gateway = {
     createPayment: vi.fn<FamilyCollectionGateway["createPayment"]>(async (input) => {
       await options.onCreate?.();
-      const created: PaymentIntentSnapshot = {
+      const created: FakeSnapshot = {
         id: `pi_CI${compact()}`,
         status: "requires_confirmation",
         lastErrorCode: null,
@@ -137,7 +146,7 @@ function fakeStripe(
     confirmPayment: vi.fn<FamilyCollectionGateway["confirmPayment"]>(async (input) => {
       if (!intents.has(input.paymentIntentId)) throw unknown();
       confirmations += 1;
-      const raw: PaymentIntentSnapshot | CollectionError = options.confirm
+      const raw: FakeSnapshot | FakeConfirmError = options.confirm
         ? options.confirm(input.paymentIntentId, confirmations)
         : { id: input.paymentIntentId, status: "succeeded", lastErrorCode: null, lastDeclineCode: null };
       const result: PaymentIntentSnapshot | CollectionError =
@@ -624,7 +633,7 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
 
   it("D3: intento 1 rechazado, caída antes de registrar y reanudación que lo deja fallido: un solo aviso a la familia", async () => {
     const fixture = await createCollectableInvoice();
-    const declined = (paymentIntentId: string): CollectionError => ({
+    const declined = (paymentIntentId: string): FakeConfirmError => ({
       type: "card_error",
       code: "card_declined",
       declineCode: "insufficient_funds",
@@ -700,27 +709,33 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     });
     const start = new Date();
 
-    const first = await run(start, gateway);
-    expect(first.skipped.amount_mismatch).toBeGreaterThanOrEqual(1);
-    // Al día siguiente la reanudación relee el cobro y sigue sin registrarlo.
-    await run(new Date(start.getTime() + 25 * HOUR), gateway);
+    try {
+      const first = await run(start, gateway);
+      expect(first.skipped.amount_mismatch).toBeGreaterThanOrEqual(1);
+      // Al día siguiente la reanudación relee el cobro y sigue sin registrarlo.
+      await run(new Date(start.getTime() + 25 * HOUR), gateway);
 
-    expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(1);
-    const [attempt] = await attempts(fixture);
-    expect(attempt).toMatchObject({ status: "created", paymentId: null, allocation: null, failure: null });
-    expect(await ledgerState(fixture)).toEqual({ charges: ["due"], invoice: "issued", providerPayments: [] });
-    expect(await outboxCount(fixture, "family_collection.attempt_succeeded")).toBe(0);
-    const notices = await db.execute(sql`
-      select idempotency_key as "key", payload ->> 'reason' as "reason", payload ->> 'attemptId' as "attemptId",
-             (payload ->> 'expectedAmountCents')::int as "expected", (payload ->> 'receivedAmountCents')::int as "received",
-             payload ->> 'receivedCurrency' as "currency"
-        from zaltyko.outbox_events
-       where organization_id = ${fixture.organizationId}::uuid and event_name = 'family_collection.needs_review'
-    `);
-    const rows = notices.rows as Array<{ key: string; attemptId: string }>;
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ reason: "amount_mismatch", expected: 4500, received: 4000, currency: "EUR" });
-    expect(rows[0].key).toBe(`family-collection:${rows[0].attemptId}:needs_review:amount_mismatch`);
+      expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(1);
+      const [attempt] = await attempts(fixture);
+      expect(attempt).toMatchObject({ status: "created", paymentId: null, allocation: null, failure: null });
+      expect(await ledgerState(fixture)).toEqual({ charges: ["due"], invoice: "issued", providerPayments: [] });
+      expect(await outboxCount(fixture, "family_collection.attempt_succeeded")).toBe(0);
+      const notices = await db.execute(sql`
+        select idempotency_key as "key", payload ->> 'reason' as "reason", payload ->> 'attemptId' as "attemptId",
+               (payload ->> 'expectedAmountCents')::int as "expected", (payload ->> 'receivedAmountCents')::int as "received",
+               payload ->> 'receivedCurrency' as "currency"
+          from zaltyko.outbox_events
+         where organization_id = ${fixture.organizationId}::uuid and event_name = 'family_collection.needs_review'
+      `);
+      const rows = notices.rows as Array<{ key: string; attemptId: string }>;
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ reason: "amount_mismatch", expected: 4500, received: 4000, currency: "EUR" });
+      expect(rows[0].key).toBe(`family-collection:${rows[0].attemptId}:needs_review:amount_mismatch`);
+    } finally {
+      // El intento sigue `created` (su dinero se movió y no cuadra): se quita
+      // para que las ejecuciones siguientes de la suite no lo reanuden.
+      await removeOpenAttempts(fixture);
+    }
   });
 
   it("pago parcial previo: solo se cobra el saldo", async () => {
@@ -803,7 +818,7 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
 
   it("tarjeta rechazada: reintentos a 1, 3 y 7 días del primer intento y, tras el 4.º fallo, fallo final", async () => {
     const fixture = await createCollectableInvoice();
-    const declined = (paymentIntentId: string): CollectionError => ({
+    const declined = (paymentIntentId: string): FakeConfirmError => ({
       type: "card_error",
       code: "card_declined",
       declineCode: "insufficient_funds",
@@ -996,6 +1011,66 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     expect(await outboxCount(fixture, "family_collection.family_failure_notice")).toBe(0);
   });
 
+  it("la tarjeta ya no está en Stripe al crear el cobro (resource_missing): canceled y un solo aviso a la familia para que la vuelva a guardar", async () => {
+    const fixture = await createCollectableInvoice();
+    const { gateway } = fakeStripe();
+    gateway.createPayment.mockImplementation(async () => {
+      throw Object.assign(new Error("Mensaje sintético de Stripe"), {
+        type: "StripeInvalidRequestError",
+        rawType: "invalid_request_error",
+        code: "resource_missing",
+        statusCode: 400,
+      });
+    });
+    const start = new Date();
+    // Solo la academia de esta prueba.
+    const runOwn = (now: Date) =>
+      runFamilyCollection(
+        { now, organizationIds: [fixture.organizationId] },
+        { store: createFamilyCollectionStore(), gateway, refreshAccount: refresher(now) }
+      );
+
+    await runOwn(start);
+
+    expect(await attempts(fixture)).toEqual([
+      expect.objectContaining({ number: 1, status: "canceled", failure: "resource_missing", intent: null }),
+    ]);
+    expect(await ledgerState(fixture)).toEqual({ charges: ["due"], invoice: "issued", providerPayments: [] });
+    expect(await outboxCount(fixture, "family_collection.attempt_canceled")).toBe(1);
+    expect(await outboxCount(fixture, "family_collection.family_failure_notice")).toBe(1);
+
+    // El correo pide volver a guardar la tarjeta y no promete ningún reintento.
+    const payerEmail = `ci-collection-payer-${compact()}@example.invalid`;
+    await db.execute(sql`
+      insert into zaltyko.guardian_contacts (organization_id, guardian_id, kind, value, normalized_value, is_primary)
+      values (
+        ${fixture.organizationId}::uuid,
+        (select fp.guardian_id from zaltyko.family_payers fp where fp.id = ${fixture.payerId}::uuid),
+        'email', ${payerEmail}, ${payerEmail}, true
+      )
+    `);
+    const sendEmail = vi.fn(async (_options: { to: string; text?: string; dedupeKey?: string }) => true);
+    const deliver = () =>
+      deliverFamilyFailureNotices(
+        { now: start, appUrl: "https://zaltyko.test", organizationIds: [fixture.organizationId] },
+        { sendEmail }
+      );
+    expect(await deliver()).toEqual({ sent: 1, notSent: 0, pending: 0 });
+    const email = sendEmail.mock.calls[0]![0];
+    expect(email.to).toBe(payerEmail);
+    expect(email.text).toContain("la tarjeta que tenías guardada ya no está disponible");
+    expect(email.text).toContain("vuelve a guardar tu tarjeta en Zaltyko");
+    expect(email.text).toContain("https://zaltyko.test/familia/cuotas");
+    expect(email.text).not.toMatch(/volveremos a intentarlo/i);
+    expect(await deliver()).toEqual({ sent: 0, notSent: 0, pending: 0 });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+
+    // Un intento final no se repite (ni otro aviso): la cuota ya es de cobro a mano.
+    await runOwn(new Date(start.getTime() + 60_000));
+    expect(await attempts(fixture)).toHaveLength(1);
+    expect(await outboxCount(fixture, "family_collection.family_failure_notice")).toBe(1);
+  });
+
   it("red de seguridad: un intento abierto con las reanudaciones agotadas recibe un solo aviso", async () => {
     const fixture = await createCollectableInvoice();
     const inserted = await db.execute(sql`
@@ -1081,6 +1156,18 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
       delete from zaltyko.family_collection_attempts
        where organization_id = ${fixture.organizationId}::uuid and id = ${attemptId}::uuid
     `);
+  }
+
+  /** Quita los intentos que una prueba deja abiertos en su factura (con removeAttempt). */
+  async function removeOpenAttempts(fixture: Fixture): Promise<void> {
+    const open = await db.execute(sql`
+      select id::text as id
+        from zaltyko.family_collection_attempts
+       where organization_id = ${fixture.organizationId}::uuid
+         and invoice_id = ${fixture.invoiceId}::uuid
+         and status in ('claimed', 'created', 'processing')
+    `);
+    for (const row of open.rows as Array<{ id: string }>) await removeAttempt(fixture, row.id);
   }
 
   it("reanudación devuelta: una toma sin procesar recupera su reanudación y su updated_at exacto, una sola vez", async () => {

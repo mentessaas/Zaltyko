@@ -246,7 +246,7 @@ describe("candidata SQL del cobro automático (Fase 3)", () => {
     // Reintento pendiente solo en un fallo, solo de tarjeta y solo tras los intentos 1 a 3 (D1).
     expect(checks.get("family_collection_attempts_next_retry_only_failed")).toBe("next_retry_at is null or status = 'failed'");
     expect(checks.get("family_collection_attempts_next_retry_card_only")).toBe(
-      "next_retry_at is null or (payment_method_kind = 'card' and attempt_number <= 3)"
+      "next_retry_at is null or (payment_method_kind is not distinct from 'card' and attempt_number <= 3)"
     );
     // Solo un canceled sin cobro en Stripe puede llevar la moneda (no EUR) de su factura.
     expect(checks.get("family_collection_attempts_currency_check")).toBe(

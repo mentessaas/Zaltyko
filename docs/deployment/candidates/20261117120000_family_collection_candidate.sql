@@ -145,7 +145,7 @@ create table zaltyko.family_collection_attempts (
   constraint family_collection_attempts_codes_only_when_unsuccessful check (status in ('failed', 'canceled') or (failure_code is null and decline_code is null)),
   constraint family_collection_attempts_reason_required check (provider_payment_intent_reference is not null or status not in ('failed', 'canceled') or failure_code is not null),
   constraint family_collection_attempts_next_retry_only_failed check (next_retry_at is null or status = 'failed'),
-  constraint family_collection_attempts_next_retry_card_only check (next_retry_at is null or (payment_method_kind = 'card' and attempt_number <= 3)),
+  constraint family_collection_attempts_next_retry_card_only check (next_retry_at is null or (payment_method_kind is not distinct from 'card' and attempt_number <= 3)),
   constraint family_collection_attempts_payment_iff_succeeded check ((status = 'succeeded') = (payment_id is not null)),
   constraint family_collection_attempts_allocation_iff_succeeded check ((status = 'succeeded') = (allocation_status is not null)),
   constraint family_collection_attempts_completed_iff_terminal check ((status in ('succeeded', 'failed', 'canceled')) = (completed_at is not null)),

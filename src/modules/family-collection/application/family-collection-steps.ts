@@ -47,6 +47,7 @@ import {
   mapPaymentIntent,
   mapUnknownPaymentError,
   receivedOf,
+  snapshotOfPaymentIntent,
   type PaymentFailure,
   type PaymentIntentSnapshot,
   type PaymentOutcome,
@@ -367,12 +368,20 @@ async function recheckGate(
   if (stale) return { allowed: false, reason: stale, classification: "final" };
   const todayLocal = localCalendarDate(state.now, context.invoice.timezone);
   const gate = evaluateFamilyCollectionGate(buildGateInput(state, context, charges, todayLocal));
-  if (!gate.allowed) return gate;
-  if (
-    context.authorization?.id !== attempt.authorizationId ||
-    context.account?.id !== attempt.paymentProviderAccountId ||
-    gate.paymentMethodKind !== attempt.paymentMethodKind
-  ) {
+  const sameAuthorization =
+    context.authorization?.id === attempt.authorizationId &&
+    context.account?.id === attempt.paymentProviderAccountId;
+  if (!gate.allowed) {
+    // «La domiciliación no se cobra sola» habla de la autorización de hoy. Si
+    // ya no es la del intento (p. ej. un intento con tarjeta y la familia se
+    // pasó a domiciliación), lo que de verdad pasó es que cambió el método de
+    // pago: se cierra con el motivo de la autorización.
+    if (gate.reason === SEPA_NOT_ENABLED_REASON && !sameAuthorization) {
+      return { allowed: false, reason: "authorization_inactive", classification: "final" };
+    }
+    return gate;
+  }
+  if (!sameAuthorization || gate.paymentMethodKind !== attempt.paymentMethodKind) {
     return { allowed: false, reason: "authorization_inactive", classification: "final" };
   }
   return { allowed: true };
@@ -854,6 +863,12 @@ async function advanceAttemptSteps(
       snapshot = "paymentIntent" in confirmed ? (confirmed.paymentIntent ?? snapshot) : confirmed;
     } catch (error) {
       outcome = mapUnknownPaymentError(error);
+      // Si el error trae el cobro (p. ej. ya estaba cobrado), se usa ese: con
+      // el de la creación, lo cobrado sería 0 y saldría un aviso falso de
+      // importe que no cuadra.
+      const attached =
+        typeof error === "object" && error !== null ? (error as { payment_intent?: unknown }).payment_intent : null;
+      snapshot = snapshotOfPaymentIntent(attached) ?? snapshot;
     }
   }
 

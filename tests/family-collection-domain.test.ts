@@ -1322,6 +1322,20 @@ describe("nextRetry", () => {
     ).toBeNull();
   });
 
+  it.each([1, 2, 3])("el banco pide autenticación (code authentication_required, sin decline_code) en el intento %s: nunca", (attemptNumber) => {
+    expect(
+      nextRetry({
+        kind: "card",
+        attemptNumber,
+        code: "authentication_required",
+        declineCode: null,
+        firstAttemptClaimedAt: first,
+        now: first,
+        timezone: MADRID,
+      })
+    ).toBeNull();
+  });
+
   it("domiciliación: nunca", () => {
     expect(
       nextRetry({
@@ -1376,6 +1390,8 @@ function snapshot(overrides: Partial<PaymentIntentSnapshot> = {}): PaymentIntent
     status: "succeeded",
     lastErrorCode: null,
     lastDeclineCode: null,
+    amountReceivedCents: null,
+    currency: null,
     ...overrides,
   };
 }

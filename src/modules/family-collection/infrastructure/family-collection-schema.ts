@@ -246,9 +246,10 @@ export const familyCollectionAttempts = zaltyko.table(
       sql.raw("next_retry_at is null or status = 'failed'")
     ),
     // Reintento solo de tarjeta y solo tras los intentos 1 a 3 (D1: el 4 es el último).
+    // `is not distinct from`: un tipo de pago nulo tampoco deja pasar un reintento.
     check(
       "family_collection_attempts_next_retry_card_only",
-      sql.raw("next_retry_at is null or (payment_method_kind = 'card' and attempt_number <= 3)")
+      sql.raw("next_retry_at is null or (payment_method_kind is not distinct from 'card' and attempt_number <= 3)")
     ),
     check(
       "family_collection_attempts_payment_iff_succeeded",

@@ -522,8 +522,9 @@ describeDisposablePg("family collection candidate schema", () => {
         kind,
         attemptNumber,
         intent: `pi_CI_retry_${kind}_${attemptNumber}`,
-        failure: "card_declined",
-        decline: "insufficient_funds",
+        // Códigos que encajan con el tipo de pago: una domiciliación devuelta no lleva decline_code de tarjeta.
+        failure: kind === "sepa_debit" ? "debit_not_authorized" : "card_declined",
+        decline: kind === "sepa_debit" ? null : "insufficient_funds",
         nextRetry: true,
         completed: true,
       });
@@ -532,6 +533,21 @@ describeDisposablePg("family collection candidate schema", () => {
     // El intento 4 de tarjeta es el último; el 5 tampoco.
     await expectCheck(retrying("card", 4), "family_collection_attempts_next_retry_card_only");
     await expectCheck(retrying("card", 5), "family_collection_attempts_next_retry_card_only");
+    // Sin tipo de pago tampoco (`is not distinct from 'card'`: un nulo no deja pasar el reintento).
+    // Postgres aplica los CHECK por orden de nombre: este va antes que references_required,
+    // que también lo rechaza; con `= 'card'` el nulo pasaría este y saltaría el otro.
+    await expectCheck(
+      insertAttempt({
+        status: "failed",
+        kind: null,
+        intent: "pi_CI_retry_null_kind",
+        failure: "card_declined",
+        decline: "insufficient_funds",
+        nextRetry: true,
+        completed: true,
+      }),
+      "family_collection_attempts_next_retry_card_only"
+    );
 
     // Tarjeta en los intentos 1, 2 y 3: pasa los checks y la detiene la clave foránea.
     for (const attemptNumber of [1, 2, 3]) await expectOnlyForeignKey(retrying("card", attemptNumber));

@@ -54,15 +54,19 @@ export type ChargeCollectionMode = "manual" | "automatic";
 export type InvoiceCollectionKind = "monthly" | "other";
 
 /**
+ * Solo los cerrojos de R11, sin mirar la bandera: clave de test y nunca
+ * contra la base de producción. Solo lee variables de entorno.
+ */
+export function areFamilyCollectionLocksOpen(): boolean {
+  return resolveConnectEnvironment() === "test" && !isProductionDatabase();
+}
+
+/**
  * Bandera encendida y cerrojos de R11 abiertos: solo clave de test y nunca
  * contra la base de producción. Solo lee variables de entorno.
  */
 export function isFamilyAutomaticCollectionOpen(): boolean {
-  return (
-    isFamilyAutomaticCollectionFlagEnabled() &&
-    resolveConnectEnvironment() === "test" &&
-    !isProductionDatabase()
-  );
+  return isFamilyAutomaticCollectionFlagEnabled() && areFamilyCollectionLocksOpen();
 }
 
 type Executor = Pick<typeof db, "execute">;

@@ -52,10 +52,13 @@ import {
   FAMILY_FAILURE_NOTICE_RESULT_EVENT,
   FAMILY_FEES_PATH,
   NOT_CONFIRMED_FAILURE_CODE,
+  PAYMENT_METHOD_MISSING_CODE,
   feeLabel,
   familyFailureNoticeKey,
   familyFailureNoticeKind,
   familyFailureNoticeResultKey,
+  familyNoticeApplies,
+  notifiesFamilyOnCancel,
   notifiesFamilyOnFailure,
   renderFamilyFailureNotice,
   retryDayLabel,
@@ -80,6 +83,8 @@ const ALL_KINDS: FamilyFailureNoticeKind[] = [
   "authentication_required",
   "card_declined",
   "sepa_failed",
+  "card_missing",
+  "payment_method_missing",
   "not_collected",
 ];
 
@@ -163,6 +168,35 @@ describe("aviso del primer fallo: claves y cuándo se avisa", () => {
     }
   });
 
+  it("la tarjeta ya no está en Stripe (resource_missing al crear): solo el cierre del intento 1 avisa", () => {
+    expect(PAYMENT_METHOD_MISSING_CODE).toBe("resource_missing");
+    expect(notifiesFamilyOnCancel({ attemptNumber: 1, reason: "resource_missing" })).toBe(true);
+    for (const attemptNumber of [2, 3, 4, 5]) {
+      expect(notifiesFamilyOnCancel({ attemptNumber, reason: "resource_missing" })).toBe(false);
+    }
+    // Los demás cierres (la puerta, la academia, la ventana de cobro…) nunca avisan.
+    for (const reason of [
+      "sepa_not_enabled",
+      "reminder_sent",
+      "amount_below_minimum",
+      "amount_too_small",
+      "account_invalid",
+      "authorization_inactive",
+      "collection_window_expired",
+      "canceled_by_academy",
+      "reviewed_by_academy",
+    ]) {
+      expect(notifiesFamilyOnCancel({ attemptNumber: 1, reason }), reason).toBe(false);
+    }
+    // Según cómo quedó el intento.
+    expect(familyNoticeApplies({ attemptNumber: 1, status: "canceled", failureCode: "resource_missing" })).toBe(true);
+    expect(familyNoticeApplies({ attemptNumber: 1, status: "canceled", failureCode: "card_declined" })).toBe(false);
+    expect(familyNoticeApplies({ attemptNumber: 1, status: "failed", failureCode: "card_declined" })).toBe(true);
+    expect(familyNoticeApplies({ attemptNumber: 1, status: "failed", failureCode: "transient_exhausted" })).toBe(false);
+    expect(familyNoticeApplies({ attemptNumber: 1, status: "processing", failureCode: null })).toBe(false);
+    expect(familyNoticeApplies({ attemptNumber: 2, status: "canceled", failureCode: "resource_missing" })).toBe(false);
+  });
+
   it("un intento agotado sin saber nada de Stripe no es un rechazo del banco: no avisa", () => {
     expect(NOT_CONFIRMED_FAILURE_CODE).toBe("transient_exhausted");
     expect(notifiesFamilyOnFailure({ attemptNumber: 1, failureCode: "transient_exhausted" })).toBe(false);
@@ -195,6 +229,14 @@ describe("aviso del primer fallo: claves y cuándo se avisa", () => {
     expect(kind({ paymentMethodKind: null })).toBe("not_collected");
     expect(kind({ failureCode: "transient_exhausted", declineCode: null, retryScheduled: false })).toBe(
       "not_collected"
+    );
+    // La tarjeta (o la forma de pago) ya no está en Stripe: volver a guardarla.
+    expect(kind({ failureCode: "resource_missing", declineCode: null, retryScheduled: false })).toBe("card_missing");
+    expect(kind({ paymentMethodKind: "sepa_debit", failureCode: "resource_missing", declineCode: null })).toBe(
+      "payment_method_missing"
+    );
+    expect(kind({ paymentMethodKind: null, failureCode: "resource_missing", declineCode: null })).toBe(
+      "payment_method_missing"
     );
   });
 
@@ -275,6 +317,29 @@ describe("aviso del primer fallo: textos", () => {
     );
   });
 
+  it("la tarjeta ya no está: volver a guardarla, sin reintento", () => {
+    expect(render("card_missing").text).toBe(
+      [
+        "Hola:",
+        "No hemos podido cobrar con tu tarjeta la cuota de noviembre de 2026: la tarjeta que tenías guardada ya no está disponible.",
+        "Esta cuota ya no se cobrará sola. Tu academia te dirá cómo pagarla.",
+        "Para que las próximas cuotas se cobren solas, vuelve a guardar tu tarjeta en Zaltyko.",
+        `Actualizar mi tarjeta: ${FEES_URL}`,
+        "Si tienes cualquier duda, habla con Club Sintético.",
+      ].join("\n\n")
+    );
+    expect(render("payment_method_missing").text).toBe(
+      [
+        "Hola:",
+        "No hemos podido cobrar la cuota de noviembre de 2026: la forma de pago que tenías guardada ya no está disponible.",
+        "Esta cuota ya no se cobrará sola. Tu academia te dirá cómo pagarla.",
+        "Para que las próximas cuotas se cobren solas, vuelve a guardar tu forma de pago en Zaltyko.",
+        `Actualizar mi forma de pago: ${FEES_URL}`,
+        "Si tienes cualquier duda, habla con Club Sintético.",
+      ].join("\n\n")
+    );
+  });
+
   it("solo el aviso con reintento programado promete volver a intentarlo", () => {
     for (const kind of ALL_KINDS) {
       const { text, html } = render(kind);
@@ -336,6 +401,16 @@ describe("aviso del primer fallo: qué se hace con un aviso pendiente", () => {
     });
   });
 
+  it("cerrado porque la tarjeta ya no está en Stripe (intento 1): se envía, sin reintento", () => {
+    expect(
+      decideFamilyFailureNotice(
+        pending({ attemptStatus: "canceled", failureCode: "resource_missing", declineCode: null, nextRetryAt: null }),
+        NOW,
+        ON
+      )
+    ).toEqual({ action: "send", retryScheduled: false, retryDateLocal: null });
+  });
+
   it("I1: con el cobro automático apagado nunca se promete el reintento (no saldría)", () => {
     expect(decideFamilyFailureNotice(pending(), NOW, OFF)).toEqual({
       action: "send",
@@ -365,6 +440,10 @@ describe("aviso del primer fallo: qué se hace con un aviso pendiente", () => {
     expect(close({ lastAttemptNumber: 2 })).toEqual({ action: "close", outcome: "superseded" });
     expect(close({ attemptNumber: 2, lastAttemptNumber: 2 })).toEqual({ action: "close", outcome: "superseded" });
     expect(close({ attemptStatus: "canceled" })).toEqual({ action: "close", outcome: "superseded" });
+    expect(close({ attemptStatus: "canceled", failureCode: "sepa_not_enabled", declineCode: null, nextRetryAt: null })).toEqual({
+      action: "close",
+      outcome: "superseded",
+    });
     expect(close({ failureCode: "transient_exhausted", nextRetryAt: null })).toEqual({
       action: "close",
       outcome: "superseded",

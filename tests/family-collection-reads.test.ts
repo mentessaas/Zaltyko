@@ -25,10 +25,12 @@ vi.mock("@/db", () => ({
   },
 }));
 vi.mock("@/modules/billing/application/charge-collection-mode", () => ({
+  areFamilyCollectionLocksOpen: vi.fn(),
   isFamilyAutomaticCollectionOpen: vi.fn(),
 }));
 vi.mock("@/modules/family-collection/application/storage", () => ({
   isFamilyCollectionStorageAvailable: vi.fn(),
+  isPaymentRemindersTablePresent: vi.fn(),
 }));
 vi.mock("@/modules/family-payment-methods/application/storage", () => ({
   isFamilyPaymentMethodsStorageAvailable: vi.fn(),
@@ -50,7 +52,10 @@ vi.mock("@/modules/billing/domain/plan-eligibility", () => ({
   evaluateAutomaticCollectionPlanEligibility: vi.fn(),
 }));
 
-import { isFamilyAutomaticCollectionOpen } from "@/modules/billing/application/charge-collection-mode";
+import {
+  areFamilyCollectionLocksOpen,
+  isFamilyAutomaticCollectionOpen,
+} from "@/modules/billing/application/charge-collection-mode";
 import { loadOrganizationPlanState, loadPlanChangeRevision } from "@/modules/billing/application/plan-state";
 import { evaluateAutomaticCollectionPlanEligibility } from "@/modules/billing/domain/plan-eligibility";
 import {
@@ -65,7 +70,10 @@ import {
   reviewReasonText,
   type OwnerCollectionRow,
 } from "@/modules/family-collection/application/family-collection-reads";
-import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
+import {
+  isFamilyCollectionStorageAvailable,
+  isPaymentRemindersTablePresent,
+} from "@/modules/family-collection/application/storage";
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
 import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
 import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
@@ -147,8 +155,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   holder.execute.mockReset();
   holder.selectRows = [];
+  vi.mocked(areFamilyCollectionLocksOpen).mockReturnValue(true);
   vi.mocked(isFamilyAutomaticCollectionOpen).mockReturnValue(true);
   vi.mocked(isFamilyCollectionStorageAvailable).mockResolvedValue(true);
+  vi.mocked(isPaymentRemindersTablePresent).mockResolvedValue(true);
   vi.mocked(isFamilyPaymentMethodsStorageAvailable).mockResolvedValue(true);
   vi.mocked(isConnectOnboardingStorageAvailable).mockResolvedValue(true);
   vi.mocked(resolveOwnerScope).mockResolvedValue(ownerScope());
@@ -200,6 +210,36 @@ describe("¿puede llegar todavía el cobro automático? (como la puerta)", () =>
     expect(
       automaticCollectionBlocker({ ...prerequisites, plan: { eligible: false, reason: "paid_plan_required" } })
     ).toBe("paid_plan_required");
+  });
+
+  it("recordatorio de pago ya enviado: reminder_sent (la puerta lo cancelará), antes que cualquier otro motivo", () => {
+    expect(automaticCollectionBlocker({ ...prerequisites, reminderSent: true })).toBe("reminder_sent");
+    expect(
+      automaticCollectionBlocker({
+        ...prerequisites,
+        reminderSent: true,
+        plan: { eligible: false, reason: "paid_plan_required" },
+        hasActiveAuthorization: false,
+      })
+    ).toBe("reminder_sent");
+    expect(automaticCollectionBlocker({ ...prerequisites, reminderSent: false })).toBeNull();
+    expect(failureReasonText({ failureCode: "reminder_sent", declineCode: null })).toBe(
+      "Ya se avisó a la familia con un recordatorio de pago. Se cobra a mano."
+    );
+  });
+
+  it("el portal no promete el reintento ni el primer cobro tras un recordatorio", () => {
+    const blocker = automaticCollectionBlocker({ ...prerequisites, reminderSent: true });
+    expect(
+      familyAutomaticFeeStatusOf(
+        familyInput({
+          blocker,
+          last: { status: "failed", nextRetryAt: new Date("2026-11-18T23:00:00.000Z"), completedAt: null },
+        }),
+        NOW
+      )
+    ).toBeNull();
+    expect(familyAutomaticFeeStatusOf(familyInput({ blocker }), NOW)).toBeNull();
   });
 });
 
@@ -309,6 +349,24 @@ describe("estado del cobro automático para la familia (puro)", () => {
     ).toEqual({ kind: "not_collected" });
   });
 
+  it("cancelada porque la domiciliación todavía no se cobra sola: no enseña nada (nunca se intentó)", () => {
+    expect(
+      familyAutomaticFeeStatusOf(
+        familyInput({
+          last: { status: "canceled", nextRetryAt: null, completedAt: NOW, failureCode: "sepa_not_enabled" },
+        }),
+        NOW
+      )
+    ).toBeNull();
+    // Otro motivo de cierre sí se cuenta.
+    expect(
+      familyAutomaticFeeStatusOf(
+        familyInput({ last: { status: "canceled", nextRetryAt: null, completedAt: NOW, failureCode: "reminder_sent" } }),
+        NOW
+      )
+    ).toEqual({ kind: "not_collected" });
+  });
+
   it("cancelada y pagada a mano: no enseña nada", () => {
     expect(
       familyAutomaticFeeStatusOf(
@@ -407,7 +465,7 @@ describe("motivos en palabras sencillas", () => {
       expect(failureReasonText({ status: "canceled", failureCode: code, declineCode: null }), code).toBe(text);
     }
     expect(reviewReasonText("amount_mismatch")).toBe(
-      "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Compruébalo en Stripe."
+      "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Necesita ayuda de soporte: resuélvelo con el soporte de Stripe."
     );
   });
 });
@@ -658,6 +716,32 @@ describe("fila de la academia (pura)", () => {
       canMarkReviewed: true,
       manualPaymentBlocked: true,
       reason: "Hay más de un cobro para esta cuota. Compruébalo en Stripe.",
+    });
+  });
+
+  it("Stripe cobró otro importe (aviso amount_mismatch): necesita soporte, sin «Marcar como revisado» ni cancelar", () => {
+    expect(
+      ownerAutomaticCollectionItemOf(
+        ownerRow({
+          attempt: attempt({
+            status: "created",
+            completedAt: null,
+            allocationStatus: null,
+            hasReviewNotice: true,
+            reviewReason: "amount_mismatch",
+          }),
+        }),
+        NOW,
+        "2026-11"
+      )
+    ).toMatchObject({
+      state: "in_progress",
+      needsReview: true,
+      canCancel: false,
+      canMarkReviewed: false,
+      manualPaymentBlocked: true,
+      reason:
+        "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Necesita ayuda de soporte: resuélvelo con el soporte de Stripe.",
     });
   });
 
@@ -1012,12 +1096,154 @@ describe("puertas de las lecturas", () => {
     expect(resolveFamilyPortalAccess).not.toHaveBeenCalled();
   });
 
-  it("academia: con la bandera apagada no resuelve ni el alcance", async () => {
+  it("academia: con los cerrojos de R11 cerrados (Live o producción) no resuelve ni el alcance", async () => {
+    vi.mocked(areFamilyCollectionLocksOpen).mockReturnValue(false);
     vi.mocked(isFamilyAutomaticCollectionOpen).mockReturnValue(false);
 
     await expect(getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID })).resolves.toBeNull();
     expect(resolveOwnerScope).not.toHaveBeenCalled();
     expect(holder.execute).not.toHaveBeenCalled();
+  });
+
+  describe("academia: con la bandera apagada, solo los cobros en marcha", () => {
+    const row = (index: number, attemptStatus: string, extra: Record<string, unknown> = {}) => ({
+      invoiceId: `91000000-0000-4000-8000-00000000050${index}`,
+      invoiceReference: `CUO-2026-11-00${index}`,
+      invoiceStatus: "issued",
+      currency: "EUR",
+      timezone: TZ,
+      payerName: null,
+      collectionDayOfMonth: null,
+      nextDueAt: "2026-11-10T22:59:59.999Z",
+      openAutomaticCents: "4500",
+      attemptStatus,
+      attemptAmountCents: "4500",
+      failureCode: null,
+      declineCode: null,
+      nextRetryAt: null,
+      completedAt: null,
+      attemptUpdatedAt: "2026-11-17T08:00:00.000Z",
+      attemptClaimedAt: "2026-11-16T08:00:00.000Z",
+      resumeCount: 0,
+      allocationStatus: null,
+      reviewReason: null,
+      hasReviewNotice: false,
+      ...extra,
+    });
+
+    beforeEach(() => {
+      vi.mocked(isFamilyAutomaticCollectionOpen).mockReturnValue(false);
+    });
+
+    it("enseña los intentos en marcha, con «Marcar como revisado» si procede, sin leer el plan", async () => {
+      holder.execute.mockResolvedValueOnce({ rows: [{ timezone: TZ }] }).mockResolvedValueOnce({
+        rows: [
+          row(1, "created", { hasReviewNotice: true, reviewReason: "multiple_payments" }),
+          row(2, "claimed"),
+          // Por si la consulta trajera otra cosa: con la bandera apagada no sale.
+          row(3, "failed", { failureCode: "card_declined", declineCode: "insufficient_funds", completedAt: "2026-11-16T08:00:00.000Z" }),
+        ],
+      });
+
+      const view = await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
+
+      expect(view?.items).toEqual([
+        expect.objectContaining({
+          invoiceReference: "CUO-2026-11-001",
+          state: "in_progress",
+          canMarkReviewed: true,
+          manualPaymentBlocked: true,
+        }),
+        expect.objectContaining({
+          invoiceReference: "CUO-2026-11-002",
+          state: "in_progress",
+          canMarkReviewed: false,
+          manualPaymentBlocked: true,
+        }),
+      ]);
+      expect(resolveOwnerScope).toHaveBeenCalled();
+      expect(loadOrganizationPlanState).not.toHaveBeenCalled();
+      expect(isPaymentRemindersTablePresent).not.toHaveBeenCalled();
+      const query = dialect.sqlToQuery(holder.execute.mock.calls[1][0] as SQL);
+      expect(query.sql).toMatch(/with candidates as/);
+      // Sin cuotas sin intento: solo facturas con un intento en marcha.
+      expect(query.sql).not.toMatch(/union\s+select c\.invoice_id/);
+      expect(query.sql).toMatch(/and la\.status in \('claimed', 'created', 'processing'\)\s+order by/);
+    });
+
+    it("sin ningún cobro en marcha: nada (null)", async () => {
+      holder.execute.mockResolvedValueOnce({ rows: [{ timezone: TZ }] }).mockResolvedValueOnce({ rows: [] });
+
+      await expect(
+        getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW })
+      ).resolves.toBeNull();
+    });
+
+    it("sigue siendo solo para propiedad o administración con todas las sedes", async () => {
+      vi.mocked(resolveOwnerScope).mockResolvedValue(ownerScope({ role: "manager" }));
+
+      await expect(getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID })).resolves.toBeNull();
+      expect(holder.execute).not.toHaveBeenCalled();
+    });
+  });
+
+  it("academia: con la bandera encendida lee si ya salió un recordatorio (solo si existe su tabla)", async () => {
+    holder.execute.mockResolvedValueOnce({ rows: [{ timezone: TZ }] }).mockResolvedValueOnce({ rows: [] });
+    await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
+    const withTable = dialect.sqlToQuery(holder.execute.mock.calls[1][0] as SQL);
+    expect(withTable.sql).toContain("zaltyko.payment_reminders r");
+    expect(withTable.sql).toContain(`as "reminderSent"`);
+
+    holder.execute.mockReset();
+    vi.mocked(isPaymentRemindersTablePresent).mockResolvedValue(false);
+    holder.execute.mockResolvedValueOnce({ rows: [{ timezone: TZ }] }).mockResolvedValueOnce({ rows: [] });
+    await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
+    const withoutTable = dialect.sqlToQuery(holder.execute.mock.calls[1][0] as SQL);
+    expect(withoutTable.sql).not.toContain("zaltyko.payment_reminders");
+    expect(withoutTable.sql).toContain(`false as "reminderSent"`);
+  });
+
+  it("academia: un recordatorio ya enviado se ve como «se cobra a mano» en un reintento pendiente", async () => {
+    holder.execute.mockResolvedValueOnce({ rows: [{ timezone: TZ }] }).mockResolvedValueOnce({
+      rows: [
+        {
+          invoiceId: INVOICE_ID,
+          invoiceReference: "CUO-2026-11-001",
+          invoiceStatus: "issued",
+          currency: "EUR",
+          timezone: TZ,
+          payerName: null,
+          collectionDayOfMonth: null,
+          nextDueAt: "2026-11-15T22:59:59.999Z",
+          openAutomaticCents: "4500",
+          preferenceMode: "automatic",
+          preferenceRevision: 5,
+          hasActiveAuthorization: true,
+          activeAuthorizationKind: "card",
+          reminderSent: true,
+          attemptStatus: "failed",
+          attemptAmountCents: "4500",
+          failureCode: "card_declined",
+          declineCode: "insufficient_funds",
+          nextRetryAt: "2026-11-18T23:00:00.000Z",
+          completedAt: "2026-11-16T08:00:00.000Z",
+          resumeCount: 0,
+          allocationStatus: null,
+          reviewReason: null,
+          hasReviewNotice: false,
+        },
+      ],
+    });
+
+    const view = await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
+
+    expect(view?.items).toEqual([
+      expect.objectContaining({
+        state: "manual",
+        date: "2026-11-19",
+        reason: "No había saldo suficiente. Ya se avisó a la familia con un recordatorio de pago. Se cobra a mano.",
+      }),
+    ]);
   });
 
   it.each([

@@ -37,6 +37,7 @@ import {
 import type { CollectionPlanChargeStatus, CollectionPlanInvoiceStatus } from "@/modules/family-collection/domain/collection-plan";
 import {
   FAMILY_FAILURE_NOTICE,
+  notifiesFamilyOnCancel,
   notifiesFamilyOnFailure,
 } from "@/modules/family-collection/domain/family-failure-notice";
 import type {
@@ -616,6 +617,13 @@ async function readHistory(executor: Executor, organizationId: string, invoiceId
  * reserva un recordatorio bloquea antes las cuotas (lockCharges), las mismas
  * que bloquea esa transacción: o la reserva ya está escrita cuando se lee, o
  * el envío espera y después ve el intento en curso y no sale.
+ *
+ * Cuenta el recordatorio de cualquier cuota abierta de la factura, también
+ * de una cuota en cobro manual. Hoy da igual: una factura mensual nace con un
+ * solo modo para todas sus cuotas (issue.ts, getChargeCollectionModeSnapshot
+ * decide una vez para toda la factura). Si un día una factura mezclara cuotas
+ * automáticas y manuales, un recordatorio de la manual también pararía el
+ * cobro de la automática (lo seguro: nunca un cobro tras un recordatorio).
  */
 async function readReminderSent(executor: Executor, organizationId: string, invoiceId: string): Promise<boolean> {
   const table = await executor.execute(sql`
@@ -1375,6 +1383,12 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
           now: input.now,
           audit: true,
         });
+        if (notifiesFamilyOnCancel({ attemptNumber: attempt.attemptNumber, reason: outcome.reason })) {
+          // La tarjeta de la familia ya no está en Stripe: el mismo aviso del
+          // primer fallo (D3), para que vuelva a guardarla. Misma clave, una
+          // sola vez por intento y solo con ids.
+          await recordTransition(tx, attempt, { event: FAMILY_FAILURE_NOTICE, payload: {}, now: input.now });
+        }
         return { applied: true, status: "canceled", allocationStatus: null, reviewReasons: [] };
       });
     },

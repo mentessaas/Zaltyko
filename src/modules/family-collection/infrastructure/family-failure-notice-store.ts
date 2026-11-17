@@ -3,7 +3,8 @@
  * familia en el primer fallo (D3).
  *
  * El aviso nace en el outbox, en la misma transacción que el fallo del
- * intento 1 (family-collection-store.ts, applyOutcome): evento
+ * intento 1 o su cierre porque la tarjeta ya no está en Stripe
+ * (family-collection-store.ts, applyOutcome): evento
  * `family_collection.family_failure_notice`, solo con ids. El trabajador del
  * outbox (zaltyko-outbox) no está programado y solo consume métricas, así que
  * el correo lo envía el propio proceso diario del cobro al terminar
@@ -177,10 +178,11 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
              limit 1
           ) contact on true
           ${replyToJoin}
-         -- Intentos 1 fallidos de los últimos días (índice
-         -- family_collection_attempts_resume_idx (status, updated_at): el
-         -- fallo deja updated_at en su instante; un cambio posterior solo lo acerca).
-         where a.status = 'failed'
+         -- Intentos 1 fallidos (o cerrados porque la tarjeta ya no está en
+         -- Stripe) de los últimos días (índice family_collection_attempts_resume_idx
+         -- (status, updated_at): el cierre deja updated_at en su instante; un
+         -- cambio posterior solo lo acerca). Solo salen los que tienen aviso.
+         where a.status in ('failed', 'canceled')
            and a.updated_at >= ${input.since.toISOString()}::timestamptz
            and a.attempt_number = 1
            and e.occurred_at >= ${input.since.toISOString()}::timestamptz

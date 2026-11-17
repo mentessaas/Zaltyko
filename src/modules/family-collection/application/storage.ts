@@ -170,3 +170,18 @@ export async function isFamilyCollectionStorageAvailable(
   `);
   return (result.rows[0] as { available?: boolean } | undefined)?.available === true;
 }
+
+/**
+ * ¿Existe la tabla de los recordatorios de pago (otro candidato,
+ * 20261114120500_payment_reminders_candidate.sql)? Sin ella no se pudo enviar
+ * ningún recordatorio. La misma comprobación que hace el almacén del cobro
+ * antes de mirar si ya salió uno (readReminderSent): solo el catálogo.
+ */
+export async function isPaymentRemindersTablePresent(
+  executor: Pick<DatabaseClient, "execute"> = db
+): Promise<boolean> {
+  const result = await executor.execute(sql`
+    select to_regclass('zaltyko.payment_reminders') is not null as "present"
+  `);
+  return (result.rows[0] as { present?: unknown } | undefined)?.present === true;
+}

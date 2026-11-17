@@ -25,16 +25,22 @@
  * solo tarjeta»). Si falta algo, la familia no ve nada y la academia ve «Se
  * cobrará a mano» con el motivo.
  *
- * Con la bandera apagada, fuera de la clave de test, contra la base de
- * producción o sin las tablas de las Fases 1, 2 y 3 no se lee nada. Nunca
- * salen códigos del banco ni de Stripe: los motivos se traducen aquí.
+ * Con la bandera apagada solo se enseña lo que ya está en marcha (intentos
+ * `claimed`, `created` o `processing`): «Cobro en curso» en el portal y esos
+ * cobros en la lista de la academia, que el pago a mano tiene bloqueados. El
+ * interruptor de cada familia no se lee. Fuera de la clave de test, contra la
+ * base de producción o sin las tablas de las Fases 1, 2 y 3, la academia no
+ * ve nada. Nunca salen códigos del banco ni de Stripe: los motivos se traducen aquí.
  */
 import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { familyCollectionPreferences } from "@/db/zaltyko-schema";
-import { isFamilyAutomaticCollectionOpen } from "@/modules/billing/application/charge-collection-mode";
+import {
+  areFamilyCollectionLocksOpen,
+  isFamilyAutomaticCollectionOpen,
+} from "@/modules/billing/application/charge-collection-mode";
 import {
   loadOrganizationPlanState,
   loadPlanChangeRevision,
@@ -45,8 +51,11 @@ import {
   type AutomaticPlanEligibility,
 } from "@/modules/billing/domain/plan-eligibility";
 import { isFamilyAutomaticSepaCollectionFlagEnabled } from "@/modules/family-collection/application/config";
-import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
-import { SEPA_NOT_ENABLED_REASON } from "@/modules/family-collection/domain/collection-gate";
+import {
+  isFamilyCollectionStorageAvailable,
+  isPaymentRemindersTablePresent,
+} from "@/modules/family-collection/application/storage";
+import { REMINDER_SENT_REASON, SEPA_NOT_ENABLED_REASON } from "@/modules/family-collection/domain/collection-gate";
 import {
   addLocalDays,
   collectionDate,
@@ -54,6 +63,7 @@ import {
   startOfLocalDay,
 } from "@/modules/family-collection/domain/collection-plan";
 import { FAMILY_FAILURE_NOTICE_RESULT_EVENT } from "@/modules/family-collection/domain/family-failure-notice";
+import { AMOUNT_MISMATCH_REASON } from "@/modules/family-collection/domain/payment-outcome";
 import { NEEDS_REVIEW_EVENT } from "@/modules/family-collection/infrastructure/family-collection-store";
 import {
   academyCanMarkReviewed,
@@ -148,16 +158,23 @@ export interface AutomaticCollectionPrerequisites {
    * Sin indicar, apagada: nunca se promete un cobro por domiciliación.
    */
   sepaEnabled?: boolean;
+  /**
+   * Ya salió (o está saliendo) un recordatorio de pago de alguna cuota
+   * abierta de la factura: la puerta cancelará el cobro (`reminder_sent`).
+   */
+  reminderSent?: boolean;
 }
 
 /**
  * Motivo (código interno) por el que un cobro automático pendiente ya no
  * puede llegar, o `null` si todo sigue en pie. Mismo orden y mismas reglas
- * que la puerta (collection-gate.ts): domiciliación sin activar, plan de la
- * academia, preferencia de la familia (con la regla del cambio de plan) y
- * autorización del pagador.
+ * que la puerta (collection-gate.ts): recordatorio de pago ya enviado,
+ * domiciliación sin activar, plan de la academia, preferencia de la familia
+ * (con la regla del cambio de plan) y autorización del pagador.
  */
 export function automaticCollectionBlocker(input: AutomaticCollectionPrerequisites): string | null {
+  // Tras un recordatorio la familia pudo pagar por fuera: la puerta lo cancela.
+  if (input.reminderSent === true) return REMINDER_SENT_REASON;
   if (input.activeAuthorizationKind === "sepa_debit" && input.sepaEnabled !== true) {
     return SEPA_NOT_ENABLED_REASON;
   }
@@ -195,11 +212,28 @@ async function loadPlan(
 }
 
 /**
- * Columnas SQL de la preferencia de la familia de la factura y de la
+ * Columnas SQL de la preferencia de la familia de la factura, de la
  * autorización activa de su pagador en la cuenta de test de la academia (la
- * que usa el proceso de cobro). Necesitan `i` (zaltyko.invoices).
+ * que usa el proceso de cobro) y de si ya salió un recordatorio de pago de
+ * alguna de sus cuotas abiertas (la misma regla que readReminderSent del
+ * almacén: enviado o reservado). Sin la tabla de recordatorios
+ * (`remindersTable` falso) no salió ninguno. Necesitan `i` (zaltyko.invoices).
  */
-const prerequisiteColumns = sql`
+const prerequisiteColumns = (remindersTable: boolean) => sql`
+  ${
+    remindersTable
+      ? sql`exists (
+          select 1
+            from zaltyko.payment_reminders r
+            join zaltyko.charges c
+              on c.organization_id = r.organization_id and c.id = r.charge_id
+           where r.organization_id = i.organization_id
+             and c.invoice_id = i.id
+             and c.status::text in ('due', 'partially_paid')
+             and r.status::text in ('sent', 'pending')
+        )`
+      : sql`false`
+  } as "reminderSent",
   (
     select fcp.requested_mode::text
       from zaltyko.family_collection_preferences fcp
@@ -253,6 +287,7 @@ function prerequisitesOf(
     hasActiveAuthorization: row.hasActiveAuthorization === true,
     activeAuthorizationKind: textOrNull(row.activeAuthorizationKind),
     sepaEnabled: isFamilyAutomaticSepaCollectionFlagEnabled(),
+    reminderSent: row.reminderSent === true,
   };
 }
 
@@ -261,6 +296,8 @@ export interface LatestAttemptSnapshot {
   status: string;
   nextRetryAt: Date | null;
   completedAt: Date | null;
+  /** Motivo de cierre (`failure_code`), si se leyó. */
+  failureCode?: string | null;
 }
 
 /** Fecha de cobro prevista de la primera cuota automática abierta (día local de la sede). */
@@ -302,7 +339,9 @@ function expectedCharge(dateLocal: string, todayLocal: string): "scheduled" | "d
  *   ya pasada, «Cobro en curso» dentro de la espera de los recordatorios
  *   (`withinGrace`) y, fuera de ella, «No se pudo cobrar…»;
  * - fallo final o cancelada: «No se pudo cobrar…», salvo que la factura ya
- *   esté pagada (se pagó a mano): entonces nada.
+ *   esté pagada (se pagó a mano) o que se cancelara porque la domiciliación
+ *   todavía no se cobra sola (`sepa_not_enabled`: nunca se intentó; la
+ *   familia paga como siempre): entonces nada.
  */
 export function familyAutomaticFeeStatusOf(
   input: {
@@ -340,6 +379,8 @@ export function familyAutomaticFeeStatusOf(
       }
       if (OPEN_STATUSES.has(last.status)) return { kind: "in_progress" };
       if (input.invoiceStatus === "paid") return null;
+      // Nunca se intentó cobrar (domiciliación sin activar): nada que contar.
+      if (last.status === "canceled" && last.failureCode === SEPA_NOT_ENABLED_REASON) return null;
       if (last.status === "failed" && last.nextRetryAt) {
         return pending(localCalendarDate(last.nextRetryAt, input.timezone));
       }
@@ -382,6 +423,8 @@ export async function getFamilyAutomaticFeeStatuses(input: {
   // La consulta lee también las tablas de las Fases 1 y 2; un intento solo
   // puede existir si están las tres.
   if (!(await collectionTablesAvailable())) return {};
+  // Solo con el cobro abierto se mira si el cobro pendiente aún puede llegar.
+  const remindersTable = automaticOpen && (await isPaymentRemindersTablePresent(db));
 
   const now = input.now ?? new Date();
   const access = await resolveFamilyPortalAccess({ userId, now });
@@ -410,10 +453,11 @@ export async function getFamilyAutomaticFeeStatuses(input: {
              and c.collection_mode::text = 'automatic'
              and c.status::text in ('due', 'partially_paid')
         ) as "nextDueAt",
-        ${prerequisiteColumns},
+        ${prerequisiteColumns(remindersTable)},
         la.status as "lastStatus",
         la.next_retry_at as "lastNextRetryAt",
-        la.completed_at as "lastCompletedAt"
+        la.completed_at as "lastCompletedAt",
+        la.failure_code as "lastFailureCode"
       from zaltyko.invoices i
       join zaltyko.organizations o on o.id = i.organization_id
       left join zaltyko.locations l
@@ -421,7 +465,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
       left join zaltyko.organization_collection_settings ocs
         on ocs.organization_id = i.organization_id
       left join lateral (
-        select a.status, a.next_retry_at, a.completed_at
+        select a.status, a.next_retry_at, a.completed_at, a.failure_code
           from zaltyko.family_collection_attempts a
          where a.organization_id = i.organization_id
            and a.invoice_id = i.id
@@ -466,6 +510,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
                 status: lastStatus,
                 nextRetryAt: dateOrNull(row.lastNextRetryAt),
                 completedAt: dateOrNull(row.lastCompletedAt),
+                failureCode: textOrNull(row.lastFailureCode),
               }
             : null,
           blocker: automaticCollectionBlocker(prerequisitesOf(row, plan)),
@@ -604,7 +649,9 @@ const REVIEW_TEXT: Record<string, string> = {
   attempts_exhausted: "Esta cuota ya no admite más intentos automáticos. Se cobra a mano.",
   stale_open: `El cobro lleva más de un día sin avanzar. ${CHECK_IN_STRIPE}`,
   processing_unreadable: `El cobro lleva más de 15 días en curso y no podemos ver su resultado. ${CHECK_IN_STRIPE}`,
-  amount_mismatch: `Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. ${CHECK_IN_STRIPE}`,
+  // Sin «Marcar como revisado» (la acción responde siempre 409): lo resuelve soporte.
+  amount_mismatch:
+    "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Necesita ayuda de soporte: resuélvelo con el soporte de Stripe.",
 };
 
 const REVIEW_FALLBACK = `El cobro necesita una comprobación. ${CHECK_IN_STRIPE}`;
@@ -810,14 +857,18 @@ export function ownerAutomaticCollectionItemOf(
       attempt.status === "processing" &&
       !attempt.hasReviewNotice &&
       attempt.resumeCount < FAMILY_COLLECTION_MAX_RESUMES;
-    const canMarkReviewed = !stillInBank && academyCanMarkReviewed(attempt, now);
+    // Stripe cobró otro importe u otra moneda: el dinero se movió y no cuadra.
+    // «Marcar como revisado» y «Cancelar» responderían siempre 409 (soporte),
+    // así que no se ofrecen; la fila sigue pidiendo revisión con su motivo.
+    const needsSupport = open && attempt.hasReviewNotice && attempt.reviewReason === AMOUNT_MISMATCH_REASON;
+    const canMarkReviewed = !stillInBank && !needsSupport && academyCanMarkReviewed(attempt, now);
     const allocationReview = attempt.status === "succeeded" && attempt.allocationStatus === "needs_review";
     // Aviso de la factura: ya no admite más intentos automáticos (se cobra a mano).
     const exhausted = row.attemptsExhausted && !open;
-    const needsReview = canMarkReviewed || allocationReview || exhausted;
+    const needsReview = canMarkReviewed || needsSupport || allocationReview || exhausted;
     const reviewText = allocationReview
       ? reviewReasonText("allocation")
-      : canMarkReviewed
+      : canMarkReviewed || needsSupport
         ? reviewReasonText(
             attempt.reviewReason ??
               (attempt.hasReviewNotice
@@ -887,7 +938,10 @@ export function ownerAutomaticCollectionItemOf(
       date,
       reason,
       needsReview,
-      canCancel: attempt.status === "created" || (attempt.status === "failed" && attempt.nextRetryAt !== null),
+      // Con el importe que no cuadra, cancelar también respondería 409 (soporte).
+      canCancel:
+        !needsSupport &&
+        (attempt.status === "created" || (attempt.status === "failed" && attempt.nextRetryAt !== null)),
       canMarkReviewed,
       manualPaymentBlocked: open,
       // Una cuota ya cobrada no necesita recordar el aviso.
@@ -919,6 +973,12 @@ export const OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT = 500;
  * mismas personas que pueden cancelar o marcar como revisado); para el resto,
  * `null`.
  *
+ * Con la bandera apagada (y los cerrojos de R11 abiertos) solo salen los
+ * cobros que ya están en marcha (`claimed`, `created`, `processing`), con
+ * «Marcar como revisado» si procede: el proceso diario los sigue poniendo al
+ * día y el pago a mano está bloqueado mientras tanto, así que la academia
+ * necesita verlos. Sin ninguno, `null`. Con los cerrojos cerrados, nada.
+ *
  * La consulta parte de un conjunto acotado de facturas candidatas (intentos
  * de la academia en la ventana del mes, abiertos o con reintento, y cuotas
  * automáticas abiertas que vencen en la ventana): nunca recorre todo el
@@ -931,13 +991,16 @@ export async function getOwnerAutomaticCollections(input: {
 }): Promise<OwnerAutomaticCollectionsView | null> {
   const userId = uuidSchema.parse(input.userId);
   const organizationIdInput = uuidSchema.parse(input.organizationId);
-  if (!isFamilyAutomaticCollectionOpen()) return null;
+  if (!areFamilyCollectionLocksOpen()) return null;
+  // Bandera apagada: solo los cobros en marcha.
+  const inProgressOnly = !isFamilyAutomaticCollectionOpen();
   const scope = await resolveOwnerScope({ userId, organizationId: organizationIdInput });
   const allowed =
     scope.member.role === "owner" ||
     (scope.member.role === "admin" && scope.member.locationScopeMode === "all");
   if (!allowed) return null;
   if (!(await collectionTablesAvailable())) return null;
+  const remindersTable = !inProgressOnly && (await isPaymentRemindersTablePresent(db));
 
   const organizationId = scope.organization.id;
   const now = input.now ?? new Date();
@@ -960,16 +1023,18 @@ export async function getOwnerAutomaticCollections(input: {
   const monthStartInstant = startOfLocalDay(monthStart, organizationTimezone).toISOString();
   const nextMonthInstant = startOfLocalDay(nextMonthStart, organizationTimezone).toISOString();
 
-  const result = await db.execute(sql`
-    with candidates as (
-      select a.invoice_id
-        from zaltyko.family_collection_attempts a
-       where a.organization_id = ${organizationId}::uuid
-         and (
+  // Con la bandera apagada, solo facturas con un intento en marcha (el abierto
+  // es siempre el último de su factura).
+  const attemptCandidate = inProgressOnly
+    ? sql`a.status in ('claimed', 'created', 'processing')`
+    : sql`(
            (a.claimed_at >= ${monthStartInstant}::timestamptz and a.claimed_at < ${nextMonthInstant}::timestamptz)
            or a.status in ('claimed', 'created', 'processing')
            or (a.status = 'failed' and a.next_retry_at is not null)
-         )
+         )`;
+  const chargeCandidates = inProgressOnly
+    ? sql``
+    : sql`
       union
       select c.invoice_id
         from zaltyko.charges c
@@ -977,7 +1042,27 @@ export async function getOwnerAutomaticCollections(input: {
          and c.collection_mode::text = 'automatic'
          and c.status::text in ('due', 'partially_paid')
          and c.due_at >= ${windowStart}::timestamptz
-         and c.due_at < ${windowEnd}::timestamptz
+         and c.due_at < ${windowEnd}::timestamptz`;
+  const listedRow = inProgressOnly
+    ? sql`la.status in ('claimed', 'created', 'processing')`
+    : sql`(
+        (
+          la.id is not null
+          and (
+            (la.claimed_at >= ${monthStartInstant}::timestamptz and la.claimed_at < ${nextMonthInstant}::timestamptz)
+            or la.status in ('claimed', 'created', 'processing')
+            or (la.status = 'failed' and la.next_retry_at is not null)
+          )
+        )
+        or (la.id is null and i.status::text in ('issued', 'partially_paid'))
+      )`;
+
+  const result = await db.execute(sql`
+    with candidates as (
+      select a.invoice_id
+        from zaltyko.family_collection_attempts a
+       where a.organization_id = ${organizationId}::uuid
+         and ${attemptCandidate}${chargeCandidates}
     )
     select
       i.id::text as "invoiceId",
@@ -1007,7 +1092,7 @@ export async function getOwnerAutomaticCollections(input: {
            and c.collection_mode::text = 'automatic'
            and c.status::text in ('due', 'partially_paid')
       ) as "openAutomaticCents",
-      ${prerequisiteColumns},
+      ${prerequisiteColumns(remindersTable)},
       la.status as "attemptStatus",
       la.amount_cents::text as "attemptAmountCents",
       la.failure_code as "failureCode",
@@ -1079,23 +1164,14 @@ export async function getOwnerAutomaticCollections(input: {
        limit 1
     ) la on true
     where i.status::text <> 'draft'
-      and (
-        (
-          la.id is not null
-          and (
-            (la.claimed_at >= ${monthStartInstant}::timestamptz and la.claimed_at < ${nextMonthInstant}::timestamptz)
-            or la.status in ('claimed', 'created', 'processing')
-            or (la.status = 'failed' and la.next_retry_at is not null)
-          )
-        )
-        or (la.id is null and i.status::text in ('issued', 'partially_paid'))
-      )
+      and ${listedRow}
     order by coalesce(la.claimed_at, i.due_at) desc, i.reference asc
     limit ${OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT + 1}
   `);
 
   const rows = result.rows as Array<Record<string, unknown>>;
-  const plan = rows.length > 0 ? await loadPlan(organizationId, now) : null;
+  // Un cobro en marcha no depende del plan (solo lo usan las filas sin intento o con reintento).
+  const plan = rows.length > 0 && !inProgressOnly ? await loadPlan(organizationId, now) : null;
   // Primero se eligen las filas que van en la lista y después se corta: el
   // corte nunca deja fuera una fila que sale por otra que no sale.
   const listed = rows.slice(0, OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT).flatMap((row) => {
@@ -1134,8 +1210,10 @@ export async function getOwnerAutomaticCollections(input: {
       now,
       month
     );
-    return item ? [item] : [];
+    // Con la bandera apagada, solo lo que está en marcha (por si la consulta trajera otra cosa).
+    return item && (!inProgressOnly || item.manualPaymentBlocked) ? [item] : [];
   });
+  if (inProgressOnly && listed.length === 0) return null;
   return {
     month,
     items: listed.slice(0, OWNER_AUTOMATIC_COLLECTIONS_LIMIT),

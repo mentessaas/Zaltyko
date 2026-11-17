@@ -14,7 +14,6 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { getManualPaymentOptions } from "@/modules/billing/application/manual-payments";
-import { isFamilyAutomaticCollectionFlagEnabled } from "@/modules/family-collection/application/config";
 import type { OwnerAutomaticCollectionsView } from "@/modules/family-collection/application/family-collection-reads";
 import {
   getPaymentReminderOverview,
@@ -47,24 +46,21 @@ const pageQuerySchema = z.object({
 });
 
 /**
- * Cobros automáticos del mes (cobro automático de cuotas, Fase 3). Con la
- * bandera apagada, fuera de la clave de test o contra la base de producción
- * no se carga ni la lectura (se lee del entorno, sin base); sin las tablas de
- * la Fase 3 o sin permiso (solo propiedad o administración con todas las
- * sedes) la lectura devuelve `null`. Un fallo nunca impide registrar un pago:
- * la sección no aparece y en el registro solo van la academia y el tipo.
+ * Cobros automáticos del mes (cobro automático de cuotas, Fase 3). Fuera de
+ * la clave de test o contra la base de producción no se carga ni la lectura
+ * (se lee del entorno, sin base). Con la bandera apagada sí se lee: la
+ * lectura devuelve solo los cobros que ya están en marcha (el pago a mano los
+ * tiene bloqueados y pueden necesitar «Marcar como revisado») o `null` si no
+ * hay. Sin las tablas de la Fase 3 o sin permiso (solo propiedad o
+ * administración con todas las sedes) la lectura devuelve `null`. Un fallo
+ * nunca impide registrar un pago: la sección no aparece y en el registro solo
+ * van la academia y el tipo.
  */
 async function loadAutomaticCollections(
   userId: string,
   organizationId: string
 ): Promise<OwnerAutomaticCollectionsView | null> {
-  if (
-    !isFamilyAutomaticCollectionFlagEnabled() ||
-    resolveConnectEnvironment() !== "test" ||
-    isProductionDatabase()
-  ) {
-    return null;
-  }
+  if (resolveConnectEnvironment() !== "test" || isProductionDatabase()) return null;
   try {
     const { getOwnerAutomaticCollections } = await import(
       "@/modules/family-collection/application/family-collection-reads"

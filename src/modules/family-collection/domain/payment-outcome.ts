@@ -27,13 +27,14 @@ export interface PaymentIntentSnapshot {
   /** `last_payment_error.decline_code`, solo si es un código. */
   lastDeclineCode: string | null;
   /**
-   * `amount_received`: lo que Stripe dice que se cobró, en céntimos. Sin él
-   * (ausente o `null`) el importe es desconocido y un cobro hecho no se
-   * registra: lo revisa la academia.
+   * `amount_received`: lo que Stripe dice que se cobró, en céntimos. `null` si
+   * no vino o no se puede leer: el importe es desconocido y un cobro hecho no
+   * se registra (lo revisa la academia). Obligatorio para que quien construya
+   * un snapshot no pueda olvidarlo y bloquear sin querer todos los registros.
    */
-  amountReceivedCents?: number | null;
-  /** `currency` del cobro en mayúsculas (`EUR`); ausente o `null` si no vino. */
-  currency?: string | null;
+  amountReceivedCents: number | null;
+  /** `currency` del cobro en mayúsculas (`EUR`); `null` si no vino. Obligatorio, como el importe. */
+  currency: string | null;
 }
 
 /** Lo que Stripe dice que se cobró de verdad: importe en céntimos y moneda. */

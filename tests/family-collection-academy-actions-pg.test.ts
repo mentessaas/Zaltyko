@@ -940,8 +940,8 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
       const second = `pi_CI${compact()}`;
       const gateway = fakeStripe({ [first]: "canceled", [second]: "succeeded" });
       gateway.listPaymentsByAttempt.mockResolvedValue([
-        { id: first, status: "canceled", lastErrorCode: null, lastDeclineCode: null },
-        { id: second, status: "succeeded", lastErrorCode: null, lastDeclineCode: null },
+        { id: first, status: "canceled", lastErrorCode: null, lastDeclineCode: null, amountReceivedCents: 0, currency: "EUR" },
+        { id: second, status: "succeeded", lastErrorCode: null, lastDeclineCode: null, amountReceivedCents: 4500, currency: "EUR" },
       ]);
 
       await expect(

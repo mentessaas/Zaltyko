@@ -890,7 +890,7 @@ bancaria en la cuenta Stripe conectada de su academia. Decisión:
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261117120000_family_collection_candidate.sql` | `c877f6579a8b446dd21f1dc41a933ae329b5adcf96a1df4dfd6cbbb18f6b743a` | No aplicada | No aplicada |
+| `20261117120000_family_collection_candidate.sql` | `cee3e0aac1673b87e75bb492de60f8b88a7b9e1f4ac2a61caec80db2d7fecbd8` | No aplicada | No aplicada |
 
 **Estado: no aplicada en ningún entorno.** Staging y producción necesitan cada
 uno una autorización expresa de Elvis; las de las Fases 1 y 2 no la cubren.
