@@ -274,8 +274,9 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
 ### Estado
 
 - Candidata `docs/deployment/candidates/20261116180000_family_payment_methods_candidate.sql`:
-  **no aplicada en ningún entorno.** Staging y producción necesitan cada uno
-  una autorización expresa de Elvis; la de la Fase 1 no la cubre. Requiere
+  **aplicada en staging el 17-11-2026** (bandera encendida allí; guardar y
+  revocar una tarjeta comprobado, según la sesión coordinadora). **Sin aplicar
+  en producción**, que necesita otra autorización expresa de Elvis. Requiere
   antes la candidata de la Fase 1 (detalle y rollback en
   `docs/deployment/candidates/README.md`).
 - Pruebas automáticas (`tests/family-payment-methods-*`, incluida la de

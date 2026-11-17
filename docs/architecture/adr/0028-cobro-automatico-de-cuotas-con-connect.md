@@ -6,11 +6,12 @@
   migración candidata está aplicada en staging el 16-11-2026 con autorización
   de Elvis y sin aplicar en producción. El cobro sigue cerrado.
 - La Fase 2 (la familia guarda tarjeta o domiciliación) está construida en
-  la PR #348, detrás de la bandera `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED`
-  (apagada). Su migración candidata
-  (`20261116180000_family_payment_methods_candidate.sql`) **no está aplicada
-  en ningún entorno**: staging y producción necesitan cada uno otra
-  autorización de Elvis (la de la Fase 1 no la cubre). Tampoco se cobra nada.
+  la PR #348 (fusionada y publicada con la bandera
+  `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED` apagada en producción). Su
+  migración candidata (`20261116180000_family_payment_methods_candidate.sql`)
+  está **aplicada en staging** el 17-11-2026, con la bandera encendida allí,
+  según la sesión coordinadora; en producción **no está aplicada** y necesita
+  otra autorización de Elvis. Tampoco se cobra nada.
 - La Fase 3 (proceso de cobro automático) está construida en la PR #349,
   detrás de la bandera `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED`
   (apagada). Su migración candidata

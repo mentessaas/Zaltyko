@@ -793,7 +793,7 @@ crear tablas ni tocar permisos (la tabla ya es solo de `service_role`, con RLS
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261116180000_family_payment_methods_candidate.sql` | `72c7edcc74a84f78418fc4ea7ce207fed50795911f88f02f003d04b7fc40b572` | No aplicada | No aplicada |
+| `20261116180000_family_payment_methods_candidate.sql` | `72c7edcc74a84f78418fc4ea7ce207fed50795911f88f02f003d04b7fc40b572` | No aplicada | Aplicada el 17-11-2026 (según la sesión coordinadora) |
 
 **Estado: no aplicada en ningún entorno.** Staging y producción necesitan cada
 uno una autorización expresa de Elvis; la de la Fase 1 no la cubre. Requiere
