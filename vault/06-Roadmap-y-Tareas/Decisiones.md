@@ -1,13 +1,43 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-11-16
+last_reviewed: 2026-11-17
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
 
+
+## 2026-11-17 — Cobro automático de cuotas, Fase 3: cómo se cobra cada mes (ADR-0028)
+
+**Hallazgo/fuente:**
+- `docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md`: «Respuestas de Elvis para la Fase 3», «Reglas añadidas al construir la Fase 3» y «Decisiones mías», 15–27.
+- `docs/COBROS_Y_CUOTAS.md`, «Cobro automático de cuotas (Fase 3)».
+- Hallazgo al construir: la revisión del plan sube en cada renovación de Stripe; comparándola tal cual, el cobro automático solo habría funcionado el primer mes.
+
+**Decisión/importancia:** Elvis respondió P1–P3 el 16-11-2026 (un cobro por familia, sede y mes; día de vencimiento o día fijo; un reintento de tarjeta a los 3 días, ninguno en SEPA). El resto son decisiones de Claude y de la sesión coordinadora; corregibles.
+
+- Tabla propia de intentos de cobro; no se reutiliza `payment_attempts`.
+- Nunca dos cobros: un solo intento abierto por factura; crear y confirmar por separado con claves propias; al reanudar, el `pi_…` guardado o la búsqueda por metadata.
+- Nunca «fallido» sin leer Stripe; varios cobros para un intento, aviso a la academia.
+- Todo cobro hecho queda registrado; lo que no se pueda repartir, aviso «Necesita revisión».
+- La puerta se repite el día del cobro: pagador vigente hoy, cuota del pagador de la factura, cuenta releída en la última hora, solo euros. Un motivo definitivo cierra la cuota con un intento cancelado y vuelve a manual con recordatorios.
+- Con la bandera apagada el proceso solo pone al día lo que ya estaba en curso.
+- Pago manual: 409 con un cobro en curso; cancela un reintento pendiente.
+- La academia puede «Cancelar el cobro automático» o «Marcar como revisado»; ninguna cierra un cobro que movió dinero.
+- **A confirmar por Elvis:**
+  - nunca cobrar antes del vencimiento (si el día fijo cae antes, el día del vencimiento);
+  - no reintentar tarjeta perdida, robada, fraude, «no repetir», «retener la tarjeta» ni autenticación;
+  - `generic_decline` y `do_not_honor` se reintentan una vez (coste si es incorrecto: un reintento inútil);
+  - la preferencia automática vale hasta un cambio real de plan (otro plan, otra suscripción u otro contrato), no se invalida con cada renovación;
+  - 3 días de margen antes de volver a recordar una cuota automática sin intento.
+
+**Siguiente paso:**
+- CI verde de la PR #349 y revisión final del coordinador.
+- Con autorización de Elvis: candidato en Supabase staging, bandera en Vercel staging y trabajo de pg_cron de staging; prueba con tarjeta y después con domiciliación.
+- Confirmación de Elvis a las reglas de arriba; abogado (L3, L4) antes de cualquier familia real.
+- Fase 4: eventos de Stripe, 3DS, devoluciones, disputas y recibo.
 
 ## 2026-11-16 — Cobro automático de cuotas, Fase 2: cómo guarda la familia su método de pago (ADR-0028)
 

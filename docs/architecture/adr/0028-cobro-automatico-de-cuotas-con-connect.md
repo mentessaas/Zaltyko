@@ -6,11 +6,20 @@
   migración candidata está aplicada en staging el 16-11-2026 con autorización
   de Elvis y sin aplicar en producción. El cobro sigue cerrado.
 - La Fase 2 (la familia guarda tarjeta o domiciliación) está construida en
-  esta PR, detrás de la bandera `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED`
+  la PR #348, detrás de la bandera `ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED`
   (apagada). Su migración candidata
   (`20261116180000_family_payment_methods_candidate.sql`) **no está aplicada
   en ningún entorno**: staging y producción necesitan cada uno otra
   autorización de Elvis (la de la Fase 1 no la cubre). Tampoco se cobra nada.
+- La Fase 3 (proceso de cobro automático) está construida en la PR #349,
+  detrás de la bandera `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED`
+  (apagada). Su migración candidata
+  (`20261117120000_family_collection_candidate.sql`) **no está aplicada en
+  ningún entorno** y el trabajo de pg_cron `zaltyko-collect-family-fees`
+  **no está programado** en ningún entorno: cada paso, en staging y en
+  producción, necesita otra autorización de Elvis (las de las Fases 1 y 2 no
+  la cubren). Aunque se encendiera, cobra solo con clave de prueba de Stripe y
+  nunca contra la base de producción.
 - Autorizado por Elvis para la Fase 1, solo en staging:
   - destino de eventos en Stripe sandbox;
   - secreto y bandera en Vercel staging;
@@ -316,6 +325,9 @@ de Elvis):**
   cancelar antes el intento, y viceversa.
 - Día de cobro y reintentos: según las respuestas P2 y P3 (abajo).
 - Plan detallado: `docs/superpowers/plans/2026-11-16-cobro-automatico-fase3-cobro-de-cuotas.md`.
+- Cómo quedó construida (rutas, pantallas, estados, cerrojos y deuda):
+  `docs/COBROS_Y_CUOTAS.md`, «Cobro automático de cuotas (Fase 3)», y
+  «Decisiones mías», 15–27.
 
 ### Fase 4 — Webhook Connect sobre el libro de cuotas
 
@@ -417,6 +429,88 @@ de Elvis):**
     método revoca la anterior en la misma transacción que activa la nueva, y
     el método anterior se desliga en Stripe después del commit.
 
+### Fase 3
+
+15. **Tabla propia de intentos de cobro, sin reutilizar `payment_attempts`.**
+    `zaltyko.family_collection_attempts` guarda cada intento de cobrar una
+    factura mensual, con su reparto entre cuotas
+    (`family_collection_attempt_charges`). La tabla canónica
+    `payment_attempts` exige la referencia de Stripe antes de llamar, no
+    enlaza cuotas y usa `sandbox|live` en vez del `test|live` de la cuenta
+    conectada. La base garantiza un solo intento abierto por factura (índice
+    único parcial), como mucho cinco intentos por factura y tres
+    reanudaciones por intento. El día de cobro vive en
+    `organization_collection_settings`.
+16. **Crear y confirmar el cobro por separado.** Primero se reclama el
+    intento en la base; luego se crea el cobro en Stripe sin confirmar, se
+    guarda su `pi_…` y después se confirma. Cada paso tiene su clave de
+    idempotencia (factura y número de intento). Al reanudar se usa el `pi_…`
+    guardado o se busca el cobro por la metadata del intento antes de crear
+    otro, porque las claves de Stripe caducan a las 24 h y el proceso es
+    diario. `off_session` y la orden SEPA van en la confirmación: Stripe no
+    los admite al crear sin confirmar.
+17. **Nunca un intento «fallido» sin leer Stripe.** Un error sin cobro en
+    Stripe se trata como pasajero y se vuelve a mirar al día siguiente. Si
+    aparecen varios cobros para un mismo intento, o un conflicto de
+    idempotencia, se avisa a la academia para revisarlo y el intento queda
+    abierto: nunca se marca como fallido ni se crea otro.
+18. **Todo cobro hecho queda registrado.** El pago (`payments`, origen
+    `provider`) se graba en una transacción que no puede fallar por saldos.
+    El reparto entre cuotas va después y lo que no quepa (cuota ya pagada a
+    mano, anulada, importe distinto) queda sin repartir, con un aviso de
+    revisión a la academia.
+19. **La puerta se repite el día del cobro, con todo recargado.** Además de
+    `evaluateCollectionEligibility`, cada cuota del cobro debe tener el
+    pagador de la factura, ese pagador debe estar vigente hoy (fila de
+    `family_payers` abierta en la fecha local de la sede, tutor y vínculo
+    activos) y la cuenta conectada debe haberse releído en Stripe en la
+    última hora (si no, se relee antes). Los motivos se dividen en pasajeros
+    (bandera, cerrojos, plan, cuenta sin releer: se espera) y finales
+    (familia en manual, método revocado, pagador que ya no es el vigente,
+    moneda que no es euro, etc.): un motivo final escribe un intento
+    `canceled` con su código y la cuota vuelve al cobro manual con
+    recordatorios. Así ninguna cuota queda «en el limbo».
+20. **Con la bandera apagada, solo puesta al día.** El proceso diario
+    siempre relee y registra lo que ya se envió a Stripe (con los cerrojos
+    de entorno), pero solo cobra cuotas nuevas con la bandera encendida.
+    Apagarla nunca deja un cobro hecho sin registrar.
+21. **Orden de bloqueo único:** academia → cuotas por id → factura →
+    intento, en el proceso diario, en el pago manual y en las acciones de la
+    academia. Las llamadas a Stripe nunca van dentro de una transacción.
+22. **Pago manual y cobro automático.** Con un intento en curso (reclamado,
+    creado o en proceso) el pago manual responde 409 «Esta cuota se está
+    cobrando automáticamente. Espera al resultado.». Si solo queda un
+    reintento pendiente, el pago manual lo cancela en la misma transacción.
+    Esto vale también con la bandera apagada.
+23. **Dos acciones de la academia en `/owner/payments`:** «Cancelar el cobro
+    automático» (reintento pendiente, o cobro creado y aún no cobrado, tras
+    cancelarlo en Stripe) y «Marcar como revisado» (intento abierto con aviso
+    de revisión o con las reanudaciones agotadas, con la casilla «He
+    comprobado el cobro en Stripe»). Ninguna cierra un intento cuyo dinero se
+    movió: si Stripe ya lo cobró, se registra el pago; si hay varios cobros y
+    alguno movió dinero, se pide resolverlo con el soporte de Stripe. No
+    exigen la bandera: con la función apagada se tiene que poder cerrar lo
+    abierto.
+24. **Recordatorios.** Una cuota automática no recibe recordatorios mientras
+    su cobro está en curso o tiene un reintento pendiente; vuelve a
+    recibirlos si el cobro falla sin reintento o se cancela, y también 3 días
+    después de la fecha prevista si no llegó a haber ningún intento (ver
+    «Reglas añadidas al construir»). Con la bandera apagada se trata como
+    manual.
+25. **Solo euros.** El libro guarda `EUR` y Stripe recibe `eur`. Una factura
+    mensual en otra moneda se cierra con un intento `canceled`
+    (`unsupported_currency`) y sigue en manual.
+26. **Pantallas.** El interruptor «Cobrar automáticamente» por familia vive
+    en el panel de la Fase 2 de `/owner/familias` (solo tiene sentido con un
+    método activo); el día de cobro, dentro de la tarjeta de la Fase 1 en
+    `/owner/settings`; la lista «Cobros automáticos de este mes», en
+    `/owner/payments`. Se retiró la tarjeta `FamilyCollectionModeCard`, que
+    no estaba montada y era un segundo control para la misma preferencia.
+27. **Descripción del cobro en Stripe** «Cuota {mes} {año}» (por ejemplo,
+    «Cuota noviembre 2026»), sin referencias internas. La metadata solo lleva
+    ids de Zaltyko (`zaltyko_organization_id`, `zaltyko_invoice_id`,
+    `zaltyko_collection_attempt_id`).
+
 ## Respuestas de Elvis para la Fase 3 (16-11-2026)
 
 Antes eran las preguntas abiertas P1–P3.
@@ -431,17 +525,46 @@ Antes eran las preguntas abiertas P1–P3.
   - o un día fijo del mes, del 1 al 31. En los meses que no tienen ese día
     (29–31) se cobra el último día del mes.
   - Las fechas se calculan en la hora local de la sede.
-  - *Mi propuesta, a confirmar:* nunca se cobra antes del vencimiento; si el
-    día fijo cae antes, se cobra el día del vencimiento.
+  - *Mi propuesta, todavía sin confirmar por Elvis:* nunca se cobra antes
+    del vencimiento; si el día fijo cae antes, se cobra el día del
+    vencimiento. Así está construida la Fase 3 y así lo explica la pantalla
+    del día de cobro.
 - **P3 — Reintentos** («1 reintento tarjeta»):
   - tarjeta rechazada: un reintento a los 3 días;
   - domiciliación SEPA: ninguno;
   - después, la cuota vuelve al cobro manual con sus recordatorios.
-  - *Mi propuesta, a confirmar:* no se reintenta una tarjeta perdida, robada
-    o marcada como fraude, ni cuando el banco pide autenticación.
+  - *Mi propuesta, todavía sin confirmar por Elvis:* no se reintenta una
+    tarjeta perdida, robada o marcada como fraude, ni cuando el banco pide
+    no repetir o retener la tarjeta, ni cuando pide autenticación. Así está
+    construida la Fase 3.
 - **Aviso previo a la familia** (sin respuesta; propuesta): no en la Fase 3.
   El portal muestra la fecha de cobro y, en SEPA, Stripe envía su aviso
   previo. Un correo de Zaltyko encaja en la Fase 4, con el recibo.
+
+### Reglas añadidas al construir la Fase 3 (a confirmar por Elvis)
+
+Decisiones de la sesión coordinadora, necesarias para construir y
+corregibles:
+
+- **«Rechazo genérico» y «no aceptar» (`generic_decline`, `do_not_honor`) se
+  reintentan una vez.** Elvis dijo «1 reintento tarjeta» sin distinguir; solo
+  se excluyen los casos de la propuesta de P3. Si es incorrecto, el coste es
+  un reintento inútil a los 3 días. El reintento sale el día local de la sede
+  «hoy + 3», no 72 horas después.
+- **Una renovación del plan no invalida el cobro automático.** La revisión
+  del plan sube en cada renovación de Stripe, y compararla tal cual habría
+  hecho que el cobro solo funcionara el primer mes. La preferencia
+  automática sigue valiendo mientras no haya un cambio real de plan (otro
+  código de plan, otro tipo de origen, otra suscripción u otro contrato)
+  posterior a la revisión con la que se guardó; ante un cambio real hay que
+  volver a encenderla (ADR-0020). Coste si es incorrecto: una academia que
+  cambia de plan sin cambiar de código seguiría cobrando con la preferencia
+  antigua.
+- **3 días de margen para los recordatorios.** Una cuota automática sin
+  ningún intento vuelve a recibir recordatorios 3 días después de su fecha
+  de cobro prevista; lo mismo 3 días después de la fecha de un reintento
+  pendiente o de un cobro hecho que dejó saldo. Coste: un recordatorio
+  innecesario si el proceso diario se retrasa más de 3 días.
 
 ## Preguntas legales y fiscales (para Elvis, el abogado y la sesión «Elvis Finanzas»)
 
@@ -525,6 +648,35 @@ resuelta antes de que una academia real conecte su Stripe en producción.
     comprobación no cuadra), el `pm_…` queda unido al Customer en Stripe sin
     autorización en Zaltyko. No se puede cobrar (la Fase 3 solo cobra
     autorizaciones `active`); se limpiará con la Fase 4 o a mano.
+  - **Resuelto en la Fase 3: la persona deja de ser la pagadora.** El cobro
+    solo usa la autorización del pagador vigente hoy, con tutor y vínculo
+    activos; si no, el intento se cierra como `canceled` y la cuota vuelve a
+    manual. Sigue pendiente decidir si quien consintió conserva una vía para
+    revocarla.
+  - **deuda (Fase 3): lo que llega con la Fase 4.** Domiciliaciones en
+    «procesando» que se cierran solo con la relectura diaria (sin eventos),
+    recuperación del 3DS cuando el banco pide autenticación (hoy el cobro
+    falla sin reintento y pasa a manual), devoluciones, disputas, devoluciones
+    del banco en SEPA y el recibo «no es factura» para la familia.
+  - **deuda (Fase 3): la tabla canónica `payment_attempts` sigue sin uso.**
+    El cobro usa su propia tabla (decisión 15).
+  - **deuda (Fase 3): aviso previo de cada adeudo SEPA.** Lo envía Stripe por
+    defecto; depende de la respuesta del abogado a L4.
+  - **deuda (Fase 3): la búsqueda de Stripe tarda en ver un cobro recién
+    creado.** En el peor caso puede quedar en Stripe un cobro creado y nunca
+    confirmado, sin dinero movido. Es inofensivo, pero queda en el panel de
+    Stripe de la academia.
+  - **deuda (Fase 3): éxito tardío del primer intento.** Antes del reintento
+    se cancela en Stripe el cobro del primer intento; si esa cancelación
+    falla y aun así ese cobro acabara cobrándose, Zaltyko no lo vería hasta
+    tener los eventos de la Fase 4.
+  - **deuda (Fase 3): academias de prueba en la base desechable de la CI.**
+    Las pruebas de PostgreSQL borran sus filas, salvo las academias y sus
+    sedes: la auditoría y el historial de plan son solo de añadir. Solo
+    afecta al PostgreSQL desechable de GitHub.
+  - **Hecho, no es deuda:** las tres tablas nuevas están clasificadas en
+    derechos de datos (grupo opcional `OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES`;
+    solo se exporta el recuento).
 
 ## Fuentes
 

@@ -1,11 +1,37 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-11-14
+last_reviewed: 2026-11-17
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../docs/architecture/zaltyko-domain-model.md
 ---
+
+## 2026-11-17 — Cobro automático de cuotas, Fase 3: el proceso diario cobra las cuotas, apagado
+
+**Contexto.** Tercera fase del ADR-0028. Cada día se cobran las cuotas mensuales de las familias con el cobro automático encendido, con la tarjeta o la domiciliación guardada en la Fase 2, en la cuenta Stripe de su academia. Un cobro por familia, sede y mes (P1), en el día que elige la academia (P2) y con un reintento de tarjeta a los 3 días (P3). Rama `cobros/fase3-plan-cobro`, PR #349 en borrador.
+
+**Cambio.**
+- Módulo `src/modules/family-collection` (plan del día de cobro, puerta, política de reintentos, lectura del resultado de Stripe, adaptador Stripe, almacén, proceso diario, acciones de la academia y lecturas de pantalla), separado de `src/lib/stripe/*`.
+- Libro de cuotas: la cuota mensual puede nacer automática (`charge-collection-mode.ts`); registro del pago `provider` y reparto aparte (`ledger-service.ts`); el pago manual responde 409 con un cobro en curso y cancela un reintento pendiente; una renovación del plan ya no invalida la preferencia (`loadPlanChangeRevision`).
+- Rutas: `/api/cron/collect-family-fees` (proceso diario, con `CRON_SECRET` y lease), `GET/PUT /api/v1/owner/payments/collection-settings` (día de cobro), `POST /api/v1/owner/payments/automatic-collection` («Cancelar el cobro automático» y «Marcar como revisado»); la ruta de la preferencia gana mismo origen y límite por academia.
+- Pantallas: día de cobro en `/owner/settings`; interruptor «Cobrar automáticamente» por familia en `/owner/familias`; lista «Cobros automáticos de este mes» en `/owner/payments`; aviso en el pago manual; estado de cada cuota en `/familia/cuotas`. Retirada la tarjeta `FamilyCollectionModeCard`, que no estaba montada.
+- Recordatorios: no se envían mientras el cobro está en curso o hay un reintento pendiente; vuelven si falla sin reintento, se cancela o pasan 3 días sin intento.
+- Candidato `docs/deployment/candidates/20261117120000_family_collection_candidate.sql`: tablas `family_collection_attempts`, `family_collection_attempt_charges` y `organization_collection_settings`. **No aplicado en ningún entorno.**
+- pg_cron: `docs/deployment/scheduler/candidates/collect-family-fees.sql` (`0 6 * * *` UTC) y, para staging, una función propia en el README del planificador. **Sin programar en ningún entorno.**
+- Derechos de datos: las tres tablas son el grupo opcional excluido `OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES` (solo recuento).
+- Bandera `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED=false` por defecto (en `.env.example`), con los dos cerrojos de siempre (clave de prueba y base que no es la de producción). Con la bandera apagada el proceso solo pone al día lo que ya estaba en curso y nunca cobra nada nuevo. **En producción no cambia nada.**
+- Documentación: `docs/COBROS_Y_CUOTAS.md` (sección «Cobro automático de cuotas (Fase 3)»), ADR-0028 (estado, decisiones 15–27, reglas añadidas a confirmar y deuda), README de candidatas y del planificador.
+
+**Pruebas.** `tests/family-collection-*` (dominio, adaptador, libro, puerta, proceso diario, acciones, recordatorios, lecturas, pantallas y cargadores), cuatro suites de PostgreSQL desechable (`family-collection-pg`, `-worker-pg`, `-academy-actions-pg`, `-plan-revision-pg`) y `tests/api-cron-collect-family-fees.test.ts`. Ninguna en local; las valida la CI remota de la PR #349.
+
+**Sin probar.** Nada en staging. Antes hacen falta, con autorización de Elvis: candidato en Supabase staging, bandera en Vercel staging y función y trabajo de pg_cron de staging. La tarjeta se prueba en un día; las domiciliaciones tardan días.
+
+**Por confirmar con Elvis.** Nunca cobrar antes del vencimiento; no reintentar tarjeta perdida, robada, fraude ni autenticación; reintentar una vez `generic_decline` y `do_not_honor`; la regla del cambio real de plan; los 3 días de margen de los recordatorios.
+
+**Deuda.** Fase 4: eventos de Stripe (las domiciliaciones solo se cierran con la relectura diaria), recuperación del 3DS, devoluciones, disputas, devoluciones SEPA y recibo; `payment_attempts` canónica sin usar; aviso previo SEPA pendiente de L4; un cobro creado y nunca confirmado puede quedar en Stripe por el retraso de su búsqueda (sin dinero movido); el éxito tardío del cobro cancelado del primer intento solo se verá con la Fase 4; las pruebas pg dejan academias y sedes en la base desechable de la CI (auditoría solo de añadir).
+
+Vault: actualizados este `Changelog interno.md` y `Decisiones.md` (decisiones de la Fase 3); no cambian `Pricing.md` ni `Mensajes aprobados.md`.
 
 ## 2026-11-16 — Cobro automático de cuotas, Fase 2: la familia guarda tarjeta o domiciliación, apagado
 

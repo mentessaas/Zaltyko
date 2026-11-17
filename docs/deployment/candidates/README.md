@@ -981,7 +981,14 @@ familia guardó, en la cuenta Stripe conectada de su academia. Decisión:
   desechable de GitHub, y retira al terminar lo que instaló y las filas de
   prueba, dejando el esquema igual, comprobado; las academias de prueba quedan
   vacías porque su historial de plan es solo de añadir) y `tests/family-collection-contract.test.ts` (candidata,
-  espejo y detección de almacenamiento coinciden).
+  espejo y detección de almacenamiento coinciden). Usan también esta
+  candidata, con el mismo criterio de instalar y retirar,
+  `tests/family-collection-worker-pg.test.ts` (proceso diario con el libro
+  real: caída tras confirmar y reanudación a las 25 h sin un segundo cobro,
+  dos ejecuciones a la vez, cuota pagada a mano, reintento y domiciliación) y
+  `tests/family-collection-academy-actions-pg.test.ts` (pago manual frente al
+  cobro, acciones de la academia y recordatorios). En estas suites quedan
+  también las sedes de prueba, porque la auditoría es solo de añadir.
 - **Rollback.** Apagar antes `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED` y
   esperar a que no quede ningún intento `claimed`, `created` ni `processing`
   (un cobro en curso en Stripe debe registrarse antes). Borrar las tablas
