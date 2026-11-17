@@ -27,6 +27,8 @@ import { requireFamilyUser } from "../_lib/family-user";
 
 export const dynamic = "force-dynamic";
 
+type CollectionReads = typeof import("@/modules/family-collection/application/family-collection-reads");
+
 /**
  * Pago automático (cobro automático, Fase 2): una tarjeta por cada familia que
  * esta cuenta paga en cada academia con cuotas visibles. Decide el servicio:
@@ -89,15 +91,14 @@ async function loadAutomaticPayments(
  */
 async function loadAutomaticCollection(
   userId: string,
-  academies: FamilyAcademyFees[]
+  academies: FamilyAcademyFees[],
+  loadReads: () => Promise<CollectionReads>
 ): Promise<FamilyAutomaticFeeStatuses> {
   const invoiceIds = academies.flatMap((academy) => academy.fees.map((fee) => fee.invoiceId));
   if (invoiceIds.length === 0) return {};
   if (resolveConnectEnvironment() !== "test" || isProductionDatabase()) return {};
   try {
-    const { getFamilyAutomaticFeeStatuses } = await import(
-      "@/modules/family-collection/application/family-collection-reads"
-    );
+    const { getFamilyAutomaticFeeStatuses } = await loadReads();
     return await getFamilyAutomaticFeeStatuses({ userId, invoiceIds });
   } catch (error) {
     logger.warn("family_portal.automatic_collection_state_failed", {
@@ -119,15 +120,14 @@ async function loadAutomaticCollection(
  */
 async function loadAutomaticCollectionModes(
   userId: string,
-  academies: FamilyAcademyFees[]
+  academies: FamilyAcademyFees[],
+  loadReads: () => Promise<CollectionReads>
 ): Promise<FamilyAutomaticCollectionModes> {
   if (academies.length === 0) return FAMILY_AUTOMATIC_COLLECTION_CLOSED;
   if (!isFamilyAutomaticCollectionFlagEnabled()) return FAMILY_AUTOMATIC_COLLECTION_CLOSED;
   if (resolveConnectEnvironment() !== "test" || isProductionDatabase()) return FAMILY_AUTOMATIC_COLLECTION_CLOSED;
   try {
-    const { getFamilyAutomaticCollectionModes } = await import(
-      "@/modules/family-collection/application/family-collection-reads"
-    );
+    const { getFamilyAutomaticCollectionModes } = await loadReads();
     return await getFamilyAutomaticCollectionModes({ userId });
   } catch (error) {
     logger.warn("family_portal.automatic_collection_modes_failed", {
@@ -140,10 +140,15 @@ async function loadAutomaticCollectionModes(
 export default async function FamilyFeesPage() {
   const user = await requireFamilyUser("/familia/cuotas");
   const academies = await getFamilyFees({ userId: user.id });
+  // Una sola importación del módulo de la Fase 3 para las dos lecturas que
+  // van en paralelo (y solo si alguna llega a necesitarlo).
+  let collectionReads: Promise<CollectionReads> | null = null;
+  const loadReads = () =>
+    (collectionReads ??= import("@/modules/family-collection/application/family-collection-reads"));
   const [automaticPayments, automaticCollection, automaticCollectionModes] = await Promise.all([
     loadAutomaticPayments(user.id, academies),
-    loadAutomaticCollection(user.id, academies),
-    loadAutomaticCollectionModes(user.id, academies),
+    loadAutomaticCollection(user.id, academies, loadReads),
+    loadAutomaticCollectionModes(user.id, academies, loadReads),
   ]);
 
   return (

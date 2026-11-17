@@ -406,6 +406,9 @@ describe("/familia/cuotas: la tarjeta «Pago automático» sabe si se cobra sola
 
     await expect(renderFeesPage()).resolves.toEqual(expect.any(String));
 
+    // El error viene de la lectura, no de cargar el módulo.
+    expect(getFamilyAutomaticCollectionModes).toHaveBeenCalledWith({ userId: USER_ID });
+
     expect(lastProps<ModesProps>(vi.mocked(FamilyFeesView)).automaticCollectionModes).toEqual({
       open: true,
       automaticFamilies: {},

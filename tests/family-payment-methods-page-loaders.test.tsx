@@ -262,6 +262,8 @@ describe("/owner/familias: panel de pago automático", () => {
     expect(vi.mocked(OwnerFamilyPaymentMethodsPanel).mock.calls[0][0]).toEqual({
       organizationId: ORGANIZATION_ID,
       methods: [listedMethod],
+      // D2: la domiciliación no se cobra sola mientras su bandera esté apagada.
+      sepaCollectsAutomatically: false,
     });
   });
 
