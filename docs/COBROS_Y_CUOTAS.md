@@ -208,8 +208,8 @@ todas las sedes.
     rechazó la verificación: «Tu banco no ha aceptado este método de pago.
     Prueba con otro o habla con tu banco.» (no se comprueba nada más).
   - Con la función cerrada la tarjeta no aparece, salvo que la familia ya
-    tuviera un método: entonces lo ve y solo puede dejar de pagar
-    automáticamente. «El pago automático no está disponible ahora mismo» solo
+    tuviera un método: entonces lo ve y solo puede quitarlo («Quitar la
+    tarjeta guardada» o la domiciliación guardada). «El pago automático no está disponible ahora mismo» solo
     sale si falta la clave publicable de Stripe o si el formulario de Stripe
     no carga. Para quien no es la persona pagadora no aparece nada.
 - **Academia:** panel «Pago automático de las familias» en `/owner/familias`
