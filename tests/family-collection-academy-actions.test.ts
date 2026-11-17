@@ -92,6 +92,7 @@ const refs: AttemptStripeRefs = {
   mandate: null,
   timezone: "Europe/Madrid",
   servicePeriodStart: "2026-11-01",
+  firstAttemptClaimedAt: now,
   allocations: [{ chargeId: "10000000-0000-4000-8000-000000000007", amountCents: 4500 }],
 };
 

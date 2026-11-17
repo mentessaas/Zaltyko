@@ -47,11 +47,13 @@ import {
   type PaymentIntentSnapshot,
 } from "@/modules/family-collection/domain/payment-outcome";
 import {
-  CARD_RETRY_DELAY_DAYS,
+  CARD_MAX_ATTEMPTS,
+  CARD_RETRY_OFFSET_DAYS,
   NEVER_RETRY_DECLINE_CODES,
   nextRetry,
   SOFT_DECLINE_CODES,
 } from "@/modules/family-collection/domain/retry-policy";
+import { FAMILY_COLLECTION_MAX_ATTEMPTS_PER_INVOICE } from "@/modules/family-collection/infrastructure/family-collection-schema";
 import * as connectConfig from "@/modules/payments-connect/application/config";
 
 /**
@@ -953,77 +955,141 @@ describe("clase de cada motivo de la puerta", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Reintentos (P3)
+// Reintentos (D1: tarjeta, a 1, 3 y 7 días del primer intento)
 // ---------------------------------------------------------------------------
 
 describe("nextRetry", () => {
-  // 07:00 del 10 en Madrid: el reintento es el día local 13, desde las 00:00.
-  const now = new Date("2026-11-10T06:00:00.000Z");
-  const inThreeDays = new Date("2026-11-12T23:00:00.000Z");
+  // Primer intento: 07:00 del 10 en Madrid. Reintentos los días locales 11, 13 y 17.
+  const first = new Date("2026-11-10T06:00:00.000Z");
+  const day11 = new Date("2026-11-10T23:00:00.000Z");
 
-  it("un reintento a los 3 días", () => {
-    expect(CARD_RETRY_DELAY_DAYS).toBe(3);
-  });
-
-  function softRetry(at: string, timezone: string): Date | null {
+  /** Fallo blando del intento `attemptNumber`, procesado en `at`. */
+  function soft(input: { attemptNumber: number; first: string; at: string; timezone?: string }): Date | null {
     return nextRetry({
       kind: "card",
-      attemptNumber: 1,
+      attemptNumber: input.attemptNumber,
       code: "card_declined",
       declineCode: "insufficient_funds",
-      now: new Date(at),
-      timezone,
+      firstAttemptClaimedAt: new Date(input.first),
+      now: new Date(input.at),
+      timezone: input.timezone ?? MADRID,
     });
   }
 
-  it("sale en la ejecución del día local +3, no en la del +4", () => {
-    // Falla a las 23:30 del 10 en Madrid: 72 h después sería el 13 a las
-    // 23:30 y el proceso diario (07:00) lo haría el 14.
-    const retry = softRetry("2026-11-10T22:30:00.000Z", MADRID);
-    expect(retry).toEqual(new Date("2026-11-12T23:00:00.000Z"));
-    const jobDay13 = new Date("2026-11-13T06:00:00.000Z");
-    const jobDay12 = new Date("2026-11-12T06:00:00.000Z");
-    // La Tarea 5 reintenta cuando next_retry_at <= now.
-    expect(retry!.getTime() <= jobDay13.getTime()).toBe(true);
-    expect(retry!.getTime() <= jobDay12.getTime()).toBe(false);
+  /** La cadena entera: cada intento sale a las 00:30 locales del día de su reintento. */
+  function chain(firstIso: string, timezone: string): Array<Date | null> {
+    const retries: Array<Date | null> = [];
+    let at = firstIso;
+    for (let attemptNumber = 1; attemptNumber <= 4; attemptNumber += 1) {
+      const retry = soft({ attemptNumber, first: firstIso, at, timezone });
+      retries.push(retry);
+      if (retry) at = new Date(retry.getTime() + 30 * 60 * 1000).toISOString();
+    }
+    return retries;
+  }
+
+  it("tres reintentos, a 1, 3 y 7 días del primer intento; cuatro intentos como mucho", () => {
+    expect(CARD_RETRY_OFFSET_DAYS).toEqual([1, 3, 7]);
+    expect(CARD_MAX_ATTEMPTS).toBe(4);
+    // La tabla admite más números de intento que los que usa la tarjeta.
+    expect(CARD_MAX_ATTEMPTS).toBeLessThanOrEqual(FAMILY_COLLECTION_MAX_ATTEMPTS_PER_INVOICE);
   });
 
-  it("también al principio del día local", () => {
-    // 00:30 del 11 en Madrid (23:30 UTC del 10): día local 11 → 14.
-    expect(softRetry("2026-11-10T23:30:00.000Z", MADRID)).toEqual(
+  it("cadena completa 1 → 2 → 3 → 4: días 11, 13 y 17 a las 00:00 locales y después nada", () => {
+    expect(chain("2026-11-10T06:00:00.000Z", MADRID)).toEqual([
+      new Date("2026-11-10T23:00:00.000Z"),
+      new Date("2026-11-12T23:00:00.000Z"),
+      new Date("2026-11-16T23:00:00.000Z"),
+      null,
+    ]);
+  });
+
+  it("se cuenta desde el primer intento, no desde hoy ni desde el intento anterior", () => {
+    // El intento 2 salió el 11 a las 20:00 y falló: el 3 es el 13 (día +3 del
+    // primero), no el 14 (hoy + 3) ni el 12 (anterior + 1).
+    expect(soft({ attemptNumber: 2, first: "2026-11-10T06:00:00.000Z", at: "2026-11-11T19:00:00.000Z" })).toEqual(
+      new Date("2026-11-12T23:00:00.000Z")
+    );
+    // El 3 falló el 13 a las 23:30: el 4 sigue siendo el 17.
+    expect(soft({ attemptNumber: 3, first: "2026-11-10T06:00:00.000Z", at: "2026-11-13T22:30:00.000Z" })).toEqual(
+      new Date("2026-11-16T23:00:00.000Z")
+    );
+  });
+
+  it("el primer intento a las 23:30 locales cuenta desde ese día local", () => {
+    expect(soft({ attemptNumber: 1, first: "2026-11-10T22:30:00.000Z", at: "2026-11-10T22:30:00.000Z" })).toEqual(day11);
+    // 00:30 del 11 en Madrid (23:30 UTC del 10): el día local ya es el 11 → 12.
+    expect(soft({ attemptNumber: 1, first: "2026-11-10T23:30:00.000Z", at: "2026-11-10T23:30:00.000Z" })).toEqual(
+      new Date("2026-11-11T23:00:00.000Z")
+    );
+  });
+
+  it("si el día que tocaba ya llegó (el intento salió tarde), el reintento pasa a mañana", () => {
+    // El intento 2 salió con retraso el 13 (día +3): el 3 no sale el mismo día, sino el 14.
+    expect(soft({ attemptNumber: 2, first: "2026-11-10T06:00:00.000Z", at: "2026-11-13T07:00:00.000Z" })).toEqual(
       new Date("2026-11-13T23:00:00.000Z")
     );
+    // El intento 3 salió el 18 (después del día +7): el 4, el 19.
+    expect(soft({ attemptNumber: 3, first: "2026-11-10T06:00:00.000Z", at: "2026-11-18T07:00:00.000Z" })).toEqual(
+      new Date("2026-11-18T23:00:00.000Z")
+    );
   });
 
-  it("Madrid, cambio de hora de primavera: las 00:00 del día +3 ya en horario de verano", () => {
-    // Falla el viernes 26-03-2027 (UTC+1); el domingo 28 cambia la hora; el
-    // lunes 29 empieza a las 22:00 UTC del 28 (UTC+2), no a las 23:00.
-    expect(softRetry("2027-03-26T09:00:00.000Z", MADRID)).toEqual(
-      new Date("2027-03-28T22:00:00.000Z")
-    );
-    // Falla el jueves 25: el reintento es el mismo domingo del cambio, que
-    // empieza a las 23:00 UTC del sábado (aún UTC+1).
-    expect(softRetry("2027-03-25T09:00:00.000Z", MADRID)).toEqual(
-      new Date("2027-03-27T23:00:00.000Z")
-    );
+  it("cambio de mes: del 28 de noviembre a los días 29, 1 y 5 de diciembre", () => {
+    expect(chain("2026-11-28T09:00:00.000Z", MADRID)).toEqual([
+      new Date("2026-11-28T23:00:00.000Z"),
+      new Date("2026-11-30T23:00:00.000Z"),
+      new Date("2026-12-04T23:00:00.000Z"),
+      null,
+    ]);
+  });
+
+  it("cambio de año", () => {
+    expect(chain("2026-12-30T12:00:00.000Z", MADRID)).toEqual([
+      new Date("2026-12-30T23:00:00.000Z"),
+      new Date("2027-01-01T23:00:00.000Z"),
+      new Date("2027-01-05T23:00:00.000Z"),
+      null,
+    ]);
+  });
+
+  it("Madrid, cambio de hora de otoño (25-10-2026): las 00:00 locales de cada día, antes y después", () => {
+    // Primer intento el jueves 22 (UTC+2). El domingo 25 empieza aún en UTC+2;
+    // el jueves 29 ya en UTC+1.
+    expect(chain("2026-10-22T09:00:00.000Z", MADRID)).toEqual([
+      new Date("2026-10-22T22:00:00.000Z"),
+      new Date("2026-10-24T22:00:00.000Z"),
+      new Date("2026-10-28T23:00:00.000Z"),
+      null,
+    ]);
+  });
+
+  it("Madrid, cambio de hora de primavera (28-03-2027)", () => {
+    expect(chain("2027-03-26T09:00:00.000Z", MADRID)).toEqual([
+      new Date("2027-03-26T23:00:00.000Z"),
+      new Date("2027-03-28T22:00:00.000Z"),
+      new Date("2027-04-01T22:00:00.000Z"),
+      null,
+    ]);
   });
 
   it("Ciudad de México: el día local manda aunque en UTC ya sea el siguiente", () => {
-    // 23:30 del 9 en México (05:30 UTC del 10): día local 9 → 12, que empieza
-    // a las 06:00 UTC (UTC-6, sin horario de verano).
-    expect(softRetry("2026-11-10T05:30:00.000Z", MEXICO)).toEqual(
-      new Date("2026-11-12T06:00:00.000Z")
-    );
-    // 00:30 del 10 en México: día local 10 → 13.
-    expect(softRetry("2026-11-10T06:30:00.000Z", MEXICO)).toEqual(
-      new Date("2026-11-13T06:00:00.000Z")
-    );
+    // 23:30 del 9 en México (05:30 UTC del 10): días 10, 12 y 16 (UTC-6).
+    expect(chain("2026-11-10T05:30:00.000Z", MEXICO)).toEqual([
+      new Date("2026-11-10T06:00:00.000Z"),
+      new Date("2026-11-12T06:00:00.000Z"),
+      new Date("2026-11-16T06:00:00.000Z"),
+      null,
+    ]);
   });
 
-  it("cruza el fin de mes y de año", () => {
-    expect(softRetry("2026-12-30T12:00:00.000Z", MADRID)).toEqual(
-      new Date("2027-01-01T23:00:00.000Z")
-    );
+  it("el reintento sale en la ejecución de su día local, no en la del día anterior", () => {
+    const retry = soft({ attemptNumber: 1, first: "2026-11-10T22:30:00.000Z", at: "2026-11-10T22:30:00.000Z" })!;
+    const jobDay11 = new Date("2026-11-11T06:00:00.000Z");
+    const jobDay10 = new Date("2026-11-10T06:00:00.000Z");
+    expect(localCalendarDate(retry, MADRID)).toBe("2026-11-11");
+    expect(retry.getTime() <= jobDay11.getTime()).toBe(true);
+    expect(retry.getTime() <= jobDay10.getTime()).toBe(false);
   });
 
   it("lista exacta de rechazos blandos", () => {
@@ -1042,51 +1108,82 @@ describe("nextRetry", () => {
   });
 
   it("los blandos y los que nunca se reintentan no se solapan", () => {
-    expect(SOFT_DECLINE_CODES.filter((code) => NEVER_RETRY_DECLINE_CODES.includes(code))).toEqual(
-      []
-    );
+    expect(SOFT_DECLINE_CODES.filter((code) => NEVER_RETRY_DECLINE_CODES.includes(code))).toEqual([]);
     expect([...NEVER_RETRY_DECLINE_CODES].sort()).toEqual([
       "authentication_required",
+      "card_not_supported",
       "do_not_try_again",
+      "expired_card",
       "fraudulent",
+      "incorrect_number",
+      "invalid_account",
+      "invalid_number",
       "lost_card",
+      "merchant_blacklist",
       "pickup_card",
       "stolen_card",
     ]);
   });
 
-  it.each([...SOFT_DECLINE_CODES])("tarjeta rechazada por %s: reintento a los 3 días", (declineCode) => {
-    expect(
-      nextRetry({ kind: "card", attemptNumber: 1, code: "card_declined", declineCode, now, timezone: MADRID })
-    ).toEqual(inThreeDays);
+  it.each([...SOFT_DECLINE_CODES])("tarjeta rechazada por %s: reintento", (declineCode) => {
+    for (const [attemptNumber, expected] of [
+      [1, "2026-11-10T23:00:00.000Z"],
+      [2, "2026-11-12T23:00:00.000Z"],
+      [3, "2026-11-16T23:00:00.000Z"],
+    ] as const) {
+      expect(
+        nextRetry({
+          kind: "card",
+          attemptNumber,
+          code: "card_declined",
+          declineCode,
+          firstAttemptClaimedAt: first,
+          now: first,
+          timezone: MADRID,
+        })
+      ).toEqual(new Date(expected));
+    }
   });
 
   it("error de procesamiento sin decline_code: reintento", () => {
     expect(
-      nextRetry({ kind: "card", attemptNumber: 1, code: "processing_error", declineCode: null, now, timezone: MADRID })
-    ).toEqual(inThreeDays);
+      nextRetry({
+        kind: "card",
+        attemptNumber: 1,
+        code: "processing_error",
+        declineCode: null,
+        firstAttemptClaimedAt: first,
+        now: first,
+        timezone: MADRID,
+      })
+    ).toEqual(day11);
   });
 
-  it.each([...NEVER_RETRY_DECLINE_CODES])("tarjeta rechazada por %s: nunca", (declineCode) => {
-    expect(
-      nextRetry({ kind: "card", attemptNumber: 1, code: "card_declined", declineCode, now, timezone: MADRID })
-    ).toBeNull();
+  it.each([...NEVER_RETRY_DECLINE_CODES])("tarjeta rechazada por %s: nunca, en ningún intento", (declineCode) => {
+    for (const attemptNumber of [1, 2, 3]) {
+      expect(
+        nextRetry({
+          kind: "card",
+          attemptNumber,
+          code: "card_declined",
+          declineCode,
+          firstAttemptClaimedAt: first,
+          now: first,
+          timezone: MADRID,
+        })
+      ).toBeNull();
+    }
   });
 
   it.each([...NEVER_RETRY_DECLINE_CODES])("código %s: nunca, aunque el decline_code sea blando", (code) => {
     expect(
-      nextRetry({ kind: "card", attemptNumber: 1, code, declineCode: "insufficient_funds", now, timezone: MADRID })
-    ).toBeNull();
-  });
-
-  it("el banco pide autenticación: nunca", () => {
-    expect(
       nextRetry({
         kind: "card",
-        attemptNumber: 1,
-        code: "authentication_required",
-        declineCode: null,
-        now,
+        attemptNumber: 2,
+        code,
+        declineCode: "insufficient_funds",
+        firstAttemptClaimedAt: first,
+        now: first,
         timezone: MADRID,
       })
     ).toBeNull();
@@ -1099,33 +1196,40 @@ describe("nextRetry", () => {
         attemptNumber: 1,
         code: "card_declined",
         declineCode: "insufficient_funds",
-        now,
+        firstAttemptClaimedAt: first,
+        now: first,
         timezone: MADRID,
       })
     ).toBeNull();
   });
 
-  it.each([2, 3, 0])("intento %s: nunca", (attemptNumber) => {
+  it.each([4, 5, 0, -1, 1.5])("intento %s: sin reintento", (attemptNumber) => {
+    expect(soft({ attemptNumber, first: "2026-11-10T06:00:00.000Z", at: "2026-11-17T06:00:00.000Z" })).toBeNull();
+  });
+
+  it("fecha del primer intento no válida: sin reintento", () => {
     expect(
       nextRetry({
         kind: "card",
-        attemptNumber,
+        attemptNumber: 2,
         code: "card_declined",
         declineCode: "insufficient_funds",
-        now,
+        firstAttemptClaimedAt: new Date(Number.NaN),
+        now: first,
         timezone: MADRID,
       })
     ).toBeNull();
   });
 
   it.each<[string | null, string | null]>([
-    ["expired_card", "expired_card"],
     ["incorrect_cvc", null],
     ["card_declined", null],
     [null, null],
     ["payment_failed", null],
   ])("rechazo no previsto (%s, %s): nunca", (code, declineCode) => {
-    expect(nextRetry({ kind: "card", attemptNumber: 1, code, declineCode, now, timezone: MADRID })).toBeNull();
+    expect(
+      nextRetry({ kind: "card", attemptNumber: 1, code, declineCode, firstAttemptClaimedAt: first, now: first, timezone: MADRID })
+    ).toBeNull();
   });
 });
 

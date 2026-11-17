@@ -14,7 +14,9 @@
  *
  * Ventana máxima de cobro: pasada la espera de los recordatorios
  * (AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS días después de la fecha de cobro,
- * o de la del reintento) la cuota ya volvió a los recordatorios y la familia
+ * o de la del reintento pendiente: cada reintento de tarjeta, a 1, 3 y 7 días
+ * del primer intento, tiene su propia ventana y no corta la cadena) la cuota
+ * ya volvió a los recordatorios y la familia
  * puede haberla pagado a mano. Entonces nunca se cobra: se escribe un intento
  * `canceled` con `collection_window_expired`, aunque la puerta deje pasar.
  */
@@ -77,7 +79,8 @@ export function historyBlock(history: AttemptHistory, timezone: string, todayLoc
  * función (`withinGrace`) que los recordatorios (reminder-policy.ts), para
  * que nunca se cobre una cuota que ya volvió a ellos:
  * - sin intentos: desde la fecha de cobro de la cuota más antigua del reparto;
- * - con un reintento pendiente: desde la fecha local del reintento.
+ * - con un reintento pendiente: desde la fecha local de ese reintento (cada
+ *   reintento de la cadena tiene la suya).
  *
  * Todas las cuotas de una factura mensual comparten vencimiento
  * (monthly-invoice/issue.ts pasa un único `dueAt` a issueInvoiceInTransaction,
@@ -240,7 +243,8 @@ async function collectInvoice(state: RunState, ref: DueInvoiceRef): Promise<void
     countSkip(state, blocked);
     return;
   }
-  // Sin más números de intento (hoy inalcanzable: un solo reintento). Nunca
+  // Sin más números de intento (hoy inalcanzable: una tarjeta tiene como
+  // mucho 4 intentos, el primero y 3 reintentos, y la tabla admite 5). Nunca
   // en silencio: la academia recibe un aviso de la factura, una sola vez.
   if ((context.history.last?.attemptNumber ?? 0) >= FAMILY_COLLECTION_MAX_ATTEMPTS_PER_INVOICE) {
     await notifyAttemptsExhausted(state, invoice);

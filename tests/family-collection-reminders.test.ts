@@ -23,6 +23,8 @@ import {
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
+import { localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
+import { nextRetry } from "@/modules/family-collection/domain/retry-policy";
 import { loadReminderCandidates, type ReminderCandidate } from "@/modules/payment-reminders/application/candidates";
 import { planReminders } from "@/modules/payment-reminders/application/plan";
 import {
@@ -88,6 +90,64 @@ describe("automaticCollectionHolds", () => {
     expect(holds({ collectionDateLocal: "2026-11-25", todayLocal: "2026-11-20" })).toBe(true);
     expect(holds({ collectionDateLocal: "2026-11-17", todayLocal: "2026-11-20" })).toBe(true);
     expect(holds({ collectionDateLocal: "2026-11-16", todayLocal: "2026-11-20" })).toBe(false);
+  });
+});
+
+describe("cadena de reintentos de tarjeta (D1): sin recordatorios mientras siga viva", () => {
+  const timezone = "Europe/Madrid";
+  // Primer intento el 10 (09:00 en Madrid), que es también la fecha de cobro.
+  const firstAttemptClaimedAt = new Date("2026-11-10T08:00:00.000Z");
+  const collectionDateLocal = "2026-11-10";
+
+  /** Fecha local del reintento que deja un fallo blando del intento `attemptNumber` en `at`. */
+  function retryAfter(attemptNumber: number, at: string): string | null {
+    const retry = nextRetry({
+      kind: "card",
+      attemptNumber,
+      code: "card_declined",
+      declineCode: "insufficient_funds",
+      firstAttemptClaimedAt,
+      now: new Date(at),
+      timezone,
+    });
+    return retry ? localCalendarDate(retry, timezone) : null;
+  }
+
+  it("retenidos del primer fallo al último; tras el 4.º fallo vuelven", () => {
+    const retry2 = retryAfter(1, "2026-11-10T08:00:00.000Z");
+    const retry3 = retryAfter(2, "2026-11-11T07:00:00.000Z");
+    const retry4 = retryAfter(3, "2026-11-13T07:00:00.000Z");
+    expect([retry2, retry3, retry4, retryAfter(4, "2026-11-17T07:00:00.000Z")]).toEqual([
+      "2026-11-11",
+      "2026-11-13",
+      "2026-11-17",
+      null,
+    ]);
+
+    // [hoy, reintento pendiente del último intento fallido]. Del 14 al 16 ya pasó
+    // la espera de la fecha de cobro (10 + 3), pero la cadena sigue viva.
+    const timeline: Array<[string, string]> = [
+      ["2026-11-10", retry2!],
+      ["2026-11-11", retry3!],
+      ["2026-11-12", retry3!],
+      ["2026-11-13", retry4!],
+      ["2026-11-14", retry4!],
+      ["2026-11-16", retry4!],
+    ];
+    for (const [todayLocal, retry] of timeline) {
+      expect(holds({ collectionDateLocal, todayLocal, lastAttempt: attempt("failed", { retry }) }), todayLocal).toBe(true);
+    }
+
+    // El 4.º falla (fallo final, sin reintento): la cuota vuelve a los recordatorios ese día.
+    expect(
+      holds({ collectionDateLocal, todayLocal: "2026-11-17", lastAttempt: attempt("failed", { completed: "2026-11-17" }) })
+    ).toBe(false);
+  });
+
+  it("si el último reintento no llega a salir, espera tres días desde su fecha y después vuelve", () => {
+    const lastRetry = attempt("failed", { retry: "2026-11-17" });
+    expect(holds({ collectionDateLocal, todayLocal: "2026-11-20", lastAttempt: lastRetry })).toBe(true);
+    expect(holds({ collectionDateLocal, todayLocal: "2026-11-21", lastAttempt: lastRetry })).toBe(false);
   });
 });
 

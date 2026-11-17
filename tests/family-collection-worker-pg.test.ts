@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/db";
 import { runFamilyCollection } from "@/modules/family-collection/application/family-collection-service";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
-import { addLocalDays, localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
+import { addLocalDays, localCalendarDate, startOfLocalDay } from "@/modules/family-collection/domain/collection-plan";
 import type { CollectionError, PaymentIntentSnapshot } from "@/modules/family-collection/domain/payment-outcome";
 import {
   createFamilyCollectionStore,
@@ -746,7 +746,7 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(0);
   });
 
-  it("tarjeta rechazada: reintento el día local +3 y, si vuelve a fallar, fallo final", async () => {
+  it("tarjeta rechazada: reintentos a 1, 3 y 7 días del primer intento y, tras el 4.º fallo, fallo final", async () => {
     const fixture = await createCollectableInvoice();
     const declined = (paymentIntentId: string): CollectionError => ({
       type: "card_error",
@@ -760,33 +760,63 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
       },
     });
     const { gateway } = fakeStripe({ confirm: (paymentIntentId) => declined(paymentIntentId) });
+    // Solo la academia de esta prueba: las ejecuciones de días futuros no tocan las de otras.
+    const runOwn = (now: Date) =>
+      runFamilyCollection(
+        { now, organizationIds: [fixture.organizationId] },
+        { store: createFamilyCollectionStore(), gateway, refreshAccount: refresher(now) }
+      );
+    // Las fechas esperadas se calculan desde el día local del primer intento,
+    // así que la prueba no depende de la fecha en que corra (ni del cambio de hora).
+    const timezone = "Europe/Madrid";
     const start = new Date();
+    const firstDay = localCalendarDate(start, timezone);
+    const retryOn = (days: number) => startOfLocalDay(addLocalDays(firstDay, days), timezone);
+    const instant = (value: Date | string | null) => new Date(value as Date | string).getTime();
 
-    await run(start, gateway);
+    await runOwn(start);
     const [first] = await attempts(fixture);
-    expect(first).toMatchObject({ status: "failed", failure: "card_declined", decline: "insufficient_funds" });
-    expect(first.nextRetryAt).not.toBeNull();
-    const retryAt = new Date(first.nextRetryAt as Date | string);
-    // Las 00:00 locales del día +3 en la sede.
-    const startLocal = localCalendarDate(start, "Europe/Madrid");
-    expect(localCalendarDate(retryAt, "Europe/Madrid")).not.toBe(startLocal);
-    // Entre 2 y 3 días después (± 1 h si hay cambio de hora en medio).
-    expect(retryAt.getTime() - start.getTime()).toBeGreaterThan(2 * DAY - HOUR);
-    expect(retryAt.getTime() - start.getTime()).toBeLessThanOrEqual(3 * DAY + HOUR);
+    expect(first).toMatchObject({ number: 1, status: "failed", failure: "card_declined", decline: "insufficient_funds" });
+    expect(instant(first.nextRetryAt)).toBe(retryOn(1).getTime());
 
-    // El día antes del reintento no se intenta nada.
-    await run(new Date(retryAt.getTime() - HOUR), gateway);
+    // Justo antes del día del reintento no se intenta nada.
+    await runOwn(new Date(retryOn(1).getTime() - 60_000));
     expect(await attempts(fixture)).toHaveLength(1);
 
-    // Llegado el día local, segundo intento; vuelve a fallar y ya no hay más.
-    const result = await run(new Date(retryAt.getTime() + HOUR), gateway);
-    const rows = await attempts(fixture);
-    expect(rows).toHaveLength(2);
-    expect(rows[1]).toMatchObject({ number: 2, status: "failed", decline: "insufficient_funds", nextRetryAt: null });
-    expect(result.retried).toBeGreaterThanOrEqual(1);
-    expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(2);
+    // [número del intento, día desde el primero, día de su reintento (null: no hay)].
+    const chain: Array<[number, number, number | null]> = [
+      [2, 1, 3],
+      [3, 3, 7],
+      [4, 7, null],
+    ];
+    for (const [number, day, retryDay] of chain) {
+      // 01:00 locales del día del reintento.
+      const result = await runOwn(new Date(retryOn(day).getTime() + HOUR));
+      const rows = await attempts(fixture);
+      expect(rows, `intento ${number}`).toHaveLength(number);
+      expect(rows[number - 1]).toMatchObject({ number, status: "failed", decline: "insufficient_funds" });
+      if (retryDay === null) {
+        expect(rows[number - 1].nextRetryAt).toBeNull();
+      } else {
+        expect(instant(rows[number - 1].nextRetryAt)).toBe(retryOn(retryDay).getTime());
+      }
+      expect(result.retried).toBe(1);
+    }
+
+    // Un cobro por intento, cada uno con su número; los tres primeros, cancelados en Stripe antes del siguiente.
+    expect(callsFor(gateway.createPayment.mock.calls, fixture).map(([input]) => input.attempt.attemptNumber)).toEqual([
+      1, 2, 3, 4,
+    ]);
+    expect(gateway.cancelPayment).toHaveBeenCalledTimes(3);
+    // Un aviso de fallo por intento y un solo fallo final.
+    expect(await outboxCount(fixture, "family_collection.attempt_failed")).toBe(4);
     expect(await outboxCount(fixture, "family_collection.final_failure")).toBe(1);
     expect(await ledgerState(fixture)).toEqual({ charges: ["due"], invoice: "issued", providerPayments: [] });
+
+    // Al día siguiente del último no se intenta nada más: la cuota se cobra a mano.
+    await runOwn(new Date(retryOn(8).getTime() + HOUR));
+    expect(await attempts(fixture)).toHaveLength(4);
+    expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(4);
   });
 
   it("domiciliación en curso: queda processing y la relectura del día siguiente la cierra", async () => {

@@ -199,6 +199,8 @@ function baseRefs(): AttemptStripeRefs {
     mandate: null,
     timezone: "Europe/Madrid",
     servicePeriodStart: "2026-11-01",
+    // El intento 1 de la factura se reclama en la ejecución de `now`.
+    firstAttemptClaimedAt: now,
     allocations: [{ chargeId, amountCents: 4500 }],
   };
 }
@@ -677,7 +679,7 @@ describe("Fase B: cobrar lo que vence hoy", () => {
     });
   });
 
-  it("tarjeta rechazada por saldo: fallo con reintento a las 00:00 locales del día +3", async () => {
+  it("tarjeta rechazada por saldo: fallo con reintento a las 00:00 locales del día +1", async () => {
     const { world, run } = setup({ confirmPayment: async () => cardDeclined("insufficient_funds") });
     const result = await run();
     expect(world.applied).toEqual([
@@ -686,8 +688,8 @@ describe("Fase B: cobrar lo que vence hoy", () => {
         paymentIntentId: intentId,
         code: "card_declined",
         declineCode: "insufficient_funds",
-        // 20-11-2026 00:00 en Madrid.
-        nextRetryAt: new Date("2026-11-19T23:00:00.000Z"),
+        // 18-11-2026 00:00 en Madrid (el primer intento es del 17).
+        nextRetryAt: new Date("2026-11-17T23:00:00.000Z"),
       },
     ]);
     expect(result.failed).toBe(1);
@@ -703,7 +705,137 @@ describe("Fase B: cobrar lo que vence hoy", () => {
       },
     });
     await run();
-    expect(world.applied[0]).toMatchObject({ kind: "failed", nextRetryAt: new Date("2026-11-19T23:00:00.000Z") });
+    expect(world.applied[0]).toMatchObject({ kind: "failed", nextRetryAt: new Date("2026-11-17T23:00:00.000Z") });
+  });
+
+  describe("cadena de reintentos de tarjeta (D1: a 1, 3 y 7 días del primer intento)", () => {
+    // El intento 1 se reclama hoy (17-11, 10:00 en Madrid): reintentos los días 18, 20 y 24.
+    const HOUR = 60 * 60 * 1000;
+    const day18 = new Date("2026-11-17T23:00:00.000Z");
+    const day20 = new Date("2026-11-19T23:00:00.000Z");
+    const day24 = new Date("2026-11-23T23:00:00.000Z");
+
+    /**
+     * Ejecución del proceso diario a las 07:00 locales del día `retryAt`, con el
+     * intento `previous` fallido y su reintento pendiente para ese día.
+     */
+    async function retryRun(
+      previous: number,
+      retryAt: Date,
+      behaviour: Partial<FamilyCollectionGateway>,
+      at: Date = new Date(retryAt.getTime() + 7 * HOUR)
+    ) {
+      const harness = setup(behaviour);
+      harness.world.context!.history = {
+        openExists: false,
+        last: { attemptNumber: previous, status: "failed", nextRetryAt: retryAt },
+      };
+      harness.world.context!.account!.lastSyncedAt = at;
+      const result = await harness.run({ now: at });
+      return { ...harness, result };
+    }
+
+    const declined = { confirmPayment: async () => cardDeclined("insufficient_funds") };
+
+    it("cadena completa 1 → 2 → 3 → 4 con sus fechas; tras el 4.º fallo, cobro a mano", async () => {
+      // Intento 1 (hoy): reintento el 18.
+      const first = setup(declined);
+      await first.run();
+      expect(first.world.decisions[0]).toMatchObject({ action: "claimed", attemptNumber: 1 });
+      expect(first.world.applied).toEqual([
+        { kind: "failed", paymentIntentId: intentId, code: "card_declined", declineCode: "insufficient_funds", nextRetryAt: day18 },
+      ]);
+
+      const expected: Array<[number, Date, Date | null]> = [
+        [1, day18, day20],
+        [2, day20, day24],
+        [3, day24, null],
+      ];
+      for (const [previous, retryAt, next] of expected) {
+        const attemptNumber = previous + 1;
+        const { world, gateway, result } = await retryRun(previous, retryAt, declined);
+        expect(world.decisions[0], `intento ${attemptNumber}`).toMatchObject({ action: "claimed", attemptNumber });
+        // Cobro nuevo con su propio número de intento (claves de idempotencia propias).
+        expect(gateway.createPayment.mock.calls[0][0].attempt.attemptNumber).toBe(attemptNumber);
+        expect(gateway.confirmPayment.mock.calls[0][0].attempt.attemptNumber).toBe(attemptNumber);
+        expect(world.applied, `intento ${attemptNumber}`).toEqual([
+          { kind: "failed", paymentIntentId: intentId, code: "card_declined", declineCode: "insufficient_funds", nextRetryAt: next },
+        ]);
+        expect(result).toMatchObject({ retried: 1, failed: 1, collected: 0 });
+        if (next) {
+          // Habrá otro intento: el cobro de este se cancela antes de registrar el fallo.
+          expect(world.calls.slice(-2)).toEqual(["stripe:cancel", "apply:failed"]);
+        } else {
+          // Último: fallo final sin cancelar nada; la cuota vuelve a manual.
+          expect(gateway.cancelPayment).not.toHaveBeenCalled();
+        }
+      }
+
+      // Después del 4.º no se intenta nada más.
+      const after = setup(declined);
+      const nextDay = new Date("2026-11-25T06:00:00.000Z");
+      after.world.context!.history = { openExists: false, last: { attemptNumber: 4, status: "failed", nextRetryAt: null } };
+      after.world.context!.account!.lastSyncedAt = nextDay;
+      const result = await after.run({ now: nextDay });
+      expect(result.skipped).toEqual({ already_final: 1 });
+      expect(after.store.claimOrCancel).not.toHaveBeenCalled();
+    });
+
+    it("cada reintento cobra aunque la ventana del primer cobro ya pasara (el 4.º sale el 24)", async () => {
+      // La cuota vence el 16: su primera ventana acabó el 19. El intento 4 del 24 sí se cobra.
+      const { world, result } = await retryRun(3, day24, {});
+      expect(world.decisions[0]).toMatchObject({ action: "claimed", attemptNumber: 4 });
+      expect(result).toMatchObject({ retried: 1, collected: 1 });
+    });
+
+    it("ventana propia de cada reintento: el último día (+3) aún cobra; el siguiente, canceled", async () => {
+      // Reintento del día 20: su ventana llega al 23.
+      const lastDay = await retryRun(2, day20, {}, new Date("2026-11-23T06:00:00.000Z"));
+      expect(lastDay.world.decisions[0]).toMatchObject({ action: "claimed", attemptNumber: 3 });
+      expect(lastDay.result).toMatchObject({ retried: 1, collected: 1 });
+
+      const lapsed = await retryRun(2, day20, {}, new Date("2026-11-24T06:00:00.000Z"));
+      expect(lapsed.world.decisions).toEqual([
+        {
+          action: "canceled",
+          attemptNumber: 3,
+          amountCents: 4500,
+          allocations: [{ chargeId, amountCents: 4500 }],
+          reason: "collection_window_expired",
+        },
+      ]);
+      expect(lapsed.gateway.createPayment).not.toHaveBeenCalled();
+      expect(lapsed.result).toMatchObject({ canceled: 1, retried: 0 });
+    });
+
+    it("un reintento que sale tarde no adelanta el siguiente al mismo día", async () => {
+      // El intento 2 sale el 20 (día +3) en lugar del 18: el 3 pasa al 21, no al 20.
+      const { world } = await retryRun(1, day18, declined, new Date("2026-11-20T06:00:00.000Z"));
+      expect(world.applied[0]).toMatchObject({
+        kind: "failed",
+        nextRetryAt: new Date("2026-11-20T23:00:00.000Z"),
+      });
+    });
+
+    it.each(["stolen_card", "lost_card", "fraudulent", "expired_card", "authentication_required"])(
+      "fallo no recuperable en el intento 2 (%s): sin más reintentos",
+      async (declineCode) => {
+        const { world, result } = await retryRun(1, day18, { confirmPayment: async () => cardDeclined(declineCode) });
+        expect(world.applied[0]).toMatchObject({ kind: "failed", declineCode, nextRetryAt: null });
+        expect(result).toMatchObject({ retried: 1, failed: 1 });
+      }
+    );
+
+    it("sin la fecha del intento 1 no se programa ningún reintento (la cuota pasa a manual)", async () => {
+      const harness = setup(declined);
+      const at = new Date(day18.getTime() + 7 * HOUR);
+      harness.world.context!.history = { openExists: false, last: { attemptNumber: 1, status: "failed", nextRetryAt: day18 } };
+      harness.world.context!.account!.lastSyncedAt = at;
+      harness.world.refs!.firstAttemptClaimedAt = null;
+      await harness.run({ now: at });
+      expect(harness.world.applied[0]).toMatchObject({ kind: "failed", nextRetryAt: null });
+      expect(harness.gateway.cancelPayment).not.toHaveBeenCalled();
+    });
   });
 
   it("lo que queda es menos de 0,50 €: canceled amount_below_minimum antes de reclamar, sin Stripe", async () => {

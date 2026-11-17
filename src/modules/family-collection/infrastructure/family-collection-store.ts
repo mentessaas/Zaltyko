@@ -157,6 +157,12 @@ export interface AttemptStripeRefs {
   timezone: string;
   /** Primer día del periodo de las cuotas del intento (YYYY-MM-DD). */
   servicePeriodStart: string | null;
+  /**
+   * `claimed_at` del intento 1 de la factura: las fechas de los reintentos de
+   * tarjeta se cuentan desde su día local (retry-policy.ts). null si no se
+   * encuentra (entonces no se programa ningún reintento).
+   */
+  firstAttemptClaimedAt: Date | null;
   allocations: CollectionAllocationRow[];
 }
 
@@ -1435,6 +1441,13 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
                   where ac.organization_id = a.organization_id and ac.attempt_id = a.id
                ) as "servicePeriodStart",
                (
+                 select f.claimed_at
+                   from zaltyko.family_collection_attempts f
+                  where f.organization_id = a.organization_id
+                    and f.invoice_id = a.invoice_id
+                    and f.attempt_number = 1
+               ) as "firstAttemptClaimedAt",
+               (
                  select case
                           when count(*) = 1
                            and bool_and(s.family_payer_id = au.family_payer_id
@@ -1474,6 +1487,7 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
         mandate: matches ? toStringOrNull(row.mandate) : null,
         timezone: String(row.timezone),
         servicePeriodStart: toStringOrNull(row.servicePeriodStart),
+        firstAttemptClaimedAt: toDateOrNull(row.firstAttemptClaimedAt),
         allocations: await readAllocations(db, attempt),
       };
     },

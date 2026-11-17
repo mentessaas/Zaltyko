@@ -545,14 +545,18 @@ export async function settleOutcome(
   if (isFailedOutcome(outcome)) {
     const failure = outcome.failed;
     const awaitingAction = snapshot?.status === "requires_action";
+    // Los reintentos se cuentan desde el día local del intento 1 (D1). Sin
+    // esa fecha no se programa ninguno: la cuota pasa a cobro manual.
+    const firstAttemptClaimedAt = attempt.attemptNumber === 1 ? attempt.claimedAt : refs.firstAttemptClaimedAt;
     const nextRetryAt =
-      attempt.paymentMethodKind === null
+      attempt.paymentMethodKind === null || firstAttemptClaimedAt === null
         ? null
         : nextRetry({
             kind: attempt.paymentMethodKind,
             attemptNumber: attempt.attemptNumber,
             code: failure.code,
             declineCode: failure.declineCode,
+            firstAttemptClaimedAt,
             now: state.now,
             timezone: refs.timezone,
           });

@@ -127,6 +127,16 @@ describe("claves de idempotencia y consulta de búsqueda", () => {
     );
   });
 
+  it("los 4 intentos de una tarjeta (el primero y 3 reintentos) tienen claves propias", () => {
+    const keys = [1, 2, 3, 4].flatMap((attemptNumber) => [
+      familyCollectionCreateIdempotencyKey(invoiceId, attemptNumber),
+      familyCollectionConfirmIdempotencyKey(invoiceId, attemptNumber),
+    ]);
+    expect(new Set(keys).size).toBe(8);
+    expect(familyCollectionCreateIdempotencyKey(invoiceId, 4)).toBe(`zaltyko-family-collection:${invoiceId}:4:create`);
+    expect(familyCollectionConfirmIdempotencyKey(invoiceId, 4)).toBe(`zaltyko-family-collection:${invoiceId}:4:confirm`);
+  });
+
   it("la búsqueda por intento usa el campo de metadata del intento", () => {
     expect(collectionAttemptSearchQuery(attemptId)).toBe(
       `metadata['zaltyko_collection_attempt_id']:'${attemptId}'`
