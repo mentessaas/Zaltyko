@@ -709,7 +709,11 @@ cambia precios ni la regla del día fijo.
     nada. Sustituye, solo para esos dos casos, la regla de no cerrar nunca un
     intento cuyo dinero pudo moverse. Coste aceptado: si Stripe acabara
     cobrando después y la familia pagara a mano, la academia debe detectarlo
-    en su panel de Stripe (el texto se lo pide).
+    en su panel de Stripe (el texto se lo pide). Otro coste: un 403 de
+    permiso por una clave de la plataforma mal configurada cuenta como
+    permanente, así que «Marcar como revisado» cerraría también una
+    domiciliación en curso de más de 15 días (con la domiciliación apagada,
+    D2, el alcance es pequeño).
   - El aviso del primer fallo a la familia se envía de página en página hasta
     el plazo y también antes de cobrar; un reintento ya reclamado no lo anula
     (se envía sin fecha o con la del reintento siguiente; solo se anula si un

@@ -386,7 +386,8 @@ export async function cancelAutomaticCollection(
       }
       // Cancelar no distingue el error permanente: la pantalla lo trata como
       // un fallo para reintentar, y el intento acaba con aviso (reanudaciones
-      // agotadas) y «Marcar como revisado», que sí manda a soporte.
+      // agotadas) y «Marcar como revisado», que con el error permanente
+      // comprobado lo cierra como `reviewed_unverifiable`.
       if (state === "unknown" || state === "unreachable") throw unverified();
       await close(context, attempt, "canceled_by_academy");
       return { outcome: "canceled" };

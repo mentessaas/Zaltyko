@@ -1697,7 +1697,7 @@ describe("rechazos seguros al crear el cobro", () => {
     ["bloqueo", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "lock_timeout", statusCode: 429 }],
     ["permiso", { type: "StripePermissionError", statusCode: 403 }],
     ["idempotencia", { type: "StripeIdempotencyError", rawType: "idempotency_error" }],
-    ["otro error de petición", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "parameter_invalid_integer" }],
+    ["error de petición sin código HTTP 400", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "parameter_invalid_integer" }],
     ["error propio del adaptador", new Error("FAMILY_COLLECTION_INVALID_AMOUNT")],
     ["texto", "resource_missing"],
     ["null", null],

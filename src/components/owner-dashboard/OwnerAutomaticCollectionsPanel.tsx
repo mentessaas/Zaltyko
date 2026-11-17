@@ -33,7 +33,7 @@ const NEEDS_SUPPORT_TEXT: Record<"cancel" | "mark_reviewed", string> = {
   cancel:
     "No se puede cancelar desde aquí: en Stripe hay dinero que se ha movido o no se puede leer el cobro de esta cuota. Resuélvelo en tu panel de Stripe con su soporte.",
   mark_reviewed:
-    "No se puede marcar como revisado: en Stripe hay dinero que se ha movido o no se puede leer el cobro de esta cuota. Resuélvelo en tu panel de Stripe con su soporte.",
+    "No se puede marcar como revisado: en Stripe hay dinero que se ha movido o no tenemos los datos para comprobar el cobro de esta cuota. Escríbenos a soporte.",
 };
 // Cancelar no sirve porque el cobro ya se hizo en Stripe: ya figura registrado
 // en otro cobro automático o Stripe cobró otro importe.
