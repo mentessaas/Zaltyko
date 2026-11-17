@@ -373,6 +373,9 @@ const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
   "/api/v1/owner/payments/family-methods": { limit: 20, window: 60 },
   // Día de cobro de la academia (cobro automático, Fase 3). Por academia verificada.
   "/api/v1/owner/payments/collection-settings": { limit: 20, window: 60 },
+  // Preferencia de cobro de una familia (cobro automático, Fase 3): el
+  // interruptor «Cobrar automáticamente». Por academia verificada.
+  "/api/v1/owner/billing/family-collection-preference": { limit: 20, window: 60 },
   // Cancelar o marcar como revisado un cobro automático (Fase 3): puede leer y
   // cancelar el cobro en Stripe. Por academia verificada.
   "/api/v1/owner/payments/automatic-collection": { limit: 10, window: 60 },

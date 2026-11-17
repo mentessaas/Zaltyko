@@ -20,10 +20,6 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mockRefresh }),
 }));
 
-vi.mock("@/components/owner-dashboard/FamilyCollectionModeCard", () => ({
-  FamilyCollectionModeCard: () => null,
-}));
-
 import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentForm";
 import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 import { getCalendarDateInTimezone } from "@/modules/billing/domain/manual-payment-date";
@@ -616,5 +612,69 @@ describe("registro manual de pagos en el dashboard owner", () => {
     expect(retryRequest.headers).toEqual(firstRequest.headers);
     expect(retryRequest.body).toBe(firstRequest.body);
     expect(mockRefresh).toHaveBeenCalledOnce();
+  });
+
+  it("explica por qué no se puede registrar a mano una cuota que se está cobrando sola", async () => {
+    render(
+      <ManualPaymentForm
+        actorId={actorId}
+        organizationId={organizationId}
+        charges={[charge]}
+        canManageFamilyCollectionPreferences={false}
+        automaticCollectionInvoiceReferences={[charge.invoiceReference]}
+      />
+    );
+
+    expect(await screen.findByRole("note")).toHaveTextContent(
+      "Esta cuota se está cobrando automáticamente. Espera al resultado: si el cobro no sale, podrás registrar el pago a mano."
+    );
+  });
+
+  it("sin cobros automáticos en curso no añade ningún aviso", () => {
+    render(
+      <ManualPaymentForm
+        actorId={actorId}
+        organizationId={organizationId}
+        charges={[charge]}
+        canManageFamilyCollectionPreferences={false}
+        automaticCollectionInvoiceReferences={["FAC-OTRA"]}
+      />
+    );
+
+    expect(screen.queryByText(/se está cobrando automáticamente/)).toBeNull();
+  });
+
+  it("un 409 de cobro automático en curso se explica en palabras sencillas", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      json: async () => ({
+        type: "https://zaltyko.com/problems/automatic-collection-in-progress",
+        title: "Conflicto de versión o estado",
+        status: 409,
+        detail: "Esta cuota se está cobrando automáticamente. Espera al resultado.",
+      }),
+    });
+
+    render(
+      <ManualPaymentForm
+        actorId={actorId}
+        organizationId={organizationId}
+        charges={[charge]}
+        canManageFamilyCollectionPreferences={false}
+      />
+    );
+
+    const saveButton = await screen.findByRole("button", {
+      name: "Guardar pago recibido",
+    });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    await user.click(saveButton);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Esta cuota se está cobrando automáticamente. Espera al resultado: si el cobro no sale, podrás registrar el pago a mano."
+    );
+    expect(mockRefresh).not.toHaveBeenCalled();
   });
 });

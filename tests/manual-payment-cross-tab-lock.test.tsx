@@ -20,10 +20,6 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mocks.refresh }),
 }));
 
-vi.mock("@/components/owner-dashboard/FamilyCollectionModeCard", () => ({
-  FamilyCollectionModeCard: () => null,
-}));
-
 import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentForm";
 import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 

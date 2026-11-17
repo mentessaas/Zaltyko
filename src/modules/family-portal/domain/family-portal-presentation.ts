@@ -162,3 +162,30 @@ export function formatPeriod(
     ? formatCalendarDate(start)
     : `${formatCalendarDate(start)} – ${formatCalendarDate(end)}`;
 }
+
+/**
+ * Cobro automático de una cuota (Fase 3), tal como lo ve la familia. Las
+ * fechas son días del calendario de la sede (YYYY-MM-DD). Nunca lleva
+ * códigos del banco ni de Stripe: solo el estado.
+ */
+export type FamilyAutomaticFeeStatus =
+  | { kind: "scheduled"; date: string }
+  | { kind: "in_progress" }
+  | { kind: "collected"; date: string }
+  | { kind: "not_collected" };
+
+/** Por id de factura (cuota). Solo las cuotas que se cobran solas. */
+export type FamilyAutomaticFeeStatuses = Record<string, FamilyAutomaticFeeStatus>;
+
+export function familyAutomaticFeeText(status: FamilyAutomaticFeeStatus): string {
+  switch (status.kind) {
+    case "scheduled":
+      return `Se cobrará automáticamente el ${formatCalendarDate(status.date)}`;
+    case "in_progress":
+      return "Cobro en curso";
+    case "collected":
+      return `Cobrada automáticamente el ${formatCalendarDate(status.date)}`;
+    case "not_collected":
+      return "No se pudo cobrar automáticamente; tu academia te dirá cómo pagarla";
+  }
+}

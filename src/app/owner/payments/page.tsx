@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { z } from "zod";
 
 import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentForm";
+import { OwnerAutomaticCollectionsPanel } from "@/components/owner-dashboard/OwnerAutomaticCollectionsPanel";
 import { PaymentRemindersPanel } from "@/components/owner-dashboard/PaymentRemindersPanel";
 import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorkspacePageShell";
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
@@ -13,6 +14,8 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { getManualPaymentOptions } from "@/modules/billing/application/manual-payments";
+import { isFamilyAutomaticCollectionFlagEnabled } from "@/modules/family-collection/application/config";
+import type { OwnerAutomaticCollectionsView } from "@/modules/family-collection/application/family-collection-reads";
 import {
   getPaymentReminderOverview,
   type ReminderOverview,
@@ -22,7 +25,11 @@ import {
   isAutomaticPaymentRemindersFlagEnabled,
 } from "@/modules/payment-reminders/application/storage";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
-import { isConnectOnboardingFlagEnabled } from "@/modules/payments-connect/application/config";
+import {
+  isConnectOnboardingFlagEnabled,
+  isProductionDatabase,
+  resolveConnectEnvironment,
+} from "@/modules/payments-connect/application/config";
 import { getConnectStatus } from "@/modules/payments-connect/application/connect-onboarding-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import {
@@ -38,6 +45,41 @@ const pageQuerySchema = z.object({
   organizationId: z.guid().optional(),
   locationId: z.guid().optional(),
 });
+
+/**
+ * Cobros automáticos del mes (cobro automático de cuotas, Fase 3). Con la
+ * bandera apagada, fuera de la clave de test o contra la base de producción
+ * no se carga ni la lectura (se lee del entorno, sin base); sin las tablas de
+ * la Fase 3 o sin permiso (solo propiedad o administración con todas las
+ * sedes) la lectura devuelve `null`. Un fallo nunca impide registrar un pago:
+ * la sección no aparece y en el registro solo van la academia y el tipo.
+ */
+async function loadAutomaticCollections(
+  userId: string,
+  organizationId: string
+): Promise<OwnerAutomaticCollectionsView | null> {
+  if (
+    !isFamilyAutomaticCollectionFlagEnabled() ||
+    resolveConnectEnvironment() !== "test" ||
+    isProductionDatabase()
+  ) {
+    return null;
+  }
+  try {
+    const { getOwnerAutomaticCollections } = await import(
+      "@/modules/family-collection/application/family-collection-reads"
+    );
+    return await getOwnerAutomaticCollections({ userId, organizationId });
+  } catch (error) {
+    if (!(error instanceof OperationalError)) {
+      logger.warn("Pagos: no se pudieron leer los cobros automáticos del mes", {
+        organizationId,
+        errorName: error instanceof Error ? error.name : "unknown",
+      });
+    }
+    return null;
+  }
+}
 
 export default async function OwnerPaymentsPage({
   searchParams,
@@ -154,6 +196,13 @@ export default async function OwnerPaymentsPage({
       showAutomaticCollectionLink = false;
     }
   }
+  const automaticCollections = await loadAutomaticCollections(user.id, scope.organization.id);
+  // Cuotas que se están cobrando solas: el formulario de pago manual explica
+  // por qué no se pueden registrar a mano todavía (el servidor responde 409).
+  const automaticCollectionInProgress = (automaticCollections?.items ?? [])
+    .filter((item) => item.manualPaymentBlocked)
+    .map((item) => item.invoiceReference);
+
   const automaticCollectionHref = `/owner/settings?${new URLSearchParams({
     organizationId: scope.organization.id,
   }).toString()}#cobro-automatico`;
@@ -220,7 +269,15 @@ export default async function OwnerPaymentsPage({
             locationId={options.selectedLocationId}
             charges={options.charges}
             nextCursor={options.nextCursor}
+            automaticCollectionInvoiceReferences={automaticCollectionInProgress}
           />
+
+          {automaticCollections ? (
+            <OwnerAutomaticCollectionsPanel
+              organizationId={options.organization.id}
+              view={automaticCollections}
+            />
+          ) : null}
 
           {reminderOverview ? (
             <PaymentRemindersPanel

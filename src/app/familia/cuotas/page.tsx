@@ -4,6 +4,7 @@ import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell"
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { PageHeader } from "@/components/ui/page-header";
 import { logger } from "@/lib/logger";
+import { isFamilyAutomaticCollectionFlagEnabled } from "@/modules/family-collection/application/config";
 import {
   isProductionDatabase,
   resolveConnectEnvironment,
@@ -13,6 +14,7 @@ import {
   getFamilyFees,
   type FamilyAcademyFees,
 } from "@/modules/family-portal/application/family-portal-reads";
+import type { FamilyAutomaticFeeStatuses } from "@/modules/family-portal/domain/family-portal-presentation";
 
 import { requireFamilyUser } from "../_lib/family-user";
 
@@ -69,10 +71,46 @@ async function loadAutomaticPayments(
   return cards;
 }
 
+/**
+ * Cobro automático de cuotas (Fase 3): el estado del cobro de cada cuota que
+ * se cobra sola. Con la bandera apagada, fuera de la clave de test o contra
+ * la base de producción no se carga ni el módulo (se lee del entorno, sin
+ * base); sin las tablas de la Fase 3 la lectura devuelve nada. Si falla, las
+ * cuotas se ven como siempre y en el registro solo va el tipo de error.
+ */
+async function loadAutomaticCollection(
+  userId: string,
+  academies: FamilyAcademyFees[]
+): Promise<FamilyAutomaticFeeStatuses> {
+  const invoiceIds = academies.flatMap((academy) => academy.fees.map((fee) => fee.invoiceId));
+  if (invoiceIds.length === 0) return {};
+  if (
+    !isFamilyAutomaticCollectionFlagEnabled() ||
+    resolveConnectEnvironment() !== "test" ||
+    isProductionDatabase()
+  ) {
+    return {};
+  }
+  try {
+    const { getFamilyAutomaticFeeStatuses } = await import(
+      "@/modules/family-collection/application/family-collection-reads"
+    );
+    return await getFamilyAutomaticFeeStatuses({ userId, invoiceIds });
+  } catch (error) {
+    logger.warn("family_portal.automatic_collection_state_failed", {
+      errorName: error instanceof Error ? error.name : "unknown",
+    });
+    return {};
+  }
+}
+
 export default async function FamilyFeesPage() {
   const user = await requireFamilyUser("/familia/cuotas");
   const academies = await getFamilyFees({ userId: user.id });
-  const automaticPayments = await loadAutomaticPayments(user.id, academies);
+  const [automaticPayments, automaticCollection] = await Promise.all([
+    loadAutomaticPayments(user.id, academies),
+    loadAutomaticCollection(user.id, academies),
+  ]);
 
   return (
     <FamilyPortalShell active="fees">
@@ -82,7 +120,11 @@ export default async function FamilyFeesPage() {
         className={ownerUi.pageHeader}
       />
 
-      <FamilyFeesView academies={academies} automaticPayments={automaticPayments} />
+      <FamilyFeesView
+        academies={academies}
+        automaticPayments={automaticPayments}
+        automaticCollection={automaticCollection}
+      />
     </FamilyPortalShell>
   );
 }

@@ -17,10 +17,12 @@ import {
 import { useOwnerPlanPolicy } from "./owner-plan-usage-store";
 import { useOrganizationDraftField } from "./use-organization-draft-field";
 import {
+  AUTOMATIC_COLLECTION_BLOCKED_TEXT,
   formatMoney,
   getBrowserStorage,
   getRetryReceivedOn,
   isMatchingManualPaymentResponse,
+  manualPaymentProblemText,
   parseAmountCents,
   toPendingPaymentRequest,
   type ManualPaymentMethod,
@@ -55,6 +57,7 @@ export function ManualPaymentForm({
   locationId = null,
   charges,
   nextCursor = null,
+  automaticCollectionInvoiceReferences = [],
 }: {
   actorId: string;
   organizationId: string;
@@ -62,6 +65,8 @@ export function ManualPaymentForm({
   charges: OpenManualPaymentCharge[];
   nextCursor?: string | null;
   canManageFamilyCollectionPreferences?: boolean;
+  /** Cuotas (referencia de factura) que se están cobrando solas ahora (Fase 3). */
+  automaticCollectionInvoiceReferences?: readonly string[];
 }) {
   const fieldIdPrefix = useId();
   const chargeSelectId = `${fieldIdPrefix}-charge`;
@@ -380,15 +385,14 @@ export function ManualPaymentForm({
         });
         if (!response.ok) {
           const problem = (await response.json().catch(() => null)) as {
-            detail?: string;
-            message?: string;
+            type?: unknown;
+            detail?: unknown;
+            message?: unknown;
           } | null;
           setError(
             response.status >= 500
               ? "No sabemos si se guardó. Reintenta este mismo envío; la clave segura evita duplicarlo."
-              : (problem?.detail ??
-                  problem?.message ??
-                  "No se ha podido registrar el pago.")
+              : manualPaymentProblemText(problem)
           );
           const retryMayStillNeedReceipt =
             response.status >= 500 ||
@@ -696,6 +700,13 @@ export function ManualPaymentForm({
         loadingMore={loadingMore}
         loadMoreError={loadMoreError}
       />
+
+      {formCharge &&
+      automaticCollectionInvoiceReferences.includes(formCharge.invoiceReference) ? (
+        <p role="note" className={ownerUi.noticeWarning}>
+          {AUTOMATIC_COLLECTION_BLOCKED_TEXT}
+        </p>
+      ) : null}
 
       {formCharge && (
         <ManualPaymentDetailsFields

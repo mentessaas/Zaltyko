@@ -7,7 +7,9 @@ import type { FamilyAcademyFees } from "@/modules/family-portal/application/fami
 import {
   FAMILY_AUTOMATIC_PAYMENT_NOTICE,
   FAMILY_PAYMENT_NOTICE,
+  familyAutomaticFeeText,
   feeStatusLabel,
+  type FamilyAutomaticFeeStatuses,
   formatDueDate,
   formatMoney,
   formatPeriod,
@@ -16,16 +18,19 @@ import {
 /**
  * Cuerpo de «Cuotas»: el aviso de pago y las cuotas emitidas por la academia.
  * Lo comparten /familia/cuotas (datos reales) y la demo pública. Solo
- * /familia/cuotas pasa `automaticPayments`: la demo nunca enseña el pago
- * automático.
+ * /familia/cuotas pasa `automaticPayments` y `automaticCollection`: la demo
+ * nunca enseña el pago automático ni el estado de un cobro automático.
  */
 export function FamilyFeesView({
   academies,
   automaticPayments,
+  automaticCollection,
 }: {
   academies: FamilyAcademyFees[];
   /** Por academia, una tarjeta de pago automático por familia que paga. */
   automaticPayments?: FamilyAutomaticPaymentCards;
+  /** Por factura, el estado de su cobro automático (Fase 3). */
+  automaticCollection?: FamilyAutomaticFeeStatuses;
 }) {
   const offersAutomaticPayment = academies.some(
     (academy) => (automaticPayments?.[academy.organizationId]?.length ?? 0) > 0
@@ -63,6 +68,7 @@ export function FamilyFeesView({
                 <ul className="mt-4 space-y-3">
                   {academy.fees.map((fee) => {
                     const period = formatPeriod(fee.periodStart, fee.periodEnd);
+                    const automatic = automaticCollection?.[fee.invoiceId];
                     return (
                       <li key={fee.invoiceId} className={ownerUi.listItem}>
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -117,6 +123,17 @@ export function FamilyFeesView({
                             </dd>
                           </div>
                         </dl>
+                        {automatic ? (
+                          <p
+                            className={`mt-3 ${
+                              automatic.kind === "not_collected"
+                                ? ownerTone.inlineWarning
+                                : ownerUi.muted
+                            }`}
+                          >
+                            {familyAutomaticFeeText(automatic)}
+                          </p>
+                        ) : null}
                       </li>
                     );
                   })}

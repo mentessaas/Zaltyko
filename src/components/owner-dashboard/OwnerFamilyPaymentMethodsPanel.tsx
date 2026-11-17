@@ -3,17 +3,26 @@
 import { useRef, useState } from "react";
 
 import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { Switch } from "@/components/ui/switch";
+import type {
+  OwnerFamilyCollectionSwitch,
+  OwnerFamilyCollectionSwitches,
+} from "@/modules/family-collection/application/family-collection-reads";
 import type { listOwnerFamilyPaymentMethods } from "@/modules/family-payment-methods/application/family-payment-methods-service";
 import type { PaymentMethodKind } from "@/modules/family-payment-methods/domain/consent";
 
 // Pago automático de las familias (cobro automático, Fase 2): la academia ve
 // qué familias han guardado tarjeta o domiciliación y puede dejar de cobrarles
-// automáticamente. En esta fase todavía no se cobra nada.
+// automáticamente. Con el cobro automático abierto (Fase 3), cada familia con
+// método activo tiene además el interruptor «Cobrar automáticamente», que
+// guarda su preferencia de cobro (el único interruptor para eso).
 
 // Ruta relativa: el fetch es del mismo origen y el navegador añade la cabecera
 // Origin que la API exige en el POST (protección contra CSRF).
 const REVOKE_ENDPOINT = "/api/v1/owner/payments/family-methods";
 const REVOKE_ERROR = "No hemos podido dejar de cobrar automáticamente a esta familia. Inténtalo de nuevo.";
+const PREFERENCE_ENDPOINT = "/api/v1/owner/billing/family-collection-preference";
+const PREFERENCE_ERROR = "No hemos podido guardar el cambio. Inténtalo de nuevo.";
 
 export type OwnerFamilyPaymentMethod = Awaited<ReturnType<typeof listOwnerFamilyPaymentMethods>>[number];
 
@@ -39,24 +48,107 @@ function sinceText(since: string): string | null {
 type RevokeBody = { data?: { outcome?: unknown } | null; outcome?: unknown; detail?: unknown; message?: unknown };
 
 /** Mensaje de error de la API (`detail` del problema; `message` por si acaso), si viene en texto. */
-function errorText(body: RevokeBody | null): string {
+function errorText(body: RevokeBody | null, fallback: string = REVOKE_ERROR): string {
   if (typeof body?.detail === "string" && body.detail.trim()) return body.detail;
   if (typeof body?.message === "string" && body.message.trim()) return body.message;
-  return REVOKE_ERROR;
+  return fallback;
 }
+
+type PreferenceReceipt = {
+  familyId?: unknown;
+  effectiveMode?: unknown;
+  version?: unknown;
+  requiresConfirmation?: unknown;
+};
+
+/** Envío pendiente de confirmar: un reintento usa la misma clave y el mismo contenido. */
+type PendingPreference = { familyId: string; automatic: boolean; expectedVersion: number; key: string };
 
 export function OwnerFamilyPaymentMethodsPanel({
   organizationId,
   methods: serverMethods,
+  collection,
 }: {
   organizationId: string;
   methods: OwnerFamilyPaymentMethod[];
+  /** Interruptores «Cobrar automáticamente» (Fase 3), solo con el cobro automático abierto. */
+  collection?: OwnerFamilyCollectionSwitches;
 }) {
   const [methods, setMethods] = useState(serverMethods);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [message, setMessage] = useState<{ tone: "info" | "error"; text: string } | null>(null);
+  const [switches, setSwitches] = useState<Record<string, OwnerFamilyCollectionSwitch>>(collection?.families ?? {});
+  const [savingFamily, setSavingFamily] = useState<string | null>(null);
+  const savingRef = useRef(false);
+  const pendingRef = useRef<PendingPreference | null>(null);
+
+  async function setAutomatic(method: OwnerFamilyPaymentMethod, automatic: boolean) {
+    const current = switches[method.familyId];
+    if (savingRef.current || !current) return;
+    savingRef.current = true;
+    setSavingFamily(method.familyId);
+    setMessage(null);
+    const previous = pendingRef.current;
+    const pending: PendingPreference =
+      previous &&
+      previous.familyId === method.familyId &&
+      previous.automatic === automatic &&
+      previous.expectedVersion === current.version
+        ? previous
+        : {
+            familyId: method.familyId,
+            automatic,
+            expectedVersion: current.version,
+            key: `family-preference-${crypto.randomUUID()}`,
+          };
+    pendingRef.current = pending;
+    let failure: string | null = PREFERENCE_ERROR;
+    try {
+      const response = await fetch(PREFERENCE_ENDPOINT, {
+        method: "PUT",
+        headers: { "content-type": "application/json", "idempotency-key": pending.key },
+        body: JSON.stringify({
+          organizationId,
+          familyId: method.familyId,
+          mode: automatic ? "automatic" : "manual",
+          expectedVersion: pending.expectedVersion,
+        }),
+      });
+      const body = (await response.json().catch(() => null)) as (PreferenceReceipt & RevokeBody) | null;
+      if (
+        response.ok &&
+        body?.familyId === method.familyId &&
+        typeof body.version === "number" &&
+        Number.isInteger(body.version)
+      ) {
+        const next: OwnerFamilyCollectionSwitch = {
+          automatic: body.effectiveMode === "automatic",
+          version: body.version,
+          requiresConfirmation: body.requiresConfirmation === true,
+        };
+        setSwitches((all) => ({ ...all, [method.familyId]: next }));
+        pendingRef.current = null;
+        failure = null;
+        setMessage({
+          tone: "info",
+          text: next.automatic
+            ? `Las próximas cuotas de ${method.payerName} se cobrarán automáticamente.`
+            : `Las cuotas de ${method.payerName} ya no se cobrarán automáticamente.`,
+        });
+      } else if (!response.ok) {
+        // Rechazo definitivo (4xx): el siguiente intento lleva otra clave.
+        if (response.status < 500) pendingRef.current = null;
+        failure = errorText(body, PREFERENCE_ERROR);
+      }
+    } catch {
+      failure = PREFERENCE_ERROR;
+    }
+    savingRef.current = false;
+    setSavingFamily(null);
+    if (failure) setMessage({ tone: "error", text: failure });
+  }
 
   async function revoke(method: OwnerFamilyPaymentMethod) {
     if (busyRef.current) return;
@@ -103,6 +195,16 @@ export function OwnerFamilyPaymentMethodsPanel({
     <section id="pago-automatico-familias" className={ownerUi.card} aria-labelledby="pago-automatico-familias-title">
       <h2 id="pago-automatico-familias-title" className={ownerUi.sectionTitle}>Pago automático de las familias</h2>
       <p className={`${ownerUi.help} mt-2`}>Revocar no anula los cobros ya enviados.</p>
+      {collection ? (
+        <p className={`${ownerUi.help} mt-1`}>
+          Con «Cobrar automáticamente» encendido, las próximas cuotas de la familia se cobran solas. Al apagarlo, no se cobra ninguna cuota más de forma automática.
+        </p>
+      ) : null}
+      {collection && !collection.available ? (
+        <p className={`${ownerUi.noticeWarning} mt-4`}>
+          El cobro automático de cuotas está incluido en Starter y Growth.
+        </p>
+      ) : null}
 
       {message ? (
         <p role={message.tone === "error" ? "alert" : "status"} className={`${message.tone === "error" ? ownerUi.noticeError : ownerUi.noticeInfo} mt-4`}>
@@ -114,8 +216,11 @@ export function OwnerFamilyPaymentMethodsPanel({
         <p className={`${ownerUi.muted} mt-5`}>Ninguna familia ha guardado todavía un método de pago.</p>
       ) : (
         <ul className="mt-5 space-y-3">
-          {methods.map((method) => {
+          {methods.map((method, index) => {
             const since = sinceText(method.since);
+            // Un interruptor por familia: en su primera fila, aunque tenga más de un método.
+            const firstOfFamily = methods.findIndex((item) => item.familyId === method.familyId) === index;
+            const preference = collection && firstOfFamily ? switches[method.familyId] : undefined;
             return (
               <li key={method.authorizationId} className={ownerUi.listItem}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -141,6 +246,23 @@ export function OwnerFamilyPaymentMethodsPanel({
                     </button>
                   ) : null}
                 </div>
+                {preference ? (
+                  <div className="mt-3">
+                    <Switch
+                      label="Cobrar automáticamente"
+                      aria-label={`Cobrar automáticamente a ${method.payerName}`}
+                      checked={preference.automatic}
+                      disabled={!collection?.available || savingFamily !== null || busy}
+                      aria-busy={savingFamily === method.familyId || undefined}
+                      onCheckedChange={(checked) => void setAutomatic(method, checked)}
+                    />
+                    {preference.requiresConfirmation ? (
+                      <p className={`${ownerTone.inlineWarning} mt-1`}>
+                        Cambió el plan de la academia: vuelve a encenderlo si quieres seguir cobrando automáticamente a esta familia.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {confirming === method.authorizationId ? (
                   <div className={`${ownerUi.subtlePanel} mt-3`} role="group" aria-label={`Confirmar que dejas de cobrar automáticamente a ${method.payerName}`}>
                     <p className="text-sm text-z-ink">
