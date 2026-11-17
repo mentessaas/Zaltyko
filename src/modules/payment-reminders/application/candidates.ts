@@ -75,7 +75,8 @@ interface CandidateRow {
   /** Solo con el cobro automático abierto (automaticCollectionColumns). */
   collectionMode?: string | null;
   lastAttemptStatus?: string | null;
-  lastAttemptRetryPending?: boolean | null;
+  lastAttemptNextRetryAt?: string | null;
+  lastAttemptCompletedAt?: string | null;
   collectionDayOfMonth?: number | string | null;
 }
 
@@ -111,11 +112,17 @@ function automaticHoldOf(row: CandidateRow, now: Date): boolean {
   try {
     const fixedDay = row.collectionDayOfMonth ?? null;
     const day = fixedDay === null ? null : Number(fixedDay);
+    const localDate = (value: string | null | undefined) =>
+      value ? localCalendarDate(new Date(value), row.locationTimezone) : null;
     return automaticCollectionHolds({
       collectionMode: "automatic",
       automaticCollectionOpen: true,
       lastAttempt: row.lastAttemptStatus
-        ? { status: row.lastAttemptStatus, retryPending: row.lastAttemptRetryPending === true }
+        ? {
+            status: row.lastAttemptStatus,
+            retryDateLocal: localDate(row.lastAttemptNextRetryAt),
+            completedDateLocal: localDate(row.lastAttemptCompletedAt),
+          }
         : null,
       collectionDateLocal: collectionDate({
         dueDateLocal: localCalendarDate(new Date(row.dueAt), row.locationTimezone),
@@ -143,13 +150,14 @@ export async function loadReminderCandidates(
     ? sql`
         c.collection_mode::text as "collectionMode",
         last_attempt.status as "lastAttemptStatus",
-        (last_attempt.next_retry_at is not null) as "lastAttemptRetryPending",
+        to_char(last_attempt.next_retry_at at time zone 'UTC', ${sql.raw(ISO)}) as "lastAttemptNextRetryAt",
+        to_char(last_attempt.completed_at at time zone 'UTC', ${sql.raw(ISO)}) as "lastAttemptCompletedAt",
         ocs.collection_day_of_month as "collectionDayOfMonth",`
     : sql``;
   const automaticJoins = automaticOpen
     ? sql`
       left join lateral (
-        select a.status, a.next_retry_at
+        select a.status, a.next_retry_at, a.completed_at
           from zaltyko.family_collection_attempts a
          where a.organization_id = c.organization_id and a.invoice_id = c.invoice_id
          order by a.attempt_number desc

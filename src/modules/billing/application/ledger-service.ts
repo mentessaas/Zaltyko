@@ -1991,16 +1991,19 @@ async function guardManualAllocation(
     chargeId: input.charge.id,
   };
   const locationId = typeof attempt.locationId === "string" ? attempt.locationId : input.charge.locationId;
-  await appendOutboxEvent(tx, {
-    organizationId: input.organizationId,
-    locationId,
-    eventName: "family_collection.attempt_canceled",
-    aggregateType: "family_collection_attempt",
-    aggregateId: attempt.attemptId,
-    idempotencyKey,
-    payload,
-    occurredAt: now,
-  });
+  const eventName = "family_collection.attempt_canceled";
+  if (!(await findOutboxEvent(tx, { organizationId: input.organizationId, eventName, idempotencyKey }))) {
+    await appendOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      locationId,
+      eventName,
+      aggregateType: "family_collection_attempt",
+      aggregateId: attempt.attemptId,
+      idempotencyKey,
+      payload,
+      occurredAt: now,
+    });
+  }
   await appendAuditEntry(tx, {
     organizationId: input.organizationId,
     locationId,

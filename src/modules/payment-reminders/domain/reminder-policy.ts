@@ -72,33 +72,43 @@ export interface ReminderCandidateState {
 export type ReminderDecision = { eligible: true } | { eligible: false; reason: ReminderSkipReason };
 
 /**
- * Días tras la fecha de cobro prevista en los que una cuota automática sin
- * ningún intento sigue esperando al cobro. Pasados, se trata como manual: si
- * la puerta del cobro falla día tras día por un motivo pasajero (cuenta o plan
- * por releer), la cuota no se queda sin cobro y sin recordatorio.
+ * Días de espera de una cuota automática antes de volver a los recordatorios
+ * cuando el cobro no avanza: desde la fecha de cobro prevista si no tiene
+ * ningún intento, desde la fecha del reintento si ese reintento no llega, y
+ * desde el cobro si después de cobrarse sigue debiendo algo. Así ninguna
+ * cuota se queda sin cobro y sin recordatorio (p. ej. si la puerta falla día
+ * tras día por un motivo pasajero).
  */
 export const AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS = 3;
 
-/** Último intento de cobro automático de la factura de la cuota. */
+/** Último intento de cobro automático de la factura de la cuota (fechas locales de la sede). */
 export interface AutomaticCollectionLastAttempt {
   status: string;
-  /** `failed` con reintento programado. */
-  retryPending: boolean;
+  /** Fecha local (YYYY-MM-DD) del reintento programado, o null si no hay reintento. */
+  retryDateLocal: string | null;
+  /** Fecha local en que terminó el intento (`completed_at`), o null. */
+  completedDateLocal: string | null;
+}
+
+/** ¿Hoy sigue dentro de la espera que empezó en `fromLocal`? */
+function withinGrace(fromLocal: string, todayLocal: string): boolean {
+  return todayLocal <= addLocalDays(fromLocal, AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS);
 }
 
 /**
  * ¿Espera la cuota a su cobro automático (sin recordatorios)? Solo si es
- * `automatic`, el cobro automático está abierto (bandera, cerrojos y tablas)
- * y su factura no tiene todavía un intento final:
- * - sin intento: hasta AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS días después de
- *   la fecha de cobro prevista (`collectionDateLocal`, en la zona de la sede);
- * - intento en curso (`claimed`, `created`, `processing`) o fallido con
- *   reintento pendiente: espera;
- * - cobrado (`succeeded`): espera; si el reparto no cuadró, la academia ya
- *   tiene un aviso para revisarlo y no se pide a la familia que pague otra vez;
- * - fallo final (`failed` sin reintento) o cancelado (por la puerta, la
- *   academia, un pago manual o una revisión): vuelve a los recordatorios.
+ * `automatic` y el cobro automático está abierto (bandera, cerrojos y tablas).
  * Con la bandera apagada, las cuotas automáticas se tratan como manuales.
+ * Según el último intento de su factura:
+ * - ninguno: espera hasta AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS días
+ *   después de la fecha de cobro prevista (`collectionDateLocal`);
+ * - en curso (`claimed`, `created`, `processing`): espera (el dinero puede
+ *   estar moviéndose; si se atasca, la academia tiene un aviso);
+ * - fallido con reintento: espera hasta esos días después de la fecha del
+ *   reintento; fallo final: vuelve a los recordatorios;
+ * - cancelado (puerta, academia, pago manual o revisión): vuelve;
+ * - cobrado (`succeeded`) y la cuota aún debe algo (reparto en revisión,
+ *   devolución): espera esos días desde el cobro y después vuelve.
  */
 export function automaticCollectionHolds(input: {
   collectionMode: "manual" | "automatic";
@@ -109,12 +119,17 @@ export function automaticCollectionHolds(input: {
 }): boolean {
   if (input.collectionMode !== "automatic" || !input.automaticCollectionOpen) return false;
   const last = input.lastAttempt;
-  if (last === null) {
-    return input.todayLocal <= addLocalDays(input.collectionDateLocal, AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS);
+  if (last === null) return withinGrace(input.collectionDateLocal, input.todayLocal);
+  switch (last.status) {
+    case "canceled":
+      return false;
+    case "failed":
+      return last.retryDateLocal !== null && withinGrace(last.retryDateLocal, input.todayLocal);
+    case "succeeded":
+      return last.completedDateLocal === null || withinGrace(last.completedDateLocal, input.todayLocal);
+    default:
+      return true;
   }
-  if (last.status === "canceled") return false;
-  if (last.status === "failed") return last.retryPending;
-  return true;
 }
 
 export function isOverdue(dueAt: Date, now: Date): boolean {

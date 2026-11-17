@@ -47,23 +47,41 @@ const holds = (overrides: Partial<Parameters<typeof automaticCollectionHolds>[0]
     ...overrides,
   });
 
+const attempt = (status: string, dates: { retry?: string; completed?: string } = {}) => ({
+  status,
+  retryDateLocal: dates.retry ?? null,
+  completedDateLocal: dates.completed ?? null,
+});
+
 describe("automaticCollectionHolds", () => {
   it("una cuota manual o con el cobro automático cerrado (bandera apagada) nunca espera", () => {
-    expect(holds({ collectionMode: "manual", lastAttempt: { status: "claimed", retryPending: false } })).toBe(false);
-    expect(holds({ automaticCollectionOpen: false, lastAttempt: { status: "processing", retryPending: false } })).toBe(false);
+    expect(holds({ collectionMode: "manual", lastAttempt: attempt("claimed") })).toBe(false);
+    expect(holds({ automaticCollectionOpen: false, lastAttempt: attempt("processing") })).toBe(false);
   });
 
-  it.each(["claimed", "created", "processing", "succeeded"])("con un intento %s espera", (status) => {
-    expect(holds({ lastAttempt: { status, retryPending: false } })).toBe(true);
+  it.each(["claimed", "created", "processing"])("con un intento %s espera", (status) => {
+    expect(holds({ lastAttempt: attempt(status) })).toBe(true);
   });
 
-  it("con un fallo con reintento pendiente espera; con un fallo final vuelve a los recordatorios", () => {
-    expect(holds({ lastAttempt: { status: "failed", retryPending: true } })).toBe(true);
-    expect(holds({ lastAttempt: { status: "failed", retryPending: false } })).toBe(false);
+  it("con un reintento pendiente espera hasta tres días después de la fecha del reintento", () => {
+    expect(holds({ lastAttempt: attempt("failed", { retry: "2026-11-23" }) })).toBe(true);
+    expect(holds({ lastAttempt: attempt("failed", { retry: "2026-11-17" }) })).toBe(true);
+    // Reintento que nunca llegó (proceso parado, puerta pasajera): vuelve a los recordatorios.
+    expect(holds({ lastAttempt: attempt("failed", { retry: "2026-11-16" }) })).toBe(false);
+  });
+
+  it("con un fallo final vuelve a los recordatorios", () => {
+    expect(holds({ lastAttempt: attempt("failed", { completed: "2026-11-19" }) })).toBe(false);
   });
 
   it("cancelado (puerta, academia, pago manual o revisión) vuelve a los recordatorios", () => {
-    expect(holds({ lastAttempt: { status: "canceled", retryPending: false } })).toBe(false);
+    expect(holds({ lastAttempt: attempt("canceled", { completed: "2026-11-20" }) })).toBe(false);
+  });
+
+  it("cobrado pero con saldo pendiente: espera tres días desde el cobro y después vuelve", () => {
+    expect(holds({ lastAttempt: attempt("succeeded", { completed: "2026-11-18" }) })).toBe(true);
+    expect(holds({ lastAttempt: attempt("succeeded", { completed: "2026-11-17" }) })).toBe(true);
+    expect(holds({ lastAttempt: attempt("succeeded", { completed: "2026-11-16" }) })).toBe(false);
   });
 
   it(`sin intento espera hasta ${AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS} días después de la fecha de cobro`, () => {
@@ -217,29 +235,66 @@ describe("loadReminderCandidates con el cobro automático", () => {
 
   it("con el cobro abierto lee el último intento de la factura y el día de cobro", async () => {
     const { client: fake, executed } = client([
-      row({ collectionMode: "automatic", lastAttemptStatus: "claimed", lastAttemptRetryPending: false, collectionDayOfMonth: null }),
-      row({ chargeId: "c2", collectionMode: "automatic", lastAttemptStatus: "canceled", lastAttemptRetryPending: false, collectionDayOfMonth: null }),
-      row({ chargeId: "c3", collectionMode: "manual", lastAttemptStatus: null, lastAttemptRetryPending: null, collectionDayOfMonth: null }),
-      row({ chargeId: "c4", collectionMode: "automatic", lastAttemptStatus: "failed", lastAttemptRetryPending: true, collectionDayOfMonth: null }),
+      row({ collectionMode: "automatic", lastAttemptStatus: "claimed", collectionDayOfMonth: null }),
+      row({
+        chargeId: "c2",
+        collectionMode: "automatic",
+        lastAttemptStatus: "canceled",
+        lastAttemptCompletedAt: "2026-11-19T09:00:00.000000Z",
+        collectionDayOfMonth: null,
+      }),
+      row({ chargeId: "c3", collectionMode: "manual", lastAttemptStatus: null, collectionDayOfMonth: null }),
+      row({
+        chargeId: "c4",
+        collectionMode: "automatic",
+        lastAttemptStatus: "failed",
+        lastAttemptNextRetryAt: "2026-11-21T07:00:00.000000Z",
+        collectionDayOfMonth: null,
+      }),
+      // Reintento del día 10 que nunca llegó: el 20 ya se recuerda.
+      row({
+        chargeId: "c5",
+        collectionMode: "automatic",
+        lastAttemptStatus: "failed",
+        lastAttemptNextRetryAt: "2026-11-10T07:00:00.000000Z",
+        collectionDayOfMonth: null,
+      }),
+      // Cobrada el 12 y con saldo pendiente: el 20 ya se recuerda.
+      row({
+        chargeId: "c6",
+        collectionMode: "automatic",
+        lastAttemptStatus: "succeeded",
+        lastAttemptCompletedAt: "2026-11-12T07:00:00.000000Z",
+        collectionDayOfMonth: null,
+      }),
     ]);
 
     const candidates = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
 
-    expect(candidates.map((candidate) => candidate.automaticCollectionHold)).toEqual([true, false, false, true]);
+    expect(candidates.map((candidate) => candidate.automaticCollectionHold)).toEqual([
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+    ]);
     expect(executed[0]).toContain("from zaltyko.family_collection_attempts a");
+    expect(executed[0]).toContain("last_attempt.next_retry_at");
+    expect(executed[0]).toContain("last_attempt.completed_at");
     expect(executed[0]).toContain("order by a.attempt_number desc");
     expect(executed[0]).toContain("zaltyko.organization_collection_settings");
   });
 
   it("sin intento: espera hasta tres días después del día de cobro fijo de la academia", async () => {
     // Vence el 18 y la academia cobra el día 25: el 20 todavía espera.
-    const fixed = row({ collectionMode: "automatic", lastAttemptStatus: null, lastAttemptRetryPending: null, collectionDayOfMonth: 25 });
+    const fixed = row({ collectionMode: "automatic", lastAttemptStatus: null, collectionDayOfMonth: 25 });
     const { client: fake } = client([fixed]);
     const [waiting] = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
     expect(waiting.automaticCollectionHold).toBe(true);
 
     // Por vencimiento (sin día fijo), el 18 + 3 = 21; el 22 ya se recuerda.
-    const byDue = row({ collectionMode: "automatic", lastAttemptStatus: null, lastAttemptRetryPending: null, collectionDayOfMonth: null });
+    const byDue = row({ collectionMode: "automatic", lastAttemptStatus: null, collectionDayOfMonth: null });
     const { client: fake2 } = client([byDue]);
     const [released] = await loadReminderCandidates(fake2, {
       organizationId,

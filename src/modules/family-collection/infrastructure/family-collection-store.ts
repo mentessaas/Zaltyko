@@ -1446,8 +1446,10 @@ export async function readLatestAttemptForAcademy(input: {
  * Cierra un intento como `canceled` por decisión de la academia, en el orden
  * de bloqueo único (academia → cuotas de la factura por id → factura →
  * intento), solo si sigue tal como la academia lo vio (estado, `pi_…` y, si
- * se pide, reintento pendiente). Deja la auditoría con la persona y el aviso
- * del outbox. `null` si el intento cambió mientras tanto.
+ * se pide, reintento pendiente) y sigue siendo el último intento de la
+ * factura sin ningún otro abierto: con la factura bloqueada, el proceso diario
+ * no puede estar reclamando el reintento a la vez. Deja la auditoría con la
+ * persona y el aviso del outbox. `null` si el intento cambió mientras tanto.
  */
 export async function closeAttemptByAcademy(input: {
   organizationId: string;
@@ -1473,6 +1475,17 @@ export async function closeAttemptByAcademy(input: {
     await lockOrganizationForSaasMutation(tx, input.organizationId);
     await lockInvoiceCharges(tx, input.organizationId, invoiceId);
     await lockInvoice(tx, input.organizationId, invoiceId);
+    // Con la factura bloqueada nadie puede reclamar otro intento: este tiene
+    // que seguir siendo el último y no puede haber otro abierto (p. ej. el
+    // reintento que el proceso diario acaba de reclamar).
+    const history = await tx.execute(sql`
+      select max(attempt_number) as "lastNumber",
+             count(*) filter (where status in (${openStatusList}) and id <> ${input.attemptId}::uuid)::int as "otherOpen"
+        from zaltyko.family_collection_attempts
+       where organization_id = ${input.organizationId}::uuid
+         and invoice_id = ${invoiceId}::uuid
+    `);
+    const latest = history.rows[0] as { lastNumber?: unknown; otherOpen?: unknown } | undefined;
     const locked = await tx.execute(sql`
       select ${attemptColumns},
              next_retry_at as "nextRetryAt",
@@ -1488,6 +1501,8 @@ export async function closeAttemptByAcademy(input: {
     const attempt = toAttempt(row);
     const nextRetryAt = toDateOrNull(row.nextRetryAt);
     if (
+      Number(latest?.lastNumber) !== attempt.attemptNumber ||
+      Number(latest?.otherOpen ?? 0) !== 0 ||
       attempt.status !== input.expected.status ||
       attempt.paymentIntentId !== input.expected.paymentIntentId ||
       (input.expected.retryPending === true && nextRetryAt === null)

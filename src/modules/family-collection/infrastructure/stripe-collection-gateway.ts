@@ -271,3 +271,27 @@ export function createStripeCollectionGateway(stripe?: Stripe): FamilyCollection
     },
   };
 }
+
+/** Como mucho estos cobros por intento en una búsqueda; con más, no se decide nada. */
+const MAX_PAYMENTS_PER_ATTEMPT_SEARCH = 100;
+
+/**
+ * Todos los cobros que Stripe tiene con el id del intento en metadata (para
+ * la revisión de la academia cuando hay varios). Solo referencias y estados.
+ * Si Stripe dice que hay más de los que caben en una página, lanza: la
+ * academia no puede dar por revisado lo que no se ha visto entero.
+ */
+export async function listCollectionPaymentsByAttempt(
+  input: { connectedAccount: string; attemptId: string },
+  stripe?: Stripe
+): Promise<PaymentIntentSnapshot[]> {
+  const client = stripe ?? getStripeClient();
+  const result = await client.paymentIntents.search(
+    { query: collectionAttemptSearchQuery(input.attemptId), limit: MAX_PAYMENTS_PER_ATTEMPT_SEARCH },
+    { stripeAccount: input.connectedAccount }
+  );
+  if (result.has_more) throw new Error("FAMILY_COLLECTION_TOO_MANY_PAYMENTS_FOR_ATTEMPT");
+  return result.data
+    .filter((paymentIntent) => hasMetadataAttempt(paymentIntent, input.attemptId))
+    .map((paymentIntent) => toSnapshot(paymentIntent));
+}

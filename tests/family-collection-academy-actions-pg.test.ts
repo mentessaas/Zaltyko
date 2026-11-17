@@ -15,6 +15,7 @@ import {
 import {
   cancelAutomaticCollection,
   markAutomaticCollectionReviewed,
+  type AcademyCollectionGateway,
 } from "@/modules/family-collection/application/family-collection-academy-actions";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
 import type { PaymentIntentSnapshot } from "@/modules/family-collection/domain/payment-outcome";
@@ -119,6 +120,7 @@ function fakeStripe(statuses: Record<string, string> = {}) {
       snapshot(input.paymentIntentId)
     ),
     findPaymentByAttempt: vi.fn<FamilyCollectionGateway["findPaymentByAttempt"]>(async () => null),
+    listPaymentsByAttempt: vi.fn<AcademyCollectionGateway["listPaymentsByAttempt"]>(async () => []),
     cancelPayment: vi.fn<FamilyCollectionGateway["cancelPayment"]>(async (input) => {
       statuses[input.paymentIntentId] = "canceled";
       return "canceled";
@@ -459,21 +461,22 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
     });
   }
 
-  describe("pago manual frente al cobro automático", () => {
-    it("un cobro reclamado que tiene los cerrojos: el pago manual espera y sale con 409, sin bloqueo mutuo", async () => {
-      const fixture = await createFixture();
-      let release: () => void = () => undefined;
-      const released = new Promise<void>((resolveRelease) => {
-        release = resolveRelease;
-      });
-      let holding: () => void = () => undefined;
-      const held = new Promise<void>((resolveHeld) => {
-        holding = resolveHeld;
-      });
-      const safety = setTimeout(() => release(), 15_000);
-
-      // El proceso diario reclamando, con el orden único: academia → cuotas → factura → intento.
-      const worker = db.transaction(async (tx) => {
+  /**
+   * El proceso diario reclamando un intento, con el orden único (academia →
+   * cuotas → factura → intento), y la transacción abierta hasta `release()`.
+   */
+  async function holdWorkerClaim(fixture: Fixture, attemptNumber: number) {
+    let release: () => void = () => undefined;
+    const released = new Promise<void>((resolveRelease) => {
+      release = resolveRelease;
+    });
+    let holding: () => void = () => undefined;
+    const held = new Promise<void>((resolveHeld) => {
+      holding = resolveHeld;
+    });
+    const safety = setTimeout(() => release(), 15_000);
+    const done = db
+      .transaction(async (tx) => {
         await tx.execute(sql`select id from zaltyko.organizations where id = ${fixture.organizationId}::uuid for update`);
         await tx.execute(sql`
           select id from zaltyko.charges
@@ -490,24 +493,55 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
             payment_provider_account_id, attempt_number, payment_method_kind, amount_cents, currency, status
           ) values (
             ${fixture.organizationId}::uuid, ${fixture.locationId}::uuid, ${fixture.invoiceId}::uuid, ${fixture.familyId}::uuid,
-            ${fixture.payerId}::uuid, ${fixture.authorizationId}::uuid, ${fixture.accountRowId}::uuid, 1, 'card',
+            ${fixture.payerId}::uuid, ${fixture.authorizationId}::uuid, ${fixture.accountRowId}::uuid, ${attemptNumber}, 'card',
             ${fixture.amount}, 'EUR', 'claimed'
           )
         `);
         holding();
         await released;
-      });
-      await held;
+      })
+      .finally(() => clearTimeout(safety));
+    await held;
+    return { release: () => release(), done };
+  }
+
+  /**
+   * Espera hasta ver en PostgreSQL otra sesión bloqueada en un cerrojo de fila
+   * de la academia (`wait_event_type = 'Lock'`): prueba que la operación
+   * concurrente de verdad esperó, en vez de suponerlo con un tiempo fijo.
+   */
+  async function waitForOrganizationLockWaiter(): Promise<boolean> {
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      const result = await db.execute(sql`
+        select count(*)::int as n
+          from pg_stat_activity
+         where datname = current_database()
+           and pid <> pg_backend_pid()
+           and wait_event_type = 'Lock'
+           and query like '%from zaltyko.organizations%'
+           and query like '%for update%'
+      `);
+      if ((result.rows[0] as { n: number }).n > 0) return true;
+      await wait(50);
+    }
+    return false;
+  }
+
+  describe("pago manual frente al cobro automático", () => {
+    it("un cobro reclamado que tiene los cerrojos: el pago manual espera y sale con 409, sin bloqueo mutuo", async () => {
+      const fixture = await createFixture();
+      const worker = await holdWorkerClaim(fixture, 1);
       const manual = manualPayment(fixture).then(
         () => null,
         (error: unknown) => error
       );
-      // El pago manual queda esperando el cerrojo de la academia.
-      await wait(300);
-      release();
-      await worker;
-      clearTimeout(safety);
+      // El pago manual de verdad espera el cerrojo de la academia.
+      const waited = await waitForOrganizationLockWaiter();
+      worker.release();
+      await worker.done;
 
+      expect(waited).toBe(true);
       expect(await manual).toMatchObject({ code: "AUTOMATIC_COLLECTION_IN_PROGRESS", status: 409 });
       expect(await chargeStatus(fixture)).toBe("due");
     });
@@ -621,6 +655,47 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
   });
 
   describe("acciones de la academia", () => {
+    it("cancelar un reintento mientras el proceso diario lo reclama: 409 para recargar y el intento nuevo sigue", async () => {
+      const fixture = await createFixture();
+      const { attemptId: failedId } = await insertAttempt(fixture, {
+        status: "failed",
+        nextRetryAt: new Date(Date.now() - DAY),
+      });
+      const gateway = fakeStripe();
+
+      // El proceso diario reclama el reintento (intento 2) y todavía no ha confirmado.
+      const worker = await holdWorkerClaim(fixture, 2);
+      // La academia ve el reintento pendiente (el intento 2 aún no es visible)
+      // y espera el cerrojo de la academia para cerrarlo.
+      const cancel = cancelAutomaticCollection(
+        { userId: fixture.userId, organizationId: fixture.organizationId, invoiceId: fixture.invoiceId },
+        { gateway }
+      ).then(
+        () => null,
+        (error: unknown) => error
+      );
+      const waited = await waitForOrganizationLockWaiter();
+      worker.release();
+      await worker.done;
+
+      expect(waited).toBe(true);
+      expect(await cancel).toMatchObject({
+        code: "CONCURRENCY_RETRY",
+        status: 409,
+        message: "El cobro automático de esta cuota cambió o acaba de empezar. Recarga la página y vuelve a intentarlo.",
+      });
+      // Nada se cerró: el reintento sigue como estaba y el intento nuevo, reclamado.
+      expect(await attemptRow(failedId)).toMatchObject({ status: "failed", failureCode: "card_declined" });
+      expect((await attemptRow(failedId)).nextRetryAt).not.toBeNull();
+      const claimed = await db.execute(sql`
+        select status from zaltyko.family_collection_attempts
+         where organization_id = ${fixture.organizationId}::uuid and invoice_id = ${fixture.invoiceId}::uuid
+           and attempt_number = 2
+      `);
+      expect(claimed.rows).toEqual([{ status: "claimed" }]);
+      expect(await auditActions(fixture, failedId)).toEqual([]);
+    });
+
     it("cancelar un reintento pendiente lo cierra como canceled_by_academy, con auditoría de la persona", async () => {
       const fixture = await createFixture();
       const { attemptId } = await insertAttempt(fixture, {
@@ -721,6 +796,73 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
       ]);
     });
 
+    it("un cobro ya registrado con otro intento: cancelar manda a «Marcar como revisado», que sí lo cierra", async () => {
+      const fixture = await createFixture();
+      const paymentIntentId = `pi_CI${compact()}`;
+      // El mismo cobro de Stripe, ya registrado en el libro para otro intento.
+      await db.execute(sql`
+        insert into zaltyko.payments (
+          organization_id, location_id, family_id, family_payer_id, source, status, amount_cents, currency,
+          processor, environment, provider_payment_id, received_at, idempotency_key
+        ) values (
+          ${fixture.organizationId}::uuid, ${fixture.locationId}::uuid, ${fixture.familyId}::uuid, ${fixture.payerId}::uuid,
+          'provider', 'succeeded', ${fixture.amount}, 'EUR', 'stripe', 'sandbox', ${paymentIntentId}, now(),
+          ${`family-collection:${randomUUID()}:${paymentIntentId}`}
+        )
+      `);
+      const { attemptId } = await insertAttempt(fixture, { status: "created", paymentIntentId });
+      const gateway = fakeStripe({ [paymentIntentId]: "succeeded" });
+      const input = { userId: fixture.userId, organizationId: fixture.organizationId, invoiceId: fixture.invoiceId };
+
+      await expect(cancelAutomaticCollection(input, { gateway })).rejects.toMatchObject({
+        code: "AUTOMATIC_COLLECTION_REVIEW_REQUIRED",
+        status: 409,
+      });
+      expect(await attemptRow(attemptId)).toMatchObject({ status: "created", completedAt: null });
+      // El camino de registro dejó el aviso de revisión: «Marcar como revisado» está permitido.
+      expect(await outboxCount(fixture, "family_collection.needs_review")).toBe(1);
+
+      await expect(markAutomaticCollectionReviewed({ ...input, checkedInStripe: true }, { gateway })).resolves.toEqual({
+        outcome: "reviewed",
+      });
+      expect(await attemptRow(attemptId)).toMatchObject({ status: "canceled", failureCode: "reviewed_by_academy" });
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    });
+
+    it("marcar como revisado con varios cobros en Stripe: si alguno salió, 409 y el intento sigue abierto", async () => {
+      const fixture = await createFixture();
+      const { attemptId } = await insertAttempt(fixture, { status: "claimed" });
+      await createFamilyCollectionStore().recordNotice({
+        organizationId: fixture.organizationId,
+        locationId: fixture.locationId,
+        attemptId,
+        invoiceId: fixture.invoiceId,
+        reason: "multiple_payments",
+        now: new Date(),
+      });
+      const first = `pi_CI${compact()}`;
+      const second = `pi_CI${compact()}`;
+      const gateway = fakeStripe({ [first]: "canceled", [second]: "succeeded" });
+      gateway.listPaymentsByAttempt.mockResolvedValue([
+        { id: first, status: "canceled", lastErrorCode: null, lastDeclineCode: null },
+        { id: second, status: "succeeded", lastErrorCode: null, lastDeclineCode: null },
+      ]);
+
+      await expect(
+        markAutomaticCollectionReviewed(
+          {
+            userId: fixture.userId,
+            organizationId: fixture.organizationId,
+            invoiceId: fixture.invoiceId,
+            checkedInStripe: true,
+          },
+          { gateway }
+        )
+      ).rejects.toMatchObject({ code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT", status: 409 });
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+      expect(await attemptRow(attemptId)).toMatchObject({ status: "claimed", completedAt: null });
+    });
+
     it("marcar como revisado un cobro que sí salió en Stripe lo registra y nunca lo cierra", async () => {
       const fixture = await createFixture();
       const paymentIntentId = `pi_CI${compact()}`;
@@ -780,6 +922,14 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
       expect(await holdOf(recent)).toBe(true);
       const forgotten = await createFixture({ dueDaysAgo: 10 });
       expect(await holdOf(forgotten)).toBe(false);
+
+      // Un reintento que nunca llegó: espera tres días desde su fecha y después vuelve.
+      const staleRetry = await createFixture({ dueDaysAgo: 15 });
+      await insertAttempt(staleRetry, { status: "failed", nextRetryAt: new Date(Date.now() - 6 * DAY) });
+      expect(await holdOf(staleRetry)).toBe(false);
+      const recentRetry = await createFixture({ dueDaysAgo: 15 });
+      await insertAttempt(recentRetry, { status: "failed", nextRetryAt: new Date(Date.now() - DAY) });
+      expect(await holdOf(recentRetry)).toBe(true);
     });
 
     it("con la bandera apagada, las cuotas automáticas reciben recordatorios", async () => {

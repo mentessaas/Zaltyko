@@ -13,9 +13,12 @@
  *   reanudaciones, y solo si la persona confirma que lo comprobó en Stripe.
  *   Lo cierra como `canceled` (`reviewed_by_academy`), con auditoría.
  *
- * Nunca se cierra un intento cuyo cobro ya se hizo en Stripe: antes de
- * cerrarlo se relee el cobro y, si salió, se registra por el mismo camino que
- * usa el proceso diario (`applyOutcome`: pago, reparto y aviso si no cuadra).
+ * Nunca se cierra un intento cuyo dinero pudo moverse sin registrarlo: antes
+ * de cerrarlo se relee el cobro y, si salió, se registra por el mismo camino
+ * que usa el proceso diario (`applyOutcome`: pago, reparto y aviso si no
+ * cuadra). Si hay varios cobros y alguno salió o está en curso, o el intento
+ * tiene un cobro guardado que no se puede leer, no se cierra: la academia lo
+ * resuelve en Stripe con su soporte.
  *
  * Propiedad, o administración con todas las sedes. No exige la bandera de
  * esta fase (con la función apagada la academia tiene que poder cerrar lo que
@@ -41,6 +44,7 @@ import {
 import { FAMILY_COLLECTION_MAX_RESUMES } from "@/modules/family-collection/infrastructure/family-collection-schema";
 import {
   createStripeCollectionGateway,
+  listCollectionPaymentsByAttempt,
   type FamilyCollectionGateway,
 } from "@/modules/family-collection/infrastructure/stripe-collection-gateway";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
@@ -58,9 +62,14 @@ export interface AcademyCollectionStore {
   closeAttempt: typeof closeAttemptByAcademy;
 }
 
+/** Stripe para las acciones: el adaptador del proceso diario y la lista de cobros de un intento. */
+export interface AcademyCollectionGateway extends FamilyCollectionGateway {
+  listPaymentsByAttempt(input: { connectedAccount: string; attemptId: string }): Promise<PaymentIntentSnapshot[]>;
+}
+
 export interface AcademyCollectionDeps {
   store?: AcademyCollectionStore;
-  gateway?: FamilyCollectionGateway;
+  gateway?: AcademyCollectionGateway;
 }
 
 const inputSchema = z.object({
@@ -68,9 +77,6 @@ const inputSchema = z.object({
   organizationId: z.guid(),
   invoiceId: z.guid(),
 });
-
-/** Lo lanza el adaptador cuando Stripe tiene varios cobros para un mismo intento. */
-const MULTIPLE_PAYMENTS_ERROR = "FAMILY_COLLECTION_MULTIPLE_PAYMENTS_FOR_ATTEMPT";
 
 const OPEN_STATUSES: ReadonlySet<string> = new Set(["claimed", "created", "processing"]);
 
@@ -83,8 +89,22 @@ const TEXT = {
   reviewNotNeeded: "Este cobro sigue su curso y no necesita revisión. Espera al resultado.",
   confirmationRequired: "Confirma que has comprobado el cobro en Stripe antes de marcarlo como revisado.",
   unverified: "No se pudo comprobar el estado del cobro. Vuelve a intentarlo en un momento.",
-  changed: "El cobro cambió mientras tanto. Recarga la página y vuelve a intentarlo.",
+  changed:
+    "El cobro automático de esta cuota cambió o acaba de empezar. Recarga la página y vuelve a intentarlo.",
+  recordedElsewhere:
+    "Este cobro ya figura registrado con otro cobro automático. Revísalo y usa «Marcar como revisado».",
+  multipleMoved:
+    "Hay varios cobros en Stripe para esta cuota y al menos uno se ha cobrado o está en curso. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
+  unreadable:
+    "No se puede comprobar en Stripe el cobro de esta cuota. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
 } as const;
+
+function defaultGateway(): AcademyCollectionGateway {
+  return {
+    ...createStripeCollectionGateway(),
+    listPaymentsByAttempt: (input) => listCollectionPaymentsByAttempt(input),
+  };
+}
 
 function defaultStore(): AcademyCollectionStore {
   const store = createFamilyCollectionStore();
@@ -101,7 +121,7 @@ interface Context {
   input: z.infer<typeof inputSchema>;
   memberId: string;
   store: AcademyCollectionStore;
-  gateway: FamilyCollectionGateway;
+  gateway: AcademyCollectionGateway;
   now: Date;
 }
 
@@ -132,7 +152,7 @@ async function prepare(
     input: { ...input, organizationId: scope.organization.id },
     memberId: scope.member.id,
     store,
-    gateway: deps.gateway ?? createStripeCollectionGateway(),
+    gateway: deps.gateway ?? defaultGateway(),
     now: raw.now ?? new Date(),
   };
 }
@@ -227,6 +247,39 @@ async function recordCollected(
   throw changed();
 }
 
+/**
+ * Varios cobros para un mismo intento: se relee cada uno. Si alguno salió o
+ * está en curso, no se cierra nada (409: la academia lo resuelve en Stripe
+ * con su soporte; aquí no se elige cuál registrar). Si ninguno movió dinero,
+ * se cancelan los que sigan abiertos para que no puedan completarse.
+ */
+async function stopAllOrRefuse(
+  context: Context,
+  connectedAccount: string,
+  paymentIntentIds: readonly string[]
+): Promise<void> {
+  const snapshots: PaymentIntentSnapshot[] = [];
+  for (const paymentIntentId of paymentIntentIds) {
+    try {
+      snapshots.push(await context.gateway.retrievePayment({ connectedAccount, paymentIntentId }));
+    } catch {
+      throw unverified();
+    }
+  }
+  const moved = (status: string) => status === "succeeded" || status === "processing";
+  if (snapshots.some((snapshot) => moved(snapshot.status))) {
+    throw new OperationalError("AUTOMATIC_COLLECTION_NEEDS_SUPPORT", TEXT.multipleMoved, 409);
+  }
+  for (const snapshot of snapshots) {
+    if (snapshot.status === "canceled") continue;
+    const state = await stopInStripe(context.gateway, connectedAccount, snapshot.id);
+    if (state === "succeeded" || state === "processing") {
+      throw new OperationalError("AUTOMATIC_COLLECTION_NEEDS_SUPPORT", TEXT.multipleMoved, 409);
+    }
+    if (state === "unknown") throw unverified();
+  }
+}
+
 /** Cancela el cobro automático pendiente de una factura. */
 export async function cancelAutomaticCollection(
   raw: { userId: string; organizationId: string; invoiceId: string; now?: Date },
@@ -259,7 +312,10 @@ export async function cancelAutomaticCollection(
       const state = await stopInStripe(context.gateway, refs.connectedAccount, paymentIntentId);
       if (state === "succeeded") {
         if (await recordCollected(context, attempt, paymentIntentId)) return { outcome: "collected" };
-        throw changed();
+        // El mismo cobro ya estaba registrado para otro intento: applyOutcome
+        // dejó el aviso de revisión, así que «Marcar como revisado» está
+        // permitido y es el camino (recargar no lo resolvería).
+        throw new OperationalError("AUTOMATIC_COLLECTION_REVIEW_REQUIRED", TEXT.recordedElsewhere, 409);
       }
       if (state === "processing") {
         throw new OperationalError("AUTOMATIC_COLLECTION_PROCESSING", TEXT.processing, 409);
@@ -296,30 +352,36 @@ export async function markAutomaticCollectionReviewed(
     throw new OperationalError("AUTOMATIC_COLLECTION_REVIEW_NOT_NEEDED", TEXT.reviewNotNeeded, 409);
   }
 
-  // Sin datos para leer Stripe (cuenta o autorización que ya no casan): la
-  // persona confirmó que lo comprobó en Stripe; se cierra.
   const refs = await context.store.loadAttemptRefs(attempt);
   if (!refs) {
+    // Con un cobro guardado que no se puede leer, el dinero pudo moverse: no
+    // se cierra. Sin cobro guardado y sin cuenta con la que buscarlo, el
+    // proceso diario nunca pudo crearlo (los crea con esos mismos datos).
+    if (attempt.paymentIntentId) {
+      throw new OperationalError("AUTOMATIC_COLLECTION_NEEDS_SUPPORT", TEXT.unreadable, 409);
+    }
     await close(context, attempt, "reviewed_by_academy");
     return { outcome: "reviewed" };
   }
 
-  let paymentIntentId = attempt.paymentIntentId;
-  if (!paymentIntentId) {
+  // El cobro guardado o, si no hay, todos los que Stripe tenga para el intento.
+  let paymentIntentIds: string[];
+  if (attempt.paymentIntentId) {
+    paymentIntentIds = [attempt.paymentIntentId];
+  } else {
     try {
-      const found = await context.gateway.findPaymentByAttempt({
+      const found = await context.gateway.listPaymentsByAttempt({
         connectedAccount: refs.connectedAccount,
         attemptId: attempt.id,
       });
-      paymentIntentId = found?.id ?? null;
-    } catch (error) {
-      // Varios cobros para el mismo intento: no se puede elegir uno; la
-      // persona confirmó que los revisó en Stripe.
-      if (!(error instanceof Error && error.message === MULTIPLE_PAYMENTS_ERROR)) throw unverified();
+      paymentIntentIds = found.map((payment) => payment.id);
+    } catch {
+      throw unverified();
     }
   }
 
-  if (paymentIntentId) {
+  if (paymentIntentIds.length === 1) {
+    const paymentIntentId = paymentIntentIds[0];
     const state = await stopInStripe(context.gateway, refs.connectedAccount, paymentIntentId);
     if (state === "succeeded") {
       if (await recordCollected(context, attempt, paymentIntentId)) return { outcome: "collected" };
@@ -329,6 +391,8 @@ export async function markAutomaticCollectionReviewed(
     } else if (state === "unknown") {
       throw unverified();
     }
+  } else if (paymentIntentIds.length > 1) {
+    await stopAllOrRefuse(context, refs.connectedAccount, paymentIntentIds);
   }
 
   await close(context, attempt, "reviewed_by_academy");

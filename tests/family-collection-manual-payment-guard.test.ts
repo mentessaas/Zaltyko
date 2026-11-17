@@ -263,6 +263,28 @@ describe("pago manual con un reintento automático pendiente", () => {
     );
   });
 
+  it("si el aviso de cancelación ya existe, no lo duplica (mira el outbox antes de escribir)", async () => {
+    mocks.findEvent.mockImplementation(async (_tx: unknown, input: { eventName: string; idempotencyKey: string }) =>
+      input.eventName === "family_collection.attempt_canceled" &&
+      input.idempotencyKey === `family-collection:${attemptId}:attempt_canceled`
+        ? { payload: {} }
+        : null
+    );
+    const harness = useTx(fakeTx({ lastAttempt: retrying }));
+
+    await expect(recordManualPaymentForCharge(manualCommand)).resolves.toBeDefined();
+
+    expect(harness.executed.some((text) => text.includes("update zaltyko.family_collection_attempts"))).toBe(true);
+    expect(mocks.appendOutbox).not.toHaveBeenCalledWith(
+      harness.tx,
+      expect.objectContaining({ eventName: "family_collection.attempt_canceled" })
+    );
+    expect(mocks.appendAudit).toHaveBeenCalledWith(
+      harness.tx,
+      expect.objectContaining({ action: "family_collection.attempt_canceled" })
+    );
+  });
+
   it.each([
     ["un fallo final", { ...retrying, retryPending: false }],
     ["un intento cancelado", { ...retrying, status: "canceled", retryPending: false }],
