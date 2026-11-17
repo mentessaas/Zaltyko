@@ -220,16 +220,34 @@ describe("candidata SQL del cobro automático (Fase 3)", () => {
     for (const name of names) expect(name.length, name).toBeLessThan(63);
   });
 
-  it("un solo intento no terminal por factura y como mucho cinco intentos y tres reanudaciones", () => {
+  it("un solo intento no terminal y uno solo cobrado por factura, como mucho cinco intentos y tres reanudaciones", () => {
     expect(body).toContain(
       "create unique index family_collection_attempts_open_uq\n  on zaltyko.family_collection_attempts (organization_id, invoice_id)\n  where status in ('claimed', 'created', 'processing');"
     );
     const drizzleOpen = tableConfig(familyCollectionAttempts).indexes.find((index) => index.config.name === FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX);
     expect(drizzleOpen?.config.unique).toBe(true);
     expect(normalize(dialect.sqlToQuery(drizzleOpen!.config.where as SQL).sql)).toBe("status in ('claimed', 'created', 'processing')");
+    // Nunca dos cobros registrados de la misma factura.
+    expect(body).toContain(
+      "create unique index family_collection_attempts_succeeded_uq\n  on zaltyko.family_collection_attempts (organization_id, invoice_id)\n  where status = 'succeeded';"
+    );
+    const drizzleSucceeded = tableConfig(familyCollectionAttempts).indexes.find(
+      (index) => index.config.name === "family_collection_attempts_succeeded_uq"
+    );
+    expect(drizzleSucceeded?.config.unique).toBe(true);
+    expect(drizzleSucceeded?.config.columns.map((column) => (column as { name: string }).name)).toEqual([
+      "organization_id",
+      "invoice_id",
+    ]);
+    expect(normalize(dialect.sqlToQuery(drizzleSucceeded!.config.where as SQL).sql)).toBe("status = 'succeeded'");
     const checks = candidateChecks(blocks.get("family_collection_attempts")!);
     expect(checks.get("family_collection_attempts_attempt_number_check")).toBe("attempt_number between 1 and 5");
     expect(checks.get("family_collection_attempts_resume_count_check")).toBe("resume_count between 0 and 3");
+    // Reintento pendiente solo en un fallo, solo de tarjeta y solo tras los intentos 1 a 3 (D1).
+    expect(checks.get("family_collection_attempts_next_retry_only_failed")).toBe("next_retry_at is null or status = 'failed'");
+    expect(checks.get("family_collection_attempts_next_retry_card_only")).toBe(
+      "next_retry_at is null or (payment_method_kind = 'card' and attempt_number <= 3)"
+    );
     // Solo un canceled sin cobro en Stripe puede llevar la moneda (no EUR) de su factura.
     expect(checks.get("family_collection_attempts_currency_check")).toBe(
       "currency = 'eur' or (status = 'canceled' and provider_payment_intent_reference is null)"

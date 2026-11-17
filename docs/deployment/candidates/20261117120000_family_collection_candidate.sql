@@ -12,8 +12,12 @@
 --   factura mensual (una por familia, sede y mes). Avanza por pasos cortos:
 --   claimed (reclamado, todavía sin cobro en Stripe) → created (cobro creado,
 --   con su pi_) → processing | succeeded | failed | canceled. Un solo intento
---   no terminal por factura (índice único parcial), como mucho cinco por
---   factura y tres reanudaciones por intento. Un intento canceled sin pi_ es la
+--   no terminal por factura (índice único parcial), un solo intento cobrado
+--   (succeeded) por factura (otro índice único parcial), como mucho cinco por
+--   factura y tres reanudaciones por intento. Solo una tarjeta rechazada en
+--   los intentos 1 a 3 puede tener reintento pendiente (next_retry_at): la
+--   domiciliación no se reintenta y el intento 4 es el último (decisión D1 de
+--   Elvis, ADR-0028). Un intento canceled sin pi_ es la
 --   puerta que se cerró en la fecha de cobro: failure_code guarda su motivo y
 --   la cuota vuelve a manual. Un succeeded enlaza el pago registrado en el
 --   libro y el estado del reparto entre cuotas.
@@ -141,6 +145,7 @@ create table zaltyko.family_collection_attempts (
   constraint family_collection_attempts_codes_only_when_unsuccessful check (status in ('failed', 'canceled') or (failure_code is null and decline_code is null)),
   constraint family_collection_attempts_reason_required check (provider_payment_intent_reference is not null or status not in ('failed', 'canceled') or failure_code is not null),
   constraint family_collection_attempts_next_retry_only_failed check (next_retry_at is null or status = 'failed'),
+  constraint family_collection_attempts_next_retry_card_only check (next_retry_at is null or (payment_method_kind = 'card' and attempt_number <= 3)),
   constraint family_collection_attempts_payment_iff_succeeded check ((status = 'succeeded') = (payment_id is not null)),
   constraint family_collection_attempts_allocation_iff_succeeded check ((status = 'succeeded') = (allocation_status is not null)),
   constraint family_collection_attempts_completed_iff_terminal check ((status in ('succeeded', 'failed', 'canceled')) = (completed_at is not null)),
@@ -175,6 +180,10 @@ create table zaltyko.family_collection_attempts (
 create unique index family_collection_attempts_open_uq
   on zaltyko.family_collection_attempts (organization_id, invoice_id)
   where status in ('claimed', 'created', 'processing');
+-- Nunca dos cobros registrados de la misma factura: un solo intento succeeded.
+create unique index family_collection_attempts_succeeded_uq
+  on zaltyko.family_collection_attempts (organization_id, invoice_id)
+  where status = 'succeeded';
 -- Reintentos pendientes de una academia.
 create index family_collection_attempts_retry_idx
   on zaltyko.family_collection_attempts (organization_id, status, next_retry_at);

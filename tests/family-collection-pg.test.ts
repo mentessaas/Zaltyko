@@ -18,8 +18,9 @@ import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/
  * restaura el comentario de tabla que cambió la Fase 2: la base queda igual
  * que antes, cosa que el último test comprueba. Nunca en un proyecto enlazado
  * ni con credenciales externas. Cubre lo que los mocks no ven: tipos, checks
- * reales, únicos, el índice de un intento abierto por factura, permisos, el
- * preflight y la detección de almacenamiento antes y después.
+ * reales, únicos, los índices de un intento abierto y de uno cobrado por
+ * factura, permisos, el preflight y la detección de almacenamiento antes y
+ * después.
  */
 const disposablePgEnabled =
   process.env.ZALTYKO_PG_INTEGRATION === "1" &&
@@ -352,7 +353,7 @@ describeDisposablePg("family collection candidate schema", () => {
     }
   });
 
-  it("crea el índice único parcial de un intento abierto por factura y los de reanudar y reintentar", async () => {
+  it("crea los índices únicos parciales de un intento abierto y uno cobrado por factura, y los de reanudar y reintentar", async () => {
     const result = await db.execute(sql`
       select indexname::text as name, indexdef as definition
         from pg_indexes
@@ -366,6 +367,11 @@ describeDisposablePg("family collection candidate schema", () => {
     expect(open).toContain("(organization_id, invoice_id)");
     for (const status of ["claimed", "created", "processing"]) expect(open).toContain(`'${status}'::text`);
     for (const status of ["succeeded", "failed", "canceled"]) expect(open).not.toContain(status);
+    const succeeded = indexes.get("family_collection_attempts_succeeded_uq") ?? "";
+    expect(succeeded).toContain("CREATE UNIQUE INDEX");
+    expect(succeeded).toContain("(organization_id, invoice_id)");
+    expect(succeeded).toContain("'succeeded'::text");
+    for (const status of ["claimed", "created", "processing", "failed", "canceled"]) expect(succeeded).not.toContain(status);
     expect(indexes.get("family_collection_attempts_retry_idx")).toContain("(organization_id, status, next_retry_at)");
     expect(indexes.get("family_collection_attempts_resume_idx")).toContain("(status, updated_at)");
     expect(indexes.get("family_collection_attempt_charges_charge_idx")).toContain("(organization_id, charge_id)");
@@ -506,6 +512,35 @@ describeDisposablePg("family collection candidate schema", () => {
     await expectOnlyForeignKey(insertAttempt({ ...SUCCEEDED, allocation: "needs_review" }));
     await expectOnlyForeignKey(
       insertAttempt({ status: "failed", intent: "pi_CI_retry", failure: "card_declined", decline: "insufficient_funds", nextRetry: true, completed: true })
+    );
+  });
+
+  it("solo una tarjeta rechazada en los intentos 1 a 3 puede tener reintento pendiente (D1)", async () => {
+    const retrying = (kind: string, attemptNumber: number) =>
+      insertAttempt({
+        status: "failed",
+        kind,
+        attemptNumber,
+        intent: `pi_CI_retry_${kind}_${attemptNumber}`,
+        failure: "card_declined",
+        decline: "insufficient_funds",
+        nextRetry: true,
+        completed: true,
+      });
+    // La domiciliación nunca se reintenta.
+    await expectCheck(retrying("sepa_debit", 1), "family_collection_attempts_next_retry_card_only");
+    // El intento 4 de tarjeta es el último; el 5 tampoco.
+    await expectCheck(retrying("card", 4), "family_collection_attempts_next_retry_card_only");
+    await expectCheck(retrying("card", 5), "family_collection_attempts_next_retry_card_only");
+
+    // Tarjeta en los intentos 1, 2 y 3: pasa los checks y la detiene la clave foránea.
+    for (const attemptNumber of [1, 2, 3]) await expectOnlyForeignKey(retrying("card", attemptNumber));
+    // Sin reintento, la domiciliación y el intento 4 fallan sin problema.
+    await expectOnlyForeignKey(
+      insertAttempt({ status: "failed", kind: "sepa_debit", intent: "pi_CI_sepa_final", failure: "insufficient_funds", completed: true })
+    );
+    await expectOnlyForeignKey(
+      insertAttempt({ status: "failed", attemptNumber: 4, intent: "pi_CI_card_final", failure: "card_declined", completed: true })
     );
   });
 
@@ -766,18 +801,58 @@ describeDisposablePg("family collection candidate schema", () => {
       { number: 1, status: "failed", intent: firstIntent, retry: true, paymentId: null, allocation: null },
       { number: 2, status: "succeeded", intent: secondIntent, retry: false, paymentId, allocation: "allocated" },
     ]);
-    // El mismo pago no puede cerrar otro intento.
+    // Ya cobrada, la factura no admite otro intento succeeded, ni con un pago
+    // propio: nunca dos cobros registrados de la misma factura.
+    const thirdIntent = `pi_CI${tag}third`;
     const third = await claim(invoice, 3);
     await db.execute(sql`
       update zaltyko.family_collection_attempts
-         set status = 'created', provider_payment_intent_reference = ${`pi_CI${tag}third`}
+         set status = 'created', provider_payment_intent_reference = ${thirdIntent}
        where id = ${third}::uuid
+    `);
+    const thirdPaymentId = randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.payments (
+        id, organization_id, location_id, family_id, family_payer_id, status, amount_cents, currency,
+        processor, environment, provider_payment_id, received_at, idempotency_key
+      ) values (
+        ${thirdPaymentId}::uuid, ${invoice.organizationId}::uuid, ${invoice.locationId}::uuid, ${invoice.familyId}::uuid,
+        ${invoice.payerId}::uuid, 'succeeded', 4500, 'EUR', 'stripe', 'sandbox', ${thirdIntent}, now(),
+        ${`ci-fc-pay-${thirdPaymentId}`}
+      )
+    `);
+    await uniqueFailure(
+      db.execute(sql`
+        update zaltyko.family_collection_attempts
+           set status = 'succeeded', payment_id = ${thirdPaymentId}::uuid, allocation_status = 'needs_review', completed_at = now()
+         where id = ${third}::uuid
+      `),
+      "family_collection_attempts_succeeded_uq"
+    );
+
+    // El mismo pago tampoco puede cerrar el intento de otra factura de la
+    // academia (otra factura: el índice de un solo cobrado no interviene).
+    const otherInvoiceId = randomUUID();
+    await db.execute(sql`
+      insert into zaltyko.invoices (
+        id, organization_id, location_id, family_id, family_payer_id, reference, status,
+        currency, total_amount_cents, issued_at, due_at, idempotency_key
+      ) values (
+        ${otherInvoiceId}::uuid, ${invoice.organizationId}::uuid, ${invoice.locationId}::uuid, ${invoice.familyId}::uuid,
+        ${invoice.payerId}::uuid, ${`CI-FC-${tag}-other`}, 'issued', 'EUR', 4500, now(), now(), ${`ci-fc-inv-${otherInvoiceId}`}
+      )
+    `);
+    const otherAttempt = await claim({ ...invoice, invoiceId: otherInvoiceId }, 1);
+    await db.execute(sql`
+      update zaltyko.family_collection_attempts
+         set status = 'created', provider_payment_intent_reference = ${`pi_CI${tag}other`}
+       where id = ${otherAttempt}::uuid
     `);
     await uniqueFailure(
       db.execute(sql`
         update zaltyko.family_collection_attempts
            set status = 'succeeded', payment_id = ${paymentId}::uuid, allocation_status = 'needs_review', completed_at = now()
-         where id = ${third}::uuid
+         where id = ${otherAttempt}::uuid
       `),
       "family_collection_attempts_payment_uq"
     );

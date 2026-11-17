@@ -890,7 +890,7 @@ bancaria en la cuenta Stripe conectada de su academia. Decisión:
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261117120000_family_collection_candidate.sql` | `58fb523224aa0205d53d3689baaecbb0d1d8165256891fd231dcb4bf639216c3` | No aplicada | No aplicada |
+| `20261117120000_family_collection_candidate.sql` | `c877f6579a8b446dd21f1dc41a933ae329b5adcf96a1df4dfd6cbbb18f6b743a` | No aplicada | No aplicada |
 
 **Estado: no aplicada en ningún entorno.** Staging y producción necesitan cada
 uno una autorización expresa de Elvis; las de las Fases 1 y 2 no la cubren.
@@ -912,12 +912,17 @@ familia guardó, en la cuenta Stripe conectada de su academia. Decisión:
     `processing`), como mucho cinco intentos por factura
     (`unique (organization_id, invoice_id, attempt_number)`, número 1–5) y tres
     reanudaciones por intento;
+  - **un solo intento cobrado por factura** (índice único parcial
+    `family_collection_attempts_succeeded_uq` sobre `succeeded`): nunca dos
+    cobros registrados de la misma factura;
   - el `pi_…` falta solo en `claimed` y en un `failed`/`canceled` que nunca
     llegó a Stripe (que entonces exige `failure_code` con el motivo); es único
     por academia;
   - `failure_code` y `decline_code` son solo códigos (minúsculas, dígitos y
     guion bajo, hasta 64) y solo en `failed` o `canceled`; `next_retry_at`,
-    solo en `failed`;
+    solo en `failed`, solo de tarjeta y solo en los intentos 1 a 3
+    (`family_collection_attempts_next_retry_card_only`, decisión D1: la
+    domiciliación no se reintenta y el cuarto intento es el último);
   - `succeeded` exige el pago registrado (`payment_id`, único por academia) y
     el estado del reparto (`pending`, `allocated` o `needs_review`);
     `completed_at` existe exactamente en los estados terminales;

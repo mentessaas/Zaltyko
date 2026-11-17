@@ -185,6 +185,10 @@ export const familyCollectionAttempts = zaltyko.table(
     uniqueIndex("family_collection_attempts_open_uq")
       .on(table.organizationId, table.invoiceId)
       .where(sql.raw("status in ('claimed', 'created', 'processing')")),
+    // Un solo intento cobrado por factura: nunca dos cobros registrados.
+    uniqueIndex("family_collection_attempts_succeeded_uq")
+      .on(table.organizationId, table.invoiceId)
+      .where(sql.raw("status = 'succeeded'")),
     index("family_collection_attempts_retry_idx").on(table.organizationId, table.status, table.nextRetryAt),
     index("family_collection_attempts_resume_idx").on(table.status, table.updatedAt),
     check("family_collection_attempts_attempt_number_check", sql.raw("attempt_number between 1 and 5")),
@@ -240,6 +244,11 @@ export const familyCollectionAttempts = zaltyko.table(
     check(
       "family_collection_attempts_next_retry_only_failed",
       sql.raw("next_retry_at is null or status = 'failed'")
+    ),
+    // Reintento solo de tarjeta y solo tras los intentos 1 a 3 (D1: el 4 es el último).
+    check(
+      "family_collection_attempts_next_retry_card_only",
+      sql.raw("next_retry_at is null or (payment_method_kind = 'card' and attempt_number <= 3)")
     ),
     check(
       "family_collection_attempts_payment_iff_succeeded",
