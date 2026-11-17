@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import type { DatabaseClient } from "@/lib/db-transactions";
@@ -86,12 +86,18 @@ export const FAMILY_COLLECTION_UNIQUE_CONSTRAINTS = {
 
 const tableNames = Object.keys(FAMILY_COLLECTION_TABLES) as Array<keyof typeof FAMILY_COLLECTION_TABLES>;
 
-/** Literal SQL de constantes de este archivo (nunca de datos de usuario). */
-function textArrayLiteral(values: readonly string[]): string {
-  return `array[${values.map((value) => `'${value.replace(/'/g, "''")}'`).join(", ")}]::text[]`;
+/**
+ * Lista de textos como array de PostgreSQL, con cada valor como parámetro.
+ * Sin SQL crudo: nada de este archivo se inserta en la consulta como texto.
+ */
+function textArray(values: readonly string[]): SQL {
+  return sql`array[${sql.join(
+    values.map((value) => sql`${value}`),
+    sql`, `
+  )}]::text[]`;
 }
 
-function columnsMatch(table: keyof typeof FAMILY_COLLECTION_TABLES) {
+function columnsMatch(table: keyof typeof FAMILY_COLLECTION_TABLES): SQL {
   const expected = (FAMILY_COLLECTION_TABLES[table] as readonly ColumnSpec[]).map(
     ([column, dataType, isNullable]) => `${column}|${dataType}|${isNullable}`
   );
@@ -103,16 +109,11 @@ function columnsMatch(table: keyof typeof FAMILY_COLLECTION_TABLES) {
         from information_schema.columns
        where table_schema = 'zaltyko'
          and table_name = ${table}
-    ) = ${sql.raw(textArrayLiteral(expected))}, false)`;
+    ) = ${textArray(expected)}, false)`;
 }
 
-const allColumnsMatch = sql.join(
-  tableNames.map((table) => columnsMatch(table)),
-  sql` and `
-);
-
 /** Columnas de una restricción única de family_collection_attempts, en orden. */
-function uniqueConstraintMatches(name: string, columns: readonly string[]) {
+function uniqueConstraintMatches(name: string, columns: readonly string[]): SQL {
   return sql`coalesce((
       select array_agg(a.attname::text order by k.ord)
         from pg_constraint c
@@ -121,16 +122,12 @@ function uniqueConstraintMatches(name: string, columns: readonly string[]) {
        where c.conrelid = to_regclass('zaltyko.family_collection_attempts')
          and c.conname = ${name}
          and c.contype = 'u'
-    ) = ${sql.raw(textArrayLiteral(columns))}, false)`;
+    ) = ${textArray(columns)}, false)`;
 }
 
-const uniqueConstraintsMatch = sql.join(
-  Object.entries(FAMILY_COLLECTION_UNIQUE_CONSTRAINTS).map(([name, columns]) => uniqueConstraintMatches(name, columns)),
-  sql` and `
-);
-
 /** El índice parcial existe, es único y válido, y tiene las columnas y el predicado esperados. */
-const openAttemptIndexMatches = sql`exists (
+function openAttemptIndexMatches(): SQL {
+  return sql`exists (
     select 1
       from pg_index i
      where i.indexrelid = to_regclass(${`zaltyko.${FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX}`})
@@ -145,17 +142,30 @@ const openAttemptIndexMatches = sql`exists (
          select array_agg(a.attname::text order by k.ord)
            from unnest(i.indkey::int2[]) with ordinality as k(attnum, ord)
            join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum
-       ) = ${sql.raw(textArrayLiteral(FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX_COLUMNS))}
+       ) = ${textArray(FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX_COLUMNS)}
   )`;
+}
 
 export async function isFamilyCollectionStorageAvailable(
   executor: Pick<DatabaseClient, "execute"> = db
 ): Promise<boolean> {
+  // La consulta se construye en cada llamada, no al cargar el módulo: el
+  // libro de cuotas importa este archivo y algunos tests simulan `sql`.
+  const allColumnsMatch = sql.join(
+    tableNames.map((table) => columnsMatch(table)),
+    sql` and `
+  );
+  const uniqueConstraintsMatch = sql.join(
+    Object.entries(FAMILY_COLLECTION_UNIQUE_CONSTRAINTS).map(([name, columns]) =>
+      uniqueConstraintMatches(name, columns)
+    ),
+    sql` and `
+  );
   const result = await executor.execute(sql`
     select (
       ${allColumnsMatch}
       and ${uniqueConstraintsMatch}
-      and ${openAttemptIndexMatches}
+      and ${openAttemptIndexMatches()}
     ) as available
   `);
   return (result.rows[0] as { available?: boolean } | undefined)?.available === true;

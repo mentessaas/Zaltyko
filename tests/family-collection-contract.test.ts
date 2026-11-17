@@ -272,6 +272,19 @@ const specOf = (table: (typeof TABLES)[number]) => FAMILY_COLLECTION_TABLES[tabl
 describe("detección del almacenamiento del cobro automático", () => {
   const dialect = new PgDialect();
 
+  /**
+   * La consulta compara con `array[$n, …]::text[]`: los valores esperados van
+   * como parámetros, en orden y seguidos, nunca como SQL crudo.
+   */
+  function expectBoundArray(query: { sql: string; params: unknown[] }, values: readonly string[], label: string) {
+    const found = query.params.some((_param, start) => {
+      if (!values.every((value, offset) => query.params[start + offset] === value)) return false;
+      const placeholders = values.map((_value, offset) => `$${start + offset + 1}`).join(", ");
+      return query.sql.includes(`array[${placeholders}]::text[]`);
+    });
+    expect(found, label).toBe(true);
+  }
+
   it("los únicos y el índice que exige coinciden con la candidata", () => {
     const block = stripSqlComments(read(CANDIDATE)).toLowerCase();
     for (const [name, columns] of Object.entries(FAMILY_COLLECTION_UNIQUE_CONSTRAINTS)) {
@@ -293,9 +306,11 @@ describe("detección del almacenamiento del cobro automático", () => {
     const query = dialect.sqlToQuery(execute.mock.calls[0]![0]);
     for (const table of TABLES) {
       expect(query.params, table).toContain(table);
-      for (const [column, type, nullable] of specOf(table)) {
-        expect(query.sql).toContain(`'${column}|${type}|${nullable}'`);
-      }
+      expectBoundArray(
+        query,
+        specOf(table).map(([column, type, nullable]) => `${column}|${type}|${nullable}`),
+        table
+      );
     }
     // Índice parcial: único, válido, con sus columnas y su predicado.
     expect(query.params).toContain(`zaltyko.${FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX}`);
@@ -304,16 +319,17 @@ describe("detección del almacenamiento del cobro automático", () => {
     expect(query.sql).toContain("i.indisunique");
     expect(query.sql).toContain("i.indisvalid");
     expect(query.sql).toContain("pg_get_expr(i.indpred, i.indrelid)");
-    expect(query.sql).toContain(`array['${FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX_COLUMNS.join("', '")}']::text[]`);
+    expectBoundArray(query, FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX_COLUMNS, FAMILY_COLLECTION_OPEN_ATTEMPT_INDEX);
     // Únicos de número de intento y de pi_, con sus columnas.
     for (const [name, columns] of Object.entries(FAMILY_COLLECTION_UNIQUE_CONSTRAINTS)) {
       expect(query.params, name).toContain(name);
-      expect(query.sql, name).toContain(`array['${columns.join("', '")}']::text[]`);
+      expectBoundArray(query, columns, name);
     }
     expect(query.sql).toContain("c.contype = 'u'");
     expect(query.sql).toContain("information_schema.columns");
-    // Solo lee el catálogo.
+    // Solo lee el catálogo, y ninguna columna esperada va como texto en la consulta.
     expect(query.sql).not.toMatch(/\b(create|alter|insert|update|delete|grant)\b/i);
+    expect(query.sql).not.toContain("provider_payment_intent_reference");
   });
 
   it("responde que no está disponible si el catálogo no lo confirma", async () => {

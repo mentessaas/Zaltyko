@@ -34,8 +34,8 @@ import { charges, invoices, payments } from "@/db/schema/zaltyko-ledger";
  * docs/deployment/candidates/20261117120000_family_collection_candidate.sql,
  * que requiere autorización de Elvis y no está aplicado en ningún entorno.
  *
- * Igual que payment-reminders y family-payment-methods, estas tablas NO se
- * exportan desde `src/db/schema/index.ts` ni desde `src/db/zaltyko-schema.ts`,
+ * Igual que payment-reminders y family-payment-methods, estas tablas
+ * NO se exportan desde `src/db/schema/index.ts` ni desde `src/db/zaltyko-schema.ts`,
  * y `drizzle.config.ts` no las lee: un `db:generate`/`push` las crearía sin
  * RLS ni REVOKE. Viven fuera de `src/db/schema/` porque `pnpm validate:rls`
  * exige a cada tabla con academia de ese directorio RLS y política en el

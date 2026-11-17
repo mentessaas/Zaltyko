@@ -528,8 +528,12 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
   it("dos ejecuciones simultáneas: un solo intento y una sola creación en Stripe", async () => {
     // Cuenta sin releer: las dos ejecuciones se esperan en la relectura y
     // llegan a la vez a reclamar (carrera real, no secuencial).
+    const fixture = await createCollectableInvoice({ accountSyncedAt: new Date(Date.now() - 2 * HOUR) });
+    // El instante de la ejecución se toma DESPUÉS de crear la academia: su plan
+    // (derecho de contrato) rige desde organizations.created_at, y con un `now`
+    // anterior la puerta diría entitlement_not_effective (pasajero) y no se
+    // reclamaría nada, que es lo correcto para un plan que aún no rige.
     const now = new Date();
-    const fixture = await createCollectableInvoice({ accountSyncedAt: new Date(now.getTime() - 2 * HOUR) });
     const { gateway } = fakeStripe();
     let entered = 0;
     let release: () => void = () => undefined;
@@ -553,6 +557,8 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     clearTimeout(safety);
 
     expect(entered).toBe(2);
+    // Ningún otro motivo de omisión que «otra ejecución ya lo reclamó».
+    expect(results.flatMap((result) => Object.keys(result.skipped)).filter((reason) => reason !== "concurrent")).toEqual([]);
     expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(1);
     const rows = await attempts(fixture);
     expect(rows).toHaveLength(1);
