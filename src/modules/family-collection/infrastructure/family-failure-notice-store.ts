@@ -42,7 +42,8 @@ const ISO = `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'`;
  * - `invoice_closed`: la cuota ya está pagada o anulada;
  * - `superseded`: el aviso ya no vale (un intento posterior ya cobró la
  *   cuota, o el intento ya no es un fallo del intento 1);
- * - `organization_inactive`: la academia no está activa.
+ * - `organization_inactive`: la academia está suspendida o cerrada (en
+ *   prueba o activa sí se avisa: isOperatingOrganizationStatus).
  */
 export type FamilyFailureNoticeOutcome =
   | "sent"

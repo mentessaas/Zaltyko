@@ -265,10 +265,12 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
    * preferencia automática y una factura mensual emitida con cuotas
    * automáticas vencidas hace `dueDaysAgo` días (por defecto dos: dentro de la
    * ventana de cobro con un día de margen aunque la prueba cruce la
-   * medianoche local).
+   * medianoche local). La academia está `active` salvo que se indique otro
+   * estado (`organizationStatus`).
    */
   async function createCollectableInvoice(input: {
     kind?: "card" | "sepa_debit";
+    organizationStatus?: "trial" | "active" | "suspended" | "closed";
     amounts?: number[];
     accountSyncedAt?: Date;
     dueDaysAgo?: number;
@@ -290,7 +292,10 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
 
     await db.execute(sql`
       insert into zaltyko.organizations (id, name, status, default_timezone, default_currency)
-      values (${organizationId}::uuid, ${`CI Cobro diario ${short}`}, 'active'::zaltyko.organization_status, 'Europe/Madrid', 'EUR')
+      values (
+        ${organizationId}::uuid, ${`CI Cobro diario ${short}`},
+        ${input.organizationStatus ?? "active"}::zaltyko.organization_status, 'Europe/Madrid', 'EUR'
+      )
     `);
     createdOrganizations.push(organizationId);
     await db.execute(sql`
@@ -790,6 +795,52 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     await run(new Date(), gateway);
     expect(await attempts(revoked)).toHaveLength(1);
     expect(await attempts(closed)).toHaveLength(1);
+  });
+
+  it("academia en prueba (trial) con plan de pago vigente: se cobra como una activa; suspendida o cerrada: canceled organization_not_active", async () => {
+    // Toda academia nace `trial` y nada la pasa a `active` (arreglo del 17-11-2026).
+    const trial = await createCollectableInvoice({ organizationStatus: "trial", amounts: [2500, 2000] });
+    const suspended = await createCollectableInvoice({ organizationStatus: "suspended" });
+    const closed = await createCollectableInvoice({ organizationStatus: "closed" });
+    const { gateway } = fakeStripe();
+
+    await run(new Date(), gateway);
+
+    const created = callsFor(gateway.createPayment.mock.calls, trial);
+    expect(created).toHaveLength(1);
+    expect(created[0][0]).toMatchObject({
+      amountCents: 4500,
+      currency: "EUR",
+      kind: "card",
+      attempt: { invoiceId: trial.invoiceId, attemptNumber: 1 },
+    });
+    const [attempt] = await attempts(trial);
+    expect(attempt).toMatchObject({ number: 1, status: "succeeded", amount: 4500, allocation: "allocated" });
+    expect(await ledgerState(trial)).toEqual({
+      charges: ["paid", "paid"],
+      invoice: "paid",
+      providerPayments: [{ amount: 4500, environment: "sandbox", intent: attempt.intent, allocated: 4500 }],
+    });
+
+    for (const fixture of [suspended, closed]) {
+      expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(0);
+      expect(await attempts(fixture)).toEqual([
+        expect.objectContaining({ number: 1, status: "canceled", failure: "organization_not_active", intent: null }),
+      ]);
+      expect(await ledgerState(fixture)).toEqual({ charges: ["due"], invoice: "issued", providerPayments: [] });
+      expect(await outboxCount(fixture, "family_collection.attempt_canceled")).toBe(1);
+      // Un cierre de la puerta no es un cobro fallido: ningún aviso a la familia (D3).
+      expect(await outboxCount(fixture, "family_collection.family_failure_notice")).toBe(0);
+    }
+
+    // Nada se repite: la de prueba ya está pagada y las otras dos se cobran a mano.
+    await run(new Date(), gateway);
+    expect(callsFor(gateway.createPayment.mock.calls, trial)).toHaveLength(1);
+    expect(await attempts(trial)).toHaveLength(1);
+    for (const fixture of [suspended, closed]) {
+      expect(await attempts(fixture)).toHaveLength(1);
+      expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(0);
+    }
   });
 
   it("vencida hace 10 días y el motivo pasajero ya no está: nunca se cobra, intento canceled collection_window_expired", async () => {

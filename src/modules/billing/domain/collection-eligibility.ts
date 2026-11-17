@@ -3,6 +3,7 @@ import {
   type EntitlementSnapshot,
   type SaasSubscriptionProjection,
 } from "@/modules/billing/domain/plan-eligibility";
+import { isOperatingOrganizationStatus } from "@/modules/organizations/domain/organization-status";
 
 export type CollectionEligibilityReason =
   | "organization_not_active"
@@ -131,12 +132,19 @@ export function isPreferenceRevisionCurrent(input: {
 /**
  * Runtime gate for a future collection worker. Every input is loaded and
  * revalidated server-side immediately before the attempt; UI state is not authority.
+ *
+ * La academia debe estar operativa: en prueba (`trial`) o activa. Toda
+ * academia nace `trial` y nada la pasa a `active`, así que exigir `active`
+ * dejaba sin cobro a todas (arreglo del 17-11-2026). Suspendida o cerrada:
+ * `organization_not_active`. El requisito de pago lo decide solo el plan
+ * (evaluateAutomaticCollectionPlanEligibility: plan de pago vigente; la
+ * prueba no cuenta), no el estado de la academia.
  */
 export function evaluateCollectionEligibility(
   input: CollectionEligibilityInput
 ): CollectionEligibility {
   const now = input.now ?? new Date();
-  if (input.organization.status !== "active") {
+  if (!isOperatingOrganizationStatus(input.organization.status)) {
     return { eligible: false, reason: "organization_not_active" };
   }
 

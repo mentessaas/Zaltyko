@@ -535,6 +535,28 @@ describe("evaluateFamilyCollectionGate", () => {
     });
   });
 
+  // Academia operativa = en prueba o activa (arreglo del 17-11-2026).
+  it("deja cobrar a una academia en prueba con plan de pago vigente", () => {
+    expect(
+      gate((input) => {
+        input.organization = { id: "org-a", status: "trial" };
+      })
+    ).toEqual({ allowed: true, paymentMethodKind: "card" });
+  });
+
+  it("una academia en prueba sin plan de pago no cobra: lo decide el plan (pasajero)", () => {
+    expect(
+      gate((input) => {
+        input.organization = { id: "org-a", status: "trial" };
+        input.entitlement = paidEntitlement({
+          planCode: "free",
+          source: "bootstrap",
+          subscriptionId: null,
+        });
+      })
+    ).toEqual({ allowed: false, reason: "paid_plan_required", classification: "transient" });
+  });
+
   it.each<[string, (input: FamilyCollectionGateInput) => void, FamilyCollectionGateReason]>([
     ["bandera apagada", (input) => { input.flagEnabled = false; }, "flag_off"],
     ["clave desconocida", (input) => { input.environment = null; }, "environment_unknown"],
@@ -657,6 +679,12 @@ describe("evaluateFamilyCollectionGate", () => {
     [
       "academia suspendida",
       (input) => { input.organization = { id: "org-a", status: "suspended" }; },
+      "organization_not_active",
+      "final",
+    ],
+    [
+      "academia cerrada",
+      (input) => { input.organization = { id: "org-a", status: "closed" }; },
       "organization_not_active",
       "final",
     ],

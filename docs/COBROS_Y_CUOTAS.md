@@ -397,6 +397,11 @@ Todas estas condiciones a la vez:
   ni producción en esta fase.
 - Base de datos con las tablas del candidato de la Fase 3 **y** los de las
   Fases 1 y 2. Sin ellas no se cobra nada y las pantallas no cambian.
+- Academia operativa: en prueba o activa, no suspendida ni cerrada (nota del
+  17-11-2026: toda academia nace «en prueba» y nada la pasa a «activa», así
+  que exigir «activa» dejaba sin cobro a todas; una suspendida o cerrada no
+  cobra, `organization_not_active`, y la cuota vuelve a manual con
+  recordatorios). Lo que exige pagar sigue siendo solo el plan.
 - Academia con plan de pago vigente (Starter o Growth) y cuenta conectada
   `active` con la tarjeta `active`; para cobrar una domiciliación, también la
   domiciliación `active` **y** la bandera aparte
@@ -412,7 +417,8 @@ Cuándo una cuota es automática:
 
 - **Al emitirse la factura mensual.** La cuota nace automática solo si en ese
   momento se cumple todo lo anterior: bandera y cerrojos abiertos, tablas de
-  las tres fases, plan de pago, preferencia automática, cuenta conectada de
+  las tres fases, academia operativa (en prueba o activa), plan de pago,
+  preferencia automática, cuenta conectada de
   prueba y autorización activa del pagador de la factura. Si no, nace manual,
   como hasta ahora, y se queda manual. Con la bandera de la domiciliación
   apagada, la cuota de quien domicilia nace manual.
@@ -782,7 +788,8 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
   queda sin repartir, con aviso «Necesita revisión» a la academia. El intento
   nunca queda fallido.
 - **Nunca se cobra a quien ya no paga.** El día del cobro se vuelve a cargar
-  todo y se pasa por la puerta: la de ADR-0020 (plan, preferencia, cuenta,
+  todo y se pasa por la puerta: la de ADR-0020 (academia operativa, es decir
+  en prueba o activa y no suspendida ni cerrada; plan, preferencia, cuenta,
   autorización, consentimiento), más que cada cuota tenga el pagador de la
   factura, que ese pagador esté vigente hoy en la fecha local de la sede
   (fila de `family_payers` abierta, tutor y vínculo activos), que la cuenta se
