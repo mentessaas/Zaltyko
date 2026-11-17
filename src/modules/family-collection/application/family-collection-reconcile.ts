@@ -101,7 +101,9 @@ async function rereadProcessing(
       permanent: failure.permanent,
     };
     // El intento sigue en curso (su dinero pudo moverse); pasados 15 días la
-    // academia lo sabe y puede «Marcar como revisado». El aviso va antes del
+    // academia lo sabe y puede «Marcar como revisado» (con un error permanente
+    // lo cierra como `reviewed_unverifiable`: lo comprueba en su panel de
+    // Stripe y, si se cobró, lo registra como pago manual). El aviso va antes del
     // registro para saber si ya existía; si falla, se registra igual el error
     // de Stripe y después el del aviso.
     let noticeAlreadyRecorded = false;

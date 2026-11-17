@@ -1600,8 +1600,16 @@ export interface AcademyAttemptView extends CollectionAttempt {
   hasReviewNotice: boolean;
 }
 
-/** Motivo (`failure_code`) con el que la academia cierra un intento. */
-export type AcademyCloseReason = "canceled_by_academy" | "reviewed_by_academy";
+/**
+ * Motivo (`failure_code`) con el que la academia cierra un intento:
+ * - `canceled_by_academy`: «Cancelar el cobro automático»;
+ * - `reviewed_by_academy`: «Marcar como revisado» tras comprobar en Stripe
+ *   que no se movió dinero (o que ya está en el libro);
+ * - `reviewed_unverifiable`: «Marcar como revisado» sin poder saber si se
+ *   cobró (Stripe no deja leerlo por un error permanente, o cobró otro
+ *   importe, que no se registra). La academia lo comprueba en su panel.
+ */
+export type AcademyCloseReason = "canceled_by_academy" | "reviewed_by_academy" | "reviewed_unverifiable";
 
 /** Último intento (por número) de la factura de esa academia, o null. */
 export async function readLatestAttemptForAcademy(input: {
@@ -1736,9 +1744,9 @@ export async function closeAttemptByAcademy(input: {
       locationId: attempt.locationId,
       actorUserId: input.actor.userId,
       action:
-        input.reason === "reviewed_by_academy"
-          ? "family_collection.attempt_reviewed"
-          : "family_collection.attempt_canceled",
+        input.reason === "canceled_by_academy"
+          ? "family_collection.attempt_canceled"
+          : "family_collection.attempt_reviewed",
       targetType: "family_collection_attempt",
       targetId: attempt.id,
       idempotencyKey,

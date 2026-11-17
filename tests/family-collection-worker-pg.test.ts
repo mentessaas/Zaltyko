@@ -943,6 +943,80 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(4);
   });
 
+  it("C2: avisos de primer fallo de página en página y con el reintento ya reclamado: todos salen", async () => {
+    const declined = (paymentIntentId: string): FakeConfirmError => ({
+      type: "card_error",
+      code: "card_declined",
+      declineCode: "insufficient_funds",
+      paymentIntent: {
+        id: paymentIntentId,
+        status: "requires_payment_method",
+        lastErrorCode: "card_declined",
+        lastDeclineCode: "insufficient_funds",
+      },
+    });
+    const { gateway } = fakeStripe({ confirm: (paymentIntentId) => declined(paymentIntentId) });
+    const first = await createCollectableInvoice();
+    const second = await createCollectableInvoice();
+    const runFor = (fixture: Fixture, now: Date) =>
+      runFamilyCollection(
+        { now, organizationIds: [fixture.organizationId] },
+        { store: createFamilyCollectionStore(), gateway, refreshAccount: refresher(now) }
+      );
+    // Fechas desde el día local del primer intento: no depende del día en que corra.
+    const timezone = "Europe/Madrid";
+    const start = new Date();
+    const firstDay = localCalendarDate(start, timezone);
+    const retryOn = (days: number) => startOfLocalDay(addLocalDays(firstDay, days), timezone);
+
+    await runFor(first, start);
+    await runFor(second, start);
+    // El aviso del primero no salió ese día y al siguiente la Fase B ya reclamó
+    // (y volvió a fallar) su reintento, con el siguiente a los 3 días.
+    const nextDay = new Date(retryOn(1).getTime() + HOUR);
+    await runFor(first, nextDay);
+    const firstAttempts = await attempts(first);
+    expect(firstAttempts).toHaveLength(2);
+    expect(firstAttempts[1]).toMatchObject({ number: 2, status: "failed" });
+
+    const emails: string[] = [];
+    for (const fixture of [first, second]) {
+      const payerEmail = `ci-collection-payer-${compact()}@example.invalid`;
+      emails.push(payerEmail);
+      await db.execute(sql`
+        insert into zaltyko.guardian_contacts (organization_id, guardian_id, kind, value, normalized_value, is_primary)
+        values (
+          ${fixture.organizationId}::uuid,
+          (select fp.guardian_id from zaltyko.family_payers fp where fp.id = ${fixture.payerId}::uuid),
+          'email', ${payerEmail}, ${payerEmail}, true
+        )
+      `);
+    }
+    const sendEmail = vi.fn(async (_options: { to: string; text?: string; dedupeKey?: string }) => true);
+    // Páginas de un aviso: obliga a seguir con el cursor de la consulta real.
+    const delivery = await deliverFamilyFailureNotices(
+      {
+        now: nextDay,
+        appUrl: "https://zaltyko.test",
+        organizationIds: [first.organizationId, second.organizationId],
+        limit: 1,
+      },
+      { sendEmail }
+    );
+    expect(delivery).toEqual({ sent: 2, notSent: 0, pending: 0 });
+    const textTo = new Map(sendEmail.mock.calls.map(([options]) => [options.to, options.text ?? ""]));
+    // El del reintento ya reclamado no se anula: promete el siguiente (día +3).
+    expect(textTo.get(emails[0]!)).toContain(`Volveremos a intentarlo el ${retryDayLabel(addLocalDays(firstDay, 3))}`);
+    // El otro, con su reintento de hoy todavía por salir: «pronto», sin fecha.
+    expect(textTo.get(emails[1]!)).toContain("Volveremos a intentarlo pronto");
+    const results = await db.execute(sql`
+      select payload ->> 'outcome' as "outcome" from zaltyko.outbox_events
+       where organization_id = any(string_to_array(${[first.organizationId, second.organizationId].join(",")}, ',')::uuid[])
+         and event_name = 'family_collection.family_failure_notice_result'
+    `);
+    expect(results.rows).toEqual([{ outcome: "sent" }, { outcome: "sent" }]);
+  });
+
   it("domiciliación en curso: queda processing y la relectura del día siguiente la cierra aunque se apague la domiciliación", async () => {
     const fixture = await createCollectableInvoice({ kind: "sepa_debit" });
     const { gateway, intents } = fakeStripe({

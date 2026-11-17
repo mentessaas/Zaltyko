@@ -8,14 +8,17 @@
  * en Stripe. Un error que no trae el cobro (red, límite de peticiones, error
  * interno de Stripe…) es siempre `transient`: el intento se queda como está y
  * la reanudación del día siguiente relee el cobro. La única excepción es
- * `finalCreateErrorCode`: al CREAR el cobro, unos pocos rechazos de Stripe
- * dicen con seguridad que no se creó nada y que repetir no lo arreglará.
+ * `finalCreateErrorCode`: al CREAR el cobro, los rechazos de la petición
+ * (400) dicen con seguridad que no se creó nada y que repetir no lo arreglará.
+ *
+ * Un cobro cancelado en Stripe sin ningún error de pago no es un rechazo del
+ * banco: lo canceló Zaltyko, la academia o alguien desde el panel de Stripe.
+ * Se cierra como `canceled_in_stripe`, sin aviso a la familia ni reintento.
  *
  * Un cobro hecho solo se registra si Stripe dice que se cobró exactamente el
  * importe del intento y en euros (`receivedMatches`).
  */
 import { SUPPORTED_COLLECTION_CURRENCY } from "./collection-gate";
-import { stripeReadFailureOf } from "./stripe-read-error";
 
 /** Lo que se guarda de un cobro de Stripe: solo su id, estado, códigos e importe y moneda cobrados. */
 export interface PaymentIntentSnapshot {
@@ -114,6 +117,15 @@ export interface PaymentFailure {
   declineCode: string | null;
 }
 
+/**
+ * Motivo (`failure_code`) del intento `canceled` cuyo cobro apareció cancelado
+ * en Stripe sin ningún error de pago: lo canceló Zaltyko (al programar un
+ * reintento, por la puerta o por un recordatorio ya enviado), la academia o
+ * alguien desde el panel de Stripe. No es un fallo de la tarjeta: la familia
+ * no recibe el aviso de cobro fallido y no hay reintento.
+ */
+export const CANCELED_IN_STRIPE_CODE = "canceled_in_stripe";
+
 export type PaymentOutcome =
   | "succeeded"
   | "processing"
@@ -123,7 +135,12 @@ export type PaymentOutcome =
   /** No se sabe el resultado: el intento se queda como está y se reanuda. */
   | "transient"
   /** Stripe rechazó la clave de idempotencia: nunca se crea otro cobro. */
-  | "idempotency_conflict";
+  | "idempotency_conflict"
+  /**
+   * Cancelado en Stripe sin ningún error de pago (CANCELED_IN_STRIPE_CODE):
+   * el banco no rechazó nada. El intento se cierra como `canceled`.
+   */
+  | typeof CANCELED_IN_STRIPE_CODE;
 
 /** El banco pide que la persona confirme el pago (3DS). */
 export const AUTHENTICATION_REQUIRED_CODE = "authentication_required";
@@ -149,6 +166,24 @@ const FAILED_STATUSES: ReadonlySet<string> = new Set([
   "requires_action",
   "canceled",
 ]);
+
+/**
+ * ¿Cancelado en Stripe sin ningún error de pago? Ni el cobro guarda un último
+ * error (`last_payment_error`) ni la llamada trajo un rechazo del banco
+ * (`decline_code`). El código de la llamada (p. ej. confirmar un cobro ya
+ * cancelado) no es un rechazo del banco y no cuenta.
+ */
+function canceledWithoutPaymentError(
+  snapshot: PaymentIntentSnapshot,
+  overrides?: { code: string | null; declineCode: string | null }
+): boolean {
+  return (
+    snapshot.status === "canceled" &&
+    codeOf(snapshot.lastErrorCode) === null &&
+    codeOf(snapshot.lastDeclineCode) === null &&
+    codeOf(overrides?.declineCode ?? null) === null
+  );
+}
 
 const IDEMPOTENCY_ERROR_TYPES: ReadonlySet<string> = new Set([
   "idempotency_error",
@@ -201,6 +236,7 @@ function mapSnapshot(
     case "requires_confirmation":
       return "requires_confirmation";
     default:
+      if (canceledWithoutPaymentError(snapshot, overrides)) return CANCELED_IN_STRIPE_CODE;
       if (FAILED_STATUSES.has(snapshot.status)) return failed(snapshot, overrides);
       // Estado desconocido: no se decide nada sin entenderlo.
       return "transient";
@@ -264,7 +300,7 @@ export function snapshotOfPaymentIntent(value: unknown): PaymentIntentSnapshot |
 
 /**
  * Rechazos de Stripe al CREAR el cobro que dicen con seguridad que no se creó
- * nada y que repetir no lo arreglará:
+ * nada y que repetir no lo arreglará, venga con el estado HTTP que venga:
  * - `amount_too_small`: el importe no llega al mínimo de Stripe;
  * - `resource_missing`: el cliente o el método de pago de la familia ya no
  *   existen en la cuenta de la academia;
@@ -281,19 +317,57 @@ const FINAL_CREATE_CODES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Además, cualquier petición rechazada (HTTP 400, `invalid_request_error`) es
+ * final al crear, salvo los conflictos de idempotencia y los bloqueos, que se
+ * arreglan esperando. Sin código, se cierra con INVALID_CREATE_REQUEST_CODE.
+ */
+const INVALID_REQUEST_ERROR_TYPES: ReadonlySet<string> = new Set([
+  "invalid_request_error",
+  "StripeInvalidRequestError",
+]);
+const RETRYABLE_REQUEST_CODES: ReadonlySet<string> = new Set([
+  "idempotency_key_in_use",
+  "idempotency_error",
+  "lock_timeout",
+  "rate_limit",
+]);
+
+/** Motivo de un rechazo de la petición al crear que no trae código. */
+export const INVALID_CREATE_REQUEST_CODE = "invalid_request";
+
+/** ¿Es un rechazo de la petición (HTTP 400, `invalid_request_error`) que no es de idempotencia? */
+function isFinalInvalidRequest(error: object, code: string | null): boolean {
+  const fields = error as { type?: unknown; rawType?: unknown; statusCode?: unknown };
+  if (fields.statusCode !== 400) return false;
+  const types = [fields.rawType, fields.type].filter((value): value is string => typeof value === "string");
+  if (types.some((type) => IDEMPOTENCY_ERROR_TYPES.has(type))) return false;
+  if (!types.some((type) => INVALID_REQUEST_ERROR_TYPES.has(type))) return false;
+  return code === null || !RETRYABLE_REQUEST_CODES.has(code);
+}
+
+/**
  * Código con el que se cierra (`canceled`) un intento cuyo cobro Stripe se
  * negó a CREAR, o `null` si hay que tratarlo como pasajero. Solo para errores
  * de la creación y solo si el error no trae un cobro: con cobro, manda su
- * estado. Los errores de red, límite de peticiones, error interno de Stripe,
- * permisos o bloqueos siguen siendo pasajeros. El código se lee igual que al
- * releer un cobro (stripeReadFailureOf): nunca el mensaje.
+ * estado. Es final:
+ * - uno de FINAL_CREATE_CODES;
+ * - cualquier otro rechazo de la petición (HTTP 400, `invalid_request_error`)
+ *   que no sea de idempotencia ni un bloqueo: con su código o, sin él,
+ *   INVALID_CREATE_REQUEST_CODE.
+ * Siguen siendo pasajeros los errores de red, límite de peticiones, error
+ * interno de Stripe (5xx), bloqueos, idempotencia y los de autenticación o
+ * permisos sin código (una mala configuración de la plataforma no debe
+ * cancelar todas las cuotas). Solo se lee el código del error (`code`):
+ * nunca el mensaje.
  */
 export function finalCreateErrorCode(error: unknown): string | null {
   if (typeof error !== "object" || error === null) return null;
   const attached = (error as { payment_intent?: unknown }).payment_intent;
   if (attached !== undefined && attached !== null) return null;
-  const code = stripeReadFailureOf(error).errorCode?.toLowerCase() ?? null;
-  return code !== null && FINAL_CREATE_CODES.has(code) ? code : null;
+  const code = codeOf((error as { code?: unknown }).code)?.toLowerCase() ?? null;
+  if (code !== null && FINAL_CREATE_CODES.has(code)) return code;
+  if (isFinalInvalidRequest(error, code)) return code ?? INVALID_CREATE_REQUEST_CODE;
+  return null;
 }
 
 /**
@@ -339,6 +413,8 @@ function isCollectionError(
  *   `requires_confirmation` (creado y sin confirmar) salen del estado.
  * - `{ failed }` solo cuando se conoce el cobro y Stripe lo dejó sin pagar.
  *   `authentication_required` es un fallo terminal en esta fase.
+ * - `canceled_in_stripe`: cancelado sin ningún error de pago (no es un
+ *   rechazo del banco: el intento se cierra como `canceled`).
  * - `idempotency_conflict`: Stripe rechazó la clave; nunca se crea otro cobro.
  * - `transient`: cualquier otra cosa.
  */

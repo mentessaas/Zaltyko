@@ -259,24 +259,46 @@ describe("cron del cobro automático de cuotas", () => {
     expect((await body(response)).data).toMatchObject({ enabled: true, complete: false, collected: 0 });
   });
 
-  it("D3: tras el cobro envía los avisos de primer fallo a las familias y responde solo sus contadores", async () => {
+  it("D3: envía los avisos de primer fallo antes de cobrar (los de otro día) y después (los de hoy); responde solo sus contadores", async () => {
     env.flag = true;
-    mocks.deliverNotices.mockResolvedValue({
-      sent: 2,
-      notSent: 1,
-      pending: 1,
-      // Lo que no es un contador nunca sale en la respuesta.
-      attemptId: "20000000-0000-4000-8000-000000000009",
-    });
+    mocks.deliverNotices
+      .mockResolvedValueOnce({
+        sent: 2,
+        notSent: 1,
+        pending: 1,
+        // Lo que no es un contador nunca sale en la respuesta.
+        attemptId: "20000000-0000-4000-8000-000000000009",
+      })
+      .mockResolvedValueOnce({ sent: 3, notSent: 0, pending: 0 });
     const response = await POST(withSecret());
     expect(response.status).toBe(200);
-    expect(mocks.deliverNotices).toHaveBeenCalledTimes(1);
-    // Dentro del lease y después de cobrar.
-    expect(mocks.collect.mock.invocationCallOrder[0]).toBeLessThan(mocks.deliverNotices.mock.invocationCallOrder[0]!);
+    expect(mocks.deliverNotices).toHaveBeenCalledTimes(2);
+    // C2: los pendientes salen ANTES de la puesta al día y de la Fase B (que
+    // reclama los reintentos); los de hoy, después de cobrar. Todo dentro del lease.
+    const [early, late] = mocks.deliverNotices.mock.invocationCallOrder;
+    expect(early).toBeLessThan(mocks.reconcile.mock.invocationCallOrder[0]!);
+    expect(early).toBeLessThan(mocks.collect.mock.invocationCallOrder[0]!);
+    expect(mocks.collect.mock.invocationCallOrder[0]).toBeLessThan(late!);
+    // El primer envío tiene su propio plazo corto; el segundo, el de por defecto.
+    expect(mocks.deliverNotices.mock.calls[0]).toEqual([{ deadlineMs: 20_000 }]);
+    expect(mocks.deliverNotices.mock.calls[1]).toEqual([{}]);
     const data = (await body(response)).data;
-    expect(data?.familyNotices).toEqual({ sent: 2, notSent: 1, pending: 1 });
+    // Suma de los dos envíos; los pendientes, los del último.
+    expect(data?.familyNotices).toEqual({ sent: 5, notSent: 1, pending: 0 });
     expect(data).toMatchObject({ enabled: true, collected: 4 });
     expect(JSON.stringify(data)).not.toMatch(/20000000-/);
+  });
+
+  it("C2: si falla el primer envío de avisos, se cobra igual y cuenta el segundo", async () => {
+    env.flag = true;
+    mocks.deliverNotices
+      .mockRejectedValueOnce(Object.assign(new Error("base caída"), { code: "57P01" }))
+      .mockResolvedValueOnce({ sent: 1, notSent: 0, pending: 0 });
+    const response = await POST(withSecret());
+    expect(response.status).toBe(200);
+    expect(mocks.collect).toHaveBeenCalledTimes(1);
+    const data = (await body(response)).data;
+    expect(data).toMatchObject({ enabled: true, collected: 4, familyNotices: { sent: 1, notSent: 0, pending: 0 } });
   });
 
   it("D3: si fallan los avisos, el cobro ya hecho se responde igual y solo se registra el nombre del error", async () => {

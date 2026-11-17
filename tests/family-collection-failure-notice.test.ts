@@ -186,6 +186,12 @@ describe("aviso del primer fallo: claves y cuándo se avisa", () => {
       "collection_window_expired",
       "canceled_by_academy",
       "reviewed_by_academy",
+      // C1: cerrado por la academia sin saber si se cobró; C3: cancelado en Stripe
+      // sin error de pago; C4: petición rechazada al crear.
+      "reviewed_unverifiable",
+      "canceled_in_stripe",
+      "invalid_request",
+      "parameter_invalid_integer",
     ]) {
       expect(notifiesFamilyOnCancel({ attemptNumber: 1, reason }), reason).toBe(false);
     }
@@ -465,8 +471,11 @@ describe("aviso del primer fallo: qué se hace con un aviso pendiente", () => {
     expect(close({ organizationStatus: "suspended" })).toEqual({ action: "close", outcome: "organization_inactive" });
     expect(close({ invoiceStatus: "paid" })).toEqual({ action: "close", outcome: "invoice_closed" });
     expect(close({ invoiceStatus: "void" })).toEqual({ action: "close", outcome: "invoice_closed" });
-    // Ya hubo un reintento, el intento no es el primero o no está fallido.
-    expect(close({ lastAttemptNumber: 2 })).toEqual({ action: "close", outcome: "superseded" });
+    // Un reintento posterior ya cobró la cuota, el intento no es el primero o no está fallido.
+    expect(close({ lastAttemptNumber: 2, lastAttemptStatus: "succeeded" })).toEqual({
+      action: "close",
+      outcome: "superseded",
+    });
     expect(close({ attemptNumber: 2, lastAttemptNumber: 2 })).toEqual({ action: "close", outcome: "superseded" });
     expect(close({ attemptStatus: "canceled" })).toEqual({ action: "close", outcome: "superseded" });
     expect(close({ attemptStatus: "canceled", failureCode: "sepa_not_enabled", declineCode: null, nextRetryAt: null })).toEqual({
@@ -478,6 +487,53 @@ describe("aviso del primer fallo: qué se hace con un aviso pendiente", () => {
       outcome: "superseded",
     });
     expect(close({ payerEmail: null })).toEqual({ action: "close", outcome: "no_email" });
+  });
+
+  it("C2: un reintento ya reclamado no anula el aviso del primer fallo: se envía sin fecha o con la del siguiente", () => {
+    const decide = (overrides: Partial<PendingFamilyFailureNotice>, options = ON) =>
+      decideFamilyFailureNotice(pending({ lastAttemptNumber: 2, ...overrides }), NOW, options);
+    // El intento 2 está en curso (o no se sabe su estado): «pronto», sin fecha.
+    for (const lastAttemptStatus of ["claimed", "created", "processing", undefined]) {
+      expect(decide({ lastAttemptStatus }), String(lastAttemptStatus)).toEqual({
+        action: "send",
+        retryScheduled: true,
+        retryDateLocal: null,
+      });
+    }
+    // El intento 2 falló con otro reintento programado (20-11): la fecha de ese siguiente.
+    expect(decide({ lastAttemptStatus: "failed", lastAttemptNextRetryAt: retryOn(20) })).toEqual({
+      action: "send",
+      retryScheduled: true,
+      retryDateLocal: "2026-11-20",
+    });
+    // …ya en su día: sin fecha.
+    expect(decide({ lastAttemptStatus: "failed", lastAttemptNextRetryAt: retryOn(17) })).toEqual({
+      action: "send",
+      retryScheduled: true,
+      retryDateLocal: null,
+    });
+    // El intento 2 falló sin reintento o se canceló: sin promesa (ya no se cobrará sola).
+    for (const overrides of [
+      { lastAttemptStatus: "failed", lastAttemptNextRetryAt: null },
+      { lastAttemptStatus: "canceled", lastAttemptNextRetryAt: null },
+    ]) {
+      expect(decide(overrides), overrides.lastAttemptStatus).toEqual({
+        action: "send",
+        retryScheduled: false,
+        retryDateLocal: null,
+      });
+    }
+    // Sin la bandera o con la puerta que ya sabe que lo cancelará, nunca se promete.
+    expect(decide({ lastAttemptStatus: "created" }, OFF)).toEqual({
+      action: "send",
+      retryScheduled: false,
+      retryDateLocal: null,
+    });
+    expect(decide({ lastAttemptStatus: "failed", lastAttemptNextRetryAt: retryOn(20), reminderSent: true })).toEqual({
+      action: "send",
+      retryScheduled: false,
+      retryDateLocal: null,
+    });
   });
 });
 
@@ -497,7 +553,10 @@ describe("aviso del primer fallo: envío", () => {
       since: new Date(NOW.getTime() - FAMILY_FAILURE_NOTICE_MAX_AGE_MS),
       limit: FAMILY_FAILURE_NOTICE_BATCH,
       scope: null,
+      after: null,
     });
+    // Una página incompleta: no se pide otra.
+    expect(store.listPending).toHaveBeenCalledTimes(1);
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const options = sendEmail.mock.calls[0]![0];
     expect(options).toMatchObject({
@@ -581,7 +640,7 @@ describe("aviso del primer fallo: envío", () => {
     const notices = [
       pending({ attemptId: "94000000-0000-4000-8000-000000000011", payerEmail: null }),
       pending({ attemptId: "94000000-0000-4000-8000-000000000012", invoiceStatus: "paid" }),
-      pending({ attemptId: "94000000-0000-4000-8000-000000000013", lastAttemptNumber: 2 }),
+      pending({ attemptId: "94000000-0000-4000-8000-000000000013", lastAttemptNumber: 2, lastAttemptStatus: "succeeded" }),
     ];
     const { store, results } = memoryStore(notices);
     const sendEmail = sender();
@@ -718,6 +777,102 @@ describe("aviso del primer fallo: envío", () => {
     }
     expect(mocks.sendEmailWithLogging).not.toHaveBeenCalled();
     expect(mocks.createStore).not.toHaveBeenCalled();
+  });
+
+  it("C2: un reintento ya reclamado (intento 2 en curso) no deja a la familia sin aviso: se envía sin fecha", async () => {
+    const { store, results } = memoryStore([pending({ lastAttemptNumber: 2, lastAttemptStatus: "created" })]);
+    const sendEmail = sender();
+    const delivery = await deliverFamilyFailureNotices(
+      { now: NOW, appUrl: "https://zaltyko.test" },
+      { store, sendEmail, isStorageAvailable: async () => true }
+    );
+    expect(delivery).toEqual({ sent: 1, notSent: 0, pending: 0 });
+    expect(results.get(ATTEMPT_ID)).toBe("sent");
+    const options = sendEmail.mock.calls[0]![0];
+    expect(options.text).toContain("Volveremos a intentarlo pronto con la tarjeta que tengas guardada.");
+    expect(options.text).not.toMatch(/intentarlo el \d/);
+  });
+
+  it("C2: con más avisos que una página, sigue de página en página hasta enviarlos todos", async () => {
+    const total = FAMILY_FAILURE_NOTICE_BATCH * 2 + 7;
+    // Instantes del aviso fijos y crecientes (el orden de la consulta real).
+    const notices = Array.from({ length: total }, (_, index) =>
+      pending({
+        attemptId: `94000000-0000-4000-8000-${String(100000000000 + index)}`,
+        invoiceId: `95000000-0000-4000-8000-${String(100000000000 + index)}`,
+        occurredAt: new Date(Date.UTC(2026, 10, 16, 8, 0, index)).toISOString(),
+      })
+    );
+    const results = new Map<string, FamilyFailureNoticeOutcome>();
+    const store = {
+      // Como la consulta real: sin resultado, después del cursor y como mucho `limit`.
+      listPending: vi.fn<FamilyFailureNoticeStore["listPending"]>(async (input) => {
+        const after = input.after ?? null;
+        return notices
+          .filter((notice) => !results.has(notice.attemptId))
+          .filter(
+            (notice) =>
+              after === null ||
+              notice.occurredAt! > after.occurredAt ||
+              (notice.occurredAt === after.occurredAt && notice.attemptId > after.attemptId)
+          )
+          .slice(0, input.limit);
+      }),
+      recordResult: vi.fn<FamilyFailureNoticeStore["recordResult"]>(async (input) => {
+        results.set(input.attemptId, input.outcome);
+        return true;
+      }),
+    };
+    const sendEmail = sender();
+
+    const delivery = await deliverFamilyFailureNotices(
+      { now: NOW, appUrl: "https://zaltyko.test" },
+      { store, sendEmail, isStorageAvailable: async () => true }
+    );
+
+    expect(delivery).toEqual({ sent: total, notSent: 0, pending: 0 });
+    expect(sendEmail).toHaveBeenCalledTimes(total);
+    expect(new Set(sendEmail.mock.calls.map(([options]) => options.dedupeKey)).size).toBe(total);
+    // Tres páginas: 50, 50 y 7 (la incompleta es la última).
+    expect(store.listPending).toHaveBeenCalledTimes(3);
+    expect(store.listPending.mock.calls[0]![0].after).toBeNull();
+    expect(store.listPending.mock.calls[1]![0].after).toEqual({
+      occurredAt: notices[FAMILY_FAILURE_NOTICE_BATCH - 1]!.occurredAt,
+      attemptId: notices[FAMILY_FAILURE_NOTICE_BATCH - 1]!.attemptId,
+    });
+    expect(store.listPending.mock.calls[2]![0].after).toEqual({
+      occurredAt: notices[FAMILY_FAILURE_NOTICE_BATCH * 2 - 1]!.occurredAt,
+      attemptId: notices[FAMILY_FAILURE_NOTICE_BATCH * 2 - 1]!.attemptId,
+    });
+  });
+
+  it("C2: una página que no avanza (o sin instante del aviso) no se repite en bucle", async () => {
+    const full = Array.from({ length: FAMILY_FAILURE_NOTICE_BATCH }, (_, index) =>
+      pending({ attemptId: `94000000-0000-4000-8000-${String(200000000000 + index)}` })
+    );
+    // Sin `occurredAt`: no se puede pedir la página siguiente sin repetir.
+    const store = {
+      listPending: vi.fn<FamilyFailureNoticeStore["listPending"]>(async () => full),
+      recordResult: vi.fn<FamilyFailureNoticeStore["recordResult"]>(async () => true),
+    };
+    const delivery = await deliverFamilyFailureNotices(
+      { now: NOW, appUrl: "https://zaltyko.test" },
+      { store, sendEmail: sender(), isStorageAvailable: async () => true }
+    );
+    expect(delivery.sent).toBe(FAMILY_FAILURE_NOTICE_BATCH);
+    expect(store.listPending).toHaveBeenCalledTimes(1);
+
+    // Con instante, pero el almacén devuelve siempre la misma página: se para en la segunda.
+    const stamped = full.map((notice) => ({ ...notice, occurredAt: "2026-11-16T08:00:00.000000Z" }));
+    const stuck = {
+      listPending: vi.fn<FamilyFailureNoticeStore["listPending"]>(async () => stamped),
+      recordResult: vi.fn<FamilyFailureNoticeStore["recordResult"]>(async () => true),
+    };
+    await deliverFamilyFailureNotices(
+      { now: NOW, appUrl: "https://zaltyko.test" },
+      { store: stuck, sendEmail: sender(), isStorageAvailable: async () => true }
+    );
+    expect(stuck.listPending).toHaveBeenCalledTimes(2);
   });
 
   it("con el plazo agotado no envía nada más y lo deja para la siguiente ejecución", async () => {

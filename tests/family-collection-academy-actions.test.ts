@@ -21,6 +21,7 @@ import type Stripe from "stripe";
 import {
   cancelAutomaticCollection,
   markAutomaticCollectionReviewed,
+  REVIEWED_UNVERIFIABLE_TEXT,
   type AcademyCollectionGateway,
   type AcademyCollectionStore,
 } from "@/modules/family-collection/application/family-collection-academy-actions";
@@ -314,7 +315,7 @@ describe("cancelar el cobro automático", () => {
     });
   });
 
-  it("Stripe cobró otro importe: se pasa tal cual, no se registra ni se cierra y responde 409 para soporte", async () => {
+  it("Stripe cobró otro importe: se pasa tal cual, no se registra ni se cierra y responde 409 que manda a «Marcar como revisado»", async () => {
     const store = fakeStore(attempt(), {
       applyOutcome: vi.fn<AcademyCollectionStore["applyOutcome"]>(async () => ({
         applied: false as const,
@@ -324,10 +325,10 @@ describe("cancelar el cobro automático", () => {
     const gateway = fakeGateway({ [paymentIntentId]: "succeeded" }, "canceled", 4000);
 
     await expect(cancelAutomaticCollection(cancelInput, { store, gateway })).rejects.toMatchObject({
-      code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
+      code: "AUTOMATIC_COLLECTION_REVIEW_REQUIRED",
       status: 409,
       message:
-        "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
+        "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Compruébalo en Stripe y usa «Marcar como revisado».",
     });
     expect(store.applyOutcome).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -487,6 +488,8 @@ describe("marcar como revisado", () => {
     // Errores tal como los lanza stripe-node 22 (`type` = clase, `code` = código de la API).
     const accountInvalid = () =>
       Object.assign(new Error("sin acceso"), { type: "StripePermissionError", code: "account_invalid", statusCode: 403 });
+    const permissionError = () =>
+      Object.assign(new Error("sin permiso"), { type: "StripePermissionError", rawType: "invalid_request_error", statusCode: 403 });
     const resourceMissing = () =>
       Object.assign(new Error("no existe"), { type: "StripeInvalidRequestError", code: "resource_missing", statusCode: 404 });
     const networkError = () => Object.assign(new Error("connection reset"), { type: "StripeConnectionError" });
@@ -510,21 +513,33 @@ describe("marcar como revisado", () => {
     it.each([
       ["la cuenta ya no es válida", accountInvalid],
       ["el cobro no existe", resourceMissing],
-    ])("16 días y %s (error permanente): 409 para resolverlo con soporte y el intento sigue abierto", async (_label, error) => {
-      const store = fakeStore(longProcessing(16));
+      ["la plataforma ya no tiene permiso", permissionError],
+    ])("C1: 16 días y %s (error permanente comprobado ahora): se cierra como reviewed_unverifiable, con la persona", async (_label, error) => {
+      const current = longProcessing(16);
+      const store = fakeStore(current);
       const gateway = fakeGateway();
       gateway.retrievePayment.mockRejectedValue(error());
 
-      await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
-        code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
-        status: 409,
-        message:
-          "No se puede comprobar en Stripe el cobro de esta cuota. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
+      await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).resolves.toEqual({
+        outcome: "unverifiable",
       });
       expect(gateway.retrievePayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId });
       expect(gateway.cancelPayment).not.toHaveBeenCalled();
       expect(store.applyOutcome).not.toHaveBeenCalled();
-      expect(store.closeAttempt).not.toHaveBeenCalled();
+      expect(store.closeAttempt).toHaveBeenCalledWith({
+        organizationId,
+        attemptId,
+        expected: { status: "processing", paymentIntentId },
+        reason: "reviewed_unverifiable",
+        actor: { userId, memberId },
+        now,
+      });
+    });
+
+    it("C1: el texto para la academia es exacto", () => {
+      expect(REVIEWED_UNVERIFIABLE_TEXT).toBe(
+        "Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual."
+      );
     });
 
     it("16 días y Stripe falla de forma pasajera: 503 para reintentar y no se cierra", async () => {
@@ -560,26 +575,31 @@ describe("marcar como revisado", () => {
       expect(store.closeAttempt).not.toHaveBeenCalled();
     });
 
-    it("cancelar en Stripe con error permanente tras leerlo: 409 para soporte y no se cierra", async () => {
+    it("C1: cancelar en Stripe con error permanente tras leerlo: se cierra como reviewed_unverifiable", async () => {
       const store = fakeStore(attempt({ hasReviewNotice: true }));
       const gateway = fakeGateway();
       gateway.cancelPayment.mockRejectedValue(accountInvalid());
 
-      await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
-        code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
-        status: 409,
+      await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).resolves.toEqual({
+        outcome: "unverifiable",
       });
-      expect(store.closeAttempt).not.toHaveBeenCalled();
+      expect(gateway.retrievePayment).toHaveBeenCalledTimes(1);
+      expect(store.closeAttempt).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: "reviewed_unverifiable", expected: { status: "created", paymentIntentId } })
+      );
     });
 
-    it("la búsqueda de cobros con error permanente: 409 para soporte; con varios cobros, también al releer uno", async () => {
+    it("C1: la búsqueda de cobros con error permanente: se cierra como reviewed_unverifiable; con varios cobros, también al releer", async () => {
       const searching = fakeStore(attempt({ status: "claimed", paymentIntentId: null, hasReviewNotice: true }));
       const searchGateway = fakeGateway();
       searchGateway.listPaymentsByAttempt.mockRejectedValue(accountInvalid());
       await expect(
         markAutomaticCollectionReviewed(reviewInput, { store: searching, gateway: searchGateway })
-      ).rejects.toMatchObject({ code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT", status: 409 });
-      expect(searching.closeAttempt).not.toHaveBeenCalled();
+      ).resolves.toEqual({ outcome: "unverifiable" });
+      expect(searchGateway.retrievePayment).not.toHaveBeenCalled();
+      expect(searching.closeAttempt).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: "reviewed_unverifiable", expected: { status: "claimed", paymentIntentId: null } })
+      );
 
       const many = fakeStore(attempt({ status: "claimed", paymentIntentId: null, hasReviewNotice: true }));
       const manyGateway = fakeGateway();
@@ -588,11 +608,56 @@ describe("marcar como revisado", () => {
         intent("pi_SyntheticAcademyMany2", "canceled"),
       ]);
       manyGateway.retrievePayment.mockRejectedValue(resourceMissing());
-      await expect(markAutomaticCollectionReviewed(reviewInput, { store: many, gateway: manyGateway })).rejects.toMatchObject({
+      await expect(markAutomaticCollectionReviewed(reviewInput, { store: many, gateway: manyGateway })).resolves.toEqual({
+        outcome: "unverifiable",
+      });
+      expect(manyGateway.retrievePayment).toHaveBeenCalledTimes(2);
+      expect(many.closeAttempt).toHaveBeenCalledWith(expect.objectContaining({ reason: "reviewed_unverifiable" }));
+    });
+
+    it("C1: varios cobros, uno ilegible para siempre y otro ya cobrado: 409 y no se cierra", async () => {
+      const unreadableId = "pi_SyntheticAcademyGone";
+      const movedId = "pi_SyntheticAcademyMoved";
+      const store = fakeStore(attempt({ status: "claimed", paymentIntentId: null, hasReviewNotice: true }));
+      const gateway = fakeGateway({ [movedId]: "succeeded" });
+      gateway.listPaymentsByAttempt.mockResolvedValue([
+        intent(unreadableId, "requires_confirmation"),
+        intent(movedId, "requires_confirmation"),
+      ]);
+      gateway.retrievePayment.mockImplementation(async (input) => {
+        if (input.paymentIntentId === unreadableId) throw resourceMissing();
+        return intent(input.paymentIntentId, "succeeded");
+      });
+
+      await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
         code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
         status: 409,
       });
-      expect(many.closeAttempt).not.toHaveBeenCalled();
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+      expect(store.closeAttempt).not.toHaveBeenCalled();
+    });
+
+    it("C1: varios cobros, uno ilegible para siempre y otro abierto: cancela el abierto y se cierra sin saberlo", async () => {
+      const unreadableId = "pi_SyntheticAcademyGone";
+      const openId = "pi_SyntheticAcademyOpen";
+      const store = fakeStore(attempt({ status: "claimed", paymentIntentId: null, hasReviewNotice: true }));
+      const statuses: Record<string, string> = { [openId]: "requires_payment_method" };
+      const gateway = fakeGateway(statuses);
+      gateway.listPaymentsByAttempt.mockResolvedValue([
+        intent(unreadableId, "requires_confirmation"),
+        intent(openId, "requires_payment_method"),
+      ]);
+      gateway.retrievePayment.mockImplementation(async (input) => {
+        if (input.paymentIntentId === unreadableId) throw resourceMissing();
+        return intent(input.paymentIntentId, statuses[input.paymentIntentId] ?? "requires_confirmation");
+      });
+
+      await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).resolves.toEqual({
+        outcome: "unverifiable",
+      });
+      expect(gateway.cancelPayment).toHaveBeenCalledTimes(1);
+      expect(gateway.cancelPayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: openId });
+      expect(store.closeAttempt).toHaveBeenCalledWith(expect.objectContaining({ reason: "reviewed_unverifiable" }));
     });
 
     it("cancelar el cobro automático no cambia: con error permanente sigue siendo 503", async () => {
@@ -743,7 +808,7 @@ describe("marcar como revisado", () => {
     expect(store.closeAttempt).not.toHaveBeenCalled();
   });
 
-  it("cobrado con otro importe: marcar como revisado responde 409 para soporte y nunca cierra", async () => {
+  it("C1: cobrado con otro importe: marcar como revisado lo cierra como reviewed_unverifiable sin registrar el pago", async () => {
     const store = fakeStore(attempt({ hasReviewNotice: true }), {
       applyOutcome: vi.fn<AcademyCollectionStore["applyOutcome"]>(async () => ({
         applied: false as const,
@@ -752,12 +817,24 @@ describe("marcar como revisado", () => {
     });
     const gateway = fakeGateway({ [paymentIntentId]: "succeeded" }, "canceled", 4000);
 
-    await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
-      code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
-      status: 409,
+    await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).resolves.toEqual({
+      outcome: "unverifiable",
     });
+    // Se intentó registrar por el camino del proceso diario y el almacén no lo registró.
+    expect(store.applyOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: { kind: "succeeded", paymentIntentId, received: { amountCents: 4000, currency: "EUR" } },
+      })
+    );
     expect(gateway.cancelPayment).not.toHaveBeenCalled();
-    expect(store.closeAttempt).not.toHaveBeenCalled();
+    expect(store.closeAttempt).toHaveBeenCalledWith({
+      organizationId,
+      attemptId,
+      expected: { status: "created", paymentIntentId },
+      reason: "reviewed_unverifiable",
+      actor: { userId, memberId },
+      now,
+    });
   });
 
   it("cobrado pero ya registrado para otro intento: el dinero está en el libro; se cierra", async () => {

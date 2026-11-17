@@ -858,7 +858,7 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
       expect(await chargeStatus(moved)).toBe("paid");
     });
 
-    it("en curso hace más de 15 días y Stripe no deja leerlo (error permanente): 409 para soporte y el intento sigue en curso", async () => {
+    it("C1: en curso hace más de 15 días y Stripe no deja leerlo (error permanente): se cierra como reviewed_unverifiable y el pago manual queda libre", async () => {
       const fixture = await createFixture();
       const { attemptId } = await insertAttempt(fixture, {
         status: "processing",
@@ -885,11 +885,24 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
           },
           { gateway }
         )
-      ).rejects.toMatchObject({ code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT", status: 409 });
+      ).resolves.toEqual({ outcome: "unverifiable" });
       expect(gateway.retrievePayment).toHaveBeenCalled();
       expect(gateway.cancelPayment).not.toHaveBeenCalled();
-      expect(await attemptRow(attemptId)).toMatchObject({ status: "processing", completedAt: null, paymentId: null });
-      expect(await auditActions(fixture, attemptId)).toEqual([]);
+      // Cerrado sin pago registrado, con la auditoría de la persona.
+      expect(await attemptRow(attemptId)).toMatchObject({
+        status: "canceled",
+        failureCode: "reviewed_unverifiable",
+        paymentId: null,
+      });
+      expect((await attemptRow(attemptId)).completedAt).not.toBeNull();
+      expect(await auditActions(fixture, attemptId)).toEqual([
+        expect.objectContaining({ action: "family_collection.attempt_reviewed", actorUserId: fixture.userId }),
+      ]);
+      expect(await outboxCount(fixture, "family_collection.attempt_canceled")).toBe(1);
+      // La cuota vuelve a cobrarse a mano: el pago manual ya no se bloquea.
+      const { payment } = await manualPayment(fixture);
+      expect(payment.status).toBe("succeeded");
+      expect(await chargeStatus(fixture)).toBe("paid");
     });
 
     it("un cobro ya registrado con otro intento: cancelar manda a «Marcar como revisado», que sí lo cierra", async () => {
@@ -959,7 +972,7 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
       expect(await attemptRow(attemptId)).toMatchObject({ status: "claimed", completedAt: null });
     });
 
-    it("Stripe cobró otro importe: ni cancelar ni marcar como revisado lo registran ni lo cierran; un solo aviso", async () => {
+    it("C1: Stripe cobró otro importe: cancelar no lo cierra; marcar como revisado lo cierra sin registrar el pago; un solo aviso", async () => {
       const fixture = await createFixture();
       const paymentIntentId = `pi_CI${compact()}`;
       const { attemptId } = await insertAttempt(fixture, { status: "created", paymentIntentId });
@@ -967,17 +980,24 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
       const input = { userId: fixture.userId, organizationId: fixture.organizationId, invoiceId: fixture.invoiceId };
 
       await expect(cancelAutomaticCollection(input, { gateway })).rejects.toMatchObject({
-        code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
+        code: "AUTOMATIC_COLLECTION_REVIEW_REQUIRED",
         status: 409,
       });
-      // El aviso deja «Marcar como revisado» a la vista, pero tampoco cierra nada.
-      await expect(markAutomaticCollectionReviewed({ ...input, checkedInStripe: true }, { gateway })).rejects.toMatchObject({
-        code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
-        status: 409,
+      expect(await attemptRow(attemptId)).toMatchObject({ status: "created", completedAt: null, paymentId: null });
+      // El aviso deja «Marcar como revisado»: lo cierra sin saber si se cobró y sin registrar ese pago.
+      await expect(markAutomaticCollectionReviewed({ ...input, checkedInStripe: true }, { gateway })).resolves.toEqual({
+        outcome: "unverifiable",
       });
 
       expect(gateway.cancelPayment).not.toHaveBeenCalled();
-      expect(await attemptRow(attemptId)).toMatchObject({ status: "created", completedAt: null, paymentId: null });
+      expect(await attemptRow(attemptId)).toMatchObject({
+        status: "canceled",
+        failureCode: "reviewed_unverifiable",
+        paymentId: null,
+      });
+      expect(await auditActions(fixture, attemptId)).toEqual([
+        expect.objectContaining({ action: "family_collection.attempt_reviewed", actorUserId: fixture.userId }),
+      ]);
       expect(await chargeStatus(fixture)).toBe("due");
       expect(await outboxCount(fixture, "family_collection.needs_review")).toBe(1);
       const payments = await db.execute(sql`

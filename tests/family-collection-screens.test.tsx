@@ -721,6 +721,26 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     expect(rowOf("CUO-4")).not.toHaveTextContent("Necesita revisión");
   });
 
+  it("C1: revisado sin poder saber si se cobró: pide comprobarlo en Stripe y registrarlo a mano si se cobró", async () => {
+    stubFetch(() => reply(200, { outcome: "unverifiable" }));
+    render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-4" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "He comprobado el cobro en Stripe" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar revisión" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Cobro marcado como revisado. La cuota CUO-4 se cobra a mano. Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual."
+    );
+    expect(rowOf("CUO-4")).toHaveTextContent("Cobro automático cancelado");
+    expect(rowOf("CUO-4")).toHaveTextContent(
+      "Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual."
+    );
+    expect(rowOf("CUO-4")).not.toHaveTextContent("Necesita revisión");
+    expect(screen.queryByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-4" })).toBeNull();
+    expect(mockRefresh).toHaveBeenCalledOnce();
+  });
+
   it("si el cobro ya se había hecho, lo dice y la cuota queda cobrada", async () => {
     stubFetch(() => reply(200, { outcome: "collected" }));
     render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
@@ -748,7 +768,7 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sí, cancelar el cobro" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "No se puede cancelar: este cobro ya figura registrado en otro cobro automático."
+      "No se puede cancelar: este cobro ya se hizo en Stripe (está registrado en otro cobro automático o por otro importe). Compruébalo en Stripe y usa «Marcar como revisado»."
     );
     expect(screen.queryByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3" })).toBeNull();
     expect(screen.getByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-3" })).toBeInTheDocument();

@@ -93,7 +93,9 @@ export const FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS = 24 * 60 * 60 * 1000;
  * Stripe no deja leerlo (p. ej. la academia cerró o desconectó su cuenta), el
  * proceso diario avisa a la academia (`processing_unreadable`), y la academia
  * puede «Marcar como revisado» aunque no haya aviso. La acción vuelve a leer
- * Stripe y nunca cierra un cobro cuyo dinero pudo moverse.
+ * Stripe: si sigue en curso no lo cierra; si Stripe responde con un error
+ * permanente, lo cierra sin saber si se cobró (`reviewed_unverifiable`) y la
+ * academia lo comprueba en su panel de Stripe.
  */
 export const FAMILY_COLLECTION_PROCESSING_UNREADABLE_MS = 15 * 24 * 60 * 60 * 1000;
 

@@ -42,6 +42,7 @@ import {
   type CollectionPlan,
 } from "@/modules/family-collection/domain/collection-plan";
 import {
+  CANCELED_IN_STRIPE_CODE,
   finalCreateErrorCode,
   isAuthenticationRequiredFailure,
   mapPaymentIntent,
@@ -500,15 +501,11 @@ async function cancelThenClose(
     countSkip(state, "transient");
     return null;
   }
-  if (canceled === "canceled") {
-    return apply(
-      state,
-      attempt,
-      close.kind === "failed"
-        ? { kind: "failed", paymentIntentId, code: close.code, declineCode: close.declineCode, nextRetryAt: null }
-        : { kind: "canceled", paymentIntentId, reason: close.reason }
-    );
-  }
+  const closing: AttemptOutcome =
+    close.kind === "failed"
+      ? { kind: "failed", paymentIntentId, code: close.code, declineCode: close.declineCode, nextRetryAt: null }
+      : { kind: "canceled", paymentIntentId, reason: close.reason };
+  if (canceled === "canceled") return apply(state, attempt, closing);
   let snapshot: PaymentIntentSnapshot;
   try {
     snapshot = await state.gateway.retrievePayment({ connectedAccount: refs.connectedAccount, paymentIntentId });
@@ -517,6 +514,9 @@ async function cancelThenClose(
     return null;
   }
   const outcome = mapPaymentIntent(snapshot);
+  // Ya estaba cancelado sin ningún error de pago (p. ej. desde el panel de
+  // Stripe): el cobro ya no puede completarse; se cierra como se quería.
+  if (outcome === CANCELED_IN_STRIPE_CODE) return apply(state, attempt, closing);
   if (outcome === "succeeded" || outcome === "processing" || isFailedOutcome(outcome)) {
     return settleOutcome(state, attempt, refs, outcome, snapshot, { lastChance: false, allowCancel: false });
   }
@@ -530,6 +530,9 @@ async function cancelThenClose(
  * - `processing`: queda en curso (lo cierra la relectura de un día siguiente);
  * - fallo: antes de registrarlo, si el banco pidió autenticación, se cancela el
  *   cobro para que no pueda completarse después; reintento según la política;
+ * - cancelado en Stripe sin ningún error de pago: se cierra como `canceled`
+ *   (`canceled_in_stripe`), sin aviso a la familia y sin reintento (no es un
+ *   rechazo del banco);
  * - sin resultado: el intento se queda como está; en su última reanudación se
  *   cancela en Stripe y se cierra;
  * - conflicto de idempotencia: se queda como está, con aviso.
@@ -561,6 +564,13 @@ export async function settleOutcome(
   if (outcome === "idempotency_conflict") {
     await reportIdempotencyConflict(state, attempt);
     return null;
+  }
+
+  if (outcome === CANCELED_IN_STRIPE_CODE) {
+    // Nadie lo rechazó: lo canceló Zaltyko, la academia o alguien desde el
+    // panel de Stripe. Ya no puede completarse: se cierra sin decir a la
+    // familia que el banco no lo aceptó y sin reintento.
+    return apply(state, attempt, { kind: "canceled", paymentIntentId, reason: CANCELED_IN_STRIPE_CODE });
   }
 
   if (isFailedOutcome(outcome)) {

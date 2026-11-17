@@ -922,6 +922,68 @@ describe("Fase B: cobrar lo que vence hoy", () => {
     expect(result.skipped).toEqual({ transient: 1 });
   });
 
+  it.each([
+    ["con su código", () => requestError("parameter_invalid_integer"), "parameter_invalid_integer"],
+    [
+      "sin código",
+      () =>
+        Object.assign(new Error("Mensaje sintético de Stripe"), {
+          type: "StripeInvalidRequestError",
+          rawType: "invalid_request_error",
+          statusCode: 400,
+        }),
+      "invalid_request",
+    ],
+  ])("C4: cualquier otra petición rechazada al crear (400, %s): canceled, sin confirmar ni reintento", async (_label, makeError, code) => {
+    vi.mocked(logger.warn).mockClear();
+    const { world, gateway, run } = setup({
+      createPayment: async () => {
+        throw makeError();
+      },
+    });
+    const result = await run();
+    expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: null, reason: code }]);
+    expect(gateway.confirmPayment).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ canceled: 1, failed: 0, retried: 0 });
+    expect(result.skipped).toEqual({});
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Cobro automático: Stripe rechazó crear el cobro; la cuota pasa a cobro manual",
+      { organizationId, invoiceId, attemptId, errorName: "StripeInvalidRequestError", errorCode: code }
+    );
+    expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain("Mensaje sintético");
+  });
+
+  it.each([
+    ["clave de idempotencia en uso", "idempotency_key_in_use", 409],
+    ["bloqueo", "lock_timeout", 400],
+  ])("C4: al crear, %s sigue siendo pasajero (nunca se cierra)", async (_label, code, statusCode) => {
+    const { world, run } = setup({
+      createPayment: async () => {
+        throw Object.assign(requestError(code), { statusCode });
+      },
+    });
+    const result = await run();
+    expect(world.applied).toEqual([]);
+    expect(result.skipped).toEqual({ transient: 1 });
+  });
+
+  it("C3: confirmar un cobro que ya estaba cancelado en Stripe (sin error de pago): canceled_in_stripe, nunca «el banco lo rechazó»", async () => {
+    const { world, run } = setup({
+      confirmPayment: async () => {
+        throw Object.assign(new Error("Mensaje sintético de Stripe"), {
+          type: "StripeInvalidRequestError",
+          rawType: "invalid_request_error",
+          code: "payment_intent_unexpected_state",
+          statusCode: 400,
+          payment_intent: { id: intentId, status: "canceled", amount_received: 0, currency: "eur" },
+        });
+      },
+    });
+    const result = await run();
+    expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: intentId, reason: "canceled_in_stripe" }]);
+    expect(result).toMatchObject({ canceled: 1, failed: 0, collected: 0 });
+  });
+
   it("Stripe cobró otro importe: se pasa lo cobrado y, si el almacén no lo registra, cuenta como revisión", async () => {
     const { world, run } = setup({
       confirmPayment: async (input) => ({ ...snapshot(input.paymentIntentId, "succeeded"), amountReceivedCents: 4000 }),
@@ -1449,6 +1511,48 @@ describe("Fase A: reanudar lo que quedó a medias", () => {
     expect(gateway.confirmPayment).not.toHaveBeenCalled();
     expect(gateway.cancelPayment).toHaveBeenCalledTimes(1);
     expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: intentId, reason: "authorization_inactive" }]);
+  });
+
+  it("C3: created y el cobro aparece cancelado en Stripe sin error de pago: canceled_in_stripe, sin confirmar ni reintento", async () => {
+    const item = attempt({ status: "created", paymentIntentId: intentId, resumeCount: 1 });
+    const { world, gateway, run } = resumeSetup(item, {
+      retrievePayment: async (input) => snapshot(input.paymentIntentId, "canceled"),
+    });
+    const result = await run();
+    expect(gateway.confirmPayment).not.toHaveBeenCalled();
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: intentId, reason: "canceled_in_stripe" }]);
+    expect(result).toMatchObject({ canceled: 1, failed: 0 });
+  });
+
+  it("C3: cancelado en Stripe con el rechazo del banco guardado: sigue siendo un fallo con sus códigos", async () => {
+    const item = attempt({ status: "created", paymentIntentId: intentId, resumeCount: 1 });
+    const { world, gateway, run } = resumeSetup(item, {
+      retrievePayment: async (input) => snapshot(input.paymentIntentId, "canceled", "card_declined", "insufficient_funds"),
+    });
+    await run();
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(world.applied).toEqual([
+      expect.objectContaining({ kind: "failed", paymentIntentId: intentId, code: "card_declined", declineCode: "insufficient_funds" }),
+    ]);
+  });
+
+  it("C3: la puerta cierra un created, Stripe ya no deja cancelarlo y está cancelado: se cierra con el motivo de la puerta", async () => {
+    const item = attempt({ status: "created", paymentIntentId: intentId, resumeCount: 1 });
+    let reads = 0;
+    const { world, gateway, run } = resumeSetup(item, {
+      retrievePayment: async (input) => {
+        reads += 1;
+        return snapshot(input.paymentIntentId, reads === 1 ? "requires_confirmation" : "canceled");
+      },
+      cancelPayment: async () => "not_cancelable",
+    });
+    world.context!.reminderSent = true;
+    await run();
+    expect(gateway.confirmPayment).not.toHaveBeenCalled();
+    expect(gateway.cancelPayment).toHaveBeenCalledTimes(1);
+    expect(reads).toBe(2);
+    expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: intentId, reason: "reminder_sent" }]);
   });
 
   it("tercera reanudación sin cobro en Stripe: failed transient_exhausted sin crear", async () => {

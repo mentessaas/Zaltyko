@@ -15,15 +15,23 @@
  *   curso, y solo si la persona confirma que lo comprobó en Stripe. Lo cierra
  *   como `canceled` (`reviewed_by_academy`), con auditoría.
  *
- * Nunca se cierra un intento cuyo dinero pudo moverse sin registrarlo: antes
- * de cerrarlo se relee el cobro y, si salió, se registra por el mismo camino
- * que usa el proceso diario (`applyOutcome`: pago, reparto y aviso si no
- * cuadra). Si hay varios cobros y alguno salió o está en curso, o el intento
- * tiene un cobro guardado que no se puede leer, no se cierra: la academia lo
- * resuelve en Stripe con su soporte. Lo mismo si Stripe responde con un error
- * que no se arregla reintentando (cobro inexistente, cuenta sin permiso o ya
- * no válida: `stripe-read-error.ts`): 409 para resolverlo con soporte en lugar
- * de 503, y el intento sigue abierto (su dinero pudo moverse).
+ * Antes de cerrar se relee el cobro y, si salió, se registra por el mismo
+ * camino que usa el proceso diario (`applyOutcome`: pago, reparto y aviso si
+ * no cuadra). Si hay varios cobros y alguno salió o está en curso, o el
+ * intento tiene un cobro guardado sin los datos para leerlo, no se cierra: la
+ * academia lo resuelve en Stripe con su soporte.
+ *
+ * Dos casos se cierran sin saber si el dinero se movió, con el motivo propio
+ * `reviewed_unverifiable` (decisión del coordinador de la ronda del 17-11):
+ * - Stripe responde, en esta misma acción, con un error que no se arregla
+ *   reintentando (cobro inexistente, cuenta sin permiso o ya no válida:
+ *   `stripe-read-error.ts`). Si la academia desconectó o cerró su cuenta, el
+ *   soporte de Stripe no lo resuelve y la cuota quedaría bloqueada siempre;
+ * - Stripe cobró otro importe u otra moneda (`amount_mismatch`): ese pago NO
+ *   se registra en el libro.
+ * En los dos, la academia recibe el texto REVIEWED_UNVERIFIABLE_TEXT: la cuota
+ * vuelve a cobrarse a mano (pago manual y recordatorios). Un error pasajero o
+ * un cobro que se puede leer y sigue en curso nunca cierran nada.
  *
  * Propiedad, o administración con todas las sedes. No exige la bandera de
  * esta fase (con la función apagada la academia tiene que poder cerrar lo que
@@ -60,8 +68,16 @@ import {
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
-/** Lo que devuelve una acción: cerrado, revisado, o el cobro ya se hizo y quedó registrado. */
-export type AcademyCollectionOutcome = "canceled" | "reviewed" | "collected";
+/**
+ * Lo que devuelve una acción: cerrado, revisado, el cobro ya se hizo y quedó
+ * registrado, o revisado sin poder saber si se cobró (`unverifiable`: la
+ * academia debe comprobarlo en su panel de Stripe; REVIEWED_UNVERIFIABLE_TEXT).
+ */
+export type AcademyCollectionOutcome = "canceled" | "reviewed" | "collected" | "unverifiable";
+
+/** Lo que se le dice a la academia cuando se cierra sin saber si se cobró (`reviewed_unverifiable`). */
+export const REVIEWED_UNVERIFIABLE_TEXT =
+  "Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual.";
 
 /** Lo que las acciones necesitan de la base (inyectable en los tests). */
 export interface AcademyCollectionStore {
@@ -110,7 +126,7 @@ const TEXT = {
   tooManyPayments:
     "Hay demasiados cobros en Stripe para esta cuota. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
   amountMismatch:
-    "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
+    "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Compruébalo en Stripe y usa «Marcar como revisado».",
 } as const;
 
 function defaultGateway(): AcademyCollectionGateway {
@@ -179,14 +195,9 @@ function unverified(): OperationalError {
   return new OperationalError("AUTOMATIC_COLLECTION_UNVERIFIED", TEXT.unverified, 503);
 }
 
-/** Stripe no deja leer el cobro y reintentar no lo arreglará: lo resuelve soporte. */
+/** El cobro guardado no se puede leer (faltan sus datos en Zaltyko): lo resuelve soporte. */
 function unreadable(): OperationalError {
   return new OperationalError("AUTOMATIC_COLLECTION_NEEDS_SUPPORT", TEXT.unreadable, 409);
-}
-
-/** Un error de Stripe al marcar como revisado: 409 (soporte) si es permanente, 503 si es pasajero. */
-function stripeFailure(error: unknown): OperationalError {
-  return isPermanentStripeError(error) ? unreadable() : unverified();
 }
 
 async function close(
@@ -262,16 +273,17 @@ async function stopInStripe(
 /**
  * El cobro ya salió en Stripe: se registra por el camino del proceso diario
  * (pago, reparto y aviso si no cuadra), con el importe que Stripe dice que
- * cobró. `true` si quedó registrado ahora; `false` si ya estaba registrado
- * para otro intento (revisión). Si Stripe cobró otro importe, no se registra
- * ni se cierra: 409 para resolverlo con soporte.
+ * cobró. `recorded` si quedó registrado ahora; `recorded_elsewhere` si ya
+ * estaba registrado para otro intento (revisión); `amount_mismatch` si Stripe
+ * cobró otro importe u otra moneda: no se registra y el intento sigue abierto
+ * con su aviso (quien llama decide).
  */
 async function recordCollected(
   context: Context,
   attempt: AcademyAttemptView,
   paymentIntentId: string,
   snapshot: PaymentIntentSnapshot | null
-): Promise<boolean> {
+): Promise<"recorded" | "recorded_elsewhere" | "amount_mismatch"> {
   const result = await context.store.applyOutcome({
     organizationId: attempt.organizationId,
     attemptId: attempt.id,
@@ -279,31 +291,35 @@ async function recordCollected(
     environment: "test",
     now: context.now,
   });
-  if (result.applied) return true;
-  if (result.review === "payment_recorded_for_other_attempt") return false;
-  if (result.review === AMOUNT_MISMATCH_REASON) {
-    throw new OperationalError("AUTOMATIC_COLLECTION_NEEDS_SUPPORT", TEXT.amountMismatch, 409);
-  }
+  if (result.applied) return "recorded";
+  if (result.review === "payment_recorded_for_other_attempt") return "recorded_elsewhere";
+  if (result.review === AMOUNT_MISMATCH_REASON) return "amount_mismatch";
   throw changed();
 }
 
 /**
  * Varios cobros para un mismo intento: se relee cada uno. Si alguno salió o
  * está en curso, no se cierra nada (409: la academia lo resuelve en Stripe
- * con su soporte; aquí no se elige cuál registrar). Si ninguno movió dinero,
- * se cancelan los que sigan abiertos para que no puedan completarse.
+ * con su soporte; aquí no se elige cuál registrar). Si ninguno de los que se
+ * pueden leer movió dinero, se cancelan los que sigan abiertos para que no
+ * puedan completarse. Un error pasajero de Stripe no cierra nada (503).
+ * `stopped`: todos parados. `unverifiable`: alguno no se pudo leer ni
+ * cancelar por un error permanente comprobado ahora (se cierra sin saber si
+ * se cobró).
  */
 async function stopAllOrRefuse(
   context: Context,
   connectedAccount: string,
   paymentIntentIds: readonly string[]
-): Promise<void> {
+): Promise<"stopped" | "unverifiable"> {
   const snapshots: PaymentIntentSnapshot[] = [];
+  let unverifiable = false;
   for (const paymentIntentId of paymentIntentIds) {
     try {
       snapshots.push(await context.gateway.retrievePayment({ connectedAccount, paymentIntentId }));
     } catch (error) {
-      throw stripeFailure(error);
+      if (!isPermanentStripeError(error)) throw unverified();
+      unverifiable = true;
     }
   }
   const moved = (status: string) => status === "succeeded" || status === "processing";
@@ -316,9 +332,10 @@ async function stopAllOrRefuse(
     if (state === "succeeded" || state === "processing") {
       throw new OperationalError("AUTOMATIC_COLLECTION_NEEDS_SUPPORT", TEXT.multipleMoved, 409);
     }
-    if (state === "unreachable") throw unreadable();
+    if (state === "unreachable") unverifiable = true;
     if (state === "unknown") throw unverified();
   }
+  return unverifiable ? "unverifiable" : "stopped";
 }
 
 /** Cancela el cobro automático pendiente de una factura. */
@@ -352,11 +369,17 @@ export async function cancelAutomaticCollection(
       if (!refs || !paymentIntentId) throw unverified();
       const { state, snapshot } = await stopInStripe(context.gateway, refs.connectedAccount, paymentIntentId);
       if (state === "succeeded") {
-        if (await recordCollected(context, attempt, paymentIntentId, snapshot)) return { outcome: "collected" };
-        // El mismo cobro ya estaba registrado para otro intento: applyOutcome
-        // dejó el aviso de revisión, así que «Marcar como revisado» está
-        // permitido y es el camino (recargar no lo resolvería).
-        throw new OperationalError("AUTOMATIC_COLLECTION_REVIEW_REQUIRED", TEXT.recordedElsewhere, 409);
+        const recorded = await recordCollected(context, attempt, paymentIntentId, snapshot);
+        if (recorded === "recorded") return { outcome: "collected" };
+        // El mismo cobro ya estaba registrado para otro intento, o Stripe
+        // cobró otro importe: applyOutcome dejó el aviso de revisión, así que
+        // «Marcar como revisado» está permitido y es el camino (recargar no
+        // lo resolvería; cancelar no lo cierra porque el dinero se movió).
+        throw new OperationalError(
+          "AUTOMATIC_COLLECTION_REVIEW_REQUIRED",
+          recorded === "amount_mismatch" ? TEXT.amountMismatch : TEXT.recordedElsewhere,
+          409
+        );
       }
       if (state === "processing") {
         throw new OperationalError("AUTOMATIC_COLLECTION_PROCESSING", TEXT.processing, 409);
@@ -378,8 +401,10 @@ export async function cancelAutomaticCollection(
  * que agotó sus reanudaciones, que lleva más de 24 h sin cambios o más de 15
  * días en curso (`academyCanMarkReviewed`). Exige `checkedInStripe: true`.
  * Siempre lee Stripe antes de cerrar: si el dinero se movió, lo registra o
- * responde 409. Si Stripe no deja leerlo, 503 si es pasajero y 409 (soporte)
- * si es permanente; en ningún caso se cierra.
+ * responde 409. Si Stripe no deja leerlo, 503 si es pasajero (no se cierra);
+ * si es permanente, o si Stripe cobró otro importe, se cierra como
+ * `reviewed_unverifiable` y responde `unverifiable` (la academia lo comprueba
+ * en su panel de Stripe y, si se cobró, lo registra como pago manual).
  */
 export async function markAutomaticCollectionReviewed(
   raw: { userId: string; organizationId: string; invoiceId: string; checkedInStripe: boolean; now?: Date },
@@ -403,11 +428,11 @@ export async function markAutomaticCollectionReviewed(
   const refs = await context.store.loadAttemptRefs(attempt);
   if (!refs) {
     // Con un cobro guardado que no se puede leer, el dinero pudo moverse: no
-    // se cierra. Sin cobro guardado y sin cuenta con la que buscarlo, el
-    // proceso diario nunca pudo crearlo (los crea con esos mismos datos).
-    if (attempt.paymentIntentId) {
-      throw new OperationalError("AUTOMATIC_COLLECTION_NEEDS_SUPPORT", TEXT.unreadable, 409);
-    }
+    // se cierra (aquí no se ha podido preguntar a Stripe, así que no hay un
+    // error permanente comprobado). Sin cobro guardado y sin cuenta con la
+    // que buscarlo, el proceso diario nunca pudo crearlo (los crea con esos
+    // mismos datos).
+    if (attempt.paymentIntentId) throw unreadable();
     await close(context, attempt, "reviewed_by_academy");
     return { outcome: "reviewed" };
   }
@@ -429,7 +454,10 @@ export async function markAutomaticCollectionReviewed(
       if (isTooManyPaymentsError(error)) {
         throw new OperationalError("AUTOMATIC_COLLECTION_NEEDS_SUPPORT", TEXT.tooManyPayments, 409);
       }
-      throw stripeFailure(error);
+      // Error permanente comprobado ahora (p. ej. la academia desconectó su
+      // cuenta): no se puede saber si hay un cobro; se cierra sin saberlo.
+      if (isPermanentStripeError(error)) return closeUnverifiable(context, attempt);
+      throw unverified();
     }
   }
 
@@ -437,19 +465,39 @@ export async function markAutomaticCollectionReviewed(
     const paymentIntentId = paymentIntentIds[0];
     const { state, snapshot } = await stopInStripe(context.gateway, refs.connectedAccount, paymentIntentId);
     if (state === "succeeded") {
-      if (await recordCollected(context, attempt, paymentIntentId, snapshot)) return { outcome: "collected" };
+      const recorded = await recordCollected(context, attempt, paymentIntentId, snapshot);
+      if (recorded === "recorded") return { outcome: "collected" };
+      // Stripe cobró otro importe: no entra en el libro; se cierra sin registrarlo.
+      if (recorded === "amount_mismatch") return closeUnverifiable(context, attempt);
       // Ya registrado para otro intento: el dinero está en el libro; se cierra.
     } else if (state === "processing") {
       throw new OperationalError("AUTOMATIC_COLLECTION_PROCESSING", TEXT.processing, 409);
     } else if (state === "unreachable") {
-      throw unreadable();
+      // Error permanente comprobado ahora al leer o cancelar el cobro.
+      return closeUnverifiable(context, attempt);
     } else if (state === "unknown") {
       throw unverified();
     }
   } else if (paymentIntentIds.length > 1) {
-    await stopAllOrRefuse(context, refs.connectedAccount, paymentIntentIds);
+    if ((await stopAllOrRefuse(context, refs.connectedAccount, paymentIntentIds)) === "unverifiable") {
+      return closeUnverifiable(context, attempt);
+    }
   }
 
   await close(context, attempt, "reviewed_by_academy");
   return { outcome: "reviewed" };
+}
+
+/**
+ * Cierra el intento sin saber si se cobró (`reviewed_unverifiable`), con la
+ * auditoría de la persona: el pago manual queda libre y vuelven los
+ * recordatorios. Solo tras un error permanente de Stripe comprobado en esta
+ * misma acción o un importe cobrado que no cuadra (que no se registra).
+ */
+async function closeUnverifiable(
+  context: Context,
+  attempt: AcademyAttemptView
+): Promise<{ outcome: AcademyCollectionOutcome }> {
+  await close(context, attempt, "reviewed_unverifiable");
+  return { outcome: "unverifiable" };
 }

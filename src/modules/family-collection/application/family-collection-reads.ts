@@ -642,6 +642,12 @@ const FAILURE_TEXT: Record<string, string> = {
   reminder_sent: "Ya se avisó a la familia con un recordatorio de pago. Se cobra a mano.",
   canceled_by_academy: "Lo canceló la academia.",
   reviewed_by_academy: "La academia lo revisó y lo cerró.",
+  // Cerrado sin poder saber si se cobró (Stripe no deja leerlo o cobró otro importe).
+  reviewed_unverifiable: "Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual.",
+  // Cancelado en Stripe sin ningún error de pago: no es un rechazo del banco.
+  canceled_in_stripe: "El cobro se canceló en Stripe. Se cobra a mano.",
+  // Stripe no aceptó crear el cobro (petición rechazada sin código).
+  invalid_request: "Stripe no aceptó crear el cobro. Se cobra a mano.",
   [COLLECTION_WINDOW_EXPIRED_CODE]: NOT_ATTEMPTED_TEXT,
   // Puerta: bandera, entorno y tablas.
   flag_off: NOT_RELEASED,
@@ -705,9 +711,8 @@ const REVIEW_TEXT: Record<string, string> = {
   attempts_exhausted: "Esta cuota ya no admite más intentos automáticos. Se cobra a mano.",
   stale_open: `El cobro lleva más de un día sin avanzar. ${CHECK_IN_STRIPE}`,
   processing_unreadable: `El cobro lleva más de 15 días en curso y no podemos ver su resultado. ${CHECK_IN_STRIPE}`,
-  // Sin «Marcar como revisado» (la acción responde siempre 409): lo resuelve soporte.
-  amount_mismatch:
-    "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Resuélvelo en Stripe con su soporte.",
+  // «Marcar como revisado» lo cierra sin registrar ese pago (reviewed_unverifiable).
+  amount_mismatch: `Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. ${CHECK_IN_STRIPE}`,
 };
 
 const REVIEW_FALLBACK = `El cobro necesita una comprobación. ${CHECK_IN_STRIPE}`;
@@ -919,17 +924,18 @@ export function ownerAutomaticCollectionItemOf(
       !attempt.hasReviewNotice &&
       attempt.resumeCount < FAMILY_COLLECTION_MAX_RESUMES;
     // Stripe cobró otro importe u otra moneda: el dinero se movió y no cuadra.
-    // «Marcar como revisado» y «Cancelar» responderían siempre 409 (soporte),
-    // así que no se ofrecen; la fila sigue pidiendo revisión con su motivo.
-    const needsSupport = open && attempt.hasReviewNotice && attempt.reviewReason === AMOUNT_MISMATCH_REASON;
-    const canMarkReviewed = !stillInBank && !needsSupport && academyCanMarkReviewed(attempt, now);
+    // «Cancelar» respondería 409 (no cierra un cobro hecho), así que no se
+    // ofrece; «Marcar como revisado» lo cierra sin registrar ese pago
+    // (`reviewed_unverifiable`) y la cuota vuelve a cobrarse a mano.
+    const amountMismatch = open && attempt.hasReviewNotice && attempt.reviewReason === AMOUNT_MISMATCH_REASON;
+    const canMarkReviewed = !stillInBank && academyCanMarkReviewed(attempt, now);
     const allocationReview = attempt.status === "succeeded" && attempt.allocationStatus === "needs_review";
     // Aviso de la factura: ya no admite más intentos automáticos (se cobra a mano).
     const exhausted = row.attemptsExhausted && !open;
-    const needsReview = canMarkReviewed || needsSupport || allocationReview || exhausted;
+    const needsReview = canMarkReviewed || amountMismatch || allocationReview || exhausted;
     const reviewText = allocationReview
       ? reviewReasonText("allocation")
-      : canMarkReviewed || needsSupport
+      : canMarkReviewed || amountMismatch
         ? reviewReasonText(
             attempt.reviewReason ??
               (attempt.hasReviewNotice
@@ -999,9 +1005,9 @@ export function ownerAutomaticCollectionItemOf(
       date,
       reason,
       needsReview,
-      // Con el importe que no cuadra, cancelar también respondería 409 (soporte).
+      // Con el importe que no cuadra, cancelar respondería 409: se usa «Marcar como revisado».
       canCancel:
-        !needsSupport &&
+        !amountMismatch &&
         (attempt.status === "created" || (attempt.status === "failed" && attempt.nextRetryAt !== null)),
       canMarkReviewed,
       manualPaymentBlocked: open,

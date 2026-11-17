@@ -130,6 +130,14 @@ describe("ruta /api/v1/owner/payments/automatic-collection", () => {
     expect(cancelAutomaticCollection).not.toHaveBeenCalled();
   });
 
+  it("C1: revisado sin poder saber si se cobró: la respuesta lo dice (unverifiable)", async () => {
+    vi.mocked(markAutomaticCollectionReviewed).mockResolvedValueOnce({ outcome: "unverifiable" });
+    const response = await POST(post({ action: "mark_reviewed", organizationId, invoiceId, checkedInStripe: true }));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ outcome: "unverifiable" });
+  });
+
   it("un 409 del servicio llega con su texto", async () => {
     vi.mocked(cancelAutomaticCollection).mockRejectedValue(
       new OperationalError(

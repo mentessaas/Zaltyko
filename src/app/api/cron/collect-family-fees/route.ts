@@ -7,6 +7,7 @@ import {
   type FamilyFailureNoticeDelivery,
 } from "@/modules/family-collection/application/family-failure-notice-delivery";
 import {
+  FAMILY_COLLECTION_DEADLINE_MS,
   runFamilyCollection,
   type FamilyCollectionRunResult,
 } from "@/modules/family-collection/application/family-collection-service";
@@ -18,6 +19,8 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const NO_STORE = "private, no-store";
+/** Tiempo como mucho para los avisos pendientes de otro día, antes de cobrar. */
+const EARLY_NOTICES_DEADLINE_MS = 20_000;
 
 /**
  * @route-auth cron
@@ -32,9 +35,13 @@ const NO_STORE = "private, no-store";
  *   los cobros que quedaron a medias (para que lo que ya salió en Stripe quede
  *   registrado) y nunca cobra nada nuevo («enabled: false»);
  * - con la bandera encendida, además cobra lo que vence hoy.
- * Al terminar, envía a las familias los avisos de primer cobro fallido (D3)
- * que estén pendientes (deliverFamilyFailureNotices, mismos cerrojos); si ese
- * paso falla, el cobro ya hecho no se ve afectado («familyNotices: null»).
+ * Los avisos de primer cobro fallido a las familias (D3) se envían dos veces
+ * (deliverFamilyFailureNotices, mismos cerrojos): ANTES de cobrar, los que
+ * quedaron pendientes de otro día (así salen antes de que la Fase B reclame
+ * el reintento), y al terminar, los de hoy. El cobro tiene el plazo que dejó
+ * el primer envío (240 s en total, con 20 s como mucho para ese envío; el
+ * segundo, 30 s), por debajo de los 300 s de la ruta. Si un envío falla, el
+ * cobro no se ve afectado («familyNotices: null» si fallan los dos).
  * Sin el secreto no se toca nada (401, o 503 si falta CRON_SECRET).
  * La respuesta solo lleva contadores: nunca ids, importes ni datos de familias.
  */
@@ -44,9 +51,13 @@ export async function POST(request: Request) {
 
   try {
     const execution = await runCronWithLease("cron:collect-family-fees", async () => {
-      const run = await runFamilyCollection();
-      const familyNotices = await deliverNotices();
-      return { run, familyNotices };
+      const startedAt = Date.now();
+      // Primero los avisos pendientes de otro día: antes de la Fase B.
+      const early = await deliverNotices(EARLY_NOTICES_DEADLINE_MS);
+      const spent = Math.max(0, Date.now() - startedAt);
+      const run = await runFamilyCollection({ deadlineMs: Math.max(0, FAMILY_COLLECTION_DEADLINE_MS - spent) });
+      const late = await deliverNotices();
+      return { run, familyNotices: mergeNotices(early, late) };
     });
     if (!execution.acquired || !execution.value) {
       return noStore(apiSuccess({ skipped: true, reason: "ALREADY_RUNNING" }));
@@ -74,10 +85,10 @@ export async function POST(request: Request) {
 // autenticación, como en el resto de rutas cron.
 export const GET = POST;
 
-/** Avisos a las familias tras el cobro; un fallo aquí no tumba la respuesta del cobro. */
-async function deliverNotices(): Promise<FamilyFailureNoticeDelivery | null> {
+/** Avisos a las familias; un fallo aquí no tumba la respuesta del cobro. */
+async function deliverNotices(deadlineMs?: number): Promise<FamilyFailureNoticeDelivery | null> {
   try {
-    return await deliverFamilyFailureNotices();
+    return await deliverFamilyFailureNotices(deadlineMs === undefined ? {} : { deadlineMs });
   } catch (error) {
     // Solo el nombre y el código: nunca mensajes de la base ni del correo.
     logger.error("Error al enviar los avisos de cobro fallido a las familias", undefined, {
@@ -86,6 +97,19 @@ async function deliverNotices(): Promise<FamilyFailureNoticeDelivery | null> {
     });
     return null;
   }
+}
+
+/**
+ * Suma de los dos envíos. Los pendientes (sin resultado guardado) son los del
+ * último envío que funcionó: el segundo vuelve a mirar los del primero.
+ */
+function mergeNotices(
+  early: FamilyFailureNoticeDelivery | null,
+  late: FamilyFailureNoticeDelivery | null
+): FamilyFailureNoticeDelivery | null {
+  if (!early) return late;
+  if (!late) return early;
+  return { sent: early.sent + late.sent, notSent: early.notSent + late.notSent, pending: late.pending };
 }
 
 /** Solo los tres contadores de los avisos. */

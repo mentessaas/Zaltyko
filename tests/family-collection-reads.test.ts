@@ -441,6 +441,13 @@ describe("motivos en palabras sencillas", () => {
       ["canceled_by_academy", "Lo canceló la academia."],
       ["manual_payment", "Se registró un pago a mano."],
       ["reviewed_by_academy", "La academia lo revisó y lo cerró."],
+      // C1: cerrado sin poder saber si se cobró (texto exacto para la academia).
+      [
+        "reviewed_unverifiable",
+        "Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual.",
+      ],
+      // C3: cancelado en Stripe sin error de pago (nunca «el banco lo rechazó»).
+      ["canceled_in_stripe", "El cobro se canceló en Stripe. Se cobra a mano."],
       ["collection_window_expired", "No se pudo intentar el cobro a tiempo. Se cobra a mano."],
       ["authorization_missing", "La familia ya no tiene un método de pago activo."],
     ] as const) {
@@ -462,11 +469,17 @@ describe("motivos en palabras sencillas", () => {
       ["account_invalid", "Tu cuenta de Stripe no está lista para cobrar. Se cobra a mano."],
       ["payment_method_unactivated", notActive],
       ["capability_not_active", notActive],
+      // C4: petición rechazada al crear sin código.
+      ["invalid_request", "Stripe no aceptó crear el cobro. Se cobra a mano."],
     ] as const) {
       expect(failureReasonText({ status: "canceled", failureCode: code, declineCode: null }), code).toBe(text);
     }
+    // C4: con otro código de petición rechazada, el texto genérico (nunca el código).
+    expect(failureReasonText({ status: "canceled", failureCode: "parameter_invalid_integer", declineCode: null })).toBe(
+      "No se pudo cobrar automáticamente."
+    );
     expect(reviewReasonText("amount_mismatch")).toBe(
-      "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Resuélvelo en Stripe con su soporte."
+      "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Compruébalo en Stripe."
     );
   });
 });
@@ -720,7 +733,7 @@ describe("fila de la academia (pura)", () => {
     });
   });
 
-  it("Stripe cobró otro importe (aviso amount_mismatch): necesita soporte, sin «Marcar como revisado» ni cancelar", () => {
+  it("C1: Stripe cobró otro importe (aviso amount_mismatch): «Marcar como revisado» sí (lo cierra sin registrarlo), cancelar no", () => {
     expect(
       ownerAutomaticCollectionItemOf(
         ownerRow({
@@ -739,10 +752,9 @@ describe("fila de la academia (pura)", () => {
       state: "in_progress",
       needsReview: true,
       canCancel: false,
-      canMarkReviewed: false,
+      canMarkReviewed: true,
       manualPaymentBlocked: true,
-      reason:
-        "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Resuélvelo en Stripe con su soporte.",
+      reason: "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Compruébalo en Stripe.",
     });
   });
 

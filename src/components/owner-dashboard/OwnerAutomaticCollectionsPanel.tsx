@@ -22,6 +22,10 @@ const ACTION_ENDPOINT = "/api/v1/owner/payments/automatic-collection";
 const ACTION_ERROR = "No hemos podido completar la acción. Inténtalo de nuevo.";
 const CANCELED_BY_ACADEMY = "Lo canceló la academia.";
 const REVIEWED_BY_ACADEMY = "La academia lo revisó y lo cerró.";
+// Cerrado sin poder saber si se cobró: Stripe no deja leer el cobro (p. ej. la
+// cuenta se desconectó) o cobró otro importe, que no se registra.
+const REVIEWED_UNVERIFIABLE =
+  "Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual.";
 
 // Rechazos (409) que piden algo concreto a la academia. «Necesita soporte»
 // lleva el texto de la acción que se intentó: tras él no se ofrece ninguna.
@@ -31,8 +35,10 @@ const NEEDS_SUPPORT_TEXT: Record<"cancel" | "mark_reviewed", string> = {
   mark_reviewed:
     "No se puede marcar como revisado: en Stripe hay dinero que se ha movido o no se puede leer el cobro de esta cuota. Resuélvelo en tu panel de Stripe con su soporte.",
 };
+// Cancelar no sirve porque el cobro ya se hizo en Stripe: ya figura registrado
+// en otro cobro automático o Stripe cobró otro importe.
 const REVIEW_REQUIRED_TEXT =
-  "No se puede cancelar: este cobro ya figura registrado en otro cobro automático. Compruébalo en Stripe y usa «Marcar como revisado».";
+  "No se puede cancelar: este cobro ya se hizo en Stripe (está registrado en otro cobro automático o por otro importe). Compruébalo en Stripe y usa «Marcar como revisado».";
 const CHANGED_TEXT =
   "El cobro automático de esta cuota cambió o acaba de empezar. Recarga la página y vuelve a intentarlo.";
 
@@ -42,7 +48,11 @@ const FAMILY_NOTICE_TEXT: Record<"sent" | "not_sent", string> = {
   not_sent: "No hemos podido avisar a la familia por correo. Avísala tú.",
 };
 
-type Outcome = "canceled" | "reviewed" | "collected";
+type Outcome = "canceled" | "reviewed" | "collected" | "unverifiable";
+
+function isOutcome(value: unknown): value is Outcome {
+  return value === "canceled" || value === "reviewed" || value === "collected" || value === "unverifiable";
+}
 type ActionBody = { outcome?: unknown; detail?: unknown; type?: unknown } | null;
 
 /** Último tramo del `type` de un problema (`…/problems/<tipo>`). */
@@ -144,8 +154,9 @@ export function OwnerAutomaticCollectionsPanel({
         ),
       });
       const body = (await response.json().catch(() => null)) as ActionBody;
-      if (response.ok && (body?.outcome === "canceled" || body?.outcome === "reviewed" || body?.outcome === "collected")) {
-        outcome = body.outcome;
+      const answered = body?.outcome;
+      if (response.ok && isOutcome(answered)) {
+        outcome = answered;
       } else if (!response.ok) {
         rejection = problemType(body);
         if (rejection === "automatic-collection-needs-support") failure = NEEDS_SUPPORT_TEXT[action];
@@ -160,8 +171,9 @@ export function OwnerAutomaticCollectionsPanel({
     setBusy(false);
     if (!outcome) {
       if (rejection === "automatic-collection-review-required") {
-        // Cancelar no sirve: el cobro ya está registrado en otro intento. Se
-        // ofrece «Marcar como revisado» (el servidor lo vuelve a comprobar).
+        // Cancelar no sirve: el cobro ya se hizo en Stripe (registrado en otro
+        // intento o por otro importe). Se ofrece «Marcar como revisado» (el
+        // servidor lo vuelve a comprobar).
         setConfirmingCancel(null);
         setItems((current) =>
           current.map(
@@ -202,7 +214,14 @@ export function OwnerAutomaticCollectionsPanel({
               ...entry,
               state: done === "collected" ? "collected" : "canceled",
               date: null,
-              reason: done === "collected" ? null : done === "canceled" ? CANCELED_BY_ACADEMY : REVIEWED_BY_ACADEMY,
+              reason:
+                done === "collected"
+                  ? null
+                  : done === "canceled"
+                    ? CANCELED_BY_ACADEMY
+                    : done === "unverifiable"
+                      ? REVIEWED_UNVERIFIABLE
+                      : REVIEWED_BY_ACADEMY,
               needsReview: false,
               canCancel: false,
               canMarkReviewed: false,
@@ -217,7 +236,9 @@ export function OwnerAutomaticCollectionsPanel({
           ? `El cobro de la cuota ${item.invoiceReference} ya se había hecho y ha quedado registrado.`
           : done === "canceled"
             ? `Cobro automático cancelado. La cuota ${item.invoiceReference} se cobra a mano.`
-            : `Cobro marcado como revisado. La cuota ${item.invoiceReference} se cobra a mano.`,
+            : done === "unverifiable"
+              ? `Cobro marcado como revisado. La cuota ${item.invoiceReference} se cobra a mano. ${REVIEWED_UNVERIFIABLE}`
+              : `Cobro marcado como revisado. La cuota ${item.invoiceReference} se cobra a mano.`,
     });
     router.refresh();
   }

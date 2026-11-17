@@ -39,9 +39,11 @@ import {
 } from "@/modules/family-collection/domain/collection-plan";
 import {
   AMOUNT_MISMATCH_REASON,
+  CANCELED_IN_STRIPE_CODE,
   codeOf,
   collectionErrorOf,
   finalCreateErrorCode,
+  INVALID_CREATE_REQUEST_CODE,
   isAuthenticationRequiredFailure,
   mapPaymentIntent,
   mapUnknownPaymentError,
@@ -1424,10 +1426,44 @@ describe("mapPaymentIntent", () => {
     expect(outcome).toEqual({ failed: { code: "authentication_required", declineCode: null } });
   });
 
-  it("cobro cancelado sin código: fallo con código genérico", () => {
-    expect(mapPaymentIntent(snapshot({ status: "canceled" }))).toEqual({
-      failed: { code: "payment_failed", declineCode: null },
+  it("C3: cobro cancelado sin ningún error de pago: cerrado como canceled_in_stripe, nunca como fallo del banco", () => {
+    expect(CANCELED_IN_STRIPE_CODE).toBe("canceled_in_stripe");
+    expect(mapPaymentIntent(snapshot({ status: "canceled" }))).toBe("canceled_in_stripe");
+    // Confirmar un cobro ya cancelado: el código de la llamada no es un rechazo del banco.
+    expect(
+      mapPaymentIntent({
+        type: "invalid_request_error",
+        code: "payment_intent_unexpected_state",
+        declineCode: null,
+        paymentIntent: snapshot({ status: "canceled" }),
+      })
+    ).toBe("canceled_in_stripe");
+    expect(
+      mapUnknownPaymentError({
+        type: "StripeInvalidRequestError",
+        rawType: "invalid_request_error",
+        code: "payment_intent_unexpected_state",
+        statusCode: 400,
+        payment_intent: { id: "pi_synthetic_canceled", status: "canceled", last_payment_error: null },
+      })
+    ).toBe("canceled_in_stripe");
+  });
+
+  it("C3: cobro cancelado con un error de pago guardado: sigue siendo un fallo con sus códigos", () => {
+    expect(
+      mapPaymentIntent(snapshot({ status: "canceled", lastErrorCode: "card_declined", lastDeclineCode: "insufficient_funds" }))
+    ).toEqual({ failed: { code: "card_declined", declineCode: "insufficient_funds" } });
+    expect(mapPaymentIntent(snapshot({ status: "canceled", lastErrorCode: "card_declined" }))).toEqual({
+      failed: { code: "card_declined", declineCode: null },
     });
+    expect(
+      mapPaymentIntent({
+        type: "card_error",
+        code: "card_declined",
+        declineCode: "do_not_honor",
+        paymentIntent: snapshot({ status: "canceled" }),
+      })
+    ).toEqual({ failed: { code: "card_declined", declineCode: "do_not_honor" } });
   });
 
   it("nunca guarda algo que no sea un código", () => {
@@ -1614,6 +1650,44 @@ describe("rechazos seguros al crear el cobro", () => {
       code: "resource_missing",
     });
     expect(finalCreateErrorCode(error)).toBe("resource_missing");
+  });
+
+  it.each([
+    ["parámetro no válido", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "parameter_invalid_integer", statusCode: 400 }, "parameter_invalid_integer"],
+    ["método de pago de otro cliente", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "payment_method_not_available", statusCode: 400 }, "payment_method_not_available"],
+    ["código en mayúsculas", { rawType: "invalid_request_error", code: "Parameter_Unknown", statusCode: 400 }, "parameter_unknown"],
+    ["sin código", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", statusCode: 400 }, INVALID_CREATE_REQUEST_CODE],
+    ["código que no es un código", { rawType: "invalid_request_error", code: "Mensaje con espacios", statusCode: 400 }, INVALID_CREATE_REQUEST_CODE],
+  ])("C4: cualquier otra petición rechazada (400 invalid_request_error) es final al crear: %s", (_label, error, code) => {
+    expect(INVALID_CREATE_REQUEST_CODE).toBe("invalid_request");
+    expect(finalCreateErrorCode(error)).toBe(code);
+    // Fuera de la creación sigue siendo pasajero.
+    expect(mapUnknownPaymentError(error)).toBe("transient");
+  });
+
+  it("C4: un Error del SDK con 400 y otro código también es final", () => {
+    const error = Object.assign(new Error("Mensaje sintético de Stripe"), {
+      type: "StripeInvalidRequestError",
+      rawType: "invalid_request_error",
+      code: "parameter_missing",
+      statusCode: 400,
+    });
+    expect(finalCreateErrorCode(error)).toBe("parameter_missing");
+  });
+
+  it.each([
+    ["idempotencia (400)", { type: "StripeIdempotencyError", rawType: "idempotency_error", statusCode: 400 }],
+    ["clave de idempotencia en uso (400)", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "idempotency_key_in_use", statusCode: 400 }],
+    ["clave de idempotencia en uso (409)", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "idempotency_key_in_use", statusCode: 409 }],
+    ["bloqueo (400)", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "lock_timeout", statusCode: 400 }],
+    ["límite de peticiones (400)", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "rate_limit", statusCode: 400 }],
+    ["error interno (500)", { type: "StripeAPIError", rawType: "api_error", statusCode: 500 }],
+    ["no disponible (503)", { type: "StripeAPIError", rawType: "api_error", statusCode: 503 }],
+    ["autenticación sin código (401)", { type: "StripeAuthenticationError", rawType: "invalid_request_error", statusCode: 401 }],
+    ["permiso sin código (403)", { type: "StripePermissionError", rawType: "invalid_request_error", statusCode: 403 }],
+    ["otro tipo con 400", { type: "StripeCardError", rawType: "card_error", code: "card_declined", statusCode: 400 }],
+  ])("C4: siguen siendo pasajeros al crear: %s", (_label, error) => {
+    expect(finalCreateErrorCode(error)).toBeNull();
   });
 
   it.each([

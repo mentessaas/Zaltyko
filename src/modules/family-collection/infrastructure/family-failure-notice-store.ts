@@ -40,8 +40,8 @@ const ISO = `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'`;
  * - `no_email`: la persona que paga no tiene correo guardado;
  * - `not_delivered`: el envío no se aceptó (baja de correos, envío simulado…);
  * - `invoice_closed`: la cuota ya está pagada o anulada;
- * - `superseded`: el aviso ya no vale (hubo otro intento, el reintento ya pasó
- *   o el intento cambió);
+ * - `superseded`: el aviso ya no vale (un intento posterior ya cobró la
+ *   cuota, o el intento ya no es un fallo del intento 1);
  * - `organization_inactive`: la academia no está activa.
  */
 export type FamilyFailureNoticeOutcome =
@@ -66,6 +66,19 @@ export interface PendingFamilyFailureNotice {
   nextRetryAt: Date | null;
   /** Número del último intento de la factura. */
   lastAttemptNumber: number;
+  /**
+   * Estado del último intento de la factura y su próximo reintento (si es un
+   * fallo con reintento). Con un reintento ya reclamado el aviso del intento 1
+   * se sigue enviando: sin fecha, o con la del reintento siguiente. Sin
+   * indicar, no se sabe: se trata como un reintento en curso.
+   */
+  lastAttemptStatus?: string;
+  lastAttemptNextRetryAt?: Date | null;
+  /**
+   * Instante del aviso en el outbox (ISO con microsegundos): junto con el id
+   * del intento, marca por dónde sigue la página siguiente.
+   */
+  occurredAt?: string;
   invoiceStatus: string;
   organizationStatus: string;
   academyName: string;
@@ -100,6 +113,11 @@ export interface FamilyFailureNoticeStore {
     limit: number;
     /** Solo tests de PostgreSQL: academias a las que se limita; null = todas. */
     scope: readonly string[] | null;
+    /**
+     * Página siguiente: solo avisos posteriores a este (por instante del aviso
+     * y, a igual instante, por id del intento). `null` = desde el principio.
+     */
+    after?: { occurredAt: string; attemptId: string } | null;
   }): Promise<PendingFamilyFailureNotice[]>;
   /** Deja el resultado (una vez por intento). `false` si ya estaba. */
   recordResult(input: {
@@ -185,6 +203,10 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
             )`
           : sql`null::boolean`;
 
+      // Página siguiente: mismo orden que el de la consulta (instante del aviso, id del intento).
+      const afterCondition = input.after
+        ? sql`and (e.occurred_at, a.id) > (${input.after.occurredAt}::timestamptz, ${input.after.attemptId}::uuid)`
+        : sql``;
       const result = await db.execute(sql`
         select a.organization_id::text as "organizationId",
                a.location_id::text as "locationId",
@@ -201,6 +223,9 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
                    from zaltyko.family_collection_attempts x
                   where x.organization_id = a.organization_id and x.invoice_id = a.invoice_id
                ) as "lastAttemptNumber",
+               latest.status as "lastAttemptStatus",
+               to_char(latest.next_retry_at at time zone 'UTC', ${sql.raw(ISO)}) as "lastAttemptNextRetryAt",
+               to_char(e.occurred_at at time zone 'UTC', ${sql.raw(ISO)}) as "occurredAt",
                i.status::text as "invoiceStatus",
                o.status::text as "organizationStatus",
                o.name as "academyName",
@@ -226,6 +251,14 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
           join zaltyko.invoices i
             on i.organization_id = a.organization_id and i.id = a.invoice_id
           join zaltyko.organizations o on o.id = a.organization_id
+          -- Último intento de la factura (el reintento, si ya se reclamó).
+          left join lateral (
+            select x.status::text as status, x.next_retry_at
+              from zaltyko.family_collection_attempts x
+             where x.organization_id = a.organization_id and x.invoice_id = a.invoice_id
+             order by x.attempt_number desc
+             limit 1
+          ) latest on true
           left join zaltyko.locations l
             on l.organization_id = a.organization_id and l.id = a.location_id
           left join zaltyko.family_payers fp
@@ -253,6 +286,7 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
            and a.attempt_number = 1
            and e.occurred_at >= ${input.since.toISOString()}::timestamptz
            and ${inScope(sql.raw("a.organization_id"), input.scope)}
+           ${afterCondition}
            and not exists (
              select 1
                from zaltyko.outbox_events r
@@ -275,6 +309,11 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
         declineCode: textOrNull(row.declineCode),
         nextRetryAt: textOrNull(row.nextRetryAt) ? new Date(String(row.nextRetryAt)) : null,
         lastAttemptNumber: Number(row.lastAttemptNumber ?? row.attemptNumber),
+        lastAttemptStatus: textOrNull(row.lastAttemptStatus) ?? String(row.attemptStatus),
+        lastAttemptNextRetryAt: textOrNull(row.lastAttemptNextRetryAt)
+          ? new Date(String(row.lastAttemptNextRetryAt))
+          : null,
+        ...(textOrNull(row.occurredAt) ? { occurredAt: String(row.occurredAt) } : {}),
         invoiceStatus: String(row.invoiceStatus),
         organizationStatus: String(row.organizationStatus),
         academyName: String(row.academyName ?? ""),

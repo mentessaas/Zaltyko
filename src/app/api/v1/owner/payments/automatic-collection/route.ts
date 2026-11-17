@@ -6,7 +6,9 @@
  *   → «Cancelar el cobro automático».
  * POST { action: "mark_reviewed", organizationId, invoiceId, checkedInStripe: true }
  *   → «Marcar como revisado» (la persona confirma que lo comprobó en Stripe).
- * Respuesta: { outcome: "canceled" | "reviewed" | "collected" }.
+ * Respuesta: { outcome: "canceled" | "reviewed" | "collected" | "unverifiable" }
+ * (`unverifiable`: revisado sin poder saber si se cobró; la academia lo
+ * comprueba en su panel de Stripe y, si se cobró, lo registra como pago manual).
  *
  * Mismo patrón que Conectar Stripe (Fase 1): sesión y mismo origen aquí;
  * límite por academia verificada (ROUTE_LIMITS, 10/min: puede llamar a
