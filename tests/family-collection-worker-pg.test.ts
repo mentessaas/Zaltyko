@@ -622,6 +622,52 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     });
   });
 
+  it("D3: intento 1 rechazado, caída antes de registrar y reanudación que lo deja fallido: un solo aviso a la familia", async () => {
+    const fixture = await createCollectableInvoice();
+    const declined = (paymentIntentId: string): CollectionError => ({
+      type: "card_error",
+      code: "card_declined",
+      declineCode: "insufficient_funds",
+      paymentIntent: {
+        id: paymentIntentId,
+        status: "requires_payment_method",
+        lastErrorCode: "card_declined",
+        lastDeclineCode: "insufficient_funds",
+      },
+    });
+    const { gateway } = fakeStripe({ confirm: (paymentIntentId) => declined(paymentIntentId) });
+    const start = new Date();
+    const crashing: FamilyCollectionStore = {
+      ...createFamilyCollectionStore(),
+      applyOutcome: async () => {
+        throw new Error("caída simulada antes de registrar");
+      },
+    };
+    // Solo la academia de esta prueba.
+    const runOwn = (now: Date, store: FamilyCollectionStore = createFamilyCollectionStore()) =>
+      runFamilyCollection({ now, organizationIds: [fixture.organizationId] }, { store, gateway, refreshAccount: refresher(now) });
+
+    // El rechazo llega, pero el proceso cae antes de registrarlo: ni fallo ni aviso.
+    await runOwn(start, crashing);
+    const [afterCrash] = await attempts(fixture);
+    expect(afterCrash).toMatchObject({ number: 1, status: "created", resumes: 0 });
+    expect(await outboxCount(fixture, "family_collection.family_failure_notice")).toBe(0);
+
+    // La reanudación relee el cobro rechazado en Stripe y lo deja fallido: un aviso.
+    const later = new Date(start.getTime() + 25 * HOUR);
+    await runOwn(later);
+    const [resumed] = await attempts(fixture);
+    expect(resumed).toMatchObject({ number: 1, status: "failed", decline: "insufficient_funds", resumes: 1 });
+    expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(1);
+    expect(await outboxCount(fixture, "family_collection.attempt_failed")).toBe(1);
+    expect(await outboxCount(fixture, "family_collection.family_failure_notice")).toBe(1);
+
+    // Otra ejecución el mismo día no lo repite.
+    await runOwn(new Date(later.getTime() + 60_000));
+    expect(await attempts(fixture)).toHaveLength(1);
+    expect(await outboxCount(fixture, "family_collection.family_failure_notice")).toBe(1);
+  });
+
   it("cuota pagada a mano después de reclamar: el cobro queda registrado y la academia lo revisa", async () => {
     const fixture = await createCollectableInvoice();
     const { gateway } = fakeStripe({

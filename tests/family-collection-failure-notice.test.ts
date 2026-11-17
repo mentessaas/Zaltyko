@@ -12,6 +12,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const env = vi.hoisted(() => ({
   environment: "test" as "test" | "live" | null,
   production: false,
+  /** ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED: sin ella no salen reintentos. */
+  flag: true,
 }));
 const mocks = vi.hoisted(() => ({
   sendEmailWithLogging: vi.fn(),
@@ -26,6 +28,7 @@ vi.mock("@/lib/logger", () => ({
   logger: { error: mocks.error, warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 vi.mock("@/modules/family-collection/application/config", () => ({
+  isFamilyAutomaticCollectionFlagEnabled: () => env.flag,
   resolveConnectEnvironment: () => env.environment,
   isProductionDatabase: () => env.production,
 }));
@@ -132,6 +135,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   env.environment = "test";
   env.production = false;
+  env.flag = true;
 });
 
 // ---------------------------------------------------------------------------
@@ -301,7 +305,9 @@ describe("aviso del primer fallo: textos", () => {
     });
     expect(message.subject).toBe("Club <b>Sintético</b>: no hemos podido cobrar tu cuota");
     expect(message.text).toContain("No hemos podido cobrar con tu tarjeta tu cuota.");
-    expect(message.text).toContain("Volveremos a intentarlo en unos días con la tarjeta que tengas guardada.");
+    expect(message.text).toContain(
+      "Volveremos a intentarlo pronto con la tarjeta que tengas guardada. Si quieres usar otra, cámbiala cuanto antes en Zaltyko."
+    );
     expect(message.html).toContain("Club &lt;b&gt;Sintético&lt;/b&gt;");
     expect(message.html).not.toContain("<b>");
   });
@@ -312,17 +318,46 @@ describe("aviso del primer fallo: textos", () => {
 // ---------------------------------------------------------------------------
 
 describe("aviso del primer fallo: qué se hace con un aviso pendiente", () => {
+  const ON = { retriesEnabled: true };
+  const OFF = { retriesEnabled: false };
+  /** 00:00 en Madrid del día local indicado de noviembre de 2026 (UTC+1). */
+  const retryOn = (day: number) => new Date(Date.UTC(2026, 10, day - 1, 23, 0, 0));
+
   it("se envía con la fecha local del reintento", () => {
-    expect(decideFamilyFailureNotice(pending(), NOW)).toEqual({ action: "send", retryDateLocal: "2026-11-18" });
-    expect(decideFamilyFailureNotice(pending({ nextRetryAt: null }), NOW)).toEqual({
+    expect(decideFamilyFailureNotice(pending(), NOW, ON)).toEqual({
       action: "send",
+      retryScheduled: true,
+      retryDateLocal: "2026-11-18",
+    });
+    expect(decideFamilyFailureNotice(pending({ nextRetryAt: null }), NOW, ON)).toEqual({
+      action: "send",
+      retryScheduled: false,
       retryDateLocal: null,
     });
   });
 
+  it("I1: con el cobro automático apagado nunca se promete el reintento (no saldría)", () => {
+    expect(decideFamilyFailureNotice(pending(), NOW, OFF)).toEqual({
+      action: "send",
+      retryScheduled: false,
+      retryDateLocal: null,
+    });
+  });
+
+  it("M2: un reintento de hoy o ya pasado nunca se promete con fecha; si su ventana pasó, sin promesa", () => {
+    expect(retryOn(18).toISOString()).toBe("2026-11-17T23:00:00.000Z");
+    const decide = (day: number) => decideFamilyFailureNotice(pending({ nextRetryAt: retryOn(day) }), NOW, ON);
+    // Hoy (17-11) y días pasados dentro de la ventana de 3 días: «pronto», sin fecha.
+    for (const day of [17, 16, 14]) {
+      expect(decide(day), `día ${day}`).toEqual({ action: "send", retryScheduled: true, retryDateLocal: null });
+    }
+    // Ventana del reintento pasada (13-11 + 3 días < 17-11): ya no saldrá.
+    expect(decide(13)).toEqual({ action: "send", retryScheduled: false, retryDateLocal: null });
+  });
+
   it("nunca se envía un aviso que ya no es verdad", () => {
     const close = (overrides: Partial<PendingFamilyFailureNotice>) =>
-      decideFamilyFailureNotice(pending(overrides), NOW);
+      decideFamilyFailureNotice(pending(overrides), NOW, ON);
     expect(close({ organizationStatus: "suspended" })).toEqual({ action: "close", outcome: "organization_inactive" });
     expect(close({ invoiceStatus: "paid" })).toEqual({ action: "close", outcome: "invoice_closed" });
     expect(close({ invoiceStatus: "void" })).toEqual({ action: "close", outcome: "invoice_closed" });
@@ -331,11 +366,6 @@ describe("aviso del primer fallo: qué se hace con un aviso pendiente", () => {
     expect(close({ attemptNumber: 2, lastAttemptNumber: 2 })).toEqual({ action: "close", outcome: "superseded" });
     expect(close({ attemptStatus: "canceled" })).toEqual({ action: "close", outcome: "superseded" });
     expect(close({ failureCode: "transient_exhausted", nextRetryAt: null })).toEqual({
-      action: "close",
-      outcome: "superseded",
-    });
-    // El reintento que prometería ya pasó (16-11 local, hoy es 17-11).
-    expect(close({ nextRetryAt: new Date("2026-11-15T23:00:00.000Z") })).toEqual({
       action: "close",
       outcome: "superseded",
     });
@@ -468,8 +498,8 @@ describe("aviso del primer fallo: envío", () => {
     expect(results.get(ATTEMPT_ID)).toBe("not_delivered");
   });
 
-  it("si el envío falla, no guarda resultado (se reintenta) y registra solo ids y el nombre del error", async () => {
-    const { store } = memoryStore([pending()]);
+  it("M1: si el envío lanza un error, queda como no entregado (la academia ve «Avísala tú») y el log solo lleva ids", async () => {
+    const { store, results } = memoryStore([pending()]);
     const sendEmail = vi.fn<(options: SendEmailOptions) => Promise<boolean>>(async () => {
       throw new Error(`BREVO_API_ERROR: ${PAYER_EMAIL}`);
     });
@@ -479,14 +509,70 @@ describe("aviso del primer fallo: envío", () => {
       { store, sendEmail, isStorageAvailable: async () => true }
     );
 
-    expect(delivery).toEqual({ sent: 0, notSent: 0, pending: 1 });
-    expect(store.recordResult).not.toHaveBeenCalled();
+    expect(delivery).toEqual({ sent: 0, notSent: 1, pending: 0 });
+    expect(results.get(ATTEMPT_ID)).toBe("not_delivered");
     expect(mocks.error).toHaveBeenCalledWith(
       "Cobro automático: no se pudo enviar el aviso de cobro fallido a la familia",
       undefined,
       { organizationId: ORGANIZATION_ID, invoiceId: INVOICE_ID, attemptId: ATTEMPT_ID, errorName: "Error" }
     );
     expect(JSON.stringify(mocks.error.mock.calls)).not.toContain(PAYER_EMAIL);
+  });
+
+  it("si no se puede guardar el resultado, el aviso sigue pendiente y la siguiente ejecución lo vuelve a mirar", async () => {
+    const { store } = memoryStore([pending()]);
+    store.recordResult.mockRejectedValueOnce(Object.assign(new Error("base caída"), { code: "57P01" }));
+    const sendEmail = sender();
+    const deps = { store, sendEmail, isStorageAvailable: async () => true };
+
+    expect(await deliverFamilyFailureNotices({ now: NOW, appUrl: "https://zaltyko.test" }, deps)).toEqual({
+      sent: 0,
+      notSent: 0,
+      pending: 1,
+    });
+    expect(mocks.error).toHaveBeenCalledWith(
+      "Cobro automático: no se pudo guardar el resultado del aviso a la familia",
+      undefined,
+      { organizationId: ORGANIZATION_ID, invoiceId: INVOICE_ID, attemptId: ATTEMPT_ID, errorName: "Error" }
+    );
+    // La siguiente ejecución lo vuelve a mirar (el emisor real no lo reenviaría: misma clave).
+    expect(await deliverFamilyFailureNotices({ now: NOW, appUrl: "https://zaltyko.test" }, deps)).toEqual({
+      sent: 1,
+      notSent: 0,
+      pending: 0,
+    });
+    expect(sendEmail.mock.calls.map(([options]) => options.dedupeKey)).toEqual([
+      `family-collection:${ATTEMPT_ID}:family_failure_notice`,
+      `family-collection:${ATTEMPT_ID}:family_failure_notice`,
+    ]);
+  });
+
+  it("I1: con el cobro automático apagado el correo no promete el reintento", async () => {
+    env.flag = false;
+    const { store } = memoryStore([pending()]);
+    const sendEmail = sender();
+    const delivery = await deliverFamilyFailureNotices(
+      { now: NOW, appUrl: "https://zaltyko.test" },
+      { store, sendEmail, isStorageAvailable: async () => true }
+    );
+    expect(delivery).toEqual({ sent: 1, notSent: 0, pending: 0 });
+    const options = sendEmail.mock.calls[0]![0];
+    expect(options.text).not.toMatch(/volveremos a intentarlo|reintent/i);
+    expect(options.text).toContain("Esta cuota ya no se cobrará sola. Tu academia te dirá cómo pagarla.");
+    expect(options.text).toContain(`Revisar mi tarjeta: ${FEES_URL}`);
+  });
+
+  it("M2: con el reintento ya en su día, el correo lo promete sin fecha", async () => {
+    // 00:00 del 17-11 en Madrid: hoy.
+    const { store } = memoryStore([pending({ nextRetryAt: new Date("2026-11-16T23:00:00.000Z") })]);
+    const sendEmail = sender();
+    await deliverFamilyFailureNotices(
+      { now: NOW, appUrl: "https://zaltyko.test" },
+      { store, sendEmail, isStorageAvailable: async () => true }
+    );
+    const options = sendEmail.mock.calls[0]![0];
+    expect(options.text).toContain("Volveremos a intentarlo pronto con la tarjeta que tengas guardada.");
+    expect(options.text).not.toMatch(/intentarlo el \d/);
   });
 
   it("con la clave que no es de test, contra producción o sin tablas no hace nada", async () => {

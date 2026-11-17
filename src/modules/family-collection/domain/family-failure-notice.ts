@@ -164,7 +164,7 @@ function noticeBody(
           `No hemos podido cobrar con tu tarjeta ${fee}. El banco no lo ha aceptado esta vez.`,
           retryDay
             ? `Volveremos a intentarlo el ${retryDay} con la tarjeta que tengas guardada. Si quieres usar otra, cámbiala antes en Zaltyko.`
-            : "Volveremos a intentarlo en unos días con la tarjeta que tengas guardada. Si quieres usar otra, cámbiala antes en Zaltyko.",
+            : "Volveremos a intentarlo pronto con la tarjeta que tengas guardada. Si quieres usar otra, cámbiala cuanto antes en Zaltyko.",
         ],
         linkText: "Revisar mi tarjeta",
       };
@@ -212,7 +212,10 @@ export function renderFamilyFailureNotice(input: {
   academyName: string;
   /** Primer día del periodo de la cuota (YYYY-MM-DD) o null. */
   servicePeriodStart: string | null;
-  /** Día local del reintento (YYYY-MM-DD); solo cuenta en `retry_scheduled`. */
+  /**
+   * Día local del reintento (YYYY-MM-DD), solo si es futuro; solo cuenta en
+   * `retry_scheduled`. Sin él, el reintento se promete sin fecha («pronto»).
+   */
   retryDateLocal: string | null;
   /** URL de /familia/cuotas. */
   feesUrl: string;

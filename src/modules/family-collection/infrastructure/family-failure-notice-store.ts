@@ -12,6 +12,12 @@
  * (`family_collection.family_failure_notice_result`, uno por intento). Los dos
  * eventos solo llevan ids y un código de resultado.
  *
+ * Coste: `outbox_events` no tiene índice por evento ni por fecha (solo
+ * `(status, available_at)`, el de frescura y el único (organización, evento,
+ * clave)), así que la lectura NO recorre el outbox: parte de los intentos 1
+ * fallidos recientes (índice `(status, updated_at)` de la candidata) y busca
+ * cada aviso y su resultado por el único del outbox.
+ *
  * Toca tablas de las candidatas de las Fases 1–3: usar solo después de
  * comprobar que existen. Nada de Stripe aquí.
  */
@@ -144,9 +150,12 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
                ) as "servicePeriodStart",
                contact.value as "payerEmail",
                ${replyToColumn} as "replyToEmail"
-          from zaltyko.outbox_events e
-          join zaltyko.family_collection_attempts a
-            on a.organization_id = e.organization_id and a.id = e.aggregate_id
+          from zaltyko.family_collection_attempts a
+          -- Búsqueda exacta por el único (organización, evento, clave) del outbox.
+          join zaltyko.outbox_events e
+            on e.organization_id = a.organization_id
+           and e.event_name = ${FAMILY_FAILURE_NOTICE_EVENT}
+           and e.idempotency_key = 'family-collection:' || a.id::text || ':family_failure_notice'
           join zaltyko.invoices i
             on i.organization_id = a.organization_id and i.id = a.invoice_id
           join zaltyko.organizations o on o.id = a.organization_id
@@ -168,9 +177,14 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
              limit 1
           ) contact on true
           ${replyToJoin}
-         where e.event_name = ${FAMILY_FAILURE_NOTICE_EVENT}
+         -- Intentos 1 fallidos de los últimos días (índice
+         -- family_collection_attempts_resume_idx (status, updated_at): el
+         -- fallo deja updated_at en su instante; un cambio posterior solo lo acerca).
+         where a.status = 'failed'
+           and a.updated_at >= ${input.since.toISOString()}::timestamptz
+           and a.attempt_number = 1
            and e.occurred_at >= ${input.since.toISOString()}::timestamptz
-           and ${inScope(sql.raw("e.organization_id"), input.scope)}
+           and ${inScope(sql.raw("a.organization_id"), input.scope)}
            and not exists (
              select 1
                from zaltyko.outbox_events r
@@ -178,7 +192,7 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
                 and r.event_name = ${FAMILY_FAILURE_NOTICE_RESULT_EVENT}
                 and r.idempotency_key = 'family-collection:' || a.id::text || ':family_failure_notice_result'
            )
-         order by e.occurred_at asc, e.id asc
+         order by e.occurred_at asc, a.id asc
          limit ${input.limit}
       `);
       return (result.rows as Array<Record<string, unknown>>).map((row) => ({
