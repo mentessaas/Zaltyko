@@ -74,6 +74,7 @@ export function planReminders(input: {
       minIntervalDays: input.minIntervalDays,
       origin: input.origin,
       autoAfterDays: input.autoAfterDays,
+      automaticCollectionHold: candidate.automaticCollectionHold,
     });
     if (decision.eligible) eligible.push(candidate);
     else skipped.push({ chargeId: candidate.chargeId, reason: decision.reason });

@@ -641,6 +641,9 @@ const staticallyGuarded: Record<string, { guard: string; via?: string }> = {
   // todas las sedes antes de leer o cambiar el ajuste.
   "GET owner/payments/collection-settings/route.ts": { guard: "resolveOwnerScope", via: "src/modules/family-collection/application/collection-settings-service.ts" },
   "PUT owner/payments/collection-settings/route.ts": { guard: "resolveOwnerScope", via: "src/modules/family-collection/application/collection-settings-service.ts" },
+  // Acciones de la academia sobre el cobro automático (Fase 3): el servicio
+  // exige propiedad o administración con todas las sedes antes de leer nada.
+  "POST owner/payments/automatic-collection/route.ts": { guard: "resolveOwnerScope", via: "src/modules/family-collection/application/family-collection-academy-actions.ts" },
   "POST owner/staff/[staffProfileId]/archive/route.ts": { guard: "requireOwnerAllScope" },
   "POST owner/staff/[staffProfileId]/reactivate/route.ts": { guard: "requireOwnerAllScope" },
   "PATCH owner/staff/[staffProfileId]/route.ts": { guard: "requireOwnerAllScope" },

@@ -1,7 +1,17 @@
 import { sql } from "drizzle-orm";
 
 import type { DatabaseClient } from "@/lib/db-transactions";
-import { PENDING_WINDOW_MINUTES } from "@/modules/payment-reminders/domain/reminder-policy";
+import {
+  isFamilyAutomaticCollectionFlagEnabled,
+  isProductionDatabase,
+  resolveConnectEnvironment,
+} from "@/modules/family-collection/application/config";
+import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
+import { collectionDate, localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
+import {
+  automaticCollectionHolds,
+  PENDING_WINDOW_MINUTES,
+} from "@/modules/payment-reminders/domain/reminder-policy";
 
 /**
  * Cuota abierta con su tutor pagador y su historial de recordatorios.
@@ -29,6 +39,8 @@ export interface ReminderCandidate {
   /** Intentos que el proveedor no confirmó; entran en la clave del correo para poder reintentar. */
   failedCount: number;
   hasPendingReservation: boolean;
+  /** La cuota espera a su cobro automático: sin recordatorios (automaticCollectionHolds). */
+  automaticCollectionHold: boolean;
 }
 
 export interface CandidateFilter {
@@ -38,6 +50,8 @@ export interface CandidateFilter {
   /** Solo cuotas con vencimiento anterior a este instante. */
   dueBefore?: Date;
   limit: number;
+  /** Instante de la decisión del cobro automático; por defecto, ahora. */
+  now?: Date;
 }
 
 interface CandidateRow {
@@ -58,6 +72,11 @@ interface CandidateRow {
   sentCount: string | number;
   failedCount: string | number;
   hasPendingReservation: boolean | null;
+  /** Solo con el cobro automático abierto (automaticCollectionColumns). */
+  collectionMode?: string | null;
+  lastAttemptStatus?: string | null;
+  lastAttemptRetryPending?: boolean | null;
+  collectionDayOfMonth?: number | string | null;
 }
 
 function safeCents(value: unknown): number {
@@ -74,6 +93,41 @@ function uuidList(ids: string[]) {
 
 const ISO = `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'`;
 
+/**
+ * Cobro automático (Fase 3) abierto: bandera encendida, cerrojos de R11
+ * abiertos (clave de test, base que no es la de producción) y sus tablas. Si
+ * no, las cuotas automáticas se tratan como manuales y la consulta es la de
+ * siempre (no toca las tablas de la Fase 3).
+ */
+async function isAutomaticCollectionOpen(client: DatabaseClient): Promise<boolean> {
+  if (!isFamilyAutomaticCollectionFlagEnabled()) return false;
+  if (resolveConnectEnvironment() !== "test" || isProductionDatabase()) return false;
+  return isFamilyCollectionStorageAvailable(client);
+}
+
+/** ¿Espera la cuota a su cobro automático? Ante datos que no se pueden leer, se trata como manual. */
+function automaticHoldOf(row: CandidateRow, now: Date): boolean {
+  if (row.collectionMode !== "automatic") return false;
+  try {
+    const fixedDay = row.collectionDayOfMonth ?? null;
+    const day = fixedDay === null ? null : Number(fixedDay);
+    return automaticCollectionHolds({
+      collectionMode: "automatic",
+      automaticCollectionOpen: true,
+      lastAttempt: row.lastAttemptStatus
+        ? { status: row.lastAttemptStatus, retryPending: row.lastAttemptRetryPending === true }
+        : null,
+      collectionDateLocal: collectionDate({
+        dueDateLocal: localCalendarDate(new Date(row.dueAt), row.locationTimezone),
+        collectionDayOfMonth: day,
+      }),
+      todayLocal: localCalendarDate(now, row.locationTimezone),
+    });
+  } catch {
+    return false;
+  }
+}
+
 export async function loadReminderCandidates(
   client: DatabaseClient,
   filter: CandidateFilter
@@ -81,6 +135,29 @@ export async function loadReminderCandidates(
   if (filter.locationIds.length === 0 || filter.chargeIds?.length === 0) return [];
   const chargeFilter = filter.chargeIds ? sql`and c.id in (${uuidList(filter.chargeIds)})` : sql``;
   const dueFilter = filter.dueBefore ? sql`and c.due_at < ${filter.dueBefore.toISOString()}::timestamptz` : sql``;
+  const now = filter.now ?? new Date();
+  const automaticOpen = await isAutomaticCollectionOpen(client);
+  // Último intento de la factura (el abierto, si lo hay, es siempre el último)
+  // y el día de cobro de la academia.
+  const automaticColumns = automaticOpen
+    ? sql`
+        c.collection_mode::text as "collectionMode",
+        last_attempt.status as "lastAttemptStatus",
+        (last_attempt.next_retry_at is not null) as "lastAttemptRetryPending",
+        ocs.collection_day_of_month as "collectionDayOfMonth",`
+    : sql``;
+  const automaticJoins = automaticOpen
+    ? sql`
+      left join lateral (
+        select a.status, a.next_retry_at
+          from zaltyko.family_collection_attempts a
+         where a.organization_id = c.organization_id and a.invoice_id = c.invoice_id
+         order by a.attempt_number desc
+         limit 1
+      ) last_attempt on true
+      left join zaltyko.organization_collection_settings ocs
+        on ocs.organization_id = c.organization_id`
+    : sql``;
 
   const result = await client.execute(sql`
     select * from (
@@ -105,6 +182,7 @@ export async function loadReminderCandidates(
         coalesce(rem.sent_count, 0) as "sentCount",
         coalesce(rem.failed_count, 0) as "failedCount",
         coalesce(rem.has_pending, false) as "hasPendingReservation",
+        ${automaticColumns}
         i.reference as sort_reference
       from zaltyko.charges c
       inner join zaltyko.invoices i
@@ -148,6 +226,7 @@ export async function loadReminderCandidates(
           from zaltyko.payment_reminders r
          where r.organization_id = c.organization_id and r.charge_id = c.id
       ) rem on true
+      ${automaticJoins}
       where c.organization_id = ${filter.organizationId}::uuid
         and c.location_id in (${uuidList(filter.locationIds)})
         and c.status in ('due', 'partially_paid')
@@ -178,6 +257,7 @@ export async function loadReminderCandidates(
     sentCount: Number(row.sentCount),
     failedCount: Number(row.failedCount),
     hasPendingReservation: row.hasPendingReservation === true,
+    automaticCollectionHold: automaticOpen && automaticHoldOf(row, now),
   }));
 }
 

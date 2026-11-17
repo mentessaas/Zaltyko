@@ -1397,3 +1397,154 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Acciones de la academia: cancelar el cobro automático y marcarlo como revisado
+// (family-collection-academy-actions.ts). Sin llamadas a Stripe.
+// ---------------------------------------------------------------------------
+
+/** Último intento de una factura, tal como lo ve la academia. */
+export interface AcademyAttemptView extends CollectionAttempt {
+  nextRetryAt: Date | null;
+  /** La academia recibió al menos un aviso para revisar este intento. */
+  hasReviewNotice: boolean;
+}
+
+/** Motivo (`failure_code`) con el que la academia cierra un intento. */
+export type AcademyCloseReason = "canceled_by_academy" | "reviewed_by_academy";
+
+/** Último intento (por número) de la factura de esa academia, o null. */
+export async function readLatestAttemptForAcademy(input: {
+  organizationId: string;
+  invoiceId: string;
+}): Promise<AcademyAttemptView | null> {
+  const result = await db.execute(sql`
+    select ${attemptColumns},
+           next_retry_at as "nextRetryAt",
+           exists (
+             select 1 from zaltyko.outbox_events e
+              where e.organization_id = a.organization_id
+                and e.event_name = ${NEEDS_REVIEW_EVENT}
+                and e.idempotency_key like 'family-collection:' || a.id::text || ':needs_review:%'
+           ) as "hasReviewNotice"
+      from zaltyko.family_collection_attempts a
+     where a.organization_id = ${input.organizationId}::uuid
+       and a.invoice_id = ${input.invoiceId}::uuid
+     order by a.attempt_number desc
+     limit 1
+  `);
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) return null;
+  return {
+    ...toAttempt(row),
+    nextRetryAt: toDateOrNull(row.nextRetryAt),
+    hasReviewNotice: row.hasReviewNotice === true,
+  };
+}
+
+/**
+ * Cierra un intento como `canceled` por decisión de la academia, en el orden
+ * de bloqueo único (academia → cuotas de la factura por id → factura →
+ * intento), solo si sigue tal como la academia lo vio (estado, `pi_…` y, si
+ * se pide, reintento pendiente). Deja la auditoría con la persona y el aviso
+ * del outbox. `null` si el intento cambió mientras tanto.
+ */
+export async function closeAttemptByAcademy(input: {
+  organizationId: string;
+  attemptId: string;
+  expected: {
+    status: FamilyCollectionAttemptStatus;
+    paymentIntentId: string | null;
+    retryPending?: boolean;
+  };
+  reason: AcademyCloseReason;
+  actor: { userId: string; memberId: string };
+  now: Date;
+}): Promise<CollectionAttempt | null> {
+  return db.transaction(async (tx) => {
+    const found = await tx.execute(sql`
+      select invoice_id::text as "invoiceId"
+        from zaltyko.family_collection_attempts
+       where organization_id = ${input.organizationId}::uuid and id = ${input.attemptId}::uuid
+    `);
+    const invoiceId = (found.rows[0] as { invoiceId?: unknown } | undefined)?.invoiceId;
+    if (typeof invoiceId !== "string") return null;
+
+    await lockOrganizationForSaasMutation(tx, input.organizationId);
+    await lockInvoiceCharges(tx, input.organizationId, invoiceId);
+    await lockInvoice(tx, input.organizationId, invoiceId);
+    const locked = await tx.execute(sql`
+      select ${attemptColumns},
+             next_retry_at as "nextRetryAt",
+             failure_code as "failureCode",
+             decline_code as "declineCode"
+        from zaltyko.family_collection_attempts
+       where organization_id = ${input.organizationId}::uuid
+         and id = ${input.attemptId}::uuid
+       for update
+    `);
+    const row = locked.rows[0] as Record<string, unknown> | undefined;
+    if (!row) return null;
+    const attempt = toAttempt(row);
+    const nextRetryAt = toDateOrNull(row.nextRetryAt);
+    if (
+      attempt.status !== input.expected.status ||
+      attempt.paymentIntentId !== input.expected.paymentIntentId ||
+      (input.expected.retryPending === true && nextRetryAt === null)
+    ) {
+      return null;
+    }
+
+    const now = input.now.toISOString();
+    await tx.execute(sql`
+      update zaltyko.family_collection_attempts
+         set status = 'canceled',
+             failure_code = ${input.reason},
+             next_retry_at = null,
+             completed_at = coalesce(completed_at, ${now}::timestamptz),
+             updated_at = ${now}::timestamptz
+       where organization_id = ${input.organizationId}::uuid
+         and id = ${input.attemptId}::uuid
+         and status = ${attempt.status}
+    `);
+
+    // Misma clave que los demás cierres del intento: se cancela una sola vez.
+    const idempotencyKey = `family-collection:${attempt.id}:attempt_canceled`;
+    const payload = { attemptId: attempt.id, invoiceId: attempt.invoiceId, attemptNumber: attempt.attemptNumber, reason: input.reason };
+    const eventName = "family_collection.attempt_canceled";
+    if (!(await findOutboxEvent(tx, { organizationId: attempt.organizationId, eventName, idempotencyKey }))) {
+      await appendOutboxEvent(tx, {
+        organizationId: attempt.organizationId,
+        locationId: attempt.locationId,
+        eventName,
+        aggregateType: "family_collection_attempt",
+        aggregateId: attempt.id,
+        idempotencyKey,
+        payload,
+        occurredAt: input.now,
+      });
+    }
+    await appendAuditEntry(tx, {
+      organizationId: attempt.organizationId,
+      locationId: attempt.locationId,
+      actorUserId: input.actor.userId,
+      action:
+        input.reason === "reviewed_by_academy"
+          ? "family_collection.attempt_reviewed"
+          : "family_collection.attempt_canceled",
+      targetType: "family_collection_attempt",
+      targetId: attempt.id,
+      idempotencyKey,
+      before: {
+        status: attempt.status,
+        failureCode: toStringOrNull(row.failureCode),
+        declineCode: toStringOrNull(row.declineCode),
+        retryPending: nextRetryAt !== null,
+        resumeCount: attempt.resumeCount,
+      },
+      after: { status: "canceled", ...payload },
+      metadata: { memberId: input.actor.memberId },
+    });
+    return { ...attempt, status: "canceled" };
+  });
+}

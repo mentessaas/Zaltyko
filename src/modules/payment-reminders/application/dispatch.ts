@@ -68,7 +68,7 @@ export interface DispatchResult {
 }
 
 function loadFilter(input: DispatchInput, now: Date) {
-  const base = { organizationId: input.organizationId, locationIds: input.locationIds, limit: CANDIDATE_READ_LIMIT };
+  const base = { organizationId: input.organizationId, locationIds: input.locationIds, limit: CANDIDATE_READ_LIMIT, now };
   switch (input.selection.kind) {
     case "charges":
       return { ...base, chargeIds: input.selection.chargeIds, limit: MAX_CHARGES_PER_BATCH * 2 };
