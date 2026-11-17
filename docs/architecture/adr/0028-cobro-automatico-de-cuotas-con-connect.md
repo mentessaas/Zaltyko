@@ -512,7 +512,8 @@ de Elvis):**
     cambios desde hace más de 24 h, la salida si el proceso diario deja de
     pasar; con la casilla «He comprobado el cobro en Stripe»). Ninguna cierra un intento cuyo dinero se
     movió: si Stripe ya lo cobró, se registra el pago; si hay varios cobros y
-    alguno movió dinero, se pide resolverlo con el soporte de Stripe. No
+    alguno movió dinero, se pide resolverlo con el soporte de Stripe (salvo
+    los dos casos `reviewed_unverifiable` de la re-revisión del 17-11). No
     exigen la bandera: con la función apagada se tiene que poder cerrar lo
     abierto. Si el cobro pendiente ya no puede llegar (sin plan de pago,
     familia en manual, método revocado o cambio de plan), la academia ve «Se
@@ -686,16 +687,40 @@ cambia precios ni la regla del día fijo.
   releer un cobro en proceso, se registra el nombre y el código del error
   (nunca el mensaje) y, a los 15 días desde que se reclamó, la academia
   recibe el aviso `processing_unreadable`. Con un error permanente
-  (`resource_missing`, `permission_error`, `account_invalid`), «Marcar como
-  revisado» responde que hace falta soporte (`NEEDS_SUPPORT`) y no cierra el
-  intento (su dinero pudo moverse).
+  (`resource_missing`, `permission_error`, `account_invalid`) comprobado en
+  Stripe en ese mismo momento, «Marcar como revisado» cierra el intento con
+  el motivo `reviewed_unverifiable`, deja a la persona en la auditoría y la
+  academia ve «Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual.» La cuota vuelve al cobro manual con recordatorios
+  (re-revisión del 17-11, ver abajo).
 - **Importe y moneda comprobados.** Antes de registrar un cobro hecho se
   compara lo cobrado con el importe del intento y con `EUR`. Si no cuadra
-  (`amount_mismatch`), no se registra, la academia recibe un aviso, el
-  intento queda abierto y cancelar o marcar como revisado responden
-  `NEEDS_SUPPORT`.
+  (`amount_mismatch`), no se registra y la academia recibe un aviso; «Marcar
+  como revisado» cierra el intento como `reviewed_unverifiable` sin
+  registrar ese pago, con el mismo texto (re-revisión del 17-11).
 - **Base:** un solo cobro registrado por factura y reintento solo de tarjeta
   (decisión 15; candidata `cee3e0aa…`).
+- **Re-revisión del coordinador (17-11-2026, tarea C).**
+  - «Marcar como revisado» puede cerrar un cobro sin saber si se cobró
+    (`reviewed_unverifiable`) solo en dos casos: un error de Stripe que no se
+    arregla reintentando, comprobado en esa misma acción (cobro inexistente,
+    cuenta sin permiso o ya no válida, por ejemplo porque la academia
+    desconectó su cuenta), o un importe cobrado distinto (ese pago no se
+    registra). Un error pasajero o un cobro legible en curso nunca cierran
+    nada. Sustituye, solo para esos dos casos, la regla de no cerrar nunca un
+    intento cuyo dinero pudo moverse. Coste aceptado: si Stripe acabara
+    cobrando después y la familia pagara a mano, la academia debe detectarlo
+    en su panel de Stripe (el texto se lo pide).
+  - El aviso del primer fallo a la familia se envía de página en página hasta
+    el plazo y también antes de cobrar; un reintento ya reclamado no lo anula
+    (se envía sin fecha o con la del reintento siguiente; solo se anula si un
+    intento posterior ya cobró la cuota).
+  - Un cobro cancelado en Stripe sin ningún error de pago se cierra como
+    `canceled_in_stripe`, sin aviso de rechazo a la familia y sin reintento.
+  - Al crear el cobro, cualquier petición rechazada (400
+    `invalid_request_error`) sin cobro creado que no sea de idempotencia ni un
+    bloqueo cierra el intento y la cuota pasa a cobrarse a mano. Coste
+    aceptado: un cambio de la plataforma que provoque 400 deterministas pasa a
+    mano las cuotas de ese día, sin mover dinero.
 - **Bandera apagada con cobros en marcha.** Los recordatorios se retienen
   mientras haya un intento reclamado, creado o en proceso, aunque la bandera
   esté apagada (la misma regla que el pago manual). El portal enseña «Cobro

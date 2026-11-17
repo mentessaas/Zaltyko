@@ -535,8 +535,8 @@ de cada cuota en `/familia/cuotas` si es la persona pagadora (exige además
 - Errores de las acciones con su texto: `automatic-collection-processing`
   («ya se envió al banco y no se puede cancelar»),
   `automatic-collection-in-progress`, `automatic-collection-needs-support`
-  (varios cobros en Stripe con dinero movido, o un cobro que no se puede
-  leer: hay que resolverlo con el soporte de Stripe),
+  (varios cobros en Stripe con dinero movido, o un cobro sin datos para
+  leerlo en Zaltyko: hay que resolverlo con el soporte),
   `automatic-collection-review-required` (el cobro ya figura con otro intento:
   usar «Marcar como revisado») y `concurrency-retry` (el cobro cambió o acaba
   de empezar: recargar). Un error inesperado responde 503 sin detalles.
@@ -680,15 +680,27 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
   `capability_not_active`). Todos cierran con un intento `canceled`.
 - **Importe comprobado.** Antes de registrar un cobro se compara lo cobrado
   con el importe del intento y con `EUR`. Si no cuadra, no se registra, la
-  academia recibe el aviso `amount_mismatch` y el intento queda abierto hasta
-  que lo resuelva soporte (cancelar y marcar como revisado responden
-  `automatic-collection-needs-support`).
+  academia recibe el aviso `amount_mismatch`. «Marcar como revisado» cierra
+  el intento como `reviewed_unverifiable` sin registrar ese pago y la
+  academia ve «Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual.»
 - **Domiciliación «en curso» que no se puede leer.** Si Stripe no deja
   releerla, se registra el nombre y el código del error y, a los 15 días
   desde que se reclamó, la academia recibe el aviso `processing_unreadable`
   («El cobro lleva más de 15 días en curso y no podemos ver su resultado.
-  Compruébalo en Stripe.»). Con un error permanente, «Marcar como revisado»
-  responde que hace falta soporte y nunca cierra el intento.
+  Compruébalo en Stripe.»). Con un error permanente comprobado en Stripe en
+  ese momento, «Marcar como revisado» cierra el intento como
+  `reviewed_unverifiable` (con la persona en la auditoría) y la academia ve
+  «Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual.» La cuota vuelve al cobro manual con recordatorios. Un error
+  pasajero o un cobro legible en curso no cierran nada.
+- **Cancelado en Stripe.** Un cobro cancelado en Stripe sin error de pago se
+  cierra como `canceled_in_stripe` («El cobro se canceló en Stripe. Se cobra
+  a mano.»), sin aviso de rechazo a la familia y sin reintento.
+- **Petición rechazada al crear.** Cualquier 400 `invalid_request_error` sin
+  cobro creado, que no sea de idempotencia ni un bloqueo, cierra el intento
+  (`invalid_request` o su código: «Stripe no aceptó crear el cobro. Se cobra
+  a mano.»).
+- **Aviso del primer fallo.** Se envía de página en página hasta el plazo y
+  también antes de cobrar; un reintento ya reclamado no lo anula.
 - **Recordatorios.** Mientras el cobro de una cuota automática está en
   curso, o hay un reintento pendiente, la cuota no recibe recordatorios. Los
   vuelve a recibir:
