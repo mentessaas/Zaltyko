@@ -15,10 +15,17 @@
  *   cada familia, con la misma regla que la preferencia de la Tarea 4
  *   (family-collection-preferences.ts).
  *
+ * Nunca se promete un cobro que ya no puede llegar: antes de enseñar «se
+ * cobrará» (sin intento, o con un reintento pendiente) se comprueba, solo
+ * leyendo y como la puerta del cobro, que la academia tiene un plan de pago,
+ * que la preferencia automática de la familia sigue valiendo y que el
+ * pagador de la factura tiene una autorización activa en la cuenta de la
+ * academia. Si falta algo, la familia no ve nada y la academia ve «Se cobrará
+ * a mano» con el motivo.
+ *
  * Con la bandera apagada, fuera de la clave de test, contra la base de
- * producción o sin las tablas de la Fase 3 no se lee nada: la familia no ve
- * ningún estado y la academia nada nuevo. Nunca salen códigos del banco ni de
- * Stripe: los motivos se traducen aquí a frases sencillas.
+ * producción o sin las tablas de las Fases 1, 2 y 3 no se lee nada. Nunca
+ * salen códigos del banco ni de Stripe: los motivos se traducen aquí.
  */
 import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
@@ -31,7 +38,10 @@ import {
   loadPlanChangeRevision,
 } from "@/modules/billing/application/plan-state";
 import { isPreferenceRevisionCurrent } from "@/modules/billing/domain/collection-eligibility";
-import { evaluateAutomaticCollectionPlanEligibility } from "@/modules/billing/domain/plan-eligibility";
+import {
+  evaluateAutomaticCollectionPlanEligibility,
+  type AutomaticPlanEligibility,
+} from "@/modules/billing/domain/plan-eligibility";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
 import {
   addLocalDays,
@@ -40,7 +50,11 @@ import {
   startOfLocalDay,
 } from "@/modules/family-collection/domain/collection-plan";
 import { NEEDS_REVIEW_EVENT } from "@/modules/family-collection/infrastructure/family-collection-store";
-import { FAMILY_COLLECTION_MAX_RESUMES } from "@/modules/family-collection/infrastructure/family-collection-schema";
+import {
+  FAMILY_COLLECTION_MAX_RESUMES,
+  FAMILY_COLLECTION_OPEN_STATUSES,
+} from "@/modules/family-collection/infrastructure/family-collection-schema";
+import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
 import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
 import { familyCanViewFees } from "@/modules/family-portal/application/family-portal-sql";
 import type {
@@ -48,11 +62,12 @@ import type {
   FamilyAutomaticFeeStatuses,
 } from "@/modules/family-portal/domain/family-portal-presentation";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
-import { AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS } from "@/modules/payment-reminders/domain/reminder-policy";
+import { withinGrace } from "@/modules/payment-reminders/domain/reminder-policy";
+import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
 
 export type { FamilyAutomaticFeeStatus, FamilyAutomaticFeeStatuses };
 
-const OPEN_STATUSES: ReadonlySet<string> = new Set(["claimed", "created", "processing"]);
+const OPEN_STATUSES: ReadonlySet<string> = new Set(FAMILY_COLLECTION_OPEN_STATUSES);
 const ISO = `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'`;
 const uuidSchema = z.guid();
 
@@ -84,9 +99,126 @@ function dayOrNull(value: unknown): number | null {
   return Number.isInteger(day) && day >= 1 && day <= 31 ? day : null;
 }
 
+function integerOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
 function cents(value: unknown): number {
   const parsed = typeof value === "number" ? value : Number(value ?? 0);
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+/** Tablas de las Fases 1, 2 y 3: las consultas de este archivo leen de las tres. */
+async function collectionTablesAvailable(): Promise<boolean> {
+  const [collection, paymentMethods, connect] = await Promise.all([
+    isFamilyCollectionStorageAvailable(db),
+    isFamilyPaymentMethodsStorageAvailable(db),
+    isConnectOnboardingStorageAvailable(db),
+  ]);
+  return collection && paymentMethods && connect;
+}
+
+// ---------------------------------------------------------------------------
+// ¿Puede llegar todavía el cobro automático? (solo lectura, como la puerta)
+// ---------------------------------------------------------------------------
+
+/** Lo que hace falta para que un cobro automático pendiente pueda llegar. */
+export interface AutomaticCollectionPrerequisites {
+  plan: AutomaticPlanEligibility;
+  planChangeRevision: number | null;
+  /** `requested_mode` de la preferencia de la familia, o null si nunca se guardó. */
+  preferenceMode: string | null;
+  preferenceRevision: number | null;
+  /** El pagador de la factura tiene una autorización activa en la cuenta de test de la academia. */
+  hasActiveAuthorization: boolean;
+}
+
+/**
+ * Motivo (código interno) por el que un cobro automático pendiente ya no
+ * puede llegar, o `null` si todo sigue en pie. Mismo orden y mismas reglas
+ * que la puerta (collection-gate.ts): plan de la academia, preferencia de la
+ * familia (con la regla del cambio de plan) y autorización del pagador.
+ */
+export function automaticCollectionBlocker(input: AutomaticCollectionPrerequisites): string | null {
+  if (!input.plan.eligible) return input.plan.reason;
+  if (input.preferenceMode !== "automatic") return "preference_manual";
+  if (
+    !isPreferenceRevisionCurrent({
+      preferenceRevision: input.preferenceRevision,
+      currentRevision: input.plan.entitlementRevision,
+      planChangeRevision: input.planChangeRevision,
+    })
+  ) {
+    return "preference_entitlement_stale";
+  }
+  if (!input.hasActiveAuthorization) return "authorization_missing";
+  return null;
+}
+
+/** Plan de la academia y su última revisión con cambio real (una vez por academia). */
+async function loadPlan(
+  organizationId: string,
+  now: Date
+): Promise<{ plan: AutomaticPlanEligibility; planChangeRevision: number | null }> {
+  const planState = await loadOrganizationPlanState(db, organizationId);
+  const plan = evaluateAutomaticCollectionPlanEligibility({
+    organizationId,
+    entitlement: planState.entitlement,
+    subscription: planState.subscription,
+    now,
+  });
+  return {
+    plan,
+    planChangeRevision: plan.eligible ? await loadPlanChangeRevision(db, organizationId) : null,
+  };
+}
+
+/**
+ * Columnas SQL de la preferencia de la familia de la factura y de la
+ * autorización activa de su pagador en la cuenta de test de la academia (la
+ * que usa el proceso de cobro). Necesitan `i` (zaltyko.invoices).
+ */
+const prerequisiteColumns = sql`
+  (
+    select fcp.requested_mode::text
+      from zaltyko.family_collection_preferences fcp
+     where fcp.organization_id = i.organization_id and fcp.family_id = i.family_id
+     limit 1
+  ) as "preferenceMode",
+  (
+    select fcp.entitlement_revision
+      from zaltyko.family_collection_preferences fcp
+     where fcp.organization_id = i.organization_id and fcp.family_id = i.family_id
+     limit 1
+  ) as "preferenceRevision",
+  exists (
+    select 1
+      from zaltyko.family_payment_authorizations au
+      join zaltyko.organization_payment_provider_accounts acc
+        on acc.organization_id = au.organization_id
+       and acc.id = au.payment_provider_account_id
+     where au.organization_id = i.organization_id
+       and au.family_id = i.family_id
+       and au.family_payer_id = i.family_payer_id
+       and au.status = 'active'::zaltyko.payment_authorization_status
+       and acc.processor = 'stripe'
+       and acc.environment = 'test'::zaltyko.stripe_environment
+  ) as "hasActiveAuthorization"
+`;
+
+function prerequisitesOf(
+  row: Record<string, unknown>,
+  plan: { plan: AutomaticPlanEligibility; planChangeRevision: number | null }
+): AutomaticCollectionPrerequisites {
+  return {
+    plan: plan.plan,
+    planChangeRevision: plan.planChangeRevision,
+    preferenceMode: textOrNull(row.preferenceMode),
+    preferenceRevision: integerOrNull(row.preferenceRevision),
+    hasActiveAuthorization: row.hasActiveAuthorization === true,
+  };
 }
 
 /** Último intento de cobro de una factura, con lo que necesitan las pantallas. */
@@ -109,24 +241,33 @@ function plannedCollectionDate(input: {
   });
 }
 
+/**
+ * Un cobro que se espera para el día `dateLocal`: futuro (`scheduled`), ya
+ * pasado pero dentro de la espera de los recordatorios (`due`), o pasado y
+ * fuera de ella (`lapsed`: la cuota ya se cobra a mano).
+ */
+function expectedCharge(dateLocal: string, todayLocal: string): "scheduled" | "due" | "lapsed" {
+  if (dateLocal >= todayLocal) return "scheduled";
+  return withinGrace(dateLocal, todayLocal) ? "due" : "lapsed";
+}
+
 // ---------------------------------------------------------------------------
 // Familia
 // ---------------------------------------------------------------------------
 
 /**
  * Estado del cobro automático de una cuota para la familia, o `null` si la
- * cuota no se cobra sola (o ya se pagó por otra vía). Función pura.
+ * cuota no se cobra sola (o ya no se va a cobrar sola sin más). Pura.
  *
  * - cobrada: «Cobrada automáticamente el {día del cobro}»;
  * - intento en curso (`claimed`, `created`, `processing`): «Cobro en curso»;
- * - fallida con reintento programado: «Se cobrará automáticamente el {día del
- *   reintento}» (el reintento es automático; no se pide nada a la familia);
+ * - sin intento todavía, o fallida con un reintento pendiente: solo si el
+ *   cobro aún puede llegar (`blocker` nulo); si no, nada (la academia dirá
+ *   cómo pagarla). Con fecha futura, «Se cobrará automáticamente el {día}»;
+ *   ya pasada, «Cobro en curso» dentro de la espera de los recordatorios
+ *   (`withinGrace`) y, fuera de ella, «No se pudo cobrar…»;
  * - fallo final o cancelada: «No se pudo cobrar…», salvo que la factura ya
- *   esté pagada (se pagó a mano): entonces nada;
- * - sin intento todavía: la fecha prevista (día de cobro de la academia); si
- *   ya pasó, «Cobro en curso» durante los mismos días de margen que los
- *   recordatorios (AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS) y, después, «No
- *   se pudo cobrar…» (la cuota ya vuelve a los recordatorios).
+ *   esté pagada (se pagó a mano): entonces nada.
  */
 export function familyAutomaticFeeStatusOf(
   input: {
@@ -137,12 +278,25 @@ export function familyAutomaticFeeStatusOf(
     timezone: string;
     collectionDayOfMonth: number | null;
     last: LatestAttemptSnapshot | null;
+    /** automaticCollectionBlocker: por qué el cobro pendiente ya no puede llegar. */
+    blocker: string | null;
   },
   now: Date
 ): FamilyAutomaticFeeStatus | null {
   const last = input.last;
   if (!last && !input.hasAutomaticCharge) return null;
   try {
+    const today = localCalendarDate(now, input.timezone);
+    const pending = (dateLocal: string): FamilyAutomaticFeeStatus | null => {
+      if (input.blocker) return null;
+      const expected = expectedCharge(dateLocal, today);
+      return expected === "scheduled"
+        ? { kind: "scheduled", date: dateLocal }
+        : expected === "due"
+          ? { kind: "in_progress" }
+          : { kind: "not_collected" };
+    };
+
     if (last) {
       if (last.status === "succeeded") {
         return last.completedAt
@@ -152,27 +306,21 @@ export function familyAutomaticFeeStatusOf(
       if (OPEN_STATUSES.has(last.status)) return { kind: "in_progress" };
       if (input.invoiceStatus === "paid") return null;
       if (last.status === "failed" && last.nextRetryAt) {
-        return { kind: "scheduled", date: localCalendarDate(last.nextRetryAt, input.timezone) };
+        return pending(localCalendarDate(last.nextRetryAt, input.timezone));
       }
       return { kind: "not_collected" };
     }
 
     if (input.invoiceStatus !== "issued" && input.invoiceStatus !== "partially_paid") return null;
     const planned = plannedCollectionDate(input);
-    if (!planned) return null;
-    const today = localCalendarDate(now, input.timezone);
-    if (planned >= today) return { kind: "scheduled", date: planned };
-    if (today <= addLocalDays(planned, AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS)) {
-      return { kind: "in_progress" };
-    }
-    return { kind: "not_collected" };
+    return planned ? pending(planned) : null;
   } catch {
     // Zona horaria o fecha ilegible: mejor no enseñar nada que una fecha falsa.
     return null;
   }
 }
 
-/** Facturas que la academia no permite ver (fuera de esta lista) nunca se consultan. */
+/** Como mucho, las cuotas que enseña el portal por página. */
 const FAMILY_STATUS_INVOICE_LIMIT = 100;
 
 /**
@@ -189,7 +337,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
   const invoiceIds = validIds(input.invoiceIds).slice(0, FAMILY_STATUS_INVOICE_LIMIT);
   if (invoiceIds.length === 0) return {};
   if (!isFamilyAutomaticCollectionOpen()) return {};
-  if (!(await isFamilyCollectionStorageAvailable(db))) return {};
+  if (!(await collectionTablesAvailable())) return {};
 
   const now = input.now ?? new Date();
   const access = await resolveFamilyPortalAccess({ userId, now });
@@ -218,6 +366,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
              and c.collection_mode::text = 'automatic'
              and c.status::text in ('due', 'partially_paid')
         ) as "nextDueAt",
+        ${prerequisiteColumns},
         la.status as "lastStatus",
         la.next_retry_at as "lastNextRetryAt",
         la.completed_at as "lastCompletedAt"
@@ -246,8 +395,11 @@ export async function getFamilyAutomaticFeeStatuses(input: {
           familyRef: sql`i.family_id`,
         })}
     `);
+    const rows = result.rows as Array<Record<string, unknown>>;
+    if (rows.length === 0) continue;
+    const plan = await loadPlan(academy.organizationId, now);
 
-    for (const row of result.rows as Array<Record<string, unknown>>) {
+    for (const row of rows) {
       const lastStatus = textOrNull(row.lastStatus);
       const status = familyAutomaticFeeStatusOf(
         {
@@ -263,6 +415,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
                 completedAt: dateOrNull(row.lastCompletedAt),
               }
             : null,
+          blocker: automaticCollectionBlocker(prerequisitesOf(row, plan)),
         },
         now
       );
@@ -304,50 +457,87 @@ const DECLINE_TEXT: Record<string, string> = {
   card_declined: "El banco ha rechazado el cobro.",
 };
 
+const NOT_RELEASED = "El cobro automático de cuotas no está activado.";
+const PLAN_REQUIRED = "Tu plan no incluye el cobro automático de cuotas.";
+const PLAN_NOT_ACTIVE = "El plan de la academia no está activo ahora mismo.";
+const SUBSCRIPTION_NOT_CURRENT = "La suscripción de la academia a Zaltyko no está al día.";
+const STRIPE_NOT_READY = "Tu cuenta de Stripe no está lista para cobrar.";
+const NO_ACTIVE_METHOD = "La familia ya no tiene un método de pago activo.";
+const PAYER_CHANGED = "Cambió la persona que paga la cuota.";
+
 const FAILURE_TEXT: Record<string, string> = {
   ...DECLINE_TEXT,
   payment_failed: "El banco ha rechazado el cobro.",
+  requires_action: "El banco pide que la familia confirme el pago.",
   transient_exhausted: "No pudimos comprobar el cobro a tiempo.",
   invalid_service_period: "La cuota no tiene un periodo válido.",
   manual_payment: "Se registró un pago a mano.",
   canceled_by_academy: "Lo canceló la academia.",
   reviewed_by_academy: "La academia lo revisó y lo cerró.",
+  // Puerta: bandera, entorno y tablas.
+  flag_off: NOT_RELEASED,
+  automation_not_released: NOT_RELEASED,
+  environment_unknown: NOT_RELEASED,
+  live_not_released: NOT_RELEASED,
+  storage_missing: NOT_RELEASED,
+  account_stale: "No pudimos comprobar tu cuenta de Stripe a tiempo.",
+  // Plan de la academia.
+  paid_plan_required: PLAN_REQUIRED,
+  entitlement_missing: PLAN_NOT_ACTIVE,
+  entitlement_not_effective: PLAN_NOT_ACTIVE,
+  subscription_missing: SUBSCRIPTION_NOT_CURRENT,
+  subscription_mismatch: SUBSCRIPTION_NOT_CURRENT,
+  subscription_not_active: SUBSCRIPTION_NOT_CURRENT,
+  subscription_period_not_current: SUBSCRIPTION_NOT_CURRENT,
+  // Cuota, preferencia y familia.
   unsupported_currency: "Solo se cobran automáticamente las cuotas en euros.",
   organization_not_active: "La academia no está activa.",
   preference_manual: "La familia pasó a cobro manual.",
-  preference_entitlement_stale: "Cambió el plan de la academia: hay que volver a activar el cobro automático de esta familia.",
+  preference_entitlement_stale:
+    "Cambió el plan de la academia: hay que volver a activar el cobro automático de esta familia.",
+  invoice_closed: "La cuota ya estaba pagada o anulada.",
+  charge_void: "La cuota se anuló.",
+  charge_settled: "La cuota ya estaba pagada.",
+  plan_changed: "La cuota cambió después de programar el cobro.",
   charge_scope_mismatch: "La cuota cambió después de emitirse.",
   charge_manual: "La cuota pasó a cobro manual.",
-  provider_scope_mismatch: "Tu cuenta de Stripe no está lista para cobrar.",
-  provider_environment_mismatch: "Tu cuenta de Stripe no está lista para cobrar.",
-  provider_api_generation_unsupported: "Tu cuenta de Stripe no está lista para cobrar.",
-  provider_charge_model_unsupported: "Tu cuenta de Stripe no está lista para cobrar.",
-  provider_not_ready: "Tu cuenta de Stripe no está lista para cobrar.",
-  authorization_missing: "La familia ya no tiene un método de pago activo.",
-  authorization_scope_mismatch: "La familia ya no tiene un método de pago activo.",
-  authorization_provider_mismatch: "La familia ya no tiene un método de pago activo.",
-  authorization_inactive: "La familia ya no tiene un método de pago activo.",
-  authorization_expired: "La familia ya no tiene un método de pago activo.",
-  consent_incomplete: "La familia ya no tiene un método de pago activo.",
-  payment_method_unknown: "La familia ya no tiene un método de pago activo.",
+  provider_scope_mismatch: STRIPE_NOT_READY,
+  provider_environment_mismatch: STRIPE_NOT_READY,
+  provider_api_generation_unsupported: STRIPE_NOT_READY,
+  provider_charge_model_unsupported: STRIPE_NOT_READY,
+  provider_not_ready: STRIPE_NOT_READY,
+  authorization_missing: NO_ACTIVE_METHOD,
+  authorization_scope_mismatch: NO_ACTIVE_METHOD,
+  authorization_provider_mismatch: NO_ACTIVE_METHOD,
+  authorization_inactive: NO_ACTIVE_METHOD,
+  authorization_expired: NO_ACTIVE_METHOD,
+  consent_incomplete: NO_ACTIVE_METHOD,
+  payment_method_unknown: NO_ACTIVE_METHOD,
+  authorization_changed: "La familia cambió su método de pago.",
   sepa_not_active: "La domiciliación no está activa en tu cuenta de Stripe.",
-  charge_payer_mismatch: "Cambió la persona que paga la cuota.",
-  payer_missing: "Cambió la persona que paga la cuota.",
-  payer_not_current: "Cambió la persona que paga la cuota.",
+  charge_payer_mismatch: PAYER_CHANGED,
+  payer_missing: PAYER_CHANGED,
+  payer_not_current: PAYER_CHANGED,
 };
 
+const CHECK_IN_STRIPE = "Compruébalo en Stripe.";
 const REVIEW_TEXT: Record<string, string> = {
   allocation: "Se cobró, pero no se pudo repartir entre las cuotas. Revisa los pagos de esta familia.",
-  payment_recorded_for_other_attempt: "Este cobro ya estaba registrado en otra cuota. Compruébalo en Stripe.",
-  multiple_payments: "Hay más de un cobro para esta cuota. Compruébalo en Stripe.",
-  resume_exhausted: "No pudimos confirmar el resultado del cobro. Compruébalo en Stripe.",
-  attempt_unreadable: "No pudimos confirmar el resultado del cobro. Compruébalo en Stripe.",
+  payment_recorded_for_other_attempt: `Este cobro ya estaba registrado en otra cuota. ${CHECK_IN_STRIPE}`,
+  multiple_payments: `Hay más de un cobro para esta cuota. ${CHECK_IN_STRIPE}`,
+  resume_exhausted: `No pudimos confirmar el resultado del cobro. ${CHECK_IN_STRIPE}`,
+  attempt_unreadable: `No pudimos confirmar el resultado del cobro. ${CHECK_IN_STRIPE}`,
+  idempotency_conflict: `No pudimos repetir el envío del cobro de forma segura. ${CHECK_IN_STRIPE}`,
+  intent_mismatch: `El cobro de Stripe no coincide con el de esta cuota. ${CHECK_IN_STRIPE}`,
+  payment_conflict: `El pago de Stripe no coincide con lo registrado en esta cuota. ${CHECK_IN_STRIPE}`,
+  created_without_claim: `Hay un cobro en Stripe que Zaltyko no tenía registrado. ${CHECK_IN_STRIPE}`,
+  attempts_exhausted: "Esta cuota ya no admite más intentos automáticos. Se cobra a mano.",
 };
 
-const REVIEW_FALLBACK = "El cobro necesita una comprobación. Compruébalo en Stripe.";
+const REVIEW_FALLBACK = `El cobro necesita una comprobación. ${CHECK_IN_STRIPE}`;
 const FAILURE_FALLBACK = "No se pudo cobrar automáticamente.";
 
-/** Motivo de un fallo o una cancelación en palabras sencillas (nunca el código). */
+/** Motivo de un fallo, una cancelación o un bloqueo en palabras sencillas (nunca el código). */
 export function failureReasonText(input: { failureCode: string | null; declineCode: string | null }): string {
   return (
     (input.declineCode ? DECLINE_TEXT[input.declineCode] : undefined) ??
@@ -369,13 +559,15 @@ export function reviewReasonText(reason: string | null): string {
  * Estado de un cobro automático para la academia:
  * - `scheduled`: aún no ha llegado su día (`date`);
  * - `in_progress`: se está cobrando (o su día ya llegó y el proceso diario
- *   todavía no lo ha intentado);
+ *   todavía no lo ha intentado, dentro de la espera de los recordatorios);
  * - `processing`: la domiciliación ya está en el banco;
  * - `collected`: cobrada (`date`);
  * - `retry_scheduled`: falló y se reintentará (`date`);
- * - `failed`: falló sin reintento; se cobra a mano;
+ * - `manual`: el cobro pendiente ya no puede llegar (plan, preferencia o
+ *   método de pago): «Se cobrará a mano», con el motivo;
+ * - `failed`: falló sin reintento (o el reintento no llegó a tiempo); se cobra a mano;
  * - `canceled`: cancelado (por la puerta, la academia, un pago a mano o una revisión);
- * - `not_attempted`: pasó su día y el margen sin poder intentarlo; se cobra a mano.
+ * - `not_attempted`: pasó su día y la espera sin poder intentarlo; se cobra a mano.
  */
 export type OwnerAutomaticCollectionState =
   | "scheduled"
@@ -383,6 +575,7 @@ export type OwnerAutomaticCollectionState =
   | "processing"
   | "collected"
   | "retry_scheduled"
+  | "manual"
   | "failed"
   | "canceled"
   | "not_attempted";
@@ -396,7 +589,7 @@ export interface OwnerAutomaticCollectionItem {
   state: OwnerAutomaticCollectionState;
   /** Día local de la sede (YYYY-MM-DD) que acompaña al estado, si lo hay. */
   date: string | null;
-  /** Motivo en palabras sencillas: por qué falló, se canceló o hay que revisarlo. */
+  /** Motivo en palabras sencillas: por qué falló, se canceló, se cobra a mano o hay que revisarlo. */
   reason: string | null;
   needsReview: boolean;
   /** «Cancelar el cobro automático» (reintento pendiente o cobro creado sin confirmar). */
@@ -426,6 +619,8 @@ export interface OwnerCollectionRow {
   collectionDayOfMonth: number | null;
   nextDueAt: string | null;
   openAutomaticCents: number;
+  /** automaticCollectionBlocker: por qué el cobro pendiente ya no puede llegar. */
+  blocker: string | null;
   attempt: {
     status: string;
     amountCents: number;
@@ -439,6 +634,8 @@ export interface OwnerCollectionRow {
     reviewReason: string | null;
   } | null;
 }
+
+const NOT_ATTEMPTED_TEXT = "No se pudo intentar el cobro a tiempo. Se cobra a mano.";
 
 /**
  * Un cobro de la lista de la academia, o `null` si no es de este mes. Pura.
@@ -456,16 +653,19 @@ export function ownerAutomaticCollectionItemOf(
     payerName: row.payerName,
     currency: row.currency,
   };
+  const blockerText = row.blocker ? failureReasonText({ failureCode: row.blocker, declineCode: null }) : null;
   try {
+    const today = localCalendarDate(now, row.timezone);
     const attempt = row.attempt;
     if (!attempt) {
       const planned = plannedCollectionDate(row);
       if (!planned || planned.slice(0, 7) !== month) return null;
-      const today = localCalendarDate(now, row.timezone);
-      const state: OwnerAutomaticCollectionState =
-        planned >= today
+      const expected = expectedCharge(planned, today);
+      const state: OwnerAutomaticCollectionState = blockerText
+        ? "manual"
+        : expected === "scheduled"
           ? "scheduled"
-          : today <= addLocalDays(planned, AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS)
+          : expected === "due"
             ? "in_progress"
             : "not_attempted";
       return {
@@ -473,10 +673,7 @@ export function ownerAutomaticCollectionItemOf(
         amountCents: row.openAutomaticCents,
         state,
         date: planned,
-        reason:
-          state === "not_attempted"
-            ? "No se pudo intentar el cobro a tiempo. Se cobra a mano."
-            : null,
+        reason: blockerText ?? (state === "not_attempted" ? NOT_ATTEMPTED_TEXT : null),
         needsReview: false,
         canCancel: false,
         canMarkReviewed: false,
@@ -513,16 +710,25 @@ export function ownerAutomaticCollectionItemOf(
       case "created":
         state = "in_progress";
         break;
-      case "failed":
-        if (attempt.nextRetryAt) {
-          state = "retry_scheduled";
-          date = local(attempt.nextRetryAt);
+      case "failed": {
+        const retryDate = local(attempt.nextRetryAt);
+        const expected = retryDate ? expectedCharge(retryDate, today) : "lapsed";
+        if (retryDate && blockerText) {
+          // El reintento ya no puede salir (la puerta lo cancelará): se cobra a mano.
+          state = "manual";
+          date = retryDate;
+          reason = `${failureText} ${blockerText}`;
+        } else if (retryDate && expected !== "lapsed") {
+          state = expected === "scheduled" ? "retry_scheduled" : "in_progress";
+          date = retryDate;
+          reason = failureText;
         } else {
           state = "failed";
           date = local(attempt.completedAt);
+          reason = failureText;
         }
-        reason = failureText;
         break;
+      }
       default:
         state = "canceled";
         date = local(attempt.completedAt);
@@ -554,6 +760,11 @@ export const OWNER_AUTOMATIC_COLLECTIONS_LIMIT = 100;
  * las cuotas automáticas cuyo día de cobro cae en este mes y aún no tienen
  * intento. Solo propiedad, o administración con todas las sedes (las mismas
  * personas que pueden cancelar o marcar como revisado); para el resto, `null`.
+ *
+ * La consulta parte de un conjunto acotado de facturas candidatas (intentos
+ * de la academia en la ventana del mes, abiertos o con reintento, y cuotas
+ * automáticas abiertas que vencen en la ventana): nunca recorre todo el
+ * historial de facturas.
  */
 export async function getOwnerAutomaticCollections(input: {
   userId: string;
@@ -568,7 +779,7 @@ export async function getOwnerAutomaticCollections(input: {
     scope.member.role === "owner" ||
     (scope.member.role === "admin" && scope.member.locationScopeMode === "all");
   if (!allowed) return null;
-  if (!(await isFamilyCollectionStorageAvailable(db))) return null;
+  if (!(await collectionTablesAvailable())) return null;
 
   const organizationId = scope.organization.id;
   const now = input.now ?? new Date();
@@ -589,6 +800,24 @@ export async function getOwnerAutomaticCollections(input: {
   const nextMonthInstant = startOfLocalDay(nextMonthStart, organizationTimezone).toISOString();
 
   const result = await db.execute(sql`
+    with candidates as (
+      select a.invoice_id
+        from zaltyko.family_collection_attempts a
+       where a.organization_id = ${organizationId}::uuid
+         and (
+           (a.claimed_at >= ${monthStartInstant}::timestamptz and a.claimed_at < ${nextMonthInstant}::timestamptz)
+           or a.status in ('claimed', 'created', 'processing')
+           or (a.status = 'failed' and a.next_retry_at is not null)
+         )
+      union
+      select c.invoice_id
+        from zaltyko.charges c
+       where c.organization_id = ${organizationId}::uuid
+         and c.collection_mode::text = 'automatic'
+         and c.status::text in ('due', 'partially_paid')
+         and c.due_at >= ${windowStart}::timestamptz
+         and c.due_at < ${windowEnd}::timestamptz
+    )
     select
       i.id::text as "invoiceId",
       i.reference as "invoiceReference",
@@ -617,6 +846,7 @@ export async function getOwnerAutomaticCollections(input: {
            and c.collection_mode::text = 'automatic'
            and c.status::text in ('due', 'partially_paid')
       ) as "openAutomaticCents",
+      ${prerequisiteColumns},
       la.status as "attemptStatus",
       la.amount_cents::text as "attemptAmountCents",
       la.failure_code as "failureCode",
@@ -627,7 +857,9 @@ export async function getOwnerAutomaticCollections(input: {
       la.allocation_status as "allocationStatus",
       la.review_reason as "reviewReason",
       la.has_review_notice as "hasReviewNotice"
-    from zaltyko.invoices i
+    from (select distinct invoice_id from candidates) k
+    join zaltyko.invoices i
+      on i.organization_id = ${organizationId}::uuid and i.id = k.invoice_id
     join zaltyko.organizations o on o.id = i.organization_id
     left join zaltyko.locations l
       on l.organization_id = i.organization_id and l.id = i.location_id
@@ -667,8 +899,7 @@ export async function getOwnerAutomaticCollections(input: {
        order by a.attempt_number desc
        limit 1
     ) la on true
-    where i.organization_id = ${organizationId}::uuid
-      and i.status::text <> 'draft'
+    where i.status::text <> 'draft'
       and (
         (
           la.id is not null
@@ -678,25 +909,14 @@ export async function getOwnerAutomaticCollections(input: {
             or (la.status = 'failed' and la.next_retry_at is not null)
           )
         )
-        or (
-          la.id is null
-          and i.status::text in ('issued', 'partially_paid')
-          and exists (
-            select 1 from zaltyko.charges c
-             where c.organization_id = i.organization_id
-               and c.invoice_id = i.id
-               and c.collection_mode::text = 'automatic'
-               and c.status::text in ('due', 'partially_paid')
-               and c.due_at >= ${windowStart}::timestamptz
-               and c.due_at < ${windowEnd}::timestamptz
-          )
-        )
+        or (la.id is null and i.status::text in ('issued', 'partially_paid'))
       )
     order by coalesce(la.claimed_at, i.due_at) desc, i.reference asc
     limit ${OWNER_AUTOMATIC_COLLECTIONS_LIMIT + 1}
   `);
 
   const rows = result.rows as Array<Record<string, unknown>>;
+  const plan = rows.length > 0 ? await loadPlan(organizationId, now) : null;
   const items = rows.slice(0, OWNER_AUTOMATIC_COLLECTIONS_LIMIT).flatMap((row) => {
     const attemptStatus = textOrNull(row.attemptStatus);
     const item = ownerAutomaticCollectionItemOf(
@@ -710,6 +930,7 @@ export async function getOwnerAutomaticCollections(input: {
         collectionDayOfMonth: dayOrNull(row.collectionDayOfMonth),
         nextDueAt: textOrNull(row.nextDueAt),
         openAutomaticCents: cents(row.openAutomaticCents),
+        blocker: plan ? automaticCollectionBlocker(prerequisitesOf(row, plan)) : null,
         attempt: attemptStatus
           ? {
               status: attemptStatus,

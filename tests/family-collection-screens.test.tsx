@@ -494,6 +494,57 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     expect(document.body.textContent ?? "").not.toMatch(JARGON);
   });
 
+  it("un cobro que ya no puede llegar: «Se cobrará a mano» con el motivo", () => {
+    stubFetch(() => reply(200, {}));
+    render(
+      <OwnerAutomaticCollectionsPanel
+        organizationId={ORGANIZATION_ID}
+        view={{
+          month: "2026-11",
+          truncated: false,
+          items: [
+            {
+              ...base,
+              invoiceId: invoice(6),
+              invoiceReference: "CUO-6",
+              state: "manual",
+              date: "2026-11-20",
+              reason: "La familia ya no tiene un método de pago activo.",
+            },
+          ],
+        }}
+      />
+    );
+
+    expect(rowOf("CUO-6")).toHaveTextContent("Se cobrará a mano");
+    expect(rowOf("CUO-6")).toHaveTextContent("La familia ya no tiene un método de pago activo.");
+    expect(rowOf("CUO-6")).not.toHaveTextContent(/Se cobrará el/);
+  });
+
+  it("tras refrescar la página manda la lectura nueva del servidor", async () => {
+    stubFetch(() => reply(200, { outcome: "canceled" }));
+    const { rerender } = render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, cancelar el cobro" }));
+    await screen.findByRole("status");
+    expect(rowOf("CUO-3")).toHaveTextContent("Cobro automático cancelado");
+
+    const refreshed: OwnerAutomaticCollectionsView = {
+      ...view,
+      items: view.items.map((item): OwnerAutomaticCollectionItem =>
+        item.invoiceId === invoice(3)
+          ? { ...item, state: "canceled", reason: "Lo canceló la academia.", canCancel: false }
+          : item.invoiceId === invoice(1)
+            ? { ...item, state: "in_progress", date: null }
+            : item
+      ),
+    };
+    rerender(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={refreshed} />);
+
+    await waitFor(() => expect(rowOf("CUO-1")).toHaveTextContent("Cobro en curso"));
+  });
+
   it("vacía: lo dice sin más", () => {
     stubFetch(() => reply(200, {}));
     render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={{ month: "2026-11", items: [], truncated: false }} />);

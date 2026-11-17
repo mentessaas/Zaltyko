@@ -90,8 +90,12 @@ export interface AutomaticCollectionLastAttempt {
   completedDateLocal: string | null;
 }
 
-/** ¿Hoy sigue dentro de la espera que empezó en `fromLocal`? */
-function withinGrace(fromLocal: string, todayLocal: string): boolean {
+/**
+ * ¿Hoy sigue dentro de la espera que empezó en `fromLocal`? También la usan
+ * las pantallas del cobro automático (family-collection-reads.ts) para no
+ * prometer un cobro que ya no va a llegar.
+ */
+export function withinGrace(fromLocal: string, todayLocal: string): boolean {
   return todayLocal <= addLocalDays(fromLocal, AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS);
 }
 

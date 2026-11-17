@@ -64,7 +64,6 @@ export function ManualPaymentForm({
   locationId?: string | null;
   charges: OpenManualPaymentCharge[];
   nextCursor?: string | null;
-  canManageFamilyCollectionPreferences?: boolean;
   /** Cuotas (referencia de factura) que se están cobrando solas ahora (Fase 3). */
   automaticCollectionInvoiceReferences?: readonly string[];
 }) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ownerTone, ownerUi } from "./owner-ui";
 import type {
@@ -57,6 +57,8 @@ function stateText(state: OwnerAutomaticCollectionState, date: string | null): s
       return day ? `Cobrada el ${day}` : "Cobrada automáticamente";
     case "retry_scheduled":
       return day ? `No se pudo cobrar; se volverá a intentar el ${day}` : "No se pudo cobrar; se volverá a intentar";
+    case "manual":
+      return "Se cobrará a mano";
     case "failed":
       return "No se pudo cobrar";
     case "canceled":
@@ -75,6 +77,7 @@ function stateChip(state: OwnerAutomaticCollectionState): string {
       return ownerTone.chipActive;
     case "retry_scheduled":
     case "not_attempted":
+    case "manual":
       return ownerTone.chipWarning;
     case "failed":
       return ownerTone.chipError;
@@ -85,7 +88,7 @@ function stateChip(state: OwnerAutomaticCollectionState): string {
 
 /** Las cuotas que ya no se cobran solas se cobran a mano (con recordatorios). */
 function chargedByHand(state: OwnerAutomaticCollectionState): boolean {
-  return state === "failed" || state === "canceled" || state === "not_attempted";
+  return state === "failed" || state === "canceled" || state === "not_attempted" || state === "manual";
 }
 
 export function OwnerAutomaticCollectionsPanel({
@@ -103,6 +106,12 @@ export function OwnerAutomaticCollectionsPanel({
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [message, setMessage] = useState<{ tone: "info" | "error"; text: string } | null>(null);
+
+  // Tras router.refresh() llega una lectura nueva del servidor: manda sobre
+  // los cambios locales de esta pantalla.
+  useEffect(() => {
+    setItems(view.items);
+  }, [view]);
 
   async function act(item: OwnerAutomaticCollectionItem, action: "cancel" | "mark_reviewed") {
     if (busyRef.current) return;

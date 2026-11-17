@@ -112,7 +112,6 @@ function renderPaymentForm(testId = "payment-tab") {
         actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
-        canManageFamilyCollectionPreferences={false}
       />
     </section>
   );
@@ -177,7 +176,6 @@ describe("coordinación de pagos manuales entre formularios", () => {
             actorId={actorId}
             organizationId={organizationId}
             charges={[charge]}
-            canManageFamilyCollectionPreferences={false}
           />
         </section>
         <section data-testid="payment-tab-b">
@@ -185,7 +183,6 @@ describe("coordinación de pagos manuales entre formularios", () => {
             actorId={actorId}
             organizationId={organizationId}
             charges={[charge]}
-            canManageFamilyCollectionPreferences={false}
           />
         </section>
       </>

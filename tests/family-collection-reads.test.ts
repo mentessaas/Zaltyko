@@ -30,6 +30,12 @@ vi.mock("@/modules/billing/application/charge-collection-mode", () => ({
 vi.mock("@/modules/family-collection/application/storage", () => ({
   isFamilyCollectionStorageAvailable: vi.fn(),
 }));
+vi.mock("@/modules/family-payment-methods/application/storage", () => ({
+  isFamilyPaymentMethodsStorageAvailable: vi.fn(),
+}));
+vi.mock("@/modules/payments-connect/application/storage", () => ({
+  isConnectOnboardingStorageAvailable: vi.fn(),
+}));
 vi.mock("@/modules/family-portal/application/family-portal-access", () => ({
   resolveFamilyPortalAccess: vi.fn(),
 }));
@@ -48,6 +54,7 @@ import { isFamilyAutomaticCollectionOpen } from "@/modules/billing/application/c
 import { loadOrganizationPlanState, loadPlanChangeRevision } from "@/modules/billing/application/plan-state";
 import { evaluateAutomaticCollectionPlanEligibility } from "@/modules/billing/domain/plan-eligibility";
 import {
+  automaticCollectionBlocker,
   failureReasonText,
   familyAutomaticFeeStatusOf,
   getFamilyAutomaticFeeStatuses,
@@ -58,6 +65,8 @@ import {
   type OwnerCollectionRow,
 } from "@/modules/family-collection/application/family-collection-reads";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
+import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
+import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
 import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
 import { familyAutomaticFeeText } from "@/modules/family-portal/domain/family-portal-presentation";
 import { resolveOwnerScope, type OwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
@@ -90,6 +99,7 @@ function familyInput(overrides: Partial<Parameters<typeof familyAutomaticFeeStat
     timezone: TZ,
     collectionDayOfMonth: null,
     last: null,
+    blocker: null,
     ...overrides,
   };
 }
@@ -105,6 +115,7 @@ function ownerRow(overrides: Partial<OwnerCollectionRow> = {}): OwnerCollectionR
     collectionDayOfMonth: null,
     nextDueAt: "2026-11-20T22:59:59.999Z",
     openAutomaticCents: 4500,
+    blocker: null,
     attempt: null,
     ...overrides,
   };
@@ -132,7 +143,58 @@ beforeEach(() => {
   holder.selectRows = [];
   vi.mocked(isFamilyAutomaticCollectionOpen).mockReturnValue(true);
   vi.mocked(isFamilyCollectionStorageAvailable).mockResolvedValue(true);
+  vi.mocked(isFamilyPaymentMethodsStorageAvailable).mockResolvedValue(true);
+  vi.mocked(isConnectOnboardingStorageAvailable).mockResolvedValue(true);
   vi.mocked(resolveOwnerScope).mockResolvedValue(ownerScope());
+  // Plan de pago vigente (revisión 5) sin cambio real del plan.
+  vi.mocked(loadOrganizationPlanState).mockResolvedValue({ entitlement: null, subscription: null } as never);
+  vi.mocked(evaluateAutomaticCollectionPlanEligibility).mockReturnValue({
+    eligible: true,
+    reason: null,
+    entitlementRevision: 5,
+  });
+  vi.mocked(loadPlanChangeRevision).mockResolvedValue(null);
+});
+
+const eligiblePlan = { eligible: true as const, reason: null, entitlementRevision: 5 };
+const prerequisites = {
+  plan: eligiblePlan,
+  planChangeRevision: null,
+  preferenceMode: "automatic",
+  preferenceRevision: 5,
+  hasActiveAuthorization: true,
+};
+
+describe("¿puede llegar todavía el cobro automático? (como la puerta)", () => {
+  it("con plan, preferencia vigente y autorización activa: sí", () => {
+    expect(automaticCollectionBlocker(prerequisites)).toBeNull();
+  });
+
+  it("tarjeta revocada después de emitir la cuota: authorization_missing", () => {
+    expect(automaticCollectionBlocker({ ...prerequisites, hasActiveAuthorization: false })).toBe(
+      "authorization_missing"
+    );
+  });
+
+  it("interruptor apagado (preferencia manual o nunca guardada): preference_manual", () => {
+    expect(automaticCollectionBlocker({ ...prerequisites, preferenceMode: "manual" })).toBe("preference_manual");
+    expect(automaticCollectionBlocker({ ...prerequisites, preferenceMode: null })).toBe("preference_manual");
+  });
+
+  it("cambio real del plan después de guardarla: preference_entitlement_stale; una renovación no", () => {
+    expect(
+      automaticCollectionBlocker({ ...prerequisites, preferenceRevision: 3, planChangeRevision: 4 })
+    ).toBe("preference_entitlement_stale");
+    expect(
+      automaticCollectionBlocker({ ...prerequisites, preferenceRevision: 3, planChangeRevision: 2 })
+    ).toBeNull();
+  });
+
+  it("sin plan de pago: el motivo del plan", () => {
+    expect(
+      automaticCollectionBlocker({ ...prerequisites, plan: { eligible: false, reason: "paid_plan_required" } })
+    ).toBe("paid_plan_required");
+  });
 });
 
 describe("estado del cobro automático para la familia (puro)", () => {
@@ -189,6 +251,43 @@ describe("estado del cobro automático para la familia (puro)", () => {
     ).toEqual({ kind: "scheduled", date: "2026-11-20" });
   });
 
+  it("reintento con la fecha pasada: en curso dentro de la espera y «no se pudo» después (nunca una fecha pasada)", () => {
+    const failedWithRetry = (retry: string) =>
+      familyInput({ last: { status: "failed", nextRetryAt: new Date(retry), completedAt: NOW } });
+    expect(familyAutomaticFeeStatusOf(failedWithRetry("2026-11-14T23:00:00.000Z"), NOW)).toEqual({
+      kind: "in_progress",
+    });
+    expect(familyAutomaticFeeStatusOf(failedWithRetry("2026-11-09T23:00:00.000Z"), NOW)).toEqual({
+      kind: "not_collected",
+    });
+  });
+
+  it.each([
+    ["tarjeta revocada después de emitir la cuota", "authorization_missing"],
+    ["interruptor apagado", "preference_manual"],
+    ["cambio de plan", "preference_entitlement_stale"],
+  ])("%s: la familia no ve ninguna promesa de cobro", (_label, blocker) => {
+    expect(familyAutomaticFeeStatusOf(familyInput({ blocker }), NOW)).toBeNull();
+    expect(
+      familyAutomaticFeeStatusOf(
+        familyInput({
+          blocker,
+          last: { status: "failed", nextRetryAt: new Date("2026-11-19T23:00:00.000Z"), completedAt: NOW },
+        }),
+        NOW
+      )
+    ).toBeNull();
+  });
+
+  it("un cobro ya en curso o hecho no depende de la autorización de hoy", () => {
+    expect(
+      familyAutomaticFeeStatusOf(
+        familyInput({ blocker: "authorization_missing", last: { status: "processing", nextRetryAt: null, completedAt: null } }),
+        NOW
+      )
+    ).toEqual({ kind: "in_progress" });
+  });
+
   it.each(["failed", "canceled"])("%s sin reintento: no se pudo cobrar", (status) => {
     expect(
       familyAutomaticFeeStatusOf(familyInput({ last: { status, nextRetryAt: null, completedAt: NOW } }), NOW)
@@ -242,11 +341,100 @@ describe("motivos en palabras sencillas", () => {
       "No se pudo cobrar automáticamente."
     );
     expect(reviewReasonText("multiple_payments")).toBe("Hay más de un cobro para esta cuota. Compruébalo en Stripe.");
+    expect(failureReasonText({ failureCode: "paid_plan_required", declineCode: null })).toBe(
+      "Tu plan no incluye el cobro automático de cuotas."
+    );
+    expect(failureReasonText({ failureCode: "account_stale", declineCode: null })).toBe(
+      "No pudimos comprobar tu cuenta de Stripe a tiempo."
+    );
     expect(reviewReasonText("motivo_nuevo")).toBe("El cobro necesita una comprobación. Compruébalo en Stripe.");
   });
 });
 
 describe("fila de la academia (pura)", () => {
+  it.each([
+    "paid_plan_required",
+    "entitlement_missing",
+    "entitlement_not_effective",
+    "subscription_missing",
+    "subscription_mismatch",
+    "subscription_not_active",
+    "subscription_period_not_current",
+    "plan_changed",
+    "authorization_changed",
+    "requires_action",
+    "account_stale",
+  ])("el motivo %s tiene su propia frase sencilla", (code) => {
+    const text = failureReasonText({ failureCode: code, declineCode: null });
+    expect(text).not.toBe("No se pudo cobrar automáticamente.");
+    expect(text).not.toContain(code);
+    expect(text).not.toMatch(/_/);
+  });
+
+  it.each(["idempotency_conflict", "intent_mismatch", "payment_conflict", "created_without_claim"])(
+    "el aviso de revisión %s tiene su propia frase sencilla",
+    (code) => {
+      const text = reviewReasonText(code);
+      expect(text).not.toBe("El cobro necesita una comprobación. Compruébalo en Stripe.");
+      expect(text).not.toMatch(/_/);
+    }
+  );
+
+  it("tarjeta revocada después de emitir: «Se cobrará a mano» con el motivo", () => {
+    expect(
+      ownerAutomaticCollectionItemOf(ownerRow({ blocker: "authorization_missing" }), NOW, "2026-11")
+    ).toMatchObject({
+      state: "manual",
+      date: "2026-11-20",
+      reason: "La familia ya no tiene un método de pago activo.",
+      canCancel: false,
+    });
+  });
+
+  it("interruptor apagado con un reintento pendiente: «Se cobrará a mano», y aún se puede cancelar", () => {
+    expect(
+      ownerAutomaticCollectionItemOf(
+        ownerRow({
+          blocker: "preference_manual",
+          attempt: attempt({
+            status: "failed",
+            declineCode: "insufficient_funds",
+            nextRetryAt: new Date("2026-11-19T23:00:00.000Z"),
+            allocationStatus: null,
+          }),
+        }),
+        NOW,
+        "2026-11"
+      )
+    ).toMatchObject({
+      state: "manual",
+      reason: "No había saldo suficiente. La familia pasó a cobro manual.",
+      canCancel: true,
+    });
+  });
+
+  it("reintento con la fecha pasada: en curso dentro de la espera y fallido después", () => {
+    const row = (retry: string) =>
+      ownerRow({
+        attempt: attempt({
+          status: "failed",
+          declineCode: "insufficient_funds",
+          nextRetryAt: new Date(retry),
+          completedAt: new Date("2026-11-05T08:00:00.000Z"),
+          allocationStatus: null,
+        }),
+      });
+    expect(ownerAutomaticCollectionItemOf(row("2026-11-14T23:00:00.000Z"), NOW, "2026-11")).toMatchObject({
+      state: "in_progress",
+      date: "2026-11-15",
+    });
+    expect(ownerAutomaticCollectionItemOf(row("2026-11-09T23:00:00.000Z"), NOW, "2026-11")).toMatchObject({
+      state: "failed",
+      date: "2026-11-05",
+      reason: "No había saldo suficiente.",
+    });
+  });
+
   it("sin intento: se cobrará el día previsto, sin acciones", () => {
     expect(ownerAutomaticCollectionItemOf(ownerRow(), NOW, "2026-11")).toMatchObject({
       state: "scheduled",
@@ -405,6 +593,9 @@ describe("puertas de las lecturas", () => {
           collectionDayOfMonth: null,
           hasAutomaticCharge: true,
           nextDueAt: "2026-11-20T22:59:59.999Z",
+          preferenceMode: "automatic",
+          preferenceRevision: 5,
+          hasActiveAuthorization: true,
           lastStatus: null,
           lastNextRetryAt: null,
           lastCompletedAt: null,
@@ -427,6 +618,42 @@ describe("puertas de las lecturas", () => {
     expect(query.sql).toContain("fp_g.auth_user_id");
     expect(query.sql).toContain("fp_p.starts_on");
     expect(query.sql).toContain("zaltyko.family_collection_attempts");
+    expect(query.sql).toContain("zaltyko.family_payment_authorizations");
+    expect(query.sql).toContain("zaltyko.family_collection_preferences");
+  });
+
+  it("familia: tarjeta revocada o interruptor apagado tras emitir la cuota → nada", async () => {
+    vi.mocked(resolveFamilyPortalAccess).mockResolvedValue({
+      academies: [{ organizationId: ORGANIZATION_ID, feeFamilyIds: [FAMILY_ID] }],
+    } as unknown as Awaited<ReturnType<typeof resolveFamilyPortalAccess>>);
+    const base = {
+      invoiceStatus: "issued",
+      timezone: TZ,
+      collectionDayOfMonth: null,
+      hasAutomaticCharge: true,
+      nextDueAt: "2026-11-20T22:59:59.999Z",
+      lastStatus: null,
+      lastNextRetryAt: null,
+      lastCompletedAt: null,
+    };
+    const second = "91000000-0000-4000-8000-000000000402";
+    holder.execute.mockResolvedValue({
+      rows: [
+        { ...base, invoiceId: INVOICE_ID, preferenceMode: "automatic", preferenceRevision: 5, hasActiveAuthorization: false },
+        { ...base, invoiceId: second, preferenceMode: "manual", preferenceRevision: 5, hasActiveAuthorization: true },
+      ],
+    });
+
+    await expect(
+      getFamilyAutomaticFeeStatuses({ userId: USER_ID, invoiceIds: [INVOICE_ID, second], now: NOW })
+    ).resolves.toEqual({});
+  });
+
+  it("familia: sin las tablas de las Fases 1 o 2 no lee nada", async () => {
+    vi.mocked(isFamilyPaymentMethodsStorageAvailable).mockResolvedValue(false);
+
+    await expect(getFamilyAutomaticFeeStatuses({ userId: USER_ID, invoiceIds: [INVOICE_ID] })).resolves.toEqual({});
+    expect(resolveFamilyPortalAccess).not.toHaveBeenCalled();
   });
 
   it("academia: con la bandera apagada no resuelve ni el alcance", async () => {
@@ -500,6 +727,9 @@ describe("puertas de las lecturas", () => {
     const query = dialect.sqlToQuery(holder.execute.mock.calls[1][0] as SQL);
     expect(query.params).toContain(ORGANIZATION_ID);
     expect(query.sql).toContain("zaltyko.outbox_events");
+    // Acotada: parte de las facturas candidatas de la ventana, no de todo el historial.
+    expect(query.sql).toMatch(/with candidates as/);
+    expect(query.sql).toMatch(/from \(select distinct invoice_id from candidates\) k/);
     expect(query.params).toContain("family_collection.needs_review");
   });
 

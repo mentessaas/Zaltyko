@@ -1099,7 +1099,6 @@ export const buildTraceSourcePaths: ReadonlySet<string> = new Set([
   "src/components/onboarding/steps/AccountStep.tsx",
   "src/components/owner-dashboard/AcademyTargetProfileForm.tsx",
   "src/components/owner-dashboard/DashboardModuleLayout.tsx",
-  "src/components/owner-dashboard/FamilyCollectionModeCard.tsx",
   "src/components/owner-dashboard/InsightInbox.tsx",
   "src/components/owner-dashboard/ManualPaymentForm.tsx",
   "src/components/owner-dashboard/ManualPaymentFormFields.tsx",

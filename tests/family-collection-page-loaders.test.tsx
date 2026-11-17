@@ -273,7 +273,6 @@ beforeEach(() => {
     organization: { id: ORGANIZATION_ID, name: "Club Sintético", defaultCurrency: "EUR" },
     locations: [],
     selectedLocationId: null,
-    canManageFamilyCollectionPreferences: true,
     charges: [],
     nextCursor: null,
   } as never);

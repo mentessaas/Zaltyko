@@ -115,7 +115,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
         actorId={actorId}
         organizationId={organizationId}
         charges={[]}
-        canManageFamilyCollectionPreferences={false}
       />
     );
 
@@ -146,7 +145,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
         locationId={charge.locationId}
         charges={[charge]}
         nextCursor="cursor-de-la-misma-sede"
-        canManageFamilyCollectionPreferences={false}
       />
     );
 
@@ -213,7 +211,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
         locationId={charge.locationId}
         charges={[charge]}
         nextCursor="cursor-academia-a"
-        canManageFamilyCollectionPreferences={false}
       />
     );
 
@@ -227,7 +224,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
         locationId={locationB}
         charges={[chargeB]}
         nextCursor="cursor-academia-b"
-        canManageFamilyCollectionPreferences={false}
       />
     );
     expect(
@@ -285,7 +281,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
       actorId,
       organizationId,
       charges: [charge],
-      canManageFamilyCollectionPreferences: false,
     };
     const { rerender } = render(<ManualPaymentForm {...props} />);
 
@@ -331,7 +326,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
       actorId,
       organizationId,
       charges: [charge],
-      canManageFamilyCollectionPreferences: false,
     };
     const { rerender } = render(<ManualPaymentForm {...props} />);
 
@@ -374,7 +368,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
         actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
-        canManageFamilyCollectionPreferences={false}
       />
     );
 
@@ -447,7 +440,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
         actorId={actorId}
         organizationId={organizationId}
         charges={[originalCharge]}
-        canManageFamilyCollectionPreferences={false}
       />
     );
 
@@ -483,7 +475,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
         actorId={actorId}
         organizationId={organizationId}
         charges={[updatedCharge]}
-        canManageFamilyCollectionPreferences={false}
       />
     );
 
@@ -532,7 +523,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
         actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
-        canManageFamilyCollectionPreferences={false}
       />
     );
 
@@ -582,7 +572,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
         actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
-        canManageFamilyCollectionPreferences={false}
       />
     );
 
@@ -620,7 +609,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
         actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
-        canManageFamilyCollectionPreferences={false}
         automaticCollectionInvoiceReferences={[charge.invoiceReference]}
       />
     );
@@ -636,7 +624,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
         actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
-        canManageFamilyCollectionPreferences={false}
         automaticCollectionInvoiceReferences={["FAC-OTRA"]}
       />
     );
@@ -662,7 +649,6 @@ describe("registro manual de pagos en el dashboard owner", () => {
         actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
-        canManageFamilyCollectionPreferences={false}
       />
     );
 

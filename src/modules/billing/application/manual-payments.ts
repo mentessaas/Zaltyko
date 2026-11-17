@@ -227,7 +227,6 @@ export async function getManualPaymentOptions(input: {
     organization: scope.organization,
     locations: scope.locations,
     selectedLocationId: scope.selectedLocationId,
-    canManageFamilyCollectionPreferences: scope.canViewOrganizationAggregate,
     charges,
     nextCursor:
       hasMore && pageRows.length > 0
