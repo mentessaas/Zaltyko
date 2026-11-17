@@ -17,6 +17,10 @@ import type { PaymentMethodKind } from "@/modules/family-payment-methods/domain/
 // automáticamente. Con el cobro automático abierto (Fase 3), cada familia con
 // método activo tiene además el interruptor «Cobrar automáticamente», que
 // guarda su preferencia de cobro (el único interruptor para eso).
+// «Primero solo tarjeta» (Elvis, 17-11-2026): mientras la domiciliación no se
+// cobra sola (`sepaCollectsAutomatically` apagado, el valor por defecto), cada
+// domiciliación lo dice y una familia que solo tiene domiciliación no puede
+// pasar a cobro automático (sí volver a manual).
 
 // Ruta relativa: el fetch es del mismo origen y el navegador añade la cabecera
 // Origin que la API exige en el POST (protección contra CSRF).
@@ -25,6 +29,8 @@ const REVOKE_ERROR = "No hemos podido dejar de cobrar automáticamente a esta fa
 const PREFERENCE_ENDPOINT = "/api/v1/owner/billing/family-collection-preference";
 const PREFERENCE_ERROR = "No hemos podido guardar el cambio. Inténtalo de nuevo.";
 const SENT_CONTINUE = "Los cobros ya enviados al banco siguen su curso.";
+/** Domiciliación mientras la domiciliación no se cobra sola. */
+export const SEPA_MANUAL_NOTICE = "Por ahora la domiciliación no se cobra sola: esta familia paga como siempre.";
 
 export type OwnerFamilyPaymentMethod = Awaited<ReturnType<typeof listOwnerFamilyPaymentMethods>>[number];
 
@@ -81,11 +87,17 @@ export function OwnerFamilyPaymentMethodsPanel({
   organizationId,
   methods: serverMethods,
   collection,
+  sepaCollectsAutomatically = false,
 }: {
   organizationId: string;
   methods: OwnerFamilyPaymentMethod[];
   /** Interruptores «Cobrar automáticamente» (Fase 3), solo con el cobro automático abierto. */
   collection?: OwnerFamilyCollectionSwitches;
+  /**
+   * La domiciliación se cobra sola (ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED).
+   * Sin indicar, no: nunca se promete un cobro por domiciliación.
+   */
+  sepaCollectsAutomatically?: boolean;
 }) {
   const router = useRouter();
   const [methods, setMethods] = useState(serverMethods);
@@ -243,6 +255,13 @@ export function OwnerFamilyPaymentMethodsPanel({
             // Un interruptor por familia: en su primera fila, aunque tenga más de un método.
             const firstOfFamily = methods.findIndex((item) => item.familyId === method.familyId) === index;
             const preference = collection && firstOfFamily ? switches[method.familyId] : undefined;
+            const sepaManual = method.method === "sepa_debit" && !sepaCollectsAutomatically;
+            // Sin ningún método que se cobre solo, el interruptor no se puede
+            // encender (sí apagar, si ya estaba encendido).
+            const familyCollectable = methods.some(
+              (item) =>
+                item.familyId === method.familyId && (item.method !== "sepa_debit" || sepaCollectsAutomatically)
+            );
             return (
               <li key={method.authorizationId} className={ownerUi.listItem}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -252,6 +271,7 @@ export function OwnerFamilyPaymentMethodsPanel({
                       <span className={ownerTone.chipOutline}>{METHOD_LABELS[method.method]}</span>
                       {since ? <span className={ownerUi.help}>{since}</span> : null}
                     </p>
+                    {sepaManual ? <p className={`${ownerUi.help} mt-1`}>{SEPA_MANUAL_NOTICE}</p> : null}
                   </div>
                   {confirming !== method.authorizationId ? (
                     <button
@@ -274,7 +294,12 @@ export function OwnerFamilyPaymentMethodsPanel({
                       label="Cobrar automáticamente"
                       aria-label={`Cobrar automáticamente a ${method.payerName}`}
                       checked={preference.automatic}
-                      disabled={!collection?.available || savingFamily !== null || busy}
+                      disabled={
+                        !collection?.available ||
+                        savingFamily !== null ||
+                        busy ||
+                        (!preference.automatic && !familyCollectable)
+                      }
                       aria-busy={savingFamily === method.familyId || undefined}
                       onCheckedChange={(checked) => void setAutomatic(method, checked)}
                     />

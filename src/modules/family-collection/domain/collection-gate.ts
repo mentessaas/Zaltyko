@@ -11,7 +11,8 @@ import {
  *
  * Orden (el primer motivo que falla es el que se devuelve):
  * 1. Bandera, entorno, cerrojos de Live y producción, almacenamiento.
- *    Después, un recordatorio de pago ya enviado (`reminder_sent`, final).
+ *    Después, un recordatorio de pago ya enviado (`reminder_sent`, final) y
+ *    la domiciliación sin activar (`sepa_not_enabled`, final).
  * 2. Cuenta conectada releída hace poco (si hay cuenta): con datos viejos de la
  *    cuenta nunca se decide un motivo final.
  * 3. Moneda de la factura (solo EUR).
@@ -31,6 +32,7 @@ export type FamilyCollectionGateReason =
   | "live_not_released"
   | "storage_missing"
   | "reminder_sent"
+  | "sepa_not_enabled"
   | "unsupported_currency"
   | CollectionEligibilityReason
   | "charge_payer_mismatch"
@@ -68,6 +70,7 @@ export const GATE_REASON_CLASSIFICATION: Readonly<
   subscription_period_not_current: "transient",
   // Finales.
   reminder_sent: "final",
+  sepa_not_enabled: "final",
   unsupported_currency: "final",
   organization_not_active: "final",
   preference_manual: "final",
@@ -105,6 +108,14 @@ export function classifyGateReason(
  * cobra a mano.
  */
 export const REMINDER_SENT_REASON = "reminder_sent" satisfies FamilyCollectionGateReason;
+
+/**
+ * Motivo final de una factura cuyo pagador paga por domiciliación mientras la
+ * domiciliación no se cobra sola (ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED
+ * apagada, decisión de Elvis del 17-11-2026: «Primero solo tarjeta»). Nunca se
+ * crea un cobro por domiciliación: la cuota se cobra a mano, con recordatorios.
+ */
+export const SEPA_NOT_ENABLED_REASON = "sepa_not_enabled" satisfies FamilyCollectionGateReason;
 
 /** Única moneda que se cobra sola: el libro guarda `EUR` y Stripe recibe `eur`. */
 export const SUPPORTED_COLLECTION_CURRENCY = "EUR";
@@ -163,6 +174,11 @@ export interface FamilyCollectionGateInput {
    * abierta de la factura (readReminderSent en family-collection-store.ts).
    */
   reminderSent: boolean;
+  /**
+   * La domiciliación se cobra sola (ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED).
+   * Apagada, una autorización por domiciliación nunca deja cobrar.
+   */
+  sepaEnabled: boolean;
   organization: CollectionEligibilityInput["organization"];
   entitlement: CollectionEligibilityInput["entitlement"];
   subscription: CollectionEligibilityInput["subscription"];
@@ -242,6 +258,16 @@ export function evaluateFamilyCollectionGate(
   // pendiente). Nunca se cobra solo: final, sin depender de la cuenta ni del
   // plan. Va después de la bandera: con ella apagada no se escribe nada.
   if (input.reminderSent) return deny(REMINDER_SENT_REASON);
+
+  // Domiciliación sin activar: el pagador paga por domiciliación y la
+  // domiciliación todavía no se cobra sola. Nunca se crea un cobro por
+  // domiciliación; final, para que la cuota pase a manual con recordatorios
+  // (no se queda esperando un cobro que no va a llegar). Solo mira el tipo de
+  // la autorización: nunca deja pasar nada, así que no depende de la cuenta ni
+  // del plan, y un motivo pasajero no la retrasa.
+  if (!input.sepaEnabled && input.authorization?.paymentMethodKind === "sepa_debit") {
+    return deny(SEPA_NOT_ENABLED_REASON);
+  }
 
   // 2. Cuenta sin releer: pasajero, antes de cualquier motivo que dependa de
   // sus datos (capacidades, estado), para que una foto vieja de la cuenta

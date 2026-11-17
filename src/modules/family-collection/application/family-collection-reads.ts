@@ -20,8 +20,10 @@
  * leyendo y como la puerta del cobro, que la academia tiene un plan de pago,
  * que la preferencia automática de la familia sigue valiendo y que el
  * pagador de la factura tiene una autorización activa en la cuenta de la
- * academia. Si falta algo, la familia no ve nada y la academia ve «Se cobrará
- * a mano» con el motivo.
+ * academia, que no es una domiciliación mientras la domiciliación no se cobra
+ * sola (ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED apagada, «Primero
+ * solo tarjeta»). Si falta algo, la familia no ve nada y la academia ve «Se
+ * cobrará a mano» con el motivo.
  *
  * Con la bandera apagada, fuera de la clave de test, contra la base de
  * producción o sin las tablas de las Fases 1, 2 y 3 no se lee nada. Nunca
@@ -42,7 +44,9 @@ import {
   evaluateAutomaticCollectionPlanEligibility,
   type AutomaticPlanEligibility,
 } from "@/modules/billing/domain/plan-eligibility";
+import { isFamilyAutomaticSepaCollectionFlagEnabled } from "@/modules/family-collection/application/config";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
+import { SEPA_NOT_ENABLED_REASON } from "@/modules/family-collection/domain/collection-gate";
 import {
   addLocalDays,
   collectionDate,
@@ -136,15 +140,26 @@ export interface AutomaticCollectionPrerequisites {
   preferenceRevision: number | null;
   /** El pagador de la factura tiene una autorización activa en la cuenta de test de la academia. */
   hasActiveAuthorization: boolean;
+  /** Tipo de esa autorización (`card`, `sepa_debit`), si se leyó. */
+  activeAuthorizationKind?: string | null;
+  /**
+   * La domiciliación se cobra sola (ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED).
+   * Sin indicar, apagada: nunca se promete un cobro por domiciliación.
+   */
+  sepaEnabled?: boolean;
 }
 
 /**
  * Motivo (código interno) por el que un cobro automático pendiente ya no
  * puede llegar, o `null` si todo sigue en pie. Mismo orden y mismas reglas
- * que la puerta (collection-gate.ts): plan de la academia, preferencia de la
- * familia (con la regla del cambio de plan) y autorización del pagador.
+ * que la puerta (collection-gate.ts): domiciliación sin activar, plan de la
+ * academia, preferencia de la familia (con la regla del cambio de plan) y
+ * autorización del pagador.
  */
 export function automaticCollectionBlocker(input: AutomaticCollectionPrerequisites): string | null {
+  if (input.activeAuthorizationKind === "sepa_debit" && input.sepaEnabled !== true) {
+    return SEPA_NOT_ENABLED_REASON;
+  }
   if (!input.plan.eligible) return input.plan.reason;
   if (input.preferenceMode !== "automatic") return "preference_manual";
   if (
@@ -208,7 +223,21 @@ const prerequisiteColumns = sql`
        and au.status = 'active'::zaltyko.payment_authorization_status
        and acc.processor = 'stripe'
        and acc.environment = 'test'::zaltyko.stripe_environment
-  ) as "hasActiveAuthorization"
+  ) as "hasActiveAuthorization",
+  (
+    select au.payment_method_kind
+      from zaltyko.family_payment_authorizations au
+      join zaltyko.organization_payment_provider_accounts acc
+        on acc.organization_id = au.organization_id
+       and acc.id = au.payment_provider_account_id
+     where au.organization_id = i.organization_id
+       and au.family_id = i.family_id
+       and au.family_payer_id = i.family_payer_id
+       and au.status = 'active'::zaltyko.payment_authorization_status
+       and acc.processor = 'stripe'
+       and acc.environment = 'test'::zaltyko.stripe_environment
+     limit 1
+  ) as "activeAuthorizationKind"
 `;
 
 function prerequisitesOf(
@@ -221,6 +250,8 @@ function prerequisitesOf(
     preferenceMode: textOrNull(row.preferenceMode),
     preferenceRevision: integerOrNull(row.preferenceRevision),
     hasActiveAuthorization: row.hasActiveAuthorization === true,
+    activeAuthorizationKind: textOrNull(row.activeAuthorizationKind),
+    sepaEnabled: isFamilyAutomaticSepaCollectionFlagEnabled(),
   };
 }
 
@@ -488,6 +519,8 @@ const NO_ACTIVE_METHOD = "La familia ya no tiene un método de pago activo.";
 const PAYER_CHANGED = "Cambió la persona que paga la cuota.";
 const BELOW_MINIMUM_TEXT = "Lo que queda por pagar es menos de 0,50 €, el mínimo que admite Stripe. Se cobra a mano.";
 const METHOD_NOT_ACTIVE_TEXT = "Este tipo de pago no está activado en tu cuenta de Stripe. Se cobra a mano.";
+/** La familia paga por domiciliación y la domiciliación todavía no se cobra sola. */
+export const SEPA_NOT_ENABLED_TEXT = "Por ahora la domiciliación no se cobra sola. Se cobra a mano.";
 
 const FAILURE_TEXT: Record<string, string> = {
   ...DECLINE_TEXT,
@@ -549,6 +582,8 @@ const FAILURE_TEXT: Record<string, string> = {
   payment_method_unknown: NO_ACTIVE_METHOD,
   authorization_changed: "La familia cambió su método de pago.",
   sepa_not_active: "La domiciliación no está activa en tu cuenta de Stripe.",
+  // Decisión de Elvis del 17-11-2026: «Primero solo tarjeta».
+  [SEPA_NOT_ENABLED_REASON]: SEPA_NOT_ENABLED_TEXT,
   charge_payer_mismatch: PAYER_CHANGED,
   payer_missing: PAYER_CHANGED,
   payer_not_current: PAYER_CHANGED,

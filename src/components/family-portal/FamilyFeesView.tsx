@@ -25,12 +25,15 @@ export function FamilyFeesView({
   academies,
   automaticPayments,
   automaticCollection,
+  sepaCollectsAutomatically = false,
 }: {
   academies: FamilyAcademyFees[];
   /** Por academia, una tarjeta de pago automático por familia que paga. */
   automaticPayments?: FamilyAutomaticPaymentCards;
   /** Por factura, el estado de su cobro automático (Fase 3). */
   automaticCollection?: FamilyAutomaticFeeStatuses;
+  /** La domiciliación se cobra sola; sin indicar, no (ninguna promesa de cobro por domiciliación). */
+  sepaCollectsAutomatically?: boolean;
 }) {
   const offersAutomaticPayment = academies.some(
     (academy) => (automaticPayments?.[academy.organizationId]?.length ?? 0) > 0
@@ -146,6 +149,7 @@ export function FamilyFeesView({
                     familyId={card.familyId}
                     timezone={academy.timezone}
                     state={card.state}
+                    sepaCollectsAutomatically={sepaCollectsAutomatically}
                   />
                 </div>
               ))}

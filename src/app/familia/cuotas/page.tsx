@@ -4,7 +4,10 @@ import { FamilyPortalShell } from "@/components/family-portal/FamilyPortalShell"
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { PageHeader } from "@/components/ui/page-header";
 import { logger } from "@/lib/logger";
-import { isFamilyAutomaticCollectionFlagEnabled } from "@/modules/family-collection/application/config";
+import {
+  isFamilyAutomaticCollectionFlagEnabled,
+  isFamilyAutomaticSepaCollectionFlagEnabled,
+} from "@/modules/family-collection/application/config";
 import {
   isProductionDatabase,
   resolveConnectEnvironment,
@@ -124,6 +127,7 @@ export default async function FamilyFeesPage() {
         academies={academies}
         automaticPayments={automaticPayments}
         automaticCollection={automaticCollection}
+        sepaCollectsAutomatically={isFamilyAutomaticSepaCollectionFlagEnabled()}
       />
     </FamilyPortalShell>
   );

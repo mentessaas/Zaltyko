@@ -92,6 +92,8 @@ async function runOnOwnConnection(text: string): Promise<void> {
 const SHA = "b".repeat(64);
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
+/** D2 («Primero solo tarjeta»): bandera aparte de la domiciliación. */
+const SEPA_FLAG = "ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED";
 const compact = () => randomUUID().replace(/-/g, "").slice(0, 20);
 
 /**
@@ -819,7 +821,7 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(4);
   });
 
-  it("domiciliación en curso: queda processing y la relectura del día siguiente la cierra", async () => {
+  it("domiciliación en curso: queda processing y la relectura del día siguiente la cierra aunque se apague la domiciliación", async () => {
     const fixture = await createCollectableInvoice({ kind: "sepa_debit" });
     const { gateway, intents } = fakeStripe({
       confirm: (paymentIntentId) => ({
@@ -831,7 +833,14 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     });
     const start = new Date();
 
-    await run(start, gateway);
+    // D2: con la bandera de la domiciliación encendida se crea y queda en el banco…
+    vi.stubEnv(SEPA_FLAG, "true");
+    try {
+      await run(start, gateway);
+    } finally {
+      // …y se apaga antes de la relectura: lo que ya está en el banco se sigue liquidando.
+      vi.stubEnv(SEPA_FLAG, "false");
+    }
     const confirms = gateway.confirmPayment.mock.calls.filter(([input]) => intents.has(input.paymentIntentId));
     expect(confirms[confirms.length - 1]?.[0].mandate).toBe(fixture.mandate);
     const [processing] = await attempts(fixture);
@@ -857,6 +866,26 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
       providerPayments: [{ amount: 4500, environment: "sandbox", intent: processing.intent, allocated: 4500 }],
     });
   });
+  it("bandera de la domiciliación apagada (D2): ningún cobro por domiciliación, intento canceled sepa_not_enabled y la cuota sigue abierta", async () => {
+    const fixture = await createCollectableInvoice({ kind: "sepa_debit" });
+    const { gateway } = fakeStripe();
+    vi.stubEnv(SEPA_FLAG, "false");
+
+    await run(new Date(), gateway);
+
+    expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(0);
+    expect(await attempts(fixture)).toEqual([
+      expect.objectContaining({ number: 1, status: "canceled", failure: "sepa_not_enabled", intent: null }),
+    ]);
+    expect(await ledgerState(fixture)).toEqual({ charges: ["due"], invoice: "issued", providerPayments: [] });
+    expect(await outboxCount(fixture, "family_collection.attempt_canceled")).toBe(1);
+
+    // Un intento final no se repite: la cuota ya es de cobro a mano.
+    await run(new Date(), gateway);
+    expect(await attempts(fixture)).toHaveLength(1);
+    expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(0);
+  });
+
   it("red de seguridad: un intento abierto con las reanudaciones agotadas recibe un solo aviso", async () => {
     const fixture = await createCollectableInvoice();
     const inserted = await db.execute(sql`

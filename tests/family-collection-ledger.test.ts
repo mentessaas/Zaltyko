@@ -33,6 +33,7 @@ vi.mock("@/modules/family-collection/application/storage", () => ({
 }));
 vi.mock("@/modules/family-collection/application/config", () => ({
   isFamilyAutomaticCollectionFlagEnabled: mocks.flag,
+  isFamilyAutomaticSepaCollectionFlagEnabled: () => false,
   resolveConnectEnvironment: () => "test",
   isProductionDatabase: () => false,
 }));

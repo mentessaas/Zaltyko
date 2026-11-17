@@ -43,6 +43,8 @@ const INTRO =
   "Guarda una tarjeta o domicilia el pago para que las cuotas se cobren solas. Todavía no se cobrará nada.";
 const PENDING =
   "Tu banco todavía lo está confirmando. Si en unos minutos no aparece como guardado, vuelve a guardarlo.";
+/** D2 («Primero solo tarjeta»): mientras la domiciliación no se cobra sola. */
+const SEPA_MANUAL = "Por ahora la domiciliación no se cobra sola; paga como siempre.";
 
 type Kind = "card" | "sepa_debit";
 type Call = { url: string; body: Record<string, unknown> };
@@ -289,9 +291,12 @@ describe("FamilyAutomaticPaymentCard", () => {
     stubFetch(() => success({}));
     renderCard(activeState("sepa_debit"));
 
+    // Domiciliación sin activar (por defecto): guardada, sin prometer que se cobra sola.
     expect(
-      screen.getByText("Pagas automáticamente con domiciliación bancaria desde el 10 de noviembre de 2026.")
+      screen.getByText("Tienes la domiciliación bancaria guardada desde el 10 de noviembre de 2026.")
     ).toBeInTheDocument();
+    expect(screen.getByText(SEPA_MANUAL)).toBeInTheDocument();
+    expect(screen.queryByText(/^Pagas automáticamente con domiciliación/)).toBeNull();
     expect(screen.queryByRole("radio")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Cambiar método" }));
@@ -509,5 +514,76 @@ describe("FamilyFeesView con pago automático", () => {
       "Desde aquí puedes consultar tus cuotas y, si quieres, activar el pago automático."
     );
     expect(screen.getByRole("note")).not.toHaveTextContent("solo puedes consultar");
+  });
+});
+
+describe("FamilyAutomaticPaymentCard: domiciliación sin activar (D2, «Primero solo tarjeta»)", () => {
+  function renderWith(state: FamilyPaymentMethodState, sepaCollectsAutomatically?: boolean) {
+    return render(
+      <FamilyAutomaticPaymentCard
+        organizationId={ORGANIZATION_ID}
+        familyId={FAMILY_ID}
+        timezone="Europe/Madrid"
+        state={state}
+        {...(sepaCollectsAutomatically === undefined ? {} : { sepaCollectsAutomatically })}
+      />
+    );
+  }
+
+  it("apagada: la familia puede elegir la domiciliación, que dice que por ahora no se cobra sola", () => {
+    stubFetch(() => success({}));
+    renderWith(noneState(), false);
+
+    // Con la tarjeta elegida no sale el aviso.
+    expect(screen.queryByText(SEPA_MANUAL)).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: "Domiciliación bancaria" }));
+    expect(screen.getByText(SEPA_MANUAL)).toBeInTheDocument();
+    expect(screen.getByText(SEPA_TEXT)).toBeInTheDocument();
+    // Puede seguir guardándola (Fase 2 sin cambios).
+    fireEvent.click(screen.getByRole("checkbox", { name: "Acepto" }));
+    expect(screen.getByRole("button", { name: "Continuar" })).toBeEnabled();
+    expect(calls).toHaveLength(0);
+  });
+
+  it("apagada: con la tarjeta activa no cambia nada", () => {
+    stubFetch(() => success({}));
+    renderWith(activeState("card"), false);
+
+    expect(screen.getByText("Pagas automáticamente con tarjeta desde el 10 de noviembre de 2026.")).toBeInTheDocument();
+    expect(screen.queryByText(SEPA_MANUAL)).toBeNull();
+  });
+
+  it("encendida: la domiciliación activa se enseña como hoy, sin el aviso", () => {
+    stubFetch(() => success({}));
+    renderWith(activeState("sepa_debit"), true);
+
+    expect(
+      screen.getByText("Pagas automáticamente con domiciliación bancaria desde el 10 de noviembre de 2026.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(SEPA_MANUAL)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Cambiar método" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Domiciliación bancaria" }));
+    expect(screen.queryByText(SEPA_MANUAL)).toBeNull();
+  });
+
+  it("la vista de cuotas pasa la bandera a cada tarjeta (sin indicar, apagada)", () => {
+    stubFetch(() => success({}));
+    const academy: FamilyAcademyFees = {
+      organizationId: ORGANIZATION_ID,
+      organizationName: "Club Sintético",
+      timezone: "Europe/Madrid",
+      fees: [],
+    };
+    const cards = { [ORGANIZATION_ID]: [{ familyId: FAMILY_ID, state: activeState("sepa_debit") }] };
+
+    const { unmount } = render(<FamilyFeesView academies={[academy]} automaticPayments={cards} />);
+    expect(screen.getByText(SEPA_MANUAL)).toBeInTheDocument();
+    unmount();
+
+    render(<FamilyFeesView academies={[academy]} automaticPayments={cards} sepaCollectsAutomatically />);
+    expect(screen.queryByText(SEPA_MANUAL)).toBeNull();
+    expect(
+      screen.getByText("Pagas automáticamente con domiciliación bancaria desde el 10 de noviembre de 2026.")
+    ).toBeInTheDocument();
   });
 });

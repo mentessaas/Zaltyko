@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/db", () => ({ db: {} }));
 vi.mock("@/modules/family-collection/application/config", () => ({
   isFamilyAutomaticCollectionFlagEnabled: vi.fn(),
+  isFamilyAutomaticSepaCollectionFlagEnabled: vi.fn(),
   resolveConnectEnvironment: vi.fn(),
   isProductionDatabase: vi.fn(),
 }));
@@ -42,6 +43,7 @@ import {
 import type { EntitlementSnapshot } from "@/modules/billing/domain/plan-eligibility";
 import {
   isFamilyAutomaticCollectionFlagEnabled,
+  isFamilyAutomaticSepaCollectionFlagEnabled,
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
@@ -263,5 +265,43 @@ describe("getChargeCollectionModeSnapshot", () => {
     await expect(snapshot(executor({ requestedMode: "automatic", entitlementRevision: 4 }))).resolves.toBe(
       "manual"
     );
+  });
+
+  describe("domiciliación (D2, «Primero solo tarjeta»)", () => {
+    function paysBySepa() {
+      vi.mocked(findActiveAuthorization).mockResolvedValue({
+        id: "10000000-0000-4000-8000-000000000801",
+        organizationId,
+        familyId,
+        familyPayerId,
+        paymentProviderAccountId: accountRowId,
+        paymentMethodReference: "pm_synthetic_sepa",
+        paymentMethodKind: "sepa_debit",
+        consentedAt: now,
+      });
+    }
+
+    it("con la bandera de la domiciliación apagada (por defecto), la cuota de quien domicilia nace manual", async () => {
+      paysBySepa();
+      vi.mocked(isFamilyAutomaticSepaCollectionFlagEnabled).mockReturnValue(false);
+      await expect(snapshot(executor({ requestedMode: "automatic", entitlementRevision: 4 }))).resolves.toBe(
+        "manual"
+      );
+    });
+
+    it("con la bandera de la domiciliación encendida nace automática, como hoy", async () => {
+      paysBySepa();
+      vi.mocked(isFamilyAutomaticSepaCollectionFlagEnabled).mockReturnValue(true);
+      await expect(snapshot(executor({ requestedMode: "automatic", entitlementRevision: 4 }))).resolves.toBe(
+        "automatic"
+      );
+    });
+
+    it("la tarjeta nace automática aunque la bandera de la domiciliación esté apagada", async () => {
+      vi.mocked(isFamilyAutomaticSepaCollectionFlagEnabled).mockReturnValue(false);
+      await expect(snapshot(executor({ requestedMode: "automatic", entitlementRevision: 4 }))).resolves.toBe(
+        "automatic"
+      );
+    });
   });
 });

@@ -8,7 +8,10 @@
  *   salió en Stripe siempre quede registrado; con la bandera apagada la
  *   puerta nunca deja crear ni confirmar, así que solo lee, cancela o cierra.
  * - Fase B (family-collection-collect.ts): cobrar lo que vence hoy. Solo con
- *   la bandera encendida.
+ *   la bandera encendida. Por domiciliación, solo además con
+ *   ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED encendida («Primero solo
+ *   tarjeta»); la Fase A sigue leyendo y registrando las domiciliaciones que
+ *   ya están en el banco, con o sin esa bandera.
  *
  * Nada corre si los cerrojos de R11 están cerrados (clave que no es de test o
  * base de producción) o si faltan las tablas de las Fases 1, 2 y 3.
@@ -18,6 +21,7 @@
  */
 import {
   isFamilyAutomaticCollectionFlagEnabled,
+  isFamilyAutomaticSepaCollectionFlagEnabled,
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
@@ -89,6 +93,7 @@ export async function runFamilyCollection(
     environment,
     productionDatabase: false,
     flagEnabled,
+    sepaEnabled: isFamilyAutomaticSepaCollectionFlagEnabled(),
     store,
     gateway: deps.gateway ?? createStripeCollectionGateway(),
     scope: options.organizationIds ? [...options.organizationIds] : null,

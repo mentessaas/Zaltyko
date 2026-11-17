@@ -11,6 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const env = vi.hoisted(() => ({
   flag: true,
+  /** ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED (D2): apagada por defecto. */
+  sepa: false,
   environment: "test" as "test" | "live" | null,
   production: false,
 }));
@@ -21,6 +23,7 @@ vi.mock("@/lib/logger", () => ({
 }));
 vi.mock("@/modules/family-collection/application/config", () => ({
   isFamilyAutomaticCollectionFlagEnabled: () => env.flag,
+  isFamilyAutomaticSepaCollectionFlagEnabled: () => env.sepa,
   resolveConnectEnvironment: () => env.environment,
   isProductionDatabase: () => env.production,
 }));
@@ -409,6 +412,7 @@ const networkError = () => Object.assign(new Error("connection reset"), { type: 
 
 beforeEach(() => {
   env.flag = true;
+  env.sepa = false;
   env.environment = "test";
   env.production = false;
   vi.mocked(logger.error).mockClear();
@@ -509,7 +513,8 @@ describe("Fase B: cobrar lo que vence hoy", () => {
     expect(result).toMatchObject({ enabled: true, complete: true, collected: 1, failed: 0, retried: 0, needsReview: 0 });
   });
 
-  it("domiciliación: confirma con la orden SEPA y queda en curso", async () => {
+  it("domiciliación (con la bandera de la domiciliación encendida): confirma con la orden SEPA y queda en curso", async () => {
+    env.sepa = true;
     const { world, gateway, run } = setup({
       confirmPayment: async (input) => snapshot(input.paymentIntentId, "processing"),
     });
@@ -1896,5 +1901,132 @@ describe("descripción del cobro", () => {
     expect(collectionDescription("2026-11-01")).toBe("Cuota noviembre 2026");
     expect(collectionDescription("2027-01-01")).toBe("Cuota enero 2027");
     expect(() => collectionDescription("2026-13-01")).toThrow(RangeError);
+  });
+});
+
+describe("domiciliación sin activar (D2, «Primero solo tarjeta»): nunca un cobro nuevo por domiciliación", () => {
+  /** El pagador paga por domiciliación (orden completa). */
+  function paysBySepa(world: World): void {
+    world.context!.authorization!.paymentMethodKind = "sepa_debit";
+    world.context!.authorization!.paymentMethodReference = "pm_SyntheticSepa";
+    world.context!.authorization!.mandateReference = "mandate_SyntheticA";
+    world.refs!.paymentMethod = "pm_SyntheticSepa";
+    world.refs!.mandate = "mandate_SyntheticA";
+  }
+  const sepaDecision = {
+    action: "canceled",
+    attemptNumber: 1,
+    amountCents: 4500,
+    allocations: [{ chargeId, amountCents: 4500 }],
+    reason: "sepa_not_enabled",
+  };
+
+  it("bandera de la domiciliación apagada: canceled sepa_not_enabled antes de reclamar, sin Stripe", async () => {
+    const { world, store, gateway, run } = setup();
+    paysBySepa(world);
+
+    const result = await run();
+
+    expect(world.decisions).toEqual([sepaDecision]);
+    expect(vi.mocked(store.claimOrCancel).mock.calls[0][0]).toMatchObject({
+      authorizationId: null,
+      paymentProviderAccountId: null,
+      paymentMethodKind: null,
+    });
+    expect(world.attempts[0]).toMatchObject({ status: "canceled", attemptNumber: 1 });
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(gateway.confirmPayment).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ enabled: true, canceled: 1, collected: 0, processing: 0, skipped: {} });
+  });
+
+  it("un motivo pasajero (plan) no lo retrasa: se cierra igual y la cuota pasa a manual", async () => {
+    const { world, gateway, run } = setup();
+    paysBySepa(world);
+    world.context!.plan.entitlement!.planCode = "free";
+    world.context!.plan.entitlement!.source = "bootstrap";
+
+    const result = await run();
+
+    expect(world.decisions).toEqual([sepaDecision]);
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ canceled: 1, skipped: {} });
+  });
+
+  it("la tarjeta se cobra como siempre con la bandera de la domiciliación apagada", async () => {
+    const { world, gateway, run } = setup();
+
+    const result = await run();
+
+    expect(gateway.createPayment.mock.calls[0][0]).toMatchObject({ kind: "card" });
+    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
+    expect(result).toMatchObject({ collected: 1, canceled: 0 });
+  });
+
+  it("bandera de la domiciliación encendida: la domiciliación se cobra como hoy", async () => {
+    env.sepa = true;
+    const { world, gateway, run } = setup({
+      confirmPayment: async (input) => snapshot(input.paymentIntentId, "processing"),
+    });
+    paysBySepa(world);
+
+    const result = await run();
+
+    expect(gateway.createPayment).toHaveBeenCalledTimes(1);
+    expect(gateway.createPayment.mock.calls[0][0]).toMatchObject({ kind: "sepa_debit", paymentMethod: "pm_SyntheticSepa" });
+    expect(gateway.confirmPayment.mock.calls[0][0]).toMatchObject({ mandate: "mandate_SyntheticA" });
+    expect(result).toMatchObject({ processing: 1, canceled: 0 });
+  });
+
+  describe("Fase A con la bandera de la domiciliación apagada", () => {
+    function resumeSepa(item: CollectionAttempt, behaviour: Partial<FamilyCollectionGateway> = {}) {
+      const harness = setup(behaviour);
+      paysBySepa(harness.world);
+      harness.world.due = [];
+      harness.world.attempts.push(item);
+      harness.world.resumable = [item];
+      return harness;
+    }
+
+    it("claimed sin cobro en Stripe: canceled sepa_not_enabled sin crear", async () => {
+      const item = attempt({ paymentMethodKind: "sepa_debit", resumeCount: 1 });
+      const { world, gateway, run } = resumeSepa(item);
+
+      const result = await run();
+
+      expect(gateway.createPayment).not.toHaveBeenCalled();
+      expect(world.calls).toEqual(["stripe:find", "load", "apply:canceled"]);
+      expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: null, reason: "sepa_not_enabled" }]);
+      expect(result.canceled).toBe(1);
+    });
+
+    it("created sin confirmar: lo cancela en Stripe y cierra sin confirmar", async () => {
+      const item = attempt({ status: "created", paymentIntentId: intentId, paymentMethodKind: "sepa_debit", resumeCount: 1 });
+      const { world, gateway, run } = resumeSepa(item, {
+        retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_confirmation"),
+      });
+
+      await run();
+
+      expect(gateway.confirmPayment).not.toHaveBeenCalled();
+      expect(gateway.cancelPayment).toHaveBeenCalledTimes(1);
+      expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: intentId, reason: "sepa_not_enabled" }]);
+    });
+
+    it.each([true, false])(
+      "una domiciliación ya en el banco se sigue liquidando (bandera general %s)",
+      async (flag) => {
+        env.flag = flag;
+        const { world, gateway, run } = setup();
+        world.due = [];
+        world.processing = [attempt({ status: "processing", paymentIntentId: intentId, paymentMethodKind: "sepa_debit" })];
+
+        const result = await run();
+
+        expect(gateway.retrievePayment).toHaveBeenCalledTimes(1);
+        expect(gateway.createPayment).not.toHaveBeenCalled();
+        expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
+        expect(result).toMatchObject({ reconciled: 1, collected: 1 });
+      }
+    );
   });
 });

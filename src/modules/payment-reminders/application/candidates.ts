@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import type { DatabaseClient } from "@/lib/db-transactions";
 import {
   isFamilyAutomaticCollectionFlagEnabled,
+  isFamilyAutomaticSepaCollectionFlagEnabled,
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
@@ -79,6 +80,11 @@ interface CandidateRow {
   lastAttemptNextRetryAt?: string | null;
   lastAttemptCompletedAt?: string | null;
   collectionDayOfMonth?: number | string | null;
+  /**
+   * Tipo (`card`, `sepa_debit`) de la autorización activa del pagador de la
+   * factura en la cuenta de test de la academia (la que usa el cobro), o null.
+   */
+  activeAuthorizationKind?: string | null;
 }
 
 function safeCents(value: unknown): number {
@@ -109,9 +115,11 @@ function isAutomaticCollectionOpen(): boolean {
  * ¿Espera la cuota a su cobro automático? Un cobro en curso de su factura
  * retiene siempre, aunque la bandera esté apagada o los cerrojos cerrados (el
  * dinero puede estar moviéndose). Lo demás, solo con el cobro abierto; ante
- * datos que no se pueden leer, se trata como manual.
+ * datos que no se pueden leer, se trata como manual. Con la domiciliación sin
+ * activar (`sepaEnabled` apagada), una cuota cuyo pagador paga por
+ * domiciliación no espera ningún cobro nuevo: recibe recordatorios.
  */
-function automaticHoldOf(row: CandidateRow, now: Date, automaticOpen: boolean): boolean {
+function automaticHoldOf(row: CandidateRow, now: Date, automaticOpen: boolean, sepaEnabled: boolean): boolean {
   if (isAutomaticCollectionInProgress(row.lastAttemptStatus)) return true;
   if (!automaticOpen || row.collectionMode !== "automatic") return false;
   try {
@@ -134,6 +142,7 @@ function automaticHoldOf(row: CandidateRow, now: Date, automaticOpen: boolean): 
         collectionDayOfMonth: day,
       }),
       todayLocal: localCalendarDate(now, row.locationTimezone),
+      paymentMethodCollectable: sepaEnabled || row.activeAuthorizationKind !== "sepa_debit",
     });
   } catch {
     return false;
@@ -149,19 +158,46 @@ export async function loadReminderCandidates(
   const dueFilter = filter.dueBefore ? sql`and c.due_at < ${filter.dueBefore.toISOString()}::timestamptz` : sql``;
   const now = filter.now ?? new Date();
   const automaticOpen = isAutomaticCollectionOpen();
+  const sepaEnabled = isFamilyAutomaticSepaCollectionFlagEnabled() === true;
   // Con las tablas de la Fase 3 se lee siempre el último intento de la factura
   // (el abierto, si lo hay, es siempre el último) y el día de cobro de la
   // academia, también con la bandera apagada o los cerrojos cerrados: un cobro
   // en curso retiene los recordatorios igual que bloquea el pago manual. Sin
   // las tablas no hay cobros automáticos y la consulta es la de siempre.
   const collectionTables = await isFamilyCollectionStorageAvailable(client);
+  // Tipo de la autorización activa del pagador: solo hace falta con el cobro
+  // abierto y la domiciliación sin activar (D2). Las tablas de las Fases 1 y 2
+  // existen: los intentos de la Fase 3 las referencian.
+  const readsAuthorizationKind = collectionTables && automaticOpen && !sepaEnabled;
+  const authorizationColumn = readsAuthorizationKind
+    ? sql`
+        active_authorization.kind as "activeAuthorizationKind",`
+    : sql``;
+  const authorizationJoin = readsAuthorizationKind
+    ? sql`
+      left join lateral (
+        select au.payment_method_kind as kind
+          from zaltyko.family_payment_authorizations au
+          join zaltyko.organization_payment_provider_accounts acc
+            on acc.organization_id = au.organization_id
+           and acc.id = au.payment_provider_account_id
+         where au.organization_id = c.organization_id
+           and au.family_id = i.family_id
+           and au.family_payer_id = i.family_payer_id
+           and au.status = 'active'::zaltyko.payment_authorization_status
+           and acc.processor = 'stripe'
+           and acc.environment = 'test'::zaltyko.stripe_environment
+         limit 1
+      ) active_authorization on true`
+    : sql``;
   const automaticColumns = collectionTables
     ? sql`
         c.collection_mode::text as "collectionMode",
         last_attempt.status as "lastAttemptStatus",
         to_char(last_attempt.next_retry_at at time zone 'UTC', ${sql.raw(ISO)}) as "lastAttemptNextRetryAt",
         to_char(last_attempt.completed_at at time zone 'UTC', ${sql.raw(ISO)}) as "lastAttemptCompletedAt",
-        ocs.collection_day_of_month as "collectionDayOfMonth",`
+        ocs.collection_day_of_month as "collectionDayOfMonth",
+        ${authorizationColumn}`
     : sql``;
   const automaticJoins = collectionTables
     ? sql`
@@ -173,7 +209,8 @@ export async function loadReminderCandidates(
          limit 1
       ) last_attempt on true
       left join zaltyko.organization_collection_settings ocs
-        on ocs.organization_id = c.organization_id`
+        on ocs.organization_id = c.organization_id
+      ${authorizationJoin}`
     : sql``;
 
   const result = await client.execute(sql`
@@ -274,7 +311,7 @@ export async function loadReminderCandidates(
     sentCount: Number(row.sentCount),
     failedCount: Number(row.failedCount),
     hasPendingReservation: row.hasPendingReservation === true,
-    automaticCollectionHold: collectionTables && automaticHoldOf(row, now, automaticOpen),
+    automaticCollectionHold: collectionTables && automaticHoldOf(row, now, automaticOpen, sepaEnabled),
   }));
 }
 

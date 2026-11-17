@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/db", () => ({ db: {} }));
 vi.mock("@/modules/family-collection/application/config", () => ({
   isFamilyAutomaticCollectionFlagEnabled: vi.fn(),
+  isFamilyAutomaticSepaCollectionFlagEnabled: vi.fn(),
   resolveConnectEnvironment: vi.fn(),
   isProductionDatabase: vi.fn(),
 }));

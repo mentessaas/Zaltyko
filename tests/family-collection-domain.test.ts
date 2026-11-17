@@ -7,7 +7,9 @@ import type {
 } from "@/modules/billing/domain/plan-eligibility";
 import {
   FAMILY_AUTOMATIC_COLLECTION_FLAG_ENV,
+  FAMILY_AUTOMATIC_SEPA_COLLECTION_FLAG_ENV,
   isFamilyAutomaticCollectionFlagEnabled,
+  isFamilyAutomaticSepaCollectionFlagEnabled,
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
@@ -16,6 +18,7 @@ import {
   classifyGateReason,
   evaluateFamilyCollectionGate,
   REMINDER_SENT_REASON,
+  SEPA_NOT_ENABLED_REASON,
   SUPPORTED_COLLECTION_CURRENCY,
   GATE_REASON_CLASSIFICATION,
   type FamilyCollectionGateCharge,
@@ -435,6 +438,8 @@ function gateInput(): FamilyCollectionGateInput {
     productionDatabase: false,
     storageAvailable: true,
     reminderSent: false,
+    // Los casos de domiciliación sin activar van en su propio bloque.
+    sepaEnabled: true,
     organization: { id: "org-a", status: "active" },
     entitlement: paidEntitlement(),
     subscription: paidSubscription(),
@@ -957,6 +962,76 @@ describe("evaluateFamilyCollectionGate", () => {
       ).toEqual({ allowed: false, reason: "reminder_sent", classification: "final" });
     });
   });
+
+  describe("domiciliación sin activar (D2, «Primero solo tarjeta»: sepa_not_enabled)", () => {
+    /** Domiciliación completa con ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED apagada. */
+    function sepaOff(mutate?: (input: FamilyCollectionGateInput) => void) {
+      const input = sepaInput();
+      input.sepaEnabled = false;
+      mutate?.(input);
+      return evaluateFamilyCollectionGate(input);
+    }
+
+    it("final: con la bandera de la domiciliación apagada nunca se cobra una domiciliación", () => {
+      expect(SEPA_NOT_ENABLED_REASON).toBe("sepa_not_enabled");
+      expect(sepaOff()).toEqual({ allowed: false, reason: "sepa_not_enabled", classification: "final" });
+    });
+
+    it("la tarjeta se cobra igual con la bandera de la domiciliación apagada", () => {
+      expect(gate((input) => { input.sepaEnabled = false; })).toEqual({ allowed: true, paymentMethodKind: "card" });
+    });
+
+    it("con la bandera de la domiciliación encendida, la domiciliación se cobra como hoy", () => {
+      expect(evaluateFamilyCollectionGate({ ...sepaInput(), sepaEnabled: true })).toEqual({
+        allowed: true,
+        paymentMethodKind: "sepa_debit",
+      });
+    });
+
+    it("cabe en failure_code de la candidata (minúsculas, dígitos y guion bajo, hasta 64)", () => {
+      expect(SEPA_NOT_ENABLED_REASON).toMatch(/^[a-z0-9_]{1,64}$/);
+    });
+
+    it.each<[string, (input: FamilyCollectionGateInput) => void, FamilyCollectionGateReason]>([
+      ["bandera apagada", (input) => { input.flagEnabled = false; }, "flag_off"],
+      ["clave de Live", (input) => { input.environment = "live"; }, "live_not_released"],
+      ["base de producción", (input) => { input.productionDatabase = true; }, "live_not_released"],
+      ["sin almacenamiento", (input) => { input.storageAvailable = false; }, "storage_missing"],
+    ])("va después de: %s → %s (pasajero, no se escribe nada)", (_label, mutate, reason) => {
+      expect(sepaOff(mutate)).toEqual({ allowed: false, reason, classification: "transient" });
+    });
+
+    it("va después de un recordatorio ya enviado (los dos son finales)", () => {
+      expect(sepaOff((input) => { input.reminderSent = true; })).toMatchObject({ reason: "reminder_sent" });
+    });
+
+    it.each<[string, (input: FamilyCollectionGateInput) => void]>([
+      [
+        "cuenta sin releer",
+        (input) => {
+          input.providerAccount = { ...input.providerAccount!, lastSyncedAt: "2026-11-01T00:00:00.000Z" };
+        },
+      ],
+      ["sin plan", (input) => { input.entitlement = null; }],
+      ["suscripción impagada", (input) => { input.subscription = paidSubscription({ providerStatus: "past_due" }); }],
+      ["otra moneda", (input) => { input.invoice = { ...input.invoice, currency: "MXN" }; }],
+      ["la familia pasó a manual", (input) => { input.preference = { ...input.preference, requestedMode: "manual" }; }],
+      ["sin pagador", (input) => { input.payer = null; }],
+      ["sin orden de domiciliación", (input) => { input.authorization = { ...input.authorization!, mandateReference: null }; }],
+      [
+        "capacidad SEPA inactiva en la cuenta",
+        (input) => {
+          input.providerAccount = { ...input.providerAccount!, sepaDebitPaymentsCapabilityStatus: "inactive" };
+        },
+      ],
+    ])("va antes de: %s (un motivo pasajero no lo retrasa)", (_label, mutate) => {
+      expect(sepaOff(mutate)).toEqual({ allowed: false, reason: "sepa_not_enabled", classification: "final" });
+    });
+
+    it("sin autorización no hay domiciliación: manda el motivo de siempre", () => {
+      expect(sepaOff((input) => { input.authorization = null; })).toMatchObject({ reason: "authorization_missing" });
+    });
+  });
 });
 
 describe("clase de cada motivo de la puerta", () => {
@@ -996,6 +1071,7 @@ describe("clase de cada motivo de la puerta", () => {
   it("los motivos propios de la Fase 3 que no son pasajeros son finales", () => {
     for (const reason of [
       "reminder_sent",
+      "sepa_not_enabled",
       "unsupported_currency",
       "charge_payer_mismatch",
       "payer_missing",
@@ -1697,6 +1773,21 @@ describe("config del cobro automático", () => {
   it("apagada si no existe la variable", () => {
     vi.stubEnv(FAMILY_AUTOMATIC_COLLECTION_FLAG_ENV, undefined);
     expect(isFamilyAutomaticCollectionFlagEnabled()).toBe(false);
+  });
+
+  it("la bandera de la domiciliación (D2) es aparte, apagada por defecto y solo con «true»", () => {
+    expect(FAMILY_AUTOMATIC_SEPA_COLLECTION_FLAG_ENV).toBe("ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED");
+    vi.stubEnv(FAMILY_AUTOMATIC_SEPA_COLLECTION_FLAG_ENV, undefined);
+    expect(isFamilyAutomaticSepaCollectionFlagEnabled()).toBe(false);
+    // La bandera general no la enciende.
+    vi.stubEnv(FAMILY_AUTOMATIC_COLLECTION_FLAG_ENV, "true");
+    expect(isFamilyAutomaticSepaCollectionFlagEnabled()).toBe(false);
+    for (const value of ["TRUE", "1", "", "yes"]) {
+      vi.stubEnv(FAMILY_AUTOMATIC_SEPA_COLLECTION_FLAG_ENV, value);
+      expect(isFamilyAutomaticSepaCollectionFlagEnabled()).toBe(false);
+    }
+    vi.stubEnv(FAMILY_AUTOMATIC_SEPA_COLLECTION_FLAG_ENV, "true");
+    expect(isFamilyAutomaticSepaCollectionFlagEnabled()).toBe(true);
   });
 
   it("reexporta los cerrojos de entorno de Conectar Stripe", () => {

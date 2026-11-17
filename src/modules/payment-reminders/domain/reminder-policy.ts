@@ -13,7 +13,9 @@
  *   del vencimiento y es único: nunca se envía si la cuota ya recibió alguno.
  * - Una cuota que se cobra sola (cobro automático, Fase 3) no recibe
  *   recordatorios mientras su cobro siga pendiente (automaticCollectionHolds).
- *   Si su cobro ya está en marcha, tampoco con la bandera apagada.
+ *   Si su cobro ya está en marcha, tampoco con la bandera apagada. Si el
+ *   pagador paga por domiciliación y la domiciliación todavía no se cobra
+ *   sola, la cuota recibe recordatorios como una manual.
  */
 import { addLocalDays } from "@/modules/family-collection/domain/collection-plan";
 
@@ -139,6 +141,15 @@ export function isAutomaticCollectionInProgress(status: string | null | undefine
  * - cancelado (puerta, academia, pago manual o revisión): vuelve;
  * - cobrado (`succeeded`) y la cuota aún debe algo (reparto en revisión,
  *   devolución): espera esos días desde el cobro y después vuelve.
+ *
+ * `paymentMethodCollectable` (por defecto, sí): el método activo del pagador
+ * se puede cobrar solo. Es `false` cuando paga por domiciliación y
+ * ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED está apagada: la puerta
+ * nunca crearía ese cobro (`sepa_not_enabled`), así que ni la espera sin
+ * intento ni un reintento pendiente retienen; la cuota recibe recordatorios
+ * desde el principio. Un cobro en marcha (p. ej. una domiciliación que ya
+ * está en el banco) y uno cobrado con saldo pendiente siguen reteniendo: su
+ * dinero ya se movió o se está moviendo.
  */
 export function automaticCollectionHolds(input: {
   collectionMode: "manual" | "automatic";
@@ -146,16 +157,18 @@ export function automaticCollectionHolds(input: {
   lastAttempt: AutomaticCollectionLastAttempt | null;
   collectionDateLocal: string;
   todayLocal: string;
+  paymentMethodCollectable?: boolean;
 }): boolean {
   if (isAutomaticCollectionInProgress(input.lastAttempt?.status)) return true;
   if (input.collectionMode !== "automatic" || !input.automaticCollectionOpen) return false;
+  const collectable = input.paymentMethodCollectable !== false;
   const last = input.lastAttempt;
-  if (last === null) return withinGrace(input.collectionDateLocal, input.todayLocal);
+  if (last === null) return collectable && withinGrace(input.collectionDateLocal, input.todayLocal);
   switch (last.status) {
     case "canceled":
       return false;
     case "failed":
-      return last.retryDateLocal !== null && withinGrace(last.retryDateLocal, input.todayLocal);
+      return collectable && last.retryDateLocal !== null && withinGrace(last.retryDateLocal, input.todayLocal);
     case "succeeded":
       return last.completedDateLocal === null || withinGrace(last.completedDateLocal, input.todayLocal);
     default:

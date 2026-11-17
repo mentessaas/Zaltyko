@@ -15,7 +15,11 @@
  *   automático sin un cambio real del plan después (las renovaciones del
  *   mismo plan no cuentan: loadPlanChangeRevision);
  * - el pagador de la factura tiene una autorización activa en la cuenta
- *   conectada de la academia.
+ *   conectada de la academia;
+ * - si esa autorización es una domiciliación, la domiciliación se cobra sola
+ *   (ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED, apagada por defecto:
+ *   «Primero solo tarjeta», Elvis, 17-11-2026). Si no, la cuota nace manual
+ *   desde el principio y nunca espera un cobro que no va a llegar.
  *
  * La puerta completa se repite el día del cobro (evaluateFamilyCollectionGate):
  * esto solo decide con qué modo nace la cuota.
@@ -34,6 +38,7 @@ import { isPreferenceRevisionCurrent } from "@/modules/billing/domain/collection
 import { evaluateAutomaticCollectionPlanEligibility } from "@/modules/billing/domain/plan-eligibility";
 import {
   isFamilyAutomaticCollectionFlagEnabled,
+  isFamilyAutomaticSepaCollectionFlagEnabled,
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
@@ -130,6 +135,10 @@ export async function getChargeCollectionModeSnapshot(input: {
     familyPayerId: input.familyPayerId,
   });
   if (!authorization || authorization.familyId !== input.familyId) return "manual";
+  // Domiciliación sin activar: la cuota nace manual (pago a mano y recordatorios).
+  if (authorization.paymentMethodKind === "sepa_debit" && !isFamilyAutomaticSepaCollectionFlagEnabled()) {
+    return "manual";
+  }
 
   return "automatic";
 }

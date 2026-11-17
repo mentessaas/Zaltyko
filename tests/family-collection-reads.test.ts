@@ -1178,3 +1178,114 @@ describe("puertas de las lecturas", () => {
     expect(loadPlanChangeRevision).not.toHaveBeenCalled();
   });
 });
+
+describe("domiciliación sin activar (D2, «Primero solo tarjeta»): ninguna pantalla promete el cobro", () => {
+  const SEPA_FLAG = "ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED";
+  const SEPA_TEXT = "Por ahora la domiciliación no se cobra sola. Se cobra a mano.";
+
+  it("bloqueo: con la bandera de la domiciliación apagada (o sin indicar), sepa_not_enabled antes que el plan", () => {
+    const sepa = { ...prerequisites, activeAuthorizationKind: "sepa_debit" };
+    expect(automaticCollectionBlocker(sepa)).toBe("sepa_not_enabled");
+    expect(automaticCollectionBlocker({ ...sepa, sepaEnabled: false })).toBe("sepa_not_enabled");
+    expect(
+      automaticCollectionBlocker({ ...sepa, sepaEnabled: false, plan: { eligible: false, reason: "paid_plan_required" } })
+    ).toBe("sepa_not_enabled");
+    // Encendida, la domiciliación puede llegar como hoy.
+    expect(automaticCollectionBlocker({ ...sepa, sepaEnabled: true })).toBeNull();
+    // La tarjeta no depende de esta bandera.
+    expect(automaticCollectionBlocker({ ...prerequisites, activeAuthorizationKind: "card", sepaEnabled: false })).toBeNull();
+  });
+
+  it("la familia no ve ninguna fecha de cobro; la academia ve «Se cobrará a mano» con una frase sencilla", () => {
+    expect(familyAutomaticFeeStatusOf(familyInput({ blocker: "sepa_not_enabled" }), NOW)).toBeNull();
+    expect(
+      familyAutomaticFeeStatusOf(
+        familyInput({
+          blocker: "sepa_not_enabled",
+          last: { status: "failed", nextRetryAt: new Date("2026-11-18T23:00:00.000Z"), completedAt: null },
+        }),
+        NOW
+      )
+    ).toBeNull();
+    expect(ownerAutomaticCollectionItemOf(ownerRow({ blocker: "sepa_not_enabled" }), NOW, "2026-11")).toMatchObject({
+      state: "manual",
+      date: "2026-11-20",
+      reason: SEPA_TEXT,
+      canCancel: false,
+      manualPaymentBlocked: false,
+    });
+    // Un intento cerrado por la puerta con ese motivo.
+    expect(failureReasonText({ status: "canceled", failureCode: "sepa_not_enabled", declineCode: null })).toBe(SEPA_TEXT);
+    expect(SEPA_TEXT).not.toMatch(/_/);
+  });
+
+  it("portal: la cuota de quien domicilia no promete el cobro; con la bandera encendida, sí (como hoy)", async () => {
+    vi.mocked(resolveFamilyPortalAccess).mockResolvedValue({
+      academies: [{ organizationId: ORGANIZATION_ID, feeFamilyIds: [FAMILY_ID] }],
+    } as unknown as Awaited<ReturnType<typeof resolveFamilyPortalAccess>>);
+    holder.execute.mockResolvedValue({
+      rows: [
+        {
+          invoiceId: INVOICE_ID,
+          invoiceStatus: "issued",
+          timezone: TZ,
+          collectionDayOfMonth: null,
+          hasAutomaticCharge: true,
+          nextDueAt: "2026-11-20T22:59:59.999Z",
+          preferenceMode: "automatic",
+          preferenceRevision: 5,
+          hasActiveAuthorization: true,
+          activeAuthorizationKind: "sepa_debit",
+          lastStatus: null,
+          lastNextRetryAt: null,
+          lastCompletedAt: null,
+        },
+      ],
+    });
+
+    try {
+      vi.stubEnv(SEPA_FLAG, "false");
+      await expect(
+        getFamilyAutomaticFeeStatuses({ userId: USER_ID, invoiceIds: [INVOICE_ID], now: NOW })
+      ).resolves.toEqual({});
+      const query = dialect.sqlToQuery(holder.execute.mock.calls[0][0] as SQL);
+      expect(query.sql).toContain('as "activeAuthorizationKind"');
+
+      vi.stubEnv(SEPA_FLAG, "true");
+      await expect(
+        getFamilyAutomaticFeeStatuses({ userId: USER_ID, invoiceIds: [INVOICE_ID], now: NOW })
+      ).resolves.toEqual({ [INVOICE_ID]: { kind: "scheduled", date: "2026-11-20" } });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("portal: una domiciliación ya en el banco sigue diciendo «Cobro en curso» con la bandera apagada", async () => {
+    vi.mocked(resolveFamilyPortalAccess).mockResolvedValue({
+      academies: [{ organizationId: ORGANIZATION_ID, feeFamilyIds: [FAMILY_ID] }],
+    } as unknown as Awaited<ReturnType<typeof resolveFamilyPortalAccess>>);
+    holder.execute.mockResolvedValue({
+      rows: [
+        {
+          invoiceId: INVOICE_ID,
+          invoiceStatus: "issued",
+          timezone: TZ,
+          collectionDayOfMonth: null,
+          hasAutomaticCharge: true,
+          nextDueAt: "2026-11-20T22:59:59.999Z",
+          preferenceMode: "automatic",
+          preferenceRevision: 5,
+          hasActiveAuthorization: true,
+          activeAuthorizationKind: "sepa_debit",
+          lastStatus: "processing",
+          lastNextRetryAt: null,
+          lastCompletedAt: null,
+        },
+      ],
+    });
+
+    await expect(
+      getFamilyAutomaticFeeStatuses({ userId: USER_ID, invoiceIds: [INVOICE_ID], now: NOW })
+    ).resolves.toEqual({ [INVOICE_ID]: { kind: "in_progress" } });
+  });
+});

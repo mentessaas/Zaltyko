@@ -157,6 +157,7 @@ import OwnerPaymentsPage from "@/app/owner/payments/page";
 import OwnerSettingsPage from "@/app/owner/settings/page";
 
 const PHASE_FLAG = "ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED";
+const SEPA_FLAG = "ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED";
 
 const academy: FamilyAcademyFees = {
   organizationId: ORGANIZATION_ID,
@@ -260,6 +261,8 @@ beforeEach(() => {
   vi.stubEnv("DATABASE_URL_DIRECT", "");
   vi.stubEnv("ZALTYKO_CONNECT_ONBOARDING_ENABLED", "true");
   vi.stubEnv(PHASE_FLAG, "true");
+  // D2: la domiciliación apagada, como por defecto.
+  vi.stubEnv(SEPA_FLAG, "");
   vi.mocked(resolveOwnerScope).mockResolvedValue(ownerScope());
   vi.mocked(getFamilyFees).mockResolvedValue([academy]);
   vi.mocked(getFamilyPaymentMethodState).mockResolvedValue({ kind: "unavailable", reason: "flag_off" } as never);
@@ -308,6 +311,19 @@ describe("/familia/cuotas: estado del cobro automático", () => {
 
     expect(getFamilyAutomaticFeeStatuses).not.toHaveBeenCalled();
     expect(lastProps<{ automaticCollection: unknown }>(vi.mocked(FamilyFeesView)).automaticCollection).toEqual({});
+  });
+
+  it("D2: pasa a la vista si la domiciliación se cobra sola; sin la bandera, no", async () => {
+    await renderFeesPage();
+    expect(lastProps<{ sepaCollectsAutomatically: unknown }>(vi.mocked(FamilyFeesView)).sepaCollectsAutomatically).toBe(
+      false
+    );
+
+    vi.stubEnv(SEPA_FLAG, "true");
+    await renderFeesPage();
+    expect(lastProps<{ sepaCollectsAutomatically: unknown }>(vi.mocked(FamilyFeesView)).sepaCollectsAutomatically).toBe(
+      true
+    );
   });
 
   it("sin cuotas no pregunta nada", async () => {
@@ -397,8 +413,24 @@ describe("/owner/familias: «Cobrar automáticamente»", () => {
     expect(lastProps<unknown>(vi.mocked(OwnerFamilyPaymentMethodsPanel))).toEqual({
       organizationId: ORGANIZATION_ID,
       methods: [listedMethod],
+      // D2: la domiciliación no se cobra sola mientras su bandera siga apagada.
+      sepaCollectsAutomatically: false,
       collection: switches,
     });
+  });
+
+  it("pasa al panel si la domiciliación se cobra sola (bandera aparte, solo con «true»)", async () => {
+    vi.stubEnv(SEPA_FLAG, "true");
+    await renderFamiliesPage();
+    expect(
+      lastProps<{ sepaCollectsAutomatically: unknown }>(vi.mocked(OwnerFamilyPaymentMethodsPanel)).sepaCollectsAutomatically
+    ).toBe(true);
+
+    vi.stubEnv(SEPA_FLAG, "1");
+    await renderFamiliesPage();
+    expect(
+      lastProps<{ sepaCollectsAutomatically: unknown }>(vi.mocked(OwnerFamilyPaymentMethodsPanel)).sepaCollectsAutomatically
+    ).toBe(false);
   });
 
   it.each(closedCases)("con %s no hay interruptores", async (_label, arrange) => {

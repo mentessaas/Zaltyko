@@ -213,3 +213,82 @@ describe("OwnerFamilyPaymentMethodsPanel", () => {
     expect(container.textContent ?? "").not.toMatch(/setupintent|mandat|connect|webhook|sepa|stripe/i);
   });
 });
+
+describe("OwnerFamilyPaymentMethodsPanel: domiciliación sin activar (D2, «Primero solo tarjeta»)", () => {
+  const SEPA_MANUAL = "Por ahora la domiciliación no se cobra sola: esta familia paga como siempre.";
+  // Lucía tiene tarjeta; Pablo solo domiciliación.
+  const collection = {
+    available: true,
+    families: {
+      [CARD.familyId]: { automatic: false, version: 1, requiresConfirmation: false },
+      [SEPA.familyId]: { automatic: false, version: 1, requiresConfirmation: false },
+    },
+  };
+
+  it("apagada (por defecto): la domiciliación lo dice y su familia no puede pasar a cobro automático", () => {
+    stubFetch(() => reply(200, {}));
+    render(<OwnerFamilyPaymentMethodsPanel organizationId={ORGANIZATION_ID} methods={[CARD, SEPA]} collection={collection} />);
+
+    expect(within(rowOf("Pablo Ruiz")).getByText(SEPA_MANUAL)).toBeInTheDocument();
+    expect(within(rowOf("Lucía Martín")).queryByText(SEPA_MANUAL)).toBeNull();
+    expect(screen.getByRole("switch", { name: "Cobrar automáticamente a Pablo Ruiz" })).toBeDisabled();
+    expect(screen.getByRole("switch", { name: "Cobrar automáticamente a Lucía Martín" })).toBeEnabled();
+    // Sigue pudiendo dejar de cobrarle (revocar la domiciliación).
+    expect(screen.getByRole("button", { name: "Dejar de cobrar automáticamente a Pablo Ruiz" })).toBeEnabled();
+    expect(calls).toHaveLength(0);
+  });
+
+  it("apagada: si ya estaba encendido, se puede apagar", () => {
+    stubFetch(() => reply(200, {}));
+    render(
+      <OwnerFamilyPaymentMethodsPanel
+        organizationId={ORGANIZATION_ID}
+        methods={[SEPA]}
+        collection={{ available: true, families: { [SEPA.familyId]: { automatic: true, version: 2, requiresConfirmation: false } } }}
+      />
+    );
+
+    const toggle = screen.getByRole("switch", { name: "Cobrar automáticamente a Pablo Ruiz" });
+    expect(toggle).toBeChecked();
+    expect(toggle).toBeEnabled();
+  });
+
+  it("una familia con tarjeta y domiciliación puede pasar a cobro automático (con la tarjeta)", () => {
+    stubFetch(() => reply(200, {}));
+    const sepaOfLucia: OwnerFamilyPaymentMethod = {
+      ...SEPA,
+      authorizationId: "83000000-0000-4000-8000-000000000003",
+      familyId: CARD.familyId,
+      payerName: "Lucía Martín",
+    };
+    render(
+      <OwnerFamilyPaymentMethodsPanel organizationId={ORGANIZATION_ID} methods={[sepaOfLucia, CARD]} collection={collection} />
+    );
+
+    expect(screen.getByRole("switch", { name: "Cobrar automáticamente a Lucía Martín" })).toBeEnabled();
+  });
+
+  it("encendida: sin aviso y el interruptor de la domiciliación funciona como hoy", () => {
+    stubFetch(() => reply(200, {}));
+    render(
+      <OwnerFamilyPaymentMethodsPanel
+        organizationId={ORGANIZATION_ID}
+        methods={[CARD, SEPA]}
+        collection={collection}
+        sepaCollectsAutomatically
+      />
+    );
+
+    expect(screen.queryByText(SEPA_MANUAL)).toBeNull();
+    expect(screen.getByRole("switch", { name: "Cobrar automáticamente a Pablo Ruiz" })).toBeEnabled();
+  });
+
+  it("sin los interruptores del cobro automático, la domiciliación también lo dice", () => {
+    stubFetch(() => reply(200, {}));
+    const { container } = renderPanel([SEPA]);
+
+    expect(screen.getByText(SEPA_MANUAL)).toBeInTheDocument();
+    expect(screen.queryByRole("switch")).toBeNull();
+    expect(container.textContent ?? "").not.toMatch(/setupintent|mandat|connect|webhook|sepa|stripe/i);
+  });
+});

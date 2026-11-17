@@ -14,6 +14,9 @@ import type { PaymentMethodKind } from "@/modules/family-payment-methods/domain/
 // guarda una tarjeta o domicilia el pago en la cuenta Stripe de su academia.
 // En esta fase no se cobra nada. La tarjeta nunca enseña códigos de Stripe ni
 // la clave secreta del formulario.
+// «Primero solo tarjeta» (Elvis, 17-11-2026): mientras la domiciliación no se
+// cobra sola (`sepaCollectsAutomatically` apagado, el valor por defecto), la
+// familia puede guardarla, pero la tarjeta nunca promete que se cobrará sola.
 
 /** Lo que la página pasa a la vista de cuotas: por academia, una tarjeta por familia que paga. */
 export type FamilyAutomaticPaymentCards = Record<
@@ -55,6 +58,7 @@ const TEXT = {
   tooMany: "Has hecho demasiados intentos. Espera un minuto y vuelve a intentarlo.",
   bankRejected: "Tu banco no ha aceptado este método de pago. Prueba con otro o habla con tu banco.",
   checkForm: "Revisa los datos del formulario.",
+  sepaManual: "Por ahora la domiciliación no se cobra sola; paga como siempre.",
 } as const;
 
 const KIND_LABEL: Record<PaymentMethodKind, string> = {
@@ -66,6 +70,9 @@ const ACTIVE_LABEL: Record<PaymentMethodKind, string> = {
   card: "Pagas automáticamente con tarjeta",
   sepa_debit: "Pagas automáticamente con domiciliación bancaria",
 };
+
+/** Domiciliación guardada mientras la domiciliación no se cobra sola: sin «automáticamente». */
+const SEPA_SAVED_SINCE_LABEL = "Tienes la domiciliación bancaria guardada";
 
 const SAVED_LABEL: Record<PaymentMethodKind, string> = {
   card: "Tarjeta guardada",
@@ -194,11 +201,17 @@ export function FamilyAutomaticPaymentCard({
   familyId,
   timezone,
   state,
+  sepaCollectsAutomatically = false,
 }: {
   organizationId: string;
   familyId: string;
   timezone: string;
   state: FamilyPaymentMethodState;
+  /**
+   * La domiciliación se cobra sola (ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED).
+   * Sin indicar, no: la tarjeta lo dice y no promete el cobro.
+   */
+  sepaCollectsAutomatically?: boolean;
 }) {
   const titleId = useId();
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
@@ -365,6 +378,7 @@ export function FamilyAutomaticPaymentCard({
       <ActiveView
         method={method}
         timezone={timezone}
+        sepaCollectsAutomatically={sepaCollectsAutomatically}
         canChange={canChoose}
         busy={busy}
         confirmingRevoke={confirmingRevoke}
@@ -392,6 +406,7 @@ export function FamilyAutomaticPaymentCard({
       <ChooseView
         kinds={kinds}
         consentTexts={consentTexts}
+        sepaCollectsAutomatically={sepaCollectsAutomatically}
         busy={busy}
         onContinue={(kind) => void startSetup(kind)}
         onCancel={
@@ -431,6 +446,7 @@ export function FamilyAutomaticPaymentCard({
 function ActiveView({
   method,
   timezone,
+  sepaCollectsAutomatically,
   canChange,
   busy,
   confirmingRevoke,
@@ -441,6 +457,7 @@ function ActiveView({
 }: {
   method: ActiveMethod;
   timezone: string;
+  sepaCollectsAutomatically: boolean;
   canChange: boolean;
   busy: boolean;
   confirmingRevoke: boolean;
@@ -449,11 +466,14 @@ function ActiveView({
   onCancelRevoke: () => void;
   onRevoke: () => void;
 }) {
+  const sepaManual = method.kind === "sepa_debit" && !sepaCollectsAutomatically;
+  const label = sepaManual ? SEPA_SAVED_SINCE_LABEL : ACTIVE_LABEL[method.kind];
   return (
     <>
       <p className="text-sm font-semibold leading-6 text-z-ink">
-        {`${ACTIVE_LABEL[method.kind]} desde el ${formatSince(method.since, timezone)}.`}
+        {`${label} desde el ${formatSince(method.since, timezone)}.`}
       </p>
+      {sepaManual ? <p className={ownerUi.noticeInfo}>{TEXT.sepaManual}</p> : null}
       {confirmingRevoke ? (
         <div className={ownerUi.noticeWarning}>
           <p>{TEXT.revokeQuestion}</p>
@@ -491,12 +511,14 @@ function ActiveView({
 function ChooseView({
   kinds,
   consentTexts,
+  sepaCollectsAutomatically,
   busy,
   onContinue,
   onCancel,
 }: {
   kinds: PaymentMethodKind[];
   consentTexts: Partial<Record<PaymentMethodKind, string>>;
+  sepaCollectsAutomatically: boolean;
   busy: boolean;
   onContinue: (kind: PaymentMethodKind) => void;
   onCancel: (() => void) | null;
@@ -536,6 +558,9 @@ function ChooseView({
           </label>
         ))}
       </fieldset>
+      {kind === "sepa_debit" && !sepaCollectsAutomatically ? (
+        <p className={ownerUi.noticeInfo}>{TEXT.sepaManual}</p>
+      ) : null}
       {consentText ? (
         <p id={consentId} className={ownerUi.subtlePanel}>
           {consentText}

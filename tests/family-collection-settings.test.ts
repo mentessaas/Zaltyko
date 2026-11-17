@@ -17,6 +17,7 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 }));
 vi.mock("@/modules/family-collection/application/config", () => ({
   isFamilyAutomaticCollectionFlagEnabled: vi.fn(),
+  isFamilyAutomaticSepaCollectionFlagEnabled: vi.fn(),
   resolveConnectEnvironment: vi.fn(),
   isProductionDatabase: vi.fn(),
 }));

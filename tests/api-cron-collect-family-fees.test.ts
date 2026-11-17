@@ -32,6 +32,7 @@ vi.mock("@/lib/logger", () => ({
 }));
 vi.mock("@/modules/family-collection/application/config", () => ({
   isFamilyAutomaticCollectionFlagEnabled: () => env.flag,
+  isFamilyAutomaticSepaCollectionFlagEnabled: () => false,
   resolveConnectEnvironment: () => env.environment,
   isProductionDatabase: () => env.production,
 }));
@@ -191,6 +192,8 @@ describe("cron del cobro automático de cuotas", () => {
     expect(mocks.reconcile).toHaveBeenCalledTimes(1);
     const state = mocks.reconcile.mock.calls[0]![0] as RunState;
     expect(state.flagEnabled).toBe(false);
+    // D2: la domiciliación sigue apagada por defecto (nunca un cobro nuevo por domiciliación).
+    expect(state.sepaEnabled).toBe(false);
     expect(state.environment).toBe("test");
     expect(state.productionDatabase).toBe(false);
     expect(state.gateway).toBe(gateway);

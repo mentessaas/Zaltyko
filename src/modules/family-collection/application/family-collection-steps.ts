@@ -21,12 +21,16 @@
  *   darlo por fallido, para que no pueda completarse después;
  * - antes de crear o confirmar al reanudar, se repite la puerta completa:
  *   nunca se cobra a quien ya no paga, ni una factura cuya familia ya recibió
- *   un recordatorio de pago (`reminder_sent`).
+ *   un recordatorio de pago (`reminder_sent`);
+ * - con la domiciliación sin activar (`sepaEnabled` apagada) nunca se crea un
+ *   cobro por domiciliación (`sepa_not_enabled`); las que ya están en el banco
+ *   se siguen leyendo y registrando.
  */
 import { logger } from "@/lib/logger";
 import {
   ACCOUNT_FRESHNESS_MS,
   evaluateFamilyCollectionGate,
+  SEPA_NOT_ENABLED_REASON,
   type FamilyCollectionGateClassification,
   type FamilyCollectionGateInput,
 } from "@/modules/family-collection/domain/collection-gate";
@@ -131,6 +135,11 @@ export interface RunState {
   environment: "test" | "live";
   productionDatabase: boolean;
   flagEnabled: boolean;
+  /**
+   * La domiciliación se cobra sola (ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED).
+   * Apagada, nunca se crea un cobro por domiciliación.
+   */
+  sepaEnabled: boolean;
   store: FamilyCollectionStore;
   gateway: FamilyCollectionGateway;
   /** Academias a recorrer; `null` = todas (producción). Solo los tests lo limitan. */
@@ -272,6 +281,7 @@ export function buildGateInput(
     productionDatabase: state.productionDatabase,
     storageAvailable: true,
     reminderSent: context.reminderSent,
+    sepaEnabled: state.sepaEnabled,
     organization: context.organization,
     entitlement: context.plan.entitlement,
     subscription: context.plan.subscription,
@@ -750,6 +760,12 @@ async function advanceAttemptSteps(
     // la cuota se cobra a mano.
     if (isBelowCollectionMinimum(attempt.amountCents)) {
       return apply(state, attempt, { kind: "canceled", paymentIntentId: null, reason: AMOUNT_BELOW_MINIMUM_CODE });
+    }
+    // Domiciliación sin activar: la puerta ya lo cierra antes de reclamar y al
+    // reanudar; esto es la última comprobación antes de crear el cobro (nunca
+    // se crea uno por domiciliación). No hay cobro en Stripe: se cierra sin más.
+    if (kind === "sepa_debit" && !state.sepaEnabled) {
+      return apply(state, attempt, { kind: "canceled", paymentIntentId: null, reason: SEPA_NOT_ENABLED_REASON });
     }
     try {
       snapshot = await state.gateway.createPayment({

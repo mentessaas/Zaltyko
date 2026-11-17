@@ -20,7 +20,10 @@ import {
 } from "@/modules/family-access/application/family-access-storage";
 import { getOwnerNoticesBundle } from "@/modules/family-access/application/family-notices";
 import { listOwnerFamilyAccess } from "@/modules/family-access/application/guardian-invitations";
-import { isFamilyAutomaticCollectionFlagEnabled } from "@/modules/family-collection/application/config";
+import {
+  isFamilyAutomaticCollectionFlagEnabled,
+  isFamilyAutomaticSepaCollectionFlagEnabled,
+} from "@/modules/family-collection/application/config";
 import type { OwnerFamilyCollectionSwitches } from "@/modules/family-collection/application/family-collection-reads";
 import {
   isProductionDatabase,
@@ -199,6 +202,7 @@ export default async function OwnerFamiliesPage({
             <OwnerFamilyPaymentMethodsPanel
               organizationId={scope.organization.id}
               methods={paymentMethods}
+              sepaCollectsAutomatically={isFamilyAutomaticSepaCollectionFlagEnabled()}
               {...(collectionSwitches ? { collection: collectionSwitches } : {})}
             />
           ) : null}

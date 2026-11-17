@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/modules/family-collection/application/config", () => ({
   isFamilyAutomaticCollectionFlagEnabled: vi.fn(),
+  isFamilyAutomaticSepaCollectionFlagEnabled: vi.fn(),
   resolveConnectEnvironment: vi.fn(),
   isProductionDatabase: vi.fn(),
 }));
@@ -20,6 +21,7 @@ vi.mock("@/modules/family-collection/application/storage", () => ({
 import type { DatabaseClient } from "@/lib/db-transactions";
 import {
   isFamilyAutomaticCollectionFlagEnabled,
+  isFamilyAutomaticSepaCollectionFlagEnabled,
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
@@ -112,6 +114,22 @@ describe("automaticCollectionHolds", () => {
     expect(holds({ collectionDateLocal: "2026-11-25", todayLocal: "2026-11-20" })).toBe(true);
     expect(holds({ collectionDateLocal: "2026-11-17", todayLocal: "2026-11-20" })).toBe(true);
     expect(holds({ collectionDateLocal: "2026-11-16", todayLocal: "2026-11-20" })).toBe(false);
+  });
+
+  it("domiciliación sin activar (D2): ni la espera sin intento ni un reintento retienen; lo que ya se movió, sí", () => {
+    const sepaOff = { paymentMethodCollectable: false };
+    // Sin intento, aunque la fecha de cobro aún no haya llegado: nunca se cobrará sola.
+    expect(holds({ ...sepaOff, collectionDateLocal: "2026-11-25" })).toBe(false);
+    expect(holds({ ...sepaOff, lastAttempt: null })).toBe(false);
+    expect(holds({ ...sepaOff, lastAttempt: attempt("failed", { retry: "2026-11-21" }) })).toBe(false);
+    // Cobro en marcha (una domiciliación ya en el banco) o cobrado con saldo pendiente: siguen esperando.
+    for (const status of ["claimed", "created", "processing"]) {
+      expect(holds({ ...sepaOff, lastAttempt: attempt(status) })).toBe(true);
+    }
+    expect(holds({ ...sepaOff, lastAttempt: attempt("succeeded", { completed: "2026-11-19" }) })).toBe(true);
+    // Por defecto (sin indicar) el método se puede cobrar: como hasta ahora.
+    expect(holds({ collectionDateLocal: "2026-11-25" })).toBe(true);
+    expect(holds({ paymentMethodCollectable: true, collectionDateLocal: "2026-11-25" })).toBe(true);
   });
 });
 
@@ -286,6 +304,7 @@ describe("loadReminderCandidates con el cobro automático", () => {
     vi.mocked(resolveConnectEnvironment).mockReturnValue("test");
     vi.mocked(isProductionDatabase).mockReturnValue(false);
     vi.mocked(isFamilyCollectionStorageAvailable).mockResolvedValue(true);
+    vi.mocked(isFamilyAutomaticSepaCollectionFlagEnabled).mockReturnValue(false);
   });
 
   /**
@@ -473,5 +492,79 @@ describe("loadReminderCandidates con el cobro automático", () => {
       now: new Date("2026-11-22T10:00:00Z"),
     });
     expect(released.automaticCollectionHold).toBe(false);
+  });
+
+  describe("domiciliación sin activar (D2, «Primero solo tarjeta»)", () => {
+    const payer = {
+      guardianId: "10000000-0000-4000-8000-000000000009",
+      payerFirstName: "María",
+      payerEmail: "maria@example.invalid",
+    };
+    /** Con el cobro abierto: la misma cuota con tarjeta y con domiciliación, en cada situación. */
+    function sepaRows(kind: string | null) {
+      return [
+        // Sin intento y antes de su espera (vence el 18; hoy es el 20).
+        row({ chargeId: "s1", collectionMode: "automatic", lastAttemptStatus: null, collectionDayOfMonth: null, activeAuthorizationKind: kind }),
+        // Reintento pendiente mañana.
+        row({
+          chargeId: "s2",
+          collectionMode: "automatic",
+          lastAttemptStatus: "failed",
+          lastAttemptNextRetryAt: "2026-11-21T07:00:00.000000Z",
+          collectionDayOfMonth: null,
+          activeAuthorizationKind: kind,
+        }),
+        // Domiciliación ya en el banco: se sigue liquidando.
+        row({ chargeId: "s3", collectionMode: "automatic", lastAttemptStatus: "processing", collectionDayOfMonth: null, activeAuthorizationKind: kind }),
+        // Cobrada ayer con saldo pendiente.
+        row({
+          chargeId: "s4",
+          collectionMode: "automatic",
+          lastAttemptStatus: "succeeded",
+          lastAttemptCompletedAt: "2026-11-19T07:00:00.000000Z",
+          collectionDayOfMonth: null,
+          activeAuthorizationKind: kind,
+        }),
+      ];
+    }
+
+    it("bandera de la domiciliación apagada: sin intento o con reintento no retiene; en el banco o cobrada, sí", async () => {
+      const { client: fake, executed } = client(sepaRows("sepa_debit"));
+      const candidates = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
+
+      expect(candidates.map((candidate) => candidate.automaticCollectionHold)).toEqual([false, false, true, true]);
+      // La consulta lee el tipo de la autorización activa del pagador en la cuenta de test.
+      expect(executed[0]).toContain("from zaltyko.family_payment_authorizations au");
+      expect(executed[0]).toContain('as "activeAuthorizationKind"');
+      expect(executed[0]).toContain("acc.environment = 'test'::zaltyko.stripe_environment");
+    });
+
+    it("con tarjeta (o sin autorización leída) retiene como siempre", async () => {
+      for (const kind of ["card", null]) {
+        const { client: fake } = client(sepaRows(kind));
+        const candidates = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
+        expect(candidates.map((candidate) => candidate.automaticCollectionHold)).toEqual([true, true, true, true]);
+      }
+    });
+
+    it("bandera de la domiciliación encendida: la domiciliación retiene como hoy", async () => {
+      vi.mocked(isFamilyAutomaticSepaCollectionFlagEnabled).mockReturnValue(true);
+      const { client: fake } = client(sepaRows("sepa_debit"));
+      const candidates = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
+      expect(candidates.map((candidate) => candidate.automaticCollectionHold)).toEqual([true, true, true, true]);
+    });
+
+    it("el plan de envío recuerda la cuota de quien domicilia (nunca se queda en el limbo)", async () => {
+      const { client: fake } = client([
+        row({ chargeId: "s1", ...payer, collectionMode: "automatic", lastAttemptStatus: null, collectionDayOfMonth: null, activeAuthorizationKind: "sepa_debit" }),
+        row({ chargeId: "c1", ...payer, collectionMode: "automatic", lastAttemptStatus: null, collectionDayOfMonth: null, activeAuthorizationKind: "card" }),
+      ]);
+      const candidates = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
+
+      const plan = planReminders({ candidates, now: NOW, origin: "manual", minIntervalDays: 7, autoAfterDays: 3 });
+
+      expect(plan.groups.flatMap((group) => group.candidates.map((item) => item.chargeId))).toEqual(["s1"]);
+      expect(plan.skipped).toEqual([{ chargeId: "c1", reason: "automatic_collection" }]);
+    });
   });
 });
