@@ -20,7 +20,8 @@
  * - un cobro que el banco dejó pendiente de autenticación se cancela antes de
  *   darlo por fallido, para que no pueda completarse después;
  * - antes de crear o confirmar al reanudar, se repite la puerta completa:
- *   nunca se cobra a quien ya no paga.
+ *   nunca se cobra a quien ya no paga, ni una factura cuya familia ya recibió
+ *   un recordatorio de pago (`reminder_sent`).
  */
 import { logger } from "@/lib/logger";
 import {
@@ -270,6 +271,7 @@ export function buildGateInput(
     environment: state.environment,
     productionDatabase: state.productionDatabase,
     storageAvailable: true,
+    reminderSent: context.reminderSent,
     organization: context.organization,
     entitlement: context.plan.entitlement,
     subscription: context.plan.subscription,

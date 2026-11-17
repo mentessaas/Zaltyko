@@ -367,6 +367,15 @@ describe("motivos en palabras sencillas", () => {
     );
   });
 
+  it("recordatorio ya enviado: se cobra a mano porque ya se avisó a la familia, sin códigos", () => {
+    const text = "Ya se avisó a la familia con un recordatorio de pago. Se cobra a mano.";
+    expect(failureReasonText({ status: "canceled", failureCode: "reminder_sent", declineCode: null })).toBe(text);
+    // Cierra un reintento: manda sobre el rechazo anterior.
+    expect(
+      failureReasonText({ status: "canceled", failureCode: "reminder_sent", declineCode: "insufficient_funds" })
+    ).toBe(text);
+  });
+
   it("un cierre canceled enseña su propio motivo, no el del rechazo anterior", () => {
     for (const [code, text] of [
       ["canceled_by_academy", "Lo canceló la academia."],
@@ -808,11 +817,66 @@ describe("fila de la academia (pura)", () => {
 });
 
 describe("puertas de las lecturas", () => {
-  it("familia: con la bandera apagada no lee nada", async () => {
+  it("familia: con la bandera apagada solo enseña «Cobro en curso» de los cobros en marcha", async () => {
     vi.mocked(isFamilyAutomaticCollectionOpen).mockReturnValue(false);
+    vi.mocked(resolveFamilyPortalAccess).mockResolvedValue({
+      academies: [{ organizationId: ORGANIZATION_ID, feeFamilyIds: [FAMILY_ID] }],
+    } as unknown as Awaited<ReturnType<typeof resolveFamilyPortalAccess>>);
+    const base = {
+      invoiceStatus: "issued",
+      timezone: TZ,
+      collectionDayOfMonth: null,
+      hasAutomaticCharge: true,
+      nextDueAt: "2026-11-20T22:59:59.999Z",
+      preferenceMode: "automatic",
+      preferenceRevision: 5,
+      hasActiveAuthorization: true,
+      lastNextRetryAt: null,
+      lastCompletedAt: null,
+    };
+    const ids = [
+      INVOICE_ID,
+      "91000000-0000-4000-8000-000000000402",
+      "91000000-0000-4000-8000-000000000403",
+      "91000000-0000-4000-8000-000000000404",
+      "91000000-0000-4000-8000-000000000405",
+      "91000000-0000-4000-8000-000000000406",
+    ];
+    holder.execute.mockResolvedValue({
+      rows: [
+        // SEPA en el banco: la relectura diaria sigue con la bandera apagada.
+        { ...base, invoiceId: ids[0], lastStatus: "processing" },
+        { ...base, invoiceId: ids[1], lastStatus: "claimed" },
+        { ...base, invoiceId: ids[2], lastStatus: "created" },
+        // Con la bandera apagada no se promete ninguna fecha ni un reintento.
+        { ...base, invoiceId: ids[3], lastStatus: null },
+        { ...base, invoiceId: ids[4], lastStatus: "failed", lastNextRetryAt: "2026-11-18T23:00:00.000Z" },
+        { ...base, invoiceId: ids[5], lastStatus: "succeeded", lastCompletedAt: "2026-11-16T09:00:00.000Z" },
+      ],
+    });
+
+    const statuses = await getFamilyAutomaticFeeStatuses({ userId: USER_ID, invoiceIds: ids, now: NOW });
+
+    expect(statuses).toEqual({
+      [ids[0]]: { kind: "in_progress" },
+      [ids[1]]: { kind: "in_progress" },
+      [ids[2]]: { kind: "in_progress" },
+    });
+    expect(familyAutomaticFeeText(statuses[ids[0]]!)).toBe("Cobro en curso");
+    // Misma guarda del portal; sin leer el plan de la academia.
+    expect(holder.execute).toHaveBeenCalledTimes(1);
+    const query = dialect.sqlToQuery(holder.execute.mock.calls[0][0] as SQL);
+    expect(query.params).toEqual(expect.arrayContaining([USER_ID, ORGANIZATION_ID, FAMILY_ID]));
+    expect(query.sql).toContain("fp_g.auth_user_id");
+    expect(query.sql).toContain("zaltyko.family_collection_attempts");
+    expect(loadOrganizationPlanState).not.toHaveBeenCalled();
+  });
+
+  it("familia: con la bandera apagada y sin las tablas de la Fase 3 no lee nada", async () => {
+    vi.mocked(isFamilyAutomaticCollectionOpen).mockReturnValue(false);
+    vi.mocked(isFamilyCollectionStorageAvailable).mockResolvedValue(false);
 
     await expect(getFamilyAutomaticFeeStatuses({ userId: USER_ID, invoiceIds: [INVOICE_ID] })).resolves.toEqual({});
-    expect(isFamilyCollectionStorageAvailable).not.toHaveBeenCalled();
     expect(resolveFamilyPortalAccess).not.toHaveBeenCalled();
     expect(holder.execute).not.toHaveBeenCalled();
   });

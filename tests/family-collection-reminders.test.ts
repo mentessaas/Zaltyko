@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 /**
  * Cobro automático (Fase 3): una cuota que se cobra sola no recibe
  * recordatorios mientras su cobro siga pendiente (razón `automatic_collection`);
- * sí tras el fallo final o la cancelación, y siempre con la bandera apagada.
+ * sí tras el fallo final o la cancelación. Con la bandera apagada (o los
+ * cerrojos cerrados) solo la retiene un cobro que ya está en marcha.
  */
 
 vi.mock("@/modules/family-collection/application/config", () => ({
@@ -28,9 +29,11 @@ import { nextRetry } from "@/modules/family-collection/domain/retry-policy";
 import { loadReminderCandidates, type ReminderCandidate } from "@/modules/payment-reminders/application/candidates";
 import { planReminders } from "@/modules/payment-reminders/application/plan";
 import {
+  AUTOMATIC_COLLECTION_IN_PROGRESS_STATUSES,
   AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS,
   automaticCollectionHolds,
   evaluateReminder,
+  isAutomaticCollectionInProgress,
   SKIP_REASON_LABELS,
   type ReminderCandidateState,
 } from "@/modules/payment-reminders/domain/reminder-policy";
@@ -56,9 +59,28 @@ const attempt = (status: string, dates: { retry?: string; completed?: string } =
 });
 
 describe("automaticCollectionHolds", () => {
-  it("una cuota manual o con el cobro automático cerrado (bandera apagada) nunca espera", () => {
-    expect(holds({ collectionMode: "manual", lastAttempt: attempt("claimed") })).toBe(false);
-    expect(holds({ automaticCollectionOpen: false, lastAttempt: attempt("processing") })).toBe(false);
+  it("una cuota manual o con el cobro automático cerrado (bandera apagada) sin cobro en marcha no espera", () => {
+    expect(holds({ collectionMode: "manual" })).toBe(false);
+    expect(holds({ automaticCollectionOpen: false })).toBe(false);
+    // Con la bandera apagada un reintento pendiente no saldrá: no retiene.
+    expect(holds({ automaticCollectionOpen: false, lastAttempt: attempt("failed", { retry: "2026-11-21" }) })).toBe(false);
+    expect(holds({ automaticCollectionOpen: false, lastAttempt: attempt("succeeded", { completed: "2026-11-20" }) })).toBe(false);
+  });
+
+  it.each(["claimed", "created", "processing"])(
+    "un cobro %s retiene siempre: con la bandera apagada y aunque la cuota figure como manual",
+    (status) => {
+      expect(holds({ automaticCollectionOpen: false, lastAttempt: attempt(status) })).toBe(true);
+      expect(holds({ collectionMode: "manual", lastAttempt: attempt(status) })).toBe(true);
+      expect(holds({ collectionMode: "manual", automaticCollectionOpen: false, lastAttempt: attempt(status) })).toBe(true);
+    }
+  );
+
+  it("isAutomaticCollectionInProgress: solo claimed, created y processing", () => {
+    expect(AUTOMATIC_COLLECTION_IN_PROGRESS_STATUSES).toEqual(["claimed", "created", "processing"]);
+    for (const status of ["succeeded", "failed", "canceled", "", null, undefined]) {
+      expect(isAutomaticCollectionInProgress(status), String(status)).toBe(false);
+    }
   });
 
   it.each(["claimed", "created", "processing"])("con un intento %s espera", (status) => {
@@ -266,31 +288,119 @@ describe("loadReminderCandidates con el cobro automático", () => {
     vi.mocked(isFamilyCollectionStorageAvailable).mockResolvedValue(true);
   });
 
-  it("con la bandera apagada la consulta es la de siempre y nada espera", async () => {
+  /**
+   * Filas de una lectura con el cobro automático cerrado: los cobros en
+   * marcha retienen; ni un reintento pendiente, ni la espera de la fecha de
+   * cobro, ni un cobro hecho con saldo pendiente.
+   */
+  function closedRows() {
+    return [
+      row({ chargeId: "c1", collectionMode: "automatic", lastAttemptStatus: "claimed", collectionDayOfMonth: null }),
+      row({ chargeId: "c2", collectionMode: "automatic", lastAttemptStatus: "created", collectionDayOfMonth: null }),
+      // SEPA en el banco: la relectura diaria sigue y puede completarse.
+      row({ chargeId: "c3", collectionMode: "automatic", lastAttemptStatus: "processing", collectionDayOfMonth: null }),
+      // Reintento pendiente mañana: con la bandera apagada no saldrá.
+      row({
+        chargeId: "c4",
+        collectionMode: "automatic",
+        lastAttemptStatus: "failed",
+        lastAttemptNextRetryAt: "2026-11-21T07:00:00.000000Z",
+        collectionDayOfMonth: null,
+      }),
+      // Sin intento y dentro de la espera de la fecha de cobro (vence el 18).
+      row({ chargeId: "c5", collectionMode: "automatic", lastAttemptStatus: null, collectionDayOfMonth: null }),
+      row({
+        chargeId: "c6",
+        collectionMode: "automatic",
+        lastAttemptStatus: "succeeded",
+        lastAttemptCompletedAt: "2026-11-19T07:00:00.000000Z",
+        collectionDayOfMonth: null,
+      }),
+      row({
+        chargeId: "c7",
+        collectionMode: "automatic",
+        lastAttemptStatus: "canceled",
+        lastAttemptCompletedAt: "2026-11-19T09:00:00.000000Z",
+        collectionDayOfMonth: null,
+      }),
+    ];
+  }
+  const closedHolds = [true, true, true, false, false, false, false];
+
+  it("con la bandera apagada solo retiene un cobro en marcha (claimed, created, processing)", async () => {
     vi.mocked(isFamilyAutomaticCollectionFlagEnabled).mockReturnValue(false);
-    const { client: fake, executed } = client([row()]);
+    const { client: fake, executed } = client(closedRows());
 
-    const [candidate] = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
+    const candidates = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
 
-    expect(candidate.automaticCollectionHold).toBe(false);
-    expect(isFamilyCollectionStorageAvailable).not.toHaveBeenCalled();
-    expect(executed[0]).not.toContain("family_collection_attempts");
+    expect(candidates.map((candidate) => candidate.automaticCollectionHold)).toEqual(closedHolds);
+    // Con las tablas de la Fase 3 se lee el último intento aunque la bandera esté apagada.
+    expect(isFamilyCollectionStorageAvailable).toHaveBeenCalledWith(fake);
+    expect(executed[0]).toContain("from zaltyko.family_collection_attempts a");
+    expect(executed[0]).toContain("order by a.attempt_number desc");
   });
 
-  it("con los cerrojos cerrados (Live o base de producción) nada espera", async () => {
-    vi.mocked(isProductionDatabase).mockReturnValue(true);
-    const { client: fake, executed } = client([row()]);
-    const [candidate] = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
-    expect(candidate.automaticCollectionHold).toBe(false);
-    expect(executed[0]).not.toContain("family_collection_attempts");
+  it.each([
+    [
+      "clave de Live",
+      () => {
+        vi.mocked(resolveConnectEnvironment).mockReturnValue("live");
+      },
+    ],
+    [
+      "base de producción",
+      () => {
+        vi.mocked(isProductionDatabase).mockReturnValue(true);
+      },
+    ],
+  ])("con los cerrojos cerrados (%s) solo retiene un cobro en marcha", async (_label, close) => {
+    close();
+    const { client: fake, executed } = client(closedRows());
+    const candidates = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
+    expect(candidates.map((candidate) => candidate.automaticCollectionHold)).toEqual(closedHolds);
+    expect(executed[0]).toContain("from zaltyko.family_collection_attempts a");
   });
 
-  it("sin las tablas de la Fase 3 nada espera", async () => {
+  it("sin las tablas de la Fase 3 nada espera y la consulta es la de siempre", async () => {
     vi.mocked(isFamilyCollectionStorageAvailable).mockResolvedValue(false);
-    const { client: fake, executed } = client([row()]);
-    const [candidate] = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
-    expect(candidate.automaticCollectionHold).toBe(false);
+    const { client: fake, executed } = client([
+      row(),
+      // Aunque la fila trajera un estado, sin tablas no hay cobros automáticos.
+      row({ chargeId: "c2", collectionMode: "automatic", lastAttemptStatus: "processing" }),
+    ]);
+    const candidates = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
+    expect(candidates.map((candidate) => candidate.automaticCollectionHold)).toEqual([false, false]);
     expect(executed[0]).not.toContain("family_collection_attempts");
+  });
+
+  it("bandera apagada con un SEPA en el banco: el plan de envío lo deja fuera (sin cobro doble)", async () => {
+    vi.mocked(isFamilyAutomaticCollectionFlagEnabled).mockReturnValue(false);
+    const { client: fake } = client([
+      row({
+        chargeId: "c1",
+        guardianId: "10000000-0000-4000-8000-000000000009",
+        payerFirstName: "María",
+        payerEmail: "maria@example.invalid",
+        collectionMode: "automatic",
+        lastAttemptStatus: "processing",
+        collectionDayOfMonth: null,
+      }),
+      row({
+        chargeId: "c2",
+        guardianId: "10000000-0000-4000-8000-000000000009",
+        payerFirstName: "María",
+        payerEmail: "maria@example.invalid",
+        collectionMode: "automatic",
+        lastAttemptStatus: null,
+        collectionDayOfMonth: null,
+      }),
+    ]);
+    const candidates = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
+
+    const plan = planReminders({ candidates, now: NOW, origin: "manual", minIntervalDays: 7, autoAfterDays: 3 });
+
+    expect(plan.skipped).toEqual([{ chargeId: "c1", reason: "automatic_collection" }]);
+    expect(plan.groups.flatMap((group) => group.candidates.map((item) => item.chargeId))).toEqual(["c2"]);
   });
 
   it("con el cobro abierto lee el último intento de la factura y el día de cobro", async () => {

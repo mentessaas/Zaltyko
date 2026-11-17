@@ -10,6 +10,7 @@ import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/
 import { collectionDate, localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
 import {
   automaticCollectionHolds,
+  isAutomaticCollectionInProgress,
   PENDING_WINDOW_MINUTES,
 } from "@/modules/payment-reminders/domain/reminder-policy";
 
@@ -72,7 +73,7 @@ interface CandidateRow {
   sentCount: string | number;
   failedCount: string | number;
   hasPendingReservation: boolean | null;
-  /** Solo con el cobro automático abierto (automaticCollectionColumns). */
+  /** Solo si existen las tablas de la Fase 3 (automaticColumns). */
   collectionMode?: string | null;
   lastAttemptStatus?: string | null;
   lastAttemptNextRetryAt?: string | null;
@@ -95,20 +96,24 @@ function uuidList(ids: string[]) {
 const ISO = `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'`;
 
 /**
- * Cobro automático (Fase 3) abierto: bandera encendida, cerrojos de R11
- * abiertos (clave de test, base que no es la de producción) y sus tablas. Si
- * no, las cuotas automáticas se tratan como manuales y la consulta es la de
- * siempre (no toca las tablas de la Fase 3).
+ * Cobro automático (Fase 3) abierto: bandera encendida y cerrojos de R11
+ * abiertos (clave de test, base que no es la de producción). Solo lee
+ * variables de entorno; las tablas se comprueban aparte.
  */
-async function isAutomaticCollectionOpen(client: DatabaseClient): Promise<boolean> {
+function isAutomaticCollectionOpen(): boolean {
   if (!isFamilyAutomaticCollectionFlagEnabled()) return false;
-  if (resolveConnectEnvironment() !== "test" || isProductionDatabase()) return false;
-  return isFamilyCollectionStorageAvailable(client);
+  return resolveConnectEnvironment() === "test" && !isProductionDatabase();
 }
 
-/** ¿Espera la cuota a su cobro automático? Ante datos que no se pueden leer, se trata como manual. */
-function automaticHoldOf(row: CandidateRow, now: Date): boolean {
-  if (row.collectionMode !== "automatic") return false;
+/**
+ * ¿Espera la cuota a su cobro automático? Un cobro en curso de su factura
+ * retiene siempre, aunque la bandera esté apagada o los cerrojos cerrados (el
+ * dinero puede estar moviéndose). Lo demás, solo con el cobro abierto; ante
+ * datos que no se pueden leer, se trata como manual.
+ */
+function automaticHoldOf(row: CandidateRow, now: Date, automaticOpen: boolean): boolean {
+  if (isAutomaticCollectionInProgress(row.lastAttemptStatus)) return true;
+  if (!automaticOpen || row.collectionMode !== "automatic") return false;
   try {
     const fixedDay = row.collectionDayOfMonth ?? null;
     const day = fixedDay === null ? null : Number(fixedDay);
@@ -143,10 +148,14 @@ export async function loadReminderCandidates(
   const chargeFilter = filter.chargeIds ? sql`and c.id in (${uuidList(filter.chargeIds)})` : sql``;
   const dueFilter = filter.dueBefore ? sql`and c.due_at < ${filter.dueBefore.toISOString()}::timestamptz` : sql``;
   const now = filter.now ?? new Date();
-  const automaticOpen = await isAutomaticCollectionOpen(client);
-  // Último intento de la factura (el abierto, si lo hay, es siempre el último)
-  // y el día de cobro de la academia.
-  const automaticColumns = automaticOpen
+  const automaticOpen = isAutomaticCollectionOpen();
+  // Con las tablas de la Fase 3 se lee siempre el último intento de la factura
+  // (el abierto, si lo hay, es siempre el último) y el día de cobro de la
+  // academia, también con la bandera apagada o los cerrojos cerrados: un cobro
+  // en curso retiene los recordatorios igual que bloquea el pago manual. Sin
+  // las tablas no hay cobros automáticos y la consulta es la de siempre.
+  const collectionTables = await isFamilyCollectionStorageAvailable(client);
+  const automaticColumns = collectionTables
     ? sql`
         c.collection_mode::text as "collectionMode",
         last_attempt.status as "lastAttemptStatus",
@@ -154,7 +163,7 @@ export async function loadReminderCandidates(
         to_char(last_attempt.completed_at at time zone 'UTC', ${sql.raw(ISO)}) as "lastAttemptCompletedAt",
         ocs.collection_day_of_month as "collectionDayOfMonth",`
     : sql``;
-  const automaticJoins = automaticOpen
+  const automaticJoins = collectionTables
     ? sql`
       left join lateral (
         select a.status, a.next_retry_at, a.completed_at
@@ -265,7 +274,7 @@ export async function loadReminderCandidates(
     sentCount: Number(row.sentCount),
     failedCount: Number(row.failedCount),
     hasPendingReservation: row.hasPendingReservation === true,
-    automaticCollectionHold: automaticOpen && automaticHoldOf(row, now),
+    automaticCollectionHold: collectionTables && automaticHoldOf(row, now, automaticOpen),
   }));
 }
 

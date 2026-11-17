@@ -330,6 +330,13 @@ const FAMILY_STATUS_INVOICE_LIMIT = 100;
  * Estado del cobro automático de las cuotas `invoiceIds` que esta cuenta paga.
  * Resuelve el acceso con el usuario de la sesión y repite la guarda del
  * portal en SQL; una cuota de otra familia o academia simplemente no sale.
+ *
+ * Con la bandera apagada o los cerrojos cerrados solo se enseña «Cobro en
+ * curso» de las cuotas con un intento en marcha (`claimed`, `created`,
+ * `processing`): el proceso diario lo sigue releyendo y su dinero puede
+ * moverse todavía, así que la familia no debe pagarla por fuera (el pago
+ * manual también está bloqueado). Nada de fechas ni de «no se pudo cobrar»:
+ * sin la bandera no se cobra nada nuevo.
  */
 export async function getFamilyAutomaticFeeStatuses(input: {
   userId: string;
@@ -339,7 +346,9 @@ export async function getFamilyAutomaticFeeStatuses(input: {
   const userId = uuidSchema.parse(input.userId);
   const invoiceIds = validIds(input.invoiceIds).slice(0, FAMILY_STATUS_INVOICE_LIMIT);
   if (invoiceIds.length === 0) return {};
-  if (!isFamilyAutomaticCollectionOpen()) return {};
+  const automaticOpen = isFamilyAutomaticCollectionOpen();
+  // La consulta lee también las tablas de las Fases 1 y 2; un intento solo
+  // puede existir si están las tres.
   if (!(await collectionTablesAvailable())) return {};
 
   const now = input.now ?? new Date();
@@ -400,8 +409,17 @@ export async function getFamilyAutomaticFeeStatuses(input: {
     `);
     const rows = result.rows as Array<Record<string, unknown>>;
     if (rows.length === 0) continue;
-    const plan = await loadPlan(academy.organizationId, now);
 
+    if (!automaticOpen) {
+      // Cobro automático cerrado: solo los cobros que ya están en marcha.
+      for (const row of rows) {
+        const lastStatus = textOrNull(row.lastStatus);
+        if (lastStatus && OPEN_STATUSES.has(lastStatus)) statuses[String(row.invoiceId)] = { kind: "in_progress" };
+      }
+      continue;
+    }
+
+    const plan = await loadPlan(academy.organizationId, now);
     for (const row of rows) {
       const lastStatus = textOrNull(row.lastStatus);
       const status = familyAutomaticFeeStatusOf(
@@ -486,6 +504,7 @@ const FAILURE_TEXT: Record<string, string> = {
   payment_method_unactivated: METHOD_NOT_ACTIVE_TEXT,
   capability_not_active: METHOD_NOT_ACTIVE_TEXT,
   manual_payment: "Se registró un pago a mano.",
+  reminder_sent: "Ya se avisó a la familia con un recordatorio de pago. Se cobra a mano.",
   canceled_by_academy: "Lo canceló la academia.",
   reviewed_by_academy: "La academia lo revisó y lo cerró.",
   [COLLECTION_WINDOW_EXPIRED_CODE]: NOT_ATTEMPTED_TEXT,

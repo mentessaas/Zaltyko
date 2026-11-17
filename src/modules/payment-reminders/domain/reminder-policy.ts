@@ -13,6 +13,7 @@
  *   del vencimiento y es único: nunca se envía si la cuota ya recibió alguno.
  * - Una cuota que se cobra sola (cobro automático, Fase 3) no recibe
  *   recordatorios mientras su cobro siga pendiente (automaticCollectionHolds).
+ *   Si su cobro ya está en marcha, tampoco con la bandera apagada.
  */
 import { addLocalDays } from "@/modules/family-collection/domain/collection-plan";
 
@@ -100,14 +101,39 @@ export function withinGrace(fromLocal: string, todayLocal: string): boolean {
 }
 
 /**
- * ¿Espera la cuota a su cobro automático (sin recordatorios)? Solo si es
- * `automatic` y el cobro automático está abierto (bandera, cerrojos y tablas).
- * Con la bandera apagada, las cuotas automáticas se tratan como manuales.
- * Según el último intento de su factura:
+ * Estados de un intento de cobro automático en marcha: el dinero puede estar
+ * moviéndose en Stripe. Los mismos que FAMILY_COLLECTION_OPEN_STATUSES
+ * (family-collection-schema.ts), copiados aquí para que esta política siga
+ * siendo pura.
+ */
+export const AUTOMATIC_COLLECTION_IN_PROGRESS_STATUSES: readonly string[] = ["claimed", "created", "processing"];
+
+/** ¿El último intento de la factura está en marcha (`claimed`, `created` o `processing`)? */
+export function isAutomaticCollectionInProgress(status: string | null | undefined): boolean {
+  return typeof status === "string" && AUTOMATIC_COLLECTION_IN_PROGRESS_STATUSES.includes(status);
+}
+
+/**
+ * ¿Espera la cuota a su cobro automático (sin recordatorios)?
+ *
+ * Primero, siempre (con la bandera encendida o apagada, los cerrojos abiertos
+ * o cerrados y sea cual sea el modo de la cuota): si el último intento de su
+ * factura está en curso (`claimed`, `created`, `processing`), espera. El
+ * dinero puede estar moviéndose y el proceso diario lo sigue releyendo aunque
+ * la bandera esté apagada; un recordatorio llevaría a la familia a pagar por
+ * fuera y se cobraría dos veces. Es la misma regla que bloquea el pago manual
+ * (guardManualAllocation en ledger-service.ts). Si se atasca, la academia
+ * tiene un aviso.
+ *
+ * El resto, solo si la cuota es `automatic` y el cobro automático está
+ * abierto (bandera, cerrojos y tablas). Con la bandera apagada, las cuotas
+ * automáticas sin cobro en curso se tratan como manuales: tampoco las retiene
+ * un reintento pendiente, porque con la bandera apagada no saldrá; si se
+ * envía un recordatorio y la bandera se vuelve a encender, la puerta del cobro
+ * cierra ese reintento con `reminder_sent` y nunca cobra. Según el último
+ * intento de su factura:
  * - ninguno: espera hasta AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS días
  *   después de la fecha de cobro prevista (`collectionDateLocal`);
- * - en curso (`claimed`, `created`, `processing`): espera (el dinero puede
- *   estar moviéndose; si se atasca, la academia tiene un aviso);
  * - fallido con reintento: espera hasta esos días después de la fecha del
  *   reintento; fallo final: vuelve a los recordatorios;
  * - cancelado (puerta, academia, pago manual o revisión): vuelve;
@@ -121,6 +147,7 @@ export function automaticCollectionHolds(input: {
   collectionDateLocal: string;
   todayLocal: string;
 }): boolean {
+  if (isAutomaticCollectionInProgress(input.lastAttempt?.status)) return true;
   if (input.collectionMode !== "automatic" || !input.automaticCollectionOpen) return false;
   const last = input.lastAttempt;
   if (last === null) return withinGrace(input.collectionDateLocal, input.todayLocal);

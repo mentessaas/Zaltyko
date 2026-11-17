@@ -1056,15 +1056,91 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
       expect(await holdOf(recentRetry)).toBe(true);
     });
 
-    it("con la bandera apagada, las cuotas automáticas reciben recordatorios", async () => {
-      const fixture = await createFixture();
-      await insertAttempt(fixture, { status: "claimed" });
+    it("con la bandera apagada: un cobro en marcha sigue reteniendo; el resto recibe recordatorios", async () => {
+      const inFlight = await createFixture();
+      await insertAttempt(inFlight, { status: "processing" });
+      const claimed = await createFixture();
+      await insertAttempt(claimed, { status: "claimed" });
+      // Con la bandera apagada un reintento pendiente no saldrá: no retiene.
+      const retrying = await createFixture();
+      await insertAttempt(retrying, { status: "failed", nextRetryAt: new Date(Date.now() + 3 * DAY) });
+      const fresh = await createFixture({ dueDaysAgo: 1 });
       vi.stubEnv(FLAG, "false");
       try {
-        expect(await holdOf(fixture)).toBe(false);
+        expect(await holdOf(inFlight)).toBe(true);
+        expect(await holdOf(claimed)).toBe(true);
+        expect(await holdOf(retrying)).toBe(false);
+        expect(await holdOf(fresh)).toBe(false);
       } finally {
         vi.stubEnv(FLAG, "true");
       }
+    });
+  });
+
+  describe("recordatorio de pago ya enviado (reminder_sent)", () => {
+    async function insertReminder(fixture: Fixture, status: "pending" | "sent" | "failed") {
+      await db.execute(sql`
+        insert into zaltyko.payment_reminders (
+          organization_id, charge_id, guardian_id, email_group_id, origin, status, outstanding_cents, currency, sent_at
+        ) values (
+          ${fixture.organizationId}::uuid, ${fixture.chargeId}::uuid, null, ${randomUUID()}::uuid, 'manual', ${status},
+          ${fixture.amount}, 'EUR', ${status === "sent" ? new Date().toISOString() : null}::timestamptz
+        )
+      `);
+    }
+
+    /** Lo que ven el contexto (sin transacción) y la transacción de reclamar, ya con los bloqueos. */
+    async function reminderSentOf(fixture: Fixture): Promise<{ context: boolean | undefined; locked: boolean | null }> {
+      const store = createFamilyCollectionStore();
+      const context = await store.loadInvoiceContext({
+        organizationId: fixture.organizationId,
+        invoiceId: fixture.invoiceId,
+        environment: "test",
+        now: new Date(),
+      });
+      let locked: boolean | null = null;
+      const result = await store.claimOrCancel(
+        {
+          organizationId: fixture.organizationId,
+          invoiceId: fixture.invoiceId,
+          authorizationId: null,
+          paymentProviderAccountId: null,
+          paymentMethodKind: null,
+          now: new Date(),
+        },
+        (snapshot) => {
+          locked = snapshot.reminderSent;
+          return { action: "skip", reason: "solo_lectura" };
+        }
+      );
+      // Solo se mira: no se escribe ningún intento.
+      expect(result).toEqual({ outcome: "skipped", reason: "solo_lectura" });
+      return { context: context?.reminderSent, locked };
+    }
+
+    it("cuenta un recordatorio enviado o reservado de una cuota abierta; uno fallido no", async () => {
+      const none = await createFixture();
+      const sent = await createFixture();
+      await insertReminder(sent, "sent");
+      const pending = await createFixture();
+      await insertReminder(pending, "pending");
+      const failed = await createFixture();
+      await insertReminder(failed, "failed");
+
+      expect(await reminderSentOf(none)).toEqual({ context: false, locked: false });
+      expect(await reminderSentOf(sent)).toEqual({ context: true, locked: true });
+      expect(await reminderSentOf(pending)).toEqual({ context: true, locked: true });
+      expect(await reminderSentOf(failed)).toEqual({ context: false, locked: false });
+    });
+
+    it("un recordatorio de una cuota que ya no está abierta no cuenta", async () => {
+      const fixture = await createFixture();
+      await insertReminder(fixture, "sent");
+      await db.execute(sql`
+        update zaltyko.charges set status = 'paid'::zaltyko.charge_status
+         where organization_id = ${fixture.organizationId}::uuid and id = ${fixture.chargeId}::uuid
+      `);
+      expect(await reminderSentOf(fixture)).toEqual({ context: false, locked: false });
     });
   });
 });

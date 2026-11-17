@@ -11,6 +11,7 @@ import {
  *
  * Orden (el primer motivo que falla es el que se devuelve):
  * 1. Bandera, entorno, cerrojos de Live y producción, almacenamiento.
+ *    Después, un recordatorio de pago ya enviado (`reminder_sent`, final).
  * 2. Cuenta conectada releída hace poco (si hay cuenta): con datos viejos de la
  *    cuenta nunca se decide un motivo final.
  * 3. Moneda de la factura (solo EUR).
@@ -29,6 +30,7 @@ export type FamilyCollectionGateReason =
   | "environment_unknown"
   | "live_not_released"
   | "storage_missing"
+  | "reminder_sent"
   | "unsupported_currency"
   | CollectionEligibilityReason
   | "charge_payer_mismatch"
@@ -65,6 +67,7 @@ export const GATE_REASON_CLASSIFICATION: Readonly<
   subscription_not_active: "transient",
   subscription_period_not_current: "transient",
   // Finales.
+  reminder_sent: "final",
   unsupported_currency: "final",
   organization_not_active: "final",
   preference_manual: "final",
@@ -94,6 +97,14 @@ export function classifyGateReason(
 ): FamilyCollectionGateClassification {
   return GATE_REASON_CLASSIFICATION[reason];
 }
+
+/**
+ * Motivo final de una factura con un recordatorio de pago ya enviado para
+ * alguna de sus cuotas abiertas: la familia pudo pagar por fuera, así que
+ * nunca se cobra sola (ni el primer intento ni un reintento) y la cuota se
+ * cobra a mano.
+ */
+export const REMINDER_SENT_REASON = "reminder_sent" satisfies FamilyCollectionGateReason;
 
 /** Única moneda que se cobra sola: el libro guarda `EUR` y Stripe recibe `eur`. */
 export const SUPPORTED_COLLECTION_CURRENCY = "EUR";
@@ -147,6 +158,11 @@ export interface FamilyCollectionGateInput {
   productionDatabase: boolean;
   /** Las tablas de la Fase 3 (y de las fases 1 y 2) existen. */
   storageAvailable: boolean;
+  /**
+   * Ya se envió (o se está enviando) un recordatorio de pago de alguna cuota
+   * abierta de la factura (readReminderSent en family-collection-store.ts).
+   */
+  reminderSent: boolean;
   organization: CollectionEligibilityInput["organization"];
   entitlement: CollectionEligibilityInput["entitlement"];
   subscription: CollectionEligibilityInput["subscription"];
@@ -219,6 +235,13 @@ export function evaluateFamilyCollectionGate(
     return deny("live_not_released");
   }
   if (!input.storageAvailable) return deny("storage_missing");
+
+  // Recordatorio de pago ya enviado: con el cobro abierto los recordatorios
+  // esperan a que pase la espera, así que si salió uno la familia pudo pagar
+  // por fuera (p. ej. con la bandera apagada, que no retiene un reintento
+  // pendiente). Nunca se cobra solo: final, sin depender de la cuenta ni del
+  // plan. Va después de la bandera: con ella apagada no se escribe nada.
+  if (input.reminderSent) return deny(REMINDER_SENT_REASON);
 
   // 2. Cuenta sin releer: pasajero, antes de cualquier motivo que dependa de
   // sus datos (capacidades, estado), para que una foto vieja de la cuenta

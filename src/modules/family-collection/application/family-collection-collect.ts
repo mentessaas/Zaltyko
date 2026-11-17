@@ -12,6 +12,12 @@
  * Lo que no llega al mínimo de Stripe (0,50 €) tampoco se reclama: se escribe
  * un intento `canceled` con `amount_below_minimum` y la cuota se cobra a mano.
  *
+ * Recordatorio enviado: si la familia ya recibió un recordatorio de pago de
+ * alguna cuota abierta de la factura, nunca se cobra sola (ni el primer
+ * intento ni un reintento): la puerta lo cierra con un intento `canceled` y
+ * motivo final `reminder_sent`, y se repite dentro de la transacción de
+ * reclamar por si el recordatorio salió entre la lectura y el bloqueo.
+ *
  * Ventana máxima de cobro: pasada la espera de los recordatorios
  * (AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS días después de la fecha de cobro,
  * o de la del reintento pendiente: cada reintento de tarjeta, a 1, 3 y 7 días
@@ -26,7 +32,10 @@ import {
   isBelowCollectionMinimum,
   localCalendarDate,
 } from "@/modules/family-collection/domain/collection-plan";
-import { evaluateFamilyCollectionGate } from "@/modules/family-collection/domain/collection-gate";
+import {
+  evaluateFamilyCollectionGate,
+  REMINDER_SENT_REASON,
+} from "@/modules/family-collection/domain/collection-gate";
 import {
   advanceAttempt,
   buildGateInput,
@@ -122,10 +131,13 @@ function sameAllocations(left: readonly CollectionAllocationRow[], right: readon
 
 /**
  * Decisión pura dentro de la transacción de reclamar o cancelar: repite el
- * historial, el plan y la ventana máxima de cobro con los datos bloqueados, y
- * en `claimed` comprueba que cada cuota es del pagador de la factura y que la
- * autorización sigue activa y es de ese pagador, esa familia y esa cuenta.
- * Con la ventana pasada nunca reclama: cancela con `collection_window_expired`.
+ * historial, el plan, la ventana máxima de cobro y el recordatorio enviado con
+ * los datos bloqueados, y en `claimed` comprueba que cada cuota es del
+ * pagador de la factura y que la autorización sigue activa y es de ese
+ * pagador, esa familia y esa cuenta. Con la ventana pasada nunca reclama:
+ * cancela con `collection_window_expired`; con un recordatorio enviado,
+ * tampoco: cancela con `reminder_sent` (o con el motivo final de la puerta,
+ * si ya se iba a cancelar por otro).
  */
 export function decideClaim(
   snapshot: LockedInvoiceSnapshot,
@@ -174,6 +186,23 @@ export function decideClaim(
   }
   // Fuera se vio la ventana pasada y dentro no: los datos cambiaron; mañana se mira otra vez.
   if (expected.action === "canceled" && expected.reason === COLLECTION_WINDOW_EXPIRED_CODE) {
+    return { action: "skip", reason: "plan_changed" };
+  }
+
+  // Recordatorio de pago ya enviado (también uno que salió entre la lectura y
+  // el bloqueo): nunca se reclama; se cierra como `canceled`.
+  if (snapshot.reminderSent) {
+    return {
+      action: "canceled",
+      attemptNumber,
+      amountCents: plan.amountCents,
+      allocations: plan.allocations,
+      reason: expected.action === "canceled" && expected.reason ? expected.reason : REMINDER_SENT_REASON,
+    };
+  }
+  // Fuera se vio un recordatorio y dentro no (la reserva acabó en `failed`:
+  // el correo no salió): mañana se mira otra vez.
+  if (expected.action === "canceled" && expected.reason === REMINDER_SENT_REASON) {
     return { action: "skip", reason: "plan_changed" };
   }
 

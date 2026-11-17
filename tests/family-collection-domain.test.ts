@@ -15,6 +15,7 @@ import {
   ACCOUNT_FRESHNESS_MS,
   classifyGateReason,
   evaluateFamilyCollectionGate,
+  REMINDER_SENT_REASON,
   SUPPORTED_COLLECTION_CURRENCY,
   GATE_REASON_CLASSIFICATION,
   type FamilyCollectionGateCharge,
@@ -433,6 +434,7 @@ function gateInput(): FamilyCollectionGateInput {
     environment: "test",
     productionDatabase: false,
     storageAvailable: true,
+    reminderSent: false,
     organization: { id: "org-a", status: "active" },
     entitlement: paidEntitlement(),
     subscription: paidSubscription(),
@@ -901,6 +903,60 @@ describe("evaluateFamilyCollectionGate", () => {
       })
     ).toThrow(RangeError);
   });
+
+  describe("recordatorio de pago ya enviado (reminder_sent)", () => {
+    it("final: con un recordatorio enviado nunca se cobra, aunque todo lo demás deje pasar", () => {
+      expect(REMINDER_SENT_REASON).toBe("reminder_sent");
+      expect(gate((input) => { input.reminderSent = true; })).toEqual({
+        allowed: false,
+        reason: "reminder_sent",
+        classification: "final",
+      });
+      expect(
+        evaluateFamilyCollectionGate({ ...sepaInput(), reminderSent: true })
+      ).toMatchObject({ allowed: false, reason: "reminder_sent" });
+    });
+
+    it("cabe en failure_code de la candidata (minúsculas, dígitos y guion bajo, hasta 64)", () => {
+      expect(REMINDER_SENT_REASON).toMatch(/^[a-z0-9_]{1,64}$/);
+    });
+
+    it.each<[string, (input: FamilyCollectionGateInput) => void, FamilyCollectionGateReason]>([
+      ["bandera apagada", (input) => { input.flagEnabled = false; }, "flag_off"],
+      ["clave de Live", (input) => { input.environment = "live"; }, "live_not_released"],
+      ["base de producción", (input) => { input.productionDatabase = true; }, "live_not_released"],
+      ["sin almacenamiento", (input) => { input.storageAvailable = false; }, "storage_missing"],
+    ])("va después de: %s → %s (pasajero, no se escribe nada)", (_label, mutate, reason) => {
+      expect(
+        gate((input) => {
+          input.reminderSent = true;
+          mutate(input);
+        })
+      ).toEqual({ allowed: false, reason, classification: "transient" });
+    });
+
+    it.each<[string, (input: FamilyCollectionGateInput) => void]>([
+      [
+        "cuenta sin releer",
+        (input) => {
+          input.providerAccount = { ...input.providerAccount!, lastSyncedAt: "2026-11-01T00:00:00.000Z" };
+        },
+      ],
+      ["sin plan", (input) => { input.entitlement = null; }],
+      ["suscripción impagada", (input) => { input.subscription = paidSubscription({ providerStatus: "past_due" }); }],
+      ["otra moneda", (input) => { input.invoice = { ...input.invoice, currency: "MXN" }; }],
+      ["la familia pasó a manual", (input) => { input.preference = { ...input.preference, requestedMode: "manual" }; }],
+      ["sin autorización", (input) => { input.authorization = null; }],
+      ["sin pagador", (input) => { input.payer = null; }],
+    ])("va antes de: %s", (_label, mutate) => {
+      expect(
+        gate((input) => {
+          input.reminderSent = true;
+          mutate(input);
+        })
+      ).toEqual({ allowed: false, reason: "reminder_sent", classification: "final" });
+    });
+  });
 });
 
 describe("clase de cada motivo de la puerta", () => {
@@ -939,6 +995,7 @@ describe("clase de cada motivo de la puerta", () => {
 
   it("los motivos propios de la Fase 3 que no son pasajeros son finales", () => {
     for (const reason of [
+      "reminder_sent",
       "unsupported_currency",
       "charge_payer_mismatch",
       "payer_missing",

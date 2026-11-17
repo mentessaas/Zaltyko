@@ -219,6 +219,8 @@ export interface InvoiceCollectionContext {
   customerReference: string | null;
   payer: FamilyCollectionGatePayer | null;
   history: AttemptHistory;
+  /** Ya se envió (o se está enviando) un recordatorio de pago de alguna cuota abierta (readReminderSent). */
+  reminderSent: boolean;
 }
 
 /** Foto bloqueada de la factura dentro de la transacción de reclamar o cancelar. */
@@ -226,6 +228,8 @@ export interface LockedInvoiceSnapshot {
   invoice: CollectionInvoiceRow;
   charges: CollectionChargeRow[];
   history: AttemptHistory;
+  /** Igual que en el contexto, releído dentro de la transacción ya con los bloqueos. */
+  reminderSent: boolean;
   /** La autorización pedida, releída en la transacción (cualquier estado), o null. */
   authorization: {
     id: string;
@@ -591,6 +595,42 @@ async function readHistory(executor: Executor, organizationId: string, invoiceId
             nextRetryAt: toDateOrNull(row.nextRetryAt),
           },
   };
+}
+
+/**
+ * ¿Recibió la familia un recordatorio de pago de alguna cuota abierta de la
+ * factura? Cuenta un envío aceptado (`sent`) y también una reserva `pending`,
+ * de cualquier antigüedad: el correo puede estar saliendo o haber salido sin
+ * que se anotara. Solo un envío `failed` (no salió) no cuenta. Tras un
+ * recordatorio la familia pudo pagar por fuera, así que nunca se cobra sola
+ * (motivo final `reminder_sent` de la puerta).
+ *
+ * La tabla de recordatorios es de otro candidato
+ * (20261114120500_payment_reminders_candidate.sql): si no existe, no se pudo
+ * enviar ninguno. Es una lectura sin `for update`: no bloquea filas, así que
+ * dentro de la transacción de reclamar no cambia el orden de bloqueo. Quien
+ * reserva un recordatorio bloquea antes las cuotas (lockCharges), las mismas
+ * que bloquea esa transacción: o la reserva ya está escrita cuando se lee, o
+ * el envío espera y después ve el intento en curso y no sale.
+ */
+async function readReminderSent(executor: Executor, organizationId: string, invoiceId: string): Promise<boolean> {
+  const table = await executor.execute(sql`
+    select to_regclass('zaltyko.payment_reminders') is not null as "present"
+  `);
+  if ((table.rows[0] as { present?: unknown } | undefined)?.present !== true) return false;
+  const result = await executor.execute(sql`
+    select exists (
+      select 1
+        from zaltyko.payment_reminders r
+        join zaltyko.charges c
+          on c.organization_id = r.organization_id and c.id = r.charge_id
+       where r.organization_id = ${organizationId}::uuid
+         and c.invoice_id = ${invoiceId}::uuid
+         and c.status in ('due', 'partially_paid')
+         and r.status in ('sent', 'pending')
+    ) as "reminderSent"
+  `);
+  return (result.rows[0] as { reminderSent?: unknown } | undefined)?.reminderSent === true;
 }
 
 async function readAccount(
@@ -967,15 +1007,17 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
       const found = await readInvoice(db, input.organizationId, input.invoiceId);
       if (!found) return null;
       const { invoice } = found;
-      const [charges, plan, planChangeRevision, preference, settings, account, history] = await Promise.all([
-        readCharges(db, invoice.organizationId, invoice.id),
-        loadOrganizationPlanState(db, invoice.organizationId),
-        loadPlanChangeRevision(db, invoice.organizationId),
-        readPreference(db, invoice.organizationId, invoice.familyId),
-        findCollectionSettings(db, invoice.organizationId),
-        readAccount(db, invoice.organizationId, input.environment),
-        readHistory(db, invoice.organizationId, invoice.id),
-      ]);
+      const [charges, plan, planChangeRevision, preference, settings, account, history, reminderSent] =
+        await Promise.all([
+          readCharges(db, invoice.organizationId, invoice.id),
+          loadOrganizationPlanState(db, invoice.organizationId),
+          loadPlanChangeRevision(db, invoice.organizationId),
+          readPreference(db, invoice.organizationId, invoice.familyId),
+          findCollectionSettings(db, invoice.organizationId),
+          readAccount(db, invoice.organizationId, input.environment),
+          readHistory(db, invoice.organizationId, invoice.id),
+          readReminderSent(db, invoice.organizationId, invoice.id),
+        ]);
       const active =
         account && invoice.familyPayerId
           ? await readActiveAuthorization(db, {
@@ -998,6 +1040,7 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
         customerReference: active?.customerReference ?? null,
         payer,
         history,
+        reminderSent,
       };
     },
 
@@ -1011,6 +1054,8 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
         if (!found) return { outcome: "skipped", reason: "invoice_missing" } as const;
         const charges = await readCharges(tx, input.organizationId, input.invoiceId);
         const history = await readHistory(tx, input.organizationId, input.invoiceId);
+        // Ya con las cuotas bloqueadas: un recordatorio reservado antes cuenta.
+        const reminderSent = await readReminderSent(tx, input.organizationId, input.invoiceId);
         let authorization: LockedInvoiceSnapshot["authorization"] = null;
         if (input.authorizationId) {
           // Releída en la transacción y bloqueada para compartir: una baja
@@ -1040,7 +1085,7 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
             : null;
         }
 
-        const decision = decide({ invoice: found.invoice, charges, history, authorization });
+        const decision = decide({ invoice: found.invoice, charges, history, reminderSent, authorization });
         if (decision.action === "skip") return { outcome: "skipped", reason: decision.reason } as const;
 
         const invoice = found.invoice;

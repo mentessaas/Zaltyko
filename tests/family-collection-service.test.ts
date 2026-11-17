@@ -188,6 +188,7 @@ function baseContext(): InvoiceCollectionContext {
       guardianLinkActive: true,
     },
     history: { openExists: false, last: null },
+    reminderSent: false,
   };
 }
 
@@ -275,6 +276,7 @@ function makeWorld() {
           invoice: context.invoice,
           charges: context.charges,
           history: context.history,
+          reminderSent: context.reminderSent,
           authorization: authorization
             ? {
                 id: authorization.id,
@@ -1170,6 +1172,146 @@ describe("Fase B: cobrar lo que vence hoy", () => {
   });
 });
 
+describe("recordatorio de pago ya enviado: nunca un cobro automático (reminder_sent)", () => {
+  const reminderDecision = (attemptNumber: number) => ({
+    action: "canceled",
+    attemptNumber,
+    amountCents: 4500,
+    allocations: [{ chargeId, amountCents: 4500 }],
+    reason: "reminder_sent",
+  });
+  // 17-11-2026 00:00 en Madrid: el reintento pendiente toca hoy.
+  const retryDueToday = { attemptNumber: 1, status: "failed" as const, nextRetryAt: new Date("2026-11-16T23:00:00.000Z") };
+
+  it("primer intento: canceled reminder_sent antes de reclamar, sin Stripe", async () => {
+    const { world, store, gateway, run } = setup();
+    world.context!.reminderSent = true;
+
+    const result = await run();
+
+    expect(world.decisions).toEqual([reminderDecision(1)]);
+    expect(vi.mocked(store.claimOrCancel).mock.calls[0][0]).toMatchObject({
+      authorizationId: null,
+      paymentProviderAccountId: null,
+      paymentMethodKind: null,
+    });
+    expect(world.attempts[0]).toMatchObject({ status: "canceled", attemptNumber: 1 });
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(gateway.confirmPayment).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ canceled: 1, collected: 0, retried: 0, skipped: {} });
+  });
+
+  it("reintento pendiente que toca hoy: canceled reminder_sent como intento 2, sin Stripe", async () => {
+    const { world, gateway, run } = setup();
+    world.context!.history = { openExists: false, last: retryDueToday };
+    world.context!.reminderSent = true;
+
+    const result = await run();
+
+    expect(world.decisions).toEqual([reminderDecision(2)]);
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ canceled: 1, retried: 0, collected: 0 });
+  });
+
+  it("manda sobre un motivo pasajero de la puerta (plan): se cierra igual", async () => {
+    const { world, gateway, run } = setup();
+    world.context!.plan.entitlement!.planCode = "free";
+    world.context!.plan.entitlement!.source = "bootstrap";
+    world.context!.reminderSent = true;
+
+    const result = await run();
+
+    expect(world.decisions).toEqual([reminderDecision(1)]);
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ canceled: 1, skipped: {} });
+  });
+
+  it("el recordatorio salió entre la lectura y el bloqueo: dentro de la transacción no reclama, cancela", async () => {
+    const { world, store, gateway, run } = setup();
+    world.locked = { reminderSent: true };
+
+    const result = await run();
+
+    // Fuera la puerta dejó pasar (se pidió reclamar con la autorización)…
+    expect(vi.mocked(store.claimOrCancel).mock.calls[0][0]).toMatchObject({ authorizationId, paymentMethodKind: "card" });
+    // …pero con los datos bloqueados se cancela y nunca se llama a Stripe.
+    expect(world.decisions).toEqual([reminderDecision(1)]);
+    expect(world.attempts[0]).toMatchObject({ status: "canceled" });
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(gateway.confirmPayment).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ canceled: 1, collected: 0 });
+  });
+
+  it("también en un reintento: el recordatorio salió entre la lectura y el bloqueo", async () => {
+    const { world, gateway, run } = setup();
+    world.context!.history = { openExists: false, last: retryDueToday };
+    world.locked = { reminderSent: true };
+
+    await run();
+
+    expect(world.decisions).toEqual([reminderDecision(2)]);
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+  });
+
+  it("fuera se vio un recordatorio y dentro no (el envío falló): no escribe nada", async () => {
+    const { world, gateway, run } = setup();
+    world.context!.reminderSent = true;
+    world.locked = { reminderSent: false };
+
+    const result = await run();
+
+    expect(result.skipped).toEqual({ plan_changed: 1 });
+    expect(world.attempts).toHaveLength(0);
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+  });
+
+  it("otro motivo final de la puerta y un recordatorio: se cancela con el motivo de la puerta", async () => {
+    const { world, gateway, run } = setup();
+    world.context!.authorization = null;
+    world.context!.customerReference = null;
+    world.locked = { reminderSent: true };
+
+    await run();
+
+    expect(world.decisions).toEqual([{ ...reminderDecision(1), reason: "authorization_missing" }]);
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+  });
+
+  it("la ventana máxima pasada va primero: canceled collection_window_expired", async () => {
+    const { world, run } = setup();
+    // 23:59:59.999 del 7 de noviembre en Madrid: el margen acabó el 10.
+    world.context!.charges[0].dueAt = new Date("2026-11-07T22:59:59.999Z");
+    world.context!.reminderSent = true;
+
+    await run();
+
+    expect(world.decisions).toEqual([{ ...reminderDecision(1), reason: "collection_window_expired" }]);
+  });
+
+  it("bandera apagada con un reintento pendiente y recordatorio enviado: al reencenderla el reintento no cobra", async () => {
+    // Punto 2: con la bandera apagada el reintento no retiene los recordatorios;
+    // sale uno y la familia paga por fuera. Al reencender la bandera dentro de
+    // la ventana del reintento, la puerta lo cierra sin llamar a Stripe.
+    const { world, store, gateway, run } = setup();
+    world.context!.history = { openExists: false, last: retryDueToday };
+    world.context!.reminderSent = true;
+
+    env.flag = false;
+    const off = await run();
+    expect(off.enabled).toBe(false);
+    expect(store.listDueInvoices).not.toHaveBeenCalled();
+    expect(store.claimOrCancel).not.toHaveBeenCalled();
+
+    env.flag = true;
+    const on = await run();
+
+    expect(world.decisions).toEqual([reminderDecision(2)]);
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(gateway.confirmPayment).not.toHaveBeenCalled();
+    expect(on).toMatchObject({ enabled: true, canceled: 1, retried: 0, collected: 0 });
+  });
+});
+
 describe("Fase A: reanudar lo que quedó a medias", () => {
   function resumeSetup(item: CollectionAttempt, behaviour: Partial<FamilyCollectionGateway> = {}) {
     const harness = setup(behaviour);
@@ -1224,6 +1366,29 @@ describe("Fase A: reanudar lo que quedó a medias", () => {
     expect(gateway.createPayment).not.toHaveBeenCalled();
     expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: null, reason: "authorization_missing" }]);
     expect(result.canceled).toBe(1);
+  });
+
+  it("claimed sin cobro en Stripe y la familia ya recibió un recordatorio: canceled reminder_sent sin crear", async () => {
+    const item = attempt({ resumeCount: 1 });
+    const { world, gateway, run } = resumeSetup(item);
+    world.context!.reminderSent = true;
+    const result = await run();
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(world.calls).toEqual(["stripe:find", "load", "apply:canceled"]);
+    expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: null, reason: "reminder_sent" }]);
+    expect(result.canceled).toBe(1);
+  });
+
+  it("created sin confirmar y la familia ya recibió un recordatorio: cancela en Stripe y cierra sin confirmar", async () => {
+    const item = attempt({ status: "created", paymentIntentId: intentId, resumeCount: 1 });
+    const { world, gateway, run } = resumeSetup(item, {
+      retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_confirmation"),
+    });
+    world.context!.reminderSent = true;
+    await run();
+    expect(gateway.confirmPayment).not.toHaveBeenCalled();
+    expect(gateway.cancelPayment).toHaveBeenCalledTimes(1);
+    expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: intentId, reason: "reminder_sent" }]);
   });
 
   it("created sin confirmar y la familia cambió de método: cancela en Stripe y cierra el intento", async () => {
