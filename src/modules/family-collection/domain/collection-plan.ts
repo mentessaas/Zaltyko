@@ -10,6 +10,8 @@
  *   (por defecto) o un día fijo del mes (1–31). En los meses sin ese día, el
  *   último día del mes. Nunca antes del vencimiento. Fechas en la hora local
  *   de la sede.
+ * - El plan no mira el mínimo de Stripe: quien lo usa cierra con
+ *   `amount_below_minimum` (isBelowCollectionMinimum) un cobro que no llega.
  */
 
 export type CollectionPlanInvoiceStatus =
@@ -177,6 +179,23 @@ export function collectionDate(input: {
   // Las fechas YYYY-MM-DD se ordenan igual como texto.
   const dueDate = formatLocalDate(due.year, due.month, due.day);
   return candidate < dueDate ? dueDate : candidate;
+}
+
+/**
+ * Lo mínimo que Stripe deja cobrar en euros: 0,50 € (50 céntimos). Un cobro
+ * más pequeño siempre lo rechaza, así que ni se intenta.
+ */
+export const STRIPE_MINIMUM_AMOUNT_CENTS = 50;
+
+/**
+ * Motivo final (`failure_code` del intento `canceled`) cuando lo que queda por
+ * cobrar es menos que STRIPE_MINIMUM_AMOUNT_CENTS: la cuota se cobra a mano.
+ */
+export const AMOUNT_BELOW_MINIMUM_CODE = "amount_below_minimum";
+
+/** ¿Es este importe (en céntimos) demasiado pequeño para cobrarlo con Stripe? */
+export function isBelowCollectionMinimum(amountCents: number): boolean {
+  return amountCents < STRIPE_MINIMUM_AMOUNT_CENTS;
 }
 
 const COLLECTIBLE_INVOICE_STATUSES: ReadonlySet<CollectionPlanInvoiceStatus> = new Set([

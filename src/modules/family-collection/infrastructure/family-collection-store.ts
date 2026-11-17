@@ -40,6 +40,11 @@ import type {
   FamilyCollectionGateAuthorization,
   FamilyCollectionGatePayer,
 } from "@/modules/family-collection/domain/collection-gate";
+import {
+  AMOUNT_MISMATCH_REASON,
+  receivedMatches,
+  type ReceivedAmount,
+} from "@/modules/family-collection/domain/payment-outcome";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
 import { findCollectionSettings } from "@/modules/family-collection/infrastructure/collection-settings-store";
 import {
@@ -253,7 +258,8 @@ export type ClaimOrCancelResult =
   | { outcome: "canceled"; attempt: CollectionAttempt };
 
 export type AttemptOutcome =
-  | { kind: "succeeded"; paymentIntentId: string }
+  /** `received`: lo que Stripe dice que cobró; si no cuadra con el intento, no se registra. */
+  | { kind: "succeeded"; paymentIntentId: string; received: ReceivedAmount }
   | { kind: "processing"; paymentIntentId: string }
   | {
       kind: "failed";
@@ -311,7 +317,12 @@ export interface FamilyCollectionStore {
   ): Promise<ClaimOrCancelResult>;
   /** `claimed` → `created` con su `pi_…`. `false` si el intento ya no estaba `claimed`. */
   markCreated(input: { organizationId: string; attemptId: string; paymentIntentId: string; now: Date }): Promise<boolean>;
-  /** Aplica el resultado a un intento todavía abierto; si ya no lo está, no hace nada. */
+  /**
+   * Aplica el resultado a un intento todavía abierto; si ya no lo está, no
+   * hace nada. Un `succeeded` cuyo importe o moneda no cuadran con el intento
+   * no registra el pago: deja el aviso `amount_mismatch` y devuelve
+   * `{ applied: false, review: "amount_mismatch" }`.
+   */
   applyOutcome(input: {
     organizationId: string;
     attemptId: string;
@@ -1122,6 +1133,30 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
         const now = input.now.toISOString();
 
         if (outcome.kind === "succeeded") {
+          // Paso 0: Stripe tiene que haber cobrado justo el importe del intento
+          // y en euros. Si no, el pago no entra en el libro: el intento se
+          // queda como está (su dinero se movió) y la academia lo revisa.
+          if (!receivedMatches(outcome.received, { amountCents: attempt.amountCents, currency: attempt.currency })) {
+            const mismatch = {
+              expectedAmountCents: attempt.amountCents,
+              receivedAmountCents: outcome.received.amountCents,
+              receivedCurrency: outcome.received.currency,
+            };
+            // Solo ids, importes y moneda: nunca datos de la familia ni de Stripe.
+            logger.error("Cobro automático: Stripe cobró un importe distinto al del intento", undefined, {
+              organizationId: attempt.organizationId,
+              invoiceId: attempt.invoiceId,
+              attemptId: attempt.id,
+              ...mismatch,
+            });
+            await recordTransition(tx, attempt, {
+              event: "needs_review",
+              payload: { reason: AMOUNT_MISMATCH_REASON, paymentIntentId: outcome.paymentIntentId, ...mismatch },
+              now: input.now,
+            });
+            return { applied: false, review: AMOUNT_MISMATCH_REASON };
+          }
+
           // Paso 1: el pago queda registrado (no puede fallar por saldos).
           const { payment } = await recordProviderCollectionPayment(tx, {
             organizationId: attempt.organizationId,

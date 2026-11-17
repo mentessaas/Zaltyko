@@ -382,6 +382,24 @@ describe("motivos en palabras sencillas", () => {
       "No había saldo suficiente."
     );
   });
+
+  it("lo que Stripe no deja cobrar se explica sin códigos y dice que se cobra a mano", () => {
+    const below = "Lo que queda por pagar es menos de 0,50 €, el mínimo que admite Stripe. Se cobra a mano.";
+    const notActive = "Este tipo de pago no está activado en tu cuenta de Stripe. Se cobra a mano.";
+    for (const [code, text] of [
+      ["amount_below_minimum", below],
+      ["amount_too_small", below],
+      ["resource_missing", "Stripe ya no tiene el método de pago de la familia. Se cobra a mano."],
+      ["account_invalid", "Tu cuenta de Stripe no está lista para cobrar. Se cobra a mano."],
+      ["payment_method_unactivated", notActive],
+      ["capability_not_active", notActive],
+    ] as const) {
+      expect(failureReasonText({ status: "canceled", failureCode: code, declineCode: null }), code).toBe(text);
+    }
+    expect(reviewReasonText("amount_mismatch")).toBe(
+      "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Compruébalo en Stripe."
+    );
+  });
 });
 
 describe("fila de la academia (pura)", () => {

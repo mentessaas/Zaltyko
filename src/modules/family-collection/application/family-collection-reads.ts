@@ -468,6 +468,8 @@ const SUBSCRIPTION_NOT_CURRENT = "La suscripción de la academia a Zaltyko no es
 const STRIPE_NOT_READY = "Tu cuenta de Stripe no está lista para cobrar.";
 const NO_ACTIVE_METHOD = "La familia ya no tiene un método de pago activo.";
 const PAYER_CHANGED = "Cambió la persona que paga la cuota.";
+const BELOW_MINIMUM_TEXT = "Lo que queda por pagar es menos de 0,50 €, el mínimo que admite Stripe. Se cobra a mano.";
+const METHOD_NOT_ACTIVE_TEXT = "Este tipo de pago no está activado en tu cuenta de Stripe. Se cobra a mano.";
 
 const FAILURE_TEXT: Record<string, string> = {
   ...DECLINE_TEXT,
@@ -475,6 +477,14 @@ const FAILURE_TEXT: Record<string, string> = {
   requires_action: "El banco pide que la familia confirme el pago.",
   transient_exhausted: "No pudimos comprobar el cobro a tiempo.",
   invalid_service_period: "La cuota no tiene un periodo válido.",
+  // Stripe no cobra menos de 0,50 €, ni sin el cliente o el método de pago de
+  // la familia, ni con un tipo de pago que la cuenta de la academia no tiene activo.
+  amount_below_minimum: BELOW_MINIMUM_TEXT,
+  amount_too_small: BELOW_MINIMUM_TEXT,
+  resource_missing: "Stripe ya no tiene el método de pago de la familia. Se cobra a mano.",
+  account_invalid: `${STRIPE_NOT_READY} Se cobra a mano.`,
+  payment_method_unactivated: METHOD_NOT_ACTIVE_TEXT,
+  capability_not_active: METHOD_NOT_ACTIVE_TEXT,
   manual_payment: "Se registró un pago a mano.",
   canceled_by_academy: "Lo canceló la academia.",
   reviewed_by_academy: "La academia lo revisó y lo cerró.",
@@ -539,6 +549,7 @@ const REVIEW_TEXT: Record<string, string> = {
   attempts_exhausted: "Esta cuota ya no admite más intentos automáticos. Se cobra a mano.",
   stale_open: `El cobro lleva más de un día sin avanzar. ${CHECK_IN_STRIPE}`,
   processing_unreadable: `El cobro lleva más de 15 días en curso y no podemos ver su resultado. ${CHECK_IN_STRIPE}`,
+  amount_mismatch: `Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. ${CHECK_IN_STRIPE}`,
 };
 
 const REVIEW_FALLBACK = `El cobro necesita una comprobación. ${CHECK_IN_STRIPE}`;

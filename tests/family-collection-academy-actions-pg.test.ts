@@ -102,14 +102,22 @@ const DAY = 24 * HOUR;
 const compact = () => randomUUID().replace(/-/g, "").slice(0, 20);
 const wait = (ms: number) => new Promise((resolveWait) => setTimeout(resolveWait, ms));
 
-/** Stripe simulado: cada cobro con el estado que diga la prueba. */
-function fakeStripe(statuses: Record<string, string> = {}) {
-  const snapshot = (id: string): PaymentIntentSnapshot => ({
-    id,
-    status: statuses[id] ?? "requires_confirmation",
-    lastErrorCode: null,
-    lastDeclineCode: null,
-  });
+/**
+ * Stripe simulado: cada cobro con el estado que diga la prueba. Un cobro hecho
+ * dice haber cobrado `receivedCents` en euros (por defecto, la cuota de 45 €).
+ */
+function fakeStripe(statuses: Record<string, string> = {}, receivedCents = 4500) {
+  const snapshot = (id: string): PaymentIntentSnapshot => {
+    const status = statuses[id] ?? "requires_confirmation";
+    return {
+      id,
+      status,
+      lastErrorCode: null,
+      lastDeclineCode: null,
+      amountReceivedCents: status === "succeeded" ? receivedCents : 0,
+      currency: "EUR",
+    };
+  };
   return {
     createPayment: vi.fn<FamilyCollectionGateway["createPayment"]>(async () => {
       throw new Error("no se crea nada en estas pruebas");
@@ -949,6 +957,34 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
       ).rejects.toMatchObject({ code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT", status: 409 });
       expect(gateway.cancelPayment).not.toHaveBeenCalled();
       expect(await attemptRow(attemptId)).toMatchObject({ status: "claimed", completedAt: null });
+    });
+
+    it("Stripe cobró otro importe: ni cancelar ni marcar como revisado lo registran ni lo cierran; un solo aviso", async () => {
+      const fixture = await createFixture();
+      const paymentIntentId = `pi_CI${compact()}`;
+      const { attemptId } = await insertAttempt(fixture, { status: "created", paymentIntentId });
+      const gateway = fakeStripe({ [paymentIntentId]: "succeeded" }, 4000);
+      const input = { userId: fixture.userId, organizationId: fixture.organizationId, invoiceId: fixture.invoiceId };
+
+      await expect(cancelAutomaticCollection(input, { gateway })).rejects.toMatchObject({
+        code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
+        status: 409,
+      });
+      // El aviso deja «Marcar como revisado» a la vista, pero tampoco cierra nada.
+      await expect(markAutomaticCollectionReviewed({ ...input, checkedInStripe: true }, { gateway })).rejects.toMatchObject({
+        code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
+        status: 409,
+      });
+
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+      expect(await attemptRow(attemptId)).toMatchObject({ status: "created", completedAt: null, paymentId: null });
+      expect(await chargeStatus(fixture)).toBe("due");
+      expect(await outboxCount(fixture, "family_collection.needs_review")).toBe(1);
+      const payments = await db.execute(sql`
+        select count(*)::int as n from zaltyko.payments
+         where organization_id = ${fixture.organizationId}::uuid and provider_payment_id = ${paymentIntentId}
+      `);
+      expect((payments.rows[0] as { n: number }).n).toBe(0);
     });
 
     it("marcar como revisado un cobro que sí salió en Stripe lo registra y nunca lo cierra", async () => {

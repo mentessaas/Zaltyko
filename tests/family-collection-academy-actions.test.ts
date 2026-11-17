@@ -113,14 +113,29 @@ function fakeStore(current: AcademyAttemptView | null, overrides: Partial<Academ
   };
 }
 
-/** Stripe simulado: cada cobro con su estado; cancelar lo deja cancelado. */
-function fakeGateway(statuses: Record<string, string> = {}, cancelResult: "canceled" | "not_cancelable" = "canceled") {
-  const snapshot = (id: string): PaymentIntentSnapshot => ({
-    id,
-    status: statuses[id] ?? "requires_confirmation",
-    lastErrorCode: null,
-    lastDeclineCode: null,
-  });
+/** Lo que Stripe dice haber cobrado cuando la cuota (45 €) salió entera. */
+const received = { amountCents: 4500, currency: "EUR" };
+
+/**
+ * Stripe simulado: cada cobro con su estado; cancelar lo deja cancelado. Un
+ * cobro hecho dice haber cobrado `receivedCents` (por defecto, la cuota entera).
+ */
+function fakeGateway(
+  statuses: Record<string, string> = {},
+  cancelResult: "canceled" | "not_cancelable" = "canceled",
+  receivedCents = 4500
+) {
+  const snapshot = (id: string): PaymentIntentSnapshot => {
+    const status = statuses[id] ?? "requires_confirmation";
+    return {
+      id,
+      status,
+      lastErrorCode: null,
+      lastDeclineCode: null,
+      amountReceivedCents: status === "succeeded" ? receivedCents : 0,
+      currency: "EUR",
+    };
+  };
   return {
     createPayment: vi.fn<FamilyCollectionGateway["createPayment"]>(),
     confirmPayment: vi.fn<FamilyCollectionGateway["confirmPayment"]>(),
@@ -279,10 +294,34 @@ describe("cancelar el cobro automático", () => {
     expect(store.applyOutcome).toHaveBeenCalledWith({
       organizationId,
       attemptId,
-      outcome: { kind: "succeeded", paymentIntentId },
+      outcome: { kind: "succeeded", paymentIntentId, received },
       environment: "test",
       now,
     });
+  });
+
+  it("Stripe cobró otro importe: se pasa tal cual, no se registra ni se cierra y responde 409 para soporte", async () => {
+    const store = fakeStore(attempt(), {
+      applyOutcome: vi.fn<AcademyCollectionStore["applyOutcome"]>(async () => ({
+        applied: false as const,
+        review: "amount_mismatch",
+      })),
+    });
+    const gateway = fakeGateway({ [paymentIntentId]: "succeeded" }, "canceled", 4000);
+
+    await expect(cancelAutomaticCollection(cancelInput, { store, gateway })).rejects.toMatchObject({
+      code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
+      status: 409,
+      message:
+        "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
+    });
+    expect(store.applyOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: { kind: "succeeded", paymentIntentId, received: { amountCents: 4000, currency: "EUR" } },
+      })
+    );
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(store.closeAttempt).not.toHaveBeenCalled();
   });
 
   it("cobrado pero ya registrado para otro intento: 409 que manda a «Marcar como revisado», sin cerrar", async () => {
@@ -398,7 +437,7 @@ describe("marcar como revisado", () => {
       outcome: "collected",
     });
     expect(store.applyOutcome).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: { kind: "succeeded", paymentIntentId } })
+      expect.objectContaining({ outcome: { kind: "succeeded", paymentIntentId, received } })
     );
     expect(gateway.cancelPayment).not.toHaveBeenCalled();
     expect(store.closeAttempt).not.toHaveBeenCalled();
@@ -600,7 +639,7 @@ describe("marcar como revisado", () => {
       outcome: "collected",
     });
     expect(store.applyOutcome).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: { kind: "succeeded", paymentIntentId: found } })
+      expect.objectContaining({ outcome: { kind: "succeeded", paymentIntentId: found, received } })
     );
     expect(store.closeAttempt).not.toHaveBeenCalled();
   });
@@ -688,6 +727,23 @@ describe("marcar como revisado", () => {
         "Hay demasiados cobros en Stripe para esta cuota. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
     });
     expect(gateway.retrievePayment).not.toHaveBeenCalled();
+    expect(store.closeAttempt).not.toHaveBeenCalled();
+  });
+
+  it("cobrado con otro importe: marcar como revisado responde 409 para soporte y nunca cierra", async () => {
+    const store = fakeStore(attempt({ hasReviewNotice: true }), {
+      applyOutcome: vi.fn<AcademyCollectionStore["applyOutcome"]>(async () => ({
+        applied: false as const,
+        review: "amount_mismatch",
+      })),
+    });
+    const gateway = fakeGateway({ [paymentIntentId]: "succeeded" }, "canceled", 4000);
+
+    await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
+      code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
+      status: 409,
+    });
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
     expect(store.closeAttempt).not.toHaveBeenCalled();
   });
 

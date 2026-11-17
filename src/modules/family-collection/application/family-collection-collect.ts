@@ -9,13 +9,21 @@
  * puerta deja pasar, se reclama el intento (transacción corta que repite el
  * plan con los datos bloqueados) y después se crea y confirma en Stripe.
  *
+ * Lo que no llega al mínimo de Stripe (0,50 €) tampoco se reclama: se escribe
+ * un intento `canceled` con `amount_below_minimum` y la cuota se cobra a mano.
+ *
  * Ventana máxima de cobro: pasada la espera de los recordatorios
  * (AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS días después de la fecha de cobro,
  * o de la del reintento) la cuota ya volvió a los recordatorios y la familia
  * puede haberla pagado a mano. Entonces nunca se cobra: se escribe un intento
  * `canceled` con `collection_window_expired`, aunque la puerta deje pasar.
  */
-import { collectionDate, localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
+import {
+  AMOUNT_BELOW_MINIMUM_CODE,
+  collectionDate,
+  isBelowCollectionMinimum,
+  localCalendarDate,
+} from "@/modules/family-collection/domain/collection-plan";
 import { evaluateFamilyCollectionGate } from "@/modules/family-collection/domain/collection-gate";
 import {
   advanceAttempt,
@@ -274,8 +282,11 @@ async function collectInvoice(state: RunState, ref: DueInvoiceRef): Promise<void
   const periodValid = isValidServicePeriod(
     earliestServicePeriod(context.charges.filter((charge) => planned.has(charge.id)))
   );
+  // Menos de 0,50 €: Stripe nunca lo cobraría. También se cierra antes de
+  // reclamar, con su motivo, y la cuota se cobra a mano.
+  const belowMinimum = isBelowCollectionMinimum(plan.amountCents);
   const claim =
-    !expired && gate.allowed && periodValid
+    !expired && gate.allowed && periodValid && !belowMinimum
       ? {
           action: "claimed" as const,
           authorizationId: context.authorization?.id ?? null,
@@ -286,9 +297,11 @@ async function collectInvoice(state: RunState, ref: DueInvoiceRef): Promise<void
           action: "canceled" as const,
           reason: expired
             ? COLLECTION_WINDOW_EXPIRED_CODE
-            : gate.allowed
-              ? INVALID_SERVICE_PERIOD_CODE
-              : gate.reason,
+            : !gate.allowed
+              ? gate.reason
+              : !periodValid
+                ? INVALID_SERVICE_PERIOD_CODE
+                : AMOUNT_BELOW_MINIMUM_CODE,
           authorizationId: null,
           paymentProviderAccountId: null,
           paymentMethodKind: null,

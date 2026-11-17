@@ -23,19 +23,26 @@ import {
 } from "@/modules/family-collection/domain/collection-gate";
 import {
   addLocalDays,
+  AMOUNT_BELOW_MINIMUM_CODE,
   collectionDate,
+  isBelowCollectionMinimum,
   localCalendarDate,
   planInvoiceCollection,
+  STRIPE_MINIMUM_AMOUNT_CENTS,
   startOfLocalDay,
   type CollectionPlanCharge,
   type CollectionPlanInvoice,
 } from "@/modules/family-collection/domain/collection-plan";
 import {
+  AMOUNT_MISMATCH_REASON,
   codeOf,
   collectionErrorOf,
+  finalCreateErrorCode,
   isAuthenticationRequiredFailure,
   mapPaymentIntent,
   mapUnknownPaymentError,
+  receivedMatches,
+  receivedOf,
   snapshotOfPaymentIntent,
   type PaymentIntentSnapshot,
 } from "@/modules/family-collection/domain/payment-outcome";
@@ -1301,6 +1308,99 @@ describe("mapPaymentIntent", () => {
   });
 });
 
+describe("importe cobrado frente al del intento", () => {
+  const expected = { amountCents: 4500, currency: "EUR" };
+
+  it("cuadra solo con el mismo importe y en euros", () => {
+    expect(receivedMatches({ amountCents: 4500, currency: "EUR" }, expected)).toBe(true);
+  });
+
+  it.each([
+    ["otro importe", { amountCents: 4000, currency: "EUR" }],
+    ["un céntimo más", { amountCents: 4501, currency: "EUR" }],
+    ["nada cobrado", { amountCents: 0, currency: "EUR" }],
+    ["otra moneda", { amountCents: 4500, currency: "USD" }],
+    ["importe desconocido", { amountCents: null, currency: "EUR" }],
+    ["moneda desconocida", { amountCents: 4500, currency: null }],
+  ])("no cuadra: %s", (_label, received) => {
+    expect(receivedMatches(received, expected)).toBe(false);
+  });
+
+  it("un intento que no es en euros nunca cuadra", () => {
+    expect(receivedMatches({ amountCents: 4500, currency: "EUR" }, { amountCents: 4500, currency: "USD" })).toBe(false);
+  });
+
+  it("receivedOf lee el snapshot; sin snapshot o sin importe, desconocido", () => {
+    expect(receivedOf(snapshot({ amountReceivedCents: 4500, currency: "EUR" }))).toEqual({
+      amountCents: 4500,
+      currency: "EUR",
+    });
+    expect(receivedOf(snapshot())).toEqual({ amountCents: null, currency: null });
+    expect(receivedOf(null)).toEqual({ amountCents: null, currency: null });
+    expect(AMOUNT_MISMATCH_REASON).toBe("amount_mismatch");
+  });
+});
+
+describe("rechazos seguros al crear el cobro", () => {
+  it.each([
+    ["importe bajo el mínimo", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "amount_too_small", statusCode: 400 }, "amount_too_small"],
+    ["cliente o método inexistente", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "resource_missing", statusCode: 400 }, "resource_missing"],
+    ["cuenta de la academia no válida", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "account_invalid", statusCode: 400 }, "account_invalid"],
+    ["método no activado", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "payment_method_unactivated", statusCode: 400 }, "payment_method_unactivated"],
+    ["capacidad no activa", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "capability_not_active", statusCode: 400 }, "capability_not_active"],
+  ])("%s: final con su código", (_label, error, code) => {
+    expect(finalCreateErrorCode(error)).toBe(code);
+    // Para el resto de llamadas sigue siendo pasajero: solo la creación lo decide.
+    expect(mapUnknownPaymentError(error)).toBe("transient");
+  });
+
+  it("el código se lee igual en un Error del SDK", () => {
+    const error = Object.assign(new Error("Mensaje sintético de Stripe"), {
+      type: "StripeInvalidRequestError",
+      rawType: "invalid_request_error",
+      code: "resource_missing",
+    });
+    expect(finalCreateErrorCode(error)).toBe("resource_missing");
+  });
+
+  it.each([
+    ["conexión", { type: "StripeConnectionError" }],
+    ["límite de peticiones", { type: "StripeRateLimitError", rawType: "rate_limit_error", code: "rate_limit", statusCode: 429 }],
+    ["error interno", { type: "StripeAPIError", rawType: "api_error", statusCode: 500 }],
+    ["bloqueo", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "lock_timeout", statusCode: 429 }],
+    ["permiso", { type: "StripePermissionError", statusCode: 403 }],
+    ["idempotencia", { type: "StripeIdempotencyError", rawType: "idempotency_error" }],
+    ["otro error de petición", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "parameter_invalid_integer" }],
+    ["error propio del adaptador", new Error("FAMILY_COLLECTION_INVALID_AMOUNT")],
+    ["texto", "resource_missing"],
+    ["null", null],
+  ])("%s: pasajero", (_label, error) => {
+    expect(finalCreateErrorCode(error)).toBeNull();
+  });
+
+  it("con el cobro en el error manda su estado, nunca el código", () => {
+    expect(
+      finalCreateErrorCode({
+        type: "StripeInvalidRequestError",
+        rawType: "invalid_request_error",
+        code: "resource_missing",
+        payment_intent: { id: "pi_synthetic_d", status: "requires_payment_method" },
+      })
+    ).toBeNull();
+  });
+});
+
+describe("mínimo de Stripe", () => {
+  it("menos de 0,50 € no se cobra; 0,50 € sí", () => {
+    expect(STRIPE_MINIMUM_AMOUNT_CENTS).toBe(50);
+    expect(AMOUNT_BELOW_MINIMUM_CODE).toBe("amount_below_minimum");
+    expect(isBelowCollectionMinimum(20)).toBe(true);
+    expect(isBelowCollectionMinimum(49)).toBe(true);
+    expect(isBelowCollectionMinimum(50)).toBe(false);
+    expect(isBelowCollectionMinimum(4500)).toBe(false);
+  });
+});
+
 describe("ayudas compartidas con el adaptador", () => {
   it("codeOf solo deja pasar códigos", () => {
     expect(codeOf("card_declined")).toBe("card_declined");
@@ -1311,12 +1411,14 @@ describe("ayudas compartidas con el adaptador", () => {
     expect(codeOf(undefined)).toBeNull();
   });
 
-  it("snapshotOfPaymentIntent: solo id, estado y códigos", () => {
+  it("snapshotOfPaymentIntent: solo id, estado, códigos, importe cobrado y moneda", () => {
     expect(
       snapshotOfPaymentIntent({
         id: "pi_synthetic_c",
         status: "requires_payment_method",
         amount: 4500,
+        amount_received: 0,
+        currency: "eur",
         last_payment_error: {
           code: "card_declined",
           decline_code: "lost_card",
@@ -1329,12 +1431,29 @@ describe("ayudas compartidas con el adaptador", () => {
       status: "requires_payment_method",
       lastErrorCode: "card_declined",
       lastDeclineCode: "lost_card",
+      amountReceivedCents: 0,
+      currency: "EUR",
     });
     expect(snapshotOfPaymentIntent({ id: "pi_synthetic_c", status: "succeeded" })).toEqual({
       id: "pi_synthetic_c",
       status: "succeeded",
       lastErrorCode: null,
       lastDeclineCode: null,
+      amountReceivedCents: null,
+      currency: null,
+    });
+  });
+
+  it.each([
+    ["importe negativo", { amount_received: -1, currency: "eur" }, null, "EUR"],
+    ["importe con decimales", { amount_received: 45.5, currency: "eur" }, null, "EUR"],
+    ["importe como texto", { amount_received: "4500", currency: "eur" }, null, "EUR"],
+    ["moneda rara", { amount_received: 4500, currency: "euro" }, 4500, null],
+    ["moneda que no es texto", { amount_received: 4500, currency: 978 }, 4500, null],
+  ])("snapshotOfPaymentIntent descarta lo que no es un importe o una moneda (%s)", (_label, fields, amount, currency) => {
+    expect(snapshotOfPaymentIntent({ id: "pi_synthetic_c", status: "succeeded", ...fields })).toMatchObject({
+      amountReceivedCents: amount,
+      currency,
     });
   });
 

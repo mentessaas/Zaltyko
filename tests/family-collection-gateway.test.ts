@@ -50,6 +50,7 @@ function paymentIntent(overrides: Record<string, unknown> = {}) {
     id: paymentIntentId,
     object: "payment_intent",
     amount: 4500,
+    amount_received: 0,
     currency: "eur",
     status: "requires_confirmation",
     customer: customerId,
@@ -200,6 +201,8 @@ describe("createStripeCollectionGateway", () => {
           status: "requires_confirmation",
           lastErrorCode: null,
           lastDeclineCode: null,
+          amountReceivedCents: 0,
+          currency: "EUR",
         });
         expect(stripe.create).toHaveBeenCalledTimes(1);
         const [params, options] = stripe.create.mock.calls[0];
@@ -368,7 +371,7 @@ describe("createStripeCollectionGateway", () => {
   describe("confirmPayment", () => {
     it("confirma la tarjeta fuera de sesión con la clave de confirmación del intento", async () => {
       const stripe = fakeStripe();
-      stripe.confirm.mockResolvedValue(paymentIntent({ status: "succeeded" }));
+      stripe.confirm.mockResolvedValue(paymentIntent({ status: "succeeded", amount_received: 4500 }));
       const gateway = createStripeCollectionGateway(stripe.client);
 
       const result = await gateway.confirmPayment({
@@ -383,6 +386,8 @@ describe("createStripeCollectionGateway", () => {
         status: "succeeded",
         lastErrorCode: null,
         lastDeclineCode: null,
+        amountReceivedCents: 4500,
+        currency: "EUR",
       });
       expect(stripe.confirm).toHaveBeenCalledWith(
         paymentIntentId,
@@ -413,6 +418,8 @@ describe("createStripeCollectionGateway", () => {
         status: "processing",
         lastErrorCode: null,
         lastDeclineCode: null,
+        amountReceivedCents: 0,
+        currency: "EUR",
       });
       expect(stripe.confirm).toHaveBeenCalledWith(
         paymentIntentId,
@@ -445,6 +452,8 @@ describe("createStripeCollectionGateway", () => {
           status: "requires_payment_method",
           lastErrorCode: "card_declined",
           lastDeclineCode: "insufficient_funds",
+          amountReceivedCents: 0,
+          currency: "EUR",
         },
       });
       expectNoLeak(result);
@@ -508,6 +517,8 @@ describe("createStripeCollectionGateway", () => {
           status: "requires_payment_method",
           lastErrorCode: "authentication_required",
           lastDeclineCode: "authentication_required",
+          amountReceivedCents: 0,
+          currency: "EUR",
         },
       });
     });
@@ -603,6 +614,8 @@ describe("createStripeCollectionGateway", () => {
         status: "requires_payment_method",
         lastErrorCode: "card_declined",
         lastDeclineCode: "lost_card",
+        amountReceivedCents: 0,
+        currency: "EUR",
       });
       expectNoLeak(snapshot);
     });
@@ -623,7 +636,7 @@ describe("createStripeCollectionGateway", () => {
       const stripe = fakeStripe();
       stripe.search.mockResolvedValue({
         object: "search_result",
-        data: [paymentIntent({ status: "succeeded" })],
+        data: [paymentIntent({ status: "succeeded", amount_received: 4500 })],
         has_more: false,
         next_page: null,
       });
@@ -640,6 +653,8 @@ describe("createStripeCollectionGateway", () => {
         status: "succeeded",
         lastErrorCode: null,
         lastDeclineCode: null,
+        amountReceivedCents: 4500,
+        currency: "EUR",
       });
     });
 

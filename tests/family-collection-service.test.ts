@@ -71,14 +71,33 @@ const connectedAccount = "acct_SyntheticA1";
 const now = new Date("2026-11-17T09:00:00.000Z");
 const intentId = "pi_SyntheticCollection1";
 
+/** Lo que Stripe dice haber cobrado cuando la cuota (45 €) salió entera. */
+const received = { amountCents: 4500, currency: "EUR" };
+
 function snapshot(
   id: string,
   status: string,
   code: string | null = null,
   declineCode: string | null = null
 ): PaymentIntentSnapshot {
-  return { id, status, lastErrorCode: code, lastDeclineCode: declineCode };
+  return {
+    id,
+    status,
+    lastErrorCode: code,
+    lastDeclineCode: declineCode,
+    amountReceivedCents: status === "succeeded" ? received.amountCents : 0,
+    currency: received.currency,
+  };
 }
+
+/** Error de petición de Stripe tal como lo lanza stripe-node, sin cobro dentro. */
+const requestError = (code: string) =>
+  Object.assign(new Error("Mensaje sintético de Stripe"), {
+    type: "StripeInvalidRequestError",
+    rawType: "invalid_request_error",
+    code,
+    statusCode: 400,
+  });
 
 function baseContext(): InvoiceCollectionContext {
   return {
@@ -435,7 +454,7 @@ describe("cerrojos y bandera", () => {
     expect(gateway.confirmPayment).not.toHaveBeenCalled();
     expect(result.skipped.flag_off).toBe(1);
     // El que estaba en curso sí se registra.
-    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId }]);
+    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
     expect(result).toMatchObject({ collected: 1, reconciled: 1, resumed: 1 });
   });
 
@@ -482,7 +501,7 @@ describe("Fase B: cobrar lo que vence hoy", () => {
     expect(world.decisions).toEqual([
       { action: "claimed", attemptNumber: 1, amountCents: 4500, allocations: [{ chargeId, amountCents: 4500 }] },
     ]);
-    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId }]);
+    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
     expect(result).toMatchObject({ enabled: true, complete: true, collected: 1, failed: 0, retried: 0, needsReview: 0 });
   });
 
@@ -687,6 +706,96 @@ describe("Fase B: cobrar lo que vence hoy", () => {
     expect(world.applied[0]).toMatchObject({ kind: "failed", nextRetryAt: new Date("2026-11-19T23:00:00.000Z") });
   });
 
+  it("lo que queda es menos de 0,50 €: canceled amount_below_minimum antes de reclamar, sin Stripe", async () => {
+    const { world, gateway, run } = setup();
+    world.context!.charges[0].outstandingCents = 20;
+    const result = await run();
+    expect(world.decisions).toEqual([
+      {
+        action: "canceled",
+        attemptNumber: 1,
+        amountCents: 20,
+        allocations: [{ chargeId, amountCents: 20 }],
+        reason: "amount_below_minimum",
+      },
+    ]);
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ canceled: 1, collected: 0 });
+  });
+
+  it("justo 0,50 €: se cobra", async () => {
+    const { world, gateway, run } = setup();
+    world.context!.charges[0].outstandingCents = 50;
+    await run();
+    expect(world.decisions[0]).toMatchObject({ action: "claimed", amountCents: 50 });
+    expect(gateway.createPayment.mock.calls[0][0]).toMatchObject({ amountCents: 50 });
+  });
+
+  it.each(["amount_too_small", "resource_missing", "account_invalid", "payment_method_unactivated", "capability_not_active"])(
+    "Stripe rechaza crear el cobro (%s): canceled con su código, sin confirmar ni reintento",
+    async (code) => {
+      vi.mocked(logger.warn).mockClear();
+      const { world, gateway, run } = setup({
+        createPayment: async () => {
+          throw requestError(code);
+        },
+      });
+      const result = await run();
+      expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: null, reason: code }]);
+      expect(gateway.confirmPayment).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ canceled: 1, failed: 0, retried: 0 });
+      // Solo ids, nombre y código del error: nunca su mensaje.
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Cobro automático: Stripe rechazó crear el cobro; la cuota pasa a cobro manual",
+        {
+          organizationId,
+          invoiceId,
+          attemptId,
+          errorName: "StripeInvalidRequestError",
+          errorCode: code,
+        }
+      );
+      expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain("Mensaje sintético");
+    }
+  );
+
+  it.each([
+    ["red", () => networkError()],
+    ["límite de peticiones", () => Object.assign(new Error("x"), { type: "StripeRateLimitError", rawType: "rate_limit_error", code: "rate_limit", statusCode: 429 })],
+    ["bloqueo", () => Object.assign(new Error("x"), { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "lock_timeout", statusCode: 429 })],
+    ["error interno de Stripe", () => Object.assign(new Error("x"), { type: "StripeAPIError", rawType: "api_error", statusCode: 500 })],
+    [
+      "rechazo con el cobro dentro",
+      () =>
+        Object.assign(requestError("resource_missing"), {
+          payment_intent: { id: intentId, status: "requires_payment_method" },
+        }),
+    ],
+  ])("error al crear (%s): pasajero, el intento se queda reclamado", async (_label, makeError) => {
+    const { world, gateway, run } = setup({
+      createPayment: async () => {
+        throw makeError();
+      },
+    });
+    const result = await run();
+    expect(world.applied).toEqual([]);
+    expect(gateway.confirmPayment).not.toHaveBeenCalled();
+    expect(result.skipped).toEqual({ transient: 1 });
+  });
+
+  it("Stripe cobró otro importe: se pasa lo cobrado y, si el almacén no lo registra, cuenta como revisión", async () => {
+    const { world, run } = setup({
+      confirmPayment: async (input) => ({ ...snapshot(input.paymentIntentId, "succeeded"), amountReceivedCents: 4000 }),
+    });
+    world.applyResult = { applied: false, review: "amount_mismatch" };
+    const result = await run();
+    expect(world.applied).toEqual([
+      { kind: "succeeded", paymentIntentId: intentId, received: { amountCents: 4000, currency: "EUR" } },
+    ]);
+    expect(result).toMatchObject({ collected: 0, failed: 0, needsReview: 1 });
+    expect(result.skipped).toEqual({ amount_mismatch: 1 });
+  });
+
   it("periodo de la cuota no válido: canceled invalid_service_period antes de reclamar, sin Stripe", async () => {
     const { world, gateway, run } = setup();
     world.context!.charges[0].servicePeriodStart = "";
@@ -764,7 +873,7 @@ describe("Fase B: cobrar lo que vence hoy", () => {
       retrievePayment: async (input) => snapshot(input.paymentIntentId, "succeeded"),
     });
     await run();
-    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId }]);
+    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
   });
 
   it("si la confirmación no responde, no se da por fallido", async () => {
@@ -945,7 +1054,7 @@ describe("Fase A: reanudar lo que quedó a medias", () => {
     expect(gateway.createPayment).not.toHaveBeenCalled();
     expect(gateway.confirmPayment).not.toHaveBeenCalled();
     expect(gateway.findPaymentByAttempt).not.toHaveBeenCalled();
-    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId }]);
+    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
     expect(result).toMatchObject({ resumed: 1, reconciled: 1, collected: 1 });
   });
 
@@ -1032,7 +1141,7 @@ describe("Fase A: reanudar lo que quedó a medias", () => {
       cancelPayment: async () => "not_cancelable",
     });
     await run();
-    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId }]);
+    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
   });
 
   it("varios cobros en Stripe para un intento: aviso de revisión, nunca failed ni otro cobro", async () => {
@@ -1107,6 +1216,28 @@ describe("Fase A: reanudar lo que quedó a medias", () => {
       expect(gateway.createPayment, reason).not.toHaveBeenCalled();
       expect(world.applied, reason).toEqual([{ kind: "canceled", paymentIntentId: null, reason }]);
     }
+  });
+
+  it("al reanudar con menos de 0,50 €: canceled amount_below_minimum, sin Stripe", async () => {
+    const { world, gateway, run } = resumeSetup(attempt({ resumeCount: 1, amountCents: 20 }));
+    world.context!.charges[0].outstandingCents = 20;
+    world.refs!.allocations = [{ chargeId, amountCents: 20 }];
+    await run();
+    expect(gateway.findPaymentByAttempt).toHaveBeenCalledTimes(1);
+    expect(gateway.createPayment).not.toHaveBeenCalled();
+    expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: null, reason: "amount_below_minimum" }]);
+  });
+
+  it("al reanudar, Stripe rechaza crear el cobro (cliente inexistente): canceled resource_missing", async () => {
+    const { world, gateway, run } = resumeSetup(attempt({ resumeCount: 1 }), {
+      createPayment: async () => {
+        throw requestError("resource_missing");
+      },
+    });
+    await run();
+    expect(gateway.createPayment).toHaveBeenCalledTimes(1);
+    expect(gateway.confirmPayment).not.toHaveBeenCalled();
+    expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: null, reason: "resource_missing" }]);
   });
 
   it("al reanudar sin periodo válido: canceled invalid_service_period, sin Stripe", async () => {
@@ -1198,7 +1329,7 @@ describe("Fase A: reanudar lo que quedó a medias", () => {
       const result = await run();
 
       expect(result).toMatchObject({ complete: false, resumed: 1, collected: 1 });
-      expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: "pi_SyntheticResume0" }]);
+      expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: "pi_SyntheticResume0", received }]);
       expect(gateway.retrievePayment).toHaveBeenCalledTimes(1);
       // El segundo y el tercero no se tocaron: se devuelve lo que se les contó.
       expect(world.released).toEqual([items[1].id, items[2].id]);
@@ -1275,7 +1406,7 @@ describe("Fase A: releer lo que está en curso", () => {
   it("SEPA cobrada: se registra", async () => {
     const { world, run } = processingSetup({});
     const result = await run();
-    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId }]);
+    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
     expect(result).toMatchObject({ reconciled: 1, collected: 1 });
   });
 
@@ -1457,7 +1588,7 @@ describe("Fase A: releer lo que está en curso", () => {
 
     const result = await run();
 
-    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: "pi_SyntheticCollection3" }]);
+    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: "pi_SyntheticCollection3", received }]);
     expect(result).toMatchObject({ collected: 1, reconciled: 1 });
     expect(result.skipped).toMatchObject({ stripe_unreadable: 1, error: 1 });
   });

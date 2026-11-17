@@ -12,7 +12,11 @@
  *   busca por el id del intento antes de crear, y un conflicto de clave de
  *   idempotencia deja el intento como está, con aviso a la academia;
  * - nunca se marca un intento como fallido sin haber leído su cobro en Stripe
- *   (o, si nunca se creó, sin haberlo buscado);
+ *   (o, si nunca se creó, sin haberlo buscado); solo un rechazo seguro de
+ *   Stripe al crearlo (finalCreateErrorCode: no se creó nada) o un importe
+ *   bajo el mínimo de Stripe lo cierran como `canceled` sin más;
+ * - un cobro hecho solo se registra si Stripe cobró justo el importe del
+ *   intento y en euros (lo comprueba el almacén);
  * - un cobro que el banco dejó pendiente de autenticación se cancela antes de
  *   darlo por fallido, para que no pueda completarse después;
  * - antes de crear o confirmar al reanudar, se repite la puerta completa:
@@ -26,19 +30,24 @@ import {
   type FamilyCollectionGateInput,
 } from "@/modules/family-collection/domain/collection-gate";
 import {
+  AMOUNT_BELOW_MINIMUM_CODE,
+  isBelowCollectionMinimum,
   localCalendarDate,
   planInvoiceCollection,
   type CollectionPlan,
 } from "@/modules/family-collection/domain/collection-plan";
 import {
+  finalCreateErrorCode,
   isAuthenticationRequiredFailure,
   mapPaymentIntent,
   mapUnknownPaymentError,
+  receivedOf,
   type PaymentFailure,
   type PaymentIntentSnapshot,
   type PaymentOutcome,
 } from "@/modules/family-collection/domain/payment-outcome";
 import { nextRetry } from "@/modules/family-collection/domain/retry-policy";
+import { stripeReadFailureOf } from "@/modules/family-collection/domain/stripe-read-error";
 import type {
   AttemptOutcome,
   AttemptStripeRefs,
@@ -515,7 +524,10 @@ export async function settleOutcome(
   const paymentIntentId = attempt.paymentIntentId;
   if (!paymentIntentId) throw new Error("FAMILY_COLLECTION_INTENT_REQUIRED");
 
-  if (outcome === "succeeded") return apply(state, attempt, { kind: "succeeded", paymentIntentId });
+  if (outcome === "succeeded") {
+    // Con lo que Stripe dice que cobró: si no cuadra, el almacén no lo registra.
+    return apply(state, attempt, { kind: "succeeded", paymentIntentId, received: receivedOf(snapshot) });
+  }
 
   if (outcome === "processing") {
     if (attempt.status === "processing") {
@@ -728,6 +740,11 @@ async function advanceAttemptSteps(
     if (!kind || !refs.customer || !refs.paymentMethod) {
       return apply(state, attempt, { kind: "canceled", paymentIntentId: null, reason: "payment_method_unknown" });
     }
+    // Menos de 0,50 €: Stripe lo rechazaría siempre. Se cierra sin llamarle y
+    // la cuota se cobra a mano.
+    if (isBelowCollectionMinimum(attempt.amountCents)) {
+      return apply(state, attempt, { kind: "canceled", paymentIntentId: null, reason: AMOUNT_BELOW_MINIMUM_CODE });
+    }
     try {
       snapshot = await state.gateway.createPayment({
         connectedAccount,
@@ -744,6 +761,21 @@ async function advanceAttemptSteps(
       if (mapUnknownPaymentError(error) === "idempotency_conflict") {
         await reportIdempotencyConflict(state, attempt);
         return null;
+      }
+      // Stripe se negó a crearlo por algo que no cambia al repetir (importe
+      // bajo el mínimo, cliente o método de pago que ya no existen, tipo de
+      // pago no activo en la cuenta de la academia): no se creó ningún cobro.
+      // Se cierra sin reintento y la cuota se cobra a mano.
+      const finalCode = finalCreateErrorCode(error);
+      if (finalCode !== null) {
+        logger.warn("Cobro automático: Stripe rechazó crear el cobro; la cuota pasa a cobro manual", {
+          organizationId: attempt.organizationId,
+          invoiceId: attempt.invoiceId,
+          attemptId: attempt.id,
+          errorName: stripeReadFailureOf(error).errorName,
+          errorCode: finalCode,
+        });
+        return apply(state, attempt, { kind: "canceled", paymentIntentId: null, reason: finalCode });
       }
       // Quizá se creó: la reanudación lo buscará por el id del intento.
       countSkip(state, "transient");

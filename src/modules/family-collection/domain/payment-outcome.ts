@@ -7,10 +7,17 @@
  * Regla de dinero: nunca se da un cobro por fallido sin haber leído su estado
  * en Stripe. Un error que no trae el cobro (red, límite de peticiones, error
  * interno de Stripe…) es siempre `transient`: el intento se queda como está y
- * la reanudación del día siguiente relee el cobro.
+ * la reanudación del día siguiente relee el cobro. La única excepción es
+ * `finalCreateErrorCode`: al CREAR el cobro, unos pocos rechazos de Stripe
+ * dicen con seguridad que no se creó nada y que repetir no lo arreglará.
+ *
+ * Un cobro hecho solo se registra si Stripe dice que se cobró exactamente el
+ * importe del intento y en euros (`receivedMatches`).
  */
+import { SUPPORTED_COLLECTION_CURRENCY } from "./collection-gate";
+import { stripeReadFailureOf } from "./stripe-read-error";
 
-/** Lo que se guarda de un cobro de Stripe: solo su id, estado y códigos. */
+/** Lo que se guarda de un cobro de Stripe: solo su id, estado, códigos e importe y moneda cobrados. */
 export interface PaymentIntentSnapshot {
   id: string;
   /** Estado del cobro en Stripe (`succeeded`, `processing`, `requires_payment_method`…). */
@@ -19,6 +26,52 @@ export interface PaymentIntentSnapshot {
   lastErrorCode: string | null;
   /** `last_payment_error.decline_code`, solo si es un código. */
   lastDeclineCode: string | null;
+  /**
+   * `amount_received`: lo que Stripe dice que se cobró, en céntimos. Sin él
+   * (ausente o `null`) el importe es desconocido y un cobro hecho no se
+   * registra: lo revisa la academia.
+   */
+  amountReceivedCents?: number | null;
+  /** `currency` del cobro en mayúsculas (`EUR`); ausente o `null` si no vino. */
+  currency?: string | null;
+}
+
+/** Lo que Stripe dice que se cobró de verdad: importe en céntimos y moneda. */
+export interface ReceivedAmount {
+  amountCents: number | null;
+  currency: string | null;
+}
+
+/**
+ * Motivo del aviso a la academia cuando Stripe cobró otro importe u otra
+ * moneda que la del intento: el pago no se registra en el libro y el intento
+ * se queda como está (su dinero se movió).
+ */
+export const AMOUNT_MISMATCH_REASON = "amount_mismatch";
+
+/** Importe y moneda cobrados según un snapshot (desconocidos si no hay snapshot). */
+export function receivedOf(snapshot: PaymentIntentSnapshot | null): ReceivedAmount {
+  return {
+    amountCents: snapshot?.amountReceivedCents ?? null,
+    currency: snapshot?.currency ?? null,
+  };
+}
+
+/**
+ * ¿Cobró Stripe exactamente lo que pedía el intento? Mismo importe en
+ * céntimos y en euros. Un importe o una moneda desconocidos no cuadran nunca.
+ */
+export function receivedMatches(
+  received: ReceivedAmount,
+  expected: { amountCents: number; currency: string }
+): boolean {
+  return (
+    received.amountCents !== null &&
+    Number.isSafeInteger(received.amountCents) &&
+    received.amountCents === expected.amountCents &&
+    received.currency === SUPPORTED_COLLECTION_CURRENCY &&
+    expected.currency.toUpperCase() === SUPPORTED_COLLECTION_CURRENCY
+  );
 }
 
 /**
@@ -159,7 +212,8 @@ function mapCollectionError(error: CollectionError): PaymentOutcome {
   if (typeof error.type === "string" && IDEMPOTENCY_ERROR_TYPES.has(error.type)) {
     return "idempotency_conflict";
   }
-  // Sin el cobro no se sabe qué pasó en Stripe: nunca se da por fallido.
+  // Sin el cobro no se sabe qué pasó en Stripe: nunca se da por fallido. (Al
+  // crear, los rechazos seguros los decide antes finalCreateErrorCode.)
   if (!error.paymentIntent) return "transient";
   return mapSnapshot(error.paymentIntent, {
     code,
@@ -167,9 +221,12 @@ function mapCollectionError(error: CollectionError): PaymentOutcome {
   });
 }
 
+const CURRENCY_PATTERN = /^[a-z]{3}$/i;
+
 /**
  * Snapshot de un cobro tal como lo devuelve Stripe (respuesta de la API o el
- * `payment_intent` de un error): solo id, estado y códigos del último error.
+ * `payment_intent` de un error): id, estado, códigos del último error e importe
+ * y moneda cobrados.
  * `null` si le falta el id o el estado.
  */
 export function snapshotOfPaymentIntent(value: unknown): PaymentIntentSnapshot | null {
@@ -177,6 +234,8 @@ export function snapshotOfPaymentIntent(value: unknown): PaymentIntentSnapshot |
   const candidate = value as {
     id?: unknown;
     status?: unknown;
+    amount_received?: unknown;
+    currency?: unknown;
     last_payment_error?: { code?: unknown; decline_code?: unknown } | null;
   };
   if (typeof candidate.id !== "string" || candidate.id.length === 0) return null;
@@ -185,12 +244,55 @@ export function snapshotOfPaymentIntent(value: unknown): PaymentIntentSnapshot |
     typeof candidate.last_payment_error === "object" && candidate.last_payment_error !== null
       ? candidate.last_payment_error
       : null;
+  const amountReceived = candidate.amount_received;
   return {
     id: candidate.id,
     status: candidate.status,
     lastErrorCode: codeOf(lastError?.code),
     lastDeclineCode: codeOf(lastError?.decline_code),
+    amountReceivedCents:
+      typeof amountReceived === "number" && Number.isSafeInteger(amountReceived) && amountReceived >= 0
+        ? amountReceived
+        : null,
+    currency:
+      typeof candidate.currency === "string" && CURRENCY_PATTERN.test(candidate.currency)
+        ? candidate.currency.toUpperCase()
+        : null,
   };
+}
+
+/**
+ * Rechazos de Stripe al CREAR el cobro que dicen con seguridad que no se creó
+ * nada y que repetir no lo arreglará:
+ * - `amount_too_small`: el importe no llega al mínimo de Stripe;
+ * - `resource_missing`: el cliente o el método de pago de la familia ya no
+ *   existen en la cuenta de la academia;
+ * - `account_invalid`: la cuenta de la academia ya no es válida;
+ * - `payment_method_unactivated` y `capability_not_active`: ese tipo de pago
+ *   (tarjeta o domiciliación) no está activo en la cuenta de la academia.
+ */
+const FINAL_CREATE_CODES: ReadonlySet<string> = new Set([
+  "amount_too_small",
+  "resource_missing",
+  "account_invalid",
+  "payment_method_unactivated",
+  "capability_not_active",
+]);
+
+/**
+ * Código con el que se cierra (`canceled`) un intento cuyo cobro Stripe se
+ * negó a CREAR, o `null` si hay que tratarlo como pasajero. Solo para errores
+ * de la creación y solo si el error no trae un cobro: con cobro, manda su
+ * estado. Los errores de red, límite de peticiones, error interno de Stripe,
+ * permisos o bloqueos siguen siendo pasajeros. El código se lee igual que al
+ * releer un cobro (stripeReadFailureOf): nunca el mensaje.
+ */
+export function finalCreateErrorCode(error: unknown): string | null {
+  if (typeof error !== "object" || error === null) return null;
+  const attached = (error as { payment_intent?: unknown }).payment_intent;
+  if (attached !== undefined && attached !== null) return null;
+  const code = stripeReadFailureOf(error).errorCode?.toLowerCase() ?? null;
+  return code !== null && FINAL_CREATE_CODES.has(code) ? code : null;
 }
 
 /**

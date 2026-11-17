@@ -97,7 +97,9 @@ const compact = () => randomUUID().replace(/-/g, "").slice(0, 20);
 /**
  * Stripe simulado con memoria de los cobros creados. `confirm` decide el
  * resultado de cada confirmación; un `pi_…` que no creó lanza como un error de
- * red (cobros de otras pruebas que la ejecución encuentre de paso).
+ * red (cobros de otras pruebas que la ejecución encuentre de paso). Como la
+ * API, cada cobro dice cuánto se cobró: un cobro hecho, el importe con el que
+ * se creó (salvo que la prueba diga otro); los demás, nada. Siempre en euros.
  */
 function fakeStripe(
   options: {
@@ -106,10 +108,17 @@ function fakeStripe(
   } = {}
 ) {
   const intents = new Map<string, PaymentIntentSnapshot>();
+  /** Importe con el que se creó cada cobro. */
+  const amounts = new Map<string, number>();
+  const withAmount = (snapshot: PaymentIntentSnapshot): PaymentIntentSnapshot => ({
+    amountReceivedCents: snapshot.status === "succeeded" ? (amounts.get(snapshot.id) ?? null) : 0,
+    currency: "EUR",
+    ...snapshot,
+  });
   let confirmations = 0;
   const unknown = () => Object.assign(new Error("unknown payment"), { type: "StripeConnectionError" });
   const gateway = {
-    createPayment: vi.fn<FamilyCollectionGateway["createPayment"]>(async () => {
+    createPayment: vi.fn<FamilyCollectionGateway["createPayment"]>(async (input) => {
       await options.onCreate?.();
       const created: PaymentIntentSnapshot = {
         id: `pi_CI${compact()}`,
@@ -117,15 +126,20 @@ function fakeStripe(
         lastErrorCode: null,
         lastDeclineCode: null,
       };
+      amounts.set(created.id, input.amountCents);
       intents.set(created.id, created);
-      return created;
+      return withAmount(created);
     }),
     confirmPayment: vi.fn<FamilyCollectionGateway["confirmPayment"]>(async (input) => {
       if (!intents.has(input.paymentIntentId)) throw unknown();
       confirmations += 1;
-      const result = options.confirm
+      const raw: PaymentIntentSnapshot | CollectionError = options.confirm
         ? options.confirm(input.paymentIntentId, confirmations)
         : { id: input.paymentIntentId, status: "succeeded", lastErrorCode: null, lastDeclineCode: null };
+      const result: PaymentIntentSnapshot | CollectionError =
+        "paymentIntent" in raw
+          ? { ...raw, paymentIntent: raw.paymentIntent ? withAmount(raw.paymentIntent) : null }
+          : withAmount(raw);
       const stored = "paymentIntent" in result ? result.paymentIntent : result;
       if (stored) intents.set(input.paymentIntentId, stored);
       return result;
@@ -133,7 +147,7 @@ function fakeStripe(
     retrievePayment: vi.fn<FamilyCollectionGateway["retrievePayment"]>(async (input) => {
       const stored = intents.get(input.paymentIntentId);
       if (!stored) throw unknown();
-      return stored;
+      return withAmount(stored);
     }),
     findPaymentByAttempt: vi.fn<FamilyCollectionGateway["findPaymentByAttempt"]>(async () => null),
     cancelPayment: vi.fn<FamilyCollectionGateway["cancelPayment"]>(async () => "canceled"),
@@ -619,6 +633,43 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     expect(ledger.providerPayments).toEqual([{ amount: 4500, environment: "sandbox", intent: attempt.intent, allocated: 0 }]);
     expect(ledger.charges).toEqual(["paid"]);
     expect(await outboxCount(fixture, "family_collection.needs_review")).toBe(1);
+  });
+
+  it("Stripe cobró otro importe: el pago no entra en el libro, el intento sigue abierto y la academia recibe un solo aviso", async () => {
+    const fixture = await createCollectableInvoice();
+    const { gateway } = fakeStripe({
+      confirm: (paymentIntentId) => ({
+        id: paymentIntentId,
+        status: "succeeded",
+        lastErrorCode: null,
+        lastDeclineCode: null,
+        amountReceivedCents: 4000,
+        currency: "EUR",
+      }),
+    });
+    const start = new Date();
+
+    const first = await run(start, gateway);
+    expect(first.skipped.amount_mismatch).toBeGreaterThanOrEqual(1);
+    // Al día siguiente la reanudación relee el cobro y sigue sin registrarlo.
+    await run(new Date(start.getTime() + 25 * HOUR), gateway);
+
+    expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(1);
+    const [attempt] = await attempts(fixture);
+    expect(attempt).toMatchObject({ status: "created", paymentId: null, allocation: null, failure: null });
+    expect(await ledgerState(fixture)).toEqual({ charges: ["due"], invoice: "issued", providerPayments: [] });
+    expect(await outboxCount(fixture, "family_collection.attempt_succeeded")).toBe(0);
+    const notices = await db.execute(sql`
+      select idempotency_key as "key", payload ->> 'reason' as "reason", payload ->> 'attemptId' as "attemptId",
+             (payload ->> 'expectedAmountCents')::int as "expected", (payload ->> 'receivedAmountCents')::int as "received",
+             payload ->> 'receivedCurrency' as "currency"
+        from zaltyko.outbox_events
+       where organization_id = ${fixture.organizationId}::uuid and event_name = 'family_collection.needs_review'
+    `);
+    const rows = notices.rows as Array<{ key: string; attemptId: string }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ reason: "amount_mismatch", expected: 4500, received: 4000, currency: "EUR" });
+    expect(rows[0].key).toBe(`family-collection:${rows[0].attemptId}:needs_review:amount_mismatch`);
   });
 
   it("pago parcial previo: solo se cobra el saldo", async () => {

@@ -37,7 +37,11 @@ import {
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
-import type { PaymentIntentSnapshot } from "@/modules/family-collection/domain/payment-outcome";
+import {
+  AMOUNT_MISMATCH_REASON,
+  receivedOf,
+  type PaymentIntentSnapshot,
+} from "@/modules/family-collection/domain/payment-outcome";
 import { isPermanentStripeError, isTooManyPaymentsError } from "@/modules/family-collection/domain/stripe-read-error";
 import {
   closeAttemptByAcademy,
@@ -105,6 +109,8 @@ const TEXT = {
     "No se puede comprobar en Stripe el cobro de esta cuota. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
   tooManyPayments:
     "Hay demasiados cobros en Stripe para esta cuota. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
+  amountMismatch:
+    "Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
 } as const;
 
 function defaultGateway(): AcademyCollectionGateway {
@@ -202,6 +208,12 @@ async function close(
 
 type StripeState = "stopped" | "succeeded" | "processing" | "unknown" | "unreachable";
 
+/** Lo que vio stopInStripe y, si lo leyó, el cobro tal como estaba (para registrar su importe). */
+interface StripeStop {
+  state: StripeState;
+  snapshot: PaymentIntentSnapshot | null;
+}
+
 /**
  * Deja el cobro sin posibilidad de completarse: lo lee y, si no terminó, lo
  * cancela. Si Stripe ya no deja cancelarlo, lo relee una vez y dice lo que vio.
@@ -213,7 +225,7 @@ async function stopInStripe(
   gateway: FamilyCollectionGateway,
   connectedAccount: string,
   paymentIntentId: string
-): Promise<StripeState> {
+): Promise<StripeStop> {
   const failed = (error: unknown): StripeState => (isPermanentStripeError(error) ? "unreachable" : "unknown");
   const read = async (): Promise<PaymentIntentSnapshot | StripeState> => {
     try {
@@ -232,40 +244,46 @@ async function stopInStripe(
           : null;
 
   const first = await read();
-  if (typeof first === "string") return first;
+  if (typeof first === "string") return { state: first, snapshot: null };
   const known = settled(first);
-  if (known) return known;
+  if (known) return { state: known, snapshot: first };
   let canceled: "canceled" | "not_cancelable";
   try {
     canceled = await gateway.cancelPayment({ connectedAccount, paymentIntentId });
   } catch (error) {
-    return failed(error);
+    return { state: failed(error), snapshot: null };
   }
-  if (canceled === "canceled") return "stopped";
+  if (canceled === "canceled") return { state: "stopped", snapshot: null };
   const second = await read();
-  if (typeof second === "string") return second;
-  return settled(second) ?? "unknown";
+  if (typeof second === "string") return { state: second, snapshot: null };
+  return { state: settled(second) ?? "unknown", snapshot: second };
 }
 
 /**
  * El cobro ya salió en Stripe: se registra por el camino del proceso diario
- * (pago, reparto y aviso si no cuadra). `true` si quedó registrado ahora;
- * `false` si ya estaba registrado para otro intento (revisión).
+ * (pago, reparto y aviso si no cuadra), con el importe que Stripe dice que
+ * cobró. `true` si quedó registrado ahora; `false` si ya estaba registrado
+ * para otro intento (revisión). Si Stripe cobró otro importe, no se registra
+ * ni se cierra: 409 para resolverlo con soporte.
  */
 async function recordCollected(
   context: Context,
   attempt: AcademyAttemptView,
-  paymentIntentId: string
+  paymentIntentId: string,
+  snapshot: PaymentIntentSnapshot | null
 ): Promise<boolean> {
   const result = await context.store.applyOutcome({
     organizationId: attempt.organizationId,
     attemptId: attempt.id,
-    outcome: { kind: "succeeded", paymentIntentId },
+    outcome: { kind: "succeeded", paymentIntentId, received: receivedOf(snapshot) },
     environment: "test",
     now: context.now,
   });
   if (result.applied) return true;
   if (result.review === "payment_recorded_for_other_attempt") return false;
+  if (result.review === AMOUNT_MISMATCH_REASON) {
+    throw new OperationalError("AUTOMATIC_COLLECTION_NEEDS_SUPPORT", TEXT.amountMismatch, 409);
+  }
   throw changed();
 }
 
@@ -294,7 +312,7 @@ async function stopAllOrRefuse(
   }
   for (const snapshot of snapshots) {
     if (snapshot.status === "canceled") continue;
-    const state = await stopInStripe(context.gateway, connectedAccount, snapshot.id);
+    const { state } = await stopInStripe(context.gateway, connectedAccount, snapshot.id);
     if (state === "succeeded" || state === "processing") {
       throw new OperationalError("AUTOMATIC_COLLECTION_NEEDS_SUPPORT", TEXT.multipleMoved, 409);
     }
@@ -332,9 +350,9 @@ export async function cancelAutomaticCollection(
       const paymentIntentId = attempt.paymentIntentId;
       const refs = await context.store.loadAttemptRefs(attempt);
       if (!refs || !paymentIntentId) throw unverified();
-      const state = await stopInStripe(context.gateway, refs.connectedAccount, paymentIntentId);
+      const { state, snapshot } = await stopInStripe(context.gateway, refs.connectedAccount, paymentIntentId);
       if (state === "succeeded") {
-        if (await recordCollected(context, attempt, paymentIntentId)) return { outcome: "collected" };
+        if (await recordCollected(context, attempt, paymentIntentId, snapshot)) return { outcome: "collected" };
         // El mismo cobro ya estaba registrado para otro intento: applyOutcome
         // dejó el aviso de revisión, así que «Marcar como revisado» está
         // permitido y es el camino (recargar no lo resolvería).
@@ -417,9 +435,9 @@ export async function markAutomaticCollectionReviewed(
 
   if (paymentIntentIds.length === 1) {
     const paymentIntentId = paymentIntentIds[0];
-    const state = await stopInStripe(context.gateway, refs.connectedAccount, paymentIntentId);
+    const { state, snapshot } = await stopInStripe(context.gateway, refs.connectedAccount, paymentIntentId);
     if (state === "succeeded") {
-      if (await recordCollected(context, attempt, paymentIntentId)) return { outcome: "collected" };
+      if (await recordCollected(context, attempt, paymentIntentId, snapshot)) return { outcome: "collected" };
       // Ya registrado para otro intento: el dinero está en el libro; se cierra.
     } else if (state === "processing") {
       throw new OperationalError("AUTOMATIC_COLLECTION_PROCESSING", TEXT.processing, 409);
