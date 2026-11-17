@@ -537,6 +537,7 @@ const REVIEW_TEXT: Record<string, string> = {
   created_without_claim: `Hay un cobro en Stripe que Zaltyko no tenía registrado. ${CHECK_IN_STRIPE}`,
   attempts_exhausted: "Esta cuota ya no admite más intentos automáticos. Se cobra a mano.",
   stale_open: `El cobro lleva más de un día sin avanzar. ${CHECK_IN_STRIPE}`,
+  processing_unreadable: `El cobro lleva más de 15 días en curso y no podemos ver su resultado. ${CHECK_IN_STRIPE}`,
 };
 
 const REVIEW_FALLBACK = `El cobro necesita una comprobación. ${CHECK_IN_STRIPE}`;
@@ -645,6 +646,8 @@ export interface OwnerCollectionRow {
     completedAt: Date | null;
     /** Último cambio del intento (`updated_at`). */
     updatedAt: Date | null;
+    /** Cuándo se reclamó (`claimed_at`): mide cuánto lleva en curso. */
+    claimedAt: Date | null;
     resumeCount: number;
     allocationStatus: string | null;
     hasReviewNotice: boolean;
@@ -717,7 +720,9 @@ export function ownerAutomaticCollectionItemOf(
                 ? null
                 : attempt.resumeCount >= FAMILY_COLLECTION_MAX_RESUMES
                   ? "resume_exhausted"
-                  : "stale_open")
+                  : attempt.status === "processing"
+                    ? "processing_unreadable"
+                    : "stale_open")
           )
         : null;
     const failureText = exhausted
@@ -891,6 +896,7 @@ export async function getOwnerAutomaticCollections(input: {
       la.next_retry_at as "nextRetryAt",
       la.completed_at as "completedAt",
       la.updated_at as "attemptUpdatedAt",
+      la.claimed_at as "attemptClaimedAt",
       la.resume_count as "resumeCount",
       la.allocation_status as "allocationStatus",
       la.review_reason as "reviewReason",
@@ -986,6 +992,7 @@ export async function getOwnerAutomaticCollections(input: {
               nextRetryAt: dateOrNull(row.nextRetryAt),
               completedAt: dateOrNull(row.completedAt),
               updatedAt: dateOrNull(row.attemptUpdatedAt),
+              claimedAt: dateOrNull(row.attemptClaimedAt),
               resumeCount: Number(row.resumeCount ?? 0),
               allocationStatus: textOrNull(row.allocationStatus),
               hasReviewNotice: row.hasReviewNotice === true,

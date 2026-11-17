@@ -120,6 +120,20 @@ export interface CollectionAttempt {
   claimedAt: Date;
 }
 
+/**
+ * Intento tomado por claimResumable, con lo necesario para devolverle la
+ * reanudación si la ejecución no llega a procesarlo (releaseResume).
+ * `resumeCount` ya incluye la reanudación tomada.
+ */
+export interface ResumedAttempt extends CollectionAttempt {
+  resumeClaim: {
+    /** `updated_at` que escribió la toma (el `now` de la ejecución). */
+    takenAt: Date;
+    /** `updated_at` de antes de la toma, como texto de PostgreSQL (sin perder microsegundos). */
+    previousUpdatedAt: string;
+  };
+}
+
 export interface CollectionAllocationRow {
   chargeId: string;
   amountCents: number;
@@ -308,7 +322,8 @@ export interface FamilyCollectionStore {
   /**
    * Toma de forma atómica los intentos `claimed`/`created` sin cambios desde
    * antes de `staleBefore` (`updated_at`) con menos de
-   * FAMILY_COLLECTION_MAX_RESUMES reanudaciones, y les suma una.
+   * FAMILY_COLLECTION_MAX_RESUMES reanudaciones, y les suma una (y pone
+   * `updated_at` a `now`).
    */
   claimResumable(input: {
     staleBefore: Date;
@@ -316,7 +331,15 @@ export interface FamilyCollectionStore {
     limit: number;
     now: Date;
     scope: OrganizationScope;
-  }): Promise<CollectionAttempt[]>;
+  }): Promise<ResumedAttempt[]>;
+  /**
+   * Devuelve la reanudación a un intento tomado que la ejecución no llegó a
+   * procesar (se acabó su tiempo): resta la reanudación y deja `updated_at`
+   * como estaba antes de la toma. Solo si nadie lo tocó desde la toma (sigue
+   * reclamado o creado, con las mismas reanudaciones y el `updated_at` de la
+   * toma). Transacción corta con el orden único de bloqueo. `true` si la devolvió.
+   */
+  releaseResume(attempt: ResumedAttempt): Promise<boolean>;
   listProcessing(input: { after: string | null; limit: number; scope: OrganizationScope }): Promise<CollectionAttempt[]>;
   /**
    * Red de seguridad: intentos `claimed`/`created` que ya agotaron sus
@@ -1273,29 +1296,61 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
       // transacción tenga bloqueada (p. ej. applyOutcome, que bloquea el
       // intento el último del orden único): no puede formar un ciclo de
       // espera. Quien avanza el intento después sí sigue el orden único.
+      //
+      // Devuelve también el `updated_at` de antes de la toma (como texto, para
+      // no perder microsegundos): releaseResume lo repone si la ejecución no
+      // llega a procesar el intento.
       const result = await db.execute(sql`
+        with taken as (
+          select id as taken_id, updated_at as previous_updated_at
+            from zaltyko.family_collection_attempts
+           where status in ('claimed', 'created')
+             and updated_at < ${input.staleBefore.toISOString()}::timestamptz
+             and resume_count < ${FAMILY_COLLECTION_MAX_RESUMES}
+             and ${inScope(sql.raw("organization_id"), input.scope)}
+             and (${input.after}::uuid is null or id > ${input.after}::uuid)
+           order by id
+           limit ${input.limit}
+           for update skip locked
+        )
         update zaltyko.family_collection_attempts
            set resume_count = resume_count + 1,
                updated_at = ${input.now.toISOString()}::timestamptz
-         where id in (
-           select id
-             from zaltyko.family_collection_attempts
-            where status in ('claimed', 'created')
-              and updated_at < ${input.staleBefore.toISOString()}::timestamptz
-              and resume_count < ${FAMILY_COLLECTION_MAX_RESUMES}
-              and ${inScope(sql.raw("organization_id"), input.scope)}
-              and (${input.after}::uuid is null or id > ${input.after}::uuid)
-            order by id
-            limit ${input.limit}
-            for update skip locked
-         )
+          from taken
+         where id = taken.taken_id
            and status in ('claimed', 'created')
            and resume_count < ${FAMILY_COLLECTION_MAX_RESUMES}
-        returning ${attemptColumns}
+        returning ${attemptColumns}, taken.previous_updated_at::text as "previousUpdatedAt"
       `);
       return (result.rows as Array<Record<string, unknown>>)
-        .map(toAttempt)
+        .map(
+          (row): ResumedAttempt => ({
+            ...toAttempt(row),
+            resumeClaim: { takenAt: input.now, previousUpdatedAt: String(row.previousUpdatedAt) },
+          })
+        )
         .sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
+    },
+
+    async releaseResume(attempt) {
+      return db.transaction(async (tx) => {
+        // Orden único (academia → cuotas → factura → intento), como quien avanza el intento.
+        const locked = await lockOpenAttempt(tx, attempt.organizationId, attempt.id);
+        if (!locked || (locked.status !== "claimed" && locked.status !== "created")) return false;
+        const result = await tx.execute(sql`
+          update zaltyko.family_collection_attempts
+             set resume_count = resume_count - 1,
+                 updated_at = ${attempt.resumeClaim.previousUpdatedAt}::timestamptz
+           where organization_id = ${attempt.organizationId}::uuid
+             and id = ${attempt.id}::uuid
+             and status in ('claimed', 'created')
+             and resume_count = ${attempt.resumeCount}
+             and resume_count > 0
+             and updated_at = ${attempt.resumeClaim.takenAt.toISOString()}::timestamptz
+          returning id::text as "id"
+        `);
+        return result.rows.length > 0;
+      });
     },
 
     async listProcessing(input) {

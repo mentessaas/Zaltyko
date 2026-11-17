@@ -88,14 +88,31 @@ export const FAMILY_COLLECTION_MAX_RESUMES = 3;
 export const FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * Un cobro en curso (`processing`) reclamado (`claimed_at`) hace más de esto
+ * ya no es normal: una domiciliación se resuelve en días, no en semanas. Si
+ * Stripe no deja leerlo (p. ej. la academia cerró o desconectó su cuenta), el
+ * proceso diario avisa a la academia (`processing_unreadable`), y la academia
+ * puede «Marcar como revisado» aunque no haya aviso. La acción vuelve a leer
+ * Stripe y nunca cierra un cobro cuyo dinero pudo moverse.
+ */
+export const FAMILY_COLLECTION_PROCESSING_UNREADABLE_MS = 15 * 24 * 60 * 60 * 1000;
+
+/**
  * ¿Puede la academia «Marcar como revisado» este intento? Abierto y con un
- * aviso de revisión, con las reanudaciones agotadas, o reclamado/creado sin
- * cambios desde hace más de FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS. La misma
+ * aviso de revisión, con las reanudaciones agotadas, reclamado/creado sin
+ * cambios desde hace más de FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS o en curso
+ * desde hace más de FAMILY_COLLECTION_PROCESSING_UNREADABLE_MS. La misma
  * regla para la pantalla (family-collection-reads.ts) y para la acción
  * (family-collection-academy-actions.ts), que además lee Stripe antes de cerrar.
  */
 export function academyCanMarkReviewed(
-  attempt: { status: string; hasReviewNotice: boolean; resumeCount: number; updatedAt: Date | null },
+  attempt: {
+    status: string;
+    hasReviewNotice: boolean;
+    resumeCount: number;
+    updatedAt: Date | null;
+    claimedAt: Date | null;
+  },
   now: Date
 ): boolean {
   if (!(FAMILY_COLLECTION_OPEN_STATUSES as readonly string[]).includes(attempt.status)) return false;
@@ -103,11 +120,28 @@ export function academyCanMarkReviewed(
   return isStaleOpenAttempt(attempt, now);
 }
 
-/** Reclamado o creado y sin cambios desde hace más de FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS. */
-export function isStaleOpenAttempt(attempt: { status: string; updatedAt: Date | null }, now: Date): boolean {
+function olderThan(instant: Date | null, now: Date, ms: number): boolean {
+  const time = instant?.getTime();
+  return time !== undefined && Number.isFinite(time) && now.getTime() - time > ms;
+}
+
+/** En curso (`processing`) y reclamado hace más de FAMILY_COLLECTION_PROCESSING_UNREADABLE_MS. */
+export function isLongProcessingAttempt(attempt: { status: string; claimedAt: Date | null }, now: Date): boolean {
+  return attempt.status === "processing" && olderThan(attempt.claimedAt, now, FAMILY_COLLECTION_PROCESSING_UNREADABLE_MS);
+}
+
+/**
+ * Abierto y parado: reclamado o creado sin cambios desde hace más de
+ * FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS, o en curso desde hace más de
+ * FAMILY_COLLECTION_PROCESSING_UNREADABLE_MS (`isLongProcessingAttempt`).
+ */
+export function isStaleOpenAttempt(
+  attempt: { status: string; updatedAt: Date | null; claimedAt: Date | null },
+  now: Date
+): boolean {
+  if (attempt.status === "processing") return isLongProcessingAttempt(attempt, now);
   if (attempt.status !== "claimed" && attempt.status !== "created") return false;
-  const updated = attempt.updatedAt?.getTime();
-  return updated !== undefined && Number.isFinite(updated) && now.getTime() - updated > FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS;
+  return olderThan(attempt.updatedAt, now, FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS);
 }
 
 export const familyCollectionAttempts = zaltyko.table(

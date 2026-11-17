@@ -850,6 +850,40 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
       expect(await chargeStatus(moved)).toBe("paid");
     });
 
+    it("en curso hace más de 15 días y Stripe no deja leerlo (error permanente): 409 para soporte y el intento sigue en curso", async () => {
+      const fixture = await createFixture();
+      const { attemptId } = await insertAttempt(fixture, {
+        status: "processing",
+        // También fija claimed_at: reclamado hace 16 días, sin aviso.
+        updatedAt: new Date(Date.now() - 16 * DAY),
+      });
+      const gateway = fakeStripe();
+      gateway.retrievePayment.mockRejectedValue(
+        Object.assign(new Error("sin acceso a la cuenta"), {
+          type: "StripePermissionError",
+          rawType: "invalid_request_error",
+          code: "account_invalid",
+          statusCode: 403,
+        })
+      );
+
+      await expect(
+        markAutomaticCollectionReviewed(
+          {
+            userId: fixture.userId,
+            organizationId: fixture.organizationId,
+            invoiceId: fixture.invoiceId,
+            checkedInStripe: true,
+          },
+          { gateway }
+        )
+      ).rejects.toMatchObject({ code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT", status: 409 });
+      expect(gateway.retrievePayment).toHaveBeenCalled();
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+      expect(await attemptRow(attemptId)).toMatchObject({ status: "processing", completedAt: null, paymentId: null });
+      expect(await auditActions(fixture, attemptId)).toEqual([]);
+    });
+
     it("un cobro ya registrado con otro intento: cancelar manda a «Marcar como revisado», que sí lo cierra", async () => {
       const fixture = await createFixture();
       const paymentIntentId = `pi_CI${compact()}`;

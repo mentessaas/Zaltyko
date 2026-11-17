@@ -810,4 +810,120 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     `);
     expect(notices.rows).toEqual([{ key: `family-collection:${attemptId}:needs_review:resume_exhausted` }]);
   });
+
+  /** Intento escrito a mano (con su reparto) en un estado abierto válido para la candidata. */
+  async function insertOpenAttempt(
+    fixture: Fixture,
+    input: { status: "created" | "processing"; resumeCount: number; claimedAt: Date; updatedAt: string }
+  ): Promise<{ attemptId: string; paymentIntentId: string }> {
+    const paymentIntentId = `pi_CI${compact()}`;
+    const inserted = await db.execute(sql`
+      insert into zaltyko.family_collection_attempts (
+        organization_id, location_id, invoice_id, family_id, family_payer_id, authorization_id,
+        payment_provider_account_id, attempt_number, payment_method_kind, amount_cents, currency, status,
+        provider_payment_intent_reference, resume_count, claimed_at, updated_at
+      ) values (
+        ${fixture.organizationId}::uuid, ${fixture.locationId}::uuid, ${fixture.invoiceId}::uuid, ${fixture.familyId}::uuid,
+        ${fixture.payerId}::uuid, ${fixture.authorizationId}::uuid, ${fixture.accountRowId}::uuid, 1, 'card',
+        ${fixture.total}, 'EUR', ${input.status}, ${paymentIntentId}, ${input.resumeCount},
+        ${input.claimedAt.toISOString()}::timestamptz, ${input.updatedAt}::timestamptz
+      )
+      returning id::text as id
+    `);
+    const attemptId = (inserted.rows[0] as { id: string }).id;
+    await db.execute(sql`
+      insert into zaltyko.family_collection_attempt_charges (attempt_id, organization_id, charge_id, amount_cents)
+      values (${attemptId}::uuid, ${fixture.organizationId}::uuid, ${fixture.chargeIds[0]}::uuid, ${fixture.total})
+    `);
+    return { attemptId, paymentIntentId };
+  }
+
+  async function resumeState(attemptId: string, previous: string) {
+    const result = await db.execute(sql`
+      select resume_count as "resumes", (updated_at = ${previous}::timestamptz) as "untouched"
+        from zaltyko.family_collection_attempts
+       where id = ${attemptId}::uuid
+    `);
+    return result.rows[0] as { resumes: number; untouched: boolean };
+  }
+
+  it("reanudación devuelta: una toma sin procesar recupera su reanudación y su updated_at exacto, una sola vez", async () => {
+    const fixture = await createCollectableInvoice();
+    // Con microsegundos: la devolución no debe redondearlos.
+    const previous = "2026-11-10 08:00:00.123456+00";
+    const now = new Date("2026-11-17T09:00:00.000Z");
+    const { attemptId } = await insertOpenAttempt(fixture, {
+      status: "created",
+      resumeCount: 1,
+      claimedAt: new Date("2026-11-10T07:00:00.000Z"),
+      updatedAt: previous,
+    });
+    const store = createFamilyCollectionStore();
+    const claim = () =>
+      store.claimResumable({
+        staleBefore: new Date(now.getTime() - 15 * 60 * 1000),
+        after: null,
+        limit: 10,
+        now,
+        scope: [fixture.organizationId],
+      });
+
+    const taken = await claim();
+    expect(taken).toEqual([
+      expect.objectContaining({ id: attemptId, status: "created", resumeCount: 2, resumeClaim: expect.objectContaining({ takenAt: now }) }),
+    ]);
+    expect(await resumeState(attemptId, previous)).toEqual({ resumes: 2, untouched: false });
+
+    expect(await store.releaseResume(taken[0])).toBe(true);
+    expect(await resumeState(attemptId, previous)).toEqual({ resumes: 1, untouched: true });
+    // Devolverla otra vez no resta nada.
+    expect(await store.releaseResume(taken[0])).toBe(false);
+    expect(await resumeState(attemptId, previous)).toEqual({ resumes: 1, untouched: true });
+
+    // Si otro proceso lo tocó después de la toma, no se devuelve nada.
+    const again = await claim();
+    expect(again).toHaveLength(1);
+    await db.execute(sql`
+      update zaltyko.family_collection_attempts
+         set updated_at = ${new Date(now.getTime() + 60_000).toISOString()}::timestamptz
+       where id = ${attemptId}::uuid
+    `);
+    expect(await store.releaseResume(again[0])).toBe(false);
+    expect((await resumeState(attemptId, previous)).resumes).toBe(2);
+  });
+
+  it("en curso hace más de 15 días y Stripe no deja leerlo: un solo aviso processing_unreadable y el intento sigue en curso", async () => {
+    const fixture = await createCollectableInvoice({ kind: "sepa_debit" });
+    const now = new Date();
+    const { attemptId } = await insertOpenAttempt(fixture, {
+      status: "processing",
+      resumeCount: 0,
+      claimedAt: new Date(now.getTime() - 16 * DAY),
+      updatedAt: new Date(now.getTime() - 16 * DAY).toISOString(),
+    });
+    const { gateway } = fakeStripe();
+    // La academia desconectó su cuenta: stripe-node lanza StripePermissionError (account_invalid).
+    gateway.retrievePayment.mockImplementation(async () => {
+      throw Object.assign(new Error("sin acceso a la cuenta"), {
+        type: "StripePermissionError",
+        rawType: "invalid_request_error",
+        code: "account_invalid",
+        statusCode: 403,
+      });
+    });
+
+    const first = await run(now, gateway);
+    await run(now, gateway);
+
+    expect(first.skipped.stripe_unreadable).toBeGreaterThanOrEqual(1);
+    expect(await attempts(fixture)).toEqual([expect.objectContaining({ status: "processing", paymentId: null })]);
+    const notices = await db.execute(sql`
+      select idempotency_key as "key", payload ->> 'reason' as "reason" from zaltyko.outbox_events
+       where organization_id = ${fixture.organizationId}::uuid and event_name = 'family_collection.needs_review'
+    `);
+    expect(notices.rows).toEqual([
+      { key: `family-collection:${attemptId}:needs_review:processing_unreadable`, reason: "processing_unreadable" },
+    ]);
+    expect((await ledgerState(fixture)).providerPayments).toEqual([]);
+  });
 });

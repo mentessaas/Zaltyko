@@ -10,17 +10,20 @@
  *   - reclamado (el proceso diario lo está cobrando ahora) → 409.
  * - «Marcar como revisado» (`markAutomaticCollectionReviewed`): solo para un
  *   intento que quedó abierto con un aviso de revisión, que agotó sus
- *   reanudaciones o que lleva más de 24 h reclamado o creado sin cambios
- *   (salida si el proceso diario dejó de pasar), y solo si la persona confirma
- *   que lo comprobó en Stripe. Lo cierra como `canceled` (`reviewed_by_academy`),
- *   con auditoría.
+ *   reanudaciones, que lleva más de 24 h reclamado o creado sin cambios
+ *   (salida si el proceso diario dejó de pasar) o que lleva más de 15 días en
+ *   curso, y solo si la persona confirma que lo comprobó en Stripe. Lo cierra
+ *   como `canceled` (`reviewed_by_academy`), con auditoría.
  *
  * Nunca se cierra un intento cuyo dinero pudo moverse sin registrarlo: antes
  * de cerrarlo se relee el cobro y, si salió, se registra por el mismo camino
  * que usa el proceso diario (`applyOutcome`: pago, reparto y aviso si no
  * cuadra). Si hay varios cobros y alguno salió o está en curso, o el intento
  * tiene un cobro guardado que no se puede leer, no se cierra: la academia lo
- * resuelve en Stripe con su soporte.
+ * resuelve en Stripe con su soporte. Lo mismo si Stripe responde con un error
+ * que no se arregla reintentando (cobro inexistente, cuenta sin permiso o ya
+ * no válida: `stripe-read-error.ts`): 409 para resolverlo con soporte en lugar
+ * de 503, y el intento sigue abierto (su dinero pudo moverse).
  *
  * Propiedad, o administración con todas las sedes. No exige la bandera de
  * esta fase (con la función apagada la academia tiene que poder cerrar lo que
@@ -35,6 +38,7 @@ import {
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
 import type { PaymentIntentSnapshot } from "@/modules/family-collection/domain/payment-outcome";
+import { isPermanentStripeError } from "@/modules/family-collection/domain/stripe-read-error";
 import {
   closeAttemptByAcademy,
   createFamilyCollectionStore,
@@ -167,6 +171,16 @@ function unverified(): OperationalError {
   return new OperationalError("AUTOMATIC_COLLECTION_UNVERIFIED", TEXT.unverified, 503);
 }
 
+/** Stripe no deja leer el cobro y reintentar no lo arreglará: lo resuelve soporte. */
+function unreadable(): OperationalError {
+  return new OperationalError("AUTOMATIC_COLLECTION_NEEDS_SUPPORT", TEXT.unreadable, 409);
+}
+
+/** Un error de Stripe al marcar como revisado: 409 (soporte) si es permanente, 503 si es pasajero. */
+function stripeFailure(error: unknown): OperationalError {
+  return isPermanentStripeError(error) ? unreadable() : unverified();
+}
+
 async function close(
   context: Context,
   attempt: AcademyAttemptView,
@@ -184,23 +198,26 @@ async function close(
   if (!closed) throw changed();
 }
 
-type StripeState = "stopped" | "succeeded" | "processing" | "unknown";
+type StripeState = "stopped" | "succeeded" | "processing" | "unknown" | "unreachable";
 
 /**
  * Deja el cobro sin posibilidad de completarse: lo lee y, si no terminó, lo
  * cancela. Si Stripe ya no deja cancelarlo, lo relee una vez y dice lo que vio.
- * `stopped`: cancelado (ya estaba o se acaba de cancelar).
+ * `stopped`: cancelado (ya estaba o se acaba de cancelar). `unknown`: Stripe
+ * falló de forma pasajera. `unreachable`: Stripe falló con un error que no se
+ * arregla reintentando (cobro inexistente, cuenta sin permiso o no válida).
  */
 async function stopInStripe(
   gateway: FamilyCollectionGateway,
   connectedAccount: string,
   paymentIntentId: string
 ): Promise<StripeState> {
-  const read = async (): Promise<PaymentIntentSnapshot | null> => {
+  const failed = (error: unknown): StripeState => (isPermanentStripeError(error) ? "unreachable" : "unknown");
+  const read = async (): Promise<PaymentIntentSnapshot | StripeState> => {
     try {
       return await gateway.retrievePayment({ connectedAccount, paymentIntentId });
-    } catch {
-      return null;
+    } catch (error) {
+      return failed(error);
     }
   };
   const settled = (snapshot: PaymentIntentSnapshot): StripeState | null =>
@@ -213,18 +230,19 @@ async function stopInStripe(
           : null;
 
   const first = await read();
-  if (!first) return "unknown";
+  if (typeof first === "string") return first;
   const known = settled(first);
   if (known) return known;
   let canceled: "canceled" | "not_cancelable";
   try {
     canceled = await gateway.cancelPayment({ connectedAccount, paymentIntentId });
-  } catch {
-    return "unknown";
+  } catch (error) {
+    return failed(error);
   }
   if (canceled === "canceled") return "stopped";
   const second = await read();
-  return second ? (settled(second) ?? "unknown") : "unknown";
+  if (typeof second === "string") return second;
+  return settled(second) ?? "unknown";
 }
 
 /**
@@ -264,8 +282,8 @@ async function stopAllOrRefuse(
   for (const paymentIntentId of paymentIntentIds) {
     try {
       snapshots.push(await context.gateway.retrievePayment({ connectedAccount, paymentIntentId }));
-    } catch {
-      throw unverified();
+    } catch (error) {
+      throw stripeFailure(error);
     }
   }
   const moved = (status: string) => status === "succeeded" || status === "processing";
@@ -278,6 +296,7 @@ async function stopAllOrRefuse(
     if (state === "succeeded" || state === "processing") {
       throw new OperationalError("AUTOMATIC_COLLECTION_NEEDS_SUPPORT", TEXT.multipleMoved, 409);
     }
+    if (state === "unreachable") throw unreadable();
     if (state === "unknown") throw unverified();
   }
 }
@@ -322,7 +341,10 @@ export async function cancelAutomaticCollection(
       if (state === "processing") {
         throw new OperationalError("AUTOMATIC_COLLECTION_PROCESSING", TEXT.processing, 409);
       }
-      if (state === "unknown") throw unverified();
+      // Cancelar no distingue el error permanente: la pantalla lo trata como
+      // un fallo para reintentar, y el intento acaba con aviso (reanudaciones
+      // agotadas) y «Marcar como revisado», que sí manda a soporte.
+      if (state === "unknown" || state === "unreachable") throw unverified();
       await close(context, attempt, "canceled_by_academy");
       return { outcome: "canceled" };
     }
@@ -333,9 +355,11 @@ export async function cancelAutomaticCollection(
 
 /**
  * Cierra como revisado un intento que quedó abierto con un aviso de revisión,
- * que agotó sus reanudaciones o que lleva más de 24 h sin cambios
- * (`academyCanMarkReviewed`). Exige `checkedInStripe: true`. Siempre lee
- * Stripe antes de cerrar: si el dinero se movió, lo registra o responde 409.
+ * que agotó sus reanudaciones, que lleva más de 24 h sin cambios o más de 15
+ * días en curso (`academyCanMarkReviewed`). Exige `checkedInStripe: true`.
+ * Siempre lee Stripe antes de cerrar: si el dinero se movió, lo registra o
+ * responde 409. Si Stripe no deja leerlo, 503 si es pasajero y 409 (soporte)
+ * si es permanente; en ningún caso se cierra.
  */
 export async function markAutomaticCollectionReviewed(
   raw: { userId: string; organizationId: string; invoiceId: string; checkedInStripe: boolean; now?: Date },
@@ -379,8 +403,8 @@ export async function markAutomaticCollectionReviewed(
         attemptId: attempt.id,
       });
       paymentIntentIds = found.map((payment) => payment.id);
-    } catch {
-      throw unverified();
+    } catch (error) {
+      throw stripeFailure(error);
     }
   }
 
@@ -392,6 +416,8 @@ export async function markAutomaticCollectionReviewed(
       // Ya registrado para otro intento: el dinero está en el libro; se cierra.
     } else if (state === "processing") {
       throw new OperationalError("AUTOMATIC_COLLECTION_PROCESSING", TEXT.processing, 409);
+    } else if (state === "unreachable") {
+      throw unreadable();
     } else if (state === "unknown") {
       throw unverified();
     }

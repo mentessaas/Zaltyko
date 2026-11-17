@@ -429,6 +429,132 @@ describe("marcar como revisado", () => {
     }
   });
 
+  describe("en curso desde hace más de 15 días (processing ilegible)", () => {
+    const DAY = 24 * HOUR;
+    // Errores tal como los lanza stripe-node 22 (`type` = clase, `code` = código de la API).
+    const accountInvalid = () =>
+      Object.assign(new Error("sin acceso"), { type: "StripePermissionError", code: "account_invalid", statusCode: 403 });
+    const resourceMissing = () =>
+      Object.assign(new Error("no existe"), { type: "StripeInvalidRequestError", code: "resource_missing", statusCode: 404 });
+    const networkError = () => Object.assign(new Error("connection reset"), { type: "StripeConnectionError" });
+    const longProcessing = (days: number) =>
+      attempt({
+        status: "processing",
+        paymentMethodKind: "sepa_debit",
+        claimedAt: new Date(now.getTime() - days * DAY),
+        updatedAt: new Date(now.getTime() - days * DAY),
+      });
+
+    it("14 días sin aviso: todavía no necesita revisión y no lee Stripe", async () => {
+      const store = fakeStore(longProcessing(14));
+      const gateway = fakeGateway();
+      await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
+        code: "AUTOMATIC_COLLECTION_REVIEW_NOT_NEEDED",
+      });
+      expect(gateway.retrievePayment).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["la cuenta ya no es válida", accountInvalid],
+      ["el cobro no existe", resourceMissing],
+    ])("16 días y %s (error permanente): 409 para resolverlo con soporte y el intento sigue abierto", async (_label, error) => {
+      const store = fakeStore(longProcessing(16));
+      const gateway = fakeGateway();
+      gateway.retrievePayment.mockRejectedValue(error());
+
+      await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
+        code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
+        status: 409,
+        message:
+          "No se puede comprobar en Stripe el cobro de esta cuota. Resuélvelo en Stripe con su soporte; no se puede marcar como revisado.",
+      });
+      expect(gateway.retrievePayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId });
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+      expect(store.applyOutcome).not.toHaveBeenCalled();
+      expect(store.closeAttempt).not.toHaveBeenCalled();
+    });
+
+    it("16 días y Stripe falla de forma pasajera: 503 para reintentar y no se cierra", async () => {
+      const store = fakeStore(longProcessing(16));
+      const gateway = fakeGateway();
+      gateway.retrievePayment.mockRejectedValue(networkError());
+
+      await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
+        code: "AUTOMATIC_COLLECTION_UNVERIFIED",
+        status: 503,
+      });
+      expect(store.closeAttempt).not.toHaveBeenCalled();
+    });
+
+    it("16 días y Stripe dice que sigue en el banco: 409 y no se cierra", async () => {
+      const store = fakeStore(longProcessing(16));
+      const gateway = fakeGateway({ [paymentIntentId]: "processing" });
+
+      await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
+        code: "AUTOMATIC_COLLECTION_PROCESSING",
+      });
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+      expect(store.closeAttempt).not.toHaveBeenCalled();
+    });
+
+    it("16 días y el cobro ya salió: se registra y nunca se cierra", async () => {
+      const store = fakeStore(longProcessing(16));
+      const gateway = fakeGateway({ [paymentIntentId]: "succeeded" });
+
+      await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).resolves.toEqual({
+        outcome: "collected",
+      });
+      expect(store.closeAttempt).not.toHaveBeenCalled();
+    });
+
+    it("cancelar en Stripe con error permanente tras leerlo: 409 para soporte y no se cierra", async () => {
+      const store = fakeStore(attempt({ hasReviewNotice: true }));
+      const gateway = fakeGateway();
+      gateway.cancelPayment.mockRejectedValue(accountInvalid());
+
+      await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
+        code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
+        status: 409,
+      });
+      expect(store.closeAttempt).not.toHaveBeenCalled();
+    });
+
+    it("la búsqueda de cobros con error permanente: 409 para soporte; con varios cobros, también al releer uno", async () => {
+      const searching = fakeStore(attempt({ status: "claimed", paymentIntentId: null, hasReviewNotice: true }));
+      const searchGateway = fakeGateway();
+      searchGateway.listPaymentsByAttempt.mockRejectedValue(accountInvalid());
+      await expect(
+        markAutomaticCollectionReviewed(reviewInput, { store: searching, gateway: searchGateway })
+      ).rejects.toMatchObject({ code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT", status: 409 });
+      expect(searching.closeAttempt).not.toHaveBeenCalled();
+
+      const many = fakeStore(attempt({ status: "claimed", paymentIntentId: null, hasReviewNotice: true }));
+      const manyGateway = fakeGateway();
+      manyGateway.listPaymentsByAttempt.mockResolvedValue([
+        { id: "pi_SyntheticAcademyMany1", status: "canceled", lastErrorCode: null, lastDeclineCode: null },
+        { id: "pi_SyntheticAcademyMany2", status: "canceled", lastErrorCode: null, lastDeclineCode: null },
+      ]);
+      manyGateway.retrievePayment.mockRejectedValue(resourceMissing());
+      await expect(markAutomaticCollectionReviewed(reviewInput, { store: many, gateway: manyGateway })).rejects.toMatchObject({
+        code: "AUTOMATIC_COLLECTION_NEEDS_SUPPORT",
+        status: 409,
+      });
+      expect(many.closeAttempt).not.toHaveBeenCalled();
+    });
+
+    it("cancelar el cobro automático no cambia: con error permanente sigue siendo 503", async () => {
+      const store = fakeStore(attempt());
+      const gateway = fakeGateway();
+      gateway.retrievePayment.mockRejectedValue(accountInvalid());
+
+      await expect(cancelAutomaticCollection(cancelInput, { store, gateway })).rejects.toMatchObject({
+        code: "AUTOMATIC_COLLECTION_UNVERIFIED",
+        status: 503,
+      });
+      expect(store.closeAttempt).not.toHaveBeenCalled();
+    });
+  });
+
   it("con aviso: cancela el cobro sin terminar en Stripe y lo cierra como reviewed_by_academy", async () => {
     const store = fakeStore(attempt({ hasReviewNotice: true }));
     const gateway = fakeGateway();

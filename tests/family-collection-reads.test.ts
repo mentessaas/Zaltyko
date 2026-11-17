@@ -132,6 +132,8 @@ function attempt(overrides: Partial<NonNullable<OwnerCollectionRow["attempt"]>> 
     completedAt: new Date("2026-11-05T08:00:00.000Z"),
     // Tocado hace una hora: dentro de las 24 h sin cambios.
     updatedAt: new Date("2026-11-17T08:00:00.000Z"),
+    // Reclamado hace 12 días: dentro de los 15 días de un cobro en curso.
+    claimedAt: new Date("2026-11-05T08:00:00.000Z"),
     resumeCount: 0,
     allocationStatus: "allocated",
     hasReviewNotice: false,
@@ -678,8 +680,52 @@ describe("fila de la academia (pura)", () => {
     expect(open("claimed", "2026-11-16T08:00:00.000Z")).toMatchObject({ canMarkReviewed: true });
     // 23 h: todavía no.
     expect(open("created", "2026-11-16T10:00:00.000Z")).toMatchObject({ canMarkReviewed: false, needsReview: false });
-    // En el banco: nunca por tiempo (la domiciliación tarda días).
+    // En el banco: no por `updated_at` (la domiciliación tarda días), solo
+    // pasados 15 días desde que se reclamó.
     expect(open("processing", "2026-11-10T08:00:00.000Z")).toMatchObject({ canMarkReviewed: false });
+  });
+
+  it("en curso más de 15 días desde que se reclamó y sin aviso: se puede marcar como revisado, con su motivo", () => {
+    const processing = (claimedAt: string, overrides: Partial<NonNullable<OwnerCollectionRow["attempt"]>> = {}) =>
+      ownerAutomaticCollectionItemOf(
+        ownerRow({
+          attempt: attempt({
+            status: "processing",
+            completedAt: null,
+            allocationStatus: null,
+            updatedAt: new Date(claimedAt),
+            claimedAt: new Date(claimedAt),
+            ...overrides,
+          }),
+        }),
+        NOW,
+        "2026-11"
+      );
+    // 16 días.
+    expect(processing("2026-11-01T09:00:00.000Z")).toMatchObject({
+      state: "processing",
+      needsReview: true,
+      canMarkReviewed: true,
+      canCancel: false,
+      reason: "El cobro lleva más de 15 días en curso y no podemos ver su resultado. Compruébalo en Stripe.",
+    });
+    // 14 días: todavía no.
+    expect(processing("2026-11-03T09:00:00.000Z")).toMatchObject({
+      canMarkReviewed: false,
+      needsReview: false,
+      reason: "La domiciliación está en el banco; tarda unos días.",
+    });
+    // Con el aviso del proceso diario, el mismo texto aunque falte la fecha.
+    expect(
+      processing("2026-11-03T09:00:00.000Z", {
+        claimedAt: null,
+        hasReviewNotice: true,
+        reviewReason: "processing_unreadable",
+      })
+    ).toMatchObject({
+      canMarkReviewed: true,
+      reason: "El cobro lleva más de 15 días en curso y no podemos ver su resultado. Compruébalo en Stripe.",
+    });
   });
 
   it("factura sin más intentos (aviso attempts_exhausted): necesita revisión, se cobra a mano y no promete el reintento", () => {

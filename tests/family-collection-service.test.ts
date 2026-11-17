@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * Cobro automático de cuotas (Fase 3): proceso diario de cobro con almacén y
@@ -224,6 +224,8 @@ function makeWorld() {
     applied: [] as AttemptOutcome[],
     applyResult: undefined as ApplyOutcomeResult | undefined,
     notices: [] as string[],
+    /** Intentos que recuperaron su reanudación (releaseResume). */
+    released: [] as string[],
     storage: true,
   };
 
@@ -302,11 +304,19 @@ function makeWorld() {
         };
       })
     ),
-    claimResumable: vi.fn<FamilyCollectionStore["claimResumable"]>(async (input) => {
-      if (input.after !== null) return [];
-      const batch = world.resumable;
-      world.resumable = [];
-      return batch;
+    // Cada toma se lleva hasta `limit` intentos (y ya no vuelven a estar disponibles).
+    claimResumable: vi.fn<FamilyCollectionStore["claimResumable"]>(async (input) =>
+      world.resumable.splice(0, input.limit).map((item) =>
+        // El mismo objeto (el resto del almacén lo busca y lo cambia por id).
+        Object.assign(item, {
+          resumeClaim: { takenAt: input.now, previousUpdatedAt: "2026-11-16 08:00:00.123456+00" },
+        })
+      )
+    ),
+    releaseResume: vi.fn<FamilyCollectionStore["releaseResume"]>(async (item) => {
+      world.calls.push(`release:${item.id}`);
+      world.released.push(item.id);
+      return true;
     }),
     listProcessing: vi.fn<FamilyCollectionStore["listProcessing"]>(async (input) => (input.after === null ? world.processing : [])),
     listExhaustedWithoutNotice: vi.fn<FamilyCollectionStore["listExhaustedWithoutNotice"]>(async (input) =>
@@ -1141,6 +1151,115 @@ describe("Fase A: reanudar lo que quedó a medias", () => {
     expect(world.notices).toEqual(["intent_mismatch"]);
     expect(result.collected).toBe(1);
   });
+
+  /** Intentos creados distintos, listos para reanudar. */
+  function createdAttempts(count: number): CollectionAttempt[] {
+    return Array.from({ length: count }, (_, index) =>
+      attempt({
+        id: `20000000-0000-4000-8000-0000000001${String(index).padStart(2, "0")}`,
+        status: "created",
+        paymentIntentId: `pi_SyntheticResume${index}`,
+        resumeCount: 1,
+      })
+    );
+  }
+
+  it("toma los intentos de 10 en 10 aunque la página general sea de 100", async () => {
+    const { world, store, run } = setup();
+    world.due = [];
+    world.resumable = createdAttempts(12);
+
+    const result = await run();
+
+    expect(vi.mocked(store.claimResumable).mock.calls.map(([input]) => input.limit)).toEqual([10, 10]);
+    expect(result).toMatchObject({ complete: true, resumed: 12, collected: 12 });
+    expect(store.releaseResume).not.toHaveBeenCalled();
+  });
+
+  describe("plazo agotado a mitad de una toma", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("los intentos tomados que no se llegan a procesar recuperan su reanudación", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(now);
+      const items = createdAttempts(3);
+      const { world, store, gateway, run } = setup({
+        retrievePayment: async (input) => {
+          // El primero tarda más que todo el plazo de la ejecución (240 s).
+          vi.setSystemTime(new Date(now.getTime() + 241_000));
+          return snapshot(input.paymentIntentId, "succeeded");
+        },
+      });
+      world.due = [];
+      world.resumable = [...items];
+
+      const result = await run();
+
+      expect(result).toMatchObject({ complete: false, resumed: 1, collected: 1 });
+      expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: "pi_SyntheticResume0" }]);
+      expect(gateway.retrievePayment).toHaveBeenCalledTimes(1);
+      // El segundo y el tercero no se tocaron: se devuelve lo que se les contó.
+      expect(world.released).toEqual([items[1].id, items[2].id]);
+      expect(vi.mocked(store.releaseResume).mock.calls[0][0]).toMatchObject({
+        id: items[1].id,
+        resumeCount: 1,
+        resumeClaim: { takenAt: now, previousUpdatedAt: "2026-11-16 08:00:00.123456+00" },
+      });
+      expect(result.skipped).toMatchObject({ resume_released: 2 });
+      // Nada más empieza: ni la relectura ni los cobros nuevos.
+      expect(store.listProcessing).not.toHaveBeenCalled();
+      expect(store.listDueInvoices).not.toHaveBeenCalled();
+    });
+
+    it("si el plazo se acaba justo al tomar, ninguno se procesa y todos recuperan su reanudación", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(now);
+      const items = createdAttempts(2);
+      const { world, store, gateway, run } = setup();
+      world.due = [];
+      world.resumable = [...items];
+      const claim = store.claimResumable;
+      store.claimResumable = vi.fn<FamilyCollectionStore["claimResumable"]>(async (input) => {
+        const batch = await claim(input);
+        vi.setSystemTime(new Date(now.getTime() + 241_000));
+        return batch;
+      });
+
+      const result = await run();
+
+      expect(result).toMatchObject({ complete: false, resumed: 0 });
+      expect(gateway.retrievePayment).not.toHaveBeenCalled();
+      expect(world.released).toEqual([items[0].id, items[1].id]);
+    });
+
+    it("si devolver una reanudación falla, se registra y se sigue con las demás", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(now);
+      const items = createdAttempts(3);
+      const { world, store, run } = setup({
+        retrievePayment: async (input) => {
+          vi.setSystemTime(new Date(now.getTime() + 241_000));
+          return snapshot(input.paymentIntentId, "succeeded");
+        },
+      });
+      world.due = [];
+      world.resumable = [...items];
+      vi.mocked(store.releaseResume).mockRejectedValueOnce(new Error("caída"));
+
+      const result = await run();
+
+      expect(store.releaseResume).toHaveBeenCalledTimes(2);
+      expect(world.released).toEqual([items[2].id]);
+      expect(result.skipped).toMatchObject({ error: 1, resume_released: 1 });
+      expect(logger.error).toHaveBeenCalledWith(
+        "Cobro automático: no se pudo devolver la reanudación de un intento",
+        undefined,
+        expect.objectContaining({ attemptId: items[1].id, errorName: "Error" })
+      );
+    });
+  });
 });
 
 describe("Fase A: releer lo que está en curso", () => {
@@ -1195,6 +1314,121 @@ describe("Fase A: releer lo que está en curso", () => {
     const result = await run();
     expect(store.applyOutcome).not.toHaveBeenCalled();
     expect(result.skipped).toEqual({ transient: 1 });
+  });
+
+  const DAY = 24 * 60 * 60 * 1000;
+  // Errores tal como los lanza stripe-node 22 (`type` = clase, `code` = código de la API).
+  const accountInvalid = () =>
+    Object.assign(new Error("mensaje de Stripe que nunca se registra"), {
+      type: "StripePermissionError",
+      rawType: "invalid_request_error",
+      code: "account_invalid",
+      statusCode: 403,
+    });
+  const resourceMissing = () =>
+    Object.assign(new Error("mensaje de Stripe que nunca se registra"), {
+      type: "StripeInvalidRequestError",
+      rawType: "invalid_request_error",
+      code: "resource_missing",
+      statusCode: 404,
+    });
+
+  /** Intentos en curso reclamados hace `daysAgo` días. */
+  function processingAt(daysAgo: number, id = attemptId, paymentIntentId = intentId): CollectionAttempt {
+    return attempt({
+      id,
+      status: "processing",
+      paymentIntentId,
+      paymentMethodKind: "sepa_debit",
+      claimedAt: new Date(now.getTime() - daysAgo * DAY),
+    });
+  }
+
+  it("error permanente con más de 15 días en curso: aviso processing_unreadable, registro del error y sigue en curso", async () => {
+    const { world, store, run } = processingSetup({
+      retrievePayment: async () => {
+        throw accountInvalid();
+      },
+    });
+    world.processing = [processingAt(16)];
+
+    const result = await run();
+
+    expect(store.applyOutcome).not.toHaveBeenCalled();
+    expect(world.notices).toEqual(["processing_unreadable"]);
+    expect(vi.mocked(store.recordNotice).mock.calls[0][0]).toMatchObject({
+      attemptId,
+      invoiceId,
+      reason: "processing_unreadable",
+      now,
+    });
+    expect(result).toMatchObject({ needsReview: 1, reconciled: 0 });
+    expect(result.skipped).toEqual({ stripe_unreadable: 1 });
+    expect(logger.error).toHaveBeenCalledWith("Cobro automático: Stripe no deja releer un cobro en curso", undefined, {
+      organizationId,
+      invoiceId,
+      attemptId,
+      errorName: "StripePermissionError",
+      errorCode: "account_invalid",
+      permanent: true,
+    });
+    expect(JSON.stringify(vi.mocked(logger.error).mock.calls)).not.toContain("mensaje de Stripe");
+  });
+
+  it("error pasajero con más de 15 días en curso: también avisa, y lo registra como pasajero", async () => {
+    vi.mocked(logger.warn).mockClear();
+    const { world, run } = processingSetup({
+      retrievePayment: async () => {
+        throw networkError();
+      },
+    });
+    world.processing = [processingAt(16)];
+
+    const result = await run();
+
+    expect(world.notices).toEqual(["processing_unreadable"]);
+    expect(result.skipped).toEqual({ transient: 1 });
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Cobro automático: no se pudo releer un cobro en curso; se vuelve a mirar otro día",
+      expect.objectContaining({ attemptId, errorName: "StripeConnectionError", errorCode: null, permanent: false })
+    );
+  });
+
+  it("error permanente con menos de 15 días en curso: lo registra, sin aviso todavía", async () => {
+    const { world, run } = processingSetup({
+      retrievePayment: async () => {
+        throw resourceMissing();
+      },
+    });
+    world.processing = [processingAt(14)];
+
+    const result = await run();
+
+    expect(world.notices).toEqual([]);
+    expect(result.skipped).toEqual({ stripe_unreadable: 1 });
+    expect(logger.error).toHaveBeenCalledWith(
+      "Cobro automático: Stripe no deja releer un cobro en curso",
+      undefined,
+      expect.objectContaining({ errorName: "StripeInvalidRequestError", errorCode: "resource_missing", permanent: true })
+    );
+  });
+
+  it("un intento ilegible no frena la relectura de los demás, aunque falle su aviso", async () => {
+    const other = "20000000-0000-4000-8000-000000000013";
+    const { world, store, run } = processingSetup({
+      retrievePayment: async (input) => {
+        if (input.paymentIntentId === intentId) throw accountInvalid();
+        return snapshot(input.paymentIntentId, "succeeded");
+      },
+    });
+    world.processing = [processingAt(16), processingAt(2, other, "pi_SyntheticCollection3")];
+    vi.mocked(store.recordNotice).mockRejectedValueOnce(new Error("caída"));
+
+    const result = await run();
+
+    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: "pi_SyntheticCollection3" }]);
+    expect(result).toMatchObject({ collected: 1, reconciled: 1 });
+    expect(result.skipped).toMatchObject({ stripe_unreadable: 1, error: 1 });
   });
 });
 
