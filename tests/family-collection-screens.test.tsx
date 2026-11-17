@@ -224,6 +224,23 @@ describe("OwnerCollectionDaySettings", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("El día de cobro cambió en otra sesión.");
     expect(bodyOf(calls[0])).toEqual({ organizationId: ORGANIZATION_ID, collectionDayOfMonth: null, expectedVersion: 3 });
+    // Conflicto de versión: además del texto, relee la página para traer la versión nueva.
+    expect(mockRefresh).toHaveBeenCalledOnce();
+  });
+
+  it("tras releer la página, enseña el día guardado en el servidor y guarda con su versión", async () => {
+    stubFetch(() => reply(200, { collectionDayOfMonth: 12, version: 5 }));
+    const { rerender } = render(
+      <OwnerCollectionDaySettings organizationId={ORGANIZATION_ID} initial={{ collectionDayOfMonth: 10, version: 3 }} />
+    );
+    rerender(<OwnerCollectionDaySettings organizationId={ORGANIZATION_ID} initial={{ collectionDayOfMonth: 20, version: 4 }} />);
+
+    expect(screen.getByRole("combobox", { name: "Día del mes" })).toHaveValue("20");
+    fireEvent.change(screen.getByRole("combobox", { name: "Día del mes" }), { target: { value: "12" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar día de cobro" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Día de cobro guardado.");
+    expect(bodyOf(calls[0])).toEqual({ organizationId: ORGANIZATION_ID, collectionDayOfMonth: 12, expectedVersion: 4 });
   });
 });
 
@@ -361,7 +378,7 @@ describe("OwnerFamilyPaymentMethodsPanel: «Cobrar automáticamente»", () => {
     fireEvent.click(screen.getByRole("switch", { name: "Cobrar automáticamente a Pablo Ruiz" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "Las cuotas de Pablo Ruiz ya no se cobrarán automáticamente."
+      "Las cuotas de Pablo Ruiz ya no se cobrarán automáticamente. Los cobros ya enviados al banco siguen su curso."
     );
     expect(bodyOf(calls[0])).toMatchObject({ mode: "manual", expectedVersion: 2 });
     expect(screen.getByRole("switch", { name: "Cobrar automáticamente a Pablo Ruiz" })).not.toBeChecked();
@@ -389,6 +406,8 @@ describe("OwnerFamilyPaymentMethodsPanel: «Cobrar automáticamente»", () => {
     expect(calls).toHaveLength(3);
     expect(headerOf(calls[1], "idempotency-key")).toBe(headerOf(calls[0], "idempotency-key"));
     expect(headerOf(calls[2], "idempotency-key")).not.toBe(headerOf(calls[1], "idempotency-key"));
+    // Solo el conflicto de versión relee la página; el 503 no.
+    expect(mockRefresh).toHaveBeenCalledOnce();
   });
 
   it("sin plan de pago: interruptores desactivados y el motivo", () => {

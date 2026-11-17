@@ -306,9 +306,9 @@ export interface FamilyCollectionStore {
     now: Date;
   }): Promise<ApplyOutcomeResult>;
   /**
-   * Toma de forma atómica los intentos `claimed`/`created` reclamados antes de
-   * `staleBefore` con menos de FAMILY_COLLECTION_MAX_RESUMES reanudaciones,
-   * y les suma una.
+   * Toma de forma atómica los intentos `claimed`/`created` sin cambios desde
+   * antes de `staleBefore` (`updated_at`) con menos de
+   * FAMILY_COLLECTION_MAX_RESUMES reanudaciones, y les suma una.
    */
   claimResumable(input: {
     staleBefore: Date;
@@ -495,7 +495,8 @@ async function readCharges(executor: Executor, organizationId: string, invoiceId
               where pa.organization_id = c.organization_id and pa.charge_id = c.id
            ), 0))::text as "outstandingCents",
            c.due_at as "dueAt",
-           c.service_period_start::text as "servicePeriodStart"
+           -- Formato fijo YYYY-MM-DD, sin depender de DateStyle.
+           to_char(c.service_period_start, 'YYYY-MM-DD') as "servicePeriodStart"
       from zaltyko.charges c
      where c.organization_id = ${organizationId}::uuid
        and c.invoice_id = ${invoiceId}::uuid
@@ -1260,6 +1261,18 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
     async claimResumable(input) {
       // Una sola sentencia: toma y cuenta la reanudación a la vez; dos
       // procesos nunca toman el mismo intento (skip locked).
+      //
+      // La antigüedad se mide desde el último cambio (`updated_at`: la última
+      // toma, el `pi_…` guardado…), no desde que se reclamó: varias
+      // ejecuciones seguidas el mismo día no gastan las reanudaciones de un
+      // intento que otra acaba de tocar.
+      //
+      // Sin el cerrojo de la academia: esta sentencia solo cambia
+      // `resume_count` y `updated_at` del propio intento (ni cuotas ni
+      // factura), y con skip locked nunca espera a una fila que otra
+      // transacción tenga bloqueada (p. ej. applyOutcome, que bloquea el
+      // intento el último del orden único): no puede formar un ciclo de
+      // espera. Quien avanza el intento después sí sigue el orden único.
       const result = await db.execute(sql`
         update zaltyko.family_collection_attempts
            set resume_count = resume_count + 1,
@@ -1268,7 +1281,7 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
            select id
              from zaltyko.family_collection_attempts
             where status in ('claimed', 'created')
-              and claimed_at < ${input.staleBefore.toISOString()}::timestamptz
+              and updated_at < ${input.staleBefore.toISOString()}::timestamptz
               and resume_count < ${FAMILY_COLLECTION_MAX_RESUMES}
               and ${inScope(sql.raw("organization_id"), input.scope)}
               and (${input.after}::uuid is null or id > ${input.after}::uuid)
@@ -1326,7 +1339,7 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
                au.mandate_reference as "mandate",
                l.timezone as "timezone",
                (
-                 select min(c.service_period_start)::text
+                 select to_char(min(c.service_period_start), 'YYYY-MM-DD')
                    from zaltyko.family_collection_attempt_charges ac
                    join zaltyko.charges c on c.organization_id = ac.organization_id and c.id = ac.charge_id
                   where ac.organization_id = a.organization_id and ac.attempt_id = a.id
@@ -1406,6 +1419,8 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
 /** Último intento de una factura, tal como lo ve la academia. */
 export interface AcademyAttemptView extends CollectionAttempt {
   nextRetryAt: Date | null;
+  /** Último cambio del intento (`updated_at`): la salida de 24 h sin aviso. */
+  updatedAt: Date;
   /** La academia recibió al menos un aviso para revisar este intento. */
   hasReviewNotice: boolean;
 }
@@ -1421,6 +1436,7 @@ export async function readLatestAttemptForAcademy(input: {
   const result = await db.execute(sql`
     select ${attemptColumns},
            next_retry_at as "nextRetryAt",
+           updated_at as "updatedAt",
            exists (
              select 1 from zaltyko.outbox_events e
               where e.organization_id = a.organization_id
@@ -1438,6 +1454,7 @@ export async function readLatestAttemptForAcademy(input: {
   return {
     ...toAttempt(row),
     nextRetryAt: toDateOrNull(row.nextRetryAt),
+    updatedAt: toDate(row.updatedAt),
     hasReviewNotice: row.hasReviewNotice === true,
   };
 }

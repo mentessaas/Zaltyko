@@ -68,9 +68,47 @@ export const FAMILY_COLLECTION_OPEN_STATUSES = ["claimed", "created", "processin
 export const FAMILY_COLLECTION_ALLOCATION_STATUSES = ["pending", "allocated", "needs_review"] as const;
 export type FamilyCollectionAllocationStatus = (typeof FAMILY_COLLECTION_ALLOCATION_STATUSES)[number];
 
+/**
+ * Motivo (`failure_code`) del intento `canceled` que cierra una cuota cuyo
+ * cobro ya no llegó a tiempo: pasó la espera de los recordatorios y la cuota
+ * volvió a ellos (family-collection-collect.ts, `collectionWindowExpired`).
+ */
+export const COLLECTION_WINDOW_EXPIRED_CODE = "collection_window_expired";
+
 /** Límites que también comprueba la base. */
 export const FAMILY_COLLECTION_MAX_ATTEMPTS_PER_INVOICE = 5;
 export const FAMILY_COLLECTION_MAX_RESUMES = 3;
+
+/**
+ * Un intento reclamado o creado que nadie ha tocado (`updated_at`) en este
+ * tiempo se puede «Marcar como revisado» aunque no tenga aviso: es la salida
+ * si el proceso diario deja de pasar (p. ej. se quitó su trabajo de pg_cron).
+ * Mientras el proceso pasa, cada reanudación lo toca y, agotadas, hay aviso.
+ */
+export const FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * ¿Puede la academia «Marcar como revisado» este intento? Abierto y con un
+ * aviso de revisión, con las reanudaciones agotadas, o reclamado/creado sin
+ * cambios desde hace más de FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS. La misma
+ * regla para la pantalla (family-collection-reads.ts) y para la acción
+ * (family-collection-academy-actions.ts), que además lee Stripe antes de cerrar.
+ */
+export function academyCanMarkReviewed(
+  attempt: { status: string; hasReviewNotice: boolean; resumeCount: number; updatedAt: Date | null },
+  now: Date
+): boolean {
+  if (!(FAMILY_COLLECTION_OPEN_STATUSES as readonly string[]).includes(attempt.status)) return false;
+  if (attempt.hasReviewNotice || attempt.resumeCount >= FAMILY_COLLECTION_MAX_RESUMES) return true;
+  return isStaleOpenAttempt(attempt, now);
+}
+
+/** Reclamado o creado y sin cambios desde hace más de FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS. */
+export function isStaleOpenAttempt(attempt: { status: string; updatedAt: Date | null }, now: Date): boolean {
+  if (attempt.status !== "claimed" && attempt.status !== "created") return false;
+  const updated = attempt.updatedAt?.getTime();
+  return updated !== undefined && Number.isFinite(updated) && now.getTime() - updated > FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS;
+}
 
 export const familyCollectionAttempts = zaltyko.table(
   "family_collection_attempts",
@@ -114,7 +152,7 @@ export const familyCollectionAttempts = zaltyko.table(
       .on(table.organizationId, table.invoiceId)
       .where(sql.raw("status in ('claimed', 'created', 'processing')")),
     index("family_collection_attempts_retry_idx").on(table.organizationId, table.status, table.nextRetryAt),
-    index("family_collection_attempts_resume_idx").on(table.status, table.claimedAt),
+    index("family_collection_attempts_resume_idx").on(table.status, table.updatedAt),
     check("family_collection_attempts_attempt_number_check", sql.raw("attempt_number between 1 and 5")),
     check(
       "family_collection_attempts_method_kind_check",

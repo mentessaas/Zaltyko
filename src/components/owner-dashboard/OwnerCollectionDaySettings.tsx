@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { ownerField, ownerUi } from "./owner-ui";
 import type { CollectionSettings } from "@/modules/family-collection/application/collection-settings-service";
@@ -18,7 +19,12 @@ const DEFAULT_FIXED_DAY = 1;
 
 export type OwnerCollectionDayInitial = Pick<CollectionSettings, "collectionDayOfMonth" | "version">;
 
-type ProblemBody = { detail?: unknown } | null;
+type ProblemBody = { detail?: unknown; type?: unknown } | null;
+
+/** ¿Es el 409 de versión (`…/problems/version-conflict`)? Otra sesión guardó antes. */
+function isVersionConflict(status: number, body: ProblemBody): boolean {
+  return status === 409 && typeof body?.type === "string" && body.type.split("/").pop() === "version-conflict";
+}
 
 function isSettings(value: unknown): value is CollectionSettings {
   if (!value || typeof value !== "object") return false;
@@ -40,12 +46,21 @@ export function OwnerCollectionDaySettings({
   initial: OwnerCollectionDayInitial;
 }) {
   const idPrefix = useId();
+  const router = useRouter();
   const [saved, setSaved] = useState(initial);
   const [mode, setMode] = useState<"due" | "fixed">(initial.collectionDayOfMonth === null ? "due" : "fixed");
   const [day, setDay] = useState(initial.collectionDayOfMonth ?? DEFAULT_FIXED_DAY);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [message, setMessage] = useState<{ tone: "info" | "error"; text: string } | null>(null);
+
+  // Tras router.refresh() (p. ej. por un conflicto de versión) llega el día
+  // guardado en el servidor: manda sobre lo que hay en pantalla.
+  useEffect(() => {
+    setSaved({ collectionDayOfMonth: initial.collectionDayOfMonth, version: initial.version });
+    setMode(initial.collectionDayOfMonth === null ? "due" : "fixed");
+    setDay(initial.collectionDayOfMonth ?? DEFAULT_FIXED_DAY);
+  }, [initial.collectionDayOfMonth, initial.version]);
 
   const chosen = mode === "due" ? null : day;
   const unchanged = chosen === saved.collectionDayOfMonth;
@@ -75,6 +90,8 @@ export function OwnerCollectionDaySettings({
           tone: "error",
           text: !response.ok && typeof detail === "string" && detail.trim() ? detail : SAVE_ERROR,
         });
+        // Otra sesión cambió el día: se relee la página con la versión nueva.
+        if (isVersionConflict(response.status, body as ProblemBody)) router.refresh();
       }
     } catch {
       setMessage({ tone: "error", text: SAVE_ERROR });

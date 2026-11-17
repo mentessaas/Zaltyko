@@ -97,7 +97,8 @@ async function runOnOwnConnection(text: string): Promise<void> {
 
 const FLAG = "ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED";
 const SHA = "b".repeat(64);
-const DAY = 24 * 60 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
 const compact = () => randomUUID().replace(/-/g, "").slice(0, 20);
 const wait = (ms: number) => new Promise((resolveWait) => setTimeout(resolveWait, ms));
 
@@ -372,6 +373,8 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
       paymentIntentId?: string | null;
       nextRetryAt?: Date | null;
       resumeCount?: number;
+      /** Último cambio (`updated_at`); por defecto, ahora. */
+      updatedAt?: Date;
     }
   ): Promise<{ attemptId: string; paymentIntentId: string | null }> {
     const attemptId = randomUUID();
@@ -395,7 +398,9 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
         ${input.attemptNumber ?? 1}, 'card', ${fixture.amount}, 'EUR', ${status},
         ${paymentIntentId}, ${terminal ? "card_declined" : null}, ${terminal ? "insufficient_funds" : null},
         ${input.nextRetryAt ? input.nextRetryAt.toISOString() : null}::timestamptz, ${input.resumeCount ?? 0},
-        now() - interval '1 hour', ${terminal ? new Date().toISOString() : null}::timestamptz, now(), now()
+        coalesce(${input.updatedAt ? input.updatedAt.toISOString() : null}::timestamptz, now() - interval '1 hour'),
+        ${terminal ? new Date().toISOString() : null}::timestamptz, now(),
+        coalesce(${input.updatedAt ? input.updatedAt.toISOString() : null}::timestamptz, now())
       )
     `);
     await db.execute(sql`
@@ -475,8 +480,11 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
       holding = resolveHeld;
     });
     const safety = setTimeout(() => release(), 15_000);
+    let holderPid = 0;
     const done = db
       .transaction(async (tx) => {
+        const backend = await tx.execute(sql`select pg_backend_pid() as pid`);
+        holderPid = Number((backend.rows[0] as { pid: unknown }).pid);
         await tx.execute(sql`select id from zaltyko.organizations where id = ${fixture.organizationId}::uuid for update`);
         await tx.execute(sql`
           select id from zaltyko.charges
@@ -502,15 +510,17 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
       })
       .finally(() => clearTimeout(safety));
     await held;
-    return { release: () => release(), done };
+    return { release: () => release(), done, pid: holderPid };
   }
 
   /**
    * Espera hasta ver en PostgreSQL otra sesión bloqueada en un cerrojo de fila
-   * de la academia (`wait_event_type = 'Lock'`): prueba que la operación
+   * de la academia (`wait_event_type = 'Lock'`) por la transacción `holderPid`
+   * de esta prueba (`pg_blocking_pids`), que tiene la fila de su academia: no
+   * cuenta esperas de otras academias o suites. Prueba que la operación
    * concurrente de verdad esperó, en vez de suponerlo con un tiempo fijo.
    */
-  async function waitForOrganizationLockWaiter(): Promise<boolean> {
+  async function waitForOrganizationLockWaiter(holderPid: number): Promise<boolean> {
     const deadline = Date.now() + 10_000;
     while (Date.now() < deadline) {
       const result = await db.execute(sql`
@@ -521,6 +531,7 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
            and wait_event_type = 'Lock'
            and query like '%from zaltyko.organizations%'
            and query like '%for update%'
+           and ${holderPid}::int = any(pg_blocking_pids(pid))
       `);
       if ((result.rows[0] as { n: number }).n > 0) return true;
       await wait(50);
@@ -537,7 +548,7 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
         (error: unknown) => error
       );
       // El pago manual de verdad espera el cerrojo de la academia.
-      const waited = await waitForOrganizationLockWaiter();
+      const waited = await waitForOrganizationLockWaiter(worker.pid);
       worker.release();
       await worker.done;
 
@@ -674,7 +685,7 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
         () => null,
         (error: unknown) => error
       );
-      const waited = await waitForOrganizationLockWaiter();
+      const waited = await waitForOrganizationLockWaiter(worker.pid);
       worker.release();
       await worker.done;
 
@@ -794,6 +805,49 @@ describeDisposablePg("cobro automático frente al pago manual y la academia en P
       expect(await auditActions(fixture, attemptId)).toEqual([
         expect.objectContaining({ action: "family_collection.attempt_reviewed", actorUserId: fixture.userId }),
       ]);
+    });
+
+    it("abierto más de 24 h sin aviso (el proceso diario dejó de pasar): marcar como revisado lee Stripe antes de cerrar", async () => {
+      const input = (fixture: Fixture) => ({
+        userId: fixture.userId,
+        organizationId: fixture.organizationId,
+        invoiceId: fixture.invoiceId,
+        checkedInStripe: true,
+      });
+      const stale = new Date(Date.now() - 25 * HOUR);
+
+      // Sin dinero movido: se cancela en Stripe y se cierra como revisado.
+      const quiet = await createFixture();
+      const { attemptId: quietId, paymentIntentId: quietIntent } = await insertAttempt(quiet, {
+        status: "created",
+        updatedAt: stale,
+      });
+      const quietGateway = fakeStripe();
+      await expect(markAutomaticCollectionReviewed(input(quiet), { gateway: quietGateway })).resolves.toEqual({
+        outcome: "reviewed",
+      });
+      expect(quietGateway.retrievePayment).toHaveBeenCalled();
+      expect(quietGateway.cancelPayment).toHaveBeenCalledWith({
+        connectedAccount: quiet.connectedAccount,
+        paymentIntentId: quietIntent,
+      });
+      expect(await attemptRow(quietId)).toMatchObject({ status: "canceled", failureCode: "reviewed_by_academy" });
+
+      // El dinero ya salió: se registra el pago y el intento nunca se cierra sin él.
+      const moved = await createFixture();
+      const movedIntent = `pi_CI${compact()}`;
+      const { attemptId: movedId } = await insertAttempt(moved, {
+        status: "created",
+        paymentIntentId: movedIntent,
+        updatedAt: stale,
+      });
+      const movedGateway = fakeStripe({ [movedIntent]: "succeeded" });
+      await expect(markAutomaticCollectionReviewed(input(moved), { gateway: movedGateway })).resolves.toEqual({
+        outcome: "collected",
+      });
+      expect(movedGateway.cancelPayment).not.toHaveBeenCalled();
+      expect((await attemptRow(movedId)).status).toBe("succeeded");
+      expect(await chargeStatus(moved)).toBe("paid");
     });
 
     it("un cobro ya registrado con otro intento: cancelar manda a «Marcar como revisado», que sí lo cierra", async () => {

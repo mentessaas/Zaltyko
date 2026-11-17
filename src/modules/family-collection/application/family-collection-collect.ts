@@ -8,8 +8,14 @@
  * intento `canceled` y la cuota vuelve a manual y a los recordatorios. Si la
  * puerta deja pasar, se reclama el intento (transacción corta que repite el
  * plan con los datos bloqueados) y después se crea y confirma en Stripe.
+ *
+ * Ventana máxima de cobro: pasada la espera de los recordatorios
+ * (AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS días después de la fecha de cobro,
+ * o de la del reintento) la cuota ya volvió a los recordatorios y la familia
+ * puede haberla pagado a mano. Entonces nunca se cobra: se escribe un intento
+ * `canceled` con `collection_window_expired`, aunque la puerta deje pasar.
  */
-import { localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
+import { collectionDate, localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
 import { evaluateFamilyCollectionGate } from "@/modules/family-collection/domain/collection-gate";
 import {
   advanceAttempt,
@@ -30,10 +36,15 @@ import type {
   ClaimDecision,
   CollectionAllocationRow,
   CollectionAttempt,
+  CollectionChargeRow,
   DueInvoiceRef,
   LockedInvoiceSnapshot,
 } from "@/modules/family-collection/infrastructure/family-collection-store";
-import { FAMILY_COLLECTION_MAX_ATTEMPTS_PER_INVOICE } from "@/modules/family-collection/infrastructure/family-collection-schema";
+import {
+  COLLECTION_WINDOW_EXPIRED_CODE,
+  FAMILY_COLLECTION_MAX_ATTEMPTS_PER_INVOICE,
+} from "@/modules/family-collection/infrastructure/family-collection-schema";
+import { withinGrace } from "@/modules/payment-reminders/domain/reminder-policy";
 
 /** Margen del filtro grueso de la base; la fecha local exacta la decide el plan. */
 const SELECTION_HORIZON_MS = 2 * 24 * 60 * 60 * 1000;
@@ -53,6 +64,45 @@ export function historyBlock(history: AttemptHistory, timezone: string, todayLoc
   return "already_final";
 }
 
+/**
+ * ¿Pasó ya la ventana máxima de cobro de la factura? Misma espera y misma
+ * función (`withinGrace`) que los recordatorios (reminder-policy.ts), para
+ * que nunca se cobre una cuota que ya volvió a ellos:
+ * - sin intentos: desde la fecha de cobro de la cuota más antigua del reparto;
+ * - con un reintento pendiente: desde la fecha local del reintento.
+ *
+ * Todas las cuotas de una factura mensual comparten vencimiento
+ * (monthly-invoice/issue.ts pasa un único `dueAt` a issueInvoiceInTransaction,
+ * que lo copia en cada cuota), así que la más antigua es la de todas; se toma
+ * la más antigua por si una cuota cambiara de fecha después.
+ */
+export function collectionWindowExpired(input: {
+  history: AttemptHistory;
+  charges: readonly CollectionChargeRow[];
+  allocations: readonly CollectionAllocationRow[];
+  timezone: string;
+  collectionDayOfMonth: number | null;
+  todayLocal: string;
+}): boolean {
+  const last = input.history.last;
+  if (last) {
+    // historyBlock ya descartó todo lo que no es un fallo con reintento.
+    if (last.status !== "failed" || !last.nextRetryAt) return false;
+    return !withinGrace(localCalendarDate(last.nextRetryAt, input.timezone), input.todayLocal);
+  }
+  const planned = new Set(input.allocations.map((allocation) => allocation.chargeId));
+  const earliest = input.charges
+    .filter((charge) => planned.has(charge.id))
+    .map((charge) =>
+      collectionDate({
+        dueDateLocal: localCalendarDate(charge.dueAt, input.timezone),
+        collectionDayOfMonth: input.collectionDayOfMonth,
+      })
+    )
+    .sort()[0];
+  return earliest !== undefined && !withinGrace(earliest, input.todayLocal);
+}
+
 function sameAllocations(left: readonly CollectionAllocationRow[], right: readonly CollectionAllocationRow[]): boolean {
   if (left.length !== right.length) return false;
   const byCharge = new Map(right.map((allocation) => [allocation.chargeId, allocation.amountCents]));
@@ -61,9 +111,10 @@ function sameAllocations(left: readonly CollectionAllocationRow[], right: readon
 
 /**
  * Decisión pura dentro de la transacción de reclamar o cancelar: repite el
- * historial y el plan con los datos bloqueados, y en `claimed` comprueba que
- * cada cuota es del pagador de la factura y que la autorización sigue activa
- * y es de ese pagador, esa familia y esa cuenta.
+ * historial, el plan y la ventana máxima de cobro con los datos bloqueados, y
+ * en `claimed` comprueba que cada cuota es del pagador de la factura y que la
+ * autorización sigue activa y es de ese pagador, esa familia y esa cuenta.
+ * Con la ventana pasada nunca reclama: cancela con `collection_window_expired`.
  */
 export function decideClaim(
   snapshot: LockedInvoiceSnapshot,
@@ -92,6 +143,28 @@ export function decideClaim(
   const plan = planFor(invoice, snapshot.charges, expected.todayLocal, expected.collectionDayOfMonth);
   if (!plan.collect) return { action: "skip", reason: plan.reason };
   if (!sameAllocations(plan.allocations, expected.allocations)) return { action: "skip", reason: "plan_changed" };
+
+  const expired = collectionWindowExpired({
+    history: snapshot.history,
+    charges: snapshot.charges,
+    allocations: plan.allocations,
+    timezone: invoice.timezone,
+    collectionDayOfMonth: expected.collectionDayOfMonth,
+    todayLocal: expected.todayLocal,
+  });
+  if (expired) {
+    return {
+      action: "canceled",
+      attemptNumber,
+      amountCents: plan.amountCents,
+      allocations: plan.allocations,
+      reason: COLLECTION_WINDOW_EXPIRED_CODE,
+    };
+  }
+  // Fuera se vio la ventana pasada y dentro no: los datos cambiaron; mañana se mira otra vez.
+  if (expected.action === "canceled" && expected.reason === COLLECTION_WINDOW_EXPIRED_CODE) {
+    return { action: "skip", reason: "plan_changed" };
+  }
 
   if (expected.action === "claimed") {
     const charges = new Map(snapshot.charges.map((charge) => [charge.id, charge]));
@@ -172,6 +245,15 @@ async function collectInvoice(state: RunState, ref: DueInvoiceRef): Promise<void
   }
 
   const allocations = plan.allocations;
+  // Ventana máxima: la cuota ya volvió a los recordatorios; nunca se cobra.
+  const expired = collectionWindowExpired({
+    history: context.history,
+    charges: context.charges,
+    allocations,
+    timezone: invoice.timezone,
+    collectionDayOfMonth: context.collectionDayOfMonth,
+    todayLocal,
+  });
   // La puerta corta antes de reclamar nada.
   const planned = new Set(allocations.map((allocation) => allocation.chargeId));
   const gate = evaluateFamilyCollectionGate(
@@ -182,7 +264,7 @@ async function collectInvoice(state: RunState, ref: DueInvoiceRef): Promise<void
       todayLocal
     )
   );
-  if (!gate.allowed && gate.classification === "transient") {
+  if (!expired && !gate.allowed && gate.classification === "transient") {
     countSkip(state, gate.reason);
     return;
   }
@@ -193,7 +275,7 @@ async function collectInvoice(state: RunState, ref: DueInvoiceRef): Promise<void
     earliestServicePeriod(context.charges.filter((charge) => planned.has(charge.id)))
   );
   const claim =
-    gate.allowed && periodValid
+    !expired && gate.allowed && periodValid
       ? {
           action: "claimed" as const,
           authorizationId: context.authorization?.id ?? null,
@@ -202,7 +284,11 @@ async function collectInvoice(state: RunState, ref: DueInvoiceRef): Promise<void
         }
       : {
           action: "canceled" as const,
-          reason: gate.allowed ? INVALID_SERVICE_PERIOD_CODE : gate.reason,
+          reason: expired
+            ? COLLECTION_WINDOW_EXPIRED_CODE
+            : gate.allowed
+              ? INVALID_SERVICE_PERIOD_CODE
+              : gate.reason,
           authorizationId: null,
           paymentProviderAccountId: null,
           paymentMethodKind: null,

@@ -105,8 +105,8 @@ function baseContext(): InvoiceCollectionContext {
         currency: "EUR",
         amountCents: 4500,
         outstandingCents: 4500,
-        // 23:59:59.999 del 10 de noviembre en Madrid.
-        dueAt: new Date("2026-11-10T22:59:59.999Z"),
+        // 23:59:59.999 del 16 de noviembre en Madrid (ayer: dentro de la ventana de cobro).
+        dueAt: new Date("2026-11-16T22:59:59.999Z"),
         servicePeriodStart: "2026-11-01",
       },
     ],
@@ -800,6 +800,113 @@ describe("Fase B: cobrar lo que vence hoy", () => {
     const result = await onTime.run({ now: later });
     expect(onTime.world.decisions[0]).toMatchObject({ action: "claimed", attemptNumber: 2 });
     expect(result).toMatchObject({ retried: 1, collected: 1 });
+  });
+
+  describe("ventana máxima de cobro (la cuota ya volvió a los recordatorios)", () => {
+    // 23:59:59.999 del 7 de noviembre en Madrid: el margen acabó el 10.
+    const lapsedDueAt = new Date("2026-11-07T22:59:59.999Z");
+    const expiredDecision = (attemptNumber: number) => ({
+      action: "canceled",
+      attemptNumber,
+      amountCents: 4500,
+      allocations: [{ chargeId, amountCents: 4500 }],
+      reason: "collection_window_expired",
+    });
+
+    it("vencida hace 10 días con un motivo pasajero: canceled collection_window_expired y sin Stripe", async () => {
+      const { world, store, gateway, run } = setup();
+      world.context!.charges[0].dueAt = lapsedDueAt;
+      world.context!.plan.entitlement!.planCode = "free";
+      world.context!.plan.entitlement!.source = "bootstrap";
+
+      const result = await run();
+
+      expect(world.decisions).toEqual([expiredDecision(1)]);
+      expect(vi.mocked(store.claimOrCancel).mock.calls[0][0]).toMatchObject({
+        authorizationId: null,
+        paymentProviderAccountId: null,
+        paymentMethodKind: null,
+      });
+      expect(gateway.createPayment).not.toHaveBeenCalled();
+      expect(gateway.confirmPayment).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ canceled: 1, collected: 0, skipped: {} });
+    });
+
+    it("el motivo pasajero desapareció y la puerta deja pasar: tampoco se cobra", async () => {
+      const { world, gateway, run } = setup();
+      world.context!.charges[0].dueAt = lapsedDueAt;
+
+      const result = await run();
+
+      expect(world.decisions).toEqual([expiredDecision(1)]);
+      expect(world.attempts[0]).toMatchObject({ status: "canceled" });
+      expect(gateway.createPayment).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ canceled: 1, collected: 0 });
+    });
+
+    it("el último día del margen todavía se cobra", async () => {
+      const { world, run } = setup();
+      // 14 de noviembre + 3 días = hoy (17).
+      world.context!.charges[0].dueAt = new Date("2026-11-14T22:59:59.999Z");
+      expect(await run()).toMatchObject({ collected: 1, canceled: 0 });
+      expect(world.decisions[0]).toMatchObject({ action: "claimed" });
+    });
+
+    it("con día fijo, el margen cuenta desde la fecha de cobro, no desde el vencimiento", async () => {
+      const { world, run } = setup();
+      // Vence el 7, pero la academia cobra el día 15: el margen llega al 18.
+      world.context!.charges[0].dueAt = lapsedDueAt;
+      world.context!.collectionDayOfMonth = 15;
+      expect(await run()).toMatchObject({ collected: 1, canceled: 0 });
+    });
+
+    it("reintento cuya fecha pasó hace más del margen: canceled como intento 2, sin Stripe", async () => {
+      const { world, gateway, run } = setup();
+      world.context!.history = {
+        openExists: false,
+        // 13-11-2026 00:00 en Madrid: el margen acabó el 16.
+        last: { attemptNumber: 1, status: "failed", nextRetryAt: new Date("2026-11-12T23:00:00.000Z") },
+      };
+
+      const result = await run();
+
+      expect(world.decisions).toEqual([expiredDecision(2)]);
+      expect(gateway.createPayment).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ canceled: 1, retried: 0 });
+    });
+
+    it("reintento dentro del margen: se cobra", async () => {
+      const { world, run } = setup();
+      world.context!.history = {
+        openExists: false,
+        // 14-11-2026 00:00 en Madrid: el margen llega a hoy.
+        last: { attemptNumber: 1, status: "failed", nextRetryAt: new Date("2026-11-13T23:00:00.000Z") },
+      };
+      expect(await run()).toMatchObject({ retried: 1, collected: 1 });
+    });
+
+    it("dentro de la transacción la ventana ya pasó: nunca reclama, cancela", async () => {
+      const { world, gateway, run } = setup();
+      world.locked = { charges: [{ ...baseContext().charges[0], dueAt: lapsedDueAt }] };
+
+      const result = await run();
+
+      expect(world.decisions).toEqual([expiredDecision(1)]);
+      expect(world.attempts[0]).toMatchObject({ status: "canceled" });
+      expect(gateway.createPayment).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ canceled: 1, collected: 0 });
+    });
+
+    it("fuera se vio la ventana pasada y dentro no: no escribe nada (los datos cambiaron)", async () => {
+      const { world, run } = setup();
+      world.context!.charges[0].dueAt = lapsedDueAt;
+      world.locked = { charges: [{ ...baseContext().charges[0] }] };
+
+      const result = await run();
+
+      expect(result.skipped).toEqual({ plan_changed: 1 });
+      expect(world.attempts).toHaveLength(0);
+    });
   });
 
   it("un intento final anterior (cobrado, cancelado o fallido sin reintento) no se repite", async () => {

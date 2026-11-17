@@ -3,6 +3,11 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// El panel relee la página (router.refresh) tras un conflicto de versión.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn(), replace: vi.fn(), push: vi.fn() }),
+}));
+
 import {
   OwnerFamilyPaymentMethodsPanel,
   type OwnerFamilyPaymentMethod,

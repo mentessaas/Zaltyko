@@ -367,7 +367,7 @@ describeDisposablePg("family collection candidate schema", () => {
     for (const status of ["claimed", "created", "processing"]) expect(open).toContain(`'${status}'::text`);
     for (const status of ["succeeded", "failed", "canceled"]) expect(open).not.toContain(status);
     expect(indexes.get("family_collection_attempts_retry_idx")).toContain("(organization_id, status, next_retry_at)");
-    expect(indexes.get("family_collection_attempts_resume_idx")).toContain("(status, claimed_at)");
+    expect(indexes.get("family_collection_attempts_resume_idx")).toContain("(status, updated_at)");
     expect(indexes.get("family_collection_attempt_charges_charge_idx")).toContain("(organization_id, charge_id)");
     expect(indexes.get("organization_collection_settings_member_idx")).toContain("(organization_id, updated_by_member_id)");
   });

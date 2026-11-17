@@ -116,6 +116,7 @@ function ownerRow(overrides: Partial<OwnerCollectionRow> = {}): OwnerCollectionR
     nextDueAt: "2026-11-20T22:59:59.999Z",
     openAutomaticCents: 4500,
     blocker: null,
+    attemptsExhausted: false,
     attempt: null,
     ...overrides,
   };
@@ -129,6 +130,8 @@ function attempt(overrides: Partial<NonNullable<OwnerCollectionRow["attempt"]>> 
     declineCode: null,
     nextRetryAt: null,
     completedAt: new Date("2026-11-05T08:00:00.000Z"),
+    // Tocado hace una hora: dentro de las 24 h sin cambios.
+    updatedAt: new Date("2026-11-17T08:00:00.000Z"),
     resumeCount: 0,
     allocationStatus: "allocated",
     hasReviewNotice: false,
@@ -294,6 +297,15 @@ describe("estado del cobro automático para la familia (puro)", () => {
     ).toEqual({ kind: "not_collected" });
   });
 
+  it("cerrada porque pasó la ventana de cobro: «no se pudo cobrar», sin fecha ni promesa", () => {
+    expect(
+      familyAutomaticFeeStatusOf(
+        familyInput({ nextDueAt: "2026-11-02T22:59:59.999Z", last: { status: "canceled", nextRetryAt: null, completedAt: NOW } }),
+        NOW
+      )
+    ).toEqual({ kind: "not_collected" });
+  });
+
   it("cancelada y pagada a mano: no enseña nada", () => {
     expect(
       familyAutomaticFeeStatusOf(
@@ -348,6 +360,25 @@ describe("motivos en palabras sencillas", () => {
       "No pudimos comprobar tu cuenta de Stripe a tiempo."
     );
     expect(reviewReasonText("motivo_nuevo")).toBe("El cobro necesita una comprobación. Compruébalo en Stripe.");
+    expect(failureReasonText({ failureCode: "collection_window_expired", declineCode: null })).toBe(
+      "No se pudo intentar el cobro a tiempo. Se cobra a mano."
+    );
+  });
+
+  it("un cierre canceled enseña su propio motivo, no el del rechazo anterior", () => {
+    for (const [code, text] of [
+      ["canceled_by_academy", "Lo canceló la academia."],
+      ["manual_payment", "Se registró un pago a mano."],
+      ["reviewed_by_academy", "La academia lo revisó y lo cerró."],
+      ["collection_window_expired", "No se pudo intentar el cobro a tiempo. Se cobra a mano."],
+      ["authorization_missing", "La familia ya no tiene un método de pago activo."],
+    ] as const) {
+      expect(failureReasonText({ status: "canceled", failureCode: code, declineCode: "insufficient_funds" }), code).toBe(text);
+    }
+    // Un fallo sigue enseñando el rechazo del banco.
+    expect(failureReasonText({ status: "failed", failureCode: "card_declined", declineCode: "insufficient_funds" })).toBe(
+      "No había saldo suficiente."
+    );
   });
 });
 
@@ -557,6 +588,94 @@ describe("fila de la academia (pura)", () => {
         "2026-11"
       )
     ).toMatchObject({ state: "canceled", reason: "Lo canceló la academia.", canCancel: false });
+  });
+
+  it("reintento cancelado por la academia: su motivo, no el rechazo que conserva", () => {
+    expect(
+      ownerAutomaticCollectionItemOf(
+        ownerRow({
+          attempt: attempt({
+            status: "canceled",
+            failureCode: "canceled_by_academy",
+            declineCode: "insufficient_funds",
+            allocationStatus: null,
+          }),
+        }),
+        NOW,
+        "2026-11"
+      )
+    ).toMatchObject({ state: "canceled", reason: "Lo canceló la academia." });
+  });
+
+  it("cerrada porque pasó la ventana de cobro: no se cobró automáticamente y se cobra a mano", () => {
+    expect(
+      ownerAutomaticCollectionItemOf(
+        ownerRow({
+          attempt: attempt({
+            status: "canceled",
+            failureCode: "collection_window_expired",
+            completedAt: new Date("2026-11-10T06:00:00.000Z"),
+            allocationStatus: null,
+          }),
+        }),
+        NOW,
+        "2026-11"
+      )
+    ).toMatchObject({
+      state: "not_attempted",
+      date: "2026-11-10",
+      reason: "No se pudo intentar el cobro a tiempo. Se cobra a mano.",
+      needsReview: false,
+      canCancel: false,
+      canMarkReviewed: false,
+      manualPaymentBlocked: false,
+    });
+  });
+
+  it("abierto más de 24 h sin cambios y sin aviso: se puede marcar como revisado", () => {
+    const open = (status: string, updatedAt: string) =>
+      ownerAutomaticCollectionItemOf(
+        ownerRow({
+          attempt: attempt({ status, completedAt: null, allocationStatus: null, updatedAt: new Date(updatedAt) }),
+        }),
+        NOW,
+        "2026-11"
+      );
+    // 25 h sin cambios.
+    expect(open("created", "2026-11-16T08:00:00.000Z")).toMatchObject({
+      state: "in_progress",
+      needsReview: true,
+      canMarkReviewed: true,
+      reason: "El cobro lleva más de un día sin avanzar. Compruébalo en Stripe.",
+    });
+    expect(open("claimed", "2026-11-16T08:00:00.000Z")).toMatchObject({ canMarkReviewed: true });
+    // 23 h: todavía no.
+    expect(open("created", "2026-11-16T10:00:00.000Z")).toMatchObject({ canMarkReviewed: false, needsReview: false });
+    // En el banco: nunca por tiempo (la domiciliación tarda días).
+    expect(open("processing", "2026-11-10T08:00:00.000Z")).toMatchObject({ canMarkReviewed: false });
+  });
+
+  it("factura sin más intentos (aviso attempts_exhausted): necesita revisión, se cobra a mano y no promete el reintento", () => {
+    expect(
+      ownerAutomaticCollectionItemOf(
+        ownerRow({
+          attemptsExhausted: true,
+          attempt: attempt({
+            status: "failed",
+            declineCode: "insufficient_funds",
+            nextRetryAt: new Date("2026-11-19T23:00:00.000Z"),
+            allocationStatus: null,
+          }),
+        }),
+        NOW,
+        "2026-11"
+      )
+    ).toMatchObject({
+      state: "failed",
+      needsReview: true,
+      canMarkReviewed: false,
+      reason: "No había saldo suficiente. Esta cuota ya no admite más intentos automáticos. Se cobra a mano.",
+    });
   });
 });
 

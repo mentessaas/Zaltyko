@@ -2,9 +2,9 @@
  * Cobro automático de cuotas (Fase 3), Fase A del proceso diario: poner al día
  * lo que quedó a medias antes de cobrar nada nuevo.
  *
- * 1. Reanudar los intentos `claimed`/`created` de hace más de 15 minutos,
- *    tomándolos de forma atómica (cada toma suma una reanudación; como mucho
- *    tres). Se usa el `pi_…` guardado o se busca por el id del intento antes
+ * 1. Reanudar los intentos `claimed`/`created` sin cambios desde hace más de
+ *    15 minutos, tomándolos de forma atómica (cada toma suma una reanudación;
+ *    como mucho tres). Se usa el `pi_…` guardado o se busca por el id del intento antes
  *    de crear: nunca un segundo cobro, aunque Stripe ya haya olvidado la
  *    clave de idempotencia (24 h).
  * 2. Red de seguridad: un intento `claimed`/`created` que ya agotó sus

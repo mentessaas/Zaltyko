@@ -416,12 +416,17 @@ de cada cuota en `/familia/cuotas` si es la persona pagadora (exige además
   fijo del mes» (del 1 al 31), con las notas «En los meses que no tienen ese
   día, se cobra el último día del mes.» y «Si ese día cae antes del
   vencimiento, se cobra el día del vencimiento.». Botón «Guardar día de
-  cobro». Cambiar el día afecta a los cobros que aún no se han empezado.
+  cobro». Cambiar el día afecta a los cobros que aún no se han empezado. Si
+  otra sesión lo cambió antes (409 `VERSION_CONFLICT`), sale su texto y la
+  página se relee sola con el día guardado.
 - **Interruptor «Cobrar automáticamente»**, uno por familia, en el panel «Pago
   automático de las familias» de `/owner/familias`
   (`OwnerFamilyPaymentMethodsPanel.tsx`): «Con «Cobrar automáticamente»
   encendido, las próximas cuotas de la familia se cobran solas. Al apagarlo,
-  no se cobra ninguna cuota más de forma automática.». Sin plan de pago sale
+  no se cobra ninguna cuota más de forma automática. Los cobros ya enviados
+  al banco siguen su curso.». Al apagarlo, el aviso también lo recuerda. Si
+  otra sesión cambió la preferencia (409 `VERSION_CONFLICT`), sale su texto y
+  la página se relee sola. Sin plan de pago sale
   desactivado con «El cobro automático de cuotas está incluido en Starter y
   Growth.». Tras un cambio real de plan sale apagado con «Cambió el plan de la
   academia: vuelve a encenderlo si quieres seguir cobrando automáticamente a
@@ -429,16 +434,29 @@ de cada cuota en `/familia/cuotas` si es la persona pagadora (exige además
 - **«Cobros automáticos de este mes»**, en `/owner/payments`
   (`OwnerAutomaticCollectionsPanel.tsx`), debajo del pago manual. Una fila por
   factura (como mucho 100): «Se cobrará el {día}», «Cobro en curso», «Cobrada
-  el {día}», «No se pudo cobrar; se volverá a intentar el {día}», «No se pudo
-  cobrar», «Cobro automático cancelado» o «No se cobró automáticamente», con
-  el motivo en palabras sencillas (nunca códigos) y la marca «Necesita
-  revisión» si hay un aviso. Acciones:
+  el {día}», «No se pudo cobrar; se volverá a intentar el {día}», «Se cobrará
+  a mano», «No se pudo cobrar», «Cobro automático cancelado» o «No se cobró
+  automáticamente», con el motivo en palabras sencillas (nunca códigos) y la
+  marca «Necesita revisión» si hay un aviso. «Se cobrará a mano» sale cuando
+  el cobro pendiente (o su reintento) ya no puede llegar: sin plan de pago,
+  familia en manual, método revocado o cambio de plan; la familia, en ese
+  caso, no ve ninguna promesa de cobro. «No se cobró automáticamente» sale
+  cuando pasó la ventana de cobro sin poder cobrar (intento cerrado con
+  `collection_window_expired`, o todavía sin intento). Un cierre cancelado
+  enseña su propio motivo (la academia, un pago a mano, la ventana…), no el
+  del rechazo anterior. Una factura sin más intentos (aviso
+  `attempts_exhausted`) sale con «Necesita revisión» y «Esta cuota ya no
+  admite más intentos automáticos. Se cobra a mano.». Acciones:
   - «Cancelar el cobro automático», con confirmación: para un reintento
     pendiente o un cobro creado que aún no se ha cobrado. La cuota pasa a
     cobrarse a mano.
   - «Marcar como revisado», con la casilla obligatoria «He comprobado el cobro
-    en Stripe»: para un cobro que se quedó abierto con un aviso de revisión o
-    sin poder terminar.
+    en Stripe»: para un cobro que se quedó abierto con un aviso de revisión,
+    sin poder terminar (reanudaciones agotadas) o reclamado o creado sin
+    cambios desde hace más de 24 h («El cobro lleva más de un día sin
+    avanzar.»), la salida si el proceso diario deja de pasar. Antes de
+    cerrar siempre lee el cobro en Stripe y lo para; si el dinero ya salió,
+    lo registra, y si está en el banco, responde 409.
   - Si Stripe ya lo había cobrado, ninguna de las dos lo cancela: se registra
     el pago y queda como cobrado («El cobro de la cuota … ya se había hecho y
     ha quedado registrado.»).
@@ -449,8 +467,11 @@ de cada cuota en `/familia/cuotas` si es la persona pagadora (exige además
 - **Familia**, bajo cada cuota automática en `/familia/cuotas`: «Se cobrará
   automáticamente el {fecha}» (también cuando hay un reintento pendiente),
   «Cobro en curso», «Cobrada automáticamente el {fecha}» o «No se pudo cobrar
-  automáticamente; tu academia te dirá cómo pagarla». Las cuotas manuales y la
-  demo pública no cambian.
+  automáticamente; tu academia te dirá cómo pagarla» (también cuando pasó la
+  ventana de cobro). Si el cobro pendiente ya no puede llegar (sin plan de
+  pago, familia en manual, método revocado o cambio de plan), la familia no
+  ve nada bajo la cuota: ni fecha ni promesa de cobro. Las cuotas manuales y
+  la demo pública no cambian.
 - Con la función cerrada (bandera, cerrojos o tablas) ninguna de estas piezas
   aparece y las páginas no leen nada nuevo; un fallo de lectura nunca rompe la
   página.
@@ -526,7 +547,8 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
   - **fallido** (`failed`): Stripe lo rechazó; puede llevar un reintento
     programado o ser definitivo;
   - **cancelado** (`canceled`): se cerró sin cobrar, con su motivo (la puerta
-    del día del cobro, la academia, un pago manual o la revisión).
+    del día del cobro, la academia, un pago manual, la revisión o la ventana
+    de cobro pasada, `collection_window_expired`).
   Solo puede haber un intento abierto (reclamado, creado o en proceso) por
   factura, como mucho cinco intentos por factura y tres reanudaciones por
   intento.
@@ -591,6 +613,13 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
     hecho que dejó saldo pendiente.
   Con la bandera apagada, las cuotas automáticas se tratan como manuales para
   pagos y recordatorios.
+- **Ventana máxima de cobro.** Esos mismos 3 días son el límite para cobrar:
+  pasada la espera (desde la fecha de cobro sin ningún intento, o desde la
+  fecha del reintento), la cuota ya volvió a los recordatorios y nunca se
+  cobra sola, aunque el motivo pasajero que lo impedía haya desaparecido. El
+  proceso escribe un intento `canceled` (`collection_window_expired`), sin
+  llamar a Stripe, y la cuota se cobra a mano. Así nunca hay doble pago (a
+  mano y con la tarjeta).
 - Pruebas automáticas (`tests/family-collection-*`, incluidas las de
   PostgreSQL desechable `family-collection-pg`, `-worker-pg`,
   `-academy-actions-pg` y `-plan-revision-pg`, y
@@ -604,6 +633,22 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
 - En producción no cambia nada: la bandera está apagada y, aunque se
   encendiera, el proceso no hace nada contra Live ni contra la base de
   producción.
+- **Vuelta atrás.** Para parar los cobros nuevos basta con apagar la bandera;
+  la puesta al día sigue registrando lo que ya salió. **Antes de quitar el
+  trabajo de pg_cron, comprobar que no queda ningún intento abierto** con
+  esta consulta de solo lectura (debe devolver cero filas):
+
+  ```sql
+  -- Solo lectura. Intentos abiertos (reclamados, creados o en el banco).
+  select organization_id, invoice_id, id, status, resume_count, claimed_at, updated_at
+    from zaltyko.family_collection_attempts
+   where status in ('claimed', 'created', 'processing')
+   order by updated_at;
+  ```
+
+  Si queda alguno, esperar a que la puesta al día lo cierre o pedir a la
+  academia que use «Marcar como revisado» (sin aviso, posible pasadas 24 h
+  sin cambios; para una domiciliación en el banco, esperar a su resultado).
 
 ### Cerrojos y límites
 
@@ -635,7 +680,7 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
   factura sea en euros. Se repite antes de crear o confirmar al reanudar.
 - **Ninguna cuota en el limbo.** Los motivos pasajeros (bandera, cerrojos,
   plan que todavía no rige o suscripción no al día, cuenta sin releer)
-  esperan al día siguiente; los definitivos (familia en manual, método
+  esperan al día siguiente, como mucho hasta el final de la ventana de cobro; los definitivos (familia en manual, método
   revocado o caducado, pagador que ya no es el vigente, cuenta que ya no
   sirve, moneda que no es euro…) cierran la cuota con un intento cancelado y
   vuelve a manual con recordatorios.

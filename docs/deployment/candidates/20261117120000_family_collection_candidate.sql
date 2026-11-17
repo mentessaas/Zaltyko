@@ -178,9 +178,9 @@ create unique index family_collection_attempts_open_uq
 -- Reintentos pendientes de una academia.
 create index family_collection_attempts_retry_idx
   on zaltyko.family_collection_attempts (organization_id, status, next_retry_at);
--- Reanudar lo que quedó a medias (claimed o created de hace más de 15 minutos).
+-- Reanudar lo que quedó a medias (claimed o created sin cambios desde hace más de 15 minutos).
 create index family_collection_attempts_resume_idx
-  on zaltyko.family_collection_attempts (status, claimed_at);
+  on zaltyko.family_collection_attempts (status, updated_at);
 
 create table zaltyko.family_collection_attempt_charges (
   attempt_id uuid not null,

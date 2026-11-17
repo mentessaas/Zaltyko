@@ -9,9 +9,11 @@
  *   - en curso en el banco (`processing`) → 409: la domiciliación ya salió;
  *   - reclamado (el proceso diario lo está cobrando ahora) → 409.
  * - «Marcar como revisado» (`markAutomaticCollectionReviewed`): solo para un
- *   intento que quedó abierto con un aviso de revisión o que agotó sus
- *   reanudaciones, y solo si la persona confirma que lo comprobó en Stripe.
- *   Lo cierra como `canceled` (`reviewed_by_academy`), con auditoría.
+ *   intento que quedó abierto con un aviso de revisión, que agotó sus
+ *   reanudaciones o que lleva más de 24 h reclamado o creado sin cambios
+ *   (salida si el proceso diario dejó de pasar), y solo si la persona confirma
+ *   que lo comprobó en Stripe. Lo cierra como `canceled` (`reviewed_by_academy`),
+ *   con auditoría.
  *
  * Nunca se cierra un intento cuyo dinero pudo moverse sin registrarlo: antes
  * de cerrarlo se relee el cobro y, si salió, se registra por el mismo camino
@@ -41,7 +43,7 @@ import {
   type AcademyCloseReason,
   type FamilyCollectionStore,
 } from "@/modules/family-collection/infrastructure/family-collection-store";
-import { FAMILY_COLLECTION_MAX_RESUMES } from "@/modules/family-collection/infrastructure/family-collection-schema";
+import { academyCanMarkReviewed } from "@/modules/family-collection/infrastructure/family-collection-schema";
 import {
   createStripeCollectionGateway,
   listCollectionPaymentsByAttempt,
@@ -330,8 +332,10 @@ export async function cancelAutomaticCollection(
 }
 
 /**
- * Cierra como revisado un intento que quedó abierto con un aviso de revisión
- * o que agotó sus reanudaciones. Exige `checkedInStripe: true`.
+ * Cierra como revisado un intento que quedó abierto con un aviso de revisión,
+ * que agotó sus reanudaciones o que lleva más de 24 h sin cambios
+ * (`academyCanMarkReviewed`). Exige `checkedInStripe: true`. Siempre lee
+ * Stripe antes de cerrar: si el dinero se movió, lo registra o responde 409.
  */
 export async function markAutomaticCollectionReviewed(
   raw: { userId: string; organizationId: string; invoiceId: string; checkedInStripe: boolean; now?: Date },
@@ -348,7 +352,7 @@ export async function markAutomaticCollectionReviewed(
   if (!attempt || !OPEN_STATUSES.has(attempt.status)) {
     throw new OperationalError("AUTOMATIC_COLLECTION_NOTHING_PENDING", TEXT.nothingToReview, 409);
   }
-  if (!attempt.hasReviewNotice && attempt.resumeCount < FAMILY_COLLECTION_MAX_RESUMES) {
+  if (!academyCanMarkReviewed(attempt, context.now)) {
     throw new OperationalError("AUTOMATIC_COLLECTION_REVIEW_NOT_NEEDED", TEXT.reviewNotNeeded, 409);
   }
 

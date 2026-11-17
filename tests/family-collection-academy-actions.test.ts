@@ -48,6 +48,7 @@ const attemptId = "10000000-0000-4000-8000-000000000020";
 const paymentIntentId = "pi_SyntheticAcademy1";
 const connectedAccount = "acct_SyntheticAcademy1";
 const now = new Date("2026-11-17T10:00:00.000Z");
+const HOUR = 60 * 60 * 1000;
 
 function ownerScope(member: Partial<OwnerScope["member"]> = {}): OwnerScope {
   return {
@@ -78,6 +79,7 @@ function attempt(overrides: Partial<AcademyAttemptView> = {}): AcademyAttemptVie
     resumeCount: 0,
     claimedAt: now,
     nextRetryAt: null,
+    updatedAt: now,
     hasReviewNotice: false,
     ...overrides,
   };
@@ -372,6 +374,59 @@ describe("marcar como revisado", () => {
     });
     expect(gateway.retrievePayment).not.toHaveBeenCalled();
     expect(store.closeAttempt).not.toHaveBeenCalled();
+  });
+
+  it("abierto más de 24 h sin cambios y sin aviso: lee Stripe y, si no salió dinero, lo cierra", async () => {
+    const store = fakeStore(attempt({ updatedAt: new Date(now.getTime() - 25 * HOUR) }));
+    const gateway = fakeGateway();
+
+    await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).resolves.toEqual({
+      outcome: "reviewed",
+    });
+    expect(gateway.retrievePayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId });
+    expect(gateway.cancelPayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId });
+    expect(store.closeAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "reviewed_by_academy", expected: { status: "created", paymentIntentId } })
+    );
+  });
+
+  it("abierto más de 24 h sin aviso y el dinero ya salió: se registra y nunca se cierra", async () => {
+    const store = fakeStore(attempt({ updatedAt: new Date(now.getTime() - 25 * HOUR) }));
+    const gateway = fakeGateway({ [paymentIntentId]: "succeeded" });
+
+    await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).resolves.toEqual({
+      outcome: "collected",
+    });
+    expect(store.applyOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: { kind: "succeeded", paymentIntentId } })
+    );
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(store.closeAttempt).not.toHaveBeenCalled();
+  });
+
+  it("abierto más de 24 h sin aviso y la domiciliación en el banco: 409 y no se cierra", async () => {
+    const store = fakeStore(attempt({ updatedAt: new Date(now.getTime() - 25 * HOUR) }));
+    const gateway = fakeGateway({ [paymentIntentId]: "processing" });
+
+    await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
+      code: "AUTOMATIC_COLLECTION_PROCESSING",
+      status: 409,
+    });
+    expect(store.closeAttempt).not.toHaveBeenCalled();
+  });
+
+  it("menos de 24 h sin cambios, o en el banco aunque haga días, sin aviso: no necesita revisión", async () => {
+    for (const current of [
+      attempt({ updatedAt: new Date(now.getTime() - 23 * HOUR) }),
+      attempt({ status: "processing", updatedAt: new Date(now.getTime() - 5 * 24 * HOUR) }),
+    ]) {
+      const store = fakeStore(current);
+      const gateway = fakeGateway();
+      await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway }), current.status).rejects.toMatchObject({
+        code: "AUTOMATIC_COLLECTION_REVIEW_NOT_NEEDED",
+      });
+      expect(gateway.retrievePayment).not.toHaveBeenCalled();
+    }
   });
 
   it("con aviso: cancela el cobro sin terminar en Stripe y lo cierra como reviewed_by_academy", async () => {

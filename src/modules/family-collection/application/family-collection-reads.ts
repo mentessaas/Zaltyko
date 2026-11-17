@@ -51,6 +51,8 @@ import {
 } from "@/modules/family-collection/domain/collection-plan";
 import { NEEDS_REVIEW_EVENT } from "@/modules/family-collection/infrastructure/family-collection-store";
 import {
+  academyCanMarkReviewed,
+  COLLECTION_WINDOW_EXPIRED_CODE,
   FAMILY_COLLECTION_MAX_RESUMES,
   FAMILY_COLLECTION_OPEN_STATUSES,
 } from "@/modules/family-collection/infrastructure/family-collection-schema";
@@ -457,6 +459,7 @@ const DECLINE_TEXT: Record<string, string> = {
   card_declined: "El banco ha rechazado el cobro.",
 };
 
+const NOT_ATTEMPTED_TEXT = "No se pudo intentar el cobro a tiempo. Se cobra a mano.";
 const NOT_RELEASED = "El cobro automático de cuotas no está activado.";
 const PLAN_REQUIRED = "Tu plan no incluye el cobro automático de cuotas.";
 const PLAN_NOT_ACTIVE = "El plan de la academia no está activo ahora mismo.";
@@ -474,6 +477,7 @@ const FAILURE_TEXT: Record<string, string> = {
   manual_payment: "Se registró un pago a mano.",
   canceled_by_academy: "Lo canceló la academia.",
   reviewed_by_academy: "La academia lo revisó y lo cerró.",
+  [COLLECTION_WINDOW_EXPIRED_CODE]: NOT_ATTEMPTED_TEXT,
   // Puerta: bandera, entorno y tablas.
   flag_off: NOT_RELEASED,
   automation_not_released: NOT_RELEASED,
@@ -532,18 +536,26 @@ const REVIEW_TEXT: Record<string, string> = {
   payment_conflict: `El pago de Stripe no coincide con lo registrado en esta cuota. ${CHECK_IN_STRIPE}`,
   created_without_claim: `Hay un cobro en Stripe que Zaltyko no tenía registrado. ${CHECK_IN_STRIPE}`,
   attempts_exhausted: "Esta cuota ya no admite más intentos automáticos. Se cobra a mano.",
+  stale_open: `El cobro lleva más de un día sin avanzar. ${CHECK_IN_STRIPE}`,
 };
 
 const REVIEW_FALLBACK = `El cobro necesita una comprobación. ${CHECK_IN_STRIPE}`;
 const FAILURE_FALLBACK = "No se pudo cobrar automáticamente.";
 
-/** Motivo de un fallo, una cancelación o un bloqueo en palabras sencillas (nunca el código). */
-export function failureReasonText(input: { failureCode: string | null; declineCode: string | null }): string {
-  return (
-    (input.declineCode ? DECLINE_TEXT[input.declineCode] : undefined) ??
-    (input.failureCode ? FAILURE_TEXT[input.failureCode] : undefined) ??
-    FAILURE_FALLBACK
-  );
+/**
+ * Motivo de un fallo, una cancelación o un bloqueo en palabras sencillas
+ * (nunca el código). Un cierre `canceled` lleva su propio motivo en
+ * `failure_code` (la academia, un pago a mano, la puerta, la ventana de
+ * cobro…): manda sobre el `decline_code`, que es del fallo anterior.
+ */
+export function failureReasonText(input: {
+  failureCode: string | null;
+  declineCode: string | null;
+  status?: string;
+}): string {
+  const byDecline = input.declineCode ? DECLINE_TEXT[input.declineCode] : undefined;
+  const byFailure = input.failureCode ? FAILURE_TEXT[input.failureCode] : undefined;
+  return (input.status === "canceled" ? (byFailure ?? byDecline) : (byDecline ?? byFailure)) ?? FAILURE_FALLBACK;
 }
 
 /** Motivo de un aviso de revisión en palabras sencillas (nunca el código). */
@@ -567,7 +579,8 @@ export function reviewReasonText(reason: string | null): string {
  *   método de pago): «Se cobrará a mano», con el motivo;
  * - `failed`: falló sin reintento (o el reintento no llegó a tiempo); se cobra a mano;
  * - `canceled`: cancelado (por la puerta, la academia, un pago a mano o una revisión);
- * - `not_attempted`: pasó su día y la espera sin poder intentarlo; se cobra a mano.
+ * - `not_attempted`: pasó su día y la espera sin poder intentarlo (con o sin
+ *   el intento `collection_window_expired` que lo cierra); se cobra a mano.
  */
 export type OwnerAutomaticCollectionState =
   | "scheduled"
@@ -594,7 +607,7 @@ export interface OwnerAutomaticCollectionItem {
   needsReview: boolean;
   /** «Cancelar el cobro automático» (reintento pendiente o cobro creado sin confirmar). */
   canCancel: boolean;
-  /** «Marcar como revisado» (intento abierto con aviso o reanudaciones agotadas). */
+  /** «Marcar como revisado» (intento abierto con aviso, reanudaciones agotadas o más de 24 h sin cambios). */
   canMarkReviewed: boolean;
   /** Hay un intento en curso: el pago a mano responde 409 hasta que termine. */
   manualPaymentBlocked: boolean;
@@ -621,6 +634,8 @@ export interface OwnerCollectionRow {
   openAutomaticCents: number;
   /** automaticCollectionBlocker: por qué el cobro pendiente ya no puede llegar. */
   blocker: string | null;
+  /** Aviso de la factura `attempts_exhausted`: no admite más intentos automáticos. */
+  attemptsExhausted: boolean;
   attempt: {
     status: string;
     amountCents: number;
@@ -628,6 +643,8 @@ export interface OwnerCollectionRow {
     declineCode: string | null;
     nextRetryAt: Date | null;
     completedAt: Date | null;
+    /** Último cambio del intento (`updated_at`). */
+    updatedAt: Date | null;
     resumeCount: number;
     allocationStatus: string | null;
     hasReviewNotice: boolean;
@@ -635,7 +652,6 @@ export interface OwnerCollectionRow {
   } | null;
 }
 
-const NOT_ATTEMPTED_TEXT = "No se pudo intentar el cobro a tiempo. Se cobra a mano.";
 
 /**
  * Un cobro de la lista de la academia, o `null` si no es de este mes. Pura.
@@ -682,16 +698,26 @@ export function ownerAutomaticCollectionItemOf(
     }
 
     const open = OPEN_STATUSES.has(attempt.status);
-    const canMarkReviewed =
-      open && (attempt.hasReviewNotice || attempt.resumeCount >= FAMILY_COLLECTION_MAX_RESUMES);
+    const canMarkReviewed = academyCanMarkReviewed(attempt, now);
     const allocationReview = attempt.status === "succeeded" && attempt.allocationStatus === "needs_review";
-    const needsReview = canMarkReviewed || allocationReview;
+    // Aviso de la factura: ya no admite más intentos automáticos (se cobra a mano).
+    const exhausted = row.attemptsExhausted && !open;
+    const needsReview = canMarkReviewed || allocationReview || exhausted;
     const reviewText = allocationReview
       ? reviewReasonText("allocation")
       : canMarkReviewed
-        ? reviewReasonText(attempt.reviewReason ?? (attempt.hasReviewNotice ? null : "resume_exhausted"))
+        ? reviewReasonText(
+            attempt.reviewReason ??
+              (attempt.hasReviewNotice
+                ? null
+                : attempt.resumeCount >= FAMILY_COLLECTION_MAX_RESUMES
+                  ? "resume_exhausted"
+                  : "stale_open")
+          )
         : null;
-    const failureText = failureReasonText(attempt);
+    const failureText = exhausted
+      ? `${failureReasonText(attempt)} ${reviewReasonText("attempts_exhausted")}`
+      : failureReasonText(attempt);
     const local = (instant: Date | null) => (instant ? localCalendarDate(instant, row.timezone) : null);
 
     let state: OwnerAutomaticCollectionState;
@@ -711,7 +737,8 @@ export function ownerAutomaticCollectionItemOf(
         state = "in_progress";
         break;
       case "failed": {
-        const retryDate = local(attempt.nextRetryAt);
+        // Sin más intentos, el reintento guardado ya no sale.
+        const retryDate = exhausted ? null : local(attempt.nextRetryAt);
         const expected = retryDate ? expectedCharge(retryDate, today) : "lapsed";
         if (retryDate && blockerText) {
           // El reintento ya no puede salir (la puerta lo cancelará): se cobra a mano.
@@ -730,7 +757,9 @@ export function ownerAutomaticCollectionItemOf(
         break;
       }
       default:
-        state = "canceled";
+        // La ventana de cobro pasó sin poder cobrar: para la academia es lo
+        // mismo que una cuota que no llegó a intentarse.
+        state = attempt.failureCode === COLLECTION_WINDOW_EXPIRED_CODE ? "not_attempted" : "canceled";
         date = local(attempt.completedAt);
         reason = failureText;
         break;
@@ -853,10 +882,18 @@ export async function getOwnerAutomaticCollections(input: {
       la.decline_code as "declineCode",
       la.next_retry_at as "nextRetryAt",
       la.completed_at as "completedAt",
+      la.updated_at as "attemptUpdatedAt",
       la.resume_count as "resumeCount",
       la.allocation_status as "allocationStatus",
       la.review_reason as "reviewReason",
-      la.has_review_notice as "hasReviewNotice"
+      la.has_review_notice as "hasReviewNotice",
+      exists (
+        select 1
+          from zaltyko.outbox_events e
+         where e.organization_id = i.organization_id
+           and e.event_name = ${NEEDS_REVIEW_EVENT}
+           and e.idempotency_key = 'family-collection:invoice:' || i.id::text || ':needs_review:attempts_exhausted'
+      ) as "attemptsExhausted"
     from (select distinct invoice_id from candidates) k
     join zaltyko.invoices i
       on i.organization_id = ${organizationId}::uuid and i.id = k.invoice_id
@@ -875,7 +912,7 @@ export async function getOwnerAutomaticCollections(input: {
       on p.organization_id = g.organization_id and p.id = g.person_id
     left join lateral (
       select a.id, a.status, a.amount_cents, a.failure_code, a.decline_code,
-             a.next_retry_at, a.completed_at, a.claimed_at, a.resume_count,
+             a.next_retry_at, a.completed_at, a.claimed_at, a.updated_at, a.resume_count,
              a.allocation_status,
              (
                select e.payload ->> 'reason'
@@ -931,6 +968,7 @@ export async function getOwnerAutomaticCollections(input: {
         nextDueAt: textOrNull(row.nextDueAt),
         openAutomaticCents: cents(row.openAutomaticCents),
         blocker: plan ? automaticCollectionBlocker(prerequisitesOf(row, plan)) : null,
+        attemptsExhausted: row.attemptsExhausted === true,
         attempt: attemptStatus
           ? {
               status: attemptStatus,
@@ -939,6 +977,7 @@ export async function getOwnerAutomaticCollections(input: {
               declineCode: textOrNull(row.declineCode),
               nextRetryAt: dateOrNull(row.nextRetryAt),
               completedAt: dateOrNull(row.completedAt),
+              updatedAt: dateOrNull(row.attemptUpdatedAt),
               resumeCount: Number(row.resumeCount ?? 0),
               allocationStatus: textOrNull(row.allocationStatus),
               hasReviewNotice: row.hasReviewNotice === true,

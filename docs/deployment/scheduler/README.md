@@ -164,6 +164,24 @@ La forma más suave de parar los cobros nuevos es apagar la bandera en Vercel.
 Para parar también la puesta al día, quitar el trabajo:
 `select cron.unschedule('zaltyko-collect-family-fees');`.
 
+**Antes de quitar el trabajo, comprobar que no queda ningún intento abierto**
+(sin la puesta al día, un cobro a medias no lo registra nadie). Consulta de
+solo lectura; debe devolver cero filas:
+
+```sql
+-- Solo lectura. Intentos abiertos (reclamados, creados o en el banco).
+select organization_id, invoice_id, id, status, resume_count, claimed_at, updated_at
+  from zaltyko.family_collection_attempts
+ where status in ('claimed', 'created', 'processing')
+ order by updated_at;
+```
+
+Si queda alguno, dejar el trabajo hasta que la puesta al día lo cierre, o que
+la academia use «Marcar como revisado» en `/owner/payments` (sin aviso, se
+permite pasadas 24 h sin cambios; la acción lee el cobro en Stripe antes de
+cerrarlo y, si el dinero salió, lo registra). Una domiciliación en el banco
+(`processing`) hay que dejarla terminar.
+
 ### Producción
 
 `candidates/collect-family-fees.sql` usa `zaltyko_scheduler.call_cron`, que
@@ -219,6 +237,7 @@ Para una prueba puntual en staging no hace falta programar nada: basta con
 `select zaltyko_scheduler.call_cron_staging('collect-family-fees');` y mirar
 la respuesta en `net._http_response`. Un 401 puede ser un secreto distinto en
 Vault y en Vercel, o la protección de despliegues de Vercel delante de
-staging. Vuelta atrás en staging:
+staging. Vuelta atrás en staging, después de la misma comprobación de
+intentos abiertos:
 `select cron.unschedule('zaltyko-collect-family-fees');` y
 `drop function if exists zaltyko_scheduler.call_cron_staging(text);`.

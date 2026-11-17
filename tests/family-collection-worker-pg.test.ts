@@ -235,12 +235,15 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
    * Academia con plan de pago por contrato, cuenta conectada lista, familia
    * con pagador vigente, método activo (tarjeta o domiciliación) y su Customer,
    * preferencia automática y una factura mensual emitida con cuotas
-   * automáticas vencidas hace tres días.
+   * automáticas vencidas hace `dueDaysAgo` días (por defecto dos: dentro de la
+   * ventana de cobro con un día de margen aunque la prueba cruce la
+   * medianoche local).
    */
   async function createCollectableInvoice(input: {
     kind?: "card" | "sepa_debit";
     amounts?: number[];
     accountSyncedAt?: Date;
+    dueDaysAgo?: number;
   } = {}) {
     const kind = input.kind ?? "card";
     const amounts = input.amounts ?? [4500];
@@ -336,7 +339,7 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     `);
 
     const total = amounts.reduce((sum, amount) => sum + amount, 0);
-    const dueAt = new Date(now.getTime() - 3 * DAY).toISOString();
+    const dueAt = new Date(now.getTime() - (input.dueDaysAgo ?? 2) * DAY).toISOString();
     await db.execute(sql`
       insert into zaltyko.invoices (
         id, organization_id, location_id, family_id, family_payer_id, reference, status,
@@ -666,6 +669,28 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     await run(new Date(), gateway);
     expect(await attempts(revoked)).toHaveLength(1);
     expect(await attempts(closed)).toHaveLength(1);
+  });
+
+  it("vencida hace 10 días y el motivo pasajero ya no está: nunca se cobra, intento canceled collection_window_expired", async () => {
+    // Durante días un motivo pasajero (p. ej. el plan o la cuenta) impidió el
+    // cobro; la cuota ya volvió a los recordatorios y pudo pagarse a mano.
+    // Hoy la puerta dejaría pasar, pero la ventana de cobro ya acabó.
+    const fixture = await createCollectableInvoice({ dueDaysAgo: 10 });
+    const { gateway } = fakeStripe();
+
+    await run(new Date(), gateway);
+
+    expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(0);
+    expect(await attempts(fixture)).toEqual([
+      expect.objectContaining({ number: 1, status: "canceled", failure: "collection_window_expired", intent: null }),
+    ]);
+    expect(await ledgerState(fixture)).toEqual({ charges: ["due"], invoice: "issued", providerPayments: [] });
+    expect(await outboxCount(fixture, "family_collection.attempt_canceled")).toBe(1);
+
+    // Final: otra ejecución no lo repite; la cuota se cobra a mano.
+    await run(new Date(), gateway);
+    expect(await attempts(fixture)).toHaveLength(1);
+    expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(0);
   });
 
   it("tarjeta rechazada: reintento el día local +3 y, si vuelve a fallar, fallo final", async () => {

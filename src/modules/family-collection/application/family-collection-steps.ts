@@ -59,7 +59,7 @@ import type { FamilyCollectionGateway } from "@/modules/family-collection/infras
 /** Código de un intento que se agotó sin poder saber nada de Stripe. */
 export const TRANSIENT_EXHAUSTED_CODE = "transient_exhausted";
 
-/** Un intento a medias solo se reanuda pasados 15 minutos (la búsqueda de Stripe tarda en reflejarlo). */
+/** Un intento a medias solo se reanuda pasados 15 minutos sin cambios (la búsqueda de Stripe tarda en reflejarlo). */
 export const RESUME_STALE_MS = 15 * 60 * 1000;
 
 const MULTIPLE_PAYMENTS_ERROR = "FAMILY_COLLECTION_MULTIPLE_PAYMENTS_FOR_ATTEMPT";

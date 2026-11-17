@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { Switch } from "@/components/ui/switch";
@@ -23,6 +24,7 @@ const REVOKE_ENDPOINT = "/api/v1/owner/payments/family-methods";
 const REVOKE_ERROR = "No hemos podido dejar de cobrar automáticamente a esta familia. Inténtalo de nuevo.";
 const PREFERENCE_ENDPOINT = "/api/v1/owner/billing/family-collection-preference";
 const PREFERENCE_ERROR = "No hemos podido guardar el cambio. Inténtalo de nuevo.";
+const SENT_CONTINUE = "Los cobros ya enviados al banco siguen su curso.";
 
 export type OwnerFamilyPaymentMethod = Awaited<ReturnType<typeof listOwnerFamilyPaymentMethods>>[number];
 
@@ -45,7 +47,18 @@ function sinceText(since: string): string | null {
   return Number.isNaN(date.getTime()) ? null : `desde el ${dateFormat.format(date)}`;
 }
 
-type RevokeBody = { data?: { outcome?: unknown } | null; outcome?: unknown; detail?: unknown; message?: unknown };
+type RevokeBody = {
+  data?: { outcome?: unknown } | null;
+  outcome?: unknown;
+  detail?: unknown;
+  message?: unknown;
+  type?: unknown;
+};
+
+/** ¿Es el 409 de versión (`…/problems/version-conflict`)? Otra sesión guardó antes. */
+function isVersionConflict(status: number, body: RevokeBody | null): boolean {
+  return status === 409 && typeof body?.type === "string" && body.type.split("/").pop() === "version-conflict";
+}
 
 /** Mensaje de error de la API (`detail` del problema; `message` por si acaso), si viene en texto. */
 function errorText(body: RevokeBody | null, fallback: string = REVOKE_ERROR): string {
@@ -74,6 +87,7 @@ export function OwnerFamilyPaymentMethodsPanel({
   /** Interruptores «Cobrar automáticamente» (Fase 3), solo con el cobro automático abierto. */
   collection?: OwnerFamilyCollectionSwitches;
 }) {
+  const router = useRouter();
   const [methods, setMethods] = useState(serverMethods);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -83,6 +97,12 @@ export function OwnerFamilyPaymentMethodsPanel({
   const [savingFamily, setSavingFamily] = useState<string | null>(null);
   const savingRef = useRef(false);
   const pendingRef = useRef<PendingPreference | null>(null);
+
+  // Tras router.refresh() (p. ej. por un conflicto de versión) llega la
+  // lectura nueva del servidor: manda sobre los interruptores de esta pantalla.
+  useEffect(() => {
+    setSwitches(collection?.families ?? {});
+  }, [collection]);
 
   async function setAutomatic(method: OwnerFamilyPaymentMethod, automatic: boolean) {
     const current = switches[method.familyId];
@@ -135,12 +155,14 @@ export function OwnerFamilyPaymentMethodsPanel({
           tone: "info",
           text: next.automatic
             ? `Las próximas cuotas de ${method.payerName} se cobrarán automáticamente.`
-            : `Las cuotas de ${method.payerName} ya no se cobrarán automáticamente.`,
+            : `Las cuotas de ${method.payerName} ya no se cobrarán automáticamente. ${SENT_CONTINUE}`,
         });
       } else if (!response.ok) {
         // Rechazo definitivo (4xx): el siguiente intento lleva otra clave.
         if (response.status < 500) pendingRef.current = null;
         failure = errorText(body, PREFERENCE_ERROR);
+        // Otra sesión cambió la preferencia: se relee la página con la versión nueva.
+        if (isVersionConflict(response.status, body)) router.refresh();
       }
     } catch {
       failure = PREFERENCE_ERROR;
@@ -197,7 +219,7 @@ export function OwnerFamilyPaymentMethodsPanel({
       <p className={`${ownerUi.help} mt-2`}>Revocar no anula los cobros ya enviados.</p>
       {collection ? (
         <p className={`${ownerUi.help} mt-1`}>
-          Con «Cobrar automáticamente» encendido, las próximas cuotas de la familia se cobran solas. Al apagarlo, no se cobra ninguna cuota más de forma automática.
+          Con «Cobrar automáticamente» encendido, las próximas cuotas de la familia se cobran solas. Al apagarlo, no se cobra ninguna cuota más de forma automática. {SENT_CONTINUE}
         </p>
       ) : null}
       {collection && !collection.available ? (

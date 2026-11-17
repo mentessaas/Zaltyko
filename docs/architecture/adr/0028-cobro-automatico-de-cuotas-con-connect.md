@@ -470,7 +470,12 @@ de Elvis):**
     (familia en manual, método revocado, pagador que ya no es el vigente,
     moneda que no es euro, etc.): un motivo final escribe un intento
     `canceled` con su código y la cuota vuelve al cobro manual con
-    recordatorios. Así ninguna cuota queda «en el limbo».
+    recordatorios. Así ninguna cuota queda «en el limbo». Y una **ventana
+    máxima de cobro**: pasada la espera de los recordatorios (3 días después
+    de la fecha de cobro, o de la del reintento) ya no se cobra nunca, aunque
+    la puerta deje pasar; se escribe un intento `canceled`
+    (`collection_window_expired`). La cuota ya volvió a los recordatorios y
+    la familia pudo pagarla a mano: cobrarla después sería un doble pago.
 20. **Con la bandera apagada, solo puesta al día.** El proceso diario
     siempre relee y registra lo que ya se envió a Stripe (con los cerrojos
     de entorno), pero solo cobra cuotas nuevas con la bandera encendida.
@@ -486,12 +491,16 @@ de Elvis):**
 23. **Dos acciones de la academia en `/owner/payments`:** «Cancelar el cobro
     automático» (reintento pendiente, o cobro creado y aún no cobrado, tras
     cancelarlo en Stripe) y «Marcar como revisado» (intento abierto con aviso
-    de revisión o con las reanudaciones agotadas, con la casilla «He
-    comprobado el cobro en Stripe»). Ninguna cierra un intento cuyo dinero se
+    de revisión, con las reanudaciones agotadas o reclamado o creado sin
+    cambios desde hace más de 24 h, la salida si el proceso diario deja de
+    pasar; con la casilla «He comprobado el cobro en Stripe»). Ninguna cierra un intento cuyo dinero se
     movió: si Stripe ya lo cobró, se registra el pago; si hay varios cobros y
     alguno movió dinero, se pide resolverlo con el soporte de Stripe. No
     exigen la bandera: con la función apagada se tiene que poder cerrar lo
-    abierto.
+    abierto. Si el cobro pendiente ya no puede llegar (sin plan de pago,
+    familia en manual, método revocado o cambio de plan), la academia ve «Se
+    cobrará a mano» con el motivo y la familia no ve ninguna promesa de
+    cobro.
 24. **Recordatorios.** Una cuota automática no recibe recordatorios mientras
     su cobro está en curso o tiene un reintento pendiente; vuelve a
     recibirlos si el cobro falla sin reintento o se cancela, y también 3 días
@@ -566,6 +575,16 @@ corregibles:
   de cobro prevista; lo mismo 3 días después de la fecha de un reintento
   pendiente o de un cobro hecho que dejó saldo. Coste: un recordatorio
   innecesario si el proceso diario se retrasa más de 3 días.
+- **Ventana máxima de cobro, la misma de los recordatorios.** Pasados esos 3
+  días ya no se cobra nunca: el proceso escribe un intento `canceled`
+  (`collection_window_expired`) y la cuota se cobra a mano. Evita el doble
+  pago (a mano y con la tarjeta) de una cuota que ya volvió a los
+  recordatorios. Coste: si el proceso diario se para más de 3 días, esas
+  cuotas no se cobran solas.
+- **Salida de 24 h para la academia.** Un intento reclamado o creado que
+  nadie toca en 24 h se puede «Marcar como revisado» aunque no tenga aviso
+  (la acción lee y para el cobro en Stripe antes de cerrar). Es la salida si
+  se quita el trabajo de pg_cron con intentos abiertos.
 
 ## Preguntas legales y fiscales (para Elvis, el abogado y la sesión «Elvis Finanzas»)
 
