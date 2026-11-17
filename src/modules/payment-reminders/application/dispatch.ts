@@ -27,6 +27,7 @@ import {
   type RenderedReminder,
   type TemplateDraft,
 } from "@/modules/payment-reminders/domain/reminder-template";
+import { isOperatingOrganizationStatus } from "@/modules/organizations/domain/organization-status";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { appendAuditEntry } from "@/modules/shared/infrastructure/transactional-records";
 
@@ -140,7 +141,8 @@ export function assertReplyToConfigured(settings: PaymentReminderSettings): stri
 }
 
 function assertOrganizationCanSend(organization: OrganizationProfile | null): OrganizationProfile {
-  if (!organization || organization.status === "suspended" || organization.status === "closed") {
+  // Solo una academia operativa (en prueba o activa) envía; suspendida o cerrada, no.
+  if (!organization || !isOperatingOrganizationStatus(organization.status)) {
     throw new OperationalError(
       "FORBIDDEN",
       "La academia no puede enviar correos en este momento",

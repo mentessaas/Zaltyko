@@ -146,10 +146,16 @@ describe("autorización y bandera", () => {
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
-  it("una academia suspendida no envía correos", async () => {
-    mocks.loadOrganization.mockResolvedValue({ name: "Gimnasia Sol", countryCode: "ES", status: "suspended" });
+  it.each(["suspended", "closed"])("una academia %s no envía correos", async (status) => {
+    mocks.loadOrganization.mockResolvedValue({ name: "Gimnasia Sol", countryCode: "ES", status });
     await expect(sendPaymentReminders(manualAll)).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(mocks.send).not.toHaveBeenCalled();
+  });
+
+  it("una academia en prueba es operativa y sí puede enviar", async () => {
+    mocks.loadOrganization.mockResolvedValue({ name: "Gimnasia Sol", countryCode: "ES", status: "trial" });
+    mocks.loadCandidates.mockResolvedValue([]);
+    await expect(sendPaymentReminders(manualAll)).resolves.toMatchObject({ sent: 0 });
   });
 
   it("cambiar la plantilla exige acceso a todas las sedes", async () => {
@@ -428,6 +434,14 @@ describe("recordatorio automático", () => {
     expect(result).toMatchObject({ enabled: true, organizations: 5, complete: true });
     // Cada página arranca tras la última academia de la anterior.
     expect(cursors).toEqual([null, orgIds[1], orgIds[3]]);
+    // Solo academias operativas (en prueba o activas), como parámetros.
+    const pageQuery = mocks.dbExecute.mock.calls
+      .map(queryOf)
+      .find((query) => query.sql.includes("from zaltyko.payment_reminder_settings s"))!;
+    expect(pageQuery.sql).toContain("o.status::text in (");
+    expect(pageQuery.sql).not.toContain("'trial'");
+    expect(pageQuery.params).toEqual(expect.arrayContaining(["trial", "active"]));
+    expect(pageQuery.params).not.toContain("suspended");
     vi.unstubAllEnvs();
   });
 

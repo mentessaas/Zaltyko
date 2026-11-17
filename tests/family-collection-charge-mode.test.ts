@@ -72,9 +72,17 @@ function entitlement(planCode: EntitlementSnapshot["planCode"], revision = 4): E
   };
 }
 
-function executor(preference: { requestedMode: string; entitlementRevision: number | null } | null) {
+/**
+ * La lectura de la preferencia trae también el estado de la academia (por
+ * defecto `active`, como las fixtures de siempre).
+ */
+function executor(
+  preference: { requestedMode: string; entitlementRevision: number | null; organizationStatus?: string } | null
+) {
   return {
-    execute: vi.fn(async () => ({ rows: preference ? [preference] : [] })),
+    execute: vi.fn(async () => ({
+      rows: preference ? [{ organizationStatus: "active", ...preference }] : [],
+    })),
   };
 }
 
@@ -152,6 +160,30 @@ describe("getChargeCollectionModeSnapshot", () => {
       familyPayerId,
     });
     expect(findConnectAccountForOrganization).toHaveBeenCalledWith(client, organizationId, "test");
+  });
+
+  // Academia operativa = en prueba o activa (arreglo del 17-11-2026).
+  it("una academia en prueba con plan de pago vigente nace automática", async () => {
+    const client = executor({ requestedMode: "automatic", entitlementRevision: 4, organizationStatus: "trial" });
+
+    await expect(snapshot(client)).resolves.toBe("automatic");
+  });
+
+  it.each(["suspended", "closed"])("una academia %s nace manual", async (organizationStatus) => {
+    const client = executor({ requestedMode: "automatic", entitlementRevision: 4, organizationStatus });
+
+    await expect(snapshot(client)).resolves.toBe("manual");
+    expect(findActiveAuthorization).not.toHaveBeenCalled();
+  });
+
+  it("una academia en prueba sin plan de pago nace manual: lo decide el plan", async () => {
+    vi.mocked(loadOrganizationPlanState).mockResolvedValue({
+      entitlement: entitlement("free", 4),
+      subscription: null,
+    });
+    const client = executor({ requestedMode: "automatic", entitlementRevision: 4, organizationStatus: "trial" });
+
+    await expect(snapshot(client)).resolves.toBe("manual");
   });
 
   it("una factura que no es mensual siempre nace manual", async () => {

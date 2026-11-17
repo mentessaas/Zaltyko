@@ -408,6 +408,14 @@ describe("aviso del primer fallo: qué se hace con un aviso pendiente", () => {
     });
   });
 
+  it("una academia en prueba es operativa: el aviso se envía igual que con una activa (17-11-2026)", () => {
+    expect(decideFamilyFailureNotice(pending({ organizationStatus: "trial" }), NOW, ON)).toEqual({
+      action: "send",
+      retryScheduled: true,
+      retryDateLocal: "2026-11-18",
+    });
+  });
+
   it("cerrado porque la tarjeta ya no está en Stripe (intento 1): se envía, sin reintento", () => {
     expect(
       decideFamilyFailureNotice(
@@ -469,6 +477,7 @@ describe("aviso del primer fallo: qué se hace con un aviso pendiente", () => {
     const close = (overrides: Partial<PendingFamilyFailureNotice>) =>
       decideFamilyFailureNotice(pending(overrides), NOW, ON);
     expect(close({ organizationStatus: "suspended" })).toEqual({ action: "close", outcome: "organization_inactive" });
+    expect(close({ organizationStatus: "closed" })).toEqual({ action: "close", outcome: "organization_inactive" });
     expect(close({ invoiceStatus: "paid" })).toEqual({ action: "close", outcome: "invoice_closed" });
     expect(close({ invoiceStatus: "void" })).toEqual({ action: "close", outcome: "invoice_closed" });
     // Un reintento posterior ya cobró la cuota, el intento no es el primero o no está fallido.

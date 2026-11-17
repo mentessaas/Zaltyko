@@ -11,6 +11,8 @@
  *   producción);
  * - existen las tablas de las fases 1, 2 y 3 (sin ellas nadie cobraría la
  *   cuota: se quedaría sin cobro y sin recordatorio);
+ * - la academia está operativa: en prueba o activa, no suspendida ni cerrada
+ *   (isOperatingOrganizationStatus, la misma regla que la puerta del cobro);
  * - la academia tiene un plan de pago vigente y la familia pidió cobro
  *   automático sin un cambio real del plan después (las renovaciones del
  *   mismo plan no cuentan: loadPlanChangeRevision);
@@ -36,6 +38,7 @@ import {
 } from "@/modules/billing/application/plan-state";
 import { isPreferenceRevisionCurrent } from "@/modules/billing/domain/collection-eligibility";
 import { evaluateAutomaticCollectionPlanEligibility } from "@/modules/billing/domain/plan-eligibility";
+import { isOperatingOrganizationStatus } from "@/modules/organizations/domain/organization-status";
 import {
   isFamilyAutomaticCollectionFlagEnabled,
   isFamilyAutomaticSepaCollectionFlagEnabled,
@@ -103,18 +106,24 @@ export async function getChargeCollectionModeSnapshot(input: {
   });
   if (!plan.eligible) return "manual";
 
+  // La preferencia y el estado de la academia en una sola lectura.
   const preference = await executor.execute(sql`
-    select requested_mode::text as "requestedMode",
-           entitlement_revision as "entitlementRevision"
-      from zaltyko.family_collection_preferences
-     where organization_id = ${input.organizationId}::uuid
-       and family_id = ${input.familyId}::uuid
+    select p.requested_mode::text as "requestedMode",
+           p.entitlement_revision as "entitlementRevision",
+           o.status::text as "organizationStatus"
+      from zaltyko.family_collection_preferences p
+      join zaltyko.organizations o on o.id = p.organization_id
+     where p.organization_id = ${input.organizationId}::uuid
+       and p.family_id = ${input.familyId}::uuid
      limit 1
   `);
   const stored = preference.rows[0] as
-    | { requestedMode?: unknown; entitlementRevision?: unknown }
+    | { requestedMode?: unknown; entitlementRevision?: unknown; organizationStatus?: unknown }
     | undefined;
   if (!stored || stored.requestedMode !== "automatic") return "manual";
+  // Academia suspendida o cerrada: la puerta la cancelaría el día del cobro
+  // (organization_not_active); la cuota nace manual desde el principio.
+  if (!isOperatingOrganizationStatus(stored.organizationStatus)) return "manual";
   if (stored.entitlementRevision === null || stored.entitlementRevision === undefined) {
     return "manual";
   }

@@ -17,7 +17,8 @@ import {
  *    cuenta nunca se decide un motivo final.
  * 3. Moneda de la factura (solo EUR).
  * 4. La puerta existente (`evaluateCollectionEligibility`) para CADA cuota del
- *    reparto, y cada cuota con el pagador de la factura.
+ *    reparto, y cada cuota con el pagador de la factura. Ahí se exige la
+ *    academia operativa (en prueba o activa; no suspendida ni cerrada).
  * 5. Pagador vigente hoy, método de pago completo y domiciliación activa en la
  *    cuenta.
  *
@@ -72,6 +73,8 @@ export const GATE_REASON_CLASSIFICATION: Readonly<
   reminder_sent: "final",
   sepa_not_enabled: "final",
   unsupported_currency: "final",
+  // Academia suspendida o cerrada. En prueba (`trial`) o activa sí se cobra
+  // (isOperatingOrganizationStatus, arreglo del 17-11-2026).
   organization_not_active: "final",
   preference_manual: "final",
   preference_entitlement_stale: "final",

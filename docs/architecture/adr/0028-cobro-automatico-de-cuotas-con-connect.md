@@ -69,7 +69,9 @@ Lo que ya está preparado en el modelo canónico:
   revocación. Admite una sola autorización activa por pagador y cuenta.
 - `evaluateCollectionEligibility`
   (`src/modules/billing/domain/collection-eligibility.ts`) es la puerta
-  fail-closed. Exige academia activa, plan de pago vigente, preferencia
+  fail-closed. Exige academia operativa (en prueba o activa; no suspendida
+  ni cerrada; ver «Academia en prueba = operativa (17-11-2026)»), plan de
+  pago vigente, preferencia
   automática de la revisión de plan actual, cargo marcado automático, cuenta
   `active` con `card_payments` `active`, autorización activa con
   consentimiento completo y `runtimeEnabled`.
@@ -747,6 +749,34 @@ cambia precios ni la regla del día fijo.
   pendientes sin revisarlos.** Apagar y volver a encender la bandera dentro
   de la ventana de un reintento puede cobrarlo después de que la familia
   leyera «ya no se cobrará sola», si aún no salió ningún recordatorio.
+
+### Academia en prueba = operativa (17-11-2026)
+
+Fallo visto en staging: una cuota mensual nació automática (plan de pago y
+preferencia cumplidos), pero el proceso diario la cerró como `canceled` con
+`organization_not_active` porque la academia estaba en
+`organizations.status = 'trial'`. Toda academia nace `trial` (valor por
+defecto de la migración base) y nada en el código la pasa a `active`, así
+que exigir `active` dejaba sin cobro automático a todas.
+
+- **Academia operativa = en prueba (`trial`) o activa (`active`); no
+  suspendida (`suspended`) ni cerrada (`closed`).** Es la misma regla que ya
+  usaba el resto de la app. Vive en un solo sitio
+  (`src/modules/organizations/domain/organization-status.ts`:
+  `OPERATING_ORGANIZATION_STATUSES` e `isOperatingOrganizationStatus`) y la
+  usan la puerta del cobro (`evaluateCollectionEligibility`), la emisión
+  (`getChargeCollectionModeSnapshot`: una academia suspendida o cerrada
+  emite la cuota en manual), el aviso del primer fallo a la familia, la
+  persona pagadora que guarda su método (Fase 2) y los recordatorios de pago.
+  En SQL la lista va como parámetros.
+- Suspendida o cerrada sigue siendo `organization_not_active`, motivo final:
+  la cuota vuelve a manual con recordatorios. La academia lee «La academia
+  está suspendida o cerrada.».
+- **El requisito de pago no cambia:** lo decide solo el plan
+  (`evaluateAutomaticCollectionPlanEligibility`: plan de pago vigente; la
+  prueba del plan no cuenta). Una academia en prueba con plan gratuito sigue
+  sin cobro automático (`paid_plan_required`).
+- No cambia precios, ni la regla del día fijo, ni ninguna migración.
 
 ## Preguntas legales y fiscales (para Elvis, el abogado y la sesión «Elvis Finanzas»)
 

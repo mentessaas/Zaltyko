@@ -15,7 +15,7 @@ import { sql } from "drizzle-orm";
 
 import type { DatabaseClient } from "@/lib/db-transactions";
 import type { PaymentMethodKind } from "@/modules/family-payment-methods/domain/consent";
-import { FAMILY_PORTAL_ORGANIZATION_STATUSES } from "@/modules/family-portal/domain/family-portal-access";
+import { OPERATING_ORGANIZATION_STATUSES } from "@/modules/organizations/domain/organization-status";
 
 type Executor = Pick<DatabaseClient, "execute">;
 
@@ -130,8 +130,9 @@ function toStoredAuthorization(row: Record<string, unknown> | undefined): Stored
   };
 }
 
-const portalOrganizationStatuses = sql.join(
-  FAMILY_PORTAL_ORGANIZATION_STATUSES.map((status) => sql`${status}`),
+/** Academia operativa (en prueba o activa), como parámetros: nunca texto libre. */
+const operatingOrganizationStatuses = sql.join(
+  OPERATING_ORGANIZATION_STATUSES.map((status) => sql`${status}`),
   sql`, `
 );
 
@@ -171,7 +172,7 @@ export async function resolveFamilyPayer(
      where g.organization_id = ${input.organizationId}::uuid
        and g.auth_user_id = ${input.userId}::uuid
        and g.is_active
-       and o.status::text in (${portalOrganizationStatuses})
+       and o.status::text in (${operatingOrganizationStatuses})
      order by fp.starts_on desc, fp.id
      limit 1
   `);

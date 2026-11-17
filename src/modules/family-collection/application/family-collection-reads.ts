@@ -666,7 +666,8 @@ const FAILURE_TEXT: Record<string, string> = {
   subscription_period_not_current: SUBSCRIPTION_NOT_CURRENT,
   // Cuota, preferencia y familia.
   unsupported_currency: "Solo se cobran automáticamente las cuotas en euros.",
-  organization_not_active: "La academia no está activa.",
+  // Solo suspendida o cerrada: en prueba o activa sí se cobra (17-11-2026).
+  organization_not_active: "La academia está suspendida o cerrada.",
   preference_manual: "La familia pasó a cobro manual.",
   preference_entitlement_stale:
     "Cambió el plan de la academia: hay que volver a activar el cobro automático de esta familia.",

@@ -180,10 +180,73 @@ describe("family automatic-collection execution gates", () => {
     });
   });
 
+  // Academia operativa = en prueba o activa (arreglo del 17-11-2026): toda
+  // academia nace `trial` y nada la pasa a `active`.
+  it("allows an academy in trial with a current paid plan", () => {
+    expect(
+      evaluateCollectionEligibility({
+        ...eligibleInput(),
+        organization: { id: "org-a", status: "trial" },
+      })
+    ).toEqual({ eligible: true, reason: null });
+  });
+
+  it("allows an academy in trial with a current paid contract", () => {
+    expect(
+      evaluateCollectionEligibility({
+        ...eligibleInput(),
+        organization: { id: "org-a", status: "trial" },
+        entitlement: paidEntitlement({
+          source: "contract",
+          sourceReference: "contract:org-a",
+          subscriptionId: null,
+        }),
+        subscription: null,
+      })
+    ).toEqual({ eligible: true, reason: null });
+  });
+
+  it("the payment rule is still the plan's alone: an academy in trial needs a current paid plan", () => {
+    const trial = { id: "org-a", status: "trial" as const };
+    expect(
+      evaluateCollectionEligibility({
+        ...eligibleInput(),
+        organization: trial,
+        entitlement: paidEntitlement({
+          planCode: "free",
+          source: "bootstrap",
+          sourceReference: "bootstrap:org-a",
+          subscriptionId: null,
+          effectiveUntil: null,
+        }),
+        subscription: null,
+      })
+    ).toEqual({ eligible: false, reason: "paid_plan_required" });
+    expect(
+      evaluateCollectionEligibility({
+        ...eligibleInput(),
+        organization: trial,
+        subscription: paidSubscription({ providerStatus: "trialing" }),
+      })
+    ).toEqual({ eligible: false, reason: "subscription_not_active" });
+    expect(
+      evaluateCollectionEligibility({
+        ...eligibleInput(),
+        organization: trial,
+        entitlement: null,
+      })
+    ).toEqual({ eligible: false, reason: "entitlement_missing" });
+  });
+
   it.each([
     [
-      "organization not active",
-      { organization: { id: "org-a", status: "trial" as const } },
+      "suspended academy",
+      { organization: { id: "org-a", status: "suspended" as const } },
+      "organization_not_active",
+    ],
+    [
+      "closed academy",
+      { organization: { id: "org-a", status: "closed" as const } },
       "organization_not_active",
     ],
     [
