@@ -1,0 +1,525 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+/**
+ * Cobro automático de cuotas (Fase 3), decisión D3 de Elvis (17-11-2026):
+ * aviso a la familia cuando falla el primer cobro de una cuota. Textos
+ * exactos, cuándo se avisa (solo un fallo de verdad del intento 1), el enlace
+ * a /familia/cuotas y el envío (una sola vez, sin datos personales en lo que
+ * se guarda). Nunca envía un correo de verdad: el emisor está simulado.
+ * Fechas fijas: no depende del reloj.
+ */
+
+const env = vi.hoisted(() => ({
+  environment: "test" as "test" | "live" | null,
+  production: false,
+}));
+const mocks = vi.hoisted(() => ({
+  sendEmailWithLogging: vi.fn(),
+  error: vi.fn(),
+  createStore: vi.fn(),
+}));
+
+vi.mock("@/db", () => ({ db: {} }));
+vi.mock("@/lib/env", () => ({ getAppUrl: () => "https://app.zaltyko.test" }));
+vi.mock("@/lib/email/email-service", () => ({ sendEmailWithLogging: mocks.sendEmailWithLogging }));
+vi.mock("@/lib/logger", () => ({
+  logger: { error: mocks.error, warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}));
+vi.mock("@/modules/family-collection/application/config", () => ({
+  resolveConnectEnvironment: () => env.environment,
+  isProductionDatabase: () => env.production,
+}));
+vi.mock("@/modules/family-collection/application/storage", () => ({
+  isFamilyCollectionStorageAvailable: vi.fn(async () => true),
+}));
+vi.mock("@/modules/family-collection/infrastructure/family-failure-notice-store", () => ({
+  createFamilyFailureNoticeStore: mocks.createStore,
+}));
+
+import type { SendEmailOptions } from "@/lib/email/email-service";
+import {
+  FAMILY_FAILURE_NOTICE_BATCH,
+  FAMILY_FAILURE_NOTICE_MAX_AGE_MS,
+  decideFamilyFailureNotice,
+  deliverFamilyFailureNotices,
+} from "@/modules/family-collection/application/family-failure-notice-delivery";
+import {
+  FAMILY_FAILURE_NOTICE,
+  FAMILY_FAILURE_NOTICE_EVENT,
+  FAMILY_FAILURE_NOTICE_RESULT_EVENT,
+  FAMILY_FEES_PATH,
+  NOT_CONFIRMED_FAILURE_CODE,
+  feeLabel,
+  familyFailureNoticeKey,
+  familyFailureNoticeKind,
+  familyFailureNoticeResultKey,
+  notifiesFamilyOnFailure,
+  renderFamilyFailureNotice,
+  retryDayLabel,
+  type FamilyFailureNoticeKind,
+} from "@/modules/family-collection/domain/family-failure-notice";
+import type {
+  FamilyFailureNoticeOutcome,
+  FamilyFailureNoticeStore,
+  PendingFamilyFailureNotice,
+} from "@/modules/family-collection/infrastructure/family-failure-notice-store";
+
+const ORGANIZATION_ID = "94000000-0000-4000-8000-000000000001";
+const LOCATION_ID = "94000000-0000-4000-8000-000000000002";
+const ATTEMPT_ID = "94000000-0000-4000-8000-000000000003";
+const INVOICE_ID = "94000000-0000-4000-8000-000000000004";
+const NOW = new Date("2026-11-17T09:00:00.000Z");
+const FEES_URL = "https://zaltyko.test/familia/cuotas";
+/** Correo sintético de la persona que paga. */
+const PAYER_EMAIL = "tutora.sintetica@example.invalid";
+const ALL_KINDS: FamilyFailureNoticeKind[] = [
+  "retry_scheduled",
+  "authentication_required",
+  "card_declined",
+  "sepa_failed",
+  "not_collected",
+];
+
+function pending(overrides: Partial<PendingFamilyFailureNotice> = {}): PendingFamilyFailureNotice {
+  return {
+    organizationId: ORGANIZATION_ID,
+    locationId: LOCATION_ID,
+    attemptId: ATTEMPT_ID,
+    invoiceId: INVOICE_ID,
+    attemptNumber: 1,
+    attemptStatus: "failed",
+    paymentMethodKind: "card",
+    failureCode: "card_declined",
+    declineCode: "insufficient_funds",
+    // 00:00 del 18-11 en Madrid: el reintento del día +1.
+    nextRetryAt: new Date("2026-11-17T23:00:00.000Z"),
+    lastAttemptNumber: 1,
+    invoiceStatus: "issued",
+    organizationStatus: "active",
+    academyName: "Club Sintético",
+    timezone: "Europe/Madrid",
+    servicePeriodStart: "2026-11-01",
+    payerEmail: PAYER_EMAIL,
+    replyToEmail: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Almacén en memoria con la misma regla que el de verdad: un aviso con
+ * resultado ya no sale como pendiente y el resultado se guarda una sola vez.
+ */
+function memoryStore(notices: PendingFamilyFailureNotice[]) {
+  const results = new Map<string, FamilyFailureNoticeOutcome>();
+  const store = {
+    listPending: vi.fn<FamilyFailureNoticeStore["listPending"]>(async () =>
+      notices.filter((notice) => !results.has(notice.attemptId))
+    ),
+    recordResult: vi.fn<FamilyFailureNoticeStore["recordResult"]>(async (input) => {
+      if (results.has(input.attemptId)) return false;
+      results.set(input.attemptId, input.outcome);
+      return true;
+    }),
+  };
+  return { store, results };
+}
+
+function sender(accepted = true) {
+  return vi.fn<(options: SendEmailOptions) => Promise<boolean>>(async () => accepted);
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  env.environment = "test";
+  env.production = false;
+});
+
+// ---------------------------------------------------------------------------
+// Dominio
+// ---------------------------------------------------------------------------
+
+describe("aviso del primer fallo: claves y cuándo se avisa", () => {
+  it("una clave por intento, con el nombre del evento del outbox", () => {
+    expect(FAMILY_FAILURE_NOTICE).toBe("family_failure_notice");
+    expect(FAMILY_FAILURE_NOTICE_EVENT).toBe("family_collection.family_failure_notice");
+    expect(FAMILY_FAILURE_NOTICE_RESULT_EVENT).toBe("family_collection.family_failure_notice_result");
+    expect(familyFailureNoticeKey(ATTEMPT_ID)).toBe(`family-collection:${ATTEMPT_ID}:family_failure_notice`);
+    expect(familyFailureNoticeResultKey(ATTEMPT_ID)).toBe(
+      `family-collection:${ATTEMPT_ID}:family_failure_notice_result`
+    );
+    expect(FAMILY_FEES_PATH).toBe("/familia/cuotas");
+  });
+
+  it("solo un fallo de verdad del intento 1: nunca en los reintentos", () => {
+    for (const code of ["card_declined", "authentication_required", "payment_failed", "expired_card"]) {
+      expect(notifiesFamilyOnFailure({ attemptNumber: 1, failureCode: code })).toBe(true);
+    }
+    for (const attemptNumber of [2, 3, 4, 5, 0]) {
+      expect(notifiesFamilyOnFailure({ attemptNumber, failureCode: "card_declined" })).toBe(false);
+    }
+  });
+
+  it("un intento agotado sin saber nada de Stripe no es un rechazo del banco: no avisa", () => {
+    expect(NOT_CONFIRMED_FAILURE_CODE).toBe("transient_exhausted");
+    expect(notifiesFamilyOnFailure({ attemptNumber: 1, failureCode: "transient_exhausted" })).toBe(false);
+  });
+
+  it("qué se cuenta según el fallo y la política de reintentos", () => {
+    const kind = (input: Partial<Parameters<typeof familyFailureNoticeKind>[0]>) =>
+      familyFailureNoticeKind({
+        paymentMethodKind: "card",
+        failureCode: "card_declined",
+        declineCode: "insufficient_funds",
+        retryScheduled: true,
+        ...input,
+      });
+    expect(kind({})).toBe("retry_scheduled");
+    expect(kind({ declineCode: "stolen_card", retryScheduled: false })).toBe("card_declined");
+    expect(kind({ failureCode: "expired_card", declineCode: null, retryScheduled: false })).toBe("card_declined");
+    // 3DS: con el código, con el decline_code o con el estado `requires_action`.
+    expect(kind({ failureCode: "authentication_required", declineCode: null, retryScheduled: false })).toBe(
+      "authentication_required"
+    );
+    expect(kind({ failureCode: "card_declined", declineCode: "authentication_required", retryScheduled: false })).toBe(
+      "authentication_required"
+    );
+    expect(kind({ failureCode: "requires_action", declineCode: null, retryScheduled: false })).toBe(
+      "authentication_required"
+    );
+    // Domiciliación: nunca hay reintentos, aunque el dato dijera otra cosa.
+    expect(kind({ paymentMethodKind: "sepa_debit", retryScheduled: true })).toBe("sepa_failed");
+    expect(kind({ paymentMethodKind: null })).toBe("not_collected");
+    expect(kind({ failureCode: "transient_exhausted", declineCode: null, retryScheduled: false })).toBe(
+      "not_collected"
+    );
+  });
+
+  it("mes de la cuota y día del reintento en palabras", () => {
+    expect(feeLabel("2026-11-01")).toBe("la cuota de noviembre de 2026");
+    expect(feeLabel("2027-01-01")).toBe("la cuota de enero de 2027");
+    expect(feeLabel(null)).toBe("tu cuota");
+    expect(feeLabel("2026-13-01")).toBe("tu cuota");
+    expect(retryDayLabel("2026-11-18")).toBe("18 de noviembre");
+    expect(retryDayLabel("2026-12-01")).toBe("1 de diciembre");
+    expect(retryDayLabel(null)).toBeNull();
+    expect(retryDayLabel("mañana")).toBeNull();
+  });
+});
+
+describe("aviso del primer fallo: textos", () => {
+  const render = (kind: FamilyFailureNoticeKind, overrides: Partial<Parameters<typeof renderFamilyFailureNotice>[0]> = {}) =>
+    renderFamilyFailureNotice({
+      kind,
+      academyName: "Club Sintético",
+      servicePeriodStart: "2026-11-01",
+      retryDateLocal: "2026-11-18",
+      feesUrl: FEES_URL,
+      ...overrides,
+    });
+
+  it("rechazo recuperable con reintento: la fecha del reintento salvo que cambie la tarjeta", () => {
+    const message = render("retry_scheduled");
+    expect(message.subject).toBe("Club Sintético: no hemos podido cobrar la cuota de noviembre de 2026");
+    expect(message.text).toBe(
+      [
+        "Hola:",
+        "No hemos podido cobrar con tu tarjeta la cuota de noviembre de 2026. El banco no lo ha aceptado esta vez.",
+        "Volveremos a intentarlo el 18 de noviembre con la tarjeta que tengas guardada. Si quieres usar otra, cámbiala antes en Zaltyko.",
+        `Revisar mi tarjeta: ${FEES_URL}`,
+        "Si tienes cualquier duda, habla con Club Sintético.",
+      ].join("\n\n")
+    );
+  });
+
+  it("el banco pide confirmar el pago: no se promete ningún reintento y la cuota pasa a mano", () => {
+    const message = render("authentication_required");
+    expect(message.text).toBe(
+      [
+        "Hola:",
+        "No hemos podido cobrar con tu tarjeta la cuota de noviembre de 2026: tu banco pide que confirmes tú el pago, y eso no se puede hacer de forma automática.",
+        "Esta cuota ya no se cobrará sola. Tu academia te dirá cómo pagarla.",
+        "En Zaltyko puedes ver tus cuotas y revisar tu tarjeta.",
+        `Ver mis cuotas: ${FEES_URL}`,
+        "Si tienes cualquier duda, habla con Club Sintético.",
+      ].join("\n\n")
+    );
+  });
+
+  it("tarjeta rechazada sin reintento: revisar la tarjeta para las próximas", () => {
+    expect(render("card_declined").text).toBe(
+      [
+        "Hola:",
+        "No hemos podido cobrar con tu tarjeta la cuota de noviembre de 2026. El banco no lo ha aceptado.",
+        "Esta cuota ya no se cobrará sola. Tu academia te dirá cómo pagarla.",
+        "Para que las próximas cuotas se cobren bien, revisa tu tarjeta en Zaltyko.",
+        `Revisar mi tarjeta: ${FEES_URL}`,
+        "Si tienes cualquier duda, habla con Club Sintético.",
+      ].join("\n\n")
+    );
+  });
+
+  it("domiciliación: nunca habla de reintentos", () => {
+    expect(render("sepa_failed").text).toBe(
+      [
+        "Hola:",
+        "No hemos podido cobrar por domiciliación la cuota de noviembre de 2026. El banco no lo ha aceptado.",
+        "Esta cuota ya no se cobrará sola. Tu academia te dirá cómo pagarla.",
+        "Para que las próximas cuotas se cobren bien, revisa tu forma de pago en Zaltyko.",
+        `Revisar mi forma de pago: ${FEES_URL}`,
+        "Si tienes cualquier duda, habla con Club Sintético.",
+      ].join("\n\n")
+    );
+  });
+
+  it("solo el aviso con reintento programado promete volver a intentarlo", () => {
+    for (const kind of ALL_KINDS) {
+      const { text, html } = render(kind);
+      const promises = /volveremos a intentarlo|reintent/i;
+      expect(promises.test(text), kind).toBe(kind === "retry_scheduled");
+      expect(promises.test(html), kind).toBe(kind === "retry_scheduled");
+    }
+  });
+
+  it("un solo enlace, a /familia/cuotas, y nunca el cobro de Stripe ni jerga", () => {
+    for (const kind of ALL_KINDS) {
+      const { subject, text, html } = render(kind);
+      expect(text.match(/https?:\/\//g), kind).toHaveLength(1);
+      expect(text).toContain(FEES_URL);
+      expect(html.match(/href="/g), kind).toHaveLength(1);
+      expect(html).toContain(`href="${FEES_URL}"`);
+      for (const value of [subject, text, html]) {
+        expect(value).not.toMatch(/pi_|payment ?intent|stripe|off-session|webhook|connect\b|3ds|decline/i);
+      }
+    }
+  });
+
+  it("sin mes legible ni fecha de reintento no inventa nada, y escapa el nombre en el HTML", () => {
+    const message = render("retry_scheduled", {
+      academyName: "Club <b>Sintético</b>",
+      servicePeriodStart: null,
+      retryDateLocal: null,
+    });
+    expect(message.subject).toBe("Club <b>Sintético</b>: no hemos podido cobrar tu cuota");
+    expect(message.text).toContain("No hemos podido cobrar con tu tarjeta tu cuota.");
+    expect(message.text).toContain("Volveremos a intentarlo en unos días con la tarjeta que tengas guardada.");
+    expect(message.html).toContain("Club &lt;b&gt;Sintético&lt;/b&gt;");
+    expect(message.html).not.toContain("<b>");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Decisión y envío
+// ---------------------------------------------------------------------------
+
+describe("aviso del primer fallo: qué se hace con un aviso pendiente", () => {
+  it("se envía con la fecha local del reintento", () => {
+    expect(decideFamilyFailureNotice(pending(), NOW)).toEqual({ action: "send", retryDateLocal: "2026-11-18" });
+    expect(decideFamilyFailureNotice(pending({ nextRetryAt: null }), NOW)).toEqual({
+      action: "send",
+      retryDateLocal: null,
+    });
+  });
+
+  it("nunca se envía un aviso que ya no es verdad", () => {
+    const close = (overrides: Partial<PendingFamilyFailureNotice>) =>
+      decideFamilyFailureNotice(pending(overrides), NOW);
+    expect(close({ organizationStatus: "suspended" })).toEqual({ action: "close", outcome: "organization_inactive" });
+    expect(close({ invoiceStatus: "paid" })).toEqual({ action: "close", outcome: "invoice_closed" });
+    expect(close({ invoiceStatus: "void" })).toEqual({ action: "close", outcome: "invoice_closed" });
+    // Ya hubo un reintento, el intento no es el primero o no está fallido.
+    expect(close({ lastAttemptNumber: 2 })).toEqual({ action: "close", outcome: "superseded" });
+    expect(close({ attemptNumber: 2, lastAttemptNumber: 2 })).toEqual({ action: "close", outcome: "superseded" });
+    expect(close({ attemptStatus: "canceled" })).toEqual({ action: "close", outcome: "superseded" });
+    expect(close({ failureCode: "transient_exhausted", nextRetryAt: null })).toEqual({
+      action: "close",
+      outcome: "superseded",
+    });
+    // El reintento que prometería ya pasó (16-11 local, hoy es 17-11).
+    expect(close({ nextRetryAt: new Date("2026-11-15T23:00:00.000Z") })).toEqual({
+      action: "close",
+      outcome: "superseded",
+    });
+    expect(close({ payerEmail: null })).toEqual({ action: "close", outcome: "no_email" });
+  });
+});
+
+describe("aviso del primer fallo: envío", () => {
+  it("envía un correo a la persona que paga con el enlace a /familia/cuotas y guarda el resultado", async () => {
+    const { store, results } = memoryStore([pending({ replyToEmail: "secretaria@example.invalid" })]);
+    const sendEmail = sender();
+
+    const delivery = await deliverFamilyFailureNotices({ now: NOW, appUrl: "https://zaltyko.test/" }, {
+      store,
+      sendEmail,
+      isStorageAvailable: async () => true,
+    });
+
+    expect(delivery).toEqual({ sent: 1, notSent: 0, pending: 0 });
+    expect(store.listPending).toHaveBeenCalledWith({
+      since: new Date(NOW.getTime() - FAMILY_FAILURE_NOTICE_MAX_AGE_MS),
+      limit: FAMILY_FAILURE_NOTICE_BATCH,
+      scope: null,
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const options = sendEmail.mock.calls[0]![0];
+    expect(options).toMatchObject({
+      purpose: "transactional",
+      to: PAYER_EMAIL,
+      subject: "Club Sintético: no hemos podido cobrar la cuota de noviembre de 2026",
+      replyTo: "secretaria@example.invalid",
+      template: "family_collection_failure",
+      tenantId: ORGANIZATION_ID,
+      dedupeKey: `family-collection:${ATTEMPT_ID}:family_failure_notice`,
+      metadata: { kind: "family_collection_failure", attemptId: ATTEMPT_ID, invoiceId: INVOICE_ID },
+    });
+    expect(options.text).toContain("Volveremos a intentarlo el 18 de noviembre");
+    expect(options.text).toContain(`Revisar mi tarjeta: ${FEES_URL}`);
+    expect(options.html).toContain(`href="${FEES_URL}"`);
+    expect(store.recordResult).toHaveBeenCalledWith({
+      organizationId: ORGANIZATION_ID,
+      locationId: LOCATION_ID,
+      attemptId: ATTEMPT_ID,
+      invoiceId: INVOICE_ID,
+      outcome: "sent",
+      now: NOW,
+    });
+    expect(results.get(ATTEMPT_ID)).toBe("sent");
+    // Lo que se guarda solo lleva ids y el código del resultado.
+    expect(JSON.stringify(store.recordResult.mock.calls)).not.toContain(PAYER_EMAIL);
+  });
+
+  it("sin correo de respuesta de la academia no inventa uno y usa la dirección de la app por defecto", async () => {
+    const { store } = memoryStore([pending()]);
+    const sendEmail = sender();
+    await deliverFamilyFailureNotices({ now: NOW }, { store, sendEmail, isStorageAvailable: async () => true });
+    const options = sendEmail.mock.calls[0]![0];
+    expect(options).not.toHaveProperty("replyTo");
+    expect(options.text).toContain("https://app.zaltyko.test/familia/cuotas");
+  });
+
+  it("no se duplica: una segunda ejecución no vuelve a enviar el mismo aviso", async () => {
+    const { store } = memoryStore([pending()]);
+    const sendEmail = sender();
+    const deps = { store, sendEmail, isStorageAvailable: async () => true };
+
+    await deliverFamilyFailureNotices({ now: NOW, appUrl: "https://zaltyko.test" }, deps);
+    const second = await deliverFamilyFailureNotices({ now: NOW, appUrl: "https://zaltyko.test" }, deps);
+
+    expect(second).toEqual({ sent: 0, notSent: 0, pending: 0 });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(store.recordResult).toHaveBeenCalledTimes(1);
+  });
+
+  it("3DS: el correo pide revisar en /familia/cuotas, sin reintento", async () => {
+    const { store } = memoryStore([
+      pending({ failureCode: "authentication_required", declineCode: "authentication_required", nextRetryAt: null }),
+    ]);
+    const sendEmail = sender();
+    await deliverFamilyFailureNotices(
+      { now: NOW, appUrl: "https://zaltyko.test" },
+      { store, sendEmail, isStorageAvailable: async () => true }
+    );
+    const options = sendEmail.mock.calls[0]![0];
+    expect(options.text).toContain("tu banco pide que confirmes tú el pago");
+    expect(options.text).toContain(`Ver mis cuotas: ${FEES_URL}`);
+    expect(options.text).not.toMatch(/volveremos a intentarlo/i);
+  });
+
+  it("domiciliación: nunca menciona reintentos", async () => {
+    const { store } = memoryStore([
+      pending({ paymentMethodKind: "sepa_debit", failureCode: "payment_failed", declineCode: "insufficient_funds", nextRetryAt: null }),
+    ]);
+    const sendEmail = sender();
+    await deliverFamilyFailureNotices(
+      { now: NOW, appUrl: "https://zaltyko.test" },
+      { store, sendEmail, isStorageAvailable: async () => true }
+    );
+    const options = sendEmail.mock.calls[0]![0];
+    expect(options.text).toContain("No hemos podido cobrar por domiciliación");
+    expect(options.text).not.toMatch(/intentarlo|reintent/i);
+  });
+
+  it("los avisos que ya no valen se cierran sin correo", async () => {
+    const notices = [
+      pending({ attemptId: "94000000-0000-4000-8000-000000000011", payerEmail: null }),
+      pending({ attemptId: "94000000-0000-4000-8000-000000000012", invoiceStatus: "paid" }),
+      pending({ attemptId: "94000000-0000-4000-8000-000000000013", lastAttemptNumber: 2 }),
+    ];
+    const { store, results } = memoryStore(notices);
+    const sendEmail = sender();
+
+    const delivery = await deliverFamilyFailureNotices(
+      { now: NOW, appUrl: "https://zaltyko.test" },
+      { store, sendEmail, isStorageAvailable: async () => true }
+    );
+
+    expect(delivery).toEqual({ sent: 0, notSent: 3, pending: 0 });
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect([...results.values()]).toEqual(["no_email", "invoice_closed", "superseded"]);
+  });
+
+  it("un envío no aceptado queda como no entregado (la academia lo ve)", async () => {
+    const { store, results } = memoryStore([pending()]);
+    const delivery = await deliverFamilyFailureNotices(
+      { now: NOW, appUrl: "https://zaltyko.test" },
+      { store, sendEmail: sender(false), isStorageAvailable: async () => true }
+    );
+    expect(delivery).toEqual({ sent: 0, notSent: 1, pending: 0 });
+    expect(results.get(ATTEMPT_ID)).toBe("not_delivered");
+  });
+
+  it("si el envío falla, no guarda resultado (se reintenta) y registra solo ids y el nombre del error", async () => {
+    const { store } = memoryStore([pending()]);
+    const sendEmail = vi.fn<(options: SendEmailOptions) => Promise<boolean>>(async () => {
+      throw new Error(`BREVO_API_ERROR: ${PAYER_EMAIL}`);
+    });
+
+    const delivery = await deliverFamilyFailureNotices(
+      { now: NOW, appUrl: "https://zaltyko.test" },
+      { store, sendEmail, isStorageAvailable: async () => true }
+    );
+
+    expect(delivery).toEqual({ sent: 0, notSent: 0, pending: 1 });
+    expect(store.recordResult).not.toHaveBeenCalled();
+    expect(mocks.error).toHaveBeenCalledWith(
+      "Cobro automático: no se pudo enviar el aviso de cobro fallido a la familia",
+      undefined,
+      { organizationId: ORGANIZATION_ID, invoiceId: INVOICE_ID, attemptId: ATTEMPT_ID, errorName: "Error" }
+    );
+    expect(JSON.stringify(mocks.error.mock.calls)).not.toContain(PAYER_EMAIL);
+  });
+
+  it("con la clave que no es de test, contra producción o sin tablas no hace nada", async () => {
+    for (const [environment, production, storage] of [
+      ["live", false, true],
+      [null, false, true],
+      ["test", true, true],
+      ["test", false, false],
+    ] as const) {
+      env.environment = environment;
+      env.production = production;
+      const { store } = memoryStore([pending()]);
+      const sendEmail = sender();
+      const delivery = await deliverFamilyFailureNotices(
+        { now: NOW, appUrl: "https://zaltyko.test" },
+        { store, sendEmail, isStorageAvailable: async () => storage }
+      );
+      expect(delivery).toEqual({ sent: 0, notSent: 0, pending: 0 });
+      expect(store.listPending).not.toHaveBeenCalled();
+      expect(sendEmail).not.toHaveBeenCalled();
+    }
+    expect(mocks.sendEmailWithLogging).not.toHaveBeenCalled();
+    expect(mocks.createStore).not.toHaveBeenCalled();
+  });
+
+  it("con el plazo agotado no envía nada más y lo deja para la siguiente ejecución", async () => {
+    const { store } = memoryStore([pending()]);
+    const sendEmail = sender();
+    const delivery = await deliverFamilyFailureNotices(
+      { now: NOW, appUrl: "https://zaltyko.test", deadlineMs: 0 },
+      { store, sendEmail, isStorageAvailable: async () => true }
+    );
+    expect(delivery).toEqual({ sent: 0, notSent: 0, pending: 0 });
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+});

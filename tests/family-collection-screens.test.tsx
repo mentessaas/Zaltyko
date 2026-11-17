@@ -540,6 +540,47 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     expect(rowOf("CUO-6")).not.toHaveTextContent(/Se cobrará el/);
   });
 
+  it("D3: el primer cobro fallido sale como incidencia y dice si la familia está avisada", () => {
+    stubFetch(() => reply(200, {}));
+    render(
+      <OwnerAutomaticCollectionsPanel
+        organizationId={ORGANIZATION_ID}
+        view={{
+          month: "2026-11",
+          truncated: false,
+          items: [
+            {
+              ...base,
+              invoiceId: invoice(7),
+              invoiceReference: "CUO-7",
+              state: "retry_scheduled",
+              date: "2026-11-18",
+              reason: "No había saldo suficiente.",
+              canCancel: true,
+              familyNotice: "sent",
+            },
+            {
+              ...base,
+              invoiceId: invoice(8),
+              invoiceReference: "CUO-8",
+              state: "failed",
+              reason: "El banco pide que la familia confirme el pago.",
+              familyNotice: "not_sent",
+            },
+            { ...base, invoiceId: invoice(9), invoiceReference: "CUO-9", state: "collected", date: "2026-11-05" },
+          ],
+        }}
+      />
+    );
+
+    expect(rowOf("CUO-7")).toHaveTextContent(/No se pudo cobrar; se volverá a intentar el 18 nov\.? 2026/);
+    expect(rowOf("CUO-7")).toHaveTextContent("Hemos avisado a la familia por correo de que no se pudo cobrar.");
+    expect(rowOf("CUO-8")).toHaveTextContent("No se pudo cobrar");
+    expect(rowOf("CUO-8")).toHaveTextContent("No hemos podido avisar a la familia por correo. Avísala tú.");
+    expect(rowOf("CUO-9")).not.toHaveTextContent(/avisa/i);
+    expect(document.body.textContent ?? "").not.toMatch(JARGON);
+  });
+
   it("tras refrescar la página manda la lectura nueva del servidor", async () => {
     stubFetch(() => reply(200, { outcome: "canceled" }));
     const { rerender } = render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);

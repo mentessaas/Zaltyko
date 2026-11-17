@@ -35,6 +35,10 @@ import {
   type OrganizationPlanState,
 } from "@/modules/billing/application/plan-state";
 import type { CollectionPlanChargeStatus, CollectionPlanInvoiceStatus } from "@/modules/family-collection/domain/collection-plan";
+import {
+  FAMILY_FAILURE_NOTICE,
+  notifiesFamilyOnFailure,
+} from "@/modules/family-collection/domain/family-failure-notice";
 import type {
   FamilyCollectionGateAccount,
   FamilyCollectionGateAuthorization,
@@ -1341,6 +1345,14 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
               payload: { code: outcome.code, declineCode: outcome.declineCode },
               now: input.now,
             });
+          }
+          if (notifiesFamilyOnFailure({ attemptNumber: attempt.attemptNumber, failureCode: outcome.code })) {
+            // D3: aviso a la familia en el primer fallo, en la misma transacción
+            // que el fallo. Una sola vez por intento (clave
+            // `family-collection:{intento}:family_failure_notice`, comprobada
+            // antes de escribir) y solo con ids: el correo lo envía después
+            // deliverFamilyFailureNotices, fuera de esta transacción.
+            await recordTransition(tx, attempt, { event: FAMILY_FAILURE_NOTICE, payload: {}, now: input.now });
           }
           return { applied: true, status: "failed", allocationStatus: null, reviewReasons: [] };
         }

@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   createGateway: vi.fn(),
   reconcile: vi.fn(),
   collect: vi.fn(),
+  deliverNotices: vi.fn(),
 }));
 
 vi.mock("@/db", () => ({ db: {} }));
@@ -51,6 +52,10 @@ vi.mock("@/modules/family-collection/application/family-collection-reconcile", (
 vi.mock("@/modules/family-collection/application/family-collection-collect", () => ({
   collectDueInvoices: mocks.collect,
 }));
+// D3: el envío de los avisos de primer fallo a las familias (nunca un correo de verdad).
+vi.mock("@/modules/family-collection/application/family-failure-notice-delivery", () => ({
+  deliverFamilyFailureNotices: mocks.deliverNotices,
+}));
 
 import { GET, POST } from "@/app/api/cron/collect-family-fees/route";
 import type { RunState } from "@/modules/family-collection/application/family-collection-steps";
@@ -62,7 +67,10 @@ const SECRET = ["cron", "prueba", "cobro"].join("-");
 const withSecret = (secret = SECRET) =>
   new Request(CRON_URL, { method: "POST", headers: { authorization: `Bearer ${secret}` } });
 
+const NO_NOTICES = { sent: 0, notSent: 0, pending: 0 };
+
 const ZERO = {
+  familyNotices: NO_NOTICES,
   enabled: false,
   complete: true,
   reconciled: 0,
@@ -97,6 +105,7 @@ describe("cron del cobro automático de cuotas", () => {
     mocks.isStorageAvailable.mockResolvedValue(true);
     mocks.createStore.mockReturnValue({ isStorageAvailable: mocks.isStorageAvailable });
     mocks.createGateway.mockReturnValue(gateway);
+    mocks.deliverNotices.mockResolvedValue(NO_NOTICES);
     // Fase A: pone al día un intento reanudado y uno releído.
     mocks.reconcile.mockImplementation(async (state: RunState) => {
       state.result.reconciled += 2;
@@ -149,6 +158,7 @@ describe("cron del cobro automático de cuotas", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect((await body(response)).data).toEqual({ skipped: true, reason: "ALREADY_RUNNING" });
+    expect(mocks.deliverNotices).not.toHaveBeenCalled();
     expect(mocks.createStore).not.toHaveBeenCalled();
     expect(mocks.reconcile).not.toHaveBeenCalled();
     expect(mocks.collect).not.toHaveBeenCalled();
@@ -234,6 +244,7 @@ describe("cron del cobro automático de cuotas", () => {
       retried: 1,
       resumed: 0,
       needsReview: 1,
+      familyNotices: NO_NOTICES,
     });
     expect(JSON.stringify(data)).not.toMatch(/pi_|20000000-/);
   });
@@ -246,6 +257,42 @@ describe("cron del cobro automático de cuotas", () => {
     const response = await POST(withSecret());
     expect(mocks.collect).not.toHaveBeenCalled();
     expect((await body(response)).data).toMatchObject({ enabled: true, complete: false, collected: 0 });
+  });
+
+  it("D3: tras el cobro envía los avisos de primer fallo a las familias y responde solo sus contadores", async () => {
+    env.flag = true;
+    mocks.deliverNotices.mockResolvedValue({
+      sent: 2,
+      notSent: 1,
+      pending: 1,
+      // Lo que no es un contador nunca sale en la respuesta.
+      attemptId: "20000000-0000-4000-8000-000000000009",
+    });
+    const response = await POST(withSecret());
+    expect(response.status).toBe(200);
+    expect(mocks.deliverNotices).toHaveBeenCalledTimes(1);
+    // Dentro del lease y después de cobrar.
+    expect(mocks.collect.mock.invocationCallOrder[0]).toBeLessThan(mocks.deliverNotices.mock.invocationCallOrder[0]!);
+    const data = (await body(response)).data;
+    expect(data?.familyNotices).toEqual({ sent: 2, notSent: 1, pending: 1 });
+    expect(data).toMatchObject({ enabled: true, collected: 4 });
+    expect(JSON.stringify(data)).not.toMatch(/20000000-/);
+  });
+
+  it("D3: si fallan los avisos, el cobro ya hecho se responde igual y solo se registra el nombre del error", async () => {
+    env.flag = true;
+    mocks.deliverNotices.mockRejectedValue(
+      Object.assign(new Error("correo de la familia en el mensaje"), { code: "53300" })
+    );
+    const response = await POST(withSecret());
+    expect(response.status).toBe(200);
+    const data = (await body(response)).data;
+    expect(data).toMatchObject({ enabled: true, collected: 4, familyNotices: null });
+    expect(mocks.error).toHaveBeenCalledWith("Error al enviar los avisos de cobro fallido a las familias", undefined, {
+      errorName: "Error",
+      errorCode: "53300",
+    });
+    expect(JSON.stringify(mocks.error.mock.calls)).not.toContain("correo de la familia");
   });
 
   it("si la función no está disponible responde enabled: false", async () => {

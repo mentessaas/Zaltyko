@@ -53,6 +53,7 @@ import {
   localCalendarDate,
   startOfLocalDay,
 } from "@/modules/family-collection/domain/collection-plan";
+import { FAMILY_FAILURE_NOTICE_RESULT_EVENT } from "@/modules/family-collection/domain/family-failure-notice";
 import { NEEDS_REVIEW_EVENT } from "@/modules/family-collection/infrastructure/family-collection-store";
 import {
   academyCanMarkReviewed,
@@ -678,6 +679,21 @@ export interface OwnerAutomaticCollectionItem {
   canMarkReviewed: boolean;
   /** Hay un intento en curso: el pago a mano responde 409 hasta que termine. */
   manualPaymentBlocked: boolean;
+  /**
+   * Aviso a la familia del primer cobro fallido (D3): `sent` si le llegó el
+   * correo; `not_sent` si no se le pudo enviar (sin correo guardado o envío no
+   * aceptado) y la academia debería avisarla; null si no hubo aviso.
+   */
+  familyNotice?: FamilyNoticeState | null;
+}
+
+export type FamilyNoticeState = "sent" | "not_sent";
+
+/** Resultado guardado del aviso (family-failure-notice-store.ts) → lo que ve la academia. */
+export function familyNoticeStateOf(outcome: string | null): FamilyNoticeState | null {
+  if (outcome === "sent") return "sent";
+  if (outcome === "no_email" || outcome === "not_delivered") return "not_sent";
+  return null;
 }
 
 export interface OwnerAutomaticCollectionsView {
@@ -703,6 +719,8 @@ export interface OwnerCollectionRow {
   blocker: string | null;
   /** Aviso de la factura `attempts_exhausted`: no admite más intentos automáticos. */
   attemptsExhausted: boolean;
+  /** Resultado del aviso del primer fallo a la familia (familyNoticeStateOf), si lo hubo. */
+  familyNotice?: FamilyNoticeState | null;
   attempt: {
     status: string;
     amountCents: number;
@@ -872,6 +890,8 @@ export function ownerAutomaticCollectionItemOf(
       canCancel: attempt.status === "created" || (attempt.status === "failed" && attempt.nextRetryAt !== null),
       canMarkReviewed,
       manualPaymentBlocked: open,
+      // Una cuota ya cobrada no necesita recordar el aviso.
+      familyNotice: state === "collected" ? null : (row.familyNotice ?? null),
     };
   } catch {
     return null;
@@ -1006,7 +1026,16 @@ export async function getOwnerAutomaticCollections(input: {
          where e.organization_id = i.organization_id
            and e.event_name = ${NEEDS_REVIEW_EVENT}
            and e.idempotency_key = 'family-collection:invoice:' || i.id::text || ':needs_review:attempts_exhausted'
-      ) as "attemptsExhausted"
+      ) as "attemptsExhausted",
+      (
+        select e.payload ->> 'outcome'
+          from zaltyko.outbox_events e
+         where e.organization_id = i.organization_id
+           and e.event_name = ${FAMILY_FAILURE_NOTICE_RESULT_EVENT}
+           and e.payload ->> 'invoiceId' = i.id::text
+         order by e.occurred_at desc
+         limit 1
+      ) as "familyNoticeOutcome"
     from (select distinct invoice_id from candidates) k
     join zaltyko.invoices i
       on i.organization_id = ${organizationId}::uuid and i.id = k.invoice_id
@@ -1084,6 +1113,7 @@ export async function getOwnerAutomaticCollections(input: {
         openAutomaticCents: cents(row.openAutomaticCents),
         blocker: plan ? automaticCollectionBlocker(prerequisitesOf(row, plan)) : null,
         attemptsExhausted: row.attemptsExhausted === true,
+        familyNotice: familyNoticeStateOf(textOrNull(row.familyNoticeOutcome)),
         attempt: attemptStatus
           ? {
               status: attemptStatus,

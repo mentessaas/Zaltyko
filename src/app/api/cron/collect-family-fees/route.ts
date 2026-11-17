@@ -3,6 +3,10 @@ import { requireCronAuth } from "@/lib/cron-auth";
 import { runCronWithLease } from "@/lib/cron-lease";
 import { logger } from "@/lib/logger";
 import {
+  deliverFamilyFailureNotices,
+  type FamilyFailureNoticeDelivery,
+} from "@/modules/family-collection/application/family-failure-notice-delivery";
+import {
   runFamilyCollection,
   type FamilyCollectionRunResult,
 } from "@/modules/family-collection/application/family-collection-service";
@@ -28,6 +32,9 @@ const NO_STORE = "private, no-store";
  *   los cobros que quedaron a medias (para que lo que ya salió en Stripe quede
  *   registrado) y nunca cobra nada nuevo («enabled: false»);
  * - con la bandera encendida, además cobra lo que vence hoy.
+ * Al terminar, envía a las familias los avisos de primer cobro fallido (D3)
+ * que estén pendientes (deliverFamilyFailureNotices, mismos cerrojos); si ese
+ * paso falla, el cobro ya hecho no se ve afectado («familyNotices: null»).
  * Sin el secreto no se toca nada (401, o 503 si falta CRON_SECRET).
  * La respuesta solo lleva contadores: nunca ids, importes ni datos de familias.
  */
@@ -36,11 +43,20 @@ export async function POST(request: Request) {
   if (authError) return authError;
 
   try {
-    const execution = await runCronWithLease("cron:collect-family-fees", () => runFamilyCollection());
+    const execution = await runCronWithLease("cron:collect-family-fees", async () => {
+      const run = await runFamilyCollection();
+      const familyNotices = await deliverNotices();
+      return { run, familyNotices };
+    });
     if (!execution.acquired || !execution.value) {
       return noStore(apiSuccess({ skipped: true, reason: "ALREADY_RUNNING" }));
     }
-    return noStore(apiSuccess(countersOnly(execution.value)));
+    return noStore(
+      apiSuccess({
+        ...countersOnly(execution.value.run),
+        familyNotices: noticeCounters(execution.value.familyNotices),
+      })
+    );
   } catch (error) {
     if (error instanceof OperationalError && error.code === "FEATURE_NOT_AVAILABLE") {
       return noStore(apiSuccess({ enabled: false, reason: "UNAVAILABLE" }));
@@ -57,6 +73,26 @@ export async function POST(request: Request) {
 // pg_net llama por POST; GET permite el mismo disparo con el mismo contrato de
 // autenticación, como en el resto de rutas cron.
 export const GET = POST;
+
+/** Avisos a las familias tras el cobro; un fallo aquí no tumba la respuesta del cobro. */
+async function deliverNotices(): Promise<FamilyFailureNoticeDelivery | null> {
+  try {
+    return await deliverFamilyFailureNotices();
+  } catch (error) {
+    // Solo el nombre y el código: nunca mensajes de la base ni del correo.
+    logger.error("Error al enviar los avisos de cobro fallido a las familias", undefined, {
+      errorName: error instanceof Error ? error.name : "unknown",
+      errorCode: errorCode(error),
+    });
+    return null;
+  }
+}
+
+/** Solo los tres contadores de los avisos. */
+function noticeCounters(delivery: FamilyFailureNoticeDelivery | null): FamilyFailureNoticeDelivery | null {
+  if (!delivery) return null;
+  return { sent: delivery.sent, notSent: delivery.notSent, pending: delivery.pending };
+}
 
 /** Copia campo a campo, para que nada que se añada al resultado salga sin revisar. */
 function countersOnly(result: FamilyCollectionRunResult): FamilyCollectionRunResult {

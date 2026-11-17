@@ -31,6 +31,12 @@ const REVIEW_REQUIRED_TEXT =
 const CHANGED_TEXT =
   "El cobro automático de esta cuota cambió o acaba de empezar. Recarga la página y vuelve a intentarlo.";
 
+// Aviso del primer cobro fallido a la familia (D3).
+const FAMILY_NOTICE_TEXT: Record<"sent" | "not_sent", string> = {
+  sent: "Hemos avisado a la familia por correo de que no se pudo cobrar.",
+  not_sent: "No hemos podido avisar a la familia por correo. Avísala tú.",
+};
+
 type Outcome = "canceled" | "reviewed" | "collected";
 type ActionBody = { outcome?: unknown; detail?: unknown; type?: unknown } | null;
 
@@ -245,6 +251,9 @@ export function OwnerAutomaticCollectionsPanel({
                 </p>
               </div>
               {item.reason ? <p className={`${ownerUi.muted} mt-2`}>{item.reason}</p> : null}
+              {item.familyNotice ? (
+                <p className={`${ownerUi.help} mt-1`}>{FAMILY_NOTICE_TEXT[item.familyNotice]}</p>
+              ) : null}
               {chargedByHand(item.state) ? (
                 <p className={`${ownerUi.help} mt-1`}>Esta cuota se cobra a mano: registra el pago cuando lo recibas.</p>
               ) : null}

@@ -1,0 +1,217 @@
+/**
+ * Cobro automático de cuotas (Fase 3): envío del aviso a la familia cuando
+ * falla el primer cobro de una cuota (D3, decisión de Elvis del 17-11-2026).
+ *
+ * El aviso ya está en el outbox (lo escribe applyOutcome en la misma
+ * transacción que el fallo del intento 1, una sola vez por intento). Aquí, al
+ * terminar el proceso diario y fuera de cualquier transacción con Stripe:
+ * 1. se leen los avisos de los últimos días sin resultado;
+ * 2. se comprueba que siguen valiendo (academia activa, cuota abierta, ningún
+ *    intento posterior y, si se promete un reintento, que aún no ha pasado);
+ * 3. se envía el correo a la persona que paga, por el mismo emisor y con el
+ *    mismo destinatario que los recordatorios de pago, con una clave de
+ *    envío por intento (un segundo envío del mismo aviso nunca sale);
+ * 4. se deja el resultado en el outbox (una vez por intento): la academia ve
+ *    en su lista si la familia está avisada.
+ *
+ * Si el envío lanza un error, no se deja resultado: se reintenta en la
+ * siguiente ejecución mientras el aviso tenga menos de 3 días.
+ * Mismos cerrojos que el cobro: solo con la clave de test de Stripe y nunca
+ * contra la base de producción.
+ */
+import { getAppUrl } from "@/lib/env";
+import { sendEmailWithLogging, type SendEmailOptions } from "@/lib/email/email-service";
+import { logger } from "@/lib/logger";
+import { isProductionDatabase, resolveConnectEnvironment } from "@/modules/family-collection/application/config";
+import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
+import { localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
+import {
+  FAMILY_FAILURE_NOTICE_TEMPLATE,
+  FAMILY_FEES_PATH,
+  familyFailureNoticeKey,
+  familyFailureNoticeKind,
+  notifiesFamilyOnFailure,
+  renderFamilyFailureNotice,
+} from "@/modules/family-collection/domain/family-failure-notice";
+import {
+  createFamilyFailureNoticeStore,
+  type FamilyFailureNoticeOutcome,
+  type FamilyFailureNoticeStore,
+  type PendingFamilyFailureNotice,
+} from "@/modules/family-collection/infrastructure/family-failure-notice-store";
+
+/** Un aviso de más de 3 días ya no se envía (el reintento de la tarjeta sale al día siguiente). */
+export const FAMILY_FAILURE_NOTICE_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+/** Avisos por ejecución como mucho; el resto, en la siguiente. */
+export const FAMILY_FAILURE_NOTICE_BATCH = 50;
+/** Tiempo como mucho para los avisos, después del cobro (la ruta tiene 300 s). */
+export const FAMILY_FAILURE_NOTICE_DEADLINE_MS = 30_000;
+
+export interface FamilyFailureNoticeDelivery {
+  /** Correos aceptados por el proveedor. */
+  sent: number;
+  /** Avisos cerrados sin correo (sin correo guardado, cuota pagada, aviso caducado…). */
+  notSent: number;
+  /** Envíos que fallaron: se reintentan en la siguiente ejecución. */
+  pending: number;
+}
+
+export interface FamilyFailureNoticeDeps {
+  store?: Pick<FamilyFailureNoticeStore, "listPending" | "recordResult">;
+  sendEmail?: (options: SendEmailOptions) => Promise<boolean>;
+  /** Comprueba que existen las tablas del cobro. */
+  isStorageAvailable?: () => Promise<boolean>;
+}
+
+export interface FamilyFailureNoticeOptions {
+  now?: Date;
+  deadlineMs?: number;
+  limit?: number;
+  /** Dirección pública de la app (por defecto, la del entorno). */
+  appUrl?: string;
+  /** SOLO TESTS de PostgreSQL: academias a las que se limita. */
+  organizationIds?: readonly string[];
+}
+
+const OPEN_INVOICE_STATUSES: ReadonlySet<string> = new Set(["issued", "partially_paid"]);
+const ACTIVE_ORGANIZATION_STATUSES: ReadonlySet<string> = new Set(["trial", "active"]);
+
+function emptyDelivery(): FamilyFailureNoticeDelivery {
+  return { sent: 0, notSent: 0, pending: 0 };
+}
+
+/** Día local del reintento, o null si no hay o no se puede leer. */
+function retryDateOf(notice: PendingFamilyFailureNotice): string | null {
+  if (!notice.nextRetryAt) return null;
+  try {
+    return localCalendarDate(notice.nextRetryAt, notice.timezone);
+  } catch {
+    return null;
+  }
+}
+
+function todayOf(now: Date, timezone: string): string | null {
+  try {
+    return localCalendarDate(now, timezone);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Lo que se hace con un aviso pendiente: enviarlo o cerrarlo sin correo.
+ * Pura. Nunca se envía un aviso que ya no es verdad.
+ */
+export function decideFamilyFailureNotice(
+  notice: PendingFamilyFailureNotice,
+  now: Date
+): { action: "send"; retryDateLocal: string | null } | { action: "close"; outcome: FamilyFailureNoticeOutcome } {
+  if (!ACTIVE_ORGANIZATION_STATUSES.has(notice.organizationStatus)) {
+    return { action: "close", outcome: "organization_inactive" };
+  }
+  if (!OPEN_INVOICE_STATUSES.has(notice.invoiceStatus)) return { action: "close", outcome: "invoice_closed" };
+  if (
+    notice.attemptStatus !== "failed" ||
+    notice.lastAttemptNumber > notice.attemptNumber ||
+    !notifiesFamilyOnFailure({ attemptNumber: notice.attemptNumber, failureCode: notice.failureCode ?? "" })
+  ) {
+    return { action: "close", outcome: "superseded" };
+  }
+  const retryDateLocal = retryDateOf(notice);
+  if (retryDateLocal !== null) {
+    // Nunca se promete un reintento con fecha pasada (el proceso diario se retrasó).
+    const today = todayOf(now, notice.timezone);
+    if (today === null || retryDateLocal < today) return { action: "close", outcome: "superseded" };
+  }
+  if (!notice.payerEmail) return { action: "close", outcome: "no_email" };
+  return { action: "send", retryDateLocal };
+}
+
+/**
+ * Envía los avisos pendientes de primer fallo y deja su resultado. Nunca
+ * lanza por un aviso concreto: un fallo se registra (solo ids y el nombre del
+ * error) y se reintenta en la siguiente ejecución.
+ */
+export async function deliverFamilyFailureNotices(
+  options: FamilyFailureNoticeOptions = {},
+  deps: FamilyFailureNoticeDeps = {}
+): Promise<FamilyFailureNoticeDelivery> {
+  const result = emptyDelivery();
+  // Cerrojos de R11, como el cobro: solo clave de test y nunca la base de producción.
+  if (resolveConnectEnvironment() !== "test" || isProductionDatabase()) return result;
+  const storageAvailable = deps.isStorageAvailable ?? (() => isFamilyCollectionStorageAvailable());
+  if (!(await storageAvailable())) return result;
+  if (options.organizationIds && options.organizationIds.length === 0) return result;
+
+  const now = options.now ?? new Date();
+  const deadline = Date.now() + (options.deadlineMs ?? FAMILY_FAILURE_NOTICE_DEADLINE_MS);
+  const store = deps.store ?? createFamilyFailureNoticeStore();
+  const sendEmail = deps.sendEmail ?? sendEmailWithLogging;
+  const feesUrl = `${(options.appUrl ?? getAppUrl()).replace(/\/+$/, "")}${FAMILY_FEES_PATH}`;
+
+  const pending = await store.listPending({
+    since: new Date(now.getTime() - FAMILY_FAILURE_NOTICE_MAX_AGE_MS),
+    limit: options.limit ?? FAMILY_FAILURE_NOTICE_BATCH,
+    scope: options.organizationIds ? [...options.organizationIds] : null,
+  });
+
+  for (const notice of pending) {
+    if (Date.now() >= deadline) break;
+    const ids = { organizationId: notice.organizationId, invoiceId: notice.invoiceId, attemptId: notice.attemptId };
+    const record = (outcome: FamilyFailureNoticeOutcome) =>
+      store.recordResult({
+        organizationId: notice.organizationId,
+        locationId: notice.locationId,
+        attemptId: notice.attemptId,
+        invoiceId: notice.invoiceId,
+        outcome,
+        now,
+      });
+    try {
+      const decision = decideFamilyFailureNotice(notice, now);
+      if (decision.action === "close") {
+        await record(decision.outcome);
+        result.notSent += 1;
+        continue;
+      }
+      const message = renderFamilyFailureNotice({
+        kind: familyFailureNoticeKind({
+          paymentMethodKind: notice.paymentMethodKind,
+          failureCode: notice.failureCode,
+          declineCode: notice.declineCode,
+          retryScheduled: decision.retryDateLocal !== null,
+        }),
+        academyName: notice.academyName,
+        servicePeriodStart: notice.servicePeriodStart,
+        retryDateLocal: decision.retryDateLocal,
+        feesUrl,
+      });
+      const accepted = await sendEmail({
+        purpose: "transactional",
+        to: notice.payerEmail ?? "",
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+        ...(notice.replyToEmail ? { replyTo: notice.replyToEmail } : {}),
+        template: FAMILY_FAILURE_NOTICE_TEMPLATE,
+        // Como los recordatorios: la organización canónica va como tenant.
+        tenantId: notice.organizationId,
+        // Solo ids: nunca el correo ni el nombre.
+        metadata: { kind: FAMILY_FAILURE_NOTICE_TEMPLATE, attemptId: notice.attemptId, invoiceId: notice.invoiceId },
+        // Un solo correo por intento, aunque el resultado no llegara a guardarse.
+        dedupeKey: familyFailureNoticeKey(notice.attemptId),
+      });
+      await record(accepted ? "sent" : "not_delivered");
+      if (accepted) result.sent += 1;
+      else result.notSent += 1;
+    } catch (error) {
+      result.pending += 1;
+      // Solo ids y el nombre del error: nunca el correo ni mensajes del proveedor.
+      logger.error("Cobro automático: no se pudo enviar el aviso de cobro fallido a la familia", undefined, {
+        ...ids,
+        errorName: error instanceof Error ? error.name : "unknown",
+      });
+    }
+  }
+  return result;
+}

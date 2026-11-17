@@ -8,8 +8,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { db } from "@/db";
 import { runFamilyCollection } from "@/modules/family-collection/application/family-collection-service";
+import { deliverFamilyFailureNotices } from "@/modules/family-collection/application/family-failure-notice-delivery";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
 import { addLocalDays, localCalendarDate, startOfLocalDay } from "@/modules/family-collection/domain/collection-plan";
+import { retryDayLabel } from "@/modules/family-collection/domain/family-failure-notice";
 import type { CollectionError, PaymentIntentSnapshot } from "@/modules/family-collection/domain/payment-outcome";
 import {
   createFamilyCollectionStore,
@@ -218,6 +220,7 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
         "outbox_events",
         "family_payers",
         "family_guardians",
+        "guardian_contacts",
         "guardians",
         "people",
         "families",
@@ -718,6 +721,8 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     for (const fixture of [revoked, closed]) {
       expect(await ledgerState(fixture)).toEqual({ charges: ["due"], invoice: "issued", providerPayments: [] });
       expect(await outboxCount(fixture, "family_collection.attempt_canceled")).toBe(1);
+      // Un cierre de la puerta no es un cobro fallido: ningún aviso a la familia (D3).
+      expect(await outboxCount(fixture, "family_collection.family_failure_notice")).toBe(0);
     }
 
     // Un intento final no se repite: la cuota ya es de cobro a mano.
@@ -741,6 +746,8 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     ]);
     expect(await ledgerState(fixture)).toEqual({ charges: ["due"], invoice: "issued", providerPayments: [] });
     expect(await outboxCount(fixture, "family_collection.attempt_canceled")).toBe(1);
+    // La ventana de cobro pasó: no es un cobro fallido, ningún aviso a la familia (D3).
+    expect(await outboxCount(fixture, "family_collection.family_failure_notice")).toBe(0);
 
     // Final: otra ejecución no lo repite; la cuota se cobra a mano.
     await run(new Date(), gateway);
@@ -781,9 +788,61 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     expect(first).toMatchObject({ number: 1, status: "failed", failure: "card_declined", decline: "insufficient_funds" });
     expect(instant(first.nextRetryAt)).toBe(retryOn(1).getTime());
 
+    // D3: un aviso a la familia en el primer fallo, con su clave por intento y solo ids.
+    const notices = await db.execute(sql`
+      select idempotency_key as "key", aggregate_id::text as "aggregateId", payload
+        from zaltyko.outbox_events
+       where organization_id = ${fixture.organizationId}::uuid
+         and event_name = 'family_collection.family_failure_notice'
+    `);
+    const firstAttemptId = (notices.rows[0] as { aggregateId: string } | undefined)?.aggregateId;
+    expect(notices.rows).toEqual([
+      {
+        key: `family-collection:${firstAttemptId}:family_failure_notice`,
+        aggregateId: firstAttemptId,
+        payload: { attemptId: firstAttemptId, invoiceId: fixture.invoiceId },
+      },
+    ]);
+
+    // El correo sale una sola vez, a la persona que paga, con el enlace a /familia/cuotas
+    // y la fecha del reintento (emisor simulado: nunca un correo de verdad).
+    const payerEmail = `ci-collection-payer-${compact()}@example.invalid`;
+    await db.execute(sql`
+      insert into zaltyko.guardian_contacts (organization_id, guardian_id, kind, value, normalized_value, is_primary)
+      values (
+        ${fixture.organizationId}::uuid,
+        (select fp.guardian_id from zaltyko.family_payers fp where fp.id = ${fixture.payerId}::uuid),
+        'email', ${payerEmail}, ${payerEmail}, true
+      )
+    `);
+    const sendEmail = vi.fn(async (_options: { to: string; text?: string; dedupeKey?: string }) => true);
+    const deliver = () =>
+      deliverFamilyFailureNotices(
+        { now: start, appUrl: "https://zaltyko.test", organizationIds: [fixture.organizationId] },
+        { sendEmail }
+      );
+    expect(await deliver()).toEqual({ sent: 1, notSent: 0, pending: 0 });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const email = sendEmail.mock.calls[0]![0];
+    expect(email.to).toBe(payerEmail);
+    expect(email.dedupeKey).toBe(`family-collection:${firstAttemptId}:family_failure_notice`);
+    expect(email.text).toContain("la cuota de noviembre de 2026");
+    expect(email.text).toContain(`Volveremos a intentarlo el ${retryDayLabel(addLocalDays(firstDay, 1))}`);
+    expect(email.text).toContain("https://zaltyko.test/familia/cuotas");
+    const sent = await db.execute(sql`
+      select payload ->> 'outcome' as "outcome" from zaltyko.outbox_events
+       where organization_id = ${fixture.organizationId}::uuid
+         and event_name = 'family_collection.family_failure_notice_result'
+    `);
+    expect(sent.rows).toEqual([{ outcome: "sent" }]);
+    // Otra ejecución no lo repite.
+    expect(await deliver()).toEqual({ sent: 0, notSent: 0, pending: 0 });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+
     // Justo antes del día del reintento no se intenta nada.
     await runOwn(new Date(retryOn(1).getTime() - 60_000));
     expect(await attempts(fixture)).toHaveLength(1);
+    expect(await outboxCount(fixture, "family_collection.family_failure_notice")).toBe(1);
 
     // [número del intento, día desde el primero, día de su reintento (null: no hay)].
     const chain: Array<[number, number, number | null]> = [
@@ -813,6 +872,8 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     // Un aviso de fallo por intento y un solo fallo final.
     expect(await outboxCount(fixture, "family_collection.attempt_failed")).toBe(4);
     expect(await outboxCount(fixture, "family_collection.final_failure")).toBe(1);
+    // D3: ningún aviso más a la familia en los reintentos ni en el fallo final.
+    expect(await outboxCount(fixture, "family_collection.family_failure_notice")).toBe(1);
     expect(await ledgerState(fixture)).toEqual({ charges: ["due"], invoice: "issued", providerPayments: [] });
 
     // Al día siguiente del último no se intenta nada más: la cuota se cobra a mano.
@@ -879,11 +940,14 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
     ]);
     expect(await ledgerState(fixture)).toEqual({ charges: ["due"], invoice: "issued", providerPayments: [] });
     expect(await outboxCount(fixture, "family_collection.attempt_canceled")).toBe(1);
+    // Cancelado por la puerta (domiciliación sin activar): no es un cobro fallido, la familia no recibe aviso (D3).
+    expect(await outboxCount(fixture, "family_collection.family_failure_notice")).toBe(0);
 
     // Un intento final no se repite: la cuota ya es de cobro a mano.
     await run(new Date(), gateway);
     expect(await attempts(fixture)).toHaveLength(1);
     expect(callsFor(gateway.createPayment.mock.calls, fixture)).toHaveLength(0);
+    expect(await outboxCount(fixture, "family_collection.family_failure_notice")).toBe(0);
   });
 
   it("red de seguridad: un intento abierto con las reanudaciones agotadas recibe un solo aviso", async () => {

@@ -57,6 +57,7 @@ import {
   automaticCollectionBlocker,
   failureReasonText,
   familyAutomaticFeeStatusOf,
+  familyNoticeStateOf,
   getFamilyAutomaticFeeStatuses,
   getOwnerAutomaticCollections,
   getOwnerFamilyCollectionSwitches,
@@ -493,6 +494,50 @@ describe("fila de la academia (pura)", () => {
       date: "2026-11-05",
       reason: "No había saldo suficiente.",
     });
+  });
+
+  it("D3: el primer fallo con reintento sale como incidencia con su motivo y si la familia está avisada", () => {
+    const failedRow = (familyNotice: OwnerCollectionRow["familyNotice"]) =>
+      ownerRow({
+        familyNotice,
+        attempt: attempt({
+          status: "failed",
+          failureCode: "card_declined",
+          declineCode: "insufficient_funds",
+          // 00:00 del 18-11 en Madrid.
+          nextRetryAt: new Date("2026-11-17T23:00:00.000Z"),
+          completedAt: new Date("2026-11-17T08:00:00.000Z"),
+          allocationStatus: null,
+        }),
+      });
+    expect(ownerAutomaticCollectionItemOf(failedRow("sent"), NOW, "2026-11")).toMatchObject({
+      state: "retry_scheduled",
+      date: "2026-11-18",
+      reason: "No había saldo suficiente.",
+      canCancel: true,
+      familyNotice: "sent",
+    });
+    expect(ownerAutomaticCollectionItemOf(failedRow("not_sent"), NOW, "2026-11")).toMatchObject({
+      state: "retry_scheduled",
+      familyNotice: "not_sent",
+    });
+    expect(ownerAutomaticCollectionItemOf(failedRow(undefined), NOW, "2026-11")).toMatchObject({
+      state: "retry_scheduled",
+      familyNotice: null,
+    });
+    // Ya cobrada en un reintento: el aviso deja de importar.
+    expect(
+      ownerAutomaticCollectionItemOf(ownerRow({ familyNotice: "sent", attempt: attempt() }), NOW, "2026-11")
+    ).toMatchObject({ state: "collected", familyNotice: null });
+  });
+
+  it("D3: el resultado guardado del aviso se traduce para la academia", () => {
+    expect(familyNoticeStateOf("sent")).toBe("sent");
+    expect(familyNoticeStateOf("no_email")).toBe("not_sent");
+    expect(familyNoticeStateOf("not_delivered")).toBe("not_sent");
+    for (const outcome of ["invoice_closed", "superseded", "organization_inactive", "otro", null]) {
+      expect(familyNoticeStateOf(outcome)).toBeNull();
+    }
   });
 
   it("sin intento: se cobrará el día previsto, sin acciones", () => {
@@ -1042,6 +1087,46 @@ describe("puertas de las lecturas", () => {
     expect(query.sql).toMatch(/with candidates as/);
     expect(query.sql).toMatch(/from \(select distinct invoice_id from candidates\) k/);
     expect(query.params).toContain("family_collection.needs_review");
+    // D3: el resultado del aviso a la familia, por factura.
+    expect(query.params).toContain("family_collection.family_failure_notice_result");
+    expect(query.sql).toContain("e.payload ->> 'invoiceId' = i.id::text");
+  });
+
+  it("academia: el aviso enviado a la familia llega a la fila del primer fallo", async () => {
+    holder.execute.mockResolvedValueOnce({ rows: [{ timezone: TZ }] }).mockResolvedValueOnce({
+      rows: [
+        {
+          invoiceId: INVOICE_ID,
+          invoiceReference: "CUO-2026-11-001",
+          invoiceStatus: "issued",
+          currency: "EUR",
+          timezone: TZ,
+          payerName: null,
+          collectionDayOfMonth: null,
+          nextDueAt: null,
+          openAutomaticCents: "0",
+          attemptStatus: "failed",
+          attemptAmountCents: "4500",
+          failureCode: "authentication_required",
+          declineCode: "authentication_required",
+          nextRetryAt: null,
+          completedAt: "2026-11-17T08:00:00.000Z",
+          resumeCount: 0,
+          allocationStatus: null,
+          reviewReason: null,
+          hasReviewNotice: false,
+          familyNoticeOutcome: "sent",
+        },
+      ],
+    });
+    const view = await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
+    expect(view?.items).toEqual([
+      expect.objectContaining({
+        state: "failed",
+        reason: "El banco pide que la familia confirme el pago.",
+        familyNotice: "sent",
+      }),
+    ]);
   });
 
   describe("academia: límite de la lista", () => {
