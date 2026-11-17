@@ -7,6 +7,25 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-17 — Cobro automático de cuotas, Fase 3: decisiones de Elvis y ronda de revisión (PR #349)
+
+**Contexto.** Tras el estudio `documentacion/Zaltyko/auditoria-2026-11-17/cobros-competencia.md` (fuera del repo), Elvis decidió cinco cosas de la Fase 3; además, la revisión independiente del coordinador pidió siete correcciones. Todo en la PR #349, en borrador y con las banderas apagadas.
+
+**Cambio.**
+- Día fijo: nunca antes del vencimiento (Elvis: «Sí, así»). La pantalla lo dice: «Si una cuota vence más tarde que el día elegido, se cobrará el día que vence, nunca antes.».
+- P3 nueva (Elvis: «3 reintentos: 1, 3 y 7 días»): tarjeta con fallo recuperable, hasta 3 reintentos a +1, +3 y +7 días locales desde el primer intento. Sustituye a «1 reintento tarjeta».
+- «Primero solo tarjeta»: bandera aparte `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED=false`; con ella apagada no se crea ningún cobro de domiciliación y quitarla se dice «Quitar la domiciliación guardada».
+- Aviso por correo a la familia en el primer fallo, enviado desde la ruta `collect-family-fees`; la academia ve si se avisó.
+- Texto de costes, sin cifras, en «Conectar Stripe» y en el día de cobro: «Stripe cobra su tarifa por cada pago a la academia; Zaltyko no cobra comisión.».
+- Ronda: motivos finales `amount_below_minimum`, `reminder_sent`, `sepa_not_enabled` y rechazos deterministas al crear; aviso `processing_unreadable` a los 15 días y salida por soporte; importe y moneda comprobados (`amount_mismatch`); un solo cobro registrado por factura (candidata `cee3e0aa…`); recordatorios retenidos con un cobro en marcha aunque la bandera esté apagada, y lista «Cobros automáticos en curso».
+- Docs: ADR-0028 («Decisiones de Elvis del 17-11-2026» y «Añadidos de la ronda»), `docs/COBROS_Y_CUOTAS.md` y el plan de la Fase 3.
+
+**Pruebas.** Tests de pantalla, dominio, servicio y PostgreSQL desechable de cada cambio. Ninguna en local; las valida la CI remota de la PR #349.
+
+**Recomendación operativa.** No reencender la bandera con reintentos pendientes sin revisarlos. Si un entorno pasa a Live o a la base de producción con intentos abiertos, lo resuelve soporte.
+
+Vault: actualizados este `Changelog interno.md` y `Decisiones.md`; no cambian `Pricing.md` ni `Mensajes aprobados.md`.
+
 ## 2026-11-17 — Cobro automático de cuotas, Fase 3: el proceso diario cobra las cuotas, apagado
 
 **Contexto.** Tercera fase del ADR-0028. Cada día se cobran las cuotas mensuales de las familias con el cobro automático encendido, con la tarjeta o la domiciliación guardada en la Fase 2, en la cuenta Stripe de su academia. Un cobro por familia, sede y mes (P1), en el día que elige la academia (P2) y con un reintento de tarjeta a los 3 días (P3). Rama `cobros/fase3-plan-cobro`, PR #349 en borrador.

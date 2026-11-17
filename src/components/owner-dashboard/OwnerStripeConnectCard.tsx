@@ -17,6 +17,8 @@ const CONNECT_ENDPOINT = "/api/v1/owner/payments/connect";
 const SUPPORT_EMAIL = "hola@zaltyko.com";
 const STRIPE_DASHBOARD_URL = "https://dashboard.stripe.com/";
 const OPEN_STRIPE_ERROR = "No hemos podido abrir Stripe. Inténtalo de nuevo.";
+// D4 (Elvis, 17-11-2026): lo que cuesta cobrar, sin cifras.
+const FEES_NOTE = "Stripe cobra su tarifa por cada pago a la academia; Zaltyko no cobra comisión.";
 
 type ProblemBody = { type?: unknown; errors?: { reason?: unknown } | null };
 
@@ -195,9 +197,8 @@ function CardBody({
             Conecta tu cuenta de Stripe para que las cuotas se cobren solas. El dinero llega directo a tu cuenta.
           </p>
           <OpenStripeButton label="Conectar Stripe" busy={busy} onOpen={onOpen} />
-          <p className={ownerUi.help}>
-            Stripe te pedirá los datos de tu academia y tu cuenta bancaria. Zaltyko no se queda ninguna comisión.
-          </p>
+          <p className={ownerUi.help}>Stripe te pedirá los datos de tu academia y tu cuenta bancaria.</p>
+          <p className={ownerUi.help}>{FEES_NOTE}</p>
         </>
       );
     case "needs_details":

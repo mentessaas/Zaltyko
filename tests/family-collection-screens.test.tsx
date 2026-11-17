@@ -186,6 +186,11 @@ describe("OwnerCollectionDaySettings", () => {
     expect(screen.getByRole("radio", { name: "Un día fijo del mes" })).not.toBeChecked();
     expect(screen.queryByRole("combobox", { name: "Día del mes" })).toBeNull();
     expect(screen.getByRole("button", { name: "Guardar día de cobro" })).toBeDisabled();
+    // D4 (Elvis, 17-11-2026): lo que cuesta cobrar, sin cifras.
+    expect(
+      screen.getByText("Stripe cobra su tarifa por cada pago a la academia; Zaltyko no cobra comisión.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/\d\s*(%|€)/)).toBeNull();
   });
 
   it("un día fijo: selector del 1 al 31, las dos notas y guarda con la versión", async () => {
@@ -197,7 +202,14 @@ describe("OwnerCollectionDaySettings", () => {
     const options = within(select).getAllByRole("option").map((option) => option.textContent);
     expect(options).toEqual(Array.from({ length: 31 }, (_, index) => String(index + 1)));
     expect(screen.getByText("En los meses que no tienen ese día, se cobra el último día del mes.")).toBeInTheDocument();
-    expect(screen.getByText("Si ese día cae antes del vencimiento, se cobra el día del vencimiento.")).toBeInTheDocument();
+    // Regla del día fijo (Elvis, 17-11-2026): nunca antes del vencimiento.
+    expect(
+      screen.getByText("Si una cuota vence más tarde que el día elegido, se cobrará el día que vence, nunca antes.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Si ese día cae antes del vencimiento, se cobra el día del vencimiento.")).toBeNull();
+    expect(
+      screen.getByText("Stripe cobra su tarifa por cada pago a la academia; Zaltyko no cobra comisión.")
+    ).toBeInTheDocument();
 
     fireEvent.change(select, { target: { value: "31" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar día de cobro" }));
@@ -610,6 +622,34 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={{ month: "2026-11", items: [], truncated: false }} />);
 
     expect(screen.getByText("Este mes todavía no hay cuotas que se cobren automáticamente.")).toBeInTheDocument();
+  });
+
+  it("con el cobro automático parado (solo cobros en marcha), el título no promete cobros del mes", () => {
+    stubFetch(() => reply(200, {}));
+    const inProgress: OwnerAutomaticCollectionsView = {
+      month: "2026-11",
+      items: [items[3]],
+      truncated: false,
+      inProgressOnly: true,
+    };
+    const { unmount } = render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={inProgress} />);
+
+    expect(screen.getByRole("heading", { name: "Cobros automáticos en curso" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Cobros automáticos de este mes" })).toBeNull();
+    expect(
+      screen.getByText(
+        "El cobro automático está parado: ya no se cobra ninguna cuota nueva. Estos cobros ya estaban en marcha y siguen su curso."
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/que se cobran solas/)).toBeNull();
+    expect(rowOf("CUO-4")).toHaveTextContent("Necesita revisión");
+    unmount();
+
+    render(
+      <OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={{ ...inProgress, items: [] }} />
+    );
+    expect(screen.getByText("Ya no queda ningún cobro automático en curso.")).toBeInTheDocument();
+    expect(screen.queryByText("Este mes todavía no hay cuotas que se cobren automáticamente.")).toBeNull();
   });
 
   it("«Cancelar el cobro automático» pide confirmación y luego llama a la ruta", async () => {

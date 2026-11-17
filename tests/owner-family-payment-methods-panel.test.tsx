@@ -93,8 +93,11 @@ describe("OwnerFamilyPaymentMethodsPanel", () => {
     const sepa = rowOf("Pablo Ruiz");
     expect(within(sepa).getByText("Domiciliación bancaria")).toBeInTheDocument();
     expect(within(sepa).getByText(`desde el ${madridDate(SEPA.since)}`)).toBeInTheDocument();
+    // La domiciliación todavía no se cobra sola (por defecto): se «quita», no se «deja de cobrar».
+    expect(within(sepa).getByText("Quitar la domiciliación guardada")).toBeInTheDocument();
 
-    expect(screen.getAllByRole("button", { name: /^Dejar de cobrar automáticamente a / })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /^Dejar de cobrar automáticamente a / })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Quitar la domiciliación guardada de Pablo Ruiz" })).toBeInTheDocument();
     expect(screen.queryByText("Ninguna familia ha guardado todavía un método de pago.")).toBeNull();
     expect(calls).toHaveLength(0);
   });
@@ -158,12 +161,12 @@ describe("OwnerFamilyPaymentMethodsPanel", () => {
 
   it("si ya no estaba activo («none») también quita la fila; con la última, queda el vacío", async () => {
     stubFetch(() => reply(200, { outcome: "none" }));
-    renderPanel([SEPA]);
+    renderPanel([CARD]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Dejar de cobrar automáticamente a Pablo Ruiz" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dejar de cobrar automáticamente a Lucía Martín" }));
     fireEvent.click(screen.getByRole("button", { name: "Sí, dejar de cobrar" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent("Pablo Ruiz ya no tenía el pago automático activo.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Lucía Martín ya no tenía el pago automático activo.");
     expect(screen.getByText("Ninguna familia ha guardado todavía un método de pago.")).toBeInTheDocument();
   });
 
@@ -233,9 +236,73 @@ describe("OwnerFamilyPaymentMethodsPanel: domiciliación sin activar (D2, «Prim
     expect(within(rowOf("Lucía Martín")).queryByText(SEPA_MANUAL)).toBeNull();
     expect(screen.getByRole("switch", { name: "Cobrar automáticamente a Pablo Ruiz" })).toBeDisabled();
     expect(screen.getByRole("switch", { name: "Cobrar automáticamente a Lucía Martín" })).toBeEnabled();
-    // Sigue pudiendo dejar de cobrarle (revocar la domiciliación).
-    expect(screen.getByRole("button", { name: "Dejar de cobrar automáticamente a Pablo Ruiz" })).toBeEnabled();
+    // Sigue pudiendo quitar la domiciliación guardada.
+    expect(screen.getByRole("button", { name: "Quitar la domiciliación guardada de Pablo Ruiz" })).toBeEnabled();
     expect(calls).toHaveLength(0);
+  });
+
+  it("apagada: quitar la domiciliación no dice que hoy se cobre sola", async () => {
+    stubFetch(() => reply(200, { outcome: "revoked" }));
+    renderPanel([CARD, SEPA]);
+
+    expect(screen.queryByRole("button", { name: "Dejar de cobrar automáticamente a Pablo Ruiz" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Quitar la domiciliación guardada de Pablo Ruiz" }));
+
+    const confirm = screen.getByRole("group", { name: "Confirmar que quitas la domiciliación guardada de Pablo Ruiz" });
+    expect(confirm).toHaveTextContent(
+      "¿Quitar la domiciliación guardada de Pablo Ruiz? Tendrá que volver a guardarla si quiere usarla más adelante. Sus cuotas se siguen pagando como siempre."
+    );
+    expect(confirm.textContent ?? "").not.toMatch(/automáticamente|dejar de cobrar/i);
+    expect(calls).toHaveLength(0);
+
+    fireEvent.click(within(confirm).getByRole("button", { name: "Sí, quitar la domiciliación" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Has quitado la domiciliación guardada de Pablo Ruiz.");
+    expect(calls).toHaveLength(1);
+    expect(JSON.parse(String(calls[0].init?.body))).toEqual({
+      organizationId: ORGANIZATION_ID,
+      authorizationId: SEPA.authorizationId,
+    });
+    expect(screen.queryByText("Pablo Ruiz")).toBeNull();
+    expect(screen.getByText("Lucía Martín")).toBeInTheDocument();
+  });
+
+  it("apagada: sin domiciliación activa o con un fallo, lo dice con las mismas palabras", async () => {
+    stubFetch(() => reply(200, { outcome: "none" }));
+    const { unmount } = renderPanel([SEPA]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Quitar la domiciliación guardada de Pablo Ruiz" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, quitar la domiciliación" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Pablo Ruiz ya no tenía la domiciliación guardada.");
+    expect(screen.getByText("Ninguna familia ha guardado todavía un método de pago.")).toBeInTheDocument();
+    unmount();
+
+    stubFetch(() => {
+      throw new TypeError("network");
+    });
+    renderPanel([SEPA]);
+    fireEvent.click(screen.getByRole("button", { name: "Quitar la domiciliación guardada de Pablo Ruiz" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, quitar la domiciliación" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No hemos podido quitar la domiciliación guardada. Inténtalo de nuevo."
+    );
+    expect(screen.getByText("Pablo Ruiz")).toBeInTheDocument();
+  });
+
+  it("encendida: la domiciliación se deja de cobrar como hoy", () => {
+    stubFetch(() => reply(200, {}));
+    render(
+      <OwnerFamilyPaymentMethodsPanel organizationId={ORGANIZATION_ID} methods={[SEPA]} sepaCollectsAutomatically />
+    );
+
+    expect(screen.queryByRole("button", { name: "Quitar la domiciliación guardada de Pablo Ruiz" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Dejar de cobrar automáticamente a Pablo Ruiz" }));
+    expect(
+      screen.getByRole("group", { name: "Confirmar que dejas de cobrar automáticamente a Pablo Ruiz" })
+    ).toHaveTextContent("¿Dejar de cobrar automáticamente a Pablo Ruiz?");
+    expect(screen.getByRole("button", { name: "Sí, dejar de cobrar" })).toBeEnabled();
   });
 
   it("apagada: si ya estaba encendido, se puede apagar", () => {

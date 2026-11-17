@@ -1147,6 +1147,8 @@ describe("puertas de las lecturas", () => {
 
       const view = await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
 
+      // La pantalla lo dice en el título («Cobros automáticos en curso»).
+      expect(view?.inProgressOnly).toBe(true);
       expect(view?.items).toEqual([
         expect.objectContaining({
           invoiceReference: "CUO-2026-11-001",

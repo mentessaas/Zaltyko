@@ -306,7 +306,9 @@ describe("FamilyAutomaticPaymentCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(screen.queryByRole("radio")).toBeNull();
-    expect(screen.getByRole("button", { name: "Dejar de pagar automáticamente" })).toBeInTheDocument();
+    // Domiciliación sin activar: quitarla no se dice «dejar de pagar automáticamente».
+    expect(screen.getByRole("button", { name: "Quitar la domiciliación guardada" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dejar de pagar automáticamente" })).toBeNull();
     expect(calls).toHaveLength(0);
   });
 
@@ -564,6 +566,68 @@ describe("FamilyAutomaticPaymentCard: domiciliación sin activar (D2, «Primero 
     fireEvent.click(screen.getByRole("button", { name: "Cambiar método" }));
     fireEvent.click(screen.getByRole("radio", { name: "Domiciliación bancaria" }));
     expect(screen.queryByText(SEPA_MANUAL)).toBeNull();
+  });
+
+  it("apagada: quitar la domiciliación no dice que hoy se cobre sola", async () => {
+    stubFetch(() => success({ outcome: "revoked" }));
+    renderWith(activeState("sepa_debit"), false);
+
+    expect(screen.queryByRole("button", { name: "Dejar de pagar automáticamente" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Quitar la domiciliación guardada" }));
+    expect(
+      screen.getByText(
+        "Se borrará la domiciliación que tienes guardada. Las cuotas las sigues pagando como siempre. ¿Quieres quitarla?"
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Las cuotas dejarán de cobrarse solas/)).toBeNull();
+    expect(screen.queryByText(/automáticamente/)).toBeNull();
+    expect(calls).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sí, quitar la domiciliación" }));
+
+    expect(await screen.findByText("Has quitado la domiciliación guardada.")).toBeInTheDocument();
+    expect(screen.queryByText("Ya no pagas automáticamente.")).toBeNull();
+    expect(calls.map((call) => call.body)).toEqual([
+      { action: "revoke", organizationId: ORGANIZATION_ID, familyId: FAMILY_ID },
+    ]);
+  });
+
+  it("apagada: si no se puede quitar la domiciliación, lo dice con las mismas palabras", async () => {
+    stubFetch(() => failure(503, "FAMILY_PAYMENT_REVOKE_FAILED"));
+    const { unmount } = renderWith(activeState("sepa_debit"), false);
+
+    fireEvent.click(screen.getByRole("button", { name: "Quitar la domiciliación guardada" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, quitar la domiciliación" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudo quitar la domiciliación guardada. Vuelve a intentarlo en un momento."
+    );
+    expect(
+      screen.getByText("Tienes la domiciliación bancaria guardada desde el 10 de noviembre de 2026.")
+    ).toBeInTheDocument();
+    unmount();
+
+    stubFetch(() => failure(503, "FEATURE_NOT_AVAILABLE"));
+    renderWith(activeState("sepa_debit"), false);
+    fireEvent.click(screen.getByRole("button", { name: "Quitar la domiciliación guardada" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, quitar la domiciliación" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Ahora mismo no se puede quitar la domiciliación desde aquí. Habla con tu academia."
+    );
+    expect(document.body.innerHTML).not.toContain("FEATURE_NOT_AVAILABLE");
+  });
+
+  it("encendida: la domiciliación se deja de pagar automáticamente como hoy", async () => {
+    stubFetch(() => success({ outcome: "revoked" }));
+    renderWith(activeState("sepa_debit"), true);
+
+    expect(screen.queryByRole("button", { name: "Quitar la domiciliación guardada" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Dejar de pagar automáticamente" }));
+    expect(screen.getByText(/Las cuotas dejarán de cobrarse solas/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sí, dejar de pagar automáticamente" }));
+
+    expect(await screen.findByText("Ya no pagas automáticamente.")).toBeInTheDocument();
   });
 
   it("la vista de cuotas pasa la bandera a cada tarjeta (sin indicar, apagada)", () => {

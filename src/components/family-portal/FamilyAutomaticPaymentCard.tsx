@@ -16,7 +16,9 @@ import type { PaymentMethodKind } from "@/modules/family-payment-methods/domain/
 // la clave secreta del formulario.
 // «Primero solo tarjeta» (Elvis, 17-11-2026): mientras la domiciliación no se
 // cobra sola (`sepaCollectsAutomatically` apagado, el valor por defecto), la
-// familia puede guardarla, pero la tarjeta nunca promete que se cobrará sola.
+// familia puede guardarla, pero la tarjeta nunca promete que se cobrará sola;
+// y quitarla se dice como lo que es («Quitar la domiciliación guardada»), no
+// como «dejar de pagar automáticamente».
 
 /** Lo que la página pasa a la vista de cuotas: por academia, una tarjeta por familia que paga. */
 export type FamilyAutomaticPaymentCards = Record<
@@ -59,6 +61,17 @@ const TEXT = {
   bankRejected: "Tu banco no ha aceptado este método de pago. Prueba con otro o habla con tu banco.",
   checkForm: "Revisa los datos del formulario.",
   sepaManual: "Por ahora la domiciliación no se cobra sola; paga como siempre.",
+} as const;
+
+/** Quitar una domiciliación que todavía no se cobra sola: sin «dejar de pagar automáticamente». */
+const SEPA_REMOVE_TEXT = {
+  ask: "Quitar la domiciliación guardada",
+  question:
+    "Se borrará la domiciliación que tienes guardada. Las cuotas las sigues pagando como siempre. ¿Quieres quitarla?",
+  confirm: "Sí, quitar la domiciliación",
+  done: "Has quitado la domiciliación guardada.",
+  failed: "No se pudo quitar la domiciliación guardada. Vuelve a intentarlo en un momento.",
+  unavailable: "Ahora mismo no se puede quitar la domiciliación desde aquí. Habla con tu academia.",
 } as const;
 
 const KIND_LABEL: Record<PaymentMethodKind, string> = {
@@ -108,9 +121,14 @@ async function post<T>(body: Record<string, unknown>): Promise<PostResult<T>> {
 }
 
 /** Mensaje sencillo para cada fallo; nunca se enseña lo que dice el servidor ni Stripe. */
-function failureMessage(result: { status: number; code: string | null }, action: Action): string {
+function failureMessage(
+  result: { status: number; code: string | null },
+  action: Action,
+  sepaManual = false
+): string {
   if (result.status === 429) return TEXT.tooMany;
   if (result.status === 401) return TEXT.session;
+  const revokeFailed = sepaManual ? SEPA_REMOVE_TEXT.failed : TEXT.revokeFailed;
   switch (result.code) {
     case "FAMILY_PAYMENT_METHOD_NOT_OFFERED":
       return TEXT.notOffered;
@@ -119,11 +137,12 @@ function failureMessage(result: { status: number; code: string | null }, action:
     case "FAMILY_PAYMENT_CONSENT_REQUIRED":
       return TEXT.consentRequired;
     case "FAMILY_PAYMENT_REVOKE_FAILED":
-      return TEXT.revokeFailed;
+      return revokeFailed;
     case "FEATURE_NOT_AVAILABLE":
-      return action === "revoke" ? TEXT.revokeUnavailable : `${TEXT.unavailable}.`;
+      if (action !== "revoke") return `${TEXT.unavailable}.`;
+      return sepaManual ? SEPA_REMOVE_TEXT.unavailable : TEXT.revokeUnavailable;
     default:
-      return action === "revoke" ? TEXT.revokeFailed : TEXT.saveFailed;
+      return action === "revoke" ? revokeFailed : TEXT.saveFailed;
   }
 }
 
@@ -324,17 +343,19 @@ export function FamilyAutomaticPaymentCard({
     setBusy(true);
     setError(null);
     setSuccess(null);
+    // Se decide antes de enviar: después ya no hay método guardado.
+    const sepaManual = method?.kind === "sepa_debit" && !sepaCollectsAutomatically;
     const result = await post<{ outcome?: unknown }>({ action: "revoke", organizationId, familyId });
     busyRef.current = false;
     setBusy(false);
     if (!result.ok) {
-      setError(failureMessage(result, "revoke"));
+      setError(failureMessage(result, "revoke", sepaManual));
       return;
     }
     setConfirmingRevoke(false);
     setMethod(null);
     setMode("idle");
-    setSuccess(TEXT.revoked);
+    setSuccess(sepaManual ? SEPA_REMOVE_TEXT.done : TEXT.revoked);
   }
 
   if (state.kind === "unavailable") return null;
@@ -476,7 +497,7 @@ function ActiveView({
       {sepaManual ? <p className={ownerUi.noticeInfo}>{TEXT.sepaManual}</p> : null}
       {confirmingRevoke ? (
         <div className={ownerUi.noticeWarning}>
-          <p>{TEXT.revokeQuestion}</p>
+          <p>{sepaManual ? SEPA_REMOVE_TEXT.question : TEXT.revokeQuestion}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
@@ -485,7 +506,7 @@ function ActiveView({
               disabled={busy}
               aria-busy={busy || undefined}
             >
-              Sí, dejar de pagar automáticamente
+              {sepaManual ? SEPA_REMOVE_TEXT.confirm : "Sí, dejar de pagar automáticamente"}
             </button>
             <button type="button" className={ownerUi.secondaryButton} onClick={onCancelRevoke} disabled={busy}>
               No, seguir igual
@@ -500,7 +521,7 @@ function ActiveView({
             </button>
           ) : null}
           <button type="button" className={ownerTone.dangerOutlineButton} onClick={onAskRevoke}>
-            Dejar de pagar automáticamente
+            {sepaManual ? SEPA_REMOVE_TEXT.ask : "Dejar de pagar automáticamente"}
           </button>
         </div>
       )}

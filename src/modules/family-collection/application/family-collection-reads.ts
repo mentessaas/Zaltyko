@@ -749,6 +749,11 @@ export interface OwnerAutomaticCollectionsView {
   items: OwnerAutomaticCollectionItem[];
   /** Hay más cobros de los que se enseñan. */
   truncated: boolean;
+  /**
+   * Con la bandera general apagada solo salen los cobros que ya estaban en
+   * marcha (la pantalla lo dice en el título). Sin indicar: la lista normal.
+   */
+  inProgressOnly?: true;
 }
 
 /** Fila de la consulta de la academia, ya tipada. */
@@ -1218,6 +1223,7 @@ export async function getOwnerAutomaticCollections(input: {
     month,
     items: listed.slice(0, OWNER_AUTOMATIC_COLLECTIONS_LIMIT),
     truncated: listed.length > OWNER_AUTOMATIC_COLLECTIONS_LIMIT || rows.length > OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT,
+    ...(inProgressOnly ? { inProgressOnly: true as const } : {}),
   };
 }
 

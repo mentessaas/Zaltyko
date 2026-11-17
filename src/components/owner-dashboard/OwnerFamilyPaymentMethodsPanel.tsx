@@ -20,7 +20,8 @@ import type { PaymentMethodKind } from "@/modules/family-payment-methods/domain/
 // «Primero solo tarjeta» (Elvis, 17-11-2026): mientras la domiciliación no se
 // cobra sola (`sepaCollectsAutomatically` apagado, el valor por defecto), cada
 // domiciliación lo dice y una familia que solo tiene domiciliación no puede
-// pasar a cobro automático (sí volver a manual).
+// pasar a cobro automático (sí volver a manual). Quitarla se dice como lo que
+// es («Quitar la domiciliación guardada»), no como «dejar de cobrar».
 
 // Ruta relativa: el fetch es del mismo origen y el navegador añade la cabecera
 // Origin que la API exige en el POST (protección contra CSRF).
@@ -31,6 +32,7 @@ const PREFERENCE_ERROR = "No hemos podido guardar el cambio. Inténtalo de nuevo
 const SENT_CONTINUE = "Los cobros ya enviados al banco siguen su curso.";
 /** Domiciliación mientras la domiciliación no se cobra sola. */
 export const SEPA_MANUAL_NOTICE = "Por ahora la domiciliación no se cobra sola: esta familia paga como siempre.";
+const SEPA_REMOVE_ERROR = "No hemos podido quitar la domiciliación guardada. Inténtalo de nuevo.";
 
 export type OwnerFamilyPaymentMethod = Awaited<ReturnType<typeof listOwnerFamilyPaymentMethods>>[number];
 
@@ -189,7 +191,9 @@ export function OwnerFamilyPaymentMethodsPanel({
     busyRef.current = true;
     setBusy(true);
     setMessage(null);
-    let failure: string | null = REVOKE_ERROR;
+    const sepaManual = method.method === "sepa_debit" && !sepaCollectsAutomatically;
+    const genericError = sepaManual ? SEPA_REMOVE_ERROR : REVOKE_ERROR;
+    let failure: string | null = genericError;
     let outcome: unknown = null;
     try {
       const response = await fetch(REVOKE_ENDPOINT, {
@@ -201,12 +205,12 @@ export function OwnerFamilyPaymentMethodsPanel({
       if (response.ok) {
         // La ruta responde `{ outcome }`; se acepta también el sobre `{ data }`.
         outcome = body?.outcome ?? body?.data?.outcome;
-        failure = outcome === "revoked" || outcome === "none" ? null : REVOKE_ERROR;
+        failure = outcome === "revoked" || outcome === "none" ? null : genericError;
       } else {
-        failure = errorText(body);
+        failure = errorText(body, genericError);
       }
     } catch {
-      failure = REVOKE_ERROR;
+      failure = genericError;
     }
     busyRef.current = false;
     setBusy(false);
@@ -216,13 +220,19 @@ export function OwnerFamilyPaymentMethodsPanel({
     }
     setConfirming(null);
     setMethods((current) => current.filter((item) => item.authorizationId !== method.authorizationId));
-    setMessage({
-      tone: "info",
-      text:
+    let text: string;
+    if (sepaManual) {
+      text =
+        outcome === "revoked"
+          ? `Has quitado la domiciliación guardada de ${method.payerName}.`
+          : `${method.payerName} ya no tenía la domiciliación guardada.`;
+    } else {
+      text =
         outcome === "revoked"
           ? `Ya no se cobrará automáticamente a ${method.payerName}.`
-          : `${method.payerName} ya no tenía el pago automático activo.`,
-    });
+          : `${method.payerName} ya no tenía el pago automático activo.`;
+    }
+    setMessage({ tone: "info", text });
   }
 
   return (
@@ -278,13 +288,17 @@ export function OwnerFamilyPaymentMethodsPanel({
                       type="button"
                       className={ownerTone.dangerOutlineButton}
                       disabled={busy}
-                      aria-label={`Dejar de cobrar automáticamente a ${method.payerName}`}
+                      aria-label={
+                        sepaManual
+                          ? `Quitar la domiciliación guardada de ${method.payerName}`
+                          : `Dejar de cobrar automáticamente a ${method.payerName}`
+                      }
                       onClick={() => {
                         setMessage(null);
                         setConfirming(method.authorizationId);
                       }}
                     >
-                      Dejar de cobrar automáticamente
+                      {sepaManual ? "Quitar la domiciliación guardada" : "Dejar de cobrar automáticamente"}
                     </button>
                   ) : null}
                 </div>
@@ -311,13 +325,27 @@ export function OwnerFamilyPaymentMethodsPanel({
                   </div>
                 ) : null}
                 {confirming === method.authorizationId ? (
-                  <div className={`${ownerUi.subtlePanel} mt-3`} role="group" aria-label={`Confirmar que dejas de cobrar automáticamente a ${method.payerName}`}>
-                    <p className="text-sm text-z-ink">
-                      ¿Dejar de cobrar automáticamente a {method.payerName}? Tendrá que volver a guardar su método de pago si quiere pagar así otra vez. Revocar no anula los cobros ya enviados.
-                    </p>
+                  <div
+                    className={`${ownerUi.subtlePanel} mt-3`}
+                    role="group"
+                    aria-label={
+                      sepaManual
+                        ? `Confirmar que quitas la domiciliación guardada de ${method.payerName}`
+                        : `Confirmar que dejas de cobrar automáticamente a ${method.payerName}`
+                    }
+                  >
+                    {sepaManual ? (
+                      <p className="text-sm text-z-ink">
+                        ¿Quitar la domiciliación guardada de {method.payerName}? Tendrá que volver a guardarla si quiere usarla más adelante. Sus cuotas se siguen pagando como siempre.
+                      </p>
+                    ) : (
+                      <p className="text-sm text-z-ink">
+                        ¿Dejar de cobrar automáticamente a {method.payerName}? Tendrá que volver a guardar su método de pago si quiere pagar así otra vez. Revocar no anula los cobros ya enviados.
+                      </p>
+                    )}
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button type="button" className={ownerTone.dangerButton} disabled={busy} aria-busy={busy || undefined} onClick={() => void revoke(method)}>
-                        {busy ? "Guardando…" : "Sí, dejar de cobrar"}
+                        {busy ? "Guardando…" : sepaManual ? "Sí, quitar la domiciliación" : "Sí, dejar de cobrar"}
                       </button>
                       <button type="button" className={ownerUi.secondaryButton} disabled={busy} onClick={() => setConfirming(null)}>
                         Cancelar

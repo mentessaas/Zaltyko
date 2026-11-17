@@ -16,6 +16,12 @@ const SETTINGS_ENDPOINT = "/api/v1/owner/payments/collection-settings";
 const SAVE_ERROR = "No hemos podido guardar el día de cobro. Inténtalo de nuevo.";
 const DAYS = Array.from({ length: 31 }, (_, index) => index + 1);
 const DEFAULT_FIXED_DAY = 1;
+// Regla del día fijo (decisión de Elvis del 17-11-2026, ADR-0028): nunca se
+// cobra antes de que venza la cuota.
+const FIXED_DAY_AFTER_DUE_NOTE =
+  "Si una cuota vence más tarde que el día elegido, se cobrará el día que vence, nunca antes.";
+// D4 (Elvis, 17-11-2026): lo que cuesta cobrar, sin cifras.
+const FEES_NOTE = "Stripe cobra su tarifa por cada pago a la academia; Zaltyko no cobra comisión.";
 
 export type OwnerCollectionDayInitial = Pick<CollectionSettings, "collectionDayOfMonth" | "version">;
 
@@ -155,10 +161,12 @@ export function OwnerCollectionDaySettings({
           </select>
           <ul id={notesId} className={`${ownerUi.help} grid gap-1`}>
             <li>En los meses que no tienen ese día, se cobra el último día del mes.</li>
-            <li>Si ese día cae antes del vencimiento, se cobra el día del vencimiento.</li>
+            <li>{FIXED_DAY_AFTER_DUE_NOTE}</li>
           </ul>
         </div>
       ) : null}
+
+      <p className={ownerUi.help}>{FEES_NOTE}</p>
 
       {message ? (
         <p

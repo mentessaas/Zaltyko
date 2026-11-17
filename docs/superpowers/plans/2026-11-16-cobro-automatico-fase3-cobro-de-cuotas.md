@@ -17,8 +17,18 @@
 | | Pregunta | Respuesta | Cómo la aplica el plan |
 |---|---|---|---|
 | **P1** | ¿Un cobro por gimnasta o uno por familia, sede y mes? | **Uno por familia, sede y mes** (la factura mensual). | Importe = saldo de las cuotas automáticas de la factura. Inconvenientes conocidos: una devolución del banco afecta a todas las cuotas del cobro, y con un pago parcial a mano el cobro no coincide con el total de la factura. |
-| **P2** | ¿Qué día se cobra? | **La academia elige**: el día de vencimiento de la cuota (por defecto) o un día fijo del mes. | Ajuste por academia «Día de cobro» (Tareas 1, 2, 4 y 8). Día fijo del 1 al 31; en los meses sin ese día (29–31), el último día del mes; fechas en la hora local de la sede. *Mi propuesta, a confirmar:* **nunca antes del vencimiento** (si el día fijo cae antes, se cobra el día del vencimiento). Para SEPA, el aviso previo depende de L4. |
-| **P3** | ¿Reintentos? | **Tarjeta rechazada: un reintento a los 3 días. SEPA: ninguno. Después, cobro manual con recordatorios.** | *Mi propuesta, a confirmar:* no se reintenta cuando el rechazo dice que la tarjeta está perdida, robada o es fraude (repetir no sirve y puede alertar al banco), ni cuando el banco pide autenticación. |
+| **P2** | ¿Qué día se cobra? | **La academia elige**: el día de vencimiento de la cuota (por defecto) o un día fijo del mes. | Ajuste por academia «Día de cobro» (Tareas 1, 2, 4 y 8). Día fijo del 1 al 31; en los meses sin ese día (29–31), el último día del mes; fechas en la hora local de la sede. **Nunca antes del vencimiento** (si el día fijo cae antes, se cobra el día del vencimiento): era propuesta mía; **la confirmó Elvis el 17-11-2026** («Sí, así»). Para SEPA, el aviso previo depende de L4. |
+| **P3** | ¿Reintentos? | ~~Tarjeta rechazada: un reintento a los 3 días.~~ **Sustituida el 17-11-2026** (abajo). SEPA: ninguno. Después, cobro manual con recordatorios. | *Mi propuesta de entonces:* no se reintenta cuando el rechazo dice que la tarjeta está perdida, robada o es fraude (repetir no sirve y puede alertar al banco), ni cuando el banco pide autenticación. La P3 nueva la incluye. |
+
+### Decisiones de Elvis del 17-11-2026 (sustituyen lo anterior donde choca)
+
+Tras el estudio `documentacion/Zaltyko/auditoria-2026-11-17/cobros-competencia.md` (fuera del repositorio). Detalle en ADR-0028, «Decisiones de Elvis del 17-11-2026».
+
+- **Día fijo:** nunca antes del vencimiento (Elvis: «Sí, así»).
+- **P3 nueva** (Elvis: «3 reintentos: 1, 3 y 7 días»): tarjeta con un fallo recuperable, hasta 3 reintentos, los días locales +1, +3 y +7 desde el primer intento; nunca con tarjeta perdida o robada, fraude, autenticación o método no válido. SEPA: ninguno. Tras el último fallo, manual con recordatorios. Sustituye a «1 reintento tarjeta» y a `CARD_RETRY_DELAY_DAYS` (ahora `CARD_RETRY_OFFSET_DAYS = [1, 3, 7]`).
+- **«Primero solo tarjeta»:** bandera aparte `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED`, apagada hasta la Fase 4; con ella apagada no se crea ningún cobro SEPA (motivo final `sepa_not_enabled`).
+- **Aviso a la familia en el primer fallo**, con enlace a `/familia/cuotas`; la academia ve si se avisó.
+- **Texto de costes** en «Conectar Stripe» y en el día de cobro: «Stripe cobra su tarifa por cada pago a la academia; Zaltyko no cobra comisión.».
 
 Sin respuesta, con propuesta: **¿se avisa antes a la familia?** No en esta fase. El portal muestra «Se cobrará automáticamente el {fecha}» y, en SEPA, Stripe envía el aviso previo del adeudo; un correo de Zaltyko el día antes encaja en la Fase 4, con el recibo.
 
@@ -110,7 +120,7 @@ Tabla `zaltyko.family_collection_attempts` (un intento de cobrar una factura):
 - `collectionDate({ dueDateLocal, collectionDayOfMonth })` → fecha local de cobro (P2): sin día fijo, el día de vencimiento; con día fijo `D`, el día `min(D, último día del mes)` del mes del vencimiento, salvo que sea anterior al vencimiento, en cuyo caso el día de vencimiento.
 - `planInvoiceCollection({ invoice, charges, todayLocal, collectionDayOfMonth })` → `{ collect: true; amountCents; allocations: { chargeId; amountCents }[] } | { collect: false; reason }`. Solo factura mensual `issued`/`partially_paid`, cargos `automatic` `due`/`partially_paid` con saldo, cuya **fecha de cobro local** (`collectionDate` sobre el `due_at` en la zona de la sede; `due_at` es las 23:59:59.999 del día de vencimiento, `calendar-due-date.ts:18`) sea ≤ hoy local. Importe = suma de saldos (P1). Razones: `not_monthly`, `invoice_closed`, `nothing_due`, `not_due_yet`, `mixed_currency`.
 - `evaluateFamilyCollectionGate(input)`: `flag_off`, `environment_unknown`, `live_not_released`, `storage_missing`; después **`evaluateCollectionEligibility` para cada cargo del reparto** (todos con el `familyPayerId` de la factura); después `payer_missing`, `payer_not_current`, `payment_method_unknown`, `sepa_not_active`, `account_stale`. Clasifica cada motivo como `transient` (no escribe) o `final` (intento `canceled`). Son `transient`: `account_stale`, `flag_off`, `environment_unknown`, `live_not_released`, `storage_missing` y los de plan de la academia. El resto es `final`.
-- `nextRetry({ kind, attemptNumber, code, declineCode, now })` → `Date | null` (P3a): solo tarjeta, `attemptNumber === 1` y rechazo blando (`insufficient_funds`, `processing_error`, `try_again_later`, `approve_with_id`…, lista exportada y testeada). Nunca en `lost_card`, `stolen_card`, `fraudulent`, `do_not_try_again`, `pickup_card`, SEPA ni `authentication_required`.
+- `nextRetry({ kind, attemptNumber, code, declineCode, now })` → `Date | null` (P3a; **sustituido el 17-11-2026**: ahora recibe `firstAttemptClaimedAt` y reintenta tras los intentos 1, 2 y 3 a +1, +3 y +7 días, ver «Decisiones de Elvis del 17-11-2026»): solo tarjeta, `attemptNumber === 1` y rechazo blando (`insufficient_funds`, `processing_error`, `try_again_later`, `approve_with_id`…, lista exportada y testeada). Nunca en `lost_card`, `stolen_card`, `fraudulent`, `do_not_try_again`, `pickup_card`, SEPA ni `authentication_required`.
 - `mapPaymentIntent(snapshot | error)` → `succeeded` | `processing` | `requires_confirmation` (creado y sin confirmar) | `{ failed: { code; declineCode } }` | `transient` | `idempotency_conflict`. `authentication_required` → `failed` terminal en esta fase (la Fase 4 la hará recuperable).
 - `config.ts`: `isFamilyAutomaticCollectionFlagEnabled()` (texto exacto `"true"`), reexporta los cerrojos de payments-connect.
 
@@ -188,7 +198,7 @@ export interface FamilyCollectionGateway {
   - cuota pagada a mano después de reclamar → pago registrado y `needs_review`;
   - pago parcial previo → solo el saldo;
   - autorización revocada o pagador cerrado antes del cobro → intento `canceled` y recordatorios;
-  - reintento a los 3 días y fallo final;
+  - reintentos a 1, 3 y 7 días y fallo final (antes «reintento a los 3 días»);
   - SEPA `processing` que se cierra en la relectura.
 - [ ] Implementar. Run. Commit.
 
@@ -217,7 +227,7 @@ export interface FamilyCollectionGateway {
 
 - **Familia (`/familia/cuotas`):** en cada cuota automática, «Se cobrará automáticamente el {fecha}», «Cobro en curso», «Cobrada automáticamente el {fecha}» o «No se pudo cobrar automáticamente; tu academia te dirá cómo pagarla». Sin códigos de Stripe.
 - **Academia:**
-  - en la tarjeta «Cobro automático de cuotas» de `/owner/settings` (Fase 1), el ajuste «Día de cobro»: «El día que vence cada cuota» (por defecto) o «Un día fijo del mes» con un selector 1–31 y las notas «En los meses que no tienen ese día, se cobra el último día del mes» y «Si ese día cae antes del vencimiento, se cobra el día del vencimiento»;
+  - en la tarjeta «Cobro automático de cuotas» de `/owner/settings` (Fase 1), el ajuste «Día de cobro»: «El día que vence cada cuota» (por defecto) o «Un día fijo del mes» con un selector 1–31 y las notas «En los meses que no tienen ese día, se cobra el último día del mes» y «Si una cuota vence más tarde que el día elegido, se cobrará el día que vence, nunca antes.» (texto del 17-11-2026; antes «Si ese día cae antes del vencimiento, se cobra el día del vencimiento»), más el texto de costes;
   - en «Pago automático de las familias» (Fase 2), un interruptor por familia «Cobrar automáticamente» (guarda la preferencia de la Tarea 4; solo con método activo);
   - en `/owner/payments`, los cobros automáticos del mes con su estado, el motivo en palabras sencillas si falló o se canceló, los que necesitan revisión, y «Cancelar el cobro automático» donde se pueda;
   - el formulario de pago manual explica por qué una cuota está bloqueada.
@@ -236,10 +246,10 @@ ADR-0028 (estado de la Fase 3, respuestas de P1–P3, decisiones nuevas), `docs/
 Aplicar la candidata en Supabase staging, encender la bandera en Vercel staging y programar el trabajo de pg_cron de staging. Recorrido con la cuenta sandbox «Lista para cobrar»:
 
 - tarjeta `4242…` cobrada, con día de vencimiento y con un día fijo;
-- `4000 0000 0000 9995` (saldo insuficiente) → reintento a los 3 días, adelantando `next_retry_at` en staging;
+- `4000 0000 0000 9995` (saldo insuficiente) → reintentos a 1, 3 y 7 días, adelantando `next_retry_at` en staging;
 - `4000 0000 0000 9979` (robada) → fallo final sin reintento;
 - `4000 0027 6000 3184` → «no se pudo cobrar» por autenticación;
 - pago manual durante un cobro en curso → bloqueado;
 - revocar el método antes del vencimiento → cuota a manual con recordatorio.
 
-La domiciliación SEPA, con su cierre por relectura, solo cuando Elvis lo autorice.
+La domiciliación SEPA, con su cierre por relectura, solo cuando Elvis lo autorice y con `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED` encendida (por defecto apagada: «Primero solo tarjeta»).

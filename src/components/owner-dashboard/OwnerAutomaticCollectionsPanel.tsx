@@ -216,11 +216,19 @@ export function OwnerAutomaticCollectionsPanel({
   return (
     <section id="cobros-automaticos" className={ownerUi.card} aria-labelledby="cobros-automaticos-title">
       <h2 id="cobros-automaticos-title" className={ownerUi.sectionTitle}>
-        Cobros automáticos de este mes
+        {view.inProgressOnly ? "Cobros automáticos en curso" : "Cobros automáticos de este mes"}
       </h2>
-      <p className={`${ownerUi.help} mt-2`}>
-        Cuotas de {monthLabel(view.month)} que se cobran solas. Las que no se pueden cobrar pasan a cobrarse a mano.
-      </p>
+      {view.inProgressOnly ? (
+        // Bandera general apagada: no se cobra nada nuevo; solo salen los cobros
+        // que ya estaban en marcha (bloquean el pago a mano hasta que terminen).
+        <p className={`${ownerUi.help} mt-2`}>
+          El cobro automático está parado: ya no se cobra ninguna cuota nueva. Estos cobros ya estaban en marcha y siguen su curso.
+        </p>
+      ) : (
+        <p className={`${ownerUi.help} mt-2`}>
+          Cuotas de {monthLabel(view.month)} que se cobran solas. Las que no se pueden cobrar pasan a cobrarse a mano.
+        </p>
+      )}
 
       {message ? (
         <p
@@ -232,7 +240,11 @@ export function OwnerAutomaticCollectionsPanel({
       ) : null}
 
       {items.length === 0 ? (
-        <p className={`${ownerUi.muted} mt-5`}>Este mes todavía no hay cuotas que se cobren automáticamente.</p>
+        <p className={`${ownerUi.muted} mt-5`}>
+          {view.inProgressOnly
+            ? "Ya no queda ningún cobro automático en curso."
+            : "Este mes todavía no hay cuotas que se cobren automáticamente."}
+        </p>
       ) : (
         <ul className="mt-5 space-y-3">
           {items.map((item) => (
