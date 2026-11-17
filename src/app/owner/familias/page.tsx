@@ -21,6 +21,11 @@ import {
 import { getOwnerNoticesBundle } from "@/modules/family-access/application/family-notices";
 import { listOwnerFamilyAccess } from "@/modules/family-access/application/guardian-invitations";
 import {
+  isFamilyAutomaticCollectionFlagEnabled,
+  isFamilyAutomaticSepaCollectionFlagEnabled,
+} from "@/modules/family-collection/application/config";
+import type { OwnerFamilyCollectionSwitches } from "@/modules/family-collection/application/family-collection-reads";
+import {
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/family-payment-methods/application/config";
@@ -60,6 +65,47 @@ async function loadFamilyPaymentMethods(
     if (!(error instanceof OperationalError)) {
       // Solo ids y el tipo de error en el log, nunca el error completo.
       logger.warn("Pago automático de las familias: no se pudo leer la lista de la academia", {
+        organizationId,
+        errorName: error instanceof Error ? error.name : "unknown",
+      });
+    }
+    return null;
+  }
+}
+
+/**
+ * Interruptor «Cobrar automáticamente» de cada familia con método activo
+ * (cobro automático de cuotas, Fase 3). Con la bandera apagada, fuera de la
+ * clave de test o contra la base de producción no se carga ni la lectura (se
+ * lee del entorno, sin base); sin las tablas de la Fase 3 o sin permiso, la
+ * lectura devuelve `null`. Si falla, el panel sigue sin interruptores y en el
+ * registro solo van la academia y el tipo de error.
+ */
+async function loadCollectionSwitches(
+  userId: string,
+  organizationId: string,
+  methods: OwnerFamilyPaymentMethod[]
+): Promise<OwnerFamilyCollectionSwitches | null> {
+  if (methods.length === 0) return null;
+  if (
+    !isFamilyAutomaticCollectionFlagEnabled() ||
+    resolveConnectEnvironment() !== "test" ||
+    isProductionDatabase()
+  ) {
+    return null;
+  }
+  try {
+    const { getOwnerFamilyCollectionSwitches } = await import(
+      "@/modules/family-collection/application/family-collection-reads"
+    );
+    return await getOwnerFamilyCollectionSwitches({
+      userId,
+      organizationId,
+      familyIds: methods.map((method) => method.familyId),
+    });
+  } catch (error) {
+    if (!(error instanceof OperationalError)) {
+      logger.warn("Cobro automático: no se pudo leer la preferencia de las familias", {
         organizationId,
         errorName: error instanceof Error ? error.name : "unknown",
       });
@@ -116,6 +162,9 @@ export default async function OwnerFamiliesPage({
     fullMode ? getOwnerNoticesBundle(input) : Promise.resolve(null),
     allSites ? loadFamilyPaymentMethods(user.id, scope.organization.id) : Promise.resolve(null),
   ]);
+  const collectionSwitches = paymentMethods
+    ? await loadCollectionSwitches(user.id, scope.organization.id, paymentMethods)
+    : null;
 
   return (
     <OwnerWorkspacePageShell
@@ -150,7 +199,12 @@ export default async function OwnerFamiliesPage({
             </p>
           )}
           {paymentMethods ? (
-            <OwnerFamilyPaymentMethodsPanel organizationId={scope.organization.id} methods={paymentMethods} />
+            <OwnerFamilyPaymentMethodsPanel
+              organizationId={scope.organization.id}
+              methods={paymentMethods}
+              sepaCollectsAutomatically={isFamilyAutomaticSepaCollectionFlagEnabled()}
+              {...(collectionSwitches ? { collection: collectionSwitches } : {})}
+            />
           ) : null}
           {notices ? <OwnerFamilyNoticesPanel organizationId={scope.organization.id} bundle={notices} /> : null}
         </div>

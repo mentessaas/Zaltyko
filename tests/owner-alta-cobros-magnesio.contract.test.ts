@@ -27,7 +27,9 @@ const FILES = [
   "src/components/owner-dashboard/OwnerMonthlyResolutionFamilyFields.tsx",
   "src/components/owner-dashboard/OwnerMonthlyResolutionTariffFields.tsx",
   "src/components/owner-dashboard/OwnerMonthlyResolutionNotices.tsx",
-  "src/components/owner-dashboard/FamilyCollectionModeCard.tsx",
+  "src/components/owner-dashboard/OwnerAutomaticCollectionsPanel.tsx",
+  "src/components/owner-dashboard/OwnerCollectionDaySettings.tsx",
+  "src/components/owner-dashboard/OwnerFamilyPaymentMethodsPanel.tsx",
   "src/components/owner-dashboard/owner-monthly-resolution-model.ts",
   "src/components/owner-dashboard/owner-ui.ts",
 ] as const;

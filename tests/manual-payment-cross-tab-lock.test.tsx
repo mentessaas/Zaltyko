@@ -20,10 +20,6 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mocks.refresh }),
 }));
 
-vi.mock("@/components/owner-dashboard/FamilyCollectionModeCard", () => ({
-  FamilyCollectionModeCard: () => null,
-}));
-
 import { ManualPaymentForm } from "@/components/owner-dashboard/ManualPaymentForm";
 import { publishOwnerPlanUsage } from "@/components/owner-dashboard/owner-plan-usage-store";
 
@@ -116,7 +112,6 @@ function renderPaymentForm(testId = "payment-tab") {
         actorId={actorId}
         organizationId={organizationId}
         charges={[charge]}
-        canManageFamilyCollectionPreferences={false}
       />
     </section>
   );
@@ -181,7 +176,6 @@ describe("coordinación de pagos manuales entre formularios", () => {
             actorId={actorId}
             organizationId={organizationId}
             charges={[charge]}
-            canManageFamilyCollectionPreferences={false}
           />
         </section>
         <section data-testid="payment-tab-b">
@@ -189,7 +183,6 @@ describe("coordinación de pagos manuales entre formularios", () => {
             actorId={actorId}
             organizationId={organizationId}
             charges={[charge]}
-            canManageFamilyCollectionPreferences={false}
           />
         </section>
       </>

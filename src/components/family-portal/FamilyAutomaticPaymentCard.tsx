@@ -9,11 +9,23 @@ import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type R
 import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
 import type { FamilyPaymentMethodState } from "@/modules/family-payment-methods/application/family-payment-methods-service";
 import type { PaymentMethodKind } from "@/modules/family-payment-methods/domain/consent";
+import type { FamilyCardCollectionMode } from "@/modules/family-portal/domain/family-portal-presentation";
 
 // Pago automático de cuotas (cobro automático, Fase 2): la persona pagadora
 // guarda una tarjeta o domicilia el pago en la cuenta Stripe de su academia.
 // En esta fase no se cobra nada. La tarjeta nunca enseña códigos de Stripe ni
 // la clave secreta del formulario.
+// «Primero solo tarjeta» (Elvis, 17-11-2026): mientras la domiciliación no se
+// cobra sola (`sepaCollectsAutomatically` apagado, el valor por defecto), la
+// familia puede guardarla, pero la tarjeta nunca promete que se cobrará sola;
+// y quitarla se dice como lo que es («Quitar la domiciliación guardada»), no
+// como «dejar de pagar automáticamente».
+// Cobro automático de cuotas (Fase 3): la tarjeta dice lo que de verdad pasa
+// (`automaticCollection`). Solo con el cobro abierto y las cuotas de la
+// familia en automático dice «Pagas automáticamente»; si no, «Tienes tu
+// tarjeta guardada desde el …» y quitarla es «Quitar la tarjeta guardada»
+// (mismo patrón que la domiciliación). Con el cobro abierto nunca dice
+// «Todavía no se cobrará nada».
 
 /** Lo que la página pasa a la vista de cuotas: por academia, una tarjeta por familia que paga. */
 export type FamilyAutomaticPaymentCards = Record<
@@ -35,8 +47,6 @@ const RETURN_PARAMS = [
 
 const TEXT = {
   title: "Pago automático",
-  intro:
-    "Guarda una tarjeta o domicilia el pago para que las cuotas se cobren solas. Todavía no se cobrará nada.",
   unavailable: "El pago automático no está disponible ahora mismo",
   pending:
     "Tu banco todavía lo está confirmando. Si en unos minutos no aparece como guardado, vuelve a guardarlo.",
@@ -55,7 +65,52 @@ const TEXT = {
   tooMany: "Has hecho demasiados intentos. Espera un minuto y vuelve a intentarlo.",
   bankRejected: "Tu banco no ha aceptado este método de pago. Prueba con otro o habla con tu banco.",
   checkForm: "Revisa los datos del formulario.",
+  sepaManual: "Por ahora la domiciliación no se cobra sola; paga como siempre.",
 } as const;
+
+/** Explicación al elegir método, según lo que pasará al guardarlo. */
+const INTRO_TEXT: Record<FamilyCardCollectionMode, string> = {
+  closed:
+    "Guarda una tarjeta o domicilia el pago para que las cuotas se cobren solas. Todavía no se cobrará nada.",
+  family_manual:
+    "Guarda una tarjeta o domicilia el pago para que las cuotas se cobren solas. Tu academia te dirá desde cuándo.",
+  automatic: "Guarda una tarjeta o domicilia el pago para que las próximas cuotas se cobren solas.",
+};
+
+type RemoveText = {
+  ask: string;
+  question: string;
+  confirm: string;
+  done: string;
+  failed: string;
+  unavailable: string;
+};
+
+/**
+ * Quitar un método guardado que hoy no se cobra solo (cobro cerrado, cuotas
+ * de la familia a mano o domiciliación sin activar): sin «dejar de pagar
+ * automáticamente».
+ */
+const REMOVE_TEXT: Record<PaymentMethodKind, RemoveText> = {
+  card: {
+    ask: "Quitar la tarjeta guardada",
+    question:
+      "Se borrará la tarjeta que tienes guardada. Las cuotas las sigues pagando como siempre. ¿Quieres quitarla?",
+    confirm: "Sí, quitar la tarjeta",
+    done: "Has quitado la tarjeta guardada.",
+    failed: "No se pudo quitar la tarjeta guardada. Vuelve a intentarlo en un momento.",
+    unavailable: "Ahora mismo no se puede quitar la tarjeta desde aquí. Habla con tu academia.",
+  },
+  sepa_debit: {
+    ask: "Quitar la domiciliación guardada",
+    question:
+      "Se borrará la domiciliación que tienes guardada. Las cuotas las sigues pagando como siempre. ¿Quieres quitarla?",
+    confirm: "Sí, quitar la domiciliación",
+    done: "Has quitado la domiciliación guardada.",
+    failed: "No se pudo quitar la domiciliación guardada. Vuelve a intentarlo en un momento.",
+    unavailable: "Ahora mismo no se puede quitar la domiciliación desde aquí. Habla con tu academia.",
+  },
+};
 
 const KIND_LABEL: Record<PaymentMethodKind, string> = {
   card: "Tarjeta",
@@ -66,6 +121,25 @@ const ACTIVE_LABEL: Record<PaymentMethodKind, string> = {
   card: "Pagas automáticamente con tarjeta",
   sepa_debit: "Pagas automáticamente con domiciliación bancaria",
 };
+
+/** Método guardado que hoy no se cobra solo: sin «automáticamente». */
+const SAVED_SINCE_LABEL: Record<PaymentMethodKind, string> = {
+  card: "Tienes tu tarjeta guardada",
+  sepa_debit: "Tienes la domiciliación bancaria guardada",
+};
+
+/**
+ * Las cuotas de esta familia se cobran solas con este método: cobro abierto,
+ * familia en automático y, si es domiciliación, la domiciliación activada.
+ */
+function collectsWith(
+  kind: PaymentMethodKind,
+  automaticCollection: FamilyCardCollectionMode,
+  sepaCollectsAutomatically: boolean
+): boolean {
+  if (automaticCollection !== "automatic") return false;
+  return kind === "card" || sepaCollectsAutomatically;
+}
 
 const SAVED_LABEL: Record<PaymentMethodKind, string> = {
   card: "Tarjeta guardada",
@@ -101,9 +175,14 @@ async function post<T>(body: Record<string, unknown>): Promise<PostResult<T>> {
 }
 
 /** Mensaje sencillo para cada fallo; nunca se enseña lo que dice el servidor ni Stripe. */
-function failureMessage(result: { status: number; code: string | null }, action: Action): string {
+function failureMessage(
+  result: { status: number; code: string | null },
+  action: Action,
+  removeText: RemoveText | null = null
+): string {
   if (result.status === 429) return TEXT.tooMany;
   if (result.status === 401) return TEXT.session;
+  const revokeFailed = removeText ? removeText.failed : TEXT.revokeFailed;
   switch (result.code) {
     case "FAMILY_PAYMENT_METHOD_NOT_OFFERED":
       return TEXT.notOffered;
@@ -112,11 +191,12 @@ function failureMessage(result: { status: number; code: string | null }, action:
     case "FAMILY_PAYMENT_CONSENT_REQUIRED":
       return TEXT.consentRequired;
     case "FAMILY_PAYMENT_REVOKE_FAILED":
-      return TEXT.revokeFailed;
+      return revokeFailed;
     case "FEATURE_NOT_AVAILABLE":
-      return action === "revoke" ? TEXT.revokeUnavailable : `${TEXT.unavailable}.`;
+      if (action !== "revoke") return `${TEXT.unavailable}.`;
+      return removeText ? removeText.unavailable : TEXT.revokeUnavailable;
     default:
-      return action === "revoke" ? TEXT.revokeFailed : TEXT.saveFailed;
+      return action === "revoke" ? revokeFailed : TEXT.saveFailed;
   }
 }
 
@@ -194,11 +274,24 @@ export function FamilyAutomaticPaymentCard({
   familyId,
   timezone,
   state,
+  automaticCollection = "closed",
+  sepaCollectsAutomatically = false,
 }: {
   organizationId: string;
   familyId: string;
   timezone: string;
   state: FamilyPaymentMethodState;
+  /**
+   * Cobro automático de cuotas (Fase 3) para esta familia: `closed` (no se
+   * cobra nada), `family_manual` (abierto, pero sus cuotas se pagan a mano) o
+   * `automatic`. Sin indicar, cerrado: la tarjeta no promete ningún cobro.
+   */
+  automaticCollection?: FamilyCardCollectionMode;
+  /**
+   * La domiciliación se cobra sola (ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED).
+   * Sin indicar, no: la tarjeta lo dice y no promete el cobro.
+   */
+  sepaCollectsAutomatically?: boolean;
 }) {
   const titleId = useId();
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
@@ -311,17 +404,22 @@ export function FamilyAutomaticPaymentCard({
     setBusy(true);
     setError(null);
     setSuccess(null);
+    // Se decide antes de enviar: después ya no hay método guardado.
+    const removeText =
+      method && !collectsWith(method.kind, automaticCollection, sepaCollectsAutomatically)
+        ? REMOVE_TEXT[method.kind]
+        : null;
     const result = await post<{ outcome?: unknown }>({ action: "revoke", organizationId, familyId });
     busyRef.current = false;
     setBusy(false);
     if (!result.ok) {
-      setError(failureMessage(result, "revoke"));
+      setError(failureMessage(result, "revoke", removeText));
       return;
     }
     setConfirmingRevoke(false);
     setMethod(null);
     setMode("idle");
-    setSuccess(TEXT.revoked);
+    setSuccess(removeText ? removeText.done : TEXT.revoked);
   }
 
   if (state.kind === "unavailable") return null;
@@ -365,6 +463,8 @@ export function FamilyAutomaticPaymentCard({
       <ActiveView
         method={method}
         timezone={timezone}
+        automaticCollection={automaticCollection}
+        sepaCollectsAutomatically={sepaCollectsAutomatically}
         canChange={canChoose}
         busy={busy}
         confirmingRevoke={confirmingRevoke}
@@ -392,6 +492,8 @@ export function FamilyAutomaticPaymentCard({
       <ChooseView
         kinds={kinds}
         consentTexts={consentTexts}
+        intro={INTRO_TEXT[automaticCollection]}
+        sepaCollectsAutomatically={sepaCollectsAutomatically}
         busy={busy}
         onContinue={(kind) => void startSetup(kind)}
         onCancel={
@@ -431,6 +533,8 @@ export function FamilyAutomaticPaymentCard({
 function ActiveView({
   method,
   timezone,
+  automaticCollection,
+  sepaCollectsAutomatically,
   canChange,
   busy,
   confirmingRevoke,
@@ -441,6 +545,8 @@ function ActiveView({
 }: {
   method: ActiveMethod;
   timezone: string;
+  automaticCollection: FamilyCardCollectionMode;
+  sepaCollectsAutomatically: boolean;
   canChange: boolean;
   busy: boolean;
   confirmingRevoke: boolean;
@@ -449,14 +555,20 @@ function ActiveView({
   onCancelRevoke: () => void;
   onRevoke: () => void;
 }) {
+  const sepaManual = method.kind === "sepa_debit" && !sepaCollectsAutomatically;
+  const removeText = collectsWith(method.kind, automaticCollection, sepaCollectsAutomatically)
+    ? null
+    : REMOVE_TEXT[method.kind];
+  const label = removeText ? SAVED_SINCE_LABEL[method.kind] : ACTIVE_LABEL[method.kind];
   return (
     <>
       <p className="text-sm font-semibold leading-6 text-z-ink">
-        {`${ACTIVE_LABEL[method.kind]} desde el ${formatSince(method.since, timezone)}.`}
+        {`${label} desde el ${formatSince(method.since, timezone)}.`}
       </p>
+      {sepaManual ? <p className={ownerUi.noticeInfo}>{TEXT.sepaManual}</p> : null}
       {confirmingRevoke ? (
         <div className={ownerUi.noticeWarning}>
-          <p>{TEXT.revokeQuestion}</p>
+          <p>{removeText ? removeText.question : TEXT.revokeQuestion}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
@@ -465,7 +577,7 @@ function ActiveView({
               disabled={busy}
               aria-busy={busy || undefined}
             >
-              Sí, dejar de pagar automáticamente
+              {removeText ? removeText.confirm : "Sí, dejar de pagar automáticamente"}
             </button>
             <button type="button" className={ownerUi.secondaryButton} onClick={onCancelRevoke} disabled={busy}>
               No, seguir igual
@@ -480,7 +592,7 @@ function ActiveView({
             </button>
           ) : null}
           <button type="button" className={ownerTone.dangerOutlineButton} onClick={onAskRevoke}>
-            Dejar de pagar automáticamente
+            {removeText ? removeText.ask : "Dejar de pagar automáticamente"}
           </button>
         </div>
       )}
@@ -491,12 +603,16 @@ function ActiveView({
 function ChooseView({
   kinds,
   consentTexts,
+  intro,
+  sepaCollectsAutomatically,
   busy,
   onContinue,
   onCancel,
 }: {
   kinds: PaymentMethodKind[];
   consentTexts: Partial<Record<PaymentMethodKind, string>>;
+  intro: string;
+  sepaCollectsAutomatically: boolean;
   busy: boolean;
   onContinue: (kind: PaymentMethodKind) => void;
   onCancel: (() => void) | null;
@@ -515,7 +631,7 @@ function ChooseView({
 
   return (
     <form className="grid gap-4" onSubmit={submit}>
-      <p className={ownerUi.muted}>{TEXT.intro}</p>
+      <p className={ownerUi.muted}>{intro}</p>
       <fieldset className="grid gap-2">
         <legend className={ownerUi.label}>¿Cómo quieres pagar?</legend>
         {kinds.map((option) => (
@@ -536,6 +652,9 @@ function ChooseView({
           </label>
         ))}
       </fieldset>
+      {kind === "sepa_debit" && !sepaCollectsAutomatically ? (
+        <p className={ownerUi.noticeInfo}>{TEXT.sepaManual}</p>
+      ) : null}
       {consentText ? (
         <p id={consentId} className={ownerUi.subtlePanel}>
           {consentText}

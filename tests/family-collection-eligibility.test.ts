@@ -308,6 +308,76 @@ describe("family automatic-collection execution gates", () => {
     ).toEqual({ eligible: false, reason });
   });
 
+  // Cobro automático (Fase 3): una renovación del plan (otra factura y otro
+  // periodo con el mismo plan y suscripción) no invalida la preferencia; un
+  // cambio real del plan después de guardarla, sí.
+  describe("plan change revision", () => {
+    const renewed = () => ({
+      ...eligibleInput(),
+      entitlement: paidEntitlement({ revision: 6, sourceReference: "stripe-invoice:in_synthetic_006" }),
+    });
+
+    it("keeps a preference saved before routine renewals", () => {
+      expect(
+        evaluateCollectionEligibility({ ...renewed(), planChangeRevision: 4 })
+      ).toEqual({ eligible: true, reason: null });
+    });
+
+    it("keeps a preference saved after the last real plan change", () => {
+      expect(
+        evaluateCollectionEligibility({
+          ...renewed(),
+          preference: { ...eligibleInput().preference, entitlementRevision: 5 },
+          planChangeRevision: 4,
+        })
+      ).toEqual({ eligible: true, reason: null });
+    });
+
+    it("rejects a preference saved before a real plan change", () => {
+      expect(
+        evaluateCollectionEligibility({ ...renewed(), planChangeRevision: 5 })
+      ).toEqual({ eligible: false, reason: "preference_entitlement_stale" });
+    });
+
+    it("rejects a preference from a revision newer than the current one", () => {
+      expect(
+        evaluateCollectionEligibility({
+          ...eligibleInput(),
+          preference: { ...eligibleInput().preference, entitlementRevision: 5 },
+          planChangeRevision: 1,
+        })
+      ).toEqual({ eligible: false, reason: "preference_entitlement_stale" });
+    });
+
+    it.each([
+      ["missing", undefined],
+      ["null", null],
+      ["after the current revision", 7],
+      ["not positive", 0],
+    ])("requires the exact current revision when the change revision is %s", (_label, change) => {
+      expect(
+        evaluateCollectionEligibility({ ...renewed(), planChangeRevision: change })
+      ).toEqual({ eligible: false, reason: "preference_entitlement_stale" });
+      expect(
+        evaluateCollectionEligibility({
+          ...renewed(),
+          preference: { ...eligibleInput().preference, entitlementRevision: 6 },
+          planChangeRevision: change,
+        })
+      ).toEqual({ eligible: true, reason: null });
+    });
+
+    it("rejects a preference without revision", () => {
+      expect(
+        evaluateCollectionEligibility({
+          ...renewed(),
+          preference: { ...eligibleInput().preference, entitlementRevision: null },
+          planChangeRevision: 4,
+        })
+      ).toEqual({ eligible: false, reason: "preference_entitlement_stale" });
+    });
+  });
+
   it("rejects cross-tenant and cross-family preference or charge context", () => {
     expect(
       evaluateCollectionEligibility({

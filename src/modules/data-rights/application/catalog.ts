@@ -73,9 +73,43 @@ export const OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES = [
   },
 ] as const;
 
+/** Automatic collection of family fees (cobro automático, Fase 3;
+ * docs/deployment/candidates/20261117120000_family_collection_candidate.sql,
+ * not applied in any environment). The candidate installs the three tables in
+ * one transaction, so they form one all-or-nothing group: a partial install
+ * fails closed. Values stay out of the bundle (provider references, provider
+ * codes and the collection-day setting); only this academy's counts are
+ * included, like payment_attempts and organization_payment_provider_accounts.
+ */
+export const OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES = [
+  {
+    table: "family_collection_attempts",
+    category: "payment_provider_attempts",
+    reason: "Automatic collection attempts carry payment provider references and provider result codes; only this academy's count is included.",
+    columns: ["id", "organization_id", "location_id", "invoice_id", "family_id", "family_payer_id", "authorization_id", "payment_provider_account_id", "attempt_number", "payment_method_kind", "amount_cents", "currency", "status", "provider_payment_intent_reference", "failure_code", "decline_code", "next_retry_at", "resume_count", "payment_id", "allocation_status", "claimed_at", "completed_at", "created_at", "updated_at"],
+  },
+  {
+    table: "family_collection_attempt_charges",
+    category: "payment_provider_attempts",
+    reason: "The split of each automatic collection attempt between charges is provider attempt evidence; only this academy's count is included.",
+    columns: ["attempt_id", "organization_id", "charge_id", "amount_cents"],
+  },
+  {
+    table: "organization_collection_settings",
+    category: "payment_provider_configuration",
+    reason: "The automatic collection day configures provider collection; only this academy's count is included.",
+    columns: ["organization_id", "collection_day_of_month", "version", "updated_by_member_id", "updated_at"],
+  },
+] as const;
+
 export const OPTIONAL_EXPORT_MODULE_GROUPS: readonly (readonly (CanonicalExportExcludedTable & {
   columns: readonly string[];
-})[])[] = [OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES, OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES];
+})[])[] = [
+  OPTIONAL_DISCOVERY_EXPORT_TABLES,
+  OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
+  OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES,
+  OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES,
+];
 
 function columns(value: string): string[] {
   return value.split(/\s+/).filter(Boolean);

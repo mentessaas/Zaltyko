@@ -80,6 +80,31 @@ vi.mock("@/modules/billing/application/ledger-service", () => ({
     hooks.dependency!("issueInvoice", [command, options]),
 }));
 
+// Cobro automático (Fase 3): el modo real de las cuotas. Por defecto es la
+// función real (con la bandera apagada responde `manual` sin consultar nada,
+// así que el resto de este archivo no cambia); los casos «automatic» fijan la
+// respuesta de una emisión. No se registra en `world.calls`.
+const collectionMode = vi.hoisted(() => ({
+  next: null as null | "manual" | "automatic",
+  inputs: [] as unknown[],
+}));
+vi.mock("@/modules/billing/application/charge-collection-mode", async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import("@/modules/billing/application/charge-collection-mode")
+  >();
+  return {
+    ...actual,
+    getChargeCollectionModeSnapshot: async (
+      input: Parameters<typeof actual.getChargeCollectionModeSnapshot>[0]
+    ) => {
+      collectionMode.inputs.push(input);
+      const forced = collectionMode.next;
+      collectionMode.next = null;
+      return forced ?? actual.getChargeCollectionModeSnapshot(input);
+    },
+  };
+});
+
 import {
   getMonthlyInvoiceOptions,
   issueMonthlyInvoice,
@@ -1766,6 +1791,52 @@ describe("issueMonthlyInvoice: new issuance", () => {
     ["an automatic charge", [chargeRow({ collectionMode: "automatic" })]],
   ])("rolls the issuance back when the ledger produced %s", async (_label, charges) => {
     world.handlers.lockCharges = () => charges;
+    await expectFailure(issueMonthlyInvoice(command()), {
+      code: "MONTHLY_INVOICE_BLOCKED",
+      status: 500,
+    });
+    expect(trace().slice(-2)).toEqual(["lockCharges", "rollback"]);
+  });
+});
+
+describe("issueMonthlyInvoice: automatic collection (Fase 3)", () => {
+  beforeEach(() => {
+    collectionMode.next = null;
+    collectionMode.inputs = [];
+  });
+
+  it("asks for the monthly collection mode of the invoice payer and gets manual with the flag off", async () => {
+    await issueMonthlyInvoice(command());
+    expect(collectionMode.inputs).toEqual([
+      expect.objectContaining({
+        organizationId: ORG,
+        familyId: FAM,
+        familyPayerId: PAYER,
+        invoiceKind: "monthly",
+      }),
+    ]);
+    expect(paramsOf("issueInvoice")[0]![1]).toEqual({ collectionMode: "manual" });
+  });
+
+  it("issues automatic charges when the family qualifies", async () => {
+    collectionMode.next = "automatic";
+    world.handlers.lockCharges = () => [chargeRow({ collectionMode: "automatic" })];
+
+    await expect(issueMonthlyInvoice(command())).resolves.toMatchObject({
+      replayed: false,
+      collectionMode: "automatic",
+    });
+    expect(paramsOf("issueInvoice")[0]![1]).toEqual({
+      collectionMode: "automatic",
+      monthlyInvoice: true,
+    });
+    expect((paramsOf("appendAudit")[0]![0] as { after: Row }).after).toMatchObject({
+      collectionMode: "automatic",
+    });
+  });
+
+  it("rolls back when the ledger produced manual charges for an automatic issuance", async () => {
+    collectionMode.next = "automatic";
     await expectFailure(issueMonthlyInvoice(command()), {
       code: "MONTHLY_INVOICE_BLOCKED",
       status: 500,

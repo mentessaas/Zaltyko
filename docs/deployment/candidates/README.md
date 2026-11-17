@@ -793,7 +793,7 @@ crear tablas ni tocar permisos (la tabla ya es solo de `service_role`, con RLS
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261116180000_family_payment_methods_candidate.sql` | `72c7edcc74a84f78418fc4ea7ce207fed50795911f88f02f003d04b7fc40b572` | No aplicada | No aplicada |
+| `20261116180000_family_payment_methods_candidate.sql` | `72c7edcc74a84f78418fc4ea7ce207fed50795911f88f02f003d04b7fc40b572` | No aplicada | Aplicada el 17-11-2026 (según la sesión coordinadora) |
 
 **Estado: no aplicada en ningún entorno.** Staging y producción necesitan cada
 uno una autorización expresa de Elvis; la de la Fase 1 no la cubre. Requiere
@@ -880,6 +880,133 @@ bancaria en la cuenta Stripe conectada de su academia. Decisión:
     drop column if exists payment_method_kind;
   comment on table zaltyko.family_payment_authorizations is
     'Reserved server-only model bound to one organization payment account and verifiable payer consent; not operational in this release.';
+  commit;
+  ```
+
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+  ningún entorno. La CI verde no equivale a autorización.
+
+## Candidata de cobro de cuotas (cobro automático, Fase 3)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261117120000_family_collection_candidate.sql` | `cee3e0aac1673b87e75bb492de60f8b88a7b9e1f4ac2a61caec80db2d7fecbd8` | No aplicada | No aplicada |
+
+**Estado: no aplicada en ningún entorno.** Staging y producción necesitan cada
+uno una autorización expresa de Elvis; las de las Fases 1 y 2 no la cubren.
+Requiere antes las candidatas de la Fase 1
+(`20261116120000_connect_onboarding_candidate.sql`) y de la Fase 2
+(`20261116180000_family_payment_methods_candidate.sql`).
+
+Cada día se cobran las cuotas mensuales con la tarjeta o la domiciliación que la
+familia guardó, en la cuenta Stripe conectada de su academia. Decisión:
+`docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md`; plan:
+`docs/superpowers/plans/2026-11-16-cobro-automatico-fase3-cobro-de-cuotas.md`.
+
+- **Tabla nueva `zaltyko.family_collection_attempts`.** Un intento de cobrar una
+  factura mensual: `claimed` (reclamado, sin cobro en Stripe), `created` (con
+  su `pi_…`), `processing`, `succeeded`, `failed` o `canceled`. Garantías en la
+  base:
+  - **un solo intento no terminal por factura** (índice único parcial
+    `family_collection_attempts_open_uq` sobre `claimed`, `created` y
+    `processing`), como mucho cinco intentos por factura
+    (`unique (organization_id, invoice_id, attempt_number)`, número 1–5) y tres
+    reanudaciones por intento;
+  - **un solo intento cobrado por factura** (índice único parcial
+    `family_collection_attempts_succeeded_uq` sobre `succeeded`): nunca dos
+    cobros registrados de la misma factura;
+  - el `pi_…` falta solo en `claimed` y en un `failed`/`canceled` que nunca
+    llegó a Stripe (que entonces exige `failure_code` con el motivo); es único
+    por academia;
+  - `failure_code` y `decline_code` son solo códigos (minúsculas, dígitos y
+    guion bajo, hasta 64) y solo en `failed` o `canceled`; `next_retry_at`,
+    solo en `failed`, solo de tarjeta y solo en los intentos 1 a 3
+    (`family_collection_attempts_next_retry_card_only`, decisión D1: la
+    domiciliación no se reintenta y el cuarto intento es el último);
+  - `succeeded` exige el pago registrado (`payment_id`, único por academia) y
+    el estado del reparto (`pending`, `allocated` o `needs_review`);
+    `completed_at` existe exactamente en los estados terminales;
+  - pagador, autorización, cuenta conectada y tipo de método son obligatorios
+    salvo en `canceled`: la puerta escribe un `canceled` también cuando ya no
+    hay pagador, autorización o cuenta, para que ninguna cuota quede sin
+    intento terminal ni recordatorios;
+  - importe positivo; la sede y la moneda deben ser las de la factura (claves
+    foráneas compuestas). Todo intento es en `EUR` salvo un `canceled` sin
+    cobro en Stripe, que puede llevar la moneda de una factura en otra moneda
+    para que la puerta también la cierre y vuelva a manual.
+  Claves foráneas a sede, factura, familia, pagador, autorización, cuenta
+  conectada y pago en `restrict`; la academia borra en cascada.
+- **Tabla nueva `zaltyko.family_collection_attempt_charges`.** Reparto del
+  intento entre cuotas: clave `(attempt_id, charge_id)`, importe positivo; el
+  intento borra en cascada y la cuota en `restrict`. Índice
+  `(organization_id, charge_id)` para saber si una cuota tiene un cobro en curso.
+- **Tabla nueva `zaltyko.organization_collection_settings`** (P2). Una fila por
+  academia: `collection_day_of_month` null (día de vencimiento) o del 1 al 31;
+  el ajuste al último día de los meses más cortos es lógica del dominio, no de
+  la base. Sin fila = día de vencimiento. Versión optimista y miembro que lo
+  cambió (`on delete set null (updated_by_member_id)`, PostgreSQL 15+).
+- **No reutiliza `zaltyko.payment_attempts`:** exige `provider_attempt_id` antes
+  de llamar a Stripe, no enlaza las cuotas y usa `sandbox|live` en vez del
+  `test|live` de la cuenta conectada.
+- **Nunca** mensajes de Stripe, número de tarjeta, IBAN, nombre ni correo.
+  RLS `ENABLE` y `FORCE` en las tres; solo `service_role` con `select`,
+  `insert` y `update`.
+- **Preflight.** Aborta si la versión es anterior a PostgreSQL 15, si faltan
+  las tablas canónicas, las dos columnas de la Fase 1 o los objetos de la
+  Fase 2 (`family_payment_setup_attempts` y
+  `family_payment_authorizations.payment_method_kind`), o si ya existe alguna
+  de las tres tablas: reinstalar no toca nada.
+- **Transacción propia** (`begin; … commit;`) con `set local lock_timeout =
+  '5s'`: se ejecuta su texto exacto, sin envoltorio. No cambia tablas ni
+  comentarios existentes.
+- **Espejo Drizzle** en
+  `src/modules/family-collection/infrastructure/family-collection-schema.ts`,
+  fuera de `src/db/schema/` como los demás candidatos (`validate:rls`).
+  `isFamilyCollectionStorageAvailable()`
+  (`src/modules/family-collection/application/storage.ts`, solo lee el
+  catálogo) exige las tres tablas con sus columnas, tipos y nulos exactos, el
+  índice de un intento abierto por factura (único, válido, con sus columnas y
+  su predicado) y los únicos de número de intento y de `pi_`; si no, el cobro
+  no se ejecuta.
+- **Bandera** apagada por defecto: `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED`.
+- **Derechos de datos.** Las tres tablas forman un grupo opcional excluido
+  (`OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES`): intentos y reparto en
+  `payment_provider_attempts`, el día de cobro en
+  `payment_provider_configuration`. Solo el recuento de la academia, nunca los
+  valores, con la comprobación exacta de columnas. Todo o nada, porque la
+  candidata las instala juntas: sin ellas el paquete es idéntico al anterior;
+  con una sola o con una columna sin clasificar, la exportación falla cerrada.
+  El plan de disposición las revisa igual (`REVIEWED_DISPOSITION_OPTIONAL_GROUPS`).
+- **Borrado de la academia.** Como en la Fase 2, las claves en `restrict`
+  pueden impedir borrar una academia con intentos antes de que llegue la
+  cascada. Ningún flujo de Zaltyko borra academias (se archivan) y el plan de
+  disposición sigue bloqueado.
+- **Pruebas:** `tests/family-collection-pg.test.ts` (job «Postgres
+  integration»: instala antes las Fases 1 y 2 si faltan, solo en el PostgreSQL
+  desechable de GitHub, y retira al terminar lo que instaló y las filas de
+  prueba, dejando el esquema igual, comprobado; las academias de prueba quedan
+  vacías porque su historial de plan es solo de añadir) y `tests/family-collection-contract.test.ts` (candidata,
+  espejo y detección de almacenamiento coinciden). Usan también esta
+  candidata, con el mismo criterio de instalar y retirar,
+  `tests/family-collection-worker-pg.test.ts` (proceso diario con el libro
+  real: caída tras confirmar y reanudación a las 25 h sin un segundo cobro,
+  dos ejecuciones a la vez, cuota pagada a mano, reintento y domiciliación) y
+  `tests/family-collection-academy-actions-pg.test.ts` (pago manual frente al
+  cobro, acciones de la academia y recordatorios). En estas suites quedan
+  también las sedes de prueba, porque la auditoría es solo de añadir.
+- **Rollback.** Apagar antes `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED` y
+  esperar a que no quede ningún intento `claimed`, `created` ni `processing`
+  (un cobro en curso en Stripe debe registrarse antes). Borrar las tablas
+  descarta el historial de intentos y el día de cobro: exportarlos antes si
+  importan; los pagos ya registrados siguen en `zaltyko.payments`. Retirar esta
+  candidata antes que las de las Fases 2 y 1.
+
+  ```sql
+  begin;
+  set local lock_timeout = '5s';
+  drop table if exists zaltyko.family_collection_attempt_charges;
+  drop table if exists zaltyko.family_collection_attempts;
+  drop table if exists zaltyko.organization_collection_settings;
   commit;
   ```
 

@@ -9,7 +9,7 @@ vi.mock("@/db", () => ({ db: { transaction: mocks.transaction } }));
 import { exportCanonicalAcademyData } from "@/modules/data-rights/application/canonical-academy-return";
 import {
   ALL_KNOWN_CANONICAL_TABLE_NAMES, CANONICAL_EXPORT_TABLES, EXCLUDED_CANONICAL_SCOPED_TABLES,
-  EXCLUDED_CANONICAL_TABLES, OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES, OPTIONAL_INCLUDED_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
+  EXCLUDED_CANONICAL_TABLES, OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES, OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES, OPTIONAL_INCLUDED_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
 import { activatedCatalogRows, activatedRowsByTable } from "./helpers/activated-module-rows";
 import { planCanonicalAcademyDisposition } from "@/modules/data-rights/application/plan-canonical-academy-disposition";
@@ -33,13 +33,14 @@ function fixture(): Rows {
   };
 }
 
-async function archive(options: { discovery?: boolean; team?: boolean; familyPaymentSetup?: boolean; activated?: boolean; counts?: Record<string, number | string> } = {}): Promise<string> {
+async function archive(options: { discovery?: boolean; team?: boolean; familyPaymentSetup?: boolean; familyCollection?: boolean; activated?: boolean; counts?: Record<string, number | string> } = {}): Promise<string> {
   const rows: Rows = { ...fixture(), ...(options.activated ? activatedRowsByTable(organizationId) : {}) };
   const included = [...CANONICAL_EXPORT_TABLES, ...(options.activated ? OPTIONAL_INCLUDED_EXPORT_TABLES : [])];
   const optional = [
     ...(options.discovery ? OPTIONAL_DISCOVERY_EXPORT_TABLES : []),
     ...(options.team ? OPTIONAL_TEAM_ACCESS_EXPORT_TABLES : []),
     ...(options.familyPaymentSetup ? OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES : []),
+    ...(options.familyCollection ? OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES : []),
   ];
   for (let i = 0; i < 4; i++) mocks.execute.mockResolvedValueOnce({ rows: [] });
   mocks.execute
@@ -137,7 +138,7 @@ describe("pure canonical disposition review plan", () => {
     const result = plan(await archive());
     expect(result.tables.find((table) => table.table === "organization_entitlement_changes")).toMatchObject({ rowCount: 0, coverage: "excluded_values", countEvidence: "declared_organization_count", eligibleForDeletion: false, hold: "unknown" });
     expect(result.tables.find((table) => table.table === "owner_signup_consents")).toMatchObject({ rowCount: null, countEvidence: "unknown" });
-    for (const optional of [...OPTIONAL_DISCOVERY_EXPORT_TABLES, ...OPTIONAL_TEAM_ACCESS_EXPORT_TABLES, ...OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES]) {
+    for (const optional of [...OPTIONAL_DISCOVERY_EXPORT_TABLES, ...OPTIONAL_TEAM_ACCESS_EXPORT_TABLES, ...OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES, ...OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES]) {
       expect(result.tables.find((table) => table.table === optional.table)).toMatchObject({ rowCount: null, coverage: "optional_not_reported", countEvidence: "optional_not_reported" });
     }
     expect(result.sources).toHaveLength(6);
@@ -147,14 +148,17 @@ describe("pure canonical disposition review plan", () => {
   });
 
   it.each([
-    [true, false, false], [false, true, false], [true, true, false],
-    [false, false, true], [true, false, true], [false, true, true], [true, true, true],
-  ] as const)("handles independently reported discovery=%s/team=%s/familyPaymentSetup=%s without changing eligibility", async (discovery, team, familyPaymentSetup) => {
-    const result = plan(await archive({ discovery, team, familyPaymentSetup }));
+    [true, false, false, false], [false, true, false, false], [true, true, false, false],
+    [false, false, true, false], [true, false, true, false], [false, true, true, false], [true, true, true, false],
+    [false, false, false, true], [true, false, false, true], [false, true, false, true], [false, false, true, true],
+    [true, true, true, true],
+  ] as const)("handles independently reported discovery=%s/team=%s/familyPaymentSetup=%s/familyCollection=%s without changing eligibility", async (discovery, team, familyPaymentSetup, familyCollection) => {
+    const result = plan(await archive({ discovery, team, familyPaymentSetup, familyCollection }));
     for (const [group, present] of [
       [OPTIONAL_DISCOVERY_EXPORT_TABLES, discovery],
       [OPTIONAL_TEAM_ACCESS_EXPORT_TABLES, team],
       [OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES, familyPaymentSetup],
+      [OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES, familyCollection],
     ] as const) {
       for (const table of group) {
         expect(result.tables.find((entry) => entry.table === table.table)).toMatchObject({ rowCount: present ? 0 : null, countEvidence: present ? "declared_organization_count" : "optional_not_reported", eligibleForDeletion: false });
@@ -185,6 +189,23 @@ describe("pure canonical disposition review plan", () => {
     expect(entry).toMatchObject({ category: "payment_authorizations", rowCount: 2, coverage: "excluded_values", countEvidence: "declared_organization_count", eligibleForDeletion: false, decision: "pending" });
     expect(entry?.missingDecisions).toContain("financial_history_and_provider_effects");
     expect(entry?.missingDecisions).toContain("source_ownership_and_scope");
+  });
+
+  it("reviews automatic collection attempts and settings as provider-linked financial evidence, never deletable", async () => {
+    const result = plan(await archive({
+      familyCollection: true,
+      counts: { family_collection_attempts: 3, family_collection_attempt_charges: 4, organization_collection_settings: 1 },
+    }));
+    for (const [table, category, rowCount] of [
+      ["family_collection_attempts", "payment_provider_attempts", 3],
+      ["family_collection_attempt_charges", "payment_provider_attempts", 4],
+      ["organization_collection_settings", "payment_provider_configuration", 1],
+    ] as const) {
+      const entry = result.tables.find((item) => item.table === table);
+      expect(entry, table).toMatchObject({ category, rowCount, coverage: "excluded_values", countEvidence: "declared_organization_count", eligibleForDeletion: false, decision: "pending" });
+      expect(entry?.missingDecisions, table).toContain("financial_history_and_provider_effects");
+      expect(entry?.missingDecisions, table).toContain("source_ownership_and_scope");
+    }
   });
 
   it("preserves exact excluded int8 counts without Number conversion", async () => {

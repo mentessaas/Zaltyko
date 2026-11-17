@@ -1,10 +1,10 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { PRODUCT_PLANS } from "@/lib/plans/catalog";
 
-const modeCardCopy = readFileSync(
-  "src/components/owner-dashboard/FamilyCollectionModeCard.tsx",
+const switchCopy = readFileSync(
+  "src/components/owner-dashboard/OwnerFamilyPaymentMethodsPanel.tsx",
   "utf8"
 );
 const ownerPaymentsCopy = readFileSync(
@@ -19,12 +19,11 @@ const billingGuide = JSON.parse(
 ) as { content: string[] };
 
 describe("family billing copy contract", () => {
-  it("distinguishes a saved automatic request from the effective manual mode", () => {
-    expect(modeCardCopy).toContain("Cobro familiar: modalidad efectiva manual");
-    expect(modeCardCopy).toContain("Solicitar automático");
-    expect(modeCardCopy).toContain(
-      "Solicitud automática guardada; el cobro efectivo sigue siendo manual."
-    );
+  it("offers a single per-family switch in plain words and no longer a saved request card", () => {
+    expect(existsSync("src/components/owner-dashboard/FamilyCollectionModeCard.tsx")).toBe(false);
+    expect(switchCopy).toContain("Cobrar automáticamente");
+    expect(switchCopy.match(/<Switch\b/g) ?? []).toHaveLength(1);
+    expect(switchCopy).not.toMatch(/PaymentIntent|off-session|webhook|Connect\b/);
   });
 
   it("keeps Free and Starter manual and discloses no family autopay in Growth", () => {

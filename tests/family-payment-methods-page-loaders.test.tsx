@@ -158,6 +158,9 @@ beforeEach(() => {
   vi.stubEnv("DATABASE_URL", "postgresql://test:test@localhost:5432/test");
   vi.stubEnv("DATABASE_URL_POOL", "");
   vi.stubEnv("DATABASE_URL_DIRECT", "");
+  // Cobro automático (Fase 3) y domiciliación apagados, sin depender del .env local.
+  vi.stubEnv("ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED", "");
+  vi.stubEnv("ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED", "");
   vi.mocked(getFamilyFees).mockResolvedValue([academy]);
   vi.mocked(resolveFamilyPortalAccess).mockResolvedValue(access());
   vi.mocked(getFamilyPaymentMethodState).mockImplementation(async ({ familyId }) =>
@@ -262,6 +265,8 @@ describe("/owner/familias: panel de pago automático", () => {
     expect(vi.mocked(OwnerFamilyPaymentMethodsPanel).mock.calls[0][0]).toEqual({
       organizationId: ORGANIZATION_ID,
       methods: [listedMethod],
+      // D2: la domiciliación no se cobra sola mientras su bandera esté apagada.
+      sepaCollectsAutomatically: false,
     });
   });
 

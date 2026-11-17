@@ -24,6 +24,7 @@ const state = (overrides: Partial<ReminderCandidateState> = {}): ReminderCandida
   minIntervalDays: 7,
   origin: "manual",
   autoAfterDays: 3,
+  automaticCollectionHold: false,
   ...overrides,
 });
 
@@ -97,6 +98,7 @@ function candidate(overrides: Partial<ReminderCandidate> = {}): ReminderCandidat
     sentCount: 0,
     failedCount: 0,
     hasPendingReservation: false,
+    automaticCollectionHold: false,
     ...overrides,
   };
 }

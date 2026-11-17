@@ -33,6 +33,7 @@ import {
   CANONICAL_EXPORT_TABLES,
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   OPTIONAL_DISCOVERY_EXPORT_TABLES,
+  OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES,
   OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES,
   OPTIONAL_INCLUDED_EXPORT_TABLES,
   OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
@@ -932,6 +933,49 @@ describe("canonical academy archive verification", () => {
     const archive = parseArchive(await generateBundleBody());
     const exclusions = archive.coverage.excludedTables as Array<Record<string, unknown>>;
     for (const table of [...OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES, ...OPTIONAL_TEAM_ACCESS_EXPORT_TABLES]) {
+      exclusions.push({ table: table.table, category: table.category, reason: table.reason, rowCount: 0, countScope: "organization_id", valuesExported: false });
+    }
+    expectRejectedWithoutDisclosure(sealArchive(archive));
+  });
+
+  it.each([false, true])("verifies the automatic collection exclusions after family payment setup=%s", async setup => {
+    const archive = parseArchive(await generateBundleBody());
+    const exclusions = archive.coverage.excludedTables as Array<Record<string, unknown>>;
+    for (const table of [...(setup ? OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES : []), ...OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES]) {
+      exclusions.push({ table: table.table, category: table.category, reason: table.reason, rowCount: 2, countScope: "organization_id", valuesExported: false });
+    }
+    expectAccepted(sealArchive(archive));
+  });
+
+  it.each([1, 2])("rejects a partial automatic collection exclusion group of %s tables", async count => {
+    const archive = parseArchive(await generateBundleBody());
+    const exclusions = archive.coverage.excludedTables as Array<Record<string, unknown>>;
+    for (const table of OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES.slice(0, count)) {
+      exclusions.push({ table: table.table, category: table.category, reason: table.reason, rowCount: 0, countScope: "organization_id", valuesExported: false });
+    }
+    expectRejectedWithoutDisclosure(sealArchive(archive));
+  });
+
+  it.each([
+    ["exported values", { valuesExported: true }],
+    ["another category", { category: "operational_projection" }],
+    ["an unscoped count", { countScope: "unknown", rowCount: null }],
+  ] as const)("rejects an automatic collection exclusion with %s", async (_label, change) => {
+    const archive = parseArchive(await generateBundleBody());
+    const exclusions = archive.coverage.excludedTables as Array<Record<string, unknown>>;
+    OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES.forEach((table, index) => {
+      exclusions.push({
+        table: table.table, category: table.category, reason: table.reason, rowCount: 0, countScope: "organization_id", valuesExported: false,
+        ...(index === OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES.length - 1 ? change : {}),
+      });
+    });
+    expectRejectedWithoutDisclosure(sealArchive(archive));
+  });
+
+  it("rejects the automatic collection exclusions out of the reviewed group order", async () => {
+    const archive = parseArchive(await generateBundleBody());
+    const exclusions = archive.coverage.excludedTables as Array<Record<string, unknown>>;
+    for (const table of [...OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES, ...OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES]) {
       exclusions.push({ table: table.table, category: table.category, reason: table.reason, rowCount: 0, countScope: "organization_id", valuesExported: false });
     }
     expectRejectedWithoutDisclosure(sealArchive(archive));

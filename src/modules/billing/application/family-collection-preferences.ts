@@ -7,7 +7,13 @@ import {
   familyCollectionPreferences,
 } from "@/db/zaltyko-schema";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
-import { loadOrganizationPlanState } from "@/modules/billing/application/plan-state";
+import {
+  loadOrganizationPlanState,
+  loadPlanChangeRevision,
+} from "@/modules/billing/application/plan-state";
+import { isFamilyAutomaticCollectionOpen } from "@/modules/billing/application/charge-collection-mode";
+import { isPreferenceRevisionCurrent } from "@/modules/billing/domain/collection-eligibility";
+import { evaluateAutomaticCollectionPlanEligibility } from "@/modules/billing/domain/plan-eligibility";
 import {
   appendAuditEntry,
   appendOutboxEvent,
@@ -28,17 +34,24 @@ const commandSchema = inputSchema.extend({
   idempotencyKey: z.string().trim().min(8).max(150),
 });
 
+// Se conserva la importación histórica: la emisión y los scripts la usan desde aquí.
+export { getChargeCollectionModeSnapshot } from "@/modules/billing/application/charge-collection-mode";
+
 export interface FamilyCollectionPreference {
   organizationId: string;
   familyId: string;
   requestedMode: "manual" | "automatic";
-  effectiveMode: "manual";
+  /**
+   * Modo con el que nacerán las próximas cuotas mensuales si la familia tiene
+   * además un método de pago activo (eso lo decide la emisión).
+   */
+  effectiveMode: "manual" | "automatic";
   version: number;
   entitlementRevision: number | null;
   preferenceEntitlementRevision: number | null;
   automaticPreferenceAvailable: boolean;
-  automaticProcessingEnabled: false;
-  automaticStatus: "paid_plan_required" | "not_released";
+  automaticProcessingEnabled: boolean;
+  automaticStatus: "available" | "paid_plan_required" | "not_released";
   requiresConfirmation: boolean;
 }
 
@@ -65,6 +78,28 @@ async function requireOrganizationWideScope(input: {
       "Cambiar la preferencia de una familia requiere acceso a todas las sedes de la academia",
       403
     );
+  }
+
+  if (isFamilyAutomaticCollectionOpen()) {
+    // Cobro automático abierto: la academia puede activarlo antes de la
+    // primera cuota, así que basta con una familia activa de la academia.
+    const family = await input.executor.execute(sql`
+      select exists (
+        select 1
+        from zaltyko.families f
+        where f.organization_id = ${input.organizationId}::uuid
+          and f.id = ${input.familyId}::uuid
+          and f.is_active
+      ) as visible
+    `);
+    if (family.rows[0]?.visible !== true) {
+      throw new OperationalError(
+        "NOT_FOUND",
+        "No se ha encontrado esa familia en tu academia",
+        404
+      );
+    }
+    return;
   }
 
   const visibleLocationIds = input.locationIds;
@@ -116,31 +151,55 @@ async function buildPreference(
   const planState = await loadOrganizationPlanState(executor, input.organizationId);
   const entitlementRevision = planState.entitlement?.revision ?? null;
 
+  if (!isFamilyAutomaticCollectionOpen()) {
+    // Bandera apagada (o cerrojos cerrados): todo sigue en manual, igual que
+    // antes de la Fase 3.
+    return {
+      organizationId: input.organizationId,
+      familyId: input.familyId,
+      requestedMode: input.requestedMode,
+      effectiveMode: "manual",
+      version: input.version,
+      entitlementRevision,
+      // Keep the stored revision visible for historical preferences, even though
+      // the effective mode is always manual while the release is closed.
+      preferenceEntitlementRevision: input.preferenceEntitlementRevision,
+      automaticPreferenceAvailable: false,
+      automaticProcessingEnabled: false,
+      automaticStatus: "not_released",
+      requiresConfirmation: false,
+    };
+  }
+
+  const plan = evaluateAutomaticCollectionPlanEligibility({
+    organizationId: input.organizationId,
+    entitlement: planState.entitlement,
+    subscription: planState.subscription,
+  });
+  const automatic = input.requestedMode === "automatic";
+  // Hubo un cambio real del plan después de guardar la preferencia: hay que
+  // volver a confirmarla. Una renovación del mismo plan no cuenta.
+  const stale =
+    automatic &&
+    plan.eligible &&
+    !isPreferenceRevisionCurrent({
+      preferenceRevision: input.preferenceEntitlementRevision,
+      currentRevision: plan.entitlementRevision,
+      planChangeRevision: await loadPlanChangeRevision(executor, input.organizationId),
+    });
   return {
     organizationId: input.organizationId,
     familyId: input.familyId,
     requestedMode: input.requestedMode,
-    effectiveMode: "manual",
+    effectiveMode: automatic && plan.eligible && !stale ? "automatic" : "manual",
     version: input.version,
     entitlementRevision,
-    // Keep the stored revision visible for historical preferences, even though
-    // the effective mode is always manual for this release.
     preferenceEntitlementRevision: input.preferenceEntitlementRevision,
-    automaticPreferenceAvailable: false,
-    automaticProcessingEnabled: false,
-    automaticStatus: "not_released",
-    requiresConfirmation: false,
+    automaticPreferenceAvailable: plan.eligible,
+    automaticProcessingEnabled: true,
+    automaticStatus: plan.eligible ? "available" : "paid_plan_required",
+    requiresConfirmation: stale,
   };
-}
-
-/** Every family charge remains manual while automatic collection is disabled. */
-export async function getChargeCollectionModeSnapshot(_input: {
-  executor: Pick<typeof db, "select" | "execute">;
-  organizationId: string;
-  familyId: string;
-  now?: Date;
-}): Promise<"manual" | "automatic"> {
-  return "manual";
 }
 
 export async function getFamilyCollectionPreference(input: {
@@ -206,7 +265,8 @@ export async function saveFamilyCollectionPreference(input: {
     );
   }
 
-  if (parsed.mode === "automatic") {
+  const automaticOpen = isFamilyAutomaticCollectionOpen();
+  if (parsed.mode === "automatic" && !automaticOpen) {
     await requireOrganizationWideScope({
       canViewOrganizationAggregate: scope.canViewOrganizationAggregate,
       familyId: parsed.familyId,
@@ -283,6 +343,24 @@ export async function saveFamilyCollectionPreference(input: {
       );
     }
 
+    if (parsed.mode === "automatic") {
+      // Solo se llega aquí con el cobro automático abierto (bandera y
+      // cerrojos). Además hace falta un plan de pago vigente.
+      const plan = evaluateAutomaticCollectionPlanEligibility({
+        organizationId: scope.organization.id,
+        entitlement: planState.entitlement,
+        subscription: planState.subscription,
+        now,
+      });
+      if (!plan.eligible) {
+        throw new OperationalError(
+          "FEATURE_NOT_AVAILABLE",
+          "El cobro automático solo se puede activar con un plan de pago vigente.",
+          409,
+          { reason: plan.reason }
+        );
+      }
+    }
     const [stored] = await tx
       .select()
       .from(familyCollectionPreferences)

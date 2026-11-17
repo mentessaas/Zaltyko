@@ -13,12 +13,16 @@ import {
   CLASS_PLAN_TEMPLATE_BLOCK_FIELDS,
   INTERNAL_NON_CUSTOMER_TABLES,
   OPTIONAL_EXPORT_MODULE_GROUPS,
+  OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES,
   OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES,
   OPTIONAL_INCLUDED_EXPORT_MODULES,
   OPTIONAL_INCLUDED_EXPORT_TABLES,
   OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
-import { REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES } from "@/modules/data-rights/application/canonical-disposition-policy";
+import {
+  REVIEWED_DISPOSITION_OPTIONAL_GROUPS,
+  REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES,
+} from "@/modules/data-rights/application/canonical-disposition-policy";
 import { normalizeTemplateBlock } from "@/modules/session-plans/domain/session-plan";
 
 /**
@@ -53,6 +57,11 @@ const CANDIDATES = {
  * política de supresión de las funciones activadas.
  */
 const FAMILY_PAYMENT_METHODS = "docs/deployment/candidates/20261116180000_family_payment_methods_candidate.sql";
+/**
+ * Cobro automático, Fase 3 (sin aplicar). Tampoco es una función activada: sus
+ * tres tablas forman un grupo opcional excluido (solo recuento), todo o nada.
+ */
+const FAMILY_COLLECTION = "docs/deployment/candidates/20261117120000_family_collection_candidate.sql";
 const COMPETITIVE_INTELLIGENCE =
   "docs/deployment/candidates/20261110180000_competitive_intelligence_candidate.sql";
 
@@ -274,6 +283,37 @@ describe("inventario de derechos de datos frente al SQL", () => {
     // No es una función activada: no se exporta con valores.
     expect(OPTIONAL_INCLUDED_EXPORT_TABLES.some((table) => table.name === "family_payment_setup_attempts")).toBe(false);
     expect(ACTIVATED_MODULES_ERASURE_POLICY.some((entry) => entry.table === "family_payment_setup_attempts")).toBe(false);
+  });
+
+  it("declara el recuento de los intentos de cobro automático con exactamente las columnas del candidato", () => {
+    const candidate = parseCreateTables(FAMILY_COLLECTION, "zaltyko");
+    const tables = ["family_collection_attempts", "family_collection_attempt_charges", "organization_collection_settings"];
+    expect([...candidate.keys()]).toEqual(tables);
+    expect(OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES.map((table) => table.table)).toEqual(tables);
+    const categories: Record<string, string> = {
+      family_collection_attempts: "payment_provider_attempts",
+      family_collection_attempt_charges: "payment_provider_attempts",
+      organization_collection_settings: "payment_provider_configuration",
+    };
+    for (const table of OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES) {
+      expect([...table.columns].sort(), table.table).toEqual([...candidate.get(table.table)!.columns].sort());
+      expect(table.category, table.table).toBe(categories[table.table]);
+      // La academia arrastra sus filas; el recuento usa organization_id.
+      expect(candidate.get(table.table)!.foreignKeys, table.table).toContainEqual(
+        { columns: ["organization_id"], target: "zaltyko.organizations", action: "cascade" }
+      );
+    }
+    // Un solo grupo, revisado igual en el plan de disposición.
+    expect(OPTIONAL_EXPORT_MODULE_GROUPS).toContain(OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES);
+    const index = OPTIONAL_EXPORT_MODULE_GROUPS.indexOf(OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES);
+    expect(REVIEWED_DISPOSITION_OPTIONAL_GROUPS[index]).toEqual(
+      OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES.map((table) => ({ table: table.table, category: table.category, scoped: true }))
+    );
+    // No es una función activada: no se exporta con valores ni entra en la supresión.
+    for (const table of tables) {
+      expect(OPTIONAL_INCLUDED_EXPORT_TABLES.some((included) => included.name === table), table).toBe(false);
+      expect(ACTIVATED_MODULES_ERASURE_POLICY.some((entry) => entry.table === table), table).toBe(false);
+    }
   });
 
   it("revisa en el plan de disposición los mismos módulos activados que exporta", () => {

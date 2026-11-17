@@ -1,19 +1,38 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { Switch } from "@/components/ui/switch";
+import type {
+  OwnerFamilyCollectionSwitch,
+  OwnerFamilyCollectionSwitches,
+} from "@/modules/family-collection/application/family-collection-reads";
 import type { listOwnerFamilyPaymentMethods } from "@/modules/family-payment-methods/application/family-payment-methods-service";
 import type { PaymentMethodKind } from "@/modules/family-payment-methods/domain/consent";
 
 // Pago automático de las familias (cobro automático, Fase 2): la academia ve
 // qué familias han guardado tarjeta o domiciliación y puede dejar de cobrarles
-// automáticamente. En esta fase todavía no se cobra nada.
+// automáticamente. Con el cobro automático abierto (Fase 3), cada familia con
+// método activo tiene además el interruptor «Cobrar automáticamente», que
+// guarda su preferencia de cobro (el único interruptor para eso).
+// «Primero solo tarjeta» (Elvis, 17-11-2026): mientras la domiciliación no se
+// cobra sola (`sepaCollectsAutomatically` apagado, el valor por defecto), cada
+// domiciliación lo dice y una familia que solo tiene domiciliación no puede
+// pasar a cobro automático (sí volver a manual). Quitarla se dice como lo que
+// es («Quitar la domiciliación guardada»), no como «dejar de cobrar».
 
 // Ruta relativa: el fetch es del mismo origen y el navegador añade la cabecera
 // Origin que la API exige en el POST (protección contra CSRF).
 const REVOKE_ENDPOINT = "/api/v1/owner/payments/family-methods";
 const REVOKE_ERROR = "No hemos podido dejar de cobrar automáticamente a esta familia. Inténtalo de nuevo.";
+const PREFERENCE_ENDPOINT = "/api/v1/owner/billing/family-collection-preference";
+const PREFERENCE_ERROR = "No hemos podido guardar el cambio. Inténtalo de nuevo.";
+const SENT_CONTINUE = "Los cobros ya enviados al banco siguen su curso.";
+/** Domiciliación mientras la domiciliación no se cobra sola. */
+export const SEPA_MANUAL_NOTICE = "Por ahora la domiciliación no se cobra sola: esta familia paga como siempre.";
+const SEPA_REMOVE_ERROR = "No hemos podido quitar la domiciliación guardada. Inténtalo de nuevo.";
 
 export type OwnerFamilyPaymentMethod = Awaited<ReturnType<typeof listOwnerFamilyPaymentMethods>>[number];
 
@@ -36,34 +55,145 @@ function sinceText(since: string): string | null {
   return Number.isNaN(date.getTime()) ? null : `desde el ${dateFormat.format(date)}`;
 }
 
-type RevokeBody = { data?: { outcome?: unknown } | null; outcome?: unknown; detail?: unknown; message?: unknown };
+type RevokeBody = {
+  data?: { outcome?: unknown } | null;
+  outcome?: unknown;
+  detail?: unknown;
+  message?: unknown;
+  type?: unknown;
+};
+
+/** ¿Es el 409 de versión (`…/problems/version-conflict`)? Otra sesión guardó antes. */
+function isVersionConflict(status: number, body: RevokeBody | null): boolean {
+  return status === 409 && typeof body?.type === "string" && body.type.split("/").pop() === "version-conflict";
+}
 
 /** Mensaje de error de la API (`detail` del problema; `message` por si acaso), si viene en texto. */
-function errorText(body: RevokeBody | null): string {
+function errorText(body: RevokeBody | null, fallback: string = REVOKE_ERROR): string {
   if (typeof body?.detail === "string" && body.detail.trim()) return body.detail;
   if (typeof body?.message === "string" && body.message.trim()) return body.message;
-  return REVOKE_ERROR;
+  return fallback;
 }
+
+type PreferenceReceipt = {
+  familyId?: unknown;
+  effectiveMode?: unknown;
+  version?: unknown;
+  requiresConfirmation?: unknown;
+};
+
+/** Envío pendiente de confirmar: un reintento usa la misma clave y el mismo contenido. */
+type PendingPreference = { familyId: string; automatic: boolean; expectedVersion: number; key: string };
 
 export function OwnerFamilyPaymentMethodsPanel({
   organizationId,
   methods: serverMethods,
+  collection,
+  sepaCollectsAutomatically = false,
 }: {
   organizationId: string;
   methods: OwnerFamilyPaymentMethod[];
+  /** Interruptores «Cobrar automáticamente» (Fase 3), solo con el cobro automático abierto. */
+  collection?: OwnerFamilyCollectionSwitches;
+  /**
+   * La domiciliación se cobra sola (ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED).
+   * Sin indicar, no: nunca se promete un cobro por domiciliación.
+   */
+  sepaCollectsAutomatically?: boolean;
 }) {
+  const router = useRouter();
   const [methods, setMethods] = useState(serverMethods);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [message, setMessage] = useState<{ tone: "info" | "error"; text: string } | null>(null);
+  const [switches, setSwitches] = useState<Record<string, OwnerFamilyCollectionSwitch>>(collection?.families ?? {});
+  const [savingFamily, setSavingFamily] = useState<string | null>(null);
+  const savingRef = useRef(false);
+  const pendingRef = useRef<PendingPreference | null>(null);
+
+  // Tras router.refresh() (p. ej. por un conflicto de versión) llega la
+  // lectura nueva del servidor: manda sobre los interruptores de esta pantalla.
+  useEffect(() => {
+    setSwitches(collection?.families ?? {});
+  }, [collection]);
+
+  async function setAutomatic(method: OwnerFamilyPaymentMethod, automatic: boolean) {
+    const current = switches[method.familyId];
+    if (savingRef.current || !current) return;
+    savingRef.current = true;
+    setSavingFamily(method.familyId);
+    setMessage(null);
+    const previous = pendingRef.current;
+    const pending: PendingPreference =
+      previous &&
+      previous.familyId === method.familyId &&
+      previous.automatic === automatic &&
+      previous.expectedVersion === current.version
+        ? previous
+        : {
+            familyId: method.familyId,
+            automatic,
+            expectedVersion: current.version,
+            key: `family-preference-${crypto.randomUUID()}`,
+          };
+    pendingRef.current = pending;
+    let failure: string | null = PREFERENCE_ERROR;
+    try {
+      const response = await fetch(PREFERENCE_ENDPOINT, {
+        method: "PUT",
+        headers: { "content-type": "application/json", "idempotency-key": pending.key },
+        body: JSON.stringify({
+          organizationId,
+          familyId: method.familyId,
+          mode: automatic ? "automatic" : "manual",
+          expectedVersion: pending.expectedVersion,
+        }),
+      });
+      const body = (await response.json().catch(() => null)) as (PreferenceReceipt & RevokeBody) | null;
+      if (
+        response.ok &&
+        body?.familyId === method.familyId &&
+        typeof body.version === "number" &&
+        Number.isInteger(body.version)
+      ) {
+        const next: OwnerFamilyCollectionSwitch = {
+          automatic: body.effectiveMode === "automatic",
+          version: body.version,
+          requiresConfirmation: body.requiresConfirmation === true,
+        };
+        setSwitches((all) => ({ ...all, [method.familyId]: next }));
+        pendingRef.current = null;
+        failure = null;
+        setMessage({
+          tone: "info",
+          text: next.automatic
+            ? `Las próximas cuotas de ${method.payerName} se cobrarán automáticamente.`
+            : `Las cuotas de ${method.payerName} ya no se cobrarán automáticamente. ${SENT_CONTINUE}`,
+        });
+      } else if (!response.ok) {
+        // Rechazo definitivo (4xx): el siguiente intento lleva otra clave.
+        if (response.status < 500) pendingRef.current = null;
+        failure = errorText(body, PREFERENCE_ERROR);
+        // Otra sesión cambió la preferencia: se relee la página con la versión nueva.
+        if (isVersionConflict(response.status, body)) router.refresh();
+      }
+    } catch {
+      failure = PREFERENCE_ERROR;
+    }
+    savingRef.current = false;
+    setSavingFamily(null);
+    if (failure) setMessage({ tone: "error", text: failure });
+  }
 
   async function revoke(method: OwnerFamilyPaymentMethod) {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
     setMessage(null);
-    let failure: string | null = REVOKE_ERROR;
+    const sepaManual = method.method === "sepa_debit" && !sepaCollectsAutomatically;
+    const genericError = sepaManual ? SEPA_REMOVE_ERROR : REVOKE_ERROR;
+    let failure: string | null = genericError;
     let outcome: unknown = null;
     try {
       const response = await fetch(REVOKE_ENDPOINT, {
@@ -75,12 +205,12 @@ export function OwnerFamilyPaymentMethodsPanel({
       if (response.ok) {
         // La ruta responde `{ outcome }`; se acepta también el sobre `{ data }`.
         outcome = body?.outcome ?? body?.data?.outcome;
-        failure = outcome === "revoked" || outcome === "none" ? null : REVOKE_ERROR;
+        failure = outcome === "revoked" || outcome === "none" ? null : genericError;
       } else {
-        failure = errorText(body);
+        failure = errorText(body, genericError);
       }
     } catch {
-      failure = REVOKE_ERROR;
+      failure = genericError;
     }
     busyRef.current = false;
     setBusy(false);
@@ -90,19 +220,35 @@ export function OwnerFamilyPaymentMethodsPanel({
     }
     setConfirming(null);
     setMethods((current) => current.filter((item) => item.authorizationId !== method.authorizationId));
-    setMessage({
-      tone: "info",
-      text:
+    let text: string;
+    if (sepaManual) {
+      text =
+        outcome === "revoked"
+          ? `Has quitado la domiciliación guardada de ${method.payerName}.`
+          : `${method.payerName} ya no tenía la domiciliación guardada.`;
+    } else {
+      text =
         outcome === "revoked"
           ? `Ya no se cobrará automáticamente a ${method.payerName}.`
-          : `${method.payerName} ya no tenía el pago automático activo.`,
-    });
+          : `${method.payerName} ya no tenía el pago automático activo.`;
+    }
+    setMessage({ tone: "info", text });
   }
 
   return (
     <section id="pago-automatico-familias" className={ownerUi.card} aria-labelledby="pago-automatico-familias-title">
       <h2 id="pago-automatico-familias-title" className={ownerUi.sectionTitle}>Pago automático de las familias</h2>
       <p className={`${ownerUi.help} mt-2`}>Revocar no anula los cobros ya enviados.</p>
+      {collection ? (
+        <p className={`${ownerUi.help} mt-1`}>
+          Con «Cobrar automáticamente» encendido, las próximas cuotas de la familia se cobran solas. Al apagarlo, no se cobra ninguna cuota más de forma automática. {SENT_CONTINUE}
+        </p>
+      ) : null}
+      {collection && !collection.available ? (
+        <p className={`${ownerUi.noticeWarning} mt-4`}>
+          El cobro automático de cuotas está incluido en Starter y Growth.
+        </p>
+      ) : null}
 
       {message ? (
         <p role={message.tone === "error" ? "alert" : "status"} className={`${message.tone === "error" ? ownerUi.noticeError : ownerUi.noticeInfo} mt-4`}>
@@ -116,6 +262,23 @@ export function OwnerFamilyPaymentMethodsPanel({
         <ul className="mt-5 space-y-3">
           {methods.map((method) => {
             const since = sinceText(method.since);
+            // Un interruptor por familia, aunque tenga más de un método: en la
+            // primera fila que se puede cobrar sola (tarjeta, o domiciliación si
+            // está activada), para que su nombre y su mensaje sean los de la
+            // persona a la que se cobra; si ninguna se puede cobrar, en la primera.
+            const familyRows = methods.filter((item) => item.familyId === method.familyId);
+            const collectableRow = familyRows.find(
+              (item) => item.method !== "sepa_debit" || sepaCollectsAutomatically
+            );
+            const switchRow = collectableRow ?? familyRows[0];
+            const preference =
+              collection && switchRow?.authorizationId === method.authorizationId
+                ? switches[method.familyId]
+                : undefined;
+            const sepaManual = method.method === "sepa_debit" && !sepaCollectsAutomatically;
+            // Sin ningún método que se cobre solo, el interruptor no se puede
+            // encender (sí apagar, si ya estaba encendido).
+            const familyCollectable = collectableRow !== undefined;
             return (
               <li key={method.authorizationId} className={ownerUi.listItem}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -125,30 +288,71 @@ export function OwnerFamilyPaymentMethodsPanel({
                       <span className={ownerTone.chipOutline}>{METHOD_LABELS[method.method]}</span>
                       {since ? <span className={ownerUi.help}>{since}</span> : null}
                     </p>
+                    {sepaManual ? <p className={`${ownerUi.help} mt-1`}>{SEPA_MANUAL_NOTICE}</p> : null}
                   </div>
                   {confirming !== method.authorizationId ? (
                     <button
                       type="button"
                       className={ownerTone.dangerOutlineButton}
                       disabled={busy}
-                      aria-label={`Dejar de cobrar automáticamente a ${method.payerName}`}
+                      aria-label={
+                        sepaManual
+                          ? `Quitar la domiciliación guardada de ${method.payerName}`
+                          : `Dejar de cobrar automáticamente a ${method.payerName}`
+                      }
                       onClick={() => {
                         setMessage(null);
                         setConfirming(method.authorizationId);
                       }}
                     >
-                      Dejar de cobrar automáticamente
+                      {sepaManual ? "Quitar la domiciliación guardada" : "Dejar de cobrar automáticamente"}
                     </button>
                   ) : null}
                 </div>
+                {preference ? (
+                  <div className="mt-3">
+                    <Switch
+                      label="Cobrar automáticamente"
+                      aria-label={`Cobrar automáticamente a ${method.payerName}`}
+                      checked={preference.automatic}
+                      disabled={
+                        !collection?.available ||
+                        savingFamily !== null ||
+                        busy ||
+                        (!preference.automatic && !familyCollectable)
+                      }
+                      aria-busy={savingFamily === method.familyId || undefined}
+                      onCheckedChange={(checked) => void setAutomatic(method, checked)}
+                    />
+                    {preference.requiresConfirmation ? (
+                      <p className={`${ownerTone.inlineWarning} mt-1`}>
+                        Cambió el plan de la academia: vuelve a encenderlo si quieres seguir cobrando automáticamente a esta familia.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {confirming === method.authorizationId ? (
-                  <div className={`${ownerUi.subtlePanel} mt-3`} role="group" aria-label={`Confirmar que dejas de cobrar automáticamente a ${method.payerName}`}>
-                    <p className="text-sm text-z-ink">
-                      ¿Dejar de cobrar automáticamente a {method.payerName}? Tendrá que volver a guardar su método de pago si quiere pagar así otra vez. Revocar no anula los cobros ya enviados.
-                    </p>
+                  <div
+                    className={`${ownerUi.subtlePanel} mt-3`}
+                    role="group"
+                    aria-label={
+                      sepaManual
+                        ? `Confirmar que quitas la domiciliación guardada de ${method.payerName}`
+                        : `Confirmar que dejas de cobrar automáticamente a ${method.payerName}`
+                    }
+                  >
+                    {sepaManual ? (
+                      <p className="text-sm text-z-ink">
+                        ¿Quitar la domiciliación guardada de {method.payerName}? Tendrá que volver a guardarla si quiere usarla más adelante. Sus cuotas se siguen pagando como siempre.
+                      </p>
+                    ) : (
+                      <p className="text-sm text-z-ink">
+                        ¿Dejar de cobrar automáticamente a {method.payerName}? Tendrá que volver a guardar su método de pago si quiere pagar así otra vez. Revocar no anula los cobros ya enviados.
+                      </p>
+                    )}
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button type="button" className={ownerTone.dangerButton} disabled={busy} aria-busy={busy || undefined} onClick={() => void revoke(method)}>
-                        {busy ? "Guardando…" : "Sí, dejar de cobrar"}
+                        {busy ? "Guardando…" : sepaManual ? "Sí, quitar la domiciliación" : "Sí, dejar de cobrar"}
                       </button>
                       <button type="button" className={ownerUi.secondaryButton} disabled={busy} onClick={() => setConfirming(null)}>
                         Cancelar

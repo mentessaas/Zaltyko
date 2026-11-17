@@ -80,11 +80,12 @@ describe("OwnerStripeConnectCard", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Cobro automático de cuotas" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Conectar Stripe" })).toBeEnabled();
+    expect(screen.getByText("Stripe te pedirá los datos de tu academia y tu cuenta bancaria.")).toBeInTheDocument();
+    // D4 (Elvis, 17-11-2026): lo que cuesta, sin cifras.
     expect(
-      screen.getByText(
-        "Stripe te pedirá los datos de tu academia y tu cuenta bancaria. Zaltyko no se queda ninguna comisión."
-      )
+      screen.getByText("Stripe cobra su tarifa por cada pago a la academia; Zaltyko no cobra comisión.")
     ).toBeInTheDocument();
+    expect(screen.queryByText(/\d\s*(%|€)/)).toBeNull();
     expect(document.getElementById("cobro-automatico")).not.toBeNull();
     expect(gets()).toHaveLength(1);
     expect(gets()[0].url).toBe(`${ENDPOINT}?organizationId=${ORGANIZATION_ID}`);

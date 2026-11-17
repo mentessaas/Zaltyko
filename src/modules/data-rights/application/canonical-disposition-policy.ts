@@ -67,6 +67,13 @@ export const REVIEWED_DISPOSITION_OPTIONAL_GROUPS: readonly (readonly ExcludedPo
   [e("organization_member_invitations", "team_access_credentials"), e("organization_member_invitation_scopes", "pending_team_access_scopes"), e("organization_team_command_receipts", "internal_team_access_commands")],
   // Cobro automático, Fase 2 (candidato 20261116180000, sin aplicar).
   [e("family_payment_setup_attempts", "payment_authorizations")],
+  // Cobro automático, Fase 3 (candidato 20261117120000, sin aplicar): las tres
+  // tablas se instalan juntas, así que forman un solo grupo de todo o nada.
+  [
+    e("family_collection_attempts", "payment_provider_attempts"),
+    e("family_collection_attempt_charges", "payment_provider_attempts"),
+    e("organization_collection_settings", "payment_provider_configuration"),
+  ],
 ];
 
 /** Activated academy modules whose rows are projected when installed (2026-11-12). */

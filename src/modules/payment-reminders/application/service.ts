@@ -99,6 +99,7 @@ export async function getPaymentReminderOverview(input: {
     organizationId: scope.organization.id,
     locationIds,
     limit: LIST_LIMIT,
+    now,
   });
 
   const items = candidates.map((candidate): ReminderListItem => {
@@ -115,6 +116,7 @@ export async function getPaymentReminderOverview(input: {
       minIntervalDays: settings.minIntervalDays,
       origin: "manual",
       autoAfterDays: settings.autoAfterDays,
+      automaticCollectionHold: candidate.automaticCollectionHold,
     });
     const next = nextEligibleAt(candidate.lastSentAt, settings.minIntervalDays);
     return {

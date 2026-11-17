@@ -98,7 +98,6 @@ describe("Owner manual-payment HTTP boundary", () => {
       organization: { id: organizationId },
       locations: [],
       selectedLocationId: null,
-      canManageFamilyCollectionPreferences: false,
       charges: [],
       nextCursor: null,
     });

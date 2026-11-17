@@ -98,6 +98,7 @@ function candidate(overrides: Partial<ReminderCandidate> = {}): ReminderCandidat
     sentCount: 0,
     failedCount: 0,
     hasPendingReservation: false,
+    automaticCollectionHold: false,
     ...overrides,
   };
 }

@@ -151,3 +151,27 @@ export function toPendingPaymentRequest(
     referenceRequired: snapshot.referenceSha256 !== null,
   };
 }
+
+/**
+ * Cobro automático de cuotas (Fase 3): por qué una cuota no admite todavía un
+ * pago a mano. Lo enseña el formulario al elegir una cuota que se está
+ * cobrando sola y cuando el servidor responde 409
+ * `automatic-collection-in-progress`.
+ */
+export const AUTOMATIC_COLLECTION_BLOCKED_TEXT =
+  "Esta cuota se está cobrando automáticamente. Espera al resultado: si el cobro no sale, podrás registrar el pago a mano.";
+
+/** Mensaje de un rechazo (4xx) del registro manual, en palabras sencillas. */
+export function manualPaymentProblemText(
+  problem: { type?: unknown; detail?: unknown; message?: unknown } | null
+): string {
+  if (
+    typeof problem?.type === "string" &&
+    problem.type.split("/").pop() === "automatic-collection-in-progress"
+  ) {
+    return AUTOMATIC_COLLECTION_BLOCKED_TEXT;
+  }
+  if (typeof problem?.detail === "string" && problem.detail.trim()) return problem.detail;
+  if (typeof problem?.message === "string" && problem.message.trim()) return problem.message;
+  return "No se ha podido registrar el pago.";
+}

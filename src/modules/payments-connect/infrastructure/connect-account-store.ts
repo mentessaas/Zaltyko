@@ -127,6 +127,21 @@ export async function findConnectAccountByReference(
   return toStoredAccount(result.rows[0] as Record<string, unknown> | undefined);
 }
 
+/** La fila por su id, sin bloquear (relectura del proceso de cobro, Fase 3). */
+export async function findConnectAccountById(
+  executor: Executor,
+  accountRowId: string
+): Promise<StoredConnectAccount | null> {
+  const result = await executor.execute(sql`
+    select ${accountColumns}
+      from zaltyko.organization_payment_provider_accounts
+     where id = ${accountRowId}::uuid
+       and processor = 'stripe'
+     limit 1
+  `);
+  return toStoredAccount(result.rows[0] as Record<string, unknown> | undefined);
+}
+
 /** Bloquea la fila hasta el final de la transacción y la devuelve. */
 export async function lockConnectAccount(
   tx: Executor,

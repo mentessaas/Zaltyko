@@ -40,6 +40,7 @@ import {
   type ConnectUnavailableReason,
 } from "@/modules/payments-connect/domain/availability";
 import {
+  findConnectAccountById,
   findConnectAccountByReference,
   findConnectAccountForOrganization,
   insertConnectAccountIfAbsent,
@@ -578,4 +579,70 @@ export async function syncConnectAccountFromEvent(
     now,
   });
   return persisted?.outcome ?? "ignored";
+}
+
+const accountRowIdSchema = z.guid();
+
+/**
+ * Cobro automático de cuotas (Fase 3): relee en Stripe la cuenta conectada
+ * antes de cobrar. Relee siempre que se la llama: decidir cuándo hace falta
+ * (p. ej. última lectura de más de una hora, ADR-0022) es cosa de quien llama,
+ * y la puerta del cobro comprueba después la frescura con lo que quede
+ * guardado.
+ *
+ * Reutiliza persistProjection con `providerEventReference: null`: no inventa
+ * ids de evento y conserva el último que llegó por webhook. Si la fila ya
+ * guarda una lectura posterior, no escribe nada.
+ *
+ * Mismos cerrojos que el resto de la fase (R11): solo con clave de test, nunca
+ * contra la base de producción, y solo filas de `test`. Devuelve `null` si no
+ * se pudo releer (cerrojo, almacenamiento, fila inexistente, Stripe sin
+ * responder u otra cuenta): no escribe nada, y quien llama sigue con la
+ * última lectura guardada (si es vieja, la puerta da `account_stale`, motivo
+ * pasajero).
+ */
+export async function refreshConnectAccountForCollection(
+  accountRowId: string,
+  deps?: ConnectServiceDeps
+): Promise<{ outcome: "synced" | "unchanged"; account: StoredConnectAccount } | null> {
+  const parsedId = accountRowIdSchema.parse(accountRowId);
+  const now = deps?.now ?? new Date();
+
+  if (resolveConnectEnvironment() !== "test") return null;
+  if (isProductionDatabase()) return null;
+  if (!(await isConnectOnboardingStorageAvailable())) return null;
+
+  const account = await findConnectAccountById(db, parsedId);
+  if (!account || account.environment !== "test") return null;
+
+  // Momento de la lectura, tomado justo antes de pedirla (ver persistProjection).
+  const fetchedAt = deps?.now ?? new Date();
+  let snapshot: ConnectAccountSnapshot;
+  try {
+    snapshot = await gatewayFrom(deps).retrieveAccount(account.providerAccountReference);
+  } catch (error) {
+    logger.warn("Cobro automático: no se pudo releer la cuenta conectada", {
+      organizationId: account.organizationId,
+      accountId: account.providerAccountReference,
+      errorName: error instanceof Error ? error.name : "unknown",
+    });
+    return null;
+  }
+  if (snapshot.id !== account.providerAccountReference) {
+    // Stripe devolvió otra cuenta: no se proyecta nada (solo ids en el log).
+    logger.error("Cobro automático: Stripe devolvió otra cuenta conectada", {
+      organizationId: account.organizationId,
+      accountId: account.providerAccountReference,
+    });
+    return null;
+  }
+
+  return persistProjection({
+    accountRowId: account.id,
+    projection: projectConnectAccount(snapshot),
+    actorUserId: null,
+    providerEventReference: null,
+    fetchedAt,
+    now,
+  });
 }

@@ -7,8 +7,9 @@ El ledger `charges` es la fuente operativa de verdad. Stripe procesa tarjetas y 
 > **Aviso (16-11-2026).** El cobro automático de cuotas se rehace con
 > Stripe Connect y cuentas Accounts v2, según ADR-0028
 > (`docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md`). Lo
-> nuevo está en «Conectar Stripe (Fase 1)» y en «Pago automático de la
-> familia (Fase 2)». El resto de esta guía describe el
+> nuevo está en «Conectar Stripe (Fase 1)», «Pago automático de la
+> familia (Fase 2)» y «Cobro automático de cuotas (Fase 3)». El resto de esta
+> guía describe el
 > modelo Stripe Connect Standard v1 (`stripe_accounts`), que nunca se abrió a
 > academias reales y ya no es la dirección del producto.
 
@@ -47,6 +48,10 @@ estado: lo sigue viendo.
 - Estados: sin conectar, pendiente de datos, en revisión, lista para cobrar y
   con problemas. «Lista para cobrar» depende solo de la tarjeta; la
   domiciliación SEPA se muestra aparte.
+- Sin conectar, bajo «Conectar Stripe»: «Stripe te pedirá los datos de tu
+  academia y tu cuenta bancaria.» y el texto de costes (decisión de Elvis del
+  17-11-2026, sin cifras): «Stripe cobra su tarifa por cada pago a la
+  academia; Zaltyko no cobra comisión.».
 
 ### Rutas
 
@@ -175,8 +180,13 @@ todas las sedes.
 - **Familia:** tarjeta «Pago automático» dentro de la sección de cada
   academia en `/familia/cuotas` (`FamilyAutomaticPaymentCard.tsx`; la demo
   pública no la recibe):
-  - Sin método: «Guarda una tarjeta o domicilia el pago para que las cuotas se
-    cobren solas. Todavía no se cobrará nada.» Elige «Tarjeta» o
+  - Sin método: con el cobro automático de cuotas cerrado, «Guarda una tarjeta
+    o domicilia el pago para que las cuotas se cobren solas. Todavía no se
+    cobrará nada.»; con el cobro abierto (Fase 3) nunca dice «Todavía no se
+    cobrará nada»: si las cuotas de la familia están en automático, «Guarda una
+    tarjeta o domicilia el pago para que las próximas cuotas se cobren solas.»,
+    y si la academia las tiene a mano, «… para que las cuotas se cobren solas.
+    Tu academia te dirá desde cuándo.». Elige «Tarjeta» o
     «Domiciliación bancaria» (solo las que ofrece la academia), lee el texto
     de autorización y marca «Acepto». «Continuar» abre el formulario de Stripe
     (en español, en la cuenta de la academia) y «Guardar» lo confirma. Para la
@@ -184,7 +194,13 @@ todas las sedes.
     Stripe, con la academia como acreedora.
   - Con método: «Pagas automáticamente con tarjeta» o «… con domiciliación
     bancaria», «desde el {fecha}», y los botones «Cambiar método» y «Dejar de
-    pagar automáticamente» (con confirmación en la misma tarjeta).
+    pagar automáticamente» (con confirmación en la misma tarjeta). Solo si de
+    verdad se cobra solo: cobro automático abierto (bandera, cerrojos y
+    tablas), cuotas de la familia en automático (preferencia vigente con plan
+    de pago) y, si es domiciliación, la domiciliación activada. Si no: «Tienes
+    tu tarjeta guardada desde el {fecha}» (o «Tienes la domiciliación bancaria
+    guardada…») y «Quitar la tarjeta guardada» / «Quitar la domiciliación
+    guardada», sin prometer ningún cobro.
   - Al guardar: «Tarjeta guardada» o «Domiciliación guardada».
   - Vuelta de la verificación del banco: la página termina sola el proceso. Si
     el banco aún no ha respondido: «Tu banco todavía lo está confirmando. Si
@@ -192,8 +208,8 @@ todas las sedes.
     rechazó la verificación: «Tu banco no ha aceptado este método de pago.
     Prueba con otro o habla con tu banco.» (no se comprueba nada más).
   - Con la función cerrada la tarjeta no aparece, salvo que la familia ya
-    tuviera un método: entonces lo ve y solo puede dejar de pagar
-    automáticamente. «El pago automático no está disponible ahora mismo» solo
+    tuviera un método: entonces lo ve y solo puede quitarlo («Quitar la
+    tarjeta guardada» o la domiciliación guardada). «El pago automático no está disponible ahora mismo» solo
     sale si falta la clave publicable de Stripe o si el formulario de Stripe
     no carga. Para quien no es la persona pagadora no aparece nada.
 - **Academia:** panel «Pago automático de las familias» en `/owner/familias`
@@ -273,8 +289,9 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
 ### Estado
 
 - Candidata `docs/deployment/candidates/20261116180000_family_payment_methods_candidate.sql`:
-  **no aplicada en ningún entorno.** Staging y producción necesitan cada uno
-  una autorización expresa de Elvis; la de la Fase 1 no la cubre. Requiere
+  **aplicada en staging el 17-11-2026** (bandera encendida allí; guardar y
+  revocar una tarjeta comprobado, según la sesión coordinadora). **Sin aplicar
+  en producción**, que necesita otra autorización expresa de Elvis. Requiere
   antes la candidata de la Fase 1 (detalle y rollback en
   `docs/deployment/candidates/README.md`).
 - Pruebas automáticas (`tests/family-payment-methods-*`, incluida la de
@@ -358,6 +375,474 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
 - **Retirar la candidata con autorizaciones activas.** Antes de deshacerla
   hay que revocar y desligar en Stripe las autorizaciones activas (detalle en
   `docs/deployment/candidates/README.md`).
+
+## Cobro automático de cuotas (Fase 3)
+
+Cada día, un proceso cobra las cuotas mensuales de las familias que tienen el
+cobro automático encendido, con la tarjeta o la domiciliación que guardó la
+persona pagadora (Fase 2), en la cuenta Stripe conectada de la academia
+(Fase 1). Se hace **un cobro por familia, sede y mes**: el saldo pendiente de
+las cuotas automáticas de su factura mensual (P1 del ADR-0028). Si no se puede
+cobrar, la cuota vuelve al cobro manual con sus recordatorios.
+
+### Quién puede usarlo
+
+Todas estas condiciones a la vez:
+
+- Bandera `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED=true` (texto exacto).
+  **Apagada por defecto.** Ver «Estado» para lo que hace el proceso con la
+  bandera apagada.
+- Clave `STRIPE_SECRET_KEY` de prueba y base que no sea la de producción (los
+  mismos dos cerrojos de las Fases 1 y 2). No hay ninguna vía para abrir Live
+  ni producción en esta fase.
+- Base de datos con las tablas del candidato de la Fase 3 **y** los de las
+  Fases 1 y 2. Sin ellas no se cobra nada y las pantallas no cambian.
+- Academia con plan de pago vigente (Starter o Growth) y cuenta conectada
+  `active` con la tarjeta `active`; para cobrar una domiciliación, también la
+  domiciliación `active` **y** la bandera aparte
+  `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED=true` («Primero solo
+  tarjeta», decisión de Elvis del 17-11-2026: apagada hasta la Fase 4).
+- Familia con el interruptor «Cobrar automáticamente» encendido por la
+  academia (la preferencia de ADR-0020) y con un método de pago activo de su
+  persona pagadora.
+- **Solo facturas mensuales** (las que emite la cuota mensual). Las facturas
+  manuales se cobran siempre a mano.
+
+Cuándo una cuota es automática:
+
+- **Al emitirse la factura mensual.** La cuota nace automática solo si en ese
+  momento se cumple todo lo anterior: bandera y cerrojos abiertos, tablas de
+  las tres fases, plan de pago, preferencia automática, cuenta conectada de
+  prueba y autorización activa del pagador de la factura. Si no, nace manual,
+  como hasta ahora, y se queda manual. Con la bandera de la domiciliación
+  apagada, la cuota de quien domicilia nace manual.
+- **El día del cobro** se vuelve a comprobar todo (ver «Cerrojos y límites»).
+  Si algo ha cambiado de forma definitiva (la familia dejó de pagar
+  automáticamente, la academia apagó el interruptor, cambió la persona
+  pagadora…), no se cobra y la cuota vuelve a manual con recordatorios.
+
+El interruptor por familia, el día de cobro, la lista del mes y sus acciones:
+dueña, o administración con acceso a todas las sedes. La familia ve el estado
+de cada cuota en `/familia/cuotas` si es la persona pagadora (exige además
+`ZALTYKO_FAMILY_ACCESS_ENABLED`).
+
+### Pantalla
+
+- **Día de cobro** (P2), en la tarjeta «Cobro automático de cuotas» de
+  `/owner/settings` (`OwnerCollectionDaySettings.tsx`, dentro de la de la
+  Fase 1). Dos opciones: «El día que vence cada cuota» (por defecto) o «Un día
+  fijo del mes» (del 1 al 31), con las notas «En los meses que no tienen ese
+  día, se cobra el último día del mes.» y «Si una cuota vence más tarde que el
+  día elegido, se cobrará el día que vence, nunca antes.» (regla confirmada
+  por Elvis el 17-11-2026). Debajo, el texto de costes: «Stripe cobra su
+  tarifa por cada pago a la academia; Zaltyko no cobra comisión.». Botón
+  «Guardar día de cobro». Cambiar el día afecta a los cobros que aún no se han empezado. Si
+  otra sesión lo cambió antes (409 `VERSION_CONFLICT`), sale su texto y la
+  página se relee sola con el día guardado.
+- **Interruptor «Cobrar automáticamente»**, uno por familia, en el panel «Pago
+  automático de las familias» de `/owner/familias`
+  (`OwnerFamilyPaymentMethodsPanel.tsx`): «Con «Cobrar automáticamente»
+  encendido, las próximas cuotas de la familia se cobran solas. Al apagarlo,
+  no se cobra ninguna cuota más de forma automática. Los cobros ya enviados
+  al banco siguen su curso.». Al apagarlo, el aviso también lo recuerda. Si
+  otra sesión cambió la preferencia (409 `VERSION_CONFLICT`), sale su texto y
+  la página se relee sola. Sin plan de pago sale
+  desactivado con «El cobro automático de cuotas está incluido en Starter y
+  Growth.». Tras un cambio real de plan sale apagado con «Cambió el plan de la
+  academia: vuelve a encenderlo si quieres seguir cobrando automáticamente a
+  esta familia.».
+- **Domiciliación con su bandera apagada** (por defecto): en el panel de
+  `/owner/familias` cada domiciliación dice «Por ahora la domiciliación no se
+  cobra sola: esta familia paga como siempre.»; el interruptor de una familia
+  que solo domicilia no se puede encender (sí apagar); su botón es «Quitar la
+  domiciliación guardada» (no «Dejar de cobrar automáticamente»), con la
+  confirmación «¿Quitar la domiciliación guardada de {nombre}? Tendrá que
+  volver a guardarla si quiere usarla más adelante. Sus cuotas se siguen
+  pagando como siempre.». En `/familia/cuotas`, «Tienes la domiciliación
+  bancaria guardada desde el {fecha}.», «Por ahora la domiciliación no se
+  cobra sola; paga como siempre.» y el botón «Quitar la domiciliación
+  guardada». La familia puede seguir guardando su domiciliación.
+- **«Cobros automáticos de este mes»**, en `/owner/payments`
+  (`OwnerAutomaticCollectionsPanel.tsx`), debajo del pago manual. Una fila por
+  factura (como mucho 100): «Se cobrará el {día}», «Cobro en curso», «Cobrada
+  el {día}», «No se pudo cobrar; se volverá a intentar el {día}», «Se cobrará
+  a mano», «No se pudo cobrar», «Cobro automático cancelado» o «No se cobró
+  automáticamente», con el motivo en palabras sencillas (nunca códigos) y la
+  marca «Necesita revisión» si hay un aviso. «Se cobrará a mano» sale cuando
+  el cobro pendiente (o su reintento) ya no puede llegar: sin plan de pago,
+  familia en manual, método revocado o cambio de plan; la familia, en ese
+  caso, no ve ninguna promesa de cobro. «No se cobró automáticamente» sale
+  cuando pasó la ventana de cobro sin poder cobrar (intento cerrado con
+  `collection_window_expired`, o todavía sin intento). Un cierre cancelado
+  enseña su propio motivo (la academia, un pago a mano, la ventana…), no el
+  del rechazo anterior. Una factura sin más intentos (aviso
+  `attempts_exhausted`) sale con «Necesita revisión» y «Esta cuota ya no
+  admite más intentos automáticos. Se cobra a mano.». Si el primer cobro de
+  tarjeta falló, la fila dice «Hemos avisado a la familia por correo de que no
+  se pudo cobrar.» o «No hemos podido avisar a la familia por correo.
+  Avísala tú.». Con la bandera general apagada la lista solo enseña los
+  cobros que ya estaban en marcha y se titula **«Cobros automáticos en
+  curso»**, con «El cobro automático está parado: ya no se cobra ninguna
+  cuota nueva. Estos cobros ya estaban en marcha y siguen su curso.».
+  Acciones:
+  - «Cancelar el cobro automático», con confirmación: para un reintento
+    pendiente o un cobro creado que aún no se ha cobrado. La cuota pasa a
+    cobrarse a mano.
+  - «Marcar como revisado», con la casilla obligatoria «He comprobado el cobro
+    en Stripe»: para un cobro que se quedó abierto con un aviso de revisión,
+    sin poder terminar (reanudaciones agotadas) o reclamado o creado sin
+    cambios desde hace más de 24 h («El cobro lleva más de un día sin
+    avanzar.»), la salida si el proceso diario deja de pasar. Antes de
+    cerrar siempre lee el cobro en Stripe y lo para; si el dinero ya salió,
+    lo registra, y si está en el banco, responde 409.
+  - Si Stripe ya lo había cobrado, ninguna de las dos lo cancela: se registra
+    el pago y queda como cobrado («El cobro de la cuota … ya se había hecho y
+    ha quedado registrado.»).
+- **Pago manual:** al elegir una cuota con un cobro en curso aparece un aviso,
+  y si se registra igual, el servidor responde «Esta cuota se está cobrando
+  automáticamente. Espera al resultado.». Si el cobro no sale, se puede
+  registrar a mano.
+- **Familia**, bajo cada cuota automática en `/familia/cuotas`: «Se cobrará
+  automáticamente el {fecha}» (también cuando hay un reintento pendiente),
+  «Cobro en curso», «Cobrada automáticamente el {fecha}» o «No se pudo cobrar
+  automáticamente; tu academia te dirá cómo pagarla» (también cuando pasó la
+  ventana de cobro). Si el cobro pendiente ya no puede llegar (sin plan de
+  pago, familia en manual, método revocado o cambio de plan), la familia no
+  ve nada bajo la cuota: ni fecha ni promesa de cobro. Las cuotas manuales y
+  la demo pública no cambian.
+- Con la función cerrada (bandera, cerrojos o tablas) ninguna de estas piezas
+  aparece y las páginas no leen nada nuevo; un fallo de lectura nunca rompe la
+  página.
+
+### Rutas
+
+| Ruta | Uso |
+|---|---|
+| `GET`/`POST /api/cron/collect-family-fees` | Proceso diario. Exige `CRON_SECRET` (`requireCronAuth`) y el lease `cron:collect-family-fees`; si ya está corriendo responde `ALREADY_RUNNING`. Devuelve solo contadores (`enabled`, `complete`, `reconciled`, `collected`, `processing`, `failed`, `canceled`, `skipped`, `retried`, `resumed`, `needsReview` y `familyNotices: { sent, notSent, pending }`, o `null` si falló el envío de avisos). Lo lanza pg_cron (`docs/deployment/scheduler/`, sin programar). |
+| `GET /api/v1/owner/payments/collection-settings?organizationId=…` | Día de cobro de la academia. |
+| `PUT /api/v1/owner/payments/collection-settings` | Lo cambia: `{ organizationId, collectionDayOfMonth, expectedVersion }`; `null` = el día que vence cada cuota, `1`–`31` = ese día. Versión optimista (409 `VERSION_CONFLICT`). |
+| `GET`/`PUT /api/v1/owner/billing/family-collection-preference` | El interruptor «Cobrar automáticamente» de una familia (ya existía; ahora admite `automatic`). Versión y `idempotency-key`. |
+| `POST /api/v1/owner/payments/automatic-collection` | Acciones de la academia: `{ action: "cancel", organizationId, invoiceId }` o `{ action: "mark_reviewed", organizationId, invoiceId, checkedInStripe: true }`. Responde `{ outcome: "canceled" \| "reviewed" \| "collected" }`. |
+
+- Las rutas de la academia comprueban el mismo origen en las escrituras,
+  responden con `cache-control: private, no-store` y tienen límite por
+  academia verificada: 20 por minuto en el día de cobro y en la preferencia,
+  10 en las acciones (pueden llamar a Stripe).
+- Con la bandera apagada, el día de cobro responde 409
+  `FAMILY_AUTOMATIC_COLLECTION_DISABLED` y la preferencia no admite
+  `automatic`. Las acciones de la academia **no** exigen la bandera: con la
+  función apagada se tiene que poder cerrar lo que quedó abierto.
+- Errores de las acciones con su texto: `automatic-collection-processing`
+  («ya se envió al banco y no se puede cancelar»),
+  `automatic-collection-in-progress`, `automatic-collection-needs-support`
+  (varios cobros en Stripe con dinero movido, o un cobro sin datos para
+  leerlo en Zaltyko: hay que resolverlo con el soporte),
+  `automatic-collection-review-required` (el cobro ya figura con otro intento:
+  usar «Marcar como revisado») y `concurrency-retry` (el cobro cambió o acaba
+  de empezar: recargar). Un error inesperado responde 503 sin detalles.
+- Las rutas antiguas (`/api/family/*`, `/api/charges/[id]/collect`,
+  `/api/cron/collect-charges`) siguen en 410.
+- Código en `src/modules/family-collection/` (dominio, aplicación e
+  infraestructura), separado de `src/lib/stripe/*`; cambios en el libro de
+  cuotas (`src/modules/billing/application/ledger-service.ts`,
+  `charge-collection-mode.ts`, `plan-state.ts`) y en los recordatorios
+  (`src/modules/payment-reminders/`).
+
+### Variables
+
+| Variable | Uso |
+|---|---|
+| `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED` | Enciende el cobro de cuotas nuevas. Apagada por defecto. Es el `runtimeEnabled` de la puerta de elegibilidad. |
+| `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED` | Bandera aparte para cobrar domiciliaciones («Primero solo tarjeta», Elvis, 17-11-2026). Apagada por defecto (`.env.example`) hasta la Fase 4; sola no cobra nada. Con ella apagada no se crea ningún cobro de domiciliación nuevo. |
+| `CRON_SECRET` | Secreto del proceso diario; ya existía (el mismo que los demás avisos de pg_cron). |
+
+No hay secreto nuevo ni webhook nuevo en esta fase.
+
+### Datos
+
+- **Tabla nueva `zaltyko.family_collection_attempts`.** Un intento de cobrar
+  una factura mensual: sede, factura, familia, pagador, autorización, cuenta
+  conectada, número de intento, tipo de método, importe y moneda, estado,
+  `pi_…`, códigos de Stripe (`failure_code`, `decline_code`), fecha del
+  reintento, reanudaciones, pago registrado y estado del reparto.
+- **Tabla nueva `zaltyko.family_collection_attempt_charges`.** Qué parte del
+  intento corresponde a cada cuota.
+- **Tabla nueva `zaltyko.organization_collection_settings`.** El día de cobro
+  de la academia (sin fila = el día que vence cada cuota), con versión y quién
+  lo cambió.
+- **Pagos:** cada cobro hecho se registra en `zaltyko.payments` con origen
+  `provider`, procesador `stripe` y entorno `sandbox`, con la familia y el
+  pagador de la factura. Se reparte entre cuotas con el mismo cálculo que el
+  pago manual.
+- **Estados de un intento, en palabras sencillas:**
+  - **reclamado** (`claimed`): Zaltyko ha apartado la factura para cobrarla;
+    todavía no hay cobro en Stripe;
+  - **creado** (`created`): el cobro existe en Stripe (su `pi_…` está
+    guardado) pero aún no se ha confirmado;
+  - **en proceso** (`processing`): el banco lo está tramitando, sobre todo en
+    las domiciliaciones, que tardan días; el proceso diario lo relee;
+  - **cobrado** (`succeeded`): el pago está registrado; el reparto quedó
+    completo (`allocated`) o necesita revisión (`needs_review`);
+  - **fallido** (`failed`): Stripe lo rechazó; puede llevar un reintento
+    programado o ser definitivo;
+  - **cancelado** (`canceled`): se cerró sin cobrar, con su motivo (la puerta
+    del día del cobro, la academia, un pago manual, la revisión o la ventana
+    de cobro pasada, `collection_window_expired`).
+  Solo puede haber un intento abierto (reclamado, creado o en proceso) por
+  factura, **un solo intento cobrado por factura** (índice único parcial
+  `family_collection_attempts_succeeded_uq`), como mucho cinco intentos por
+  factura y tres reanudaciones por intento, y solo una tarjeta en los
+  intentos 1 a 3 puede tener reintento pendiente (CHECK
+  `family_collection_attempts_next_retry_card_only`). Candidata con SHA-256
+  `cee3e0aac1673b87e75bb492de60f8b88a7b9e1f4ac2a61caec80db2d7fecbd8`.
+- **Nunca** mensajes de Stripe, número de tarjeta, IBAN, nombre ni correo.
+  Solo referencias opacas y códigos. La metadata en Stripe solo lleva
+  `zaltyko_organization_id`, `zaltyko_invoice_id` y
+  `zaltyko_collection_attempt_id`; la descripción es «Cuota {mes} {año}» (por
+  ejemplo, «Cuota noviembre 2026»).
+- Auditoría y eventos solo con ids y códigos:
+  `family_collection.attempt_claimed`, `.attempt_canceled`,
+  `.attempt_processing`, `.attempt_succeeded`, `.attempt_failed`,
+  `.attempt_reviewed` y `.settings_changed`; avisos `family_collection.final_failure`
+  (fallo sin reintento) y `family_collection.needs_review` (revisión de la
+  academia, con motivos como `amount_mismatch` o `processing_unreadable`);
+  el aviso a la familia, `family_collection.family_failure_notice` y su
+  resultado `family_collection.family_failure_notice_result` (uno de cada por
+  intento, payload solo con ids y el resultado); el pago,
+  `payment.provider_recorded`.
+- **Derechos de datos: hecho.** Las tres tablas son el grupo opcional
+  excluido `OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES`
+  (`src/modules/data-rights/application/catalog.ts`): intentos y reparto en
+  `payment_provider_attempts`, el día de cobro en
+  `payment_provider_configuration`. La exportación solo incluye el recuento de
+  la academia; todo o nada, como en la Fase 2.
+
+### Estado
+
+- Construida en la PR #349 (en borrador), detrás de la bandera, que está
+  apagada.
+- Candidata `docs/deployment/candidates/20261117120000_family_collection_candidate.sql`:
+  **no aplicada en ningún entorno.** Staging y producción necesitan cada uno
+  una autorización expresa de Elvis; las de las Fases 1 y 2 no la cubren.
+  Requiere antes las candidatas de las Fases 1 y 2 (detalle y rollback en
+  `docs/deployment/candidates/README.md`).
+- Trabajo de pg_cron `zaltyko-collect-family-fees` (`0 6 * * *` UTC, antes de
+  los recordatorios): **sin programar en ningún entorno**
+  (`docs/deployment/scheduler/candidates/collect-family-fees.sql` y, para
+  staging, la función propia del README del planificador).
+- **El proceso diario tiene dos partes:**
+  1. **Puesta al día** (siempre que la clave sea de prueba, la base no sea la
+     de producción y existan las tablas, **también con la bandera apagada**):
+     retoma los intentos que se quedaron a medias, relee en Stripe los que
+     están en proceso y avisa de los que no pudieron terminar. Así, lo que ya
+     salió en Stripe siempre queda registrado. Con la bandera apagada nunca
+     crea ni confirma un cobro nuevo.
+  2. **Cobro** (solo con la bandera encendida): busca las facturas cuya fecha
+     de cobro es hoy o ya pasó (en la hora local de la sede), pasa la puerta,
+     reclama el intento y crea y confirma el cobro en Stripe. Los reintentos
+     se cobran el día local que les toca.
+  El proceso se corta a los 240 segundos; lo que falte sigue al día
+  siguiente.
+- **Reintentos (P3 nueva, decisión de Elvis del 17-11-2026, «3 reintentos:
+  1, 3 y 7 días»; sustituye a «1 reintento tarjeta» a los 3 días):** tarjeta
+  rechazada por un motivo recuperable (límite de gasto o de operaciones,
+  fondos insuficientes, rechazo genérico o temporal), hasta 3 reintentos, los
+  días locales de la sede +1, +3 y +7 contados desde el día del primer
+  intento; si ese día ya pasó, al día siguiente (nunca dos cargos el mismo
+  día). Antes de cada reintento se cancela en Stripe el cobro del intento
+  anterior. Cada reintento tiene su propia ventana de 3 días. Nunca se
+  reintenta una tarjeta perdida, robada o de fraude, ni cuando el banco pide
+  no repetir, retener la tarjeta o autenticación, ni con un método no válido
+  (caducada, número incorrecto, no admitida). Tras el último fallo, la cuota
+  pasa a manual con recordatorios. Domiciliación: ningún reintento.
+- **Domiciliación apagada («Primero solo tarjeta»).** Con
+  `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED` apagada, la cuota de
+  quien domicilia nace manual; una ya emitida en automático se cierra el día
+  del cobro con `sepa_not_enabled`, sin llamar a Stripe, y no retiene
+  recordatorios mientras espera. Una domiciliación que ya estaba en el banco
+  se sigue releyendo y registrando.
+- **Aviso a la familia en el primer fallo (decisión de Elvis del
+  17-11-2026).** Cuando el primer cobro de tarjeta falla (rechazo del banco o
+  autenticación) o la tarjeta ya no está en Stripe al crear el primer cobro,
+  se guarda el aviso en el outbox en la misma transacción, y la ruta
+  `collect-family-fees`, al terminar de cobrar, envía el correo por el mismo
+  camino que los recordatorios de pago (mismo emisor, la persona que paga,
+  clave para no duplicar). Un solo enlace, a `/familia/cuotas`; solo promete
+  un reintento si va a salir (con la bandera apagada, nunca). Los cierres de
+  la puerta y los fallos sin respuesta de Stripe no avisan. La academia ve en
+  la lista si se avisó o si debe avisar ella.
+- **Motivos finales nuevos (la cuota pasa a manual):** `amount_below_minimum`
+  (queda menos de 0,50 €), `reminder_sent` (ya salió un recordatorio de pago
+  de una cuota abierta de la factura: desde entonces no se cobra nunca sola,
+  ni primer intento ni reintento), `sepa_not_enabled` y los rechazos
+  deterministas de Stripe al crear el cobro (`amount_too_small`,
+  `resource_missing`, `account_invalid`, `payment_method_unactivated`,
+  `capability_not_active`). Todos cierran con un intento `canceled`.
+- **Importe comprobado.** Antes de registrar un cobro se compara lo cobrado
+  con el importe del intento y con `EUR`. Si no cuadra, no se registra, la
+  academia recibe el aviso `amount_mismatch`. «Marcar como revisado» cierra
+  el intento como `reviewed_unverifiable` sin registrar ese pago y la
+  academia ve «Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual.»
+- **Domiciliación «en curso» que no se puede leer.** Si Stripe no deja
+  releerla, se registra el nombre y el código del error y, a los 15 días
+  desde que se reclamó, la academia recibe el aviso `processing_unreadable`
+  («El cobro lleva más de 15 días en curso y no podemos ver su resultado.
+  Compruébalo en Stripe.»). Con un error permanente comprobado en Stripe en
+  ese momento, «Marcar como revisado» cierra el intento como
+  `reviewed_unverifiable` (con la persona en la auditoría) y la academia ve
+  «Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual.» La cuota vuelve al cobro manual con recordatorios. Un error
+  pasajero o un cobro legible en curso no cierran nada.
+- **Cancelado en Stripe.** Un cobro cancelado en Stripe sin error de pago se
+  cierra como `canceled_in_stripe` («El cobro se canceló en Stripe. Se cobra
+  a mano.»), sin aviso de rechazo a la familia y sin reintento.
+- **Petición rechazada al crear.** Cualquier 400 `invalid_request_error` sin
+  cobro creado, que no sea de idempotencia ni un bloqueo, cierra el intento
+  (`invalid_request` o su código: «Stripe no aceptó crear el cobro. Se cobra
+  a mano.»).
+- **Aviso del primer fallo.** Se envía de página en página hasta el plazo y
+  también antes de cobrar; un reintento ya reclamado no lo anula.
+- **Recordatorios.** Mientras el cobro de una cuota automática está en
+  curso, o hay un reintento pendiente, la cuota no recibe recordatorios. Los
+  vuelve a recibir:
+  - si el cobro falla sin reintento o se cancela;
+  - 3 días después de la fecha de cobro prevista si no llegó a haber ningún
+    intento;
+  - 3 días después de la fecha de un reintento que no se hizo, o de un cobro
+    hecho que dejó saldo pendiente.
+  Con la bandera apagada, las cuotas automáticas se tratan como manuales para
+  pagos y recordatorios, **salvo** las que tienen un cobro en marcha
+  (reclamado, creado o en proceso): esas siguen sin recordatorios, aunque la
+  bandera esté apagada o los cerrojos cerrados, y el portal dice «Cobro en
+  curso». Un reintento pendiente con la bandera apagada no retiene.
+- **Ventana máxima de cobro.** Esos mismos 3 días son el límite para cobrar:
+  pasada la espera (desde la fecha de cobro sin ningún intento, o desde la
+  fecha del reintento), la cuota ya volvió a los recordatorios y nunca se
+  cobra sola, aunque el motivo pasajero que lo impedía haya desaparecido. El
+  proceso escribe un intento `canceled` (`collection_window_expired`), sin
+  llamar a Stripe, y la cuota se cobra a mano. Así nunca hay doble pago (a
+  mano y con la tarjeta).
+- Pruebas automáticas (`tests/family-collection-*`, incluidas las de
+  PostgreSQL desechable `family-collection-pg`, `-worker-pg`,
+  `-academy-actions-pg` y `-plan-revision-pg`, y
+  `tests/api-cron-collect-family-fees.test.ts`): ninguna en local; las ejecuta
+  la CI remota de la PR.
+- Sin probar en staging. Antes hacen falta, con autorización de Elvis:
+  aplicar la candidata en Supabase staging, encender la bandera en Vercel
+  staging y crear la función y el trabajo de staging del planificador. La
+  tarjeta se puede probar en un día; las domiciliaciones tardan días en
+  cerrarse con la relectura diaria.
+- En producción no cambia nada: la bandera está apagada y, aunque se
+  encendiera, el proceso no hace nada contra Live ni contra la base de
+  producción.
+- **Vuelta atrás.** Para parar los cobros nuevos basta con apagar la bandera;
+  la puesta al día sigue registrando lo que ya salió. **Antes de quitar el
+  trabajo de pg_cron, comprobar que no queda ningún intento abierto** con
+  esta consulta de solo lectura (debe devolver cero filas):
+
+  ```sql
+  -- Solo lectura. Intentos abiertos (reclamados, creados o en el banco).
+  select organization_id, invoice_id, id, status, resume_count, claimed_at, updated_at
+    from zaltyko.family_collection_attempts
+   where status in ('claimed', 'created', 'processing')
+   order by updated_at;
+  ```
+
+  Si queda alguno, esperar a que la puesta al día lo cierre o pedir a la
+  academia que use «Marcar como revisado» (sin aviso, posible pasadas 24 h
+  sin cambios; para una domiciliación en el banco, esperar a su resultado).
+- **No reencender la bandera con reintentos pendientes sin revisarlos.** Si
+  se apaga y se vuelve a encender dentro de la ventana de un reintento, y
+  todavía no salió ningún recordatorio, ese reintento puede cobrarse después
+  de que la familia leyera «ya no se cobrará sola». Antes de reencender,
+  revisar los intentos `failed` con `next_retry_at` pendiente.
+- **Caso de soporte: cerrojos cerrados con intentos en marcha.** Si un
+  entorno pasa de clave de prueba a Live, o a la base de producción, con
+  intentos abiertos, el proceso diario deja de releerlos y siguen reteniendo
+  recordatorios y bloqueando el pago manual. Lo resuelve soporte.
+
+### Cerrojos y límites
+
+- **Los dos cerrojos de las fases anteriores (R11).** Con una clave de Stripe
+  que no es de prueba, o contra la base de producción, el proceso no hace
+  nada y no se emite ninguna cuota automática.
+- **Nunca dos cobros de la misma factura e intento.** Un solo intento abierto
+  por factura (en la base). El cobro se crea y se confirma por separado, cada
+  paso con su clave de idempotencia; al reanudar se usa el `pi_…` guardado o
+  se busca en Stripe por la metadata del intento antes de crear (las claves de
+  Stripe caducan a las 24 h y el proceso es diario). Varios cobros para un
+  mismo intento o un conflicto de idempotencia: aviso a la academia, nunca un
+  cobro nuevo.
+- **Nunca «fallido» sin leer Stripe.** Un error sin respuesta de Stripe se
+  vuelve a mirar al día siguiente. Tras tres reanudaciones sin resultado: si
+  no hay cobro en Stripe, el intento falla (`transient_exhausted`); si lo hay,
+  se cancela en Stripe y solo se cierra si Stripe lo confirma; si no se puede
+  ni cancelar ni leer, aviso de revisión.
+- **Todo cobro hecho queda registrado**, aunque la cuota ya se hubiera pagado
+  a mano o anulado: el pago se graba primero y lo que no se pueda repartir
+  queda sin repartir, con aviso «Necesita revisión» a la academia. El intento
+  nunca queda fallido.
+- **Nunca se cobra a quien ya no paga.** El día del cobro se vuelve a cargar
+  todo y se pasa por la puerta: la de ADR-0020 (plan, preferencia, cuenta,
+  autorización, consentimiento), más que cada cuota tenga el pagador de la
+  factura, que ese pagador esté vigente hoy en la fecha local de la sede
+  (fila de `family_payers` abierta, tutor y vínculo activos), que la cuenta se
+  haya releído en Stripe en la última hora (si no, se relee antes) y que la
+  factura sea en euros. Se repite antes de crear o confirmar al reanudar.
+- **Ninguna cuota en el limbo.** Los motivos pasajeros (bandera, cerrojos,
+  plan que todavía no rige o suscripción no al día, cuenta sin releer)
+  esperan al día siguiente, como mucho hasta el final de la ventana de cobro; los definitivos (familia en manual, método
+  revocado o caducado, pagador que ya no es el vigente, cuenta que ya no
+  sirve, moneda que no es euro…) cierran la cuota con un intento cancelado y
+  vuelve a manual con recordatorios.
+- **Una renovación del plan no apaga el cobro automático;** un cambio real
+  de plan sí (otro plan, otra suscripción u otro contrato): hay que volver a
+  encender el interruptor.
+- **Pago manual.** Con un cobro en curso, 409 «Esta cuota se está cobrando
+  automáticamente. Espera al resultado.», también con la bandera apagada. Si
+  solo queda un reintento pendiente, el pago manual lo cancela.
+- **Orden de bloqueo único** (academia → cuotas → factura → intento) en el
+  proceso, el pago manual y las acciones: sin bloqueos mutuos. Las llamadas a
+  Stripe nunca van dentro de una transacción abierta.
+- **Cargo directo** en la cuenta de la academia, sin `application_fee`: no
+  cambia ningún precio. Solo euros.
+
+### Deuda conocida
+
+- **Lo que llega con la Fase 4:** encender la domiciliación; las
+  domiciliaciones «en proceso» solo se cierran con la relectura diaria (sin
+  eventos de Stripe); cuando el banco pide autenticación (3DS) el cobro falla,
+  se avisa a la familia y pasa a manual, sin forma de que la familia complete
+  ese pago; devoluciones, disputas y devoluciones del banco en SEPA no se
+  reflejan; no hay recibo «no es factura»; el código Standard v1 y sus rutas
+  siguen sin retirar.
+- **Tarjeta que ya no está en Stripe, cada mes.** Hasta que la familia
+  vuelva a guardar su tarjeta, cada mes queda un intento `canceled`
+  (`resource_missing`) y la familia recibe otra vez el aviso para
+  actualizarla. Sin dinero movido.
+- **Aviso «no enviado» falso en casos raros.** Si el correo sale pero falla
+  el guardado del resultado, o en entornos con el correo simulado (staging),
+  la academia puede ver «Avísala tú». No mueve dinero.
+- **La tabla canónica `payment_attempts` sigue sin uso:** el cobro usa su
+  propia tabla.
+- **Aviso previo de cada adeudo SEPA:** lo envía Stripe por defecto; depende
+  de la respuesta del abogado a L4 del ADR-0028.
+- **La búsqueda de Stripe tarda en ver un cobro recién creado.** En el peor
+  caso puede quedar en Stripe un cobro creado y nunca confirmado, sin dinero
+  movido. Es inofensivo, pero se ve en el panel de Stripe de la academia.
+- **Éxito tardío del primer intento.** Si antes del reintento no se pudo
+  cancelar en Stripe el cobro del primer intento y aun así acabara cobrándose,
+  Zaltyko no lo vería hasta tener los eventos de la Fase 4.
+- **Academias de prueba en la base desechable de la CI.** Las pruebas de
+  PostgreSQL borran sus filas salvo las academias y sus sedes (la auditoría y
+  el historial de plan son solo de añadir). Solo afecta al PostgreSQL
+  desechable de GitHub.
+- **Pagador vigente en la zona de la sede.** El portal de la familia usa la
+  zona de la academia: cerca de medianoche pueden diferir un día.
+- **Por confirmar con Elvis** (ADR-0028, «Reglas añadidas al construir»):
+  la regla del cambio real de plan y los 3 días de margen de los
+  recordatorios. Ya confirmadas el 17-11-2026: nunca cobrar antes del
+  vencimiento, y qué rechazos se reintentan (la P3 nueva, que incluye «rechazo
+  genérico» y «no aceptar»).
 
 ## Alcance
 
