@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/db";
 import { runFamilyCollection } from "@/modules/family-collection/application/family-collection-service";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
-import { localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
+import { addLocalDays, localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
 import type { CollectionError, PaymentIntentSnapshot } from "@/modules/family-collection/domain/payment-outcome";
 import {
   createFamilyCollectionStore,
@@ -644,13 +644,15 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
        where id = ${revoked.authorizationId}::uuid
     `);
     const closed = await createCollectableInvoice();
-    const yesterday = localCalendarDate(new Date(Date.now() - DAY), "Europe/Madrid");
+    // «Ayer» en días civiles de la sede (restar 24 h falla el día del cambio de hora).
+    const now = new Date();
+    const yesterday = addLocalDays(localCalendarDate(now, "Europe/Madrid"), -1);
     await db.execute(sql`
       update zaltyko.family_payers set ends_on = ${yesterday}::date where id = ${closed.payerId}::uuid
     `);
     const { gateway } = fakeStripe();
 
-    await run(new Date(), gateway);
+    await run(now, gateway);
 
     expect(callsFor(gateway.createPayment.mock.calls, revoked)).toHaveLength(0);
     expect(callsFor(gateway.createPayment.mock.calls, closed)).toHaveLength(0);

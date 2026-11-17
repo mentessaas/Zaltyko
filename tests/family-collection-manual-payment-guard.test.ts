@@ -1,5 +1,5 @@
 import { PgDialect } from "drizzle-orm/pg-core";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * Cobro automático (Fase 3): el pago manual y el reparto manual frente a un
@@ -160,9 +160,18 @@ const allocationInserted = (harness: ReturnType<typeof fakeTx>) =>
   harness.inserts.some((insert) => insert.table === paymentAllocations);
 
 beforeEach(() => {
+  // Reloj fijo: el registro rechaza un pago «en el futuro» (receivedAt >
+  // ahora + 60 s). Sin esto, el test falla si la CI corre antes de las 09:00
+  // UTC del 17-11-2026. Solo se finge Date; las promesas siguen siendo reales.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-17T12:00:00.000Z"));
   vi.clearAllMocks();
   mocks.findEvent.mockResolvedValue(null);
   mocks.storage.mockResolvedValue(true);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("pago manual con un cobro automático en curso", () => {

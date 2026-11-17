@@ -483,6 +483,33 @@ describe("fila de la academia (pura)", () => {
     expect(ownerAutomaticCollectionItemOf(ownerRow({ nextDueAt: "2026-12-02T22:59:59.999Z" }), NOW, "2026-11")).toBeNull();
   });
 
+  it("sin intento, del mes anterior y aún en su espera: sale (se sigue cobrando)", () => {
+    // 2 dic en Madrid; el cobro era el 30 nov y la espera dura 3 días.
+    const now = new Date("2026-12-02T09:00:00.000Z");
+    expect(
+      ownerAutomaticCollectionItemOf(ownerRow({ nextDueAt: "2026-11-30T12:00:00.000Z" }), now, "2026-12")
+    ).toMatchObject({ state: "in_progress", date: "2026-11-30" });
+  });
+
+  it("sin intento, del mes anterior y pasada su espera: no sale", () => {
+    const now = new Date("2026-12-05T09:00:00.000Z");
+    expect(
+      ownerAutomaticCollectionItemOf(ownerRow({ nextDueAt: "2026-11-30T12:00:00.000Z" }), now, "2026-12")
+    ).toBeNull();
+  });
+
+  it("sin intento, sede por detrás de la academia cerca de medianoche: sale con el mes de la sede", () => {
+    // 00:30 del 1 dic en Madrid (mes de la lista: diciembre) = 23:30 del 30 nov en Canarias.
+    const now = new Date("2026-11-30T23:30:00.000Z");
+    expect(
+      ownerAutomaticCollectionItemOf(
+        ownerRow({ timezone: "Atlantic/Canary", nextDueAt: "2026-11-30T12:00:00.000Z" }),
+        now,
+        "2026-12"
+      )
+    ).toMatchObject({ state: "scheduled", date: "2026-11-30" });
+  });
+
   it("sin intento y pasado el margen: no se cobró, se cobra a mano", () => {
     expect(
       ownerAutomaticCollectionItemOf(ownerRow({ nextDueAt: "2026-11-02T22:59:59.999Z" }), NOW, "2026-11")

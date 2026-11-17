@@ -675,8 +675,13 @@ export function ownerAutomaticCollectionItemOf(
     const attempt = row.attempt;
     if (!attempt) {
       const planned = plannedCollectionDate(row);
-      if (!planned || planned.slice(0, 7) !== month) return null;
+      if (!planned) return null;
       const expected = expectedCharge(planned, today);
+      // Sale si es del mes de la lista o del mes en curso en la sede (la sede
+      // puede ir por detrás de la academia cerca de medianoche), y también si
+      // es del mes anterior pero aún dentro de su espera: se sigue cobrando.
+      const plannedMonth = planned.slice(0, 7);
+      if (plannedMonth !== month && plannedMonth !== today.slice(0, 7) && expected !== "due") return null;
       const state: OwnerAutomaticCollectionState = blockerText
         ? "manual"
         : expected === "scheduled"
@@ -822,8 +827,11 @@ export async function getOwnerAutomaticCollections(input: {
   const month = today.slice(0, 7);
   const monthStart = `${month}-01`;
   const nextMonthStart = addLocalDays(monthStart, 32).slice(0, 7) + "-01";
-  // Margen de dos días a cada lado: el mes se decide luego con la zona de cada sede.
-  const windowStart = startOfLocalDay(addLocalDays(monthStart, -2), organizationTimezone).toISOString();
+  // Desde el mes anterior: una cuota de ese mes puede seguir en su espera
+  // (con día fijo, su vencimiento puede ser de principios de mes). Margen de
+  // dos días a cada lado: el mes se decide luego con la zona de cada sede.
+  const previousMonthStart = addLocalDays(monthStart, -1).slice(0, 7) + "-01";
+  const windowStart = startOfLocalDay(addLocalDays(previousMonthStart, -2), organizationTimezone).toISOString();
   const windowEnd = startOfLocalDay(addLocalDays(nextMonthStart, 2), organizationTimezone).toISOString();
   const monthStartInstant = startOfLocalDay(monthStart, organizationTimezone).toISOString();
   const nextMonthInstant = startOfLocalDay(nextMonthStart, organizationTimezone).toISOString();
