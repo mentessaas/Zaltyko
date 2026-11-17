@@ -372,8 +372,21 @@ async function applyPaymentAllocation(
     idempotencyKey: string;
     /** Persona que registra; null para el proceso de cobro automático. */
     actorUserId: string | null;
+    /**
+     * `manual`: pago o reparto hecho por una persona; pasa por la comprobación
+     * del cobro automático (guardManualAllocation). `automatic_collection`:
+     * reparto del propio cobro automático, que hace su comprobación aparte.
+     */
+    origin: "manual" | "automatic_collection";
   }
 ): Promise<PaymentAllocation> {
+  if (input.origin === "manual") {
+    await guardManualAllocation(tx, {
+      organizationId: input.organizationId,
+      charge: input.charge,
+      actorUserId: input.actorUserId,
+    });
+  }
   if (input.payment.currency !== input.charge.currency) {
     throw new OperationalError(
       "INVALID_RELATION",
@@ -1021,6 +1034,7 @@ export async function recordManualPaymentForCharge(
       allocatedAt: receivedAt,
       idempotencyKey: allocationKey,
       actorUserId: input.actor.userId,
+      origin: "manual",
     });
 
     await appendOutboxEvent(tx, {
@@ -1145,6 +1159,7 @@ export async function allocatePayment(
       allocatedAt: new Date(input.allocatedAt),
       idempotencyKey: input.idempotencyKey,
       actorUserId: input.actor.userId,
+      origin: "manual",
     });
   });
 }
@@ -1841,6 +1856,14 @@ export async function findAutomaticCollectionInProgress(
 ): Promise<{ attemptId: string; invoiceId: string; status: string } | null> {
   if (input.chargeIds.length === 0) return null;
   if (!(await isFamilyCollectionStorageAvailable(tx))) return null;
+  return queryAutomaticCollectionInProgress(tx, input);
+}
+
+/** La consulta de findAutomaticCollectionInProgress, con las tablas ya comprobadas. */
+async function queryAutomaticCollectionInProgress(
+  tx: Pick<TransactionClient, "execute">,
+  input: { organizationId: string; chargeIds: readonly string[]; excludeAttemptId?: string | null }
+): Promise<{ attemptId: string; invoiceId: string; status: string } | null> {
   const chargeList = sql.join(
     [...input.chargeIds].map((chargeId) => sql`${chargeId}::uuid`),
     sql`, `
@@ -1873,6 +1896,127 @@ export async function findAutomaticCollectionInProgress(
     invoiceId: String(row.invoiceId),
     status: String(row.status),
   };
+}
+
+/** Texto del 409 de un pago o reparto manual sobre una cuota que se está cobrando sola. */
+export const AUTOMATIC_COLLECTION_IN_PROGRESS_MESSAGE =
+  "Esta cuota se está cobrando automáticamente. Espera al resultado.";
+
+/** Motivo (`failure_code`) con el que un pago manual cierra un reintento automático pendiente. */
+export const MANUAL_PAYMENT_CANCEL_CODE = "manual_payment";
+
+/**
+ * Comprobación común del pago manual y del reparto manual (la llama
+ * applyPaymentAllocation con `origin: "manual"`, así cubre
+ * recordManualPaymentForCharge y allocatePayment):
+ *
+ * - si la factura de la cuota tiene un intento `claimed`, `created` o
+ *   `processing`, 409 AUTOMATIC_COLLECTION_IN_PROGRESS: el dinero puede estar
+ *   moviéndose en Stripe. Vale también con la bandera apagada (lo ya enviado
+ *   se registra igual);
+ * - si el último intento de la factura es `failed` con reintento pendiente,
+ *   lo cierra como `canceled` (`manual_payment`) en la misma transacción: la
+ *   cuota se cobra a mano y no se vuelve a intentar sola. Nada más bloquea.
+ *
+ * Quien llama ya tiene la organización (lockCommand) y la cuota bloqueadas;
+ * aquí se bloquean la factura y el intento, en el orden de bloqueo único
+ * (organización → cuotas por id → factura → intento). Sin las tablas de la
+ * Fase 3 no hay cobros automáticos y no hace nada más.
+ */
+async function guardManualAllocation(
+  tx: TransactionClient,
+  input: { organizationId: string; charge: Charge; actorUserId: string | null }
+): Promise<void> {
+  if (!(await isFamilyCollectionStorageAvailable(tx))) return;
+  const inProgress = await queryAutomaticCollectionInProgress(tx, {
+    organizationId: input.organizationId,
+    chargeIds: [input.charge.id],
+  });
+  if (inProgress) {
+    throw new OperationalError("AUTOMATIC_COLLECTION_IN_PROGRESS", AUTOMATIC_COLLECTION_IN_PROGRESS_MESSAGE, 409);
+  }
+
+  await tx.execute(sql`
+    select id from zaltyko.invoices
+     where organization_id = ${input.organizationId}::uuid and id = ${input.charge.invoiceId}::uuid
+     for update
+  `);
+  const last = await tx.execute(sql`
+    select id::text as "attemptId",
+           location_id::text as "locationId",
+           attempt_number as "attemptNumber",
+           status as "status",
+           failure_code as "failureCode",
+           decline_code as "declineCode",
+           next_retry_at is not null as "retryPending"
+      from zaltyko.family_collection_attempts
+     where organization_id = ${input.organizationId}::uuid
+       and invoice_id = ${input.charge.invoiceId}::uuid
+     order by attempt_number desc
+     limit 1
+     for update
+  `);
+  const attempt = last.rows[0] as
+    | {
+        attemptId?: unknown;
+        locationId?: unknown;
+        attemptNumber?: unknown;
+        status?: unknown;
+        failureCode?: unknown;
+        declineCode?: unknown;
+        retryPending?: unknown;
+      }
+    | undefined;
+  if (!attempt || typeof attempt.attemptId !== "string") return;
+  if (attempt.status !== "failed" || attempt.retryPending !== true) return;
+
+  const now = new Date();
+  await tx.execute(sql`
+    update zaltyko.family_collection_attempts
+       set status = 'canceled',
+           failure_code = ${MANUAL_PAYMENT_CANCEL_CODE},
+           next_retry_at = null,
+           updated_at = ${now.toISOString()}::timestamptz
+     where organization_id = ${input.organizationId}::uuid
+       and id = ${attempt.attemptId}::uuid
+       and status = 'failed'
+  `);
+  // Misma clave que el resto de cierres del intento: un intento se cancela una sola vez.
+  const idempotencyKey = `family-collection:${attempt.attemptId}:attempt_canceled`;
+  const payload = {
+    attemptId: attempt.attemptId,
+    invoiceId: input.charge.invoiceId,
+    attemptNumber: Number(attempt.attemptNumber),
+    reason: MANUAL_PAYMENT_CANCEL_CODE,
+    chargeId: input.charge.id,
+  };
+  const locationId = typeof attempt.locationId === "string" ? attempt.locationId : input.charge.locationId;
+  await appendOutboxEvent(tx, {
+    organizationId: input.organizationId,
+    locationId,
+    eventName: "family_collection.attempt_canceled",
+    aggregateType: "family_collection_attempt",
+    aggregateId: attempt.attemptId,
+    idempotencyKey,
+    payload,
+    occurredAt: now,
+  });
+  await appendAuditEntry(tx, {
+    organizationId: input.organizationId,
+    locationId,
+    actorUserId: input.actorUserId,
+    action: "family_collection.attempt_canceled",
+    targetType: "family_collection_attempt",
+    targetId: attempt.attemptId,
+    idempotencyKey,
+    before: {
+      status: "failed",
+      failureCode: typeof attempt.failureCode === "string" ? attempt.failureCode : null,
+      declineCode: typeof attempt.declineCode === "string" ? attempt.declineCode : null,
+      retryPending: true,
+    },
+    after: { status: "canceled", ...payload },
+  });
 }
 
 /**
@@ -2049,6 +2193,7 @@ export async function allocateProviderCollectionPayment(
       allocatedAt,
       idempotencyKey,
       actorUserId: null,
+      origin: "automatic_collection",
     });
     available -= amountCents;
   }
