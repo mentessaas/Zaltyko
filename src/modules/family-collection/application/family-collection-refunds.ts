@@ -50,6 +50,7 @@ import {
 } from "@/modules/family-collection/infrastructure/family-collection-store";
 import {
   createStripeRefundGateway,
+  TOO_MANY_REFUNDS_FOR_CHARGE_ERROR,
   type ChargeRefundSnapshot,
   type ChargeRefundsSnapshot,
   type FamilyCollectionRefundGateway,
@@ -105,15 +106,24 @@ function eventIds(input: RefundEventInput, extra: Record<string, unknown> = {}) 
 }
 
 /**
- * Lectura en Stripe: un error permanente se registra (solo ids y el código) y
- * da `null` (sin efecto); uno pasajero sube para que Stripe reenvíe el evento.
+ * Tarea M, punto 7: el cargo tiene más devoluciones de las que se leen
+ * (TOO_MANY_REFUNDS_FOR_CHARGE_ERROR). Siempre saldrá igual: es permanente.
+ */
+function isTooManyRefundsError(error: unknown): boolean {
+  return error instanceof Error && error.message === TOO_MANY_REFUNDS_FOR_CHARGE_ERROR;
+}
+
+/**
+ * Lectura en Stripe: un error permanente (también «más de 1000 devoluciones»
+ * en un cargo) se registra (solo ids y el código) y da `null` (sin efecto);
+ * uno pasajero sube para que Stripe reenvíe el evento.
  */
 async function readOrSkip<T>(input: RefundEventInput, read: () => Promise<T>): Promise<T | null> {
   try {
     return await read();
   } catch (error) {
     const failure = stripeReadFailureOf(error);
-    if (!failure.permanent) throw error;
+    if (!failure.permanent && !isTooManyRefundsError(error)) throw error;
     logger.warn(
       "Cobro automático: Stripe no deja leer una devolución de un evento",
       eventIds(input, { errorName: failure.errorName, errorCode: failure.errorCode })

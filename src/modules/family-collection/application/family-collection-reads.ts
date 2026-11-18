@@ -72,6 +72,7 @@ import { AMOUNT_MISMATCH_REASON } from "@/modules/family-collection/domain/payme
 import {
   DISPUTE_LOST_REASON,
   disputeEffect,
+  returnedFeeInvoiceKey,
   SEPA_RETURNED_REASON,
   type DisputePaymentMethodKind,
 } from "@/modules/family-collection/domain/dispute-effect";
@@ -793,6 +794,8 @@ const REVIEW_TEXT: Record<string, string> = {
   attempts_exhausted: "Esta cuota ya no admite más intentos automáticos. Se cobra a mano.",
   stale_open: `El cobro lleva más de un día sin avanzar. ${CHECK_IN_STRIPE}`,
   processing_unreadable: `El cobro lleva más de 15 días en curso y no podemos ver su resultado. ${CHECK_IN_STRIPE}`,
+  // Fase 4 (Tarea M): pasó el plazo de la familia y Stripe no deja leer ni cancelar el cobro.
+  requires_action_unreadable: `Pasó el plazo para que la familia confirmara el pago y no podemos ver su resultado. ${CHECK_IN_STRIPE}`,
   // «Marcar como revisado» lo cierra sin registrar ese pago (reviewed_unverifiable).
   amount_mismatch: `Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. ${CHECK_IN_STRIPE}`,
   // Fase 4, D10: un cobro antiguo se completó tarde cuando otro ya había cobrado la cuota.
@@ -871,6 +874,12 @@ export interface OwnerDisputeRow {
   evidenceDueAt: Date | null;
   reversed: boolean;
   paymentMethodKind: DisputePaymentMethodKind;
+  /**
+   * Tarea M (punto 8): domiciliación devuelta (D2) con su cuota nueva. `true`
+   * si esa cuota todavía no tiene ningún pago, `false` si ya tiene alguno y
+   * null si no hay cuota nueva (o no se sabe).
+   */
+  returnedInvoiceUnpaid?: boolean | null;
 }
 
 const KEPT_DISPUTE_STATUSES: ReadonlySet<string> = new Set(["won", "warning_closed", "prevented"]);
@@ -886,12 +895,20 @@ export function ownerDisputeStateOf(dispute: OwnerDisputeRow): OwnerDisputeState
   return dispute.paymentMethodKind === "sepa_debit" ? "returned" : "lost";
 }
 
-/** Texto de la disputa para la academia (nunca para la familia, D4). `date`: plazo, día local de la sede. */
+/**
+ * Texto de la disputa para la academia (nunca para la familia, D4). `date`:
+ * plazo, día local de la sede. Tarea M (punto 8): una domiciliación devuelta
+ * y después ganada (fondos reintegrados) recuerda anular la cuota pendiente
+ * que se creó (D2), y dice si esa cuota todavía no tiene ningún pago. Nunca
+ * se anula sola: la academia decide.
+ */
 export function ownerDisputeText(input: {
   state: OwnerDisputeState;
   amountCents: number;
   currency: string;
   date: string | null;
+  paymentMethodKind?: DisputePaymentMethodKind;
+  returnedInvoiceUnpaid?: boolean | null;
 }): string {
   const amount = formatMoney(input.amountCents, input.currency);
   switch (input.state) {
@@ -908,6 +925,12 @@ export function ownerDisputeText(input: {
     case "unallocated":
       return `Hay una disputa de ${amount} que Zaltyko no pudo anotar en las cuotas; revísala en tu panel de Stripe`;
     case "reinstated":
+      if (input.paymentMethodKind === "sepa_debit") {
+        const base = `El banco reintegró el dinero que había devuelto (${amount}). Anula la cuota pendiente que se creó si ya no se debe`;
+        if (input.returnedInvoiceUnpaid === true) return `${base}: todavía no tiene ningún pago`;
+        if (input.returnedInvoiceUnpaid === false) return `${base}; ya tiene algún pago, revísalo antes`;
+        return base;
+      }
       return `Disputa ganada después de anotarla como perdida (${amount}); revísalo en tu panel de Stripe`;
   }
 }
@@ -1257,6 +1280,8 @@ export function ownerAutomaticCollectionItemOf(
             amountCents: row.dispute.amountCents,
             currency: row.currency,
             date: local(row.dispute.evidenceDueAt),
+            paymentMethodKind: row.dispute.paymentMethodKind,
+            returnedInvoiceUnpaid: row.dispute.returnedInvoiceUnpaid ?? null,
           })
         : null;
     // Lo que la academia tiene que revisar en su panel de Stripe.
@@ -1302,6 +1327,7 @@ function disputeRowOf(value: unknown): OwnerDisputeRow | null {
     evidenceDueAt: due && !Number.isNaN(due.getTime()) ? due : null,
     reversed: raw.reversed === true,
     paymentMethodKind: kind === "card" || kind === "sepa_debit" ? kind : null,
+    returnedInvoiceUnpaid: typeof raw.returnedInvoiceUnpaid === "boolean" ? raw.returnedInvoiceUnpaid : null,
   };
 }
 
@@ -1431,6 +1457,9 @@ export async function getOwnerAutomaticCollections(input: {
              and (d.closed_at is null or d.updated_at >= ${monthStartInstant}::timestamptz)
         )`
     : sql``;
+  // Tarea M (punto 8): `returnedInvoiceUnpaid` dice si la cuota nueva de D2
+  // (su factura sale del outbox `invoice.issued` con la clave de la disputa)
+  // todavía no tiene ningún pago; null si no hay cuota nueva.
   const disputeColumn = disputesTable
     ? sql`(
         select json_build_object(
@@ -1438,7 +1467,22 @@ export async function getOwnerAutomaticCollections(input: {
                  'amountCents', d.amount_cents,
                  'evidenceDueAt', to_char(d.evidence_due_at at time zone 'UTC', ${sql.raw(ISO)}),
                  'reversed', d.reversed_at is not null,
-                 'paymentMethodKind', da.payment_method_kind
+                 'paymentMethodKind', da.payment_method_kind,
+                 'returnedInvoiceUnpaid', (
+                   select not exists (
+                            select 1
+                              from zaltyko.payment_allocations pa
+                              join zaltyko.charges rc
+                                on rc.organization_id = pa.organization_id and rc.id = pa.charge_id
+                             where rc.organization_id = ie.organization_id
+                               and rc.invoice_id = ie.aggregate_id
+                          )
+                     from zaltyko.outbox_events ie
+                    where ie.organization_id = d.organization_id
+                      and ie.event_name = 'invoice.issued'
+                      and ie.idempotency_key = ${returnedFeeInvoiceKey("")} || d.provider_dispute_reference
+                    limit 1
+                 )
                )
           from zaltyko.family_collection_disputes d
           join zaltyko.family_collection_attempts da

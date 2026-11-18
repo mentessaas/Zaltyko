@@ -71,6 +71,7 @@ import {
   providerRefundIdempotencyKey,
   providerRefundReference,
   RefundDoesNotFitError,
+  REFUND_UNALLOCATED_REASON,
   REFUNDED_NOTICE_REASON,
   splitRefund,
   type RefundableAllocation,
@@ -557,6 +558,19 @@ export interface FamilyCollectionStore {
     after: string | null;
     limit: number;
     scope: OrganizationScope;
+  }): Promise<CollectionAttempt[]>;
+  /**
+   * Fase 4 (Tarea M, punto 6): intentos `succeeded` con `pi_…` que tienen un
+   * aviso `refund_unallocated` escrito desde `since` cuyo `re_…` todavía no
+   * tiene filas en zaltyko.refunds (la devolución no cabía en lo repartido).
+   * En cuanto todas sus devoluciones quedan anotadas, el intento deja de
+   * salir. Por orden de id, después de `after`. Sin transacción.
+   */
+  listUnallocatedRefundAttempts(input: {
+    after: string | null;
+    limit: number;
+    scope: OrganizationScope;
+    since: Date;
   }): Promise<CollectionAttempt[]>;
   /**
    * Red de seguridad: intentos `claimed`/`created` que ya agotaron sus
@@ -2033,6 +2047,35 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
          where ${latePendingAttempt("a")}
            and ${inScope(sql.raw("a.organization_id"), input.scope)}
            and (${input.after}::uuid is null or a.id > ${input.after}::uuid)
+         order by a.id
+         limit ${input.limit}
+      `);
+      return (result.rows as Array<Record<string, unknown>>).map(toAttempt);
+    },
+
+    async listUnallocatedRefundAttempts(input) {
+      const result = await db.execute(sql`
+        select ${attemptColumns}
+          from zaltyko.family_collection_attempts a
+         where a.status = 'succeeded'
+           and a.provider_payment_intent_reference is not null
+           and ${inScope(sql.raw("a.organization_id"), input.scope)}
+           and (${input.after}::uuid is null or a.id > ${input.after}::uuid)
+           and exists (
+             select 1 from zaltyko.outbox_events e
+              where e.organization_id = a.organization_id
+                and e.event_name = ${NEEDS_REVIEW_EVENT}
+                and e.aggregate_id = a.id
+                and e.payload->>'reason' = ${REFUND_UNALLOCATED_REASON}
+                and e.occurred_at >= ${input.since.toISOString()}::timestamptz
+                and not exists (
+                  select 1 from zaltyko.refunds r
+                   where r.organization_id = a.organization_id
+                     and r.processor = ${FAMILY_COLLECTION_PROCESSOR}
+                     and r.environment = 'sandbox'::zaltyko.provider_environment
+                     and starts_with(r.provider_refund_id, (e.payload->>'providerRefundReference') || ':')
+                )
+           )
          order by a.id
          limit ${input.limit}
       `);

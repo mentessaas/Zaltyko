@@ -147,8 +147,13 @@ export async function createRunState(
   };
 }
 
-/** Las devoluciones de un cobro registrado tarde (applyRecordedAttemptRefunds), o null. */
+/**
+ * Las devoluciones de un cobro registrado tarde (applyRecordedAttemptRefunds),
+ * o null. También null con la bandera de eventos apagada (Tarea M, punto 9):
+ * las devoluciones solo entran en el libro con ella, como las de los eventos.
+ */
 function recordedRefundsApplier(deps: FamilyCollectionDeps, now: Date): RunState["applyRecordedRefunds"] {
+  if (!isFamilyCollectionEventsFlagEnabled()) return null;
   if (deps.gateway && !deps.refundGateway) return null;
   const refunds = {
     store: deps.refundStore ?? createFamilyCollectionRefundStore(),

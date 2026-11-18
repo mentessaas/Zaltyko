@@ -1133,31 +1133,76 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
       const input = { organizationId: invoice.organizationId, event };
 
       const first = await claimProviderEvent({ ...input, now: EVENT_NOW });
-      expect(first.claim).toBe("process");
-      expect(await claimProviderEvent({ ...input, now: minutesAfter(4) })).toEqual({ claim: "in_progress", inboxId: first.inboxId });
+      expect(first).toMatchObject({ claim: "process", attempts: 1 });
+      expect(await claimProviderEvent({ ...input, now: minutesAfter(4) })).toEqual({
+        claim: "in_progress",
+        inboxId: first.inboxId,
+        attempts: 1,
+      });
       // La entrega anterior se cayó a mitad: pasados 5 minutos, el reenvío lo reclama.
-      expect(await claimProviderEvent({ ...input, now: minutesAfter(6) })).toEqual({ claim: "process", inboxId: first.inboxId });
+      expect(await claimProviderEvent({ ...input, now: minutesAfter(6) })).toEqual({
+        claim: "process",
+        inboxId: first.inboxId,
+        attempts: 2,
+      });
       // El mismo evt_ desde otra academia no se lleva la fila, aunque esté abandonada.
       const other = await createCollectableInvoice();
       expect(
         await claimProviderEvent({ organizationId: other.organizationId, event, now: minutesAfter(60) })
-      ).toEqual({ claim: "duplicate", inboxId: first.inboxId });
+      ).toEqual({ claim: "other_organization", inboxId: first.inboxId, attempts: 2 });
 
       const rows = await inboxRows(event.eventId);
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({ organizationId: invoice.organizationId, status: "processing", attempts: 2 });
 
-      // Una vez processed, cualquier reenvío es duplicate.
-      await finishProviderEvent({
+      // Cercado: la primera entrega (attempts 1) llega tarde y no pisa a la segunda.
+      expect(
+        await finishProviderEvent({
+          inboxId: first.inboxId,
+          attempts: 1,
+          status: "failed",
+          effectType: null,
+          effectId: null,
+          errorCode: "card_declined",
+          now: minutesAfter(7),
+        })
+      ).toBe(false);
+      expect((await inboxRows(event.eventId))[0]).toMatchObject({ status: "processing", attempts: 2 });
+
+      // Una vez processed por la entrega vigente, cualquier reenvío es duplicate.
+      expect(
+        await finishProviderEvent({
+          inboxId: first.inboxId,
+          attempts: 2,
+          status: "processed",
+          effectType: null,
+          effectId: null,
+          errorCode: null,
+          now: minutesAfter(7),
+        })
+      ).toBe(true);
+      // Y un cierre tardío de la vieja tampoco deshace el processed.
+      expect(
+        await finishProviderEvent({
+          inboxId: first.inboxId,
+          attempts: 1,
+          status: "failed",
+          effectType: null,
+          effectId: null,
+          errorCode: "card_declined",
+          now: minutesAfter(9),
+        })
+      ).toBe(false);
+      expect(await claimProviderEvent({ ...input, now: minutesAfter(8) })).toEqual({
+        claim: "duplicate",
         inboxId: first.inboxId,
-        status: "processed",
-        effectType: null,
-        effectId: null,
-        errorCode: null,
-        now: minutesAfter(7),
+        attempts: 2,
       });
-      expect(await claimProviderEvent({ ...input, now: minutesAfter(8) })).toEqual({ claim: "duplicate", inboxId: first.inboxId });
-      expect(await claimProviderEvent({ ...input, now: minutesAfter(60) })).toEqual({ claim: "duplicate", inboxId: first.inboxId });
+      expect(await claimProviderEvent({ ...input, now: minutesAfter(60) })).toEqual({
+        claim: "duplicate",
+        inboxId: first.inboxId,
+        attempts: 2,
+      });
       expect((await inboxRows(event.eventId))[0]).toMatchObject({ status: "processed", attempts: 2 });
     }, 60_000);
   });
@@ -2297,6 +2342,42 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
           noticeKey(collected, REFUND_UNALLOCATED_REASON, refundId)
         )
       ).toHaveLength(1);
+    }, 60_000);
+
+    it("Tarea M (punto 6): la pasada diaria lista el cobro con refund_unallocated mientras su re_ no tenga filas, y deja de listarlo después", async () => {
+      const collected = await collectedInvoice("partial");
+      const refundId = refOf(collected.invoice, "re", "relist");
+      const { gateway } = fakeRefundStripe(collected, [stripeRefund(refundId, 5000)]);
+      expect(await deliver(chargeEvent(collected, "relist"), gateway)).toBe("processed");
+
+      const store = createFamilyCollectionStore();
+      const scope = [collected.invoice.organizationId];
+      const thirtyDaysBefore = new Date(EVENT_NOW.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const listed = await store.listUnallocatedRefundAttempts({ after: null, limit: 10, scope, since: thirtyDaysBefore });
+      expect(listed.map((item) => [item.id, item.status])).toEqual([[collected.attemptId, "succeeded"]]);
+      // Aviso más antiguo que el plazo de relectura: ya no se relee.
+      expect(
+        await store.listUnallocatedRefundAttempts({
+          after: null,
+          limit: 10,
+          scope,
+          since: new Date(EVENT_NOW.getTime() + 60 * 1000),
+        })
+      ).toEqual([]);
+
+      // La devolución ya cabe y se anota (lo que haría la relectura diaria): deja de salir.
+      expect(
+        await createFamilyCollectionRefundStore().recordAttemptRefunds({
+          organizationId: collected.invoice.organizationId,
+          attemptId: collected.attemptId,
+          paymentIntentId: collected.paymentIntentId,
+          refund: { id: refundId, amountCents: 3500, currency: "EUR", reasonCode: "requested_by_customer", refundedAt: REFUNDED_AT },
+          providerEventId: null,
+          environment: "test",
+          now: EVENT_NOW,
+        })
+      ).toMatchObject({ outcome: "recorded" });
+      expect(await store.listUnallocatedRefundAttempts({ after: null, limit: 10, scope, since: thirtyDaysBefore })).toEqual([]);
     }, 60_000);
 
     it("un re_ en dos cuotas → dos filas con claves refund:re_…:{allocationId} distintas, sin 23505; una segunda devolución también avisa", async () => {

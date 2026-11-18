@@ -20,6 +20,9 @@
  *    reclamó hace más de 15 días, la academia recibe el aviso
  *    `processing_unreadable` (una sola vez). Un error permanente va como
  *    error al registro hasta que existe ese aviso; después, como advertencia.
+ *    Un `requires_action` ilegible con el plazo de la familia ya pasado, o
+ *    que Stripe no deja cancelar de forma permanente al caducar, recibe el
+ *    aviso `requires_action_unreadable` (Tarea M, puntos 4 y 5).
  *    Fase 4: también los `requires_action` (la familia tiene que confirmar el
  *    pago con su banco). Antes de su plazo, si Stripe sigue sin cobrarlo,
  *    nada cambia; pasado el plazo se cancela en Stripe y se cierra `failed`
@@ -31,9 +34,17 @@
  *    banco). Se vuelve a pasar por settleClosedAttempt hasta que el tardío
  *    queda registrado o con el aviso `duplicate_collection`. Va después del
  *    paso 3, que ya habrá cerrado la domiciliación si el banco la resolvió.
+ * 5. Fase 4 (Tarea M, punto 6): devoluciones que no cabían en lo repartido
+ *    (aviso `refund_unallocated` de los últimos REFUND_UNALLOCATED_REREAD_MS).
+ *    Si la academia repartió después el pago, se releen en Stripe (fuera de
+ *    transacción) y se anotan por el mismo camino (recordAttemptRefunds). El
+ *    intento deja de releerse en cuanto todas sus devoluciones quedan
+ *    anotadas o pasa ese plazo. Solo con la bandera de eventos (como las
+ *    devoluciones por evento).
  */
 import { logger } from "@/lib/logger";
 import { mapPaymentIntent, type PaymentIntentSnapshot } from "@/modules/family-collection/domain/payment-outcome";
+import { isAuthenticationDeadlinePassed } from "@/modules/family-collection/domain/authentication-window";
 import { stripeReadFailureOf } from "@/modules/family-collection/domain/stripe-read-error";
 import {
   advanceAttempt,
@@ -43,6 +54,7 @@ import {
   logStepFailure,
   notifyReview,
   notifyStepError,
+  REQUIRES_ACTION_UNREADABLE_REASON,
   RESUME_STALE_MS,
   settleLateSuccess,
   settleOutcome,
@@ -69,6 +81,13 @@ import {
  * quedar muchos tomados sin procesar.
  */
 export const RESUME_BATCH_SIZE = 10;
+
+/**
+ * Tarea M, punto 6: cuánto tiempo, desde el aviso `refund_unallocated`, se
+ * vuelve a mirar cada día si la devolución ya cabe (30 días, lo mismo que
+ * Stripe deja reenviar eventos). Después, la academia ya tiene el aviso.
+ */
+export const REFUND_UNALLOCATED_REREAD_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** Aviso a la academia: un cobro en curso desde hace más de 15 días que Stripe no deja leer. */
 export const PROCESSING_UNREADABLE_REASON = "processing_unreadable";
@@ -139,9 +158,30 @@ function rereadProcessing(state: RunState, attempt: CollectionAttempt): Promise<
 }
 
 /**
- * Stripe no dejó releer un intento `processing`: se registra (solo ids,
- * nombre y código) y, con más de 15 días en curso, la academia recibe el
- * aviso `processing_unreadable`. El intento sigue en curso.
+ * ¿Qué aviso recibe la academia cuando Stripe no deja releer este intento?
+ * - `processing` reclamado hace más de 15 días: `processing_unreadable`;
+ * - Fase 4 (Tarea M, punto 4), `requires_action` con su plazo para confirmar
+ *   el pago ya pasado: `requires_action_unreadable` (antes del plazo la
+ *   familia aún puede confirmarlo y no hay nada que revisar);
+ * - si no, ninguno todavía.
+ */
+async function unreadableNoticeReason(state: RunState, attempt: CollectionAttempt): Promise<string | null> {
+  if (isLongProcessingAttempt(attempt, state.now)) return PROCESSING_UNREADABLE_REASON;
+  if (attempt.status !== "requires_action") return null;
+  const deadline = await state.store.readActionDeadline({
+    organizationId: attempt.organizationId,
+    attemptId: attempt.id,
+  });
+  // Sin plazo es que otro camino ya lo sacó de `requires_action`.
+  if (deadline === null || !isAuthenticationDeadlinePassed(deadline, state.now)) return null;
+  return REQUIRES_ACTION_UNREADABLE_REASON;
+}
+
+/**
+ * Stripe no dejó releer un intento `processing` (o `requires_action`): se
+ * registra (solo ids, nombre y código) y, con más de 15 días en curso (o, en
+ * `requires_action`, con el plazo de la familia ya pasado), la academia
+ * recibe el aviso (`unreadableNoticeReason`). El intento sigue abierto.
  */
 async function processingReadFailed(state: RunState, attempt: CollectionAttempt, error: unknown): Promise<null> {
   // Solo ids, nombre y código del error: nunca su mensaje.
@@ -162,12 +202,11 @@ async function processingReadFailed(state: RunState, attempt: CollectionAttempt,
   // de Stripe y después el del aviso.
   let noticeAlreadyRecorded = false;
   let noticeFailure: { error: unknown } | null = null;
-  if (isLongProcessingAttempt(attempt, state.now)) {
-    try {
-      noticeAlreadyRecorded = !(await notifyReview(state, attempt, PROCESSING_UNREADABLE_REASON));
-    } catch (noticeError) {
-      noticeFailure = { error: noticeError };
-    }
+  try {
+    const reason = await unreadableNoticeReason(state, attempt);
+    if (reason !== null) noticeAlreadyRecorded = !(await notifyReview(state, attempt, reason));
+  } catch (noticeError) {
+    noticeFailure = { error: noticeError };
   }
   if (failure.permanent) {
     // Cobro inexistente, cuenta sin permiso o ya no válida: reintentar no lo
@@ -483,6 +522,60 @@ export async function reconcilePendingAttempts(state: RunState): Promise<void> {
         // Sigue en espera: no cambió nada que contar como puesto al día.
         return outcome === LATE_SUCCESS_PENDING_REASON ? null : outcome;
       });
+    }
+    if (batch.length < state.batchSize) break;
+  }
+
+  // 5. Devoluciones que no cabían en lo repartido (aviso refund_unallocated).
+  await rereadUnallocatedRefunds(state);
+}
+
+/**
+ * Paso 5 de la Fase A (Tarea M, punto 6). Sin `applyRecordedRefunds` (bandera
+ * de eventos apagada o Stripe simulado sin devoluciones) no hace nada.
+ * Cada intento relee en Stripe el cargo de su `pi_…` con todas sus
+ * devoluciones (applyRecordedAttemptRefunds): las que ahora caben se anotan;
+ * las que siguen sin caber no repiten aviso (uno por `re_…`). Un error se
+ * registra (solo ids, nombre y código) y se sigue con el resto.
+ */
+async function rereadUnallocatedRefunds(state: RunState): Promise<void> {
+  const apply = state.applyRecordedRefunds;
+  if (!apply) return;
+  const since = new Date(state.now.getTime() - REFUND_UNALLOCATED_REREAD_MS);
+  let cursor: string | null = null;
+  for (;;) {
+    if (isExpired(state)) {
+      state.result.complete = false;
+      return;
+    }
+    const batch = await state.store.listUnallocatedRefundAttempts({
+      after: cursor,
+      limit: state.batchSize,
+      scope: state.scope,
+      since,
+    });
+    for (const attempt of batch) {
+      if (isExpired(state)) {
+        state.result.complete = false;
+        return;
+      }
+      cursor = attempt.id;
+      try {
+        const refs = await state.store.loadAttemptRefs(attempt);
+        // Sin cuenta con la que leer: la academia ya tiene el aviso.
+        if (!refs) continue;
+        await apply(attempt, refs.connectedAccount);
+      } catch (error) {
+        const failure = stripeReadFailureOf(error);
+        logger.warn("Cobro automático: no se pudieron releer las devoluciones sin repartir de un cobro", {
+          organizationId: attempt.organizationId,
+          invoiceId: attempt.invoiceId,
+          attemptId: attempt.id,
+          errorName: failure.errorName,
+          errorCode: failure.errorCode,
+        });
+        countSkip(state, "refund_unallocated_unread");
+      }
     }
     if (batch.length < state.batchSize) break;
   }

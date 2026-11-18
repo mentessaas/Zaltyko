@@ -442,6 +442,10 @@ describe("motivos en palabras sencillas", () => {
     expect(reviewReasonText("late_success_pending")).toBe(
       "Stripe cobró tarde esta cuota; lo registraremos cuando el banco resuelva el otro cobro."
     );
+    // Tarea M: plazo de la familia pasado y Stripe no deja leer ni cancelar el cobro.
+    expect(reviewReasonText("requires_action_unreadable")).toBe(
+      "Pasó el plazo para que la familia confirmara el pago y no podemos ver su resultado. Compruébalo en Stripe."
+    );
     expect(failureReasonText({ failureCode: "late_success_elsewhere", declineCode: null, status: "canceled" })).toBe(
       "Se canceló porque un cobro anterior de esta cuota se completó."
     );
@@ -2147,6 +2151,47 @@ describe("disputas y devoluciones del banco en el panel de la academia (Fase 4, 
     expect(ownerDisputeText({ state: "open", amountCents: 4500, currency: "EUR", date: null })).toBe(
       "En disputa: responde desde tu panel de Stripe"
     );
+  });
+
+  it("Tarea M (punto 8): domiciliación devuelta y después ganada → recuerda anular la cuota nueva (nunca se anula sola)", () => {
+    const amount = formatMoney(4500, "EUR");
+    const base = `El banco reintegró el dinero que había devuelto (${amount}). Anula la cuota pendiente que se creó si ya no se debe`;
+    const cases: Array<[boolean | null | undefined, string]> = [
+      [true, `${base}: todavía no tiene ningún pago`],
+      [false, `${base}; ya tiene algún pago, revísalo antes`],
+      [null, base],
+      [undefined, base],
+    ];
+    for (const [returnedInvoiceUnpaid, text] of cases) {
+      const row = dispute({ status: "won", reversed: true, paymentMethodKind: "sepa_debit", returnedInvoiceUnpaid });
+      expect(ownerDisputeStateOf(row)).toBe("reinstated");
+      const item = ownerAutomaticCollectionItemOf(ownerRow({ attempt: attempt(), dispute: row }), NOW, "2026-11");
+      expect(item?.disputeText, String(returnedInvoiceUnpaid)).toBe(text);
+      // La academia lo revisa: sigue marcada para revisar.
+      expect(item?.needsReview).toBe(true);
+      expect(text).not.toMatch(/_|dispute|chargeback|webhook|intent/i);
+    }
+    // Tarjeta: el texto de siempre (D3: no hay cuota nueva).
+    expect(
+      ownerDisputeText({
+        state: "reinstated",
+        amountCents: 4500,
+        currency: "EUR",
+        date: null,
+        paymentMethodKind: "card",
+        returnedInvoiceUnpaid: true,
+      })
+    ).toBe(`Disputa ganada después de anotarla como perdida (${amount}); revísalo en tu panel de Stripe`);
+  });
+
+  it("Tarea M (punto 8): la consulta lee si la cuota nueva de la disputa tiene algún pago", async () => {
+    holder.execute.mockResolvedValueOnce({ rows: [{ timezone: TZ }] }).mockResolvedValueOnce({ rows: [] });
+
+    await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
+
+    const query = dialect.sqlToQuery(holder.execute.mock.calls[1][0] as SQL);
+    expect(query.sql).toContain("'returnedInvoiceUnpaid'");
+    expect(query.params).toEqual(expect.arrayContaining(["family-collection-return:"]));
   });
 
   it("sin disputa no hay marca; los textos no llevan jerga de Stripe", () => {

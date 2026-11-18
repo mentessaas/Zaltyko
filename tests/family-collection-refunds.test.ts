@@ -489,6 +489,20 @@ describe("manejadores de charge.refunded y refund.*", () => {
     expect(store.recordAttemptRefunds).not.toHaveBeenCalled();
   });
 
+  it("Tarea M (punto 7): más de 1000 devoluciones en un cargo → permanente: sin efecto y en el registro, nunca un 500 eterno", async () => {
+    const { gateway } = fakeGateway(charge([refund()]));
+    const { store } = fakeStore();
+    gateway.retrieveChargeRefunds.mockRejectedValueOnce(new Error(TOO_MANY_REFUNDS_FOR_CHARGE_ERROR));
+
+    expect(await processChargeRefundEvent(input(chargeRef), { store, gateway })).toEqual({ effectType: null, effectId: null });
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Cobro automático: Stripe no deja leer una devolución de un evento",
+      expect.objectContaining({ errorCode: TOO_MANY_REFUNDS_FOR_CHARGE_ERROR, objectId: chargeRef })
+    );
+    expect(store.recordAttemptRefunds).not.toHaveBeenCalled();
+    expect(store.recordRefundNotice).not.toHaveBeenCalled();
+  });
+
   it("un error inesperado del almacén sube (el evento queda failed y Stripe lo reenvía)", async () => {
     const { gateway } = fakeGateway(charge([refund()]));
     const { store } = fakeStore();

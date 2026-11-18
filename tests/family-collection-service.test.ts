@@ -47,6 +47,7 @@ vi.mock("@/modules/payments-connect/application/connect-onboarding-service", () 
 import { logger } from "@/lib/logger";
 import { createRunState, runFamilyCollection } from "@/modules/family-collection/application/family-collection-service";
 import { collectionDescription } from "@/modules/family-collection/application/family-collection-steps";
+import { RefundDoesNotFitError } from "@/modules/family-collection/domain/refund-split";
 import type {
   CollectionError,
   PaymentIntentSnapshot,
@@ -57,11 +58,16 @@ import type {
   AttemptStripeRefs,
   ClaimDecision,
   CollectionAttempt,
+  FamilyCollectionRefundStore,
   FamilyCollectionStore,
   InvoiceCollectionContext,
   LockedInvoiceSnapshot,
 } from "@/modules/family-collection/infrastructure/family-collection-store";
-import type { FamilyCollectionGateway } from "@/modules/family-collection/infrastructure/stripe-collection-gateway";
+import type {
+  ChargeRefundsSnapshot,
+  FamilyCollectionGateway,
+  FamilyCollectionRefundGateway,
+} from "@/modules/family-collection/infrastructure/stripe-collection-gateway";
 
 const organizationId = "20000000-0000-4000-8000-000000000001";
 const locationId = "20000000-0000-4000-8000-000000000002";
@@ -251,6 +257,8 @@ function makeWorld() {
     exhausted: [] as CollectionAttempt[],
     /** Fase 4: cobros tardíos en espera (aviso late_success_pending). */
     latePending: [] as CollectionAttempt[],
+    /** Tarea M: cobros con una devolución que no cabía (aviso refund_unallocated). */
+    unallocatedRefunds: [] as CollectionAttempt[],
     locked: undefined as Partial<LockedInvoiceSnapshot> | undefined,
     decisions: [] as ClaimDecision[],
     applied: [] as AttemptOutcome[],
@@ -364,6 +372,9 @@ function makeWorld() {
     ),
     listExhaustedWithoutNotice: vi.fn<FamilyCollectionStore["listExhaustedWithoutNotice"]>(async (input) =>
       input.after === null ? world.exhausted : []
+    ),
+    listUnallocatedRefundAttempts: vi.fn<FamilyCollectionStore["listUnallocatedRefundAttempts"]>(async (input) =>
+      input.after === null ? world.unallocatedRefunds : []
     ),
     loadAttemptRefs: vi.fn<FamilyCollectionStore["loadAttemptRefs"]>(async () => world.refs),
     // Fase 4 (eventos de Stripe): el proceso diario nunca los usa.
@@ -2579,6 +2590,96 @@ describe("Fase 4: el banco pide que la familia confirme el pago (requires_action
       expect(processing.world.applied).toEqual([{ kind: "processing", paymentIntentId: intentId }]);
     });
 
+    // Tarea M, puntos 4 y 5: error permanente de Stripe (la academia desconectó su cuenta).
+    const accountInvalid = () =>
+      Object.assign(new Error("mensaje de Stripe que nunca se registra"), {
+        type: "StripePermissionError",
+        rawType: "invalid_request_error",
+        code: "account_invalid",
+        statusCode: 403,
+      });
+
+    it("Stripe no deja leerlo (permanente) antes del plazo → sin aviso: la familia aún puede confirmar", async () => {
+      const { world, store, run } = awaiting(
+        {
+          retrievePayment: async () => {
+            throw accountInvalid();
+          },
+        },
+        deadline
+      );
+
+      const result = await run({ now: new Date("2026-11-19T21:00:00.000Z") });
+
+      expect(store.applyOutcome).not.toHaveBeenCalled();
+      expect(world.notices).toEqual([]);
+      expect(result.skipped).toEqual({ stripe_unreadable: 1 });
+    });
+
+    it("Stripe no deja leerlo pasado el plazo → aviso requires_action_unreadable y sigue abierto", async () => {
+      const { world, store, gateway, run } = awaiting(
+        {
+          retrievePayment: async () => {
+            throw accountInvalid();
+          },
+        },
+        deadline
+      );
+
+      const result = await run({ now: new Date("2026-11-20T09:00:00.000Z") });
+
+      expect(store.applyOutcome).not.toHaveBeenCalled();
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+      expect(world.notices).toEqual(["requires_action_unreadable"]);
+      expect(result).toMatchObject({ needsReview: 1, reconciled: 0 });
+      expect(result.skipped).toEqual({ stripe_unreadable: 1 });
+      expect(JSON.stringify(vi.mocked(logger.error).mock.calls)).not.toContain("mensaje de Stripe");
+    });
+
+    it("pasado el plazo, Stripe no deja cancelarlo (permanente) → aviso requires_action_unreadable, nunca transient", async () => {
+      vi.mocked(logger.warn).mockClear();
+      const { world, store, run } = awaiting(
+        {
+          retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_payment_method", "authentication_required"),
+          cancelPayment: async () => {
+            throw accountInvalid();
+          },
+        },
+        deadline
+      );
+
+      const result = await run({ now: new Date("2026-11-20T09:00:00.000Z") });
+
+      // El intento sigue abierto (su dinero pudo moverse): ningún cierre.
+      expect(store.applyOutcome).not.toHaveBeenCalled();
+      expect(world.calls).toEqual(["stripe:retrieve", "stripe:cancel", "notice:requires_action_unreadable"]);
+      expect(result).toMatchObject({ needsReview: 1, reconciled: 0 });
+      expect(result.skipped).toEqual({ stripe_unreadable: 1 });
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Cobro automático: Stripe no deja cancelar o releer un cobro (error permanente); se avisa a la academia",
+        { organizationId, invoiceId, attemptId, errorName: "StripePermissionError", errorCode: "account_invalid" }
+      );
+      expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain("mensaje de Stripe");
+    });
+
+    it("pasado el plazo, un error pasajero al cancelar sigue siendo transient y sin aviso", async () => {
+      const { world, store, run } = awaiting(
+        {
+          retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_payment_method", "authentication_required"),
+          cancelPayment: async () => {
+            throw networkError();
+          },
+        },
+        deadline
+      );
+
+      const result = await run({ now: new Date("2026-11-20T09:00:00.000Z") });
+
+      expect(store.applyOutcome).not.toHaveBeenCalled();
+      expect(world.notices).toEqual([]);
+      expect(result.skipped).toEqual({ transient: 1 });
+    });
+
     it("un intento que ya espera sigue hasta su plazo aunque se apague la recuperación (nunca sin cerrar)", async () => {
       env.events = false;
       const before = awaiting(
@@ -2729,5 +2830,142 @@ describe("Fase 4: cortacircuitos del proceso diario (D9)", () => {
     expect(second.circuitOpen).toBe(true);
     expect(store.claimOrCancel).toHaveBeenCalledTimes(3);
     expect(breakerLogs()).toHaveLength(2);
+  });
+});
+
+describe("Tarea M: devoluciones que no cabían en lo repartido (refund_unallocated) en la pasada diaria", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const refund = {
+    id: "re_SyntheticUnallocated1",
+    status: "succeeded",
+    amountCents: 2000,
+    currency: "EUR",
+    reasonCode: "requested_by_customer",
+    createdAt: new Date("2026-11-10T09:00:00.000Z"),
+  };
+  const collected = () => attempt({ status: "succeeded", paymentIntentId: intentId });
+
+  /** Proceso diario con devoluciones simuladas: `fits` dice si la devolución ya cabe en lo repartido. */
+  function withRefunds(options: { fits: boolean; readFails?: boolean }) {
+    const harness = setup();
+    harness.world.due = [];
+    harness.world.unallocatedRefunds = [collected()];
+    const recorded: string[] = [];
+    const refundGateway: FamilyCollectionRefundGateway = {
+      retrieveChargeRefunds: vi.fn<FamilyCollectionRefundGateway["retrieveChargeRefunds"]>(async () => {
+        throw new Error("No se usa");
+      }),
+      retrieveRefundCharge: vi.fn<FamilyCollectionRefundGateway["retrieveRefundCharge"]>(async () => null),
+      retrievePaymentIntentRefunds: vi.fn<FamilyCollectionRefundGateway["retrievePaymentIntentRefunds"]>(
+        async (request): Promise<ChargeRefundsSnapshot | null> => {
+          if (harness.world.inTransaction) throw new Error("Stripe dentro de una transacción");
+          if (options.readFails) throw networkError();
+          return { chargeId: "ch_SyntheticUnallocated", paymentIntentId: request.paymentIntentId, refunds: [refund] };
+        }
+      ),
+    };
+    const refundStore: FamilyCollectionRefundStore = {
+      isStorageAvailable: vi.fn<FamilyCollectionRefundStore["isStorageAvailable"]>(async () => true),
+      findAttemptByPaymentIntent: vi.fn<FamilyCollectionRefundStore["findAttemptByPaymentIntent"]>(async () => collected()),
+      isRefundRecorded: vi.fn<FamilyCollectionRefundStore["isRefundRecorded"]>(async () => false),
+      recordAttemptRefunds: vi.fn<FamilyCollectionRefundStore["recordAttemptRefunds"]>(async (request) => {
+        if (!options.fits) throw new RefundDoesNotFitError();
+        recorded.push(`${request.attemptId}:${request.refund.id}`);
+        return { outcome: "recorded", refundIds: ["47000000-0000-4000-8000-000000000099"], paymentStatus: "partially_refunded" };
+      }),
+      recordRefundNotice: vi.fn<FamilyCollectionRefundStore["recordRefundNotice"]>(async () => false),
+    };
+    const runWithRefunds = () =>
+      runFamilyCollection(
+        { now },
+        {
+          store: harness.store,
+          gateway: harness.gateway,
+          refreshAccount: harness.refreshAccount,
+          refundStore,
+          refundGateway,
+        }
+      );
+    return { ...harness, refundGateway, refundStore, recorded, runWithRefunds };
+  }
+
+  it("la academia repartió el pago: se relee en Stripe y se anota por recordAttemptRefunds (sin evento propio)", async () => {
+    const { store, refundGateway, refundStore, recorded, runWithRefunds } = withRefunds({ fits: true });
+
+    await runWithRefunds();
+
+    expect(store.listUnallocatedRefundAttempts).toHaveBeenCalledWith({
+      after: null,
+      limit: 100,
+      scope: null,
+      since: new Date(now.getTime() - 30 * DAY),
+    });
+    expect(refundGateway.retrievePaymentIntentRefunds).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: intentId });
+    expect(refundStore.recordAttemptRefunds).toHaveBeenCalledWith(
+      expect.objectContaining({ attemptId, paymentIntentId: intentId, providerEventId: null, environment: "test" })
+    );
+    expect(recorded).toEqual([`${attemptId}:${refund.id}`]);
+  });
+
+  it("sigue sin caber: ninguna fila y sin repetir el aviso (uno por re_)", async () => {
+    const { refundStore, recorded, runWithRefunds } = withRefunds({ fits: false });
+
+    const result = await runWithRefunds();
+
+    expect(recorded).toEqual([]);
+    expect(refundStore.recordRefundNotice).toHaveBeenCalledTimes(1);
+    expect(result.needsReview).toBe(0);
+  });
+
+  it("ya no queda ninguna sin anotar: el almacén no lo devuelve y no se lee Stripe", async () => {
+    const { world, refundGateway, runWithRefunds } = withRefunds({ fits: true });
+    world.unallocatedRefunds = [];
+
+    await runWithRefunds();
+
+    expect(refundGateway.retrievePaymentIntentRefunds).not.toHaveBeenCalled();
+  });
+
+  it("Stripe no deja leerlo: se registra solo con ids y se sigue (ninguna fila)", async () => {
+    vi.mocked(logger.warn).mockClear();
+    const { refundStore, runWithRefunds } = withRefunds({ fits: true, readFails: true });
+
+    const result = await runWithRefunds();
+
+    expect(refundStore.recordAttemptRefunds).not.toHaveBeenCalled();
+    expect(result.skipped).toMatchObject({ refund_unallocated_unread: 1 });
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Cobro automático: no se pudieron releer las devoluciones sin repartir de un cobro",
+      { organizationId, invoiceId, attemptId, errorName: "StripeConnectionError", errorCode: null }
+    );
+  });
+
+  it("punto 9: con la bandera de eventos apagada no se releen devoluciones (ni las tardías ni estas)", async () => {
+    env.events = false;
+    const { store, refundGateway, runWithRefunds } = withRefunds({ fits: true });
+
+    await runWithRefunds();
+
+    expect(store.listUnallocatedRefundAttempts).not.toHaveBeenCalled();
+    expect(refundGateway.retrievePaymentIntentRefunds).not.toHaveBeenCalled();
+  });
+
+  it("punto 9: createRunState sin la bandera de eventos deja applyRecordedRefunds a null", async () => {
+    const { store, gateway, refreshAccount } = setup();
+    const refundDeps = withRefunds({ fits: true });
+    env.events = false;
+    const off = await createRunState(
+      { now },
+      { store, gateway, refreshAccount, refundStore: refundDeps.refundStore, refundGateway: refundDeps.refundGateway },
+      "daily"
+    );
+    expect(off?.applyRecordedRefunds).toBeNull();
+    env.events = true;
+    const on = await createRunState(
+      { now },
+      { store, gateway, refreshAccount, refundStore: refundDeps.refundStore, refundGateway: refundDeps.refundGateway },
+      "daily"
+    );
+    expect(typeof on?.applyRecordedRefunds).toBe("function");
   });
 });

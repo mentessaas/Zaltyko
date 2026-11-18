@@ -573,7 +573,7 @@ export async function cancelThenClose(
   attempt: CollectionAttempt,
   refs: AttemptStripeRefs,
   close: AttemptClose,
-  options: { stripeErrors?: "skip" | "throw" } = {}
+  options: { stripeErrors?: "skip" | "throw"; permanentErrorNotice?: string } = {}
 ): Promise<FamilyCollectionAttemptStatus | null> {
   const paymentIntentId = attempt.paymentIntentId;
   if (!paymentIntentId) throw new Error("FAMILY_COLLECTION_INTENT_REQUIRED");
@@ -581,9 +581,25 @@ export async function cancelThenClose(
   // se arregla). Uno permanente (cobro inexistente, permiso perdido) saldría
   // igual en cada reenvío: se cuenta y el intento se queda abierto, como en
   // `"skip"`, para que quien llama decida (el cobro tardío queda en espera).
-  const stripeFailed = (error: unknown): null => {
+  // Con `permanentErrorNotice` (modo `"skip"`), un error permanente no se
+  // cuenta como pasajero: el intento sigue abierto (su dinero pudo moverse)
+  // y la academia recibe ese aviso, que le abre «Marcar como revisado».
+  const stripeFailed = async (error: unknown): Promise<null> => {
     const failure = stripeReadFailureOf(error);
     if (options.stripeErrors !== "throw") {
+      if (failure.permanent && options.permanentErrorNotice) {
+        // Solo ids, nombre y código del error: nunca su mensaje.
+        logger.warn("Cobro automático: Stripe no deja cancelar o releer un cobro (error permanente); se avisa a la academia", {
+          organizationId: attempt.organizationId,
+          invoiceId: attempt.invoiceId,
+          attemptId: attempt.id,
+          errorName: failure.errorName,
+          errorCode: failure.errorCode,
+        });
+        countSkip(state, "stripe_unreadable");
+        await notifyReview(state, attempt, options.permanentErrorNotice);
+        return null;
+      }
       countSkip(state, "transient");
       return null;
     }
@@ -801,6 +817,14 @@ function authenticationDeadlineFor(state: RunState, attempt: CollectionAttempt, 
   }
 }
 
+/**
+ * Aviso a la academia (Tarea M, puntos 4 y 5): un intento `requires_action`
+ * cuyo plazo para confirmar el pago ya pasó y que Stripe no deja leer ni
+ * cancelar. Abre «Marcar como revisado», que vuelve a leer Stripe y solo con
+ * un error permanente comprobado lo cierra como `reviewed_unverifiable`.
+ */
+export const REQUIRES_ACTION_UNREADABLE_REASON = "requires_action_unreadable";
+
 /** Motivo contado cuando un intento `requires_action` sigue esperando a la familia. */
 export const AWAITING_AUTHENTICATION_SKIP = "awaiting_authentication";
 
@@ -854,11 +878,16 @@ async function settleAwaitingAuthentication(
     countSkip(state, "transient");
     return null;
   }
-  return cancelThenClose(state, attempt, refs, {
-    kind: "failed",
-    code: AUTHENTICATION_EXPIRED_CODE,
-    declineCode: null,
-  });
+  // Tarea M, punto 5: si Stripe no deja cancelarlo de forma permanente
+  // (cuenta desconectada), el intento sigue abierto y la academia recibe el
+  // aviso; si no, se quedaría `requires_action` para siempre sin que lo sepa.
+  return cancelThenClose(
+    state,
+    attempt,
+    refs,
+    { kind: "failed", code: AUTHENTICATION_EXPIRED_CODE, declineCode: null },
+    { permanentErrorNotice: REQUIRES_ACTION_UNREADABLE_REASON }
+  );
 }
 
 /**

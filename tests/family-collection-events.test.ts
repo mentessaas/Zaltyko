@@ -262,6 +262,9 @@ function makeWorld() {
     releaseResume: vi.fn<FamilyCollectionStore["releaseResume"]>(unused("releaseResume")),
     listProcessing: vi.fn<FamilyCollectionStore["listProcessing"]>(unused("listProcessing")),
     listLateSuccessPending: vi.fn<FamilyCollectionStore["listLateSuccessPending"]>(unused("listLateSuccessPending")),
+    listUnallocatedRefundAttempts: vi.fn<FamilyCollectionStore["listUnallocatedRefundAttempts"]>(
+      unused("listUnallocatedRefundAttempts")
+    ),
     listExhaustedWithoutNotice: vi.fn<FamilyCollectionStore["listExhaustedWithoutNotice"]>(
       unused("listExhaustedWithoutNotice")
     ),
