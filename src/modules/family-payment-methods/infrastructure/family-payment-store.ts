@@ -298,6 +298,41 @@ export async function findSetupAttemptForPayer(
   return toStoredAttempt(result.rows[0] as Record<string, unknown> | undefined);
 }
 
+/**
+ * Fase 4 (Tarea 8): intento por su preparación (seti_) dentro de la academia
+ * y la cuenta conectada, sea de quien sea (el aviso de Stripe no trae
+ * sesión). Hay uno como mucho: family_payment_setup_attempts_setup_uq.
+ */
+export async function findSetupAttemptByReference(
+  executor: Executor,
+  input: { organizationId: string; accountRowId: string; setupReference: string }
+): Promise<StoredSetupAttempt | null> {
+  const result = await executor.execute(sql`
+    select ${attemptColumns}
+      from zaltyko.family_payment_setup_attempts
+     where organization_id = ${input.organizationId}::uuid
+       and payment_provider_account_id = ${input.accountRowId}::uuid
+       and provider_setup_reference = ${input.setupReference}
+     limit 1
+  `);
+  return toStoredAttempt(result.rows[0] as Record<string, unknown> | undefined);
+}
+
+/**
+ * Fase 4 (Tarea 8): bloquea la academia hasta el final de la transacción,
+ * como primer cerrojo (el mismo `for update` que lockOrganizationForSaasMutation
+ * y el cobro automático). Así activar o revocar una autorización sigue el
+ * orden único academia → … y nunca se cruza con el cobro, que bloquea la
+ * academia, las cuotas y la factura antes de leer la autorización
+ * `for share`. Devuelve si la academia existe.
+ */
+export async function lockOrganizationForPaymentMethods(executor: Executor, organizationId: string): Promise<boolean> {
+  const result = await executor.execute(sql`
+    select id::text as "id" from zaltyko.organizations where id = ${organizationId}::uuid for update
+  `);
+  return result.rows.length > 0;
+}
+
 /** Bloquea el intento hasta el final de la transacción y lo devuelve. */
 export async function lockSetupAttempt(
   tx: Executor,
@@ -397,6 +432,49 @@ export async function lockActiveAuthorizationById(
        and id = ${input.authorizationId}::uuid
        and status = 'active'::zaltyko.payment_authorization_status
      for update
+  `);
+  return toStoredAuthorization(result.rows[0] as Record<string, unknown> | undefined);
+}
+
+/**
+ * Fase 4 (Tarea 8): autorización activa de la academia y la cuenta conectada
+ * con ese método (pm_), sin bloquear. Por orden de id: la de antes si hubiera
+ * más de una (no debería: el pm_ es de un solo cliente).
+ */
+export async function findActiveAuthorizationByPaymentMethod(
+  executor: Executor,
+  input: { organizationId: string; accountRowId: string; paymentMethodReference: string }
+): Promise<StoredAuthorization | null> {
+  const result = await executor.execute(sql`
+    select ${authorizationColumns}
+      from zaltyko.family_payment_authorizations
+     where organization_id = ${input.organizationId}::uuid
+       and payment_provider_account_id = ${input.accountRowId}::uuid
+       and payment_method_reference = ${input.paymentMethodReference}
+       and status = 'active'::zaltyko.payment_authorization_status
+     order by id
+     limit 1
+  `);
+  return toStoredAuthorization(result.rows[0] as Record<string, unknown> | undefined);
+}
+
+/**
+ * Fase 4 (Tarea 8): autorización activa de la academia y la cuenta conectada
+ * con esa orden de domiciliación (mandate_), sin bloquear.
+ */
+export async function findActiveAuthorizationByMandate(
+  executor: Executor,
+  input: { organizationId: string; accountRowId: string; mandateReference: string }
+): Promise<StoredAuthorization | null> {
+  const result = await executor.execute(sql`
+    select ${authorizationColumns}
+      from zaltyko.family_payment_authorizations
+     where organization_id = ${input.organizationId}::uuid
+       and payment_provider_account_id = ${input.accountRowId}::uuid
+       and mandate_reference = ${input.mandateReference}
+       and status = 'active'::zaltyko.payment_authorization_status
+     order by id
+     limit 1
   `);
   return toStoredAuthorization(result.rows[0] as Record<string, unknown> | undefined);
 }

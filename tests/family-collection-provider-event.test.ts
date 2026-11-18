@@ -391,7 +391,7 @@ describe("handleFamilyCollectionEvent", () => {
     });
   });
 
-  it("cada ruta llega a su manejador; sin manejador propio, el vacío (sin efecto)", async () => {
+  it("cada ruta llega a su manejador", async () => {
     const handlers = {
       paymentIntent: vi.fn().mockResolvedValue({ effectType: null, effectId: null }),
       charge: vi.fn().mockResolvedValue({ effectType: null, effectId: null }),
@@ -415,19 +415,9 @@ describe("handleFamilyCollectionEvent", () => {
       expect(handlers[key], key).toHaveBeenCalledTimes(1);
       expect(handlers[key]).toHaveBeenCalledWith(expect.objectContaining({ objectId: overrides.objectId ?? "pi_3SyntheticIntent0001" }));
     }
-
-    // Sin manejador propio, el vacío. (Los cobros ya tienen el suyo por
-    // defecto desde la Tarea 3: lo prueban tests/family-collection-events*.)
-    vi.mocked(finishProviderEvent).mockClear();
-    expect(
-      await handleFamilyCollectionEvent(
-        connectedEvent({ type: "mandate.updated", objectType: "mandate", objectId: "mandate_1A" }),
-        { now: NOW }
-      )
-    ).toBe("processed");
-    expect(finishProviderEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "processed", effectType: null, effectId: null })
-    );
+    // Ya no queda ningún manejador vacío: los de cobros, devoluciones y
+    // disputas los prueban tests/family-collection-*; los del método de pago
+    // (Tarea 8), tests/family-payment-methods-provider-events.test.ts.
   });
 
   it("manejador que lanza → fila failed con solo el código y el error sigue hacia la ruta", async () => {

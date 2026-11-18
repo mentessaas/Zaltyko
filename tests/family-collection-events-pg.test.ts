@@ -10,8 +10,12 @@ import { db } from "@/db";
 import { recordProviderRefund } from "@/modules/billing/application/ledger-service";
 import {
   ATTEMPT_EFFECT_TYPE,
+  AUTHORIZATION_EFFECT_TYPE,
   handleFamilyCollectionEvent,
+  processMandateEvent,
   processPaymentIntentEvent,
+  processPaymentMethodEvent,
+  processSetupIntentEvent,
   type ProviderEventHandlerInput,
 } from "@/modules/family-collection/application/family-collection-events";
 import {
@@ -66,6 +70,10 @@ import type {
   FamilyCollectionRefundGateway,
 } from "@/modules/family-collection/infrastructure/stripe-collection-gateway";
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
+import type {
+  FamilyPaymentGateway,
+  FamilyPaymentMethodReads,
+} from "@/modules/family-payment-methods/infrastructure/stripe-family-gateway";
 import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
 import { findConnectAccountByReference } from "@/modules/payments-connect/infrastructure/connect-account-store";
 
@@ -2932,6 +2940,455 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
           }),
         ]);
         expect(await inboxRow(event.eventId)).toMatchObject({ status: "processed", effectType: DISPUTE_EFFECT_TYPE });
+      }, 60_000);
+    });
+  });
+
+  describe("cambios del método de pago en Stripe (Tarea 8)", () => {
+    const EVENT_NOW = new Date("2026-11-20T10:00:00.000Z");
+    const EVENT_CREATED = 1_795_168_795;
+    const SHA = "c".repeat(64);
+    /**
+     * Academias de este bloque, aparte de las de la suite: la revocación y la
+     * activación dejan auditoría (solo de añadir), así que las academias se
+     * quedan y el resto se borra al terminar el bloque, antes de deshacer la
+     * candidata.
+     */
+    const registry = { organizations: [] as string[], users: [] as string[] };
+
+    beforeEach(() => {
+      vi.stubEnv("ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED", "true");
+      vi.stubEnv("ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED", "false");
+      vi.stubEnv("ZALTYKO_FAMILY_PAYMENT_METHODS_ENABLED", "true");
+      vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_ci_synthetic");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    afterAll(async () => {
+      if (!disposablePgEnabled || registry.organizations.length === 0) return;
+      const organizations = registry.organizations.join(",");
+      for (const table of [
+        "family_collection_attempt_charges",
+        "family_collection_attempts",
+        "payment_provider_events",
+        "payments",
+        "charges",
+        "invoice_lines",
+        "invoices",
+        "family_payment_setup_attempts",
+        "family_payment_authorizations",
+        "organization_payment_provider_accounts",
+        "family_payers",
+        "family_guardians",
+        "guardians",
+        "people",
+        "families",
+        "organization_members",
+      ]) {
+        if (!(await tableExists(table))) continue;
+        await db.execute(sql`
+          delete from ${sql.identifier("zaltyko")}.${sql.identifier(table)}
+           where organization_id = any(string_to_array(${organizations}, ',')::uuid[])
+        `);
+      }
+      for (const userId of registry.users) {
+        await db.execute(sql`delete from auth.users where id = ${userId}::uuid`);
+      }
+    });
+
+    const shortOf = (invoice: Invoice) => invoice.organizationId.slice(0, 8);
+    const accountOf = (invoice: Invoice) => `acct_CI${shortOf(invoice)}`;
+    /** El pm_ y la orden de la autorización de createCollectableInvoice. */
+    const methodOf = (invoice: Invoice) => `pm_CI${shortOf(invoice)}`;
+    const mandateOf = (invoice: Invoice) => `mandate_CI${shortOf(invoice)}`;
+
+    /** La autorización de la factura, activa con su evidencia (y su orden si es domiciliación). */
+    async function activateAuthorization(invoice: Invoice, kind: "card" | "sepa_debit") {
+      await db.execute(sql`
+        update zaltyko.family_payment_authorizations a
+           set status = 'active'::zaltyko.payment_authorization_status,
+               payment_method_kind = ${kind},
+               mandate_reference = ${kind === "sepa_debit" ? mandateOf(invoice) : null},
+               consent_version = 'borrador-2026-11-16',
+               consent_evidence_reference = ${`attempt:${shortOf(invoice)}`},
+               consent_evidence_sha256 = ${SHA},
+               consented_at = ${CLAIMED_AT}::timestamptz,
+               consented_by_guardian_id = fp.guardian_id
+          from zaltyko.family_payers fp
+         where a.organization_id = ${invoice.organizationId}::uuid
+           and a.id = ${invoice.authorizationId}::uuid
+           and fp.organization_id = a.organization_id
+           and fp.id = a.family_payer_id
+      `);
+    }
+
+    /** Intento de cobro ya creado en Stripe (su dinero puede moverse): un evento del método no lo toca. */
+    async function insertCreatedAttempt(invoice: Invoice, paymentIntentId: string) {
+      const result = await db.execute(sql`
+        insert into zaltyko.family_collection_attempts (
+          organization_id, location_id, invoice_id, family_id, family_payer_id, authorization_id,
+          payment_provider_account_id, attempt_number, payment_method_kind, amount_cents, currency, status,
+          provider_payment_intent_reference, claimed_at
+        ) values (
+          ${invoice.organizationId}::uuid, ${invoice.locationId}::uuid, ${invoice.invoiceId}::uuid, ${invoice.familyId}::uuid,
+          ${invoice.payerId}::uuid, ${invoice.authorizationId}::uuid, ${invoice.accountId}::uuid, 1, 'card',
+          4500, 'EUR', 'created', ${paymentIntentId}, ${CLAIMED_AT}::timestamptz
+        )
+        returning id::text as id
+      `);
+      return (result.rows[0] as { id: string }).id;
+    }
+
+    function methodEvent(
+      invoice: Invoice,
+      name: string,
+      type: "payment_method.detached" | "mandate.updated" | "setup_intent.succeeded",
+      objectId: string
+    ): ConnectedAccountEvent {
+      const objectType = type === "payment_method.detached" ? "payment_method" : type === "mandate.updated" ? "mandate" : "setup_intent";
+      return {
+        eventId: `evt_CI${invoice.organizationId.replace(/-/g, "").slice(0, 16)}${name}`,
+        type,
+        accountId: accountOf(invoice),
+        livemode: false,
+        created: EVENT_CREATED,
+        objectId,
+        objectType,
+      };
+    }
+
+    /** Stripe simulado de la cuenta: el cliente de cada pm_ y el estado de cada orden (se pueden cambiar). */
+    function fakeMethodStripe(
+      invoice: Invoice,
+      state: { customers?: Record<string, string | null>; mandates?: Record<string, string> }
+    ) {
+      const connectedAccount = accountOf(invoice);
+      return {
+        retrievePaymentMethod: vi.fn<FamilyPaymentMethodReads["retrievePaymentMethod"]>(async (request) => {
+          if (request.connectedAccount !== connectedAccount) throw new Error("CI: otra cuenta");
+          const customers = state.customers ?? {};
+          if (!(request.paymentMethodId in customers)) return null;
+          return { id: request.paymentMethodId, customer: customers[request.paymentMethodId] ?? null };
+        }),
+        retrieveMandate: vi.fn<FamilyPaymentMethodReads["retrieveMandate"]>(async (request) => {
+          if (request.connectedAccount !== connectedAccount) throw new Error("CI: otra cuenta");
+          const status = (state.mandates ?? {})[request.mandateId];
+          return status ? { id: request.mandateId, status } : null;
+        }),
+      } satisfies FamilyPaymentMethodReads;
+    }
+
+    /** Una entrega por la ruta de verdad (buzón incluido), con Stripe simulado. */
+    function deliverMethodEvent(
+      event: ConnectedAccountEvent,
+      gateways: { reads?: FamilyPaymentMethodReads; setup?: FamilyPaymentGateway }
+    ) {
+      return handleFamilyCollectionEvent(event, {
+        now: EVENT_NOW,
+        handlers: {
+          paymentMethod: (input) => processPaymentMethodEvent(input, { gateway: gateways.reads }),
+          mandate: (input) => processMandateEvent(input, { gateway: gateways.reads }),
+          setupIntent: (input) => processSetupIntentEvent(input, { gateway: gateways.setup }),
+        },
+      });
+    }
+
+    async function authorizationRows(invoice: Invoice) {
+      const result = await db.execute(sql`
+        select id::text as "id", status::text as "status", revoked_at is not null as "hasRevokedAt",
+               payment_method_reference as "paymentMethod", provider_setup_reference as "setupReference",
+               consent_evidence_reference as "evidenceReference"
+          from zaltyko.family_payment_authorizations
+         where organization_id = ${invoice.organizationId}::uuid
+         order by created_at, id
+      `);
+      return result.rows as Array<Record<string, unknown>>;
+    }
+
+    async function auditRows(invoice: Invoice, action: string) {
+      const result = await db.execute(sql`
+        select target_id::text as "targetId", actor_user_id::text as "actorUserId",
+               metadata->>'actor' as "actor", metadata->>'reason' as "reason", metadata->>'job_key' as "jobKey"
+          from zaltyko.audit_log
+         where organization_id = ${invoice.organizationId}::uuid and action = ${action}
+         order by created_at, id
+      `);
+      return result.rows as Array<Record<string, unknown>>;
+    }
+
+    async function inboxEffect(eventId: string) {
+      const result = await db.execute(sql`
+        select status::text as "status", effect_type as "effectType", effect_id::text as "effectId"
+          from zaltyko.payment_provider_events
+         where provider_event_id = ${eventId}
+      `);
+      return result.rows[0] as Record<string, unknown> | undefined;
+    }
+
+    /** Lo que ve el proceso diario al ir a cobrar la factura (solo autorizaciones activas). */
+    async function collectableAuthorization(invoice: Invoice) {
+      const context = await createFamilyCollectionStore().loadInvoiceContext({
+        organizationId: invoice.organizationId,
+        invoiceId: invoice.invoiceId,
+        environment: "test",
+        now: EVENT_NOW,
+      });
+      return context?.authorization?.id ?? null;
+    }
+
+    it("payment_method.detached de un pm_ activo → revoked; el siguiente cobro no sale y el intento en curso sigue igual", async () => {
+      const invoice = await createCollectableInvoice({ registry, collectionMode: "automatic" });
+      await activateAuthorization(invoice, "card");
+      const inFlight = `pi_CI${invoice.invoiceId.replace(/-/g, "").slice(0, 16)}flight`;
+      const attemptId = await insertCreatedAttempt(invoice, inFlight);
+      expect(await collectableAuthorization(invoice)).toBe(invoice.authorizationId);
+
+      const reads = fakeMethodStripe(invoice, { customers: { [methodOf(invoice)]: null } });
+      const event = methodEvent(invoice, "detached", "payment_method.detached", methodOf(invoice));
+      expect(await deliverMethodEvent(event, { reads })).toBe("processed");
+
+      expect(reads.retrievePaymentMethod).toHaveBeenCalledWith({
+        connectedAccount: accountOf(invoice),
+        paymentMethodId: methodOf(invoice),
+      });
+      expect(await authorizationRows(invoice)).toEqual([
+        expect.objectContaining({ id: invoice.authorizationId, status: "revoked", hasRevokedAt: true }),
+      ]);
+      expect(await auditRows(invoice, "family_payment_methods.authorization_revoked")).toEqual([
+        {
+          targetId: invoice.authorizationId,
+          actorUserId: null,
+          actor: "system",
+          reason: "detached_in_stripe",
+          jobKey: "zaltyko-family-collection",
+        },
+      ]);
+      expect(await inboxEffect(event.eventId)).toEqual({
+        status: "processed",
+        effectType: AUTHORIZATION_EFFECT_TYPE,
+        effectId: invoice.authorizationId,
+      });
+      // El siguiente cobro no sale: el proceso diario ya no ve autorización activa.
+      expect(await collectableAuthorization(invoice)).toBeNull();
+      // El intento en curso no se toca: su dinero pudo moverse y lo cierra lo que diga Stripe.
+      const attempt = await db.execute(sql`
+        select status, provider_payment_intent_reference as "intent", failure_code as "failureCode"
+          from zaltyko.family_collection_attempts where id = ${attemptId}::uuid
+      `);
+      expect(attempt.rows).toEqual([{ status: "created", intent: inFlight, failureCode: null }]);
+
+      // El mismo evento → duplicate; otro aviso del mismo pm_ → processed sin efecto ni otra auditoría.
+      expect(await deliverMethodEvent(event, { reads })).toBe("duplicate");
+      const again = methodEvent(invoice, "again", "payment_method.detached", methodOf(invoice));
+      expect(await deliverMethodEvent(again, { reads })).toBe("processed");
+      expect(await inboxEffect(again.eventId)).toEqual({ status: "processed", effectType: null, effectId: null });
+      expect(await auditRows(invoice, "family_payment_methods.authorization_revoked")).toHaveLength(1);
+      expect(reads.retrievePaymentMethod).toHaveBeenCalledTimes(1);
+    }, 60_000);
+
+    it("payment_method.detached de un pm_ que Stripe aún tiene ligado → none", async () => {
+      const invoice = await createCollectableInvoice({ registry, collectionMode: "automatic" });
+      await activateAuthorization(invoice, "card");
+      const reads = fakeMethodStripe(invoice, { customers: { [methodOf(invoice)]: `cus_CI${shortOf(invoice)}` } });
+      const event = methodEvent(invoice, "attached", "payment_method.detached", methodOf(invoice));
+
+      expect(await deliverMethodEvent(event, { reads })).toBe("processed");
+      expect(await inboxEffect(event.eventId)).toEqual({ status: "processed", effectType: null, effectId: null });
+      expect(await authorizationRows(invoice)).toEqual([
+        expect.objectContaining({ id: invoice.authorizationId, status: "active", hasRevokedAt: false }),
+      ]);
+      expect(await auditRows(invoice, "family_payment_methods.authorization_revoked")).toEqual([]);
+      expect(await collectableAuthorization(invoice)).toBe(invoice.authorizationId);
+    }, 60_000);
+
+    it("mandate.updated inactive → domiciliación revocada; active → none", async () => {
+      const invoice = await createCollectableInvoice({ registry, collectionMode: "automatic" });
+      await activateAuthorization(invoice, "sepa_debit");
+      const state = { mandates: { [mandateOf(invoice)]: "active" } };
+      const reads = fakeMethodStripe(invoice, state);
+
+      const stillActive = methodEvent(invoice, "active", "mandate.updated", mandateOf(invoice));
+      expect(await deliverMethodEvent(stillActive, { reads })).toBe("processed");
+      expect(await inboxEffect(stillActive.eventId)).toEqual({ status: "processed", effectType: null, effectId: null });
+      expect(await authorizationRows(invoice)).toEqual([expect.objectContaining({ status: "active" })]);
+
+      state.mandates[mandateOf(invoice)] = "inactive";
+      const inactive = methodEvent(invoice, "inactive", "mandate.updated", mandateOf(invoice));
+      expect(await deliverMethodEvent(inactive, { reads })).toBe("processed");
+      expect(await inboxEffect(inactive.eventId)).toEqual({
+        status: "processed",
+        effectType: AUTHORIZATION_EFFECT_TYPE,
+        effectId: invoice.authorizationId,
+      });
+      expect(await authorizationRows(invoice)).toEqual([
+        expect.objectContaining({ status: "revoked", hasRevokedAt: true }),
+      ]);
+      expect(await auditRows(invoice, "family_payment_methods.authorization_revoked")).toEqual([
+        expect.objectContaining({ actorUserId: null, actor: "system", reason: "mandate_inactive" }),
+      ]);
+      expect(await collectableAuthorization(invoice)).toBeNull();
+      expect(reads.retrievePaymentMethod).not.toHaveBeenCalled();
+    }, 60_000);
+
+    describe("preparación terminada con el navegador cerrado (decisión 12 del ADR)", () => {
+      /** Plan de pago en vigor antes de EVENT_NOW (sin reloj: la fecha es fija). */
+      async function payingAcademy(invoice: Invoice) {
+        await db.execute(sql`
+          update zaltyko.organization_entitlements
+             set plan_code = 'network', source = 'contract', source_reference = ${`contract:${invoice.organizationId}`},
+                 effective_from = '2026-01-01T00:00:00.000Z'::timestamptz
+           where organization_id = ${invoice.organizationId}::uuid
+        `);
+      }
+
+      /** Intento de preparación abierto (o completado con su autorización) de la persona pagadora. */
+      async function insertSetupAttempt(
+        invoice: Invoice,
+        setupReference: string,
+        completed: { authorizationId: string } | null = null
+      ) {
+        const result = await db.execute(sql`
+          insert into zaltyko.family_payment_setup_attempts (
+            organization_id, family_id, family_payer_id, guardian_id, payment_provider_account_id,
+            payment_method_kind, provider_customer_reference, provider_setup_reference,
+            consent_version, consent_text_sha256, consented_at, status, authorization_id
+          )
+          select ${invoice.organizationId}::uuid, ${invoice.familyId}::uuid, fp.id, fp.guardian_id, ${invoice.accountId}::uuid,
+                 'card', ${`cus_CI${shortOf(invoice)}`}, ${setupReference},
+                 'borrador-2026-11-16', ${SHA}, ${CLAIMED_AT}::timestamptz,
+                 ${completed ? "completed" : "open"}, ${completed?.authorizationId ?? null}::uuid
+            from zaltyko.family_payers fp
+           where fp.organization_id = ${invoice.organizationId}::uuid and fp.id = ${invoice.payerId}::uuid
+          returning id::text as id
+        `);
+        return (result.rows[0] as { id: string }).id;
+      }
+
+      /** Stripe simulado: la preparación terminada con su pm_ nuevo. */
+      function fakeSetupStripe(invoice: Invoice, setupReference: string, attemptId: string) {
+        return {
+          createCustomer: vi.fn<FamilyPaymentGateway["createCustomer"]>(async () => {
+            throw new Error("Un aviso nunca crea un cliente");
+          }),
+          createSetupIntent: vi.fn<FamilyPaymentGateway["createSetupIntent"]>(async () => {
+            throw new Error("Un aviso nunca crea una preparación");
+          }),
+          retrieveSetupIntent: vi.fn<FamilyPaymentGateway["retrieveSetupIntent"]>(async (request) => {
+            if (request.connectedAccount !== accountOf(invoice) || request.setupIntentId !== setupReference) {
+              throw Object.assign(new Error("CI: preparación inexistente"), {
+                type: "StripeInvalidRequestError",
+                code: "resource_missing",
+              });
+            }
+            return {
+              id: setupReference,
+              status: "succeeded",
+              customer: `cus_CI${shortOf(invoice)}`,
+              paymentMethod: `pm_CInew${shortOf(invoice)}`,
+              paymentMethodType: "card",
+              mandate: null,
+              metadataAttemptId: attemptId,
+              hasLastSetupError: false,
+            };
+          }),
+          detachPaymentMethod: vi.fn<FamilyPaymentGateway["detachPaymentMethod"]>(async () => undefined),
+        } satisfies FamilyPaymentGateway;
+      }
+
+      it("setup_intent.succeeded con el navegador cerrado → autorización activa una sola vez", async () => {
+        const invoice = await createCollectableInvoice({ registry, collectionMode: "automatic" });
+        await payingAcademy(invoice);
+        const setupReference = `seti_CInew${shortOf(invoice)}`;
+        const attemptId = await insertSetupAttempt(invoice, setupReference);
+        const setup = fakeSetupStripe(invoice, setupReference, attemptId);
+        // Antes: la autorización de la factura está pendiente; nada que cobrar.
+        expect(await collectableAuthorization(invoice)).toBeNull();
+
+        const event = methodEvent(invoice, "setup", "setup_intent.succeeded", setupReference);
+        expect(await deliverMethodEvent(event, { setup })).toBe("processed");
+
+        const rows = await authorizationRows(invoice);
+        const activated = rows.find((row) => row.setupReference === setupReference);
+        expect(activated).toMatchObject({
+          status: "active",
+          paymentMethod: `pm_CInew${shortOf(invoice)}`,
+          evidenceReference: `family_payment_setup_attempts:${attemptId}`,
+        });
+        expect(rows.filter((row) => row.status === "active")).toHaveLength(1);
+        const completed = await db.execute(sql`
+          select status, authorization_id::text as "authorizationId"
+            from zaltyko.family_payment_setup_attempts where id = ${attemptId}::uuid
+        `);
+        expect(completed.rows).toEqual([{ status: "completed", authorizationId: activated?.id }]);
+        expect(await inboxEffect(event.eventId)).toEqual({
+          status: "processed",
+          effectType: AUTHORIZATION_EFFECT_TYPE,
+          effectId: activated?.id,
+        });
+        expect(await auditRows(invoice, "family_payment_methods.authorization_activated")).toEqual([
+          { targetId: activated?.id, actorUserId: null, actor: "system", reason: null, jobKey: "zaltyko-family-collection" },
+        ]);
+        // El proceso diario ya puede cobrar con ella (y con su cliente).
+        expect(await collectableAuthorization(invoice)).toBe(activated?.id);
+
+        // Otro aviso de la misma preparación: ya completada → sin Stripe ni otra autorización.
+        const again = methodEvent(invoice, "setupagain", "setup_intent.succeeded", setupReference);
+        expect(await deliverMethodEvent(again, { setup })).toBe("processed");
+        expect(await inboxEffect(again.eventId)).toEqual({ status: "processed", effectType: null, effectId: null });
+        expect(setup.retrieveSetupIntent).toHaveBeenCalledTimes(1);
+        expect((await authorizationRows(invoice)).filter((row) => row.status === "active")).toHaveLength(1);
+        expect(await auditRows(invoice, "family_payment_methods.authorization_activated")).toHaveLength(1);
+        expect(setup.detachPaymentMethod).not.toHaveBeenCalled();
+      }, 60_000);
+
+      it("dos avisos de la misma preparación a la vez → una sola autorización activa", async () => {
+        const invoice = await createCollectableInvoice({ registry, collectionMode: "automatic" });
+        await payingAcademy(invoice);
+        const setupReference = `seti_CIrace${shortOf(invoice)}`;
+        const attemptId = await insertSetupAttempt(invoice, setupReference);
+        const setup = fakeSetupStripe(invoice, setupReference, attemptId);
+        const account = await findConnectAccountByReference(db, "test", accountOf(invoice));
+        if (!account) throw new Error("CI: falta la cuenta conectada de la factura");
+        const input = (eventId: string): ProviderEventHandlerInput => ({
+          organizationId: invoice.organizationId,
+          account,
+          objectId: setupReference,
+          now: EVENT_NOW,
+          inboxId: randomUUID(),
+          eventId,
+        });
+
+        const effects = await Promise.all([
+          processSetupIntentEvent(input("evt_CIrace1"), { gateway: setup }),
+          processSetupIntentEvent(input("evt_CIrace2"), { gateway: setup }),
+        ]);
+        expect(effects.filter((effect) => effect.effectType === AUTHORIZATION_EFFECT_TYPE)).toHaveLength(1);
+        expect(effects.filter((effect) => effect.effectType === null)).toHaveLength(1);
+        expect((await authorizationRows(invoice)).filter((row) => row.status === "active")).toHaveLength(1);
+        expect(await auditRows(invoice, "family_payment_methods.authorization_activated")).toHaveLength(1);
+      }, 60_000);
+
+      it("setup_intent.succeeded de una preparación ya completada → none", async () => {
+        const invoice = await createCollectableInvoice({ registry, collectionMode: "automatic" });
+        await payingAcademy(invoice);
+        await activateAuthorization(invoice, "card");
+        // La preparación que creó la autorización de la factura, ya completada (por el navegador).
+        const setupReference = `seti_CI${shortOf(invoice)}`;
+        const attemptId = await insertSetupAttempt(invoice, setupReference, { authorizationId: invoice.authorizationId });
+        const setup = fakeSetupStripe(invoice, setupReference, attemptId);
+
+        const event = methodEvent(invoice, "done", "setup_intent.succeeded", setupReference);
+        expect(await deliverMethodEvent(event, { setup })).toBe("processed");
+        expect(await inboxEffect(event.eventId)).toEqual({ status: "processed", effectType: null, effectId: null });
+        expect(setup.retrieveSetupIntent).not.toHaveBeenCalled();
+        expect(await authorizationRows(invoice)).toEqual([
+          expect.objectContaining({ id: invoice.authorizationId, status: "active", hasRevokedAt: false }),
+        ]);
+        expect(await auditRows(invoice, "family_payment_methods.authorization_activated")).toEqual([]);
       }, 60_000);
     });
   });

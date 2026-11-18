@@ -48,6 +48,68 @@ export interface FamilyPaymentGateway {
   detachPaymentMethod(input: { connectedAccount: string; paymentMethod: string }): Promise<void>;
 }
 
+/**
+ * Fase 4 (Tarea 8): relecturas para los avisos de Stripe sobre el método de
+ * pago. Aparte de FamilyPaymentGateway para no cambiar lo que ya usan las
+ * Fases 2 y 3. Solo se leen ids y estados: nunca marca, dígitos, IBAN ni
+ * titular.
+ */
+export interface FamilyPaymentMethodReads {
+  /**
+   * El método en la cuenta de la academia y el cliente al que está ligado
+   * (`null` si ya no está ligado a ninguno). `null` si Stripe dice que el
+   * método no existe (`resource_missing`). Cualquier otro error se lanza.
+   */
+  retrievePaymentMethod(input: {
+    connectedAccount: string;
+    paymentMethodId: string;
+  }): Promise<{ id: string; customer: string | null } | null>;
+  /**
+   * La orden de domiciliación y su estado (`active`, `inactive`, `pending`).
+   * `null` si Stripe dice que no existe. Cualquier otro error se lanza.
+   */
+  retrieveMandate(input: { connectedAccount: string; mandateId: string }): Promise<{ id: string; status: string } | null>;
+}
+
+export interface FamilyProviderReadFailure {
+  /** Clase del error de Stripe o nombre del error; nunca su mensaje. */
+  errorName: string;
+  /** Código de Stripe (`resource_missing`…) o `null`. */
+  errorCode: string | null;
+  /**
+   * `true` si reintentar no lo arregla: el objeto no existe
+   * (`resource_missing`), la plataforma ya no tiene permiso sobre la cuenta
+   * (`StripePermissionError`) o la cuenta ya no es válida (`account_invalid`).
+   */
+  permanent: boolean;
+}
+
+const PERMANENT_READ_CODES: ReadonlySet<string> = new Set(["resource_missing", "account_invalid"]);
+const PERMANENT_READ_TYPES: ReadonlySet<string> = new Set(["StripePermissionError", "permission_error"]);
+const ERROR_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
+const ERROR_CODE_PATTERN = /^[A-Za-z0-9_]{1,64}$/;
+
+/** Qué error dio Stripe al leer, solo con nombre y código (sin mensaje). */
+export function familyProviderReadFailureOf(error: unknown): FamilyProviderReadFailure {
+  const fields =
+    typeof error === "object" && error !== null
+      ? (error as { type?: unknown; rawType?: unknown; code?: unknown })
+      : {};
+  const type = typeof fields.type === "string" && ERROR_NAME_PATTERN.test(fields.type) ? fields.type : null;
+  const rawType = typeof fields.rawType === "string" ? fields.rawType : null;
+  const code = typeof fields.code === "string" && ERROR_CODE_PATTERN.test(fields.code) ? fields.code : null;
+  const name = type ?? (error instanceof Error && ERROR_NAME_PATTERN.test(error.name) ? error.name : "unknown");
+  const permanent =
+    (type !== null && PERMANENT_READ_TYPES.has(type)) ||
+    (rawType !== null && PERMANENT_READ_TYPES.has(rawType)) ||
+    (code !== null && PERMANENT_READ_CODES.has(code));
+  return { errorName: name, errorCode: code, permanent };
+}
+
+function isResourceMissingError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "resource_missing";
+}
+
 /** Clave estable por cuenta conectada (fila local) y pagador. */
 export function familyCustomerIdempotencyKey(
   providerAccountRowId: string,
@@ -107,7 +169,7 @@ function toSnapshot(setupIntent: Stripe.SetupIntent): SetupIntentSnapshot {
   };
 }
 
-export function createStripeFamilyGateway(stripe?: Stripe): FamilyPaymentGateway {
+export function createStripeFamilyGateway(stripe?: Stripe): FamilyPaymentGateway & FamilyPaymentMethodReads {
   // Se resuelve en cada llamada: crear el adaptador no exige la clave de Stripe.
   const client = (): Stripe => stripe ?? getStripeClient();
 
@@ -167,6 +229,34 @@ export function createStripeFamilyGateway(stripe?: Stripe): FamilyPaymentGateway
         if (isAlreadyDetachedError(error)) return;
         throw error;
       }
+    },
+
+    async retrievePaymentMethod(input) {
+      let paymentMethod: Stripe.PaymentMethod;
+      try {
+        paymentMethod = await client().paymentMethods.retrieve(
+          input.paymentMethodId,
+          {},
+          { stripeAccount: input.connectedAccount }
+        );
+      } catch (error) {
+        if (isResourceMissingError(error)) return null;
+        throw error;
+      }
+      // Solo el id y el cliente: nada de marca, dígitos, IBAN ni titular.
+      return { id: paymentMethod.id, customer: idOf(paymentMethod.customer) };
+    },
+
+    async retrieveMandate(input) {
+      let mandate: Stripe.Mandate;
+      try {
+        mandate = await client().mandates.retrieve(input.mandateId, {}, { stripeAccount: input.connectedAccount });
+      } catch (error) {
+        if (isResourceMissingError(error)) return null;
+        throw error;
+      }
+      // Solo el id y el estado: nada del método ni de la aceptación (IP, agente).
+      return { id: mandate.id, status: mandate.status };
     },
   };
 }

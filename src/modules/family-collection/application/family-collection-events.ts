@@ -25,7 +25,10 @@
  * (`charge.refunded` y `refund.*`) son `handleChargeRefundEvent` y
  * `handleRefundEvent` (Tarea 6, family-collection-refunds.ts); el de las
  * disputas (`charge.dispute.*`) es `handleDisputeEvent` (Tarea 7,
- * family-collection-disputes.ts); los demás siguen vacíos hasta sus tareas.
+ * family-collection-disputes.ts); los del método de pago
+ * (`payment_method.detached`, `mandate.updated` y `setup_intent.succeeded`)
+ * son `handlePaymentMethodEvent`, `handleMandateEvent` y
+ * `handleSetupIntentEvent` (Tarea 8, más abajo).
  *
  * Cobros (`handlePaymentIntentEvent`), por el mismo camino que la relectura
  * diaria (`reconcileAttemptWithStripe` → `settleOutcome` → `applyOutcome`):
@@ -103,6 +106,12 @@ import {
   claimProviderEvent,
   finishProviderEvent,
 } from "@/modules/family-collection/infrastructure/provider-event-inbox";
+import {
+  completeFamilyPaymentSetupFromProvider,
+  revokeAuthorizationFromProvider,
+  type FamilyPaymentMethodsDeps,
+  type FamilyPaymentProviderReadDeps,
+} from "@/modules/family-payment-methods/application/family-payment-methods-service";
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
 import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
 import {
@@ -146,8 +155,6 @@ export interface ProviderEventHandlers {
 }
 
 const NO_EFFECT: ProviderEventEffect = { effectType: null, effectId: null };
-
-const noEffect: ProviderEventHandler = async () => NO_EFFECT;
 
 // ---------------------------------------------------------------------------
 // Cobros (`payment_intent.*`): el mismo camino que la relectura diaria
@@ -298,19 +305,103 @@ export const handleDisputeEvent: ProviderEventHandler = (input) =>
     recordCollection: (collectionInput) => processPaymentIntentEvent(collectionInput),
   });
 
+// ---------------------------------------------------------------------------
+// Método de pago (Tarea 8): desligado, orden de domiciliación y preparación
+// ---------------------------------------------------------------------------
+
+/** Tipo de efecto del buzón cuando el evento cambió una autorización de pago automático. */
+export const AUTHORIZATION_EFFECT_TYPE = "family_payment_authorization";
+
+function authorizationEffect(authorizationId: string): ProviderEventEffect {
+  return { effectType: AUTHORIZATION_EFFECT_TYPE, effectId: authorizationId };
+}
+
+/**
+ * `payment_method.detached`: se relee el `pm_…` en la cuenta del evento; si
+ * Stripe confirma que ya no está ligado a ningún cliente (o ya no existe), la
+ * autorización activa de esa academia y esa cuenta con ese método queda
+ * revocada (revokeAuthorizationFromProvider). Si Stripe aún lo tiene ligado,
+ * sin efecto. Los intentos de cobro no se tocan.
+ */
+export async function processPaymentMethodEvent(
+  input: ProviderEventHandlerInput,
+  deps: FamilyPaymentProviderReadDeps = {}
+): Promise<ProviderEventEffect> {
+  const result = await revokeAuthorizationFromProvider(
+    {
+      organizationId: input.organizationId,
+      accountRowId: input.account.id,
+      paymentMethodId: input.objectId,
+      reason: "detached_in_stripe",
+      now: input.now,
+    },
+    deps
+  );
+  return result.outcome === "revoked" ? authorizationEffect(result.authorizationId) : NO_EFFECT;
+}
+
+/**
+ * `mandate.updated` (domiciliación; también con la domiciliación del cobro
+ * automático apagada por su bandera): se relee la orden; solo `inactive`
+ * revoca la autorización con esa orden. `active` o `pending`, sin efecto.
+ */
+export async function processMandateEvent(
+  input: ProviderEventHandlerInput,
+  deps: FamilyPaymentProviderReadDeps = {}
+): Promise<ProviderEventEffect> {
+  const result = await revokeAuthorizationFromProvider(
+    {
+      organizationId: input.organizationId,
+      accountRowId: input.account.id,
+      mandateId: input.objectId,
+      reason: "mandate_inactive",
+      now: input.now,
+    },
+    deps
+  );
+  return result.outcome === "revoked" ? authorizationEffect(result.authorizationId) : NO_EFFECT;
+}
+
+/**
+ * `setup_intent.succeeded` (decisión 12 del ADR): la familia guardó el
+ * método en Stripe y cerró el navegador. Se relee el `seti_…` y se activa el
+ * intento de preparación abierto con esa referencia, una sola vez
+ * (completeFamilyPaymentSetupFromProvider).
+ */
+export async function processSetupIntentEvent(
+  input: ProviderEventHandlerInput,
+  deps: FamilyPaymentMethodsDeps = {}
+): Promise<ProviderEventEffect> {
+  const result = await completeFamilyPaymentSetupFromProvider(
+    {
+      organizationId: input.organizationId,
+      accountRowId: input.account.id,
+      setupIntentId: input.objectId,
+      now: input.now,
+    },
+    deps
+  );
+  return result.outcome === "active" ? authorizationEffect(result.authorizationId) : NO_EFFECT;
+}
+
+/** Manejadores de la Tarea 8 con las dependencias reales. */
+export const handlePaymentMethodEvent: ProviderEventHandler = (input) => processPaymentMethodEvent(input);
+export const handleMandateEvent: ProviderEventHandler = (input) => processMandateEvent(input);
+export const handleSetupIntentEvent: ProviderEventHandler = (input) => processSetupIntentEvent(input);
+
 /**
  * Manejadores por defecto: los cobros (Tarea 3), las devoluciones hechas
- * desde el panel de Stripe (Tarea 6) y las disputas (Tarea 7); los demás,
- * vacíos hasta sus tareas.
+ * desde el panel de Stripe (Tarea 6), las disputas (Tarea 7) y el método de
+ * pago (Tarea 8).
  */
 export const DEFAULT_PROVIDER_EVENT_HANDLERS: ProviderEventHandlers = {
   paymentIntent: handlePaymentIntentEvent,
   charge: handleChargeRefundEvent,
   refund: handleRefundEvent,
   dispute: handleDisputeEvent,
-  mandate: noEffect,
-  paymentMethod: noEffect,
-  setupIntent: noEffect,
+  mandate: handleMandateEvent,
+  paymentMethod: handlePaymentMethodEvent,
+  setupIntent: handleSetupIntentEvent,
 };
 
 /** Los manejadores que no se pasan (o se pasan sin valor) son los de DEFAULT_PROVIDER_EVENT_HANDLERS. */
