@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **Estado:** plan para revisión del coordinador y de Elvis, escrito el 18-11-2026 desde `main` 070b3c1 (rama `cobros/fase4-eventos-stripe`). No hay código. Las tareas marcadas «espera la decisión Dn» no se empiezan hasta que Elvis la conteste. Nada se aplica ni se configura en staging ni en producción con este plan. Revisado en frío el 18-11-2026 (0 bloqueos, 6 importantes): esta versión los incorpora (webhook antiguo que guarda eventos completos → Tarea 2b y D13; todas las copias de «estados abiertos»; cobro tardío con hermanos abiertos; claves y casos que no caben en devoluciones y disputas; bandera de justificantes; plazo del 3DS anclado a la ventana de cobro).
+> **Estado:** decisiones respondidas el 18-11-2026 (ver «Respuestas»); en construcción. Plan escrito el 18-11-2026 desde `main` 070b3c1 (rama `cobros/fase4-eventos-stripe`). No hay código. Las tareas marcadas «espera la decisión Dn» no se empiezan hasta que Elvis la conteste. Nada se aplica ni se configura en staging ni en producción con este plan. Revisado en frío el 18-11-2026 (0 bloqueos, 6 importantes): esta versión los incorpora (webhook antiguo que guarda eventos completos → Tarea 2b y D13; todas las copias de «estados abiertos»; cobro tardío con hermanos abiertos; claves y casos que no caben en devoluciones y disputas; bandera de justificantes; plazo del 3DS anclado a la ventana de cobro).
 
 **Goal:** Que lo que pase en Stripe con los cobros automáticos (cobrado, en el banco, rechazado, el banco pide confirmar, devuelto, disputado) se refleje en Zaltyko en minutos y no solo al día siguiente; que la familia pueda confirmar con su banco desde `/familia/cuotas`; que reciba un justificante cuando se cobra; y que la domiciliación quede lista (apagada) para encenderse.
 
@@ -36,7 +36,26 @@
 - **Cortacircuitos y retoques del panel** (puntos 6 y 7) no están en el ADR; son mejoras de la Fase 3 sin conflicto.
 - **Estado de la candidata de la Fase 3:** `docs/deployment/candidates/README.md:893` dice «No aplicada» en staging; según el coordinador está aplicada desde el 17-11. Se corrige en la Tarea 12 con la confirmación del coordinador.
 
-## Decisiones abiertas para Elvis
+## Respuestas (18-11-2026)
+
+Elvis respondió D2, D3, D6 y D12 (texto de la opción que eligió, citado por el coordinador); el resto lo decidió el coordinador aceptando las recomendaciones. Vinculan todas las tareas.
+
+- **D1** (coordinador): la cuota sigue pagada, marcada «Devuelta».
+- **D2** (Elvis: «Nueva cuota pendiente»): la cuota original queda «devuelta por el banco» y se crea una nueva pendiente por el importe, a cobrar a mano con recordatorios.
+- **D3** (Elvis: «Marcar y avisar»): la cuota se marca y se avisa a la academia, sin deuda automática.
+- **D4** (coordinador): sigue pagada; la academia ve el plazo.
+- **D5** (coordinador): solo la academia devuelve, desde su panel de Stripe.
+- **D6** (Elvis: «Sí, apagado hasta abogado»): justificante de pago por correo y en página imprimible, «no es factura», detrás de `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED` hasta L6.
+- **D7** (coordinador): la ventana de 3 días que ya existe y un correo cada vez que el banco pida confirmar.
+- **D8** (coordinador): Standard v1 se retira en una PR aparte justo después. En esta PR, la Tarea 2b deja de guardar el evento entero. **La Tarea 13 no se hace en esta PR.**
+- **D9** (coordinador): 3 errores seguidos, o el 20 % a partir de 10 intentos, contando solo los 400 de toda la plataforma.
+- **D10** (coordinador): se avisa a la academia.
+- **D11** (coordinador): el mismo correo que con tarjeta, sin prometer reintento.
+- **D12** (Elvis: «De momento no»): sin correo el día antes.
+- **D13** (coordinador): revisar y apagar o filtrar el destino antiguo antes del primer cobro real. Vaciar `billing_events.payload` queda pendiente de la autorización de Elvis: no se toca.
+- Los datos de Stripe sin confirmar se verifican en la Tarea 14 (staging), que necesita la autorización de Elvis.
+
+## Decisiones abiertas para Elvis (texto original de la propuesta)
 
 Cada una es una pregunta cerrada. Entre corchetes, las tareas que esperan la respuesta. Lo que no depende de ninguna decisión se puede construir ya.
 
