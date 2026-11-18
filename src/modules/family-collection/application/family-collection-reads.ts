@@ -161,6 +161,16 @@ async function collectionTablesAvailable(): Promise<boolean> {
 }
 
 /**
+ * Fase 4 (Tarea 5): ¿puede la familia confirmar el pago desde el portal?
+ * Entorno primero (banderas y cerrojos, sin base) y después la forma "phase4".
+ * La usan el portal y el panel de la academia, para que digan lo mismo.
+ */
+async function isFamilyConfirmationAvailable(): Promise<boolean> {
+  if (!isFamilyPaymentConfirmationOpen()) return false;
+  return isFamilyCollectionEventsStorageAvailable(db);
+}
+
+/**
  * Fase 4: plazo para confirmar el pago de un intento `requires_action`, o
  * null. Solo se llama con un intento en ese estado, que solo existe con la
  * forma "phase4": la lectura es la del almacén (readActionDeadline, C2).
@@ -482,10 +492,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
   // primero (sin base); la forma "phase4" solo se mira una vez y solo si
   // alguna cuota espera esa confirmación.
   let confirmation: Promise<boolean> | null = null;
-  const confirmationOpen = () =>
-    (confirmation ??= isFamilyPaymentConfirmationOpen()
-      ? isFamilyCollectionEventsStorageAvailable(db)
-      : Promise.resolve(false));
+  const confirmationOpen = () => (confirmation ??= isFamilyConfirmationAvailable());
 
   for (const academy of access.academies) {
     if (academy.feeFamilyIds.length === 0) continue;
@@ -820,7 +827,8 @@ export function reviewReasonText(reason: string | null): string {
  *   todavía no lo ha intentado, dentro de la espera de los recordatorios);
  * - `processing`: la domiciliación ya está en el banco;
  * - `action_required` (Fase 4): la familia tiene que confirmar el pago con su
- *   banco; `date` es el último día para hacerlo;
+ *   banco y puede hacerlo desde el portal; `date` es el último día para
+ *   hacerlo (con la confirmación cerrada, `in_progress`);
  * - `collected`: cobrada (`date`);
  * - `retry_scheduled`: falló y se reintentará (`date`);
  * - `manual`: el cobro pendiente ya no puede llegar (plan, preferencia o
@@ -1326,12 +1334,18 @@ export async function getOwnerAutomaticCollections(input: {
   `);
 
   const rows = result.rows as Array<Record<string, unknown>>;
-  // Fase 4: plazo de los intentos que esperan a que la familia confirme el pago.
+  // Fase 4: plazo de los intentos que esperan a que la familia confirme el
+  // pago, solo si la familia puede hacerlo desde el portal (la misma regla que
+  // getFamilyAutomaticFeeStatuses). Si no, la academia lo ve «en curso».
   const actionDeadlines = new Map<string, Date | null>();
-  for (const row of rows.slice(0, OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT)) {
-    const attemptId = textOrNull(row.attemptId);
-    if (textOrNull(row.attemptStatus) !== "requires_action" || !attemptId) continue;
-    actionDeadlines.set(attemptId, await readConfirmationDeadline(organizationId, attemptId));
+  const waiting = rows
+    .slice(0, OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT)
+    .filter((row) => textOrNull(row.attemptStatus) === "requires_action" && textOrNull(row.attemptId));
+  if (waiting.length > 0 && (await isFamilyConfirmationAvailable())) {
+    for (const row of waiting) {
+      const attemptId = String(row.attemptId);
+      actionDeadlines.set(attemptId, await readConfirmationDeadline(organizationId, attemptId));
+    }
   }
   // Un cobro en marcha no depende del plan (solo lo usan las filas sin intento o con reintento).
   const plan = rows.length > 0 && !inProgressOnly ? await loadPlan(organizationId, now) : null;

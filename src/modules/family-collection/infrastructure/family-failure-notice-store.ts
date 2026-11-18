@@ -118,6 +118,12 @@ export interface PendingFamilyFailureNotice {
    * tiene o no se leyó (forma "phase3").
    */
   actionDeadlineAt?: Date | null;
+  /**
+   * Fase 4 (Tarea 5): plazo del último intento de la factura cuando espera a
+   * que la familia confirme el pago (`requires_action`). Solo se lee con la
+   * forma "phase4"; sin indicar, no se sabe y no se pide confirmar.
+   */
+  lastAttemptActionDeadlineAt?: Date | null;
 }
 
 export interface FamilyFailureNoticeStore {
@@ -231,6 +237,12 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
       const attemptFilter = authentication
         ? sql`((a.status in ('failed', 'canceled') and a.attempt_number = 1) or a.action_deadline_at is not null)`
         : sql`a.status in ('failed', 'canceled') and a.attempt_number = 1`;
+      // Tarea 5: plazo del último intento de la factura (el reintento que
+      // espera a la familia), para el aviso del intento 1.
+      const latestDeadlineColumn = authentication
+        ? sql`to_char(latest.action_deadline_at at time zone 'UTC', ${sql.raw(ISO)})`
+        : sql`null::text`;
+      const latestDeadlineSelect = authentication ? sql`, x.action_deadline_at` : sql``;
 
       // Página siguiente: mismo orden que el de la consulta (instante del aviso, id del intento).
       const afterCondition = input.after
@@ -255,6 +267,7 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
                ) as "lastAttemptNumber",
                latest.status as "lastAttemptStatus",
                to_char(latest.next_retry_at at time zone 'UTC', ${sql.raw(ISO)}) as "lastAttemptNextRetryAt",
+               ${latestDeadlineColumn} as "lastAttemptActionDeadlineAt",
                to_char(e.occurred_at at time zone 'UTC', ${sql.raw(ISO)}) as "occurredAt",
                i.status::text as "invoiceStatus",
                o.status::text as "organizationStatus",
@@ -283,7 +296,7 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
           join zaltyko.organizations o on o.id = a.organization_id
           -- Último intento de la factura (el reintento, si ya se reclamó).
           left join lateral (
-            select x.status::text as status, x.next_retry_at
+            select x.status::text as status, x.next_retry_at${latestDeadlineSelect}
               from zaltyko.family_collection_attempts x
              where x.organization_id = a.organization_id and x.invoice_id = a.invoice_id
              order by x.attempt_number desc
@@ -357,6 +370,9 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
           ? { hasActiveAuthorization: row.hasActiveAuthorization }
           : {}),
         ...(textOrNull(row.actionDeadlineAt) ? { actionDeadlineAt: new Date(String(row.actionDeadlineAt)) } : {}),
+        ...(textOrNull(row.lastAttemptActionDeadlineAt)
+          ? { lastAttemptActionDeadlineAt: new Date(String(row.lastAttemptActionDeadlineAt)) }
+          : {}),
       }));
     },
 

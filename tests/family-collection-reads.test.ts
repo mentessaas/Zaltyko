@@ -1386,6 +1386,7 @@ describe("puertas de las lecturas", () => {
   });
 
   it("Tarea 5 — academia: lee el plazo del intento que espera a la familia y lo enseña", async () => {
+    vi.mocked(isFamilyPaymentConfirmationOpen).mockReturnValue(true);
     const attemptId = "91000000-0000-4000-8000-000000000611";
     holder.execute
       .mockResolvedValueOnce({ rows: [{ timezone: TZ }] })
@@ -1434,6 +1435,27 @@ describe("puertas de las lecturas", () => {
     const deadlineQuery = dialect.sqlToQuery(holder.execute.mock.calls[2][0] as SQL);
     expect(deadlineQuery.sql).toContain("status = 'requires_action'");
     expect(deadlineQuery.params).toEqual(expect.arrayContaining([ORGANIZATION_ID, attemptId]));
+
+    // M1: con la confirmación cerrada (bandera de eventos, cerrojos o sin la forma
+    // "phase4"), la academia lo ve en curso, como la familia, y no se lee el plazo.
+    const listRows = await holder.execute.mock.results[1]!.value;
+    for (const close of [
+      () => vi.mocked(isFamilyPaymentConfirmationOpen).mockReturnValue(false),
+      () => vi.mocked(isFamilyCollectionEventsStorageAvailable).mockResolvedValue(false),
+    ]) {
+      vi.mocked(isFamilyPaymentConfirmationOpen).mockReturnValue(true);
+      vi.mocked(isFamilyCollectionEventsStorageAvailable).mockResolvedValue(true);
+      close();
+      holder.execute.mockReset();
+      holder.execute.mockResolvedValueOnce({ rows: [{ timezone: TZ }] }).mockResolvedValueOnce(listRows);
+
+      const closed = await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
+
+      expect(closed?.items).toEqual([
+        expect.objectContaining({ state: "in_progress", date: null, canCancel: true, manualPaymentBlocked: true }),
+      ]);
+      expect(holder.execute).toHaveBeenCalledTimes(2);
+    }
   });
 
   it("academia: un recordatorio ya enviado se ve como «se cobra a mano» en un reintento pendiente", async () => {

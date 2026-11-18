@@ -357,10 +357,14 @@ export function renderFamilyFailureNotice(input: {
 
   const { lines, linkText } = noticeBody(input.kind, fee, retryDay, deadlineDay);
   const closing = `Si tienes cualquier duda, habla con ${academy}.`;
+  // Tarea 5 (M3): el aviso del intento 1 lleva otro asunto que el del intento
+  // que espera la confirmación (D7), para que no lleguen dos correos iguales.
   const subject = (
-    deadlineDay || input.kind === "confirmation_pending"
-      ? `${academy}: confirma el pago de ${fee}`
-      : `${academy}: no hemos podido cobrar ${fee}`
+    input.kind === "confirmation_pending"
+      ? `${academy}: tu banco pide confirmar el pago de ${fee}`
+      : deadlineDay
+        ? `${academy}: confirma el pago de ${fee}`
+        : `${academy}: no hemos podido cobrar ${fee}`
   ).slice(0, 160);
   const text = ["Hola:", ...lines, `${linkText}: ${input.feesUrl}`, closing].join("\n\n");
   const paragraph = (value: string) => `<p style="margin:0 0 12px">${escapeHtml(value)}</p>`;

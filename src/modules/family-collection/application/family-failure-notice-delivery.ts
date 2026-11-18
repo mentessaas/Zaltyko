@@ -50,6 +50,7 @@ import { sendEmailWithLogging, type SendEmailOptions } from "@/lib/email/email-s
 import { logger } from "@/lib/logger";
 import {
   isFamilyAutomaticCollectionFlagEnabled,
+  isFamilyCollectionEventsFlagEnabled,
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
@@ -160,8 +161,9 @@ function todayOf(now: Date, timezone: string): string | null {
  *   pasó, el reintento no saldrá y no se promete nada.
  * Con un intento posterior (el reintento ya se reclamó): si ya cobró la
  * cuota, el aviso no se envía (`superseded`); si espera a que la familia
- * confirme el pago con su banco (Fase 4, `requires_action`) y el cobro está
- * encendido, se envía sin prometer reintento y pidiendo que lo confirme
+ * confirme el pago con su banco (Fase 4, `requires_action`), se envía sin
+ * prometer reintento y, solo si el portal deja confirmarlo
+ * (`confirmationOpen`) y su plazo no ha pasado, pidiendo que lo confirme
  * (`laterAwaitingConfirmation`); si está en curso, se promete sin fecha; si falló con otro reintento programado, con la fecha de ese
  * siguiente; si falló sin reintento o se canceló, sin promesa.
  */
@@ -182,7 +184,14 @@ export function retryKnownBlocked(
 export function decideFamilyFailureNotice(
   notice: PendingFamilyFailureNotice,
   now: Date,
-  options: { retriesEnabled: boolean }
+  options: {
+    retriesEnabled: boolean;
+    /**
+     * Fase 4 (Tarea 5): la familia puede confirmar el pago desde el portal
+     * (bandera del cobro, bandera de eventos y forma "phase4"). Sin indicar, no.
+     */
+    confirmationOpen?: boolean;
+  }
 ):
   | {
       action: "send";
@@ -228,10 +237,20 @@ export function decideFamilyFailureNotice(
   const canPromise = options.retriesEnabled && !retryKnownBlocked(notice);
   // Fase 4 (Tarea 5): el reintento espera a que la familia confirme el pago
   // con su banco. Nada de «Volveremos a intentarlo»: no se reintenta solo.
-  // Sin el cobro encendido, la familia no puede confirmarlo desde el portal
-  // y el texto es el de siempre sin promesa.
-  if (later && notice.lastAttemptStatus === "requires_action" && options.retriesEnabled) {
-    return { action: "send", retryScheduled: false, retryDateLocal: null, laterAwaitingConfirmation: true };
+  // Solo se le pide pulsar «Confirmar el pago» si el portal enseña el botón
+  // (cobro y eventos encendidos, forma "phase4") y el plazo del reintento no
+  // ha pasado; si no, el texto de siempre sin promesa.
+  if (later && notice.lastAttemptStatus === "requires_action") {
+    const deadline = notice.lastAttemptActionDeadlineAt?.getTime();
+    const canConfirm =
+      options.retriesEnabled &&
+      options.confirmationOpen === true &&
+      deadline !== undefined &&
+      Number.isFinite(deadline) &&
+      now.getTime() <= deadline;
+    return canConfirm
+      ? { action: "send", retryScheduled: false, retryDateLocal: null, laterAwaitingConfirmation: true }
+      : { action: "send", retryScheduled: false, retryDateLocal: null };
   }
   if (!canPromise) return { action: "send", retryScheduled: false, retryDateLocal: null };
   if (later) {
@@ -296,6 +315,8 @@ export async function deliverFamilyFailureNotices(
   const feesUrl = `${(options.appUrl ?? getAppUrl()).replace(/\/+$/, "")}${FAMILY_FEES_PATH}`;
   // Los reintentos solo salen con el cobro automático encendido (Fase B).
   const retriesEnabled = isFamilyAutomaticCollectionFlagEnabled();
+  // Tarea 5: el botón «Confirmar el pago» del portal (los cerrojos ya se miraron arriba).
+  const confirmationOpen = retriesEnabled && shape === "phase4" && isFamilyCollectionEventsFlagEnabled();
 
   const limit = options.limit ?? FAMILY_FAILURE_NOTICE_BATCH;
   const since = new Date(now.getTime() - FAMILY_FAILURE_NOTICE_MAX_AGE_MS);
@@ -304,7 +325,7 @@ export async function deliverFamilyFailureNotices(
 
   // De página en página hasta acabar los pendientes o agotar el plazo: con
   // muchos fallos el mismo día, ninguna familia se queda sin su aviso.
-  const context: DeliveryContext = { store, sendEmail, feesUrl, now, retriesEnabled };
+  const context: DeliveryContext = { store, sendEmail, feesUrl, now, retriesEnabled, confirmationOpen };
   for (;;) {
     // Los avisos `requires_action` (y su plazo) solo existen con la forma "phase4".
     const page = await store.listPending({ since, limit, scope, after, authentication: shape === "phase4" });
@@ -337,6 +358,7 @@ interface DeliveryContext {
   feesUrl: string;
   now: Date;
   retriesEnabled: boolean;
+  confirmationOpen: boolean;
 }
 
 /**
@@ -347,11 +369,11 @@ async function deliverOne(
   notice: PendingFamilyFailureNotice,
   context: DeliveryContext
 ): Promise<keyof FamilyFailureNoticeDelivery> {
-  const { store, sendEmail, feesUrl, now, retriesEnabled } = context;
+  const { store, sendEmail, feesUrl, now, retriesEnabled, confirmationOpen } = context;
   const ids = { organizationId: notice.organizationId, invoiceId: notice.invoiceId, attemptId: notice.attemptId };
   let outcome: FamilyFailureNoticeOutcome;
   try {
-    const decision = decideFamilyFailureNotice(notice, now, { retriesEnabled });
+    const decision = decideFamilyFailureNotice(notice, now, { retriesEnabled, confirmationOpen });
     if (decision.action === "close") {
       outcome = decision.outcome;
     } else {

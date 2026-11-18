@@ -313,6 +313,46 @@ describe("FamilyFeesView: la familia confirma el pago con su banco (Fase 4, Tare
     expect(confirmCardPayment).toHaveBeenCalledTimes(1);
   });
 
+  it("I1: si no se puede comprobar (502, 429), deja «Procesando…», enseña el motivo y el botón otra vez", async () => {
+    stubFetch((call) =>
+      bodyOf(call).action === "start"
+        ? started("acct_SyntheticConfirm3")
+        : reply(502, {
+            ok: false,
+            code: "FAMILY_PAYMENT_CHECK_FAILED",
+            message: "Todavía no podemos comprobar el pago. Recarga la página en unos minutos.",
+          })
+    );
+    renderWaiting();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar el pago" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Todavía no podemos comprobar el pago. Recarga la página en unos minutos."
+    );
+    expect(screen.queryByText("Procesando…")).toBeNull();
+    expect(screen.queryByText("Pago confirmado")).toBeNull();
+    expect(screen.getByRole("button", { name: "Confirmar el pago" })).toBeEnabled();
+    expect(feeItem()).toHaveTextContent(/Puedes hacerlo hasta el 18 nov\.? 2026/);
+    expect(mockRefresh).toHaveBeenCalledOnce();
+    // Nada se reintenta solo.
+    expect(calls).toHaveLength(2);
+    expect(confirmCardPayment).toHaveBeenCalledTimes(1);
+    cleanup();
+
+    // Demasiados intentos al comprobar: el texto propio, y el botón.
+    stubFetch((call) =>
+      bodyOf(call).action === "start" ? started("acct_SyntheticConfirm4") : reply(429, { ok: false })
+    );
+    renderWaiting();
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar el pago" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Has hecho demasiados intentos. Espera un minuto y vuelve a intentarlo."
+    );
+    expect(screen.queryByText("Procesando…")).toBeNull();
+    expect(screen.getByRole("button", { name: "Confirmar el pago" })).toBeEnabled();
+  });
+
   it("si el pago ya no espera (409), enseña el texto del servidor sin abrir Stripe y refresca", async () => {
     stubFetch(() =>
       reply(409, {

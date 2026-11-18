@@ -79,11 +79,20 @@ export function FamilyConfirmPaymentButton({
   async function check() {
     setPhase("processing");
     const result = await familyRequest<Check>(ENDPOINT, { action: "check", organizationId, invoiceId });
-    const state = result.ok ? result.data.state : null;
+    if (!result.ok) {
+      // No se pudo comprobar (Stripe ilegible, demasiados intentos, sin servicio):
+      // nada está en curso por nuestra parte. El texto del servidor y el botón otra
+      // vez; si ya se cobró, «start» lo dirá (409) y la página lo enseñará.
+      setError(result.status === 429 ? TEXT.tooMany : result.message);
+      setPhase("idle");
+      router.refresh();
+      return;
+    }
+    const state = result.data.state;
     if (state === "collected") setPhase("confirmed");
     else if (state === "action_required") setPhase("retry");
     else if (state === "closed") setPhase("closed");
-    // `processing` o sin respuesta: sigue «Procesando…» hasta que lo diga el servidor.
+    // `processing`: sigue «Procesando…» hasta que lo diga el servidor.
     router.refresh();
   }
 
