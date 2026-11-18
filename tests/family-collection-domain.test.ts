@@ -14,6 +14,12 @@ import {
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
 import {
+  AUTHENTICATION_EXPIRED_CODE,
+  authenticationDeadline,
+  collectionWindowAnchor,
+  isAuthenticationDeadlinePassed,
+} from "@/modules/family-collection/domain/authentication-window";
+import {
   ACCOUNT_FRESHNESS_MS,
   classifyGateReason,
   evaluateFamilyCollectionGate,
@@ -61,6 +67,7 @@ import {
 } from "@/modules/family-collection/domain/retry-policy";
 import { FAMILY_COLLECTION_MAX_ATTEMPTS_PER_INVOICE } from "@/modules/family-collection/infrastructure/family-collection-schema";
 import * as connectConfig from "@/modules/payments-connect/application/config";
+import { withinGrace } from "@/modules/payment-reminders/domain/reminder-policy";
 
 /**
  * Cobro automático de cuotas (Fase 3): dominio puro. Qué se cobra y cuándo
@@ -1911,5 +1918,94 @@ describe("config del cobro automático", () => {
   it("reexporta los cerrojos de entorno de Conectar Stripe", () => {
     expect(resolveConnectEnvironment).toBe(connectConfig.resolveConnectEnvironment);
     expect(isProductionDatabase).toBe(connectConfig.isProductionDatabase);
+  });
+});
+
+describe("Fase 4: plazo para confirmar el pago con el banco (D7)", () => {
+  const charge = (id: string, dueAt: string) => ({ id, dueAt: new Date(dueAt) });
+
+  it("collectionWindowAnchor: intento 1 → fecha de cobro prevista; reintento → fecha del reintento", () => {
+    // Vence el 1-3-2027 (00:00 en Madrid) y la academia cobra el día 5.
+    const charges = [charge("c1", "2027-02-28T23:00:00.000Z"), charge("c2", "2027-03-09T23:00:00.000Z")];
+    const allocations = [{ chargeId: "c1" }, { chargeId: "c2" }];
+    expect(
+      collectionWindowAnchor({ previousAttempt: null, charges, allocations, timezone: "Europe/Madrid", collectionDayOfMonth: 5 })
+    ).toBe("2027-03-05");
+    // Sin día fijo: el día de vencimiento más antiguo de las cuotas del reparto.
+    expect(
+      collectionWindowAnchor({ previousAttempt: null, charges, allocations, timezone: "Europe/Madrid", collectionDayOfMonth: null })
+    ).toBe("2027-03-01");
+    // Solo cuentan las cuotas del reparto.
+    expect(
+      collectionWindowAnchor({
+        previousAttempt: null,
+        charges,
+        allocations: [{ chargeId: "c2" }],
+        timezone: "Europe/Madrid",
+        collectionDayOfMonth: null,
+      })
+    ).toBe("2027-03-10");
+    // Reintento: la fecha local de `next_retry_at` del intento anterior (00:00 del 6-3 en Madrid).
+    expect(
+      collectionWindowAnchor({
+        previousAttempt: { status: "failed", nextRetryAt: new Date("2027-03-05T23:00:00.000Z") },
+        charges,
+        allocations,
+        timezone: "Europe/Madrid",
+        collectionDayOfMonth: 5,
+      })
+    ).toBe("2027-03-06");
+    // Un intento anterior sin reintento no deja ventana (como collectionWindowExpired), ni un reparto vacío.
+    expect(
+      collectionWindowAnchor({
+        previousAttempt: { status: "failed", nextRetryAt: null },
+        charges,
+        allocations,
+        timezone: "Europe/Madrid",
+        collectionDayOfMonth: 5,
+      })
+    ).toBeNull();
+    expect(
+      collectionWindowAnchor({ previousAttempt: null, charges, allocations: [], timezone: "Europe/Madrid", collectionDayOfMonth: 5 })
+    ).toBeNull();
+  });
+
+  it("authenticationDeadline: fin del día local ancla+3 en Madrid y en Ciudad de México", () => {
+    expect(authenticationDeadline({ anchorLocalDate: "2027-03-02", timezone: "Europe/Madrid" }).toISOString()).toBe(
+      "2027-03-05T22:59:59.999Z"
+    );
+    expect(
+      authenticationDeadline({ anchorLocalDate: "2027-03-02", timezone: "America/Mexico_City" }).toISOString()
+    ).toBe("2027-03-06T05:59:59.999Z");
+    // Con el cambio de hora de por medio (28-3-2027 en Madrid): el día +3 ya es de verano.
+    expect(authenticationDeadline({ anchorLocalDate: "2027-03-26", timezone: "Europe/Madrid" }).toISOString()).toBe(
+      "2027-03-29T21:59:59.999Z"
+    );
+    expect(AUTHENTICATION_EXPIRED_CODE).toBe("authentication_required");
+  });
+
+  it("reclamado un día tarde → el plazo no se alarga (mismo día que deja de retener withinGrace)", () => {
+    // La cuota se cobra el 2-3; el proceso diario la reclama el 3-3 (un día
+    // tarde). El plazo sale de la fecha de cobro, no del día de reclamar.
+    const anchor = collectionWindowAnchor({
+      previousAttempt: null,
+      charges: [charge("c1", "2027-03-01T23:00:00.000Z")],
+      allocations: [{ chargeId: "c1" }],
+      timezone: "Europe/Madrid",
+      collectionDayOfMonth: null,
+    });
+    expect(anchor).toBe("2027-03-02");
+    const deadline = authenticationDeadline({ anchorLocalDate: anchor!, timezone: "Europe/Madrid" });
+    expect(deadline.toISOString()).toBe("2027-03-05T22:59:59.999Z");
+    // El último día del plazo es el último en que withinGrace retiene los recordatorios.
+    const lastDay = localCalendarDate(deadline, "Europe/Madrid");
+    const nextDay = localCalendarDate(new Date(deadline.getTime() + 1), "Europe/Madrid");
+    expect(lastDay).toBe(addLocalDays(anchor!, 3));
+    expect(withinGrace(anchor!, lastDay)).toBe(true);
+    expect(withinGrace(anchor!, nextDay)).toBe(false);
+    expect(isAuthenticationDeadlinePassed(deadline, deadline)).toBe(false);
+    expect(isAuthenticationDeadlinePassed(deadline, new Date(deadline.getTime() + 1))).toBe(true);
+    // Sin plazo conocido, pasado: ninguna cuota se queda esperando para siempre.
+    expect(isAuthenticationDeadlinePassed(null, new Date("2027-03-03T10:00:00.000Z"))).toBe(true);
   });
 });

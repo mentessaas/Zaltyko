@@ -145,8 +145,8 @@ function intent(
   };
 }
 
-/** Estados en los que el almacén real deja aplicar un resultado normal (lockOpenAttempt). */
-const STORE_OPEN = new Set(["claimed", "created", "processing"]);
+/** Estados en los que el almacén real deja aplicar un resultado normal (lockOpenAttempt; Fase 4: también requires_action). */
+const STORE_OPEN = new Set(["claimed", "created", "processing", "requires_action"]);
 /** Estados de un hermano que bloquean un cobro tardío (applyOutcome late_succeeded). */
 const LATE_BLOCKING = new Set(["claimed", "created", "processing", "requires_action"]);
 
@@ -170,6 +170,10 @@ function makeWorld() {
     stripe: new Map<string, PaymentIntentSnapshot>(),
     /** Intentos sin referencias legibles (loadAttemptRefs → null). */
     unreadable: new Set<string>(),
+    /** Fase 4: forma "phase4" del almacenamiento (apagada por defecto: comportamiento de la Fase 3). */
+    eventsStorage: false,
+    /** Fase 4: `action_deadline_at` de cada intento `requires_action`. */
+    actionDeadline: new Map<string, Date>(),
   };
 
   async function inTransaction<T>(name: string, work: () => T): Promise<T> {
@@ -221,6 +225,14 @@ function makeWorld() {
       found.paymentIntentId = outcome.paymentIntentId;
       return { applied: true, status: "processing", allocationStatus: null, reviewReasons: [] };
     }
+    if (outcome.kind === "requires_action") {
+      // Contrato: no cambia el plazo de un intento que ya espera a la familia.
+      if (found.status === "requires_action") return { applied: false };
+      found.status = "requires_action";
+      found.paymentIntentId = outcome.paymentIntentId;
+      world.actionDeadline.set(found.id, outcome.actionDeadlineAt);
+      return { applied: true, status: "requires_action", allocationStatus: null, reviewReasons: [] };
+    }
     if (outcome.kind === "failed") {
       found.status = "failed";
       world.nextRetryAt.set(found.id, outcome.nextRetryAt);
@@ -238,6 +250,11 @@ function makeWorld() {
 
   const store: FamilyCollectionStore = {
     isStorageAvailable: vi.fn<FamilyCollectionStore["isStorageAvailable"]>(async () => true),
+    isEventsStorageAvailable: vi.fn<FamilyCollectionStore["isEventsStorageAvailable"]>(async () => world.eventsStorage),
+    readActionDeadline: vi.fn<FamilyCollectionStore["readActionDeadline"]>(async (input) => {
+      const found = find(input.attemptId);
+      return found?.status === "requires_action" ? (world.actionDeadline.get(found.id) ?? null) : null;
+    }),
     listDueInvoices: vi.fn<FamilyCollectionStore["listDueInvoices"]>(unused("listDueInvoices")),
     loadInvoiceContext: vi.fn<FamilyCollectionStore["loadInvoiceContext"]>(unused("loadInvoiceContext")),
     claimOrCancel: vi.fn<FamilyCollectionStore["claimOrCancel"]>(unused("claimOrCancel")),
@@ -287,6 +304,8 @@ function makeWorld() {
         servicePeriodStart: "2026-11-01",
         firstAttemptClaimedAt: claimedAt,
         allocations: [{ chargeId, amountCents: 4500 }],
+        // Fase 4: ventana de cobro desde el 19-11 (plazo hasta el final del 22-11 en Madrid).
+        windowAnchorLocalDate: "2026-11-19",
       })
     ),
     recordNotice: vi.fn<FamilyCollectionStore["recordNotice"]>(async (input) => {
@@ -859,5 +878,96 @@ describe("Stripe nunca dentro de una transacción", () => {
     expect(world.payments).toEqual([
       { attemptId: "40000000-0000-4000-8000-000000000021", paymentIntentId: "pi_SyntheticOldOne" },
     ]);
+  });
+});
+
+describe("Fase 4 (Tarea 4): el banco pide que la familia confirme el pago", () => {
+  /** Fin del 22-11 en Madrid: ventana desde el 19-11 + 3 días. */
+  const deadline = new Date("2026-11-22T22:59:59.999Z");
+
+  it("evento requires_action de un intento created → requires_action con su plazo, sin cancelar el cobro que la familia tiene que confirmar", async () => {
+    const { world, gateway, event } = setup();
+    world.eventsStorage = true;
+    world.attempts.push(attempt({ status: "created", paymentIntentId: "pi_SyntheticAuth" }));
+    world.stripe.set("pi_SyntheticAuth", intent("pi_SyntheticAuth", "requires_action"));
+
+    const outcome = await event("pi_SyntheticAuth");
+
+    expect(outcome.effect).toEqual({ effectType: ATTEMPT_EFFECT_TYPE, effectId: firstAttemptId });
+    expect(world.applied).toEqual([
+      {
+        attemptId: firstAttemptId,
+        outcome: { kind: "requires_action", paymentIntentId: "pi_SyntheticAuth", actionDeadlineAt: deadline },
+      },
+    ]);
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(world.attempts[0]).toMatchObject({ status: "requires_action" });
+
+    // La familia lo intenta y su banco lo rechaza (requires_payment_method): antes del plazo, nada cambia.
+    world.stripe.set("pi_SyntheticAuth", intent("pi_SyntheticAuth", "requires_payment_method", { code: "card_declined" }));
+    const retried = await event("pi_SyntheticAuth", { eventId: "evt_SyntheticEvents0002" });
+    expect(retried.effect).toEqual({ effectType: null, effectId: null });
+    expect(retried.result).toMatchObject({ skipped: { awaiting_authentication: 1 } });
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(world.applied).toHaveLength(1);
+
+    // Lo confirma: el evento registra el cobro.
+    world.stripe.set("pi_SyntheticAuth", intent("pi_SyntheticAuth", "succeeded"));
+    await event("pi_SyntheticAuth", { eventId: "evt_SyntheticEvents0003" });
+    expect(world.attempts[0]).toMatchObject({ status: "succeeded" });
+    expect(world.payments).toEqual([{ attemptId: firstAttemptId, paymentIntentId: "pi_SyntheticAuth" }]);
+  });
+
+  it("sin la forma phase4 (o sin la bandera del cobro) → como en la Fase 3: se cancela y queda failed", async () => {
+    const { world, gateway, event } = setup();
+    world.attempts.push(attempt({ status: "created", paymentIntentId: "pi_SyntheticAuth" }));
+    world.stripe.set("pi_SyntheticAuth", intent("pi_SyntheticAuth", "requires_action"));
+
+    await event("pi_SyntheticAuth");
+
+    expect(gateway.cancelPayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: "pi_SyntheticAuth" });
+    expect(world.attempts[0]).toMatchObject({ status: "failed" });
+    expect(world.failureCode.get(firstAttemptId)).toBe("authentication_required");
+  });
+
+  it("éxito tardío con un hermano requires_action → se cancela en Stripe, se cierra late_success_elsewhere y se registra el tardío", async () => {
+    const { world, gateway, event } = setup();
+    world.attempts.push(attempt({ status: "failed", paymentIntentId: "pi_SyntheticFirst" }));
+    world.attempts.push(
+      attempt({ id: secondAttemptId, attemptNumber: 2, status: "requires_action", paymentIntentId: "pi_SyntheticSecond" })
+    );
+    world.actionDeadline.set(secondAttemptId, deadline);
+    world.stripe.set("pi_SyntheticFirst", intent("pi_SyntheticFirst", "succeeded"));
+    world.stripe.set("pi_SyntheticSecond", intent("pi_SyntheticSecond", "requires_action"));
+
+    await event("pi_SyntheticFirst");
+
+    expect(gateway.cancelPayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: "pi_SyntheticSecond" });
+    expect(world.attempts.map((item) => item.status)).toEqual(["succeeded", "canceled"]);
+    expect(world.failureCode.get(secondAttemptId)).toBe(LATE_SUCCESS_ELSEWHERE_CODE);
+    expect(world.payments).toEqual([{ attemptId: firstAttemptId, paymentIntentId: "pi_SyntheticFirst" }]);
+    expect(world.stripeCalls.every((call) => !call.inTransaction)).toBe(true);
+  });
+
+  it("N1: error permanente de Stripe al cancelar el hermano → no lanza: el tardío queda en espera (late_success_pending) y el evento termina", async () => {
+    const { world, gateway, event } = setup();
+    world.attempts.push(attempt({ status: "failed", paymentIntentId: "pi_SyntheticFirst" }));
+    world.attempts.push(
+      attempt({ id: secondAttemptId, attemptNumber: 2, status: "created", paymentIntentId: "pi_SyntheticSecond" })
+    );
+    world.stripe.set("pi_SyntheticFirst", intent("pi_SyntheticFirst", "succeeded"));
+    world.stripe.set("pi_SyntheticSecond", intent("pi_SyntheticSecond", "requires_confirmation"));
+    gateway.cancelPayment.mockRejectedValueOnce(
+      Object.assign(new Error("Mensaje sintético de Stripe: sin permiso"), { type: "StripePermissionError" })
+    );
+
+    const outcome = await event("pi_SyntheticFirst");
+
+    expect(outcome.effect).toEqual({ effectType: ATTEMPT_EFFECT_TYPE, effectId: firstAttemptId });
+    expect(world.notices).toEqual([`${firstAttemptId}:${LATE_SUCCESS_PENDING_REASON}`]);
+    expect(outcome.result).toMatchObject({ skipped: { stripe_unreadable: 1, [LATE_SUCCESS_PENDING_REASON]: 1 } });
+    expect(world.applied).toEqual([]);
+    expect(world.payments).toEqual([]);
+    expect(world.attempts.map((item) => item.status)).toEqual(["failed", "created"]);
   });
 });

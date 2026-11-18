@@ -209,6 +209,8 @@ function baseRefs(): AttemptStripeRefs {
     // El intento 1 de la factura se reclama en la ejecución de `now`.
     firstAttemptClaimedAt: now,
     allocations: [{ chargeId, amountCents: 4500 }],
+    // Fecha de cobro de la cuota (vence el 16 en Madrid): ventana hasta el 19.
+    windowAnchorLocalDate: "2026-11-16",
   };
 }
 
@@ -257,6 +259,10 @@ function makeWorld() {
     /** Intentos que recuperaron su reanudación (releaseResume). */
     released: [] as string[],
     storage: true,
+    /** Fase 4: forma "phase4" del almacenamiento (apagada por defecto: comportamiento de la Fase 3). */
+    eventsStorage: false,
+    /** Fase 4: `action_deadline_at` de los intentos `requires_action`. */
+    actionDeadline: null as Date | null,
   };
 
   async function inTransaction<T>(name: string, work: () => T): Promise<T> {
@@ -271,6 +277,8 @@ function makeWorld() {
 
   const store: FamilyCollectionStore = {
     isStorageAvailable: vi.fn<FamilyCollectionStore["isStorageAvailable"]>(async () => world.storage),
+    isEventsStorageAvailable: vi.fn<FamilyCollectionStore["isEventsStorageAvailable"]>(async () => world.eventsStorage),
+    readActionDeadline: vi.fn<FamilyCollectionStore["readActionDeadline"]>(async () => world.actionDeadline),
     listDueInvoices: vi.fn<FamilyCollectionStore["listDueInvoices"]>(async (input) => (input.after === null ? world.due : [])),
     loadInvoiceContext: vi.fn<FamilyCollectionStore["loadInvoiceContext"]>(async () => {
       world.calls.push("load");
@@ -2409,5 +2417,186 @@ describe("domiciliación sin activar (D2, «Primero solo tarjeta»): nunca un co
         expect(result).toMatchObject({ reconciled: 1, collected: 1 });
       }
     );
+  });
+});
+
+describe("Fase 4: el banco pide que la familia confirme el pago (requires_action)", () => {
+  /** Fin del 19-11 en Madrid: fecha de cobro (16) + 3 días. */
+  const deadline = new Date("2026-11-19T22:59:59.999Z");
+  const authenticationError = (status = "requires_payment_method"): CollectionError => ({
+    type: "card_error",
+    code: "authentication_required",
+    declineCode: "authentication_required",
+    paymentIntent: snapshot(intentId, status, "authentication_required", "authentication_required"),
+  });
+
+  it("authentication_required con recuperación → requires_action, plazo guardado y sin cancelPayment", async () => {
+    const { world, store, gateway, run } = setup({ confirmPayment: async () => authenticationError() });
+    world.eventsStorage = true;
+
+    const result = await run();
+
+    expect(store.isEventsStorageAvailable).toHaveBeenCalled();
+    expect(world.applied).toEqual([{ kind: "requires_action", paymentIntentId: intentId, actionDeadlineAt: deadline }]);
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(world.calls.slice(-2)).toEqual(["stripe:confirm", "apply:requires_action"]);
+    expect(result).toMatchObject({ collected: 0, failed: 0, skipped: { requires_action: 1 } });
+  });
+
+  it("también con Stripe en requires_action (sin código de error)", async () => {
+    const { world, gateway, run } = setup({
+      confirmPayment: async () => ({
+        type: "card_error",
+        code: null,
+        declineCode: null,
+        paymentIntent: snapshot(intentId, "requires_action"),
+      }),
+    });
+    world.eventsStorage = true;
+
+    await run();
+
+    expect(world.applied).toEqual([{ kind: "requires_action", paymentIntentId: intentId, actionDeadlineAt: deadline }]);
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+  });
+
+  it("sin recuperación (bandera de eventos apagada) → cancelPayment y failed, como en la Fase 3", async () => {
+    env.events = false;
+    const { world, store, gateway, run } = setup({ confirmPayment: async () => authenticationError() });
+    world.eventsStorage = true;
+
+    await run();
+
+    expect(store.isEventsStorageAvailable).not.toHaveBeenCalled();
+    expect(gateway.cancelPayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: intentId });
+    expect(world.calls.slice(-2)).toEqual(["stripe:cancel", "apply:failed"]);
+    expect(world.applied).toEqual([
+      {
+        kind: "failed",
+        paymentIntentId: intentId,
+        code: "authentication_required",
+        declineCode: "authentication_required",
+        nextRetryAt: null,
+      },
+    ]);
+  });
+
+  it("sin la forma phase4, o con el plazo ya pasado, o con domiciliación → como en la Fase 3", async () => {
+    // Almacenamiento de la Fase 3.
+    const phase3 = setup({ confirmPayment: async () => authenticationError() });
+    await phase3.run();
+    expect(phase3.world.applied[0]).toMatchObject({ kind: "failed", code: "authentication_required" });
+    expect(phase3.gateway.cancelPayment).toHaveBeenCalled();
+
+    // La ventana de cobro de la cuota ya pasó (reclamada muy tarde): sin plazo que dar.
+    const late = setup({ confirmPayment: async () => authenticationError() });
+    late.world.eventsStorage = true;
+    late.world.refs = { ...baseRefs(), windowAnchorLocalDate: "2026-11-13" };
+    await late.run();
+    expect(late.world.applied[0]).toMatchObject({ kind: "failed", code: "authentication_required" });
+    expect(late.gateway.cancelPayment).toHaveBeenCalled();
+  });
+
+  describe("relectura diaria de un intento requires_action", () => {
+    function awaiting(behaviour: Partial<FamilyCollectionGateway>, actionDeadline: Date | null) {
+      const harness = setup(behaviour);
+      harness.world.due = [];
+      harness.world.actionDeadline = actionDeadline;
+      harness.world.processing = [attempt({ status: "requires_action", paymentIntentId: intentId })];
+      return harness;
+    }
+
+    it("requires_action y Stripe sigue requires_payment_method antes del plazo → nada cambia", async () => {
+      const { store, gateway, run } = awaiting(
+        { retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_payment_method", "authentication_required") },
+        deadline
+      );
+
+      const result = await run({ now: new Date("2026-11-19T21:00:00.000Z") });
+
+      expect(store.applyOutcome).not.toHaveBeenCalled();
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ reconciled: 0, failed: 0, skipped: { awaiting_authentication: 1 } });
+    });
+
+    it("requires_action pasado el plazo → cancelado en Stripe y failed authentication_required", async () => {
+      const { world, gateway, run } = awaiting(
+        { retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_payment_method", "authentication_required") },
+        deadline
+      );
+
+      const result = await run({ now: new Date("2026-11-20T09:00:00.000Z") });
+
+      expect(gateway.cancelPayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: intentId });
+      expect(world.calls).toEqual(["stripe:retrieve", "stripe:cancel", "apply:failed"]);
+      // Sin reintento: la cuota vuelve a los recordatorios.
+      expect(world.applied).toEqual([
+        { kind: "failed", paymentIntentId: intentId, code: "authentication_required", declineCode: null, nextRetryAt: null },
+      ]);
+      expect(result).toMatchObject({ reconciled: 1, failed: 1 });
+    });
+
+    it("requires_action pasado el plazo pero Stripe ya cobró → succeeded y pago registrado", async () => {
+      const { world, gateway, run } = awaiting({}, deadline);
+
+      await run({ now: new Date("2026-11-20T09:00:00.000Z") });
+
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+      expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
+    });
+
+    it("la familia confirma justo al cerrar el plazo: Stripe ya no deja cancelar → se relee y se registra el cobro", async () => {
+      let reads = 0;
+      const { world, gateway, run } = awaiting(
+        {
+          retrievePayment: async (input) => {
+            reads += 1;
+            return reads === 1
+              ? snapshot(input.paymentIntentId, "requires_payment_method", "authentication_required")
+              : snapshot(input.paymentIntentId, "succeeded");
+          },
+          cancelPayment: async () => "not_cancelable",
+        },
+        deadline
+      );
+
+      await run({ now: new Date("2026-11-20T09:00:00.000Z") });
+
+      expect(gateway.cancelPayment).toHaveBeenCalledTimes(1);
+      expect(world.calls).toEqual(["stripe:retrieve", "stripe:cancel", "stripe:retrieve", "apply:succeeded"]);
+      expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
+    });
+
+    it("cancelado en Stripe sin error de pago → canceled_in_stripe; en curso → processing", async () => {
+      const canceled = awaiting({ retrievePayment: async (input) => snapshot(input.paymentIntentId, "canceled") }, deadline);
+      await canceled.run({ now: new Date("2026-11-18T09:00:00.000Z") });
+      expect(canceled.world.applied).toEqual([
+        { kind: "canceled", paymentIntentId: intentId, reason: "canceled_in_stripe" },
+      ]);
+
+      const processing = awaiting({ retrievePayment: async (input) => snapshot(input.paymentIntentId, "processing") }, deadline);
+      await processing.run({ now: new Date("2026-11-18T09:00:00.000Z") });
+      expect(processing.world.applied).toEqual([{ kind: "processing", paymentIntentId: intentId }]);
+    });
+
+    it("un intento que ya espera sigue hasta su plazo aunque se apague la recuperación (nunca sin cerrar)", async () => {
+      env.events = false;
+      const before = awaiting(
+        { retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_action") },
+        deadline
+      );
+      await before.run({ now: new Date("2026-11-19T09:00:00.000Z") });
+      expect(before.store.applyOutcome).not.toHaveBeenCalled();
+      expect(before.gateway.cancelPayment).not.toHaveBeenCalled();
+
+      const after = awaiting(
+        { retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_action") },
+        deadline
+      );
+      await after.run({ now: new Date("2026-11-20T09:00:00.000Z") });
+      expect(after.world.applied).toEqual([
+        { kind: "failed", paymentIntentId: intentId, code: "authentication_required", declineCode: null, nextRetryAt: null },
+      ]);
+    });
   });
 });

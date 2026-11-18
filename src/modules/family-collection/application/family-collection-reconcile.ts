@@ -20,6 +20,11 @@
  *    reclamó hace más de 15 días, la academia recibe el aviso
  *    `processing_unreadable` (una sola vez). Un error permanente va como
  *    error al registro hasta que existe ese aviso; después, como advertencia.
+ *    Fase 4: también los `requires_action` (la familia tiene que confirmar el
+ *    pago con su banco). Antes de su plazo, si Stripe sigue sin cobrarlo,
+ *    nada cambia; pasado el plazo se cancela en Stripe y se cierra `failed`
+ *    `authentication_required` (si Stripe ya lo cobró, se registra). Sin
+ *    reintento ni segundo correo: vuelven los recordatorios.
  * 4. Fase 4: cobros tardíos en espera (aviso `late_success_pending`): un
  *    intento cerrado cuyo cobro Stripe completó tarde mientras la factura
  *    tenía otro cobro que no se dejaba cancelar (una domiciliación en el
@@ -125,7 +130,7 @@ export async function reconcileAttemptWithStripe(
   });
 }
 
-/** Relee en Stripe un intento `processing` y aplica su estado si ya terminó. */
+/** Relee en Stripe un intento `processing` (o `requires_action`) y aplica su estado si ya terminó. */
 function rereadProcessing(state: RunState, attempt: CollectionAttempt): Promise<FamilyCollectionAttemptStatus | null> {
   return reconcileAttemptWithStripe(state, attempt, {
     onReadError: (error) => processingReadFailed(state, attempt, error),
@@ -400,7 +405,7 @@ export async function reconcilePendingAttempts(state: RunState): Promise<void> {
     if (batch.length < state.batchSize) break;
   }
 
-  // 3. Releer los que están en curso.
+  // 3. Releer los que están en curso (y, Fase 4, los que esperan a la familia).
   cursor = null;
   for (;;) {
     if (isExpired(state)) {

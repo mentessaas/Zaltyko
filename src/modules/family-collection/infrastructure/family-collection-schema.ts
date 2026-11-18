@@ -115,10 +115,24 @@ export const FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS = 24 * 60 * 60 * 1000;
 export const FAMILY_COLLECTION_PROCESSING_UNREADABLE_MS = 15 * 24 * 60 * 60 * 1000;
 
 /**
+ * Fase 4: un intento `requires_action` sin cambios (`updated_at`) en este
+ * tiempo ya pasó su plazo hace al menos un día: el plazo acaba como mucho al
+ * final del 3.er día tras la fecha de su ventana de cobro, y el intento entra
+ * en ese estado no antes de esa fecha (como mucho 4 días locales, más un día
+ * por la zona horaria). Si sigue abierto es que el proceso diario dejó de
+ * pasar: la academia puede «Marcar como revisado» aunque no tenga aviso.
+ */
+export const FAMILY_COLLECTION_STALE_REQUIRES_ACTION_MS = 6 * 24 * 60 * 60 * 1000;
+
+/**
  * ¿Puede la academia «Marcar como revisado» este intento? Abierto y con un
  * aviso de revisión, con las reanudaciones agotadas, reclamado/creado sin
- * cambios desde hace más de FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS o en curso
- * desde hace más de FAMILY_COLLECTION_PROCESSING_UNREADABLE_MS. La misma
+ * cambios desde hace más de FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS, en curso
+ * desde hace más de FAMILY_COLLECTION_PROCESSING_UNREADABLE_MS o (Fase 4)
+ * esperando a la familia (`requires_action`) sin cambios desde hace más de
+ * FAMILY_COLLECTION_STALE_REQUIRES_ACTION_MS. Antes de eso, un
+ * `requires_action` sin aviso no se ofrece: la familia aún puede confirmar el
+ * pago y el proceso diario lo cierra al pasar su plazo. La misma
  * regla para la pantalla (family-collection-reads.ts) y para la acción
  * (family-collection-academy-actions.ts), que además lee Stripe antes de cerrar.
  */
@@ -149,14 +163,19 @@ export function isLongProcessingAttempt(attempt: { status: string; claimedAt: Da
 
 /**
  * Abierto y parado: reclamado o creado sin cambios desde hace más de
- * FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS, o en curso desde hace más de
- * FAMILY_COLLECTION_PROCESSING_UNREADABLE_MS (`isLongProcessingAttempt`).
+ * FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS, en curso desde hace más de
+ * FAMILY_COLLECTION_PROCESSING_UNREADABLE_MS (`isLongProcessingAttempt`) o
+ * (Fase 4) `requires_action` sin cambios desde hace más de
+ * FAMILY_COLLECTION_STALE_REQUIRES_ACTION_MS (su plazo ya pasó).
  */
 export function isStaleOpenAttempt(
   attempt: { status: string; updatedAt: Date | null; claimedAt: Date | null },
   now: Date
 ): boolean {
   if (attempt.status === "processing") return isLongProcessingAttempt(attempt, now);
+  if (attempt.status === "requires_action") {
+    return olderThan(attempt.updatedAt, now, FAMILY_COLLECTION_STALE_REQUIRES_ACTION_MS);
+  }
   if (attempt.status !== "claimed" && attempt.status !== "created") return false;
   return olderThan(attempt.updatedAt, now, FAMILY_COLLECTION_STALE_OPEN_ATTEMPT_MS);
 }

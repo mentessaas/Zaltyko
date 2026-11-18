@@ -19,7 +19,12 @@
  *   una domiciliación que el banco rechaza días después (llega por un evento
  *   de Stripe o por la relectura diaria) avisa igual que una tarjeta
  *   rechazada, con el tipo `sepa_failed`: la domiciliación nunca se reintenta,
- *   así que su texto nunca habla de otro intento.
+ *   así que su texto nunca habla de otro intento;
+ * - Fase 4, D7 («un correo cada vez que el banco pida confirmar»): cuando el
+ *   banco pide que la familia confirme el pago, el intento queda
+ *   `requires_action` con su plazo y se avisa en ese momento, en cualquier
+ *   número de intento, con la misma clave por intento. Si el plazo pasa y el
+ *   intento acaba `failed`, esa clave impide un segundo correo.
  *
  * Funciones puras: sin base de datos ni correo.
  */
@@ -99,12 +104,29 @@ export function notifiesFamilyOnCancel(input: { attemptNumber: number; reason: s
   );
 }
 
-/** ¿El intento, tal como quedó cerrado (`failed` o `canceled`), avisa a la familia? */
+/**
+ * ¿El intento, tal como está, avisa a la familia? Cerrado (`failed` o
+ * `canceled`) según las reglas de arriba, o (Fase 4) esperando a que la
+ * familia confirme el pago con su banco (`requires_action`), en cualquier
+ * número de intento, solo mientras su plazo no haya pasado (`now`; sin plazo
+ * conocido, no).
+ */
 export function familyNoticeApplies(input: {
   attemptNumber: number;
   status: string;
   failureCode: string | null;
+  actionDeadlineAt?: Date | null;
+  now?: Date;
 }): boolean {
+  if (input.status === "requires_action") {
+    const deadline = input.actionDeadlineAt?.getTime();
+    return (
+      deadline !== undefined &&
+      Number.isFinite(deadline) &&
+      input.now !== undefined &&
+      input.now.getTime() <= deadline
+    );
+  }
   if (input.status === "failed") {
     return notifiesFamilyOnFailure({ attemptNumber: input.attemptNumber, failureCode: input.failureCode ?? "" });
   }
@@ -117,8 +139,11 @@ export function familyNoticeApplies(input: {
 /**
  * Qué se le cuenta a la familia:
  * - `retry_scheduled`: tarjeta con rechazo recuperable y reintento programado;
- * - `authentication_required`: el banco pide que la persona confirme el pago
- *   (en esta fase no se reintenta: la cuota pasa a cobrarse a mano);
+ * - `authentication_required`: el banco pide que la persona confirme el pago.
+ *   Con plazo (Fase 4, intento `requires_action`: `deadlineLocalDate` en
+ *   renderFamilyFailureNotice), se le pide que lo confirme en Zaltyko antes
+ *   de ese día; sin plazo (Fase 3, o el plazo ya pasó), la cuota pasa a
+ *   cobrarse a mano;
  * - `card_declined`: tarjeta rechazada sin reintento;
  * - `sepa_failed`: domiciliación rechazada por el banco (nunca hay
  *   reintentos, D11): el mismo correo que `card_declined`, sin prometer otro
@@ -142,7 +167,10 @@ export function familyFailureNoticeKind(input: {
   declineCode: string | null;
   /** El intento guardó `next_retry_at`. */
   retryScheduled: boolean;
+  /** Estado del intento; con `requires_action` (Fase 4) siempre `authentication_required`. */
+  attemptStatus?: string;
 }): FamilyFailureNoticeKind {
+  if (input.attemptStatus === "requires_action") return "authentication_required";
   if (input.failureCode === PAYMENT_METHOD_MISSING_CODE) {
     return input.paymentMethodKind === "card" ? "card_missing" : "payment_method_missing";
   }
@@ -209,8 +237,18 @@ const NOT_AUTOMATIC_ANYMORE = "Esta cuota ya no se cobrará sola. Tu academia te
 function noticeBody(
   kind: FamilyFailureNoticeKind,
   fee: string,
-  retryDay: string | null
+  retryDay: string | null,
+  deadlineDay: string | null
 ): { lines: string[]; linkText: string } {
+  // Fase 4: el banco pide confirmar y la familia aún está a tiempo.
+  if (kind === "authentication_required" && deadlineDay) {
+    return {
+      lines: [
+        `Tu banco pide que confirmes el pago de ${fee}. Entra en Zaltyko y pulsa «Confirmar el pago» antes del ${deadlineDay}. Si no, tu academia te dirá cómo pagarla.`,
+      ],
+      linkText: "Entrar en Zaltyko",
+    };
+  }
   switch (kind) {
     case "retry_scheduled":
       return {
@@ -289,16 +327,25 @@ export function renderFamilyFailureNotice(input: {
    * `retry_scheduled`. Sin él, el reintento se promete sin fecha («pronto»).
    */
   retryDateLocal: string | null;
+  /**
+   * Fase 4: último día local (YYYY-MM-DD) para confirmar el pago con el banco
+   * (de `action_deadline_at`); solo cuenta en `authentication_required`. Sin
+   * él, el texto de la Fase 3 (la cuota pasa a cobrarse a mano).
+   */
+  deadlineLocalDate?: string | null;
   /** URL de /familia/cuotas. */
   feesUrl: string;
 }): FamilyFailureNoticeMessage {
   const fee = feeLabel(input.servicePeriodStart);
   const retryDay = retryDayLabel(input.retryDateLocal);
+  const deadlineDay = input.kind === "authentication_required" ? retryDayLabel(input.deadlineLocalDate ?? null) : null;
   const academy = input.academyName.trim() || "Tu academia";
 
-  const { lines, linkText } = noticeBody(input.kind, fee, retryDay);
+  const { lines, linkText } = noticeBody(input.kind, fee, retryDay, deadlineDay);
   const closing = `Si tienes cualquier duda, habla con ${academy}.`;
-  const subject = `${academy}: no hemos podido cobrar ${fee}`.slice(0, 160);
+  const subject = (
+    deadlineDay ? `${academy}: confirma el pago de ${fee}` : `${academy}: no hemos podido cobrar ${fee}`
+  ).slice(0, 160);
   const text = ["Hola:", ...lines, `${linkText}: ${input.feesUrl}`, closing].join("\n\n");
   const paragraph = (value: string) => `<p style="margin:0 0 12px">${escapeHtml(value)}</p>`;
   const html = [

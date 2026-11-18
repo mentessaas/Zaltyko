@@ -34,7 +34,10 @@
  *    (aviso en el registro, solo ids).
  * 3. Intento abierto (`claimed`, `created`, `processing`, `requires_action`)
  *    → se relee y se aplica lo que diga Stripe. Sin resultado todavía
- *    (`transient`, `requires_confirmation`) no se escribe nada.
+ *    (`transient`, `requires_confirmation`) no se escribe nada. Fase 4
+ *    (Tarea 4): si el banco pide que la familia confirme un cobro de tarjeta,
+ *    el intento pasa a `requires_action` sin cancelar el cobro; mientras
+ *    espera, un evento nunca lo cancela antes de su plazo.
  * 4. Intento cerrado (`failed`/`canceled`) cuyo cobro Stripe da por cobrado:
  *    cobro tardío, nunca dos cobros (settleClosedAttempt, la misma función
  *    que la relectura diaria). Si la factura ya tiene otro intento cobrado
@@ -87,6 +90,7 @@ import {
   type ProviderEventRoute,
 } from "@/modules/family-collection/domain/provider-event";
 import type { CollectionAttempt } from "@/modules/family-collection/infrastructure/family-collection-store";
+import { FAMILY_COLLECTION_OPEN_STATUSES } from "@/modules/family-collection/infrastructure/family-collection-schema";
 import {
   claimProviderEvent,
   finishProviderEvent,
@@ -151,7 +155,7 @@ export interface PaymentIntentEventOutcome {
 export const ATTEMPT_EFFECT_TYPE = "family_collection_attempt";
 
 /** Estados en los que un intento todavía puede avanzar (se relee y se aplica). */
-const OPEN_ATTEMPT_STATUSES: ReadonlySet<string> = new Set(["claimed", "created", "processing", "requires_action"]);
+const OPEN_ATTEMPT_STATUSES: ReadonlySet<string> = new Set(FAMILY_COLLECTION_OPEN_STATUSES);
 
 /**
  * Efecto en el buzón: el intento, si el evento lo cambió (un estado escrito o

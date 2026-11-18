@@ -56,10 +56,15 @@ import {
   LATE_SUCCESS_PENDING_REASON,
   LATE_SUCCESS_SIBLING_IN_FLIGHT,
 } from "@/modules/family-collection/domain/late-success";
-import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
+import {
+  isFamilyCollectionEventsStorageAvailable,
+  isFamilyCollectionStorageAvailable,
+} from "@/modules/family-collection/application/storage";
+import { collectionWindowAnchor } from "@/modules/family-collection/domain/authentication-window";
 import { findCollectionSettings } from "@/modules/family-collection/infrastructure/collection-settings-store";
 import {
   FAMILY_COLLECTION_MAX_RESUMES,
+  FAMILY_COLLECTION_OPEN_STATUSES,
   type FamilyCollectionAllocationStatus,
   type FamilyCollectionAttemptStatus,
 } from "@/modules/family-collection/infrastructure/family-collection-schema";
@@ -77,8 +82,13 @@ type Executor = Pick<DatabaseClient, "execute">;
 
 export type CollectionMethodKind = "card" | "sepa_debit";
 
-/** Estados en los que un intento todavía puede avanzar. */
-const OPEN_STATUSES = ["claimed", "created", "processing"] as const;
+/**
+ * Estados en los que un intento todavía puede avanzar: los de
+ * FAMILY_COLLECTION_OPEN_STATUSES (Fase 4: también `requires_action`, que
+ * solo puede existir con la forma "phase4"; con la Fase 3 es un texto que no
+ * casa con ninguna fila, así que las consultas valen para las dos formas).
+ */
+const OPEN_STATUSES = FAMILY_COLLECTION_OPEN_STATUSES;
 
 const SYSTEM_AUDIT_METADATA = {
   actor_type: "system",
@@ -132,6 +142,52 @@ function inScope(column: SQL, scope: OrganizationScope): SQL {
   if (scope === null) return sql`true`;
   // Lista como texto: Drizzle expandiría un array en una lista de parámetros.
   return sql`${column} = any(string_to_array(${scope.join(",")}, ',')::uuid[])`;
+}
+
+/**
+ * Condición SQL «el intento `alias` es un cobro tardío en espera»: `failed` o
+ * `canceled` con `pi_…`, con el aviso `late_success_pending` y sin ninguno de
+ * los avisos que cierran la espera (LATE_SUCCESS_SETTLED_REASONS). Un tardío
+ * ya cobrado deja de cumplirla por su estado. Solo columnas de la Fase 3 y
+ * `outbox_events`. El alias es una constante de este archivo, nunca un dato.
+ */
+function latePendingAttempt(alias: "a" | "lp"): SQL {
+  const table = sql.raw(alias);
+  const settledKeys = sql.join(
+    LATE_SUCCESS_SETTLED_REASONS.map(
+      (reason) => sql`'family-collection:' || ${table}.id::text || ${`:needs_review:${reason}`}`
+    ),
+    sql`, `
+  );
+  return sql`${table}.status in ('failed', 'canceled')
+    and ${table}.provider_payment_intent_reference is not null
+    and exists (
+      select 1 from zaltyko.outbox_events e
+       where e.organization_id = ${table}.organization_id
+         and e.event_name = ${NEEDS_REVIEW_EVENT}
+         and e.idempotency_key = 'family-collection:' || ${table}.id::text || ${`:needs_review:${LATE_SUCCESS_PENDING_REASON}`}
+    )
+    and not exists (
+      select 1 from zaltyko.outbox_events e
+       where e.organization_id = ${table}.organization_id
+         and e.event_name = ${NEEDS_REVIEW_EVENT}
+         and e.idempotency_key in (${settledKeys})
+    )`;
+}
+
+/**
+ * N2: ¿tiene la factura un cobro tardío en espera? Su dinero ya se cobró en
+ * Stripe aunque todavía no esté en el libro: mientras tanto nunca se reclama
+ * otro intento de esa factura (ni el reintento pendiente de un hermano), o se
+ * cobraría dos veces. Lo resuelve el paso 4 diario o la academia.
+ */
+function invoiceHasLatePending(organizationId: SQL, invoiceId: SQL): SQL {
+  return sql`exists (
+    select 1 from zaltyko.family_collection_attempts lp
+     where lp.organization_id = ${organizationId}
+       and lp.invoice_id = ${invoiceId}
+       and ${latePendingAttempt("lp")}
+  )`;
 }
 
 // ---------------------------------------------------------------------------
@@ -196,6 +252,13 @@ export interface AttemptStripeRefs {
    */
   firstAttemptClaimedAt: Date | null;
   allocations: CollectionAllocationRow[];
+  /**
+   * Fase 4: fecha local (YYYY-MM-DD) desde la que se cuenta la ventana de
+   * cobro del intento (collectionWindowAnchor: la del reintento o la fecha de
+   * cobro prevista), o null. De ella sale el plazo para confirmar el pago con
+   * el banco (authenticationDeadline). Solo columnas de la Fase 3.
+   */
+  windowAnchorLocalDate: string | null;
 }
 
 export interface CollectionChargeRow {
@@ -228,7 +291,7 @@ export interface CollectionInvoiceRow {
 }
 
 export interface AttemptHistory {
-  /** Hay un intento `claimed`, `created` o `processing`. */
+  /** Hay un intento abierto (`claimed`, `created`, `processing` o `requires_action`). */
   openExists: boolean;
   /** Último intento (por número), o null si la factura no tiene ninguno. */
   last: { attemptNumber: number; status: FamilyCollectionAttemptStatus; nextRetryAt: Date | null } | null;
@@ -312,6 +375,13 @@ export type AttemptOutcome =
     }
   | { kind: "canceled"; paymentIntentId: string | null; reason: string }
   /**
+   * Fase 4: el banco pide que la familia confirme el pago (solo tarjeta). El
+   * intento queda `requires_action` con su plazo (`action_deadline_at`) y,
+   * en la misma transacción, el aviso a la familia en el outbox (en cualquier
+   * número de intento, una vez por intento). Solo con la forma "phase4".
+   */
+  | { kind: "requires_action"; paymentIntentId: string; actionDeadlineAt: Date }
+  /**
    * Fase 4: el cobro de un intento ya cerrado (`failed` o `canceled`) se
    * completó tarde en Stripe. Solo se aplica desde esos dos estados y con el
    * mismo `pi_…`; nunca si la factura ya tiene otro intento cobrado
@@ -342,6 +412,11 @@ export interface DueInvoiceRef {
 export interface FamilyCollectionStore {
   /** Tablas de las Fases 1, 2 y 3 tal como las definen sus candidatas. */
   isStorageAvailable(): Promise<boolean>;
+  /**
+   * Fase 4: ¿tiene el cobro la forma "phase4" (requires_action con su plazo)?
+   * Solo entonces se puede escribir o leer `action_deadline_at`.
+   */
+  isEventsStorageAvailable(): Promise<boolean>;
   /**
    * Facturas candidatas a cobrar (filtro grueso; el servicio decide por fecha
    * local): con cuotas automáticas abiertas que vencen antes de `horizon`, sin
@@ -398,6 +473,12 @@ export interface FamilyCollectionStore {
    * abierto, lanza LATE_SUCCESS_SIBLING_IN_FLIGHT. Si no, anula los
    * reintentos pendientes de la factura y registra y reparte el pago como un
    * `succeeded`.
+   *
+   * Fase 4, `requires_action`: solo tarjeta y solo con la forma "phase4";
+   * guarda el plazo (`action_deadline_at`) y, en la misma transacción, el
+   * aviso a la familia (una vez por intento). Sobre un intento que ya está
+   * `requires_action` no hace nada (`{ applied: false }`). Un intento
+   * `requires_action` está abierto: los demás resultados se le aplican igual.
    */
   applyOutcome(input: {
     organizationId: string;
@@ -427,7 +508,18 @@ export interface FamilyCollectionStore {
    * toma). Transacción corta con el orden único de bloqueo. `true` si la devolvió.
    */
   releaseResume(attempt: ResumedAttempt): Promise<boolean>;
+  /**
+   * Intentos que relee cada día la Fase A: `processing` y (Fase 4)
+   * `requires_action`. Solo compara el estado, sin `action_deadline_at`: vale
+   * para las dos formas (con la Fase 3 no hay filas `requires_action`).
+   */
   listProcessing(input: { after: string | null; limit: number; scope: OrganizationScope }): Promise<CollectionAttempt[]>;
+  /**
+   * Fase 4: plazo (`action_deadline_at`) de un intento `requires_action`, o
+   * null si ya no lo está. Solo se llama con un intento en ese estado, que
+   * solo existe con la forma "phase4" (C2: la Fase 3 nunca lee la columna).
+   */
+  readActionDeadline(input: { organizationId: string; attemptId: string }): Promise<Date | null>;
   /**
    * Fase 4: intentos `failed`/`canceled` con `pi_…` y el aviso
    * `late_success_pending`, sin ninguno de los avisos que cierran la espera
@@ -495,6 +587,44 @@ function errorCodeOf(error: unknown): string | null {
 /** Los códigos se guardan como los define la base: minúsculas, dígitos y guion bajo. */
 function storedCode(code: string): string {
   return code.toLowerCase();
+}
+
+/**
+ * Fecha de la ventana de cobro de un intento a partir de la fila de
+ * loadAttemptRefs (collectionWindowAnchor): con intento anterior, su
+ * reintento; sin él, la fecha de cobro del vencimiento más antiguo de sus
+ * cuotas (es también la fecha de cobro más antigua: collectionDate nunca
+ * adelanta un vencimiento posterior por delante de uno anterior). Si falta el
+ * intento anterior de un reintento o algo no se puede leer, null.
+ */
+function windowAnchorOf(row: Record<string, unknown>, attemptNumber: number, timezone: string): string | null {
+  try {
+    const dayOfMonth = row.collectionDayOfMonth;
+    const collectionDayOfMonth =
+      dayOfMonth === null || dayOfMonth === undefined ? null : Number(dayOfMonth);
+    if (attemptNumber > 1) {
+      if (row.previousStatus === null || row.previousStatus === undefined) return null;
+      return collectionWindowAnchor({
+        previousAttempt: { status: String(row.previousStatus), nextRetryAt: toDateOrNull(row.previousNextRetryAt) },
+        charges: [],
+        allocations: [],
+        timezone,
+        collectionDayOfMonth,
+      });
+    }
+    const earliest = toDateOrNull(row.earliestDueAt);
+    if (!earliest) return null;
+    return collectionWindowAnchor({
+      previousAttempt: null,
+      charges: [{ id: "earliest", dueAt: earliest }],
+      allocations: [{ chargeId: "earliest" }],
+      timezone,
+      collectionDayOfMonth,
+    });
+  } catch {
+    // Zona horaria, fecha o día de cobro ilegibles: sin ventana (comportamiento de la Fase 3).
+    return null;
+  }
 }
 
 function toKind(value: unknown): CollectionMethodKind | null {
@@ -948,7 +1078,7 @@ async function lockInvoice(tx: TransactionClient, organizationId: string, invoic
 
 /**
  * Bloquea en el orden único el intento y lo que toca, y lo devuelve solo si
- * sigue abierto (claimed, created o processing).
+ * sigue abierto (claimed, created, processing o, Fase 4, requires_action).
  */
 async function lockOpenAttempt(
   tx: TransactionClient,
@@ -1344,6 +1474,10 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
       return collection && paymentMethods && connect;
     },
 
+    async isEventsStorageAvailable() {
+      return isFamilyCollectionEventsStorageAvailable(db);
+    },
+
     async listDueInvoices(input) {
       const result = await db.execute(sql`
         select i.id::text as "invoiceId", i.organization_id::text as "organizationId"
@@ -1373,6 +1507,8 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
                 and a.invoice_id = i.id
                 and a.status in (${openStatusList})
            )
+           -- N2: con un cobro tardío en espera, nunca otro intento.
+           and not ${invoiceHasLatePending(sql.raw("i.organization_id"), sql.raw("i.id"))}
            and (
              last.status is null
              or (
@@ -1439,6 +1575,15 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
 
         const found = await readInvoice(tx, input.organizationId, input.invoiceId);
         if (!found) return { outcome: "skipped", reason: "invoice_missing" } as const;
+        // N2: ya con la factura bloqueada. Un cobro tardío en espera (su
+        // dinero ya se cobró) impide escribir otro intento, ni reclamado ni
+        // cancelado: lo resuelve el paso 4 diario o la academia.
+        const latePending = await tx.execute(sql`
+          select ${invoiceHasLatePending(sql`${input.organizationId}::uuid`, sql`${input.invoiceId}::uuid`)} as "pending"
+        `);
+        if ((latePending.rows[0] as { pending?: unknown } | undefined)?.pending === true) {
+          return { outcome: "skipped", reason: LATE_SUCCESS_PENDING_REASON } as const;
+        }
         const charges = await readCharges(tx, input.organizationId, input.invoiceId);
         const history = await readHistory(tx, input.organizationId, input.invoiceId);
         // Ya con las cuotas bloqueadas: un recordatorio reservado antes cuenta.
@@ -1622,6 +1767,39 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
           });
         }
 
+        if (outcome.kind === "requires_action") {
+          // Fase 4: solo tarjeta (la base también lo exige) y sin cambiar el
+          // plazo de un intento que ya espera a la familia.
+          if (attempt.paymentMethodKind !== "card" || outcome.paymentIntentId === null) {
+            throw new Error("FAMILY_COLLECTION_REQUIRES_ACTION_CARD_ONLY");
+          }
+          if (attempt.status === "requires_action") return { applied: false };
+          // C2: la única escritura de action_deadline_at. Solo llega con
+          // RunState.authenticationRecovery, que exige la forma "phase4".
+          await tx.execute(sql`
+            update zaltyko.family_collection_attempts
+               set status = 'requires_action',
+                   provider_payment_intent_reference = ${outcome.paymentIntentId},
+                   action_deadline_at = ${outcome.actionDeadlineAt.toISOString()}::timestamptz,
+                   updated_at = ${now}::timestamptz
+             where organization_id = ${attempt.organizationId}::uuid
+               and id = ${attempt.id}::uuid
+          `);
+          await recordTransition(tx, attempt, {
+            event: "attempt_requires_action",
+            payload: { actionDeadlineAt: outcome.actionDeadlineAt.toISOString() },
+            now: input.now,
+            audit: true,
+          });
+          // D7: aviso a la familia cada vez que el banco pide confirmar, en
+          // cualquier número de intento, en la misma transacción. Misma clave
+          // por intento que el aviso de fallo
+          // (`family-collection:{intento}:family_failure_notice`): si el plazo
+          // pasa y el intento acaba `failed`, no sale un segundo correo.
+          await recordTransition(tx, attempt, { event: FAMILY_FAILURE_NOTICE, payload: {}, now: input.now });
+          return { applied: true, status: "requires_action", allocationStatus: null, reviewReasons: [] };
+        }
+
         if (outcome.kind === "processing") {
           await tx.execute(sql`
             update zaltyko.family_collection_attempts
@@ -1778,10 +1956,11 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
     },
 
     async listProcessing(input) {
+      // Solo el estado (nunca action_deadline_at): vale con las dos formas.
       const result = await db.execute(sql`
         select ${attemptColumns}
           from zaltyko.family_collection_attempts
-         where status = 'processing'
+         where status in ('processing', 'requires_action')
            and ${inScope(sql.raw("organization_id"), input.scope)}
            and (${input.after}::uuid is null or id > ${input.after}::uuid)
          order by id
@@ -1790,32 +1969,27 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
       return (result.rows as Array<Record<string, unknown>>).map(toAttempt);
     },
 
+    async readActionDeadline(input) {
+      // C2: la única lectura de action_deadline_at. Solo se llama con un
+      // intento `requires_action`, que solo existe con la forma "phase4".
+      const result = await db.execute(sql`
+        select action_deadline_at as "actionDeadlineAt"
+          from zaltyko.family_collection_attempts
+         where organization_id = ${input.organizationId}::uuid
+           and id = ${input.attemptId}::uuid
+           and status = 'requires_action'
+      `);
+      const row = result.rows[0] as { actionDeadlineAt?: unknown } | undefined;
+      return row ? toDateOrNull(row.actionDeadlineAt) : null;
+    },
+
     async listLateSuccessPending(input) {
-      const settledKeys = sql.join(
-        LATE_SUCCESS_SETTLED_REASONS.map(
-          (reason) => sql`'family-collection:' || a.id::text || ${`:needs_review:${reason}`}`
-        ),
-        sql`, `
-      );
       const result = await db.execute(sql`
         select ${attemptColumns}
           from zaltyko.family_collection_attempts a
-         where a.status in ('failed', 'canceled')
-           and a.provider_payment_intent_reference is not null
+         where ${latePendingAttempt("a")}
            and ${inScope(sql.raw("a.organization_id"), input.scope)}
            and (${input.after}::uuid is null or a.id > ${input.after}::uuid)
-           and exists (
-             select 1 from zaltyko.outbox_events e
-              where e.organization_id = a.organization_id
-                and e.event_name = ${NEEDS_REVIEW_EVENT}
-                and e.idempotency_key = 'family-collection:' || a.id::text || ${`:needs_review:${LATE_SUCCESS_PENDING_REASON}`}
-           )
-           and not exists (
-             select 1 from zaltyko.outbox_events e
-              where e.organization_id = a.organization_id
-                and e.event_name = ${NEEDS_REVIEW_EVENT}
-                and e.idempotency_key in (${settledKeys})
-           )
          order by a.id
          limit ${input.limit}
       `);
@@ -1862,6 +2036,22 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
                     and f.invoice_id = a.invoice_id
                     and f.attempt_number = 1
                ) as "firstAttemptClaimedAt",
+               -- Ventana de cobro (collectionWindowAnchor): el intento anterior,
+               -- el día de cobro de la academia y el vencimiento más antiguo
+               -- de las cuotas del reparto. Solo columnas de la Fase 3.
+               prev_attempt.status as "previousStatus",
+               prev_attempt.next_retry_at as "previousNextRetryAt",
+               (
+                 select ocs.collection_day_of_month
+                   from zaltyko.organization_collection_settings ocs
+                  where ocs.organization_id = a.organization_id
+               ) as "collectionDayOfMonth",
+               (
+                 select min(c.due_at)
+                   from zaltyko.family_collection_attempt_charges ac
+                   join zaltyko.charges c on c.organization_id = ac.organization_id and c.id = ac.charge_id
+                  where ac.organization_id = a.organization_id and ac.attempt_id = a.id
+               ) as "earliestDueAt",
                (
                  select case
                           when count(*) = 1
@@ -1886,6 +2076,10 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
             on l.organization_id = a.organization_id and l.id = a.location_id
           left join zaltyko.family_payment_authorizations au
             on au.organization_id = a.organization_id and au.id = a.authorization_id
+          left join zaltyko.family_collection_attempts prev_attempt
+            on prev_attempt.organization_id = a.organization_id
+           and prev_attempt.invoice_id = a.invoice_id
+           and prev_attempt.attempt_number = a.attempt_number - 1
          where a.organization_id = ${attempt.organizationId}::uuid
            and a.id = ${attempt.id}::uuid
          limit 1
@@ -1895,15 +2089,18 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
       // La autorización del intento debe ser del pagador, la familia y la cuenta
       // del intento (ninguna clave foránea lo ata): si no, no hay con qué cobrar.
       const matches = row.authorizationMatches === true;
+      const timezone = String(row.timezone);
+      const allocations = await readAllocations(db, attempt);
       return {
         connectedAccount: String(row.connectedAccount),
         customer: matches ? toStringOrNull(row.customer) : null,
         paymentMethod: matches ? toStringOrNull(row.paymentMethod) : null,
         mandate: matches ? toStringOrNull(row.mandate) : null,
-        timezone: String(row.timezone),
+        timezone,
         servicePeriodStart: toStringOrNull(row.servicePeriodStart),
         firstAttemptClaimedAt: toDateOrNull(row.firstAttemptClaimedAt),
-        allocations: await readAllocations(db, attempt),
+        allocations,
+        windowAnchorLocalDate: windowAnchorOf(row, attempt.attemptNumber, timezone),
       };
     },
 

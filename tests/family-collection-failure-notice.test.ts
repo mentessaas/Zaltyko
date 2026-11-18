@@ -563,6 +563,8 @@ describe("aviso del primer fallo: envío", () => {
       limit: FAMILY_FAILURE_NOTICE_BATCH,
       scope: null,
       after: null,
+      // Forma "phase3" (isStorageAvailable): sin avisos requires_action ni su plazo.
+      authentication: false,
     });
     // Una página incompleta: no se pide otra.
     expect(store.listPending).toHaveBeenCalledTimes(1);
@@ -893,5 +895,133 @@ describe("aviso del primer fallo: envío", () => {
     );
     expect(delivery).toEqual({ sent: 0, notSent: 0, pending: 0 });
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("Fase 4 (D7): aviso cuando el banco pide que la familia confirme el pago", () => {
+  /** Fin del 5-3-2027 en Madrid. */
+  const DEADLINE = new Date("2027-03-05T22:59:59.999Z");
+  const BEFORE = new Date("2027-03-03T09:00:00.000Z");
+  const waiting = (overrides: Partial<PendingFamilyFailureNotice> = {}) =>
+    pending({
+      attemptNumber: 3,
+      lastAttemptNumber: 3,
+      attemptStatus: "requires_action",
+      lastAttemptStatus: "requires_action",
+      failureCode: null,
+      declineCode: null,
+      nextRetryAt: null,
+      servicePeriodStart: "2027-02-01",
+      actionDeadlineAt: DEADLINE,
+      ...overrides,
+    });
+
+  it("requires_action avisa en cualquier número de intento, solo antes del plazo", () => {
+    for (const attemptNumber of [1, 2, 3, 4]) {
+      expect(
+        familyNoticeApplies({
+          attemptNumber,
+          status: "requires_action",
+          failureCode: null,
+          actionDeadlineAt: DEADLINE,
+          now: BEFORE,
+        }),
+        String(attemptNumber)
+      ).toBe(true);
+    }
+    expect(
+      familyNoticeApplies({
+        attemptNumber: 1,
+        status: "requires_action",
+        failureCode: null,
+        actionDeadlineAt: DEADLINE,
+        now: new Date(DEADLINE.getTime() + 1),
+      })
+    ).toBe(false);
+    // Sin plazo conocido, nunca.
+    expect(familyNoticeApplies({ attemptNumber: 1, status: "requires_action", failureCode: null, now: BEFORE })).toBe(false);
+    expect(
+      familyFailureNoticeKind({
+        paymentMethodKind: "card",
+        failureCode: null,
+        declineCode: null,
+        retryScheduled: false,
+        attemptStatus: "requires_action",
+      })
+    ).toBe("authentication_required");
+  });
+
+  it("texto exacto con el plazo: confirmar el pago en Zaltyko antes del día", () => {
+    const message = renderFamilyFailureNotice({
+      kind: "authentication_required",
+      academyName: "Club Sintético",
+      servicePeriodStart: "2027-02-01",
+      retryDateLocal: null,
+      deadlineLocalDate: "2027-03-05",
+      feesUrl: FEES_URL,
+    });
+    expect(message.subject).toBe("Club Sintético: confirma el pago de la cuota de febrero de 2027");
+    expect(message.text).toBe(
+      [
+        "Hola:",
+        "Tu banco pide que confirmes el pago de la cuota de febrero de 2027. Entra en Zaltyko y pulsa «Confirmar el pago» antes del 5 de marzo. Si no, tu academia te dirá cómo pagarla.",
+        `Entrar en Zaltyko: ${FEES_URL}`,
+        "Si tienes cualquier duda, habla con Club Sintético.",
+      ].join("\n\n")
+    );
+    expect(message.text).not.toMatch(/volveremos a intentarlo|3DS|PaymentIntent|SCA/i);
+  });
+
+  it("aviso a la familia al entrar en requires_action, también en el intento 3, con el plazo", async () => {
+    expect(decideFamilyFailureNotice(waiting(), BEFORE, { retriesEnabled: true })).toEqual({
+      action: "send",
+      retryScheduled: false,
+      retryDateLocal: null,
+      deadlineLocalDate: "2027-03-05",
+    });
+
+    const { store, results } = memoryStore([waiting()]);
+    const sendEmail = sender();
+    const delivery = await deliverFamilyFailureNotices(
+      { now: BEFORE, appUrl: "https://zaltyko.test" },
+      { store, sendEmail, storageShape: async () => "phase4" }
+    );
+
+    expect(delivery).toEqual({ sent: 1, notSent: 0, pending: 0 });
+    // Con la forma phase4 se piden también los avisos requires_action y su plazo.
+    expect(store.listPending.mock.calls[0]![0].authentication).toBe(true);
+    const options = sendEmail.mock.calls[0]![0];
+    expect(options.subject).toBe("Club Sintético: confirma el pago de la cuota de febrero de 2027");
+    expect(options.text).toContain("pulsa «Confirmar el pago» antes del 5 de marzo");
+    // Un solo correo por intento: la misma clave que el aviso de fallo.
+    expect(options.dedupeKey).toBe(familyFailureNoticeKey(ATTEMPT_ID));
+    expect(results.get(ATTEMPT_ID)).toBe("sent");
+  });
+
+  it("si el plazo ya pasó o el intento ya cambió, no se envía; el intento 1 que acabó failed avisa una vez, como siempre", () => {
+    const decide = (overrides: Partial<PendingFamilyFailureNotice>, now = BEFORE) =>
+      decideFamilyFailureNotice(waiting(overrides), now, { retriesEnabled: true });
+    expect(decide({}, new Date(DEADLINE.getTime() + 1))).toEqual({ action: "close", outcome: "superseded" });
+    expect(decide({ actionDeadlineAt: null })).toEqual({ action: "close", outcome: "superseded" });
+    expect(decide({ attemptStatus: "succeeded", lastAttemptStatus: "succeeded" })).toEqual({
+      action: "close",
+      outcome: "superseded",
+    });
+    expect(decide({ payerEmail: null })).toEqual({ action: "close", outcome: "no_email" });
+    // El intento 3 que caducó a failed: ya no es el primero, no se avisa otra vez.
+    expect(decide({ attemptStatus: "failed", lastAttemptStatus: "failed", failureCode: "authentication_required" })).toEqual({
+      action: "close",
+      outcome: "superseded",
+    });
+    // El intento 1 que caducó antes de enviar su aviso: el aviso de la Fase 3, sin promesa.
+    expect(
+      decide({
+        attemptNumber: 1,
+        lastAttemptNumber: 1,
+        attemptStatus: "failed",
+        lastAttemptStatus: "failed",
+        failureCode: "authentication_required",
+      })
+    ).toEqual({ action: "send", retryScheduled: false, retryDateLocal: null });
   });
 });

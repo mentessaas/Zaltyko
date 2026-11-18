@@ -787,6 +787,32 @@ describe("fila de la academia (pura)", () => {
     });
   });
 
+  it("panel de la academia lista un intento requires_action como en curso", () => {
+    expect(
+      ownerAutomaticCollectionItemOf(
+        ownerRow({ attempt: attempt({ status: "requires_action", completedAt: null, allocationStatus: null }) }),
+        NOW,
+        "2026-11"
+      )
+    ).toMatchObject({
+      state: "in_progress",
+      needsReview: false,
+      // Cancelar lo cancela en Stripe antes de cerrarlo, como un cobro creado.
+      canCancel: true,
+      canMarkReviewed: false,
+      manualPaymentBlocked: true,
+    });
+    // Para la familia, también en curso.
+    expect(
+      familyAutomaticFeeStatusOf(
+        familyInput({
+          last: { status: "requires_action", completedAt: null, nextRetryAt: null, failureCode: null },
+        }),
+        NOW
+      )
+    ).toEqual({ kind: "in_progress" });
+  });
+
   it("en el banco: ni cancelar ni revisar", () => {
     expect(
       ownerAutomaticCollectionItemOf(
@@ -1197,7 +1223,9 @@ describe("puertas de las lecturas", () => {
       expect(query.sql).toMatch(/with candidates as/);
       // Sin cuotas sin intento: solo facturas con un intento en marcha.
       expect(query.sql).not.toMatch(/union\s+select c\.invoice_id/);
-      expect(query.sql).toMatch(/and la\.status in \('claimed', 'created', 'processing'\)\s+order by/);
+      // Los estados abiertos van como parámetros (FAMILY_COLLECTION_OPEN_STATUSES), con requires_action.
+      expect(query.sql).toMatch(/and la\.status in \(\$\d+, \$\d+, \$\d+, \$\d+\)\s+order by/);
+      expect(query.params).toEqual(expect.arrayContaining(["claimed", "created", "processing", "requires_action"]));
     });
 
     it("sin ningún cobro en marcha: nada (null)", async () => {

@@ -78,6 +78,12 @@ export interface FamilyCollectionRunOptions {
  * En modo `"event"` solo se relee y se aplica lo que diga Stripe (nunca se
  * crea ni se confirma un cobro); `flagEnabled` y `sepaEnabled` se leen igual
  * que en la pasada diaria para que los pasos compartidos decidan lo mismo.
+ *
+ * `authenticationRecovery` (Fase 4: el banco pide que la familia confirme un
+ * cobro de tarjeta y el intento espera en `requires_action`) exige la bandera
+ * de eventos, la bandera del cobro y el almacenamiento con la forma "phase4";
+ * la forma solo se consulta si las dos banderas están encendidas. Es igual en
+ * los dos modos.
  */
 export async function createRunState(
   options: FamilyCollectionRunOptions,
@@ -99,6 +105,9 @@ export async function createRunState(
     throw new RangeError("El tamaño de página del cobro debe ser un entero positivo.");
   }
 
+  const authenticationRecovery =
+    flagEnabled && isFamilyCollectionEventsFlagEnabled() && (await store.isEventsStorageAvailable());
+
   return {
     now,
     deadline: Date.now() + (options.deadlineMs ?? FAMILY_COLLECTION_DEADLINE_MS),
@@ -107,6 +116,7 @@ export async function createRunState(
     productionDatabase: false,
     flagEnabled,
     sepaEnabled: isFamilyAutomaticSepaCollectionFlagEnabled(),
+    authenticationRecovery,
     store,
     gateway: deps.gateway ?? createStripeCollectionGateway(),
     scope: options.organizationIds ? [...options.organizationIds] : null,

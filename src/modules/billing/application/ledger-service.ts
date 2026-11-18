@@ -1631,8 +1631,15 @@ export async function reconcileFinancialPeriod(
 /** Procesador de los cobros automáticos (cargo directo en la cuenta de la academia). */
 export const FAMILY_COLLECTION_PROCESSOR = "stripe";
 
-/** Estados del intento en los que la cuota se está cobrando automáticamente. */
-const AUTOMATIC_COLLECTION_IN_PROGRESS_STATUSES = ["claimed", "created", "processing"] as const;
+/**
+ * Estados del intento en los que la cuota se está cobrando automáticamente:
+ * los de FAMILY_COLLECTION_OPEN_STATUSES (family-collection-schema.ts; Fase 4:
+ * también `requires_action`, la familia tiene que confirmar el pago con su
+ * banco). Copiados aquí para no cargar el espejo Drizzle del cobro desde el
+ * libro; tests/family-collection-open-statuses-contract.test.ts comprueba que
+ * coinciden.
+ */
+export const AUTOMATIC_COLLECTION_IN_PROGRESS_STATUSES = ["claimed", "created", "processing", "requires_action"] as const;
 
 const providerCollectionPaymentSchema = z.object({
   organizationId: z.guid(),
@@ -1910,9 +1917,10 @@ export const MANUAL_PAYMENT_CANCEL_CODE = "manual_payment";
  * applyPaymentAllocation con `origin: "manual"`, así cubre
  * recordManualPaymentForCharge y allocatePayment):
  *
- * - si la factura de la cuota tiene un intento `claimed`, `created` o
- *   `processing`, 409 AUTOMATIC_COLLECTION_IN_PROGRESS: el dinero puede estar
- *   moviéndose en Stripe. Vale también con la bandera apagada (lo ya enviado
+ * - si la factura de la cuota tiene un intento `claimed`, `created`,
+ *   `processing` o `requires_action`, 409 AUTOMATIC_COLLECTION_IN_PROGRESS:
+ *   el dinero puede estar moviéndose en Stripe (o la familia puede confirmar
+ *   el pago con su banco hasta su plazo). Vale también con la bandera apagada (lo ya enviado
  *   se registra igual);
  * - si el último intento de la factura es `failed` con reintento pendiente,
  *   lo cierra como `canceled` (`manual_payment`) en la misma transacción: la

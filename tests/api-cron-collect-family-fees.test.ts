@@ -34,6 +34,9 @@ vi.mock("@/lib/logger", () => ({
 vi.mock("@/modules/family-collection/application/config", () => ({
   isFamilyAutomaticCollectionFlagEnabled: () => env.flag,
   isFamilyAutomaticSepaCollectionFlagEnabled: () => false,
+  // Fase 4 (Tarea 4): createRunState la lee también en la pasada diaria
+  // (authenticationRecovery); apagada, no consulta la forma del almacenamiento.
+  isFamilyCollectionEventsFlagEnabled: () => false,
   resolveConnectEnvironment: () => env.environment,
   isProductionDatabase: () => env.production,
 }));

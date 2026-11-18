@@ -1694,6 +1694,129 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
       expect([...Object.keys(daily.skipped), ...Object.keys(eventResult.skipped)].filter((reason) => reason !== "concurrent")).toEqual([]);
       expect(event.effect.effectId === attemptId).toBe(eventResult.collected === 1);
     }, 60_000);
+
+    it("Tarea 4: el banco pide confirmar en el intento 3 → requires_action con su plazo y aviso a la familia en la misma transacción; pasado el plazo, cancelado y failed sin segundo aviso", async () => {
+      // La recuperación exige también la bandera del cobro (y la forma phase4, ya instalada).
+      vi.stubEnv("ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED", "true");
+      const invoice = await createCollectableInvoice({ registry, collectionMode: "automatic" });
+      await insertAttempt(invoice, { number: 1, status: "failed", intent: intentOf(invoice, "one") });
+      // Reintento del intento 3 el 20-11 (00:00 en Madrid): ventana hasta el final del 23-11.
+      await insertAttempt(invoice, {
+        number: 2,
+        status: "failed",
+        intent: intentOf(invoice, "two"),
+        nextRetryAt: "2026-11-19T23:00:00.000Z",
+      });
+      const thirdIntent = intentOf(invoice, "three");
+      const thirdId = await insertAttempt(invoice, { number: 3, status: "created", intent: thirdIntent });
+      const intents = { [thirdIntent]: intent(thirdIntent, "requires_action") };
+      const { gateway } = fakeStripe(accountOf(invoice), intents);
+      const input = await handlerInput(invoice, thirdIntent);
+
+      const entered = await processPaymentIntentEvent(input, { store: createFamilyCollectionStore(), gateway });
+
+      expect(entered.effect).toEqual({ effectType: ATTEMPT_EFFECT_TYPE, effectId: thirdId });
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+      const stored = await db.execute(sql`
+        select status, action_deadline_at as "deadline", completed_at as "completedAt"
+          from zaltyko.family_collection_attempts
+         where organization_id = ${invoice.organizationId}::uuid and id = ${thirdId}::uuid
+      `);
+      const row = stored.rows[0] as { status: string; deadline: Date | string; completedAt: unknown };
+      expect(row.status).toBe("requires_action");
+      expect(new Date(row.deadline).toISOString()).toBe("2026-11-23T22:59:59.999Z");
+      expect(row.completedAt).toBeNull();
+      const noticeKey = `family-collection:${thirdId}:family_failure_notice`;
+      expect(await outboxPayload(invoice.organizationId, "family_collection.family_failure_notice", noticeKey)).toHaveLength(1);
+      expect(
+        await outboxPayload(
+          invoice.organizationId,
+          "family_collection.attempt_requires_action",
+          `family-collection:${thirdId}:attempt_requires_action`
+        )
+      ).toEqual([expect.objectContaining({ attemptId: thirdId, actionDeadlineAt: "2026-11-23T22:59:59.999Z" })]);
+
+      // La familia lo intenta antes del plazo y su banco lo rechaza: nada cambia.
+      intents[thirdIntent] = intent(thirdIntent, "requires_payment_method");
+      await processPaymentIntentEvent(
+        { ...(await handlerInput(invoice, thirdIntent)), now: new Date("2026-11-23T20:00:00.000Z") },
+        { store: createFamilyCollectionStore(), gateway }
+      );
+      expect((await attemptRows(invoice)).find((item) => item.id === thirdId)).toMatchObject({ status: "requires_action" });
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+
+      // Pasado el plazo: se cancela en Stripe y se cierra failed authentication_required, sin reintento.
+      await processPaymentIntentEvent(
+        { ...(await handlerInput(invoice, thirdIntent)), now: new Date("2026-11-24T09:00:00.000Z") },
+        { store: createFamilyCollectionStore(), gateway }
+      );
+      expect(gateway.cancelPayment).toHaveBeenCalledTimes(1);
+      expect((await attemptRows(invoice)).find((item) => item.id === thirdId)).toMatchObject({
+        status: "failed",
+        failureCode: "authentication_required",
+        nextRetryAt: null,
+      });
+      // Un solo aviso a la familia por intento.
+      expect(await outboxPayload(invoice.organizationId, "family_collection.family_failure_notice", noticeKey)).toHaveLength(1);
+      expect(await paymentIntentsRecorded(invoice)).toEqual([]);
+    }, 60_000);
+
+    it("N2: con un cobro tardío en espera, listDueInvoices no ofrece la factura y claimOrCancel no reclama el reintento", async () => {
+      const invoice = await createCollectableInvoice({ registry, collectionMode: "automatic" });
+      const lateId = await insertAttempt(invoice, {
+        number: 1,
+        status: "failed",
+        intent: intentOf(invoice, "late"),
+        nextRetryAt: "2026-11-19T23:00:00.000Z",
+      });
+      const store = createFamilyCollectionStore();
+      const due = () =>
+        store.listDueInvoices({
+          after: null,
+          limit: 10,
+          horizon: new Date("2026-11-21T00:00:00.000Z"),
+          scope: [invoice.organizationId],
+        });
+      expect((await due()).map((item) => item.invoiceId)).toEqual([invoice.invoiceId]);
+
+      // El cobro tardío queda en espera (marca late_success_pending).
+      await store.recordNotice({
+        organizationId: invoice.organizationId,
+        locationId: invoice.locationId,
+        attemptId: lateId,
+        invoiceId: invoice.invoiceId,
+        reason: LATE_SUCCESS_PENDING_REASON,
+        now: EVENT_NOW,
+      });
+      expect(await due()).toEqual([]);
+      const decide = vi.fn(() => ({ action: "skip" as const, reason: "no_debe_llegar" }));
+      await expect(
+        store.claimOrCancel(
+          {
+            organizationId: invoice.organizationId,
+            invoiceId: invoice.invoiceId,
+            authorizationId: invoice.authorizationId,
+            paymentProviderAccountId: invoice.accountId,
+            paymentMethodKind: "card",
+            now: EVENT_NOW,
+          },
+          decide
+        )
+      ).resolves.toEqual({ outcome: "skipped", reason: LATE_SUCCESS_PENDING_REASON });
+      expect(decide).not.toHaveBeenCalled();
+      expect(await attemptRows(invoice)).toHaveLength(1);
+
+      // Con el aviso que cierra la espera (duplicate_collection), la factura vuelve a la lista.
+      await store.recordNotice({
+        organizationId: invoice.organizationId,
+        locationId: invoice.locationId,
+        attemptId: lateId,
+        invoiceId: invoice.invoiceId,
+        reason: DUPLICATE_COLLECTION_REASON,
+        now: EVENT_NOW,
+      });
+      expect((await due()).map((item) => item.invoiceId)).toEqual([invoice.invoiceId]);
+    }, 60_000);
   });
 
   it("la candidata deja la base igual al deshacerla", async () => {

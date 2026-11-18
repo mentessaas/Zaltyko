@@ -28,6 +28,7 @@ import {
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
 import { localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
 import { nextRetry } from "@/modules/family-collection/domain/retry-policy";
+import { FAMILY_COLLECTION_OPEN_STATUSES } from "@/modules/family-collection/infrastructure/family-collection-schema";
 import { loadReminderCandidates, type ReminderCandidate } from "@/modules/payment-reminders/application/candidates";
 import { planReminders } from "@/modules/payment-reminders/application/plan";
 import {
@@ -69,7 +70,7 @@ describe("automaticCollectionHolds", () => {
     expect(holds({ automaticCollectionOpen: false, lastAttempt: attempt("succeeded", { completed: "2026-11-20" }) })).toBe(false);
   });
 
-  it.each(["claimed", "created", "processing"])(
+  it.each(["claimed", "created", "processing", "requires_action"])(
     "un cobro %s retiene siempre: con la bandera apagada y aunque la cuota figure como manual",
     (status) => {
       expect(holds({ automaticCollectionOpen: false, lastAttempt: attempt(status) })).toBe(true);
@@ -78,14 +79,15 @@ describe("automaticCollectionHolds", () => {
     }
   );
 
-  it("isAutomaticCollectionInProgress: solo claimed, created y processing", () => {
-    expect(AUTOMATIC_COLLECTION_IN_PROGRESS_STATUSES).toEqual(["claimed", "created", "processing"]);
+  it("isAutomaticCollectionInProgress: los estados abiertos (Fase 4: también requires_action)", () => {
+    expect(AUTOMATIC_COLLECTION_IN_PROGRESS_STATUSES).toEqual([...FAMILY_COLLECTION_OPEN_STATUSES]);
+    expect(isAutomaticCollectionInProgress("requires_action")).toBe(true);
     for (const status of ["succeeded", "failed", "canceled", "", null, undefined]) {
       expect(isAutomaticCollectionInProgress(status), String(status)).toBe(false);
     }
   });
 
-  it.each(["claimed", "created", "processing"])("con un intento %s espera", (status) => {
+  it.each(["claimed", "created", "processing", "requires_action"])("con un intento %s espera", (status) => {
     expect(holds({ lastAttempt: attempt(status) })).toBe(true);
   });
 
@@ -123,7 +125,7 @@ describe("automaticCollectionHolds", () => {
     expect(holds({ ...sepaOff, lastAttempt: null })).toBe(false);
     expect(holds({ ...sepaOff, lastAttempt: attempt("failed", { retry: "2026-11-21" }) })).toBe(false);
     // Cobro en marcha (una domiciliación ya en el banco) o cobrado con saldo pendiente: siguen esperando.
-    for (const status of ["claimed", "created", "processing"]) {
+    for (const status of ["claimed", "created", "processing", "requires_action"]) {
       expect(holds({ ...sepaOff, lastAttempt: attempt(status) })).toBe(true);
     }
     expect(holds({ ...sepaOff, lastAttempt: attempt("succeeded", { completed: "2026-11-19" }) })).toBe(true);

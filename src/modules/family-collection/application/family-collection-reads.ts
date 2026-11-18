@@ -87,6 +87,19 @@ import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/
 export type { FamilyAutomaticCollectionModes, FamilyAutomaticFeeStatus, FamilyAutomaticFeeStatuses };
 
 const OPEN_STATUSES: ReadonlySet<string> = new Set(FAMILY_COLLECTION_OPEN_STATUSES);
+
+/**
+ * `(… estados abiertos …)` en SQL, como parámetros, desde
+ * FAMILY_COLLECTION_OPEN_STATUSES: ninguna copia escrita a mano (Fase 4
+ * añade `requires_action`). Se construye en cada llamada (algunos tests
+ * simulan `sql`).
+ */
+function openStatusesSql(): SQL {
+  return sql.join(
+    FAMILY_COLLECTION_OPEN_STATUSES.map((status) => sql`${status}`),
+    sql`, `
+  );
+}
 const ISO = `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'`;
 const uuidSchema = z.guid();
 
@@ -975,6 +988,9 @@ export function ownerAutomaticCollectionItemOf(
         break;
       case "claimed":
       case "created":
+      // Fase 4: la familia tiene que confirmar el pago con su banco; para la
+      // academia sigue en curso (la Tarea 5 le da su propio texto).
+      case "requires_action":
         state = "in_progress";
         break;
       case "failed": {
@@ -1015,7 +1031,9 @@ export function ownerAutomaticCollectionItemOf(
       // Con el importe que no cuadra, cancelar respondería 409: se usa «Marcar como revisado».
       canCancel:
         !amountMismatch &&
-        (attempt.status === "created" || (attempt.status === "failed" && attempt.nextRetryAt !== null)),
+        (attempt.status === "created" ||
+          attempt.status === "requires_action" ||
+          (attempt.status === "failed" && attempt.nextRetryAt !== null)),
       canMarkReviewed,
       manualPaymentBlocked: open,
       // Una cuota ya cobrada no necesita recordar el aviso.
@@ -1100,10 +1118,10 @@ export async function getOwnerAutomaticCollections(input: {
   // Con la bandera apagada, solo facturas con un intento en marcha (el abierto
   // es siempre el último de su factura).
   const attemptCandidate = inProgressOnly
-    ? sql`a.status in ('claimed', 'created', 'processing')`
+    ? sql`a.status in (${openStatusesSql()})`
     : sql`(
            (a.claimed_at >= ${monthStartInstant}::timestamptz and a.claimed_at < ${nextMonthInstant}::timestamptz)
-           or a.status in ('claimed', 'created', 'processing')
+           or a.status in (${openStatusesSql()})
            or (a.status = 'failed' and a.next_retry_at is not null)
          )`;
   const chargeCandidates = inProgressOnly
@@ -1118,13 +1136,13 @@ export async function getOwnerAutomaticCollections(input: {
          and c.due_at >= ${windowStart}::timestamptz
          and c.due_at < ${windowEnd}::timestamptz`;
   const listedRow = inProgressOnly
-    ? sql`la.status in ('claimed', 'created', 'processing')`
+    ? sql`la.status in (${openStatusesSql()})`
     : sql`(
         (
           la.id is not null
           and (
             (la.claimed_at >= ${monthStartInstant}::timestamptz and la.claimed_at < ${nextMonthInstant}::timestamptz)
-            or la.status in ('claimed', 'created', 'processing')
+            or la.status in (${openStatusesSql()})
             or (la.status = 'failed' and la.next_retry_at is not null)
           )
         )
