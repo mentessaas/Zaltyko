@@ -53,6 +53,9 @@ const ROUTE_BUDGET_MS = 290_000;
  * pago a las familias (Fase 4, Tarea 9, deliverFamilyReceipts): sin la
  * bandera ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED, ceros sin leer la base.
  * Si fallan, el cobro no se ve afectado («receipts: null»).
+ * Fase 4 (D9): «circuitOpen: true» si el cortacircuitos paró los cobros del
+ * día por demasiados rechazos de Stripe de toda la plataforma al crearlos (el
+ * aviso operativo va al registro de errores; mañana se vuelve a intentar).
  * Sin el secreto no se toca nada (401, o 503 si falta CRON_SECRET).
  * La respuesta solo lleva contadores: nunca ids, importes ni datos de familias.
  */
@@ -166,6 +169,8 @@ function countersOnly(result: FamilyCollectionRunResult): FamilyCollectionRunRes
     retried: result.retried,
     resumed: result.resumed,
     needsReview: result.needsReview,
+    // Fase 4 (D9): solo si el cortacircuitos se abrió; nunca qué cobros ni de quién.
+    circuitOpen: result.circuitOpen === true,
   };
 }
 

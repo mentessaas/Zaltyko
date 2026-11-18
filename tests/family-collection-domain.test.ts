@@ -51,6 +51,7 @@ import {
   finalCreateErrorCode,
   INVALID_CREATE_REQUEST_CODE,
   isAuthenticationRequiredFailure,
+  isPlatformInvalidRequest,
   mapPaymentIntent,
   mapUnknownPaymentError,
   receivedMatches,
@@ -58,6 +59,15 @@ import {
   snapshotOfPaymentIntent,
   type PaymentIntentSnapshot,
 } from "@/modules/family-collection/domain/payment-outcome";
+import {
+  CIRCUIT_BREAKER_CONSECUTIVE,
+  CIRCUIT_BREAKER_MIN_SAMPLE,
+  CIRCUIT_BREAKER_RATIO,
+  closedBreaker,
+  recordCreateResult,
+  type BreakerState,
+  type CreateResult,
+} from "@/modules/family-collection/domain/circuit-breaker";
 import {
   CARD_MAX_ATTEMPTS,
   CARD_RETRY_OFFSET_DAYS,
@@ -2007,5 +2017,112 @@ describe("Fase 4: plazo para confirmar el pago con el banco (D7)", () => {
     expect(isAuthenticationDeadlinePassed(deadline, new Date(deadline.getTime() + 1))).toBe(true);
     // Sin plazo conocido, pasado: ninguna cuota se queda esperando para siempre.
     expect(isAuthenticationDeadlinePassed(null, new Date("2027-03-03T10:00:00.000Z"))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fase 4 (D9): cortacircuitos del proceso diario
+// ---------------------------------------------------------------------------
+
+describe("Fase 4: cortacircuitos del proceso diario (D9)", () => {
+  /** Aplica una serie de creaciones a un cortacircuitos cerrado. */
+  const replay = (results: readonly CreateResult[]): BreakerState =>
+    results.reduce((state, result) => recordCreateResult(state, result), closedBreaker());
+
+  const invalid = "platform_invalid_request" as const;
+
+  it("valores de D9", () => {
+    expect(CIRCUIT_BREAKER_CONSECUTIVE).toBe(3);
+    expect(CIRCUIT_BREAKER_RATIO).toBe(0.2);
+    expect(CIRCUIT_BREAKER_MIN_SAMPLE).toBe(10);
+    expect(closedBreaker()).toEqual({ consecutive: 0, created: 0, invalid: 0, open: false });
+  });
+
+  it("tres 400 genéricos seguidos → abierto", () => {
+    expect(replay([invalid, invalid])).toEqual({ consecutive: 2, created: 0, invalid: 2, open: false });
+    expect(replay([invalid, invalid, invalid])).toEqual({ consecutive: 3, created: 0, invalid: 3, open: true });
+    // Un cobro creado rompe la racha.
+    expect(replay(["created", invalid, invalid, "created", invalid, invalid]).open).toBe(false);
+  });
+
+  it("resource_missing no cuenta", () => {
+    const resourceMissing = {
+      type: "StripeInvalidRequestError",
+      rawType: "invalid_request_error",
+      code: "resource_missing",
+      statusCode: 400,
+    };
+    // Es final al crear (C4), pero es de una familia: no es de la plataforma.
+    expect(finalCreateErrorCode(resourceMissing)).toBe("resource_missing");
+    expect(isPlatformInvalidRequest(resourceMissing)).toBe(false);
+    // Lo que no es de la plataforma ("other") ni suma ni rompe la racha.
+    const before = replay([invalid, invalid]);
+    const after = recordCreateResult(before, "other");
+    expect(after).toEqual(before);
+    expect(after).not.toBe(before);
+    expect(replay([invalid, "other", "other", "other", invalid]).open).toBe(false);
+    expect(replay([invalid, "other", invalid, "other", invalid]).open).toBe(true);
+    expect(replay(Array<CreateResult>(50).fill("other"))).toEqual(closedBreaker());
+  });
+
+  it.each([
+    ["amount_too_small"],
+    ["resource_missing"],
+    ["account_invalid"],
+    ["payment_method_unactivated"],
+    ["capability_not_active"],
+    ["Resource_Missing"],
+  ])("los rechazos de una familia o una academia no son de la plataforma: %s", (code) => {
+    expect(
+      isPlatformInvalidRequest({ type: "StripeInvalidRequestError", rawType: "invalid_request_error", code, statusCode: 400 })
+    ).toBe(false);
+  });
+
+  it.each([
+    ["parámetro que falta", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "parameter_missing", statusCode: 400 }],
+    ["parámetro desconocido", { rawType: "invalid_request_error", code: "parameter_unknown", statusCode: 400 }],
+    ["sin código", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", statusCode: 400 }],
+  ])("un 400 genérico al crear es de la plataforma: %s", (_label, error) => {
+    expect(isPlatformInvalidRequest(error)).toBe(true);
+  });
+
+  it.each([
+    ["rechazo del banco", { type: "StripeCardError", rawType: "card_error", code: "card_declined", decline_code: "insufficient_funds", statusCode: 402 }],
+    ["rechazo del banco con 400", { type: "StripeCardError", rawType: "card_error", code: "card_declined", statusCode: 400 }],
+    ["400 con el cobro dentro", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "parameter_missing", statusCode: 400, payment_intent: { id: "pi_synthetic_cb", status: "requires_payment_method" } }],
+    ["clave de idempotencia en uso", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "idempotency_key_in_use", statusCode: 400 }],
+    ["idempotencia", { type: "StripeIdempotencyError", rawType: "idempotency_error", statusCode: 400 }],
+    ["bloqueo", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "lock_timeout", statusCode: 400 }],
+    ["límite de peticiones", { type: "StripeRateLimitError", rawType: "rate_limit_error", code: "rate_limit", statusCode: 429 }],
+    ["error interno", { type: "StripeAPIError", rawType: "api_error", statusCode: 500 }],
+    ["permiso sin código", { type: "StripePermissionError", rawType: "invalid_request_error", statusCode: 403 }],
+    ["red", { type: "StripeConnectionError" }],
+    ["sin estado HTTP", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "parameter_missing" }],
+    ["null", null],
+  ])("nunca cuenta: %s", (_label, error) => {
+    expect(isPlatformInvalidRequest(error)).toBe(false);
+  });
+
+  it("2 de 10 → abierto; 1 de 9 → cerrado", () => {
+    // Nunca dos seguidos: solo puede abrirlo la proporción.
+    const twoOfTen: CreateResult[] = [invalid, "created", "created", "created", invalid, "created", "created", "created", "created"];
+    const nine = replay(twoOfTen);
+    expect(nine).toMatchObject({ created: 7, invalid: 2, open: false });
+    // El décimo es un cobro creado: 2 / 10 = 20 % → abierto.
+    expect(recordCreateResult(nine, "created")).toMatchObject({ created: 8, invalid: 2, consecutive: 0, open: true });
+
+    const oneOfNine: CreateResult[] = [invalid, "created", "created", "created", "created", "created", "created", "created", "created"];
+    expect(replay(oneOfNine)).toMatchObject({ created: 8, invalid: 1, open: false });
+    // 1 de 10 (10 %) y 2 de 11 (18 %) tampoco.
+    expect(replay([...oneOfNine, "created"]).open).toBe(false);
+    expect(replay([...oneOfNine, "created", invalid]).open).toBe(false);
+    // 2 de 9 (22 %) no basta: aún no hay 10.
+    expect(replay([invalid, "created", "created", "created", invalid, "created", "created", "created", "created"]).open).toBe(false);
+  });
+
+  it("abierto sigue abierto el resto de la pasada, aunque se creen más cobros", () => {
+    const open = replay([invalid, invalid, invalid]);
+    const later = Array<CreateResult>(20).fill("created").reduce((state, result) => recordCreateResult(state, result), open);
+    expect(later).toMatchObject({ created: 20, invalid: 3, consecutive: 0, open: true });
   });
 });

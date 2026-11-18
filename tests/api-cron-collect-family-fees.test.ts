@@ -93,6 +93,7 @@ const ZERO = {
   retried: 0,
   resumed: 0,
   needsReview: 0,
+  circuitOpen: false,
 };
 
 async function body(response: Response) {
@@ -257,8 +258,35 @@ describe("cron del cobro automático de cuotas", () => {
       retried: 1,
       resumed: 0,
       needsReview: 1,
+      circuitOpen: false,
       familyNotices: NO_NOTICES,
       receipts: NO_NOTICES,
+    });
+    expect(JSON.stringify(data)).not.toMatch(/pi_|20000000-/);
+  });
+
+  it("Fase 4 (D9): con el cortacircuitos abierto responde circuitOpen: true, sin ids", async () => {
+    env.flag = true;
+    mocks.collect.mockImplementation(async (state: RunState) => {
+      state.result.canceled += 2;
+      state.result.skipped.circuit_open = 1;
+      state.result.circuitOpen = true;
+    });
+    const response = await POST(withSecret());
+    expect(response.status).toBe(200);
+    // La pasada empezó con el cortacircuitos cerrado (los pasos simulados no lo tocan).
+    const state = mocks.reconcile.mock.calls[0]![0] as RunState;
+    expect(state.breaker).toEqual({ consecutive: 0, created: 0, invalid: 0, open: false });
+    const data = (await body(response)).data;
+    expect(data).toEqual({
+      ...ZERO,
+      enabled: true,
+      reconciled: 2,
+      resumed: 1,
+      collected: 1,
+      canceled: 2,
+      skipped: { circuit_open: 1 },
+      circuitOpen: true,
     });
     expect(JSON.stringify(data)).not.toMatch(/pi_|20000000-/);
   });

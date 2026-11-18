@@ -27,7 +27,11 @@
  *   un recordatorio de pago (`reminder_sent`);
  * - con la domiciliación sin activar (`sepaEnabled` apagada) nunca se crea un
  *   cobro por domiciliación (`sepa_not_enabled`); las que ya están en el banco
- *   se siguen leyendo y registrando.
+ *   se siguen leyendo y registrando;
+ * - Fase 4 (D9): cortacircuitos de la pasada (domain/circuit-breaker.ts). Cada
+ *   creación de cobro se cuenta; abierto (3 rechazos de la plataforma seguidos,
+ *   o el 20 % a partir de 10 creaciones), no se crea ni se cierra ningún
+ *   intento más: se quedan como están y se reanudan otro día.
  *
  * Fase 4: los eventos de Stripe (family-collection-events.ts) usan estos
  * mismos pasos (`settleOutcome`, `cancelThenClose`, `settleLateSuccess`): el
@@ -49,9 +53,15 @@ import {
   type CollectionPlan,
 } from "@/modules/family-collection/domain/collection-plan";
 import {
+  recordCreateResult,
+  type BreakerState,
+  type CreateResult,
+} from "@/modules/family-collection/domain/circuit-breaker";
+import {
   CANCELED_IN_STRIPE_CODE,
   finalCreateErrorCode,
   isAuthenticationRequiredFailure,
+  isPlatformInvalidRequest,
   mapPaymentIntent,
   mapUnknownPaymentError,
   receivedOf,
@@ -123,6 +133,12 @@ export interface FamilyCollectionRunResult {
   retried: number;
   resumed: number;
   needsReview: number;
+  /**
+   * Fase 4 (D9): el cortacircuitos se abrió en esta pasada (demasiados
+   * rechazos de Stripe de toda la plataforma al crear cobros). No se reclamó
+   * ni se creó nada más; mañana se vuelve a intentar.
+   */
+  circuitOpen: boolean;
 }
 
 export function emptyRunResult(enabled: boolean): FamilyCollectionRunResult {
@@ -138,6 +154,7 @@ export function emptyRunResult(enabled: boolean): FamilyCollectionRunResult {
     retried: 0,
     resumed: 0,
     needsReview: 0,
+    circuitOpen: false,
   };
 }
 
@@ -178,6 +195,11 @@ export interface RunState {
    * sin devoluciones simuladas), no se mira nada.
    */
   applyRecordedRefunds?: ((attempt: CollectionAttempt, connectedAccount: string) => Promise<unknown>) | null;
+  /**
+   * Fase 4 (D9): cortacircuitos de la pasada (domain/circuit-breaker.ts).
+   * Cuenta cada creación de cobro; abierto, no se crea ni se reclama nada más.
+   */
+  breaker: BreakerState;
   result: FamilyCollectionRunResult;
 }
 
@@ -187,6 +209,26 @@ export function isExpired(state: RunState): boolean {
 
 export function countSkip(state: RunState, reason: string): void {
   state.result.skipped[reason] = (state.result.skipped[reason] ?? 0) + 1;
+}
+
+/** Motivo de omisión de lo que se deja como está con el cortacircuitos abierto. */
+export const CIRCUIT_OPEN_REASON = "circuit_open";
+
+/**
+ * Fase 4 (D9): cuenta una creación en el cortacircuitos. Al abrirse, una sola
+ * vez por pasada (luego sigue abierto), deja `circuitOpen` en el resultado y
+ * un error en el registro operativo (va a Sentry) con solo dos contadores:
+ * nunca ids, importes ni datos de familias.
+ */
+function recordCreate(state: RunState, result: CreateResult): void {
+  const wasOpen = state.breaker.open;
+  state.breaker = recordCreateResult(state.breaker, result);
+  if (wasOpen || !state.breaker.open) return;
+  state.result.circuitOpen = true;
+  logger.error("Cobro automático: parado por errores de Stripe al crear cobros", undefined, {
+    created: state.breaker.created,
+    invalid: state.breaker.invalid,
+  });
 }
 
 /** Motivo final cuando las cuotas no tienen un periodo con el que describir el cobro. */
@@ -943,6 +985,15 @@ async function advanceAttemptSteps(
         nextRetryAt: null,
       });
     }
+    // Fase 4 (D9): con el cortacircuitos abierto no se crea nada más ni se
+    // cierra el intento (ni por la puerta ni por otro motivo). Se queda como
+    // está (`claimed`, sin cobro en Stripe) y lo reanuda la Fase A otro día.
+    // La última reanudación (arriba) sí se cierra como siempre: no depende de
+    // lo que diga Stripe y así nada se queda abierto para siempre.
+    if (state.breaker.open) {
+      countSkip(state, CIRCUIT_OPEN_REASON);
+      return null;
+    }
     if (!gateChecked) {
       const check = await recheckGate(state, attempt, refs);
       if (!check.allowed) {
@@ -987,7 +1038,17 @@ async function advanceAttemptSteps(
       });
     } catch (error) {
       if (mapUnknownPaymentError(error) === "idempotency_conflict") {
+        recordCreate(state, "other");
         await reportIdempotencyConflict(state, attempt);
+        return null;
+      }
+      // Fase 4 (D9): un rechazo de toda la plataforma cuenta en el
+      // cortacircuitos. Si lo abre, ESTE intento tampoco se cierra: Stripe no
+      // creó nada (400), así que se queda `claimed` sin `pi_…` y la Fase A lo
+      // reanuda otro día (lo busca por su id, repite la puerta y lo crea).
+      recordCreate(state, isPlatformInvalidRequest(error) ? "platform_invalid_request" : "other");
+      if (state.breaker.open) {
+        countSkip(state, CIRCUIT_OPEN_REASON);
         return null;
       }
       // Stripe se negó a crearlo por algo que no cambia al repetir (importe
@@ -1009,6 +1070,9 @@ async function advanceAttemptSteps(
       countSkip(state, "transient");
       return null;
     }
+    // Un cobro creado rompe la racha. Si con él se llega a la proporción
+    // (D9), este intento sigue su paso (confirmar); los siguientes, no.
+    recordCreate(state, "created");
     if (
       !(await state.store.markCreated({
         organizationId: attempt.organizationId,

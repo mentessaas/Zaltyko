@@ -25,6 +25,10 @@
  * ya volvió a los recordatorios y la familia
  * puede haberla pagado a mano. Entonces nunca se cobra: se escribe un intento
  * `canceled` con `collection_window_expired`, aunque la puerta deje pasar.
+ *
+ * Cortacircuitos (Fase 4, D9): si se abre (en la Fase A o aquí), no se mira
+ * ninguna factura más: ni se reclama ni se cancela nada. El intento que lo
+ * abrió se queda `claimed` y las facturas que faltan se miran mañana.
  */
 import { collectionWindowAnchor as anchorOfWindow } from "@/modules/family-collection/domain/authentication-window";
 import {
@@ -413,6 +417,10 @@ export async function collectDueInvoices(state: RunState): Promise<void> {
       state.result.complete = false;
       return;
     }
+    if (state.breaker.open) {
+      state.result.circuitOpen = true;
+      return;
+    }
     const page = await state.store.listDueInvoices({
       after: cursor,
       limit: state.batchSize,
@@ -422,6 +430,11 @@ export async function collectDueInvoices(state: RunState): Promise<void> {
     for (const ref of page) {
       if (isExpired(state)) {
         state.result.complete = false;
+        return;
+      }
+      // Cortacircuitos abierto: ninguna factura más hoy (D9).
+      if (state.breaker.open) {
+        state.result.circuitOpen = true;
         return;
       }
       cursor = ref.invoiceId;

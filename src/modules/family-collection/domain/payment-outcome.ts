@@ -379,6 +379,23 @@ export function finalCreateErrorCode(error: unknown): string | null {
 }
 
 /**
+ * Fase 4 (D9, cortacircuitos): ¿es un rechazo de la petición de toda la
+ * plataforma al CREAR el cobro? Es decir, `finalCreateErrorCode` lo da por
+ * final (HTTP 400, `invalid_request_error`, sin cobro dentro, no es de
+ * idempotencia, bloqueo ni límite de peticiones) y su código NO es de una
+ * familia o una academia (FINAL_CREATE_CODES: `resource_missing`,
+ * `amount_too_small`, `account_invalid`, `payment_method_unactivated`,
+ * `capability_not_active`). Lo que queda (`parameter_missing`,
+ * `parameter_invalid_integer`, sin código…) apunta a cómo Zaltyko pide el
+ * cobro y se repetiría con todas las cuotas. Nunca cuentan los rechazos del
+ * banco (`card_error`), los 5xx, la red ni nada con el cobro dentro.
+ */
+export function isPlatformInvalidRequest(error: unknown): boolean {
+  const code = finalCreateErrorCode(error);
+  return code !== null && !FINAL_CREATE_CODES.has(code);
+}
+
+/**
  * `CollectionError` a partir de un error de stripe-node o del JSON de la API.
  * El tipo es el de la API (`card_error`) si lo hay; si no, el nombre de la
  * clase del SDK. Solo códigos: nunca el mensaje.

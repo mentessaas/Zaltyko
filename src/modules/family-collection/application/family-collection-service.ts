@@ -18,6 +18,10 @@
  * Recorre por orden de id, de `batchSize` en `batchSize`; con el plazo
  * agotado (240 s por defecto) marca `complete: false` y lo que falte sigue
  * en la siguiente ejecución.
+ *
+ * Fase 4 (D9): si el cortacircuitos se abre (demasiados rechazos de Stripe de
+ * toda la plataforma al crear cobros), no se crea ni se reclama nada más en la
+ * pasada y el resultado lleva `circuitOpen: true`; mañana empieza cerrado.
  */
 import {
   isFamilyAutomaticCollectionFlagEnabled,
@@ -34,6 +38,7 @@ import {
   type FamilyCollectionRunResult,
   type RunState,
 } from "@/modules/family-collection/application/family-collection-steps";
+import { closedBreaker } from "@/modules/family-collection/domain/circuit-breaker";
 import {
   createFamilyCollectionRefundStore,
   createFamilyCollectionStore,
@@ -136,6 +141,8 @@ export async function createRunState(
     refreshAccount: deps.refreshAccount ?? ((accountRowId) => refreshConnectAccountForCollection(accountRowId)),
     refreshedOrganizations: new Set(),
     applyRecordedRefunds: recordedRefundsApplier(deps, now),
+    // Fase 4 (D9): cada pasada (y cada evento) empieza con el cortacircuitos cerrado.
+    breaker: closedBreaker(),
     result: emptyRunResult(flagEnabled),
   };
 }

@@ -2600,3 +2600,134 @@ describe("Fase 4: el banco pide que la familia confirme el pago (requires_action
     });
   });
 });
+
+describe("Fase 4: cortacircuitos del proceso diario (D9)", () => {
+  const BREAKER_MESSAGE = "Cobro automático: parado por errores de Stripe al crear cobros";
+  const dueInvoices = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      invoiceId: `30000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+      organizationId,
+    }));
+  const breakerLogs = () => vi.mocked(logger.error).mock.calls.filter(([message]) => message === BREAKER_MESSAGE);
+  /** Stripe rechaza crear cualquier cobro con un 400 genérico (despliegue roto). */
+  const brokenDeploy = { createPayment: async () => Promise.reject(requestError("parameter_missing")) };
+
+  it("cada pasada empieza con el cortacircuitos cerrado y circuitOpen: false", async () => {
+    const { store, gateway, refreshAccount } = setup();
+    const state = await createRunState({ now }, { store, gateway, refreshAccount }, "daily");
+    expect(state?.breaker).toEqual({ consecutive: 0, created: 0, invalid: 0, open: false });
+    expect(state?.result.circuitOpen).toBe(false);
+  });
+
+  it("un día normal: circuitOpen: false", async () => {
+    const { world, store, run } = setup();
+    world.due = dueInvoices(4);
+    // El almacén simulado da a todos los intentos el mismo id: cada uno se guarda como creado.
+    vi.mocked(store.markCreated).mockResolvedValue(true);
+    const result = await run();
+    expect(result).toMatchObject({ collected: 4, circuitOpen: false });
+    expect(breakerLogs()).toHaveLength(0);
+  });
+
+  it("abierto → no se reclama ninguna factura más y circuitOpen: true", async () => {
+    const { world, store, gateway, run } = setup(brokenDeploy);
+    world.due = dueInvoices(5);
+    const result = await run();
+    // Los dos primeros rechazos se cierran como siempre (C4); el tercero abre el cortacircuitos.
+    expect(gateway.createPayment).toHaveBeenCalledTimes(3);
+    expect(world.applied).toEqual([
+      { kind: "canceled", paymentIntentId: null, reason: "parameter_missing" },
+      { kind: "canceled", paymentIntentId: null, reason: "parameter_missing" },
+    ]);
+    // Ni la cuarta ni la quinta factura se miran: ni se reclaman ni se cancelan.
+    expect(store.claimOrCancel).toHaveBeenCalledTimes(3);
+    expect(store.loadInvoiceContext).toHaveBeenCalledTimes(3);
+    // El intento que lo abrió se queda como estaba: reclamado y sin cobro en Stripe.
+    expect(world.attempts).toHaveLength(3);
+    expect(world.attempts[2]).toMatchObject({ status: "claimed", paymentIntentId: null });
+    expect(store.markCreated).not.toHaveBeenCalled();
+    expect(gateway.confirmPayment).not.toHaveBeenCalled();
+    expect(store.recordNotice).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ circuitOpen: true, canceled: 2, failed: 0, complete: true });
+    expect(result.skipped).toEqual({ circuit_open: 1 });
+  });
+
+  it("resource_missing no cuenta: cada familia se cierra como siempre y el proceso sigue", async () => {
+    const { world, store, gateway, run } = setup({
+      createPayment: async () => Promise.reject(requestError("resource_missing")),
+    });
+    world.due = dueInvoices(5);
+    const result = await run();
+    expect(gateway.createPayment).toHaveBeenCalledTimes(5);
+    expect(store.claimOrCancel).toHaveBeenCalledTimes(5);
+    expect(world.applied).toHaveLength(5);
+    expect(result).toMatchObject({ circuitOpen: false, canceled: 5 });
+    expect(result.skipped).toEqual({});
+    expect(breakerLogs()).toHaveLength(0);
+  });
+
+  it("los errores pasajeros al crear no lo abren (el intento se queda reclamado, como siempre)", async () => {
+    const { world, gateway, run } = setup({ createPayment: async () => Promise.reject(networkError()) });
+    world.due = dueInvoices(4);
+    const result = await run();
+    expect(gateway.createPayment).toHaveBeenCalledTimes(4);
+    expect(result).toMatchObject({ circuitOpen: false });
+    expect(result.skipped).toEqual({ transient: 4 });
+  });
+
+  it("2 de 10 → abierto: el cobro que llega a la proporción sigue su paso; los siguientes no se reclaman", async () => {
+    let calls = 0;
+    const { world, store, gateway, run } = setup({
+      createPayment: async () => {
+        calls += 1;
+        // Rechazos de la plataforma en la 1.ª y la 5.ª: nunca dos seguidos.
+        if (calls === 1 || calls === 5) throw requestError("parameter_missing");
+        return snapshot(intentId, "requires_confirmation");
+      },
+    });
+    world.due = dueInvoices(12);
+    vi.mocked(store.markCreated).mockResolvedValue(true);
+    const result = await run();
+    expect(gateway.createPayment).toHaveBeenCalledTimes(10);
+    // El décimo (8.º creado) abre el cortacircuitos y aun así se confirma.
+    expect(gateway.confirmPayment).toHaveBeenCalledTimes(8);
+    expect(store.claimOrCancel).toHaveBeenCalledTimes(10);
+    expect(result).toMatchObject({ circuitOpen: true, collected: 8, canceled: 2 });
+    expect(breakerLogs()).toEqual([[BREAKER_MESSAGE, undefined, { created: 8, invalid: 2 }]]);
+  });
+
+  it("un logger.error por pasada", async () => {
+    const resumable = [11, 12, 13, 14].map((suffix) =>
+      attempt({ id: `20000000-0000-4000-8000-0000000000${suffix}`, resumeCount: 0 })
+    );
+    const { world, store, gateway, run } = setup(brokenDeploy);
+    world.attempts.push(...resumable);
+    world.resumable = [...resumable];
+    world.due = dueInvoices(4);
+
+    // 1.ª pasada: se abre en la Fase A con el tercer intento reanudado.
+    const first = await run();
+    expect(gateway.createPayment).toHaveBeenCalledTimes(3);
+    expect(world.applied).toEqual([
+      { kind: "canceled", paymentIntentId: null, reason: "parameter_missing" },
+      { kind: "canceled", paymentIntentId: null, reason: "parameter_missing" },
+    ]);
+    // El que lo abrió y el siguiente se quedan reclamados, sin cobro: otro día se reanudan.
+    expect(resumable[2]).toMatchObject({ status: "claimed", paymentIntentId: null });
+    expect(resumable[3]).toMatchObject({ status: "claimed", paymentIntentId: null });
+    // La Fase B no mira ninguna factura.
+    expect(store.listDueInvoices).not.toHaveBeenCalled();
+    expect(store.claimOrCancel).not.toHaveBeenCalled();
+    expect(first).toMatchObject({ circuitOpen: true, resumed: 4, canceled: 2 });
+    expect(first.skipped).toEqual({ circuit_open: 2 });
+    // Un solo error, con solo dos contadores (nunca ids, importes ni datos de familias).
+    expect(breakerLogs()).toEqual([[BREAKER_MESSAGE, undefined, { created: 0, invalid: 3 }]]);
+    expect(JSON.stringify(breakerLogs())).not.toMatch(/20000000-|30000000-|pi_|cus_|pm_|acct_/);
+
+    // 2.ª pasada (otro día): empieza cerrado; vuelve a abrirse en la Fase B y avisa otra vez, una sola.
+    const second = await run();
+    expect(second.circuitOpen).toBe(true);
+    expect(store.claimOrCancel).toHaveBeenCalledTimes(3);
+    expect(breakerLogs()).toHaveLength(2);
+  });
+});
