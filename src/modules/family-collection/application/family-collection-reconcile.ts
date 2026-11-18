@@ -58,6 +58,7 @@ import type {
   ResumedAttempt,
 } from "@/modules/family-collection/infrastructure/family-collection-store";
 import {
+  FAMILY_COLLECTION_OPEN_STATUSES,
   isLongProcessingAttempt,
   type FamilyCollectionAttemptStatus,
 } from "@/modules/family-collection/infrastructure/family-collection-schema";
@@ -190,7 +191,7 @@ async function processingReadFailed(state: RunState, attempt: CollectionAttempt,
 }
 
 /** Estados de un hermano que todavía puede cobrar (impiden registrar el tardío). */
-const OPEN_SIBLING_STATUSES: ReadonlySet<string> = new Set(["claimed", "created", "processing", "requires_action"]);
+const OPEN_SIBLING_STATUSES: ReadonlySet<string> = new Set(FAMILY_COLLECTION_OPEN_STATUSES);
 
 /** Estados de un hermano abierto que ya tiene su propio cobro en Stripe (se puede intentar cancelar). */
 const OPEN_WITH_INTENT_STATUSES: ReadonlySet<string> = new Set(["created", "processing", "requires_action"]);

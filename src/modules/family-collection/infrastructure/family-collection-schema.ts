@@ -64,12 +64,13 @@ import { charges, invoices, paymentProviderEvents, payments } from "@/db/schema/
  * aquí figura como "set null".
  */
 
+// Fase 4: "requires_action" = la familia tiene que confirmar el pago con su
+// banco (solo tarjeta, con pi_ y con plazo en action_deadline_at). Solo existe
+// con la forma "phase4".
 export const FAMILY_COLLECTION_ATTEMPT_STATUSES = [
   "claimed",
   "created",
   "processing",
-  // Fase 4: la familia tiene que confirmar el pago con su banco (solo tarjeta,
-  // con pi_ y con plazo en action_deadline_at). Solo existe con la forma "phase4".
   "requires_action",
   "succeeded",
   "failed",
