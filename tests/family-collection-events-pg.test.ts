@@ -953,7 +953,9 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
       return result.rows as Array<Record<string, unknown>>;
     }
 
-    const iso = (value: unknown) => (value instanceof Date ? value.toISOString() : value);
+    // La base devuelve la fecha como Date o como texto de PostgreSQL ("2026-11-20 10:00:00+00").
+    const iso = (value: unknown) =>
+      value instanceof Date ? value.toISOString() : typeof value === "string" ? new Date(value).toISOString() : value;
 
     it("mismo evt_ dos veces → un solo procesado; la segunda responde duplicate", async () => {
       const invoice = await createCollectableInvoice();
