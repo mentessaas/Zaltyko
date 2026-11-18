@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { feePeriodLabel } from "@/modules/family-collection/domain/family-failure-notice";
 import {
   DEFAULT_BODY,
   DEFAULT_SUBJECT,
@@ -74,6 +75,21 @@ describe("plantilla del recordatorio de impago", () => {
     expect(variables.importe).toMatch(/90,00\s€/);
     expect(variables.concepto).toBe("Cuota de octubre de 2026 y Cuota de noviembre de 2026");
     expect(variables.vencimiento).toBe("5 de octubre de 2026 y 5 de noviembre de 2026");
+  });
+
+  it("Tarea M (punto 19): el concepto sale de la etiqueta común del dominio (feePeriodLabel), igual en es-ES y es-MX", () => {
+    const charges = [{ servicePeriodStart: "2027-02-01", outstandingCents: 4500, dueAt: new Date("2027-02-05T00:00:00Z") }];
+    for (const locale of ["es-ES", "es-MX"]) {
+      expect(buildVariables(context({ locale, charges }), null).concepto, locale).toBe(feePeriodLabel("2027-02-01"));
+      expect(buildVariables(context({ locale, charges }), null).concepto, locale).toBe("Cuota de febrero de 2027");
+    }
+    // Sin periodo legible, «Cuota».
+    expect(
+      buildVariables(
+        context({ charges: [{ servicePeriodStart: "2026-13-01", outstandingCents: 4500, dueAt: new Date("2026-11-05T00:00:00Z") }] }),
+        null
+      ).concepto
+    ).toBe("Cuota");
   });
 
   it("el asunto nunca contiene saltos de línea aunque el nombre los traiga", () => {

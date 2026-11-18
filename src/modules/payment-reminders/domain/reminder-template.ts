@@ -1,4 +1,5 @@
 import { escapeHtml } from "@/lib/email/escape-html";
+import { feePeriodLabel } from "@/modules/family-collection/domain/family-failure-notice";
 
 /**
  * Plantilla del recordatorio de impago. Pura: sin base de datos ni correo.
@@ -189,13 +190,14 @@ export function formatDueDate(date: Date, locale: string, timeZone: string): str
   }
 }
 
-function describePeriod(servicePeriodStart: string, locale: string): string {
-  const [year, month] = servicePeriodStart.split("-").map(Number);
-  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return "Cuota";
-  const label = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" }).format(
-    new Date(Date.UTC(year, month - 1, 1))
-  );
-  return `Cuota de ${label}`;
+/**
+ * «Cuota de noviembre de 2026» con la etiqueta común del dominio
+ * (feePeriodLabel, C16; Tarea M, punto 19): el mismo texto que el correo de
+ * cobro, el justificante y los paneles. Los recordatorios solo usan es-ES y
+ * es-MX, que escriben el mes igual. Sin periodo legible, «Cuota».
+ */
+function describePeriod(servicePeriodStart: string): string {
+  return feePeriodLabel(servicePeriodStart) ?? "Cuota";
 }
 
 function joinList(items: string[]): string {
@@ -207,7 +209,7 @@ function joinList(items: string[]): string {
 export function buildVariables(context: ReminderContext, paymentInstructions: string | null): Record<TemplateVariable, string> {
   const ordered = [...context.charges].sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
   const total = ordered.reduce((sum, line) => sum + line.outstandingCents, 0);
-  const concepts = [...new Set(ordered.map((line) => describePeriod(line.servicePeriodStart, context.locale)))];
+  const concepts = [...new Set(ordered.map((line) => describePeriod(line.servicePeriodStart)))];
   const earliest = ordered[0]?.dueAt ?? new Date(0);
   const dueDates = [...new Set(ordered.map((line) => formatDueDate(line.dueAt, context.locale, context.timeZone)))];
   return {

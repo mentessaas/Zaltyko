@@ -835,7 +835,7 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     stubFetch(() => reply(200, { outcome: "canceled" }));
     const { rerender } = render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3 (Lucía Martín)" }));
     fireEvent.click(screen.getByRole("button", { name: "Sí, cancelar el cobro" }));
     await screen.findByRole("status");
     expect(rowOf("CUO-3")).toHaveTextContent("Cobro automático cancelado");
@@ -925,9 +925,9 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     stubFetch(() => reply(200, { outcome: "canceled" }));
     render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3 (Lucía Martín)" }));
     expect(calls).toHaveLength(0);
-    const group = screen.getByRole("group", { name: "Confirmar la cancelación del cobro automático de la cuota CUO-3" });
+    const group = screen.getByRole("group", { name: "Confirmar la cancelación del cobro automático de la cuota CUO-3 (Lucía Martín)" });
     fireEvent.click(within(group).getByRole("button", { name: "Sí, cancelar el cobro" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(
@@ -944,8 +944,8 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     stubFetch(() => reply(200, { outcome: "reviewed" }));
     render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-4" }));
-    const group = screen.getByRole("group", { name: "Marcar como revisado el cobro de la cuota CUO-4" });
+    fireEvent.click(screen.getByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-4 (Lucía Martín)" }));
+    const group = screen.getByRole("group", { name: "Marcar como revisado el cobro de la cuota CUO-4 (Lucía Martín)" });
     const confirm = within(group).getByRole("button", { name: "Confirmar revisión" });
     expect(confirm).toBeDisabled();
     fireEvent.click(within(group).getByRole("checkbox", { name: "He comprobado el cobro en Stripe" }));
@@ -968,7 +968,7 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     stubFetch(() => reply(200, { outcome: "unverifiable" }));
     render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-4" }));
+    fireEvent.click(screen.getByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-4 (Lucía Martín)" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "He comprobado el cobro en Stripe" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar revisión" }));
 
@@ -980,7 +980,7 @@ describe("OwnerAutomaticCollectionsPanel", () => {
       "Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual."
     );
     expect(rowOf("CUO-4")).not.toHaveTextContent("Necesita revisión");
-    expect(screen.queryByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-4" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-4 (Lucía Martín)" })).toBeNull();
     expect(mockRefresh).toHaveBeenCalledOnce();
   });
 
@@ -988,7 +988,7 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     stubFetch(() => reply(200, { outcome: "collected" }));
     render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3 (Lucía Martín)" }));
     fireEvent.click(screen.getByRole("button", { name: "Sí, cancelar el cobro" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(
@@ -1007,14 +1007,14 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     );
     render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3 (Lucía Martín)" }));
     fireEvent.click(screen.getByRole("button", { name: "Sí, cancelar el cobro" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "No se puede cancelar: este cobro ya se hizo en Stripe (está registrado en otro cobro automático o por otro importe). Compruébalo en Stripe y usa «Marcar como revisado»."
     );
-    expect(screen.queryByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-3" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3 (Lucía Martín)" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-3 (Lucía Martín)" })).toBeInTheDocument();
     expect(rowOf("CUO-3")).toHaveTextContent("Necesita revisión");
   });
 
@@ -1024,14 +1024,14 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     );
     render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-4" }));
+    fireEvent.click(screen.getByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-4 (Lucía Martín)" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "He comprobado el cobro en Stripe" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar revisión" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Resuélvelo en tu panel de Stripe con su soporte."
     );
-    expect(screen.queryByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-4" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-4 (Lucía Martín)" })).toBeNull();
     expect(rowOf("CUO-4")).toHaveTextContent("Necesita revisión");
     expect(mockRefresh).not.toHaveBeenCalled();
   });
@@ -1046,7 +1046,7 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     );
     render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3 (Lucía Martín)" }));
     fireEvent.click(screen.getByRole("button", { name: "Sí, cancelar el cobro" }));
 
     const alert = await screen.findByRole("alert");
@@ -1054,9 +1054,9 @@ describe("OwnerAutomaticCollectionsPanel", () => {
       "No se puede cancelar desde aquí: en Stripe hay dinero que se ha movido o no se puede leer el cobro de esta cuota. Resuélvelo en tu panel de Stripe con su soporte."
     );
     expect(alert).not.toHaveTextContent("marcar como revisado");
-    expect(screen.queryByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3 (Lucía Martín)" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Sí, cancelar el cobro" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-3" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Marcar como revisado el cobro de la cuota CUO-3 (Lucía Martín)" })).toBeNull();
     expect(rowOf("CUO-3")).toHaveTextContent("Necesita revisión");
     expect(mockRefresh).not.toHaveBeenCalled();
   });
@@ -1065,7 +1065,7 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     stubFetch(() => problem(409, "concurrency-retry", "Texto del servidor"));
     render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3 (Lucía Martín)" }));
     fireEvent.click(screen.getByRole("button", { name: "Sí, cancelar el cobro" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -1077,7 +1077,7 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     stubFetch(() => problem(409, "automatic-collection-processing", "Este cobro ya se envió al banco y no se puede cancelar."));
     render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota CUO-3 (Lucía Martín)" }));
     fireEvent.click(screen.getByRole("button", { name: "Sí, cancelar el cobro" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Este cobro ya se envió al banco y no se puede cancelar.");
 
@@ -1156,11 +1156,11 @@ describe("OwnerAutomaticCollectionsPanel: el mes de cada cuota (Tarea 11)", () =
     expect(document.body.textContent ?? "").not.toMatch(/MENSUAL-/);
     // Los nombres accesibles dicen el mes de la cuota.
     expect(
-      screen.getByRole("button", { name: "Marcar como revisado el cobro de la cuota de febrero de 2027" })
+      screen.getByRole("button", { name: "Marcar como revisado el cobro de la cuota de febrero de 2027 (Lucía Martín)" })
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota de febrero de 2027" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota de febrero de 2027 (Lucía Martín)" }));
     const group = screen.getByRole("group", {
-      name: "Confirmar la cancelación del cobro automático de la cuota de febrero de 2027",
+      name: "Confirmar la cancelación del cobro automático de la cuota de febrero de 2027 (Lucía Martín)",
     });
     expect(group).toHaveTextContent("¿Cancelar el cobro automático de la cuota de febrero de 2027?");
     fireEvent.click(within(group).getByRole("button", { name: "Sí, cancelar el cobro" }));
@@ -1192,8 +1192,37 @@ describe("OwnerAutomaticCollectionsPanel: el mes de cada cuota (Tarea 11)", () =
     expect(rowWith("Cuota MENSUAL-202702-0003")).toHaveTextContent("No había saldo suficiente.");
     expect(rowWith("Cuota MENSUAL-202701-0002")).toHaveTextContent(/Se cobrará el 20 nov\.? 2026/);
     expect(
-      screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota MENSUAL-202702-0003" })
+      screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota MENSUAL-202702-0003 (Lucía Martín)" })
     ).toBeInTheDocument();
+  });
+
+  it("Tarea M (punto 18): dos cuotas del mismo mes → botones con la persona pagadora (o la referencia) en su nombre accesible", () => {
+    stubFetch(() => reply(200, {}));
+    render(
+      <OwnerAutomaticCollectionsPanel
+        organizationId={ORGANIZATION_ID}
+        view={{
+          month: "2026-11",
+          truncated: false,
+          items: [
+            feeItems[2]!,
+            { ...feeItems[2]!, invoiceId: invoice(4), invoiceReference: "MENSUAL-202702-0004", payerName: "Pablo Ruiz" },
+            { ...feeItems[2]!, invoiceId: invoice(5), invoiceReference: "MENSUAL-202702-0005", payerName: null },
+          ],
+        }}
+      />
+    );
+
+    for (const who of ["Lucía Martín", "Pablo Ruiz", "MENSUAL-202702-0005"]) {
+      expect(
+        screen.getByRole("button", { name: `Cancelar el cobro automático de la cuota de febrero de 2027 (${who})` }),
+        who
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: `Marcar como revisado el cobro de la cuota de febrero de 2027 (${who})` }),
+        who
+      ).toBeInTheDocument();
+    }
   });
 
   it("título con el mes de cobro y ayuda nueva; nunca «Cuotas de noviembre» con cuotas de otros meses", () => {

@@ -10,7 +10,7 @@ import type {
   OwnerAutomaticCollectionsView,
   OwnerDisputeState,
 } from "@/modules/family-collection/application/family-collection-reads";
-import { feePeriodLabel, monthYearLabel } from "@/modules/family-collection/domain/family-failure-notice";
+import { feeLabel, feePeriodLabel, monthYearLabel } from "@/modules/family-collection/domain/family-failure-notice";
 import { formatCalendarDate, formatMoney } from "@/modules/family-portal/domain/family-portal-presentation";
 
 // Cobro automático de cuotas (Fase 3): los cobros automáticos del mes en
@@ -85,10 +85,28 @@ function feeTitle(item: OwnerAutomaticCollectionItem): string {
   return feePeriodLabel(item.servicePeriodStart) ?? `Cuota ${item.invoiceReference}`;
 }
 
-/** La misma etiqueta dentro de una frase: «la cuota de febrero de 2027». */
+/**
+ * La misma etiqueta dentro de una frase: «la cuota de febrero de 2027» (la
+ * función común del correo, feeLabel); sin periodo legible, «la cuota
+ * {referencia}».
+ */
 function feeName(item: OwnerAutomaticCollectionItem): string {
-  const title = feeTitle(item);
-  return `c${title.slice(1)}`;
+  return feePeriodLabel(item.servicePeriodStart) ? feeLabel(item.servicePeriodStart) : `la cuota ${item.invoiceReference}`;
+}
+
+/** Al empezar una frase: «La cuota de febrero de 2027». */
+function feeNameAtStart(item: OwnerAutomaticCollectionItem): string {
+  const name = feeName(item);
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)}`;
+}
+
+/**
+ * Tarea M (punto 18): nombre accesible de los botones de una fila, con la
+ * persona pagadora (o, sin ella, la referencia) para distinguir dos cuotas
+ * del mismo mes: «la cuota de febrero de 2027 (Lucía Martín)».
+ */
+function feeAccessibleName(item: OwnerAutomaticCollectionItem): string {
+  return `${feeName(item)} (${item.payerName?.trim() || item.invoiceReference})`;
 }
 
 function stateText(state: OwnerAutomaticCollectionState, date: string | null): string {
@@ -263,12 +281,12 @@ export function OwnerAutomaticCollectionsPanel({
       tone: "info",
       text:
         done === "collected"
-          ? `El cobro de la ${feeName(item)} ya se había hecho y ha quedado registrado.`
+          ? `El cobro de ${feeName(item)} ya se había hecho y ha quedado registrado.`
           : done === "canceled"
-            ? `Cobro automático cancelado. La ${feeName(item)} se cobra a mano.`
+            ? `Cobro automático cancelado. ${feeNameAtStart(item)} se cobra a mano.`
             : done === "unverifiable"
-              ? `Cobro marcado como revisado. La ${feeName(item)} se cobra a mano. ${REVIEWED_UNVERIFIABLE}`
-              : `Cobro marcado como revisado. La ${feeName(item)} se cobra a mano.`,
+              ? `Cobro marcado como revisado. ${feeNameAtStart(item)} se cobra a mano. ${REVIEWED_UNVERIFIABLE}`
+              : `Cobro marcado como revisado. ${feeNameAtStart(item)} se cobra a mano.`,
     });
     router.refresh();
   }
@@ -352,7 +370,7 @@ export function OwnerAutomaticCollectionsPanel({
                       type="button"
                       className={ownerTone.dangerOutlineButton}
                       disabled={busy}
-                      aria-label={`Cancelar el cobro automático de la ${feeName(item)}`}
+                      aria-label={`Cancelar el cobro automático de ${feeAccessibleName(item)}`}
                       onClick={() => {
                         setMessage(null);
                         setReviewing(null);
@@ -367,7 +385,7 @@ export function OwnerAutomaticCollectionsPanel({
                       type="button"
                       className={ownerUi.secondaryButton}
                       disabled={busy}
-                      aria-label={`Marcar como revisado el cobro de la ${feeName(item)}`}
+                      aria-label={`Marcar como revisado el cobro de ${feeAccessibleName(item)}`}
                       onClick={() => {
                         setMessage(null);
                         setConfirmingCancel(null);
@@ -385,10 +403,10 @@ export function OwnerAutomaticCollectionsPanel({
                 <div
                   className={`${ownerUi.subtlePanel} mt-3`}
                   role="group"
-                  aria-label={`Confirmar la cancelación del cobro automático de la ${feeName(item)}`}
+                  aria-label={`Confirmar la cancelación del cobro automático de ${feeAccessibleName(item)}`}
                 >
                   <p className="text-sm text-z-ink">
-                    ¿Cancelar el cobro automático de la {feeName(item)}? No se cobrará sola: tendrás que cobrarla a mano.
+                    ¿Cancelar el cobro automático de {feeName(item)}? No se cobrará sola: tendrás que cobrarla a mano.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
@@ -411,7 +429,7 @@ export function OwnerAutomaticCollectionsPanel({
                 <div
                   className={`${ownerUi.subtlePanel} mt-3`}
                   role="group"
-                  aria-label={`Marcar como revisado el cobro de la ${feeName(item)}`}
+                  aria-label={`Marcar como revisado el cobro de ${feeAccessibleName(item)}`}
                 >
                   <p className="text-sm text-z-ink">
                     Antes de marcarlo, abre tu panel de Stripe y comprueba si este cobro se hizo. Si se hizo, lo registraremos; si no, la cuota pasará a cobrarse a mano.
