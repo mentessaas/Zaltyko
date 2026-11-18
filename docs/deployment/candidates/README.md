@@ -793,11 +793,13 @@ crear tablas ni tocar permisos (la tabla ya es solo de `service_role`, con RLS
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261116180000_family_payment_methods_candidate.sql` | `72c7edcc74a84f78418fc4ea7ce207fed50795911f88f02f003d04b7fc40b572` | No aplicada | Aplicada el 17-11-2026 (según la sesión coordinadora) |
+| `20261116180000_family_payment_methods_candidate.sql` | `72c7edcc74a84f78418fc4ea7ce207fed50795911f88f02f003d04b7fc40b572` | No aplicada | Aplicada 16-11-2026 (autorizado por Elvis) |
 
-**Estado: no aplicada en ningún entorno.** Staging y producción necesitan cada
-uno una autorización expresa de Elvis; la de la Fase 1 no la cubre. Requiere
-antes la candidata de la Fase 1 (`20261116120000_connect_onboarding_candidate.sql`).
+**Estado: aplicada en staging el 16-11-2026 con autorización de Elvis («Sí,
+en staging»; SHA-256 comprobado), no aplicada en producción.** Producción
+necesita su propia autorización expresa de Elvis; la de la Fase 1 no la
+cubre. Requiere antes la candidata de la Fase 1
+(`20261116120000_connect_onboarding_candidate.sql`).
 
 La persona pagadora de una familia guarda una tarjeta o una domiciliación
 bancaria en la cuenta Stripe conectada de su academia. Decisión:

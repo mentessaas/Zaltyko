@@ -811,9 +811,12 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
 - **Pago manual.** Con un cobro en curso, 409 «Esta cuota se está cobrando
   automáticamente. Espera al resultado.», también con la bandera apagada. Si
   solo queda un reintento pendiente, el pago manual lo cancela.
-- **Orden de bloqueo único** (academia → cuotas → factura → intento) en el
-  proceso, el pago manual y las acciones: sin bloqueos mutuos. Las llamadas a
-  Stripe nunca van dentro de una transacción abierta.
+- **Orden de bloqueo único** (fila de `organizations` → cuotas por id →
+  factura → intento (→ disputa) → pago) en el proceso, los eventos, el pago
+  manual, las devoluciones y disputas y las acciones: sin bloqueos mutuos.
+  Las autorizaciones de la Fase 2 también bloquean primero la academia: la
+  activación y todas las revocaciones (familia, academia o aviso de Stripe).
+  Las llamadas a Stripe nunca van dentro de una transacción abierta.
 - **Cargo directo** en la cuenta de la academia, sin `application_fee`: no
   cambia ningún precio. Solo euros.
 
@@ -904,11 +907,16 @@ construida (18-11-2026)». Plan:
   persona pagadora; academia, quién paga, fecha del cobro, forma de pago
   («Tarjeta» o «Domiciliación bancaria», sin números), cuotas y referencia.
   Dice «Este justificante no es una factura. Si necesitas factura, pídesela a
-  {academia}.». Botón «Imprimir o guardar como PDF». Con la bandera apagada, o
-  si la cuota no es suya, 404.
+  {academia}.». Botón «Imprimir o guardar como PDF»; al imprimir no salen la
+  cabecera ni la navegación del portal. Si el pago se devolvió, una línea
+  «Este pago se devolvió el {día}»; con una disputa abierta, «Este pago está
+  en revisión con el banco». El justificante no se oculta: el cobro existió.
+  Con la bandera apagada, o si la cuota no es suya, 404.
 - **Academia, `/owner/payments`, «Cobros automáticos de {mes}».**
   - Cada fila dice de qué mes es la cuota («Cuota de febrero de 2027»); el
-    título dice el mes en que se cobran.
+    título dice el mes en que se cobran. Los botones de cada fila llevan en
+    su nombre accesible la persona pagadora (o, sin ella, la referencia):
+    dos cuotas del mismo mes se distinguen.
   - «Esperando a que la familia confirme el pago con su banco (hasta el
     {fecha})».
   - «Devuelta: {importe} el {fecha} (desde tu panel de Stripe)».
@@ -916,6 +924,16 @@ construida (18-11-2026)». Plan:
     {fecha}», «Disputa ganada», «Disputa perdida. El banco devolvió el dinero a
     la familia ({importe})», «El banco devolvió el dinero a la familia
     ({importe}). Se ha creado una cuota pendiente por el importe devuelto».
+  - Domiciliación devuelta y después ganada (el banco reintegra los fondos):
+    «El banco reintegró el dinero que había devuelto ({importe}). Anula la
+    cuota pendiente que se creó si ya no se debe», más «: todavía no tiene
+    ningún pago» si esa cuota nueva no tiene pagos, o «; ya tiene algún pago,
+    revísalo antes» si los tiene. Zaltyko nunca la anula sola.
+  - Pasado el plazo de la familia, si Stripe no deja leer ni cancelar el
+    cobro (p. ej. la academia desconectó su cuenta): «Pasó el plazo para que
+    la familia confirmara el pago y no podemos ver su resultado. Compruébalo
+    en Stripe.» y «Marcar como revisado», que vuelve a leer Stripe y solo con
+    un error permanente comprobado lo cierra sin saber si se cobró.
   - Cobro doble (D10): «Esta cuota se cobró dos veces. Devuelve uno desde tu
     panel de Stripe.».
 - **Correos a la familia.**
@@ -931,7 +949,7 @@ construida (18-11-2026)». Plan:
 
 | Ruta | Uso |
 |---|---|
-| `POST /api/stripe/connect/payments-webhook` | Eventos de las cuentas conectadas (firma con `STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET`). Con la bandera o los cerrojos cerrados: 200 `{ ignored: true }` sin leer el cuerpo. Sin secreto: 503. Firma mala: 400. Evento repetido: 200 `{ duplicate: true }`. Evento a medio procesar: 503 `EVENT_IN_PROGRESS` con `retry-after: 60` (Stripe lo reenvía). `no-store`. |
+| `POST /api/stripe/connect/payments-webhook` | Eventos de las cuentas conectadas (firma con `STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET`). Antes de leer el cuerpo solo se miran la bandera, la clave de prueba y que la base no sea la de producción: si falla alguno, 200 `{ ignored: true }` sin leerlo. Sin secreto: 503. Firma mala: 400. Después de comprobar la firma: evento Live, sin cuenta o de un tipo u objeto que no se atiende → 200 `{ ignored: true }`; sin las tablas de las Fases 1–4 o con una cuenta que no es de ninguna academia en pruebas, también 200 `{ ignored: true }` sin escribir. Evento repetido: 200 `{ duplicate: true }`. Evento a medio procesar: 503 `EVENT_IN_PROGRESS` con `retry-after: 60` (Stripe lo reenvía). `no-store`. |
 | `POST /api/v1/family/automatic-payment/authentication` | La familia confirma el pago con su banco: `{ action: "start" \| "check", organizationId, invoiceId }`. `start` da solo lo que necesita el navegador; `check` relee Stripe por el mismo camino que el evento. 503 con los cerrojos cerrados, 404 si no es la persona pagadora vigente, 409 `FAMILY_PAYMENT_CONFIRMATION_EXPIRED` o `…_CLOSED`, 502 si Stripe falla. 10 por minuto por cuenta, `private, no-store`. |
 | `GET /familia/cuotas/justificante/[attemptId]` | Página del justificante (`no-store`). |
 | `GET`/`POST /api/cron/collect-family-fees` | La de la Fase 3. Añade `circuitOpen` (sí/no) y `receipts: { sent, notSent, pending }` (o `null` si falló el envío). Envía los justificantes al final, después de los avisos. |
@@ -965,7 +983,7 @@ Eventos que se atienden (17): `payment_intent.processing`, `.succeeded`,
   y su huella; nunca el evento entero.
 - Devoluciones y disputas perdidas: filas en `zaltyko.refunds`, una por
   reparto, con motivo (el de Stripe o `requested_by_academy`, `dispute_lost`,
-  `sepa_returned`) y `provider_refund_id` = `{re_|pyr_|dp_}:{id del reparto}`.
+  `sepa_returned`) y `provider_refund_id` = `{re_|pyr_|dp_|du_}:{id del reparto}`.
 - Justificante: eventos `family_collection.receipt` y
   `family_collection.receipt_result` en el outbox, solo con ids.
 
@@ -1012,13 +1030,33 @@ Eventos que se atienden (17): `payment_intent.processing`, `.succeeded`,
   otro ya cobró, aviso de cobro doble (D10).
 - **Nunca se borra un pago.** Lo que no cabe en lo repartido no escribe
   ninguna fila: aviso a la academia y evento procesado (nunca un 500 en
-  bucle).
+  bucle). La pasada diaria vuelve a leer en Stripe, durante 30 días desde el
+  aviso, los cobros con una devolución que no cabía: si la academia repartió
+  después el pago, la anota por el mismo camino; deja de leerlos en cuanto
+  todas sus devoluciones quedan anotadas. Solo con la bandera de eventos
+  (como el resto de devoluciones; también las de un cobro registrado tarde).
+  Un cargo con más de 1000 devoluciones no se lee (error permanente: sin
+  efecto y en el registro, nunca un 500 que Stripe reenviaría sin fin).
 - **Ninguna cuota en el limbo:** todo intento `requires_action` tiene plazo
-  y lo cierra el proceso diario.
+  y lo cierra el proceso diario. La única excepción es que, pasado el plazo,
+  Stripe no deje leer ni cancelar el cobro de forma permanente (cuenta
+  desconectada): el intento sigue abierto (su dinero pudo moverse) y la
+  academia recibe el aviso `requires_action_unreadable`, que le abre «Marcar
+  como revisado».
 - **Cortacircuitos (D9):** con 3 rechazos 400 de la plataforma seguidos al
   crear cobros, o el 20 % a partir de 10, la pasada para de crear cobros y
   deja el resto para el día siguiente, sin cerrar más intentos. Un solo
-  `logger.error` con dos contadores.
+  `logger.error` con dos contadores. Con el cortacircuitos abierto, la puesta
+  al día deja de tomar intentos reanudables y devuelve su reanudación a los
+  ya tomados sin procesar: un despliegue roto varios días no los agota.
+- **Buzón de eventos:** el cierre de un evento lleva un testigo (el número de
+  entrega): una entrega vieja que termina tarde no pisa el cierre de otra más
+  nueva. Un efecto con un id que no se puede guardar se cierra sin él (nunca
+  un 500 tras aplicarlo). El mismo `evt_…` guardado en otra academia
+  responde 200 duplicado y queda en el registro, solo con ids.
+- **Método de pago guardado con el navegador cerrado:** el aviso
+  `setup_intent.succeeded` solo lo activa si quien empezó la preparación
+  sigue siendo la persona pagadora vigente de la familia.
 - **Revocar un método** (tarjeta quitada en Stripe u orden SEPA inactiva)
   siempre se puede, aunque la bandera de la Fase 2 esté apagada.
 - Solo referencias opacas en registros y respuestas: nunca mensajes de
@@ -1042,7 +1080,7 @@ Eventos que se atienden (17): `payment_intent.processing`, `.succeeded`,
 - **Devolución anulada después en Stripe:** no toca el libro. La academia
   recibe el aviso `refund_reversed`; la familia sigue viendo «Devuelto».
 - **Búsqueda por id de devolución:** `provider_refund_id` lleva el sufijo del
-  reparto (`{re_|pyr_|dp_}:{id del reparto}`); hay que buscar por prefijo.
+  reparto (`{re_|pyr_|dp_|du_}:{id del reparto}`); hay que buscar por prefijo.
 - **Devolución parcial de varias cuotas:** se reparte de la más antigua a la
   más nueva.
 - **Cortacircuitos:** estado en memoria por pasada (un relanzamiento manual
@@ -1051,7 +1089,10 @@ Eventos que se atienden (17): `payment_intent.processing`, `.succeeded`,
   regla de siempre y las cuotas pasan a manual).
 - **Justificante:** «sin correo» y «academia inactiva» son definitivos para
   ese justificante (para L6); el de una domiciliación confirmada por evento
-  sale en la pasada diaria siguiente; bandera apagada hasta L6.
+  sale en la pasada diaria siguiente; bandera apagada hasta L6. Si falla la
+  preparación del correo, queda «no entregado» sin reintentar (la página
+  sigue disponible). El correo no menciona devoluciones ni disputas: solo la
+  página.
 - **Pendientes legales:** L4 (aviso previo de cada adeudo SEPA) y L6
   (abogado/gestor).
 - **Datos de Stripe sin confirmar** (Tarea 14, staging): resultado de un

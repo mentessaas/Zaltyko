@@ -25,6 +25,8 @@ source:
 
 Vault: actualizados este `Changelog interno.md` y `Decisiones.md`; no cambian `Pricing.md` ni `Mensajes aprobados.md`.
 
+**Tarea M (menores antes de la revisión final, mismo día).** Buzón con cercado por número de entrega; aviso `requires_action_unreadable` cuando, pasado el plazo de la familia, Stripe no deja leer ni cancelar el cobro; relectura diaria (30 días) de las devoluciones que no cabían; relecturas de devoluciones solo con la bandera de eventos; domiciliación devuelta y ganada recuerda anular la cuota nueva (nunca sola); revocaciones de la Fase 2 con la academia bloqueada primero; activación por aviso solo si la persona sigue siendo la pagadora; justificante con «se devolvió» / «en revisión con el banco» e impresión sin cabecera; cortacircuitos que devuelve las reanudaciones; nombres accesibles con la persona pagadora. README de candidatas: la Fase 2 figura aplicada en staging el 16-11-2026, no en producción. Detalle en ADR-0028 y `docs/COBROS_Y_CUOTAS.md`.
+
 ## 2026-11-17 — Auditoría de dependencias: excepción temporal para GHSA-fc5q-39xc-vjpf (`picomatch`)
 
 **Contexto.** El advisory GHSA-fc5q-39xc-vjpf (ReDoS en `picomatch <= 4.0.7`, gravedad alta) hace fallar el job no obligatorio «Dependency Security & SBOM» en todas las PR desde el 17-11-2026. No tiene versión corregida (`first_patched_version: null`; la última en npm es la 4.0.7), así que no se puede actualizar ni fijar un override.

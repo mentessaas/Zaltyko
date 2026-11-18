@@ -517,9 +517,15 @@ de Elvis):**
     siempre relee y registra lo que ya se envió a Stripe (con los cerrojos
     de entorno), pero solo cobra cuotas nuevas con la bandera encendida.
     Apagarla nunca deja un cobro hecho sin registrar.
-21. **Orden de bloqueo único:** academia → cuotas por id → factura →
-    intento, en el proceso diario, en el pago manual y en las acciones de la
-    academia. Las llamadas a Stripe nunca van dentro de una transacción.
+21. **Orden de bloqueo único:** fila de `organizations` → cuotas por id →
+    factura → intento (→ disputa) → pago, en el proceso diario, los eventos
+    de Stripe, el pago manual, las devoluciones y disputas y las acciones de
+    la academia. Las autorizaciones de la Fase 2 siguen el mismo principio
+    (academia primero): la activación (desde el navegador o por aviso de
+    Stripe) y las revocaciones (de la familia, de la academia o por aviso de
+    Stripe) bloquean la fila de la academia antes que la autorización
+    (Tarea M, puntos 10 y 10b). Las llamadas a Stripe nunca van dentro de
+    una transacción.
 22. **Pago manual y cobro automático.** Con un intento en curso (reclamado,
     creado o en proceso) el pago manual responde 409 «Esta cuota se está
     cobrando automáticamente. Espera al resultado.». Si solo queda un
@@ -877,6 +883,40 @@ del 16-11-2026, una bandera por fase):
 - **Webhook antiguo** (Tarea 2b, D8 y D13): `/api/stripe/connect/webhook`
   guarda solo un resumen (`id`, `type`, `account`, `livemode`, `created` e id
   y tipo del objeto) en `billing_events.payload`.
+- **Menores cerrados antes de la revisión final** (tarea M, 18-11-2026):
+  - el cierre de un evento en el buzón lleva un testigo (`attempts` del
+    reclamo): una entrega vieja nunca pisa el cierre de otra más nueva; un
+    efecto con un id que no es uuid se cierra sin él (nunca un 500 después de
+    aplicarlo); el mismo `evt_…` de otra academia responde 200 duplicado y
+    queda en el registro, solo con ids;
+  - un `requires_action` cuyo plazo ya pasó y que Stripe no deja leer ni
+    cancelar de forma permanente sigue abierto y avisa a la academia
+    (`requires_action_unreadable`); «Marcar como revisado» vuelve a leer
+    Stripe y solo con un error permanente comprobado lo cierra como
+    `reviewed_unverifiable` (reglas de la Fase 3). Así ningún intento queda
+    abierto sin que la academia lo sepa;
+  - la pasada diaria relee, durante 30 días desde el aviso
+    `refund_unallocated`, los cobros con una devolución que no cabía y la
+    anota si la academia repartió después el pago (recordAttemptRefunds,
+    fuera de transacción); deja de releerlos cuando todas sus devoluciones
+    están anotadas. Esa relectura y la de un cobro registrado tarde exigen
+    la bandera de eventos. Un cargo con más de 1000 devoluciones es un error
+    permanente (sin efecto, en el registro);
+  - domiciliación devuelta y después ganada: la academia ve «Anula la cuota
+    pendiente que se creó si ya no se debe», y si esa cuota no tiene ningún
+    pago se lo dice; nunca se anula sola;
+  - las revocaciones de la Fase 2 (familia y academia) bloquean primero la
+    academia, como la activación y el cobro (decisión 21); la activación por
+    `setup_intent.succeeded` comprueba que quien empezó la preparación sigue
+    siendo la persona pagadora vigente;
+  - el justificante dice «Este pago se devolvió el {día}» o «Este pago está
+    en revisión con el banco» sin ocultarse, se imprime sin la cabecera del
+    portal y un fallo al preparar el correo queda como no entregado;
+  - con el cortacircuitos abierto, la puesta al día deja de tomar intentos
+    reanudables y devuelve la reanudación de los ya tomados;
+  - el panel nombra a la persona pagadora (o la referencia) en los botones de
+    cada fila, y el panel y el recordatorio usan las etiquetas comunes de la
+    cuota (`feePeriodLabel`, `feeLabel`).
 
 ### Deuda y salvedades de la Fase 4
 
@@ -899,11 +939,16 @@ del 16-11-2026, una bandera por fase):
 - **Devolución anulada después en Stripe.** No toca el libro: la academia
   recibe el aviso `refund_reversed` y la familia sigue viendo «Devuelto».
 - **Búsqueda de devoluciones por id.** `provider_refund_id` lleva ahora el
-  sufijo del reparto: `{re_|pyr_|dp_}:{id del reparto}`. Quien busque por el
+  sufijo del reparto: `{re_|pyr_|dp_|du_}:{id del reparto}`. Quien busque por el
   id de Stripe solo (soporte, analítica) tiene que buscar por prefijo.
 - **Devolución parcial de varias cuotas:** se reparte de la cuota más
   antigua a la más nueva, sobre lo que queda sin devolver de cada una. Lo que
-  no cabe no escribe ninguna fila: aviso a la academia.
+  no cabe no escribe ninguna fila: aviso a la academia. Se relee cada día
+  solo durante 30 días desde el aviso; después, solo la academia (su panel
+  de Stripe y el pago a mano).
+- **Justificante y devoluciones:** la línea «se devolvió» o «en revisión con
+  el banco» sale en la página, no en el correo (que se envía una vez, al
+  cobrar).
 - **Cortacircuitos (D9).**
   - Su estado vive en memoria durante una pasada: un relanzamiento manual el
     mismo día empieza cerrado.
