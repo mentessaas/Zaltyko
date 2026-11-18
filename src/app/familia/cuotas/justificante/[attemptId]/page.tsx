@@ -10,6 +10,7 @@ import {
   familyReceiptFeeLine,
   familyReceiptNotInvoiceText,
   familyReceiptRows,
+  familyReceiptStatusLines,
 } from "@/modules/family-collection/domain/family-receipt";
 import { formatMoney } from "@/modules/family-portal/domain/family-portal-presentation";
 
@@ -53,6 +54,12 @@ export default async function FamilyReceiptPage({ params }: { params: Promise<{ 
         <h1 id="receipt-title" className={ownerUi.sectionTitle}>
           Justificante de pago
         </h1>
+        {/* Tarea M (punto 13): devuelto o en revisión con el banco, sin ocultar el justificante. */}
+        {familyReceiptStatusLines(receipt).map((line) => (
+          <p key={line} className="mt-3 text-sm font-semibold text-z-ink">
+            {line}
+          </p>
+        ))}
         <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
           {familyReceiptRows(receipt).map((row) => (
             <div key={row.label}>

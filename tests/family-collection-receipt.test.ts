@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -92,6 +94,7 @@ import {
   FAMILY_RECEIPT_RESULT_EVENT,
   familyReceiptKey,
   familyReceiptPath,
+  familyReceiptStatusLines,
   renderFamilyReceipt,
   type FamilyReceiptView,
 } from "@/modules/family-collection/domain/family-receipt";
@@ -432,7 +435,28 @@ describe("deliverFamilyReceipts (bandera encendida)", () => {
     expect(mocks.error).toHaveBeenCalledWith(
       "Cobro automático: no se pudo enviar el justificante de pago a la familia",
       undefined,
-      { organizationId: ORGANIZATION_ID, invoiceId: INVOICE_ID, attemptId: ATTEMPT_ID, errorName: "Error" }
+      { organizationId: ORGANIZATION_ID, invoiceId: INVOICE_ID, attemptId: ATTEMPT_ID, errorName: "Error", stage: "read" }
+    );
+    expect(mocks.error).toHaveBeenCalledWith(
+      "Cobro automático: no se pudo enviar el justificante de pago a la familia",
+      undefined,
+      { organizationId: ORGANIZATION_ID, invoiceId: INVOICE_ID, attemptId: ATTEMPT_ID, errorName: "Error", stage: "send" }
+    );
+  });
+
+  it("Tarea M (punto 15): si falla la preparación del correo antes de enviar → no entregado, sin reintentar 7 días", async () => {
+    // Una vista que el correo no sabe preparar (cuotas ilegibles): renderFamilyReceipt lanza.
+    const broken = { ...VIEW, fees: null as unknown as FamilyReceiptView["fees"] };
+    const store = fakeStore([pending()], broken);
+    expect(
+      await deliverFamilyReceipts({ now: NOW }, { store, sendEmail: mocks.sendEmailWithLogging, storageShape: PHASE4 })
+    ).toEqual({ sent: 0, notSent: 1, pending: 0 });
+    expect(mocks.sendEmailWithLogging).not.toHaveBeenCalled();
+    expect(store.recordResult).toHaveBeenCalledWith(expect.objectContaining({ outcome: "not_delivered" }));
+    expect(mocks.error).toHaveBeenCalledWith(
+      "Cobro automático: no se pudo enviar el justificante de pago a la familia",
+      undefined,
+      { organizationId: ORGANIZATION_ID, invoiceId: INVOICE_ID, attemptId: ATTEMPT_ID, errorName: "TypeError", stage: "prepare" }
     );
   });
 
@@ -489,6 +513,38 @@ describe("página del justificante y enlace del portal (bandera encendida)", () 
     finder.mockClear();
     await expectNotFound(FamilyReceiptPage(pageParams("../otro")));
     expect(finder).not.toHaveBeenCalled();
+  });
+
+  it("Tarea M (punto 13): cobro devuelto o en revisión con el banco → una línea sencilla, sin ocultar el justificante", async () => {
+    mocks.findReceipt = vi.fn(async () => ({ ...VIEW, refundedOnLocal: "2027-02-10" }));
+    const refunded = renderToStaticMarkup(await FamilyReceiptPage(pageParams(ATTEMPT_ID)));
+    expect(refunded).toContain("Este pago se devolvió el 10 de febrero de 2027.");
+    expect(refunded).toContain("Total pagado");
+    expect(refunded).not.toContain("en revisión con el banco");
+
+    mocks.findReceipt = vi.fn(async () => ({ ...VIEW, underBankReview: true }));
+    const disputed = renderToStaticMarkup(await FamilyReceiptPage(pageParams(ATTEMPT_ID)));
+    expect(disputed).toContain("Este pago está en revisión con el banco.");
+    expect(disputed).toContain("Total pagado");
+
+    // Sin nada que contar, ninguna de las dos.
+    mocks.findReceipt = vi.fn(async () => ({ ...VIEW, refundedOnLocal: null, underBankReview: false }));
+    const plain = renderToStaticMarkup(await FamilyReceiptPage(pageParams(ATTEMPT_ID)));
+    expect(plain).not.toContain("Este pago se devolvió");
+    expect(plain).not.toContain("en revisión con el banco");
+    expect(familyReceiptStatusLines({ refundedOnLocal: "2027-02-10", underBankReview: true })).toEqual([
+      "Este pago se devolvió el 10 de febrero de 2027.",
+      "Este pago está en revisión con el banco.",
+    ]);
+  });
+
+  it("Tarea M (punto 14): al imprimir, la cabecera y la navegación del portal no salen", () => {
+    const shell = readFileSync("src/components/family-portal/FamilyPortalShell.tsx", "utf8");
+    const header = /<header className="([^"]*)"/.exec(shell);
+    expect(header?.[1].split(/\s+/)).toContain("print:hidden");
+    // La navegación va dentro de esa cabecera.
+    expect(shell.indexOf('aria-label="Portal de familias"')).toBeGreaterThan(shell.indexOf("<header"));
+    expect(shell.indexOf('aria-label="Portal de familias"')).toBeLessThan(shell.indexOf("</header>"));
   });
 
   it("el portal enseña «Ver justificante» solo en las cuotas con enlace", () => {

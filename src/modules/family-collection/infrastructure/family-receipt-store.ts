@@ -84,6 +84,11 @@ export interface FamilyReceiptStore {
     attemptId: string;
     viewerUserId?: string;
     now: Date;
+    /**
+     * Tarea M (punto 13): mirar también si el pago tiene una disputa abierta
+     * (solo con la forma "phase4", que tiene la tabla de disputas).
+     */
+    withDisputes?: boolean;
   }): Promise<FamilyReceiptView | null>;
   /**
    * Por factura, el intento cuyo justificante puede abrir `viewerUserId`
@@ -237,8 +242,27 @@ export function createFamilyReceiptStore(): FamilyReceiptStore {
 
     async readReceipt(input) {
       const viewer = input.viewerUserId ? sql`and ${viewerIsPayer(input.viewerUserId, input.now)}` : sql``;
+      // Tarea M (punto 13): devolución anotada (la última) y disputa abierta.
+      const openDispute = input.withDisputes
+        ? sql`exists (
+            select 1
+              from zaltyko.family_collection_disputes d
+             where d.organization_id = a.organization_id
+               and d.attempt_id = a.id
+               and d.closed_at is null
+               and d.reversed_at is null
+          )`
+        : sql`false`;
       const header = await db.execute(sql`
         select a.payment_method_kind::text as "method",
+               to_char((
+                 select max(r.refunded_at)
+                   from zaltyko.refunds r
+                  where r.organization_id = a.organization_id
+                    and r.payment_id = a.payment_id
+                    and r.status = 'succeeded'
+               ) at time zone 'UTC', ${sql.raw(ISO)}) as "refundedAt",
+               ${openDispute} as "underBankReview",
                a.payment_id::text as "paymentId",
                i.reference as "reference",
                o.name as "academyName",
@@ -278,8 +302,12 @@ export function createFamilyReceiptStore(): FamilyReceiptStore {
       const paymentId = textOrNull(row.paymentId);
       if (!method || totalCents === null || row.currency !== "EUR" || !receivedAt || !paymentId) return null;
       let collectedOnLocal: string;
+      let refundedOnLocal: string | null = null;
       try {
-        collectedOnLocal = localCalendarDate(receivedAt, String(row.timezone ?? "Europe/Madrid"));
+        const timezone = String(row.timezone ?? "Europe/Madrid");
+        collectedOnLocal = localCalendarDate(receivedAt, timezone);
+        const refundedAt = textOrNull(row.refundedAt);
+        if (refundedAt) refundedOnLocal = localCalendarDate(refundedAt, timezone);
       } catch {
         return null;
       }
@@ -355,6 +383,8 @@ export function createFamilyReceiptStore(): FamilyReceiptStore {
         collectedOnLocal,
         method,
         reference: String(row.reference ?? ""),
+        refundedOnLocal,
+        underBankReview: row.underBankReview === true,
       };
     },
 

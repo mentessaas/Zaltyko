@@ -74,6 +74,14 @@ export interface FamilyReceiptView {
   method: FamilyReceiptMethod;
   /** Referencia de la cuota, la misma que la familia ve en el portal. */
   reference: string;
+  /**
+   * Tarea M (punto 13): día local de la última devolución anotada de este
+   * pago (de la academia o del banco), o null. El justificante no se oculta:
+   * el cobro existió.
+   */
+  refundedOnLocal?: string | null;
+  /** Tarea M (punto 13): el pago tiene una disputa abierta con el banco. */
+  underBankReview?: boolean;
 }
 
 /** Etiqueta de una cuota del justificante a partir del primer día de su periodo. */
@@ -117,6 +125,20 @@ export function familyReceiptRows(view: FamilyReceiptView): Array<{ label: strin
     { label: "Forma de pago", value: familyReceiptMethodText(view.method) },
     { label: "Referencia de la cuota", value: view.reference },
   ];
+}
+
+/**
+ * Tarea M (punto 13): líneas sencillas sobre lo que pasó después con el pago
+ * («Este pago se devolvió el 5 de febrero de 2027», «Este pago está en
+ * revisión con el banco»). Vacío si no pasó nada. Pura.
+ */
+export function familyReceiptStatusLines(
+  view: Pick<FamilyReceiptView, "refundedOnLocal" | "underBankReview">
+): string[] {
+  const lines: string[] = [];
+  if (view.refundedOnLocal) lines.push(`Este pago se devolvió el ${familyReceiptDateText(view.refundedOnLocal)}.`);
+  if (view.underBankReview) lines.push("Este pago está en revisión con el banco.");
+  return lines;
 }
 
 export interface FamilyReceiptMessage {

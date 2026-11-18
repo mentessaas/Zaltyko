@@ -18,7 +18,10 @@ import {
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
-import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
+import {
+  isFamilyCollectionEventsStorageAvailable,
+  isFamilyCollectionStorageAvailable,
+} from "@/modules/family-collection/application/storage";
 import type { FamilyReceiptView } from "@/modules/family-collection/domain/family-receipt";
 import { createFamilyReceiptStore } from "@/modules/family-collection/infrastructure/family-receipt-store";
 import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
@@ -61,6 +64,8 @@ export async function getFamilyReceipt(input: {
     attemptId: input.attemptId,
     viewerUserId: input.userId,
     now: input.now ?? new Date(),
+    // Tarea M (punto 13): la tabla de disputas solo existe con la forma "phase4".
+    withDisputes: await isFamilyCollectionEventsStorageAvailable(db),
   });
 }
 

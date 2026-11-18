@@ -147,7 +147,10 @@ async function deliverOne(
   const { store, sendEmail, appUrl, now } = context;
   const ids = { organizationId: receipt.organizationId, invoiceId: receipt.invoiceId, attemptId: receipt.attemptId };
   let outcome: FamilyReceiptOutcome;
-  let sending = false;
+  // Tarea M (punto 15): solo un fallo al leer el libro deja el justificante
+  // pendiente; uno al preparar el correo (o al enviarlo) no se arregla
+  // reintentando cada día: queda como no entregado.
+  let stage: "read" | "prepare" | "send" = "read";
   try {
     if (!isOperatingOrganizationStatus(receipt.organizationStatus)) {
       outcome = "organization_inactive";
@@ -159,8 +162,9 @@ async function deliverOne(
       if (!view) {
         outcome = "superseded";
       } else {
+        stage = "prepare";
         const message = renderFamilyReceipt({ ...view, receiptUrl: `${appUrl}${familyReceiptPath(receipt.attemptId)}` });
-        sending = true;
+        stage = "send";
         const accepted = await sendEmail({
           purpose: "transactional",
           to: receipt.payerEmail,
@@ -182,11 +186,13 @@ async function deliverOne(
     logger.error("Cobro automático: no se pudo enviar el justificante de pago a la familia", undefined, {
       ...ids,
       errorName: error instanceof Error ? error.name : "unknown",
+      stage,
     });
-    // Antes de enviar (lectura del libro): sin resultado, la siguiente
-    // ejecución lo vuelve a mirar. Al enviar: el registro de envíos ya guardó
-    // la clave y otro intento no saldría, así que queda como no entregado.
-    if (!sending) return "pending";
+    // Al leer el libro: sin resultado, la siguiente ejecución lo vuelve a
+    // mirar. Al preparar el correo: saldría igual cada día durante 7 días.
+    // Al enviar: el registro de envíos ya guardó la clave y otro intento no
+    // saldría. En los dos últimos casos queda como no entregado.
+    if (stage === "read") return "pending";
     outcome = "not_delivered";
   }
   try {
