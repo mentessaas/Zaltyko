@@ -416,8 +416,15 @@ describe("handleFamilyCollectionEvent", () => {
       expect(handlers[key]).toHaveBeenCalledWith(expect.objectContaining({ objectId: overrides.objectId ?? "pi_3SyntheticIntent0001" }));
     }
 
+    // Sin manejador propio, el vacío. (Los cobros ya tienen el suyo por
+    // defecto desde la Tarea 3: lo prueban tests/family-collection-events*.)
     vi.mocked(finishProviderEvent).mockClear();
-    expect(await handleFamilyCollectionEvent(connectedEvent(), { now: NOW })).toBe("processed");
+    expect(
+      await handleFamilyCollectionEvent(
+        connectedEvent({ type: "mandate.updated", objectType: "mandate", objectId: "mandate_1A" }),
+        { now: NOW }
+      )
+    ).toBe("processed");
     expect(finishProviderEvent).toHaveBeenCalledWith(
       expect.objectContaining({ status: "processed", effectType: null, effectId: null })
     );

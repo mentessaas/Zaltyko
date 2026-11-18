@@ -415,6 +415,13 @@ describe("motivos en palabras sencillas", () => {
       "No se pudo cobrar automáticamente."
     );
     expect(reviewReasonText("multiple_payments")).toBe("Hay más de un cobro para esta cuota. Compruébalo en Stripe.");
+    // Fase 4: cobro tardío (D10) y el hermano que se canceló por él.
+    expect(reviewReasonText("duplicate_collection")).toBe(
+      "Esta cuota se cobró dos veces. Devuelve uno desde tu panel de Stripe."
+    );
+    expect(failureReasonText({ failureCode: "late_success_elsewhere", declineCode: null, status: "canceled" })).toBe(
+      "Se canceló porque un cobro anterior de esta cuota se completó."
+    );
     expect(failureReasonText({ failureCode: "paid_plan_required", declineCode: null })).toBe(
       "Tu plan no incluye el cobro automático de cuotas."
     );

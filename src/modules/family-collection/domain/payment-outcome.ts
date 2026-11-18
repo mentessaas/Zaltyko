@@ -38,6 +38,14 @@ export interface PaymentIntentSnapshot {
   amountReceivedCents: number | null;
   /** `currency` del cobro en mayúsculas (`EUR`); `null` si no vino. Obligatorio, como el importe. */
   currency: string | null;
+  /**
+   * Fase 4: id del intento de Zaltyko que lleva el cobro en su metadata
+   * (`zaltyko_collection_attempt_id`), solo si es un uuid; `null` si no lo
+   * lleva. Solo lo rellena la relectura de la pasarela (`retrievePayment`): lo
+   * usa el evento de un cobro cuyo `pi_…` todavía no está guardado en ningún
+   * intento. Opcional (no es un importe): sin él no se adopta ningún intento.
+   */
+  attemptIdFromMetadata?: string | null;
 }
 
 /** Lo que Stripe dice que se cobró de verdad: importe en céntimos y moneda. */

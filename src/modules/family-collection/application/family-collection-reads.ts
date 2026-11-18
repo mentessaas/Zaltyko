@@ -646,6 +646,8 @@ const FAILURE_TEXT: Record<string, string> = {
   reviewed_unverifiable: "Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual.",
   // Cancelado en Stripe sin ningún error de pago: no es un rechazo del banco.
   canceled_in_stripe: "El cobro se canceló en Stripe. Se cobra a mano.",
+  // Fase 4: un cobro anterior de la misma cuota se completó tarde; este se canceló.
+  late_success_elsewhere: "Se canceló porque un cobro anterior de esta cuota se completó.",
   // Stripe no aceptó crear el cobro (petición rechazada sin código).
   invalid_request: "Stripe no aceptó crear el cobro. Se cobra a mano.",
   [COLLECTION_WINDOW_EXPIRED_CODE]: NOT_ATTEMPTED_TEXT,
@@ -714,6 +716,8 @@ const REVIEW_TEXT: Record<string, string> = {
   processing_unreadable: `El cobro lleva más de 15 días en curso y no podemos ver su resultado. ${CHECK_IN_STRIPE}`,
   // «Marcar como revisado» lo cierra sin registrar ese pago (reviewed_unverifiable).
   amount_mismatch: `Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. ${CHECK_IN_STRIPE}`,
+  // Fase 4, D10: un cobro antiguo se completó tarde cuando otro ya había cobrado la cuota.
+  duplicate_collection: "Esta cuota se cobró dos veces. Devuelve uno desde tu panel de Stripe.",
 };
 
 const REVIEW_FALLBACK = `El cobro necesita una comprobación. ${CHECK_IN_STRIPE}`;

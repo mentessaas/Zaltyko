@@ -15,6 +15,8 @@ const env = vi.hoisted(() => ({
   sepa: false,
   environment: "test" as "test" | "live" | null,
   production: false,
+  /** ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED (Fase 4): solo cuenta en modo "event". */
+  events: true,
 }));
 
 vi.mock("@/db", () => ({ db: {} }));
@@ -26,6 +28,7 @@ vi.mock("@/modules/family-collection/application/config", () => ({
   isFamilyAutomaticSepaCollectionFlagEnabled: () => env.sepa,
   resolveConnectEnvironment: () => env.environment,
   isProductionDatabase: () => env.production,
+  isFamilyCollectionEventsFlagEnabled: () => env.events,
 }));
 vi.mock("@/modules/family-collection/infrastructure/family-collection-store", () => ({
   createFamilyCollectionStore: vi.fn(() => {
@@ -42,7 +45,7 @@ vi.mock("@/modules/payments-connect/application/connect-onboarding-service", () 
 }));
 
 import { logger } from "@/lib/logger";
-import { runFamilyCollection } from "@/modules/family-collection/application/family-collection-service";
+import { createRunState, runFamilyCollection } from "@/modules/family-collection/application/family-collection-service";
 import { collectionDescription } from "@/modules/family-collection/application/family-collection-steps";
 import type {
   CollectionError,
@@ -322,10 +325,11 @@ function makeWorld() {
       inTransaction(`apply:${input.outcome.kind}`, (): ApplyOutcomeResult => {
         world.applied.push(input.outcome);
         if (world.applyResult) return world.applyResult;
+        const collected = input.outcome.kind === "succeeded" || input.outcome.kind === "late_succeeded";
         return {
           applied: true,
-          status: input.outcome.kind,
-          allocationStatus: input.outcome.kind === "succeeded" ? "allocated" : null,
+          status: collected ? "succeeded" : (input.outcome.kind as Exclude<AttemptOutcome["kind"], "late_succeeded">),
+          allocationStatus: collected ? "allocated" : null,
           reviewReasons: [],
         };
       })
@@ -349,6 +353,16 @@ function makeWorld() {
       input.after === null ? world.exhausted : []
     ),
     loadAttemptRefs: vi.fn<FamilyCollectionStore["loadAttemptRefs"]>(async () => world.refs),
+    // Fase 4 (eventos de Stripe): el proceso diario nunca los usa.
+    findAttemptByPaymentIntent: vi.fn<FamilyCollectionStore["findAttemptByPaymentIntent"]>(async (input) =>
+      world.attempts.find((item) => item.paymentIntentId === input.paymentIntentId) ?? null
+    ),
+    findClaimedAttemptById: vi.fn<FamilyCollectionStore["findClaimedAttemptById"]>(async (input) =>
+      world.attempts.find((item) => item.id === input.attemptId && item.status === "claimed") ?? null
+    ),
+    listInvoiceSiblings: vi.fn<FamilyCollectionStore["listInvoiceSiblings"]>(async (input) =>
+      world.attempts.filter((item) => item.invoiceId === input.invoiceId && item.id !== input.excludeAttemptId)
+    ),
     recordNotice: vi.fn<FamilyCollectionStore["recordNotice"]>(async (input) => {
       world.calls.push(`notice:${input.reason}`);
       world.notices.push(input.reason);
@@ -415,6 +429,7 @@ beforeEach(() => {
   env.sepa = false;
   env.environment = "test";
   env.production = false;
+  env.events = true;
   vi.mocked(logger.error).mockClear();
 });
 
@@ -442,6 +457,62 @@ describe("cerrojos y bandera", () => {
     expect(store.claimResumable).not.toHaveBeenCalled();
     expect(store.listDueInvoices).not.toHaveBeenCalled();
     expect(gateway.retrievePayment).not.toHaveBeenCalled();
+  });
+
+  describe("createRunState (Fase 4: lo comparten la pasada diaria y los eventos)", () => {
+    it("cerrojos cerrados o sin tablas → null sin tocar Stripe; en modo event, también con la bandera de eventos apagada", async () => {
+      for (const mode of ["daily", "event"] as const) {
+        for (const [environment, production] of [
+          ["live", false],
+          [null, false],
+          ["test", true],
+        ] as const) {
+          env.environment = environment;
+          env.production = production;
+          const { store, gateway } = setup();
+          expect(await createRunState({ now }, { store, gateway }, mode), `${mode} ${environment} ${production}`).toBeNull();
+          expect(store.isStorageAvailable).not.toHaveBeenCalled();
+        }
+        env.environment = "test";
+        env.production = false;
+        const { world, store, gateway } = setup();
+        world.storage = false;
+        expect(await createRunState({ now }, { store, gateway }, mode), mode).toBeNull();
+      }
+
+      env.events = false;
+      const off = setup();
+      expect(await createRunState({ now }, { store: off.store, gateway: off.gateway }, "event")).toBeNull();
+      expect(off.store.isStorageAvailable).not.toHaveBeenCalled();
+      // La bandera de eventos no cuenta para la pasada diaria.
+      expect(await createRunState({ now }, { store: off.store, gateway: off.gateway }, "daily")).not.toBeNull();
+    });
+
+    it("con todo abierto: el estado lleva el almacén, la pasarela, la hora y las banderas, sin escribir nada", async () => {
+      env.flag = false;
+      env.sepa = true;
+      const { world, store, gateway } = setup();
+      const state = await createRunState({ now, organizationIds: [organizationId] }, { store, gateway }, "event");
+
+      expect(state).toMatchObject({
+        now,
+        environment: "test",
+        productionDatabase: false,
+        flagEnabled: false,
+        sepaEnabled: true,
+        scope: [organizationId],
+        result: { enabled: false, complete: true, collected: 0, skipped: {} },
+      });
+      expect(state?.store).toBe(store);
+      expect(state?.gateway).toBe(gateway);
+      expect(world.calls).toEqual([]);
+      expect(gateway.retrievePayment).not.toHaveBeenCalled();
+    });
+
+    it("tamaño de página no válido → RangeError", async () => {
+      const { store, gateway } = setup();
+      await expect(createRunState({ now, batchSize: 0 }, { store, gateway }, "daily")).rejects.toThrow(RangeError);
+    });
   });
 
   it("con la bandera apagada solo pone al día lo que quedó a medias y nunca cobra nada nuevo", async () => {

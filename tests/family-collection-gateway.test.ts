@@ -626,8 +626,31 @@ describe("createStripeCollectionGateway", () => {
         lastDeclineCode: "lost_card",
         amountReceivedCents: 0,
         currency: "EUR",
+        // Fase 4: solo el id del intento de la metadata (nada más de ella).
+        attemptIdFromMetadata: attemptId,
       });
       expectNoLeak(snapshot);
+    });
+
+    it("Fase 4: el id del intento de la metadata solo si es un uuid (en minúsculas); si no, null", async () => {
+      const cases: Array<[Record<string, string> | undefined, string | null]> = [
+        [{ zaltyko_collection_attempt_id: attemptId.toUpperCase() }, attemptId],
+        [{ zaltyko_collection_attempt_id: "no-es-un-uuid" }, null],
+        [{ zaltyko_collection_attempt_id: `${attemptId}' or '1` }, null],
+        [{ zaltyko_invoice_id: invoiceId }, null],
+        [{}, null],
+        [undefined, null],
+      ];
+      for (const [metadata, expected] of cases) {
+        const stripe = fakeStripe();
+        stripe.retrieve.mockResolvedValue(paymentIntent({ status: "succeeded", amount_received: 4500, metadata }));
+        const gateway = createStripeCollectionGateway(stripe.client);
+
+        const snapshot = await gateway.retrievePayment({ connectedAccount, paymentIntentId });
+
+        expect(snapshot.attemptIdFromMetadata, JSON.stringify(metadata)).toBe(expected);
+        expect(snapshot).toMatchObject({ id: paymentIntentId, status: "succeeded", amountReceivedCents: 4500 });
+      }
     });
 
     it("propaga el error de Stripe", async () => {

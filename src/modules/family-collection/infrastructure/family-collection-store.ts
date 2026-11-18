@@ -83,6 +83,28 @@ const SYSTEM_AUDIT_METADATA = {
 export const NEEDS_REVIEW_EVENT = "family_collection.needs_review";
 
 /**
+ * Fase 4 (D10): un cobro antiguo de la factura se completó tarde en Stripe
+ * cuando otro intento ya la había cobrado. El tardío no se registra; la
+ * academia recibe este aviso para devolver uno desde su panel de Stripe.
+ */
+export const DUPLICATE_COLLECTION_REASON = "duplicate_collection";
+
+/**
+ * Fase 4: motivo (`failure_code`) con el que se cierra un intento hermano
+ * abierto cuyo cobro se canceló en Stripe porque otro cobro de la misma
+ * factura se completó tarde.
+ */
+export const LATE_SUCCESS_ELSEWHERE_CODE = "late_success_elsewhere";
+
+/**
+ * Fase 4: error con el que se para el registro de un cobro tardío mientras la
+ * factura tiene otro intento abierto (p. ej. `claimed` sin `pi_…`: el proceso
+ * diario lo está creando ahora mismo). El evento queda `failed` y Stripe lo
+ * reenvía; en el reenvío el hermano ya tiene `pi_…` y se cancela antes.
+ */
+export const LATE_SUCCESS_SIBLING_IN_FLIGHT = "LATE_SUCCESS_SIBLING_IN_FLIGHT";
+
+/**
  * Clave de un aviso de revisión: una por intento (o por factura, si no hay
  * intento) y motivo. La comparten applyOutcome, recordNotice y la red de
  * seguridad de la Fase A.
@@ -283,10 +305,22 @@ export type AttemptOutcome =
       declineCode: string | null;
       nextRetryAt: Date | null;
     }
-  | { kind: "canceled"; paymentIntentId: string | null; reason: string };
+  | { kind: "canceled"; paymentIntentId: string | null; reason: string }
+  /**
+   * Fase 4: el cobro de un intento ya cerrado (`failed` o `canceled`) se
+   * completó tarde en Stripe. Solo se aplica desde esos dos estados y con el
+   * mismo `pi_…`; nunca si la factura ya tiene otro intento cobrado
+   * (DUPLICATE_COLLECTION_REASON) ni mientras tenga otro abierto
+   * (LATE_SUCCESS_SIBLING_IN_FLIGHT).
+   */
+  | { kind: "late_succeeded"; paymentIntentId: string; received: ReceivedAmount };
 
 export type ApplyOutcomeResult =
-  /** El intento ya no estaba abierto, o (con `review`) necesita que lo revise una persona. */
+  /**
+   * El intento ya no estaba abierto, o (con `review`) necesita que lo revise
+   * una persona: `amount_mismatch`, `payment_recorded_for_other_attempt` o,
+   * en un cobro tardío, `duplicate_collection` (DUPLICATE_COLLECTION_REASON).
+   */
   | { applied: false; review?: string }
   | {
       applied: true;
@@ -332,11 +366,33 @@ export interface FamilyCollectionStore {
   ): Promise<ClaimOrCancelResult>;
   /** `claimed` → `created` con su `pi_…`. `false` si el intento ya no estaba `claimed`. */
   markCreated(input: { organizationId: string; attemptId: string; paymentIntentId: string; now: Date }): Promise<boolean>;
+  /** Fase 4: el intento de esa academia que tiene guardado ese `pi_…`, o null. Sin transacción. */
+  findAttemptByPaymentIntent(input: { organizationId: string; paymentIntentId: string }): Promise<CollectionAttempt | null>;
+  /** Fase 4: el intento de esa academia con ese id, solo si sigue `claimed`; si no, null. Sin transacción. */
+  findClaimedAttemptById(input: { organizationId: string; attemptId: string }): Promise<CollectionAttempt | null>;
+  /**
+   * Fase 4: los demás intentos de la factura (sin `excludeAttemptId`), por
+   * número. Lectura sin transacción: applyOutcome repite lo que importa con
+   * la factura bloqueada.
+   */
+  listInvoiceSiblings(input: {
+    organizationId: string;
+    invoiceId: string;
+    excludeAttemptId: string;
+  }): Promise<CollectionAttempt[]>;
   /**
    * Aplica el resultado a un intento todavía abierto; si ya no lo está, no
    * hace nada. Un `succeeded` cuyo importe o moneda no cuadran con el intento
    * no registra el pago: deja el aviso `amount_mismatch` y devuelve
    * `{ applied: false, review: "amount_mismatch" }`.
+   *
+   * Fase 4, `late_succeeded`: solo sobre un intento `failed` o `canceled` con
+   * el mismo `pi_…`, con toda la factura bloqueada (academia → cuotas de la
+   * factura → factura → sus intentos). Si otro intento ya cobró la factura,
+   * no registra nada y deja el aviso `duplicate_collection`; si otro sigue
+   * abierto, lanza LATE_SUCCESS_SIBLING_IN_FLIGHT. Si no, anula los
+   * reintentos pendientes de la factura y registra y reparte el pago como un
+   * `succeeded`.
    */
   applyOutcome(input: {
     organizationId: string;
@@ -955,6 +1011,273 @@ async function recordTransition(
 }
 
 // ---------------------------------------------------------------------------
+// Registro de un cobro hecho (el único camino que escribe en el libro)
+// ---------------------------------------------------------------------------
+
+/**
+ * Registra y reparte el cobro de un intento ya bloqueado (en el orden único)
+ * y lo deja `succeeded`. Lo usan el `succeeded` de siempre y el cobro tardío
+ * de la Fase 4 (`late: true`), dentro de la transacción de applyOutcome:
+ * primero el pago, después el reparto.
+ */
+async function recordCollectedPayment(
+  tx: TransactionClient,
+  attempt: CollectionAttempt,
+  input: {
+    paymentIntentId: string;
+    received: ReceivedAmount;
+    environment: "test" | "live";
+    now: Date;
+    late: boolean;
+  }
+): Promise<ApplyOutcomeResult> {
+  const now = input.now.toISOString();
+  // Paso 0: Stripe tiene que haber cobrado justo el importe del intento
+  // y en euros. Si no, el pago no entra en el libro: el intento se
+  // queda como está (su dinero se movió) y la academia lo revisa.
+  if (!receivedMatches(input.received, { amountCents: attempt.amountCents, currency: attempt.currency })) {
+    const mismatch = {
+      expectedAmountCents: attempt.amountCents,
+      receivedAmountCents: input.received.amountCents,
+      receivedCurrency: input.received.currency,
+    };
+    // Solo ids, importes y moneda: nunca datos de la familia ni de Stripe.
+    logger.error("Cobro automático: Stripe cobró un importe distinto al del intento", undefined, {
+      organizationId: attempt.organizationId,
+      invoiceId: attempt.invoiceId,
+      attemptId: attempt.id,
+      ...mismatch,
+    });
+    await recordTransition(tx, attempt, {
+      event: "needs_review",
+      payload: { reason: AMOUNT_MISMATCH_REASON, paymentIntentId: input.paymentIntentId, ...mismatch },
+      now: input.now,
+    });
+    return { applied: false, review: AMOUNT_MISMATCH_REASON };
+  }
+
+  // Paso 1: el pago queda registrado (no puede fallar por saldos).
+  const { payment } = await recordProviderCollectionPayment(tx, {
+    organizationId: attempt.organizationId,
+    attemptId: attempt.id,
+    invoiceId: attempt.invoiceId,
+    paymentIntentId: input.paymentIntentId,
+    amountCents: attempt.amountCents,
+    environment: input.environment,
+    receivedAt: input.now,
+  });
+  // El mismo cobro de Stripe ya estaba registrado para otro intento:
+  // ese pago no es de este intento. Nunca se da por cobrado ni por
+  // fallido; se queda como está y la academia lo revisa.
+  if (payment.idempotencyKey !== `family-collection:${attempt.id}:${input.paymentIntentId}`) {
+    await recordTransition(tx, attempt, {
+      event: "needs_review",
+      payload: { reason: "payment_recorded_for_other_attempt", paymentId: payment.id },
+      now: input.now,
+    });
+    return { applied: false, review: "payment_recorded_for_other_attempt" };
+  }
+
+  // Paso 2: el reparto entre cuotas, en un punto de guardado. Si algo
+  // inesperado lo rompe, se deshace solo el reparto: el pago sigue
+  // registrado y la academia recibe el aviso para revisarlo. Lo que no
+  // quepa (cuota ya pagada a mano, anulada…) queda `needs_review`.
+  const allocations = await readAllocations(tx, attempt);
+  let allocation: { status: ProviderCollectionAllocationResult["status"]; reviewReasons: string[] };
+  if (allocations.length === 0) {
+    allocation = { status: "needs_review", reviewReasons: ["charge_mismatch"] };
+  } else {
+    try {
+      allocation = await tx.transaction((savepoint) =>
+        allocateProviderCollectionPayment(savepoint, {
+          organizationId: attempt.organizationId,
+          attemptId: attempt.id,
+          invoiceId: attempt.invoiceId,
+          paymentId: payment.id,
+          allocations,
+          allocatedAt: input.now,
+        })
+      );
+    } catch (error) {
+      // Solo ids y el nombre o código del error: nunca SQL ni mensajes.
+      logger.error("Cobro automático: falló el reparto de un cobro registrado", undefined, {
+        organizationId: attempt.organizationId,
+        invoiceId: attempt.invoiceId,
+        attemptId: attempt.id,
+        paymentId: payment.id,
+        errorName: error instanceof Error ? error.name : "unknown",
+        errorCode: errorCodeOf(error),
+      });
+      allocation = { status: "needs_review", reviewReasons: ["allocation_error"] };
+    }
+  }
+  // Paso 3: el intento, ya con su pago y el estado del reparto.
+  await tx.execute(sql`
+    update zaltyko.family_collection_attempts
+       set status = 'succeeded',
+           provider_payment_intent_reference = ${input.paymentIntentId},
+           payment_id = ${payment.id}::uuid,
+           allocation_status = ${allocation.status},
+           failure_code = null,
+           decline_code = null,
+           next_retry_at = null,
+           completed_at = ${now}::timestamptz,
+           updated_at = ${now}::timestamptz
+     where organization_id = ${attempt.organizationId}::uuid
+       and id = ${attempt.id}::uuid
+  `);
+  await recordTransition(tx, attempt, {
+    event: "attempt_succeeded",
+    payload: {
+      paymentId: payment.id,
+      amountCents: attempt.amountCents,
+      allocationStatus: allocation.status,
+      // Fase 4: cobrado tarde, después de que el intento se cerrara.
+      ...(input.late ? { late: true, previousStatus: attempt.status } : {}),
+    },
+    now: input.now,
+    audit: true,
+  });
+  if (allocation.status === "needs_review") {
+    await recordTransition(tx, attempt, {
+      event: "needs_review",
+      payload: { reason: "allocation", reviewReasons: allocation.reviewReasons, paymentId: payment.id },
+      now: input.now,
+    });
+  }
+  return {
+    applied: true,
+    status: "succeeded",
+    allocationStatus: allocation.status,
+    reviewReasons: allocation.reviewReasons,
+  };
+}
+
+/** Estados en los que un intento hermano impide registrar un cobro tardío. */
+const LATE_SUCCESS_BLOCKING_STATUSES: ReadonlySet<string> = new Set([
+  "claimed",
+  "created",
+  "processing",
+  "requires_action",
+]);
+
+/**
+ * Fase 4: cobro tardío de un intento `failed` o `canceled` (applyOutcome con
+ * `late_succeeded`). Bloquea en el orden único academia → todas las cuotas de
+ * la factura por id → factura → todos sus intentos por id, y con todo
+ * bloqueado decide:
+ * 1. el intento ya no está cerrado (otro camino lo cobró) → nada;
+ * 2. otro intento de la factura ya está `succeeded` → no se registra: aviso
+ *    `duplicate_collection` a la academia (D10), una vez por intento;
+ * 3. otro intento sigue abierto → LATE_SUCCESS_SIBLING_IN_FLIGHT (sin
+ *    escribir nada: el evento se reintenta cuando ese hermano ya se canceló);
+ * 4. si no: se anulan los reintentos pendientes de la factura (`next_retry_at`
+ *    de sus intentos `failed`, lo que lee listDueInvoices), porque el dinero
+ *    de la cuota ya se movió, y se registra y reparte el pago como un
+ *    `succeeded` (recordCollectedPayment).
+ */
+async function applyLateSuccess(
+  tx: TransactionClient,
+  input: {
+    organizationId: string;
+    attemptId: string;
+    outcome: Extract<AttemptOutcome, { kind: "late_succeeded" }>;
+    environment: "test" | "live";
+    now: Date;
+  }
+): Promise<ApplyOutcomeResult> {
+  const found = await tx.execute(sql`
+    select invoice_id::text as "invoiceId"
+      from zaltyko.family_collection_attempts
+     where organization_id = ${input.organizationId}::uuid and id = ${input.attemptId}::uuid
+  `);
+  const invoiceId = (found.rows[0] as { invoiceId?: unknown } | undefined)?.invoiceId;
+  if (typeof invoiceId !== "string") return { applied: false };
+
+  await lockOrganizationForSaasMutation(tx, input.organizationId);
+  await lockInvoiceCharges(tx, input.organizationId, invoiceId);
+  await lockInvoice(tx, input.organizationId, invoiceId);
+  const locked = await tx.execute(sql`
+    select ${attemptColumns}
+      from zaltyko.family_collection_attempts
+     where organization_id = ${input.organizationId}::uuid
+       and invoice_id = ${invoiceId}::uuid
+     order by id
+     for update
+  `);
+  const attempts = (locked.rows as Array<Record<string, unknown>>).map(toAttempt);
+  const attempt = attempts.find((item) => item.id === input.attemptId);
+  // 1. Solo desde un intento cerrado sin cobro; si otro camino ya lo cerró
+  // como cobrado (o sigue abierto), no se toca.
+  if (!attempt || (attempt.status !== "failed" && attempt.status !== "canceled")) return { applied: false };
+  // Un intento nunca cambia de cobro: el tardío tiene que ser el suyo.
+  if (attempt.paymentIntentId !== input.outcome.paymentIntentId) {
+    throw new Error("FAMILY_COLLECTION_INTENT_MISMATCH");
+  }
+  const siblings = attempts.filter((item) => item.id !== attempt.id);
+
+  // 2. Nunca dos cobros de la misma factura en el libro (D10).
+  const collected = siblings.find((item) => item.status === "succeeded");
+  if (collected) {
+    // Solo ids: la academia devuelve uno desde su panel de Stripe.
+    logger.warn("Cobro automático: un cobro antiguo se completó tarde y la cuota ya estaba cobrada", {
+      organizationId: attempt.organizationId,
+      invoiceId: attempt.invoiceId,
+      attemptId: attempt.id,
+      collectedAttemptId: collected.id,
+    });
+    await recordTransition(tx, attempt, {
+      event: "needs_review",
+      payload: {
+        reason: DUPLICATE_COLLECTION_REASON,
+        paymentIntentId: input.outcome.paymentIntentId,
+        collectedAttemptId: collected.id,
+      },
+      now: input.now,
+    });
+    return { applied: false, review: DUPLICATE_COLLECTION_REASON };
+  }
+
+  // 3. Otro intento abierto podría cobrar también: primero hay que cancelarlo
+  // en Stripe (fuera de esta transacción). Se deshace todo y se reintenta.
+  if (siblings.some((item) => LATE_SUCCESS_BLOCKING_STATUSES.has(item.status))) {
+    throw new Error(LATE_SUCCESS_SIBLING_IN_FLIGHT);
+  }
+
+  // 4. El dinero de la cuota ya se movió: ningún reintento pendiente de la
+  // factura (también el del propio intento) puede salir, se registre o no
+  // este cobro (un importe que no cuadra lo revisa la academia).
+  const now = input.now.toISOString();
+  const cleared = await tx.execute(sql`
+    update zaltyko.family_collection_attempts
+       set next_retry_at = null,
+           updated_at = ${now}::timestamptz
+     where organization_id = ${input.organizationId}::uuid
+       and invoice_id = ${invoiceId}::uuid
+       and status = 'failed'
+       and next_retry_at is not null
+    returning id::text as "id"
+  `);
+  const canceledRetryAttemptIds = (cleared.rows as Array<{ id: unknown }>).map((row) => String(row.id)).sort();
+  if (canceledRetryAttemptIds.length > 0) {
+    await recordTransition(tx, attempt, {
+      event: "pending_retry_canceled",
+      payload: { reason: "late_success", canceledRetryAttemptIds },
+      now: input.now,
+      audit: true,
+    });
+  }
+
+  return recordCollectedPayment(tx, attempt, {
+    paymentIntentId: input.outcome.paymentIntentId,
+    received: input.outcome.received,
+    environment: input.environment,
+    now: input.now,
+    late: true,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Implementación
 // ---------------------------------------------------------------------------
 
@@ -1183,11 +1506,53 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
       });
     },
 
+    async findAttemptByPaymentIntent(input) {
+      const result = await db.execute(sql`
+        select ${attemptColumns}
+          from zaltyko.family_collection_attempts
+         where organization_id = ${input.organizationId}::uuid
+           and provider_payment_intent_reference = ${input.paymentIntentId}
+         order by attempt_number desc
+         limit 1
+      `);
+      const row = result.rows[0] as Record<string, unknown> | undefined;
+      return row ? toAttempt(row) : null;
+    },
+
+    async findClaimedAttemptById(input) {
+      const result = await db.execute(sql`
+        select ${attemptColumns}
+          from zaltyko.family_collection_attempts
+         where organization_id = ${input.organizationId}::uuid
+           and id = ${input.attemptId}::uuid
+           and status = 'claimed'
+         limit 1
+      `);
+      const row = result.rows[0] as Record<string, unknown> | undefined;
+      return row ? toAttempt(row) : null;
+    },
+
+    async listInvoiceSiblings(input) {
+      const result = await db.execute(sql`
+        select ${attemptColumns}
+          from zaltyko.family_collection_attempts
+         where organization_id = ${input.organizationId}::uuid
+           and invoice_id = ${input.invoiceId}::uuid
+           and id <> ${input.excludeAttemptId}::uuid
+         order by attempt_number
+      `);
+      return (result.rows as Array<Record<string, unknown>>).map(toAttempt);
+    },
+
     async applyOutcome(input) {
       return db.transaction(async (tx): Promise<ApplyOutcomeResult> => {
+        const outcome = input.outcome;
+        // Fase 4: el cobro tardío de un intento ya cerrado, con toda la factura bloqueada.
+        if (outcome.kind === "late_succeeded") {
+          return applyLateSuccess(tx, { ...input, outcome });
+        }
         const attempt = await lockOpenAttempt(tx, input.organizationId, input.attemptId);
         if (!attempt) return { applied: false };
-        const outcome = input.outcome;
         const intent = outcome.paymentIntentId;
         // Un intento nunca cambia de cobro: si ya tiene uno, tiene que ser este.
         if (intent !== null && attempt.paymentIntentId !== null && attempt.paymentIntentId !== intent) {
@@ -1196,118 +1561,13 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
         const now = input.now.toISOString();
 
         if (outcome.kind === "succeeded") {
-          // Paso 0: Stripe tiene que haber cobrado justo el importe del intento
-          // y en euros. Si no, el pago no entra en el libro: el intento se
-          // queda como está (su dinero se movió) y la academia lo revisa.
-          if (!receivedMatches(outcome.received, { amountCents: attempt.amountCents, currency: attempt.currency })) {
-            const mismatch = {
-              expectedAmountCents: attempt.amountCents,
-              receivedAmountCents: outcome.received.amountCents,
-              receivedCurrency: outcome.received.currency,
-            };
-            // Solo ids, importes y moneda: nunca datos de la familia ni de Stripe.
-            logger.error("Cobro automático: Stripe cobró un importe distinto al del intento", undefined, {
-              organizationId: attempt.organizationId,
-              invoiceId: attempt.invoiceId,
-              attemptId: attempt.id,
-              ...mismatch,
-            });
-            await recordTransition(tx, attempt, {
-              event: "needs_review",
-              payload: { reason: AMOUNT_MISMATCH_REASON, paymentIntentId: outcome.paymentIntentId, ...mismatch },
-              now: input.now,
-            });
-            return { applied: false, review: AMOUNT_MISMATCH_REASON };
-          }
-
-          // Paso 1: el pago queda registrado (no puede fallar por saldos).
-          const { payment } = await recordProviderCollectionPayment(tx, {
-            organizationId: attempt.organizationId,
-            attemptId: attempt.id,
-            invoiceId: attempt.invoiceId,
+          return recordCollectedPayment(tx, attempt, {
             paymentIntentId: outcome.paymentIntentId,
-            amountCents: attempt.amountCents,
+            received: outcome.received,
             environment: input.environment,
-            receivedAt: input.now,
-          });
-          // El mismo cobro de Stripe ya estaba registrado para otro intento:
-          // ese pago no es de este intento. Nunca se da por cobrado ni por
-          // fallido; se queda como está y la academia lo revisa.
-          if (payment.idempotencyKey !== `family-collection:${attempt.id}:${outcome.paymentIntentId}`) {
-            await recordTransition(tx, attempt, {
-              event: "needs_review",
-              payload: { reason: "payment_recorded_for_other_attempt", paymentId: payment.id },
-              now: input.now,
-            });
-            return { applied: false, review: "payment_recorded_for_other_attempt" };
-          }
-
-          // Paso 2: el reparto entre cuotas, en un punto de guardado. Si algo
-          // inesperado lo rompe, se deshace solo el reparto: el pago sigue
-          // registrado y la academia recibe el aviso para revisarlo.
-          const allocations = await readAllocations(tx, attempt);
-          let allocation: { status: ProviderCollectionAllocationResult["status"]; reviewReasons: string[] };
-          if (allocations.length === 0) {
-            allocation = { status: "needs_review", reviewReasons: ["charge_mismatch"] };
-          } else {
-            try {
-              allocation = await tx.transaction((savepoint) =>
-                allocateProviderCollectionPayment(savepoint, {
-                  organizationId: attempt.organizationId,
-                  attemptId: attempt.id,
-                  invoiceId: attempt.invoiceId,
-                  paymentId: payment.id,
-                  allocations,
-                  allocatedAt: input.now,
-                })
-              );
-            } catch (error) {
-              // Solo ids y el nombre o código del error: nunca SQL ni mensajes.
-              logger.error("Cobro automático: falló el reparto de un cobro registrado", undefined, {
-                organizationId: attempt.organizationId,
-                invoiceId: attempt.invoiceId,
-                attemptId: attempt.id,
-                paymentId: payment.id,
-                errorName: error instanceof Error ? error.name : "unknown",
-                errorCode: errorCodeOf(error),
-              });
-              allocation = { status: "needs_review", reviewReasons: ["allocation_error"] };
-            }
-          }
-          // Paso 3: el intento, ya con su pago y el estado del reparto.
-          await tx.execute(sql`
-            update zaltyko.family_collection_attempts
-               set status = 'succeeded',
-                   provider_payment_intent_reference = ${outcome.paymentIntentId},
-                   payment_id = ${payment.id}::uuid,
-                   allocation_status = ${allocation.status},
-                   failure_code = null,
-                   decline_code = null,
-                   next_retry_at = null,
-                   completed_at = ${now}::timestamptz,
-                   updated_at = ${now}::timestamptz
-             where organization_id = ${attempt.organizationId}::uuid
-               and id = ${attempt.id}::uuid
-          `);
-          await recordTransition(tx, attempt, {
-            event: "attempt_succeeded",
-            payload: { paymentId: payment.id, amountCents: attempt.amountCents, allocationStatus: allocation.status },
             now: input.now,
-            audit: true,
+            late: false,
           });
-          if (allocation.status === "needs_review") {
-            await recordTransition(tx, attempt, {
-              event: "needs_review",
-              payload: { reason: "allocation", reviewReasons: allocation.reviewReasons, paymentId: payment.id },
-              now: input.now,
-            });
-          }
-          return {
-            applied: true,
-            status: "succeeded",
-            allocationStatus: allocation.status,
-            reviewReasons: allocation.reviewReasons,
-          };
         }
 
         if (outcome.kind === "processing") {

@@ -14,7 +14,12 @@
  * - el outbox solo lleva ids (intento y factura), nunca datos de la familia;
  * - el texto nunca promete un reintento que no vaya a ocurrir (política de
  *   reintentos de retry-policy.ts) y nunca enlaza el cobro de Stripe del
- *   intento cerrado: solo /familia/cuotas.
+ *   intento cerrado: solo /familia/cuotas;
+ * - Fase 4, D11 («el mismo correo que con tarjeta, sin prometer reintento»):
+ *   una domiciliación que el banco rechaza días después (llega por un evento
+ *   de Stripe o por la relectura diaria) avisa igual que una tarjeta
+ *   rechazada, con el tipo `sepa_failed`: la domiciliación nunca se reintenta,
+ *   así que su texto nunca habla de otro intento.
  *
  * Funciones puras: sin base de datos ni correo.
  */
@@ -115,7 +120,9 @@ export function familyNoticeApplies(input: {
  * - `authentication_required`: el banco pide que la persona confirme el pago
  *   (en esta fase no se reintenta: la cuota pasa a cobrarse a mano);
  * - `card_declined`: tarjeta rechazada sin reintento;
- * - `sepa_failed`: domiciliación devuelta (nunca hay reintentos);
+ * - `sepa_failed`: domiciliación rechazada por el banco (nunca hay
+ *   reintentos, D11): el mismo correo que `card_declined`, sin prometer otro
+ *   intento;
  * - `card_missing`: la tarjeta guardada ya no está en Stripe (hay que volver
  *   a guardarla); `payment_method_missing`, lo mismo con otra forma de pago;
  * - `not_collected`: no se pudo confirmar el cobro (sin pedir que revise nada).
@@ -139,6 +146,7 @@ export function familyFailureNoticeKind(input: {
   if (input.failureCode === PAYMENT_METHOD_MISSING_CODE) {
     return input.paymentMethodKind === "card" ? "card_missing" : "payment_method_missing";
   }
+  // D11: cualquier fallo de una domiciliación (sin reintento ni promesa de él).
   if (input.paymentMethodKind === "sepa_debit") return "sepa_failed";
   if (input.paymentMethodKind !== "card") return "not_collected";
   if (input.failureCode === NOT_CONFIRMED_FAILURE_CODE) return "not_collected";

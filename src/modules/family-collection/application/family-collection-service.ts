@@ -22,6 +22,7 @@
 import {
   isFamilyAutomaticCollectionFlagEnabled,
   isFamilyAutomaticSepaCollectionFlagEnabled,
+  isFamilyCollectionEventsFlagEnabled,
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
@@ -67,26 +68,38 @@ export interface FamilyCollectionRunOptions {
   organizationIds?: readonly string[];
 }
 
-export async function runFamilyCollection(
-  options: FamilyCollectionRunOptions = {},
-  deps: FamilyCollectionDeps = {}
-): Promise<FamilyCollectionRunResult> {
+/**
+ * Estado de una pasada (proceso diario) o de un evento de Stripe (Fase 4).
+ * `null` si los cerrojos de R11 están cerrados (clave que no es de test o base
+ * de producción), si falta el almacenamiento de las Fases 1, 2 y 3 o, en modo
+ * `"event"`, si la bandera de los eventos
+ * (ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED) está apagada.
+ *
+ * En modo `"event"` solo se relee y se aplica lo que diga Stripe (nunca se
+ * crea ni se confirma un cobro); `flagEnabled` y `sepaEnabled` se leen igual
+ * que en la pasada diaria para que los pasos compartidos decidan lo mismo.
+ */
+export async function createRunState(
+  options: FamilyCollectionRunOptions,
+  deps: FamilyCollectionDeps,
+  mode: "daily" | "event"
+): Promise<RunState | null> {
   const now = options.now ?? new Date();
   const flagEnabled = isFamilyAutomaticCollectionFlagEnabled();
   const environment = resolveConnectEnvironment();
   // Cerrojos de R11: solo clave de test y nunca contra la base de producción.
-  if (environment !== "test" || isProductionDatabase()) return emptyRunResult(false);
+  if (environment !== "test" || isProductionDatabase()) return null;
+  if (mode === "event" && !isFamilyCollectionEventsFlagEnabled()) return null;
 
   const store = deps.store ?? createFamilyCollectionStore();
-  if (!(await store.isStorageAvailable())) return emptyRunResult(false);
+  if (!(await store.isStorageAvailable())) return null;
 
   const batchSize = options.batchSize ?? FAMILY_COLLECTION_BATCH_SIZE;
-  if (options.organizationIds && options.organizationIds.length === 0) return emptyRunResult(flagEnabled);
   if (!Number.isInteger(batchSize) || batchSize < 1) {
     throw new RangeError("El tamaño de página del cobro debe ser un entero positivo.");
   }
 
-  const state: RunState = {
+  return {
     now,
     deadline: Date.now() + (options.deadlineMs ?? FAMILY_COLLECTION_DEADLINE_MS),
     batchSize,
@@ -101,9 +114,20 @@ export async function runFamilyCollection(
     refreshedOrganizations: new Set(),
     result: emptyRunResult(flagEnabled),
   };
+}
+
+export async function runFamilyCollection(
+  options: FamilyCollectionRunOptions = {},
+  deps: FamilyCollectionDeps = {}
+): Promise<FamilyCollectionRunResult> {
+  // Sin estado (cerrojos cerrados o sin tablas) no se hace nada.
+  const state = await createRunState(options, deps, "daily");
+  if (!state) return emptyRunResult(false);
+  // Alcance vacío (solo tests de PostgreSQL): ninguna academia que recorrer.
+  if (state.scope && state.scope.length === 0) return emptyRunResult(state.flagEnabled);
 
   // Fase A antes de cobrar nada nuevo.
   await reconcilePendingAttempts(state);
-  if (flagEnabled && state.result.complete) await collectDueInvoices(state);
+  if (state.flagEnabled && state.result.complete) await collectDueInvoices(state);
   return state.result;
 }

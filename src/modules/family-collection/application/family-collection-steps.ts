@@ -25,6 +25,10 @@
  * - con la domiciliación sin activar (`sepaEnabled` apagada) nunca se crea un
  *   cobro por domiciliación (`sepa_not_enabled`); las que ya están en el banco
  *   se siguen leyendo y registrando.
+ *
+ * Fase 4: los eventos de Stripe (family-collection-events.ts) usan estos
+ * mismos pasos (`settleOutcome`, `cancelThenClose`, `settleLateSuccess`): el
+ * evento solo hace que se relea el cobro antes.
  */
 import { logger } from "@/lib/logger";
 import {
@@ -477,7 +481,8 @@ function isFailedOutcome(outcome: PaymentOutcome): outcome is { failed: PaymentF
   return typeof outcome === "object" && outcome !== null && "failed" in outcome;
 }
 
-type Close =
+/** Cómo se cierra un intento cuyo cobro se cancela en Stripe (cancelThenClose). */
+export type AttemptClose =
   | { kind: "failed"; code: string; declineCode: string | null }
   | { kind: "canceled"; reason: string };
 
@@ -485,12 +490,16 @@ type Close =
  * Cancela en Stripe el cobro del intento y, solo si Stripe confirma la
  * cancelación, cierra el intento. Si Stripe ya no deja cancelarlo, se relee y
  * se aplica lo que diga (un cobro hecho nunca queda como fallido).
+ *
+ * Fase 4: también la usa el cobro tardío para cancelar el cobro de un intento
+ * hermano abierto (`late_success_elsewhere`) antes de registrar el tardío.
+ * Siempre fuera de cualquier transacción.
  */
-async function cancelThenClose(
+export async function cancelThenClose(
   state: RunState,
   attempt: CollectionAttempt,
   refs: AttemptStripeRefs,
-  close: Close
+  close: AttemptClose
 ): Promise<FamilyCollectionAttemptStatus | null> {
   const paymentIntentId = attempt.paymentIntentId;
   if (!paymentIntentId) throw new Error("FAMILY_COLLECTION_INTENT_REQUIRED");
@@ -648,6 +657,24 @@ export async function settleOutcome(
   }
   countSkip(state, "transient");
   return null;
+}
+
+/**
+ * Fase 4: el cobro de un intento ya cerrado (`failed` o `canceled`) se
+ * completó tarde en Stripe (`snapshot`, ya releído y `succeeded`). Se aplica
+ * por applyOutcome como `late_succeeded`, con lo que Stripe dice que cobró;
+ * el almacén decide con la factura bloqueada (otro intento ya cobrado →
+ * `duplicate_collection`; otro abierto → LATE_SUCCESS_SIBLING_IN_FLIGHT).
+ * Quien llama ya canceló en Stripe, fuera de transacción, los hermanos abiertos.
+ */
+export async function settleLateSuccess(
+  state: RunState,
+  attempt: CollectionAttempt,
+  snapshot: PaymentIntentSnapshot
+): Promise<FamilyCollectionAttemptStatus | null> {
+  const paymentIntentId = attempt.paymentIntentId;
+  if (!paymentIntentId || snapshot.id !== paymentIntentId) throw new Error(INTENT_MISMATCH_ERROR);
+  return apply(state, attempt, { kind: "late_succeeded", paymentIntentId, received: receivedOf(snapshot) });
 }
 
 /**

@@ -69,6 +69,11 @@ export interface FamilyCollectionGateway {
     /** Orden SEPA de la autorización; `null` con tarjeta. */
     mandate: string | null;
   }): Promise<PaymentIntentSnapshot | CollectionError>;
+  /**
+   * Relee el cobro en la cuenta de la academia. Además del snapshot, devuelve
+   * `attemptIdFromMetadata` (Fase 4): el id del intento de la metadata, solo
+   * si es un uuid.
+   */
   retrievePayment(input: {
     connectedAccount: string;
     paymentIntentId: string;
@@ -157,6 +162,15 @@ function toSnapshot(paymentIntent: Stripe.PaymentIntent): PaymentIntentSnapshot 
   return snapshot;
 }
 
+/**
+ * Id del intento guardado en la metadata del cobro
+ * (COLLECTION_ATTEMPT_METADATA_KEY), en minúsculas, solo si es un uuid; si no, null.
+ */
+export function metadataAttemptId(paymentIntent: Pick<Stripe.PaymentIntent, "metadata">): string | null {
+  const value = paymentIntent.metadata?.[COLLECTION_ATTEMPT_METADATA_KEY];
+  return typeof value === "string" && UUID_PATTERN.test(value) ? value.toLowerCase() : null;
+}
+
 function hasMetadataAttempt(paymentIntent: Stripe.PaymentIntent, attemptId: string): boolean {
   const value = paymentIntent.metadata?.[COLLECTION_ATTEMPT_METADATA_KEY];
   return typeof value === "string" && value.toLowerCase() === attemptId.toLowerCase();
@@ -233,7 +247,9 @@ export function createStripeCollectionGateway(stripe?: Stripe): FamilyCollection
         {},
         { stripeAccount: input.connectedAccount }
       );
-      return toSnapshot(paymentIntent);
+      // Fase 4: el id del intento de la metadata, para el evento de un cobro
+      // cuyo `pi_…` aún no está guardado. Nada más de la metadata.
+      return { ...toSnapshot(paymentIntent), attemptIdFromMetadata: metadataAttemptId(paymentIntent) };
     },
 
     async findPaymentByAttempt(input) {
