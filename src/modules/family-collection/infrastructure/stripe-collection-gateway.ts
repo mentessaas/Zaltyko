@@ -365,3 +365,96 @@ export async function retrievePaymentClientSecret(
     clientSecret: typeof paymentIntent.client_secret === "string" ? paymentIntent.client_secret : null,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Fase 4 (Tarea 6): devoluciones que la academia hizo desde su panel de Stripe
+// ---------------------------------------------------------------------------
+
+/** Una devolución de un cargo, tal como la da Stripe (solo lo que se usa). */
+export interface ChargeRefundSnapshot {
+  /** `re_…` (tarjeta) o `pyr_…` (domiciliación). */
+  id: string;
+  /** `pending`, `requires_action`, `succeeded`, `failed` o `canceled`. */
+  status: string;
+  amountCents: number;
+  /** En mayúsculas (`EUR`), o null si Stripe no la da. */
+  currency: string | null;
+  /** Código del motivo de Stripe (`requested_by_customer`…), o null. */
+  reasonCode: string | null;
+  createdAt: Date;
+}
+
+export interface ChargeRefundsSnapshot {
+  /** `ch_…` o `py_…`. */
+  chargeId: string;
+  /** `pi_…` del cargo, o null. */
+  paymentIntentId: string | null;
+  refunds: ChargeRefundSnapshot[];
+}
+
+/**
+ * Lecturas de las devoluciones, siempre en la cuenta conectada y por id. El
+ * evento es solo un aviso: todo lo que se anota sale de aquí.
+ */
+export interface FamilyCollectionRefundGateway {
+  /** Relee el cargo (`ch_…`/`py_…`) y todas sus devoluciones. */
+  retrieveChargeRefunds(input: { connectedAccount: string; chargeId: string }): Promise<ChargeRefundsSnapshot>;
+  /** Relee una devolución (`re_…`/`pyr_…`) y devuelve el id de su cargo, o null. */
+  retrieveRefundCharge(input: { connectedAccount: string; refundId: string }): Promise<string | null>;
+}
+
+/** Más devoluciones de un cargo de las que se leen: no se decide nada con una lista a medias. */
+export const TOO_MANY_REFUNDS_FOR_CHARGE_ERROR = "FAMILY_COLLECTION_TOO_MANY_REFUNDS_FOR_CHARGE";
+const MAX_REFUNDS_PER_CHARGE = 1000;
+
+function objectIdOf(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && typeof (value as { id?: unknown }).id === "string") {
+    return (value as { id: string }).id;
+  }
+  return null;
+}
+
+/** Solo campos con forma conocida; una devolución sin id o sin importe no se usa. */
+function refundSnapshotOf(refund: Stripe.Refund): ChargeRefundSnapshot | null {
+  if (typeof refund.id !== "string" || !Number.isSafeInteger(refund.amount) || refund.amount <= 0) return null;
+  const created = typeof refund.created === "number" ? new Date(refund.created * 1000) : null;
+  if (!created || Number.isNaN(created.getTime())) return null;
+  return {
+    id: refund.id,
+    status: typeof refund.status === "string" ? refund.status : "unknown",
+    amountCents: refund.amount,
+    currency: typeof refund.currency === "string" ? refund.currency.toUpperCase() : null,
+    reasonCode: typeof refund.reason === "string" ? refund.reason : null,
+    createdAt: created,
+  };
+}
+
+export function createStripeRefundGateway(stripe?: Stripe): FamilyCollectionRefundGateway {
+  const client = (): Stripe => stripe ?? getStripeClient();
+  return {
+    async retrieveChargeRefunds(input) {
+      const options = { stripeAccount: input.connectedAccount };
+      const charge = await client().charges.retrieve(input.chargeId, {}, options);
+      const listed = await client()
+        .refunds.list({ charge: input.chargeId, limit: 100 }, options)
+        .autoPagingToArray({ limit: MAX_REFUNDS_PER_CHARGE + 1 });
+      if (listed.length > MAX_REFUNDS_PER_CHARGE) throw new Error(TOO_MANY_REFUNDS_FOR_CHARGE_ERROR);
+      return {
+        chargeId: charge.id,
+        paymentIntentId: objectIdOf(charge.payment_intent),
+        refunds: listed.flatMap((refund) => {
+          // Solo las de este cargo (la lista ya viene filtrada por él).
+          if (objectIdOf(refund.charge) !== null && objectIdOf(refund.charge) !== charge.id) return [];
+          const snapshot = refundSnapshotOf(refund);
+          return snapshot ? [snapshot] : [];
+        }),
+      };
+    },
+
+    async retrieveRefundCharge(input) {
+      const refund = await client().refunds.retrieve(input.refundId, {}, { stripeAccount: input.connectedAccount });
+      return objectIdOf(refund.charge);
+    },
+  };
+}

@@ -69,6 +69,7 @@ import {
 } from "@/modules/family-collection/domain/collection-plan";
 import { FAMILY_FAILURE_NOTICE_RESULT_EVENT } from "@/modules/family-collection/domain/family-failure-notice";
 import { AMOUNT_MISMATCH_REASON } from "@/modules/family-collection/domain/payment-outcome";
+import { REFUND_REVERSED_REASON, REFUND_UNALLOCATED_REASON } from "@/modules/family-collection/domain/refund-split";
 import {
   createFamilyCollectionStore,
   NEEDS_REVIEW_EVENT,
@@ -83,10 +84,12 @@ import {
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
 import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
 import { familyCanViewFees } from "@/modules/family-portal/application/family-portal-sql";
-import type {
-  FamilyAutomaticCollectionModes,
-  FamilyAutomaticFeeStatus,
-  FamilyAutomaticFeeStatuses,
+import {
+  formatCalendarDate,
+  formatMoney,
+  type FamilyAutomaticCollectionModes,
+  type FamilyAutomaticFeeStatus,
+  type FamilyAutomaticFeeStatuses,
 } from "@/modules/family-portal/domain/family-portal-presentation";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { withinGrace } from "@/modules/payment-reminders/domain/reminder-policy";
@@ -816,6 +819,34 @@ export function reviewReasonText(reason: string | null): string {
   return (reason ? REVIEW_TEXT[reason] : undefined) ?? REVIEW_FALLBACK;
 }
 
+/**
+ * Fase 4 (Tarea 6, D1): la cuota sigue cobrada y se marca «Devuelta» con lo
+ * devuelto desde el panel de Stripe de la academia y el día (local de la
+ * sede) de la última devolución.
+ */
+export function ownerRefundText(input: { amountCents: number; currency: string; date: string | null }): string {
+  const amount = formatMoney(input.amountCents, input.currency);
+  return input.date
+    ? `Devuelta: ${amount} el ${formatCalendarDate(input.date)} (desde tu panel de Stripe)`
+    : `Devuelta: ${amount} (desde tu panel de Stripe)`;
+}
+
+/**
+ * Fase 4 (Tarea 6): aviso de una devolución que no se pudo anotar
+ * (`refund_unallocated`) o que Stripe anuló después de anotarla
+ * (`refund_reversed`), con su importe. null para cualquier otro motivo.
+ */
+export function refundNoticeText(input: { reason: string; amountCents: number; currency: string }): string | null {
+  const amount = formatMoney(input.amountCents, input.currency);
+  if (input.reason === REFUND_UNALLOCATED_REASON) {
+    return `Stripe devolvió ${amount} de un cobro que Zaltyko no pudo repartir entre cuotas; revísalo`;
+  }
+  if (input.reason === REFUND_REVERSED_REASON) {
+    return `Stripe anuló una devolución de ${amount} que Zaltyko ya tenía anotada; revísalo en tu panel de Stripe`;
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Academia: cobros automáticos del mes (/owner/payments)
 // ---------------------------------------------------------------------------
@@ -874,6 +905,14 @@ export interface OwnerAutomaticCollectionItem {
    * aceptado) y la academia debería avisarla; null si no hubo aviso.
    */
   familyNotice?: FamilyNoticeState | null;
+  /**
+   * Fase 4 (Tarea 6): cobrada y devuelta (en todo o en parte) desde el panel
+   * de Stripe: «Devuelta: {importe} el {fecha} (desde tu panel de Stripe)».
+   * Solo si hubo devolución.
+   */
+  refundText?: string;
+  /** Fase 4 (Tarea 6): devolución que no se pudo anotar o que Stripe anuló. Solo si la hay. */
+  refundNotice?: string;
 }
 
 export type FamilyNoticeState = "sent" | "not_sent";
@@ -932,6 +971,12 @@ export interface OwnerCollectionRow {
     reviewReason: string | null;
     /** Fase 4: plazo del intento `requires_action` para que la familia confirme el pago. */
     actionDeadlineAt?: Date | null;
+    /** Fase 4 (Tarea 6): devuelto del pago del intento (filas `succeeded` de zaltyko.refunds). */
+    refundedCents?: number;
+    /** Fase 4 (Tarea 6): cuándo fue la última devolución del pago. */
+    lastRefundedAt?: Date | null;
+    /** Fase 4 (Tarea 6): último aviso `refund_unallocated` o `refund_reversed` del intento. */
+    refundIssue?: { reason: string; amountCents: number } | null;
   } | null;
 }
 
@@ -1092,6 +1137,16 @@ export function ownerAutomaticCollectionItemOf(
         reason = failureText;
         break;
     }
+    // Fase 4 (Tarea 6, D1): la cuota sigue cobrada; se marca «Devuelta».
+    const refundedCents = attempt.status === "succeeded" ? (attempt.refundedCents ?? 0) : 0;
+    const refundText =
+      refundedCents > 0
+        ? ownerRefundText({ amountCents: refundedCents, currency: row.currency, date: local(attempt.lastRefundedAt ?? null) })
+        : null;
+    const refundNotice =
+      attempt.status === "succeeded" && attempt.refundIssue
+        ? refundNoticeText({ ...attempt.refundIssue, currency: row.currency })
+        : null;
     return {
       ...base,
       amountCents: attempt.amountCents,
@@ -1109,10 +1164,21 @@ export function ownerAutomaticCollectionItemOf(
       manualPaymentBlocked: open,
       // Una cuota ya cobrada no necesita recordar el aviso.
       familyNotice: state === "collected" ? null : (row.familyNotice ?? null),
+      ...(refundText ? { refundText } : {}),
+      ...(refundNotice ? { refundNotice } : {}),
     };
   } catch {
     return null;
   }
+}
+
+/** Aviso de devolución guardado en el outbox (solo motivo e importe). */
+function refundIssueOf(value: unknown): { reason: string; amountCents: number } | null {
+  if (!value || typeof value !== "object") return null;
+  const payload = value as { reason?: unknown; amountCents?: unknown };
+  const amountCents = Number(payload.amountCents);
+  if (typeof payload.reason !== "string" || !Number.isSafeInteger(amountCents) || amountCents <= 0) return null;
+  return { reason: payload.reason, amountCents };
 }
 
 /** Cobros que se enseñan como mucho; el resto, en Stripe o en las cuotas. */
@@ -1269,6 +1335,30 @@ export async function getOwnerAutomaticCollections(input: {
       la.allocation_status as "allocationStatus",
       la.review_reason as "reviewReason",
       la.has_review_notice as "hasReviewNotice",
+      (
+        select coalesce(sum(r.amount_cents), 0)::text
+          from zaltyko.refunds r
+         where r.organization_id = i.organization_id
+           and r.payment_id = la.payment_id
+           and r.status = 'succeeded'
+      ) as "refundedCents",
+      (
+        select max(r.refunded_at)
+          from zaltyko.refunds r
+         where r.organization_id = i.organization_id
+           and r.payment_id = la.payment_id
+           and r.status = 'succeeded'
+      ) as "lastRefundedAt",
+      (
+        select e.payload
+          from zaltyko.outbox_events e
+         where e.organization_id = i.organization_id
+           and e.event_name = ${NEEDS_REVIEW_EVENT}
+           and e.idempotency_key like 'family-collection:' || la.id::text || ':needs_review:%'
+           and e.payload ->> 'reason' in (${REFUND_UNALLOCATED_REASON}, ${REFUND_REVERSED_REASON})
+         order by e.occurred_at desc
+         limit 1
+      ) as "refundIssue",
       exists (
         select 1
           from zaltyko.outbox_events e
@@ -1304,7 +1394,7 @@ export async function getOwnerAutomaticCollections(input: {
     left join lateral (
       select a.id, a.status, a.amount_cents, a.failure_code, a.decline_code,
              a.next_retry_at, a.completed_at, a.claimed_at, a.updated_at, a.resume_count,
-             a.allocation_status,
+             a.allocation_status, a.payment_id,
              (
                select e.payload ->> 'reason'
                  from zaltyko.outbox_events e
@@ -1382,6 +1472,9 @@ export async function getOwnerAutomaticCollections(input: {
               hasReviewNotice: row.hasReviewNotice === true,
               reviewReason: textOrNull(row.reviewReason),
               actionDeadlineAt: actionDeadlines.get(textOrNull(row.attemptId) ?? "") ?? null,
+              refundedCents: cents(row.refundedCents),
+              lastRefundedAt: dateOrNull(row.lastRefundedAt),
+              refundIssue: refundIssueOf(row.refundIssue),
             }
           : null,
       },

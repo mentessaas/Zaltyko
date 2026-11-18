@@ -21,6 +21,7 @@ import {
   type Payment,
   type PaymentAllocation,
   type PaymentProviderEvent,
+  type Refund,
 } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
@@ -1164,6 +1165,195 @@ export async function allocatePayment(
   });
 }
 
+/** Lo que necesita una fila de devolución en `zaltyko.refunds`. */
+export interface ProviderRefundInput {
+  organizationId: string;
+  paymentId: string;
+  paymentAllocationId: string;
+  amountCents: number;
+  currency: string;
+  processor: string;
+  environment: "sandbox" | "live";
+  /** Referencia de la fila (única con `refunds_provider_uq`). */
+  providerRefundId: string;
+  reasonCode: string;
+  refundedAt: Date;
+  /** Fila del buzón (`payment_provider_events.id`), o null. */
+  providerEventId: string | null;
+  /** Clave de la fila (única por academia con `refunds_idempotency_uq`). */
+  idempotencyKey: string;
+}
+
+type RefundedPaymentStatus = "partially_refunded" | "refunded";
+
+function refundedPaymentStatus(totalRefundedCents: number, payment: Payment): RefundedPaymentStatus {
+  return totalRefundedCents === payment.amountCents ? "refunded" : "partially_refunded";
+}
+
+/**
+ * Escribe una fila de devolución de un reparto y pone el pago en
+ * `partially_refunded` o `refunded`. Nunca borra ni cambia el pago ni el
+ * reparto, ni reabre la cuota. Lanza REFUND_EXCEEDS_ALLOCATION si la fila
+ * supera lo que queda del reparto (lo repartido menos lo ya devuelto).
+ *
+ * La comparten la devolución simulada (processLocalSandboxProviderEvent, sin
+ * auditoría propia ni reutilización: su auditoría y su outbox los escribe
+ * markProviderEventProcessed con la clave del evento, como siempre) y
+ * recordProviderRefund (auditoría con la clave de la fila y, si la fila ya
+ * existe por `refunds_provider_uq`, se devuelve sin escribir).
+ */
+async function insertProviderRefund(
+  tx: TransactionClient,
+  input: ProviderRefundInput,
+  options: { audit: boolean; reuseExisting: boolean }
+): Promise<{ refund: Refund; payment: Payment; created: boolean; paymentStatus: RefundedPaymentStatus }> {
+  const { organizationId } = input;
+  // Último eslabón del orden de bloqueo único: quien llama ya tiene la
+  // academia y, en los cobros automáticos, las cuotas, la factura y el intento.
+  await tx.execute(sql`
+    select id from zaltyko.payments
+    where organization_id = ${organizationId}::uuid and id = ${input.paymentId}::uuid
+    for update
+  `);
+  const totalRefunded = async () => {
+    const total = await tx.execute(sql`
+      select coalesce(sum(amount_cents), 0)::bigint as amount
+      from zaltyko.refunds
+      where organization_id = ${organizationId}::uuid
+        and payment_id = ${input.paymentId}::uuid
+        and status = 'succeeded'
+    `);
+    return numberFrom(total.rows[0]?.amount);
+  };
+  if (options.reuseExisting) {
+    const [prior] = await tx
+      .select()
+      .from(refunds)
+      .where(
+        and(
+          eq(refunds.processor, input.processor),
+          eq(refunds.environment, input.environment),
+          eq(refunds.providerRefundId, input.providerRefundId)
+        )
+      )
+      .limit(1);
+    if (prior) {
+      if (
+        prior.organizationId !== organizationId ||
+        prior.paymentId !== input.paymentId ||
+        prior.paymentAllocationId !== input.paymentAllocationId ||
+        prior.amountCents !== input.amountCents ||
+        prior.idempotencyKey !== input.idempotencyKey
+      ) {
+        throw new OperationalError(
+          "IDEMPOTENCY_CONFLICT",
+          "La devolución ya está registrada con otros datos",
+          409
+        );
+      }
+      const payment = await loadPayment(tx, organizationId, input.paymentId);
+      return {
+        refund: prior,
+        payment,
+        created: false,
+        paymentStatus: refundedPaymentStatus(await totalRefunded(), payment),
+      };
+    }
+  }
+  const payment = await loadPayment(tx, organizationId, input.paymentId);
+  const [allocation] = await tx
+    .select()
+    .from(paymentAllocations)
+    .where(
+      and(
+        eq(paymentAllocations.organizationId, organizationId),
+        eq(paymentAllocations.id, input.paymentAllocationId)
+      )
+    )
+    .limit(1);
+  if (
+    !allocation ||
+    allocation.paymentId !== payment.id ||
+    allocation.currency !== input.currency
+  ) {
+    throw new OperationalError(
+      "INVALID_RELATION",
+      "Asignación del reembolso inválida",
+      422
+    );
+  }
+  const refunded = await tx.execute(sql`
+    select coalesce(sum(amount_cents), 0)::bigint as amount
+    from zaltyko.refunds
+    where organization_id = ${organizationId}::uuid
+      and payment_allocation_id = ${allocation.id}::uuid
+      and status = 'succeeded'
+  `);
+  if (
+    numberFrom(refunded.rows[0]?.amount) + input.amountCents >
+    allocation.amountCents
+  ) {
+    throw new OperationalError(
+      "REFUND_EXCEEDS_ALLOCATION",
+      "El reembolso supera lo asignado al cargo",
+      409
+    );
+  }
+  const [refund] = await tx
+    .insert(refunds)
+    .values({
+      organizationId,
+      paymentId: payment.id,
+      paymentAllocationId: allocation.id,
+      status: "succeeded",
+      amountCents: input.amountCents,
+      currency: input.currency,
+      processor: input.processor,
+      environment: input.environment,
+      providerRefundId: input.providerRefundId,
+      reasonCode: input.reasonCode,
+      refundedAt: input.refundedAt,
+      providerEventId: input.providerEventId,
+      idempotencyKey: input.idempotencyKey,
+    })
+    .returning();
+  const paymentStatus = refundedPaymentStatus(await totalRefunded(), payment);
+  await tx
+    .update(payments)
+    .set({
+      status: paymentStatus,
+      version: sql`${payments.version} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(payments.organizationId, organizationId),
+        eq(payments.id, payment.id)
+      )
+    );
+  if (options.audit) {
+    await appendAuditEntry(tx, {
+      organizationId,
+      locationId: payment.locationId,
+      actorUserId: null,
+      action: "payment.refunded",
+      targetType: "refund",
+      targetId: refund.id,
+      idempotencyKey: input.idempotencyKey,
+      after: {
+        paymentId: payment.id,
+        paymentAllocationId: allocation.id,
+        amountCents: refund.amountCents,
+        currency: refund.currency,
+        reasonCode: refund.reasonCode,
+        paymentStatus,
+      },
+      metadata: { ...SYSTEM_AUDIT_METADATA, providerRefundId: refund.providerRefundId },
+    });
+  }
+  return { refund, payment, created: true, paymentStatus };
+}
+
 async function markProviderEventProcessed(
   tx: TransactionClient,
   event: PaymentProviderEvent,
@@ -1363,61 +1553,15 @@ export async function processLocalSandboxProviderEvent(
         }
       );
     } else {
-      await tx.execute(sql`
-        select id from zaltyko.payments
-        where organization_id = ${organizationId}::uuid and id = ${input.payload.paymentId}::uuid
-        for update
-      `);
-      const payment = await loadPayment(
+      // Devolución simulada: el mismo camino que las devoluciones de Stripe
+      // (insertProviderRefund), con la clave por evento y la auditoría y el
+      // outbox de markProviderEventProcessed, como siempre.
+      const { refund, payment } = await insertProviderRefund(
         tx,
-        organizationId,
-        input.payload.paymentId
-      );
-      const [allocation] = await tx
-        .select()
-        .from(paymentAllocations)
-        .where(
-          and(
-            eq(paymentAllocations.organizationId, organizationId),
-            eq(paymentAllocations.id, input.payload.paymentAllocationId)
-          )
-        )
-        .limit(1);
-      if (
-        !allocation ||
-        allocation.paymentId !== payment.id ||
-        allocation.currency !== input.payload.currency
-      ) {
-        throw new OperationalError(
-          "INVALID_RELATION",
-          "Asignación del reembolso inválida",
-          422
-        );
-      }
-      const refunded = await tx.execute(sql`
-        select coalesce(sum(amount_cents), 0)::bigint as amount
-        from zaltyko.refunds
-        where organization_id = ${organizationId}::uuid
-          and payment_allocation_id = ${allocation.id}::uuid
-          and status = 'succeeded'
-      `);
-      if (
-        numberFrom(refunded.rows[0]?.amount) + input.payload.amountCents >
-        allocation.amountCents
-      ) {
-        throw new OperationalError(
-          "REFUND_EXCEEDS_ALLOCATION",
-          "El reembolso supera lo asignado al cargo",
-          409
-        );
-      }
-      const [refund] = await tx
-        .insert(refunds)
-        .values({
+        {
           organizationId,
-          paymentId: payment.id,
-          paymentAllocationId: allocation.id,
-          status: "succeeded",
+          paymentId: input.payload.paymentId,
+          paymentAllocationId: input.payload.paymentAllocationId,
           amountCents: input.payload.amountCents,
           currency: input.payload.currency,
           processor: input.processor,
@@ -1427,32 +1571,9 @@ export async function processLocalSandboxProviderEvent(
           refundedAt: new Date(input.payload.refundedAt),
           providerEventId: event.id,
           idempotencyKey: commandKey,
-        })
-        .returning();
-      const totalRefunded = await tx.execute(sql`
-        select coalesce(sum(amount_cents), 0)::bigint as amount
-        from zaltyko.refunds
-        where organization_id = ${organizationId}::uuid
-          and payment_id = ${payment.id}::uuid
-          and status = 'succeeded'
-      `);
-      const paymentStatus =
-        numberFrom(totalRefunded.rows[0]?.amount) === payment.amountCents
-          ? "refunded"
-          : "partially_refunded";
-      await tx
-        .update(payments)
-        .set({
-          status: paymentStatus,
-          version: sql`${payments.version} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(payments.organizationId, organizationId),
-            eq(payments.id, payment.id)
-          )
-        );
+        },
+        { audit: false, reuseExisting: false }
+      );
       await markProviderEventProcessed(
         tx,
         event,
@@ -1462,7 +1583,7 @@ export async function processLocalSandboxProviderEvent(
         {
           refundId: refund.id,
           paymentId: payment.id,
-          paymentAllocationId: allocation.id,
+          paymentAllocationId: refund.paymentAllocationId,
           amountCents: refund.amountCents,
           currency: refund.currency,
         }
@@ -2219,4 +2340,50 @@ export async function allocateProviderCollectionPayment(
     unallocatedCents,
     reviewReasons: [...reviewReasons].sort(),
   };
+}
+
+const providerRefundSchema = z.object({
+  organizationId: z.guid(),
+  paymentId: z.guid(),
+  paymentAllocationId: z.guid(),
+  amountCents: z.number().int().positive().safe(),
+  currency: currencySchema,
+  processor: z.string().trim().min(1).max(80),
+  environment: z.enum(["sandbox", "live"]),
+  providerRefundId: z.string().trim().min(1).max(300),
+  reasonCode: z.string().trim().min(1).max(80),
+  refundedAt: z.date(),
+  providerEventId: z.guid().nullable(),
+  idempotencyKey: z.string().trim().min(8).max(300),
+});
+
+/**
+ * Registra en el libro una devolución hecha en el proveedor (la academia
+ * devolvió desde su panel de Stripe, D5; o, en la Tarea 7, una disputa
+ * perdida): una fila en `zaltyko.refunds` para UN reparto, el estado del pago
+ * (`partially_refunded` o `refunded`) y su auditoría con la clave de la fila.
+ * Sin outbox: lo escribe quien llama, con la misma clave por fila. Nunca borra
+ * ni cambia el pago ni el reparto, ni reabre la cuota (D1: sigue pagada).
+ *
+ * - Idempotente por `refunds_provider_uq`: si la fila ya existe con los
+ *   mismos datos, la devuelve con `created: false` sin escribir nada; con
+ *   otros datos, IDEMPOTENCY_CONFLICT.
+ * - Nunca supera lo que queda del reparto: si no cabe, lanza siempre
+ *   REFUND_EXCEEDS_ALLOCATION (el módulo del cobro automático lo traduce a
+ *   RefundDoesNotFitError y deshace la transacción entera).
+ *
+ * Orden de bloqueo único: organizaciones → cuotas por id → factura → intento
+ * (→ disputa) → pago. Quien llama ya tiene bloqueados la academia, las
+ * cuotas, la factura y el intento (y la disputa); aquí solo se bloquea el pago.
+ */
+export async function recordProviderRefund(
+  tx: TransactionClient,
+  command: ProviderRefundInput
+): Promise<{ refundId: string; created: boolean; paymentStatus: "partially_refunded" | "refunded" }> {
+  const input = providerRefundSchema.parse(command);
+  const { refund, created, paymentStatus } = await insertProviderRefund(tx, input, {
+    audit: true,
+    reuseExisting: true,
+  });
+  return { refundId: refund.id, created, paymentStatus };
 }

@@ -294,10 +294,14 @@ export function OwnerAutomaticCollectionsPanel({
                 </div>
                 <p className="flex flex-wrap items-center gap-2">
                   <span className={stateChip(item.state)}>{stateText(item.state, item.date)}</span>
+                  {item.refundText ? <span className={ownerTone.chipWarning}>Devuelta</span> : null}
                   {item.needsReview ? <span className={ownerUi.chipAttention}>Necesita revisión</span> : null}
                 </p>
               </div>
               {item.reason ? <p className={`${ownerUi.muted} mt-2`}>{item.reason}</p> : null}
+              {/* Fase 4 (D1): la cuota sigue cobrada; la academia devolvió desde su panel de Stripe (D5). */}
+              {item.refundText ? <p className={`${ownerUi.muted} mt-2`}>{item.refundText}</p> : null}
+              {item.refundNotice ? <p className={`${ownerTone.inlineWarning} mt-2`}>{item.refundNotice}</p> : null}
               {item.familyNotice ? (
                 <p className={`${ownerUi.help} mt-1`}>{FAMILY_NOTICE_TEXT[item.familyNotice]}</p>
               ) : null}

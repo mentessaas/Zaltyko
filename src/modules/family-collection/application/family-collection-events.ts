@@ -21,8 +21,10 @@
  * El evento es solo un aviso: los manejadores vuelven a leer en Stripe, por
  * id y en la cuenta conectada, todo lo que necesiten. Se llaman fuera de
  * cualquier transacción. El de los cobros (`payment_intent.*`) es
- * `handlePaymentIntentEvent` (Tarea 3); los demás siguen vacíos hasta sus
- * tareas.
+ * `handlePaymentIntentEvent` (Tarea 3); los de las devoluciones
+ * (`charge.refunded` y `refund.*`) son `handleChargeRefundEvent` y
+ * `handleRefundEvent` (Tarea 6, family-collection-refunds.ts); los demás
+ * siguen vacíos hasta sus tareas.
  *
  * Cobros (`handlePaymentIntentEvent`), por el mismo camino que la relectura
  * diaria (`reconcileAttemptWithStripe` → `settleOutcome` → `applyOutcome`):
@@ -69,6 +71,10 @@ import {
   createRunState,
   type FamilyCollectionDeps,
 } from "@/modules/family-collection/application/family-collection-service";
+import {
+  handleChargeRefundEvent,
+  handleRefundEvent,
+} from "@/modules/family-collection/application/family-collection-refunds";
 import {
   reconcileAttemptWithStripe,
   settleClosedAttempt,
@@ -280,11 +286,14 @@ export async function processPaymentIntentEvent(
 export const handlePaymentIntentEvent: ProviderEventHandler = async (input) =>
   (await processPaymentIntentEvent(input)).effect;
 
-/** Manejadores por defecto: los cobros (Tarea 3); los demás, vacíos hasta sus tareas. */
+/**
+ * Manejadores por defecto: los cobros (Tarea 3) y las devoluciones hechas
+ * desde el panel de Stripe (Tarea 6); los demás, vacíos hasta sus tareas.
+ */
 export const DEFAULT_PROVIDER_EVENT_HANDLERS: ProviderEventHandlers = {
   paymentIntent: handlePaymentIntentEvent,
-  charge: noEffect,
-  refund: noEffect,
+  charge: handleChargeRefundEvent,
+  refund: handleRefundEvent,
   dispute: noEffect,
   mandate: noEffect,
   paymentMethod: noEffect,

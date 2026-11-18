@@ -13,7 +13,9 @@
  *   métodos no reciben nada que pueda llamar a Stripe; `claimOrCancel` solo
  *   recibe una decisión pura);
  * - orden de bloqueo único: fila de `organizations`
- *   (lockOrganizationForSaasMutation) → cuotas por id → factura → intento;
+ *   (lockOrganizationForSaasMutation) → cuotas por id → factura → intento
+ *   (→ disputa) → pago (C18: el pago, al repartir un cobro o al anotar una
+ *   devolución);
  * - solo ids, referencias opacas (`pi_…`) y códigos de Stripe en la base, la
  *   auditoría y el outbox.
  *
@@ -26,7 +28,9 @@ import type { DatabaseClient, TransactionClient } from "@/lib/db-transactions";
 import { logger } from "@/lib/logger";
 import {
   allocateProviderCollectionPayment,
+  FAMILY_COLLECTION_PROCESSOR,
   recordProviderCollectionPayment,
+  recordProviderRefund,
   type ProviderCollectionAllocationResult,
 } from "@/modules/billing/application/ledger-service";
 import {
@@ -61,6 +65,14 @@ import {
   isFamilyCollectionStorageAvailable,
 } from "@/modules/family-collection/application/storage";
 import { collectionWindowAnchor } from "@/modules/family-collection/domain/authentication-window";
+import {
+  providerRefundIdempotencyKey,
+  providerRefundReference,
+  RefundDoesNotFitError,
+  REFUNDED_NOTICE_REASON,
+  splitRefund,
+  type RefundableAllocation,
+} from "@/modules/family-collection/domain/refund-split";
 import { findCollectionSettings } from "@/modules/family-collection/infrastructure/collection-settings-store";
 import {
   FAMILY_COLLECTION_MAX_RESUMES,
@@ -123,11 +135,23 @@ const LATE_SUCCESS_SETTLED_REASONS = [
  * Clave de un aviso de revisión: una por intento (o por factura, si no hay
  * intento) y motivo. La comparten applyOutcome, recordNotice y la red de
  * seguridad de la Fase A.
+ *
+ * Fase 4 (C13): los avisos de devoluciones y disputas (`refunded`,
+ * `refund_unallocated`, `refund_reversed`, `dispute_*`, `sepa_returned`)
+ * añaden la referencia de Stripe (`re_…`, `pyr_…`, `dp_…`, `du_…`), así una
+ * segunda devolución del mismo cobro también avisa. Sin referencia, la clave
+ * de siempre.
  */
-export function needsReviewKey(input: { attemptId: string | null; invoiceId: string; reason: string }): string {
-  return input.attemptId
+export function needsReviewKey(input: {
+  attemptId: string | null;
+  invoiceId: string;
+  reason: string;
+  reference?: string | null;
+}): string {
+  const base = input.attemptId
     ? `family-collection:${input.attemptId}:needs_review:${input.reason}`
     : `family-collection:invoice:${input.invoiceId}:needs_review:${input.reason}`;
+  return input.reference ? `${base}:${input.reference}` : base;
 }
 
 /**
@@ -1039,6 +1063,23 @@ async function readAllocations(executor: Executor, attempt: CollectionAttempt): 
   }));
 }
 
+/** El intento de esa academia que tiene guardado ese `pi_…` (el último por número), o null. */
+async function findAttemptByPaymentIntentIn(
+  executor: Executor,
+  input: { organizationId: string; paymentIntentId: string }
+): Promise<CollectionAttempt | null> {
+  const result = await executor.execute(sql`
+    select ${attemptColumns}
+      from zaltyko.family_collection_attempts
+     where organization_id = ${input.organizationId}::uuid
+       and provider_payment_intent_reference = ${input.paymentIntentId}
+     order by attempt_number desc
+     limit 1
+  `);
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  return row ? toAttempt(row) : null;
+}
+
 // ---------------------------------------------------------------------------
 // Bloqueos (orden único: academia → cuotas por id → factura → intento)
 // ---------------------------------------------------------------------------
@@ -1704,16 +1745,7 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
     },
 
     async findAttemptByPaymentIntent(input) {
-      const result = await db.execute(sql`
-        select ${attemptColumns}
-          from zaltyko.family_collection_attempts
-         where organization_id = ${input.organizationId}::uuid
-           and provider_payment_intent_reference = ${input.paymentIntentId}
-         order by attempt_number desc
-         limit 1
-      `);
-      const row = result.rows[0] as Record<string, unknown> | undefined;
-      return row ? toAttempt(row) : null;
+      return findAttemptByPaymentIntentIn(db, input);
     },
 
     async findClaimedAttemptById(input) {
@@ -2303,4 +2335,361 @@ export async function closeAttemptByAcademy(input: {
     });
     return { ...attempt, status: "canceled" };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Fase 4 (Tarea 6): devoluciones que la academia hizo desde su panel de Stripe
+// (D5). Nunca se borra ni se cambia un pago ni un reparto: devolver es
+// escribir filas en zaltyko.refunds (recordProviderRefund) y la cuota sigue
+// pagada (D1). Sin llamadas a Stripe: lo que dice Stripe llega ya leído.
+// ---------------------------------------------------------------------------
+
+/** Una devolución de Stripe, ya releída por id en la cuenta conectada. */
+export interface ProviderRefund {
+  /** `re_…` (tarjeta) o `pyr_…` (domiciliación). */
+  id: string;
+  amountCents: number;
+  /** En mayúsculas (`EUR`). */
+  currency: string;
+  /** Motivo de Stripe o `requested_by_academy` (refundReasonCode). */
+  reasonCode: string;
+  refundedAt: Date;
+}
+
+export type AttemptRefundResult =
+  /** Filas nuevas en zaltyko.refunds (una por reparto), el pago al día y el aviso `refunded`. */
+  | { outcome: "recorded"; refundIds: string[]; paymentStatus: "partially_refunded" | "refunded" }
+  /** Ese `re_…` ya tenía sus filas: no se escribe nada. */
+  | { outcome: "already_recorded" }
+  /** El intento no está cobrado con ese `pi_…` (o no tiene pago): no hay nada que devolver en el libro. */
+  | { outcome: "not_collected" };
+
+export interface FamilyCollectionRefundStore {
+  /** Almacenamiento de las Fases 1–3 y forma "phase4". */
+  isStorageAvailable(): Promise<boolean>;
+  /** El intento de esa academia con ese `pi_…`, o null. Sin transacción. */
+  findAttemptByPaymentIntent(input: { organizationId: string; paymentIntentId: string }): Promise<CollectionAttempt | null>;
+  /** ¿Tiene ya ese `re_…` sus filas en zaltyko.refunds? Sin transacción. */
+  isRefundRecorded(input: { organizationId: string; environment: "test" | "live"; refundId: string }): Promise<boolean>;
+  /**
+   * Una transacción con el orden único (academia → cuotas → factura →
+   * intento → pago): anota la devolución entera, una fila por reparto
+   * (splitRefund), con su outbox `payment.refunded` por fila y el aviso
+   * `refunded`. Si no cabe en lo repartido, lanza RefundDoesNotFitError y no
+   * queda ninguna fila. Idempotente por el `re_…` y por la clave de cada fila.
+   */
+  recordAttemptRefunds(input: {
+    organizationId: string;
+    attemptId: string;
+    paymentIntentId: string;
+    refund: ProviderRefund;
+    /** Fila del buzón (payment_provider_events.id) del evento. */
+    providerEventId: string;
+    environment: "test" | "live";
+    now: Date;
+  }): Promise<AttemptRefundResult>;
+  /**
+   * Aviso de una devolución a la academia (`refund_unallocated`,
+   * `refund_reversed`), una vez por intento, motivo y `re_…` (C13). `true` si
+   * lo escribió.
+   */
+  recordRefundNotice(input: {
+    attempt: CollectionAttempt;
+    reason: string;
+    refundId: string;
+    amountCents: number;
+    currency: string;
+    now: Date;
+  }): Promise<boolean>;
+}
+
+function ledgerEnvironmentOf(environment: "test" | "live"): "sandbox" | "live" {
+  return environment === "test" ? "sandbox" : "live";
+}
+
+/** ¿Tiene ya ese `re_…` alguna fila? Todas las de un `re_…` se escriben juntas: una basta. */
+async function refundRecorded(
+  executor: Executor,
+  input: { organizationId: string; environment: "test" | "live"; refundId: string }
+): Promise<boolean> {
+  const result = await executor.execute(sql`
+    select 1 as "found"
+      from zaltyko.refunds
+     where organization_id = ${input.organizationId}::uuid
+       and processor = ${FAMILY_COLLECTION_PROCESSOR}
+       and environment = ${ledgerEnvironmentOf(input.environment)}::zaltyko.provider_environment
+       and starts_with(provider_refund_id, ${`${input.refundId}:`})
+     limit 1
+  `);
+  return result.rows.length > 0;
+}
+
+/** Repartos del pago con su cuota y lo ya devuelto de cada uno. */
+async function readRefundableAllocations(
+  tx: TransactionClient,
+  organizationId: string,
+  paymentId: string
+): Promise<RefundableAllocation[]> {
+  const result = await tx.execute(sql`
+    select pa.id::text as "allocationId",
+           pa.charge_id::text as "chargeId",
+           pa.amount_cents::text as "allocatedCents",
+           coalesce(to_char(c.service_period_start, 'YYYY-MM-DD'), '') as "servicePeriodStart",
+           coalesce((
+             select sum(r.amount_cents)
+               from zaltyko.refunds r
+              where r.organization_id = pa.organization_id
+                and r.payment_allocation_id = pa.id
+                and r.status = 'succeeded'
+           ), 0)::text as "refundedCents"
+      from zaltyko.payment_allocations pa
+      join zaltyko.charges c
+        on c.organization_id = pa.organization_id and c.id = pa.charge_id
+     where pa.organization_id = ${organizationId}::uuid
+       and pa.payment_id = ${paymentId}::uuid
+     order by c.service_period_start, pa.charge_id, pa.id
+  `);
+  return (result.rows as Array<Record<string, unknown>>).map((row) => ({
+    allocationId: String(row.allocationId),
+    chargeId: String(row.chargeId),
+    servicePeriodStart: String(row.servicePeriodStart),
+    allocatedCents: toCents(row.allocatedCents),
+    refundedCents: toCents(row.refundedCents),
+  }));
+}
+
+function isRefundExceedsAllocation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: unknown }).code === "REFUND_EXCEEDS_ALLOCATION"
+  );
+}
+
+/**
+ * Escribe todas las filas de una devolución (o, en la Tarea 7, de una disputa
+ * perdida) dentro de la transacción de quien llama, que ya tiene bloqueados
+ * la academia, las cuotas, la factura y el intento (y la disputa) y el pago.
+ * Reparte de la cuota más antigua a la más nueva; si no cabe entera (pago sin
+ * repartir, repartido en parte, o devoluciones anteriores que ya lo agotan),
+ * lanza RefundDoesNotFitError para deshacer la transacción: o todas las
+ * filas o ninguna. Una fila por reparto, con su referencia
+ * `{re_…}:{reparto}` y su clave `refund:{re_…}:{reparto}`, y un outbox
+ * `payment.refunded` por fila con esa misma clave (C12).
+ */
+async function recordSplitRefund(
+  tx: TransactionClient,
+  input: {
+    organizationId: string;
+    locationId: string;
+    paymentId: string;
+    /** `re_…`/`pyr_…` (o `dp_…`/`du_…` en la Tarea 7). */
+    reference: string;
+    amountCents: number;
+    currency: string;
+    reasonCode: string;
+    refundedAt: Date;
+    providerEventId: string | null;
+    environment: "test" | "live";
+    now: Date;
+  }
+): Promise<{ refundIds: string[]; paymentStatus: "partially_refunded" | "refunded" }> {
+  const paymentRow = await tx.execute(sql`
+    select currency from zaltyko.payments
+     where organization_id = ${input.organizationId}::uuid and id = ${input.paymentId}::uuid
+  `);
+  const paymentCurrency = (paymentRow.rows[0] as { currency?: unknown } | undefined)?.currency;
+  if (paymentCurrency !== input.currency) throw new RefundDoesNotFitError();
+
+  const parts = splitRefund({
+    allocations: await readRefundableAllocations(tx, input.organizationId, input.paymentId),
+    amountCents: input.amountCents,
+  });
+  if (!parts || parts.length === 0) throw new RefundDoesNotFitError();
+
+  const refundIds: string[] = [];
+  let paymentStatus: "partially_refunded" | "refunded" = "partially_refunded";
+  for (const part of parts) {
+    const idempotencyKey = providerRefundIdempotencyKey(input.reference, part.allocationId);
+    let recorded: Awaited<ReturnType<typeof recordProviderRefund>>;
+    try {
+      recorded = await recordProviderRefund(tx, {
+        organizationId: input.organizationId,
+        paymentId: input.paymentId,
+        paymentAllocationId: part.allocationId,
+        amountCents: part.amountCents,
+        currency: input.currency,
+        processor: FAMILY_COLLECTION_PROCESSOR,
+        environment: ledgerEnvironmentOf(input.environment),
+        providerRefundId: providerRefundReference(input.reference, part.allocationId),
+        reasonCode: input.reasonCode,
+        refundedAt: input.refundedAt,
+        providerEventId: input.providerEventId,
+        idempotencyKey,
+      });
+    } catch (error) {
+      // El libro siempre dice REFUND_EXCEEDS_ALLOCATION (el camino simulado
+      // no cambia); aquí es una devolución que no cabe: se deshace todo.
+      if (isRefundExceedsAllocation(error)) throw new RefundDoesNotFitError();
+      throw error;
+    }
+    paymentStatus = recorded.paymentStatus;
+    if (!recorded.created) continue;
+    refundIds.push(recorded.refundId);
+    await appendOutboxEvent(tx, {
+      organizationId: input.organizationId,
+      locationId: input.locationId,
+      eventName: "payment.refunded",
+      aggregateType: "refund",
+      aggregateId: recorded.refundId,
+      idempotencyKey,
+      payload: {
+        refundId: recorded.refundId,
+        paymentId: input.paymentId,
+        paymentAllocationId: part.allocationId,
+        amountCents: part.amountCents,
+        currency: input.currency,
+      },
+      occurredAt: input.now,
+    });
+  }
+  return { refundIds, paymentStatus };
+}
+
+/** Aviso de una devolución (clave con su `re_…`, C13), dentro de la transacción de quien llama. */
+async function appendRefundNotice(
+  tx: TransactionClient,
+  input: {
+    attempt: CollectionAttempt;
+    reason: string;
+    refundId: string;
+    amountCents: number;
+    currency: string;
+    now: Date;
+  }
+): Promise<boolean> {
+  const eventName = NEEDS_REVIEW_EVENT;
+  const idempotencyKey = needsReviewKey({
+    attemptId: input.attempt.id,
+    invoiceId: input.attempt.invoiceId,
+    reason: input.reason,
+    reference: input.refundId,
+  });
+  if (await findOutboxEvent(tx, { organizationId: input.attempt.organizationId, eventName, idempotencyKey })) {
+    return false;
+  }
+  // Solo ids, la referencia opaca de Stripe, el importe y la moneda.
+  await appendOutboxEvent(tx, {
+    organizationId: input.attempt.organizationId,
+    locationId: input.attempt.locationId,
+    eventName,
+    aggregateType: "family_collection_attempt",
+    aggregateId: input.attempt.id,
+    idempotencyKey,
+    payload: {
+      attemptId: input.attempt.id,
+      invoiceId: input.attempt.invoiceId,
+      reason: input.reason,
+      providerRefundReference: input.refundId,
+      amountCents: input.amountCents,
+      currency: input.currency,
+    },
+    occurredAt: input.now,
+  });
+  return true;
+}
+
+export function createFamilyCollectionRefundStore(): FamilyCollectionRefundStore {
+  return {
+    async isStorageAvailable() {
+      const [collection, events, paymentMethods, connect] = await Promise.all([
+        isFamilyCollectionStorageAvailable(db),
+        isFamilyCollectionEventsStorageAvailable(db),
+        isFamilyPaymentMethodsStorageAvailable(db),
+        isConnectOnboardingStorageAvailable(db),
+      ]);
+      return collection && events && paymentMethods && connect;
+    },
+
+    async findAttemptByPaymentIntent(input) {
+      return findAttemptByPaymentIntentIn(db, input);
+    },
+
+    async isRefundRecorded(input) {
+      return refundRecorded(db, input);
+    },
+
+    async recordAttemptRefunds(input) {
+      return db.transaction(async (tx): Promise<AttemptRefundResult> => {
+        const found = await tx.execute(sql`
+          select invoice_id::text as "invoiceId"
+            from zaltyko.family_collection_attempts
+           where organization_id = ${input.organizationId}::uuid and id = ${input.attemptId}::uuid
+        `);
+        const invoiceId = (found.rows[0] as { invoiceId?: unknown } | undefined)?.invoiceId;
+        if (typeof invoiceId !== "string") return { outcome: "not_collected" };
+
+        // Orden único (C18): academia → cuotas por id → factura → intento → pago.
+        await lockOrganizationForSaasMutation(tx, input.organizationId);
+        await lockAttemptCharges(tx, input.organizationId, input.attemptId);
+        await lockInvoice(tx, input.organizationId, invoiceId);
+        const locked = await tx.execute(sql`
+          select ${attemptColumns}, payment_id::text as "paymentId"
+            from zaltyko.family_collection_attempts
+           where organization_id = ${input.organizationId}::uuid
+             and id = ${input.attemptId}::uuid
+           for update
+        `);
+        const row = locked.rows[0] as Record<string, unknown> | undefined;
+        if (!row) return { outcome: "not_collected" };
+        const attempt = toAttempt(row);
+        const paymentId = toStringOrNull(row.paymentId);
+        if (attempt.status !== "succeeded" || paymentId === null || attempt.paymentIntentId !== input.paymentIntentId) {
+          return { outcome: "not_collected" };
+        }
+        await tx.execute(sql`
+          select id from zaltyko.payments
+           where organization_id = ${input.organizationId}::uuid and id = ${paymentId}::uuid
+           for update
+        `);
+        if (
+          await refundRecorded(tx, {
+            organizationId: input.organizationId,
+            environment: input.environment,
+            refundId: input.refund.id,
+          })
+        ) {
+          return { outcome: "already_recorded" };
+        }
+
+        const { refundIds, paymentStatus } = await recordSplitRefund(tx, {
+          organizationId: input.organizationId,
+          locationId: attempt.locationId,
+          paymentId,
+          reference: input.refund.id,
+          amountCents: input.refund.amountCents,
+          currency: input.refund.currency,
+          reasonCode: input.refund.reasonCode,
+          refundedAt: input.refund.refundedAt,
+          providerEventId: input.providerEventId,
+          environment: input.environment,
+          now: input.now,
+        });
+        // Aviso informativo: la cuota sigue pagada, marcada «Devuelta» (D1).
+        await appendRefundNotice(tx, {
+          attempt,
+          reason: REFUNDED_NOTICE_REASON,
+          refundId: input.refund.id,
+          amountCents: input.refund.amountCents,
+          currency: input.refund.currency,
+          now: input.now,
+        });
+        return { outcome: "recorded", refundIds, paymentStatus };
+      });
+    },
+
+    async recordRefundNotice(input) {
+      return db.transaction((tx) => appendRefundNotice(tx, input));
+    },
+  };
 }

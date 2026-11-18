@@ -7,12 +7,19 @@ import { Client } from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { db } from "@/db";
+import { recordProviderRefund } from "@/modules/billing/application/ledger-service";
 import {
   ATTEMPT_EFFECT_TYPE,
   handleFamilyCollectionEvent,
   processPaymentIntentEvent,
   type ProviderEventHandlerInput,
 } from "@/modules/family-collection/application/family-collection-events";
+import {
+  processChargeRefundEvent,
+  processRefundEvent,
+  REFUND_EFFECT_TYPE,
+  REFUND_REVIEW_EFFECT_TYPE,
+} from "@/modules/family-collection/application/family-collection-refunds";
 import { runFamilyCollection } from "@/modules/family-collection/application/family-collection-service";
 import {
   familyCollectionStorageShape,
@@ -26,7 +33,15 @@ import {
 } from "@/modules/family-collection/domain/provider-event";
 import type { PaymentIntentSnapshot } from "@/modules/family-collection/domain/payment-outcome";
 import {
+  providerRefundIdempotencyKey,
+  providerRefundReference,
+  REFUND_UNALLOCATED_REASON,
+  REFUNDED_NOTICE_REASON,
+} from "@/modules/family-collection/domain/refund-split";
+import {
+  createFamilyCollectionRefundStore,
   createFamilyCollectionStore,
+  NEEDS_REVIEW_EVENT,
   DUPLICATE_COLLECTION_REASON,
   LATE_SUCCESS_ELSEWHERE_CODE,
   LATE_SUCCESS_PENDING_REASON,
@@ -37,7 +52,12 @@ import {
   finishProviderEvent,
   providerEventPayloadSha256,
 } from "@/modules/family-collection/infrastructure/provider-event-inbox";
-import type { FamilyCollectionGateway } from "@/modules/family-collection/infrastructure/stripe-collection-gateway";
+import type {
+  ChargeRefundSnapshot,
+  ChargeRefundsSnapshot,
+  FamilyCollectionGateway,
+  FamilyCollectionRefundGateway,
+} from "@/modules/family-collection/infrastructure/stripe-collection-gateway";
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
 import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
 import { findConnectAccountByReference } from "@/modules/payments-connect/infrastructure/connect-account-store";
@@ -1816,6 +1836,511 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
         now: EVENT_NOW,
       });
       expect((await due()).map((item) => item.invoiceId)).toEqual([invoice.invoiceId]);
+    }, 60_000);
+  });
+
+  describe("devoluciones hechas desde el panel de Stripe (Tarea 6)", () => {
+    const EVENT_NOW = new Date("2026-12-06T10:00:00.000Z");
+    const EVENT_CREATED = 1_796_551_200;
+    const REFUNDED_AT = new Date("2026-12-06T09:30:00.000Z");
+    const COLLECTED_AT = new Date("2026-12-01T08:05:00.000Z");
+    /**
+     * Academias de este bloque, aparte de las de la suite: aquí se registran
+     * cobros y devoluciones de verdad y su auditoría (solo de añadir) apunta a
+     * las sedes, así que sedes y academias se quedan y el resto se borra al
+     * terminar el bloque, antes de deshacer la candidata.
+     */
+    const registry = { organizations: [] as string[], users: [] as string[] };
+
+    beforeEach(() => {
+      vi.stubEnv("ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED", "true");
+      vi.stubEnv("ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED", "false");
+      vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_ci_synthetic");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    afterAll(async () => {
+      if (!disposablePgEnabled || registry.organizations.length === 0) return;
+      const organizations = registry.organizations.join(",");
+      for (const table of [
+        "refunds",
+        "family_collection_attempt_charges",
+        "family_collection_attempts",
+        "payment_provider_events",
+        "payment_allocations",
+        "payments",
+        "charges",
+        "invoice_lines",
+        "invoices",
+        "family_payment_authorizations",
+        "organization_payment_provider_accounts",
+        "family_payers",
+        "family_guardians",
+        "guardians",
+        "people",
+        "families",
+        "organization_members",
+      ]) {
+        if (!(await tableExists(table))) continue;
+        await db.execute(sql`
+          delete from ${sql.identifier("zaltyko")}.${sql.identifier(table)}
+           where organization_id = any(string_to_array(${organizations}, ',')::uuid[])
+        `);
+      }
+      for (const userId of registry.users) {
+        await db.execute(sql`delete from auth.users where id = ${userId}::uuid`);
+      }
+    });
+
+    const accountOf = (invoice: Invoice) => `acct_CI${invoice.organizationId.slice(0, 8)}`;
+    /** Referencias de Stripe de la factura: prefijo y solo letras y números, como las de Stripe. */
+    const refOf = (invoice: Invoice, prefix: "pi" | "ch" | "re" | "evt", name: string) =>
+      `${prefix}_CI${invoice.invoiceId.replace(/-/g, "").slice(0, 16)}${name}`;
+
+    /**
+     * Factura de dos cuotas de 35 € (noviembre y diciembre) cobrada entera
+     * (70 €) por un intento real: applyOutcome registra el pago y lo reparte
+     * como siempre. `split`:
+     * - `both`: repartido en las dos cuotas, las dos pagadas;
+     * - `partial`: la de diciembre ya estaba pagada (a mano) y solo se
+     *   reparten 35 € en la de noviembre;
+     * - `none`: el intento no tiene cuotas y el pago queda sin repartir.
+     */
+    async function collectedInvoice(split: "both" | "partial" | "none") {
+      const invoice = await createCollectableInvoice({ registry, collectionMode: "automatic" });
+      const secondLineId = randomUUID();
+      const secondChargeId = randomUUID();
+      await db.execute(sql`
+        update zaltyko.invoice_lines set unit_amount_cents = 3500, amount_cents = 3500
+         where organization_id = ${invoice.organizationId}::uuid and invoice_id = ${invoice.invoiceId}::uuid
+      `);
+      await db.execute(sql`
+        update zaltyko.charges set amount_cents = 3500
+         where organization_id = ${invoice.organizationId}::uuid and id = ${invoice.chargeId}::uuid
+      `);
+      await db.execute(sql`
+        update zaltyko.invoices set total_amount_cents = 7000
+         where organization_id = ${invoice.organizationId}::uuid and id = ${invoice.invoiceId}::uuid
+      `);
+      await db.execute(sql`
+        insert into zaltyko.invoice_lines (
+          id, organization_id, invoice_id, location_id, line_type, quantity,
+          unit_amount_cents, amount_cents, currency, service_period_start, service_period_end
+        ) values (
+          ${secondLineId}::uuid, ${invoice.organizationId}::uuid, ${invoice.invoiceId}::uuid, ${invoice.locationId}::uuid,
+          'ci_collection_fee', 1, 3500, 3500, 'EUR', '2026-12-01'::date, '2026-12-28'::date
+        )
+      `);
+      await db.execute(sql`
+        insert into zaltyko.charges (
+          id, organization_id, location_id, invoice_id, invoice_line_id, family_id, family_payer_id,
+          status, amount_cents, currency, due_at, service_period_start, service_period_end, idempotency_key,
+          collection_mode
+        ) values (
+          ${secondChargeId}::uuid, ${invoice.organizationId}::uuid, ${invoice.locationId}::uuid, ${invoice.invoiceId}::uuid,
+          ${secondLineId}::uuid, ${invoice.familyId}::uuid, ${invoice.payerId}::uuid,
+          ${split === "partial" ? "paid" : "due"}::zaltyko.charge_status,
+          3500, 'EUR', ${CLAIMED_AT}::timestamptz, '2026-12-01'::date, '2026-12-28'::date,
+          ${`ci-fce-charge-${secondChargeId}`}, 'automatic'::zaltyko.family_collection_mode
+        )
+      `);
+      const paymentIntentId = refOf(invoice, "pi", "paid");
+      const inserted = await db.execute(sql`
+        insert into zaltyko.family_collection_attempts (
+          organization_id, location_id, invoice_id, family_id, family_payer_id, authorization_id,
+          payment_provider_account_id, attempt_number, payment_method_kind, amount_cents, currency, status,
+          provider_payment_intent_reference, claimed_at
+        ) values (
+          ${invoice.organizationId}::uuid, ${invoice.locationId}::uuid, ${invoice.invoiceId}::uuid, ${invoice.familyId}::uuid,
+          ${invoice.payerId}::uuid, ${invoice.authorizationId}::uuid, ${invoice.accountId}::uuid, 1, 'card',
+          7000, 'EUR', 'created', ${paymentIntentId}, ${CLAIMED_AT}::timestamptz
+        )
+        returning id::text as id
+      `);
+      const attemptId = (inserted.rows[0] as { id: string }).id;
+      if (split !== "none") {
+        for (const chargeId of [invoice.chargeId, secondChargeId]) {
+          await db.execute(sql`
+            insert into zaltyko.family_collection_attempt_charges (attempt_id, organization_id, charge_id, amount_cents)
+            values (${attemptId}::uuid, ${invoice.organizationId}::uuid, ${chargeId}::uuid, 3500)
+          `);
+        }
+      }
+      const applied = await createFamilyCollectionStore().applyOutcome({
+        organizationId: invoice.organizationId,
+        attemptId,
+        outcome: { kind: "succeeded", paymentIntentId, received: { amountCents: 7000, currency: "EUR" } },
+        environment: "test",
+        now: COLLECTED_AT,
+      });
+      expect(applied).toMatchObject({
+        applied: true,
+        status: "succeeded",
+        allocationStatus: split === "both" ? "allocated" : "needs_review",
+      });
+      return { invoice, attemptId, paymentIntentId, secondChargeId, chargeRef: refOf(invoice, "ch", "paid") };
+    }
+    type Collected = Awaited<ReturnType<typeof collectedInvoice>>;
+
+    function stripeRefund(id: string, amountCents: number, status = "succeeded", minute = 30): ChargeRefundSnapshot {
+      return {
+        id,
+        status,
+        amountCents,
+        currency: "EUR",
+        reasonCode: null,
+        createdAt: new Date(REFUNDED_AT.getTime() + (minute - 30) * 60 * 1000),
+      };
+    }
+
+    /** Stripe simulado de la cuenta: el cargo del cobro y sus devoluciones (se pueden cambiar entre entregas). */
+    function fakeRefundStripe(collected: Collected, refunds: ChargeRefundSnapshot[]) {
+      const connectedAccount = accountOf(collected.invoice);
+      const state = { refunds };
+      const gateway: FamilyCollectionRefundGateway = {
+        retrieveChargeRefunds: vi.fn<FamilyCollectionRefundGateway["retrieveChargeRefunds"]>(async (request) => {
+          if (request.connectedAccount !== connectedAccount || request.chargeId !== collected.chargeRef) {
+            throw Object.assign(new Error("CI: cargo inexistente"), { type: "StripeInvalidRequestError", code: "resource_missing" });
+          }
+          const snapshot: ChargeRefundsSnapshot = {
+            chargeId: collected.chargeRef,
+            paymentIntentId: collected.paymentIntentId,
+            refunds: state.refunds.map((entry) => ({ ...entry })),
+          };
+          return snapshot;
+        }),
+        retrieveRefundCharge: vi.fn<FamilyCollectionRefundGateway["retrieveRefundCharge"]>(async (request) =>
+          request.connectedAccount === connectedAccount && state.refunds.some((entry) => entry.id === request.refundId)
+            ? collected.chargeRef
+            : null
+        ),
+      };
+      return { gateway, state };
+    }
+
+    function chargeEvent(collected: Collected, name: string): ConnectedAccountEvent {
+      return {
+        eventId: refOf(collected.invoice, "evt", name),
+        type: "charge.refunded",
+        accountId: accountOf(collected.invoice),
+        livemode: false,
+        created: EVENT_CREATED,
+        objectId: collected.chargeRef,
+        objectType: "charge",
+      };
+    }
+
+    function refundEvent(collected: Collected, name: string, refundId: string): ConnectedAccountEvent {
+      return {
+        eventId: refOf(collected.invoice, "evt", name),
+        type: "refund.updated",
+        accountId: accountOf(collected.invoice),
+        livemode: false,
+        created: EVENT_CREATED,
+        objectId: refundId,
+        objectType: "refund",
+      };
+    }
+
+    /** Una entrega por la ruta de verdad (buzón incluido), con Stripe simulado. */
+    function deliver(event: ConnectedAccountEvent, gateway: FamilyCollectionRefundGateway) {
+      return handleFamilyCollectionEvent(event, {
+        now: EVENT_NOW,
+        handlers: {
+          charge: (handlerInput) => processChargeRefundEvent(handlerInput, { gateway }),
+          refund: (handlerInput) => processRefundEvent(handlerInput, { gateway }),
+        },
+      });
+    }
+
+    async function inboxRow(eventId: string) {
+      const result = await db.execute(sql`
+        select id::text as "id", status::text as "status", effect_type as "effectType", effect_id::text as "effectId",
+               last_error as "lastError"
+          from zaltyko.payment_provider_events
+         where provider_event_id = ${eventId}
+      `);
+      return result.rows[0] as Record<string, unknown> | undefined;
+    }
+
+    async function refundRows(collected: Collected) {
+      const result = await db.execute(sql`
+        select r.id::text as "id", r.provider_refund_id as "reference", r.idempotency_key as "key",
+               r.amount_cents::int as "amountCents", r.payment_allocation_id::text as "allocationId",
+               pa.charge_id::text as "chargeId", r.reason_code as "reasonCode", r.status::text as "status",
+               r.processor, r.environment::text as "environment", r.provider_event_id::text as "providerEventId"
+          from zaltyko.refunds r
+          join zaltyko.payment_allocations pa
+            on pa.organization_id = r.organization_id and pa.id = r.payment_allocation_id
+          join zaltyko.charges c
+            on c.organization_id = pa.organization_id and c.id = pa.charge_id
+         where r.organization_id = ${collected.invoice.organizationId}::uuid
+         order by r.refunded_at, c.service_period_start
+      `);
+      return result.rows as Array<Record<string, unknown>>;
+    }
+
+    /** Pago, repartos y cuotas: lo que nunca debe cambiar salvo el estado del pago. */
+    async function ledgerState(collected: Collected) {
+      const result = await db.execute(sql`
+        select
+          (select status::text from zaltyko.payments
+            where organization_id = ${collected.invoice.organizationId}::uuid) as "paymentStatus",
+          (select count(*)::int from zaltyko.payments
+            where organization_id = ${collected.invoice.organizationId}::uuid) as "payments",
+          (select coalesce(sum(amount_cents), 0)::int from zaltyko.payment_allocations
+            where organization_id = ${collected.invoice.organizationId}::uuid) as "allocatedCents",
+          (select string_agg(status::text, ',' order by service_period_start) from zaltyko.charges
+            where organization_id = ${collected.invoice.organizationId}::uuid) as "chargeStatuses",
+          (select status from zaltyko.family_collection_attempts
+            where organization_id = ${collected.invoice.organizationId}::uuid and id = ${collected.attemptId}::uuid) as "attemptStatus"
+      `);
+      return result.rows[0] as Record<string, unknown>;
+    }
+
+    async function outboxPayloads(organizationId: string, eventName: string, idempotencyKey: string) {
+      const result = await db.execute(sql`
+        select payload
+          from zaltyko.outbox_events
+         where organization_id = ${organizationId}::uuid
+           and event_name = ${eventName}
+           and idempotency_key = ${idempotencyKey}
+      `);
+      return (result.rows as Array<{ payload: Record<string, unknown> }>).map((row) => row.payload);
+    }
+
+    async function allocationOf(collected: Collected, chargeId: string) {
+      const result = await db.execute(sql`
+        select id::text as "id" from zaltyko.payment_allocations
+         where organization_id = ${collected.invoice.organizationId}::uuid and charge_id = ${chargeId}::uuid
+      `);
+      return (result.rows[0] as { id: string }).id;
+    }
+
+    const noticeKey = (collected: Collected, reason: string, refundId: string) =>
+      `family-collection:${collected.attemptId}:needs_review:${reason}:${refundId}`;
+
+    it("devolución total por evento → dos filas en refunds y pago refunded; cuotas siguen pagadas", async () => {
+      const collected = await collectedInvoice("both");
+      const refundId = refOf(collected.invoice, "re", "total");
+      const { gateway } = fakeRefundStripe(collected, [stripeRefund(refundId, 7000)]);
+      const before = await ledgerState(collected);
+      expect(before).toMatchObject({ paymentStatus: "succeeded", allocatedCents: 7000, chargeStatuses: "paid,paid" });
+
+      const event = chargeEvent(collected, "total");
+      expect(await deliver(event, gateway)).toBe("processed");
+
+      const rows = await refundRows(collected);
+      const inbox = await inboxRow(event.eventId);
+      expect(rows).toEqual([
+        expect.objectContaining({ chargeId: collected.invoice.chargeId, amountCents: 3500 }),
+        expect.objectContaining({ chargeId: collected.secondChargeId, amountCents: 3500 }),
+      ]);
+      for (const row of rows) {
+        expect(row).toMatchObject({
+          reference: providerRefundReference(refundId, String(row.allocationId)),
+          key: providerRefundIdempotencyKey(refundId, String(row.allocationId)),
+          reasonCode: "requested_by_academy",
+          status: "succeeded",
+          processor: "stripe",
+          environment: "sandbox",
+          providerEventId: inbox?.id,
+        });
+        expect(
+          await outboxPayloads(collected.invoice.organizationId, "payment.refunded", String(row.key))
+        ).toEqual([expect.objectContaining({ refundId: row.id, amountCents: 3500, currency: "EUR" })]);
+      }
+      // D1: el pago queda refunded, pero nada se borra: mismos repartos y las cuotas siguen pagadas.
+      expect(await ledgerState(collected)).toEqual({
+        ...before,
+        paymentStatus: "refunded",
+      });
+      expect(inbox).toMatchObject({ status: "processed", effectType: REFUND_EFFECT_TYPE, effectId: rows[0].id });
+      expect(
+        await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, REFUNDED_NOTICE_REASON, refundId))
+      ).toEqual([
+        expect.objectContaining({ reason: REFUNDED_NOTICE_REASON, providerRefundReference: refundId, amountCents: 7000 }),
+      ]);
+    }, 60_000);
+
+    it("mismo evento o charge.refunded repetido → ninguna fila nueva", async () => {
+      const collected = await collectedInvoice("both");
+      const refundId = refOf(collected.invoice, "re", "again");
+      const { gateway } = fakeRefundStripe(collected, [stripeRefund(refundId, 3500)]);
+
+      const event = chargeEvent(collected, "first");
+      expect(await deliver(event, gateway)).toBe("processed");
+      // El mismo evt_: el buzón lo da por hecho sin llamar al manejador.
+      expect(await deliver(event, gateway)).toBe("duplicate");
+      // Otro charge.refunded del mismo cargo: se relee y no hay nada nuevo.
+      const repeated = chargeEvent(collected, "second");
+      expect(await deliver(repeated, gateway)).toBe("processed");
+
+      expect(await refundRows(collected)).toHaveLength(1);
+      expect(await inboxRow(repeated.eventId)).toMatchObject({ status: "processed", effectType: null, effectId: null });
+      expect((await ledgerState(collected)).paymentStatus).toBe("partially_refunded");
+    }, 60_000);
+
+    it("devolución pending → nada; luego refund.updated succeeded → filas", async () => {
+      const collected = await collectedInvoice("both");
+      const refundId = refOf(collected.invoice, "re", "pending");
+      const { gateway, state } = fakeRefundStripe(collected, [stripeRefund(refundId, 3500, "pending")]);
+
+      const created = refundEvent(collected, "created", refundId);
+      expect(await deliver({ ...created, type: "refund.created" }, gateway)).toBe("processed");
+      expect(await refundRows(collected)).toEqual([]);
+      expect(await inboxRow(created.eventId)).toMatchObject({ status: "processed", effectType: null });
+
+      state.refunds = [stripeRefund(refundId, 3500, "succeeded")];
+      const updated = refundEvent(collected, "updated", refundId);
+      expect(await deliver(updated, gateway)).toBe("processed");
+      const rows = await refundRows(collected);
+      expect(rows).toEqual([expect.objectContaining({ chargeId: collected.invoice.chargeId, amountCents: 3500 })]);
+      expect(await inboxRow(updated.eventId)).toMatchObject({ effectType: REFUND_EFFECT_TYPE, effectId: rows[0].id });
+      expect((await ledgerState(collected)).chargeStatuses).toBe("paid,paid");
+    }, 60_000);
+
+    it("cobro sin repartir → aviso refund_unallocated, ninguna fila y evento processed (200)", async () => {
+      const collected = await collectedInvoice("none");
+      const refundId = refOf(collected.invoice, "re", "unallocated");
+      const { gateway } = fakeRefundStripe(collected, [stripeRefund(refundId, 3500)]);
+      const before = await ledgerState(collected);
+      expect(before).toMatchObject({ paymentStatus: "succeeded", allocatedCents: 0 });
+
+      const event = chargeEvent(collected, "unallocated");
+      expect(await deliver(event, gateway)).toBe("processed");
+
+      expect(await refundRows(collected)).toEqual([]);
+      expect(await ledgerState(collected)).toEqual(before);
+      expect(await inboxRow(event.eventId)).toMatchObject({
+        status: "processed",
+        effectType: REFUND_REVIEW_EFFECT_TYPE,
+        effectId: collected.attemptId,
+        lastError: null,
+      });
+      expect(
+        await outboxPayloads(
+          collected.invoice.organizationId,
+          NEEDS_REVIEW_EVENT,
+          noticeKey(collected, REFUND_UNALLOCATED_REASON, refundId)
+        )
+      ).toEqual([
+        expect.objectContaining({ reason: REFUND_UNALLOCATED_REASON, providerRefundReference: refundId, amountCents: 3500 }),
+      ]);
+      // Sin filas, tampoco el aviso informativo `refunded` (la transacción se deshizo entera).
+      expect(
+        await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, REFUNDED_NOTICE_REASON, refundId))
+      ).toEqual([]);
+    }, 60_000);
+
+    it("pago repartido solo en parte y devolución mayor que lo repartido → ninguna fila, aviso una vez, evento processed", async () => {
+      const collected = await collectedInvoice("partial");
+      const refundId = refOf(collected.invoice, "re", "partial");
+      const { gateway } = fakeRefundStripe(collected, [stripeRefund(refundId, 5000)]);
+      const before = await ledgerState(collected);
+      expect(before).toMatchObject({ allocatedCents: 3500 });
+
+      for (const name of ["partial1", "partial2"]) {
+        const event = chargeEvent(collected, name);
+        expect(await deliver(event, gateway), name).toBe("processed");
+        expect(await inboxRow(event.eventId), name).toMatchObject({ status: "processed", effectType: REFUND_REVIEW_EFFECT_TYPE });
+      }
+
+      expect(await refundRows(collected)).toEqual([]);
+      expect(await ledgerState(collected)).toEqual(before);
+      expect(
+        await outboxPayloads(
+          collected.invoice.organizationId,
+          NEEDS_REVIEW_EVENT,
+          noticeKey(collected, REFUND_UNALLOCATED_REASON, refundId)
+        )
+      ).toHaveLength(1);
+    }, 60_000);
+
+    it("un re_ en dos cuotas → dos filas con claves refund:re_…:{allocationId} distintas, sin 23505; una segunda devolución también avisa", async () => {
+      const collected = await collectedInvoice("both");
+      const first = refOf(collected.invoice, "re", "split");
+      const second = refOf(collected.invoice, "re", "rest");
+      const { gateway, state } = fakeRefundStripe(collected, [stripeRefund(first, 5000)]);
+      const olderAllocation = await allocationOf(collected, collected.invoice.chargeId);
+      const newerAllocation = await allocationOf(collected, collected.secondChargeId);
+
+      expect(await deliver(refundEvent(collected, "split", first), gateway)).toBe("processed");
+      expect((await refundRows(collected)).map((row) => [row.key, row.amountCents])).toEqual([
+        [`refund:${first}:${olderAllocation}`, 3500],
+        [`refund:${first}:${newerAllocation}`, 1500],
+      ]);
+      expect((await ledgerState(collected)).paymentStatus).toBe("partially_refunded");
+
+      // Lo que queda (20 €) en la cuota más nueva, con su propio aviso (C13).
+      state.refunds = [stripeRefund(first, 5000), stripeRefund(second, 2000, "succeeded", 45)];
+      expect(await deliver(chargeEvent(collected, "rest"), gateway)).toBe("processed");
+      expect((await refundRows(collected)).map((row) => [row.key, row.amountCents])).toEqual([
+        [`refund:${first}:${olderAllocation}`, 3500],
+        [`refund:${first}:${newerAllocation}`, 1500],
+        [`refund:${second}:${newerAllocation}`, 2000],
+      ]);
+      expect(await ledgerState(collected)).toMatchObject({ paymentStatus: "refunded", chargeStatuses: "paid,paid" });
+      for (const refundId of [first, second]) {
+        expect(
+          await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, REFUNDED_NOTICE_REASON, refundId)),
+          refundId
+        ).toHaveLength(1);
+      }
+    }, 60_000);
+
+    it("mismo re_ reenviado → ninguna fila nueva (idempotencia por clave y por referencia)", async () => {
+      const collected = await collectedInvoice("both");
+      const refundId = refOf(collected.invoice, "re", "resent");
+      const { gateway } = fakeRefundStripe(collected, [stripeRefund(refundId, 3500)]);
+
+      for (const name of ["resent1", "resent2"]) {
+        expect(await deliver(refundEvent(collected, name, refundId), gateway), name).toBe("processed");
+      }
+      const rows = await refundRows(collected);
+      expect(rows).toHaveLength(1);
+      const inboxId = String(rows[0].providerEventId);
+
+      // El almacén directamente con el mismo re_: ya anotado, nada nuevo.
+      const store = createFamilyCollectionRefundStore();
+      expect(
+        await store.recordAttemptRefunds({
+          organizationId: collected.invoice.organizationId,
+          attemptId: collected.attemptId,
+          paymentIntentId: collected.paymentIntentId,
+          refund: { id: refundId, amountCents: 3500, currency: "EUR", reasonCode: "requested_by_academy", refundedAt: REFUNDED_AT },
+          providerEventId: inboxId,
+          environment: "test",
+          now: EVENT_NOW,
+        })
+      ).toEqual({ outcome: "already_recorded" });
+
+      // Y el libro con la misma referencia y la misma clave: devuelve la fila, sin 23505.
+      const paymentRow = await db.execute(sql`
+        select id::text as "id" from zaltyko.payments where organization_id = ${collected.invoice.organizationId}::uuid
+      `);
+      const again = await db.transaction((tx) =>
+        recordProviderRefund(tx, {
+          organizationId: collected.invoice.organizationId,
+          paymentId: (paymentRow.rows[0] as { id: string }).id,
+          paymentAllocationId: String(rows[0].allocationId),
+          amountCents: 3500,
+          currency: "EUR",
+          processor: "stripe",
+          environment: "sandbox",
+          providerRefundId: String(rows[0].reference),
+          reasonCode: "requested_by_academy",
+          refundedAt: REFUNDED_AT,
+          providerEventId: inboxId,
+          idempotencyKey: String(rows[0].key),
+        })
+      );
+      expect(again).toEqual({ refundId: rows[0].id, created: false, paymentStatus: "partially_refunded" });
+      expect(await refundRows(collected)).toHaveLength(1);
     }, 60_000);
   });
 

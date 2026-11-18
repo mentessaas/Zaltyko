@@ -74,6 +74,8 @@ import {
   getOwnerAutomaticCollections,
   getOwnerFamilyCollectionSwitches,
   ownerAutomaticCollectionItemOf,
+  ownerRefundText,
+  refundNoticeText,
   reviewReasonText,
   type OwnerCollectionRow,
 } from "@/modules/family-collection/application/family-collection-reads";
@@ -86,7 +88,11 @@ import {
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
 import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
 import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
-import { familyAutomaticFeeText } from "@/modules/family-portal/domain/family-portal-presentation";
+import {
+  familyAutomaticFeeText,
+  formatCalendarDate,
+  formatMoney,
+} from "@/modules/family-portal/domain/family-portal-presentation";
 import { resolveOwnerScope, type OwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 
 const USER_ID = "91000000-0000-4000-8000-000000000101";
@@ -1932,5 +1938,68 @@ describe("portal: qué familias se cobran solas (tarjeta «Pago automático»)",
       open: true,
       automaticFamilies: {},
     });
+  });
+});
+
+describe("cuota devuelta desde el panel de Stripe (Fase 4, Tarea 6)", () => {
+  it("D1: sigue cobrada y se marca «Devuelta: {importe} el {fecha} (desde tu panel de Stripe)», con el día de la sede", () => {
+    const item = ownerAutomaticCollectionItemOf(
+      ownerRow({
+        attempt: attempt({
+          refundedCents: 3500,
+          // 00:30 del 7-12 en Madrid.
+          lastRefundedAt: new Date("2026-12-06T23:30:00.000Z"),
+        }),
+      }),
+      NOW,
+      "2026-11"
+    );
+    expect(item).toMatchObject({ state: "collected", needsReview: false, canCancel: false, canMarkReviewed: false });
+    expect(item?.refundText).toBe(
+      `Devuelta: ${formatMoney(3500, "EUR")} el ${formatCalendarDate("2026-12-07")} (desde tu panel de Stripe)`
+    );
+    expect(item?.refundText).toBe(ownerRefundText({ amountCents: 3500, currency: "EUR", date: "2026-12-07" }));
+    expect(item?.refundNotice).toBeUndefined();
+  });
+
+  it("sin devoluciones no hay marca, y un intento que no está cobrado nunca sale «Devuelta»", () => {
+    const collected = ownerAutomaticCollectionItemOf(ownerRow({ attempt: attempt() }), NOW, "2026-11");
+    expect(collected).not.toHaveProperty("refundText");
+    expect(collected).not.toHaveProperty("refundNotice");
+    const failed = ownerAutomaticCollectionItemOf(
+      ownerRow({
+        attempt: attempt({
+          status: "failed",
+          failureCode: "card_declined",
+          completedAt: new Date("2026-11-10T08:00:00.000Z"),
+          allocationStatus: null,
+          refundedCents: 3500,
+          lastRefundedAt: new Date("2026-11-12T08:00:00.000Z"),
+          refundIssue: { reason: "refund_unallocated", amountCents: 3500 },
+        }),
+      }),
+      NOW,
+      "2026-11"
+    );
+    expect(failed).not.toHaveProperty("refundText");
+    expect(failed).not.toHaveProperty("refundNotice");
+  });
+
+  it("devolución que no se pudo anotar o que Stripe anuló: aviso con su importe", () => {
+    const item = ownerAutomaticCollectionItemOf(
+      ownerRow({ attempt: attempt({ refundIssue: { reason: "refund_unallocated", amountCents: 3500 } }) }),
+      NOW,
+      "2026-11"
+    );
+    expect(item?.refundNotice).toBe(
+      `Stripe devolvió ${formatMoney(3500, "EUR")} de un cobro que Zaltyko no pudo repartir entre cuotas; revísalo`
+    );
+    expect(refundNoticeText({ reason: "refund_reversed", amountCents: 1000, currency: "EUR" })).toBe(
+      `Stripe anuló una devolución de ${formatMoney(1000, "EUR")} que Zaltyko ya tenía anotada; revísalo en tu panel de Stripe`
+    );
+    expect(refundNoticeText({ reason: "refunded", amountCents: 1000, currency: "EUR" })).toBeNull();
+    expect(ownerRefundText({ amountCents: 1000, currency: "EUR", date: null })).toBe(
+      `Devuelta: ${formatMoney(1000, "EUR")} (desde tu panel de Stripe)`
+    );
   });
 });
