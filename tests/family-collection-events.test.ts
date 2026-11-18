@@ -63,6 +63,7 @@ import { providerEventErrorCode } from "@/modules/family-collection/domain/provi
 import {
   DUPLICATE_COLLECTION_REASON,
   LATE_SUCCESS_ELSEWHERE_CODE,
+  LATE_SUCCESS_PENDING_REASON,
   LATE_SUCCESS_SIBLING_IN_FLIGHT,
   type ApplyOutcomeResult,
   type AttemptOutcome,
@@ -167,6 +168,8 @@ function makeWorld() {
     /** Cada llamada a Stripe y si había una transacción abierta en ese momento. */
     stripeCalls: [] as Array<{ name: string; inTransaction: boolean }>,
     stripe: new Map<string, PaymentIntentSnapshot>(),
+    /** Intentos sin referencias legibles (loadAttemptRefs → null). */
+    unreadable: new Set<string>(),
   };
 
   async function inTransaction<T>(name: string, work: () => T): Promise<T> {
@@ -241,6 +244,7 @@ function makeWorld() {
     claimResumable: vi.fn<FamilyCollectionStore["claimResumable"]>(unused("claimResumable")),
     releaseResume: vi.fn<FamilyCollectionStore["releaseResume"]>(unused("releaseResume")),
     listProcessing: vi.fn<FamilyCollectionStore["listProcessing"]>(unused("listProcessing")),
+    listLateSuccessPending: vi.fn<FamilyCollectionStore["listLateSuccessPending"]>(unused("listLateSuccessPending")),
     listExhaustedWithoutNotice: vi.fn<FamilyCollectionStore["listExhaustedWithoutNotice"]>(
       unused("listExhaustedWithoutNotice")
     ),
@@ -274,7 +278,7 @@ function makeWorld() {
         .map((item) => ({ ...item }))
     ),
     loadAttemptRefs: vi.fn<FamilyCollectionStore["loadAttemptRefs"]>(
-      async (item): Promise<AttemptStripeRefs> => ({
+      async (item): Promise<AttemptStripeRefs | null> => world.unreadable.has(item.id) ? null : ({
         connectedAccount,
         customer: "cus_SyntheticEvents",
         paymentMethod: item.paymentMethodKind === "sepa_debit" ? "pm_SyntheticSepa" : "pm_SyntheticCard",
@@ -647,6 +651,82 @@ describe("cobro tardío de un intento cerrado (D10: nunca dos cobros)", () => {
     expect(world.payments).toEqual([{ attemptId: firstAttemptId, paymentIntentId: "pi_SyntheticFirst" }]);
   });
 
+  it("hermano por domiciliación en el banco (Stripe no deja cancelarlo) → aviso late_success_pending, evento procesado y nada registrado", async () => {
+    const { world, gateway, event } = setup();
+    world.attempts.push(attempt({ status: "failed", paymentIntentId: "pi_SyntheticFirst" }));
+    world.attempts.push(
+      attempt({
+        id: secondAttemptId,
+        attemptNumber: 2,
+        status: "processing",
+        paymentMethodKind: "sepa_debit",
+        paymentIntentId: "pi_SyntheticSepaBank",
+      })
+    );
+    world.stripe.set("pi_SyntheticFirst", intent("pi_SyntheticFirst", "succeeded"));
+    world.stripe.set("pi_SyntheticSepaBank", intent("pi_SyntheticSepaBank", "processing"));
+
+    // No lanza: el evento termina procesado, con efecto en el intento tardío.
+    const outcome = await event("pi_SyntheticFirst");
+
+    expect(outcome.effect).toEqual({ effectType: ATTEMPT_EFFECT_TYPE, effectId: firstAttemptId });
+    expect(world.notices).toEqual([`${firstAttemptId}:${LATE_SUCCESS_PENDING_REASON}`]);
+    expect(outcome.result).toMatchObject({ collected: 0, needsReview: 1, skipped: { [LATE_SUCCESS_PENDING_REASON]: 1 } });
+    expect(gateway.cancelPayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: "pi_SyntheticSepaBank" });
+    expect(world.calls).toEqual([
+      "stripe:retrieve:pi_SyntheticFirst",
+      "stripe:cancel:pi_SyntheticSepaBank",
+      "stripe:retrieve:pi_SyntheticSepaBank",
+    ]);
+    expect(world.applied).toEqual([]);
+    expect(world.payments).toEqual([]);
+    expect(world.attempts.map((item) => item.status)).toEqual(["failed", "processing"]);
+  });
+
+  it("hermano abierto sin referencias legibles → también queda en espera (late_success_pending), sin lanzar", async () => {
+    const { world, gateway, event } = setup();
+    world.attempts.push(attempt({ status: "failed", paymentIntentId: "pi_SyntheticFirst" }));
+    world.attempts.push(
+      attempt({ id: secondAttemptId, attemptNumber: 2, status: "created", paymentIntentId: "pi_SyntheticSecond" })
+    );
+    world.unreadable.add(secondAttemptId);
+    world.stripe.set("pi_SyntheticFirst", intent("pi_SyntheticFirst", "succeeded"));
+    world.stripe.set("pi_SyntheticSecond", intent("pi_SyntheticSecond", "requires_confirmation"));
+
+    const outcome = await event("pi_SyntheticFirst");
+
+    expect(outcome.effect.effectId).toBe(firstAttemptId);
+    expect(world.notices).toEqual([`${firstAttemptId}:${LATE_SUCCESS_PENDING_REASON}`]);
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(world.applied).toEqual([]);
+    expect(world.payments).toEqual([]);
+  });
+
+  it("error pasajero de Stripe al cancelar el hermano → el evento falla con su propio código, no LATE_SUCCESS_SIBLING_IN_FLIGHT", async () => {
+    const { world, gateway, event } = setup();
+    world.attempts.push(attempt({ status: "failed", paymentIntentId: "pi_SyntheticFirst" }));
+    world.attempts.push(
+      attempt({ id: secondAttemptId, attemptNumber: 2, status: "created", paymentIntentId: "pi_SyntheticSecond" })
+    );
+    world.stripe.set("pi_SyntheticFirst", intent("pi_SyntheticFirst", "succeeded"));
+    world.stripe.set("pi_SyntheticSecond", intent("pi_SyntheticSecond", "requires_confirmation"));
+    const busy = Object.assign(new Error("Mensaje sintético de Stripe: bloqueo"), {
+      type: "StripeAPIError",
+      code: "lock_timeout",
+    });
+    gateway.cancelPayment.mockRejectedValueOnce(busy);
+
+    const failure = await event("pi_SyntheticFirst").catch((error: unknown) => error);
+
+    expect(failure).toBe(busy);
+    // Lo que guarda el buzón como `last_error`: el código real, nunca el mensaje.
+    expect(providerEventErrorCode(failure)).toBe("lock_timeout");
+    expect(world.applied).toEqual([]);
+    expect(world.payments).toEqual([]);
+    expect(world.notices).toEqual([]);
+    expect(world.attempts.map((item) => item.status)).toEqual(["failed", "created"]);
+  });
+
   it("un hermano que se abre entre la lectura y la transacción → el almacén lo para (LATE_SUCCESS_SIBLING_IN_FLIGHT) sin registrar", async () => {
     const { world, store, event } = setup();
     world.attempts.push(attempt({ status: "failed", paymentIntentId: "pi_SyntheticFirst" }));
@@ -654,8 +734,8 @@ describe("cobro tardío de un intento cerrado (D10: nunca dos cobros)", () => {
       attempt({ id: secondAttemptId, attemptNumber: 2, status: "created", paymentIntentId: "pi_SyntheticSecond" })
     );
     world.stripe.set("pi_SyntheticFirst", intent("pi_SyntheticFirst", "succeeded"));
-    // La lectura sin transacción todavía no lo veía.
-    vi.mocked(store.listInvoiceSiblings).mockResolvedValueOnce([]);
+    // Las lecturas sin transacción todavía no lo veían.
+    vi.mocked(store.listInvoiceSiblings).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
     await expect(event("pi_SyntheticFirst")).rejects.toThrow(LATE_SUCCESS_SIBLING_IN_FLIGHT);
     expect(world.payments).toEqual([]);
@@ -758,14 +838,15 @@ describe("Stripe nunca dentro de una transacción", () => {
       })
     );
     world.stripe.set("pi_SyntheticOldOne", intent("pi_SyntheticOldOne", "succeeded"));
-    // El reintento está en curso: Stripe no deja cancelarlo y el tardío espera
-    // (el almacén lo para). Después el banco lo rechaza: ya se puede cancelar,
-    // se cierra y el tardío se registra.
+    // El reintento está en curso: Stripe no deja cancelarlo y el tardío queda
+    // en espera (late_success_pending). Después el banco lo rechaza: ya se
+    // puede cancelar, se cierra y el tardío se registra.
     world.stripe.set("pi_SyntheticNewOne", intent("pi_SyntheticNewOne", "processing"));
     const newOne = world.stripe.get("pi_SyntheticNewOne")!;
 
     await event("pi_SyntheticAdopt");
-    await expect(event("pi_SyntheticOldOne")).rejects.toThrow(LATE_SUCCESS_SIBLING_IN_FLIGHT);
+    const pending = await event("pi_SyntheticOldOne");
+    expect(pending.effect.effectId).toBe("40000000-0000-4000-8000-000000000021");
     Object.assign(newOne, { status: "requires_payment_method", lastErrorCode: "card_declined" });
     await event("pi_SyntheticOldOne", { eventId: "evt_SyntheticEvents0003" });
 

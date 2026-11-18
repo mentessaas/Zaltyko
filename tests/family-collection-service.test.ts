@@ -247,6 +247,8 @@ function makeWorld() {
     resumable: [] as CollectionAttempt[],
     processing: [] as CollectionAttempt[],
     exhausted: [] as CollectionAttempt[],
+    /** Fase 4: cobros tardíos en espera (aviso late_success_pending). */
+    latePending: [] as CollectionAttempt[],
     locked: undefined as Partial<LockedInvoiceSnapshot> | undefined,
     decisions: [] as ClaimDecision[],
     applied: [] as AttemptOutcome[],
@@ -349,6 +351,9 @@ function makeWorld() {
       return true;
     }),
     listProcessing: vi.fn<FamilyCollectionStore["listProcessing"]>(async (input) => (input.after === null ? world.processing : [])),
+    listLateSuccessPending: vi.fn<FamilyCollectionStore["listLateSuccessPending"]>(async (input) =>
+      input.after === null ? world.latePending : []
+    ),
     listExhaustedWithoutNotice: vi.fn<FamilyCollectionStore["listExhaustedWithoutNotice"]>(async (input) =>
       input.after === null ? world.exhausted : []
     ),
@@ -582,6 +587,64 @@ describe("Fase B: cobrar lo que vence hoy", () => {
     ]);
     expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
     expect(result).toMatchObject({ enabled: true, complete: true, collected: 1, failed: 0, retried: 0, needsReview: 0 });
+  });
+
+  describe("M5: markCreated no guarda el pi_ porque otro camino ya lo hizo", () => {
+    it("un evento guardó el mismo pi_ a la vez → sigue y confirma ese cobro, sin aviso created_without_claim", async () => {
+      const { world, store, gateway, run } = setup();
+      vi.mocked(store.markCreated).mockImplementationOnce(async (input) => {
+        // El evento de Stripe del mismo cobro le guardó el pi_ un instante antes.
+        const found = world.attempts.find((item) => item.id === input.attemptId)!;
+        found.status = "created";
+        found.paymentIntentId = input.paymentIntentId;
+        return false;
+      });
+
+      const result = await run();
+
+      expect(world.notices).toEqual([]);
+      expect(gateway.confirmPayment).toHaveBeenCalledTimes(1);
+      expect(gateway.confirmPayment).toHaveBeenCalledWith(expect.objectContaining({ paymentIntentId: intentId }));
+      expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
+      expect(result).toMatchObject({ collected: 1, needsReview: 0 });
+      expect(vi.mocked(logger.error)).not.toHaveBeenCalled();
+    });
+
+    it("y si ese otro camino ya lo llevó más allá → no confirma, cuenta concurrent y sin aviso", async () => {
+      const { world, store, gateway, run } = setup();
+      vi.mocked(store.markCreated).mockImplementationOnce(async (input) => {
+        const found = world.attempts.find((item) => item.id === input.attemptId)!;
+        found.status = "canceled";
+        found.paymentIntentId = input.paymentIntentId;
+        return false;
+      });
+
+      const result = await run();
+
+      expect(gateway.confirmPayment).not.toHaveBeenCalled();
+      expect(world.notices).toEqual([]);
+      expect(world.applied).toEqual([]);
+      expect(result.skipped).toEqual({ concurrent: 1 });
+    });
+
+    it("el intento dejó de estar reclamado sin ese pi_ → aviso created_without_claim, como antes", async () => {
+      const { world, store, gateway, run } = setup();
+      vi.mocked(store.markCreated).mockImplementationOnce(async (input) => {
+        const found = world.attempts.find((item) => item.id === input.attemptId)!;
+        found.status = "canceled";
+        return false;
+      });
+
+      await run();
+
+      expect(gateway.confirmPayment).not.toHaveBeenCalled();
+      expect(world.notices).toEqual(["created_without_claim"]);
+      expect(vi.mocked(logger.error)).toHaveBeenCalledWith(
+        "Cobro automático: cobro creado para un intento que ya no estaba reclamado",
+        undefined,
+        expect.objectContaining({ attemptId })
+      );
+    });
   });
 
   it("domiciliación (con la bandera de la domiciliación encendida): confirma con la orden SEPA y queda en curso", async () => {
@@ -2111,6 +2174,80 @@ describe("Fase A: releer lo que está en curso", () => {
     expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: "pi_SyntheticCollection3", received }]);
     expect(result).toMatchObject({ collected: 1, reconciled: 1 });
     expect(result.skipped).toMatchObject({ stripe_unreadable: 1, error: 1 });
+  });
+});
+
+describe("Fase A: cobros tardíos en espera (Fase 4, aviso late_success_pending)", () => {
+  const lateId = "20000000-0000-4000-8000-000000000031";
+  const siblingId = "20000000-0000-4000-8000-000000000032";
+  const siblingIntent = "pi_SyntheticSepaSibling";
+
+  function lateWorld(siblingStatus: CollectionAttempt["status"], behaviour: Partial<FamilyCollectionGateway> = {}) {
+    env.flag = false;
+    const context = setup(behaviour);
+    const late = attempt({ id: lateId, status: "failed", paymentIntentId: intentId });
+    const sibling = attempt({
+      id: siblingId,
+      attemptNumber: 2,
+      status: siblingStatus,
+      paymentMethodKind: "sepa_debit",
+      paymentIntentId: siblingStatus === "claimed" ? null : siblingIntent,
+    });
+    context.world.attempts.push(late, sibling);
+    context.world.latePending = [late];
+    return context;
+  }
+
+  it("el otro cobro ya se cerró → la pasada diaria registra el tardío", async () => {
+    const { world, gateway, run } = lateWorld("failed");
+
+    const result = await run();
+
+    expect(world.applied).toEqual([{ kind: "late_succeeded", paymentIntentId: intentId, received }]);
+    expect(result).toMatchObject({ collected: 1, reconciled: 1 });
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(gateway.retrievePayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: intentId });
+  });
+
+  it("el otro cobro sigue en el banco → sigue en espera: nada registrado y sin contarlo como puesto al día", async () => {
+    const { world, gateway, run } = lateWorld("processing", {
+      retrievePayment: async (input) =>
+        snapshot(input.paymentIntentId, input.paymentIntentId === siblingIntent ? "processing" : "succeeded"),
+      cancelPayment: async () => "not_cancelable",
+    });
+
+    const result = await run();
+
+    expect(gateway.cancelPayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: siblingIntent });
+    expect(world.applied).toEqual([]);
+    expect(world.notices).toEqual(["late_success_pending"]);
+    expect(result).toMatchObject({ collected: 0, reconciled: 0, skipped: { late_success_pending: 1 } });
+  });
+
+  it("un hermano claimed → se mira otro día, sin error ni aviso", async () => {
+    const { world, gateway, run } = lateWorld("claimed");
+
+    const result = await run();
+
+    expect(world.applied).toEqual([]);
+    expect(world.notices).toEqual([]);
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(result.skipped).toEqual({ late_success_sibling_in_flight: 1 });
+    expect(vi.mocked(logger.error)).not.toHaveBeenCalled();
+  });
+
+  it("Stripe no responde al releer el tardío → se mira otro día (pasajero), sin error", async () => {
+    const { world, run } = lateWorld("failed", {
+      retrievePayment: async () => {
+        throw Object.assign(new Error("connection reset"), { type: "StripeConnectionError" });
+      },
+    });
+
+    const result = await run();
+
+    expect(world.applied).toEqual([]);
+    expect(result.skipped).toEqual({ transient: 1 });
+    expect(vi.mocked(logger.error)).not.toHaveBeenCalled();
   });
 });
 

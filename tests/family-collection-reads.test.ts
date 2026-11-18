@@ -419,6 +419,9 @@ describe("motivos en palabras sencillas", () => {
     expect(reviewReasonText("duplicate_collection")).toBe(
       "Esta cuota se cobró dos veces. Devuelve uno desde tu panel de Stripe."
     );
+    expect(reviewReasonText("late_success_pending")).toBe(
+      "Stripe cobró tarde esta cuota; lo registraremos cuando el banco resuelva el otro cobro."
+    );
     expect(failureReasonText({ failureCode: "late_success_elsewhere", declineCode: null, status: "canceled" })).toBe(
       "Se canceló porque un cobro anterior de esta cuota se completó."
     );

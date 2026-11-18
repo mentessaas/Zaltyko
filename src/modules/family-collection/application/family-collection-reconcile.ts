@@ -20,21 +20,34 @@
  *    reclamó hace más de 15 días, la academia recibe el aviso
  *    `processing_unreadable` (una sola vez). Un error permanente va como
  *    error al registro hasta que existe ese aviso; después, como advertencia.
+ * 4. Fase 4: cobros tardíos en espera (aviso `late_success_pending`): un
+ *    intento cerrado cuyo cobro Stripe completó tarde mientras la factura
+ *    tenía otro cobro que no se dejaba cancelar (una domiciliación en el
+ *    banco). Se vuelve a pasar por settleClosedAttempt hasta que el tardío
+ *    queda registrado o con el aviso `duplicate_collection`. Va después del
+ *    paso 3, que ya habrá cerrado la domiciliación si el banco la resolvió.
  */
 import { logger } from "@/lib/logger";
 import { mapPaymentIntent, type PaymentIntentSnapshot } from "@/modules/family-collection/domain/payment-outcome";
 import { stripeReadFailureOf } from "@/modules/family-collection/domain/stripe-read-error";
 import {
   advanceAttempt,
+  cancelThenClose,
   countSkip,
   isExpired,
   logStepFailure,
   notifyReview,
   notifyStepError,
   RESUME_STALE_MS,
+  settleLateSuccess,
   settleOutcome,
   type RunState,
 } from "@/modules/family-collection/application/family-collection-steps";
+import {
+  LATE_SUCCESS_ELSEWHERE_CODE,
+  LATE_SUCCESS_PENDING_REASON,
+  LATE_SUCCESS_SIBLING_IN_FLIGHT,
+} from "@/modules/family-collection/domain/late-success";
 import type {
   CollectionAttempt,
   ResumedAttempt,
@@ -171,6 +184,141 @@ async function processingReadFailed(state: RunState, attempt: CollectionAttempt,
   return null;
 }
 
+/** Estados de un hermano que todavía puede cobrar (impiden registrar el tardío). */
+const OPEN_SIBLING_STATUSES: ReadonlySet<string> = new Set(["claimed", "created", "processing", "requires_action"]);
+
+/** Estados de un hermano abierto que ya tiene su propio cobro en Stripe (se puede intentar cancelar). */
+const OPEN_WITH_INTENT_STATUSES: ReadonlySet<string> = new Set(["created", "processing", "requires_action"]);
+
+/** Resultado de settleClosedAttempt cuando el tardío queda en espera (con su aviso). */
+export type ClosedAttemptOutcome = FamilyCollectionAttemptStatus | typeof LATE_SUCCESS_PENDING_REASON | null;
+
+/**
+ * Fase 4, cobro tardío: el cobro de un intento cerrado (`failed`/`canceled`).
+ * Lo usan el evento de Stripe (`source: "event"`) y la relectura diaria de
+ * los que quedaron en espera (`source: "daily"`). Nunca dos cobros:
+ *
+ * 1. Se relee el cobro; si Stripe no lo da por cobrado, nada.
+ * 2. Si la factura ya tiene otro intento cobrado, no se cancela nada: el
+ *    almacén deja el aviso `duplicate_collection` sin registrar el tardío.
+ * 3. Un hermano `claimed` (el proceso diario lo está creando ahora mismo)
+ *    → desde el evento, LATE_SUCCESS_SIBLING_IN_FLIGHT (Stripe reenvía en
+ *    segundos o minutos); desde la relectura diaria, se mira otro día.
+ * 4. Cada hermano abierto con su `pi_…` se cancela en Stripe, fuera de toda
+ *    transacción (`cancelThenClose`, `late_success_elsewhere`). Si Stripe ya
+ *    lo cobró, se registra ese y el tardío pasa a 2.
+ * 5. Si después sigue abierto alguno (Stripe no deja cancelar una
+ *    domiciliación en el banco, o no se pueden leer sus referencias), el
+ *    tardío queda en espera con el aviso `late_success_pending` (la marca que
+ *    relee el paso 4 diario) y se devuelve LATE_SUCCESS_PENDING_REASON.
+ * 6. Si no, se registra (settleLateSuccess); el almacén repite 2 y 3 con la
+ *    factura bloqueada.
+ *
+ * Errores de Stripe: desde el evento, uno pasajero sigue hacia arriba con su
+ * propio código (el evento queda `failed` y Stripe lo reenvía); desde la
+ * relectura diaria, se cuenta y se mira otro día. Uno permanente al releer el
+ * tardío no tiene efecto en ninguno de los dos.
+ */
+export async function settleClosedAttempt(
+  state: RunState,
+  attempt: CollectionAttempt,
+  options: { source: "event" | "daily" }
+): Promise<ClosedAttemptOutcome> {
+  const fromEvent = options.source === "event";
+  const ids = { organizationId: attempt.organizationId, invoiceId: attempt.invoiceId, attemptId: attempt.id };
+  const siblingInFlight = (siblingAttemptId: string): null => {
+    logger.warn("Cobro automático: cobro tardío con otro intento de la misma cuota en marcha; se espera", {
+      ...ids,
+      siblingAttemptId,
+    });
+    if (fromEvent) throw new Error(LATE_SUCCESS_SIBLING_IN_FLIGHT);
+    countSkip(state, "late_success_sibling_in_flight");
+    return null;
+  };
+
+  const refs = await state.store.loadAttemptRefs(attempt);
+  if (!refs || !attempt.paymentIntentId) {
+    await notifyReview(state, attempt, "attempt_unreadable");
+    return null;
+  }
+  let snapshot: PaymentIntentSnapshot;
+  try {
+    snapshot = await state.gateway.retrievePayment({
+      connectedAccount: refs.connectedAccount,
+      paymentIntentId: attempt.paymentIntentId,
+    });
+  } catch (error) {
+    // Solo ids, nombre y código del error: nunca su mensaje.
+    const failure = stripeReadFailureOf(error);
+    if (fromEvent && !failure.permanent) throw error;
+    logger.warn("Cobro automático: Stripe no deja leer el cobro de un intento cerrado", {
+      ...ids,
+      errorName: failure.errorName,
+      errorCode: failure.errorCode,
+      permanent: failure.permanent,
+    });
+    countSkip(state, failure.permanent ? "stripe_unreadable" : "transient");
+    return null;
+  }
+  // 1. Fallido o cancelado de verdad: el intento ya está bien cerrado.
+  if (mapPaymentIntent(snapshot) !== "succeeded") return null;
+
+  const listSiblings = () =>
+    state.store.listInvoiceSiblings({
+      organizationId: attempt.organizationId,
+      invoiceId: attempt.invoiceId,
+      excludeAttemptId: attempt.id,
+    });
+  let siblings = await listSiblings();
+  // 2. Con otro intento ya cobrado no se cancela nada.
+  if (!siblings.some((sibling) => sibling.status === "succeeded")) {
+    // 3. Un hermano a medio crear: sin su `pi_…` no se puede cancelar.
+    const claimed = siblings.find((sibling) => sibling.status === "claimed");
+    if (claimed) return siblingInFlight(claimed.id);
+    // 4. Cada hermano con su propio cobro: cancelar en Stripe y cerrar.
+    for (const sibling of siblings) {
+      if (!OPEN_WITH_INTENT_STATUSES.has(sibling.status) || !sibling.paymentIntentId) continue;
+      const siblingRefs = await state.store.loadAttemptRefs(sibling);
+      // Sin con qué leerlo no se puede cancelar: queda abierto (paso 5).
+      if (!siblingRefs) continue;
+      await cancelThenClose(
+        state,
+        sibling,
+        siblingRefs,
+        { kind: "canceled", reason: LATE_SUCCESS_ELSEWHERE_CODE },
+        { stripeErrors: fromEvent ? "throw" : "skip" }
+      );
+    }
+    // 5. ¿Queda alguno abierto? Entonces el tardío espera, con su aviso.
+    siblings = await listSiblings();
+    if (!siblings.some((sibling) => sibling.status === "succeeded")) {
+      const stillOpen = siblings.filter((sibling) => OPEN_SIBLING_STATUSES.has(sibling.status));
+      const claimedNow = stillOpen.find((sibling) => sibling.status === "claimed");
+      if (claimedNow) return siblingInFlight(claimedNow.id);
+      if (stillOpen.length > 0) {
+        await notifyReview(state, attempt, LATE_SUCCESS_PENDING_REASON);
+        logger.info("Cobro automático: cobro tardío en espera de que se resuelva otro cobro de la misma cuota", {
+          ...ids,
+          siblingAttemptIds: stillOpen.map((sibling) => sibling.id),
+        });
+        countSkip(state, LATE_SUCCESS_PENDING_REASON);
+        return LATE_SUCCESS_PENDING_REASON;
+      }
+    }
+  }
+  // 6. Registro del tardío (o aviso duplicate_collection), con todo bloqueado.
+  try {
+    return await settleLateSuccess(state, attempt, snapshot);
+  } catch (error) {
+    // Un hermano se abrió entre la lectura y la transacción: otro día.
+    if (!fromEvent && error instanceof Error && error.message === LATE_SUCCESS_SIBLING_IN_FLIGHT) {
+      countSkip(state, "late_success_sibling_in_flight");
+      return null;
+    }
+    throw error;
+  }
+}
+
 /**
  * Se acabó el tiempo con intentos tomados sin procesar: cada uno recupera su
  * reanudación. Un fallo se registra y no para los demás (el intento solo
@@ -267,6 +415,34 @@ export async function reconcilePendingAttempts(state: RunState): Promise<void> {
       }
       cursor = attempt.id;
       await guarded(state, attempt, () => rereadProcessing(state, attempt));
+    }
+    if (batch.length < state.batchSize) break;
+  }
+
+  // 4. Cobros tardíos en espera (aviso late_success_pending), después de
+  // releer las domiciliaciones del paso 3.
+  cursor = null;
+  for (;;) {
+    if (isExpired(state)) {
+      state.result.complete = false;
+      return;
+    }
+    const batch = await state.store.listLateSuccessPending({
+      after: cursor,
+      limit: state.batchSize,
+      scope: state.scope,
+    });
+    for (const attempt of batch) {
+      if (isExpired(state)) {
+        state.result.complete = false;
+        return;
+      }
+      cursor = attempt.id;
+      await guarded(state, attempt, async () => {
+        const outcome = await settleClosedAttempt(state, attempt, { source: "daily" });
+        // Sigue en espera: no cambió nada que contar como puesto al día.
+        return outcome === LATE_SUCCESS_PENDING_REASON ? null : outcome;
+      });
     }
     if (batch.length < state.batchSize) break;
   }

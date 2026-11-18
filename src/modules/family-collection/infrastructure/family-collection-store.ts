@@ -50,6 +50,12 @@ import {
   receivedMatches,
   type ReceivedAmount,
 } from "@/modules/family-collection/domain/payment-outcome";
+import {
+  DUPLICATE_COLLECTION_REASON,
+  LATE_SUCCESS_ELSEWHERE_CODE,
+  LATE_SUCCESS_PENDING_REASON,
+  LATE_SUCCESS_SIBLING_IN_FLIGHT,
+} from "@/modules/family-collection/domain/late-success";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
 import { findCollectionSettings } from "@/modules/family-collection/infrastructure/collection-settings-store";
 import {
@@ -83,26 +89,25 @@ const SYSTEM_AUDIT_METADATA = {
 export const NEEDS_REVIEW_EVENT = "family_collection.needs_review";
 
 /**
- * Fase 4 (D10): un cobro antiguo de la factura se completó tarde en Stripe
- * cuando otro intento ya la había cobrado. El tardío no se registra; la
- * academia recibe este aviso para devolver uno desde su panel de Stripe.
+ * Fase 4: códigos del cobro tardío (domain/late-success.ts), también
+ * exportados desde aquí.
  */
-export const DUPLICATE_COLLECTION_REASON = "duplicate_collection";
+export {
+  DUPLICATE_COLLECTION_REASON,
+  LATE_SUCCESS_ELSEWHERE_CODE,
+  LATE_SUCCESS_PENDING_REASON,
+  LATE_SUCCESS_SIBLING_IN_FLIGHT,
+};
 
 /**
- * Fase 4: motivo (`failure_code`) con el que se cierra un intento hermano
- * abierto cuyo cobro se canceló en Stripe porque otro cobro de la misma
- * factura se completó tarde.
+ * Avisos que cierran la espera de un cobro tardío: ya no hay nada más que
+ * registrar y lo resuelve la academia.
  */
-export const LATE_SUCCESS_ELSEWHERE_CODE = "late_success_elsewhere";
-
-/**
- * Fase 4: error con el que se para el registro de un cobro tardío mientras la
- * factura tiene otro intento abierto (p. ej. `claimed` sin `pi_…`: el proceso
- * diario lo está creando ahora mismo). El evento queda `failed` y Stripe lo
- * reenvía; en el reenvío el hermano ya tiene `pi_…` y se cancela antes.
- */
-export const LATE_SUCCESS_SIBLING_IN_FLIGHT = "LATE_SUCCESS_SIBLING_IN_FLIGHT";
+const LATE_SUCCESS_SETTLED_REASONS = [
+  DUPLICATE_COLLECTION_REASON,
+  AMOUNT_MISMATCH_REASON,
+  "payment_recorded_for_other_attempt",
+] as const;
 
 /**
  * Clave de un aviso de revisión: una por intento (o por factura, si no hay
@@ -423,6 +428,18 @@ export interface FamilyCollectionStore {
    */
   releaseResume(attempt: ResumedAttempt): Promise<boolean>;
   listProcessing(input: { after: string | null; limit: number; scope: OrganizationScope }): Promise<CollectionAttempt[]>;
+  /**
+   * Fase 4: intentos `failed`/`canceled` con `pi_…` y el aviso
+   * `late_success_pending`, sin ninguno de los avisos que cierran la espera
+   * (`duplicate_collection`, `amount_mismatch`,
+   * `payment_recorded_for_other_attempt`). Un intento ya cobrado deja de salir
+   * por su estado. Por orden de id, después de `after`.
+   */
+  listLateSuccessPending(input: {
+    after: string | null;
+    limit: number;
+    scope: OrganizationScope;
+  }): Promise<CollectionAttempt[]>;
   /**
    * Red de seguridad: intentos `claimed`/`created` que ya agotaron sus
    * reanudaciones y todavía no tienen el aviso `resume_exhausted`.
@@ -1173,8 +1190,12 @@ const LATE_SUCCESS_BLOCKING_STATUSES: ReadonlySet<string> = new Set([
  *    escribir nada: el evento se reintenta cuando ese hermano ya se canceló);
  * 4. si no: se anulan los reintentos pendientes de la factura (`next_retry_at`
  *    de sus intentos `failed`, lo que lee listDueInvoices), porque el dinero
- *    de la cuota ya se movió, y se registra y reparte el pago como un
- *    `succeeded` (recordCollectedPayment).
+ *    de la cuota ya se movió;
+ * 5. si todas las cuotas del intento ya están pagadas (p. ej. a mano), la
+ *    familia pagó dos veces: no se registra y la academia recibe el aviso
+ *    `duplicate_collection` (D10);
+ * 6. si no, se registra y después se reparte el pago como un `succeeded`
+ *    (recordCollectedPayment).
  */
 async function applyLateSuccess(
   tx: TransactionClient,
@@ -1266,6 +1287,37 @@ async function applyLateSuccess(
       now: input.now,
       audit: true,
     });
+  }
+
+  // 5. Las cuotas del intento ya están pagadas (p. ej. a mano): la familia
+  // pagó dos veces. Como en D10, el tardío no se registra y la academia
+  // recibe el aviso `duplicate_collection` para devolver uno desde Stripe.
+  const coverage = await tx.execute(sql`
+    select count(*)::int as "total",
+           count(*) filter (where c.status <> 'paid')::int as "notPaid"
+      from zaltyko.family_collection_attempt_charges ac
+      join zaltyko.charges c on c.organization_id = ac.organization_id and c.id = ac.charge_id
+     where ac.organization_id = ${attempt.organizationId}::uuid
+       and ac.attempt_id = ${attempt.id}::uuid
+  `);
+  const charges = coverage.rows[0] as { total?: unknown; notPaid?: unknown } | undefined;
+  if (Number(charges?.total ?? 0) > 0 && Number(charges?.notPaid ?? 0) === 0) {
+    logger.warn("Cobro automático: un cobro antiguo se completó tarde y la cuota ya estaba pagada", {
+      organizationId: attempt.organizationId,
+      invoiceId: attempt.invoiceId,
+      attemptId: attempt.id,
+    });
+    await recordTransition(tx, attempt, {
+      event: "needs_review",
+      payload: {
+        reason: DUPLICATE_COLLECTION_REASON,
+        paymentIntentId: input.outcome.paymentIntentId,
+        collectedAttemptId: null,
+        chargesAlreadyPaid: true,
+      },
+      now: input.now,
+    });
+    return { applied: false, review: DUPLICATE_COLLECTION_REASON };
   }
 
   return recordCollectedPayment(tx, attempt, {
@@ -1733,6 +1785,38 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
            and ${inScope(sql.raw("organization_id"), input.scope)}
            and (${input.after}::uuid is null or id > ${input.after}::uuid)
          order by id
+         limit ${input.limit}
+      `);
+      return (result.rows as Array<Record<string, unknown>>).map(toAttempt);
+    },
+
+    async listLateSuccessPending(input) {
+      const settledKeys = sql.join(
+        LATE_SUCCESS_SETTLED_REASONS.map(
+          (reason) => sql`'family-collection:' || a.id::text || ${`:needs_review:${reason}`}`
+        ),
+        sql`, `
+      );
+      const result = await db.execute(sql`
+        select ${attemptColumns}
+          from zaltyko.family_collection_attempts a
+         where a.status in ('failed', 'canceled')
+           and a.provider_payment_intent_reference is not null
+           and ${inScope(sql.raw("a.organization_id"), input.scope)}
+           and (${input.after}::uuid is null or a.id > ${input.after}::uuid)
+           and exists (
+             select 1 from zaltyko.outbox_events e
+              where e.organization_id = a.organization_id
+                and e.event_name = ${NEEDS_REVIEW_EVENT}
+                and e.idempotency_key = 'family-collection:' || a.id::text || ${`:needs_review:${LATE_SUCCESS_PENDING_REASON}`}
+           )
+           and not exists (
+             select 1 from zaltyko.outbox_events e
+              where e.organization_id = a.organization_id
+                and e.event_name = ${NEEDS_REVIEW_EVENT}
+                and e.idempotency_key in (${settledKeys})
+           )
+         order by a.id
          limit ${input.limit}
       `);
       return (result.rows as Array<Record<string, unknown>>).map(toAttempt);

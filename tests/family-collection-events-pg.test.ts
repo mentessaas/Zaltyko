@@ -29,6 +29,7 @@ import {
   createFamilyCollectionStore,
   DUPLICATE_COLLECTION_REASON,
   LATE_SUCCESS_ELSEWHERE_CODE,
+  LATE_SUCCESS_PENDING_REASON,
   LATE_SUCCESS_SIBLING_IN_FLIGHT,
 } from "@/modules/family-collection/infrastructure/family-collection-store";
 import {
@@ -1238,7 +1239,12 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
       return { gateway };
     }
 
-    /** Intento real de la factura con el estado pedido (tarjeta, 45 €); devuelve su id. */
+    /**
+     * Intento real de la factura con el estado pedido (45 €, tarjeta salvo
+     * `kind`); devuelve su id. Con `allocate`, también su reparto: la cuota de
+     * la factura entera (family_collection_attempt_charges), como lo deja
+     * claimOrCancel, para que un cobro registrado se reparta de verdad.
+     */
     async function insertAttempt(
       invoice: Invoice,
       input: {
@@ -1247,11 +1253,15 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
         intent: string | null;
         nextRetryAt?: string | null;
         paymentId?: string | null;
+        kind?: "card" | "sepa_debit";
+        failureCode?: string;
+        allocate?: boolean;
       }
     ) {
       const terminal = ["succeeded", "failed", "canceled"].includes(input.status);
       const failureCode =
-        input.status === "failed" ? "card_declined" : input.status === "canceled" ? "reviewed_unverifiable" : null;
+        input.failureCode ??
+        (input.status === "failed" ? "card_declined" : input.status === "canceled" ? "reviewed_unverifiable" : null);
       const result = await db.execute(sql`
         insert into zaltyko.family_collection_attempts (
           organization_id, location_id, invoice_id, family_id, family_payer_id, authorization_id,
@@ -1260,14 +1270,22 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
           claimed_at, completed_at
         ) values (
           ${invoice.organizationId}::uuid, ${invoice.locationId}::uuid, ${invoice.invoiceId}::uuid, ${invoice.familyId}::uuid,
-          ${invoice.payerId}::uuid, ${invoice.authorizationId}::uuid, ${invoice.accountId}::uuid, ${input.number}, 'card',
+          ${invoice.payerId}::uuid, ${invoice.authorizationId}::uuid, ${invoice.accountId}::uuid, ${input.number},
+          ${input.kind ?? "card"},
           4500, 'EUR', ${input.status}, ${input.intent}, ${failureCode}, ${input.nextRetryAt ?? null}::timestamptz,
           ${input.paymentId ?? null}::uuid, ${input.status === "succeeded" ? "allocated" : null},
           ${CLAIMED_AT}::timestamptz, ${terminal ? RECEIVED_AT : null}::timestamptz
         )
         returning id::text as id
       `);
-      return (result.rows[0] as { id: string }).id;
+      const attemptId = (result.rows[0] as { id: string }).id;
+      if (input.allocate) {
+        await db.execute(sql`
+          insert into zaltyko.family_collection_attempt_charges (attempt_id, organization_id, charge_id, amount_cents)
+          values (${attemptId}::uuid, ${invoice.organizationId}::uuid, ${invoice.chargeId}::uuid, 4500)
+        `);
+      }
+      return attemptId;
     }
 
     /** Pago de Stripe ya registrado en el libro (el de un intento cobrado). */
@@ -1303,7 +1321,7 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
       const result = await db.execute(sql`
         select id::text as "id", attempt_number as "number", status, failure_code as "failureCode",
                next_retry_at as "nextRetryAt", payment_id is not null as "hasPayment",
-               provider_payment_intent_reference as "intent"
+               provider_payment_intent_reference as "intent", allocation_status as "allocationStatus"
           from zaltyko.family_collection_attempts
          where organization_id = ${invoice.organizationId}::uuid and invoice_id = ${invoice.invoiceId}::uuid
          order by attempt_number
@@ -1319,6 +1337,14 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
          order by provider_payment_id
       `);
       return (result.rows as Array<{ intent: string }>).map((row) => row.intent);
+    }
+
+    async function chargeStatus(invoice: Invoice) {
+      const result = await db.execute(sql`
+        select status::text as "status" from zaltyko.charges
+         where organization_id = ${invoice.organizationId}::uuid and id = ${invoice.chargeId}::uuid
+      `);
+      return (result.rows[0] as { status: string }).status;
     }
 
     async function outboxPayload(organizationId: string, eventName: string, idempotencyKey: string) {
@@ -1478,6 +1504,156 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
       `);
       expect(processed.rows).toEqual([
         { status: "processed", attempts: 2, lastError: null, effectType: ATTEMPT_EFFECT_TYPE, effectId: lateId },
+      ]);
+    }, 60_000);
+
+    /**
+     * Cobro tardío del intento 1 con un intento 2 por domiciliación todavía en
+     * el banco (Stripe no deja cancelarlo). Ambos con su reparto de la cuota.
+     */
+    async function lateWithSepaInBank() {
+      const invoice = await createCollectableInvoice({ registry, collectionMode: "automatic" });
+      const lateIntent = intentOf(invoice, "late");
+      const sepaIntent = intentOf(invoice, "sepa");
+      const lateId = await insertAttempt(invoice, { number: 1, status: "failed", intent: lateIntent, allocate: true });
+      const sepaId = await insertAttempt(invoice, {
+        number: 2,
+        status: "processing",
+        intent: sepaIntent,
+        kind: "sepa_debit",
+        allocate: true,
+      });
+      const intents: Record<string, PaymentIntentSnapshot> = {
+        [lateIntent]: intent(lateIntent, "succeeded"),
+        [sepaIntent]: intent(sepaIntent, "processing"),
+      };
+      const { gateway } = fakeStripe(accountOf(invoice), intents);
+      const store = createFamilyCollectionStore();
+      const event: ConnectedAccountEvent = {
+        eventId: `evt_CI${randomUUID().replace(/-/g, "")}`,
+        type: "payment_intent.succeeded",
+        accountId: accountOf(invoice),
+        livemode: false,
+        created: EVENT_CREATED,
+        objectId: lateIntent,
+        objectType: "payment_intent",
+      };
+      const handlers = {
+        paymentIntent: async (input: ProviderEventHandlerInput) =>
+          (await processPaymentIntentEvent(input, { store, gateway })).effect,
+      };
+
+      // El evento: no se puede cancelar la domiciliación → espera duradera, evento procesado.
+      expect(await handleFamilyCollectionEvent(event, { now: EVENT_NOW, handlers })).toBe("processed");
+      const inbox = await db.execute(sql`
+        select status::text as "status", last_error as "lastError", effect_type as "effectType", effect_id::text as "effectId"
+          from zaltyko.payment_provider_events
+         where provider_event_id = ${event.eventId}
+      `);
+      expect(inbox.rows).toEqual([
+        { status: "processed", lastError: null, effectType: ATTEMPT_EFFECT_TYPE, effectId: lateId },
+      ]);
+      expect(
+        await outboxPayload(
+          invoice.organizationId,
+          "family_collection.needs_review",
+          `family-collection:${lateId}:needs_review:${LATE_SUCCESS_PENDING_REASON}`
+        )
+      ).toEqual([expect.objectContaining({ reason: LATE_SUCCESS_PENDING_REASON, attemptId: lateId })]);
+      expect(await paymentIntentsRecorded(invoice)).toEqual([]);
+      expect((await attemptRows(invoice)).map((row) => row.status)).toEqual(["failed", "processing"]);
+      expect(gateway.cancelPayment).toHaveBeenCalledWith({ connectedAccount: accountOf(invoice), paymentIntentId: sepaIntent });
+      const pending = await store.listLateSuccessPending({ after: null, limit: 10, scope: [invoice.organizationId] });
+      expect(pending.map((item) => item.id)).toEqual([lateId]);
+
+      /** Pasada diaria un día después, solo de esta academia. */
+      const daily = () =>
+        runFamilyCollection(
+          { now: minutesAfter(24 * 60), organizationIds: [invoice.organizationId] },
+          { store, gateway, refreshAccount: async () => undefined }
+        );
+      return { invoice, lateIntent, sepaIntent, lateId, sepaId, intents, store, daily };
+    }
+
+    it("hermano SEPA en el banco → evento processed con la marca; el banco la rechaza → la relectura diaria registra el tardío y después lo reparte", async () => {
+      const { invoice, lateIntent, sepaIntent, lateId, sepaId, intents, store, daily } = await lateWithSepaInBank();
+
+      // Días después el banco rechaza la domiciliación.
+      intents[sepaIntent] = { ...intent(sepaIntent, "requires_payment_method"), lastErrorCode: "insufficient_funds" };
+      const result = await daily();
+
+      // Paso 3: la domiciliación queda fallida; paso 4: el tardío se registra y se reparte.
+      expect(result).toMatchObject({ failed: 1, collected: 1 });
+      expect(result.skipped).toEqual({});
+      expect(await attemptRows(invoice)).toEqual([
+        expect.objectContaining({ id: lateId, status: "succeeded", hasPayment: true, allocationStatus: "allocated" }),
+        expect.objectContaining({ id: sepaId, status: "failed", failureCode: "insufficient_funds", hasPayment: false }),
+      ]);
+      expect(await paymentIntentsRecorded(invoice)).toEqual([lateIntent]);
+      expect(await chargeStatus(invoice)).toBe("paid");
+      const allocations = await db.execute(sql`
+        select pa.amount_cents::int as "amountCents"
+          from zaltyko.payment_allocations pa
+          join zaltyko.payments p on p.organization_id = pa.organization_id and p.id = pa.payment_id
+         where pa.organization_id = ${invoice.organizationId}::uuid and p.provider_payment_id = ${lateIntent}
+      `);
+      expect(allocations.rows).toEqual([{ amountCents: 4500 }]);
+      // Ya no está en espera: la pasada siguiente no lo vuelve a mirar.
+      expect(await store.listLateSuccessPending({ after: null, limit: 10, scope: [invoice.organizationId] })).toEqual([]);
+    }, 60_000);
+
+    it("hermano SEPA en el banco → el banco la acepta → se registra la domiciliación y el tardío queda duplicate_collection", async () => {
+      const { invoice, sepaIntent, lateId, sepaId, intents, store, daily } = await lateWithSepaInBank();
+
+      intents[sepaIntent] = intent(sepaIntent, "succeeded");
+      const result = await daily();
+
+      expect(result).toMatchObject({ collected: 1, skipped: { [DUPLICATE_COLLECTION_REASON]: 1 } });
+      expect(await attemptRows(invoice)).toEqual([
+        expect.objectContaining({ id: lateId, status: "failed", hasPayment: false }),
+        expect.objectContaining({ id: sepaId, status: "succeeded", hasPayment: true, allocationStatus: "allocated" }),
+      ]);
+      expect(await paymentIntentsRecorded(invoice)).toEqual([sepaIntent]);
+      expect(
+        await outboxPayload(
+          invoice.organizationId,
+          "family_collection.needs_review",
+          `family-collection:${lateId}:needs_review:${DUPLICATE_COLLECTION_REASON}`
+        )
+      ).toEqual([expect.objectContaining({ reason: DUPLICATE_COLLECTION_REASON, collectedAttemptId: sepaId })]);
+      expect(await store.listLateSuccessPending({ after: null, limit: 10, scope: [invoice.organizationId] })).toEqual([]);
+    }, 60_000);
+
+    it("tardío sobre una cuota ya pagada a mano → aviso duplicate_collection (D10), nada en el libro", async () => {
+      const invoice = await createCollectableInvoice({ registry, collectionMode: "automatic" });
+      const lateIntent = intentOf(invoice, "manual");
+      await db.execute(sql`
+        update zaltyko.charges set status = 'paid'::zaltyko.charge_status
+         where organization_id = ${invoice.organizationId}::uuid and id = ${invoice.chargeId}::uuid
+      `);
+      const lateId = await insertAttempt(invoice, {
+        number: 1,
+        status: "canceled",
+        intent: lateIntent,
+        failureCode: "manual_payment",
+        allocate: true,
+      });
+      const { gateway } = fakeStripe(accountOf(invoice), { [lateIntent]: intent(lateIntent, "succeeded") });
+
+      const outcome = await processPaymentIntentEvent(await handlerInput(invoice, lateIntent), { gateway });
+
+      expect(outcome.effect).toEqual({ effectType: null, effectId: null });
+      expect(outcome.result).toMatchObject({ collected: 0, skipped: { [DUPLICATE_COLLECTION_REASON]: 1 } });
+      expect(
+        await outboxPayload(
+          invoice.organizationId,
+          "family_collection.needs_review",
+          `family-collection:${lateId}:needs_review:${DUPLICATE_COLLECTION_REASON}`
+        )
+      ).toEqual([expect.objectContaining({ reason: DUPLICATE_COLLECTION_REASON, chargesAlreadyPaid: true })]);
+      expect(await paymentIntentsRecorded(invoice)).toEqual([]);
+      expect(await attemptRows(invoice)).toEqual([
+        expect.objectContaining({ id: lateId, status: "canceled", failureCode: "manual_payment", hasPayment: false }),
       ]);
     }, 60_000);
 

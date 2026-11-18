@@ -718,6 +718,8 @@ const REVIEW_TEXT: Record<string, string> = {
   amount_mismatch: `Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. ${CHECK_IN_STRIPE}`,
   // Fase 4, D10: un cobro antiguo se completó tarde cuando otro ya había cobrado la cuota.
   duplicate_collection: "Esta cuota se cobró dos veces. Devuelve uno desde tu panel de Stripe.",
+  // Fase 4: cobro tardío en espera de que el banco resuelva otro cobro de la misma cuota.
+  late_success_pending: "Stripe cobró tarde esta cuota; lo registraremos cuando el banco resuelva el otro cobro.",
 };
 
 const REVIEW_FALLBACK = `El cobro necesita una comprobación. ${CHECK_IN_STRIPE}`;

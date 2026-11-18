@@ -493,20 +493,24 @@ export type AttemptClose =
  *
  * Fase 4: también la usa el cobro tardío para cancelar el cobro de un intento
  * hermano abierto (`late_success_elsewhere`) antes de registrar el tardío.
- * Siempre fuera de cualquier transacción.
+ * Siempre fuera de cualquier transacción. Con `stripeErrors: "throw"` (el
+ * evento de Stripe), un error de Stripe al cancelar o releer sigue hacia
+ * arriba con su propio código en vez de quedar como pasajero.
  */
 export async function cancelThenClose(
   state: RunState,
   attempt: CollectionAttempt,
   refs: AttemptStripeRefs,
-  close: AttemptClose
+  close: AttemptClose,
+  options: { stripeErrors?: "skip" | "throw" } = {}
 ): Promise<FamilyCollectionAttemptStatus | null> {
   const paymentIntentId = attempt.paymentIntentId;
   if (!paymentIntentId) throw new Error("FAMILY_COLLECTION_INTENT_REQUIRED");
   let canceled: "canceled" | "not_cancelable";
   try {
     canceled = await state.gateway.cancelPayment({ connectedAccount: refs.connectedAccount, paymentIntentId });
-  } catch {
+  } catch (error) {
+    if (options.stripeErrors === "throw") throw error;
     countSkip(state, "transient");
     return null;
   }
@@ -518,7 +522,8 @@ export async function cancelThenClose(
   let snapshot: PaymentIntentSnapshot;
   try {
     snapshot = await state.gateway.retrievePayment({ connectedAccount: refs.connectedAccount, paymentIntentId });
-  } catch {
+  } catch (error) {
+    if (options.stripeErrors === "throw") throw error;
     countSkip(state, "transient");
     return null;
   }
@@ -857,16 +862,33 @@ async function advanceAttemptSteps(
         now: state.now,
       }))
     ) {
-      // El intento dejó de estar reclamado mientras se creaba el cobro.
-      logger.error("Cobro automático: cobro creado para un intento que ya no estaba reclamado", undefined, {
+      // Fase 4: un evento de Stripe de este mismo cobro pudo guardar el
+      // `pi_…` a la vez (markCreated desde el evento). Si el intento ya lo
+      // tiene, no es un cobro sin intento: se sigue si sigue `created`, y si
+      // otro camino ya lo llevó más allá, se deja como está.
+      const stored = await state.store.findAttemptByPaymentIntent({
         organizationId: attempt.organizationId,
-        invoiceId: attempt.invoiceId,
-        attemptId: attempt.id,
+        paymentIntentId: snapshot.id,
       });
-      await notifyReview(state, attempt, "created_without_claim");
-      return null;
+      if (stored && stored.id === attempt.id) {
+        if (stored.status !== "created") {
+          countSkip(state, "concurrent");
+          return null;
+        }
+        attempt = stored;
+      } else {
+        // El intento dejó de estar reclamado mientras se creaba el cobro.
+        logger.error("Cobro automático: cobro creado para un intento que ya no estaba reclamado", undefined, {
+          organizationId: attempt.organizationId,
+          invoiceId: attempt.invoiceId,
+          attemptId: attempt.id,
+        });
+        await notifyReview(state, attempt, "created_without_claim");
+        return null;
+      }
+    } else {
+      attempt = { ...attempt, status: "created", paymentIntentId: snapshot.id };
     }
-    attempt = { ...attempt, status: "created", paymentIntentId: snapshot.id };
   }
 
   // 3. Confirmar si todavía no se confirmó.
