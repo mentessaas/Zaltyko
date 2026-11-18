@@ -1057,6 +1057,23 @@ export async function findAttemptByPaymentIntentIn(
   return row ? toAttempt(row) : null;
 }
 
+/** El intento de esa academia con ese id, solo si sigue `claimed`; si no, null. */
+export async function findClaimedAttemptByIdIn(
+  executor: Executor,
+  input: { organizationId: string; attemptId: string }
+): Promise<CollectionAttempt | null> {
+  const result = await executor.execute(sql`
+    select ${attemptColumns}
+      from zaltyko.family_collection_attempts
+     where organization_id = ${input.organizationId}::uuid
+       and id = ${input.attemptId}::uuid
+       and status = 'claimed'
+     limit 1
+  `);
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  return row ? toAttempt(row) : null;
+}
+
 // ---------------------------------------------------------------------------
 // Bloqueos (orden único: academia → cuotas por id → factura → intento)
 // ---------------------------------------------------------------------------
@@ -1734,16 +1751,7 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
     },
 
     async findClaimedAttemptById(input) {
-      const result = await db.execute(sql`
-        select ${attemptColumns}
-          from zaltyko.family_collection_attempts
-         where organization_id = ${input.organizationId}::uuid
-           and id = ${input.attemptId}::uuid
-           and status = 'claimed'
-         limit 1
-      `);
-      const row = result.rows[0] as Record<string, unknown> | undefined;
-      return row ? toAttempt(row) : null;
+      return findClaimedAttemptByIdIn(db, input);
     },
 
     async listInvoiceSiblings(input) {
@@ -2385,6 +2393,13 @@ export interface FamilyCollectionRefundStore {
   isStorageAvailable(): Promise<boolean>;
   /** El intento de esa academia con ese `pi_…`, o null. Sin transacción. */
   findAttemptByPaymentIntent(input: { organizationId: string; paymentIntentId: string }): Promise<CollectionAttempt | null>;
+  /**
+   * El intento de esa academia con ese id, solo si sigue `claimed`; si no,
+   * null. Sin transacción. Lo usa la devolución que llega antes que el cobro
+   * para decidir si pedir el reenvío (el mismo criterio que la adopción del
+   * camino de los cobros).
+   */
+  findClaimedAttemptById(input: { organizationId: string; attemptId: string }): Promise<CollectionAttempt | null>;
   /** ¿Tiene ya ese `re_…` sus filas en zaltyko.refunds? Sin transacción. */
   isRefundRecorded(input: { organizationId: string; environment: "test" | "live"; refundId: string }): Promise<boolean>;
   /**
@@ -2632,6 +2647,10 @@ export function createFamilyCollectionRefundStore(): FamilyCollectionRefundStore
 
     async findAttemptByPaymentIntent(input) {
       return findAttemptByPaymentIntentIn(db, input);
+    },
+
+    async findClaimedAttemptById(input) {
+      return findClaimedAttemptByIdIn(db, input);
     },
 
     async isRefundRecorded(input) {

@@ -201,6 +201,16 @@ function fakeStore(options: { attempt?: CollectionAttempt | null; storage?: bool
         ? found
         : null;
     }),
+    // Revisión de d5274ff: el mismo criterio que la adopción (sigue `claimed` en esa academia).
+    findClaimedAttemptById: vi.fn<FamilyCollectionRefundStore["findClaimedAttemptById"]>(async (request) => {
+      const found = options.attempt === undefined ? attempt() : options.attempt;
+      return found &&
+        found.status === "claimed" &&
+        request.attemptId === found.id &&
+        request.organizationId === found.organizationId
+        ? found
+        : null;
+    }),
     isRefundRecorded: vi.fn<FamilyCollectionRefundStore["isRefundRecorded"]>(async (request) => recorded.has(request.refundId)),
     recordAttemptRefunds: vi.fn<FamilyCollectionRefundStore["recordAttemptRefunds"]>(async (request) => {
       if (recorded.has(request.refund.id)) return { outcome: "already_recorded" };
@@ -612,6 +622,47 @@ describe("manejadores de charge.refunded y refund.*", () => {
     expect(foreign.gateway.retrievePaymentIntentAttemptId).toHaveBeenCalledTimes(1);
     expect(foreignStore.store.recordAttemptRefunds).not.toHaveBeenCalled();
     expect(foreignStore.store.recordRefundNotice).not.toHaveBeenCalled();
+  });
+
+  it("revisión de d5274ff: la metadata apunta a un intento que ya no está claimed o es de otra cuenta → sin efecto ni reenvío, aviso solo con ids", async () => {
+    const recordCollection = vi.fn(async () => undefined);
+    for (const [label, stored, reason] of [
+      // Cerrado (p. ej. cancelado por la puerta) sin haber guardado el `pi_…`.
+      ["ya no claimed", attempt({ status: "canceled", paymentIntentId: null }), "attempt_not_claimed"],
+      // No existe en esta academia.
+      ["inexistente", null, "attempt_not_claimed"],
+      // Sigue claimed, pero en otra cuenta conectada de la academia.
+      [
+        "otra cuenta",
+        attempt({ status: "claimed", paymentIntentId: null, paymentProviderAccountId: otherAccountRowId }),
+        "other_connected_account",
+      ],
+    ] as const) {
+      vi.mocked(logger.warn).mockClear();
+      const { gateway, state } = fakeGateway(charge([refund()]));
+      state.metadataAttemptId = attemptId;
+      const { store } = fakeStore({ attempt: stored });
+
+      expect(await processRefundEvent(input(refundRef), { store, gateway, recordCollection }), label).toEqual({
+        effectType: null,
+        effectId: null,
+      });
+      expect(store.findClaimedAttemptById, label).toHaveBeenCalledWith({ organizationId, attemptId });
+      expect(store.recordAttemptRefunds, label).not.toHaveBeenCalled();
+      expect(store.recordRefundNotice, label).not.toHaveBeenCalled();
+      expect(logger.warn, label).toHaveBeenCalledWith(
+        "Cobro automático: devolución de un cobro de Zaltyko sin intento reclamado que adoptar en esta cuenta; no se aplica",
+        {
+          organizationId,
+          eventId: "evt_SyntheticRefunds1",
+          objectId: refundRef,
+          accountId: connectedAccount,
+          paymentIntentId,
+          attemptId,
+          reason,
+        }
+      );
+    }
   });
 
   it("Minor 1: sin intento y solo devoluciones pending → ni camino de los cobros ni Stripe", async () => {

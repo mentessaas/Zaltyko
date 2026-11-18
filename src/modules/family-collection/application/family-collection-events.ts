@@ -483,7 +483,7 @@ async function isEventsStorageReady(): Promise<boolean> {
 export async function handleFamilyCollectionEvent(
   event: ConnectedAccountEvent,
   deps: { handlers?: Partial<ProviderEventHandlers>; now?: Date } = {}
-): Promise<"processed" | "duplicate" | "in_progress" | "ignored"> {
+): Promise<"processed" | "duplicate" | "in_progress" | "ignored" | "storage_unavailable"> {
   // La ruta ya comprueba todo esto; se repite aquí porque es lo que protege
   // el dinero si alguien llama a esta función desde otro sitio.
   if (!areFamilyCollectionEventsOpen()) return "ignored";
@@ -493,7 +493,10 @@ export async function handleFamilyCollectionEvent(
   const route = routeProviderEvent(event);
   if (route.kind === "ignored") return "ignored";
 
-  if (!(await isEventsStorageReady())) return "ignored";
+  // Revisión del coordinador (punto 2): con la bandera encendida y sin las
+  // tablas de las Fases 1–4 no se escribe nada, pero tampoco se da el evento
+  // por atendido: la ruta responde 503 y Stripe lo reenvía.
+  if (!(await isEventsStorageReady())) return "storage_unavailable";
 
   const account = await findConnectAccountByReference(db, "test", event.accountId);
   if (!account || account.environment !== "test") {

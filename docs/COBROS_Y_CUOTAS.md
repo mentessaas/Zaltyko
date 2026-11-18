@@ -705,10 +705,15 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
 - **Cancelado en Stripe.** Un cobro cancelado en Stripe sin error de pago se
   cierra como `canceled_in_stripe` («El cobro se canceló en Stripe. Se cobra
   a mano.»), sin aviso de rechazo a la familia y sin reintento.
-- **Petición rechazada al crear.** Cualquier 400 `invalid_request_error` sin
-  cobro creado, que no sea de idempotencia ni un bloqueo, cierra el intento
-  (`invalid_request` o su código: «Stripe no aceptó crear el cobro. Se cobra
-  a mano.»).
+- **Petición rechazada al crear.** Un 400 `invalid_request_error` sin cobro
+  creado, que no sea de idempotencia ni un bloqueo, cierra el intento solo si
+  su código es de la familia o de la academia (`amount_too_small`,
+  `resource_missing`, `account_invalid`, `payment_method_unactivated`,
+  `capability_not_active`). Desde la Fase 4 (revisión de la PR #354, punto 1)
+  cualquier otro 400 es de toda la plataforma: el intento se queda reclamado
+  sin cobro y se reanuda otro día (ver «Cortacircuitos (D9)»). Las filas
+  antiguas cerradas con `invalid_request` o su código siguen mostrando
+  «Stripe no aceptó crear el cobro. Se cobra a mano.».
 - **Aviso del primer fallo.** Se envía de página en página hasta el plazo y
   también antes de cobrar; un reintento ya reclamado no lo anula.
 - **Recordatorios.** Mientras el cobro de una cuota automática está en
@@ -928,7 +933,10 @@ construida (18-11-2026)». Plan:
     «El banco reintegró el dinero que había devuelto ({importe}). Anula la
     cuota pendiente que se creó si ya no se debe», más «: todavía no tiene
     ningún pago» si esa cuota nueva no tiene pagos, o «; ya tiene algún pago,
-    revísalo antes» si los tiene. Zaltyko nunca la anula sola.
+    revísalo antes» si los tiene. Zaltyko nunca la anula sola. Una disputa
+    ganada después de escribir la reversión (filas `sepa_returned` o
+    `dispute_lost`) solo crea este aviso: las filas se quedan en el libro y
+    la academia lo restituye a mano.
   - Pasado el plazo de la familia, si Stripe no deja leer ni cancelar el
     cobro (p. ej. la academia desconectó su cuenta): «Pasó el plazo para que
     la familia confirmara el pago y no podemos ver su resultado. Compruébalo
@@ -949,7 +957,7 @@ construida (18-11-2026)». Plan:
 
 | Ruta | Uso |
 |---|---|
-| `POST /api/stripe/connect/payments-webhook` | Eventos de las cuentas conectadas (firma con `STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET`). Antes de leer el cuerpo solo se miran la bandera, la clave de prueba y que la base no sea la de producción: si falla alguno, 200 `{ ignored: true }` sin leerlo. Sin secreto: 503. Firma mala: 400. Después de comprobar la firma: evento Live, sin cuenta o de un tipo u objeto que no se atiende → 200 `{ ignored: true }`; sin las tablas de las Fases 1–4 o con una cuenta que no es de ninguna academia en pruebas, también 200 `{ ignored: true }` sin escribir. Evento repetido: 200 `{ duplicate: true }`. Evento a medio procesar: 503 `EVENT_IN_PROGRESS` con `retry-after: 60` (Stripe lo reenvía). `no-store`. |
+| `POST /api/stripe/connect/payments-webhook` | Eventos de las cuentas conectadas (firma con `STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET`). Antes de leer el cuerpo solo se miran la bandera, la clave de prueba y que la base no sea la de producción: si falla alguno, 200 `{ ignored: true }` sin leerlo. Sin secreto: 503. Firma mala: 400. Sin cliente de Stripe (falta `STRIPE_SECRET_KEY` en el servidor): 503 `STRIPE_NOT_CONFIGURED`, nunca 400, y sin registrar la clave. Después de comprobar la firma: evento Live, sin cuenta o de un tipo u objeto que no se atiende → 200 `{ ignored: true }`; con una cuenta que no es de ninguna academia en pruebas, también 200 `{ ignored: true }` sin escribir. Sin las tablas de las Fases 1–4 (con la bandera encendida): 503 `EVENTS_STORAGE_UNAVAILABLE` sin escribir, para que Stripe lo reenvíe y el evento no se pierda. Evento repetido: 200 `{ duplicate: true }`. Evento a medio procesar: 503 `EVENT_IN_PROGRESS` con `retry-after: 60` (Stripe lo reenvía). `no-store`. |
 | `POST /api/v1/family/automatic-payment/authentication` | La familia confirma el pago con su banco: `{ action: "start" \| "check", organizationId, invoiceId }`. `start` da solo lo que necesita el navegador; `check` relee Stripe por el mismo camino que el evento. 503 con los cerrojos cerrados, 404 si no es la persona pagadora vigente, 409 `FAMILY_PAYMENT_CONFIRMATION_EXPIRED` o `…_CLOSED`, 502 si Stripe falla. 10 por minuto por cuenta, `private, no-store`. |
 | `GET /familia/cuotas/justificante/[attemptId]` | Página del justificante (`no-store`). |
 | `GET`/`POST /api/cron/collect-family-fees` | La de la Fase 3. Añade `circuitOpen` (sí/no) y `receipts: { sent, notSent, pending }` (o `null` si falló el envío). Envía los justificantes al final, después de los avisos. |
@@ -1067,6 +1075,13 @@ Eventos que se atienden (17): `payment_intent.processing`, `.succeeded`,
   `logger.error` con dos contadores. Con el cortacircuitos abierto, la puesta
   al día deja de tomar intentos reanudables y devuelve su reanudación a los
   ya tomados sin procesar: un despliegue roto varios días no los agota.
+  Ningún 400 de la plataforma cierra el intento, tampoco los de antes de que
+  salte (revisión de la PR #354, punto 1): se queda reclamado sin cobro
+  (`platform_invalid_request`) y la puesta al día lo reanuda otro día. Si el
+  rechazo sigue, al agotar sus reanudaciones se cierra `failed`
+  `transient_exhausted` y la cuota vuelve al cobro manual (o la academia
+  recibe el aviso `resume_exhausted`); mientras tanto la cuota no recibe
+  recordatorios.
 - **Buzón de eventos:** el cierre de un evento lleva un testigo (el número de
   entrega): una entrega vieja que termina tarde no pisa el cierre de otra más
   nueva. Un efecto con un id que no se puede guardar se cierra sin él (nunca

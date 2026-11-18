@@ -215,6 +215,13 @@ export function countSkip(state: RunState, reason: string): void {
 export const CIRCUIT_OPEN_REASON = "circuit_open";
 
 /**
+ * Motivo de omisión de un intento cuyo cobro Stripe rechazó crear con un 400
+ * de toda la plataforma (isPlatformInvalidRequest) antes de que salte el
+ * cortacircuitos: se queda `claimed` y se reanuda otro día.
+ */
+export const PLATFORM_INVALID_REQUEST_REASON = "platform_invalid_request";
+
+/**
  * Fase 4 (D9): cuenta una creación en el cortacircuitos. Al abrirse, una sola
  * vez por pasada (luego sigue abierto), deja `circuitOpen` en el resultado y
  * un error en el registro operativo (va a Sentry) con solo dos contadores:
@@ -1075,15 +1082,38 @@ async function advanceAttemptSteps(
       // cortacircuitos. Si lo abre, ESTE intento tampoco se cierra: Stripe no
       // creó nada (400), así que se queda `claimed` sin `pi_…` y la Fase A lo
       // reanuda otro día (lo busca por su id, repite la puerta y lo crea).
-      recordCreate(state, isPlatformInvalidRequest(error) ? "platform_invalid_request" : "other");
+      const platformRejected = isPlatformInvalidRequest(error);
+      recordCreate(state, platformRejected ? "platform_invalid_request" : "other");
       if (state.breaker.open) {
         countSkip(state, CIRCUIT_OPEN_REASON);
         return null;
       }
-      // Stripe se negó a crearlo por algo que no cambia al repetir (importe
-      // bajo el mínimo, cliente o método de pago que ya no existen, tipo de
-      // pago no activo en la cuenta de la academia): no se creó ningún cobro.
-      // Se cierra sin reintento y la cuota se cobra a mano.
+      // Revisión del coordinador (punto 1): los rechazos de toda la plataforma
+      // de antes de que salte el cortacircuitos tampoco se cierran (esto
+      // sustituye a C4 solo para ellos). Apuntan a cómo Zaltyko pide el cobro
+      // (un despliegue roto), no a la familia: cerrarlos pasaría cada día
+      // varias cuotas a cobro manual. Stripe respondió 400 sin cobro dentro,
+      // así que no se movió dinero: el intento se queda `claimed` sin `pi_…`
+      // ni escritura y la Fase A lo reanuda otro día (lo busca por su id,
+      // repite la puerta y lo crea). Si el rechazo sigue, al agotar las
+      // reanudaciones se cierra `failed` `transient_exhausted` (o recibe el
+      // aviso `resume_exhausted`): nunca queda abierto para siempre.
+      if (platformRejected) {
+        logger.warn("Cobro automático: Stripe rechazó la petición de crear el cobro; el intento se reanudará otro día", {
+          organizationId: attempt.organizationId,
+          invoiceId: attempt.invoiceId,
+          attemptId: attempt.id,
+          errorName: stripeReadFailureOf(error).errorName,
+          errorCode: finalCreateErrorCode(error),
+        });
+        countSkip(state, PLATFORM_INVALID_REQUEST_REASON);
+        return null;
+      }
+      // Stripe se negó a crearlo por algo de la familia o de la academia que
+      // no cambia al repetir (importe bajo el mínimo, cliente o método de pago
+      // que ya no existen, tipo de pago no activo en la cuenta de la academia):
+      // no se creó ningún cobro. Se cierra sin reintento y la cuota se cobra a
+      // mano (C4).
       const finalCode = finalCreateErrorCode(error);
       if (finalCode !== null) {
         logger.warn("Cobro automático: Stripe rechazó crear el cobro; la cuota pasa a cobro manual", {

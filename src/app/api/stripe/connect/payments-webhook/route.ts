@@ -13,10 +13,15 @@
  * 1. bandera apagada, clave que no es de prueba o base de producción →
  *    200 `{ ignored: true }` sin leer el cuerpo;
  * 2. sin secreto → 503 `WEBHOOK_NOT_CONFIGURED`;
- * 3. sin firma o firma no válida → 400 `SIGNATURE_VERIFICATION_FAILED`;
+ * 3. sin firma o firma no válida → 400 `SIGNATURE_VERIFICATION_FAILED`; sin
+ *    cliente de Stripe (falta STRIPE_SECRET_KEY en la configuración del
+ *    servidor) → 503 `STRIPE_NOT_CONFIGURED` (Stripe reintenta; nunca se
+ *    registra la clave);
  * 4. evento de Live, de un tipo que no se escucha, sin cuenta conectada o
  *    con un objeto inesperado → 200 `{ ignored: true }`;
  * 5–7. almacenamiento, cuenta y buzón (handleFamilyCollectionEvent):
+ *    sin las tablas de las Fases 1–4 → 503 `EVENTS_STORAGE_UNAVAILABLE`
+ *    (con la bandera encendida el evento no se pierde: Stripe lo reenvía);
  *    200 `{ ignored: true }`, `{ duplicate: true }` (ya procesado) o
  *    `{ received: true }`; 503 `EVENT_IN_PROGRESS` si otra entrega lo está
  *    procesando (Stripe lo reenvía; pasados 5 minutos se vuelve a reclamar);
@@ -37,7 +42,10 @@ import {
   routeProviderEvent,
   type ConnectedAccountEvent,
 } from "@/modules/family-collection/domain/provider-event";
-import { parseConnectedAccountEvent } from "@/modules/family-collection/infrastructure/stripe-event-gateway";
+import {
+  CONNECTED_ACCOUNT_EVENT_NOT_CONFIGURED,
+  parseConnectedAccountEvent,
+} from "@/modules/family-collection/infrastructure/stripe-event-gateway";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +86,14 @@ export async function POST(request: Request) {
   try {
     event = parseConnectedAccountEvent(rawBody, signature, secret);
   } catch (error) {
+    if (error instanceof Error && error.message === CONNECTED_ACCOUNT_EVENT_NOT_CONFIGURED) {
+      // Configuración del servidor, no la firma: 503 para que Stripe reintente.
+      // Sin el valor de la clave ni el mensaje del error.
+      logger.error("Cobro automático: falta la clave de Stripe para verificar los eventos de cobros", undefined, {
+        stripeKeyConfigured: false,
+      });
+      return json({ error: "STRIPE_NOT_CONFIGURED" }, 503);
+    }
     logger.warn("Cobro automático: firma del webhook de cobros no válida", {
       errorName: error instanceof Error ? error.name : "unknown",
     });
@@ -101,6 +117,17 @@ export async function POST(request: Request) {
       // con un 200. Si la entrega que lo procesa se cae a mitad, Stripe lo
       // reenvía y, pasados 5 minutos, ese reenvío lo vuelve a reclamar.
       return json({ error: "EVENT_IN_PROGRESS" }, 503, { "retry-after": IN_PROGRESS_RETRY_AFTER_SECONDS });
+    }
+    if (outcome === "storage_unavailable") {
+      // Revisión del coordinador (punto 2): con la bandera encendida y sin las
+      // tablas de las Fases 1–4, un 200 perdería el evento. Con 503, Stripe lo
+      // reenvía (durante días) hasta que el almacenamiento esté.
+      logger.error("Cobro automático: evento de Stripe sin las tablas del cobro automático; se pide el reenvío", undefined, {
+        eventId: event.eventId,
+        eventType: event.type,
+        accountId: event.accountId,
+      });
+      return json({ error: "EVENTS_STORAGE_UNAVAILABLE" }, 503);
     }
     if (outcome === "ignored") return json({ ignored: true });
     return json({ received: true });

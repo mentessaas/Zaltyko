@@ -6,7 +6,8 @@
  * secreto propio de ese destino, STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET: nunca
  * con el secreto del webhook histórico ni con el de las cuentas. La firma se
  * comprueba sobre el cuerpo crudo con una tolerancia de 300 s; si no es
- * válida, el SDK lanza y el error se propaga.
+ * válida, el SDK lanza y el error se propaga. Si no se puede preparar el
+ * cliente de Stripe, lanza CONNECTED_ACCOUNT_EVENT_NOT_CONFIGURED.
  *
  * Del evento solo se devuelven `id`, `type`, `account`, `livemode`, `created`,
  * `data.object.id` y `data.object.object`. El resto del cuerpo (importes,
@@ -22,6 +23,14 @@ export const CONNECTED_ACCOUNT_EVENT_TOLERANCE_SECONDS = 300;
 /** El cuerpo firmado no tiene la forma de un evento de Stripe. */
 export const MALFORMED_CONNECTED_ACCOUNT_EVENT = "FAMILY_COLLECTION_MALFORMED_EVENT";
 
+/**
+ * Revisión del coordinador (punto 3): no se pudo preparar el cliente de Stripe
+ * (falta STRIPE_SECRET_KEY en la configuración del servidor). Es un fallo de
+ * configuración, no de la firma: la ruta responde 503 para que Stripe
+ * reintente. Nunca lleva el valor de la clave ni el mensaje del error.
+ */
+export const CONNECTED_ACCOUNT_EVENT_NOT_CONFIGURED = "FAMILY_COLLECTION_EVENTS_STRIPE_NOT_CONFIGURED";
+
 const text = (value: unknown): string | null => (typeof value === "string" && value !== "" ? value : null);
 
 export function parseConnectedAccountEvent(
@@ -29,7 +38,15 @@ export function parseConnectedAccountEvent(
   signature: string,
   secret: string
 ): ConnectedAccountEvent {
-  const event: unknown = getStripeClient().webhooks.constructEvent(
+  // El cliente se prepara antes y aparte de la firma: si falla (sin clave),
+  // es configuración y no se confunde con una firma no válida (400).
+  let client: ReturnType<typeof getStripeClient>;
+  try {
+    client = getStripeClient();
+  } catch {
+    throw new Error(CONNECTED_ACCOUNT_EVENT_NOT_CONFIGURED);
+  }
+  const event: unknown = client.webhooks.constructEvent(
     rawBody,
     signature,
     secret,

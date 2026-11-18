@@ -690,6 +690,10 @@ describe("Tarea 6, pendiente 1: devoluciones de un cobro registrado tarde", () =
         const found = attempts.find((item) => item.paymentIntentId === request.paymentIntentId);
         return found ? { ...found } : null;
       }),
+      findClaimedAttemptById: vi.fn<FamilyCollectionRefundStore["findClaimedAttemptById"]>(async (request) => {
+        const found = attempts.find((item) => item.id === request.attemptId && item.status === "claimed");
+        return found ? { ...found } : null;
+      }),
       isRefundRecorded: vi.fn<FamilyCollectionRefundStore["isRefundRecorded"]>(async () => false),
       recordAttemptRefunds: vi.fn<FamilyCollectionRefundStore["recordAttemptRefunds"]>(async (request) => {
         recorded.push(`${request.attemptId}:${request.refund.id}`);

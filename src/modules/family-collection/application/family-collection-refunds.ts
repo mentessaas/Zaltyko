@@ -23,8 +23,10 @@
  *    Re-revisión de la ola final (Minor 1): si ningún intento tiene ese
  *    `pi_…` (uno `claimed` que aún no lo guardó) y el cargo ya tiene una
  *    devolución hecha, también se pasa antes por `recordCollection`, que lo
- *    encuentra por la metadata del cobro. Si aun así no aparece y la metadata
- *    del cobro dice que es de Zaltyko, el mismo error pasajero.
+ *    encuentra por la metadata del cobro. Si aun así no aparece, la metadata
+ *    del cobro dice que es de Zaltyko y ese intento sigue `claimed` en esta
+ *    academia y esta cuenta conectada, el mismo error pasajero; si no, sin
+ *    efecto y un aviso en el registro (solo ids).
  * 3. Cada devolución del cargo, de la más antigua a la más nueva:
  *    - `succeeded` sin anotar → una transacción con todas sus filas (una por
  *      reparto, de la cuota más antigua a la más nueva) y el aviso
@@ -252,17 +254,25 @@ async function settleReversedRefund(context: SettleContext, refund: ChargeRefund
 
 /**
  * Re-revisión de la ola final (Minor 1): ¿es un cobro que creó el cobro
- * automático de Zaltyko? Se relee el `pi_…` en la cuenta conectada y se mira
- * solo si su metadata lleva el id de un intento. Así una devolución de otra
- * cosa que la academia cobra en su cuenta nunca hace que Stripe reenvíe el
- * evento. Un error permanente da false (sin efecto); uno pasajero sube.
+ * automático de Zaltyko y que el camino de los cobros todavía puede adoptar?
+ * Se relee el `pi_…` en la cuenta conectada y se mira el id del intento de su
+ * metadata. Así una devolución de otra cosa que la academia cobra en su
+ * cuenta nunca hace que Stripe reenvíe el evento. Un error permanente da
+ * false (sin efecto); uno pasajero sube.
+ *
+ * Revisión de d5274ff: solo se pide el reenvío si ese intento existe en esta
+ * academia, sigue `claimed` y es de esta cuenta conectada (el mismo criterio
+ * que la adopción del camino de los cobros, findClaimedAttemptById). Si ya no
+ * está `claimed` o es de otra cuenta, un reenvío nunca lo adoptaría: el evento
+ * fallaría unos 3 días sin registrar nada. Entonces termina sin efecto y con
+ * un aviso en el registro (solo ids).
  */
-async function isZaltykoCollection(
+async function isAdoptableZaltykoCollection(
   input: RefundEventInput,
   deps: ResolvedDeps,
   paymentIntentId: string
 ): Promise<boolean> {
-  const { gateway } = deps;
+  const { gateway, store } = deps;
   if (!gateway.retrievePaymentIntentAttemptId) return false;
   const attemptId = await readOrSkip(
     input,
@@ -272,7 +282,20 @@ async function isZaltykoCollection(
         paymentIntentId,
       })) ?? null
   );
-  return attemptId !== null;
+  if (attemptId === null) return false;
+  const claimed = await store.findClaimedAttemptById({ organizationId: input.organizationId, attemptId });
+  if (!claimed || claimed.paymentProviderAccountId !== input.account.id) {
+    logger.warn(
+      "Cobro automático: devolución de un cobro de Zaltyko sin intento reclamado que adoptar en esta cuenta; no se aplica",
+      eventIds(input, {
+        paymentIntentId,
+        attemptId,
+        reason: claimed ? "other_connected_account" : "attempt_not_claimed",
+      })
+    );
+    return false;
+  }
+  return true;
 }
 
 /** Lo común a los dos eventos: el cargo ya releído con todas sus devoluciones. */
@@ -303,7 +326,7 @@ async function settleChargeRefunds(
       // Un cobro que creó Zaltyko (su metadata lleva el id de un intento) ya
       // cobrado y devuelto, pero el libro aún no lo tiene: se pide a Stripe
       // que reenvíe en vez de perder la devolución.
-      if (await isZaltykoCollection(input, deps, paymentIntentId)) {
+      if (await isAdoptableZaltykoCollection(input, deps, paymentIntentId)) {
         logger.warn(
           "Cobro automático: devolución de un cobro que el libro aún no registra; Stripe la reenviará",
           eventIds(input, { paymentIntentId })

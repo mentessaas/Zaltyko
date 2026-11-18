@@ -750,7 +750,12 @@ cambia precios ni la regla del día fijo.
     `invalid_request_error`) sin cobro creado que no sea de idempotencia ni un
     bloqueo cierra el intento y la cuota pasa a cobrarse a mano. Coste
     aceptado: un cambio de la plataforma que provoque 400 deterministas pasa a
-    mano las cuotas de ese día, sin mover dinero.
+    mano las cuotas de ese día, sin mover dinero. **Sustituido en la Fase 4
+    (revisión del coordinador de la PR #354, punto 1)** para los 400 de toda
+    la plataforma: ver «Cortacircuitos (D9)». Solo siguen cerrando así los
+    códigos de una familia o una academia (`amount_too_small`,
+    `resource_missing`, `account_invalid`, `payment_method_unactivated`,
+    `capability_not_active`).
 - **Bandera apagada con cobros en marcha.** Los recordatorios se retienen
   mientras haya un intento reclamado, creado o en proceso, aunque la bandera
   esté apagada (la misma regla que el pago manual). El portal enseña «Cobro
@@ -907,7 +912,10 @@ del 16-11-2026, una bandera por fase):
     permanente (sin efecto, en el registro);
   - domiciliación devuelta y después ganada: la academia ve «Anula la cuota
     pendiente que se creó si ya no se debe», y si esa cuota no tiene ningún
-    pago se lo dice; nunca se anula sola;
+    pago se lo dice; nunca se anula sola. Una disputa que se gana después de
+    escribir la reversión (filas `sepa_returned` o `dispute_lost`) solo crea
+    ese aviso: las filas se quedan en el libro (nunca se borra una fila) y la
+    academia lo restituye a mano (revisión del coordinador de la PR #354);
   - las revocaciones de la Fase 2 (familia y academia) bloquean primero la
     academia, como la activación y el cobro (decisión 21); la activación por
     `setup_intent.succeeded` comprueba que quien empezó la preparación sigue
@@ -938,7 +946,12 @@ del 16-11-2026, una bandera por fase):
 - **Código Standard v1** y sus rutas siguen hasta la PR de D8.
 - **Eventos perdidos con la bandera apagada.** La ruta responde 200
   `{ ignored: true }` y no guarda nada; Stripe permite reenviar los eventos de
-  los últimos 30 días.
+  los últimos 30 días. Con la bandera encendida no se pierden por la
+  configuración (revisión del coordinador de la PR #354, puntos 2 y 3): sin
+  las tablas de las Fases 1–4 la ruta responde 503
+  `EVENTS_STORAGE_UNAVAILABLE`, y sin `STRIPE_SECRET_KEY` en el servidor, 503
+  `STRIPE_NOT_CONFIGURED` (nunca un 400 de firma, y sin registrar la clave):
+  Stripe los reenvía.
 - **Devolución anulada después en Stripe.** No toca el libro: la academia
   recibe el aviso `refund_reversed` y la familia sigue viendo «Devuelto».
 - **Búsqueda de devoluciones por id.** `provider_refund_id` lleva ahora el
@@ -953,6 +966,21 @@ del 16-11-2026, una bandera por fase):
   el banco» sale en la página, no en el correo (que se envía una vez, al
   cobrar).
 - **Cortacircuitos (D9).**
+  - Revisión del coordinador de la PR #354 (punto 1, sustituye a C4 solo para
+    estos casos): un 400 de toda la plataforma al crear el cobro (cualquier
+    `invalid_request_error` sin cobro dentro que no sea de idempotencia, un
+    bloqueo ni uno de los cinco códigos de familia o academia) nunca cierra
+    el intento, ni antes ni cuando salta el cortacircuitos. Stripe no creó
+    nada, así que no se movió dinero: el intento se queda `claimed` sin
+    `pi_…` (motivo de omisión `platform_invalid_request`) y la puesta al día
+    lo reanuda otro día (lo busca en Stripe por su id, repite la puerta y lo
+    crea). Sigue contando para el cortacircuitos. Coste aceptado: con un 400
+    de la plataforma que dure varios días, esas cuotas siguen reclamadas (sin
+    recordatorios) hasta agotar sus reanudaciones; entonces se cierran
+    `failed` `transient_exhausted` («No pudimos comprobar el cobro a tiempo»)
+    y vuelven al cobro manual, o, si ese cierre no se escribe, la academia
+    recibe el aviso `resume_exhausted`. Nunca pasan a mano el primer día ni
+    quedan en el limbo.
   - Su estado vive en memoria durante una pasada: un relanzamiento manual el
     mismo día empieza cerrado.
   - Un despliegue roto que haga que cada cuenta responda `resource_missing`

@@ -325,7 +325,7 @@ describe("handleFamilyCollectionEvent", () => {
     expectNothingClaimed();
   });
 
-  it("almacenamiento que no es el de las Fases 1–4 → ignored sin buzón", async () => {
+  it("revisión del coordinador (punto 2): con la bandera encendida y sin el almacenamiento de las Fases 1–4 → storage_unavailable (la ruta pide el reenvío) sin buzón", async () => {
     for (const missing of [
       // Forma "phase3" (o "none") del cobro: sin la Fase 4.
       () => vi.mocked(isFamilyCollectionEventsStorageAvailable).mockResolvedValueOnce(false),
@@ -333,7 +333,7 @@ describe("handleFamilyCollectionEvent", () => {
       () => vi.mocked(isConnectOnboardingStorageAvailable).mockResolvedValueOnce(false),
     ]) {
       missing();
-      expect(await handleFamilyCollectionEvent(connectedEvent(), { now: NOW })).toBe("ignored");
+      expect(await handleFamilyCollectionEvent(connectedEvent(), { now: NOW })).toBe("storage_unavailable");
     }
     expect(findConnectAccountByReference).not.toHaveBeenCalled();
     expectNothingClaimed();

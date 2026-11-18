@@ -1388,6 +1388,17 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
       expect(
         await getFamilyReceipt({ userId: fixture.userId, organizationId: randomUUID(), attemptId: attempt.id })
       ).toBeNull();
+      // Revisión del coordinador (punto 4): la persona pagadora de verdad de
+      // OTRA familia (de otra academia) tampoco lo ve, ni con el id de esta
+      // academia ni con el de la suya.
+      const otherFamily = await createCollectableInvoice();
+      await linkPayerAccount(otherFamily);
+      expect(
+        await getFamilyReceipt({ userId: otherFamily.userId, organizationId: fixture.organizationId, attemptId: attempt.id })
+      ).toBeNull();
+      expect(
+        await getFamilyReceipt({ userId: otherFamily.userId, organizationId: otherFamily.organizationId, attemptId: attempt.id })
+      ).toBeNull();
       expect(
         await createFamilyReceiptStore().listReceiptLinks({
           organizationId: fixture.organizationId,

@@ -328,6 +328,9 @@ const FINAL_CREATE_CODES: ReadonlySet<string> = new Set([
  * Además, cualquier petición rechazada (HTTP 400, `invalid_request_error`) es
  * final al crear, salvo los conflictos de idempotencia y los bloqueos, que se
  * arreglan esperando. Sin código, se cierra con INVALID_CREATE_REQUEST_CODE.
+ * Revisión del coordinador (punto 1): el proceso diario ya no cierra los que
+ * no están en FINAL_CREATE_CODES (isPlatformInvalidRequest): los deja
+ * `claimed` y los reanuda otro día. Esta función solo los clasifica.
  */
 const INVALID_REQUEST_ERROR_TYPES: ReadonlySet<string> = new Set([
   "invalid_request_error",

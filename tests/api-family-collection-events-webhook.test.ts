@@ -9,6 +9,7 @@
 import Stripe from "stripe";
 
 import { logger } from "@/lib/logger";
+import { getStripeClient } from "@/lib/stripe/client";
 import { handleFamilyCollectionEvent } from "@/modules/family-collection/application/family-collection-events";
 import { POST } from "@/app/api/stripe/connect/payments-webhook/route";
 
@@ -17,6 +18,11 @@ vi.mock("@/db", () => {
     throw new Error("La ruta no debe tocar la base en estos tests");
   };
   return { db: { execute: vi.fn(untouchable), select: vi.fn(untouchable), transaction: vi.fn(untouchable) } };
+});
+// El cliente real (en tests, sin red: solo HMAC); un test lo hace fallar como sin clave.
+vi.mock("@/lib/stripe/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/stripe/client")>();
+  return { ...actual, getStripeClient: vi.fn(actual.getStripeClient) };
 });
 vi.mock("@/modules/family-collection/application/family-collection-events", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/family-collection/application/family-collection-events")>()),
@@ -143,6 +149,56 @@ describe("POST /api/stripe/connect/payments-webhook", () => {
       expect(await response.json()).toEqual({ error: "SIGNATURE_VERIFICATION_FAILED" });
     }
     expect(handleFamilyCollectionEvent).not.toHaveBeenCalled();
+  });
+
+  it("revisión del coordinador (punto 3): sin cliente de Stripe (falta STRIPE_SECRET_KEY en el servidor) → 503 STRIPE_NOT_CONFIGURED, no 400, sin registrar la clave", async () => {
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+    vi.mocked(getStripeClient).mockImplementationOnce(() => {
+      throw new Error("STRIPE_SECRET_KEY debe estar definido para operaciones de suscripción");
+    });
+
+    const response = await POST(signedRequest());
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ error: "STRIPE_NOT_CONFIGURED" });
+    expect(handleFamilyCollectionEvent).not.toHaveBeenCalled();
+    // No se confunde con una firma no válida.
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith(expect.any(String), undefined, { stripeKeyConfigured: false });
+    // Ni la clave, ni el secreto del webhook, ni el mensaje del error.
+    const logged = JSON.stringify([errorSpy.mock.calls, warnSpy.mock.calls]);
+    for (const value of ["sk_test_synthetic", SECRET, "debe estar definido"]) {
+      expect(logged).not.toContain(value);
+    }
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
+
+    // Con el cliente de vuelta, la misma entrega se procesa (Stripe la reenvía).
+    const resent = await POST(signedRequest());
+    expect(resent.status).toBe(200);
+    expect(await resent.json()).toEqual({ received: true });
+  });
+
+  it("revisión del coordinador (punto 2): bandera encendida sin las tablas de las Fases 1–4 → 503 para que Stripe lo reenvíe (nunca 200)", async () => {
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => undefined);
+    vi.mocked(handleFamilyCollectionEvent).mockResolvedValueOnce("storage_unavailable");
+
+    const response = await POST(signedRequest());
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ error: "EVENTS_STORAGE_UNAVAILABLE" });
+    // Solo ids en el registro.
+    expect(errorSpy).toHaveBeenCalledWith(expect.any(String), undefined, {
+      eventId: "evt_1SyntheticEvent0001",
+      eventType: "payment_intent.succeeded",
+      accountId: ACCOUNT,
+    });
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("familia.prueba");
+    errorSpy.mockRestore();
   });
 
   it("evento livemode true → 200 ignored sin llegar al buzón", async () => {

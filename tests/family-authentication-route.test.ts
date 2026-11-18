@@ -594,6 +594,37 @@ describe("POST /api/v1/family/automatic-payment/authentication — check", () =>
     expect(current.gateway.retrievePayment).not.toHaveBeenCalled();
   });
 
+  it("revisión del coordinador (punto 4): la persona pagadora de OTRA familia u otra academia → 404 en start y en check, sin Stripe ni escribir", async () => {
+    // otherUserId paga de verdad las cuotas de otra familia de la misma academia.
+    const otherFamilyId = "45000000-0000-4000-8000-000000000033";
+    vi.mocked(resolveFamilyPayer).mockImplementation(async (_executor, input) =>
+      input.userId === otherUserId && input.organizationId === organizationId && input.familyId === otherFamilyId
+        ? { guardianId: "45000000-0000-4000-8000-000000000203", familyPayerId: otherFamilyPayerId }
+        : null
+    );
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: otherUserId } as Awaited<ReturnType<typeof getCurrentUser>>);
+
+    const startOther = await post(start);
+    const checkOther = await post(check);
+    expect(startOther.status).toBe(404);
+    expect(checkOther.status).toBe(404);
+    // Se busca como pagadora de la familia DEL INTENTO, nunca de la suya.
+    for (const [, input] of vi.mocked(resolveFamilyPayer).mock.calls) {
+      expect(input).toMatchObject({ userId: otherUserId, organizationId, familyId });
+    }
+
+    // La misma cuota pedida con el id de otra academia: el mismo 404.
+    const foreignStart = await post({ ...start, organizationId: "45000000-0000-4000-8000-000000000099" });
+    const foreignCheck = await post({ ...check, organizationId: "45000000-0000-4000-8000-000000000099" });
+    expect(foreignStart.status).toBe(404);
+    expect(foreignCheck.status).toBe(404);
+
+    expect(retrievePaymentClientSecret).not.toHaveBeenCalled();
+    expect(current.gateway.retrievePayment).not.toHaveBeenCalled();
+    expect(current.world.applied).toEqual([]);
+    expect(JSON.stringify(await startOther.json())).not.toContain(CLIENT_SECRET);
+  });
+
   it("check: si Stripe no deja leerlo, 502 con texto sencillo y el intento como estaba", async () => {
     vi.mocked(current.gateway.retrievePayment).mockRejectedValueOnce(
       Object.assign(new Error("Mensaje sintético de Stripe"), { name: "StripeAPIError" })
