@@ -411,6 +411,14 @@ export interface FamilyCollectionRefundGateway {
     connectedAccount: string;
     paymentIntentId: string;
   }): Promise<ChargeRefundsSnapshot | null>;
+  /**
+   * Re-revisión de la ola final (Minor 1): el id del intento de la metadata
+   * del cobro (`pi_…`), solo si es un uuid; null si no es un cobro de
+   * Zaltyko. Solo se usa cuando ningún intento tiene ese `pi_…` y el cargo ya
+   * tiene una devolución hecha. Opcional para las dobles de los tests: sin él,
+   * esa devolución termina sin efecto, como antes.
+   */
+  retrievePaymentIntentAttemptId?(input: { connectedAccount: string; paymentIntentId: string }): Promise<string | null>;
 }
 
 /** Más devoluciones de un cargo de las que se leen: no se decide nada con una lista a medias. */
@@ -478,6 +486,16 @@ export function createStripeRefundGateway(stripe?: Stripe): FamilyCollectionRefu
       const snapshot = await gateway.retrieveChargeRefunds({ connectedAccount: input.connectedAccount, chargeId });
       // El cargo tiene que ser de ese cobro: si no, no se decide nada con él.
       return snapshot.paymentIntentId === input.paymentIntentId ? snapshot : null;
+    },
+
+    async retrievePaymentIntentAttemptId(input) {
+      const paymentIntent = await client().paymentIntents.retrieve(
+        input.paymentIntentId,
+        {},
+        { stripeAccount: input.connectedAccount }
+      );
+      // Nada más de la metadata: solo el id del intento.
+      return paymentIntent.id === input.paymentIntentId ? metadataAttemptId(paymentIntent) : null;
     },
   };
   return gateway;

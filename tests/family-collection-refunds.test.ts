@@ -162,7 +162,8 @@ function input(objectId: string, overrides: Partial<RefundEventInput> = {}): Ref
 
 /** Stripe simulado: un cargo con sus devoluciones (se pueden cambiar entre entregas). */
 function fakeGateway(charge: ChargeRefundsSnapshot) {
-  const state = { charge };
+  // `metadataAttemptId`: el intento que dice la metadata del `pi_…` (null: no es de Zaltyko).
+  const state = { charge, metadataAttemptId: null as string | null };
   const gateway = {
     retrieveChargeRefunds: vi.fn<FamilyCollectionRefundGateway["retrieveChargeRefunds"]>(async (request) => {
       if (request.connectedAccount !== connectedAccount || request.chargeId !== state.charge.chargeId) {
@@ -178,6 +179,12 @@ function fakeGateway(charge: ChargeRefundsSnapshot) {
     retrievePaymentIntentRefunds: vi.fn<FamilyCollectionRefundGateway["retrievePaymentIntentRefunds"]>(async () => {
       throw new Error("Un evento de devolución no relee por el cobro");
     }),
+    // Minor 1: solo cuando ningún intento tiene el `pi_…` ni después del camino de los cobros.
+    retrievePaymentIntentAttemptId: vi.fn(async (request: { connectedAccount: string; paymentIntentId: string }) =>
+      request.connectedAccount === connectedAccount && request.paymentIntentId === state.charge.paymentIntentId
+        ? state.metadataAttemptId
+        : null
+    ),
   };
   return { gateway, state };
 }
@@ -534,6 +541,93 @@ describe("manejadores de charge.refunded y refund.*", () => {
     }
   });
 
+  it("Minor 1: intento claimed sin pi_ y la devolución llega primero → el camino de los cobros lo encuentra y registra, y después la fila refund", async () => {
+    const { gateway } = fakeGateway(charge([refund()]));
+    // El intento sigue `claimed`: Zaltyko creó el cobro y se cayó antes de guardar su `pi_…`.
+    const options: { attempt?: CollectionAttempt | null } = {
+      attempt: attempt({ status: "claimed", paymentIntentId: null }),
+    };
+    const { store } = fakeStore(options);
+    // El camino de los cobros (processPaymentIntentEvent) lo adopta por la metadata y registra el cobro.
+    const recordCollection = vi.fn(async () => {
+      options.attempt = attempt({ status: "succeeded" });
+    });
+
+    const effect = await processRefundEvent(input(refundRef), { store, gateway, recordCollection });
+
+    expect(effect).toEqual({ effectType: REFUND_EFFECT_TYPE, effectId: refundRowId });
+    // Una sola vez: no se repite al ver el intento (ya cobrado).
+    expect(recordCollection).toHaveBeenCalledTimes(1);
+    expect(recordCollection).toHaveBeenCalledWith(input(paymentIntentId));
+    expect(store.findAttemptByPaymentIntent).toHaveBeenCalledTimes(2);
+    expect(store.recordAttemptRefunds).toHaveBeenCalledTimes(1);
+    expect(store.recordAttemptRefunds.mock.calls[0][0].attemptId).toBe(attemptId);
+    expect(store.recordAttemptRefunds.mock.calls[0][0].paymentIntentId).toBe(paymentIntentId);
+    // Primero el cobro y después la devolución.
+    expect(recordCollection.mock.invocationCallOrder[0]).toBeLessThan(
+      store.recordAttemptRefunds.mock.invocationCallOrder[0]
+    );
+    // Ya resuelto: no hace falta mirar la metadata.
+    expect(gateway.retrievePaymentIntentAttemptId).not.toHaveBeenCalled();
+  });
+
+  it("Minor 1: el intento claimed aparece pero sigue abierto → error pasajero sin repetir el camino de los cobros", async () => {
+    const { gateway } = fakeGateway(charge([refund()]));
+    const options: { attempt?: CollectionAttempt | null } = {
+      attempt: attempt({ status: "claimed", paymentIntentId: null }),
+    };
+    const { store } = fakeStore(options);
+    // Le guarda el `pi_…`, pero Stripe aún no da el resultado del cobro.
+    const recordCollection = vi.fn(async () => {
+      options.attempt = attempt({ status: "created" });
+    });
+
+    await expect(processChargeRefundEvent(input(chargeRef), { store, gateway, recordCollection })).rejects.toThrow(
+      REFUND_BEFORE_COLLECTION_RECORDED
+    );
+    expect(recordCollection).toHaveBeenCalledTimes(1);
+    expect(store.recordAttemptRefunds).not.toHaveBeenCalled();
+    expect(store.recordRefundNotice).not.toHaveBeenCalled();
+  });
+
+  it("Minor 1: ningún intento ni después del camino de los cobros → error pasajero solo si la metadata dice que es de Zaltyko", async () => {
+    // La metadata del cobro apunta a un intento de Zaltyko: Stripe reenvía.
+    const ours = fakeGateway(charge([refund()]));
+    ours.state.metadataAttemptId = attemptId;
+    const oursStore = fakeStore({ attempt: attempt({ status: "claimed", paymentIntentId: null }) });
+    const recordCollection = vi.fn(async () => undefined);
+    await expect(
+      processRefundEvent(input(refundRef), { store: oursStore.store, gateway: ours.gateway, recordCollection })
+    ).rejects.toThrow(REFUND_BEFORE_COLLECTION_RECORDED);
+    expect(recordCollection).toHaveBeenCalledTimes(1);
+    expect(ours.gateway.retrievePaymentIntentAttemptId).toHaveBeenCalledWith({ connectedAccount, paymentIntentId });
+    expect(oursStore.store.recordAttemptRefunds).not.toHaveBeenCalled();
+
+    // Otro cobro de la academia (sin metadata de Zaltyko): sin efecto y sin error.
+    const foreign = fakeGateway(charge([refund()]));
+    const foreignStore = fakeStore({ attempt: null });
+    expect(
+      await processChargeRefundEvent(input(chargeRef), { store: foreignStore.store, gateway: foreign.gateway, recordCollection })
+    ).toEqual({ effectType: null, effectId: null });
+    expect(foreign.gateway.retrievePaymentIntentAttemptId).toHaveBeenCalledTimes(1);
+    expect(foreignStore.store.recordAttemptRefunds).not.toHaveBeenCalled();
+    expect(foreignStore.store.recordRefundNotice).not.toHaveBeenCalled();
+  });
+
+  it("Minor 1: sin intento y solo devoluciones pending → ni camino de los cobros ni Stripe", async () => {
+    const { gateway, state } = fakeGateway(charge([refund({ status: "pending" })]));
+    state.metadataAttemptId = attemptId;
+    const { store } = fakeStore({ attempt: attempt({ status: "claimed", paymentIntentId: null }) });
+    const recordCollection = vi.fn(async () => undefined);
+
+    expect(await processChargeRefundEvent(input(chargeRef), { store, gateway, recordCollection })).toEqual({
+      effectType: null,
+      effectId: null,
+    });
+    expect(recordCollection).not.toHaveBeenCalled();
+    expect(gateway.retrievePaymentIntentAttemptId).not.toHaveBeenCalled();
+  });
+
   it("Stripe: un error permanente no tiene efecto (solo ids en el registro); uno pasajero sube para que Stripe reenvíe", async () => {
     const { gateway } = fakeGateway(charge([refund()]));
     const { store } = fakeStore();
@@ -682,6 +776,22 @@ describe("createStripeRefundGateway", () => {
     await expect(
       createStripeRefundGateway(client).retrieveChargeRefunds({ connectedAccount, chargeId: chargeRef })
     ).rejects.toThrow(TOO_MANY_REFUNDS_FOR_CHARGE_ERROR);
+  });
+
+  it("Minor 1: el id del intento sale de la metadata del pi_ en la cuenta conectada; sin metadata de Zaltyko, null", async () => {
+    const retrieve = vi.fn(async (id: string) => ({
+      id,
+      object: "payment_intent",
+      metadata: id === paymentIntentId ? { zaltyko_collection_attempt_id: attemptId } : {},
+    }));
+    const client = { paymentIntents: { retrieve } } as unknown as Stripe;
+    const gateway = createStripeRefundGateway(client);
+
+    await expect(gateway.retrievePaymentIntentAttemptId?.({ connectedAccount, paymentIntentId })).resolves.toBe(attemptId);
+    expect(retrieve).toHaveBeenCalledWith(paymentIntentId, {}, { stripeAccount: connectedAccount });
+    await expect(
+      gateway.retrievePaymentIntentAttemptId?.({ connectedAccount, paymentIntentId: "pi_SyntheticOther1" })
+    ).resolves.toBeNull();
   });
 
   it("la devolución da el id de su cargo (como texto o como objeto)", async () => {

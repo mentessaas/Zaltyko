@@ -182,11 +182,6 @@ async function isFamilyConfirmationAvailable(): Promise<boolean> {
 }
 
 /**
- * Fase 4: plazo para confirmar el pago de un intento `requires_action`, o
- * null. Solo se llama con un intento en ese estado, que solo existe con la
- * forma "phase4": la lectura es la del almacén (readActionDeadline, C2).
- */
-/**
  * Ola final (B1): ¿es la cuenta de la sesión la persona pagadora del intento?
  * La misma regla que la confirmación (resolveFamilyPayer: pagadora vigente de
  * la familia, y su fila es la del intento).
@@ -208,6 +203,11 @@ async function isViewerAttemptPayer(input: {
   return payer !== null && payer.familyPayerId === input.attemptPayerId;
 }
 
+/**
+ * Fase 4: plazo para confirmar el pago de un intento `requires_action`, o
+ * null. Solo se llama con un intento en ese estado, que solo existe con la
+ * forma "phase4": la lectura es la del almacén (readActionDeadline, C2).
+ */
 async function readConfirmationDeadline(organizationId: string, attemptId: string | null): Promise<Date | null> {
   if (!attemptId || !uuidSchema.safeParse(attemptId).success) return null;
   return createFamilyCollectionStore().readActionDeadline({ organizationId, attemptId });

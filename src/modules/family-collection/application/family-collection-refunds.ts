@@ -20,6 +20,11 @@
  *    y Stripe lo reenvía, así la devolución nunca se pierde. Cerrado sin
  *    cobro (`failed`/`canceled`): sin efecto; si después se registra como
  *    cobro tardío, settleClosedAttempt relee sus devoluciones.
+ *    Re-revisión de la ola final (Minor 1): si ningún intento tiene ese
+ *    `pi_…` (uno `claimed` que aún no lo guardó) y el cargo ya tiene una
+ *    devolución hecha, también se pasa antes por `recordCollection`, que lo
+ *    encuentra por la metadata del cobro. Si aun así no aparece y la metadata
+ *    del cobro dice que es de Zaltyko, el mismo error pasajero.
  * 3. Cada devolución del cargo, de la más antigua a la más nueva:
  *    - `succeeded` sin anotar → una transacción con todas sus filas (una por
  *      reparto, de la cuota más antigua a la más nueva) y el aviso
@@ -245,17 +250,68 @@ async function settleReversedRefund(context: SettleContext, refund: ChargeRefund
   return { recorded: null, review: true };
 }
 
+/**
+ * Re-revisión de la ola final (Minor 1): ¿es un cobro que creó el cobro
+ * automático de Zaltyko? Se relee el `pi_…` en la cuenta conectada y se mira
+ * solo si su metadata lleva el id de un intento. Así una devolución de otra
+ * cosa que la academia cobra en su cuenta nunca hace que Stripe reenvíe el
+ * evento. Un error permanente da false (sin efecto); uno pasajero sube.
+ */
+async function isZaltykoCollection(
+  input: RefundEventInput,
+  deps: ResolvedDeps,
+  paymentIntentId: string
+): Promise<boolean> {
+  const { gateway } = deps;
+  if (!gateway.retrievePaymentIntentAttemptId) return false;
+  const attemptId = await readOrSkip(
+    input,
+    async () =>
+      (await gateway.retrievePaymentIntentAttemptId?.({
+        connectedAccount: input.account.providerAccountReference,
+        paymentIntentId,
+      })) ?? null
+  );
+  return attemptId !== null;
+}
+
 /** Lo común a los dos eventos: el cargo ya releído con todas sus devoluciones. */
 async function settleChargeRefunds(
   input: RefundEventInput,
-  store: FamilyCollectionRefundStore,
-  charge: ChargeRefundsSnapshot,
-  recordCollection: FamilyCollectionRefundDeps["recordCollection"]
+  deps: ResolvedDeps,
+  charge: ChargeRefundsSnapshot
 ): Promise<RefundEventEffect> {
+  const { store, recordCollection } = deps;
   const paymentIntentId = charge.paymentIntentId;
   if (!paymentIntentId) return NO_EFFECT;
   const find = () => store.findAttemptByPaymentIntent({ organizationId: input.organizationId, paymentIntentId });
+  const hasSucceededRefund = charge.refunds.some((refund) => refund.status === "succeeded");
   let attempt = await find();
+  let collectionRecorded = false;
+  // Re-revisión de la ola final (Minor 1): ningún intento tiene este `pi_…`.
+  // Puede ser uno que sigue `claimed` (Zaltyko creó el cobro en Stripe y se
+  // cayó antes de guardar su `pi_…`). Si el cargo ya tiene una devolución
+  // hecha, primero el camino de los cobros: encuentra el intento por la
+  // metadata del cobro, le guarda el `pi_…` y registra el cobro. Después se
+  // vuelve a buscar. Con solo devoluciones pendientes no se hace nada: el
+  // evento de la que termine volverá a pasar por aquí.
+  if (!attempt && hasSucceededRefund && recordCollection) {
+    await recordCollection({ ...input, objectId: paymentIntentId });
+    collectionRecorded = true;
+    attempt = await find();
+    if (!attempt) {
+      // Un cobro que creó Zaltyko (su metadata lleva el id de un intento) ya
+      // cobrado y devuelto, pero el libro aún no lo tiene: se pide a Stripe
+      // que reenvíe en vez de perder la devolución.
+      if (await isZaltykoCollection(input, deps, paymentIntentId)) {
+        logger.warn(
+          "Cobro automático: devolución de un cobro que el libro aún no registra; Stripe la reenviará",
+          eventIds(input, { paymentIntentId })
+        );
+        throw new Error(REFUND_BEFORE_COLLECTION_RECORDED);
+      }
+    }
+  }
   // Un cargo que no es de un cobro automático de Zaltyko: no es asunto de este módulo.
   if (!attempt) return NO_EFFECT;
   if (attempt.paymentProviderAccountId !== input.account.id) {
@@ -269,14 +325,15 @@ async function settleChargeRefunds(
   // Primero se registra el cobro (fuera de toda transacción, el mismo camino
   // que los eventos de cobro) y se vuelve a buscar el intento.
   if (OPEN_ATTEMPT_STATUSES.has(attempt.status)) {
-    if (recordCollection) {
+    // Si el camino de los cobros ya pasó arriba (Minor 1), no se repite.
+    if (recordCollection && !collectionRecorded) {
       await recordCollection({ ...input, objectId: paymentIntentId });
       attempt = (await find()) ?? attempt;
     }
     if (OPEN_ATTEMPT_STATUSES.has(attempt.status)) {
       // Sin devoluciones hechas no hay nada que perder: el evento de la que
       // termine (o el cobro tardío) las anotará.
-      if (!charge.refunds.some((refund) => refund.status === "succeeded")) return NO_EFFECT;
+      if (!hasSucceededRefund) return NO_EFFECT;
       // Stripe ya cobró y devolvió, pero el libro aún no tiene el cobro: se
       // pide a Stripe que reenvíe en vez de cerrar el evento sin efecto.
       logger.warn(
@@ -353,7 +410,7 @@ export async function processChargeRefundEvent(
       chargeId: input.objectId,
     })
   );
-  return charge ? settleChargeRefunds(input, resolved.store, charge, resolved.recordCollection) : NO_EFFECT;
+  return charge ? settleChargeRefunds(input, resolved, charge) : NO_EFFECT;
 }
 
 /** `refund.created`/`refund.updated`/`refund.failed`: el objeto es la devolución (`re_…`/`pyr_…`). */
@@ -369,7 +426,7 @@ export async function processRefundEvent(
   );
   if (!chargeId) return NO_EFFECT;
   const charge = await readOrSkip(input, () => resolved.gateway.retrieveChargeRefunds({ connectedAccount, chargeId }));
-  return charge ? settleChargeRefunds(input, resolved.store, charge, resolved.recordCollection) : NO_EFFECT;
+  return charge ? settleChargeRefunds(input, resolved, charge) : NO_EFFECT;
 }
 
 // Los manejadores con las dependencias reales (handleChargeRefundEvent y
