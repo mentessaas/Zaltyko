@@ -2743,9 +2743,12 @@ describe("Fase 4: cortacircuitos del proceso diario (D9)", () => {
     // Ni la cuarta ni la quinta factura se miran: ni se reclaman ni se cancelan.
     expect(store.claimOrCancel).toHaveBeenCalledTimes(3);
     expect(store.loadInvoiceContext).toHaveBeenCalledTimes(3);
-    // El intento que lo abrió se queda como estaba: reclamado y sin cobro en Stripe.
+    // El intento que lo abrió se queda como estaba: ningún cierre aplicado
+    // (world.applied solo tiene los dos primeros) y ningún cobro guardado.
+    // Tarea M (punto 17): el almacén simulado nunca cambia el estado, así que
+    // un `status: "claimed"` aquí no probaría nada.
     expect(world.attempts).toHaveLength(3);
-    expect(world.attempts[2]).toMatchObject({ status: "claimed", paymentIntentId: null });
+    expect(world.applied).toHaveLength(2);
     expect(store.markCreated).not.toHaveBeenCalled();
     expect(gateway.confirmPayment).not.toHaveBeenCalled();
     expect(store.recordNotice).not.toHaveBeenCalled();
@@ -2797,6 +2800,30 @@ describe("Fase 4: cortacircuitos del proceso diario (D9)", () => {
     expect(breakerLogs()).toEqual([[BREAKER_MESSAGE, undefined, { created: 8, invalid: 2 }]]);
   });
 
+  it("Tarea M (punto 16): con el cortacircuitos abierto la Fase A no toma más reanudables y devuelve la reanudación de los tomados", async () => {
+    // Doce reanudables: la primera toma se lleva diez; el tercero abre el cortacircuitos.
+    const resumable = Array.from({ length: 12 }, (_, index) =>
+      attempt({ id: `20000000-0000-4000-8000-0000000001${String(index).padStart(2, "0")}`, resumeCount: 0 })
+    );
+    const { world, store, gateway, run } = setup(brokenDeploy);
+    world.attempts.push(...resumable);
+    world.resumable = [...resumable];
+    world.due = [];
+
+    const result = await run();
+
+    expect(gateway.createPayment).toHaveBeenCalledTimes(3);
+    // Una sola toma: con el circuito abierto no se toman los dos que quedan.
+    expect(store.claimResumable).toHaveBeenCalledTimes(1);
+    expect(world.resumable.map((item) => item.id)).toEqual([resumable[10].id, resumable[11].id]);
+    // Los siete tomados sin procesar recuperan su reanudación (no se agotan por un despliegue roto).
+    expect(world.released).toEqual(resumable.slice(3, 10).map((item) => item.id));
+    expect(result).toMatchObject({ circuitOpen: true, resumed: 3 });
+    expect(result.skipped).toMatchObject({ circuit_open: 1, resume_released: 7 });
+    // Ninguno se cierra como transient_exhausted.
+    expect(world.applied.some((outcome) => "code" in outcome && outcome.code === "transient_exhausted")).toBe(false);
+  });
+
   it("un logger.error por pasada", async () => {
     const resumable = [11, 12, 13, 14].map((suffix) =>
       attempt({ id: `20000000-0000-4000-8000-0000000000${suffix}`, resumeCount: 0 })
@@ -2813,14 +2840,18 @@ describe("Fase 4: cortacircuitos del proceso diario (D9)", () => {
       { kind: "canceled", paymentIntentId: null, reason: "parameter_missing" },
       { kind: "canceled", paymentIntentId: null, reason: "parameter_missing" },
     ]);
-    // El que lo abrió y el siguiente se quedan reclamados, sin cobro: otro día se reanudan.
-    expect(resumable[2]).toMatchObject({ status: "claimed", paymentIntentId: null });
-    expect(resumable[3]).toMatchObject({ status: "claimed", paymentIntentId: null });
+    // El que lo abrió y el siguiente se quedan como estaban (otro día se
+    // reanudan): ningún cierre más que los dos primeros y ningún cobro
+    // guardado (Tarea M, punto 17: sin asserts de estado que no prueban nada).
+    expect(world.applied).toHaveLength(2);
+    expect(store.markCreated).not.toHaveBeenCalled();
+    // Tarea M (punto 16): el siguiente ya no se procesa y recupera su reanudación.
+    expect(world.released).toEqual([resumable[3].id]);
     // La Fase B no mira ninguna factura.
     expect(store.listDueInvoices).not.toHaveBeenCalled();
     expect(store.claimOrCancel).not.toHaveBeenCalled();
-    expect(first).toMatchObject({ circuitOpen: true, resumed: 4, canceled: 2 });
-    expect(first.skipped).toEqual({ circuit_open: 2 });
+    expect(first).toMatchObject({ circuitOpen: true, resumed: 3, canceled: 2 });
+    expect(first.skipped).toEqual({ circuit_open: 1, resume_released: 1 });
     // Un solo error, con solo dos contadores (nunca ids, importes ni datos de familias).
     expect(breakerLogs()).toEqual([[BREAKER_MESSAGE, undefined, { created: 0, invalid: 3 }]]);
     expect(JSON.stringify(breakerLogs())).not.toMatch(/20000000-|30000000-|pi_|cus_|pm_|acct_/);

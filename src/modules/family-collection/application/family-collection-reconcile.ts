@@ -422,13 +422,17 @@ export async function reconcilePendingAttempts(state: RunState): Promise<void> {
   const staleBefore = new Date(state.now.getTime() - RESUME_STALE_MS);
   const resumeLimit = Math.min(state.batchSize, RESUME_BATCH_SIZE);
 
-  // 1. Reanudar.
+  // 1. Reanudar. Tarea M (punto 16): con el cortacircuitos abierto no se
+  // toman más intentos, y los ya tomados sin procesar recuperan su
+  // reanudación (releaseResumes): un despliegue roto varios días no los
+  // agota ni los cierra como `transient_exhausted`.
   let cursor: string | null = null;
-  for (;;) {
+  resume: for (;;) {
     if (isExpired(state)) {
       state.result.complete = false;
       return;
     }
+    if (state.breaker.open) break;
     const batch = await state.store.claimResumable({
       staleBefore,
       after: cursor,
@@ -443,6 +447,10 @@ export async function reconcilePendingAttempts(state: RunState): Promise<void> {
         await releaseResumes(state, batch.slice(index));
         state.result.complete = false;
         return;
+      }
+      if (state.breaker.open) {
+        await releaseResumes(state, batch.slice(index));
+        break resume;
       }
       cursor = attempt.id;
       state.result.resumed += 1;
