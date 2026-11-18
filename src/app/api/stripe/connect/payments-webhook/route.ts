@@ -13,10 +13,11 @@
  * 1. bandera apagada, clave que no es de prueba o base de producción →
  *    200 `{ ignored: true }` sin leer el cuerpo;
  * 2. sin secreto → 503 `WEBHOOK_NOT_CONFIGURED`;
- * 3. sin firma o firma no válida → 400 `SIGNATURE_VERIFICATION_FAILED`; sin
- *    cliente de Stripe (falta STRIPE_SECRET_KEY en la configuración del
- *    servidor) → 503 `STRIPE_NOT_CONFIGURED` (Stripe reintenta; nunca se
- *    registra la clave);
+ * 3. sin firma o firma no válida → 400 `SIGNATURE_VERIFICATION_FAILED`; si
+ *    la clave de prueba está en el entorno pero no se puede crear el cliente
+ *    de Stripe → 503 `STRIPE_NOT_CONFIGURED` (Stripe reintenta; nunca se
+ *    registra la clave). Sin STRIPE_SECRET_KEY en el entorno ya se ignora en
+ *    el paso 1;
  * 4. evento de Live, de un tipo que no se escucha, sin cuenta conectada o
  *    con un objeto inesperado → 200 `{ ignored: true }`;
  * 5–7. almacenamiento, cuenta y buzón (handleFamilyCollectionEvent):

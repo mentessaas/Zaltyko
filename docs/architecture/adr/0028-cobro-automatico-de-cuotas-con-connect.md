@@ -946,12 +946,13 @@ del 16-11-2026, una bandera por fase):
 - **Código Standard v1** y sus rutas siguen hasta la PR de D8.
 - **Eventos perdidos con la bandera apagada.** La ruta responde 200
   `{ ignored: true }` y no guarda nada; Stripe permite reenviar los eventos de
-  los últimos 30 días. Con la bandera encendida no se pierden por la
-  configuración (revisión del coordinador de la PR #354, puntos 2 y 3): sin
-  las tablas de las Fases 1–4 la ruta responde 503
-  `EVENTS_STORAGE_UNAVAILABLE`, y sin `STRIPE_SECRET_KEY` en el servidor, 503
-  `STRIPE_NOT_CONFIGURED` (nunca un 400 de firma, y sin registrar la clave):
-  Stripe los reenvía.
+  los últimos 30 días. Lo mismo si falta `STRIPE_SECRET_KEY` en el entorno
+  (la clave no es de prueba: se ignora en el primer paso). Con la bandera
+  encendida y la clave de prueba visible no se pierden por la configuración
+  (revisión del coordinador de la PR #354, puntos 2 y 3): sin las tablas de
+  las Fases 1–4 la ruta responde 503 `EVENTS_STORAGE_UNAVAILABLE`, y si no se
+  puede crear el cliente de Stripe, 503 `STRIPE_NOT_CONFIGURED` (nunca un 400
+  de firma, y sin registrar la clave): Stripe los reenvía.
 - **Devolución anulada después en Stripe.** No toca el libro: la academia
   recibe el aviso `refund_reversed` y la familia sigue viendo «Devuelto».
 - **Búsqueda de devoluciones por id.** `provider_refund_id` lleva ahora el
