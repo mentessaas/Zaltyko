@@ -146,7 +146,8 @@ async function payerAttempt(input: FamilyAuthenticationInput, now: Date): Promis
  * Lo que necesita el navegador para que la familia confirme el cobro con su
  * banco. Solo para un intento de tarjeta en `requires_action`, antes de su
  * plazo, cuyo cobro Stripe aún deja confirmar, en la cuenta de prueba de la
- * academia y con la tarjeta de la autorización del intento.
+ * academia y con la tarjeta de la autorización del intento, que tiene que
+ * seguir activa.
  */
 export async function startFamilyAuthentication(
   input: FamilyAuthenticationInput,
@@ -181,6 +182,10 @@ export async function startFamilyAuthentication(
   if (!refs || refs.connectedAccount !== account.providerAccountReference || !refs.paymentMethod) {
     throw closedError();
   }
+  // Ola final (M-A3): una autorización revocada (por la familia, la academia
+  // o Stripe) no cancela el cobro que espera, pero ya no deja confirmarlo:
+  // la familia no paga a petición suya con un permiso que retiró.
+  if (refs.authorizationActive === false) throw closedError();
 
   // Fuera de cualquier transacción.
   const read = deps.readClientSecret ?? ((target) => retrievePaymentClientSecret(target));

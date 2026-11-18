@@ -80,6 +80,11 @@ export interface FamilyReceiptView {
    * el cobro existió.
    */
   refundedOnLocal?: string | null;
+  /**
+   * Ola final (B3): total devuelto de este pago (devoluciones anotadas), en
+   * céntimos, o null si no se sabe. Menos que el total → devolución parcial.
+   */
+  refundedCents?: number | null;
   /** Tarea M (punto 13): el pago tiene una disputa abierta con el banco. */
   underBankReview?: boolean;
 }
@@ -130,13 +135,30 @@ export function familyReceiptRows(view: FamilyReceiptView): Array<{ label: strin
 /**
  * Tarea M (punto 13): líneas sencillas sobre lo que pasó después con el pago
  * («Este pago se devolvió el 5 de febrero de 2027», «Este pago está en
- * revisión con el banco»). Vacío si no pasó nada. Pura.
+ * revisión con el banco»). Ola final (B3): si solo se devolvió una parte,
+ * «Se devolvieron 20,00 € de este pago el 5 de febrero de 2027». Vacío si no
+ * pasó nada. Pura.
  */
 export function familyReceiptStatusLines(
-  view: Pick<FamilyReceiptView, "refundedOnLocal" | "underBankReview">
+  view: Pick<FamilyReceiptView, "refundedOnLocal" | "underBankReview"> &
+    Partial<Pick<FamilyReceiptView, "refundedCents" | "totalCents" | "currency">>
 ): string[] {
   const lines: string[] = [];
-  if (view.refundedOnLocal) lines.push(`Este pago se devolvió el ${familyReceiptDateText(view.refundedOnLocal)}.`);
+  if (view.refundedOnLocal) {
+    const day = familyReceiptDateText(view.refundedOnLocal);
+    const refunded = view.refundedCents ?? null;
+    const partial =
+      refunded !== null &&
+      view.totalCents !== undefined &&
+      view.currency !== undefined &&
+      refunded > 0 &&
+      refunded < view.totalCents;
+    lines.push(
+      partial
+        ? `Se devolvieron ${formatMoney(refunded, view.currency!)} de este pago el ${day}.`
+        : `Este pago se devolvió el ${day}.`
+    );
+  }
   if (view.underBankReview) lines.push("Este pago está en revisión con el banco.");
   return lines;
 }

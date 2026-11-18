@@ -248,6 +248,7 @@ function makeWorld() {
       firstAttemptClaimedAt: new Date("2026-11-16T08:00:00.000Z"),
       allocations: [{ chargeId, amountCents: 4500 }],
       windowAnchorLocalDate: "2026-11-19",
+      authorizationActive: true,
     })),
     recordNotice: vi.fn<FamilyCollectionStore["recordNotice"]>(async () => true),
   };
@@ -422,6 +423,18 @@ describe("POST /api/v1/family/automatic-payment/authentication — start", () =>
     // La cuenta del intento no es la de prueba de la academia.
     vi.mocked(findConnectAccountForOrganization).mockResolvedValueOnce({ ...account, id: "45000000-0000-4000-8000-000000000098" });
     await expectConflict("FAMILY_PAYMENT_CONFIRMATION_CLOSED");
+
+    // Ola final (M-A3): la autorización del intento ya no está activa (revocada) → 409, sin leer la clave del cobro.
+    vi.mocked(retrievePaymentClientSecret).mockClear();
+    const activeRefs = vi.mocked(current.store.loadAttemptRefs).getMockImplementation()!;
+    vi.mocked(current.store.loadAttemptRefs).mockImplementationOnce(async (attempt) => ({
+      ...(await activeRefs(attempt))!,
+      authorizationActive: false,
+    }));
+    await expectConflict("FAMILY_PAYMENT_CONFIRMATION_CLOSED");
+    expect(retrievePaymentClientSecret).not.toHaveBeenCalled();
+    // Con la autorización activa vuelve a dejar confirmar.
+    expect((await post(start)).status).toBe(200);
 
     // Nunca se escribió nada ni se creó, confirmó o canceló otro cobro.
     expect(current.store.applyOutcome).not.toHaveBeenCalled();

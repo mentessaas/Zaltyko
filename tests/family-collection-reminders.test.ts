@@ -394,6 +394,58 @@ describe("loadReminderCandidates con el cobro automático", () => {
     expect(executed[0]).not.toContain("family_collection_attempts");
   });
 
+  it("ola final (M-A1): una factura con un cobro tardío en espera no recibe recordatorios, con la bandera encendida o apagada", async () => {
+    const lateRows = () => [
+      // El hermano quedó failed sin reintento, pero el tardío ya está cobrado en Stripe.
+      row({
+        chargeId: "c1",
+        collectionMode: "automatic",
+        lastAttemptStatus: "failed",
+        lastAttemptCompletedAt: "2026-11-12T07:00:00.000000Z",
+        collectionDayOfMonth: null,
+        latePendingCollection: true,
+      }),
+      // La misma situación sin tardío en espera: vuelve a los recordatorios.
+      row({
+        chargeId: "c2",
+        collectionMode: "automatic",
+        lastAttemptStatus: "failed",
+        lastAttemptCompletedAt: "2026-11-12T07:00:00.000000Z",
+        collectionDayOfMonth: null,
+        latePendingCollection: false,
+      }),
+    ];
+    for (const flag of [true, false]) {
+      vi.mocked(isFamilyAutomaticCollectionFlagEnabled).mockReturnValue(flag);
+      const { client: fake, executed } = client(lateRows());
+      const candidates = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
+      expect(
+        candidates.map((candidate) => candidate.automaticCollectionHold),
+        `bandera ${flag}`
+      ).toEqual([true, false]);
+      expect(executed[0]).toContain("from zaltyko.family_collection_attempts lp");
+      expect(executed[0]).toContain("lp.invoice_id = c.invoice_id");
+      expect(executed[0]).toContain("lp.status in ('failed', 'canceled')");
+      expect(executed[0]).toContain('as "latePendingCollection"');
+
+      const plan = planReminders({ candidates, now: NOW, origin: "manual", minIntervalDays: 7, autoAfterDays: 3 });
+      expect(plan.skipped, `bandera ${flag}`).toEqual(
+        expect.arrayContaining([{ chargeId: "c1", reason: "automatic_collection" }])
+      );
+    }
+  });
+
+  it("ola final (B5): la cuota nueva de una domiciliación devuelta llega marcada al recordatorio, con o sin las tablas de la Fase 3", async () => {
+    for (const tables of [true, false]) {
+      vi.mocked(isFamilyCollectionStorageAvailable).mockResolvedValue(tables);
+      const { client: fake, executed } = client([row({ returnedByBank: true }), row({ chargeId: "c2" })]);
+      const candidates = await loadReminderCandidates(fake, { organizationId, locationIds: [locationId], limit: 10, now: NOW });
+      expect(candidates.map((candidate) => candidate.returnedByBank), `tablas ${tables}`).toEqual([true, false]);
+      expect(executed[0]).toContain('as "returnedByBank"');
+      expect(executed[0]).toContain("from zaltyko.invoice_lines rl");
+    }
+  });
+
   it("bandera apagada con un SEPA en el banco: el plan de envío lo deja fuera (sin cobro doble)", async () => {
     vi.mocked(isFamilyAutomaticCollectionFlagEnabled).mockReturnValue(false);
     const { client: fake } = client([

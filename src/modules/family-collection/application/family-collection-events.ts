@@ -23,7 +23,7 @@
  * cualquier transacción. El de los cobros (`payment_intent.*`) es
  * `handlePaymentIntentEvent` (Tarea 3); los de las devoluciones
  * (`charge.refunded` y `refund.*`) son `handleChargeRefundEvent` y
- * `handleRefundEvent` (Tarea 6, family-collection-refunds.ts); el de las
+ * `handleRefundEvent` (Tarea 6, más abajo, sobre family-collection-refunds.ts); el de las
  * disputas (`charge.dispute.*`) es `handleDisputeEvent` (Tarea 7,
  * family-collection-disputes.ts); los del método de pago
  * (`payment_method.detached`, `mandate.updated` y `setup_intent.succeeded`)
@@ -77,8 +77,8 @@ import {
 } from "@/modules/family-collection/application/family-collection-service";
 import { processDisputeEvent } from "@/modules/family-collection/application/family-collection-disputes";
 import {
-  handleChargeRefundEvent,
-  handleRefundEvent,
+  processChargeRefundEvent,
+  processRefundEvent,
 } from "@/modules/family-collection/application/family-collection-refunds";
 import {
   reconcileAttemptWithStripe,
@@ -314,6 +314,21 @@ export const handlePaymentIntentEvent: ProviderEventHandler = async (input) =>
  */
 export const handleDisputeEvent: ProviderEventHandler = (input) =>
   processDisputeEvent(input, {
+    recordCollection: (collectionInput) => processPaymentIntentEvent(collectionInput),
+  });
+
+/**
+ * Manejadores de `charge.refunded` y `refund.*` (Tarea 6) con las dependencias
+ * reales. Ola final, punto 1: si la devolución llega antes de que el libro
+ * registre el cobro (intento aún abierto), lo registran antes por el camino
+ * de los cobros, igual que las disputas.
+ */
+export const handleChargeRefundEvent: ProviderEventHandler = (input) =>
+  processChargeRefundEvent(input, {
+    recordCollection: (collectionInput) => processPaymentIntentEvent(collectionInput),
+  });
+export const handleRefundEvent: ProviderEventHandler = (input) =>
+  processRefundEvent(input, {
     recordCollection: (collectionInput) => processPaymentIntentEvent(collectionInput),
   });
 

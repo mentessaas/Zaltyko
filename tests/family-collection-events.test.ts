@@ -647,7 +647,7 @@ describe("cobro tardío de un intento cerrado (D10: nunca dos cobros)", () => {
     expect(outcome.result).toMatchObject({ collected: 1, needsReview: 1, skipped: { duplicate_collection: 1 } });
   });
 
-  it("éxito tardío con un hermano claimed sin pi_ → LATE_SUCCESS_SIBLING_IN_FLIGHT, evento failed y nada registrado", async () => {
+  it("éxito tardío con un hermano claimed sin pi_ → aviso late_success_pending y LATE_SUCCESS_SIBLING_IN_FLIGHT, evento failed y nada registrado", async () => {
     const { world, gateway, event } = setup();
     world.attempts.push(attempt({ status: "failed", paymentIntentId: "pi_SyntheticFirst" }));
     world.attempts.push(attempt({ id: secondAttemptId, attemptNumber: 2, status: "claimed", paymentIntentId: null }));
@@ -663,6 +663,9 @@ describe("cobro tardío de un intento cerrado (D10: nunca dos cobros)", () => {
     expect(world.payments).toEqual([]);
     expect(gateway.cancelPayment).not.toHaveBeenCalled();
     expect(world.attempts.map((item) => item.status)).toEqual(["failed", "claimed"]);
+    // Ola final (M-A2): antes de lanzar queda la marca duradera del tardío
+    // (N2 bloquea otro reclamo y el paso 4 diario lo vuelve a mirar).
+    expect(world.notices).toEqual([`${firstAttemptId}:${LATE_SUCCESS_PENDING_REASON}`]);
 
     // El reenvío: el proceso diario ya le guardó su pi_ al hermano → se cancela y se registra el tardío.
     Object.assign(world.attempts[1]!, { status: "created", paymentIntentId: "pi_SyntheticSecond" });
@@ -762,6 +765,8 @@ describe("cobro tardío de un intento cerrado (D10: nunca dos cobros)", () => {
     await expect(event("pi_SyntheticFirst")).rejects.toThrow(LATE_SUCCESS_SIBLING_IN_FLIGHT);
     expect(world.payments).toEqual([]);
     expect(world.attempts.map((item) => item.status)).toEqual(["failed", "created"]);
+    // Ola final (M-A2): también aquí queda la marca antes de lanzar.
+    expect(world.notices).toEqual([`${firstAttemptId}:${LATE_SUCCESS_PENDING_REASON}`]);
   });
 });
 

@@ -44,12 +44,15 @@ vi.mock("@/modules/payments-connect/application/connect-onboarding-service", () 
 }));
 
 import { logger } from "@/lib/logger";
-import { DEFAULT_PROVIDER_EVENT_HANDLERS } from "@/modules/family-collection/application/family-collection-events";
 import {
+  DEFAULT_PROVIDER_EVENT_HANDLERS,
   handleChargeRefundEvent,
   handleRefundEvent,
+} from "@/modules/family-collection/application/family-collection-events";
+import {
   processChargeRefundEvent,
   processRefundEvent,
+  REFUND_BEFORE_COLLECTION_RECORDED,
   REFUND_EFFECT_TYPE,
   REFUND_REVIEW_EFFECT_TYPE,
   type RefundEventInput,
@@ -465,6 +468,69 @@ describe("manejadores de charge.refunded y refund.*", () => {
       });
       expect(store.recordAttemptRefunds, label).not.toHaveBeenCalled();
       expect(store.recordRefundNotice, label).not.toHaveBeenCalled();
+    }
+  });
+
+  it("ola final (punto 1): devolución antes que succeeded → primero se registra el cobro por su pi_ y luego la fila refund", async () => {
+    for (const status of ["processing", "created", "requires_action"] as const) {
+      const { gateway } = fakeGateway(charge([refund()]));
+      const options: { attempt?: CollectionAttempt | null } = { attempt: attempt({ status }) };
+      const { store } = fakeStore(options);
+      // El camino de los cobros (processPaymentIntentEvent) registra el cobro: el intento pasa a succeeded.
+      const recordCollection = vi.fn(async () => {
+        options.attempt = attempt({ status: "succeeded" });
+      });
+
+      const effect = await processChargeRefundEvent(input(chargeRef), { store, gateway, recordCollection });
+
+      expect(effect, status).toEqual({ effectType: REFUND_EFFECT_TYPE, effectId: refundRowId });
+      expect(recordCollection, status).toHaveBeenCalledTimes(1);
+      expect(recordCollection, status).toHaveBeenCalledWith(input(paymentIntentId));
+      expect(store.recordAttemptRefunds, status).toHaveBeenCalledTimes(1);
+      expect(store.recordAttemptRefunds.mock.calls[0][0].attemptId, status).toBe(attemptId);
+      // El cobro se registra antes que la devolución (registrar antes de repartir).
+      expect(recordCollection.mock.invocationCallOrder[0], status).toBeLessThan(
+        store.recordAttemptRefunds.mock.invocationCallOrder[0]
+      );
+    }
+  });
+
+  it("ola final (punto 1): el intento sigue abierto y Stripe ya devolvió → error pasajero (Stripe reenvía), sin filas ni avisos", async () => {
+    const { gateway } = fakeGateway(charge([refund()]));
+    const { store } = fakeStore({ attempt: attempt({ status: "processing" }) });
+    const recordCollection = vi.fn(async () => undefined);
+
+    await expect(processRefundEvent(input(refundRef), { store, gateway, recordCollection })).rejects.toThrow(
+      REFUND_BEFORE_COLLECTION_RECORDED
+    );
+    expect(recordCollection).toHaveBeenCalledTimes(1);
+    // Sin el camino de los cobros (p. ej. en otro llamador) tampoco se pierde.
+    await expect(processChargeRefundEvent(input(chargeRef), { store, gateway })).rejects.toThrow(
+      REFUND_BEFORE_COLLECTION_RECORDED
+    );
+    expect(store.recordAttemptRefunds).not.toHaveBeenCalled();
+    expect(store.recordRefundNotice).not.toHaveBeenCalled();
+  });
+
+  it("ola final (punto 1): intento abierto con solo devoluciones pending → sin efecto y sin error", async () => {
+    const { gateway } = fakeGateway(charge([refund({ status: "pending" })]));
+    const { store } = fakeStore({ attempt: attempt({ status: "processing" }) });
+    const recordCollection = vi.fn(async () => undefined);
+
+    expect(await processChargeRefundEvent(input(chargeRef), { store, gateway, recordCollection })).toEqual({
+      effectType: null,
+      effectId: null,
+    });
+    expect(store.recordAttemptRefunds).not.toHaveBeenCalled();
+  });
+
+  it("ola final (punto 1): un intento ya cobrado o cerrado sin cobro no llama al camino de los cobros", async () => {
+    for (const status of ["succeeded", "failed", "canceled"] as const) {
+      const { gateway } = fakeGateway(charge([refund()]));
+      const { store } = fakeStore({ attempt: attempt({ status }) });
+      const recordCollection = vi.fn(async () => undefined);
+      await processChargeRefundEvent(input(chargeRef), { store, gateway, recordCollection });
+      expect(recordCollection, status).not.toHaveBeenCalled();
     }
   });
 

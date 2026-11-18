@@ -1,4 +1,5 @@
 import { escapeHtml } from "@/lib/email/escape-html";
+import { returnedFeeLabel } from "@/modules/family-collection/domain/dispute-effect";
 import { feePeriodLabel } from "@/modules/family-collection/domain/family-failure-notice";
 
 /**
@@ -162,6 +163,11 @@ export interface ReminderChargeLine {
   servicePeriodStart: string;
   outstandingCents: number;
   dueAt: Date;
+  /**
+   * Ola final (B5): cuota nueva de una domiciliación devuelta por el banco
+   * (D2). Se nombra «Cuota de {mes} · devuelta por el banco» (returnedFeeLabel).
+   */
+  returnedByBank?: boolean;
 }
 
 export interface ReminderContext {
@@ -194,10 +200,14 @@ export function formatDueDate(date: Date, locale: string, timeZone: string): str
  * «Cuota de noviembre de 2026» con la etiqueta común del dominio
  * (feePeriodLabel, C16; Tarea M, punto 19): el mismo texto que el correo de
  * cobro, el justificante y los paneles. Los recordatorios solo usan es-ES y
- * es-MX, que escriben el mes igual. Sin periodo legible, «Cuota».
+ * es-MX, que escriben el mes igual. Sin periodo legible, «Cuota». Ola final
+ * (B5): la cuota nueva de una domiciliación devuelta (D2) lleva «· devuelta
+ * por el banco», como en el portal, para no confundirse con la original ya
+ * pagada (no es un doble cobro).
  */
-function describePeriod(servicePeriodStart: string): string {
-  return feePeriodLabel(servicePeriodStart) ?? "Cuota";
+function describePeriod(line: Pick<ReminderChargeLine, "servicePeriodStart" | "returnedByBank">): string {
+  if (line.returnedByBank === true) return returnedFeeLabel(line.servicePeriodStart);
+  return feePeriodLabel(line.servicePeriodStart) ?? "Cuota";
 }
 
 function joinList(items: string[]): string {
@@ -209,7 +219,7 @@ function joinList(items: string[]): string {
 export function buildVariables(context: ReminderContext, paymentInstructions: string | null): Record<TemplateVariable, string> {
   const ordered = [...context.charges].sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
   const total = ordered.reduce((sum, line) => sum + line.outstandingCents, 0);
-  const concepts = [...new Set(ordered.map((line) => describePeriod(line.servicePeriodStart)))];
+  const concepts = [...new Set(ordered.map((line) => describePeriod(line)))];
   const earliest = ordered[0]?.dueAt ?? new Date(0);
   const dueDates = [...new Set(ordered.map((line) => formatDueDate(line.dueAt, context.locale, context.timeZone)))];
   return {

@@ -2877,8 +2877,8 @@ describe("Tarea M: devoluciones que no cabían en lo repartido (refund_unallocat
   const collected = () => attempt({ status: "succeeded", paymentIntentId: intentId });
 
   /** Proceso diario con devoluciones simuladas: `fits` dice si la devolución ya cabe en lo repartido. */
-  function withRefunds(options: { fits: boolean; readFails?: boolean }) {
-    const harness = setup();
+  function withRefunds(options: { fits: boolean; readFails?: boolean; behaviour?: Partial<FamilyCollectionGateway> }) {
+    const harness = setup(options.behaviour);
     harness.world.due = [];
     harness.world.unallocatedRefunds = [collected()];
     const recorded: string[] = [];
@@ -2969,6 +2969,28 @@ describe("Tarea M: devoluciones que no cabían en lo repartido (refund_unallocat
       "Cobro automático: no se pudieron releer las devoluciones sin repartir de un cobro",
       { organizationId, invoiceId, attemptId, errorName: "StripeConnectionError", errorCode: null }
     );
+  });
+
+  it("ola final (M-M1): con el cortacircuitos abierto la relectura de devoluciones no lista nada ni llama a Stripe", async () => {
+    // Un despliegue roto: tres reanudables rechazados por Stripe abren el cortacircuitos en el paso 1.
+    const { world, store, refundGateway, refundStore, runWithRefunds } = withRefunds({
+      fits: true,
+      behaviour: { createPayment: async () => Promise.reject(requestError("parameter_missing")) },
+    });
+    const resumable = [21, 22, 23].map((suffix) =>
+      attempt({ id: `20000000-0000-4000-8000-0000000002${suffix}`, resumeCount: 0 })
+    );
+    world.attempts.push(...resumable);
+    world.resumable = [...resumable];
+
+    const result = await runWithRefunds();
+
+    expect(result.circuitOpen).toBe(true);
+    expect(store.listUnallocatedRefundAttempts).not.toHaveBeenCalled();
+    expect(refundGateway.retrievePaymentIntentRefunds).not.toHaveBeenCalled();
+    expect(refundStore.recordAttemptRefunds).not.toHaveBeenCalled();
+    // Sin contador nuevo: lo pendiente se relee otro día (el aviso ya existe).
+    expect(result.skipped).not.toHaveProperty("refund_unallocated_unread");
   });
 
   it("punto 9: con la bandera de eventos apagada no se releen devoluciones (ni las tardías ni estas)", async () => {

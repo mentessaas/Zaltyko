@@ -273,7 +273,10 @@ export type ClosedAttemptOutcome = FamilyCollectionAttemptStatus | typeof LATE_S
  * 2. Si la factura ya tiene otro intento cobrado, no se cancela nada: el
  *    almacén deja el aviso `duplicate_collection` sin registrar el tardío.
  * 3. Un hermano `claimed` (el proceso diario lo está creando ahora mismo)
- *    → desde el evento, LATE_SUCCESS_SIBLING_IN_FLIGHT (Stripe reenvía en
+ *    → desde el evento, primero el aviso `late_success_pending` (la marca
+ *    duradera: N2 impide reclamar otro intento de la factura y el paso 4
+ *    diario lo vuelve a mirar aunque Stripe deje de reenviar; ola final,
+ *    M-A2) y después LATE_SUCCESS_SIBLING_IN_FLIGHT (Stripe reenvía en
  *    segundos o minutos); desde la relectura diaria, se mira otro día.
  * 4. Cada hermano abierto con su `pi_…` se cancela en Stripe, fuera de toda
  *    transacción (`cancelThenClose`, `late_success_elsewhere`). Si Stripe ya
@@ -300,12 +303,21 @@ export async function settleClosedAttempt(
 ): Promise<ClosedAttemptOutcome> {
   const fromEvent = options.source === "event";
   const ids = { organizationId: attempt.organizationId, invoiceId: attempt.invoiceId, attemptId: attempt.id };
-  const siblingInFlight = (siblingAttemptId: string): null => {
+  /**
+   * Desde el evento: el aviso `late_success_pending` se escribe antes de
+   * lanzar (ola final, M-A2), así el tardío nunca queda sin marca aunque el
+   * hermano se cree y se confirme antes del reenvío de Stripe.
+   */
+  const markPendingBeforeRetry = async (): Promise<never> => {
+    await notifyReview(state, attempt, LATE_SUCCESS_PENDING_REASON);
+    throw new Error(LATE_SUCCESS_SIBLING_IN_FLIGHT);
+  };
+  const siblingInFlight = async (siblingAttemptId: string): Promise<null> => {
     logger.warn("Cobro automático: cobro tardío con otro intento de la misma cuota en marcha; se espera", {
       ...ids,
       siblingAttemptId,
     });
-    if (fromEvent) throw new Error(LATE_SUCCESS_SIBLING_IN_FLIGHT);
+    if (fromEvent) return markPendingBeforeRetry();
     countSkip(state, "late_success_sibling_in_flight");
     return null;
   };
@@ -390,7 +402,9 @@ export async function settleClosedAttempt(
     return recorded;
   } catch (error) {
     // Un hermano se abrió entre la lectura y la transacción: otro día.
-    if (!fromEvent && error instanceof Error && error.message === LATE_SUCCESS_SIBLING_IN_FLIGHT) {
+    if (error instanceof Error && error.message === LATE_SUCCESS_SIBLING_IN_FLIGHT) {
+      // Desde el evento: con la marca duradera antes de que Stripe reenvíe (M-A2).
+      if (fromEvent) return markPendingBeforeRetry();
       countSkip(state, "late_success_sibling_in_flight");
       return null;
     }
@@ -544,11 +558,14 @@ export async function reconcilePendingAttempts(state: RunState): Promise<void> {
  * Cada intento relee en Stripe el cargo de su `pi_…` con todas sus
  * devoluciones (applyRecordedAttemptRefunds): las que ahora caben se anotan;
  * las que siguen sin caber no repiten aviso (uno por `re_…`). Un error se
- * registra (solo ids, nombre y código) y se sigue con el resto.
+ * registra (solo ids, nombre y código) y se sigue con el resto. Ola final
+ * (M-M1): con el cortacircuitos abierto no se lee Stripe; se mira otro día
+ * (dentro de REFUND_UNALLOCATED_REREAD_MS, y la academia ya tiene el aviso).
  */
 async function rereadUnallocatedRefunds(state: RunState): Promise<void> {
   const apply = state.applyRecordedRefunds;
   if (!apply) return;
+  if (state.breaker.open) return;
   const since = new Date(state.now.getTime() - REFUND_UNALLOCATED_REREAD_MS);
   let cursor: string | null = null;
   for (;;) {

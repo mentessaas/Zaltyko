@@ -10,7 +10,16 @@
  *    el cargo da su `pi_…` y todas sus devoluciones. Stripe nunca se llama
  *    dentro de una transacción.
  * 2. El intento de esa academia con ese `pi_…` tiene que ser de la cuenta del
- *    evento y estar `succeeded` (con su pago en el libro). Si no, sin efecto.
+ *    evento y estar `succeeded` (con su pago en el libro). Ola final, punto 1:
+ *    si el intento sigue abierto (el evento del cobro aún no llegó o falló),
+ *    primero se registra el cobro por el camino de siempre
+ *    (`recordCollection`: el manejador de `payment_intent.*`, como las
+ *    disputas) y se vuelve a buscar el intento. Si aun así sigue abierto y el
+ *    cargo ya tiene devoluciones hechas, se lanza
+ *    REFUND_BEFORE_COLLECTION_RECORDED (pasajero): el evento queda `failed`
+ *    y Stripe lo reenvía, así la devolución nunca se pierde. Cerrado sin
+ *    cobro (`failed`/`canceled`): sin efecto; si después se registra como
+ *    cobro tardío, settleClosedAttempt relee sus devoluciones.
  * 3. Cada devolución del cargo, de la más antigua a la más nueva:
  *    - `succeeded` sin anotar → una transacción con todas sus filas (una por
  *      reparto, de la cuota más antigua a la más nueva) y el aviso
@@ -48,6 +57,7 @@ import {
   type CollectionAttempt,
   type FamilyCollectionRefundStore,
 } from "@/modules/family-collection/infrastructure/family-collection-store";
+import { FAMILY_COLLECTION_OPEN_STATUSES } from "@/modules/family-collection/infrastructure/family-collection-schema";
 import {
   createStripeRefundGateway,
   TOO_MANY_REFUNDS_FOR_CHARGE_ERROR,
@@ -77,7 +87,20 @@ export interface RefundEventEffect {
 export interface FamilyCollectionRefundDeps {
   store?: FamilyCollectionRefundStore;
   gateway?: FamilyCollectionRefundGateway;
+  /**
+   * Registra el cobro de un `pi_…` por el camino de los eventos de cobro
+   * (processPaymentIntentEvent). Lo pasa family-collection-events.ts (así
+   * este módulo no lo importa), igual que con las disputas.
+   */
+  recordCollection?: (input: RefundEventInput) => Promise<unknown>;
 }
+
+/**
+ * Ola final, punto 1: una devolución de un cobro que el libro todavía no
+ * tiene registrado (el intento sigue abierto). Es pasajero: el evento queda
+ * `failed` y Stripe lo reenvía hasta que el cobro esté en el libro.
+ */
+export const REFUND_BEFORE_COLLECTION_RECORDED = "FAMILY_COLLECTION_REFUND_BEFORE_COLLECTION_RECORDED";
 
 /** Tipo de efecto en el buzón: filas nuevas en zaltyko.refunds (`effect_id` = la primera). */
 export const REFUND_EFFECT_TYPE = "refund";
@@ -88,6 +111,9 @@ const NO_EFFECT: RefundEventEffect = { effectType: null, effectId: null };
 
 /** Estados de una devolución que ya no van a terminar en dinero devuelto. */
 const REVERSED_STATUSES: ReadonlySet<string> = new Set(["failed", "canceled"]);
+
+/** Estados de un intento todavía abierto (el cobro puede estar ya hecho en Stripe). */
+const OPEN_ATTEMPT_STATUSES: ReadonlySet<string> = new Set(FAMILY_COLLECTION_OPEN_STATUSES);
 
 /** Bandera de eventos, clave de prueba de Stripe y base que no es la de producción. */
 function areRefundEventsOpen(): boolean {
@@ -223,13 +249,13 @@ async function settleReversedRefund(context: SettleContext, refund: ChargeRefund
 async function settleChargeRefunds(
   input: RefundEventInput,
   store: FamilyCollectionRefundStore,
-  charge: ChargeRefundsSnapshot
+  charge: ChargeRefundsSnapshot,
+  recordCollection: FamilyCollectionRefundDeps["recordCollection"]
 ): Promise<RefundEventEffect> {
-  if (!charge.paymentIntentId) return NO_EFFECT;
-  const attempt = await store.findAttemptByPaymentIntent({
-    organizationId: input.organizationId,
-    paymentIntentId: charge.paymentIntentId,
-  });
+  const paymentIntentId = charge.paymentIntentId;
+  if (!paymentIntentId) return NO_EFFECT;
+  const find = () => store.findAttemptByPaymentIntent({ organizationId: input.organizationId, paymentIntentId });
+  let attempt = await find();
   // Un cargo que no es de un cobro automático de Zaltyko: no es asunto de este módulo.
   if (!attempt) return NO_EFFECT;
   if (attempt.paymentProviderAccountId !== input.account.id) {
@@ -238,6 +264,27 @@ async function settleChargeRefunds(
       eventIds(input, { attemptId: attempt.id })
     );
     return NO_EFFECT;
+  }
+  // Ola final, punto 1: la devolución llegó antes que el registro del cobro.
+  // Primero se registra el cobro (fuera de toda transacción, el mismo camino
+  // que los eventos de cobro) y se vuelve a buscar el intento.
+  if (OPEN_ATTEMPT_STATUSES.has(attempt.status)) {
+    if (recordCollection) {
+      await recordCollection({ ...input, objectId: paymentIntentId });
+      attempt = (await find()) ?? attempt;
+    }
+    if (OPEN_ATTEMPT_STATUSES.has(attempt.status)) {
+      // Sin devoluciones hechas no hay nada que perder: el evento de la que
+      // termine (o el cobro tardío) las anotará.
+      if (!charge.refunds.some((refund) => refund.status === "succeeded")) return NO_EFFECT;
+      // Stripe ya cobró y devolvió, pero el libro aún no tiene el cobro: se
+      // pide a Stripe que reenvíe en vez de cerrar el evento sin efecto.
+      logger.warn(
+        "Cobro automático: devolución de un cobro que el libro aún no registra; Stripe la reenviará",
+        eventIds(input, { attemptId: attempt.id, attemptStatus: attempt.status })
+      );
+      throw new Error(REFUND_BEFORE_COLLECTION_RECORDED);
+    }
   }
   // Sin cobro registrado en el libro no hay nada que devolver en él.
   if (attempt.status !== "succeeded") return NO_EFFECT;
@@ -250,7 +297,7 @@ async function settleChargeRefunds(
       logIds: eventIds(input),
       store,
       attempt,
-      paymentIntentId: charge.paymentIntentId,
+      paymentIntentId,
     },
     charge
   );
@@ -282,6 +329,7 @@ async function settleAttemptRefunds(context: SettleContext, charge: ChargeRefund
 interface ResolvedDeps {
   store: FamilyCollectionRefundStore;
   gateway: FamilyCollectionRefundGateway;
+  recordCollection: FamilyCollectionRefundDeps["recordCollection"];
 }
 
 /** Cerrojos y almacenamiento; sin ellos, null (sin efecto y sin llamar a Stripe). */
@@ -289,7 +337,7 @@ async function resolveDeps(deps: FamilyCollectionRefundDeps): Promise<ResolvedDe
   if (!areRefundEventsOpen()) return null;
   const store = deps.store ?? createFamilyCollectionRefundStore();
   if (!(await store.isStorageAvailable())) return null;
-  return { store, gateway: deps.gateway ?? createStripeRefundGateway() };
+  return { store, gateway: deps.gateway ?? createStripeRefundGateway(), recordCollection: deps.recordCollection };
 }
 
 /** `charge.refunded`: el objeto es el cargo (`ch_…`/`py_…`). */
@@ -305,7 +353,7 @@ export async function processChargeRefundEvent(
       chargeId: input.objectId,
     })
   );
-  return charge ? settleChargeRefunds(input, resolved.store, charge) : NO_EFFECT;
+  return charge ? settleChargeRefunds(input, resolved.store, charge, resolved.recordCollection) : NO_EFFECT;
 }
 
 /** `refund.created`/`refund.updated`/`refund.failed`: el objeto es la devolución (`re_…`/`pyr_…`). */
@@ -321,15 +369,12 @@ export async function processRefundEvent(
   );
   if (!chargeId) return NO_EFFECT;
   const charge = await readOrSkip(input, () => resolved.gateway.retrieveChargeRefunds({ connectedAccount, chargeId }));
-  return charge ? settleChargeRefunds(input, resolved.store, charge) : NO_EFFECT;
+  return charge ? settleChargeRefunds(input, resolved.store, charge, resolved.recordCollection) : NO_EFFECT;
 }
 
-/** Manejador de `charge.refunded` con las dependencias reales. */
-export const handleChargeRefundEvent = (input: RefundEventInput): Promise<RefundEventEffect> =>
-  processChargeRefundEvent(input);
-
-/** Manejador de `refund.*` con las dependencias reales. */
-export const handleRefundEvent = (input: RefundEventInput): Promise<RefundEventEffect> => processRefundEvent(input);
+// Los manejadores con las dependencias reales (handleChargeRefundEvent y
+// handleRefundEvent) están en family-collection-events.ts: le pasan
+// `recordCollection` (el camino de los cobros) sin que este módulo lo importe.
 
 /**
  * Tarea 7 (pendiente de la Tarea 6): devoluciones de un cobro que el libro

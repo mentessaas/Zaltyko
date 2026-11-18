@@ -89,6 +89,7 @@ import {
   isLongProcessingAttempt,
 } from "@/modules/family-collection/infrastructure/family-collection-schema";
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
+import { resolveFamilyPayer } from "@/modules/family-payment-methods/infrastructure/family-payment-store";
 import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
 import { familyCanViewFees } from "@/modules/family-portal/application/family-portal-sql";
 import {
@@ -185,6 +186,28 @@ async function isFamilyConfirmationAvailable(): Promise<boolean> {
  * null. Solo se llama con un intento en ese estado, que solo existe con la
  * forma "phase4": la lectura es la del almacén (readActionDeadline, C2).
  */
+/**
+ * Ola final (B1): ¿es la cuenta de la sesión la persona pagadora del intento?
+ * La misma regla que la confirmación (resolveFamilyPayer: pagadora vigente de
+ * la familia, y su fila es la del intento).
+ */
+async function isViewerAttemptPayer(input: {
+  userId: string;
+  organizationId: string;
+  familyId: string | null;
+  attemptPayerId: string | null;
+  now: Date;
+}): Promise<boolean> {
+  if (!input.familyId || !input.attemptPayerId) return false;
+  const payer = await resolveFamilyPayer(db, {
+    userId: input.userId,
+    organizationId: input.organizationId,
+    familyId: input.familyId,
+    now: input.now,
+  });
+  return payer !== null && payer.familyPayerId === input.attemptPayerId;
+}
+
 async function readConfirmationDeadline(organizationId: string, attemptId: string | null): Promise<Date | null> {
   if (!attemptId || !uuidSchema.safeParse(attemptId).success) return null;
   return createFamilyCollectionStore().readActionDeadline({ organizationId, attemptId });
@@ -509,6 +532,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
     const result = await db.execute(sql`
       select
         i.id::text as "invoiceId",
+        i.family_id::text as "familyId",
         i.status::text as "invoiceStatus",
         coalesce(l.timezone, o.default_timezone) as "timezone",
         ocs.collection_day_of_month as "collectionDayOfMonth",
@@ -529,6 +553,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
         ) as "nextDueAt",
         ${prerequisiteColumns(remindersTable)},
         la.id::text as "lastAttemptId",
+        la.family_payer_id::text as "lastFamilyPayerId",
         la.status as "lastStatus",
         la.next_retry_at as "lastNextRetryAt",
         la.completed_at as "lastCompletedAt",
@@ -540,7 +565,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
       left join zaltyko.organization_collection_settings ocs
         on ocs.organization_id = i.organization_id
       left join lateral (
-        select a.id, a.status, a.next_retry_at, a.completed_at, a.failure_code
+        select a.id, a.family_payer_id, a.status, a.next_retry_at, a.completed_at, a.failure_code
           from zaltyko.family_collection_attempts a
          where a.organization_id = i.organization_id
            and a.invoice_id = i.id
@@ -573,9 +598,21 @@ export async function getFamilyAutomaticFeeStatuses(input: {
     const plan = await loadPlan(academy.organizationId, now);
     for (const row of rows) {
       const lastStatus = textOrNull(row.lastStatus);
-      // Fase 4: el plazo solo se lee si la familia puede confirmar desde aquí.
+      // Fase 4: el plazo solo se lee si la familia puede confirmar desde aquí
+      // y (ola final, B1) si esta cuenta es la persona pagadora del intento:
+      // la confirmación solo la acepta a ella (startFamilyAuthentication).
+      // Otra pagadora vigente (la academia la cambió en la ventana) ve «Cobro
+      // en curso», nunca un botón que le respondería «No encontramos este pago.».
       const actionDeadlineAt =
-        lastStatus === "requires_action" && (await confirmationOpen())
+        lastStatus === "requires_action" &&
+        (await confirmationOpen()) &&
+        (await isViewerAttemptPayer({
+          userId,
+          organizationId: academy.organizationId,
+          familyId: textOrNull(row.familyId),
+          attemptPayerId: textOrNull(row.lastFamilyPayerId),
+          now,
+        }))
           ? await readConfirmationDeadline(academy.organizationId, textOrNull(row.lastAttemptId))
           : null;
       const status = familyAutomaticFeeStatusOf(
@@ -877,9 +914,12 @@ export interface OwnerDisputeRow {
   /**
    * Tarea M (punto 8): domiciliación devuelta (D2) con su cuota nueva. `true`
    * si esa cuota todavía no tiene ningún pago, `false` si ya tiene alguno y
-   * null si no hay cuota nueva (o no se sabe).
+   * null si no hay cuota nueva (o no se sabe). Ola final (B4): null también
+   * si la academia ya la anuló.
    */
   returnedInvoiceUnpaid?: boolean | null;
+  /** Ola final (B4): la academia ya anuló la cuota nueva de D2 (factura `void`). */
+  returnedInvoiceVoid?: boolean;
 }
 
 const KEPT_DISPUTE_STATUSES: ReadonlySet<string> = new Set(["won", "warning_closed", "prevented"]);
@@ -900,7 +940,8 @@ export function ownerDisputeStateOf(dispute: OwnerDisputeRow): OwnerDisputeState
  * plazo, día local de la sede. Tarea M (punto 8): una domiciliación devuelta
  * y después ganada (fondos reintegrados) recuerda anular la cuota pendiente
  * que se creó (D2), y dice si esa cuota todavía no tiene ningún pago. Nunca
- * se anula sola: la academia decide.
+ * se anula sola: la academia decide. Ola final (B4): si ya la anuló, el aviso
+ * de anularla desaparece.
  */
 export function ownerDisputeText(input: {
   state: OwnerDisputeState;
@@ -909,6 +950,7 @@ export function ownerDisputeText(input: {
   date: string | null;
   paymentMethodKind?: DisputePaymentMethodKind;
   returnedInvoiceUnpaid?: boolean | null;
+  returnedInvoiceVoid?: boolean;
 }): string {
   const amount = formatMoney(input.amountCents, input.currency);
   switch (input.state) {
@@ -926,6 +968,8 @@ export function ownerDisputeText(input: {
       return `Hay una disputa de ${amount} que Zaltyko no pudo anotar en las cuotas; revísala en tu panel de Stripe`;
     case "reinstated":
       if (input.paymentMethodKind === "sepa_debit") {
+        // Ola final (B4): la academia ya anuló la cuota nueva: no hay nada que pedirle.
+        if (input.returnedInvoiceVoid === true) return `El banco reintegró el dinero que había devuelto (${amount})`;
         const base = `El banco reintegró el dinero que había devuelto (${amount}). Anula la cuota pendiente que se creó si ya no se debe`;
         if (input.returnedInvoiceUnpaid === true) return `${base}: todavía no tiene ningún pago`;
         if (input.returnedInvoiceUnpaid === false) return `${base}; ya tiene algún pago, revísalo antes`;
@@ -1282,10 +1326,16 @@ export function ownerAutomaticCollectionItemOf(
             date: local(row.dispute.evidenceDueAt),
             paymentMethodKind: row.dispute.paymentMethodKind,
             returnedInvoiceUnpaid: row.dispute.returnedInvoiceUnpaid ?? null,
+            returnedInvoiceVoid: row.dispute.returnedInvoiceVoid === true,
           })
         : null;
-    // Lo que la academia tiene que revisar en su panel de Stripe.
-    const disputeReview = disputeState === "unallocated" || disputeState === "reinstated";
+    // Lo que la academia tiene que revisar en su panel de Stripe. Ola final
+    // (B4): una domiciliación reintegrada cuya cuota nueva ya anuló, no.
+    const reinstatedResolved =
+      disputeState === "reinstated" &&
+      row.dispute?.paymentMethodKind === "sepa_debit" &&
+      row.dispute.returnedInvoiceVoid === true;
+    const disputeReview = disputeState === "unallocated" || (disputeState === "reinstated" && !reinstatedResolved);
     return {
       ...base,
       amountCents: attempt.amountCents,
@@ -1327,7 +1377,13 @@ function disputeRowOf(value: unknown): OwnerDisputeRow | null {
     evidenceDueAt: due && !Number.isNaN(due.getTime()) ? due : null,
     reversed: raw.reversed === true,
     paymentMethodKind: kind === "card" || kind === "sepa_debit" ? kind : null,
-    returnedInvoiceUnpaid: typeof raw.returnedInvoiceUnpaid === "boolean" ? raw.returnedInvoiceUnpaid : null,
+    returnedInvoiceUnpaid:
+      raw.returnedInvoiceVoid === true
+        ? null
+        : typeof raw.returnedInvoiceUnpaid === "boolean"
+          ? raw.returnedInvoiceUnpaid
+          : null,
+    returnedInvoiceVoid: raw.returnedInvoiceVoid === true,
   };
 }
 
@@ -1459,7 +1515,8 @@ export async function getOwnerAutomaticCollections(input: {
     : sql``;
   // Tarea M (punto 8): `returnedInvoiceUnpaid` dice si la cuota nueva de D2
   // (su factura sale del outbox `invoice.issued` con la clave de la disputa)
-  // todavía no tiene ningún pago; null si no hay cuota nueva.
+  // todavía no tiene ningún pago; null si no hay cuota nueva. Ola final (B4):
+  // `returnedInvoiceVoid` dice si la academia ya la anuló (entonces, null).
   const disputeColumn = disputesTable
     ? sql`(
         select json_build_object(
@@ -1469,20 +1526,35 @@ export async function getOwnerAutomaticCollections(input: {
                  'reversed', d.reversed_at is not null,
                  'paymentMethodKind', da.payment_method_kind,
                  'returnedInvoiceUnpaid', (
-                   select not exists (
-                            select 1
-                              from zaltyko.payment_allocations pa
-                              join zaltyko.charges rc
-                                on rc.organization_id = pa.organization_id and rc.id = pa.charge_id
-                             where rc.organization_id = ie.organization_id
-                               and rc.invoice_id = ie.aggregate_id
-                          )
+                   select case
+                            when ri.status::text = 'void' then null
+                            else not exists (
+                              select 1
+                                from zaltyko.payment_allocations pa
+                                join zaltyko.charges rc
+                                  on rc.organization_id = pa.organization_id and rc.id = pa.charge_id
+                               where rc.organization_id = ie.organization_id
+                                 and rc.invoice_id = ie.aggregate_id
+                            )
+                          end
                      from zaltyko.outbox_events ie
+                     left join zaltyko.invoices ri
+                       on ri.organization_id = ie.organization_id and ri.id = ie.aggregate_id
                     where ie.organization_id = d.organization_id
                       and ie.event_name = 'invoice.issued'
                       and ie.idempotency_key = ${returnedFeeInvoiceKey("")} || d.provider_dispute_reference
                     limit 1
-                 )
+                 ),
+                 'returnedInvoiceVoid', coalesce((
+                   select ri.status::text = 'void'
+                     from zaltyko.outbox_events ie
+                     join zaltyko.invoices ri
+                       on ri.organization_id = ie.organization_id and ri.id = ie.aggregate_id
+                    where ie.organization_id = d.organization_id
+                      and ie.event_name = 'invoice.issued'
+                      and ie.idempotency_key = ${returnedFeeInvoiceKey("")} || d.provider_dispute_reference
+                    limit 1
+                 ), false)
                )
           from zaltyko.family_collection_disputes d
           join zaltyko.family_collection_attempts da

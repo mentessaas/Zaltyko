@@ -262,6 +262,13 @@ export function createFamilyReceiptStore(): FamilyReceiptStore {
                     and r.payment_id = a.payment_id
                     and r.status = 'succeeded'
                ) at time zone 'UTC', ${sql.raw(ISO)}) as "refundedAt",
+               (
+                 select coalesce(sum(r.amount_cents), 0)
+                   from zaltyko.refunds r
+                  where r.organization_id = a.organization_id
+                    and r.payment_id = a.payment_id
+                    and r.status = 'succeeded'
+               )::text as "refundedCents",
                ${openDispute} as "underBankReview",
                a.payment_id::text as "paymentId",
                i.reference as "reference",
@@ -384,6 +391,8 @@ export function createFamilyReceiptStore(): FamilyReceiptStore {
         method,
         reference: String(row.reference ?? ""),
         refundedOnLocal,
+        // Ola final (B3): para distinguir una devolución parcial de una total.
+        refundedCents: refundedOnLocal ? cents(row.refundedCents) : null,
         underBankReview: row.underBankReview === true,
       };
     },

@@ -78,6 +78,11 @@ import {
 } from "@/modules/family-collection/domain/refund-split";
 import { findCollectionSettings } from "@/modules/family-collection/infrastructure/collection-settings-store";
 import {
+  invoiceHasLatePending,
+  latePendingAttempt,
+  NEEDS_REVIEW_EVENT,
+} from "@/modules/family-collection/infrastructure/late-success-sql";
+import {
   FAMILY_COLLECTION_MAX_RESUMES,
   FAMILY_COLLECTION_OPEN_STATUSES,
   type FamilyCollectionAllocationStatus,
@@ -110,8 +115,12 @@ const SYSTEM_AUDIT_METADATA = {
   job_key: FAMILY_COLLECTION_JOB_KEY,
 } as const;
 
-/** Evento del outbox con el que la academia recibe un aviso para revisar un cobro. */
-export const NEEDS_REVIEW_EVENT = "family_collection.needs_review";
+/**
+ * Evento del outbox con el que la academia recibe un aviso para revisar un
+ * cobro. Vive en late-success-sql.ts (sin dependencias de la base, lo usan
+ * también los recordatorios) y se sigue exportando desde aquí.
+ */
+export { NEEDS_REVIEW_EVENT };
 
 /**
  * Fase 4: códigos del cobro tardío (domain/late-success.ts), también
@@ -123,16 +132,6 @@ export {
   LATE_SUCCESS_PENDING_REASON,
   LATE_SUCCESS_SIBLING_IN_FLIGHT,
 };
-
-/**
- * Avisos que cierran la espera de un cobro tardío: ya no hay nada más que
- * registrar y lo resuelve la academia.
- */
-const LATE_SUCCESS_SETTLED_REASONS = [
-  DUPLICATE_COLLECTION_REASON,
-  AMOUNT_MISMATCH_REASON,
-  "payment_recorded_for_other_attempt",
-] as const;
 
 /**
  * Clave de un aviso de revisión: una por intento (o por factura, si no hay
@@ -169,52 +168,6 @@ function inScope(column: SQL, scope: OrganizationScope): SQL {
   if (scope === null) return sql`true`;
   // Lista como texto: Drizzle expandiría un array en una lista de parámetros.
   return sql`${column} = any(string_to_array(${scope.join(",")}, ',')::uuid[])`;
-}
-
-/**
- * Condición SQL «el intento `alias` es un cobro tardío en espera»: `failed` o
- * `canceled` con `pi_…`, con el aviso `late_success_pending` y sin ninguno de
- * los avisos que cierran la espera (LATE_SUCCESS_SETTLED_REASONS). Un tardío
- * ya cobrado deja de cumplirla por su estado. Solo columnas de la Fase 3 y
- * `outbox_events`. El alias es una constante de este archivo, nunca un dato.
- */
-function latePendingAttempt(alias: "a" | "lp"): SQL {
-  const table = sql.raw(alias);
-  const settledKeys = sql.join(
-    LATE_SUCCESS_SETTLED_REASONS.map(
-      (reason) => sql`'family-collection:' || ${table}.id::text || ${`:needs_review:${reason}`}`
-    ),
-    sql`, `
-  );
-  return sql`${table}.status in ('failed', 'canceled')
-    and ${table}.provider_payment_intent_reference is not null
-    and exists (
-      select 1 from zaltyko.outbox_events e
-       where e.organization_id = ${table}.organization_id
-         and e.event_name = ${NEEDS_REVIEW_EVENT}
-         and e.idempotency_key = 'family-collection:' || ${table}.id::text || ${`:needs_review:${LATE_SUCCESS_PENDING_REASON}`}
-    )
-    and not exists (
-      select 1 from zaltyko.outbox_events e
-       where e.organization_id = ${table}.organization_id
-         and e.event_name = ${NEEDS_REVIEW_EVENT}
-         and e.idempotency_key in (${settledKeys})
-    )`;
-}
-
-/**
- * N2: ¿tiene la factura un cobro tardío en espera? Su dinero ya se cobró en
- * Stripe aunque todavía no esté en el libro: mientras tanto nunca se reclama
- * otro intento de esa factura (ni el reintento pendiente de un hermano), o se
- * cobraría dos veces. Lo resuelve el paso 4 diario o la academia.
- */
-function invoiceHasLatePending(organizationId: SQL, invoiceId: SQL): SQL {
-  return sql`exists (
-    select 1 from zaltyko.family_collection_attempts lp
-     where lp.organization_id = ${organizationId}
-       and lp.invoice_id = ${invoiceId}
-       and ${latePendingAttempt("lp")}
-  )`;
 }
 
 // ---------------------------------------------------------------------------
@@ -286,6 +239,13 @@ export interface AttemptStripeRefs {
    * el banco (authenticationDeadline). Solo columnas de la Fase 3.
    */
   windowAnchorLocalDate: string | null;
+  /**
+   * Ola final (M-A3): la autorización del intento sigue `active`. Solo lo
+   * mira la confirmación de la familia (startFamilyAuthentication): una
+   * revocación no cancela un `requires_action`, pero ya no deja confirmarlo.
+   * Opcional para los dobles de los tests; el almacén siempre lo rellena.
+   */
+  authorizationActive?: boolean;
 }
 
 export interface CollectionChargeRow {
@@ -2154,7 +2114,8 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
                  or (au.family_id = a.family_id
                      and au.family_payer_id = a.family_payer_id
                      and au.payment_provider_account_id = a.payment_provider_account_id)
-               ) as "authorizationMatches"
+               ) as "authorizationMatches",
+               coalesce(au.status = 'active'::zaltyko.payment_authorization_status, false) as "authorizationActive"
           from zaltyko.family_collection_attempts a
           join zaltyko.organization_payment_provider_accounts acc
             on acc.organization_id = a.organization_id and acc.id = a.payment_provider_account_id
@@ -2187,6 +2148,7 @@ export function createFamilyCollectionStore(): FamilyCollectionStore {
         firstAttemptClaimedAt: toDateOrNull(row.firstAttemptClaimedAt),
         allocations,
         windowAnchorLocalDate: windowAnchorOf(row, attempt.attemptNumber, timezone),
+        authorizationActive: matches && row.authorizationActive === true,
       };
     },
 

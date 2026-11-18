@@ -999,7 +999,10 @@ Eventos que se atienden (17): `payment_intent.processing`, `.succeeded`,
      `https://staging.zaltyko.com/api/stripe/connect/payments-webhook` con los
      17 tipos de arriba.
   2. Vercel staging: `STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET` (el secreto de
-     ese destino).
+     ese destino) y `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` con la clave
+     publicable de prueba (`pk_test_…`). Sin la clave publicable el portal no
+     ofrece el botón «Confirmar el pago», aunque el correo a la familia y el
+     panel de la academia lo esperen.
   3. Vercel staging: las dos banderas,
      `ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED=true` y, solo para probar,
      `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED=true` (nunca con familias
@@ -1023,6 +1026,21 @@ Eventos que se atienden (17): `payment_intent.processing`, `.succeeded`,
 - **Un solo camino que escribe en el libro:** los cobros pasan por el mismo
   camino que la relectura diaria; las devoluciones y disputas perdidas, por
   `recordProviderRefund`.
+- **El orden de llegada no importa (ola final).**
+  - Una devolución que llega antes de que el libro registre el cobro (intento
+    aún abierto) registra primero el cobro por el camino de los cobros, como
+    las disputas. Si aun así el intento sigue abierto y Stripe ya devolvió,
+    el evento falla con `FAMILY_COLLECTION_REFUND_BEFORE_COLLECTION_RECORDED`
+    y Stripe lo reenvía. Deuda: si el cobro nunca llega a registrarse (por
+    ejemplo, el importe no cuadra y queda para revisar), Stripe deja de
+    reenviar a los 3 días y esa devolución solo queda en el registro (solo
+    ids) y en el panel de Stripe de la academia.
+  - Un cobro tardío que choca desde un evento con un reintento a medio crear
+    deja antes el aviso `late_success_pending` (marca duradera) y después pide
+    el reenvío.
+  - Las cuotas con un cobro tardío en espera no reciben recordatorios.
+  - La familia no puede confirmar con su banco si la autorización del intento
+    ya no está activa, y solo la persona pagadora del intento ve el botón.
 - **Idempotente por `evt_…`** y además cada efecto por sí mismo. El orden de
   llegada no importa.
 - **Nunca dos cobros.** Un cobro tardío solo se registra después de anular

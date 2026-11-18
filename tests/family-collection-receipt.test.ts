@@ -103,6 +103,7 @@ import type {
   PendingFamilyReceipt,
 } from "@/modules/family-collection/infrastructure/family-receipt-store";
 import type { FamilyAcademyFees } from "@/modules/family-portal/application/family-portal-reads";
+import { formatMoney } from "@/modules/family-portal/domain/family-portal-presentation";
 
 const NOW = new Date("2026-11-18T10:00:00.000Z");
 const ORGANIZATION_ID = "93000000-0000-4000-8000-000000000001";
@@ -535,6 +536,29 @@ describe("página del justificante y enlace del portal (bandera encendida)", () 
     expect(familyReceiptStatusLines({ refundedOnLocal: "2027-02-10", underBankReview: true })).toEqual([
       "Este pago se devolvió el 10 de febrero de 2027.",
       "Este pago está en revisión con el banco.",
+    ]);
+  });
+
+  it("ola final (B3): devolución parcial → «Se devolvieron {importe} de este pago el {día}»; total → el texto de siempre", async () => {
+    const partialLine = `Se devolvieron ${formatMoney(2000, "EUR")} de este pago el 10 de febrero de 2027.`;
+    mocks.findReceipt = vi.fn(async () => ({ ...VIEW, refundedOnLocal: "2027-02-10", refundedCents: 2000 }));
+    const partial = renderToStaticMarkup(await FamilyReceiptPage(pageParams(ATTEMPT_ID)));
+    expect(partial).toContain(partialLine);
+    expect(partial).not.toContain("Este pago se devolvió");
+
+    // Devuelto entero (o más, con una disputa encima): el texto de siempre.
+    for (const refundedCents of [4500, 5000]) {
+      expect(
+        familyReceiptStatusLines({ ...VIEW, refundedOnLocal: "2027-02-10", refundedCents, underBankReview: false }),
+        String(refundedCents)
+      ).toEqual(["Este pago se devolvió el 10 de febrero de 2027."]);
+    }
+    // Sin importe conocido: el texto de siempre (no se inventa una parte).
+    expect(familyReceiptStatusLines({ ...VIEW, refundedOnLocal: "2027-02-10", refundedCents: null })).toEqual([
+      "Este pago se devolvió el 10 de febrero de 2027.",
+    ]);
+    expect(familyReceiptStatusLines({ ...VIEW, refundedOnLocal: "2027-02-10", refundedCents: 2000 })).toEqual([
+      partialLine,
     ]);
   });
 

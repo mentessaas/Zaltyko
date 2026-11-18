@@ -796,7 +796,8 @@ crear tablas ni tocar permisos (la tabla ya es solo de `service_role`, con RLS
 | `20261116180000_family_payment_methods_candidate.sql` | `72c7edcc74a84f78418fc4ea7ce207fed50795911f88f02f003d04b7fc40b572` | No aplicada | Aplicada 16-11-2026 (autorizado por Elvis) |
 
 **Estado: aplicada en staging el 16-11-2026 con autorización de Elvis («Sí,
-en staging»; SHA-256 comprobado), no aplicada en producción.** Producción
+en staging», según la memoria del proyecto; SHA-256 comprobado), no aplicada
+en producción.** Producción
 necesita su propia autorización expresa de Elvis; la de la Fase 1 no la
 cubre. Requiere antes la candidata de la Fase 1
 (`20261116120000_connect_onboarding_candidate.sql`).
@@ -885,8 +886,9 @@ bancaria en la cuenta Stripe conectada de su academia. Decisión:
   commit;
   ```
 
-- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
-  ningún entorno. La CI verde no equivale a autorización.
+- **Aplicada en staging el 16-11-2026; no aplicada en producción** (ver la
+  tabla del principio de esta sección). Producción requiere una autorización
+  expresa de Elvis. La CI verde no equivale a autorización.
 
 ## Candidata de cobro de cuotas (cobro automático, Fase 3)
 
@@ -1013,8 +1015,9 @@ familia guardó, en la cuenta Stripe conectada de su academia. Decisión:
   commit;
   ```
 
-- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
-  ningún entorno. La CI verde no equivale a autorización.
+- **Aplicada en staging el 17-11-2026; no aplicada en producción** (ver la
+  tabla del principio de esta sección). Producción requiere una autorización
+  expresa de Elvis. La CI verde no equivale a autorización.
 
 ## Candidata de eventos, confirmación con el banco y disputas (cobro automático, Fase 4)
 

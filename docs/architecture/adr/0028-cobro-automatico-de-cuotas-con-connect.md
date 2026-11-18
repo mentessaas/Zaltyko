@@ -832,7 +832,10 @@ recomendación del plan.
 | D13 | Destino de eventos antiguo y lo ya guardado | Revisar y apagar o filtrar el destino antiguo antes del primer cobro real. Vaciar `billing_events.payload` queda pendiente de la autorización de Elvis: no se toca | Coordinador |
 
 Los datos de Stripe sin confirmar se verifican en la Tarea 14 (staging), que
-necesita la autorización de Elvis.
+necesita la autorización de Elvis. Entre sus pasos (lista completa en
+`docs/COBROS_Y_CUOTAS.md`), además del secreto de la ruta de eventos, Vercel
+staging necesita `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` con la clave publicable
+de prueba: sin ella el portal no ofrece el botón «Confirmar el pago».
 
 ### Bandera nueva y relación con la Fase 3
 
