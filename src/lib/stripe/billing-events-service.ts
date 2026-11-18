@@ -72,9 +72,10 @@ function billingEventPayload(
  * primero gana via RETURNING, el segundo ve 0 filas y se reporta como
  * shouldProcess=false.
  *
- * `options.payload` decide qué se guarda (por defecto "full"). El mismo valor
- * se usa al crear la fila y al reclamarla en un reintento: si no, el primer
- * reenvío de Stripe volvería a guardar el evento entero.
+ * `options.payload` decide qué se guarda (por defecto "full"). Con "minimal",
+ * el insert guarda el resumen y la reclamación en un reintento no escribe
+ * `payload` (así un reenvío de Stripe no vuelve a guardar el evento entero ni
+ * modifica filas guardadas antes). Con "full", ambos guardan el evento entero.
  */
 export async function recordBillingEvent(
   event: Stripe.Event,
@@ -147,7 +148,12 @@ export async function recordBillingEvent(
       status: "processing",
       attemptCount: sql`${billingEvents.attemptCount} + 1`,
       errorMessage: null,
-      payload,
+      // En modo "minimal" la reclamación no toca `payload`: una fila nueva ya
+      // lleva el resumen desde el insert, y una fila guardada antes de este
+      // cambio se queda exactamente como estaba (decisión D13: lo ya guardado
+      // no se toca sin la autorización de Elvis). En modo "full" se mantiene
+      // el comportamiento de siempre.
+      ...(options.payload === "full" ? { payload } : {}),
       lastAttemptAt: now,
     })
     .where(

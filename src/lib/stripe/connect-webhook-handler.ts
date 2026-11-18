@@ -35,8 +35,8 @@ export async function processConnectEvent(
 ): Promise<{ duplicate: boolean; rejected: boolean }> {
   const expectedLiveMode = getConfiguredConnectLiveMode();
   // Solo se guarda el resumen del evento (sin nombres, correos ni direcciones
-  // de quien paga), también al reclamar un reintento. No se migran los
-  // eventos ya guardados (decisión D13).
+  // de quien paga) en las filas nuevas. Un reintento no reescribe el payload
+  // de la fila: lo ya guardado no se toca (decisión D13).
   const claim = await recordBillingEvent(event, { payload: "minimal" });
   if (!claim.shouldProcess) {
     return { duplicate: true, rejected: false };

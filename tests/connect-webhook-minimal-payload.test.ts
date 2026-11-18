@@ -251,14 +251,19 @@ function everythingWritten() {
   });
 }
 
-function seedRow(stripeEventId: string, status: string, lastAttemptAt: Date) {
+function seedRow(
+  stripeEventId: string,
+  status: string,
+  lastAttemptAt: Date,
+  payload: unknown = null
+) {
   dbState.rows.set(stripeEventId, {
     id: "be_seeded",
     stripeEventId,
     status,
     attemptCount: 1,
     lastAttemptAt,
-    payload: null,
+    payload,
   });
 }
 
@@ -344,33 +349,81 @@ describe("Webhook antiguo de cuentas conectadas: billing_events.payload mínimo"
     expect(written).not.toContain("receipt_email");
   });
 
-  it("reintento de un evento conectado → sigue mínimo (también en la reclamación)", async () => {
-    // Fila de un intento anterior que falló: se reclama con UPDATE, no INSERT.
-    seedRow("evt_minimal_retry", "error", new Date(NOW.getTime() - 10 * 60 * 1000));
+  it("reintento de una fila guardada antes del cambio → su payload completo queda intacto (D13)", async () => {
+    // Fila del webhook antiguo con el evento entero, de un intento que falló.
+    const legacyPayload = JSON.parse(
+      JSON.stringify(
+        connectEvent("evt_legacy_retry", "payment_intent.succeeded", paymentIntentWithPayerData())
+      )
+    ) as Record<string, unknown>;
+    const legacySnapshot = JSON.stringify(legacyPayload);
+    seedRow("evt_legacy_retry", "error", new Date(NOW.getTime() - 10 * 60 * 1000), legacyPayload);
+
     const event = connectEvent(
-      "evt_minimal_retry",
+      "evt_legacy_retry",
       "payment_intent.succeeded",
       paymentIntentWithPayerData()
     );
-
     await expect(processConnectEvent(event)).resolves.toEqual({
       duplicate: false,
       rejected: false,
     });
 
+    const row = dbState.rows.get("evt_legacy_retry");
+    // Mismo objeto y mismo contenido, byte a byte.
+    expect(row?.payload).toBe(legacyPayload);
+    expect(JSON.stringify(row?.payload)).toBe(legacySnapshot);
+    // Solo cambian el estado y los campos del intento.
+    expect(dbState.updates[0]).toMatchObject({
+      status: "processing",
+      attemptCount: "attempt_count + 1",
+      errorMessage: null,
+      lastAttemptAt: NOW,
+    });
+    expect(dbState.updates.every((update) => !("payload" in update))).toBe(true);
+    expect(row?.attemptCount).toBe(2);
+    expect(row?.status).toBe("processed");
+    expect(mocks.succeeded).toHaveBeenCalledTimes(1);
+    // Ninguna escritura nueva lleva datos de quien paga.
+    const updatesWritten = JSON.stringify(dbState.updates);
+    for (const value of PAYER_DATA) {
+      expect(updatesWritten).not.toContain(value);
+    }
+  });
+
+  it("reintento de una fila creada tras el cambio → sigue solo con el resumen", async () => {
+    const event = connectEvent(
+      "evt_minimal_retry",
+      "payment_intent.succeeded",
+      paymentIntentWithPayerData()
+    );
     const expected = expectedMinimal(
       "evt_minimal_retry",
       "payment_intent.succeeded",
       "pi_minimal_payload",
       "payment_intent"
     );
-    // Primera escritura tras el INSERT ignorado: la reclamación.
-    expect(dbState.updates[0]).toMatchObject({ status: "processing", payload: expected });
+
+    // Primera entrega: se crea la fila con el resumen y el procesamiento falla.
+    mocks.succeeded.mockRejectedValueOnce(new Error("TEMPORARY_FAILURE"));
+    await expect(processConnectEvent(event)).rejects.toThrow("TEMPORARY_FAILURE");
+    expect(dbState.rows.get("evt_minimal_retry")?.status).toBe("error");
+    expect(dbState.rows.get("evt_minimal_retry")?.payload).toEqual(expected);
+
+    // Reenvío de Stripe: se reclama la fila con UPDATE y se procesa.
+    await expect(processConnectEvent(event)).resolves.toEqual({
+      duplicate: false,
+      rejected: false,
+    });
+
+    const claim = dbState.updates.find((update) => update.status === "processing");
+    expect(claim).toBeDefined();
+    expect(claim).not.toHaveProperty("payload");
     const row = dbState.rows.get("evt_minimal_retry");
     expect(row?.payload).toEqual(expected);
     expect(row?.attemptCount).toBe(2);
     expect(row?.status).toBe("processed");
-    expect(mocks.succeeded).toHaveBeenCalledTimes(1);
+    expect(mocks.succeeded).toHaveBeenCalledTimes(2);
     const written = everythingWritten();
     for (const value of PAYER_DATA) {
       expect(written).not.toContain(value);
