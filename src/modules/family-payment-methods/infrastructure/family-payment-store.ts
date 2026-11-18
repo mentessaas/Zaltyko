@@ -183,6 +183,48 @@ export async function resolveFamilyPayer(
   return { guardianId: row.guardianId, familyPayerId: row.familyPayerId };
 }
 
+/**
+ * Tarea M (punto 11): ¿sigue siendo esa fila de family_payers la pagadora
+ * vigente de la familia (la misma cadena que resolveFamilyPayer, sin sesión)?
+ * Tutor activo, enlace activo con la familia, familia activa y la fila de
+ * family_payers abierta hoy (calendario de la academia) más reciente es esta,
+ * con el mismo tutor. Lo usa la activación por aviso de Stripe, que no tiene
+ * la sesión de la persona. Una sola lectura, sin bloquear.
+ */
+export async function isCurrentFamilyPayer(
+  executor: Executor,
+  input: { organizationId: string; familyId: string; familyPayerId: string; guardianId: string; now: Date }
+): Promise<boolean> {
+  const nowText = input.now.toISOString();
+  const result = await executor.execute(sql`
+    select fp.id::text as "familyPayerId", fp.guardian_id::text as "guardianId"
+      from zaltyko.family_payers fp
+      join zaltyko.organizations o
+        on o.id = fp.organization_id
+      join zaltyko.families f
+        on f.organization_id = fp.organization_id
+       and f.id = fp.family_id
+       and f.is_active
+      join zaltyko.guardians g
+        on g.organization_id = fp.organization_id
+       and g.id = fp.guardian_id
+       and g.is_active
+      join zaltyko.family_guardians fg
+        on fg.organization_id = fp.organization_id
+       and fg.family_id = fp.family_id
+       and fg.guardian_id = fp.guardian_id
+       and fg.is_active
+     where fp.organization_id = ${input.organizationId}::uuid
+       and fp.family_id = ${input.familyId}::uuid
+       and fp.starts_on <= (${nowText}::timestamptz at time zone o.default_timezone)::date
+       and (fp.ends_on is null or fp.ends_on >= (${nowText}::timestamptz at time zone o.default_timezone)::date)
+     order by fp.starts_on desc, fp.id
+     limit 1
+  `);
+  const row = result.rows[0] as { familyPayerId?: unknown; guardianId?: unknown } | undefined;
+  return row?.familyPayerId === input.familyPayerId && row?.guardianId === input.guardianId;
+}
+
 /** Nombre de la academia tal como está en la base (texto del consentimiento). */
 export async function loadOrganizationName(
   executor: Executor,

@@ -29,6 +29,7 @@ import {
   findActiveAuthorizationByPaymentMethod,
   findSetupAttemptByReference,
   insertActiveAuthorization,
+  isCurrentFamilyPayer,
   loadOrganizationName,
   lockActiveAuthorization,
   lockActiveAuthorizationById,
@@ -105,6 +106,7 @@ vi.mock("@/modules/family-payment-methods/infrastructure/family-payment-store", 
   insertSetupAttempt: vi.fn(),
   findSetupAttemptForPayer: vi.fn(),
   findSetupAttemptByReference: vi.fn(),
+  isCurrentFamilyPayer: vi.fn(),
   lockOrganizationForPaymentMethods: vi.fn(),
   lockSetupAttempt: vi.fn(),
   markSetupAttemptAbandoned: vi.fn(),
@@ -300,6 +302,7 @@ describe("avisos de Stripe sobre el método de pago (Tarea 8)", () => {
     vi.mocked(findActiveAuthorizationByMandate).mockResolvedValue(sepaAuthorization());
     vi.mocked(lockActiveAuthorizationById).mockResolvedValue(authorization());
     vi.mocked(findSetupAttemptByReference).mockResolvedValue(setupAttempt());
+    vi.mocked(isCurrentFamilyPayer).mockResolvedValue(true);
     vi.mocked(lockOrganizationForPaymentMethods).mockResolvedValue(true);
     vi.mocked(lockSetupAttempt).mockResolvedValue(setupAttempt());
     vi.mocked(lockActiveAuthorization).mockResolvedValue(null);
@@ -641,6 +644,27 @@ describe("avisos de Stripe sobre el método de pago (Tarea 8)", () => {
       expect(appendAuditEntry).not.toHaveBeenCalled();
     });
 
+    it("Tarea M (punto 11): quien empezó la preparación ya no es la persona pagadora → none sin leer Stripe ni escribir", async () => {
+      vi.mocked(isCurrentFamilyPayer).mockResolvedValue(false);
+      const gateway = fakeSetupGateway();
+      expect(
+        await completeFamilyPaymentSetupFromProvider({ organizationId, accountRowId, setupIntentId, now }, { gateway })
+      ).toEqual({ outcome: "none" });
+      expect(isCurrentFamilyPayer).toHaveBeenCalledWith(expect.anything(), {
+        organizationId,
+        familyId,
+        familyPayerId,
+        guardianId,
+        now,
+      });
+      expect(gateway.retrieveSetupIntent).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(
+        "Pago automático: preparación terminada en Stripe de quien ya no es la persona pagadora; sin efecto",
+        { organizationId, setupIntentId, attemptId }
+      );
+      expectNoWrites();
+    });
+
     it("una preparación abandonada o que no es de Zaltyko → none sin leer Stripe", async () => {
       const gateway = fakeSetupGateway();
       vi.mocked(findSetupAttemptByReference).mockResolvedValue(setupAttempt({ status: "abandoned" }));
@@ -714,13 +738,15 @@ describe("avisos de Stripe sobre el método de pago (Tarea 8)", () => {
     it("cambio de método: revoca la anterior con el sistema como actor y la desliga después del commit", async () => {
       vi.mocked(lockActiveAuthorization).mockResolvedValue(authorization({ paymentMethodReference: "pm_SyntheticOld" }));
       const gateway = fakeSetupGateway();
-      gateway.detachPaymentMethod.mockImplementation(async () => {
-        expect(markSetupAttemptCompleted).toHaveBeenCalled();
-      });
       expect(await processSetupIntentEvent(handlerInput(setupIntentId), { gateway })).toEqual({
         effectType: AUTHORIZATION_EFFECT_TYPE,
         effectId: newAuthorizationId,
       });
+      // Tarea M (punto 12): se desliga después de completar la preparación y
+      // de revocar la anterior (dentro de la transacción), nunca antes.
+      const detachOrder = gateway.detachPaymentMethod.mock.invocationCallOrder[0];
+      expect(detachOrder).toBeGreaterThan(vi.mocked(markSetupAttemptCompleted).mock.invocationCallOrder[0]);
+      expect(detachOrder).toBeGreaterThan(vi.mocked(revokeAuthorization).mock.invocationCallOrder[0]);
       expect(revokeAuthorization).toHaveBeenCalledWith(tx, { organizationId, authorizationId, now });
       expect(appendOutboxEvent).toHaveBeenCalledWith(
         tx,

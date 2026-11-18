@@ -64,6 +64,7 @@ import {
   findSetupAttemptForPayer,
   insertActiveAuthorization,
   insertSetupAttempt,
+  isCurrentFamilyPayer,
   listActiveAuthorizationsForOrganization,
   loadOrganizationName,
   lockActiveAuthorization,
@@ -1115,6 +1116,22 @@ export async function completeFamilyPaymentSetupFromProvider(
   const attempt = await findSetupAttemptByReference(db, attemptKey);
   // Una preparación que no creó Zaltyko, o ya completada o abandonada.
   if (!attempt || attempt.status !== "open") return none;
+  // Tarea M (punto 11): sin la sesión de la persona, se comprueba barato que
+  // quien la empezó sigue siendo la pagadora vigente; si no, sin efecto.
+  const payerStillCurrent = await isCurrentFamilyPayer(db, {
+    organizationId: parsed.organizationId,
+    familyId: attempt.familyId,
+    familyPayerId: attempt.familyPayerId,
+    guardianId: attempt.guardianId,
+    now,
+  });
+  if (!payerStillCurrent) {
+    logger.info("Pago automático: preparación terminada en Stripe de quien ya no es la persona pagadora; sin efecto", {
+      ...ids,
+      attemptId: attempt.id,
+    });
+    return none;
+  }
 
   const context = await loadAcademyContext(gate.inputs, parsed.organizationId, true, now);
   const account = context.account;
@@ -1205,6 +1222,9 @@ export async function revokeFamilyPaymentMethod(
   if (!account) return { outcome: "none" };
 
   const revoked = await db.transaction(async (tx) => {
+    // Tarea M (punto 10): orden único, academia primero (como el cobro y la
+    // activación), para no interbloquear con ellos.
+    if (!(await lockOrganizationForPaymentMethods(tx, parsed.organizationId))) return null;
     const active = await lockActiveAuthorization(tx, {
       organizationId: parsed.organizationId,
       accountRowId: account.id,
@@ -1339,6 +1359,9 @@ export async function revokeFamilyPaymentMethodByOwner(
   if (!account) return { outcome: "none" };
 
   const revoked = await db.transaction(async (tx) => {
+    // Tarea M (punto 10b): academia primero, como la activación desde el
+    // navegador (academia → autorización) y el cobro.
+    if (!(await lockOrganizationForPaymentMethods(tx, parsed.organizationId))) return null;
     const active = await lockActiveAuthorizationById(tx, {
       organizationId: parsed.organizationId,
       accountRowId: account.id,
