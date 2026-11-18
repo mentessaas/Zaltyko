@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **Estado:** plan para revisión del coordinador y de Elvis, escrito el 18-11-2026 desde `main` 070b3c1 (rama `cobros/fase4-eventos-stripe`). No hay código. Las tareas marcadas «espera la decisión Dn» no se empiezan hasta que Elvis la conteste. Nada se aplica ni se configura en staging ni en producción con este plan.
+> **Estado:** plan para revisión del coordinador y de Elvis, escrito el 18-11-2026 desde `main` 070b3c1 (rama `cobros/fase4-eventos-stripe`). No hay código. Las tareas marcadas «espera la decisión Dn» no se empiezan hasta que Elvis la conteste. Nada se aplica ni se configura en staging ni en producción con este plan. Revisado en frío el 18-11-2026 (0 bloqueos, 6 importantes): esta versión los incorpora (webhook antiguo que guarda eventos completos → Tarea 2b y D13; todas las copias de «estados abiertos»; cobro tardío con hermanos abiertos; claves y casos que no caben en devoluciones y disputas; bandera de justificantes; plazo del 3DS anclado a la ventana de cobro).
 
 **Goal:** Que lo que pase en Stripe con los cobros automáticos (cobrado, en el banco, rechazado, el banco pide confirmar, devuelto, disputado) se refleje en Zaltyko en minutos y no solo al día siguiente; que la familia pueda confirmar con su banco desde `/familia/cuotas`; que reciba un justificante cuando se cobra; y que la domiciliación quede lista (apagada) para encenderse.
 
@@ -24,7 +24,7 @@
 
 **Lo que el ADR pide y la petición no menciona**
 
-- **Retirada del código Standard v1 y de las rutas antiguas** (D2 y «Fase 4»): más de quince rutas de `/api/charges/*`, `/api/family/*`, `/api/payments/connect/*`, `/api/cron/collect-charges`, `/api/stripe/connect/webhook`, nueve archivos de `src/lib/stripe/` y sus pruebas. No hace falta para que lo nuevo funcione: el webhook antiguo busca cobros en `public.charges` y no encuentra los nuevos, así que no escribe nada. **Propuesta: PR aparte justo después (D8).**
+- **Retirada del código Standard v1 y de las rutas antiguas** (D2 y «Fase 4»): más de quince rutas de `/api/charges/*`, `/api/family/*`, `/api/payments/connect/*`, `/api/cron/collect-charges`, `/api/stripe/connect/webhook`, nueve archivos de `src/lib/stripe/` y sus pruebas. **Ojo: el webhook antiguo sí escribe.** `processConnectEvent` llama primero a `recordBillingEvent` (`src/lib/stripe/connect-webhook-handler.ts:37`), que guarda **el evento completo de Stripe** en `billing_events.payload` (`src/lib/stripe/billing-events-service.ts:45`), con los datos de facturación de la familia que trae el cobro, antes de buscar nada en `public.charges`. La ruta está viva (no está en `RETIRED_LAUNCH_API_PREFIXES`, `src/lib/launch/essential-routes.ts:19-28`) y `docs/COBROS_Y_CUOTAS.md:930` deja constancia de un destino antiguo registrado en `https://zaltyko.com/api/stripe/connect/webhook` (producción). Si ese destino escucha las cuentas conectadas, cada cobro automático nuevo dejaría su evento completo en la base de **producción**, aunque el cobro sea de staging. Lo que sí es cierto: no escribe en `public.charges` para los cobros nuevos (no los encuentra). **Propuesta:** en esta PR, el webhook antiguo deja de guardar el evento completo (Tarea 2b); antes del primer cobro automático, revisar y apagar o filtrar ese destino antiguo (D13); la retirada completa del código, en una PR aparte justo después (D8).
 - **Aviso a la familia el día antes del cobro**: el ADR dijo que «encaja en la Fase 4, con el recibo». **Propuesta: no por ahora (D12).**
 
 **Lo que no encaja o choca, y cómo lo trato**
@@ -70,17 +70,23 @@ Cada una es una pregunta cerrada. Entre corchetes, las tareas que esperan la res
 - A) Correo y página imprimible en `/familia/cuotas` titulados «Justificante de pago», con: academia, persona que paga, cada cuota («Cuota de febrero de 2027 · {gimnasta}»), importe, fecha del cobro, forma de pago («Tarjeta» o «Domiciliación») y la frase «Este justificante no es una factura. Si necesitas factura, pídesela a {academia}.». Sin número correlativo.
 - B) Lo mismo con un número de recibo correlativo por academia.
 - C) Solo en la página, sin correo.
-- **Recomiendo A.** Un número correlativo se parece a una serie de facturas y sería una pregunta fiscal más. **Sigue abierta L6** (gestor): se construye y se prueba en staging, pero no se activa con familias reales sin su respuesta.
+- **Recomiendo A.** Un número correlativo se parece a una serie de facturas y sería una pregunta fiscal más. **Sigue abierta L6** (gestor): se construye y se prueba en staging detrás de su propia bandera, `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED` (apagada), que no se enciende con familias reales sin su respuesta.
 
 **D7. El banco pide que la familia confirme el pago (3DS). ¿Hasta cuándo puede hacerlo?** [Tareas 4 y 5]
-- A) Hasta que acaba la ventana de cobro que ya existe (3 días después de la fecha de cobro o del reintento). Mientras tanto la cuota no recibe recordatorios ni admite pago a mano. Pasado el plazo, Zaltyko cancela el cobro en Stripe y la cuota se cobra a mano con recordatorios. La familia recibe un correo cada vez que el banco pide confirmar (también en un reintento), con el plazo.
+- A) Hasta que acaba la ventana de cobro que ya existe: 3 días después de la fecha de cobro prevista (o de la fecha del reintento, si es un reintento), el mismo plazo tras el que vuelven los recordatorios. Mientras tanto la cuota no recibe recordatorios ni admite pago a mano. Pasado el plazo, Zaltyko cancela el cobro en Stripe y la cuota se cobra a mano con recordatorios. La familia recibe un correo cada vez que el banco pide confirmar (también en un reintento), con el plazo.
 - B) 7 días (los recordatorios esperan más).
 - **Recomiendo A.** Mantiene la regla que evita el doble pago (la del 17-11) y los mismos plazos que ya conoce la academia.
 
-**D8. Retirar el código antiguo (Standard v1 y sus rutas).** [Tarea 13]
-- A) En una PR aparte, justo después de esta y antes del piloto (Fase 5).
-- B) Dentro de esta PR.
-- **Recomiendo A.** Son decenas de archivos que solo se borran; revisarlos junto al dinero nuevo hace la revisión más larga y arriesgada, y lo nuevo no lo necesita.
+**D8. Retirar el código antiguo (Standard v1 y sus rutas).** [Tareas 2b y 13]
+- A) En esta PR solo se corta lo que hoy guarda datos personales: el webhook antiguo deja de guardar el evento completo (Tarea 2b). La retirada completa va en una PR aparte, justo después de esta y antes del piloto (Fase 5).
+- B) Toda la retirada dentro de esta PR.
+- C) Todo en una PR aparte, sin tocar el webhook antiguo ahora.
+- **Recomiendo A.** Hoy ese webhook guarda eventos completos de Stripe, con datos de facturación de familias, en `billing_events`; eso hay que cortarlo ya. El resto son decenas de archivos que solo se borran: revisarlos junto al dinero nuevo alarga y complica la revisión, y lo nuevo no los necesita.
+
+**D13. El destino de eventos antiguo de Stripe y lo que ya guardó.** [Tarea 2b; pasos de staging y de producción]
+- A) Antes del primer cobro automático en cada entorno, mirar en Stripe (sandbox y Live) si existe un destino que apunta a `/api/stripe/connect/webhook` y escucha cuentas conectadas, y **apagarlo** (o dejarle solo `account.updated` si algo lo necesitara). Revisar después si `billing_events` tiene eventos de cuentas conectadas con cuerpo completo y, con tu autorización aparte, vaciar ese cuerpo (no borrar las filas).
+- B) Dejar el destino como está y confiar en la Tarea 2b.
+- **Recomiendo A.** La Tarea 2b corta el problema en el código, pero el destino antiguo seguiría llamando a una ruta que se va a retirar. Mirar y apagar es solo leer y pulsar un interruptor en Stripe; tocar datos guardados en producción es otra autorización.
 
 **D9. Cortacircuitos: ¿cuándo se para el proceso diario?** [Tarea 10]
 - A) Si Stripe rechaza la petición de crear un cobro («petición no válida», no un problema de una tarjeta concreta) **3 veces seguidas**, o en **el 20 % o más** de los cobros creados ese día (mirado a partir de 10), se deja de cobrar en esa pasada. Los ya cerrados se quedan como están (se cobran a mano); los demás esperan al día siguiente. Aviso operativo a Zaltyko (Sentry) y en la respuesta del proceso. Al día siguiente lo vuelve a intentar.
@@ -108,8 +114,10 @@ Cada una es una pregunta cerrada. Entre corchetes, las tareas que esperan la res
 1. En Stripe sandbox («Entorno de prueba de Zaltyko»): crear un destino de eventos **de cuentas conectadas** (eventos completos, no ligeros) con la URL `https://staging.zaltyko.com/api/stripe/connect/payments-webhook` y la lista de la Tarea 2.
 2. En Vercel staging: `STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET` (el secreto de ese destino) y `ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED=true`.
 3. En Supabase staging: aplicar la candidata de la Tarea 1.
-4. Recorrido de prueba (Tarea 14). Encender `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED` en staging es un paso aparte.
-Nada de esto en producción ni en Stripe Live.
+4. Según D13, en Stripe sandbox: revisar el destino antiguo que apunta a `/api/stripe/connect/webhook` y apagarlo (o dejarle solo `account.updated`) **antes del primer cobro automático**.
+5. Recorrido de prueba (Tarea 14). Encender `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED` o `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED` en staging son pasos aparte.
+
+En producción y Stripe Live no se hace nada de lo anterior, **salvo** lo que pide D13 si lo autorizas: mirar en Stripe Live el destino antiguo `https://zaltyko.com/api/stripe/connect/webhook`, apagarlo o filtrarlo, y (otra autorización) vaciar el cuerpo de los eventos de cuentas conectadas que ya guardó `billing_events`.
 
 ## Global Constraints
 
@@ -120,6 +128,7 @@ Nada de esto en producción ni en Stripe Live.
 - Nada contra Stripe Live ni contra Vercel o Supabase de producción.
 - **Cerrojos:** la ruta y todo lo nuevo solo actúan con `ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED === "true"`, `resolveConnectEnvironment() === "test"`, `!isProductionDatabase()`, eventos con `livemode === false` y el almacenamiento de las Fases 1–4 presente. Si falta algo, la ruta responde 200 `{ ignored: true }` sin escribir.
 - `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED` sigue apagada por defecto; nada de este plan la enciende.
+- Bandera nueva `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED`, apagada por defecto (solo el texto exacto `"true"`): sin ella no se escribe ni se envía ningún justificante. Es el cierre técnico de L6: no se enciende con familias reales sin la respuesta del gestor.
 
 **Dinero (reglas que no se pueden romper; las de la Fase 3 siguen vigentes)**
 
@@ -128,7 +137,8 @@ Nada de esto en producción ni en Stripe Live.
 - **Idempotencia por id de evento** en `zaltyko.payment_provider_events` (`processor = 'stripe'`, `environment = 'sandbox'`), y además cada efecto es idempotente por sí mismo (`payments_provider_uq`, `refunds_provider_uq`, estado del intento, disputa única por `dp_…`). El orden de llegada no importa.
 - **Stripe nunca dentro de una transacción.** Orden de bloqueo único: `organizations` → cuotas por id → factura → intento (→ disputa).
 - **Nunca dos cobros**, **nunca cerrar un intento cuyo dinero pudo moverse** sin leer Stripe, **ninguna cuota en el limbo** (todo intento `requires_action` tiene plazo y lo cierra el proceso diario).
-- **Nunca se borra un pago ni un reparto.** Devolver = filas en `zaltyko.refunds`; disputa perdida = filas en `zaltyko.refunds` con motivo `dispute_lost` o `sepa_returned`.
+- **Nunca se borra un pago ni un reparto.** Devolver = filas en `zaltyko.refunds`; disputa perdida = filas en `zaltyko.refunds` con motivo `dispute_lost` o `sepa_returned`. Una fila por reparto, con clave `refund:{re_|dp_}:{allocationId}`. Lo que no cabe en lo repartido no escribe ninguna fila: avisa a la academia y el evento queda procesado (nunca un 500 en bucle).
+- **Un cobro tardío nunca convive con otro cobro de la misma factura:** antes de registrarlo se anula el reintento pendiente y se cancela en Stripe cualquier intento hermano abierto (Tarea 3).
 - La cuenta del evento (`event.account`) debe ser la del intento (`payment_provider_account_id` → `provider_account_reference`) y del entorno `test`. Si no, se ignora y se registra (solo ids).
 
 **Datos y secretos**
@@ -145,7 +155,7 @@ Nada de esto en producción ni en Stripe Live.
 
 1. **El evento llega antes de que la base sepa del cobro, o en otro orden** (`succeeded` antes que `processing`; evento de un cobro creado justo antes de una caída, con el intento aún `claimed`). Lo esperable: estado final correcto y ningún segundo cobro. Tests en la Tarea 3: «succeeded y luego processing tardío → sigue succeeded» y «evento de un pi_ de un intento claimed → se guarda el pi_ y se registra el cobro».
 2. **Evento y proceso diario a la vez sobre el mismo intento.** Un solo pago registrado y el otro camino cuenta `concurrent`. Test pg en la Tarea 3.
-3. **Devolución parcial que toca varias cuotas, o sobre un cobro sin repartir** (`needs_review`). Nunca más devuelto que repartido; sin reparto, aviso y ninguna fila. Tests en la Tarea 6.
+3. **Devolución parcial que toca varias cuotas, sobre un cobro sin repartir (`needs_review`) o repartido en parte, o disputa encima de devoluciones anteriores.** Nunca más devuelto que repartido; lo que no cabe, aviso, ninguna fila y evento procesado. Tests en las Tareas 6 y 7.
 4. **La familia confirma con su banco justo cuando se cierra el plazo.** Si Stripe ya lo cobró, se registra (nunca se da por fallido); si se canceló, el portal ya no ofrece el botón. Tests en las Tareas 4 y 5.
 5. **Evento de otra cuenta, de Live, firmado con otro secreto o con la bandera apagada.** 200 sin escribir nada (o 400 si la firma falla). Con la bandera apagada, las devoluciones y disputas de ese tiempo no se ven en Zaltyko (deuda documentada; Stripe permite reenviar eventos de los últimos 30 días). Tests en la Tarea 2.
 
@@ -244,6 +254,30 @@ it("routeProviderEvent: cada tipo de la lista a su ruta; prefijo inesperado → 
 - [ ] **Step 3: CI:** los tres archivos de test y el job que clasifica la autorización de las rutas (`scripts/lib/route-auth-classifier.ts`) en verde.
 - [ ] **Step 4: Commit.**
 
+### Task 2b: El webhook antiguo deja de guardar eventos completos
+
+**Espera la decisión D8** (con D8-A o D8-B; con D8-C no se hace). No retira nada: solo corta el guardado de datos personales.
+
+**Files:**
+- Modify: `src/lib/stripe/billing-events-service.ts`, `src/lib/stripe/connect-webhook-handler.ts`
+- Test: `tests/connect-webhook-minimal-payload.test.ts` (nuevo); los tests existentes del webhook antiguo (`tests/connect-webhook-payment-failed-notification.test.ts` y los de `webhook-handler.ts`) sin cambios
+
+**Interfaces:**
+- Produces: `minimalBillingEventPayload(event: Stripe.Event): Record<string, unknown>` = `{ id, type, account, livemode, created, data: { object: { id, object } } }`; `recordBillingEvent(event: Stripe.Event, options?: { payload: "full" | "minimal" }): Promise<BillingEventClaim>` (por defecto `"full"`, así el webhook de la suscripción de la plataforma, `src/lib/stripe/webhook-handler.ts:68`, no cambia). `processConnectEvent` pasa `{ payload: "minimal" }`. Nadie lee hoy `billing_events.payload` (columna que admite nulos), así que no cambia ningún comportamiento.
+
+- [ ] **Step 1: Tests**
+
+```ts
+it("evento de cuenta conectada → billing_events.payload solo con id, type, account, livemode, created y data.object.{id,object}", …)
+it("payment_intent.succeeded con billing_details → ningún nombre, correo ni dirección en la fila", …)
+it("webhook de la plataforma (suscripción) sigue guardando el evento completo", …)
+it("idempotencia del webhook antiguo igual que antes", …)
+```
+
+- [ ] **Step 2: Implementar.**
+- [ ] **Step 3: CI:** tests nombrados y los del webhook antiguo en verde.
+- [ ] **Step 4: Commit.**
+
 ### Task 3: Eventos de cobro por el camino de la relectura (SEPA asíncrona y cobro tardío)
 
 Las reglas 4 y 5 de abajo siguen D10-A y D11-A; si Elvis elige otra opción, solo cambian esas dos reglas y sus tests.
@@ -265,13 +299,18 @@ Las reglas 4 y 5 de abajo siguen D10-A y D11-A; si Elvis elige otra opción, sol
   - `reconcileAttemptWithStripe(state: RunState, attempt: CollectionAttempt): Promise<FamilyCollectionAttemptStatus | null>` en `family-collection-reconcile.ts`: relee el cobro y llama a `settleOutcome` con `{ lastChance: false, allowCancel: true }`. `rereadProcessing` pasa a usarla (sin cambiar su comportamiento ni sus avisos).
   - Almacén: `findAttemptByPaymentIntent(input: { organizationId: string; paymentIntentId: string }): Promise<CollectionAttempt | null>`; `findClaimedAttemptById(input: { organizationId: string; attemptId: string }): Promise<CollectionAttempt | null>`.
   - `AttemptOutcome` gana `{ kind: "late_succeeded"; paymentIntentId: string; received: ReceivedAmount }` y `ApplyOutcomeResult` el motivo de revisión `"duplicate_collection"`.
+  - Almacén: `listInvoiceSiblings(input: { organizationId: string; invoiceId: string; excludeAttemptId: string }): Promise<CollectionAttempt[]>`; `LATE_SUCCESS_ELSEWHERE_CODE = "late_success_elsewhere"`; error `LATE_SUCCESS_SIBLING_IN_FLIGHT`.
   - Pasarela: `PaymentIntentSnapshot` gana `attemptIdFromMetadata: string | null` (solo el valor de `zaltyko_collection_attempt_id`).
 
 Reglas del manejador `paymentIntent`:
 1. Busca el intento por `pi_…` en esa academia. Si no está, relee el cobro en Stripe; si su metadata apunta a un intento `claimed` de esa academia con la misma cuenta, `markCreated` y se sigue; si no, sin efecto.
 2. La cuenta del evento debe ser la del intento; si no, sin efecto y `logger.warn` (ids).
 3. Intento abierto (`claimed`, `created`, `processing`, `requires_action`) → `reconcileAttemptWithStripe`. `transient` o `requires_confirmation` no escriben nada.
-4. Intento terminal (`failed`/`canceled`) y Stripe dice `succeeded` → `late_succeeded`: si la factura no tiene otro intento `succeeded`, el intento pasa a `succeeded` con `recordProviderCollectionPayment` + `allocateProviderCollectionPayment` (lo que no quepa, `needs_review`); si ya lo tiene, no se registra y queda el aviso `duplicate_collection` (D10).
+4. Intento terminal (`failed`/`canceled`) y Stripe dice `succeeded` → **cobro tardío**. Nunca dos cobros, en este orden:
+   1. Si la factura ya tiene otro intento `succeeded` → no se registra; aviso `duplicate_collection` (D10). Fin.
+   2. Si hay un intento hermano **abierto con su propio `pi_…`** (`created`, `processing`, `requires_action`) → fuera de toda transacción, `cancelThenClose` sobre él con `{ kind: "canceled", reason: "late_success_elsewhere" }`. Si Stripe ya no deja cancelarlo y lo cobró, se registra ese (camino normal) y el tardío pasa al paso 1 (`duplicate_collection`).
+   3. Si hay un intento hermano `claimed` **sin** `pi_…` (el proceso diario lo está creando ahora mismo) → no se registra todavía: el manejador lanza `LATE_SUCCESS_SIBLING_IN_FLIGHT`, el evento queda `failed` y Stripe lo reenvía; en el reenvío ese hermano ya tiene `pi_…` y se aplica el paso 2.
+   4. Solo entonces, en una transacción con el orden único: `late_succeeded` (el intento pasa a `succeeded` con `recordProviderCollectionPayment` + `allocateProviderCollectionPayment`; lo que no quepa, `needs_review`) **y** se pone a `null` el `next_retry_at` de cualquier intento `failed` de la factura con reintento pendiente (es lo que lee la reclamación, `family-collection-store.ts:1005-1006`; lo escribe `:1333`), para que el reintento no salga nunca.
 5. Domiciliación: `processing` → `processing`; `succeeded` → registro; fallo → `failed` sin reintento y, según D11, el aviso a la familia (`sepa_failed`, sin promesa).
 
 - [ ] **Step 1: Tests**
@@ -283,6 +322,10 @@ it("evento de un pi_ de un intento claimed sin pi_ guardado → markCreated y re
 it("evento con account distinta a la del intento → sin efecto", …)
 it("éxito tardío de un intento failed sin otro cobro → succeeded y pago registrado", …)
 it("éxito tardío con otro intento ya succeeded → aviso duplicate_collection y un solo pago", …)
+it("éxito tardío con un failed con reintento pendiente → next_retry_at a null y listDueInvoices ya no lo reclama", …)
+it("éxito tardío con un reintento created con su pi_ → cancelPayment fuera de transacción, hermano canceled late_success_elsewhere, un solo pago", …)
+it("éxito tardío y el hermano ya cobrado al intentar cancelarlo → se registra el hermano y el tardío queda duplicate_collection", …)
+it("éxito tardío con un hermano claimed sin pi_ → LATE_SUCCESS_SIBLING_IN_FLIGHT, evento failed y nada registrado", …)
 it("domiciliación: processing → succeeded por eventos, sin esperar al proceso diario", …)
 it("evento y proceso diario a la vez (pg) → un pago; el otro camino cuenta concurrent", …)
 it("ninguna llamada a Stripe dentro de una transacción", …) // espía: gateway nunca llamado con tx abierta
@@ -299,19 +342,30 @@ it("rereadProcessing sigue igual (tests de la Fase 3 sin cambios)", …)
 
 **Files:**
 - Create: `src/modules/family-collection/domain/authentication-window.ts`
-- Modify: `family-collection-steps.ts` (`settleOutcome`, `RunState.authenticationRecovery`), `family-collection-reconcile.ts` (relectura de `requires_action`), `family-collection-store.ts`, `family-collection-schema.ts` (`academyCanMarkReviewed`), `family-collection-academy-actions.ts` (cancelar), `family-failure-notice.ts` y `family-failure-notice-delivery.ts`, `src/modules/billing/application/ledger-service.ts:1635`, `src/modules/payment-reminders/domain/reminder-policy.ts:111`, `family-collection-reads.ts` (`OPEN_STATUSES`)
-- Test: `tests/family-collection-domain.test.ts`, `tests/family-collection-service.test.ts`, `tests/family-collection-events-pg.test.ts`, `tests/family-collection-failure-notice.test.ts`, `tests/family-collection-manual-payment-guard.test.ts`, `tests/family-collection-reminders.test.ts`
+- Modify: `family-collection-steps.ts` (`settleOutcome`, `RunState.authenticationRecovery`), `family-collection-reconcile.ts` (relectura de `requires_action`), `family-collection-collect.ts` (sacar el ancla de `collectionWindowExpired`), `family-collection-schema.ts` (`academyCanMarkReviewed`), `family-failure-notice.ts`
+- Modify, **todas las copias de «estados abiertos»** (hoy `["claimed", "created", "processing"]` escrito a mano), que pasan a usar `FAMILY_COLLECTION_OPEN_STATUSES` (en SQL, con `sql.join` de esa lista) o, donde no se pueda importar, quedan cubiertas por el test de contrato:
+  - `src/modules/family-collection/infrastructure/family-collection-schema.ts:66` (la fuente) y `:189` (predicado del índice del espejo);
+  - `src/modules/family-collection/infrastructure/family-collection-store.ts:75` (`OPEN_STATUSES`);
+  - `src/modules/family-collection/application/family-collection-reads.ts:1097`, `:1100`, `:1115`, `:1121` (SQL del panel de la academia; `:89` ya usa la constante);
+  - `src/modules/family-collection/application/family-collection-academy-actions.ts:107` (cancelar y «Marcar como revisado»);
+  - `src/modules/family-collection/application/family-failure-notice-delivery.ts:103` (`OPEN_ATTEMPT_STATUSES`);
+  - `src/modules/billing/application/ledger-service.ts:1635` (bloqueo del pago a mano);
+  - `src/modules/payment-reminders/domain/reminder-policy.ts:111` (retención de recordatorios);
+  - `src/modules/family-collection/application/storage.ts:75` (comentario y predicado aceptado del índice; lo cambia la Tarea 1).
+  Las listas `('claimed', 'created')` de la reanudación (`family-collection-store.ts:1419-1485`) **no** cambian: `requires_action` no se reanuda.
+- Test: `tests/family-collection-open-statuses-contract.test.ts` (nuevo), `tests/family-collection-domain.test.ts`, `tests/family-collection-service.test.ts`, `tests/family-collection-events-pg.test.ts`, `tests/family-collection-failure-notice.test.ts`, `tests/family-collection-manual-payment-guard.test.ts`, `tests/family-collection-reminders.test.ts`, `tests/family-collection-academy-actions.test.ts`, `tests/family-collection-reads.test.ts`
 
 **Interfaces:**
 - Produces:
-  - `authenticationDeadline(input: { claimedAt: Date; timezone: string }): Date` = fin del día local `claimedAt + AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS` (3) en la zona de la sede.
+  - `collectionWindowAnchor(input: { previousAttempt: { status: string; nextRetryAt: Date | null } | null; charges: readonly CollectionChargeRow[]; allocations: readonly CollectionAllocationRow[]; timezone: string; collectionDayOfMonth: number | null }): string | null` en `family-collection-collect.ts`: la fecha local que ya usa `collectionWindowExpired` (`:99-122`) — la del reintento (`next_retry_at` del intento anterior) si el intento es un reintento; si no, la fecha de cobro prevista más antigua de sus cuotas (`collectionDate`). `collectionWindowExpired` pasa a usarla, sin cambiar su resultado.
+  - `authenticationDeadline(input: { anchorLocalDate: string; timezone: string }): Date` = fin del día local `anchorLocalDate + AUTOMATIC_COLLECTION_REMINDER_GRACE_DAYS` (3) en la zona de la sede; es el último día en que `withinGrace` (`reminder-policy.ts:85-102`) sigue reteniendo los recordatorios. Nunca se ancla a `claimed_at`: si el proceso diario reclama tarde, la familia no gana días frente a los recordatorios.
   - `RunState.authenticationRecovery: boolean` = bandera de eventos **y** bandera de cobro **y** almacenamiento `"phase4"`.
   - `AttemptOutcome` gana `{ kind: "requires_action"; paymentIntentId: string; actionDeadlineAt: Date }`.
   - `AUTHENTICATION_EXPIRED_CODE = "authentication_required"` (el intento caducado se cierra `failed` con ese código, como hoy).
   - `FamilyFailureNoticeKind` `"authentication_required"` lleva `deadlineLocalDate: string`.
 
 Reglas:
-- En `settleOutcome`, un fallo de autenticación (`isAuthenticationRequiredFailure` o estado `requires_action`) de **tarjeta**, con `authenticationRecovery` y antes del plazo → `requires_action` **sin cancelar el cobro** en Stripe. Sin `authenticationRecovery` → comportamiento de la Fase 3 (cancelar y `failed`).
+- En `settleOutcome`, un fallo de autenticación (`isAuthenticationRequiredFailure` o estado `requires_action`) de **tarjeta**, con `authenticationRecovery` y antes del plazo (`authenticationDeadline` sobre `collectionWindowAnchor`, que `loadAttemptRefs` devuelve como `AttemptStripeRefs.windowAnchorLocalDate: string | null`; sin ancla → comportamiento de la Fase 3) → `requires_action` **sin cancelar el cobro** en Stripe. Sin `authenticationRecovery` → comportamiento de la Fase 3 (cancelar y `failed`).
 - Mientras está `requires_action`, un cobro de Stripe en `requires_payment_method` o `requires_action` no cambia nada (la familia puede volver a intentarlo); `succeeded`/`processing` se aplican; `canceled` sin error → `canceled_in_stripe`.
 - La relectura diaria lista `processing` **y** `requires_action`; pasado el plazo → `cancelThenClose` con `failed` `authentication_required` (si Stripe ya lo cobró, se registra). Sin segundo correo: vuelven los recordatorios.
 - Al entrar en `requires_action` se escribe el aviso a la familia en el outbox (misma transacción), **en cualquier número de intento**, con el plazo. Texto: «Tu banco pide que confirmes el pago de la {cuota de febrero de 2027}. Entra en Zaltyko y pulsa «Confirmar el pago» antes del {5 de marzo}. Si no, tu academia te dirá cómo pagarla.».
@@ -320,7 +374,11 @@ Reglas:
 - [ ] **Step 1: Tests**
 
 ```ts
-it("authenticationDeadline: fin del día local +3 en Madrid y en Ciudad de México", …)
+it("todas las copias de estados abiertos son FAMILY_COLLECTION_OPEN_STATUSES", …) // contrato: importa ledger-service, reminder-policy, store, academy-actions, notice-delivery; para el SQL de reads, lee el archivo y no admite ninguna lista literal de estados abiertos
+it("collectionWindowAnchor: intento 1 → fecha de cobro prevista; reintento → fecha del reintento", …)
+it("authenticationDeadline: fin del día local ancla+3 en Madrid y en Ciudad de México", …)
+it("reclamado un día tarde → el plazo no se alarga (mismo día que deja de retener withinGrace)", …)
+it("panel de la academia lista un intento requires_action como en curso", …)
 it("authentication_required con recuperación → requires_action, plazo guardado y sin cancelPayment", …)
 it("sin recuperación (bandera de eventos apagada) → cancelPayment y failed, como en la Fase 3", …)
 it("requires_action y Stripe sigue requires_payment_method antes del plazo → nada cambia", …)
@@ -387,10 +445,14 @@ it("panel de la academia: texto de espera con la fecha", …)
   - `recordProviderRefund(tx: TransactionClient, input: { organizationId: string; paymentId: string; paymentAllocationId: string; amountCents: number; currency: string; processor: string; environment: "sandbox" | "live"; providerRefundId: string; reasonCode: string; refundedAt: Date; providerEventId: string | null; idempotencyKey: string }): Promise<{ refundId: string; created: boolean; paymentStatus: "partially_refunded" | "refunded" }>` — idempotente por `refunds_provider_uq`; nunca supera lo repartido (`REFUND_EXCEEDS_ALLOCATION`); actualiza el estado del pago; outbox `payment.refunded` y auditoría.
   - `splitRefund(input: { allocations: { allocationId: string; servicePeriodStart: string; chargeId: string; allocatedCents: number; refundedCents: number }[]; amountCents: number }): { allocationId: string; amountCents: number }[] | null` — reparte de la cuota más antigua a la más nueva (periodo, luego id); `null` si no cabe.
   - `providerRefundReference(refundId: string, allocationId: string): string` = `${refundId}:${allocationId}` (un `re_…` puede tocar varias cuotas y `refunds_provider_uq` es único).
+  - `providerRefundIdempotencyKey(reference: string, allocationId: string): string` = `refund:${reference}:${allocationId}`, con `reference` el `re_…` o el `dp_…`/`du_…`. `refunds_idempotency_uq` es único por academia (`supabase/migrations/20261006093047_add_internal_billing_ledger.sql:299`) y hoy la clave es una por evento (`ledger-service.ts:1230` y `~1425`): con varias filas por evento saltaría 23505. `processLocalSandboxProviderEvent` conserva su clave actual (una fila por evento).
+  - `class RefundDoesNotFitError extends Error` (código `REFUND_DOES_NOT_FIT`), que lanza `recordProviderRefund` en lugar de `REFUND_EXCEEDS_ALLOCATION` (`ledger-service.ts:1409`) cuando la llama este módulo.
   - `retrieveChargeRefunds(input: { connectedAccount: string; chargeId: string }): Promise<{ chargeId: string; paymentIntentId: string | null; refunds: { id: string; status: string; amountCents: number; currency: string | null; reasonCode: string | null; createdAt: Date }[] }>`.
   - Avisos a la academia (outbox `family_collection.needs_review`): `refunded` (informativo), `refund_unallocated`, `refund_reversed`.
 
-Reglas: `charge.refunded` y `refund.*` → se relee el cargo con sus devoluciones (el `refund.*` da el `charge`) → intento `succeeded` de ese `pi_…` → por cada devolución `succeeded` sin registrar, `splitRefund` y `recordProviderRefund` (motivo = `reason` de Stripe o `requested_by_academy`). `pending` → nada todavía. Una ya registrada que pasa a `failed`/`canceled` → aviso `refund_reversed`, sin tocar el libro. Si el pago está sin repartir (`needs_review`) → aviso `refund_unallocated` y ninguna fila. La cuota sigue pagada (D1-A).
+Reglas: `charge.refunded` y `refund.*` → se relee el cargo con sus devoluciones (el `refund.*` da el `charge`) → intento `succeeded` de ese `pi_…` → por cada devolución `succeeded` sin registrar, `splitRefund` y `recordProviderRefund` (motivo = `reason` de Stripe o `requested_by_academy`). `pending` → nada todavía. Una ya registrada que pasa a `failed`/`canceled` → aviso `refund_reversed`, sin tocar el libro. La cuota sigue pagada (D1-A).
+
+**Devolución que no cabe** (pago sin repartir o repartido solo en parte, o devoluciones anteriores que ya agotan lo repartido): `splitRefund` devuelve `null` o `recordProviderRefund` lanza `RefundDoesNotFitError` → se deshace la transacción, **no se escribe ninguna fila**, queda el aviso `refund_unallocated` a la academia («Stripe devolvió {importe} de un cobro que Zaltyko no pudo repartir entre cuotas; revísalo») una sola vez por `re_…`, y el evento se marca **procesado** (`effectType: "refund_review"`): nunca un 500 que Stripe reenviaría durante 3 días. Todas las filas de un mismo `re_…` van en una sola transacción: o todas o ninguna.
 
 Textos: academia «Devuelta: {importe} el {fecha} (desde tu panel de Stripe)»; familia «Devuelto: {importe}».
 
@@ -402,7 +464,10 @@ it("splitRefund: más que lo repartido → null", …)
 it("devolución total por evento → dos filas en refunds y pago refunded; cuotas siguen pagadas", …)
 it("mismo evento o charge.refunded repetido → ninguna fila nueva", …)
 it("devolución pending → nada; luego refund.updated succeeded → filas", …)
-it("cobro sin repartir → aviso refund_unallocated y ninguna fila", …)
+it("cobro sin repartir → aviso refund_unallocated, ninguna fila y evento processed (200)", …)
+it("pago repartido solo en parte y devolución mayor que lo repartido → ninguna fila, aviso una vez, evento processed", …)
+it("un re_ en dos cuotas → dos filas con claves refund:re_…:{allocationId} distintas, sin 23505", …)
+it("mismo re_ reenviado → ninguna fila nueva (idempotencia por clave y por referencia)", …)
 it("processLocalSandboxProviderEvent refund.succeeded sigue igual", …)
 ```
 
@@ -425,7 +490,8 @@ it("processLocalSandboxProviderEvent refund.succeeded sigue igual", …)
 - Produces:
   - `retrieveDispute(input: { connectedAccount: string; disputeId: string }): Promise<{ id: string; chargeId: string; paymentIntentId: string | null; status: string; reasonCode: string | null; amountCents: number; currency: string | null; evidenceDueAt: Date | null; fundsWithdrawn: boolean; paymentMethodKind: "card" | "sepa_debit" | null }>`.
   - `disputeEffect(input: { status: string; paymentMethodKind: "card" | "sepa_debit" | null; alreadyReversed: boolean }): "track" | "reverse" | "close"` — `lost` → `reverse`; domiciliación en cualquier estado no ganado → `reverse` (las disputas SEPA no se pueden recurrir); `won`, `warning_closed`, `prevented` → `close`; lo demás → `track`; ya revertida → nunca `reverse` otra vez.
-  - `upsertDisputeAndApply(input: { organizationId: string; attemptId: string; dispute: …; effect: "track" | "reverse" | "close"; providerEventInboxId: string | null; now: Date }): Promise<{ disputeId: string; reversed: boolean }>` — transacción con el orden único (+ disputa `for update`); en `reverse`, `recordProviderRefund` por reparto con motivo `sepa_returned` (domiciliación) o `dispute_lost` (tarjeta) y `reversed_at`.
+  - `upsertDisputeAndApply(input: { organizationId: string; attemptId: string; dispute: …; effect: "track" | "reverse" | "close"; providerEventInboxId: string | null; now: Date }): Promise<{ disputeId: string; reversed: boolean; review: "dispute_unallocated" | null }>` — transacción con el orden único (+ disputa `for update`); en `reverse`, `splitRefund` y `recordProviderRefund` por reparto con motivo `sepa_returned` (domiciliación) o `dispute_lost` (tarjeta), referencia `providerRefundReference(dp_…, allocationId)`, clave `providerRefundIdempotencyKey(dp_…, allocationId)` y `reversed_at`.
+  - **Disputa que no cabe** (pago sin repartir o en parte, o devoluciones anteriores del mismo cobro que dejan menos de lo disputado): la fila de la disputa se guarda (estado y plazo), **sin** filas en `refunds` ni `reversed_at`; aviso `dispute_unallocated` a la academia una sola vez; el evento se marca procesado (nunca 500 en bucle). Lo mismo para D2-A: sin reversión no se crea la cuota nueva.
   - Avisos: `dispute_opened` (con `evidenceDueAt`), `dispute_won`, `dispute_lost`, `sepa_returned`.
   - **Solo con D2-A (o D3-A):** `issueReturnedFeeInvoice(tx, input: { organizationId: string; disputeId: string; amountCents: number; servicePeriodStart: string; now: Date }): Promise<{ invoiceId: string; created: boolean }>` — factura manual nueva con una cuota «Cuota de {mes} · devuelta por el banco», clave de idempotencia `family-collection-return:{dp_…}`, en modo manual (recordatorios normales).
 
@@ -439,6 +505,8 @@ it("disputa de tarjeta abierta → fila track, cuota pagada, aviso con fecha", �
 it("disputa ganada → close y sin filas en refunds", …)
 it("disputa perdida → filas dispute_lost por reparto y reversed_at; repetir el evento no duplica", …)
 it("domiciliación disputada → sepa_returned al crearse", …)
+it("disputa perdida tras una devolución parcial previa → disputa guardada, ninguna fila en refunds, aviso dispute_unallocated, evento processed", …)
+it("disputa perdida en dos cuotas → claves refund:dp_…:{allocationId} distintas, sin 23505", …)
 it("D2-A: devolución SEPA crea una cuota manual pendiente una sola vez", …)
 it("funds_withdrawn y funds_reinstated releen la disputa y no escriben de más", …)
 ```
@@ -475,9 +543,10 @@ it("setup_intent.succeeded de una preparación ya completada → none", …)
 
 ### Task 9: Justificante de pago para la familia
 
-**Espera la decisión D6** (con A, lo de abajo). La activación con familias reales espera L6.
+**Espera la decisión D6** (con A, lo de abajo). La activación con familias reales espera L6, y la bandera de esta tarea es lo que lo impide en el código.
 
 **Files:**
+- Modify: `src/modules/family-collection/application/config.ts` (bandera)
 - Create: `src/modules/family-collection/domain/family-receipt.ts`
 - Create: `src/modules/family-collection/application/family-receipt-delivery.ts`
 - Create: `src/modules/family-collection/application/family-receipt-reads.ts`
@@ -487,6 +556,7 @@ it("setup_intent.succeeded de una preparación ya completada → none", …)
 
 **Interfaces:**
 - Produces:
+  - `FAMILY_COLLECTION_RECEIPTS_FLAG_ENV = "ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED"`, `isFamilyCollectionReceiptsFlagEnabled(): boolean` (solo el texto exacto `"true"`; apagada por defecto). Apagada: `applyOutcome` **no** escribe el evento de justificante, `deliverFamilyReceipts` no envía nada (devuelve ceros sin leer la base), la página responde 404 y el portal no enseña el enlace. Encenderla no envía justificantes de cobros anteriores (el evento solo se escribe al registrar el cobro).
   - `FAMILY_RECEIPT_EVENT = "family_collection.receipt"`, `FAMILY_RECEIPT_RESULT_EVENT = "family_collection.receipt_result"`, `familyReceiptKey(attemptId: string): string`.
   - `renderFamilyReceipt(input: { academyName: string; payerName: string; fees: { label: string; athleteName: string | null; amountCents: number }[]; totalCents: number; currency: "EUR"; collectedOnLocal: string; method: "card" | "sepa_debit"; reference: string; receiptUrl: string }): { subject: string; text: string; html: string }` — asunto «Justificante de pago de {academia}»; incluye «Este justificante no es una factura. Si necesitas factura, pídesela a {academia}.».
   - `deliverFamilyReceipts(options?: { deadlineMs?: number; now?: Date }, deps?): Promise<{ sent: number; notSent: number; pending: number }>` — mismo emisor, destinatario y clave de envío por intento que los avisos (`sendEmailWithLogging`); resultado en el outbox una sola vez.
@@ -497,7 +567,9 @@ La ruta cron lo llama al final, después de los avisos, con el tiempo que quede;
 - [ ] **Step 1: Tests**
 
 ```ts
-it("cobro registrado → un evento de justificante en el outbox; repetir applyOutcome no duplica", …)
+it("bandera de justificantes apagada → cobro registrado sin evento de justificante, ningún correo, página 404 y sin enlace en el portal", …)
+it("bandera con otro valor que \"true\" (\"1\", \"TRUE\") → apagada", …)
+it("bandera encendida: cobro registrado → un evento de justificante en el outbox; repetir applyOutcome no duplica", …)
 it("renderFamilyReceipt: texto exacto «no es una factura» y sin datos de tarjeta", …)
 it("sin correo de la persona pagadora → notSent y la página sigue disponible", …)
 it("la página solo la ve la persona pagadora; otra cuenta → 404", …)
@@ -569,9 +641,9 @@ it("recordatorios: mismo texto que antes con la función común", …)
 
 ### Task 12: Documentación y entorno
 
-**Files:** `.env.example` (`ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED=false`, `STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET=`), `docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md` (estado de la Fase 4, respuestas D1–D12, bandera nueva, deuda), `docs/COBROS_Y_CUOTAS.md` (sección «Eventos de Stripe, devoluciones, 3DS y justificante (Fase 4)»: rutas, estados, textos, cerrojos, deuda), `docs/deployment/candidates/README.md` (Fase 4 y, con la confirmación del coordinador, el estado real de la Fase 3 en staging), `vault/06-Roadmap-y-Tareas/Changelog interno.md` y `Decisiones.md`.
+**Files:** `.env.example` (`ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED=false`, `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED=false`, `STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET=`), `docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md` (estado de la Fase 4, respuestas D1–D12, bandera nueva, deuda), `docs/COBROS_Y_CUOTAS.md` (sección «Eventos de Stripe, devoluciones, 3DS y justificante (Fase 4)»: rutas, estados, textos, cerrojos, deuda), `docs/deployment/candidates/README.md` (Fase 4 y, con la confirmación del coordinador, el estado real de la Fase 3 en staging), `vault/06-Roadmap-y-Tareas/Changelog interno.md` y `Decisiones.md`.
 
-Deuda que se documenta: eventos perdidos con la bandera apagada (reenviables desde Stripe 30 días); justificante de domiciliación al día siguiente; L4 y L6 pendientes; código Standard v1 hasta la PR de D8; reparto de una devolución parcial de la cuota más antigua a la más nueva.
+Deuda que se documenta: eventos completos de cuentas conectadas que `billing_events` ya guardó antes de la Tarea 2b (vaciarlos necesita la autorización de D13); destino antiguo `/api/stripe/connect/webhook` en Stripe hasta que se apague (D13); eventos perdidos con la bandera apagada (reenviables desde Stripe 30 días); justificante de domiciliación al día siguiente; L4 y L6 pendientes; código Standard v1 hasta la PR de D8; reparto de una devolución parcial de la cuota más antigua a la más nueva.
 
 - [ ] **Step 1: Escribir.**
 - [ ] **Step 2: CI:** `audit:env` y el job de documentación en verde.
@@ -583,4 +655,4 @@ Con D8-A esta tarea es la PR siguiente. Contenido: borrar `src/lib/stripe/{charg
 
 ### Task 14: Staging (necesita autorización de Elvis; no se hace con este plan)
 
-Tras los pasos 1–3 de «Pasos de staging»: tarjeta `4242…` cobrada y registrada por evento en minutos; `4000 0027 6000 3184` → «Confirmar el pago» en `/familia/cuotas` y cobro registrado; plazo vencido → cuota a mano; devolución parcial y total desde el panel de Stripe de la academia; disputa con la tarjeta de prueba de disputas de Stripe; desligar el método desde Stripe; justificante en el correo de una familia con correo. La domiciliación (IBAN de prueba de éxito, fallo y disputa) solo con su bandera encendida y autorización aparte.
+Tras los pasos 1–4 de «Pasos de staging» (el 4 es apagar o filtrar el destino antiguo antes del primer cobro): tarjeta `4242…` cobrada y registrada por evento en minutos; `4000 0027 6000 3184` → «Confirmar el pago» en `/familia/cuotas` y cobro registrado; plazo vencido → cuota a mano; devolución parcial y total desde el panel de Stripe de la academia; disputa con la tarjeta de prueba de disputas de Stripe; desligar el método desde Stripe; justificante en el correo de una familia con correo. La domiciliación (IBAN de prueba de éxito, fallo y disputa) solo con su bandera encendida y autorización aparte.
