@@ -79,6 +79,8 @@ import {
   ownerRefundText,
   refundNoticeText,
   reviewReasonText,
+  sortByFeeMonth,
+  type OwnerAutomaticCollectionItem,
   type OwnerCollectionRow,
 } from "@/modules/family-collection/application/family-collection-reads";
 import { isFamilyPaymentConfirmationOpen } from "@/modules/family-collection/application/config";
@@ -1616,6 +1618,83 @@ describe("puertas de las lecturas", () => {
         familyNotice: "sent",
       }),
     ]);
+  });
+
+  describe("Tarea 11 — academia: el mes de cada cuota", () => {
+    /** Fila de la consulta con un intento fallido (siempre sale) y el periodo de su cuota. */
+    const feeRow = (index: number, servicePeriodStart: string | null) => ({
+      invoiceId: `91000000-0000-4000-8000-00000000070${index}`,
+      invoiceReference: `MENSUAL-20270${index}-000${index}`,
+      servicePeriodStart,
+      invoiceStatus: "issued",
+      currency: "EUR",
+      timezone: TZ,
+      payerName: null,
+      collectionDayOfMonth: null,
+      nextDueAt: null,
+      openAutomaticCents: "0",
+      attemptStatus: "failed",
+      attemptAmountCents: "4500",
+      failureCode: "card_declined",
+      declineCode: "insufficient_funds",
+      nextRetryAt: null,
+      completedAt: "2026-11-05T08:00:00.000Z",
+      resumeCount: 0,
+      allocationStatus: null,
+      reviewReason: null,
+      hasReviewNotice: false,
+    });
+
+    it("la consulta lee el primer día del periodo más antiguo de las cuotas automáticas de la factura", async () => {
+      holder.execute.mockResolvedValueOnce({ rows: [{ timezone: TZ }] }).mockResolvedValueOnce({ rows: [] });
+      await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
+      const query = dialect.sqlToQuery(holder.execute.mock.calls[1][0] as SQL);
+      expect(query.sql).toMatch(
+        /select to_char\(min\(c\.service_period_start\), 'YYYY-MM-DD'\)\s+from zaltyko\.charges c\s+where c\.organization_id = i\.organization_id\s+and c\.invoice_id = i\.id\s+and c\.collection_mode::text = 'automatic'\s+\) as "servicePeriodStart"/
+      );
+    });
+
+    it("cada cobro lleva el periodo de su cuota y la lista se ordena por mes de la cuota", async () => {
+      holder.execute.mockResolvedValueOnce({ rows: [{ timezone: TZ }] }).mockResolvedValueOnce({
+        rows: [feeRow(2, "2027-02-01"), feeRow(4, null), feeRow(1, "2027-01-01"), feeRow(3, "2026-12-01")],
+      });
+
+      const view = await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
+
+      expect(view?.month).toBe("2026-11");
+      expect(view?.items.map((item) => [item.invoiceReference, item.servicePeriodStart])).toEqual([
+        ["MENSUAL-202703-0003", "2026-12-01"],
+        ["MENSUAL-202701-0001", "2027-01-01"],
+        ["MENSUAL-202702-0002", "2027-02-01"],
+        ["MENSUAL-202704-0004", null],
+      ]);
+      // Solo cambia el orden: el estado y el importe de cada fila siguen igual.
+      for (const item of view?.items ?? []) {
+        expect(item).toMatchObject({ state: "failed", amountCents: 4500 });
+      }
+    });
+
+    it("la fila pura pasa el periodo tal cual (null si no lo hay)", () => {
+      expect(
+        ownerAutomaticCollectionItemOf(ownerRow({ servicePeriodStart: "2027-02-01" }), NOW, "2026-11")
+      ).toMatchObject({ servicePeriodStart: "2027-02-01", invoiceReference: "CUO-2026-11-001", state: "scheduled" });
+      expect(ownerAutomaticCollectionItemOf(ownerRow(), NOW, "2026-11")).toMatchObject({ servicePeriodStart: null });
+    });
+
+    it("sortByFeeMonth: por mes, sin periodo al final y estable dentro del mismo mes", () => {
+      const item = (invoiceId: string, servicePeriodStart: string | null) =>
+        ({ invoiceId, servicePeriodStart }) as OwnerAutomaticCollectionItem;
+      const input = [
+        item("a", "2027-01-01"),
+        item("b", null),
+        item("c", "2026-12-15"),
+        item("d", "2027-01-01"),
+        item("e", "2026-12-01"),
+      ];
+      expect(sortByFeeMonth(input).map((entry) => entry.invoiceId)).toEqual(["c", "e", "a", "d", "b"]);
+      // No toca la lista recibida.
+      expect(input.map((entry) => entry.invoiceId)).toEqual(["a", "b", "c", "d", "e"]);
+    });
   });
 
   describe("academia: límite de la lista", () => {

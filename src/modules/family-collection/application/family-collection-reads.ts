@@ -951,7 +951,14 @@ export type OwnerAutomaticCollectionState =
 
 export interface OwnerAutomaticCollectionItem {
   invoiceId: string;
+  /** Referencia interna de la factura: solo como respaldo si la cuota no tiene periodo. */
   invoiceReference: string;
+  /**
+   * Fase 4 (Tarea 11): primer día (YYYY-MM-DD) del periodo más antiguo de las
+   * cuotas automáticas de la factura; la pantalla dice «Cuota de febrero de
+   * 2027» (feePeriodLabel). null si no se puede leer.
+   */
+  servicePeriodStart: string | null;
   payerName: string | null;
   amountCents: number;
   currency: string;
@@ -989,6 +996,23 @@ export interface OwnerAutomaticCollectionItem {
 
 export type FamilyNoticeState = "sent" | "not_sent";
 
+/**
+ * Fase 4 (Tarea 11): ordena los cobros por el mes de la cuota (el más antiguo
+ * primero); los que no tienen periodo van al final. Dentro del mismo mes se
+ * conserva el orden de llegada (sort estable). No cambia nada de cada fila.
+ */
+export function sortByFeeMonth(items: OwnerAutomaticCollectionItem[]): OwnerAutomaticCollectionItem[] {
+  const monthOf = (item: OwnerAutomaticCollectionItem) => item.servicePeriodStart?.slice(0, 7) ?? null;
+  return [...items].sort((left, right) => {
+    const a = monthOf(left);
+    const b = monthOf(right);
+    if (a === b) return 0;
+    if (a === null) return 1;
+    if (b === null) return -1;
+    return a < b ? -1 : 1;
+  });
+}
+
 /** Resultado guardado del aviso (family-failure-notice-store.ts) → lo que ve la academia. */
 export function familyNoticeStateOf(outcome: string | null): FamilyNoticeState | null {
   if (outcome === "sent") return "sent";
@@ -1013,6 +1037,8 @@ export interface OwnerAutomaticCollectionsView {
 export interface OwnerCollectionRow {
   invoiceId: string;
   invoiceReference: string;
+  /** Fase 4 (Tarea 11): primer día del periodo más antiguo de sus cuotas automáticas (YYYY-MM-DD). */
+  servicePeriodStart?: string | null;
   invoiceStatus: string;
   payerName: string | null;
   currency: string;
@@ -1073,6 +1099,7 @@ export function ownerAutomaticCollectionItemOf(
   const base = {
     invoiceId: row.invoiceId,
     invoiceReference: row.invoiceReference,
+    servicePeriodStart: row.servicePeriodStart ?? null,
     payerName: row.payerName,
     currency: row.currency,
   };
@@ -1453,6 +1480,13 @@ export async function getOwnerAutomaticCollections(input: {
       nullif(btrim(concat_ws(' ', p.given_name, p.family_name)), '') as "payerName",
       ocs.collection_day_of_month as "collectionDayOfMonth",
       (
+        select to_char(min(c.service_period_start), 'YYYY-MM-DD')
+          from zaltyko.charges c
+         where c.organization_id = i.organization_id
+           and c.invoice_id = i.id
+           and c.collection_mode::text = 'automatic'
+      ) as "servicePeriodStart",
+      (
         select to_char(min(c.due_at) at time zone 'UTC', ${sql.raw(ISO)})
           from zaltyko.charges c
          where c.organization_id = i.organization_id
@@ -1601,6 +1635,7 @@ export async function getOwnerAutomaticCollections(input: {
       {
         invoiceId: String(row.invoiceId),
         invoiceReference: String(row.invoiceReference),
+        servicePeriodStart: textOrNull(row.servicePeriodStart),
         invoiceStatus: String(row.invoiceStatus),
         payerName: textOrNull(row.payerName),
         currency: String(row.currency),
@@ -1642,7 +1677,8 @@ export async function getOwnerAutomaticCollections(input: {
   if (inProgressOnly && listed.length === 0) return null;
   return {
     month,
-    items: listed.slice(0, OWNER_AUTOMATIC_COLLECTIONS_LIMIT),
+    // Se eligen los 100 más recientes y después se ordenan por el mes de la cuota (Tarea 11).
+    items: sortByFeeMonth(listed.slice(0, OWNER_AUTOMATIC_COLLECTIONS_LIMIT)),
     truncated: listed.length > OWNER_AUTOMATIC_COLLECTIONS_LIMIT || rows.length > OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT,
     ...(inProgressOnly ? { inProgressOnly: true as const } : {}),
   };

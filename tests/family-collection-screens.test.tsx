@@ -19,6 +19,10 @@ vi.mock("next/navigation", () => ({
 // FamilyFeesView importa la tarjeta de pago automático (Fase 2): Stripe.js no se carga.
 vi.mock("@stripe/stripe-js/pure", () => ({ loadStripe: vi.fn() }));
 vi.mock("@stripe/stripe-js", () => ({ loadStripe: vi.fn() }));
+// El formulario de ajustes de los recordatorios no se prueba aquí (Tarea 11 solo mira la lista).
+vi.mock("@/components/owner-dashboard/PaymentReminderSettingsForm", () => ({
+  PaymentReminderSettingsForm: () => null,
+}));
 vi.mock("@stripe/react-stripe-js", () => ({
   Elements: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   PaymentElement: () => null,
@@ -36,11 +40,13 @@ import {
   type OwnerFamilyPaymentMethod,
 } from "@/components/owner-dashboard/OwnerFamilyPaymentMethodsPanel";
 import { OwnerStripeConnectCard } from "@/components/owner-dashboard/OwnerStripeConnectCard";
+import { PaymentRemindersPanel } from "@/components/owner-dashboard/PaymentRemindersPanel";
 import type {
   OwnerAutomaticCollectionItem,
   OwnerAutomaticCollectionsView,
 } from "@/modules/family-collection/application/family-collection-reads";
 import type { FamilyAcademyFees, FamilyFee } from "@/modules/family-portal/application/family-portal-reads";
+import type { ReminderListItem, ReminderOverview } from "@/modules/payment-reminders/application/service";
 
 const ORGANIZATION_ID = "92000000-0000-4000-8000-000000000001";
 const FAMILY_A = "92000000-0000-4000-8000-000000000301";
@@ -689,6 +695,8 @@ describe("OwnerFamilyPaymentMethodsPanel: «Cobrar automáticamente»", () => {
 describe("OwnerAutomaticCollectionsPanel", () => {
   const ENDPOINT = "/api/v1/owner/payments/automatic-collection";
   const base: Omit<OwnerAutomaticCollectionItem, "invoiceId" | "invoiceReference" | "state"> = {
+    // Sin periodo: la fila sale con la referencia como respaldo («Cuota CUO-1»).
+    servicePeriodStart: null,
     payerName: "Lucía Martín",
     amountCents: 4500,
     currency: "EUR",
@@ -742,8 +750,7 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     stubFetch(() => reply(200, {}));
     render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={view} />);
 
-    expect(screen.getByRole("heading", { name: "Cobros automáticos de este mes" })).toBeInTheDocument();
-    expect(screen.getByText(/noviembre de 2026/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cobros automáticos de noviembre de 2026" })).toBeInTheDocument();
     expect(rowOf("CUO-1")).toHaveTextContent(/Se cobrará el 20 nov\.? 2026/);
     expect(rowOf("CUO-2")).toHaveTextContent(/Cobrada el 5 nov\.? 2026/);
     expect(rowOf("CUO-3")).toHaveTextContent(/No se pudo cobrar; se volverá a intentar el 20 nov\.? 2026/);
@@ -897,7 +904,7 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     const { unmount } = render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={inProgress} />);
 
     expect(screen.getByRole("heading", { name: "Cobros automáticos en curso" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Cobros automáticos de este mes" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: /^Cobros automáticos de / })).toBeNull();
     expect(
       screen.getByText(
         "El cobro automático está parado: ya no se cobra ninguna cuota nueva. Estos cobros ya estaban en marcha y siguen su curso."
@@ -1080,5 +1087,207 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent("No hemos podido completar la acción. Inténtalo de nuevo.")
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fase 4, Tarea 11: el mes de la cuota en lugar del código interno, y un
+// título que dice lo que se enseña (el mes en que se cobra).
+// ---------------------------------------------------------------------------
+
+describe("OwnerAutomaticCollectionsPanel: el mes de cada cuota (Tarea 11)", () => {
+  const base: Omit<OwnerAutomaticCollectionItem, "invoiceId" | "invoiceReference" | "servicePeriodStart" | "state"> = {
+    payerName: "Lucía Martín",
+    amountCents: 4500,
+    currency: "EUR",
+    date: null,
+    reason: null,
+    needsReview: false,
+    canCancel: false,
+    canMarkReviewed: false,
+    manualPaymentBlocked: false,
+  };
+  const invoice = (n: number) => `92000000-0000-4000-8000-00000000070${n}`;
+  const feeItems: OwnerAutomaticCollectionItem[] = [
+    {
+      ...base,
+      invoiceId: invoice(1),
+      invoiceReference: "MENSUAL-202612-0001",
+      servicePeriodStart: "2026-12-01",
+      state: "collected",
+      date: "2026-11-05",
+    },
+    {
+      ...base,
+      invoiceId: invoice(2),
+      invoiceReference: "MENSUAL-202701-0002",
+      servicePeriodStart: "2027-01-01",
+      state: "scheduled",
+      date: "2026-11-20",
+    },
+    {
+      ...base,
+      invoiceId: invoice(3),
+      invoiceReference: "MENSUAL-202702-0003",
+      servicePeriodStart: "2027-02-01",
+      state: "retry_scheduled",
+      date: "2026-11-20",
+      reason: "No había saldo suficiente.",
+      canCancel: true,
+      canMarkReviewed: true,
+    },
+  ];
+  const feeView: OwnerAutomaticCollectionsView = { month: "2026-11", items: feeItems, truncated: false };
+
+  function rowWith(label: string) {
+    const row = screen.getByText(label).closest("li");
+    if (!row) throw new Error(`Sin fila ${label}`);
+    return row;
+  }
+
+  it("fila con periodo 2027-02-01 → «Cuota de febrero de 2027»", async () => {
+    stubFetch(() => reply(200, { outcome: "canceled" }));
+    render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={feeView} />);
+
+    expect(rowWith("Cuota de febrero de 2027")).toHaveTextContent("No había saldo suficiente.");
+    expect(rowWith("Cuota de diciembre de 2026")).toHaveTextContent(/Cobrada el 5 nov\.? 2026/);
+    expect(rowWith("Cuota de enero de 2027")).toHaveTextContent(/Se cobrará el 20 nov\.? 2026/);
+    // El código interno no sale en la pantalla.
+    expect(document.body.textContent ?? "").not.toMatch(/MENSUAL-/);
+    // Los nombres accesibles dicen el mes de la cuota.
+    expect(
+      screen.getByRole("button", { name: "Marcar como revisado el cobro de la cuota de febrero de 2027" })
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota de febrero de 2027" }));
+    const group = screen.getByRole("group", {
+      name: "Confirmar la cancelación del cobro automático de la cuota de febrero de 2027",
+    });
+    expect(group).toHaveTextContent("¿Cancelar el cobro automático de la cuota de febrero de 2027?");
+    fireEvent.click(within(group).getByRole("button", { name: "Sí, cancelar el cobro" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Cobro automático cancelado. La cuota de febrero de 2027 se cobra a mano."
+    );
+    // Solo cambia el texto: la acción sigue yendo a la misma factura.
+    expect(bodyOf(calls[0])).toEqual({ action: "cancel", organizationId: ORGANIZATION_ID, invoiceId: invoice(3) });
+    expect(document.body.textContent ?? "").not.toMatch(/MENSUAL-/);
+  });
+
+  it("sin periodo → «Cuota MENSUAL-…» como respaldo", () => {
+    stubFetch(() => reply(200, {}));
+    render(
+      <OwnerAutomaticCollectionsPanel
+        organizationId={ORGANIZATION_ID}
+        view={{
+          month: "2026-11",
+          truncated: false,
+          items: [
+            { ...feeItems[2]!, servicePeriodStart: null },
+            { ...feeItems[1]!, servicePeriodStart: "2027-13-01" },
+          ],
+        }}
+      />
+    );
+
+    expect(rowWith("Cuota MENSUAL-202702-0003")).toHaveTextContent("No había saldo suficiente.");
+    expect(rowWith("Cuota MENSUAL-202701-0002")).toHaveTextContent(/Se cobrará el 20 nov\.? 2026/);
+    expect(
+      screen.getByRole("button", { name: "Cancelar el cobro automático de la cuota MENSUAL-202702-0003" })
+    ).toBeInTheDocument();
+  });
+
+  it("título con el mes de cobro y ayuda nueva; nunca «Cuotas de noviembre» con cuotas de otros meses", () => {
+    stubFetch(() => reply(200, {}));
+    const { unmount } = render(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={feeView} />);
+
+    expect(screen.getByRole("heading", { name: "Cobros automáticos de noviembre de 2026" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Cuotas que se cobran solas este mes; cada una dice de qué mes es. Las que no se pueden cobrar pasan a cobrarse a mano."
+      )
+    ).toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toMatch(/Cuotas de noviembre/);
+    // Las filas salen en el orden que da la lectura (por mes de la cuota).
+    const titles = screen.getAllByRole("listitem").map((row) => row.querySelector("p")?.textContent);
+    expect(titles).toEqual(["Cuota de diciembre de 2026", "Cuota de enero de 2027", "Cuota de febrero de 2027"]);
+    unmount();
+
+    // Con la bandera apagada el título sigue igual.
+    render(
+      <OwnerAutomaticCollectionsPanel
+        organizationId={ORGANIZATION_ID}
+        view={{ ...feeView, items: [{ ...feeItems[1]!, state: "in_progress", manualPaymentBlocked: true }], inProgressOnly: true }}
+      />
+    );
+    expect(screen.getByRole("heading", { name: "Cobros automáticos en curso" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /^Cobros automáticos de / })).toBeNull();
+    expect(screen.getByText("Cuota de enero de 2027")).toBeInTheDocument();
+  });
+});
+
+describe("PaymentRemindersPanel: etiqueta común del mes (Tarea 11)", () => {
+  const reminderItem = (overrides: Partial<ReminderListItem>): ReminderListItem => ({
+    chargeId: "92000000-0000-4000-8000-000000000801",
+    locationName: "Sede Centro",
+    invoiceReference: "MENSUAL-202611-0001",
+    servicePeriodStart: "2026-11-01",
+    outstandingCents: 4500,
+    currency: "EUR",
+    dueAt: "2026-11-05T12:00:00.000Z",
+    overdue: false,
+    daysOverdue: 0,
+    payerFirstName: "Lucía",
+    payerEmailMasked: null,
+    lastRemindedAt: null,
+    reminderCount: 0,
+    nextEligibleAt: null,
+    canRemind: true,
+    blockedReason: null,
+    ...overrides,
+  });
+  const overview = (items: ReminderListItem[]): ReminderOverview => ({
+    settings: {
+      subjectTemplate: null,
+      bodyTemplate: null,
+      paymentInstructions: null,
+      replyToEmail: "academia@example.test",
+      minIntervalDays: 7,
+      autoEnabled: false,
+      autoAfterDays: 3,
+      version: 1,
+      isDefault: false,
+    },
+    items,
+    truncated: false,
+    overdueCount: 0,
+    remindableOverdueCount: 0,
+    maxChargesPerBatch: 50,
+  });
+
+  it("recordatorios: mismo texto que antes con la función común", () => {
+    stubFetch(() => reply(200, {}));
+    render(
+      <PaymentRemindersPanel
+        organizationId={ORGANIZATION_ID}
+        locationId={null}
+        automaticAvailable={false}
+        suggestedReplyTo={null}
+        overview={overview([
+          reminderItem({}),
+          reminderItem({
+            chargeId: "92000000-0000-4000-8000-000000000802",
+            servicePeriodStart: "2027-02-01",
+            payerFirstName: null,
+          }),
+        ])}
+      />
+    );
+
+    expect(screen.getByText(/^Cuota de noviembre de 2026 ·/)).toBeInTheDocument();
+    expect(screen.getByText(/^Cuota de febrero de 2027 ·/)).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Seleccionar Cuota de noviembre de 2026 de Lucía" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: "Seleccionar Cuota de febrero de 2027 de la familia" })
+    ).toBeInTheDocument();
   });
 });

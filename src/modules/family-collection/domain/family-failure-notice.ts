@@ -220,14 +220,25 @@ function monthOf(localDate: string | null): { day: number; month: string; year: 
 }
 
 /**
+ * «noviembre de 2026» a partir de una fecha local (YYYY-MM-DD); null si no se
+ * puede leer. El mismo texto que `Intl` `es-ES` con `month: "long", year:
+ * "numeric"`. Lo usa el título del panel de cobros automáticos (Tarea 11).
+ */
+export function monthYearLabel(localDate: string | null): string | null {
+  const parts = monthOf(localDate);
+  return parts ? `${parts.month} de ${parts.year}` : null;
+}
+
+/**
  * Etiqueta común del mes de una cuota (C16): «Cuota de noviembre de 2026» a
  * partir del primer día del periodo (YYYY-MM-DD); null si no se puede leer.
  * La usan el correo a la familia (feeLabel), la cuota nueva de una
- * domiciliación devuelta (Tarea 7) y, después, los paneles (Tarea 11).
+ * domiciliación devuelta (Tarea 7), el justificante (Tarea 9) y los paneles
+ * de cobros automáticos y de recordatorios de la academia (Tarea 11).
  */
 export function feePeriodLabel(servicePeriodStart: string | null): string | null {
-  const parts = monthOf(servicePeriodStart);
-  return parts ? `Cuota de ${parts.month} de ${parts.year}` : null;
+  const month = monthYearLabel(servicePeriodStart);
+  return month ? `Cuota de ${month}` : null;
 }
 
 /** «la cuota de noviembre de 2026» a partir del primer día del periodo; si no se puede, «tu cuota». */
