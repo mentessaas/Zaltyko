@@ -312,3 +312,56 @@ export async function listCollectionPaymentsByAttempt(
     .filter((paymentIntent) => hasMetadataAttempt(paymentIntent, input.attemptId))
     .map((paymentIntent) => toSnapshot(paymentIntent));
 }
+
+/**
+ * Fase 4 (Tarea 5): lo que necesita la familia para confirmar con su banco el
+ * MISMO cobro (`confirmCardPayment` en el navegador). Se lee en Stripe en ese
+ * momento, en la cuenta de la academia, y nunca se guarda ni se registra.
+ */
+export interface PaymentConfirmationSecret {
+  /** `pi_…` que devolvió Stripe. */
+  id: string;
+  status: string;
+  livemode: boolean;
+  /** Id del intento de la metadata (uuid en minúsculas), o null. */
+  attemptIdFromMetadata: string | null;
+  /** `pm_…` que Stripe tiene en el cobro (o el del último error), o null. */
+  paymentMethod: string | null;
+  /** Clave del cobro para el navegador; null si Stripe no la da. */
+  clientSecret: string | null;
+}
+
+function paymentMethodIdOf(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && typeof (value as { id?: unknown }).id === "string") {
+    return (value as { id: string }).id;
+  }
+  return null;
+}
+
+/**
+ * Relee el cobro en la cuenta conectada y devuelve su clave para el
+ * navegador. Sin registro: el error de Stripe sigue hacia quien llama, que
+ * solo registra su nombre.
+ */
+export async function retrievePaymentClientSecret(
+  input: { connectedAccount: string; paymentIntentId: string },
+  stripe?: Stripe
+): Promise<PaymentConfirmationSecret> {
+  const client = stripe ?? getStripeClient();
+  const paymentIntent = await client.paymentIntents.retrieve(
+    input.paymentIntentId,
+    {},
+    { stripeAccount: input.connectedAccount }
+  );
+  return {
+    id: paymentIntent.id,
+    status: paymentIntent.status,
+    livemode: paymentIntent.livemode === true,
+    attemptIdFromMetadata: metadataAttemptId(paymentIntent),
+    paymentMethod:
+      paymentMethodIdOf(paymentIntent.payment_method) ??
+      paymentMethodIdOf(paymentIntent.last_payment_error?.payment_method),
+    clientSecret: typeof paymentIntent.client_secret === "string" ? paymentIntent.client_secret : null,
+  };
+}

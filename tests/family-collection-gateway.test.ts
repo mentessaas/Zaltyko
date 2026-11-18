@@ -15,6 +15,7 @@ import {
   familyCollectionConfirmIdempotencyKey,
   familyCollectionCreateIdempotencyKey,
   isIdempotencyConflict,
+  retrievePaymentClientSecret,
 } from "@/modules/family-collection/infrastructure/stripe-collection-gateway";
 
 /**
@@ -771,5 +772,51 @@ describe("createStripeCollectionGateway", () => {
         "stripe caído"
       );
     });
+  });
+});
+
+describe("retrievePaymentClientSecret (Fase 4, Tarea 5)", () => {
+  /** Valor sintético montado en tiempo de ejecución: no es un secreto real. */
+  const clientSecret = [paymentIntentId, "secret", "synthetic"].join("_");
+
+  it("relee el cobro en la cuenta de la academia y devuelve su clave, la tarjeta y el intento", async () => {
+    const stripe = fakeStripe();
+    stripe.retrieve.mockResolvedValue(
+      paymentIntent({
+        status: "requires_payment_method",
+        livemode: false,
+        client_secret: clientSecret,
+        // Tras el rechazo fuera de sesión la tarjeta solo queda en el último error.
+        payment_method: null,
+        last_payment_error: { code: "authentication_required", payment_method: { id: paymentMethodId } },
+      })
+    );
+
+    await expect(
+      retrievePaymentClientSecret({ connectedAccount, paymentIntentId }, stripe.client)
+    ).resolves.toEqual({
+      id: paymentIntentId,
+      status: "requires_payment_method",
+      livemode: false,
+      attemptIdFromMetadata: attemptId,
+      paymentMethod: paymentMethodId,
+      clientSecret,
+    });
+    expect(stripe.retrieve).toHaveBeenCalledWith(paymentIntentId, {}, { stripeAccount: connectedAccount });
+    // Solo se lee: nada se crea, confirma ni cancela.
+    expect(stripe.create).not.toHaveBeenCalled();
+    expect(stripe.confirm).not.toHaveBeenCalled();
+    expect(stripe.cancel).not.toHaveBeenCalled();
+  });
+
+  it("sin clave ni tarjeta devuelve null; en modo real lo dice (livemode)", async () => {
+    const stripe = fakeStripe();
+    stripe.retrieve.mockResolvedValue(
+      paymentIntent({ status: "requires_action", livemode: true, client_secret: null, payment_method: null })
+    );
+
+    await expect(
+      retrievePaymentClientSecret({ connectedAccount, paymentIntentId }, stripe.client)
+    ).resolves.toMatchObject({ livemode: true, clientSecret: null, paymentMethod: null });
   });
 });

@@ -50,11 +50,16 @@ import {
   evaluateAutomaticCollectionPlanEligibility,
   type AutomaticPlanEligibility,
 } from "@/modules/billing/domain/plan-eligibility";
-import { isFamilyAutomaticSepaCollectionFlagEnabled } from "@/modules/family-collection/application/config";
 import {
+  isFamilyAutomaticSepaCollectionFlagEnabled,
+  isFamilyPaymentConfirmationOpen,
+} from "@/modules/family-collection/application/config";
+import {
+  isFamilyCollectionEventsStorageAvailable,
   isFamilyCollectionStorageAvailable,
   isPaymentRemindersTablePresent,
 } from "@/modules/family-collection/application/storage";
+import { isAuthenticationDeadlinePassed } from "@/modules/family-collection/domain/authentication-window";
 import { REMINDER_SENT_REASON, SEPA_NOT_ENABLED_REASON } from "@/modules/family-collection/domain/collection-gate";
 import {
   addLocalDays,
@@ -64,7 +69,10 @@ import {
 } from "@/modules/family-collection/domain/collection-plan";
 import { FAMILY_FAILURE_NOTICE_RESULT_EVENT } from "@/modules/family-collection/domain/family-failure-notice";
 import { AMOUNT_MISMATCH_REASON } from "@/modules/family-collection/domain/payment-outcome";
-import { NEEDS_REVIEW_EVENT } from "@/modules/family-collection/infrastructure/family-collection-store";
+import {
+  createFamilyCollectionStore,
+  NEEDS_REVIEW_EVENT,
+} from "@/modules/family-collection/infrastructure/family-collection-store";
 import {
   academyCanMarkReviewed,
   COLLECTION_WINDOW_EXPIRED_CODE,
@@ -150,6 +158,16 @@ async function collectionTablesAvailable(): Promise<boolean> {
     isConnectOnboardingStorageAvailable(db),
   ]);
   return collection && paymentMethods && connect;
+}
+
+/**
+ * Fase 4: plazo para confirmar el pago de un intento `requires_action`, o
+ * null. Solo se llama con un intento en ese estado, que solo existe con la
+ * forma "phase4": la lectura es la del almacén (readActionDeadline, C2).
+ */
+async function readConfirmationDeadline(organizationId: string, attemptId: string | null): Promise<Date | null> {
+  if (!attemptId || !uuidSchema.safeParse(attemptId).success) return null;
+  return createFamilyCollectionStore().readActionDeadline({ organizationId, attemptId });
 }
 
 // ---------------------------------------------------------------------------
@@ -312,6 +330,12 @@ export interface LatestAttemptSnapshot {
   completedAt: Date | null;
   /** Motivo de cierre (`failure_code`), si se leyó. */
   failureCode?: string | null;
+  /**
+   * Fase 4: plazo para que la familia confirme el pago con su banco, solo si
+   * el intento está `requires_action` y la confirmación desde el portal está
+   * abierta (banderas, cerrojos y forma "phase4"). Sin él, «Cobro en curso».
+   */
+  actionDeadlineAt?: Date | null;
 }
 
 /** Fecha de cobro prevista de la primera cuota automática abierta (día local de la sede). */
@@ -347,6 +371,10 @@ function expectedCharge(dateLocal: string, todayLocal: string): "scheduled" | "d
  *
  * - cobrada: «Cobrada automáticamente el {día del cobro}»;
  * - intento en curso (`claimed`, `created`, `processing`): «Cobro en curso»;
+ * - Fase 4, intento `requires_action` con plazo conocido y todavía a tiempo:
+ *   `action_required` con el último día para confirmar (botón «Confirmar el
+ *   pago»); sin plazo o ya pasado, «Cobro en curso» (el proceso diario lo
+ *   cerrará). Nunca promete un reintento;
  * - sin intento todavía, o fallida con un reintento pendiente: solo si el
  *   cobro aún puede llegar (`blocker` nulo); si no, nada (la academia dirá
  *   cómo pagarla). Con fecha futura, «Se cobrará automáticamente el {día}»;
@@ -390,6 +418,13 @@ export function familyAutomaticFeeStatusOf(
         return last.completedAt
           ? { kind: "collected", date: localCalendarDate(last.completedAt, input.timezone) }
           : null;
+      }
+      if (
+        last.status === "requires_action" &&
+        last.actionDeadlineAt &&
+        !isAuthenticationDeadlinePassed(last.actionDeadlineAt, now)
+      ) {
+        return { kind: "action_required", deadline: localCalendarDate(last.actionDeadlineAt, input.timezone) };
       }
       if (OPEN_STATUSES.has(last.status)) return { kind: "in_progress" };
       if (input.invoiceStatus === "paid") return null;
@@ -443,6 +478,14 @@ export async function getFamilyAutomaticFeeStatuses(input: {
   const now = input.now ?? new Date();
   const access = await resolveFamilyPortalAccess({ userId, now });
   const statuses: FamilyAutomaticFeeStatuses = {};
+  // Fase 4: ¿puede la familia confirmar con su banco desde el portal? Entorno
+  // primero (sin base); la forma "phase4" solo se mira una vez y solo si
+  // alguna cuota espera esa confirmación.
+  let confirmation: Promise<boolean> | null = null;
+  const confirmationOpen = () =>
+    (confirmation ??= isFamilyPaymentConfirmationOpen()
+      ? isFamilyCollectionEventsStorageAvailable(db)
+      : Promise.resolve(false));
 
   for (const academy of access.academies) {
     if (academy.feeFamilyIds.length === 0) continue;
@@ -468,6 +511,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
              and c.status::text in ('due', 'partially_paid')
         ) as "nextDueAt",
         ${prerequisiteColumns(remindersTable)},
+        la.id::text as "lastAttemptId",
         la.status as "lastStatus",
         la.next_retry_at as "lastNextRetryAt",
         la.completed_at as "lastCompletedAt",
@@ -479,7 +523,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
       left join zaltyko.organization_collection_settings ocs
         on ocs.organization_id = i.organization_id
       left join lateral (
-        select a.status, a.next_retry_at, a.completed_at, a.failure_code
+        select a.id, a.status, a.next_retry_at, a.completed_at, a.failure_code
           from zaltyko.family_collection_attempts a
          where a.organization_id = i.organization_id
            and a.invoice_id = i.id
@@ -512,6 +556,11 @@ export async function getFamilyAutomaticFeeStatuses(input: {
     const plan = await loadPlan(academy.organizationId, now);
     for (const row of rows) {
       const lastStatus = textOrNull(row.lastStatus);
+      // Fase 4: el plazo solo se lee si la familia puede confirmar desde aquí.
+      const actionDeadlineAt =
+        lastStatus === "requires_action" && (await confirmationOpen())
+          ? await readConfirmationDeadline(academy.organizationId, textOrNull(row.lastAttemptId))
+          : null;
       const status = familyAutomaticFeeStatusOf(
         {
           invoiceStatus: String(row.invoiceStatus),
@@ -525,6 +574,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
                 nextRetryAt: dateOrNull(row.lastNextRetryAt),
                 completedAt: dateOrNull(row.lastCompletedAt),
                 failureCode: textOrNull(row.lastFailureCode),
+                actionDeadlineAt,
               }
             : null,
           blocker: automaticCollectionBlocker(prerequisitesOf(row, plan)),
@@ -769,6 +819,8 @@ export function reviewReasonText(reason: string | null): string {
  * - `in_progress`: se está cobrando (o su día ya llegó y el proceso diario
  *   todavía no lo ha intentado, dentro de la espera de los recordatorios);
  * - `processing`: la domiciliación ya está en el banco;
+ * - `action_required` (Fase 4): la familia tiene que confirmar el pago con su
+ *   banco; `date` es el último día para hacerlo;
  * - `collected`: cobrada (`date`);
  * - `retry_scheduled`: falló y se reintentará (`date`);
  * - `manual`: el cobro pendiente ya no puede llegar (plan, preferencia o
@@ -782,6 +834,7 @@ export type OwnerAutomaticCollectionState =
   | "scheduled"
   | "in_progress"
   | "processing"
+  | "action_required"
   | "collected"
   | "retry_scheduled"
   | "manual"
@@ -869,6 +922,8 @@ export interface OwnerCollectionRow {
     allocationStatus: string | null;
     hasReviewNotice: boolean;
     reviewReason: string | null;
+    /** Fase 4: plazo del intento `requires_action` para que la familia confirme el pago. */
+    actionDeadlineAt?: Date | null;
   } | null;
 }
 
@@ -988,10 +1043,18 @@ export function ownerAutomaticCollectionItemOf(
         break;
       case "claimed":
       case "created":
-      // Fase 4: la familia tiene que confirmar el pago con su banco; para la
-      // academia sigue en curso (la Tarea 5 le da su propio texto).
-      case "requires_action":
         state = "in_progress";
+        break;
+      case "requires_action":
+        // Fase 4: la familia tiene que confirmar el pago con su banco, hasta
+        // su plazo. Sin plazo, o ya pasado (el proceso diario lo cerrará),
+        // sigue en curso.
+        if (attempt.actionDeadlineAt && !isAuthenticationDeadlinePassed(attempt.actionDeadlineAt, now)) {
+          state = "action_required";
+          date = local(attempt.actionDeadlineAt);
+        } else {
+          state = "in_progress";
+        }
         break;
       case "failed": {
         // Sin más intentos, el reintento guardado ya no sale.
@@ -1185,6 +1248,7 @@ export async function getOwnerAutomaticCollections(input: {
            and c.status::text in ('due', 'partially_paid')
       ) as "openAutomaticCents",
       ${prerequisiteColumns(remindersTable)},
+      la.id::text as "attemptId",
       la.status as "attemptStatus",
       la.amount_cents::text as "attemptAmountCents",
       la.failure_code as "failureCode",
@@ -1262,6 +1326,13 @@ export async function getOwnerAutomaticCollections(input: {
   `);
 
   const rows = result.rows as Array<Record<string, unknown>>;
+  // Fase 4: plazo de los intentos que esperan a que la familia confirme el pago.
+  const actionDeadlines = new Map<string, Date | null>();
+  for (const row of rows.slice(0, OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT)) {
+    const attemptId = textOrNull(row.attemptId);
+    if (textOrNull(row.attemptStatus) !== "requires_action" || !attemptId) continue;
+    actionDeadlines.set(attemptId, await readConfirmationDeadline(organizationId, attemptId));
+  }
   // Un cobro en marcha no depende del plan (solo lo usan las filas sin intento o con reintento).
   const plan = rows.length > 0 && !inProgressOnly ? await loadPlan(organizationId, now) : null;
   // Primero se eligen las filas que van en la lista y después se corta: el
@@ -1296,6 +1367,7 @@ export async function getOwnerAutomaticCollections(input: {
               allocationStatus: textOrNull(row.allocationStatus),
               hasReviewNotice: row.hasReviewNotice === true,
               reviewReason: textOrNull(row.reviewReason),
+              actionDeadlineAt: actionDeadlines.get(textOrNull(row.attemptId) ?? "") ?? null,
             }
           : null,
       },

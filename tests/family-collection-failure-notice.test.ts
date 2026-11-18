@@ -81,6 +81,7 @@ const FEES_URL = "https://zaltyko.test/familia/cuotas";
 const PAYER_EMAIL = "tutora.sintetica@example.invalid";
 const ALL_KINDS: FamilyFailureNoticeKind[] = [
   "retry_scheduled",
+  "confirmation_pending",
   "authentication_required",
   "card_declined",
   "sepa_failed",
@@ -296,6 +297,21 @@ describe("aviso del primer fallo: textos", () => {
         "Si tienes cualquier duda, habla con Club Sintético.",
       ].join("\n\n")
     );
+  });
+
+  it("Tarea 5: el reintento espera a que la familia confirme con su banco: pide confirmar, sin prometer otro intento", () => {
+    const message = render("confirmation_pending");
+    expect(message.subject).toBe("Club Sintético: confirma el pago de la cuota de noviembre de 2026");
+    expect(message.text).toBe(
+      [
+        "Hola:",
+        "No hemos podido cobrar con tu tarjeta la cuota de noviembre de 2026 a la primera. Al volver a intentarlo, tu banco pide que confirmes tú el pago.",
+        "Entra en Zaltyko y pulsa «Confirmar el pago» en esa cuota. Si no lo confirmas a tiempo, tu academia te dirá cómo pagarla.",
+        `Entrar en Zaltyko: ${FEES_URL}`,
+        "Si tienes cualquier duda, habla con Club Sintético.",
+      ].join("\n\n")
+    );
+    expect(message.text).not.toMatch(/volveremos|pronto/i);
   });
 
   it("tarjeta rechazada sin reintento: revisar la tarjeta para las próximas", () => {
@@ -532,6 +548,25 @@ describe("aviso del primer fallo: qué se hace con un aviso pendiente", () => {
         retryDateLocal: null,
       });
     }
+    // Tarea 5 (concern 7 de la Tarea 4): el intento 2 espera a que la familia
+    // confirme con su banco: nada de «Volveremos a intentarlo pronto».
+    expect(decide({ lastAttemptStatus: "requires_action" })).toEqual({
+      action: "send",
+      retryScheduled: false,
+      retryDateLocal: null,
+      laterAwaitingConfirmation: true,
+    });
+    // Aunque la puerta ya supiera que cancelaría un reintento: el reintento ya salió.
+    expect(decide({ lastAttemptStatus: "requires_action", reminderSent: true })).toMatchObject({
+      laterAwaitingConfirmation: true,
+      retryScheduled: false,
+    });
+    // Sin el cobro encendido no se puede confirmar desde el portal: sin promesa y sin pedirlo.
+    expect(decide({ lastAttemptStatus: "requires_action" }, OFF)).toEqual({
+      action: "send",
+      retryScheduled: false,
+      retryDateLocal: null,
+    });
     // Sin la bandera o con la puerta que ya sabe que lo cancelará, nunca se promete.
     expect(decide({ lastAttemptStatus: "created" }, OFF)).toEqual({
       action: "send",
@@ -594,6 +629,25 @@ describe("aviso del primer fallo: envío", () => {
     expect(results.get(ATTEMPT_ID)).toBe("sent");
     // Lo que se guarda solo lleva ids y el código del resultado.
     expect(JSON.stringify(store.recordResult.mock.calls)).not.toContain(PAYER_EMAIL);
+  });
+
+  it("Tarea 5: el aviso del primer fallo con el reintento esperando al banco pide confirmar y no promete otro intento", async () => {
+    const { store } = memoryStore([pending({ lastAttemptNumber: 2, lastAttemptStatus: "requires_action" })]);
+    const sendEmail = sender();
+
+    const delivery = await deliverFamilyFailureNotices({ now: NOW, appUrl: "https://zaltyko.test/" }, {
+      store,
+      sendEmail,
+      isStorageAvailable: async () => true,
+    });
+
+    expect(delivery).toEqual({ sent: 1, notSent: 0, pending: 0 });
+    const options = sendEmail.mock.calls[0]![0];
+    expect(options.subject).toBe("Club Sintético: confirma el pago de la cuota de noviembre de 2026");
+    expect(options.text).toContain("pulsa «Confirmar el pago»");
+    expect(options.text).not.toMatch(/volveremos a intentarlo/i);
+    // Sigue siendo un solo correo por intento.
+    expect(options.dedupeKey).toBe(`family-collection:${ATTEMPT_ID}:family_failure_notice`);
   });
 
   it("sin correo de respuesta de la academia no inventa uno y usa la dirección de la app por defecto", async () => {

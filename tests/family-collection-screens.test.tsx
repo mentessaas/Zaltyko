@@ -26,6 +26,8 @@ vi.mock("@stripe/react-stripe-js", () => ({
   useElements: () => null,
 }));
 
+import { loadStripe } from "@stripe/stripe-js/pure";
+
 import { FamilyFeesView } from "@/components/family-portal/FamilyFeesView";
 import { OwnerAutomaticCollectionsPanel } from "@/components/owner-dashboard/OwnerAutomaticCollectionsPanel";
 import { OwnerCollectionDaySettings } from "@/components/owner-dashboard/OwnerCollectionDaySettings";
@@ -167,6 +169,169 @@ describe("FamilyFeesView: estado del cobro automático de cada cuota", () => {
     render(<FamilyFeesView academies={[academy]} />);
 
     expect(document.body.textContent ?? "").not.toMatch(/Se cobrará automáticamente|Cobro en curso|Cobrada automáticamente|No se pudo cobrar/);
+  });
+});
+
+describe("FamilyFeesView: la familia confirma el pago con su banco (Fase 4, Tarea 5)", () => {
+  const ENDPOINT = "/api/v1/family/automatic-payment/authentication";
+  const INVOICE = "92000000-0000-4000-8000-000000000701";
+  const PUBLISHABLE_KEY = "pk_test_synthetic";
+  const PAYMENT_METHOD = "pm_SyntheticCard";
+  /** Valor sintético montado en tiempo de ejecución: no es un secreto real. */
+  const CLIENT_SECRET = ["pi_SyntheticConfirm", "secret", "synthetic"].join("_");
+  const academy: FamilyAcademyFees = {
+    organizationId: ORGANIZATION_ID,
+    organizationName: "Club Sintético",
+    timezone: "Europe/Madrid",
+    fees: [
+      {
+        invoiceId: INVOICE,
+        reference: "CUO-T5",
+        status: "issued",
+        currency: "EUR",
+        totalCents: 4500,
+        paidCents: 0,
+        refundedCents: 0,
+        pendingCents: 4500,
+        dueAt: "2026-11-15T22:59:59.999Z",
+        periodStart: "2026-11-01",
+        periodEnd: "2026-11-30",
+      },
+    ],
+  };
+  const confirmCardPayment = vi.fn();
+
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
+    // Lo que diga el navegador no cuenta: aquí siempre dice que se pagó.
+    confirmCardPayment.mockReset();
+    confirmCardPayment.mockResolvedValue({ paymentIntent: { status: "succeeded" } });
+    vi.mocked(loadStripe).mockReset();
+    vi.mocked(loadStripe).mockResolvedValue({ confirmCardPayment } as never);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  function renderWaiting() {
+    return render(
+      <FamilyFeesView
+        academies={[academy]}
+        automaticCollection={{ [INVOICE]: { kind: "action_required", deadline: "2026-11-18" } }}
+      />
+    );
+  }
+
+  function feeItem() {
+    const item = screen.getByText("Cuota CUO-T5").closest("li");
+    if (!item) throw new Error("Sin cuota CUO-T5");
+    return item;
+  }
+
+  /** Cada test usa su cuenta: el componente guarda un Stripe.js por cuenta. */
+  function started(connectedAccount: string) {
+    return reply(200, {
+      ok: true,
+      data: { clientSecret: CLIENT_SECRET, connectedAccount, paymentMethodId: PAYMENT_METHOD },
+    });
+  }
+
+  it("portal: action_required muestra el botón y el plazo; sin publishable key no se muestra", () => {
+    const { unmount } = renderWaiting();
+
+    expect(feeItem()).toHaveTextContent(/Tu banco pide que confirmes este pago\. Puedes hacerlo hasta el 18 nov\.? 2026\./);
+    expect(within(feeItem()).getByRole("button", { name: "Confirmar el pago" })).toBeEnabled();
+    expect(document.body.textContent ?? "").not.toMatch(JARGON);
+    // Nada se carga ni se pide hasta pulsar.
+    expect(loadStripe).not.toHaveBeenCalled();
+    unmount();
+
+    vi.stubEnv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "");
+    renderWaiting();
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(feeItem()).toHaveTextContent(
+      "Tu banco pide que confirmes este pago, pero ahora no se puede hacer desde aquí. Tu academia te dirá cómo pagarla."
+    );
+    expect(feeItem()).not.toHaveTextContent(/Puedes hacerlo hasta/);
+  });
+
+  it("confirma el mismo cobro en la cuenta de la academia; «Procesando…» hasta que el servidor lo relee", async () => {
+    const connectedAccount = "acct_SyntheticConfirm1";
+    let answerCheck: (response: Response) => void = () => undefined;
+    stubFetch((call) =>
+      bodyOf(call).action === "start"
+        ? started(connectedAccount)
+        : new Promise<Response>((resolve) => {
+            answerCheck = resolve;
+          })
+    );
+    renderWaiting();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar el pago" }));
+
+    expect(await screen.findByText("Procesando…")).toBeInTheDocument();
+    // Stripe.js de la cuenta conectada de la academia, con la clave publicable.
+    expect(loadStripe).toHaveBeenCalledWith(PUBLISHABLE_KEY, { stripeAccount: connectedAccount });
+    // El mismo cobro, con la tarjeta del intento.
+    expect(confirmCardPayment).toHaveBeenCalledWith(CLIENT_SECRET, { payment_method: PAYMENT_METHOD });
+    expect(calls.map((call) => call.url)).toEqual([ENDPOINT, ENDPOINT]);
+    expect(calls.map(bodyOf)).toEqual([
+      { action: "start", organizationId: ORGANIZATION_ID, invoiceId: INVOICE },
+      { action: "check", organizationId: ORGANIZATION_ID, invoiceId: INVOICE },
+    ]);
+    // Aunque el navegador diga que se pagó, no se dice hasta que lo confirma el servidor.
+    expect(screen.queryByText("Pago confirmado")).toBeNull();
+
+    answerCheck(reply(200, { ok: true, data: { state: "collected" } }));
+
+    expect(await screen.findByText("Pago confirmado")).toBeInTheDocument();
+    expect(mockRefresh).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Confirmar el pago" })).toBeNull();
+    // La clave del cobro nunca se pinta.
+    expect(document.body.innerHTML).not.toContain(CLIENT_SECRET);
+  });
+
+  it("si el servidor dice que sigue esperando, ofrece intentarlo otra vez hasta el plazo; nunca se reintenta solo", async () => {
+    stubFetch((call) =>
+      bodyOf(call).action === "start"
+        ? started("acct_SyntheticConfirm2")
+        : reply(200, { ok: true, data: { state: "action_required" } })
+    );
+    renderWaiting();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar el pago" }));
+
+    expect(
+      await screen.findByText(/^No se pudo confirmar\. Puedes intentarlo otra vez hasta el 18 nov\.? 2026\.$/)
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Pago confirmado")).toBeNull();
+    expect(screen.getByRole("button", { name: "Confirmar el pago" })).toBeEnabled();
+    expect(mockRefresh).toHaveBeenCalledOnce();
+    // Solo «start» y «check»: nada más sale sin que la familia vuelva a pulsar.
+    expect(calls).toHaveLength(2);
+    expect(confirmCardPayment).toHaveBeenCalledTimes(1);
+  });
+
+  it("si el pago ya no espera (409), enseña el texto del servidor sin abrir Stripe y refresca", async () => {
+    stubFetch(() =>
+      reply(409, {
+        ok: false,
+        code: "FAMILY_PAYMENT_CONFIRMATION_EXPIRED",
+        message: "El plazo para confirmar este pago ya terminó. Tu academia te dirá cómo pagarla.",
+      })
+    );
+    renderWaiting();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar el pago" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "El plazo para confirmar este pago ya terminó. Tu academia te dirá cómo pagarla."
+    );
+    expect(loadStripe).not.toHaveBeenCalled();
+    expect(confirmCardPayment).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(1);
+    expect(mockRefresh).toHaveBeenCalledOnce();
   });
 });
 
@@ -641,6 +806,37 @@ describe("OwnerAutomaticCollectionsPanel", () => {
     rerender(<OwnerAutomaticCollectionsPanel organizationId={ORGANIZATION_ID} view={refreshed} />);
 
     await waitFor(() => expect(rowOf("CUO-1")).toHaveTextContent("Cobro en curso"));
+  });
+
+  it("Tarea 5: un cobro que espera a la familia dice hasta cuándo, sin jerga", () => {
+    stubFetch(() => reply(200, {}));
+    render(
+      <OwnerAutomaticCollectionsPanel
+        organizationId={ORGANIZATION_ID}
+        view={{
+          month: "2026-11",
+          items: [
+            {
+              ...base,
+              invoiceId: invoice(6),
+              invoiceReference: "CUO-6",
+              state: "action_required",
+              date: "2026-11-18",
+              canCancel: true,
+              manualPaymentBlocked: true,
+            },
+          ],
+          truncated: false,
+        }}
+      />
+    );
+
+    expect(rowOf("CUO-6")).toHaveTextContent(
+      /Esperando a que la familia confirme el pago con su banco \(hasta el 18 nov\.? 2026\)/
+    );
+    // Sigue en curso: no se cobra a mano mientras espera.
+    expect(rowOf("CUO-6")).not.toHaveTextContent("Esta cuota se cobra a mano");
+    expect(document.body.textContent ?? "").not.toMatch(JARGON);
   });
 
   it("vacía: lo dice sin más", () => {

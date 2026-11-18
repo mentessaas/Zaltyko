@@ -3,10 +3,12 @@
  * variables; las decisiones son puras y viven en domain/. Los dos cerrojos de
  * Live y producción son los mismos que los de Conectar Stripe (Fase 1).
  */
-export {
+import {
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/payments-connect/application/config";
+
+export { isProductionDatabase, resolveConnectEnvironment };
 
 export const FAMILY_AUTOMATIC_COLLECTION_FLAG_ENV = "ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED";
 
@@ -42,4 +44,20 @@ export const FAMILY_COLLECTION_EVENTS_FLAG_ENV = "ZALTYKO_FAMILY_COLLECTION_EVEN
  */
 export function isFamilyCollectionEventsFlagEnabled(): boolean {
   return process.env[FAMILY_COLLECTION_EVENTS_FLAG_ENV] === "true";
+}
+
+/**
+ * Fase 4 (Tarea 5): la familia puede confirmar con su banco, desde
+ * /familia/cuotas, un cobro de tarjeta que espera en `requires_action`. Solo
+ * se lee el entorno (sin base): la bandera del cobro, la de los eventos, la
+ * clave de prueba de Stripe y una base que no es la de producción. Quien
+ * llama comprueba además el almacenamiento con la forma "phase4".
+ */
+export function isFamilyPaymentConfirmationOpen(): boolean {
+  return (
+    isFamilyAutomaticCollectionFlagEnabled() &&
+    isFamilyCollectionEventsFlagEnabled() &&
+    resolveConnectEnvironment() === "test" &&
+    !isProductionDatabase()
+  );
 }

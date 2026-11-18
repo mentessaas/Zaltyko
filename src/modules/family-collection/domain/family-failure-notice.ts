@@ -150,10 +150,16 @@ export function familyNoticeApplies(input: {
  *   intento;
  * - `card_missing`: la tarjeta guardada ya no está en Stripe (hay que volver
  *   a guardarla); `payment_method_missing`, lo mismo con otra forma de pago;
- * - `not_collected`: no se pudo confirmar el cobro (sin pedir que revise nada).
+ * - `not_collected`: no se pudo confirmar el cobro (sin pedir que revise nada);
+ * - `confirmation_pending` (Fase 4, Tarea 5): aviso del intento 1 cuando el
+ *   reintento ya salió y el banco pide que la familia lo confirme (intento
+ *   posterior `requires_action`). Sin promesa de otro intento: se le pide que
+ *   confirme el pago en Zaltyko. No lo devuelve familyFailureNoticeKind: lo
+ *   elige el envío (decideFamilyFailureNotice).
  */
 export type FamilyFailureNoticeKind =
   | "retry_scheduled"
+  | "confirmation_pending"
   | "authentication_required"
   | "card_declined"
   | "sepa_failed"
@@ -250,6 +256,14 @@ function noticeBody(
     };
   }
   switch (kind) {
+    case "confirmation_pending":
+      return {
+        lines: [
+          `No hemos podido cobrar con tu tarjeta ${fee} a la primera. Al volver a intentarlo, tu banco pide que confirmes tú el pago.`,
+          "Entra en Zaltyko y pulsa «Confirmar el pago» en esa cuota. Si no lo confirmas a tiempo, tu academia te dirá cómo pagarla.",
+        ],
+        linkText: "Entrar en Zaltyko",
+      };
     case "retry_scheduled":
       return {
         lines: [
@@ -344,7 +358,9 @@ export function renderFamilyFailureNotice(input: {
   const { lines, linkText } = noticeBody(input.kind, fee, retryDay, deadlineDay);
   const closing = `Si tienes cualquier duda, habla con ${academy}.`;
   const subject = (
-    deadlineDay ? `${academy}: confirma el pago de ${fee}` : `${academy}: no hemos podido cobrar ${fee}`
+    deadlineDay || input.kind === "confirmation_pending"
+      ? `${academy}: confirma el pago de ${fee}`
+      : `${academy}: no hemos podido cobrar ${fee}`
   ).slice(0, 160);
   const text = ["Hola:", ...lines, `${linkText}: ${input.feesUrl}`, closing].join("\n\n");
   const paragraph = (value: string) => `<p style="margin:0 0 12px">${escapeHtml(value)}</p>`;

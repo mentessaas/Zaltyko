@@ -30,7 +30,13 @@ vi.mock("@/modules/billing/application/charge-collection-mode", () => ({
 }));
 vi.mock("@/modules/family-collection/application/storage", () => ({
   isFamilyCollectionStorageAvailable: vi.fn(),
+  isFamilyCollectionEventsStorageAvailable: vi.fn(),
   isPaymentRemindersTablePresent: vi.fn(),
+}));
+vi.mock("@/modules/family-collection/application/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/family-collection/application/config")>()),
+  // Fase 4 (Tarea 5): la confirmación desde el portal, cerrada salvo que el test la abra.
+  isFamilyPaymentConfirmationOpen: vi.fn(() => false),
 }));
 vi.mock("@/modules/family-payment-methods/application/storage", () => ({
   isFamilyPaymentMethodsStorageAvailable: vi.fn(),
@@ -71,7 +77,9 @@ import {
   reviewReasonText,
   type OwnerCollectionRow,
 } from "@/modules/family-collection/application/family-collection-reads";
+import { isFamilyPaymentConfirmationOpen } from "@/modules/family-collection/application/config";
 import {
+  isFamilyCollectionEventsStorageAvailable,
   isFamilyCollectionStorageAvailable,
   isPaymentRemindersTablePresent,
 } from "@/modules/family-collection/application/storage";
@@ -159,6 +167,8 @@ beforeEach(() => {
   vi.mocked(areFamilyCollectionLocksOpen).mockReturnValue(true);
   vi.mocked(isFamilyAutomaticCollectionOpen).mockReturnValue(true);
   vi.mocked(isFamilyCollectionStorageAvailable).mockResolvedValue(true);
+  vi.mocked(isFamilyCollectionEventsStorageAvailable).mockResolvedValue(true);
+  vi.mocked(isFamilyPaymentConfirmationOpen).mockReturnValue(false);
   vi.mocked(isPaymentRemindersTablePresent).mockResolvedValue(true);
   vi.mocked(isFamilyPaymentMethodsStorageAvailable).mockResolvedValue(true);
   vi.mocked(isConnectOnboardingStorageAvailable).mockResolvedValue(true);
@@ -813,6 +823,64 @@ describe("fila de la academia (pura)", () => {
     ).toEqual({ kind: "in_progress" });
   });
 
+  describe("Tarea 5: la familia tiene que confirmar el pago con su banco", () => {
+    // Plazo: final del 18-11 en Madrid (NOW es el 17-11).
+    const DEADLINE = new Date("2026-11-18T22:59:59.999Z");
+    const PASSED = new Date("2026-11-16T22:59:59.999Z");
+    const waiting = { status: "requires_action", completedAt: null, nextRetryAt: null, failureCode: null };
+
+    it("familia: con plazo y a tiempo, action_required con el último día; sin plazo o pasado, en curso", () => {
+      expect(
+        familyAutomaticFeeStatusOf(familyInput({ last: { ...waiting, actionDeadlineAt: DEADLINE } }), NOW)
+      ).toEqual({ kind: "action_required", deadline: "2026-11-18" });
+      // El cobro ya salió: aunque la puerta ya no dejara cobrar otro, se puede confirmar este.
+      expect(
+        familyAutomaticFeeStatusOf(
+          familyInput({ blocker: "reminder_sent", last: { ...waiting, actionDeadlineAt: DEADLINE } }),
+          NOW
+        )
+      ).toEqual({ kind: "action_required", deadline: "2026-11-18" });
+      // Plazo pasado (el proceso diario aún no lo cerró) o sin plazo leído: nunca una fecha pasada.
+      expect(
+        familyAutomaticFeeStatusOf(familyInput({ last: { ...waiting, actionDeadlineAt: PASSED } }), NOW)
+      ).toEqual({ kind: "in_progress" });
+      expect(
+        familyAutomaticFeeStatusOf(familyInput({ last: { ...waiting, actionDeadlineAt: null } }), NOW)
+      ).toEqual({ kind: "in_progress" });
+      expect(familyAutomaticFeeText({ kind: "action_required", deadline: "2026-11-18" })).toMatch(
+        /^Tu banco pide que confirmes este pago\. Puedes hacerlo hasta el 18 nov\.? 2026\.$/
+      );
+    });
+
+    it("panel de la academia: texto de espera con la fecha (estado action_required)", () => {
+      expect(
+        ownerAutomaticCollectionItemOf(
+          ownerRow({
+            attempt: attempt({ status: "requires_action", completedAt: null, allocationStatus: null, actionDeadlineAt: DEADLINE }),
+          }),
+          NOW,
+          "2026-11"
+        )
+      ).toMatchObject({
+        state: "action_required",
+        date: "2026-11-18",
+        needsReview: false,
+        canCancel: true,
+        manualPaymentBlocked: true,
+      });
+      // Pasado el plazo, en curso hasta que el proceso diario lo cierre.
+      expect(
+        ownerAutomaticCollectionItemOf(
+          ownerRow({
+            attempt: attempt({ status: "requires_action", completedAt: null, allocationStatus: null, actionDeadlineAt: PASSED }),
+          }),
+          NOW,
+          "2026-11"
+        )
+      ).toMatchObject({ state: "in_progress", date: null, canCancel: true });
+    });
+  });
+
   it("en el banco: ni cancelar ni revisar", () => {
     expect(
       ownerAutomaticCollectionItemOf(
@@ -1115,6 +1183,63 @@ describe("puertas de las lecturas", () => {
     expect(query.sql).toContain("zaltyko.family_collection_preferences");
   });
 
+  it("Tarea 5 — familia: el plazo solo se lee con la confirmación abierta; si no, «Cobro en curso»", async () => {
+    vi.mocked(resolveFamilyPortalAccess).mockResolvedValue({
+      academies: [{ organizationId: ORGANIZATION_ID, feeFamilyIds: [FAMILY_ID] }],
+    } as unknown as Awaited<ReturnType<typeof resolveFamilyPortalAccess>>);
+    const attemptId = "91000000-0000-4000-8000-000000000601";
+    const row = {
+      invoiceId: INVOICE_ID,
+      invoiceStatus: "issued",
+      timezone: TZ,
+      collectionDayOfMonth: null,
+      hasAutomaticCharge: true,
+      nextDueAt: "2026-11-15T22:59:59.999Z",
+      preferenceMode: "automatic",
+      preferenceRevision: 5,
+      hasActiveAuthorization: true,
+      lastAttemptId: attemptId,
+      lastStatus: "requires_action",
+      lastNextRetryAt: null,
+      lastCompletedAt: null,
+    };
+
+    vi.mocked(isFamilyPaymentConfirmationOpen).mockReturnValue(true);
+    holder.execute
+      .mockResolvedValueOnce({ rows: [row] })
+      .mockResolvedValueOnce({ rows: [{ actionDeadlineAt: "2026-11-18T22:59:59.999Z" }] });
+    await expect(
+      getFamilyAutomaticFeeStatuses({ userId: USER_ID, invoiceIds: [INVOICE_ID], now: NOW })
+    ).resolves.toEqual({ [INVOICE_ID]: { kind: "action_required", deadline: "2026-11-18" } });
+    const familyQuery = dialect.sqlToQuery(holder.execute.mock.calls[0][0] as SQL);
+    expect(familyQuery.sql).toContain(`as "lastAttemptId"`);
+    // La lectura del plazo es la del almacén (C2), con la academia y el intento.
+    const deadlineQuery = dialect.sqlToQuery(holder.execute.mock.calls[1][0] as SQL);
+    expect(deadlineQuery.sql).toContain("status = 'requires_action'");
+    expect(deadlineQuery.params).toEqual(expect.arrayContaining([ORGANIZATION_ID, attemptId]));
+    expect(isFamilyCollectionEventsStorageAvailable).toHaveBeenCalledTimes(1);
+
+    // Sin la forma "phase4": en curso y sin leer el plazo.
+    holder.execute.mockReset();
+    vi.mocked(isFamilyCollectionEventsStorageAvailable).mockResolvedValue(false);
+    holder.execute.mockResolvedValueOnce({ rows: [row] });
+    await expect(
+      getFamilyAutomaticFeeStatuses({ userId: USER_ID, invoiceIds: [INVOICE_ID], now: NOW })
+    ).resolves.toEqual({ [INVOICE_ID]: { kind: "in_progress" } });
+    expect(holder.execute).toHaveBeenCalledTimes(1);
+
+    // Con una bandera apagada o fuera de la clave de prueba: ni la forma ni el plazo.
+    holder.execute.mockReset();
+    vi.mocked(isFamilyCollectionEventsStorageAvailable).mockClear();
+    vi.mocked(isFamilyPaymentConfirmationOpen).mockReturnValue(false);
+    holder.execute.mockResolvedValueOnce({ rows: [row] });
+    await expect(
+      getFamilyAutomaticFeeStatuses({ userId: USER_ID, invoiceIds: [INVOICE_ID], now: NOW })
+    ).resolves.toEqual({ [INVOICE_ID]: { kind: "in_progress" } });
+    expect(holder.execute).toHaveBeenCalledTimes(1);
+    expect(isFamilyCollectionEventsStorageAvailable).not.toHaveBeenCalled();
+  });
+
   it("familia: tarjeta revocada o interruptor apagado tras emitir la cuota → nada", async () => {
     vi.mocked(resolveFamilyPortalAccess).mockResolvedValue({
       academies: [{ organizationId: ORGANIZATION_ID, feeFamilyIds: [FAMILY_ID] }],
@@ -1258,6 +1383,57 @@ describe("puertas de las lecturas", () => {
     const withoutTable = dialect.sqlToQuery(holder.execute.mock.calls[1][0] as SQL);
     expect(withoutTable.sql).not.toContain("zaltyko.payment_reminders");
     expect(withoutTable.sql).toContain(`false as "reminderSent"`);
+  });
+
+  it("Tarea 5 — academia: lee el plazo del intento que espera a la familia y lo enseña", async () => {
+    const attemptId = "91000000-0000-4000-8000-000000000611";
+    holder.execute
+      .mockResolvedValueOnce({ rows: [{ timezone: TZ }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            invoiceId: INVOICE_ID,
+            invoiceReference: "CUO-2026-11-001",
+            invoiceStatus: "issued",
+            currency: "EUR",
+            timezone: TZ,
+            payerName: null,
+            collectionDayOfMonth: null,
+            nextDueAt: "2026-11-15T22:59:59.999Z",
+            openAutomaticCents: "4500",
+            preferenceMode: "automatic",
+            preferenceRevision: 5,
+            hasActiveAuthorization: true,
+            activeAuthorizationKind: "card",
+            reminderSent: false,
+            attemptId,
+            attemptStatus: "requires_action",
+            attemptAmountCents: "4500",
+            failureCode: null,
+            declineCode: null,
+            nextRetryAt: null,
+            completedAt: null,
+            attemptUpdatedAt: "2026-11-16T08:00:00.000Z",
+            attemptClaimedAt: "2026-11-16T08:00:00.000Z",
+            resumeCount: 0,
+            allocationStatus: null,
+            reviewReason: null,
+            hasReviewNotice: false,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ actionDeadlineAt: "2026-11-18T22:59:59.999Z" }] });
+
+    const view = await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
+
+    expect(view?.items).toEqual([
+      expect.objectContaining({ state: "action_required", date: "2026-11-18", canCancel: true, manualPaymentBlocked: true }),
+    ]);
+    const listQuery = dialect.sqlToQuery(holder.execute.mock.calls[1][0] as SQL);
+    expect(listQuery.sql).toContain(`as "attemptId"`);
+    const deadlineQuery = dialect.sqlToQuery(holder.execute.mock.calls[2][0] as SQL);
+    expect(deadlineQuery.sql).toContain("status = 'requires_action'");
+    expect(deadlineQuery.params).toEqual(expect.arrayContaining([ORGANIZATION_ID, attemptId]));
   });
 
   it("academia: un recordatorio ya enviado se ve como «se cobra a mano» en un reintento pendiente", async () => {

@@ -159,8 +159,10 @@ function todayOf(now: Date, timezone: string): string | null {
  *   cobro del reintento sigue abierta, se promete sin fecha; si la ventana ya
  *   pasó, el reintento no saldrá y no se promete nada.
  * Con un intento posterior (el reintento ya se reclamó): si ya cobró la
- * cuota, el aviso no se envía (`superseded`); si está en curso, se promete
- * sin fecha; si falló con otro reintento programado, con la fecha de ese
+ * cuota, el aviso no se envía (`superseded`); si espera a que la familia
+ * confirme el pago con su banco (Fase 4, `requires_action`) y el cobro está
+ * encendido, se envía sin prometer reintento y pidiendo que lo confirme
+ * (`laterAwaitingConfirmation`); si está en curso, se promete sin fecha; si falló con otro reintento programado, con la fecha de ese
  * siguiente; si falló sin reintento o se canceló, sin promesa.
  */
 /**
@@ -182,7 +184,18 @@ export function decideFamilyFailureNotice(
   now: Date,
   options: { retriesEnabled: boolean }
 ):
-  | { action: "send"; retryScheduled: boolean; retryDateLocal: string | null; deadlineLocalDate?: string | null }
+  | {
+      action: "send";
+      retryScheduled: boolean;
+      retryDateLocal: string | null;
+      deadlineLocalDate?: string | null;
+      /**
+       * Fase 4: el reintento ya salió y el banco pide que la familia lo
+       * confirme (intento posterior `requires_action`): el texto no promete
+       * otro intento, pide confirmar el pago (`confirmation_pending`).
+       */
+      laterAwaitingConfirmation?: true;
+    }
   | { action: "close"; outcome: FamilyFailureNoticeOutcome } {
   if (!isOperatingOrganizationStatus(notice.organizationStatus)) {
     return { action: "close", outcome: "organization_inactive" };
@@ -213,6 +226,13 @@ export function decideFamilyFailureNotice(
   if (!notice.payerEmail) return { action: "close", outcome: "no_email" };
 
   const canPromise = options.retriesEnabled && !retryKnownBlocked(notice);
+  // Fase 4 (Tarea 5): el reintento espera a que la familia confirme el pago
+  // con su banco. Nada de «Volveremos a intentarlo»: no se reintenta solo.
+  // Sin el cobro encendido, la familia no puede confirmarlo desde el portal
+  // y el texto es el de siempre sin promesa.
+  if (later && notice.lastAttemptStatus === "requires_action" && options.retriesEnabled) {
+    return { action: "send", retryScheduled: false, retryDateLocal: null, laterAwaitingConfirmation: true };
+  }
   if (!canPromise) return { action: "send", retryScheduled: false, retryDateLocal: null };
   if (later) {
     const status = notice.lastAttemptStatus;
@@ -336,13 +356,15 @@ async function deliverOne(
       outcome = decision.outcome;
     } else {
       const message = renderFamilyFailureNotice({
-        kind: familyFailureNoticeKind({
-          paymentMethodKind: notice.paymentMethodKind,
-          failureCode: notice.failureCode,
-          declineCode: notice.declineCode,
-          retryScheduled: decision.retryScheduled,
-          attemptStatus: notice.attemptStatus,
-        }),
+        kind: decision.laterAwaitingConfirmation
+          ? "confirmation_pending"
+          : familyFailureNoticeKind({
+              paymentMethodKind: notice.paymentMethodKind,
+              failureCode: notice.failureCode,
+              declineCode: notice.declineCode,
+              retryScheduled: decision.retryScheduled,
+              attemptStatus: notice.attemptStatus,
+            }),
         academyName: notice.academyName,
         servicePeriodStart: notice.servicePeriodStart,
         retryDateLocal: decision.retryDateLocal,

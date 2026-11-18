@@ -172,7 +172,14 @@ export type FamilyAutomaticFeeStatus =
   | { kind: "scheduled"; date: string }
   | { kind: "in_progress" }
   | { kind: "collected"; date: string }
-  | { kind: "not_collected" };
+  | { kind: "not_collected" }
+  /**
+   * Fase 4: el banco pide que la persona pagadora confirme el pago y aún está
+   * a tiempo. `deadline` es el último día para hacerlo (YYYY-MM-DD de la sede).
+   * Solo con la confirmación abierta (banderas, cerrojos y forma "phase4"):
+   * si no, la cuota se ve «Cobro en curso».
+   */
+  | { kind: "action_required"; deadline: string };
 
 /** Por id de factura (cuota). Solo las cuotas que se cobran solas. */
 export type FamilyAutomaticFeeStatuses = Record<string, FamilyAutomaticFeeStatus>;
@@ -220,5 +227,21 @@ export function familyAutomaticFeeText(status: FamilyAutomaticFeeStatus): string
       return `Cobrada automáticamente el ${formatCalendarDate(status.date)}`;
     case "not_collected":
       return "No se pudo cobrar automáticamente; tu academia te dirá cómo pagarla";
+    case "action_required":
+      return familyConfirmationText(status.deadline);
   }
+}
+
+/** Fase 4: lo que se le pide a la familia cuando el banco quiere que confirme el pago. */
+export function familyConfirmationText(deadline: string): string {
+  return `Tu banco pide que confirmes este pago. Puedes hacerlo hasta el ${formatCalendarDate(deadline)}.`;
+}
+
+/** Fase 4: la confirmación no se puede hacer desde el portal (falta Stripe.js en esta web). */
+export const FAMILY_CONFIRMATION_UNAVAILABLE_TEXT =
+  "Tu banco pide que confirmes este pago, pero ahora no se puede hacer desde aquí. Tu academia te dirá cómo pagarla.";
+
+/** Fase 4: la confirmación no salió y aún queda plazo. Nunca se reintenta solo. */
+export function familyConfirmationRetryText(deadline: string): string {
+  return `No se pudo confirmar. Puedes intentarlo otra vez hasta el ${formatCalendarDate(deadline)}.`;
 }

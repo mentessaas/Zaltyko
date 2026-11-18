@@ -74,6 +74,10 @@ function stateText(state: OwnerAutomaticCollectionState, date: string | null): s
     case "in_progress":
     case "processing":
       return "Cobro en curso";
+    case "action_required":
+      return day
+        ? `Esperando a que la familia confirme el pago con su banco (hasta el ${day})`
+        : "Esperando a que la familia confirme el pago con su banco";
     case "collected":
       return day ? `Cobrada el ${day}` : "Cobrada automáticamente";
     case "retry_scheduled":
@@ -95,6 +99,7 @@ function stateChip(state: OwnerAutomaticCollectionState): string {
       return ownerTone.chipSuccess;
     case "in_progress":
     case "processing":
+    case "action_required":
       return ownerTone.chipActive;
     case "retry_scheduled":
     case "not_attempted":

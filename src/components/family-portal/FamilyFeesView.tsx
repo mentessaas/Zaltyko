@@ -2,6 +2,7 @@ import {
   FamilyAutomaticPaymentCard,
   type FamilyAutomaticPaymentCards,
 } from "@/components/family-portal/FamilyAutomaticPaymentCard";
+import { FamilyConfirmPaymentButton } from "@/components/family-portal/FamilyConfirmPaymentButton";
 import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
 import type { FamilyAcademyFees } from "@/modules/family-portal/application/family-portal-reads";
 import {
@@ -33,7 +34,10 @@ export function FamilyFeesView({
   academies: FamilyAcademyFees[];
   /** Por academia, una tarjeta de pago automático por familia que paga. */
   automaticPayments?: FamilyAutomaticPaymentCards;
-  /** Por factura, el estado de su cobro automático (Fase 3). */
+  /**
+   * Por factura, el estado de su cobro automático (Fase 3). Fase 4: con
+   * `action_required`, el plazo y el botón «Confirmar el pago».
+   */
   automaticCollection?: FamilyAutomaticFeeStatuses;
   /**
    * Si el cobro automático está abierto y qué familias se cobran solas. Sin
@@ -134,7 +138,13 @@ export function FamilyFeesView({
                             </dd>
                           </div>
                         </dl>
-                        {automatic ? (
+                        {automatic?.kind === "action_required" ? (
+                          <FamilyConfirmPaymentButton
+                            organizationId={academy.organizationId}
+                            invoiceId={fee.invoiceId}
+                            deadline={automatic.deadline}
+                          />
+                        ) : automatic ? (
                           <p
                             className={`mt-3 ${
                               automatic.kind === "not_collected"
