@@ -134,41 +134,54 @@ const invoiceLineSchema = z
     }
   });
 
-const issueInvoiceSchema = z
-  .object({
-    organizationId: z.guid(),
-    locationId: z.guid(),
-    familyId: z.guid(),
-    familyPayerId: z.guid().optional(),
-    reference: z.string().trim().min(1).max(80),
-    currency: currencySchema,
-    dueAt: z.string().datetime({ offset: true }),
-    lines: z.array(invoiceLineSchema).min(1).max(100),
-    idempotencyKey: commandKeySchema,
-    actor: operationalActorSchema,
-  })
-  .superRefine((command, context) => {
-    const athleteLines = command.lines.filter((line) => line.athleteId);
-    const athleteIds = athleteLines.map((line) => line.athleteId!);
-    if (new Set(athleteIds).size !== athleteIds.length) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["lines"],
-        message: "La factura repite una línea mensual para la misma gimnasta.",
-      });
-    }
-    const coveredEnrollmentIds = athleteLines.flatMap(
-      (line) =>
-        line.coveredEnrollments?.map((covered) => covered.enrollmentId) ?? []
-    );
-    if (new Set(coveredEnrollmentIds).size !== coveredEnrollmentIds.length) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["lines"],
-        message: "Una inscripción no puede quedar cubierta por dos líneas.",
-      });
-    }
-  });
+/** Campos de una factura sin quién la emite (persona o proceso del sistema). */
+const issueInvoiceFieldsSchema = z.object({
+  organizationId: z.guid(),
+  locationId: z.guid(),
+  familyId: z.guid(),
+  familyPayerId: z.guid().optional(),
+  reference: z.string().trim().min(1).max(80),
+  currency: currencySchema,
+  dueAt: z.string().datetime({ offset: true }),
+  lines: z.array(invoiceLineSchema).min(1).max(100),
+  idempotencyKey: commandKeySchema,
+});
+
+function checkIssueInvoiceLines(
+  command: z.infer<typeof issueInvoiceFieldsSchema>,
+  context: z.RefinementCtx
+): void {
+  const athleteLines = command.lines.filter((line) => line.athleteId);
+  const athleteIds = athleteLines.map((line) => line.athleteId!);
+  if (new Set(athleteIds).size !== athleteIds.length) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["lines"],
+      message: "La factura repite una línea mensual para la misma gimnasta.",
+    });
+  }
+  const coveredEnrollmentIds = athleteLines.flatMap(
+    (line) =>
+      line.coveredEnrollments?.map((covered) => covered.enrollmentId) ?? []
+  );
+  if (new Set(coveredEnrollmentIds).size !== coveredEnrollmentIds.length) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["lines"],
+      message: "Una inscripción no puede quedar cubierta por dos líneas.",
+    });
+  }
+}
+
+const issueInvoiceSchema = issueInvoiceFieldsSchema
+  .extend({ actor: operationalActorSchema })
+  .superRefine(checkIssueInvoiceLines);
+
+/**
+ * Factura que emite un proceso del sistema (sin persona): las mismas reglas
+ * de líneas, sin `actor`. Solo la usa issueSystemManualInvoiceInTransaction.
+ */
+const systemIssueInvoiceSchema = issueInvoiceFieldsSchema.superRefine(checkIssueInvoiceLines);
 
 const allocatePaymentSchema = z.object({
   organizationId: z.guid(),
@@ -268,6 +281,7 @@ const processProviderEventSchema = z.object({
 });
 
 export type IssueInvoiceCommand = z.infer<typeof issueInvoiceSchema>;
+export type SystemIssueInvoiceCommand = z.infer<typeof systemIssueInvoiceSchema>;
 export type RecordManualPaymentCommand = z.infer<
   typeof recordManualPaymentSchema
 >;
@@ -553,7 +567,40 @@ export async function issueInvoiceInTransaction(
   command: IssueInvoiceCommand,
   options: IssueInvoiceCollectionOptions = {}
 ): Promise<Invoice> {
-  const input = issueInvoiceSchema.parse(command);
+  const { actor, ...input } = issueInvoiceSchema.parse(command);
+  return issueParsedInvoice(tx, input, { kind: "member", actor }, options);
+}
+
+/**
+ * Cobro automático (Fase 4, Tarea 7, D2): factura que emite un proceso del
+ * sistema, sin persona, siempre con cobro manual (nunca automático). La usa
+ * la cuota nueva de una domiciliación devuelta por el banco. Mismas reglas,
+ * idempotencia (por `invoice.issued` con la clave) y registros que
+ * issueInvoiceInTransaction; la auditoría va sin persona y con la marca del
+ * proceso del cobro automático. No comprueba el acceso de un miembro (no hay):
+ * quien llama ya bloqueó la academia y decide en su transacción.
+ */
+export async function issueSystemManualInvoiceInTransaction(
+  tx: TransactionClient,
+  command: SystemIssueInvoiceCommand
+): Promise<Invoice> {
+  const input = systemIssueInvoiceSchema.parse(command);
+  return issueParsedInvoice(tx, input, { kind: "system" }, { collectionMode: "manual" });
+}
+
+/** Quién emite la factura: una persona de la academia o un proceso del sistema. */
+type InvoiceIssuer =
+  | { kind: "member"; actor: z.infer<typeof operationalActorSchema> }
+  | { kind: "system" };
+
+async function issueParsedInvoice(
+  tx: TransactionClient,
+  input: z.infer<typeof issueInvoiceFieldsSchema>,
+  issuer: InvoiceIssuer,
+  options: IssueInvoiceCollectionOptions
+): Promise<Invoice> {
+  const actorUserId = issuer.kind === "member" ? issuer.actor.userId : null;
+  const auditMetadata = issuer.kind === "system" ? { ...SYSTEM_AUDIT_METADATA } : undefined;
   const totalAmountCents = input.lines.reduce(
     (total, line) => total + line.quantity * line.unitAmountCents,
     0
@@ -601,22 +648,26 @@ export async function issueInvoiceInTransaction(
       );
     }
     const prior = await loadInvoice(tx, input.organizationId, priorInvoiceId);
-    await assertOperationalAccess(tx, {
-      organizationId: input.organizationId,
-      locationId: prior.locationId ?? input.locationId,
-      actor: input.actor,
-      allowedRoles: financialRoles,
-    });
+    if (issuer.kind === "member") {
+      await assertOperationalAccess(tx, {
+        organizationId: input.organizationId,
+        locationId: prior.locationId ?? input.locationId,
+        actor: issuer.actor,
+        allowedRoles: financialRoles,
+      });
+    }
     return prior;
   }
 
-  await assertOperationalAccess(tx, {
-    organizationId: input.organizationId,
-    locationId: input.locationId,
-    actor: input.actor,
-    intent: "write",
-    allowedRoles: financialRoles,
-  });
+  if (issuer.kind === "member") {
+    await assertOperationalAccess(tx, {
+      organizationId: input.organizationId,
+      locationId: input.locationId,
+      actor: issuer.actor,
+      intent: "write",
+      allowedRoles: financialRoles,
+    });
+  }
 
   const collectionMode =
     options.collectionMode ??
@@ -731,7 +782,8 @@ export async function issueInvoiceInTransaction(
     await appendAuditEntry(tx, {
       organizationId: input.organizationId,
       locationId: input.locationId,
-      actorUserId: input.actor.userId,
+      actorUserId,
+      ...(auditMetadata ? { metadata: auditMetadata } : {}),
       action: "charge.due",
       targetType: "charge",
       targetId: charge.id,
@@ -764,7 +816,8 @@ export async function issueInvoiceInTransaction(
   await appendAuditEntry(tx, {
     organizationId: input.organizationId,
     locationId: input.locationId,
-    actorUserId: input.actor.userId,
+    actorUserId,
+    ...(auditMetadata ? { metadata: auditMetadata } : {}),
     action: "invoice.issued",
     targetType: "invoice",
     targetId: invoice.id,

@@ -69,6 +69,12 @@ import {
 } from "@/modules/family-collection/domain/collection-plan";
 import { FAMILY_FAILURE_NOTICE_RESULT_EVENT } from "@/modules/family-collection/domain/family-failure-notice";
 import { AMOUNT_MISMATCH_REASON } from "@/modules/family-collection/domain/payment-outcome";
+import {
+  DISPUTE_LOST_REASON,
+  disputeEffect,
+  SEPA_RETURNED_REASON,
+  type DisputePaymentMethodKind,
+} from "@/modules/family-collection/domain/dispute-effect";
 import { REFUND_REVERSED_REASON, REFUND_UNALLOCATED_REASON } from "@/modules/family-collection/domain/refund-split";
 import {
   createFamilyCollectionStore,
@@ -847,6 +853,68 @@ export function refundNoticeText(input: { reason: string; amountCents: number; c
   return null;
 }
 
+/**
+ * Fase 4 (Tarea 7): cómo ve la academia la última disputa de una cuota.
+ * - `open`: abierta (D4: la cuota sigue pagada; la academia ve el plazo);
+ * - `won`: ganada, cerrada como aviso o evitada;
+ * - `lost`: tarjeta, perdida y anotada (D3: sin cuota nueva);
+ * - `returned`: domiciliación devuelta por el banco y anotada (D2: hay cuota nueva);
+ * - `unallocated`: perdida o devuelta pero no cabía en lo repartido (sin filas);
+ * - `reinstated`: ganada después de anotarla como perdida (el libro no se tocó).
+ */
+export type OwnerDisputeState = "open" | "won" | "lost" | "returned" | "unallocated" | "reinstated";
+
+/** La última disputa de una cuota, tal como está guardada. */
+export interface OwnerDisputeRow {
+  status: string;
+  amountCents: number;
+  evidenceDueAt: Date | null;
+  reversed: boolean;
+  paymentMethodKind: DisputePaymentMethodKind;
+}
+
+const KEPT_DISPUTE_STATUSES: ReadonlySet<string> = new Set(["won", "warning_closed", "prevented"]);
+
+export function ownerDisputeStateOf(dispute: OwnerDisputeRow): OwnerDisputeState {
+  if (KEPT_DISPUTE_STATUSES.has(dispute.status)) return dispute.reversed ? "reinstated" : "won";
+  const losesMoney =
+    dispute.reversed ||
+    disputeEffect({ status: dispute.status, paymentMethodKind: dispute.paymentMethodKind, alreadyReversed: false }) ===
+      "reverse";
+  if (!losesMoney) return "open";
+  if (!dispute.reversed) return "unallocated";
+  return dispute.paymentMethodKind === "sepa_debit" ? "returned" : "lost";
+}
+
+/** Texto de la disputa para la academia (nunca para la familia, D4). `date`: plazo, día local de la sede. */
+export function ownerDisputeText(input: {
+  state: OwnerDisputeState;
+  amountCents: number;
+  currency: string;
+  date: string | null;
+}): string {
+  const amount = formatMoney(input.amountCents, input.currency);
+  switch (input.state) {
+    case "open":
+      return input.date
+        ? `En disputa: responde desde tu panel de Stripe antes del ${formatCalendarDate(input.date)}`
+        : "En disputa: responde desde tu panel de Stripe";
+    case "won":
+      return "Disputa ganada";
+    case "lost":
+      return `Disputa perdida. El banco devolvió el dinero a la familia (${amount})`;
+    case "returned":
+      return `El banco devolvió el dinero a la familia (${amount}). Se ha creado una cuota pendiente por el importe devuelto`;
+    case "unallocated":
+      return `Hay una disputa de ${amount} que Zaltyko no pudo anotar en las cuotas; revísala en tu panel de Stripe`;
+    case "reinstated":
+      return `Disputa ganada después de anotarla como perdida (${amount}); revísalo en tu panel de Stripe`;
+  }
+}
+
+/** Motivos de las filas de zaltyko.refunds que son disputas, no devoluciones de la academia. */
+const DISPUTE_REFUND_REASONS = [DISPUTE_LOST_REASON, SEPA_RETURNED_REASON] as const;
+
 // ---------------------------------------------------------------------------
 // Academia: cobros automáticos del mes (/owner/payments)
 // ---------------------------------------------------------------------------
@@ -913,6 +981,10 @@ export interface OwnerAutomaticCollectionItem {
   refundText?: string;
   /** Fase 4 (Tarea 6): devolución que no se pudo anotar o que Stripe anuló. Solo si la hay. */
   refundNotice?: string;
+  /** Fase 4 (Tarea 7): la última disputa de la cuota, solo si la hay. */
+  disputeState?: OwnerDisputeState;
+  /** Fase 4 (Tarea 7): «En disputa: responde desde tu panel de Stripe antes del …» y demás. */
+  disputeText?: string;
 }
 
 export type FamilyNoticeState = "sent" | "not_sent";
@@ -978,6 +1050,8 @@ export interface OwnerCollectionRow {
     /** Fase 4 (Tarea 6): último aviso `refund_unallocated` o `refund_reversed` del intento. */
     refundIssue?: { reason: string; amountCents: number } | null;
   } | null;
+  /** Fase 4 (Tarea 7): la última disputa de algún intento de la factura. */
+  dispute?: OwnerDisputeRow | null;
 }
 
 
@@ -1147,6 +1221,19 @@ export function ownerAutomaticCollectionItemOf(
       attempt.status === "succeeded" && attempt.refundIssue
         ? refundNoticeText({ ...attempt.refundIssue, currency: row.currency })
         : null;
+    // Fase 4 (Tarea 7): la cuota sigue cobrada; la disputa va aparte (solo la academia la ve).
+    const disputeState = row.dispute ? ownerDisputeStateOf(row.dispute) : null;
+    const disputeText =
+      row.dispute && disputeState
+        ? ownerDisputeText({
+            state: disputeState,
+            amountCents: row.dispute.amountCents,
+            currency: row.currency,
+            date: local(row.dispute.evidenceDueAt),
+          })
+        : null;
+    // Lo que la academia tiene que revisar en su panel de Stripe.
+    const disputeReview = disputeState === "unallocated" || disputeState === "reinstated";
     return {
       ...base,
       amountCents: attempt.amountCents,
@@ -1166,10 +1253,29 @@ export function ownerAutomaticCollectionItemOf(
       familyNotice: state === "collected" ? null : (row.familyNotice ?? null),
       ...(refundText ? { refundText } : {}),
       ...(refundNotice ? { refundNotice } : {}),
+      ...(disputeState && disputeText ? { disputeState, disputeText } : {}),
+      ...(disputeReview ? { needsReview: true } : {}),
     };
   } catch {
     return null;
   }
+}
+
+/** Disputa guardada en la consulta (json_build_object), o null si no tiene la forma esperada. */
+function disputeRowOf(value: unknown): OwnerDisputeRow | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const amountCents = Number(raw.amountCents);
+  if (typeof raw.status !== "string" || !Number.isSafeInteger(amountCents) || amountCents <= 0) return null;
+  const due = typeof raw.evidenceDueAt === "string" ? new Date(raw.evidenceDueAt) : null;
+  const kind = raw.paymentMethodKind;
+  return {
+    status: raw.status,
+    amountCents,
+    evidenceDueAt: due && !Number.isNaN(due.getTime()) ? due : null,
+    reversed: raw.reversed === true,
+    paymentMethodKind: kind === "card" || kind === "sepa_debit" ? kind : null,
+  };
 }
 
 /** Aviso de devolución guardado en el outbox (solo motivo e importe). */
@@ -1230,6 +1336,8 @@ export async function getOwnerAutomaticCollections(input: {
   if (!allowed) return null;
   if (!(await collectionTablesAvailable())) return null;
   const remindersTable = !inProgressOnly && (await isPaymentRemindersTablePresent(db));
+  // Fase 4 (Tarea 7): la tabla de disputas solo existe con la forma "phase4".
+  const disputesTable = !inProgressOnly && (await isFamilyCollectionEventsStorageAvailable(db));
 
   const organizationId = scope.organization.id;
   const now = input.now ?? new Date();
@@ -1272,6 +1380,48 @@ export async function getOwnerAutomaticCollections(input: {
          and c.status::text in ('due', 'partially_paid')
          and c.due_at >= ${windowStart}::timestamptz
          and c.due_at < ${windowEnd}::timestamptz`;
+  // Fase 4 (Tarea 7): una cuota con una disputa abierta, o que cambió este
+  // mes, sale aunque su cobro sea de antes (D4: la academia ve el plazo).
+  const disputeCandidates = disputesTable
+    ? sql`
+      union
+      select da.invoice_id
+        from zaltyko.family_collection_disputes d
+        join zaltyko.family_collection_attempts da
+          on da.organization_id = d.organization_id and da.id = d.attempt_id
+       where d.organization_id = ${organizationId}::uuid
+         and (d.closed_at is null or d.updated_at >= ${monthStartInstant}::timestamptz)`
+    : sql``;
+  const disputeListed = disputesTable
+    ? sql`
+        or exists (
+          select 1
+            from zaltyko.family_collection_disputes d
+            join zaltyko.family_collection_attempts da
+              on da.organization_id = d.organization_id and da.id = d.attempt_id
+           where d.organization_id = i.organization_id
+             and da.invoice_id = i.id
+             and (d.closed_at is null or d.updated_at >= ${monthStartInstant}::timestamptz)
+        )`
+    : sql``;
+  const disputeColumn = disputesTable
+    ? sql`(
+        select json_build_object(
+                 'status', d.status,
+                 'amountCents', d.amount_cents,
+                 'evidenceDueAt', to_char(d.evidence_due_at at time zone 'UTC', ${sql.raw(ISO)}),
+                 'reversed', d.reversed_at is not null,
+                 'paymentMethodKind', da.payment_method_kind
+               )
+          from zaltyko.family_collection_disputes d
+          join zaltyko.family_collection_attempts da
+            on da.organization_id = d.organization_id and da.id = d.attempt_id
+         where d.organization_id = i.organization_id
+           and da.invoice_id = i.id
+         order by d.opened_at desc, d.id desc
+         limit 1
+      )`
+    : sql`null`;
   const listedRow = inProgressOnly
     ? sql`la.status in (${openStatusesSql()})`
     : sql`(
@@ -1284,6 +1434,7 @@ export async function getOwnerAutomaticCollections(input: {
           )
         )
         or (la.id is null and i.status::text in ('issued', 'partially_paid'))
+        ${disputeListed}
       )`;
 
   const result = await db.execute(sql`
@@ -1291,7 +1442,7 @@ export async function getOwnerAutomaticCollections(input: {
       select a.invoice_id
         from zaltyko.family_collection_attempts a
        where a.organization_id = ${organizationId}::uuid
-         and ${attemptCandidate}${chargeCandidates}
+         and ${attemptCandidate}${chargeCandidates}${disputeCandidates}
     )
     select
       i.id::text as "invoiceId",
@@ -1341,6 +1492,7 @@ export async function getOwnerAutomaticCollections(input: {
          where r.organization_id = i.organization_id
            and r.payment_id = la.payment_id
            and r.status = 'succeeded'
+           and r.reason_code not in (${DISPUTE_REFUND_REASONS[0]}, ${DISPUTE_REFUND_REASONS[1]})
       ) as "refundedCents",
       (
         select max(r.refunded_at)
@@ -1348,7 +1500,9 @@ export async function getOwnerAutomaticCollections(input: {
          where r.organization_id = i.organization_id
            and r.payment_id = la.payment_id
            and r.status = 'succeeded'
+           and r.reason_code not in (${DISPUTE_REFUND_REASONS[0]}, ${DISPUTE_REFUND_REASONS[1]})
       ) as "lastRefundedAt",
+      ${disputeColumn} as "dispute",
       (
         select e.payload
           from zaltyko.outbox_events e
@@ -1477,6 +1631,7 @@ export async function getOwnerAutomaticCollections(input: {
               refundIssue: refundIssueOf(row.refundIssue),
             }
           : null,
+        dispute: disputeRowOf(row.dispute),
       },
       now,
       month

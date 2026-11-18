@@ -55,6 +55,7 @@ import {
   allocateProviderCollectionPayment,
   findAutomaticCollectionInProgress,
   issueInvoiceInTransaction,
+  issueSystemManualInvoiceInTransaction,
   processLocalSandboxProviderEvent,
   recordProviderCollectionPayment,
   recordProviderRefund,
@@ -288,6 +289,90 @@ describe("issueInvoiceInTransaction y el modo de cobro", () => {
         monthlyInvoice: true,
       })
     ).rejects.toMatchObject({ code: "FAMILY_AUTOMATIC_COLLECTION_DISABLED", status: 409 });
+    expect(inserts).toEqual([]);
+  });
+});
+
+describe("issueSystemManualInvoiceInTransaction (Fase 4, Tarea 7: cuota nueva de una domiciliación devuelta)", () => {
+  const systemCommand = {
+    organizationId,
+    locationId,
+    familyId,
+    familyPayerId,
+    reference: "DEVUELTA-du_SyntheticReturn1",
+    currency: "EUR",
+    dueAt: "2026-12-06T10:00:00.000Z",
+    lines: [
+      {
+        lineType: "returned_fee",
+        quantity: 1,
+        unitAmountCents: 3500,
+        servicePeriodStart: "2026-11-01",
+        servicePeriodEnd: "2026-11-30",
+      },
+    ],
+    idempotencyKey: "family-collection-return:du_SyntheticReturn1",
+  };
+
+  it("sin persona: no mira el acceso de un miembro, siempre a mano y la auditoría con la marca del proceso", async () => {
+    mocks.flag.mockReturnValue(true);
+    const { tx, inserts, executed } = fakeTx({
+      insertReturning: (table, values) =>
+        table === invoices ? [{ id: invoiceId, ...values }] : [{ id: chargeId, ...values }],
+    });
+
+    const invoice = await issueSystemManualInvoiceInTransaction(tx, systemCommand);
+
+    expect(invoice.id).toBe(invoiceId);
+    expect(mocks.access).not.toHaveBeenCalled();
+    expect(mocks.lock).toHaveBeenCalledWith(tx, organizationId, systemCommand.idempotencyKey);
+    expect(inserts.find((entry) => entry.table === charges)?.values).toMatchObject({
+      collectionMode: "manual",
+      status: "due",
+      amountCents: 3500,
+      familyPayerId,
+    });
+    expect(inserts.find((entry) => entry.table === invoiceLines)?.values).toMatchObject({
+      lineType: "returned_fee",
+      athleteId: null,
+      locationId: null,
+    });
+    // Nunca mira la preferencia de cobro automático de la familia.
+    expect(executed.some((text) => text.includes("family_collection_preferences"))).toBe(false);
+    for (const [entry] of mocks.appendAudit.mock.calls.map((call) => call.slice(1))) {
+      expect(entry).toMatchObject({
+        actorUserId: null,
+        metadata: { actor_type: "system", job_key: FAMILY_COLLECTION_JOB_KEY },
+      });
+    }
+    expect(mocks.appendAudit).toHaveBeenCalledTimes(2);
+  });
+
+  it("repetida con la misma clave → devuelve la misma factura sin escribir nada", async () => {
+    const first = fakeTx({
+      insertReturning: (table, values) =>
+        table === invoices ? [{ id: invoiceId, ...values }] : [{ id: chargeId, ...values }],
+    });
+    await issueSystemManualInvoiceInTransaction(first.tx, systemCommand);
+    const issued = mocks.appendOutbox.mock.calls
+      .map((call) => call[1] as { eventName: string; payload: Record<string, unknown> })
+      .find((entry) => entry.eventName === "invoice.issued");
+    expect(issued?.payload).toMatchObject({ invoiceId, totalAmountCents: 3500 });
+    mocks.findEvent.mockImplementation(async (_tx: unknown, input: { eventName: string }) =>
+      input.eventName === "invoice.issued" ? { payload: issued?.payload } : null
+    );
+
+    const second = fakeTx({ rows: new Map([[invoices, [invoiceRow()]]]) });
+    const prior = await issueSystemManualInvoiceInTransaction(second.tx, systemCommand);
+
+    expect(prior.id).toBe(invoiceId);
+    expect(second.inserts).toEqual([]);
+    expect(mocks.access).not.toHaveBeenCalled();
+  });
+
+  it("valida las líneas igual que una factura de una persona", async () => {
+    const { tx, inserts } = fakeTx();
+    await expect(issueSystemManualInvoiceInTransaction(tx, { ...systemCommand, lines: [] })).rejects.toThrow();
     expect(inserts).toEqual([]);
   });
 });

@@ -23,8 +23,9 @@
  * cualquier transacción. El de los cobros (`payment_intent.*`) es
  * `handlePaymentIntentEvent` (Tarea 3); los de las devoluciones
  * (`charge.refunded` y `refund.*`) son `handleChargeRefundEvent` y
- * `handleRefundEvent` (Tarea 6, family-collection-refunds.ts); los demás
- * siguen vacíos hasta sus tareas.
+ * `handleRefundEvent` (Tarea 6, family-collection-refunds.ts); el de las
+ * disputas (`charge.dispute.*`) es `handleDisputeEvent` (Tarea 7,
+ * family-collection-disputes.ts); los demás siguen vacíos hasta sus tareas.
  *
  * Cobros (`handlePaymentIntentEvent`), por el mismo camino que la relectura
  * diaria (`reconcileAttemptWithStripe` → `settleOutcome` → `applyOutcome`):
@@ -71,6 +72,7 @@ import {
   createRunState,
   type FamilyCollectionDeps,
 } from "@/modules/family-collection/application/family-collection-service";
+import { processDisputeEvent } from "@/modules/family-collection/application/family-collection-disputes";
 import {
   handleChargeRefundEvent,
   handleRefundEvent,
@@ -287,14 +289,25 @@ export const handlePaymentIntentEvent: ProviderEventHandler = async (input) =>
   (await processPaymentIntentEvent(input)).effect;
 
 /**
- * Manejadores por defecto: los cobros (Tarea 3) y las devoluciones hechas
- * desde el panel de Stripe (Tarea 6); los demás, vacíos hasta sus tareas.
+ * Manejador de `charge.dispute.*` (Tarea 7) con las dependencias reales. Si
+ * el libro aún no tiene el cobro disputado, lo registra antes por el camino
+ * de los cobros (processPaymentIntentEvent con el `pi_…` de la disputa).
+ */
+export const handleDisputeEvent: ProviderEventHandler = (input) =>
+  processDisputeEvent(input, {
+    recordCollection: (collectionInput) => processPaymentIntentEvent(collectionInput),
+  });
+
+/**
+ * Manejadores por defecto: los cobros (Tarea 3), las devoluciones hechas
+ * desde el panel de Stripe (Tarea 6) y las disputas (Tarea 7); los demás,
+ * vacíos hasta sus tareas.
  */
 export const DEFAULT_PROVIDER_EVENT_HANDLERS: ProviderEventHandlers = {
   paymentIntent: handlePaymentIntentEvent,
   charge: handleChargeRefundEvent,
   refund: handleRefundEvent,
-  dispute: noEffect,
+  dispute: handleDisputeEvent,
   mandate: noEffect,
   paymentMethod: noEffect,
   setupIntent: noEffect,

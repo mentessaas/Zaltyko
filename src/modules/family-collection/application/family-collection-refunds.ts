@@ -129,7 +129,12 @@ function byCreation(left: ChargeRefundSnapshot, right: ChargeRefundSnapshot): nu
 }
 
 interface SettleContext {
-  input: RefundEventInput;
+  organizationId: string;
+  /** Fila del buzón del evento; null cuando las anota el cobro tardío al registrarse. */
+  inboxId: string | null;
+  now: Date;
+  /** Solo ids para el registro. */
+  logIds: Record<string, unknown>;
   store: FamilyCollectionRefundStore;
   attempt: CollectionAttempt;
   paymentIntentId: string;
@@ -138,15 +143,15 @@ interface SettleContext {
 type RefundStep = { recorded: string | null; review: boolean };
 
 async function settleSucceededRefund(context: SettleContext, refund: ChargeRefundSnapshot): Promise<RefundStep> {
-  const { input, store, attempt } = context;
+  const { store, attempt } = context;
   const currency = refund.currency ?? attempt.currency;
   // Ya anotada (otro evento del mismo cargo): nada que escribir ni bloquear.
-  if (await store.isRefundRecorded({ organizationId: input.organizationId, environment: "test", refundId: refund.id })) {
+  if (await store.isRefundRecorded({ organizationId: context.organizationId, environment: "test", refundId: refund.id })) {
     return { recorded: null, review: false };
   }
   try {
     const result = await store.recordAttemptRefunds({
-      organizationId: input.organizationId,
+      organizationId: context.organizationId,
       attemptId: attempt.id,
       paymentIntentId: context.paymentIntentId,
       refund: {
@@ -156,35 +161,36 @@ async function settleSucceededRefund(context: SettleContext, refund: ChargeRefun
         reasonCode: refundReasonCode(refund.reasonCode),
         refundedAt: refund.createdAt,
       },
-      providerEventId: input.inboxId,
+      providerEventId: context.inboxId,
       environment: "test",
-      now: input.now,
+      now: context.now,
     });
     return { recorded: result.outcome === "recorded" ? (result.refundIds[0] ?? null) : null, review: false };
   } catch (error) {
     if (!(error instanceof RefundDoesNotFitError)) throw error;
     // No cabe en lo repartido: la transacción ya se deshizo entera. Aviso
     // (una vez por `re_…`) y el evento termina procesado.
-    logger.warn(
-      "Cobro automático: una devolución de Stripe no cabe en lo repartido; aviso a la academia",
-      eventIds(input, { attemptId: attempt.id, refundId: refund.id })
-    );
+    logger.warn("Cobro automático: una devolución de Stripe no cabe en lo repartido; aviso a la academia", {
+      ...context.logIds,
+      attemptId: attempt.id,
+      refundId: refund.id,
+    });
     await store.recordRefundNotice({
       attempt,
       reason: REFUND_UNALLOCATED_REASON,
       refundId: refund.id,
       amountCents: refund.amountCents,
       currency,
-      now: input.now,
+      now: context.now,
     });
     return { recorded: null, review: true };
   }
 }
 
 async function settleReversedRefund(context: SettleContext, refund: ChargeRefundSnapshot): Promise<RefundStep> {
-  const { input, store, attempt } = context;
+  const { store, attempt } = context;
   const recorded = await store.isRefundRecorded({
-    organizationId: input.organizationId,
+    organizationId: context.organizationId,
     environment: "test",
     refundId: refund.id,
   });
@@ -198,7 +204,7 @@ async function settleReversedRefund(context: SettleContext, refund: ChargeRefund
     refundId: refund.id,
     amountCents: refund.amountCents,
     currency: refund.currency ?? attempt.currency,
-    now: input.now,
+    now: context.now,
   });
   return { recorded: null, review: true };
 }
@@ -226,7 +232,23 @@ async function settleChargeRefunds(
   // Sin cobro registrado en el libro no hay nada que devolver en él.
   if (attempt.status !== "succeeded") return NO_EFFECT;
 
-  const context: SettleContext = { input, store, attempt, paymentIntentId: charge.paymentIntentId };
+  return settleAttemptRefunds(
+    {
+      organizationId: input.organizationId,
+      inboxId: input.inboxId,
+      now: input.now,
+      logIds: eventIds(input),
+      store,
+      attempt,
+      paymentIntentId: charge.paymentIntentId,
+    },
+    charge
+  );
+}
+
+/** Cada devolución del cargo de un intento cobrado, de la más antigua a la más nueva. */
+async function settleAttemptRefunds(context: SettleContext, charge: ChargeRefundsSnapshot): Promise<RefundEventEffect> {
+  const { attempt } = context;
   let firstRecorded: string | null = null;
   let review = false;
   for (const refund of [...charge.refunds].sort(byCreation)) {
@@ -298,3 +320,47 @@ export const handleChargeRefundEvent = (input: RefundEventInput): Promise<Refund
 
 /** Manejador de `refund.*` con las dependencias reales. */
 export const handleRefundEvent = (input: RefundEventInput): Promise<RefundEventEffect> => processRefundEvent(input);
+
+/**
+ * Tarea 7 (pendiente de la Tarea 6): devoluciones de un cobro que el libro
+ * registra tarde. Mientras un intento está cerrado en Zaltyko (cobro tardío
+ * en espera, `late_success_pending`) o es el cobro doble de D10, una
+ * devolución de la academia no tiene efecto (el intento no está cobrado en el
+ * libro) y su evento no se repite. Cuando después se registra ese cobro
+ * (settleClosedAttempt: el tardío o el hermano que Stripe ya había cobrado),
+ * se relee en Stripe el cargo de su `pi_…` con todas sus devoluciones y se
+ * anotan por el mismo camino (recordAttemptRefunds): el libro nunca lo da por
+ * cobrado entero si Stripe ya devolvió. Idempotente por el `re_…`. Fuera de
+ * toda transacción; sin evento propio, las filas llevan `provider_event_id`
+ * null. Los errores de Stripe suben: decide quien llama.
+ */
+export async function applyRecordedAttemptRefunds(
+  input: { attempt: CollectionAttempt; connectedAccount: string; now: Date },
+  deps: { store: FamilyCollectionRefundStore; gateway: FamilyCollectionRefundGateway }
+): Promise<RefundEventEffect> {
+  const paymentIntentId = input.attempt.paymentIntentId;
+  if (!paymentIntentId) return NO_EFFECT;
+  const charge = await deps.gateway.retrievePaymentIntentRefunds({
+    connectedAccount: input.connectedAccount,
+    paymentIntentId,
+  });
+  if (!charge || charge.paymentIntentId !== paymentIntentId || charge.refunds.length === 0) return NO_EFFECT;
+  // El intento tal como está ahora en la base: tiene que estar ya cobrado.
+  const attempt = await deps.store.findAttemptByPaymentIntent({
+    organizationId: input.attempt.organizationId,
+    paymentIntentId,
+  });
+  if (!attempt || attempt.id !== input.attempt.id || attempt.status !== "succeeded") return NO_EFFECT;
+  return settleAttemptRefunds(
+    {
+      organizationId: attempt.organizationId,
+      inboxId: null,
+      now: input.now,
+      logIds: { organizationId: attempt.organizationId, attemptId: attempt.id, chargeId: charge.chargeId },
+      store: deps.store,
+      attempt,
+      paymentIntentId,
+    },
+    charge
+  );
+}

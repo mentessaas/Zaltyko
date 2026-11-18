@@ -190,6 +190,32 @@ async function processingReadFailed(state: RunState, attempt: CollectionAttempt,
   return null;
 }
 
+/**
+ * Fase 4 (Tarea 7): después de registrar tarde el cobro de un intento (el
+ * tardío o el hermano que Stripe ya había cobrado), se anotan las
+ * devoluciones que Stripe ya hizo de ese cobro (applyRecordedAttemptRefunds,
+ * el mismo camino que los eventos de devolución): mientras el intento estaba
+ * cerrado en el libro no tuvieron efecto y su evento no se repite. El cobro ya
+ * quedó registrado: un error aquí no lo deshace ni hace fallar el evento; se
+ * registra (solo ids, nombre y código) para que soporte lo revise.
+ */
+async function applyRecordedRefunds(state: RunState, attempt: CollectionAttempt, connectedAccount: string): Promise<void> {
+  if (!state.applyRecordedRefunds) return;
+  try {
+    await state.applyRecordedRefunds(attempt, connectedAccount);
+  } catch (error) {
+    const failure = stripeReadFailureOf(error);
+    logger.error("Cobro automático: no se pudieron anotar las devoluciones de un cobro registrado tarde", undefined, {
+      organizationId: attempt.organizationId,
+      invoiceId: attempt.invoiceId,
+      attemptId: attempt.id,
+      errorName: failure.errorName,
+      errorCode: failure.errorCode,
+    });
+    countSkip(state, "late_refunds_unread");
+  }
+}
+
 /** Estados de un hermano que todavía puede cobrar (impiden registrar el tardío). */
 const OPEN_SIBLING_STATUSES: ReadonlySet<string> = new Set(FAMILY_COLLECTION_OPEN_STATUSES);
 
@@ -219,6 +245,9 @@ export type ClosedAttemptOutcome = FamilyCollectionAttemptStatus | typeof LATE_S
  *    relee el paso 4 diario) y se devuelve LATE_SUCCESS_PENDING_REASON.
  * 6. Si no, se registra (settleLateSuccess); el almacén repite 2 y 3 con la
  *    factura bloqueada.
+ * 7. Fase 4 (Tarea 7): registrado el tardío (o, en 4, el hermano que Stripe
+ *    ya había cobrado), se anotan las devoluciones que Stripe ya hizo de ese
+ *    cobro (applyRecordedRefunds).
  *
  * Errores de Stripe: desde el evento, uno pasajero sigue hacia arriba con su
  * propio código (el evento queda `failed` y Stripe lo reenvía); desde la
@@ -287,13 +316,15 @@ export async function settleClosedAttempt(
       const siblingRefs = await state.store.loadAttemptRefs(sibling);
       // Sin con qué leerlo no se puede cancelar: queda abierto (paso 5).
       if (!siblingRefs) continue;
-      await cancelThenClose(
+      const siblingStatus = await cancelThenClose(
         state,
         sibling,
         siblingRefs,
         { kind: "canceled", reason: LATE_SUCCESS_ELSEWHERE_CODE },
         { stripeErrors: fromEvent ? "throw" : "skip" }
       );
+      // Stripe ya lo había cobrado y se acaba de registrar: sus devoluciones también.
+      if (siblingStatus === "succeeded") await applyRecordedRefunds(state, sibling, siblingRefs.connectedAccount);
     }
     // 5. ¿Queda alguno abierto? Entonces el tardío espera, con su aviso.
     siblings = await listSiblings();
@@ -314,7 +345,10 @@ export async function settleClosedAttempt(
   }
   // 6. Registro del tardío (o aviso duplicate_collection), con todo bloqueado.
   try {
-    return await settleLateSuccess(state, attempt, snapshot);
+    const recorded = await settleLateSuccess(state, attempt, snapshot);
+    // 7. Las devoluciones que la academia hizo mientras esperaba (Tarea 7).
+    if (recorded === "succeeded") await applyRecordedRefunds(state, attempt, refs.connectedAccount);
+    return recorded;
   } catch (error) {
     // Un hermano se abrió entre la lectura y la transacción: otro día.
     if (!fromEvent && error instanceof Error && error.message === LATE_SUCCESS_SIBLING_IN_FLIGHT) {

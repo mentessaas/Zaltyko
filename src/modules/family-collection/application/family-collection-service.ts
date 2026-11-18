@@ -28,18 +28,23 @@ import {
 } from "@/modules/family-collection/application/config";
 import { collectDueInvoices } from "@/modules/family-collection/application/family-collection-collect";
 import { reconcilePendingAttempts } from "@/modules/family-collection/application/family-collection-reconcile";
+import { applyRecordedAttemptRefunds } from "@/modules/family-collection/application/family-collection-refunds";
 import {
   emptyRunResult,
   type FamilyCollectionRunResult,
   type RunState,
 } from "@/modules/family-collection/application/family-collection-steps";
 import {
+  createFamilyCollectionRefundStore,
   createFamilyCollectionStore,
+  type FamilyCollectionRefundStore,
   type FamilyCollectionStore,
 } from "@/modules/family-collection/infrastructure/family-collection-store";
 import {
   createStripeCollectionGateway,
+  createStripeRefundGateway,
   type FamilyCollectionGateway,
+  type FamilyCollectionRefundGateway,
 } from "@/modules/family-collection/infrastructure/stripe-collection-gateway";
 import { refreshConnectAccountForCollection } from "@/modules/payments-connect/application/connect-onboarding-service";
 
@@ -54,6 +59,14 @@ export interface FamilyCollectionDeps {
   gateway?: FamilyCollectionGateway;
   /** Relee la cuenta conectada en Stripe (refreshConnectAccountForCollection). */
   refreshAccount?: (accountRowId: string) => Promise<unknown>;
+  /**
+   * Fase 4 (Tarea 7): devoluciones de un cobro registrado tarde. Por defecto,
+   * el almacén y el adaptador reales; pero si se pasa una pasarela simulada
+   * (`gateway`) sin `refundGateway`, no se leen devoluciones (nunca se mezcla
+   * un Stripe simulado con el real).
+   */
+  refundStore?: FamilyCollectionRefundStore;
+  refundGateway?: FamilyCollectionRefundGateway;
 }
 
 export interface FamilyCollectionRunOptions {
@@ -122,8 +135,19 @@ export async function createRunState(
     scope: options.organizationIds ? [...options.organizationIds] : null,
     refreshAccount: deps.refreshAccount ?? ((accountRowId) => refreshConnectAccountForCollection(accountRowId)),
     refreshedOrganizations: new Set(),
+    applyRecordedRefunds: recordedRefundsApplier(deps, now),
     result: emptyRunResult(flagEnabled),
   };
+}
+
+/** Las devoluciones de un cobro registrado tarde (applyRecordedAttemptRefunds), o null. */
+function recordedRefundsApplier(deps: FamilyCollectionDeps, now: Date): RunState["applyRecordedRefunds"] {
+  if (deps.gateway && !deps.refundGateway) return null;
+  const refunds = {
+    store: deps.refundStore ?? createFamilyCollectionRefundStore(),
+    gateway: deps.refundGateway ?? createStripeRefundGateway(),
+  };
+  return (attempt, connectedAccount) => applyRecordedAttemptRefunds({ attempt, connectedAccount, now }, refunds);
 }
 
 export async function runFamilyCollection(

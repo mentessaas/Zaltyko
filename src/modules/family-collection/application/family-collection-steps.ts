@@ -171,6 +171,13 @@ export interface RunState {
   refreshAccount: (accountRowId: string) => Promise<unknown>;
   /** Academias cuya cuenta ya se releyó en esta ejecución (una vez por academia). */
   refreshedOrganizations: Set<string>;
+  /**
+   * Fase 4 (Tarea 7): anota las devoluciones que Stripe ya hizo de un cobro
+   * que el libro acaba de registrar tarde (applyRecordedAttemptRefunds).
+   * Fuera de toda transacción. Sin ella (tests con una pasarela simulada y
+   * sin devoluciones simuladas), no se mira nada.
+   */
+  applyRecordedRefunds?: ((attempt: CollectionAttempt, connectedAccount: string) => Promise<unknown>) | null;
   result: FamilyCollectionRunResult;
 }
 

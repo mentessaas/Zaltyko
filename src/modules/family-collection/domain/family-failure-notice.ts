@@ -219,10 +219,21 @@ function monthOf(localDate: string | null): { day: number; month: string; year: 
   return { day, month, year: match[1]! };
 }
 
+/**
+ * Etiqueta común del mes de una cuota (C16): «Cuota de noviembre de 2026» a
+ * partir del primer día del periodo (YYYY-MM-DD); null si no se puede leer.
+ * La usan el correo a la familia (feeLabel), la cuota nueva de una
+ * domiciliación devuelta (Tarea 7) y, después, los paneles (Tarea 11).
+ */
+export function feePeriodLabel(servicePeriodStart: string | null): string | null {
+  const parts = monthOf(servicePeriodStart);
+  return parts ? `Cuota de ${parts.month} de ${parts.year}` : null;
+}
+
 /** «la cuota de noviembre de 2026» a partir del primer día del periodo; si no se puede, «tu cuota». */
 export function feeLabel(servicePeriodStart: string | null): string {
-  const parts = monthOf(servicePeriodStart);
-  return parts ? `la cuota de ${parts.month} de ${parts.year}` : "tu cuota";
+  const label = feePeriodLabel(servicePeriodStart);
+  return label ? `la c${label.slice(1)}` : "tu cuota";
 }
 
 /** «18 de noviembre» a partir de una fecha local (YYYY-MM-DD), o null. */

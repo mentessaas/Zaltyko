@@ -171,6 +171,10 @@ function fakeGateway(charge: ChargeRefundsSnapshot) {
       if (request.connectedAccount !== connectedAccount) return null;
       return state.charge.refunds.some((entry) => entry.id === request.refundId) ? state.charge.chargeId : null;
     }),
+    // Tarea 7: solo lo usa el cobro tardío al registrarse; los eventos de devolución nunca.
+    retrievePaymentIntentRefunds: vi.fn<FamilyCollectionRefundGateway["retrievePaymentIntentRefunds"]>(async () => {
+      throw new Error("Un evento de devolución no relee por el cobro");
+    }),
   };
   return { gateway, state };
 }

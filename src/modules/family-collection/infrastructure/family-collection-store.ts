@@ -655,7 +655,8 @@ function toKind(value: unknown): CollectionMethodKind | null {
   return value === "card" || value === "sepa_debit" ? value : null;
 }
 
-const attemptColumns = sql`
+/** Columnas de un intento (toAttempt). También las usa family-collection-dispute-store.ts. */
+export const attemptColumns = sql`
   id::text as "id",
   organization_id::text as "organizationId",
   location_id::text as "locationId",
@@ -674,7 +675,7 @@ const attemptColumns = sql`
   claimed_at as "claimedAt"
 `;
 
-function toAttempt(row: Record<string, unknown>): CollectionAttempt {
+export function toAttempt(row: Record<string, unknown>): CollectionAttempt {
   return {
     id: String(row.id),
     organizationId: String(row.organizationId),
@@ -1064,7 +1065,7 @@ async function readAllocations(executor: Executor, attempt: CollectionAttempt): 
 }
 
 /** El intento de esa academia que tiene guardado ese `pi_…` (el último por número), o null. */
-async function findAttemptByPaymentIntentIn(
+export async function findAttemptByPaymentIntentIn(
   executor: Executor,
   input: { organizationId: string; paymentIntentId: string }
 ): Promise<CollectionAttempt | null> {
@@ -1094,7 +1095,7 @@ async function lockInvoiceCharges(tx: TransactionClient, organizationId: string,
   `);
 }
 
-async function lockAttemptCharges(tx: TransactionClient, organizationId: string, attemptId: string): Promise<void> {
+export async function lockAttemptCharges(tx: TransactionClient, organizationId: string, attemptId: string): Promise<void> {
   await tx.execute(sql`
     select c.id
       from zaltyko.charges c
@@ -1109,7 +1110,7 @@ async function lockAttemptCharges(tx: TransactionClient, organizationId: string,
   `);
 }
 
-async function lockInvoice(tx: TransactionClient, organizationId: string, invoiceId: string): Promise<void> {
+export async function lockInvoice(tx: TransactionClient, organizationId: string, invoiceId: string): Promise<void> {
   await tx.execute(sql`
     select id from zaltyko.invoices
      where organization_id = ${organizationId}::uuid and id = ${invoiceId}::uuid
@@ -2383,8 +2384,11 @@ export interface FamilyCollectionRefundStore {
     attemptId: string;
     paymentIntentId: string;
     refund: ProviderRefund;
-    /** Fila del buzón (payment_provider_events.id) del evento. */
-    providerEventId: string;
+    /**
+     * Fila del buzón (payment_provider_events.id) del evento; null cuando las
+     * anota el cobro tardío al registrarse (Tarea 7), sin evento propio.
+     */
+    providerEventId: string | null;
     environment: "test" | "live";
     now: Date;
   }): Promise<AttemptRefundResult>;
@@ -2403,7 +2407,7 @@ export interface FamilyCollectionRefundStore {
   }): Promise<boolean>;
 }
 
-function ledgerEnvironmentOf(environment: "test" | "live"): "sandbox" | "live" {
+export function ledgerEnvironmentOf(environment: "test" | "live"): "sandbox" | "live" {
   return environment === "test" ? "sandbox" : "live";
 }
 
@@ -2477,7 +2481,7 @@ function isRefundExceedsAllocation(error: unknown): boolean {
  * `{re_…}:{reparto}` y su clave `refund:{re_…}:{reparto}`, y un outbox
  * `payment.refunded` por fila con esa misma clave (C12).
  */
-async function recordSplitRefund(
+export async function recordSplitRefund(
   tx: TransactionClient,
   input: {
     organizationId: string;

@@ -88,7 +88,8 @@ export function FamilyFeesView({
                       <li key={fee.invoiceId} className={ownerUi.listItem}>
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="font-semibold text-z-ink">
-                            Cuota {fee.reference}
+                            {/* Fase 4 (D2): la cuota nueva de una domiciliación devuelta lleva su propio título. */}
+                            {fee.label ?? `Cuota ${fee.reference}`}
                           </p>
                           <span
                             className={

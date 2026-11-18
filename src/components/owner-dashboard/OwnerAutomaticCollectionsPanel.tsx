@@ -8,6 +8,7 @@ import type {
   OwnerAutomaticCollectionItem,
   OwnerAutomaticCollectionState,
   OwnerAutomaticCollectionsView,
+  OwnerDisputeState,
 } from "@/modules/family-collection/application/family-collection-reads";
 import { formatCalendarDate, formatMoney } from "@/modules/family-portal/domain/family-portal-presentation";
 
@@ -15,6 +16,16 @@ import { formatCalendarDate, formatMoney } from "@/modules/family-portal/domain/
 // /owner/payments, con su estado, el motivo en palabras sencillas, los que
 // necesitan revisión y las acciones de la academia. El servidor vuelve a
 // comprobar cada acción: aquí solo se ofrecen las que la lectura permite.
+
+// Fase 4 (Tarea 7): distintivo corto de la disputa (el texto completo lo da la lectura).
+const OWNER_DISPUTE_CHIP: Record<OwnerDisputeState, string> = {
+  open: "En disputa",
+  won: "Disputa ganada",
+  lost: "Disputa perdida",
+  returned: "Devuelta por el banco",
+  unallocated: "Disputa sin anotar",
+  reinstated: "Disputa ganada",
+};
 
 // Ruta relativa: el fetch es del mismo origen y el navegador añade la cabecera
 // Origin que la API exige en el POST (protección contra CSRF).
@@ -295,6 +306,11 @@ export function OwnerAutomaticCollectionsPanel({
                 <p className="flex flex-wrap items-center gap-2">
                   <span className={stateChip(item.state)}>{stateText(item.state, item.date)}</span>
                   {item.refundText ? <span className={ownerTone.chipWarning}>Devuelta</span> : null}
+                  {item.disputeState ? (
+                    <span className={item.disputeState === "won" ? ownerTone.chipRest : ownerTone.chipWarning}>
+                      {OWNER_DISPUTE_CHIP[item.disputeState]}
+                    </span>
+                  ) : null}
                   {item.needsReview ? <span className={ownerUi.chipAttention}>Necesita revisión</span> : null}
                 </p>
               </div>
@@ -302,6 +318,12 @@ export function OwnerAutomaticCollectionsPanel({
               {/* Fase 4 (D1): la cuota sigue cobrada; la academia devolvió desde su panel de Stripe (D5). */}
               {item.refundText ? <p className={`${ownerUi.muted} mt-2`}>{item.refundText}</p> : null}
               {item.refundNotice ? <p className={`${ownerTone.inlineWarning} mt-2`}>{item.refundNotice}</p> : null}
+              {/* Fase 4 (Tarea 7, D2–D4): disputa o devolución del banco; solo la ve la academia. */}
+              {item.disputeText ? (
+                <p className={`${item.disputeState === "won" ? ownerUi.muted : ownerTone.inlineWarning} mt-2`}>
+                  {item.disputeText}
+                </p>
+              ) : null}
               {item.familyNotice ? (
                 <p className={`${ownerUi.help} mt-1`}>{FAMILY_NOTICE_TEXT[item.familyNotice]}</p>
               ) : null}

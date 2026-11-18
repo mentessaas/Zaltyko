@@ -401,6 +401,16 @@ export interface FamilyCollectionRefundGateway {
   retrieveChargeRefunds(input: { connectedAccount: string; chargeId: string }): Promise<ChargeRefundsSnapshot>;
   /** Relee una devolución (`re_…`/`pyr_…`) y devuelve el id de su cargo, o null. */
   retrieveRefundCharge(input: { connectedAccount: string; refundId: string }): Promise<string | null>;
+  /**
+   * Tarea 7: el último cargo de un cobro (`pi_…`) con todas sus devoluciones,
+   * o null si el cobro todavía no tiene cargo. Lo usa el cobro tardío al
+   * registrarse: las devoluciones que la academia hizo mientras esperaba no
+   * se anotaron (el intento no estaba cobrado en el libro).
+   */
+  retrievePaymentIntentRefunds(input: {
+    connectedAccount: string;
+    paymentIntentId: string;
+  }): Promise<ChargeRefundsSnapshot | null>;
 }
 
 /** Más devoluciones de un cargo de las que se leen: no se decide nada con una lista a medias. */
@@ -432,7 +442,7 @@ function refundSnapshotOf(refund: Stripe.Refund): ChargeRefundSnapshot | null {
 
 export function createStripeRefundGateway(stripe?: Stripe): FamilyCollectionRefundGateway {
   const client = (): Stripe => stripe ?? getStripeClient();
-  return {
+  const gateway: FamilyCollectionRefundGateway = {
     async retrieveChargeRefunds(input) {
       const options = { stripeAccount: input.connectedAccount };
       const charge = await client().charges.retrieve(input.chargeId, {}, options);
@@ -455,6 +465,129 @@ export function createStripeRefundGateway(stripe?: Stripe): FamilyCollectionRefu
     async retrieveRefundCharge(input) {
       const refund = await client().refunds.retrieve(input.refundId, {}, { stripeAccount: input.connectedAccount });
       return objectIdOf(refund.charge);
+    },
+
+    async retrievePaymentIntentRefunds(input) {
+      const paymentIntent = await client().paymentIntents.retrieve(
+        input.paymentIntentId,
+        {},
+        { stripeAccount: input.connectedAccount }
+      );
+      const chargeId = objectIdOf(paymentIntent.latest_charge);
+      if (chargeId === null) return null;
+      const snapshot = await gateway.retrieveChargeRefunds({ connectedAccount: input.connectedAccount, chargeId });
+      // El cargo tiene que ser de ese cobro: si no, no se decide nada con él.
+      return snapshot.paymentIntentId === input.paymentIntentId ? snapshot : null;
+    },
+  };
+  return gateway;
+}
+
+// ---------------------------------------------------------------------------
+// Fase 4 (Tarea 7): disputas de tarjeta y devoluciones del banco en domiciliación
+// ---------------------------------------------------------------------------
+
+/** Una disputa, releída por id en la cuenta conectada (solo lo que se usa). */
+export interface DisputeSnapshot {
+  /** `dp_…` o `du_…`. */
+  id: string;
+  /** `ch_…` (tarjeta) o `py_…` (domiciliación). */
+  chargeId: string;
+  /** `pi_…` del cargo, o null. */
+  paymentIntentId: string | null;
+  /** Estado de Stripe (`needs_response`, `lost`…), tal cual. */
+  status: string;
+  /** Código del motivo (`fraudulent`, `debit_not_authorized`…), o null. */
+  reasonCode: string | null;
+  amountCents: number;
+  /** En mayúsculas (`EUR`), o null si Stripe no la da. */
+  currency: string | null;
+  /** Plazo para responder con pruebas, o null (domiciliación, ya cerrada…). */
+  evidenceDueAt: Date | null;
+  /** Stripe retiró el dinero de la cuenta de la academia y no lo ha devuelto (suma de sus movimientos < 0). */
+  fundsWithdrawn: boolean;
+  /** Forma de pago del cargo disputado; null si es otra o no se sabe. */
+  paymentMethodKind: "card" | "sepa_debit" | null;
+  /** Cuándo se abrió en Stripe. */
+  createdAt: Date;
+}
+
+/** Lectura de las disputas, siempre en la cuenta conectada y por id. */
+export interface FamilyCollectionDisputeGateway {
+  /**
+   * Relee la disputa y su cargo. null si Stripe la devuelve sin la forma que
+   * se usa (sin cargo, sin importe…): no se decide nada con ella.
+   */
+  retrieveDispute(input: { connectedAccount: string; disputeId: string }): Promise<DisputeSnapshot | null>;
+}
+
+const REASON_CODE_PATTERN = /^[a-z0-9_]{1,64}$/;
+
+function unixDateOrNull(value: unknown): Date | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const date = new Date(value * 1000);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** Forma de pago del cargo (`payment_method_details.type`), si el cargo vino expandido. */
+function chargeKindOf(charge: unknown): "card" | "sepa_debit" | null {
+  if (!charge || typeof charge !== "object") return null;
+  const type = (charge as { payment_method_details?: { type?: unknown } | null }).payment_method_details?.type;
+  return type === "card" || type === "sepa_debit" ? type : null;
+}
+
+/** ¿Suman menos de cero los movimientos de la disputa (dinero retirado y no devuelto)? */
+function fundsWithdrawnOf(transactions: unknown): boolean {
+  if (!Array.isArray(transactions)) return false;
+  let total = 0;
+  for (const transaction of transactions) {
+    const amount = transaction && typeof transaction === "object" ? (transaction as { amount?: unknown }).amount : null;
+    if (typeof amount === "number" && Number.isSafeInteger(amount)) total += amount;
+  }
+  return total < 0;
+}
+
+/** Solo campos con forma conocida; sin id, cargo, importe o fecha válidos, null. */
+export function disputeSnapshotOf(dispute: Stripe.Dispute): DisputeSnapshot | null {
+  const chargeId = objectIdOf(dispute.charge);
+  const createdAt = unixDateOrNull(dispute.created);
+  if (
+    typeof dispute.id !== "string" ||
+    chargeId === null ||
+    !Number.isSafeInteger(dispute.amount) ||
+    dispute.amount <= 0 ||
+    createdAt === null
+  ) {
+    return null;
+  }
+  const charge = typeof dispute.charge === "object" ? dispute.charge : null;
+  return {
+    id: dispute.id,
+    chargeId,
+    paymentIntentId: objectIdOf(dispute.payment_intent) ?? objectIdOf(charge?.payment_intent ?? null),
+    status: typeof dispute.status === "string" ? dispute.status : "unknown",
+    reasonCode: typeof dispute.reason === "string" && REASON_CODE_PATTERN.test(dispute.reason) ? dispute.reason : null,
+    amountCents: dispute.amount,
+    currency: typeof dispute.currency === "string" ? dispute.currency.toUpperCase() : null,
+    evidenceDueAt: unixDateOrNull(dispute.evidence_details?.due_by ?? null),
+    fundsWithdrawn: fundsWithdrawnOf(dispute.balance_transactions),
+    paymentMethodKind: chargeKindOf(charge),
+    createdAt,
+  };
+}
+
+export function createStripeDisputeGateway(stripe?: Stripe): FamilyCollectionDisputeGateway {
+  const client = (): Stripe => stripe ?? getStripeClient();
+  return {
+    async retrieveDispute(input) {
+      // El cargo expandido da la forma de pago y el `pi_…` en la misma lectura.
+      const dispute = await client().disputes.retrieve(
+        input.disputeId,
+        { expand: ["charge"] },
+        { stripeAccount: input.connectedAccount }
+      );
+      const snapshot = disputeSnapshotOf(dispute);
+      return snapshot && snapshot.id === input.disputeId ? snapshot : null;
     },
   };
 }

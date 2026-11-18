@@ -74,6 +74,8 @@ import {
   getOwnerAutomaticCollections,
   getOwnerFamilyCollectionSwitches,
   ownerAutomaticCollectionItemOf,
+  ownerDisputeStateOf,
+  ownerDisputeText,
   ownerRefundText,
   refundNoticeText,
   reviewReasonText,
@@ -2001,5 +2003,101 @@ describe("cuota devuelta desde el panel de Stripe (Fase 4, Tarea 6)", () => {
     expect(ownerRefundText({ amountCents: 1000, currency: "EUR", date: null })).toBe(
       `Devuelta: ${formatMoney(1000, "EUR")} (desde tu panel de Stripe)`
     );
+  });
+});
+
+describe("disputas y devoluciones del banco en el panel de la academia (Fase 4, Tarea 7)", () => {
+  const dispute = (overrides: Partial<NonNullable<OwnerCollectionRow["dispute"]>> = {}) => ({
+    status: "needs_response",
+    amountCents: 4500,
+    // 23:59:59 del 24-12 en Madrid.
+    evidenceDueAt: new Date("2026-12-24T22:59:59.000Z"),
+    reversed: false,
+    paymentMethodKind: "card" as const,
+    ...overrides,
+  });
+
+  it("D4: abierta → la cuota sigue cobrada y la academia ve el plazo con el día de la sede", () => {
+    const item = ownerAutomaticCollectionItemOf(ownerRow({ attempt: attempt(), dispute: dispute() }), NOW, "2026-11");
+    expect(item).toMatchObject({ state: "collected", needsReview: false, disputeState: "open" });
+    expect(item?.disputeText).toBe(
+      `En disputa: responde desde tu panel de Stripe antes del ${formatCalendarDate("2026-12-24")}`
+    );
+    // Una disputa no es una devolución de la academia: no sale «Devuelta».
+    expect(item).not.toHaveProperty("refundText");
+  });
+
+  it("estados: ganada, perdida (D3), devuelta por el banco (D2), sin anotar y ganada después de perderla", () => {
+    const amount = formatMoney(4500, "EUR");
+    const cases: Array<[Partial<NonNullable<OwnerCollectionRow["dispute"]>>, string, string, boolean]> = [
+      [{ status: "won", evidenceDueAt: null }, "won", "Disputa ganada", false],
+      [{ status: "warning_closed" }, "won", "Disputa ganada", false],
+      [{ status: "lost", reversed: true }, "lost", `Disputa perdida. El banco devolvió el dinero a la familia (${amount})`, false],
+      [
+        { status: "lost", reversed: true, paymentMethodKind: "sepa_debit" },
+        "returned",
+        `El banco devolvió el dinero a la familia (${amount}). Se ha creado una cuota pendiente por el importe devuelto`,
+        false,
+      ],
+      [
+        { status: "needs_response", reversed: true, paymentMethodKind: "sepa_debit" },
+        "returned",
+        `El banco devolvió el dinero a la familia (${amount}). Se ha creado una cuota pendiente por el importe devuelto`,
+        false,
+      ],
+      [
+        { status: "lost", reversed: false },
+        "unallocated",
+        `Hay una disputa de ${amount} que Zaltyko no pudo anotar en las cuotas; revísala en tu panel de Stripe`,
+        true,
+      ],
+      [
+        { status: "won", reversed: true },
+        "reinstated",
+        `Disputa ganada después de anotarla como perdida (${amount}); revísalo en tu panel de Stripe`,
+        true,
+      ],
+    ];
+    for (const [overrides, state, text, review] of cases) {
+      const row = dispute(overrides);
+      expect(ownerDisputeStateOf(row), JSON.stringify(overrides)).toBe(state);
+      const item = ownerAutomaticCollectionItemOf(ownerRow({ attempt: attempt(), dispute: row }), NOW, "2026-11");
+      expect(item?.disputeText, JSON.stringify(overrides)).toBe(text);
+      expect(item?.needsReview, JSON.stringify(overrides)).toBe(review);
+    }
+    expect(ownerDisputeText({ state: "open", amountCents: 4500, currency: "EUR", date: null })).toBe(
+      "En disputa: responde desde tu panel de Stripe"
+    );
+  });
+
+  it("sin disputa no hay marca; los textos no llevan jerga de Stripe", () => {
+    const item = ownerAutomaticCollectionItemOf(ownerRow({ attempt: attempt() }), NOW, "2026-11");
+    expect(item).not.toHaveProperty("disputeState");
+    expect(item).not.toHaveProperty("disputeText");
+    for (const state of ["open", "won", "lost", "returned", "unallocated", "reinstated"] as const) {
+      const text = ownerDisputeText({ state, amountCents: 4500, currency: "EUR", date: "2026-12-24" });
+      expect(text, state).not.toMatch(/_|dispute|chargeback|webhook|intent/i);
+    }
+  });
+
+  it("la lista incluye las cuotas con una disputa abierta o que cambió este mes, y lee la última disputa", async () => {
+    holder.execute.mockResolvedValueOnce({ rows: [{ timezone: TZ }] }).mockResolvedValueOnce({ rows: [] });
+
+    await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
+
+    const query = dialect.sqlToQuery(holder.execute.mock.calls[1][0] as SQL);
+    expect(query.sql).toContain("from zaltyko.family_collection_disputes d");
+    expect(query.sql).toMatch(/union\s+select da\.invoice_id/);
+    expect(query.sql).toContain(`as "dispute"`);
+    // «Devuelta» no cuenta las filas de una disputa.
+    expect(query.params).toEqual(expect.arrayContaining(["dispute_lost", "sepa_returned"]));
+
+    // Sin la forma "phase4" no se nombra la tabla de disputas.
+    holder.execute.mockReset();
+    vi.mocked(isFamilyCollectionEventsStorageAvailable).mockResolvedValue(false);
+    holder.execute.mockResolvedValueOnce({ rows: [{ timezone: TZ }] }).mockResolvedValueOnce({ rows: [] });
+    await getOwnerAutomaticCollections({ userId: USER_ID, organizationId: ORGANIZATION_ID, now: NOW });
+    const withoutTable = dialect.sqlToQuery(holder.execute.mock.calls[1][0] as SQL);
+    expect(withoutTable.sql).not.toContain("family_collection_disputes");
   });
 });

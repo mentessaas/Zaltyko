@@ -15,6 +15,10 @@ import {
   type ProviderEventHandlerInput,
 } from "@/modules/family-collection/application/family-collection-events";
 import {
+  DISPUTE_EFFECT_TYPE,
+  processDisputeEvent,
+} from "@/modules/family-collection/application/family-collection-disputes";
+import {
   processChargeRefundEvent,
   processRefundEvent,
   REFUND_EFFECT_TYPE,
@@ -31,6 +35,7 @@ import {
   providerEventPayload,
   type ConnectedAccountEvent,
 } from "@/modules/family-collection/domain/provider-event";
+import { RETURNED_FEE_LINE_TYPE, returnedFeeInvoiceKey } from "@/modules/family-collection/domain/dispute-effect";
 import type { PaymentIntentSnapshot } from "@/modules/family-collection/domain/payment-outcome";
 import {
   providerRefundIdempotencyKey,
@@ -55,6 +60,8 @@ import {
 import type {
   ChargeRefundSnapshot,
   ChargeRefundsSnapshot,
+  DisputeSnapshot,
+  FamilyCollectionDisputeGateway,
   FamilyCollectionGateway,
   FamilyCollectionRefundGateway,
 } from "@/modules/family-collection/infrastructure/stripe-collection-gateway";
@@ -1867,6 +1874,8 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
       if (!disposablePgEnabled || registry.organizations.length === 0) return;
       const organizations = registry.organizations.join(",");
       for (const table of [
+        // Tarea 7: las disputas apuntan al intento, al pago y al buzón; van primero.
+        "family_collection_disputes",
         "refunds",
         "family_collection_attempt_charges",
         "family_collection_attempts",
@@ -1898,7 +1907,7 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
 
     const accountOf = (invoice: Invoice) => `acct_CI${invoice.organizationId.slice(0, 8)}`;
     /** Referencias de Stripe de la factura: prefijo y solo letras y números, como las de Stripe. */
-    const refOf = (invoice: Invoice, prefix: "pi" | "ch" | "re" | "evt", name: string) =>
+    const refOf = (invoice: Invoice, prefix: "pi" | "ch" | "py" | "re" | "dp" | "du" | "evt", name: string) =>
       `${prefix}_CI${invoice.invoiceId.replace(/-/g, "").slice(0, 16)}${name}`;
 
     /**
@@ -1909,8 +1918,15 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
      * - `partial`: la de diciembre ya estaba pagada (a mano) y solo se
      *   reparten 35 € en la de noviembre;
      * - `none`: el intento no tiene cuotas y el pago queda sin repartir.
+     *
+     * Tarea 7: `kind` (tarjeta por defecto, o domiciliación) y `late`: el
+     * intento queda `failed` con su `pi_…` y sin registrar (Stripe lo cobró
+     * tarde); lo registra el camino de los cobros.
      */
-    async function collectedInvoice(split: "both" | "partial" | "none") {
+    async function collectedInvoice(
+      split: "both" | "partial" | "none",
+      options: { kind?: "card" | "sepa_debit"; late?: boolean } = {}
+    ) {
       const invoice = await createCollectableInvoice({ registry, collectionMode: "automatic" });
       const secondLineId = randomUUID();
       const secondChargeId = randomUUID();
@@ -1956,7 +1972,7 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
           provider_payment_intent_reference, claimed_at
         ) values (
           ${invoice.organizationId}::uuid, ${invoice.locationId}::uuid, ${invoice.invoiceId}::uuid, ${invoice.familyId}::uuid,
-          ${invoice.payerId}::uuid, ${invoice.authorizationId}::uuid, ${invoice.accountId}::uuid, 1, 'card',
+          ${invoice.payerId}::uuid, ${invoice.authorizationId}::uuid, ${invoice.accountId}::uuid, 1, ${options.kind ?? "card"},
           7000, 'EUR', 'created', ${paymentIntentId}, ${CLAIMED_AT}::timestamptz
         )
         returning id::text as id
@@ -1970,6 +1986,16 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
           `);
         }
       }
+      const base = { invoice, attemptId, paymentIntentId, secondChargeId, chargeRef: refOf(invoice, "ch", "paid") };
+      if (options.late) {
+        // Cerrado en el libro como fallido; Stripe lo cobró tarde.
+        await db.execute(sql`
+          update zaltyko.family_collection_attempts
+             set status = 'failed', failure_code = 'card_declined', completed_at = ${RECEIVED_AT}::timestamptz
+           where organization_id = ${invoice.organizationId}::uuid and id = ${attemptId}::uuid
+        `);
+        return base;
+      }
       const applied = await createFamilyCollectionStore().applyOutcome({
         organizationId: invoice.organizationId,
         attemptId,
@@ -1982,7 +2008,7 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
         status: "succeeded",
         allocationStatus: split === "both" ? "allocated" : "needs_review",
       });
-      return { invoice, attemptId, paymentIntentId, secondChargeId, chargeRef: refOf(invoice, "ch", "paid") };
+      return base;
     }
     type Collected = Awaited<ReturnType<typeof collectedInvoice>>;
 
@@ -2018,6 +2044,10 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
             ? collected.chargeRef
             : null
         ),
+        // Tarea 7: solo lo usa el cobro tardío al registrarse; los eventos de devolución nunca.
+        retrievePaymentIntentRefunds: vi.fn<FamilyCollectionRefundGateway["retrievePaymentIntentRefunds"]>(async () => {
+          throw new Error("Un evento de devolución no relee por el cobro");
+        }),
       };
       return { gateway, state };
     }
@@ -2342,6 +2372,568 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
       expect(again).toEqual({ refundId: rows[0].id, created: false, paymentStatus: "partially_refunded" });
       expect(await refundRows(collected)).toHaveLength(1);
     }, 60_000);
+
+    describe("disputas y devoluciones del banco en domiciliación (Tarea 7)", () => {
+      /** Plazo para responder: fin del 24-12 en Madrid. */
+      const EVIDENCE_DUE = new Date("2026-12-24T22:59:59.000Z");
+      const OPENED = new Date("2026-12-05T09:00:00.000Z");
+      const TS = `'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'`;
+      const at = (column: string) => sql.raw(`to_char(${column} at time zone 'UTC', ${TS})`);
+
+      type DisputeKind = "card" | "sepa_debit";
+
+      /** La disputa tal como la relee Stripe (por defecto, de tarjeta y abierta, por el cobro entero). */
+      function stripeDispute(
+        collected: Collected,
+        id: string,
+        overrides: Partial<DisputeSnapshot> & { kind?: DisputeKind } = {}
+      ): DisputeSnapshot {
+        const { kind = "card", ...rest } = overrides;
+        return {
+          id,
+          chargeId: kind === "sepa_debit" ? refOf(collected.invoice, "py", "paid") : collected.chargeRef,
+          paymentIntentId: collected.paymentIntentId,
+          status: kind === "sepa_debit" ? "lost" : "needs_response",
+          reasonCode: kind === "sepa_debit" ? "debit_not_authorized" : "fraudulent",
+          amountCents: 7000,
+          currency: "EUR",
+          evidenceDueAt: kind === "sepa_debit" ? null : EVIDENCE_DUE,
+          fundsWithdrawn: true,
+          paymentMethodKind: kind,
+          createdAt: OPENED,
+          ...rest,
+        };
+      }
+
+      /** Stripe simulado de la cuenta: la disputa (se puede cambiar entre entregas). */
+      function fakeDisputeStripe(collected: Collected, dispute: DisputeSnapshot) {
+        const connectedAccount = accountOf(collected.invoice);
+        const state = { dispute };
+        const gateway: FamilyCollectionDisputeGateway = {
+          retrieveDispute: vi.fn<FamilyCollectionDisputeGateway["retrieveDispute"]>(async (request) => {
+            if (request.connectedAccount !== connectedAccount || request.disputeId !== state.dispute.id) {
+              throw Object.assign(new Error("CI: disputa inexistente"), {
+                type: "StripeInvalidRequestError",
+                code: "resource_missing",
+              });
+            }
+            return { ...state.dispute };
+          }),
+        };
+        return { gateway, state };
+      }
+
+      function disputeEvent(
+        collected: Collected,
+        name: string,
+        disputeId: string,
+        type = "charge.dispute.created"
+      ): ConnectedAccountEvent {
+        return {
+          eventId: refOf(collected.invoice, "evt", name),
+          type,
+          accountId: accountOf(collected.invoice),
+          livemode: false,
+          created: EVENT_CREATED,
+          objectId: disputeId,
+          objectType: "dispute",
+        };
+      }
+
+      /** Una entrega por la ruta de verdad (buzón incluido), con Stripe simulado. */
+      function deliverDispute(
+        event: ConnectedAccountEvent,
+        gateway: FamilyCollectionDisputeGateway,
+        recordCollection?: (input: ProviderEventHandlerInput) => Promise<unknown>
+      ) {
+        return handleFamilyCollectionEvent(event, {
+          now: EVENT_NOW,
+          handlers: {
+            dispute: (handlerInput) => processDisputeEvent(handlerInput, { gateway, recordCollection }),
+          },
+        });
+      }
+
+      async function disputeRows(collected: Collected) {
+        const result = await db.execute(sql`
+          select d.id::text as "id", d.provider_dispute_reference as "reference",
+                 d.provider_charge_reference as "chargeReference", d.status as "status",
+                 d.amount_cents::int as "amountCents", d.reason_code as "reasonCode",
+                 d.funds_withdrawn as "fundsWithdrawn", d.attempt_id::text as "attemptId",
+                 d.payment_id::text as "paymentId", d.last_provider_event_id::text as "lastEventId",
+                 ${at("d.evidence_due_at")} as "evidenceDueAt", ${at("d.opened_at")} as "openedAt",
+                 ${at("d.closed_at")} as "closedAt", ${at("d.reversed_at")} as "reversedAt"
+            from zaltyko.family_collection_disputes d
+           where d.organization_id = ${collected.invoice.organizationId}::uuid
+           order by d.opened_at, d.id
+        `);
+        return result.rows as Array<Record<string, unknown>>;
+      }
+
+      async function paymentIdOf(collected: Collected) {
+        const result = await db.execute(sql`
+          select id::text as "id" from zaltyko.payments
+           where organization_id = ${collected.invoice.organizationId}::uuid
+        `);
+        return (result.rows[0] as { id: string }).id;
+      }
+
+      /** Facturas de la academia que no son la original (la cuota nueva de D2). */
+      async function returnedInvoices(collected: Collected) {
+        const result = await db.execute(sql`
+          select i.id::text as "id", i.reference as "reference", i.status::text as "status",
+                 i.family_id::text as "familyId", i.family_payer_id::text as "familyPayerId",
+                 i.location_id::text as "locationId", i.total_amount_cents::int as "totalCents",
+                 ${at("i.due_at")} as "dueAt",
+                 (select string_agg(l.line_type || ':' || l.amount_cents || ':' || l.service_period_start::text
+                                    || '..' || l.service_period_end::text, ',' order by l.service_period_start)
+                    from zaltyko.invoice_lines l
+                   where l.organization_id = i.organization_id and l.invoice_id = i.id) as "lines",
+                 (select string_agg(c.collection_mode::text || ':' || c.status::text || ':' || c.amount_cents, ','
+                                    order by c.service_period_start)
+                    from zaltyko.charges c
+                   where c.organization_id = i.organization_id and c.invoice_id = i.id) as "charges"
+            from zaltyko.invoices i
+           where i.organization_id = ${collected.invoice.organizationId}::uuid
+             and i.id <> ${collected.invoice.invoiceId}::uuid
+           order by i.reference
+        `);
+        return result.rows as Array<Record<string, unknown>>;
+      }
+
+      it("disputa de tarjeta abierta → fila track, cuota pagada, aviso con fecha", async () => {
+        const collected = await collectedInvoice("both");
+        const disputeId = refOf(collected.invoice, "dp", "open");
+        const { gateway } = fakeDisputeStripe(collected, stripeDispute(collected, disputeId));
+        const before = await ledgerState(collected);
+
+        const event = disputeEvent(collected, "open", disputeId);
+        expect(await deliverDispute(event, gateway)).toBe("processed");
+
+        const inbox = await inboxRow(event.eventId);
+        const disputes = await disputeRows(collected);
+        expect(disputes).toEqual([
+          {
+            id: expect.any(String),
+            reference: disputeId,
+            chargeReference: collected.chargeRef,
+            status: "needs_response",
+            amountCents: 7000,
+            reasonCode: "fraudulent",
+            fundsWithdrawn: true,
+            attemptId: collected.attemptId,
+            paymentId: await paymentIdOf(collected),
+            lastEventId: inbox?.id,
+            evidenceDueAt: EVIDENCE_DUE.toISOString(),
+            openedAt: OPENED.toISOString(),
+            closedAt: null,
+            reversedAt: null,
+          },
+        ]);
+        // D4: la cuota sigue pagada; nada en el libro.
+        expect(await refundRows(collected)).toEqual([]);
+        expect(await ledgerState(collected)).toEqual(before);
+        expect(await returnedInvoices(collected)).toEqual([]);
+        expect(inbox).toMatchObject({ status: "processed", effectType: DISPUTE_EFFECT_TYPE, effectId: disputes[0]?.id });
+        expect(
+          await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, "dispute_opened", disputeId))
+        ).toEqual([
+          expect.objectContaining({
+            reason: "dispute_opened",
+            providerDisputeReference: disputeId,
+            amountCents: 7000,
+            currency: "EUR",
+            evidenceDueAt: EVIDENCE_DUE.toISOString(),
+          }),
+        ]);
+      }, 60_000);
+
+      it("disputa ganada → close y sin filas en refunds", async () => {
+        const collected = await collectedInvoice("both");
+        const disputeId = refOf(collected.invoice, "dp", "won");
+        const { gateway, state } = fakeDisputeStripe(collected, stripeDispute(collected, disputeId));
+        const before = await ledgerState(collected);
+
+        expect(await deliverDispute(disputeEvent(collected, "wonopen", disputeId), gateway)).toBe("processed");
+        state.dispute = stripeDispute(collected, disputeId, { status: "won", fundsWithdrawn: false, evidenceDueAt: null });
+        const closed = disputeEvent(collected, "wonclosed", disputeId, "charge.dispute.closed");
+        expect(await deliverDispute(closed, gateway)).toBe("processed");
+
+        expect(await disputeRows(collected)).toEqual([
+          expect.objectContaining({
+            status: "won",
+            fundsWithdrawn: false,
+            evidenceDueAt: null,
+            closedAt: EVENT_NOW.toISOString(),
+            reversedAt: null,
+            lastEventId: (await inboxRow(closed.eventId))?.id,
+          }),
+        ]);
+        expect(await refundRows(collected)).toEqual([]);
+        expect(await ledgerState(collected)).toEqual(before);
+        for (const reason of ["dispute_opened", "dispute_won"]) {
+          expect(
+            await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, reason, disputeId)),
+            reason
+          ).toHaveLength(1);
+        }
+      }, 60_000);
+
+      it("disputa perdida → filas dispute_lost por reparto y reversed_at; repetir el evento no duplica", async () => {
+        const collected = await collectedInvoice("both");
+        const disputeId = refOf(collected.invoice, "dp", "lost");
+        const { gateway } = fakeDisputeStripe(collected, stripeDispute(collected, disputeId, { status: "lost" }));
+        const olderAllocation = await allocationOf(collected, collected.invoice.chargeId);
+        const newerAllocation = await allocationOf(collected, collected.secondChargeId);
+
+        const closed = disputeEvent(collected, "lost", disputeId, "charge.dispute.closed");
+        expect(await deliverDispute(closed, gateway)).toBe("processed");
+        // El mismo evt_ → duplicate; otro evento de la misma disputa → se relee y no hay nada nuevo.
+        expect(await deliverDispute(closed, gateway)).toBe("duplicate");
+        const again = disputeEvent(collected, "lostagain", disputeId, "charge.dispute.funds_withdrawn");
+        expect(await deliverDispute(again, gateway)).toBe("processed");
+
+        const inbox = await inboxRow(closed.eventId);
+        const rows = await refundRows(collected);
+        expect(rows.map((row) => [row.reference, row.key, row.amountCents, row.reasonCode, row.providerEventId])).toEqual([
+          [providerRefundReference(disputeId, olderAllocation), `refund:${disputeId}:${olderAllocation}`, 3500, "dispute_lost", inbox?.id],
+          [providerRefundReference(disputeId, newerAllocation), `refund:${disputeId}:${newerAllocation}`, 3500, "dispute_lost", inbox?.id],
+        ]);
+        for (const row of rows) {
+          expect(await outboxPayloads(collected.invoice.organizationId, "payment.refunded", String(row.key))).toHaveLength(1);
+        }
+        const disputes = await disputeRows(collected);
+        expect(disputes).toEqual([
+          expect.objectContaining({ status: "lost", closedAt: EVENT_NOW.toISOString(), reversedAt: EVENT_NOW.toISOString() }),
+        ]);
+        // Nunca se borra ni se cambia un pago: el pago queda refunded y las cuotas siguen pagadas.
+        expect(await ledgerState(collected)).toMatchObject({ paymentStatus: "refunded", allocatedCents: 7000, chargeStatuses: "paid,paid" });
+        expect(inbox).toMatchObject({ effectType: DISPUTE_EFFECT_TYPE, effectId: disputes[0]?.id });
+        expect(await inboxRow(again.eventId)).toMatchObject({ status: "processed", effectType: DISPUTE_EFFECT_TYPE });
+        expect(
+          await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, "dispute_lost", disputeId))
+        ).toHaveLength(1);
+      }, 60_000);
+
+      it("C15: disputa de tarjeta perdida → filas dispute_lost, aviso y ninguna cuota nueva (D3)", async () => {
+        const collected = await collectedInvoice("both");
+        const disputeId = refOf(collected.invoice, "dp", "nodebt");
+        const { gateway } = fakeDisputeStripe(collected, stripeDispute(collected, disputeId, { status: "lost" }));
+
+        expect(await deliverDispute(disputeEvent(collected, "nodebt", disputeId, "charge.dispute.closed"), gateway)).toBe(
+          "processed"
+        );
+
+        expect((await refundRows(collected)).map((row) => row.reasonCode)).toEqual(["dispute_lost", "dispute_lost"]);
+        expect(
+          await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, "dispute_lost", disputeId))
+        ).toEqual([expect.not.objectContaining({ returnedInvoiceId: expect.anything() })]);
+        // Ninguna factura nueva ni la clave de la cuota devuelta.
+        expect(await returnedInvoices(collected)).toEqual([]);
+        expect(
+          await outboxPayloads(collected.invoice.organizationId, "invoice.issued", returnedFeeInvoiceKey(disputeId))
+        ).toEqual([]);
+      }, 60_000);
+
+      it("domiciliación disputada → sepa_returned al crearse", async () => {
+        const collected = await collectedInvoice("both", { kind: "sepa_debit" });
+        const disputeId = refOf(collected.invoice, "du", "created");
+        // Recién abierta en Stripe, todavía sin cerrar: una domiciliación no se puede recurrir.
+        const { gateway } = fakeDisputeStripe(
+          collected,
+          stripeDispute(collected, disputeId, { kind: "sepa_debit", status: "needs_response" })
+        );
+
+        expect(await deliverDispute(disputeEvent(collected, "sepacreated", disputeId), gateway)).toBe("processed");
+
+        expect((await refundRows(collected)).map((row) => [row.reasonCode, row.amountCents])).toEqual([
+          ["sepa_returned", 3500],
+          ["sepa_returned", 3500],
+        ]);
+        expect(await disputeRows(collected)).toEqual([
+          expect.objectContaining({
+            status: "needs_response",
+            chargeReference: refOf(collected.invoice, "py", "paid"),
+            closedAt: null,
+            reversedAt: EVENT_NOW.toISOString(),
+          }),
+        ]);
+        const [returned] = await returnedInvoices(collected);
+        expect(
+          await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, "sepa_returned", disputeId))
+        ).toEqual([
+          expect.objectContaining({ reason: "sepa_returned", amountCents: 7000, returnedInvoiceId: returned?.id }),
+        ]);
+        expect(
+          await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, "dispute_opened", disputeId))
+        ).toEqual([]);
+      }, 60_000);
+
+      it("D2-A: devolución SEPA crea una cuota manual pendiente una sola vez", async () => {
+        const collected = await collectedInvoice("both", { kind: "sepa_debit" });
+        const disputeId = refOf(collected.invoice, "du", "returned");
+        const { gateway, state } = fakeDisputeStripe(collected, stripeDispute(collected, disputeId, { kind: "sepa_debit" }));
+
+        expect(await deliverDispute(disputeEvent(collected, "returned1", disputeId), gateway)).toBe("processed");
+        // Otros eventos de la misma devolución, en cualquier orden: nada nuevo.
+        state.dispute = stripeDispute(collected, disputeId, { kind: "sepa_debit", fundsWithdrawn: true });
+        for (const [name, type] of [
+          ["returned2", "charge.dispute.funds_withdrawn"],
+          ["returned3", "charge.dispute.closed"],
+          ["returned4", "charge.dispute.updated"],
+        ] as const) {
+          expect(await deliverDispute(disputeEvent(collected, name, disputeId, type), gateway), name).toBe("processed");
+        }
+
+        // La cuota nueva: misma familia, persona pagadora y sede; a mano, pendiente y vencida ya; una línea por cuota devuelta.
+        expect(await returnedInvoices(collected)).toEqual([
+          {
+            id: expect.any(String),
+            reference: `DEVUELTA-${disputeId}`,
+            status: "issued",
+            familyId: collected.invoice.familyId,
+            familyPayerId: collected.invoice.payerId,
+            locationId: collected.invoice.locationId,
+            totalCents: 7000,
+            dueAt: EVENT_NOW.toISOString(),
+            lines: `${RETURNED_FEE_LINE_TYPE}:3500:2026-11-01..2026-11-28,${RETURNED_FEE_LINE_TYPE}:3500:2026-12-01..2026-12-28`,
+            charges: "manual:due:3500,manual:due:3500",
+          },
+        ]);
+        expect(
+          await outboxPayloads(collected.invoice.organizationId, "invoice.issued", returnedFeeInvoiceKey(disputeId))
+        ).toHaveLength(1);
+        // Las filas sepa_returned, una vez; la cuota original sigue pagada.
+        expect(await refundRows(collected)).toHaveLength(2);
+        expect(await ledgerState(collected)).toMatchObject({ paymentStatus: "refunded", payments: 1 });
+        expect(
+          (
+            await db.execute(sql`
+              select string_agg(status::text, ',' order by service_period_start) as "statuses"
+                from zaltyko.charges
+               where organization_id = ${collected.invoice.organizationId}::uuid
+                 and invoice_id = ${collected.invoice.invoiceId}::uuid
+            `)
+          ).rows[0]
+        ).toEqual({ statuses: "paid,paid" });
+        expect(
+          await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, "sepa_returned", disputeId))
+        ).toHaveLength(1);
+      }, 60_000);
+
+      it("disputa perdida tras una devolución parcial previa (70 €, devuelto 35 €, disputa de 70 €) → disputa guardada, ninguna fila en refunds, aviso dispute_unallocated, evento processed", async () => {
+        const collected = await collectedInvoice("both");
+        const refundId = refOf(collected.invoice, "re", "beforedispute");
+        expect(
+          await createFamilyCollectionRefundStore().recordAttemptRefunds({
+            organizationId: collected.invoice.organizationId,
+            attemptId: collected.attemptId,
+            paymentIntentId: collected.paymentIntentId,
+            refund: { id: refundId, amountCents: 3500, currency: "EUR", reasonCode: "requested_by_academy", refundedAt: REFUNDED_AT },
+            providerEventId: null,
+            environment: "test",
+            now: REFUNDED_AT,
+          })
+        ).toMatchObject({ outcome: "recorded" });
+        const disputeId = refOf(collected.invoice, "dp", "toomuch");
+        const { gateway } = fakeDisputeStripe(collected, stripeDispute(collected, disputeId, { status: "lost" }));
+        const before = await ledgerState(collected);
+
+        for (const name of ["toomuch1", "toomuch2"]) {
+          const event = disputeEvent(collected, name, disputeId, "charge.dispute.closed");
+          expect(await deliverDispute(event, gateway), name).toBe("processed");
+          expect(await inboxRow(event.eventId), name).toMatchObject({
+            status: "processed",
+            effectType: DISPUTE_EFFECT_TYPE,
+            lastError: null,
+          });
+        }
+
+        // Solo la devolución anterior: la disputa no escribe nada.
+        expect((await refundRows(collected)).map((row) => row.reasonCode)).toEqual(["requested_by_academy"]);
+        expect(await ledgerState(collected)).toEqual(before);
+        expect(await disputeRows(collected)).toEqual([
+          expect.objectContaining({ status: "lost", closedAt: EVENT_NOW.toISOString(), reversedAt: null }),
+        ]);
+        expect(
+          await outboxPayloads(
+            collected.invoice.organizationId,
+            NEEDS_REVIEW_EVENT,
+            noticeKey(collected, "dispute_unallocated", disputeId)
+          )
+        ).toEqual([expect.objectContaining({ reason: "dispute_unallocated", amountCents: 7000 })]);
+        expect(
+          await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, "dispute_lost", disputeId))
+        ).toEqual([]);
+      }, 60_000);
+
+      it("C14: disputa perdida de 35 € tras una devolución de 35 € → una fila dispute_lost por lo que queda", async () => {
+        const collected = await collectedInvoice("both");
+        const refundId = refOf(collected.invoice, "re", "half");
+        await createFamilyCollectionRefundStore().recordAttemptRefunds({
+          organizationId: collected.invoice.organizationId,
+          attemptId: collected.attemptId,
+          paymentIntentId: collected.paymentIntentId,
+          refund: { id: refundId, amountCents: 3500, currency: "EUR", reasonCode: "requested_by_academy", refundedAt: REFUNDED_AT },
+          providerEventId: null,
+          environment: "test",
+          now: REFUNDED_AT,
+        });
+        const disputeId = refOf(collected.invoice, "dp", "rest");
+        const { gateway } = fakeDisputeStripe(
+          collected,
+          stripeDispute(collected, disputeId, { status: "lost", amountCents: 3500 })
+        );
+        const newerAllocation = await allocationOf(collected, collected.secondChargeId);
+
+        expect(await deliverDispute(disputeEvent(collected, "rest", disputeId, "charge.dispute.closed"), gateway)).toBe(
+          "processed"
+        );
+
+        expect((await refundRows(collected)).map((row) => [row.reasonCode, row.key, row.amountCents])).toEqual([
+          ["requested_by_academy", `refund:${refundId}:${await allocationOf(collected, collected.invoice.chargeId)}`, 3500],
+          ["dispute_lost", `refund:${disputeId}:${newerAllocation}`, 3500],
+        ]);
+        expect(await ledgerState(collected)).toMatchObject({ paymentStatus: "refunded", chargeStatuses: "paid,paid" });
+        expect(await disputeRows(collected)).toEqual([expect.objectContaining({ reversedAt: EVENT_NOW.toISOString() })]);
+      }, 60_000);
+
+      it("disputa perdida en dos cuotas → claves refund:dp_…:{allocationId} distintas, sin 23505", async () => {
+        const collected = await collectedInvoice("both");
+        const disputeId = refOf(collected.invoice, "dp", "split");
+        const { gateway } = fakeDisputeStripe(
+          collected,
+          stripeDispute(collected, disputeId, { status: "lost", amountCents: 5000 })
+        );
+        const olderAllocation = await allocationOf(collected, collected.invoice.chargeId);
+        const newerAllocation = await allocationOf(collected, collected.secondChargeId);
+
+        const event = disputeEvent(collected, "split", disputeId, "charge.dispute.closed");
+        expect(await deliverDispute(event, gateway)).toBe("processed");
+        expect(await inboxRow(event.eventId)).toMatchObject({ status: "processed", lastError: null });
+
+        expect((await refundRows(collected)).map((row) => [row.key, row.amountCents])).toEqual([
+          [`refund:${disputeId}:${olderAllocation}`, 3500],
+          [`refund:${disputeId}:${newerAllocation}`, 1500],
+        ]);
+        expect((await ledgerState(collected)).paymentStatus).toBe("partially_refunded");
+      }, 60_000);
+
+      it("perdida y después ganada (funds_reinstated) → las filas se quedan, sin borrar nada, y aviso dispute_reinstated", async () => {
+        const collected = await collectedInvoice("both");
+        const disputeId = refOf(collected.invoice, "dp", "reinstated");
+        const { gateway, state } = fakeDisputeStripe(collected, stripeDispute(collected, disputeId, { status: "lost" }));
+
+        expect(await deliverDispute(disputeEvent(collected, "relost", disputeId, "charge.dispute.closed"), gateway)).toBe(
+          "processed"
+        );
+        const rowsAfterLoss = await refundRows(collected);
+        expect(rowsAfterLoss).toHaveLength(2);
+
+        state.dispute = stripeDispute(collected, disputeId, { status: "won", fundsWithdrawn: false, evidenceDueAt: null });
+        expect(
+          await deliverDispute(disputeEvent(collected, "reinstated", disputeId, "charge.dispute.funds_reinstated"), gateway)
+        ).toBe("processed");
+
+        // Nada se deshace: mismas filas, el pago sigue refunded; la academia lo revisa en su panel de Stripe.
+        expect(await refundRows(collected)).toEqual(rowsAfterLoss);
+        expect((await ledgerState(collected)).paymentStatus).toBe("refunded");
+        expect(await disputeRows(collected)).toEqual([
+          expect.objectContaining({ status: "won", fundsWithdrawn: false, reversedAt: EVENT_NOW.toISOString() }),
+        ]);
+        for (const [reason, count] of [
+          ["dispute_lost", 1],
+          ["dispute_reinstated", 1],
+          ["dispute_won", 0],
+        ] as const) {
+          expect(
+            await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, reason, disputeId)),
+            reason
+          ).toHaveLength(count);
+        }
+      }, 60_000);
+
+      it("orden de llegada: closed (perdida) antes que created, y una lectura atrasada → una sola reversión y la disputa sigue cerrada", async () => {
+        const collected = await collectedInvoice("both");
+        const disputeId = refOf(collected.invoice, "dp", "order");
+        const { gateway, state } = fakeDisputeStripe(collected, stripeDispute(collected, disputeId, { status: "lost" }));
+
+        expect(await deliverDispute(disputeEvent(collected, "order1", disputeId, "charge.dispute.closed"), gateway)).toBe(
+          "processed"
+        );
+        // Llega tarde el created: Stripe ya dice perdida.
+        expect(await deliverDispute(disputeEvent(collected, "order2", disputeId), gateway)).toBe("processed");
+        // Una lectura atrasada (Stripe aún decía abierta) no la reabre ni escribe de más.
+        state.dispute = stripeDispute(collected, disputeId, { status: "needs_response" });
+        expect(await deliverDispute(disputeEvent(collected, "order3", disputeId, "charge.dispute.updated"), gateway)).toBe(
+          "processed"
+        );
+
+        expect(await refundRows(collected)).toHaveLength(2);
+        expect(await disputeRows(collected)).toEqual([
+          expect.objectContaining({ status: "lost", closedAt: EVENT_NOW.toISOString(), reversedAt: EVENT_NOW.toISOString() }),
+        ]);
+        expect(
+          await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, "dispute_opened", disputeId))
+        ).toEqual([]);
+        expect(
+          await outboxPayloads(collected.invoice.organizationId, NEEDS_REVIEW_EVENT, noticeKey(collected, "dispute_lost", disputeId))
+        ).toHaveLength(1);
+      }, 60_000);
+
+      it("disputa de un cobro que el libro tenía cerrado (cobro tardío) → primero se registra el pago y después se guarda la disputa", async () => {
+        const collected = await collectedInvoice("both", { late: true });
+        const disputeId = refOf(collected.invoice, "dp", "late");
+        const { gateway } = fakeDisputeStripe(collected, stripeDispute(collected, disputeId));
+        const connectedAccount = accountOf(collected.invoice);
+        // Stripe simulado del cobro: lo cobró tarde, entero. Un evento nunca crea, confirma ni cancela.
+        const never = (name: string) => async () => {
+          throw new Error(`Una disputa no ${name} un cobro`);
+        };
+        const paymentGateway: FamilyCollectionGateway = {
+          createPayment: vi.fn<FamilyCollectionGateway["createPayment"]>(never("crea")),
+          confirmPayment: vi.fn<FamilyCollectionGateway["confirmPayment"]>(never("confirma")),
+          cancelPayment: vi.fn<FamilyCollectionGateway["cancelPayment"]>(never("cancela")),
+          findPaymentByAttempt: vi.fn<FamilyCollectionGateway["findPaymentByAttempt"]>(async () => null),
+          retrievePayment: vi.fn<FamilyCollectionGateway["retrievePayment"]>(async (request) => {
+            if (request.connectedAccount !== connectedAccount || request.paymentIntentId !== collected.paymentIntentId) {
+              throw Object.assign(new Error("CI: cobro inexistente"), { type: "StripeInvalidRequestError", code: "resource_missing" });
+            }
+            return {
+              id: collected.paymentIntentId,
+              status: "succeeded",
+              lastErrorCode: null,
+              lastDeclineCode: null,
+              amountReceivedCents: 7000,
+              currency: "EUR",
+              attemptIdFromMetadata: null,
+            };
+          }),
+        };
+        expect((await ledgerState(collected)).attemptStatus).toBe("failed");
+
+        const event = disputeEvent(collected, "late", disputeId);
+        expect(
+          await deliverDispute(event, gateway, (input) => processPaymentIntentEvent(input, { gateway: paymentGateway }))
+        ).toBe("processed");
+
+        expect(await ledgerState(collected)).toMatchObject({
+          attemptStatus: "succeeded",
+          payments: 1,
+          paymentStatus: "succeeded",
+          chargeStatuses: "paid,paid",
+        });
+        expect(await disputeRows(collected)).toEqual([
+          expect.objectContaining({
+            status: "needs_response",
+            attemptId: collected.attemptId,
+            paymentId: await paymentIdOf(collected),
+            reversedAt: null,
+          }),
+        ]);
+        expect(await inboxRow(event.eventId)).toMatchObject({ status: "processed", effectType: DISPUTE_EFFECT_TYPE });
+      }, 60_000);
+    });
   });
 
   it("la candidata deja la base igual al deshacerla", async () => {
