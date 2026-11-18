@@ -30,3 +30,16 @@ export const FAMILY_AUTOMATIC_SEPA_COLLECTION_FLAG_ENV = "ZALTYKO_FAMILY_AUTOMAT
 export function isFamilyAutomaticSepaCollectionFlagEnabled(): boolean {
   return process.env[FAMILY_AUTOMATIC_SEPA_COLLECTION_FLAG_ENV] === "true";
 }
+
+export const FAMILY_COLLECTION_EVENTS_FLAG_ENV = "ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED";
+
+/**
+ * Eventos de Stripe de los cobros a familias (Fase 4): la ruta
+ * /api/stripe/connect/payments-webhook y todo lo que cuelga de ella. Apagada
+ * por defecto y solo el texto exacto "true" la enciende. Aun encendida, solo
+ * actúa con clave de prueba de Stripe, fuera de la base de producción y con
+ * el almacenamiento de las Fases 1–4 presente.
+ */
+export function isFamilyCollectionEventsFlagEnabled(): boolean {
+  return process.env[FAMILY_COLLECTION_EVENTS_FLAG_ENV] === "true";
+}

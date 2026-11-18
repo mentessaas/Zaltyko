@@ -4,15 +4,24 @@ import { resolve } from "node:path";
 
 import { sql } from "drizzle-orm";
 import { Client } from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { db } from "@/db";
+import { handleFamilyCollectionEvent } from "@/modules/family-collection/application/family-collection-events";
 import {
   familyCollectionStorageShape,
   isFamilyCollectionEventsStorageAvailable,
   isFamilyCollectionStorageAvailable,
   type FamilyCollectionStorageShape,
 } from "@/modules/family-collection/application/storage";
+import {
+  providerEventPayload,
+  type ConnectedAccountEvent,
+} from "@/modules/family-collection/domain/provider-event";
+import {
+  claimProviderEvent,
+  providerEventPayloadSha256,
+} from "@/modules/family-collection/infrastructure/provider-event-inbox";
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
 import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
 
@@ -824,6 +833,212 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
       select count(*)::int as n from pg_policies where schemaname = 'zaltyko' and tablename = 'family_collection_disputes'
     `);
     expect(policies.rows).toEqual([{ n: 0 }]);
+  });
+
+  /**
+   * Tarea 2: buzón de eventos de Stripe e idempotencia por evt_, con la Fase 4
+   * instalada. Los cerrojos de entorno se abren solo dentro de este bloque
+   * (clave de prueba sintética y base local); los manejadores son simulados y
+   * ninguno llama a Stripe.
+   */
+  describe("buzón de eventos de Stripe (Tarea 2)", () => {
+    const EVENT_NOW = new Date("2026-11-20T10:00:00.000Z");
+    const EVENT_CREATED = 1_795_168_795;
+    const minutesAfter = (minutes: number) => new Date(EVENT_NOW.getTime() + minutes * 60 * 1000);
+    const noEffect = () => vi.fn().mockResolvedValue({ effectType: null, effectId: null });
+
+    beforeEach(() => {
+      vi.stubEnv("ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED", "true");
+      vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_ci_synthetic");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    /** Cuenta conectada `test` que crea createCollectableInvoice. */
+    const accountOf = (invoice: Invoice) => `acct_CI${invoice.organizationId.slice(0, 8)}`;
+
+    function eventFor(account: string, overrides: Partial<ConnectedAccountEvent> = {}): ConnectedAccountEvent {
+      const tag = randomUUID().replace(/-/g, "");
+      return {
+        eventId: `evt_CI${tag}`,
+        type: "payment_intent.succeeded",
+        accountId: account,
+        livemode: false,
+        created: EVENT_CREATED,
+        objectId: `pi_CI${tag}`,
+        objectType: "payment_intent",
+        ...overrides,
+      };
+    }
+
+    async function inboxRows(eventId: string) {
+      const result = await db.execute(sql`
+        select id::text as "id", organization_id::text as "organizationId", processor,
+               environment::text as "environment", event_type as "eventType", payload,
+               payload_sha256 as "sha", signature_verified as "signatureVerified", status::text as "status",
+               attempts, last_error as "lastError", effect_type as "effectType", effect_id::text as "effectId",
+               received_at as "receivedAt", processed_at as "processedAt"
+          from zaltyko.payment_provider_events
+         where provider_event_id = ${eventId}
+      `);
+      return result.rows as Array<Record<string, unknown>>;
+    }
+
+    const iso = (value: unknown) => (value instanceof Date ? value.toISOString() : value);
+
+    it("mismo evt_ dos veces → un solo procesado; la segunda responde duplicate", async () => {
+      const invoice = await createCollectableInvoice();
+      const event = eventFor(accountOf(invoice));
+      const paymentIntent = noEffect();
+
+      expect(await handleFamilyCollectionEvent(event, { now: EVENT_NOW, handlers: { paymentIntent } })).toBe("processed");
+      // Un reenvío una hora después: ya está procesado.
+      expect(await handleFamilyCollectionEvent(event, { now: minutesAfter(60), handlers: { paymentIntent } })).toBe(
+        "duplicate"
+      );
+      expect(paymentIntent).toHaveBeenCalledTimes(1);
+      const rows = await inboxRows(event.eventId);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ status: "processed", attempts: 1, lastError: null });
+      expect(iso(rows[0]!.processedAt)).toBe(EVENT_NOW.toISOString());
+
+      // Dos entregas a la vez del mismo evento: una lo procesa y la otra es duplicate.
+      const twice = eventFor(accountOf(invoice));
+      const concurrent = noEffect();
+      const outcomes = await Promise.all([
+        handleFamilyCollectionEvent(twice, { now: EVENT_NOW, handlers: { paymentIntent: concurrent } }),
+        handleFamilyCollectionEvent(twice, { now: EVENT_NOW, handlers: { paymentIntent: concurrent } }),
+      ]);
+      expect([...outcomes].sort()).toEqual(["duplicate", "processed"]);
+      expect(concurrent).toHaveBeenCalledTimes(1);
+      expect(await inboxRows(twice.eventId)).toHaveLength(1);
+    }, 60_000);
+
+    it("manejador que lanza → fila failed con solo el código; el reenvío lo procesa", async () => {
+      const invoice = await createCollectableInvoice();
+      const event = eventFor(accountOf(invoice));
+      const failure = Object.assign(new Error("La tarjeta de Tutor Disputa Prueba fue rechazada"), {
+        type: "StripeCardError",
+        code: "card_declined",
+      });
+
+      await expect(
+        handleFamilyCollectionEvent(event, { now: EVENT_NOW, handlers: { paymentIntent: vi.fn().mockRejectedValue(failure) } })
+      ).rejects.toBe(failure);
+      const failed = await inboxRows(event.eventId);
+      expect(failed).toHaveLength(1);
+      expect(failed[0]).toMatchObject({ status: "failed", attempts: 1, lastError: "card_declined", processedAt: null });
+      expect(JSON.stringify(failed)).not.toContain("Tutor");
+
+      // Stripe reenvía (la ruta respondió 500): esta vez el manejador funciona.
+      const effectId = randomUUID();
+      const paymentIntent = vi.fn().mockResolvedValue({ effectType: "payment", effectId });
+      expect(await handleFamilyCollectionEvent(event, { now: minutesAfter(1), handlers: { paymentIntent } })).toBe(
+        "processed"
+      );
+      expect(paymentIntent).toHaveBeenCalledWith(
+        expect.objectContaining({ inboxId: failed[0]!.id, eventId: event.eventId, organizationId: invoice.organizationId })
+      );
+      const processed = await inboxRows(event.eventId);
+      expect(processed).toHaveLength(1);
+      expect(processed[0]).toMatchObject({
+        id: failed[0]!.id,
+        status: "processed",
+        attempts: 2,
+        lastError: null,
+        effectType: "payment",
+        effectId,
+      });
+      expect(iso(processed[0]!.processedAt)).toBe(minutesAfter(1).toISOString());
+    }, 60_000);
+
+    it("el buzón guarda solo type, account, objectType, objectId y created", async () => {
+      const invoice = await createCollectableInvoice();
+      const event = eventFor(accountOf(invoice), {
+        type: "refund.updated",
+        objectType: "refund",
+        objectId: `pyr_CI${randomUUID().replace(/-/g, "")}`,
+      });
+      const refund = noEffect();
+
+      expect(await handleFamilyCollectionEvent(event, { now: EVENT_NOW, handlers: { refund } })).toBe("processed");
+      expect(refund).toHaveBeenCalledTimes(1);
+      const [row] = await inboxRows(event.eventId);
+      const payload = row!.payload as Record<string, unknown>;
+      expect(Object.keys(payload).sort()).toEqual(["account", "created", "objectId", "objectType", "type"]);
+      expect(payload).toEqual({
+        type: "refund.updated",
+        account: accountOf(invoice),
+        objectType: "refund",
+        objectId: event.objectId,
+        created: EVENT_CREATED,
+      });
+      expect(row).toMatchObject({
+        organizationId: invoice.organizationId,
+        processor: "stripe",
+        environment: "sandbox",
+        eventType: "refund.updated",
+        sha: providerEventPayloadSha256(providerEventPayload(event)),
+        signatureVerified: true,
+      });
+      expect(iso(row!.receivedAt)).toBe(EVENT_NOW.toISOString());
+    }, 60_000);
+
+    it("evento livemode true → ignored y sin fila en el buzón", async () => {
+      const invoice = await createCollectableInvoice();
+      const paymentIntent = noEffect();
+      const live = eventFor(accountOf(invoice), { livemode: true });
+
+      expect(await handleFamilyCollectionEvent(live, { now: EVENT_NOW, handlers: { paymentIntent } })).toBe("ignored");
+      expect(await inboxRows(live.eventId)).toEqual([]);
+      expect(paymentIntent).not.toHaveBeenCalled();
+    }, 60_000);
+
+    it("cuenta acct_ desconocida o de otro entorno → ignored y sin fila en el buzón", async () => {
+      const invoice = await createCollectableInvoice();
+      const short = invoice.organizationId.slice(0, 8);
+      const liveAccount = `acct_CIlive${short}`;
+      // La misma academia con una cuenta Live: los eventos de esa cuenta no cuentan.
+      await db.execute(sql`
+        insert into zaltyko.organization_payment_provider_accounts (
+          id, organization_id, environment, provider_account_reference, status,
+          card_payments_capability_status, sepa_debit_payments_capability_status, requirements_state
+        ) values (
+          ${randomUUID()}::uuid, ${invoice.organizationId}::uuid, 'live'::zaltyko.stripe_environment, ${liveAccount},
+          'active'::zaltyko.organization_payment_account_status, 'active', 'active', 'none'
+        )
+      `);
+      const paymentIntent = noEffect();
+
+      for (const event of [eventFor(`acct_CIunknown${short}`), eventFor(liveAccount)]) {
+        expect(await handleFamilyCollectionEvent(event, { now: EVENT_NOW, handlers: { paymentIntent } })).toBe("ignored");
+        expect(await inboxRows(event.eventId)).toEqual([]);
+      }
+      expect(paymentIntent).not.toHaveBeenCalled();
+    }, 60_000);
+
+    it("en curso hace menos de 5 min → duplicate; más de 5 min → se vuelve a reclamar; nunca cambia de academia", async () => {
+      const invoice = await createCollectableInvoice();
+      const event = eventFor(accountOf(invoice));
+      const input = { organizationId: invoice.organizationId, event };
+
+      const first = await claimProviderEvent({ ...input, now: EVENT_NOW });
+      expect(first.claim).toBe("process");
+      expect(await claimProviderEvent({ ...input, now: minutesAfter(4) })).toEqual({ claim: "duplicate", inboxId: first.inboxId });
+      expect(await claimProviderEvent({ ...input, now: minutesAfter(6) })).toEqual({ claim: "process", inboxId: first.inboxId });
+      // El mismo evt_ desde otra academia no se lleva la fila, aunque esté abandonada.
+      const other = await createCollectableInvoice();
+      expect(
+        await claimProviderEvent({ organizationId: other.organizationId, event, now: minutesAfter(60) })
+      ).toEqual({ claim: "duplicate", inboxId: first.inboxId });
+
+      const rows = await inboxRows(event.eventId);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ organizationId: invoice.organizationId, status: "processing", attempts: 2 });
+    }, 60_000);
   });
 
   it("la candidata deja la base igual al deshacerla", async () => {
