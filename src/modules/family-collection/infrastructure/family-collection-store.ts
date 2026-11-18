@@ -64,7 +64,9 @@ import {
   isFamilyCollectionEventsStorageAvailable,
   isFamilyCollectionStorageAvailable,
 } from "@/modules/family-collection/application/storage";
+import { isFamilyCollectionReceiptsFlagEnabled } from "@/modules/family-collection/application/config";
 import { collectionWindowAnchor } from "@/modules/family-collection/domain/authentication-window";
+import { FAMILY_RECEIPT } from "@/modules/family-collection/domain/family-receipt";
 import {
   providerRefundIdempotencyKey,
   providerRefundReference,
@@ -1327,6 +1329,14 @@ async function recordCollectedPayment(
     now: input.now,
     audit: true,
   });
+  // Fase 4 (Tarea 9, D6): el justificante de pago para la familia, en la
+  // misma transacción que el cobro y una sola vez por intento (clave
+  // familyReceiptKey). Solo con ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED:
+  // apagada no se escribe nada, y encenderla después no crea justificantes
+  // de cobros anteriores. Solo ids: el correo lo envía deliverFamilyReceipts.
+  if (isFamilyCollectionReceiptsFlagEnabled()) {
+    await recordTransition(tx, attempt, { event: FAMILY_RECEIPT, payload: { paymentId: payment.id }, now: input.now });
+  }
   if (allocation.status === "needs_review") {
     await recordTransition(tx, attempt, {
       event: "needs_review",

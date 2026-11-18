@@ -7,6 +7,11 @@ import {
   type FamilyFailureNoticeDelivery,
 } from "@/modules/family-collection/application/family-failure-notice-delivery";
 import {
+  deliverFamilyReceipts,
+  FAMILY_RECEIPT_DEADLINE_MS,
+  type FamilyReceiptDelivery,
+} from "@/modules/family-collection/application/family-receipt-delivery";
+import {
   FAMILY_COLLECTION_DEADLINE_MS,
   runFamilyCollection,
   type FamilyCollectionRunResult,
@@ -21,6 +26,8 @@ export const maxDuration = 300;
 const NO_STORE = "private, no-store";
 /** Tiempo como mucho para los avisos pendientes de otro día, antes de cobrar. */
 const EARLY_NOTICES_DEADLINE_MS = 20_000;
+/** Todo el trabajo cabe aquí, con margen bajo los 300 s de la ruta. */
+const ROUTE_BUDGET_MS = 290_000;
 
 /**
  * @route-auth cron
@@ -42,6 +49,10 @@ const EARLY_NOTICES_DEADLINE_MS = 20_000;
  * el primer envío (240 s en total, con 20 s como mucho para ese envío; el
  * segundo, 30 s), por debajo de los 300 s de la ruta. Si un envío falla, el
  * cobro no se ve afectado («familyNotices: null» si fallan los dos).
+ * Al final, con el tiempo que quede (20 s como mucho), los justificantes de
+ * pago a las familias (Fase 4, Tarea 9, deliverFamilyReceipts): sin la
+ * bandera ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED, ceros sin leer la base.
+ * Si fallan, el cobro no se ve afectado («receipts: null»).
  * Sin el secreto no se toca nada (401, o 503 si falta CRON_SECRET).
  * La respuesta solo lleva contadores: nunca ids, importes ni datos de familias.
  */
@@ -57,7 +68,10 @@ export async function POST(request: Request) {
       const spent = Math.max(0, Date.now() - startedAt);
       const run = await runFamilyCollection({ deadlineMs: Math.max(0, FAMILY_COLLECTION_DEADLINE_MS - spent) });
       const late = await deliverNotices();
-      return { run, familyNotices: mergeNotices(early, late) };
+      // Justificantes al final, con el tiempo que quede.
+      const remaining = Math.max(0, ROUTE_BUDGET_MS - Math.max(0, Date.now() - startedAt));
+      const receipts = await deliverReceipts(Math.min(FAMILY_RECEIPT_DEADLINE_MS, remaining));
+      return { run, familyNotices: mergeNotices(early, late), receipts };
     });
     if (!execution.acquired || !execution.value) {
       return noStore(apiSuccess({ skipped: true, reason: "ALREADY_RUNNING" }));
@@ -66,6 +80,7 @@ export async function POST(request: Request) {
       apiSuccess({
         ...countersOnly(execution.value.run),
         familyNotices: noticeCounters(execution.value.familyNotices),
+        receipts: noticeCounters(execution.value.receipts),
       })
     );
   } catch (error) {
@@ -99,6 +114,20 @@ async function deliverNotices(deadlineMs?: number): Promise<FamilyFailureNoticeD
   }
 }
 
+/** Justificantes de pago; un fallo aquí no tumba la respuesta del cobro. */
+async function deliverReceipts(deadlineMs: number): Promise<FamilyReceiptDelivery | null> {
+  try {
+    return await deliverFamilyReceipts({ deadlineMs });
+  } catch (error) {
+    // Solo el nombre y el código: nunca mensajes de la base ni del correo.
+    logger.error("Error al enviar los justificantes de pago a las familias", undefined, {
+      errorName: error instanceof Error ? error.name : "unknown",
+      errorCode: errorCode(error),
+    });
+    return null;
+  }
+}
+
 /**
  * Suma de los dos envíos. Los pendientes (sin resultado guardado) son los del
  * último envío que funcionó: el segundo vuelve a mirar los del primero.
@@ -112,7 +141,7 @@ function mergeNotices(
   return { sent: early.sent + late.sent, notSent: early.notSent + late.notSent, pending: late.pending };
 }
 
-/** Solo los tres contadores de los avisos. */
+/** Solo los tres contadores de los avisos (o de los justificantes). */
 function noticeCounters(delivery: FamilyFailureNoticeDelivery | null): FamilyFailureNoticeDelivery | null {
   if (!delivery) return null;
   return { sent: delivery.sent, notSent: delivery.notSent, pending: delivery.pending };

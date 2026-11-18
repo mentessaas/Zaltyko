@@ -7,6 +7,7 @@ import { logger } from "@/lib/logger";
 import {
   isFamilyAutomaticCollectionFlagEnabled,
   isFamilyAutomaticSepaCollectionFlagEnabled,
+  isFamilyCollectionReceiptsFlagEnabled,
 } from "@/modules/family-collection/application/config";
 import {
   isProductionDatabase,
@@ -137,6 +138,28 @@ async function loadAutomaticCollectionModes(
   }
 }
 
+/**
+ * Fase 4 (Tarea 9): enlaces «Ver justificante» de las cuotas cobradas que paga
+ * esta cuenta. Con la bandera de justificantes apagada, ninguno y sin cargar
+ * el módulo (se lee del entorno). Si la lectura falla, sin enlaces y en el
+ * registro solo el tipo de error.
+ */
+async function loadReceiptLinks(userId: string, academies: FamilyAcademyFees[]): Promise<Record<string, string>> {
+  if (!isFamilyCollectionReceiptsFlagEnabled()) return {};
+  const invoiceIds = academies.flatMap((academy) => academy.fees.map((fee) => fee.invoiceId));
+  if (invoiceIds.length === 0) return {};
+  if (resolveConnectEnvironment() !== "test" || isProductionDatabase()) return {};
+  try {
+    const { getFamilyReceiptLinks } = await import("@/modules/family-collection/application/family-receipt-reads");
+    return await getFamilyReceiptLinks({ userId, invoiceIds });
+  } catch (error) {
+    logger.warn("family_portal.receipt_links_failed", {
+      errorName: error instanceof Error ? error.name : "unknown",
+    });
+    return {};
+  }
+}
+
 export default async function FamilyFeesPage() {
   const user = await requireFamilyUser("/familia/cuotas");
   const academies = await getFamilyFees({ userId: user.id });
@@ -145,10 +168,11 @@ export default async function FamilyFeesPage() {
   let collectionReads: Promise<CollectionReads> | null = null;
   const loadReads = () =>
     (collectionReads ??= import("@/modules/family-collection/application/family-collection-reads"));
-  const [automaticPayments, automaticCollection, automaticCollectionModes] = await Promise.all([
+  const [automaticPayments, automaticCollection, automaticCollectionModes, receiptLinks] = await Promise.all([
     loadAutomaticPayments(user.id, academies),
     loadAutomaticCollection(user.id, academies, loadReads),
     loadAutomaticCollectionModes(user.id, academies, loadReads),
+    loadReceiptLinks(user.id, academies),
   ]);
 
   return (
@@ -165,6 +189,7 @@ export default async function FamilyFeesPage() {
         automaticCollection={automaticCollection}
         automaticCollectionModes={automaticCollectionModes}
         sepaCollectsAutomatically={isFamilyAutomaticSepaCollectionFlagEnabled()}
+        receiptLinks={receiptLinks}
       />
     </FamilyPortalShell>
   );

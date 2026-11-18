@@ -1,9 +1,12 @@
+import Link from "next/link";
+
 import {
   FamilyAutomaticPaymentCard,
   type FamilyAutomaticPaymentCards,
 } from "@/components/family-portal/FamilyAutomaticPaymentCard";
 import { FamilyConfirmPaymentButton } from "@/components/family-portal/FamilyConfirmPaymentButton";
 import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
+import { familyReceiptPath } from "@/modules/family-collection/domain/family-receipt";
 import type { FamilyAcademyFees } from "@/modules/family-portal/application/family-portal-reads";
 import {
   FAMILY_AUTOMATIC_PAYMENT_NOTICE,
@@ -30,6 +33,7 @@ export function FamilyFeesView({
   automaticCollection,
   automaticCollectionModes,
   sepaCollectsAutomatically = false,
+  receiptLinks,
 }: {
   academies: FamilyAcademyFees[];
   /** Por academia, una tarjeta de pago automático por familia que paga. */
@@ -46,6 +50,12 @@ export function FamilyFeesView({
   automaticCollectionModes?: FamilyAutomaticCollectionModes;
   /** La domiciliación se cobra sola; sin indicar, no (ninguna promesa de cobro por domiciliación). */
   sepaCollectsAutomatically?: boolean;
+  /**
+   * Fase 4 (Tarea 9): por factura, el intento cuyo justificante de pago puede
+   * abrir la persona que paga (enlace «Ver justificante»). Sin indicar, o con
+   * la bandera de justificantes apagada, ningún enlace.
+   */
+  receiptLinks?: Record<string, string>;
 }) {
   const offersAutomaticPayment = academies.some(
     (academy) => (automaticPayments?.[academy.organizationId]?.length ?? 0) > 0
@@ -84,6 +94,7 @@ export function FamilyFeesView({
                   {academy.fees.map((fee) => {
                     const period = formatPeriod(fee.periodStart, fee.periodEnd);
                     const automatic = automaticCollection?.[fee.invoiceId];
+                    const receiptAttemptId = receiptLinks?.[fee.invoiceId];
                     return (
                       <li key={fee.invoiceId} className={ownerUi.listItem}>
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -154,6 +165,13 @@ export function FamilyFeesView({
                             }`}
                           >
                             {familyAutomaticFeeText(automatic)}
+                          </p>
+                        ) : null}
+                        {receiptAttemptId ? (
+                          <p className="mt-3">
+                            <Link href={familyReceiptPath(receiptAttemptId)} className={ownerUi.backLink}>
+                              Ver justificante
+                            </Link>
                           </p>
                         ) : null}
                       </li>

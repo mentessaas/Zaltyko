@@ -61,3 +61,19 @@ export function isFamilyPaymentConfirmationOpen(): boolean {
     !isProductionDatabase()
   );
 }
+
+export const FAMILY_COLLECTION_RECEIPTS_FLAG_ENV = "ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED";
+
+/**
+ * Fase 4 (Tarea 9, D6: «Sí, apagado hasta abogado»): justificante de pago a la
+ * familia por correo y en una página imprimible («no es factura», sin
+ * numeración). Apagada por defecto y solo el texto exacto "true" la enciende;
+ * no se enciende con familias reales sin la respuesta del gestor (L6).
+ * Apagada: al registrar un cobro no se escribe el evento del justificante, no
+ * se envía ningún correo, la página responde 404 y el portal no enseña el
+ * enlace. Encenderla no envía justificantes de cobros anteriores: el evento
+ * solo se escribe al registrar el cobro.
+ */
+export function isFamilyCollectionReceiptsFlagEnabled(): boolean {
+  return process.env[FAMILY_COLLECTION_RECEIPTS_FLAG_ENV] === "true";
+}

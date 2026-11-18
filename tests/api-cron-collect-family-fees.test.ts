@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   reconcile: vi.fn(),
   collect: vi.fn(),
   deliverNotices: vi.fn(),
+  deliverReceipts: vi.fn(),
 }));
 
 vi.mock("@/db", () => ({ db: {} }));
@@ -60,6 +61,12 @@ vi.mock("@/modules/family-collection/application/family-failure-notice-delivery"
   deliverFamilyFailureNotices: mocks.deliverNotices,
 }));
 
+// Tarea 9: el envío de los justificantes de pago (nunca un correo de verdad).
+vi.mock("@/modules/family-collection/application/family-receipt-delivery", () => ({
+  deliverFamilyReceipts: mocks.deliverReceipts,
+  FAMILY_RECEIPT_DEADLINE_MS: 20_000,
+}));
+
 import { GET, POST } from "@/app/api/cron/collect-family-fees/route";
 import type { RunState } from "@/modules/family-collection/application/family-collection-steps";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -74,6 +81,7 @@ const NO_NOTICES = { sent: 0, notSent: 0, pending: 0 };
 
 const ZERO = {
   familyNotices: NO_NOTICES,
+  receipts: NO_NOTICES,
   enabled: false,
   complete: true,
   reconciled: 0,
@@ -109,6 +117,7 @@ describe("cron del cobro automático de cuotas", () => {
     mocks.createStore.mockReturnValue({ isStorageAvailable: mocks.isStorageAvailable });
     mocks.createGateway.mockReturnValue(gateway);
     mocks.deliverNotices.mockResolvedValue(NO_NOTICES);
+    mocks.deliverReceipts.mockResolvedValue(NO_NOTICES);
     // Fase A: pone al día un intento reanudado y uno releído.
     mocks.reconcile.mockImplementation(async (state: RunState) => {
       state.result.reconciled += 2;
@@ -162,6 +171,7 @@ describe("cron del cobro automático de cuotas", () => {
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect((await body(response)).data).toEqual({ skipped: true, reason: "ALREADY_RUNNING" });
     expect(mocks.deliverNotices).not.toHaveBeenCalled();
+    expect(mocks.deliverReceipts).not.toHaveBeenCalled();
     expect(mocks.createStore).not.toHaveBeenCalled();
     expect(mocks.reconcile).not.toHaveBeenCalled();
     expect(mocks.collect).not.toHaveBeenCalled();
@@ -248,6 +258,7 @@ describe("cron del cobro automático de cuotas", () => {
       resumed: 0,
       needsReview: 1,
       familyNotices: NO_NOTICES,
+      receipts: NO_NOTICES,
     });
     expect(JSON.stringify(data)).not.toMatch(/pi_|20000000-/);
   });
@@ -314,6 +325,46 @@ describe("cron del cobro automático de cuotas", () => {
     const data = (await body(response)).data;
     expect(data).toMatchObject({ enabled: true, collected: 4, familyNotices: null });
     expect(mocks.error).toHaveBeenCalledWith("Error al enviar los avisos de cobro fallido a las familias", undefined, {
+      errorName: "Error",
+      errorCode: "53300",
+    });
+    expect(JSON.stringify(mocks.error.mock.calls)).not.toContain("correo de la familia");
+  });
+
+  it("ruta cron: contadores de justificantes en la respuesta, sin ids", async () => {
+    env.flag = true;
+    mocks.deliverReceipts.mockResolvedValueOnce({
+      sent: 2,
+      notSent: 1,
+      pending: 0,
+      // Lo que no es un contador nunca sale en la respuesta.
+      attemptId: "20000000-0000-4000-8000-000000000011",
+      payerEmail: "familia@example.invalid",
+    });
+    const response = await POST(withSecret());
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    // Una sola vez, al final: después del cobro y de los avisos de hoy, con un plazo.
+    expect(mocks.deliverReceipts).toHaveBeenCalledTimes(1);
+    const [receiptsCall] = mocks.deliverReceipts.mock.invocationCallOrder;
+    expect(mocks.collect.mock.invocationCallOrder[0]).toBeLessThan(receiptsCall!);
+    expect(mocks.deliverNotices.mock.invocationCallOrder[1]).toBeLessThan(receiptsCall!);
+    const [options] = mocks.deliverReceipts.mock.calls[0] as [{ deadlineMs: number }];
+    expect(Object.keys(options)).toEqual(["deadlineMs"]);
+    expect(options.deadlineMs).toBeGreaterThanOrEqual(0);
+    expect(options.deadlineMs).toBeLessThanOrEqual(20_000);
+    const data = (await body(response)).data;
+    expect(data?.receipts).toEqual({ sent: 2, notSent: 1, pending: 0 });
+    expect(JSON.stringify(data)).not.toMatch(/20000000-|example\.invalid/);
+  });
+
+  it("si fallan los justificantes, el cobro se responde igual con receipts: null y solo el nombre del error", async () => {
+    env.flag = true;
+    mocks.deliverReceipts.mockRejectedValue(Object.assign(new Error("correo de la familia"), { code: "53300" }));
+    const response = await POST(withSecret());
+    expect(response.status).toBe(200);
+    expect((await body(response)).data).toMatchObject({ enabled: true, collected: 4, receipts: null });
+    expect(mocks.error).toHaveBeenCalledWith("Error al enviar los justificantes de pago a las familias", undefined, {
       errorName: "Error",
       errorCode: "53300",
     });
