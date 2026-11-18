@@ -8,7 +8,8 @@ El ledger `charges` es la fuente operativa de verdad. Stripe procesa tarjetas y 
 > Stripe Connect y cuentas Accounts v2, según ADR-0028
 > (`docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md`). Lo
 > nuevo está en «Conectar Stripe (Fase 1)», «Pago automático de la
-> familia (Fase 2)» y «Cobro automático de cuotas (Fase 3)». El resto de esta
+> familia (Fase 2)», «Cobro automático de cuotas (Fase 3)» y «Eventos de
+> Stripe, devoluciones, 3DS y justificante (Fase 4)». El resto de esta
 > guía describe el
 > modelo Stripe Connect Standard v1 (`stripe_accounts`), que nunca se abrió a
 > academias reales y ya no es la dirección del producto.
@@ -628,12 +629,15 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
 - Construida en la PR #349 (en borrador), detrás de la bandera, que está
   apagada.
 - Candidata `docs/deployment/candidates/20261117120000_family_collection_candidate.sql`:
-  **no aplicada en ningún entorno.** Staging y producción necesitan cada uno
-  una autorización expresa de Elvis; las de las Fases 1 y 2 no la cubren.
+  **aplicada en staging el 17-11-2026** y la Fase 3 probada de punta a punta
+  allí (17 y 18-11-2026), según la sesión coordinadora. **No aplicada en
+  producción**: necesita una autorización expresa de Elvis; las de las Fases 1
+  y 2 no la cubren.
   Requiere antes las candidatas de las Fases 1 y 2 (detalle y rollback en
   `docs/deployment/candidates/README.md`).
 - Trabajo de pg_cron `zaltyko-collect-family-fees` (`0 6 * * *` UTC, antes de
-  los recordatorios): **sin programar en ningún entorno**
+  los recordatorios): **sin programar en producción** (en staging, ver la
+  sesión coordinadora)
   (`docs/deployment/scheduler/candidates/collect-family-fees.sql` y, para
   staging, la función propia del README del planificador).
 - **El proceso diario tiene dos partes:**
@@ -815,7 +819,9 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
 
 ### Deuda conocida
 
-- **Lo que llega con la Fase 4:** encender la domiciliación; las
+- **Lo que llega con la Fase 4** (construido el 18-11-2026, salvo encender la
+  domiciliación y retirar Standard v1; ver «Eventos de Stripe, devoluciones,
+  3DS y justificante (Fase 4)»): encender la domiciliación; las
   domiciliaciones «en proceso» solo se cierran con la relectura diaria (sin
   eventos de Stripe); cuando el banco pide autenticación (3DS) el cobro falla,
   se avisa a la familia y pasa a manual, sin forma de que la familia complete
@@ -850,6 +856,210 @@ No hay secreto nuevo ni webhook nuevo en esta fase.
   recordatorios. Ya confirmadas el 17-11-2026: nunca cobrar antes del
   vencimiento, y qué rechazos se reintentan (la P3 nueva, que incluye «rechazo
   genérico» y «no aceptar»).
+
+## Eventos de Stripe, devoluciones, 3DS y justificante (Fase 4)
+
+Lo que pasa en Stripe con los cobros automáticos llega a Zaltyko por eventos
+de las cuentas conectadas: cobros que terminan tarde, domiciliaciones que el
+banco confirma o devuelve, devoluciones que hace la academia, disputas y
+cambios del método de pago. Además, la familia puede confirmar el pago con su
+banco cuando este lo pide, y puede recibir un justificante de pago («no es
+factura»). Decisiones: ADR-0028, «Fase 4: respuestas D1–D13 y cómo quedó
+construida (18-11-2026)». Plan:
+`docs/superpowers/plans/2026-11-18-cobro-automatico-fase4-eventos-stripe.md`.
+
+### Quién puede usarlo
+
+- Bandera `ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED=true` (texto exacto).
+  **Apagada por defecto.**
+- Clave de prueba de Stripe, base que no sea la de producción, eventos con
+  `livemode` `false` y las tablas de las candidatas de las Fases 1 a 4.
+- Confirmar el pago con el banco: además, la bandera del cobro de la Fase 3
+  (`ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED`) y la persona pagadora
+  vigente de la cuota.
+- Justificante: la bandera aparte `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED=true`,
+  **apagada hasta la respuesta del abogado/gestor (L6 del ADR-0028)**.
+- La domiciliación sigue sin cobrarse sola
+  (`ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED` apagada); los eventos de
+  una domiciliación que ya estaba en el banco se atienden igual.
+
+### Pantalla
+
+- **Familia, `/familia/cuotas`.**
+  - Cuando el banco pide confirmar: «Tu banco pide que confirmes este pago.
+    Puedes hacerlo hasta el {fecha}.» y el botón «Confirmar el pago». Tras
+    pulsarlo, «Procesando…» y después «Pago confirmado», «No se pudo
+    confirmar. Puedes intentarlo otra vez hasta el {fecha}.» o «No se pudo
+    confirmar. Tu academia te dirá cómo pagarla.». Nunca reintenta solo.
+  - Sin la clave publicable de Stripe: «Tu banco pide que confirmes este pago,
+    pero ahora no se puede hacer desde aquí. Tu academia te dirá cómo
+    pagarla.», sin botón.
+  - Cuota devuelta o con disputa perdida: «Devuelto» con el importe. La
+    familia no ve las disputas abiertas ni ganadas (D4).
+  - Cuota nueva de una domiciliación devuelta (D2): «Cuota de {mes} · devuelta
+    por el banco», pendiente y con recordatorios.
+  - Con la bandera del justificante: «Ver justificante» en las cuotas cobradas
+    que lo tienen.
+- **Justificante, `/familia/cuotas/justificante/[attemptId]`.** Solo la
+  persona pagadora; academia, quién paga, fecha del cobro, forma de pago
+  («Tarjeta» o «Domiciliación bancaria», sin números), cuotas y referencia.
+  Dice «Este justificante no es una factura. Si necesitas factura, pídesela a
+  {academia}.». Botón «Imprimir o guardar como PDF». Con la bandera apagada, o
+  si la cuota no es suya, 404.
+- **Academia, `/owner/payments`, «Cobros automáticos de {mes}».**
+  - Cada fila dice de qué mes es la cuota («Cuota de febrero de 2027»); el
+    título dice el mes en que se cobran.
+  - «Esperando a que la familia confirme el pago con su banco (hasta el
+    {fecha})».
+  - «Devuelta: {importe} el {fecha} (desde tu panel de Stripe)».
+  - Disputas: «En disputa: responde desde tu panel de Stripe antes del
+    {fecha}», «Disputa ganada», «Disputa perdida. El banco devolvió el dinero a
+    la familia ({importe})», «El banco devolvió el dinero a la familia
+    ({importe}). Se ha creado una cuota pendiente por el importe devuelto».
+  - Cobro doble (D10): «Esta cuota se cobró dos veces. Devuelve uno desde tu
+    panel de Stripe.».
+- **Correos a la familia.**
+  - El banco pide confirmar (D7, cada vez): «Tu banco pide que confirmes el
+    pago de la cuota de {mes}. Entra en Zaltyko y pulsa «Confirmar el pago»
+    antes del {fecha}. Si no, tu academia te dirá cómo pagarla.».
+  - Domiciliación rechazada (D11): el mismo correo que la tarjeta rechazada,
+    sin prometer reintento.
+  - Justificante: asunto «Justificante de pago de {academia}».
+  - Sin correo el día antes del cobro (D12).
+
+### Rutas
+
+| Ruta | Uso |
+|---|---|
+| `POST /api/stripe/connect/payments-webhook` | Eventos de las cuentas conectadas (firma con `STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET`). Con la bandera o los cerrojos cerrados: 200 `{ ignored: true }` sin leer el cuerpo. Sin secreto: 503. Firma mala: 400. Evento repetido: 200 `{ duplicate: true }`. Evento a medio procesar: 503 `EVENT_IN_PROGRESS` con `retry-after: 60` (Stripe lo reenvía). `no-store`. |
+| `POST /api/v1/family/automatic-payment/authentication` | La familia confirma el pago con su banco: `{ action: "start" \| "check", organizationId, invoiceId }`. `start` da solo lo que necesita el navegador; `check` relee Stripe por el mismo camino que el evento. 503 con los cerrojos cerrados, 404 si no es la persona pagadora vigente, 409 `FAMILY_PAYMENT_CONFIRMATION_EXPIRED` o `…_CLOSED`, 502 si Stripe falla. 10 por minuto por cuenta, `private, no-store`. |
+| `GET /familia/cuotas/justificante/[attemptId]` | Página del justificante (`no-store`). |
+| `GET`/`POST /api/cron/collect-family-fees` | La de la Fase 3. Añade `circuitOpen` (sí/no) y `receipts: { sent, notSent, pending }` (o `null` si falló el envío). Envía los justificantes al final, después de los avisos. |
+
+Eventos que se atienden (17): `payment_intent.processing`, `.succeeded`,
+`.payment_failed`, `.requires_action`, `.canceled`; `charge.refunded`,
+`refund.created`, `.updated`, `.failed`; `charge.dispute.created`,
+`.updated`, `.closed`, `.funds_withdrawn`, `.funds_reinstated`;
+`mandate.updated`; `payment_method.detached`; `setup_intent.succeeded`.
+
+### Variables
+
+| Variable | Uso |
+|---|---|
+| `ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED` | Enciende la ruta de eventos y la confirmación con el banco. Apagada por defecto. |
+| `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED` | Enciende el justificante. Apagada por defecto, hasta L6 (abogado/gestor). Sin ella no se escribe ni se envía ningún justificante, y encenderla no los crea para cobros anteriores. |
+| `STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET` | Secreto de firma del destino de eventos nuevo; distinto de `STRIPE_WEBHOOK_SECRET` y de `STRIPE_CONNECT_WEBHOOK_SECRET`. |
+
+### Datos
+
+- Candidata `docs/deployment/candidates/20261118120000_family_collection_events_candidate.sql`
+  (SHA-256 en el README de candidatas). **No aplicada en ningún entorno.**
+- `zaltyko.family_collection_attempts`: estado `requires_action` (solo
+  tarjeta, con `pi_…`) y columna `action_deadline_at` (último día para
+  confirmar). Cuenta como intento abierto.
+- Tabla nueva `zaltyko.family_collection_disputes`: una fila por disputa
+  (`dp_…`/`du_…`) y academia, con estado, importe, plazo y si ya se anotó en
+  el libro. Derechos de datos: grupo opcional propio, solo recuento.
+- Buzón de eventos: `zaltyko.payment_provider_events` (`processor 'stripe'`,
+  `environment 'sandbox'`), una fila por `evt_…`, con un resumen de 5 claves
+  y su huella; nunca el evento entero.
+- Devoluciones y disputas perdidas: filas en `zaltyko.refunds`, una por
+  reparto, con motivo (el de Stripe o `requested_by_academy`, `dispute_lost`,
+  `sepa_returned`) y `provider_refund_id` = `{re_|pyr_|dp_}:{id del reparto}`.
+- Justificante: eventos `family_collection.receipt` y
+  `family_collection.receipt_result` en el outbox, solo con ids.
+
+### Estado
+
+- Construida en la rama `cobros/fase4-eventos-stripe` (18-11-2026), con las
+  dos banderas apagadas. Nada aplicado ni configurado en staging ni en
+  producción.
+- **Pasos de staging para la Tarea 14** (cada uno necesita la autorización de
+  Elvis; no se han hecho):
+  1. Stripe sandbox: crear un destino de eventos de cuentas conectadas
+     (`@accounts`, eventos completos) hacia
+     `https://staging.zaltyko.com/api/stripe/connect/payments-webhook` con los
+     17 tipos de arriba.
+  2. Vercel staging: `STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET` (el secreto de
+     ese destino).
+  3. Vercel staging: las dos banderas,
+     `ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED=true` y, solo para probar,
+     `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED=true` (nunca con familias
+     reales antes de L6).
+  4. Supabase staging: aplicar la candidata de la Fase 4.
+  5. Stripe sandbox (D13): revisar el destino antiguo que apunta a
+     `/api/stripe/connect/webhook` y apagarlo o dejarle solo `account.updated`.
+  6. Recorrido de prueba y comprobación de los datos de Stripe sin confirmar
+     (ver «Deuda conocida»).
+- En producción y Stripe Live no se hace nada, salvo lo que pide D13 si Elvis
+  lo autoriza.
+
+### Cerrojos y límites
+
+- **El evento es un aviso, nunca la verdad.** Del cuerpo solo se leen `id`,
+  `type`, `account`, `livemode`, `created` y el id y tipo del objeto. Todo lo
+  demás se vuelve a leer en Stripe por id, en la cuenta conectada y fuera de
+  toda transacción.
+- **La cuenta del evento** tiene que ser la del intento y del entorno de
+  prueba. Si no, se ignora (en el registro, solo ids).
+- **Un solo camino que escribe en el libro:** los cobros pasan por el mismo
+  camino que la relectura diaria; las devoluciones y disputas perdidas, por
+  `recordProviderRefund`.
+- **Idempotente por `evt_…`** y además cada efecto por sí mismo. El orden de
+  llegada no importa.
+- **Nunca dos cobros.** Un cobro tardío solo se registra después de anular
+  el reintento pendiente y cancelar en Stripe cualquier hermano abierto. Si
+  otro ya cobró, aviso de cobro doble (D10).
+- **Nunca se borra un pago.** Lo que no cabe en lo repartido no escribe
+  ninguna fila: aviso a la academia y evento procesado (nunca un 500 en
+  bucle).
+- **Ninguna cuota en el limbo:** todo intento `requires_action` tiene plazo
+  y lo cierra el proceso diario.
+- **Cortacircuitos (D9):** con 3 rechazos 400 de la plataforma seguidos al
+  crear cobros, o el 20 % a partir de 10, la pasada para de crear cobros y
+  deja el resto para el día siguiente, sin cerrar más intentos. Un solo
+  `logger.error` con dos contadores.
+- **Revocar un método** (tarjeta quitada en Stripe u orden SEPA inactiva)
+  siempre se puede, aunque la bandera de la Fase 2 esté apagada.
+- Solo referencias opacas en registros y respuestas: nunca mensajes de
+  Stripe, IBAN, tarjeta ni nombres. El secreto del cobro para confirmar con el
+  banco solo viaja a la persona pagadora y nunca se registra.
+
+### Deuda conocida
+
+- **Eventos completos ya guardados (D13).** Las filas antiguas de
+  `billing_events` del webhook Standard v1 conservan el evento entero, también
+  al reintentarse, hasta que Elvis autorice vaciarlas. Las nuevas guardan
+  solo un resumen.
+- **Destino antiguo (D13).** Antes del primer cobro real hay que revisar y
+  apagar o filtrar el destino que apunta a `/api/stripe/connect/webhook`, en
+  sandbox y en Live.
+- **`src/app/api/marketplace/webhook/route.ts`** también guarda eventos
+  enteros de Stripe en `billing_events.payload`. Fuera de alcance; va con la
+  PR aparte de D8, igual que la retirada del código Standard v1.
+- **Eventos perdidos con la bandera apagada:** no se ven en Zaltyko; Stripe
+  permite reenviar los de los últimos 30 días.
+- **Devolución anulada después en Stripe:** no toca el libro. La academia
+  recibe el aviso `refund_reversed`; la familia sigue viendo «Devuelto».
+- **Búsqueda por id de devolución:** `provider_refund_id` lleva el sufijo del
+  reparto (`{re_|pyr_|dp_}:{id del reparto}`); hay que buscar por prefijo.
+- **Devolución parcial de varias cuotas:** se reparte de la más antigua a la
+  más nueva.
+- **Cortacircuitos:** estado en memoria por pasada (un relanzamiento manual
+  el mismo día empieza cerrado); un despliegue roto que haga responder
+  `resource_missing` a todas las cuentas no lo dispara (esos los cierra la
+  regla de siempre y las cuotas pasan a manual).
+- **Justificante:** «sin correo» y «academia inactiva» son definitivos para
+  ese justificante (para L6); el de una domiciliación confirmada por evento
+  sale en la pasada diaria siguiente; bandera apagada hasta L6.
+- **Pendientes legales:** L4 (aviso previo de cada adeudo SEPA) y L6
+  (abogado/gestor).
+- **Datos de Stripe sin confirmar** (Tarea 14, staging): resultado de un
+  cobro sin presencia cuando el banco pide confirmar; confirmar el mismo cobro
+  desde el navegador sobre la cuenta conectada; estado inicial y prefijo de
+  la devolución del banco en SEPA; ids de devolución `pyr_`; lista de
+  devoluciones de un cargo SEPA; `payment_method.detached` cuando la academia
+  quita una tarjeta; `account` en los eventos de cuentas conectadas.
 
 ## Alcance
 

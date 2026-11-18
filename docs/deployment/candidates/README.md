@@ -890,11 +890,12 @@ bancaria en la cuenta Stripe conectada de su academia. Decisión:
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261117120000_family_collection_candidate.sql` | `cee3e0aac1673b87e75bb492de60f8b88a7b9e1f4ac2a61caec80db2d7fecbd8` | No aplicada | No aplicada |
+| `20261117120000_family_collection_candidate.sql` | `cee3e0aac1673b87e75bb492de60f8b88a7b9e1f4ac2a61caec80db2d7fecbd8` | No aplicada | Aplicada el 17-11-2026 (según la sesión coordinadora) |
 
-**Estado: no aplicada en ningún entorno.** Staging y producción necesitan cada
-uno una autorización expresa de Elvis; las de las Fases 1 y 2 no la cubren.
-Requiere antes las candidatas de la Fase 1
+**Estado: aplicada en staging el 17-11-2026** y la Fase 3 probada allí de
+punta a punta (17 y 18-11-2026), según la sesión coordinadora. **No aplicada
+en producción:** necesita una autorización expresa de Elvis; las de las Fases
+1 y 2 no la cubren. Requiere antes las candidatas de la Fase 1
 (`20261116120000_connect_onboarding_candidate.sql`) y de la Fase 2
 (`20261116180000_family_payment_methods_candidate.sql`).
 
@@ -1019,8 +1020,11 @@ familia guardó, en la cuenta Stripe conectada de su academia. Decisión:
 |---|---|---|---|
 | `20261118120000_family_collection_events_candidate.sql` | `4655a7867d1b239e7b9e5418d4bd28905695b37246a381e02cd62c921e06a40a` | No aplicada | No aplicada |
 
-**Estado: no aplicada en ningún entorno.** Staging y producción necesitan cada
-uno una autorización expresa de Elvis; las de las Fases 1 a 3 no la cubren.
+**Estado: no aplicada en ningún entorno** (comprobado el 18-11-2026: el
+SHA-256 de la fila coincide con `shasum -a 256` del archivo). Staging y
+producción necesitan cada uno una autorización expresa de Elvis; las de las
+Fases 1 a 3 no la cubren. En staging va con los pasos de la Tarea 14
+(`docs/COBROS_Y_CUOTAS.md`, Fase 4, «Estado»).
 Requiere antes la candidata de la Fase 3
 (`20261117120000_family_collection_candidate.sql`) tal cual la instala esa
 candidata, y las tablas del libro `zaltyko.payments`,

@@ -15,12 +15,22 @@
 - La Fase 3 (proceso de cobro automático) está construida en la PR #349,
   detrás de la bandera `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED`
   (apagada). Su migración candidata
-  (`20261117120000_family_collection_candidate.sql`) **no está aplicada en
-  ningún entorno** y el trabajo de pg_cron `zaltyko-collect-family-fees`
-  **no está programado** en ningún entorno: cada paso, en staging y en
-  producción, necesita otra autorización de Elvis (las de las Fases 1 y 2 no
-  la cubren). Aunque se encendiera, cobra solo con clave de prueba de Stripe y
-  nunca contra la base de producción.
+  (`20261117120000_family_collection_candidate.sql`) está **aplicada en
+  staging** el 17-11-2026 y la Fase 3 quedó probada de punta a punta allí
+  (17 y 18-11-2026), según la sesión coordinadora; en producción **no está
+  aplicada** y el trabajo de pg_cron `zaltyko-collect-family-fees` no está
+  programado en producción. Cada paso en producción necesita otra
+  autorización de Elvis (las de las Fases 1 y 2 no la cubren). Aunque se
+  encendiera, cobra solo con clave de prueba de Stripe y nunca contra la base
+  de producción.
+- La Fase 4 (eventos de Stripe, confirmación con el banco, devoluciones,
+  disputas y justificante) está construida en la rama
+  `cobros/fase4-eventos-stripe` (18-11-2026), detrás de dos banderas nuevas
+  apagadas: `ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED` y
+  `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED`. Su candidata
+  (`20261118120000_family_collection_events_candidate.sql`) **no está
+  aplicada en ningún entorno**. Ver «Fase 4: respuestas D1–D13 y cómo quedó
+  construida (18-11-2026)».
 - El 17-11-2026 Elvis decidió cinco cosas más de la Fase 3 (día fijo,
   reintentos de tarjeta, «Primero solo tarjeta», aviso a la familia en el
   primer fallo y texto de costes): ver «Decisiones de Elvis del 17-11-2026».
@@ -357,6 +367,14 @@ de Elvis):**
 - Recuperación SCA en `/familia`: la familia completa el 3DS desde un enlace.
 - Recibo interno «no es factura» para la familia.
 - Retirada del código Standard v1 y de las rutas antiguas.
+- **Cómo quedó (18-11-2026):** construida con una ruta nueva
+  (`/api/stripe/connect/payments-webhook`) y su propia bandera, sin tocar el
+  webhook antiguo salvo para que deje de guardar el evento entero. La
+  retirada de Standard v1 va en una PR aparte justo después (D8). Detalle en
+  «Fase 4: respuestas D1–D13 y cómo quedó construida (18-11-2026)» y en
+  `docs/COBROS_Y_CUOTAS.md`, «Eventos de Stripe, devoluciones, 3DS y
+  justificante (Fase 4)». Plan:
+  `docs/superpowers/plans/2026-11-18-cobro-automatico-fase4-eventos-stripe.md`.
 
 ### Fase 5 — QA y piloto
 
@@ -778,6 +796,139 @@ que exigir `active` dejaba sin cobro automático a todas.
   sin cobro automático (`paid_plan_required`).
 - No cambia precios, ni la regla del día fijo, ni ninguna migración.
 
+## Fase 4: respuestas D1–D13 y cómo quedó construida (18-11-2026)
+
+Plan: `docs/superpowers/plans/2026-11-18-cobro-automatico-fase4-eventos-stripe.md`.
+Rama `cobros/fase4-eventos-stripe`, todo apagado por defecto. Guía de uso:
+`docs/COBROS_Y_CUOTAS.md`, «Eventos de Stripe, devoluciones, 3DS y
+justificante (Fase 4)».
+
+### Respuestas (18-11-2026)
+
+Elvis respondió D2, D3, D6 y D12; la sesión coordinadora citó el texto de la
+opción que eligió. El resto lo decidió la sesión coordinadora aceptando la
+recomendación del plan.
+
+| # | Pregunta (resumen) | Respuesta | Quién |
+|---|---|---|---|
+| D1 | La academia devuelve un cobro desde Stripe | La cuota sigue pagada y se marca «Devuelta» | Coordinador |
+| D2 | El banco devuelve una domiciliación | Elvis: «Nueva cuota pendiente». La cuota original queda «devuelta por el banco» y se crea una cuota nueva pendiente por el importe, a cobrar a mano con recordatorios | Elvis |
+| D3 | Disputa de tarjeta perdida | Elvis: «Marcar y avisar». Se marca y se avisa a la academia, sin deuda automática | Elvis |
+| D4 | Disputa abierta o ganada | La cuota sigue pagada; la academia ve el plazo para responder | Coordinador |
+| D5 | Quién devuelve | Solo la academia, desde su panel de Stripe | Coordinador |
+| D6 | Justificante para la familia | Elvis: «Sí, apagado hasta abogado». Justificante por correo y en página imprimible, «no es factura», detrás de `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED` hasta L6 (abogado/gestor) | Elvis |
+| D7 | Plazo para que la familia confirme con su banco | La ventana de 3 días que ya existe y un correo cada vez que el banco pida confirmar | Coordinador |
+| D8 | Retirar Standard v1 | En una PR aparte justo después. En esta PR el webhook antiguo deja de guardar el evento entero (Tarea 2b). La Tarea 13 no se hace en esta PR | Coordinador |
+| D9 | Cortacircuitos del proceso diario | 3 errores seguidos, o el 20 % a partir de 10 intentos, contando solo los rechazos 400 de la plataforma | Coordinador |
+| D10 | Cobro doble (un cobro tardío con otro ya cobrado) | Se avisa a la academia | Coordinador |
+| D11 | Domiciliación rechazada | El mismo correo que con tarjeta, sin prometer reintento | Coordinador |
+| D12 | Correo a la familia el día antes del cobro | Elvis: «De momento no». Sin correo el día antes | Elvis |
+| D13 | Destino de eventos antiguo y lo ya guardado | Revisar y apagar o filtrar el destino antiguo antes del primer cobro real. Vaciar `billing_events.payload` queda pendiente de la autorización de Elvis: no se toca | Coordinador |
+
+Los datos de Stripe sin confirmar se verifican en la Tarea 14 (staging), que
+necesita la autorización de Elvis.
+
+### Bandera nueva y relación con la Fase 3
+
+El ADR decía que `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_ENABLED` cubría las
+Fases 3 y 4. Se añaden dos banderas, una por cosa nueva (compatible con D1
+del 16-11-2026, una bandera por fase):
+
+- `ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED` (solo el texto exacto `"true"`):
+  la ruta de eventos y todo lo que cuelga de ella. La confirmación con el
+  banco desde el portal exige además la bandera del cobro de la Fase 3.
+- `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED` (solo `"true"`): el
+  justificante. Es el cierre técnico de L6: no se enciende con familias reales
+  sin la respuesta del abogado/gestor.
+- Secreto nuevo `STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET`, distinto de los
+  otros dos webhooks. Vacío: la ruta responde 503.
+- `ZALTYKO_FAMILY_AUTOMATIC_COLLECTION_SEPA_ENABLED` sigue apagada: nada de
+  esta fase la enciende.
+
+### Qué se construyó (Tareas 1–11)
+
+- **Candidata** `20261118120000_family_collection_events_candidate.sql`
+  (SHA-256 `4655a7867d1b239e7b9e5418d4bd28905695b37246a381e02cd62c921e06a40a`,
+  no aplicada): estado `requires_action` y columna `action_deadline_at` en
+  `zaltyko.family_collection_attempts`, tabla nueva
+  `zaltyko.family_collection_disputes`, clasificada en derechos de datos
+  (grupo opcional propio, solo recuento).
+- **Ruta de eventos** `POST /api/stripe/connect/payments-webhook`: 17 tipos de
+  eventos de cuentas conectadas, buzón idempotente en
+  `zaltyko.payment_provider_events` (`stripe`/`sandbox`). Del evento solo se
+  leen `id`, `type`, `account`, `livemode`, `created` y el id y tipo del
+  objeto; todo lo demás se relee en Stripe.
+- **Cobros por evento** (Tarea 3): por el mismo camino que la relectura
+  diaria; domiciliación asíncrona, cobro tardío (`late_succeeded`), cobro
+  doble (`duplicate_collection`, D10) y cancelación de hermanos
+  (`late_success_elsewhere`).
+- **Confirmación con el banco** (Tareas 4–5): el intento espera en
+  `requires_action` hasta el plazo (D7) y la familia confirma desde
+  `/familia/cuotas` con `POST /api/v1/family/automatic-payment/authentication`;
+  pasado el plazo, `failed` con `authentication_required` y la cuota pasa a
+  manual.
+- **Devoluciones** (Tarea 6, D1 y D5) y **disputas** (Tarea 7, D2–D4):
+  filas en `zaltyko.refunds` por reparto; nunca se borra un pago.
+- **Método de pago** (Tarea 8): `payment_method.detached` y `mandate.updated`
+  revocan la autorización; `setup_intent.succeeded` la activa si el navegador
+  no llegó a hacerlo.
+- **Justificante** (Tarea 9, D6), **cortacircuitos** (Tarea 10, D9) y
+  **panel de la academia** («Cuota de febrero de 2027», Tarea 11).
+- **Webhook antiguo** (Tarea 2b, D8 y D13): `/api/stripe/connect/webhook`
+  guarda solo un resumen (`id`, `type`, `account`, `livemode`, `created` e id
+  y tipo del objeto) en `billing_events.payload`.
+
+### Deuda y salvedades de la Fase 4
+
+- **Eventos completos ya guardados (D13).** Las filas de `billing_events`
+  del webhook antiguo Standard v1 guardadas antes de la Tarea 2b conservan el
+  evento entero de Stripe (con datos de facturación de la familia), también
+  cuando se reintentan, hasta que Elvis autorice vaciarlas.
+- **Destino antiguo en Stripe (D13).** Mientras el destino que apunta a
+  `/api/stripe/connect/webhook` siga encendido, recibe eventos de las cuentas
+  conectadas. Antes del primer cobro real hay que revisarlo y apagarlo o
+  filtrarlo en sandbox y en Live.
+- **Otro escritor de eventos completos, fuera de alcance:**
+  `src/app/api/marketplace/webhook/route.ts` guarda el evento entero en
+  `billing_events.payload` sin pasar por el resumen. Va con la PR aparte de
+  D8.
+- **Código Standard v1** y sus rutas siguen hasta la PR de D8.
+- **Eventos perdidos con la bandera apagada.** La ruta responde 200
+  `{ ignored: true }` y no guarda nada; Stripe permite reenviar los eventos de
+  los últimos 30 días.
+- **Devolución anulada después en Stripe.** No toca el libro: la academia
+  recibe el aviso `refund_reversed` y la familia sigue viendo «Devuelto».
+- **Búsqueda de devoluciones por id.** `provider_refund_id` lleva ahora el
+  sufijo del reparto: `{re_|pyr_|dp_}:{id del reparto}`. Quien busque por el
+  id de Stripe solo (soporte, analítica) tiene que buscar por prefijo.
+- **Devolución parcial de varias cuotas:** se reparte de la cuota más
+  antigua a la más nueva, sobre lo que queda sin devolver de cada una. Lo que
+  no cabe no escribe ninguna fila: aviso a la academia.
+- **Cortacircuitos (D9).**
+  - Su estado vive en memoria durante una pasada: un relanzamiento manual el
+    mismo día empieza cerrado.
+  - Un despliegue roto que haga que cada cuenta responda `resource_missing`
+    no lo dispara: esos casos los cierra la regla de siempre (la cuota pasa a
+    manual).
+  - La respuesta de la ruta cron añade `circuitOpen` (sí/no) y
+    `receipts: { sent, notSent, pending }`.
+- **Justificante.**
+  - Un justificante «sin correo» (`no_email`) o de una academia suspendida o
+    cerrada (`organization_inactive`) queda así para siempre: no se reintenta
+    (para L6). La página sigue disponible para la persona que paga.
+  - El de una domiciliación confirmada por evento sale en la pasada diaria
+    siguiente.
+  - Bandera apagada hasta la respuesta del abogado/gestor (L6).
+- **Pendientes legales:** L4 (aviso previo de cada adeudo SEPA) y L6.
+- **Datos de Stripe sin confirmar** (Tarea 14, staging):
+  - qué devuelve un cobro sin presencia cuando el banco pide confirmar (3DS);
+  - confirmar el mismo cobro desde el navegador sobre la cuenta conectada;
+  - estado inicial y prefijo de la devolución del banco en SEPA (disputa);
+  - prefijos de las devoluciones (`pyr_` en domiciliación);
+  - que la lista de devoluciones de un cargo SEPA las devuelva;
+  - que llegue `payment_method.detached` cuando la academia quita una tarjeta;
+  - que los eventos de cuentas conectadas traigan `account`.
+
 ## Preguntas legales y fiscales (para Elvis, el abogado y la sesión «Elvis Finanzas»)
 
 Ninguna se responde aquí. Este documento no contiene texto legal.
@@ -817,6 +968,11 @@ Ninguna se responde aquí. Este documento no contiene texto legal.
     en la facturación ZA ni en el IVA de Zaltyko?
   - ¿El recibo interno que verá la familia («no es factura») es suficiente,
     dado que facturar a las familias es cosa de la academia?
+    - Construido en la Fase 4 como «justificante de pago», detrás de
+      `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED` (apagada). Elvis (D6):
+      «Sí, apagado hasta abogado». L6: abogado/gestor.
+    - Para revisar: muestra la referencia de la cuota que la familia ya ve;
+      un justificante sin correo o de una academia inactiva no se reintenta.
   - ¿Afecta el dictamen fiscal pendiente (VeriFactu en la matriz competitiva)
     a este flujo?
 - **L7. Menores.** Quien paga y consiente es siempre un tutor adulto vinculado
@@ -892,6 +1048,11 @@ resuelta antes de que una academia real conecte su Stripe en producción.
     Las pruebas de PostgreSQL borran sus filas, salvo las academias y sus
     sedes: la auditoría y el historial de plan son solo de añadir. Solo
     afecta al PostgreSQL desechable de GitHub.
+  - **Fase 4 (18-11-2026):** resuelve en la rama `cobros/fase4-eventos-stripe`
+    la deuda «lo que llega con la Fase 4» y el «éxito tardío del primer
+    intento», salvo encender la domiciliación (sigue apagada) y retirar
+    Standard v1 (PR aparte, D8). Su propia deuda está en «Fase 4: respuestas
+    D1–D13 y cómo quedó construida», «Deuda y salvedades de la Fase 4».
   - **Hecho, no es deuda:** las tres tablas nuevas están clasificadas en
     derechos de datos (grupo opcional `OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES`;
     solo se exporta el recuento).
