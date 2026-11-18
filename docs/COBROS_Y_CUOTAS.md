@@ -1043,6 +1043,14 @@ Eventos que se atienden (17): `payment_intent.processing`, `.succeeded`,
     ejemplo, el importe no cuadra y queda para revisar), Stripe deja de
     reenviar a los 3 días y esa devolución solo queda en el registro (solo
     ids) y en el panel de Stripe de la academia.
+  - Una disputa cuyo `pi_…` no tiene ningún intento (uno `claimed` que se
+    cayó antes de guardarlo) pasa antes por el camino de los cobros. Si aun
+    así no aparece y la metadata del cobro apunta a un intento que sigue
+    `claimed` en esa academia y esa cuenta conectada, el evento falla con
+    `FAMILY_COLLECTION_DISPUTE_BEFORE_COLLECTION_RECORDED` y Stripe lo
+    reenvía: la academia ve la disputa y su plazo para responder sin esperar
+    a otro evento de la misma disputa. Si no, sin efecto (aviso en el
+    registro, solo ids). El mismo criterio que las devoluciones.
   - Un cobro tardío que choca desde un evento con un reintento a medio crear
     deja antes el aviso `late_success_pending` (marca duradera) y después pide
     el reenvío.

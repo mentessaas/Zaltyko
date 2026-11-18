@@ -416,7 +416,8 @@ export interface FamilyCollectionRefundGateway {
    * del cobro (`pi_…`), solo si es un uuid; null si no es un cobro de
    * Zaltyko. Solo se usa cuando ningún intento tiene ese `pi_…` y el cargo ya
    * tiene una devolución hecha. Opcional para las dobles de los tests: sin él,
-   * esa devolución termina sin efecto, como antes.
+   * esa devolución termina sin efecto, como antes. Las disputas tienen la
+   * misma lectura (FamilyCollectionDisputeGateway).
    */
   retrievePaymentIntentAttemptId?(input: { connectedAccount: string; paymentIntentId: string }): Promise<string | null>;
 }
@@ -489,16 +490,28 @@ export function createStripeRefundGateway(stripe?: Stripe): FamilyCollectionRefu
     },
 
     async retrievePaymentIntentAttemptId(input) {
-      const paymentIntent = await client().paymentIntents.retrieve(
-        input.paymentIntentId,
-        {},
-        { stripeAccount: input.connectedAccount }
-      );
-      // Nada más de la metadata: solo el id del intento.
-      return paymentIntent.id === input.paymentIntentId ? metadataAttemptId(paymentIntent) : null;
+      return readPaymentIntentAttemptId(client(), input);
     },
   };
   return gateway;
+}
+
+/**
+ * El id del intento de la metadata de un cobro (`pi_…`), releído en la cuenta
+ * conectada; null si no es un cobro de Zaltyko. Lo comparten las devoluciones
+ * y las disputas (adoptable-collection.ts).
+ */
+async function readPaymentIntentAttemptId(
+  stripe: Stripe,
+  input: { connectedAccount: string; paymentIntentId: string }
+): Promise<string | null> {
+  const paymentIntent = await stripe.paymentIntents.retrieve(
+    input.paymentIntentId,
+    {},
+    { stripeAccount: input.connectedAccount }
+  );
+  // Nada más de la metadata: solo el id del intento.
+  return paymentIntent.id === input.paymentIntentId ? metadataAttemptId(paymentIntent) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -537,6 +550,14 @@ export interface FamilyCollectionDisputeGateway {
    * se usa (sin cargo, sin importe…): no se decide nada con ella.
    */
   retrieveDispute(input: { connectedAccount: string; disputeId: string }): Promise<DisputeSnapshot | null>;
+  /**
+   * El id del intento de la metadata del cobro (`pi_…`), solo si es un uuid;
+   * null si no es un cobro de Zaltyko. Solo se usa cuando ningún intento tiene
+   * el `pi_…` de la disputa ni después del camino de los cobros (un intento
+   * `claimed` que no llegó a guardarlo). Opcional para las dobles de los
+   * tests: sin él, esa disputa termina sin efecto, como antes.
+   */
+  retrievePaymentIntentAttemptId?(input: { connectedAccount: string; paymentIntentId: string }): Promise<string | null>;
 }
 
 const REASON_CODE_PATTERN = /^[a-z0-9_]{1,64}$/;
@@ -606,6 +627,10 @@ export function createStripeDisputeGateway(stripe?: Stripe): FamilyCollectionDis
       );
       const snapshot = disputeSnapshotOf(dispute);
       return snapshot && snapshot.id === input.disputeId ? snapshot : null;
+    },
+
+    async retrievePaymentIntentAttemptId(input) {
+      return readPaymentIntentAttemptId(client(), input);
     },
   };
 }

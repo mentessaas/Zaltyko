@@ -16,6 +16,16 @@
  *    disputa necesita su pago. Si aun así no está cobrado (p. ej. el cobro
  *    doble de D10, que nunca entra en el libro), no se guarda nada: aviso
  *    `dispute_unallocated` a la academia y el evento queda procesado.
+ *    Si ningún intento tiene ese `pi_…` (uno `claimed`: Zaltyko creó el cobro
+ *    en Stripe y se cayó antes de guardarlo), también se pasa antes por
+ *    `recordCollection`, que lo encuentra por la metadata del cobro, y se
+ *    vuelve a buscar. Si aun así no aparece y la metadata dice que es de un
+ *    intento que sigue `claimed` en esta academia y esta cuenta conectada,
+ *    DISPUTE_BEFORE_COLLECTION_RECORDED (pasajero): Stripe reenvía y la
+ *    disputa (con su plazo para responder, D4) no se queda esperando a otro
+ *    evento de la misma disputa. Si no, sin efecto y un aviso en el registro
+ *    (solo ids). El mismo criterio que las devoluciones
+ *    (adoptable-collection.ts).
  * 3. upsertDisputeAndApply guarda la disputa y aplica su efecto
  *    (disputeEffect): abierta → la cuota sigue pagada y la academia ve el
  *    plazo (D4); ganada → «Disputa ganada»; perdida en tarjeta → filas
@@ -28,6 +38,7 @@
  * registro con solo ids y el código); uno pasajero sube y Stripe reenvía.
  */
 import { logger } from "@/lib/logger";
+import { isAdoptableZaltykoCollection } from "@/modules/family-collection/application/adoptable-collection";
 import {
   isFamilyCollectionEventsFlagEnabled,
   isProductionDatabase,
@@ -76,6 +87,13 @@ export interface FamilyCollectionDisputeDeps {
    */
   recordCollection?: (input: DisputeEventInput) => Promise<unknown>;
 }
+
+/**
+ * Una disputa de un cobro de Zaltyko que el libro todavía no tiene (el intento
+ * sigue `claimed`, sin `pi_…` guardado). Es pasajero: el evento queda `failed`
+ * y Stripe lo reenvía hasta que el cobro esté en el libro.
+ */
+export const DISPUTE_BEFORE_COLLECTION_RECORDED = "FAMILY_COLLECTION_DISPUTE_BEFORE_COLLECTION_RECORDED";
 
 /** Tipo de efecto en el buzón: la fila de la disputa (`effect_id`). */
 export const DISPUTE_EFFECT_TYPE = "family_collection_dispute";
@@ -174,6 +192,39 @@ export async function processDisputeEvent(
 
   const find = () => store.findAttemptByPaymentIntent({ organizationId: input.organizationId, paymentIntentId });
   let attempt = await find();
+  let collectionRecorded = false;
+  // Ningún intento tiene este `pi_…`: puede ser uno que sigue `claimed`
+  // (Zaltyko creó el cobro en Stripe y se cayó antes de guardar su `pi_…`).
+  // Primero el camino de los cobros: lo encuentra por la metadata del cobro,
+  // le guarda el `pi_…` y registra el cobro. Después se vuelve a buscar.
+  if (!attempt && deps.recordCollection) {
+    await deps.recordCollection({ ...input, objectId: paymentIntentId });
+    collectionRecorded = true;
+    attempt = await find();
+    if (!attempt) {
+      const adoptable = await isAdoptableZaltykoCollection(
+        {
+          organizationId: input.organizationId,
+          account: input.account,
+          paymentIntentId,
+          subject: "disputa",
+          logIds: eventIds(input),
+        },
+        { gateway, store }
+      );
+      if (adoptable) {
+        // Un cobro de Zaltyko ya disputado que el libro aún no tiene: se pide
+        // a Stripe que reenvíe en vez de cerrar el evento sin efecto (la
+        // academia perdería el plazo para responder hasta otro evento).
+        logger.warn(
+          "Cobro automático: disputa de un cobro que el libro aún no registra; Stripe la reenviará",
+          eventIds(input, { paymentIntentId })
+        );
+        throw new Error(DISPUTE_BEFORE_COLLECTION_RECORDED);
+      }
+    }
+  }
+  // Un cargo que no es de un cobro automático de Zaltyko: no es asunto de este módulo.
   if (!attempt) return NO_EFFECT;
   if (attempt.paymentProviderAccountId !== input.account.id) {
     logger.warn(
@@ -183,8 +234,9 @@ export async function processDisputeEvent(
     return NO_EFFECT;
   }
 
-  // La disputa necesita el pago: un cobro que el libro aún no tiene se registra antes.
-  if (attempt.status !== "succeeded" && deps.recordCollection) {
+  // La disputa necesita el pago: un cobro que el libro aún no tiene se registra
+  // antes (si el camino de los cobros ya pasó arriba, no se repite).
+  if (attempt.status !== "succeeded" && deps.recordCollection && !collectionRecorded) {
     await deps.recordCollection({ ...input, objectId: paymentIntentId });
     attempt = (await find()) ?? attempt;
   }

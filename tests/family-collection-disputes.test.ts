@@ -63,6 +63,7 @@ import {
   processPaymentIntentEvent,
 } from "@/modules/family-collection/application/family-collection-events";
 import {
+  DISPUTE_BEFORE_COLLECTION_RECORDED,
   DISPUTE_EFFECT_TYPE,
   DISPUTE_REVIEW_EFFECT_TYPE,
   processDisputeEvent,
@@ -190,7 +191,8 @@ function input(overrides: Partial<DisputeEventInput> = {}): DisputeEventInput {
 
 /** Stripe simulado: la disputa (se puede cambiar entre entregas). */
 function fakeDisputeGateway(initial: DisputeSnapshot | null) {
-  const state = { dispute: initial };
+  // `metadataAttemptId`: el intento que dice la metadata del `pi_…` (null: no es de Zaltyko).
+  const state = { dispute: initial, metadataAttemptId: null as string | null };
   const gateway = {
     retrieveDispute: vi.fn<FamilyCollectionDisputeGateway["retrieveDispute"]>(async (request) => {
       if (request.connectedAccount !== connectedAccount || request.disputeId !== disputeRef) {
@@ -198,6 +200,12 @@ function fakeDisputeGateway(initial: DisputeSnapshot | null) {
       }
       return state.dispute ? { ...state.dispute } : null;
     }),
+    // Solo cuando ningún intento tiene el `pi_…` ni después del camino de los cobros.
+    retrievePaymentIntentAttemptId: vi.fn(async (request: { connectedAccount: string; paymentIntentId: string }) =>
+      request.connectedAccount === connectedAccount && request.paymentIntentId === state.dispute?.paymentIntentId
+        ? state.metadataAttemptId
+        : null
+    ),
   };
   return { gateway, state };
 }
@@ -209,6 +217,15 @@ function fakeDisputeStore(options: { attempt?: CollectionAttempt | null; result?
     isStorageAvailable: vi.fn<FamilyCollectionDisputeStore["isStorageAvailable"]>(async () => true),
     findAttemptByPaymentIntent: vi.fn<FamilyCollectionDisputeStore["findAttemptByPaymentIntent"]>(async (request) =>
       state.attempt && request.paymentIntentId === state.attempt.paymentIntentId && request.organizationId === organizationId
+        ? { ...state.attempt }
+        : null
+    ),
+    // El mismo criterio que la adopción del camino de los cobros (sigue `claimed` en esa academia).
+    findClaimedAttemptById: vi.fn(async (request: { organizationId: string; attemptId: string }) =>
+      state.attempt &&
+      state.attempt.status === "claimed" &&
+      request.attemptId === state.attempt.id &&
+      request.organizationId === state.attempt.organizationId
         ? { ...state.attempt }
         : null
     ),
@@ -364,6 +381,106 @@ describe("manejador de charge.dispute.*", () => {
       currency: "EUR",
       now,
     });
+  });
+
+  it("intento claimed sin pi_ guardado y la disputa llega primero → se registra el cobro por el camino de los cobros y después se guarda la disputa", async () => {
+    const { gateway } = fakeDisputeGateway(dispute());
+    const { store, state } = fakeDisputeStore({ attempt: attempt({ status: "claimed", paymentIntentId: null }) });
+    // El camino de los cobros (processPaymentIntentEvent) lo adopta por la metadata y registra el cobro.
+    const recordCollection = vi.fn(async (request: DisputeEventInput) => {
+      expect(request).toEqual(input({ objectId: paymentIntentId }));
+      state.attempt = attempt({ status: "succeeded" });
+    });
+
+    const effect = await processDisputeEvent(input(), { store, gateway, recordCollection });
+
+    expect(effect).toEqual({ effectType: DISPUTE_EFFECT_TYPE, effectId: disputeRowId });
+    // Una sola vez: no se repite al ver el intento (ya cobrado).
+    expect(recordCollection).toHaveBeenCalledTimes(1);
+    expect(store.findAttemptByPaymentIntent).toHaveBeenCalledTimes(2);
+    expect(store.upsertDisputeAndApply).toHaveBeenCalledTimes(1);
+    expect(store.upsertDisputeAndApply.mock.calls[0]?.[0]).toMatchObject({ attemptId, paymentIntentId });
+    // Primero el cobro y después la disputa.
+    expect(recordCollection.mock.invocationCallOrder[0]).toBeLessThan(
+      store.upsertDisputeAndApply.mock.invocationCallOrder[0]
+    );
+    // Ya resuelto: no hace falta mirar la metadata.
+    expect(gateway.retrievePaymentIntentAttemptId).not.toHaveBeenCalled();
+    expect(store.recordDisputeNotice).not.toHaveBeenCalled();
+  });
+
+  it("ningún intento ni después del camino de los cobros y la metadata apunta a uno claimed de esta cuenta → error pasajero (Stripe reenvía)", async () => {
+    const { gateway, state } = fakeDisputeGateway(dispute());
+    state.metadataAttemptId = attemptId;
+    const { store } = fakeDisputeStore({ attempt: attempt({ status: "claimed", paymentIntentId: null }) });
+    const recordCollection = vi.fn(async () => undefined);
+
+    await expect(processDisputeEvent(input(), { store, gateway, recordCollection })).rejects.toThrow(
+      DISPUTE_BEFORE_COLLECTION_RECORDED
+    );
+    expect(recordCollection).toHaveBeenCalledTimes(1);
+    expect(gateway.retrievePaymentIntentAttemptId).toHaveBeenCalledWith({ connectedAccount, paymentIntentId });
+    expect(store.findClaimedAttemptById).toHaveBeenCalledWith({ organizationId, attemptId });
+    expect(store.upsertDisputeAndApply).not.toHaveBeenCalled();
+    expect(store.recordDisputeNotice).not.toHaveBeenCalled();
+  });
+
+  it("la metadata apunta a un intento que ya no está claimed, que no existe o de otra cuenta → sin efecto ni reenvío, aviso solo con ids", async () => {
+    for (const [label, stored, reason] of [
+      // Cerrado (p. ej. cancelado por la puerta) sin haber guardado el `pi_…`.
+      ["ya no claimed", attempt({ status: "canceled", paymentIntentId: null }), "attempt_not_claimed"],
+      // No existe en esta academia.
+      ["inexistente", null, "attempt_not_claimed"],
+      // Sigue claimed, pero en otra cuenta conectada de la academia.
+      [
+        "otra cuenta",
+        attempt({ status: "claimed", paymentIntentId: null, paymentProviderAccountId: otherAccountRowId }),
+        "other_connected_account",
+      ],
+    ] as const) {
+      vi.mocked(logger.warn).mockClear();
+      const { gateway, state } = fakeDisputeGateway(dispute());
+      state.metadataAttemptId = attemptId;
+      const { store } = fakeDisputeStore({ attempt: stored });
+      const recordCollection = vi.fn(async () => undefined);
+
+      expect(await processDisputeEvent(input(), { store, gateway, recordCollection }), label).toEqual({
+        effectType: null,
+        effectId: null,
+      });
+      expect(recordCollection, label).toHaveBeenCalledTimes(1);
+      expect(store.findClaimedAttemptById, label).toHaveBeenCalledWith({ organizationId, attemptId });
+      expect(store.upsertDisputeAndApply, label).not.toHaveBeenCalled();
+      expect(store.recordDisputeNotice, label).not.toHaveBeenCalled();
+      expect(logger.warn, label).toHaveBeenCalledWith(
+        "Cobro automático: disputa de un cobro de Zaltyko sin intento reclamado que adoptar en esta cuenta; no se aplica",
+        {
+          organizationId,
+          eventId: "evt_SyntheticDispute1",
+          disputeId: disputeRef,
+          accountId: connectedAccount,
+          paymentIntentId,
+          attemptId,
+          reason,
+        }
+      );
+    }
+  });
+
+  it("cargo que no es de Zaltyko (sin metadata del intento) → sin efecto, sin error y sin buscar intentos reclamados", async () => {
+    const { gateway } = fakeDisputeGateway(dispute());
+    const { store } = fakeDisputeStore({ attempt: null });
+    const recordCollection = vi.fn(async () => undefined);
+
+    expect(await processDisputeEvent(input(), { store, gateway, recordCollection })).toEqual({
+      effectType: null,
+      effectId: null,
+    });
+    expect(recordCollection).toHaveBeenCalledTimes(1);
+    expect(gateway.retrievePaymentIntentAttemptId).toHaveBeenCalledTimes(1);
+    expect(store.findClaimedAttemptById).not.toHaveBeenCalled();
+    expect(store.upsertDisputeAndApply).not.toHaveBeenCalled();
+    expect(store.recordDisputeNotice).not.toHaveBeenCalled();
   });
 
   it("moneda distinta a la del pago o intento ya no cobrado al bloquear → aviso dispute_unallocated sin fila", async () => {
@@ -538,6 +655,23 @@ describe("createStripeDisputeGateway", () => {
     expect(
       await createStripeDisputeGateway(text.client).retrieveDispute({ connectedAccount, disputeId: disputeRef })
     ).toMatchObject({ reasonCode: null, paymentMethodKind: null, chargeId: chargeRef });
+  });
+});
+
+describe("createStripeDisputeGateway.retrievePaymentIntentAttemptId", () => {
+  it("el id del intento sale de la metadata del pi_ en la cuenta conectada; sin metadata de Zaltyko, null", async () => {
+    const retrieve = vi.fn(async (id: string) => ({
+      id,
+      object: "payment_intent",
+      metadata: id === paymentIntentId ? { zaltyko_collection_attempt_id: attemptId } : {},
+    }));
+    const gateway = createStripeDisputeGateway({ paymentIntents: { retrieve } } as unknown as Stripe);
+
+    await expect(gateway.retrievePaymentIntentAttemptId?.({ connectedAccount, paymentIntentId })).resolves.toBe(attemptId);
+    expect(retrieve).toHaveBeenCalledWith(paymentIntentId, {}, { stripeAccount: connectedAccount });
+    await expect(
+      gateway.retrievePaymentIntentAttemptId?.({ connectedAccount, paymentIntentId: "pi_SyntheticOther1" })
+    ).resolves.toBeNull();
   });
 });
 

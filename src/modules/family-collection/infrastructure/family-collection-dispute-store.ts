@@ -51,6 +51,7 @@ import { RefundDoesNotFitError } from "@/modules/family-collection/domain/refund
 import {
   attemptColumns,
   findAttemptByPaymentIntentIn,
+  findClaimedAttemptByIdIn,
   ledgerEnvironmentOf,
   lockAttemptCharges,
   lockInvoice,
@@ -92,6 +93,12 @@ export interface FamilyCollectionDisputeStore {
   isStorageAvailable(): Promise<boolean>;
   /** El intento de esa academia con ese `pi_…`, o null. Sin transacción. */
   findAttemptByPaymentIntent(input: { organizationId: string; paymentIntentId: string }): Promise<CollectionAttempt | null>;
+  /**
+   * El intento de esa academia con ese id, solo si sigue `claimed`; si no,
+   * null. Sin transacción. Lo usa una disputa cuyo `pi_…` no tiene ningún
+   * intento (adoptable-collection.ts). Opcional para las dobles de los tests.
+   */
+  findClaimedAttemptById?(input: { organizationId: string; attemptId: string }): Promise<CollectionAttempt | null>;
   /**
    * Una transacción con el orden único (academia → cuotas → factura → intento
    * → disputa → pago): guarda la disputa (una fila por `dp_…`, siempre con lo
@@ -459,6 +466,10 @@ export function createFamilyCollectionDisputeStore(): FamilyCollectionDisputeSto
 
     async findAttemptByPaymentIntent(input) {
       return findAttemptByPaymentIntentIn(db, input);
+    },
+
+    async findClaimedAttemptById(input) {
+      return findClaimedAttemptByIdIn(db, input);
     },
 
     async upsertDisputeAndApply(input) {
