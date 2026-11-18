@@ -1013,6 +1013,115 @@ familia guardó, en la cuenta Stripe conectada de su academia. Decisión:
 - **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 
+## Candidata de eventos, confirmación con el banco y disputas (cobro automático, Fase 4)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261118120000_family_collection_events_candidate.sql` | `4655a7867d1b239e7b9e5418d4bd28905695b37246a381e02cd62c921e06a40a` | No aplicada | No aplicada |
+
+**Estado: no aplicada en ningún entorno.** Staging y producción necesitan cada
+uno una autorización expresa de Elvis; las de las Fases 1 a 3 no la cubren.
+Requiere antes la candidata de la Fase 3
+(`20261117120000_family_collection_candidate.sql`) tal cual la instala esa
+candidata, y las tablas del libro `zaltyko.payments`,
+`zaltyko.payment_provider_events` y `zaltyko.refunds` (historial aplicado).
+
+Lo que pasa en Stripe con los cobros automáticos llega por eventos de las
+cuentas conectadas; la familia puede confirmar el pago con su banco y las
+disputas quedan anotadas. Decisión:
+`docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md`; plan:
+`docs/superpowers/plans/2026-11-18-cobro-automatico-fase4-eventos-stripe.md`.
+
+- **`zaltyko.family_collection_attempts`: estado `requires_action`** (la familia
+  tiene que confirmar el pago con su banco). Columna nueva `action_deadline_at`
+  (`timestamptz`, nula). Check nuevo
+  `family_collection_attempts_action_deadline_check`: `requires_action` exige
+  plazo y tarjeta (la domiciliación no pide confirmación); el check de
+  referencia por estado exige su `pi_…`. Cuenta como intento abierto: el índice
+  `family_collection_attempts_open_uq` se rehace sobre `claimed`, `created`,
+  `processing` y `requires_action` (nunca dos cobros a la vez de una factura).
+  Ningún intento queda esperando sin fecha: el proceso diario lo cierra al
+  vencer el plazo.
+- **Tabla nueva `zaltyko.family_collection_disputes`.** Una fila por disputa
+  (`dp_…` o `du_…`, única por academia) de un cobro automático: intento y pago
+  registrado (claves compuestas en `restrict`: nunca se borra un pago ni su
+  rastro), cargo de Stripe (`ch_…` o `py_…`), importe positivo en `EUR`, estado
+  de Stripe (`warning_needs_response`, `warning_under_review`,
+  `warning_closed`, `needs_response`, `under_review`, `won`, `lost`,
+  `prevented`), código del motivo (hasta 64), plazo para responder, si el banco
+  retiró el dinero, cuándo se escribieron las filas de devolución
+  (`reversed_at`), apertura y cierre (`closed_at` existe exactamente en `won`,
+  `lost`, `warning_closed` y `prevented`) y el último evento que la tocó
+  (`on delete set null (last_provider_event_id)`, PostgreSQL 15+: borrar el
+  evento no anula la academia). Índices `(organization_id, status,
+  updated_at)`, `(organization_id, attempt_id)` y
+  `(organization_id, last_provider_event_id)`.
+- **Sin tabla de eventos ni de devoluciones nuevas:** los eventos se guardan una
+  vez por id en `zaltyko.payment_provider_events` y las devoluciones y las
+  disputas perdidas son filas de `zaltyko.refunds`.
+- **Nunca** mensajes de Stripe, pruebas de la disputa, número de tarjeta, IBAN,
+  nombre ni correo. RLS `ENABLE` y `FORCE` en la tabla nueva; solo
+  `service_role` con `select`, `insert` y `update`.
+- **Preflight.** Aborta si la versión es anterior a PostgreSQL 15, si faltan
+  las tablas del libro, si ya existe la tabla de disputas, la columna o el check
+  nuevos (reinstalar no toca nada), o si la Fase 3 no está exactamente como la
+  deja su candidata (sus tres tablas, las columnas exactas de los intentos, sus
+  dos checks de estado sin `requires_action` y el índice con su predicado).
+- **Transacción propia** (`begin; … commit;`) con `set local lock_timeout =
+  '5s'`. Solo cambia los intentos (columna, dos checks rehechos, uno nuevo y el
+  índice de un intento abierto) y crea la tabla nueva.
+- **Espejo Drizzle** en
+  `src/modules/family-collection/infrastructure/family-collection-schema.ts`
+  (describe la base con las Fases 3 y 4). `familyCollectionStorageShape()`
+  (`src/modules/family-collection/application/storage.ts`, solo lee el
+  catálogo) responde `"none"`, `"phase3"` o `"phase4"`;
+  `isFamilyCollectionStorageAvailable()` sigue abierta con `"phase3"` o
+  `"phase4"` (el cobro diario de la Fase 3 no nombra nada de la Fase 4) e
+  `isFamilyCollectionEventsStorageAvailable()` solo con `"phase4"`.
+- **Bandera** apagada por defecto: `ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED`.
+- **Derechos de datos.** `family_collection_disputes` es un grupo opcional
+  excluido propio (`OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES`,
+  `payment_provider_attempts`): solo el recuento de la academia. No va dentro
+  del grupo de la Fase 3, para que una base con solo la Fase 3 no quede «a
+  medias». `action_deadline_at` figura como columna de una candidata posterior
+  (`laterCandidateColumns`): la exportación acepta los intentos con las
+  columnas de la Fase 3 o con todas las de la Fase 4, nunca con una parte. El
+  plan de disposición la revisa igual (`REVIEWED_DISPOSITION_OPTIONAL_GROUPS`).
+- **Pruebas:** `tests/family-collection-events-pg.test.ts` (job «Postgres
+  integration»: instala antes las Fases 1 a 3 si faltan, solo en el PostgreSQL
+  desechable de GitHub; ejecuta la vuelta atrás de abajo, sacada del propio
+  `.sql`, y comprueba que la Fase 3 queda igual; luego retira lo que instaló y
+  comprueba que la base queda como estaba) y
+  `tests/family-collection-contract.test.ts` (candidatas, espejo y detección de
+  almacenamiento coinciden; la vuelta atrás de este README es la del `.sql`).
+- **Vuelta atrás.** Va comentada al final del `.sql` y requiere la misma
+  autorización. Antes, apagar `ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED` y
+  comprobar que ningún intento está en `requires_action` (si queda alguno, el
+  check de la Fase 3 aborta la transacción sin cambiar nada). Borra las
+  disputas guardadas: exportarlas antes si importan; las devoluciones ya
+  escritas siguen en `zaltyko.refunds`. Retirarla antes que la de la Fase 3.
+
+```sql
+begin;
+set local lock_timeout = '5s';
+drop table zaltyko.family_collection_disputes;
+drop index zaltyko.family_collection_attempts_open_uq;
+alter table zaltyko.family_collection_attempts
+  drop constraint family_collection_attempts_action_deadline_check,
+  drop constraint family_collection_attempts_intent_reference_by_status,
+  add constraint family_collection_attempts_intent_reference_by_status check ((status not in ('created', 'processing', 'succeeded') or provider_payment_intent_reference is not null) and (status <> 'claimed' or provider_payment_intent_reference is null)),
+  drop constraint family_collection_attempts_status_check,
+  add constraint family_collection_attempts_status_check check (status in ('claimed', 'created', 'processing', 'succeeded', 'failed', 'canceled')),
+  drop column action_deadline_at;
+create unique index family_collection_attempts_open_uq
+  on zaltyko.family_collection_attempts (organization_id, invoice_id)
+  where status in ('claimed', 'created', 'processing');
+commit;
+```
+
+- **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
+  ningún entorno. La CI verde no equivale a autorización.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.

@@ -10,6 +10,7 @@ import {
   CANONICAL_EXPORT_TABLES,
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   OPTIONAL_DISCOVERY_EXPORT_TABLES,
+  OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES,
   OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES,
   OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES,
   OPTIONAL_INCLUDED_EXPORT_MODULES,
@@ -120,6 +121,39 @@ describe("canonical export failure boundaries (database mocked)", () => {
     expect(sqlText).not.toContain("provider_payment_intent_reference");
     expect(sqlText).not.toContain("decline_code");
     expect(sqlText).not.toContain("collection_day_of_month");
+  });
+  it.each([false, true])("accepts the Phase 4 attempt column and keeps disputes count-only with disputes installed=%s", async includeDisputes => {
+    const optionalTables = [...OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES, ...(includeDisputes ? OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES : [])];
+    const counts: Record<string, number> = { family_collection_attempts: 2, family_collection_disputes: 1 };
+    prepareThroughMembership();
+    mocks.execute.mockResolvedValueOnce({ rows: [
+      ...catalogRows(),
+      ...optionalTables.flatMap(table => table.columns.map(column_name => ({ table_name: table.table, column_name }))),
+      { table_name: "family_collection_attempts", column_name: "action_deadline_at" },
+    ] });
+    mocks.execute.mockResolvedValueOnce({ rows: [{ snapshot_at: new Date("2026-11-18T00:00:00Z") }] });
+    mocks.execute.mockResolvedValueOnce({ rows: [...EXCLUDED_CANONICAL_SCOPED_TABLES, ...optionalTables.map(table => table.table)].map(table_name => ({ table_name, row_count: counts[table_name] ?? 0 })) });
+    mocks.execute.mockResolvedValueOnce({ rows: CANONICAL_EXPORT_TABLES.map(table => ({ table_name: table.name, row_count: 0, estimated_bytes: 0 })) });
+    const bundle = JSON.parse((await exportCanonicalAcademyData(actor)).body);
+    expect(bundle.coverage.complete).toBe(false);
+    expect(bundle.coverage.excludedTables).toContainEqual(expect.objectContaining({
+      table: "family_collection_attempts", rowCount: 2, valuesExported: false, countScope: "organization_id",
+    }));
+    const disputes = bundle.coverage.excludedTables.filter((entry: { table: string }) => entry.table === "family_collection_disputes");
+    expect(disputes).toEqual(includeDisputes ? [expect.objectContaining({
+      category: "payment_provider_attempts", rowCount: 1, valuesExported: false, countScope: "organization_id",
+    })] : []);
+    expect(bundle.data).not.toHaveProperty("family_collection_disputes");
+    const sqlText = mocks.execute.mock.calls.map(call => dialect.sqlToQuery(call[0]).sql).join("\n");
+    expect(sqlText).not.toContain("action_deadline_at");
+    expect(sqlText).not.toContain("provider_dispute_reference");
+  });
+  it("fails closed for an unclassified automatic collection dispute column", async () => {
+    prepareThroughMembership();
+    const rows = [...catalogRows(), ...[...OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES, ...OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES].flatMap(table => table.columns.map(column_name => ({ table_name: table.table, column_name })))];
+    mocks.execute.mockResolvedValueOnce({ rows: [...rows, { table_name: "family_collection_disputes", column_name: "evidence_text" }] });
+    await expect(exportCanonicalAcademyData(actor)).rejects.toMatchObject({ status: 503, problemType: "canonical-export-schema-unavailable" });
+    expect(mocks.execute).toHaveBeenCalledTimes(6);
   });
   it.each(["partial automatic collection group", "unclassified automatic collection column"])("fails closed for a %s", async kind => {
     prepareThroughMembership();

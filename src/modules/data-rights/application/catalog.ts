@@ -80,6 +80,13 @@ export const OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES = [
  * fails closed. Values stay out of the bundle (provider references, provider
  * codes and the collection-day setting); only this academy's counts are
  * included, like payment_attempts and organization_payment_provider_accounts.
+ *
+ * La candidata de la Fase 4
+ * (docs/deployment/candidates/20261118120000_family_collection_events_candidate.sql,
+ * sin aplicar) añade action_deadline_at a family_collection_attempts:
+ * `laterCandidateColumns`. La tabla se acepta con las columnas de la Fase 3 o
+ * con ellas más todas las añadidas, nunca con una parte: así una base con solo
+ * la Fase 3 sigue exportando, y con la Fase 4 también.
  */
 export const OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES = [
   {
@@ -87,6 +94,7 @@ export const OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES = [
     category: "payment_provider_attempts",
     reason: "Automatic collection attempts carry payment provider references and provider result codes; only this academy's count is included.",
     columns: ["id", "organization_id", "location_id", "invoice_id", "family_id", "family_payer_id", "authorization_id", "payment_provider_account_id", "attempt_number", "payment_method_kind", "amount_cents", "currency", "status", "provider_payment_intent_reference", "failure_code", "decline_code", "next_retry_at", "resume_count", "payment_id", "allocation_status", "claimed_at", "completed_at", "created_at", "updated_at"],
+    laterCandidateColumns: ["action_deadline_at"],
   },
   {
     table: "family_collection_attempt_charges",
@@ -102,13 +110,35 @@ export const OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES = [
   },
 ] as const;
 
+/** Disputas de los cobros automáticos (cobro automático, Fase 4;
+ * docs/deployment/candidates/20261118120000_family_collection_events_candidate.sql,
+ * sin aplicar en ningún entorno). Es un grupo propio y no parte del de la
+ * Fase 3: se instala con otra candidata, y una base con solo la Fase 3 no
+ * debe quedar «a medias». Solo el recuento de la academia: las referencias de
+ * Stripe, los códigos del motivo y los plazos no salen del servidor.
+ */
+export const OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES = [
+  {
+    table: "family_collection_disputes",
+    category: "payment_provider_attempts",
+    reason: "Disputes of automatic collection attempts carry payment provider references, provider reason codes and deadlines; only this academy's count is included.",
+    columns: ["id", "organization_id", "attempt_id", "payment_id", "provider_dispute_reference", "provider_charge_reference", "amount_cents", "currency", "status", "reason_code", "evidence_due_at", "funds_withdrawn", "reversed_at", "opened_at", "closed_at", "last_provider_event_id", "created_at", "updated_at"],
+  },
+] as const;
+
 export const OPTIONAL_EXPORT_MODULE_GROUPS: readonly (readonly (CanonicalExportExcludedTable & {
   columns: readonly string[];
+  /**
+   * Columnas que añade a esta tabla una candidata posterior. La tabla vale con
+   * `columns` o con `columns` más todas estas; con una parte, falla cerrada.
+   */
+  laterCandidateColumns?: readonly string[];
 })[])[] = [
   OPTIONAL_DISCOVERY_EXPORT_TABLES,
   OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
   OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES,
   OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES,
+  OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES,
 ];
 
 function columns(value: string): string[] {

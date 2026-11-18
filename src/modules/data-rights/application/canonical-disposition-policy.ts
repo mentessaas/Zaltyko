@@ -74,6 +74,9 @@ export const REVIEWED_DISPOSITION_OPTIONAL_GROUPS: readonly (readonly ExcludedPo
     e("family_collection_attempt_charges", "payment_provider_attempts"),
     e("organization_collection_settings", "payment_provider_configuration"),
   ],
+  // Cobro automático, Fase 4 (candidato 20261118120000, sin aplicar): las
+  // disputas, grupo propio porque se instalan con otra candidata.
+  [e("family_collection_disputes", "payment_provider_attempts")],
 ];
 
 /** Activated academy modules whose rows are projected when installed (2026-11-12). */
