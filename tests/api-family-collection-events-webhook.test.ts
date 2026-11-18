@@ -178,13 +178,24 @@ describe("POST /api/stripe/connect/payments-webhook", () => {
     });
   });
 
-  it("mismo evt_ dos veces: la segunda responde duplicate", async () => {
+  it("mismo evt_ dos veces: la segunda, ya procesado, responde 200 duplicate", async () => {
     vi.mocked(handleFamilyCollectionEvent).mockResolvedValueOnce("processed").mockResolvedValueOnce("duplicate");
 
     expect(await (await POST(signedRequest())).json()).toEqual({ received: true });
     const second = await POST(signedRequest());
     expect(second.status).toBe(200);
     expect(await second.json()).toEqual({ duplicate: true });
+  });
+
+  it("evento que otra entrega está procesando → 503 EVENT_IN_PROGRESS para que Stripe lo reenvíe", async () => {
+    vi.mocked(handleFamilyCollectionEvent).mockResolvedValueOnce("in_progress");
+
+    const response = await POST(signedRequest());
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("retry-after")).toBe("60");
+    expect(await response.json()).toEqual({ error: "EVENT_IN_PROGRESS" });
   });
 
   it("cuenta acct_ desconocida o de otro entorno (el servicio la ignora) → 200 ignored", async () => {

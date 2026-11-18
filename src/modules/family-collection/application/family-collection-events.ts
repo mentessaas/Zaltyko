@@ -11,8 +11,10 @@
  *    ignora.
  * 3. La cuenta `acct_…` tiene que ser una cuenta conectada de una academia en
  *    el entorno `test`. Si no, se ignora (solo ids en el registro).
- * 4. Buzón (idempotencia por `evt_…`): `duplicate` si ya está procesado o en
- *    curso; si no, se llama al manejador del objeto y se cierra `processed`.
+ * 4. Buzón (idempotencia por `evt_…`): `duplicate` si ya está procesado;
+ *    `in_progress` si otra entrega lo está procesando desde hace menos de 5
+ *    minutos (la ruta responde 503 y Stripe lo reenvía); si no, se llama al
+ *    manejador del objeto y se cierra `processed`.
  * 5. Si el manejador lanza, la fila queda `failed` con solo el código y el
  *    error se propaga para que la ruta responda 500 y Stripe reenvíe.
  *
@@ -147,7 +149,7 @@ async function isEventsStorageReady(): Promise<boolean> {
 export async function handleFamilyCollectionEvent(
   event: ConnectedAccountEvent,
   deps: { handlers?: Partial<ProviderEventHandlers>; now?: Date } = {}
-): Promise<"processed" | "duplicate" | "ignored"> {
+): Promise<"processed" | "duplicate" | "in_progress" | "ignored"> {
   // La ruta ya comprueba todo esto; se repite aquí porque es lo que protege
   // el dinero si alguien llama a esta función desde otro sitio.
   if (!areFamilyCollectionEventsOpen()) return "ignored";
@@ -171,7 +173,7 @@ export async function handleFamilyCollectionEvent(
 
   const now = deps.now ?? new Date();
   const { claim, inboxId } = await claimProviderEvent({ organizationId: account.organizationId, event, now });
-  if (claim === "duplicate") return "duplicate";
+  if (claim !== "process") return claim;
 
   const { handler, objectId } = handlerFor(route, withDefaults(deps.handlers));
   let effect: ProviderEventEffect;

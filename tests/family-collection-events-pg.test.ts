@@ -20,6 +20,7 @@ import {
 } from "@/modules/family-collection/domain/provider-event";
 import {
   claimProviderEvent,
+  finishProviderEvent,
   providerEventPayloadSha256,
 } from "@/modules/family-collection/infrastructure/provider-event-inbox";
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
@@ -905,16 +906,57 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
       expect(rows[0]).toMatchObject({ status: "processed", attempts: 1, lastError: null });
       expect(iso(rows[0]!.processedAt)).toBe(EVENT_NOW.toISOString());
 
-      // Dos entregas a la vez del mismo evento: una lo procesa y la otra es duplicate.
+      // Dos entregas a la vez del mismo evento: una sola lo procesa. La otra
+      // ve la fila en curso (in_progress → 503) o ya procesada (duplicate),
+      // según cuándo llegue; nunca llama al manejador.
       const twice = eventFor(accountOf(invoice));
       const concurrent = noEffect();
       const outcomes = await Promise.all([
         handleFamilyCollectionEvent(twice, { now: EVENT_NOW, handlers: { paymentIntent: concurrent } }),
         handleFamilyCollectionEvent(twice, { now: EVENT_NOW, handlers: { paymentIntent: concurrent } }),
       ]);
-      expect([...outcomes].sort()).toEqual(["duplicate", "processed"]);
+      expect(outcomes.filter((outcome) => outcome === "processed")).toHaveLength(1);
+      expect(["duplicate", "in_progress"]).toContain(outcomes.find((outcome) => outcome !== "processed"));
       expect(concurrent).toHaveBeenCalledTimes(1);
       expect(await inboxRows(twice.eventId)).toHaveLength(1);
+    }, 60_000);
+
+    it("reenvío mientras otra entrega lo procesa → in_progress (503) sin fila nueva; terminado → duplicate", async () => {
+      const invoice = await createCollectableInvoice();
+      const event = eventFor(accountOf(invoice));
+      // El primer manejador se queda esperando hasta que el reenvío haya llegado.
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let entered!: () => void;
+      const started = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const blocking = vi.fn(async () => {
+        entered();
+        await gate;
+        return { effectType: null, effectId: null };
+      });
+      const resent = noEffect();
+
+      const first = handleFamilyCollectionEvent(event, { now: EVENT_NOW, handlers: { paymentIntent: blocking } });
+      await started;
+      expect(await handleFamilyCollectionEvent(event, { now: minutesAfter(1), handlers: { paymentIntent: resent } })).toBe(
+        "in_progress"
+      );
+      const during = await inboxRows(event.eventId);
+      expect(during).toHaveLength(1);
+      expect(during[0]).toMatchObject({ status: "processing", attempts: 1 });
+
+      release();
+      expect(await first).toBe("processed");
+      expect(await handleFamilyCollectionEvent(event, { now: minutesAfter(2), handlers: { paymentIntent: resent } })).toBe(
+        "duplicate"
+      );
+      expect(blocking).toHaveBeenCalledTimes(1);
+      expect(resent).not.toHaveBeenCalled();
+      expect(await inboxRows(event.eventId)).toEqual([expect.objectContaining({ status: "processed", attempts: 1 })]);
     }, 60_000);
 
     it("manejador que lanza → fila failed con solo el código; el reenvío lo procesa", async () => {
@@ -1020,14 +1062,15 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
       expect(paymentIntent).not.toHaveBeenCalled();
     }, 60_000);
 
-    it("en curso hace menos de 5 min → duplicate; más de 5 min → se vuelve a reclamar; nunca cambia de academia", async () => {
+    it("en curso hace menos de 5 min → in_progress; más de 5 min → se vuelve a reclamar; processed → duplicate; nunca cambia de academia", async () => {
       const invoice = await createCollectableInvoice();
       const event = eventFor(accountOf(invoice));
       const input = { organizationId: invoice.organizationId, event };
 
       const first = await claimProviderEvent({ ...input, now: EVENT_NOW });
       expect(first.claim).toBe("process");
-      expect(await claimProviderEvent({ ...input, now: minutesAfter(4) })).toEqual({ claim: "duplicate", inboxId: first.inboxId });
+      expect(await claimProviderEvent({ ...input, now: minutesAfter(4) })).toEqual({ claim: "in_progress", inboxId: first.inboxId });
+      // La entrega anterior se cayó a mitad: pasados 5 minutos, el reenvío lo reclama.
       expect(await claimProviderEvent({ ...input, now: minutesAfter(6) })).toEqual({ claim: "process", inboxId: first.inboxId });
       // El mismo evt_ desde otra academia no se lleva la fila, aunque esté abandonada.
       const other = await createCollectableInvoice();
@@ -1038,6 +1081,19 @@ describeDisposablePg("family collection events candidate schema (Fase 4)", () =>
       const rows = await inboxRows(event.eventId);
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({ organizationId: invoice.organizationId, status: "processing", attempts: 2 });
+
+      // Una vez processed, cualquier reenvío es duplicate.
+      await finishProviderEvent({
+        inboxId: first.inboxId,
+        status: "processed",
+        effectType: null,
+        effectId: null,
+        errorCode: null,
+        now: minutesAfter(7),
+      });
+      expect(await claimProviderEvent({ ...input, now: minutesAfter(8) })).toEqual({ claim: "duplicate", inboxId: first.inboxId });
+      expect(await claimProviderEvent({ ...input, now: minutesAfter(60) })).toEqual({ claim: "duplicate", inboxId: first.inboxId });
+      expect((await inboxRows(event.eventId))[0]).toMatchObject({ status: "processed", attempts: 2 });
     }, 60_000);
   });
 

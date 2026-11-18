@@ -32,7 +32,7 @@ export function providerEventPayloadSha256(payload: ProviderEventPayload): strin
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
-export type ProviderEventClaim = "process" | "duplicate";
+export type ProviderEventClaim = "process" | "duplicate" | "in_progress";
 
 /**
  * Reclama el evento para procesarlo. Una sola sentencia atómica:
@@ -40,9 +40,13 @@ export type ProviderEventClaim = "process" | "duplicate";
  * - si existe `failed` (o `received`), o lleva `processing` más de 5 minutos
  *   (el proceso anterior se cayó a mitad), lo vuelve a poner `processing` →
  *   `process`;
- * - si ya está `processed` o lo está procesando otra entrega → `duplicate`.
+ * - si ya está `processed` → `duplicate` (terminado: no hay nada que hacer);
+ * - si otra entrega lo está procesando desde hace menos de 5 minutos →
+ *   `in_progress`: la ruta responde 503 para que Stripe lo reenvíe más tarde.
+ *   Así, si esa otra entrega se cae a mitad, el reenvío lo recupera en vez de
+ *   darlo por hecho (decisión del coordinador, 18-11-2026).
  * La misma fila nunca cambia de academia: si el id ya existe en otra, es
- * `duplicate`.
+ * `duplicate` (esta academia nunca podrá procesarlo).
  */
 export async function claimProviderEvent(input: {
   organizationId: string;
@@ -79,21 +83,25 @@ export async function claimProviderEvent(input: {
   const row = claimed.rows[0] as { id?: unknown } | undefined;
   if (typeof row?.id === "string") return { claim: "process", inboxId: row.id };
 
-  // No se insertó ni se reclamó: ya está procesado o en curso.
+  // No se insertó ni se reclamó: ya está procesado, en curso o es de otra academia.
   const existing = await db.execute(sql`
-    select id::text as "id"
+    select id::text as "id", organization_id::text as "organizationId", status::text as "status"
       from zaltyko.payment_provider_events
      where processor = 'stripe'
        and environment = 'sandbox'::zaltyko.provider_environment
        and provider_event_id = ${input.event.eventId}
      limit 1
   `);
-  const found = existing.rows[0] as { id?: unknown } | undefined;
+  const found = existing.rows[0] as { id?: unknown; organizationId?: unknown; status?: unknown } | undefined;
   if (typeof found?.id !== "string") {
     // Solo pasa si alguien borró la fila entre las dos sentencias.
     throw new Error("FAMILY_COLLECTION_EVENT_INBOX_ROW_MISSING");
   }
-  return { claim: "duplicate", inboxId: found.id };
+  if (found.organizationId !== input.organizationId || found.status === "processed") {
+    return { claim: "duplicate", inboxId: found.id };
+  }
+  // `processing` reciente (o una carrera con otra entrega): que Stripe vuelva a intentarlo.
+  return { claim: "in_progress", inboxId: found.id };
 }
 
 /**

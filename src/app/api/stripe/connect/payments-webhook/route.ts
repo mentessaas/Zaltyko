@@ -17,7 +17,9 @@
  * 4. evento de Live, de un tipo que no se escucha, sin cuenta conectada o
  *    con un objeto inesperado → 200 `{ ignored: true }`;
  * 5–7. almacenamiento, cuenta y buzón (handleFamilyCollectionEvent):
- *    200 `{ ignored: true }`, `{ duplicate: true }` o `{ received: true }`;
+ *    200 `{ ignored: true }`, `{ duplicate: true }` (ya procesado) o
+ *    `{ received: true }`; 503 `EVENT_IN_PROGRESS` si otra entrega lo está
+ *    procesando (Stripe lo reenvía; pasados 5 minutos se vuelve a reclamar);
  * 8. si el manejador falla → 500 `PROCESSING_FAILED` (Stripe reintenta).
  * En el registro solo van `eventId`, `type`, `accountId` y el nombre o código
  * del error, nunca el cuerpo.
@@ -39,10 +41,13 @@ import { parseConnectedAccountEvent } from "@/modules/family-collection/infrastr
 
 export const dynamic = "force-dynamic";
 
-function json(body: Record<string, unknown>, status = 200) {
+/** Segundos que se sugieren a Stripe antes de reenviar un evento en curso. */
+const IN_PROGRESS_RETRY_AFTER_SECONDS = "60";
+
+function json(body: Record<string, unknown>, status = 200, headers: Record<string, string> = {}) {
   return NextResponse.json(body, {
     status,
-    headers: { "cache-control": "no-store" },
+    headers: { "cache-control": "no-store", ...headers },
   });
 }
 
@@ -91,6 +96,12 @@ export async function POST(request: Request) {
   try {
     const outcome = await handleFamilyCollectionEvent(event);
     if (outcome === "duplicate") return json({ duplicate: true });
+    if (outcome === "in_progress") {
+      // Desviación aprobada del brief: un evento en curso no se da por hecho
+      // con un 200. Si la entrega que lo procesa se cae a mitad, Stripe lo
+      // reenvía y, pasados 5 minutos, ese reenvío lo vuelve a reclamar.
+      return json({ error: "EVENT_IN_PROGRESS" }, 503, { "retry-after": IN_PROGRESS_RETRY_AFTER_SECONDS });
+    }
     if (outcome === "ignored") return json({ ignored: true });
     return json({ received: true });
   } catch (error) {

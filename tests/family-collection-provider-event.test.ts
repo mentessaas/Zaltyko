@@ -341,11 +341,22 @@ describe("handleFamilyCollectionEvent", () => {
     expectNothingClaimed();
   });
 
-  it("duplicate → no llama a ningún manejador", async () => {
+  it("duplicate (ya procesado) → no llama a ningún manejador", async () => {
     const paymentIntent = vi.fn();
     vi.mocked(claimProviderEvent).mockResolvedValueOnce({ claim: "duplicate", inboxId: INBOX_ID });
 
     expect(await handleFamilyCollectionEvent(connectedEvent(), { now: NOW, handlers: { paymentIntent } })).toBe("duplicate");
+    expect(paymentIntent).not.toHaveBeenCalled();
+    expect(finishProviderEvent).not.toHaveBeenCalled();
+  });
+
+  it("en curso en otra entrega → in_progress, sin manejador ni cierre (la ruta responde 503)", async () => {
+    const paymentIntent = vi.fn();
+    vi.mocked(claimProviderEvent).mockResolvedValueOnce({ claim: "in_progress", inboxId: INBOX_ID });
+
+    expect(await handleFamilyCollectionEvent(connectedEvent(), { now: NOW, handlers: { paymentIntent } })).toBe(
+      "in_progress"
+    );
     expect(paymentIntent).not.toHaveBeenCalled();
     expect(finishProviderEvent).not.toHaveBeenCalled();
   });
