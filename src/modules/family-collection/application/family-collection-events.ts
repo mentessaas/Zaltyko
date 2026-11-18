@@ -156,6 +156,18 @@ export interface ProviderEventHandlers {
 
 const NO_EFFECT: ProviderEventEffect = { effectType: null, effectId: null };
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * El id del efecto que se guarda en el buzón (`effect_id` es uuid). Un id con
+ * otro formato no se guarda (queda `null`): si se intentara guardar, el cierre
+ * fallaría con el efecto ya aplicado y el evento se reprocesaría cada 5 minutos.
+ */
+export function inboxEffectId(effectId: string | null): string | null {
+  if (effectId === null) return null;
+  return UUID_PATTERN.test(effectId) ? effectId : null;
+}
+
 // ---------------------------------------------------------------------------
 // Cobros (`payment_intent.*`): el mismo camino que la relectura diaria
 // ---------------------------------------------------------------------------
@@ -479,7 +491,18 @@ export async function handleFamilyCollectionEvent(
   }
 
   const now = deps.now ?? new Date();
-  const { claim, inboxId } = await claimProviderEvent({ organizationId: account.organizationId, event, now });
+  const { claim, inboxId, attempts } = await claimProviderEvent({ organizationId: account.organizationId, event, now });
+  if (claim === "other_organization") {
+    // El mismo evt_ ya está guardado en otra academia: 200 duplicado, pero visible (solo ids).
+    logger.info("Cobro automático: evento de Stripe ya guardado en otra academia", {
+      eventId: event.eventId,
+      eventType: event.type,
+      accountId: event.accountId,
+      organizationId: account.organizationId,
+      inboxId,
+    });
+    return "duplicate";
+  }
   if (claim !== "process") return claim;
 
   const { handler, objectId } = handlerFor(route, withDefaults(deps.handlers));
@@ -498,6 +521,7 @@ export async function handleFamilyCollectionEvent(
     try {
       await finishProviderEvent({
         inboxId,
+        attempts,
         status: "failed",
         effectType: null,
         effectId: null,
@@ -516,13 +540,30 @@ export async function handleFamilyCollectionEvent(
     throw error;
   }
 
-  await finishProviderEvent({
+  const effectId = inboxEffectId(effect.effectId);
+  if (effectId !== effect.effectId) {
+    logger.warn("Cobro automático: el efecto de un evento no tiene un id guardable; se cierra sin él", {
+      eventId: event.eventId,
+      eventType: event.type,
+      effectType: effect.effectType,
+    });
+  }
+  const closed = await finishProviderEvent({
     inboxId,
+    attempts,
     status: "processed",
     effectType: effect.effectType,
-    effectId: effect.effectId,
+    effectId,
     errorCode: null,
     now: deps.now,
   });
+  if (!closed) {
+    // Otra entrega más nueva reclamó la fila: su cierre es el que cuenta.
+    logger.info("Cobro automático: el cierre de un evento lo hizo otra entrega más nueva", {
+      eventId: event.eventId,
+      eventType: event.type,
+      inboxId,
+    });
+  }
   return "processed";
 }

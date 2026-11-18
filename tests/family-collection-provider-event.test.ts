@@ -8,7 +8,11 @@
  */
 import Stripe from "stripe";
 
-import { handleFamilyCollectionEvent } from "@/modules/family-collection/application/family-collection-events";
+import { logger } from "@/lib/logger";
+import {
+  handleFamilyCollectionEvent,
+  inboxEffectId,
+} from "@/modules/family-collection/application/family-collection-events";
 import { isFamilyCollectionEventsStorageAvailable } from "@/modules/family-collection/application/storage";
 import {
   FAMILY_COLLECTION_EVENT_TYPES,
@@ -36,6 +40,9 @@ vi.mock("@/db", () => ({
       throw new Error("Este test no debe tocar la base");
     }),
   },
+}));
+vi.mock("@/lib/logger", () => ({
+  logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 vi.mock("@/modules/family-collection/application/storage", () => ({
   isFamilyCollectionEventsStorageAvailable: vi.fn(),
@@ -274,8 +281,8 @@ describe("handleFamilyCollectionEvent", () => {
     vi.mocked(isFamilyPaymentMethodsStorageAvailable).mockResolvedValue(true);
     vi.mocked(isConnectOnboardingStorageAvailable).mockResolvedValue(true);
     vi.mocked(findConnectAccountByReference).mockResolvedValue(ACCOUNT_ROW);
-    vi.mocked(claimProviderEvent).mockResolvedValue({ claim: "process", inboxId: INBOX_ID });
-    vi.mocked(finishProviderEvent).mockResolvedValue(undefined);
+    vi.mocked(claimProviderEvent).mockResolvedValue({ claim: "process", inboxId: INBOX_ID, attempts: 3 });
+    vi.mocked(finishProviderEvent).mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -343,16 +350,34 @@ describe("handleFamilyCollectionEvent", () => {
 
   it("duplicate (ya procesado) → no llama a ningún manejador", async () => {
     const paymentIntent = vi.fn();
-    vi.mocked(claimProviderEvent).mockResolvedValueOnce({ claim: "duplicate", inboxId: INBOX_ID });
+    vi.mocked(claimProviderEvent).mockResolvedValueOnce({ claim: "duplicate", inboxId: INBOX_ID, attempts: 1 });
 
     expect(await handleFamilyCollectionEvent(connectedEvent(), { now: NOW, handlers: { paymentIntent } })).toBe("duplicate");
     expect(paymentIntent).not.toHaveBeenCalled();
     expect(finishProviderEvent).not.toHaveBeenCalled();
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
+  it("el mismo evt_ ya guardado en otra academia → duplicate (200) y queda en el registro solo con ids", async () => {
+    const paymentIntent = vi.fn();
+    vi.mocked(claimProviderEvent).mockResolvedValueOnce({ claim: "other_organization", inboxId: INBOX_ID, attempts: 1 });
+
+    expect(await handleFamilyCollectionEvent(connectedEvent(), { now: NOW, handlers: { paymentIntent } })).toBe("duplicate");
+    expect(paymentIntent).not.toHaveBeenCalled();
+    expect(finishProviderEvent).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith("Cobro automático: evento de Stripe ya guardado en otra academia", {
+      eventId: "evt_1SyntheticEvent0001",
+      eventType: "payment_intent.succeeded",
+      accountId: ACCOUNT,
+      organizationId: ORGANIZATION_ID,
+      inboxId: INBOX_ID,
+    });
   });
 
   it("en curso en otra entrega → in_progress, sin manejador ni cierre (la ruta responde 503)", async () => {
     const paymentIntent = vi.fn();
-    vi.mocked(claimProviderEvent).mockResolvedValueOnce({ claim: "in_progress", inboxId: INBOX_ID });
+    vi.mocked(claimProviderEvent).mockResolvedValueOnce({ claim: "in_progress", inboxId: INBOX_ID, attempts: 1 });
 
     expect(await handleFamilyCollectionEvent(connectedEvent(), { now: NOW, handlers: { paymentIntent } })).toBe(
       "in_progress"
@@ -383,11 +408,52 @@ describe("handleFamilyCollectionEvent", () => {
     expect(refund).not.toHaveBeenCalled();
     expect(finishProviderEvent).toHaveBeenCalledWith({
       inboxId: INBOX_ID,
+      attempts: 3,
       status: "processed",
       effectType: "payment",
       effectId,
       errorCode: null,
       now: NOW,
+    });
+  });
+
+  it("efecto con un id que no es uuid → se cierra processed sin el id (nunca un 500 tras aplicar el efecto)", async () => {
+    const paymentIntent = vi.fn().mockResolvedValue({ effectType: "payment", effectId: "pi_3SyntheticIntent0001" });
+
+    expect(await handleFamilyCollectionEvent(connectedEvent(), { now: NOW, handlers: { paymentIntent } })).toBe("processed");
+    expect(finishProviderEvent).toHaveBeenCalledWith({
+      inboxId: INBOX_ID,
+      attempts: 3,
+      status: "processed",
+      effectType: "payment",
+      effectId: null,
+      errorCode: null,
+      now: NOW,
+    });
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Cobro automático: el efecto de un evento no tiene un id guardable; se cierra sin él",
+      { eventId: "evt_1SyntheticEvent0001", eventType: "payment_intent.succeeded", effectType: "payment" }
+    );
+  });
+
+  it("inboxEffectId: uuid o null pasan; cualquier otro formato queda null", () => {
+    expect(inboxEffectId(null)).toBeNull();
+    expect(inboxEffectId(INBOX_ID)).toBe(INBOX_ID);
+    expect(inboxEffectId(INBOX_ID.toUpperCase())).toBe(INBOX_ID.toUpperCase());
+    for (const bad of ["", "pi_1A", "22222222-2222-4222-8222-22222222222", `${INBOX_ID} `, "x".repeat(36)]) {
+      expect(inboxEffectId(bad), bad).toBeNull();
+    }
+  });
+
+  it("si otra entrega más nueva ya cerró la fila, el cierre de esta no hace nada y se responde processed", async () => {
+    vi.mocked(finishProviderEvent).mockResolvedValueOnce(false);
+    const paymentIntent = vi.fn().mockResolvedValue({ effectType: null, effectId: null });
+
+    expect(await handleFamilyCollectionEvent(connectedEvent(), { now: NOW, handlers: { paymentIntent } })).toBe("processed");
+    expect(logger.info).toHaveBeenCalledWith("Cobro automático: el cierre de un evento lo hizo otra entrega más nueva", {
+      eventId: "evt_1SyntheticEvent0001",
+      eventType: "payment_intent.succeeded",
+      inboxId: INBOX_ID,
     });
   });
 
@@ -431,6 +497,7 @@ describe("handleFamilyCollectionEvent", () => {
     expect(finishProviderEvent).toHaveBeenCalledTimes(1);
     expect(finishProviderEvent).toHaveBeenCalledWith({
       inboxId: INBOX_ID,
+      attempts: 3,
       status: "failed",
       effectType: null,
       effectId: null,
