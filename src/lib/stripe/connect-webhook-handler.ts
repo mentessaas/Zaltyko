@@ -34,7 +34,10 @@ export async function processConnectEvent(
   event: Stripe.Event
 ): Promise<{ duplicate: boolean; rejected: boolean }> {
   const expectedLiveMode = getConfiguredConnectLiveMode();
-  const claim = await recordBillingEvent(event);
+  // Solo se guarda el resumen del evento (sin nombres, correos ni direcciones
+  // de quien paga), también al reclamar un reintento. No se migran los
+  // eventos ya guardados (decisión D13).
+  const claim = await recordBillingEvent(event, { payload: "minimal" });
   if (!claim.shouldProcess) {
     return { duplicate: true, rejected: false };
   }

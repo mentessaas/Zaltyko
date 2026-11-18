@@ -20,6 +20,50 @@ export interface BillingEventClaim {
 }
 
 /**
+ * Qué se guarda en `billing_events.payload`:
+ * - "full": el evento entero, como hasta ahora (webhook de la suscripción de
+ *   la plataforma).
+ * - "minimal": solo lo necesario para reconocer el evento, sin datos de quien
+ *   paga (webhook antiguo de cuentas conectadas).
+ */
+export type BillingEventPayloadMode = "full" | "minimal";
+
+export interface RecordBillingEventOptions {
+  payload: BillingEventPayloadMode;
+}
+
+/**
+ * Resumen del evento sin datos personales: identificadores, tipo, cuenta,
+ * modo, fecha y el id y la clase del objeto. Nunca nombres, correos,
+ * direcciones, teléfonos ni datos de la tarjeta o la cuenta bancaria.
+ */
+export function minimalBillingEventPayload(event: Stripe.Event): Record<string, unknown> {
+  const stripeObject = (event.data?.object ?? {}) as { id?: unknown; object?: unknown };
+  return {
+    id: event.id,
+    type: event.type,
+    account: event.account ?? null,
+    livemode: event.livemode,
+    created: event.created,
+    data: {
+      object: {
+        id: typeof stripeObject.id === "string" ? stripeObject.id : null,
+        object: typeof stripeObject.object === "string" ? stripeObject.object : null,
+      },
+    },
+  };
+}
+
+function billingEventPayload(
+  event: Stripe.Event,
+  mode: BillingEventPayloadMode
+): Record<string, unknown> {
+  return mode === "minimal"
+    ? minimalBillingEventPayload(event)
+    : (event as unknown as Record<string, unknown>);
+}
+
+/**
  * Registra un evento de billing en la base de datos.
  *
  * Comparte la deduplicacion de Stripe (stripeEventId UNIQUE) y ademas usa
@@ -27,9 +71,17 @@ export interface BillingEventClaim {
  * dos reclaimers obtengan shouldProcess=true sobre el mismo evento: el
  * primero gana via RETURNING, el segundo ve 0 filas y se reporta como
  * shouldProcess=false.
+ *
+ * `options.payload` decide qué se guarda (por defecto "full"). El mismo valor
+ * se usa al crear la fila y al reclamarla en un reintento: si no, el primer
+ * reenvío de Stripe volvería a guardar el evento entero.
  */
-export async function recordBillingEvent(event: Stripe.Event): Promise<BillingEventClaim> {
+export async function recordBillingEvent(
+  event: Stripe.Event,
+  options: RecordBillingEventOptions = { payload: "full" }
+): Promise<BillingEventClaim> {
   const stripeObject = event.data.object as { id?: string };
+  const payload = billingEventPayload(event, options.payload);
   const now = new Date();
   const [created] = await db
     .insert(billingEvents)
@@ -42,7 +94,7 @@ export async function recordBillingEvent(event: Stripe.Event): Promise<BillingEv
       stripeObjectId: stripeObject.id ?? null,
       livemode: event.livemode,
       lastAttemptAt: now,
-      payload: event as unknown as Record<string, unknown>,
+      payload,
     })
     .onConflictDoNothing({ target: billingEvents.stripeEventId })
     .returning({ id: billingEvents.id });
@@ -95,7 +147,7 @@ export async function recordBillingEvent(event: Stripe.Event): Promise<BillingEv
       status: "processing",
       attemptCount: sql`${billingEvents.attemptCount} + 1`,
       errorMessage: null,
-      payload: event as unknown as Record<string, unknown>,
+      payload,
       lastAttemptAt: now,
     })
     .where(
