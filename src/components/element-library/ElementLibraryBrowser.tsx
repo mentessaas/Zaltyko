@@ -10,6 +10,7 @@ import type {
   CatalogElementCard,
   CatalogElementSummary,
   CatalogSearchResult,
+  EditionView,
   ElementNoteView,
 } from "@/modules/element-library/domain/library-requests";
 import {
@@ -88,8 +89,9 @@ export function ElementLibraryBrowser({
   const [applied, setApplied] = useState<{ q: string; value: string }>({ q: "", value: "" });
   const [search, setSearch] = useState<SearchState>({ status: "loading" });
   const [retry, setRetry] = useState(0);
-  // Edición de la última búsqueda: los grupos se siguen ofreciendo mientras carga la siguiente.
-  const [editionCode, setEditionCode] = useState<string | null>(null);
+  // Última edición vista de cada disciplina: el pie de atribución y los grupos
+  // siguen a la vista mientras carga la siguiente búsqueda o si falla.
+  const [editions, setEditions] = useState<Partial<Record<CatalogDiscipline, EditionView>>>({});
 
   const [openId, setOpenId] = useState<string | null>(null);
   const [cardState, setCardState] = useState<CardState>({ status: "loading" });
@@ -109,7 +111,13 @@ export function ElementLibraryBrowser({
       if (requestId !== searchRequest.current) return;
       if (result.status === "ok") {
         setSearch({ status: "ok", data: result.data });
-        setEditionCode(result.data.edition?.code ?? null);
+        const found = result.data.edition;
+        setEditions((current) => {
+          const next = { ...current };
+          if (found) next[discipline] = found;
+          else delete next[discipline];
+          return next;
+        });
       } else if (result.status === "unavailable") {
         setSearch({ status: "unavailable" });
       } else {
@@ -132,7 +140,8 @@ export function ElementLibraryBrowser({
 
   const edition = search.status === "ok" ? search.data.edition : null;
   const elements = search.status === "ok" ? search.data.elements : [];
-  const editionGroups = editionCode ? groupLabels[editionCode] : undefined;
+  const shownEdition = discipline ? (editions[discipline] ?? null) : null;
+  const editionGroups = shownEdition ? groupLabels[shownEdition.code] : undefined;
 
   const apparatusOptions = discipline
     ? (SKILL_APPARATUS_BY_DISCIPLINE[discipline] as readonly CatalogApparatus[])
@@ -305,7 +314,7 @@ export function ElementLibraryBrowser({
               onChange={(event) => setValueDraft(event.target.value)}
             />
             {valueError ? (
-              <p id={ids.valueError} className="text-xs font-semibold leading-5 text-signal-ink">
+              <p id={ids.valueError} role="alert" className="text-xs font-semibold leading-5 text-signal-ink">
                 {valueError}
               </p>
             ) : null}
@@ -332,7 +341,11 @@ export function ElementLibraryBrowser({
             Cargando elementos…
           </p>
         ) : null}
-        {search.status === "unavailable" ? <p className={ownerUi.noticeInfo}>{LIBRARY_UNAVAILABLE_MESSAGE}</p> : null}
+        {search.status === "unavailable" ? (
+          <p role="status" className={ownerUi.noticeInfo}>
+            {LIBRARY_UNAVAILABLE_MESSAGE}
+          </p>
+        ) : null}
         {search.status === "error" ? (
           <div role="alert" className={cn(ownerUi.noticeError, "grid gap-2")}>
             <p>{search.message}</p>
@@ -400,8 +413,8 @@ export function ElementLibraryBrowser({
           )
         ) : null}
 
-        {search.status === "ok" && edition ? (
-          <ElementAttribution attribution={edition.attribution} documentUrl={edition.documentUrl} />
+        {shownEdition && search.status !== "unavailable" ? (
+          <ElementAttribution attribution={shownEdition.attribution} documentUrl={shownEdition.documentUrl} />
         ) : null}
       </section>
 
@@ -419,7 +432,7 @@ export function ElementLibraryBrowser({
           }}
         >
           <DialogHeader>
-            <DialogTitle className="pr-10 font-display text-2xl font-black uppercase leading-none text-z-ink">
+            <DialogTitle className="pr-10 text-xl font-semibold leading-snug text-z-ink [overflow-wrap:anywhere]">
               {openCardData ? openCardData.name : "Ficha del elemento"}
             </DialogTitle>
             <DialogDescription className={ownerUi.muted}>

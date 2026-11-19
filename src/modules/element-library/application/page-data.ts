@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import type { DatabaseClient } from "@/lib/db-transactions";
+import { logger } from "@/lib/logger";
 import editionsData from "@/modules/element-library/data/editions.json";
 import {
   CATALOG_DISCIPLINES,
@@ -36,11 +37,15 @@ export type EditionGroupLabels = Record<string, Partial<Record<string, EditionGr
 /**
  * Nombres de los grupos de cada edición, tomados del archivo revisado
  * `data/editions.json` (la base de datos guarda solo la clave del grupo). Si el
- * archivo no pasara el esquema, devuelve un objeto vacío y la página muestra
- * «Grupo 4» sin nombre: el test de los archivos de datos ya lo impide en CI.
+ * archivo no pasara el esquema, lo registra y devuelve un objeto vacío: la
+ * página muestra «Grupo 4» sin nombre. El test de los archivos de datos ya lo
+ * impide en CI.
  */
 export function getEditionGroupLabels(): EditionGroupLabels {
   const parsed = editionsFileSchema.safeParse(editionsData);
-  if (!parsed.success) return {};
+  if (!parsed.success) {
+    logger.error("data/editions.json no pasa el esquema: la biblioteca muestra los grupos sin nombre", parsed.error);
+    return {};
+  }
   return Object.fromEntries(parsed.data.map((edition) => [edition.code, edition.groups]));
 }

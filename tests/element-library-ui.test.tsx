@@ -167,10 +167,23 @@ describe("pantalla de la biblioteca", () => {
     expect(url.searchParams.get("locationId")).toBe(SITE);
     expect(url.searchParams.get("discipline")).toBe("artistic_female");
     expect(url.searchParams.get("apparatus")).toBe("vault");
+    expect(url.searchParams.get("limit")).toBe("100");
 
     const groupSelect = screen.getByLabelText("Grupo") as HTMLSelectElement;
     expect(groupSelect.disabled).toBe(false);
     expect(screen.getByRole("option", { name: "Grupo 4 · Yurchenko: rondada y mortal atrás" })).toBeTruthy();
+  });
+
+  it("el pie de atribución sigue a la vista mientras se repite la búsqueda o si falla", async () => {
+    routeFetch();
+    renderBrowser();
+    await screen.findByText("Yurchenko agrupado");
+
+    fetchMock.mockImplementation(async () => json(500, { detail: "No se ha podido cargar la biblioteca." }));
+    fireEvent.change(screen.getByLabelText("Aparato"), { target: { value: "vault" } });
+
+    expect(await screen.findByText("No se ha podido cargar la biblioteca.")).toBeTruthy();
+    expect(screen.getAllByText(/Zaltyko no está afiliado a la FIG ni cuenta con su respaldo\./)).toHaveLength(1);
   });
 
   it("lista nombre corto, nombre, grupo y valor, con el pie de atribución", async () => {
@@ -261,6 +274,49 @@ describe("pantalla de la biblioteca", () => {
     expect(await within(dialog).findByText("Nota guardada.")).toBeTruthy();
     // La lista marca el elemento con nota (texto, no solo color).
     expect(screen.getByText("Con nota")).toBeTruthy();
+  });
+
+  it("si otra persona cambió la nota, ofrece cargar la última versión y vuelve a pedir la ficha", async () => {
+    const versions = [
+      card(vault, { note: { text: "Brazos atrás", revision: 3, updatedAt: "2026-11-18T09:00:00.000Z" } }),
+      card(vault, { note: { text: "Versión de otra entrenadora", revision: 4, updatedAt: "2026-11-19T08:00:00.000Z" } }),
+    ];
+    let cardReads = 0;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), "http://localhost");
+      if (init?.method === "PUT") {
+        return json(409, {
+          title: "Conflicto",
+          detail: "Otra persona ha cambiado esta nota. Recarga para ver la última versión.",
+          errors: { currentRevision: 4 },
+        });
+      }
+      if (url.pathname === "/api/v1/owner/element-library") {
+        return json(200, { data: { edition, elements: [vault], truncated: false } });
+      }
+      const version = versions[Math.min(cardReads, versions.length - 1)];
+      cardReads += 1;
+      return json(200, { data: version });
+    });
+    renderBrowser();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Yurchenko agrupado/ }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(await within(dialog).findByLabelText("Nota de la academia"), {
+      target: { value: "Brazos atrás y mirada al tapiz" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Guardar nota" }));
+
+    expect(
+      await within(dialog).findByText("Otra persona ha cambiado esta nota. Recarga para ver la última versión.")
+    ).toBeTruthy();
+    expect(cardReads).toBe(1);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cargar la última versión" }));
+
+    await waitFor(() => expect(cardReads).toBe(2));
+    const note = (await within(dialog).findByDisplayValue("Versión de otra entrenadora")) as HTMLTextAreaElement;
+    expect(note).toBeTruthy();
+    expect(within(dialog).queryByText("Cargar la última versión")).toBeNull();
   });
 
   it("una nota nueva se guarda sin revisión previa", async () => {

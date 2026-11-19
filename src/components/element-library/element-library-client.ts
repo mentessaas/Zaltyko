@@ -3,10 +3,11 @@ import {
   type CatalogApparatus,
   type CatalogDiscipline,
 } from "@/modules/element-library/domain/element-library";
-import type {
-  CatalogElementCard,
-  CatalogSearchResult,
-  SaveElementNoteResult,
+import {
+  CATALOG_SEARCH_LIMIT_MAX,
+  type CatalogElementCard,
+  type CatalogSearchResult,
+  type SaveElementNoteResult,
 } from "@/modules/element-library/domain/library-requests";
 
 /**
@@ -73,7 +74,12 @@ export type CatalogSearchFilters = {
 };
 
 export function searchCatalog(scope: LibraryScope, filters: CatalogSearchFilters) {
-  const params = new URLSearchParams({ ...scope, discipline: filters.discipline });
+  // El tope de la API: la pantalla enseña todos los que caben y avisa si hay más.
+  const params = new URLSearchParams({
+    ...scope,
+    discipline: filters.discipline,
+    limit: String(CATALOG_SEARCH_LIMIT_MAX),
+  });
   if (filters.apparatus) params.set("apparatus", filters.apparatus);
   if (filters.group) params.set("group", filters.group);
   if (filters.value?.trim()) params.set("value", filters.value.trim());
