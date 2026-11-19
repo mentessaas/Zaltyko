@@ -391,7 +391,7 @@ describe("bloques enlazados con la biblioteca de elementos (ADR-0029 §3.2 y §3
     route(pageView({ libraryAvailable: true }));
     renderPanel();
     fireEvent.click(await screen.findByRole("button", { name: "Crear guion" }));
-    const pick = { name: "Elegir el elemento de la biblioteca del bloque 1" };
+    const pick = { name: "Elegir elemento de la biblioteca (bloque 1)" };
     expect(screen.queryByRole("button", pick)).not.toBeInTheDocument();
 
     // Rítmica: sin catálogo, sin selector.
@@ -406,7 +406,8 @@ describe("bloques enlazados con la biblioteca de elementos (ADR-0029 §3.2 y §3
     expect(screen.getByText("Elemento de la biblioteca")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", pick));
 
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("dialog", { name: "Elegir elemento de la biblioteca" });
+    expect(within(dialog).getByText(/Su texto solo se rellena si está vacío/)).toBeInTheDocument();
     await waitFor(() => {
       const searchCall = fetchMock.mock.calls.find(([input]) => String(input).startsWith("/api/v1/owner/element-library?"));
       expect(searchCall).toBeDefined();
@@ -420,9 +421,11 @@ describe("bloques enlazados con la biblioteca de elementos (ADR-0029 §3.2 y §3
     expect(screen.getByText("De la biblioteca")).toBeInTheDocument();
     expect(screen.getByText("Equilibrio de prueba")).toBeInTheDocument();
     expect(screen.getByLabelText("Contenido")).toHaveValue("Equilibrio");
-    // Con el enlace, disciplina y aparato quedan fijos hasta quitarlo.
+    // Con el enlace, disciplina y aparato quedan fijos hasta quitarlo, y se explica.
     expect(screen.getByLabelText("Disciplina")).toBeDisabled();
     expect(screen.getByLabelText("Aparato")).toBeDisabled();
+    expect(screen.getByLabelText("Aparato")).toHaveAccessibleDescription("Quita el elemento para cambiar el aparato");
+    expect(screen.getByLabelText("Disciplina")).toHaveAccessibleDescription("Quita el elemento para cambiar el aparato");
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar guion" }));
     expect(await screen.findByText("Guion guardado.")).toBeInTheDocument();
@@ -446,7 +449,7 @@ describe("bloques enlazados con la biblioteca de elementos (ADR-0029 §3.2 y §3
     fireEvent.change(screen.getByLabelText("Disciplina"), { target: { value: "gaf" } });
     fireEvent.change(screen.getByLabelText("Aparato"), { target: { value: "beam" } });
     fireEvent.change(screen.getByLabelText("Contenido"), { target: { value: "Giros en barra baja" } });
-    fireEvent.click(screen.getByRole("button", { name: "Elegir el elemento de la biblioteca del bloque 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Elegir elemento de la biblioteca (bloque 1)" }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(await within(dialog).findByRole("button", { name: /Equilibrio de prueba/ }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -460,10 +463,11 @@ describe("bloques enlazados con la biblioteca de elementos (ADR-0029 §3.2 y §3
     expect(screen.getByText("Ya no está en la biblioteca")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Editar guion" }));
-    fireEvent.click(screen.getByRole("button", { name: "Quitar el elemento de la biblioteca del bloque 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Quitar elemento de la biblioteca (bloque 1)" }));
     expect(screen.queryByText("Equilibrio de prueba")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Elegir el elemento de la biblioteca del bloque 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Elegir elemento de la biblioteca (bloque 1)" })).toBeInTheDocument();
     expect(screen.getAllByLabelText("Disciplina")[0]).not.toBeDisabled();
+    expect(screen.getAllByText("Quita el elemento para cambiar el aparato")).toHaveLength(1);
     // El contenido del bloque se conserva.
     expect(screen.getAllByLabelText("Contenido")[0]).toHaveValue("Giros de la academia");
 
@@ -481,6 +485,10 @@ describe("bloques enlazados con la biblioteca de elementos (ADR-0029 §3.2 y §3
     expect(await screen.findByText("Equilibrio de prueba")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Editar guion" }));
     expect(screen.queryByRole("button", { name: /elemento de la biblioteca/ })).not.toBeInTheDocument();
+    // Aun sin la biblioteca, el aparato de un bloque enlazado no se cambia.
+    for (const select of [...screen.getAllByLabelText("Disciplina"), ...screen.getAllByLabelText("Aparato")]) {
+      expect(select).toBeDisabled();
+    }
     fireEvent.click(screen.getByRole("button", { name: "Guardar guion" }));
     expect(await screen.findByText("Guion guardado.")).toBeInTheDocument();
     for (const block of putBody().blocks) expect(block).not.toHaveProperty("catalogElementId");

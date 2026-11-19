@@ -809,8 +809,26 @@ describe.skipIf(!disposablePgEnabled)("planificación sobre sesiones en PostgreS
     });
     expect(await create(ownerA, fresh, s1(), { blocks: [block(null)] })).toMatchObject({ revision: 1, replayed: false });
     expect(await saveModel(null)).toMatchObject({ revision: 1, replayed: false });
-    expect((await read(ownerA, fresh, s1())).plan!.blocks).toMatchObject([
+    const created = await read(ownerA, fresh, s1());
+    expect(created.plan!.blocks).toMatchObject([
       { kind: "technique", apparatus: "beam", content: "Giros", catalogLink: null },
+    ]);
+    // Editar un bloque existente con `null` (el UPDATE) tampoco nombra la columna.
+    const [existingBlock] = created.plan!.blocks;
+    expect(
+      await saveSessionPlan({
+        actor: ownerA,
+        sessionId: fresh,
+        command: {
+          ...s1(),
+          clientRequestId: randomUUID(),
+          expectedRevision: created.plan!.revision,
+          blocks: [{ ...block(null), id: existingBlock!.id, content: "Giros y equilibrio" }],
+        },
+      })
+    ).toMatchObject({ revision: created.plan!.revision + 1, replayed: false });
+    expect((await read(ownerA, fresh, s1())).plan!.blocks).toMatchObject([
+      { id: existingBlock!.id, content: "Giros y equilibrio", catalogLink: null },
     ]);
     expect((await getClassPlanTemplate({ actor: ownerA, classTemplateId: plainClass, query: s1() })).template!.blocks).toEqual([
       { kind: "technique", discipline: "gaf", apparatus: "beam", content: "Giros", durationMinutes: null },

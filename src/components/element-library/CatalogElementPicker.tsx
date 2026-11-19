@@ -36,7 +36,14 @@ export type CatalogElementPickerProps = {
   apparatus: string | null;
   onSelect: (element: CatalogPickerElement) => void;
   onClose: () => void;
+  /** Título del diálogo; por defecto, el de las plantillas de niveles. */
+  title?: string;
+  /** Texto tras la disciplina; por defecto, el de las plantillas de niveles. */
+  description?: string;
 };
+
+const DEFAULT_TITLE = "Añadir desde la biblioteca";
+const DEFAULT_DESCRIPTION = "Al elegir un elemento se añade con su nombre corto, que puedes cambiar.";
 
 type SearchState =
   | { status: "loading" }
@@ -73,6 +80,8 @@ export function CatalogElementPicker({
   apparatus: initialApparatus,
   onSelect,
   onClose,
+  title = DEFAULT_TITLE,
+  description = DEFAULT_DESCRIPTION,
 }: CatalogElementPickerProps) {
   const apparatusOptions = SKILL_APPARATUS_BY_DISCIPLINE[discipline] as readonly CatalogApparatus[];
   const [apparatus, setApparatus] = useState<CatalogApparatus | null>(
@@ -120,9 +129,9 @@ export function CatalogElementPicker({
       }}
     >
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-        <DialogTitle className="text-xl">Añadir desde la biblioteca</DialogTitle>
+        <DialogTitle className="text-xl">{title}</DialogTitle>
         <DialogDescription>
-          {skillDisciplineLabels[discipline]}. Al elegir un elemento se añade con su nombre corto, que puedes cambiar.
+          {skillDisciplineLabels[discipline]}. {description}
         </DialogDescription>
 
         <form className="flex flex-wrap items-end gap-3" onSubmit={search}>

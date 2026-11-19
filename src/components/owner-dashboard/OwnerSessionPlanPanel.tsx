@@ -26,6 +26,7 @@ import {
   type PlanDiscipline,
   type SessionPlanPageView,
 } from "@/modules/session-plans/domain/session-plan";
+import { toSessionPlanApparatus } from "@/modules/shared/domain/discipline-keys";
 
 import {
   fetchSessionPlan,
@@ -100,8 +101,9 @@ function blockCatalogDiscipline(block: Pick<DraftBlock, "discipline" | "apparatu
     : null;
 }
 
-function isPlanApparatus(value: string): value is PlanApparatus {
-  return (PLAN_APPARATUS as readonly string[]).includes(value);
+function planApparatusOf(catalogApparatus: string): PlanApparatus | null {
+  const apparatus = toSessionPlanApparatus(catalogApparatus);
+  return apparatus && (PLAN_APPARATUS as readonly string[]).includes(apparatus) ? (apparatus as PlanApparatus) : null;
 }
 
 const linkChipClass = {
@@ -302,8 +304,9 @@ export function OwnerSessionPlanPanel({
                     apparatus: block.apparatus,
                     content: block.content,
                     durationMinutes: block.durationMinutes,
-                    // Con la biblioteca activa el modelo lleva el enlace de cada
-                    // bloque; uno que ya no está en la biblioteca no se copia.
+                    // Con la biblioteca activa el modelo lleva el enlace de cada bloque.
+                    // Retirados y de edición anterior van como null: el servidor solo
+                    // enlaza de nuevo lo que sigue en la biblioteca y daría un 400.
                     ...(state.view.libraryAvailable
                       ? { catalogElementId: block.catalogLink?.status === "current" ? block.catalogLink.id : null }
                       : {}),
@@ -556,8 +559,11 @@ function PlanEditor({
         {draft.blocks.map((block, index) => {
           const id = `${baseId}-block-${index}`;
           const apparatusOptions = block.discipline ? PLAN_APPARATUS_BY_DISCIPLINE[block.discipline] : [];
-          // Con un elemento enlazado, disciplina y aparato quedan fijos hasta quitarlo.
-          const linkLocked = libraryEditable && block.catalogLink !== null;
+          // Con un elemento enlazado, disciplina y aparato quedan fijos hasta
+          // quitarlo, también sin la biblioteca activa: así el enlace nunca
+          // queda en otro aparato.
+          const linkLocked = block.catalogLink !== null;
+          const lockedHelpId = `${id}-locked`;
           const canPick = libraryEditable && blockCatalogDiscipline(block) !== null;
           return (
             <div
@@ -594,6 +600,7 @@ function PlanEditor({
                     className={ownerUi.field}
                     value={block.discipline ?? ""}
                     disabled={linkLocked}
+                    aria-describedby={linkLocked ? lockedHelpId : undefined}
                     onChange={(event) =>
                       updateBlock(index, {
                         discipline: (event.target.value || null) as PlanDiscipline | null,
@@ -618,6 +625,7 @@ function PlanEditor({
                     className={ownerUi.field}
                     value={block.apparatus ?? ""}
                     disabled={!block.discipline || linkLocked}
+                    aria-describedby={linkLocked ? lockedHelpId : undefined}
                     onChange={(event) =>
                       updateBlock(index, { apparatus: (event.target.value || null) as PlanApparatus | null })
                     }
@@ -631,6 +639,11 @@ function PlanEditor({
                   </select>
                 </div>
               </div>
+              {linkLocked ? (
+                <p id={lockedHelpId} className={ownerUi.help}>
+                  Quita el elemento para cambiar el aparato
+                </p>
+              ) : null}
               <div className="grid gap-1">
                 <label className="text-xs font-semibold text-z-soft" htmlFor={`${id}-content`}>
                   Contenido
@@ -657,7 +670,7 @@ function PlanEditor({
                           type="button"
                           className={ownerUi.secondaryButton}
                           aria-describedby={`${id}-library`}
-                          aria-label={`${block.catalogLink ? "Cambiar" : "Elegir"} el elemento de la biblioteca del bloque ${index + 1}`}
+                          aria-label={`${block.catalogLink ? "Cambiar" : "Elegir"} elemento de la biblioteca (bloque ${index + 1})`}
                           onClick={() => setPickerBlock(index)}
                         >
                           {block.catalogLink ? "Cambiar elemento" : "Elegir elemento"}
@@ -667,7 +680,7 @@ function PlanEditor({
                         <button
                           type="button"
                           className={ownerUi.secondaryButton}
-                          aria-label={`Quitar el elemento de la biblioteca del bloque ${index + 1}`}
+                          aria-label={`Quitar elemento de la biblioteca (bloque ${index + 1})`}
                           onClick={() => updateBlock(index, { catalogLink: null, linkChanged: true })}
                         >
                           Quitar
@@ -801,7 +814,9 @@ function PlanEditor({
           organizationId={scope.organizationId}
           locationId={scope.locationId}
           discipline={blockCatalogDiscipline(draft.blocks[pickerBlock]!)!}
-          apparatus={draft.blocks[pickerBlock]!.apparatus}
+          apparatus={blockCatalogTarget(draft.blocks[pickerBlock]!)?.apparatus ?? null}
+          title="Elegir elemento de la biblioteca"
+          description="El bloque queda enlazado a ese elemento. Su texto solo se rellena si está vacío."
           onClose={() => setPickerBlock(null)}
           onSelect={(picked) => {
             const index = pickerBlock;
@@ -810,8 +825,8 @@ function PlanEditor({
             updateBlock(index, {
               catalogLink: { id: picked.id, name: picked.name, status: "current", replacementId: null },
               linkChanged: true,
-              // En artística el aparato de la biblioteca y el del guion se escriben igual.
-              apparatus: isPlanApparatus(picked.apparatus) ? picked.apparatus : block.apparatus,
+              // El aparato de la biblioteca vuelve a la clave del guion (ADR-0029 §5).
+              apparatus: planApparatusOf(picked.apparatus) ?? block.apparatus,
               // El contenido es del guion: solo se rellena si está vacío, con el
               // nombre corto si dice algo (dos letras o más) o, si no, el nombre.
               content:
