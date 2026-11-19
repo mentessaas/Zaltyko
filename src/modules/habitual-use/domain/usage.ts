@@ -12,7 +12,12 @@ import { escapeHtml } from "@/lib/email/escape-html";
  * otra (es un seudónimo, no un dato anónimo).
  */
 
-export const USAGE_EVENT_NAMES = ["staff_visit", "family_portal_view"] as const;
+/**
+ * `element_library_view`: consulta a la biblioteca de elementos (ADR-0029 §11).
+ * Hasta aplicar su candidata (20261119121500), la restricción de la tabla lo
+ * rechaza y el registro, que nunca lanza, devuelve false.
+ */
+export const USAGE_EVENT_NAMES = ["staff_visit", "family_portal_view", "element_library_view"] as const;
 export type UsageEventName = (typeof USAGE_EVENT_NAMES)[number];
 
 export const USAGE_ACTOR_ROLES = ["owner", "manager", "admin", "coach", "family"] as const;
