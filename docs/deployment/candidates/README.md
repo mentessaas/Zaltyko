@@ -1211,6 +1211,26 @@ drop table zaltyko.catalog_element_editions;
 commit;
 ```
 
+## Semilla de la tanda 2 de la biblioteca: salto, grupos 4 y 5 (19-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261119123000_element_catalog_seed_fig-wag-2025-2028_2.sql` (semilla de la tanda 2) | `97302483c5792def2402f80787bda03b0767d86ef88aac15be98069131224eca` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
+autorización expresa de Elvis; la CI verde no equivale a autorización.
+
+- **Qué carga.** 32 saltos de la edición `fig-wag-2025-2028` (Yurchenko y
+  rondada con medio giro y mortal adelante), **en borrador**: con ella el salto
+  queda completo. Las academias no los ven hasta que Elvis revise la tanda; al
+  revisarla se vuelve a generar con el mismo nombre y su hash cambia.
+- **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
+  independiente de la semilla de la tanda 1: la misma semántica (actualiza la
+  edición sin bajarla, nunca toca las retiradas ni devuelve un revisado a
+  borrador, y repetirla no cambia nada) y solo escribe los elementos de la
+  tanda 2.
+- **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/2.json`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.
