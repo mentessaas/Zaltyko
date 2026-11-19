@@ -413,7 +413,19 @@ export function LoginForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
+                {/* Patrón de @blocks-so/login-06 (hallado con ui-indexador):
+                    la recuperación es un enlace secundario junto a la
+                    etiqueta, no un botón más que compite con "Iniciar
+                    sesión". Se mantiene un área táctil de 44px. */}
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="password">Contraseña</Label>
+                  <Link
+                    href={`/auth/forgot-password?next=${encodeURIComponent(authFlowNextPath)}`}
+                    className="-my-3 inline-flex min-h-11 items-center rounded-sm text-sm font-medium text-zaltyko-indigo underline decoration-1 underline-offset-4 hover:decoration-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-indigo focus-visible:ring-offset-2"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
                 <Input
                   id="password"
                   type="password"
@@ -423,12 +435,6 @@ export function LoginForm({
                   autoComplete="current-password"
                 />
               </div>
-              <Link
-                href={`/auth/forgot-password?next=${encodeURIComponent(authFlowNextPath)}`}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-md border-2 border-zaltyko-indigo/40 bg-zaltyko-indigo/10 px-4 text-sm font-semibold text-zaltyko-indigo underline decoration-1 underline-offset-4 transition-colors hover:bg-zaltyko-indigo/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-indigo focus-visible:ring-offset-2"
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
               <Button
                 type="submit"
                 className="w-full"
@@ -449,11 +455,19 @@ export function LoginForm({
               </Button>
             </form>
 
-            <div className="mt-4 flex flex-col gap-3">
+            <div className="my-5 flex items-center gap-4" aria-hidden>
+              <span className="h-px flex-1 bg-zaltyko-mist" />
+              <span className="text-xs font-medium uppercase tracking-[0.08em] text-zaltyko-text-light">
+                o continúa con
+              </span>
+              <span className="h-px flex-1 bg-zaltyko-mist" />
+            </div>
+
+            <div className="flex flex-col gap-3">
               <Button
                 onClick={handleMagicLink}
                 variant="outline"
-                className="w-full border-zaltyko-primary-dark text-zaltyko-primary-dark hover:bg-zaltyko-primary-dark hover:text-white"
+                className="w-full"
                 disabled={!isHydrated || magicLinkLoading || loading}
               >
                 {magicLinkLoading ? (

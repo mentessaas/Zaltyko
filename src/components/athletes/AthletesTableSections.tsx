@@ -24,6 +24,45 @@ import type { SportConfigOption } from "@/components/groups/types";
 import type { AthleteListItem, GroupOption } from "@/types";
 import { cn } from "@/lib/utils";
 
+const birthDateFormatter = new Intl.DateTimeFormat("es-ES", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+/** "2015-05-01" → "1 may 2015"; UTC para que servidor y cliente coincidan. */
+function formatBirthDate(dob: string): string {
+  const date = new Date(`${dob.slice(0, 10)}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? dob.slice(0, 10) : birthDateFormatter.format(date);
+}
+
+const STATUS_TONE: Record<string, { dot: string; badge: string }> = {
+  active: { dot: "bg-zaltyko-teal", badge: "border-zaltyko-teal/25 bg-zaltyko-teal/10 text-zaltyko-primary-dark" },
+  trial: { dot: "bg-zaltyko-indigo", badge: "border-zaltyko-indigo/25 bg-zaltyko-indigo/10 text-zaltyko-indigo" },
+};
+const STATUS_TONE_MUTED = { dot: "bg-slate-400", badge: "border-border bg-muted text-muted-foreground" };
+
+/**
+ * Estado con punto indicador + texto, patrón de los status badges de
+ * @spaceui (hallados con ui-indexador). El texto siempre dice el estado; el
+ * color solo refuerza.
+ */
+function AthleteStatusBadge({ status }: { status: string }) {
+  const tone = STATUS_TONE[status] ?? STATUS_TONE_MUTED;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-medium",
+        tone.badge
+      )}
+    >
+      <span aria-hidden className={cn("h-1.5 w-1.5 rounded-full", tone.dot)} />
+      {getAthleteStatusLabel(status)}
+    </span>
+  );
+}
+
 export interface AthleteTerms {
   athlete: string;
   athletes: string;
@@ -554,21 +593,21 @@ export function AthletesDataTable({
                 )}
               </button>
             </th>
-            <th className="px-4 py-3 font-medium">
+            <th className="px-3 py-3 font-medium">
               <SortableHeader active={sortBy === "name"} order={sortOrder} onClick={() => onSortChange("name")}>
                 Nombre
               </SortableHeader>
             </th>
-            <th className="px-4 py-3 font-medium">Nivel</th>
-            <th className="px-4 py-3 font-medium">Estado</th>
-            <th className="px-4 py-3 text-right font-medium">
+            <th className="px-3 py-3 font-medium">Nivel</th>
+            <th className="px-3 py-3 font-medium">Estado</th>
+            <th className="px-3 py-3 text-right font-medium">
               <SortableHeader active={sortBy === "age"} order={sortOrder} alignRight onClick={() => onSortChange("age")}>
                 Edad
               </SortableHeader>
             </th>
-            <th className="px-4 py-3 text-right font-medium">Familia</th>
-            <th className="px-4 py-3 font-medium">{terms.group} principal</th>
-            <th className="px-4 py-3 text-right font-medium">Acciones</th>
+            <th className="px-3 py-3 text-right font-medium">Familia</th>
+            <th className="px-3 py-3 font-medium">{terms.group} principal</th>
+            <th className="px-3 py-3 text-right font-medium">Acciones</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border bg-card text-foreground">
@@ -590,7 +629,7 @@ export function AthletesDataTable({
       </table>
       </div>
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-border px-4 py-3">
+        <div className="flex items-center justify-between border-t border-border px-3 py-3">
           <p className="text-sm text-muted-foreground">
             Mostrando {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredCount)} de{" "}
             {filteredCount} {terms.athletes.toLowerCase()}
@@ -716,7 +755,9 @@ function SortableHeader({
     <button
       type="button"
       onClick={onClick}
-      className={`${alignRight ? "ml-auto" : ""} flex items-center gap-1 hover:text-zaltyko-teal`}
+      // Preflight de Tailwind pone `text-transform: none` en <button>; sin
+      // `uppercase` las cabeceras ordenables no coincidían con el resto.
+      className={`${alignRight ? "ml-auto" : ""} flex items-center gap-1 uppercase tracking-[0.05em] hover:text-zaltyko-teal`}
     >
       {children}
       {active && (order === "asc" ? " ↑" : " ↓")}
@@ -757,7 +798,7 @@ function AthletesTableRow({
           {selected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
         </button>
       </td>
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             {athlete.status === "archived" ? (
@@ -773,8 +814,8 @@ function AthletesTableRow({
             {hasAlert && <AlertBadge type="attendance" severity="medium" className="text-[10px]" />}
           </div>
           {athlete.dob && (
-            <p className="text-xs text-muted-foreground">
-              Nacido el {athlete.dob.slice(0, 10)}
+            <p className="whitespace-nowrap text-xs text-muted-foreground">
+              Nacido el {formatBirthDate(athlete.dob)}
             </p>
           )}
           {athlete.primarySportConfigId && (
@@ -784,29 +825,35 @@ function AthletesTableRow({
           )}
         </div>
       </td>
-      <td className="px-4 py-3">{athlete.level ?? "—"}</td>
-      <td className="px-4 py-3">{getAthleteStatusLabel(athlete.status)}</td>
-      <td className="px-4 py-3 text-right tabular-nums">{athlete.age ?? "—"}</td>
-      <td className="px-4 py-3 text-right tabular-nums">{Number(athlete.guardianCount ?? 0)}</td>
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">{athlete.level ?? "—"}</td>
+      <td className="px-3 py-3">
+        <AthleteStatusBadge status={athlete.status} />
+      </td>
+      <td className="px-3 py-3 text-right tabular-nums">{athlete.age ?? "—"}</td>
+      <td className="px-3 py-3 text-right tabular-nums">{Number(athlete.guardianCount ?? 0)}</td>
+      <td className="px-3 py-3">
         {athlete.groupName ? (
+          // El color del grupo lo elige la academia: va en el punto y el borde,
+          // no en el texto, para no depender de su contraste sobre blanco.
           <span
-            className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold"
-            style={athlete.groupColor ? { borderColor: athlete.groupColor, color: athlete.groupColor } : undefined}
+            className="inline-flex max-w-[10rem] items-center gap-2 whitespace-nowrap rounded-full border bg-card px-3 py-1 text-xs font-semibold text-foreground"
+            style={athlete.groupColor ? { borderColor: athlete.groupColor } : undefined}
+            title={athlete.groupName}
           >
             <span
-              className="h-2 w-2 rounded-full"
+              aria-hidden
+              className="h-2 w-2 shrink-0 rounded-full"
               style={{
                 backgroundColor: athlete.groupColor ?? "currentColor",
               }}
             />
-            {athlete.groupName}
+            <span className="truncate">{athlete.groupName}</span>
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">Sin {terms.group.toLowerCase()}</span>
         )}
       </td>
-      <td className="px-4 py-3 text-right">
+      <td className="px-3 py-3 text-right">
         {athlete.status === "archived" ? (
           <button type="button" onClick={onRestore} className="inline-flex items-center gap-1 text-xs font-semibold text-zaltyko-teal hover:underline">
             <RotateCcw className="h-3.5 w-3.5" />

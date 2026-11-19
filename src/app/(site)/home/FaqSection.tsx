@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import Reveal from "@/components/motion/Reveal";
+import { DisclosureAccordion } from "@/components/ui/disclosure-accordion";
 
 const faqs = [
   {
@@ -45,9 +43,16 @@ const faqs = [
   },
 ];
 
-export default function FaqSection() {
-  const [openIndex, setOpenIndex] = useState<number | null>(1);
+const faqItems = faqs.map((faq, i) => ({
+  id: `faq-${i}`,
+  title: faq.question,
+  content: <p>{faq.answer}</p>,
+}));
 
+// Como antes: la pregunta de precios abierta al cargar.
+const FAQ_DEFAULT_OPEN = ["faq-1"] as const;
+
+export default function FaqSection() {
   return (
     <section className="py-24 bg-white dark:bg-background relative overflow-hidden">
       {/* Background accent */}
@@ -67,48 +72,23 @@ export default function FaqSection() {
           </p>
         </div>
 
-        {/* FAQ accordion */}
-        <div className="space-y-3">
-          {faqs.map((faq, i) => (
-            <Reveal key={i} delay={Math.min(i, 5) * 60}>
-              <div
-                className={cn(
-                  "rounded-2xl border transition-all duration-200",
-                  openIndex === i
-                    ? "border-zaltyko-teal/30 bg-zaltyko-teal/5 shadow-soft"
-                    : "border-gray-200 bg-white hover:border-gray-300 dark:border-border dark:bg-card dark:hover:border-zaltyko-teal/40"
-                )}
-              >
-              <button
-                onClick={() => setOpenIndex(openIndex === i ? null : i)}
-                className="w-full flex items-center justify-between px-6 py-5 text-left"
-                aria-expanded={openIndex === i}
-              >
-                <span className={cn(
-                  "font-semibold text-base pr-4 transition-colors",
-                  openIndex === i ? "text-zaltyko-indigo dark:text-zaltyko-teal" : "text-gray-900 dark:text-foreground"
-                )}>
-                  {faq.question}
-                </span>
-                <ChevronDown
-                  className={cn(
-                    "h-5 w-5 text-gray-600 dark:text-muted-foreground shrink-0 transition-transform duration-200",
-                    openIndex === i && "rotate-180 text-zaltyko-coral"
-                  )}
-                />
-              </button>
-
-              {openIndex === i && (
-                <div className="px-6 pb-5">
-                  <p className="text-gray-600 dark:text-muted-foreground leading-relaxed">
-                    {faq.answer}
-                  </p>
-                </div>
-              )}
-              </div>
-            </Reveal>
-          ))}
-        </div>
+        {/* FAQ sobre <details> nativo (@mischief/accordion vía ui-indexador):
+            teclado y lectores de pantalla sin estado propio, y las respuestas
+            cerradas siguen en el HTML para buscadores. */}
+        <Reveal>
+          <DisclosureAccordion
+            items={faqItems}
+            defaultOpen={FAQ_DEFAULT_OPEN}
+            className="border-zaltyko-mist bg-white shadow-soft dark:border-border dark:bg-card"
+            classNames={{
+              item: "bg-white open:bg-zaltyko-teal/[0.04] dark:bg-card",
+              trigger:
+                "px-6 py-5 text-base font-semibold text-zaltyko-navy group-open:text-zaltyko-indigo dark:text-foreground dark:group-open:text-zaltyko-teal",
+              marker: "text-zaltyko-teal",
+              content: "px-6 pb-5 text-base text-zaltyko-text-secondary dark:text-muted-foreground",
+            }}
+          />
+        </Reveal>
 
         {/* Ver pricing */}
         <div className="mt-8 text-center">

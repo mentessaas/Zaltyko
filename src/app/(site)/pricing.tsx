@@ -27,7 +27,7 @@ const plans: Plan[] = PRODUCT_PLANS.map((plan) => ({
   title: plan.publicName,
   price:
     plan.priceEurCents === 0
-      ? "Incluido"
+      ? "Gratis"
       : `${formatPlanAmount(plan.priceEurCents)}/mes`,
   priceEurCents: plan.priceEurCents,
   description: plan.description,
@@ -109,36 +109,51 @@ export default function PricingSection() {
         </Reveal>
 
         <div className="mt-8 flex flex-col items-center gap-3">
-          <div
-            className="inline-flex rounded-full border border-border bg-muted/60 p-1"
-            role="group"
-            aria-label="Periodicidad de precios"
-          >
-            <button
-              type="button"
-              aria-pressed={billingInterval === "month"}
-              onClick={() => setBillingInterval("month")}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                billingInterval === "month"
-                  ? "bg-zaltyko-teal text-white shadow-soft"
-                  : "text-foreground hover:bg-background"
-              }`}
-            >
-              Mensual
-            </button>
-            <button
-              type="button"
-              aria-pressed={billingInterval === "year"}
-              onClick={() => setBillingInterval("year")}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                billingInterval === "year"
-                  ? "bg-zaltyko-teal text-white shadow-soft"
-                  : "text-foreground hover:bg-background"
-              }`}
-            >
-              Anual · ahorra 2 meses
-            </button>
-          </div>
+          {/* Toggle adaptado de @uiception/pricing-section-v2 (hallado con
+              ui-indexador): radios nativos dentro de un fieldset y una
+              pastilla que se desliza; navegable con flechas y anunciado
+              como grupo por lectores de pantalla. */}
+          <fieldset>
+            <legend className="sr-only">Periodicidad de precios</legend>
+            <div className="relative inline-grid grid-cols-2 rounded-full border border-border bg-muted/60 p-1">
+              <div
+                aria-hidden
+                className={`pointer-events-none absolute bottom-1 top-1 rounded-full bg-zaltyko-teal shadow-soft transition-transform duration-200 ease-out motion-reduce:transition-none ${
+                  billingInterval === "year" ? "translate-x-full" : ""
+                }`}
+                style={{ left: "4px", width: "calc(50% - 4px)" }}
+              />
+              {(
+                [
+                  ["month", "Mensual"],
+                  ["year", "Anual · ahorra 2 meses"],
+                ] as const
+              ).map(([value, label]) => (
+                <label
+                  key={value}
+                  className="relative z-10 cursor-pointer whitespace-nowrap rounded-full px-4 py-2 text-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+                >
+                  <input
+                    checked={billingInterval === value}
+                    className="sr-only"
+                    name="billing-interval"
+                    type="radio"
+                    value={value}
+                    onChange={() => setBillingInterval(value)}
+                  />
+                  <span
+                    className={`text-sm font-semibold transition-colors ${
+                      billingInterval === value
+                        ? "text-white"
+                        : "text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <p className="text-center font-sans text-sm text-muted-foreground">
             {billingInterval === "year"
               ? "Importe anual cobrado de una vez. Elige esta modalidad al contratar desde Facturación."
@@ -146,22 +161,27 @@ export default function PricingSection() {
           </p>
         </div>
 
-        <div className="mt-8 grid items-center gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <ul className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan, index) => (
-            <Reveal key={plan.title} delay={index * 80} className="h-full">
+            <li key={plan.title} className="min-w-0">
+            <Reveal delay={index * 80} className="h-full">
+              {/* Tarjeta adaptada de @uiception/pricing-section-v2: columna
+                  flexible con el CTA anclado abajo, así las cuatro tarjetas
+                  alinean precio, lista y botón aunque cambie el texto. */}
               <article
-                className={`flex h-full flex-col rounded-card border bg-card p-8 transition-all duration-200 hover:-translate-y-1.5 hover:shadow-lift ${
+                className={`relative flex h-full flex-col justify-between gap-6 rounded-card border bg-card p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lift motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${
                   plan.highlight
-                    ? "border-zaltyko-mist border-b-[3px] border-b-zaltyko-teal"
+                    ? "border-zaltyko-teal shadow-soft ring-1 ring-zaltyko-teal/30"
                     : "border-zaltyko-mist"
                 }`}
               >
-                <div className="mb-2 flex items-baseline justify-between">
+                <div>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-display text-xl font-semibold text-foreground">
                     {plan.title}
                   </h3>
                   {plan.highlight && (
-                    <span className="text-xs font-semibold uppercase tracking-[0.06em] text-zaltyko-teal">
+                    <span className="rounded-full bg-zaltyko-teal/10 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.06em] text-zaltyko-teal">
                       Más elegido
                     </span>
                   )}
@@ -200,16 +220,20 @@ export default function PricingSection() {
                 <ul className="mt-6 space-y-3 font-sans text-sm text-foreground">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 text-zaltyko-teal" />
+                      <Check
+                        aria-hidden
+                        className="mt-0.5 h-4 w-4 shrink-0 text-zaltyko-teal"
+                      />
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
+                </div>
 
                 <TrackedPlanLink
                   href={plan.ctaHref}
                   planCode={plan.planCode}
-                  className={`mt-8 inline-flex min-h-11 items-center justify-center rounded-full px-6 py-2 text-sm font-semibold transition ${
+                  className={`inline-flex min-h-11 w-full items-center justify-center whitespace-nowrap rounded-full px-5 py-2 text-sm font-semibold transition ${
                     plan.highlight
                       ? "bg-zaltyko-teal text-white hover:bg-zaltyko-primary-dark"
                       : "border border-zaltyko-mist text-foreground hover:bg-muted"
@@ -219,8 +243,9 @@ export default function PricingSection() {
                 </TrackedPlanLink>
               </article>
             </Reveal>
+            </li>
           ))}
-        </div>
+        </ul>
 
         <div className="mt-16 grid gap-6 md:grid-cols-3">
           {commonBenefits.map((benefit, index) => {

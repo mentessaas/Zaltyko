@@ -57,22 +57,25 @@ export default function Footer() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-white">{badge.label}</p>
-                  <p className="text-xs text-white/40">{badge.desc}</p>
+                  <p className="text-xs text-white/60">{badge.desc}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-8 py-16 md:grid-cols-6">
-          <div className="col-span-2 md:col-span-2">
-            <Link href="/" className="group flex items-center gap-2">
+        {/* Estructura adaptada de @uiception/footer-section-v2 (hallado con
+            ui-indexador): marca a un lado y una rejilla de cinco columnas
+            (2 → 3 → 5) para que ninguna sección quede huérfana en otra fila. */}
+        <div className="grid gap-12 py-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)]">
+          <div>
+            <Link href="/" className="group inline-flex items-center gap-2">
               <Image
                 src="/branding/zaltyko/logo-zaltyko-dark.svg"
                 alt="Zaltyko"
                 width={200}
                 height={60}
-                className="transition-transform duration-150 group-hover:scale-[1.02]"
+                className="transition-transform duration-150 group-hover:scale-[1.02] motion-reduce:transition-none"
                 style={{ width: 142, height: "auto" }}
               />
             </Link>
@@ -82,37 +85,42 @@ export default function Footer() {
             </p>
           </div>
 
-          {Object.entries(footerLinks).map(([section, links]) => (
-            <div key={section}>
-              <h4 className="mb-5 text-sm font-bold uppercase tracking-wider text-white/90">
-                {section}
-              </h4>
-              <ul className="space-y-3">
-                {links.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="text-sm font-medium text-white/60 transition-all duration-200 hover:translate-x-1 hover:text-white"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <nav
+            aria-label="Pie de página"
+            className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:grid-cols-5"
+          >
+            {Object.entries(footerLinks).map(([section, links]) => (
+              <div key={section} className="min-w-0 space-y-4">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-white/90">
+                  {section}
+                </h2>
+                <ul className="space-y-3">
+                  {links.map((link) => (
+                    <li key={link.label}>
+                      <Link
+                        href={link.href}
+                        className="text-sm font-medium text-white/70 transition-colors duration-200 hover:text-white"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </nav>
         </div>
 
         <div className="flex flex-col items-center justify-between gap-4 border-t border-white/10 py-6 sm:flex-row">
-          <p className="text-sm font-medium text-white/50">
+          <p className="text-sm font-medium text-white/60">
             © {new Date().getFullYear()} Zaltyko. Todos los derechos reservados.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
-            <span className="text-xs font-medium text-white/40">
+            <span className="text-xs font-medium text-white/60">
               Software para academias de gimnasia
             </span>
-            <span className="hidden text-xs text-white/40 sm:inline">•</span>
-            <span className="text-xs font-medium text-white/40">
+            <span aria-hidden className="hidden text-xs text-white/60 sm:inline">•</span>
+            <span className="text-xs font-medium text-white/60">
               Artística femenina, masculina y rítmica
             </span>
           </div>

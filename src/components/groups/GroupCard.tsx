@@ -83,31 +83,42 @@ export function GroupCard({ academyId, group, sportConfigLabel, onEdit }: GroupC
             </div>
           </div>
         )}
-        <div className="flex items-center gap-4">
-          <span className="text-muted-foreground">
-            {group.athleteCount} {group.athleteCount === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()}
-          </span>
-          <span className="text-muted-foreground">·</span>
-          <span className="text-muted-foreground">Creado {createdAtDate}</span>
-        </div>
+        {/* Métricas en una fila de dos celdas (patrón de los bloques
+            stats de @blocks-so hallados con ui-indexador) en lugar de
+            repetir el recuento en el cuerpo y en una pastilla del pie. */}
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border">
+          <div className="bg-card px-3 py-2">
+            <dt className="text-xs text-muted-foreground">
+              {group.athleteCount === 1
+                ? specialization.labels.athleteSingular
+                : specialization.labels.athletesPlural}
+            </dt>
+            <dd className="text-lg font-semibold tabular-nums text-foreground">{group.athleteCount}</dd>
+          </div>
+          <div className="bg-card px-3 py-2">
+            <dt className="text-xs capitalize text-muted-foreground">
+              {coachCount === 1 ? specialization.labels.coachLabel.toLowerCase() : coachLabelPlural}
+            </dt>
+            <dd className="text-lg font-semibold tabular-nums text-foreground">{coachCount}</dd>
+          </div>
+        </dl>
       </div>
 
-      <footer className="mt-auto flex items-center justify-between gap-4 border-t border-border pt-4">
-        <span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-          {coachCount} {coachCount === 1 ? specialization.labels.coachLabel.toLowerCase() : coachLabelPlural} · {group.athleteCount} {group.athleteCount === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()}
-        </span>
-        <div className="flex items-center gap-3">
+      <footer className="mt-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border pt-4">
+        <span className="whitespace-nowrap text-xs text-muted-foreground">Creado {createdAtDate}</span>
+        <div className="flex items-center gap-1">
           {onEdit && (
             <button
+              type="button"
               onClick={() => onEdit(group)}
-              className="text-sm font-semibold text-primary hover:underline"
+              className="min-h-9 whitespace-nowrap rounded-lg px-3 text-sm font-semibold text-primary hover:bg-primary/10"
             >
               Editar
             </button>
           )}
           <Link
             href={`/app/${academyId}/groups/${group.id}`}
-            className="text-sm font-semibold text-primary hover:underline"
+            className="inline-flex min-h-9 items-center whitespace-nowrap rounded-lg px-3 text-sm font-semibold text-primary hover:bg-primary/10"
           >
             Ver grupo
           </Link>

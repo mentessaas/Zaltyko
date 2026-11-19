@@ -43,12 +43,13 @@ export function QuickActionsWidget({ academyId, data, loading, onRefresh }: Quic
 
     if (loading) {
         return (
-            <Card>
+            <Card aria-busy="true">
                 <CardHeader>
-                    <CardTitle>Acciones Rápidas</CardTitle>
+                    <CardTitle>Acciones rápidas</CardTitle>
+                    <span className="sr-only">Cargando acciones rápidas…</span>
                 </CardHeader>
                 <CardContent>
-                    <div className="animate-pulse space-y-3">
+                    <div className="animate-pulse space-y-3 motion-reduce:animate-none">
                         <div className="h-16 bg-muted rounded" />
                         <div className="h-16 bg-muted rounded" />
                         <div className="h-16 bg-muted rounded" />
