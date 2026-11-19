@@ -27,6 +27,16 @@
  * 5. se deja el resultado en el outbox (una vez por intento): la academia ve
  *    en su lista si la familia está avisada.
  *
+ * Fase 4 (D7, C11): también el aviso de un intento `requires_action` (el
+ * banco pide que la familia confirme el pago), en cualquier número de
+ * intento, mientras siga así y antes de su plazo: tipo
+ * `authentication_required` con el último día para confirmarlo (la fecha
+ * local de `action_deadline_at` en la zona de la sede). Si al enviarlo ya
+ * pasó el plazo, o el intento ya cambió de estado, se cierra como
+ * `superseded` (salvo que el intento 1 haya acabado `failed`, que avisa como
+ * siempre: un solo correo por intento). `action_deadline_at` solo se lee con
+ * la forma "phase4" del almacenamiento (C2).
+ *
  * Si el emisor lanza un error, el aviso queda como no entregado
  * (`not_delivered`) y la academia ve «Avísala tú»: no se reintenta, porque el
  * registro de envíos ya guardó esa clave y un segundo intento nunca saldría.
@@ -40,10 +50,14 @@ import { sendEmailWithLogging, type SendEmailOptions } from "@/lib/email/email-s
 import { logger } from "@/lib/logger";
 import {
   isFamilyAutomaticCollectionFlagEnabled,
+  isFamilyCollectionEventsFlagEnabled,
   isProductionDatabase,
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
-import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
+import {
+  familyCollectionStorageShape,
+  type FamilyCollectionStorageShape,
+} from "@/modules/family-collection/application/storage";
 import { localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
 import {
   FAMILY_FAILURE_NOTICE_TEMPLATE,
@@ -59,6 +73,7 @@ import {
   type FamilyFailureNoticeStore,
   type PendingFamilyFailureNotice,
 } from "@/modules/family-collection/infrastructure/family-failure-notice-store";
+import { FAMILY_COLLECTION_OPEN_STATUSES } from "@/modules/family-collection/infrastructure/family-collection-schema";
 import { isOperatingOrganizationStatus } from "@/modules/organizations/domain/organization-status";
 import { withinGrace } from "@/modules/payment-reminders/domain/reminder-policy";
 
@@ -84,8 +99,13 @@ export interface FamilyFailureNoticeDelivery {
 export interface FamilyFailureNoticeDeps {
   store?: Pick<FamilyFailureNoticeStore, "listPending" | "recordResult">;
   sendEmail?: (options: SendEmailOptions) => Promise<boolean>;
-  /** Comprueba que existen las tablas del cobro. */
+  /**
+   * Comprueba que existen las tablas del cobro (forma "phase3"). Sin
+   * `storageShape`, `true` cuenta como la Fase 3 (sin avisos `requires_action`).
+   */
   isStorageAvailable?: () => Promise<boolean>;
+  /** Forma del almacenamiento del cobro (por defecto, la del catálogo). Manda sobre `isStorageAvailable`. */
+  storageShape?: () => Promise<FamilyCollectionStorageShape>;
 }
 
 export interface FamilyFailureNoticeOptions {
@@ -99,8 +119,8 @@ export interface FamilyFailureNoticeOptions {
 }
 
 const OPEN_INVOICE_STATUSES: ReadonlySet<string> = new Set(["issued", "partially_paid"]);
-/** Un intento en marcha: el reintento se está cobrando. */
-const OPEN_ATTEMPT_STATUSES: ReadonlySet<string> = new Set(["claimed", "created", "processing"]);
+/** Un intento en marcha: el reintento se está cobrando (o espera a que la familia confirme el pago). */
+const OPEN_ATTEMPT_STATUSES: ReadonlySet<string> = new Set(FAMILY_COLLECTION_OPEN_STATUSES);
 
 function emptyDelivery(): FamilyFailureNoticeDelivery {
   return { sent: 0, notSent: 0, pending: 0 };
@@ -140,8 +160,11 @@ function todayOf(now: Date, timezone: string): string | null {
  *   cobro del reintento sigue abierta, se promete sin fecha; si la ventana ya
  *   pasó, el reintento no saldrá y no se promete nada.
  * Con un intento posterior (el reintento ya se reclamó): si ya cobró la
- * cuota, el aviso no se envía (`superseded`); si está en curso, se promete
- * sin fecha; si falló con otro reintento programado, con la fecha de ese
+ * cuota, el aviso no se envía (`superseded`); si espera a que la familia
+ * confirme el pago con su banco (Fase 4, `requires_action`), se envía sin
+ * prometer reintento y, solo si el portal deja confirmarlo
+ * (`confirmationOpen`) y su plazo no ha pasado, pidiendo que lo confirme
+ * (`laterAwaitingConfirmation`); si está en curso, se promete sin fecha; si falló con otro reintento programado, con la fecha de ese
  * siguiente; si falló sin reintento o se canceló, sin promesa.
  */
 /**
@@ -161,9 +184,27 @@ export function retryKnownBlocked(
 export function decideFamilyFailureNotice(
   notice: PendingFamilyFailureNotice,
   now: Date,
-  options: { retriesEnabled: boolean }
+  options: {
+    retriesEnabled: boolean;
+    /**
+     * Fase 4 (Tarea 5): la familia puede confirmar el pago desde el portal
+     * (bandera del cobro, bandera de eventos y forma "phase4"). Sin indicar, no.
+     */
+    confirmationOpen?: boolean;
+  }
 ):
-  | { action: "send"; retryScheduled: boolean; retryDateLocal: string | null }
+  | {
+      action: "send";
+      retryScheduled: boolean;
+      retryDateLocal: string | null;
+      deadlineLocalDate?: string | null;
+      /**
+       * Fase 4: el reintento ya salió y el banco pide que la familia lo
+       * confirme (intento posterior `requires_action`): el texto no promete
+       * otro intento, pide confirmar el pago (`confirmation_pending`).
+       */
+      laterAwaitingConfirmation?: true;
+    }
   | { action: "close"; outcome: FamilyFailureNoticeOutcome } {
   if (!isOperatingOrganizationStatus(notice.organizationStatus)) {
     return { action: "close", outcome: "organization_inactive" };
@@ -174,9 +215,19 @@ export function decideFamilyFailureNotice(
       attemptNumber: notice.attemptNumber,
       status: notice.attemptStatus,
       failureCode: notice.failureCode,
+      actionDeadlineAt: notice.actionDeadlineAt ?? null,
+      now,
     })
   ) {
     return { action: "close", outcome: "superseded" };
+  }
+  // Fase 4: el banco pide confirmar el pago y aún está a tiempo (lo
+  // comprobó familyNoticeApplies). Nada de reintentos: el día es el del plazo.
+  if (notice.attemptStatus === "requires_action") {
+    if (!notice.payerEmail) return { action: "close", outcome: "no_email" };
+    const deadlineLocalDate = retryDateOf(notice.actionDeadlineAt ?? null, notice.timezone);
+    if (deadlineLocalDate === null) return { action: "close", outcome: "superseded" };
+    return { action: "send", retryScheduled: false, retryDateLocal: null, deadlineLocalDate };
   }
   const later = notice.lastAttemptNumber > notice.attemptNumber;
   // Un intento posterior ya cobró la cuota: «no hemos podido cobrar» ya no es verdad.
@@ -184,6 +235,23 @@ export function decideFamilyFailureNotice(
   if (!notice.payerEmail) return { action: "close", outcome: "no_email" };
 
   const canPromise = options.retriesEnabled && !retryKnownBlocked(notice);
+  // Fase 4 (Tarea 5): el reintento espera a que la familia confirme el pago
+  // con su banco. Nada de «Volveremos a intentarlo»: no se reintenta solo.
+  // Solo se le pide pulsar «Confirmar el pago» si el portal enseña el botón
+  // (cobro y eventos encendidos, forma "phase4") y el plazo del reintento no
+  // ha pasado; si no, el texto de siempre sin promesa.
+  if (later && notice.lastAttemptStatus === "requires_action") {
+    const deadline = notice.lastAttemptActionDeadlineAt?.getTime();
+    const canConfirm =
+      options.retriesEnabled &&
+      options.confirmationOpen === true &&
+      deadline !== undefined &&
+      Number.isFinite(deadline) &&
+      now.getTime() <= deadline;
+    return canConfirm
+      ? { action: "send", retryScheduled: false, retryDateLocal: null, laterAwaitingConfirmation: true }
+      : { action: "send", retryScheduled: false, retryDateLocal: null };
+  }
   if (!canPromise) return { action: "send", retryScheduled: false, retryDateLocal: null };
   if (later) {
     const status = notice.lastAttemptStatus;
@@ -230,8 +298,14 @@ export async function deliverFamilyFailureNotices(
   const result = emptyDelivery();
   // Cerrojos de R11, como el cobro: solo clave de test y nunca la base de producción.
   if (resolveConnectEnvironment() !== "test" || isProductionDatabase()) return result;
-  const storageAvailable = deps.isStorageAvailable ?? (() => isFamilyCollectionStorageAvailable());
-  if (!(await storageAvailable())) return result;
+  const shape: FamilyCollectionStorageShape = deps.storageShape
+    ? await deps.storageShape()
+    : deps.isStorageAvailable
+      ? (await deps.isStorageAvailable())
+        ? "phase3"
+        : "none"
+      : await familyCollectionStorageShape();
+  if (shape === "none") return result;
   if (options.organizationIds && options.organizationIds.length === 0) return result;
 
   const now = options.now ?? new Date();
@@ -241,6 +315,8 @@ export async function deliverFamilyFailureNotices(
   const feesUrl = `${(options.appUrl ?? getAppUrl()).replace(/\/+$/, "")}${FAMILY_FEES_PATH}`;
   // Los reintentos solo salen con el cobro automático encendido (Fase B).
   const retriesEnabled = isFamilyAutomaticCollectionFlagEnabled();
+  // Tarea 5: el botón «Confirmar el pago» del portal (los cerrojos ya se miraron arriba).
+  const confirmationOpen = retriesEnabled && shape === "phase4" && isFamilyCollectionEventsFlagEnabled();
 
   const limit = options.limit ?? FAMILY_FAILURE_NOTICE_BATCH;
   const since = new Date(now.getTime() - FAMILY_FAILURE_NOTICE_MAX_AGE_MS);
@@ -249,9 +325,10 @@ export async function deliverFamilyFailureNotices(
 
   // De página en página hasta acabar los pendientes o agotar el plazo: con
   // muchos fallos el mismo día, ninguna familia se queda sin su aviso.
-  const context: DeliveryContext = { store, sendEmail, feesUrl, now, retriesEnabled };
+  const context: DeliveryContext = { store, sendEmail, feesUrl, now, retriesEnabled, confirmationOpen };
   for (;;) {
-    const page = await store.listPending({ since, limit, scope, after });
+    // Los avisos `requires_action` (y su plazo) solo existen con la forma "phase4".
+    const page = await store.listPending({ since, limit, scope, after, authentication: shape === "phase4" });
     let expired = false;
     for (const notice of page) {
       if (Date.now() >= deadline) {
@@ -281,6 +358,7 @@ interface DeliveryContext {
   feesUrl: string;
   now: Date;
   retriesEnabled: boolean;
+  confirmationOpen: boolean;
 }
 
 /**
@@ -291,24 +369,28 @@ async function deliverOne(
   notice: PendingFamilyFailureNotice,
   context: DeliveryContext
 ): Promise<keyof FamilyFailureNoticeDelivery> {
-  const { store, sendEmail, feesUrl, now, retriesEnabled } = context;
+  const { store, sendEmail, feesUrl, now, retriesEnabled, confirmationOpen } = context;
   const ids = { organizationId: notice.organizationId, invoiceId: notice.invoiceId, attemptId: notice.attemptId };
   let outcome: FamilyFailureNoticeOutcome;
   try {
-    const decision = decideFamilyFailureNotice(notice, now, { retriesEnabled });
+    const decision = decideFamilyFailureNotice(notice, now, { retriesEnabled, confirmationOpen });
     if (decision.action === "close") {
       outcome = decision.outcome;
     } else {
       const message = renderFamilyFailureNotice({
-        kind: familyFailureNoticeKind({
-          paymentMethodKind: notice.paymentMethodKind,
-          failureCode: notice.failureCode,
-          declineCode: notice.declineCode,
-          retryScheduled: decision.retryScheduled,
-        }),
+        kind: decision.laterAwaitingConfirmation
+          ? "confirmation_pending"
+          : familyFailureNoticeKind({
+              paymentMethodKind: notice.paymentMethodKind,
+              failureCode: notice.failureCode,
+              declineCode: notice.declineCode,
+              retryScheduled: decision.retryScheduled,
+              attemptStatus: notice.attemptStatus,
+            }),
         academyName: notice.academyName,
         servicePeriodStart: notice.servicePeriodStart,
         retryDateLocal: decision.retryDateLocal,
+        deadlineLocalDate: decision.deadlineLocalDate ?? null,
         feesUrl,
       });
       const accepted = await sendEmail({

@@ -110,6 +110,7 @@ function renderGroup(
       servicePeriodStart: candidate.servicePeriodStart,
       outstandingCents: candidate.outstandingCents,
       dueAt: candidate.dueAt,
+      returnedByBank: candidate.returnedByBank === true,
     })),
   });
 }

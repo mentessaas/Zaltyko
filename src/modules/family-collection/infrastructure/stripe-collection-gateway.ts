@@ -69,6 +69,11 @@ export interface FamilyCollectionGateway {
     /** Orden SEPA de la autorización; `null` con tarjeta. */
     mandate: string | null;
   }): Promise<PaymentIntentSnapshot | CollectionError>;
+  /**
+   * Relee el cobro en la cuenta de la academia. Además del snapshot, devuelve
+   * `attemptIdFromMetadata` (Fase 4): el id del intento de la metadata, solo
+   * si es un uuid.
+   */
   retrievePayment(input: {
     connectedAccount: string;
     paymentIntentId: string;
@@ -157,6 +162,15 @@ function toSnapshot(paymentIntent: Stripe.PaymentIntent): PaymentIntentSnapshot 
   return snapshot;
 }
 
+/**
+ * Id del intento guardado en la metadata del cobro
+ * (COLLECTION_ATTEMPT_METADATA_KEY), en minúsculas, solo si es un uuid; si no, null.
+ */
+export function metadataAttemptId(paymentIntent: Pick<Stripe.PaymentIntent, "metadata">): string | null {
+  const value = paymentIntent.metadata?.[COLLECTION_ATTEMPT_METADATA_KEY];
+  return typeof value === "string" && UUID_PATTERN.test(value) ? value.toLowerCase() : null;
+}
+
 function hasMetadataAttempt(paymentIntent: Stripe.PaymentIntent, attemptId: string): boolean {
   const value = paymentIntent.metadata?.[COLLECTION_ATTEMPT_METADATA_KEY];
   return typeof value === "string" && value.toLowerCase() === attemptId.toLowerCase();
@@ -233,7 +247,9 @@ export function createStripeCollectionGateway(stripe?: Stripe): FamilyCollection
         {},
         { stripeAccount: input.connectedAccount }
       );
-      return toSnapshot(paymentIntent);
+      // Fase 4: el id del intento de la metadata, para el evento de un cobro
+      // cuyo `pi_…` aún no está guardado. Nada más de la metadata.
+      return { ...toSnapshot(paymentIntent), attemptIdFromMetadata: metadataAttemptId(paymentIntent) };
     },
 
     async findPaymentByAttempt(input) {
@@ -295,4 +311,326 @@ export async function listCollectionPaymentsByAttempt(
   return result.data
     .filter((paymentIntent) => hasMetadataAttempt(paymentIntent, input.attemptId))
     .map((paymentIntent) => toSnapshot(paymentIntent));
+}
+
+/**
+ * Fase 4 (Tarea 5): lo que necesita la familia para confirmar con su banco el
+ * MISMO cobro (`confirmCardPayment` en el navegador). Se lee en Stripe en ese
+ * momento, en la cuenta de la academia, y nunca se guarda ni se registra.
+ */
+export interface PaymentConfirmationSecret {
+  /** `pi_…` que devolvió Stripe. */
+  id: string;
+  status: string;
+  livemode: boolean;
+  /** Id del intento de la metadata (uuid en minúsculas), o null. */
+  attemptIdFromMetadata: string | null;
+  /** `pm_…` que Stripe tiene en el cobro (o el del último error), o null. */
+  paymentMethod: string | null;
+  /** Clave del cobro para el navegador; null si Stripe no la da. */
+  clientSecret: string | null;
+}
+
+function paymentMethodIdOf(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && typeof (value as { id?: unknown }).id === "string") {
+    return (value as { id: string }).id;
+  }
+  return null;
+}
+
+/**
+ * Relee el cobro en la cuenta conectada y devuelve su clave para el
+ * navegador. Sin registro: el error de Stripe sigue hacia quien llama, que
+ * solo registra su nombre.
+ */
+export async function retrievePaymentClientSecret(
+  input: { connectedAccount: string; paymentIntentId: string },
+  stripe?: Stripe
+): Promise<PaymentConfirmationSecret> {
+  const client = stripe ?? getStripeClient();
+  const paymentIntent = await client.paymentIntents.retrieve(
+    input.paymentIntentId,
+    {},
+    { stripeAccount: input.connectedAccount }
+  );
+  return {
+    id: paymentIntent.id,
+    status: paymentIntent.status,
+    livemode: paymentIntent.livemode === true,
+    attemptIdFromMetadata: metadataAttemptId(paymentIntent),
+    paymentMethod:
+      paymentMethodIdOf(paymentIntent.payment_method) ??
+      paymentMethodIdOf(paymentIntent.last_payment_error?.payment_method),
+    clientSecret: typeof paymentIntent.client_secret === "string" ? paymentIntent.client_secret : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Fase 4 (Tarea 6): devoluciones que la academia hizo desde su panel de Stripe
+// ---------------------------------------------------------------------------
+
+/** Una devolución de un cargo, tal como la da Stripe (solo lo que se usa). */
+export interface ChargeRefundSnapshot {
+  /** `re_…` (tarjeta) o `pyr_…` (domiciliación). */
+  id: string;
+  /** `pending`, `requires_action`, `succeeded`, `failed` o `canceled`. */
+  status: string;
+  amountCents: number;
+  /** En mayúsculas (`EUR`), o null si Stripe no la da. */
+  currency: string | null;
+  /** Código del motivo de Stripe (`requested_by_customer`…), o null. */
+  reasonCode: string | null;
+  createdAt: Date;
+}
+
+export interface ChargeRefundsSnapshot {
+  /** `ch_…` o `py_…`. */
+  chargeId: string;
+  /** `pi_…` del cargo, o null. */
+  paymentIntentId: string | null;
+  refunds: ChargeRefundSnapshot[];
+}
+
+/**
+ * Lecturas de las devoluciones, siempre en la cuenta conectada y por id. El
+ * evento es solo un aviso: todo lo que se anota sale de aquí.
+ */
+export interface FamilyCollectionRefundGateway {
+  /** Relee el cargo (`ch_…`/`py_…`) y todas sus devoluciones. */
+  retrieveChargeRefunds(input: { connectedAccount: string; chargeId: string }): Promise<ChargeRefundsSnapshot>;
+  /** Relee una devolución (`re_…`/`pyr_…`) y devuelve el id de su cargo, o null. */
+  retrieveRefundCharge(input: { connectedAccount: string; refundId: string }): Promise<string | null>;
+  /**
+   * Tarea 7: el último cargo de un cobro (`pi_…`) con todas sus devoluciones,
+   * o null si el cobro todavía no tiene cargo. Lo usa el cobro tardío al
+   * registrarse: las devoluciones que la academia hizo mientras esperaba no
+   * se anotaron (el intento no estaba cobrado en el libro).
+   */
+  retrievePaymentIntentRefunds(input: {
+    connectedAccount: string;
+    paymentIntentId: string;
+  }): Promise<ChargeRefundsSnapshot | null>;
+  /**
+   * Re-revisión de la ola final (Minor 1): el id del intento de la metadata
+   * del cobro (`pi_…`), solo si es un uuid; null si no es un cobro de
+   * Zaltyko. Solo se usa cuando ningún intento tiene ese `pi_…` y el cargo ya
+   * tiene una devolución hecha. Opcional para las dobles de los tests: sin él,
+   * esa devolución termina sin efecto, como antes. Las disputas tienen la
+   * misma lectura (FamilyCollectionDisputeGateway).
+   */
+  retrievePaymentIntentAttemptId?(input: { connectedAccount: string; paymentIntentId: string }): Promise<string | null>;
+}
+
+/** Más devoluciones de un cargo de las que se leen: no se decide nada con una lista a medias. */
+export const TOO_MANY_REFUNDS_FOR_CHARGE_ERROR = "FAMILY_COLLECTION_TOO_MANY_REFUNDS_FOR_CHARGE";
+const MAX_REFUNDS_PER_CHARGE = 1000;
+
+function objectIdOf(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && typeof (value as { id?: unknown }).id === "string") {
+    return (value as { id: string }).id;
+  }
+  return null;
+}
+
+/** Solo campos con forma conocida; una devolución sin id o sin importe no se usa. */
+function refundSnapshotOf(refund: Stripe.Refund): ChargeRefundSnapshot | null {
+  if (typeof refund.id !== "string" || !Number.isSafeInteger(refund.amount) || refund.amount <= 0) return null;
+  const created = typeof refund.created === "number" ? new Date(refund.created * 1000) : null;
+  if (!created || Number.isNaN(created.getTime())) return null;
+  return {
+    id: refund.id,
+    status: typeof refund.status === "string" ? refund.status : "unknown",
+    amountCents: refund.amount,
+    currency: typeof refund.currency === "string" ? refund.currency.toUpperCase() : null,
+    reasonCode: typeof refund.reason === "string" ? refund.reason : null,
+    createdAt: created,
+  };
+}
+
+export function createStripeRefundGateway(stripe?: Stripe): FamilyCollectionRefundGateway {
+  const client = (): Stripe => stripe ?? getStripeClient();
+  const gateway: FamilyCollectionRefundGateway = {
+    async retrieveChargeRefunds(input) {
+      const options = { stripeAccount: input.connectedAccount };
+      const charge = await client().charges.retrieve(input.chargeId, {}, options);
+      const listed = await client()
+        .refunds.list({ charge: input.chargeId, limit: 100 }, options)
+        .autoPagingToArray({ limit: MAX_REFUNDS_PER_CHARGE + 1 });
+      if (listed.length > MAX_REFUNDS_PER_CHARGE) throw new Error(TOO_MANY_REFUNDS_FOR_CHARGE_ERROR);
+      return {
+        chargeId: charge.id,
+        paymentIntentId: objectIdOf(charge.payment_intent),
+        refunds: listed.flatMap((refund) => {
+          // Solo las de este cargo (la lista ya viene filtrada por él).
+          if (objectIdOf(refund.charge) !== null && objectIdOf(refund.charge) !== charge.id) return [];
+          const snapshot = refundSnapshotOf(refund);
+          return snapshot ? [snapshot] : [];
+        }),
+      };
+    },
+
+    async retrieveRefundCharge(input) {
+      const refund = await client().refunds.retrieve(input.refundId, {}, { stripeAccount: input.connectedAccount });
+      return objectIdOf(refund.charge);
+    },
+
+    async retrievePaymentIntentRefunds(input) {
+      const paymentIntent = await client().paymentIntents.retrieve(
+        input.paymentIntentId,
+        {},
+        { stripeAccount: input.connectedAccount }
+      );
+      const chargeId = objectIdOf(paymentIntent.latest_charge);
+      if (chargeId === null) return null;
+      const snapshot = await gateway.retrieveChargeRefunds({ connectedAccount: input.connectedAccount, chargeId });
+      // El cargo tiene que ser de ese cobro: si no, no se decide nada con él.
+      return snapshot.paymentIntentId === input.paymentIntentId ? snapshot : null;
+    },
+
+    async retrievePaymentIntentAttemptId(input) {
+      return readPaymentIntentAttemptId(client(), input);
+    },
+  };
+  return gateway;
+}
+
+/**
+ * El id del intento de la metadata de un cobro (`pi_…`), releído en la cuenta
+ * conectada; null si no es un cobro de Zaltyko. Lo comparten las devoluciones
+ * y las disputas (adoptable-collection.ts).
+ */
+async function readPaymentIntentAttemptId(
+  stripe: Stripe,
+  input: { connectedAccount: string; paymentIntentId: string }
+): Promise<string | null> {
+  const paymentIntent = await stripe.paymentIntents.retrieve(
+    input.paymentIntentId,
+    {},
+    { stripeAccount: input.connectedAccount }
+  );
+  // Nada más de la metadata: solo el id del intento.
+  return paymentIntent.id === input.paymentIntentId ? metadataAttemptId(paymentIntent) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Fase 4 (Tarea 7): disputas de tarjeta y devoluciones del banco en domiciliación
+// ---------------------------------------------------------------------------
+
+/** Una disputa, releída por id en la cuenta conectada (solo lo que se usa). */
+export interface DisputeSnapshot {
+  /** `dp_…` o `du_…`. */
+  id: string;
+  /** `ch_…` (tarjeta) o `py_…` (domiciliación). */
+  chargeId: string;
+  /** `pi_…` del cargo, o null. */
+  paymentIntentId: string | null;
+  /** Estado de Stripe (`needs_response`, `lost`…), tal cual. */
+  status: string;
+  /** Código del motivo (`fraudulent`, `debit_not_authorized`…), o null. */
+  reasonCode: string | null;
+  amountCents: number;
+  /** En mayúsculas (`EUR`), o null si Stripe no la da. */
+  currency: string | null;
+  /** Plazo para responder con pruebas, o null (domiciliación, ya cerrada…). */
+  evidenceDueAt: Date | null;
+  /** Stripe retiró el dinero de la cuenta de la academia y no lo ha devuelto (suma de sus movimientos < 0). */
+  fundsWithdrawn: boolean;
+  /** Forma de pago del cargo disputado; null si es otra o no se sabe. */
+  paymentMethodKind: "card" | "sepa_debit" | null;
+  /** Cuándo se abrió en Stripe. */
+  createdAt: Date;
+}
+
+/** Lectura de las disputas, siempre en la cuenta conectada y por id. */
+export interface FamilyCollectionDisputeGateway {
+  /**
+   * Relee la disputa y su cargo. null si Stripe la devuelve sin la forma que
+   * se usa (sin cargo, sin importe…): no se decide nada con ella.
+   */
+  retrieveDispute(input: { connectedAccount: string; disputeId: string }): Promise<DisputeSnapshot | null>;
+  /**
+   * El id del intento de la metadata del cobro (`pi_…`), solo si es un uuid;
+   * null si no es un cobro de Zaltyko. Solo se usa cuando ningún intento tiene
+   * el `pi_…` de la disputa ni después del camino de los cobros (un intento
+   * `claimed` que no llegó a guardarlo). Opcional para las dobles de los
+   * tests: sin él, esa disputa termina sin efecto, como antes.
+   */
+  retrievePaymentIntentAttemptId?(input: { connectedAccount: string; paymentIntentId: string }): Promise<string | null>;
+}
+
+const REASON_CODE_PATTERN = /^[a-z0-9_]{1,64}$/;
+
+function unixDateOrNull(value: unknown): Date | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const date = new Date(value * 1000);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** Forma de pago del cargo (`payment_method_details.type`), si el cargo vino expandido. */
+function chargeKindOf(charge: unknown): "card" | "sepa_debit" | null {
+  if (!charge || typeof charge !== "object") return null;
+  const type = (charge as { payment_method_details?: { type?: unknown } | null }).payment_method_details?.type;
+  return type === "card" || type === "sepa_debit" ? type : null;
+}
+
+/** ¿Suman menos de cero los movimientos de la disputa (dinero retirado y no devuelto)? */
+function fundsWithdrawnOf(transactions: unknown): boolean {
+  if (!Array.isArray(transactions)) return false;
+  let total = 0;
+  for (const transaction of transactions) {
+    const amount = transaction && typeof transaction === "object" ? (transaction as { amount?: unknown }).amount : null;
+    if (typeof amount === "number" && Number.isSafeInteger(amount)) total += amount;
+  }
+  return total < 0;
+}
+
+/** Solo campos con forma conocida; sin id, cargo, importe o fecha válidos, null. */
+export function disputeSnapshotOf(dispute: Stripe.Dispute): DisputeSnapshot | null {
+  const chargeId = objectIdOf(dispute.charge);
+  const createdAt = unixDateOrNull(dispute.created);
+  if (
+    typeof dispute.id !== "string" ||
+    chargeId === null ||
+    !Number.isSafeInteger(dispute.amount) ||
+    dispute.amount <= 0 ||
+    createdAt === null
+  ) {
+    return null;
+  }
+  const charge = typeof dispute.charge === "object" ? dispute.charge : null;
+  return {
+    id: dispute.id,
+    chargeId,
+    paymentIntentId: objectIdOf(dispute.payment_intent) ?? objectIdOf(charge?.payment_intent ?? null),
+    status: typeof dispute.status === "string" ? dispute.status : "unknown",
+    reasonCode: typeof dispute.reason === "string" && REASON_CODE_PATTERN.test(dispute.reason) ? dispute.reason : null,
+    amountCents: dispute.amount,
+    currency: typeof dispute.currency === "string" ? dispute.currency.toUpperCase() : null,
+    evidenceDueAt: unixDateOrNull(dispute.evidence_details?.due_by ?? null),
+    fundsWithdrawn: fundsWithdrawnOf(dispute.balance_transactions),
+    paymentMethodKind: chargeKindOf(charge),
+    createdAt,
+  };
+}
+
+export function createStripeDisputeGateway(stripe?: Stripe): FamilyCollectionDisputeGateway {
+  const client = (): Stripe => stripe ?? getStripeClient();
+  return {
+    async retrieveDispute(input) {
+      // El cargo expandido da la forma de pago y el `pi_…` en la misma lectura.
+      const dispute = await client().disputes.retrieve(
+        input.disputeId,
+        { expand: ["charge"] },
+        { stripeAccount: input.connectedAccount }
+      );
+      const snapshot = disputeSnapshotOf(dispute);
+      return snapshot && snapshot.id === input.disputeId ? snapshot : null;
+    },
+
+    async retrievePaymentIntentAttemptId(input) {
+      return readPaymentIntentAttemptId(client(), input);
+    },
+  };
 }

@@ -1,13 +1,29 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-11-17
+last_reviewed: 2026-11-18
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
 
+
+## 2026-11-18 — Cobro automático de cuotas, Fase 4: respuestas D1–D13 (ADR-0028)
+
+**Hallazgo/fuente:**
+- `docs/architecture/adr/0028-cobro-automatico-de-cuotas-con-connect.md`, «Fase 4: respuestas D1–D13 y cómo quedó construida (18-11-2026)».
+- `docs/superpowers/plans/2026-11-18-cobro-automatico-fase4-eventos-stripe.md`, «Respuestas». Palabras de Elvis citadas por la sesión coordinadora.
+
+**Decisión/importancia:** deciden qué pasa con la cuota cuando el dinero vuelve a la familia y qué se le enseña.
+
+- De Elvis: D2 «Nueva cuota pendiente» (domiciliación devuelta: cuota nueva a mano); D3 «Marcar y avisar» (disputa de tarjeta perdida, sin deuda automática); D6 «Sí, apagado hasta abogado» (justificante «no es factura», bandera apagada hasta L6, abogado/gestor); D12 «De momento no» (sin correo el día antes).
+- Del coordinador: D1 cuota pagada marcada «Devuelta»; D4 disputa abierta o ganada, sigue pagada; D5 solo la academia devuelve, desde Stripe; D7 3 días y un correo cada vez; D8 Standard v1 en PR aparte (aquí solo deja de guardar el evento entero); D9 cortacircuitos 3 seguidos o 20 % desde 10; D10 cobro doble, aviso a la academia; D11 mismo correo que tarjeta, sin prometer reintento; D13 apagar o filtrar el destino antiguo antes del primer cobro real, y no vaciar `billing_events.payload` sin Elvis.
+
+**Siguiente paso:**
+- CI verde de la PR en borrador y revisión final.
+- Tarea 14 en staging (destino de eventos, secreto, banderas, candidata, destino antiguo): necesita la autorización de Elvis.
+- Pendiente de Elvis: autorizar vaciar los eventos enteros antiguos (D13); L4 y L6 con el abogado/gestor.
 
 ## 2026-11-17 — Cobro automático de cuotas, Fase 3: decisiones de Elvis tras el estudio de la competencia (ADR-0028)
 

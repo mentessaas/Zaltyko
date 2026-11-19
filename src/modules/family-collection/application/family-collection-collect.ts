@@ -25,10 +25,14 @@
  * ya volvió a los recordatorios y la familia
  * puede haberla pagado a mano. Entonces nunca se cobra: se escribe un intento
  * `canceled` con `collection_window_expired`, aunque la puerta deje pasar.
+ *
+ * Cortacircuitos (Fase 4, D9): si se abre (en la Fase A o aquí), no se mira
+ * ninguna factura más: ni se reclama ni se cancela nada. El intento que lo
+ * abrió se queda `claimed` y las facturas que faltan se miran mañana.
  */
+import { collectionWindowAnchor as anchorOfWindow } from "@/modules/family-collection/domain/authentication-window";
 import {
   AMOUNT_BELOW_MINIMUM_CODE,
-  collectionDate,
   isBelowCollectionMinimum,
   localCalendarDate,
 } from "@/modules/family-collection/domain/collection-plan";
@@ -84,17 +88,38 @@ export function historyBlock(history: AttemptHistory, timezone: string, todayLoc
 }
 
 /**
- * ¿Pasó ya la ventana máxima de cobro de la factura? Misma espera y misma
- * función (`withinGrace`) que los recordatorios (reminder-policy.ts), para
- * que nunca se cobre una cuota que ya volvió a ellos:
- * - sin intentos: desde la fecha de cobro de la cuota más antigua del reparto;
- * - con un reintento pendiente: desde la fecha local de ese reintento (cada
- *   reintento de la cadena tiene la suya).
+ * Fecha local (YYYY-MM-DD) desde la que se cuenta la ventana máxima de cobro
+ * de un intento, o `null` si no tiene (domain/authentication-window.ts):
+ * - reintento: la fecha local del reintento (`next_retry_at` del intento
+ *   anterior), solo si el anterior es un fallo con reintento;
+ * - sin intento anterior: la fecha de cobro prevista más antigua de las
+ *   cuotas del reparto (`collectionDate`).
  *
  * Todas las cuotas de una factura mensual comparten vencimiento
  * (monthly-invoice/issue.ts pasa un único `dueAt` a issueInvoiceInTransaction,
  * que lo copia en cada cuota), así que la más antigua es la de todas; se toma
  * la más antigua por si una cuota cambiara de fecha después.
+ *
+ * Fase 4: el plazo para confirmar el pago con el banco (`requires_action`)
+ * se cuenta desde esta misma fecha (authenticationDeadline), nunca desde que
+ * se reclamó el intento.
+ */
+export function collectionWindowAnchor(input: {
+  previousAttempt: { status: string; nextRetryAt: Date | null } | null;
+  charges: readonly CollectionChargeRow[];
+  allocations: readonly CollectionAllocationRow[];
+  timezone: string;
+  collectionDayOfMonth: number | null;
+}): string | null {
+  return anchorOfWindow(input);
+}
+
+/**
+ * ¿Pasó ya la ventana máxima de cobro de la factura? Misma espera y misma
+ * función (`withinGrace`) que los recordatorios (reminder-policy.ts), para
+ * que nunca se cobre una cuota que ya volvió a ellos, contada desde
+ * `collectionWindowAnchor` (sin fecha, nunca pasa: historyBlock ya descartó
+ * todo lo que no es un fallo con reintento).
  */
 export function collectionWindowExpired(input: {
   history: AttemptHistory;
@@ -104,23 +129,14 @@ export function collectionWindowExpired(input: {
   collectionDayOfMonth: number | null;
   todayLocal: string;
 }): boolean {
-  const last = input.history.last;
-  if (last) {
-    // historyBlock ya descartó todo lo que no es un fallo con reintento.
-    if (last.status !== "failed" || !last.nextRetryAt) return false;
-    return !withinGrace(localCalendarDate(last.nextRetryAt, input.timezone), input.todayLocal);
-  }
-  const planned = new Set(input.allocations.map((allocation) => allocation.chargeId));
-  const earliest = input.charges
-    .filter((charge) => planned.has(charge.id))
-    .map((charge) =>
-      collectionDate({
-        dueDateLocal: localCalendarDate(charge.dueAt, input.timezone),
-        collectionDayOfMonth: input.collectionDayOfMonth,
-      })
-    )
-    .sort()[0];
-  return earliest !== undefined && !withinGrace(earliest, input.todayLocal);
+  const anchor = collectionWindowAnchor({
+    previousAttempt: input.history.last,
+    charges: input.charges,
+    allocations: input.allocations,
+    timezone: input.timezone,
+    collectionDayOfMonth: input.collectionDayOfMonth,
+  });
+  return anchor !== null && !withinGrace(anchor, input.todayLocal);
 }
 
 function sameAllocations(left: readonly CollectionAllocationRow[], right: readonly CollectionAllocationRow[]): boolean {
@@ -401,6 +417,10 @@ export async function collectDueInvoices(state: RunState): Promise<void> {
       state.result.complete = false;
       return;
     }
+    if (state.breaker.open) {
+      state.result.circuitOpen = true;
+      return;
+    }
     const page = await state.store.listDueInvoices({
       after: cursor,
       limit: state.batchSize,
@@ -410,6 +430,11 @@ export async function collectDueInvoices(state: RunState): Promise<void> {
     for (const ref of page) {
       if (isExpired(state)) {
         state.result.complete = false;
+        return;
+      }
+      // Cortacircuitos abierto: ninguna factura más hoy (D9).
+      if (state.breaker.open) {
+        state.result.circuitOpen = true;
         return;
       }
       cursor = ref.invoiceId;

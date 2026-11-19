@@ -50,11 +50,16 @@ import {
   evaluateAutomaticCollectionPlanEligibility,
   type AutomaticPlanEligibility,
 } from "@/modules/billing/domain/plan-eligibility";
-import { isFamilyAutomaticSepaCollectionFlagEnabled } from "@/modules/family-collection/application/config";
 import {
+  isFamilyAutomaticSepaCollectionFlagEnabled,
+  isFamilyPaymentConfirmationOpen,
+} from "@/modules/family-collection/application/config";
+import {
+  isFamilyCollectionEventsStorageAvailable,
   isFamilyCollectionStorageAvailable,
   isPaymentRemindersTablePresent,
 } from "@/modules/family-collection/application/storage";
+import { isAuthenticationDeadlinePassed } from "@/modules/family-collection/domain/authentication-window";
 import { REMINDER_SENT_REASON, SEPA_NOT_ENABLED_REASON } from "@/modules/family-collection/domain/collection-gate";
 import {
   addLocalDays,
@@ -64,7 +69,18 @@ import {
 } from "@/modules/family-collection/domain/collection-plan";
 import { FAMILY_FAILURE_NOTICE_RESULT_EVENT } from "@/modules/family-collection/domain/family-failure-notice";
 import { AMOUNT_MISMATCH_REASON } from "@/modules/family-collection/domain/payment-outcome";
-import { NEEDS_REVIEW_EVENT } from "@/modules/family-collection/infrastructure/family-collection-store";
+import {
+  DISPUTE_LOST_REASON,
+  disputeEffect,
+  returnedFeeInvoiceKey,
+  SEPA_RETURNED_REASON,
+  type DisputePaymentMethodKind,
+} from "@/modules/family-collection/domain/dispute-effect";
+import { REFUND_REVERSED_REASON, REFUND_UNALLOCATED_REASON } from "@/modules/family-collection/domain/refund-split";
+import {
+  createFamilyCollectionStore,
+  NEEDS_REVIEW_EVENT,
+} from "@/modules/family-collection/infrastructure/family-collection-store";
 import {
   academyCanMarkReviewed,
   COLLECTION_WINDOW_EXPIRED_CODE,
@@ -73,12 +89,15 @@ import {
   isLongProcessingAttempt,
 } from "@/modules/family-collection/infrastructure/family-collection-schema";
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
+import { resolveFamilyPayer } from "@/modules/family-payment-methods/infrastructure/family-payment-store";
 import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
 import { familyCanViewFees } from "@/modules/family-portal/application/family-portal-sql";
-import type {
-  FamilyAutomaticCollectionModes,
-  FamilyAutomaticFeeStatus,
-  FamilyAutomaticFeeStatuses,
+import {
+  formatCalendarDate,
+  formatMoney,
+  type FamilyAutomaticCollectionModes,
+  type FamilyAutomaticFeeStatus,
+  type FamilyAutomaticFeeStatuses,
 } from "@/modules/family-portal/domain/family-portal-presentation";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { withinGrace } from "@/modules/payment-reminders/domain/reminder-policy";
@@ -87,6 +106,19 @@ import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/
 export type { FamilyAutomaticCollectionModes, FamilyAutomaticFeeStatus, FamilyAutomaticFeeStatuses };
 
 const OPEN_STATUSES: ReadonlySet<string> = new Set(FAMILY_COLLECTION_OPEN_STATUSES);
+
+/**
+ * `(… estados abiertos …)` en SQL, como parámetros, desde
+ * FAMILY_COLLECTION_OPEN_STATUSES: ninguna copia escrita a mano (Fase 4
+ * añade `requires_action`). Se construye en cada llamada (algunos tests
+ * simulan `sql`).
+ */
+function openStatusesSql(): SQL {
+  return sql.join(
+    FAMILY_COLLECTION_OPEN_STATUSES.map((status) => sql`${status}`),
+    sql`, `
+  );
+}
 const ISO = `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'`;
 const uuidSchema = z.guid();
 
@@ -137,6 +169,48 @@ async function collectionTablesAvailable(): Promise<boolean> {
     isConnectOnboardingStorageAvailable(db),
   ]);
   return collection && paymentMethods && connect;
+}
+
+/**
+ * Fase 4 (Tarea 5): ¿puede la familia confirmar el pago desde el portal?
+ * Entorno primero (banderas y cerrojos, sin base) y después la forma "phase4".
+ * La usan el portal y el panel de la academia, para que digan lo mismo.
+ */
+async function isFamilyConfirmationAvailable(): Promise<boolean> {
+  if (!isFamilyPaymentConfirmationOpen()) return false;
+  return isFamilyCollectionEventsStorageAvailable(db);
+}
+
+/**
+ * Ola final (B1): ¿es la cuenta de la sesión la persona pagadora del intento?
+ * La misma regla que la confirmación (resolveFamilyPayer: pagadora vigente de
+ * la familia, y su fila es la del intento).
+ */
+async function isViewerAttemptPayer(input: {
+  userId: string;
+  organizationId: string;
+  familyId: string | null;
+  attemptPayerId: string | null;
+  now: Date;
+}): Promise<boolean> {
+  if (!input.familyId || !input.attemptPayerId) return false;
+  const payer = await resolveFamilyPayer(db, {
+    userId: input.userId,
+    organizationId: input.organizationId,
+    familyId: input.familyId,
+    now: input.now,
+  });
+  return payer !== null && payer.familyPayerId === input.attemptPayerId;
+}
+
+/**
+ * Fase 4: plazo para confirmar el pago de un intento `requires_action`, o
+ * null. Solo se llama con un intento en ese estado, que solo existe con la
+ * forma "phase4": la lectura es la del almacén (readActionDeadline, C2).
+ */
+async function readConfirmationDeadline(organizationId: string, attemptId: string | null): Promise<Date | null> {
+  if (!attemptId || !uuidSchema.safeParse(attemptId).success) return null;
+  return createFamilyCollectionStore().readActionDeadline({ organizationId, attemptId });
 }
 
 // ---------------------------------------------------------------------------
@@ -299,6 +373,12 @@ export interface LatestAttemptSnapshot {
   completedAt: Date | null;
   /** Motivo de cierre (`failure_code`), si se leyó. */
   failureCode?: string | null;
+  /**
+   * Fase 4: plazo para que la familia confirme el pago con su banco, solo si
+   * el intento está `requires_action` y la confirmación desde el portal está
+   * abierta (banderas, cerrojos y forma "phase4"). Sin él, «Cobro en curso».
+   */
+  actionDeadlineAt?: Date | null;
 }
 
 /** Fecha de cobro prevista de la primera cuota automática abierta (día local de la sede). */
@@ -334,6 +414,10 @@ function expectedCharge(dateLocal: string, todayLocal: string): "scheduled" | "d
  *
  * - cobrada: «Cobrada automáticamente el {día del cobro}»;
  * - intento en curso (`claimed`, `created`, `processing`): «Cobro en curso»;
+ * - Fase 4, intento `requires_action` con plazo conocido y todavía a tiempo:
+ *   `action_required` con el último día para confirmar (botón «Confirmar el
+ *   pago»); sin plazo o ya pasado, «Cobro en curso» (el proceso diario lo
+ *   cerrará). Nunca promete un reintento;
  * - sin intento todavía, o fallida con un reintento pendiente: solo si el
  *   cobro aún puede llegar (`blocker` nulo); si no, nada (la academia dirá
  *   cómo pagarla). Con fecha futura, «Se cobrará automáticamente el {día}»;
@@ -377,6 +461,13 @@ export function familyAutomaticFeeStatusOf(
         return last.completedAt
           ? { kind: "collected", date: localCalendarDate(last.completedAt, input.timezone) }
           : null;
+      }
+      if (
+        last.status === "requires_action" &&
+        last.actionDeadlineAt &&
+        !isAuthenticationDeadlinePassed(last.actionDeadlineAt, now)
+      ) {
+        return { kind: "action_required", deadline: localCalendarDate(last.actionDeadlineAt, input.timezone) };
       }
       if (OPEN_STATUSES.has(last.status)) return { kind: "in_progress" };
       if (input.invoiceStatus === "paid") return null;
@@ -430,12 +521,18 @@ export async function getFamilyAutomaticFeeStatuses(input: {
   const now = input.now ?? new Date();
   const access = await resolveFamilyPortalAccess({ userId, now });
   const statuses: FamilyAutomaticFeeStatuses = {};
+  // Fase 4: ¿puede la familia confirmar con su banco desde el portal? Entorno
+  // primero (sin base); la forma "phase4" solo se mira una vez y solo si
+  // alguna cuota espera esa confirmación.
+  let confirmation: Promise<boolean> | null = null;
+  const confirmationOpen = () => (confirmation ??= isFamilyConfirmationAvailable());
 
   for (const academy of access.academies) {
     if (academy.feeFamilyIds.length === 0) continue;
     const result = await db.execute(sql`
       select
         i.id::text as "invoiceId",
+        i.family_id::text as "familyId",
         i.status::text as "invoiceStatus",
         coalesce(l.timezone, o.default_timezone) as "timezone",
         ocs.collection_day_of_month as "collectionDayOfMonth",
@@ -455,6 +552,8 @@ export async function getFamilyAutomaticFeeStatuses(input: {
              and c.status::text in ('due', 'partially_paid')
         ) as "nextDueAt",
         ${prerequisiteColumns(remindersTable)},
+        la.id::text as "lastAttemptId",
+        la.family_payer_id::text as "lastFamilyPayerId",
         la.status as "lastStatus",
         la.next_retry_at as "lastNextRetryAt",
         la.completed_at as "lastCompletedAt",
@@ -466,7 +565,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
       left join zaltyko.organization_collection_settings ocs
         on ocs.organization_id = i.organization_id
       left join lateral (
-        select a.status, a.next_retry_at, a.completed_at, a.failure_code
+        select a.id, a.family_payer_id, a.status, a.next_retry_at, a.completed_at, a.failure_code
           from zaltyko.family_collection_attempts a
          where a.organization_id = i.organization_id
            and a.invoice_id = i.id
@@ -499,6 +598,23 @@ export async function getFamilyAutomaticFeeStatuses(input: {
     const plan = await loadPlan(academy.organizationId, now);
     for (const row of rows) {
       const lastStatus = textOrNull(row.lastStatus);
+      // Fase 4: el plazo solo se lee si la familia puede confirmar desde aquí
+      // y (ola final, B1) si esta cuenta es la persona pagadora del intento:
+      // la confirmación solo la acepta a ella (startFamilyAuthentication).
+      // Otra pagadora vigente (la academia la cambió en la ventana) ve «Cobro
+      // en curso», nunca un botón que le respondería «No encontramos este pago.».
+      const actionDeadlineAt =
+        lastStatus === "requires_action" &&
+        (await confirmationOpen()) &&
+        (await isViewerAttemptPayer({
+          userId,
+          organizationId: academy.organizationId,
+          familyId: textOrNull(row.familyId),
+          attemptPayerId: textOrNull(row.lastFamilyPayerId),
+          now,
+        }))
+          ? await readConfirmationDeadline(academy.organizationId, textOrNull(row.lastAttemptId))
+          : null;
       const status = familyAutomaticFeeStatusOf(
         {
           invoiceStatus: String(row.invoiceStatus),
@@ -512,6 +628,7 @@ export async function getFamilyAutomaticFeeStatuses(input: {
                 nextRetryAt: dateOrNull(row.lastNextRetryAt),
                 completedAt: dateOrNull(row.lastCompletedAt),
                 failureCode: textOrNull(row.lastFailureCode),
+                actionDeadlineAt,
               }
             : null,
           blocker: automaticCollectionBlocker(prerequisitesOf(row, plan)),
@@ -646,6 +763,8 @@ const FAILURE_TEXT: Record<string, string> = {
   reviewed_unverifiable: "Comprueba en tu panel de Stripe si se cobró; si se cobró, regístralo como pago manual.",
   // Cancelado en Stripe sin ningún error de pago: no es un rechazo del banco.
   canceled_in_stripe: "El cobro se canceló en Stripe. Se cobra a mano.",
+  // Fase 4: un cobro anterior de la misma cuota se completó tarde; este se canceló.
+  late_success_elsewhere: "Se canceló porque un cobro anterior de esta cuota se completó.",
   // Stripe no aceptó crear el cobro (petición rechazada sin código).
   invalid_request: "Stripe no aceptó crear el cobro. Se cobra a mano.",
   [COLLECTION_WINDOW_EXPIRED_CODE]: NOT_ATTEMPTED_TEXT,
@@ -712,8 +831,14 @@ const REVIEW_TEXT: Record<string, string> = {
   attempts_exhausted: "Esta cuota ya no admite más intentos automáticos. Se cobra a mano.",
   stale_open: `El cobro lleva más de un día sin avanzar. ${CHECK_IN_STRIPE}`,
   processing_unreadable: `El cobro lleva más de 15 días en curso y no podemos ver su resultado. ${CHECK_IN_STRIPE}`,
+  // Fase 4 (Tarea M): pasó el plazo de la familia y Stripe no deja leer ni cancelar el cobro.
+  requires_action_unreadable: `Pasó el plazo para que la familia confirmara el pago y no podemos ver su resultado. ${CHECK_IN_STRIPE}`,
   // «Marcar como revisado» lo cierra sin registrar ese pago (reviewed_unverifiable).
   amount_mismatch: `Stripe cobró un importe distinto al de esta cuota y no lo hemos registrado. ${CHECK_IN_STRIPE}`,
+  // Fase 4, D10: un cobro antiguo se completó tarde cuando otro ya había cobrado la cuota.
+  duplicate_collection: "Esta cuota se cobró dos veces. Devuelve uno desde tu panel de Stripe.",
+  // Fase 4: cobro tardío en espera de que el banco resuelva otro cobro de la misma cuota.
+  late_success_pending: "Stripe cobró tarde esta cuota; lo registraremos cuando el banco resuelva el otro cobro.",
 };
 
 const REVIEW_FALLBACK = `El cobro necesita una comprobación. ${CHECK_IN_STRIPE}`;
@@ -740,6 +865,123 @@ export function reviewReasonText(reason: string | null): string {
   return (reason ? REVIEW_TEXT[reason] : undefined) ?? REVIEW_FALLBACK;
 }
 
+/**
+ * Fase 4 (Tarea 6, D1): la cuota sigue cobrada y se marca «Devuelta» con lo
+ * devuelto desde el panel de Stripe de la academia y el día (local de la
+ * sede) de la última devolución.
+ */
+export function ownerRefundText(input: { amountCents: number; currency: string; date: string | null }): string {
+  const amount = formatMoney(input.amountCents, input.currency);
+  return input.date
+    ? `Devuelta: ${amount} el ${formatCalendarDate(input.date)} (desde tu panel de Stripe)`
+    : `Devuelta: ${amount} (desde tu panel de Stripe)`;
+}
+
+/**
+ * Fase 4 (Tarea 6): aviso de una devolución que no se pudo anotar
+ * (`refund_unallocated`) o que Stripe anuló después de anotarla
+ * (`refund_reversed`), con su importe. null para cualquier otro motivo.
+ */
+export function refundNoticeText(input: { reason: string; amountCents: number; currency: string }): string | null {
+  const amount = formatMoney(input.amountCents, input.currency);
+  if (input.reason === REFUND_UNALLOCATED_REASON) {
+    return `Stripe devolvió ${amount} de un cobro que Zaltyko no pudo repartir entre cuotas; revísalo`;
+  }
+  if (input.reason === REFUND_REVERSED_REASON) {
+    return `Stripe anuló una devolución de ${amount} que Zaltyko ya tenía anotada; revísalo en tu panel de Stripe`;
+  }
+  return null;
+}
+
+/**
+ * Fase 4 (Tarea 7): cómo ve la academia la última disputa de una cuota.
+ * - `open`: abierta (D4: la cuota sigue pagada; la academia ve el plazo);
+ * - `won`: ganada, cerrada como aviso o evitada;
+ * - `lost`: tarjeta, perdida y anotada (D3: sin cuota nueva);
+ * - `returned`: domiciliación devuelta por el banco y anotada (D2: hay cuota nueva);
+ * - `unallocated`: perdida o devuelta pero no cabía en lo repartido (sin filas);
+ * - `reinstated`: ganada después de anotarla como perdida (el libro no se tocó).
+ */
+export type OwnerDisputeState = "open" | "won" | "lost" | "returned" | "unallocated" | "reinstated";
+
+/** La última disputa de una cuota, tal como está guardada. */
+export interface OwnerDisputeRow {
+  status: string;
+  amountCents: number;
+  evidenceDueAt: Date | null;
+  reversed: boolean;
+  paymentMethodKind: DisputePaymentMethodKind;
+  /**
+   * Tarea M (punto 8): domiciliación devuelta (D2) con su cuota nueva. `true`
+   * si esa cuota todavía no tiene ningún pago, `false` si ya tiene alguno y
+   * null si no hay cuota nueva (o no se sabe). Ola final (B4): null también
+   * si la academia ya la anuló.
+   */
+  returnedInvoiceUnpaid?: boolean | null;
+  /** Ola final (B4): la academia ya anuló la cuota nueva de D2 (factura `void`). */
+  returnedInvoiceVoid?: boolean;
+}
+
+const KEPT_DISPUTE_STATUSES: ReadonlySet<string> = new Set(["won", "warning_closed", "prevented"]);
+
+export function ownerDisputeStateOf(dispute: OwnerDisputeRow): OwnerDisputeState {
+  if (KEPT_DISPUTE_STATUSES.has(dispute.status)) return dispute.reversed ? "reinstated" : "won";
+  const losesMoney =
+    dispute.reversed ||
+    disputeEffect({ status: dispute.status, paymentMethodKind: dispute.paymentMethodKind, alreadyReversed: false }) ===
+      "reverse";
+  if (!losesMoney) return "open";
+  if (!dispute.reversed) return "unallocated";
+  return dispute.paymentMethodKind === "sepa_debit" ? "returned" : "lost";
+}
+
+/**
+ * Texto de la disputa para la academia (nunca para la familia, D4). `date`:
+ * plazo, día local de la sede. Tarea M (punto 8): una domiciliación devuelta
+ * y después ganada (fondos reintegrados) recuerda anular la cuota pendiente
+ * que se creó (D2), y dice si esa cuota todavía no tiene ningún pago. Nunca
+ * se anula sola: la academia decide. Ola final (B4): si ya la anuló, el aviso
+ * de anularla desaparece.
+ */
+export function ownerDisputeText(input: {
+  state: OwnerDisputeState;
+  amountCents: number;
+  currency: string;
+  date: string | null;
+  paymentMethodKind?: DisputePaymentMethodKind;
+  returnedInvoiceUnpaid?: boolean | null;
+  returnedInvoiceVoid?: boolean;
+}): string {
+  const amount = formatMoney(input.amountCents, input.currency);
+  switch (input.state) {
+    case "open":
+      return input.date
+        ? `En disputa: responde desde tu panel de Stripe antes del ${formatCalendarDate(input.date)}`
+        : "En disputa: responde desde tu panel de Stripe";
+    case "won":
+      return "Disputa ganada";
+    case "lost":
+      return `Disputa perdida. El banco devolvió el dinero a la familia (${amount})`;
+    case "returned":
+      return `El banco devolvió el dinero a la familia (${amount}). Se ha creado una cuota pendiente por el importe devuelto`;
+    case "unallocated":
+      return `Hay una disputa de ${amount} que Zaltyko no pudo anotar en las cuotas; revísala en tu panel de Stripe`;
+    case "reinstated":
+      if (input.paymentMethodKind === "sepa_debit") {
+        // Ola final (B4): la academia ya anuló la cuota nueva: no hay nada que pedirle.
+        if (input.returnedInvoiceVoid === true) return `El banco reintegró el dinero que había devuelto (${amount})`;
+        const base = `El banco reintegró el dinero que había devuelto (${amount}). Anula la cuota pendiente que se creó si ya no se debe`;
+        if (input.returnedInvoiceUnpaid === true) return `${base}: todavía no tiene ningún pago`;
+        if (input.returnedInvoiceUnpaid === false) return `${base}; ya tiene algún pago, revísalo antes`;
+        return base;
+      }
+      return `Disputa ganada después de anotarla como perdida (${amount}); revísalo en tu panel de Stripe`;
+  }
+}
+
+/** Motivos de las filas de zaltyko.refunds que son disputas, no devoluciones de la academia. */
+const DISPUTE_REFUND_REASONS = [DISPUTE_LOST_REASON, SEPA_RETURNED_REASON] as const;
+
 // ---------------------------------------------------------------------------
 // Academia: cobros automáticos del mes (/owner/payments)
 // ---------------------------------------------------------------------------
@@ -750,6 +992,9 @@ export function reviewReasonText(reason: string | null): string {
  * - `in_progress`: se está cobrando (o su día ya llegó y el proceso diario
  *   todavía no lo ha intentado, dentro de la espera de los recordatorios);
  * - `processing`: la domiciliación ya está en el banco;
+ * - `action_required` (Fase 4): la familia tiene que confirmar el pago con su
+ *   banco y puede hacerlo desde el portal; `date` es el último día para
+ *   hacerlo (con la confirmación cerrada, `in_progress`);
  * - `collected`: cobrada (`date`);
  * - `retry_scheduled`: falló y se reintentará (`date`);
  * - `manual`: el cobro pendiente ya no puede llegar (plan, preferencia o
@@ -763,6 +1008,7 @@ export type OwnerAutomaticCollectionState =
   | "scheduled"
   | "in_progress"
   | "processing"
+  | "action_required"
   | "collected"
   | "retry_scheduled"
   | "manual"
@@ -772,7 +1018,14 @@ export type OwnerAutomaticCollectionState =
 
 export interface OwnerAutomaticCollectionItem {
   invoiceId: string;
+  /** Referencia interna de la factura: solo como respaldo si la cuota no tiene periodo. */
   invoiceReference: string;
+  /**
+   * Fase 4 (Tarea 11): primer día (YYYY-MM-DD) del periodo más antiguo de las
+   * cuotas automáticas de la factura; la pantalla dice «Cuota de febrero de
+   * 2027» (feePeriodLabel). null si no se puede leer.
+   */
+  servicePeriodStart: string | null;
   payerName: string | null;
   amountCents: number;
   currency: string;
@@ -794,9 +1047,38 @@ export interface OwnerAutomaticCollectionItem {
    * aceptado) y la academia debería avisarla; null si no hubo aviso.
    */
   familyNotice?: FamilyNoticeState | null;
+  /**
+   * Fase 4 (Tarea 6): cobrada y devuelta (en todo o en parte) desde el panel
+   * de Stripe: «Devuelta: {importe} el {fecha} (desde tu panel de Stripe)».
+   * Solo si hubo devolución.
+   */
+  refundText?: string;
+  /** Fase 4 (Tarea 6): devolución que no se pudo anotar o que Stripe anuló. Solo si la hay. */
+  refundNotice?: string;
+  /** Fase 4 (Tarea 7): la última disputa de la cuota, solo si la hay. */
+  disputeState?: OwnerDisputeState;
+  /** Fase 4 (Tarea 7): «En disputa: responde desde tu panel de Stripe antes del …» y demás. */
+  disputeText?: string;
 }
 
 export type FamilyNoticeState = "sent" | "not_sent";
+
+/**
+ * Fase 4 (Tarea 11): ordena los cobros por el mes de la cuota (el más antiguo
+ * primero); los que no tienen periodo van al final. Dentro del mismo mes se
+ * conserva el orden de llegada (sort estable). No cambia nada de cada fila.
+ */
+export function sortByFeeMonth(items: OwnerAutomaticCollectionItem[]): OwnerAutomaticCollectionItem[] {
+  const monthOf = (item: OwnerAutomaticCollectionItem) => item.servicePeriodStart?.slice(0, 7) ?? null;
+  return [...items].sort((left, right) => {
+    const a = monthOf(left);
+    const b = monthOf(right);
+    if (a === b) return 0;
+    if (a === null) return 1;
+    if (b === null) return -1;
+    return a < b ? -1 : 1;
+  });
+}
 
 /** Resultado guardado del aviso (family-failure-notice-store.ts) → lo que ve la academia. */
 export function familyNoticeStateOf(outcome: string | null): FamilyNoticeState | null {
@@ -822,6 +1104,8 @@ export interface OwnerAutomaticCollectionsView {
 export interface OwnerCollectionRow {
   invoiceId: string;
   invoiceReference: string;
+  /** Fase 4 (Tarea 11): primer día del periodo más antiguo de sus cuotas automáticas (YYYY-MM-DD). */
+  servicePeriodStart?: string | null;
   invoiceStatus: string;
   payerName: string | null;
   currency: string;
@@ -850,7 +1134,17 @@ export interface OwnerCollectionRow {
     allocationStatus: string | null;
     hasReviewNotice: boolean;
     reviewReason: string | null;
+    /** Fase 4: plazo del intento `requires_action` para que la familia confirme el pago. */
+    actionDeadlineAt?: Date | null;
+    /** Fase 4 (Tarea 6): devuelto del pago del intento (filas `succeeded` de zaltyko.refunds). */
+    refundedCents?: number;
+    /** Fase 4 (Tarea 6): cuándo fue la última devolución del pago. */
+    lastRefundedAt?: Date | null;
+    /** Fase 4 (Tarea 6): último aviso `refund_unallocated` o `refund_reversed` del intento. */
+    refundIssue?: { reason: string; amountCents: number } | null;
   } | null;
+  /** Fase 4 (Tarea 7): la última disputa de algún intento de la factura. */
+  dispute?: OwnerDisputeRow | null;
 }
 
 
@@ -872,6 +1166,7 @@ export function ownerAutomaticCollectionItemOf(
   const base = {
     invoiceId: row.invoiceId,
     invoiceReference: row.invoiceReference,
+    servicePeriodStart: row.servicePeriodStart ?? null,
     payerName: row.payerName,
     currency: row.currency,
   };
@@ -971,6 +1266,17 @@ export function ownerAutomaticCollectionItemOf(
       case "created":
         state = "in_progress";
         break;
+      case "requires_action":
+        // Fase 4: la familia tiene que confirmar el pago con su banco, hasta
+        // su plazo. Sin plazo, o ya pasado (el proceso diario lo cerrará),
+        // sigue en curso.
+        if (attempt.actionDeadlineAt && !isAuthenticationDeadlinePassed(attempt.actionDeadlineAt, now)) {
+          state = "action_required";
+          date = local(attempt.actionDeadlineAt);
+        } else {
+          state = "in_progress";
+        }
+        break;
       case "failed": {
         // Sin más intentos, el reintento guardado ya no sale.
         const retryDate = exhausted ? null : local(attempt.nextRetryAt);
@@ -999,6 +1305,37 @@ export function ownerAutomaticCollectionItemOf(
         reason = failureText;
         break;
     }
+    // Fase 4 (Tarea 6, D1): la cuota sigue cobrada; se marca «Devuelta».
+    const refundedCents = attempt.status === "succeeded" ? (attempt.refundedCents ?? 0) : 0;
+    const refundText =
+      refundedCents > 0
+        ? ownerRefundText({ amountCents: refundedCents, currency: row.currency, date: local(attempt.lastRefundedAt ?? null) })
+        : null;
+    const refundNotice =
+      attempt.status === "succeeded" && attempt.refundIssue
+        ? refundNoticeText({ ...attempt.refundIssue, currency: row.currency })
+        : null;
+    // Fase 4 (Tarea 7): la cuota sigue cobrada; la disputa va aparte (solo la academia la ve).
+    const disputeState = row.dispute ? ownerDisputeStateOf(row.dispute) : null;
+    const disputeText =
+      row.dispute && disputeState
+        ? ownerDisputeText({
+            state: disputeState,
+            amountCents: row.dispute.amountCents,
+            currency: row.currency,
+            date: local(row.dispute.evidenceDueAt),
+            paymentMethodKind: row.dispute.paymentMethodKind,
+            returnedInvoiceUnpaid: row.dispute.returnedInvoiceUnpaid ?? null,
+            returnedInvoiceVoid: row.dispute.returnedInvoiceVoid === true,
+          })
+        : null;
+    // Lo que la academia tiene que revisar en su panel de Stripe. Ola final
+    // (B4): una domiciliación reintegrada cuya cuota nueva ya anuló, no.
+    const reinstatedResolved =
+      disputeState === "reinstated" &&
+      row.dispute?.paymentMethodKind === "sepa_debit" &&
+      row.dispute.returnedInvoiceVoid === true;
+    const disputeReview = disputeState === "unallocated" || (disputeState === "reinstated" && !reinstatedResolved);
     return {
       ...base,
       amountCents: attempt.amountCents,
@@ -1009,15 +1346,54 @@ export function ownerAutomaticCollectionItemOf(
       // Con el importe que no cuadra, cancelar respondería 409: se usa «Marcar como revisado».
       canCancel:
         !amountMismatch &&
-        (attempt.status === "created" || (attempt.status === "failed" && attempt.nextRetryAt !== null)),
+        (attempt.status === "created" ||
+          attempt.status === "requires_action" ||
+          (attempt.status === "failed" && attempt.nextRetryAt !== null)),
       canMarkReviewed,
       manualPaymentBlocked: open,
       // Una cuota ya cobrada no necesita recordar el aviso.
       familyNotice: state === "collected" ? null : (row.familyNotice ?? null),
+      ...(refundText ? { refundText } : {}),
+      ...(refundNotice ? { refundNotice } : {}),
+      ...(disputeState && disputeText ? { disputeState, disputeText } : {}),
+      ...(disputeReview ? { needsReview: true } : {}),
     };
   } catch {
     return null;
   }
+}
+
+/** Disputa guardada en la consulta (json_build_object), o null si no tiene la forma esperada. */
+function disputeRowOf(value: unknown): OwnerDisputeRow | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const amountCents = Number(raw.amountCents);
+  if (typeof raw.status !== "string" || !Number.isSafeInteger(amountCents) || amountCents <= 0) return null;
+  const due = typeof raw.evidenceDueAt === "string" ? new Date(raw.evidenceDueAt) : null;
+  const kind = raw.paymentMethodKind;
+  return {
+    status: raw.status,
+    amountCents,
+    evidenceDueAt: due && !Number.isNaN(due.getTime()) ? due : null,
+    reversed: raw.reversed === true,
+    paymentMethodKind: kind === "card" || kind === "sepa_debit" ? kind : null,
+    returnedInvoiceUnpaid:
+      raw.returnedInvoiceVoid === true
+        ? null
+        : typeof raw.returnedInvoiceUnpaid === "boolean"
+          ? raw.returnedInvoiceUnpaid
+          : null,
+    returnedInvoiceVoid: raw.returnedInvoiceVoid === true,
+  };
+}
+
+/** Aviso de devolución guardado en el outbox (solo motivo e importe). */
+function refundIssueOf(value: unknown): { reason: string; amountCents: number } | null {
+  if (!value || typeof value !== "object") return null;
+  const payload = value as { reason?: unknown; amountCents?: unknown };
+  const amountCents = Number(payload.amountCents);
+  if (typeof payload.reason !== "string" || !Number.isSafeInteger(amountCents) || amountCents <= 0) return null;
+  return { reason: payload.reason, amountCents };
 }
 
 /** Cobros que se enseñan como mucho; el resto, en Stripe o en las cuotas. */
@@ -1069,6 +1445,8 @@ export async function getOwnerAutomaticCollections(input: {
   if (!allowed) return null;
   if (!(await collectionTablesAvailable())) return null;
   const remindersTable = !inProgressOnly && (await isPaymentRemindersTablePresent(db));
+  // Fase 4 (Tarea 7): la tabla de disputas solo existe con la forma "phase4".
+  const disputesTable = !inProgressOnly && (await isFamilyCollectionEventsStorageAvailable(db));
 
   const organizationId = scope.organization.id;
   const now = input.now ?? new Date();
@@ -1094,10 +1472,10 @@ export async function getOwnerAutomaticCollections(input: {
   // Con la bandera apagada, solo facturas con un intento en marcha (el abierto
   // es siempre el último de su factura).
   const attemptCandidate = inProgressOnly
-    ? sql`a.status in ('claimed', 'created', 'processing')`
+    ? sql`a.status in (${openStatusesSql()})`
     : sql`(
            (a.claimed_at >= ${monthStartInstant}::timestamptz and a.claimed_at < ${nextMonthInstant}::timestamptz)
-           or a.status in ('claimed', 'created', 'processing')
+           or a.status in (${openStatusesSql()})
            or (a.status = 'failed' and a.next_retry_at is not null)
          )`;
   const chargeCandidates = inProgressOnly
@@ -1111,18 +1489,95 @@ export async function getOwnerAutomaticCollections(input: {
          and c.status::text in ('due', 'partially_paid')
          and c.due_at >= ${windowStart}::timestamptz
          and c.due_at < ${windowEnd}::timestamptz`;
+  // Fase 4 (Tarea 7): una cuota con una disputa abierta, o que cambió este
+  // mes, sale aunque su cobro sea de antes (D4: la academia ve el plazo).
+  const disputeCandidates = disputesTable
+    ? sql`
+      union
+      select da.invoice_id
+        from zaltyko.family_collection_disputes d
+        join zaltyko.family_collection_attempts da
+          on da.organization_id = d.organization_id and da.id = d.attempt_id
+       where d.organization_id = ${organizationId}::uuid
+         and (d.closed_at is null or d.updated_at >= ${monthStartInstant}::timestamptz)`
+    : sql``;
+  const disputeListed = disputesTable
+    ? sql`
+        or exists (
+          select 1
+            from zaltyko.family_collection_disputes d
+            join zaltyko.family_collection_attempts da
+              on da.organization_id = d.organization_id and da.id = d.attempt_id
+           where d.organization_id = i.organization_id
+             and da.invoice_id = i.id
+             and (d.closed_at is null or d.updated_at >= ${monthStartInstant}::timestamptz)
+        )`
+    : sql``;
+  // Tarea M (punto 8): `returnedInvoiceUnpaid` dice si la cuota nueva de D2
+  // (su factura sale del outbox `invoice.issued` con la clave de la disputa)
+  // todavía no tiene ningún pago; null si no hay cuota nueva. Ola final (B4):
+  // `returnedInvoiceVoid` dice si la academia ya la anuló (entonces, null).
+  const disputeColumn = disputesTable
+    ? sql`(
+        select json_build_object(
+                 'status', d.status,
+                 'amountCents', d.amount_cents,
+                 'evidenceDueAt', to_char(d.evidence_due_at at time zone 'UTC', ${sql.raw(ISO)}),
+                 'reversed', d.reversed_at is not null,
+                 'paymentMethodKind', da.payment_method_kind,
+                 'returnedInvoiceUnpaid', (
+                   select case
+                            when ri.status::text = 'void' then null
+                            else not exists (
+                              select 1
+                                from zaltyko.payment_allocations pa
+                                join zaltyko.charges rc
+                                  on rc.organization_id = pa.organization_id and rc.id = pa.charge_id
+                               where rc.organization_id = ie.organization_id
+                                 and rc.invoice_id = ie.aggregate_id
+                            )
+                          end
+                     from zaltyko.outbox_events ie
+                     left join zaltyko.invoices ri
+                       on ri.organization_id = ie.organization_id and ri.id = ie.aggregate_id
+                    where ie.organization_id = d.organization_id
+                      and ie.event_name = 'invoice.issued'
+                      and ie.idempotency_key = ${returnedFeeInvoiceKey("")} || d.provider_dispute_reference
+                    limit 1
+                 ),
+                 'returnedInvoiceVoid', coalesce((
+                   select ri.status::text = 'void'
+                     from zaltyko.outbox_events ie
+                     join zaltyko.invoices ri
+                       on ri.organization_id = ie.organization_id and ri.id = ie.aggregate_id
+                    where ie.organization_id = d.organization_id
+                      and ie.event_name = 'invoice.issued'
+                      and ie.idempotency_key = ${returnedFeeInvoiceKey("")} || d.provider_dispute_reference
+                    limit 1
+                 ), false)
+               )
+          from zaltyko.family_collection_disputes d
+          join zaltyko.family_collection_attempts da
+            on da.organization_id = d.organization_id and da.id = d.attempt_id
+         where d.organization_id = i.organization_id
+           and da.invoice_id = i.id
+         order by d.opened_at desc, d.id desc
+         limit 1
+      )`
+    : sql`null`;
   const listedRow = inProgressOnly
-    ? sql`la.status in ('claimed', 'created', 'processing')`
+    ? sql`la.status in (${openStatusesSql()})`
     : sql`(
         (
           la.id is not null
           and (
             (la.claimed_at >= ${monthStartInstant}::timestamptz and la.claimed_at < ${nextMonthInstant}::timestamptz)
-            or la.status in ('claimed', 'created', 'processing')
+            or la.status in (${openStatusesSql()})
             or (la.status = 'failed' and la.next_retry_at is not null)
           )
         )
         or (la.id is null and i.status::text in ('issued', 'partially_paid'))
+        ${disputeListed}
       )`;
 
   const result = await db.execute(sql`
@@ -1130,7 +1585,7 @@ export async function getOwnerAutomaticCollections(input: {
       select a.invoice_id
         from zaltyko.family_collection_attempts a
        where a.organization_id = ${organizationId}::uuid
-         and ${attemptCandidate}${chargeCandidates}
+         and ${attemptCandidate}${chargeCandidates}${disputeCandidates}
     )
     select
       i.id::text as "invoiceId",
@@ -1140,6 +1595,13 @@ export async function getOwnerAutomaticCollections(input: {
       coalesce(l.timezone, o.default_timezone) as "timezone",
       nullif(btrim(concat_ws(' ', p.given_name, p.family_name)), '') as "payerName",
       ocs.collection_day_of_month as "collectionDayOfMonth",
+      (
+        select to_char(min(c.service_period_start), 'YYYY-MM-DD')
+          from zaltyko.charges c
+         where c.organization_id = i.organization_id
+           and c.invoice_id = i.id
+           and c.collection_mode::text = 'automatic'
+      ) as "servicePeriodStart",
       (
         select to_char(min(c.due_at) at time zone 'UTC', ${sql.raw(ISO)})
           from zaltyko.charges c
@@ -1161,6 +1623,7 @@ export async function getOwnerAutomaticCollections(input: {
            and c.status::text in ('due', 'partially_paid')
       ) as "openAutomaticCents",
       ${prerequisiteColumns(remindersTable)},
+      la.id::text as "attemptId",
       la.status as "attemptStatus",
       la.amount_cents::text as "attemptAmountCents",
       la.failure_code as "failureCode",
@@ -1173,6 +1636,33 @@ export async function getOwnerAutomaticCollections(input: {
       la.allocation_status as "allocationStatus",
       la.review_reason as "reviewReason",
       la.has_review_notice as "hasReviewNotice",
+      (
+        select coalesce(sum(r.amount_cents), 0)::text
+          from zaltyko.refunds r
+         where r.organization_id = i.organization_id
+           and r.payment_id = la.payment_id
+           and r.status = 'succeeded'
+           and r.reason_code not in (${DISPUTE_REFUND_REASONS[0]}, ${DISPUTE_REFUND_REASONS[1]})
+      ) as "refundedCents",
+      (
+        select max(r.refunded_at)
+          from zaltyko.refunds r
+         where r.organization_id = i.organization_id
+           and r.payment_id = la.payment_id
+           and r.status = 'succeeded'
+           and r.reason_code not in (${DISPUTE_REFUND_REASONS[0]}, ${DISPUTE_REFUND_REASONS[1]})
+      ) as "lastRefundedAt",
+      ${disputeColumn} as "dispute",
+      (
+        select e.payload
+          from zaltyko.outbox_events e
+         where e.organization_id = i.organization_id
+           and e.event_name = ${NEEDS_REVIEW_EVENT}
+           and e.idempotency_key like 'family-collection:' || la.id::text || ':needs_review:%'
+           and e.payload ->> 'reason' in (${REFUND_UNALLOCATED_REASON}, ${REFUND_REVERSED_REASON})
+         order by e.occurred_at desc
+         limit 1
+      ) as "refundIssue",
       exists (
         select 1
           from zaltyko.outbox_events e
@@ -1208,7 +1698,7 @@ export async function getOwnerAutomaticCollections(input: {
     left join lateral (
       select a.id, a.status, a.amount_cents, a.failure_code, a.decline_code,
              a.next_retry_at, a.completed_at, a.claimed_at, a.updated_at, a.resume_count,
-             a.allocation_status,
+             a.allocation_status, a.payment_id,
              (
                select e.payload ->> 'reason'
                  from zaltyko.outbox_events e
@@ -1238,6 +1728,19 @@ export async function getOwnerAutomaticCollections(input: {
   `);
 
   const rows = result.rows as Array<Record<string, unknown>>;
+  // Fase 4: plazo de los intentos que esperan a que la familia confirme el
+  // pago, solo si la familia puede hacerlo desde el portal (la misma regla que
+  // getFamilyAutomaticFeeStatuses). Si no, la academia lo ve «en curso».
+  const actionDeadlines = new Map<string, Date | null>();
+  const waiting = rows
+    .slice(0, OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT)
+    .filter((row) => textOrNull(row.attemptStatus) === "requires_action" && textOrNull(row.attemptId));
+  if (waiting.length > 0 && (await isFamilyConfirmationAvailable())) {
+    for (const row of waiting) {
+      const attemptId = String(row.attemptId);
+      actionDeadlines.set(attemptId, await readConfirmationDeadline(organizationId, attemptId));
+    }
+  }
   // Un cobro en marcha no depende del plan (solo lo usan las filas sin intento o con reintento).
   const plan = rows.length > 0 && !inProgressOnly ? await loadPlan(organizationId, now) : null;
   // Primero se eligen las filas que van en la lista y después se corta: el
@@ -1248,6 +1751,7 @@ export async function getOwnerAutomaticCollections(input: {
       {
         invoiceId: String(row.invoiceId),
         invoiceReference: String(row.invoiceReference),
+        servicePeriodStart: textOrNull(row.servicePeriodStart),
         invoiceStatus: String(row.invoiceStatus),
         payerName: textOrNull(row.payerName),
         currency: String(row.currency),
@@ -1272,8 +1776,13 @@ export async function getOwnerAutomaticCollections(input: {
               allocationStatus: textOrNull(row.allocationStatus),
               hasReviewNotice: row.hasReviewNotice === true,
               reviewReason: textOrNull(row.reviewReason),
+              actionDeadlineAt: actionDeadlines.get(textOrNull(row.attemptId) ?? "") ?? null,
+              refundedCents: cents(row.refundedCents),
+              lastRefundedAt: dateOrNull(row.lastRefundedAt),
+              refundIssue: refundIssueOf(row.refundIssue),
             }
           : null,
+        dispute: disputeRowOf(row.dispute),
       },
       now,
       month
@@ -1284,7 +1793,8 @@ export async function getOwnerAutomaticCollections(input: {
   if (inProgressOnly && listed.length === 0) return null;
   return {
     month,
-    items: listed.slice(0, OWNER_AUTOMATIC_COLLECTIONS_LIMIT),
+    // Se eligen los 100 más recientes y después se ordenan por el mes de la cuota (Tarea 11).
+    items: sortByFeeMonth(listed.slice(0, OWNER_AUTOMATIC_COLLECTIONS_LIMIT)),
     truncated: listed.length > OWNER_AUTOMATIC_COLLECTIONS_LIMIT || rows.length > OWNER_AUTOMATIC_COLLECTIONS_FETCH_LIMIT,
     ...(inProgressOnly ? { inProgressOnly: true as const } : {}),
   };

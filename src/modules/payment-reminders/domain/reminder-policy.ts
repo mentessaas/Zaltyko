@@ -104,13 +104,21 @@ export function withinGrace(fromLocal: string, todayLocal: string): boolean {
 
 /**
  * Estados de un intento de cobro automático en marcha: el dinero puede estar
- * moviéndose en Stripe. Los mismos que FAMILY_COLLECTION_OPEN_STATUSES
- * (family-collection-schema.ts), copiados aquí para que esta política siga
- * siendo pura.
+ * moviéndose en Stripe, o (Fase 4, `requires_action`) la familia tiene que
+ * confirmar el pago con su banco antes de su plazo. Los mismos que
+ * FAMILY_COLLECTION_OPEN_STATUSES (family-collection-schema.ts), copiados
+ * aquí para que esta política siga siendo pura;
+ * tests/family-collection-open-statuses-contract.test.ts comprueba que
+ * coinciden.
  */
-export const AUTOMATIC_COLLECTION_IN_PROGRESS_STATUSES: readonly string[] = ["claimed", "created", "processing"];
+export const AUTOMATIC_COLLECTION_IN_PROGRESS_STATUSES: readonly string[] = [
+  "claimed",
+  "created",
+  "processing",
+  "requires_action",
+];
 
-/** ¿El último intento de la factura está en marcha (`claimed`, `created` o `processing`)? */
+/** ¿El último intento de la factura está en marcha (`claimed`, `created`, `processing` o `requires_action`)? */
 export function isAutomaticCollectionInProgress(status: string | null | undefined): boolean {
   return typeof status === "string" && AUTOMATIC_COLLECTION_IN_PROGRESS_STATUSES.includes(status);
 }
@@ -120,7 +128,8 @@ export function isAutomaticCollectionInProgress(status: string | null | undefine
  *
  * Primero, siempre (con la bandera encendida o apagada, los cerrojos abiertos
  * o cerrados y sea cual sea el modo de la cuota): si el último intento de su
- * factura está en curso (`claimed`, `created`, `processing`), espera. El
+ * factura está en curso (`claimed`, `created`, `processing` o
+ * `requires_action`), espera. El
  * dinero puede estar moviéndose y el proceso diario lo sigue releyendo aunque
  * la bandera esté apagada; un recordatorio llevaría a la familia a pagar por
  * fuera y se cobraría dos veces. Es la misma regla que bloquea el pago manual

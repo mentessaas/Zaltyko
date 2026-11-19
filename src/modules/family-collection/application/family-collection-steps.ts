@@ -18,13 +18,24 @@
  * - un cobro hecho solo se registra si Stripe cobró justo el importe del
  *   intento y en euros (lo comprueba el almacén);
  * - un cobro que el banco dejó pendiente de autenticación se cancela antes de
- *   darlo por fallido, para que no pueda completarse después;
+ *   darlo por fallido, para que no pueda completarse después. Fase 4: con
+ *   `authenticationRecovery`, si es de tarjeta y llega antes de su plazo, no
+ *   se cancela: el intento queda `requires_action` y la familia lo confirma
+ *   (nunca se reintenta solo); al pasar el plazo se cancela y se cierra;
  * - antes de crear o confirmar al reanudar, se repite la puerta completa:
  *   nunca se cobra a quien ya no paga, ni una factura cuya familia ya recibió
  *   un recordatorio de pago (`reminder_sent`);
  * - con la domiciliación sin activar (`sepaEnabled` apagada) nunca se crea un
  *   cobro por domiciliación (`sepa_not_enabled`); las que ya están en el banco
- *   se siguen leyendo y registrando.
+ *   se siguen leyendo y registrando;
+ * - Fase 4 (D9): cortacircuitos de la pasada (domain/circuit-breaker.ts). Cada
+ *   creación de cobro se cuenta; abierto (3 rechazos de la plataforma seguidos,
+ *   o el 20 % a partir de 10 creaciones), no se crea ni se cierra ningún
+ *   intento más: se quedan como están y se reanudan otro día.
+ *
+ * Fase 4: los eventos de Stripe (family-collection-events.ts) usan estos
+ * mismos pasos (`settleOutcome`, `cancelThenClose`, `settleLateSuccess`): el
+ * evento solo hace que se relea el cobro antes.
  */
 import { logger } from "@/lib/logger";
 import {
@@ -42,9 +53,15 @@ import {
   type CollectionPlan,
 } from "@/modules/family-collection/domain/collection-plan";
 import {
+  recordCreateResult,
+  type BreakerState,
+  type CreateResult,
+} from "@/modules/family-collection/domain/circuit-breaker";
+import {
   CANCELED_IN_STRIPE_CODE,
   finalCreateErrorCode,
   isAuthenticationRequiredFailure,
+  isPlatformInvalidRequest,
   mapPaymentIntent,
   mapUnknownPaymentError,
   receivedOf,
@@ -54,6 +71,11 @@ import {
   type PaymentOutcome,
 } from "@/modules/family-collection/domain/payment-outcome";
 import { nextRetry } from "@/modules/family-collection/domain/retry-policy";
+import {
+  AUTHENTICATION_EXPIRED_CODE,
+  authenticationDeadline,
+  isAuthenticationDeadlinePassed,
+} from "@/modules/family-collection/domain/authentication-window";
 import { stripeReadFailureOf } from "@/modules/family-collection/domain/stripe-read-error";
 import type {
   AttemptOutcome,
@@ -111,6 +133,12 @@ export interface FamilyCollectionRunResult {
   retried: number;
   resumed: number;
   needsReview: number;
+  /**
+   * Fase 4 (D9): el cortacircuitos se abrió en esta pasada (demasiados
+   * rechazos de Stripe de toda la plataforma al crear cobros). No se reclamó
+   * ni se creó nada más; mañana se vuelve a intentar.
+   */
+  circuitOpen: boolean;
 }
 
 export function emptyRunResult(enabled: boolean): FamilyCollectionRunResult {
@@ -126,6 +154,7 @@ export function emptyRunResult(enabled: boolean): FamilyCollectionRunResult {
     retried: 0,
     resumed: 0,
     needsReview: 0,
+    circuitOpen: false,
   };
 }
 
@@ -142,6 +171,16 @@ export interface RunState {
    * Apagada, nunca se crea un cobro por domiciliación.
    */
   sepaEnabled: boolean;
+  /**
+   * Fase 4: cuando el banco pide que la familia confirme un cobro de tarjeta,
+   * el intento espera en `requires_action` con su plazo en vez de fallar.
+   * Bandera de eventos (ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED) y bandera
+   * del cobro encendidas y almacenamiento con la forma "phase4". Sin ella,
+   * como en la Fase 3: se cancela en Stripe y queda `failed`. Solo decide si
+   * se ENTRA en `requires_action`: un intento que ya está así sigue hasta su
+   * plazo (nunca se queda sin cerrar).
+   */
+  authenticationRecovery: boolean;
   store: FamilyCollectionStore;
   gateway: FamilyCollectionGateway;
   /** Academias a recorrer; `null` = todas (producción). Solo los tests lo limitan. */
@@ -149,6 +188,18 @@ export interface RunState {
   refreshAccount: (accountRowId: string) => Promise<unknown>;
   /** Academias cuya cuenta ya se releyó en esta ejecución (una vez por academia). */
   refreshedOrganizations: Set<string>;
+  /**
+   * Fase 4 (Tarea 7): anota las devoluciones que Stripe ya hizo de un cobro
+   * que el libro acaba de registrar tarde (applyRecordedAttemptRefunds).
+   * Fuera de toda transacción. Sin ella (tests con una pasarela simulada y
+   * sin devoluciones simuladas), no se mira nada.
+   */
+  applyRecordedRefunds?: ((attempt: CollectionAttempt, connectedAccount: string) => Promise<unknown>) | null;
+  /**
+   * Fase 4 (D9): cortacircuitos de la pasada (domain/circuit-breaker.ts).
+   * Cuenta cada creación de cobro; abierto, no se crea ni se reclama nada más.
+   */
+  breaker: BreakerState;
   result: FamilyCollectionRunResult;
 }
 
@@ -158,6 +209,33 @@ export function isExpired(state: RunState): boolean {
 
 export function countSkip(state: RunState, reason: string): void {
   state.result.skipped[reason] = (state.result.skipped[reason] ?? 0) + 1;
+}
+
+/** Motivo de omisión de lo que se deja como está con el cortacircuitos abierto. */
+export const CIRCUIT_OPEN_REASON = "circuit_open";
+
+/**
+ * Motivo de omisión de un intento cuyo cobro Stripe rechazó crear con un 400
+ * de toda la plataforma (isPlatformInvalidRequest) antes de que salte el
+ * cortacircuitos: se queda `claimed` y se reanuda otro día.
+ */
+export const PLATFORM_INVALID_REQUEST_REASON = "platform_invalid_request";
+
+/**
+ * Fase 4 (D9): cuenta una creación en el cortacircuitos. Al abrirse, una sola
+ * vez por pasada (luego sigue abierto), deja `circuitOpen` en el resultado y
+ * un error en el registro operativo (va a Sentry) con solo dos contadores:
+ * nunca ids, importes ni datos de familias.
+ */
+function recordCreate(state: RunState, result: CreateResult): void {
+  const wasOpen = state.breaker.open;
+  state.breaker = recordCreateResult(state.breaker, result);
+  if (wasOpen || !state.breaker.open) return;
+  state.result.circuitOpen = true;
+  logger.error("Cobro automático: parado por errores de Stripe al crear cobros", undefined, {
+    created: state.breaker.created,
+    invalid: state.breaker.invalid,
+  });
 }
 
 /** Motivo final cuando las cuotas no tienen un periodo con el que describir el cobro. */
@@ -427,6 +505,9 @@ async function apply(
     counters.failed += 1;
   } else if (result.status === "canceled") {
     counters.canceled += 1;
+  } else if (result.status === "requires_action") {
+    // Fase 4: ni cobrado ni fallido; la familia tiene que confirmarlo.
+    countSkip(state, "requires_action");
   }
   return result.status;
 }
@@ -477,7 +558,8 @@ function isFailedOutcome(outcome: PaymentOutcome): outcome is { failed: PaymentF
   return typeof outcome === "object" && outcome !== null && "failed" in outcome;
 }
 
-type Close =
+/** Cómo se cierra un intento cuyo cobro se cancela en Stripe (cancelThenClose). */
+export type AttemptClose =
   | { kind: "failed"; code: string; declineCode: string | null }
   | { kind: "canceled"; reason: string };
 
@@ -485,21 +567,66 @@ type Close =
  * Cancela en Stripe el cobro del intento y, solo si Stripe confirma la
  * cancelación, cierra el intento. Si Stripe ya no deja cancelarlo, se relee y
  * se aplica lo que diga (un cobro hecho nunca queda como fallido).
+ *
+ * Fase 4: también la usa el cobro tardío para cancelar el cobro de un intento
+ * hermano abierto (`late_success_elsewhere`) antes de registrar el tardío.
+ * Siempre fuera de cualquier transacción. Con `stripeErrors: "throw"` (el
+ * evento de Stripe), un error pasajero de Stripe al cancelar o releer sigue
+ * hacia arriba con su propio código; uno permanente nunca sube (N1): el
+ * intento se queda abierto, como con `"skip"`.
  */
-async function cancelThenClose(
+export async function cancelThenClose(
   state: RunState,
   attempt: CollectionAttempt,
   refs: AttemptStripeRefs,
-  close: Close
+  close: AttemptClose,
+  options: { stripeErrors?: "skip" | "throw"; permanentErrorNotice?: string } = {}
 ): Promise<FamilyCollectionAttemptStatus | null> {
   const paymentIntentId = attempt.paymentIntentId;
   if (!paymentIntentId) throw new Error("FAMILY_COLLECTION_INTENT_REQUIRED");
+  // N1: con `"throw"` solo sube un error pasajero (Stripe reenvía el evento y
+  // se arregla). Uno permanente (cobro inexistente, permiso perdido) saldría
+  // igual en cada reenvío: se cuenta y el intento se queda abierto, como en
+  // `"skip"`, para que quien llama decida (el cobro tardío queda en espera).
+  // Con `permanentErrorNotice` (modo `"skip"`), un error permanente no se
+  // cuenta como pasajero: el intento sigue abierto (su dinero pudo moverse)
+  // y la academia recibe ese aviso, que le abre «Marcar como revisado».
+  const stripeFailed = async (error: unknown): Promise<null> => {
+    const failure = stripeReadFailureOf(error);
+    if (options.stripeErrors !== "throw") {
+      if (failure.permanent && options.permanentErrorNotice) {
+        // Solo ids, nombre y código del error: nunca su mensaje.
+        logger.warn("Cobro automático: Stripe no deja cancelar o releer un cobro (error permanente); se avisa a la academia", {
+          organizationId: attempt.organizationId,
+          invoiceId: attempt.invoiceId,
+          attemptId: attempt.id,
+          errorName: failure.errorName,
+          errorCode: failure.errorCode,
+        });
+        countSkip(state, "stripe_unreadable");
+        await notifyReview(state, attempt, options.permanentErrorNotice);
+        return null;
+      }
+      countSkip(state, "transient");
+      return null;
+    }
+    if (!failure.permanent) throw error;
+    // Solo ids, nombre y código del error: nunca su mensaje.
+    logger.warn("Cobro automático: Stripe no deja cancelar o releer un cobro (error permanente); el intento sigue abierto", {
+      organizationId: attempt.organizationId,
+      invoiceId: attempt.invoiceId,
+      attemptId: attempt.id,
+      errorName: failure.errorName,
+      errorCode: failure.errorCode,
+    });
+    countSkip(state, "stripe_unreadable");
+    return null;
+  };
   let canceled: "canceled" | "not_cancelable";
   try {
     canceled = await state.gateway.cancelPayment({ connectedAccount: refs.connectedAccount, paymentIntentId });
-  } catch {
-    countSkip(state, "transient");
-    return null;
+  } catch (error) {
+    return stripeFailed(error);
   }
   const closing: AttemptOutcome =
     close.kind === "failed"
@@ -509,9 +636,8 @@ async function cancelThenClose(
   let snapshot: PaymentIntentSnapshot;
   try {
     snapshot = await state.gateway.retrievePayment({ connectedAccount: refs.connectedAccount, paymentIntentId });
-  } catch {
-    countSkip(state, "transient");
-    return null;
+  } catch (error) {
+    return stripeFailed(error);
   }
   const outcome = mapPaymentIntent(snapshot);
   // Ya estaba cancelado sin ningún error de pago (p. ej. desde el panel de
@@ -536,6 +662,18 @@ async function cancelThenClose(
  * - sin resultado: el intento se queda como está; en su última reanudación se
  *   cancela en Stripe y se cierra;
  * - conflicto de idempotencia: se queda como está, con aviso.
+ *
+ * Fase 4, el banco pide que la familia confirme el pago:
+ * - al entrar (tarjeta, `authenticationRecovery`, Stripe en
+ *   `requires_payment_method`/`requires_action` y antes del plazo, que sale
+ *   de `refs.windowAnchorLocalDate`): `requires_action` con el plazo, SIN
+ *   cancelar el cobro en Stripe (la familia lo confirma). Sin fecha de
+ *   ventana, sin recuperación o ya pasado el plazo, como en la Fase 3;
+ * - un intento que ya está `requires_action` (settleAwaitingAuthentication):
+ *   cobrado o en curso se aplica; cancelado sin error, `canceled_in_stripe`;
+ *   sin cobrar todavía, antes del plazo nada cambia (la familia puede volver
+ *   a intentarlo); pasado el plazo se cancela en Stripe y se cierra `failed`
+ *   (`authentication_required`, sin reintento: vuelven los recordatorios).
  */
 export async function settleOutcome(
   state: RunState,
@@ -573,9 +711,28 @@ export async function settleOutcome(
     return apply(state, attempt, { kind: "canceled", paymentIntentId, reason: CANCELED_IN_STRIPE_CODE });
   }
 
+  // Fase 4: el intento ya espera a que la familia confirme el pago.
+  if (attempt.status === "requires_action") {
+    return settleAwaitingAuthentication(state, attempt, refs, outcome, snapshot, options);
+  }
+
   if (isFailedOutcome(outcome)) {
     const failure = outcome.failed;
     const awaitingAction = snapshot?.status === "requires_action";
+    // Fase 4: el banco pide confirmar y la familia aún está a tiempo → espera
+    // en `requires_action`, sin cancelar el cobro en Stripe.
+    if (
+      options.allowCancel &&
+      (awaitingAction || isAuthenticationRequiredFailure(failure)) &&
+      snapshot !== null &&
+      (snapshot.status === "requires_payment_method" || snapshot.status === "requires_action") &&
+      snapshot.id === paymentIntentId
+    ) {
+      const deadline = authenticationDeadlineFor(state, attempt, refs);
+      if (deadline !== null && !isAuthenticationDeadlinePassed(deadline, state.now)) {
+        return apply(state, attempt, { kind: "requires_action", paymentIntentId, actionDeadlineAt: deadline });
+      }
+    }
     // Los reintentos se cuentan desde el día local del intento 1 (D1). Sin
     // esa fecha no se programa ninguno: la cuota pasa a cobro manual.
     const firstAttemptClaimedAt = attempt.attemptNumber === 1 ? attempt.claimedAt : refs.firstAttemptClaimedAt;
@@ -648,6 +805,114 @@ export async function settleOutcome(
   }
   countSkip(state, "transient");
   return null;
+}
+
+/**
+ * Fase 4: plazo para confirmar el pago si el intento puede esperar a la
+ * familia (`authenticationRecovery`, tarjeta y fecha de su ventana de cobro);
+ * si no, null (comportamiento de la Fase 3).
+ */
+function authenticationDeadlineFor(state: RunState, attempt: CollectionAttempt, refs: AttemptStripeRefs): Date | null {
+  if (!state.authenticationRecovery || attempt.paymentMethodKind !== "card" || !refs.windowAnchorLocalDate) {
+    return null;
+  }
+  try {
+    return authenticationDeadline({ anchorLocalDate: refs.windowAnchorLocalDate, timezone: refs.timezone });
+  } catch {
+    // Fecha o zona ilegibles: sin plazo no se espera (Fase 3).
+    return null;
+  }
+}
+
+/**
+ * Aviso a la academia (Tarea M, puntos 4 y 5): un intento `requires_action`
+ * cuyo plazo para confirmar el pago ya pasó y que Stripe no deja leer ni
+ * cancelar. Abre «Marcar como revisado», que vuelve a leer Stripe y solo con
+ * un error permanente comprobado lo cierra como `reviewed_unverifiable`.
+ */
+export const REQUIRES_ACTION_UNREADABLE_REASON = "requires_action_unreadable";
+
+/** Motivo contado cuando un intento `requires_action` sigue esperando a la familia. */
+export const AWAITING_AUTHENTICATION_SKIP = "awaiting_authentication";
+
+/**
+ * Fase 4: un intento `requires_action` cuyo cobro aún no se ha cobrado ni
+ * está en curso (fallo, sin resultado o sin confirmar). Quien llama ya aplicó
+ * `succeeded`, `processing`, `canceled_in_stripe` e `idempotency_conflict`.
+ * - Stripe ya lo canceló con un error de pago: no puede completarse; se
+ *   cierra `failed` con ese código, sin reintento;
+ * - antes del plazo (`action_deadline_at`): nada cambia, la familia puede
+ *   volver a intentarlo; nunca se cancela (tampoco desde un evento);
+ * - pasado el plazo: se cancela en Stripe y se cierra `failed`
+ *   `authentication_required`, sin reintento (cancelThenClose: si Stripe ya
+ *   lo cobró, se registra). Sin poder cancelar (`allowCancel: false`), se
+ *   mira otro día.
+ */
+async function settleAwaitingAuthentication(
+  state: RunState,
+  attempt: CollectionAttempt,
+  refs: AttemptStripeRefs,
+  outcome: PaymentOutcome,
+  snapshot: PaymentIntentSnapshot | null,
+  options: { lastChance: boolean; allowCancel: boolean }
+): Promise<FamilyCollectionAttemptStatus | null> {
+  const paymentIntentId = attempt.paymentIntentId;
+  if (!paymentIntentId) throw new Error("FAMILY_COLLECTION_INTENT_REQUIRED");
+  if (isFailedOutcome(outcome) && snapshot?.status === "canceled") {
+    return apply(state, attempt, {
+      kind: "failed",
+      paymentIntentId,
+      code: outcome.failed.code,
+      declineCode: outcome.failed.declineCode,
+      nextRetryAt: null,
+    });
+  }
+  const deadline = await state.store.readActionDeadline({
+    organizationId: attempt.organizationId,
+    attemptId: attempt.id,
+  });
+  // Sin plazo es que el intento ya no está `requires_action` (la base exige
+  // el plazo en ese estado): otro camino lo movió; no se toca.
+  if (deadline === null) {
+    countSkip(state, "concurrent");
+    return null;
+  }
+  if (!isAuthenticationDeadlinePassed(deadline, state.now)) {
+    countSkip(state, AWAITING_AUTHENTICATION_SKIP);
+    return null;
+  }
+  if (!options.allowCancel) {
+    countSkip(state, "transient");
+    return null;
+  }
+  // Tarea M, punto 5: si Stripe no deja cancelarlo de forma permanente
+  // (cuenta desconectada), el intento sigue abierto y la academia recibe el
+  // aviso; si no, se quedaría `requires_action` para siempre sin que lo sepa.
+  return cancelThenClose(
+    state,
+    attempt,
+    refs,
+    { kind: "failed", code: AUTHENTICATION_EXPIRED_CODE, declineCode: null },
+    { permanentErrorNotice: REQUIRES_ACTION_UNREADABLE_REASON }
+  );
+}
+
+/**
+ * Fase 4: el cobro de un intento ya cerrado (`failed` o `canceled`) se
+ * completó tarde en Stripe (`snapshot`, ya releído y `succeeded`). Se aplica
+ * por applyOutcome como `late_succeeded`, con lo que Stripe dice que cobró;
+ * el almacén decide con la factura bloqueada (otro intento ya cobrado →
+ * `duplicate_collection`; otro abierto → LATE_SUCCESS_SIBLING_IN_FLIGHT).
+ * Quien llama ya canceló en Stripe, fuera de transacción, los hermanos abiertos.
+ */
+export async function settleLateSuccess(
+  state: RunState,
+  attempt: CollectionAttempt,
+  snapshot: PaymentIntentSnapshot
+): Promise<FamilyCollectionAttemptStatus | null> {
+  const paymentIntentId = attempt.paymentIntentId;
+  if (!paymentIntentId || snapshot.id !== paymentIntentId) throw new Error(INTENT_MISMATCH_ERROR);
+  return apply(state, attempt, { kind: "late_succeeded", paymentIntentId, received: receivedOf(snapshot) });
 }
 
 /**
@@ -756,6 +1021,15 @@ async function advanceAttemptSteps(
         nextRetryAt: null,
       });
     }
+    // Fase 4 (D9): con el cortacircuitos abierto no se crea nada más ni se
+    // cierra el intento (ni por la puerta ni por otro motivo). Se queda como
+    // está (`claimed`, sin cobro en Stripe) y lo reanuda la Fase A otro día.
+    // La última reanudación (arriba) sí se cierra como siempre: no depende de
+    // lo que diga Stripe y así nada se queda abierto para siempre.
+    if (state.breaker.open) {
+      countSkip(state, CIRCUIT_OPEN_REASON);
+      return null;
+    }
     if (!gateChecked) {
       const check = await recheckGate(state, attempt, refs);
       if (!check.allowed) {
@@ -800,13 +1074,46 @@ async function advanceAttemptSteps(
       });
     } catch (error) {
       if (mapUnknownPaymentError(error) === "idempotency_conflict") {
+        recordCreate(state, "other");
         await reportIdempotencyConflict(state, attempt);
         return null;
       }
-      // Stripe se negó a crearlo por algo que no cambia al repetir (importe
-      // bajo el mínimo, cliente o método de pago que ya no existen, tipo de
-      // pago no activo en la cuenta de la academia): no se creó ningún cobro.
-      // Se cierra sin reintento y la cuota se cobra a mano.
+      // Fase 4 (D9): un rechazo de toda la plataforma cuenta en el
+      // cortacircuitos. Si lo abre, ESTE intento tampoco se cierra: Stripe no
+      // creó nada (400), así que se queda `claimed` sin `pi_…` y la Fase A lo
+      // reanuda otro día (lo busca por su id, repite la puerta y lo crea).
+      const platformRejected = isPlatformInvalidRequest(error);
+      recordCreate(state, platformRejected ? "platform_invalid_request" : "other");
+      if (state.breaker.open) {
+        countSkip(state, CIRCUIT_OPEN_REASON);
+        return null;
+      }
+      // Revisión del coordinador (punto 1): los rechazos de toda la plataforma
+      // de antes de que salte el cortacircuitos tampoco se cierran (esto
+      // sustituye a C4 solo para ellos). Apuntan a cómo Zaltyko pide el cobro
+      // (un despliegue roto), no a la familia: cerrarlos pasaría cada día
+      // varias cuotas a cobro manual. Stripe respondió 400 sin cobro dentro,
+      // así que no se movió dinero: el intento se queda `claimed` sin `pi_…`
+      // ni escritura y la Fase A lo reanuda otro día (lo busca por su id,
+      // repite la puerta y lo crea). Si el rechazo sigue, al agotar las
+      // reanudaciones se cierra `failed` `transient_exhausted` (o recibe el
+      // aviso `resume_exhausted`): nunca queda abierto para siempre.
+      if (platformRejected) {
+        logger.warn("Cobro automático: Stripe rechazó la petición de crear el cobro; el intento se reanudará otro día", {
+          organizationId: attempt.organizationId,
+          invoiceId: attempt.invoiceId,
+          attemptId: attempt.id,
+          errorName: stripeReadFailureOf(error).errorName,
+          errorCode: finalCreateErrorCode(error),
+        });
+        countSkip(state, PLATFORM_INVALID_REQUEST_REASON);
+        return null;
+      }
+      // Stripe se negó a crearlo por algo de la familia o de la academia que
+      // no cambia al repetir (importe bajo el mínimo, cliente o método de pago
+      // que ya no existen, tipo de pago no activo en la cuenta de la academia):
+      // no se creó ningún cobro. Se cierra sin reintento y la cuota se cobra a
+      // mano (C4).
       const finalCode = finalCreateErrorCode(error);
       if (finalCode !== null) {
         logger.warn("Cobro automático: Stripe rechazó crear el cobro; la cuota pasa a cobro manual", {
@@ -822,6 +1129,9 @@ async function advanceAttemptSteps(
       countSkip(state, "transient");
       return null;
     }
+    // Un cobro creado rompe la racha. Si con él se llega a la proporción
+    // (D9), este intento sigue su paso (confirmar); los siguientes, no.
+    recordCreate(state, "created");
     if (
       !(await state.store.markCreated({
         organizationId: attempt.organizationId,
@@ -830,16 +1140,33 @@ async function advanceAttemptSteps(
         now: state.now,
       }))
     ) {
-      // El intento dejó de estar reclamado mientras se creaba el cobro.
-      logger.error("Cobro automático: cobro creado para un intento que ya no estaba reclamado", undefined, {
+      // Fase 4: un evento de Stripe de este mismo cobro pudo guardar el
+      // `pi_…` a la vez (markCreated desde el evento). Si el intento ya lo
+      // tiene, no es un cobro sin intento: se sigue si sigue `created`, y si
+      // otro camino ya lo llevó más allá, se deja como está.
+      const stored = await state.store.findAttemptByPaymentIntent({
         organizationId: attempt.organizationId,
-        invoiceId: attempt.invoiceId,
-        attemptId: attempt.id,
+        paymentIntentId: snapshot.id,
       });
-      await notifyReview(state, attempt, "created_without_claim");
-      return null;
+      if (stored && stored.id === attempt.id) {
+        if (stored.status !== "created") {
+          countSkip(state, "concurrent");
+          return null;
+        }
+        attempt = stored;
+      } else {
+        // El intento dejó de estar reclamado mientras se creaba el cobro.
+        logger.error("Cobro automático: cobro creado para un intento que ya no estaba reclamado", undefined, {
+          organizationId: attempt.organizationId,
+          invoiceId: attempt.invoiceId,
+          attemptId: attempt.id,
+        });
+        await notifyReview(state, attempt, "created_without_claim");
+        return null;
+      }
+    } else {
+      attempt = { ...attempt, status: "created", paymentIntentId: snapshot.id };
     }
-    attempt = { ...attempt, status: "created", paymentIntentId: snapshot.id };
   }
 
   // 3. Confirmar si todavía no se confirmó.

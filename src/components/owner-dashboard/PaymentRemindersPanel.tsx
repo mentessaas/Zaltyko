@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
+import { feePeriodLabel } from "@/modules/family-collection/domain/family-failure-notice";
 import { SKIP_REASON_LABELS, type ReminderSkipReason } from "@/modules/payment-reminders/domain/reminder-policy";
 import type { PaymentReminderSettings } from "@/modules/payment-reminders/application/settings";
 import type { ReminderListItem, ReminderOverview } from "@/modules/payment-reminders/application/service";
@@ -21,16 +22,14 @@ interface Problem {
 }
 
 const DATE_FORMAT = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", year: "numeric" });
-const PERIOD_FORMAT = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: "UTC" });
 
 function formatDate(iso: string): string {
   return DATE_FORMAT.format(new Date(iso));
 }
 
+/** «Cuota de noviembre de 2026» con la etiqueta común de las cuotas (C16); sin periodo legible, «Cuota». */
 function periodLabel(servicePeriodStart: string): string {
-  const [year, month] = servicePeriodStart.split("-").map(Number);
-  if (!year || !month) return "Cuota";
-  return `Cuota de ${PERIOD_FORMAT.format(new Date(Date.UTC(year, month - 1, 1)))}`;
+  return feePeriodLabel(servicePeriodStart) ?? "Cuota";
 }
 
 function reasonText(item: ReminderListItem): string {

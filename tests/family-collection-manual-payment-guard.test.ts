@@ -44,6 +44,7 @@ import type { TransactionClient } from "@/lib/db-transactions";
 import {
   allocatePayment,
   AUTOMATIC_COLLECTION_IN_PROGRESS_MESSAGE,
+  AUTOMATIC_COLLECTION_IN_PROGRESS_STATUSES,
   recordManualPaymentForCharge,
 } from "@/modules/billing/application/ledger-service";
 
@@ -176,7 +177,7 @@ afterEach(() => {
 });
 
 describe("pago manual con un cobro automático en curso", () => {
-  it.each(["claimed", "created", "processing"])("con un intento %s responde 409 y no reparte nada", async (status) => {
+  it.each(["claimed", "created", "processing", "requires_action"])("con un intento %s responde 409 y no reparte nada", async (status) => {
     const harness = useTx(fakeTx({ inProgress: { attemptId, invoiceId, status } }));
 
     await expect(recordManualPaymentForCharge(manualCommand)).rejects.toMatchObject({
@@ -189,6 +190,22 @@ describe("pago manual con un cobro automático en curso", () => {
     );
     expect(allocationInserted(harness)).toBe(false);
     expect(harness.executed.some((text) => text.includes("update zaltyko.family_collection_attempts"))).toBe(false);
+  });
+
+  it("pago a mano con un intento requires_action (la familia tiene que confirmar el pago) → 409: la consulta pide los cuatro estados abiertos", async () => {
+    const harness = useTx(fakeTx({ inProgress: { attemptId, invoiceId, status: "requires_action" } }));
+
+    await expect(recordManualPaymentForCharge(manualCommand)).rejects.toMatchObject({
+      code: "AUTOMATIC_COLLECTION_IN_PROGRESS",
+      status: 409,
+    });
+    const execute = harness.tx.execute as unknown as { mock: { calls: Array<[Parameters<PgDialect["sqlToQuery"]>[0]]> } };
+    const guard = execute.mock.calls
+      .map(([statement]) => dialect.sqlToQuery(statement))
+      .find((query) => query.sql.includes("a.status in"));
+    expect(guard?.params).toEqual(expect.arrayContaining(["claimed", "created", "processing", "requires_action"]));
+    expect(AUTOMATIC_COLLECTION_IN_PROGRESS_STATUSES).toEqual(["claimed", "created", "processing", "requires_action"]);
+    expect(allocationInserted(harness)).toBe(false);
   });
 
   it("el reparto de un pago ya registrado (allocatePayment) pasa por la misma comprobación", async () => {

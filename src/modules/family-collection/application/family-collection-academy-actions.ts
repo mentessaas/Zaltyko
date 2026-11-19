@@ -4,8 +4,10 @@
  *
  * - «Cancelar el cobro automático» (`cancelAutomaticCollection`):
  *   - fallido con reintento pendiente → `canceled` (`canceled_by_academy`);
- *   - creado en Stripe y sin confirmar → primero se cancela en Stripe (fuera
- *     de toda transacción) y, solo si Stripe lo confirma, se cierra;
+ *   - creado en Stripe y sin confirmar, o (Fase 4) esperando a que la
+ *     familia confirme el pago con su banco (`requires_action`) → primero se
+ *     cancela en Stripe (fuera de toda transacción) y, solo si Stripe lo
+ *     confirma, se cierra;
  *   - en curso en el banco (`processing`) → 409: la domiciliación ya salió;
  *   - reclamado (el proceso diario lo está cobrando ahora) → 409.
  * - «Marcar como revisado» (`markAutomaticCollectionReviewed`): solo para un
@@ -59,7 +61,10 @@ import {
   type AcademyCloseReason,
   type FamilyCollectionStore,
 } from "@/modules/family-collection/infrastructure/family-collection-store";
-import { academyCanMarkReviewed } from "@/modules/family-collection/infrastructure/family-collection-schema";
+import {
+  academyCanMarkReviewed,
+  FAMILY_COLLECTION_OPEN_STATUSES,
+} from "@/modules/family-collection/infrastructure/family-collection-schema";
 import {
   createStripeCollectionGateway,
   listCollectionPaymentsByAttempt,
@@ -104,7 +109,7 @@ const inputSchema = z.object({
   invoiceId: z.guid(),
 });
 
-const OPEN_STATUSES: ReadonlySet<string> = new Set(["claimed", "created", "processing"]);
+const OPEN_STATUSES: ReadonlySet<string> = new Set(FAMILY_COLLECTION_OPEN_STATUSES);
 
 const TEXT = {
   unavailable: "El cobro automático de cuotas no está disponible todavía.",
@@ -363,7 +368,11 @@ export async function cancelAutomaticCollection(
     case "claimed":
       // El proceso diario lo está cobrando ahora mismo.
       throw new OperationalError("AUTOMATIC_COLLECTION_IN_PROGRESS", AUTOMATIC_COLLECTION_IN_PROGRESS_MESSAGE, 409);
-    case "created": {
+    case "created":
+    // Fase 4: la familia aún puede confirmar el pago con su banco. Se cancela
+    // en Stripe antes de cerrar, como un cobro creado: así ya no puede
+    // completarse (y si ya se cobró, se registra).
+    case "requires_action": {
       const paymentIntentId = attempt.paymentIntentId;
       const refs = await context.store.loadAttemptRefs(attempt);
       if (!refs || !paymentIntentId) throw unverified();

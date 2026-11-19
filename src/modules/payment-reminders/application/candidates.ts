@@ -9,6 +9,8 @@ import {
 } from "@/modules/family-collection/application/config";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
 import { collectionDate, localCalendarDate } from "@/modules/family-collection/domain/collection-plan";
+import { RETURNED_FEE_LINE_TYPE } from "@/modules/family-collection/domain/dispute-effect";
+import { invoiceHasLatePending } from "@/modules/family-collection/infrastructure/late-success-sql";
 import {
   automaticCollectionHolds,
   isAutomaticCollectionInProgress,
@@ -43,6 +45,12 @@ export interface ReminderCandidate {
   hasPendingReservation: boolean;
   /** La cuota espera a su cobro automático: sin recordatorios (automaticCollectionHolds). */
   automaticCollectionHold: boolean;
+  /**
+   * Ola final (B5): la cuota es la nueva de una domiciliación devuelta por el
+   * banco (D2, línea `returned_fee`). El recordatorio la nombra «… · devuelta
+   * por el banco», como el portal, para que no parezca un doble cobro.
+   */
+  returnedByBank?: boolean;
 }
 
 export interface CandidateFilter {
@@ -74,6 +82,8 @@ interface CandidateRow {
   sentCount: string | number;
   failedCount: string | number;
   hasPendingReservation: boolean | null;
+  /** Ola final (B5): la factura tiene la línea de la cuota nueva de D2. */
+  returnedByBank?: boolean | null;
   /** Solo si existen las tablas de la Fase 3 (automaticColumns). */
   collectionMode?: string | null;
   lastAttemptStatus?: string | null;
@@ -85,6 +95,11 @@ interface CandidateRow {
    * factura en la cuenta de test de la academia (la que usa el cobro), o null.
    */
   activeAuthorizationKind?: string | null;
+  /**
+   * Ola final (M-A1): la factura tiene un cobro tardío en espera (aviso
+   * `late_success_pending` sin aviso de cierre). Solo con las tablas de la Fase 3.
+   */
+  latePendingCollection?: boolean | null;
 }
 
 function safeCents(value: unknown): number {
@@ -114,13 +129,19 @@ function isAutomaticCollectionOpen(): boolean {
 /**
  * ¿Espera la cuota a su cobro automático? Un cobro en curso de su factura
  * retiene siempre, aunque la bandera esté apagada o los cerrojos cerrados (el
- * dinero puede estar moviéndose). Lo demás, solo con el cobro abierto; ante
+ * dinero puede estar moviéndose), y también un cobro tardío en espera (ola
+ * final, M-A1: el dinero ya está en Stripe). Lo demás, solo con el cobro abierto; ante
  * datos que no se pueden leer, se trata como manual. Con la domiciliación sin
  * activar (`sepaEnabled` apagada), una cuota cuyo pagador paga por
  * domiciliación no espera ningún cobro nuevo: recibe recordatorios.
  */
 function automaticHoldOf(row: CandidateRow, now: Date, automaticOpen: boolean, sepaEnabled: boolean): boolean {
   if (isAutomaticCollectionInProgress(row.lastAttemptStatus)) return true;
+  // Ola final (M-A1): un cobro tardío en espera ya está cobrado en Stripe
+  // aunque el libro aún no lo tenga (el último intento puede ser un hermano
+  // `failed` sin reintento). Retiene siempre, como un cobro en curso: pedir
+  // ese dinero a la familia sería cobrarle dos veces.
+  if (row.latePendingCollection === true) return true;
   if (!automaticOpen || row.collectionMode !== "automatic") return false;
   try {
     const fixedDay = row.collectionDayOfMonth ?? null;
@@ -197,6 +218,7 @@ export async function loadReminderCandidates(
         to_char(last_attempt.next_retry_at at time zone 'UTC', ${sql.raw(ISO)}) as "lastAttemptNextRetryAt",
         to_char(last_attempt.completed_at at time zone 'UTC', ${sql.raw(ISO)}) as "lastAttemptCompletedAt",
         ocs.collection_day_of_month as "collectionDayOfMonth",
+        ${invoiceHasLatePending(sql.raw("c.organization_id"), sql.raw("c.invoice_id"))} as "latePendingCollection",
         ${authorizationColumn}`
     : sql``;
   const automaticJoins = collectionTables
@@ -236,6 +258,13 @@ export async function loadReminderCandidates(
         coalesce(rem.sent_count, 0) as "sentCount",
         coalesce(rem.failed_count, 0) as "failedCount",
         coalesce(rem.has_pending, false) as "hasPendingReservation",
+        exists (
+          select 1
+            from zaltyko.invoice_lines rl
+           where rl.organization_id = c.organization_id
+             and rl.invoice_id = c.invoice_id
+             and rl.line_type = ${RETURNED_FEE_LINE_TYPE}
+        ) as "returnedByBank",
         ${automaticColumns}
         i.reference as sort_reference
       from zaltyko.charges c
@@ -312,6 +341,7 @@ export async function loadReminderCandidates(
     failedCount: Number(row.failedCount),
     hasPendingReservation: row.hasPendingReservation === true,
     automaticCollectionHold: collectionTables && automaticHoldOf(row, now, automaticOpen, sepaEnabled),
+    returnedByBank: row.returnedByBank === true,
   }));
 }
 

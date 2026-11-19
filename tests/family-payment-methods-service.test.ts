@@ -31,6 +31,7 @@ import {
   loadOrganizationName,
   lockActiveAuthorization,
   lockActiveAuthorizationById,
+  lockOrganizationForPaymentMethods,
   lockSetupAttempt,
   markSetupAttemptAbandoned,
   markSetupAttemptCompleted,
@@ -98,6 +99,7 @@ vi.mock("@/modules/family-payment-methods/infrastructure/family-payment-store", 
   findLatestCustomerReference: vi.fn(),
   insertSetupAttempt: vi.fn(),
   findSetupAttemptForPayer: vi.fn(),
+  lockOrganizationForPaymentMethods: vi.fn(),
   lockSetupAttempt: vi.fn(),
   markSetupAttemptAbandoned: vi.fn(),
   markSetupAttemptCompleted: vi.fn(),
@@ -254,6 +256,7 @@ describe("servicio de pago automático de la familia", () => {
     vi.mocked(findLatestCustomerReference).mockResolvedValue(null);
     vi.mocked(insertSetupAttempt).mockImplementation(async () => attempt({ providerSetupReference: "seti_SyntheticNew" }));
     vi.mocked(findSetupAttemptForPayer).mockResolvedValue(attempt());
+    vi.mocked(lockOrganizationForPaymentMethods).mockResolvedValue(true);
     vi.mocked(lockSetupAttempt).mockResolvedValue(attempt());
     vi.mocked(lockActiveAuthorization).mockResolvedValue(null);
     vi.mocked(insertActiveAuthorization).mockResolvedValue(authorization());
@@ -775,6 +778,25 @@ describe("servicio de pago automático de la familia", () => {
       expect(gateway.detachPaymentMethod).toHaveBeenCalledWith({ connectedAccount, paymentMethod: "pm_SyntheticNew" });
     });
 
+    it("Tarea M (punto 10): bloquea primero la academia y después la autorización (el orden del cobro)", async () => {
+      vi.mocked(lockActiveAuthorization).mockResolvedValue(authorization());
+      expect(await revokeFamilyPaymentMethod(family, { gateway: fakeGateway() })).toEqual({ outcome: "revoked" });
+      expect(lockOrganizationForPaymentMethods).toHaveBeenCalledWith(tx, organizationId);
+      const organizationOrder = vi.mocked(lockOrganizationForPaymentMethods).mock.invocationCallOrder[0];
+      const authorizationOrder = vi.mocked(lockActiveAuthorization).mock.invocationCallOrder[0];
+      expect(organizationOrder).toBeLessThan(authorizationOrder);
+    });
+
+    it("Tarea M (punto 10): sin la fila de la academia no revoca nada", async () => {
+      vi.mocked(lockOrganizationForPaymentMethods).mockResolvedValue(false);
+      vi.mocked(lockActiveAuthorization).mockResolvedValue(authorization());
+      const gateway = fakeGateway();
+      expect(await revokeFamilyPaymentMethod(family, { gateway })).toEqual({ outcome: "none" });
+      expect(lockActiveAuthorization).not.toHaveBeenCalled();
+      expect(revokeAuthorization).not.toHaveBeenCalled();
+      expect(gateway.detachPaymentMethod).not.toHaveBeenCalled();
+    });
+
     it("quien no es la pagadora recibe 404 sin escribir", async () => {
       vi.mocked(resolveFamilyPayer).mockResolvedValue(null);
       await expect(revokeFamilyPaymentMethod(family, { gateway: fakeGateway() })).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
@@ -906,6 +928,17 @@ describe("servicio de pago automático de la familia", () => {
       expect(findConnectAccountForOrganization).not.toHaveBeenCalled();
       expect(gateway.detachPaymentMethod).not.toHaveBeenCalled();
       expectNoWrites();
+    });
+
+    it("Tarea M (punto 10b): la academia también bloquea primero la academia y después la autorización", async () => {
+      vi.mocked(lockActiveAuthorizationById).mockResolvedValue(authorization());
+      expect(
+        await revokeFamilyPaymentMethodByOwner({ userId, organizationId, authorizationId, now }, { gateway: fakeGateway() })
+      ).toEqual({ outcome: "revoked" });
+      expect(lockOrganizationForPaymentMethods).toHaveBeenCalledWith(tx, organizationId);
+      const organizationOrder = vi.mocked(lockOrganizationForPaymentMethods).mock.invocationCallOrder[0];
+      const authorizationOrder = vi.mocked(lockActiveAuthorizationById).mock.invocationCallOrder[0];
+      expect(organizationOrder).toBeLessThan(authorizationOrder);
     });
 
     it("revoca por id dentro de su academia y cuenta, con actor owner, y desliga después", async () => {

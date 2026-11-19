@@ -15,6 +15,7 @@ import {
   familyCollectionConfirmIdempotencyKey,
   familyCollectionCreateIdempotencyKey,
   isIdempotencyConflict,
+  retrievePaymentClientSecret,
 } from "@/modules/family-collection/infrastructure/stripe-collection-gateway";
 
 /**
@@ -626,8 +627,31 @@ describe("createStripeCollectionGateway", () => {
         lastDeclineCode: "lost_card",
         amountReceivedCents: 0,
         currency: "EUR",
+        // Fase 4: solo el id del intento de la metadata (nada más de ella).
+        attemptIdFromMetadata: attemptId,
       });
       expectNoLeak(snapshot);
+    });
+
+    it("Fase 4: el id del intento de la metadata solo si es un uuid (en minúsculas); si no, null", async () => {
+      const cases: Array<[Record<string, string> | undefined, string | null]> = [
+        [{ zaltyko_collection_attempt_id: attemptId.toUpperCase() }, attemptId],
+        [{ zaltyko_collection_attempt_id: "no-es-un-uuid" }, null],
+        [{ zaltyko_collection_attempt_id: `${attemptId}' or '1` }, null],
+        [{ zaltyko_invoice_id: invoiceId }, null],
+        [{}, null],
+        [undefined, null],
+      ];
+      for (const [metadata, expected] of cases) {
+        const stripe = fakeStripe();
+        stripe.retrieve.mockResolvedValue(paymentIntent({ status: "succeeded", amount_received: 4500, metadata }));
+        const gateway = createStripeCollectionGateway(stripe.client);
+
+        const snapshot = await gateway.retrievePayment({ connectedAccount, paymentIntentId });
+
+        expect(snapshot.attemptIdFromMetadata, JSON.stringify(metadata)).toBe(expected);
+        expect(snapshot).toMatchObject({ id: paymentIntentId, status: "succeeded", amountReceivedCents: 4500 });
+      }
     });
 
     it("propaga el error de Stripe", async () => {
@@ -748,5 +772,51 @@ describe("createStripeCollectionGateway", () => {
         "stripe caído"
       );
     });
+  });
+});
+
+describe("retrievePaymentClientSecret (Fase 4, Tarea 5)", () => {
+  /** Valor sintético montado en tiempo de ejecución: no es un secreto real. */
+  const clientSecret = [paymentIntentId, "secret", "synthetic"].join("_");
+
+  it("relee el cobro en la cuenta de la academia y devuelve su clave, la tarjeta y el intento", async () => {
+    const stripe = fakeStripe();
+    stripe.retrieve.mockResolvedValue(
+      paymentIntent({
+        status: "requires_payment_method",
+        livemode: false,
+        client_secret: clientSecret,
+        // Tras el rechazo fuera de sesión la tarjeta solo queda en el último error.
+        payment_method: null,
+        last_payment_error: { code: "authentication_required", payment_method: { id: paymentMethodId } },
+      })
+    );
+
+    await expect(
+      retrievePaymentClientSecret({ connectedAccount, paymentIntentId }, stripe.client)
+    ).resolves.toEqual({
+      id: paymentIntentId,
+      status: "requires_payment_method",
+      livemode: false,
+      attemptIdFromMetadata: attemptId,
+      paymentMethod: paymentMethodId,
+      clientSecret,
+    });
+    expect(stripe.retrieve).toHaveBeenCalledWith(paymentIntentId, {}, { stripeAccount: connectedAccount });
+    // Solo se lee: nada se crea, confirma ni cancela.
+    expect(stripe.create).not.toHaveBeenCalled();
+    expect(stripe.confirm).not.toHaveBeenCalled();
+    expect(stripe.cancel).not.toHaveBeenCalled();
+  });
+
+  it("sin clave ni tarjeta devuelve null; en modo real lo dice (livemode)", async () => {
+    const stripe = fakeStripe();
+    stripe.retrieve.mockResolvedValue(
+      paymentIntent({ status: "requires_action", livemode: true, client_secret: null, payment_method: null })
+    );
+
+    await expect(
+      retrievePaymentClientSecret({ connectedAccount, paymentIntentId }, stripe.client)
+    ).resolves.toMatchObject({ livemode: true, clientSecret: null, paymentMethod: null });
   });
 });

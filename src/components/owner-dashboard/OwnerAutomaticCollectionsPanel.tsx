@@ -8,13 +8,25 @@ import type {
   OwnerAutomaticCollectionItem,
   OwnerAutomaticCollectionState,
   OwnerAutomaticCollectionsView,
+  OwnerDisputeState,
 } from "@/modules/family-collection/application/family-collection-reads";
+import { feeLabel, feePeriodLabel, monthYearLabel } from "@/modules/family-collection/domain/family-failure-notice";
 import { formatCalendarDate, formatMoney } from "@/modules/family-portal/domain/family-portal-presentation";
 
 // Cobro automático de cuotas (Fase 3): los cobros automáticos del mes en
 // /owner/payments, con su estado, el motivo en palabras sencillas, los que
 // necesitan revisión y las acciones de la academia. El servidor vuelve a
 // comprobar cada acción: aquí solo se ofrecen las que la lectura permite.
+
+// Fase 4 (Tarea 7): distintivo corto de la disputa (el texto completo lo da la lectura).
+const OWNER_DISPUTE_CHIP: Record<OwnerDisputeState, string> = {
+  open: "En disputa",
+  won: "Disputa ganada",
+  lost: "Disputa perdida",
+  returned: "Devuelta por el banco",
+  unallocated: "Disputa sin anotar",
+  reinstated: "Disputa ganada",
+};
 
 // Ruta relativa: el fetch es del mismo origen y el navegador añade la cabecera
 // Origin que la API exige en el POST (protección contra CSRF).
@@ -60,10 +72,41 @@ function problemType(body: ActionBody): string | null {
   return typeof body?.type === "string" ? (body.type.split("/").pop() ?? null) : null;
 }
 
+/** «noviembre de 2026» a partir del mes de la lista (YYYY-MM), con la función común (C16). */
 function monthLabel(month: string): string {
-  const date = new Date(`${month}-15T12:00:00Z`);
-  if (Number.isNaN(date.getTime())) return month;
-  return new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: "UTC" }).format(date);
+  return monthYearLabel(`${month}-01`) ?? month;
+}
+
+/**
+ * Fase 4 (Tarea 11): «Cuota de febrero de 2027» (el mes de la cuota, como en
+ * los recordatorios); sin periodo legible, «Cuota {referencia}» como respaldo.
+ */
+function feeTitle(item: OwnerAutomaticCollectionItem): string {
+  return feePeriodLabel(item.servicePeriodStart) ?? `Cuota ${item.invoiceReference}`;
+}
+
+/**
+ * La misma etiqueta dentro de una frase: «la cuota de febrero de 2027» (la
+ * función común del correo, feeLabel); sin periodo legible, «la cuota
+ * {referencia}».
+ */
+function feeName(item: OwnerAutomaticCollectionItem): string {
+  return feePeriodLabel(item.servicePeriodStart) ? feeLabel(item.servicePeriodStart) : `la cuota ${item.invoiceReference}`;
+}
+
+/** Al empezar una frase: «La cuota de febrero de 2027». */
+function feeNameAtStart(item: OwnerAutomaticCollectionItem): string {
+  const name = feeName(item);
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)}`;
+}
+
+/**
+ * Tarea M (punto 18): nombre accesible de los botones de una fila, con la
+ * persona pagadora (o, sin ella, la referencia) para distinguir dos cuotas
+ * del mismo mes: «la cuota de febrero de 2027 (Lucía Martín)».
+ */
+function feeAccessibleName(item: OwnerAutomaticCollectionItem): string {
+  return `${feeName(item)} (${item.payerName?.trim() || item.invoiceReference})`;
 }
 
 function stateText(state: OwnerAutomaticCollectionState, date: string | null): string {
@@ -74,6 +117,10 @@ function stateText(state: OwnerAutomaticCollectionState, date: string | null): s
     case "in_progress":
     case "processing":
       return "Cobro en curso";
+    case "action_required":
+      return day
+        ? `Esperando a que la familia confirme el pago con su banco (hasta el ${day})`
+        : "Esperando a que la familia confirme el pago con su banco";
     case "collected":
       return day ? `Cobrada el ${day}` : "Cobrada automáticamente";
     case "retry_scheduled":
@@ -95,6 +142,7 @@ function stateChip(state: OwnerAutomaticCollectionState): string {
       return ownerTone.chipSuccess;
     case "in_progress":
     case "processing":
+    case "action_required":
       return ownerTone.chipActive;
     case "retry_scheduled":
     case "not_attempted":
@@ -233,12 +281,12 @@ export function OwnerAutomaticCollectionsPanel({
       tone: "info",
       text:
         done === "collected"
-          ? `El cobro de la cuota ${item.invoiceReference} ya se había hecho y ha quedado registrado.`
+          ? `El cobro de ${feeName(item)} ya se había hecho y ha quedado registrado.`
           : done === "canceled"
-            ? `Cobro automático cancelado. La cuota ${item.invoiceReference} se cobra a mano.`
+            ? `Cobro automático cancelado. ${feeNameAtStart(item)} se cobra a mano.`
             : done === "unverifiable"
-              ? `Cobro marcado como revisado. La cuota ${item.invoiceReference} se cobra a mano. ${REVIEWED_UNVERIFIABLE}`
-              : `Cobro marcado como revisado. La cuota ${item.invoiceReference} se cobra a mano.`,
+              ? `Cobro marcado como revisado. ${feeNameAtStart(item)} se cobra a mano. ${REVIEWED_UNVERIFIABLE}`
+              : `Cobro marcado como revisado. ${feeNameAtStart(item)} se cobra a mano.`,
     });
     router.refresh();
   }
@@ -246,7 +294,7 @@ export function OwnerAutomaticCollectionsPanel({
   return (
     <section id="cobros-automaticos" className={ownerUi.card} aria-labelledby="cobros-automaticos-title">
       <h2 id="cobros-automaticos-title" className={ownerUi.sectionTitle}>
-        {view.inProgressOnly ? "Cobros automáticos en curso" : "Cobros automáticos de este mes"}
+        {view.inProgressOnly ? "Cobros automáticos en curso" : `Cobros automáticos de ${monthLabel(view.month)}`}
       </h2>
       {view.inProgressOnly ? (
         // Bandera general apagada: no se cobra nada nuevo; solo salen los cobros
@@ -256,7 +304,7 @@ export function OwnerAutomaticCollectionsPanel({
         </p>
       ) : (
         <p className={`${ownerUi.help} mt-2`}>
-          Cuotas de {monthLabel(view.month)} que se cobran solas. Las que no se pueden cobrar pasan a cobrarse a mano.
+          Cuotas que se cobran solas este mes; cada una dice de qué mes es. Las que no se pueden cobrar pasan a cobrarse a mano.
         </p>
       )}
 
@@ -281,7 +329,7 @@ export function OwnerAutomaticCollectionsPanel({
             <li key={item.invoiceId} className={ownerUi.listItem}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-semibold text-z-ink">Cuota {item.invoiceReference}</p>
+                  <p className="font-semibold text-z-ink">{feeTitle(item)}</p>
                   <p className={ownerUi.help}>
                     {item.payerName ? `${item.payerName} · ` : ""}
                     <span className="tabular-nums">{formatMoney(item.amountCents, item.currency)}</span>
@@ -289,10 +337,25 @@ export function OwnerAutomaticCollectionsPanel({
                 </div>
                 <p className="flex flex-wrap items-center gap-2">
                   <span className={stateChip(item.state)}>{stateText(item.state, item.date)}</span>
+                  {item.refundText ? <span className={ownerTone.chipWarning}>Devuelta</span> : null}
+                  {item.disputeState ? (
+                    <span className={item.disputeState === "won" ? ownerTone.chipRest : ownerTone.chipWarning}>
+                      {OWNER_DISPUTE_CHIP[item.disputeState]}
+                    </span>
+                  ) : null}
                   {item.needsReview ? <span className={ownerUi.chipAttention}>Necesita revisión</span> : null}
                 </p>
               </div>
               {item.reason ? <p className={`${ownerUi.muted} mt-2`}>{item.reason}</p> : null}
+              {/* Fase 4 (D1): la cuota sigue cobrada; la academia devolvió desde su panel de Stripe (D5). */}
+              {item.refundText ? <p className={`${ownerUi.muted} mt-2`}>{item.refundText}</p> : null}
+              {item.refundNotice ? <p className={`${ownerTone.inlineWarning} mt-2`}>{item.refundNotice}</p> : null}
+              {/* Fase 4 (Tarea 7, D2–D4): disputa o devolución del banco; solo la ve la academia. */}
+              {item.disputeText ? (
+                <p className={`${item.disputeState === "won" ? ownerUi.muted : ownerTone.inlineWarning} mt-2`}>
+                  {item.disputeText}
+                </p>
+              ) : null}
               {item.familyNotice ? (
                 <p className={`${ownerUi.help} mt-1`}>{FAMILY_NOTICE_TEXT[item.familyNotice]}</p>
               ) : null}
@@ -307,7 +370,7 @@ export function OwnerAutomaticCollectionsPanel({
                       type="button"
                       className={ownerTone.dangerOutlineButton}
                       disabled={busy}
-                      aria-label={`Cancelar el cobro automático de la cuota ${item.invoiceReference}`}
+                      aria-label={`Cancelar el cobro automático de ${feeAccessibleName(item)}`}
                       onClick={() => {
                         setMessage(null);
                         setReviewing(null);
@@ -322,7 +385,7 @@ export function OwnerAutomaticCollectionsPanel({
                       type="button"
                       className={ownerUi.secondaryButton}
                       disabled={busy}
-                      aria-label={`Marcar como revisado el cobro de la cuota ${item.invoiceReference}`}
+                      aria-label={`Marcar como revisado el cobro de ${feeAccessibleName(item)}`}
                       onClick={() => {
                         setMessage(null);
                         setConfirmingCancel(null);
@@ -340,10 +403,10 @@ export function OwnerAutomaticCollectionsPanel({
                 <div
                   className={`${ownerUi.subtlePanel} mt-3`}
                   role="group"
-                  aria-label={`Confirmar la cancelación del cobro automático de la cuota ${item.invoiceReference}`}
+                  aria-label={`Confirmar la cancelación del cobro automático de ${feeAccessibleName(item)}`}
                 >
                   <p className="text-sm text-z-ink">
-                    ¿Cancelar el cobro automático de la cuota {item.invoiceReference}? No se cobrará sola: tendrás que cobrarla a mano.
+                    ¿Cancelar el cobro automático de {feeName(item)}? No se cobrará sola: tendrás que cobrarla a mano.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
@@ -366,7 +429,7 @@ export function OwnerAutomaticCollectionsPanel({
                 <div
                   className={`${ownerUi.subtlePanel} mt-3`}
                   role="group"
-                  aria-label={`Marcar como revisado el cobro de la cuota ${item.invoiceReference}`}
+                  aria-label={`Marcar como revisado el cobro de ${feeAccessibleName(item)}`}
                 >
                   <p className="text-sm text-z-ink">
                     Antes de marcarlo, abre tu panel de Stripe y comprueba si este cobro se hizo. Si se hizo, lo registraremos; si no, la cuota pasará a cobrarse a mano.

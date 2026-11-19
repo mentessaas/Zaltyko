@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { returnedFeeLabel } from "@/modules/family-collection/domain/dispute-effect";
+import { feePeriodLabel } from "@/modules/family-collection/domain/family-failure-notice";
 import {
   DEFAULT_BODY,
   DEFAULT_SUBJECT,
@@ -74,6 +76,43 @@ describe("plantilla del recordatorio de impago", () => {
     expect(variables.importe).toMatch(/90,00\s€/);
     expect(variables.concepto).toBe("Cuota de octubre de 2026 y Cuota de noviembre de 2026");
     expect(variables.vencimiento).toBe("5 de octubre de 2026 y 5 de noviembre de 2026");
+  });
+
+  it("Tarea M (punto 19): el concepto sale de la etiqueta común del dominio (feePeriodLabel), igual en es-ES y es-MX", () => {
+    const charges = [{ servicePeriodStart: "2027-02-01", outstandingCents: 4500, dueAt: new Date("2027-02-05T00:00:00Z") }];
+    for (const locale of ["es-ES", "es-MX"]) {
+      expect(buildVariables(context({ locale, charges }), null).concepto, locale).toBe(feePeriodLabel("2027-02-01"));
+      expect(buildVariables(context({ locale, charges }), null).concepto, locale).toBe("Cuota de febrero de 2027");
+    }
+    // Sin periodo legible, «Cuota».
+    expect(
+      buildVariables(
+        context({ charges: [{ servicePeriodStart: "2026-13-01", outstandingCents: 4500, dueAt: new Date("2026-11-05T00:00:00Z") }] }),
+        null
+      ).concepto
+    ).toBe("Cuota");
+  });
+
+  it("ola final (B5): la cuota nueva de una domiciliación devuelta (D2) se nombra «· devuelta por el banco», como en el portal", () => {
+    const returned = { servicePeriodStart: "2026-11-01", outstandingCents: 4500, dueAt: new Date("2026-12-05T00:00:00Z"), returnedByBank: true };
+    const rendered = renderReminder({}, context({ charges: [returned] }));
+    expect(rendered.text).toContain(returnedFeeLabel("2026-11-01"));
+    expect(rendered.text).toContain("Cuota de noviembre de 2026 · devuelta por el banco");
+    // Junto a una cuota normal del mismo mes: dos conceptos distintos, nunca el mismo dos veces.
+    const variables = buildVariables(
+      context({
+        charges: [
+          { servicePeriodStart: "2026-11-01", outstandingCents: 4500, dueAt: new Date("2026-11-05T00:00:00Z") },
+          returned,
+        ],
+      }),
+      null
+    );
+    expect(variables.concepto).toBe("Cuota de noviembre de 2026 y Cuota de noviembre de 2026 · devuelta por el banco");
+    // Sin la marca, la etiqueta de siempre.
+    expect(buildVariables(context({ charges: [{ ...returned, returnedByBank: false }] }), null).concepto).toBe(
+      "Cuota de noviembre de 2026"
+    );
   });
 
   it("el asunto nunca contiene saltos de línea aunque el nombre los traiga", () => {

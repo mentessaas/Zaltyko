@@ -14,6 +14,12 @@ import {
   resolveConnectEnvironment,
 } from "@/modules/family-collection/application/config";
 import {
+  AUTHENTICATION_EXPIRED_CODE,
+  authenticationDeadline,
+  collectionWindowAnchor,
+  isAuthenticationDeadlinePassed,
+} from "@/modules/family-collection/domain/authentication-window";
+import {
   ACCOUNT_FRESHNESS_MS,
   classifyGateReason,
   evaluateFamilyCollectionGate,
@@ -45,6 +51,7 @@ import {
   finalCreateErrorCode,
   INVALID_CREATE_REQUEST_CODE,
   isAuthenticationRequiredFailure,
+  isPlatformInvalidRequest,
   mapPaymentIntent,
   mapUnknownPaymentError,
   receivedMatches,
@@ -52,6 +59,15 @@ import {
   snapshotOfPaymentIntent,
   type PaymentIntentSnapshot,
 } from "@/modules/family-collection/domain/payment-outcome";
+import {
+  CIRCUIT_BREAKER_CONSECUTIVE,
+  CIRCUIT_BREAKER_MIN_SAMPLE,
+  CIRCUIT_BREAKER_RATIO,
+  closedBreaker,
+  recordCreateResult,
+  type BreakerState,
+  type CreateResult,
+} from "@/modules/family-collection/domain/circuit-breaker";
 import {
   CARD_MAX_ATTEMPTS,
   CARD_RETRY_OFFSET_DAYS,
@@ -61,6 +77,7 @@ import {
 } from "@/modules/family-collection/domain/retry-policy";
 import { FAMILY_COLLECTION_MAX_ATTEMPTS_PER_INVOICE } from "@/modules/family-collection/infrastructure/family-collection-schema";
 import * as connectConfig from "@/modules/payments-connect/application/config";
+import { withinGrace } from "@/modules/payment-reminders/domain/reminder-policy";
 
 /**
  * Cobro automático de cuotas (Fase 3): dominio puro. Qué se cobra y cuándo
@@ -1911,5 +1928,201 @@ describe("config del cobro automático", () => {
   it("reexporta los cerrojos de entorno de Conectar Stripe", () => {
     expect(resolveConnectEnvironment).toBe(connectConfig.resolveConnectEnvironment);
     expect(isProductionDatabase).toBe(connectConfig.isProductionDatabase);
+  });
+});
+
+describe("Fase 4: plazo para confirmar el pago con el banco (D7)", () => {
+  const charge = (id: string, dueAt: string) => ({ id, dueAt: new Date(dueAt) });
+
+  it("collectionWindowAnchor: intento 1 → fecha de cobro prevista; reintento → fecha del reintento", () => {
+    // Vence el 1-3-2027 (00:00 en Madrid) y la academia cobra el día 5.
+    const charges = [charge("c1", "2027-02-28T23:00:00.000Z"), charge("c2", "2027-03-09T23:00:00.000Z")];
+    const allocations = [{ chargeId: "c1" }, { chargeId: "c2" }];
+    expect(
+      collectionWindowAnchor({ previousAttempt: null, charges, allocations, timezone: "Europe/Madrid", collectionDayOfMonth: 5 })
+    ).toBe("2027-03-05");
+    // Sin día fijo: el día de vencimiento más antiguo de las cuotas del reparto.
+    expect(
+      collectionWindowAnchor({ previousAttempt: null, charges, allocations, timezone: "Europe/Madrid", collectionDayOfMonth: null })
+    ).toBe("2027-03-01");
+    // Solo cuentan las cuotas del reparto.
+    expect(
+      collectionWindowAnchor({
+        previousAttempt: null,
+        charges,
+        allocations: [{ chargeId: "c2" }],
+        timezone: "Europe/Madrid",
+        collectionDayOfMonth: null,
+      })
+    ).toBe("2027-03-10");
+    // Reintento: la fecha local de `next_retry_at` del intento anterior (00:00 del 6-3 en Madrid).
+    expect(
+      collectionWindowAnchor({
+        previousAttempt: { status: "failed", nextRetryAt: new Date("2027-03-05T23:00:00.000Z") },
+        charges,
+        allocations,
+        timezone: "Europe/Madrid",
+        collectionDayOfMonth: 5,
+      })
+    ).toBe("2027-03-06");
+    // Un intento anterior sin reintento no deja ventana (como collectionWindowExpired), ni un reparto vacío.
+    expect(
+      collectionWindowAnchor({
+        previousAttempt: { status: "failed", nextRetryAt: null },
+        charges,
+        allocations,
+        timezone: "Europe/Madrid",
+        collectionDayOfMonth: 5,
+      })
+    ).toBeNull();
+    expect(
+      collectionWindowAnchor({ previousAttempt: null, charges, allocations: [], timezone: "Europe/Madrid", collectionDayOfMonth: 5 })
+    ).toBeNull();
+  });
+
+  it("authenticationDeadline: fin del día local ancla+3 en Madrid y en Ciudad de México", () => {
+    expect(authenticationDeadline({ anchorLocalDate: "2027-03-02", timezone: "Europe/Madrid" }).toISOString()).toBe(
+      "2027-03-05T22:59:59.999Z"
+    );
+    expect(
+      authenticationDeadline({ anchorLocalDate: "2027-03-02", timezone: "America/Mexico_City" }).toISOString()
+    ).toBe("2027-03-06T05:59:59.999Z");
+    // Con el cambio de hora de por medio (28-3-2027 en Madrid): el día +3 ya es de verano.
+    expect(authenticationDeadline({ anchorLocalDate: "2027-03-26", timezone: "Europe/Madrid" }).toISOString()).toBe(
+      "2027-03-29T21:59:59.999Z"
+    );
+    expect(AUTHENTICATION_EXPIRED_CODE).toBe("authentication_required");
+  });
+
+  it("reclamado un día tarde → el plazo no se alarga (mismo día que deja de retener withinGrace)", () => {
+    // La cuota se cobra el 2-3; el proceso diario la reclama el 3-3 (un día
+    // tarde). El plazo sale de la fecha de cobro, no del día de reclamar.
+    const anchor = collectionWindowAnchor({
+      previousAttempt: null,
+      charges: [charge("c1", "2027-03-01T23:00:00.000Z")],
+      allocations: [{ chargeId: "c1" }],
+      timezone: "Europe/Madrid",
+      collectionDayOfMonth: null,
+    });
+    expect(anchor).toBe("2027-03-02");
+    const deadline = authenticationDeadline({ anchorLocalDate: anchor!, timezone: "Europe/Madrid" });
+    expect(deadline.toISOString()).toBe("2027-03-05T22:59:59.999Z");
+    // El último día del plazo es el último en que withinGrace retiene los recordatorios.
+    const lastDay = localCalendarDate(deadline, "Europe/Madrid");
+    const nextDay = localCalendarDate(new Date(deadline.getTime() + 1), "Europe/Madrid");
+    expect(lastDay).toBe(addLocalDays(anchor!, 3));
+    expect(withinGrace(anchor!, lastDay)).toBe(true);
+    expect(withinGrace(anchor!, nextDay)).toBe(false);
+    expect(isAuthenticationDeadlinePassed(deadline, deadline)).toBe(false);
+    expect(isAuthenticationDeadlinePassed(deadline, new Date(deadline.getTime() + 1))).toBe(true);
+    // Sin plazo conocido, pasado: ninguna cuota se queda esperando para siempre.
+    expect(isAuthenticationDeadlinePassed(null, new Date("2027-03-03T10:00:00.000Z"))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fase 4 (D9): cortacircuitos del proceso diario
+// ---------------------------------------------------------------------------
+
+describe("Fase 4: cortacircuitos del proceso diario (D9)", () => {
+  /** Aplica una serie de creaciones a un cortacircuitos cerrado. */
+  const replay = (results: readonly CreateResult[]): BreakerState =>
+    results.reduce((state, result) => recordCreateResult(state, result), closedBreaker());
+
+  const invalid = "platform_invalid_request" as const;
+
+  it("valores de D9", () => {
+    expect(CIRCUIT_BREAKER_CONSECUTIVE).toBe(3);
+    expect(CIRCUIT_BREAKER_RATIO).toBe(0.2);
+    expect(CIRCUIT_BREAKER_MIN_SAMPLE).toBe(10);
+    expect(closedBreaker()).toEqual({ consecutive: 0, created: 0, invalid: 0, open: false });
+  });
+
+  it("tres 400 genéricos seguidos → abierto", () => {
+    expect(replay([invalid, invalid])).toEqual({ consecutive: 2, created: 0, invalid: 2, open: false });
+    expect(replay([invalid, invalid, invalid])).toEqual({ consecutive: 3, created: 0, invalid: 3, open: true });
+    // Un cobro creado rompe la racha.
+    expect(replay(["created", invalid, invalid, "created", invalid, invalid]).open).toBe(false);
+  });
+
+  it("resource_missing no cuenta", () => {
+    const resourceMissing = {
+      type: "StripeInvalidRequestError",
+      rawType: "invalid_request_error",
+      code: "resource_missing",
+      statusCode: 400,
+    };
+    // Es final al crear (C4), pero es de una familia: no es de la plataforma.
+    expect(finalCreateErrorCode(resourceMissing)).toBe("resource_missing");
+    expect(isPlatformInvalidRequest(resourceMissing)).toBe(false);
+    // Lo que no es de la plataforma ("other") ni suma ni rompe la racha.
+    const before = replay([invalid, invalid]);
+    const after = recordCreateResult(before, "other");
+    expect(after).toEqual(before);
+    expect(after).not.toBe(before);
+    expect(replay([invalid, "other", "other", "other", invalid]).open).toBe(false);
+    expect(replay([invalid, "other", invalid, "other", invalid]).open).toBe(true);
+    expect(replay(Array<CreateResult>(50).fill("other"))).toEqual(closedBreaker());
+  });
+
+  it.each([
+    ["amount_too_small"],
+    ["resource_missing"],
+    ["account_invalid"],
+    ["payment_method_unactivated"],
+    ["capability_not_active"],
+    ["Resource_Missing"],
+  ])("los rechazos de una familia o una academia no son de la plataforma: %s", (code) => {
+    expect(
+      isPlatformInvalidRequest({ type: "StripeInvalidRequestError", rawType: "invalid_request_error", code, statusCode: 400 })
+    ).toBe(false);
+  });
+
+  it.each([
+    ["parámetro que falta", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "parameter_missing", statusCode: 400 }],
+    ["parámetro desconocido", { rawType: "invalid_request_error", code: "parameter_unknown", statusCode: 400 }],
+    ["sin código", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", statusCode: 400 }],
+  ])("un 400 genérico al crear es de la plataforma: %s", (_label, error) => {
+    expect(isPlatformInvalidRequest(error)).toBe(true);
+  });
+
+  it.each([
+    ["rechazo del banco", { type: "StripeCardError", rawType: "card_error", code: "card_declined", decline_code: "insufficient_funds", statusCode: 402 }],
+    ["rechazo del banco con 400", { type: "StripeCardError", rawType: "card_error", code: "card_declined", statusCode: 400 }],
+    ["400 con el cobro dentro", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "parameter_missing", statusCode: 400, payment_intent: { id: "pi_synthetic_cb", status: "requires_payment_method" } }],
+    ["clave de idempotencia en uso", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "idempotency_key_in_use", statusCode: 400 }],
+    ["idempotencia", { type: "StripeIdempotencyError", rawType: "idempotency_error", statusCode: 400 }],
+    ["bloqueo", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "lock_timeout", statusCode: 400 }],
+    ["límite de peticiones", { type: "StripeRateLimitError", rawType: "rate_limit_error", code: "rate_limit", statusCode: 429 }],
+    ["error interno", { type: "StripeAPIError", rawType: "api_error", statusCode: 500 }],
+    ["permiso sin código", { type: "StripePermissionError", rawType: "invalid_request_error", statusCode: 403 }],
+    ["red", { type: "StripeConnectionError" }],
+    ["sin estado HTTP", { type: "StripeInvalidRequestError", rawType: "invalid_request_error", code: "parameter_missing" }],
+    ["null", null],
+  ])("nunca cuenta: %s", (_label, error) => {
+    expect(isPlatformInvalidRequest(error)).toBe(false);
+  });
+
+  it("2 de 10 → abierto; 1 de 9 → cerrado", () => {
+    // Nunca dos seguidos: solo puede abrirlo la proporción.
+    const twoOfTen: CreateResult[] = [invalid, "created", "created", "created", invalid, "created", "created", "created", "created"];
+    const nine = replay(twoOfTen);
+    expect(nine).toMatchObject({ created: 7, invalid: 2, open: false });
+    // El décimo es un cobro creado: 2 / 10 = 20 % → abierto.
+    expect(recordCreateResult(nine, "created")).toMatchObject({ created: 8, invalid: 2, consecutive: 0, open: true });
+
+    const oneOfNine: CreateResult[] = [invalid, "created", "created", "created", "created", "created", "created", "created", "created"];
+    expect(replay(oneOfNine)).toMatchObject({ created: 8, invalid: 1, open: false });
+    // 1 de 10 (10 %) y 2 de 11 (18 %) tampoco.
+    expect(replay([...oneOfNine, "created"]).open).toBe(false);
+    expect(replay([...oneOfNine, "created", invalid]).open).toBe(false);
+    // 2 de 9 (22 %) no basta: aún no hay 10.
+    expect(replay([invalid, "created", "created", "created", invalid, "created", "created", "created", "created"]).open).toBe(false);
+  });
+
+  it("abierto sigue abierto el resto de la pasada, aunque se creen más cobros", () => {
+    const open = replay([invalid, invalid, invalid]);
+    const later = Array<CreateResult>(20).fill("created").reduce((state, result) => recordCreateResult(state, result), open);
+    expect(later).toMatchObject({ created: 20, invalid: 3, consecutive: 0, open: true });
   });
 });

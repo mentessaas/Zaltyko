@@ -96,6 +96,7 @@ const refs: AttemptStripeRefs = {
   servicePeriodStart: "2026-11-01",
   firstAttemptClaimedAt: now,
   allocations: [{ chargeId: "10000000-0000-4000-8000-000000000007", amountCents: 4500 }],
+  windowAnchorLocalDate: "2026-11-16",
 };
 
 function fakeStore(current: AcademyAttemptView | null, overrides: Partial<AcademyCollectionStore> = {}) {
@@ -417,6 +418,57 @@ describe("marcar como revisado", () => {
     await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway: fakeGateway() })).rejects.toMatchObject({
       code: "AUTOMATIC_COLLECTION_NOTHING_PENDING",
     });
+  });
+
+  it("la academia cancela un requires_action → cancelado en Stripe antes de cerrar", async () => {
+    const order: string[] = [];
+    const waiting = attempt({ status: "requires_action" });
+    const store = fakeStore(waiting, {
+      closeAttempt: vi.fn(async () => {
+        order.push("close");
+        return { ...waiting, status: "canceled" as const };
+      }),
+    });
+    // La familia todavía no lo ha confirmado: Stripe lo tiene esperando.
+    const gateway = fakeGateway({ [paymentIntentId]: "requires_action" });
+    gateway.cancelPayment.mockImplementation(async () => {
+      order.push("stripe");
+      return "canceled";
+    });
+
+    await expect(cancelAutomaticCollection(cancelInput, { store, gateway })).resolves.toEqual({ outcome: "canceled" });
+
+    expect(gateway.cancelPayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId });
+    expect(order).toEqual(["stripe", "close"]);
+    expect(store.closeAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expected: { status: "requires_action", paymentIntentId },
+        reason: "canceled_by_academy",
+      })
+    );
+  });
+
+  it("la academia cancela un requires_action que la familia ya confirmó → se registra el cobro y no se cierra", async () => {
+    const store = fakeStore(attempt({ status: "requires_action" }));
+    const gateway = fakeGateway({ [paymentIntentId]: "succeeded" });
+
+    await expect(cancelAutomaticCollection(cancelInput, { store, gateway })).resolves.toEqual({ outcome: "collected" });
+
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(store.closeAttempt).not.toHaveBeenCalled();
+    expect(store.applyOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: { kind: "succeeded", paymentIntentId, received } })
+    );
+  });
+
+  it("un requires_action sin aviso y antes de que pase su plazo no se ofrece para revisar", async () => {
+    const store = fakeStore(attempt({ status: "requires_action", updatedAt: new Date(now.getTime() - 3 * 24 * HOUR) }));
+    const gateway = fakeGateway();
+    await expect(markAutomaticCollectionReviewed(reviewInput, { store, gateway })).rejects.toMatchObject({
+      code: "AUTOMATIC_COLLECTION_REVIEW_NOT_NEEDED",
+      status: 409,
+    });
+    expect(gateway.retrievePayment).not.toHaveBeenCalled();
   });
 
   it("un cobro que sigue su curso, sin aviso ni reanudaciones agotadas, no necesita revisión", async () => {

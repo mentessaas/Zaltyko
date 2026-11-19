@@ -10,6 +10,10 @@ import {
   locations,
   sessions,
 } from "@/db/zaltyko-schema";
+import {
+  RETURNED_FEE_LINE_TYPE,
+  returnedFeeLabel,
+} from "@/modules/family-collection/domain/dispute-effect";
 import { resolveFamilyPortalAccess } from "@/modules/family-portal/application/family-portal-access";
 import {
   familyCanViewAthlete,
@@ -111,6 +115,12 @@ export interface FamilyFee {
   dueAt: string;
   periodStart: string | null;
   periodEnd: string | null;
+  /**
+   * Cobro automático (Fase 4, Tarea 7, D2): cuota nueva por una domiciliación
+   * que el banco devolvió, «Cuota de noviembre de 2026 · devuelta por el
+   * banco». Solo en esas cuotas; las demás se titulan con su referencia.
+   */
+  label?: string;
 }
 
 export interface FamilyAcademyFees {
@@ -517,6 +527,14 @@ export async function getFamilyFees(input: {
     from zaltyko.charges fp_c
     where ${liveCharges}
   )`;
+  // Cuota nueva de una domiciliación devuelta por el banco (Fase 4, Tarea 7).
+  const returnedByBank = sql<boolean>`exists (
+    select 1
+    from zaltyko.invoice_lines fp_l
+    where fp_l.organization_id = ${invoices.organizationId}
+      and fp_l.invoice_id = ${invoices.id}
+      and fp_l.line_type = ${RETURNED_FEE_LINE_TYPE}
+  )`;
 
   for (const academy of access.academies) {
     if (academy.feeFamilyIds.length === 0) continue;
@@ -532,6 +550,7 @@ export async function getFamilyFees(input: {
         periodEnd,
         allocatedCents,
         refundedCents,
+        returnedByBank,
       })
       .from(invoices)
       .where(
@@ -569,6 +588,7 @@ export async function getFamilyFees(input: {
           dueAt: iso(row.dueAt),
           periodStart: row.periodStart ?? null,
           periodEnd: row.periodEnd ?? null,
+          ...(row.returnedByBank === true ? { label: returnedFeeLabel(row.periodStart ?? null) } : {}),
         },
       ];
     });

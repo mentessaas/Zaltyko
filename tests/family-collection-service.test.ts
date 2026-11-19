@@ -15,6 +15,8 @@ const env = vi.hoisted(() => ({
   sepa: false,
   environment: "test" as "test" | "live" | null,
   production: false,
+  /** ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED (Fase 4): solo cuenta en modo "event". */
+  events: true,
 }));
 
 vi.mock("@/db", () => ({ db: {} }));
@@ -26,6 +28,7 @@ vi.mock("@/modules/family-collection/application/config", () => ({
   isFamilyAutomaticSepaCollectionFlagEnabled: () => env.sepa,
   resolveConnectEnvironment: () => env.environment,
   isProductionDatabase: () => env.production,
+  isFamilyCollectionEventsFlagEnabled: () => env.events,
 }));
 vi.mock("@/modules/family-collection/infrastructure/family-collection-store", () => ({
   createFamilyCollectionStore: vi.fn(() => {
@@ -42,8 +45,9 @@ vi.mock("@/modules/payments-connect/application/connect-onboarding-service", () 
 }));
 
 import { logger } from "@/lib/logger";
-import { runFamilyCollection } from "@/modules/family-collection/application/family-collection-service";
+import { createRunState, runFamilyCollection } from "@/modules/family-collection/application/family-collection-service";
 import { collectionDescription } from "@/modules/family-collection/application/family-collection-steps";
+import { RefundDoesNotFitError } from "@/modules/family-collection/domain/refund-split";
 import type {
   CollectionError,
   PaymentIntentSnapshot,
@@ -54,11 +58,16 @@ import type {
   AttemptStripeRefs,
   ClaimDecision,
   CollectionAttempt,
+  FamilyCollectionRefundStore,
   FamilyCollectionStore,
   InvoiceCollectionContext,
   LockedInvoiceSnapshot,
 } from "@/modules/family-collection/infrastructure/family-collection-store";
-import type { FamilyCollectionGateway } from "@/modules/family-collection/infrastructure/stripe-collection-gateway";
+import type {
+  ChargeRefundsSnapshot,
+  FamilyCollectionGateway,
+  FamilyCollectionRefundGateway,
+} from "@/modules/family-collection/infrastructure/stripe-collection-gateway";
 
 const organizationId = "20000000-0000-4000-8000-000000000001";
 const locationId = "20000000-0000-4000-8000-000000000002";
@@ -206,6 +215,8 @@ function baseRefs(): AttemptStripeRefs {
     // El intento 1 de la factura se reclama en la ejecución de `now`.
     firstAttemptClaimedAt: now,
     allocations: [{ chargeId, amountCents: 4500 }],
+    // Fecha de cobro de la cuota (vence el 16 en Madrid): ventana hasta el 19.
+    windowAnchorLocalDate: "2026-11-16",
   };
 }
 
@@ -244,6 +255,10 @@ function makeWorld() {
     resumable: [] as CollectionAttempt[],
     processing: [] as CollectionAttempt[],
     exhausted: [] as CollectionAttempt[],
+    /** Fase 4: cobros tardíos en espera (aviso late_success_pending). */
+    latePending: [] as CollectionAttempt[],
+    /** Tarea M: cobros con una devolución que no cabía (aviso refund_unallocated). */
+    unallocatedRefunds: [] as CollectionAttempt[],
     locked: undefined as Partial<LockedInvoiceSnapshot> | undefined,
     decisions: [] as ClaimDecision[],
     applied: [] as AttemptOutcome[],
@@ -252,6 +267,10 @@ function makeWorld() {
     /** Intentos que recuperaron su reanudación (releaseResume). */
     released: [] as string[],
     storage: true,
+    /** Fase 4: forma "phase4" del almacenamiento (apagada por defecto: comportamiento de la Fase 3). */
+    eventsStorage: false,
+    /** Fase 4: `action_deadline_at` de los intentos `requires_action`. */
+    actionDeadline: null as Date | null,
   };
 
   async function inTransaction<T>(name: string, work: () => T): Promise<T> {
@@ -266,6 +285,8 @@ function makeWorld() {
 
   const store: FamilyCollectionStore = {
     isStorageAvailable: vi.fn<FamilyCollectionStore["isStorageAvailable"]>(async () => world.storage),
+    isEventsStorageAvailable: vi.fn<FamilyCollectionStore["isEventsStorageAvailable"]>(async () => world.eventsStorage),
+    readActionDeadline: vi.fn<FamilyCollectionStore["readActionDeadline"]>(async () => world.actionDeadline),
     listDueInvoices: vi.fn<FamilyCollectionStore["listDueInvoices"]>(async (input) => (input.after === null ? world.due : [])),
     loadInvoiceContext: vi.fn<FamilyCollectionStore["loadInvoiceContext"]>(async () => {
       world.calls.push("load");
@@ -322,10 +343,11 @@ function makeWorld() {
       inTransaction(`apply:${input.outcome.kind}`, (): ApplyOutcomeResult => {
         world.applied.push(input.outcome);
         if (world.applyResult) return world.applyResult;
+        const collected = input.outcome.kind === "succeeded" || input.outcome.kind === "late_succeeded";
         return {
           applied: true,
-          status: input.outcome.kind,
-          allocationStatus: input.outcome.kind === "succeeded" ? "allocated" : null,
+          status: collected ? "succeeded" : (input.outcome.kind as Exclude<AttemptOutcome["kind"], "late_succeeded">),
+          allocationStatus: collected ? "allocated" : null,
           reviewReasons: [],
         };
       })
@@ -345,10 +367,26 @@ function makeWorld() {
       return true;
     }),
     listProcessing: vi.fn<FamilyCollectionStore["listProcessing"]>(async (input) => (input.after === null ? world.processing : [])),
+    listLateSuccessPending: vi.fn<FamilyCollectionStore["listLateSuccessPending"]>(async (input) =>
+      input.after === null ? world.latePending : []
+    ),
     listExhaustedWithoutNotice: vi.fn<FamilyCollectionStore["listExhaustedWithoutNotice"]>(async (input) =>
       input.after === null ? world.exhausted : []
     ),
+    listUnallocatedRefundAttempts: vi.fn<FamilyCollectionStore["listUnallocatedRefundAttempts"]>(async (input) =>
+      input.after === null ? world.unallocatedRefunds : []
+    ),
     loadAttemptRefs: vi.fn<FamilyCollectionStore["loadAttemptRefs"]>(async () => world.refs),
+    // Fase 4 (eventos de Stripe): el proceso diario nunca los usa.
+    findAttemptByPaymentIntent: vi.fn<FamilyCollectionStore["findAttemptByPaymentIntent"]>(async (input) =>
+      world.attempts.find((item) => item.paymentIntentId === input.paymentIntentId) ?? null
+    ),
+    findClaimedAttemptById: vi.fn<FamilyCollectionStore["findClaimedAttemptById"]>(async (input) =>
+      world.attempts.find((item) => item.id === input.attemptId && item.status === "claimed") ?? null
+    ),
+    listInvoiceSiblings: vi.fn<FamilyCollectionStore["listInvoiceSiblings"]>(async (input) =>
+      world.attempts.filter((item) => item.invoiceId === input.invoiceId && item.id !== input.excludeAttemptId)
+    ),
     recordNotice: vi.fn<FamilyCollectionStore["recordNotice"]>(async (input) => {
       world.calls.push(`notice:${input.reason}`);
       world.notices.push(input.reason);
@@ -415,6 +453,7 @@ beforeEach(() => {
   env.sepa = false;
   env.environment = "test";
   env.production = false;
+  env.events = true;
   vi.mocked(logger.error).mockClear();
 });
 
@@ -442,6 +481,62 @@ describe("cerrojos y bandera", () => {
     expect(store.claimResumable).not.toHaveBeenCalled();
     expect(store.listDueInvoices).not.toHaveBeenCalled();
     expect(gateway.retrievePayment).not.toHaveBeenCalled();
+  });
+
+  describe("createRunState (Fase 4: lo comparten la pasada diaria y los eventos)", () => {
+    it("cerrojos cerrados o sin tablas → null sin tocar Stripe; en modo event, también con la bandera de eventos apagada", async () => {
+      for (const mode of ["daily", "event"] as const) {
+        for (const [environment, production] of [
+          ["live", false],
+          [null, false],
+          ["test", true],
+        ] as const) {
+          env.environment = environment;
+          env.production = production;
+          const { store, gateway } = setup();
+          expect(await createRunState({ now }, { store, gateway }, mode), `${mode} ${environment} ${production}`).toBeNull();
+          expect(store.isStorageAvailable).not.toHaveBeenCalled();
+        }
+        env.environment = "test";
+        env.production = false;
+        const { world, store, gateway } = setup();
+        world.storage = false;
+        expect(await createRunState({ now }, { store, gateway }, mode), mode).toBeNull();
+      }
+
+      env.events = false;
+      const off = setup();
+      expect(await createRunState({ now }, { store: off.store, gateway: off.gateway }, "event")).toBeNull();
+      expect(off.store.isStorageAvailable).not.toHaveBeenCalled();
+      // La bandera de eventos no cuenta para la pasada diaria.
+      expect(await createRunState({ now }, { store: off.store, gateway: off.gateway }, "daily")).not.toBeNull();
+    });
+
+    it("con todo abierto: el estado lleva el almacén, la pasarela, la hora y las banderas, sin escribir nada", async () => {
+      env.flag = false;
+      env.sepa = true;
+      const { world, store, gateway } = setup();
+      const state = await createRunState({ now, organizationIds: [organizationId] }, { store, gateway }, "event");
+
+      expect(state).toMatchObject({
+        now,
+        environment: "test",
+        productionDatabase: false,
+        flagEnabled: false,
+        sepaEnabled: true,
+        scope: [organizationId],
+        result: { enabled: false, complete: true, collected: 0, skipped: {} },
+      });
+      expect(state?.store).toBe(store);
+      expect(state?.gateway).toBe(gateway);
+      expect(world.calls).toEqual([]);
+      expect(gateway.retrievePayment).not.toHaveBeenCalled();
+    });
+
+    it("tamaño de página no válido → RangeError", async () => {
+      const { store, gateway } = setup();
+      await expect(createRunState({ now, batchSize: 0 }, { store, gateway }, "daily")).rejects.toThrow(RangeError);
+    });
   });
 
   it("con la bandera apagada solo pone al día lo que quedó a medias y nunca cobra nada nuevo", async () => {
@@ -511,6 +606,64 @@ describe("Fase B: cobrar lo que vence hoy", () => {
     ]);
     expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
     expect(result).toMatchObject({ enabled: true, complete: true, collected: 1, failed: 0, retried: 0, needsReview: 0 });
+  });
+
+  describe("M5: markCreated no guarda el pi_ porque otro camino ya lo hizo", () => {
+    it("un evento guardó el mismo pi_ a la vez → sigue y confirma ese cobro, sin aviso created_without_claim", async () => {
+      const { world, store, gateway, run } = setup();
+      vi.mocked(store.markCreated).mockImplementationOnce(async (input) => {
+        // El evento de Stripe del mismo cobro le guardó el pi_ un instante antes.
+        const found = world.attempts.find((item) => item.id === input.attemptId)!;
+        found.status = "created";
+        found.paymentIntentId = input.paymentIntentId;
+        return false;
+      });
+
+      const result = await run();
+
+      expect(world.notices).toEqual([]);
+      expect(gateway.confirmPayment).toHaveBeenCalledTimes(1);
+      expect(gateway.confirmPayment).toHaveBeenCalledWith(expect.objectContaining({ paymentIntentId: intentId }));
+      expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
+      expect(result).toMatchObject({ collected: 1, needsReview: 0 });
+      expect(vi.mocked(logger.error)).not.toHaveBeenCalled();
+    });
+
+    it("y si ese otro camino ya lo llevó más allá → no confirma, cuenta concurrent y sin aviso", async () => {
+      const { world, store, gateway, run } = setup();
+      vi.mocked(store.markCreated).mockImplementationOnce(async (input) => {
+        const found = world.attempts.find((item) => item.id === input.attemptId)!;
+        found.status = "canceled";
+        found.paymentIntentId = input.paymentIntentId;
+        return false;
+      });
+
+      const result = await run();
+
+      expect(gateway.confirmPayment).not.toHaveBeenCalled();
+      expect(world.notices).toEqual([]);
+      expect(world.applied).toEqual([]);
+      expect(result.skipped).toEqual({ concurrent: 1 });
+    });
+
+    it("el intento dejó de estar reclamado sin ese pi_ → aviso created_without_claim, como antes", async () => {
+      const { world, store, gateway, run } = setup();
+      vi.mocked(store.markCreated).mockImplementationOnce(async (input) => {
+        const found = world.attempts.find((item) => item.id === input.attemptId)!;
+        found.status = "canceled";
+        return false;
+      });
+
+      await run();
+
+      expect(gateway.confirmPayment).not.toHaveBeenCalled();
+      expect(world.notices).toEqual(["created_without_claim"]);
+      expect(vi.mocked(logger.error)).toHaveBeenCalledWith(
+        "Cobro automático: cobro creado para un intento que ya no estaba reclamado",
+        undefined,
+        expect.objectContaining({ attemptId })
+      );
+    });
   });
 
   it("domiciliación (con la bandera de la domiciliación encendida): confirma con la orden SEPA y queda en curso", async () => {
@@ -934,24 +1087,37 @@ describe("Fase B: cobrar lo que vence hoy", () => {
         }),
       "invalid_request",
     ],
-  ])("C4: cualquier otra petición rechazada al crear (400, %s): canceled, sin confirmar ni reintento", async (_label, makeError, code) => {
-    vi.mocked(logger.warn).mockClear();
-    const { world, gateway, run } = setup({
-      createPayment: async () => {
-        throw makeError();
-      },
-    });
-    const result = await run();
-    expect(world.applied).toEqual([{ kind: "canceled", paymentIntentId: null, reason: code }]);
-    expect(gateway.confirmPayment).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ canceled: 1, failed: 0, retried: 0 });
-    expect(result.skipped).toEqual({});
-    expect(logger.warn).toHaveBeenCalledWith(
-      "Cobro automático: Stripe rechazó crear el cobro; la cuota pasa a cobro manual",
-      { organizationId, invoiceId, attemptId, errorName: "StripeInvalidRequestError", errorCode: code }
-    );
-    expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain("Mensaje sintético");
-  });
+  ])(
+    "revisión del coordinador (punto 1): un 400 de toda la plataforma al crear (%s) no cierra el intento: sigue claimed, sin pi_ ni cuota a manual",
+    async (_label, makeError, code) => {
+      vi.mocked(logger.warn).mockClear();
+      const { world, store, gateway, run } = setup({
+        createPayment: async () => {
+          throw makeError();
+        },
+      });
+      const result = await run();
+      // Ningún cierre (ni canceled ni failed), ningún pi_ guardado ni aviso:
+      // Stripe no creó nada y la Fase A lo reanuda otro día.
+      expect(world.applied).toEqual([]);
+      expect(store.markCreated).not.toHaveBeenCalled();
+      expect(store.recordNotice).not.toHaveBeenCalled();
+      expect(gateway.confirmPayment).not.toHaveBeenCalled();
+      expect(world.attempts).toHaveLength(1);
+      expect(world.attempts[0]).toMatchObject({ status: "claimed", paymentIntentId: null });
+      expect(result).toMatchObject({ canceled: 0, failed: 0, retried: 0, circuitOpen: false });
+      expect(result.skipped).toEqual({ platform_invalid_request: 1 });
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Cobro automático: Stripe rechazó la petición de crear el cobro; el intento se reanudará otro día",
+        { organizationId, invoiceId, attemptId, errorName: "StripeInvalidRequestError", errorCode: code }
+      );
+      expect(logger.warn).not.toHaveBeenCalledWith(
+        "Cobro automático: Stripe rechazó crear el cobro; la cuota pasa a cobro manual",
+        expect.anything()
+      );
+      expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain("Mensaje sintético");
+    }
+  );
 
   it.each([
     ["clave de idempotencia en uso", "idempotency_key_in_use", 409],
@@ -2043,6 +2209,80 @@ describe("Fase A: releer lo que está en curso", () => {
   });
 });
 
+describe("Fase A: cobros tardíos en espera (Fase 4, aviso late_success_pending)", () => {
+  const lateId = "20000000-0000-4000-8000-000000000031";
+  const siblingId = "20000000-0000-4000-8000-000000000032";
+  const siblingIntent = "pi_SyntheticSepaSibling";
+
+  function lateWorld(siblingStatus: CollectionAttempt["status"], behaviour: Partial<FamilyCollectionGateway> = {}) {
+    env.flag = false;
+    const context = setup(behaviour);
+    const late = attempt({ id: lateId, status: "failed", paymentIntentId: intentId });
+    const sibling = attempt({
+      id: siblingId,
+      attemptNumber: 2,
+      status: siblingStatus,
+      paymentMethodKind: "sepa_debit",
+      paymentIntentId: siblingStatus === "claimed" ? null : siblingIntent,
+    });
+    context.world.attempts.push(late, sibling);
+    context.world.latePending = [late];
+    return context;
+  }
+
+  it("el otro cobro ya se cerró → la pasada diaria registra el tardío", async () => {
+    const { world, gateway, run } = lateWorld("failed");
+
+    const result = await run();
+
+    expect(world.applied).toEqual([{ kind: "late_succeeded", paymentIntentId: intentId, received }]);
+    expect(result).toMatchObject({ collected: 1, reconciled: 1 });
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(gateway.retrievePayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: intentId });
+  });
+
+  it("el otro cobro sigue en el banco → sigue en espera: nada registrado y sin contarlo como puesto al día", async () => {
+    const { world, gateway, run } = lateWorld("processing", {
+      retrievePayment: async (input) =>
+        snapshot(input.paymentIntentId, input.paymentIntentId === siblingIntent ? "processing" : "succeeded"),
+      cancelPayment: async () => "not_cancelable",
+    });
+
+    const result = await run();
+
+    expect(gateway.cancelPayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: siblingIntent });
+    expect(world.applied).toEqual([]);
+    expect(world.notices).toEqual(["late_success_pending"]);
+    expect(result).toMatchObject({ collected: 0, reconciled: 0, skipped: { late_success_pending: 1 } });
+  });
+
+  it("un hermano claimed → se mira otro día, sin error ni aviso", async () => {
+    const { world, gateway, run } = lateWorld("claimed");
+
+    const result = await run();
+
+    expect(world.applied).toEqual([]);
+    expect(world.notices).toEqual([]);
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(result.skipped).toEqual({ late_success_sibling_in_flight: 1 });
+    expect(vi.mocked(logger.error)).not.toHaveBeenCalled();
+  });
+
+  it("Stripe no responde al releer el tardío → se mira otro día (pasajero), sin error", async () => {
+    const { world, run } = lateWorld("failed", {
+      retrievePayment: async () => {
+        throw Object.assign(new Error("connection reset"), { type: "StripeConnectionError" });
+      },
+    });
+
+    const result = await run();
+
+    expect(world.applied).toEqual([]);
+    expect(result.skipped).toEqual({ transient: 1 });
+    expect(vi.mocked(logger.error)).not.toHaveBeenCalled();
+  });
+});
+
 describe("descripción del cobro", () => {
   it("«Cuota {mes} {año}» en español, sin referencia interna", () => {
     expect(collectionDescription("2026-11-01")).toBe("Cuota noviembre 2026");
@@ -2201,5 +2441,677 @@ describe("domiciliación sin activar (D2, «Primero solo tarjeta»): nunca un co
         expect(result).toMatchObject({ reconciled: 1, collected: 1 });
       }
     );
+  });
+});
+
+describe("Fase 4: el banco pide que la familia confirme el pago (requires_action)", () => {
+  /** Fin del 19-11 en Madrid: fecha de cobro (16) + 3 días. */
+  const deadline = new Date("2026-11-19T22:59:59.999Z");
+  const authenticationError = (status = "requires_payment_method"): CollectionError => ({
+    type: "card_error",
+    code: "authentication_required",
+    declineCode: "authentication_required",
+    paymentIntent: snapshot(intentId, status, "authentication_required", "authentication_required"),
+  });
+
+  it("authentication_required con recuperación → requires_action, plazo guardado y sin cancelPayment", async () => {
+    const { world, store, gateway, run } = setup({ confirmPayment: async () => authenticationError() });
+    world.eventsStorage = true;
+
+    const result = await run();
+
+    expect(store.isEventsStorageAvailable).toHaveBeenCalled();
+    expect(world.applied).toEqual([{ kind: "requires_action", paymentIntentId: intentId, actionDeadlineAt: deadline }]);
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+    expect(world.calls.slice(-2)).toEqual(["stripe:confirm", "apply:requires_action"]);
+    expect(result).toMatchObject({ collected: 0, failed: 0, skipped: { requires_action: 1 } });
+  });
+
+  it("también con Stripe en requires_action (sin código de error)", async () => {
+    const { world, gateway, run } = setup({
+      confirmPayment: async () => ({
+        type: "card_error",
+        code: null,
+        declineCode: null,
+        paymentIntent: snapshot(intentId, "requires_action"),
+      }),
+    });
+    world.eventsStorage = true;
+
+    await run();
+
+    expect(world.applied).toEqual([{ kind: "requires_action", paymentIntentId: intentId, actionDeadlineAt: deadline }]);
+    expect(gateway.cancelPayment).not.toHaveBeenCalled();
+  });
+
+  it("sin recuperación (bandera de eventos apagada) → cancelPayment y failed, como en la Fase 3", async () => {
+    env.events = false;
+    const { world, store, gateway, run } = setup({ confirmPayment: async () => authenticationError() });
+    world.eventsStorage = true;
+
+    await run();
+
+    expect(store.isEventsStorageAvailable).not.toHaveBeenCalled();
+    expect(gateway.cancelPayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: intentId });
+    expect(world.calls.slice(-2)).toEqual(["stripe:cancel", "apply:failed"]);
+    expect(world.applied).toEqual([
+      {
+        kind: "failed",
+        paymentIntentId: intentId,
+        code: "authentication_required",
+        declineCode: "authentication_required",
+        nextRetryAt: null,
+      },
+    ]);
+  });
+
+  it("sin la forma phase4, o con el plazo ya pasado, o con domiciliación → como en la Fase 3", async () => {
+    // Almacenamiento de la Fase 3.
+    const phase3 = setup({ confirmPayment: async () => authenticationError() });
+    await phase3.run();
+    expect(phase3.world.applied[0]).toMatchObject({ kind: "failed", code: "authentication_required" });
+    expect(phase3.gateway.cancelPayment).toHaveBeenCalled();
+
+    // La ventana de cobro de la cuota ya pasó (reclamada muy tarde): sin plazo que dar.
+    const late = setup({ confirmPayment: async () => authenticationError() });
+    late.world.eventsStorage = true;
+    late.world.refs = { ...baseRefs(), windowAnchorLocalDate: "2026-11-13" };
+    await late.run();
+    expect(late.world.applied[0]).toMatchObject({ kind: "failed", code: "authentication_required" });
+    expect(late.gateway.cancelPayment).toHaveBeenCalled();
+  });
+
+  describe("relectura diaria de un intento requires_action", () => {
+    function awaiting(behaviour: Partial<FamilyCollectionGateway>, actionDeadline: Date | null) {
+      const harness = setup(behaviour);
+      harness.world.due = [];
+      harness.world.actionDeadline = actionDeadline;
+      harness.world.processing = [attempt({ status: "requires_action", paymentIntentId: intentId })];
+      return harness;
+    }
+
+    it("requires_action y Stripe sigue requires_payment_method antes del plazo → nada cambia", async () => {
+      const { store, gateway, run } = awaiting(
+        { retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_payment_method", "authentication_required") },
+        deadline
+      );
+
+      const result = await run({ now: new Date("2026-11-19T21:00:00.000Z") });
+
+      expect(store.applyOutcome).not.toHaveBeenCalled();
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ reconciled: 0, failed: 0, skipped: { awaiting_authentication: 1 } });
+    });
+
+    it("requires_action pasado el plazo → cancelado en Stripe y failed authentication_required", async () => {
+      const { world, gateway, run } = awaiting(
+        { retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_payment_method", "authentication_required") },
+        deadline
+      );
+
+      const result = await run({ now: new Date("2026-11-20T09:00:00.000Z") });
+
+      expect(gateway.cancelPayment).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: intentId });
+      expect(world.calls).toEqual(["stripe:retrieve", "stripe:cancel", "apply:failed"]);
+      // Sin reintento: la cuota vuelve a los recordatorios.
+      expect(world.applied).toEqual([
+        { kind: "failed", paymentIntentId: intentId, code: "authentication_required", declineCode: null, nextRetryAt: null },
+      ]);
+      expect(result).toMatchObject({ reconciled: 1, failed: 1 });
+    });
+
+    it("requires_action pasado el plazo pero Stripe ya cobró → succeeded y pago registrado", async () => {
+      const { world, gateway, run } = awaiting({}, deadline);
+
+      await run({ now: new Date("2026-11-20T09:00:00.000Z") });
+
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+      expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
+    });
+
+    it("la familia confirma justo al cerrar el plazo: Stripe ya no deja cancelar → se relee y se registra el cobro", async () => {
+      let reads = 0;
+      const { world, gateway, run } = awaiting(
+        {
+          retrievePayment: async (input) => {
+            reads += 1;
+            return reads === 1
+              ? snapshot(input.paymentIntentId, "requires_payment_method", "authentication_required")
+              : snapshot(input.paymentIntentId, "succeeded");
+          },
+          cancelPayment: async () => "not_cancelable",
+        },
+        deadline
+      );
+
+      await run({ now: new Date("2026-11-20T09:00:00.000Z") });
+
+      expect(gateway.cancelPayment).toHaveBeenCalledTimes(1);
+      expect(world.calls).toEqual(["stripe:retrieve", "stripe:cancel", "stripe:retrieve", "apply:succeeded"]);
+      expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
+    });
+
+    it("cancelado en Stripe sin error de pago → canceled_in_stripe; en curso → processing", async () => {
+      const canceled = awaiting({ retrievePayment: async (input) => snapshot(input.paymentIntentId, "canceled") }, deadline);
+      await canceled.run({ now: new Date("2026-11-18T09:00:00.000Z") });
+      expect(canceled.world.applied).toEqual([
+        { kind: "canceled", paymentIntentId: intentId, reason: "canceled_in_stripe" },
+      ]);
+
+      const processing = awaiting({ retrievePayment: async (input) => snapshot(input.paymentIntentId, "processing") }, deadline);
+      await processing.run({ now: new Date("2026-11-18T09:00:00.000Z") });
+      expect(processing.world.applied).toEqual([{ kind: "processing", paymentIntentId: intentId }]);
+    });
+
+    // Tarea M, puntos 4 y 5: error permanente de Stripe (la academia desconectó su cuenta).
+    const accountInvalid = () =>
+      Object.assign(new Error("mensaje de Stripe que nunca se registra"), {
+        type: "StripePermissionError",
+        rawType: "invalid_request_error",
+        code: "account_invalid",
+        statusCode: 403,
+      });
+
+    it("Stripe no deja leerlo (permanente) antes del plazo → sin aviso: la familia aún puede confirmar", async () => {
+      const { world, store, run } = awaiting(
+        {
+          retrievePayment: async () => {
+            throw accountInvalid();
+          },
+        },
+        deadline
+      );
+
+      const result = await run({ now: new Date("2026-11-19T21:00:00.000Z") });
+
+      expect(store.applyOutcome).not.toHaveBeenCalled();
+      expect(world.notices).toEqual([]);
+      expect(result.skipped).toEqual({ stripe_unreadable: 1 });
+    });
+
+    it("Stripe no deja leerlo pasado el plazo → aviso requires_action_unreadable y sigue abierto", async () => {
+      const { world, store, gateway, run } = awaiting(
+        {
+          retrievePayment: async () => {
+            throw accountInvalid();
+          },
+        },
+        deadline
+      );
+
+      const result = await run({ now: new Date("2026-11-20T09:00:00.000Z") });
+
+      expect(store.applyOutcome).not.toHaveBeenCalled();
+      expect(gateway.cancelPayment).not.toHaveBeenCalled();
+      expect(world.notices).toEqual(["requires_action_unreadable"]);
+      expect(result).toMatchObject({ needsReview: 1, reconciled: 0 });
+      expect(result.skipped).toEqual({ stripe_unreadable: 1 });
+      expect(JSON.stringify(vi.mocked(logger.error).mock.calls)).not.toContain("mensaje de Stripe");
+    });
+
+    it("pasado el plazo, Stripe no deja cancelarlo (permanente) → aviso requires_action_unreadable, nunca transient", async () => {
+      vi.mocked(logger.warn).mockClear();
+      const { world, store, run } = awaiting(
+        {
+          retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_payment_method", "authentication_required"),
+          cancelPayment: async () => {
+            throw accountInvalid();
+          },
+        },
+        deadline
+      );
+
+      const result = await run({ now: new Date("2026-11-20T09:00:00.000Z") });
+
+      // El intento sigue abierto (su dinero pudo moverse): ningún cierre.
+      expect(store.applyOutcome).not.toHaveBeenCalled();
+      expect(world.calls).toEqual(["stripe:retrieve", "stripe:cancel", "notice:requires_action_unreadable"]);
+      expect(result).toMatchObject({ needsReview: 1, reconciled: 0 });
+      expect(result.skipped).toEqual({ stripe_unreadable: 1 });
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Cobro automático: Stripe no deja cancelar o releer un cobro (error permanente); se avisa a la academia",
+        { organizationId, invoiceId, attemptId, errorName: "StripePermissionError", errorCode: "account_invalid" }
+      );
+      expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain("mensaje de Stripe");
+    });
+
+    it("pasado el plazo, un error pasajero al cancelar sigue siendo transient y sin aviso", async () => {
+      const { world, store, run } = awaiting(
+        {
+          retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_payment_method", "authentication_required"),
+          cancelPayment: async () => {
+            throw networkError();
+          },
+        },
+        deadline
+      );
+
+      const result = await run({ now: new Date("2026-11-20T09:00:00.000Z") });
+
+      expect(store.applyOutcome).not.toHaveBeenCalled();
+      expect(world.notices).toEqual([]);
+      expect(result.skipped).toEqual({ transient: 1 });
+    });
+
+    it("un intento que ya espera sigue hasta su plazo aunque se apague la recuperación (nunca sin cerrar)", async () => {
+      env.events = false;
+      const before = awaiting(
+        { retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_action") },
+        deadline
+      );
+      await before.run({ now: new Date("2026-11-19T09:00:00.000Z") });
+      expect(before.store.applyOutcome).not.toHaveBeenCalled();
+      expect(before.gateway.cancelPayment).not.toHaveBeenCalled();
+
+      const after = awaiting(
+        { retrievePayment: async (input) => snapshot(input.paymentIntentId, "requires_action") },
+        deadline
+      );
+      await after.run({ now: new Date("2026-11-20T09:00:00.000Z") });
+      expect(after.world.applied).toEqual([
+        { kind: "failed", paymentIntentId: intentId, code: "authentication_required", declineCode: null, nextRetryAt: null },
+      ]);
+    });
+  });
+});
+
+describe("Fase 4: cortacircuitos del proceso diario (D9)", () => {
+  const BREAKER_MESSAGE = "Cobro automático: parado por errores de Stripe al crear cobros";
+  const dueInvoices = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      invoiceId: `30000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+      organizationId,
+    }));
+  const breakerLogs = () => vi.mocked(logger.error).mock.calls.filter(([message]) => message === BREAKER_MESSAGE);
+  /** Stripe rechaza crear cualquier cobro con un 400 genérico (despliegue roto). */
+  const brokenDeploy = { createPayment: async () => Promise.reject(requestError("parameter_missing")) };
+
+  it("cada pasada empieza con el cortacircuitos cerrado y circuitOpen: false", async () => {
+    const { store, gateway, refreshAccount } = setup();
+    const state = await createRunState({ now }, { store, gateway, refreshAccount }, "daily");
+    expect(state?.breaker).toEqual({ consecutive: 0, created: 0, invalid: 0, open: false });
+    expect(state?.result.circuitOpen).toBe(false);
+  });
+
+  it("un día normal: circuitOpen: false", async () => {
+    const { world, store, run } = setup();
+    world.due = dueInvoices(4);
+    // El almacén simulado da a todos los intentos el mismo id: cada uno se guarda como creado.
+    vi.mocked(store.markCreated).mockResolvedValue(true);
+    const result = await run();
+    expect(result).toMatchObject({ collected: 4, circuitOpen: false });
+    expect(breakerLogs()).toHaveLength(0);
+  });
+
+  it("abierto → no se reclama ninguna factura más y circuitOpen: true", async () => {
+    const { world, store, gateway, run } = setup(brokenDeploy);
+    world.due = dueInvoices(5);
+    const result = await run();
+    // Revisión del coordinador (punto 1): los dos primeros rechazos ya no se
+    // cierran (antes C4 los cancelaba); el tercero abre el cortacircuitos.
+    expect(gateway.createPayment).toHaveBeenCalledTimes(3);
+    // Ni la cuarta ni la quinta factura se miran: ni se reclaman ni se cancelan.
+    expect(store.claimOrCancel).toHaveBeenCalledTimes(3);
+    expect(store.loadInvoiceContext).toHaveBeenCalledTimes(3);
+    // Los tres intentos se quedan como estaban: ningún cierre aplicado y
+    // ningún cobro guardado (Tarea M, punto 17: sin asserts de estado que no
+    // prueban nada).
+    expect(world.attempts).toHaveLength(3);
+    expect(world.applied).toEqual([]);
+    expect(store.markCreated).not.toHaveBeenCalled();
+    expect(gateway.confirmPayment).not.toHaveBeenCalled();
+    expect(store.recordNotice).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ circuitOpen: true, canceled: 0, failed: 0, complete: true });
+    expect(result.skipped).toEqual({ platform_invalid_request: 2, circuit_open: 1 });
+  });
+
+  it("resource_missing no cuenta: cada familia se cierra como siempre y el proceso sigue", async () => {
+    const { world, store, gateway, run } = setup({
+      createPayment: async () => Promise.reject(requestError("resource_missing")),
+    });
+    world.due = dueInvoices(5);
+    const result = await run();
+    expect(gateway.createPayment).toHaveBeenCalledTimes(5);
+    expect(store.claimOrCancel).toHaveBeenCalledTimes(5);
+    expect(world.applied).toHaveLength(5);
+    expect(result).toMatchObject({ circuitOpen: false, canceled: 5 });
+    expect(result.skipped).toEqual({});
+    expect(breakerLogs()).toHaveLength(0);
+  });
+
+  it("los errores pasajeros al crear no lo abren (el intento se queda reclamado, como siempre)", async () => {
+    const { world, gateway, run } = setup({ createPayment: async () => Promise.reject(networkError()) });
+    world.due = dueInvoices(4);
+    const result = await run();
+    expect(gateway.createPayment).toHaveBeenCalledTimes(4);
+    expect(result).toMatchObject({ circuitOpen: false });
+    expect(result.skipped).toEqual({ transient: 4 });
+  });
+
+  it("2 de 10 → abierto: el cobro que llega a la proporción sigue su paso; los siguientes no se reclaman", async () => {
+    let calls = 0;
+    const { world, store, gateway, run } = setup({
+      createPayment: async () => {
+        calls += 1;
+        // Rechazos de la plataforma en la 1.ª y la 5.ª: nunca dos seguidos.
+        if (calls === 1 || calls === 5) throw requestError("parameter_missing");
+        return snapshot(intentId, "requires_confirmation");
+      },
+    });
+    world.due = dueInvoices(12);
+    vi.mocked(store.markCreated).mockResolvedValue(true);
+    const result = await run();
+    expect(gateway.createPayment).toHaveBeenCalledTimes(10);
+    // El décimo (8.º creado) abre el cortacircuitos y aun así se confirma.
+    expect(gateway.confirmPayment).toHaveBeenCalledTimes(8);
+    expect(store.claimOrCancel).toHaveBeenCalledTimes(10);
+    // Punto 1: los dos rechazados se quedan reclamados (sin cerrar) para reanudarse otro día.
+    expect(world.applied.filter((outcome) => outcome.kind === "canceled")).toEqual([]);
+    expect(result).toMatchObject({ circuitOpen: true, collected: 8, canceled: 0 });
+    expect(result.skipped).toMatchObject({ platform_invalid_request: 2 });
+    expect(breakerLogs()).toEqual([[BREAKER_MESSAGE, undefined, { created: 8, invalid: 2 }]]);
+  });
+
+  it("Tarea M (punto 16): con el cortacircuitos abierto la Fase A no toma más reanudables y devuelve la reanudación de los tomados", async () => {
+    // Doce reanudables: la primera toma se lleva diez; el tercero abre el cortacircuitos.
+    const resumable = Array.from({ length: 12 }, (_, index) =>
+      attempt({ id: `20000000-0000-4000-8000-0000000001${String(index).padStart(2, "0")}`, resumeCount: 0 })
+    );
+    const { world, store, gateway, run } = setup(brokenDeploy);
+    world.attempts.push(...resumable);
+    world.resumable = [...resumable];
+    world.due = [];
+
+    const result = await run();
+
+    expect(gateway.createPayment).toHaveBeenCalledTimes(3);
+    // Una sola toma: con el circuito abierto no se toman los dos que quedan.
+    expect(store.claimResumable).toHaveBeenCalledTimes(1);
+    expect(world.resumable.map((item) => item.id)).toEqual([resumable[10].id, resumable[11].id]);
+    // Los siete tomados sin procesar recuperan su reanudación (no se agotan por un despliegue roto).
+    expect(world.released).toEqual(resumable.slice(3, 10).map((item) => item.id));
+    expect(result).toMatchObject({ circuitOpen: true, resumed: 3 });
+    expect(result.skipped).toMatchObject({ platform_invalid_request: 2, circuit_open: 1, resume_released: 7 });
+    // Punto 1: ninguno de los tres rechazados se cierra.
+    expect(world.applied).toEqual([]);
+    // Ninguno se cierra como transient_exhausted.
+    expect(world.applied.some((outcome) => "code" in outcome && outcome.code === "transient_exhausted")).toBe(false);
+  });
+
+  it("un logger.error por pasada", async () => {
+    const resumable = [11, 12, 13, 14].map((suffix) =>
+      attempt({ id: `20000000-0000-4000-8000-0000000000${suffix}`, resumeCount: 0 })
+    );
+    const { world, store, gateway, run } = setup(brokenDeploy);
+    world.attempts.push(...resumable);
+    world.resumable = [...resumable];
+    world.due = dueInvoices(4);
+
+    // 1.ª pasada: se abre en la Fase A con el tercer intento reanudado.
+    const first = await run();
+    expect(gateway.createPayment).toHaveBeenCalledTimes(3);
+    // Punto 1: los dos primeros rechazados, el que lo abrió y el siguiente se
+    // quedan como estaban (otro día se reanudan): ningún cierre y ningún cobro
+    // guardado (Tarea M, punto 17: sin asserts de estado que no prueban nada).
+    expect(world.applied).toEqual([]);
+    expect(store.markCreated).not.toHaveBeenCalled();
+    // Tarea M (punto 16): el siguiente ya no se procesa y recupera su reanudación.
+    expect(world.released).toEqual([resumable[3].id]);
+    // La Fase B no mira ninguna factura.
+    expect(store.listDueInvoices).not.toHaveBeenCalled();
+    expect(store.claimOrCancel).not.toHaveBeenCalled();
+    expect(first).toMatchObject({ circuitOpen: true, resumed: 3, canceled: 0 });
+    expect(first.skipped).toEqual({ platform_invalid_request: 2, circuit_open: 1, resume_released: 1 });
+    // Un solo error, con solo dos contadores (nunca ids, importes ni datos de familias).
+    expect(breakerLogs()).toEqual([[BREAKER_MESSAGE, undefined, { created: 0, invalid: 3 }]]);
+    expect(JSON.stringify(breakerLogs())).not.toMatch(/20000000-|30000000-|pi_|cus_|pm_|acct_/);
+
+    // 2.ª pasada (otro día): empieza cerrado; vuelve a abrirse en la Fase B y avisa otra vez, una sola.
+    const second = await run();
+    expect(second.circuitOpen).toBe(true);
+    expect(store.claimOrCancel).toHaveBeenCalledTimes(3);
+    expect(breakerLogs()).toHaveLength(2);
+  });
+
+  it("revisión del coordinador (punto 1): el intento que un 400 de la plataforma dejó claimed se reanuda otro día y se cobra una sola vez", async () => {
+    let creates = 0;
+    const { world, store, gateway, run } = setup({
+      createPayment: async () => {
+        creates += 1;
+        // El primer día el despliegue está roto; al día siguiente ya no.
+        if (creates === 1) throw requestError("parameter_missing");
+        return snapshot(intentId, "requires_confirmation");
+      },
+    });
+
+    // 1.ª pasada: un solo rechazo (no abre el cortacircuitos) y nada se cierra.
+    const first = await run();
+    expect(first).toMatchObject({ circuitOpen: false, canceled: 0, collected: 0 });
+    expect(first.skipped).toEqual({ platform_invalid_request: 1 });
+    expect(world.applied).toEqual([]);
+    expect(world.attempts).toHaveLength(1);
+    const left = world.attempts[0];
+    expect(left).toMatchObject({ id: attemptId, status: "claimed", paymentIntentId: null });
+
+    // 2.ª pasada: la Fase A lo toma (claimResumable suma la reanudación), lo
+    // busca en Stripe por su id (no hay cobro), repite la puerta y lo crea.
+    left.resumeCount = 1;
+    world.resumable = [left];
+    world.due = [];
+    world.calls.length = 0;
+    const second = await run();
+    expect(world.calls).toEqual([
+      "stripe:find",
+      "load",
+      "stripe:create",
+      "markCreated",
+      "stripe:confirm",
+      "apply:succeeded",
+    ]);
+    expect(gateway.findPaymentByAttempt).toHaveBeenCalledWith({ connectedAccount, attemptId });
+    // Dos peticiones de crear en total (una por día), ambas del mismo intento.
+    expect(gateway.createPayment).toHaveBeenCalledTimes(2);
+    expect(gateway.createPayment.mock.calls.map(([input]) => input.attempt.id)).toEqual([attemptId, attemptId]);
+    expect(store.claimOrCancel).toHaveBeenCalledTimes(1);
+    expect(world.applied).toEqual([{ kind: "succeeded", paymentIntentId: intentId, received }]);
+    expect(second).toMatchObject({ resumed: 1, collected: 1, circuitOpen: false });
+  });
+
+  it("revisión del coordinador (punto 1): si el 400 de la plataforma sigue, al agotar las reanudaciones se cierra transient_exhausted (nunca en el limbo)", async () => {
+    // Segunda reanudación: vuelve a rechazarse y se queda claimed.
+    const second = attempt({ resumeCount: 2 });
+    const harness = setup(brokenDeploy);
+    harness.world.due = [];
+    harness.world.attempts.push(second);
+    harness.world.resumable = [second];
+    const before = await harness.run();
+    expect(harness.gateway.createPayment).toHaveBeenCalledTimes(1);
+    expect(harness.world.applied).toEqual([]);
+    expect(before.skipped).toEqual({ platform_invalid_request: 1 });
+
+    // Tercera y última reanudación: sin cobro en Stripe se cierra sin volver a
+    // crear (la factura vuelve al cobro a mano y la academia lo ve en su panel).
+    second.resumeCount = 3;
+    harness.world.resumable = [second];
+    const last = await harness.run();
+    expect(harness.gateway.createPayment).toHaveBeenCalledTimes(1);
+    expect(harness.gateway.findPaymentByAttempt).toHaveBeenCalledTimes(2);
+    expect(harness.world.applied).toEqual([
+      { kind: "failed", paymentIntentId: null, code: "transient_exhausted", declineCode: null, nextRetryAt: null },
+    ]);
+    expect(last).toMatchObject({ resumed: 1, failed: 1 });
+  });
+
+  it("revisión del coordinador (punto 1): en la última reanudación, si el cierre no se escribe, la academia recibe el aviso resume_exhausted", async () => {
+    const item = attempt({ resumeCount: 3 });
+    const harness = setup(brokenDeploy);
+    harness.world.due = [];
+    harness.world.attempts.push(item);
+    harness.world.resumable = [item];
+    // Otro camino cerró el intento a la vez: applyOutcome no escribe.
+    harness.world.applyResult = { applied: false };
+    await harness.run();
+    expect(harness.gateway.createPayment).not.toHaveBeenCalled();
+    expect(harness.world.notices).toContain("resume_exhausted");
+  });
+});
+
+describe("Tarea M: devoluciones que no cabían en lo repartido (refund_unallocated) en la pasada diaria", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const refund = {
+    id: "re_SyntheticUnallocated1",
+    status: "succeeded",
+    amountCents: 2000,
+    currency: "EUR",
+    reasonCode: "requested_by_customer",
+    createdAt: new Date("2026-11-10T09:00:00.000Z"),
+  };
+  const collected = () => attempt({ status: "succeeded", paymentIntentId: intentId });
+
+  /** Proceso diario con devoluciones simuladas: `fits` dice si la devolución ya cabe en lo repartido. */
+  function withRefunds(options: { fits: boolean; readFails?: boolean; behaviour?: Partial<FamilyCollectionGateway> }) {
+    const harness = setup(options.behaviour);
+    harness.world.due = [];
+    harness.world.unallocatedRefunds = [collected()];
+    const recorded: string[] = [];
+    const refundGateway: FamilyCollectionRefundGateway = {
+      retrieveChargeRefunds: vi.fn<FamilyCollectionRefundGateway["retrieveChargeRefunds"]>(async () => {
+        throw new Error("No se usa");
+      }),
+      retrieveRefundCharge: vi.fn<FamilyCollectionRefundGateway["retrieveRefundCharge"]>(async () => null),
+      retrievePaymentIntentRefunds: vi.fn<FamilyCollectionRefundGateway["retrievePaymentIntentRefunds"]>(
+        async (request): Promise<ChargeRefundsSnapshot | null> => {
+          if (harness.world.inTransaction) throw new Error("Stripe dentro de una transacción");
+          if (options.readFails) throw networkError();
+          return { chargeId: "ch_SyntheticUnallocated", paymentIntentId: request.paymentIntentId, refunds: [refund] };
+        }
+      ),
+    };
+    const refundStore: FamilyCollectionRefundStore = {
+      isStorageAvailable: vi.fn<FamilyCollectionRefundStore["isStorageAvailable"]>(async () => true),
+      findAttemptByPaymentIntent: vi.fn<FamilyCollectionRefundStore["findAttemptByPaymentIntent"]>(async () => collected()),
+      findClaimedAttemptById: vi.fn<FamilyCollectionRefundStore["findClaimedAttemptById"]>(async () => null),
+      isRefundRecorded: vi.fn<FamilyCollectionRefundStore["isRefundRecorded"]>(async () => false),
+      recordAttemptRefunds: vi.fn<FamilyCollectionRefundStore["recordAttemptRefunds"]>(async (request) => {
+        if (!options.fits) throw new RefundDoesNotFitError();
+        recorded.push(`${request.attemptId}:${request.refund.id}`);
+        return { outcome: "recorded", refundIds: ["47000000-0000-4000-8000-000000000099"], paymentStatus: "partially_refunded" };
+      }),
+      recordRefundNotice: vi.fn<FamilyCollectionRefundStore["recordRefundNotice"]>(async () => false),
+    };
+    const runWithRefunds = () =>
+      runFamilyCollection(
+        { now },
+        {
+          store: harness.store,
+          gateway: harness.gateway,
+          refreshAccount: harness.refreshAccount,
+          refundStore,
+          refundGateway,
+        }
+      );
+    return { ...harness, refundGateway, refundStore, recorded, runWithRefunds };
+  }
+
+  it("la academia repartió el pago: se relee en Stripe y se anota por recordAttemptRefunds (sin evento propio)", async () => {
+    const { store, refundGateway, refundStore, recorded, runWithRefunds } = withRefunds({ fits: true });
+
+    await runWithRefunds();
+
+    expect(store.listUnallocatedRefundAttempts).toHaveBeenCalledWith({
+      after: null,
+      limit: 100,
+      scope: null,
+      since: new Date(now.getTime() - 30 * DAY),
+    });
+    expect(refundGateway.retrievePaymentIntentRefunds).toHaveBeenCalledWith({ connectedAccount, paymentIntentId: intentId });
+    expect(refundStore.recordAttemptRefunds).toHaveBeenCalledWith(
+      expect.objectContaining({ attemptId, paymentIntentId: intentId, providerEventId: null, environment: "test" })
+    );
+    expect(recorded).toEqual([`${attemptId}:${refund.id}`]);
+  });
+
+  it("sigue sin caber: ninguna fila y sin repetir el aviso (uno por re_)", async () => {
+    const { refundStore, recorded, runWithRefunds } = withRefunds({ fits: false });
+
+    const result = await runWithRefunds();
+
+    expect(recorded).toEqual([]);
+    expect(refundStore.recordRefundNotice).toHaveBeenCalledTimes(1);
+    expect(result.needsReview).toBe(0);
+  });
+
+  it("ya no queda ninguna sin anotar: el almacén no lo devuelve y no se lee Stripe", async () => {
+    const { world, refundGateway, runWithRefunds } = withRefunds({ fits: true });
+    world.unallocatedRefunds = [];
+
+    await runWithRefunds();
+
+    expect(refundGateway.retrievePaymentIntentRefunds).not.toHaveBeenCalled();
+  });
+
+  it("Stripe no deja leerlo: se registra solo con ids y se sigue (ninguna fila)", async () => {
+    vi.mocked(logger.warn).mockClear();
+    const { refundStore, runWithRefunds } = withRefunds({ fits: true, readFails: true });
+
+    const result = await runWithRefunds();
+
+    expect(refundStore.recordAttemptRefunds).not.toHaveBeenCalled();
+    expect(result.skipped).toMatchObject({ refund_unallocated_unread: 1 });
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Cobro automático: no se pudieron releer las devoluciones sin repartir de un cobro",
+      { organizationId, invoiceId, attemptId, errorName: "StripeConnectionError", errorCode: null }
+    );
+  });
+
+  it("ola final (M-M1): con el cortacircuitos abierto la relectura de devoluciones no lista nada ni llama a Stripe", async () => {
+    // Un despliegue roto: tres reanudables rechazados por Stripe abren el cortacircuitos en el paso 1.
+    const { world, store, refundGateway, refundStore, runWithRefunds } = withRefunds({
+      fits: true,
+      behaviour: { createPayment: async () => Promise.reject(requestError("parameter_missing")) },
+    });
+    const resumable = [21, 22, 23].map((suffix) =>
+      attempt({ id: `20000000-0000-4000-8000-0000000002${suffix}`, resumeCount: 0 })
+    );
+    world.attempts.push(...resumable);
+    world.resumable = [...resumable];
+
+    const result = await runWithRefunds();
+
+    expect(result.circuitOpen).toBe(true);
+    expect(store.listUnallocatedRefundAttempts).not.toHaveBeenCalled();
+    expect(refundGateway.retrievePaymentIntentRefunds).not.toHaveBeenCalled();
+    expect(refundStore.recordAttemptRefunds).not.toHaveBeenCalled();
+    // Sin contador nuevo: lo pendiente se relee otro día (el aviso ya existe).
+    expect(result.skipped).not.toHaveProperty("refund_unallocated_unread");
+  });
+
+  it("punto 9: con la bandera de eventos apagada no se releen devoluciones (ni las tardías ni estas)", async () => {
+    env.events = false;
+    const { store, refundGateway, runWithRefunds } = withRefunds({ fits: true });
+
+    await runWithRefunds();
+
+    expect(store.listUnallocatedRefundAttempts).not.toHaveBeenCalled();
+    expect(refundGateway.retrievePaymentIntentRefunds).not.toHaveBeenCalled();
+  });
+
+  it("punto 9: createRunState sin la bandera de eventos deja applyRecordedRefunds a null", async () => {
+    const { store, gateway, refreshAccount } = setup();
+    const refundDeps = withRefunds({ fits: true });
+    env.events = false;
+    const off = await createRunState(
+      { now },
+      { store, gateway, refreshAccount, refundStore: refundDeps.refundStore, refundGateway: refundDeps.refundGateway },
+      "daily"
+    );
+    expect(off?.applyRecordedRefunds).toBeNull();
+    env.events = true;
+    const on = await createRunState(
+      { now },
+      { store, gateway, refreshAccount, refundStore: refundDeps.refundStore, refundGateway: refundDeps.refundGateway },
+      "daily"
+    );
+    expect(typeof on?.applyRecordedRefunds).toBe("function");
   });
 });

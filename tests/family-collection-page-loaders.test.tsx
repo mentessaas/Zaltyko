@@ -203,6 +203,7 @@ const automaticView: OwnerAutomaticCollectionsView = {
     {
       invoiceId: INVOICE_ID,
       invoiceReference: "CUO-2026-11-001",
+      servicePeriodStart: null,
       payerName: "Lucía García",
       amountCents: 4500,
       currency: "EUR",
@@ -217,6 +218,7 @@ const automaticView: OwnerAutomaticCollectionsView = {
     {
       invoiceId: "93000000-0000-4000-8000-000000000402",
       invoiceReference: "CUO-2026-11-002",
+      servicePeriodStart: null,
       payerName: null,
       amountCents: 3000,
       currency: "EUR",

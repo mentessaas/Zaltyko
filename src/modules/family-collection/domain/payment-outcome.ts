@@ -38,6 +38,14 @@ export interface PaymentIntentSnapshot {
   amountReceivedCents: number | null;
   /** `currency` del cobro en mayúsculas (`EUR`); `null` si no vino. Obligatorio, como el importe. */
   currency: string | null;
+  /**
+   * Fase 4: id del intento de Zaltyko que lleva el cobro en su metadata
+   * (`zaltyko_collection_attempt_id`), solo si es un uuid; `null` si no lo
+   * lleva. Solo lo rellena la relectura de la pasarela (`retrievePayment`): lo
+   * usa el evento de un cobro cuyo `pi_…` todavía no está guardado en ningún
+   * intento. Opcional (no es un importe): sin él no se adopta ningún intento.
+   */
+  attemptIdFromMetadata?: string | null;
 }
 
 /** Lo que Stripe dice que se cobró de verdad: importe en céntimos y moneda. */
@@ -320,6 +328,9 @@ const FINAL_CREATE_CODES: ReadonlySet<string> = new Set([
  * Además, cualquier petición rechazada (HTTP 400, `invalid_request_error`) es
  * final al crear, salvo los conflictos de idempotencia y los bloqueos, que se
  * arreglan esperando. Sin código, se cierra con INVALID_CREATE_REQUEST_CODE.
+ * Revisión del coordinador (punto 1): el proceso diario ya no cierra los que
+ * no están en FINAL_CREATE_CODES (isPlatformInvalidRequest): los deja
+ * `claimed` y los reanuda otro día. Esta función solo los clasifica.
  */
 const INVALID_REQUEST_ERROR_TYPES: ReadonlySet<string> = new Set([
   "invalid_request_error",
@@ -368,6 +379,23 @@ export function finalCreateErrorCode(error: unknown): string | null {
   if (code !== null && FINAL_CREATE_CODES.has(code)) return code;
   if (isFinalInvalidRequest(error, code)) return code ?? INVALID_CREATE_REQUEST_CODE;
   return null;
+}
+
+/**
+ * Fase 4 (D9, cortacircuitos): ¿es un rechazo de la petición de toda la
+ * plataforma al CREAR el cobro? Es decir, `finalCreateErrorCode` lo da por
+ * final (HTTP 400, `invalid_request_error`, sin cobro dentro, no es de
+ * idempotencia, bloqueo ni límite de peticiones) y su código NO es de una
+ * familia o una academia (FINAL_CREATE_CODES: `resource_missing`,
+ * `amount_too_small`, `account_invalid`, `payment_method_unactivated`,
+ * `capability_not_active`). Lo que queda (`parameter_missing`,
+ * `parameter_invalid_integer`, sin código…) apunta a cómo Zaltyko pide el
+ * cobro y se repetiría con todas las cuotas. Nunca cuentan los rechazos del
+ * banco (`card_error`), los 5xx, la red ni nada con el cobro dentro.
+ */
+export function isPlatformInvalidRequest(error: unknown): boolean {
+  const code = finalCreateErrorCode(error);
+  return code !== null && !FINAL_CREATE_CODES.has(code);
 }
 
 /**

@@ -9,6 +9,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/db";
 import { runFamilyCollection } from "@/modules/family-collection/application/family-collection-service";
 import { deliverFamilyFailureNotices } from "@/modules/family-collection/application/family-failure-notice-delivery";
+import { deliverFamilyReceipts } from "@/modules/family-collection/application/family-receipt-delivery";
+import { getFamilyReceipt } from "@/modules/family-collection/application/family-receipt-reads";
 import { isFamilyCollectionStorageAvailable } from "@/modules/family-collection/application/storage";
 import { addLocalDays, localCalendarDate, startOfLocalDay } from "@/modules/family-collection/domain/collection-plan";
 import { retryDayLabel } from "@/modules/family-collection/domain/family-failure-notice";
@@ -17,6 +19,7 @@ import {
   createFamilyCollectionStore,
   type FamilyCollectionStore,
 } from "@/modules/family-collection/infrastructure/family-collection-store";
+import { createFamilyReceiptStore } from "@/modules/family-collection/infrastructure/family-receipt-store";
 import type { FamilyCollectionGateway } from "@/modules/family-collection/infrastructure/stripe-collection-gateway";
 import { isFamilyPaymentMethodsStorageAvailable } from "@/modules/family-payment-methods/application/storage";
 import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
@@ -1229,6 +1232,191 @@ describeDisposablePg("proceso diario del cobro automático en Postgres desechabl
        where organization_id = ${fixture.organizationId}::uuid and event_name = 'family_collection.needs_review'
     `);
     expect(notices.rows).toEqual([{ key: `family-collection:${attemptId}:needs_review:resume_exhausted` }]);
+  });
+
+  // -------------------------------------------------------------------------
+  // Fase 4, Tarea 9: justificante de pago (D6), detrás de su bandera
+  // -------------------------------------------------------------------------
+
+  const RECEIPTS_FLAG = "ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED";
+
+  /** Intento cobrado de la factura de la prueba (id y cobro de Stripe). */
+  async function collectedAttempt(fixture: Fixture): Promise<{ id: string; intent: string }> {
+    const result = await db.execute(sql`
+      select id::text as id, provider_payment_intent_reference as intent
+        from zaltyko.family_collection_attempts
+       where organization_id = ${fixture.organizationId}::uuid
+         and invoice_id = ${fixture.invoiceId}::uuid
+         and status = 'succeeded'
+    `);
+    expect(result.rows).toHaveLength(1);
+    return result.rows[0] as { id: string; intent: string };
+  }
+
+  /** La persona que paga entra en el portal con la cuenta `fixture.userId`. */
+  async function linkPayerAccount(fixture: Fixture): Promise<void> {
+    await db.execute(sql`
+      update zaltyko.guardians g
+         set auth_user_id = ${fixture.userId}::uuid
+        from zaltyko.family_payers fp
+       where fp.organization_id = ${fixture.organizationId}::uuid
+         and fp.id = ${fixture.payerId}::uuid
+         and g.organization_id = fp.organization_id
+         and g.id = fp.guardian_id
+    `);
+  }
+
+  it("Tarea 9: bandera de justificantes apagada → cobro registrado sin evento de justificante, ningún correo y página 404; encenderla después no crea el de ese cobro", async () => {
+    vi.stubEnv(RECEIPTS_FLAG, "false");
+    try {
+      const fixture = await createCollectableInvoice();
+      await linkPayerAccount(fixture);
+      await run(new Date(), fakeStripe().gateway);
+
+      const attempt = await collectedAttempt(fixture);
+      expect(await outboxCount(fixture, "family_collection.attempt_succeeded")).toBe(1);
+      expect(await outboxCount(fixture, "family_collection.receipt")).toBe(0);
+      const sendEmail = vi.fn(async () => true);
+      expect(await deliverFamilyReceipts({ organizationIds: [fixture.organizationId] }, { sendEmail })).toEqual({
+        sent: 0,
+        notSent: 0,
+        pending: 0,
+      });
+      expect(sendEmail).not.toHaveBeenCalled();
+      const request = { userId: fixture.userId, organizationId: fixture.organizationId, attemptId: attempt.id };
+      expect(await getFamilyReceipt(request)).toBeNull();
+
+      // Encenderla después no crea justificantes de cobros anteriores.
+      vi.stubEnv(RECEIPTS_FLAG, "true");
+      expect(await getFamilyReceipt(request)).toBeNull();
+      expect(await deliverFamilyReceipts({ organizationIds: [fixture.organizationId] }, { sendEmail })).toEqual({
+        sent: 0,
+        notSent: 0,
+        pending: 0,
+      });
+      expect(await outboxCount(fixture, "family_collection.receipt")).toBe(0);
+    } finally {
+      vi.stubEnv(RECEIPTS_FLAG, "false");
+    }
+  });
+
+  it("Tarea 9: bandera encendida: cobro registrado → un evento de justificante en el outbox; repetir applyOutcome no duplica", async () => {
+    vi.stubEnv(RECEIPTS_FLAG, "true");
+    try {
+      const fixture = await createCollectableInvoice({ amounts: [2500, 2000] });
+      await run(new Date(), fakeStripe().gateway);
+      const attempt = await collectedAttempt(fixture);
+      expect(await outboxCount(fixture, "family_collection.receipt")).toBe(1);
+
+      // Redelivery o reanudación: el intento ya no está abierto, nada nuevo.
+      const again = await createFamilyCollectionStore().applyOutcome({
+        organizationId: fixture.organizationId,
+        attemptId: attempt.id,
+        outcome: { kind: "succeeded", paymentIntentId: attempt.intent, received: { amountCents: 4500, currency: "EUR" } },
+        environment: "test",
+        now: new Date(),
+      });
+      expect(again).toEqual({ applied: false });
+      expect(await outboxCount(fixture, "family_collection.receipt")).toBe(1);
+
+      // Solo ids en el evento: nunca nombres, correos ni importes.
+      const event = await db.execute(sql`
+        select idempotency_key as "key", payload from zaltyko.outbox_events
+         where organization_id = ${fixture.organizationId}::uuid and event_name = 'family_collection.receipt'
+      `);
+      const row = event.rows[0] as { key: string; payload: Record<string, unknown> };
+      expect(row.key).toBe(`family-collection:${attempt.id}:receipt`);
+      expect(Object.keys(row.payload).sort()).toEqual(["attemptId", "invoiceId", "paymentId"]);
+    } finally {
+      vi.stubEnv(RECEIPTS_FLAG, "false");
+    }
+  });
+
+  it("Tarea 9: sin correo de la persona pagadora → notSent una sola vez y la página sigue disponible, solo para ella", async () => {
+    vi.stubEnv(RECEIPTS_FLAG, "true");
+    try {
+      const fixture = await createCollectableInvoice({ amounts: [2500, 2000] });
+      await linkPayerAccount(fixture);
+      await run(new Date(), fakeStripe().gateway);
+      const attempt = await collectedAttempt(fixture);
+
+      // La persona que paga de la prueba no tiene correo guardado.
+      const sendEmail = vi.fn(async () => true);
+      const scope = { organizationIds: [fixture.organizationId] };
+      expect(await deliverFamilyReceipts(scope, { sendEmail })).toEqual({ sent: 0, notSent: 1, pending: 0 });
+      expect(await deliverFamilyReceipts(scope, { sendEmail })).toEqual({ sent: 0, notSent: 0, pending: 0 });
+      expect(sendEmail).not.toHaveBeenCalled();
+      const results = await db.execute(sql`
+        select payload ->> 'outcome' as "outcome" from zaltyko.outbox_events
+         where organization_id = ${fixture.organizationId}::uuid and event_name = 'family_collection.receipt_result'
+      `);
+      expect(results.rows).toEqual([{ outcome: "no_email" }]);
+
+      const receipt = await getFamilyReceipt({
+        userId: fixture.userId,
+        organizationId: fixture.organizationId,
+        attemptId: attempt.id,
+      });
+      expect(receipt).toMatchObject({
+        payerName: "Tutor Cobro Diario",
+        totalCents: 4500,
+        currency: "EUR",
+        method: "card",
+      });
+      expect(receipt?.academyName).toMatch(/^CI Cobro diario /);
+      expect(receipt?.reference).toMatch(/^MENSUAL-CI-/);
+      expect(receipt?.collectedOnLocal).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect([...(receipt?.fees ?? [])].sort((a, b) => a.amountCents - b.amountCents)).toEqual([
+        { label: "Cuota de noviembre de 2026", athleteName: null, amountCents: 2000 },
+        { label: "Cuota de noviembre de 2026", athleteName: null, amountCents: 2500 },
+      ]);
+      expect(
+        await createFamilyReceiptStore().listReceiptLinks({
+          organizationId: fixture.organizationId,
+          familyIds: [fixture.familyId],
+          invoiceIds: [fixture.invoiceId],
+          viewerUserId: fixture.userId,
+          now: new Date(),
+        })
+      ).toEqual({ [fixture.invoiceId]: attempt.id });
+
+      // Otra cuenta (o la misma con el id de otra academia): no existe para ella.
+      const stranger = randomUUID();
+      expect(
+        await getFamilyReceipt({ userId: stranger, organizationId: fixture.organizationId, attemptId: attempt.id })
+      ).toBeNull();
+      expect(
+        await getFamilyReceipt({ userId: fixture.userId, organizationId: randomUUID(), attemptId: attempt.id })
+      ).toBeNull();
+      // Revisión del coordinador (punto 4): la persona pagadora de verdad de
+      // OTRA familia (de otra academia) tampoco lo ve, ni con el id de esta
+      // academia ni con el de la suya.
+      const otherFamily = await createCollectableInvoice();
+      await linkPayerAccount(otherFamily);
+      expect(
+        await getFamilyReceipt({ userId: otherFamily.userId, organizationId: fixture.organizationId, attemptId: attempt.id })
+      ).toBeNull();
+      expect(
+        await getFamilyReceipt({ userId: otherFamily.userId, organizationId: otherFamily.organizationId, attemptId: attempt.id })
+      ).toBeNull();
+      expect(
+        await createFamilyReceiptStore().listReceiptLinks({
+          organizationId: fixture.organizationId,
+          familyIds: [fixture.familyId],
+          invoiceIds: [fixture.invoiceId],
+          viewerUserId: stranger,
+          now: new Date(),
+        })
+      ).toEqual({});
+
+      // Con la bandera apagada, ni la persona que paga lo ve.
+      vi.stubEnv(RECEIPTS_FLAG, "false");
+      expect(
+        await getFamilyReceipt({ userId: fixture.userId, organizationId: fixture.organizationId, attemptId: attempt.id })
+      ).toBeNull();
+    } finally {
+      vi.stubEnv(RECEIPTS_FLAG, "false");
+    }
   });
 
   /** Intento escrito a mano (con su reparto) en un estado abierto válido para la candidata. */

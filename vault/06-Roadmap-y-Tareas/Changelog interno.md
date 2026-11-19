@@ -1,11 +1,31 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-11-17
+last_reviewed: 2026-11-18
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../docs/architecture/zaltyko-domain-model.md
 ---
+
+## 2026-11-18 — Cobro automático de cuotas, Fase 4: eventos de Stripe, confirmación con el banco, devoluciones, disputas y justificante (apagado)
+
+**Contexto.** Plan `docs/superpowers/plans/2026-11-18-cobro-automatico-fase4-eventos-stripe.md`; respuestas D1–D13 del 18-11-2026 (Elvis respondió D2, D3, D6 y D12; el resto, la sesión coordinadora). Rama `cobros/fase4-eventos-stripe`, sin push.
+
+**Cambio.**
+- Ruta nueva `/api/stripe/connect/payments-webhook` con bandera `ZALTYKO_FAMILY_COLLECTION_EVENTS_ENABLED` (apagada) y secreto propio `STRIPE_CONNECT_PAYMENTS_WEBHOOK_SECRET`; buzón idempotente por evento.
+- Cobros tardíos y domiciliación por evento; la familia confirma con su banco desde `/familia/cuotas` (D7); devoluciones (D1, D5) y disputas (D2–D4); cambios del método de pago; cortacircuitos del proceso diario (D9); panel con «Cuota de {mes}».
+- Justificante «no es factura» detrás de `ZALTYKO_FAMILY_COLLECTION_RECEIPTS_ENABLED` (apagada hasta L6, abogado/gestor).
+- El webhook antiguo guarda solo un resumen del evento (D8/D13).
+- Candidata `20261118120000_family_collection_events_candidate.sql` (`4655a786…`), no aplicada en ningún entorno. README de candidatas: la Fase 3 figura aplicada en staging el 17-11-2026 (según la sesión coordinadora); producción, no.
+- Docs: ADR-0028 («Fase 4: respuestas D1–D13…»), `docs/COBROS_Y_CUOTAS.md` («Eventos de Stripe, devoluciones, 3DS y justificante (Fase 4)»), `.env.example`.
+
+**Pendiente.** Deuda en el ADR y en COBROS: filas antiguas de `billing_events` con el evento entero (vaciarlas necesita a Elvis, D13); apagar o filtrar el destino antiguo antes del primer cobro real (D13); webhook de marketplace con eventos enteros y retirada de Standard v1 (PR de D8); datos de Stripe por confirmar en la Tarea 14 (staging, con autorización de Elvis).
+
+**Pruebas.** Ninguna en local; las valida la CI remota (`audit:env` y Unit Tests, más PostgreSQL desechable).
+
+Vault: actualizados este `Changelog interno.md` y `Decisiones.md`; no cambian `Pricing.md` ni `Mensajes aprobados.md`.
+
+**Tarea M (menores antes de la revisión final, mismo día).** Buzón con cercado por número de entrega; aviso `requires_action_unreadable` cuando, pasado el plazo de la familia, Stripe no deja leer ni cancelar el cobro; relectura diaria (30 días) de las devoluciones que no cabían; relecturas de devoluciones solo con la bandera de eventos; domiciliación devuelta y ganada recuerda anular la cuota nueva (nunca sola); revocaciones de la Fase 2 con la academia bloqueada primero; activación por aviso solo si la persona sigue siendo la pagadora; justificante con «se devolvió» / «en revisión con el banco» e impresión sin cabecera; cortacircuitos que devuelve las reanudaciones; nombres accesibles con la persona pagadora. README de candidatas: la Fase 2 figura aplicada en staging el 16-11-2026, no en producción. Detalle en ADR-0028 y `docs/COBROS_Y_CUOTAS.md`.
 
 ## 2026-11-17 — Auditoría de dependencias: excepción temporal para GHSA-fc5q-39xc-vjpf (`picomatch`)
 

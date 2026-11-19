@@ -13,6 +13,7 @@ import {
   CLASS_PLAN_TEMPLATE_BLOCK_FIELDS,
   INTERNAL_NON_CUSTOMER_TABLES,
   OPTIONAL_EXPORT_MODULE_GROUPS,
+  OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES,
   OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES,
   OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES,
   OPTIONAL_INCLUDED_EXPORT_MODULES,
@@ -62,6 +63,12 @@ const FAMILY_PAYMENT_METHODS = "docs/deployment/candidates/20261116180000_family
  * tres tablas forman un grupo opcional excluido (solo recuento), todo o nada.
  */
 const FAMILY_COLLECTION = "docs/deployment/candidates/20261117120000_family_collection_candidate.sql";
+/**
+ * Cobro automático, Fase 4 (sin aplicar). Añade action_deadline_at a los
+ * intentos (laterCandidateColumns de la Fase 3) y crea la tabla de disputas,
+ * un grupo opcional excluido propio (solo recuento).
+ */
+const FAMILY_COLLECTION_EVENTS = "docs/deployment/candidates/20261118120000_family_collection_events_candidate.sql";
 const COMPETITIVE_INTELLIGENCE =
   "docs/deployment/candidates/20261110180000_competitive_intelligence_candidate.sql";
 
@@ -303,6 +310,16 @@ describe("inventario de derechos de datos frente al SQL", () => {
         { columns: ["organization_id"], target: "zaltyko.organizations", action: "cascade" }
       );
     }
+    // Solo los intentos ganan columnas con la Fase 4: exactamente las que añade su alter table.
+    const added = [...clean(read(FAMILY_COLLECTION_EVENTS)).matchAll(
+      /alter\s+table\s+zaltyko\.([a-z_]+)\s+add\s+column\s+([a-z_]+)/g
+    )].map((match) => `${match[1]}.${match[2]}`);
+    expect(added).toEqual(["family_collection_attempts.action_deadline_at"]);
+    const declared = OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES.flatMap((table) => {
+      const later: readonly string[] = "laterCandidateColumns" in table ? table.laterCandidateColumns : [];
+      return later.map((column) => `${table.table}.${column}`);
+    });
+    expect(declared).toEqual(added);
     // Un solo grupo, revisado igual en el plan de disposición.
     expect(OPTIONAL_EXPORT_MODULE_GROUPS).toContain(OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES);
     const index = OPTIONAL_EXPORT_MODULE_GROUPS.indexOf(OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES);
@@ -314,6 +331,34 @@ describe("inventario de derechos de datos frente al SQL", () => {
       expect(OPTIONAL_INCLUDED_EXPORT_TABLES.some((included) => included.name === table), table).toBe(false);
       expect(ACTIVATED_MODULES_ERASURE_POLICY.some((entry) => entry.table === table), table).toBe(false);
     }
+  });
+
+  it("derechos de datos: family_collection_disputes en el grupo opcional, solo recuento", () => {
+    const candidate = parseCreateTables(FAMILY_COLLECTION_EVENTS, "zaltyko");
+    expect([...candidate.keys()]).toEqual(["family_collection_disputes"]);
+    expect(OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES.map((table) => table.table)).toEqual(["family_collection_disputes"]);
+    for (const table of OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES) {
+      expect([...table.columns].sort(), table.table).toEqual([...candidate.get(table.table)!.columns].sort());
+      expect(table.category, table.table).toBe("payment_provider_attempts");
+      // La academia arrastra sus filas; el recuento usa organization_id.
+      expect(candidate.get(table.table)!.foreignKeys, table.table).toContainEqual(
+        { columns: ["organization_id"], target: "zaltyko.organizations", action: "cascade" }
+      );
+      // Borrar un evento solo quita el enlace (set null de su columna).
+      expect(candidate.get(table.table)!.foreignKeys, table.table).toContainEqual(
+        { columns: ["organization_id", "last_provider_event_id"], target: "zaltyko.payment_provider_events", action: "set_null" }
+      );
+    }
+    // Grupo propio, no dentro del de la Fase 3: una base con solo la Fase 3 no queda «a medias».
+    expect(OPTIONAL_EXPORT_MODULE_GROUPS).toContain(OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES);
+    expect(OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES.map((table): string => table.table)).not.toContain("family_collection_disputes");
+    const index = OPTIONAL_EXPORT_MODULE_GROUPS.indexOf(OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES);
+    expect(REVIEWED_DISPOSITION_OPTIONAL_GROUPS[index]).toEqual([
+      { table: "family_collection_disputes", category: "payment_provider_attempts", scoped: true },
+    ]);
+    // No es una función activada: no se exporta con valores ni entra en la supresión.
+    expect(OPTIONAL_INCLUDED_EXPORT_TABLES.some((included) => included.name === "family_collection_disputes")).toBe(false);
+    expect(ACTIVATED_MODULES_ERASURE_POLICY.some((entry) => entry.table === "family_collection_disputes")).toBe(false);
   });
 
   it("revisa en el plan de disposición los mismos módulos activados que exporta", () => {

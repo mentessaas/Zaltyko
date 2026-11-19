@@ -182,7 +182,14 @@ async function verifyCatalog(tx: TransactionClient) {
     return present;
   });
   for (const table of optionalModules) {
-    if (!exactSetMatches(actualColumns.get(table.table) ?? [], table.columns)) throw failClosed();
+    const observed = actualColumns.get(table.table) ?? [];
+    // Con las columnas de su candidata, o con ellas más todas las que añade
+    // una candidata posterior (laterCandidateColumns); nunca con una parte.
+    const matches =
+      exactSetMatches(observed, table.columns) ||
+      (table.laterCandidateColumns !== undefined &&
+        exactSetMatches(observed, [...table.columns, ...table.laterCandidateColumns]));
+    if (!matches) throw failClosed();
   }
   // Activated academy modules: all of a module's tables or none. A partial
   // module or an unclassified column fails closed before any tenant read.

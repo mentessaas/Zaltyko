@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -38,19 +40,25 @@ vi.mock("@/modules/family-collection/application/config", () => ({
   isProductionDatabase: () => false,
 }));
 
+import { db } from "@/db";
 import {
   charges,
   invoiceLines,
   invoices,
   paymentAllocations,
+  paymentProviderEvents,
   payments,
+  refunds,
 } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
 import {
   allocateProviderCollectionPayment,
   findAutomaticCollectionInProgress,
   issueInvoiceInTransaction,
+  issueSystemManualInvoiceInTransaction,
+  processLocalSandboxProviderEvent,
   recordProviderCollectionPayment,
+  recordProviderRefund,
 } from "@/modules/billing/application/ledger-service";
 import { loadPlanChangeRevision } from "@/modules/billing/application/plan-state";
 import {
@@ -281,6 +289,90 @@ describe("issueInvoiceInTransaction y el modo de cobro", () => {
         monthlyInvoice: true,
       })
     ).rejects.toMatchObject({ code: "FAMILY_AUTOMATIC_COLLECTION_DISABLED", status: 409 });
+    expect(inserts).toEqual([]);
+  });
+});
+
+describe("issueSystemManualInvoiceInTransaction (Fase 4, Tarea 7: cuota nueva de una domiciliación devuelta)", () => {
+  const systemCommand = {
+    organizationId,
+    locationId,
+    familyId,
+    familyPayerId,
+    reference: "DEVUELTA-du_SyntheticReturn1",
+    currency: "EUR",
+    dueAt: "2026-12-06T10:00:00.000Z",
+    lines: [
+      {
+        lineType: "returned_fee",
+        quantity: 1,
+        unitAmountCents: 3500,
+        servicePeriodStart: "2026-11-01",
+        servicePeriodEnd: "2026-11-30",
+      },
+    ],
+    idempotencyKey: "family-collection-return:du_SyntheticReturn1",
+  };
+
+  it("sin persona: no mira el acceso de un miembro, siempre a mano y la auditoría con la marca del proceso", async () => {
+    mocks.flag.mockReturnValue(true);
+    const { tx, inserts, executed } = fakeTx({
+      insertReturning: (table, values) =>
+        table === invoices ? [{ id: invoiceId, ...values }] : [{ id: chargeId, ...values }],
+    });
+
+    const invoice = await issueSystemManualInvoiceInTransaction(tx, systemCommand);
+
+    expect(invoice.id).toBe(invoiceId);
+    expect(mocks.access).not.toHaveBeenCalled();
+    expect(mocks.lock).toHaveBeenCalledWith(tx, organizationId, systemCommand.idempotencyKey);
+    expect(inserts.find((entry) => entry.table === charges)?.values).toMatchObject({
+      collectionMode: "manual",
+      status: "due",
+      amountCents: 3500,
+      familyPayerId,
+    });
+    expect(inserts.find((entry) => entry.table === invoiceLines)?.values).toMatchObject({
+      lineType: "returned_fee",
+      athleteId: null,
+      locationId: null,
+    });
+    // Nunca mira la preferencia de cobro automático de la familia.
+    expect(executed.some((text) => text.includes("family_collection_preferences"))).toBe(false);
+    for (const [entry] of mocks.appendAudit.mock.calls.map((call) => call.slice(1))) {
+      expect(entry).toMatchObject({
+        actorUserId: null,
+        metadata: { actor_type: "system", job_key: FAMILY_COLLECTION_JOB_KEY },
+      });
+    }
+    expect(mocks.appendAudit).toHaveBeenCalledTimes(2);
+  });
+
+  it("repetida con la misma clave → devuelve la misma factura sin escribir nada", async () => {
+    const first = fakeTx({
+      insertReturning: (table, values) =>
+        table === invoices ? [{ id: invoiceId, ...values }] : [{ id: chargeId, ...values }],
+    });
+    await issueSystemManualInvoiceInTransaction(first.tx, systemCommand);
+    const issued = mocks.appendOutbox.mock.calls
+      .map((call) => call[1] as { eventName: string; payload: Record<string, unknown> })
+      .find((entry) => entry.eventName === "invoice.issued");
+    expect(issued?.payload).toMatchObject({ invoiceId, totalAmountCents: 3500 });
+    mocks.findEvent.mockImplementation(async (_tx: unknown, input: { eventName: string }) =>
+      input.eventName === "invoice.issued" ? { payload: issued?.payload } : null
+    );
+
+    const second = fakeTx({ rows: new Map([[invoices, [invoiceRow()]]]) });
+    const prior = await issueSystemManualInvoiceInTransaction(second.tx, systemCommand);
+
+    expect(prior.id).toBe(invoiceId);
+    expect(second.inserts).toEqual([]);
+    expect(mocks.access).not.toHaveBeenCalled();
+  });
+
+  it("valida las líneas igual que una factura de una persona", async () => {
+    const { tx, inserts } = fakeTx();
+    await expect(issueSystemManualInvoiceInTransaction(tx, { ...systemCommand, lines: [] })).rejects.toThrow();
     expect(inserts).toEqual([]);
   });
 });
@@ -682,5 +774,263 @@ describe("loadPlanChangeRevision (lectura del historial del plan)", () => {
   ])("si %s exige la revisión vigente", async (_label, row) => {
     const { tx } = executorWith([row]);
     await expect(loadPlanChangeRevision(tx, organizationId)).resolves.toBe(6);
+  });
+});
+
+describe("devoluciones en el libro (Fase 4, Tarea 6)", () => {
+  const allocationId = "10000000-0000-4000-8000-000000000030";
+  const providerEventRowId = "10000000-0000-4000-8000-000000000031";
+
+  /** Mismo orden de claves que el libro (stableJson) para la huella del evento simulado. */
+  function stableJson(value: unknown): string {
+    if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+    if (value && typeof value === "object") {
+      return `{${Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+        .join(",")}}`;
+    }
+    return JSON.stringify(value);
+  }
+
+  /**
+   * Libro simulado de un pago de 45 € repartido entero en una cuota:
+   * `refundedBefore` es lo ya devuelto de ese reparto; `priorRefund`, una
+   * fila que ya existe con la misma referencia.
+   */
+  function refundTx(options: { refundedBefore?: number; priorRefund?: Row; event?: Row } = {}) {
+    let refundedTotal = options.refundedBefore ?? 0;
+    return fakeTx({
+      rows: new Map<unknown, Row[]>([
+        [payments, [paymentRow()]],
+        [paymentAllocations, [{ id: allocationId, organizationId, paymentId, chargeId, amountCents: 4500, currency: "EUR" }]],
+        [refunds, options.priorRefund ? [options.priorRefund] : []],
+        [paymentProviderEvents, options.event ? [options.event] : []],
+      ]),
+      insertReturning: (table, values) => {
+        if (table === refunds) refundedTotal += Number(values.amountCents);
+        return [{ id: table === refunds ? "refund-1" : "inserted", ...values }];
+      },
+      execute: (text) => {
+        if (!text.includes("from zaltyko.refunds")) return [];
+        // Lo ya devuelto del reparto (antes de escribir) o del pago (después).
+        if (text.includes("payment_allocation_id =")) return [{ amount: options.refundedBefore ?? 0 }];
+        return [{ amount: refundedTotal }];
+      },
+    });
+  }
+
+  describe("processLocalSandboxProviderEvent refund.succeeded sigue igual", () => {
+    const providerEventId = "evt_local_refund_0001";
+    const commandKey = `provider:local:sandbox:${providerEventId}`;
+    const payload = {
+      type: "refund.succeeded" as const,
+      organizationId,
+      paymentId,
+      paymentAllocationId: allocationId,
+      amountCents: 4500,
+      currency: "EUR",
+      providerRefundId: "re_local_0001",
+      reasonCode: "requested_by_customer",
+      refundedAt: "2026-12-06T10:00:00.000Z",
+    };
+    const eventRow = {
+      id: providerEventRowId,
+      organizationId,
+      processor: "local",
+      environment: "sandbox",
+      providerEventId,
+      eventType: "refund.succeeded",
+      payloadSha256: createHash("sha256").update(stableJson(payload)).digest("hex"),
+      status: "received",
+    };
+    const command = {
+      processor: "local" as const,
+      environment: "sandbox" as const,
+      providerEventId,
+      signatureVerified: true as const,
+      payload,
+    };
+
+    function useTransaction(tx: TransactionClient) {
+      vi.mocked(db.transaction).mockImplementation(
+        (async (callback: (client: TransactionClient) => Promise<unknown>) => callback(tx)) as never
+      );
+    }
+
+    it("una fila con la clave del evento, el pago refunded y un solo outbox y auditoría con la clave del evento", async () => {
+      // Aunque exista otra fila con la misma referencia, el camino simulado
+      // no la reutiliza (como antes: la escribe y manda la base).
+      const harness = refundTx({
+        event: eventRow,
+        priorRefund: { id: "other", providerRefundId: "re_local_0001", organizationId, paymentId },
+      });
+      useTransaction(harness.tx);
+
+      await processLocalSandboxProviderEvent(command);
+
+      const refundInserts = harness.inserts.filter((entry) => entry.table === refunds);
+      expect(refundInserts).toHaveLength(1);
+      expect(refundInserts[0].onConflict).toBe(false);
+      expect(refundInserts[0].values).toEqual({
+        organizationId,
+        paymentId,
+        paymentAllocationId: allocationId,
+        status: "succeeded",
+        amountCents: 4500,
+        currency: "EUR",
+        processor: "local",
+        environment: "sandbox",
+        providerRefundId: "re_local_0001",
+        reasonCode: "requested_by_customer",
+        refundedAt: new Date("2026-12-06T10:00:00.000Z"),
+        providerEventId: providerEventRowId,
+        idempotencyKey: commandKey,
+      });
+      expect(harness.updates.find((entry) => entry.table === payments)?.values).toMatchObject({ status: "refunded" });
+      const eventUpdates = harness.updates.filter((entry) => entry.table === paymentProviderEvents);
+      expect(eventUpdates.map((entry) => entry.values.status)).toEqual(["processing", "processed"]);
+      expect(eventUpdates[eventUpdates.length - 1].values).toMatchObject({
+        status: "processed",
+        effectType: "refund",
+        effectId: "refund-1",
+      });
+      expect(mocks.appendOutbox).toHaveBeenCalledTimes(1);
+      expect(mocks.appendOutbox).toHaveBeenCalledWith(harness.tx, {
+        organizationId,
+        locationId,
+        eventName: "payment.refunded",
+        aggregateType: "refund",
+        aggregateId: "refund-1",
+        idempotencyKey: commandKey,
+        payload: {
+          refundId: "refund-1",
+          paymentId,
+          paymentAllocationId: allocationId,
+          amountCents: 4500,
+          currency: "EUR",
+        },
+      });
+      expect(mocks.appendAudit).toHaveBeenCalledTimes(1);
+      expect(mocks.appendAudit).toHaveBeenCalledWith(
+        harness.tx,
+        expect.objectContaining({ action: "payment.refunded", idempotencyKey: commandKey, targetId: "refund-1" })
+      );
+      // Orden de siempre: el pago bloqueado antes de mirar lo devuelto.
+      const lock = harness.executed.findIndex((text) => text.includes("from zaltyko.payments") && text.includes("for update"));
+      const sum = harness.executed.findIndex((text) => text.includes("payment_allocation_id ="));
+      expect(lock).toBeGreaterThanOrEqual(0);
+      expect(lock).toBeLessThan(sum);
+    });
+
+    it("si supera lo repartido sigue lanzando REFUND_EXCEEDS_ALLOCATION sin escribir la fila", async () => {
+      const harness = refundTx({ event: eventRow, refundedBefore: 1000 });
+      useTransaction(harness.tx);
+
+      await expect(processLocalSandboxProviderEvent(command)).rejects.toMatchObject({ code: "REFUND_EXCEEDS_ALLOCATION" });
+      expect(harness.inserts.filter((entry) => entry.table === refunds)).toEqual([]);
+      expect(mocks.appendOutbox).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("recordProviderRefund", () => {
+    const input = {
+      organizationId,
+      paymentId,
+      paymentAllocationId: allocationId,
+      amountCents: 1500,
+      currency: "EUR",
+      processor: "stripe",
+      environment: "sandbox" as const,
+      providerRefundId: `re_SyntheticRefund1:${allocationId}`,
+      reasonCode: "requested_by_academy",
+      refundedAt: new Date("2026-12-06T10:00:00.000Z"),
+      providerEventId: providerEventRowId,
+      idempotencyKey: `refund:re_SyntheticRefund1:${allocationId}`,
+    };
+
+    it("escribe la fila, deja el pago partially_refunded y su auditoría con la clave de la fila, sin outbox", async () => {
+      const harness = refundTx();
+
+      await expect(recordProviderRefund(harness.tx, input)).resolves.toEqual({
+        refundId: "refund-1",
+        created: true,
+        paymentStatus: "partially_refunded",
+      });
+      expect(harness.inserts.filter((entry) => entry.table === refunds).map((entry) => entry.values)).toEqual([
+        expect.objectContaining({
+          providerRefundId: input.providerRefundId,
+          idempotencyKey: input.idempotencyKey,
+          providerEventId: providerEventRowId,
+          processor: "stripe",
+          environment: "sandbox",
+          amountCents: 1500,
+        }),
+      ]);
+      expect(harness.updates.find((entry) => entry.table === payments)?.values).toMatchObject({
+        status: "partially_refunded",
+      });
+      // Nunca se toca el reparto ni la cuota.
+      expect(harness.updates.filter((entry) => entry.table !== payments)).toEqual([]);
+      expect(mocks.appendAudit).toHaveBeenCalledWith(
+        harness.tx,
+        expect.objectContaining({
+          action: "payment.refunded",
+          targetType: "refund",
+          targetId: "refund-1",
+          idempotencyKey: input.idempotencyKey,
+          actorUserId: null,
+        })
+      );
+      expect(mocks.appendOutbox).not.toHaveBeenCalled();
+    });
+
+    it("es idempotente por la referencia: la fila que ya existe se devuelve sin escribir", async () => {
+      const harness = refundTx({
+        refundedBefore: 1500,
+        priorRefund: {
+          id: "refund-prior",
+          organizationId,
+          paymentId,
+          paymentAllocationId: allocationId,
+          amountCents: 1500,
+          providerRefundId: input.providerRefundId,
+          idempotencyKey: input.idempotencyKey,
+        },
+      });
+
+      await expect(recordProviderRefund(harness.tx, input)).resolves.toEqual({
+        refundId: "refund-prior",
+        created: false,
+        paymentStatus: "partially_refunded",
+      });
+      expect(harness.inserts).toEqual([]);
+      expect(harness.updates).toEqual([]);
+      expect(mocks.appendAudit).not.toHaveBeenCalled();
+    });
+
+    it("la misma referencia con otros datos es un conflicto", async () => {
+      const harness = refundTx({
+        priorRefund: {
+          id: "refund-prior",
+          organizationId,
+          paymentId,
+          paymentAllocationId: allocationId,
+          amountCents: 900,
+          providerRefundId: input.providerRefundId,
+          idempotencyKey: input.idempotencyKey,
+        },
+      });
+      await expect(recordProviderRefund(harness.tx, input)).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
+      expect(harness.inserts).toEqual([]);
+    });
+
+    it("nunca supera lo que queda del reparto: siempre REFUND_EXCEEDS_ALLOCATION", async () => {
+      const harness = refundTx({ refundedBefore: 3500 });
+      await expect(recordProviderRefund(harness.tx, input)).rejects.toMatchObject({ code: "REFUND_EXCEEDS_ALLOCATION" });
+      expect(harness.inserts).toEqual([]);
+      expect(harness.updates).toEqual([]);
+      expect(mocks.appendAudit).not.toHaveBeenCalled();
+    });
   });
 });

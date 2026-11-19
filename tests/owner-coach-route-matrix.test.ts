@@ -668,6 +668,7 @@ const outsideOwnerSurface: Record<string, string> = {
   "POST family/notices/read/route.ts": "la familia marca como leídos sus propios avisos",
   "PUT family/notification-preferences/route.ts": "la familia elige sus correos de avisos",
   "POST family/payment-methods/route.ts": "la persona pagadora guarda o deja de usar su pago automático",
+  "POST family/automatic-payment/authentication/route.ts": "la persona pagadora confirma con su banco el cobro de su cuota",
 };
 
 /** Rutas que admiten al coach por diseño (P1 #8). */

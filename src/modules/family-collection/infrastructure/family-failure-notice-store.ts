@@ -19,6 +19,12 @@
  * fallidos recientes (índice `(status, updated_at)` de la candidata) y busca
  * cada aviso y su resultado por el único del outbox.
  *
+ * Fase 4: con `authentication` (forma "phase4" del almacenamiento) también
+ * salen los avisos de los intentos que pasaron por `requires_action` (el
+ * banco pidió que la familia confirmara el pago), de cualquier número de
+ * intento, con su plazo (`action_deadline_at`). Sin `authentication` la
+ * consulta nunca nombra esa columna (C2: la Fase 3 no la tiene).
+ *
  * Toca tablas de las candidatas de las Fases 1–3: usar solo después de
  * comprobar que existen. Nada de Stripe aquí.
  */
@@ -41,7 +47,8 @@ const ISO = `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'`;
  * - `not_delivered`: el envío no se aceptó (baja de correos, envío simulado…);
  * - `invoice_closed`: la cuota ya está pagada o anulada;
  * - `superseded`: el aviso ya no vale (un intento posterior ya cobró la
- *   cuota, o el intento ya no es un fallo del intento 1);
+ *   cuota, el intento ya no es un fallo del intento 1 o, en la Fase 4, el
+ *   intento ya no espera a la familia o su plazo pasó);
  * - `organization_inactive`: la academia está suspendida o cerrada (en
  *   prueba o activa sí se avisa: isOperatingOrganizationStatus).
  */
@@ -105,6 +112,18 @@ export interface PendingFamilyFailureNotice {
   reminderSent?: boolean;
   preferenceAutomatic?: boolean;
   hasActiveAuthorization?: boolean;
+  /**
+   * Fase 4: plazo para confirmar el pago con el banco (`action_deadline_at`)
+   * de un intento que pasó por `requires_action`. Sin indicar o null: no lo
+   * tiene o no se leyó (forma "phase3").
+   */
+  actionDeadlineAt?: Date | null;
+  /**
+   * Fase 4 (Tarea 5): plazo del último intento de la factura cuando espera a
+   * que la familia confirme el pago (`requires_action`). Solo se lee con la
+   * forma "phase4"; sin indicar, no se sabe y no se pide confirmar.
+   */
+  lastAttemptActionDeadlineAt?: Date | null;
 }
 
 export interface FamilyFailureNoticeStore {
@@ -119,6 +138,12 @@ export interface FamilyFailureNoticeStore {
      * y, a igual instante, por id del intento). `null` = desde el principio.
      */
     after?: { occurredAt: string; attemptId: string } | null;
+    /**
+     * Fase 4: el almacenamiento tiene la forma "phase4". Solo entonces se
+     * leen `action_deadline_at` y los avisos de los intentos que pasaron por
+     * `requires_action` (de cualquier número de intento).
+     */
+    authentication?: boolean;
   }): Promise<PendingFamilyFailureNotice[]>;
   /** Deja el resultado (una vez por intento). `false` si ya estaba. */
   recordResult(input: {
@@ -204,6 +229,21 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
             )`
           : sql`null::boolean`;
 
+      // Fase 4 (C2): action_deadline_at solo con la forma "phase4".
+      const authentication = input.authentication === true;
+      const deadlineColumn = authentication
+        ? sql`to_char(a.action_deadline_at at time zone 'UTC', ${sql.raw(ISO)})`
+        : sql`null::text`;
+      const attemptFilter = authentication
+        ? sql`((a.status in ('failed', 'canceled') and a.attempt_number = 1) or a.action_deadline_at is not null)`
+        : sql`a.status in ('failed', 'canceled') and a.attempt_number = 1`;
+      // Tarea 5: plazo del último intento de la factura (el reintento que
+      // espera a la familia), para el aviso del intento 1.
+      const latestDeadlineColumn = authentication
+        ? sql`to_char(latest.action_deadline_at at time zone 'UTC', ${sql.raw(ISO)})`
+        : sql`null::text`;
+      const latestDeadlineSelect = authentication ? sql`, x.action_deadline_at` : sql``;
+
       // Página siguiente: mismo orden que el de la consulta (instante del aviso, id del intento).
       const afterCondition = input.after
         ? sql`and (e.occurred_at, a.id) > (${input.after.occurredAt}::timestamptz, ${input.after.attemptId}::uuid)`
@@ -219,6 +259,7 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
                a.failure_code as "failureCode",
                a.decline_code as "declineCode",
                to_char(a.next_retry_at at time zone 'UTC', ${sql.raw(ISO)}) as "nextRetryAt",
+               ${deadlineColumn} as "actionDeadlineAt",
                (
                  select max(x.attempt_number)
                    from zaltyko.family_collection_attempts x
@@ -226,6 +267,7 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
                ) as "lastAttemptNumber",
                latest.status as "lastAttemptStatus",
                to_char(latest.next_retry_at at time zone 'UTC', ${sql.raw(ISO)}) as "lastAttemptNextRetryAt",
+               ${latestDeadlineColumn} as "lastAttemptActionDeadlineAt",
                to_char(e.occurred_at at time zone 'UTC', ${sql.raw(ISO)}) as "occurredAt",
                i.status::text as "invoiceStatus",
                o.status::text as "organizationStatus",
@@ -254,7 +296,7 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
           join zaltyko.organizations o on o.id = a.organization_id
           -- Último intento de la factura (el reintento, si ya se reclamó).
           left join lateral (
-            select x.status::text as status, x.next_retry_at
+            select x.status::text as status, x.next_retry_at${latestDeadlineSelect}
               from zaltyko.family_collection_attempts x
              where x.organization_id = a.organization_id and x.invoice_id = a.invoice_id
              order by x.attempt_number desc
@@ -282,9 +324,9 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
          -- Stripe) de los últimos días (índice family_collection_attempts_resume_idx
          -- (status, updated_at): el cierre deja updated_at en su instante; un
          -- cambio posterior solo lo acerca). Solo salen los que tienen aviso.
-         where a.status in ('failed', 'canceled')
+         -- Fase 4: también los que pasaron por requires_action (con plazo).
+         where ${attemptFilter}
            and a.updated_at >= ${input.since.toISOString()}::timestamptz
-           and a.attempt_number = 1
            and e.occurred_at >= ${input.since.toISOString()}::timestamptz
            and ${inScope(sql.raw("a.organization_id"), input.scope)}
            ${afterCondition}
@@ -326,6 +368,10 @@ export function createFamilyFailureNoticeStore(): FamilyFailureNoticeStore {
         ...(typeof row.preferenceAutomatic === "boolean" ? { preferenceAutomatic: row.preferenceAutomatic } : {}),
         ...(typeof row.hasActiveAuthorization === "boolean"
           ? { hasActiveAuthorization: row.hasActiveAuthorization }
+          : {}),
+        ...(textOrNull(row.actionDeadlineAt) ? { actionDeadlineAt: new Date(String(row.actionDeadlineAt)) } : {}),
+        ...(textOrNull(row.lastAttemptActionDeadlineAt)
+          ? { lastAttemptActionDeadlineAt: new Date(String(row.lastAttemptActionDeadlineAt)) }
           : {}),
       }));
     },

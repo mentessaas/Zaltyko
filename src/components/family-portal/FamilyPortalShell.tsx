@@ -34,7 +34,8 @@ export function FamilyPortalShell({
   const base = demo ? "/demo/familia" : "/familia";
   return (
     <div className="min-h-screen bg-z-canvas text-z-ink">
-      <header className="mat-field-deep border-b border-white/10 text-white">
+      {/* Al imprimir (justificante de pago), sin cabecera ni navegación. */}
+      <header className="mat-field-deep border-b border-white/10 text-white print:hidden">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 px-5 lg:px-10">
           <p className="flex min-h-14 items-center gap-2 py-2">
             <ZaltykoLockup markClassName="h-7 w-7" />

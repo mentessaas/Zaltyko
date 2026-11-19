@@ -14,6 +14,15 @@
  *   método en Stripe; si Stripe falla, la revocación se mantiene.
  * - En logs, auditoría, eventos y Stripe solo van ids y referencias opacas;
  *   nunca IP, agente de navegador, nombres ni datos del método.
+ *
+ * Fase 4 (Tarea 8): los avisos de Stripe sobre el método (desligado, orden de
+ * domiciliación inactiva, preparación terminada con el navegador cerrado)
+ * llegan por revokeAuthorizationFromProvider y
+ * completeFamilyPaymentSetupFromProvider. El aviso es solo un aviso: se relee
+ * en Stripe por id, en la cuenta conectada de esa academia, y solo se
+ * revoca si Stripe confirma que el método ya no sirve. Revocar nunca toca
+ * los intentos de cobro: uno en curso sigue su camino con lo que diga Stripe;
+ * el siguiente ya no sale porque la autorización deja de estar activa.
  */
 import { randomUUID } from "node:crypto";
 
@@ -42,17 +51,25 @@ import {
   type PaymentMethodKind,
 } from "@/modules/family-payment-methods/domain/consent";
 import { truncateClientIp, truncateUserAgent } from "@/modules/family-payment-methods/domain/evidence";
-import { verifyCompletedSetupIntent } from "@/modules/family-payment-methods/domain/setup-verification";
+import {
+  verifyCompletedSetupIntent,
+  type SetupIntentSnapshot,
+} from "@/modules/family-payment-methods/domain/setup-verification";
 import {
   findActiveAuthorization,
+  findActiveAuthorizationByMandate,
+  findActiveAuthorizationByPaymentMethod,
   findLatestCustomerReference,
+  findSetupAttemptByReference,
   findSetupAttemptForPayer,
   insertActiveAuthorization,
   insertSetupAttempt,
+  isCurrentFamilyPayer,
   listActiveAuthorizationsForOrganization,
   loadOrganizationName,
   lockActiveAuthorization,
   lockActiveAuthorizationById,
+  lockOrganizationForPaymentMethods,
   lockSetupAttempt,
   markSetupAttemptAbandoned,
   markSetupAttemptCompleted,
@@ -60,11 +77,14 @@ import {
   revokeAuthorization,
   type FamilyPayer,
   type StoredAuthorization,
+  type StoredSetupAttempt,
 } from "@/modules/family-payment-methods/infrastructure/family-payment-store";
 import {
   createStripeFamilyGateway,
   familyCustomerIdempotencyKey,
+  familyProviderReadFailureOf,
   type FamilyPaymentGateway,
+  type FamilyPaymentMethodReads,
 } from "@/modules/family-payment-methods/infrastructure/stripe-family-gateway";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { isConnectOnboardingStorageAvailable } from "@/modules/payments-connect/application/storage";
@@ -72,6 +92,7 @@ import {
   findConnectAccountForOrganization,
   type StoredConnectAccount,
 } from "@/modules/payments-connect/infrastructure/connect-account-store";
+import { FAMILY_COLLECTION_JOB_KEY } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import {
   isRetryableDbConflict,
@@ -106,6 +127,14 @@ export type FamilyPaymentMethodState =
 export interface FamilyPaymentMethodsDeps {
   gateway?: FamilyPaymentGateway;
 }
+
+/** Fase 4 (Tarea 8): relecturas del método y de la orden en Stripe. */
+export interface FamilyPaymentProviderReadDeps {
+  gateway?: FamilyPaymentMethodReads;
+}
+
+/** Por qué Stripe dejó sin efecto el método (Fase 4, Tarea 8). */
+export type ProviderRevocationReason = "detached_in_stripe" | "mandate_inactive";
 
 const AUDIT_TARGET_TYPE = "family_payment_authorization";
 const ATTEMPT_AGGREGATE_TYPE = "family_payment_setup_attempt";
@@ -149,6 +178,36 @@ const ownerInputSchema = z.object({
 const ownerRevokeInputSchema = ownerInputSchema.extend({
   authorizationId: z.guid(),
 });
+
+const PAYMENT_METHOD_REFERENCE = /^pm_[A-Za-z0-9]{1,250}$/;
+const MANDATE_REFERENCE = /^mandate_[A-Za-z0-9]{1,250}$/;
+
+/** Exactamente uno: el método (desligado) o la orden (inactiva), con su motivo. */
+const providerRevokeInputSchema = z.union([
+  z.object({
+    organizationId: z.guid(),
+    accountRowId: z.guid(),
+    paymentMethodId: z.string().regex(PAYMENT_METHOD_REFERENCE),
+    mandateId: z.undefined().optional(),
+    reason: z.literal("detached_in_stripe"),
+  }),
+  z.object({
+    organizationId: z.guid(),
+    accountRowId: z.guid(),
+    paymentMethodId: z.undefined().optional(),
+    mandateId: z.string().regex(MANDATE_REFERENCE),
+    reason: z.literal("mandate_inactive"),
+  }),
+]);
+
+const providerSetupInputSchema = z.object({
+  organizationId: z.guid(),
+  accountRowId: z.guid(),
+  setupIntentId: z.string().max(255).regex(/^seti_[A-Za-z0-9]+$/),
+});
+
+/** Marca de auditoría de lo que hace el sistema (como el proceso diario del cobro). */
+const SYSTEM_AUDIT_METADATA = { actor_type: "system", job_key: FAMILY_COLLECTION_JOB_KEY } as const;
 
 function gatewayFrom(deps: FamilyPaymentMethodsDeps | undefined): FamilyPaymentGateway {
   return deps?.gateway ?? createStripeFamilyGateway();
@@ -360,11 +419,22 @@ async function detachAfterRevocation(
   }
 }
 
+/**
+ * Quién hace el cambio: una persona (familia o academia) o el sistema (un
+ * aviso de Stripe, Fase 4). El sistema no tiene usuario: la auditoría lo
+ * marca con el trabajo del cobro automático.
+ */
+type ChangeActor = { actor: "family" | "owner"; actorUserId: string } | { actor: "system" };
+
+function actorUserIdOf(actor: ChangeActor): string | null {
+  return actor.actor === "system" ? null : actor.actorUserId;
+}
+
 /** Marca `revoked` una autorización ya bloqueada y deja auditoría y evento. */
 async function revokeLockedAuthorization(
   tx: TransactionClient,
   authorization: StoredAuthorization,
-  input: { actor: "family" | "owner"; actorUserId: string; reason: "requested" | "replaced"; now: Date }
+  input: ChangeActor & { reason: "requested" | "replaced" | ProviderRevocationReason; now: Date }
 ): Promise<void> {
   await revokeAuthorization(tx, {
     organizationId: authorization.organizationId,
@@ -384,14 +454,14 @@ async function revokeLockedAuthorization(
   await appendAuditEntry(tx, {
     organizationId: authorization.organizationId,
     locationId: null,
-    actorUserId: input.actorUserId,
+    actorUserId: actorUserIdOf(input),
     action: "family_payment_methods.authorization_revoked",
     targetType: AUDIT_TARGET_TYPE,
     targetId: authorization.id,
     idempotencyKey,
     before: { status: "active" },
     after: { status: "revoked" },
-    metadata: details,
+    metadata: input.actor === "system" ? { ...details, ...SYSTEM_AUDIT_METADATA } : details,
   });
   await appendOutboxEvent(tx, {
     organizationId: authorization.organizationId,
@@ -637,6 +707,141 @@ export async function startFamilyPaymentSetup(
   };
 }
 
+/** Resultado de activar un intento ya comprobado en Stripe. */
+type SetupActivation =
+  | { kind: "activated"; method: PaymentMethodKind; authorizationId: string }
+  /** Otra petición (o el aviso de Stripe) lo completó mientras se esperaba el cerrojo. */
+  | { kind: "already_completed"; method: PaymentMethodKind }
+  | { kind: "missing" }
+  /** El intento ya no está abierto (abandonado). */
+  | { kind: "not_open" }
+  /** El índice único de una sola activa por (cuenta, pagador) o un conflicto de la base. */
+  | { kind: "conflict" };
+
+/**
+ * La activación común (Fase 2 y Fase 4, decisión 12 del ADR): en una
+ * transacción corta bloquea la academia (primer cerrojo del orden único,
+ * como el cobro) y el intento, revoca la autorización activa
+ * anterior de esa persona pagadora en esa cuenta, inserta la nueva y marca el
+ * intento completado, con auditoría y evento. Después del commit desliga en
+ * Stripe el método anterior si era otro. Nunca llama a Stripe dentro de la
+ * transacción.
+ */
+async function activateVerifiedSetup(input: {
+  organizationId: string;
+  attemptId: string;
+  paymentMethodReference: string;
+  mandateReference: string | null;
+  actor: { actor: "family"; actorUserId: string } | { actor: "system" };
+  connectedAccount: string;
+  gateway: FamilyPaymentGateway;
+  now: Date;
+}): Promise<SetupActivation> {
+  const { organizationId, paymentMethodReference, mandateReference, actor, now } = input;
+  let result:
+    | { kind: "activated"; method: PaymentMethodKind; authorizationId: string; previous: StoredAuthorization | null }
+    | Exclude<SetupActivation, { kind: "activated" }>;
+  try {
+    result = await db.transaction(async (tx) => {
+      // Orden único: academia → intento de preparación → autorización.
+      if (!(await lockOrganizationForPaymentMethods(tx, organizationId))) return { kind: "missing" } as const;
+      const locked = await lockSetupAttempt(tx, { organizationId, attemptId: input.attemptId });
+      if (!locked) return { kind: "missing" } as const;
+      // Otra petición lo completó mientras se esperaba el cerrojo.
+      if (locked.status === "completed") return { kind: "already_completed", method: locked.paymentMethodKind } as const;
+      if (locked.status !== "open") return { kind: "not_open" } as const;
+
+      const previous = await lockActiveAuthorization(tx, {
+        organizationId,
+        accountRowId: locked.paymentProviderAccountId,
+        familyPayerId: locked.familyPayerId,
+      });
+      if (previous) {
+        await revokeLockedAuthorization(tx, previous, { ...actor, reason: "replaced", now });
+      }
+
+      const authorization = await insertActiveAuthorization(tx, {
+        organizationId,
+        familyId: locked.familyId,
+        familyPayerId: locked.familyPayerId,
+        accountRowId: locked.paymentProviderAccountId,
+        setupReference: locked.providerSetupReference,
+        paymentMethodReference,
+        mandateReference,
+        kind: locked.paymentMethodKind,
+        consentVersion: locked.consentVersion,
+        consentEvidenceReference: `family_payment_setup_attempts:${locked.id}`,
+        consentEvidenceSha256: locked.consentTextSha256,
+        consentedAt: locked.consentedAt,
+        consentedByGuardianId: locked.guardianId,
+        now,
+      });
+      await markSetupAttemptCompleted(tx, {
+        organizationId,
+        attemptId: locked.id,
+        authorizationId: authorization.id,
+        now,
+      });
+
+      const details = {
+        authorizationId: authorization.id,
+        attemptId: locked.id,
+        familyId: locked.familyId,
+        familyPayerId: locked.familyPayerId,
+        paymentProviderAccountId: locked.paymentProviderAccountId,
+        kind: locked.paymentMethodKind,
+        consentVersion: locked.consentVersion,
+        replacedAuthorizationId: previous?.id ?? null,
+        // Lo de la familia queda igual que en la Fase 2; el sistema se nombra.
+        ...(actor.actor === "system" ? { actor: "system" } : {}),
+      };
+      const idempotencyKey = `family-payment-methods:authorization-activated:${authorization.id}`;
+      await appendAuditEntry(tx, {
+        organizationId,
+        locationId: null,
+        actorUserId: actorUserIdOf(actor),
+        action: "family_payment_methods.authorization_activated",
+        targetType: AUDIT_TARGET_TYPE,
+        targetId: authorization.id,
+        idempotencyKey,
+        before: null,
+        after: { status: "active", kind: locked.paymentMethodKind },
+        metadata: actor.actor === "system" ? { ...details, ...SYSTEM_AUDIT_METADATA } : details,
+      });
+      await appendOutboxEvent(tx, {
+        organizationId,
+        locationId: null,
+        eventName: "family_payment_methods.authorization_activated",
+        aggregateType: AUDIT_TARGET_TYPE,
+        aggregateId: authorization.id,
+        idempotencyKey,
+        payload: details,
+        occurredAt: now,
+      });
+      return {
+        kind: "activated",
+        method: locked.paymentMethodKind,
+        authorizationId: authorization.id,
+        previous,
+      } as const;
+    });
+  } catch (error) {
+    // El índice único de una sola activa por (cuenta, pagador) es el último
+    // guarda: quien llama decide si otra petición ganó o se pide reintentar.
+    if (isUniqueViolation(error) || isRetryableDbConflict(error)) return { kind: "conflict" };
+    throw error;
+  }
+
+  if (result.kind !== "activated") return result;
+  if (result.previous && result.previous.paymentMethodReference !== paymentMethodReference) {
+    await detachAfterRevocation(input.gateway, {
+      connectedAccount: input.connectedAccount,
+      authorization: result.previous,
+    });
+  }
+  return { kind: "activated", method: result.method, authorizationId: result.authorizationId };
+}
+
 /**
  * Termina de guardar un método después del formulario de Stripe (o de la
  * vuelta del banco). Comprueba en Stripe la preparación guardada en el
@@ -672,17 +877,7 @@ export async function completeFamilyPaymentSetup(
     connectedAccount: account.providerAccountReference,
     setupIntentId: attempt.providerSetupReference,
   });
-  const verification =
-    snapshot.id === attempt.providerSetupReference
-      ? verifyCompletedSetupIntent(
-          {
-            attemptId: attempt.id,
-            customerReference: attempt.providerCustomerReference,
-            kind: attempt.paymentMethodKind,
-          },
-          snapshot
-        )
-      : ({ outcome: "mismatch" } as const);
+  const verification = verifySetupOfAttempt(attempt, snapshot);
 
   if (verification.outcome === "mismatch") throw notFoundError();
   if (verification.outcome === "pending") return { outcome: "pending" };
@@ -690,109 +885,315 @@ export async function completeFamilyPaymentSetup(
     await markSetupAttemptAbandoned(db, { organizationId, attemptId: attempt.id, now });
     throw setupFailedError();
   }
-  const { paymentMethodReference, mandateReference } = verification;
 
-  let result: { method: PaymentMethodKind; previous: StoredAuthorization | null };
-  try {
-    result = await db.transaction(async (tx) => {
-      const locked = await lockSetupAttempt(tx, { organizationId, attemptId: attempt.id });
-      if (!locked) throw notFoundError();
-      // Otra petición lo completó mientras se esperaba el cerrojo.
-      if (locked.status === "completed") return { method: locked.paymentMethodKind, previous: null };
-      if (locked.status !== "open") throw setupFailedError();
-
-      const previous = await lockActiveAuthorization(tx, {
-        organizationId,
-        accountRowId: locked.paymentProviderAccountId,
-        familyPayerId: locked.familyPayerId,
-      });
-      if (previous) {
-        await revokeLockedAuthorization(tx, previous, {
-          actor: "family",
-          actorUserId: parsed.userId,
-          reason: "replaced",
-          now,
-        });
-      }
-
-      const authorization = await insertActiveAuthorization(tx, {
-        organizationId,
-        familyId: locked.familyId,
-        familyPayerId: locked.familyPayerId,
-        accountRowId: locked.paymentProviderAccountId,
-        setupReference: locked.providerSetupReference,
-        paymentMethodReference,
-        mandateReference,
-        kind: locked.paymentMethodKind,
-        consentVersion: locked.consentVersion,
-        consentEvidenceReference: `family_payment_setup_attempts:${locked.id}`,
-        consentEvidenceSha256: locked.consentTextSha256,
-        consentedAt: locked.consentedAt,
-        consentedByGuardianId: locked.guardianId,
-        now,
-      });
-      await markSetupAttemptCompleted(tx, {
-        organizationId,
-        attemptId: locked.id,
-        authorizationId: authorization.id,
-        now,
-      });
-
-      const details = {
-        authorizationId: authorization.id,
-        attemptId: locked.id,
-        familyId: locked.familyId,
-        familyPayerId: locked.familyPayerId,
-        paymentProviderAccountId: locked.paymentProviderAccountId,
-        kind: locked.paymentMethodKind,
-        consentVersion: locked.consentVersion,
-        replacedAuthorizationId: previous?.id ?? null,
-      };
-      const idempotencyKey = `family-payment-methods:authorization-activated:${authorization.id}`;
-      await appendAuditEntry(tx, {
-        organizationId,
-        locationId: null,
-        actorUserId: parsed.userId,
-        action: "family_payment_methods.authorization_activated",
-        targetType: AUDIT_TARGET_TYPE,
-        targetId: authorization.id,
-        idempotencyKey,
-        before: null,
-        after: { status: "active", kind: locked.paymentMethodKind },
-        metadata: details,
-      });
-      await appendOutboxEvent(tx, {
-        organizationId,
-        locationId: null,
-        eventName: "family_payment_methods.authorization_activated",
-        aggregateType: AUDIT_TARGET_TYPE,
-        aggregateId: authorization.id,
-        idempotencyKey,
-        payload: details,
-        occurredAt: now,
-      });
-      return { method: locked.paymentMethodKind, previous };
-    });
-  } catch (error) {
-    // El índice único de una sola activa por (cuenta, pagador) es el último
-    // guarda: si otra petición ganó, se devuelve lo suyo o se pide reintentar.
-    if (isUniqueViolation(error) || isRetryableDbConflict(error)) {
+  const activation = await activateVerifiedSetup({
+    organizationId,
+    attemptId: attempt.id,
+    paymentMethodReference: verification.paymentMethodReference,
+    mandateReference: verification.mandateReference,
+    actor: { actor: "family", actorUserId: parsed.userId },
+    connectedAccount: account.providerAccountReference,
+    gateway,
+    now,
+  });
+  switch (activation.kind) {
+    case "activated":
+    case "already_completed":
+      return { outcome: "active", method: activation.method };
+    case "missing":
+      throw notFoundError();
+    case "not_open":
+      throw setupFailedError();
+    case "conflict": {
       const current = await findSetupAttemptForPayer(db, attemptKey);
       if (current?.status === "completed") {
         return { outcome: "active", method: current.paymentMethodKind };
       }
       throw retryableDbConflictError("Ya se está guardando otro método de pago. Vuelve a intentarlo.");
     }
-    throw error;
+  }
+}
+
+/** Lo que dice Stripe de la preparación, comparado con el intento guardado. */
+function verifySetupOfAttempt(attempt: StoredSetupAttempt, snapshot: SetupIntentSnapshot) {
+  return snapshot.id === attempt.providerSetupReference
+    ? verifyCompletedSetupIntent(
+        {
+          attemptId: attempt.id,
+          customerReference: attempt.providerCustomerReference,
+          kind: attempt.paymentMethodKind,
+        },
+        snapshot
+      )
+    : ({ outcome: "mismatch" } as const);
+}
+
+// ---------------------------------------------------------------------------
+// Fase 4 (Tarea 8): avisos de Stripe sobre el método de pago
+// ---------------------------------------------------------------------------
+
+/**
+ * Lee en Stripe con `read`. Un error que no se arregla reintentando (el
+ * objeto no existe, sin permiso sobre la cuenta, cuenta no válida) se
+ * registra solo con nombre y código y devuelve `null`: sin efecto. Uno
+ * pasajero se lanza para que el evento quede `failed` y Stripe lo reenvíe.
+ */
+async function readFromProvider<T>(
+  read: () => Promise<T>,
+  ids: Record<string, string>
+): Promise<{ ok: true; value: T } | { ok: false }> {
+  try {
+    return { ok: true, value: await read() };
+  } catch (error) {
+    const failure = familyProviderReadFailureOf(error);
+    if (!failure.permanent) throw error;
+    logger.warn("Pago automático: Stripe no deja leer el método de un aviso; sin efecto", {
+      ...ids,
+      errorName: failure.errorName,
+      errorCode: failure.errorCode,
+    });
+    return { ok: false };
+  }
+}
+
+/**
+ * La cuenta conectada `test` de la academia, solo si es la del aviso: un
+ * aviso de otra cuenta (u otra academia) nunca toca nada.
+ */
+async function findEventAccount(organizationId: string, accountRowId: string): Promise<StoredConnectAccount | null> {
+  const account = await findConnectAccountForOrganization(db, organizationId, ENVIRONMENT);
+  if (!account || account.id !== accountRowId || account.environment !== ENVIRONMENT) {
+    logger.warn("Pago automático: aviso de Stripe de una cuenta que no es la de la academia; sin efecto", {
+      organizationId,
+      accountRowId,
+    });
+    return null;
+  }
+  return account;
+}
+
+/**
+ * Stripe avisa de que el método ya no sirve (`payment_method.detached`) o de
+ * que la orden de domiciliación ya no vale (`mandate.updated`). Se relee en
+ * Stripe, en la cuenta conectada de la academia: el método sin cliente
+ * (`customer === null`) o que ya no existe, o la orden `inactive`. Solo
+ * entonces la autorización activa de esa academia y esa cuenta con ese
+ * método (o esa orden) pasa a `revoked`, sin volver a desligar en Stripe, con
+ * auditoría del sistema (`zaltyko-family-collection`).
+ *
+ * - Como la revocación de la familia, no exige la bandera de esta fase: dejar
+ *   de cobrar con un método que ya no sirve siempre se puede (clave de test,
+ *   base que no es la de producción y almacenamiento presente).
+ * - Idempotente y sin orden: una autorización ya revocada, un método que
+ *   Stripe aún tiene ligado o una orden `active`/`pending` → `none`.
+ * - Nunca toca los intentos de cobro: uno en curso sigue con lo que diga
+ *   Stripe (su dinero pudo moverse). El siguiente cobro ya no sale porque
+ *   solo se cobra con una autorización activa.
+ * - La transacción bloquea primero la academia y después la autorización:
+ *   el mismo orden que el cobro (academia → cuotas → factura → autorización
+ *   `for share` → intento → pago), así que nunca se cruzan.
+ */
+export async function revokeAuthorizationFromProvider(
+  input: {
+    organizationId: string;
+    accountRowId: string;
+    paymentMethodId?: string;
+    mandateId?: string;
+    reason: ProviderRevocationReason;
+    now: Date;
+  },
+  deps?: FamilyPaymentProviderReadDeps
+): Promise<{ outcome: "revoked"; authorizationId: string } | { outcome: "none" }> {
+  const parsed = providerRevokeInputSchema.parse({
+    organizationId: input.organizationId,
+    accountRowId: input.accountRowId,
+    paymentMethodId: input.paymentMethodId,
+    mandateId: input.mandateId,
+    reason: input.reason,
+  });
+  const none = { outcome: "none" } as const;
+  const gate = await loadRevocationGate();
+  if (!gate.open) return none;
+  const account = await findEventAccount(parsed.organizationId, parsed.accountRowId);
+  if (!account) return none;
+
+  const scope = { organizationId: parsed.organizationId, accountRowId: account.id };
+  const found =
+    parsed.reason === "detached_in_stripe"
+      ? await findActiveAuthorizationByPaymentMethod(db, { ...scope, paymentMethodReference: parsed.paymentMethodId })
+      : await findActiveAuthorizationByMandate(db, { ...scope, mandateReference: parsed.mandateId });
+  // Ninguna activa con ese método u orden (otra cosa de la academia, o ya revocada): ni se lee Stripe.
+  if (!found) return none;
+
+  const gateway = deps?.gateway ?? createStripeFamilyGateway();
+  const ids = {
+    organizationId: parsed.organizationId,
+    authorizationId: found.id,
+    accountId: account.providerAccountReference,
+  };
+  const connectedAccount = account.providerAccountReference;
+  let gone: boolean;
+  if (parsed.reason === "detached_in_stripe") {
+    const paymentMethodId = parsed.paymentMethodId;
+    const read = await readFromProvider(
+      () => gateway.retrievePaymentMethod({ connectedAccount, paymentMethodId }),
+      { ...ids, paymentMethodId }
+    );
+    if (!read.ok) return none;
+    // Ya no existe, o existe sin cliente: no se puede volver a cobrar con él.
+    gone = read.value === null || (read.value.id === paymentMethodId && read.value.customer === null);
+  } else {
+    const mandateId = parsed.mandateId;
+    const read = await readFromProvider(
+      () => gateway.retrieveMandate({ connectedAccount, mandateId }),
+      { ...ids, mandateId }
+    );
+    if (!read.ok) return none;
+    // Solo `inactive` dice que la orden ya no vale; una que no aparece no se da por perdida.
+    gone = read.value !== null && read.value.id === mandateId && read.value.status === "inactive";
+  }
+  if (!gone) return none;
+
+  const revoked = await db.transaction(async (tx) => {
+    // Orden único: academia → autorización (el cobro la lee después de academia, cuotas y factura).
+    if (!(await lockOrganizationForPaymentMethods(tx, scope.organizationId))) return null;
+    const locked = await lockActiveAuthorizationById(tx, { ...scope, authorizationId: found.id });
+    // Otro camino (la familia, la academia u otro aviso) ya la revocó o la cambió.
+    if (!locked || locked.paymentMethodReference !== found.paymentMethodReference) return null;
+    await revokeLockedAuthorization(tx, locked, { actor: "system", reason: parsed.reason, now: input.now });
+    return locked;
+  });
+  if (!revoked) return none;
+  logger.info("Pago automático: autorización revocada por un aviso de Stripe", { ...ids, reason: parsed.reason });
+  return { outcome: "revoked", authorizationId: revoked.id };
+}
+
+/**
+ * Decisión 12 del ADR: la familia guardó el método en Stripe pero cerró el
+ * navegador antes de volver a Zaltyko. Con `setup_intent.succeeded` se relee
+ * el `seti_…`, se busca el intento de preparación abierto con esa referencia
+ * en esa academia y esa cuenta, y se activa con la misma activación que
+ * completeFamilyPaymentSetup (activateVerifiedSetup), con el sistema como
+ * actor.
+ *
+ * - Exige lo mismo que completar desde el navegador: bandera de esta fase,
+ *   clave de test, base que no es la de producción, academia lista con su
+ *   plan y el tipo de método aceptado. Si no, `none` (el navegador tampoco
+ *   lo activaría).
+ * - Una preparación ya completada (por el navegador o por otro aviso),
+ *   abandonada o que no es de Zaltyko → `none`. Lo que Stripe aún no da por
+ *   terminado → `pending`, sin escribir. Una que falló no se marca
+ *   abandonada desde aquí: la familia puede seguir en el formulario.
+ */
+export async function completeFamilyPaymentSetupFromProvider(
+  input: { organizationId: string; accountRowId: string; setupIntentId: string; now: Date },
+  deps?: FamilyPaymentMethodsDeps
+): Promise<
+  { outcome: "active"; authorizationId: string; method: PaymentMethodKind } | { outcome: "pending" } | { outcome: "none" }
+> {
+  const parsed = providerSetupInputSchema.parse({
+    organizationId: input.organizationId,
+    accountRowId: input.accountRowId,
+    setupIntentId: input.setupIntentId,
+  });
+  const now = input.now;
+  const none = { outcome: "none" } as const;
+  const ids = { organizationId: parsed.organizationId, setupIntentId: parsed.setupIntentId };
+
+  const gate = await loadGate(parsed.organizationId, now);
+  if (!gate.open) {
+    logger.info("Pago automático: preparación terminada en Stripe con el pago automático cerrado; sin efecto", {
+      ...ids,
+      reason: gate.reason,
+    });
+    return none;
+  }
+  const attemptKey = {
+    organizationId: parsed.organizationId,
+    accountRowId: parsed.accountRowId,
+    setupReference: parsed.setupIntentId,
+  };
+  const attempt = await findSetupAttemptByReference(db, attemptKey);
+  // Una preparación que no creó Zaltyko, o ya completada o abandonada.
+  if (!attempt || attempt.status !== "open") return none;
+  // Tarea M (punto 11): sin la sesión de la persona, se comprueba barato que
+  // quien la empezó sigue siendo la pagadora vigente; si no, sin efecto.
+  const payerStillCurrent = await isCurrentFamilyPayer(db, {
+    organizationId: parsed.organizationId,
+    familyId: attempt.familyId,
+    familyPayerId: attempt.familyPayerId,
+    guardianId: attempt.guardianId,
+    now,
+  });
+  if (!payerStillCurrent) {
+    logger.info("Pago automático: preparación terminada en Stripe de quien ya no es la persona pagadora; sin efecto", {
+      ...ids,
+      attemptId: attempt.id,
+    });
+    return none;
   }
 
-  if (result.previous && result.previous.paymentMethodReference !== paymentMethodReference) {
-    await detachAfterRevocation(gateway, {
-      connectedAccount: account.providerAccountReference,
-      authorization: result.previous,
+  const context = await loadAcademyContext(gate.inputs, parsed.organizationId, true, now);
+  const account = context.account;
+  if (
+    !account ||
+    account.id !== parsed.accountRowId ||
+    attempt.paymentProviderAccountId !== account.id ||
+    context.kinds === null ||
+    !context.kinds.includes(attempt.paymentMethodKind)
+  ) {
+    logger.info("Pago automático: preparación terminada en Stripe que la academia no puede aceptar ahora; sin efecto", {
+      ...ids,
+      attemptId: attempt.id,
+      reason: context.reason ?? "not_offered",
     });
+    return none;
   }
-  return { outcome: "active", method: result.method };
+
+  const gateway = gatewayFrom(deps);
+  const connectedAccount = account.providerAccountReference;
+  const setupIntentId = attempt.providerSetupReference;
+  const read = await readFromProvider(
+    () => gateway.retrieveSetupIntent({ connectedAccount, setupIntentId }),
+    { ...ids, attemptId: attempt.id, accountId: connectedAccount }
+  );
+  if (!read.ok) return none;
+  const verification = verifySetupOfAttempt(attempt, read.value);
+  if (verification.outcome === "mismatch") {
+    logger.warn("Pago automático: la preparación de Stripe no es la del intento; sin efecto", {
+      ...ids,
+      attemptId: attempt.id,
+    });
+    return none;
+  }
+  if (verification.outcome === "pending") return { outcome: "pending" };
+  if (verification.outcome === "failed") return none;
+
+  const activation = await activateVerifiedSetup({
+    organizationId: parsed.organizationId,
+    attemptId: attempt.id,
+    paymentMethodReference: verification.paymentMethodReference,
+    mandateReference: verification.mandateReference,
+    actor: { actor: "system" },
+    connectedAccount,
+    gateway,
+    now,
+  });
+  switch (activation.kind) {
+    case "activated":
+      return { outcome: "active", authorizationId: activation.authorizationId, method: activation.method };
+    case "already_completed":
+    case "missing":
+    case "not_open":
+      return none;
+    case "conflict": {
+      // Otra petición (el navegador) lo completó a la vez: activa una sola vez.
+      const current = await findSetupAttemptByReference(db, attemptKey);
+      if (current?.status === "completed") return none;
+      // Otra preparación de la misma persona se activa a la vez: Stripe reenvía el aviso.
+      throw retryableDbConflictError("Ya se está guardando otro método de pago. Vuelve a intentarlo.");
+    }
+  }
 }
 
 /**
@@ -821,6 +1222,9 @@ export async function revokeFamilyPaymentMethod(
   if (!account) return { outcome: "none" };
 
   const revoked = await db.transaction(async (tx) => {
+    // Tarea M (punto 10): orden único, academia primero (como el cobro y la
+    // activación), para no interbloquear con ellos.
+    if (!(await lockOrganizationForPaymentMethods(tx, parsed.organizationId))) return null;
     const active = await lockActiveAuthorization(tx, {
       organizationId: parsed.organizationId,
       accountRowId: account.id,
@@ -955,6 +1359,9 @@ export async function revokeFamilyPaymentMethodByOwner(
   if (!account) return { outcome: "none" };
 
   const revoked = await db.transaction(async (tx) => {
+    // Tarea M (punto 10b): academia primero, como la activación desde el
+    // navegador (academia → autorización) y el cobro.
+    if (!(await lockOrganizationForPaymentMethods(tx, parsed.organizationId))) return null;
     const active = await lockActiveAuthorizationById(tx, {
       organizationId: parsed.organizationId,
       accountRowId: account.id,
