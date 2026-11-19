@@ -1131,6 +1131,83 @@ commit;
 - **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 
+## Candidatas de la biblioteca de elementos (fase C)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261119120000_element_library_candidate.sql` | `593971811ff713ff31093ab45db5739d919d989c1c3bbb7a23059c8b57e3e825` | No aplicada | No aplicada |
+| `20261119120500_element_library_notes_candidate.sql` | `37ad011fb9000cdbe20d1982204b778ca091eaecfbf884e7a7c5b8c8b9d29a13` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno (staging y
+producción) necesita una autorización expresa de Elvis. La CI verde no
+equivale a autorización. Decisión:
+`docs/architecture/adr/0029-biblioteca-de-elementos-y-niveles.md` (§1, §2, §3
+y §8).
+
+**Orden de instalación** (cada archivo abre y cierra su transacción, con
+`lock_timeout` de 5 s, y aborta antes de tocar nada si falta lo anterior o si
+ya existe algo suyo):
+
+1. `20261111120000_athlete_progress_candidate.sql` y
+   `20261111200000_session_plans_candidate.sql` (guiones), y
+   `20261114121000_skill_levels_candidate.sql` (niveles), con la forma exacta
+   que instalan.
+2. `20261119120000_element_library_candidate.sql`.
+3. `20261119120500_element_library_notes_candidate.sql`.
+4. Las semillas por tanda (`<ts>_element_catalog_seed_<edición>_<tanda>.sql`).
+5. Con todo aplicado, encender `ZALTYKO_ELEMENT_LIBRARY_ENABLED` (apagada por
+   defecto; exige también `ZALTYKO_SKILL_LEVELS_ENABLED=true`).
+
+Antes de aplicar la candidata 1 hay que publicar el código que acepta los dos
+conjuntos de columnas en niveles, guiones y derechos de datos (ADR-0029 §3.5).
+
+- **Qué crea la candidata 1.** Cuatro tablas nuevas en `zaltyko`, sin
+  `organization_id`: `catalog_element_editions` y `catalog_elements`
+  (catálogo global de solo lectura: solo hechos y textos propios, sin imágenes,
+  vídeos ni URL de terceros), `content_notices` (registro interno de avisos,
+  con nombre y correo de quien avisa, que se borran dos años después del
+  cierre) y `content_withdrawals` (plantillas de federación retiradas). Añade
+  `catalog_element_id` (`uuid` nulo, sin valor por defecto ni relleno,
+  `on delete restrict`, con índice parcial) a `zaltyko.skill_elements` y
+  `zaltyko.session_plan_blocks`: las filas existentes no cambian.
+- **Qué crea la candidata 2.** `zaltyko.academy_element_notes`: la nota de
+  cada academia sobre un elemento (una por academia y elemento, hasta 500
+  caracteres), con autoría `on delete set null (columna)` (PostgreSQL 15 o
+  posterior) y borrado en cascada con la academia.
+- **Seguridad.** Las cinco tablas: RLS `ENABLE` + `FORCE` y `REVOKE` a
+  `public`, `anon` y `authenticated`, sin grants ni políticas. Restricciones
+  con nombre; el espejo Drizzle
+  (`src/modules/element-library/infrastructure/element-library-schema.ts`)
+  vive fuera de `src/db/schema/`.
+- **Pruebas.** `tests/element-library-contract.test.ts` (candidatas, espejo,
+  límites del dominio, RLS, banderas y estos hashes) y
+  `tests/element-library-pg.test.ts` (solo en el PostgreSQL desechable de
+  GitHub: orden, reinstalación sin efectos, RLS, CHECK de valor, semilla
+  idempotente, retiradas y revisiones que ninguna semilla deshace, claves
+  foráneas restrict y la vuelta atrás de abajo).
+- **Vuelta atrás.** Va comentada al final de cada `.sql` y requiere la misma
+  autorización. Antes, apagar `ZALTYKO_ELEMENT_LIBRARY_ENABLED`. Primero la de
+  las notas (borra las notas de todas las academias: exportarlas antes) y
+  después la del catálogo (quita los enlaces, que las filas de niveles y
+  guiones conservan sin enlace, y borra catálogo, avisos y retiradas):
+
+```sql
+begin;
+set local lock_timeout = '5s';
+drop table zaltyko.academy_element_notes;
+commit;
+
+begin;
+set local lock_timeout = '5s';
+alter table zaltyko.session_plan_blocks drop column catalog_element_id;
+alter table zaltyko.skill_elements drop column catalog_element_id;
+drop table zaltyko.content_withdrawals;
+drop table zaltyko.content_notices;
+drop table zaltyko.catalog_elements;
+drop table zaltyko.catalog_element_editions;
+commit;
+```
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.
