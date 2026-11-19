@@ -1216,6 +1216,11 @@ commit;
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
 | `20261119123000_element_catalog_seed_fig-wag-2025-2028_2.sql` (semilla de la tanda 2, revisada el 23-11-2026 por delegación de Elvis; en borrador era `a9005a6a…`) | `d9bf27580755f6ebf44221a40a9e1d8461075caa463ef592b71d90ba7c356530` | No aplicada | No aplicada |
+## Semilla de la tanda 3 de la biblioteca: asimétricas, grupos 1 y 2 (20-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261120003000_element_catalog_seed_fig-wag-2025-2028_3.sql` (semilla de la tanda 3) | `b6b257aa8680d0fcfea1badadd82c0bc270abac83854f04509d1d46dfa926273` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1230,6 +1235,16 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
   borrador, y repetirla no cambia nada) y solo escribe los elementos de la
   tanda 2.
 - **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/2.json`.
+- **Qué carga.** 51 elementos de paralelas asimétricas de la edición
+  `fig-wag-2025-2028` (entradas, impulsos y vueltas libres), **en borrador**.
+  Las academias no los ven hasta que Elvis revise la tanda; al revisarla se
+  vuelve a generar con el mismo nombre y su hash cambia.
+- **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
+  independiente de las semillas de las tandas 1 y 2: la misma semántica
+  (actualiza la edición sin bajarla, nunca toca las retiradas ni devuelve un
+  revisado a borrador, y repetirla no cambia nada) y solo escribe los elementos
+  de la tanda 3.
+- **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/3.json`.
 
 ## Criterio de revisión y aplicación futura
 

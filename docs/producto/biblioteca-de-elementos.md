@@ -89,6 +89,13 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/2.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; un elemento se volvió a redactar por parecido. Hacia dónde cae la gimnasta en los 7 saltos con tres cuartos de giro (270°) lo dedujo, como dato, quien lee el PDF. Muestra manual: 5 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261119123000_element_catalog_seed_fig-wag-2025-2028_2.sql`, sin aplicar.
 
+### Tercera tanda
+
+- Edición `fig-wag-2025-2028`, paralelas asimétricas, grupos 1 (entradas) y 2 (impulsos y vueltas libres): **51 elementos, en borrador**. Va en una rama aparte de la segunda tanda: no depende de ella.
+- Cada número del Código es una ficha. Si un mismo número agrupa más de una forma o más de un epónimo (por ejemplo «Jentsch / González»), la ficha los nombra a todos.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/3.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,5; se volvieron a redactar 18 elementos (9 por parecido y 9 por errores técnicos en los hechos, ya corregidos). Muestra manual: 6 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120003000_element_catalog_seed_fig-wag-2025-2028_3.sql`, sin aplicar.
+
 ## Retiradas y avisos sobre contenido
 
 - **Formulario público** `/avisos-de-contenido` (Reglamento de Servicios Digitales, art. 16), obligatorio antes de encender la bandera en producción. Pide motivo, dirección exacta, nombre, correo y una declaración de buena fe. Contra abusos: límite por IP y por correo, campo trampa, longitudes máximas y texto sin enlaces activos. No necesita cuenta ni depende de la bandera; sin las tablas, la página no existe y el envío a la API responde que no está disponible (503). El enlace «Avisar de un contenido» del pie de página se añade al instalar las tablas. **Un aviso no retira nada por sí solo.**
