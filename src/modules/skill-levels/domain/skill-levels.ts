@@ -244,6 +244,12 @@ export const createTemplateCommandSchema = z.discriminatedUnion("source", [
     .strict(),
 ]);
 
+/**
+ * `catalogElementId` (ADR-0029 §3.1): ausente conserva el enlace guardado con
+ * la biblioteca de elementos, `null` lo quita y un uuid lo pone. El servicio
+ * exige que el elemento de la biblioteca sea visible y de la misma disciplina
+ * y aparato; el nombre sigue siendo el de la academia.
+ */
 const elementInputSchema = z
   .object({
     id: z.guid().nullable().optional(),
@@ -251,6 +257,7 @@ const elementInputSchema = z
     apparatus: apparatusSchema,
     description: descriptionSchema,
     required: z.boolean().default(true),
+    catalogElementId: z.string().uuid().nullable().optional(),
   })
   .strict();
 
@@ -362,12 +369,39 @@ export type PassLevelCommand = z.infer<typeof passLevelCommandSchema>;
 /* Vistas                                                                    */
 /* ------------------------------------------------------------------------ */
 
+/**
+ * Enlace de un elemento de la plantilla con la biblioteca (ADR-0029 §3.6).
+ * «current»: está en la biblioteca; «withdrawn»: ya no está; «previous_edition»:
+ * es de una edición anterior. `replacementId` es el mismo elemento en una
+ * edición más nueva: se ofrece «Actualizar enlace», nunca se cambia solo.
+ */
+export type TemplateCatalogLinkStatus = "current" | "withdrawn" | "previous_edition";
+
+export type TemplateCatalogLink = {
+  id: string;
+  /** Nombre del elemento en la biblioteca (el de la academia es `name`). */
+  name: string;
+  status: TemplateCatalogLinkStatus;
+  replacementId: string | null;
+};
+
+export const templateCatalogLinkLabels: Record<TemplateCatalogLinkStatus, string> = {
+  current: "De la biblioteca",
+  withdrawn: "Ya no está en la biblioteca",
+  previous_edition: "Edición anterior",
+};
+
+/** Respuesta 400 al enlazar un elemento de otro aparato, de otra disciplina o que la academia no ve. */
+export const CATALOG_LINK_MISMATCH_MESSAGE = "Ese elemento de la biblioteca no corresponde a este aparato";
+
 export type TemplateElementView = {
   id: string;
   name: string;
   apparatus: SkillApparatus | null;
   description: string | null;
   required: boolean;
+  /** Solo en la vista de la plantilla (getSkillTemplate); null sin enlace. */
+  catalogLink?: TemplateCatalogLink | null;
 };
 
 export type TemplateLevelView = {
@@ -396,6 +430,11 @@ export type SkillTemplateView = SkillTemplateSummary & {
   levels: TemplateLevelView[];
   /** Quien lo ve puede guardar cambios (dirección, administración y coordinación). */
   canEdit: boolean;
+  /**
+   * La biblioteca de elementos está activa y tiene esta disciplina: se ofrece
+   * «Añadir desde la biblioteca».
+   */
+  libraryAvailable: boolean;
 };
 
 export type StarterTemplateSummary = {

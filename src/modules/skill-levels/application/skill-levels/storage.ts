@@ -111,6 +111,7 @@ export const SKILL_LEVELS_CATALOG_LINK_COLUMNS = {
  * de enlace de la biblioteca en todas sus tablas a la vez).
  */
 export type SkillLevelsStorageShape = "absent" | "base" | "with_catalog_links";
+export type InstalledSkillLevelsShape = Exclude<SkillLevelsStorageShape, "absent">;
 
 type SkillLevelsTable = keyof typeof SKILL_LEVELS_TABLES;
 
@@ -145,6 +146,20 @@ const allColumnsMatchWithCatalogLinks = sql.join(
   tableNames.map((table) => columnsMatch(table, columnsWithCatalogLinks(table))),
   sql` and `
 );
+/**
+ * Las columnas de enlace, además de existir, son `uuid` y admiten nulos: una
+ * columna con el mismo nombre y otro tipo, o NOT NULL, no es la de la candidata.
+ */
+const catalogLinkColumnsTyped = sql.join(
+  Object.entries(SKILL_LEVELS_CATALOG_LINK_COLUMNS).flatMap(([table, columns]) =>
+    columns.map(
+      (column) => sql`exists (select 1 from information_schema.columns
+         where table_schema = 'zaltyko' and table_name = ${table} and column_name = ${column}
+           and data_type = 'uuid' and is_nullable = 'YES')`
+    )
+  ),
+  sql` and `
+);
 const regclassList = sql.join(
   tableNames.map((table) => sql`to_regclass(${qualified(table)})`),
   sql`, `
@@ -174,7 +189,7 @@ export async function getSkillLevelsStorageShape(client: DatabaseClient): Promis
             ), false) then
             case
               when ${allColumnsMatch} then 'base'
-              when ${allColumnsMatchWithCatalogLinks} then 'with_catalog_links'
+              when ${allColumnsMatchWithCatalogLinks} and ${catalogLinkColumnsTyped} then 'with_catalog_links'
               else 'absent'
             end
           else 'absent'
@@ -217,6 +232,13 @@ export async function isSkillLevelsAvailableForPage(client: DatabaseClient): Pro
   }
 }
 
-export async function assertSkillLevelsAvailable(client: DatabaseClient): Promise<void> {
-  if (!(await isSkillLevelsAvailable(client))) throw skillLevelsUnavailable();
+/**
+ * Bandera encendida y tablas instaladas; devuelve la forma instalada para que
+ * las plantillas sepan si pueden leer y escribir el enlace a la biblioteca.
+ */
+export async function assertSkillLevelsAvailable(client: DatabaseClient): Promise<InstalledSkillLevelsShape> {
+  if (!isSkillLevelsFlagOn()) throw skillLevelsUnavailable();
+  const shape = await getSkillLevelsStorageShape(client);
+  if (shape === "absent") throw skillLevelsUnavailable();
+  return shape;
 }

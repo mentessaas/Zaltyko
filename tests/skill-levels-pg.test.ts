@@ -24,7 +24,16 @@ import {
   passSkillLevel,
   saveSkillTemplate,
 } from "@/modules/skill-levels/application/skill-level-service";
-import { SKILL_LEVELS_ENV_FLAG, type SkillTemplateView } from "@/modules/skill-levels/domain/skill-levels";
+import {
+  ELEMENT_LIBRARY_ENV_FLAG,
+  ELEMENT_LIBRARY_UNAVAILABLE_REASON,
+} from "@/modules/element-library/domain/element-library";
+import {
+  CATALOG_LINK_MISMATCH_MESSAGE,
+  SKILL_LEVELS_ENV_FLAG,
+  type SkillTemplateView,
+  type TemplateElementView,
+} from "@/modules/skill-levels/domain/skill-levels";
 
 /**
  * Niveles y progresión sobre PostgreSQL desechable de GitHub. Instala el
@@ -89,6 +98,7 @@ const candidateFile = (name: string) => readFileSync(resolve(process.cwd(), "doc
 const PROGRESS = "20261111120000_athlete_progress_candidate.sql";
 const PLANS = "20261111200000_session_plans_candidate.sql";
 const LIBRARY = "20261119120000_element_library_candidate.sql";
+const NOTES = "20261119120500_element_library_notes_candidate.sql";
 
 /**
  * Las candidatas abren su propia transacción (`begin; … commit;`): se
@@ -111,15 +121,15 @@ async function exists(table: string): Promise<boolean> {
 }
 
 /**
- * Aplica `statement` dentro de una transacción que se deshace siempre y
+ * Aplica `statements` dentro de una transacción que se deshace siempre y
  * devuelve la forma que ve la detección mientras tanto.
  */
-async function shapeWith(statement: string): Promise<string> {
+async function shapeWith(...statements: string[]): Promise<string> {
   const rollback = new Error("rollback");
   let shape = "";
   const seen = await db
     .transaction(async (tx) => {
-      await tx.execute(sql.raw(statement));
+      for (const statement of statements) await tx.execute(sql.raw(statement));
       shape = await getSkillLevelsStorageShape(tx);
       throw rollback;
     })
@@ -896,6 +906,53 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
     expect(shown.state).toMatchObject({ status: "in_progress", evaluatedByName: null });
   });
 
+  it("sin la columna de enlace, pedir un elemento de la biblioteca es 503; null se ignora y se guarda como siempre", async () => {
+    expect(await getSkillLevelsStorageShape(db)).toBe("base");
+    const created = await createSkillTemplate({
+      actor: ownerA,
+      command: { ...s1(), clientRequestId: randomUUID(), source: "blank", discipline: "artistic_female", name: "GAF sin biblioteca" },
+    });
+    const view = await getSkillTemplate({ actor: ownerA, templateId: created.id, query: s1() });
+    expect(view.libraryAvailable).toBe(false);
+    const save = (catalogElementId: string | null) =>
+      saveSkillTemplate({
+        actor: ownerA,
+        templateId: created.id,
+        command: {
+          ...s1(),
+          expectedRevision: view.revision,
+          name: view.name,
+          levels: [
+            {
+              id: view.levels[0]!.id,
+              name: view.levels[0]!.name,
+              elements: [{ name: "Rondada", apparatus: "vault", catalogElementId }],
+            },
+          ],
+        },
+      });
+    const previousLibraryFlag = process.env[ELEMENT_LIBRARY_ENV_FLAG];
+    try {
+      // Con la bandera de la biblioteca apagada y encendida: sin la columna no hay enlace posible.
+      for (const libraryFlag of [false, true]) {
+        if (libraryFlag) process.env[ELEMENT_LIBRARY_ENV_FLAG] = "true";
+        else delete process.env[ELEMENT_LIBRARY_ENV_FLAG];
+        await expect(save(randomUUID())).rejects.toMatchObject({
+          code: "FEATURE_NOT_AVAILABLE",
+          status: 503,
+          details: { reason: ELEMENT_LIBRARY_UNAVAILABLE_REASON },
+        });
+        expect((await getSkillTemplate({ actor: ownerA, templateId: created.id, query: s1() })).libraryAvailable).toBe(false);
+      }
+      expect(await save(null)).toMatchObject({ revision: view.revision + 1, replayed: false });
+    } finally {
+      if (previousLibraryFlag === undefined) delete process.env[ELEMENT_LIBRARY_ENV_FLAG];
+      else process.env[ELEMENT_LIBRARY_ENV_FLAG] = previousLibraryFlag;
+    }
+    const after = await getSkillTemplate({ actor: ownerA, templateId: created.id, query: s1() });
+    expect(after.levels[0]!.elements).toMatchObject([{ name: "Rondada", apparatus: "vault", catalogLink: null }]);
+  });
+
   describe("con la columna de enlace de la biblioteca de elementos", () => {
     const installedHere = { progress: false, plans: false };
     let c: Awaited<ReturnType<typeof academy>>;
@@ -1062,6 +1119,292 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
       // Sin la columna de enlace vuelve a ser la forma del candidato de niveles.
       expect(await shapeWith("alter table zaltyko.skill_elements drop column catalog_element_id")).toBe("base");
       expect(await getSkillLevelsStorageShape(db)).toBe("with_catalog_links");
+    });
+
+    describe("enlaces de las plantillas con la biblioteca (ADR-0029 §3.1 y §3.6)", () => {
+      const previousLibraryFlag = process.env[ELEMENT_LIBRARY_ENV_FLAG];
+      let vault: string;
+      let toWithdraw: string;
+      let beam: string;
+      let maleFloor: string;
+      let linkedId: string;
+
+      async function catalogEdition(code: string, discipline: string): Promise<string> {
+        const result = await db.execute(sql`
+          insert into zaltyko.catalog_element_editions
+            (code, discipline, cycle_start, cycle_end, title, document_url, cover_date, status)
+          values (${code}, ${discipline}, 2025, 2028, 'Código de prueba', 'https://www.gymnastics.sport/', '2026-10-14', 'published')
+          returning id
+        `);
+        return (result.rows[0] as { id: string }).id;
+      }
+
+      /** Elemento de prueba revisado: nada sale de los archivos de datos del repositorio. */
+      async function catalogElement(
+        editionId: string,
+        input: { key: string; discipline?: string; apparatus: string; letter?: string; points?: string; name: string }
+      ): Promise<string> {
+        const result = await db.execute(sql`
+          insert into zaltyko.catalog_elements
+            (edition_id, element_key, discipline, apparatus, element_group, value_letter, value_points,
+             name, short_name, source_page, source_checked_on, drafted_by, drafted_on, batch, review_status, reviewed_on)
+          values (${editionId}::uuid, ${input.key}, ${input.discipline ?? "artistic_female"}, ${input.apparatus}, '1',
+            ${input.letter ?? null}, ${input.points ?? null}::numeric, ${input.name}, ${input.name.slice(0, 20)},
+            1, '2026-11-19', 'Claude', '2026-11-19', 1, 'reviewed', '2026-11-19')
+          returning id
+        `);
+        return (result.rows[0] as { id: string }).id;
+      }
+
+      const get = (templateId: string) => getSkillTemplate({ actor: ownerC, templateId, query: sc() });
+      /** Lo que el editor manda de un elemento que no cambia de enlace (sin el campo). */
+      const keep = (element: TemplateElementView) => ({
+        id: element.id,
+        name: element.name,
+        apparatus: element.apparatus,
+        description: element.description,
+        required: element.required,
+      });
+      const saveElements = (view: SkillTemplateView, elements: Array<Record<string, unknown>>) =>
+        saveSkillTemplate({
+          actor: ownerC,
+          templateId: view.id,
+          command: {
+            ...sc(),
+            expectedRevision: view.revision,
+            name: view.name,
+            levels: [{ id: view.levels[0]!.id, name: view.levels[0]!.name, elements }],
+          },
+        });
+      const storedLinks = async (templateId: string) => {
+        const result = await db.execute(sql`
+          select name, catalog_element_id from zaltyko.skill_elements
+          where organization_id = ${c.organizationId}::uuid and template_id = ${templateId}::uuid and archived_at is null
+          order by position
+        `);
+        return (result.rows as Array<{ name: string; catalog_element_id: string | null }>).map((row) => [
+          row.name,
+          row.catalog_element_id,
+        ]);
+      };
+      /** 400 «Ese elemento de la biblioteca no corresponde a este aparato». */
+      async function expectMismatch(promise: Promise<unknown>) {
+        const error = await promise.then(
+          () => null,
+          (failure: unknown) => failure
+        );
+        expect(error).toMatchObject({ code: "INVALID_RELATION", status: 400 });
+        expect((error as Error).message).toBe(CATALOG_LINK_MISMATCH_MESSAGE);
+      }
+
+      beforeAll(async () => {
+        // La biblioteca existe con sus cinco tablas: falta la de las notas.
+        await runOnOwnConnection(candidateFile(NOTES));
+        const female = await catalogEdition("fig-wag-2025-2028", "artistic_female");
+        const male = await catalogEdition("fig-mag-2025-2028", "artistic_male");
+        vault = await catalogElement(female, { key: "ci_skl_vault", apparatus: "vault", points: "2.40", name: "Rondada de prueba" });
+        toWithdraw = await catalogElement(female, {
+          key: "ci_skl_vault_withdrawn",
+          apparatus: "vault",
+          points: "3.20",
+          name: "Salto que se retirará",
+        });
+        beam = await catalogElement(female, { key: "ci_skl_beam", apparatus: "beam", letter: "A", name: "Equilibrio de prueba" });
+        maleFloor = await catalogElement(male, {
+          key: "ci_skl_floor_male",
+          discipline: "artistic_male",
+          apparatus: "floor",
+          letter: "B",
+          name: "Suelo masculino de prueba",
+        });
+        process.env[ELEMENT_LIBRARY_ENV_FLAG] = "true";
+      }, 120_000);
+
+      afterAll(() => {
+        if (previousLibraryFlag === undefined) delete process.env[ELEMENT_LIBRARY_ENV_FLAG];
+        else process.env[ELEMENT_LIBRARY_ENV_FLAG] = previousLibraryFlag;
+      });
+
+      it("la forma con enlaces exige la columna uuid y con nulos", async () => {
+        const drop = "alter table zaltyko.skill_elements drop column catalog_element_id";
+        expect(await shapeWith(drop, "alter table zaltyko.skill_elements add column catalog_element_id text")).toBe("absent");
+        expect(
+          await shapeWith(drop, "alter table zaltyko.skill_elements add column catalog_element_id uuid not null default gen_random_uuid()")
+        ).toBe("absent");
+        expect(await shapeWith(drop, "alter table zaltyko.skill_elements add column catalog_element_id uuid")).toBe(
+          "with_catalog_links"
+        );
+        expect(await getSkillLevelsStorageShape(db)).toBe("with_catalog_links");
+      });
+
+      it("enlaza un elemento visible del mismo aparato, conserva el nombre de la academia y lo muestra «De la biblioteca»", async () => {
+        const created = await createSkillTemplate({
+          actor: ownerC,
+          command: { ...sc(), clientRequestId: randomUUID(), source: "blank", discipline: "artistic_female", name: "GAF enlazada" },
+        });
+        linkedId = created.id;
+        const view = await get(linkedId);
+        expect(view.libraryAvailable).toBe(true);
+        expect(
+          await saveElements(view, [
+            { name: "Rondada de la academia", apparatus: "vault", catalogElementId: vault },
+            { name: "Elemento sin enlace", apparatus: "beam" },
+          ])
+        ).toMatchObject({ revision: view.revision + 1 });
+        const after = await get(linkedId);
+        expect(after.levels[0]!.elements).toMatchObject([
+          {
+            name: "Rondada de la academia",
+            apparatus: "vault",
+            catalogLink: { id: vault, name: "Rondada de prueba", status: "current", replacementId: null },
+          },
+          { name: "Elemento sin enlace", apparatus: "beam", catalogLink: null },
+        ]);
+        expect(await storedLinks(linkedId)).toEqual([
+          ["Rondada de la academia", vault],
+          ["Elemento sin enlace", null],
+        ]);
+
+        // La rítmica no tiene catálogo: no se ofrece la biblioteca.
+        const rhythmic = await createSkillTemplate({
+          actor: ownerC,
+          command: { ...sc(), clientRequestId: randomUUID(), source: "blank", discipline: "rhythmic", name: "GR sin catálogo" },
+        });
+        expect((await get(rhythmic.id)).libraryAvailable).toBe(false);
+      });
+
+      it("rechaza con 400 otro aparato, sin aparato, otra disciplina, un id desconocido o cambiar el aparato de un enlazado", async () => {
+        const view = await get(linkedId);
+        const [linked, plain] = view.levels[0]!.elements;
+        const attempts: Array<Array<Record<string, unknown>>> = [
+          [keep(linked!), { ...keep(plain!), catalogElementId: vault }],
+          [keep(linked!), keep(plain!), { name: "Sin aparato", apparatus: null, catalogElementId: vault }],
+          [keep(linked!), keep(plain!), { name: "Suelo de otra disciplina", apparatus: "floor", catalogElementId: maleFloor }],
+          [keep(linked!), keep(plain!), { name: "Id desconocido", apparatus: "vault", catalogElementId: randomUUID() }],
+          // El enlazado cambia de aparato sin tocar el enlace (aunque el otro se enlace bien).
+          [{ ...keep(linked!), apparatus: "floor" }, { ...keep(plain!), catalogElementId: beam }],
+        ];
+        for (const elements of attempts) {
+          await expectMismatch(saveElements(view, elements));
+        }
+        // Nada se guardó.
+        expect((await get(linkedId)).revision).toBe(view.revision);
+        expect(await storedLinks(linkedId)).toEqual([
+          ["Rondada de la academia", vault],
+          ["Elemento sin enlace", null],
+        ]);
+      });
+
+      it("guardar sin el campo conserva el enlace, copiar lo copia y null lo quita", async () => {
+        let view = await get(linkedId);
+        await saveElements(view, view.levels[0]!.elements.map(keep));
+        view = await get(linkedId);
+        expect(view.levels[0]!.elements.map((element) => element.catalogLink?.id ?? null)).toEqual([vault, null]);
+
+        const copy = await createSkillTemplate({
+          actor: ownerC,
+          command: { ...sc(), clientRequestId: randomUUID(), source: "copy", templateId: linkedId, name: "Copia enlazada" },
+        });
+        const copyView = await get(copy.id);
+        expect(copyView.levels[0]!.elements).toMatchObject([
+          { name: "Rondada de la academia", catalogLink: { id: vault, status: "current" } },
+          { name: "Elemento sin enlace", catalogLink: null },
+        ]);
+        expect(await storedLinks(copy.id)).toEqual([
+          ["Rondada de la academia", vault],
+          ["Elemento sin enlace", null],
+        ]);
+
+        const [linked, plain] = copyView.levels[0]!.elements;
+        await saveElements(copyView, [{ ...keep(linked!), catalogElementId: null }, keep(plain!)]);
+        expect((await get(copy.id)).levels[0]!.elements.map((element) => element.catalogLink)).toEqual([null, null]);
+        expect(await storedLinks(copy.id)).toEqual([
+          ["Rondada de la academia", null],
+          ["Elemento sin enlace", null],
+        ]);
+        // La plantilla de origen no cambia.
+        expect(await storedLinks(linkedId)).toEqual([
+          ["Rondada de la academia", vault],
+          ["Elemento sin enlace", null],
+        ]);
+      });
+
+      it("un elemento retirado de la biblioteca se sigue viendo con su aviso, se conserva y se copia, pero no se enlaza de nuevo", async () => {
+        let view = await get(linkedId);
+        await saveElements(view, [
+          ...view.levels[0]!.elements.map(keep),
+          { name: "Salto de la academia", apparatus: "vault", catalogElementId: toWithdraw },
+        ]);
+        await db.execute(sql`
+          update zaltyko.catalog_elements set withdrawn_at = now(), withdrawn_reason = 'Aviso de prueba'
+          where id = ${toWithdraw}::uuid
+        `);
+        view = await get(linkedId);
+        expect(view.levels[0]!.elements.at(-1)).toMatchObject({
+          name: "Salto de la academia",
+          catalogLink: { id: toWithdraw, name: "Salto que se retirará", status: "withdrawn", replacementId: null },
+        });
+
+        // Sin el campo, o con el mismo enlace y el mismo aparato, se guarda igual.
+        await saveElements(view, view.levels[0]!.elements.map(keep));
+        view = await get(linkedId);
+        await saveElements(
+          view,
+          view.levels[0]!.elements.map((element) => ({
+            ...keep(element),
+            ...(element.catalogLink ? { catalogElementId: element.catalogLink.id } : {}),
+          }))
+        );
+        view = await get(linkedId);
+        expect(view.levels[0]!.elements.map((element) => element.catalogLink?.status ?? null)).toEqual([
+          "current",
+          null,
+          "withdrawn",
+        ]);
+
+        // Enlazar otro elemento al retirado: ya no es posible.
+        await expectMismatch(
+          saveElements(view, [
+            ...view.levels[0]!.elements.map(keep),
+            { name: "Otro salto", apparatus: "vault", catalogElementId: toWithdraw },
+          ])
+        );
+
+        // Copiar conserva el enlace aunque ya no esté en la biblioteca.
+        const copy = await createSkillTemplate({
+          actor: ownerC,
+          command: { ...sc(), clientRequestId: randomUUID(), source: "copy", templateId: linkedId, name: "Copia con retirado" },
+        });
+        expect((await get(copy.id)).levels[0]!.elements.at(-1)).toMatchObject({
+          catalogLink: { id: toWithdraw, status: "withdrawn" },
+        });
+      });
+
+      it("con la biblioteca apagada los enlaces se ven, pedir uno es 503 y null no toca nada", async () => {
+        delete process.env[ELEMENT_LIBRARY_ENV_FLAG];
+        try {
+          const view = await get(linkedId);
+          expect(view.libraryAvailable).toBe(false);
+          expect(view.levels[0]!.elements[0]!.catalogLink).toMatchObject({ id: vault, status: "current" });
+          await expect(
+            saveElements(view, [
+              ...view.levels[0]!.elements.map(keep),
+              { name: "Equilibrio nuevo", apparatus: "beam", catalogElementId: beam },
+            ])
+          ).rejects.toMatchObject({ code: "FEATURE_NOT_AVAILABLE", status: 503, details: { reason: ELEMENT_LIBRARY_UNAVAILABLE_REASON } });
+          await saveElements(
+            view,
+            view.levels[0]!.elements.map((element) => ({ ...keep(element), catalogElementId: null }))
+          );
+          expect((await get(linkedId)).levels[0]!.elements.map((element) => element.catalogLink?.id ?? null)).toEqual([
+            vault,
+            null,
+            toWithdraw,
+          ]);
+        } finally {
+          process.env[ELEMENT_LIBRARY_ENV_FLAG] = "true";
+        }
+      });
     });
   });
 });

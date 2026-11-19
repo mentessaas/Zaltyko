@@ -1,15 +1,21 @@
 import { randomUUID } from "node:crypto";
 
-import { and, asc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import type { TransactionClient } from "@/lib/db-transactions";
+// Directo y no desde la fachada de la biblioteca: lecturas sin autorización
+// propia que se hacen dentro de la transacción ya autorizada de niveles.
+import { findLinkableCatalogElement, getCatalogLinkView } from "@/modules/element-library/application/catalog-reads";
+import { elementLibraryUnavailable, isElementLibraryAvailable } from "@/modules/element-library/application/storage";
+import { CATALOG_DISCIPLINES } from "@/modules/element-library/domain/element-library";
 import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { appendAuditEntry, lockCommand } from "@/modules/shared/infrastructure/transactional-records";
 import {
   apparatusBelongsToDiscipline,
   canManageTemplates,
+  CATALOG_LINK_MISMATCH_MESSAGE,
   createTemplateCommandSchema,
   saveTemplateCommandSchema,
   templateQuerySchema,
@@ -19,6 +25,7 @@ import {
   type SkillTemplateSummary,
   type SkillTemplatesListView,
   type SkillTemplateView,
+  type TemplateCatalogLink,
   type TemplateLevelView,
   type TemplateSource,
   type WriteResult,
@@ -41,6 +48,7 @@ import {
   type Access,
   type ActorInput,
 } from "./access";
+import type { InstalledSkillLevelsShape } from "./storage";
 
 /** Plantillas de niveles de la academia. Uso interno: entra por la fachada. */
 
@@ -128,6 +136,65 @@ export async function loadTemplateLevels(
         required: element.isRequired,
       })),
   }));
+}
+
+/**
+ * Enlaces con la biblioteca de los elementos activos de una plantilla: id del
+ * elemento → id del elemento de la biblioteca. Solo con la forma
+ * «with_catalog_links»; con la «base» la columna no existe y no se nombra.
+ */
+async function loadCatalogElementIds(
+  tx: TransactionClient,
+  organizationId: string,
+  templateId: string
+): Promise<Map<string, string>> {
+  // unbounded-read-ok: una plantilla admite como mucho 300 elementos activos (dominio).
+  const rows = await tx
+    .select({ id: skillElements.id, catalogElementId: skillElements.catalogElementId })
+    .from(skillElements)
+    .where(
+      and(
+        eq(skillElements.organizationId, organizationId),
+        eq(skillElements.templateId, templateId),
+        isNull(skillElements.archivedAt),
+        isNotNull(skillElements.catalogElementId)
+      )
+    );
+  const links = new Map<string, string>();
+  for (const row of rows) if (row.catalogElementId) links.set(row.id, row.catalogElementId);
+  return links;
+}
+
+/**
+ * Añade a cada elemento su enlace con la biblioteca (o null). El elemento
+ * retirado o de una edición anterior se sigue viendo con su aviso.
+ */
+async function attachCatalogLinks(
+  tx: TransactionClient,
+  input: { organizationId: string; templateId: string; shape: InstalledSkillLevelsShape; levels: TemplateLevelView[] }
+): Promise<TemplateLevelView[]> {
+  const ids =
+    input.shape === "with_catalog_links"
+      ? await loadCatalogElementIds(tx, input.organizationId, input.templateId)
+      : new Map<string, string>();
+  const views = ids.size > 0 ? await getCatalogLinkView(tx, [...ids.values()]) : null;
+  return input.levels.map((level) => ({
+    ...level,
+    elements: level.elements.map((element) => {
+      const catalogId = ids.get(element.id);
+      if (!catalogId) return { ...element, catalogLink: null };
+      const view = views?.get(catalogId);
+      // La clave foránea impide que desaparezca; si aun así faltara, se avisa como retirado.
+      const catalogLink: TemplateCatalogLink = view
+        ? { id: catalogId, name: view.name, status: view.status, replacementId: view.replacementId }
+        : { id: catalogId, name: element.name, status: "withdrawn", replacementId: null };
+      return { ...element, catalogLink };
+    }),
+  }));
+}
+
+function isCatalogDiscipline(discipline: SkillDiscipline): boolean {
+  return (CATALOG_DISCIPLINES as readonly string[]).includes(discipline);
 }
 
 function summary(
@@ -223,7 +290,12 @@ export async function getSkillTemplate(
   return db.transaction(async (tx) => {
     const access = await authorizeMember(tx, { ...query, actor: input.actor });
     const row = await loadTemplateRow(tx, query.organizationId, input.templateId);
-    const levels = await loadTemplateLevels(tx, query.organizationId, row.id);
+    const levels = await attachCatalogLinks(tx, {
+      organizationId: query.organizationId,
+      templateId: row.id,
+      shape: access.storageShape,
+      levels: await loadTemplateLevels(tx, query.organizationId, row.id),
+    });
     return {
       ...summary(row, {
         levelCount: levels.length,
@@ -231,6 +303,8 @@ export async function getSkillTemplate(
       }),
       levels,
       canEdit: canManageTemplates(access.role),
+      // Sin la bandera de la biblioteca no consulta nada más.
+      libraryAvailable: isCatalogDiscipline(row.discipline as SkillDiscipline) && (await isElementLibraryAvailable(tx)),
     };
   });
 }
@@ -247,15 +321,18 @@ type StructureInput = Array<{
     apparatus: SkillApparatus | null;
     description: string | null;
     required: boolean;
+    /** Solo al copiar con la forma «with_catalog_links». */
+    catalogElementId?: string | null;
   }>;
 }>;
 
 async function insertStructure(
   tx: TransactionClient,
-  input: { organizationId: string; templateId: string; levels: StructureInput }
+  input: { organizationId: string; templateId: string; levels: StructureInput; withCatalogLinks: boolean }
 ): Promise<void> {
   const levelRows: Array<typeof skillLevels.$inferInsert> = [];
   const elementRows: Array<typeof skillElementsBaseInsert.$inferInsert> = [];
+  const catalogElementIds: Array<string | null> = [];
   input.levels.forEach((level, levelIndex) => {
     const levelId = randomUUID();
     levelRows.push({
@@ -278,11 +355,20 @@ async function insertStructure(
         description: element.description,
         isRequired: element.required,
       });
+      catalogElementIds.push(element.catalogElementId ?? null);
     });
   });
   if (levelRows.length > 0) await tx.insert(skillLevels).values(levelRows);
-  // Sin la columna de enlace: el INSERT vale con o sin ella (queda nula).
-  if (elementRows.length > 0) await tx.insert(skillElementsBaseInsert).values(elementRows);
+  if (elementRows.length === 0) return;
+  // Solo la copia de una plantilla con enlaces nombra la columna; lo demás, como siempre.
+  if (input.withCatalogLinks && catalogElementIds.some((id) => id !== null)) {
+    await tx
+      .insert(skillElements)
+      .values(elementRows.map((element, index) => ({ ...element, catalogElementId: catalogElementIds[index] ?? null })));
+  } else {
+    // Sin la columna de enlace: el INSERT vale con o sin ella (queda nula).
+    await tx.insert(skillElementsBaseInsert).values(elementRows);
+  }
 }
 
 async function assertNameFree(
@@ -388,6 +474,12 @@ export async function createSkillTemplate(input: ActorInput & { command: unknown
       name = command.name;
       description = source.description;
       const sourceLevels = await loadTemplateLevels(tx, command.organizationId, source.id);
+      // La copia conserva los enlaces con la biblioteca tal cual, sin volver a
+      // comprobar que sigan visibles (ADR-0029 §3.1).
+      const links =
+        access.storageShape === "with_catalog_links"
+          ? await loadCatalogElementIds(tx, command.organizationId, source.id)
+          : new Map<string, string>();
       levels = sourceLevels.map((level) => ({
         name: level.name,
         description: level.description,
@@ -396,6 +488,7 @@ export async function createSkillTemplate(input: ActorInput & { command: unknown
           apparatus: element.apparatus,
           description: element.description,
           required: element.required,
+          catalogElementId: links.get(element.id) ?? null,
         })),
       }));
     }
@@ -419,7 +512,12 @@ export async function createSkillTemplate(input: ActorInput & { command: unknown
       })
       .returning({ id: skillTemplates.id, revision: skillTemplates.revision });
     if (!created) throw new OperationalError("FEATURE_NOT_AVAILABLE", "No se pudo guardar la plantilla", 503);
-    await insertStructure(tx, { organizationId: command.organizationId, templateId: created.id, levels });
+    await insertStructure(tx, {
+      organizationId: command.organizationId,
+      templateId: created.id,
+      levels,
+      withCatalogLinks: access.storageShape === "with_catalog_links",
+    });
     await appendAuditEntry(tx, {
       organizationId: command.organizationId,
       locationId: command.locationId,
@@ -440,6 +538,10 @@ export async function createSkillTemplate(input: ActorInput & { command: unknown
 
 function invalidStructure(message: string): OperationalError {
   return new OperationalError("INVALID_RELATION", message, 422);
+}
+
+function catalogLinkMismatch(): OperationalError {
+  return new OperationalError("INVALID_RELATION", CATALOG_LINK_MISMATCH_MESSAGE, 400);
 }
 
 export async function saveSkillTemplate(
@@ -467,6 +569,14 @@ export async function saveSkillTemplate(
         }
       }
     }
+    // Enlaces con la biblioteca (ADR-0029 §3.1): solo con la biblioteca activa
+    // (banderas, tablas y forma «with_catalog_links»). Sin ella, pedir un enlace
+    // es 503 y `null` o la ausencia del campo no tocan nada.
+    const elementsIn = command.levels.flatMap((level) => level.elements);
+    const libraryOn = access.storageShape === "with_catalog_links" && (await isElementLibraryAvailable(tx));
+    if (!libraryOn && elementsIn.some((element) => typeof element.catalogElementId === "string")) {
+      throw elementLibraryUnavailable();
+    }
     if (!command.archived) {
       await assertNameFree(tx, {
         organizationId: command.organizationId,
@@ -487,6 +597,9 @@ export async function saveSkillTemplate(
       .select(skillElementBaseColumns)
       .from(skillElements)
       .where(and(eq(skillElements.organizationId, command.organizationId), eq(skillElements.templateId, row.id)));
+    const storedLinks = libraryOn
+      ? await loadCatalogElementIds(tx, command.organizationId, row.id)
+      : new Map<string, string>();
     const activeLevelIds = new Set(existingLevels.filter((level) => !level.archivedAt).map((level) => level.id));
     const activeElementIds = new Set(
       existingElements.filter((element) => !element.archivedAt).map((element) => element.id)
@@ -506,6 +619,34 @@ export async function saveSkillTemplate(
           }
           keptElementIds.add(element.id);
         }
+      }
+    }
+
+    if (libraryOn) {
+      const storedApparatus = new Map(existingElements.map((element) => [element.id, element.apparatus] as const));
+      const checked = new Map<string, boolean>();
+      for (const element of elementsIn) {
+        const apparatus = element.apparatus ?? null;
+        const stored = element.id ? storedLinks.get(element.id) : undefined;
+        const sameApparatus = element.id ? storedApparatus.get(element.id) === apparatus : false;
+        if (element.catalogElementId === undefined) {
+          // Se conserva el enlace guardado, pero no con otro aparato.
+          if (stored && !sameApparatus) throw catalogLinkMismatch();
+          continue;
+        }
+        if (element.catalogElementId === null) continue;
+        // Volver a mandar el mismo enlace sin cambiar de aparato no se comprueba
+        // de nuevo: así se puede guardar un elemento que ya no está en la biblioteca.
+        if (stored === element.catalogElementId && sameApparatus) continue;
+        if (!apparatus) throw catalogLinkMismatch();
+        const key = `${element.catalogElementId}:${apparatus}`;
+        let linkable = checked.get(key);
+        if (linkable === undefined) {
+          linkable =
+            (await findLinkableCatalogElement(tx, element.catalogElementId, { discipline, apparatus })) !== null;
+          checked.set(key, linkable);
+        }
+        if (!linkable) throw catalogLinkMismatch();
       }
     }
 
@@ -564,11 +705,22 @@ export async function saveSkillTemplate(
           isRequired: element.required,
           updatedAt: now,
         };
+        // La columna de enlace solo se nombra con la biblioteca activa y si el campo llega.
+        const link =
+          libraryOn && element.catalogElementId !== undefined ? { catalogElementId: element.catalogElementId } : null;
         if (element.id) {
           await tx
             .update(skillElements)
-            .set(values)
+            .set(link ? { ...values, ...link } : values)
             .where(and(eq(skillElements.organizationId, command.organizationId), eq(skillElements.id, element.id)));
+        } else if (link) {
+          await tx.insert(skillElements).values({
+            id: randomUUID(),
+            organizationId: command.organizationId,
+            templateId: row.id,
+            ...values,
+            catalogElementId: link.catalogElementId,
+          });
         } else {
           await tx.insert(skillElementsBaseInsert).values({
             id: randomUUID(),

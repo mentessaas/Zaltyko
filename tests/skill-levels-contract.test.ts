@@ -222,9 +222,20 @@ describe("candidato SQL de niveles y progresión", () => {
     ]) {
       const source = read(path);
       expect(source, path).not.toMatch(/\.select\(\)\s*\.from\(skillElements\)/);
-      expect(source, path).not.toMatch(/\.insert\(skillElements\)/);
       expect(source, path).not.toMatch(/\.returning\(\)/);
+      if (path.endsWith("templates.ts")) continue;
+      expect(source, path).not.toMatch(/\.insert\(skillElements\)/);
     }
+    // Las plantillas solo dan de alta con la tabla completa al copiar o al
+    // enlazar con la biblioteca (forma «with_catalog_links»): esas dos altas
+    // ponen el enlace de forma explícita.
+    const templates = read("src/modules/skill-levels/application/skill-levels/templates.ts");
+    const fullInserts = [...templates.matchAll(/\.insert\(skillElements\)[\s\S]*?\);\n/g)].map((match) => match[0]);
+    expect(fullInserts).toHaveLength(2);
+    for (const insert of fullInserts) expect(insert).toContain("catalogElementId");
+    expect(templates).toMatch(/input\.withCatalogLinks && catalogElementIds\.some\(/);
+    expect(templates).toMatch(/const link =\s*libraryOn && element\.catalogElementId !== undefined/);
+    expect(templates).toMatch(/const libraryOn = access\.storageShape === "with_catalog_links" &&/);
   });
 
   it("repite en Drizzle cada CHECK con el mismo nombre y la misma expresión", () => {

@@ -138,6 +138,25 @@ describe("validación de órdenes", () => {
     expect(saveTemplateCommandSchema.safeParse({ ...base, levels: [level({ elements: [{ name: "x", apparatus: "trampoline" }] })] }).success).toBe(false);
   });
 
+  it("el enlace con la biblioteca es opcional: ausente, null o un uuid; cualquier otra cosa es un error", () => {
+    const base = { ...scope, expectedRevision: 1, name: "Base" };
+    const withLink = (catalogElementId: unknown) =>
+      saveTemplateCommandSchema.safeParse({
+        ...base,
+        levels: [level({ elements: [{ name: "Rondada", apparatus: "vault", catalogElementId }] })],
+      });
+    const absent = saveTemplateCommandSchema.parse({ ...base, levels: [level()] });
+    // Ausente sigue ausente: el servicio lo lee como «conservar el enlace guardado».
+    expect("catalogElementId" in absent.levels[0]!.elements[0]!).toBe(false);
+    const removed = withLink(null);
+    expect(removed.success && removed.data.levels[0]!.elements[0]!.catalogElementId).toBeNull();
+    const linked = withLink("4f1c2a3b-5d6e-4f70-8a9b-0c1d2e3f4a5b");
+    expect(linked.success && linked.data.levels[0]!.elements[0]!.catalogElementId).toBe("4f1c2a3b-5d6e-4f70-8a9b-0c1d2e3f4a5b");
+    expect(withLink("no-es-un-uuid").success).toBe(false);
+    expect(withLink("").success).toBe(false);
+    expect(withLink(12).success).toBe(false);
+  });
+
   it("rechaza ids repetidos y más de 300 elementos por plantilla", () => {
     const repeated = saveTemplateCommandSchema.safeParse({
       ...scope,
