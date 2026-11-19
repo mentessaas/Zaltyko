@@ -1300,7 +1300,9 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
 
         const [linked, plain] = copyView.levels[0]!.elements;
         await saveElements(copyView, [{ ...keep(linked!), catalogElementId: null }, keep(plain!)]);
-        expect((await get(copy.id)).levels[0]!.elements.map((element) => element.catalogLink)).toEqual([null, null]);
+        const unlinked = (await get(copy.id)).levels[0]!.elements;
+        // Sin enlace, el elemento no lleva la clave: la vista es la de siempre.
+        expect(unlinked.map((element) => "catalogLink" in element)).toEqual([false, false]);
         expect(await storedLinks(copy.id)).toEqual([
           ["Rondada de la academia", null],
           ["Elemento sin enlace", null],

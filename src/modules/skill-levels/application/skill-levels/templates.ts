@@ -166,8 +166,11 @@ async function loadCatalogElementIds(
 }
 
 /**
- * Añade a cada elemento su enlace con la biblioteca (o null). El elemento
- * retirado o de una edición anterior se sigue viendo con su aviso.
+ * Añade su enlace con la biblioteca solo a los elementos enlazados. Un
+ * elemento sin enlace se devuelve tal cual, sin la clave `catalogLink`: así la
+ * vista es idéntica a la de antes de la biblioteca y se puede reenviar al
+ * guardar (el esquema del elemento es estricto). El elemento retirado o de una
+ * edición anterior se sigue viendo con su aviso.
  */
 async function attachCatalogLinks(
   tx: TransactionClient,
@@ -182,7 +185,7 @@ async function attachCatalogLinks(
     ...level,
     elements: level.elements.map((element) => {
       const catalogId = ids.get(element.id);
-      if (!catalogId) return { ...element, catalogLink: null };
+      if (!catalogId) return element;
       const view = views?.get(catalogId);
       // La clave foránea impide que desaparezca; si aun así faltara, se avisa como retirado.
       const catalogLink: TemplateCatalogLink = view
