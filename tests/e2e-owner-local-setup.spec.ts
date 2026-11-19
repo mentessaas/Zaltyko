@@ -3736,8 +3736,66 @@ test.describe("Isolated local Supabase Owner setup", () => {
               "header a[href], header button, header summary, main h1, main h2, main h3, main h4, main p, main label, main button, main a[href], main summary"
             )
           ).filter(isVisible);
+          const inlineTextDiagnostics = {
+            visibleInlineElementCount: 0,
+            inlineZeroClientWidthCount: 0,
+            nonemptyInlineElementCount: 0,
+            measuredContainerCount: 0,
+            measuredFragmentCount: 0,
+            unmeasurableCount: 0,
+          };
           const textOverflow = textElements
-            .filter((element) => element.scrollWidth > element.clientWidth + 2)
+            .filter((element) => {
+              if (window.getComputedStyle(element).display !== "inline") {
+                return element.scrollWidth > element.clientWidth + 2;
+              }
+
+              inlineTextDiagnostics.visibleInlineElementCount += 1;
+              if (element.clientWidth === 0) {
+                inlineTextDiagnostics.inlineZeroClientWidthCount += 1;
+              }
+              if (!(element.textContent ?? "").trim()) return false;
+              inlineTextDiagnostics.nonemptyInlineElementCount += 1;
+
+              // Inline elements do not expose a useful clientWidth in every
+              // browser. Measure their rendered text fragments against the
+              // nearest ancestor that has a layout box instead.
+              let container = element.parentElement;
+              while (container) {
+                const display = window.getComputedStyle(container).display;
+                if (
+                  display !== "inline" &&
+                  display !== "contents" &&
+                  container.clientWidth > 0
+                ) {
+                  break;
+                }
+                container = container.parentElement;
+              }
+              if (!container) {
+                inlineTextDiagnostics.unmeasurableCount += 1;
+                return true;
+              }
+
+              const range = document.createRange();
+              range.selectNodeContents(element);
+              const fragments = Array.from(range.getClientRects());
+              if (fragments.length === 0) {
+                inlineTextDiagnostics.unmeasurableCount += 1;
+                return true;
+              }
+              inlineTextDiagnostics.measuredContainerCount += 1;
+              inlineTextDiagnostics.measuredFragmentCount += fragments.length;
+
+              const containerRect = container.getBoundingClientRect();
+              const contentLeft = containerRect.left + container.clientLeft;
+              const contentRight = contentLeft + container.clientWidth;
+              return fragments.some(
+                (fragment) =>
+                  fragment.left < contentLeft - 2 ||
+                  fragment.right > contentRight + 2
+              );
+            })
             .map(description);
           const outsideViewport = targets.filter(
             (target) => target.x < -1 || target.right > window.innerWidth + 1
@@ -3755,10 +3813,17 @@ test.describe("Isolated local Supabase Owner setup", () => {
             targets,
             overlaps,
             textOverflow,
+            inlineTextDiagnostics,
             outsideViewport,
             tooSmall,
           };
         });
+        console.info(
+          JSON.stringify({
+            viewportWidth: geometry.viewportWidth,
+            inlineTextDiagnostics: geometry.inlineTextDiagnostics,
+          })
+        );
         expect(geometry.viewportWidth).toBe(viewport.width);
         expect(geometry.documentScrollWidth).toBeLessThanOrEqual(viewport.width);
         expect(geometry.bodyScrollWidth).toBeLessThanOrEqual(viewport.width);
@@ -3770,6 +3835,10 @@ test.describe("Isolated local Supabase Owner setup", () => {
         expect(geometry.tooSmall).toEqual([]);
         expect(geometry.overlaps).toEqual([]);
         expect(geometry.textOverflow).toEqual([]);
+        expect(geometry.inlineTextDiagnostics.unmeasurableCount).toBe(0);
+        expect(geometry.inlineTextDiagnostics.measuredContainerCount).toBe(
+          geometry.inlineTextDiagnostics.nonemptyInlineElementCount
+        );
       }
       await activeArticle
         .locator("form")
