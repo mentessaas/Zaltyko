@@ -12,6 +12,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { DOCUMENT_TYPES } from "@/types/athletes";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { createSignedUrl, deleteFile } from "@/lib/supabase/storage-helpers";
+import { classifyAthleteDocumentStorageReference } from "@/lib/storage/storage-object-delete-guards";
 import { logger } from "@/lib/logger";
 import { withTransaction } from "@/lib/db-transactions";
 import { assertAcademyOperationalWritable, lockAcademyOperationalWrites } from "@/lib/limits";
@@ -180,7 +181,7 @@ export const DELETE = withTenant(async (request, context) => {
       return apiError(scope.reason ?? "ATHLETE_ACCESS_DENIED", "Athlete not found", 404);
     }
 
-    const deleted = await withTransaction(async (tx) => {
+    const deletion = await withTransaction(async (tx) => {
       await lockAcademyOperationalWrites(tx, scope.resource!.academyId);
       await assertAcademyOperationalWritable(context.tenantId!, scope.resource!.academyId, tx);
 
@@ -193,8 +194,33 @@ export const DELETE = withTenant(async (request, context) => {
           eq(athletes.academyId, scope.resource!.academyId),
           isNull(athletes.deletedAt),
         ))
+        .for("update")
         .limit(1);
-      if (!currentAthlete) return null;
+      if (!currentAthlete) return { kind: "not_found" as const };
+
+      const [document] = await tx
+        .select({ fileUrl: athleteDocuments.fileUrl })
+        .from(athleteDocuments)
+        .where(and(
+          eq(athleteDocuments.id, documentId),
+          eq(athleteDocuments.athleteId, athleteId),
+          eq(athleteDocuments.tenantId, context.tenantId!),
+        ))
+        .for("update")
+        .limit(1);
+      if (!document) return { kind: "not_found" as const };
+
+      const storageReference = classifyAthleteDocumentStorageReference(
+        document.fileUrl,
+        {
+          tenantId: context.tenantId!,
+          academyId: scope.resource!.academyId,
+          athleteId,
+        },
+      );
+      if (storageReference.kind === "invalid") {
+        return { kind: "unsafe_reference" as const };
+      }
 
       const [row] = await tx
         .delete(athleteDocuments)
@@ -202,17 +228,32 @@ export const DELETE = withTenant(async (request, context) => {
           eq(athleteDocuments.id, documentId),
           eq(athleteDocuments.athleteId, athleteId),
           eq(athleteDocuments.tenantId, context.tenantId!),
+          eq(athleteDocuments.fileUrl, document.fileUrl),
         ))
         .returning({ fileUrl: athleteDocuments.fileUrl });
-      return row ?? null;
-    });
-    if (!deleted) return apiError("DOCUMENT_NOT_FOUND", "Document not found", 404);
+      if (!row) return { kind: "not_found" as const };
 
-    // Keep Storage in sync with metadata. Legacy external URLs are not ours
-    // to delete; private paths are safe because the record was scope-checked.
-    if (deleted.fileUrl && !deleted.fileUrl.startsWith("http")) {
+      return {
+        kind: "deleted" as const,
+        storagePath: storageReference.kind === "private" ? storageReference.path : null,
+      };
+    });
+    if (deletion.kind === "not_found") {
+      return apiError("DOCUMENT_NOT_FOUND", "Document not found", 404);
+    }
+    if (deletion.kind === "unsafe_reference") {
+      return apiError(
+        "DOCUMENT_STORAGE_REFERENCE_UNSAFE",
+        "No se ha eliminado nada. La ruta privada del documento no pertenece a este atleta o no es válida.",
+        409,
+      );
+    }
+
+    // Legacy absolute URLs are metadata-only. Only a validated private path
+    // can reach this Storage cleanup.
+    if (deletion.storagePath) {
       try {
-        await deleteFile(deleted.fileUrl);
+        await deleteFile(deletion.storagePath);
       } catch (error) {
         // Metadata deletion remains successful; surface an operational signal
         // without making a user retry and risk duplicate records.

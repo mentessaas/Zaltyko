@@ -19,4 +19,18 @@ describe("assessment videos API P0 contract", () => {
     expect(source).toMatch(/apiError/);
     expect(source).toMatch(/400|413|415/);
   });
+
+  it("liga cada nueva clave al assessment y al ID de fila antes de subir", () => {
+    expect(source).toContain('`assessment-videos/${canonicalAssessmentId}/${videoId}`');
+    expect(source.indexOf("const videoId = crypto.randomUUID()"))
+      .toBeLessThan(source.indexOf("await uploadFile(file, generatedStoragePath"));
+  });
+
+  it("no borra metadata ni Storage si la referencia almacenada no acredita la clave exacta", () => {
+    expect(source).toContain("resolveAssessmentVideoStoragePath");
+    expect(source).toContain('.for("update")');
+    expect(source).toContain("eq(assessmentVideos.url, video.url)");
+    expect(source).not.toContain("extractUploadPath");
+    expect(source).toContain('"VIDEO_STORAGE_REFERENCE_UNSAFE"');
+  });
 });

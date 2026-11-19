@@ -1,5 +1,7 @@
 import { withTenant } from "@/lib/authz";
-import { uploadFile, generateFilePath, deleteFile, extractUploadPath } from "@/lib/supabase/storage-helpers";
+import { uploadFile, generateFilePath, deleteFile } from "@/lib/supabase/storage-helpers";
+import { resolveAssessmentVideoStoragePath } from "@/lib/storage/storage-object-delete-guards";
+import { withTransaction } from "@/lib/db-transactions";
 import { db } from "@/db";
 import { assessmentVideos, athleteAssessments } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -82,20 +84,29 @@ export const POST = withTenant(async (request, context) => {
       return apiError("FILE_TOO_LARGE", "El video no puede ser mayor a 50MB", 400);
     }
 
-    // Generate unique path
-    const fileName = generateFilePath(context.tenantId, academyId, "assessment-videos", file.name);
+    // Bind the Storage key to both the authorized assessment and its row
+    // before upload so future cleanup can verify the exact association.
+    const videoId = crypto.randomUUID();
+    const canonicalAssessmentId = assessment.id;
+    const generatedStoragePath = generateFilePath(
+      context.tenantId,
+      academyId,
+      `assessment-videos/${canonicalAssessmentId}/${videoId}`,
+      file.name,
+    );
 
     // Upload to Supabase Storage
-    const { url, path } = await uploadFile(file, fileName, {
+    const { url, path } = await uploadFile(file, generatedStoragePath, {
       contentType: file.type,
       upsert: false,
     });
-
+    if (path !== generatedStoragePath) {
+      throw new Error("Storage returned a path different from the generated key");
+    }
     // Save to database
-    const videoId = crypto.randomUUID();
     await db.insert(assessmentVideos).values({
       id: videoId,
-      assessmentId: assessmentId,
+      assessmentId: canonicalAssessmentId,
       url: url,
       title: file.name.replace(/\.[^/.]+$/, ""),
     });
@@ -106,7 +117,11 @@ export const POST = withTenant(async (request, context) => {
       path,
     });
   } catch (error: unknown) {
-    logger.error("Error uploading assessment video:", error);
+    // Upload or insert may have committed before a response was lost. Keep
+    // the ID-bound object for later reconciliation; never compensate here.
+    logger.error("Error uploading assessment video:", undefined, {
+      errorType: error instanceof Error ? error.name : typeof error,
+    });
     return apiError("UPLOAD_FAILED", "Error al subir el video", 500);
   }
 });
@@ -124,62 +139,90 @@ export const DELETE = withTenant(async (request, context) => {
     }
     const videoId = query.data.id;
 
-    // Find video and verify tenant access
-    const [video] = await db
-      .select({ id: assessmentVideos.id, assessmentId: assessmentVideos.assessmentId, url: assessmentVideos.url })
-      .from(assessmentVideos)
-      .where(eq(assessmentVideos.id, videoId))
-      .limit(1);
+    const deletion = await withTransaction(async (tx) => {
+      const [video] = await tx
+        .select({ id: assessmentVideos.id, assessmentId: assessmentVideos.assessmentId, url: assessmentVideos.url })
+        .from(assessmentVideos)
+        .where(eq(assessmentVideos.id, videoId))
+        .for("update")
+        .limit(1);
+      if (!video) return { kind: "not_found" as const };
 
-    if (!video) {
+      const [assessment] = await tx
+        .select({
+          id: athleteAssessments.id,
+          tenantId: athleteAssessments.tenantId,
+          academyId: athleteAssessments.academyId,
+          athleteId: athleteAssessments.athleteId,
+        })
+        .from(athleteAssessments)
+        .where(and(eq(athleteAssessments.id, video.assessmentId), eq(athleteAssessments.tenantId, context.tenantId!)))
+        .for("update")
+        .limit(1);
+      if (!assessment) return { kind: "forbidden" as const, reason: "FORBIDDEN" };
+
+      const scope = await verifyProgressAccess({
+        tenantId: context.tenantId!,
+        academyId: assessment.academyId,
+        athleteId: assessment.athleteId,
+        profile: context.profile,
+      });
+      if (!scope.allowed) {
+        return { kind: "forbidden" as const, reason: scope.reason ?? "FORBIDDEN" };
+      }
+
+      const storagePath = resolveAssessmentVideoStoragePath({
+        storedUrl: video.url,
+        configuredSupabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        tenantId: assessment.tenantId,
+        academyId: assessment.academyId,
+        assessmentId: assessment.id,
+        videoId: video.id,
+      });
+      if (!storagePath) return { kind: "unsafe_reference" as const };
+
+      const [deletedVideo] = await tx
+        .delete(assessmentVideos)
+        .where(and(
+          eq(assessmentVideos.id, video.id),
+          eq(assessmentVideos.assessmentId, video.assessmentId),
+          eq(assessmentVideos.url, video.url),
+        ))
+        .returning({ id: assessmentVideos.id });
+      if (!deletedVideo) return { kind: "changed" as const };
+
+      return { kind: "deleted" as const, storagePath };
+    });
+
+    if (deletion.kind === "not_found") {
       return apiError("VIDEO_NOT_FOUND", "Video no encontrado", 404);
     }
-
-    // Verify tenant via assessment
-    const [assessment] = await db
-      .select({
-        id: athleteAssessments.id,
-        tenantId: athleteAssessments.tenantId,
-        academyId: athleteAssessments.academyId,
-        athleteId: athleteAssessments.athleteId,
-      })
-      .from(athleteAssessments)
-      .where(and(eq(athleteAssessments.id, video.assessmentId), eq(athleteAssessments.tenantId, context.tenantId)))
-      .limit(1);
-
-    if (!assessment) {
-      return apiError("FORBIDDEN", "No tienes acceso a este video", 403);
+    if (deletion.kind === "forbidden") {
+      return apiError(deletion.reason, "No tienes acceso a este video", 403);
     }
-    const scope = await verifyProgressAccess({
-      tenantId: context.tenantId,
-      academyId: assessment.academyId,
-      athleteId: assessment.athleteId,
-      profile: context.profile,
-    });
-    if (!scope.allowed) {
-      return apiError(scope.reason ?? "FORBIDDEN", "No tienes acceso a este video", 403);
+    if (deletion.kind === "unsafe_reference" || deletion.kind === "changed") {
+      return apiError(
+        "VIDEO_STORAGE_REFERENCE_UNSAFE",
+        "No se ha eliminado nada. La referencia del video no acredita un objeto ligado a esta evaluación.",
+        409,
+      );
     }
 
-    // Delete from database
-    await db.delete(assessmentVideos).where(eq(assessmentVideos.id, videoId));
-
-    const storagePath = extractUploadPath(video.url);
-    if (storagePath) {
-      try {
-        await deleteFile(storagePath);
-      } catch (storageError) {
-        // El registro ya está eliminado; registrar la fuga para limpieza
-        // operativa sin forzar al usuario a repetir una operación destructiva.
-        logger.warn("Assessment video metadata deleted but storage cleanup failed", {
-          error: storageError instanceof Error ? storageError.message : "unknown",
-          videoId,
-        });
-      }
+    try {
+      await deleteFile(deletion.storagePath);
+    } catch (storageError) {
+      // Metadata is already deleted; keep the existing success contract and
+      // log only a safe error class, never the stored URL or object key.
+      logger.warn("Assessment video metadata deleted but storage cleanup failed", {
+        errorType: storageError instanceof Error ? storageError.name : typeof storageError,
+      });
     }
 
     return apiSuccess({ success: true });
   } catch (error: unknown) {
-    logger.error("Error deleting assessment video:", error);
+    logger.error("Error deleting assessment video:", undefined, {
+      errorType: error instanceof Error ? error.name : typeof error,
+    });
     return apiError("DELETE_FAILED", "Error al eliminar el video", 500);
   }
 });
